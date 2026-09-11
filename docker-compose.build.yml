@@ -1,0 +1,11 @@
+# Development override — build from this checkout instead of pulling the published image.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+#
+# `image:` is deliberately NOT repeated here: the base file names it, so what you
+# build lands under the tag that file already names, and a later plain
+# `docker compose up -d` runs what you just built rather than quietly pulling a
+# different thing under the same name.
+services:
+  console:
+    build: .

@@ -1,0 +1,32 @@
+# The console, deployed beside zz-stack — never inside its compose file.
+#
+# WHY SEPARATE. zz-stack's compose is part of its release: the image tags are
+# literals, the gate checks them, and `scripts/release.mjs` builds and verifies
+# every service in it. Folding the console in would put a second repository's
+# build into that release and make every console change a platform release. Two
+# files, two lifecycles, one host.
+#
+# WHAT SEPARATE NEVER MEANT. It is still released by zz-stack's
+# `scripts/release.mjs`, as its own component with its own version and its own
+# image — because it ships to the same host, in front of the same people. For a
+# while it was not: the console reached production by rsyncing this source tree
+# and building on the host, which is how production stopped running published
+# images without anybody deciding to. THIS FILE IS THE ONLY THING THAT GOES TO
+# THE HOST; the release copies it there and pulls the image it names.
+#
+# The version below is a literal, not a required .env entry, for the same reason
+# zz-stack's is: a host that receives this file needs nothing else typed to run
+# the right thing. The release bumps it together with package.json.
+#
+# BOUND TO LOOPBACK. Caddy on the host is the only way in, and it is what
+# terminates TLS and splits the path: /auth/* and /api/* go to the gateway,
+# everything else comes here. A container published to 0.0.0.0 would be a second
+# unauthenticated door onto the same box.
+services:
+  console:
+    image: ghcr.io/zhixuan312/zz-stack-dashboard:${ZZ_DASHBOARD_VERSION:-0.3.5}
+    restart: unless-stopped
+    ports: ["127.0.0.1:3100:3000"]
+    # No environment at all, and that is not an omission: the app resolves its
+    # API against the page's own origin, so there is nothing to configure per
+    # deployment and nothing to get wrong between UAT and production.

@@ -1,0 +1,99 @@
+'use client';
+
+import { Panel } from '@/components/Panel';
+import { Query } from '@/components/Query';
+import { Badge, Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui';
+import { showToast } from '@/components/ui/toast';
+import { useConsole, type MyTeams } from '@/lib/api';
+import { useConsoleMutation } from '@/lib/mutate';
+
+/**
+ * Your own teams, and which one you act for — the browser counterpart of
+ * `my_teams` (server.ts, sharing `myTeamsSummary` with settings.ts's route).
+ *
+ * IT USED TO BE READ-ONLY, on the reasoning that switching was "a per-client concept
+ * (`switch_team` over MCP moves an agent's own session)" and a control here "would only
+ * ever act on the wrong session". That was wrong about where the fact lives. The team a
+ * person acts for is `principal.active_team_id`, which `chosenTeam` (identity.ts) reads on
+ * every request from every client — so it is a property of the PERSON, and moving it moves
+ * the browser and their agents alike. There is one acting team, and this is where you set
+ * it.
+ *
+ * WHY IT MATTERS MORE THAN A CONVENIENCE: this console shows one team at a time, and every
+ * page is scoped to the active one by the gateway. Without a control here, a member in two
+ * teams could see one of them and had no way in this product to reach the other.
+ */
+export function TeamsPanel() {
+  const teams = useConsole<MyTeams>('/settings/me/teams');
+  // `useConsoleMutation` already invalidates the whole `['console']` key on success, which
+  // is the honest blast radius here: EVERY read this console makes is scoped by the acting
+  // team, so every one of them is stale the moment this returns — not just `/me`. Naming
+  // the affected paths instead would be a list to keep in step with every page ever added.
+  const switchTo = useConsoleMutation<{ actingFor: string }, { team: string }>(
+    '/settings/me/active-team',
+  );
+
+  return (
+    <Panel title="Teams" aside="which one you act for right now" padded={false}>
+      <Query query={teams}>
+        {(t) => (
+          <>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Team</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Acting</TableHead>
+                  <TableHead className="text-right">{null}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {/* A PERSON CAN BE ON NO TEAM — a principal exists before anybody adds them to
+                    one, and this table rendered its headers over nothing for them. Saying so is
+                    the difference between "you have no teams" and a screen that looks broken. */}
+                {t.teams.length === 0 ? (
+                  <TableRow>
+                    <TableCell className="text-ink-faint" colSpan={4}>
+                      You are not a member of any team yet. A team admin adds you.
+                    </TableCell>
+                  </TableRow>
+                ) : null}
+                {t.teams.map((row) => (
+                  <TableRow key={row.team}>
+                    <TableCell className="font-mono text-xs">{row.team}</TableCell>
+                    <TableCell><Badge variant={row.role === 'admin' ? 'accent' : 'neutral'} size="sm">{row.role}</Badge></TableCell>
+                    <TableCell>{row.active ? <Badge variant="sage" dot size="sm">acting</Badge> : null}</TableCell>
+                    <TableCell className="text-right">
+                      {/* No button on the row you are already acting for — an action whose
+                          effect is "stay where you are" is a control that does nothing. */}
+                      {row.active ? null : (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          disabled={switchTo.isPending}
+                          onClick={() =>
+                            switchTo.mutate(
+                              { team: row.team },
+                              {
+                                onSuccess: (r) =>
+                                  showToast({ type: 'success', message: `Now acting for ${r.actingFor}` }),
+                                onError: (e) => showToast({ type: 'error', message: e.message }),
+                              },
+                            )
+                          }
+                        >
+                          Act as this team
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            {t.note ? <p className="border-t border-line px-4 py-3 text-xs text-ink-faint">{t.note}</p> : null}
+          </>
+        )}
+      </Query>
+    </Panel>
+  );
+}
