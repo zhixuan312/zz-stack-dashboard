@@ -1,5 +1,5 @@
 # ── LOAD-BEARING: do not delete the `!*` below ───────────────────────────
-# When this repo is cloned inside the mma-parent workspace, the parent's
+# When this repo is cloned inside a parent workspace, the parent's
 # .gitignore is a single `*` (the wrapper directory excludes everything because
 # its real source lives in nested repos).
 #

@@ -1,78 +1,53 @@
 # Contributing
 
-This is the admin console for [zz-stack](https://github.com/zhixuan312/zz-stack).
-The platform's own contributing guide covers the shared house rules; what follows is
-what differs here.
+This is the admin console for [zz-stack](https://github.com/zhixuan312/zz-stack) — a Next.js
+app that talks to the platform's `/api/console/*` routes. It has no database of its own and no
+server-side platform logic: everything it shows comes from the gateway, behind a passkey.
 
-## The gate is the contract
+## Getting it running
 
 ```bash
 pnpm install
-node scripts/gate.mjs   # this repo's own gate
-pnpm typecheck && pnpm test && pnpm lint
+pnpm dev                  # against a gateway you can reach
 ```
-
-Everything this project believes about itself is a check in there, and every check
-encodes a failure that actually happened. They are named as properties rather than as
-test cases — "a hostile document cannot become script in a reader's browser", "every
-route this gateway serves has a caller", "redaction lets no secret through, on the real
-predicate" — so the output reads as a list of claims the repository is currently
-entitled to make.
-
-**A red gate is never bypassed.** If a check is wrong, fix the check and say in its
-comment what it was wrong about; a check nobody trusts is worse than no check. If you
-add behaviour, add the check that would have caught its absence.
-
-`scripts/gate.mjs` is an ORDER, not a list — 26 `import` lines, one per subject. A
-module missing from it is a check that silently does not run, so `report()` refuses to
-pass unless the number of checks written under `scripts/gate/checks/` equals the number
-that ran.
-
-## Running it
 
 ```bash
-npm run build                                    # tsc -b, project references
-npm run doctor                                   # where a deployment stops matching this checkout
-node scripts/doctor.mjs --layer repo,image       # offline; no host needed
+pnpm typecheck            # tsc --noEmit
+pnpm lint                 # eslint
+pnpm test                 # vitest, 151 tests
+pnpm gate                 # this repo's own gate — run it last
 ```
 
-For a local stack from this checkout rather than published images:
+`pnpm gate` is the one worth knowing about. It is seven checks, and like the platform's they
+are written as properties rather than test names — *"a timestamp is rendered through
+`<Time>`"*, *"no map is keyed by the names of one flow's stages"*. They exist because each one
+encodes something that broke here once. A red gate is never bypassed: if a check is wrong, fix
+the check and say in its comment what it was wrong about.
 
-```bash
-cd deploy
-docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+## Where things are
+
 ```
-
-Server install and day-2 operations are `deploy/README.md`. That path needs no
-repository, no toolchain and no build — it runs published images from a release bundle.
-
-## Where things live
-
-`docs/repository-architecture.md` is the answer, and it is kept current because a gate
-check reads it. The short version: `packages/` is shared code, `services/` is the two
-processes, `catalog/` is what a team installs, `skills/` is what everyone gets,
-`scripts/` is this repository's own lifecycle.
-
-**No source file exceeds 700 lines,** and the gate enforces it. The number was measured
-rather than chosen: above it, every file here held a whole second subject. There is no
-exemption list, because a list of files allowed to be large is a list nobody prunes.
+app/         Next routes. (dash)/ is everything behind the passkey.
+src/         components, hooks and lib — the parts a route composes.
+tests/       vitest, colocated by subject rather than by file.
+scripts/     gate.mjs and the two design audits.
+docs/        written for somebody who does not work on this every day.
+```
 
 ## House rules
 
+- **Dates and times go through `<Time>`.** Not `toLocaleString`, not a raw ISO string. A
+  reader eight hours from the server read 04:43 when it was 12:43 for them, on every label,
+  and the gate now refuses the direct call.
+- **No flow's stage names in a map key.** A component keyed on one flow's stages silently
+  shows nothing for the next flow. The gate checks this too.
 - **Branches are `master` or `release/<version>`.** Nothing else.
-- **No backward-compatibility scaffolding** — no shims, no deprecated markers, no
-  re-exports from old locations. Change it and say what broke.
-- **Comments explain why, not what**, and a comment that states a fact the code can
-  check is a check waiting to be written.
-- **Never claim a check that does not exist.** A comment asserting "this is verified
-  before it ships" is a promise somebody will rely on; either write the check or delete
-  the sentence. This has gone wrong here before.
+- **No backward-compatibility scaffolding** — change it and say what broke.
+- The version and its compose literal move together; the platform's release script bumps both.
 
 ## Releasing
 
-`node scripts/release.mjs --preflight` reports every fact about a release that is not a
-judgement call. The release itself gates, builds, pushes, deploys and then verifies
-against the live deployment, rolling back on a disagreement. It ends three ways, not
-two: agreement tags, disagreement rolls back, and probes that could not RUN leave the
-version live and untagged — because rolling back on those undoes a release for a reason
-that was never about it, and tagging would stamp a version nothing verified.
+The console is released by **zz-stack's** `scripts/release.mjs`, as its own component with its
+own version and its own published image. It is not released from here, and it is not built on
+the host: `docker-compose.yml` names a published image and that file is the only thing that
+reaches a server.
