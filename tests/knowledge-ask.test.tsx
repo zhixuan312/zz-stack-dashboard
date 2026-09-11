@@ -18,20 +18,20 @@ const mockedMutate = vi.mocked(consoleMutate);
  */
 describe('citationHref', () => {
   it('routes a knowledge node to the knowledge page, opened by team/path', () => {
-    expect(citationHref('_knowledge/nodes/0007-x.md', 'product-1')).toBe(
-      '/knowledge?open=product-1%2Fnodes%2F0007-x.md',
+    expect(citationHref('_knowledge/nodes/0007-x.md', 'team-one')).toBe(
+      '/knowledge?open=team-one%2Fnodes%2F0007-x.md',
     );
   });
 
   it('routes any other document to its initiative page', () => {
-    expect(citationHref('2026-09-08-console-as-an-interface/plan.md', 'product-1')).toBe(
-      '/initiatives/product-1/2026-09-08-console-as-an-interface/plan.md',
+    expect(citationHref('2026-09-08-console-as-an-interface/plan.md', 'team-one')).toBe(
+      '/initiatives/team-one/2026-09-08-console-as-an-interface/plan.md',
     );
   });
 
   it('carries a nested path through unencoded slashes intact', () => {
-    expect(citationHref('init-1/sources/foo.md', 'product-1')).toBe(
-      '/initiatives/product-1/init-1/sources/foo.md',
+    expect(citationHref('init-1/sources/foo.md', 'team-one')).toBe(
+      '/initiatives/team-one/init-1/sources/foo.md',
     );
   });
 });
@@ -61,7 +61,7 @@ describe('KnowledgeAsk', () => {
   });
 
   it('disables Ask until there is a non-blank question and a resolved team', () => {
-    render(<KnowledgeAsk team="product-1" />);
+    render(<KnowledgeAsk team="team-one" />);
     const button = screen.getByRole('button', { name: 'Ask' });
     expect(button).toBeDisabled();
   });
@@ -74,7 +74,7 @@ describe('KnowledgeAsk', () => {
 
   it('enables Ask once a question is typed', async () => {
     const user = userEvent.setup();
-    render(<KnowledgeAsk team="product-1" />);
+    render(<KnowledgeAsk team="team-one" />);
     await user.type(screen.getByRole('textbox'), 'what did we decide about retries?');
     expect(screen.getByRole('button', { name: 'Ask' })).toBeEnabled();
   });
@@ -85,14 +85,14 @@ describe('KnowledgeAsk', () => {
       citations: [{ path: 'init-1/plan.md', title: 'The plan' }],
     });
     const user = userEvent.setup();
-    render(<KnowledgeAsk team="product-1" />);
+    render(<KnowledgeAsk team="team-one" />);
     await user.type(screen.getByRole('textbox'), 'what did we decide about retries?');
     await user.click(screen.getByRole('button', { name: 'Ask' }));
 
     const link = await screen.findByRole('link', { name: 'The plan' });
-    expect(link).toHaveAttribute('href', '/initiatives/product-1/init-1/plan.md');
+    expect(link).toHaveAttribute('href', '/initiatives/team-one/init-1/plan.md');
     expect(mockedMutate).toHaveBeenCalledWith(
-      '/ask?team=product-1',
+      '/ask?team=team-one',
       { question: 'what did we decide about retries?' },
     );
   });
@@ -103,7 +103,7 @@ describe('KnowledgeAsk', () => {
       citations: [{ path: null, title: 'A shared lesson' }],
     });
     const user = userEvent.setup();
-    render(<KnowledgeAsk team="product-1" />);
+    render(<KnowledgeAsk team="team-one" />);
     await user.type(screen.getByRole('textbox'), 'what has the platform learned?');
     await user.click(screen.getByRole('button', { name: 'Ask' }));
 
@@ -124,7 +124,7 @@ describe('KnowledgeAsk', () => {
       new ApiError(503, 'the ask feature has no LLM endpoint configured — set PLATFORM_BASE_MODEL'),
     );
     const user = userEvent.setup();
-    render(<KnowledgeAsk team="product-1" />);
+    render(<KnowledgeAsk team="team-one" />);
     await user.type(screen.getByRole('textbox'), 'what did we decide?');
     await user.click(screen.getByRole('button', { name: 'Ask' }));
 

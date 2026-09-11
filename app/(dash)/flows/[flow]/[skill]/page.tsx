@@ -48,8 +48,8 @@ export default function SkillPage({ params }: { params: Promise<{ flow: string; 
 
   const skill = list.data?.skills.find((s) => s.name === name);
   const detail = useConsole<SkillDetail>(known ? `/skills/${name}` : null);
-  // THE SKILL ITSELF. This page could report that sm-intent scored 3.42 and never show
-  // a line of what sm-intent asks for — a score about something the reader cannot see.
+  // THE SKILL ITSELF. This page could report that ops-intent scored 3.42 and never show
+  // a line of what ops-intent asks for — a score about something the reader cannot see.
   const text = useConsole<SkillText>(known ? `/flows/${flowName}/skills/${name}` : null).data;
   const view = useSkillView(!!text?.references.length);
 
@@ -222,7 +222,7 @@ function Conclusion({ skill, detail }: { skill: Skill; detail: SkillDetail }) {
             ? <>Mean {skill.evaluated?.mean?.toFixed(2)} across {scored.length} dimensions. The weakest is{' '}
                 <b className="text-ink">{worst.name}</b> at {worst.mean?.toFixed(2)}
                 {worst.low ? <>, with {worst.low} document{worst.low > 1 ? 's' : ''} scoring ≤1</> : null}.</>
-            : <>Nothing scores this skill. {skill.name === 'sm-build'
+            : <>Nothing scores this skill. {skill.name === 'ops-build'
                 ? 'It is the only step that writes, and it is unevaluated — which is the honest reason the flow puts three human approvals in front of it.'
                 : 'Writing a rubric for it is a decision nobody has made.'}</>}
         </li>

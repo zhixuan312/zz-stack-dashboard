@@ -50,7 +50,7 @@ one-time enrolment link for it. The first one comes from the host, because befor
 holds a passkey there is no superadmin session to mint it with:
 
 ```sh
-./deploy/issue-enrolment.sh someone@example.com     # in zz-stack, on the host
+./issue-enrolment.sh someone@example.com     # on the host, from deploy/
 ```
 
 Later ones come from the console, or from `issue_enrolment` on `/manage/mcp`.

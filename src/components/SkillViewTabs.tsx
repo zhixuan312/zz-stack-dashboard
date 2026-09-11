@@ -33,7 +33,7 @@ export function useSkillView(hasReferences: boolean): SkillView {
  * was there. The tab bar says it is.
  *
  * THE URL IS THE STATE, like the period and version pickers — a view of a skill is then
- * linkable, and "look at what sm-plan scored" is a link rather than an instruction.
+ * linkable, and "look at what ops-plan scored" is a link rather than an instruction.
  */
 export function SkillViewTabs({ skill, view }: { skill: SkillText | undefined; view: SkillView }) {
   const router = useRouter();

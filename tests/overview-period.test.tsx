@@ -27,7 +27,7 @@ import OverviewPage from '../app/(dash)/page';
 
 const ME = {
   email: 'a@b.example.com', name: 'A', role: 'superadmin', mayRead: true, superadmin: true,
-  via: 'session', teams: [{ slug: 'product-1', role: 'admin' }], activeTeam: 'product-1',
+  via: 'session', teams: [{ slug: 'team-one', role: 'admin' }], activeTeam: 'team-one',
 };
 
 // The gateway's real shape, hour-grained — the one the live page choked on.

@@ -90,7 +90,7 @@ export default function SkillScoresPage({ params }: { params: Promise<{ flow: st
               <EmptyState
                 icon={<FlaskConical />}
                 title="This skill produces no document"
-                description={`No evaluation has ever named a document for ${name}, so there is no set of documents to list. ${name === 'sm-build' ? 'For sm-build that is structural: it produces side effects in other systems, not a document a judge can read.' : 'A rubric for it is a decision nobody has made.'}`}
+                description={`No evaluation has ever named a document for ${name}, so there is no set of documents to list. ${name === 'ops-build' ? 'For ops-build that is structural: it produces side effects in other systems, not a document a judge can read.' : 'A rubric for it is a decision nobody has made.'}`}
               />
             </Panel>
           ) : (

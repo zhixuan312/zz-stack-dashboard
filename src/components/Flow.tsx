@@ -72,7 +72,7 @@ function flowCaption(
  * resolve, which is the only case where ops-flow's vocabulary is the best guess available. */
 export function FlowMini({ at, of, name }: { at: number; of?: number; name?: string }) {
   const total = of && of > 0 ? of : STAGES.length;
-  const label = name?.replace(/^zz-|^sm-/, '').replace(/-/g, ' ')
+  const label = name?.replace(/^zz-|^ops-/, '').replace(/-/g, ' ')
     ?? STAGES[Math.min(at, STAGES.length) - 1]?.name
     ?? `stage ${at}`;
   return (

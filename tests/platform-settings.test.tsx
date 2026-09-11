@@ -13,7 +13,7 @@ import type { Me } from '@/lib/api';
  * of that rule.
  */
 const base: Omit<Me, 'teams' | 'superadmin'> = {
-  email: 'a@b.example.com', name: 'A', role: 'member', mayRead: true, via: 'session', activeTeam: 'product_group_1',
+  email: 'a@b.example.com', name: 'A', role: 'member', mayRead: true, via: 'session', activeTeam: 'team_one',
 };
 
 function mockFetch(me: Me) {
@@ -48,7 +48,7 @@ describe('PlatformSection — who sees the platform controls', () => {
   it('does not render for a team admin', async () => {
     // Administering a team is not platform authority — see `superOnly` (admin.ts) and its
     // own scope-check.ts matrix, which refuses exactly this identity.
-    const me: Me = { ...base, superadmin: false, teams: [{ slug: 'product_group_1', role: 'admin' }] };
+    const me: Me = { ...base, superadmin: false, teams: [{ slug: 'team_one', role: 'admin' }] };
     const { restore, container } = renderSection(me);
     try {
       await waitFor(() => expect(global.fetch).toHaveBeenCalled());
@@ -60,7 +60,7 @@ describe('PlatformSection — who sees the platform controls', () => {
   });
 
   it('does not render for a plain member', async () => {
-    const me: Me = { ...base, superadmin: false, teams: [{ slug: 'product_group_1', role: 'member' }] };
+    const me: Me = { ...base, superadmin: false, teams: [{ slug: 'team_one', role: 'member' }] };
     const { restore, container } = renderSection(me);
     try {
       await waitFor(() => expect(global.fetch).toHaveBeenCalled());

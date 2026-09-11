@@ -102,7 +102,7 @@ describe('canReviseFromThread', () => {
 describe('DocumentThreadRevise', () => {
   it('disables the control for an empty thread, and a click on a disabled button does nothing', async () => {
     const user = userEvent.setup();
-    renderWithClient(<DocumentThreadRevise team="product-1" initiative="init-1" path="spec.md" disabled />);
+    renderWithClient(<DocumentThreadRevise team="team-one" initiative="init-1" path="spec.md" disabled />);
     const button = screen.getByRole('button', { name: 'Revise from this discussion' });
     expect(button).toBeDisabled();
     await user.click(button);
@@ -112,13 +112,13 @@ describe('DocumentThreadRevise', () => {
   });
 
   it('enables the control once the thread has something in it', () => {
-    renderWithClient(<DocumentThreadRevise team="product-1" initiative="init-1" path="spec.md" disabled={false} />);
+    renderWithClient(<DocumentThreadRevise team="team-one" initiative="init-1" path="spec.md" disabled={false} />);
     expect(screen.getByRole('button', { name: 'Revise from this discussion' })).not.toBeDisabled();
   });
 
   it('swaps to an inline confirmation, never a modal, on click — and names the consequence', async () => {
     const user = userEvent.setup();
-    renderWithClient(<DocumentThreadRevise team="product-1" initiative="init-1" path="spec.md" disabled={false} />);
+    renderWithClient(<DocumentThreadRevise team="team-one" initiative="init-1" path="spec.md" disabled={false} />);
     await user.click(screen.getByRole('button', { name: 'Revise from this discussion' }));
     expect(screen.getByText(/write a new draft from this discussion and clear the current approval/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Confirm' })).toBeInTheDocument();
@@ -128,7 +128,7 @@ describe('DocumentThreadRevise', () => {
 
   it('cancels back to the plain button without ever calling the route', async () => {
     const user = userEvent.setup();
-    renderWithClient(<DocumentThreadRevise team="product-1" initiative="init-1" path="spec.md" disabled={false} />);
+    renderWithClient(<DocumentThreadRevise team="team-one" initiative="init-1" path="spec.md" disabled={false} />);
     await user.click(screen.getByRole('button', { name: 'Revise from this discussion' }));
     await user.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(screen.getByRole('button', { name: 'Revise from this discussion' })).toBeInTheDocument();

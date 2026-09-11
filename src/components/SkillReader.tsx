@@ -9,8 +9,8 @@ import type { SkillText } from '@/lib/api';
  *
  * Shared by both skill pages, because a skill is one kind of thing wherever it lives:
  * a flow runs it, a block publishes it, and either way the useful thing to do with one
- * is read what it says. The flow page could report that sm-intent scored 3.42 and never
- * show a line of what sm-intent asks for — a score about something the reader cannot see.
+ * is read what it says. The flow page could report that ops-intent scored 3.42 and never
+ * show a line of what ops-intent asks for — a score about something the reader cannot see.
  */
 export function SkillReader({ skill }: { skill: SkillText }) {
   return (

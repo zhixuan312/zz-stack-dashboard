@@ -15,7 +15,7 @@ import type { Me } from '@/lib/api';
  * component instead of re-deriving what it should show.
  */
 const base: Omit<Me, 'teams' | 'superadmin'> = {
-  email: 'a@b.example.com', name: 'A', role: 'member', mayRead: true, via: 'session', activeTeam: 'product_group_1',
+  email: 'a@b.example.com', name: 'A', role: 'member', mayRead: true, via: 'session', activeTeam: 'team_one',
 };
 
 function mockFetch(me: Me) {
@@ -51,7 +51,7 @@ describe('TeamAdminPanel — who sees the team controls', () => {
   });
 
   it('hides the team tier from a plain member of a team they do not administer', async () => {
-    const me: Me = { ...base, superadmin: false, teams: [{ slug: 'product_group_1', role: 'member' }] };
+    const me: Me = { ...base, superadmin: false, teams: [{ slug: 'team_one', role: 'member' }] };
     const { restore } = renderPanel(me);
     try {
       await waitFor(() => expect(global.fetch).toHaveBeenCalled());
@@ -62,13 +62,13 @@ describe('TeamAdminPanel — who sees the team controls', () => {
   });
 
   it('shows the team tier to an admin of one team, defaulted to that team', async () => {
-    const me: Me = { ...base, superadmin: false, teams: [{ slug: 'product_group_1', role: 'admin' }] };
+    const me: Me = { ...base, superadmin: false, teams: [{ slug: 'team_one', role: 'admin' }] };
     const { restore } = renderPanel(me);
     try {
       await waitFor(() => expect(screen.getByText('Team administration')).toBeInTheDocument());
       // The Select is defaulted to the caller's own (only) admin team, not left empty —
       // its value renders as the trigger's visible text.
-      expect(await screen.findByText('product_group_1')).toBeInTheDocument();
+      expect(await screen.findByText('team_one')).toBeInTheDocument();
       // And the member/flow panels for THAT team are mounted underneath it.
       await waitFor(() => expect(screen.getByText('Members')).toBeInTheDocument());
       expect(screen.getByText('Flows')).toBeInTheDocument();
@@ -81,14 +81,14 @@ describe('TeamAdminPanel — who sees the team controls', () => {
     // Regression guard for the console's own hiding rule: `me.teams.some(t => t.slug
     // === team && t.role === 'admin')` must be checked against the TEAM IN VIEW, not
     // merely "is admin of something" — a caller administering product_group_2 gets no
-    // free pass into product_group_1 just because they administer some team.
+    // free pass into team_one just because they administer some team.
     const me: Me = { ...base, superadmin: false, teams: [{ slug: 'product_group_2', role: 'admin' }] };
     const { restore } = renderPanel(me);
     try {
       await waitFor(() => expect(screen.getByText('Team administration')).toBeInTheDocument());
-      // Defaults to their OWN admin team (product_group_2), never product_group_1.
+      // Defaults to their OWN admin team (product_group_2), never team_one.
       expect(await screen.findByText('product_group_2')).toBeInTheDocument();
-      expect(screen.queryByText('product_group_1')).not.toBeInTheDocument();
+      expect(screen.queryByText('team_one')).not.toBeInTheDocument();
     } finally {
       restore();
     }

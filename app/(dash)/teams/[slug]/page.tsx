@@ -76,7 +76,7 @@ export default function TeamPage({ params }: { params: Promise<{ slug: string }>
                   <EmptyState
                     icon={<Inbox />}
                     title="No initiatives yet"
-                    description={`${slug} is provisioned but nobody has started a piece of work. The first brain dump into the Solution Agent creates one.`}
+                    description={`${slug} is provisioned but nobody has started a piece of work. The first brain dump into the Operations Agent creates one.`}
                   />
                 </div>
               )

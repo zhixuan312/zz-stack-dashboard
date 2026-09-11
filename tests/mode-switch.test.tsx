@@ -11,8 +11,8 @@ import { ModeSwitch } from '@/components/ModeSwitch';
 // `QueryClientProvider` and a real `/me` fetch just to check whether it renders.
 const base = {
   email: 'a@b.example.com', name: 'A', role: 'member' as const, mayRead: true,
-  via: 'session', teams: [{ slug: 'product-1', role: 'member' as const }],
-  activeTeam: 'product-1',
+  via: 'session', teams: [{ slug: 'team-one', role: 'member' as const }],
+  activeTeam: 'team-one',
 };
 
 describe('ModeSwitch', () => {

@@ -81,12 +81,12 @@ describe('PeriodSelect', () => {
   it('keeps every other parameter already in the address bar', async () => {
     // `?open=` is a real one — a knowledge citation sets it — and a picker that dropped it
     // would silently close whatever the reader had open.
-    window.history.replaceState(null, '', '/?open=product-1%2Fnode-1');
+    window.history.replaceState(null, '', '/?open=team-one%2Fnode-1');
     const user = userEvent.setup();
     mount();
     await user.click(screen.getByLabelText('Reporting period'));
     await user.click(await screen.findByText('Last 30 days'));
-    expect(window.location.search).toContain('open=product-1');
+    expect(window.location.search).toContain('open=team-one');
     expect(window.location.search).toContain('period=30d');
   });
 });

@@ -23,7 +23,7 @@ render site: `me`, `overview`, `teams`, `initiatives`, `knowledge`, `skills`, `r
 `blocks`, `activity`, `people`.
 
 **The captures themselves are not retained.** They were 188KB of live responses from UAT — an
-environment decommissioned on 2026-09-10 — and they carried three real people's addresses.
+environment decommissioned on 2026-09-10 — and they carried live data.
 Nothing read them after this audit closed; the findings below are what the audit produced, and
 they stand without the raw material. Re-capturing against the current deployment is one curl
 per endpoint if this is ever repeated.

@@ -62,7 +62,7 @@ export function SkillEvaluation({
                     skill served to that caller, and the caller key is a person
                     plus a client — not a conversation. So one person working on
                     two things at once has every call filed under whichever skill
-                    loaded most recently, and sm-intent shows block calls it
+                    loaded most recently, and ops-intent shows block calls it
                     could not have made. The number is real; what it is a number
                     OF is the thing that needed saying. */}
                 <p className="mt-3 text-[11px] leading-relaxed text-ink-faint">
@@ -139,8 +139,8 @@ export function SkillEvaluation({
                     icon={<FlaskConical />}
                     title="No rubric yet"
                     description={`${d.skill} has never been evaluated — no rubric, no judge run, no score. The statistics on this page are real; there is simply nothing to compare them against.${
-                      d.skill === 'sm-build'
-                        ? ' For sm-build that is structural: it produces side effects in other systems, not a document a judge can read.'
+                      d.skill === 'ops-build'
+                        ? ' For ops-build that is structural: it produces side effects in other systems, not a document a judge can read.'
                         : ''
                     }`}
                   />

@@ -9,10 +9,10 @@ describe('Me.teams', () => {
   it('carries a role alongside each slug', () => {
     const me: Me = {
       email: 'a@b.example.com', name: 'A', role: 'member', mayRead: true,
-      superadmin: false, via: 'session', teams: [{ slug: 'product-1', role: 'admin' }],
-      activeTeam: 'product-1',
+      superadmin: false, via: 'session', teams: [{ slug: 'team-one', role: 'admin' }],
+      activeTeam: 'team-one',
     };
     expect(me.teams[0].role).toBe('admin');
-    expect(me.teams.some((t) => t.slug === 'product-1' && t.role === 'admin')).toBe(true);
+    expect(me.teams.some((t) => t.slug === 'team-one' && t.role === 'admin')).toBe(true);
   });
 });
