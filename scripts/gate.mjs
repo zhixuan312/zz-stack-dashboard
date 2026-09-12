@@ -64,7 +64,9 @@ check('no map is keyed by the names of one flow, block or skill', () => {
   for (const [f, s] of sources()) {
     if (f.endsWith('components/Flow.tsx')) continue;   // its STAGES is the declared fallback
     for (const m of s.matchAll(/Record<string,[^>]*>\s*=\s*\{([^}]{0,600})\}/g)) {
-      if (/'(ops|zz|sdlc|casebox)-[a-z-]+':|^\s*(casebox|bookit|rulemill|platform):/m.test(m[1])) {
+      // CASE-INSENSITIVE: a block id is lowercase by convention, so a map keyed `RuleMill:`
+      // is the same defect wearing a display name. A check that sees one casing finds one bug.
+      if (/'(ops|zz|sdlc|casebox)-[a-z-]+':|^\s*(casebox|bookit|rulemill|platform):/im.test(m[1])) {
         bad.push(`${f}: a map keyed by specific ${/-/.test(m[1]) ? 'skill/flow' : 'block'} names`);
       }
     }

@@ -73,7 +73,7 @@ export function PlatformBlocksPanel() {
           <Field label="Team">
             {(p) => <Input {...p} value={grantTeam} onChange={(e) => setGrantTeam(e.target.value)} />}
           </Field>
-          <Field label="Block" hint="e.g. casebox, bookit, RuleMill">
+          <Field label="Block" hint="e.g. casebox, bookit, rulemill">
             {(p) => <Input {...p} value={grantBlock} onChange={(e) => setGrantBlock(e.target.value)} />}
           </Field>
         </FieldGrid>
