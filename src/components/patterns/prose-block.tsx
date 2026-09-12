@@ -4,7 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Children, Fragment, type ComponentProps, type ReactNode } from 'react';
 import { cn } from '@/lib/cn';
-import { sanitizeUserVisibleMarkdown } from '@/lib/safe-markdown';
+import { safeMarkdownUrl, sanitizeUserVisibleMarkdown } from '@/lib/safe-markdown';
 
 const VARIANT_CLASSES = {
   document:
@@ -35,6 +35,16 @@ function CodeBlock(props: ComponentProps<'code'> & { node?: unknown }) {
       {children}
     </code>
   );
+}
+
+/** An image whose source the URL policy dropped. Rendered as its own alt text rather than as
+ *  a broken-image icon: the reader should see what the author meant to show them, and a
+ *  document that silently loses a figure is harder to explain than one that says so. */
+function DroppedImage(props: ComponentProps<'img'> & { node?: unknown }) {
+  const { src, alt, node: _node } = props;
+  if (!src) return <em className="text-ink-soft">{alt || 'image not shown'}</em>;
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={src} alt={alt ?? ''} />;
 }
 
 interface ProseBlockProps {
@@ -76,7 +86,8 @@ export function ProseBlock({ children, variant = 'document', className, highligh
     <div className={cn(VARIANT_CLASSES[variant], className)}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
-        components={{ code: CodeBlock as never, ...decorated }}
+        urlTransform={safeMarkdownUrl}
+        components={{ code: CodeBlock as never, img: DroppedImage as never, ...decorated }}
       >
         {sanitizeUserVisibleMarkdown(children)}
       </ReactMarkdown>

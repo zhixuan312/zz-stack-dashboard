@@ -53,12 +53,17 @@ export function SidebarFooter() {
       ) : (
         <SidebarStat label="Team" value={me.data.activeTeam ?? 'none'} />
       )}
-      <a
-        href="/auth/logout"
-        className="pt-1 text-xs text-ink-faint underline-offset-2 hover:text-ink hover:underline"
-      >
-        Sign out
-      </a>
+      {/* A FORM, NOT A LINK. Signing out revokes a session row, and anything that can make
+          this browser issue a GET — an image in a document body, a link in a mail — could
+          issue that one. Nothing can make it POST cross-origin without the person acting. */}
+      <form method="post" action="/auth/logout" className="pt-1">
+        <button
+          type="submit"
+          className="text-xs text-ink-faint underline-offset-2 hover:text-ink hover:underline"
+        >
+          Sign out
+        </button>
+      </form>
     </dl>
   );
 }
