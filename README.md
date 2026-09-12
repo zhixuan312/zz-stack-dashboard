@@ -59,10 +59,9 @@ Later ones come from the console, or from `issue_enrolment` on `/manage/mcp`.
 registered passkey stops verifying at once, and everybody re-enrols. Worth knowing before
 you move a host, not after.
 
-> This section described corporate directory through SsoAuth until 2026-09-11, naming a
-> a sign-in module and its environment variables that are not in the tree
-> that nothing reads. An operator following it would have set four values with no effect and
-> registered a callback for a flow that does not exist.
+> This section described directory sign-in through SsoAuth until 2026-09-11, naming a module
+> and environment variables that are not in the tree. An operator following it would have set
+> values nothing reads, and registered a callback for a flow that does not exist.
 
 ## Running it
 
