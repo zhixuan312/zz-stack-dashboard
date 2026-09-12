@@ -18,9 +18,9 @@ pnpm test                 # vitest, 151 tests
 pnpm gate                 # this repo's own gate — run it last
 ```
 
-`pnpm gate` is the one worth knowing about. It is seven checks, and like the platform's they
+`pnpm gate` is the one worth knowing about. It is six checks, and like the platform's they
 are written as properties rather than test names — *"a timestamp is rendered through
-`<Time>`"*, *"no map is keyed by the names of one flow's stages"*. They exist because each one
+`<Time>`"*, *"no map is keyed by the names of one flow, block or skill"*. They exist because each one
 encodes something that broke here once. A red gate is never bypassed: if a check is wrong, fix
 the check and say in its comment what it was wrong about.
 

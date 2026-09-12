@@ -17,7 +17,7 @@ type KnowledgeView = 'nodes' | 'ask' | 'log';
  * linkable and back-button-correct for free, which is what the search parameter was
  * supposed to buy and did not.
  *
- * THREE, NOT FOUR. Forge's journal — the shape this follows — has a Graph tab beside these
+ * THREE, NOT FOUR. The journal in multi-model-agent-forge — the shape this follows — has a Graph tab beside these
  * and it is deliberately not here: the platform records no node-to-node edge, so a graph
  * would be drawn from shared tags and would assert relationships nobody wrote down.
  */

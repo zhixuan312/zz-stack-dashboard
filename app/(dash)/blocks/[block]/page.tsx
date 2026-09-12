@@ -18,7 +18,7 @@ import { blockKind, blockTitle } from '@/lib/block-labels';
  * One block at a time, NEVER aggregated.
  *
  * Averaging the blocks together hides the only thing worth knowing about them:
- * casebox refuses roughly one call in six and RuleMill refuses one in six hundred, and a
+ * one block may refuse a large share of calls where another refuses almost none, and a
  * combined "block failure rate" is a number describing neither. `platform` is in
  * the same tab strip on purpose — the worst-refusing tool on the platform is
  * ours, and a view that covered only third parties would never have shown it.

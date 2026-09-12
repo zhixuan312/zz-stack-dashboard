@@ -28,8 +28,7 @@ Nothing read them after this audit closed; the findings below are what the audit
 they stand without the raw material. Re-capturing against the current deployment is one curl
 per endpoint if this is ever repeated.
 
-They are not recoverable from this repository either: it was published with a fresh history,
-so nothing holds them.
+They are not retained anywhere.
 
 ## Findings
 

@@ -27,7 +27,7 @@ describe('the knowledge tab strip', () => {
   });
 
   it('offers no Graph view', () => {
-    // Forge's journal has one; the platform records no node-to-node edge, so a graph here
+    // That journal has one; the platform records no node-to-node edge, so a graph here
     // could only be drawn from shared tags and would assert relationships nobody wrote
     // down. Its absence is a decision, so it is asserted rather than left to be noticed.
     render(<KnowledgeTabs active="nodes" />);

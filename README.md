@@ -60,7 +60,7 @@ registered passkey stops verifying at once, and everybody re-enrols. Worth knowi
 you move a host, not after.
 
 > This section described corporate directory through SsoAuth until 2026-09-11, naming a
-> `services/gateway/src/ssoauth.ts` that is not in the tree and four `SSOAUTH_*` variables
+> a sign-in module and its environment variables that are not in the tree
 > that nothing reads. An operator following it would have set four values with no effect and
 > registered a callback for a flow that does not exist.
 
