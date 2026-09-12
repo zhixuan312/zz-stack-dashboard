@@ -133,6 +133,54 @@ check('no source file is larger than one subject usually is', () => {
     : null;
 });
 
+/* THE PROPERTY THAT MOVED REPOS WHEN /app DID.
+ *
+ * zz-stack used to serve its own knowledge page and its gate checked, line by line, that
+ * every interpolation into that page's HTML was escaped. That page is deleted — the console
+ * is the only front end now — and the check went with it.
+ *
+ * But the PROPERTY did not go anywhere. This app renders markdown that a team member pasted
+ * in through `add_source`, which is text out of a document nobody here wrote. It is safe for
+ * exactly one reason, stated in src/lib/safe-markdown.ts: react-markdown with remark-gfm and
+ * NO rehype-raw, so raw HTML arrives as inert text and `<script>` never becomes a node. That
+ * file deliberately does not escape `<` and `>`, because escaping corrupts code spans.
+ *
+ * So the whole defence is the ABSENCE of one plugin, and an absence is what nobody notices
+ * adding. Somebody wanting an inline image or a table with markup reaches for rehype-raw, it
+ * works, and the property is gone with nothing red. This is that check.
+ */
+check('markdown is rendered with raw HTML inert', () => {
+  const bad = [];
+  const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+  const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+  for (const d of Object.keys(deps)) {
+    if (/^rehype-raw$|^rehype-dangerous|^remark-html$/.test(d)) {
+      bad.push(`package.json depends on ${d} — raw HTML would stop being inert`);
+    }
+  }
+  const files = sources();
+  if (!files.length) return 'no source files found — this check is reading nothing';
+  let renderers = 0;
+  for (const [rel, src] of files) {
+    // COMMENTS STRIPPED FIRST. safe-markdown.ts NAMES rehype-raw in the paragraph explaining
+    // why it is absent, and the first version of this check read that as using it — the same
+    // mistake as a check that cannot tell a command from a sentence about one, and it fires
+    // on exactly the files that explain themselves best.
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1 ');
+    if (/\brehype-raw\b|\brehypeRaw\b/.test(code)) {
+      bad.push(`${rel} reaches for rehype-raw`);
+    }
+    // dangerouslySetInnerHTML anywhere that is not a literal is a second way in.
+    for (const m of code.matchAll(/dangerouslySetInnerHTML=\{\{\s*__html:\s*([^}]+)\}\}/g)) {
+      const expr = m[1].trim();
+      if (!/^[`'"]/.test(expr)) bad.push(`${rel} sets __html from ${expr.slice(0, 40)}`);
+    }
+    if (/<ReactMarkdown\b|from 'react-markdown'/.test(code)) renderers++;
+  }
+  if (!renderers) return 'nothing renders markdown here — this check is reading nothing';
+  return bad.length ? bad.join('; ') : null;
+});
+
 check('the build passes', () => {
   try { execSync('npx next build', { stdio: 'pipe' }); return null; }
   catch (err) { return String(err.stdout ?? err.message).split('\n').slice(-6).join(' ').slice(0, 300); }
