@@ -52,6 +52,34 @@ describe('TrendChart', () => {
     expect(screen.getByText('Not enough data')).toBeInTheDocument();
   });
 
+  /* THE BOUNDARY, not the fill.
+   *
+   * A volume bar is painted faint on purpose — it must not compete with the area series
+   * above it. That was survivable while the categorical cycle handed out status hues; it
+   * stopped being survivable when the cycle moved to the kit pastels, where a 20% fill on
+   * cream is simply absent. The fix is a full-strength stroke in the same hue, which is the
+   * SVG spelling of `--chart-edge` (`box-shadow: inset` does nothing to an SVG rect).
+   *
+   * This is asserted here rather than in a screenshot because NO PAGE CURRENTLY PASSES
+   * `shape: 'bar'` — the path is real, reachable and unrendered, so a visual harness proves
+   * nothing about it and the next caller would have inherited the bug silently.
+   *
+   * `fillOpacity` rather than `opacity` is the load-bearing half: a bare `opacity` fades the
+   * stroke along with the fill and puts the boundary right back where it was.
+   */
+  it('gives volume bars a full-strength boundary, not just a faint fill', () => {
+    const { container } = render(<TrendChart points={POINTS} series={SERIES} />);
+    const bars = [...container.querySelectorAll('[data-role="volume-bar"]')];
+    expect(bars.length).toBeGreaterThan(0);
+    for (const bar of bars) {
+      expect(bar.getAttribute('stroke')).toBeTruthy();
+      expect(bar.getAttribute('fill')).toBe(bar.getAttribute('stroke'));
+      expect(bar.getAttribute('fill-opacity')).toBeTruthy();
+      // A bare `opacity` would fade the stroke with the fill.
+      expect(bar.getAttribute('opacity')).toBeNull();
+    }
+  });
+
   it('formats the axis with the first non-bar series formatter', () => {
     const { container } = render(<TrendChart points={POINTS} series={SERIES} />);
     // `cost` formatting means the ticks carry a currency prefix, not bare counts.

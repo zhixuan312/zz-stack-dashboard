@@ -7,8 +7,15 @@ if (/sparkle[^\n]*\.(png|svg)/i.test(rail)) {
   code = 1;
 }
 if (!/function Sparkle\(/.test(rail)) { console.error('FAIL no inline Sparkle component'); code = 1; }
-if (!/<svg[\s\S]{0,200}aria-hidden|aria-hidden[\s\S]{0,200}<svg/.test(rail)) {
-  console.error('FAIL the sparkle is not aria-hidden; it is decorative'); code = 1;
+/* SCOPED TO THE SPARKLE'S OWN BODY, because proximity was not enough. This was a
+ * within-200-characters match against the whole file, and Sidebar.tsx already carries
+ * `<Icon ... aria-hidden />` on every nav row — so a mutation that stripped aria-hidden
+ * off the sparkle's own <svg> still passed, satisfied by an unrelated icon nearby. Cut
+ * the Sparkle function out first, then assert inside it. */
+const sparkle = rail.match(/function Sparkle\([\s\S]*?\n\}/);
+if (!sparkle) { console.error('FAIL cannot isolate the Sparkle component body'); code = 1; }
+else if (!/<svg[^>]*aria-hidden/.test(sparkle[0])) {
+  console.error('FAIL the sparkle <svg> itself is not aria-hidden; it is decorative'); code = 1;
 }
 if (!/\{active \? <Sparkle \/> : null\}/.test(rail)) {
   console.error('FAIL the sparkle does not mark the active nav item'); code = 1;

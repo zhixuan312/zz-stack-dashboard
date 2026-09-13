@@ -31,6 +31,13 @@ const disp = css.slice(css.indexOf('.t-display {'), css.indexOf('}', css.indexOf
 for (const [n, block] of [['.t-stat', stat], ['.t-display', disp]]) {
   if (!/--font-display-family/.test(block)) { console.error(`FAIL ${n} does not use the display family`); code = 1; }
 }
+/* THE TAILWIND MAPPING, which nothing else here covered. A colour or family is only usable
+ * as a utility if `@theme inline` lists it; repoint this one at the sans family and
+ * `font-display` silently resolves to the body face with no error anywhere. Both display
+ * classes would still pass, because they reference the raw variable directly. */
+if (!/--font-display:\s*var\(--font-display-family\)/.test(css)) {
+  console.error('FAIL @theme inline no longer maps --font-display to the display family'); code = 1;
+}
 const uses = (css.match(/--font-display-family/g) || []).length;
 if (uses > 3) { console.error(`FAIL the display family is referenced ${uses} times; it belongs on two classes`); code = 1; }
 if (!code) console.log('PASS Rubik + Baloo 2 wired, Inter features gone, numerals preserved');

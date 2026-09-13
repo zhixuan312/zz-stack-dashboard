@@ -2,7 +2,19 @@
 // some places and not others, and the result looks like a rendering bug rather than a choice.
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-const BANNED = /prefers-color-scheme|data-theme|ThemeToggle|AppearancePanel/;
+/* FOUR SPELLINGS OF THE MACHINERY, and one of the RULE itself.
+ *
+ * The first four are the plumbing that used to exist here and is now deleted. The fifth,
+ * `dark:`, is the one a person adds by reflex months from now — Tailwind's dark variant
+ * compiles happily against a project with no dark mode and emits a rule that can never
+ * match, so the element silently keeps its light styling and the author believes they
+ * shipped a dark treatment. A mutation test put `dark:bg-black` in the rail and this
+ * check passed; it was looking for the removal and not for the rule.
+ *
+ * Matched with a word boundary so `dark:` is caught and the words "dark mode" in a
+ * comment recording WHY it was removed are not — that history is worth keeping, and a
+ * check that forbids describing its own reason teaches people to delete the reason. */
+const BANNED = /prefers-color-scheme|data-theme|ThemeToggle|AppearancePanel|(?:^|[\s"'`:])dark:[a-z[]/;
 const EXT = new Set(['.ts', '.tsx', '.css']);
 let code = 0;
 const walk = (dir) => {

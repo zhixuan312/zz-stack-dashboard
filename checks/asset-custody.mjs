@@ -17,6 +17,19 @@ for (const [dir, want] of [['design/in-use', 12], ['design/reference', 10]]) {
   if (n !== want) fail(`${dir} holds ${n} PNGs, expected ${want}`);
 }
 
+/* AC-1.1's OTHER HALF. The spec asks for two folders AND a README saying which is which
+ * and why; this check counted the folders and never looked for the README. It happens to
+ * exist — it predates this work — so the criterion was satisfied by luck, and a check that
+ * is right by luck tells you nothing the day somebody tidies the file away. */
+if (!existsSync('design/README.md')) {
+  fail('design/README.md is missing — nothing says which folder is which, or why');
+} else {
+  const readme = readFileSync('design/README.md', 'utf8');
+  for (const dir of ['in-use', 'reference']) {
+    if (!readme.includes(dir)) fail(`design/README.md does not explain design/${dir}/`);
+  }
+}
+
 const stray = readdirSync('public/assets').filter((f) => f.endsWith('.png'));
 if (stray.length) fail('brand source still under public/assets: ' + stray.join(', '));
 

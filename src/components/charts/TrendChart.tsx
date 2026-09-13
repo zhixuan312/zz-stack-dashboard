@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { AXIS_FORMATTERS, FORMATTERS, formatCount, type NumberFormat } from '@/lib/format';
-import { TINT_VAR, cycleTint, type Tint } from '@/lib/tints';
+import { CHART_EDGE, TINT_VAR, cycleTint, type Tint } from '@/lib/tints';
 
 /**
  * One point on the time axis. `date` is the bucket key (any string — it is used
@@ -240,8 +240,21 @@ export function TrendChart({
                 y={padT + innerH - h}
                 width={barW}
                 height={h}
+                /* FILL AND EDGE, not one opacity for both. The fill is faint because a
+                   volume band must not compete with the area series above it; the stroke
+                   is the same hue at FULL strength, so the bar keeps a readable boundary
+                   at the opacity that makes it recede. This is the SVG form of
+                   `--chart-edge` — `box-shadow: inset` does nothing to an SVG rect, so
+                   the rule that every pastel fill carries an edge needs a second spelling
+                   here rather than an exemption.
+
+                   It became load-bearing when the cycle moved to the kit pastels: a
+                   status hue at 0.2 on cream was merely quiet, a pastel at 0.2 is gone. */
                 fill={s.color}
-                opacity={hover === i ? 0.38 : 0.2}
+                fillOpacity={hover === i ? 0.38 : 0.2}
+                stroke={s.color}
+                strokeWidth={1}
+                vectorEffect="non-scaling-stroke"
               />
             );
           }),
@@ -313,9 +326,13 @@ export function TrendChart({
         {resolved.map((s) => (
           <span key={s.key} className="flex items-center gap-1.5">
             {s.shape === 'bar' ? (
+              /* Full strength plus the edge, NOT the 0.3 the bar itself is painted at.
+                 A legend swatch is an identifier, not a sample of the ink: at 10x8px a
+                 pastel at 30% is a smudge, and the reader is matching a colour, which is
+                 the one job it has. */
               <i
                 className="inline-block h-2.5 w-2 rounded-[var(--r-sm)]"
-                style={{ background: s.color, opacity: 0.3 }}
+                style={{ background: s.color, boxShadow: CHART_EDGE }}
               />
             ) : (
               <i className="inline-block h-0.5 w-3 rounded-full" style={{ background: s.color }} />
