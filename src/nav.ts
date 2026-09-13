@@ -1,5 +1,5 @@
 import {
-  Activity, Blocks, BookOpen, Boxes, LayoutGrid, ListTree, Settings, Timer, Users, UserSquare,
+  Activity, BookOpen, Package, LayoutGrid, ListTree, Settings, Timer, Users, UserSquare,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -17,13 +17,12 @@ import type { ConsoleMode } from '@/lib/api';
  * The third is Settings, which belongs to the person rather than to either.
  *
  * THE RAIL IS DIFFERENT IN TEAM MODE, and that is the point of the mode. A team
- * member has no business in the flow catalogue, the block catalogue, the run
- * log or the platform activity feed: those are fleet surfaces, and two of them
- * (Blocks, Runs) are served by `teamless` gateway routes that hand the whole
- * platform's rows to anybody who asks. Leaving them in the rail offered a
- * member a door that either shows them somebody else's data or is simply not
- * theirs to open. `platformOnly` marks them; `navSections` drops them in team
- * mode.
+ * member has no business in the plugin catalogue, the run log or the platform
+ * activity feed: those are fleet surfaces, and two of them (Plugins, Runs) are
+ * served by `teamless` gateway routes that hand the whole platform's rows to
+ * anybody who asks. Leaving them in the rail offered a member a door that either
+ * shows them somebody else's data or is simply not theirs to open.
+ * `platformOnly` marks them; `navSections` drops them in team mode.
  *
  * WHAT SURVIVES in team mode is exactly the member's own working set — the
  * initiatives they run, the knowledge shelf they read, the people they work
@@ -71,14 +70,26 @@ export const NAV_SECTIONS: NavSection[] = [
     // their own boundary.
     teamLabel: 'Your team',
     items: [
-      // FLOWS AND BLOCKS, which is the whole taxonomy. A flow is an agent method: a
-      // set of skills that uses blocks, always including ours. A block is something
-      // reached over MCP, carrying its team's own package of skills. Every skill on
-      // the platform belongs to one or the other — "Skills" as a top-level page was
-      // the flat list that hid which. Both are platform machinery: a skill is read
-      // here to evaluate or change it, which is not a member's job.
-      { href: '/flows', label: 'Flows', icon: Boxes, platformOnly: true },
-      { href: '/blocks', label: 'Blocks', icon: Blocks, platformOnly: true },
+      // PLUGINS, WHICH WAS TWO PAGES AND IS ONE. The split was deliberate and it is
+      // being replaced on purpose, so this says what it was: FLOWS listed agent
+      // methods — a set of skills that uses blocks, always including ours — and
+      // BLOCKS listed what is reached over MCP, each carrying its team's own skills.
+      // Every skill belonged to one or the other, and "Skills" as a top-level page
+      // was the flat list that hid which.
+      //
+      // Both halves were true and neither was a thing anybody installs. A PLUGIN is:
+      // a package's skills plus the MCP servers those skills call, shipped together
+      // under one declared version — `claude plugin install sdlc@zz-stack` fetches
+      // both halves at once. So the reader was being asked to hold two lists in their
+      // head and do the join themselves, for a subject the platform already has a
+      // single name for. Migration 047 makes the same move in the schema, and the
+      // evaluation being built asks its questions of the whole: whether a method can
+      // recover from a bad stage, and whether its reachable tools are ever called,
+      // are properties of neither half alone.
+      //
+      // Still platform machinery: a plugin is read here to evaluate or change it,
+      // which is not a member's job.
+      { href: '/plugins', label: 'Plugins', icon: Package, platformOnly: true },
       { href: '/knowledge', label: 'Knowledge', icon: BookOpen },
       { href: '/runs', label: 'Runs', icon: Timer, platformOnly: true },
       { href: '/activity', label: 'Activity', icon: Activity, platformOnly: true },

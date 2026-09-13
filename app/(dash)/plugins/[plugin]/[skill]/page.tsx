@@ -11,7 +11,7 @@ import { SkillReader } from '@/components/SkillReader';
 import { SkillReferences } from '@/components/SkillReferences';
 import { SkillEvaluation } from '@/components/SkillEvaluation';
 import { SkillViewTabs, useSkillView } from '@/components/SkillViewTabs';
-import { useConsole, type FlowRow, type Skill, type SkillDetail, type SkillText } from '@/lib/api';
+import { useConsole, type PluginRow, type Skill, type SkillDetail, type SkillText } from '@/lib/api';
 
 /** Seconds → the coarsest unit that still reads as a duration. */
 function dur(s: number): string {
@@ -21,58 +21,69 @@ function dur(s: number): string {
   return `${Math.round(s)} s`;
 }
 
-export default function SkillPage({ params }: { params: Promise<{ flow: string; skill: string }> }) {
-  const { flow: flowName, skill: name } = use(params);
+/**
+ * LAYER THREE: one skill, read.
+ *
+ * ONE PAGE WHERE THERE WERE TWO. A flow's skills were judged and unreadable; a block's were
+ * countable and unjudged. They are the same kind of thing — text somebody wrote for an agent
+ * to load — so this reads the text AND shows what it cost and scored, whichever kind ships it.
+ *
+ * Whose it is leads in the rail, because it decides what you can do about what you read: a
+ * skill marked THEIRS is a block team's own, vendored, and changing it means agreeing a change
+ * with them.
+ */
+export default function PluginSkillPage({ params }: { params: Promise<{ plugin: string; skill: string }> }) {
+  const { plugin: pluginName, skill: name } = use(params);
   const list = useConsole<{ skills: Skill[] }>('/skills');
-  // WHICH FLOW, FROM THE URL. This searched every flow for a skill of this name,
-  // which answers a question the address already answered — and answered it
-  // differently if two flows ever shipped a skill of one name.
-  const flows = useConsole<{ flows: FlowRow[] }>('/flows');
-  const flow = flows.data?.flows.find((f) => f.flow === flowName);
-  const step = flow?.steps.find((x) => x.name === name);
-  const position = step?.position ?? null;
-  // THE FRONT DOOR COUNTS. A flow's `stages` do not include its own entry skill, so
-  // ops-flow — the one skill that describes the whole method — was the single skill of
-  // the flow that could be read nowhere.
-  const isEntry = !!flow && flow.entry?.name === name;
-  // WHAT THIS STAGE WRITES AND WHAT CLOSES IT, from the flow's manifest — never from a table
-  // of one flow's skills. This page carried a map of ops-flow's six, so every zz-skill-* and
-  // zz-block-* stage was reported as producing nothing and having no gate. Both are
-  // assertions, and for zz-skill-define — which writes rulers.md, the gate of its flow — both
-  // were false. The manifest now records which stage writes each document, so this is a
-  // lookup for any flow that exists or is added later.
-  const produces = flow?.documents.filter((x) => x.stage === name).map((x) => x.name).join(', ') ?? '';
-  const gatedHere = flow?.documents.find((x) => x.stage === name && x.gate);
+  // WHICH PLUGIN, FROM THE URL. This searched every flow for a skill of this name, which
+  // answers a question the address already answered — and answered it differently if two
+  // packages ever shipped a skill of one name.
+  const plugins = useConsole<{ plugins: PluginRow[] }>('/plugins');
+  const plugin = plugins.data?.plugins.find((p) => p.plugin === pluginName);
+  const shipped = plugin?.skills.find((x) => x.name === name);
+  const known = !plugins.data || !!shipped;
+
+  // WHAT THIS STAGE WRITES AND WHAT CLOSES IT, from the plugin's manifest — never from a table
+  // of one method's skills. This page carried a map of ops-flow's six, so every evaluation
+  // stage was reported as producing nothing and having no gate, and for zz-skill-define —
+  // which writes rulers.md, the gate of its flow — both were false.
+  const produces = plugin?.documents.filter((x) => x.stage === name).map((x) => x.name).join(', ') ?? '';
+  const gatedHere = plugin?.documents.find((x) => x.stage === name && x.gate);
   const closes = gatedHere ? { name: `approve ${gatedHere.name.replace(/\.md$/, '')}` } : null;
-  const known = !flows.data || !!step || isEntry;
 
   const skill = list.data?.skills.find((s) => s.name === name);
   const detail = useConsole<SkillDetail>(known ? `/skills/${name}` : null);
-  // THE SKILL ITSELF. This page could report that ops-intent scored 3.42 and never show
-  // a line of what ops-intent asks for — a score about something the reader cannot see.
-  const text = useConsole<SkillText>(known ? `/flows/${flowName}/skills/${name}` : null).data;
+  // THE SKILL ITSELF. This page could report that sdlc-plan scored 3.42 and never show a line
+  // of what sdlc-plan asks for — a score about something the reader cannot see.
+  const text = useConsole<SkillText>(known ? `/plugins/${pluginName}/skills/${name}` : null).data;
   const view = useSkillView(!!text?.references.length);
+
+  // THE SCORES PAGE LISTS THE DOCUMENTS A SKILL PRODUCED, so it is offered only where there
+  // can be any. A plugin that governs no document — a toolbox, a block's usage notes — has
+  // nothing for it to list, and a link to an empty page is worse than no link.
+  const scoresHref = skill && plugin?.documents.length
+    ? `/plugins/${pluginName}/${name}/scores`
+    : undefined;
 
   return (
     <DashboardPage
       title={name}
       breadcrumb={[
-        { label: 'Flows', href: '/flows' },
-        { label: flowName, href: `/flows/${flowName}` },
+        { label: 'Plugins', href: '/plugins' },
+        { label: pluginName, href: `/plugins/${pluginName}` },
         { label: name },
       ]}
       description={text?.description ?? 'One skill: what it costs to run, how a judge scores it, and what that came to.'}
       showPeriod={false}
       updatedAt={new Date()}
       subnav={<SkillViewTabs skill={text} view={view} />}
-      // NO SIBLING SWITCHER. A strip of the flow's other steps sat here, and every
-      // one of them is a row on the page you just came from — the breadcrumb goes
-      // back there in one click. A second copy of a list you have already seen is
-      // not navigation, it is the same list twice.
-      // FOUR, not eight. The page used to open with two rows of metric cards,
-      // which makes eight things equally loud and none of them the headline.
-      // These four are what someone asks first; the rest are diagnostics and
-      // live in "Where its calls went" below.
+      // NO SIBLING SWITCHER. A strip of the plugin's other skills sat here, and every one of
+      // them is a row on the page you just came from — the breadcrumb goes back there in one
+      // click. A second copy of a list you have already seen is not navigation.
+      //
+      // FOUR METRICS, not eight. The page used to open with two rows of cards, which makes
+      // eight things equally loud and none of them the headline. These four are what someone
+      // asks first; the rest are diagnostics and live in "Where its calls went" below.
       metrics={
         skill
           ? [
@@ -88,29 +99,32 @@ export default function SkillPage({ params }: { params: Promise<{ flow: string; 
             ]
           : undefined
       }
-      // THE RAIL IS WHAT THE SKILL IS; the main column is what it did. Identity
-      // was a five-row definition list in a full-width card, which left about
-      // seventy percent of it empty; in the third-column it is the right shape
-      // for the content. The verdict sits under it, so the rail reads
-      // identity → conclusion and the main column is nothing but evidence.
+      // THE RAIL IS WHAT THE SKILL IS; the main column is what it did. The verdict sits under
+      // identity, so the rail reads identity → conclusion and the main column is evidence.
       rail={
-        // NOT GATED ON THE COST RECORD either — the identity of a skill is knowable
-        // whether or not anybody has run it, and the front door is precisely the skill
-        // with no runs. Version and Evaluated come from that record and say so when it
-        // is missing; the rest comes from the catalog.
+        // NOT GATED ON THE COST RECORD. The identity of a skill is knowable whether or not
+        // anybody has run it, and the front door is precisely the skill with no runs. Version
+        // and Evaluated come from that record and say so when it is missing; the rest comes
+        // from the catalog.
         known ? (
           <div className="flex flex-col gap-4">
             <Panel title="What this skill is">
               <dl className="flex flex-col gap-3 text-[13px]">
                 <Row k="Does" v={<span className="text-ink-soft">{text?.description ?? '—'}</span>} />
-                <Row k="Position" v={isEntry
-                  ? `the front door of ${flow?.flow}`
-                  : flow && position
-                    ? `${position} of ${flow.steps.length} in ${flow.flow}`
-                    : 'Not a step in any flow'} />
+                <Row
+                  k="Whose"
+                  v={text?.origin === 'theirs'
+                    ? <Badge variant="accent" dot>the {pluginName} team&rsquo;s</Badge>
+                    : <Badge variant="neutral">ours</Badge>}
+                />
+                <Row k="Position" v={shipped?.isEntry
+                  ? `the front door of ${pluginName}`
+                  : shipped?.position && plugin
+                    ? `${shipped.position} of ${plugin.stages.length} in ${pluginName}`
+                    : `shipped by ${pluginName}, not a stage of its method`} />
                 <Row k="Produces" v={produces
                   ? <span className="font-mono text-xs">{produces}</span>
-                  : <span className="text-ink-faint">nothing — this stage leaves work, not a document</span>} />
+                  : <span className="text-ink-faint">nothing — this skill leaves work, not a document</span>} />
                 <Row
                   k="Closed by"
                   v={closes
@@ -118,6 +132,13 @@ export default function SkillPage({ params }: { params: Promise<{ flow: string; 
                     : <Badge variant="neutral">no gate — the next step simply follows</Badge>}
                 />
                 <Row k="Version" v={<span className="font-mono text-xs">{skill?.version ?? text?.version ?? '—'}</span>} />
+                {/* THE PROVENANCE LINE, verbatim. It is the sentence that says who owns the
+                    content and what of it is ours, and paraphrasing it here would make this
+                    page a second claim about ownership rather than a copy of the one the file
+                    makes. */}
+                {text?.source ? (
+                  <Row k="Source" v={<span className="text-[12px] leading-relaxed text-ink-soft">{text.source}</span>} />
+                ) : null}
                 <Row
                   k="Evaluated"
                   v={skill?.evaluated
@@ -126,9 +147,9 @@ export default function SkillPage({ params }: { params: Promise<{ flow: string; 
                 />
               </dl>
             </Panel>
-            {/* THE VERDICT is derived from the numbers, so it needs them. A skill with
-                no recorded run has none, and an invented conclusion would be the one
-                thing on this page nothing stands behind. */}
+            {/* THE VERDICT is derived from the numbers, so it needs them. A skill with no
+                recorded run has none, and an invented conclusion would be the one thing on
+                this page nothing stands behind. */}
             {skill ? (
               <Query query={detail} skeletonRows={3}>
                 {(d) => <Conclusion skill={skill} detail={d} />}
@@ -138,33 +159,29 @@ export default function SkillPage({ params }: { params: Promise<{ flow: string; 
         ) : undefined
       }
     >
-      <Query query={list}>
+      <Query query={plugins}>
         {() =>
           !known ? (
-            <Panel title="No such step">
+            <Panel title="No such skill">
               <EmptyState
                 icon={<FlaskConical />}
-                title={`'${name}' is not a step in ${flowName}`}
-                description="It may have been renamed, or it belongs to another flow. The flow's own page lists the steps it declares."
+                title={`'${name}' is not shipped by ${pluginName}`}
+                description="It may have been renamed, or it belongs to another plugin. The plugin's own page lists everything it ships."
               />
             </Panel>
           ) : (
             // NOT GATED ON `skill`. The cost record comes from recorded runs, so a skill
-            // nobody has called is absent from it — and ops-flow, the front door that
-            // describes the whole method, is exactly such a skill. Gating the page on it
-            // rendered a header and an empty body for the one skill most worth reading.
-            // The text stands on its own; the evaluation says "never run" for itself.
+            // nobody has called is absent from it — and a front door that describes a whole
+            // method is exactly such a skill. Gating the page on it rendered a header and an
+            // empty body for the one skill most worth reading. The text stands on its own;
+            // the evaluation says "never run" for itself.
             <Query query={detail} skeletonRows={6}>
               {(d) => (
                 <>
                   {view === 'read' && text ? <SkillReader skill={text} /> : null}
                   {view === 'references' && text ? <SkillReferences skill={text} /> : null}
                   {view === 'evaluation' ? (
-                    <SkillEvaluation
-                      skill={skill}
-                      detail={d}
-                      scoresHref={skill ? `/flows/${flowName}/${name}/scores` : undefined}
-                    />
+                    <SkillEvaluation skill={skill} detail={d} scoresHref={scoresHref} />
                   ) : null}
                 </>
               )}
@@ -222,12 +239,9 @@ function Conclusion({ skill, detail }: { skill: Skill; detail: SkillDetail }) {
             ? <>Mean {skill.evaluated?.mean?.toFixed(2)} across {scored.length} dimensions. The weakest is{' '}
                 <b className="text-ink">{worst.name}</b> at {worst.mean?.toFixed(2)}
                 {worst.low ? <>, with {worst.low} document{worst.low > 1 ? 's' : ''} scoring ≤1</> : null}.</>
-            : <>Nothing scores this skill. {skill.name === 'ops-build'
-                ? 'It is the only step that writes, and it is unevaluated — which is the honest reason the flow puts three human approvals in front of it.'
-                : 'Writing a rubric for it is a decision nobody has made.'}</>}
+            : <>Nothing scores this skill. Writing a rubric for it is a decision nobody has made.</>}
         </li>
       </ul>
     </div>
   );
 }
-

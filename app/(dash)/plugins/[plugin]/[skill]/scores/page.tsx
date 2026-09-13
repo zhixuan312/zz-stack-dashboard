@@ -22,8 +22,8 @@ function tone(n: number): string {
   return 'text-ink';
 }
 
-export default function SkillScoresPage({ params }: { params: Promise<{ flow: string; skill: string }> }) {
-  const { flow, skill: name } = use(params);
+export default function SkillScoresPage({ params }: { params: Promise<{ plugin: string; skill: string }> }) {
+  const { plugin, skill: name } = use(params);
   const q = useConsole<SkillScores>(`/skills/${name}/scores`);
   const search = useSearchParams();
   const version = search.get('version') ?? ALL_VERSIONS;
@@ -56,9 +56,9 @@ export default function SkillScoresPage({ params }: { params: Promise<{ flow: st
       updatedAt={new Date()}
       actions={<VersionSelect versions={q.data?.versions ?? []} />}
       breadcrumb={[
-        { label: 'Flows', href: '/flows' },
-        { label: flow, href: `/flows/${flow}` },
-        { label: name, href: `/flows/${flow}/${name}` },
+        { label: 'Plugins', href: '/plugins' },
+        { label: plugin, href: `/plugins/${plugin}` },
+        { label: name, href: `/plugins/${plugin}/${name}` },
         { label: 'scores' },
       ]}
       metrics={

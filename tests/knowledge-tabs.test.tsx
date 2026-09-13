@@ -6,7 +6,7 @@ import { KnowledgeTabs } from '@/components/knowledge/KnowledgeTabs';
  * THE TABS ARE LINKS, and that is the assertion — not decoration.
  *
  * `SkillViewTabs` drives its views with `router.push` plus `useSearchParams()`, which works
- * only because `/flows/[flow]/[skill]` is server-rendered per request. `/knowledge` is
+ * only because `/plugins/[plugin]/[skill]` is server-rendered per request. `/knowledge` is
  * statically prerendered, and on a static route that read never sees the write — the exact
  * failure that left the period picker stuck on one value while every option did nothing.
  * So these have to be real navigation, and a future edit that "tidies" them into a search

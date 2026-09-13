@@ -4,11 +4,11 @@ import { NAV_SECTIONS, navSections } from '@/nav';
 /**
  * WHAT A TEAM MEMBER SEES IN THE RAIL — the rule, not the pixels.
  *
- * The rail used to be static: every caller got Flows, Blocks, Runs and Activity
- * whatever mode they were in, and two of those (`/blocks`, `/runs`) are served
- * by `teamless` gateway routes that answer with the whole fleet for anybody who
- * asks. That is the shape this locks: the four platform surfaces are gone in
- * team mode, and the five a member actually works in are still there.
+ * The rail used to be static: every caller got the fleet surfaces whatever mode
+ * they were in, and two of those (`/plugins`, `/runs`) are served by `teamless`
+ * gateway routes that answer with the whole fleet for anybody who asks. That is
+ * the shape this locks: the platform surfaces are gone in team mode, and the
+ * five a member actually works in are still there.
  *
  * Asserted on `navSections` rather than through a rendered `Sidebar`, because
  * the question is "which routes does a member get offered" and that has a plain
@@ -21,7 +21,7 @@ const hrefs = (mode: 'platform' | 'team') =>
 describe('the rail in team mode', () => {
   it('hides every platform surface', () => {
     const team = hrefs('team');
-    for (const href of ['/teams', '/flows', '/blocks', '/runs', '/activity']) {
+    for (const href of ['/teams', '/plugins', '/runs', '/activity']) {
       expect(team).not.toContain(href);
     }
   });
@@ -55,7 +55,7 @@ describe('the rail in platform mode', () => {
     expect(navSections('platform')).toBe(NAV_SECTIONS);
     expect(hrefs('platform')).toEqual([
       '/', '/teams', '/initiatives',
-      '/flows', '/blocks', '/knowledge', '/runs', '/activity', '/people',
+      '/plugins', '/knowledge', '/runs', '/activity', '/people',
       '/settings',
     ]);
   });

@@ -9,7 +9,7 @@ type KnowledgeView = 'nodes' | 'ask' | 'log';
  * Not `?view=` on one route, which is how `SkillViewTabs` does it and is the trap this
  * console has already fallen into twice: a tab written as a search parameter is read back
  * with `useSearchParams()`, and on a statically prerendered route that read never sees the
- * write. It works for a skill only because `/flows/[flow]/[skill]` is server-rendered per
+ * write. It works for a skill only because `/plugins/[plugin]/[skill]` is server-rendered per
  * request; `/knowledge` is static, so the same shape would render a tab strip where
  * clicking does nothing — exactly what the period picker did before it moved into context.
  *

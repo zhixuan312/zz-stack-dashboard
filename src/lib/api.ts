@@ -407,33 +407,79 @@ export interface Runs {
   outcomes: { outcome: string; n: number }[];
   gaps: { turnsAttributed: boolean; turnEvents: number; runsWithoutOutcome: number };
 }
-/** A skill a block carries. `theirs` = the block team's own, vendored, and carrying a
- *  `source:` line that says so; `ours` = what we worked out by calling their server. */
-interface BlockSkill {
-  name: string; origin: 'theirs' | 'ours';
+/** A skill a plugin ships. `theirs` = a block team's own, vendored, and carrying a
+ *  `source:` line that says so; `ours` = everything we wrote — a plugin's own stages,
+ *  the platform's, and what we worked out by calling somebody else's server. */
+interface PluginSkill {
+  name: string;
+  /** Where the plugin's method puts it, when it declares stages. Null for a skill that is
+   *  simply shipped — a standalone, a reference, a note about a block. The old flow page
+   *  could only list stages, so ten of sdlc's seventeen skills had no page at all. */
+  position: number | null;
+  isEntry: boolean;
+  origin: 'theirs' | 'ours';
   version: string | null; description: string | null; source: string | null;
-}
-export interface Block {
-  /** From zz.block, empty until somebody describes it. The console shows the id then. */
-  title?: string | null; kind?: string | null;
-  block: string;
-  /** `platform` is us; `team` is somebody's real service. Stand-ins never reach here —
-   *  the endpoint drops them, because there is nobody to improve a mock's skills with. */
-  origin: 'platform' | 'team';
-  calls: number; failed: number; failureRate: number;
-  tools: number; steps: number; versions: number; firstSeen: string; lastSeen: string;
-  skills: BlockSkill[];
+  versions: number; calls: number; evals: number;
+  everRun: boolean; lastRun: string | null;
 }
 
-/** A skill, read — the same shape whether a flow runs it or a block publishes it.
- *  `/flows/:flow/skills/:skill` and `/blocks/:block/skills/:skill`. */
+/**
+ * A PLUGIN — `/plugins`. What a person installs: a package's skills plus the MCP servers
+ * those skills call, under one declared version.
+ *
+ * Catalog-first, so a plugin nobody has run yet still appears with its skills marked
+ * never-run. Three kinds of thing arrive in this one shape: a catalog package, `zz` (the
+ * platform itself, which every account carries and which ships no flow.json), and a
+ * registered block, whose single server is itself.
+ */
+export interface PluginRow {
+  plugin: string;
+  /** The catalog owner directory. Null for `zz` and for a registered block. */
+  owner: string | null;
+  /** Ours, or somebody else's — it decides what an evaluation DOES with its findings. */
+  origin: 'platform' | 'third_party';
+  agentName: string | null;
+  description: string | null;
+  /** From zz.block, and only for a registered block: empty until somebody describes it,
+   *  and the console shows the id then. Null for anything catalog-resident. */
+  title: string | null; kind: string | null;
+  /** What the plugin DECLARES. A number a person cites — and therefore a claim, which is
+   *  what `release.digest` is for. Null for a block, which declares none. */
+  version: string | null;
+  /** Every MCP server this plugin's skills reach. From the manifest for a catalog package;
+   *  for a block, the block itself. */
+  servers: string[];
+  /** The method's running order, when it declares one. Empty for a package that is a
+   *  toolbox rather than a method. */
+  stages: string[];
+  entry: string | null;
+  documents: { name: string; role: string | null; gate: boolean; stage: string | null }[];
+  gates: number;
+  skills: PluginSkill[];
+  calls: number; failed: number;
+  /** The most recent call across every skill, or null when nothing has ever run it.
+   *  The list sorts on this. */
+  lastRun: string | null;
+  /** What was RELEASED at the declared version, from zz.plugin_version — the digest is what
+   *  makes the version true. Null when nothing has vouched for that number: a plugin edited
+   *  past its last release, a block that ships through no marketplace, or simply a platform
+   *  where release has not yet begun recording. Never an error. */
+  release: { version: string; digest: string; casesDigest: string | null; evals: number } | null;
+  /** The most recent ablation run — `claude plugin eval`, which answers the one question a
+   *  score cannot: does installing this help, versus not installing it. `meanDelta` is null
+   *  when the recorded result carried no readable delta; zz-core owns the authoritative
+   *  parse. Null throughout when nothing has been recorded. */
+  eval: { ranAt: string; casesDigest: string | null; cases: number; meanDelta: number | null } | null;
+}
+
+/** A skill, read — `/plugins/:plugin/skills/:skill`. The same shape whatever ships it. */
 export interface SkillText {
   skill: string;
-  /** Which container it came from; exactly one is set. */
-  flow?: string; block?: string;
-  /** True when this is the flow's front door rather than one of its stages. */
+  /** Which plugin it came from. */
+  plugin: string;
+  /** True when this is the plugin's front door rather than one of its stages. */
   isEntry?: boolean;
-  /** `theirs` only where a block team wrote it; a flow's skills are always ours. */
+  /** `theirs` only where a block team wrote it; everything we ship is ours. */
   origin: 'theirs' | 'ours';
   version: string | null; description: string | null; source: string | null;
   whenToUse: string | null;
@@ -441,35 +487,6 @@ export interface SkillText {
   body: string;
   /** Everything shipped beside it — `references/…`, and `scripts/…` where one exists. */
   references: { path: string; content: string }[];
-}
-
-/** The flows in the catalog — `/flows`. Catalog-first, so a flow nobody has run yet
- *  still appears, with its steps marked never-run. */
-export interface FlowRow {
-  flow: string; owner: string;
-  agentName: string | null; version: string | null; description: string | null;
-  /** Always begins with `platform`: every flow's own home, which no manifest declares. */
-  blocks: string[];
-  gates: number;
-  documents: { name: string; role: string | null; gate: boolean; stage?: string | null }[];
-  installs: { team: string; version: string; agent: string }[];
-  /** The flow's own front door, when it is not also one of the stages. `stages` does
-   *  not contain it, so without this the console lists every step and never the flow. */
-  entry: { name: string; versions: number; calls: number; evals: number;
-           everRun: boolean; lastRun: string | null } | null;
-  /** The most recent call across every step, or null when nothing has ever run it.
-   *  The list sorts on this. */
-  lastRun: string | null;
-  steps: { name: string; position: number; versions: number; calls: number; evals: number;
-           everRun: boolean; lastRun: string | null }[];
-}
-export interface BlockDetail {
-  block: string;
-  tools: { tool: string; calls: number; failed: number }[];
-  refusals: { tool: string; n: number; refusal: string }[];
-  steps: { step: string; calls: number; failed: number; tools: number }[];
-  feed: { ts: string; tool: string; step: string; ok: boolean; refusal: string | null }[];
-  versions: { version: string; tools: number; preferred: number; useWithCare: number; avoid: number }[];
 }
 export interface ActivityEvent {
   ts: string; actor: string | null; team: string | null; kind: string;
