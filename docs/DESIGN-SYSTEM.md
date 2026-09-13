@@ -786,7 +786,30 @@ Both were about a page nothing was counting:
 > gallery or delete the sentence; what must not stand is a design document
 > sending its reader to a page that does not exist.
 
-**So look at every page instead.** The brand adoption was validated by rendering
+**So look at every page instead — but check you are looking at the real one.**
+
+Two traps ate a whole validation run each, and both produce a screenshot that
+looks plausible:
+
+- **`output: 'standalone'` does not copy `public/` or `.next/static`.** The
+  `Dockerfile` does it explicitly (lines 33-34); run the standalone server
+  locally without repeating those two copies and every image 404s. The harness
+  reported all 18 routes "ok" with not one mascot on screen.
+- **A rebuild re-hashes every chunk, and the standalone copy keeps the old
+  names.** Anything that runs `pnpm build` — `checks/icon-convention.mjs` does,
+  by design — leaves an already-running standalone server serving HTML that
+  points at chunks it no longer has. The JS 500s, nothing hydrates, and every
+  page sits on "Checking your sign-in…" forever.
+
+Both are invisible to a harness that only guards against 5xx on the DOCUMENT.
+Guard the sub-resources too, or re-copy and restart after every build.
+
+**And the still frame is not the whole product.** The approve toast lives for
+3000ms after a click that mutates state, so no page-load harness can ever
+contain it. It was validated by driving the real page — click `Approve`, click
+`Confirm`, wait for `[role="status"]`, screenshot — and by a test
+(`tests/approve-action.test.tsx`) mutation-checked against five ways it could
+break. Anything transient needs one of those two, and ideally both. The brand adoption was validated by rendering
 all 18 routes against a production build, in both populated and empty states,
 and reading the screenshots. Three things were caught that way and by no check:
 a stale server quietly serving 500s while the harness reported success, bare-array
