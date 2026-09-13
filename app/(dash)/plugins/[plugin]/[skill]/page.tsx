@@ -58,12 +58,12 @@ export default function PluginSkillPage({ params }: { params: Promise<{ plugin: 
   const text = useConsole<SkillText>(known ? `/plugins/${pluginName}/skills/${name}` : null).data;
   const view = useSkillView(!!text?.references.length);
 
-  // THE SCORES PAGE LISTS THE DOCUMENTS A SKILL PRODUCED, so it is offered only where there
-  // can be any. A plugin that governs no document — a toolbox, a block's usage notes — has
-  // nothing for it to list, and a link to an empty page is worse than no link.
-  const scoresHref = skill && plugin?.documents.length
-    ? `/plugins/${pluginName}/${name}/scores`
-    : undefined;
+  // THE PER-SKILL SCORES PAGE IS GONE, with the subject it was about. It listed the documents
+  // one skill produced and how each was judged; an evaluation's subject is a plugin version
+  // now, so nothing can write a per-skill score again. Not relinked at a plugin-level page
+  // either: a scores view keyed on a skill and nested under a plugin would invite exactly the
+  // per-skill comparison the new design refuses, because every ruler belongs to one plugin.
+  const scoresHref = undefined;
 
   return (
     <DashboardPage

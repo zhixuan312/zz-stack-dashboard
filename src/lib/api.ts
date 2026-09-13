@@ -321,31 +321,10 @@ export interface DocumentDetail {
   sources: { path: string; title: string | null; body: string | null;
              supports: string; added: string; bytes: number }[];
 }
-/** Every document a skill produced, scored or not — `/skills/:name/scores`. */
-export interface SkillScores {
-  skill: string;
-  /** The document this skill is judged on, derived from its eval history. Null
-   *  when no eval ever named one, which is a real answer, not a missing field. */
-  path: string | null;
-  /** Dimension names in rubric order — the table's D1…Dn. */
-  dimensions: string[];
-  /** Every skill version that has ever been judged, oldest first. Not every version
-   *  the skill has — one nobody evaluated could only filter to an empty list. */
-  versions: string[];
-  documents: {
-    team: string; initiative: string; path: string;
-    title: string | null; status: string | null; updated: string;
-    /** The skill version that WROTE this document — one, always, because one
-     *  version produced it. Null when no judge has read it: nothing outside the
-     *  eval record says which version wrote a given document. */
-    version: string | null;
-    judge: string | null; evaluatedAt: string | null;
-    /** Null when no judge has read this document. Not an empty object — the
-     *  difference between "scored nothing" and "never scored" is the point. */
-    scores: Record<string, { score: number; reason: string; quote: string }> | null;
-    mean: number | null;
-  }[];
-}
+/* SkillScores WAS HERE, for `/skills/:name/scores`, and both went with their subject.
+ * An evaluation is about a plugin version now; a score keyed on a skill is one nothing can
+ * write. The gateway route is deleted, so a type describing its response would be a shape
+ * with no sender. */
 export interface KnowledgeNode {
   /** Unique across teams: `<team>/<path>`. The NUMBER is not — every team numbers
    *  its own nodes from 0001, so two teams both have a node 1. */
