@@ -78,8 +78,28 @@ under the `/api` path.
 
 ```sh
 pnpm build && pnpm start     # production build
-pnpm typecheck && pnpm test  # what CI would run
+pnpm typecheck && pnpm lint && pnpm test && pnpm gate   # what the release runs
 ```
+
+Those four, in that order, are what `zz-stack/scripts/release.mjs` runs against this
+repo before it will build an image — so they are the real bar, and `pnpm gate` is one
+of them rather than a superset. The gate does not run the other three (it ends in
+`next build`, which type-checks but runs no tests).
+
+What the gate adds on top is the house rules — a timestamp rendered through `<Time>`,
+a table that can be empty saying so, no source file over 700 lines — plus **the
+contrast floor**, 31 enumerated token pairs exiting non-zero, plus every check under
+`checks/`: one mark, one sparkle, no dark mode, the kit's chart cycle, the mascot
+assignments, asset custody, and the counts in `docs/DESIGN-SYSTEM.md`.
+
+```sh
+pnpm checks           # the 17 design-system checks, named, with a count
+pnpm verify:contrast  # the 31 pairs on their own
+pnpm audit:design     # discipline counters — advisory, does not gate
+```
+
+The first two are in `pnpm gate` and need no separate run; they are listed because
+when the gate goes red it is quicker to run the one that failed.
 
 ## Deploying
 
