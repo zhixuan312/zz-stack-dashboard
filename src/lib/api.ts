@@ -383,8 +383,11 @@ export interface SkillDetail {
 }
 export interface Runs {
   totals: { runs: number; calls: number; refusals: number; mb: number };
-  outcomes: { outcome: string; n: number }[];
-  gaps: { turnsAttributed: boolean; turnEvents: number; runsWithoutOutcome: number };
+  /* `outcomes` and `gaps.runsWithoutOutcome` WERE HERE and went with the column. zz.run.outcome
+   * was written by one deleted op and read by nothing; migration 048 drops it. A breakdown of a
+   * column nothing writes is one bar reading "not recorded" forever, and a gap that can never
+   * close is a feature nobody built, reported as a defect. */
+  gaps: { turnsAttributed: boolean; turnEvents: number };
 }
 /** A skill a plugin ships. `theirs` = a block team's own, vendored, and carrying a
  *  `source:` line that says so; `ours` = everything we wrote — a plugin's own stages,

@@ -3,7 +3,6 @@
 import { DashboardPage } from '@/components/DashboardPage';
 import { Panel } from '@/components/Panel';
 import { Query } from '@/components/Query';
-import { CompositionBar } from '@/components/charts/CompositionBar';
 import {
   Banner, MetricCard, Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui';
@@ -53,13 +52,6 @@ export default function RunsPage() {
                 variant="warning"
                 title="Turns are recorded but not attributed"
                 description={`zz.run.turns is 0 on all ${r.totals.runs} rows, while the event log holds ${formatCount(r.gaps.turnEvents)} turn events with no step and no run id. Cost per document is therefore unanswerable today. It is a one-column platform fix.`}
-              />
-            ) : null}
-            {r.gaps.runsWithoutOutcome ? (
-              <Banner
-                variant="info"
-                title={`${r.gaps.runsWithoutOutcome} of ${r.totals.runs} runs have no outcome`}
-                description="A run that ends without a verdict cannot feed the improvement ladder — it is recorded and then ignored."
               />
             ) : null}
 
@@ -115,16 +107,6 @@ export default function RunsPage() {
                     </Table>
                   )}
                 </Query>
-              </Panel>
-
-              <Panel title="Outcome" aside={`${r.totals.runs} runs`}>
-                <CompositionBar
-                  slices={r.outcomes.map((o) => ({
-                    key: o.outcome || 'not recorded',
-                    label: o.outcome || 'not recorded',
-                    value: o.n,
-                  }))}
-                />
               </Panel>
             </div>
           </div>
