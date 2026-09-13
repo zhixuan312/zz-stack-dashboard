@@ -199,6 +199,7 @@ export default function InitiativesPage() {
                 </Table>
                 {rows.length === 0 && (
                   <EmptyState
+                    illustration={{ src: '/assets/brand/state-empty.png', width: 96, height: 96 }}
                     icon={<SearchX className="size-5" aria-hidden />}
                     title="Nothing matches those filters"
                     description="No initiative matches every filter at once. The date window counts too."

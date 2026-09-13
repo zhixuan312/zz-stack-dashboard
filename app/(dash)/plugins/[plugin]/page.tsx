@@ -139,6 +139,7 @@ export default function PluginPage({ params }: { params: Promise<{ plugin: strin
           !p ? (
             <Panel title="No such plugin">
               <EmptyState
+                illustration={{ src: '/assets/brand/state-notfound.png', width: 76, height: 96 }}
                 icon={<Package />}
                 title={`'${plugin}' is not a plugin the console lists`}
                 description="It may have been renamed or removed. All plugins lists what is there."

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/cn';
 import type { Tint } from '@/lib/tints';
-import { TINT_VAR, cycleTint } from '@/lib/tints';
+import { TINT_VAR, CHART_EDGE, cycleTint } from '@/lib/tints';
 
 interface CompositionSlice {
   key: string;
@@ -51,7 +51,7 @@ export function CompositionBar({
             <span
               key={s.key}
               title={`${s.key} — ${format(s.value)} (${(share * 100).toFixed(1)}%)`}
-              style={{ width: `${Math.max(2, share * 100)}%`, background: TINT_VAR[s.tint] }}
+              style={{ width: `${Math.max(2, share * 100)}%`, background: TINT_VAR[s.tint], boxShadow: CHART_EDGE }}
             />
           );
         })}
@@ -65,7 +65,7 @@ export function CompositionBar({
               <span
                 aria-hidden
                 className="size-2.5 shrink-0 translate-y-[1px] rounded-[var(--r-sm)]"
-                style={{ background: TINT_VAR[s.tint] }}
+                style={{ background: TINT_VAR[s.tint], boxShadow: CHART_EDGE }}
               />
               <span className="min-w-0 flex-1 truncate text-ink">{s.label ?? s.key}</span>
               <span className="tabular-nums text-ink-soft">{format(s.value)}</span>

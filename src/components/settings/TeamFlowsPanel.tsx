@@ -73,6 +73,7 @@ export function TeamFlowsPanel({ team }: { team: string }) {
             rows.length === 0 ? (
               <div className="px-5 py-8">
                 <EmptyState
+                  illustration={{ src: '/assets/brand/state-welcome.png', width: 78, height: 96 }}
                   icon={<Workflow className="size-5" strokeWidth={2} />}
                   title="No flow installed"
                   description="Install one below — this team has no agent yet."

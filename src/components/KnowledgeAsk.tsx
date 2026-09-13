@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState } from 'react';
 import Link from 'next/link';
 import { Sparkles } from 'lucide-react';
@@ -105,8 +106,18 @@ export function KnowledgeAsk({ team }: { team: string | null }) {
             Ask
           </Button>
           {asking ? (
-            <span className="flex items-center gap-1.5 text-xs text-ink-faint">
-              <Spinner size="sm" label="Asking" />
+            <span className="flex items-center gap-2 text-xs text-ink-faint">
+              {/* The mascot stands in for the spinner ONLY here — this is the one screen
+                  where a person waits on an answer rather than on a button. `Spinner` is
+                  untouched and still imported: if the image fails, it is what shows. */}
+              <Image
+                src="/assets/brand/state-thinking.png"
+                alt=""
+                width={72}
+                height={90}
+                className="h-12 w-auto object-contain"
+              />
+              <Spinner size="sm" label="Asking" className="sr-only" />
               Asking your team&apos;s knowledge…
             </span>
           ) : null}

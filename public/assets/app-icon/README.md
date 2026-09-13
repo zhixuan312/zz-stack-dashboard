@@ -1,19 +1,21 @@
 # ZZ app icon
 
-Derived from panel **03 APP ICON** of `../brand-kit-sheet.png` — the mascot in the
-lavender squircle, which is what the kit designates as the app icon. (Panel 04, the
-purple `Zz` wordmark, is the kit's favicon; that is a separate mark and is not built
-here.)
+The mascot in the lavender squircle — one of the three ZZ marks, the one drawn for
+180px and up, where there is room for the character. The other two are the flat single-`Z`
+tab icon (16–32px) and the `Zz` wordmark used inside the application; neither is built here,
+and none of the three is a scaled copy of another.
 
 Regenerate with `python3 scripts/build-app-icon.py` (needs Pillow).
 
-## Resolution caveat
+## Source
 
-The kit is a contact sheet: panel 03 is **183 × 179 px** on it, despite being labelled
-"1024 × 1024". Everything here above ~180px is a LANCZOS upscale of that crop, sharpened.
-It holds up because the source is a smooth 3D render with no fine detail, but it is not a
-true 1024 master. If the original 1024 render exists somewhere, rebuild from it — point
-`SHEET`/`BOX` in the build script at the real file and the rest of the pipeline is unchanged.
+Built from `design/in-use/app-icon-squircle.png` — a purpose-drawn **1254 × 1254** master, so
+every size here is a downscale. Nothing in this directory is an upscale.
+
+That was not always true. The first version of this set was cropped from panel 03 of
+`brand-kit-sheet.png`, a region the sheet itself labels "1024 × 1024" and which is actually
+**183 × 179 px** — the label is drawn-on annotation, not a file size. Everything above ~180px
+was therefore a sharpened LANCZOS upscale. The master replaced it on 2026-09-13.
 
 ## Files
 

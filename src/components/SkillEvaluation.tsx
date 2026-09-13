@@ -44,6 +44,7 @@ export function SkillEvaluation({
       {!skill ? (
         <Panel title="What it costs to run">
           <EmptyState
+            illustration={{ src: '/assets/brand/state-empty.png', width: 96, height: 96 }}
             icon={<FlaskConical />}
             title="Never run"
             description="No call has been recorded against this skill, so there is nothing to cost. It exists, it is readable above, and nobody has used it yet."
@@ -136,6 +137,7 @@ export function SkillEvaluation({
               ) : (
                 <Panel title="How it is judged">
                   <EmptyState
+                    illustration={{ src: '/assets/brand/state-empty.png', width: 96, height: 96 }}
                     icon={<FlaskConical />}
                     title="No rubric yet"
                     description={`${d.skill} has never been evaluated — no rubric, no judge run, no score. The statistics on this page are real; there is simply nothing to compare them against.${

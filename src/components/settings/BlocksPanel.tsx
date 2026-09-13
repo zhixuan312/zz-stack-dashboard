@@ -71,6 +71,7 @@ export function BlocksPanel() {
             rows.length === 0 ? (
               <div className="px-5 py-8">
                 <EmptyState
+                  illustration={{ src: '/assets/brand/state-welcome.png', width: 78, height: 96 }}
                   icon={<Blocks className="size-5" strokeWidth={2} />}
                   title="Not connected to any block"
                   description="Your calls to a block that supports it go through a team grant until you connect yourself below."

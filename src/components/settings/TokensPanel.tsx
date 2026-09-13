@@ -114,6 +114,7 @@ export function TokensPanel() {
             rows.length === 0 ? (
               <div className="px-5 py-8">
                 <EmptyState
+                  illustration={{ src: '/assets/brand/state-welcome.png', width: 78, height: 96 }}
                   icon={<KeyRound className="size-5" strokeWidth={2} />}
                   title="No tokens issued yet"
                   description="Issue one below to connect a client to this platform as yourself."

@@ -3,13 +3,13 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Archive, BookOpen, CheckCircle2, GitBranch, History, Tag } from 'lucide-react';
+import { Archive, BookOpen, CheckCircle2, GitBranch, History, SearchX, Tag } from 'lucide-react';
 import { DashboardPage } from '@/components/DashboardPage';
 import { KnowledgeTabs } from '@/components/knowledge/KnowledgeTabs';
 import { Panel } from '@/components/Panel';
 import { Query } from '@/components/Query';
 import {
-  Badge, Button, SearchInput, Segmented, Time,
+  Badge, Button, EmptyState, SearchInput, Segmented, Time,
 } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import {
@@ -262,22 +262,38 @@ export default function KnowledgePage() {
                   </Query>
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center gap-2 py-10 text-center text-sm text-ink-faint">
-                    {/* Names what is filtered OUT rather than leaving a shelf that
-                        looks unpopulated read as if there is nothing to find at
-                        all — the same failure the missing team control was: a
-                        control's absence, or a blank pane's silence, must never
-                        be how a reader learns something isn't there. */}
-                    <p>
-                      Nothing matches
-                      {filtersActive ? ' the selected filters.' : ' — this shelf is empty.'}
-                    </p>
-                    {filtersActive ? (
-                      <Button type="button" variant="ghost" size="sm" onClick={clearFilters}>
-                        Clear filters
-                      </Button>
-                    ) : null}
-                  </div>
+                  /* TWO EMPTY STATES, NOT ONE, and the mascot is what makes the difference
+                     visible before the words are read. "Nothing matches your filters" and
+                     "nothing has been written here yet" are different facts about the
+                     product, and a blank pane's silence must never be how a reader learns
+                     which one they are looking at — the same failure the missing team
+                     control was.
+
+                     This was a hand-rolled inline block until the brand adoption. It read
+                     correctly and looked like a different product from the other 17 empty
+                     surfaces, which is the exact thing a design system exists to stop. */
+                  <EmptyState
+                    className="!py-10"
+                    illustration={
+                      filtersActive
+                        ? { src: '/assets/brand/state-notfound.png', width: 78, height: 96 }
+                        : { src: '/assets/brand/state-empty.png', width: 78, height: 96 }
+                    }
+                    icon={filtersActive ? <SearchX className="size-5" strokeWidth={2} /> : <Archive className="size-5" strokeWidth={2} />}
+                    title={filtersActive ? 'Nothing matches the selected filters' : 'Nothing to read yet'}
+                    description={
+                      filtersActive
+                        ? 'Every node is filtered out by the current team, tag or search.'
+                        : 'No knowledge has been written to this shelf. A node arrives when an initiative closes and something in it was worth keeping.'
+                    }
+                    action={
+                      filtersActive ? (
+                        <Button type="button" variant="ghost" size="sm" onClick={clearFilters}>
+                          Clear filters
+                        </Button>
+                      ) : null
+                    }
+                  />
                 )}
               </Panel>
 

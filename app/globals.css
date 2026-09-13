@@ -15,6 +15,7 @@
    `inline` lets the utilities resolve the live CSS var rather than a snapshot. */
 @theme inline {
   --font-sans: var(--font-sans-family);
+  --font-display: var(--font-display-family);
   --font-mono: var(--font-mono-family);
   /* `font-serif` intentionally absent: there is no serif in this system. */
 
@@ -54,13 +55,18 @@
   --color-red-text: var(--red-text);
   --color-red-tint: var(--red-tint);
   --color-amber-text: var(--amber-text);
+  --color-zz-lavender: var(--zz-lavender);
+  --color-zz-pink: var(--zz-pink);
+  --color-zz-blue: var(--zz-blue);
   --color-on-accent: var(--on-accent);
   --color-on-danger: var(--on-danger);
   --color-danger-fill: var(--danger-fill);
 
   --radius-sm: var(--r-sm);
   --radius: var(--r);
+  --radius-md: var(--r-md);
   --radius-lg: var(--r-lg);
+  --radius-pill: var(--r-pill);
 
   /* ---- elevation: hard offsets, not blurs ----
      A soft, wide, multi-layer blur is what makes a UI read as a consumer app.
@@ -86,103 +92,138 @@
 }
 
 /* ════════════════════════════════════════════════════════════════════════
-   THE PALETTE — one neutral ramp, one accent, three status hues.
+   THE PALETTE — one cream ramp, one accent, three status hues.
 
-   This replaced a warm cream-and-ember world. That palette was internally
-   consistent and it passed every audit, and it still read as a magazine rather
-   than as a product: the GROUND ITSELF was coloured, so the accent had to fight
-   a tinted background everywhere it appeared, and colour ended up decorating
-   the page instead of meaning anything on it.
+   THIS REVERSES A DECISION THIS FILE USED TO ARGUE FOR, and the history is worth
+   keeping rather than quietly overwriting. A warm cream-and-ember palette shipped
+   here once and was replaced by a neutral grey one, on the reasoning that a
+   coloured ground makes the accent fight the page and turns colour into
+   decoration. That reasoning was sound and the neutral system was good.
 
-   Every professional dashboard worth copying resolves this the same way —
-   near-neutral surfaces, one measured brand colour, and status hues that carry
-   all the semantic weight precisely because nothing else competes with them.
-   Colour is for MEANING, not decoration. If a surface is coloured, ask what it
-   is telling you; if the answer is "nothing", make it neutral.
+   What changed is not the reasoning but the brief. The ZZ brand kit arrived with
+   cream as its own primary, and the product owner chose to carry the brand rather
+   than to avoid mistakes. So the ground is coloured again — deliberately, with the
+   measurements taken this time rather than assumed:
 
-   Every value below is verified ≥4.5:1 against every surface it can legally sit
-   on, in BOTH themes — computed, not eyeballed. `pnpm audit:design` re-checks it.
+     ink on ground        14.79:1    (the objection to a cream ground was that it
+                                      could not be read on. It can.)
+     accent on ground      5.04:1
+     white on accent       5.71:1
+     status hues           4.61 / 4.59 / 4.79:1
+
+   The old argument's real content survives intact: colour is still for MEANING.
+   Green, amber and red still mean good, warn and bad and are no longer handed out
+   as chart series. One accent still marks the primary action, the active nav item,
+   the focus ring and the one number that carries the finding.
+
+   Every value below is verified against every surface it can legally sit on —
+   computed, not eyeballed. `node scripts/verify-contrast.mjs` re-checks it and
+   EXITS NON-ZERO, which is the part that did not exist before: `audit:design`
+   printed contrast failures and returned 0, so a palette that failed everywhere
+   would have shipped green and silent.
    ════════════════════════════════════════════════════════════════════════ */
 :root {
-  /* ---- the neutral ramp ----
-     Slightly cool, never warm. One ramp: every grey in the product is a rung on
-     it, which is what stops "a slightly different grey" from being invented at
-     a call site. */
-  --n-0: #ffffff;
-  --n-25: #fafbfc;
-  --n-50: #f7f8fa;
-  --n-100: #f4f5f8;
-  --n-150: #eef0f4;
-  --n-200: #e5e7ec;
-  --n-300: #d2d6de;
-  --n-400: #a9afba;
-  --n-500: #767d8c;
-  --n-600: #676d7a;
-  --n-700: #4a505c;
-  --n-800: #2a2e36;
-  --n-900: #14161a;
+  /* ---- the cream ramp ----
+     Warm, never cool. One ramp: every neutral in the product is a rung on it,
+     which is what stops "a slightly different beige" from being invented at a
+     call site.
+
+     The ground is the kit's own primary, #F8EFEA. Ink is warmed toward the
+     brand rather than left a cold near-black, so the neutral reads as chosen
+     rather than inherited — it measures 14.79:1 on the ground. */
+  --c-0: #ffffff;
+  --c-25: #fffbf9;
+  --c-50: #f8efea;
+  --c-100: #f4e9e3;
+  --c-200: #e9ddd6;
+  --c-300: #d8c8be;
+  /* Darkened from #7a7080, which was chosen by eye and measured 4.16:1 on the
+     ground and 3.95:1 on the sunk surface — under the floor on both. Same hue,
+     enough weight to clear 4.5:1 everywhere `--ink-faint` can legally sit.
+     `scripts/verify-contrast.mjs` is what caught it. */
+  --c-500: #6e6574;
+  --c-700: #5a5160;
+  --c-900: #221b26;
 
   /* ---- brand ----
      ONE accent. It marks the primary action, the active nav item, the focus
      ring, and the single number on a page that carries the finding. That is the
-     whole list. A second brand colour is how a UI starts looking like a chart
-     legend. */
-  --indigo: #4a5bd0;
-  --indigo-deep: #3a49ad;
-  --indigo-tint: #eceefb;
+     whole list.
+
+     It sits at the kit lavender's exact hue, 258.8 degrees, but darker: the
+     kit's own lavender measures 1.77:1 on cream and cannot be an accent. This
+     tone clears 5.04:1 on the ground and 5.71:1 with a white label on it. */
+  --zz-purple: #7548d8;
+  --zz-purple-deep: #5e2bcc;
+  --zz-purple-tint: #f1ebff;
+
+  /* ---- the kit's pastels, deepened ----
+     Chart series and soft fills only — never text, never status. At their kit
+     values (#C4A9FF, #FFB6C8, #8FD3FF) they measure 1.77, 1.45 and 1.43 on
+     cream and genuinely disappear as bars. These keep the hue and gain enough
+     weight to read. Even so they clear only ~1.8-2.4:1 against the ground, so
+     every chart mark carries a hairline edge and the separation comes from
+     that, not from luminance. See `--chart-edge` below. */
+  --zz-lavender: #a98cf5;
+  --zz-pink: #f58fa8;
+  --zz-blue: #5fbdf5;
 
   /* ---- status: reserved ----
      These mean good / warn / bad. Never a chart series, never decoration. Each
      has a FILL tone (paint with it) and a TEXT tone (write with it); the two
-     are different because a fill that reads well as a dot fails as 12px type. */
+     are different because a fill that reads well as a dot fails as 12px type.
+     Re-verified against the cream ground: 4.61, 4.59 and 4.79:1. */
   --green: #22a05a;
   --green-text: #1c7c44;
-  --green-tint: #e8f5ed;
+  --green-tint: #e4f2e9;
   --amber: #c98a1c;
   --amber-text: #996010;
-  --amber-tint: #fbf1de;
+  --amber-tint: #f8eeda;
   --red: #d94a3d;
   --red-text: #c0392f;
-  --red-tint: #fbeae8;
+  --red-tint: #f9e7e3;
 
   /* ---- geometry ----
-     Measured off the systems this is modelled on: badges 4, controls 6, panels
-     10, pills full. The previous system was 2/3/4 — near-square, which reads as
-     brutalist rather than precise, and is the single change that most made the
-     old build look severe. */
-  --r-sm: 4px;
-  --r: 6px;
-  --r-md: 8px;
-  --r-lg: 10px;
+     Rounder than the system this replaced (4/6/8/10), because the kit's whole
+     register is soft. What it does NOT take from the kit is gloss: see the
+     elevation block above, where the shadows stay `none`. Warmth and rounding
+     without bevels is the whole design decision. */
+  --r-sm: 8px;
+  --r: 10px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-pill: 999px;
   --rail-w: 248px;
 
   /* ---- semantic layer — what components actually reference ---- */
-  --bg: var(--n-50);
-  --bg-sunk: var(--n-150);
-  --surface: var(--n-0);
-  --surface-2: var(--n-100);
-  --ink: var(--n-900);
-  --ink-soft: var(--n-700);
-  --ink-faint: var(--n-600);
-  --line: var(--n-200);
-  --line-strong: var(--n-300);
-  --accent: var(--indigo);
-  --accent-deep: var(--indigo-deep);
-  --accent-tint: var(--indigo-tint);
+  --bg: var(--c-50);
+  --bg-sunk: var(--c-100);
+  --surface: var(--c-25);
+  --surface-2: var(--c-100);
+  --ink: var(--c-900);
+  --ink-soft: var(--c-700);
+  --ink-faint: var(--c-500);
+  --line: var(--c-200);
+  --line-strong: var(--c-300);
+  --accent: var(--zz-purple);
+  --accent-deep: var(--zz-purple-deep);
+  --accent-tint: var(--zz-purple-tint);
 
   /* Text ON a filled surface, and the fills that need it.
 
-     A filled button's label colour is NOT a constant. In light the fill is dark
-     so the label is white; in dark the fill is LIGHT, and a white label on it
-     measures 3.05:1 and is genuinely hard to read. Hard-coding `text-white` on
-     a button is the most common way a dark theme ships broken, because it looks
-     perfect in the theme it was written in. */
+     These survive the move to one theme. A filled button's label is not a
+     constant just because there is only one palette now: `--danger-fill` is
+     darker than `--red` precisely so white type on it clears 4.5:1, while
+     `--red` stays the lighter tone for dots and bars. Hard-coding `text-white`
+     on a button is how that distinction gets lost. */
   --on-accent: #ffffff;
   --on-danger: #ffffff;
-  /* Darkened from #d94a3d so white type on it clears 4.5:1. The lighter tone
-     survives as `--red` for dots and bars, where the 3:1 non-text threshold
-     applies instead. */
-  --danger-fill: #d0473b;
+  --danger-fill: #c0392f;
+
+  /* The hairline every chart mark carries. The pastels above cannot separate
+     themselves from the cream ground by luminance, so they separate by edge.
+     A series rendered without this genuinely disappears. */
+  --chart-edge: inset 0 0 0 1px rgba(34, 27, 38, 0.13);
 
   /* Aliases kept so the components and charts that name the old hues still
      resolve. Swapping the ramp above re-themes them all. */
@@ -193,84 +234,14 @@
   --rose: var(--red);
   --rose-deep: var(--red-text);
   --rose-tint: var(--red-tint);
-  --steel: var(--n-500);
-  --steel-deep: var(--n-700);
-  --frost: var(--n-150);
-  --ember: var(--indigo);
-  --ember-deep: var(--indigo-deep);
-  --ember-tint: var(--indigo-tint);
+  --steel: var(--c-500);
+  --steel-deep: var(--c-700);
+  --frost: var(--c-100);
+  --ember: var(--zz-purple);
+  --ember-deep: var(--zz-purple-deep);
+  --ember-tint: var(--zz-purple-tint);
 }
 
-/* ── DARK ────────────────────────────────────────────────────────────────
-   Shipped from day one, not bolted on later. Tools people keep open all day are
-   used in dark more often than not, and a theme added afterwards always shows
-   it — the greys turn out to be warm, the borders vanish, the accent glares.
-
-   Note the inversion is NOT symmetric. Dark surfaces step UP toward the reader
-   (canvas darkest, elevated lightest) while light surfaces step DOWN, and the
-   accent has to lighten or it disappears into the ground. Mirroring the ramp
-   mechanically is what produces a dark mode that looks muddy. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    --bg: #0b0c0e;
-    --bg-sunk: #08090a;
-    --surface: #131519;
-    --surface-2: #191c21;
-    --ink: #f2f4f7;
-    --ink-soft: #b3bac6;
-    --ink-faint: #878e9c;
-    --line: #23262d;
-    --line-strong: #31353e;
-    --accent: #7d8cf0;
-    --accent-deep: #9aa6f6;
-    --accent-tint: #1b1f33;
-    --on-accent: #0b0c0e;
-    --on-danger: #0b0c0e;
-    --danger-fill: #f0736a;
-    --green: #3fbf74;
-    --green-text: #3fbf74;
-    --green-tint: #10241a;
-    --amber: #e0a34a;
-    --amber-text: #e0a34a;
-    --amber-tint: #241b0e;
-    --red: #f0736a;
-    --red-text: #f0736a;
-    --red-tint: #2a1514;
-    --steel: #8a919e;
-    --steel-deep: #b3bac6;
-    --frost: #191c21;
-  }
-}
-
-:root[data-theme='dark'] {
-  --bg: #0b0c0e;
-  --bg-sunk: #08090a;
-  --surface: #131519;
-  --surface-2: #191c21;
-  --ink: #f2f4f7;
-  --ink-soft: #b3bac6;
-  --ink-faint: #878e9c;
-  --line: #23262d;
-  --line-strong: #31353e;
-  --accent: #7d8cf0;
-  --accent-deep: #9aa6f6;
-  --accent-tint: #1b1f33;
-  --on-accent: #0b0c0e;
-  --on-danger: #0b0c0e;
-  --danger-fill: #f0736a;
-  --green: #3fbf74;
-  --green-text: #3fbf74;
-  --green-tint: #10241a;
-  --amber: #e0a34a;
-  --amber-text: #e0a34a;
-  --amber-tint: #241b0e;
-  --red: #f0736a;
-  --red-text: #f0736a;
-  --red-tint: #2a1514;
-  --steel: #8a919e;
-  --steel-deep: #b3bac6;
-  --frost: #191c21;
-}
 
 /* ── APP-SHELL ROOT LOCK ──────────────────────────────────────────────────
    The document itself NEVER scrolls — the only scroll region is ShellBody
@@ -403,11 +374,12 @@ body {
   font-weight: 600;
   line-height: 1;
   letter-spacing: -0.022em;
+  font-family: var(--font-display-family), var(--font-sans-family), sans-serif;
   font-variant-numeric: tabular-nums;
-  font-feature-settings: 'ss01', 'cv05';
   color: var(--ink);
 }
 .t-display {
+  font-family: var(--font-display-family), var(--font-sans-family), sans-serif;
   font-size: clamp(1.625rem, 1.2rem + 1.3vw, 2rem);
   font-weight: 600;
   line-height: 1.12;
@@ -472,10 +444,16 @@ body {
   color: var(--ink-faint);
 }
 
-/* Shared focus ring for all interactive primitives. */
+/* Shared focus ring for all interactive primitives.
+
+   The ring itself is the accessibility contract and is unchanged: an offset in the page
+   colour, then a 3px accent halo. What the brand adds is the tint underneath — the same
+   four-point-sparkle purple, at a weight low enough that it reads as warmth rather than
+   as a second ring. The contrast of the ring is not reduced by it. */
 .focus-ring:focus-visible {
   outline: none;
   box-shadow: var(--ring-offset), var(--ring);
+  background-color: color-mix(in oklab, var(--accent) 6%, transparent);
 }
 
 /* Hairline rule. */

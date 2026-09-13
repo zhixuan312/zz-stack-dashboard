@@ -48,6 +48,15 @@ export function canApprove(doc: DocumentDetail, me: Me | undefined): boolean {
  * the approvers row once this succeeds, which the mutation's cache
  * invalidation (see `mutate.ts`) is what makes visible without a reload.
  *
+ * ONE SUCCESS TOAST, AND IT IS A DELIBERATE REVERSAL. This component used to announce
+ * nothing on success, on the reasoning that the stamped `approved_by`/`approved_at` in the
+ * approvers row is already the receipt and a toast would duplicate it. That reasoning is
+ * still correct about INFORMATION — and the toast below carries none: the row still says
+ * who and when. What it carries is occasion. Every gate in every flow, on every
+ * initiative, converges on this one button; it is the act the whole process exists to
+ * reach, and it completed in silence. The toast is a mark, not a notification, which is
+ * why it is the only one of the console's 38 `showToast` calls that sets `illustration`.
+ *
  * NO OPTIMISTIC UPDATE: the button does not assume success. A rejected
  * approval leaves `doc` exactly as it was and surfaces the server's own
  * sentence through `showToast`, because a document silently marked approved
@@ -76,6 +85,11 @@ export function ApproveAction({ doc, me }: { doc: DocumentDetail; me: Me }) {
       // passing this component an `actions` slot at all, and it unmounts.
       // There is nothing left for `confirming` to reset.
       await mutation.mutateAsync({ initiative: doc.initiative, path: doc.path });
+      showToast({
+        type: 'success',
+        message: `Approved ${doc.path}.`,
+        illustration: { src: '/assets/brand/state-approved.png', width: 40, height: 48 },
+      });
     } catch (err) {
       showToast({
         type: 'error',

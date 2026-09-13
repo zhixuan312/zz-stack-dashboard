@@ -36,6 +36,7 @@ export function Query<T>({
   if (query.error) {
     return (
       <EmptyState
+        illustration={{ src: '/assets/brand/state-error.png', width: 74, height: 96 }}
         icon={<AlertTriangle />}
         title={query.error.status === 404 ? 'Not found' : 'Could not load this'}
         description={query.error.message}

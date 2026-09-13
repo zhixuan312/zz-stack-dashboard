@@ -33,7 +33,6 @@ export * from './freshness';
 export * from './skeleton';
 export * from './metric-card';
 export * from './spinner';
-export * from './theme-toggle';
 export * from './tooltip';
 
 // Overlays & navigation

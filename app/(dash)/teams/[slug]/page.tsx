@@ -74,6 +74,7 @@ export default function TeamPage({ params }: { params: Promise<{ slug: string }>
               ) : (
                 <div className="p-6">
                   <EmptyState
+                    illustration={{ src: '/assets/brand/state-empty.png', width: 96, height: 96 }}
                     icon={<Inbox />}
                     title="No initiatives yet"
                     description={`${slug} is provisioned but nobody has started a piece of work. The first brain dump into the Operations Agent creates one.`}

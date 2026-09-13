@@ -1,3 +1,5 @@
+import Image from 'next/image';
+import { AppMark } from '@/components/AppMark';
 import Link from 'next/link';
 
 /**
@@ -11,12 +13,14 @@ export default function SignedOutPage() {
   return (
     <main className="grid min-h-screen place-items-center bg-bg p-8">
       <div className="flex max-w-sm flex-col items-center gap-4 text-center">
-        <span
-          aria-hidden
-          className="grid size-11 place-items-center rounded-[var(--r-md)] border-[1.5px] border-accent text-[13px] font-semibold text-accent"
-        >
-          ZZ
-        </span>
+        <AppMark withWordmark />
+        <Image
+          src="/assets/brand/state-goodbye.png"
+          alt=""
+          width={128}
+          height={160}
+          className="h-32 w-auto object-contain"
+        />
         <h1 className="text-[22px] font-semibold tracking-[-0.018em] text-ink">Signed out</h1>
         <p className="text-sm leading-relaxed text-ink-soft">
           Your console session has ended. Your passkey is untouched — sign back in

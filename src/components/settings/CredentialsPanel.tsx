@@ -91,6 +91,7 @@ export function CredentialsPanel() {
             rows.length === 0 ? (
               <div className="px-5 py-8">
                 <EmptyState
+                  illustration={{ src: '/assets/brand/state-welcome.png', width: 78, height: 96 }}
                   icon={<KeyRound className="size-5" strokeWidth={2} />}
                   title="No personal keys stored"
                   description="A block you have not connected cannot be called. Sign in to it as yourself, or store your own key below — there is no shared team key to fall back on."

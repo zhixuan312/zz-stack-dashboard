@@ -1,7 +1,6 @@
 'use client';
 
 import { DashboardPage } from '@/components/DashboardPage';
-import { AppearancePanel } from '@/components/settings/AppearancePanel';
 import { BlocksPanel } from '@/components/settings/BlocksPanel';
 import { ClientSetupPanel } from '@/components/settings/ClientSetupPanel';
 import { ConsoleScopePanel } from '@/components/settings/ConsoleScopePanel';
@@ -27,11 +26,14 @@ import { TokensPanel } from '@/components/settings/TokensPanel';
  * validated by `teamAuthority` and `superOnly` instead — see each component's own header
  * for why hiding either section here is courtesy and not enforcement.
  *
- * `AppearancePanel` and `ConsoleScopePanel` are the two controls that used to live at
- * the bottom of the rail. Neither is a `/settings/*` route — the theme is a browser
- * preference and the scope is client state (`ConsoleModeProvider`) — but "the things you
- * change about this console" is what this page is, and a control's home should be where a
- * person goes looking for it rather than where it happened to fit.
+ * `ConsoleScopePanel` used to sit at the bottom of the rail alongside an appearance
+ * control. It is not a `/settings/*` route — the scope is client state
+ * (`ConsoleModeProvider`) — but "the things you change about this console" is what this
+ * page is, and a control's home should be where a person goes looking for it rather than
+ * where it happened to fit.
+ *
+ * The appearance control is GONE, not moved: the console has one theme now, so there is
+ * nothing to choose between. See the 2026-09 brand adoption.
  *
  * `showPeriod={false}` and no `updatedAt`: nothing here is a metric with a
  * refresh cadence — see `DashboardPage`'s own comment on `updatedAt` ("a
@@ -45,7 +47,6 @@ export default function SettingsPage() {
       showPeriod={false}
     >
       <div className="flex flex-col gap-6">
-        <AppearancePanel />
         <ConsoleScopePanel />
         <PasswordPanel />
         <CredentialsPanel />

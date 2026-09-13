@@ -224,16 +224,20 @@ const page = await browser.newPage();
 await page.setViewport(VIEWPORT);
 
 /**
- * Measure BOTH themes.
+ * ONE theme, so there is one measurement.
  *
- * Almost every palette mistake is invisible in the theme it was designed in —
- * a faint rung that clears 4.5:1 on white can sit at 3:1 on a dark panel, and
- * nobody notices because nobody switched. A one-theme audit is how a dark mode
- * ships broken.
+ * This used to loop over light and dark and take an `AUDIT_THEME` env var, for
+ * a good reason: a rung that clears 4.5:1 on white can sit at 3:1 on a dark
+ * panel, and a one-theme audit is how a dark mode ships broken. The 2026-09
+ * brand adoption deleted dark mode rather than carrying it, so there is now no
+ * second theme to miss — and the env var is gone rather than kept as a no-op
+ * that would print `theme: dark` while measuring the only theme there is.
+ *
+ * Contrast is no longer this script's job either: `scripts/verify-contrast.mjs`
+ * checks 31 enumerated pairs against the tokens and EXITS NON-ZERO. This one
+ * measures discipline — how many type sizes, weights, radii and off-scale
+ * spacings a page actually renders — and its exit code stays advisory.
  */
-const THEME = process.env.AUDIT_THEME ?? 'light';
-await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: THEME }]);
-console.log(`theme: ${THEME}`);
 
 const union = {
   fontSizes: new Set(),

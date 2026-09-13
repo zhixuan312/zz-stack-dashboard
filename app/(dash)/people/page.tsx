@@ -104,6 +104,7 @@ export default function PeoplePage() {
               {rows.length === 0 ? (
                 <div className="px-5 py-8">
                   <EmptyState
+                    illustration={{ src: '/assets/brand/state-done.png', width: 80, height: 96 }}
                     icon={<KeyRound className="size-5" strokeWidth={2} />}
                     title="No delegated connections"
                     description="Nobody has authorised a block on their own behalf yet. Every block call today goes through a team grant, which is the team's authority rather than a person's — a row appears here only when someone completes an OAuth flow against a block themselves."

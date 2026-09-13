@@ -69,6 +69,7 @@ export function Sidebar({ footer }: { footer?: ReactNode }) {
         ) : null}
         <Icon className="size-[18px] shrink-0" strokeWidth={2} aria-hidden />
         <span className="truncate">{item.label}</span>
+        {active ? <Sparkle /> : null}
       </Link>
     );
   }
@@ -99,6 +100,27 @@ export function Sidebar({ footer }: { footer?: ReactNode }) {
         <div className="mt-auto flex flex-col gap-2 border-t border-line pt-3">{footer}</div>
       ) : null}
     </aside>
+  );
+}
+
+/**
+ * The kit's four-point sparkle, marking the page you are on.
+ *
+ * INLINE, NEVER AN IMAGE FILE. It is on every page, and it has to be there before any
+ * asset loads — it is what carries the brand in the first paint, when the mascot has not
+ * arrived and may never arrive on a slow connection. It is also decorative, so it is
+ * `aria-hidden`: `aria-current="page"` on the link is what actually announces the active
+ * item, and a second signal would just be noise to a screen reader.
+ */
+function Sparkle() {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 12 12"
+      className="ml-auto size-3 shrink-0 text-accent"
+    >
+      <path d="M6 0.6 7.1 4.2 10.7 5.3 7.1 6.4 6 10 4.9 6.4 1.3 5.3 4.9 4.2 Z" fill="currentColor" />
+    </svg>
   );
 }
 

@@ -84,6 +84,7 @@ export function TeamMembersPanel({ team }: { team: string }) {
             rows.length === 0 ? (
               <div className="px-5 py-8">
                 <EmptyState
+                  illustration={{ src: '/assets/brand/state-welcome.png', width: 78, height: 96 }}
                   icon={<Users className="size-5" strokeWidth={2} />}
                   title="Nobody on this team yet"
                   description="Add the first member below."

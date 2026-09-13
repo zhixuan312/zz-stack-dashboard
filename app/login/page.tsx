@@ -1,9 +1,11 @@
 'use client';
 
+import Image from 'next/image';
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Activity, BookOpen, KeyRound, ListTree, ShieldAlert } from 'lucide-react';
-import { Button, ThemeToggle } from '@/components/ui';
+import { AppMark } from '@/components/AppMark';
+import { Button } from '@/components/ui';
 import { startAuthentication } from '@simplewebauthn/browser';
 import { useQuery } from '@tanstack/react-query';
 import { useConsole, type Me } from '@/lib/api';
@@ -79,15 +81,7 @@ function Login() {
       <section className="flex flex-col justify-center gap-8 border-line px-8 py-14 sm:px-14 lg:border-r">
         <div className="mx-auto flex w-full max-w-[34rem] flex-col gap-8">
         <div className="flex flex-col gap-5">
-          <span className="flex items-center gap-2.5">
-            <span
-              aria-hidden
-              className="grid size-8 place-items-center rounded-[var(--r-md)] border-[1.5px] border-accent text-[11px] font-semibold text-accent"
-            >
-              ZZ
-            </span>
-            <span className="text-[15px] font-semibold text-ink">ZZ Console</span>
-          </span>
+          <AppMark withWordmark />
           <h1 className="max-w-[16ch] text-[clamp(1.75rem,1.2rem+1.8vw,2.5rem)] font-semibold leading-[1.1] tracking-[-0.022em] text-ink">
             Everything the platform records, in one place.
           </h1>
@@ -95,7 +89,19 @@ function Login() {
             Every team&apos;s work, the knowledge behind it, and the telemetry of
             the skills and building blocks it runs on.
           </p>
+          <p className="text-[15px] font-medium text-accent-deep">
+            AI friend for a brighter you
+          </p>
         </div>
+
+        <Image
+          src="/assets/brand/mascot-hero.png"
+          alt=""
+          width={320}
+          height={400}
+          priority
+          className="hidden h-56 w-auto self-start object-contain sm:block"
+        />
 
         <ul className="flex max-w-[46ch] flex-col gap-3.5">
           <Line icon={<ListTree />} title="Teams and initiatives">
@@ -166,7 +172,6 @@ function Login() {
         </p>
 
         <div className="pt-1">
-          <ThemeToggle />
         </div>
         </div>
       </section>

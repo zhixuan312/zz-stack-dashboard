@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useSyncExternalStore } from 'react';
+import Image from 'next/image';
 import { CheckCircle2, XCircle, X } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
@@ -19,6 +20,15 @@ interface ToastItem {
   retry?: () => void;
   /** Auto-dismiss delay override in ms. `0` or `null` = persist (no auto-dismiss). */
   durationMs?: number | null;
+  /**
+   * Replaces the default CheckCircle2 / XCircle for THIS toast only.
+   *
+   * Optional on purpose. `showToast` is called at 38 sites and exactly one of them — the
+   * document approval in `ApproveAction` — has an occasion worth marking. Every other
+   * caller passes nothing and renders the default branch unchanged, which is what makes
+   * "the other 37 are unaffected" a property of the type rather than a hope.
+   */
+  illustration?: { src: string; width: number; height: number };
 }
 
 const DEFAULT_MS: Record<ToastItem['type'], number> = { success: 3000, error: 5000 };
@@ -132,7 +142,15 @@ function ToastCard({ toast }: { toast: ToastItem }) {
       )}
       style={{ minWidth: 280, maxWidth: 400 }}
     >
-      {isError ? (
+      {toast.illustration ? (
+        <Image
+          src={toast.illustration.src}
+          alt=""
+          width={toast.illustration.width}
+          height={toast.illustration.height}
+          className="-my-1 h-10 w-auto shrink-0 object-contain"
+        />
+      ) : isError ? (
         <XCircle className="mt-0.5 size-4 shrink-0 text-[var(--rose)]" />
       ) : (
         <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-[var(--sage)]" />

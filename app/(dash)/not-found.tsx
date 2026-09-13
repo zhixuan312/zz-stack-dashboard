@@ -6,6 +6,7 @@ export default function NotFound() {
   return (
     <PageFrame title="Not found" width="full" fill>
       <EmptyState
+        illustration={{ src: '/assets/brand/state-notfound.png', width: 76, height: 96 }}
         icon={<Compass />}
         title="No such page"
         description="The link may be out of date, or the record may have been removed."

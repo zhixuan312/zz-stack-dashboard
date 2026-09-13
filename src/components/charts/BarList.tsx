@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/cn';
-import { TINT_VAR, type Tint } from '@/lib/tints';
+import { TINT_VAR, CHART_EDGE, type Tint } from '@/lib/tints';
 
 interface BarRow {
   key: string;
@@ -95,6 +95,9 @@ export function BarList({
                     : highlight === r.key
                       ? 'var(--accent)'
                       : 'var(--line-strong)',
+                  // The pastels cannot separate from the cream ground by luminance.
+                  // Without this edge a bar genuinely disappears. See CHART_EDGE.
+                  boxShadow: CHART_EDGE,
                 }}
               />
             </span>

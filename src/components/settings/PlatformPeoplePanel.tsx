@@ -143,6 +143,7 @@ export function PlatformPeoplePanel() {
             rows.length === 0 ? (
               <div className="px-5 py-8">
                 <EmptyState
+                  illustration={{ src: '/assets/brand/state-welcome.png', width: 78, height: 96 }}
                   icon={<UserPlus className="size-5" strokeWidth={2} />}
                   title="No principals yet"
                   description="Add the first person below."

@@ -1,9 +1,10 @@
 'use client';
 
+import { AppMark } from '@/components/AppMark';
 import { useEffect, useState } from 'react';
 import { KeyRound, ShieldAlert } from 'lucide-react';
 import { startRegistration } from '@simplewebauthn/browser';
-import { Button, ThemeToggle } from '@/components/ui';
+import { Button } from '@/components/ui';
 
 /**
  * Where an enrolment link lands: register a passkey, once, and be signed in with it.
@@ -88,15 +89,7 @@ export default function EnrolPage() {
   return (
     <main className="grid min-h-dvh place-items-center bg-bg p-8">
       <div className="flex w-full max-w-[25rem] flex-col gap-6">
-        <span className="flex items-center gap-2.5">
-          <span
-            aria-hidden
-            className="grid size-8 place-items-center rounded-[var(--r-md)] border-[1.5px] border-accent text-[11px] font-semibold text-accent"
-          >
-            ZZ
-          </span>
-          <span className="text-[15px] font-semibold text-ink">ZZ Console</span>
-        </span>
+        <AppMark withWordmark />
 
         {token ? (
           <>
@@ -141,7 +134,6 @@ export default function EnrolPage() {
         )}
 
         <div className="pt-1">
-          <ThemeToggle />
         </div>
       </div>
     </main>

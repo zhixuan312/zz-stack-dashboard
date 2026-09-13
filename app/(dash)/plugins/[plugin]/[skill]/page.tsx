@@ -164,6 +164,7 @@ export default function PluginSkillPage({ params }: { params: Promise<{ plugin: 
           !known ? (
             <Panel title="No such skill">
               <EmptyState
+                illustration={{ src: '/assets/brand/state-notfound.png', width: 76, height: 96 }}
                 icon={<FlaskConical />}
                 title={`'${name}' is not shipped by ${pluginName}`}
                 description="It may have been renamed, or it belongs to another plugin. The plugin's own page lists everything it ships."

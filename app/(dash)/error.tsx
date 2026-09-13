@@ -23,6 +23,7 @@ export default function DashError({
   return (
     <PageFrame title="Something went wrong" width="full" fill>
       <EmptyState
+        illustration={{ src: '/assets/brand/state-error.png', width: 74, height: 96 }}
         icon={<TriangleAlert />}
         title="This page failed to render"
         description={

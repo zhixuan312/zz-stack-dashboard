@@ -1,4 +1,7 @@
-"""Build the ZZ app icon set from panel 03 of the brand kit sheet.
+"""Build the ZZ app icon set from the purpose-drawn app-icon master.
+
+Requires Pillow (`pip install Pillow`). It is an ambient dependency: this repository has no
+requirements.txt or pyproject.toml.
 
 Source: public/assets/brand-kit-sheet.png, the "03 APP ICON" squircle at
 (1013,70)-(1196,249) native — 183x179 px. Everything above ~180px is therefore
@@ -14,13 +17,18 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFilter
 
 ROOT = Path(__file__).resolve().parents[1]
-SHEET = ROOT / 'public/assets/brand-kit-sheet.png'
+# The MASTER, not a contact-sheet panel. The first version of this script cropped a
+# 183x179 region of brand-kit-sheet.png that the sheet itself labelled "1024 x 1024" --
+# drawn-on annotation, not a file size -- so every icon above ~180px was an upscale.
+# This master is a real 1254x1254 render.
+SHEET = ROOT / 'design/in-use/app-icon-squircle.png'
 OUT = ROOT / 'public/assets/app-icon/'
-BOX = (1013, 70, 1196, 249)      # inset 1px from the squircle edge
+BOX = None                       # the master is full-bleed; no crop
 CORNER_R = 0.22                  # squircle radius as a fraction of the side
 GRID = 12                        # cells per side for the ground extrapolation
 
-src = Image.open(SHEET).convert('RGB').crop(BOX)
+_img = Image.open(SHEET).convert('RGB')
+src = _img if BOX is None else _img.crop(BOX)
 w, h = src.size
 px = src.load()
 

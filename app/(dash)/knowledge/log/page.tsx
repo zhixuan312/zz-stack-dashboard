@@ -58,6 +58,7 @@ export default function KnowledgeLogPage() {
           >
             {entries.length === 0 ? (
               <EmptyState
+                illustration={{ src: '/assets/brand/state-empty.png', width: 96, height: 96 }}
                 icon={<History className="size-5" aria-hidden />}
                 title="Nothing recorded yet"
                 description={
