@@ -273,7 +273,12 @@ export default function KnowledgePage() {
                      correctly and looked like a different product from the other 17 empty
                      surfaces, which is the exact thing a design system exists to stop. */
                   <EmptyState
-                    className="!py-10"
+                    /* `py-10`, NOT `!py-10`. tailwind-merge reads the bang as a separate
+                       group, so `!py-10` ships BOTH it and EmptyState's `py-16` and wins
+                       only on !important — an escalation to beat a conflict the merge
+                       function exists to resolve, plus a dead class in the markup. The
+                       plain form strips `py-16` properly and renders identically. */
+                    className="py-10"
                     illustration={
                       filtersActive
                         ? { src: '/assets/brand/state-notfound.png', width: 78, height: 96 }
