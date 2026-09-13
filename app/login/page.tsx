@@ -89,19 +89,7 @@ function Login() {
             Every team&apos;s work, the knowledge behind it, and the telemetry of
             the skills and building blocks it runs on.
           </p>
-          <p className="text-[15px] font-medium text-accent-deep">
-            AI friend for a brighter you
-          </p>
         </div>
-
-        <Image
-          src="/assets/brand/mascot-hero.png"
-          alt=""
-          width={320}
-          height={400}
-          priority
-          className="hidden h-56 w-auto self-start object-contain sm:block"
-        />
 
         <ul className="flex max-w-[46ch] flex-col gap-3.5">
           <Line icon={<ListTree />} title="Teams and initiatives">
@@ -171,7 +159,36 @@ function Login() {
           change what you can do anywhere else on the platform.
         </p>
 
-        <div className="pt-1">
+        {/* ── the greeter ──────────────────────────────────────────────────
+            SHE CLOSES THE DOOR COLUMN, and she was on the other one.
+
+            Two things were wrong with that. The right column ended at its own
+            fine print and left the bottom half of the screen empty, so the
+            sign-in card floated in a void while the left column ran nearly
+            full height — the two sides shared no baseline and the page read as
+            unfinished. And the mascot sat mid-paragraph on the left with air
+            on every side, orphaned between the subcopy and the feature list.
+
+            Moving her here answers both with one change, and it is the more
+            honest placement besides: the left column says what the platform
+            RECORDS, and she is not a record. She is who greets you at the
+            door, so she stands at the door.
+
+            The tagline travels with her for the same reason. "AI friend for a
+            brighter you" was sitting under a paragraph about telemetry, which
+            is the one thing it is not about. */}
+        <div className="flex flex-col items-center gap-3 pt-4">
+          <Image
+            src="/assets/brand/mascot-hero.png"
+            alt=""
+            width={320}
+            height={400}
+            priority
+            className="h-52 w-auto object-contain sm:h-64"
+          />
+          <p className="text-[15px] font-medium text-accent-deep">
+            AI friend for a brighter you
+          </p>
         </div>
         </div>
       </section>
