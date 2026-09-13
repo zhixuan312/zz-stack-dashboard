@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ApproveAction, canApprove } from '@/components/ApproveAction';
+import { Toaster } from '@/components/ui/toast';
 import type { DocumentDetail, Me } from '@/lib/api';
 
 // Rendering is not enforcement — see canApprove's own comment — but a control
@@ -84,5 +85,52 @@ describe('ApproveAction', () => {
     expect(screen.getByText('Approve this document?')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Confirm' })).toBeInTheDocument();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  /* THE ONE TRANSIENT IN THE BRAND ADOPTION, and the only new surface a screenshot
+   * cannot reach: it exists for about three seconds after a click that mutates real
+   * state. Every other mascot was validated by rendering the page and looking at it.
+   * This one had nothing — so it gets the test the screenshots could not be.
+   *
+   * It is also the surface with the weakest provenance. The spec asked for the mascot
+   * on ApproveAction's SUCCESS toast; ApproveAction had no success toast at all, only
+   * an error one, plus a comment arguing that the receipt for a successful approval is
+   * the approvers row appearing. Adding one reversed a decision somebody had made on
+   * purpose. A reversal that nothing tests is a reversal that quietly un-reverses.
+   */
+  it('marks a successful approval with the approved mascot, not just an error path', async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ ok: true }), {
+        status: 200, headers: { 'content-type': 'application/json' },
+      }),
+    );
+    try {
+      renderWithClient(
+        <>
+          <ApproveAction doc={doc} me={me} />
+          <Toaster />
+        </>,
+      );
+      await user.click(screen.getByRole('button', { name: 'Approve' }));
+      await user.click(screen.getByRole('button', { name: 'Confirm' }));
+
+      const toast = await screen.findByText(`Approved ${doc.path}.`);
+      /* The CARD, addressed by its role. `closest('div')` finds the inner text wrapper
+         — which holds the message and no image — and the assertion then fails against a
+         component that is perfectly correct. A success toast is role="status"; an error
+         toast is role="alert", and asserting the role here also pins that this is the
+         success path rather than the error one that already existed. */
+      const card = toast.closest('[role="status"]');
+      expect(card, 'the success toast is not role="status"').not.toBeNull();
+
+      const img = card!.querySelector('img');
+      expect(img, 'the success toast renders no illustration').not.toBeNull();
+      expect(img!.getAttribute('src')).toContain('state-approved');
+      // Decorative: the message beside it already carries the meaning.
+      expect(img!.getAttribute('alt')).toBe('');
+    } finally {
+      fetchMock.mockRestore();
+    }
   });
 });
