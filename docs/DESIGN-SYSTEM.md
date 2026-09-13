@@ -34,7 +34,7 @@ maps to is a licence to invent a grey.
 
 **The three ink rungs are derived, not picked.** `--c-500` was `#7a7080` by eye
 and measured 4.16:1 on `--surface` against a 4.5:1 floor. It is now the same hue
-re-derived until it passes — 4.91 on surface, 5.41 on bg, 4.66 on the tint. Pick
+re-derived until it passes — 5.41 on surface, 4.91 on bg, 4.78 on the tint. Pick
 by eye, verify by formula, ship the verified value.
 
 ### Brand and status
@@ -213,7 +213,7 @@ whatever you remap must clear the same contrast floors: add the pairs to
 `scripts/verify-contrast.mjs`, because a scope nothing enumerates is a scope
 nothing checks.
 
-### Type — three families, eight sizes
+### Type — three families, seven sizes
 
 **Rubik** for everything, **Baloo 2** for the two largest steps, **JetBrains
 Mono** for identifiers and code. There is no serif. A serif headline reads as
@@ -242,8 +242,16 @@ does not jitter as it updates.
 | 16 | lead | panel titles | `CardTitle` `.t-heading` |
 | 14 | body | prose, table cells, controls | `.t-body` `.t-label` |
 | 12 | small | captions, meta, dense cells | `.t-sm` `.t-mono` |
-| 11 | label | uppercase eyebrows | `.t-eyebrow` |
-| 10 | micro | axis ticks, legends | `.t-micro` |
+| 11 | label | uppercase eyebrows, axis ticks, legends | `.t-eyebrow` `.t-micro` |
+
+**Seven rungs, eleven classes.** The classes outnumber the sizes because a name
+says what a thing IS, and two things at the same size can be different things:
+`.t-eyebrow` and `.t-micro` are both 11px, `.t-body` and `.t-label` both 14. That
+is deliberate — renaming one does not resize it. What is NOT allowed is an eighth
+rung.
+
+This table said *eight* sizes and gave `.t-micro` as 10px. It is 11px, and has
+been for as long as the class has existed.
 
 Three weights — 400 body, 500 labels and controls, 600 headings and stats.
 Four is the ceiling.
@@ -356,7 +364,7 @@ product is not reading the situation either.
 
 | Illustration | Shown when | Where |
 |---|---|---|
-| `state-empty` | nothing has been created here yet | 5 `EmptyState` sites |
+| `state-empty` | nothing has been created here yet | 6 sites, 5 files |
 | `state-welcome` | a first-run surface you are meant to populate | the 6 Settings panels |
 | `state-done` | a list is legitimately clear | `people` |
 | `state-notfound` | we looked and found nothing — a 404, or filters that match none | 4 sites |
@@ -581,11 +589,16 @@ call site that passes none still renders the lucide icon exactly as before. All
 so the icon is a fallback for a failed image rather than a style anyone still
 renders on purpose.
 
-For `showToast` the ratio is the argument: **1 of 39** call sites passes one.
-`ApproveAction` sends `state-approved.png`; the other 38 hit the untouched
+For `showToast` the ratio is the argument: **1 of 37** call sites passes one.
+`ApproveAction` sends `state-approved.png`; the other 36 hit the untouched
 `CheckCircle2` / `XCircle` branch and were not read, let alone edited. Required
-would have made that a 39-file change to express a one-file decision, and every
+would have made that a 37-file change to express a one-file decision, and every
 unconsidered site would have got whichever mascot was least trouble to type.
+
+(37, not 39: `grep showToast\(` finds 39 occurrences, one of which is the
+function's own definition and one a mention inside a comment. Counting matches
+instead of call sites is the same mistake as counting check files instead of
+declared checks.)
 
 **The success toast on `ApproveAction` is a deliberate reversal.** That
 component previously had an error toast only, and a comment explaining that the
@@ -714,7 +727,7 @@ version is serialised into the browser by Puppeteer and cannot be imported.)
 
 | Measure | Budget | Current |
 |---|---:|---:|
-| Distinct type sizes | 8 | **8** |
+| Distinct type sizes | 7 | **7** |
 | Distinct weights | ≤4 | **3** |
 | Distinct radii | ≤5 | **5** |
 | Off-scale spacings | 0 | **0** |
@@ -740,7 +753,7 @@ the thing at once does.
 
 ### Run them with `pnpm checks`, and mind the denominator
 
-`pnpm checks` runs all sixteen and prints `16/16`. **Run it rather than looping
+`pnpm checks` runs all seventeen and prints `17/17`. **Run it rather than looping
 over `checks/*.mjs` in a shell**, and the reason is a real failure rather than
 tidiness.
 
@@ -768,8 +781,19 @@ instead of letting it be quietly absent from a count.
 
 ### A check you have not tried to break is a check you are guessing about
 
-Sixteen checks under `checks/` hold the parts of this system that a review would
-not catch twice. **Six of them passed on a deliberately broken tree**, and the
+Seventeen checks under `checks/` hold the parts of this system that a review
+would not catch twice — including `doc-counts.mjs`, which checks THIS PAGE.
+
+Four rounds of review found stale numbers here: "eight sizes" for a seven-rung
+scale, `.t-micro` given as 10px when it is 11, "5 EmptyState sites" where one
+file carries two, "38 callers" for 37, and two contrast ratios transposed
+between surfaces. None broke the product. All of them made this document less
+trustworthy than the code, which for a design system is the entire asset. Every
+one was a number a person typed and nobody could re-derive.
+
+So the load-bearing counts are derived from the code and compared against the
+prose. A claim that cannot be derived is not in that check — it measures
+arithmetic, not judgement. **Six of them passed on a deliberately broken tree**, and the
 only reason that is known is that each one was mutation-tested: break the exact
 thing it claims to protect, confirm it fails, restore.
 

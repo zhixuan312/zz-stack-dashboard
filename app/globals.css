@@ -349,13 +349,20 @@ body {
 
    THE SCALE IS SEVEN VALUES. Nothing else is allowed on a page:
 
-     44  stat      the dominant number          .t-stat
-     28  title     page and section headings    .t-title / .t-display
-     16  lead      panel titles                 CardTitle
+     40  stat      the dominant number          .t-stat            (Baloo 2)
+     32  display   the largest heading          .t-display         (Baloo 2)
+     22  title     page and section headings    .t-title
+     16  lead      panel titles                 .t-heading / .t-lead
      14  body      prose, table cells, controls .t-body / .t-label
      12  small     captions, meta, dense cells  .t-sm / .t-mono
-     11  label     mono uppercase eyebrows      .t-eyebrow
-     10  micro     axis ticks, legends          .t-micro
+     11  label     uppercase eyebrows, ticks    .t-eyebrow / .t-micro
+
+   THE NUMBERS ABOVE WERE 44 / 28 / … / 10 AND NAMED FIVE OF THE ELEVEN CLASSES.
+   That ladder belonged to a scale two revisions back: 44 and 28 do not exist,
+   .t-title has been 22 and separate from .t-display's clamp for longer than this
+   comment has been wrong, and .t-micro is 11 — the same rung as .t-eyebrow — not
+   10. The count of seven was right the whole time, which is exactly why nobody
+   re-read the rows under it.
 
    It measured TEN before this was written down — 9, 13 and 15 existed only
    because two different components each reached for "a bit smaller than body"

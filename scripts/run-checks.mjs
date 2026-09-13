@@ -26,6 +26,7 @@ const EXPECTED = [
   'brand-assets-built',       // I-9  runtime assets derive from masters, reproducibly
   'chart-series',             // I-7  kit pastels cycle, status hues out, every fill edged
   'contrast-formula-agrees',  // (extra) the two copies of the WCAG formula agree to 1e-9
+  'doc-counts',               // (extra) DESIGN-SYSTEM.md's numbers are derived, not typed
   'icon-convention',          // I-11 both icon links present in the BUILT html
   'illustration-slots',       // I-12 both slots optional and additive
   'mascot-assignment',        // I-13 all nine assignments, plus the root 404

@@ -23,7 +23,7 @@ interface ToastItem {
   /**
    * Replaces the default CheckCircle2 / XCircle for THIS toast only.
    *
-   * Optional on purpose. `showToast` is called at 38 sites and exactly one of them — the
+   * Optional on purpose. `showToast` is called at 37 sites and exactly one of them — the
    * document approval in `ApproveAction` — has an occasion worth marking. Every other
    * caller passes nothing and renders the default branch unchanged, which is what makes
    * "the other 37 are unaffected" a property of the type rather than a hope.
