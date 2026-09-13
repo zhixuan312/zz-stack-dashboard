@@ -83,11 +83,12 @@ emit('mascot-thinking.png', 'state-thinking', 72)
 # the flat single-Z reads at 16px in a tab strip where two letters would be mush; the
 # mascot squircle has room for the character at 180px and up, which is where a
 # home-screen icon earns its personality.
+# ONE SIZE, not two. A 64px `public/assets/brand/favicon-64.png` was built here and
+# referenced by nothing — no manifest, no <link>, no component. It shipped inside the
+# image anyway. The tab icon is `app/icon.png`, found by Next's file convention; a second
+# raster that nobody names is not a fallback, it is weight.
 fav = Image.open(SRC / 'favicon-flat.png').convert('RGB').crop(FAVICON_BOX)
-for size in (32, 64):
-    fav.resize((size, size), Image.LANCZOS).save(
-        ROOT / ('app/icon.png' if size == 32 else 'public/assets/brand/favicon-64.png'),
-        optimize=True)
+fav.resize((32, 32), Image.LANCZOS).save(ROOT / 'app/icon.png', optimize=True)
 print(f'  {"icon (tab)":<16} 32px   <- favicon-flat.png')
 
 squircle = Image.open(SRC / 'app-icon-squircle.png').convert('RGB')

@@ -744,12 +744,20 @@ the thing at once does.
 over `checks/*.mjs` in a shell**, and the reason is a real failure rather than
 tidiness.
 
-The plan for this adoption declared **sixteen** task checks. Eleven were written.
-All eleven passed, and the work was reported as **"11/11 checks pass"** — a true
-numerator against a denominator nobody had computed. Five task contracts had
-never been proven and the report read as full coverage. A shell loop can only
-count what is on disk, so a check that was never written is indistinguishable
-from one that does not exist.
+The plan for this adoption declared **sixteen** task checks. Eleven files
+existed — but only **ten** of them were among the sixteen; the eleventh
+(`contrast-formula-agrees`) was an extra this work added and the plan never
+asked for. So **six** declared checks had never been written. All eleven files
+passed, and the work was reported as **"11/11 checks pass"** — a true numerator
+against a denominator nobody had computed, and the report read as full coverage.
+
+(The first version of this paragraph said *five*, by subtracting 11 from 16. It
+is six. Getting the arithmetic of a miscount wrong while explaining the miscount
+is a fair illustration of why the number is computed by a script now and not by
+a person.)
+
+A shell loop can only count what is on disk, so a check that was never written
+is indistinguishable from one that does not exist.
 
 So `scripts/run-checks.mjs` declares the expected list **literally** rather than
 deriving it from `readdir` — deriving it would reproduce the bug exactly — and

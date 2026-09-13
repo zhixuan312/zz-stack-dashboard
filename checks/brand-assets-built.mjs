@@ -25,6 +25,32 @@ for (const f of WANT) {
   if (!existsSync(DIR + '/' + f)) { console.error('FAIL missing ' + f); code = 1; }
   if (!existsSync(DIR + '/' + f.replace('.png', '@2x.png'))) { console.error('FAIL missing @2x for ' + f); code = 1; }
 }
+/* NOTHING SHIPS THAT NOTHING NAMES.
+ *
+ * `favicon-64.png` was built here and referenced by no component, no manifest and no
+ * <link>. It rode into the image anyway, and every check passed: it derived from a
+ * master, it rebuilt reproducibly, it was simply pointless. Provenance and
+ * reproducibility say an asset is CORRECT; they say nothing about whether it is WANTED.
+ *
+ * `public/` is downloaded by a browser, so an orphan here is not merely untidy. The @2x
+ * variants are exempt: they are named by the browser's density selection, not by source.
+ */
+const walkSrc = (d, o = []) => {
+  for (const e of readdirSync(d, { withFileTypes: true })) {
+    const q = d + '/' + e.name;
+    if (e.isDirectory()) walkSrc(q, o);
+    else if (/\.(tsx?|css)$/.test(q)) o.push(readFileSync(q, 'utf8'));
+  }
+  return o;
+};
+const sources = [...walkSrc('app'), ...walkSrc('src')].join('\n');
+for (const f of readdirSync(DIR)) {
+  if (!f.endsWith('.png') || f.includes('@2x')) continue;
+  if (!sources.includes('assets/brand/' + f)) {
+    console.error(`FAIL ${f} ships to the browser and nothing references it`); code = 1;
+  }
+}
+
 const hash = () => Object.fromEntries(readdirSync(DIR).sort()
   .map((f) => [f, createHash('sha256').update(readFileSync(DIR + '/' + f)).digest('hex')]));
 const before = hash();
