@@ -23,7 +23,15 @@ if (/state-working/.test(src)) { console.error('FAIL script builds state-working
 if (!/upscal/i.test(src)) { console.error('FAIL script has no upscale guard'); code = 1; }
 for (const f of WANT) {
   if (!existsSync(DIR + '/' + f)) { console.error('FAIL missing ' + f); code = 1; }
-  if (!existsSync(DIR + '/' + f.replace('.png', '@2x.png'))) { console.error('FAIL missing @2x for ' + f); code = 1; }
+}
+/* NO @2x FILES, and their absence is the assertion.
+ *
+ * They existed, all ten of them, 760 KB and 76% of this directory, referenced by nothing.
+ * `@2x` is an Apple / CSS `image-set()` filename convention; `next/image` has none — it
+ * builds a srcset against its own optimizer and scales DOWN from the single source. So
+ * they could not be requested by any mechanism, and they shipped in every image. */
+for (const f of readdirSync(DIR)) {
+  if (f.includes('@2x')) { console.error(`FAIL ${f} — next/image never requests a @2x filename`); code = 1; }
 }
 /* NOTHING SHIPS THAT NOTHING NAMES.
  *
@@ -32,9 +40,13 @@ for (const f of WANT) {
  * master, it rebuilt reproducibly, it was simply pointless. Provenance and
  * reproducibility say an asset is CORRECT; they say nothing about whether it is WANTED.
  *
- * `public/` is downloaded by a browser, so an orphan here is not merely untidy. The @2x
- * variants are exempt: they are named by the browser's density selection, not by source.
- */
+ * `public/` is downloaded by a browser, so an orphan here is not merely untidy.
+ *
+ * THIS ONCE EXEMPTED `@2x` FILES, on the reasoning that "they are named by the browser's
+ * density selection, not by source". That is true of CSS `image-set()` and of Apple's
+ * convention, and false of `next/image`, which is what this app uses — so the exemption
+ * hid exactly the orphans it was written to excuse. There is no exemption now: every PNG
+ * here must be named by a source file. */
 const walkSrc = (d, o = []) => {
   for (const e of readdirSync(d, { withFileTypes: true })) {
     const q = d + '/' + e.name;
@@ -45,7 +57,7 @@ const walkSrc = (d, o = []) => {
 };
 const sources = [...walkSrc('app'), ...walkSrc('src')].join('\n');
 for (const f of readdirSync(DIR)) {
-  if (!f.endsWith('.png') || f.includes('@2x')) continue;
+  if (!f.endsWith('.png')) continue;
   if (!sources.includes('assets/brand/' + f)) {
     console.error(`FAIL ${f} ships to the browser and nothing references it`); code = 1;
   }
@@ -59,5 +71,5 @@ const after = hash();
 for (const k of Object.keys(before)) {
   if (before[k] !== after[k]) { console.error('FAIL not reproducible: ' + k); code = 1; }
 }
-if (!code) console.log(`PASS ${WANT.length} runtime assets + @2x derive from a master, reproducibly`);
+if (!code) console.log(`PASS ${WANT.length} runtime assets derive from a master at 2x, reproducibly, none orphaned`);
 process.exitCode = code;

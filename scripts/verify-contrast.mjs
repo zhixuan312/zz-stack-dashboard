@@ -51,7 +51,11 @@ const PAIRS = [
  * but its outline, say — that border belongs in the list above at AA_UI.
  */
 
-const tokens = readTokens(readFileSync('app/globals.css', 'utf8'));
+/* The stylesheet to measure. Defaults to the real one; `checks/verify-contrast-behaviour.mjs`
+ * points it at a temporary copy carrying a deliberately broken palette, so proving this
+ * script FAILS when it should never requires editing the file the product ships. */
+const CSS = process.argv[2] ?? 'app/globals.css';
+const tokens = readTokens(readFileSync(CSS, 'utf8'));
 
 let failures = 0;
 const rows = [];

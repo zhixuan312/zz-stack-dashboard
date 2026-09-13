@@ -42,14 +42,30 @@ def fit(im, box):
 
 
 def emit(master, stem, rendered):
-    """Write `stem`.png at the rendered size and `stem`@2x.png at twice it, for hi-dpi."""
+    """Write ONE file, at twice the rendered size.
+
+    This used to write `stem`.png at the rendered size AND `stem`@2x.png at twice it. The
+    @2x half was never referenced by anything — `@2x` is an Apple / CSS `image-set()`
+    filename convention, and `next/image` has no such convention: it builds a srcset
+    pointing at its own optimizer (`/_next/image?url=...&w=...`) and scales DOWN from the
+    one source it is given. So 760 KB, 76% of this directory, shipped in every image and
+    could not be requested by any mechanism.
+
+    Worse, the half that WAS referenced was the 1x one — so `next/image` had only
+    render-size pixels to work with and every mascot was soft on a retina screen. The
+    optimizer cannot invent detail.
+
+    One file at 2x fixes both: the srcset's 2x entry is now genuinely sharp, the 1x entry
+    is a clean downscale, and there is nothing on disk that nothing asks for. Call sites
+    keep declaring the RENDERED size in `width`/`height` — that is the CSS box, not the
+    file.
+    """
     path = SRC / master
     if not path.exists():
         raise SystemExit(f'missing master: {path}')
     art = trim(Image.open(path).convert('RGBA'))
-    fit(art, rendered).save(OUT / f'{stem}.png', optimize=True)
-    fit(art, rendered * 2).save(OUT / f'{stem}@2x.png', optimize=True)
-    print(f'  {stem:<16} {rendered}px  <- {master}')
+    fit(art, rendered * 2).save(OUT / f'{stem}.png', optimize=True)
+    print(f'  {stem:<16} {rendered}px rendered, 2x on disk  <- {master}')
 
 
 # --- the in-app mark -------------------------------------------------------
