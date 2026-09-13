@@ -720,9 +720,29 @@ someone will look.
 label treatments, two radii that are each individually defensible. Only seeing
 the thing at once does.
 
+### Run them with `pnpm checks`, and mind the denominator
+
+`pnpm checks` runs all sixteen and prints `16/16`. **Run it rather than looping
+over `checks/*.mjs` in a shell**, and the reason is a real failure rather than
+tidiness.
+
+The plan for this adoption declared **sixteen** task checks. Eleven were written.
+All eleven passed, and the work was reported as **"11/11 checks pass"** — a true
+numerator against a denominator nobody had computed. Five task contracts had
+never been proven and the report read as full coverage. A shell loop can only
+count what is on disk, so a check that was never written is indistinguishable
+from one that does not exist.
+
+So `scripts/run-checks.mjs` declares the expected list **literally** rather than
+deriving it from `readdir` — deriving it would reproduce the bug exactly — and
+fails on a declared check that is missing OR an undeclared one that appears. It
+also names the one check that was declared and never written
+(`checks/visual/all-pages-render.mjs`, task I-16) in its output, every run,
+instead of letting it be quietly absent from a count.
+
 ### A check you have not tried to break is a check you are guessing about
 
-Eleven checks under `checks/` hold the parts of this system that a review would
+Sixteen checks under `checks/` hold the parts of this system that a review would
 not catch twice. **Six of them passed on a deliberately broken tree**, and the
 only reason that is known is that each one was mutation-tested: break the exact
 thing it claims to protect, confirm it fails, restore.
