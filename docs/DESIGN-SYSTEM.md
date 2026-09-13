@@ -720,8 +720,38 @@ someone will look.
 label treatments, two radii that are each individually defensible. Only seeing
 the thing at once does.
 
-Two things came out of reading the 36 screenshots that no check could have
-raised, because both were about a page nothing was counting:
+### A check you have not tried to break is a check you are guessing about
+
+Eleven checks under `checks/` hold the parts of this system that a review would
+not catch twice. **Six of them passed on a deliberately broken tree**, and the
+only reason that is known is that each one was mutation-tested: break the exact
+thing it claims to protect, confirm it fails, restore.
+
+The escapes shared one shape — every one was satisfied by something already in
+the file for an unrelated reason:
+
+| The check | What it missed | Why it passed |
+|---|---|---|
+| `one-mark` | a second hand-drawn `<svg>` logo in the rail | the allowlist exempted the whole file for its one Sparkle |
+| `one-mark` | `AppMark` no longer rendering the mark | `/wordmark/` matched the component's own docstring |
+| `sparkle-motif` | `aria-hidden` stripped off the sparkle | an unrelated `<Icon aria-hidden />` sat within the proximity window |
+| `chart-series` | the legend swatch losing its edge | `includes('CHART_EDGE')` matched the import line |
+| `typography` | `@theme inline` repointed at the body face | nothing checked the mapping; the classes use the raw variable |
+| `no-dark-mode` | `dark:bg-black` added anywhere | it looked for the machinery that was removed, never for the rule |
+
+The last one is the instructive one and the most dangerous. A `dark:` variant
+compiles happily against a project with no dark mode and emits a rule that can
+never match — so the element silently keeps its light styling and the author
+believes they shipped a dark treatment. The check guarding the entire breaking
+change did not guard it.
+
+**So: when you add a check here, break the thing first and watch it go red.** A
+check written against a defect you just fixed is a regression test wearing an
+invariant's name, and it will keep passing while the invariant rots around it.
+
+### And two things only reading the screenshots could raise
+
+Both were about a page nothing was counting:
 
 - **The root 404 did not exist.** `app/(dash)/not-found.tsx` covers `notFound()`
   raised inside the shell. A URL matching no route at all never reaches that
