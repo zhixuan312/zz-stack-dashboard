@@ -19,6 +19,23 @@ const readme = readFileSync(DIR + '/README.md', 'utf8');
 if (/^## Resolution caveat/m.test(readme)) {
   console.error('FAIL the obsolete resolution caveat is still a section in the README'); code = 1;
 }
+/* A STALE CLAIM IN PROSE, which the heading check above could not see.
+ *
+ * The brand adoption rewrote this README's first two sections and left its closing
+ * paragraph behind, still telling the reader the tab icon was "the indigo hexagon at
+ * app/icon.svg" — a file the same change deleted. The check passed, because it was looking
+ * for one heading.
+ *
+ * So: no document here may name a deleted file as though it were current. The rule is
+ * narrow on purpose — it fires on `app/icon.svg` written as a live path, and not on a
+ * sentence that quotes what the file USED to say, which is history worth keeping. */
+for (const m of readme.matchAll(/`app\/icon\.svg`/g)) {
+  const around = readme.slice(Math.max(0, m.index - 200), m.index + 60);
+  const historical = /used to|no longer|is deleted|was deleted|It said|is gone/i.test(around);
+  if (!historical) {
+    console.error('FAIL the README names `app/icon.svg` as current; that file was deleted'); code = 1;
+  }
+}
 const before = hash();
 execFileSync('python3', ['scripts/build-app-icon.py'], { stdio: 'pipe' });
 const after = hash();

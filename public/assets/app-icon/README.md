@@ -51,6 +51,15 @@ full-bleed one belongs: at full size it looks small and floaty.
 ]
 ```
 
-Nothing in the app points at these yet. The console's tab icon is still the indigo hexagon
-at `app/icon.svg`, which is a different brand from this kit — switching it over is a
-product decision, not a build step.
+Nothing in the app points at these yet — there is no web manifest. That half of the
+paragraph that used to sit here was true; the other half has been false since the brand
+adoption landed, and it is worth saying what it claimed, because the file it named is gone.
+
+It said the tab icon was "still the indigo hexagon at `app/icon.svg`, which is a different
+brand from this kit — switching it over is a product decision, not a build step." The
+product decision was made: the kit was adopted whole. `app/icon.svg` is deleted, the tab
+icon is `app/icon.png` (the flat single-Z, because two letters at 16px is mush), and
+`AppMark` renders `/assets/brand/wordmark.png` — a sibling of this directory.
+
+So these eight PWA icons are built, documented and wired to nothing. That is a real loose
+end rather than a decision: add a manifest and they are already here.

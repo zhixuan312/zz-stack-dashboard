@@ -682,6 +682,24 @@ pnpm verify:contrast     # 31 pairs, formula-checked, EXITS NON-ZERO
 pnpm audit:design        # discipline counters, advisory
 ```
 
+**`pnpm run gate` runs both of them.** That sentence is the whole point of this
+section and it was false for the first six commits of this work.
+
+A check nobody runs is not a check. This repository has now learned that four
+times — `release.mjs` carries a comment about the previous three — and the brand
+adoption did it again, twice over: it shipped `verify-contrast.mjs`, written
+*precisely* because a silent contrast failure was possible, and wired it to a
+`package.json` script a person had to remember. Then it shipped sixteen
+`checks/*.mjs` the same way. The release path runs typecheck, lint, test and
+gate; none of those touched either one. **The initiative whose premise was "a
+silent palette failure must become a loud one" left the palette failure silent.**
+
+Both are now entries in `scripts/gate.mjs`, which is already on the enforced
+path — the fix belongs where the enforcement is, not in a second list to keep in
+sync. Verified by breaking each: unreadable ink fails the gate, a deleted check
+file fails the gate, a `dark:` variant fails the gate. They cost ~16s beside a
+gate that already runs `next build`, so there was never a cost argument.
+
 **`verify:contrast` exists because `audit:design` printed contrast failures and
 returned 0.** A palette that failed on every surface would have shipped green
 and silent. The new script enumerates each pair by name — `--ink` on

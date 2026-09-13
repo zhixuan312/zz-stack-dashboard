@@ -183,6 +183,43 @@ check('markdown is rendered with raw HTML inert', () => {
   return bad.length ? bad.join('; ') : null;
 });
 
+/* THE CHECK THAT WAS WRITTEN AND NOT WIRED, which this repository has now done four times.
+ *
+ * `release.mjs` says it best, in a comment about this very gate: "Three checks that pass and
+ * a fourth nobody runs is the same arrangement this repository found twice more this week."
+ * The 2026-09 brand adoption then did it again, twice over. It shipped
+ * `scripts/verify-contrast.mjs` — written precisely because `audit:design` PRINTED contrast
+ * failures and exited 0, so "a palette that fails everywhere would ship green and silent" —
+ * and wired it to nothing but a `package.json` script a person has to remember. It shipped
+ * sixteen `checks/*.mjs` the same way. `release.mjs` runs typecheck, lint, test and gate for
+ * the console; none of those touched either one.
+ *
+ * So the initiative whose whole premise was "a silent palette failure must become a loud one"
+ * left the palette failure silent. These two entries are what make it loud, and they go HERE
+ * rather than in `release.mjs` because `pnpm run gate` is already on the enforced path — the
+ * fix belongs where the enforcement already is, not in a second list to keep in sync.
+ *
+ * Together they cost about 16 seconds beside a gate that already runs `next build`, so there
+ * was never a cost argument for leaving them out.
+ */
+check('the palette clears its contrast floors', () => {
+  try { execSync('node scripts/verify-contrast.mjs', { stdio: 'pipe' }); return null; }
+  catch (err) {
+    const out = String(err.stdout ?? '') + String(err.stderr ?? '');
+    const fails = out.split('\n').filter((l) => /fail/i.test(l));
+    return (fails.length ? fails : [String(err.message)]).join('; ').slice(0, 300);
+  }
+});
+
+check('every declared design-system check exists and passes', () => {
+  try { execSync('node scripts/run-checks.mjs', { stdio: 'pipe' }); return null; }
+  catch (err) {
+    const out = String(err.stdout ?? '') + String(err.stderr ?? '');
+    const bad = out.split('\n').filter((l) => /FAIL|MISSING|UNDECLARED/.test(l));
+    return (bad.length ? bad : [String(err.message)]).join('; ').slice(0, 300);
+  }
+});
+
 check('the build passes', () => {
   try { execSync('npx next build', { stdio: 'pipe' }); return null; }
   catch (err) { return String(err.stdout ?? err.message).split('\n').slice(-6).join(' ').slice(0, 300); }
