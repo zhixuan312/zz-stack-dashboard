@@ -1,6 +1,6 @@
 {
   "name": "zz-stack-dashboard",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "license": "MIT",
   "description": "ZZ Console \u2014 the superadmin dashboard for zz-stack",
   "packageManager": "pnpm@10.33.0",
