@@ -45,17 +45,37 @@ export function DotStrip({
   }
 
   const max = Math.max(...dots.map((d) => d.value), reference?.value ?? 0) || 1;
+
+  /* A LOG AXIS, BECAUSE THE DISTRIBUTION THIS EXISTS FOR SPANS ORDERS OF MAGNITUDE.
+   *
+   * The docblock above says it: a tenth of these runs sit two orders of magnitude right of the
+   * median. On a LINEAR axis that puts the other nine tenths inside the first two percent —
+   * every one of them colliding, stacking upward, and the tile growing a row per run. Measured
+   * on production: 113 runs, median 1 KB, max 800 KB, and the strip rendered roughly 800 pixels
+   * tall as one vertical column of dots at x=0. Every card in the row stretched to match it,
+   * because they share a grid row.
+   *
+   * `log1p` rather than `log`, because a run that pulled nothing is a real observation and
+   * `log(0)` is -Infinity. It also keeps the low end honest: 0 maps to 0.
+   */
+  const pos = (v: number): number => (Math.log1p(Math.max(0, v)) / Math.log1p(max)) * 100;
   const sorted = [...dots].sort((a, b) => a.value - b.value);
   const mid = sorted.length >> 1;
   const median = sorted.length % 2 ? sorted[mid].value : (sorted[mid - 1].value + sorted[mid].value) / 2;
 
   // Dots share a row until they collide, then stack upward — so a cluster reads as a
   // cluster instead of as one dot hiding nine others.
+  /* STACKING IS BOUNDED. Even on a log axis a genuine cluster can be deeper than a tile should
+   * be, and the height of a chart must not be a function of how many rows the data has — a
+   * strip that grows with n is one that eventually decides the page layout. Past the cap the
+   * dots share a row and overlap, which reads as density and is the honest answer for a
+   * cluster too tight to separate. */
+  const MAX_ROWS = 6;
   const placed: { x: number; y: number }[] = [];
   const laid = sorted.map((d) => {
-    const x = (d.value / max) * 100;
+    const x = pos(d.value);
     let y = 0;
-    while (placed.some((p) => Math.abs(p.x - x) < 2.4 && p.y === y)) y += 1;
+    while (y < MAX_ROWS - 1 && placed.some((p) => Math.abs(p.x - x) < 2.4 && p.y === y)) y += 1;
     placed.push({ x, y });
     return { ...d, x, y };
   });
@@ -69,14 +89,14 @@ export function DotStrip({
           aria-hidden
           title={`median ${format(median)}`}
           className="absolute bottom-0 h-4 w-px bg-ink-faint/60"
-          style={{ left: `${(median / max) * 100}%` }}
+          style={{ left: `${pos(median)}%` }}
         />
         {reference ? (
           <span
             aria-hidden
             title={`${reference.label} — ${format(reference.value)}`}
             className="absolute inset-y-0 w-px bg-[var(--rose)]"
-            style={{ left: `${(reference.value / max) * 100}%` }}
+            style={{ left: `${pos(reference.value)}%` }}
           />
         ) : null}
         {laid.map((d) => (
