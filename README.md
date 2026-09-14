@@ -81,7 +81,7 @@ pnpm build && pnpm start     # production build
 pnpm typecheck && pnpm lint && pnpm test && pnpm gate   # what the release runs
 ```
 
-Those four, in that order, are what `zz-stack/scripts/release.mjs` runs against this
+Those four, in that order, are what `zz-stack/scripts/release.ts` runs against this
 repo before it will build an image — so they are the real bar, and `pnpm gate` is one
 of them rather than a superset. The gate does not run the other three (it ends in
 `next build`, which type-checks but runs no tests).
@@ -104,7 +104,7 @@ when the gate goes red it is quicker to run the one that failed.
 ## Deploying
 
 **Released by zz-stack, not by hand.** The console is one of three components in a platform
-release — `zz-stack/scripts/release.mjs <platform-version> --dashboard=<console-version>` —
+release — `zz-stack/scripts/release.ts <platform-version> --dashboard=<console-version>` —
 which runs this repo's `typecheck`, `lint` and `test`, bumps `package.json` and the compose
 literal together, builds and pushes `ghcr.io/zhixuan312/zz-stack-dashboard`, copies
 `docker-compose.yml` to the host, and rolls it back with the platform if verification fails.

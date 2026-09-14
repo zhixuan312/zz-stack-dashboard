@@ -107,7 +107,7 @@ call and it is the one that was made.
 
 The first argument turned out to be answerable by measurement rather than taste:
 ink on this ground is **14.79:1** and the accent on it is **5.04:1**, so the
-accent is not fighting anything. `scripts/verify-contrast.mjs` holds all 31
+accent is not fighting anything. `scripts/verify-contrast.ts` holds all 31
 pairs and exits non-zero.
 
 The second argument survives untouched and is the load-bearing half. Colour is
@@ -166,7 +166,7 @@ palette exactly ONCE, in a bare `:root`.
 **What breaks for you:** a user who had chosen dark gets cream on next load,
 with no setting to change it back. Any `dark:` variant, any
 `[data-theme='dark']` selector, and any `prefers-color-scheme` query you add
-will render nothing and fail `checks/no-dark-mode.mjs`.
+will render nothing and fail `checks/no-dark-mode.ts`.
 
 Why, plainly: the kit is a cream identity with a mascot, and a dark inversion of
 it is a different product wearing the same logo. A second theme that nobody had
@@ -174,7 +174,7 @@ designed to the same standard was a second surface for every palette decision to
 be wrong on — which is exactly what the section this replaces warned about, from
 the other side. One theme, measured once, is the cheaper honest answer.
 
-The palette is now verified rather than emulated: `node scripts/verify-contrast.mjs`
+The palette is now verified rather than emulated: `node scripts/verify-contrast.ts`
 checks 31 enumerated pairs and exits non-zero. `pnpm audit:design` no longer
 takes `AUDIT_THEME`.
 
@@ -210,7 +210,7 @@ this to swap a whole project view by lifecycle phase.
 **Two rules if you do it.** Remap only the SEMANTIC layer — never a `--c-*`
 rung, which is the ramp itself and would move every token pointing at it. And
 whatever you remap must clear the same contrast floors: add the pairs to
-`scripts/verify-contrast.mjs`, because a scope nothing enumerates is a scope
+`scripts/verify-contrast.ts`, because a scope nothing enumerates is a scope
 nothing checks.
 
 ### Type — three families, seven sizes
@@ -293,7 +293,7 @@ score lower: the object carrying the page is not type.
 ### Chart pastels are exempt from the contrast gate — on purpose
 
 `--zz-lavender`, `--zz-pink` and `--zz-blue` sit around 1.9–2.4:1 against the
-surface. They are deliberately excluded from `scripts/verify-contrast.mjs`, and
+surface. They are deliberately excluded from `scripts/verify-contrast.ts`, and
 the exclusion is a design decision rather than an oversight:
 
 - They are **never text and never a control.** They fill chart geometry only.
@@ -306,7 +306,7 @@ the exclusion is a design decision rather than an oversight:
 What holds them accountable instead is `--chart-edge`
 (`inset 0 0 0 1px rgba(34, 27, 38, 0.13)`): every pastel fill carries a hairline
 so its BOUNDARY is always legible even where the fill is not. A pastel without
-that edge is the bug. `checks/chart-series.mjs` enforces the cycle.
+that edge is the bug. `checks/chart-series.ts` enforces the cycle.
 
 **If you add a fifth series colour, it goes in the cycle AND it gets the edge —
 and it does not go in the contrast script, which would then be lying about what
@@ -328,7 +328,7 @@ it checks.**
 version of that file *claimed* that in its docstring and was not: only `Sidebar`
 imported it, while `login`, `enrol` and `signed-out` each hand-drew their own
 `ZZ` monogram — a hexagon in the rail and a lettermark on every auth screen, two
-marks and no decision between them. `checks/one-mark.mjs` now enforces it.
+marks and no decision between them. `checks/one-mark.ts` now enforces it.
 
 The image is decorative (`alt=""`); the accessible name comes from the `APP_NAME`
 text beside it, or from an `sr-only` span when the wordmark is not shown.
@@ -352,7 +352,7 @@ eight PWA icons under `public/assets/app-icon/` (`192`, `512`, `1024`, each also
 maskable). **Nothing in the app references them today** — there is no web
 manifest — so they are a built, documented, unwired set. That predates this
 work and is left alone rather than half-deleted; if you add a manifest, they are
-already there. `checks/app-icons-rebuilt.mjs` asserts they come from the 1254px
+already there. `checks/app-icons-rebuilt.ts` asserts they come from the 1254px
 master (not the old 183×179 crop) and that the build is byte-reproducible.
 
 ### The mascot has states, and each state has one job
@@ -374,7 +374,7 @@ product is not reading the situation either.
 | `state-goodbye` | signed out | `signed-out` |
 | `mascot-hero` | the login screen | `login` |
 
-`checks/mascot-assignment.mjs` holds all nine — exhaustively for the 18
+`checks/mascot-assignment.ts` holds all nine — exhaustively for the 18
 `EmptyState` sites, and by pinning each of the four one-off surfaces to the
 single file allowed to use it. (It used to enforce only the five `EmptyState`
 assignments while this page documented all nine, which is precisely the
@@ -401,7 +401,7 @@ than shipping a soft image.
 `design/` is tracked in git (it is the master, and a master that lives on one
 laptop is a master the team does not have) but it is listed in `.dockerignore`,
 because ~38MB of source art in the build context is 38MB of nothing. That line
-is load-bearing: `checks/asset-custody.mjs` asserts it, because the failure is
+is load-bearing: `checks/asset-custody.ts` asserts it, because the failure is
 invisible — the image builds fine, just slower and fatter, forever.
 
 **Never hand-edit anything under `public/assets/brand/`.** Edit the master, run
@@ -413,7 +413,7 @@ One inline `<Sparkle />` on the active nav item. It is the system's single piece
 of ornament and it is deliberate: the kit has personality, and a console that
 adopts the palette and the mascot but keeps every surface perfectly inert reads
 as a theme applied to someone else's product. One sparkle, one place.
-`checks/sparkle-motif.mjs` keeps it to one place — the discipline is not that it
+`checks/sparkle-motif.ts` keeps it to one place — the discipline is not that it
 exists, it is that it does not spread.
 
 ---
@@ -485,7 +485,7 @@ pnpm add -D puppeteer            # once
 AUDIT_BASE=http://127.0.0.1:3000 pnpm audit:layout
 ```
 
-`scripts/layout-audit.mjs` drives a real browser at three viewport sizes and
+`scripts/layout-audit.ts` drives a real browser at three viewport sizes and
 asserts ten structural invariants — the document never scrolls, nothing is
 clipped, every scroller actually moves, the header stays put, every control has
 an accessible name, no panel collapsed to a sliver, tables are reachable.
@@ -699,15 +699,15 @@ pnpm audit:design        # discipline counters, advisory
 section and it was false for the first six commits of this work.
 
 A check nobody runs is not a check. This repository has now learned that four
-times — `release.mjs` carries a comment about the previous three — and the brand
-adoption did it again, twice over: it shipped `verify-contrast.mjs`, written
+times — `release.ts` carries a comment about the previous three — and the brand
+adoption did it again, twice over: it shipped `verify-contrast.ts`, written
 *precisely* because a silent contrast failure was possible, and wired it to a
 `package.json` script a person had to remember. Then it shipped sixteen
-`checks/*.mjs` the same way. The release path runs typecheck, lint, test and
+`checks/*.ts` the same way. The release path runs typecheck, lint, test and
 gate; none of those touched either one. **The initiative whose premise was "a
 silent palette failure must become a loud one" left the palette failure silent.**
 
-Both are now entries in `scripts/gate.mjs`, which is already on the enforced
+Both are now entries in `scripts/gate.ts`, which is already on the enforced
 path — the fix belongs where the enforcement is, not in a second list to keep in
 sync. Verified by breaking each: unreadable ink fails the gate, a deleted check
 file fails the gate, a `dark:` variant fails the gate. They cost ~16s beside a
@@ -721,7 +721,7 @@ on — so a token that moves fails loudly, with the pair named and the measured
 ratio printed.
 
 It shares one formula with the browser audit rather than duplicating it:
-`scripts/lib/contrast.mjs` is the module, and `checks/contrast-formula-agrees.mjs`
+`scripts/lib/contrast.ts` is the module, and `checks/contrast-formula-agrees.ts`
 asserts the two copies agree to 1e-9. (They have to be two copies — the audit's
 version is serialised into the browser by Puppeteer and cannot be imported.)
 
@@ -754,7 +754,7 @@ the thing at once does.
 ### Run them with `pnpm checks`, and mind the denominator
 
 `pnpm checks` runs all seventeen and prints `17/17`. **Run it rather than looping
-over `checks/*.mjs` in a shell**, and the reason is a real failure rather than
+over `checks/*.ts` in a shell**, and the reason is a real failure rather than
 tidiness.
 
 The plan for this adoption declared **sixteen** task checks. Eleven files
@@ -772,17 +772,17 @@ a person.)
 A shell loop can only count what is on disk, so a check that was never written
 is indistinguishable from one that does not exist.
 
-So `scripts/run-checks.mjs` declares the expected list **literally** rather than
+So `scripts/run-checks.ts` declares the expected list **literally** rather than
 deriving it from `readdir` — deriving it would reproduce the bug exactly — and
 fails on a declared check that is missing OR an undeclared one that appears. It
 also names the one check that was declared and never written
-(`checks/visual/all-pages-render.mjs`, task I-16) in its output, every run,
+(`checks/visual/all-pages-render.ts`, task I-16) in its output, every run,
 instead of letting it be quietly absent from a count.
 
 ### A check you have not tried to break is a check you are guessing about
 
 Seventeen checks under `checks/` hold the parts of this system that a review
-would not catch twice — including `doc-counts.mjs`, which checks THIS PAGE.
+would not catch twice — including `doc-counts.ts`, which checks THIS PAGE.
 
 Four rounds of review found stale numbers here: "eight sizes" for a seven-rung
 scale, `.t-micro` given as 10px when it is 11, "5 EmptyState sites" where one
@@ -827,7 +827,7 @@ Both were about a page nothing was counting:
   raised inside the shell. A URL matching no route at all never reaches that
   group, so it fell through to Next's built-in default: a **black** page in a
   product with no dark mode. `app/not-found.tsx` now exists, and
-  `checks/mascot-assignment.mjs` asserts it does.
+  `checks/mascot-assignment.ts` asserts it does.
 - **The Knowledge reading pane** was a hand-rolled empty block — see §4.
 
 > The upstream apps this was extracted from carry a `/components` gallery route
@@ -846,7 +846,7 @@ looks plausible:
   locally without repeating those two copies and every image 404s. The harness
   reported all 18 routes "ok" with not one mascot on screen.
 - **A rebuild re-hashes every chunk, and the standalone copy keeps the old
-  names.** Anything that runs `pnpm build` — `checks/icon-convention.mjs` does,
+  names.** Anything that runs `pnpm build` — `checks/icon-convention.ts` does,
   by design — leaves an already-running standalone server serving HTML that
   points at chunks it no longer has. The JS 500s, nothing hydrates, and every
   page sits on "Checking your sign-in…" forever.

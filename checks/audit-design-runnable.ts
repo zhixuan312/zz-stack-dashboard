@@ -2,6 +2,7 @@
 // ERR_MODULE_NOT_FOUND against a path in a deleted temp directory, which reads as a broken
 // script rather than a missing dependency and so never got fixed.
 import { execFileSync } from 'node:child_process';
+import { execOutput } from '../scripts/lib/exec.ts';
 import { lstatSync, existsSync, realpathSync, readFileSync } from 'node:fs';
 let code = 0;
 for (const p of ['node_modules/puppeteer', 'node_modules/puppeteer-core', 'node_modules/@puppeteer']) {
@@ -19,8 +20,8 @@ if (!declared) {
   console.error('FAIL puppeteer is used by audit:design but declared nowhere'); code = 1;
 }
 let out = '';
-try { out = execFileSync('node', ['scripts/design-metrics.mjs'], { stdio: 'pipe', timeout: 300000 }).toString(); }
-catch (e) { out = String(e.stdout ?? '') + String(e.stderr ?? ''); }
+try { out = execFileSync('node', ['scripts/design-metrics.ts'], { stdio: 'pipe', timeout: 300000 }).toString(); }
+catch (e) { out = execOutput(e); }
 if (/ERR_MODULE_NOT_FOUND|Cannot find package/.test(out)) {
   console.error('FAIL audit:design still dies on module resolution'); code = 1;
 }

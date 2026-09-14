@@ -11,21 +11,22 @@
  * Each check below is a bug that actually shipped. Adding one is how a bug stops recurring.
  */
 import { execSync } from 'node:child_process';
+import { asExecError, execOutput } from './lib/exec.ts';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 const root = process.cwd();
 let failed = 0;
-const check = (name, fn) => {
+const check = (name: string, fn: () => string | null): void => {
   const why = fn();
   console.log(why ? `  \x1b[31m✗\x1b[0m ${name}\n      ${why}` : `  \x1b[32m✓\x1b[0m ${name}`);
   if (why) failed++;
 };
 
-/** Every .tsx/.ts under app/ and src/, with its text. */
-function sources() {
-  const out = [];
-  const walk = (d) => {
+/** Every .tsx/.ts under app/ and src/, as [path relative to the root, text]. */
+function sources(): [string, string][] {
+  const out: [string, string][] = [];
+  const walk = (d: string): void => {
     for (const e of readdirSync(d, { withFileTypes: true })) {
       if (e.name === 'node_modules' || e.name.startsWith('.')) continue;
       const p = join(d, e.name);
@@ -114,13 +115,13 @@ check('a table that can be empty says so', () => {
  */
 check('no source file is larger than one subject usually is', () => {
   const LIMIT = 700;
-  const over = [];
-  const walk = (d) => {
+  const over: [string, number][] = [];
+  const walk = (d: string): void => {
     for (const e of readdirSync(d, { withFileTypes: true })) {
       if (e.name === 'node_modules' || e.name.startsWith('.')) continue;
       const p = join(d, e.name);
       if (e.isDirectory()) { walk(p); continue; }
-      if (!/\.(tsx?|mjs|js)$/.test(p)) continue;
+      if (!/\.tsx?$/.test(p)) continue;
       const n = readFileSync(p, 'utf8').split('\n').length;
       if (n > LIMIT) over.push([p.slice(root.length + 1), n]);
     }
@@ -185,44 +186,42 @@ check('markdown is rendered with raw HTML inert', () => {
 
 /* THE CHECK THAT WAS WRITTEN AND NOT WIRED, which this repository has now done four times.
  *
- * `release.mjs` says it best, in a comment about this very gate: "Three checks that pass and
+ * `release.ts` says it best, in a comment about this very gate: "Three checks that pass and
  * a fourth nobody runs is the same arrangement this repository found twice more this week."
  * The 2026-09 brand adoption then did it again, twice over. It shipped
- * `scripts/verify-contrast.mjs` — written precisely because `audit:design` PRINTED contrast
+ * `scripts/verify-contrast.ts` — written precisely because `audit:design` PRINTED contrast
  * failures and exited 0, so "a palette that fails everywhere would ship green and silent" —
  * and wired it to nothing but a `package.json` script a person has to remember. It shipped
- * sixteen `checks/*.mjs` the same way. `release.mjs` runs typecheck, lint, test and gate for
+ * sixteen `checks/*.ts` the same way. `release.ts` runs typecheck, lint, test and gate for
  * the console; none of those touched either one.
  *
  * So the initiative whose whole premise was "a silent palette failure must become a loud one"
  * left the palette failure silent. These two entries are what make it loud, and they go HERE
- * rather than in `release.mjs` because `pnpm run gate` is already on the enforced path — the
+ * rather than in `release.ts` because `pnpm run gate` is already on the enforced path — the
  * fix belongs where the enforcement already is, not in a second list to keep in sync.
  *
  * Together they cost about 16 seconds beside a gate that already runs `next build`, so there
  * was never a cost argument for leaving them out.
  */
 check('the palette clears its contrast floors', () => {
-  try { execSync('node scripts/verify-contrast.mjs', { stdio: 'pipe' }); return null; }
+  try { execSync('node scripts/verify-contrast.ts', { stdio: 'pipe' }); return null; }
   catch (err) {
-    const out = String(err.stdout ?? '') + String(err.stderr ?? '');
-    const fails = out.split('\n').filter((l) => /fail/i.test(l));
-    return (fails.length ? fails : [String(err.message)]).join('; ').slice(0, 300);
+    const fails = execOutput(err).split('\n').filter((l) => /fail/i.test(l));
+    return (fails.length ? fails : [asExecError(err).message]).join('; ').slice(0, 300);
   }
 });
 
 check('every declared design-system check exists and passes', () => {
-  try { execSync('node scripts/run-checks.mjs', { stdio: 'pipe' }); return null; }
+  try { execSync('node scripts/run-checks.ts', { stdio: 'pipe' }); return null; }
   catch (err) {
-    const out = String(err.stdout ?? '') + String(err.stderr ?? '');
-    const bad = out.split('\n').filter((l) => /FAIL|MISSING|UNDECLARED/.test(l));
-    return (bad.length ? bad : [String(err.message)]).join('; ').slice(0, 300);
+    const bad = execOutput(err).split('\n').filter((l) => /FAIL|MISSING|UNDECLARED/.test(l));
+    return (bad.length ? bad : [asExecError(err).message]).join('; ').slice(0, 300);
   }
 });
 
 check('the build passes', () => {
   try { execSync('npx next build', { stdio: 'pipe' }); return null; }
-  catch (err) { return String(err.stdout ?? err.message).split('\n').slice(-6).join(' ').slice(0, 300); }
+  catch (err) { const e = asExecError(err); return (e.stdout ?? e.message).split('\n').slice(-6).join(' ').slice(0, 300); }
 });
 
 console.log(`\n  ${'─'.repeat(56)}`);

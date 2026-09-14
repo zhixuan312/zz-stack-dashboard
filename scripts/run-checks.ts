@@ -17,6 +17,7 @@
  */
 import { execFileSync } from 'node:child_process';
 import { readdirSync } from 'node:fs';
+import { execOutput } from './lib/exec.ts';
 
 const EXPECTED = [
   'app-icons-rebuilt',        // I-4  the PWA icon set is reproducible, from the master
@@ -38,7 +39,7 @@ const EXPECTED = [
   'verify-contrast-behaviour',// I-2  the contrast gate fails when it should
 ];
 
-/* I-16 declared `checks/visual/all-pages-render.mjs`. It is NOT in this list and was
+/* I-16 declared `checks/visual/all-pages-render.ts`. It is NOT in this list and was
  * never written: its Run command needs a production server on a fixed port that nothing
  * in the plan starts, and its check file sat inside its own task Output, which the plan's
  * own rules forbid. The visual validation happened — all 18 routes, both states, read by
@@ -46,7 +47,7 @@ const EXPECTED = [
  * is a real gap and it is recorded here rather than quietly absent from the count. */
 const KNOWN_MISSING = { 'visual/all-pages-render': 'I-16 — see the comment above' };
 
-const onDisk = readdirSync('checks').filter((f) => f.endsWith('.mjs')).map((f) => f.slice(0, -4)).sort();
+const onDisk = readdirSync('checks').filter((f) => f.endsWith('.ts')).map((f) => f.slice(0, -3)).sort();
 let code = 0;
 
 const missing = EXPECTED.filter((c) => !onDisk.includes(c));
@@ -59,11 +60,11 @@ for (const name of EXPECTED) {
   if (!onDisk.includes(name)) continue;
   process.stdout.write(`  ${name.padEnd(28)}`);
   try {
-    execFileSync('node', [`checks/${name}.mjs`], { stdio: 'pipe', timeout: 900000 });
+    execFileSync('node', [`checks/${name}.ts`], { stdio: 'pipe', timeout: 900000 });
     console.log('PASS'); passed += 1;
   } catch (e) {
     console.log('FAIL');
-    process.stderr.write(String(e.stdout ?? '') + String(e.stderr ?? ''));
+    process.stderr.write(execOutput(e));
     code = 1;
   }
 }

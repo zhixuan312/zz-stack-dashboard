@@ -17,7 +17,7 @@ import { join } from 'node:path';
 const BANNED = /prefers-color-scheme|data-theme|ThemeToggle|AppearancePanel|(?:^|[\s"'`:])dark:[a-z[]/;
 const EXT = new Set(['.ts', '.tsx', '.css']);
 let code = 0;
-const walk = (dir) => {
+const walk = (dir: string): void => {
   for (const e of readdirSync(dir)) {
     const p = join(dir, e);
     if (statSync(p).isDirectory()) { walk(p); continue; }

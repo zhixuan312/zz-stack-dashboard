@@ -60,7 +60,7 @@ else {
     console.error('FAIL TrendChart volume bars use bare opacity=, which fades the stroke with the fill'); code = 1;
   }
 }
-const vc = readFileSync('scripts/verify-contrast.mjs', 'utf8');
+const vc = readFileSync('scripts/verify-contrast.ts', 'utf8');
 for (const pastel of ['--zz-lavender', '--zz-pink', '--zz-blue']) {
   if (new RegExp("\\['" + pastel).test(vc)) { console.error('FAIL verify-contrast measures ' + pastel); code = 1; }
 }

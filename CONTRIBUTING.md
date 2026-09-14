@@ -30,7 +30,7 @@ the check and say in its comment what it was wrong about.
 app/         Next routes. (dash)/ is everything behind the passkey.
 src/         components, hooks and lib — the parts a route composes.
 tests/       vitest, colocated by subject rather than by file.
-scripts/     gate.mjs and the two design audits.
+scripts/     gate.ts and the two design audits.
 docs/        written for somebody who does not work on this every day.
 ```
 
@@ -47,7 +47,7 @@ docs/        written for somebody who does not work on this every day.
 
 ## Releasing
 
-The console is released by **zz-stack's** `scripts/release.mjs`, as its own component with its
+The console is released by **zz-stack's** `scripts/release.ts`, as its own component with its
 own version and its own published image. It is not released from here, and it is not built on
 the host: `docker-compose.yml` names a published image and that file is the only thing that
 reaches a server.

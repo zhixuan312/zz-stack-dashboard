@@ -113,7 +113,7 @@ describe('KnowledgeAsk', () => {
 
   it('shows the server\'s own sentence on failure, including a 503 naming a variable', async () => {
     // The variable name here is a stand-in, deliberately not `generate.ts`'s own
-    // `LLM_API_KEY`/`LLM_BASE_URL` — scripts/gate.mjs's "the server-held LLM client stays
+    // `LLM_API_KEY`/`LLM_BASE_URL` — scripts/gate.ts's "the server-held LLM client stays
     // off the console" refuses any file under this repo that names either, on the theory
     // that a credential the browser can reach is a credential every visitor can reach (see
     // that check's own header). This test only needs to prove the server's exact sentence

@@ -1,13 +1,13 @@
 /* THE FOUR SURFACES THAT ARE NOT EmptyState, plus the one that must stay untouched.
  *
- * `mascot-assignment.mjs` pins each of these to its single allowed file; this checks the
+ * `mascot-assignment.ts` pins each of these to its single allowed file; this checks the
  * other half — that the surface still HAS its mascot and its fallback, and that the
  * blast radius stayed one call site wide.
  */
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 let code = 0;
-const has = (f, ...needles) => {
+const has = (f: string, ...needles: string[]): string => {
   const src = readFileSync(f, 'utf8');
   for (const n of needles) if (!src.includes(n)) { console.error(`FAIL ${f} missing ${n}`); code = 1; }
   return src;
@@ -30,7 +30,7 @@ if (/illustration|mascot/.test(spinner)) { console.error('FAIL spinner.tsx was m
 /* EXACTLY ONE showToast caller may set an illustration. This is the blast-radius
  * assertion: 38 other call sites hit the untouched default branch and were never read,
  * let alone edited. A second setter means somebody generalised a one-file decision. */
-const walk = (d, o = []) => {
+const walk = (d: string, o: string[] = []): string[] => {
   for (const e of readdirSync(d)) {
     const p = join(d, e);
     if (statSync(p).isDirectory()) walk(p, o);

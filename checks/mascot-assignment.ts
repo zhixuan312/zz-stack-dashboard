@@ -16,7 +16,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 /* EmptyState surfaces: illustration -> the files the spec assigns it to. */
-const WANT = {
+const WANT: Record<string, string[]> = {
   'state-empty': ['knowledge/log/page.tsx', 'initiatives/page.tsx', 'teams/[slug]/page.tsx', 'SkillEvaluation.tsx', 'knowledge/page.tsx'],
   'state-welcome': ['CredentialsPanel.tsx', 'BlocksPanel.tsx', 'TeamFlowsPanel.tsx', 'TokensPanel.tsx', 'TeamMembersPanel.tsx', 'PlatformPeoplePanel.tsx'],
   'state-done': ['people/page.tsx'],
@@ -33,7 +33,7 @@ const ONE_OFF = {
   'mascot-hero': ['app/login/page.tsx', 'the login hero'],
 };
 
-const walk = (d, out = []) => {
+const walk = (d: string, out: string[] = []): string[] => {
   for (const e of readdirSync(d)) {
     const p = join(d, e);
     if (statSync(p).isDirectory()) walk(p, out);
@@ -53,7 +53,7 @@ for (const f of files) {
   const assets = Object.keys(WANT).filter((a) => src.includes(a));
   if (!assets.length) { console.error('FAIL ' + f + ' has an EmptyState with no illustration'); code = 1; continue; }
   for (const asset of assets) {
-    if (!WANT[asset].some((s) => f.endsWith(s))) {
+    if (!WANT[asset].some((s: string) => f.endsWith(s))) {
       console.error(`FAIL ${f} uses ${asset}, which the spec does not assign to it`); code = 1;
     }
   }
@@ -78,7 +78,7 @@ if (!files.includes(root)) {
 } else if (!readFileSync(root, 'utf8').includes('state-notfound')) {
   fail404('the root 404 carries no mascot');
 }
-function fail404(m) { console.error('FAIL ' + m); code = 1; }
+function fail404(m: string): void { console.error('FAIL ' + m); code = 1; }
 
 if (!code) {
   console.log(`PASS ${sites} EmptyState sites carry their assigned illustration; 4 one-off surfaces and the root 404 pinned`);

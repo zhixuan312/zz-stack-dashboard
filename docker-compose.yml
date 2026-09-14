@@ -1,13 +1,13 @@
 # The console, deployed beside zz-stack — never inside its compose file.
 #
 # WHY SEPARATE. zz-stack's compose is part of its release: the image tags are
-# literals, the gate checks them, and `scripts/release.mjs` builds and verifies
+# literals, the gate checks them, and `scripts/release.ts` builds and verifies
 # every service in it. Folding the console in would put a second repository's
 # build into that release and make every console change a platform release. Two
 # files, two lifecycles, one host.
 #
 # WHAT SEPARATE NEVER MEANT. It is still released by zz-stack's
-# `scripts/release.mjs`, as its own component with its own version and its own
+# `scripts/release.ts`, as its own component with its own version and its own
 # image — because it ships to the same host, in front of the same people. For a
 # while it was not: the console reached production by rsyncing this source tree
 # and building on the host, which is how production stopped running published

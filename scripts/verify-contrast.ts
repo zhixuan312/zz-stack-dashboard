@@ -1,8 +1,8 @@
 /**
  * The contrast floor, as a FAILURE rather than a printout.
  *
- * `scripts/gate.mjs` — the blocking gate zz-stack's release runs — has no colour check at all,
- * and `scripts/design-metrics.mjs` prints contrast failures and then exits 0 regardless. So a
+ * `scripts/gate.ts` — the blocking gate zz-stack's release runs — has no colour check at all,
+ * and `scripts/design-metrics.ts` prints contrast failures and then exits 0 regardless. So a
  * palette that failed WCAG AA everywhere would have shipped green and silent. This script is the
  * missing half: it reads the tokens that actually ship, measures the pairs that actually matter,
  * and exits non-zero when one falls below its floor.
@@ -16,25 +16,27 @@
  * here would fail the build on a decision the spec made on purpose.
  */
 import { readFileSync } from 'node:fs';
-import { ratio, readTokens } from './lib/contrast.mjs';
+import { ratio, readTokens } from './lib/contrast.ts';
 
 const AA_TEXT = 4.5;
 
 /** Exactly the pairs the spec enumerates. Anything not here is out of scope, by design. */
-const PAIRS = [
+/** foreground token, background token, the floor it must clear. */
+type Pair = [string, string, number];
+const PAIRS: Pair[] = [
   ...['--ink', '--ink-soft', '--ink-faint'].flatMap((fg) =>
-    ['--bg', '--surface', '--surface-2'].map((bg) => [fg, bg, AA_TEXT])),
+    ['--bg', '--surface', '--surface-2'].map((bg): Pair => [fg, bg, AA_TEXT])),
   ...['--accent', '--accent-deep'].flatMap((fg) =>
-    ['--bg', '--surface', '--surface-2'].map((bg) => [fg, bg, AA_TEXT])),
+    ['--bg', '--surface', '--surface-2'].map((bg): Pair => [fg, bg, AA_TEXT])),
   ['--on-accent', '--accent', AA_TEXT],
   ['--on-accent', '--accent-deep', AA_TEXT],
   ['--on-danger', '--danger-fill', AA_TEXT],
   ...['--green-text', '--amber-text', '--red-text'].flatMap((fg) =>
-    ['--bg', '--surface'].map((bg) => [fg, bg, AA_TEXT])),
+    ['--bg', '--surface'].map((bg): Pair => [fg, bg, AA_TEXT])),
   ['--green-text', '--green-tint', AA_TEXT],
   ['--amber-text', '--amber-tint', AA_TEXT],
   ['--red-text', '--red-tint', AA_TEXT],
-  ...['--accent-tint', '--green-tint', '--amber-tint', '--red-tint'].map((bg) => ['--ink', bg, AA_TEXT]),
+  ...['--accent-tint', '--green-tint', '--amber-tint', '--red-tint'].map((bg): Pair => ['--ink', bg, AA_TEXT]),
 ];
 
 /**
@@ -51,14 +53,14 @@ const PAIRS = [
  * but its outline, say — that border belongs in the list above at AA_UI.
  */
 
-/* The stylesheet to measure. Defaults to the real one; `checks/verify-contrast-behaviour.mjs`
+/* The stylesheet to measure. Defaults to the real one; `checks/verify-contrast-behaviour.ts`
  * points it at a temporary copy carrying a deliberately broken palette, so proving this
  * script FAILS when it should never requires editing the file the product ships. */
 const CSS = process.argv[2] ?? 'app/globals.css';
 const tokens = readTokens(readFileSync(CSS, 'utf8'));
 
 let failures = 0;
-const rows = [];
+const rows: (string | number)[][] = [];
 for (const [fg, bg, floor] of PAIRS) {
   const a = tokens[fg];
   const b = tokens[bg];
@@ -75,7 +77,7 @@ for (const [fg, bg, floor] of PAIRS) {
   rows.push([fg, bg, r.toFixed(2), floor, ok ? 'pass' : 'FAIL']);
 }
 
-const w = (s, n) => String(s).padEnd(n);
+const w = (s: string | number, n: number): string => String(s).padEnd(n);
 console.log(`${w('foreground', 16)}${w('background', 16)}${w('ratio', 8)}${w('floor', 7)}result`);
 for (const [fg, bg, r, floor, res] of rows) {
   console.log(`${w(fg, 16)}${w(bg, 16)}${w(r, 8)}${w(floor, 7)}${res}`);

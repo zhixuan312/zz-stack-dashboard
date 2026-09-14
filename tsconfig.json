@@ -1,8 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["dom", "dom.iterable", "esnext"],
-    "allowJs": true,
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "skipLibCheck": true,
     "strict": true,
     "noEmit": true,
@@ -17,11 +20,30 @@
     // at runtime. Without this they are ambient to the RUNNER but unknown to
     // tsc, and `pnpm typecheck` fails on every test file while `pnpm test`
     // passes — two checks disagreeing about the same code.
-    "types": ["vitest/globals"],
-    "plugins": [{ "name": "next" }],
+    // `node` because scripts/ and checks/ are now TypeScript run by Node directly, and they
+    // reach for `process`, `Buffer` and friends. `types` is a whitelist: naming only
+    // vitest/globals here left every one of those globals unknown to tsc.
+    "types": [
+      "vitest/globals",
+      "node"
+    ],
+    // scripts/ and checks/ are executed by Node's native type stripping, which erases
+    // annotations and refuses to EMIT anything. Enums, namespaces and parameter properties
+    // compile under tsc and then throw at runtime, so the compiler has to refuse them here.
+    "erasableSyntaxOnly": true,
+    // Those same files import each other by the name Node will open — `./lib/contrast.ts`.
+    "allowImportingTsExtensions": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
     "paths": {
-      "@/*": ["./src/*"]
-    }
+      "@/*": [
+        "./src/*"
+      ]
+    },
+    "allowJs": true
   },
   "include": [
     "next-env.d.ts",
@@ -30,5 +52,7 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules"
+  ]
 }

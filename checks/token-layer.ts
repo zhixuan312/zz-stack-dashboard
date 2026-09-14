@@ -6,13 +6,13 @@
  * This is the check that was missing while `--c-500` was silently corrected from the
  * spec's frozen `#7a7080` to `#6e6574` — a correct change (the frozen value measured
  * 4.16:1 against a 4.5:1 floor) that nothing would have caught had it been a typo
- * instead. `verify-contrast.mjs` proves the palette is LEGIBLE; this proves it is the
+ * instead. `verify-contrast.ts` proves the palette is LEGIBLE; this proves it is the
  * palette that was agreed.
  */
 import { readFileSync } from 'node:fs';
 const css = readFileSync('app/globals.css', 'utf8');
 let code = 0;
-const decl = (name) => {
+const decl = (name: string) => {
   const m = [...css.matchAll(new RegExp('(?:^|\\n)\\s*' + name.replace(/-/g, '\\-') + ':\\s*([^;]+);', 'g'))];
   return m.length ? m[m.length - 1][1].trim() : null;
 };

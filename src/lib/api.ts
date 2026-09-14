@@ -27,8 +27,12 @@ import { createContext, createElement, useContext, useState, type ReactNode } fr
 const BASE = '/api/console';
 
 export class ApiError extends Error {
-  constructor(readonly status: number, message: string) {
+  // Declared and assigned rather than a `readonly status` parameter property: those are the
+  // one class member TypeScript cannot erase, and this repository is compiled by erasure.
+  readonly status: number;
+  constructor(status: number, message: string) {
     super(message);
+    this.status = status;
     this.name = 'ApiError';
   }
 }

@@ -1,5 +1,5 @@
 /* PROVENANCE AND REPRODUCIBILITY for the runtime assets — the same property
- * `app-icons-rebuilt.mjs` holds for the icon script, which was written while this one
+ * `app-icons-rebuilt.ts` holds for the icon script, which was written while this one
  * was not. Every file the browser downloads must derive from a master under
  * `design/in-use/`, and running the script again must produce the identical bytes.
  * A build step that is not reproducible cannot be trusted to have produced what shipped.
@@ -47,7 +47,7 @@ for (const f of readdirSync(DIR)) {
  * convention, and false of `next/image`, which is what this app uses — so the exemption
  * hid exactly the orphans it was written to excuse. There is no exemption now: every PNG
  * here must be named by a source file. */
-const walkSrc = (d, o = []) => {
+const walkSrc = (d: string, o: string[] = []): string[] => {
   for (const e of readdirSync(d, { withFileTypes: true })) {
     const q = d + '/' + e.name;
     if (e.isDirectory()) walkSrc(q, o);

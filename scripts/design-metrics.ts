@@ -2,7 +2,7 @@
  * Design metrics — measures the VISUAL system of every page, so "this looks
  * unprofessional" becomes a number you can argue with.
  *
- * The layout audit (layout-audit.mjs) asks "is it broken?". This asks "is it
+ * The layout audit (layout-audit.ts) asks "is it broken?". This asks "is it
  * disciplined?" — a page can pass every structural invariant and still look
  * amateur because it uses 19 font sizes, 6 shadow recipes and 4 radii.
  *
@@ -27,12 +27,12 @@
  *                   biggest element is only slightly bigger than its body has
  *                   no dominant object, and the eye has nowhere to land.
  *
- * Run: node scripts/design-metrics.mjs   (dev server must be running)
+ * Run: node scripts/design-metrics.ts   (dev server must be running)
  */
 
 const BASE = process.env.AUDIT_BASE ?? 'http://127.0.0.1:3000';
 
-// FROM src/nav.ts, the way layout-audit.mjs already does it, and for the reason it says: a
+// FROM src/nav.ts, the way layout-audit.ts already does it, and for the reason it says: a
 // hardcoded list goes stale silently and the audit keeps reporting on pages that are not there.
 // This one had — /records, /health and /components stopped existing, so three of its six pages
 // were 404s, and the "contrast failures" it reported were measured on the error page.
@@ -59,38 +59,43 @@ const VIEWPORT = { width: 1440, height: 900 };
 /** The spacing scale a value must land on to count as "in the system". */
 const SCALE = [0, 1, 2, 4, 6, 8, 10, 12, 14, 16, 20, 24, 28, 32, 36, 40, 48, 56, 64, 72, 80, 96];
 
-function measureInPage(scale) {
-  const px = (v) => Math.round(parseFloat(v) || 0);
+/** A colour read back off the page, always with an alpha. */
+interface Rgba { r: number; g: number; b: number; a: number }
+/** How often one value appears, and a scrap of the first element wearing it. */
+interface Tally { n: number; sample: string }
 
-  const fontSizes = new Map();
-  const weights = new Map();
-  const radii = new Map();
-  const shadows = new Map();
-  const inks = new Map();
-  const paints = new Map();
-  const offScale = new Map();
-  const contrastFails = [];
+function measureInPage(scale: number[]) {
+  const px = (v: string): number => Math.round(parseFloat(v) || 0);
+
+  const fontSizes = new Map<number, Tally>();
+  const weights = new Map<string, Tally>();
+  const radii = new Map<number, Tally>();
+  const shadows = new Map<string, Tally>();
+  const inks = new Map<string, Tally>();
+  const paints = new Map<string, Tally>();
+  const offScale = new Map<string, Tally>();
+  const contrastFails: string[] = [];
 
   // ---- colour helpers -------------------------------------------------
-  const parse = (c) => {
+  const parse = (c: string): Rgba | null => {
     const m = /rgba?\(([^)]+)\)/.exec(c);
     if (!m) return null;
-    const p = m[1].split(',').map((n) => parseFloat(n));
+    const p = m[1].split(',').map((n: string) => parseFloat(n));
     return { r: p[0], g: p[1], b: p[2], a: p.length > 3 ? p[3] : 1 };
   };
-  const lum = ({ r, g, b }) => {
-    const f = (v) => {
+  const lum = ({ r, g, b }: Rgba): number => {
+    const f = (v: number): number => {
       v /= 255;
       return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
     };
     return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
   };
-  const ratio = (a, b) => {
+  const ratio = (a: Rgba, b: Rgba): number => {
     const l1 = lum(a);
     const l2 = lum(b);
     return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
   };
-  const over = (fg, bg) =>
+  const over = (fg: Rgba, bg: Rgba): Rgba =>
     fg.a >= 1
       ? fg
       : {
@@ -100,10 +105,10 @@ function measureInPage(scale) {
           a: 1,
         };
   /** Saturated = the max-min channel spread is large enough to read as a hue. */
-  const saturated = (c) => Math.max(c.r, c.g, c.b) - Math.min(c.r, c.g, c.b) > 26;
+  const saturated = (c: Rgba): boolean => Math.max(c.r, c.g, c.b) - Math.min(c.r, c.g, c.b) > 26;
 
-  const effectiveBg = (el) => {
-    let n = el;
+  const effectiveBg = (el: Element): Rgba => {
+    let n: Element | null = el;
     while (n && n !== document.documentElement) {
       const c = parse(getComputedStyle(n).backgroundColor);
       if (c && c.a > 0.85) return c;
@@ -112,7 +117,7 @@ function measureInPage(scale) {
     return { r: 255, g: 255, b: 255, a: 1 };
   };
 
-  const bump = (map, key, el) => {
+  const bump = <K,>(map: Map<K, Tally>, key: K, el: Element): void => {
     const rec = map.get(key) ?? { n: 0, sample: '' };
     rec.n += 1;
     if (!rec.sample) {
@@ -123,7 +128,7 @@ function measureInPage(scale) {
   };
 
   const all = [...document.querySelectorAll('*')];
-  const textSizes = [];
+  const textSizes: number[] = [];
 
   for (const el of all) {
     const cs = getComputedStyle(el);
@@ -135,7 +140,7 @@ function measureInPage(scale) {
     // Only count type on elements that actually own visible text.
     const ownText = [...el.childNodes]
       .filter((n) => n.nodeType === 3)
-      .map((n) => n.textContent.trim())
+      .map((n) => (n.textContent ?? '').trim())
       .join('');
     if (ownText) {
       const fs = px(cs.fontSize);
@@ -178,7 +183,8 @@ function measureInPage(scale) {
     // markdown to the app's px grid would mean overriding a plugin that is doing
     // the right thing, to satisfy a check that is asking the wrong question.
     if (el.closest('.prose')) continue;
-    for (const prop of ['paddingTop', 'paddingLeft', 'gap', 'rowGap', 'columnGap']) {
+    const SPACING = ['paddingTop', 'paddingLeft', 'gap', 'rowGap', 'columnGap'] as const;
+    for (const prop of SPACING) {
       const raw = cs[prop];
       if (!raw || raw === 'normal') continue;
       const v = px(raw);
@@ -192,7 +198,7 @@ function measureInPage(scale) {
   const median = textSizes[Math.floor(textSizes.length / 2)] ?? 0;
   const max = textSizes[textSizes.length - 1] ?? 0;
 
-  const top = (map, n = 99) =>
+  const top = <K,>(map: Map<K, Tally>, n = 99): string[] =>
     [...map.entries()]
       .sort((a, b) => b[1].n - a[1].n)
       .slice(0, n)
@@ -219,7 +225,9 @@ try {
   process.exit(2);
 }
 
-const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] });
+// `true` IS the new headless. 'new' was puppeteer 20's spelling and has not been a
+// documented value since 22; it still worked only because every branch tests === 'shell'.
+const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
 const page = await browser.newPage();
 await page.setViewport(VIEWPORT);
 
@@ -233,27 +241,27 @@ await page.setViewport(VIEWPORT);
  * second theme to miss — and the env var is gone rather than kept as a no-op
  * that would print `theme: dark` while measuring the only theme there is.
  *
- * Contrast is no longer this script's job either: `scripts/verify-contrast.mjs`
+ * Contrast is no longer this script's job either: `scripts/verify-contrast.ts`
  * checks 31 enumerated pairs against the tokens and EXITS NON-ZERO. This one
  * measures discipline — how many type sizes, weights, radii and off-scale
  * spacings a page actually renders — and its exit code stays advisory.
  */
 
 const union = {
-  fontSizes: new Set(),
-  weights: new Set(),
-  radii: new Set(),
-  shadows: new Set(),
-  inks: new Set(),
-  paints: new Set(),
-  offScale: new Set(),
+  fontSizes: new Set<string>(),
+  weights: new Set<string>(),
+  radii: new Set<string>(),
+  shadows: new Set<string>(),
+  inks: new Set<string>(),
+  paints: new Set<string>(),
+  offScale: new Set<string>(),
 };
 let totalContrastFails = 0;
 
 let vacuous = 0;
 for (const [name, path] of PAGES) {
   await page.goto(BASE + path, { waitUntil: 'networkidle0', timeout: 120_000 });
-  // GUARD AGAINST A VACUOUS PASS, the same one layout-audit.mjs carries and this did not.
+  // GUARD AGAINST A VACUOUS PASS, the same one layout-audit.ts carries and this did not.
   //
   // This script has no authentication step at all, so every page redirected to /login and
   // every number it printed described the sign-in screen: three type sizes, no radii, no
@@ -268,7 +276,7 @@ for (const [name, path] of PAGES) {
   await new Promise((r) => setTimeout(r, 400));
   const m = await page.evaluate(measureInPage, SCALE);
 
-  const bare = (arr) => arr.map((s) => s.replace(/ ×\d+$/, ''));
+  const bare = (arr: string[]): string[] => arr.map((s) => s.replace(/ ×\d+$/, ''));
   bare(m.fontSizes).forEach((v) => union.fontSizes.add(v));
   bare(m.weights).forEach((v) => union.weights.add(v));
   bare(m.radii).forEach((v) => union.radii.add(v));
@@ -299,9 +307,9 @@ for (const [name, path] of PAGES) {
 await browser.close();
 
 console.log(`\n${'═'.repeat(64)}\nWHOLE-APP TOTALS`);
-console.log(`  distinct type sizes   ${union.fontSizes.size}   ${[...union.fontSizes].sort((a, b) => a - b).join(' ')}`);
+console.log(`  distinct type sizes   ${union.fontSizes.size}   ${[...union.fontSizes].sort((a, b) => Number(a) - Number(b)).join(' ')}`);
 console.log(`  distinct weights      ${union.weights.size}   ${[...union.weights].sort().join(' ')}`);
-console.log(`  distinct radii        ${union.radii.size}   ${[...union.radii].sort((a, b) => a - b).join(' ')}`);
+console.log(`  distinct radii        ${union.radii.size}   ${[...union.radii].sort((a, b) => Number(a) - Number(b)).join(' ')}`);
 console.log(`  distinct shadows      ${union.shadows.size}`);
 console.log(`  distinct text inks    ${union.inks.size}`);
 console.log(`  distinct paints       ${union.paints.size}`);
@@ -309,6 +317,6 @@ console.log(`  off-scale spacings    ${union.offScale.size}   ${[...union.offSca
 console.log(`  contrast failures     ${totalContrastFails}`);
 if (vacuous) {
   console.error(`\n  ${vacuous} of ${PAGES.length} page(s) redirected to /login — every metric above is ` +
-                `about the sign-in screen. Set AUDIT_EMAIL and AUDIT_PASSWORD, as layout-audit.mjs does.`);
+                `about the sign-in screen. Set AUDIT_EMAIL and AUDIT_PASSWORD, as layout-audit.ts does.`);
   process.exit(1);
 }

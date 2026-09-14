@@ -1,5 +1,5 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
-const fail = (m) => { console.error('FAIL ' + m); process.exitCode = 1; };
+const fail = (m: string): void => { console.error('FAIL ' + m); process.exitCode = 1; };
 
 const ignore = readFileSync('.dockerignore', 'utf8').split('\n').map((s) => s.trim());
 /* `design/` is 38MB of source art, tracked in git (a master that lives on one laptop is a
@@ -11,7 +11,8 @@ for (const entry of ['design', 'checks']) {
   if (!ignore.includes(entry)) fail('.dockerignore has no `' + entry + '` entry');
 }
 
-for (const [dir, want] of [['design/in-use', 12], ['design/reference', 10]]) {
+const CUSTODY: [string, number][] = [['design/in-use', 12], ['design/reference', 10]];
+for (const [dir, want] of CUSTODY) {
   if (!existsSync(dir)) { fail(dir + ' does not exist'); continue; }
   const n = readdirSync(dir).filter((f) => f.endsWith('.png')).length;
   if (n !== want) fail(`${dir} holds ${n} PNGs, expected ${want}`);

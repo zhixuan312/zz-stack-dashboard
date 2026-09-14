@@ -1,5 +1,10 @@
 # ZZ Console — the admin dashboard.
 #
+# NODE 24 IS THE FLOOR, and `engines` in package.json says so. scripts/ and checks/ are
+# TypeScript run by Node directly — no build step, no bundler — and native type stripping
+# only reached Stable in 24.12. `pnpm install` reads that `engines` field in this image,
+# so the two have to agree.
+#
 # A standalone Next build, which is why there are two stages and no node_modules
 # in the final image: `output: 'standalone'` traces the modules the server
 # actually reaches and copies just those, so the runtime layer is the app plus
@@ -10,7 +15,7 @@
 # cookie. This container serves HTML and JavaScript and has no database URL, no
 # token and no upstream — which is the property that makes deploying it beside
 # the gateway uninteresting rather than delicate.
-FROM node:22-alpine AS build
+FROM node:24-alpine AS build
 WORKDIR /app
 RUN corepack enable
 # Manifest and lockfile first: this layer is the install, and it should be reused
@@ -23,7 +28,7 @@ COPY . .
 # artifact everything downstream trusts.
 RUN pnpm build
 
-FROM node:22-alpine AS run
+FROM node:24-alpine AS run
 WORKDIR /app
 ENV NODE_ENV=production HOSTNAME=0.0.0.0 PORT=3000
 # Not root. Nothing in here needs to write anywhere, so the runtime user owns

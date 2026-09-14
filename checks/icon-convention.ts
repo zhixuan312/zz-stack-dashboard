@@ -13,7 +13,7 @@
  * the old indigo). The implementation uses `app/icon.png`, rasterised from the flat-Z
  * master by `scripts/build-brand-assets.py`, because the tab icon is a 32px raster
  * downscale rather than a traced vector. The SVG assertions are therefore not merely
- * skipped — they have no subject. What replaces them is `app-icons-rebuilt.mjs`'s
+ * skipped — they have no subject. What replaces them is `app-icons-rebuilt.ts`'s
  * provenance-and-reproducibility guard over the same file.
  */
 import { execFileSync } from 'node:child_process';
@@ -41,7 +41,7 @@ if (existsSync('app/icon.png') && existsSync('app/apple-icon.png')) {
 }
 
 execFileSync('pnpm', ['run', 'build'], { stdio: 'pipe', timeout: 600000 });
-const walk = (d, o = []) => {
+const walk = (d: string, o: string[] = []): string[] => {
   for (const e of readdirSync(d)) {
     const p = d + '/' + e;
     if (statSync(p).isDirectory()) walk(p, o);

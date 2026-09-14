@@ -62,7 +62,7 @@ They are not retained anywhere.
 
 ## The durable half: this repository now has a gate
 
-`node scripts/gate.mjs`. zz-stack catches this class before it ships because every failure
+`node scripts/gate.ts`. zz-stack catches this class before it ships because every failure
 that reached a person became a check; this repository had `tsc` and nothing else, and the
 difference was seven bugs in an afternoon, every one found by the stakeholder. A type checker
 cannot see any of them.

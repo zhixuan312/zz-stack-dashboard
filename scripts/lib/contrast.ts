@@ -1,29 +1,29 @@
 /**
  * The WCAG relative-luminance formula, in one place.
  *
- * WHY THIS MODULE EXISTS. `scripts/design-metrics.mjs` carries its own copy of `lum()` and
+ * WHY THIS MODULE EXISTS. `scripts/design-metrics.ts` carries its own copy of `lum()` and
  * `ratio()` — not by oversight, but because they live inside `measureInPage`, which Puppeteer
  * SERIALISES into the browser. A serialised function cannot close over an import, so that copy
  * has to stay inline. Two copies of one formula is the kind of duplication that drifts, so
- * `checks/contrast-formula-agrees.mjs` asserts the two agree on a fixed sample.
+ * `checks/contrast-formula-agrees.ts` asserts the two agree on a fixed sample.
  */
 
 /** sRGB channel → linear. */
-const channel = (v) => {
+const channel = (v: number): number => {
   v /= 255;
   return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
 };
 
 /** `#rrggbb` or `#rgb` → relative luminance. */
-export function lum(hex) {
+function lum(hex: string): number {
   let h = hex.trim().replace(/^#/, '');
-  if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+  if (h.length === 3) h = h.split('').map((c: string) => c + c).join('');
   const n = parseInt(h, 16);
   return 0.2126 * channel((n >> 16) & 255) + 0.7152 * channel((n >> 8) & 255) + 0.0722 * channel(n & 255);
 }
 
 /** Contrast ratio between two hex colours, order-independent. */
-export function ratio(a, b) {
+export function ratio(a: string, b: string): number {
   const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
   return (hi + 0.05) / (lo + 0.05);
 }
@@ -36,7 +36,7 @@ export function ratio(a, b) {
  * attribute selector, and taking the last declaration would measure whichever theme happened
  * to be written last rather than the one that ships.
  */
-export function readTokens(css) {
+export function readTokens(css: string): Record<string, string | null> {
   const start = css.indexOf(':root');
   if (start < 0) throw new Error('no :root block in stylesheet');
   const open = css.indexOf('{', start);
@@ -47,11 +47,11 @@ export function readTokens(css) {
   }
   const block = css.slice(open + 1, end);
 
-  const raw = {};
+  const raw: Record<string, string> = {};
   for (const m of block.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)) raw[m[1]] = m[2].trim();
 
-  const seen = new Set();
-  const resolve = (name) => {
+  const seen = new Set<string>();
+  const resolve = (name: string): string | null => {
     if (seen.has(name)) throw new Error('circular token: ' + name);
     const v = raw[name];
     if (v === undefined) return null;

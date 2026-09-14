@@ -1,13 +1,14 @@
 // Proves the checker FAILS when it should. A contrast check that only ever passes is
 // indistinguishable from no check at all, which is the state this replaces.
 import { execFileSync } from 'node:child_process';
+import { asExecError } from '../scripts/lib/exec.ts';
 import { readFileSync, writeFileSync, unlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 const CSS = 'app/globals.css';
-const run = (file) => {
-  try { execFileSync('node', ['scripts/verify-contrast.mjs', file], { stdio: 'pipe' }); return 0; }
-  catch (e) { return e.status ?? 1; }
+const run = (file: string): number => {
+  try { execFileSync('node', ['scripts/verify-contrast.ts', file], { stdio: 'pipe' }); return 0; }
+  catch (e) { return asExecError(e).status ?? 1; }
 };
 let code = 0;
 if (run(CSS) !== 0) { console.error('FAIL clean tree should exit 0'); code = 1; }

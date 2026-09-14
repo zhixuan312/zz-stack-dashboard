@@ -13,14 +13,14 @@
  */
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { ratio, readTokens } from '../scripts/lib/contrast.mjs';
+import { ratio, readTokens } from '../scripts/lib/contrast.ts';
 
 const doc = readFileSync('docs/DESIGN-SYSTEM.md', 'utf8');
 const css = readFileSync('app/globals.css', 'utf8');
 let code = 0;
-const fail = (m) => { console.error('FAIL ' + m); code = 1; };
+const fail = (m: string): void => { console.error('FAIL ' + m); code = 1; };
 
-const walk = (d, o = []) => {
+const walk = (d: string, o: string[] = []): string[] => {
   for (const e of readdirSync(d)) {
     const p = join(d, e);
     if (statSync(p).isDirectory()) walk(p, o);
@@ -31,14 +31,14 @@ const walk = (d, o = []) => {
 const src = [...walk('app'), ...walk('src')].join('\n');
 
 /* ── the type scale: distinct declared sizes among the .t-* classes ───────── */
-const sizes = new Set();
+const sizes = new Set<number>();
 for (const m of css.matchAll(/^\.(t-[a-z]+)\s*\{([^}]*)\}/gm)) {
   const fs = /font-size:\s*([^;]+);/.exec(m[2]);
   if (!fs) continue;
   const rem = [...fs[1].matchAll(/([0-9.]+)rem/g)].pop();
   if (rem) sizes.add(Math.round(parseFloat(rem[1]) * 16));
 }
-const WORDS = { seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, sixteen: 16, seventeen: 17 };
+const WORDS: Record<string, number> = { seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, sixteen: 16, seventeen: 17 };
 const claimed = /### Type — three families, ([a-z]+) sizes/.exec(doc);
 if (!claimed) fail('cannot find the type-scale heading');
 else if (WORDS[claimed[1]] !== sizes.size) {
@@ -54,10 +54,11 @@ for (const row of doc.matchAll(/^\| (\d+) \| [a-z]+ \|/gm)) {
 const emptyStates = (src.match(/<EmptyState/g) || []).length;
 // Calls only: not the definition, not a mention inside a comment.
 const toastCalls = (src.match(/(?<!function )\bshowToast\(\{/g) || []).length;
-for (const [what, actual, re] of [
+const CLAIMS: [string, number, RegExp][] = [
   ['EmptyState call sites', emptyStates, /\*\*(\d+)\*\* were then wired deliberately/],
   ['showToast call sites', toastCalls, /\*\*1 of (\d+)\*\* call sites passes one/],
-]) {
+];
+for (const [what, actual, re] of CLAIMS) {
   const m = re.exec(doc);
   if (!m) fail(`cannot find the doc's claim about ${what}`);
   else if (Number(m[1]) !== actual) fail(`the doc claims ${m[1]} ${what}; there are ${actual}`);
@@ -68,9 +69,20 @@ const tok = readTokens(css);
 const quoted = /— ([\d.]+) on surface, ([\d.]+) on bg, ([\d.]+) on the tint/.exec(doc);
 if (!quoted) fail('cannot find the --c-500 contrast figures');
 else {
-  for (const [i, ground] of [['--surface', 1], ['--bg', 2], ['--accent-tint', 3]].map(([g, n]) => [n, g])) {
+  const GROUNDS: [number, string][] = [[1, '--surface'], [2, '--bg'], [3, '--accent-tint']];
+  for (const [i, ground] of GROUNDS) {
     const want = Number(quoted[i]);
-    const got = Number(ratio(tok['--ink-faint'], tok[ground]).toFixed(2));
+    // readTokens answers `null` for a var() chain ending at a token the stylesheet never
+    // declares. Handing that to ratio() called .trim() on null and died with a TypeError
+    // three frames away from the cause; a token this doc quotes and the stylesheet lacks
+    // is a finding, and it now reads as one.
+    const fg = tok['--ink-faint'];
+    const bgv = tok[ground];
+    if (fg === null || fg === undefined || bgv === null || bgv === undefined) {
+      fail(`the doc quotes --ink-faint on ${ground}, but the stylesheet declares no such token`);
+      continue;
+    }
+    const got = Number(ratio(fg, bgv).toFixed(2));
     if (Math.abs(want - got) > 0.005) {
       fail(`the doc quotes --ink-faint on ${ground} as ${want}; it measures ${got}`);
     }
@@ -78,12 +90,12 @@ else {
 }
 
 /* ── the checks' own count ────────────────────────────────────────────────── */
-const runner = readFileSync('scripts/run-checks.mjs', 'utf8');
+const runner = readFileSync('scripts/run-checks.ts', 'utf8');
 const expected = (runner.match(/^\s{2}'[a-z-]+',/gm) || []).length;
 const docChecks = /`pnpm checks` runs all ([a-z]+) and prints `(\d+)\/(\d+)`/.exec(doc);
 if (!docChecks) fail('cannot find the doc claim about pnpm checks');
 else if (WORDS[docChecks[1]] !== expected || Number(docChecks[3]) !== expected) {
-  fail(`the doc says ${docChecks[1]}/${docChecks[3]} checks; run-checks.mjs declares ${expected}`);
+  fail(`the doc says ${docChecks[1]}/${docChecks[3]} checks; run-checks.ts declares ${expected}`);
 }
 
 if (!code) {

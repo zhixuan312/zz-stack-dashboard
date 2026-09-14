@@ -110,10 +110,10 @@ const VIEWPORTS = [
 const PANEL_CLASS = 'ds-spotlight';
 
 /** Runs in the browser. Returns a list of violation strings. */
-function auditInPage(slop, panelClass) {
-  const out = [];
+function auditInPage(slop: number, panelClass: string) {
+  const out: string[] = [];
 
-  const label = (el) => {
+  const label = (el: Element): string => {
     const id = el.getAttribute('data-testid');
     if (id) return `[${id}]`;
     // A panel is far easier to find by its title than by its class soup.
@@ -129,7 +129,7 @@ function auditInPage(slop, panelClass) {
    * `sr-only` pattern pins a 1px box and hides the overflow so screen readers
    * still reach it. Flagging it would train us to ignore the check.
    */
-  const isVisuallyHidden = (el) => {
+  const isVisuallyHidden = (el: Element): boolean => {
     const cs = getComputedStyle(el);
     return (
       cs.clipPath === 'inset(50%)' ||
@@ -138,7 +138,7 @@ function auditInPage(slop, panelClass) {
   };
 
   /** Can the reader actually get to the overflowing content? */
-  const hasWorkingScroller = (el) => {
+  const hasWorkingScroller = (el: Element): boolean => {
     const cands = [el, ...el.querySelectorAll('*')];
     return cands.some((c) => {
       const cs = getComputedStyle(c);
@@ -154,7 +154,7 @@ function auditInPage(slop, panelClass) {
    * scrollWidth larger than its clientWidth, because that measurement does not
    * care which descendant can scroll, and reporting the shell for it describes
    * a page that is working. */
-  const hasHorizontalScrollerInside = (el) => {
+  const hasHorizontalScrollerInside = (el: Element): boolean => {
     const cands = [el, ...el.querySelectorAll('*')];
     return cands.some((c) => {
       const cs = getComputedStyle(c);
@@ -245,7 +245,7 @@ function auditInPage(slop, panelClass) {
     // hidden native <select> Radix renders purely for form/autofill
     // compatibility. Flagging it would be noise, and noise gets ignored.
     if (el.getAttribute('aria-hidden') === 'true' || el.closest('[aria-hidden="true"]')) continue;
-    if (el.tabIndex < 0) continue;
+    if (!(el instanceof HTMLElement) || el.tabIndex < 0) continue;
     // A `<label for>` association counts. It has to: `Field` names its control
     // that way (it owns `htmlFor` + the generated id), so a check that only
     // looked at `aria-label` flagged every correctly-labelled form field in the
@@ -314,8 +314,8 @@ function auditInPage(slop, panelClass) {
  * a 1920px screen is a soft one — reachable, but nobody scrolls a table
  * sideways to discover a column exists, so the data is effectively invisible.
  */
-function tablesFitOrScroll(vpWidth) {
-  const out = [];
+function tablesFitOrScroll(vpWidth: number) {
+  const out: string[] = [];
   for (const t of document.querySelectorAll('table')) {
     // Skip the charts' accessible twin tables. They live inside `.sr-only`,
     // which pins a 1px box and hides the overflow ON PURPOSE, so every one of
@@ -382,7 +382,8 @@ if (!probe) {
   process.exit(2);
 }
 
-const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] });
+// `true` IS the new headless; see design-metrics.ts for why 'new' survived this long.
+const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
 const page = await browser.newPage();
 
 /**
@@ -446,7 +447,7 @@ async function authenticate() {
 await authenticate();
 
 /** Guard against a vacuous pass: a redirect to /login is not a page. */
-function assertNotLoginRedirect(name) {
+function assertNotLoginRedirect(name: string): boolean {
   if (page.url().includes('/login')) {
     console.error(`  FAIL ${name}: landed on /login — the audit is not authenticated`);
     process.exitCode = 2;

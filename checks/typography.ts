@@ -13,7 +13,7 @@ if (/\bInter\(/.test(layout) || /from 'next\/font\/google'[^\n]*\bInter\b/.test(
 if (!/JetBrains_Mono\(/.test(layout)) { console.error('FAIL JetBrains Mono was dropped'); code = 1; }
 if (!/display\.variable/.test(layout)) { console.error('FAIL the display family is not applied to <html>'); code = 1; }
 // ss01/cv05 are Inter-only: against Rubik they resolve to nothing, silently.
-const walk = (d, hit = []) => {
+const walk = (d: string, hit: string[] = []): string[] => {
   for (const e of readdirSync(d)) {
     const p = join(d, e);
     if (statSync(p).isDirectory()) walk(p, hit);

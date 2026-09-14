@@ -44,7 +44,7 @@ const SVG_ALLOWED = new Map([
   ['src/components/Sidebar.tsx', 1],
   ['src/components/charts/TrendChart.tsx', 2],
 ]);
-const walk = (d, out = []) => {
+const walk = (d: string, out: string[] = []): string[] => {
   for (const e of readdirSync(d, { withFileTypes: true })) {
     const q = d + '/' + e.name;
     if (e.isDirectory()) walk(q, out);
