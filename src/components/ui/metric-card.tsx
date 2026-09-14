@@ -71,6 +71,23 @@ export interface MetricCardProps
   emphasis?: boolean;
   /** Zero / idle state — dims the value. "0 failures is good news, don't shout it." */
   muted?: boolean;
+  /**
+   * A small distribution under the value — a composition bar, a dot strip.
+   *
+   * RULE 6 OF THE TILE LAW: a mark earns its place only when the single number lies. A
+   * median with a long tail, a count that is really four categories — those need the
+   * shape shown, and the tile has room for it below the note. A mark that merely repeats
+   * the value is decoration and belongs nowhere.
+   */
+  mark?: ReactNode;
+  /**
+   * The definition, the caveat, and which way is good — everything that needs explaining.
+   *
+   * IT LIVES HERE AND NOWHERE ELSE. The face carries the number; a second explanatory line
+   * on the tile made the reader read past the thing they came for. Which way is good is
+   * already in the delta's colour, and it is not the same direction on every tile in a row.
+   */
+  help?: string;
 }
 
 const ARROW = { up: '▲', down: '▼', flat: '—' } as const;
@@ -87,6 +104,8 @@ export function MetricCard({
   icon,
   sublabel,
   delta,
+  mark,
+  help,
   emphasis,
   tone,
   muted,
@@ -105,17 +124,27 @@ export function MetricCard({
         >
           {label}
         </span>
-        {icon ? (
-          <span
-            aria-hidden
-            className={cn(
-              'shrink-0 [&_svg]:size-4',
-              attention ? 'text-[var(--amber-deep)]' : 'text-ink-faint',
-            )}
-          >
-            {icon}
-          </span>
-        ) : null}
+        <span className="flex shrink-0 items-center gap-1.5">
+          {icon ? (
+            <span
+              aria-hidden
+              className={cn('[&_svg]:size-4', attention ? 'text-[var(--amber-deep)]' : 'text-ink-faint')}
+            >
+              {icon}
+            </span>
+          ) : null}
+          {help ? (
+            <span
+              tabIndex={0}
+              role="note"
+              aria-label={help}
+              title={help}
+              className="grid size-4 cursor-help place-items-center rounded-full border border-line text-[0.5625rem] font-medium text-ink-faint hover:border-accent hover:bg-accent hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+            >
+              i
+            </span>
+          ) : null}
+        </span>
       </div>
 
       <span
@@ -151,6 +180,8 @@ export function MetricCard({
           {sublabel ? <span className="t-micro text-ink-faint">{sublabel}</span> : null}
         </div>
       ) : null}
+
+      {mark ? <div className="mt-0.5">{mark}</div> : null}
     </div>
   );
 }

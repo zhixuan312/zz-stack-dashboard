@@ -23,6 +23,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // `@` aliases src/, and the page lives under app/ — relative, so no alias is invented
 // for one test file.
 import { PeriodProvider } from '@/components/PeriodProvider';
+import type { OverviewMetrics } from '@/lib/api';
 import OverviewPage from '../app/(dash)/page';
 
 const ME = {
@@ -31,7 +32,34 @@ const ME = {
 };
 
 // The gateway's real shape, hour-grained — the one the live page choked on.
-const OVERVIEW = {
+//
+// TYPED AGAINST THE INTERFACE, so a fixture cannot drift from the contract it stands in for.
+// Untyped, this object carried `stages.complete` — the same wrong key the page rendered — so
+// the test agreed with the bug and 158 of them passed while the live gateway sent `gated` and
+// `closed` and eleven initiatives drew as nothing. A mock that is not held to the type is a
+// second opinion from the same author.
+const OVERVIEW: { metrics: OverviewMetrics } & Record<string, unknown> = {
+  // The four the status row leads with. Figures only: every word on a tile is a fixed
+  // label in the component, so a missing field here shows up as a broken tile, not as
+  // prose quietly going missing.
+  metrics: {
+    progressing: {
+      value: 66.7, active: 7, scoreable: 6,
+      stages: { noflow: 1, notstarted: 0, drafting: 2, agreed: 1, gated: 1, closed: 2 },
+      noDeltaBecause: 'approved_at is stored as a date',
+    },
+    knowledge: {
+      value: 2.3, prev: 4.5, fromWork: 19, imported: 819, searches: 40,
+      importThresholdPerHour: 50,
+    },
+    refusals: { value: 9.3, prev: 3.0, refused: 191, calls: 2064 },
+    context: {
+      value: 43, prev: 37, p90: 989,
+      runs: [{ kb: 12, skill: 'sdlc-spec' }, { kb: 989, skill: 'sdlc-plan' }],
+      unmeasured: 1,
+      contextWindowKb: 800,
+    },
+  },
   counts: {
     teams: 1, activeTeams: 1, people: 11, superadmins: 1, documents: 84,
     initiatives: 6, events: 8566, failures: 1761, unattributedEvents: 0,
@@ -74,10 +102,16 @@ beforeEach(() => {
 describe('the overview page', () => {
   it('renders the gateway response instead of throwing on it', async () => {
     mount();
-    // A tile's value proves the counts were read; the panel title proves `grain` was.
-    // `1,761` is the Failing calls tile — the one number on this page somebody acts on.
-    await waitFor(() => expect(screen.getByText('1,761')).toBeInTheDocument());
+    // A tile's value proves `metrics` was read; the panel title proves `grain` was.
+    // `9.3%` is the refusal rate — the one number on this page somebody acts on.
+    await waitFor(() => expect(screen.getByText('9.3%')).toBeInTheDocument());
     expect(screen.getByText('Events per hour')).toBeInTheDocument();
+    // All four tiles, and each labelled by the question it answers rather than by a
+    // count the platform happens to hold.
+    for (const label of ['Initiatives progressing', 'Knowledge from work',
+                         'Refusal rate', 'Context pulled per run']) {
+      expect(screen.getByText(label)).toBeInTheDocument();
+    }
   });
 
   it('asks for all time by default, with no period parameter at all', async () => {

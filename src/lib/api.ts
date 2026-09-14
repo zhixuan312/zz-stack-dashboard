@@ -213,7 +213,53 @@ export interface Me {
   // now sends the role alongside each team it already resolved.
   teams: { slug: string; role: 'admin' | 'member' }[]; activeTeam: string | null;
 }
+/** How far one initiative has got, judged against ITS OWN flow's declared documents.
+ *
+ * `gated` AND `closed` ARE TWO RUNGS, NOT ONE. This said `complete`, and the gateway has never
+ * sent that: clearing every gate is not being done. An initiative can have every gate approved
+ * and still be open — work continues, nobody has said what came of it — which is the state most
+ * of this platform's finished-looking initiatives are actually in. Closure is an `outcome` on
+ * the flow's closing document and nothing else. Rendering `stages.complete` read `undefined` on
+ * every response, so that slice drew as nothing and the two real end-stages were invisible. */
+type InitiativeStage = 'noflow' | 'notstarted' | 'drafting' | 'agreed' | 'gated' | 'closed';
+
+/**
+ * The four the overview leads with — initiative, knowledge, tools, system.
+ *
+ * FIGURES ONLY. Every word on a tile is a fixed label in the component or a template with
+ * these numbers substituted in; the API composes no prose, because the console has to
+ * render without a model in the path.
+ */
+export interface OverviewMetrics {
+  progressing: {
+    /** Median completeness, 0–100. Null when nothing scoreable was active. */
+    value: number | null;
+    active: number; scoreable: number;
+    /** Every active initiative in exactly one stage — the mark under the tile. */
+    stages: Record<InitiativeStage, number>;
+    /** Why this one carries no delta. The API states it; the browser does not guess. */
+    noDeltaBecause: string;
+  };
+  knowledge: {
+    value: number | null; prev: number | null;
+    fromWork: number; imported: number; searches: number;
+    importThresholdPerHour: number;
+  };
+  refusals: { value: number | null; prev: number | null; refused: number; calls: number };
+  context: {
+    /** KB. */
+    value: number | null; prev: number | null; p90: number | null;
+    runs: { kb: number; skill: string }[];
+    /** Runs whose bytes were never measured — excluded from the figures above, never
+     *  folded in as zero. A run nobody measured is not a run that moved nothing. */
+    unmeasured: number;
+    /** Rule of thumb at ~4 bytes per token — NOT a measurement. Nothing counts tokens. */
+    contextWindowKb: number;
+  };
+}
+
 export interface Overview {
+  metrics: OverviewMetrics;
   counts: { teams: number; activeTeams: number; people: number; superadmins: number;
             documents: number; initiatives: number; events: number; failures: number;
             /** Events belonging to no team, so the per-team rows cannot sum to `events`. */
