@@ -133,7 +133,7 @@ docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
 
 | | |
 |---|---|
-| **Overview** | Counts, events per day, the most-refused calls |
+| **Overview** | Four questions first — is work progressing, is what we write down worth reading, is the tool surface breaking, is the system straining — then counts, events per day and the most-refused calls |
 | **Teams** | Every team; open one for its initiatives, members, flows and block connections |
 | **Initiatives** | Every piece of work and how far through the seven steps it got |
 | **Knowledge** | The nodes, with the whole body open beside the list |
