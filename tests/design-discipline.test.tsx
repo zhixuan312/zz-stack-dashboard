@@ -33,8 +33,13 @@ describe('metric tile law', () => {
       <MetricCard label="Spend" value="$660" delta={{ value: '$23', direction: 'up' }} />,
     );
     const chip = container.querySelector('.tabular-nums');
-    expect(chip?.className).toMatch(/ink-faint/);
-    expect(chip?.className).not.toMatch(/sage|rose/);
+    // THE PROPERTY, NOT THE CLASS NAME. This asserted `ink-faint` literally and went red
+    // when the neutral pill moved to `ink-soft` on a `surface-2` ground — a change that
+    // kept the property exactly and only altered which rung of the ink ladder it sits on.
+    // What must hold is that a delta with no stated sentiment says nothing about whether
+    // the movement is good: no status hue, and a neutral ink token.
+    expect(chip?.className).toMatch(/text-ink(-soft|-faint)?\b/);
+    expect(chip?.className).not.toMatch(/sage|rose|amber/);
   });
 
   it('colours a delta by sentiment, not by direction', () => {

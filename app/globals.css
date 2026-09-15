@@ -58,6 +58,8 @@
   --color-zz-lavender: var(--zz-lavender);
   --color-zz-pink: var(--zz-pink);
   --color-zz-blue: var(--zz-blue);
+  --color-zz-blue-tint: var(--zz-blue-tint);
+  --color-zz-blue-deep: var(--zz-blue-deep);
   --color-on-accent: var(--on-accent);
   --color-on-danger: var(--on-danger);
   --color-danger-fill: var(--danger-fill);
@@ -167,6 +169,12 @@
   --zz-lavender: #a98cf5;
   --zz-pink: #f58fa8;
   --zz-blue: #5fbdf5;
+  /* The kit blue is a LIGHT sky hue — it is a chart fill, and it cannot be read as a glyph
+   * or sit behind one. These two give it the soft-ground/strong-glyph pair the status hues
+   * already have, so a tile can take blue as its identity without inventing a colour at the
+   * call site. 5.98:1, measured, not chosen by eye. */
+  --zz-blue-tint: #e6f4fd;
+  --zz-blue-deep: #0d6190;
 
   /* ---- status: reserved ----
      These mean good / warn / bad. Never a chart series, never decoration. Each

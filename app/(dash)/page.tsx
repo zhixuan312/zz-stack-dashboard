@@ -92,6 +92,17 @@ function delta(
 }
 
 /**
+ * "was 33% · vs previous 24 hours" — or nothing at all.
+ *
+ * Same rule as `delta` and for the same reason: with no comparable window there is no
+ * previous figure, and "was —" on four tiles reads as a broken page. `basis` already
+ * carries the sentence for the period, so this only has to supply the old number.
+ */
+function footer(prev: number | null, fmt: (v: number | null) => string, basis: string): string | undefined {
+  return prev === null ? undefined : `was ${fmt(prev)} · ${basis}`;
+}
+
+/**
  * The four tiles, built from figures alone.
  *
  * EVERY WORD HERE IS FIXED OR A TEMPLATE. No sentence is composed at render time and no
@@ -106,12 +117,14 @@ function buildMetrics(m: OverviewMetrics, basis: string): MetricCardProps[] {
       label: 'Initiatives progressing',
       value: pctText(m.progressing.value),
       icon: <Layers />,
+      tint: 'accent',
+      description: 'completeness against its own flow',
       sublabel: m.progressing.scoreable
         ? `median of ${m.progressing.scoreable} scoreable · ${m.progressing.active} active`
         : 'nothing scoreable was active',
       mark: (
         <CompositionBar
-          className="[&>ul]:hidden"
+          legend="inline"
           slices={[
             { key: 'no flow', value: m.progressing.stages.noflow, tint: 'steel' },
             { key: 'not started', value: m.progressing.stages.notstarted, tint: 'steel' },
@@ -138,11 +151,14 @@ function buildMetrics(m: OverviewMetrics, basis: string): MetricCardProps[] {
       label: 'Knowledge from work',
       value: pctText(m.knowledge.value),
       icon: <BookOpen />,
+      tint: 'blue',
+      description: 'nodes learned, not imported',
       delta: delta(m.knowledge.value, m.knowledge.prev, 'up', 'pct'),
+      footer: footer(m.knowledge.prev, pctText, basis),
       sublabel: `${formatCount(m.knowledge.fromWork)} of ${formatCount(shelf)} nodes · ${formatCount(m.knowledge.searches)} searches ${basis.startsWith('all') ? 'all time' : 'in this period'}`,
       mark: (
         <CompositionBar
-          className="[&>ul]:hidden"
+          legend="inline"
           slices={[
             { key: 'from work', value: m.knowledge.fromWork, tint: 'sage' },
             { key: 'bulk import', value: m.knowledge.imported, tint: 'steel' },
@@ -164,8 +180,14 @@ function buildMetrics(m: OverviewMetrics, basis: string): MetricCardProps[] {
       label: 'Refusal rate',
       value: pctText(m.refusals.value),
       icon: <AlertTriangle />,
+      // The one tile whose identity hue carries meaning: refusals are bad, and rose means
+      // bad everywhere in this system. `attention` still fires above the threshold — the
+      // hue says what the tile is about, the rail says it needs somebody today.
+      tint: 'rose',
       tone: m.refusals.value !== null && m.refusals.value >= 5 ? 'attention' : 'neutral',
+      description: 'share of tool calls refused',
       delta: delta(m.refusals.value, m.refusals.prev, 'down', 'pts'),
+      footer: footer(m.refusals.prev, pctText, basis),
       sublabel: `${formatCount(m.refusals.refused)} of ${formatCount(m.refusals.calls)} calls refused`,
       help:
         'Is the tool surface getting in the way? Lower is better. A rate, not a count — a count '
@@ -178,7 +200,13 @@ function buildMetrics(m: OverviewMetrics, basis: string): MetricCardProps[] {
       label: 'Context pulled per run',
       value: kbText(m.context.value),
       icon: <Gauge />,
+      // Amber, and it is the hue doing its job rather than decoration: this tile's own
+      // question is "is the system straining?", and its dot strip draws a reference line
+      // at roughly one context window. Warn is what it is about.
+      tint: 'amber',
+      description: 'what tools handed back',
       delta: delta(m.context.value, m.context.prev, 'down', 'pct'),
+      footer: footer(m.context.prev, kbText, basis),
       sublabel: m.context.p90 === null
         ? 'no measured run in this period'
         : `text the agent carries on every later step — top 10% pull ${kbText(m.context.p90)}`

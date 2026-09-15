@@ -26,12 +26,23 @@ export function CompositionBar({
   format = (v) => v.toLocaleString(),
   className,
   emptyLabel = 'No data in this period',
+  legend = 'list',
 }: {
   slices: CompositionSlice[];
   /** How to render each slice's value in the legend. */
   format?: (value: number) => string;
   className?: string;
   emptyLabel?: string;
+  /**
+   * `list` is the full legend — swatch, label, figure, share — for a bar that is the
+   * subject of its panel. `inline` is the one-line form a METRIC TILE has room for:
+   * `1 no flow · 2 drafting · 3 closed`, in bar order, so it reads left to right
+   * against the bar above it. `none` is for a bar whose parts are named elsewhere.
+   *
+   * The tiles used to hide the list with `[&>ul]:hidden`, which left the reader a
+   * six-colour bar and no way to know what any colour meant.
+   */
+  legend?: 'list' | 'inline' | 'none';
 }) {
   const present = slices.filter((s) => s.value > 0);
   const total = present.reduce((n, s) => n + s.value, 0);
@@ -57,6 +68,23 @@ export function CompositionBar({
         })}
       </div>
 
+      {legend === 'inline' ? (
+        <ul className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          {withTint.map((s) => (
+            <li key={s.key} className="flex items-center gap-1.5 t-micro text-ink-faint">
+              <span
+                aria-hidden
+                className="size-1.5 shrink-0 rounded-full"
+                style={{ background: TINT_VAR[s.tint], boxShadow: CHART_EDGE }}
+              />
+              <span className="tabular-nums text-ink-soft">{format(s.value)}</span>
+              <span>{s.label ?? s.key}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      {legend === 'list' ? (
       <ul className="flex flex-col gap-1.5">
         {withTint.map((s) => {
           const share = s.value / total;
@@ -76,6 +104,7 @@ export function CompositionBar({
           );
         })}
       </ul>
+      ) : null}
     </div>
   );
 }

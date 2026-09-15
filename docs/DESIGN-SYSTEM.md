@@ -279,15 +279,37 @@ score lower: the object carrying the page is not type.
 
 ### Colour discipline
 
-- **One accent per view.** `MetricCard emphasis` marks the single tile carrying
-  the finding; `BarList highlight` marks the single bar worth pointing at.
-  Everything else is the neutral population.
+- **One EMPHASIS per view, and identity is a different register.** `MetricCard
+  emphasis` marks the single tile carrying the finding; `BarList highlight` marks
+  the single bar worth pointing at. Everything else is the neutral population.
+
+  Each metric tile also carries its own quiet `tint`, on the 32px icon chip and
+  nowhere else. That is identity, not emphasis, and the two do not compete: the
+  chip is a soft `--*-tint` ground under a `--*-deep` glyph, while the value is
+  44px display type. This replaced a period where the tiles were uniform and
+  their labels were uppercase mono, which itself replaced a six-way `iconTint`
+  that let a page paint four saturated circles and made nothing stand out. The
+  failure that time was SATURATION and SIZE, not variety — and the cure removed
+  the wrong thing, taking the tile's one-line definition down into a tooltip with
+  it. A definition most readers never open is not documentation.
+
+  Only tints with a measured chip pair may be used: `CHIP` in `src/lib/tints.ts`
+  is a map, not a template string, so a tint without one is a type error rather
+  than a chip that silently renders grey.
 - **The status trio is reserved.** `sage` / `amber` / `rose` mean good / warn /
   bad. **They are no longer in the categorical chart cycle** — that cycle is
   `accent` → `lavender` → `pink` → `blue`, four kit hues that carry no meaning.
   Using a status hue *with* meaning is still correct and still expected: the
   Overview's Event-kinds list passes `tint: k.failed ? 'rose' : undefined`, and
-  a red bar there says "these failed", which is the hue doing its job.
+  a red bar there says "these failed", which is the hue doing its job. Two tiles
+  take one for the same reason: Refusal rate is `rose` because refusals are bad,
+  and Context pulled per run is `amber` because its own question is "is the
+  system straining?". A tile that is merely neutral takes a kit hue.
+
+  **A tile in `tone="attention"` speaks in its OWN hue**, not in amber. The rail
+  was amber unconditionally until a rose tile ended up with a rose chip, an amber
+  rail, an amber title and a red delta pill — three signals in two colours, on the
+  one tile whose job is to be unambiguous.
 - Soft fill + strong border is the house pattern for a tinted object.
 
 ### Chart pastels are exempt from the contrast gate — on purpose

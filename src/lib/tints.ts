@@ -60,3 +60,24 @@ const TINT_CYCLE: readonly Tint[] = ['accent', 'lavender', 'pink', 'blue'];
 export function cycleTint(i: number): Tint {
   return TINT_CYCLE[i % TINT_CYCLE.length]!;
 }
+
+/**
+ * The tints that can carry a TILE'S IDENTITY — a soft ground with a glyph on it.
+ *
+ * NARROWER THAN `Tint` ON PURPOSE. A chart fill only has to be distinguishable; a chip has
+ * something drawn on top of it, so it needs a measured pair and most kit hues have none.
+ * The first version of this built the variables by hand — `var(--${tint}-tint)` — which
+ * produced `--pink-tint`, a variable that does not exist, and the chip fell back to grey
+ * with no error anywhere. A map that is missing a key is a type error; a template string
+ * that is missing a variable is a silently grey chip.
+ */
+export const CHIP: Record<'accent' | 'sage' | 'amber' | 'rose' | 'blue', { bg: string; fg: string }> = {
+  accent: { bg: 'var(--accent-tint)', fg: 'var(--accent-deep)' },
+  sage: { bg: 'var(--sage-tint)', fg: 'var(--sage-deep)' },
+  amber: { bg: 'var(--amber-tint)', fg: 'var(--amber-deep)' },
+  rose: { bg: 'var(--rose-tint)', fg: 'var(--rose-deep)' },
+  blue: { bg: 'var(--zz-blue-tint)', fg: 'var(--zz-blue-deep)' },
+};
+
+/** A tile's identity colour. */
+export type ChipTint = keyof typeof CHIP;
