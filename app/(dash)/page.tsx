@@ -6,10 +6,10 @@ import { Panel } from '@/components/Panel';
 import { Query } from '@/components/Query';
 import { BarList } from '@/components/charts/BarList';
 import { CompositionBar } from '@/components/charts/CompositionBar';
-import { DotStrip } from '@/components/charts/DotStrip';
 import { TrendChart } from '@/components/charts/TrendChart';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui';
 import { formatCount } from '@/lib/format';
+import type { Tint } from '@/lib/tints';
 import { useConsole, useConsoleMode, type Overview, type OverviewMetrics } from '@/lib/api';
 import type { MetricCardProps } from '@/components/ui';
 import { usePeriod } from '@/components/PeriodProvider';
@@ -110,6 +110,28 @@ function footer(prev: number | null, fmt: (v: number | null) => string, basis: s
  * figures and this function owns the labels. The `help` strings are the one place a
  * definition, a caveat or a direction lives; the face carries the number.
  */
+/**
+ * Measured runs grouped into size decades — the mark under "Context pulled per run".
+ *
+ * DECADES, BECAUSE THE DISTRIBUTION SPANS THEM. Equal-width bands over a range whose
+ * median is 1 KB and whose maximum is past a megabyte put every run but a handful in
+ * the first band, which says nothing. An empty band is dropped rather than drawn at the
+ * 2% minimum width: a band nothing fell into is not a small category, it is absent.
+ */
+function contextBands(runs: { kb: number }[]): { key: string; value: number; tint: Tint }[] {
+  const BANDS: { key: string; max: number; tint: Tint }[] = [
+    { key: 'under 1 KB', max: 1, tint: 'sage' },
+    { key: '1–10 KB', max: 10, tint: 'accent' },
+    { key: '10–100 KB', max: 100, tint: 'amber' },
+    { key: 'over 100 KB', max: Infinity, tint: 'rose' },
+  ];
+  return BANDS.map((b, i) => ({
+    key: b.key,
+    tint: b.tint,
+    value: runs.filter((r) => r.kb <= b.max && (i === 0 || r.kb > BANDS[i - 1].max)).length,
+  })).filter((b) => b.value > 0);
+}
+
 function buildMetrics(m: OverviewMetrics, basis: string): MetricCardProps[] {
   const shelf = m.knowledge.fromWork + m.knowledge.imported;
   return [
@@ -244,11 +266,21 @@ function buildMetrics(m: OverviewMetrics, basis: string): MetricCardProps[] {
         ? 'no measured run in this period'
         : `top 10% pull ${kbText(m.context.p90)}`
           + (m.context.unmeasured ? ` · ${formatCount(m.context.unmeasured)} runs unmeasured` : ''),
+      /* SIZE BANDS, NOT A DOT PER RUN. This was a strip that drew every measured run as
+       * its own dot on a log axis, and at the volume this platform now records it was a
+       * wall of dots — a different species of object from the three composition bars
+       * beside it, and the untidiest thing in the row. What the strip existed to show is
+       * the TAIL, and a band states the tail better than a cloud does: "n runs over
+       * 100 KB" is the fact, in words, on the same bar the other three tiles use.
+       *
+       * Log-spaced, because the thing being shown spans orders of magnitude — the bands
+       * are decades, not equal widths. `runs` holds only MEASURED runs; the unmeasured
+       * ones are counted in the sublabel and never folded in as zero. */
       mark: (
-        <DotStrip
-          dots={m.context.runs.map((r, i) => ({ key: `${r.skill}-${i}`, value: r.kb, label: r.skill }))}
-          format={kbText}
-          reference={{ value: m.context.contextWindowKb, label: 'about one context window' }}
+        <CompositionBar
+          legend="inline"
+          format={formatCount}
+          slices={contextBands(m.context.runs)}
           emptyLabel="No measured run in this period"
         />
       ),
@@ -257,10 +289,11 @@ function buildMetrics(m: OverviewMetrics, basis: string): MetricCardProps[] {
         + 'initiative: the platform opens it when an agent invokes a skill, records every tool call '
         + 'it makes and closes it when the skill returns — one conversation can open many runs. '
         + 'Every byte a tool hands back lands in the agent\'s context and is re-read on every later '
-        + 'step, which is why more is worse. Read the dots, not the median: the distribution is '
-        + 'heavily skewed and a single number hides the tail. The red line marks roughly one '
-        + `${m.context.contextWindowKb} KB context window at about 4 bytes per token — a rule of `
-        + 'thumb, not a measurement, because nothing on this platform counts tokens. This is not a '
+        + 'step, which is why more is worse. Read the bands, not the median: the distribution is '
+        + 'heavily skewed and a single number hides the tail, so the runs are grouped by size in '
+        + `decades and the last band is the tail. One context window is about ${m.context.contextWindowKb} `
+        + 'KB at roughly 4 bytes per token — a rule of thumb, not a measurement, because nothing on '
+        + 'this platform counts tokens. This is not a '
         + 'token count and no table records one; it counts what tools return, never the prompt, the '
         + 'reply or the conversation history. A run whose bytes were never measured is counted '
         + 'separately and left out of the median — it is not a run that moved nothing, and folding '

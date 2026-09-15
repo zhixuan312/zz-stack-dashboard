@@ -5,7 +5,6 @@ import { TrendChart, niceScale } from '@/components/charts/TrendChart';
 import { ActivityHeatmap } from '@/components/charts/ActivityHeatmap';
 import { BarList } from '@/components/charts/BarList';
 import { CompositionBar } from '@/components/charts/CompositionBar';
-import { DotStrip } from '@/components/charts/DotStrip';
 
 /**
  * These assert the contracts that are easy to break and hard to see: the
@@ -142,45 +141,5 @@ describe('CompositionBar', () => {
     );
     expect(screen.getByText('Database')).toBeInTheDocument();
     expect(screen.getByText('Network')).toBeInTheDocument();
-  });
-});
-
-describe('DotStrip', () => {
-  /* A CHART MAY NOT DECIDE THE PAGE HEIGHT.
-   *
-   * The strip stacked a dot upward on every collision, with no cap, on a LINEAR axis — and the
-   * distribution it exists for spans orders of magnitude, so nearly every observation landed
-   * inside the first two percent and collided with the rest. Measured on production: 130 runs,
-   * median 1 KB, max 95 KB, and the strip rendered 113 rows — about 800 pixels tall, as one
-   * vertical column of dots. Every card in the overview stretched to match, because they share
-   * a grid row, and the page became four mostly-empty columns.
-   *
-   * The numbers below are that shape: one value two orders of magnitude above a hundred tightly
-   * clustered ones. Asserted on the inline height, because that is the thing that got away. */
-  const heavyTail = [
-    ...Array.from({ length: 100 }, (_, i) => ({ key: `small-${i}`, value: 1 + (i % 3) * 0.4, label: `run ${i}` })),
-    { key: 'tail', value: 800, label: 'the one that pulled a book' },
-  ];
-
-  it('stays a strip when a hundred observations share the low end', () => {
-    const { container } = render(
-      <DotStrip dots={heavyTail} format={(v) => `${v.toFixed(0)} KB`} />,
-    );
-    const plot = container.querySelector('[style*="height"]') as HTMLElement;
-    const px = Number.parseInt(plot.style.height, 10);
-    expect(px).toBeGreaterThan(0);
-    // Six rows is the cap; anything near the old 800 means the bound is gone.
-    expect(px).toBeLessThanOrEqual(10 + 6 * 7);
-  });
-
-  it('spreads a heavy tail instead of crushing it against zero', () => {
-    const { container } = render(
-      <DotStrip dots={heavyTail} format={(v) => `${v.toFixed(0)} KB`} />,
-    );
-    const lefts = [...container.querySelectorAll('span[data-dot^="run "]')]
-      .map((el) => Number.parseFloat((el as HTMLElement).style.left));
-    // On a linear axis every one of the hundred sits below 0.5%. A log axis has to do better
-    // than that, or the dots are still one column and the cap is only hiding it.
-    expect(Math.max(...lefts)).toBeGreaterThan(5);
   });
 });

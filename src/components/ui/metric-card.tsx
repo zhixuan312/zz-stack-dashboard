@@ -30,7 +30,11 @@ import { CHIP, type ChipTint } from '@/lib/tints';
  *   6. A mark earns its place only when the single number lies — a median with
  *      a long tail, a count that is really four categories. A mark that merely
  *      repeats the value is decoration. **A mark with parts carries its legend**:
- *      a six-colour bar with nothing naming the colours is not a chart.
+ *      a six-colour bar with nothing naming the colours is not a chart. And a
+ *      ROW of tiles draws its marks in ONE shape — a distribution rendered as a
+ *      cloud of dots beside three bars is a different species of object, and the
+ *      row reads as untidy before anybody has read a number. Bands say a tail as
+ *      well as dots do, in the grammar the rest of the row already speaks.
  *   7. The FOOTER is the comparison, and it is absent rather than dashed when
  *      there is no comparable window. "was 33% · vs previous 24 hours" is what
  *      makes the delta above it checkable.
