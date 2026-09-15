@@ -192,11 +192,11 @@ function buildMetrics(m: OverviewMetrics, basis: string): MetricCardProps[] {
       // twice: the number says how much, the mark says where, and the two are not
       // derivable from one another. It is the same predicate grouped rather than
       // counted, so the slices sum to the `191` in the sublabel exactly.
-      /* OMITTED, NOT EMPTY — Rule 7's principle applied to the mark. Zero refusals is
-         this metric's GOAL STATE, and `CompositionBar`'s empty label would answer it with
-         a centred paragraph saying what the sublabel ("0 of 2,064 calls refused") already
-         says, in more vertical space than the bar it replaces. A row of four tiles where
-         the good one is the tallest is backwards. */
+      /* OMITTED, NOT EMPTY — Rule 7's principle applied to the mark. Zero refusals is this
+       * metric's GOAL STATE, and `CompositionBar`'s empty label would answer it with a
+       * centred paragraph restating what the sublabel already says, in more vertical space
+       * than the bar it replaces. A row of four tiles where the good one is the tallest is
+       * backwards. */
       mark: m.refusals.byBlock.length ? (
         <CompositionBar
           legend="inline"
