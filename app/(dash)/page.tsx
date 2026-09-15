@@ -181,20 +181,36 @@ function buildMetrics(m: OverviewMetrics, basis: string): MetricCardProps[] {
       value: pctText(m.refusals.value),
       icon: <AlertTriangle />,
       // The one tile whose identity hue carries meaning: refusals are bad, and rose means
-      // bad everywhere in this system. `attention` still fires above the threshold — the
-      // hue says what the tile is about, the rail says it needs somebody today.
+      // bad everywhere in this system. The hue says what the tile is ABOUT; whether it
+      // needs somebody today is what the delta pill and the number say.
       tint: 'rose',
-      tone: m.refusals.value !== null && m.refusals.value >= 5 ? 'attention' : 'neutral',
       description: 'share of tool calls refused',
       delta: delta(m.refusals.value, m.refusals.prev, 'down', 'pts'),
       footer: footer(m.refusals.prev, pctText, basis),
       sublabel: `${formatCount(m.refusals.refused)} of ${formatCount(m.refusals.calls)} calls refused`,
+      // WHICH DOOR IS REFUSING. Rule 6 is satisfied because this is not the rate drawn
+      // twice: the number says how much, the mark says where, and the two are not
+      // derivable from one another. It is the same predicate grouped rather than
+      // counted, so the slices sum to the `191` in the sublabel exactly.
+      /* OMITTED, NOT EMPTY — Rule 7's principle applied to the mark. Zero refusals is
+         this metric's GOAL STATE, and `CompositionBar`'s empty label would answer it with
+         a centred paragraph saying what the sublabel ("0 of 2,064 calls refused") already
+         says, in more vertical space than the bar it replaces. A row of four tiles where
+         the good one is the tallest is backwards. */
+      mark: m.refusals.byBlock.length ? (
+        <CompositionBar
+          legend="inline"
+          format={formatCount}
+          slices={m.refusals.byBlock.map((b) => ({ key: b.block, value: b.n }))}
+        />
+      ) : undefined,
       help:
         'Is the tool surface getting in the way? Lower is better. A rate, not a count — a count '
         + 'rises whenever usage rises and so says nothing about whether the platform got worse. '
         + 'Tool calls, not events: most events on this platform carry no run and are bulk import or '
         + 'admin rather than somebody working. This is the only tile naming a defect somebody can '
-        + 'fix today. It carries no mark because the trend below already draws refusals over time.',
+        + 'fix today. The mark splits the same refused calls by the block that refused them, so it '
+        + 'sums to the count beside it and says which door to go to.',
     },
     {
       label: 'Context pulled per run',
@@ -293,7 +309,11 @@ export default function OverviewPage() {
                 }))}
                 series={[
                   { key: 'events', label: 'Events', shape: 'area' },
-                  { key: 'failures', label: 'Refusals', shape: 'line', tint: 'rose' },
+                  /* FAILURES, not "Refusals". This series is `count(*) filter (where ok = false)`
+                     over every event kind; the Refusal rate tile counts failed TOOL CALLS and
+                     nothing else. Two different populations under one word let a reader check
+                     one against the other and find they disagree. */
+                  { key: 'failures', label: 'Failures', shape: 'line', tint: 'rose' },
                 ]}
               />
             </Panel>

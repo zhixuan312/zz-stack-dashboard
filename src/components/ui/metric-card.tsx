@@ -1,5 +1,4 @@
 import { type HTMLAttributes, type ReactNode } from 'react';
-import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/cn';
 import { CHIP, type ChipTint } from '@/lib/tints';
 
@@ -25,8 +24,9 @@ import { CHIP, type ChipTint } from '@/lib/tints';
  *      chip is a soft `--*-tint` ground behind a `--*-deep` glyph, at 32px in
  *      the corner, which identifies the tile without competing with a 44px
  *      number. Use `emphasis` when one tile really does carry the finding.
- *   5. `tone="attention"` is for a metric that needs ACTION, and is orthogonal
- *      to tint. It is the status register, not the identity register.
+ *   5. Every tile in a row is the SAME OBJECT. One silhouette, one frame, one
+ *      rhythm; what varies is the tint on the chip and what the numbers say.
+ *      A tile that needs singling out gets `emphasis`, which is one per row.
  *   6. A mark earns its place only when the single number lies — a median with
  *      a long tail, a count that is really four categories. A mark that merely
  *      repeats the value is decoration. **A mark with parts carries its legend**:
@@ -40,27 +40,33 @@ import { CHIP, type ChipTint } from '@/lib/tints';
  * it genuinely means that — Refusal rate is rose because refusals are bad. A
  * tile that is merely neutral takes a kit hue.
  */
-const metricVariants = cva(
-  'ds-spotlight relative flex flex-col gap-2 rounded-[var(--r-md)] border px-4 py-3.5',
-  {
-    variants: {
-      tone: {
-        neutral: 'border-line bg-surface',
-        // A left rail, not a filled block. A fully tinted tile is as loud as
-        // the emphasised one, so a row with both has two things shouting and
-        // the eye has to choose — which is the failure this whole ladder
-        // exists to prevent.
-        //
-        // THE RAIL TAKES THE TILE'S OWN HUE, set inline below, because it used to be
-        // amber always: a rose tile in attention had a rose chip, an amber rail, an
-        // amber title and a red delta pill — three signals in two colours, on the one
-        // tile whose job is to be unambiguous. A tile speaks in one colour.
-        attention: 'border-line border-l-[3px] bg-surface',
-      },
-    },
-    defaultVariants: { tone: 'neutral' },
-  },
-);
+// THE HOUSE LIFT, which these tiles were not wearing. The signature here is the flat
+// offset shadow — `3px 3px 0`, drawn rather than blurred, the same gesture as the
+// rounded display face and the cream ground. The tiles had a hairline on white and no
+// lift at all, which is what a dashboard looks like when nobody decided anything.
+//
+// A WARM EDGE, NOT AN INK ONE. `Card weight="hard"` puts a 2px ink ring under this
+// shadow, and that is right for the ONE card that has to stop you. Four of them in a
+// row read as a wireframe: the black competes with the display numerals, and on a
+// cream ground it is the least warm thing on the page. `line-strong` plus the offset
+// gives the same separation from the ground with none of the shouting.
+/* THERE IS NO `tone`. There was: `attention` drew a 4px rail in the tile's own hue, and
+ * recoloured the title and the number with it, when a metric crossed a threshold.
+ *
+ * It went because a tile wearing it stopped being this component and became a different
+ * one — a fifth silhouette in a row of four, which a reader resolves by asking what is
+ * wrong with THAT CARD before they have read its number. Four tiles have to read as four
+ * of one thing.
+ *
+ * BE CLEAR ABOUT WHAT THAT COST, because the two survivors are not substitutes for it:
+ * the tinted chip is IDENTITY (Refusal rate is rose at 0.1% too) and the delta pill is
+ * DIRECTION (a 9.3% rate falling from 12% wears a sage pill). So the threshold itself no
+ * longer has a visual anywhere — the number and the direction beside it carry the tile.
+ * That is the deliberate trade, not an oversight. If a metric ever needs singling out
+ * again, `emphasis` is the lever and it is one per row by construction. */
+const metricFrame =
+  'ds-spotlight relative flex flex-col gap-3 rounded-[var(--r-lg)] border border-line-strong '
+  + 'bg-surface px-5 py-4 shadow-[var(--shadow-lg)]';
 
 /** Which way the number moved, and whether that is good news HERE. */
 interface MetricDelta {
@@ -76,9 +82,7 @@ interface MetricDelta {
   sentiment?: 'good' | 'bad' | 'neutral';
 }
 
-export interface MetricCardProps
-  extends Omit<HTMLAttributes<HTMLDivElement>, 'children'>,
-    VariantProps<typeof metricVariants> {
+export interface MetricCardProps extends Omit<HTMLAttributes<HTMLDivElement>, 'children'> {
   label: ReactNode;
   value: ReactNode;
   /** A lucide icon, shown in a soft tinted chip beside the title. */
@@ -146,38 +150,29 @@ export function MetricCard({
   footer,
   help,
   emphasis,
-  tone,
   muted,
   className,
   ...rest
 }: MetricCardProps) {
-  const attention = tone === 'attention';
   // Soft ground, strong glyph — the house pattern for a tinted object, and quiet enough
   // at 32px that the number stays the loudest thing in the tile.
   const { bg, fg } = CHIP[tint];
 
   return (
-    <div
-      className={cn(metricVariants({ tone }), className)}
-      style={attention ? { borderLeftColor: fg } : undefined}
-      {...rest}
-    >
-      <div className="flex items-start gap-2.5">
+    <div className={cn(metricFrame, className)} {...rest}>
+      <div className="flex items-start gap-3">
         {icon ? (
           <span
             aria-hidden
             style={{ background: bg, color: fg }}
-            className="grid size-8 shrink-0 place-items-center rounded-[var(--r-sm)] [&_svg]:size-[1.125rem]"
+            className="grid size-9 shrink-0 place-items-center rounded-[var(--r-sm)] [&_svg]:size-5"
           >
             {icon}
           </span>
         ) : null}
 
         <div className="min-w-0 flex-1">
-          <h3
-            className={cn('truncate text-[0.9375rem] font-semibold leading-tight', !attention && 'text-ink')}
-            style={attention ? { color: fg } : undefined}
-          >
+          <h3 className="truncate text-[0.9375rem] font-semibold leading-tight text-ink">
             {label}
           </h3>
           {description ? (
@@ -198,13 +193,9 @@ export function MetricCard({
         ) : null}
       </div>
 
-      <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <span
-          className={cn(
-            't-stat',
-            attention ? '' : muted ? '!text-ink-faint' : emphasis ? '!text-accent-deep' : '!text-ink',
-          )}
-          style={attention ? { color: fg } : undefined}
+          className={cn('t-stat', muted ? '!text-ink-faint' : emphasis ? '!text-accent-deep' : '!text-ink')}
         >
           {value}
         </span>
@@ -226,7 +217,7 @@ export function MetricCard({
       {mark ? <div className="mt-0.5">{mark}</div> : null}
 
       {footer ? (
-        <p className="mt-auto border-t border-line pt-2 t-micro text-ink-faint">{footer}</p>
+        <p className="mt-auto t-micro text-ink-faint">{footer}</p>
       ) : null}
     </div>
   );

@@ -306,10 +306,13 @@ score lower: the object carrying the page is not type.
   and Context pulled per run is `amber` because its own question is "is the
   system straining?". A tile that is merely neutral takes a kit hue.
 
-  **A tile in `tone="attention"` speaks in its OWN hue**, not in amber. The rail
-  was amber unconditionally until a rose tile ended up with a rose chip, an amber
-  rail, an amber title and a red delta pill — three signals in two colours, on the
-  one tile whose job is to be unambiguous.
+  **A tile has no threshold state.** `tone="attention"` drew a rail in the tile's
+  own hue and recoloured its title and number; it is gone, because a tile wearing
+  it read as a different component rather than as this one, flagged — a fifth
+  silhouette in a row of four. The chip stays IDENTITY and the delta pill stays
+  DIRECTION, so neither replaces it: crossing a threshold now has no visual, and
+  the number carries the tile. `emphasis` remains for singling one tile out, and
+  is one per row.
 - Soft fill + strong border is the house pattern for a tinted object.
 
 ### Chart pastels are exempt from the contrast gate — on purpose

@@ -1,5 +1,8 @@
+'use client';
+
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/cn';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Tint } from '@/lib/tints';
 import { TINT_VAR, CHART_EDGE, cycleTint } from '@/lib/tints';
 
@@ -55,15 +58,28 @@ export function CompositionBar({
 
   return (
     <div className={cn('flex flex-col gap-3', className)}>
-      <div className="flex h-3 overflow-hidden rounded-full bg-surface-2">
+      {/* FOCUS AND CONTEXT, not a native `title`. A browser tooltip waits most of a second,
+          is unstyled, and never appears for a keyboard. Hovering the bar fades every slice
+          but the one under the cursor, so a 2%-wide sliver is readable as itself while the
+          whole still reads as a whole — and the figure arrives in the themed tooltip. The
+          slices are focusable for the same reason: the readout must not need a mouse. */}
+      <div className="group flex h-3 overflow-hidden rounded-full bg-surface-2">
         {withTint.map((s) => {
           const share = s.value / total;
           return (
-            <span
-              key={s.key}
-              title={`${s.key} — ${format(s.value)} (${(share * 100).toFixed(1)}%)`}
-              style={{ width: `${Math.max(2, share * 100)}%`, background: TINT_VAR[s.tint], boxShadow: CHART_EDGE }}
-            />
+            <Tooltip key={s.key}>
+              <TooltipTrigger asChild>
+                <span
+                  tabIndex={0}
+                  aria-label={`${s.label ?? s.key} — ${format(s.value)} (${(share * 100).toFixed(1)}%)`}
+                  className="cursor-default transition-opacity duration-150 outline-none group-hover:opacity-40 hover:opacity-100! focus-visible:opacity-100! focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink"
+                  style={{ width: `${Math.max(2, share * 100)}%`, background: TINT_VAR[s.tint], boxShadow: CHART_EDGE }}
+                />
+              </TooltipTrigger>
+              <TooltipContent>
+                {s.label ?? s.key} — {format(s.value)} ({(share * 100).toFixed(1)}%)
+              </TooltipContent>
+            </Tooltip>
           );
         })}
       </div>

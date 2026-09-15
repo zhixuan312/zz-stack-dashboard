@@ -1,4 +1,7 @@
+'use client';
+
 import { cn } from '@/lib/cn';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Tint } from '@/lib/tints';
 import { TINT_VAR, CHART_EDGE } from '@/lib/tints';
 
@@ -85,32 +88,51 @@ export function DotStrip({
     <div className={cn('flex flex-col gap-1', className)}>
       <div className="relative w-full" style={{ height: `${10 + rows * 7}px` }}>
         <span aria-hidden className="absolute inset-x-0 bottom-1.5 h-px bg-line" />
+        {/* The median keeps no readout of its own: the row below prints `median 43 KB`
+            in words, two pixels away. A tooltip repeating it is one more thing to hover
+            for something already on screen. The REFERENCE gets one, because its value
+            is stated nowhere else. */}
         <span
           aria-hidden
-          title={`median ${format(median)}`}
           className="absolute bottom-0 h-4 w-px bg-ink-faint/60"
           style={{ left: `${pos(median)}%` }}
         />
         {reference ? (
-          <span
-            aria-hidden
-            title={`${reference.label} — ${format(reference.value)}`}
-            className="absolute inset-y-0 w-px bg-[var(--rose)]"
-            style={{ left: `${pos(reference.value)}%` }}
-          />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span
+                tabIndex={0}
+                aria-label={`${reference.label} — ${format(reference.value)}`}
+                className="absolute inset-y-0 -mx-[3px] w-[7px] cursor-default border-x-[3px] border-transparent bg-[var(--rose)] bg-clip-content outline-none"
+                style={{ left: `${pos(reference.value)}%` }}
+              />
+            </TooltipTrigger>
+            <TooltipContent>{reference.label} — {format(reference.value)}</TooltipContent>
+          </Tooltip>
         ) : null}
+        {/* A 7px dot is a small target and, in a cluster, one of several overlapping. It
+            grows and lifts above its neighbours under the cursor so the reader can see
+            WHICH dot they are reading, and is focusable so the same readout exists
+            without a mouse. `outline` rather than a ring: Tailwind draws rings as
+            box-shadow, and the inline CHART_EDGE already owns that property. */}
         {laid.map((d) => (
-          <span
-            key={d.key}
-            title={`${d.label} — ${format(d.value)}`}
-            className="absolute size-[7px] -translate-x-1/2 rounded-full"
-            style={{
-              left: `${d.x}%`,
-              bottom: `${3 + d.y * 7}px`,
-              background: TINT_VAR[tint],
-              boxShadow: CHART_EDGE,
-            }}
-          />
+          <Tooltip key={d.key}>
+            <TooltipTrigger asChild>
+              <span
+                tabIndex={0}
+                data-dot={d.label}
+                aria-label={`${d.label} — ${format(d.value)}`}
+                className="absolute size-[7px] -translate-x-1/2 cursor-default rounded-full outline-none transition-transform duration-150 hover:z-10 hover:scale-150 hover:outline-2 hover:outline-offset-1 hover:outline-ink/25 focus-visible:z-10 focus-visible:scale-150 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink/25"
+                style={{
+                  left: `${d.x}%`,
+                  bottom: `${3 + d.y * 7}px`,
+                  background: TINT_VAR[tint],
+                  boxShadow: CHART_EDGE,
+                }}
+              />
+            </TooltipTrigger>
+            <TooltipContent>{d.label} — {format(d.value)}</TooltipContent>
+          </Tooltip>
         ))}
       </div>
       <div className="flex justify-between text-[0.625rem] tabular-nums text-ink-faint">

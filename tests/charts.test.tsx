@@ -1,4 +1,6 @@
-import { render, screen } from '@testing-library/react';
+import { render as rtlRender, screen } from '@testing-library/react';
+import type { ReactElement } from 'react';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { TrendChart, niceScale } from '@/components/charts/TrendChart';
 import { ActivityHeatmap } from '@/components/charts/ActivityHeatmap';
 import { BarList } from '@/components/charts/BarList';
@@ -10,7 +12,13 @@ import { DotStrip } from '@/components/charts/DotStrip';
  * accessible twin of each chart, and the axis-scale arithmetic. Rendering
  * without throwing is table stakes; the point is that the numbers are still
  * reachable when the mouse is not.
+ *
+ * Every render goes through a `TooltipProvider` because the app mounts one once, in
+ * `Providers`, and the charts' readouts are Radix tooltips — a bare `render()` of a
+ * chart throws `must be used within TooltipProvider`. This mirrors the app rather
+ * than working around it: the same rule holds for any future chart with a readout.
  */
+const render = (ui: ReactElement) => rtlRender(<TooltipProvider>{ui}</TooltipProvider>);
 
 const POINTS = [
   { date: '2026-08-01', spend: 10, budget: 12, hits: 400 },
@@ -169,7 +177,7 @@ describe('DotStrip', () => {
     const { container } = render(
       <DotStrip dots={heavyTail} format={(v) => `${v.toFixed(0)} KB`} />,
     );
-    const lefts = [...container.querySelectorAll('span[title*="run "]')]
+    const lefts = [...container.querySelectorAll('span[data-dot^="run "]')]
       .map((el) => Number.parseFloat((el as HTMLElement).style.left));
     // On a linear axis every one of the hundred sits below 0.5%. A log axis has to do better
     // than that, or the dots are still one column and the cap is only hiding it.

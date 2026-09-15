@@ -23,6 +23,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // `@` aliases src/, and the page lives under app/ — relative, so no alias is invented
 // for one test file.
 import { PeriodProvider } from '@/components/PeriodProvider';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import type { OverviewMetrics } from '@/lib/api';
 import OverviewPage from '../app/(dash)/page';
 
@@ -52,7 +53,10 @@ const OVERVIEW: { metrics: OverviewMetrics } & Record<string, unknown> = {
       value: 2.3, prev: 4.5, fromWork: 19, imported: 819, searches: 40,
       importThresholdPerHour: 50,
     },
-    refusals: { value: 9.3, prev: 3.0, refused: 191, calls: 2064 },
+    refusals: {
+      value: 9.3, prev: 3.0, refused: 191, calls: 2064,
+      byBlock: [{ block: 'casebox', n: 150 }, { block: 'core', n: 30 }, { block: '(platform)', n: 11 }],
+    },
     context: {
       value: 43, prev: 37, p90: 989,
       runs: [{ kb: 12, skill: 'sdlc-spec' }, { kb: 989, skill: 'sdlc-plan' }],
@@ -87,7 +91,9 @@ function mount() {
   return render(
     <QueryClientProvider client={client}>
       <PeriodProvider>
-        <OverviewPage />
+        <TooltipProvider>
+          <OverviewPage />
+        </TooltipProvider>
       </PeriodProvider>
     </QueryClientProvider>,
   );

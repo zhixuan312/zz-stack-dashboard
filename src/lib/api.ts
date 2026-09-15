@@ -249,7 +249,12 @@ export interface OverviewMetrics {
     fromWork: number; imported: number; searches: number;
     importThresholdPerHour: number;
   };
-  refusals: { value: number | null; prev: number | null; refused: number; calls: number };
+  refusals: {
+    value: number | null; prev: number | null; refused: number; calls: number;
+    /** Which blocks refused, largest first. Sums exactly to `refused` — same predicate,
+     *  grouped. NOT `Overview.refusals[]`, which is a top-12 across every event kind. */
+    byBlock: { block: string; n: number }[];
+  };
   context: {
     /** KB. */
     value: number | null; prev: number | null; p90: number | null;
