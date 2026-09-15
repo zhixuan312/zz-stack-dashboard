@@ -24,7 +24,7 @@
 # unauthenticated door onto the same box.
 services:
   console:
-    image: ghcr.io/zhixuan312/zz-stack-dashboard:${ZZ_DASHBOARD_VERSION:-0.10.0}
+    image: ghcr.io/zhixuan312/zz-stack-dashboard:${ZZ_DASHBOARD_VERSION:-0.10.1}
     restart: unless-stopped
     ports: ["127.0.0.1:3100:3000"]
     # No environment at all, and that is not an omission: the app resolves its
