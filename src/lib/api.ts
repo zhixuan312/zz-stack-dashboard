@@ -251,9 +251,10 @@ export interface OverviewMetrics {
   };
   refusals: {
     value: number | null; prev: number | null; refused: number; calls: number;
-    /** Which blocks refused, largest first. Sums exactly to `refused` — same predicate,
-     *  grouped. NOT `Overview.refusals[]`, which is a top-12 across every event kind. */
-    byBlock: { block: string; n: number }[];
+    /** Which door refused, largest first — `core` / `eval` / `manage`, off `subject`.
+     *  Sums exactly to `refused`: same predicate, grouped. NOT `Overview.refusals[]`,
+     *  which is a top-12 across every event kind. */
+    byDoor: { door: string; n: number }[];
   };
   context: {
     /** KB. */

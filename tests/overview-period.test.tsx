@@ -55,7 +55,7 @@ const OVERVIEW: { metrics: OverviewMetrics } & Record<string, unknown> = {
     },
     refusals: {
       value: 9.3, prev: 3.0, refused: 191, calls: 2064,
-      byBlock: [{ block: 'casebox', n: 150 }, { block: 'core', n: 30 }, { block: '(platform)', n: 11 }],
+      byDoor: [{ door: 'core', n: 150 }, { door: 'eval', n: 30 }, { door: 'manage', n: 11 }],
     },
     context: {
       value: 43, prev: 37, p90: 989,

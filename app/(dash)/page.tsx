@@ -122,16 +122,22 @@ function buildMetrics(m: OverviewMetrics, basis: string): MetricCardProps[] {
       sublabel: m.progressing.scoreable
         ? `median of ${m.progressing.scoreable} scoreable · ${m.progressing.active} active`
         : 'nothing scoreable was active',
+      /* FOUR BANDS, BECAUSE THE BAR DRAWS FOUR. The six stages were listed six times under
+       * a bar that could only ever show four colours: `no flow` and `not started` are both
+       * steel, `gated` and `closed` are both sage, and two adjacent slices in one colour
+       * are one slice to the eye. So the legend named distinctions the chart above it did
+       * not draw, wrapped onto a second line doing it, and made the whole row taller.
+       *
+       * Pairs are merged where they already shared a colour, and nowhere else — the split
+       * that is still visible is still named. `help` carries all six. */
       mark: (
         <CompositionBar
           legend="inline"
           slices={[
-            { key: 'no flow', value: m.progressing.stages.noflow, tint: 'steel' },
-            { key: 'not started', value: m.progressing.stages.notstarted, tint: 'steel' },
+            { key: 'not started', value: m.progressing.stages.noflow + m.progressing.stages.notstarted, tint: 'steel' },
             { key: 'drafting', value: m.progressing.stages.drafting, tint: 'amber' },
             { key: 'agreed', value: m.progressing.stages.agreed, tint: 'accent' },
-            { key: 'gated', value: m.progressing.stages.gated, tint: 'sage' },
-            { key: 'closed', value: m.progressing.stages.closed, tint: 'sage' },
+            { key: 'settled', value: m.progressing.stages.gated + m.progressing.stages.closed, tint: 'sage' },
           ]}
           emptyLabel="Nothing active in this period"
         />
@@ -188,20 +194,25 @@ function buildMetrics(m: OverviewMetrics, basis: string): MetricCardProps[] {
       delta: delta(m.refusals.value, m.refusals.prev, 'down', 'pts'),
       footer: footer(m.refusals.prev, pctText, basis),
       sublabel: `${formatCount(m.refusals.refused)} of ${formatCount(m.refusals.calls)} calls refused`,
-      // WHICH DOOR IS REFUSING. Rule 6 is satisfied because this is not the rate drawn
-      // twice: the number says how much, the mark says where, and the two are not
-      // derivable from one another. It is the same predicate grouped rather than
-      // counted, so the slices sum to the `191` in the sublabel exactly.
+      /* WHICH DOOR IS REFUSING. Rule 6 is satisfied because this is not the rate drawn
+       * twice: the number says how much, the mark says where, and neither is derivable
+       * from the other. Same predicate, grouped rather than counted, so the slices sum to
+       * the count in the sublabel exactly.
+       *
+       * THE DOOR, NOT THE BLOCK — and the difference is the whole mark. 0.40.0 grouped by
+       * `event.block`, which is null on every tool call this platform has ever recorded,
+       * so the bar was one full-width slice drawing the number a second time: the exact
+       * decoration Rule 6 forbids, shipped under a comment claiming it was not. */
       /* OMITTED, NOT EMPTY — Rule 7's principle applied to the mark. Zero refusals is this
        * metric's GOAL STATE, and `CompositionBar`'s empty label would answer it with a
        * centred paragraph restating what the sublabel already says, in more vertical space
        * than the bar it replaces. A row of four tiles where the good one is the tallest is
        * backwards. */
-      mark: m.refusals.byBlock.length ? (
+      mark: m.refusals.byDoor.length ? (
         <CompositionBar
           legend="inline"
           format={formatCount}
-          slices={m.refusals.byBlock.map((b) => ({ key: b.block, value: b.n }))}
+          slices={m.refusals.byDoor.map((d) => ({ key: d.door, value: d.n }))}
         />
       ) : undefined,
       help:
@@ -209,8 +220,10 @@ function buildMetrics(m: OverviewMetrics, basis: string): MetricCardProps[] {
         + 'rises whenever usage rises and so says nothing about whether the platform got worse. '
         + 'Tool calls, not events: most events on this platform carry no run and are bulk import or '
         + 'admin rather than somebody working. This is the only tile naming a defect somebody can '
-        + 'fix today. The mark splits the same refused calls by the block that refused them, so it '
-        + 'sums to the count beside it and says which door to go to.',
+        + 'fix today. The mark splits the same refused calls by the DOOR that refused them — '
+        + 'core, eval or manage, read off the tool name — so it sums to the count beside it and '
+        + 'says where to go. Not by `block`: nothing has ever written one onto a tool call, so '
+        + 'that split was one bar drawing the number twice.',
     },
     {
       label: 'Context pulled per run',
@@ -223,10 +236,14 @@ function buildMetrics(m: OverviewMetrics, basis: string): MetricCardProps[] {
       description: 'what tools handed back',
       delta: delta(m.context.value, m.context.prev, 'down', 'pct'),
       footer: footer(m.context.prev, kbText, basis),
+      /* THE SUBLABEL IS FIGURES. It opened with "text the agent carries on every later
+       * step", which is the tile's DEFINITION — `description` already carries that, one
+       * line above — and the repetition pushed the line into a second row that made this
+       * the tallest tile in the row. Rule 2 puts the meaning on the face once. */
       sublabel: m.context.p90 === null
         ? 'no measured run in this period'
-        : `text the agent carries on every later step — top 10% pull ${kbText(m.context.p90)}`
-          + (m.context.unmeasured ? ` · ${m.context.unmeasured} run(s) not measured` : ''),
+        : `top 10% pull ${kbText(m.context.p90)}`
+          + (m.context.unmeasured ? ` · ${formatCount(m.context.unmeasured)} runs unmeasured` : ''),
       mark: (
         <DotStrip
           dots={m.context.runs.map((r, i) => ({ key: `${r.skill}-${i}`, value: r.kb, label: r.skill }))}
