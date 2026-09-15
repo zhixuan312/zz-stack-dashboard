@@ -13,7 +13,7 @@ import type { Tint } from '@/lib/tints';
 import { useConsole, useConsoleMode, type Overview, type OverviewMetrics } from '@/lib/api';
 import type { MetricCardProps } from '@/components/ui';
 import { usePeriod } from '@/components/PeriodProvider';
-import { PERIOD_LABEL } from '@/lib/period';
+import { PERIOD_SPAN } from '@/lib/period';
 
 /**
  * The landing page — the fleet's census, or one team's.
@@ -141,9 +141,14 @@ function buildMetrics(m: OverviewMetrics, basis: string): MetricCardProps[] {
       icon: <Layers />,
       tint: 'accent',
       description: 'completeness against its own flow',
+      /* "OPEN", because the word is the whole correction. The median used to be taken over
+       * every scoreable initiative including the CLOSED ones — 13 permanent 100s against 3
+       * real numbers, on the day this was found — so the tile read 100% and could not read
+       * anything else. The sublabel says which population the median is over, so a reader
+       * can see that 3 is the number it rests on. */
       sublabel: m.progressing.scoreable
-        ? `median of ${m.progressing.scoreable} scoreable · ${m.progressing.active} active`
-        : 'nothing scoreable was active',
+        ? `median of ${m.progressing.scoreable} open · ${m.progressing.active} active`
+        : 'nothing open and scoreable was active',
       /* FOUR BANDS, BECAUSE THE BAR DRAWS FOUR. The six stages were listed six times under
        * a bar that could only ever show four colours: `no flow` and `not started` are both
        * steel, `gated` and `closed` are both sage, and two adjacent slices in one colour
@@ -165,11 +170,16 @@ function buildMetrics(m: OverviewMetrics, basis: string): MetricCardProps[] {
         />
       ),
       help:
-        'Is work advancing, or only accumulating? Higher is better. Every flow declares its own '
+        'Is work advancing, or only accumulating? Higher is better. The median is over OPEN '
+        + 'initiatives only: a closed one is 100% complete by definition and never moves again, '
+        + 'so including them makes this tile climb to 100% and stay there no matter what the '
+        + 'unfinished work is doing. Every flow declares its own '
         + 'documents and marks which are gates, so an initiative is scored against its own flow\'s '
         + 'list — never against a document called spec.md — and a three-document flow and a '
         + 'seven-document flow are each measured out of their own total. Absent counts 0, written '
-        + 'counts a half, approved counts 1. The bar puts every active initiative in exactly one '
+        + 'counts a half, approved counts 1. The bar counts all six stages including closed, '
+        + 'because where the active set IS is a different question from how far the unfinished '
+        + 'work has got. It puts every active initiative in exactly one '
         + 'stage: no flow, not started, drafting, agreed, gated, closed. Gated means every gate '
         + 'is approved and nobody has said what came of it yet; closed means an outcome was '
         + 'recorded. Initiatives with no flow have '
@@ -310,7 +320,7 @@ export default function OverviewPage() {
   const m = q.data?.metrics;
   const basis = period === 'all'
     ? 'all time — no earlier window to compare against'
-    : `vs the previous ${PERIOD_LABEL[period].toLowerCase()}`;
+    : `vs the previous ${PERIOD_SPAN[period]}`;
 
   return (
     <DashboardPage

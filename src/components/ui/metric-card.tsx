@@ -197,7 +197,11 @@ export function MetricCard({
         ) : null}
       </div>
 
-      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+      {/* THE DELTA SITS BESIDE THE NUMBER, not at the far edge. `justify-between` pinned it
+          to the right margin, so at a wide column the movement was separated from the value
+          it describes by an inch of empty tile and the two stopped reading as one statement.
+          They are one statement: "22%, and that is 7.1 points worse than last time." */}
+      <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
         <span
           className={cn('t-stat', muted ? '!text-ink-faint' : emphasis ? '!text-accent-deep' : '!text-ink')}
         >

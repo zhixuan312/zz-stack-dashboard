@@ -26,6 +26,21 @@ export const PERIOD_LABEL: Record<Period, string> = {
   all: 'All time',
 };
 
+/**
+ * The same periods as a SPAN, for a sentence that already supplies the "last".
+ *
+ * `PERIOD_LABEL` names the option in the picker, where "Last 24 hours" is right. Dropped
+ * into prose it is not: the overview's comparison basis read "vs the previous last 24
+ * hours" on every tile, because lowercasing a label is not the same as having a phrase.
+ */
+export const PERIOD_SPAN: Record<Period, string> = {
+  '1d': '24 hours',
+  '7d': '7 days',
+  '30d': '30 days',
+  '90d': '90 days',
+  all: 'all time',
+};
+
 /** Days in a period, or `null` for `all`. */
 export const PERIOD_DAYS: Record<Period, number | null> = {
   '1d': 1,
