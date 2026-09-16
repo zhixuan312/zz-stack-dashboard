@@ -3,11 +3,11 @@
 import { AlertTriangle, BookOpen, Gauge, Layers } from 'lucide-react';
 import { DashboardPage } from '@/components/DashboardPage';
 import { Panel } from '@/components/Panel';
+import { RefusalsPanel } from '@/components/RefusalsPanel';
 import { Query } from '@/components/Query';
 import { BarList } from '@/components/charts/BarList';
 import { CompositionBar } from '@/components/charts/CompositionBar';
 import { TrendChart } from '@/components/charts/TrendChart';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui';
 import { formatCount } from '@/lib/format';
 import type { Tint } from '@/lib/tints';
 import { useConsole, useConsoleMode, type Overview, type OverviewMetrics } from '@/lib/api';
@@ -335,7 +335,12 @@ export default function OverviewPage() {
       metrics={m ? buildMetrics(m, basis) : undefined}
     >
       <Query query={q}>
-        {(d) => (
+        {(d) => {
+          /* SUMMED FROM THE BARS, not counted separately. The header states the total of
+             the chart beneath it, so reading it off anything else invites the two to
+             disagree — and a header that contradicts its own chart is worse than none. */
+          const toolCalls = d.toolTrend.reduce((n, b) => n + b.inside + b.outside + b.refused, 0);
+          return (
           <div className="flex flex-col gap-4">
             {/* The aside names the teamless remainder because the Teams page shows a
                 per-team figure and the two will never add up: turns, tool calls made
@@ -348,15 +353,11 @@ export default function OverviewPage() {
                 "0 belong to no team" is a true sentence answering a question nobody in
                 that view is asking. */}
             <Panel
-              title={`Events per ${d.grain}`}
-              aside={
-                platform
-                  ? `${formatCount(d.counts.events)} recorded · ${formatCount(d.counts.unattributedEvents)} belong to no team`
-                  : `${formatCount(d.counts.events)} recorded`
-              }
+              title="Tool calls over time"
+              aside={`${formatCount(toolCalls)} calls · one bar per ${d.grain}`}
             >
               <TrendChart
-                points={d.trend.map((x) => ({
+                points={d.toolTrend.map((x) => ({
                   date: x.bucket,
                   // AN HOUR IS RENDERED IN THE READER'S ZONE, a day is not. The gateway
                   // sends every bucket as a UTC instant; a bare `15:00` off that instant
@@ -364,54 +365,25 @@ export default function OverviewPage() {
                   // gateway's own "times go out as an instant" rule exists for. A day
                   // needs no zone, so it keeps the plain MM-DD the axis already used.
                   label: bucketLabel(x.bucket, d.grain),
-                  events: x.events,
-                  failures: x.failures,
+                  inside: x.inside,
+                  outside: x.outside,
+                  refused: x.refused,
                 }))}
+                /* STACKED, AND THE THREE ARE DISJOINT — a call is refused, or it ran
+                   inside a run, or it ran outside one, and never two of those. That is
+                   what lets the column height be read as the number of calls in the hour.
+                   Refused sits on top, where a stack is easiest to compare across
+                   columns, because it is the part somebody is looking for. */
                 series={[
-                  { key: 'events', label: 'Events', shape: 'area' },
-                  /* FAILURES, not "Refusals". This series is `count(*) filter (where ok = false)`
-                     over every event kind; the Refusal rate tile counts failed TOOL CALLS and
-                     nothing else. Two different populations under one word let a reader check
-                     one against the other and find they disagree. */
-                  { key: 'failures', label: 'Failures', shape: 'line', tint: 'rose' },
+                  { key: 'inside', label: 'inside a run', shape: 'stack', tint: 'accent' },
+                  { key: 'outside', label: 'outside a run', shape: 'stack', tint: 'blue' },
+                  { key: 'refused', label: 'refused', shape: 'stack', tint: 'rose' },
                 ]}
               />
             </Panel>
 
             <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
-              <Panel
-                title="Most-refused calls"
-                aside={`${formatCount(d.counts.failures)} failures`}
-                padded={false}
-              >
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Tool</TableHead>
-                      <TableHead className="text-right">Count</TableHead>
-                      <TableHead>Why it refused</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {d.refusals.map((r) => (
-                      <TableRow key={`${r.block}-${r.tool}-${r.n}`}>
-                        <TableCell className="whitespace-nowrap font-mono text-xs text-ink">
-                          {r.tool}
-                          <span className="block text-[11px] text-ink-faint">{r.block}</span>
-                        </TableCell>
-                        <TableCell className="text-right font-medium tabular-nums">{r.n}</TableCell>
-                        <TableCell className="max-w-[36ch] truncate text-xs" title={r.refusal}>
-                          {r.refusal}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  
-                    {d.refusals.length === 0 && (
-                      <TableRow><TableCell colSpan={3} className="py-8 text-center text-ink-faint">No block has refused a call in this window.</TableCell></TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </Panel>
+              <RefusalsPanel refusals={d.refusals} />
 
               <Panel title="Event kinds" aside={`${d.eventKinds.length} kinds`}>
                 <BarList
@@ -427,7 +399,8 @@ export default function OverviewPage() {
               </Panel>
             </div>
           </div>
-        )}
+          );
+        }}
       </Query>
     </DashboardPage>
   );

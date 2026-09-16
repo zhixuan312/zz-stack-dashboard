@@ -281,9 +281,28 @@ export interface Overview {
   /** `bucket` is an INSTANT (ISO 8601, UTC, with the Z), not a pre-formatted local
    *  string — an hour rendered in the database's timezone is eight hours wrong for the
    *  reader this platform is deployed for. Format it in the browser. */
-  trend: { bucket: string; events: number; failures: number }[];
+  /**
+   * Tool calls per bucket, split three DISJOINT ways that sum to the total, so the
+   * chart can stack them and the column height is a real number of calls.
+   *
+   * Every bucket in the window is present, including the empty ones — a quiet hour is a
+   * zero, not an absent row, and a chart that spaces thirteen rows evenly across a day
+   * states a shape the data does not have.
+   */
+  toolTrend: { bucket: string; inside: number; outside: number; refused: number }[];
   eventKinds: { kind: string; n: number; failed: number }[];
-  refusals: { block: string; tool: string; n: number; refusal: string }[];
+  /**
+   * Refused tool calls on two axes — the same population `metrics.refusals` counts, so
+   * the panel's total and the tile's are the same number and not two things wearing one
+   * word. WHICH TOOL and WHICH MESSAGE answer different questions: one tool refusing for
+   * nine reasons is a surface problem; nine tools refusing with one message is one bug.
+   */
+  refusals: {
+    total: number;
+    byTool: { tool: string; n: number }[];
+    /** `tools` is how many distinct tools emit this exact message. */
+    byMessage: { message: string; tool: string; tools: number; n: number }[];
+  };
 }
 export interface Team {
   slug: string; name: string; status: string; created: string;

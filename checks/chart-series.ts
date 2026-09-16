@@ -47,17 +47,32 @@ else {
 /* The SVG form: a filled rect must carry `stroke` and must separate fill opacity from
  * stroke opacity. A bare `opacity=` on the rect fades the edge with the fill, which is
  * the exact bug this replaced — so its ABSENCE is what is asserted. */
-const bar = trend.match(/<rect[\s\S]*?data-role="volume-bar"[\s\S]*?\/>/);
-if (!bar) { console.error('FAIL cannot find the volume-bar rect in TrendChart'); code = 1; }
-else {
-  if (!/\bstroke=/.test(bar[0])) {
-    console.error('FAIL TrendChart volume bars have no stroke — a pastel fill with no boundary'); code = 1;
+/* ONE ELEMENT AT A TIME, because `/<rect[\s\S]*?data-role="x"/` is not a test of the rect
+ * that carries `x`. It starts at the FIRST `<rect` in the file and runs forward, so the
+ * moment TrendChart held two of them the span reached across both and every assertion was
+ * satisfied by whichever rect happened to satisfy it. Proven: the stacked column's
+ * `stroke` was deleted and this check still printed PASS, because the volume bar's stroke
+ * was inside the match. Splitting on the tag gives each rect its own text. */
+const rects = trend.split('<rect').slice(1)
+  .map((r) => '<rect' + r.slice(0, r.indexOf('/>') + 2));
+const rectFor = (role: string): string | undefined =>
+  rects.find((r) => r.includes(`data-role="${role}"`));
+
+/* Every filled shape in this file carries an edge, and each one needs saying: a rule that
+ * covers the rect it was written for and not the one added later is a regression test. */
+for (const [role, what] of [
+  ['volume-bar', 'volume bars'], ['stack-bar', 'stacked columns'],
+] as const) {
+  const r = rectFor(role);
+  if (!r) { console.error(`FAIL cannot find the ${what} rect in TrendChart`); code = 1; continue; }
+  if (!/\bstroke=/.test(r)) {
+    console.error(`FAIL TrendChart ${what} have no stroke — a pastel fill with no boundary`); code = 1;
   }
-  if (!/fillOpacity=/.test(bar[0])) {
-    console.error('FAIL TrendChart volume bars set fill opacity without fillOpacity'); code = 1;
+  if (!/fillOpacity=/.test(r)) {
+    console.error(`FAIL TrendChart ${what} set fill opacity without fillOpacity`); code = 1;
   }
-  if (/\sopacity=/.test(bar[0])) {
-    console.error('FAIL TrendChart volume bars use bare opacity=, which fades the stroke with the fill'); code = 1;
+  if (/\sopacity=/.test(r)) {
+    console.error(`FAIL TrendChart ${what} use bare opacity=, which fades the stroke with the fill`); code = 1;
   }
 }
 const vc = readFileSync('scripts/verify-contrast.ts', 'utf8');

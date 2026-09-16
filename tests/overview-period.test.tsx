@@ -24,7 +24,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // for one test file.
 import { PeriodProvider } from '@/components/PeriodProvider';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import type { OverviewMetrics } from '@/lib/api';
+import type { Overview } from '@/lib/api';
 import OverviewPage from '../app/(dash)/page';
 
 const ME = {
@@ -39,7 +39,12 @@ const ME = {
 // the test agreed with the bug and 158 of them passed while the live gateway sent `gated` and
 // `closed` and eleven initiatives drew as nothing. A mock that is not held to the type is a
 // second opinion from the same author.
-const OVERVIEW: { metrics: OverviewMetrics } & Record<string, unknown> = {
+/* THE WHOLE FIXTURE, not just `metrics`. It was `{ metrics: OverviewMetrics } &
+ * Record<string, unknown>`, which held the four tiles to the contract and let every panel
+ * below them drift — and `Record<string, unknown>` makes each of those fields `unknown`,
+ * so even spreading one in a test is an error. Typing the whole object is what the
+ * paragraph above asks for. */
+const OVERVIEW: Overview = {
   // The four the status row leads with. Figures only: every word on a tile is a fixed
   // label in the component, so a missing field here shows up as a broken tile, not as
   // prose quietly going missing.
@@ -69,12 +74,18 @@ const OVERVIEW: { metrics: OverviewMetrics } & Record<string, unknown> = {
     initiatives: 6, events: 8566, failures: 1761, unattributedEvents: 0,
   },
   grain: 'hour',
-  trend: [
-    { bucket: '2026-09-09T04:00:00Z', events: 320, failures: 9 },
-    { bucket: '2026-09-09T05:00:00Z', events: 411, failures: 12 },
+  toolTrend: [
+    { bucket: '2026-09-09T04:00:00Z', inside: 200, outside: 111, refused: 9 },
+    { bucket: '2026-09-09T05:00:00Z', inside: 250, outside: 149, refused: 12 },
   ],
   eventKinds: [{ kind: 'tool_call', n: 8551, failed: 1761 }],
-  refusals: [{ block: 'casebox', tool: 'casebox:get_workflows', n: 1703, refusal: 'MCP error' }],
+  refusals: {
+    total: 21,
+    byTool: [{ tool: 'core:knowledge_add', n: 18 }, { tool: 'core:document_write', n: 3 }],
+    // Deliberately BELOW the concentration threshold — 18 of 21 is 86%, so flip it to
+    // prove the banner appears, and leave the default case quiet. See the two tests below.
+    byMessage: [{ message: 'ERROR: already closed', tool: 'core:initiative_close', tools: 1, n: 8 }],
+  },
 };
 
 const urls: string[] = [];
@@ -111,7 +122,7 @@ describe('the overview page', () => {
     // A tile's value proves `metrics` was read; the panel title proves `grain` was.
     // `9.3%` is the refusal rate — the one number on this page somebody acts on.
     await waitFor(() => expect(screen.getByText('9.3%')).toBeInTheDocument());
-    expect(screen.getByText('Events per hour')).toBeInTheDocument();
+    expect(screen.getByText('Tool calls over time')).toBeInTheDocument();
     // All four tiles, and each labelled by the question it answers rather than by a
     // count the platform happens to hold.
     for (const label of ['Initiatives progressing', 'Knowledge from work',
@@ -135,16 +146,40 @@ describe('the overview page', () => {
     await waitFor(() => expect(urls.some((u) => u.includes('period=1d'))).toBe(true));
   });
 
-  it('titles the panel in whatever grain came back, not a hardcoded one', async () => {
-    // A day-grained response must not still say "per hour" — the title is data, not a
+  it('states the grain that came back, not a hardcoded one', async () => {
+    // A day-grained response must not still say "per hour" — the grain is data, not a
     // constant, and this is the assertion that keeps it that way.
     const daily = { ...OVERVIEW, grain: 'day',
-      trend: [{ bucket: '2026-09-08T00:00:00Z', events: 1, failures: 0 },
-              { bucket: '2026-09-09T00:00:00Z', events: 2, failures: 0 }] };
+      toolTrend: [{ bucket: '2026-09-08T00:00:00Z', inside: 1, outside: 0, refused: 0 },
+                  { bucket: '2026-09-09T00:00:00Z', inside: 2, outside: 0, refused: 0 }] };
     global.fetch = vi.fn(async (url: string) =>
       ({ ok: true, json: async () => (url.includes('/me') ? ME : daily) }) as unknown as Response,
     ) as unknown as typeof fetch;
     mount();
-    await waitFor(() => expect(screen.getByText('Events per day')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/one bar per day/)).toBeInTheDocument());
+  });
+
+  /* THE CALLOUT IS THE PART THAT CAN BE WRONG IN BOTH DIRECTIONS, so both are asserted.
+   * A banner reading "38% is one error message" is a headline for a non-story, and a
+   * panel that always shouts teaches a reader to stop looking at it. */
+  it('stays quiet when no single message dominates the refusals', async () => {
+    mount();                                        // 8 of 21 — 38%, below the threshold
+    await waitFor(() => expect(screen.getByText('Where it refuses')).toBeInTheDocument());
+    expect(screen.queryByText('one error message')).not.toBeInTheDocument();
+  });
+
+  it('calls out a message that is most of the refusals', async () => {
+    const concentrated = { ...OVERVIEW,
+      refusals: { ...OVERVIEW.refusals,
+        byMessage: [{ message: 'ERROR: already closed', tool: 'core:initiative_close', tools: 1, n: 18 }] } };
+    global.fetch = vi.fn(async (url: string) =>
+      ({ ok: true, json: async () => (url.includes('/me') ? ME : concentrated) }) as unknown as Response,
+    ) as unknown as typeof fetch;
+    mount();                                        // 18 of 21 — 86%
+    /* THE `<b>`, not the sentence. The banner reads "86% is <b>one error message</b> from
+     * …", so the sentence is split across elements and a regex over the whole of it
+     * matches nothing — which looks like the banner is absent when it is present. */
+    await waitFor(() => expect(screen.getByText('one error message')).toBeInTheDocument());
+    expect(screen.getByText('86%')).toBeInTheDocument();
   });
 });

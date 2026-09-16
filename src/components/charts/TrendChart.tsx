@@ -37,8 +37,14 @@ interface TrendSeries {
    *            Use it for a volume/count series whose units differ from the
    *            value axis; it deliberately does not share the axis, because a
    *            count and a rate on one scale flattens whichever is smaller.
+   *   `stack` — solid bars stacked on the MAIN axis, one column per point.
+   *            For parts of one whole that share a unit: the stack height is a
+   *            real total, and the y-axis measures it. Every `stack` series must
+   *            be DISJOINT from the others — if a call can be counted in two of
+   *            them the column is taller than the thing it claims to measure.
+   *            Distinct from `bar`, which is a background band on its own scale.
    */
-  shape: 'area' | 'line' | 'bar';
+  shape: 'area' | 'line' | 'bar' | 'stack';
   /** Palette token. Defaults to the categorical cycle by series index. */
   tint?: Tint;
   /**
@@ -123,8 +129,12 @@ export function TrendChart({
     fmt: FORMATTERS[s.format ?? 'count'],
     axisFmt: AXIS_FORMATTERS[s.format ?? 'count'],
   }));
-  const valueSeries = resolved.filter((s) => s.shape !== 'bar');
+  const valueSeries = resolved.filter((s) => s.shape === 'area' || s.shape === 'line');
   const barSeries = resolved.filter((s) => s.shape === 'bar');
+  const stackSeries = resolved.filter((s) => s.shape === 'stack');
+  /** The column height at one point — what the y-axis has to reach. */
+  const stackTotal = (p: TrendPoint): number =>
+    stackSeries.reduce((n, s) => n + num(p, s.key), 0);
 
   if (points.length < 2 || resolved.length === 0) {
     return (
@@ -145,7 +155,13 @@ export function TrendChart({
   const innerW = Math.max(1, w - padL - padR);
   const innerH = Math.max(1, height - padT - padB);
 
-  const rawMax = Math.max(0, ...valueSeries.flatMap((s) => points.map((p) => num(p, s.key))));
+  /* THE STACK TOTAL, not the largest single series. A column of 40 + 79 + 38 is 157 tall,
+   * and scaling to the biggest part alone would draw it off the top of the chart. */
+  const rawMax = Math.max(
+    0,
+    ...valueSeries.flatMap((s) => points.map((p) => num(p, s.key))),
+    ...(stackSeries.length ? points.map(stackTotal) : []),
+  );
   const { max: maxValue, step } = niceScale(rawMax);
   // Bars get their own maximum — see `shape: 'bar'` above.
   const maxBar = Math.max(1, ...barSeries.flatMap((s) => points.map((p) => num(p, s.key))));
@@ -158,13 +174,18 @@ export function TrendChart({
 
   const bandH = innerH * 0.3;
   const barW = Math.max(1, (innerW / points.length / Math.max(1, barSeries.length)) * 0.55);
+  /* Wider than a volume bar and not divided between series, because a stack is ONE column
+   * per point however many parts it has. `x()` spaces points across the full width, so a
+   * column at either end overhangs by half its width; 0.62 of the slot keeps the gap
+   * between neighbours visible at 24 buckets without the ends being clipped. */
+  const stackW = Math.max(2, (innerW / points.length) * 0.62);
 
   const ticks: number[] = [];
   for (let v = 0; v <= maxValue + 1e-9; v += step) ticks.push(v);
 
   // The y-axis carries the first non-bar series' unit; a second unit on the
   // same axis would be a lie, which is why bars are banded instead.
-  const axisFmt = valueSeries[0]?.axisFmt ?? formatCount;
+  const axisFmt = valueSeries[0]?.axisFmt ?? stackSeries[0]?.axisFmt ?? formatCount;
   const labelEvery = Math.max(1, Math.ceil(points.length / 7));
 
   function onMove(e: React.MouseEvent<HTMLDivElement>) {
@@ -260,6 +281,33 @@ export function TrendChart({
           }),
         )}
 
+        {/* STACKED COLUMNS, on the main axis. Painted at full strength with the hairline
+            edge, because these are the subject of their chart rather than a band behind
+            one — the faint fill `bar` uses would be the wrong register here. */}
+        {stackSeries.map((s, si) =>
+          points.map((p, i) => {
+            const below = stackSeries.slice(0, si).reduce((n, b) => n + num(p, b.key), 0);
+            const v = num(p, s.key);
+            if (v <= 0) return null;
+            const yTop = y(below + v);
+            return (
+              <rect
+                key={`${s.key}-${p.date}`}
+                data-role="stack-bar"
+                x={x(i) - stackW / 2}
+                y={yTop}
+                width={stackW}
+                height={Math.max(0.5, y(below) - yTop)}
+                fill={s.color}
+                fillOpacity={hover === i ? 1 : 0.85}
+                stroke={s.color}
+                strokeWidth={1}
+                vectorEffect="non-scaling-stroke"
+              />
+            );
+          }),
+        )}
+
         {areaKey ? (
           <path
             d={`${path(areaKey)} L ${x(points.length - 1).toFixed(1)} ${(padT + innerH).toFixed(1)} L ${x(0).toFixed(1)} ${(padT + innerH).toFixed(1)} Z`}
@@ -325,7 +373,7 @@ export function TrendChart({
       <div className="mt-2 flex flex-wrap items-center gap-4 text-[11px] text-ink-soft">
         {resolved.map((s) => (
           <span key={s.key} className="flex items-center gap-1.5">
-            {s.shape === 'bar' ? (
+            {s.shape === 'bar' || s.shape === 'stack' ? (
               /* Full strength plus the edge, NOT the 0.3 the bar itself is painted at.
                  A legend swatch is an identifier, not a sample of the ink: at 10x8px a
                  pastel at 30% is a smudge, and the reader is matching a colour, which is
