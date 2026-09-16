@@ -44,4 +44,37 @@ describe('StatusDashboard', () => {
     expect(panes.length).toBeGreaterThan(0);
     for (const pane of panes) expect(pane.textContent).not.toContain('Refusal rate');
   });
+
+  /* ONE GUTTER, EVERY COMBINATION.
+   *
+   * The vertical padding lived on the rail-less + `outer` branch alone, so the Overview and
+   * Runs opened clear of the header and ended clear of the window while Teams, Plugins and
+   * Knowledge ran their card hard into both edges. All four combinations of rail × scroll
+   * are asserted, because the bug was not that the rule was wrong — it was that only one
+   * of the four ever ran it. */
+  const outer = (c: HTMLElement) => c.firstElementChild as HTMLElement;
+  const COMBOS: [string, Parameters<typeof StatusDashboard>[0]][] = [
+    ['rail-less, outer', { metrics, scroll: 'outer', primary: <p>work</p> }],
+    ['rail-less, inner', { metrics, scroll: 'inner', primary: <p>work</p> }],
+    ['rail, outer', { metrics, scroll: 'outer', primary: <p>work</p>, aside: <p>rail</p> }],
+    ['rail, inner', { metrics, scroll: 'inner', primary: <p>work</p>, aside: <p>rail</p> }],
+  ];
+
+  for (const [name, props] of COMBOS) {
+    it(`leaves a gutter above and below the content — ${name}`, () => {
+      expect(outer(draw(props)).className).toContain('py-5');
+    });
+  }
+
+  /* A NEGATIVE VERTICAL MARGIN IS A COLUMN REACHING BACK OUT THROUGH THAT GUTTER, and the
+   * bottom one used to eat all 24px of it. The horizontal pair is deliberate and stays. */
+  it('never lets a scroll pane claw back the vertical gutter', () => {
+    for (const [name, props] of COMBOS) {
+      const c = draw(props);
+      const offenders = [...c.querySelectorAll<HTMLElement>('[class*="-mt-"], [class*="-mb-"]')]
+        .map((el) => el.className)
+        .filter((cls) => /(^|\s|:)-m[tb]-/.test(cls));
+      expect(offenders, name).toHaveLength(0);
+    }
+  });
 });

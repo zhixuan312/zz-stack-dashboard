@@ -24,9 +24,17 @@ export interface StatusDashboardProps {
 
 /** The same pane, from `lg` up. Spelled out literally, NOT built at runtime: Tailwind
  *  scans source text, so a computed class string generates no CSS — the identical trap
- *  that made the `@utility` version silently do nothing. */
+ *  that made the `@utility` version silently do nothing.
+ *
+ *  NO VERTICAL NEGATIVE MARGINS ANY MORE. `-mt-3`/`-mb-6` cancelled this pane's own
+ *  `pt-3`/`pb-6` so the box kept its place while the clip region grew — harmless while the
+ *  shell around it had no padding of its own. Now that the gutter is declared once on the
+ *  wrapper, a negative margin here is a column reaching back OUT through it: the bottom
+ *  one ate all 24px of the new gap and the top one half of it, leaving a rail page flush
+ *  against the window while its rail-less neighbours were not. The horizontal pair stays —
+ *  it clears the cards' hard offset shadow at the sides and costs no width. */
 const SCROLL_PANE_LG =
-  'lg:min-h-0 lg:overflow-y-auto lg:-mx-3 lg:-mt-3 lg:-mb-6 lg:px-3 lg:pt-3 lg:pb-6';
+  'lg:min-h-0 lg:overflow-y-auto lg:-mx-3 lg:px-3 lg:pt-3 lg:pb-6';
 
 export function StatusDashboard({ metrics, primary, aside, align = 'stretch', scroll = 'inner', className }: StatusDashboardProps) {
   // `flex-1` as well as `h-full`: a page may render this as a flex ITEM below some other
@@ -62,7 +70,8 @@ export function StatusDashboard({ metrics, primary, aside, align = 'stretch', sc
     <div
       className={cn(
         'flex h-full min-h-0 flex-1 flex-col gap-4 overflow-x-hidden',
-        /* NO NEGATIVE MARGIN AT THE BOTTOM, unlike `SCROLL_PANE_LG`. That pair exists to let
+        /* (`SCROLL_PANE_LG` no longer carries a vertical negative margin either — see it.)
+         * NO NEGATIVE MARGIN AT THE BOTTOM HERE EITHER. That pair exists to let
          * a card's hover bloom spill past the scroller instead of being clipped, and on a
          * COLUMN nested inside the shell's padding it costs nothing. Here the scroller IS
          * the outer element, so `-mb-6` lands straight on `ShellBody`'s own `py-6` and
@@ -79,8 +88,14 @@ export function StatusDashboard({ metrics, primary, aside, align = 'stretch', sc
          * The horizontal bleed stays: a card's hard offset shadow is drawn outside its box
          * and would otherwise be clipped at the sides by this scroller. It cancels exactly,
          * so it costs no width. */
+        /* THE GUTTER IS THE SHELL'S, NOT EACH BRANCH'S. It sat on `wholeScrolls` alone, so
+         * the Overview and Runs opened clear of the header and ended clear of the window
+         * while Teams, Plugins and Knowledge — the `inner` pages — ran their card hard into
+         * both edges. Nothing chose that: it is where the padding happened to be written.
+         * One declaration here covers all four combinations of rail × scroll. */
+        'py-5 md:py-6',
         wholeScrolls
-          ? 'overflow-y-auto -mx-3 px-3 py-5 md:py-6'
+          ? 'overflow-y-auto -mx-3 px-3'
           : 'overflow-y-auto lg:overflow-visible',
         className,
       )}
