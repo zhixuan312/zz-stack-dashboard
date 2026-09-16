@@ -88,8 +88,26 @@ export function formatBy(kind: NumberFormat | undefined, value: number | null): 
  * Same keys as `FORMATTERS`, so a series names its format once and both the
  * value and the axis do the right thing.
  */
+/**
+ * A count for an AXIS TICK, where the only thing that matters is that neighbouring ticks
+ * read as different numbers.
+ *
+ * `formatTokens` rounds to whole thousands, which is right in prose and wrong here: an
+ * axis running 0…3,000 in steps of 500 rendered `0 · 500 · 1K · 2K · 2K · 3K · 3K`, with
+ * three pairs of duplicate labels, and an axis that cannot tell 1,500 from 2,000 is not
+ * measuring anything. One decimal where the value needs it, none where it does not.
+ */
+export function formatAxisCount(n: number): string {
+  if (n === 0) return '0';
+  const trim = (v: number): string => (Number.isInteger(v) ? String(v) : v.toFixed(1));
+  const abs = Math.abs(n);
+  if (abs >= 1_000_000) return `${trim(n / 1_000_000)}M`;
+  if (abs >= 1_000) return `${trim(n / 1_000)}K`;
+  return n.toLocaleString();
+}
+
 export const AXIS_FORMATTERS: Record<NumberFormat, (n: number | null) => string> = {
-  count: (n) => (n === null ? '—' : formatTokens(n)),
+  count: (n) => (n === null ? '—' : formatAxisCount(n)),
   cost: (n) => {
     if (n === null) return '—';
     if (n === 0) return '$0';

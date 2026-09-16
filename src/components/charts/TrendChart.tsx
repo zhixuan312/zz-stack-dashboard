@@ -167,6 +167,17 @@ export function TrendChart({
   const maxBar = Math.max(1, ...barSeries.flatMap((s) => points.map((p) => num(p, s.key))));
 
   const x = (i: number) => padL + (i / (points.length - 1)) * innerW;
+
+  /* A COLUMN OWNS A BAND; A LINE OWNS A POINT. `x()` spreads points edge to edge, which is
+   * right for a line and wrong for a bar: a bar centred on `x(0)` has half its width to the
+   * LEFT of the plot area, drawn over the y-axis labels — at a low bucket count the first
+   * column covered the "0" tick entirely. A band-centred column cannot leave its own chart.
+   *
+   * Only for a chart whose series are all columns. Where a line shares the axis, the line's
+   * geometry decides the x positions and the bars follow it. */
+  const bandW = innerW / points.length;
+  const banded = stackSeries.length > 0 && valueSeries.length === 0;
+  const xAt = (i: number) => (banded ? padL + (i + 0.5) * bandW : x(i));
   const y = (v: number) => padT + innerH - (v / maxValue) * innerH;
 
   const path = (key: string) =>
@@ -175,10 +186,11 @@ export function TrendChart({
   const bandH = innerH * 0.3;
   const barW = Math.max(1, (innerW / points.length / Math.max(1, barSeries.length)) * 0.55);
   /* Wider than a volume bar and not divided between series, because a stack is ONE column
-   * per point however many parts it has. `x()` spaces points across the full width, so a
-   * column at either end overhangs by half its width; 0.62 of the slot keeps the gap
-   * between neighbours visible at 24 buckets without the ends being clipped. */
-  const stackW = Math.max(2, (innerW / points.length) * 0.62);
+   * per point however many parts it has. 0.62 of the band keeps the gap between neighbours
+   * visible at 24 buckets; the CAP is for the other end — over a long period the grain
+   * widens and a two-bucket chart gave each column a third of the panel, which reads as a
+   * slab lying on the axis rather than as a bar. */
+  const stackW = Math.max(2, Math.min(40, bandW * 0.62));
 
   const ticks: number[] = [];
   for (let v = 0; v <= maxValue + 1e-9; v += step) ticks.push(v);
@@ -194,7 +206,7 @@ export function TrendChart({
     let best = 0;
     let bestD = Infinity;
     for (let i = 0; i < points.length; i++) {
-      const d = Math.abs(x(i) - px);
+      const d = Math.abs(xAt(i) - px);
       if (d < bestD) {
         bestD = d;
         best = i;
@@ -294,7 +306,7 @@ export function TrendChart({
               <rect
                 key={`${s.key}-${p.date}`}
                 data-role="stack-bar"
-                x={x(i) - stackW / 2}
+                x={xAt(i) - stackW / 2}
                 y={yTop}
                 width={stackW}
                 height={Math.max(0.5, y(below) - yTop)}
@@ -333,7 +345,7 @@ export function TrendChart({
           i % labelEvery === 0 ? (
             <text
               key={`t-${p.date}`}
-              x={x(i)}
+              x={xAt(i)}
               y={height - 8}
               textAnchor="middle"
               className="fill-ink-faint"
@@ -346,8 +358,8 @@ export function TrendChart({
 
         {hover !== null ? (
           <line
-            x1={x(hover)}
-            x2={x(hover)}
+            x1={xAt(hover)}
+            x2={xAt(hover)}
             y1={padT}
             y2={padT + innerH}
             stroke="var(--line-strong)"
@@ -359,7 +371,7 @@ export function TrendChart({
       {hp ? (
         <div
           className="pointer-events-none absolute top-2 rounded-[var(--r)] border border-line bg-surface px-3 py-2 text-xs shadow-[var(--shadow-pop)]"
-          style={{ left: Math.min(w - 170, Math.max(0, x(hover!) + 10)), minWidth: 150 }}
+          style={{ left: Math.min(w - 170, Math.max(0, xAt(hover!) + 10)), minWidth: 150 }}
         >
           <div className="mb-1 font-mono text-[0.625rem] uppercase tracking-[0.06em] text-ink-faint">
             {hp.date}
