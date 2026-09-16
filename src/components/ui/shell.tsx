@@ -153,7 +153,18 @@ function ShellBody({
       <div
         className={cn(
           'mx-auto w-full px-5 md:px-8',
-          fill ? 'flex h-full flex-col py-5 md:py-6' : 'py-6 md:py-8',
+          /* NO VERTICAL PADDING ON A FILLED PAGE. A `fill` page's content owns a scroll
+           * region, and the shell's `py` sits OUTSIDE it — dead ground the content can
+           * never reach, so it reads as a cream band between the white header and the
+           * first white card, and another under the last one. The scroller carries that
+           * space as its own padding instead, where it is the top and bottom of the
+           * content rather than a frame around it: the first card still starts clear of
+           * the header rule, and the page still ends clear of the window, but both are
+           * space the content scrolls THROUGH.
+           *
+           * A non-`fill` page scrolls as one document and has no such region, so its
+           * padding is the only padding there is and stays. */
+          fill ? 'flex h-full flex-col' : 'py-6 md:py-8',
           max,
           className,
         )}

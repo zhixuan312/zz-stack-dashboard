@@ -80,7 +80,7 @@ export function StatusDashboard({ metrics, primary, aside, align = 'stretch', sc
          * and would otherwise be clipped at the sides by this scroller. It cancels exactly,
          * so it costs no width. */
         wholeScrolls
-          ? 'overflow-y-auto -mx-3 px-3'
+          ? 'overflow-y-auto -mx-3 px-3 py-5 md:py-6'
           : 'overflow-y-auto lg:overflow-visible',
         className,
       )}
