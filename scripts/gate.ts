@@ -82,8 +82,13 @@ check('a count of gates or stages has no hardcoded denominator', () => {
   for (const [f, s] of sources()) {
     for (const m of s.matchAll(/\bof \d+\b/g)) {
       const line = s.slice(s.lastIndexOf('\n', m.index) + 1, s.indexOf('\n', m.index));
-      const lead = line.trim().slice(0, 2);
-      if (['//', '*', '/*', '{/'].includes(lead)) continue;   // prose in a comment
+      /* PROSE IN A COMMENT IS NOT A DENOMINATOR, and the test for it was wrong in the
+       * commonest case. It took `line.trim().slice(0, 2)` and looked the pair up in a list
+       * of openers — but an ordinary JSDoc body line, ` * an axis in steps of 500`, trims
+       * to `* an…` whose first two characters are `"* "`, which is in no list. So every
+       * continuation line of every block comment was treated as code, and explaining this
+       * rule in a comment was enough to break it. Match the opener, don't slice it. */
+      if (/^(\/\/|\*|\/\*|\{\/)/.test(line.trim())) continue;
       bad.push(`${f}: "${m[0]}"`);
     }
   }

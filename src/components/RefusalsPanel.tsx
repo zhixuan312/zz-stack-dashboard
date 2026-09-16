@@ -27,9 +27,9 @@ export function RefusalsPanel({ refusals }: { refusals: Overview['refusals'] }) 
    *
    * "90% is one error message" is worth a banner. The same banner over 10% is a headline
    * for a non-story, and a panel that always shouts teaches the reader to stop looking.
-   * Measured on production while this was written, the commonest message was about a tenth
-   * of the refusals — so the quiet path is the ordinary one, and it has to look deliberate
-   * rather than broken. */
+   * Measured on production while this was written: the commonest message was 12 of 115 —
+   * so the quiet path is the ordinary one, and it has to look deliberate rather than
+   * broken. */
   const top = refusals.byMessage[0];
   const share = top && refusals.total ? top.n / refusals.total : 0;
   const concentrated = share >= CONCENTRATION;
