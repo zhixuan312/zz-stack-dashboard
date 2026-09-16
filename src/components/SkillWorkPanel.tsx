@@ -86,7 +86,7 @@ export function SkillWorkPanel({ skills }: { skills: Skill[] }) {
             const v = metric(k, axis);
             const pct = scale > 0 && v > 0 ? Math.max(1.5, (v / scale) * 100) : 0;
             return (
-              <TableRow key={`${k.name}-${k.version}`}>
+              <TableRow key={`${k.name}-${k.version}`} className="transition-colors hover:bg-surface-2">
                 <TableCell className="whitespace-nowrap">
                   <span className="font-medium text-ink">{k.name}</span>{' '}
                   <span className="font-mono text-xs text-ink-faint">{k.version}</span>
@@ -133,13 +133,15 @@ export function SkillWorkPanel({ skills }: { skills: Skill[] }) {
                   <span className="block h-1.5 overflow-hidden rounded-[var(--r-sm)] bg-surface-2">
                     <span
                       className="block h-full rounded-[var(--r-sm)]"
-                      style={{ width: `${pct}%`, background: 'var(--line-strong)', boxShadow: CHART_EDGE }}
+                      style={{ width: `${pct}%`, background: 'var(--accent)', boxShadow: CHART_EDGE }}
                     />
                   </span>
                 </TableCell>
                 <TableCell className="text-right tabular-nums text-xs">
+                  {/* A PILL, not coloured text. Colour alone is the one channel a reader may
+                      not have, and this column is the one worth scanning for. */}
                   {k.refusals
-                    ? <span className="text-[var(--rose-deep)]">{k.refusals}</span>
+                    ? <Badge size="sm" variant="rose">{k.refusals}</Badge>
                     : <span className="text-ink-faint">—</span>}
                 </TableCell>
               </TableRow>
