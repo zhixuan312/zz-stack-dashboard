@@ -160,9 +160,22 @@ function buildMetrics(m: OverviewMetrics, basis: string): MetricCardProps[] {
        * real numbers, on the day this was found — so the tile read 100% and could not read
        * anything else. The sublabel says which population the median is over, so a reader
        * can see that 3 is the number it rests on. */
-      sublabel: m.progressing.scoreable
-        ? `median of ${m.progressing.scoreable} open · ${m.progressing.active} active`
-        : 'nothing open and scoreable was active',
+      /* THE WAITING COUNT SHARES THIS FACE because it answers the question the number
+         above it raises: if work is not advancing, what is holding it? It is the only
+         figure on this page naming something a PERSON can unblock — everything else here
+         is a rate or a volume. Stated plainly and not in amber: three documents awaiting
+         approval is the ordinary shape of work in progress, and a tile that dresses
+         ordinary state as a warning is the same mistake as a banner that fires on an
+         empty table. The reader can see 3.9 days and judge. */
+      sublabel: [
+        m.progressing.scoreable
+          ? `median of ${m.progressing.scoreable} open · ${m.progressing.active} active`
+          : 'nothing open and scoreable was active',
+        m.progressing.waiting
+          ? `${m.progressing.waiting} waiting on a person`
+            + (m.progressing.waitingOldestDays !== null ? `, oldest ${m.progressing.waitingOldestDays}d` : '')
+          : null,
+      ].filter(Boolean).join(' · '),
       /* FOUR BANDS, BECAUSE THE BAR DRAWS FOUR. The six stages were listed six times under
        * a bar that could only ever show four colours: `no flow` and `not started` are both
        * steel, `gated` and `closed` are both sage, and two adjacent slices in one colour
@@ -197,7 +210,13 @@ function buildMetrics(m: OverviewMetrics, basis: string): MetricCardProps[] {
         + 'stage: no flow, not started, drafting, agreed, gated, closed. Gated means every gate '
         + 'is approved and nobody has said what came of it yet; closed means an outcome was '
         + 'recorded. Initiatives with no flow have '
-        + `no denominator and are shown apart rather than scored as zero. No arrow: ${m.progressing.noDeltaBecause}.`,
+        + 'no denominator and are shown apart rather than scored as zero. "Waiting on a person" '
+        + 'counts GATE documents that are written and unapproved, in open initiatives only. Both '
+        + 'halves matter: a gate nobody has drafted is waiting on the agent, not a human, and an '
+        + 'ungated document never needed an approver at all — counting every document with no '
+        + 'approver reports 18 things blocked here when 3 are, and puts the 15 that are not at '
+        + 'the top. A closed initiative is excluded: nobody goes back to approve a gate on work '
+        + `that already recorded an outcome. No arrow: ${m.progressing.noDeltaBecause}.`,
     },
     {
       label: 'Knowledge from work',

@@ -241,6 +241,12 @@ export interface OverviewMetrics {
     active: number; scoreable: number;
     /** Every active initiative in exactly one stage — the mark under the tile. */
     stages: Record<InitiativeStage, number>;
+    /** Gate documents written and unapproved, across the OPEN initiatives — work that is
+     *  finished and sitting on a human. Gates only: a flow's own manifest says which
+     *  documents gate, and an ungated document never wanted an approver. */
+    waiting: number;
+    /** Days the oldest of those has waited. Null when nothing is waiting. */
+    waitingOldestDays: number | null;
     /** Why this one carries no delta. The API states it; the browser does not guess. */
     noDeltaBecause: string;
   };

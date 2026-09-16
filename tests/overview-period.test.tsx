@@ -52,6 +52,10 @@ const OVERVIEW: Overview = {
     progressing: {
       value: 66.7, active: 7, scoreable: 6,
       stages: { noflow: 1, notstarted: 0, drafting: 2, agreed: 1, gated: 1, closed: 2 },
+      // The live figures on the day this was written: 3 gates written and unapproved,
+      // the oldest sitting 3.9 days. 12 explore.md documents are ALSO unapproved and are
+      // deliberately not here — see the test below.
+      waiting: 3, waitingOldestDays: 3.9,
       noDeltaBecause: 'approved_at is stored as a date',
     },
     knowledge: {
@@ -209,6 +213,32 @@ describe('the overview page', () => {
      * and threw "found multiple elements", which reads as the banner being broken. */
     const headline = screen.getAllByText('86%').find((el) => el.tagName === 'B');
     expect(headline).toBeDefined();
+  });
+
+  /* THE ONE FIGURE ON THIS PAGE NAMING SOMETHING A PERSON CAN UNBLOCK, so it has to be
+   * on the face and it has to be countable — a tile that states it only in the help
+   * popover states it to nobody. */
+  it('states what is waiting on a person, and for how long', async () => {
+    mount();
+    await waitFor(() => expect(screen.getByText(/Initiatives progressing/)).toBeInTheDocument());
+    expect(screen.getByText(/3 waiting on a person, oldest 3.9d/)).toBeInTheDocument();
+  });
+
+  /* NOTHING WAITING IS NOT A CLAUSE READING "0 waiting". A tile that always carries the
+   * sentence trains the reader past it, which is the failure the Runs banner was fixed
+   * for — the clause has to disappear when there is nothing to say. */
+  it('drops the clause entirely when no gate is waiting', async () => {
+    const clear = { ...OVERVIEW,
+      metrics: { ...OVERVIEW.metrics,
+        progressing: { ...OVERVIEW.metrics.progressing, waiting: 0, waitingOldestDays: null } } };
+    global.fetch = vi.fn(async (url: string) =>
+      ({ ok: true, json: async () => (url.includes('/me') ? ME : clear) }) as unknown as Response,
+    ) as unknown as typeof fetch;
+    mount();
+    await waitFor(() => expect(screen.getByText(/Initiatives progressing/)).toBeInTheDocument());
+    expect(screen.queryByText(/waiting on a person/)).not.toBeInTheDocument();
+    // …and the sublabel it shares a line with survives intact.
+    expect(screen.getByText(/median of 6 open/)).toBeInTheDocument();
   });
 
   /* THE SHARE IS THE WHOLE POINT OF PASSING A TOTAL, and it is computed against the total
