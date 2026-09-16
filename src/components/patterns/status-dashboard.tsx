@@ -5,8 +5,6 @@ import { MetricRow, MetricCard, type MetricCardProps } from '@/components/ui/met
 export interface StatusDashboardProps {
   /** Optional metrics row across the top — omitted / empty renders no row. */
   metrics?: MetricCardProps[];
-  /** Rendered LAST and inside the scroll region — the version line at the end of the page. */
-  footer?: ReactNode;
   /** The 2/3 main work surface (or full-width when there's no `aside`). */
   primary: ReactNode;
   /** The 1/3 rail. When present the body becomes a 2/3 + 1/3 split. */
@@ -30,7 +28,7 @@ export interface StatusDashboardProps {
 const SCROLL_PANE_LG =
   'lg:min-h-0 lg:overflow-y-auto lg:-mx-3 lg:-mt-3 lg:-mb-6 lg:px-3 lg:pt-3 lg:pb-6';
 
-export function StatusDashboard({ metrics, primary, aside, footer, align = 'stretch', scroll = 'inner', className }: StatusDashboardProps) {
+export function StatusDashboard({ metrics, primary, aside, align = 'stretch', scroll = 'inner', className }: StatusDashboardProps) {
   // `flex-1` as well as `h-full`: a page may render this as a flex ITEM below some other
   // bar, and `h-full` there means 100% of the PARENT — the full height, as if the bar took
   // none. The dashboard then overflows by the bar's height, and because PageFrame stops the
@@ -185,14 +183,7 @@ export function StatusDashboard({ metrics, primary, aside, footer, align = 'stre
         // why Routes (which has a rail) scrolled fine and Runs did not.
         <div
           className={cn(
-            /* SIZED BY ITS CONTENT when the whole dashboard scrolls. `flex-1` bounds this
-             * column to the VISIBLE height; its panels then overflow it — which still
-             * scrolls, because overflow counts toward the scroller's height — but anything
-             * laid out after this column is positioned against the short box rather than
-             * the tall content. The footer landed in the middle of the page with panels
-             * painting over it. With `inner` the column is still a height for a single
-             * tall child to claim, so `flex-1` stays there. */
-            wholeScrolls ? 'flex flex-col gap-4' : 'flex min-h-0 flex-1 flex-col gap-4',
+            'flex min-h-0 flex-1 flex-col gap-4',
             // ...AND it must own a scroller, exactly as the two-column branch does.
             //
             // This branch honoured `flex-1` but ignored `scroll` altogether, so a
@@ -222,11 +213,6 @@ export function StatusDashboard({ metrics, primary, aside, footer, align = 'stre
           {primary}
         </div>
       )}
-
-      {/* LAST, AND INSIDE THE SCROLLER. It is content, not chrome: pinned below the
-          scroll region it is a bar that never goes away, which is the same complaint the
-          metric row earned when it sat above one. */}
-      {footer}
     </div>
   );
 }

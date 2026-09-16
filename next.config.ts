@@ -1,5 +1,4 @@
 import type { NextConfig } from 'next';
-import { version } from './package.json' with { type: 'json' };
 
 /**
  * LOCAL DEVELOPMENT ONLY, and opt-in: nothing here changes unless `ZZ_GATEWAY` is set.
@@ -23,11 +22,6 @@ const nextConfig: NextConfig = {
   // Standalone output so a derived app ships as a single container without
   // extra config. Harmless for `next dev` / `next start`.
   output: 'standalone',
-  /* The console's own version, from the one file that already states it. Read at BUILD
-   * time and inlined, because the footer renders in the browser and a manifest is not
-   * something the browser can open — and a version typed a second time somewhere is a
-   * version that eventually disagrees with the release that set it. */
-  env: { NEXT_PUBLIC_CONSOLE_VERSION: version },
   ...(gateway
     ? {
       async rewrites() {

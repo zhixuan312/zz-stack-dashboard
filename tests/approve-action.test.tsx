@@ -12,7 +12,6 @@ import type { DocumentDetail, Me } from '@/lib/api';
 // calls it a second time (to decide whether to hand DocumentShell an `actions`
 // slot at all), and a divergence between the two call sites would be silent.
 const me: Me = {
-  platformVersion: '0.0.0-test',
   email: 'a@b.example.com', name: 'A', role: 'member', mayRead: true,
   superadmin: false, via: 'session', teams: [{ slug: 'team-one', role: 'member' }],
   activeTeam: 'team-one',

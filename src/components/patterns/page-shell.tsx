@@ -24,8 +24,6 @@ interface PageShellProps {
   navigator?: ReactNode;
   /** Metric row above the split — forwarded to the content shell. */
   metrics?: StatusDashboardProps['metrics'];
-  /** Rendered last, inside the scroll region — forwarded to the content shell. */
-  footer?: StatusDashboardProps['footer'];
   /** Column alignment — forwarded to the content shell. */
   align?: StatusDashboardProps['align'];
   /** Who owns the 2/3 column's scroll — see StatusDashboard. `inner` when one item fills
@@ -35,12 +33,11 @@ interface PageShellProps {
   className?: string;
 }
 
-export function PageShell({ note, children, navigator, metrics, footer, align, scroll, className }: PageShellProps) {
+export function PageShell({ note, children, navigator, metrics, align, scroll, className }: PageShellProps) {
   return (
     <StatusDashboard
       className={className}
       metrics={metrics}
-      footer={footer}
       align={align}
       scroll={scroll}
       // LEFT — the governed left panel (2/3). NOT wrapped in a Card: the component passed in

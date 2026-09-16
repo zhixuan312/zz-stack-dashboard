@@ -211,8 +211,6 @@ export function useConsole<T>(path: string | null): UseQueryResult<T, ApiError> 
 /* ── the shapes the API returns ───────────────────────────────────────────── */
 
 export interface Me {
-  /** Which platform answered — the footer's other half. See `AppFooter`. */
-  platformVersion: string;
   email: string; name: string; role: 'superadmin' | 'member';
   mayRead: boolean; superadmin: boolean; via: string;
   // A slug alone couldn't say whether the caller is a team admin or a member; the gateway

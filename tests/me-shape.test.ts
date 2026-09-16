@@ -8,7 +8,6 @@ import type { Me } from '@/lib/api';
 describe('Me.teams', () => {
   it('carries a role alongside each slug', () => {
     const me: Me = {
-      platformVersion: '0.0.0-test',
       email: 'a@b.example.com', name: 'A', role: 'member', mayRead: true,
       superadmin: false, via: 'session', teams: [{ slug: 'team-one', role: 'admin' }],
       activeTeam: 'team-one',

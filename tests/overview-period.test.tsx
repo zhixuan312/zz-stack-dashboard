@@ -28,7 +28,6 @@ import type { Overview } from '@/lib/api';
 import OverviewPage from '../app/(dash)/page';
 
 const ME = {
-  platformVersion: '0.0.0-test',
   email: 'a@b.example.com', name: 'A', role: 'superadmin', mayRead: true, superadmin: true,
   via: 'session', teams: [{ slug: 'team-one', role: 'admin' }], activeTeam: 'team-one',
 };

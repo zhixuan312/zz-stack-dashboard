@@ -13,7 +13,6 @@ import type { Me } from '@/lib/api';
  * of that rule.
  */
 const base: Omit<Me, 'teams' | 'superadmin'> = {
-  platformVersion: '0.0.0-test',
   email: 'a@b.example.com', name: 'A', role: 'member', mayRead: true, via: 'session', activeTeam: 'team_one',
 };
 

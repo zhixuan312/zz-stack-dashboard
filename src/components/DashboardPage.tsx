@@ -1,4 +1,3 @@
-import { AppFooter } from '@/components/AppFooter';
 import type { ReactNode } from 'react';
 import { PageFrame } from '@/components/ui';
 import type { Crumb, MetricCardProps } from '@/components/ui';
@@ -135,7 +134,6 @@ export function DashboardPage({
       <PageShell
         scroll={scroll}
         metrics={metrics}
-        footer={<AppFooter />}
         note={
           note ? (
             <RailNote icon={noteIcon} title={noteTitle}>
