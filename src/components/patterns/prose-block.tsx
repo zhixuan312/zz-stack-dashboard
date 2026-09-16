@@ -10,32 +10,26 @@ import { safeMarkdownUrl, sanitizeUserVisibleMarkdown } from '@/lib/safe-markdow
    long token anywhere rather than pushing the table past its card. */
 const FIT = 'prose-pre:whitespace-pre-wrap prose-pre:break-words prose-td:[overflow-wrap:anywhere] ';
 
-/* THE MEASURE IS ON THE TEXT, NOT ON THE BLOCK — and that distinction is the whole of it.
+/* CONTENT FILLS ITS CARD, and that is the whole rule.
  *
- * Tailwind Typography caps the whole block at 65ch, which is why every variant here clears it
- * with `max-w-none`. For a rail or a tooltip that is right: the container is already narrow.
- * For a document in a 1536px card it means 190-character lines, which nobody reads.
+ * Tailwind Typography caps a prose block at 65ch, which is why every variant clears it with
+ * `max-w-none`. Two other arrangements were tried and both made a page LESS coherent than
+ * this one:
  *
- * The obvious fix is a `max-w` on the block, and it was tried and correctly rejected: a spec is
- * half decision tables and criterion ledgers, and capping the block squeezes those too. The
- * answer taken instead was to shrink the whole PAGE to 832px — which caps the tables at 832
- * rather than at 74ch, so it does not save them either, and it makes one page of twenty a
- * different width from the rest. Navigating from an initiative into its spec halved the layout.
+ *   - Shrinking the whole PAGE to 832px. One page of twenty was then half the width of the
+ *     other nineteen, so opening a spec from its initiative halved the layout under a header
+ *     band that stayed full width.
+ *   - Capping the text elements and leaving tables full width. That put a 74ch paragraph
+ *     beside a full-width ledger in the same card — half the page empty, half of it used,
+ *     which reads as broken rather than as typography.
  *
- * So the cap goes on the elements that carry TEXT and nowhere else. A paragraph, a list item, a
- * heading and a quote get a readable measure; a table, a fenced block and an image keep the
- * card's full width, which is what they are for. One page width everywhere, and the typography
- * is better than either arrangement it replaces.
- *
- * 74ch, because that is what the type scale is set for. */
-export const PROSE_MEASURE = 'max-w-[74ch]';
-
-const MEASURE = 'prose-p:max-w-[74ch] prose-li:max-w-[74ch] prose-headings:max-w-[74ch] ' +
-  'prose-blockquote:max-w-[74ch] ';
-
+ * A long measure is a real cost and it is the smaller one. A card that is one width is a page
+ * somebody can look at; a card that is two widths is a page that looks wrong before anybody
+ * reads a word of it. If the measure needs solving, it is solved by the CARD's width, in one
+ * place, for everything in it — not by singling out the paragraphs. */
 const VARIANT_CLASSES = {
   document:
-    FIT + MEASURE + 'prose prose-sm max-w-none text-ink',
+    FIT + 'prose prose-sm max-w-none text-ink',
   rail:
     FIT + 'prose prose-sm max-w-none text-ink min-w-0 ' +
     'prose-headings:mt-0 prose-headings:mb-2 prose-h3:text-sm prose-h3:font-semibold prose-h3:text-ink ' +

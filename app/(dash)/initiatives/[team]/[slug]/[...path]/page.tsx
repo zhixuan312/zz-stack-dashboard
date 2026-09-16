@@ -189,10 +189,10 @@ export default function DocumentPage({
 
                     {d.body?.trim() ? (
                       view === 'read' ? (
-                        // THE CARD'S FULL WIDTH. The measure lives on the text elements
-                        // inside ProseBlock, so paragraphs read at 74ch while the decision
-                        // tables and criterion ledgers a spec is half made of get the whole
-                        // card. This page is `data` like the other nineteen.
+                        // THE CARD'S FULL WIDTH, and so is everything beside it. A spec is
+                        // half decision tables and criterion ledgers; capping the prose and
+                        // not them puts two widths in one card, which reads as broken. This
+                        // page is `data` like the other nineteen.
                         <ProseBlock>{readableDocument(d.body)}</ProseBlock>
                       ) : (
                         // WRAPPED, not scrolled sideways: a source line longer than the
