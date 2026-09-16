@@ -26,6 +26,7 @@ export * from './switch';
 
 // Display & status
 export * from './table';
+export * from './pagination';
 export * from './badge';
 export * from './banner';
 export * from './empty-state';

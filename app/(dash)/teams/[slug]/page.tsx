@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 
 import { use } from 'react';
 import Link from 'next/link';
@@ -11,7 +10,8 @@ import { Query } from '@/components/Query';
 import { FlowMini } from '@/components/Flow';
 import { StateBadge } from '@/components/StateBadge';
 import {
-  Badge, EmptyState, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Time,
+  Badge, EmptyState, PageControl, Table, TableBody, TableCell, TableHead, TableHeader,
+  TableRow, Time, usePaged,
 } from '@/components/ui';
 import { useConsole, type Initiative, type TeamDetail } from '@/lib/api';
 
@@ -127,58 +127,16 @@ export default function TeamPage({ params }: { params: Promise<{ slug: string }>
   );
 }
 
-/**
- * How many rows a panel shows before it stops and says how many more there are.
+/** The team's initiatives, paged like every other list on this page.
  *
- * NOT PAGINATION, DELIBERATELY. Pagination is for browsing a corpus — you page through it
- * because you mean to see all of it. Nobody pages through a team's member list; they want
- * the count, and then one person. Paging would add per-panel page state, a control strip on
- * four panels, and a round trip, all to solve "the page is long", which a cap solves with
- * none of them. The count stays truthful because it is taken from the full array and shown
- * on the panel's face either way.
- *
- * Ten, to match BarList's own limit — the house already answers "how long is a list before
- * it buries its own signal" and the answer should not be two different numbers.
- */
-const ROW_CAP = 10;
-
-/** The cap, as state, so the two tables on this page can never disagree about it. */
-function useCapped<T>(rows: T[]): { shown: T[]; hidden: number; showAll: () => void } {
-  const [all, setAll] = useState(false);
-  const shown = all ? rows : rows.slice(0, ROW_CAP);
-  return { shown, hidden: rows.length - shown.length, showAll: () => setAll(true) };
-}
-
-/** "Show N more", spanning the table. The remainder is STATED, not merely truncated: a list
- *  that stops at ten with nothing saying so reads as the whole list, which is the one thing
- *  a cap must never do. */
-function MoreRow({ hidden, cols, onShow }: { hidden: number; cols: number; onShow: () => void }) {
-  if (hidden <= 0) return null;
-  return (
-    <TableRow>
-      <TableCell colSpan={cols} className="py-2.5 text-center">
-        <button
-          type="button"
-          onClick={onShow}
-          className="focus-ring rounded-[var(--r-sm)] px-2 py-1 text-xs text-ink-soft hover:text-ink"
-        >
-          Show {hidden} more
-        </button>
-      </TableCell>
-    </TableRow>
-  );
-}
-
-
-/** The team's initiatives, capped like every other list on this page.
- *
- * ITS OWN COMPONENT so it can hold the cap's state: the table is rendered inside a `Query`
+ * ITS OWN COMPONENT so it can hold the page state: the table is rendered inside a `Query`
  * render prop, and a hook cannot be called from a callback. `zz-platform` has 54 initiatives
- * today, so this is the list on this page that is already past the cap rather than
- * hypothetically past it. */
+ * today, so this is the list here that is already past one page rather than hypothetically
+ * past it. */
 function InitiativeTable({ initiatives }: { initiatives: Initiative[] }) {
-  const { shown, hidden, showAll } = useCapped(initiatives);
+  const { page, controls } = usePaged(initiatives);
   return (
+    <>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -191,7 +149,7 @@ function InitiativeTable({ initiatives }: { initiatives: Initiative[] }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {shown.map((i) => (
+                {page.map((i) => (
                   <TableRow key={i.slug}>
                     <TableCell>
                       <Link
@@ -210,30 +168,33 @@ function InitiativeTable({ initiatives }: { initiatives: Initiative[] }) {
                     <TableCell><Time value={i.updated} /></TableCell>
                   </TableRow>
                 ))}
-                <MoreRow hidden={hidden} cols={6} onShow={showAll} />
-    </TableBody>
+                  </TableBody>
             </Table>
+    <PageControl {...controls} />
+    </>
   );
 }
 
 function SimpleTable({ head, rows, empty }: { head: string[]; rows: string[][]; empty: string }) {
-  const { shown, hidden, showAll } = useCapped(rows);
+  const { page, controls } = usePaged(rows);
   if (!rows.length) return <p className="p-5 text-sm text-ink-faint">{empty}</p>;
   return (
+    <>
     <Table>
       <TableHeader>
         <TableRow>{head.map((h) => <TableHead key={h}>{h}</TableHead>)}</TableRow>
       </TableHeader>
       <TableBody>
-        {shown.map((r, i) => (
+        {page.map((r, i) => (
           <TableRow key={i}>
             {r.map((c, j) => (
               <TableCell key={j} className={j === 0 ? 'font-medium text-ink' : 'text-xs'}>{c}</TableCell>
             ))}
           </TableRow>
         ))}
-        <MoreRow hidden={hidden} cols={head.length} onShow={showAll} />
       </TableBody>
     </Table>
+    <PageControl {...controls} />
+    </>
   );
 }
