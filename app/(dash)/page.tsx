@@ -11,7 +11,7 @@ import { TrendChart } from '@/components/charts/TrendChart';
 import { formatCount } from '@/lib/format';
 import type { Tint } from '@/lib/tints';
 import { useConsole, useConsoleMode, type Overview, type OverviewMetrics } from '@/lib/api';
-import type { MetricCardProps } from '@/components/ui';
+import { Row, type MetricCardProps } from '@/components/ui';
 import { usePeriod } from '@/components/PeriodProvider';
 import { PERIOD_SPAN } from '@/lib/period';
 
@@ -374,7 +374,7 @@ export default function OverviewPage() {
              disagree — and a header that contradicts its own chart is worse than none. */
           const toolCalls = d.toolTrend.reduce((n, b) => n + b.inside + b.outside + b.refused, 0);
           return (
-          <div className="flex flex-col gap-4">
+          <>
             {/* The aside names the teamless remainder because the Teams page shows a
                 per-team figure and the two will never add up: turns, tool calls made
                 outside a team, and admin acts that belong to a person carry no team by
@@ -415,7 +415,7 @@ export default function OverviewPage() {
               />
             </Panel>
 
-            <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+            <Row split="1/2">
               <RefusalsPanel refusals={d.refusals} />
 
               <Panel title="Event kinds" aside={`${d.eventKinds.length} kinds`}>
@@ -433,8 +433,8 @@ export default function OverviewPage() {
                   }))}
                 />
               </Panel>
-            </div>
-          </div>
+            </Row>
+          </>
           );
         }}
       </Query>

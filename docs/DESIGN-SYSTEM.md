@@ -382,7 +382,7 @@ master (not the old 183×179 crop) and that the build is byte-reproducible.
 
 ### The mascot has states, and each state has one job
 
-**Nine assignments**, each mapped to the situation it belongs in. The mapping is
+**Eight assignments**, each mapped to the situation it belongs in. The mapping is
 not decorative — a mascot that shows the same face for "you have no data yet"
 and "the request failed" is worse than no mascot, because it signals that the
 product is not reading the situation either.
@@ -390,8 +390,7 @@ product is not reading the situation either.
 | Illustration | Shown when | Where |
 |---|---|---|
 | `state-empty` | nothing has been created here yet | 6 sites, 5 files |
-| `state-welcome` | a first-run surface you are meant to populate | the 6 Settings panels |
-| `state-done` | a list is legitimately clear | `people` |
+| `state-welcome` | a first-run surface you are meant to populate | the 4 Settings panels |
 | `state-notfound` | we looked and found nothing — a 404, or filters that match none | 4 sites |
 | `state-error` | a failure the user did not cause | `error.tsx`, `Query` |
 | `state-thinking` | waiting on an answer | `KnowledgeAsk` only |
@@ -399,7 +398,7 @@ product is not reading the situation either.
 | `state-goodbye` | signed out | `signed-out` |
 | `mascot-hero` | the login screen | `login` |
 
-`checks/mascot-assignment.ts` holds all nine — exhaustively for the 18
+`checks/mascot-assignment.ts` holds all eight — exhaustively for the 15
 `EmptyState` sites, and by pinning each of the four one-off surfaces to the
 single file allowed to use it. (It used to enforce only the five `EmptyState`
 assignments while this page documented all nine, which is precisely the
@@ -445,50 +444,85 @@ exists, it is that it does not spread.
 
 ## 3. The layout contract
 
-This is the load-bearing part. Get it wrong and the page renders without an
-error and looks broken.
+This is the load-bearing part. The console used to let every page choose how it
+scrolled — `fill`, `scroll="inner" | "outer"`, `align`, `rail` — and it ended up
+with five scroll models: Teams scrolled inside its card, the Overview scrolled
+the page, a rail page scrolled two columns at once. Those switches are gone.
+There is one way to lay out a page, and `src/components/ui/layout.tsx` holds
+every number in it.
 
-### The root lock
+### The four rules
 
-The document **never scrolls**. `AppShell` is `fixed inset-0`; the only scroll
-region is `ShellBody`, reached through `PageFrame`. `html` and `body` are
-`h-full` and the root is overflow-locked in `globals.css`.
+1. **One scroller.** `ShellBody` is the only element on a page that scrolls,
+   and only vertically. No card, table, list, code block or tab strip scrolls
+   on its own — in either direction.
+2. **Cards are their content's height.** Every list that can pass ten rows pages
+   (`usePaged` + `PageControl`, 10/20/30 rows). That is what caps a card's
+   height, and it is why rule 1 can hold. A "top N" list stays capped at N.
+3. **Four splits.** A page is a stack of rows. A row is one full-width card, or
+   cards split `1/2`, `2/3`, `1/3` or `1/4` (`Row split=…`). Cards in one row are
+   the same height. One card per cell: a second card is a second row.
+4. **Two widths.** `data` (1536px of content) for dashboards, lists and detail
+   pages; `reading` (832px) for a document, a form or prose. Both centre.
 
 ### The nesting
 
 ```
-AppShell            fixed inset-0 · owns the sidebar rail
-└─ ShellHeader      static row, never moves
-└─ ShellBody        THE scroll region
-   └─ PageFrame     title · description · actions · breadcrumb · subnav
-      └─ StatusDashboard   metric row + 2/3 · 1/3 split
-         ├─ primary (2/3)
-         └─ aside   (1/3)
+AppShell              fixed inset-0 · the document never scrolls
+├─ sidebar rail       its own scroll (navigation, not the page)
+└─ main column
+   ├─ ShellHeader     never moves · content aligned to the page column
+   ├─ ShellSubNav     optional · never moves
+   └─ ShellBody       THE scroll region — vertical only
+      └─ content      mx-auto · max-width by `width` (the gutter is on ShellBody)
+         └─ Stack     rows, one gap apart
+            ├─ Row 1/4    metric tiles (DashboardPage `metrics`)
+            ├─ Panel      a full-width card
+            └─ Row 1/2    two equal cards
 ```
 
-`PageShell` is the master-detail preset over `StatusDashboard`.
-`DashboardPage` is the preset over *that*, and is what a page should normally
-use — it fixes `width="full" fill` and wires the period picker.
+`DashboardPage` is what a page uses: `PageFrame` + `Stack` + the metric row,
+plus the freshness stamp and period picker. It has no layout switches.
 
-### The four props that matter
+### The numbers, and where they come from
 
-| Prop | Set it when | If you get it wrong |
+| | value | borrowed from |
 |---|---|---|
-| `PageFrame fill` | the panels below scroll themselves | `PageShell`'s `h-full flex-1` has no bound; the grid collapses to content height |
-| `StatusDashboard scroll="outer"` | the panel **stacks** several cards | a stack of cards is crushed or clipped |
-| `StatusDashboard scroll="inner"` | one self-scrolling child (a `fill` DataTable) | the table grows to content height and is clipped with no scrollbar |
-| `StatusDashboard align="start"` | a short rail beside a tall form (settings) | the rail stretches to match the form and floats in empty space |
+| gutter | 16 → 24 → 32px at `<768` / `md` / `xl` | Atlassian (16px to 1024, 32px after), Material 3 (16px compact, 24px from 600) |
+| gap between cards and rows | 16 → 24px at `xl` | Atlassian desktop gutter 16px, Material pane spacing 24px |
+| `data` width | 1536px | Carbon's largest breakpoint (1584px incl. margins); wider than GitLab's 1280 and Atlassian's 1296 because console tables carry seven columns |
+| `reading` width | 832px | Atlassian fixed-narrow (864px incl. margins); ~90 characters of body text |
 
-`scroll` and `align` are deliberately **independent**. Coupling them leaves
-every `align="start"` page with no scroller at all.
+On a window wider than the `data` column plus the rail — past about 1850px —
+the content stops growing and the window grows equal margins on both sides.
 
-### Rails
+### The page shapes
 
-- `RailNote` is **guidance**, never a panel. It always wraps its own content —
-  the shell stretches the rail's *last* child, and a stretched note becomes a
-  huge tinted block of empty space under three lines of text.
-- A page with neither `note` nor `rail` renders **full width**. That is what a
-  wide table wants; `app/(dash)/initiatives` is one.
+| shape | rows, top to bottom | pages |
+|---|---|---|
+| Dashboard | metrics · a full-width chart · `1/2` | Overview, Runs |
+| List | metrics (optional) · one card: toolbar + paged table | Initiatives, Teams, People, Activity, Knowledge |
+| Detail | metrics · the main list, full width · supporting cards in `1/2` or `2/3` | a team, an initiative, a plugin |
+| Reader | `width="reading"` · the document flows, the page scrolls | a document, Settings |
+
+A short page ends where its content ends, and the ground below it is page
+ground. Stretching cards to fill the window only moves that space inside a
+bordered box, which reads as a rendering bug.
+
+### Fitting without sideways scroll
+
+A table wider than its card has too many columns for that width. Put
+`hideBelow="md" | "lg" | "xl" | "2xl"` on the least important columns' head
+**and** cells. It reads the WINDOW width, not the card's, so a table in a `1/2`
+or `reading` card is fitted by carrying fewer columns in the first place. Long identifiers `truncate` (with a `title`) or `break-all`;
+`<pre>` wraps (`whitespace-pre-wrap`); chip rows and tab strips `flex-wrap`.
+
+### Enforced
+
+- `checks/one-scroller.ts` — no `overflow-*-auto|scroll` outside the shell, and
+  no `grid-cols-*` under `app/(dash)`: page grids are `Row`s.
+- `tests/page-layout.test.tsx` — one scroller and the gutter, for every
+  combination of width × metric row × sub-nav; the splits stack below `lg`.
 
 ### The head zone
 
@@ -511,9 +545,9 @@ AUDIT_BASE=http://127.0.0.1:3000 pnpm audit:layout
 ```
 
 `scripts/layout-audit.ts` drives a real browser at three viewport sizes and
-asserts ten structural invariants — the document never scrolls, nothing is
-clipped, every scroller actually moves, the header stays put, every control has
-an accessible name, no panel collapsed to a sliver, tables are reachable.
+asserts the structural invariants in a real browser — the document never
+scrolls, nothing is clipped, the page body actually moves, the header stays put,
+every control has an accessible name, no panel collapsed to a sliver, tables fit.
 
 This exists because the characteristic failure of this system is **broken and
 green**: TypeScript passes, tests pass, the page returns 200, and a screenshot
@@ -530,9 +564,9 @@ new page shape.
 |---|---|
 | Foundation | `Button` `Card` (+`CardHeader`/`CardTitle`/`CardContent`) `typography` |
 | Forms | `Field` `FieldGrid` `Input` `Textarea` `Select` `Switch` `Segmented` `SearchInput` `field-styles` |
-| Display | `Table` `Badge` `Banner` `EmptyState` `MetricCard` `MetricRow` `Spinner` `Tooltip` |
+| Display | `Table` `Badge` `Banner` `EmptyState` `MetricCard` `Spinner` `Tooltip` |
 | Overlay & nav | `Breadcrumb` `TabBar` `NavTabs`¹ `Toolbar` |
-| Layout | `AppShell` `PageFrame` |
+| Layout | `AppShell` `PageFrame` `Stack` `Row` |
 | Feedback | `showToast` / `Toaster`¹ |
 
 **Thirteen primitives left this table on 2026-09-11 and the code is why.** `DataTable`,
@@ -562,10 +596,7 @@ how a module ends up mounted twice.
 
 | Component | Use |
 |---|---|
-| `StatusDashboard` | the metric row + 2/3·1/3 split. The layout primitive. |
-| `PageShell` | master-detail preset over it |
 | `FormPanel` | **the** form shell — header, fields, owned footer. Two switches: `inline` (drop the Card, for a table row) and `disclosure` (read view until opened, for credentials) |
-| `RailNote` | rail guidance (markdown or rich children) |
 | `ProseBlock` | sanitised markdown, themed to the tokens |
 | `DocumentShell` | long-form document layout |
 | `VerifyResultBox` | the "did the live check pass" box (`FormPanel`'s `validate` renders it) |
@@ -594,7 +625,7 @@ screen spins, the next shows skeletons and a third dims behind an overlay never
 teaches the reader what "busy" looks like, so every one of them reads as a
 possible failure.
 
-Skeletons are built from the same `MetricRow` / `Card` primitives as the real
+Skeletons are built from the same `Row` / `Card` primitives as the real
 screens, so the page does not jump on arrival — a skeleton that resolves into
 something a different size is worse than no skeleton. `app/(dash)/loading.tsx`
 covers the group; a route whose shape differs enough to jump gets its own.
@@ -610,17 +641,17 @@ illustration?: { src: string; width: number; height: number }
 
 `EmptyState`'s `icon` prop stays **required**. The illustration is additive: a
 call site that passes none still renders the lucide icon exactly as before. All
-**18** were then wired deliberately, one at a time, against the mapping in §2 —
+**15** were then wired deliberately, one at a time, against the mapping in §2 —
 so the icon is a fallback for a failed image rather than a style anyone still
 renders on purpose.
 
-For `showToast` the ratio is the argument: **1 of 37** call sites passes one.
-`ApproveAction` sends `state-approved.png`; the other 36 hit the untouched
+For `showToast` the ratio is the argument: **1 of 29** call sites passes one.
+`ApproveAction` sends `state-approved.png`; the other 28 hit the untouched
 `CheckCircle2` / `XCircle` branch and were not read, let alone edited. Required
-would have made that a 37-file change to express a one-file decision, and every
+would have made that a 29-file change to express a one-file decision, and every
 unconsidered site would have got whichever mascot was least trouble to type.
 
-(37, not 39: `grep showToast\(` finds 39 occurrences, one of which is the
+(29, not 31: `grep showToast\(` finds 31 occurrences, one of which is the
 function's own definition and one a mention inside a comment. Counting matches
 instead of call sites is the same mistake as counting check files instead of
 declared checks.)
@@ -700,9 +731,8 @@ to pass explicitly when the colour means something; `tintFor(i)` never returns
 one. Every tint fill also carries `CHART_EDGE`.
 
 **Panels, not bare Cards.** Reach for `Panel` unless the surface genuinely has
-no title. `padded={false}` when a table or full-bleed list lives inside — it
-also adds the horizontal scroll affordance, so a wide table can never be
-silently cut off.
+no title. `padded={false}` when a table or full-bleed list lives inside. A
+table that does not fit drops columns with `hideBelow` — nothing scrolls sideways.
 
 **URL as state.** The period lives in `?period=`, so a scoped view is linkable,
 refreshable, and readable by a server component with no client round-trip.
@@ -778,7 +808,7 @@ the thing at once does.
 
 ### Run them with `pnpm checks`, and mind the denominator
 
-`pnpm checks` runs all seventeen and prints `17/17`. **Run it rather than looping
+`pnpm checks` runs all eighteen and prints `18/18`. **Run it rather than looping
 over `checks/*.ts` in a shell**, and the reason is a real failure rather than
 tidiness.
 

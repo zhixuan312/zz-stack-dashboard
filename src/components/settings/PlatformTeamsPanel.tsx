@@ -54,7 +54,7 @@ export function PlatformTeamsPanel() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <>
       <FormPanel
         ariaLabel="Create a team"
         heading="Create a team"
@@ -75,7 +75,7 @@ export function PlatformTeamsPanel() {
       </FormPanel>
 
       <Panel title="Archive a team" aside="reversible — create_team on the same slug restores it">
-        <div className="flex items-end gap-3">
+        <div className="flex flex-wrap items-end gap-3">
           <Field label="Team slug" className="flex-1">
             {(p) => <Input {...p} value={archiveSlug} onChange={(e) => setArchiveSlug(e.target.value)} />}
           </Field>
@@ -92,6 +92,6 @@ export function PlatformTeamsPanel() {
           )}
         </div>
       </Panel>
-    </div>
+    </>
   );
 }

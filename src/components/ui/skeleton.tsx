@@ -1,6 +1,6 @@
 import { type HTMLAttributes } from 'react';
 import { cn } from '@/lib/cn';
-import { MetricRow } from '@/components/ui/metric-card';
+import { Row, Stack } from '@/components/ui/layout';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 
 /**
@@ -18,7 +18,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
  * A skeleton must MATCH the real layout. A generic grey block that resolves
  * into something a different size makes the page jump, which is worse than
  * showing nothing — that is why the presets below are built from the same
- * `MetricRow` / `Card` primitives as the real screens rather than from
+ * `Row` / `Card` primitives as the real screens rather than from
  * free-floating rectangles.
  *
  * `ds-shimmer` respects `prefers-reduced-motion` via the global reduce block.
@@ -36,7 +36,7 @@ export function Skeleton({ className, ...rest }: HTMLAttributes<HTMLDivElement>)
 /** A skeleton in the shape of the status row. */
 function SkeletonMetricRow({ count = 4 }: { count?: number }) {
   return (
-    <MetricRow className="shrink-0">
+    <Row split="1/4">
       {Array.from({ length: count }, (_, i) => (
         <div
           key={i}
@@ -49,7 +49,7 @@ function SkeletonMetricRow({ count = 4 }: { count?: number }) {
           <Skeleton className="h-2.5 w-24" />
         </div>
       ))}
-    </MetricRow>
+    </Row>
   );
 }
 
@@ -76,22 +76,18 @@ function SkeletonPanel({ lines = 5, className }: { lines?: number; className?: s
 }
 
 /**
- * The standard page-loading shape: a status row over a stacked panel column.
- * Route `loading.tsx` files render this so every route's busy state is the same
- * shape as every other route's.
+ * The standard page-loading shape: the metric row, then a full-width panel over a
+ * `1/2` row — the commonest page shape, so the swap to real content moves least.
  */
-export function SkeletonPage({ metrics = 4, panels = 2 }: { metrics?: number; panels?: number }) {
+export function SkeletonPage({ metrics = 4 }: { metrics?: number }) {
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col gap-4" role="status" aria-label="Loading">
+    <Stack role="status" aria-label="Loading">
       <SkeletonMetricRow count={metrics} />
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="flex min-h-0 flex-col gap-4 lg:col-span-2">
-          {Array.from({ length: panels }, (_, i) => (
-            <SkeletonPanel key={i} lines={i === 0 ? 6 : 4} />
-          ))}
-        </div>
+      <SkeletonPanel lines={6} />
+      <Row split="1/2">
         <SkeletonPanel lines={4} />
-      </div>
-    </div>
+        <SkeletonPanel lines={4} />
+      </Row>
+    </Stack>
   );
 }

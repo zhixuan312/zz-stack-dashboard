@@ -38,7 +38,7 @@ export function InlineDestructive({
   }
 
   return (
-    <span className="flex items-center justify-end gap-2">
+    <span className="flex flex-wrap items-center justify-end gap-2">
       <span className="text-xs text-ink-faint">{question}</span>
       <Button type="button" size={size} variant="secondary" onClick={() => setConfirming(false)} disabled={pending}>
         Cancel

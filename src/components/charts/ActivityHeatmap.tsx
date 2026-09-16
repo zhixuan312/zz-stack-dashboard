@@ -58,8 +58,10 @@ export function ActivityHeatmap({
 
   return (
     <div className={cn('flex flex-col gap-2', className)}>
-      <div className="overflow-x-auto">
-        <div className="min-w-[560px]">
+      {/* NO MINIMUM WIDTH AND NO SIDEWAYS SCROLL: 24 `minmax(0,1fr)` columns shrink with the
+          card, and a cell is still a square at 12px. */}
+      <div>
+        <div>
           {/* Hour ruler — every third hour, so the labels never collide. */}
           <div className="mb-1 grid grid-cols-[2.5rem_repeat(24,minmax(0,1fr))] items-end gap-[2px]">
             <span />

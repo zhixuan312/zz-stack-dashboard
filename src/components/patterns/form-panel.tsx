@@ -156,9 +156,9 @@ export function FormPanel({
           {error}
         </Micro>
       ) : null}
-      <div className="flex items-center gap-2.5">
+      <div className="flex flex-wrap items-center gap-2.5">
         {destructive}
-        <div className="ml-auto flex items-center gap-2.5">
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-2.5">
           {onCancel ? (
             <Button type="button" variant="secondary" onClick={onCancel} disabled={busy}>
               {cancelLabel}

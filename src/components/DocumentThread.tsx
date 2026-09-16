@@ -13,9 +13,9 @@ import { useConsoleMutation } from '@/lib/mutate';
  * `discussion.ts` header for why a thread is a table this app reads directly rather than
  * a flow-side act. This file owns the fetch-then-stream lifecycle, the seq cursor that
  * makes a dropped connection recoverable, and the composer. The document page only wires
- * the two pieces into `DocumentShell`'s slots — the scrolling list into `body`, the
- * composer into `footer` — because those are two different places in the DOM (one
- * scrolls, one is pinned) that nonetheless share one thread's state.
+ * the two pieces into `DocumentShell`'s slots — the message list into `body`, the
+ * composer into `footer` — because those are two different places in the DOM that
+ * nonetheless share one thread's state.
  */
 
 export interface ThreadMessage {
@@ -238,10 +238,8 @@ export function useDocumentThread({ team, initiative, path, active }: UseDocumen
 }
 
 /**
- * The scrolling message list — `DocumentShell`'s `body` slot on the discussion tab.
- * Renders plain flow content and never its own `overflow-y-auto`: the shell's own body
- * div is the scroll container (see `DocumentShell`'s `bodyRef` comment — "the shell owns
- * scrolling"), and a second scrolling div here would fight it for the scrollbar.
+ * The message list — `DocumentShell`'s `body` slot on the discussion tab. Plain flow
+ * content: the card is as tall as the thread and the page scrolls.
  */
 export function DocumentThreadMessages({ messages, loading, loadError }: {
   messages: ThreadMessage[];
@@ -273,7 +271,7 @@ export function DocumentThreadMessages({ messages, loading, loadError }: {
             </span>
             <Time value={m.created_at} />
           </div>
-          <p className="mt-1 whitespace-pre-wrap text-sm text-ink">{m.body}</p>
+          <p className="mt-1 whitespace-pre-wrap break-words text-sm text-ink">{m.body}</p>
         </li>
       ))}
     </ul>

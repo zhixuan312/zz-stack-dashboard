@@ -37,7 +37,7 @@ export function TeamAdminPanel() {
   const team = data.superadmin ? manualTeam.trim() : (manualTeam || adminTeams[0] || '');
 
   return (
-    <div className="flex flex-col gap-4">
+    <>
       <Panel title="Team administration" aside="members, roles, and flows for a team you administer">
         <Field label="Team" hint={data.superadmin ? 'Any team slug — as a superadmin you administer all of them' : undefined}>
           {(p) =>
@@ -76,6 +76,6 @@ export function TeamAdminPanel() {
           <TeamFlowsPanel team={team} />
         </>
       ) : null}
-    </div>
+    </>
   );
 }

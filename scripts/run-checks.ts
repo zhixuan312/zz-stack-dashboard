@@ -33,6 +33,7 @@ const EXPECTED = [
   'mascot-assignment',        // I-13 all nine assignments, plus the root 404
   'no-dark-mode',             // I-5  no machinery, and no `dark:` variant
   'one-mark',                 // I-10 the brand is drawn in exactly one place
+  'one-scroller',             // (layout) only the shell scrolls; page grids are Rows
   'sparkle-motif',            // I-15 one inline sparkle, on the active item, decorative
   'token-layer',              // I-6  frozen values, @theme mapping, line budget
   'typography',               // I-8  Rubik + Baloo 2, Inter features gone, tnum kept

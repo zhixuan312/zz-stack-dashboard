@@ -36,6 +36,10 @@ import { TokensPanel } from '@/components/settings/TokensPanel';
  * `showPeriod={false}` and no `updatedAt`: nothing here is a metric with a
  * refresh cadence — see `DashboardPage`'s own comment on `updatedAt` ("a
  * settings form, not a metric").
+ *
+ * READING WIDTH, one card per row: it is a column of forms, and the tables in it are short
+ * rosters sized to fit that column. Every section returns its cards as a fragment, so each
+ * card is a row of the page rather than a stack nested inside one.
  */
 export default function SettingsPage() {
   return (
@@ -43,16 +47,15 @@ export default function SettingsPage() {
       title="Settings"
       description="How this console looks and what it shows you, plus your tokens, client setup and teams."
       showPeriod={false}
+      width="reading"
     >
-      <div className="flex flex-col gap-6">
-        <ConsoleScopePanel />
-        <PasswordPanel />
-        <TokensPanel />
-        <ClientSetupPanel />
-        <TeamsPanel />
-        <TeamAdminPanel />
-        <PlatformSection />
-      </div>
+      <ConsoleScopePanel />
+      <PasswordPanel />
+      <TokensPanel />
+      <ClientSetupPanel />
+      <TeamsPanel />
+      <TeamAdminPanel />
+      <PlatformSection />
     </DashboardPage>
   );
 }

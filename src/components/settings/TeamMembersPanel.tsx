@@ -8,7 +8,7 @@ import { FormPanel } from '@/components/patterns/form-panel';
 import { InlineDestructive } from '@/components/settings/inline-destructive';
 import {
   Badge, EmptyState, Field, FieldGrid, Input, Select, SelectContent, SelectItem, SelectTrigger,
-  SelectValue, Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  SelectValue, PageControl, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, usePaged,
 } from '@/components/ui';
 import { showToast } from '@/components/ui/toast';
 import { ApiError, useConsole, type TeamMemberRow } from '@/lib/api';
@@ -77,7 +77,7 @@ export function TeamMembersPanel({ team }: { team: string }) {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <>
       <Panel title="Members" aside={`${team} — add, remove, or change role`} padded={false}>
         <Query query={list}>
           {(rows) =>
@@ -91,44 +91,13 @@ export function TeamMembersPanel({ team }: { team: string }) {
                 />
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Person</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead className="text-right">Remove</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.map((m) => (
-                    <TableRow key={m.email}>
-                      <TableCell className="text-xs">{m.email}</TableCell>
-                      <TableCell>
-                        <Select value={m.role} onValueChange={(v) => void changeRole(m.email, v as 'member' | 'admin')}>
-                          <SelectTrigger className="h-8 w-[110px] text-xs" aria-label={`${m.email}'s role`}>
-                            <SelectValue>
-                              <Badge variant={m.role === 'admin' ? 'accent' : 'neutral'} size="sm">{m.role}</Badge>
-                            </SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="member">member</SelectItem>
-                            <SelectItem value="admin">admin</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <InlineDestructive
-                          label="Remove"
-                          question={`Remove ${m.email} from ${team}?`}
-                          confirmLabel="Remove"
-                          pending={removeMutation.isPending}
-                          onConfirm={() => void remove(m.email)}
-                        />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <MembersTable
+                rows={rows}
+                team={team}
+                pending={removeMutation.isPending}
+                onRole={(email, next) => void changeRole(email, next)}
+                onRemove={(email) => void remove(email)}
+              />
             )
           }
         </Query>
@@ -162,6 +131,61 @@ export function TeamMembersPanel({ team }: { team: string }) {
           </Field>
         </FieldGrid>
       </FormPanel>
-    </div>
+    </>
+  );
+}
+
+/** ITS OWN COMPONENT so it can hold the page state — the rows come from a `Query` render prop.
+ *  `team` is the reset key: switching team lands on the first page of the new roster. */
+function MembersTable({ rows, team, pending, onRole, onRemove }: {
+  rows: TeamMemberRow[];
+  team: string;
+  pending: boolean;
+  onRole: (email: string, next: 'member' | 'admin') => void;
+  onRemove: (email: string) => void;
+}) {
+  const { page, controls } = usePaged(rows, team);
+  return (
+    <>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Person</TableHead>
+            <TableHead>Role</TableHead>
+            <TableHead className="text-right">Remove</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {page.map((m) => (
+            <TableRow key={m.email}>
+              <TableCell className="break-all text-xs">{m.email}</TableCell>
+              <TableCell>
+                <Select value={m.role} onValueChange={(v) => onRole(m.email, v as 'member' | 'admin')}>
+                  <SelectTrigger className="h-8 w-[110px] text-xs" aria-label={`${m.email}'s role`}>
+                    <SelectValue>
+                      <Badge variant={m.role === 'admin' ? 'accent' : 'neutral'} size="sm">{m.role}</Badge>
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="member">member</SelectItem>
+                    <SelectItem value="admin">admin</SelectItem>
+                  </SelectContent>
+                </Select>
+              </TableCell>
+              <TableCell className="text-right">
+                <InlineDestructive
+                  label="Remove"
+                  question={`Remove ${m.email} from ${team}?`}
+                  confirmLabel="Remove"
+                  pending={pending}
+                  onConfirm={() => onRemove(m.email)}
+                />
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      <PageControl {...controls} />
+    </>
   );
 }

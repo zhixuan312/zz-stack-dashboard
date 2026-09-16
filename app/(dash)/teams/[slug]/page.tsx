@@ -1,6 +1,5 @@
 'use client';
 
-
 import { use } from 'react';
 import Link from 'next/link';
 import { Inbox } from 'lucide-react';
@@ -8,9 +7,9 @@ import { DashboardPage } from '@/components/DashboardPage';
 import { Panel } from '@/components/Panel';
 import { Query } from '@/components/Query';
 import { FlowMini } from '@/components/Flow';
-import { StateBadge } from '@/components/StateBadge';
+import { StateBadge, initiativeState } from '@/components/StateBadge';
 import {
-  EmptyState, PageControl, Table, TableBody, TableCell, TableHead, TableHeader,
+  EmptyState, PageControl, Row, Table, TableBody, TableCell, TableHead, TableHeader,
   TableRow, Time, usePaged,
 } from '@/components/ui';
 import { useConsole, type Initiative, type TeamDetail } from '@/lib/api';
@@ -18,15 +17,16 @@ import { useConsole, type Initiative, type TeamDetail } from '@/lib/api';
 /**
  * One team: what it is working on, and what it is set up with.
  *
- * "SETUP", NOT "ARCHITECTURE". The word architecture was tried and it meant
- * nothing to the people who had to read it — they could not tell whether it
- * described the platform's design or their own. Flows, agents, blocks and who
- * has connected are four concrete things, and naming them is the whole fix.
+ * THE DETAIL SHAPE: four tiles, the team's work as one full-width list, then its setup as a
+ * `1/2` row. The tiles are what makes this page open like the Overview rather than like a
+ * table with a title — the four things somebody arrives here to learn, before any list.
  */
 export default function TeamPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
   const team = useConsole<TeamDetail>(`/teams/${slug}`);
   const inits = useConsole<{ initiatives: Initiative[] }>(`/initiatives?team=${slug}`);
+  const list = inits.data?.initiatives;
+  const waiting = list?.filter((i) => initiativeState(i) === 'Waiting on you').length;
 
   return (
     <DashboardPage
@@ -34,96 +34,106 @@ export default function TeamPage({ params }: { params: Promise<{ slug: string }>
       description={team.data?.team.name ?? 'Team'}
       showPeriod={false}
       updatedAt={new Date()}
+      metrics={
+        list && team.data
+          ? [
+              { label: 'Initiatives', value: list.length, muted: list.length === 0,
+                sublabel: `${list.filter((i) => !i.closed).length} still open` },
+              { label: 'Waiting on you', value: waiting ?? 0, muted: !waiting, emphasis: !!waiting,
+                sublabel: 'a gate needs a signature' },
+              { label: 'Members', value: team.data.members.length, muted: team.data.members.length === 0,
+                sublabel: `${team.data.members.filter((m) => m.role === 'admin').length} admin` },
+              { label: 'Flows installed', value: team.data.flows.length, muted: team.data.flows.length === 0,
+                sublabel: team.data.flows.map((f) => f.flow).join(', ') || 'no agent yet' },
+            ]
+          : undefined
+      }
     >
-      <div className="flex flex-col gap-4">
-        <Panel title="Initiatives" aside={inits.data ? `${inits.data.initiatives.length}` : undefined} padded={false}>
-          <Query query={inits} skeletonRows={4}>
-            {(d) =>
-              d.initiatives.length ? (
-                <InitiativeTable initiatives={d.initiatives} />
-              ) : (
-                <div className="p-6">
-                  <EmptyState
-                    illustration={{ src: '/assets/brand/state-empty.png', width: 96, height: 96 }}
-                    icon={<Inbox />}
-                    title="No initiatives yet"
-                    description={`${slug} is provisioned but nobody has started a piece of work. The first brain dump into the Operations Agent creates one.`}
-                  />
-                </div>
-              )
-            }
-          </Query>
-        </Panel>
-
-        <Query query={team} skeletonRows={5}>
-          {(d) => (
-            <div className="grid gap-4 lg:grid-cols-2">
-              <Panel title="Flows installed" aside={`${d.flows.length}`} padded={false}>
-                <SimpleTable
-                  head={['Flow', 'Version', 'Agent', 'Installed']}
-                  rows={d.flows.map((f) => [f.flow, f.version, f.agent, f.installed])}
-                  empty="No flow installed — this team has no agent."
+      <Panel title="Initiatives" aside={list ? `${list.length}` : undefined} padded={false}>
+        <Query query={inits} skeletonRows={4}>
+          {(d) =>
+            d.initiatives.length ? (
+              <InitiativeTable initiatives={d.initiatives} />
+            ) : (
+              <div className="p-6">
+                <EmptyState
+                  illustration={{ src: '/assets/brand/state-empty.png', width: 96, height: 96 }}
+                  icon={<Inbox />}
+                  title="No initiatives yet"
+                  description={`${slug} is provisioned but nobody has started a piece of work. The first brain dump into the Operations Agent creates one.`}
                 />
-              </Panel>
-              <Panel title="Members" aside={`${d.members.length}`} padded={false}>
-                <SimpleTable
-                  head={['Person', 'Role', 'Joined']}
-                  rows={d.members.map((m) => [m.email, m.role, m.joined])}
-                  empty="Nobody is in this team."
-                />
-              </Panel>
-            </div>
-          )}
+              </div>
+            )
+          }
         </Query>
-      </div>
+      </Panel>
+
+      <Query query={team} skeletonRows={5}>
+        {(d) => (
+          <Row split="1/2">
+            <Panel title="Flows installed" aside={`${d.flows.length}`} padded={false}>
+              <SimpleTable
+                head={['Flow', 'Version', 'Agent', 'Installed']}
+                rows={d.flows.map((f) => [f.flow, f.version, f.agent, f.installed])}
+                empty="No flow installed — this team has no agent."
+              />
+            </Panel>
+            <Panel title="Members" aside={`${d.members.length}`} padded={false}>
+              <SimpleTable
+                head={['Person', 'Role', 'Joined']}
+                rows={d.members.map((m) => [m.email, m.role, m.joined])}
+                empty="Nobody is in this team."
+              />
+            </Panel>
+          </Row>
+        )}
+      </Query>
     </DashboardPage>
   );
 }
 
-/** The team's initiatives, paged like every other list on this page.
- *
- * ITS OWN COMPONENT so it can hold the page state: the table is rendered inside a `Query`
- * render prop, and a hook cannot be called from a callback. `zz-platform` has 54 initiatives
- * today, so this is the list here that is already past one page rather than hypothetically
- * past it. */
+/** The team's initiatives, paged. ITS OWN COMPONENT so it can hold the page state: the
+ *  table is rendered inside a `Query` render prop, and a hook cannot be called from a
+ *  callback. */
 function InitiativeTable({ initiatives }: { initiatives: Initiative[] }) {
   const { page, controls } = usePaged(initiatives);
   return (
     <>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Initiative</TableHead>
-                  <TableHead>Flow position</TableHead>
-                  <TableHead>State</TableHead>
-                  <TableHead className="text-right">Docs</TableHead>
-                  <TableHead>Gates</TableHead>
-                  <TableHead>Updated</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {page.map((i) => (
-                  <TableRow key={i.slug}>
-                    <TableCell>
-                      <Link
-                        href={`/initiatives/${i.team}/${i.slug}`}
-                        className="font-medium text-accent hover:underline"
-                      >
-                        {i.slug}
-                      </Link>
-                    </TableCell>
-                    <TableCell><FlowMini at={i.at} of={i.of} name={i.stage} /></TableCell>
-                    <TableCell><StateBadge of={i} /></TableCell>
-                    <TableCell className="text-right tabular-nums">{i.documents}</TableCell>
-                    <TableCell className="tabular-nums text-xs">
-                      {i.gates.filter((g) => g.passed).length} of {i.gates.length}
-                    </TableCell>
-                    <TableCell><Time value={i.updated} /></TableCell>
-                  </TableRow>
-                ))}
-                  </TableBody>
-            </Table>
-    <PageControl {...controls} />
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Initiative</TableHead>
+            <TableHead hideBelow="md">Flow position</TableHead>
+            <TableHead>State</TableHead>
+            <TableHead hideBelow="xl" className="text-right">Docs</TableHead>
+            <TableHead hideBelow="lg">Gates</TableHead>
+            <TableHead hideBelow="lg">Updated</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {page.map((i) => (
+            <TableRow key={i.slug}>
+              <TableCell className="max-w-0 w-[40%]">
+                <Link
+                  href={`/initiatives/${i.team}/${i.slug}`}
+                  title={i.slug}
+                  className="block truncate font-medium text-accent hover:underline"
+                >
+                  {i.slug}
+                </Link>
+              </TableCell>
+              <TableCell hideBelow="md"><FlowMini at={i.at} of={i.of} name={i.stage} /></TableCell>
+              <TableCell><StateBadge of={i} /></TableCell>
+              <TableCell hideBelow="xl" className="text-right tabular-nums">{i.documents}</TableCell>
+              <TableCell hideBelow="lg" className="whitespace-nowrap tabular-nums text-xs">
+                {i.gates.filter((g) => g.passed).length} of {i.gates.length}
+              </TableCell>
+              <TableCell hideBelow="lg" className="whitespace-nowrap"><Time value={i.updated} /></TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      <PageControl {...controls} />
     </>
   );
 }
@@ -133,21 +143,21 @@ function SimpleTable({ head, rows, empty }: { head: string[]; rows: string[][]; 
   if (!rows.length) return <p className="p-5 text-sm text-ink-faint">{empty}</p>;
   return (
     <>
-    <Table>
-      <TableHeader>
-        <TableRow>{head.map((h) => <TableHead key={h}>{h}</TableHead>)}</TableRow>
-      </TableHeader>
-      <TableBody>
-        {page.map((r, i) => (
-          <TableRow key={i}>
-            {r.map((c, j) => (
-              <TableCell key={j} className={j === 0 ? 'font-medium text-ink' : 'text-xs'}>{c}</TableCell>
-            ))}
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-    <PageControl {...controls} />
+      <Table>
+        <TableHeader>
+          <TableRow>{head.map((h) => <TableHead key={h}>{h}</TableHead>)}</TableRow>
+        </TableHeader>
+        <TableBody>
+          {page.map((r, i) => (
+            <TableRow key={i}>
+              {r.map((c, j) => (
+                <TableCell key={j} className={j === 0 ? 'break-all font-medium text-ink' : 'text-xs'}>{c}</TableCell>
+              ))}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      <PageControl {...controls} />
     </>
   );
 }

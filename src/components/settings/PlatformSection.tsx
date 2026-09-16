@@ -21,7 +21,7 @@ export function PlatformSection() {
   if (!me.data?.superadmin) return null;
 
   return (
-    <div className="flex flex-col gap-4">
+    <>
       <Panel title="Platform administration" aside="every principal and team on this deployment">
         <p className="text-xs text-ink-faint">
           Add and deactivate people, create and archive teams, and set another
@@ -32,6 +32,6 @@ export function PlatformSection() {
       <PlatformPeoplePanel />
       <PlatformTeamsPanel />
       <PlatformPasswordPanel />
-    </div>
+    </>
   );
 }

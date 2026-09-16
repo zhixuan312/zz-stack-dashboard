@@ -14,11 +14,8 @@ import type { SkillText } from '@/lib/api';
  */
 export function SkillReader({ skill }: { skill: SkillText }) {
   return (
-    <>
-      <Panel title="The skill" aside={`${skill.body.length.toLocaleString()} characters`}>
-        <ProseBlock>{skill.body}</ProseBlock>
-      </Panel>
-
-    </>
+    <Panel title="The skill" aside={`${skill.body.length.toLocaleString()} characters`}>
+      <ProseBlock>{skill.body}</ProseBlock>
+    </Panel>
   );
 }

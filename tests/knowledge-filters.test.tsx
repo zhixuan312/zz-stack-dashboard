@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { KnowledgeNode } from '@/lib/api';
-import { filterKnowledgeNodes, tagFacetCounts, teamFacetOptions } from '@/lib/knowledge-filters';
+import { filterKnowledgeNodes, knowledgeNodeHref, tagFacetCounts, teamFacetOptions } from '@/lib/knowledge-filters';
 
 // This file lives in `tests/` because vitest.config.ts scans ONLY `tests/**` —
 // a test anywhere else is skipped in silence while the suite still reports
@@ -127,5 +127,11 @@ describe('teamFacetOptions', () => {
 
   it('sorts by slug, so the control does not reorder itself between renders', () => {
     expect(teamFacetOptions(nodes).map((o) => o.slug)).toEqual(['a', 'b']);
+  });
+});
+
+describe('knowledgeNodeHref', () => {
+  it('links a node to its own page, one encoded segment per path part', () => {
+    expect(knowledgeNodeHref('team-one', 'nodes/0007-a b.md')).toBe('/knowledge/team-one/nodes/0007-a%20b.md');
   });
 });

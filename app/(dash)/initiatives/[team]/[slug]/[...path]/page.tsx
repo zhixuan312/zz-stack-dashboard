@@ -7,7 +7,7 @@ import { DashboardPage } from '@/components/DashboardPage';
 import { Panel } from '@/components/Panel';
 import { Query } from '@/components/Query';
 import {
-  Badge, Segmented, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Time,
+  Badge, PageControl, Segmented, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Time, usePaged,
 } from '@/components/ui';
 import { DocumentShell, type DocumentShellTab } from '@/components/patterns/document-shell';
 import { ProseBlock } from '@/components/patterns/prose-block';
@@ -81,6 +81,9 @@ export default function DocumentPage({
       }
       showPeriod={false}
       updatedAt={new Date()}
+      // READING WIDTH: the page is one column — the document, how it changed, and its
+      // claims, each a full-width card — and the column is what a reader reads.
+      width="reading"
       actions={
         <Link
           href={`/initiatives/${team}/${slug}`}
@@ -93,7 +96,7 @@ export default function DocumentPage({
     >
       <Query query={q} skeletonRows={12}>
         {(d) => (
-          <div className="flex flex-col gap-4">
+          <>
             <DocumentShell
               title={d.title || rel}
               // `versions` is every snapshot of this document, oldest first, ending
@@ -107,9 +110,6 @@ export default function DocumentPage({
               // last — see `VersionChain`'s own `label()` — but that sentinel is
               // for ordering, not for display, so the badge never reads "v9999".)
               version={d.versions.length}
-              // `headerAction` is ignored once `tabs` is set (the tab bar owns that side
-              // of the header instead — see `DocumentShell`'s own comment) — the Read /
-              // Source toggle that used to sit there now opens the document tab's body.
               tabs={TABS}
               activeTab={activeTab}
               onTabChange={setActiveTab}
@@ -117,7 +117,7 @@ export default function DocumentPage({
                 <dl className="flex flex-wrap items-center gap-x-6 gap-y-1 border-b border-line bg-surface-2/40 px-5 py-2.5 text-[13px]">
                   <span className="flex items-center gap-2">
                     <dt className="text-ink-faint">Approved by</dt>
-                    <dd className="font-mono text-xs text-ink">
+                    <dd className="break-all font-mono text-xs text-ink">
                       {d.approved_by ?? (
                         // Three states, not two. `false` is "the flow gates this
                         // and nobody has"; `null` is a file the flow says nothing
@@ -175,8 +175,6 @@ export default function DocumentPage({
                           <dd><Time value={d.updated_at} /></dd>
                         </span>
                       </dl>
-                      {/* Moved from the header: `headerAction` is ignored once the shell
-                          has tabs, since the tab bar now owns that side of the row. */}
                       <span className="flex shrink-0 items-center gap-3 text-xs text-ink-faint">
                         <Segmented
                           label="How to show this document"
@@ -192,20 +190,14 @@ export default function DocumentPage({
 
                     {d.body?.trim() ? (
                       view === 'read' ? (
-                        // FULL WIDTH, deliberately, against the usual 65–80ch rule.
-                        // An 86ch cap is right for an article and wrong here: a spec
-                        // is half decision tables and criterion ledgers, and capping
-                        // the BLOCK capped those too — a three-column decision table
-                        // sat squeezed into the left half of a panel with the rest
-                        // of the pane empty beside it. The reader is a document pane
-                        // the width of the shell, not a column on a page, and it is
-                        // read for reference more than end to end.
+                        // THE CARD'S FULL WIDTH, uncapped. A spec is half decision tables
+                        // and criterion ledgers, and a `max-w` on the BLOCK capped those
+                        // too; the page's reading width is the cap.
                         <ProseBlock>{readableDocument(d.body)}</ProseBlock>
                       ) : (
-                        // The source is hard-wrapped by whoever wrote it, so it gets a
-                        // horizontal scroller rather than being wrapped a second time —
-                        // double-wrapped markdown is harder to read than either form.
-                        <pre className="overflow-x-auto font-mono text-[12.5px] leading-[1.7] text-ink-soft">
+                        // WRAPPED, not scrolled sideways: a source line longer than the
+                        // column breaks, and a hard-wrapped one is untouched.
+                        <pre className="whitespace-pre-wrap break-words font-mono text-[12.5px] leading-[1.7] text-ink-soft">
                           {d.body}
                         </pre>
                       )
@@ -267,90 +259,95 @@ export default function DocumentPage({
 
             <VersionChain doc={d} />
 
-            {d.decisions.length ? (() => {
-              // THE COLUMNS DEPEND ON THE ROLE, because the rows do.
-              //
-              // A SELECTION judges each criterion against a block, so it carries a
-              // verdict and a mechanism. An AGREEMENT (the spec) is where the
-              // criteria are STATED — there is nothing to judge yet, so every
-              // verdict and qualifier on those 381 rows is empty, and rendering
-              // the selection's columns over them produced a table of em-dashes
-              // beside truncated text. A PLAN's rows are tasks, and the qualifier
-              // holds which criteria each one discharges.
-              const role = d.decisions[0]?.role ?? '';
-              const judged = role === 'selection';
-              const isPlan = role === 'plan';
-              return (
-                <Panel
-                  // THE CLAIMS, NOT "the acceptance criteria". These rows come from
-                  // decisionRows(), whose key pattern is deliberately generic — its own
-                  // comment says "what each key MEANS stays the flow's business, and this
-                  // deliberately does not ask". Calling the column AC asserted a meaning the
-                  // extractor declines to determine, and got it wrong on the first document
-                  // it was pointed at: an sdlc-flow spec listed FR-1..FR-14 under the
-                  // heading "acceptance criteria", because those lines open with a bold key
-                  // and its real AC-* lines are checklist items the reader skipped entirely.
-                  //
-                  // A selection and a plan keep their own titles: for those roles the rows
-                  // genuinely ARE what the titles say, judged and traced respectively.
-                  title={
-                    judged ? 'How each criterion will be delivered'
-                      : isPlan ? 'Which criteria each task discharges'
-                      : 'The claims this document makes'
-                  }
-                  aside={`${d.decisions.length}`}
-                  padded={false}
-                >
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-[5.5rem]">{isPlan ? 'Task' : judged ? 'AC' : 'Key'}</TableHead>
-                        {judged ? <TableHead className="w-[7.5rem]">Verdict</TableHead> : null}
-                        {judged ? <TableHead className="w-[11rem]">Qualifier</TableHead> : null}
-                        {isPlan ? <TableHead className="w-[12rem]">Covers</TableHead> : null}
-                        <TableHead>
-                          {judged ? 'How it is delivered' : isPlan ? 'What the task does' : 'What it says'}
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {d.decisions.map((x, i) => (
-                        <TableRow key={`${x.key}-${i}`}>
-                          <TableCell className="whitespace-nowrap font-mono text-xs font-medium text-ink">
-                            {x.key}
-                          </TableCell>
-                          {judged ? (
-                            <TableCell>
-                              {x.verdict ? (
-                                <Badge variant={x.verdict === 'native' ? 'sage' : 'amber'} dot>
-                                  {x.verdict}
-                                </Badge>
-                              ) : <span className="text-xs text-ink-faint">—</span>}
-                            </TableCell>
-                          ) : null}
-                          {judged ? (
-                            <TableCell className="text-xs text-[var(--amber-deep)]">
-                              {x.qualifier || <span className="text-ink-faint">—</span>}
-                            </TableCell>
-                          ) : null}
-                          {isPlan ? (
-                            <TableCell className="font-mono text-[11px] text-ink-faint">
-                              {x.qualifier || '—'}
-                            </TableCell>
-                          ) : null}
-                          {/* Full text, not truncated. This is the column the table
-                              exists for and it was being clipped mid-sentence. */}
-                          <TableCell className="text-xs leading-relaxed">{x.detail ?? '—'}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </Panel>
-              );
-            })() : null}
-          </div>
+            {d.decisions.length ? <DecisionPanel decisions={d.decisions} /> : null}
+          </>
         )}
       </Query>
     </DashboardPage>
+  );
+}
+
+/** ITS OWN COMPONENT so it can hold the page state — a spec carries hundreds of rows. */
+function DecisionPanel({ decisions }: { decisions: DocumentDetail['decisions'] }) {
+  const { page, controls } = usePaged(decisions);
+  // THE COLUMNS DEPEND ON THE ROLE, because the rows do.
+  //
+  // A SELECTION judges each criterion against a block, so it carries a
+  // verdict and a mechanism. An AGREEMENT (the spec) is where the
+  // criteria are STATED — there is nothing to judge yet, so every
+  // verdict and qualifier on those 381 rows is empty, and rendering
+  // the selection's columns over them produced a table of em-dashes
+  // beside truncated text. A PLAN's rows are tasks, and the qualifier
+  // holds which criteria each one discharges.
+  const role = decisions[0]?.role ?? '';
+  const judged = role === 'selection';
+  const isPlan = role === 'plan';
+  return (
+    <Panel
+      // THE CLAIMS, NOT "the acceptance criteria". These rows come from
+      // decisionRows(), whose key pattern is deliberately generic — its own
+      // comment says "what each key MEANS stays the flow's business, and this
+      // deliberately does not ask". Calling the column AC asserted a meaning the
+      // extractor declines to determine, and got it wrong on the first document
+      // it was pointed at: an sdlc-flow spec listed FR-1..FR-14 under the
+      // heading "acceptance criteria", because those lines open with a bold key
+      // and its real AC-* lines are checklist items the reader skipped entirely.
+      //
+      // A selection and a plan keep their own titles: for those roles the rows
+      // genuinely ARE what the titles say, judged and traced respectively.
+      title={
+        judged ? 'How each criterion will be delivered'
+          : isPlan ? 'Which criteria each task discharges'
+          : 'The claims this document makes'
+      }
+      aside={`${decisions.length}`}
+      padded={false}
+    >
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-[5.5rem]">{isPlan ? 'Task' : judged ? 'AC' : 'Key'}</TableHead>
+            {judged ? <TableHead className="w-[7.5rem]">Verdict</TableHead> : null}
+            {judged ? <TableHead hideBelow="md" className="w-[11rem]">Qualifier</TableHead> : null}
+            {isPlan ? <TableHead hideBelow="md" className="w-[9rem]">Covers</TableHead> : null}
+            <TableHead>
+              {judged ? 'How it is delivered' : isPlan ? 'What the task does' : 'What it says'}
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {page.map((x, i) => (
+            <TableRow key={`${x.key}-${i}`}>
+              <TableCell className="break-all font-mono text-xs font-medium text-ink">
+                {x.key}
+              </TableCell>
+              {judged ? (
+                <TableCell>
+                  {x.verdict ? (
+                    <Badge variant={x.verdict === 'native' ? 'sage' : 'amber'} dot>
+                      {x.verdict}
+                    </Badge>
+                  ) : <span className="text-xs text-ink-faint">—</span>}
+                </TableCell>
+              ) : null}
+              {judged ? (
+                <TableCell hideBelow="md" className="text-xs text-[var(--amber-deep)]">
+                  {x.qualifier || <span className="text-ink-faint">—</span>}
+                </TableCell>
+              ) : null}
+              {isPlan ? (
+                <TableCell hideBelow="md" className="break-words font-mono text-[11px] text-ink-faint">
+                  {x.qualifier || '—'}
+                </TableCell>
+              ) : null}
+              {/* Full text, not truncated. This is the column the table
+                  exists for and it was being clipped mid-sentence. */}
+              <TableCell className="break-words text-xs leading-relaxed">{x.detail ?? '—'}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      <PageControl {...controls} />
+    </Panel>
   );
 }

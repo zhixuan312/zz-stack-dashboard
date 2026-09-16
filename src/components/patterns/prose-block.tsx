@@ -6,11 +6,15 @@ import { Children, Fragment, type ComponentProps, type ReactNode } from 'react';
 import { cn } from '@/lib/cn';
 import { safeMarkdownUrl, sanitizeUserVisibleMarkdown } from '@/lib/safe-markdown';
 
+/* NOTHING IN A DOCUMENT SCROLLS SIDEWAYS. A fenced block wraps, and a table cell breaks a
+   long token anywhere rather than pushing the table past its card. */
+const FIT = 'prose-pre:whitespace-pre-wrap prose-pre:break-words prose-td:[overflow-wrap:anywhere] ';
+
 const VARIANT_CLASSES = {
   document:
-    'prose prose-sm max-w-none text-ink',
+    FIT + 'prose prose-sm max-w-none text-ink',
   rail:
-    'prose prose-sm max-w-none text-ink min-w-0 ' +
+    FIT + 'prose prose-sm max-w-none text-ink min-w-0 ' +
     'prose-headings:mt-0 prose-headings:mb-2 prose-h3:text-sm prose-h3:font-semibold prose-h3:text-ink ' +
     'prose-p:my-1.5 prose-p:text-xs prose-p:leading-relaxed prose-p:text-ink-soft ' +
     'prose-strong:text-ink prose-strong:font-semibold ' +
@@ -20,7 +24,7 @@ const VARIANT_CLASSES = {
     'prose-code:rounded prose-code:bg-accent-tint/60 prose-code:px-1 prose-code:py-0.5 prose-code:text-[0.7rem] ' +
     'prose-code:font-medium prose-code:text-accent-deep prose-code:before:content-none prose-code:after:content-none',
   compact:
-    'prose prose-sm max-w-none text-ink ' +
+    FIT + 'prose prose-sm max-w-none text-ink ' +
     'prose-headings:mt-0 prose-headings:mb-1 ' +
     'prose-p:my-0.5 prose-p:text-xs prose-p:text-ink-soft ' +
     'prose-ul:my-0.5 prose-ul:pl-3',

@@ -5,9 +5,9 @@ import { useState } from 'react';
 import { PageControl, usePaged } from '@/components/ui/pagination';
 
 /** A table is the only honest fixture here: the hook and the control are one feature. */
-function Paged({ n }: { n: number }) {
+function Paged({ n, resetKey }: { n: number; resetKey?: string }) {
   const rows = [...Array(n).keys()].map((i) => `row-${i + 1}`);
-  const { page, controls } = usePaged(rows);
+  const { page, controls } = usePaged(rows, resetKey);
   return (
     <div>
       <ul>{page.map((r) => <li key={r}>{r}</li>)}</ul>
@@ -87,6 +87,25 @@ describe('PageControl', () => {
     // 12 rows is two pages, so page 6 no longer exists: show the last one that does.
     expect(screen.getByText('11–12 of 12')).toBeInTheDocument();
     expect(screen.getByText('row-11')).toBeInTheDocument();
+  });
+
+  /* A NEW QUESTION STARTS AT PAGE 1. The reset key is the filter; keeping page 4 after a
+   * search was typed shows the matches from row 31 on, and the first thirty look missing. */
+  it('returns to the first page when the reset key changes', async () => {
+    function Filtered() {
+      const [q, setQ] = useState('');
+      return (
+        <div>
+          <button type="button" onClick={() => setQ('x')}>filter</button>
+          <Paged n={q ? 40 : 54} resetKey={q} />
+        </div>
+      );
+    }
+    render(<Filtered />);
+    await userEvent.click(screen.getByLabelText('Page 4'));
+    expect(screen.getByText('31–40 of 54')).toBeInTheDocument();
+    await userEvent.click(screen.getByText('filter'));
+    expect(screen.getByText('1–10 of 40')).toBeInTheDocument();
   });
 
   /* A WINDOW, NOT EVERY PAGE — 400 buttons is a paragraph of numbers. */

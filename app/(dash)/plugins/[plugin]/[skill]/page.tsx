@@ -5,7 +5,7 @@ import { FlaskConical } from 'lucide-react';
 import { DashboardPage } from '@/components/DashboardPage';
 import { Panel } from '@/components/Panel';
 import { Query } from '@/components/Query';
-import { Badge, EmptyState } from '@/components/ui';
+import { Badge, EmptyState, Row } from '@/components/ui';
 import { formatCount, formatKb, formatSeconds } from '@/lib/format';
 import { SkillReader } from '@/components/SkillReader';
 import { SkillReferences } from '@/components/SkillReferences';
@@ -20,7 +20,7 @@ import { useConsole, type PluginRow, type Skill, type SkillDetail, type SkillTex
  * countable and unjudged. They are the same kind of thing — text somebody wrote for an agent
  * to load — so this reads the text AND shows what it cost and scored, whichever kind ships it.
  *
- * Whose it is leads in the rail, because it decides what you can do about what you read: a
+ * Whose it is leads the page, because it decides what you can do about what you read: a
  * skill marked THEIRS is a block team's own, vendored, and changing it means agreeing a change
  * with them.
  */
@@ -91,65 +91,6 @@ export default function PluginSkillPage({ params }: { params: Promise<{ plugin: 
             ]
           : undefined
       }
-      // THE RAIL IS WHAT THE SKILL IS; the main column is what it did. The verdict sits under
-      // identity, so the rail reads identity → conclusion and the main column is evidence.
-      rail={
-        // NOT GATED ON THE COST RECORD. The identity of a skill is knowable whether or not
-        // anybody has run it, and the front door is precisely the skill with no runs. Version
-        // and Evaluated come from that record and say so when it is missing; the rest comes
-        // from the catalog.
-        known ? (
-          <div className="flex flex-col gap-4">
-            <Panel title="What this skill is">
-              <dl className="flex flex-col gap-3 text-[13px]">
-                <Row k="Does" v={<span className="text-ink-soft">{text?.description ?? '—'}</span>} />
-                <Row
-                  k="Whose"
-                  v={text?.origin === 'theirs'
-                    ? <Badge variant="accent" dot>the {pluginName} team&rsquo;s</Badge>
-                    : <Badge variant="neutral">ours</Badge>}
-                />
-                <Row k="Position" v={shipped?.isEntry
-                  ? `the front door of ${pluginName}`
-                  : shipped?.position && plugin
-                    ? `${shipped.position} of ${plugin.stages.length} in ${pluginName}`
-                    : `shipped by ${pluginName}, not a stage of its method`} />
-                <Row k="Produces" v={produces
-                  ? <span className="font-mono text-xs">{produces}</span>
-                  : <span className="text-ink-faint">nothing — this skill leaves work, not a document</span>} />
-                <Row
-                  k="Closed by"
-                  v={closes
-                    ? <Badge variant="accent" dot>{closes.name} — a person must approve</Badge>
-                    : <Badge variant="neutral">no gate — the next step simply follows</Badge>}
-                />
-                <Row k="Version" v={<span className="font-mono text-xs">{skill?.version ?? text?.version ?? '—'}</span>} />
-                {/* THE PROVENANCE LINE, verbatim. It is the sentence that says who owns the
-                    content and what of it is ours, and paraphrasing it here would make this
-                    page a second claim about ownership rather than a copy of the one the file
-                    makes. */}
-                {text?.source ? (
-                  <Row k="Source" v={<span className="text-[12px] leading-relaxed text-ink-soft">{text.source}</span>} />
-                ) : null}
-                <Row
-                  k="Evaluated"
-                  v={skill?.evaluated
-                    ? <Badge variant="sage" dot>{`yes — ${skill.evaluated.documents} documents, judge ${skill.evaluated.judge}`}</Badge>
-                    : <Badge variant="amber" dot>no rubric yet</Badge>}
-                />
-              </dl>
-            </Panel>
-            {/* THE VERDICT is derived from the numbers, so it needs them. A skill with no
-                recorded run has none, and an invented conclusion would be the one thing on
-                this page nothing stands behind. */}
-            {skill ? (
-              <Query query={detail} skeletonRows={3}>
-                {(d) => <Conclusion skill={skill} detail={d} />}
-              </Query>
-            ) : null}
-          </div>
-        ) : undefined
-      }
     >
       <Query query={plugins}>
         {() =>
@@ -163,22 +104,79 @@ export default function PluginSkillPage({ params }: { params: Promise<{ plugin: 
               />
             </Panel>
           ) : (
-            // NOT GATED ON `skill`. The cost record comes from recorded runs, so a skill
-            // nobody has called is absent from it — and a front door that describes a whole
-            // method is exactly such a skill. Gating the page on it rendered a header and an
-            // empty body for the one skill most worth reading. The text stands on its own;
-            // the evaluation says "never run" for itself.
-            <Query query={detail} skeletonRows={6}>
-              {(d) => (
-                <>
-                  {view === 'read' && text ? <SkillReader skill={text} /> : null}
-                  {view === 'references' && text ? <SkillReferences skill={text} /> : null}
-                  {view === 'evaluation' ? (
-                    <SkillEvaluation skill={skill} detail={d} scoresHref={scoresHref} />
-                  ) : null}
-                </>
-              )}
-            </Query>
+            <>
+              {/* WHAT THE SKILL IS, and the verdict beside it; the tab below is the evidence.
+                  NOT GATED ON THE COST RECORD. The identity of a skill is knowable whether or
+                  not anybody has run it, and the front door is precisely the skill with no
+                  runs. Version and Evaluated come from that record and say so when it is
+                  missing; the rest comes from the catalog. */}
+              <Row split={skill ? '1/2' : 'full'}>
+                <Panel title="What this skill is">
+                  <dl className="flex flex-col gap-3 text-[13px]">
+                    <Field k="Does" v={<span className="text-ink-soft">{text?.description ?? '—'}</span>} />
+                    <Field
+                      k="Whose"
+                      v={text?.origin === 'theirs'
+                        ? <Badge variant="accent" dot>the {pluginName} team&rsquo;s</Badge>
+                        : <Badge variant="neutral">ours</Badge>}
+                    />
+                    <Field k="Position" v={shipped?.isEntry
+                      ? `the front door of ${pluginName}`
+                      : shipped?.position && plugin
+                        ? `${shipped.position} of ${plugin.stages.length} in ${pluginName}`
+                        : `shipped by ${pluginName}, not a stage of its method`} />
+                    <Field k="Produces" v={produces
+                      ? <span className="break-all font-mono text-xs">{produces}</span>
+                      : <span className="text-ink-faint">nothing — this skill leaves work, not a document</span>} />
+                    <Field
+                      k="Closed by"
+                      v={closes
+                        ? <Badge variant="accent" dot className="whitespace-normal leading-snug">{closes.name} — a person must approve</Badge>
+                        : <Badge variant="neutral" className="whitespace-normal leading-snug">no gate — the next step simply follows</Badge>}
+                    />
+                    <Field k="Version" v={<span className="break-all font-mono text-xs">{skill?.version ?? text?.version ?? '—'}</span>} />
+                    {/* THE PROVENANCE LINE, verbatim. It is the sentence that says who owns the
+                        content and what of it is ours, and paraphrasing it here would make this
+                        page a second claim about ownership rather than a copy of the one the file
+                        makes. */}
+                    {text?.source ? (
+                      <Field k="Source" v={<span className="break-words text-[12px] leading-relaxed text-ink-soft">{text.source}</span>} />
+                    ) : null}
+                    <Field
+                      k="Evaluated"
+                      v={skill?.evaluated
+                        ? <Badge variant="sage" dot className="whitespace-normal leading-snug">{`yes — ${skill.evaluated.documents} documents, judge ${skill.evaluated.judge}`}</Badge>
+                        : <Badge variant="amber" dot>no rubric yet</Badge>}
+                    />
+                  </dl>
+                </Panel>
+                {/* THE VERDICT is derived from the numbers, so it needs them. A skill with no
+                    recorded run has none, and an invented conclusion would be the one thing on
+                    this page nothing stands behind. */}
+                {skill ? (
+                  <Query query={detail} skeletonRows={3}>
+                    {(d) => <Conclusion skill={skill} detail={d} />}
+                  </Query>
+                ) : null}
+              </Row>
+
+              {/* NOT GATED ON `skill`. The cost record comes from recorded runs, so a skill
+                  nobody has called is absent from it — and a front door that describes a whole
+                  method is exactly such a skill. Gating the page on it rendered a header and an
+                  empty body for the one skill most worth reading. The text stands on its own;
+                  the evaluation says "never run" for itself. */}
+              <Query query={detail} skeletonRows={6}>
+                {(d) => (
+                  <>
+                    {view === 'read' && text ? <SkillReader skill={text} /> : null}
+                    {view === 'references' && text ? <SkillReferences skill={text} /> : null}
+                    {view === 'evaluation' ? (
+                      <SkillEvaluation skill={skill} detail={d} scoresHref={scoresHref} />
+                    ) : null}
+                  </>
+                )}
+              </Query>
+            </>
           )
         }
       </Query>
@@ -186,9 +184,8 @@ export default function PluginSkillPage({ params }: { params: Promise<{ plugin: 
   );
 }
 
-/** A label/value line in the rail's identity panel — stacked, because the rail
- *  is a third of the page and a two-column list wraps badly in it. */
-function Row({ k, v }: { k: string; v: React.ReactNode }) {
+/** A label/value line in the identity card, stacked — the card is half the page at most. */
+function Field({ k, v }: { k: string; v: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-0.5">
       <dt className="text-[0.6875rem] font-medium uppercase tracking-[0.04em] text-ink-faint">{k}</dt>
@@ -209,9 +206,8 @@ function Conclusion({ skill, detail }: { skill: Skill; detail: SkillDetail }) {
   const heaviest = detail.surfaces[0];
 
   return (
-    <div className="rounded-[var(--r-lg)] border-2 border-ink bg-surface p-4">
-      <p className="text-[0.6875rem] font-medium uppercase tracking-[0.04em] text-ink-faint">Conclusion</p>
-      <ul className="mt-2 flex flex-col gap-2 text-[13px] leading-relaxed text-ink-soft">
+    <Panel title="Conclusion" weight="hard">
+      <ul className="flex flex-col gap-2 text-[13px] leading-relaxed text-ink-soft">
         <li>
           <b className="text-ink">Cost.</b> {skill.runs} runs at {skill.callsAvg.toFixed(1)} calls each,
           median {formatSeconds(skill.durationMedian)}, {formatKb(skill.kbPerRun)} per run
@@ -235,6 +231,6 @@ function Conclusion({ skill, detail }: { skill: Skill; detail: SkillDetail }) {
             : <>Nothing scores this skill. Writing a rubric for it is a decision nobody has made.</>}
         </li>
       </ul>
-    </div>
+    </Panel>
   );
 }

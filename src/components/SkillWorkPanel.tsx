@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Panel } from '@/components/Panel';
 import {
-  Badge, Segmented, Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Badge, PageControl, Segmented, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, usePaged,
 } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import { formatCount, formatSeconds } from '@/lib/format';
@@ -40,6 +40,9 @@ export function SkillWorkPanel({ skills }: { skills: Skill[] }) {
      /skills comment for why a single-call run has no span to report. On an empty window there
      is nothing to caveat, and a note that fires on emptiness teaches the reader to skip it. */
   const untimed = skills.reduce((n, k) => n + (k.runs - k.timedRuns), 0);
+  // THE AXIS RESETS THE PAGE. It re-ranks rather than narrows, but page three of a new
+  // ranking is not a place anybody asked to be.
+  const { page, controls } = usePaged(rows, axis);
 
   return (
     <Panel
@@ -52,49 +55,51 @@ export function SkillWorkPanel({ skills }: { skills: Skill[] }) {
         </span>
       }
       aside={
-        <span className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2">
-          <span className="tabular-nums text-ink-soft">
-            {formatCount(totalRuns)} runs · {formatCount(totalCalls)} calls
-          </span>
-          <Segmented
-            label="Rank skills by"
-            value={axis}
-            onChange={(v) => setAxis(v as Axis)}
-            options={AXES.map((a) => ({ value: a.value, label: a.label }))}
-          />
+        <span className="tabular-nums text-ink-soft">
+          {formatCount(totalRuns)} runs · {formatCount(totalCalls)} calls
         </span>
       }
       padded={false}
     >
+      {/* IN THE BODY, not the header: the header's aside never shrinks, and four segments
+          beside a title push a phone-width card past its edge. */}
+      <div className="border-b border-line px-4 py-2.5">
+        <Segmented
+          label="Rank skills by"
+          value={axis}
+          onChange={(v) => setAxis(v as Axis)}
+          options={AXES.map((a) => ({ value: a.value, label: a.label }))}
+        />
+      </div>
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Skill</TableHead>
-            <TableHead>Team</TableHead>
+            <TableHead hideBelow="lg">Team</TableHead>
             <TableHead className="text-right">Runs</TableHead>
             <TableHead className="text-right">Median</TableHead>
-            <TableHead className="text-right">Total time</TableHead>
-            <TableHead className="text-right">Calls</TableHead>
+            <TableHead hideBelow="xl" className="text-right">Total time</TableHead>
+            <TableHead hideBelow="md" className="text-right">Calls</TableHead>
             {/* The bar's header is the axis it is drawing, so the column is never an
                 unlabelled decoration the way it is when the toggle only sorts. */}
-            <TableHead className="w-[9rem]">{AXES.find((a) => a.value === axis)!.label}</TableHead>
-            <TableHead className="text-right">Refused</TableHead>
+            <TableHead hideBelow="md" className="w-[9rem]">{AXES.find((a) => a.value === axis)!.label}</TableHead>
+            <TableHead hideBelow="lg" className="text-right">Refused</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.map((k) => {
+          {page.map((k) => {
             const v = metric(k, axis);
             const pct = scale > 0 && v > 0 ? Math.max(1.5, (v / scale) * 100) : 0;
             return (
               <TableRow key={`${k.name}-${k.version}`} className="transition-colors hover:bg-surface-2">
-                <TableCell className="whitespace-nowrap">
+                <TableCell className="break-words">
                   <span className="font-medium text-ink">{k.name}</span>{' '}
                   <span className="font-mono text-xs text-ink-faint">{k.version}</span>
                   {/* Retired travels with the row for the same reason the gateway emits it:
                       these rows own their history and must not read as current. */}
                   {k.retired ? <span className="ml-1.5 t-micro text-ink-faint">retired</span> : null}
                 </TableCell>
-                <TableCell>
+                <TableCell hideBelow="lg">
                   {k.teams.length === 0 ? (
                     // NOT AN EMPTY CELL. 28 runs on this deployment carry no initiative and so
                     // no team; a blank reads as "we failed to look it up" rather than as the
@@ -114,7 +119,7 @@ export function SkillWorkPanel({ skills }: { skills: Skill[] }) {
                     {formatSeconds(k.durationMedian)}
                   </span>
                   {/* WHAT THE MEDIAN IS A MEDIAN OF, whenever that is not the run count in the
-                      column beside it. sdlc-plan reads "25 min · 3 of 34 timed" — a real number
+                      column beside it. sdlc-plan reads "25 min · 3 of N timed" — a real number
                       resting on thin evidence, which is a different thing from a typical run
                       and the reader cannot tell them apart without this. */}
                   {k.timedRuns < k.runs ? (
@@ -123,13 +128,13 @@ export function SkillWorkPanel({ skills }: { skills: Skill[] }) {
                     </span>
                   ) : null}
                 </TableCell>
-                <TableCell className="text-right tabular-nums text-xs">
+                <TableCell hideBelow="xl" className="text-right tabular-nums text-xs">
                   <span className={cn(k.durationTotal === null && 'text-ink-faint')}>
                     {formatSeconds(k.durationTotal)}
                   </span>
                 </TableCell>
-                <TableCell className="text-right tabular-nums">{formatCount(k.calls)}</TableCell>
-                <TableCell>
+                <TableCell hideBelow="md" className="text-right tabular-nums">{formatCount(k.calls)}</TableCell>
+                <TableCell hideBelow="md">
                   <span className="block h-1.5 overflow-hidden rounded-[var(--r-sm)] bg-surface-2">
                     <span
                       className="block h-full rounded-[var(--r-sm)]"
@@ -137,7 +142,7 @@ export function SkillWorkPanel({ skills }: { skills: Skill[] }) {
                     />
                   </span>
                 </TableCell>
-                <TableCell className="text-right tabular-nums text-xs">
+                <TableCell hideBelow="lg" className="text-right tabular-nums text-xs">
                   {/* A PILL, not coloured text. Colour alone is the one channel a reader may
                       not have, and this column is the one worth scanning for. */}
                   {k.refusals
@@ -164,6 +169,7 @@ export function SkillWorkPanel({ skills }: { skills: Skill[] }) {
           no span to report. Times here are taken over the rest.
         </p>
       ) : null}
+      <PageControl {...controls} />
     </Panel>
   );
 }

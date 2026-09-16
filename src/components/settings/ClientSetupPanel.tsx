@@ -52,7 +52,7 @@ export function ClientSetupPanel() {
         <Segmented label="Client" value={client} onChange={setClient} options={CLIENTS} />
         <Query query={setup} skeletonRows={4}>
           {(s) => (
-            <pre className="max-h-72 overflow-auto rounded-[var(--r)] bg-surface-2 p-3 font-mono text-[11px] leading-relaxed">
+            <pre className="whitespace-pre-wrap break-all rounded-[var(--r)] bg-surface-2 p-3 font-mono text-[11px] leading-relaxed">
               {s.config}
             </pre>
           )}

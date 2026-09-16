@@ -7,7 +7,8 @@ import { Query } from '@/components/Query';
 import { FormPanel } from '@/components/patterns/form-panel';
 import { InlineDestructive } from '@/components/settings/inline-destructive';
 import {
-  EmptyState, Field, FieldGrid, Input, Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  EmptyState, Field, FieldGrid, Input, PageControl, Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  usePaged,
 } from '@/components/ui';
 import { showToast } from '@/components/ui/toast';
 import { ApiError, useConsole, type TeamFlowRow } from '@/lib/api';
@@ -66,7 +67,7 @@ export function TeamFlowsPanel({ team }: { team: string }) {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <>
       <Panel title="Flows" aside={`${team} — install or remove`} padded={false}>
         <Query query={list}>
           {(rows) =>
@@ -80,34 +81,7 @@ export function TeamFlowsPanel({ team }: { team: string }) {
                 />
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Flow</TableHead>
-                    <TableHead>Version</TableHead>
-                    <TableHead>Agent</TableHead>
-                    <TableHead className="text-right">Uninstall</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.map((f) => (
-                    <TableRow key={f.flow}>
-                      <TableCell className="font-mono text-xs">{f.flow}</TableCell>
-                      <TableCell className="text-xs">{f.version || <span className="text-ink-faint">—</span>}</TableCell>
-                      <TableCell className="text-xs">{f.agent}</TableCell>
-                      <TableCell className="text-right">
-                        <InlineDestructive
-                          label="Uninstall"
-                          question={`Uninstall ${f.flow} from ${team}?`}
-                          confirmLabel="Uninstall"
-                          pending={uninstallMutation.isPending}
-                          onConfirm={() => void uninstall(f.flow)}
-                        />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <FlowsTable rows={rows} team={team} pending={uninstallMutation.isPending} onUninstall={(f) => void uninstall(f)} />
             )
           }
         </Query>
@@ -134,6 +108,47 @@ export function TeamFlowsPanel({ team }: { team: string }) {
           </Field>
         </FieldGrid>
       </FormPanel>
-    </div>
+    </>
+  );
+}
+
+/** ITS OWN COMPONENT so it can hold the page state — the rows come from a `Query` render prop.
+ *  `team` is the reset key: switching team lands on the first page of the new list. */
+function FlowsTable({ rows, team, pending, onUninstall }: {
+  rows: TeamFlowRow[]; team: string; pending: boolean; onUninstall: (flow: string) => void;
+}) {
+  const { page, controls } = usePaged(rows, team);
+  return (
+    <>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Flow</TableHead>
+            <TableHead>Version</TableHead>
+            <TableHead hideBelow="md">Agent</TableHead>
+            <TableHead className="text-right">Uninstall</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {page.map((f) => (
+            <TableRow key={f.flow}>
+              <TableCell className="break-all font-mono text-xs">{f.flow}</TableCell>
+              <TableCell className="text-xs">{f.version || <span className="text-ink-faint">—</span>}</TableCell>
+              <TableCell hideBelow="md" className="break-words text-xs">{f.agent}</TableCell>
+              <TableCell className="text-right">
+                <InlineDestructive
+                  label="Uninstall"
+                  question={`Uninstall ${f.flow} from ${team}?`}
+                  confirmLabel="Uninstall"
+                  pending={pending}
+                  onConfirm={() => onUninstall(f.flow)}
+                />
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      <PageControl {...controls} />
+    </>
   );
 }

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { FileText, GitCompare } from 'lucide-react';
 import { Panel } from '@/components/Panel';
 import {
-  Badge, Segmented, Time,
+  Badge, PageControl, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Time, usePaged,
 } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import { collapse, diffLines, diffStat } from '@/lib/diff';
@@ -86,6 +86,8 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
   const [at, setAt] = useState(0);
   const collapsed = raw.length - steps.length;
   const [openSource, setOpenSource] = useState<string | null>(null);
+  // Newest first, like the pairs.
+  const { page: stepPage, controls } = usePaged([...steps].reverse());
 
   if (raw.length < 2 && !sources.length) return null;
 
@@ -103,23 +105,30 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
       ? label(s.first)
       : `${label(s.first)}–${label(s.last)}`;
 
+  // A FRAGMENT, so each panel is a card of the page's own stack rather than a card nested in
+  // a column of this component's.
   return (
-    <div className="flex flex-col gap-4">
+    <>
       {pair ? (
         <Panel
           title="What changed, and why"
           aside={
             <span className="flex items-center gap-3">
+              {/* A SELECT, not a segmented strip: one segment per change grows with the
+                  document's history, and a strip that cannot wrap pushes the card wider. */}
               {pairs.length > 1 ? (
-                <Segmented
-                  label="Which change"
-                  value={String(at)}
-                  onChange={(v) => setAt(Number(v))}
-                  options={pairs.map((p, i) => ({
-                    value: String(i),
-                    label: `${stepLabel(p.before)} → ${stepLabel(p.after)}`,
-                  }))}
-                />
+                <Select value={String(at)} onValueChange={(v) => setAt(Number(v))}>
+                  <SelectTrigger className="w-[11rem]" aria-label="Which change">
+                    <SelectValue>{`${stepLabel(pairs[at].before)} → ${stepLabel(pairs[at].after)}`}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {pairs.map((p, i) => (
+                      <SelectItem key={i} value={String(i)}>
+                        {stepLabel(p.before)} → {stepLabel(p.after)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               ) : (
                 <span className="font-mono text-xs text-ink-faint">
                   {stepLabel(pair.before)} → {stepLabel(pair.after)}
@@ -154,7 +163,7 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
                         className="flex w-full items-baseline gap-2 text-left"
                       >
                         <FileText className="mt-0.5 size-3.5 shrink-0 text-ink-faint" aria-hidden />
-                        <span className="flex-1 text-[13px] text-accent hover:underline">
+                        <span className="min-w-0 flex-1 break-words text-[13px] text-accent hover:underline">
                           {s.title || s.path.replace(/^sources\//, '')}
                         </span>
                         <span className="whitespace-nowrap font-mono text-[11px] text-ink-faint">
@@ -163,7 +172,7 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
                       </button>
                       {openSource === s.path ? (
                         // The person's own words, verbatim, which is what a source IS.
-                        <p className="mt-2 max-w-[80ch] whitespace-pre-wrap rounded-[var(--r-sm)] border-l-2 border-accent bg-surface px-3 py-2 text-[13px] leading-relaxed text-ink-soft">
+                        <p className="mt-2 max-w-[80ch] whitespace-pre-wrap break-words rounded-[var(--r-sm)] border-l-2 border-accent bg-surface px-3 py-2 text-[13px] leading-relaxed text-ink-soft">
                           {s.body?.trim() || '(no text stored)'}
                         </p>
                       ) : null}
@@ -192,8 +201,13 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
                 {pairs.length > 1 ? ' Pick an earlier change above.' : ''}
               </p>
             ) : (
-            <div className="overflow-x-auto rounded-[var(--r)] border border-line">
-              <table className="w-full border-collapse font-mono text-[12px] leading-[1.6]">
+            <div className="rounded-[var(--r)] border border-line">
+              {/* `table-fixed`, or a long unbroken line sets the table's minimum width and
+                  `break-words` never gets the chance to wrap it. */}
+              <table className="w-full table-fixed border-collapse font-mono text-[12px] leading-[1.6]">
+                {/* THE WIDTHS LIVE HERE: a fixed table sizes its columns from the first row,
+                    and that is usually a one-cell "unchanged lines" row. */}
+                <colgroup><col className="w-8" /><col /></colgroup>
                 <tbody>
                   {shown.map((l, i) =>
                     l.op === 'skip' ? (
@@ -210,7 +224,7 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
                           l.op === 'remove' && 'bg-[var(--rose-tint)]',
                         )}
                       >
-                        <td className="w-8 select-none border-r border-line px-2 py-0.5 text-right align-top text-ink-faint">
+                        <td className="select-none border-r border-line px-2 py-0.5 text-right align-top text-ink-faint">
                           {l.op === 'add' ? '+' : l.op === 'remove' ? '−' : ''}
                         </td>
                         <td
@@ -237,8 +251,8 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
           <ul className="flex flex-col gap-3">
             {sources.map((s) => (
               <li key={s.path}>
-                <p className="text-[13px] font-medium text-ink">{s.title || s.path}</p>
-                <p className="mt-1 max-w-[80ch] whitespace-pre-wrap text-[13px] leading-relaxed text-ink-soft">
+                <p className="break-words text-[13px] font-medium text-ink">{s.title || s.path}</p>
+                <p className="mt-1 max-w-[80ch] whitespace-pre-wrap break-words text-[13px] leading-relaxed text-ink-soft">
                   {s.body?.trim()}
                 </p>
               </li>
@@ -271,11 +285,11 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
                 across {missing.length === 1 ? 'it' : 'them'} is inside the next step below.
               </li>
             ) : null}
-            {[...steps].reverse().map((st) => (
-              <li key={st.first.path} className="flex items-baseline gap-3 px-4 py-2.5 text-[13px]">
+            {stepPage.map((st) => (
+              <li key={st.first.path} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-2.5 text-[13px]">
                 <GitCompare className="mt-0.5 size-3.5 shrink-0 text-ink-faint" aria-hidden />
                 <span className="w-24 font-mono text-xs text-ink">{stepLabel(st)}</span>
-                <span className="flex-1 font-mono text-xs text-ink-faint">{st.first.path}</span>
+                <span className="min-w-0 flex-1 break-all font-mono text-xs text-ink-faint">{st.first.path}</span>
                 {/* An approval that changed nothing is a real fact and worth
                     seeing — just not as a separate version. */}
                 {st.snapshots > 1 ? (
@@ -299,8 +313,9 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
               content is not a new version of it.
             </p>
           ) : null}
+          <PageControl {...controls} />
         </Panel>
       ) : null}
-    </div>
+    </>
   );
 }

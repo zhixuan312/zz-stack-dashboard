@@ -38,7 +38,7 @@ for (const m of css.matchAll(/^\.(t-[a-z]+)\s*\{([^}]*)\}/gm)) {
   const rem = [...fs[1].matchAll(/([0-9.]+)rem/g)].pop();
   if (rem) sizes.add(Math.round(parseFloat(rem[1]) * 16));
 }
-const WORDS: Record<string, number> = { seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, sixteen: 16, seventeen: 17 };
+const WORDS: Record<string, number> = { seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, sixteen: 16, seventeen: 17, eighteen: 18 };
 const claimed = /### Type — three families, ([a-z]+) sizes/.exec(doc);
 if (!claimed) fail('cannot find the type-scale heading');
 else if (WORDS[claimed[1]] !== sizes.size) {

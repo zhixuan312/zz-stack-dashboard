@@ -21,7 +21,7 @@ export default function DashError({
   }, [error]);
 
   return (
-    <PageFrame title="Something went wrong" width="full" fill>
+    <PageFrame title="Something went wrong">
       <EmptyState
         illustration={{ src: '/assets/brand/state-error.png', width: 74, height: 96 }}
         icon={<TriangleAlert />}

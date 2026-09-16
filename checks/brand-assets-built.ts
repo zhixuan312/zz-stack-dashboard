@@ -9,7 +9,7 @@ import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 const DIR = 'public/assets/brand';
 const WANT = ['wordmark.png', 'mascot-hero.png', 'state-empty.png', 'state-welcome.png',
-              'state-done.png', 'state-error.png', 'state-notfound.png',
+              'state-error.png', 'state-notfound.png',
               'state-approved.png', 'state-goodbye.png', 'state-thinking.png'];
 let code = 0;
 const src = readFileSync('scripts/build-brand-assets.py', 'utf8');

@@ -4,7 +4,7 @@ import { DashboardPage } from '@/components/DashboardPage';
 import { Query } from '@/components/Query';
 import { SkillWorkPanel } from '@/components/SkillWorkPanel';
 import { usePeriod } from '@/components/PeriodProvider';
-import { Banner, MetricCard } from '@/components/ui';
+import { Banner, MetricCard, Row } from '@/components/ui';
 import { formatCount } from '@/lib/format';
 import { useConsole, type Runs, type Skill } from '@/lib/api';
 
@@ -29,8 +29,8 @@ export default function RunsPage() {
     >
       <Query query={runs}>
         {(r) => (
-          <div className="flex flex-col gap-4">
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <>
+            <Row split="1/4">
               <MetricCard label="Runs" value={formatCount(r.totals.runs)} />
               <MetricCard label="Tool calls" value={formatCount(r.totals.calls)}
                 sublabel={`${formatCount(r.totals.refusals)} refused`} />
@@ -42,7 +42,7 @@ export default function RunsPage() {
                 sublabel={r.gaps.turnEvents && !r.gaps.turnsAttributed ? 'recorded, but not linked to a run' : undefined}
                 emphasis muted={!r.gaps.turnsAttributed} />
               <MetricCard label="Payload moved" value={`${r.totals.mb} MB`} />
-            </div>
+            </Row>
 
             {/* The gaps are stated as data, not as a hardcoded caveat — they
                 disappear from the page by themselves the day the platform
@@ -58,7 +58,7 @@ export default function RunsPage() {
             <Query query={skills} skeletonRows={6}>
               {(s) => <SkillWorkPanel skills={s.skills} />}
             </Query>
-          </div>
+          </>
         )}
       </Query>
     </DashboardPage>

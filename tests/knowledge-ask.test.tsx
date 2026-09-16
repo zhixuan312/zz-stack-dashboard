@@ -17,9 +17,9 @@ const mockedMutate = vi.mocked(consoleMutate);
  * (`console-ask.ts`'s `buildCitations`) to a route this app actually has.
  */
 describe('citationHref', () => {
-  it('routes a knowledge node to the knowledge page, opened by team/path', () => {
+  it("routes a knowledge node to that node's own page", () => {
     expect(citationHref('_knowledge/nodes/0007-x.md', 'team-one')).toBe(
-      '/knowledge?open=team-one%2Fnodes%2F0007-x.md',
+      '/knowledge/team-one/nodes/0007-x.md',
     );
   });
 

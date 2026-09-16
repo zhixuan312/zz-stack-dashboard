@@ -19,10 +19,8 @@ export function Panel({
   className,
   /** `false` when the child is a table or list that must run edge to edge. */
   padded = true,
-  // Rest props reach the Card. This is how `data-rail-fill` gets through — the
-  // rail's grow selector matches an attribute on the panel element, and a
-  // component that quietly swallows unknown props makes that opt-in silently
-  // do nothing.
+  // Rest props reach the Card — a component that quietly swallows unknown props
+  // makes every `data-*` hook on it silently do nothing.
   ...rest
 }: {
   title: ReactNode;
@@ -46,21 +44,11 @@ export function Panel({
           <span className="shrink-0 text-right text-xs text-ink-faint">{aside}</span>
         ) : null}
       </CardHeader>
-      {/*
-        `padded={false}` is this app's signal that a table or a full-bleed list
-        lives here, so it also gets the horizontal scroll affordance.
-
-        The alternative is wrapping each table in its own `overflow-x-auto` at
-        the call site. That works but has to be remembered every time, and
-        forgetting is silent: a 732px table in a 649px card at a 1280px viewport
-        simply cuts off its last columns. Putting it here makes the mistake
-        unavailable.
-
-        Deliberately NOT on `Table` itself: `DataTable` renders a sticky header
-        inside its own vertical scroller, and adding an inner scroll container
-        would re-anchor `sticky top-0` and break it.
-      */}
-      <CardContent className={cn('min-h-0 flex-1', !padded && 'overflow-x-auto p-0')}>{children}</CardContent>
+      {/* `padded={false}` when a table or list runs edge to edge.
+          NO HORIZONTAL SCROLL, here or anywhere: a table that is wider than its card is a
+          table with too many columns for that width, and the fix is `hideBelow` on the
+          columns that matter least — see `TableHead`. */}
+      <CardContent className={cn('min-w-0 flex-1', !padded && 'p-0')}>{children}</CardContent>
     </Card>
   );
 }

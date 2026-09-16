@@ -11,7 +11,7 @@ import { INITIATIVE_STATES, StateBadge, initiativeState } from '@/components/Sta
 import { usePeriod } from '@/components/PeriodProvider';
 import { DEFAULT_PERIOD, PERIOD_LABEL, periodCutoff } from '@/lib/period';
 import {
-  Badge, Button, EmptyState, SearchInput, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Switch, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Time, Toolbar, TZ_LABEL,
+  Badge, Button, EmptyState, PageControl, SearchInput, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Switch, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Time, Toolbar, TZ_LABEL, usePaged,
 } from '@/components/ui';
 import { useConsole, type Initiative } from '@/lib/api';
 
@@ -112,8 +112,7 @@ export default function InitiativesPage() {
             // one thing the list could not be narrowed to.
             && (!openOnly || i.gates.some((g) => !g.passed)));
           return (
-            <div className="flex flex-col gap-3">
-              <Panel
+            <Panel
                 title="All initiatives"
                 // NAMES THE WINDOW when there is one. "12 of 57" under a 7-day period reads
                 // as 45 missing initiatives rather than 45 untouched ones, and the reader
@@ -145,58 +144,10 @@ export default function InitiativesPage() {
                     Open gates only
                   </label>
                 </Toolbar>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Initiative</TableHead>
-                      <TableHead>Team</TableHead>
-                      {/* THE FLOW ITSELF, which this table never showed. "Flow position" is
-                          FLOW-RELATIVE -- S5 is `plan audit` on sdlc-flow and `build` on
-                          ops-flow -- so two rows both reading "S5" were at unrelated stages and
-                          the page gave no way to tell them apart. The flow was already in the
-                          payload; only the facet used it. It sits immediately left of the
-                          position so the two read as one fact.
-                          Docs went to make room: a bare document count answered nothing this
-                          page is opened for, while Gates answers "does this need a signature". */}
-                      <TableHead>Flow</TableHead>
-                      <TableHead>Flow position</TableHead>
-                      <TableHead>State</TableHead>
-                      <TableHead>Gates</TableHead>
-                      <TableHead>Updated <span className="font-normal text-ink-faint">({TZ_LABEL})</span></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {rows.map((i) => (
-                      <TableRow key={`${i.team}/${i.slug}`}>
-                        <TableCell className="max-w-[26ch]">
-                          <Link
-                            href={`/initiatives/${i.team}/${i.slug}`}
-                            title={i.slug}
-                            className="block truncate whitespace-nowrap font-medium text-accent hover:underline"
-                          >
-                            {i.slug}
-                          </Link>
-                        </TableCell>
-                        <TableCell><Badge variant="neutral">{i.team}</Badge></TableCell>
-                        {/* `flow` is NULLABLE, and a blank cell would hide why. An initiative
-                            with no flow has no chain of gates resolved against it -- no required
-                            document and no closing rule is enforced on it -- so it is a defect
-                            the page should name, not whitespace. */}
-                        <TableCell className="whitespace-nowrap text-[13px]">
-                          {i.flow
-                            ? <span className="text-ink-soft">{i.flow}</span>
-                            : <span className="text-ink-faint italic">not declared</span>}
-                        </TableCell>
-                        <TableCell><FlowMini at={i.at} of={i.of} name={i.stage} /></TableCell>
-                        <TableCell><StateBadge of={i} /></TableCell>
-                        <TableCell className="whitespace-nowrap text-xs tabular-nums">
-                          {i.gates.filter((g) => g.passed).length} of {i.gates.length}
-                        </TableCell>
-                        <TableCell><Time value={i.updated} /></TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <InitiativeTable
+                  rows={rows}
+                  resetKey={JSON.stringify([needle, team, flow, state, openOnly, period])}
+                />
                 {rows.length === 0 && (
                   <EmptyState
                     illustration={{ src: '/assets/brand/state-empty.png', width: 96, height: 96 }}
@@ -217,10 +168,75 @@ export default function InitiativesPage() {
                   />
                 )}
               </Panel>
-            </div>
           );
         }}
       </Query>
     </DashboardPage>
+  );
+}
+
+/** The list, ten rows at a time, like every list in the console.
+ *
+ * ITS OWN COMPONENT so it can hold the page state: the rows are computed inside a `Query`
+ * render prop, and a hook cannot be called from a callback. `resetKey` is every filter at
+ * once, so narrowing the list always lands on its first page. */
+function InitiativeTable({ rows, resetKey }: { rows: Initiative[]; resetKey: string }) {
+  const { page, controls } = usePaged(rows, resetKey);
+  return (
+    <>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Initiative</TableHead>
+            <TableHead hideBelow="md">Team</TableHead>
+            {/* THE FLOW ITSELF, which this table never showed. "Flow position" is
+                FLOW-RELATIVE -- S5 is `plan audit` on sdlc-flow and `build` on
+                ops-flow -- so two rows both reading "S5" were at unrelated stages and
+                the page gave no way to tell them apart. The flow was already in the
+                payload; only the facet used it. It sits immediately left of the
+                position so the two read as one fact.
+                Docs went to make room: a bare document count answered nothing this
+                page is opened for, while Gates answers "does this need a signature". */}
+            <TableHead hideBelow="2xl">Flow</TableHead>
+            <TableHead hideBelow="lg">Flow position</TableHead>
+            <TableHead>State</TableHead>
+            <TableHead hideBelow="lg">Gates</TableHead>
+            <TableHead hideBelow="lg">Updated <span className="font-normal text-ink-faint">({TZ_LABEL})</span></TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {page.map((i) => (
+            <TableRow key={`${i.team}/${i.slug}`}>
+              <TableCell className="w-[32%] max-w-0">
+                <Link
+                  href={`/initiatives/${i.team}/${i.slug}`}
+                  title={i.slug}
+                  className="block truncate whitespace-nowrap font-medium text-accent hover:underline"
+                >
+                  {i.slug}
+                </Link>
+              </TableCell>
+              <TableCell hideBelow="md"><Badge variant="neutral">{i.team}</Badge></TableCell>
+              {/* `flow` is NULLABLE, and a blank cell would hide why. An initiative
+                  with no flow has no chain of gates resolved against it -- no required
+                  document and no closing rule is enforced on it -- so it is a defect
+                  the page should name, not whitespace. */}
+              <TableCell hideBelow="2xl" className="whitespace-nowrap text-[13px]">
+                {i.flow
+                  ? <span className="text-ink-soft">{i.flow}</span>
+                  : <span className="text-ink-faint italic">not declared</span>}
+              </TableCell>
+              <TableCell hideBelow="lg"><FlowMini at={i.at} of={i.of} name={i.stage} /></TableCell>
+              <TableCell><StateBadge of={i} /></TableCell>
+              <TableCell hideBelow="lg" className="whitespace-nowrap text-xs tabular-nums">
+                {i.gates.filter((g) => g.passed).length} of {i.gates.length}
+              </TableCell>
+              <TableCell hideBelow="lg" className="whitespace-nowrap"><Time value={i.updated} /></TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      <PageControl {...controls} />
+    </>
   );
 }

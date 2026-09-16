@@ -23,16 +23,19 @@ import { cn } from '@/lib/cn';
  */
 export const PAGE_SIZES = [10, 20, 30] as const;
 
-export function usePaged<T>(rows: T[], initial: number = PAGE_SIZES[0]): {
+export function usePaged<T>(rows: T[], resetKey: string = ''): {
   page: T[]; controls: PageControlProps;
 } {
-  const [size, setSize] = useState<number>(initial);
-  const [at, setAt] = useState(0);
+  const [size, setSize] = useState<number>(PAGE_SIZES[0]);
+  /* THE PAGE IS REMEMBERED AGAINST THE QUESTION IT ANSWERED. `resetKey` is whatever narrows
+     the rows — a search, a facet. Reading page 4 of every initiative and then typing a search
+     must land on page 1 of the matches, not on page 4 of a list that no longer has one. */
+  const [at, setAt] = useState<{ key: string; i: number }>({ key: resetKey, i: 0 });
   const pages = Math.max(1, Math.ceil(rows.length / size));
   /* CLAMPED ON READ, not in an effect. Shrinking the page size, or a refetch that returns
      fewer rows, can leave `at` past the end — and a page that renders empty because of its
      own stale state looks exactly like a list that lost its data. */
-  const current = Math.min(at, pages - 1);
+  const current = at.key === resetKey ? Math.min(at.i, pages - 1) : 0;
   const start = current * size;
   return {
     page: rows.slice(start, start + size),
@@ -40,8 +43,8 @@ export function usePaged<T>(rows: T[], initial: number = PAGE_SIZES[0]): {
       total: rows.length, size, at: current, pages,
       from: rows.length === 0 ? 0 : start + 1,
       to: Math.min(start + size, rows.length),
-      onSize: (n) => { setSize(n); setAt(0); },
-      onPage: setAt,
+      onSize: (n) => { setSize(n); setAt({ key: resetKey, i: 0 }); },
+      onPage: (i) => setAt({ key: resetKey, i }),
     },
   };
 }

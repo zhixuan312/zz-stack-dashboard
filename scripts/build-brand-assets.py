@@ -74,10 +74,9 @@ emit('wordmark-zz.png', 'wordmark', 60)
 # --- the login hero --------------------------------------------------------
 emit('mascot-waving.png', 'mascot-hero', 320)
 
-# --- the five state illustrations -----------------------------------------
+# --- the four state illustrations -----------------------------------------
 emit('mascot-bust.png', 'state-empty', 96)
 emit('mascot-waving.png', 'state-welcome', 96)
-emit('mascot-celebrating.png', 'state-done', 96)
 emit('mascot-error.png', 'state-error', 96)
 emit('mascot-notfound.png', 'state-notfound', 96)
 

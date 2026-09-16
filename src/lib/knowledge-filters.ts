@@ -83,3 +83,11 @@ export function teamFacetOptions(nodes: KnowledgeNode[]): { slug: string; count:
   const countFor = (slug: string) => nodes.filter((n) => n.team === slug).length;
   return [...new Set(nodes.map((n) => n.team))].sort().map((slug) => ({ slug, count: countFor(slug) }));
 }
+
+/**
+ * A node's own page: `/knowledge/<team>/<path...>`. Each path segment is encoded on its own
+ * so the slashes stay route separators — the entry page decodes them back segment by segment.
+ */
+export function knowledgeNodeHref(team: string, path: string): string {
+  return `/knowledge/${encodeURIComponent(team)}/${path.split('/').filter(Boolean).map(encodeURIComponent).join('/')}`;
+}

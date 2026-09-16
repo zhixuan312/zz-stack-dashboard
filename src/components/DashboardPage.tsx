@@ -1,47 +1,31 @@
 import type { ReactNode } from 'react';
-import { PageFrame } from '@/components/ui';
-import type { Crumb, MetricCardProps } from '@/components/ui';
-import { RailNote } from '@/components/patterns/feature-rail';
-import { PageShell } from '@/components/patterns/page-shell';
+import { MetricCard, PageFrame, Row, Stack } from '@/components/ui';
+import type { Crumb, MetricCardProps, PageWidth } from '@/components/ui';
 import { PeriodSelect } from '@/components/PeriodSelect';
 import { Freshness } from '@/components/ui/freshness';
 
 /**
- * The one page scaffold every dashboard screen uses.
+ * The one page scaffold every dashboard screen uses: the header, then the body as a stack
+ * of rows — the metric row first when there is one, then whatever the page puts in
+ * `children`, which is `Row`s of cards.
  *
- * Seven pages were each spelling out the same four-part composition, and the
- * combination has to be exactly right or the layout quietly breaks:
- *
- *   PageFrame  width="full" fill   the body must be HEIGHT-BOUNDED and must not
- *                                  scroll, because the panels below scroll
- *                                  themselves — without `fill`, `PageShell`'s
- *                                  `h-full flex-1` has no bound to fill and the
- *                                  whole grid collapses to content height
- *   PageShell  scroll="outer"      these pages STACK cards, so the 2/3 column
- *                                  owns the scroll; `inner` is for a single
- *                                  self-scrolling child such as a data table
- *   metrics                        the status row across the top
- *   note                           guidance, always the top of the 1/3 rail
- *
- * Getting `fill` or `scroll` wrong produces a page that renders without error
- * and simply looks wrong, so it belongs in one place rather than seven.
+ * IT HAS NO LAYOUT SWITCHES. It used to take `scroll`, `fill`, `align`, `rail` and `note`,
+ * and each page picked a combination — so Teams scrolled inside its card, Overview scrolled
+ * the page, and a page with a rail scrolled two columns independently. The page scrolls,
+ * always, and a split is a `Row`. See `@/components/ui/layout`.
  */
 export function DashboardPage({
   title,
   breadcrumb,
   description,
-  note,
-  noteIcon,
-  noteTitle,
   metrics,
   actions,
   updatedAt,
   staleAfterMs,
   now,
   showPeriod = true,
-  scroll = 'outer',
-  rail,
   subnav,
+  width = 'data',
   children,
 }: {
   title: string;
@@ -53,10 +37,6 @@ export function DashboardPage({
   breadcrumb?: Crumb[];
   /** A real sentence, or nothing. Not a restatement of the period — the picker says that. */
   description?: ReactNode;
-  /** Markdown for the rail note, in the house style: `###` sections, `- **Term** — gloss`. */
-  note?: string;
-  noteIcon?: ReactNode;
-  noteTitle?: string;
   metrics?: MetricCardProps[];
   /** Extra header actions, placed left of the period picker. */
   actions?: ReactNode;
@@ -85,14 +65,6 @@ export function DashboardPage({
   now?: Date;
   /** Pages with no time dimension hide the picker. */
   showPeriod?: boolean;
-  /** `inner` when a single child manages its own scroll — a full-height table. */
-  scroll?: 'inner' | 'outer';
-  /**
-   * Extra panels for the 1/3 rail, below the note. `PageShell` calls this slot
-   * the `navigator`. A page with neither `note` nor `rail` renders full-width,
-   * which is what a wide table wants.
-   */
-  rail?: ReactNode;
   /**
    * A switcher band under the header — WHICH of a set of things this page is
    * showing. It belongs here rather than at the top of the body: a control that
@@ -101,6 +73,8 @@ export function DashboardPage({
    * it.
    */
   subnav?: ReactNode;
+  /** `reading` for a document, a form or prose — see `WIDTH`. */
+  width?: PageWidth;
   children: ReactNode;
 }) {
   return (
@@ -108,8 +82,7 @@ export function DashboardPage({
       title={title}
       breadcrumb={breadcrumb}
       description={description}
-      width="full"
-      fill
+      width={width}
       actions={
         (actions || showPeriod || updatedAt !== undefined) && (
           <>
@@ -131,20 +104,14 @@ export function DashboardPage({
       }
       subnav={subnav}
     >
-      <PageShell
-        scroll={scroll}
-        metrics={metrics}
-        note={
-          note ? (
-            <RailNote icon={noteIcon} title={noteTitle}>
-              {note}
-            </RailNote>
-          ) : undefined
-        }
-        navigator={rail}
-      >
+      <Stack>
+        {metrics && metrics.length > 0 ? (
+          <Row split="1/4">
+            {metrics.map((m, i) => <MetricCard key={i} {...m} />)}
+          </Row>
+        ) : null}
         {children}
-      </PageShell>
+      </Stack>
     </PageFrame>
   );
 }

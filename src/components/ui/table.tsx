@@ -2,10 +2,23 @@ import { type HTMLAttributes, type TdHTMLAttributes, type ThHTMLAttributes } fro
 import { cn } from '@/lib/cn';
 
 /**
+ * WHICH COLUMNS GO FIRST when the card is narrow. Nothing in the console scrolls sideways,
+ * so a table that does not fit drops its least important columns instead: put the same
+ * `hideBelow` on a column's head and on its cells. Literal strings, because Tailwind scans
+ * source text and a class built at runtime generates no CSS.
+ */
+const HIDE_BELOW = {
+  md: 'hidden md:table-cell',
+  lg: 'hidden lg:table-cell',
+  xl: 'hidden xl:table-cell',
+  '2xl': 'hidden 2xl:table-cell',
+} as const;
+type HideBelow = keyof typeof HIDE_BELOW;
+
+/**
  * Table — the token-styled table primitives (shadcn pattern). Thin, semantic
- * wrappers around the native table elements, themed with our tokens. Used
- * directly or (preferably) via `DataTable`, which drives them with TanStack
- * Table for column sizing, pagination, and sorting.
+ * wrappers around the native table elements, themed with our tokens. A table
+ * with more than ten rows pages with `usePaged` + `PageControl`.
  */
 export function Table({ className, ...props }: HTMLAttributes<HTMLTableElement>) {
   return <table className={cn('w-full caption-bottom', className)} {...props} />;
@@ -31,11 +44,12 @@ export function TableRow({ className, ...props }: HTMLAttributes<HTMLTableRowEle
   );
 }
 
-export function TableHead({ className, ...props }: ThHTMLAttributes<HTMLTableCellElement>) {
+export function TableHead({ className, hideBelow, ...props }: ThHTMLAttributes<HTMLTableCellElement> & { hideBelow?: HideBelow }) {
   return (
     <th
       className={cn(
         'px-4 py-2.5 text-left align-middle text-[0.6875rem] font-medium uppercase tracking-[0.04em] text-ink-faint',
+        hideBelow && HIDE_BELOW[hideBelow],
         className,
       )}
       {...props}
@@ -43,6 +57,6 @@ export function TableHead({ className, ...props }: ThHTMLAttributes<HTMLTableCel
   );
 }
 
-export function TableCell({ className, ...props }: TdHTMLAttributes<HTMLTableCellElement>) {
-  return <td className={cn('px-4 py-2 align-middle', className)} {...props} />;
+export function TableCell({ className, hideBelow, ...props }: TdHTMLAttributes<HTMLTableCellElement> & { hideBelow?: HideBelow }) {
+  return <td className={cn('px-4 py-2 align-middle', hideBelow && HIDE_BELOW[hideBelow], className)} {...props} />;
 }

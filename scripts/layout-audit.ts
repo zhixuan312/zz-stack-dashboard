@@ -26,6 +26,7 @@
  *   H. no duplicate DOM ids
  *   J. no panel collapsed to a sliver
  *   K. tables are reachable, and fit at the widest viewport
+ *   L. nothing but the page body and the rail scrolls, and nothing scrolls sideways
  *
  * ## Running it
  *
@@ -232,6 +233,22 @@ function auditInPage(slop: number, panelClass: string) {
     const moved = el.scrollTop > before;
     el.scrollTop = before;
     if (!moved) out.push(`D scroller does not move: ${label(el)}`);
+  }
+
+  // L — ONE SCROLLER. Only the page body and the rail may scroll, and nothing may scroll
+  //     sideways at all. A scroller that has nothing to scroll is harmless and ignored;
+  //     one that is actually scrolling is a card that should have paged or wrapped.
+  for (const el of all) {
+    if (el.matches('[data-scroll-region], [data-testid="sidebar"]') || el.closest('[data-testid="sidebar"]')) continue;
+    if (el.contains(document.querySelector('[data-testid="sidebar"]'))) continue;
+    const cs = getComputedStyle(el);
+    const scrolls = (v: string) => v === 'auto' || v === 'scroll';
+    if (scrolls(cs.overflowY) && el.scrollHeight > el.clientHeight + slop) {
+      out.push(`L a second vertical scroller: ${label(el)}`);
+    }
+    if (scrolls(cs.overflowX) && el.scrollWidth > el.clientWidth + slop) {
+      out.push(`L a sideways scroller: ${label(el)}`);
+    }
   }
 
   // G — every interactive control needs an accessible name. An icon-only

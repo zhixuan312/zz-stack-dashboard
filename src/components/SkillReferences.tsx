@@ -20,7 +20,7 @@ export function SkillReferences({ skill }: { skill: SkillText }) {
         <Panel key={r.path} title={r.path} aside={`${r.content.length.toLocaleString()} characters`}>
           {r.path.endsWith('.md')
             ? <ProseBlock>{r.content}</ProseBlock>
-            : <pre className="overflow-x-auto font-mono text-[12.5px] leading-[1.7] text-ink-soft">{r.content}</pre>}
+            : <pre className="whitespace-pre-wrap break-words font-mono text-[12.5px] leading-[1.7] text-ink-soft">{r.content}</pre>}
         </Panel>
       ))}
     </>

@@ -1,3 +1,5 @@
+import { knowledgeNodeHref } from "@/lib/knowledge-filters";
+
 /**
  * Turning an `/api/console/ask` citation's raw store path into the console route that
  * actually shows it.
@@ -6,10 +8,8 @@
  * `_knowledge/nodes/0007-x.md` or `2026-09-08-console-as-an-interface/plan.md` (see
  * `console-ask.ts`'s own `buildCitations`, which says explicitly why: which URL shape a
  * path becomes is this app's decision, not the gateway's). Two shapes exist today:
- *   - a knowledge node (`initiative` is the reserved `_knowledge`) has no page of its own
- *     — the knowledge page (`app/(dash)/knowledge/page.tsx`) opens a node by holding it in
- *     client state (`openKey`), so the only way to LINK to one is `?open=<team>/<path>`,
- *     which the page reads on mount to seed that same state.
+ *   - a knowledge node (`initiative` is the reserved `_knowledge`) has its own page,
+ *     `/knowledge/<team>/<path...>` — see `knowledgeNodeHref`.
  *   - anything else is a document under an initiative, which DOES have its own route:
  *     `/initiatives/<team>/<initiative>/<path...>` (`app/(dash)/initiatives/[team]/[slug]/
  *     [...path]/page.tsx`).
@@ -19,8 +19,7 @@
  */
 export function citationHref(path: string, team: string): string {
   if (path === "_knowledge" || path.startsWith("_knowledge/")) {
-    const nodePath = path.slice("_knowledge/".length);
-    return `/knowledge?open=${encodeURIComponent(`${team}/${nodePath}`)}`;
+    return knowledgeNodeHref(team, path.slice("_knowledge/".length));
   }
   const slash = path.indexOf("/");
   const initiative = slash === -1 ? path : path.slice(0, slash);

@@ -44,5 +44,6 @@ export * from './field-grid';
 export * from './search-input';
 export * from './tab-bar';
 export * from './toolbar';
+export * from './layout';
 export * from './shell';
 export * from './time';

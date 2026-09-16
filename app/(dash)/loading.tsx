@@ -17,7 +17,7 @@ import { SkeletonPage } from '@/components/ui/skeleton';
  */
 export default function DashLoading() {
   return (
-    <PageFrame title="…" width="full" fill>
+    <PageFrame title="…">
       <SkeletonPage />
     </PageFrame>
   );

@@ -6,7 +6,8 @@ import { KnowledgeTabs } from '@/components/knowledge/KnowledgeTabs';
 import { Panel } from '@/components/Panel';
 import { Query } from '@/components/Query';
 import {
-  Badge, EmptyState, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Time, TZ_LABEL,
+  Badge, EmptyState, PageControl, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Time,
+  TZ_LABEL, usePaged,
 } from '@/components/ui';
 import { useConsole, type KnowledgeLogEntry } from '@/lib/api';
 
@@ -68,59 +69,70 @@ export default function KnowledgeLogPage() {
                 }
               />
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>When <span className="font-normal text-ink-faint">({TZ_LABEL})</span></TableHead>
-                    <TableHead>Act</TableHead>
-                    <TableHead>Node</TableHead>
-                    {teams.length > 1 ? <TableHead>Team</TableHead> : null}
-                    <TableHead>Who</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {entries.map((e) => (
-                    <TableRow key={`${e.ts}-${e.node}-${e.kind}`}>
-                      <TableCell className="whitespace-nowrap text-xs tabular-nums">
-                        <Time value={e.ts} />
-                      </TableCell>
-                      <TableCell>
-                        {e.kind === 'knowledge.add'
-                          ? <Badge variant="sage" dot size="sm">recorded</Badge>
-                          : <Badge variant="amber" dot size="sm">superseded</Badge>}
-                      </TableCell>
-                      <TableCell className="max-w-[48ch]">
-                        {/* THE TITLE AS IT STANDS NOW, falling back to the one typed at the
-                            time. A log row reading "node 3" is a number nobody recognises;
-                            the current title is what the reader is looking for, and the
-                            recorded one is what is left when the node is gone from the
-                            shelf — which is a thing that happened, not a row to hide. */}
-                        <span className="flex flex-col gap-0.5">
-                          <span className="text-[13px] leading-snug text-ink">
-                            {e.node_title ?? e.recorded_title ?? <span className="italic text-ink-faint">no longer on the shelf</span>}
-                          </span>
-                          <span className="font-mono text-[11px] text-ink-faint">
-                            node {e.node}
-                            {e.superseded_by ? ` → ${e.superseded_by}` : ''}
-                          </span>
-                        </span>
-                      </TableCell>
-                      {teams.length > 1 ? (
-                        <TableCell>
-                          {e.team ? <Badge variant="neutral" size="sm">{e.team}</Badge> : '—'}
-                        </TableCell>
-                      ) : null}
-                      <TableCell className="whitespace-nowrap text-xs text-ink-soft">
-                        {e.actor ? e.actor.split('@')[0] : '—'}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <JournalTable entries={entries} teams={teams.length} />
             )}
           </Panel>
         )}
       </Query>
     </DashboardPage>
+  );
+}
+
+/** Its own component so it can hold the page state — a hook cannot run inside `Query`. */
+function JournalTable({ entries, teams }: { entries: KnowledgeLogEntry[]; teams: number }) {
+  const { page, controls } = usePaged(entries);
+  return (
+    <>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>When <span className="font-normal text-ink-faint">({TZ_LABEL})</span></TableHead>
+            <TableHead hideBelow="md">Act</TableHead>
+            <TableHead>Node</TableHead>
+            {teams > 1 ? <TableHead hideBelow="xl">Team</TableHead> : null}
+            <TableHead hideBelow="lg">Who</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {page.map((e) => (
+            <TableRow key={`${e.ts}-${e.node}-${e.kind}`}>
+              <TableCell className="whitespace-nowrap text-xs tabular-nums">
+                <Time value={e.ts} />
+              </TableCell>
+              <TableCell hideBelow="md">
+                {e.kind === 'knowledge.add'
+                  ? <Badge variant="sage" dot size="sm">recorded</Badge>
+                  : <Badge variant="amber" dot size="sm">superseded</Badge>}
+              </TableCell>
+              <TableCell className="max-w-[48ch]">
+                {/* THE TITLE AS IT STANDS NOW, falling back to the one typed at the
+                    time. A log row reading "node 3" is a number nobody recognises;
+                    the current title is what the reader is looking for, and the
+                    recorded one is what is left when the node is gone from the
+                    shelf — which is a thing that happened, not a row to hide. */}
+                <span className="flex flex-col gap-0.5">
+                  <span className="text-[13px] leading-snug text-ink">
+                    {e.node_title ?? e.recorded_title ?? <span className="italic text-ink-faint">no longer on the shelf</span>}
+                  </span>
+                  <span className="font-mono text-[11px] text-ink-faint">
+                    node {e.node}
+                    {e.superseded_by ? ` → ${e.superseded_by}` : ''}
+                  </span>
+                </span>
+              </TableCell>
+              {teams > 1 ? (
+                <TableCell hideBelow="xl">
+                  {e.team ? <Badge variant="neutral" size="sm">{e.team}</Badge> : '—'}
+                </TableCell>
+              ) : null}
+              <TableCell hideBelow="lg" className="whitespace-nowrap text-xs text-ink-soft">
+                {e.actor ? e.actor.split('@')[0] : '—'}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      <PageControl {...controls} />
+    </>
   );
 }

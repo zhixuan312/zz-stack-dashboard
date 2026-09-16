@@ -79,8 +79,8 @@ describe('PeriodSelect', () => {
   });
 
   it('keeps every other parameter already in the address bar', async () => {
-    // `?open=` is a real one — a knowledge citation sets it — and a picker that dropped it
-    // would silently close whatever the reader had open.
+    // A picker that rewrote the query string from scratch would silently drop whatever
+    // else a page keeps there.
     window.history.replaceState(null, '', '/?open=team-one%2Fnode-1');
     const user = userEvent.setup();
     mount();

@@ -5,12 +5,24 @@ import { BookOpen, MessageCircleQuestion, Tag, Users } from 'lucide-react';
 import { DashboardPage } from '@/components/DashboardPage';
 import { KnowledgeAsk } from '@/components/KnowledgeAsk';
 import { KnowledgeTabs } from '@/components/knowledge/KnowledgeTabs';
+import { Panel } from '@/components/Panel';
+import { ProseBlock } from '@/components/patterns/prose-block';
 import { Query } from '@/components/Query';
-import { Segmented } from '@/components/ui';
+import {
+  Row, Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui';
 import {
   useConsole, useConsoleMode, type KnowledgeNode, type Me,
 } from '@/lib/api';
 import { tagFacetCounts, teamFacetOptions } from '@/lib/knowledge-filters';
+
+const GUIDANCE =
+  "- **Everything in the team's folder** — specs, decisions, sources and knowledge nodes, " +
+  'not just the nodes on the Nodes tab\n' +
+  '- **One team at a time** — a question is answered from one shelf, so there is no ' +
+  'platform-wide answer to ask for\n' +
+  '- **Citations are the platform’s** — built from the documents actually retrieved, ' +
+  'never from the model’s own text';
 
 /**
  * Ask — a question answered from one team's own documents.
@@ -23,7 +35,8 @@ import { tagFacetCounts, teamFacetOptions } from '@/lib/knowledge-filters';
  *
  * ONE TEAM, ALWAYS. `/ask` refuses `?scope=platform` outright (console-ask.ts: a question
  * is answered from one team's knowledge), so in team mode this is the team being acted for
- * and in platform mode a superadmin has to name one. That is the only control on the page.
+ * and in platform mode a superadmin has to name one. That is the only control on the page,
+ * and it sits in the header because it scopes what the whole page answers from.
  */
 export default function KnowledgeAskPage() {
   const meQ = useConsole<Me>('/me');
@@ -48,6 +61,25 @@ export default function KnowledgeAskPage() {
       showPeriod={false}
       updatedAt={new Date()}
       subnav={<KnowledgeTabs active="ask" />}
+      actions={
+        mode === 'platform' && teamOptions.length > 1 ? (
+          <Select value={team ?? ''} onValueChange={setPicked}>
+            <SelectTrigger className="w-[13rem]" aria-label="Answer from">
+              <SelectValue placeholder="Answer from…" />
+            </SelectTrigger>
+            <SelectContent>
+              {teamOptions.map((o) => (
+                <SelectItem key={o.slug} value={o.slug}>
+                  <span className="flex w-full items-center justify-between gap-4">
+                    <span className="truncate">{o.slug}</span>
+                    <span className="tabular-nums text-ink-faint">{o.count}</span>
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : null
+      }
       metrics={[
         { label: 'Answering from', value: team ?? '—', muted: !team,
           sublabel: mode === 'team' ? 'The team you act for' : 'Pick one team' },
@@ -57,34 +89,22 @@ export default function KnowledgeAskPage() {
         { label: 'Teams in view', value: teamOptions.length, muted: teamOptions.length === 0,
           sublabel: mode === 'team' ? 'Yours' : 'Across the platform', icon: <Users /> },
       ]}
-      note={
-        '### What this reads\n' +
-        "- **Everything in the team's folder** — specs, decisions, sources and knowledge nodes, " +
-        'not just the nodes on the Nodes tab\n' +
-        '- **One team at a time** — a question is answered from one shelf, so there is no ' +
-        'platform-wide answer to ask for\n' +
-        '- **Citations are the platform’s** — built from the documents actually retrieved, ' +
-        'never from the model’s own text'
-      }
-      noteIcon={<MessageCircleQuestion className="size-4" />}
-      noteTitle="Ask"
     >
       <Query query={list} skeletonRows={4}>
         {() => (
-          <div className="flex flex-col gap-4">
-            {/* Only where it is a real choice — see `teamFacetOptions`. A superadmin
-                reading the fleet has to name one team because the answer comes from one
-                shelf; everybody else already is one. */}
-            {mode === 'platform' && teamOptions.length > 1 ? (
-              <Segmented
-                label="Answer from"
-                value={team ?? ''}
-                onChange={setPicked}
-                options={teamOptions.map((o) => ({ value: o.slug, label: `${o.slug} (${o.count})` }))}
-              />
-            ) : null}
+          <Row split="2/3">
             <KnowledgeAsk team={team} />
-          </div>
+            <Panel
+              title={
+                <span className="flex items-center gap-2">
+                  <MessageCircleQuestion className="size-4 text-ink-faint" aria-hidden />
+                  What this reads
+                </span>
+              }
+            >
+              <ProseBlock variant="rail">{GUIDANCE}</ProseBlock>
+            </Panel>
+          </Row>
         )}
       </Query>
     </DashboardPage>

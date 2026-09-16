@@ -34,7 +34,7 @@ export function TabBar({
       // child of a flex column this stretched to the full width of the page, so
       // nine tabs sat packed against the left of a bar that ran to the right edge
       // — which reads as a container that failed to fill rather than a control.
-      className={cn('flex w-fit max-w-full items-center overflow-x-auto rounded-[var(--r)] border border-line bg-surface-2 p-0.5', className)}
+      className={cn('flex w-fit max-w-full flex-wrap items-center rounded-[var(--r)] border border-line bg-surface-2 p-0.5', className)}
     >
       {tabs.map((t) =>
         onTabChange ? (

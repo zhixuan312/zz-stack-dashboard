@@ -134,6 +134,13 @@ export function FlowStepper({ at, gates, outcome, steps }: {
   // own flex context, where `flex-1` divides whatever is left between the six of
   // them. The stepper then spans its card at any width, and the spacing stays even
   // because every connector gets the same share.
+  //
+  // A COLUMN BELOW 920px OF CARD, a row above. Nothing scrolls sideways, and seven
+  // labelled nodes plus their gates do not fit a narrower card without crushing the
+  // labels — so the same siblings stack top to bottom, each node a line with its name
+  // beside it, the connectors turned vertical. A container query, not a breakpoint:
+  // it is the card's width that decides, and the card is narrow in a split at any
+  // viewport.
   const items: ReactNode[] = [];
   stages.forEach((stage, i) => {
     const n = i + 1;
@@ -152,9 +159,9 @@ export function FlowStepper({ at, gates, outcome, steps }: {
         <span
           key={`c${n}`}
           aria-hidden
-          // `min-w` so it never collapses to nothing once the row is scrolling —
-          // a zero-width rule reads as two steps with no relationship at all.
-          className={cn('mt-[13px] h-[1.5px] min-w-[14px] flex-1',
+          // `min-w` so it never collapses to nothing on a tight row — a zero-width
+          // rule reads as two steps with no relationship at all.
+          className={cn('ml-[12px] h-3 w-[1.5px] @min-[920px]:mt-[13px] @min-[920px]:ml-0 @min-[920px]:h-[1.5px] @min-[920px]:w-auto @min-[920px]:min-w-[14px] @min-[920px]:flex-1',
             n <= at ? 'bg-[var(--green)]' : 'bg-line')}
         />,
       );
@@ -162,10 +169,10 @@ export function FlowStepper({ at, gates, outcome, steps }: {
 
     items.push(
       <div key={`s${n}-${stage.name}`} title={stage.what}
-           className="flex w-[92px] shrink-0 flex-col items-center gap-[7px]">
+           className="flex items-center gap-2.5 @min-[920px]:w-[92px] @min-[920px]:shrink-0 @min-[920px]:flex-col @min-[920px]:gap-[7px]">
         <span
           className={cn(
-            'relative grid size-[26px] place-items-center rounded-full border text-[10px] font-semibold',
+            'relative grid size-[26px] shrink-0 place-items-center rounded-full border text-[10px] font-semibold',
             done && 'border-[var(--green)] bg-[var(--green-tint)] text-[var(--green-text)]',
             now && 'border-accent bg-accent text-[var(--on-accent)] ring-[3px] ring-accent-tint',
             !done && !now && 'border-line-strong bg-surface text-ink-faint',
@@ -183,7 +190,7 @@ export function FlowStepper({ at, gates, outcome, steps }: {
             </span>
           )}
         </span>
-        <span className={cn('text-center text-[11px] leading-tight',
+        <span className={cn('text-[11px] leading-tight @min-[920px]:text-center',
           done ? 'text-ink-soft' : now ? 'font-semibold text-ink' : 'text-ink-faint')}>
           {stage.name}
           {/* FOUR WORDS UNDER A 74px NODE. The manifest's description is a sentence, and a
@@ -202,7 +209,7 @@ export function FlowStepper({ at, gates, outcome, steps }: {
 
     if (gate) {
       items.push(
-        <div key={`g${n}`} className="mx-[3px] flex shrink-0 flex-col items-center gap-[7px]">
+        <div key={`g${n}`} className="my-1 flex items-center gap-2 @min-[920px]:mx-[3px] @min-[920px]:my-0 @min-[920px]:shrink-0 @min-[920px]:flex-col @min-[920px]:gap-[7px]">
           <span
             className={cn(
               'inline-flex h-[26px] items-center gap-1 whitespace-nowrap rounded-full border px-2 text-[10px] font-medium',
@@ -218,7 +225,7 @@ export function FlowStepper({ at, gates, outcome, steps }: {
               : <Lock className="size-3" aria-hidden />}
             {gate.name}
           </span>
-          <span className="max-w-[78px] text-center text-[10px] leading-tight text-ink-faint">
+          <span className="text-[10px] leading-tight text-ink-faint @min-[920px]:max-w-[78px] @min-[920px]:text-center">
             {gate.passed ? 'approved' : at >= n ? 'waiting on a person' : 'a person must approve'}
           </span>
         </div>,
@@ -228,12 +235,8 @@ export function FlowStepper({ at, gates, outcome, steps }: {
 
   return (
     <div className="flex flex-col gap-3.5">
-      <div className="overflow-x-auto pb-1.5">
-        {/* `w-full` so the connectors have room to grow into, and `min-w` so a card
-            narrower than the diagram scrolls instead of crushing the labels into
-            each other. The two together are what make it fill a wide card AND
-            survive a narrow one. */}
-        <div className="flex w-full min-w-[920px] items-start">{items}</div>
+      <div className="@container pb-1.5">
+        <div className="flex flex-col @min-[920px]:flex-row @min-[920px]:items-start">{items}</div>
       </div>
       <p className="rounded-[var(--r)] bg-surface-2 px-3.5 py-2.5 text-[13px] leading-relaxed text-ink">
         {flowCaption(at, outcome ?? null, gates, stages[at - 1]?.name, stages.length)}

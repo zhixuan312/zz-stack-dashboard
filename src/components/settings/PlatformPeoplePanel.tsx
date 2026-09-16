@@ -7,8 +7,8 @@ import { Query } from '@/components/Query';
 import { FormPanel } from '@/components/patterns/form-panel';
 import { InlineDestructive } from '@/components/settings/inline-destructive';
 import {
-  Badge, Button, EmptyState, Field, FieldGrid, Input, Table, TableBody, TableCell, TableHead,
-  TableHeader, TableRow, Time,
+  Badge, Button, EmptyState, Field, FieldGrid, Input, PageControl, Table, TableBody, TableCell, TableHead,
+  TableHeader, TableRow, Time, usePaged,
 } from '@/components/ui';
 import { showToast } from '@/components/ui/toast';
 import { ApiError, useConsole, type PlatformPersonRow } from '@/lib/api';
@@ -59,7 +59,7 @@ function IssuedEnrolmentBanner({ email, url, onDismiss }: { email: string; url: 
         Enrolment link for {email} — shown once, send it now
       </p>
       <div className="flex items-center gap-2">
-        <code className="flex-1 overflow-x-auto whitespace-nowrap rounded-[var(--r-sm)] bg-surface px-3 py-2 font-mono text-xs">
+        <code className="min-w-0 flex-1 break-all rounded-[var(--r-sm)] bg-surface px-3 py-2 font-mono text-xs">
           {url}
         </code>
         <Button type="button" size="sm" variant="secondary" leftIcon={copied ? <Check /> : <Copy />} onClick={() => void copy()}>
@@ -132,7 +132,7 @@ export function PlatformPeoplePanel() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <>
       {issued ? (
         <IssuedEnrolmentBanner email={issued.email} url={issued.url} onDismiss={() => setIssued(null)} />
       ) : null}
@@ -150,65 +150,13 @@ export function PlatformPeoplePanel() {
                 />
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Person</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Teams</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead className="text-right">Passkey</TableHead>
-                    <TableHead className="text-right">Deactivate</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.map((p) => (
-                    <TableRow key={p.email}>
-                      <TableCell>
-                        <span className="font-mono text-xs font-medium text-ink">{p.email}</span>
-                        {p.display_name ? <span className="block text-xs text-ink-faint">{p.display_name}</span> : null}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={p.role === 'superadmin' ? 'accent' : 'neutral'} dot size="sm">{p.role}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={p.status === 'active' ? 'sage' : 'neutral'} dot size="sm">{p.status}</Badge>
-                      </TableCell>
-                      <TableCell className="max-w-[30ch] text-xs">
-                        {p.teams.length
-                          ? p.teams.map((t) => `${t.team} (${t.role})`).join(', ')
-                          : <span className="text-ink-faint">none</span>}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap font-mono text-xs"><Time value={p.created_at} /></TableCell>
-                      <TableCell className="text-right">
-                        {p.status === 'active' ? (
-                          <Button
-                            type="button" size="sm" variant="ghost" leftIcon={<KeyRound />}
-                            disabled={enrolMutation.isPending}
-                            onClick={() => void enrol(p.email)}
-                          >
-                            Enrolment link
-                          </Button>
-                        ) : null}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {p.status === 'active' ? (
-                          <InlineDestructive
-                            label="Deactivate"
-                            question={`Deactivate ${p.email}? Their block keys stay live elsewhere.`}
-                            confirmLabel="Deactivate"
-                            pending={deactivateMutation.isPending}
-                            onConfirm={() => void deactivate(p.email)}
-                          />
-                        ) : (
-                          <span className="text-xs text-ink-faint">deactivated</span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <PeopleTable
+                rows={rows}
+                enrolling={enrolMutation.isPending}
+                deactivating={deactivateMutation.isPending}
+                onEnrol={(email) => void enrol(email)}
+                onDeactivate={(email) => void deactivate(email)}
+              />
             )
           }
         </Query>
@@ -232,6 +180,80 @@ export function PlatformPeoplePanel() {
           </Field>
         </FieldGrid>
       </FormPanel>
-    </div>
+    </>
+  );
+}
+
+/** ITS OWN COMPONENT so it can hold the page state — the rows come from a `Query` render prop.
+ *
+ * FOUR COLUMNS, sized to the reading column Settings sits in: who (with their name and teams
+ * beneath), what they are (role over status), when, and what can be done. Seven columns side
+ * by side did not fit that width without scrolling. */
+function PeopleTable({ rows, enrolling, deactivating, onEnrol, onDeactivate }: {
+  rows: PlatformPersonRow[];
+  enrolling: boolean;
+  deactivating: boolean;
+  onEnrol: (email: string) => void;
+  onDeactivate: (email: string) => void;
+}) {
+  const { page, controls } = usePaged(rows);
+  return (
+    <>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Person</TableHead>
+            <TableHead>Role</TableHead>
+            <TableHead hideBelow="md">Created</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {page.map((p) => (
+            <TableRow key={p.email}>
+              <TableCell>
+                <span className="break-all font-mono text-xs font-medium text-ink">{p.email}</span>
+                {p.display_name ? <span className="block text-xs text-ink-faint">{p.display_name}</span> : null}
+                <span className="block break-words text-xs text-ink-soft">
+                  {p.teams.length
+                    ? p.teams.map((t) => `${t.team} (${t.role})`).join(', ')
+                    : <span className="text-ink-faint">no team</span>}
+                </span>
+              </TableCell>
+              <TableCell>
+                <span className="flex flex-col items-start gap-1">
+                  <Badge variant={p.role === 'superadmin' ? 'accent' : 'neutral'} dot size="sm">{p.role}</Badge>
+                  <Badge variant={p.status === 'active' ? 'sage' : 'neutral'} dot size="sm">{p.status}</Badge>
+                </span>
+              </TableCell>
+              <TableCell hideBelow="md" className="whitespace-nowrap font-mono text-xs"><Time value={p.created_at} /></TableCell>
+              <TableCell className="text-right">
+                {p.status === 'active' ? (
+                  <span className="flex flex-wrap items-center justify-end gap-1">
+                    <Button
+                      type="button" size="sm" variant="ghost" leftIcon={<KeyRound />}
+                      disabled={enrolling}
+                      onClick={() => onEnrol(p.email)}
+                    >
+                      Enrolment link
+                    </Button>
+                    <InlineDestructive
+                      label="Deactivate"
+                      question={`Deactivate ${p.email}? Their block keys stay live elsewhere.`}
+                      confirmLabel="Deactivate"
+                      pending={deactivating}
+                      onConfirm={() => onDeactivate(p.email)}
+                    />
+                  </span>
+                ) : (
+                  <span className="text-xs text-ink-faint">deactivated</span>
+                )}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      <PageControl {...controls} />
+    </>
   );
 }

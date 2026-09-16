@@ -3,6 +3,7 @@ import { cn } from '@/lib/cn';
 import { Title, Text } from '@/components/ui/typography';
 import { Breadcrumb, type Crumb } from '@/components/ui/breadcrumb';
 import { SidebarDrawer } from '@/components/ui/sidebar-drawer';
+import { GUTTER, GUTTER_X, WIDTH, type PageWidth } from '@/components/ui/layout';
 
 /**
  * App shell — the locked dashboard frame.
@@ -64,7 +65,7 @@ export function AppShell({
             head-note is hidden and the band is a single 64px line, so a fixed
             band here lines up with the title reliably. `ShellHeader` reserves
             the matching left padding. */}
-        <div className="pointer-events-none absolute left-5 top-0 z-40 flex h-16 items-center md:left-8 lg:hidden">
+        <div className="pointer-events-none absolute left-4 top-0 z-40 flex h-16 items-center md:left-6 lg:hidden">
           <div className="pointer-events-auto">
             <SidebarDrawer>{sidebar}</SidebarDrawer>
           </div>
@@ -77,100 +78,51 @@ export function AppShell({
 
 /** Permanent header bar — a static row above the scroll region (never moves).
  *  `relative z-20` keeps header dropdowns above the scrolling body, which is a
- *  later flex sibling. */
-function ShellHeader({ children, className }: { children: ReactNode; className?: string }) {
+ *  later flex sibling.
+ *
+ *  ITS CONTENT SITS IN THE SAME COLUMN AS THE PAGE'S: the same gutter and the same
+ *  centred max-width, so the title starts exactly where the first card does at any
+ *  window width. A band that runs edge to edge while the content below it centres
+ *  puts the title 400px left of everything it names on a wide monitor. */
+function ShellHeader({ children, width }: { children: ReactNode; width: PageWidth }) {
   return (
     <header
       className={cn(
-        // `items-center` + `min-h`, not a fixed height. The band used to bottom-
-        // align three zones on a shared edge, which is the right grammar while
-        // they are all one line tall. The description is a subtitle under the
-        // title now, so the left zone is two or three lines and the right zone is
-        // one: bottom-aligned, an action landed beside the subtitle's last line
-        // rather than the title it belongs to. Centred, it reads against the
-        // block as a whole. `min-h` lets the subtitle grow the band rather than
-        // be clipped by it.
-        // `pl-16` below `lg` reserves the drawer trigger's slot (AppShell paints
-        // it there); from `lg` the rail is static and the padding returns to normal.
-        'relative z-20 flex min-h-16 shrink-0 items-center gap-4 border-b border-line bg-surface py-3',
-        'pr-5 pl-16 md:pr-8 md:pl-[4.5rem] lg:pl-8',
-        // If you pass `topRight` to `AppShell` (a global bell / account cluster),
-        // add `lg:pr-32` here so a page's own header actions cannot slide under it.
-        // Left off by default: with no cluster it is just a 128px hole at the right
-        // of every header, with the page actions floating short of the edge.
-        className,
+        'relative z-20 flex min-h-16 shrink-0 border-b border-line bg-surface py-3',
+        // `pl-16` below `lg` reserves the drawer trigger's slot (AppShell paints it there);
+        // from `lg` the rail is static and the band takes the content gutter.
+        // Spelled out rather than composed from `GUTTER_X`: two padding-left rules at
+        // overlapping breakpoints resolve by stylesheet order, which nobody can see from here.
+        'pl-16 pr-4 md:pl-[4.5rem] md:pr-6 lg:px-6 xl:px-8',
       )}
     >
-      {children}
+      <div className={cn('mx-auto flex w-full min-w-0 items-center gap-4', WIDTH[width])}>{children}</div>
     </header>
   );
 }
 
-/** Optional secondary nav — a static row directly under the header. */
-function ShellSubNav({ children, className }: { children: ReactNode; className?: string }) {
+/** Optional secondary nav — a static row directly under the header, in the same column. */
+function ShellSubNav({ children, width }: { children: ReactNode; width: PageWidth }) {
   return (
-    <div
-      className={cn(
-        // `min-h`, not `h`: a sub-nav that carries a labelled switcher is taller
-        // than one carrying bare tabs, and a fixed height clips it.
-        'relative z-10 flex min-h-12 shrink-0 items-center gap-1 border-b border-line bg-surface-2 py-2 px-5 md:px-8',
-        className,
-      )}
-    >
-      {children}
+    <div className={cn('relative z-10 flex min-h-12 shrink-0 border-b border-line bg-surface-2 py-2', GUTTER_X)}>
+      <div className={cn('mx-auto flex w-full min-w-0 flex-wrap items-center gap-1', WIDTH[width])}>{children}</div>
     </div>
   );
 }
 
 /**
- * The scroll region — the ONLY part of the frame that scrolls. Fills the height
- * left by the header/sub-nav (`flex-1 min-h-0`) and scrolls its own overflow;
- * `overflow-x-hidden` so a wide child can't add a horizontal scrollbar. The
- * inner element applies the reading max-width + padding so the scrollbar sits at
- * the content-column edge, not inside the text column.
+ * THE scroll region — the only element on a page that scrolls, and only vertically.
+ * The scrollbar sits at the window's edge rather than the content's, so the
+ * whole width of the window scrolls the page, not only the column.
+ *
+ * THE GUTTER IS ON THE SCROLLER AND THE WIDTH ON THE COLUMN INSIDE IT — the same split the
+ * header and sub-nav use. Put both on one element and `max-width` swallows the padding, so
+ * past ~1850px the cards start 32px right of the title above them.
  */
-function ShellBody({
-  children,
-  className,
-  width = 'default',
-  fill = false,
-}: {
-  children: ReactNode;
-  className?: string;
-  width?: 'default' | 'wide' | 'full';
-  /** Full-height, non-scrolling page: the body fills the frame exactly and the
-   *  page never scrolls — content manages its own internal scroll. */
-  fill?: boolean;
-}) {
-  const max = width === 'full' ? 'max-w-none' : width === 'wide' ? 'max-w-[1320px]' : 'max-w-[1120px]';
+function ShellBody({ children, width }: { children: ReactNode; width: PageWidth }) {
   return (
-    <div
-      className={cn(
-        'min-w-0 min-h-0 flex-1',
-        fill ? 'overflow-hidden' : 'overflow-y-auto overflow-x-hidden overscroll-contain',
-      )}
-    >
-      <div
-        className={cn(
-          'mx-auto w-full px-5 md:px-8',
-          /* NO VERTICAL PADDING ON A FILLED PAGE. A `fill` page's content owns a scroll
-           * region, and the shell's `py` sits OUTSIDE it — dead ground the content can
-           * never reach, so it reads as a cream band between the white header and the
-           * first white card, and another under the last one. The scroller carries that
-           * space as its own padding instead, where it is the top and bottom of the
-           * content rather than a frame around it: the first card still starts clear of
-           * the header rule, and the page still ends clear of the window, but both are
-           * space the content scrolls THROUGH.
-           *
-           * A non-`fill` page scrolls as one document and has no such region, so its
-           * padding is the only padding there is and stays. */
-          fill ? 'flex h-full flex-col' : 'py-6 md:py-8',
-          max,
-          className,
-        )}
-      >
-        {children}
-      </div>
+    <div data-scroll-region className={cn('min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain', GUTTER)}>
+      <div className={cn('mx-auto w-full', WIDTH[width])}>{children}</div>
     </div>
   );
 }
@@ -215,8 +167,7 @@ export function PageFrame({
   header,
   subnav,
   children,
-  width,
-  fill = false,
+  width = 'data',
 }: {
   title?: ReactNode;
   breadcrumb?: Crumb[];
@@ -225,13 +176,12 @@ export function PageFrame({
   header?: ReactNode;
   subnav?: ReactNode;
   children: ReactNode;
-  width?: 'default' | 'wide' | 'full';
-  /** Full-height, non-scrolling page (the body fills the frame; content scrolls internally). */
-  fill?: boolean;
+  /** `data` for dashboards, lists and detail pages; `reading` for prose and forms. */
+  width?: PageWidth;
 }) {
   return (
     <>
-      <ShellHeader>
+      <ShellHeader width={width}>
         {header ?? (
           <>
             <div className="flex min-w-0 flex-col gap-1">
@@ -249,12 +199,12 @@ export function PageFrame({
           </>
         )}
       </ShellHeader>
-      {subnav ? <ShellSubNav>{subnav}</ShellSubNav> : null}
-      <ShellBody width={width} fill={fill}>
+      {subnav ? <ShellSubNav width={width}>{subnav}</ShellSubNav> : null}
+      <ShellBody width={width}>
         {/* The description lives in the header on `lg` and up; below that the
             head-note is hidden, so it is re-emitted here or the page loses it
             entirely on a narrow screen. */}
-        {description ? <Text className="-mt-1 mb-5 max-w-[68ch] lg:hidden">{description}</Text> : null}
+        {description ? <Text className="mb-4 max-w-[68ch] lg:hidden">{description}</Text> : null}
         {children}
       </ShellBody>
     </>

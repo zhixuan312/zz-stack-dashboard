@@ -8,7 +8,8 @@ import { Query } from '@/components/Query';
 import { FormPanel } from '@/components/patterns/form-panel';
 import { InlineDestructive } from '@/components/settings/inline-destructive';
 import {
-  Badge, Button, EmptyState, Field, Input, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Time,
+  Badge, Button, EmptyState, Field, Input, PageControl, Table, TableBody, TableCell, TableHead, TableHeader,
+  TableRow, Time, usePaged,
 } from '@/components/ui';
 import { showToast } from '@/components/ui/toast';
 import { ApiError, useConsole, type IssuedToken, type MyAccessToken } from '@/lib/api';
@@ -43,7 +44,7 @@ function IssuedTokenBanner({ issued, onDismiss }: { issued: IssuedToken; onDismi
         Your token{issued.label ? ` (${issued.label})` : ''} — shown once, store it now
       </p>
       <div className="flex items-center gap-2">
-        <code className="flex-1 overflow-x-auto whitespace-nowrap rounded-[var(--r-sm)] bg-surface px-3 py-2 font-mono text-xs">
+        <code className="min-w-0 flex-1 break-all rounded-[var(--r-sm)] bg-surface px-3 py-2 font-mono text-xs">
           {issued.token}
         </code>
         <Button type="button" size="sm" variant="secondary" leftIcon={copied ? <Check /> : <Copy />} onClick={() => void copy()}>
@@ -105,7 +106,7 @@ export function TokensPanel() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <>
       {issued ? <IssuedTokenBanner issued={issued} onDismiss={() => setIssued(null)} /> : null}
 
       <Panel title="Access tokens" aside="for Claude Code, Codex, Hermes or any MCP client" padded={false}>
@@ -121,48 +122,7 @@ export function TokensPanel() {
                 />
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Label</TableHead>
-                    <TableHead>Scope</TableHead>
-                    <TableHead>Issued</TableHead>
-                    <TableHead>Last used</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Revoke</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.map((t) => (
-                    <TableRow key={t.id}>
-                      <TableCell className="text-xs">{t.label || <span className="text-ink-faint">—</span>}</TableCell>
-                      <TableCell><Badge variant="neutral" size="sm">{t.scope}</Badge></TableCell>
-                      <TableCell className="whitespace-nowrap font-mono text-xs"><Time value={t.created_at} /></TableCell>
-                      <TableCell className="whitespace-nowrap font-mono text-xs">
-                        {t.last_used_at ? <Time value={t.last_used_at} /> : <span className="text-ink-faint">never</span>}
-                      </TableCell>
-                      <TableCell>
-                        {t.revoked_at ? (
-                          <Badge variant="rose" dot size="sm">revoked</Badge>
-                        ) : (
-                          <Badge variant="sage" dot size="sm">active</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {t.revoked_at ? null : (
-                          <InlineDestructive
-                            label="Revoke"
-                            question="Revoke this token?"
-                            confirmLabel="Revoke"
-                            pending={revokeMutation.isPending}
-                            onConfirm={() => void revoke(t.id)}
-                          />
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <TokensTable rows={rows} pending={revokeMutation.isPending} onRevoke={(id) => void revoke(id)} />
             )
           }
         </Query>
@@ -180,6 +140,60 @@ export function TokensPanel() {
           {(p) => <Input {...p} value={label} onChange={(e) => setLabel(e.target.value)} />}
         </Field>
       </FormPanel>
-    </div>
+    </>
+  );
+}
+
+/** ITS OWN COMPONENT so it can hold the page state — the rows come from a `Query` render prop. */
+function TokensTable({ rows, pending, onRevoke }: {
+  rows: MyAccessToken[]; pending: boolean; onRevoke: (id: string) => void;
+}) {
+  const { page, controls } = usePaged(rows);
+  return (
+    <>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Label</TableHead>
+            <TableHead hideBelow="md">Scope</TableHead>
+            <TableHead>Issued</TableHead>
+            <TableHead hideBelow="md">Last used</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead className="text-right">Revoke</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {page.map((t) => (
+            <TableRow key={t.id}>
+              <TableCell className="break-words text-xs">{t.label || <span className="text-ink-faint">—</span>}</TableCell>
+              <TableCell hideBelow="md"><Badge variant="neutral" size="sm">{t.scope}</Badge></TableCell>
+              <TableCell className="whitespace-nowrap font-mono text-xs"><Time value={t.created_at} /></TableCell>
+              <TableCell hideBelow="md" className="whitespace-nowrap font-mono text-xs">
+                {t.last_used_at ? <Time value={t.last_used_at} /> : <span className="text-ink-faint">never</span>}
+              </TableCell>
+              <TableCell>
+                {t.revoked_at ? (
+                  <Badge variant="rose" dot size="sm">revoked</Badge>
+                ) : (
+                  <Badge variant="sage" dot size="sm">active</Badge>
+                )}
+              </TableCell>
+              <TableCell className="text-right">
+                {t.revoked_at ? null : (
+                  <InlineDestructive
+                    label="Revoke"
+                    question="Revoke this token?"
+                    confirmLabel="Revoke"
+                    pending={pending}
+                    onConfirm={() => onRevoke(t.id)}
+                  />
+                )}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      <PageControl {...controls} />
+    </>
   );
 }

@@ -4,7 +4,7 @@ import { EmptyState, PageFrame, buttonVariants } from '@/components/ui';
 
 export default function NotFound() {
   return (
-    <PageFrame title="Not found" width="full" fill>
+    <PageFrame title="Not found">
       <EmptyState
         illustration={{ src: '/assets/brand/state-notfound.png', width: 76, height: 96 }}
         icon={<Compass />}

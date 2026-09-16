@@ -230,25 +230,3 @@ export function MetricCard({
     </div>
   );
 }
-
-/**
- * MetricRow — the status-section container. Auto-fits as many `min`-wide cells
- * as the row allows, wrapping down on narrow screens.
- */
-export function MetricRow({
-  min = '200px',
-  className,
-  children,
-  style,
-  ...rest
-}: HTMLAttributes<HTMLDivElement> & { min?: string }) {
-  return (
-    <div
-      className={cn('grid gap-3', className)}
-      style={{ gridTemplateColumns: `repeat(auto-fit, minmax(min(${min}, 100%), 1fr))`, ...style }}
-      {...rest}
-    >
-      {children}
-    </div>
-  );
-}
