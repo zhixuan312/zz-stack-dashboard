@@ -69,7 +69,7 @@ export default function InitiativePage({
               // document a reader is deciding whether to open.
               const WHAT: Record<string, string> = {
                 intent: 'What they asked for',
-                selection: 'Which blocks deliver it',
+                selection: 'Which plugins deliver it',
                 plan: 'How it will be built',
                 learnings: 'What was learned',
               };

@@ -10,7 +10,7 @@ import { Query } from '@/components/Query';
 import { FlowMini } from '@/components/Flow';
 import { StateBadge } from '@/components/StateBadge';
 import {
-  Badge, EmptyState, PageControl, Table, TableBody, TableCell, TableHead, TableHeader,
+  EmptyState, PageControl, Table, TableBody, TableCell, TableHead, TableHeader,
   TableRow, Time, usePaged,
 } from '@/components/ui';
 import { useConsole, type Initiative, type TeamDetail } from '@/lib/api';
@@ -58,53 +58,6 @@ export default function TeamPage({ params }: { params: Promise<{ slug: string }>
         <Query query={team} skeletonRows={5}>
           {(d) => (
             <div className="grid gap-4 lg:grid-cols-2">
-              {/* BLOCKS LEAD. What a team is ALLOWED to reach is the fact that changes what
-                  every other panel means, and it is the one that stops being visible first: a
-                  team with 100 members pushes its two-row permission list below the fold, so
-                  the page answers "who is here" before "what may they touch". Inventory grows
-                  without bound; authority does not. */}
-              <Panel title="Blocks granted" aside="team-wide" padded={false}>
-                <SimpleTable
-                  head={['Block', 'Granted']}
-                  rows={d.grants.map((g) => [g.block, g.granted])}
-                  empty="No blocks granted."
-                />
-              </Panel>
-              <Panel
-                title="Block connections"
-                aside="per person, not per team"
-                padded={false}
-              >
-                {d.connections.length ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Person</TableHead>
-                        <TableHead>Block</TableHead>
-                        <TableHead>Scope</TableHead>
-                        <TableHead>Expires</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {d.connections.map((c, i) => (
-                        <TableRow key={`${c.email}-${c.block}-${i}`}>
-                          <TableCell className="font-mono text-xs">{c.email.split('@')[0]}</TableCell>
-                          <TableCell><Badge variant="neutral">{c.block}</Badge></TableCell>
-                          <TableCell className="max-w-[26ch] truncate font-mono text-[11px] text-ink-faint" title={c.scope}>
-                            {c.scope}
-                          </TableCell>
-                          <TableCell><Time value={c.expires} /></TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                ) : (
-                  <p className="p-5 text-sm text-ink-faint">
-                    A grant is the team&apos;s permission; a connection is a person having used it.
-                    Nobody on this team has signed in to a block yet.
-                  </p>
-                )}
-              </Panel>
               <Panel title="Flows installed" aside={`${d.flows.length}`} padded={false}>
                 <SimpleTable
                   head={['Flow', 'Version', 'Agent', 'Installed']}

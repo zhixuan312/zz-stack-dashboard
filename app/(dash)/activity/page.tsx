@@ -54,7 +54,6 @@ export default function ActivityPage() {
                   <TableHead>Kind</TableHead>
                   <TableHead>Subject</TableHead>
                   <TableHead>Step</TableHead>
-                  <TableHead>Block</TableHead>
                   <TableHead>Result</TableHead>
                   <TableHead>Refusal</TableHead>
                 </TableRow>
@@ -74,7 +73,6 @@ export default function ActivityPage() {
                       {e.subject ?? '—'}
                     </TableCell>
                     <TableCell className="text-xs">{e.step || <span className="text-ink-faint">—</span>}</TableCell>
-                    <TableCell className="text-xs">{e.block || <span className="text-ink-faint">—</span>}</TableCell>
                     <TableCell>
                       {e.ok === false
                         ? <Badge variant="rose" dot>refused</Badge>

@@ -10,7 +10,7 @@ import {
 import { useConsole, type Person } from '@/lib/api';
 
 /**
- * People, their teams, their tokens' state, and their block connections.
+ * People, their teams, and their tokens' state.
  *
  * NEVER THE TOKENS. zz.pat stores a hash; this shows whether one is live and
  * when it was last used, which is what an administrator actually asks, and
@@ -19,9 +19,6 @@ import { useConsole, type Person } from '@/lib/api';
 export default function PeoplePage() {
   const q = useConsole<{ people: Person[] }>('/people');
   const people = q.data?.people ?? [];
-  const connected = people.filter((p) => p.connections.length).length;
-  // Flattened once: the table renders it and the empty state is decided by it.
-  const rows = people.flatMap((p) => p.connections.map((c) => ({ p, c })));
 
   return (
     <DashboardPage
@@ -35,10 +32,8 @@ export default function PeoplePage() {
               { label: 'Principals', value: String(people.length),
                 sublabel: `${people.filter((p) => p.role === 'superadmin').length} superadmin` },
               { label: 'Live tokens', value: String(people.reduce((a, p) => a + p.tokens, 0)) },
-              { label: 'Block connections', value: String(people.reduce((a, p) => a + p.connections.length, 0)),
-                emphasis: true, sublabel: `held by ${connected} ${connected === 1 ? 'person' : 'people'}` },
-              { label: 'Never connected', value: String(people.length - connected),
-                sublabel: `of ${people.length}` },
+              { label: 'Teams', value: String(new Set(people.flatMap((p) => p.teams)).size),
+                sublabel: 'across every principal' },
             ]
           : undefined
       }
@@ -76,13 +71,6 @@ export default function PeoplePage() {
                       <TableCell className="whitespace-nowrap font-mono text-xs">
                         {p.last_used ? <Time value={p.last_used} /> : <span className="text-ink-faint">never</span>}
                       </TableCell>
-                      <TableCell className="text-xs">
-                        {p.connections.length
-                          ? p.connections.map((c) => (
-                              <Badge key={c.block} variant="sage" dot className="mr-1">{c.block}</Badge>
-                            ))
-                          : <span className="text-ink-faint">none</span>}
-                      </TableCell>
                       <TableCell className="whitespace-nowrap font-mono text-xs">{p.created}</TableCell>
                     </TableRow>
                   ))}
@@ -90,51 +78,6 @@ export default function PeoplePage() {
               </Table>
             </Panel>
 
-            <Panel
-              title="Delegated block connections"
-              aside="OAuth 2.1 · per person, never per team"
-              padded={false}
-            >
-              {/* A table with no rows rendered as four column headings above
-                  nothing, which reads as a panel that failed to load. It has
-                  not: `zz.block_token` is empty because no person has ever
-                  authorised a block on their own behalf. Say that, and say what
-                  IS carrying the access instead, so the zero is a fact about
-                  the platform rather than a gap in the page. */}
-              {rows.length === 0 ? (
-                <div className="px-5 py-8">
-                  <EmptyState
-                    illustration={{ src: '/assets/brand/state-done.png', width: 80, height: 96 }}
-                    icon={<KeyRound className="size-5" strokeWidth={2} />}
-                    title="No delegated connections"
-                    description="Nobody has authorised a block on their own behalf yet. Every block call today goes through a team grant, which is the team's authority rather than a person's — a row appears here only when someone completes an OAuth flow against a block themselves."
-                  />
-                </div>
-              ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Person</TableHead>
-                    <TableHead>Block</TableHead>
-                    <TableHead>Granted scope</TableHead>
-                    <TableHead>Expires</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.map(({ p, c }) => (
-                      <TableRow key={`${p.email}-${c.block}`}>
-                        <TableCell className="font-mono text-xs">{p.email.split('@')[0]}</TableCell>
-                        <TableCell><Badge variant="neutral">{c.block}</Badge></TableCell>
-                        <TableCell className="max-w-[46ch] truncate font-mono text-[11px] text-ink-faint" title={c.scope}>
-                          {c.scope}
-                        </TableCell>
-                        <TableCell><Time value={c.expires} /></TableCell>
-                      </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              )}
-            </Panel>
           </div>
         )}
       </Query>

@@ -322,6 +322,7 @@ export interface Overview {
 export interface Team {
   slug: string; name: string; status: string; created: string;
   members: number; initiatives: number; documents: number;
+  flows: string[];
   /** Every event attributed to the team, admin actions included. */
   events: number;
   /** Events that name one of the team's OWN initiatives — its work, not its setup. */
@@ -334,14 +335,11 @@ export interface Team {
    * at all — there is nothing to have instrumented.
    */
   instrumented: boolean | null;
-  flows: string[]; blocks: string[];
 }
 export interface TeamDetail {
   team: { slug: string; name: string; status: string; created: string };
   members: { email: string; name: string; role: string; joined: string }[];
   flows: { flow: string; version: string; agent: string; installed: string }[];
-  grants: { block: string; granted: string }[];
-  connections: { email: string; block: string; scope: string; expires: string }[];
 }
 export interface Gate { name: string; passed: boolean; after: number }
 /** One stage of a flow, named by the flow itself. */
@@ -565,7 +563,7 @@ export interface SkillText {
   plugin: string;
   /** True when this is the plugin's front door rather than one of its stages. */
   isEntry?: boolean;
-  /** `theirs` only where a block team wrote it; everything we ship is ours. */
+  /** `theirs` only where another team wrote it; everything we ship is ours. */
   origin: 'theirs' | 'ours';
   version: string | null; description: string | null; source: string | null;
   whenToUse: string | null;
@@ -577,27 +575,14 @@ export interface SkillText {
 export interface ActivityEvent {
   ts: string; actor: string | null; team: string | null; kind: string;
   subject: string | null; initiative: string | null; step: string | null;
-  block: string | null; ok: boolean | null; refusal: string | null;
+  ok: boolean | null; refusal: string | null;
 }
 export interface Person {
   email: string; name: string; role: string; status: string; created: string;
   activeTeam: string | null; teams: string[]; tokens: number; last_used: string | null;
-  connections: { block: string; scope: string; expires: string }[];
 }
 
 /* ── /settings/me/* (Task I-13) ───────────────────────────────────────────── */
-
-/**
- * What a secret-named field becomes on its way through the gateway's `redact()`
- * (redact.ts) — never a fragment of the value, only enough to say it is set and
- * tell one apart from another. `present: false` is a real answer ("nothing is
- * stored"), not a missing field.
- */
-export interface RedactedMarker {
-  redacted: true; present: boolean;
-  type?: 'object' | 'array' | 'number' | 'boolean'; length?: number; fingerprint?: string;
-}
-export interface MyCredentialRow { platform: string; api_key: RedactedMarker }
 export interface MyAccessToken {
   id: string; label: string; scope: string;
   created_at: string; last_used_at: string | null; revoked_at: string | null;
@@ -619,9 +604,6 @@ export interface TeamMemberRow { email: string; role: 'admin' | 'member' }
 /** A row from `GET /settings/team/flows` — what one team has installed, in the same
  *  shape `TeamDetail.flows` uses minus `installed`, which this surface has no use for. */
 export interface TeamFlowRow { flow: string; version: string; agent: string }
-export interface MyBlockConnection {
-  block: string; scope: string; expires_at: string | null; has_refresh_token: boolean; connected_at: string;
-}
 
 /* ── /settings/platform/* (Task I-15) ─────────────────────────────────────── */
 

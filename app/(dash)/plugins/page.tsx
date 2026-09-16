@@ -7,7 +7,7 @@ import { Query } from '@/components/Query';
 import { Badge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Time } from '@/components/ui';
 import { formatCount } from '@/lib/format';
 import { useConsole, type PluginRow } from '@/lib/api';
-import { blockKind } from '@/lib/block-labels';
+import { pluginKind } from '@/lib/plugin-labels';
 
 /**
  * LAYER ONE: which plugins exist. One row each, nothing expanded.
@@ -87,7 +87,7 @@ export default function PluginsPage() {
                               has neither and carries a kind from zz.block instead. */}
                           {p.version
                             ? `${p.agentName ? `${p.agentName} · ` : ''}${p.owner ?? 'zz'} · v${p.version}`
-                            : blockKind(p)}
+                            : pluginKind(p)}
                         </span>
                       </TableCell>
                       <TableCell>

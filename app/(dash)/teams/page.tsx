@@ -60,7 +60,6 @@ export default function TeamsPage() {
                     </Tooltip>
                   </TableHead>
                     <TableHead>Flows</TableHead>
-                    <TableHead>Blocks</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -110,9 +109,6 @@ export default function TeamsPage() {
                       </TableCell>
                       <TableCell className="text-xs">
                         {t.flows.length ? t.flows.join(', ') : <span className="text-ink-faint">none</span>}
-                      </TableCell>
-                      <TableCell className="text-xs">
-                        {t.blocks.length ? t.blocks.join(', ') : <span className="text-ink-faint">none</span>}
                       </TableCell>
                     </TableRow>
                   ))}

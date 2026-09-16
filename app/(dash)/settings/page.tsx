@@ -1,10 +1,8 @@
 'use client';
 
 import { DashboardPage } from '@/components/DashboardPage';
-import { BlocksPanel } from '@/components/settings/BlocksPanel';
 import { ClientSetupPanel } from '@/components/settings/ClientSetupPanel';
 import { ConsoleScopePanel } from '@/components/settings/ConsoleScopePanel';
-import { CredentialsPanel } from '@/components/settings/CredentialsPanel';
 import { PasswordPanel } from '@/components/settings/PasswordPanel';
 import { PlatformSection } from '@/components/settings/PlatformSection';
 import { TeamAdminPanel } from '@/components/settings/TeamAdminPanel';
@@ -43,16 +41,14 @@ export default function SettingsPage() {
   return (
     <DashboardPage
       title="Settings"
-      description="How this console looks and what it shows you, plus your own credentials, tokens, client setup, teams and block connections."
+      description="How this console looks and what it shows you, plus your tokens, client setup and teams."
       showPeriod={false}
     >
       <div className="flex flex-col gap-6">
         <ConsoleScopePanel />
         <PasswordPanel />
-        <CredentialsPanel />
         <TokensPanel />
         <ClientSetupPanel />
-        <BlocksPanel />
         <TeamsPanel />
         <TeamAdminPanel />
         <PlatformSection />

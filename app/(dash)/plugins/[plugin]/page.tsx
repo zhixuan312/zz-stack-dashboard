@@ -11,7 +11,7 @@ import {
 } from '@/components/ui';
 import { formatCount } from '@/lib/format';
 import { useConsole, type PluginRow } from '@/lib/api';
-import { blockKind, blockTitle } from '@/lib/block-labels';
+import { pluginKind, pluginTitle } from '@/lib/plugin-labels';
 
 /**
  * LAYER TWO: one plugin — what it is, what it reaches, and every skill it ships.
@@ -32,7 +32,7 @@ export default function PluginPage({ params }: { params: Promise<{ plugin: strin
 
   return (
     <DashboardPage
-      title={p ? (p.agentName ? `${plugin} — ${p.agentName}` : blockTitle({ block: plugin, title: p.title })) : plugin}
+      title={p ? (p.agentName ? `${plugin} — ${p.agentName}` : pluginTitle({ plugin, title: p.title })) : plugin}
       breadcrumb={[{ label: 'Plugins', href: '/plugins' }, { label: plugin }]}
       // NO SUBTITLE. A manifest description runs to two full lines and sat under the title as
       // a wall of prose above the metrics. It is the first thing the rail says now — read
@@ -62,7 +62,7 @@ export default function PluginPage({ params }: { params: Promise<{ plugin: strin
           <div className="flex flex-col gap-4">
             <Panel title="What this plugin is">
               <dl className="flex flex-col gap-3 text-[13px]">
-                <Row k="Does" v={<span className="text-ink-soft">{p.description ?? blockKind(p)}</span>} />
+                <Row k="Does" v={<span className="text-ink-soft">{p.description ?? pluginKind(p)}</span>} />
                 <Row
                   k="Whose"
                   v={p.origin === 'platform'

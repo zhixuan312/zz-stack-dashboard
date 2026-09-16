@@ -78,7 +78,6 @@ describe('PlatformSection — who sees the platform controls', () => {
       await waitFor(() => expect(screen.getByText('Platform administration')).toBeInTheDocument());
       expect(screen.getByText('People')).toBeInTheDocument();
       expect(screen.getByText('Create a team')).toBeInTheDocument();
-      expect(screen.getByText('Grant block access')).toBeInTheDocument();
       expect(screen.getByText("Set someone's password")).toBeInTheDocument();
     } finally {
       restore();
