@@ -17,7 +17,12 @@ const skill = (over: Partial<Skill>): Skill => ({
   name: 'x', version: '1.0', kind: 'flow', flow: null, retired: false, teams: ['xuan'],
   runs: 1, calls: 1, callsAvg: 1, callsMax: 1, refusals: 0, timedRuns: 1, turns: null,
   durationAvg: null, durationMedian: null, durationMax: null, durationTotal: null,
-  kbPerRun: null, mbTotal: null, logged: null, ...over,
+  kbPerRun: null, mbTotal: null, logged: null,
+  // ALWAYS null, and not because this is a fixture: /skills stopped emitting `evaluated`
+  // when an evaluation's subject became a plugin, and nothing can write a per-skill score
+  // again. The field is still on the type and read in four places. Follow-up, not this
+  // change — see the gateway's "NO EVALUATION HERE ANY MORE".
+  evaluated: null, ...over,
 });
 
 const SKILLS: Skill[] = [

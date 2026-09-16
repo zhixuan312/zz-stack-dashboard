@@ -13,10 +13,13 @@ export default function RunsPage() {
      whatever was asked — so a page headed "Runs" sat beside every other view's last-24-hours
      and quietly meant something else. The endpoint takes `period` and this passes it. */
   const { period } = usePeriod();
-  const runs = useConsole<Runs>('/runs');
-  const skills = useConsole<{ skills: Skill[] }>(
-    period === 'all' ? '/skills' : `/skills?period=${period}`,
-  );
+  /* BOTH routes take the window, and both must. The tiles sit directly above the panel, so
+     one of them answering all time while the other answered the picker put "336 runs" and
+     "62 runs" an inch apart on the same screen — two true numbers about different spans,
+     with nothing on the page saying which was which. */
+  const q = (path: string) => (period === 'all' ? path : `${path}?period=${period}`);
+  const runs = useConsole<Runs>(q('/runs'));
+  const skills = useConsole<{ skills: Skill[] }>(q('/skills'));
 
   return (
     <DashboardPage
