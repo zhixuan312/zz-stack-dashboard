@@ -28,6 +28,7 @@ import type { Overview } from '@/lib/api';
 import OverviewPage from '../app/(dash)/page';
 
 const ME = {
+  platformVersion: '0.0.0-test',
   email: 'a@b.example.com', name: 'A', role: 'superadmin', mayRead: true, superadmin: true,
   via: 'session', teams: [{ slug: 'team-one', role: 'admin' }], activeTeam: 'team-one',
 };
@@ -74,6 +75,7 @@ const OVERVIEW: Overview = {
     initiatives: 6, events: 8566, failures: 1761, unattributedEvents: 0,
   },
   grain: 'hour',
+  timezone: 'Asia/Singapore',
   toolTrend: [
     { bucket: '2026-09-09T04:00:00Z', inside: 200, outside: 111, refused: 9 },
     { bucket: '2026-09-09T05:00:00Z', inside: 250, outside: 149, refused: 12 },
@@ -144,6 +146,28 @@ describe('the overview page', () => {
     window.history.replaceState(null, '', '/?period=1d');
     mount();
     await waitFor(() => expect(urls.some((u) => u.includes('period=1d'))).toBe(true));
+  });
+
+  /* THE BUCKET IS LABELLED ON THE DEPLOYMENT'S CALENDAR, not on UTC's and not on the
+   * machine running the test. `2026-09-14T16:00:00Z` is midnight on the 15th in Singapore
+   * and still the 14th in UTC — so the two answers differ by a day, which is exactly the
+   * mistake being guarded against, and the assertion holds wherever CI happens to run. */
+  it('labels a bucket in the timezone the payload names', async () => {
+    const daily = { ...OVERVIEW, grain: 'day' as const,
+      toolTrend: [{ bucket: '2026-09-13T16:00:00Z', inside: 1, outside: 0, refused: 0 },
+                  { bucket: '2026-09-14T16:00:00Z', inside: 2, outside: 0, refused: 0 }] };
+    global.fetch = vi.fn(async (url: string) =>
+      ({ ok: true, json: async () => (url.includes('/me') ? ME : daily) }) as unknown as Response,
+    ) as unknown as typeof fetch;
+    const { container } = mount();
+    await waitFor(() => expect(screen.getByText('Tool calls over time')).toBeInTheDocument());
+    const labels = [...container.querySelectorAll('svg text')].map((t) => t.textContent);
+    /* The two buckets are `09-14 · 09-15` on Singapore's calendar and `09-13 · 09-14` on
+       UTC's, so each calendar has one label the other cannot produce. Asserting the
+       OVERLAP (`09-14`) would pass either way, which is how the first draft of this test
+       reported a bug that was not there. */
+    expect(labels).toContain('09-15');     // only Singapore says this
+    expect(labels).not.toContain('09-13'); // only UTC says this
   });
 
   it('states the grain that came back, not a hardcoded one', async () => {

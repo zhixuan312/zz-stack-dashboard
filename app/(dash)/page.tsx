@@ -54,12 +54,26 @@ import { PERIOD_SPAN } from '@/lib/period';
  * string rather than pushed through a local conversion that could roll them onto the wrong
  * side of midnight.
  */
-function bucketLabel(bucket: string, grain: Overview['grain']): string {
+/**
+ * A bucket's label, on the DEPLOYMENT'S calendar — `timezone` off the payload, never the
+ * viewer's and never UTC.
+ *
+ * Both of the old spellings were wrong in the same direction. The hour passed `undefined`
+ * as the locale, which formats in whatever zone the laptop is in; the day and month SLICED
+ * the ISO string, which is UTC, so a bucket cut at midnight in Singapore was labelled with
+ * the date it had eight hours earlier in London — the bar and its own label describing
+ * different days, with nothing on screen to show it.
+ */
+function bucketLabel(bucket: string, grain: Overview['grain'], timeZone: string): string {
+  const d = new Date(bucket);
+  // `en-CA` for its ISO-shaped output: `09-16`, not `16/09` or `Sep 16`.
   if (grain === 'hour') {
-    return new Date(bucket).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    return new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', minute: '2-digit' }).format(d);
   }
-  // `2026-09-09T00:00:00Z` → `2026-09` for a month, `09-09` for a day or the week it opens.
-  return grain === 'month' ? bucket.slice(0, 7) : bucket.slice(5, 10);
+  if (grain === 'month') {
+    return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit' }).format(d);
+  }
+  return new Intl.DateTimeFormat('en-CA', { timeZone, month: '2-digit', day: '2-digit' }).format(d);
 }
 
 /** One decimal only where it changes the reading: 2.3% is a finding, 2.26% is noise. */
@@ -364,7 +378,7 @@ export default function OverviewPage() {
                   // is 23:00 to somebody in Singapore, which is the exact failure the
                   // gateway's own "times go out as an instant" rule exists for. A day
                   // needs no zone, so it keeps the plain MM-DD the axis already used.
-                  label: bucketLabel(x.bucket, d.grain),
+                  label: bucketLabel(x.bucket, d.grain, d.timezone),
                   inside: x.inside,
                   outside: x.outside,
                   refused: x.refused,

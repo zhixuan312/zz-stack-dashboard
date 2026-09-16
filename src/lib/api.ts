@@ -211,6 +211,8 @@ export function useConsole<T>(path: string | null): UseQueryResult<T, ApiError> 
 /* ── the shapes the API returns ───────────────────────────────────────────── */
 
 export interface Me {
+  /** Which platform answered — the footer's other half. See `AppFooter`. */
+  platformVersion: string;
   email: string; name: string; role: 'superadmin' | 'member';
   mayRead: boolean; superadmin: boolean; via: string;
   // A slug alone couldn't say whether the caller is a team admin or a member; the gateway
@@ -290,6 +292,15 @@ export interface Overview {
    * states a shape the data does not have.
    */
   toolTrend: { bucket: string; inside: number; outside: number; refused: number }[];
+  /**
+   * The zone the buckets were CUT in — this deployment's own, not the viewer's.
+   *
+   * Every bucket is still an instant, and the browser still formats it; this says on which
+   * calendar, so the label agrees with the bar. Formatting in the viewer's zone instead
+   * would label a Singapore day with a laptop's idea of what day it is, and a bar cut at
+   * one boundary described by another is wrong in a way nothing on screen would show.
+   */
+  timezone: string;
   eventKinds: { kind: string; n: number; failed: number }[];
   /**
    * Refused tool calls on two axes — the same population `metrics.refusals` counts, so

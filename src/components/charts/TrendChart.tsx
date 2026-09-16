@@ -74,11 +74,21 @@ function num(p: TrendPoint, key: string): number {
   return typeof v === 'number' && Number.isFinite(v) ? v : 0;
 }
 
-function TooltipRow({ tint, label, value }: { tint: string; label: string; value: ReactNode }) {
+function TooltipRow(
+  { tint, label, value, share }:
+  { tint: string; label: string; value: ReactNode; share?: number },
+) {
   return (
     <div className="flex items-center justify-between gap-3 text-ink-soft">
       <span style={{ color: tint }}>{label}</span>
-      <b className="tabular-nums text-ink">{value}</b>
+      <span className="flex items-baseline gap-1.5">
+        <b className="tabular-nums text-ink">{value}</b>
+        {share === undefined ? null : (
+          <span className="tabular-nums text-[0.6875rem] text-ink-faint">
+            {(share * 100).toFixed(share < 0.1 ? 1 : 0)}%
+          </span>
+        )}
+      </span>
     </div>
   );
 }
@@ -216,6 +226,7 @@ export function TrendChart({
   }
 
   const hp = hover === null ? null : points[hover]!;
+  const hoverTotal = hp ? stackTotal(hp) : 0;
   const areaKey = resolved.find((s) => s.shape === 'area')?.key;
 
   return (
@@ -373,11 +384,25 @@ export function TrendChart({
           className="pointer-events-none absolute top-2 rounded-[var(--r)] border border-line bg-surface px-3 py-2 text-xs shadow-[var(--shadow-pop)]"
           style={{ left: Math.min(w - 170, Math.max(0, xAt(hover!) + 10)), minWidth: 150 }}
         >
+          {/* THE LABEL, not `date`. `date` is the raw instant the gateway sent — the tooltip
+              printed `2026-09-15T00:00:00Z` beside an axis reading `09-16`, which is the
+              same moment told two ways and neither of them the reader's. `label` is the
+              one the caller already formatted, on the deployment's own calendar. */}
           <div className="mb-1 font-mono text-[0.625rem] uppercase tracking-[0.06em] text-ink-faint">
-            {hp.date}
+            {hp.label ?? hp.date}
           </div>
           {resolved.map((s) => (
-            <TooltipRow key={s.key} tint={s.color} label={s.label} value={s.fmt(num(hp, s.key))} />
+            <TooltipRow
+              key={s.key}
+              tint={s.color}
+              label={s.label}
+              value={s.fmt(num(hp, s.key))}
+              /* THE SHARE, for a stacked series only. A part of a column means little
+                 without the whole — 131 is large or small depending on whether the hour
+                 held 200 calls or 2,000, and the reader should not have to add the three
+                 numbers up to find out. A line has no whole to be a share of. */
+              share={s.shape === 'stack' && hoverTotal > 0 ? num(hp, s.key) / hoverTotal : undefined}
+            />
           ))}
         </div>
       ) : null}

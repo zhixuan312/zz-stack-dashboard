@@ -15,6 +15,7 @@ import type { Me } from '@/lib/api';
  * component instead of re-deriving what it should show.
  */
 const base: Omit<Me, 'teams' | 'superadmin'> = {
+  platformVersion: '0.0.0-test',
   email: 'a@b.example.com', name: 'A', role: 'member', mayRead: true, via: 'session', activeTeam: 'team_one',
 };
 

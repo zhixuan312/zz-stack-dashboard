@@ -62,8 +62,15 @@ export function StatusDashboard({ metrics, primary, aside, align = 'stretch', sc
     <div
       className={cn(
         'flex h-full min-h-0 flex-1 flex-col gap-4 overflow-x-hidden',
+        /* NO NEGATIVE MARGIN AT THE BOTTOM, unlike `SCROLL_PANE_LG`. That pair exists to let
+         * a card's hover bloom spill past the scroller instead of being clipped, and on a
+         * COLUMN nested inside the shell's padding it costs nothing. Here the scroller IS
+         * the outer element, so `-mb-6` lands straight on `ShellBody`'s own `py-6` and
+         * cancels it — the last panel ended flush against the bottom of the window with no
+         * gutter at all. The sides and top still bleed; the bottom keeps its padding and
+         * lets the shell's show through beneath it. */
         wholeScrolls
-          ? 'overflow-y-auto -mx-3 -mt-3 -mb-6 px-3 pt-3 pb-6'
+          ? 'overflow-y-auto -mx-3 -mt-3 px-3 pt-3 pb-6'
           : 'overflow-y-auto lg:overflow-visible',
         className,
       )}

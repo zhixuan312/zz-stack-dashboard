@@ -10,6 +10,7 @@ import { ModeSwitch } from '@/components/ModeSwitch';
 // only reads it can be rendered standalone, in a test, without dragging in
 // `QueryClientProvider` and a real `/me` fetch just to check whether it renders.
 const base = {
+  platformVersion: '0.0.0-test',
   email: 'a@b.example.com', name: 'A', role: 'member' as const, mayRead: true,
   via: 'session', teams: [{ slug: 'team-one', role: 'member' as const }],
   activeTeam: 'team-one',

@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react';
 import { cn } from '@/lib/cn';
 import { Title, Text } from '@/components/ui/typography';
+import { AppFooter } from '@/components/AppFooter';
 import { Breadcrumb, type Crumb } from '@/components/ui/breadcrumb';
 import { SidebarDrawer } from '@/components/ui/sidebar-drawer';
 
@@ -245,6 +246,9 @@ export function PageFrame({
             entirely on a narrow screen. */}
         {description ? <Text className="-mt-1 mb-5 max-w-[68ch] lg:hidden">{description}</Text> : null}
         {children}
+        {/* IN THE FRAME, not in each page: it says what the whole app is, so a page that
+            forgot to render it would be the only one unable to answer the question. */}
+        <AppFooter />
       </ShellBody>
     </>
   );
