@@ -83,7 +83,6 @@ export default function DocumentPage({
       updatedAt={new Date()}
       // READING WIDTH: the page is one column — the document, how it changed, and its
       // claims, each a full-width card — and the column is what a reader reads.
-      width="reading"
       actions={
         <Link
           href={`/initiatives/${team}/${slug}`}
@@ -190,9 +189,10 @@ export default function DocumentPage({
 
                     {d.body?.trim() ? (
                       view === 'read' ? (
-                        // THE CARD'S FULL WIDTH, uncapped. A spec is half decision tables
-                        // and criterion ledgers, and a `max-w` on the BLOCK capped those
-                        // too; the page's reading width is the cap.
+                        // THE CARD'S FULL WIDTH. The measure lives on the text elements
+                        // inside ProseBlock, so paragraphs read at 74ch while the decision
+                        // tables and criterion ledgers a spec is half made of get the whole
+                        // card. This page is `data` like the other nineteen.
                         <ProseBlock>{readableDocument(d.body)}</ProseBlock>
                       ) : (
                         // WRAPPED, not scrolled sideways: a source line longer than the

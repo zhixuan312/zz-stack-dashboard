@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { DashboardPage } from '@/components/DashboardPage';
 import { KnowledgeTabs } from '@/components/knowledge/KnowledgeTabs';
 import { Panel } from '@/components/Panel';
+import { PROSE_MEASURE } from '@/components/patterns/prose-block';
 import { Query } from '@/components/Query';
 import {
   Badge, PageControl, Row, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Time,
@@ -56,10 +57,11 @@ export default function KnowledgeNodePage({
                       Superseded by {b.superseded_by} — kept readable, no longer current.
                     </div>
                   ) : null}
-                  {/* Prose measure, not full bleed: 74 characters is what the type scale is
-                      set for, and a 1,600-character lesson set across a wide column is
-                      genuinely harder to read. */}
-                  <p className="max-w-[74ch] whitespace-pre-wrap break-words text-[13.5px] leading-[1.85] text-ink-soft">
+                  {/* The same measure a rendered document reads at, from the one place it is
+                      defined. A node is plain text rather than markdown, so it cannot go
+                      through ProseBlock — but the number it reads at should not be a second
+                      copy that drifts from it. */}
+                  <p className={`${PROSE_MEASURE} whitespace-pre-wrap break-words text-[13.5px] leading-[1.85] text-ink-soft`}>
                     {b.body.trim()}
                   </p>
                 </article>
