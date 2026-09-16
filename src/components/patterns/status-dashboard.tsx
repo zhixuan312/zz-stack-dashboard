@@ -69,8 +69,18 @@ export function StatusDashboard({ metrics, primary, aside, align = 'stretch', sc
          * cancels it — the last panel ended flush against the bottom of the window with no
          * gutter at all. The sides and top still bleed; the bottom keeps its padding and
          * lets the shell's show through beneath it. */
+        /* ONE GUTTER, NOT TWO. `SCROLL_PANE_LG` carries its own `pt-3`/`pb-6` because it is a
+         * column nested inside the shell's padding, where its padding is the only padding
+         * there is. Here the scroller IS the outer element, so every one of those sat on top
+         * of `ShellBody`'s `py-6` and the page grew a second strip at each end — a band under
+         * the header before the first tile, and another under the last panel. The shell's
+         * padding is the page's rhythm; this adds none of its own.
+         *
+         * The horizontal bleed stays: a card's hard offset shadow is drawn outside its box
+         * and would otherwise be clipped at the sides by this scroller. It cancels exactly,
+         * so it costs no width. */
         wholeScrolls
-          ? 'overflow-y-auto -mx-3 -mt-3 px-3 pt-3 pb-6'
+          ? 'overflow-y-auto -mx-3 px-3'
           : 'overflow-y-auto lg:overflow-visible',
         className,
       )}
