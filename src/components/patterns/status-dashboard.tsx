@@ -42,11 +42,29 @@ export function StatusDashboard({ metrics, primary, aside, align = 'stretch', sc
   // where the CSS viewport shrinks) there would be no scroller at all and content would be
   // clipped outright. From `lg` up this goes back to visible so the columns own their scroll
   // and the cards' hover bloom isn't trimmed at the shell edge.
+  /* WHO SCROLLS, AND WHETHER THE METRIC ROW GOES WITH IT.
+   *
+   * With a rail, the two columns are height-bounded and scroll independently, and the
+   * metric row is a fixed header above both — correct, because two panes scrolling under
+   * one row is the whole point of that layout.
+   *
+   * WITHOUT a rail there is only one column, and giving IT the scroll left the four tiles
+   * stranded above it: the page scrolled and the tiles did not move a pixel. Nothing chose
+   * that. `MetricRow` is `shrink-0` so it cannot be squashed, and being a sibling of the
+   * scroller rather than a child of it is an accident of where the overflow landed.
+   *
+   * So on a rail-less page the whole dashboard scrolls and the tiles travel with it. The
+   * negative margins are the same bloom clearance `SCROLL_PANE_LG` carries: a scroll
+   * container clips its children, and the cards' hover lift is drawn outside their box. */
+  const wholeScrolls = !aside && scroll === 'outer';
+
   return (
     <div
       className={cn(
-        'flex h-full min-h-0 flex-1 flex-col gap-4',
-        'overflow-y-auto overflow-x-hidden lg:overflow-visible',
+        'flex h-full min-h-0 flex-1 flex-col gap-4 overflow-x-hidden',
+        wholeScrolls
+          ? 'overflow-y-auto -mx-3 -mt-3 -mb-6 px-3 pt-3 pb-6'
+          : 'overflow-y-auto lg:overflow-visible',
         className,
       )}
     >
@@ -173,7 +191,12 @@ export function StatusDashboard({ metrics, primary, aside, align = 'stretch', sc
             // single tall child fills the column. Stacking is the other half of it,
             // and removing a page's rail note is all it takes to move a working page
             // from that branch into this one.
-            scroll === 'outer' && SCROLL_PANE_LG,
+            //
+            // THE SCROLLER MOVED UP ONE LEVEL for `scroll="outer"` — see `wholeScrolls`
+            // above. It has to be the element that also contains the metric row, or the
+            // tiles sit outside whatever scrolls and never move. `inner` is untouched:
+            // there the single child scrolls inside itself and this column does not.
+            scroll === 'outer' && !wholeScrolls && SCROLL_PANE_LG,
             // Same crush as the two-column primary: a Card is `overflow-hidden`, so a
             // shrinkable flex item silently compresses and clips itself rather than
             // making this column scroll.
