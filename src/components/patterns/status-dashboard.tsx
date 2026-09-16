@@ -193,7 +193,15 @@ export function StatusDashboard({ metrics, primary, aside, align = 'stretch', sc
         // why Routes (which has a rail) scrolled fine and Runs did not.
         <div
           className={cn(
-            'flex min-h-0 flex-1 flex-col gap-4',
+            /* SIZED BY ITS CONTENT when the whole dashboard scrolls, and this is what puts
+             * the gutter under the last panel. `flex-1` bounds this column to the VISIBLE
+             * height; its panels then overflow it — which still scrolls, because overflow
+             * counts toward the scroller's height — but the scroller's own `padding-bottom`
+             * is laid out after the SHORT box, so the real last panel runs straight past it
+             * to the window edge. Measured: 24px of padding on the scroller and 0px of gap
+             * under the panel. With `inner` the column is still a height for a single tall
+             * child to claim, so `flex-1` stays there. */
+            wholeScrolls ? 'flex flex-col gap-4' : 'flex min-h-0 flex-1 flex-col gap-4',
             // ...AND it must own a scroller, exactly as the two-column branch does.
             //
             // This branch honoured `flex-1` but ignored `scroll` altogether, so a
