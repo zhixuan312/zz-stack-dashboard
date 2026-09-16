@@ -1,30 +1,27 @@
 'use client';
 
 import { DashboardPage } from '@/components/DashboardPage';
-import { Panel } from '@/components/Panel';
 import { Query } from '@/components/Query';
-import {
-  Banner, MetricCard, Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui';
+import { SkillWorkPanel } from '@/components/SkillWorkPanel';
+import { usePeriod } from '@/components/PeriodProvider';
+import { Banner, MetricCard } from '@/components/ui';
 import { formatCount } from '@/lib/format';
 import { useConsole, type Runs, type Skill } from '@/lib/api';
 
-function dur(s: number): string {
-  if (!s) return '—';
-  if (s >= 3600) return `${(s / 3600).toFixed(1)} h`;
-  if (s >= 60) return `${Math.round(s / 60)} min`;
-  return `${Math.round(s)} s`;
-}
-
 export default function RunsPage() {
+  /* THE PICKER IS ON NOW. It was hidden because /skills had no window and answered all time
+     whatever was asked — so a page headed "Runs" sat beside every other view's last-24-hours
+     and quietly meant something else. The endpoint takes `period` and this passes it. */
+  const { period } = usePeriod();
   const runs = useConsole<Runs>('/runs');
-  const skills = useConsole<{ skills: Skill[] }>('/skills');
+  const skills = useConsole<{ skills: Skill[] }>(
+    period === 'all' ? '/skills' : `/skills?period=${period}`,
+  );
 
   return (
     <DashboardPage
       title="Runs"
       description="Every recorded run, by the skill that drove it."
-      showPeriod={false}
       updatedAt={new Date()}
     >
       <Query query={runs}>
@@ -55,60 +52,9 @@ export default function RunsPage() {
               />
             ) : null}
 
-            <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
-              <Panel title="Every skill, side by side" padded={false}>
-                <Query query={skills} skeletonRows={6}>
-                  {(s) => (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Skill</TableHead>
-                          <TableHead className="text-right">Runs</TableHead>
-                          <TableHead className="text-right">Calls</TableHead>
-                          <TableHead className="text-right">Avg</TableHead>
-                          <TableHead className="text-right">Peak</TableHead>
-                          <TableHead className="text-right">Refused</TableHead>
-                          <TableHead className="text-right">Median</TableHead>
-                          <TableHead className="text-right">Longest</TableHead>
-                          <TableHead className="text-right">Per run</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {[...s.skills].sort((a, b) => b.runs - a.runs).map((k) => (
-                          <TableRow key={`${k.name}-${k.version}`}>
-                            <TableCell className="whitespace-nowrap">
-                              <span className="font-medium text-ink">{k.name}</span>{' '}
-                              <span className="font-mono text-xs text-ink-faint">{k.version}</span>
-                            </TableCell>
-                            <TableCell className="text-right font-medium tabular-nums">{k.runs}</TableCell>
-                            <TableCell className="text-right tabular-nums">{formatCount(k.calls)}</TableCell>
-                            <TableCell className="text-right tabular-nums">{k.callsAvg.toFixed(1)}</TableCell>
-                            <TableCell className="text-right tabular-nums text-xs">{k.callsMax}</TableCell>
-                            <TableCell className="text-right tabular-nums text-xs">
-                              {k.refusals
-                                ? <span className="text-[var(--rose-deep)]">{k.refusals}</span>
-                                : <span className="text-ink-faint">—</span>}
-                            </TableCell>
-                            <TableCell className="text-right tabular-nums text-xs">{dur(k.durationMedian)}</TableCell>
-                            <TableCell className="text-right tabular-nums text-xs">{dur(k.durationMax)}</TableCell>
-                            <TableCell className="whitespace-nowrap text-right tabular-nums text-xs">
-                              {k.kbPerRun >= 1024 ? `${(k.kbPerRun / 1024).toFixed(1)} MB` : `${Math.round(k.kbPerRun)} KB`}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                        {s.skills.length === 0 && (
-                          <TableRow>
-                            <TableCell colSpan={5} className="py-8 text-center text-ink-faint">
-                              No skill in this flow has a recorded run yet.
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
-                  )}
-                </Query>
-              </Panel>
-            </div>
+            <Query query={skills} skeletonRows={6}>
+              {(s) => <SkillWorkPanel skills={s.skills} />}
+            </Query>
           </div>
         )}
       </Query>

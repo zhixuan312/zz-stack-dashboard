@@ -6,20 +6,12 @@ import { DashboardPage } from '@/components/DashboardPage';
 import { Panel } from '@/components/Panel';
 import { Query } from '@/components/Query';
 import { Badge, EmptyState } from '@/components/ui';
-import { formatCount } from '@/lib/format';
+import { formatCount, formatKb, formatSeconds } from '@/lib/format';
 import { SkillReader } from '@/components/SkillReader';
 import { SkillReferences } from '@/components/SkillReferences';
 import { SkillEvaluation } from '@/components/SkillEvaluation';
 import { SkillViewTabs, useSkillView } from '@/components/SkillViewTabs';
 import { useConsole, type PluginRow, type Skill, type SkillDetail, type SkillText } from '@/lib/api';
-
-/** Seconds → the coarsest unit that still reads as a duration. */
-function dur(s: number): string {
-  if (!s) return '—';
-  if (s >= 3600) return `${(s / 3600).toFixed(1)} h`;
-  if (s >= 60) return `${Math.round(s / 60)} min`;
-  return `${Math.round(s)} s`;
-}
 
 /**
  * LAYER THREE: one skill, read.
@@ -90,8 +82,8 @@ export default function PluginSkillPage({ params }: { params: Promise<{ plugin: 
               { label: 'Runs', value: formatCount(skill.runs), sublabel: 'recorded' },
               { label: 'Calls per run', value: skill.callsAvg.toFixed(1),
                 sublabel: `${formatCount(skill.calls)} total · peak ${skill.callsMax}` },
-              { label: 'Duration (median)', value: dur(skill.durationMedian),
-                sublabel: `avg ${dur(skill.durationAvg)} · longest ${dur(skill.durationMax)}` },
+              { label: 'Duration (median)', value: formatSeconds(skill.durationMedian),
+                sublabel: `avg ${formatSeconds(skill.durationAvg)} · longest ${formatSeconds(skill.durationMax)}` },
               { label: 'Refusals',
                 value: skill.calls ? `${((skill.refusals / skill.calls) * 100).toFixed(1)}%` : '—',
                 sublabel: `${skill.refusals} of ${formatCount(skill.calls)} calls`,
@@ -222,8 +214,8 @@ function Conclusion({ skill, detail }: { skill: Skill; detail: SkillDetail }) {
       <ul className="mt-2 flex flex-col gap-2 text-[13px] leading-relaxed text-ink-soft">
         <li>
           <b className="text-ink">Cost.</b> {skill.runs} runs at {skill.callsAvg.toFixed(1)} calls each,
-          median {dur(skill.durationMedian)}, {Math.round(skill.kbPerRun)} KB per run
-          ({skill.mbTotal} MB in total).
+          median {formatSeconds(skill.durationMedian)}, {formatKb(skill.kbPerRun)} per run
+          ({skill.mbTotal === null ? '—' : `${skill.mbTotal} MB`} in total).
           {heaviest ? <> Most of its calls go to <b className="text-ink">{heaviest.surface}</b> ({heaviest.calls}).</> : null}
         </li>
         <li>

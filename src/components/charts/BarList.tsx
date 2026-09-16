@@ -26,6 +26,7 @@ export function BarList({
   rows,
   max,
   limit,
+  total,
   moreLabel = 'others',
   formatTotal,
   highlight,
@@ -60,6 +61,20 @@ export function BarList({
    * carrying a category rather than emphasis.
    */
   highlight?: string;
+  /**
+   * The whole these rows are parts of, which turns every value into a share as well.
+   *
+   * REQUIRED TO BE PASSED, never inferred from the rows, because the rows are not always
+   * the whole. `busiestTools` is the top eight tools of however many a skill called, and a
+   * percentage computed from those eight would read as "38% of this skill's calls" while
+   * actually meaning "38% of its eight busiest" — a number that changes when the limit
+   * changes and is wrong either way. A caller that knows the denominator passes it; one
+   * that does not gets no percentages, which is the honest outcome.
+   *
+   * `limit` does not affect it: the rows past the cap are still part of the whole, and the
+   * remainder line carries its own share so the column sums to 100%.
+   */
+  total?: number;
   /** How to render the remainder's total; defaults to the row `display` style. */
   formatTotal?: (value: number) => string;
   className?: string;
@@ -82,8 +97,12 @@ export function BarList({
             <span className="min-w-0 truncate text-sm text-ink" title={typeof r.label === 'string' ? r.label : r.key}>
               {r.label ?? r.key}
             </span>
-            <span className="tabular-nums text-sm text-ink-soft">
+            <span className="flex items-baseline justify-end gap-2 tabular-nums text-sm text-ink-soft">
               {r.display ?? r.value.toLocaleString()}
+              {/* The share is the SECOND thing read, so it is the fainter and smaller of the
+                  pair: the count is what the row is, the percentage is how big that is. Both
+                  at the same weight makes the eye pick one at random. */}
+              {total ? <span className="t-micro text-ink-faint">{share(r.value, total)}</span> : null}
             </span>
             <span className="col-span-2 block h-1.5 overflow-hidden rounded-[var(--r-sm)] bg-surface-2">
               <span
@@ -113,11 +132,26 @@ export function BarList({
           <span>
             +{rest.length} {moreLabel}
           </span>
-          <span className="tabular-nums">
+          <span className="flex items-baseline justify-end gap-2 tabular-nums">
             {formatTotal ? formatTotal(restTotal) : restTotal.toLocaleString()}
+            {total ? <span>{share(restTotal, total)}</span> : null}
           </span>
         </li>
       ) : null}
     </ul>
   );
+}
+
+/**
+ * One row's share of the whole, as a reader would say it out loud.
+ *
+ * `< 1%` IS A BAND, not a rounding. A row that exists at all is not 0% of anything, and
+ * rounding 0.4% down prints the one number the bar beside it visibly contradicts. Whole
+ * percents otherwise: a decimal place here is precision nobody asked a ranked list for.
+ */
+function share(value: number, total: number): string {
+  if (total <= 0) return '';
+  const pct = (value / total) * 100;
+  if (pct === 0) return '0%';
+  return pct < 1 ? '< 1%' : `${Math.round(pct)}%`;
 }

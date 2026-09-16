@@ -402,6 +402,9 @@ export default function OverviewPage() {
               <Panel title="Event kinds" aside={`${d.eventKinds.length} kinds`}>
                 <BarList
                   limit={10}
+                  /* EVERY kind is in this array — `limit` caps what is drawn, not what was
+                     counted — so summing it is the real denominator rather than a sample's. */
+                  total={d.eventKinds.reduce((n, k) => n + k.n, 0)}
                   rows={d.eventKinds.map((k) => ({
                     key: k.kind,
                     label: <span className="font-mono text-xs">{k.kind}</span>,

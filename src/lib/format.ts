@@ -117,3 +117,35 @@ export const AXIS_FORMATTERS: Record<NumberFormat, (n: number | null) => string>
   duration: formatDuration,
   percent: (n) => formatPercent(n, 0),
 };
+
+/**
+ * Seconds → the coarsest unit that still reads as a duration.
+ *
+ * ONE COPY. There were three, in the two skill pages and the runs table, and they had
+ * already drifted apart in the only case that matters — what to print when there is no
+ * number. `if (!s) return '—'` collapsed null and a real sub-second measurement into the
+ * same dash, and this platform has both: a skill with no run long enough to time, and
+ * sdlc-explore's genuine 0.1s median across 37 timed runs.
+ *
+ * `< 1 s` IS A BAND, not a rounding down. The dash is reserved for null — nothing measured.
+ */
+export function formatSeconds(s: number | null): string {
+  if (s === null || !Number.isFinite(s)) return '—';
+  if (s < 1) return s === 0 ? '0 s' : '< 1 s';
+  if (s >= 3600) return `${(s / 3600).toFixed(1)} h`;
+  if (s >= 60) return `${Math.round(s / 60)} min`;
+  return `${Math.round(s)} s`;
+}
+
+/**
+ * Kilobytes → KB or MB, whichever reads without a leading zero.
+ *
+ * Null is a dash and never "0 KB". The three call sites this replaces all did
+ * `Math.round(kbPerRun)` on a field the gateway sends as null, so a skill nobody has
+ * measured the payload of reported having moved nothing — the exact conflation migration
+ * 051 removed one layer down, reintroduced by the type that claimed the field was a number.
+ */
+export function formatKb(kb: number | null): string {
+  if (kb === null || !Number.isFinite(kb)) return '—';
+  return kb >= 1024 ? `${(kb / 1024).toFixed(1)} MB` : `${Math.round(kb)} KB`;
+}

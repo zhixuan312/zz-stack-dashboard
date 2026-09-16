@@ -203,6 +203,20 @@ describe('the overview page', () => {
      * …", so the sentence is split across elements and a regex over the whole of it
      * matches nothing — which looks like the banner is absent when it is present. */
     await waitFor(() => expect(screen.getByText('one error message')).toBeInTheDocument());
-    expect(screen.getByText('86%')).toBeInTheDocument();
+    /* TWO ELEMENTS READ 86% NOW and this test means the headline one. The bar list states
+     * every row's share beside its count, and core:knowledge_add is 18 of the same 21 — the
+     * same fact told once as a finding and once as a ranking. A bare getByText matched both
+     * and threw "found multiple elements", which reads as the banner being broken. */
+    const headline = screen.getAllByText('86%').find((el) => el.tagName === 'B');
+    expect(headline).toBeDefined();
+  });
+
+  /* THE SHARE IS THE WHOLE POINT OF PASSING A TOTAL, and it is computed against the total
+   * the payload states rather than against the rows drawn — `limit` caps the drawing. */
+  it('states each refusal row as a share of the period total', async () => {
+    mount();
+    await waitFor(() => expect(screen.getByText('Where it refuses')).toBeInTheDocument());
+    expect(screen.getByText('86%')).toBeInTheDocument();   // core:knowledge_add, 18 of 21
+    expect(screen.getByText('14%')).toBeInTheDocument();   // core:document_write, 3 of 21
   });
 });

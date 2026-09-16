@@ -77,7 +77,7 @@ export function RefusalsPanel({ refusals }: { refusals: Overview['refusals'] }) 
 
       {refusals.total === 0
         ? <p className="py-8 text-center text-sm text-ink-faint">Nothing refused a call in this period.</p>
-        : <BarList limit={10} rows={rows} />}
+        : <BarList limit={10} rows={rows} total={refusals.total} />}
     </Panel>
   );
 }

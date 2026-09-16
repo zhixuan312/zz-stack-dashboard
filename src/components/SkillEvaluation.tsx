@@ -9,7 +9,7 @@ import {
   Badge, EmptyState, Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui';
 import { cn } from '@/lib/cn';
-import { formatCount } from '@/lib/format';
+import { formatCount, formatKb } from '@/lib/format';
 import type { Skill, SkillDetail } from '@/lib/api';
 
 /**
@@ -77,8 +77,8 @@ export function SkillEvaluation({
                 <div className="mt-4 grid grid-cols-2 gap-4 border-t border-line pt-4 sm:grid-cols-4">
                   <Mini
                     k="Payload per run"
-                    v={skill.kbPerRun >= 1024 ? `${(skill.kbPerRun / 1024).toFixed(1)} MB` : `${Math.round(skill.kbPerRun)} KB`}
-                    sub={`${skill.mbTotal} MB in total`}
+                    v={formatKb(skill.kbPerRun)}
+                    sub={skill.mbTotal === null ? 'not measured' : `${skill.mbTotal} MB in total`}
                   />
                   <Mini k="Distinct tools" v={String(skill.logged?.tools ?? '—')} sub="named at least once" />
                   <Mini k="Calls in the log" v={formatCount(skill.logged?.calls ?? 0)}
@@ -94,6 +94,10 @@ export function SkillEvaluation({
 
               <Panel title="Busiest tools" aside="calls, and how many were refused">
                 <BarList
+                  /* NOT the sum of these rows: the gateway returns the eight busiest tools,
+                     and a share of eight would read as a share of all. `surfaces` groups the
+                     same tool calls by surface with no limit, so it sums to the true total. */
+                  total={d.surfaces.reduce((n, s) => n + s.calls, 0)}
                   rows={d.busiestTools.map((t) => ({
                     key: t.tool,
                     label: <span className="font-mono text-xs">{t.tool}</span>,

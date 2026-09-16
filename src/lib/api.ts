@@ -449,9 +449,23 @@ interface AskCitation { path: string | null; title: string }
 export interface AskAnswer { answer: string; citations: AskCitation[] }
 export interface Skill {
   name: string; version: string; kind: string; flow: string | null;
+  /** Still served, or kept only because it owns these runs. */
+  retired: boolean;
+  /** Teams whose initiatives drove it. Empty when every run of it was teamless. */
+  teams: string[];
   runs: number; calls: number; callsAvg: number; callsMax: number; refusals: number;
-  turns: number | null; durationAvg: number; durationMedian: number; durationMax: number;
-  kbPerRun: number; mbTotal: number;
+  /** Runs a duration could be computed for — those with more than one call. See below. */
+  timedRuns: number;
+  turns: number | null;
+  /* NULLABLE, all five, because the gateway sends null and always did — these were typed
+   * `number` and the pages read them straight, so `Math.round(null)` printed a skill nobody
+   * has measured as "0 KB" and `dur(null)` printed it as an em dash that meant something
+   * else. Seconds; null when no run of this skill has a span to measure (a single-call run
+   * has one timestamp, so `ended_at = started_at` by construction — 148 of 336 runs on this
+   * deployment). `durationTotal` is the sum of those spans, not of every run's. */
+  durationAvg: number | null; durationMedian: number | null; durationMax: number | null;
+  durationTotal: number | null;
+  kbPerRun: number | null; mbTotal: number | null;
   logged: { calls: number; failed: number; tools: number } | null;
   evaluated: { evalId: string; judge: string; documents: number; ran: string;
                mean: number | null; control: number | null; controlN: number } | null;
