@@ -18,7 +18,11 @@ import { useConsole, type Me } from '@/lib/api';
 export function AppFooter() {
   const { data } = useConsole<Me>('/me');
   return (
-    <footer className="mt-8 flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-line pt-4 t-micro text-ink-faint">
+    /* NO RULE ACROSS THE PAGE. It had `border-t` on a full-width block, which drew a
+       1,056px line under 88px of text — the heaviest element on the page announcing the
+       least important thing on it. The line is gone and the text sits at the end of the
+       content, quiet enough to be looked up rather than read. */
+    <footer className="mt-6 flex flex-wrap items-center gap-x-2 gap-y-1 t-micro text-ink-faint">
       <span>ZZ Console {process.env.NEXT_PUBLIC_CONSOLE_VERSION ?? '—'}</span>
       <span aria-hidden>·</span>
       <span>platform {data?.platformVersion ?? '—'}</span>
