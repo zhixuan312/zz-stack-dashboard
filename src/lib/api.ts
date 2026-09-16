@@ -382,7 +382,7 @@ export interface InitiativeDetail {
   team: string; slug: string; documents: DocRow[];
   decisions: { path: string; role: string; key: string; verdict: string;
                qualifier: string | null; detail: string | null;
-               checker: string | null; blocks: string[] | null }[];
+               checker: string | null }[];
   at: number; of: number; stage: string; steps: Step[]; gates: Gate[]; accepted: boolean;
   closed: boolean;
   outcome: string | null;
@@ -401,7 +401,7 @@ export interface DocumentDetail {
   requiredForClose?: boolean;
   /** Keyed by this document's path — a ledger is what THIS document claims. */
   decisions: { key: string; role: string; verdict: string; qualifier: string | null;
-               detail: string | null; checker: string | null; blocks: string[] | null }[];
+               detail: string | null; checker: string | null }[];
   /** Every version of this document, oldest first: the frozen snapshots and the live one. */
   versions: { path: string; body: string | null; status: string | null;
               approved_by: string | null; updated_at: string; bytes: number; version: number }[];
