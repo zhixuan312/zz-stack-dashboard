@@ -72,9 +72,40 @@ pnpm dev          # http://localhost:3000
 
 Locally there is no gateway behind `/api/console`, so every page shows the error the
 fetch actually produced. That is deliberate: the console has no offline mode, and
-fixtures that drift from the real API are worse than an honest failure. To work against
-real data, run it behind the same Caddy split, or tunnel the gateway to `localhost:3000`
-under the `/api` path.
+fixtures that drift from the real API are worse than an honest failure.
+
+### Against real data
+
+Set `ZZ_GATEWAY` and `next dev` routes `/api/console/*` and `/auth/*` to that gateway —
+the same split Caddy performs in production, in the one place a laptop has to do it
+itself. Unset, there is no rewrite and a local call fails exactly as described above.
+
+```sh
+echo 'ZZ_GATEWAY=https://api.<your-host>' >> .env.local
+pnpm dev
+```
+
+That gets the API to answer; the session is the other half, and it cannot be automated.
+**Sign-in is a passkey**, and a passkey is bound to the RP ID it was registered against,
+so a credential created on the deployed console cannot be replayed from `localhost` —
+there is no flag or token that changes this, and a PAT is refused by these routes on
+purpose (`/api/console/me` answers *"the console needs a browser sign-in"*).
+
+What works is carrying the session you already have:
+
+1. sign in to the deployed console in the browser, as normal;
+2. copy the value of the `zz_console` cookie (DevTools → Application → Cookies);
+3. add a cookie of the same name and value on `http://localhost:3000`;
+4. reload.
+
+The browser then holds a session for the origin it is looking at and sends it there,
+which is the arrangement `src/lib/api.ts` describes — nothing is minted, stored or read
+by this app, and the rewrite is routing rather than credential handling. `Secure` cookies
+are permitted on `http://localhost`, so the flag is not in the way.
+
+Treat that cookie as the live credential it is: it is a signed-in session for a real
+deployment, and it belongs in a browser profile rather than in a file, a shell history or
+this repository.
 
 ```sh
 pnpm build && pnpm start     # production build
