@@ -69,7 +69,7 @@ describe('Row', () => {
   const SPLITS: Split[] = ['full', '1/2', '2/3', '1/3', '1/4'];
 
   it.each(SPLITS)('%s stacks to one column on a narrow screen and never lets a card widen it', (split) => {
-    const row = render(<Row split={split}><div /><div /></Row>).container.firstElementChild!;
+    const row = render(<Row split={split}><div /><div /></Row>).container.querySelector('[data-split]')!;
     expect(row.className).toContain('grid-cols-1');
     expect(row.className).toContain('[&>*]:min-w-0');
     // Equal height is the grid's default stretch; nothing may opt a row out of it.
@@ -77,9 +77,16 @@ describe('Row', () => {
   });
 
   it('puts the wide share on the side the split names', () => {
-    const cls = (s: Split) => render(<Row split={s} />).container.firstElementChild!.className;
+    const cls = (s: Split) => render(<Row split={s} />).container.querySelector('[data-split]')!.className;
     expect(cls('2/3')).toContain('lg:[&>*:first-child]:col-span-2');
     expect(cls('1/3')).toContain('lg:[&>*:last-child]:col-span-2');
-    expect(cls('1/4')).toContain('lg:grid-cols-4');
+    expect(cls('1/4')).toContain('@min-[85rem]:grid-cols-4');
+  });
+
+  // A tile row counts columns from its own width, so it needs a container to measure.
+  it('1/4 sits in a container and the cards stay direct children of the grid', () => {
+    const c = render(<Row split="1/4"><div /><div /></Row>).container;
+    expect(c.firstElementChild!.className).toContain('@container');
+    expect(c.querySelector('[data-split]')!.children).toHaveLength(2);
   });
 });

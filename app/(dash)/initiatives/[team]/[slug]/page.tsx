@@ -53,7 +53,7 @@ export default function InitiativePage({
           const versions = d.documents.filter((x) => x.path.startsWith('_versions/'));
           return (
             <>
-              <Panel title="Where it got to">
+              <Panel title="Progress">
                 <FlowStepper at={d.at} gates={d.gates} outcome={d.outcome} steps={d.steps} />
               </Panel>
 

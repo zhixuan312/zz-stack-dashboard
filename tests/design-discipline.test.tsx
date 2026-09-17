@@ -68,21 +68,13 @@ describe('chart palette discipline', () => {
     { key: 'c', label: 'Gamma', value: 3 },
   ];
 
-  it('draws the whole population neutral when nothing is highlighted', () => {
+  it('draws every row in the theme accent', () => {
     const { container } = render(<BarList rows={ROWS} />);
     const fills = [...container.querySelectorAll('span[style*="width"]')].map(
       (el) => (el as HTMLElement).style.background,
     );
     expect(fills).toHaveLength(3);
-    expect(fills.every((f) => f.includes('line-strong'))).toBe(true);
-  });
-
-  it('spends the accent on exactly one bar', () => {
-    const { container } = render(<BarList rows={ROWS} highlight="b" />);
-    const fills = [...container.querySelectorAll('span[style*="width"]')].map(
-      (el) => (el as HTMLElement).style.background,
-    );
-    expect(fills.filter((f) => f.includes('--accent'))).toHaveLength(1);
+    expect(fills.every((f) => f.includes('--accent'))).toBe(true);
   });
 
   it("lets a row's explicit tint win, for categorical colour", () => {

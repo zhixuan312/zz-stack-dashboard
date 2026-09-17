@@ -1,6 +1,7 @@
 import { type HTMLAttributes, type ReactNode } from 'react';
 import { cn } from '@/lib/cn';
 import { CHIP, type ChipTint } from '@/lib/tints';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 /**
  * MetricCard — one cell of the status row, and usually the dominant object on
@@ -29,15 +30,16 @@ import { CHIP, type ChipTint } from '@/lib/tints';
  *      A tile that needs singling out gets `emphasis`, which is one per row.
  *   6. A mark earns its place only when the single number lies — a median with
  *      a long tail, a count that is really four categories. A mark that merely
- *      repeats the value is decoration. **A mark with parts carries its legend**:
- *      a six-colour bar with nothing naming the colours is not a chart. And a
+ *      repeats the value is decoration. A mark's parts name themselves on hover
+ *      and focus; a tile carries no legend row, because one that wraps in some
+ *      tiles and not others makes the row ragged. And a
  *      ROW of tiles draws its marks in ONE shape — a distribution rendered as a
  *      cloud of dots beside three bars is a different species of object, and the
  *      row reads as untidy before anybody has read a number. Bands say a tail as
  *      well as dots do, in the grammar the rest of the row already speaks.
- *   7. The FOOTER is the comparison, and it is absent rather than dashed when
- *      there is no comparable window. "was 33% · vs previous 24 hours" is what
- *      makes the delta above it checkable.
+ *   7. The comparison lives ON the delta pill: hovering or focusing it gives
+ *      the previous figure. It was a footer row for a while, and a row present
+ *      in three tiles and absent in the fourth put the row out of alignment.
  *
  * THE STATUS TRIO STAYS RESERVED. `sage`/`amber`/`rose` mean good/warn/bad
  * everywhere in this system, so a tile takes one as its identity tint only when
@@ -84,6 +86,8 @@ interface MetricDelta {
    * default when the caller has not said.
    */
   sentiment?: 'good' | 'bad' | 'neutral';
+  /** The previous figure, e.g. `was 4.0%` — shown when the pill is hovered or focused. */
+  was?: string;
 }
 
 export interface MetricCardProps extends Omit<HTMLAttributes<HTMLDivElement>, 'children'> {
@@ -116,13 +120,6 @@ export interface MetricCardProps extends Omit<HTMLAttributes<HTMLDivElement>, 'c
    */
   mark?: ReactNode;
   /**
-   * RULE 7: the comparison, last in the tile — "was 33% · vs previous 24 hours".
-   *
-   * OMITTED, NEVER DASHED, when there is no comparable window. A row of four "was —"
-   * lines reads as a broken page rather than as an absent comparison.
-   */
-  footer?: ReactNode;
-  /**
    * The caveats, the definitions behind the definition, and which way is good.
    *
    * NOT the one-line meaning of the tile — that is `description`, on the face, because a
@@ -151,7 +148,6 @@ export function MetricCard({
   sublabel,
   delta,
   mark,
-  footer,
   help,
   emphasis,
   muted,
@@ -162,6 +158,38 @@ export function MetricCard({
   // at 32px that the number stays the loudest thing in the tile.
   const { bg, fg } = CHIP[tint];
 
+  const helpDot = help ? (
+    <span
+      tabIndex={0}
+      role="note"
+      aria-label={help}
+      title={help}
+      className="ml-auto grid size-[1.375rem] shrink-0 cursor-help place-items-center self-center rounded-full border border-line text-[0.625rem] font-medium text-ink-faint hover:border-accent hover:bg-accent hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+    >
+      i
+    </span>
+  ) : null;
+
+  const pill = delta ? (
+    <span
+      tabIndex={delta.was ? 0 : undefined}
+      aria-label={delta.was ? `${delta.value}, ${delta.was}` : undefined}
+      className={cn(
+        'inline-flex cursor-default items-center gap-0.5 rounded-[var(--r-pill)] px-2 py-0.5 text-[0.75rem] font-semibold tabular-nums outline-none focus-visible:outline-2 focus-visible:outline-ink',
+        SENTIMENT[delta.sentiment ?? 'neutral'],
+      )}
+    >
+      <span aria-hidden className="text-[0.6875rem]">{ARROW[delta.direction]}</span>
+      {delta.value}
+    </span>
+  ) : null;
+
+  /* FIXED SLOTS. Every tile in a row has the same lines in the same places whatever its
+     copy says: a one-line title, a one-line description, the number, a one-line detail,
+     the mark. A slot is reserved even when it is empty, and text never wraps past its
+     slot — the copy is written to fit the narrowest tile the row allows (see `Row`'s
+     `1/4`), so the clip is a guard, not a layout. A line that wraps in one tile and
+     not its neighbour is what makes a row look untidy. */
   return (
     <div className={cn(metricFrame, className)} {...rest}>
       <div className="flex items-start gap-3">
@@ -176,57 +204,38 @@ export function MetricCard({
         ) : null}
 
         <div className="min-w-0 flex-1">
-          <h3 className="truncate text-[0.9375rem] font-semibold leading-tight text-ink">
+          <h3 className="overflow-hidden whitespace-nowrap text-[0.9375rem] font-semibold leading-tight text-ink">
             {label}
           </h3>
-          {description ? (
-            <p className="mt-0.5 text-[0.8125rem] leading-snug text-ink-soft">{description}</p>
-          ) : null}
+          <p className="mt-0.5 min-h-[1lh] overflow-hidden whitespace-nowrap text-[0.8125rem] leading-snug text-ink-soft">
+            {description}
+          </p>
         </div>
-
-        {help ? (
-          <span
-            tabIndex={0}
-            role="note"
-            aria-label={help}
-            title={help}
-            className="grid size-[1.375rem] shrink-0 cursor-help place-items-center rounded-full border border-line text-[0.625rem] font-medium text-ink-faint hover:border-accent hover:bg-accent hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
-          >
-            i
-          </span>
-        ) : null}
       </div>
 
-      {/* THE DELTA SITS BESIDE THE NUMBER, not at the far edge. `justify-between` pinned it
-          to the right margin, so at a wide column the movement was separated from the value
-          it describes by an inch of empty tile and the two stopped reading as one statement.
-          They are one statement: "22%, and that is 7.1 points worse than last time." */}
-      <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+      {/* THE DELTA SITS BESIDE THE NUMBER, not at the far edge — "22%, and that is 7.1
+          points worse than last time" is one statement. The `i` takes the far edge
+          instead: it used to sit in the title row, where it cost the title the width it
+          needed to stay on one line. */}
+      <div className="flex items-baseline gap-x-2.5">
         <span
           className={cn('t-stat', muted ? '!text-ink-faint' : emphasis ? '!text-accent-deep' : '!text-ink')}
         >
           {value}
         </span>
-        {delta ? (
-          <span
-            className={cn(
-              'inline-flex items-center gap-0.5 rounded-[var(--r-pill)] px-2 py-0.5 text-[0.75rem] font-semibold tabular-nums',
-              SENTIMENT[delta.sentiment ?? 'neutral'],
-            )}
-          >
-            <span aria-hidden className="text-[0.6875rem]">{ARROW[delta.direction]}</span>
-            {delta.value}
-          </span>
-        ) : null}
+        {delta && delta.was ? (
+          <Tooltip>
+            <TooltipTrigger asChild>{pill}</TooltipTrigger>
+            <TooltipContent>{delta.was}</TooltipContent>
+          </Tooltip>
+        ) : pill}
+        {helpDot}
       </div>
 
-      {sublabel ? <p className="text-[0.8125rem] leading-snug text-ink-soft">{sublabel}</p> : null}
+      <p className="min-h-[1lh] overflow-hidden whitespace-nowrap text-[0.8125rem] leading-snug text-ink-soft">{sublabel}</p>
 
-      {mark ? <div className="mt-0.5">{mark}</div> : null}
+      {mark ? <div className="mt-auto">{mark}</div> : null}
 
-      {footer ? (
-        <p className="mt-auto t-micro text-ink-faint">{footer}</p>
-      ) : null}
     </div>
   );
 }

@@ -55,14 +55,17 @@ export function Stack({ className, ...rest }: HTMLAttributes<HTMLDivElement>) {
  * scans source text — a class built at runtime generates no CSS.
  *
  * Below `lg` every split stacks to one column (the main column is ~790px at 1024 with the
- * rail open, which is no room for two tables); `1/4` goes to two columns first.
+ * rail open, which is no room for two tables); `1/4` counts from its own width instead.
  */
 const SPLIT = {
   full: '',
   '1/2': 'lg:grid-cols-2',
   '2/3': 'lg:grid-cols-3 lg:[&>*:first-child]:col-span-2',
   '1/3': 'lg:grid-cols-3 lg:[&>*:last-child]:col-span-2',
-  '1/4': 'md:grid-cols-2 lg:grid-cols-4',
+  // Four columns only when each tile is at least 20rem wide — the width the tile's one-line
+  // slots were measured against (the longest description needs ~305px of tile). Below
+  // that, two.
+  '1/4': '@min-[34rem]:grid-cols-2 @min-[85rem]:grid-cols-4',
 } as const;
 export type Split = keyof typeof SPLIT;
 
@@ -77,11 +80,15 @@ export type Split = keyof typeof SPLIT;
  * width and pushes the whole row wider than the page.
  */
 export function Row({ split = 'full', className, ...rest }: HTMLAttributes<HTMLDivElement> & { split?: Split }) {
-  return (
+  const row = (
     <div
       data-split={split}
       className={cn('grid min-w-0 grid-cols-1 [&>*]:min-w-0', GAP, SPLIT[split], className)}
       {...rest}
     />
   );
+  // A row of tiles counts its columns from ITS OWN width, not the viewport's. A tile has
+  // fixed text slots, and what decides whether its title fits one line is how wide the
+  // tile is — which the viewport says nothing about once the rail is open.
+  return split === '1/4' ? <div className="@container min-w-0">{row}</div> : row;
 }

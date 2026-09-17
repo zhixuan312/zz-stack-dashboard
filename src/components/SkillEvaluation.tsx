@@ -42,7 +42,7 @@ export function SkillEvaluation({
           condition of one a block team has just published, and of every step of a flow
           nobody has installed. Saying so beats four dashes. */}
       {!skill ? (
-        <Panel title="What it costs to run">
+        <Panel title="Cost to run">
           <EmptyState
             illustration={{ src: '/assets/brand/state-empty.png', width: 96, height: 96 }}
             icon={<FlaskConical />}
@@ -53,7 +53,7 @@ export function SkillEvaluation({
       ) : (
         <Row split="1/2">
           <Panel
-            title="Where its calls went"
+            title="Calls by door"
             aside={`${formatCount(skill.calls)} calls · ${skill.logged?.tools ?? 0} distinct tools`}
           >
             <CompositionBar
@@ -112,7 +112,7 @@ export function SkillEvaluation({
 
       {d.dimensions.length ? (
         <Panel
-          title="How it is judged"
+          title="Judging criteria"
           aside={skill?.evaluated
             ? `${d.dimensions.length} dimensions · judge ${skill.evaluated.judge}`
             : undefined}
@@ -138,7 +138,7 @@ export function SkillEvaluation({
           </Table>
         </Panel>
       ) : (
-        <Panel title="How it is judged">
+        <Panel title="Judging criteria">
           <EmptyState
             illustration={{ src: '/assets/brand/state-empty.png', width: 96, height: 96 }}
             icon={<FlaskConical />}
@@ -154,7 +154,7 @@ export function SkillEvaluation({
 
       {d.dimensions.length ? (
         <Panel
-          title="What it scored"
+          title="Scores"
           aside={
             // THE WAY IN, where there is one. These means are computed over the
             // documents a judge happened to read, and this panel never said which
@@ -204,7 +204,7 @@ export function SkillEvaluation({
 
       {d.findings.length ? (
         <Panel
-          title="What the judge kept finding"
+          title="Recurring judge findings"
           aside="patterns across many documents · none acted on yet"
           padded={false}
         >

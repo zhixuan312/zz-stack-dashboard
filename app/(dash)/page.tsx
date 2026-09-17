@@ -13,7 +13,6 @@ import type { Tint } from '@/lib/tints';
 import { useConsole, useConsoleMode, type Overview, type OverviewMetrics } from '@/lib/api';
 import { Row, type MetricCardProps } from '@/components/ui';
 import { usePeriod } from '@/components/PeriodProvider';
-import { PERIOD_SPAN } from '@/lib/period';
 
 /**
  * The landing page — the fleet's census, or one team's.
@@ -93,27 +92,22 @@ const kbText = (kb: number | null): string =>
  */
 function delta(
   now: number | null, prev: number | null, goodWhen: 'up' | 'down', unit: 'pts' | 'pct',
+  fmt: (v: number | null) => string,
 ): MetricCardProps['delta'] {
   if (now === null || prev === null || prev === 0) return undefined;
+  // The previous figure rides on the pill, not on a line of its own: a comparison row that
+  // appears in some tiles and not others is what put the row out of alignment, and the
+  // period it compares against is already chosen at the top of the page.
+  const was = `was ${fmt(prev)}`;
   const diff = unit === 'pts' ? now - prev : ((now - prev) / prev) * 100;
-  if (Math.abs(diff) < 0.05) return { value: 'no change', direction: 'flat', sentiment: 'neutral' };
+  if (Math.abs(diff) < 0.05) return { value: 'no change', direction: 'flat', sentiment: 'neutral', was };
   const up = diff > 0;
   return {
     value: unit === 'pts' ? `${Math.abs(diff).toFixed(1)}pts` : `${Math.abs(Math.round(diff))}%`,
     direction: up ? 'up' : 'down',
     sentiment: (goodWhen === 'up') === up ? 'good' : 'bad',
+    was,
   };
-}
-
-/**
- * "was 33% · vs previous 24 hours" — or nothing at all.
- *
- * Same rule as `delta` and for the same reason: with no comparable window there is no
- * previous figure, and "was —" on four tiles reads as a broken page. `basis` already
- * carries the sentence for the period, so this only has to supply the old number.
- */
-function footer(prev: number | null, fmt: (v: number | null) => string, basis: string): string | undefined {
-  return prev === null ? undefined : `was ${fmt(prev)} · ${basis}`;
 }
 
 /**
@@ -146,7 +140,7 @@ function contextBands(runs: { kb: number }[]): { key: string; value: number; tin
   })).filter((b) => b.value > 0);
 }
 
-function buildMetrics(m: OverviewMetrics, basis: string): MetricCardProps[] {
+function buildMetrics(m: OverviewMetrics): MetricCardProps[] {
   const shelf = m.knowledge.fromWork + m.knowledge.imported;
   return [
     {
@@ -154,7 +148,7 @@ function buildMetrics(m: OverviewMetrics, basis: string): MetricCardProps[] {
       value: pctText(m.progressing.value),
       icon: <Layers />,
       tint: 'accent',
-      description: 'completeness against its own flow',
+      description: 'median completeness of open work',
       /* "OPEN", because the word is the whole correction. The median used to be taken over
        * every scoreable initiative including the CLOSED ones — 13 permanent 100s against 3
        * real numbers, on the day this was found — so the tile read 100% and could not read
@@ -169,11 +163,11 @@ function buildMetrics(m: OverviewMetrics, basis: string): MetricCardProps[] {
          empty table. The reader can see 3.9 days and judge. */
       sublabel: [
         m.progressing.scoreable
-          ? `median of ${m.progressing.scoreable} open · ${m.progressing.active} active`
-          : 'nothing open and scoreable was active',
+          ? `${m.progressing.scoreable} open · ${m.progressing.active} active`
+          : 'none open',
         m.progressing.waiting
-          ? `${m.progressing.waiting} waiting on a person`
-            + (m.progressing.waitingOldestDays !== null ? `, oldest ${m.progressing.waitingOldestDays}d` : '')
+          ? `${m.progressing.waiting} awaiting`
+            + (m.progressing.waitingOldestDays !== null ? ` (${m.progressing.waitingOldestDays}d)` : '')
           : null,
       ].filter(Boolean).join(' · '),
       /* FOUR BANDS, BECAUSE THE BAR DRAWS FOUR. The six stages were listed six times under
@@ -186,7 +180,7 @@ function buildMetrics(m: OverviewMetrics, basis: string): MetricCardProps[] {
        * that is still visible is still named. `help` carries all six. */
       mark: (
         <CompositionBar
-          legend="inline"
+          legend="none"
           slices={[
             { key: 'not started', value: m.progressing.stages.noflow + m.progressing.stages.notstarted, tint: 'steel' },
             { key: 'drafting', value: m.progressing.stages.drafting, tint: 'amber' },
@@ -223,13 +217,12 @@ function buildMetrics(m: OverviewMetrics, basis: string): MetricCardProps[] {
       value: pctText(m.knowledge.value),
       icon: <BookOpen />,
       tint: 'blue',
-      description: 'nodes learned, not imported',
-      delta: delta(m.knowledge.value, m.knowledge.prev, 'up', 'pct'),
-      footer: footer(m.knowledge.prev, pctText, basis),
-      sublabel: `${formatCount(m.knowledge.fromWork)} of ${formatCount(shelf)} nodes · ${formatCount(m.knowledge.searches)} searches ${basis.startsWith('all') ? 'all time' : 'in this period'}`,
+      description: 'share of nodes learned from work',
+      delta: delta(m.knowledge.value, m.knowledge.prev, 'up', 'pct', pctText),
+      sublabel: `${formatCount(m.knowledge.fromWork)} of ${formatCount(shelf)} nodes · ${formatCount(m.knowledge.searches)} searches`,
       mark: (
         <CompositionBar
-          legend="inline"
+          legend="none"
           slices={[
             { key: 'from work', value: m.knowledge.fromWork, tint: 'sage' },
             { key: 'bulk import', value: m.knowledge.imported, tint: 'steel' },
@@ -256,8 +249,7 @@ function buildMetrics(m: OverviewMetrics, basis: string): MetricCardProps[] {
       // needs somebody today is what the delta pill and the number say.
       tint: 'rose',
       description: 'share of tool calls refused',
-      delta: delta(m.refusals.value, m.refusals.prev, 'down', 'pts'),
-      footer: footer(m.refusals.prev, pctText, basis),
+      delta: delta(m.refusals.value, m.refusals.prev, 'down', 'pts', pctText),
       sublabel: `${formatCount(m.refusals.refused)} of ${formatCount(m.refusals.calls)} calls refused`,
       /* WHICH DOOR IS REFUSING. Rule 6 is satisfied because this is not the rate drawn
        * twice: the number says how much, the mark says where, and neither is derivable
@@ -268,18 +260,14 @@ function buildMetrics(m: OverviewMetrics, basis: string): MetricCardProps[] {
        * `event.block`, which is null on every tool call this platform has ever recorded,
        * so the bar was one full-width slice drawing the number a second time: the exact
        * decoration Rule 6 forbids, shipped under a comment claiming it was not. */
-      /* OMITTED, NOT EMPTY — Rule 7's principle applied to the mark. Zero refusals is this
-       * metric's GOAL STATE, and `CompositionBar`'s empty label would answer it with a
-       * centred paragraph restating what the sublabel already says, in more vertical space
-       * than the bar it replaces. A row of four tiles where the good one is the tallest is
-       * backwards. */
-      mark: m.refusals.byDoor.length ? (
+      mark: (
         <CompositionBar
-          legend="inline"
+          legend="none"
           format={formatCount}
           slices={m.refusals.byDoor.map((d) => ({ key: d.door, value: d.n }))}
+          emptyLabel="No refused call in this period"
         />
-      ) : undefined,
+      ),
       help:
         'Is the tool surface getting in the way? Lower is better. A rate, not a count — a count '
         + 'rises whenever usage rises and so says nothing about whether the platform got worse. '
@@ -298,17 +286,16 @@ function buildMetrics(m: OverviewMetrics, basis: string): MetricCardProps[] {
       // question is "is the system straining?", and its dot strip draws a reference line
       // at roughly one context window. Warn is what it is about.
       tint: 'amber',
-      description: 'what tools handed back',
-      delta: delta(m.context.value, m.context.prev, 'down', 'pct'),
-      footer: footer(m.context.prev, kbText, basis),
+      description: 'median tool output per run',
+      delta: delta(m.context.value, m.context.prev, 'down', 'pct', kbText),
       /* THE SUBLABEL IS FIGURES. It opened with "text the agent carries on every later
        * step", which is the tile's DEFINITION — `description` already carries that, one
        * line above — and the repetition pushed the line into a second row that made this
        * the tallest tile in the row. Rule 2 puts the meaning on the face once. */
       sublabel: m.context.p90 === null
-        ? 'no measured run in this period'
-        : `top 10% pull ${kbText(m.context.p90)}`
-          + (m.context.unmeasured ? ` · ${formatCount(m.context.unmeasured)} runs unmeasured` : ''),
+        ? 'no measured run'
+        : `top 10% ≥ ${kbText(m.context.p90)}`
+          + (m.context.unmeasured ? ` · ${formatCount(m.context.unmeasured)} unmeasured` : ''),
       /* SIZE BANDS, NOT A DOT PER RUN. This was a strip that drew every measured run as
        * its own dot on a log axis, and at the volume this platform now records it was a
        * wall of dots — a different species of object from the three composition bars
@@ -321,7 +308,7 @@ function buildMetrics(m: OverviewMetrics, basis: string): MetricCardProps[] {
        * ones are counted in the sublabel and never folded in as zero. */
       mark: (
         <CompositionBar
-          legend="inline"
+          legend="none"
           format={formatCount}
           slices={contextBands(m.context.runs)}
           emptyLabel="No measured run in this period"
@@ -351,9 +338,6 @@ export default function OverviewPage() {
   const { mode } = useConsoleMode();
   const platform = mode === 'platform';
   const m = q.data?.metrics;
-  const basis = period === 'all'
-    ? 'all time — no earlier window to compare against'
-    : `vs the previous ${PERIOD_SPAN[period]}`;
 
   return (
     <DashboardPage
@@ -365,7 +349,7 @@ export default function OverviewPage() {
       }
       showPeriod
       updatedAt={new Date()}
-      metrics={m ? buildMetrics(m, basis) : undefined}
+      metrics={m ? buildMetrics(m) : undefined}
     >
       <Query query={q}>
         {(d) => {
@@ -373,6 +357,7 @@ export default function OverviewPage() {
              the chart beneath it, so reading it off anything else invites the two to
              disagree — and a header that contradicts its own chart is worse than none. */
           const toolCalls = d.toolTrend.reduce((n, b) => n + b.inside + b.outside + b.refused, 0);
+          const events = d.eventKinds.reduce((n, k) => n + k.n, 0);
           return (
           <>
             {/* The aside names the teamless remainder because the Teams page shows a
@@ -416,23 +401,25 @@ export default function OverviewPage() {
             </Panel>
 
             <Row split="1/2">
-              <RefusalsPanel refusals={d.refusals} />
-
-              <Panel title="Event kinds" aside={`${d.eventKinds.length} kinds`}>
+              {/* THE TOTAL, not the number of kinds: the rows are shares of it, and "5 kinds"
+                  gave the percentages nothing to be a share of. */}
+              <Panel title="Event kinds" aside={`${formatCount(events)} events`}>
                 <BarList
                   limit={10}
                   /* EVERY kind is in this array — `limit` caps what is drawn, not what was
                      counted — so summing it is the real denominator rather than a sample's. */
-                  total={d.eventKinds.reduce((n, k) => n + k.n, 0)}
+                  total={events}
                   rows={d.eventKinds.map((k) => ({
                     key: k.kind,
                     label: <span className="font-mono text-xs">{k.kind}</span>,
                     value: k.n,
-                    caption: k.failed ? `${k.failed} refused` : undefined,
-                    tint: k.failed ? 'rose' : undefined,
                   }))}
                 />
               </Panel>
+
+              {/* Refusals on the right: they are a part of the events on the left, and
+                  the refused count is not repeated there because this panel states it. */}
+              <RefusalsPanel refusals={d.refusals} />
             </Row>
           </>
           );

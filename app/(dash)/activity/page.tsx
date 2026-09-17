@@ -33,7 +33,7 @@ export default function ActivityPage() {
       updatedAt={new Date()}
       actions={
         <Segmented
-          label="Which events"
+          label="Event filter"
           value={failedOnly ? 'failed' : 'all'}
           onChange={(v) => setFailedOnly(v === 'failed')}
           options={[

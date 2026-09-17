@@ -111,7 +111,7 @@ export default function PluginSkillPage({ params }: { params: Promise<{ plugin: 
                   runs. Version and Evaluated come from that record and say so when it is
                   missing; the rest comes from the catalog. */}
               <Row split={skill ? '1/2' : 'full'}>
-                <Panel title="What this skill is">
+                <Panel title="About this skill">
                   <dl className="flex flex-col gap-3 text-[13px]">
                     <Field k="Does" v={<span className="text-ink-soft">{text?.description ?? '—'}</span>} />
                     <Field

@@ -70,7 +70,7 @@ export default function PluginPage({ params }: { params: Promise<{ plugin: strin
             <>
               {/* WHAT THE PLUGIN IS, then what its skills DID. */}
               <Row split="1/2">
-                <Panel title="What this plugin is">
+                <Panel title="About this plugin">
                   <dl className="flex flex-col gap-3 text-[13px]">
                     <Field k="Does" v={<span className="text-ink-soft">{p.description ?? pluginKind(p)}</span>} />
                     <Field

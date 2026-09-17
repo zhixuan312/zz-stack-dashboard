@@ -176,7 +176,7 @@ export default function DocumentPage({
                       </dl>
                       <span className="flex shrink-0 items-center gap-3 text-xs text-ink-faint">
                         <Segmented
-                          label="How to show this document"
+                          label="Document view"
                           value={view}
                           onChange={(v) => setView(v as 'read' | 'source')}
                           options={[{ value: 'read', label: 'Read' }, { value: 'source', label: 'Source' }]}

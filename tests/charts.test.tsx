@@ -111,6 +111,16 @@ describe('ActivityHeatmap', () => {
 });
 
 describe('BarList', () => {
+  it('draws a row as its share of the total, and states the share on the bar only', () => {
+    const { container } = render(
+      <BarList total={4} rows={[{ key: 'a', label: 'a', value: 2 }, { key: 'b', label: 'b', value: 1 }]} />,
+    );
+    const widths = [...container.querySelectorAll<HTMLElement>('span[style*="width"]')].map((e) => e.style.width);
+    expect(widths).toEqual(['50%', '25%']);
+    expect(screen.getByLabelText('50% of 4')).toBeInTheDocument();
+    expect(screen.queryByText('50%')).not.toBeInTheDocument();
+  });
+
   it('collapses rows past the limit into a single "more" row', () => {
     render(
       <BarList

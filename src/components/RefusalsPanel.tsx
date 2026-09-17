@@ -19,27 +19,21 @@ import type { Overview } from '@/lib/api';
  * This replaced a table of tool · count · message. The table was honest and nearly
  * unreadable: the message column truncated at 36 characters, which is where these
  * refusals differ from each other, and ranking by count put the same tool in every row.
+ *
+ * NO COLOUR. Every row here is a refusal, so a red bar on each one distinguished nothing;
+ * the bars are the neutral population tone and their length does the ranking.
+ *
+ * NO HEADLINE CALLOUT. It read "50% is one error message from …" above the list, and the
+ * first bar already draws that share with its figure beside it — the same fact twice.
  */
 export function RefusalsPanel({ refusals }: { refusals: Overview['refusals'] }) {
   const [axis, setAxis] = useState<'tool' | 'message'>('tool');
-
-  /* THE CALLOUT IS FOR A CONCENTRATION, and it fires only when there is one.
-   *
-   * "90% is one error message" is worth a banner. The same banner over 10% is a headline
-   * for a non-story, and a panel that always shouts teaches the reader to stop looking.
-   * Measured on production while this was written: the commonest message was 12 of 115 —
-   * so the quiet path is the ordinary one, and it has to look deliberate rather than
-   * broken. */
-  const top = refusals.byMessage[0];
-  const share = top && refusals.total ? top.n / refusals.total : 0;
-  const concentrated = share >= CONCENTRATION;
 
   const rows = axis === 'tool'
     ? refusals.byTool.map((r) => ({
       key: r.tool,
       label: <span className="font-mono text-xs">{r.tool}</span>,
       value: r.n,
-      tint: 'rose' as const,
     }))
     : refusals.byMessage.map((r) => ({
       key: r.message,
@@ -47,15 +41,16 @@ export function RefusalsPanel({ refusals }: { refusals: Overview['refusals'] }) 
       // Which tool said it — and, when more than one does, that IS the finding.
       caption: r.tools > 1 ? `${r.tools} tools` : r.tool,
       value: r.n,
-      tint: 'rose' as const,
     }));
 
   return (
     <Panel
-      title="Where it refuses"
+      title="Refusals"
       aside={
         <span className="flex items-center gap-3">
-          <span className="tabular-nums text-ink-soft">{formatCount(refusals.total)}</span>
+          <span className="tabular-nums text-ink-soft">
+            {formatCount(refusals.total)} refused {refusals.total === 1 ? 'call' : 'calls'}
+          </span>
           <Segmented
             label="Group refusals by"
             value={axis}
@@ -65,16 +60,6 @@ export function RefusalsPanel({ refusals }: { refusals: Overview['refusals'] }) 
         </span>
       }
     >
-      {concentrated ? (
-        <p className="mb-3 rounded-[var(--r-md)] bg-[var(--rose-tint)] px-4 py-3 text-sm leading-snug text-ink">
-          <b className="t-stat mr-1.5 text-[1.375rem] text-[var(--rose-deep)]">
-            {Math.round(share * 100)}%
-          </b>
-          is <b>one error message</b> from <code className="font-mono text-xs">{top.tool}</code>
-          {' — '}{formatCount(top.n)} of {formatCount(refusals.total)}.
-        </p>
-      ) : null}
-
       {refusals.total === 0
         ? <p className="py-8 text-center text-sm text-ink-faint">Nothing refused a call in this period.</p>
         : <BarList limit={10} rows={rows} total={refusals.total} />}
@@ -82,5 +67,3 @@ export function RefusalsPanel({ refusals }: { refusals: Overview['refusals'] }) 
   );
 }
 
-/** Half. Below this, one message among many is the normal shape of a refusal list. */
-const CONCENTRATION = 0.5;

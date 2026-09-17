@@ -6,9 +6,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import type { Tint } from '@/lib/tints';
 import { TINT_VAR, CHART_EDGE, cycleTint } from '@/lib/tints';
 
-/** Four names is what a tile column fits at the size the legend is set in. */
-const INLINE_MAX = 4;
-
 interface CompositionSlice {
   key: string;
   label?: ReactNode;
@@ -41,32 +38,28 @@ export function CompositionBar({
   emptyLabel?: string;
   /**
    * `list` is the full legend — swatch, label, figure, share — for a bar that is the
-   * subject of its panel. `inline` is the form a METRIC TILE has room for. `none` is for
-   * a bar whose parts are named elsewhere.
+   * subject of its panel. `none` is for a bar whose parts are named where it is read: a
+   * METRIC TILE, whose slices name themselves on hover and focus.
    *
-   * THE INLINE LEGEND IS ONE LINE, BY CONSTRUCTION, WHATEVER THE DATA. It used to carry
-   * each slice's figure — `34 not started · 5 drafting · 5 agreed · 25 settled` — which
-   * is wider than a tile column at four slices, so it wrapped, and one tile in a row of
-   * four sat two lines taller than its neighbours. Shortening labels was tried and did
-   * not hold: the width is a function of the data, so the next figure that gains a digit
-   * brings the second line back.
-   *
-   * So the inline form names the colours and nothing else, at a fixed size, and never
-   * wraps. The figures did not go anywhere — the SUBLABEL states the total, and hovering
-   * or focusing a slice gives its count and its share. Slices past the fourth fold into
-   * one `+N more`, in bar order, because five names do not fit either.
-   *
-   * The tiles used to hide the legend entirely with `[&>ul]:hidden`, which left the
-   * reader a six-colour bar and no way to know what any colour meant. That is the
-   * failure this must not regress into: a colour with no name is not a chart.
+   * THERE IS NO INLINE LEGEND IN A TILE ANY MORE. A row of names under the bar wrapped at
+   * some widths and not others, so one tile in a row of four sat a line taller than its
+   * neighbours — and it repeated what hovering a slice already says, with its count and
+   * share. A tile's bar is read by hover; the tooltip is the legend.
    */
-  legend?: 'list' | 'inline' | 'none';
+  legend?: 'list' | 'none';
 }) {
   const present = slices.filter((s) => s.value > 0);
   const total = present.reduce((n, s) => n + s.value, 0);
 
   if (total === 0) {
-    return <p className={cn('py-6 text-center text-sm text-ink-faint', className)}>{emptyLabel}</p>;
+    // A tile keeps its silhouette when empty: an empty TRACK the same height as a full bar,
+    // not a paragraph that makes the empty tile the tallest in its row. A panel has room
+    // to say it in words.
+    return legend === 'none' ? (
+      <div role="img" aria-label={emptyLabel} title={emptyLabel} className={cn('h-3 rounded-full bg-surface-2', className)} />
+    ) : (
+      <p className={cn('py-6 text-center text-sm text-ink-faint', className)}>{emptyLabel}</p>
+    );
   }
 
   const withTint = present.map((s, i) => ({ ...s, tint: s.tint ?? cycleTint(i) }));
@@ -98,30 +91,6 @@ export function CompositionBar({
           );
         })}
       </div>
-
-      {/* WRAPS RATHER THAN CLIPS, at a width where even four short names do not fit.
-          `overflow-hidden` held the one-line rule at every width and paid for it by cutting
-          labels in half — "settled" rendered as "sett" — which looks broken in a way a
-          second line never does. Each ITEM still refuses to break internally. */}
-      {legend === 'inline' ? (
-        <ul className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          {withTint.slice(0, INLINE_MAX).map((s) => (
-            <li key={s.key} className="flex items-center gap-1.5 t-micro whitespace-nowrap text-ink-soft">
-              <span
-                aria-hidden
-                className="size-1.5 shrink-0 rounded-full"
-                style={{ background: TINT_VAR[s.tint], boxShadow: CHART_EDGE }}
-              />
-              <span>{s.label ?? s.key}</span>
-            </li>
-          ))}
-          {withTint.length > INLINE_MAX ? (
-            <li className="t-micro whitespace-nowrap text-ink-faint">
-              +{withTint.length - INLINE_MAX} more
-            </li>
-          ) : null}
-        </ul>
-      ) : null}
 
       {legend === 'list' ? (
       <ul className="flex flex-col gap-1.5">

@@ -83,12 +83,10 @@ const OVERVIEW: Overview = {
     { bucket: '2026-09-09T04:00:00Z', inside: 200, outside: 111, refused: 9 },
     { bucket: '2026-09-09T05:00:00Z', inside: 250, outside: 149, refused: 12 },
   ],
-  eventKinds: [{ kind: 'tool_call', n: 8551, failed: 1761 }],
+  eventKinds: [{ kind: 'tool_call', n: 8551 }],
   refusals: {
     total: 21,
     byTool: [{ tool: 'core:knowledge_add', n: 18 }, { tool: 'core:document_write', n: 3 }],
-    // Deliberately BELOW the concentration threshold — 18 of 21 is 86%, so flip it to
-    // prove the banner appears, and leave the default case quiet. See the two tests below.
     byMessage: [{ message: 'ERROR: already closed', tool: 'core:initiative_close', tools: 1, n: 8 }],
   },
 };
@@ -186,42 +184,13 @@ describe('the overview page', () => {
     await waitFor(() => expect(screen.getByText(/one bar per day/)).toBeInTheDocument());
   });
 
-  /* THE CALLOUT IS THE PART THAT CAN BE WRONG IN BOTH DIRECTIONS, so both are asserted.
-   * A banner reading "38% is one error message" is a headline for a non-story, and a
-   * panel that always shouts teaches a reader to stop looking at it. */
-  it('stays quiet when no single message dominates the refusals', async () => {
-    mount();                                        // 8 of 21 — 38%, below the threshold
-    await waitFor(() => expect(screen.getByText('Where it refuses')).toBeInTheDocument());
-    expect(screen.queryByText('one error message')).not.toBeInTheDocument();
-  });
-
-  it('calls out a message that is most of the refusals', async () => {
-    const concentrated = { ...OVERVIEW,
-      refusals: { ...OVERVIEW.refusals,
-        byMessage: [{ message: 'ERROR: already closed', tool: 'core:initiative_close', tools: 1, n: 18 }] } };
-    global.fetch = vi.fn(async (url: string) =>
-      ({ ok: true, json: async () => (url.includes('/me') ? ME : concentrated) }) as unknown as Response,
-    ) as unknown as typeof fetch;
-    mount();                                        // 18 of 21 — 86%
-    /* THE `<b>`, not the sentence. The banner reads "86% is <b>one error message</b> from
-     * …", so the sentence is split across elements and a regex over the whole of it
-     * matches nothing — which looks like the banner is absent when it is present. */
-    await waitFor(() => expect(screen.getByText('one error message')).toBeInTheDocument());
-    /* TWO ELEMENTS READ 86% NOW and this test means the headline one. The bar list states
-     * every row's share beside its count, and core:knowledge_add is 18 of the same 21 — the
-     * same fact told once as a finding and once as a ranking. A bare getByText matched both
-     * and threw "found multiple elements", which reads as the banner being broken. */
-    const headline = screen.getAllByText('86%').find((el) => el.tagName === 'B');
-    expect(headline).toBeDefined();
-  });
-
   /* THE ONE FIGURE ON THIS PAGE NAMING SOMETHING A PERSON CAN UNBLOCK, so it has to be
    * on the face and it has to be countable — a tile that states it only in the help
    * popover states it to nobody. */
   it('states what is waiting on a person, and for how long', async () => {
     mount();
     await waitFor(() => expect(screen.getByText(/Initiatives progressing/)).toBeInTheDocument());
-    expect(screen.getByText(/3 waiting on a person, oldest 3.9d/)).toBeInTheDocument();
+    expect(screen.getByText(/3 awaiting \(3.9d\)/)).toBeInTheDocument();
   });
 
   /* NOTHING WAITING IS NOT A CLAUSE READING "0 waiting". A tile that always carries the
@@ -236,17 +205,18 @@ describe('the overview page', () => {
     ) as unknown as typeof fetch;
     mount();
     await waitFor(() => expect(screen.getByText(/Initiatives progressing/)).toBeInTheDocument());
-    expect(screen.queryByText(/waiting on a person/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/awaiting/)).not.toBeInTheDocument();
     // …and the sublabel it shares a line with survives intact.
-    expect(screen.getByText(/median of 6 open/)).toBeInTheDocument();
+    expect(screen.getByText(/^6 open/)).toBeInTheDocument();
   });
 
   /* THE SHARE IS THE WHOLE POINT OF PASSING A TOTAL, and it is computed against the total
    * the payload states rather than against the rows drawn — `limit` caps the drawing. */
   it('states each refusal row as a share of the period total', async () => {
     mount();
-    await waitFor(() => expect(screen.getByText('Where it refuses')).toBeInTheDocument());
-    expect(screen.getByText('86%')).toBeInTheDocument();   // core:knowledge_add, 18 of 21
-    expect(screen.getByText('14%')).toBeInTheDocument();   // core:document_write, 3 of 21
+    await waitFor(() => expect(screen.getByText('Refusals')).toBeInTheDocument());
+    // The share is on the bar, read on hover and by a screen reader.
+    expect(screen.getByLabelText('86% of 21')).toBeInTheDocument();   // core:knowledge_add
+    expect(screen.getByLabelText('14% of 21')).toBeInTheDocument();   // core:document_write
   });
 });

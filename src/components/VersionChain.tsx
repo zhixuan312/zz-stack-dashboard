@@ -111,14 +111,14 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
     <>
       {pair ? (
         <Panel
-          title="What changed, and why"
+          title="Changes and their reasons"
           aside={
             <span className="flex items-center gap-3">
               {/* A SELECT, not a segmented strip: one segment per change grows with the
                   document's history, and a strip that cannot wrap pushes the card wider. */}
               {pairs.length > 1 ? (
                 <Select value={String(at)} onValueChange={(v) => setAt(Number(v))}>
-                  <SelectTrigger className="w-[11rem]" aria-label="Which change">
+                  <SelectTrigger className="w-[11rem]" aria-label="Change">
                     <SelectValue>{`${stepLabel(pairs[at].before)} → ${stepLabel(pairs[at].after)}`}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
@@ -247,7 +247,7 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
           </div>
         </Panel>
       ) : sources.length ? (
-        <Panel title="What this document was changed on" aside={`${sources.length} source(s)`}>
+        <Panel title="Sources behind the change" aside={`${sources.length} source(s)`}>
           <ul className="flex flex-col gap-3">
             {sources.map((s) => (
               <li key={s.path}>
@@ -263,7 +263,7 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
 
       {raw.length > 1 ? (
         <Panel
-          title="How the content moved"
+          title="Content history"
           aside={
             steps.length === 1
               ? `one version of the content, ${raw.length} approvals`
