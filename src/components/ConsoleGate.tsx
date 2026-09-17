@@ -2,7 +2,7 @@
 
 import { useEffect, type ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { Spinner } from '@/components/ui';
+import { Banner, Button, Spinner } from '@/components/ui';
 import { useConsole, type Me } from '@/lib/api';
 
 /**
@@ -28,7 +28,11 @@ export function ConsoleGate({ children }: { children: ReactNode }) {
 
   const unauthenticated = me.error?.status === 401;
   // 403, or a 200 that says this caller may not read: signed in, wrong door.
-  const refused = !!me.error && !unauthenticated;
+  const refused = me.error?.status === 403;
+  // Anything else — a 5xx, or no response at all — is an OUTAGE, not an answer about the
+  // caller. It used to count as a refusal, so a gateway that could not reach its database
+  // sent a signed-in person to the login screen under "This view is not open to you".
+  const unreachable = !!me.error && !unauthenticated && !refused;
   const notAllowed = !me.isPending && !me.error && !me.data?.mayRead;
 
   useEffect(() => {
@@ -47,6 +51,24 @@ export function ConsoleGate({ children }: { children: ReactNode }) {
       router.replace(`/login?denied=1&reason=${encodeURIComponent(reason)}`);
     }
   }, [me.isPending, unauthenticated, refused, notAllowed, me.error, me.data?.email, pathname, router]);
+
+  if (unreachable) {
+    return (
+      <div className="flex min-h-full flex-1 flex-col items-center justify-center p-8">
+        <Banner
+          variant="danger"
+          className="w-full max-w-md"
+          title="The console cannot reach the platform"
+          description={me.error?.message}
+          action={
+            <Button size="sm" variant="secondary" loading={me.isFetching} onClick={() => void me.refetch()}>
+              Retry
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
 
   if (me.isPending || unauthenticated || refused || notAllowed) {
     // A spinner, not a flash of the sign-in screen: the check is one request,
