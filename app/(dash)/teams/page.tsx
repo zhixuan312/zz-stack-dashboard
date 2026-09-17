@@ -5,8 +5,7 @@ import { DashboardPage } from '@/components/DashboardPage';
 import { Panel } from '@/components/Panel';
 import { Query } from '@/components/Query';
 import {
-  Badge, PageControl, Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-  Tooltip, TooltipContent, TooltipTrigger, usePaged,
+  Badge, PageControl, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, usePaged,
 } from '@/components/ui';
 import { formatCount } from '@/lib/format';
 import { useConsole, type Team } from '@/lib/api';
@@ -17,7 +16,7 @@ export default function TeamsPage() {
   return (
     <DashboardPage
       title="Teams"
-      description="Every team on the platform, and how much of its work the platform saw."
+      description="Every team on the platform: who is in it and what it holds."
       showPeriod={false}
       updatedAt={new Date()}
     >
@@ -28,7 +27,9 @@ export default function TeamsPage() {
             aside={`${d.teams.length} total`}
             padded={false}
           >
-            <TeamTable teams={d.teams} />
+            {d.teams.length === 0
+              ? <p className="p-6 text-sm text-ink-faint">No team yet.</p>
+              : <TeamTable teams={d.teams} />}
           </Panel>
         )}
       </Query>
@@ -36,37 +37,40 @@ export default function TeamsPage() {
   );
 }
 
+/** Alignment: the first column left, the last right, every column between centred. */
+const MID = 'whitespace-nowrap text-center';
+const LAST = 'whitespace-nowrap text-right';
+
 /** Its own component so it can hold the page state — see `InitiativeTable` on /initiatives. */
 function TeamTable({ teams }: { teams: Team[] }) {
   const { page, controls } = usePaged(teams);
+  const count = (n: number) => (n ? formatCount(n) : '—');
   return (
     <>
-      <Table>
+      {/* HOW THE WIDTH IS SHARED. Every count column is the same width; Team gets a share
+          of its own; Status is as wide as its badge. The spare width is spread across all of
+          them, never handed to one column — Team taking everything left over put half the
+          table between the names and the first figure. Headers never wrap; header and cell
+          share an alignment — first column left, last right, the rest centred. */}
+      <Table className="table-fixed">
+        <colgroup>
+          <col className="w-[18%]" />
+          <col className="hidden w-28 md:table-column" />
+          <col className="hidden md:table-column" />
+          <col />
+          <col className="hidden xl:table-column" />
+          <col className="hidden xl:table-column" />
+          <col className="hidden lg:table-column" />
+        </colgroup>
         <TableHeader>
           <TableRow>
             <TableHead>Team</TableHead>
-            <TableHead hideBelow="md">Status</TableHead>
-            <TableHead hideBelow="md" className="text-right">People</TableHead>
-            <TableHead className="text-right">Initiatives</TableHead>
-            <TableHead hideBelow="xl" className="text-right">Documents</TableHead>
-            {/* THE DEFINITION TRAVELS WITH THE COLUMN. This was the page subtitle's
-              second sentence, which made the subtitle wrap to two lines while
-              explaining a single column most readers never reach. Rule 2: the
-              definition belongs on the face of the thing it defines. */}
-          <TableHead hideBelow="lg" className="text-right">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="cursor-help border-b border-dotted border-line-strong">
-                  Recorded work
-                </span>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-[34ch]">
-                Events naming the team&rsquo;s own initiatives — not admin actions, and
-                not documents loaded in from elsewhere.
-              </TooltipContent>
-            </Tooltip>
-          </TableHead>
-            <TableHead hideBelow="lg">Flows</TableHead>
+            <TableHead hideBelow="md" className={MID}>Status</TableHead>
+            <TableHead hideBelow="md" className={MID}>People</TableHead>
+            <TableHead className={MID}>Initiatives</TableHead>
+            <TableHead hideBelow="xl" className={MID}>Documents</TableHead>
+            <TableHead hideBelow="xl" className={MID}>Sources</TableHead>
+            <TableHead hideBelow="lg" className={LAST} title="Knowledge nodes on the team's shelf">Knowledge</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -78,45 +82,16 @@ function TeamTable({ teams }: { teams: Team[] }) {
                 </Link>
                 <span className="block text-xs text-ink-faint">{t.name}</span>
               </TableCell>
-              <TableCell hideBelow="md">
+              <TableCell hideBelow="md" className="text-center">
                 <Badge variant={t.status === 'active' ? 'sage' : 'neutral'} dot>
                   {t.status}
                 </Badge>
               </TableCell>
-              <TableCell hideBelow="md" className="text-right tabular-nums">{t.members}</TableCell>
-              <TableCell className="text-right tabular-nums">{t.initiatives || '—'}</TableCell>
-              <TableCell hideBelow="xl" className="text-right tabular-nums">{t.documents || '—'}</TableCell>
-              <TableCell hideBelow="lg" className="text-right">
-                {/* NOT the raw event count.
-                    A team can hold 197 documents and have produced none of them
-                    here — load the files in and there is nothing to record — so
-                    its event total is admin actions only. Printed as a number
-                    beside a busy team's, that reads as "this team does less
-                    work", which is not what it measures. Two teams on this
-                    deployment are in exactly that state, and the column was
-                    misread on sight the first time anybody looked at it. */}
-                {t.instrumented === false ? (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="cursor-help border-b border-dotted border-line-strong text-xs text-ink-faint">
-                        not recorded
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-[34ch]">
-                      This team holds documents but produced none of them through the
-                      platform, so nothing was recorded. Its work is real; it is not
-                      measured here.
-                    </TooltipContent>
-                  </Tooltip>
-                ) : t.workEvents ? (
-                  <span className="tabular-nums">{formatCount(t.workEvents)}</span>
-                ) : (
-                  <span className="text-ink-faint">—</span>
-                )}
-              </TableCell>
-              <TableCell hideBelow="lg" className="text-xs">
-                {t.flows.length ? t.flows.join(', ') : <span className="text-ink-faint">none</span>}
-              </TableCell>
+              <TableCell hideBelow="md" className="text-center tabular-nums">{t.members}</TableCell>
+              <TableCell className="text-center tabular-nums">{count(t.initiatives)}</TableCell>
+              <TableCell hideBelow="xl" className="text-center tabular-nums">{count(t.documents)}</TableCell>
+              <TableCell hideBelow="xl" className="text-center tabular-nums">{count(t.sources)}</TableCell>
+              <TableCell hideBelow="lg" className="text-right tabular-nums">{count(t.knowledge)}</TableCell>
             </TableRow>
           ))}
         </TableBody>

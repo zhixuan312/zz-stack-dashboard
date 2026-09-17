@@ -18,11 +18,11 @@ import { join } from 'node:path';
 /* EmptyState surfaces: illustration -> the files the spec assigns it to. */
 const WANT: Record<string, string[]> = {
   'state-empty': ['knowledge/log/page.tsx', 'initiatives/page.tsx', 'teams/[slug]/page.tsx', 'SkillEvaluation.tsx', 'knowledge/page.tsx'],
-  'state-welcome': ['TeamFlowsPanel.tsx', 'TokensPanel.tsx', 'TeamMembersPanel.tsx', 'PlatformPeoplePanel.tsx'],
+  'state-welcome': ['TokensPanel.tsx', 'TeamMembersPanel.tsx', 'PlatformPeoplePanel.tsx'],
   'state-error': ['error.tsx', 'Query.tsx'],
   'state-notfound': ['not-found.tsx', 'plugins/[plugin]/page.tsx', 'plugins/[plugin]/[skill]/page.tsx', 'knowledge/page.tsx'],
 };
-const SITES = 15;
+const SITES = 14;
 
 /* Non-EmptyState surfaces: illustration -> the one file that may carry it, and why. */
 const ONE_OFF = {

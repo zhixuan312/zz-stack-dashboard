@@ -9,22 +9,25 @@ import { Query } from '@/components/Query';
 import { FlowMini } from '@/components/Flow';
 import { StateBadge, initiativeState } from '@/components/StateBadge';
 import {
-  EmptyState, PageControl, Row, Table, TableBody, TableCell, TableHead, TableHeader,
+  EmptyState, PageControl, Table, TableBody, TableCell, TableHead, TableHeader,
   TableRow, Time, usePaged,
 } from '@/components/ui';
-import { useConsole, type Initiative, type TeamDetail } from '@/lib/api';
+import { useConsole, type Initiative, type Team, type TeamDetail } from '@/lib/api';
 
 /**
- * One team: what it is working on, and what it is set up with.
+ * One team: what it is working on, what it holds, and who is in it.
  *
- * THE DETAIL SHAPE: four tiles, the team's work as one full-width list, then its setup as a
- * `1/2` row. The tiles are what makes this page open like the Overview rather than like a
+ * THE DETAIL SHAPE: four tiles, the team's work as one full-width list, then its members. The tiles are what makes this page open like the Overview rather than like a
  * table with a title — the four things somebody arrives here to learn, before any list.
  */
 export default function TeamPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
   const team = useConsole<TeamDetail>(`/teams/${slug}`);
   const inits = useConsole<{ initiatives: Initiative[] }>(`/initiatives?team=${slug}`);
+  // THE COUNTS FROM THE TEAMS LIST, not a second query for the same numbers: that endpoint is
+  // the one definition of what a team holds.
+  const teams = useConsole<{ teams: Team[] }>('/teams');
+  const held = teams.data?.teams.find((t) => t.slug === slug);
   const list = inits.data?.initiatives;
   const waiting = list?.filter((i) => initiativeState(i) === 'Waiting on you').length;
 
@@ -35,7 +38,7 @@ export default function TeamPage({ params }: { params: Promise<{ slug: string }>
       showPeriod={false}
       updatedAt={new Date()}
       metrics={
-        list && team.data
+        list && team.data && held
           ? [
               { label: 'Initiatives', value: list.length, muted: list.length === 0,
                 sublabel: `${list.filter((i) => !i.closed).length} still open` },
@@ -43,8 +46,8 @@ export default function TeamPage({ params }: { params: Promise<{ slug: string }>
                 sublabel: 'a gate needs a signature' },
               { label: 'Members', value: team.data.members.length, muted: team.data.members.length === 0,
                 sublabel: `${team.data.members.filter((m) => m.role === 'admin').length} admin` },
-              { label: 'Flows installed', value: team.data.flows.length, muted: team.data.flows.length === 0,
-                sublabel: team.data.flows.map((f) => f.flow).join(', ') || 'no agent yet' },
+              { label: 'Knowledge nodes', value: held.knowledge, muted: held.knowledge === 0,
+                sublabel: `${held.documents} documents · ${held.sources} sources` },
             ]
           : undefined
       }
@@ -70,22 +73,13 @@ export default function TeamPage({ params }: { params: Promise<{ slug: string }>
 
       <Query query={team} skeletonRows={5}>
         {(d) => (
-          <Row split="1/2">
-            <Panel title="Flows installed" aside={`${d.flows.length}`} padded={false}>
-              <SimpleTable
-                head={['Flow', 'Version', 'Agent', 'Installed']}
-                rows={d.flows.map((f) => [f.flow, f.version, f.agent, f.installed])}
-                empty="No flow installed — this team has no agent."
-              />
-            </Panel>
-            <Panel title="Members" aside={`${d.members.length}`} padded={false}>
-              <SimpleTable
-                head={['Person', 'Role', 'Joined']}
-                rows={d.members.map((m) => [m.email, m.role, m.joined])}
-                empty="Nobody is in this team."
-              />
-            </Panel>
-          </Row>
+          <Panel title="Members" aside={`${d.members.length}`} padded={false}>
+            <SimpleTable
+              head={['Person', 'Role', 'Joined']}
+              rows={d.members.map((m) => [m.email, m.role, m.joined])}
+              empty="Nobody is in this team."
+            />
+          </Panel>
         )}
       </Query>
     </DashboardPage>

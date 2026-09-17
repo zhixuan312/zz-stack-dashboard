@@ -305,7 +305,7 @@ export interface Overview {
    * one boundary described by another is wrong in a way nothing on screen would show.
    */
   timezone: string;
-  eventKinds: { kind: string; n: number; failed: number }[];
+  eventKinds: { kind: string; n: number }[];
   /**
    * Refused tool calls on two axes — the same population `metrics.refusals` counts, so
    * the panel's total and the tile's are the same number and not two things wearing one
@@ -321,25 +321,16 @@ export interface Overview {
 }
 export interface Team {
   slug: string; name: string; status: string; created: string;
-  members: number; initiatives: number; documents: number;
-  flows: string[];
-  /** Every event attributed to the team, admin actions included. */
-  events: number;
-  /** Events that name one of the team's OWN initiatives — its work, not its setup. */
-  workEvents: number;
-  /**
-   * Whether the team's documents were produced through the platform.
-   *
-   * `false` means it holds documents but produced none of them here, so its event
-   * count measures admin actions and nothing else. Null when it has no documents
-   * at all — there is nothing to have instrumented.
-   */
-  instrumented: boolean | null;
+  members: number; initiatives: number;
+  /** Written documents — sources are counted apart, though both live in one table. */
+  documents: number;
+  sources: number;
+  /** Knowledge nodes on the team's shelf. */
+  knowledge: number;
 }
 export interface TeamDetail {
   team: { slug: string; name: string; status: string; created: string };
   members: { email: string; name: string; role: string; joined: string }[];
-  flows: { flow: string; version: string; agent: string; installed: string }[];
 }
 export interface Gate { name: string; passed: boolean; after: number }
 /** One stage of a flow, named by the flow itself. */
@@ -601,9 +592,6 @@ export interface MyTeams {
 /** A row from `GET /settings/team/members` — the roster of one team, for a caller who
  *  administers it (see `settings.ts`'s own gate: `teamAuthority`, not `resolveScope`). */
 export interface TeamMemberRow { email: string; role: 'admin' | 'member' }
-/** A row from `GET /settings/team/flows` — what one team has installed, in the same
- *  shape `TeamDetail.flows` uses minus `installed`, which this surface has no use for. */
-export interface TeamFlowRow { flow: string; version: string; agent: string }
 
 /* ── /settings/platform/* (Task I-15) ─────────────────────────────────────── */
 

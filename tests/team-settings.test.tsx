@@ -20,10 +20,10 @@ const base: Omit<Me, 'teams' | 'superadmin'> = {
 
 function mockFetch(me: Me) {
   return vi.fn((url: string) => {
-    // The members/flows GET routes this panel fires the moment a team is in view —
+    // The members GET route this panel fires the moment a team is in view —
     // checked BEFORE `/me`, because "team/members" contains the substring "/me" and
     // would otherwise hand this panel a `Me` object where it expects an array.
-    if (url.includes('/settings/team/members') || url.includes('/settings/team/flows')) {
+    if (url.includes('/settings/team/members')) {
       return Promise.resolve({ ok: true, json: async () => [] } as Response);
     }
     if (url.endsWith('/console/me')) {
@@ -69,9 +69,8 @@ describe('TeamAdminPanel — who sees the team controls', () => {
       // The Select is defaulted to the caller's own (only) admin team, not left empty —
       // its value renders as the trigger's visible text.
       expect(await screen.findByText('team_one')).toBeInTheDocument();
-      // And the member/flow panels for THAT team are mounted underneath it.
+      // And the members panel for THAT team is mounted underneath it.
       await waitFor(() => expect(screen.getByText('Members')).toBeInTheDocument());
-      expect(screen.getByText('Flows')).toBeInTheDocument();
     } finally {
       restore();
     }

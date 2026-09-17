@@ -398,7 +398,7 @@ product is not reading the situation either.
 | `state-goodbye` | signed out | `signed-out` |
 | `mascot-hero` | the login screen | `login` |
 
-`checks/mascot-assignment.ts` holds all eight — exhaustively for the 15
+`checks/mascot-assignment.ts` holds all eight — exhaustively for the 14
 `EmptyState` sites, and by pinning each of the four one-off surfaces to the
 single file allowed to use it. (It used to enforce only the five `EmptyState`
 assignments while this page documented all nine, which is precisely the
@@ -641,17 +641,17 @@ illustration?: { src: string; width: number; height: number }
 
 `EmptyState`'s `icon` prop stays **required**. The illustration is additive: a
 call site that passes none still renders the lucide icon exactly as before. All
-**15** were then wired deliberately, one at a time, against the mapping in §2 —
+**14** were then wired deliberately, one at a time, against the mapping in §2 —
 so the icon is a fallback for a failed image rather than a style anyone still
 renders on purpose.
 
-For `showToast` the ratio is the argument: **1 of 29** call sites passes one.
-`ApproveAction` sends `state-approved.png`; the other 28 hit the untouched
+For `showToast` the ratio is the argument: **1 of 26** call sites passes one.
+`ApproveAction` sends `state-approved.png`; the other 25 hit the untouched
 `CheckCircle2` / `XCircle` branch and were not read, let alone edited. Required
-would have made that a 29-file change to express a one-file decision, and every
+would have made that a 26-file change to express a one-file decision, and every
 unconsidered site would have got whichever mascot was least trouble to type.
 
-(29, not 31: `grep showToast\(` finds 31 occurrences, one of which is the
+(26, not 28: `grep showToast\(` finds 28 occurrences, one of which is the
 function's own definition and one a mention inside a comment. Counting matches
 instead of call sites is the same mistake as counting check files instead of
 declared checks.)

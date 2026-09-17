@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { Panel } from '@/components/Panel';
-import { TeamFlowsPanel } from '@/components/settings/TeamFlowsPanel';
 import { TeamMembersPanel } from '@/components/settings/TeamMembersPanel';
 import { Field, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui';
 import { useConsole, type Me } from '@/lib/api';
@@ -38,7 +37,7 @@ export function TeamAdminPanel() {
 
   return (
     <>
-      <Panel title="Team administration" aside="members, roles, and flows for a team you administer">
+      <Panel title="Team administration" aside="members and roles for a team you administer">
         <Field label="Team" hint={data.superadmin ? 'Any team slug — as a superadmin you administer all of them' : undefined}>
           {(p) =>
             data.superadmin ? (
@@ -71,10 +70,7 @@ export function TeamAdminPanel() {
       </Panel>
 
       {team ? (
-        <>
-          <TeamMembersPanel team={team} />
-          <TeamFlowsPanel team={team} />
-        </>
+        <TeamMembersPanel team={team} />
       ) : null}
     </>
   );
