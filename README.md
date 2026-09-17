@@ -164,15 +164,14 @@ docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
 
 | | |
 |---|---|
-| **Overview** | Four questions first — is work progressing, is what we write down worth reading, is the tool surface breaking, is the system straining — then counts, events per day and the most-refused calls |
-| **Teams** | Every team; open one for its initiatives, members, flows and block connections |
-| **Initiatives** | Every piece of work and how far through the seven steps it got |
+| **Overview** | Four questions first — is work progressing, is what we write down worth reading, is the tool surface breaking, is the system straining — then tool calls over time, event kinds, and where refusals come from |
+| **Teams** | Every team and what it holds — documents, sources, knowledge nodes; open one for its initiatives and members |
+| **Initiatives** | Every piece of work and how far through its flow it got |
 | **Knowledge** | The nodes, with the whole body open beside the list |
-| **Skills & evals** | Each skill in six steps: what it is, what it costs, how it is judged, what it scored, what was found, what to conclude |
+| **Plugins** | What a person installs: each plugin's skills, its servers, and what each skill costs and scored |
 | **Runs** | Every run by the skill that drove it |
-| **Blocks** | One block at a time, never averaged — refusals split by who has to fix them |
 | **Activity** | The audit log |
-| **People** | Principals, tokens, and delegated block connections |
+| **People** | Everyone the platform knows, and what they can reach |
 
 Statistics come before judgment on every analysis page, because a score with no idea what
 it cost to produce is a number nobody can act on.
