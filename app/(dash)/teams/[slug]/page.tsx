@@ -99,7 +99,7 @@ function InitiativeTable({ initiatives }: { initiatives: Initiative[] }) {
             <TableHead>Initiative</TableHead>
             <TableHead hideBelow="md">Flow position</TableHead>
             <TableHead>State</TableHead>
-            <TableHead hideBelow="xl" className="text-right">Docs</TableHead>
+            <TableHead hideBelow="xl">Docs</TableHead>
             <TableHead hideBelow="lg">Gates</TableHead>
             <TableHead hideBelow="lg">Updated</TableHead>
           </TableRow>
@@ -118,7 +118,7 @@ function InitiativeTable({ initiatives }: { initiatives: Initiative[] }) {
               </TableCell>
               <TableCell hideBelow="md"><FlowMini at={i.at} of={i.of} name={i.stage} /></TableCell>
               <TableCell><StateBadge of={i} /></TableCell>
-              <TableCell hideBelow="xl" className="text-right tabular-nums">{i.documents}</TableCell>
+              <TableCell hideBelow="xl" className="tabular-nums">{i.documents}</TableCell>
               <TableCell hideBelow="lg" className="whitespace-nowrap tabular-nums text-xs">
                 {i.gates.filter((g) => g.passed).length} of {i.gates.length}
               </TableCell>

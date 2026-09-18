@@ -54,7 +54,7 @@ export default function InitiativePage({
           return (
             <>
               <Panel title="Progress">
-                <FlowStepper at={d.at} gates={d.gates} outcome={d.outcome} steps={d.steps} />
+                <FlowStepper at={d.at} gates={d.gates} outcome={d.outcome} steps={d.steps} complete={d.complete} />
               </Panel>
 
               {/* GROUPED BY WHAT A DOCUMENT IS, not sorted by its path.
@@ -140,7 +140,7 @@ function DocumentTable({ docs, base, showWhat }: { docs: Doc[]; base: string; sh
             <TableHead>Approval</TableHead>
             <TableHead hideBelow="lg">Approved by</TableHead>
             <TableHead hideBelow="md">Updated</TableHead>
-            <TableHead hideBelow="xl" className="text-right">Bytes</TableHead>
+            <TableHead hideBelow="xl">Bytes</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -177,7 +177,7 @@ function DocumentTable({ docs, base, showWhat }: { docs: Doc[]; base: string; sh
                 )}
               </TableCell>
               <TableCell hideBelow="md"><Time value={doc.updated_at} /></TableCell>
-              <TableCell hideBelow="xl" className="whitespace-nowrap text-right tabular-nums text-xs">
+              <TableCell hideBelow="xl" className="whitespace-nowrap tabular-nums text-xs">
                 {formatCount(doc.bytes)}
               </TableCell>
             </TableRow>
@@ -201,7 +201,7 @@ function SourceTable({ docs, base }: { docs: Doc[]; base: string }) {
             <TableHead>Attached source</TableHead>
             <TableHead hideBelow="md">Supports</TableHead>
             <TableHead>Added</TableHead>
-            <TableHead hideBelow="xl" className="text-right">Bytes</TableHead>
+            <TableHead hideBelow="xl">Bytes</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -214,7 +214,7 @@ function SourceTable({ docs, base }: { docs: Doc[]; base: string }) {
               </TableCell>
               <TableCell hideBelow="md" className="break-all font-mono text-xs">{x.supports ?? '—'}</TableCell>
               <TableCell><Time value={x.updated_at} /></TableCell>
-              <TableCell hideBelow="xl" className="whitespace-nowrap text-right tabular-nums text-xs">
+              <TableCell hideBelow="xl" className="whitespace-nowrap tabular-nums text-xs">
                 {formatCount(x.bytes)}
               </TableCell>
             </TableRow>

@@ -76,14 +76,14 @@ export function SkillWorkPanel({ skills }: { skills: Skill[] }) {
           <TableRow>
             <TableHead>Skill</TableHead>
             <TableHead hideBelow="lg">Team</TableHead>
-            <TableHead className="text-right">Runs</TableHead>
-            <TableHead className="text-right">Median</TableHead>
-            <TableHead hideBelow="xl" className="text-right">Total time</TableHead>
-            <TableHead hideBelow="md" className="text-right">Calls</TableHead>
+            <TableHead>Runs</TableHead>
+            <TableHead>Median</TableHead>
+            <TableHead hideBelow="xl">Total time</TableHead>
+            <TableHead hideBelow="md">Calls</TableHead>
             {/* The bar's header is the axis it is drawing, so the column is never an
                 unlabelled decoration the way it is when the toggle only sorts. */}
             <TableHead hideBelow="md" className="w-[9rem]">{AXES.find((a) => a.value === axis)!.label}</TableHead>
-            <TableHead hideBelow="lg" className="text-right">Refused</TableHead>
+            <TableHead hideBelow="lg">Refused</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -113,8 +113,8 @@ export function SkillWorkPanel({ skills }: { skills: Skill[] }) {
                     </span>
                   )}
                 </TableCell>
-                <TableCell className="text-right font-medium tabular-nums">{k.runs}</TableCell>
-                <TableCell className="text-right tabular-nums text-xs">
+                <TableCell className="font-medium tabular-nums">{k.runs}</TableCell>
+                <TableCell className="tabular-nums text-xs">
                   <span className={cn(k.durationMedian === null && 'text-ink-faint')}>
                     {formatSeconds(k.durationMedian)}
                   </span>
@@ -128,12 +128,12 @@ export function SkillWorkPanel({ skills }: { skills: Skill[] }) {
                     </span>
                   ) : null}
                 </TableCell>
-                <TableCell hideBelow="xl" className="text-right tabular-nums text-xs">
+                <TableCell hideBelow="xl" className="tabular-nums text-xs">
                   <span className={cn(k.durationTotal === null && 'text-ink-faint')}>
                     {formatSeconds(k.durationTotal)}
                   </span>
                 </TableCell>
-                <TableCell hideBelow="md" className="text-right tabular-nums">{formatCount(k.calls)}</TableCell>
+                <TableCell hideBelow="md" className="tabular-nums">{formatCount(k.calls)}</TableCell>
                 <TableCell hideBelow="md">
                   <span className="block h-1.5 overflow-hidden rounded-[var(--r-sm)] bg-surface-2">
                     <span
@@ -142,7 +142,7 @@ export function SkillWorkPanel({ skills }: { skills: Skill[] }) {
                     />
                   </span>
                 </TableCell>
-                <TableCell hideBelow="lg" className="text-right tabular-nums text-xs">
+                <TableCell hideBelow="lg" className="tabular-nums text-xs">
                   {/* A PILL, not coloured text. Colour alone is the one channel a reader may
                       not have, and this column is the one worth scanning for. */}
                   {k.refusals
@@ -154,7 +154,7 @@ export function SkillWorkPanel({ skills }: { skills: Skill[] }) {
           })}
           {rows.length === 0 && (
             <TableRow>
-              <TableCell colSpan={8} className="py-8 text-center text-ink-faint">
+              <TableCell colSpan={8} className="py-8 text-ink-faint">
                 No skill has a recorded run in this period.
               </TableCell>
             </TableRow>

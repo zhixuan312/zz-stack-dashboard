@@ -101,7 +101,7 @@ function EventTable({ events, filter }: { events: ActivityEvent[]; filter: strin
           ))}
           {events.length === 0 && (
             <TableRow>
-              <TableCell colSpan={8} className="py-8 text-center text-ink-faint">
+              <TableCell colSpan={8} className="py-8 text-ink-faint">
                 No activity in this window.
               </TableCell>
             </TableRow>

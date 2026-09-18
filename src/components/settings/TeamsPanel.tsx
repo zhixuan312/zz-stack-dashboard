@@ -70,7 +70,7 @@ function TeamsTable({ t, pending, onSwitch }: { t: MyTeams; pending: boolean; on
             <TableHead>Team</TableHead>
             <TableHead>Role</TableHead>
             <TableHead>Acting</TableHead>
-            <TableHead className="text-right">{null}</TableHead>
+            <TableHead>{null}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -89,7 +89,7 @@ function TeamsTable({ t, pending, onSwitch }: { t: MyTeams; pending: boolean; on
               <TableCell className="break-all font-mono text-xs">{row.team}</TableCell>
               <TableCell><Badge variant={row.role === 'admin' ? 'accent' : 'neutral'} size="sm">{row.role}</Badge></TableCell>
               <TableCell>{row.active ? <Badge variant="sage" dot size="sm">acting</Badge> : null}</TableCell>
-              <TableCell className="text-right">
+              <TableCell>
                 {/* No button on the row you are already acting for — an action whose
                     effect is "stay where you are" is a control that does nothing. */}
                 {row.active ? null : (

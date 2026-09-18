@@ -205,7 +205,7 @@ function PeopleTable({ rows, enrolling, deactivating, onEnrol, onDeactivate }: {
             <TableHead>Person</TableHead>
             <TableHead>Role</TableHead>
             <TableHead hideBelow="md">Created</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
+            <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -227,7 +227,7 @@ function PeopleTable({ rows, enrolling, deactivating, onEnrol, onDeactivate }: {
                 </span>
               </TableCell>
               <TableCell hideBelow="md" className="whitespace-nowrap font-mono text-xs"><Time value={p.created_at} /></TableCell>
-              <TableCell className="text-right">
+              <TableCell>
                 {p.status === 'active' ? (
                   <span className="flex flex-wrap items-center justify-end gap-1">
                     <Button

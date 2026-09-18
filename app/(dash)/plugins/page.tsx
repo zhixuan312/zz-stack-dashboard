@@ -73,8 +73,8 @@ function PluginTable({ rows }: { rows: PluginRow[] }) {
           <TableRow>
             <TableHead>Plugin</TableHead>
             <TableHead hideBelow="lg">Reaches</TableHead>
-            <TableHead hideBelow="md" className="text-right">Skills</TableHead>
-            <TableHead className="text-right">Calls</TableHead>
+            <TableHead hideBelow="md">Skills</TableHead>
+            <TableHead>Calls</TableHead>
             <TableHead hideBelow="md">Last run</TableHead>
             <TableHead hideBelow="xl">Gates</TableHead>
             <TableHead hideBelow="lg">Evaluated</TableHead>
@@ -105,8 +105,8 @@ function PluginTable({ rows }: { rows: PluginRow[] }) {
                     : <span className="text-xs text-ink-faint">no server — skills only</span>}
                 </span>
               </TableCell>
-              <TableCell hideBelow="md" className="text-right tabular-nums">{p.skills.length || '—'}</TableCell>
-              <TableCell className="text-right tabular-nums">{formatCount(p.calls)}</TableCell>
+              <TableCell hideBelow="md" className="tabular-nums">{p.skills.length || '—'}</TableCell>
+              <TableCell className="tabular-nums">{formatCount(p.calls)}</TableCell>
               <TableCell hideBelow="md" className="text-xs">
                 {p.lastRun
                   ? <Time value={p.lastRun} />
@@ -143,7 +143,7 @@ function PluginTable({ rows }: { rows: PluginRow[] }) {
 
           {rows.length === 0 && (
             <TableRow>
-              <TableCell colSpan={7} className="py-8 text-center text-ink-faint">
+              <TableCell colSpan={7} className="py-8 text-ink-faint">
                 No plugin is installed.
               </TableCell>
             </TableRow>

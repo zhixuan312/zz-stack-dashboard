@@ -172,11 +172,11 @@ export function SkillEvaluation({
             <TableHeader>
               <TableRow>
                 <TableHead>Dimension</TableHead>
-                <TableHead className="text-right">Mean</TableHead>
-                <TableHead hideBelow="md" className="text-right">SD</TableHead>
-                <TableHead className="text-right">n</TableHead>
-                <TableHead hideBelow="md" className="text-right">≤1</TableHead>
-                <TableHead hideBelow="md" className="text-right">≥4</TableHead>
+                <TableHead>Mean</TableHead>
+                <TableHead hideBelow="md">SD</TableHead>
+                <TableHead>n</TableHead>
+                <TableHead hideBelow="md">≤1</TableHead>
+                <TableHead hideBelow="md">≥4</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -188,13 +188,13 @@ export function SkillEvaluation({
                       <Badge variant="neutral" className="ml-2">n={x.n} — directional only</Badge>
                     ) : null}
                   </TableCell>
-                  <TableCell className="text-right font-medium tabular-nums">
+                  <TableCell className="font-medium tabular-nums">
                     {x.mean?.toFixed(2) ?? '—'}
                   </TableCell>
-                  <TableCell hideBelow="md" className="text-right tabular-nums text-xs">{x.sd?.toFixed(2) ?? '—'}</TableCell>
-                  <TableCell className="text-right tabular-nums text-xs">{x.n}</TableCell>
-                  <TableCell hideBelow="md" className="text-right tabular-nums text-xs text-[var(--rose-deep)]">{x.low || '—'}</TableCell>
-                  <TableCell hideBelow="md" className="text-right tabular-nums text-xs text-[var(--sage-deep)]">{x.high}</TableCell>
+                  <TableCell hideBelow="md" className="tabular-nums text-xs">{x.sd?.toFixed(2) ?? '—'}</TableCell>
+                  <TableCell className="tabular-nums text-xs">{x.n}</TableCell>
+                  <TableCell hideBelow="md" className="tabular-nums text-xs text-[var(--rose-deep)]">{x.low || '—'}</TableCell>
+                  <TableCell hideBelow="md" className="tabular-nums text-xs text-[var(--sage-deep)]">{x.high}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -211,7 +211,7 @@ export function SkillEvaluation({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="text-right">Docs</TableHead>
+                <TableHead>Docs</TableHead>
                 <TableHead>Pattern</TableHead>
                 <TableHead>Decision</TableHead>
               </TableRow>
@@ -219,7 +219,7 @@ export function SkillEvaluation({
             <TableBody>
               {findings.map((f, i) => (
                 <TableRow key={i}>
-                  <TableCell className="text-right font-medium tabular-nums">{f.docs_affected}</TableCell>
+                  <TableCell className="font-medium tabular-nums">{f.docs_affected}</TableCell>
                   <TableCell className="max-w-[70ch] break-words text-[13px] text-ink">{f.pattern}</TableCell>
                   <TableCell><Badge variant="amber" dot>{f.decision ?? 'open'}</Badge></TableCell>
                 </TableRow>

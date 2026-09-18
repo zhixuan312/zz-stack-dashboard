@@ -37,9 +37,8 @@ export default function TeamsPage() {
   );
 }
 
-/** Alignment: the first column left, the last right, every column between centred. */
-const MID = 'whitespace-nowrap text-center';
-const LAST = 'whitespace-nowrap text-right';
+/** Count headers never wrap; where each column ALIGNS is the Table's own rule. */
+const NUM = 'whitespace-nowrap';
 
 /** Its own component so it can hold the page state — see `InitiativeTable` on /initiatives. */
 function TeamTable({ teams }: { teams: Team[] }) {
@@ -50,8 +49,8 @@ function TeamTable({ teams }: { teams: Team[] }) {
       {/* HOW THE WIDTH IS SHARED. Every count column is the same width; Team gets a share
           of its own; Status is as wide as its badge. The spare width is spread across all of
           them, never handed to one column — Team taking everything left over put half the
-          table between the names and the first figure. Headers never wrap; header and cell
-          share an alignment — first column left, last right, the rest centred. */}
+          table between the names and the first figure. Headers never wrap; where each column
+          aligns is the Table primitive's rule, not this page's. */}
       <Table className="table-fixed">
         <colgroup>
           <col className="w-[18%]" />
@@ -65,12 +64,12 @@ function TeamTable({ teams }: { teams: Team[] }) {
         <TableHeader>
           <TableRow>
             <TableHead>Team</TableHead>
-            <TableHead hideBelow="md" className={MID}>Status</TableHead>
-            <TableHead hideBelow="md" className={MID}>People</TableHead>
-            <TableHead className={MID}>Initiatives</TableHead>
-            <TableHead hideBelow="xl" className={MID}>Documents</TableHead>
-            <TableHead hideBelow="xl" className={MID}>Sources</TableHead>
-            <TableHead hideBelow="lg" className={LAST} title="Knowledge nodes on the team's shelf">Knowledge</TableHead>
+            <TableHead hideBelow="md" className={NUM}>Status</TableHead>
+            <TableHead hideBelow="md" className={NUM}>People</TableHead>
+            <TableHead className={NUM}>Initiatives</TableHead>
+            <TableHead hideBelow="xl" className={NUM}>Documents</TableHead>
+            <TableHead hideBelow="xl" className={NUM}>Sources</TableHead>
+            <TableHead hideBelow="lg" className={NUM} title="Knowledge nodes on the team's shelf">Knowledge</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -82,16 +81,16 @@ function TeamTable({ teams }: { teams: Team[] }) {
                 </Link>
                 <span className="block text-xs text-ink-faint">{t.name}</span>
               </TableCell>
-              <TableCell hideBelow="md" className="text-center">
+              <TableCell hideBelow="md">
                 <Badge variant={t.status === 'active' ? 'sage' : 'neutral'} dot>
                   {t.status}
                 </Badge>
               </TableCell>
-              <TableCell hideBelow="md" className="text-center tabular-nums">{t.members}</TableCell>
-              <TableCell className="text-center tabular-nums">{count(t.initiatives)}</TableCell>
-              <TableCell hideBelow="xl" className="text-center tabular-nums">{count(t.documents)}</TableCell>
-              <TableCell hideBelow="xl" className="text-center tabular-nums">{count(t.sources)}</TableCell>
-              <TableCell hideBelow="lg" className="text-right tabular-nums">{count(t.knowledge)}</TableCell>
+              <TableCell hideBelow="md" className="tabular-nums">{t.members}</TableCell>
+              <TableCell className="tabular-nums">{count(t.initiatives)}</TableCell>
+              <TableCell hideBelow="xl" className="tabular-nums">{count(t.documents)}</TableCell>
+              <TableCell hideBelow="xl" className="tabular-nums">{count(t.sources)}</TableCell>
+              <TableCell hideBelow="lg" className="tabular-nums">{count(t.knowledge)}</TableCell>
             </TableRow>
           ))}
         </TableBody>

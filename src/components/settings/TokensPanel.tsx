@@ -159,7 +159,7 @@ function TokensTable({ rows, pending, onRevoke }: {
             <TableHead>Issued</TableHead>
             <TableHead hideBelow="md">Last used</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead className="text-right">Revoke</TableHead>
+            <TableHead>Revoke</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -178,7 +178,7 @@ function TokensTable({ rows, pending, onRevoke }: {
                   <Badge variant="sage" dot size="sm">active</Badge>
                 )}
               </TableCell>
-              <TableCell className="text-right">
+              <TableCell>
                 {t.revoked_at ? null : (
                   <InlineDestructive
                     label="Revoke"

@@ -152,7 +152,7 @@ function MembersTable({ rows, team, pending, onRole, onRemove }: {
           <TableRow>
             <TableHead>Person</TableHead>
             <TableHead>Role</TableHead>
-            <TableHead className="text-right">Remove</TableHead>
+            <TableHead>Remove</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -172,7 +172,7 @@ function MembersTable({ rows, team, pending, onRole, onRemove }: {
                   </SelectContent>
                 </Select>
               </TableCell>
-              <TableCell className="text-right">
+              <TableCell>
                 <InlineDestructive
                   label="Remove"
                   question={`Remove ${m.email} from ${team}?`}

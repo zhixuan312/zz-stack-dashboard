@@ -171,19 +171,19 @@ function SkillTable({ plugin, skills }: { plugin: string; skills: PluginRow['ski
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-8 text-right">#</TableHead>
+            <TableHead className="w-8">#</TableHead>
             <TableHead>Skill</TableHead>
             <TableHead hideBelow="md">Whose</TableHead>
-            <TableHead hideBelow="lg" className="text-right">Versions</TableHead>
-            <TableHead className="text-right">Calls</TableHead>
+            <TableHead hideBelow="lg">Versions</TableHead>
+            <TableHead>Calls</TableHead>
             <TableHead hideBelow="md">Last run</TableHead>
-            <TableHead hideBelow="lg" className="text-right">Evals</TableHead>
+            <TableHead hideBelow="lg">Evals</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {page.map((s) => (
             <TableRow key={s.name}>
-              <TableCell className="text-right tabular-nums text-xs text-ink-faint">
+              <TableCell className="tabular-nums text-xs text-ink-faint">
                 {/* THE FRONT DOOR IS UNNUMBERED. It is not step zero, it is the
                     plugin — which its own name already says. */}
                 {s.position ?? '—'}
@@ -199,8 +199,8 @@ function SkillTable({ plugin, skills }: { plugin: string; skills: PluginRow['ski
                   ? <Badge variant="accent" dot>the {plugin} team&rsquo;s</Badge>
                   : <Badge variant="neutral">ours</Badge>}
               </TableCell>
-              <TableCell hideBelow="lg" className="text-right tabular-nums text-xs">{s.versions || '—'}</TableCell>
-              <TableCell className="text-right tabular-nums">
+              <TableCell hideBelow="lg" className="tabular-nums text-xs">{s.versions || '—'}</TableCell>
+              <TableCell className="tabular-nums">
                 {s.everRun ? formatCount(s.calls) : '—'}
               </TableCell>
               <TableCell hideBelow="md" className="text-xs">
@@ -208,12 +208,12 @@ function SkillTable({ plugin, skills }: { plugin: string; skills: PluginRow['ski
                   ? <Time value={s.lastRun} className="text-ink-soft" />
                   : <Badge variant="neutral">never run</Badge>}
               </TableCell>
-              <TableCell hideBelow="lg" className="text-right tabular-nums text-xs">{s.evals || '—'}</TableCell>
+              <TableCell hideBelow="lg" className="tabular-nums text-xs">{s.evals || '—'}</TableCell>
             </TableRow>
           ))}
           {skills.length === 0 && (
             <TableRow>
-              <TableCell colSpan={7} className="py-8 text-center text-ink-faint">
+              <TableCell colSpan={7} className="py-8 text-ink-faint">
                 This plugin ships no skill — it grants an MCP surface and nothing else.
               </TableCell>
             </TableRow>

@@ -63,7 +63,7 @@ function PeopleTable({ people }: { people: Person[] }) {
             <TableHead>Person</TableHead>
             <TableHead>Role</TableHead>
             <TableHead hideBelow="lg">Teams</TableHead>
-            <TableHead hideBelow="md" className="text-right">Tokens</TableHead>
+            <TableHead hideBelow="md">Tokens</TableHead>
             <TableHead hideBelow="md">Last used</TableHead>
             <TableHead hideBelow="xl">Created</TableHead>
           </TableRow>
@@ -81,7 +81,7 @@ function PeopleTable({ people }: { people: Person[] }) {
               <TableCell hideBelow="lg" className="max-w-[26ch] text-xs">
                 {p.teams.length ? p.teams.join(', ') : <span className="text-ink-faint">none</span>}
               </TableCell>
-              <TableCell hideBelow="md" className="text-right tabular-nums">{p.tokens || '—'}</TableCell>
+              <TableCell hideBelow="md" className="tabular-nums">{p.tokens || '—'}</TableCell>
               <TableCell hideBelow="md" className="whitespace-nowrap font-mono text-xs">
                 {p.last_used ? <Time value={p.last_used} /> : <span className="text-ink-faint">never</span>}
               </TableCell>
