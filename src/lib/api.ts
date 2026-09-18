@@ -334,7 +334,17 @@ export interface TeamDetail {
 }
 export interface Gate { name: string; passed: boolean; after: number }
 /** One stage of a flow, named by the flow itself. */
-export interface Step { name: string; what: string; produces: string }
+/** One node of the diagram, as the API derived it — including the `open` and `closed`
+ *  bookends every initiative has and no manifest declares.
+ *
+ *  `done` every declared document exists and every gate on them is approved;
+ *  `partial` they exist but a gate is still open; `empty` none is written;
+ *  `untracked` the step declares no document, so nothing could evidence it. */
+export interface Step {
+  name: string; what: string; produces: string;
+  state: 'done' | 'partial' | 'empty' | 'untracked';
+  current: boolean;
+}
 
 export interface Initiative {
   team: string; slug: string; flow: string | null;
@@ -343,6 +353,8 @@ export interface Initiative {
    *  only meaningful against ops-flow, which is what the console used to assume of every
    *  initiative on the platform. */
   at: number; of: number; stage: string; steps: Step[]; gates: Gate[]; accepted: boolean;
+  /** Everything the flow asks for was there at the close. False on one that stopped short. */
+  complete: boolean;
   /** Finished, on any of the three outcomes. `accepted` answers a narrower question — whether
    *  a PERSON signed it — and using it for "is this done" left every `delivered` initiative
    *  drawn with its last stage still open. */
@@ -375,6 +387,8 @@ export interface InitiativeDetail {
                qualifier: string | null; detail: string | null;
                checker: string | null }[];
   at: number; of: number; stage: string; steps: Step[]; gates: Gate[]; accepted: boolean;
+  /** Everything the flow asks for was there at the close. False on one that stopped short. */
+  complete: boolean;
   closed: boolean;
   outcome: string | null;
 }

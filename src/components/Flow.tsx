@@ -38,6 +38,7 @@ const STAGES = [
  * something the reader had to work out first. */
 function flowCaption(
   at: number, outcome: string | null, gates?: Gate[], stage?: string, of?: number,
+  complete?: boolean,
 ): string {
   // SAID FROM WHAT IS KNOWN, not from a position in ops-flow.
   //
@@ -50,9 +51,16 @@ function flowCaption(
   // was captioned as though it were still running, and an `abandoned` one the same. The
   // ledger is read by counting these three words; a caption that knows only one of them
   // cannot describe two thirds of the vocabulary.
-  if (outcome === 'accepted') return 'Done. The stakeholder accepted it, and the initiative is closed.';
-  if (outcome === 'delivered') return 'Done. The work finished and the initiative is closed. Nobody signed it off.';
-  if (outcome === 'abandoned') return 'Closed without finishing. The work stopped, and the record says so on purpose.';
+  // WHERE IT STOPPED travels with the word, because the two are different facts: a close says
+  // the initiative is over, and the stage says how far it got. An abandon that names neither
+  // leaves a reader looking at empty stages with nothing saying whether that is the record or
+  // a gap in it.
+  const short = complete === false ? ` Not everything this flow asks for was there: it stopped at ${stage ?? `stage ${at}`}.` : '';
+  if (outcome === 'accepted') return `Done. The stakeholder accepted it, and the initiative is closed.${short}`;
+  if (outcome === 'delivered') return `Done. The work finished and the initiative is closed. Nobody signed it off.${short}`;
+  if (outcome === 'abandoned') {
+    return `Closed without finishing at ${stage ?? `stage ${at}`}. The work stopped there, and the stages after it never ran.`;
+  }
   const open = gates?.filter((g) => !g.passed) ?? [];
   const where = stage ? `At ${stage}` : `At stage ${at}${of ? ` of ${of}` : ''}`;
   if (!gates?.length) return `${where}. This flow declares no gate, so nothing is waiting on a person.`;
@@ -96,8 +104,8 @@ export function FlowMini({ at, of, name }: { at: number; of?: number; name?: str
   );
 }
 
-export function FlowStepper({ at, gates, outcome, steps }: {
-  at: number; gates: Gate[]; outcome: string | null; steps?: Step[];
+export function FlowStepper({ at, gates, outcome, steps, complete }: {
+  at: number; gates: Gate[]; outcome: string | null; steps?: Step[]; complete?: boolean;
 }) {
   // THE FLOW'S OWN STAGES, and its own gates placed among them.
   //
@@ -111,7 +119,13 @@ export function FlowStepper({ at, gates, outcome, steps }: {
   // `steps` comes from the flow's manifest by way of the API. STAGES stays as the fallback
   // for an initiative whose flow the catalog cannot resolve, which is the only case where
   // ops-flow's vocabulary is the best guess available.
-  const stages: Step[] = steps?.length ? steps : STAGES.map((x) => ({ name: x.name, what: x.what, produces: '' }));
+  // EVERY NODE COMES FROM THE API, bookends included: `open`, the flow's own stages, `closed`.
+  // The console places nothing and infers nothing — which stages a flow has, which of them
+  // write a document, which of those are gated and what the record shows are all questions the
+  // manifest and the store answer, and a second answer here could only drift from them.
+  const stages: Step[] = steps?.length
+    ? steps
+    : STAGES.map((x) => ({ name: x.name, what: x.what, produces: '', state: 'empty' as const, current: false }));
   // Gates spread evenly through the stages, last gate last. A flow declares which DOCUMENTS
   // it gates, not which stage each sits after, so the only honest placement is proportional —
   // and the last gate belongs at the end, which is the one position that carries meaning.
@@ -119,7 +133,6 @@ export function FlowStepper({ at, gates, outcome, steps }: {
   // gated document, which the flow declares. A gate the manifest does not place is drawn at
   // the end rather than at a position invented for it — and it is the honest place, because
   // an unplaced gate is one nothing has said comes earlier.
-  const closed = outcome !== null;
   const gateAfter = new Map<number, Gate>();
   gates.forEach((g) => gateAfter.set(g.after && g.after > 0 ? g.after : stages.length, g));
   // FLAT, not a row of per-stage wrappers.
@@ -144,14 +157,16 @@ export function FlowStepper({ at, gates, outcome, steps }: {
   const items: ReactNode[] = [];
   stages.forEach((stage, i) => {
     const n = i + 1;
-    // FINISHED MEANS EVERY STAGE IS DONE. This read `n < at || (n === last && accepted)`,
-    // which drew a closed round with its stages half-ticked: on a five-stage evaluation the
-    // position came back as 3, so 1 and 2 were done, 5 was done because it was last and
-    // accepted, 4 was "not reached yet" and 3 was "where it is now" — on an initiative that
-    // finished a week ago. The position bug is fixed in the console; this is the other half,
-    // because a closed initiative is not anywhere any more.
-    const done = closed || n < at;
-    const now = !closed && n === at;
+    // WHAT THE RECORD SHOWS, as the API derived it. `done` is every document this step
+    // declares written and every gate on them approved; `partial` is written but still
+    // waiting on a person; `empty` is nothing written; `untracked` is a step that declares no
+    // document, where nothing could show whether it ran. The console draws those four and
+    // decides none of them — it used to tick every stage of a closed initiative, so one
+    // abandoned at the plan showed six finished stages and a review nobody wrote.
+    const done = stage.state === 'done';
+    const partial = stage.state === 'partial';
+    const untracked = stage.state === 'untracked';
+    const now = stage.current;
     const gate = gateAfter.get(n) ?? null;
 
     if (n > 1) {
@@ -162,7 +177,7 @@ export function FlowStepper({ at, gates, outcome, steps }: {
           // `min-w` so it never collapses to nothing on a tight row — a zero-width
           // rule reads as two steps with no relationship at all.
           className={cn('ml-[12px] h-3 w-[1.5px] @min-[920px]:mt-[13px] @min-[920px]:ml-0 @min-[920px]:h-[1.5px] @min-[920px]:w-auto @min-[920px]:min-w-[14px] @min-[920px]:flex-1',
-            n <= at ? 'bg-[var(--green)]' : 'bg-line')}
+            stages[i - 1].state === 'done' ? 'bg-[var(--green)]' : 'bg-line')}
         />,
       );
     }
@@ -174,8 +189,12 @@ export function FlowStepper({ at, gates, outcome, steps }: {
           className={cn(
             'relative grid size-[26px] shrink-0 place-items-center rounded-full border text-[10px] font-semibold',
             done && 'border-[var(--green)] bg-[var(--green-tint)] text-[var(--green-text)]',
-            now && 'border-accent bg-accent text-[var(--on-accent)] ring-[3px] ring-accent-tint',
-            !done && !now && 'border-line-strong bg-surface text-ink-faint',
+            partial && 'border-[var(--amber)] bg-[var(--amber-tint)] text-[var(--amber-text)]',
+            now && !done && 'border-accent bg-accent text-[var(--on-accent)] ring-[3px] ring-accent-tint',
+            // A step nothing can evidence is drawn as an outline rather than as a state: it is
+            // neither reached nor unreached, and saying either would be inventing a fact.
+            untracked && !now && 'border-dashed border-line-strong bg-surface text-ink-faint',
+            !done && !partial && !now && !untracked && 'border-line-strong bg-surface text-ink-faint',
           )}
         >
           {/* THE NUMBER IS ALWAYS THERE. A tick replaced it on every finished stage, so the
@@ -193,16 +212,8 @@ export function FlowStepper({ at, gates, outcome, steps }: {
         <span className={cn('text-[11px] leading-tight @min-[920px]:text-center',
           done ? 'text-ink-soft' : now ? 'font-semibold text-ink' : 'text-ink-faint')}>
           {stage.name}
-          {/* FOUR WORDS UNDER A 74px NODE. The manifest's description is a sentence, and a
-              sentence here wraps to five lines and breaks the row — so the node carries the
-              short form and the full text sits in the tooltip. */}
-          {/* THE SENTENCE LIVES IN THE TOOLTIP, not under the node.
-              First it was four sliced words, which produced captions like "Stage 1 of skill"
-              — the least useful part of every description. Then it was the whole sentence
-              with `block line-clamp-2`, and `block` overrides the display that makes
-              line-clamp work, so nothing clamped and every node grew a six-line paragraph
-              under a 92px circle. A stepper is read at a glance; the name is what it needs,
-              and the description is one hover away. */}
+          {/* THE SENTENCE LIVES IN THE TOOLTIP, not under the node. A stepper is read at a
+              glance; the name is what it needs, and the description is one hover away. */}
         </span>
       </div>,
     );
@@ -215,7 +226,7 @@ export function FlowStepper({ at, gates, outcome, steps }: {
               'inline-flex h-[26px] items-center gap-1 whitespace-nowrap rounded-full border px-2 text-[10px] font-medium',
               gate.passed
                 ? 'border-[var(--green)] bg-[var(--green-tint)] text-[var(--green-text)]'
-                : at >= n
+                : stage.state === 'partial'
                   ? 'border-[var(--amber)] bg-[var(--amber-tint)] text-[var(--amber-text)]'
                   : 'border-dashed border-line-strong bg-surface text-ink-faint',
             )}
@@ -226,7 +237,7 @@ export function FlowStepper({ at, gates, outcome, steps }: {
             {gate.name}
           </span>
           <span className="text-[10px] leading-tight text-ink-faint @min-[920px]:max-w-[78px] @min-[920px]:text-center">
-            {gate.passed ? 'approved' : at >= n ? 'waiting on a person' : 'a person must approve'}
+            {gate.passed ? 'approved' : stage.state === 'partial' ? 'waiting on a person' : 'a person must approve'}
           </span>
         </div>,
       );
@@ -239,14 +250,16 @@ export function FlowStepper({ at, gates, outcome, steps }: {
         <div className="flex flex-col @min-[920px]:flex-row @min-[920px]:items-start">{items}</div>
       </div>
       <p className="rounded-[var(--r)] bg-surface-2 px-3.5 py-2.5 text-[13px] leading-relaxed text-ink">
-        {flowCaption(at, outcome ?? null, gates, stages[at - 1]?.name, stages.length)}
+        {flowCaption(at, outcome ?? null, gates,
+                     stages.find((st) => st.current)?.name ?? stages[at]?.name, undefined, complete)}
       </p>
       <div className="flex flex-wrap gap-4 text-[11.5px] text-ink-faint">
         <Legend className="border-[var(--green)] bg-[var(--green-tint)]">done</Legend>
         <Legend className="border-accent bg-accent">where it is now</Legend>
-        <Legend className="border-line-strong bg-surface">not reached yet</Legend>
-        <Legend className="w-[22px] rounded-full border-dashed border-line-strong bg-surface">
-          a person must approve before the next step
+        <Legend className="border-[var(--amber)] bg-[var(--amber-tint)]">written, waiting on a person</Legend>
+        <Legend className="border-line-strong bg-surface">nothing written</Legend>
+        <Legend className="border-dashed border-line-strong bg-surface">
+          leaves no document, so nothing can show it ran
         </Legend>
       </div>
     </div>
