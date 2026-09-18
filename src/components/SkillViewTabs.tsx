@@ -4,9 +4,9 @@ import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { TabBar } from '@/components/ui/tab-bar';
 import type { SkillText } from '@/lib/api';
 
-type SkillView = 'read' | 'references' | 'evaluation';
+type SkillView = 'read' | 'references' | 'cost';
 
-/** Which view of a skill is being read, from the URL. Defaults to the evaluation:
+/** Which view of a skill is being read, from the URL. Defaults to the cost:
  *  the reason to open a skill is usually to see how it is doing, and the text is one
  *  click away for the times it is not.
  *
@@ -17,19 +17,19 @@ export function useSkillView(hasReferences: boolean): SkillView {
   const v = useSearchParams().get('view');
   if (v === 'read') return 'read';
   if (v === 'references' && hasReferences) return 'references';
-  return 'evaluation';
+  return 'cost';
 }
 
 /**
  * THREE VIEWS OF ONE SKILL, because they are three different questions and stacking
  * them made a page nobody reaches the bottom of.
  *
- *   evaluation  what it cost and what it scored — the default
+ *   cost        what it cost to run — the default
  *   read        what it says
  *   references  what ships beside it
  *
  * A skill runs to five thousand characters and its references to as many again, so the
- * evaluation sat below ten thousand characters of prose with nothing on screen saying it
+ * cost sat below ten thousand characters of prose with nothing on screen saying it
  * was there. The tab bar says it is.
  *
  * THE URL IS THE STATE, like the period and version pickers — a view of a skill is then
@@ -43,7 +43,7 @@ export function SkillViewTabs({ skill, view }: { skill: SkillText | undefined; v
   function onChange(next: string) {
     const q = new URLSearchParams(params.toString());
     // The DEFAULT view carries no parameter, so the plain URL is the one people share.
-    if (next === 'evaluation') q.delete('view');
+    if (next === 'cost') q.delete('view');
     else q.set('view', next);
     const query = q.toString();
     router.push(query ? `${pathname}?${query}` : pathname, { scroll: false });
@@ -56,7 +56,7 @@ export function SkillViewTabs({ skill, view }: { skill: SkillText | undefined; v
       activeTab={view}
       onTabChange={onChange}
       tabs={[
-        { id: 'evaluation', label: 'Evaluation' },
+        { id: 'cost', label: 'Cost to run' },
         { id: 'read', label: 'The skill' },
         // ONLY WHERE THERE IS SOMETHING. Two skills in the whole catalog ship material
         // beside their SKILL.md; on every other one this tab opened to a paragraph

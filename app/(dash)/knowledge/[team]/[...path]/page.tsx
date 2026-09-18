@@ -77,17 +77,28 @@ export default function KnowledgeNodePage({
                   <Fact label="Recorded"><Time value={b.updated} /></Fact>
                   {/* WHERE IT CAME FROM. Without this a node reads as an assertion from
                       nowhere; with it, the reader can open the work that produced the lesson. */}
-                  {b.evidence?.length ? (
+                  {b.evidence_in?.length ? (
                     <Fact label="Learned in">
                       <span className="flex flex-col gap-1">
-                        {b.evidence.map((e) => (
-                          <Link
-                            key={e}
-                            href={`/initiatives/${b.team}/${e}`}
-                            className="break-all font-medium text-accent hover:underline"
-                          >
-                            {e}
-                          </Link>
+                        {/* THE TEAM THE INITIATIVE IS ACTUALLY IN, from the API. Linked under
+                            `b.team` this pointed a platform-shelf node's evidence at
+                            /initiatives/zz-platform/<slug> — the initiative is the tenant's —
+                            and every one of those links answered "not found". An entry the
+                            platform cannot place is its own name, not a dead link. */}
+                        {b.evidence_in.map((e) => (
+                          e.team ? (
+                            <Link
+                              key={e.name}
+                              href={`/initiatives/${e.team}/${e.name}`}
+                              className="break-all font-medium text-accent hover:underline"
+                            >
+                              {e.name}
+                            </Link>
+                          ) : (
+                            <span key={e.name} className="break-all text-ink-soft" title="no initiative by this name on the platform">
+                              {e.name}
+                            </span>
+                          )
                         ))}
                       </span>
                     </Fact>

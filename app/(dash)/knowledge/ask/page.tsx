@@ -11,9 +11,7 @@ import { Query } from '@/components/Query';
 import {
   Row, Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui';
-import {
-  useConsole, useConsoleMode, type KnowledgeNode, type Me,
-} from '@/lib/api';
+import { freshnessOf, useConsole, useConsoleMode, type KnowledgeNode, type Me } from '@/lib/api';
 import { tagFacetCounts, teamFacetOptions } from '@/lib/knowledge-filters';
 
 const GUIDANCE =
@@ -59,7 +57,7 @@ export default function KnowledgeAskPage() {
       title="Knowledge"
       description="Ask a question and have it answered from your team's own documents."
       showPeriod={false}
-      updatedAt={new Date()}
+      updatedAt={freshnessOf(list)}
       subnav={<KnowledgeTabs active="ask" />}
       actions={
         mode === 'platform' && teamOptions.length > 1 ? (
@@ -80,15 +78,25 @@ export default function KnowledgeAskPage() {
           </Select>
         ) : null
       }
-      metrics={[
+      // GUARDED ON THE DATA. Built unconditionally these read a confident zero while the
+      // request was in flight, and kept reading it after a failure, above a panel saying the
+      // load failed.
+      metrics={list.data ? [
         { label: 'Answering from', value: team ?? '—', muted: !team,
           sublabel: mode === 'team' ? 'The team you act for' : 'Pick one team' },
-        { label: 'Nodes on the shelf', value: nodes.length, sublabel: 'Searchable', icon: <BookOpen /> },
+        // NOT "SEARCHABLE", and not the whole platform's. The corpus this page answers from
+        // is every document in the chosen team's folder — the panel beside it says so in as
+        // many words — while this counted NODES, and in platform mode counted every team's
+        // nodes even after the reader had picked one team to answer from. Two wrong claims
+        // in one tile: the wrong population and the wrong scope.
+        { label: 'Nodes on the shelf',
+          value: nodes.filter((n) => !team || n.team === team).length,
+          sublabel: team ? `on ${team}'s shelf` : 'across every team', icon: <BookOpen /> },
         { label: 'Subjects', value: tags.length, muted: tags.length === 0,
           sublabel: 'Distinct tags', icon: <Tag /> },
         { label: 'Teams in view', value: teamOptions.length, muted: teamOptions.length === 0,
           sublabel: mode === 'team' ? 'Yours' : 'Across the platform', icon: <Users /> },
-      ]}
+      ] : undefined}
     >
       <Query query={list} skeletonRows={4}>
         {() => (

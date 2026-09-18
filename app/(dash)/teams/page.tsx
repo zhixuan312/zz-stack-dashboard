@@ -8,17 +8,20 @@ import {
   Badge, PageControl, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, usePaged,
 } from '@/components/ui';
 import { formatCount } from '@/lib/format';
-import { useConsole, type Team } from '@/lib/api';
+import { freshnessOf, useConsole, useConsoleMode, type Team } from '@/lib/api';
 
 export default function TeamsPage() {
+  const { mode } = useConsoleMode();
   const q = useConsole<{ teams: Team[] }>('/teams');
 
   return (
     <DashboardPage
       title="Teams"
-      description="Every team on the platform: who is in it and what it holds."
+      description={mode === 'team'
+        ? 'Your team: who is in it and what it holds.'
+        : 'Every team on the platform: who is in it and what it holds.'}
       showPeriod={false}
-      updatedAt={new Date()}
+      updatedAt={freshnessOf(q)}
     >
       <Query query={q}>
         {(d) => (

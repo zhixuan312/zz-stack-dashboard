@@ -9,16 +9,16 @@ import { Badge, EmptyState, Row } from '@/components/ui';
 import { formatCount, formatKb, formatSeconds } from '@/lib/format';
 import { SkillReader } from '@/components/SkillReader';
 import { SkillReferences } from '@/components/SkillReferences';
-import { SkillEvaluation } from '@/components/SkillEvaluation';
+import { SkillCost } from '@/components/SkillCost';
 import { SkillViewTabs, useSkillView } from '@/components/SkillViewTabs';
-import { useConsole, type PluginRow, type Skill, type SkillDetail, type SkillText } from '@/lib/api';
+import { freshnessOf, useConsole, type PluginRow, type Skill, type SkillDetail, type SkillText } from '@/lib/api';
 
 /**
  * LAYER THREE: one skill, read.
  *
  * ONE PAGE WHERE THERE WERE TWO. A flow's skills were judged and unreadable; a block's were
  * countable and unjudged. They are the same kind of thing — text somebody wrote for an agent
- * to load — so this reads the text AND shows what it cost and scored, whichever kind ships it.
+ * to load — so this reads the text AND shows what it cost to run, whichever kind ships it.
  *
  * Whose it is leads the page, because it decides what you can do about what you read: a
  * skill marked THEIRS is a block team's own, vendored, and changing it means agreeing a change
@@ -55,7 +55,6 @@ export default function PluginSkillPage({ params }: { params: Promise<{ plugin: 
   // now, so nothing can write a per-skill score again. Not relinked at a plugin-level page
   // either: a scores view keyed on a skill and nested under a plugin would invite exactly the
   // per-skill comparison the new design refuses, because every ruler belongs to one plugin.
-  const scoresHref = undefined;
 
   return (
     <DashboardPage
@@ -67,7 +66,7 @@ export default function PluginSkillPage({ params }: { params: Promise<{ plugin: 
       ]}
       description={text?.description ?? 'One skill: what it costs to run, how a judge scores it, and what that came to.'}
       showPeriod={false}
-      updatedAt={new Date()}
+      updatedAt={freshnessOf(list, plugins, detail)}
       subnav={<SkillViewTabs skill={text} view={view} />}
       // NO SIBLING SWITCHER. A strip of the plugin's other skills sat here, and every one of
       // them is a row on the page you just came from — the breadcrumb goes back there in one
@@ -142,12 +141,6 @@ export default function PluginSkillPage({ params }: { params: Promise<{ plugin: 
                     {text?.source ? (
                       <Field k="Source" v={<span className="break-words text-[12px] leading-relaxed text-ink-soft">{text.source}</span>} />
                     ) : null}
-                    <Field
-                      k="Evaluated"
-                      v={skill?.evaluated
-                        ? <Badge variant="sage" dot className="whitespace-normal leading-snug">{`yes — ${skill.evaluated.documents} documents, judge ${skill.evaluated.judge}`}</Badge>
-                        : <Badge variant="amber" dot>no rubric yet</Badge>}
-                    />
                   </dl>
                 </Panel>
                 {/* THE VERDICT is derived from the numbers, so it needs them. A skill with no
@@ -170,9 +163,7 @@ export default function PluginSkillPage({ params }: { params: Promise<{ plugin: 
                   <>
                     {view === 'read' && text ? <SkillReader skill={text} /> : null}
                     {view === 'references' && text ? <SkillReferences skill={text} /> : null}
-                    {view === 'evaluation' ? (
-                      <SkillEvaluation skill={skill} detail={d} scoresHref={scoresHref} />
-                    ) : null}
+                    {view === 'cost' ? <SkillCost skill={skill} detail={d} /> : null}
                   </>
                 )}
               </Query>
@@ -201,8 +192,6 @@ function Field({ k, v }: { k: string; v: React.ReactNode }) {
  */
 function Conclusion({ skill, detail }: { skill: Skill; detail: SkillDetail }) {
   const rate = skill.calls ? (skill.refusals / skill.calls) * 100 : 0;
-  const scored = detail.dimensions.filter((d) => d.mean !== null);
-  const worst = scored.length ? scored.reduce((a, b) => ((b.mean ?? 5) < (a.mean ?? 5) ? b : a)) : null;
   const heaviest = detail.surfaces[0];
 
   return (
@@ -222,14 +211,11 @@ function Conclusion({ skill, detail }: { skill: Skill; detail: SkillDetail }) {
               ? <>A {rate.toFixed(1)}% refusal rate: {skill.refusals} refusals over {formatCount(skill.calls)} calls.</>
               : <>No refusals recorded at all.</>}
         </li>
-        <li>
-          <b className="text-ink">Quality.</b>{' '}
-          {worst
-            ? <>Mean {skill.evaluated?.mean?.toFixed(2)} across {scored.length} dimensions. The weakest is{' '}
-                <b className="text-ink">{worst.name}</b> at {worst.mean?.toFixed(2)}
-                {worst.low ? <>, with {worst.low} document{worst.low > 1 ? 's' : ''} scoring ≤1</> : null}.</>
-            : <>Nothing scores this skill. Writing a rubric for it is a decision nobody has made.</>}
-        </li>
+        {/* NO QUALITY LINE. This read a mean and its weakest dimension from
+            `detail.dimensions`, which the gateway stopped sending when an evaluation's
+            subject became a plugin VERSION rather than a skill — so the paragraph could
+            only ever have been written from a field that is now always undefined. A
+            skill's quality is read on its plugin's page, where the ruler lives. */}
       </ul>
     </Panel>
   );

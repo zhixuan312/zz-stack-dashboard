@@ -13,7 +13,7 @@ import { DEFAULT_PERIOD, PERIOD_LABEL, periodCutoff } from '@/lib/period';
 import {
   Badge, Button, EmptyState, PageControl, SearchInput, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Switch, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Time, Toolbar, TZ_LABEL, usePaged,
 } from '@/components/ui';
-import { useConsole, type Initiative } from '@/lib/api';
+import { freshnessOf, useConsole, useConsoleMode, type Initiative } from '@/lib/api';
 
 /** One facet, as a Select built from the rows themselves.
  *
@@ -68,6 +68,7 @@ const tallyStates = (xs: string[]): [string, number][] => {
 };
 
 export default function InitiativesPage() {
+  const { mode } = useConsoleMode();
   const q = useConsole<{ initiatives: Initiative[] }>('/initiatives');
   const [filter, setFilter] = useState('');
   const [team, setTeam] = useState<string | null>(null);
@@ -85,9 +86,15 @@ export default function InitiativesPage() {
   return (
     <DashboardPage
       title="Initiatives"
-      description="Every piece of work on the platform, and how far through the flow it got."
+      // THE SCOPE THE READ ACTUALLY HAS. The gateway narrows this list to the caller's own
+      // team unless they are in platform mode, and the sentence claimed the platform over it
+      // — a member read "Every piece of work on the platform" above their own eleven rows.
+      // The Overview switches its sentence on `mode` for exactly this reason.
+      description={mode === 'team'
+        ? "Every piece of work your team has open or closed, and how far through the flow it got."
+        : "Every piece of work on the platform, and how far through the flow it got."}
       showPeriod
-      updatedAt={new Date()}
+      updatedAt={freshnessOf(q)}
     >
       <Query query={q}>
         {(d) => {
@@ -110,7 +117,15 @@ export default function InitiativesPage() {
             && (!state || initiativeState(i) === state)
             // "Needs a signature" is the question this page gets opened for, and it was the
             // one thing the list could not be narrowed to.
-            && (!openOnly || i.gates.some((g) => !g.passed)));
+            // WRITTEN AND UNSIGNED. "Needs a signature" is the question this page gets
+            // opened for, and an unwritten gate document is not one: there is nothing for a
+            // person to read. Filtering on `!passed` alone put initiatives nobody could act
+            // on at the top of the one list built for acting on them.
+            && (!openOnly || i.gates.some((g) => g.role !== 'handover' && g.written && !g.passed)));
+          // Whether the reader narrowed anything — the date window included, since it is a
+          // control on this page like any other.
+          const filtered = !!needle || !!team || !!flow || !!state || openOnly
+            || period !== DEFAULT_PERIOD;
           return (
             <Panel
                 title="All initiatives"
@@ -148,24 +163,39 @@ export default function InitiativesPage() {
                   rows={rows}
                   resetKey={JSON.stringify([needle, team, flow, state, openOnly, period])}
                 />
+                {/* TWO EMPTY STATES, because they are two different facts and only one of
+                    them is the reader's doing. "Nothing matches those filters" was shown
+                    whenever the list was empty — including on a fresh install with every
+                    facet unset, where it blamed filters nobody had set and offered a Clear
+                    button that does nothing. The Knowledge shelf has had both states for
+                    this reason; this list had one. */}
                 {rows.length === 0 && (
-                  <EmptyState
-                    illustration={{ src: '/assets/brand/state-empty.png', width: 96, height: 96 }}
-                    icon={<SearchX className="size-5" aria-hidden />}
-                    title="Nothing matches those filters"
-                    description="No initiative matches every filter at once. The date window counts too."
-                    action={
-                      <Button
-                        variant="secondary"
-                        onClick={() => {
-                          setFilter(''); setTeam(null); setFlow(null); setState(null);
-                          setOpenOnly(false); setPeriod(DEFAULT_PERIOD);
-                        }}
-                      >
-                        Clear filters
-                      </Button>
-                    }
-                  />
+                  filtered ? (
+                    <EmptyState
+                      illustration={{ src: '/assets/brand/state-empty.png', width: 96, height: 96 }}
+                      icon={<SearchX className="size-5" aria-hidden />}
+                      title="Nothing matches those filters"
+                      description="No initiative matches every filter at once. The date window counts too."
+                      action={
+                        <Button
+                          variant="secondary"
+                          onClick={() => {
+                            setFilter(''); setTeam(null); setFlow(null); setState(null);
+                            setOpenOnly(false); setPeriod(DEFAULT_PERIOD);
+                          }}
+                        >
+                          Clear filters
+                        </Button>
+                      }
+                    />
+                  ) : (
+                    <EmptyState
+                      illustration={{ src: '/assets/brand/state-empty.png', width: 96, height: 96 }}
+                      icon={<SearchX className="size-5" aria-hidden />}
+                      title="No initiatives yet"
+                      description="Nothing has been opened here. An initiative starts with initiative_open, and every document written afterwards lands under it."
+                    />
+                  )
                 )}
               </Panel>
           );
@@ -229,7 +259,12 @@ function InitiativeTable({ rows, resetKey }: { rows: Initiative[]; resetKey: str
               <TableCell hideBelow="lg"><FlowMini at={i.at} of={i.of} name={i.stage} /></TableCell>
               <TableCell><StateBadge of={i} /></TableCell>
               <TableCell hideBelow="lg" className="whitespace-nowrap text-xs tabular-nums">
-                {i.gates.filter((g) => g.passed).length} of {i.gates.length}
+                {/* The flow's own gates. The derived handover is a real gate the platform
+                    enforces, but it is signed after the close — so counting it here left an
+                    initiative that had passed every gate its flow declares reading as one
+                    short, for ever. */}
+                {i.gates.filter((g) => g.role !== 'handover' && g.passed).length} of{' '}
+                {i.gates.filter((g) => g.role !== 'handover').length}
               </TableCell>
               <TableCell hideBelow="lg" className="whitespace-nowrap"><Time value={i.updated} /></TableCell>
             </TableRow>

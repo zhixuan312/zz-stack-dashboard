@@ -27,7 +27,13 @@ export function ConsoleGate({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   const unauthenticated = me.error?.status === 401;
-  // 403, or a 200 that says this caller may not read: signed in, wrong door.
+  // SIGNED IN, WRONG DOOR — and `/me` says so with a 200 and `mayRead: false`, never a 403:
+  // it is the one console route not behind `ok()`, precisely so this component can be told
+  // WHO the caller is while refusing them the data. A separate `refused = status === 403`
+  // stood here and could not fire, which made the branch that carries the gateway's own
+  // sentence to the login screen unreachable — every denial fell through to the generic
+  // fallback instead. Kept as one concept rather than two, and a 403 from this route (were
+  // one ever added) still lands here rather than being read as an outage.
   const refused = me.error?.status === 403;
   // Anything else — a 5xx, or no response at all — is an OUTAGE, not an answer about the
   // caller. It used to count as a refusal, so a gateway that could not reach its database
@@ -46,11 +52,15 @@ export function ConsoleGate({ children }: { children: ReactNode }) {
       // x@y authenticated by pat" — and that sentence is the whole diagnosis.
       // Carrying it to the login screen is what stops somebody checking a
       // password that was already correct.
-      const reason = me.error?.message
+      // THE GATEWAY'S OWN SENTENCE FIRST, whichever way it arrived: as an error message on
+      // a refused route, or as `why` on the 200 this route answers. Without the second the
+      // gateway's diagnosis was unreachable — /me never 403s — and every denial fell through
+      // to the generic line below it.
+      const reason = me.error?.message ?? me.data?.why
         ?? `You are signed in as ${me.data?.email ?? 'someone'}, but the console needs a browser sign-in.`;
       router.replace(`/login?denied=1&reason=${encodeURIComponent(reason)}`);
     }
-  }, [me.isPending, unauthenticated, refused, notAllowed, me.error, me.data?.email, pathname, router]);
+  }, [me.isPending, unauthenticated, refused, notAllowed, me.error, me.data?.email, me.data?.why, pathname, router]);
 
   if (unreachable) {
     return (

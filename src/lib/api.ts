@@ -195,6 +195,22 @@ function withScope(path: string, mode: ConsoleMode): string {
  * refetching `/me` (and re-opening `ConsoleGate`'s spinner) the moment its
  * own default computation changes the mode out from under it.
  */
+/**
+ * WHEN THE DATA ON THE PAGE ACTUALLY ARRIVED — for the freshness stamp.
+ *
+ * Every page passed `updatedAt={new Date()}`, evaluated at RENDER. The stamp therefore read
+ * "Updated just now" over thirty-second-old cached data, over a background refetch, and over
+ * the error state itself: a claim that could not be false, on a header whose whole reason for
+ * existing is that "a dashboard that does not say how old its numbers are cannot be trusted".
+ *
+ * The OLDEST of the queries given, because a page is only as fresh as its stalest panel, and
+ * `null` while nothing has loaded — which Freshness renders as "never" rather than as now.
+ */
+export function freshnessOf(...queries: { dataUpdatedAt?: number }[]): Date | null {
+  const stamps = queries.map((q) => q.dataUpdatedAt ?? 0).filter((n) => n > 0);
+  return stamps.length ? new Date(Math.min(...stamps)) : null;
+}
+
 export function useConsole<T>(path: string | null): UseQueryResult<T, ApiError> {
   const { mode } = useConsoleMode();
   const scoped = path !== null && path !== '/me';
@@ -213,6 +229,11 @@ export function useConsole<T>(path: string | null): UseQueryResult<T, ApiError> 
 export interface Me {
   email: string; name: string; role: 'superadmin' | 'member';
   mayRead: boolean; superadmin: boolean; via: string;
+  /** The gateway's own sentence for WHY it will not answer, present only when `mayRead` is
+   *  false. This route answers 200 by design, so without it the browser had nothing to show
+   *  but a line it wrote itself — and the whole reason `ok()` names its refusals is that a
+   *  generic one sends a person to check a password that was already correct. */
+  why?: string;
   // A slug alone couldn't say whether the caller is a team admin or a member; the gateway
   // now sends the role alongside each team it already resolved.
   teams: { slug: string; role: 'admin' | 'member' }[]; activeTeam: string | null;
@@ -269,6 +290,9 @@ export interface OverviewMetrics {
     /** Runs whose bytes were never measured — excluded from the figures above, never
      *  folded in as zero. A run nobody measured is not a run that moved nothing. */
     unmeasured: number;
+    /** True when the gateway's run query hit its 400-row cap, so the previous-window
+     *  comparison is a median over a truncated tail rather than the whole window. */
+    capped: boolean;
     /** Rule of thumb at ~4 bytes per token — NOT a measurement. Nothing counts tokens. */
     contextWindowKb: number;
   };
@@ -332,7 +356,20 @@ export interface TeamDetail {
   team: { slug: string; name: string; status: string; created: string };
   members: { email: string; name: string; role: string; joined: string }[];
 }
-export interface Gate { name: string; passed: boolean; after: number }
+export interface Gate {
+  name: string;
+  /** `handover` is the platform's own closing step, appended to every gating flow. It is a
+   *  real gate — somebody signs it — but it is written AFTER the close, so any question
+   *  about an OPEN initiative has to leave it out, or every one of them reads as owing a
+   *  signature on work nobody has finished. */
+  role?: string;
+  passed: boolean;
+  /** Whether the gated document EXISTS yet. `passed: false` alone cannot tell "nobody has
+   *  drafted it" from "it is drafted and nobody has signed", and those are opposite
+   *  instructions: the first is waiting on the agent, the second on a person. */
+  written: boolean;
+  after: number;
+}
 /** One stage of a flow, named by the flow itself. */
 /** One node of the diagram, as the API derived it — including the `open` and `closed`
  *  bookends every initiative has and no manifest declares.
@@ -386,6 +423,11 @@ export interface InitiativeDetail {
   decisions: { path: string; role: string; key: string; verdict: string;
                qualifier: string | null; detail: string | null;
                checker: string | null }[];
+  /** WHAT THE LEDGER ACTUALLY HOLDS, so a column of blanks reads as a fact about the
+   *  documents rather than as a derivation that has stopped running. The production case is
+   *  374 `agreement` rows and 104 `plan` rows, none of them a fit claim — with nothing on
+   *  screen saying so, the reader cannot tell that from a broken extractor. */
+  decisionCounts: { rows: number; withVerdict: number; withQualifier: number; withChecker: number };
   at: number; of: number; stage: string; steps: Step[]; gates: Gate[]; accepted: boolean;
   /** Everything the flow asks for was there at the close. False on one that stopped short. */
   complete: boolean;
@@ -407,6 +449,9 @@ export interface DocumentDetail {
   /** Keyed by this document's path — a ledger is what THIS document claims. */
   decisions: { key: string; role: string; verdict: string; qualifier: string | null;
                detail: string | null; checker: string | null }[];
+  /** WHAT THE LEDGER ACTUALLY HOLDS, so a column of blanks reads as a fact about the
+   *  document rather than as a derivation that has stopped running. */
+  decisionCounts: { rows: number; withVerdict: number; withQualifier: number; withChecker: number };
   /** Every version of this document, oldest first: the frozen snapshots and the live one. */
   versions: { path: string; body: string | null; status: string | null;
               approved_by: string | null; updated_at: string; bytes: number; version: number }[];
@@ -448,6 +493,14 @@ export interface KnowledgeBody {
   team: string; path: string; type: string; status: string; title: string;
   tags: string[] | null; updated: string; body: string;
   evidence: string[] | null; superseded_by: string | null;
+  /** Each piece of evidence WITH THE TEAM ITS INITIATIVE LIVES IN, resolved by the gateway.
+   *
+   *  `knowledge_add` accepts evidence naming an initiative in any team the author belongs to,
+   *  and a platform-shelf node cites tenant initiatives by design — so linking evidence under
+   *  the NODE's team produced `/initiatives/zz-platform/<slug>`, which answers "not found".
+   *  `team` is null when nothing on this deployment has an initiative by that name, and the
+   *  name is then text rather than a link. */
+  evidence_in: { name: string; team: string | null }[] | null;
 }
 /** One line of `POST /api/console/ask`'s answer, built by the gateway from the retrieved
  *  document(s) it actually named — never from the model's own text (see console-ask.ts).
@@ -460,12 +513,14 @@ export interface Skill {
   name: string; version: string; kind: string; flow: string | null;
   /** Still served, or kept only because it owns these runs. */
   retired: boolean;
-  /** Teams whose initiatives drove it. Empty when every run of it was teamless. */
-  teams: string[];
+  /* NO `teams`. /skills is a teamless route — a skill is a platform-wide capability — and
+   * it also returned the slugs of every team that had run one, which is not a fact about the
+   * skill but a list of the other tenants on the deployment. Nothing here ever read it. */
   runs: number; calls: number; callsAvg: number; callsMax: number; refusals: number;
   /** Runs a duration could be computed for — those with more than one call. See below. */
   timedRuns: number;
-  turns: number | null;
+  /* NO `turns`. zz.run.turns was written by nothing and no turn event was ever emitted, so
+   * any figure built on it was a zero wearing the clothes of a measurement. */
   /* NULLABLE, all five, because the gateway sends null and always did — these were typed
    * `number` and the pages read them straight, so `Math.round(null)` printed a skill nobody
    * has measured as "0 KB" and `dur(null)` printed it as an em dash that meant something
@@ -476,20 +531,21 @@ export interface Skill {
   durationTotal: number | null;
   kbPerRun: number | null; mbTotal: number | null;
   logged: { calls: number; failed: number; tools: number } | null;
-  evaluated: { evalId: string; judge: string; documents: number; ran: string;
-               mean: number | null; control: number | null; controlN: number } | null;
 }
 export interface SkillDetail {
   skill: string;
-  dimensions: { name: string; ordinal: number; fiveMeans: string; oneMeans: string;
-                n: number; mean: number | null; sd: number | null; low: number; high: number }[];
-  findings: { pattern: string; docs_affected: number; scope: string;
-              decision: string | null; proposed_change: string | null }[];
+  /* `dimensions`, `findings` and `evaluated` WERE HERE and went with their subject. An
+   * evaluation's subject is a plugin VERSION now, so nothing can write a per-skill score
+   * again — `GET /skills/:name` sends `{ skill, surfaces, busiestTools }` and says so in its
+   * own comment. The reads outlived the fields: `detail.dimensions.filter(...)` and
+   * `usePaged(d.findings)` both dereferenced undefined, and every skill with a recorded run
+   * threw on the route error boundary rather than rendering. */
   surfaces: { surface: string; calls: number; failed: number; tools: number }[];
   busiestTools: { tool: string; calls: number; failed: number }[];
 }
 export interface Runs {
-  totals: { runs: number; calls: number; refusals: number; mb: number };
+  /** `mb` is SQL-null for a window with no run, or none measured — never a confident 0. */
+  totals: { runs: number; calls: number; refusals: number; mb: number | null };
   /* `outcomes` and `gaps.runsWithoutOutcome` WERE HERE and went with the column. zz.run.outcome
    * was written by one deleted op and read by nothing; migration 048 drops it. A breakdown of a
    * column nothing writes is one bar reading "not recorded" forever, and a gap that can never
@@ -558,7 +614,12 @@ export interface PluginRow {
    *  score cannot: does installing this help, versus not installing it. `meanDelta` is null
    *  when the recorded result carried no readable delta; zz-core owns the authoritative
    *  parse. Null throughout when nothing has been recorded. */
-  eval: { ranAt: string; casesDigest: string | null; cases: number; meanDelta: number | null } | null;
+  /** `erroredRuns` and `partial` travel WITH the delta because the gateway sends them for
+   *  exactly that reason: "a mean taken over a suite that half fell over is not a smaller
+   *  measurement, it is a different one". Rendering `meanDelta` without them showed a run
+   *  where nine of thirty-six arms errored as a clean number. */
+  eval: { ranAt: string; casesDigest: string | null; cases: number; meanDelta: number | null;
+          erroredRuns: number; partial: boolean } | null;
 }
 
 /** A skill, read — `/plugins/:plugin/skills/:skill`. The same shape whatever ships it. */
@@ -582,8 +643,15 @@ export interface ActivityEvent {
   subject: string | null; initiative: string | null; step: string | null;
   ok: boolean | null; refusal: string | null;
 }
+/** The team out of a `<slug> (<role>)` entry — see Person.teams. */
+export function teamSlug(entry: string): string {
+  return entry.replace(/\s*\(.*\)\s*$/, '').trim();
+}
 export interface Person {
   email: string; name: string; role: string; status: string; created: string;
+  /** Each entry is `<slug> (<role>)`, not a bare slug — the gateway formats it for display.
+   *  Counting distinct entries therefore counts MEMBERSHIPS: a team with one admin and one
+   *  member contributes two. `teamSlug()` is how to get the team out of one. */
   activeTeam: string | null; teams: string[]; tokens: number; last_used: string | null;
 }
 

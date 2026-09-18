@@ -9,7 +9,7 @@ import {
   Badge, EmptyState, PageControl, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Time,
   TZ_LABEL, usePaged,
 } from '@/components/ui';
-import { useConsole, type KnowledgeLogEntry } from '@/lib/api';
+import { freshnessOf, useConsole, useConsoleMode, type KnowledgeLogEntry } from '@/lib/api';
 
 /**
  * Log — what this team recorded, what replaced what, and who wrote it down.
@@ -26,6 +26,7 @@ import { useConsole, type KnowledgeLogEntry } from '@/lib/api';
  * they include `search_knowledge` reads, which are not journal entries at all.
  */
 export default function KnowledgeLogPage() {
+  const { mode } = useConsoleMode();
   const q = useConsole<{ entries: KnowledgeLogEntry[] }>('/knowledge/log');
   const entries = q.data?.entries ?? [];
   const added = entries.filter((e) => e.kind === 'knowledge.add').length;
@@ -35,11 +36,21 @@ export default function KnowledgeLogPage() {
   return (
     <DashboardPage
       title="Knowledge"
-      description="Every node this team recorded or retired, newest first."
+      // THE SCOPE THE READ ACTUALLY HAS. In platform mode this list spans every team, and
+      // the sentence said "this team" over all of them — the Overview switches its own
+      // sentence on `mode` for exactly this reason.
+      description={mode === 'team'
+        ? 'Every node this team recorded or retired, newest first.'
+        : 'Every node recorded or retired across the platform, newest first.'}
       showPeriod={false}
-      updatedAt={new Date()}
+      updatedAt={freshnessOf(q)}
       subnav={<KnowledgeTabs active="log" />}
-      metrics={[
+      // GUARDED ON THE DATA, like every other page. Built unconditionally from
+      // `q.data?.entries ?? []`, the header stated "Entries 0 · Recorded 0 · Superseded 0 ·
+      // Last entry —" while the request was still in flight, and kept stating it for good if
+      // the request failed — four confident zeros above a panel reading "Could not load
+      // this". A figure nobody has fetched is not a figure of zero.
+      metrics={q.data ? [
         { label: 'Entries', value: entries.length, muted: entries.length === 0,
           sublabel: 'Recorded acts', icon: <History /> },
         { label: 'Recorded', value: added, muted: added === 0,
@@ -48,7 +59,7 @@ export default function KnowledgeLogPage() {
           sublabel: 'Replaced by a newer node', icon: <GitFork /> },
         { label: 'Last entry', value: entries[0] ? entries[0].ts.slice(0, 10) : '—',
           muted: !entries[0], sublabel: 'Most recent act', icon: <Archive /> },
-      ]}
+      ] : undefined}
     >
       <Query query={q}>
         {() => (

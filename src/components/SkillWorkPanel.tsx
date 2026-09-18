@@ -99,20 +99,6 @@ export function SkillWorkPanel({ skills }: { skills: Skill[] }) {
                       these rows own their history and must not read as current. */}
                   {k.retired ? <span className="ml-1.5 t-micro text-ink-faint">retired</span> : null}
                 </TableCell>
-                <TableCell hideBelow="lg">
-                  {k.teams.length === 0 ? (
-                    // NOT AN EMPTY CELL. 28 runs on this deployment carry no initiative and so
-                    // no team; a blank reads as "we failed to look it up" rather than as the
-                    // fact that a block usage skill runs outside any initiative.
-                    <span className="t-micro text-ink-faint">no team</span>
-                  ) : (
-                    <span className="flex flex-wrap gap-1">
-                      {k.teams.map((t) => (
-                        <Badge key={t} size="sm" variant="neutral">{t}</Badge>
-                      ))}
-                    </span>
-                  )}
-                </TableCell>
                 <TableCell className="font-medium tabular-nums">{k.runs}</TableCell>
                 <TableCell className="tabular-nums text-xs">
                   <span className={cn(k.durationMedian === null && 'text-ink-faint')}>

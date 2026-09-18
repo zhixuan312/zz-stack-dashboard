@@ -44,8 +44,12 @@ export function SidebarFooter() {
       {platform ? (
         <>
           <SidebarStat label="Teams" value={c ? String(c.teams) : '—'} />
+          {/* ALL TIME, and it says so. This rail reads `/overview` with no period, so the
+              number spans the whole history while the Overview tile beside it counts the
+              selected window — the same word over two populations, with nothing on screen
+              telling them apart. */}
           <SidebarStat
-            label="Failing calls"
+            label="Failing calls, all time"
             value={c ? formatCount(c.failures) : '—'}
             tone={c && c.failures > 0 ? 'attention' : undefined}
           />

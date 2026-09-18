@@ -8,7 +8,7 @@ import {
   Badge, PageControl, Segmented, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Time,
   usePaged,
 } from '@/components/ui';
-import { useConsole, type ActivityEvent } from '@/lib/api';
+import { freshnessOf, useConsole, useConsoleMode, type ActivityEvent } from '@/lib/api';
 
 /**
  * The audit view. Every tool call, gate and admin action, newest first.
@@ -20,6 +20,7 @@ import { useConsole, type ActivityEvent } from '@/lib/api';
  * involved" rather than "the team went missing".
  */
 export default function ActivityPage() {
+  const { mode } = useConsoleMode();
   const [failedOnly, setFailedOnly] = useState(false);
   const q = useConsole<{ events: ActivityEvent[]; limit: number }>(
     `/activity?limit=200${failedOnly ? '&failed=1' : ''}`,
@@ -28,9 +29,11 @@ export default function ActivityPage() {
   return (
     <DashboardPage
       title="Activity"
-      description="Everything the platform recorded, newest first."
+      description={mode === 'team'
+        ? "Everything recorded for your team, newest first."
+        : 'Everything the platform recorded, newest first.'}
       showPeriod={false}
-      updatedAt={new Date()}
+      updatedAt={freshnessOf(q)}
       actions={
         <Segmented
           label="Event filter"
@@ -102,7 +105,11 @@ function EventTable({ events, filter }: { events: ActivityEvent[]; filter: strin
           {events.length === 0 && (
             <TableRow>
               <TableCell colSpan={8} className="py-8 text-ink-faint">
-                No activity in this window.
+                {/* NO WINDOW ON THIS PAGE. It sets `showPeriod={false}` and sends no
+                    period, and the route reads only `kind`, `failed` and `limit` — so this
+                    named a control the reader cannot see and a filter the server does not
+                    apply. */}
+                Nothing recorded yet.
               </TableCell>
             </TableRow>
           )}

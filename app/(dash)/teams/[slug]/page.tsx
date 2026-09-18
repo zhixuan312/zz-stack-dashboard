@@ -12,7 +12,7 @@ import {
   EmptyState, PageControl, Table, TableBody, TableCell, TableHead, TableHeader,
   TableRow, Time, usePaged,
 } from '@/components/ui';
-import { useConsole, type Initiative, type Team, type TeamDetail } from '@/lib/api';
+import { freshnessOf, useConsole, type Initiative, type Team, type TeamDetail } from '@/lib/api';
 
 /**
  * One team: what it is working on, what it holds, and who is in it.
@@ -36,7 +36,7 @@ export default function TeamPage({ params }: { params: Promise<{ slug: string }>
       title={slug}
       description={team.data?.team.name ?? 'Team'}
       showPeriod={false}
-      updatedAt={new Date()}
+      updatedAt={freshnessOf(team, inits)}
       metrics={
         list && team.data && held
           ? [
@@ -120,7 +120,8 @@ function InitiativeTable({ initiatives }: { initiatives: Initiative[] }) {
               <TableCell><StateBadge of={i} /></TableCell>
               <TableCell hideBelow="xl" className="tabular-nums">{i.documents}</TableCell>
               <TableCell hideBelow="lg" className="whitespace-nowrap tabular-nums text-xs">
-                {i.gates.filter((g) => g.passed).length} of {i.gates.length}
+                {i.gates.filter((g) => g.role !== 'handover' && g.passed).length} of{' '}
+                {i.gates.filter((g) => g.role !== 'handover').length}
               </TableCell>
               <TableCell hideBelow="lg" className="whitespace-nowrap"><Time value={i.updated} /></TableCell>
             </TableRow>

@@ -4,9 +4,9 @@ import { DashboardPage } from '@/components/DashboardPage';
 import { Query } from '@/components/Query';
 import { SkillWorkPanel } from '@/components/SkillWorkPanel';
 import { usePeriod } from '@/components/PeriodProvider';
-import { Banner, MetricCard, Row } from '@/components/ui';
+import { MetricCard, Row } from '@/components/ui';
 import { formatCount } from '@/lib/format';
-import { useConsole, type Runs, type Skill } from '@/lib/api';
+import { freshnessOf, useConsole, type Runs, type Skill } from '@/lib/api';
 
 export default function RunsPage() {
   /* THE PICKER IS ON NOW. It was hidden because /skills had no window and answered all time
@@ -25,7 +25,7 @@ export default function RunsPage() {
     <DashboardPage
       title="Runs"
       description="Every recorded run, by the skill that drove it."
-      updatedAt={new Date()}
+      updatedAt={freshnessOf(runs, skills)}
     >
       <Query query={runs}>
         {(r) => (
@@ -34,27 +34,19 @@ export default function RunsPage() {
               <MetricCard label="Runs" value={formatCount(r.totals.runs)} />
               <MetricCard label="Tool calls" value={formatCount(r.totals.calls)}
                 sublabel={`${formatCount(r.totals.refusals)} refused`} />
-              {/* The sublabel is a CLAIM, so it only appears when there is something to
-                  claim it about. It read "recorded, but not linked to a run" beside a zero
-                  on a platform that has never run anything, which describes a defect that
-                  is really an empty table. */}
-              <MetricCard label="LLM turns" value={r.gaps.turnEvents ? formatCount(r.gaps.turnEvents) : '—'}
-                sublabel={r.gaps.turnEvents && !r.gaps.turnsAttributed ? 'recorded, but not linked to a run' : undefined}
-                emphasis muted={!r.gaps.turnsAttributed} />
-              <MetricCard label="Payload moved" value={`${r.totals.mb} MB`} />
+              {/* NULL IS NOT ZERO, and it is not the string "null" either. `mb` is
+                  `sum(bytes_total)`, which is SQL-null for any window with no run — the
+                  tile rendered the literal text "null MB". Every other figure on this page
+                  goes through a formatter; this one was interpolated raw. */}
+              <MetricCard label="Payload moved"
+                value={r.totals.mb === null ? '—' : `${r.totals.mb} MB`} />
             </Row>
 
-            {/* The gaps are stated as data, not as a hardcoded caveat — they
-                disappear from the page by themselves the day the platform
-                starts recording these. */}
-            {!r.gaps.turnsAttributed ? (
-              <Banner
-                variant="warning"
-                title="Turns are recorded but not attributed"
-                description={`zz.run.turns is 0 on all ${r.totals.runs} rows, while the event log holds ${formatCount(r.gaps.turnEvents)} turn events with no step and no run id. Cost per document is therefore unanswerable today. It is a one-column platform fix.`}
-              />
-            ) : null}
-
+            {/* THE TURNS TILE AND ITS CAVEAT ARE GONE. Both read `zz.run.turns`, a column
+                written by nothing, beside an event kind nothing emits — so the tile could
+                only ever read "—" and the banner beneath it, "turns are recorded but not
+                attributed", could never clear. A warning watching a column no code will
+                ever fill teaches the reader to skip the warnings that mean something. */}
             <Query query={skills} skeletonRows={6}>
               {(s) => <SkillWorkPanel skills={s.skills} />}
             </Query>

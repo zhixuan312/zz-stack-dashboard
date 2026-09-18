@@ -10,7 +10,7 @@ import { CompositionBar } from '@/components/charts/CompositionBar';
 import { TrendChart } from '@/components/charts/TrendChart';
 import { formatCount } from '@/lib/format';
 import type { Tint } from '@/lib/tints';
-import { useConsole, useConsoleMode, type Overview, type OverviewMetrics } from '@/lib/api';
+import { freshnessOf, useConsole, useConsoleMode, type Overview, type OverviewMetrics } from '@/lib/api';
 import { Row, type MetricCardProps } from '@/components/ui';
 import { usePeriod } from '@/components/PeriodProvider';
 
@@ -162,9 +162,14 @@ function buildMetrics(m: OverviewMetrics): MetricCardProps[] {
          ordinary state as a warning is the same mistake as a banner that fires on an
          empty table. The reader can see 3.9 days and judge. */
       sublabel: [
+        // WHAT THE MEDIAN IS TAKEN OVER, said as such. This read
+        // `${scoreable} open · ${active} active`, and `scoreable` is not "open" — it is the
+        // open initiatives that DECLARE A FLOW, which is the only population a completeness
+        // median can be computed over. The two words together were arithmetically
+        // impossible: "6 open · 7 active" above a bar saying 2 of the 7 are closed.
         m.progressing.scoreable
-          ? `${m.progressing.scoreable} open · ${m.progressing.active} active`
-          : 'none open',
+          ? `${m.progressing.scoreable} of ${m.progressing.active} active`
+          : 'none measured',
         m.progressing.waiting
           ? `${m.progressing.waiting} awaiting`
             + (m.progressing.waitingOldestDays !== null ? ` (${m.progressing.waitingOldestDays}d)` : '')
@@ -295,7 +300,11 @@ function buildMetrics(m: OverviewMetrics): MetricCardProps[] {
       sublabel: m.context.p90 === null
         ? 'no measured run'
         : `top 10% ≥ ${kbText(m.context.p90)}`
-          + (m.context.unmeasured ? ` · ${formatCount(m.context.unmeasured)} unmeasured` : ''),
+          + (m.context.unmeasured ? ` · ${formatCount(m.context.unmeasured)} unmeasured` : '')
+          // SAID WHEN IT MATTERS. Past the gateway's row cap the previous-window figure is a
+          // median over a truncated tail; without this the delta keeps rendering and quietly
+          // stops meaning what it says.
+          + (m.context.capped ? ' · capped' : ''),
       /* SIZE BANDS, NOT A DOT PER RUN. This was a strip that drew every measured run as
        * its own dot on a log axis, and at the volume this platform now records it was a
        * wall of dots — a different species of object from the three composition bars
@@ -348,7 +357,7 @@ export default function OverviewPage() {
           : 'Everything the platform records for your team.'
       }
       showPeriod
-      updatedAt={new Date()}
+      updatedAt={freshnessOf(q)}
       metrics={m ? buildMetrics(m) : undefined}
     >
       <Query query={q}>
@@ -387,14 +396,20 @@ export default function OverviewPage() {
                   outside: x.outside,
                   refused: x.refused,
                 }))}
-                /* STACKED, AND THE THREE ARE DISJOINT — a call is refused, or it ran
-                   inside a run, or it ran outside one, and never two of those. That is
-                   what lets the column height be read as the number of calls in the hour.
+                /* STACKED, AND THE THREE ARE DISJOINT — a call is refused, or it has been
+                   attributed to a run, or it has not yet been, and never two of those. That
+                   is what lets the column height be read as the number of calls in the hour.
                    Refused sits on top, where a stack is easiest to compare across
                    columns, because it is the part somebody is looking for. */
                 series={[
-                  { key: 'inside', label: 'inside a run', shape: 'stack', tint: 'accent' },
-                  { key: 'outside', label: 'outside a run', shape: 'stack', tint: 'blue' },
+                  // "ATTRIBUTED", NOT "INSIDE A RUN". `run_id` is written by the
+                  // reconciler, which sweeps every five minutes and only links an event whose
+                  // step names a skill the platform knows — so the current bucket always
+                  // draws as 100% unattributed and flips once the timer fires. That shape is
+                  // an artifact of the sweep, not of anybody's behaviour, and reading it as
+                  // "these calls happened outside a run" is reading the clock as a finding.
+                  { key: 'inside', label: 'attributed to a run', shape: 'stack', tint: 'accent' },
+                  { key: 'outside', label: 'not yet attributed', shape: 'stack', tint: 'blue' },
                   { key: 'refused', label: 'refused', shape: 'stack', tint: 'rose' },
                 ]}
               />

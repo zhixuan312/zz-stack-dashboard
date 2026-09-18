@@ -19,7 +19,9 @@ import { Badge } from '@/components/ui';
  */
 export interface StateOf {
   outcome: string | null;
-  gates: { name: string; passed: boolean }[];
+  /** `written` tells "nobody has drafted it" from "drafted and unsigned" — see api.ts's
+   *  Gate. Without it this function read the first as the second. */
+  gates: { name: string; passed: boolean; written: boolean; role?: string }[];
 }
 
 /** The six words this column can say, most-closed first — the order a facet lists them in. */
@@ -41,17 +43,28 @@ export function initiativeState(of: StateOf): InitiativeState {
   if (of.outcome === 'accepted') return 'Accepted';
   if (of.outcome === 'delivered') return 'Delivered';
   if (of.outcome === 'abandoned') return 'Abandoned';
-  if (of.gates.some((g) => !g.passed)) return 'Waiting on you';
+  // EVERY BRANCH BELOW IS ABOUT AN OPEN INITIATIVE, so the handover is not one of its gates:
+  // it is written after the close. Counting it made `Ready to close` unreachable — the one
+  // state that says "the work is done and nobody has closed it" — because the handover gate
+  // is unwritten on every initiative that has not closed.
+  const gates = of.gates.filter((g) => g.role !== 'handover');
+  // WRITTEN AND UNSIGNED, not merely unsigned. A gate whose document nobody has drafted is
+  // waiting on the AGENT — there is nothing for a person to read — so counting it here put
+  // "Waiting on you: 3" on a team whose three gate documents had not been started, while the
+  // Overview tile beside it said none were awaiting anybody. Same rule, one place apart.
+  if (gates.some((g) => g.written && !g.passed)) return 'Waiting on you';
+  if (gates.some((g) => !g.written)) return 'In progress';
   // Every gate passed and no outcome recorded. Not the same as in progress, and the
   // difference is actionable: the work is done and nobody has closed it.
-  if (of.gates.length) return 'Ready to close';
+  if (gates.length) return 'Ready to close';
   return 'In progress';
 }
 
 export function StateBadge({ of }: { of: StateOf }) {
   const state = initiativeState(of);
   if (state === 'Waiting on you') {
-    const open = of.gates.filter((g) => !g.passed);
+    // The same rule the badge was decided by: only a gate somebody could actually sign.
+    const open = of.gates.filter((g) => g.role !== 'handover' && g.written && !g.passed);
     return (
       <Badge variant="amber" dot title={`Waiting on: ${open.map((g) => g.name).join(', ')}`}>
         Waiting on you

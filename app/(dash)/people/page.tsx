@@ -6,7 +6,7 @@ import { Query } from '@/components/Query';
 import {
   Badge, PageControl, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Time, usePaged,
 } from '@/components/ui';
-import { useConsole, type Person } from '@/lib/api';
+import { freshnessOf, teamSlug, useConsole, useConsoleMode, type Person } from '@/lib/api';
 
 /**
  * People, their teams, and their tokens' state.
@@ -16,15 +16,18 @@ import { useConsole, type Person } from '@/lib/api';
  * nothing that could be replayed.
  */
 export default function PeoplePage() {
+  const { mode } = useConsoleMode();
   const q = useConsole<{ people: Person[] }>('/people');
   const people = q.data?.people ?? [];
 
   return (
     <DashboardPage
       title="People"
-      description="Everyone the platform knows, and what they can reach."
+      description={mode === 'team'
+        ? 'Everyone on your team, and what they can reach.'
+        : 'Everyone the platform knows, and what they can reach.'}
       showPeriod={false}
-      updatedAt={new Date()}
+      updatedAt={freshnessOf(q)}
       metrics={
         q.data
           ? [
@@ -35,7 +38,10 @@ export default function PeoplePage() {
               { label: 'Never used a token', value: String(people.filter((p) => !p.last_used).length),
                 muted: people.every((p) => p.last_used),
                 sublabel: 'no platform call on record' },
-              { label: 'Teams', value: String(new Set(people.flatMap((p) => p.teams)).size),
+              // THE TEAM, NOT THE MEMBERSHIP. `p.teams` holds `<slug> (<role>)` strings, so a
+              // bare Set counted `xuan (admin)` and `xuan (member)` as two teams — a platform
+              // of 3 read 4, 5 or 6 the moment any team had both.
+              { label: 'Teams', value: String(new Set(people.flatMap((p) => p.teams.map(teamSlug))).size),
                 sublabel: 'across every principal' },
             ]
           : undefined

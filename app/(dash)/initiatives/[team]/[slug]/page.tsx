@@ -11,7 +11,7 @@ import {
   PageControl, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Time, usePaged,
 } from '@/components/ui';
 import { formatCount } from '@/lib/format';
-import { useConsole, type InitiativeDetail } from '@/lib/api';
+import { freshnessOf, useConsole, type InitiativeDetail } from '@/lib/api';
 
 /**
  * One initiative, end to end.
@@ -39,7 +39,7 @@ export default function InitiativePage({
         </>
       }
       showPeriod={false}
-      updatedAt={new Date()}
+      updatedAt={freshnessOf(q)}
     >
       <Query query={q}>
         {(d) => {

@@ -69,7 +69,7 @@ const OVERVIEW: Overview = {
     context: {
       value: 43, prev: 37, p90: 989,
       runs: [{ kb: 12, skill: 'sdlc-spec' }, { kb: 989, skill: 'sdlc-plan' }],
-      unmeasured: 1,
+      unmeasured: 1, capped: false,
       contextWindowKb: 800,
     },
   },
@@ -207,7 +207,13 @@ describe('the overview page', () => {
     await waitFor(() => expect(screen.getByText(/Initiatives progressing/)).toBeInTheDocument());
     expect(screen.queryByText(/awaiting/)).not.toBeInTheDocument();
     // …and the sublabel it shares a line with survives intact.
-    expect(screen.getByText(/^6 open/)).toBeInTheDocument();
+    //
+    // `6 of 7 active`, never "6 open". `scoreable` is the open initiatives that DECLARE A
+    // FLOW — the only population a completeness median can be taken over — and calling it
+    // "open" made this fixture state something impossible: 6 open out of 7 active while the
+    // composition bar below says 2 of the 7 are closed. The assertion pinned the wrong word
+    // in place, which is the shape of a test defending a defect.
+    expect(screen.getByText(/^6 of 7 active/)).toBeInTheDocument();
   });
 
   /* THE SHARE IS THE WHOLE POINT OF PASSING A TOTAL, and it is computed against the total

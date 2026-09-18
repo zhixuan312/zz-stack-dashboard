@@ -8,8 +8,7 @@ import {
   Badge, PageControl, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Time, usePaged,
 } from '@/components/ui';
 import { formatCount } from '@/lib/format';
-import { useConsole, type PluginRow } from '@/lib/api';
-import { pluginKind } from '@/lib/plugin-labels';
+import { freshnessOf, useConsole, type PluginRow } from '@/lib/api';
 
 /**
  * LAYER ONE: which plugins exist. One row each, nothing expanded.
@@ -32,12 +31,16 @@ export default function PluginsPage() {
       title="Plugins"
       description="What a person installs: a package's skills plus the MCP servers those skills call, under one declared version."
       showPeriod={false}
-      updatedAt={new Date()}
+      updatedAt={freshnessOf(q)}
       metrics={
         q.data
           ? [
+              // NO "SOMEBODY ELSE'S" COUNT. `origin` is hardcoded `platform` on every row
+              // the catalog emits and third-party blocks were dropped, so this tile read
+              // "0 somebody else's" and could read nothing else. A comparison with a
+              // constant is not a comparison.
               { label: 'Plugins', value: String(plugins.length),
-                sublabel: `${plugins.filter((p) => p.origin === 'third_party').length} somebody else’s` },
+                sublabel: 'in the catalog' },
               { label: 'Skills', value: String(skills), sublabel: 'across every plugin' },
               // A DECLARED VERSION IS A CLAIM and the digest is what makes it true, so what
               // is worth counting is how many of them anything has vouched for. The rows come
@@ -88,12 +91,11 @@ function PluginTable({ rows }: { rows: PluginRow[] }) {
                   {p.plugin}
                 </Link>
                 <span className="block truncate text-xs text-ink-faint" title={p.description ?? ''}>
-                  {/* WHAT IT IS, in whichever form its own source records. A catalog
-                      package has an owner and a declared version; a registered block
-                      has neither and carries a kind from zz.block instead. */}
-                  {p.version
-                    ? `${p.agentName ? `${p.agentName} · ` : ''}${p.owner ?? 'zz'} · v${p.version}`
-                    : pluginKind(p)}
+                  {/* Every plugin here is a catalog package: it has an owner and a declared
+                      version. The registered-block fallback that stood beside this read a
+                      `kind` the catalog never sends, behind a `p.version` that is never
+                      null — two dead branches guarding each other. */}
+                  {`${p.agentName ? `${p.agentName} · ` : ''}${p.owner ?? 'zz'} · v${p.version}`}
                 </span>
               </TableCell>
               <TableCell hideBelow="lg">
@@ -134,6 +136,12 @@ function PluginTable({ rows }: { rows: PluginRow[] }) {
                   ? <span className="flex flex-wrap items-baseline gap-x-2 text-ink">
                       {p.eval.meanDelta === null ? '—' : `Δ ${p.eval.meanDelta.toFixed(2)}`}
                       <span className="text-ink-faint">{p.eval.cases} cases</span>
+                      {/* THE CAVEATS TRAVEL WITH THE NUMBER. A mean over a suite that half
+                          fell over is a different measurement, not a smaller one. */}
+                      {p.eval.erroredRuns > 0
+                        ? <span className="text-[var(--amber-text)]">{p.eval.erroredRuns} errored</span>
+                        : null}
+                      {p.eval.partial ? <span className="text-[var(--amber-text)]">partial</span> : null}
                       <Time value={p.eval.ranAt} className="text-ink-faint" />
                     </span>
                   : <span className="text-ink-faint">not measured</span>}

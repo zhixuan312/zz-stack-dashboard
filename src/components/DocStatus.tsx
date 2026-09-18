@@ -56,7 +56,10 @@ export function DocStatus({
       {outcome ? (
         <span className="inline-flex items-center gap-1 text-[11px] text-ink-faint">
           outcome
-          <Badge variant="sage" dot>{outcome}</Badge>
+          {/* ABANDONED IS NOT A SUCCESS COLOUR. All three outcomes mean closed, but only
+              two mean the work landed — StateBadge is careful to give Abandoned `neutral`
+              and this gave the same word green, an inch from the same reader. */}
+          <Badge variant={outcome === 'abandoned' ? 'neutral' : 'sage'} dot>{outcome}</Badge>
         </span>
       ) : null}
     </span>

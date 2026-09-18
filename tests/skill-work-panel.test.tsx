@@ -14,29 +14,25 @@ import type { Skill } from '@/lib/api';
  * sdlc-plan's median moved from 0s to 25 minutes once the structural zeroes stopped voting.
  */
 const skill = (over: Partial<Skill>): Skill => ({
-  name: 'x', version: '1.0', kind: 'flow', flow: null, retired: false, teams: ['xuan'],
-  runs: 1, calls: 1, callsAvg: 1, callsMax: 1, refusals: 0, timedRuns: 1, turns: null,
+  name: 'x', version: '1.0', kind: 'flow', flow: null, retired: false,
+  runs: 1, calls: 1, callsAvg: 1, callsMax: 1, refusals: 0, timedRuns: 1,
   durationAvg: null, durationMedian: null, durationMax: null, durationTotal: null,
   kbPerRun: null, mbTotal: null, logged: null,
-  // ALWAYS null, and not because this is a fixture: /skills stopped emitting `evaluated`
-  // when an evaluation's subject became a plugin, and nothing can write a per-skill score
-  // again. The field is still on the type and read in four places. Follow-up, not this
-  // change — see the gateway's "NO EVALUATION HERE ANY MORE".
-  evaluated: null, ...over,
+  ...over,
 });
 
 const SKILLS: Skill[] = [
   // Thin evidence: a real median resting on 3 of 34 runs.
   skill({ name: 'sdlc-plan', runs: 34, timedRuns: 3, calls: 69, refusals: 4,
-    durationMedian: 1526.7, durationTotal: 8029.6, teams: ['quan', 'xuan'] }),
+    durationMedian: 1526.7, durationTotal: 8029.6 }),
   // Genuinely sub-second, and measured 37 times — not the same fact as "unmeasured".
   skill({ name: 'sdlc-explore', runs: 60, timedRuns: 37, calls: 97, refusals: 68,
     durationMedian: 0.1, durationTotal: 28.1 }),
   // Every run timed, so there is nothing to caveat and the row stays quiet.
   skill({ name: 'zz-platform', runs: 23, timedRuns: 23, calls: 50,
-    durationMedian: 1.0, durationTotal: 307.7, teams: ['zz-platform'] }),
+    durationMedian: 1.0, durationTotal: 307.7 }),
   // Nothing timed at all, and no team.
-  skill({ name: 'sdlc-deck', runs: 1, timedRuns: 0, calls: 1, teams: [] }),
+  skill({ name: 'sdlc-deck', runs: 1, timedRuns: 0, calls: 1 }),
 ];
 
 /* BY THE FIRST CELL, not by text anywhere in the row. A team is named `zz-platform` and so

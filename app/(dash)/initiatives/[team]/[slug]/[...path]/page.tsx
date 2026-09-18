@@ -19,7 +19,7 @@ import { ApproveAction, canApprove } from '@/components/ApproveAction';
 import {
   DocumentThreadComposer, DocumentThreadMessages, DocumentThreadRevise, canReviseFromThread, useDocumentThread,
 } from '@/components/DocumentThread';
-import { useConsole, type DocumentDetail, type Me } from '@/lib/api';
+import { freshnessOf, useConsole, type DocumentDetail, type Me } from '@/lib/api';
 
 /** The shell's two tabs, in the order every tabbed shell puts document chrome first (see
  *  `DocumentShell`'s `onDocumentTab`, which relies on that ordering to scope `actions` and
@@ -80,7 +80,7 @@ export default function DocumentPage({
         </>
       }
       showPeriod={false}
-      updatedAt={new Date()}
+      updatedAt={freshnessOf(q)}
       // READING WIDTH: the page is one column — the document, how it changed, and its
       // claims, each a full-width card — and the column is what a reader reads.
       actions={
@@ -102,13 +102,17 @@ export default function DocumentPage({
               // with the LIVE one — there is no top-level version number, because a
               // frozen `_versions/spec.v1.md` and the live `spec.md` differ only in
               // whether a suffix was ever attached, not in a field either carries.
-              // Its length is exactly the count a reader means by "version N": one
-              // unnumbered document is v1, and each approval that freezes a
-              // snapshot before the next edit adds one more. (The gateway does
-              // stamp the live entry with a sentinel version of 9999 so it sorts
-              // last — see `VersionChain`'s own `label()` — but that sentinel is
-              // for ordering, not for display, so the badge never reads "v9999".)
-              version={d.versions.length}
+              // THE DOCUMENT'S OWN VERSION NUMBER, not a count of the snapshots kept.
+              //
+              // `d.versions.length` counts the frozen copies plus the live row, and a
+              // revision consumes a version WITHOUT freezing a file — which is exactly what
+              // `VersionChain`'s `unretainedVersions` exists to report. A document whose
+              // snapshots are v1 and v3 therefore showed the badge "v3" above a chain listing
+              // four states, one of them unretained, three cards down. The highest number the
+              // document has reached is the number a reader means; the sentinel 9999 the
+              // gateway stamps on the live row is for ORDERING and is excluded here the same
+              // way the chain excludes it.
+              version={Math.max(1, ...d.versions.map((v) => v.version).filter((n) => n !== 9999))}
               tabs={TABS}
               activeTab={activeTab}
               onTabChange={setActiveTab}
@@ -259,7 +263,7 @@ export default function DocumentPage({
 
             <VersionChain doc={d} />
 
-            {d.decisions.length ? <DecisionPanel decisions={d.decisions} /> : null}
+            {d.decisions.length ? <DecisionPanel decisions={d.decisions} counts={d.decisionCounts} /> : null}
           </>
         )}
       </Query>
@@ -268,7 +272,10 @@ export default function DocumentPage({
 }
 
 /** ITS OWN COMPONENT so it can hold the page state — a spec carries hundreds of rows. */
-function DecisionPanel({ decisions }: { decisions: DocumentDetail['decisions'] }) {
+function DecisionPanel({ decisions, counts }: {
+  decisions: DocumentDetail['decisions'];
+  counts: DocumentDetail['decisionCounts'];
+}) {
   const { page, controls } = usePaged(decisions);
   // THE COLUMNS DEPEND ON THE ROLE, because the rows do.
   //
@@ -300,7 +307,13 @@ function DecisionPanel({ decisions }: { decisions: DocumentDetail['decisions'] }
           : isPlan ? 'Which criteria each task discharges'
           : 'The claims this document makes'
       }
-      aside={`${decisions.length}`}
+      // THE COUNTS, not just the row total. The gateway sends them so a table of blanks is
+      // readable as a fact about these documents — and the console dropped them, which left
+      // the reader unable to tell "none of these rows carries a verdict" from "the extractor
+      // has stopped running". Said only where it is the interesting half.
+      aside={counts.rows && !counts.withVerdict
+        ? `${counts.rows} — none states a verdict`
+        : `${counts.rows}`}
       padded={false}
     >
       <Table>

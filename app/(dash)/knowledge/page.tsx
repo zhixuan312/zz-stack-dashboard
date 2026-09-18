@@ -13,7 +13,7 @@ import {
   Time, Toolbar, usePaged,
 } from '@/components/ui';
 import { cn } from '@/lib/cn';
-import { useConsole, useConsoleMode, type KnowledgeNode } from '@/lib/api';
+import { freshnessOf, useConsole, useConsoleMode, type KnowledgeNode } from '@/lib/api';
 import {
   filterKnowledgeNodes, knowledgeNodeHref, tagFacetCounts, teamFacetOptions,
 } from '@/lib/knowledge-filters';
@@ -45,7 +45,12 @@ export default function KnowledgePage() {
   // Teams actually present in what loaded — answers "does this list mix teams", which the
   // row label and the count need. NOT the team control's options (see `teamFacetOptions`).
   const teamsInView = [...new Set(nodes.map((n) => n.team))].sort();
-  const superseded = nodes.filter((n) => n.superseded_by).length;
+  // FROM `status`, THE SAME FIELD THE ROW BADGE READS. These were derived from
+  // `superseded_by` — the POINTER to the replacement — while the badge three hundred lines
+  // down tests `n.status`, the lifecycle column. A node whose lifecycle is `superseded` but
+  // whose pointer is null counted as Adopted in the tile and rendered "superseded" in its own
+  // row, on one screen.
+  const superseded = nodes.filter((n) => n.status !== 'adopted').length;
   const adopted = nodes.length - superseded;
   // The newest node's own recorded date. `updated` is an instant, so the max is a string
   // comparison on ISO — no Date objects allocated per row to answer one question.
@@ -76,7 +81,7 @@ export default function KnowledgePage() {
       title="Knowledge"
       description="What the platform has learned, kept as nodes. Each one comes out of a real initiative."
       showPeriod={false}
-      updatedAt={new Date()}
+      updatedAt={freshnessOf(list)}
       subnav={<KnowledgeTabs active="nodes" />}
       // THE SAME FOUR QUESTIONS THE SHELF IS SCANNED FOR, above it rather than counted by
       // eye down the list. `superseded` is the one worth a tile of its own: a shelf where

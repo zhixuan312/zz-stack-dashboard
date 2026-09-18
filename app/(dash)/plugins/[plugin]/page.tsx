@@ -10,8 +10,7 @@ import {
   Badge, EmptyState, PageControl, Row, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Time, usePaged,
 } from '@/components/ui';
 import { formatCount } from '@/lib/format';
-import { useConsole, type PluginRow } from '@/lib/api';
-import { pluginKind, pluginTitle } from '@/lib/plugin-labels';
+import { freshnessOf, useConsole, type PluginRow } from '@/lib/api';
 
 /**
  * LAYER TWO: one plugin — what it is, what it reaches, and every skill it ships.
@@ -32,13 +31,13 @@ export default function PluginPage({ params }: { params: Promise<{ plugin: strin
 
   return (
     <DashboardPage
-      title={p ? (p.agentName ? `${plugin} — ${p.agentName}` : pluginTitle({ plugin, title: p.title })) : plugin}
+      title={p && p.agentName ? `${plugin} — ${p.agentName}` : plugin}
       breadcrumb={[{ label: 'Plugins', href: '/plugins' }, { label: plugin }]}
       // NO SUBTITLE. A manifest description runs to two full lines and sat under the title as
       // a wall of prose above the metrics. It is the first thing "What this plugin is" says —
       // read once, where the rest of what this plugin IS already lives.
       showPeriod={false}
-      updatedAt={new Date()}
+      updatedAt={freshnessOf(q)}
       metrics={
         p
           ? [
@@ -72,13 +71,10 @@ export default function PluginPage({ params }: { params: Promise<{ plugin: strin
               <Row split="1/2">
                 <Panel title="About this plugin">
                   <dl className="flex flex-col gap-3 text-[13px]">
-                    <Field k="Does" v={<span className="text-ink-soft">{p.description ?? pluginKind(p)}</span>} />
-                    <Field
-                      k="Whose"
-                      v={p.origin === 'platform'
-                        ? <Badge variant="accent" dot>ours</Badge>
-                        : <Badge variant="neutral">a team&rsquo;s own service, reached over MCP</Badge>}
-                    />
+                    <Field k="Does" v={<span className="text-ink-soft">{p.description ?? '—'}</span>} />
+                    {/* NO "WHOSE" FIELD. `origin` is hardcoded `platform` on every catalog
+                        row, so this could only ever say "ours" — a field with one possible
+                        value asks the reader to compare against nothing. */}
                     {p.owner ? <Field k="Owner" v={<span className="break-all font-mono text-xs">{p.owner}</span>} /> : null}
                     {/* THE VERSION AND THE DIGEST, TOGETHER OR NOT AT ALL. The declared number is
                         a claim — "sdlc 0.2 fixed it" — and the digest of what that version
@@ -110,9 +106,15 @@ export default function PluginPage({ params }: { params: Promise<{ plugin: strin
                       k="Evaluated"
                       v={p.eval
                         ? <span className="flex flex-wrap items-baseline gap-2">
-                            <Badge variant="sage" dot>
+                            {/* NOT SAGE WHEN THE SUITE STUMBLED. The gateway sends
+                                `erroredRuns` and `partial` beside the mean precisely so the
+                                number is not read as clean; rendering the mean alone made a
+                                run where nine of thirty-six arms errored look settled. */}
+                            <Badge variant={p.eval.erroredRuns > 0 || p.eval.partial ? 'amber' : 'sage'} dot>
                               {p.eval.meanDelta === null ? 'recorded' : `Δ ${p.eval.meanDelta.toFixed(2)}`}
                               {` over ${p.eval.cases} cases`}
+                              {p.eval.erroredRuns > 0 ? `, ${p.eval.erroredRuns} errored` : ''}
+                              {p.eval.partial ? ', partial' : ''}
                             </Badge>
                             <Time value={p.eval.ranAt} className="text-ink-faint" />
                           </span>
@@ -173,11 +175,14 @@ function SkillTable({ plugin, skills }: { plugin: string; skills: PluginRow['ski
           <TableRow>
             <TableHead className="w-8">#</TableHead>
             <TableHead>Skill</TableHead>
+            {/* KEPT, unlike the plugin-level "Whose" above: a SKILL's origin is derived
+                from a `source:` line in its own SKILL.md, so it genuinely varies the day a
+                vendored skill ships. No skill carries one today, which makes the column
+                quiet — not constant. */}
             <TableHead hideBelow="md">Whose</TableHead>
             <TableHead hideBelow="lg">Versions</TableHead>
             <TableHead>Calls</TableHead>
             <TableHead hideBelow="md">Last run</TableHead>
-            <TableHead hideBelow="lg">Evals</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -208,7 +213,6 @@ function SkillTable({ plugin, skills }: { plugin: string; skills: PluginRow['ski
                   ? <Time value={s.lastRun} className="text-ink-soft" />
                   : <Badge variant="neutral">never run</Badge>}
               </TableCell>
-              <TableCell hideBelow="lg" className="tabular-nums text-xs">{s.evals || '—'}</TableCell>
             </TableRow>
           ))}
           {skills.length === 0 && (

@@ -94,8 +94,17 @@ export function FlowStepper({ gates, outcome, steps, complete }: {
   // gated document, which the flow declares. A gate the manifest does not place is drawn at
   // the end rather than at a position invented for it — and it is the honest place, because
   // an unplaced gate is one nothing has said comes earlier.
-  const gateAfter = new Map<number, Gate>();
-  gates.forEach((g) => gateAfter.set(g.after && g.after > 0 ? g.after : stages.length, g));
+  //
+  // A LIST PER POSITION, not one gate. Keyed into a plain Map the last write won, so two
+  // gated documents written by one stage — or two the manifest does not place, which both
+  // fall back to `stages.length` — drew as a single chip while the Gates column beside it
+  // still read "1 of 2". The table and the diagram disagreed with nothing on screen saying
+  // why.
+  const gateAfter = new Map<number, Gate[]>();
+  gates.forEach((g) => {
+    const at = g.after && g.after > 0 ? g.after : stages.length;
+    gateAfter.set(at, [...(gateAfter.get(at) ?? []), g]);
+  });
   // FLAT, not a row of per-stage wrappers.
   //
   // Each stage used to be its own flex box holding its connector, its node and its
@@ -132,7 +141,7 @@ export function FlowStepper({ gates, outcome, steps, complete }: {
     const partial = stage.state === 'partial';
     const untracked = stage.state === 'untracked';
     const now = stage.current;
-    const gate = gateAfter.get(n) ?? null;
+    const here = gateAfter.get(n) ?? [];
 
     if (n > 1) {
       items.push(
@@ -192,15 +201,17 @@ export function FlowStepper({ gates, outcome, steps, complete }: {
       </div>,
     );
 
-    if (gate) {
+    for (const gate of here) {
       items.push(
-        <div key={`g${n}`} className="my-1 flex items-center gap-2 @min-[920px]:mx-[3px] @min-[920px]:my-0 @min-[920px]:shrink-0 @min-[920px]:flex-col @min-[920px]:gap-[7px]">
+        <div key={`g${n}-${gate.name}`} className="my-1 flex items-center gap-2 @min-[920px]:mx-[3px] @min-[920px]:my-0 @min-[920px]:shrink-0 @min-[920px]:flex-col @min-[920px]:gap-[7px]">
           <span
             className={cn(
               'inline-flex h-[26px] items-center gap-1 whitespace-nowrap rounded-full border px-2 text-[10px] font-medium',
               gate.passed
                 ? 'border-[var(--green)] bg-[var(--green-tint)] text-[var(--green-text)]'
-                : stage.state === 'partial'
+                // FROM THE GATE, not from the stage. A stage can hold two gates in
+                // different states, and reading the stage painted both the same.
+                : gate.written
                   ? 'border-[var(--amber)] bg-[var(--amber-tint)] text-[var(--amber-text)]'
                   : 'border-dashed border-line-strong bg-surface text-ink-faint',
             )}
@@ -211,7 +222,7 @@ export function FlowStepper({ gates, outcome, steps, complete }: {
             {gate.name}
           </span>
           <span className="text-[10px] leading-tight text-ink-faint @min-[920px]:max-w-[78px] @min-[920px]:text-center">
-            {gate.passed ? 'approved' : stage.state === 'partial' ? 'waiting on a person' : 'a person must approve'}
+            {gate.passed ? 'approved' : gate.written ? 'waiting on a person' : 'not written yet'}
           </span>
         </div>,
       );
@@ -228,6 +239,11 @@ export function FlowStepper({ gates, outcome, steps, complete }: {
         <Legend className="border-accent bg-accent">where it is now</Legend>
         <Legend className="border-[var(--amber)] bg-[var(--amber-tint)]">written, waiting on a person</Legend>
         <Legend className="border-line-strong bg-surface">nothing written</Legend>
+        {/* THE FOURTH STATE, now that the API sends it. A stage producing a record or
+            nothing cannot leave a document, so "nothing written" was a claim about a stage
+            that could never have written anything — and the legend listed three styles
+            while the nodes drew four. */}
+        <Legend className="border-dashed border-line-strong bg-surface">no document to leave</Legend>
       </div>
     </div>
   );

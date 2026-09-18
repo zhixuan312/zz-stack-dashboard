@@ -8,9 +8,23 @@ import { periodCutoff } from '@/lib/period';
  * answer would have had to write the rule a second time and be free to disagree with it the
  * day a fourth outcome is added.
  */
-const of = (outcome: string | null, gates: boolean[]): StateOf => ({
+/** `gates` is one entry per gate: `true` passed, `false` written and unsigned, `null`
+ *  NOT WRITTEN YET. The third is the one this fixture could not express — it modelled every
+ *  unpassed gate as a signature owed, which is the mistake the code made too. */
+const of = (outcome: string | null, gates: (boolean | null)[],
+            handover?: boolean | null): StateOf => ({
   outcome,
-  gates: gates.map((passed, n) => ({ name: `g${n}`, passed })),
+  gates: [
+    ...gates.map((g, n) => ({ name: `g${n}`, passed: g === true, written: g !== null })),
+    // THE DERIVED HANDOVER, when the case wants one. The platform appends a gated
+    // handover.md to every gating flow and it is signed AFTER the close, so on an open
+    // initiative it is always unwritten — which made `Ready to close` unreachable the moment
+    // the console started receiving it. Absent from a fixture, that regression is invisible.
+    ...(handover === undefined ? [] : [{
+      name: 'approve handover', role: 'handover',
+      passed: handover === true, written: handover !== null,
+    }]),
+  ],
 });
 
 describe('what an initiative is doing', () => {
@@ -31,9 +45,19 @@ describe('what an initiative is doing', () => {
 
   it('separates work that needs a signature from work that is merely open', () => {
     expect(initiativeState(of(null, [true, false]))).toBe('Waiting on you');
+    // A GATE NOBODY HAS DRAFTED IS NOT A SIGNATURE OWED. There is nothing for a person to
+    // read, so the work is waiting on the agent — which is what the Overview tile has always
+    // said and what this column said the opposite of, one page apart.
+    expect(initiativeState(of(null, [true, null]))).toBe('In progress');
+    expect(initiativeState(of(null, [null, null]))).toBe('In progress');
     // Every gate passed, nothing recorded: done, and nobody closed it. Actionable, and a
     // different action from the one above.
     expect(initiativeState(of(null, [true, true]))).toBe('Ready to close');
+    // …and it stays reachable with the platform's own handover gate hanging off the end,
+    // unwritten as it must be until somebody closes the initiative.
+    expect(initiativeState(of(null, [true, true], null))).toBe('Ready to close');
+    // The handover never makes an open initiative read as waiting on a person either.
+    expect(initiativeState(of(null, [true, false], null))).toBe('Waiting on you');
     // No gates at all is not "ready" — there was never anything to pass.
     expect(initiativeState(of(null, []))).toBe('In progress');
   });
