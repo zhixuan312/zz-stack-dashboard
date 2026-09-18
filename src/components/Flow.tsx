@@ -30,47 +30,6 @@ const STAGES = [
   { name: 'Close', what: 'close it' },
 ] as const;
 
-/** The position in plain words.
- *
- * This sentence is what makes the diagram legible, not the other way round: a
- * reader who is told "a plan is drafted but nobody has approved it" can then
- * look at the stepper and see it. The stepper alone only ever confirmed
- * something the reader had to work out first. */
-function flowCaption(
-  at: number, outcome: string | null, gates?: Gate[], stage?: string, of?: number,
-  complete?: boolean,
-): string {
-  // SAID FROM WHAT IS KNOWN, not from a position in ops-flow.
-  //
-  // These sentences were a switch on `at`: 6 meant "Built, waiting on the stakeholder. The
-  // verification guide is written" — printed over a skill evaluation, which has no build and
-  // no guide. A caption that names documents the flow does not have is worse than no caption,
-  // because a reader believes it.
-  // ALL THREE OUTCOMES MEAN CLOSED, and they do not mean the same thing. This tested
-  // `accepted` alone, so a `delivered` initiative — finished, closed, just never signed —
-  // was captioned as though it were still running, and an `abandoned` one the same. The
-  // ledger is read by counting these three words; a caption that knows only one of them
-  // cannot describe two thirds of the vocabulary.
-  // WHERE IT STOPPED travels with the word, because the two are different facts: a close says
-  // the initiative is over, and the stage says how far it got. An abandon that names neither
-  // leaves a reader looking at empty stages with nothing saying whether that is the record or
-  // a gap in it.
-  const short = complete === false ? ` Not everything this flow asks for was there: it stopped at ${stage ?? `stage ${at}`}.` : '';
-  if (outcome === 'accepted') return `Done. The stakeholder accepted it, and the initiative is closed.${short}`;
-  if (outcome === 'delivered') return `Done. The work finished and the initiative is closed. Nobody signed it off.${short}`;
-  if (outcome === 'abandoned') {
-    return `Closed without finishing at ${stage ?? `stage ${at}`}. The work stopped there, and the stages after it never ran.`;
-  }
-  const open = gates?.filter((g) => !g.passed) ?? [];
-  const where = stage ? `At ${stage}` : `At stage ${at}${of ? ` of ${of}` : ''}`;
-  if (!gates?.length) return `${where}. This flow declares no gate, so nothing is waiting on a person.`;
-  if (!open.length) return `${where}. Every gate is passed; the initiative has not been closed yet.`;
-  const next = open[0].name;
-  return open.length === 1
-    ? `${where}. One gate is open: ${next}. It is waiting on a person.`
-    : `${where}. ${open.length} gates are open. The next is ${next}, waiting on a person.`;
-}
-
 /** How far through ITS OWN flow, not through ops-flow.
  *
  * The bar was seven segments long and labelled from ops-flow's stage list, whatever the
@@ -104,8 +63,10 @@ export function FlowMini({ at, of, name }: { at: number; of?: number; name?: str
   );
 }
 
-export function FlowStepper({ at, gates, outcome, steps, complete }: {
-  at: number; gates: Gate[]; outcome: string | null; steps?: Step[]; complete?: boolean;
+/** WHERE IT IS NOW is a property of a STEP, not a number this component is given: the API marks
+ *  the current one. `at` went with the caption that used it to write a sentence. */
+export function FlowStepper({ gates, outcome, steps, complete }: {
+  gates: Gate[]; outcome: string | null; steps?: Step[]; complete?: boolean;
 }) {
   // THE FLOW'S OWN STAGES, and its own gates placed among them.
   //
@@ -163,6 +124,10 @@ export function FlowStepper({ at, gates, outcome, steps, complete }: {
     // document, where nothing could show whether it ran. The console draws those four and
     // decides none of them — it used to tick every stage of a closed initiative, so one
     // abandoned at the plan showed six finished stages and a review nobody wrote.
+    // The LAST step is the close, which the API appends to every flow; it is where the outcome
+    // belongs. Named rather than indexed off `outcome !== null` so an open initiative's last
+    // node is the same node, simply without a word under it.
+    const isClosing = i === stages.length - 1;
     const done = stage.state === 'done';
     const partial = stage.state === 'partial';
     const untracked = stage.state === 'untracked';
@@ -212,6 +177,15 @@ export function FlowStepper({ at, gates, outcome, steps, complete }: {
         <span className={cn('text-[11px] leading-tight @min-[920px]:text-center',
           done ? 'text-ink-soft' : now ? 'font-semibold text-ink' : 'text-ink-faint')}>
           {stage.name}
+          {/* THE OUTCOME UNDER THE NODE THAT CARRIES IT, the way a gate says "approved" below
+              itself. It was a paragraph under the whole diagram saying "Done. The stakeholder
+              accepted it, and the initiative is closed" — the same fact the green tick on this
+              node already carries, in a sentence a reader has to parse to learn one word. */}
+          {isClosing && outcome ? (
+            <span className="block text-[10px] text-ink-faint">
+              {outcome}{complete === false ? ' · stopped short' : ''}
+            </span>
+          ) : null}
           {/* THE SENTENCE LIVES IN THE TOOLTIP, not under the node. A stepper is read at a
               glance; the name is what it needs, and the description is one hover away. */}
         </span>
@@ -249,18 +223,11 @@ export function FlowStepper({ at, gates, outcome, steps, complete }: {
       <div className="@container pb-1.5">
         <div className="flex flex-col @min-[920px]:flex-row @min-[920px]:items-start">{items}</div>
       </div>
-      <p className="rounded-[var(--r)] bg-surface-2 px-3.5 py-2.5 text-[13px] leading-relaxed text-ink">
-        {flowCaption(at, outcome ?? null, gates,
-                     stages.find((st) => st.current)?.name ?? stages[at]?.name, undefined, complete)}
-      </p>
       <div className="flex flex-wrap gap-4 text-[11.5px] text-ink-faint">
         <Legend className="border-[var(--green)] bg-[var(--green-tint)]">done</Legend>
         <Legend className="border-accent bg-accent">where it is now</Legend>
         <Legend className="border-[var(--amber)] bg-[var(--amber-tint)]">written, waiting on a person</Legend>
         <Legend className="border-line-strong bg-surface">nothing written</Legend>
-        <Legend className="border-dashed border-line-strong bg-surface">
-          leaves no document, so nothing can show it ran
-        </Legend>
       </div>
     </div>
   );

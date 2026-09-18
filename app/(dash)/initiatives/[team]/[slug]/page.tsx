@@ -54,7 +54,7 @@ export default function InitiativePage({
           return (
             <>
               <Panel title="Progress">
-                <FlowStepper at={d.at} gates={d.gates} outcome={d.outcome} steps={d.steps} complete={d.complete} />
+                <FlowStepper gates={d.gates} outcome={d.outcome} steps={d.steps} complete={d.complete} />
               </Panel>
 
               {/* GROUPED BY WHAT A DOCUMENT IS, not sorted by its path.
