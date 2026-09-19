@@ -80,7 +80,6 @@ function PluginTable({ rows }: { rows: PluginRow[] }) {
             <TableHead>Calls</TableHead>
             <TableHead hideBelow="md">Last run</TableHead>
             <TableHead hideBelow="xl">Gates</TableHead>
-            <TableHead hideBelow="lg">Evaluated</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -125,26 +124,6 @@ function PluginTable({ rows }: { rows: PluginRow[] }) {
                 {p.gates
                   ? <span className="text-ink">{p.gates} · {p.documents.filter((x) => x.gate).map((x) => x.name).join(', ')}</span>
                   : <span className="text-ink-faint">none — an assistant</span>}
-              </TableCell>
-              <TableCell hideBelow="lg" className="text-xs">
-                {/* THE DELTA, NOT A SCORE. `claude plugin eval` runs each case twice,
-                    with the plugin and without, so what it reports is whether the
-                    plugin helped — the one question a score cannot answer. Nothing has
-                    recorded one yet on any deployment, and "not measured" is a fact
-                    worth printing rather than a blank. */}
-                {p.eval
-                  ? <span className="flex flex-wrap items-baseline gap-x-2 text-ink">
-                      {p.eval.meanDelta === null ? '—' : `Δ ${p.eval.meanDelta.toFixed(2)}`}
-                      <span className="text-ink-faint">{p.eval.cases} cases</span>
-                      {/* THE CAVEATS TRAVEL WITH THE NUMBER. A mean over a suite that half
-                          fell over is a different measurement, not a smaller one. */}
-                      {p.eval.erroredRuns > 0
-                        ? <span className="text-[var(--amber-text)]">{p.eval.erroredRuns} errored</span>
-                        : null}
-                      {p.eval.partial ? <span className="text-[var(--amber-text)]">partial</span> : null}
-                      <Time value={p.eval.ranAt} className="text-ink-faint" />
-                    </span>
-                  : <span className="text-ink-faint">not measured</span>}
               </TableCell>
             </TableRow>
           ))}

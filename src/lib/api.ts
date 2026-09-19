@@ -609,17 +609,7 @@ export interface PluginRow {
    *  makes the version true. Null when nothing has vouched for that number: a plugin edited
    *  past its last release, a block that ships through no marketplace, or simply a platform
    *  where release has not yet begun recording. Never an error. */
-  release: { version: string; digest: string; casesDigest: string | null; evals: number } | null;
-  /** The most recent ablation run — `claude plugin eval`, which answers the one question a
-   *  score cannot: does installing this help, versus not installing it. `meanDelta` is null
-   *  when the recorded result carried no readable delta; zz-core owns the authoritative
-   *  parse. Null throughout when nothing has been recorded. */
-  /** `erroredRuns` and `partial` travel WITH the delta because the gateway sends them for
-   *  exactly that reason: "a mean taken over a suite that half fell over is not a smaller
-   *  measurement, it is a different one". Rendering `meanDelta` without them showed a run
-   *  where nine of thirty-six arms errored as a clean number. */
-  eval: { ranAt: string; casesDigest: string | null; cases: number; meanDelta: number | null;
-          erroredRuns: number; partial: boolean } | null;
+  release: { version: string; digest: string; evals: number } | null;
 }
 
 /** A skill, read — `/plugins/:plugin/skills/:skill`. The same shape whatever ships it. */

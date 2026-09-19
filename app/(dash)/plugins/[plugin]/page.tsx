@@ -102,24 +102,6 @@ export default function PluginPage({ params }: { params: Promise<{ plugin: strin
                           </span>
                         : <span className="text-ink-faint">no server — skills only</span>}
                     />
-                    <Field
-                      k="Evaluated"
-                      v={p.eval
-                        ? <span className="flex flex-wrap items-baseline gap-2">
-                            {/* NOT SAGE WHEN THE SUITE STUMBLED. The gateway sends
-                                `erroredRuns` and `partial` beside the mean precisely so the
-                                number is not read as clean; rendering the mean alone made a
-                                run where nine of thirty-six arms errored look settled. */}
-                            <Badge variant={p.eval.erroredRuns > 0 || p.eval.partial ? 'amber' : 'sage'} dot>
-                              {p.eval.meanDelta === null ? 'recorded' : `Δ ${p.eval.meanDelta.toFixed(2)}`}
-                              {` over ${p.eval.cases} cases`}
-                              {p.eval.erroredRuns > 0 ? `, ${p.eval.erroredRuns} errored` : ''}
-                              {p.eval.partial ? ', partial' : ''}
-                            </Badge>
-                            <Time value={p.eval.ranAt} className="text-ink-faint" />
-                          </span>
-                        : <Badge variant="amber" dot>no ablation run recorded</Badge>}
-                    />
                   </dl>
                 </Panel>
 
