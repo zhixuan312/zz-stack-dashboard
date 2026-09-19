@@ -7,7 +7,7 @@ import { Query } from '@/components/Query';
 import {
   Badge, PageControl, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Time, usePaged,
 } from '@/components/ui';
-import { EvalCell, EvalWhen } from '@/components/EvalScore';
+import { EvalCell, EvalVerdict, EvalWhen } from '@/components/EvalScore';
 import { formatCount } from '@/lib/format';
 import { freshnessOf, useConsole } from '@/lib/api';
 import { type PluginRow } from '@/lib/api-shapes';
@@ -84,6 +84,7 @@ function PluginTable({ rows }: { rows: PluginRow[] }) {
                 A plugin's score is the one fact this page was missing: it listed how often
                 each was CALLED and never whether any of it was any good. */}
             <TableHead hideBelow="lg">Eval score</TableHead>
+            <TableHead hideBelow="xl">Room to improve</TableHead>
             <TableHead hideBelow="lg">Evaluated</TableHead>
             <TableHead hideBelow="xl">Gates</TableHead>
           </TableRow>
@@ -119,6 +120,7 @@ function PluginTable({ rows }: { rows: PluginRow[] }) {
                   : <Badge variant="neutral">never run</Badge>}
               </TableCell>
               <TableCell hideBelow="lg"><EvalCell of={p.latestEval} /></TableCell>
+              <TableCell hideBelow="xl"><EvalVerdict of={p.latestEval} /></TableCell>
               <TableCell hideBelow="lg" className="whitespace-nowrap text-xs"><EvalWhen of={p.latestEval} /></TableCell>
               <TableCell hideBelow="xl" className="break-words text-xs">
                 {/* A plugin with no gates is an assistant, and saying "0" alone reads

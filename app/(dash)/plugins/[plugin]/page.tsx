@@ -9,7 +9,7 @@ import { Query } from '@/components/Query';
 import {
   Badge, EmptyState, PageControl, Row, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Time, usePaged,
 } from '@/components/ui';
-import { EvalScore } from '@/components/EvalScore';
+import { EvalScore, EvalVerdict } from '@/components/EvalScore';
 import { formatCount } from '@/lib/format';
 import { freshnessOf, useConsole } from '@/lib/api';
 import { type PluginRow } from '@/lib/api-shapes';
@@ -135,7 +135,7 @@ export default function PluginPage({ params }: { params: Promise<{ plugin: strin
               <Panel
                 title="Latest evaluation"
                 aside={p.latestEval
-                  ? `${p.latestEval.recommendation} · measured at v${p.latestEval.version}`
+                  ? `${p.latestEval.headroomState} · measured at v${p.latestEval.version}`
                   : 'never evaluated'}
               >
                 {p.latestEval ? (
@@ -151,7 +151,7 @@ export default function PluginPage({ params }: { params: Promise<{ plugin: strin
                         </p>
                         <EvalScore of={p.latestEval} className="text-3xl" />
                         <p className="mt-0.5 text-[13px] text-ink-soft">
-                          {p.latestEval.band ?? 'no band recorded'}
+                          {p.latestEval.band}
                         </p>
                       </div>
                       <div>
@@ -168,24 +168,22 @@ export default function PluginPage({ params }: { params: Promise<{ plugin: strin
                           {p.latestEval.headroomNamed === null
                             ? 'not recorded'
                             : p.latestEval.headroomNamed === 0
-                              ? 'nothing identified to change'
+                              ? 'nothing named'
                               : `${p.latestEval.headroomNamed} named change${p.latestEval.headroomNamed === 1 ? '' : 's'} open`}
                         </p>
                       </div>
                       <div>
                         <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-faint">
-                          Recommendation
+                          What is left to do
                         </p>
                         <p className="mt-1">
-                          <Badge variant={p.latestEval.recommendation === 'keep' ? 'sage' : 'neutral'}>
-                            {p.latestEval.recommendation}
-                          </Badge>
+                          <EvalVerdict of={p.latestEval} />
                         </p>
-                        <p className="mt-1 text-[13px] text-ink-soft">
-                          {p.latestEval.confidence === null
-                            ? 'confidence not recorded'
-                            : `confidence ${p.latestEval.confidence.toFixed(2)}`}
-                        </p>
+                        {/* NO RECOMMENDATION. This panel carried `keep` / `keep-and-change`
+                            beside the score until 0.60.0 — a decision from a closed set whose
+                            question has one permanent answer, because a plugin somebody
+                            installed on purpose is one they keep. The state above reports what
+                            the evidence says about the gap and prescribes nothing. */}
                       </div>
                     </div>
                     <p className="text-[13px] text-ink-soft">

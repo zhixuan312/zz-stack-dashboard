@@ -24,10 +24,22 @@ type Verdict = NonNullable<PluginRow['latestEval']>;
  *  with it and this follows, where a `score >= 8` written here would not. */
 const BAND: Record<string, 'sage' | 'amber' | 'rose' | 'neutral'> = {
   'working well': 'sage',
-  'working, with a defect worth fixing': 'amber',
-  'underperforming, improvement available': 'amber',
-  'not effective': 'rose',
+  working: 'sage',
+  'working poorly': 'amber',
+  'not working': 'rose',
   'not measurable': 'neutral',
+};
+
+/** The second axis. `no change needed` is the GOOD outcome on this axis and is coloured as
+ *  one — it says the plugin needs nothing, which is a finding rather than an absence. The
+ *  other three are not degrees of bad: `change identified` means there is a next move on the
+ *  record, and `unexplained gap` means nobody has said why the score is short, which is the
+ *  one state where the right move is to find out rather than to act. Neither is a failure. */
+const STATE: Record<string, 'sage' | 'amber' | 'neutral'> = {
+  'no change needed': 'sage',
+  'change identified': 'neutral',
+  'unexplained gap': 'amber',
+  'not measured': 'neutral',
 };
 
 const TONE = {
@@ -39,15 +51,15 @@ const TONE = {
 
 /** The score alone, at whatever size the caller needs. */
 export function EvalScore({ of, className = 'text-lg' }: { of: Verdict; className?: string }) {
-  const hue = BAND[of.band ?? ''] ?? 'neutral';
+  const hue = BAND[of.band] ?? 'neutral';
   // NOT MEASURED AND SCORED ZERO ARE DIFFERENT FACTS. A round that predates the platform
   // storing its axes, and a round whose control collapsed, both have no number — and an em dash
   // says so, where a 0 would be a claim nobody made.
   if (of.effectiveness === null) {
-    return <span className={`${className} text-ink-faint`} title={of.band ?? 'no score recorded'}>—</span>;
+    return <span className={`${className} text-ink-faint`} title={of.band}>—</span>;
   }
   return (
-    <span className={`${className} font-semibold tabular-nums ${TONE[hue]}`} title={of.band ?? ''}>
+    <span className={`${className} font-semibold tabular-nums ${TONE[hue]}`} title={of.band}>
       {of.effectiveness.toFixed(2)}
       <span className="text-[0.7em] font-normal text-ink-faint"> / 10</span>
     </span>
@@ -68,7 +80,37 @@ export function EvalCell({ of }: { of: Verdict | null }) {
   return (
     <span className="inline-flex flex-col items-center gap-0.5">
       <EvalScore of={of} className="text-[15px]" />
-      <Badge variant={of.recommendation === 'keep' ? 'sage' : 'neutral'}>{of.recommendation}</Badge>
+      {/* THE BAND, NOT THE RECOMMENDATION. This column is called "Eval score" and it used to
+          carry `keep` / `keep-and-change` under the number — which is a DECISION, in a
+          different vocabulary, sitting where the score's own word belongs. That is the exact
+          confusion the two-axis design exists to remove: a verb was being read as a
+          measurement. The band is what 9.08 MEANS; the verdict is what to do about it, and it
+          has its own column now. */}
+      <span className="text-[11px] leading-tight text-ink-faint">{of.band}</span>
+    </span>
+  );
+}
+
+/** WHAT IS LEFT TO DO — the second axis, never a verdict on the plugin.
+ *
+ *  This column showed `keep` / `keep-and-change` until 0.60.0. That was a DECISION from a
+ *  closed set, sitting beside a measurement, and the question it answered has one permanent
+ *  answer: somebody installs a plugin for a reason and keeps it. It now shows what the
+ *  evidence says about the gap, and how many named changes are open behind that state. */
+export function EvalVerdict({ of }: { of: Verdict | null }) {
+  if (!of) return <span className="text-xs text-ink-faint">—</span>;
+  return (
+    <span className="inline-flex flex-col items-center gap-0.5">
+      <Badge variant={STATE[of.headroomState] ?? 'neutral'}>{of.headroomState}</Badge>
+      {of.headroomNamed ? (
+        <span className="text-[11px] tabular-nums text-ink-faint">
+          {of.headroomNamed} named
+        </span>
+      ) : of.headroomPoints !== null ? (
+        <span className="text-[11px] tabular-nums text-ink-faint">
+          {of.headroomPoints.toFixed(2)} pts short
+        </span>
+      ) : null}
     </span>
   );
 }

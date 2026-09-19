@@ -417,11 +417,22 @@ export interface PluginRow {
     /** The version that was MEASURED, which is not necessarily the one on the shelf today. */
     version: string;
     effectiveness: number | null;
-    band: string | null;
+    /** The score's own word: working well / working / working poorly / not working, or
+     *  `not measurable` when the round produced no score. Named by the gateway from the
+     *  score through one shared rule — never stored, because a caption computed from a
+     *  column in the same row goes stale the moment the vocabulary moves. */
+    band: string;
     headroomPoints: number | null;
     headroomNamed: number | null;
-    recommendation: string;
-    confidence: number | null;
+    /** THE SECOND AXIS, and it replaced a recommendation. One of `no change needed`,
+     *  `change identified`, `unexplained gap`, `not measured`.
+     *
+     *  The old vocabulary — keep / keep-and-change / re-run / not-evaluable / retire — asked
+     *  what to DO about a plugin somebody installed on purpose and is going to keep, which is
+     *  a question with one permanent answer. This reports what the evidence says about the gap
+     *  and prescribes nothing: whether a change CAN be made is not something a score
+     *  establishes. */
+    headroomState: string;
     /** Both halves of zz.doc's key, or null. A slug without its team cannot be addressed. */
     initiative: { team: string; slug: string } | null;
     at: string;
