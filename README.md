@@ -85,27 +85,57 @@ echo 'ZZ_GATEWAY=https://api.<your-host>' >> .env.local
 pnpm dev
 ```
 
-That gets the API to answer; the session is the other half, and it cannot be automated.
-**Sign-in is a passkey**, and a passkey is bound to the RP ID it was registered against,
-so a credential created on the deployed console cannot be replayed from `localhost` —
-there is no flag or token that changes this, and a PAT is refused by these routes on
-purpose (`/api/console/me` answers *"the console needs a browser sign-in"*).
+That gets the API to answer. The other half is identity, and there are two ways to
+supply it — one automatic, one manual.
+
+#### A superadmin PAT (what to use)
+
+```sh
+echo "ZZ_DEV_PAT=$(cat ~/.zz/token)" >> .env.local   # must be a SUPERADMIN token
+pnpm dev
+```
+
+`middleware.ts` attaches it as `Authorization: Bearer …` on `/api/console/*` and `/auth/*`,
+and drops any stale `zz_console` cookie so the gateway reads the token rather than refusing
+on the cookie. Real data, no browser ceremony, nothing to redo when a session expires.
+
+This is not a workaround. `mayReadConsole()` in the gateway
+(`services/gateway/src/console/shared.ts`) has always read:
+
+```ts
+if (id.via === "session") return true;   // signed in through the browser
+return isSuper(id);                      // or a superadmin PAT, for scripts
+```
+
+A **member** PAT authenticates and is then refused with *"the console needs a browser
+sign-in"* and `mayRead: false` — which is correct, and is what this README described for
+months as "a PAT is refused by these routes on purpose". That was wrong about the superadmin
+case, and being wrong about it meant the only documented path was the manual one below.
+
+The middleware is inert unless `ZZ_DEV_PAT` is set, and returns immediately when
+`NODE_ENV === 'production'`. It forwards a credential and neither mints nor stores one.
+`.env.local` is gitignored; keep it `chmod 600` and treat the value as the live credential
+it is.
+
+#### Carrying a browser session (the manual fallback)
+
+**Sign-in is a passkey**, and a passkey is bound to the RP ID it was registered against, so
+a credential created on the deployed console cannot be replayed from `localhost` — there is
+no flag that changes this, and a tunnel does not help either, because `passkey.ts` pins
+`expectedOrigin` to the gateway's own origin and fails an ngrok or nip.io host one step
+later.
 
 What works is carrying the session you already have:
 
 1. sign in to the deployed console in the browser, as normal;
-2. copy the value of the `zz_console` cookie (DevTools → Application → Cookies);
-3. add a cookie of the same name and value on `http://localhost:3000`;
+2. copy the value of the `zz_console` cookie (DevTools -> Application -> Cookies);
+3. add a cookie of the same name and value on `http://localhost:3000`, path `/`;
 4. reload.
 
-The browser then holds a session for the origin it is looking at and sends it there,
-which is the arrangement `src/lib/api.ts` describes — nothing is minted, stored or read
-by this app, and the rewrite is routing rather than credential handling. `Secure` cookies
-are permitted on `http://localhost`, so the flag is not in the way.
-
-Treat that cookie as the live credential it is: it is a signed-in session for a real
-deployment, and it belongs in a browser profile rather than in a file, a shell history or
-this repository.
+`Secure` cookies are permitted on `http://localhost`, so the flag is not in the way. Treat
+that cookie as the live credential it is: it is a signed-in session for a real deployment,
+and it belongs in a browser profile rather than in a file, a shell history or this
+repository.
 
 ```sh
 pnpm build && pnpm start     # production build

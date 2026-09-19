@@ -11,7 +11,8 @@ import {
   TableHeader, TableRow, Time, usePaged,
 } from '@/components/ui';
 import { showToast } from '@/components/ui/toast';
-import { ApiError, useConsole, type PlatformPersonRow } from '@/lib/api';
+import { ApiError, useConsole } from '@/lib/api';
+import { type PlatformPersonRow } from '@/lib/api-shapes';
 import { useConsoleMutation } from '@/lib/mutate';
 
 /**
@@ -221,7 +222,7 @@ function PeopleTable({ rows, enrolling, deactivating, onEnrol, onDeactivate }: {
                 </span>
               </TableCell>
               <TableCell>
-                <span className="flex flex-col items-start gap-1">
+                <span className="inline-flex flex-col items-start gap-1">
                   <Badge variant={p.role === 'superadmin' ? 'accent' : 'neutral'} dot size="sm">{p.role}</Badge>
                   <Badge variant={p.status === 'active' ? 'sage' : 'neutral'} dot size="sm">{p.status}</Badge>
                 </span>
@@ -229,7 +230,7 @@ function PeopleTable({ rows, enrolling, deactivating, onEnrol, onDeactivate }: {
               <TableCell hideBelow="md" className="whitespace-nowrap font-mono text-xs"><Time value={p.created_at} /></TableCell>
               <TableCell>
                 {p.status === 'active' ? (
-                  <span className="flex flex-wrap items-center justify-end gap-1">
+                  <span className="inline-flex flex-wrap items-center justify-end gap-1">
                     <Button
                       type="button" size="sm" variant="ghost" leftIcon={<KeyRound />}
                       disabled={enrolling}

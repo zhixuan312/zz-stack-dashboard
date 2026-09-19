@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react';
 import { Check, Lock } from 'lucide-react';
 import { cn } from '@/lib/cn';
-import type { Gate, Step } from '@/lib/api';
+import type { Gate, Step } from '@/lib/api-shapes';
 
 /**
  * The ops-flow position, drawn two ways.
@@ -43,7 +43,19 @@ export function FlowMini({ at, of, name }: { at: number; of?: number; name?: str
     ?? STAGES[Math.min(at, STAGES.length) - 1]?.name
     ?? `stage ${at}`;
   return (
-    <div className="flex items-center gap-2.5 whitespace-nowrap">
+    // INLINE-FLEX, NOT FLEX, and the difference is visible in every table that uses this.
+    //
+    // A block-level flex container fills its table cell, and `text-align` cannot move it —
+    // alignment applies to inline content, while a block box takes the full width and hands
+    // placement to its own `justify-content`, which defaults to `flex-start`. So the cell
+    // was centred, the header above it was centred, and the FIGURE inside sat hard left:
+    // "FLOW POSITION" floated over empty space with its own column's content a hundred
+    // pixels to its left, in both tables that render this.
+    //
+    // `inline-flex` makes it an inline-level box that shrinks to its content, so it obeys
+    // whatever alignment the cell sets — centre here, and left wherever this is used next —
+    // instead of quietly overriding it. Nothing else changes: the row is still a flex row.
+    <div className="inline-flex items-center gap-2.5 whitespace-nowrap">
       <span className="min-w-[5.25rem] text-xs font-medium text-ink">
         S{at} · {label}
       </span>

@@ -8,7 +8,8 @@ import { Panel } from '@/components/Panel';
 import {
   Banner, Button, Field, Spinner, Textarea,
 } from '@/components/ui';
-import { ApiError, type AskAnswer } from '@/lib/api';
+import { ApiError } from '@/lib/api';
+import { type AskAnswer } from '@/lib/api-shapes';
 import { consoleMutate } from '@/lib/mutate';
 import { citationHref } from '@/lib/citations';
 

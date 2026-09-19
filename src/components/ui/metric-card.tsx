@@ -1,6 +1,7 @@
 import { type HTMLAttributes, type ReactNode } from 'react';
 import { cn } from '@/lib/cn';
 import { CHIP, type ChipTint } from '@/lib/tints';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 /**
@@ -126,8 +127,13 @@ export interface MetricCardProps extends Omit<HTMLAttributes<HTMLDivElement>, 'c
    * metric whose meaning is only inside a tooltip is a metric most readers never learn.
    * What belongs here is everything too long for the face: how the figure is derived,
    * what it excludes, and why a number that looks wrong is not.
+   *
+   * AN ARRAY IS PARAGRAPHS, and long help should use one. These run to well over a
+   * thousand characters — how the median is taken, what it excludes, why a figure that
+   * looks wrong is not — and a wall of that length is skipped rather than read. Each
+   * entry becomes its own paragraph; a bare string is one paragraph.
    */
-  help?: string;
+  help?: string | string[];
 }
 
 const ARROW = { up: '↑', down: '↓', flat: '→' } as const;
@@ -158,16 +164,35 @@ export function MetricCard({
   // at 32px that the number stays the loudest thing in the tile.
   const { bg, fg } = CHIP[tint];
 
-  const helpDot = help ? (
-    <span
-      tabIndex={0}
-      role="note"
-      aria-label={help}
-      title={help}
-      className="ml-auto grid size-[1.375rem] shrink-0 cursor-help place-items-center self-center rounded-full border border-line text-[0.625rem] font-medium text-ink-faint hover:border-accent hover:bg-accent hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
-    >
-      i
-    </span>
+  // A BUTTON IN A POPOVER, NOT A `title`. The native attribute renders an operating-system
+  // box that the page cannot style and the browser TRUNCATES — the longest of these was cut
+  // mid-word, so the sentence naming what the figure excludes was the one nobody could read.
+  // It also only ever appeared on hover, which no touch device has.
+  const paragraphs = help ? (Array.isArray(help) ? help : [help]) : [];
+  const helpDot = paragraphs.length ? (
+    <Popover>
+      <PopoverTrigger
+        aria-label={`How "${typeof label === 'string' ? label : 'this metric'}" is measured`}
+        className="ml-auto grid size-[1.375rem] shrink-0 cursor-help place-items-center self-center rounded-full border border-line text-[0.625rem] font-medium text-ink-faint hover:border-accent hover:bg-accent hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent data-[state=open]:border-accent data-[state=open]:bg-accent data-[state=open]:text-white"
+      >
+        i
+      </PopoverTrigger>
+      <PopoverContent>
+        {typeof label === 'string' ? (
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-faint">
+            How this is measured
+          </p>
+        ) : null}
+        {/* THE FIRST PARAGRAPH CARRIES THE QUESTION AND WHICH WAY IS GOOD, so it is set as
+            the lede: a reader who stops after one paragraph should still have the answer
+            they opened this for. */}
+        {paragraphs.map((p, i) => (
+          <p key={i} className={cn(i === 0 && 'font-medium text-ink', i > 0 && 'mt-3')}>
+            {p}
+          </p>
+        ))}
+      </PopoverContent>
+    </Popover>
   ) : null;
 
   const pill = delta ? (

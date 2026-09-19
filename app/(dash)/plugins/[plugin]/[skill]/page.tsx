@@ -11,7 +11,8 @@ import { SkillReader } from '@/components/SkillReader';
 import { SkillReferences } from '@/components/SkillReferences';
 import { SkillCost } from '@/components/SkillCost';
 import { SkillViewTabs, useSkillView } from '@/components/SkillViewTabs';
-import { freshnessOf, useConsole, type PluginRow, type Skill, type SkillDetail, type SkillText } from '@/lib/api';
+import { freshnessOf, useConsole } from '@/lib/api';
+import { type PluginRow, type Skill, type SkillDetail, type SkillText } from '@/lib/api-shapes';
 
 /**
  * LAYER THREE: one skill, read.

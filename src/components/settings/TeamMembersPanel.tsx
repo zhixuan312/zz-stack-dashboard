@@ -11,7 +11,8 @@ import {
   SelectValue, PageControl, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, usePaged,
 } from '@/components/ui';
 import { showToast } from '@/components/ui/toast';
-import { ApiError, useConsole, type TeamMemberRow } from '@/lib/api';
+import { ApiError, useConsole } from '@/lib/api';
+import { type TeamMemberRow } from '@/lib/api-shapes';
 import { useConsoleMutation } from '@/lib/mutate';
 
 /**

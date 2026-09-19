@@ -8,7 +8,8 @@ import {
   Badge, PageControl, Segmented, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Time,
   usePaged,
 } from '@/components/ui';
-import { freshnessOf, useConsole, useConsoleMode, type ActivityEvent } from '@/lib/api';
+import { freshnessOf, useConsole, useConsoleMode } from '@/lib/api';
+import { type ActivityEvent } from '@/lib/api-shapes';
 
 /**
  * The audit view. Every tool call, gate and admin action, newest first.

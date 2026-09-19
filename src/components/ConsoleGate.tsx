@@ -3,7 +3,8 @@
 import { useEffect, type ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Banner, Button, Spinner } from '@/components/ui';
-import { useConsole, type Me } from '@/lib/api';
+import { useConsole } from '@/lib/api';
+import { type Me } from '@/lib/api-shapes';
 
 /**
  * The gate in front of every dashboard route.

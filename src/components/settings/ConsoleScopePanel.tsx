@@ -2,7 +2,8 @@
 
 import { ModeSwitch } from '@/components/ModeSwitch';
 import { Panel } from '@/components/Panel';
-import { useConsole, type Me } from '@/lib/api';
+import { useConsole } from '@/lib/api';
+import { type Me } from '@/lib/api-shapes';
 
 /**
  * The superadmin's platform/team switch (← moved out of `SidebarFooter`).

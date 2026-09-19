@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ApproveAction, canApprove } from '@/components/ApproveAction';
 import { Toaster } from '@/components/ui/toast';
-import type { DocumentDetail, Me } from '@/lib/api';
+import type { DocumentDetail, Me } from '@/lib/api-shapes';
 
 // Rendering is not enforcement — see canApprove's own comment — but a control
 // shown to someone who cannot use it, or hidden from a document nobody can

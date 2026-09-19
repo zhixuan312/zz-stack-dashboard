@@ -34,6 +34,7 @@ export * from './freshness';
 export * from './skeleton';
 export * from './metric-card';
 export * from './spinner';
+export * from './popover';
 export * from './tooltip';
 
 // Overlays & navigation

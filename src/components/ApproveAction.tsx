@@ -5,7 +5,8 @@ import { CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui';
 import { showToast } from '@/components/ui/toast';
 import { useConsoleMutation } from '@/lib/mutate';
-import { ApiError, type DocumentDetail, type Me } from '@/lib/api';
+import { ApiError } from '@/lib/api';
+import { type DocumentDetail, type Me } from '@/lib/api-shapes';
 
 /**
  * Whether `me` may see the Approve control on `doc`.

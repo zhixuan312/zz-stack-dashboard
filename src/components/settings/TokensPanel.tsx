@@ -12,7 +12,8 @@ import {
   TableRow, Time, usePaged,
 } from '@/components/ui';
 import { showToast } from '@/components/ui/toast';
-import { ApiError, useConsole, type IssuedToken, type MyAccessToken } from '@/lib/api';
+import { ApiError, useConsole } from '@/lib/api';
+import { type IssuedToken, type MyAccessToken } from '@/lib/api-shapes';
 import { consoleMutate, useConsoleMutation } from '@/lib/mutate';
 
 /**

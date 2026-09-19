@@ -389,7 +389,7 @@ product is not reading the situation either.
 
 | Illustration | Shown when | Where |
 |---|---|---|
-| `state-empty` | nothing has been created here yet | 6 sites, 5 files |
+| `state-empty` | nothing has been created here yet | 7 sites, 6 files |
 | `state-welcome` | a first-run surface you are meant to populate | the 4 Settings panels |
 | `state-notfound` | we looked and found nothing — a 404, or filters that match none | 4 sites |
 | `state-error` | a failure the user did not cause | `error.tsx`, `Query` |
@@ -462,8 +462,9 @@ every number in it.
 3. **Four splits.** A page is a stack of rows. A row is one full-width card, or
    cards split `1/2`, `2/3`, `1/3` or `1/4` (`Row split=…`). Cards in one row are
    the same height. One card per cell: a second card is a second row.
-4. **Two widths.** `data` (1536px of content) for dashboards, lists and detail
-   pages; `reading` (832px) for a document, a form or prose. Both centre.
+4. **Two widths.** `data` for dashboards, lists and detail pages — it FILLS the
+   window, less the rail and the gutter, with no cap. `reading` (832px) for a
+   document, a form or prose, and that one centres.
 
 ### The nesting
 
@@ -490,11 +491,25 @@ plus the freshness stamp and period picker. It has no layout switches.
 |---|---|---|
 | gutter | 16 → 24 → 32px at `<768` / `md` / `xl` | Atlassian (16px to 1024, 32px after), Material 3 (16px compact, 24px from 600) |
 | gap between cards and rows | 16 → 24px at `xl` | Atlassian desktop gutter 16px, Material pane spacing 24px |
-| `data` width | 1536px | Carbon's largest breakpoint (1584px incl. margins); wider than GitLab's 1280 and Atlassian's 1296 because console tables carry seven columns |
+| `data` width | the window, uncapped | nothing — see below. It was 1536px, borrowed from Carbon's largest breakpoint (1584px incl. margins) |
 | `reading` width | 832px | Atlassian fixed-narrow (864px incl. margins); ~90 characters of body text |
 
-On a window wider than the `data` column plus the rail — past about 1850px —
-the content stops growing and the window grows equal margins on both sides.
+**`data` used to be capped at 1536px and no longer is.** The cap was borrowed
+from Carbon, GitLab and Atlassian, all of which fix a container; the reasoning was
+sound for those products and wrong for this one. On an ultrawide the console drew
+a 1536px column with roughly 300px of dead surface down each side, while the table
+inside it was eliding cells to `max-w-[36ch]` — cropping content and leaving the
+window empty in the same frame.
+
+A fixed container answers "how wide should a column of prose be". A console table
+answers a different question: it carries seven columns, several of them paths and
+slugs that elide, and for that the honest width is the one the person chose when
+they sized their window. The gutter still holds content off the frame, so pages
+are edge-to-edge rather than flush, and the header band and the body share one
+left edge at every width because all three bands compose the same constant.
+
+`reading` is unchanged. The argument above is about tables and says nothing about
+prose, and a form stretched across 2500px is a different defect.
 
 ### The page shapes
 
@@ -641,7 +656,7 @@ illustration?: { src: string; width: number; height: number }
 
 `EmptyState`'s `icon` prop stays **required**. The illustration is additive: a
 call site that passes none still renders the lucide icon exactly as before. All
-**14** were then wired deliberately, one at a time, against the mapping in §2 —
+**15** were then wired deliberately, one at a time, against the mapping in §2 —
 so the icon is a fallback for a failed image rather than a style anyone still
 renders on purpose.
 
@@ -808,7 +823,7 @@ the thing at once does.
 
 ### Run them with `pnpm checks`, and mind the denominator
 
-`pnpm checks` runs all eighteen and prints `18/18`. **Run it rather than looping
+`pnpm checks` runs all nineteen and prints `19/19`. **Run it rather than looping
 over `checks/*.ts` in a shell**, and the reason is a real failure rather than
 tidiness.
 

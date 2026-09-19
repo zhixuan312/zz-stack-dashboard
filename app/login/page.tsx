@@ -8,7 +8,8 @@ import { AppMark } from '@/components/AppMark';
 import { Button } from '@/components/ui';
 import { startAuthentication } from '@simplewebauthn/browser';
 import { useQuery } from '@tanstack/react-query';
-import { useConsole, type Me } from '@/lib/api';
+import { useConsole } from '@/lib/api';
+import { type Me } from '@/lib/api-shapes';
 
 /**
  * The sign-in screen. A ROUTE, not a state of the dashboard.

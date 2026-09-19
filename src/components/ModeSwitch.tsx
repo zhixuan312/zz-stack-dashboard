@@ -1,7 +1,8 @@
 'use client';
 
 import { Segmented } from '@/components/ui/segmented';
-import { useConsoleMode, type Me } from '@/lib/api';
+import { useConsoleMode } from '@/lib/api';
+import { type Me } from '@/lib/api-shapes';
 
 const OPTIONS: { value: 'platform' | 'team'; label: string }[] = [
   { value: 'platform', label: 'Platform' },

@@ -7,8 +7,10 @@ import { Query } from '@/components/Query';
 import {
   Badge, PageControl, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Time, usePaged,
 } from '@/components/ui';
+import { EvalCell, EvalWhen } from '@/components/EvalScore';
 import { formatCount } from '@/lib/format';
-import { freshnessOf, useConsole, type PluginRow } from '@/lib/api';
+import { freshnessOf, useConsole } from '@/lib/api';
+import { type PluginRow } from '@/lib/api-shapes';
 
 /**
  * LAYER ONE: which plugins exist. One row each, nothing expanded.
@@ -76,9 +78,13 @@ function PluginTable({ rows }: { rows: PluginRow[] }) {
           <TableRow>
             <TableHead>Plugin</TableHead>
             <TableHead hideBelow="lg">Reaches</TableHead>
-            <TableHead hideBelow="md">Skills</TableHead>
             <TableHead>Calls</TableHead>
             <TableHead hideBelow="md">Last run</TableHead>
+            {/* WHAT THE LAST ROUND CONCLUDED, and the way back to the report that explains it.
+                A plugin's score is the one fact this page was missing: it listed how often
+                each was CALLED and never whether any of it was any good. */}
+            <TableHead hideBelow="lg">Eval score</TableHead>
+            <TableHead hideBelow="lg">Evaluated</TableHead>
             <TableHead hideBelow="xl">Gates</TableHead>
           </TableRow>
         </TableHeader>
@@ -98,7 +104,7 @@ function PluginTable({ rows }: { rows: PluginRow[] }) {
                 </span>
               </TableCell>
               <TableCell hideBelow="lg">
-                <span className="flex flex-wrap gap-1">
+                <span className="inline-flex flex-wrap gap-1">
                   {p.servers.length
                     ? p.servers.map((s) => (
                         <Badge key={s} variant={s === 'zz-core' ? 'accent' : 'neutral'}>{s}</Badge>
@@ -106,18 +112,14 @@ function PluginTable({ rows }: { rows: PluginRow[] }) {
                     : <span className="text-xs text-ink-faint">no server — skills only</span>}
                 </span>
               </TableCell>
-              <TableCell hideBelow="md" className="tabular-nums">{p.skills.length || '—'}</TableCell>
               <TableCell className="tabular-nums">{formatCount(p.calls)}</TableCell>
               <TableCell hideBelow="md" className="text-xs">
                 {p.lastRun
                   ? <Time value={p.lastRun} />
                   : <Badge variant="neutral">never run</Badge>}
-                {p.lastRun && p.skills.some((s) => !s.everRun) ? (
-                  <span className="block text-ink-faint">
-                    {p.skills.filter((s) => !s.everRun).length} of {p.skills.length} skills never
-                  </span>
-                ) : null}
               </TableCell>
+              <TableCell hideBelow="lg"><EvalCell of={p.latestEval} /></TableCell>
+              <TableCell hideBelow="lg" className="whitespace-nowrap text-xs"><EvalWhen of={p.latestEval} /></TableCell>
               <TableCell hideBelow="xl" className="break-words text-xs">
                 {/* A plugin with no gates is an assistant, and saying "0" alone reads
                     as a delivery method that forgot its approvals. */}

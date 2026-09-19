@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { TabBar } from '@/components/ui/tab-bar';
-import type { SkillText } from '@/lib/api';
+import type { SkillText } from '@/lib/api-shapes';
 
 type SkillView = 'read' | 'references' | 'cost';
 

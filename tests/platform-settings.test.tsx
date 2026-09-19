@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import { PlatformSection } from '@/components/settings/PlatformSection';
-import type { Me } from '@/lib/api';
+import type { Me } from '@/lib/api-shapes';
 
 /**
  * Task I-15's console-side rule (← AC-5, AC-9): the platform tier of Settings shows its

@@ -10,7 +10,8 @@ import { CompositionBar } from '@/components/charts/CompositionBar';
 import { TrendChart } from '@/components/charts/TrendChart';
 import { formatCount } from '@/lib/format';
 import type { Tint } from '@/lib/tints';
-import { freshnessOf, useConsole, useConsoleMode, type Overview, type OverviewMetrics } from '@/lib/api';
+import { freshnessOf, useConsole, useConsoleMode } from '@/lib/api';
+import { type Overview, type OverviewMetrics } from '@/lib/api-shapes';
 import { Row, type MetricCardProps } from '@/components/ui';
 import { usePeriod } from '@/components/PeriodProvider';
 
@@ -195,27 +196,29 @@ function buildMetrics(m: OverviewMetrics): MetricCardProps[] {
           emptyLabel="Nothing active in this period"
         />
       ),
-      help:
-        'Is work advancing, or only accumulating? Higher is better. The median is over OPEN '
-        + 'initiatives only: a closed one is 100% complete by definition and never moves again, '
-        + 'so including them makes this tile climb to 100% and stay there no matter what the '
-        + 'unfinished work is doing. Every flow declares its own '
-        + 'documents and marks which are gates, so an initiative is scored against its own flow\'s '
-        + 'list — never against a document called spec.md — and a three-document flow and a '
-        + 'seven-document flow are each measured out of their own total. Absent counts 0, written '
-        + 'counts a half, approved counts 1. The bar counts all six stages including closed, '
-        + 'because where the active set IS is a different question from how far the unfinished '
-        + 'work has got. It puts every active initiative in exactly one '
-        + 'stage: no flow, not started, drafting, agreed, gated, closed. Gated means every gate '
-        + 'is approved and nobody has said what came of it yet; closed means an outcome was '
-        + 'recorded. Initiatives with no flow have '
-        + 'no denominator and are shown apart rather than scored as zero. "Waiting on a person" '
-        + 'counts GATE documents that are written and unapproved, in open initiatives only. Both '
-        + 'halves matter: a gate nobody has drafted is waiting on the agent, not a human, and an '
-        + 'ungated document never needed an approver at all — counting every document with no '
-        + 'approver reports 18 things blocked here when 3 are, and puts the 15 that are not at '
-        + 'the top. A closed initiative is excluded: nobody goes back to approve a gate on work '
-        + `that already recorded an outcome. No arrow: ${m.progressing.noDeltaBecause}.`,
+      help: [
+        'Is work advancing, or only accumulating? Higher is better.',
+        'The median is over OPEN initiatives only: a closed one is 100% complete by definition '
+        + 'and never moves again, so including them makes this tile climb to 100% and stay there '
+        + 'no matter what the unfinished work is doing.',
+        'Every flow declares its own documents and marks which are gates, so an initiative is '
+        + 'scored against its own flow\'s list — never against a document called spec.md — and a '
+        + 'three-document flow and a seven-document flow are each measured out of their own '
+        + 'total. Absent counts 0, written counts a half, approved counts 1. Initiatives with no '
+        + 'flow have no denominator and are shown apart rather than scored as zero.',
+        'The bar counts all six stages including closed, because where the active set IS is a '
+        + 'different question from how far the unfinished work has got. It puts every active '
+        + 'initiative in exactly one stage: no flow, not started, drafting, agreed, gated, '
+        + 'closed. Gated means every gate is approved and nobody has said what came of it yet; '
+        + 'closed means an outcome was recorded.',
+        '"Waiting on a person" counts GATE documents that are written and unapproved, in open '
+        + 'initiatives only. Both halves matter: a gate nobody has drafted is waiting on the '
+        + 'agent, not a human, and an ungated document never needed an approver at all — counting '
+        + 'every document with no approver reports 18 things blocked here when 3 are, and puts '
+        + 'the 15 that are not at the top. A closed initiative is excluded: nobody goes back to '
+        + 'approve a gate on work that already recorded an outcome.',
+        `No arrow: ${m.progressing.noDeltaBecause}.`,
+      ],
     },
     {
       label: 'Knowledge from work',
@@ -235,15 +238,18 @@ function buildMetrics(m: OverviewMetrics): MetricCardProps[] {
           emptyLabel="Nothing on the shelf yet"
         />
       ),
-      help:
-        'Is the knowledge base worth reading? Higher is better. Before reuse can mean anything the '
-        + 'shelf has to hold things worth reusing, and a bulk archive import is a library rather than '
-        + `a lesson. An import is a behaviour, not a name: more than ${m.knowledge.importThresholdPerHour} `
-        + 'nodes minted by one source in a single hour. Which NODES get read back is not measurable '
-        + 'today — search_knowledge records that a search happened, how long it took and how many '
-        + 'bytes came back, but never the ids it returned, so searches can be counted and their '
-        + 'results cannot. The shelf is a stock, so it is counted as it stands and compared against '
-        + 'the same stock one window earlier.',
+      help: [
+        'Is the knowledge base worth reading? Higher is better.',
+        'Before reuse can mean anything the shelf has to hold things worth reusing, and a bulk '
+        + 'archive import is a library rather than a lesson. An import is a behaviour, not a '
+        + `name: more than ${m.knowledge.importThresholdPerHour} nodes minted by one source in a `
+        + 'single hour.',
+        'Which NODES get read back is not measurable today — search_knowledge records that a '
+        + 'search happened, how long it took and how many bytes came back, but never the ids it '
+        + 'returned, so searches can be counted and their results cannot.',
+        'The shelf is a stock, so it is counted as it stands and compared against the same stock '
+        + 'one window earlier.',
+      ],
     },
     {
       label: 'Refusal rate',
@@ -273,15 +279,17 @@ function buildMetrics(m: OverviewMetrics): MetricCardProps[] {
           emptyLabel="No refused call in this period"
         />
       ),
-      help:
-        'Is the tool surface getting in the way? Lower is better. A rate, not a count — a count '
-        + 'rises whenever usage rises and so says nothing about whether the platform got worse. '
-        + 'Tool calls, not events: most events on this platform carry no run and are bulk import or '
-        + 'admin rather than somebody working. This is the only tile naming a defect somebody can '
-        + 'fix today. The mark splits the same refused calls by the DOOR that refused them — '
-        + 'core, eval or manage, read off the tool name — so it sums to the count beside it and '
-        + 'says where to go. Not by `block`: nothing has ever written one onto a tool call, so '
-        + 'that split was one bar drawing the number twice.',
+      help: [
+        'Is the tool surface getting in the way? Lower is better.',
+        'A rate, not a count — a count rises whenever usage rises and so says nothing about '
+        + 'whether the platform got worse. Tool calls, not events: most events on this platform '
+        + 'carry no run and are bulk import or admin rather than somebody working. This is the '
+        + 'only tile naming a defect somebody can fix today.',
+        'The mark splits the same refused calls by the DOOR that refused them — core, eval or '
+        + 'manage, read off the tool name — so it sums to the count beside it and says where to '
+        + 'go. Not by `block`: nothing has ever written one onto a tool call, so that split was '
+        + 'one bar drawing the number twice.',
+      ],
     },
     {
       label: 'Context pulled per run',
@@ -323,20 +331,23 @@ function buildMetrics(m: OverviewMetrics): MetricCardProps[] {
           emptyLabel="No measured run in this period"
         />
       ),
-      help:
-        'Is the system straining? Lower is better. A run is one execution of one skill inside one '
-        + 'initiative: the platform opens it when an agent invokes a skill, records every tool call '
-        + 'it makes and closes it when the skill returns — one conversation can open many runs. '
-        + 'Every byte a tool hands back lands in the agent\'s context and is re-read on every later '
-        + 'step, which is why more is worse. Read the bands, not the median: the distribution is '
-        + 'heavily skewed and a single number hides the tail, so the runs are grouped by size in '
-        + `decades and the last band is the tail. One context window is about ${m.context.contextWindowKb} `
-        + 'KB at roughly 4 bytes per token — a rule of thumb, not a measurement, because nothing on '
-        + 'this platform counts tokens. This is not a '
-        + 'token count and no table records one; it counts what tools return, never the prompt, the '
-        + 'reply or the conversation history. A run whose bytes were never measured is counted '
-        + 'separately and left out of the median — it is not a run that moved nothing, and folding '
-        + 'the two together is the conflation the nullable bytes_total column exists to prevent.',
+      help: [
+        'Is the system straining? Lower is better.',
+        'A run is one execution of one skill inside one initiative: the platform opens it when an '
+        + 'agent invokes a skill, records every tool call it makes and closes it when the skill '
+        + 'returns — one conversation can open many runs. Every byte a tool hands back lands in '
+        + 'the agent\'s context and is re-read on every later step, which is why more is worse.',
+        'Read the bands, not the median: the distribution is heavily skewed and a single number '
+        + 'hides the tail, so the runs are grouped by size in decades and the last band is the '
+        + `tail. One context window is about ${m.context.contextWindowKb} KB at roughly 4 bytes `
+        + 'per token — a rule of thumb, not a measurement, because nothing on this platform '
+        + 'counts tokens.',
+        'This is not a token count and no table records one; it counts what tools return, never '
+        + 'the prompt, the reply or the conversation history.',
+        'A run whose bytes were never measured is counted separately and left out of the median '
+        + '— it is not a run that moved nothing, and folding the two together is the conflation '
+        + 'the nullable bytes_total column exists to prevent.',
+      ],
     },
   ];
 }

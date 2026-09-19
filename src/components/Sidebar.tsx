@@ -7,7 +7,8 @@ import { cn } from '@/lib/cn';
 import { Eyebrow } from '@/components/ui';
 import { AppMark } from '@/components/AppMark';
 import { navSections, type NavItem } from '@/nav';
-import { useConsole, useConsoleMode, type Me } from '@/lib/api';
+import { useConsole, useConsoleMode } from '@/lib/api';
+import { type Me } from '@/lib/api-shapes';
 
 /**
  * The primary rail. Route knowledge lives in `@/nav`, not here — this component

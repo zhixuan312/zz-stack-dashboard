@@ -17,12 +17,16 @@ import { join } from 'node:path';
 
 /* EmptyState surfaces: illustration -> the files the spec assigns it to. */
 const WANT: Record<string, string[]> = {
-  'state-empty': ['knowledge/log/page.tsx', 'initiatives/page.tsx', 'teams/[slug]/page.tsx', 'SkillCost.tsx', 'knowledge/page.tsx'],
+  // `teams/page.tsx` joined when the teams LIST grew a search and a status facet: a filter
+  // that can match nothing needs the same "nothing matches" surface /initiatives has, and it
+  // is the same illustration for the same reason. `teams/[slug]/page.tsx` beside it is the
+  // one team's own detail page, which is a different empty.
+  'state-empty': ['knowledge/log/page.tsx', 'initiatives/page.tsx', 'teams/page.tsx', 'teams/[slug]/page.tsx', 'SkillCost.tsx', 'knowledge/page.tsx'],
   'state-welcome': ['TokensPanel.tsx', 'TeamMembersPanel.tsx', 'PlatformPeoplePanel.tsx'],
   'state-error': ['error.tsx', 'Query.tsx'],
   'state-notfound': ['not-found.tsx', 'plugins/[plugin]/page.tsx', 'plugins/[plugin]/[skill]/page.tsx', 'knowledge/page.tsx'],
 };
-const SITES = 14;
+const SITES = 15;
 
 /* Non-EmptyState surfaces: illustration -> the one file that may carry it, and why. */
 const ONE_OFF = {

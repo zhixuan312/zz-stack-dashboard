@@ -8,7 +8,7 @@ import {
 import { cn } from '@/lib/cn';
 import { formatCount, formatSeconds } from '@/lib/format';
 import { CHART_EDGE } from '@/lib/tints';
-import type { Skill } from '@/lib/api';
+import type { Skill } from '@/lib/api-shapes';
 
 /**
  * Where the work happens — every skill that ran in the window, ranked on whichever cost the

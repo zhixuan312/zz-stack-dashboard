@@ -1,4 +1,4 @@
-import type { KnowledgeNode } from './api';
+import type { KnowledgeNode } from './api-shapes';
 
 /**
  * The three filters the knowledge shelf composes, kept dependency-free

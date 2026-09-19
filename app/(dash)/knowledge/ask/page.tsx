@@ -11,7 +11,8 @@ import { Query } from '@/components/Query';
 import {
   Row, Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui';
-import { freshnessOf, useConsole, useConsoleMode, type KnowledgeNode, type Me } from '@/lib/api';
+import { freshnessOf, useConsole, useConsoleMode } from '@/lib/api';
+import { type KnowledgeNode, type Me } from '@/lib/api-shapes';
 import { tagFacetCounts, teamFacetOptions } from '@/lib/knowledge-filters';
 
 const GUIDANCE =

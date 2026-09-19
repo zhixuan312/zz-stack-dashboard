@@ -6,7 +6,8 @@ import { Query } from '@/components/Query';
 import {
   Badge, PageControl, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Time, usePaged,
 } from '@/components/ui';
-import { freshnessOf, teamSlug, useConsole, useConsoleMode, type Person } from '@/lib/api';
+import { freshnessOf, useConsole, useConsoleMode } from '@/lib/api';
+import { teamSlug, type Person } from '@/lib/api-shapes';
 
 /**
  * People, their teams, and their tokens' state.

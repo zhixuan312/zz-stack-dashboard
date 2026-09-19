@@ -13,7 +13,8 @@ import {
   Time, Toolbar, usePaged,
 } from '@/components/ui';
 import { cn } from '@/lib/cn';
-import { freshnessOf, useConsole, useConsoleMode, type KnowledgeNode } from '@/lib/api';
+import { freshnessOf, useConsole, useConsoleMode } from '@/lib/api';
+import { type KnowledgeNode } from '@/lib/api-shapes';
 import {
   filterKnowledgeNodes, knowledgeNodeHref, tagFacetCounts, teamFacetOptions,
 } from '@/lib/knowledge-filters';
@@ -256,7 +257,7 @@ function NodeTable({ rows, multiTeam, resetKey }: {
                 </Link>
               </TableCell>
               <TableCell hideBelow="lg">
-                <span className="flex flex-wrap gap-1">
+                <span className="inline-flex flex-wrap gap-1">
                   {(n.tags ?? []).slice(0, 3).map((t) => (
                     <span key={t} className="rounded-[var(--r-sm)] bg-surface-2 px-1.5 py-0.5 font-mono text-[11px] text-ink-faint">
                       {t}

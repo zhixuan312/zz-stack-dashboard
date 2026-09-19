@@ -6,7 +6,8 @@ import {
   Badge, Button, PageControl, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, usePaged,
 } from '@/components/ui';
 import { showToast } from '@/components/ui/toast';
-import { useConsole, type MyTeams } from '@/lib/api';
+import { useConsole } from '@/lib/api';
+import { type MyTeams } from '@/lib/api-shapes';
 import { useConsoleMutation } from '@/lib/mutate';
 
 /**

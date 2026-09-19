@@ -8,7 +8,7 @@ import {
 } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import { collapse, diffLines, diffStat } from '@/lib/diff';
-import type { DocumentDetail } from '@/lib/api';
+import type { DocumentDetail } from '@/lib/api-shapes';
 
 /**
  * How this document got to be what it is.

@@ -12,7 +12,8 @@ import {
   EmptyState, PageControl, Table, TableBody, TableCell, TableHead, TableHeader,
   TableRow, Time, usePaged,
 } from '@/components/ui';
-import { freshnessOf, useConsole, type Initiative, type Team, type TeamDetail } from '@/lib/api';
+import { freshnessOf, useConsole } from '@/lib/api';
+import { type Initiative, type Team, type TeamDetail } from '@/lib/api-shapes';
 
 /**
  * One team: what it is working on, what it holds, and who is in it.
@@ -97,6 +98,11 @@ function InitiativeTable({ initiatives }: { initiatives: Initiative[] }) {
         <TableHeader>
           <TableRow>
             <TableHead>Initiative</TableHead>
+            {/* WHICH FLOW, immediately left of the position, for the reason /initiatives
+                gives: "S5" is FLOW-RELATIVE — `plugin report` on zz-plugin-eval and `build`
+                on ops-flow — so a column of positions with no flow beside it names a stage
+                the reader cannot place. The two read as one fact and sit together. */}
+            <TableHead hideBelow="lg">Flow</TableHead>
             <TableHead hideBelow="md">Flow position</TableHead>
             <TableHead>State</TableHead>
             <TableHead hideBelow="xl">Docs</TableHead>
@@ -115,6 +121,15 @@ function InitiativeTable({ initiatives }: { initiatives: Initiative[] }) {
                 >
                   {i.slug}
                 </Link>
+              </TableCell>
+              {/* `flow` is NULLABLE and a blank cell would hide why. An initiative with no
+                  flow has no chain of gates resolved against it — no required document and
+                  no closing rule is enforced on it — so it is a defect the page should
+                  name, not whitespace. Same words as /initiatives, deliberately. */}
+              <TableCell hideBelow="lg" className="whitespace-nowrap text-[13px]">
+                {i.flow
+                  ? <span className="text-ink-soft">{i.flow}</span>
+                  : <span className="text-ink-faint italic">not declared</span>}
               </TableCell>
               <TableCell hideBelow="md"><FlowMini at={i.at} of={i.of} name={i.stage} /></TableCell>
               <TableCell><StateBadge of={i} /></TableCell>

@@ -6,7 +6,8 @@ import { SkillWorkPanel } from '@/components/SkillWorkPanel';
 import { usePeriod } from '@/components/PeriodProvider';
 import { MetricCard, Row } from '@/components/ui';
 import { formatCount } from '@/lib/format';
-import { freshnessOf, useConsole, type Runs, type Skill } from '@/lib/api';
+import { freshnessOf, useConsole } from '@/lib/api';
+import { type Runs, type Skill } from '@/lib/api-shapes';
 
 export default function RunsPage() {
   /* THE PICKER IS ON NOW. It was hidden because /skills had no window and answered all time

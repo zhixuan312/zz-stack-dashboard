@@ -19,7 +19,8 @@ import { ApproveAction, canApprove } from '@/components/ApproveAction';
 import {
   DocumentThreadComposer, DocumentThreadMessages, DocumentThreadRevise, canReviseFromThread, useDocumentThread,
 } from '@/components/DocumentThread';
-import { freshnessOf, useConsole, type DocumentDetail, type Me } from '@/lib/api';
+import { freshnessOf, useConsole } from '@/lib/api';
+import { type DocumentDetail, type Me } from '@/lib/api-shapes';
 
 /** The shell's two tabs, in the order every tabbed shell puts document chrome first (see
  *  `DocumentShell`'s `onDocumentTab`, which relies on that ordering to scope `actions` and

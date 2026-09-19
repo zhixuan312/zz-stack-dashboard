@@ -9,8 +9,10 @@ import { Query } from '@/components/Query';
 import {
   Badge, EmptyState, PageControl, Row, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Time, usePaged,
 } from '@/components/ui';
+import { EvalScore } from '@/components/EvalScore';
 import { formatCount } from '@/lib/format';
-import { freshnessOf, useConsole, type PluginRow } from '@/lib/api';
+import { freshnessOf, useConsole } from '@/lib/api';
+import { type PluginRow } from '@/lib/api-shapes';
 
 /**
  * LAYER TWO: one plugin — what it is, what it reaches, and every skill it ships.
@@ -125,6 +127,98 @@ export default function PluginPage({ params }: { params: Promise<{ plugin: strin
                   )}
                 </Panel>
               </Row>
+
+              {/* HOW IT SCORED, and the way back to the report that says why.
+                  This page listed everything a plugin IS — its skills, its documents, its
+                  servers, how often it was called — and nothing about whether any of it
+                  worked. The score is the one fact a reader opens a plugin page to find. */}
+              <Panel
+                title="Latest evaluation"
+                aside={p.latestEval
+                  ? `${p.latestEval.recommendation} · measured at v${p.latestEval.version}`
+                  : 'never evaluated'}
+              >
+                {p.latestEval ? (
+                  <div className="flex flex-col gap-4">
+                    {/* TWO AXES, SIDE BY SIDE AND NOT ADDED UP. They answer different
+                        questions — how good it is, and what is left to do — and a plugin
+                        scoring 9 can still have something named to fix. Collapsing them into
+                        one figure loses exactly the distinction a reader acts on. */}
+                    <div className="flex flex-wrap items-end gap-x-10 gap-y-4">
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-faint">
+                          Effectiveness
+                        </p>
+                        <EvalScore of={p.latestEval} className="text-3xl" />
+                        <p className="mt-0.5 text-[13px] text-ink-soft">
+                          {p.latestEval.band ?? 'no band recorded'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-faint">
+                          Room to improve
+                        </p>
+                        <p className="text-3xl font-semibold tabular-nums text-ink">
+                          {p.latestEval.headroomPoints === null
+                            ? <span className="text-ink-faint">—</span>
+                            : <>{p.latestEval.headroomPoints.toFixed(2)}
+                                <span className="text-[0.7em] font-normal text-ink-faint"> pts</span></>}
+                        </p>
+                        <p className="mt-0.5 text-[13px] text-ink-soft">
+                          {p.latestEval.headroomNamed === null
+                            ? 'not recorded'
+                            : p.latestEval.headroomNamed === 0
+                              ? 'nothing identified to change'
+                              : `${p.latestEval.headroomNamed} named change${p.latestEval.headroomNamed === 1 ? '' : 's'} open`}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-faint">
+                          Recommendation
+                        </p>
+                        <p className="mt-1">
+                          <Badge variant={p.latestEval.recommendation === 'keep' ? 'sage' : 'neutral'}>
+                            {p.latestEval.recommendation}
+                          </Badge>
+                        </p>
+                        <p className="mt-1 text-[13px] text-ink-soft">
+                          {p.latestEval.confidence === null
+                            ? 'confidence not recorded'
+                            : `confidence ${p.latestEval.confidence.toFixed(2)}`}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-[13px] text-ink-soft">
+                      {p.latestEval.initiative ? (
+                        <>
+                          Measured at <strong className="font-medium text-ink">v{p.latestEval.version}</strong> on{' '}
+                          <Time value={p.latestEval.at} />.{' '}
+                          <Link
+                            href={`/initiatives/${p.latestEval.initiative.team}/${p.latestEval.initiative.slug}`}
+                            className="font-medium text-accent hover:underline"
+                          >
+                            Read the evaluation →
+                          </Link>
+                        </>
+                      ) : (
+                        // ABSENT, NEVER GUESSED. The round predates the platform recording
+                        // which initiative produced it, and matching one by plugin name and a
+                        // date is the attribution journal 0116 exists to forbid.
+                        <>
+                          Measured at <strong className="font-medium text-ink">v{p.latestEval.version}</strong> on{' '}
+                          <Time value={p.latestEval.at} />. This round predates the platform
+                          recording which initiative produced it, so there is no report to link.
+                        </>
+                      )}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-[13px] text-ink-faint">
+                    No round has reached a verdict for this plugin. A score arrives when
+                    zz-plugin-eval runs a round and records a recommendation.
+                  </p>
+                )}
+              </Panel>
 
               <Panel
                 title="Its skills"

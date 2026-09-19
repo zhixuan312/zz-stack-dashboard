@@ -2,7 +2,8 @@
 
 import { SidebarStat } from '@/components/Sidebar';
 import { Eyebrow } from '@/components/ui';
-import { useConsole, useConsoleMode, type Me, type Overview } from '@/lib/api';
+import { useConsole, useConsoleMode } from '@/lib/api';
+import { type Me, type Overview } from '@/lib/api-shapes';
 import { formatCount } from '@/lib/format';
 
 /**

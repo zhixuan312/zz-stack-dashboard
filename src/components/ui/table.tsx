@@ -41,8 +41,39 @@ export function Table({ className, ...props }: HTMLAttributes<HTMLTableElement>)
   return <table className={cn('w-full caption-bottom', ALIGNMENT, className)} {...props} />;
 }
 
+/**
+ * The column headers, and they STICK to the top of the scroll region.
+ *
+ * WHY THIS IS NOT THE PATTERN shell.tsx argues against. That file keeps the PAGE header
+ * physically outside the scroller because a sticky element inside a sub-scroller recomputes
+ * its offset on the main thread and a fast fling can out-run it for a frame. A column header
+ * cannot be moved outside the scroller: it is a `<thead>`, and a table's header belongs to
+ * its table. The trade is also different — the page header is one band the reader sees all
+ * the time either way, while a column header that scrolls away leaves the reader looking at
+ * twenty rows of figures with nothing saying which column is which.
+ *
+ * It became worth doing when tables started opening at twenty rows rather than ten: at ten
+ * the whole table fitted a laptop window and the header never left, so the defect did not
+ * exist to be noticed.
+ *
+ * THE BACKGROUND IS NOT OPTIONAL. A sticky row with a transparent background lets the rows
+ * pass UNDERNEATH it and both render at once, which reads as a rendering fault rather than
+ * as a header. `surface` is the card's own ground, so the header looks identical parked as
+ * it does at rest.
+ *
+ * `z-10` clears the composition bars and badges in the rows below, which carry their own
+ * stacking contexts; the popovers and tooltips are portalled and sit far above both.
+ */
 export function TableHeader({ className, ...props }: HTMLAttributes<HTMLTableSectionElement>) {
-  return <thead className={cn('[&_tr]:border-b [&_tr]:border-line', className)} {...props} />;
+  return (
+    <thead
+      className={cn(
+        'sticky top-0 z-10 bg-surface [&_tr]:border-b [&_tr]:border-line',
+        className,
+      )}
+      {...props}
+    />
+  );
 }
 
 export function TableBody({ className, ...props }: HTMLAttributes<HTMLTableSectionElement>) {

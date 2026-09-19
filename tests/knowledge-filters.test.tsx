@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { KnowledgeNode } from '@/lib/api';
+import type { KnowledgeNode } from '@/lib/api-shapes';
 import { filterKnowledgeNodes, knowledgeNodeHref, tagFacetCounts, teamFacetOptions } from '@/lib/knowledge-filters';
 
 // This file lives in `tests/` because vitest.config.ts scans ONLY `tests/**` —

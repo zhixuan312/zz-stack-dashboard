@@ -2,7 +2,7 @@
 
 import { Panel } from '@/components/Panel';
 import { ProseBlock } from '@/components/patterns/prose-block';
-import type { SkillText } from '@/lib/api';
+import type { SkillText } from '@/lib/api-shapes';
 
 /**
  * WHAT SHIPS BESIDE THE SKILL — its own tab.

@@ -24,7 +24,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // for one test file.
 import { PeriodProvider } from '@/components/PeriodProvider';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import type { Overview } from '@/lib/api';
+import type { Overview } from '@/lib/api-shapes';
 import OverviewPage from '../app/(dash)/page';
 
 const ME = {

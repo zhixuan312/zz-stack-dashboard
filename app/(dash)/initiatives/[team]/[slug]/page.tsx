@@ -11,7 +11,8 @@ import {
   PageControl, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Time, usePaged,
 } from '@/components/ui';
 import { formatCount } from '@/lib/format';
-import { freshnessOf, useConsole, type InitiativeDetail } from '@/lib/api';
+import { freshnessOf, useConsole } from '@/lib/api';
+import { type InitiativeDetail } from '@/lib/api-shapes';
 
 /**
  * One initiative, end to end.

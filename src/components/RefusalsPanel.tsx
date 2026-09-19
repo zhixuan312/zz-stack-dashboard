@@ -5,7 +5,7 @@ import { Panel } from '@/components/Panel';
 import { BarList } from '@/components/charts/BarList';
 import { Segmented } from '@/components/ui';
 import { formatCount } from '@/lib/format';
-import type { Overview } from '@/lib/api';
+import type { Overview } from '@/lib/api-shapes';
 
 /**
  * Where the platform refuses — the same refused tool calls the Refusal rate tile counts,

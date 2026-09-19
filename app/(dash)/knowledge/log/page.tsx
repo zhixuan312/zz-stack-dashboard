@@ -9,7 +9,8 @@ import {
   Badge, EmptyState, PageControl, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Time,
   TZ_LABEL, usePaged,
 } from '@/components/ui';
-import { freshnessOf, useConsole, useConsoleMode, type KnowledgeLogEntry } from '@/lib/api';
+import { freshnessOf, useConsole, useConsoleMode } from '@/lib/api';
+import { type KnowledgeLogEntry } from '@/lib/api-shapes';
 
 /**
  * Log — what this team recorded, what replaced what, and who wrote it down.

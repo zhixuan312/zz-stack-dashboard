@@ -4,7 +4,8 @@ import { Panel } from '@/components/Panel';
 import { PlatformPasswordPanel } from '@/components/settings/PlatformPasswordPanel';
 import { PlatformPeoplePanel } from '@/components/settings/PlatformPeoplePanel';
 import { PlatformTeamsPanel } from '@/components/settings/PlatformTeamsPanel';
-import { useConsole, type Me } from '@/lib/api';
+import { useConsole } from '@/lib/api';
+import { type Me } from '@/lib/api-shapes';
 
 /**
  * The platform tier of Settings (← Task I-15, AC-5 / AC-9) — visible only to a superadmin.

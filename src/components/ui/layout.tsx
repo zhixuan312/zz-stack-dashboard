@@ -12,8 +12,8 @@ import { cn } from '@/lib/cn';
  *      pages (`usePaged`). That is what makes rule 1 possible.
  *   3. FOUR SPLITS. A page is a stack of rows; a row is one full-width card, or cards split
  *      `1/2`, `1/3`, `2/3` or `1/4`. Cards in one row are the same height.
- *   4. TWO WIDTHS. `data` for dashboards, lists and detail pages; `reading` for a document, a
- *      form, a single column of prose. Both centre in the window.
+ *   4. TWO WIDTHS. `data` for dashboards, lists and detail pages, and it FILLS the window;
+ *      `reading` for a document, a form, a single column of prose, and it centres.
  *
  * THE NUMBERS ARE BORROWED, NOT INVENTED.
  *   gutter   16 → 24 → 32px at <768 / 768 / 1280. Atlassian's grid is 16px margins to 1024 and
@@ -22,11 +22,25 @@ import { cn } from '@/lib/cn';
  *            same distance from its frame as it sits from the sides.
  *   gap      16 → 24px at 1280. Atlassian's desktop gutter is 16px, Material's pane spacing
  *            24px; the wider gap arrives with the wider margin so the two stay in proportion.
- *   data     1536px of content. Carbon's largest breakpoint is 1584px including its margins,
- *            GitLab settled on one fixed 1280px, Atlassian's fixed-wide is 1296px. A console
- *            table has seven columns, so this takes the widest of those: every laptop and a
- *            1920px monitor run edge to edge, and past that the content stops growing and the
- *            window grows margins, equally on both sides.
+ *   data     THE WINDOW, less the rail and the gutter. No cap.
+ *
+ *            This was 1536px, taken from the widest fixed container the reference systems
+ *            use — Carbon's 1584px including margins, against GitLab's 1280 and Atlassian's
+ *            1296. The reasoning was sound for those products and wrong for this one, and a
+ *            screenshot settled it: on an ultrawide the console drew a 1536px column with
+ *            about 300px of dead surface down each side, while the table inside it was
+ *            truncating cells to `max-w-[36ch]`. Content was being cropped and the window
+ *            was being left empty at the same time.
+ *
+ *            A fixed container answers "how wide should a column of prose be". A console
+ *            table answers a different question — it has seven columns, several of them
+ *            paths and slugs that elide — and for that one the honest answer is: as wide as
+ *            the person made their window. Whoever opens a 2500px window is asking to see
+ *            more, and every pixel past 1536 was being refused.
+ *
+ *            The gutter still holds the content off the frame, so this is edge-to-edge and
+ *            not flush. `reading` is unchanged and still centres, because the argument above
+ *            is about tables and says nothing about prose.
  *   reading  832px of content — about 90 characters of body text, the upper end of a
  *            comfortable line. Atlassian's fixed-narrow is 864px with its margins.
  */
@@ -38,8 +52,12 @@ export const GUTTER_X = 'px-4 md:px-6 xl:px-8';
 /** The space between rows, and between cards in a row. */
 export const GAP = 'gap-4 xl:gap-6';
 
+// `max-w-none` rather than an empty string: the header, the sub-nav and the body each compose
+// this into a class list, and every one of them is asserted on by tests/page-layout.test.tsx.
+// An empty string satisfies `toContain('')` on any element at all, so the three assertions that
+// keep the header aligned with the body would pass while checking nothing.
 export const WIDTH = {
-  data: 'max-w-[1536px]',
+  data: 'max-w-none',
   reading: 'max-w-[832px]',
 } as const;
 export type PageWidth = keyof typeof WIDTH;

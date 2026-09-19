@@ -7,7 +7,7 @@ import { CompositionBar } from '@/components/charts/CompositionBar';
 import { EmptyState, Row } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import { formatCount, formatKb } from '@/lib/format';
-import type { Skill, SkillDetail } from '@/lib/api';
+import type { Skill, SkillDetail } from '@/lib/api-shapes';
 
 /**
  * WHAT A SKILL COST TO RUN.

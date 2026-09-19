@@ -23,10 +23,24 @@ import { cn } from '@/lib/cn';
  */
 export const PAGE_SIZES = [10, 20, 30] as const;
 
+/** How many rows a table opens with.
+ *
+ *  NAMED, NOT `PAGE_SIZES[0]`. The default was the first offered size by accident of
+ *  indexing, so "what a table opens with" and "the smallest size a reader may pick" were
+ *  the same number for no reason anyone had decided. They answer different questions: the
+ *  floor exists so a reader can make a long table short, and the default exists so the
+ *  first screen shows enough to be worth reading. Ten filled about a third of a 1440px
+ *  window and sent a reader to the pager to see a list of twenty-nine.
+ *
+ *  It is still one of PAGE_SIZES, because the select has no option for a size it is not
+ *  offering — a table opening at a size its own control cannot return to is a state a
+ *  reader gets out of once and cannot get back into. */
+export const DEFAULT_PAGE_SIZE: (typeof PAGE_SIZES)[number] = 20;
+
 export function usePaged<T>(rows: T[], resetKey: string = ''): {
   page: T[]; controls: PageControlProps;
 } {
-  const [size, setSize] = useState<number>(PAGE_SIZES[0]);
+  const [size, setSize] = useState<number>(DEFAULT_PAGE_SIZE);
   /* THE PAGE IS REMEMBERED AGAINST THE QUESTION IT ANSWERED. `resetKey` is whatever narrows
      the rows — a search, a facet. Reading page 4 of every initiative and then typing a search
      must land on page 1 of the matches, not on page 4 of a list that no longer has one. */

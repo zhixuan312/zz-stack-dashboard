@@ -2,7 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { SkillWorkPanel } from '@/components/SkillWorkPanel';
-import type { Skill } from '@/lib/api';
+import type { Skill } from '@/lib/api-shapes';
 
 /**
  * WHAT THE DURATION COLUMNS ARE ALLOWED TO CLAIM.

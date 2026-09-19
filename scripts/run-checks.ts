@@ -34,6 +34,7 @@ const EXPECTED = [
   'no-dark-mode',             // I-5  no machinery, and no `dark:` variant
   'one-mark',                 // I-10 the brand is drawn in exactly one place
   'one-scroller',             // (layout) only the shell scrolls; page grids are Rows
+  'cell-content-is-inline',   // (layout) a cell's wrapper is inline-level, or its header drifts
   'sparkle-motif',            // I-15 one inline sparkle, on the active item, decorative
   'token-layer',              // I-6  frozen values, @theme mapping, line budget
   'typography',               // I-8  Rubik + Baloo 2, Inter features gone, tnum kept

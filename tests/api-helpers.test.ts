@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { freshnessOf, teamSlug } from '@/lib/api';
+import { freshnessOf } from '@/lib/api';
+import { teamSlug } from '@/lib/api-shapes';
 
 /**
  * The two pure functions in `@/lib/api`, each written because a page got the answer wrong.

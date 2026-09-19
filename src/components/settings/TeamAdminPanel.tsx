@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { Panel } from '@/components/Panel';
 import { TeamMembersPanel } from '@/components/settings/TeamMembersPanel';
 import { Field, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui';
-import { useConsole, type Me } from '@/lib/api';
+import { useConsole } from '@/lib/api';
+import { type Me } from '@/lib/api-shapes';
 
 /**
  * The team tier of Settings (← Task I-14, AC-5 / AC-9) — visible only to someone who

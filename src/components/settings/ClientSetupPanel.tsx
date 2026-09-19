@@ -6,7 +6,8 @@ import { Panel } from '@/components/Panel';
 import { Query } from '@/components/Query';
 import { Button, Segmented } from '@/components/ui';
 import { showToast } from '@/components/ui/toast';
-import { useConsole, type MyClientSetup } from '@/lib/api';
+import { useConsole } from '@/lib/api';
+import { type MyClientSetup } from '@/lib/api-shapes';
 
 /** Mirrors the gateway's own `CLIENT_KINDS` (client-package.ts) — the three
  *  clients this platform renders a config for. */
