@@ -26,6 +26,7 @@ was therefore a sharpened LANCZOS upscale. The master replaced it on 2026-09-13.
 | `apple-touch-icon-180.png` | `<link rel="apple-touch-icon">` — iOS home screen. |
 | `app-icon-64.png` | Large favicon / tab strip on hi-dpi. |
 | `app-icon-maskable-1024.png`, `-512`, `-192` | PWA manifest `icons`, `purpose: "maskable"`. |
+| `641F2C18-7277-46EE-9788-B7590FD375BB.png` | **Not part of this set and not built by the script.** 61 × 61, RGBA, a pink-haired character portrait — not one of the three ZZ marks. A UUID filename is what a design tool writes on export rather than on placement, so it arrived here by accident. Nothing references it: grepped across `ts`, `tsx`, `json` and `html`. Kept on the stakeholder's instruction, documented rather than tidied away, because a file in this directory that the table does not name is the thing this README exists to prevent. |
 
 ## Two variants, and why
 
