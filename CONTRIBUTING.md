@@ -45,6 +45,24 @@ docs/        written for somebody who does not work on this every day.
 - **No backward-compatibility scaffolding** — change it and say what broke.
 - The version and its compose literal move together; the platform's release script bumps both.
 
+### Comments are read by agents
+
+The reader is a coding agent, not a person skimming. State the rule first, then at most one
+clause of why. Drop what only serves a human reader — capitals for emphasis, the same point
+made three ways, narrative build-up, persuasion.
+
+Never drop a coupling (name the file or symbol that has to move with this one), a closed set
+the code depends on being closed, or a measured number the rule needs to be credible.
+
+Two prefixes, because an agent greps before it edits:
+
+- `DELIBERATE:` — this looks wrong and is not. Do not "fix" it.
+- `COUPLED:` — editing here requires editing there. Name the there.
+
+`grep -rn "DELIBERATE:\|COUPLED:"` a directory before changing anything in it. zz-stack's
+CONTRIBUTING.md carries the same rule and the measurements behind it; this console's own
+checks in `checks/` read source text too, so run them after a comment sweep.
+
 ## Releasing
 
 The console is released by **zz-stack's** `scripts/release.ts`, as its own component with its
