@@ -17,14 +17,10 @@ else {
     console.error(`FAIL cycle is [${cycle}], expected [${want}]`); code = 1;
   }
 }
-/* ALL THREE CHARTS, each in the spelling its own medium allows.
- *
- * This used to name two of them and say nothing about the third, which reads as an
- * oversight and was worse than one: TrendChart paints HTML legend swatches AND SVG
- * volume bars, and `box-shadow: inset` does nothing to an SVG rect. So the rule that
- * every pastel fill carries an edge needed a second spelling, not an exemption — and
- * while the check was quiet about it, TrendChart's bars were rendering at 0.2 opacity
- * with no boundary at all. A status hue at 0.2 was quiet; a kit pastel at 0.2 is gone.
+/* All three charts, each in the spelling its own medium allows. TrendChart paints HTML legend
+ * swatches and SVG volume bars, and `box-shadow: inset` does nothing to an SVG rect — so the rule
+ * that every pastel fill carries an edge needs a second spelling, not an exemption. A kit pastel at
+ * 0.2 opacity with no boundary is invisible.
  */
 for (const f of ['src/components/charts/BarList.tsx', 'src/components/charts/CompositionBar.tsx']) {
   if (!readFileSync(f, 'utf8').includes('CHART_EDGE')) {
@@ -32,8 +28,8 @@ for (const f of ['src/components/charts/BarList.tsx', 'src/components/charts/Com
   }
 }
 const trend = readFileSync('src/components/charts/TrendChart.tsx', 'utf8');
-/* THE SWATCH ELEMENT, not the file. `trend.includes('CHART_EDGE')` was satisfied by the
- * import line alone, so the legend chip could revert to a bare 0.3 opacity and still pass. */
+/* The swatch element, not the file: `trend.includes('CHART_EDGE')` is satisfied by the import line
+ * alone, so the legend chip could revert to a bare 0.3 opacity and still pass. */
 const swatch = trend.match(/<i\s[^>]*rounded-\[var\(--r-sm\)\][\s\S]{0,200}?\/>/);
 if (!swatch) { console.error('FAIL cannot find the bar legend swatch in TrendChart'); code = 1; }
 else {
@@ -44,22 +40,20 @@ else {
     console.error('FAIL the legend swatch is faded; it identifies a colour and must be full strength'); code = 1;
   }
 }
-/* The SVG form: a filled rect must carry `stroke` and must separate fill opacity from
- * stroke opacity. A bare `opacity=` on the rect fades the edge with the fill, which is
- * the exact bug this replaced — so its ABSENCE is what is asserted. */
-/* ONE ELEMENT AT A TIME, because `/<rect[\s\S]*?data-role="x"/` is not a test of the rect
- * that carries `x`. It starts at the FIRST `<rect` in the file and runs forward, so the
- * moment TrendChart held two of them the span reached across both and every assertion was
- * satisfied by whichever rect happened to satisfy it. Proven: the stacked column's
- * `stroke` was deleted and this check still printed PASS, because the volume bar's stroke
- * was inside the match. Splitting on the tag gives each rect its own text. */
+/* The SVG form: a filled rect must carry `stroke` and must separate fill opacity from stroke
+ * opacity. A bare `opacity=` on the rect fades the edge with the fill, so its absence is what is
+ * asserted.
+ *
+ * One element at a time. `/<rect[\s\S]*?data-role="x"/` starts at the first `<rect` in the file and
+ * runs forward, so with two of them the span reaches across both and every assertion is satisfied by
+ * whichever rect happens to satisfy it. Splitting on the tag gives each rect its own text. */
 const rects = trend.split('<rect').slice(1)
   .map((r) => '<rect' + r.slice(0, r.indexOf('/>') + 2));
 const rectFor = (role: string): string | undefined =>
   rects.find((r) => r.includes(`data-role="${role}"`));
 
-/* Every filled shape in this file carries an edge, and each one needs saying: a rule that
- * covers the rect it was written for and not the one added later is a regression test. */
+/* Every filled shape in this file carries an edge, and each one needs saying: a rule that covers the
+ * rect it was written for and not the one added later is a regression test. */
 for (const [role, what] of [
   ['volume-bar', 'volume bars'], ['stack-bar', 'stacked columns'],
 ] as const) {

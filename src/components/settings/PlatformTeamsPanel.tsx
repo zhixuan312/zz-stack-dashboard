@@ -10,10 +10,9 @@ import { ApiError } from '@/lib/api';
 import { useConsoleMutation } from '@/lib/mutate';
 
 /**
- * Create or archive a team (← Task I-15, AC-5) — the browser counterpart of `create_team`
- * / `archive_team` (admin.ts), reached through `/api/console/settings/platform/teams`.
- * Superadmin-only, unlike `TeamAdminPanel` (which manages ONE team's roster and flows for
- * whoever administers it): creating and retiring the team itself is a platform decision,
+ * Create or archive a team — the browser counterpart of `team_create` / `team_archive`
+ * (admin/teams.ts), reached through `/api/console/settings/platform/teams`. Superadmin-only,
+ * unlike `TeamAdminPanel`, which manages one team's roster for whoever administers it: creating and retiring the team itself is a platform decision,
  * never a team admin's.
  */
 export function PlatformTeamsPanel() {
@@ -25,8 +24,8 @@ export function PlatformTeamsPanel() {
   const createMutation = useConsoleMutation<{ ok: true; result: string }, { slug: string; name: string }>(
     '/settings/platform/teams',
   );
-  // `confirm` is the same slug this form already holds, not a second typed field — the
-  // inline Cancel/Archive swap below IS the confirmation (NFR-4).
+  // DELIBERATE: `confirm` is the same slug this form already holds, not a second typed
+  // field. The inline Cancel/Archive swap below is the confirmation.
   const archiveMutation = useConsoleMutation<{ ok: true; result: string }, string>(
     (team) => ({ path: '/settings/platform/teams', method: 'DELETE', body: { team, confirm: team } }),
   );

@@ -12,25 +12,16 @@ import { useConsole } from '@/lib/api';
 import { type Me } from '@/lib/api-shapes';
 
 /**
- * The sign-in screen. A ROUTE, not a state of the dashboard.
+ * The sign-in screen: a route, not a state of the dashboard.
  *
- * It used to be rendered inside the app shell, which meant a person who was not
- * signed in saw the full navigation — nine links to pages they could not open —
- * with a sign-in box floating in the content area. That reads as a dashboard
- * that failed to load, not as a door. The rail also had to lie to fill itself:
- * "Signed in · You: —".
+ * DELIBERATE: outside the `(dash)` group, so it gets no app shell. Rendered inside one, a
+ * visitor who is not signed in sees the full navigation to pages they cannot open. Being a
+ * real route also means the back button works and `?next=/skills` survives the ceremony.
  *
- * So this lives outside the `(dash)` group entirely and gets no shell at all.
- * Being a real route also means the URL is honest, the back button works, and a
- * deep link survives: `?next=/skills` is carried through the ceremony and back.
- *
- * A BUTTON, NOT A LINK, AND NO EMAIL FIELD. The door is a passkey now, and the
- * ceremony is driven from this page by script — there is no server route to
- * navigate to. The credential is discoverable, so the browser offers every
- * passkey it holds for this site and the person picks one; asking who they are
- * first would be asking a question the authenticator is about to answer, and
- * answering it from an email would be an account-existence oracle for anybody
- * who wanted to enumerate.
+ * DELIBERATE: a button, no email field. The credential is discoverable, so the browser offers
+ * every passkey it holds for this site and the person picks one. Asking who they are first
+ * would ask a question the authenticator is about to answer, and answering it from an email
+ * would be an account-existence oracle.
  */
 
 /** The gateway's own status, so the button is never offered when it cannot work. */
@@ -59,14 +50,12 @@ function Login() {
   const reason = params.get('reason');
 
   const me = useConsole<Me>('/me');
-  // NOT through useConsole: /auth/status is public and sits outside
-  // /api/console, so it answers for a visitor who has no session at all —
-  // which is precisely who is looking at this page.
+  // Not through useConsole: /auth/status is public and sits outside /api/console, so it
+  // answers for a visitor with no session at all.
   const status = useQuery({ queryKey: ['auth-status'], queryFn: authStatus, retry: false });
 
-  // Already signed in and allowed? Then this page is not for them — send them
-  // where they were going. `replace`, not `push`, so the back button does not
-  // bounce them straight back onto a login screen they never asked for.
+  // Already signed in and allowed: send them where they were going. `replace`, not `push`, so
+  // the back button does not bounce them onto this screen again.
   useEffect(() => {
     if (me.data?.mayRead && !denied) router.replace(next);
   }, [me.data?.mayRead, denied, next, router]);
@@ -75,10 +64,7 @@ function Login() {
 
   return (
     <main className="grid min-h-dvh grid-cols-1 overflow-y-auto bg-bg lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
-      {/* ── what this is ──────────────────────────────────────────────────
-          A person arriving from a directory sign-in has no idea what they are
-          about to be shown. Three lines is enough to say it, and it also makes
-          the screen look like a product rather than a lock. */}
+      {/* What this is */}
       <section className="flex flex-col justify-center gap-8 border-line px-8 py-14 sm:px-14 lg:border-r">
         <div className="mx-auto flex w-full max-w-[34rem] flex-col gap-8">
         <div className="flex flex-col gap-5">
@@ -88,7 +74,7 @@ function Login() {
           </h1>
           <p className="max-w-[52ch] text-[15px] leading-relaxed text-ink-soft">
             Every team&apos;s work, the knowledge behind it, and the telemetry of
-            the skills and building blocks it runs on.
+            the plugins and skills it runs on.
           </p>
         </div>
 
@@ -99,14 +85,14 @@ function Login() {
           <Line icon={<BookOpen />} title="Knowledge">
             What the platform has learned, kept as nodes — corrections supersede, nothing is deleted.
           </Line>
-          <Line icon={<Activity />} title="Skills, blocks and runs">
-            What each step costs to run, how it is judged, and how every block actually refuses.
+          <Line icon={<Activity />} title="Plugins, skills and runs">
+            What each step costs to run, how it is judged, and how every door actually refuses.
           </Line>
         </ul>
         </div>
       </section>
 
-      {/* ── the door ─────────────────────────────────────────────────────── */}
+      {/* The door */}
       <section className="flex flex-col justify-center px-8 py-14 sm:px-14">
         <div className="mx-auto flex w-full max-w-[23rem] flex-col gap-6">
         {denied ? (
@@ -160,24 +146,10 @@ function Login() {
           change what you can do anywhere else on the platform.
         </p>
 
-        {/* ── the greeter ──────────────────────────────────────────────────
-            SHE CLOSES THE DOOR COLUMN, and she was on the other one.
-
-            Two things were wrong with that. The right column ended at its own
-            fine print and left the bottom half of the screen empty, so the
-            sign-in card floated in a void while the left column ran nearly
-            full height — the two sides shared no baseline and the page read as
-            unfinished. And the mascot sat mid-paragraph on the left with air
-            on every side, orphaned between the subcopy and the feature list.
-
-            Moving her here answers both with one change, and it is the more
-            honest placement besides: the left column says what the platform
-            RECORDS, and she is not a record. She is who greets you at the
-            door, so she stands at the door.
-
-            The tagline travels with her for the same reason. "AI friend for a
-            brighter you" was sitting under a paragraph about telemetry, which
-            is the one thing it is not about. */}
+        {/* The greeter
+            The mascot and her tagline close the door column, which is what
+            gives the two columns a shared baseline. The left column says what
+            the platform records. */}
         <div className="flex flex-col items-center gap-3 pt-4">
           <Image
             src="/assets/brand/mascot-hero.png"
@@ -221,19 +193,17 @@ function Meta({ k, v, mono }: { k: string; v: string; mono?: boolean }) {
 /**
  * The passkey ceremony, from the button that starts it to the redirect that ends it.
  *
- * THREE STEPS AND THE MIDDLE ONE IS THE BROWSER'S. We ask the gateway for options, hand them
- * to `startAuthentication`, and post what comes back. The gateway remembers the challenge it
- * chose (in a row, keyed by a short-lived cookie), so nothing this component holds decides
- * anything — it cannot, which is the point.
+ * Three steps, and the middle one is the browser's: ask the gateway for options, hand them to
+ * `startAuthentication`, post what comes back. The gateway remembers the challenge it chose,
+ * in a row keyed by a short-lived cookie, so nothing this component holds decides anything.
  *
- * `credentials: 'same-origin'` is not passed and does not need to be: the console and the
- * gateway are one origin behind Caddy, which is what makes the session cookie first-party and
- * the WebAuthn origin check pass at the same time.
+ * `credentials: 'same-origin'` is not passed and is not needed: the console and the gateway
+ * are one origin behind Caddy, which makes the session cookie first-party and the WebAuthn
+ * origin check pass at once.
  *
- * A CANCELLED PROMPT IS NOT AN ERROR TO SHOUT ABOUT. Pressing Escape throws
- * `NotAllowedError`, and so does a timeout; either way the person is looking at the screen
- * they were on and the honest response is to go quiet and let them press it again. Everything
- * else gets its words shown, because the gateway's refusals name what to do.
+ * `NotAllowedError` — a cancelled prompt or a timeout — is swallowed rather than shown: the
+ * person is looking at the screen they were on and can press the button again. Every other
+ * error has its words shown, because the gateway's refusals name what to do.
  */
 function PasskeyButton({ next }: { next: string }) {
   const [busy, setBusy] = useState(false);
@@ -261,9 +231,8 @@ function PasskeyButton({ next }: { next: string }) {
       const verdict = await verifyRes.json();
       if (!verifyRes.ok) throw new Error(verdict?.error ?? `HTTP ${verifyRes.status}`);
 
-      // A FULL NAVIGATION, not router.push. The session cookie was set by the response we
-      // just read, and the whole app's data is fetched behind it — a client-side transition
-      // would carry React Query's cache of an unauthenticated session across the boundary.
+      // DELIBERATE: a full navigation, not router.push. A client-side transition would carry
+      // React Query's cache of the unauthenticated session across the boundary.
       window.location.assign(verdict.next ?? next);
     } catch (err) {
       const name = err instanceof Error ? err.name : '';

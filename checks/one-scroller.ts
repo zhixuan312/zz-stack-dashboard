@@ -1,18 +1,15 @@
-/* ONE SCROLLER, AND ROWS ARE THE ONLY PAGE GRID — the layout contract in
- * `src/components/ui/layout.tsx`, made mechanical.
+/* One scroller, and rows are the only page grid: the layout contract, made mechanical.
  *
- * The console drifted into five scroll models because every page could pick one: Teams
- * scrolled inside its card, the Overview scrolled the page, a rail page scrolled two columns
- * at once. Each was a reasonable local fix and together they were a mess. A rule that lives
- * only in a doc loses to the next reasonable local fix, so this fails the build instead.
+ * COUPLED: the contract itself is `src/components/ui/layout.tsx` — changing what `Row` or the
+ * shell offers means changing the allowances below.
  *
- * ALLOWED SCROLLERS are the shell's own: the page body and the sidebar rail (and its drawer
+ * Allowed scrollers are the shell's own: the page body and the sidebar rail (and its drawer
  * copy), plus /login, which sits outside the shell and is its own single page. Anything else
  * that scrolls — vertically or sideways — is a card that should have paged or wrapped.
  *
- * PAGE GRIDS: nothing under app/(dash) spells `grid-cols-*`. A page is a stack of `Row`s,
- * and a `Row` offers exactly the four splits. A grid INSIDE a card is content and lives in
- * a component, where this does not look. */
+ * Page grids: nothing under app/(dash) spells `grid-cols-*`. A page is a stack of `Row`s, and
+ * a `Row` offers exactly the four splits. A grid inside a card is content and lives in a
+ * component, where this does not look. */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 

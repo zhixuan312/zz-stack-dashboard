@@ -6,19 +6,14 @@ import { cn } from '@/lib/cn';
 import type { Gate, Step } from '@/lib/api-shapes';
 
 /**
- * The ops-flow position, drawn two ways.
+ * An initiative's position in its flow, drawn two ways.
  *
- * TWO RENDERINGS ON PURPOSE, not one component with a `compact` flag. A
- * seven-node stepper inside a table cell wraps onto a second line and loses its
- * labels, and what is left is a row of anonymous ticks that nobody can read —
- * which is exactly what the first version of this shipped. A table cell gets
- * `FlowMini`: the stage NAMED, plus a seven-segment bar. Only a detail view,
- * where there is room for it, gets `FlowStepper`.
+ * DELIBERATE: two components, not one with a `compact` flag. A seven-node stepper inside a
+ * table cell wraps onto a second line and loses its labels. A table cell gets `FlowMini` —
+ * the stage named, plus a segment bar; a detail view gets `FlowStepper`.
  *
- * NOTHING IS EVER UNLABELLED. Every node carries its stage name and what
- * happens there, and every gate carries the words of the approval it is
- * waiting for. A diagram that needs a key to read is a diagram that has not
- * finished being designed.
+ * Every node carries its stage name and what happens there, and every gate carries the words
+ * of the approval it is waiting for.
  */
 const STAGES = [
   { name: 'Intent', what: 'what they want' },
@@ -30,31 +25,19 @@ const STAGES = [
   { name: 'Close', what: 'close it' },
 ] as const;
 
-/** How far through ITS OWN flow, not through ops-flow.
- *
- * The bar was seven segments long and labelled from ops-flow's stage list, whatever the
- * initiative was actually running — so a five-stage skill evaluation was drawn as seven boxes
- * and captioned "S6 · Verify". `of` comes from the flow's manifest; `name` is the API's, which
- * knows the flow. STAGES stays as the fallback for an initiative whose flow the catalog cannot
- * resolve, which is the only case where ops-flow's vocabulary is the best guess available. */
+/** How far through its own flow. `of` comes from the flow's manifest and `name` from the API,
+ * which knows the flow. STAGES is the fallback for an initiative whose flow the catalog cannot
+ * resolve, which is an initiative of a retired flow. */
 export function FlowMini({ at, of, name }: { at: number; of?: number; name?: string }) {
   const total = of && of > 0 ? of : STAGES.length;
   const label = name?.replace(/^zz-|^ops-/, '').replace(/-/g, ' ')
     ?? STAGES[Math.min(at, STAGES.length) - 1]?.name
     ?? `stage ${at}`;
   return (
-    // INLINE-FLEX, NOT FLEX, and the difference is visible in every table that uses this.
-    //
-    // A block-level flex container fills its table cell, and `text-align` cannot move it —
-    // alignment applies to inline content, while a block box takes the full width and hands
-    // placement to its own `justify-content`, which defaults to `flex-start`. So the cell
-    // was centred, the header above it was centred, and the FIGURE inside sat hard left:
-    // "FLOW POSITION" floated over empty space with its own column's content a hundred
-    // pixels to its left, in both tables that render this.
-    //
-    // `inline-flex` makes it an inline-level box that shrinks to its content, so it obeys
-    // whatever alignment the cell sets — centre here, and left wherever this is used next —
-    // instead of quietly overriding it. Nothing else changes: the row is still a flex row.
+    // DELIBERATE: `inline-flex`, not `flex`. A block-level flex container fills its table cell
+    // and `text-align` cannot move it, so the figure sits hard left whatever the cell's
+    // alignment. `inline-flex` shrinks to its content and obeys the cell's alignment; the row
+    // inside is still a flex row.
     <div className="inline-flex items-center gap-2.5 whitespace-nowrap">
       <span className="min-w-[5.25rem] text-xs font-medium text-ink">
         S{at} · {label}
@@ -75,79 +58,50 @@ export function FlowMini({ at, of, name }: { at: number; of?: number; name?: str
   );
 }
 
-/** WHERE IT IS NOW is a property of a STEP, not a number this component is given: the API marks
- *  the current one. `at` went with the caption that used it to write a sentence. */
+/** Where it is now is a property of a step, not a number this component is given: the API
+ *  marks the current one. */
 export function FlowStepper({ gates, outcome, steps, complete }: {
   gates: Gate[]; outcome: string | null; steps?: Step[]; complete?: boolean;
 }) {
-  // THE FLOW'S OWN STAGES, and its own gates placed among them.
-  //
-  // This drew seven fixed nodes named intent/spec/select/plan/build/verify/close and hung
-  // four gates off positions 1, 2, 4 and 6 — ops-flow's shape, rendered over every initiative
-  // on the platform. A zz-skill-eval round has five stages and two gates, and came out
-  // captioned "Built, waiting on the stakeholder. The verification guide is written" about a
-  // skill evaluation that has no build and no guide, while a closed and accepted initiative
-  // showed three approvals still waiting on a person.
-  //
-  // `steps` comes from the flow's manifest by way of the API. STAGES stays as the fallback
-  // for an initiative whose flow the catalog cannot resolve, which is the only case where
-  // ops-flow's vocabulary is the best guess available.
-  // EVERY NODE COMES FROM THE API, bookends included: `open`, the flow's own stages, `closed`.
-  // The console places nothing and infers nothing — which stages a flow has, which of them
-  // write a document, which of those are gated and what the record shows are all questions the
-  // manifest and the store answer, and a second answer here could only drift from them.
+  // Every node comes from the API, bookends included: `open`, the flow's own stages, `closed`.
+  // Which stages a flow has, which write a document, which of those are gated and what the
+  // record shows are all answered by the manifest and the store; this component places and
+  // infers nothing. STAGES is the fallback for an initiative whose flow the catalog cannot
+  // resolve.
   const stages: Step[] = steps?.length
     ? steps
     : STAGES.map((x) => ({ name: x.name, what: x.what, produces: '', state: 'empty' as const, current: false }));
-  // Gates spread evenly through the stages, last gate last. A flow declares which DOCUMENTS
-  // it gates, not which stage each sits after, so the only honest placement is proportional —
-  // and the last gate belongs at the end, which is the one position that carries meaning.
-  // WHERE THE MANIFEST PUTS EACH GATE. `after` is the index of the stage that writes the
-  // gated document, which the flow declares. A gate the manifest does not place is drawn at
-  // the end rather than at a position invented for it — and it is the honest place, because
-  // an unplaced gate is one nothing has said comes earlier.
+  // `after` is the index of the stage that writes the gated document, which the flow
+  // declares. A gate the manifest does not place is drawn at the end rather than at an
+  // invented position.
   //
-  // A LIST PER POSITION, not one gate. Keyed into a plain Map the last write won, so two
-  // gated documents written by one stage — or two the manifest does not place, which both
-  // fall back to `stages.length` — drew as a single chip while the Gates column beside it
-  // still read "1 of 2". The table and the diagram disagreed with nothing on screen saying
-  // why.
+  // DELIBERATE: a list per position, not one gate. Two gated documents written by one stage,
+  // or two the manifest does not place and which both fall back to `stages.length`, would
+  // otherwise draw as a single chip while the Gates column beside it read "1 of 2".
   const gateAfter = new Map<number, Gate[]>();
   gates.forEach((g) => {
     const at = g.after && g.after > 0 ? g.after : stages.length;
     gateAfter.set(at, [...(gateAfter.get(at) ?? []), g]);
   });
-  // FLAT, not a row of per-stage wrappers.
+  // DELIBERATE: flat, not a row of per-stage wrappers. Emitting connector / node / gate as
+  // siblings puts the connectors in the row's own flex context, where `flex-1` divides the
+  // leftover width between them. Wrapping each stage makes the connectors grandchildren of
+  // the row, so nothing distributes that width and the stepper sits against the left edge.
   //
-  // Each stage used to be its own flex box holding its connector, its node and its
-  // gate. That made the connectors grandchildren of the row, so nothing they could
-  // be given would distribute the row's leftover width — the whole thing sized to
-  // its content, sat against the left edge, and left a gap on the right that read
-  // as a diagram that failed to finish drawing.
-  //
-  // Emitting connector / node / gate as SIBLINGS puts the connectors in the row's
-  // own flex context, where `flex-1` divides whatever is left between the six of
-  // them. The stepper then spans its card at any width, and the spacing stays even
-  // because every connector gets the same share.
-  //
-  // A COLUMN BELOW 920px OF CARD, a row above. Nothing scrolls sideways, and seven
-  // labelled nodes plus their gates do not fit a narrower card without crushing the
-  // labels — so the same siblings stack top to bottom, each node a line with its name
-  // beside it, the connectors turned vertical. A container query, not a breakpoint:
-  // it is the card's width that decides, and the card is narrow in a split at any
-  // viewport.
+  // A column below 920px of card, a row above: the same siblings stack top to bottom with
+  // the connectors turned vertical. A container query, not a breakpoint — the card's width
+  // decides, and the card is narrow in a split at any viewport.
   const items: ReactNode[] = [];
   stages.forEach((stage, i) => {
     const n = i + 1;
-    // WHAT THE RECORD SHOWS, as the API derived it. `done` is every document this step
+    // What the record shows, as the API derived it. `done` is every document this step
     // declares written and every gate on them approved; `partial` is written but still
     // waiting on a person; `empty` is nothing written; `untracked` is a step that declares no
-    // document, where nothing could show whether it ran. The console draws those four and
-    // decides none of them — it used to tick every stage of a closed initiative, so one
-    // abandoned at the plan showed six finished stages and a review nobody wrote.
-    // The LAST step is the close, which the API appends to every flow; it is where the outcome
-    // belongs. Named rather than indexed off `outcome !== null` so an open initiative's last
-    // node is the same node, simply without a word under it.
+    // document. The console draws those four and decides none of them.
+    //
+    // The last step is the close, which the API appends to every flow, and where the outcome
+    // belongs. Identified by position rather than by `outcome !== null`, so an open
+    // initiative's last node is the same node without a word under it.
     const isClosing = i === stages.length - 1;
     const done = stage.state === 'done';
     const partial = stage.state === 'partial';
@@ -160,8 +114,7 @@ export function FlowStepper({ gates, outcome, steps, complete }: {
         <span
           key={`c${n}`}
           aria-hidden
-          // `min-w` so it never collapses to nothing on a tight row — a zero-width
-          // rule reads as two steps with no relationship at all.
+          // `min-w` so it never collapses to nothing on a tight row.
           className={cn('ml-[12px] h-3 w-[1.5px] @min-[920px]:mt-[13px] @min-[920px]:ml-0 @min-[920px]:h-[1.5px] @min-[920px]:w-auto @min-[920px]:min-w-[14px] @min-[920px]:flex-1',
             stages[i - 1].state === 'done' ? 'bg-[var(--green)]' : 'bg-line')}
         />,
@@ -177,16 +130,15 @@ export function FlowStepper({ gates, outcome, steps, complete }: {
             done && 'border-[var(--green)] bg-[var(--green-tint)] text-[var(--green-text)]',
             partial && 'border-[var(--amber)] bg-[var(--amber-tint)] text-[var(--amber-text)]',
             now && !done && 'border-accent bg-accent text-[var(--on-accent)] ring-[3px] ring-accent-tint',
-            // A step nothing can evidence is drawn as an outline rather than as a state: it is
-            // neither reached nor unreached, and saying either would be inventing a fact.
+            // A step nothing can evidence is drawn as an outline rather than as a state: it
+            // is neither reached nor unreached.
             untracked && !now && 'border-dashed border-line-strong bg-surface text-ink-faint',
             !done && !partial && !now && !untracked && 'border-line-strong bg-surface text-ink-faint',
           )}
         >
-          {/* THE NUMBER IS ALWAYS THERE. A tick replaced it on every finished stage, so the
-              row read S3, S4 with checks between them and the sequence looked broken — a
-              reader counting the stages could not, which is the one thing a numbered
-              diagram is for. The tick moves to a corner badge instead. */}
+          {/* DELIBERATE: the number renders on every node, done or not, and the tick is a
+              corner badge beside it. Replacing the number with a tick breaks the sequence a
+              reader counts along. */}
           {n}
           {done && (
             <span className="absolute -right-1 -top-1 grid size-[13px] place-items-center rounded-full bg-[var(--green)]"
@@ -198,17 +150,15 @@ export function FlowStepper({ gates, outcome, steps, complete }: {
         <span className={cn('text-[11px] leading-tight @min-[920px]:text-center',
           done ? 'text-ink-soft' : now ? 'font-semibold text-ink' : 'text-ink-faint')}>
           {stage.name}
-          {/* THE OUTCOME UNDER THE NODE THAT CARRIES IT, the way a gate says "approved" below
-              itself. It was a paragraph under the whole diagram saying "Done. The stakeholder
-              accepted it, and the initiative is closed" — the same fact the green tick on this
-              node already carries, in a sentence a reader has to parse to learn one word. */}
+          {/* The outcome sits under the node that carries it, the way a gate says "approved"
+              below itself, rather than as a sentence under the whole diagram. */}
           {isClosing && outcome ? (
             <span className="block text-[10px] text-ink-faint">
               {outcome}{complete === false ? ' · stopped short' : ''}
             </span>
           ) : null}
-          {/* THE SENTENCE LIVES IN THE TOOLTIP, not under the node. A stepper is read at a
-              glance; the name is what it needs, and the description is one hover away. */}
+          {/* `stage.what` is the node's `title`, not a line under it: a stepper is read at a
+              glance, so the name shows and the description is one hover away. */}
         </span>
       </div>,
     );
@@ -221,8 +171,8 @@ export function FlowStepper({ gates, outcome, steps, complete }: {
               'inline-flex h-[26px] items-center gap-1 whitespace-nowrap rounded-full border px-2 text-[10px] font-medium',
               gate.passed
                 ? 'border-[var(--green)] bg-[var(--green-tint)] text-[var(--green-text)]'
-                // FROM THE GATE, not from the stage. A stage can hold two gates in
-                // different states, and reading the stage painted both the same.
+                // From the gate, not from the stage: a stage can hold two gates in
+                // different states.
                 : gate.written
                   ? 'border-[var(--amber)] bg-[var(--amber-tint)] text-[var(--amber-text)]'
                   : 'border-dashed border-line-strong bg-surface text-ink-faint',
@@ -251,10 +201,10 @@ export function FlowStepper({ gates, outcome, steps, complete }: {
         <Legend className="border-accent bg-accent">where it is now</Legend>
         <Legend className="border-[var(--amber)] bg-[var(--amber-tint)]">written, waiting on a person</Legend>
         <Legend className="border-line-strong bg-surface">nothing written</Legend>
-        {/* THE FOURTH STATE, now that the API sends it. A stage producing a record or
-            nothing cannot leave a document, so "nothing written" was a claim about a stage
-            that could never have written anything — and the legend listed three styles
-            while the nodes drew four. */}
+        {/* The fourth state. A stage that produces a record or nothing cannot leave a
+            document, so "nothing written" would be a claim about a stage that never could
+            have written one. COUPLED: the nodes above draw four states; this legend lists
+            all four. */}
         <Legend className="border-dashed border-line-strong bg-surface">no document to leave</Legend>
       </div>
     </div>

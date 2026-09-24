@@ -16,13 +16,11 @@ interface CompositionSlice {
 /**
  * A single stacked bar — one quantity split into parts that sum to a whole.
  *
- * Distinct from `BarList`, and the distinction is the point: a bar list
- * *ranks* independent magnitudes, a composition bar shows *share of one total*.
- * Using a ranked list for a mix (tier split, outcome mix) makes the reader do
- * the division themselves.
+ * Distinct from `BarList`: a bar list ranks independent magnitudes, a composition bar shows
+ * share of one total.
  *
- * Slices under 2% still render at 2% so a small-but-present category is visible;
- * the legend carries the true figure.
+ * Slices under 2% still render at 2% so a small-but-present category is visible; the legend
+ * carries the true figure.
  */
 export function CompositionBar({
   slices,
@@ -37,14 +35,13 @@ export function CompositionBar({
   className?: string;
   emptyLabel?: string;
   /**
-   * `list` is the full legend — swatch, label, figure, share — for a bar that is the
-   * subject of its panel. `none` is for a bar whose parts are named where it is read: a
-   * METRIC TILE, whose slices name themselves on hover and focus.
+   * `list` is the full legend — swatch, label, figure, share — for a bar that is the subject of
+   * its panel. `none` is for a bar whose parts are named where it is read: a metric tile, whose
+   * slices name themselves on hover and focus.
    *
-   * THERE IS NO INLINE LEGEND IN A TILE ANY MORE. A row of names under the bar wrapped at
-   * some widths and not others, so one tile in a row of four sat a line taller than its
-   * neighbours — and it repeated what hovering a slice already says, with its count and
-   * share. A tile's bar is read by hover; the tooltip is the legend.
+   * DELIBERATE: a tile has no inline legend. A row of names under the bar wrapped at some
+   * widths and not others, leaving one tile in a row of four a line taller than its neighbours,
+   * and it repeated what hovering a slice already says. A tile's bar is read by hover.
    */
   legend?: 'list' | 'none';
 }) {
@@ -52,9 +49,9 @@ export function CompositionBar({
   const total = present.reduce((n, s) => n + s.value, 0);
 
   if (total === 0) {
-    // A tile keeps its silhouette when empty: an empty TRACK the same height as a full bar,
-    // not a paragraph that makes the empty tile the tallest in its row. A panel has room
-    // to say it in words.
+    // A tile keeps its silhouette when empty: an empty track the same height as a full bar,
+    // not a paragraph that makes the empty tile the tallest in its row. A panel has room to say
+    // it in words.
     return legend === 'none' ? (
       <div role="img" aria-label={emptyLabel} title={emptyLabel} className={cn('h-3 rounded-full bg-surface-2', className)} />
     ) : (
@@ -66,11 +63,11 @@ export function CompositionBar({
 
   return (
     <div className={cn('flex flex-col gap-3', className)}>
-      {/* FOCUS AND CONTEXT, not a native `title`. A browser tooltip waits most of a second,
+      {/* Focus and context, not a native `title`: a browser tooltip waits most of a second,
           is unstyled, and never appears for a keyboard. Hovering the bar fades every slice
-          but the one under the cursor, so a 2%-wide sliver is readable as itself while the
-          whole still reads as a whole — and the figure arrives in the themed tooltip. The
-          slices are focusable for the same reason: the readout must not need a mouse. */}
+          but the one under the cursor, so a 2%-wide sliver is readable as itself, and the
+          figure arrives in the themed tooltip. The slices are focusable so the readout does
+          not need a mouse. */}
       <div className="group flex h-3 overflow-hidden rounded-full bg-surface-2">
         {withTint.map((s) => {
           const share = s.value / total;

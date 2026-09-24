@@ -8,21 +8,15 @@ import { Title } from '@/components/ui/typography';
  * actions and titles read as distinct zones from the body. Compose with
  * `CardHeader`/`CardTitle`/`CardContent`/`CardFooter`.
  *
- * ── THE WEIGHT LADDER ───────────────────────────────────────────────────
- * A surface has FOUR weights, and picking the right one is how a page gets a
- * reading order without shouting:
+ * Four weights, lightest first:
  *
- *   flat     no boundary at all — grouping by space alone. The quietest thing
- *            that is still a card. Reach for it first.
+ *   flat     no boundary at all — grouping by space alone.
  *   default  a hairline. A real object with a real edge.
- *   soft     tinted fill, no border. Quiet CONTEXT beside the main content —
- *            a note, an assumption, a caveat.
- *   hard     a 2px ink edge and one offset. The single most important object
- *            on the page. At most one per screen.
+ *   soft     tinted fill, no border. Quiet context beside the main content.
+ *   hard     a 2px ink edge and one offset. At most one per screen.
  *
- * The rule that matters: whitespace groups before borders do. Add a boundary
- * only when the content has a real boundary. Four equal bordered cards is what
- * a page looks like when nobody decided what mattered.
+ * Whitespace groups before borders do: add a boundary only when the content has
+ * a real boundary.
  */
 // Every card carries `ds-spotlight` — the hairline darkens to `line-strong` on
 // hover. That is an acknowledgement, not an interactivity cue; `interactive`
@@ -33,10 +27,8 @@ const cardVariants = cva('ds-spotlight overflow-hidden rounded-[var(--r-lg)]', {
       flat: 'border border-transparent bg-transparent',
       default: 'border border-line bg-surface',
       soft: 'border border-transparent bg-surface-2',
-      // The 2px edge is drawn as a ring rather than a border so the card's
-      // internal box does not shift by 1px against its default-weight
-      // neighbours — a row of tiles where one is `hard` would otherwise sit a
-      // pixel out of line with the rest.
+      // DELIBERATE: the 2px edge is a ring, not a border, so the card's internal
+      // box does not shift by 1px against its default-weight neighbours.
       hard: 'border border-ink bg-surface ring-1 ring-ink shadow-[var(--shadow-lg)]',
     },
     interactive: { true: 'cursor-pointer' },

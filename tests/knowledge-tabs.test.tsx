@@ -3,14 +3,12 @@ import { describe, expect, it } from 'vitest';
 import { KnowledgeTabs } from '@/components/knowledge/KnowledgeTabs';
 
 /**
- * THE TABS ARE LINKS, and that is the assertion — not decoration.
+ * DELIBERATE: the tabs are real links, and that is the assertion.
  *
  * `SkillViewTabs` drives its views with `router.push` plus `useSearchParams()`, which works
  * only because `/plugins/[plugin]/[skill]` is server-rendered per request. `/knowledge` is
- * statically prerendered, and on a static route that read never sees the write — the exact
- * failure that left the period picker stuck on one value while every option did nothing.
- * So these have to be real navigation, and a future edit that "tidies" them into a search
- * parameter has to break this test to do it.
+ * statically prerendered, and on a static route that read never sees the write. An edit that
+ * tidies these into a search parameter has to break this test to do it.
  */
 describe('the knowledge tab strip', () => {
   it('renders one real link per view, to its own route', () => {
@@ -27,9 +25,9 @@ describe('the knowledge tab strip', () => {
   });
 
   it('offers no Graph view', () => {
-    // A journal with edges can draw one; this platform records no node-to-node edge, so a graph here
-    // could only be drawn from shared tags and would assert relationships nobody wrote
-    // down. Its absence is a decision, so it is asserted rather than left to be noticed.
+    // This platform records no node-to-node edge, so a graph here could only be drawn from
+    // shared tags and would assert relationships nobody wrote down. Its absence is a decision,
+    // so it is asserted rather than left to be noticed.
     render(<KnowledgeTabs active="nodes" />);
     expect(screen.queryByRole('tab', { name: /graph/i })).toBeNull();
   });

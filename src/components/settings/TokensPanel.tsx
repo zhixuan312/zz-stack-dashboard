@@ -17,14 +17,11 @@ import { type IssuedToken, type MyAccessToken } from '@/lib/api-shapes';
 import { consoleMutate, useConsoleMutation } from '@/lib/mutate';
 
 /**
- * A just-issued token, shown exactly once. `TokensPanel` holds it in a plain
- * `useState`, never `useConsoleMutation` — that hook's cache holds `data` for
- * as long as `gcTime`, and a plaintext token is the one value on this whole
- * page that must not be retrievable a second time from ANYWHERE, including a
- * cache a different part of the page could read. Dismissing (or navigating
- * away, which unmounts this panel and its parent's state with it) sets
- * `issued` back to `null` in the PARENT — the value is dropped, not hidden,
- * so there is nothing left to re-render even if this banner were remounted.
+ * A just-issued token, shown exactly once. DELIBERATE: `TokensPanel` holds it
+ * in a plain `useState`, never `useConsoleMutation` — that hook's cache holds
+ * `data` for as long as `gcTime`, and a plaintext token must not be retrievable
+ * a second time from anywhere. Dismissing, or navigating away, sets `issued`
+ * back to `null` in the parent, so the value is dropped rather than hidden.
  */
 function IssuedTokenBanner({ issued, onDismiss }: { issued: IssuedToken; onDismiss: () => void }) {
   const [copied, setCopied] = useState(false);
@@ -64,8 +61,8 @@ function IssuedTokenBanner({ issued, onDismiss }: { issued: IssuedToken; onDismi
 
 /**
  * Your own personal access tokens — the browser counterpart of
- * `my_access_tokens` / `issue_my_access_token` / `revoke_my_access_token`
- * (server.ts). See `IssuedTokenBanner` above for why issuing one bypasses
+ * `pat_list` / `pat_issue` / `pat_revoke`
+ * (admin.ts). See `IssuedTokenBanner` above for why issuing one bypasses
  * `useConsoleMutation`'s cache entirely.
  */
 export function TokensPanel() {
@@ -110,7 +107,7 @@ export function TokensPanel() {
     <>
       {issued ? <IssuedTokenBanner issued={issued} onDismiss={() => setIssued(null)} /> : null}
 
-      <Panel title="Access tokens" aside="for Claude Code, Codex, Hermes or any MCP client" padded={false}>
+      <Panel title="Access tokens" aside="for Claude Code or any MCP client" padded={false}>
         <Query query={list}>
           {(rows) =>
             rows.length === 0 ? (
@@ -145,7 +142,7 @@ export function TokensPanel() {
   );
 }
 
-/** ITS OWN COMPONENT so it can hold the page state — the rows come from a `Query` render prop. */
+/** Its own component so it can hold the page state — the rows come from a `Query` render prop. */
 function TokensTable({ rows, pending, onRevoke }: {
   rows: MyAccessToken[]; pending: boolean; onRevoke: (id: string) => void;
 }) {
@@ -156,7 +153,6 @@ function TokensTable({ rows, pending, onRevoke }: {
         <TableHeader>
           <TableRow>
             <TableHead>Label</TableHead>
-            <TableHead hideBelow="md">Scope</TableHead>
             <TableHead>Issued</TableHead>
             <TableHead hideBelow="md">Last used</TableHead>
             <TableHead>Status</TableHead>
@@ -167,7 +163,6 @@ function TokensTable({ rows, pending, onRevoke }: {
           {page.map((t) => (
             <TableRow key={t.id}>
               <TableCell className="break-words text-xs">{t.label || <span className="text-ink-faint">—</span>}</TableCell>
-              <TableCell hideBelow="md"><Badge variant="neutral" size="sm">{t.scope}</Badge></TableCell>
               <TableCell className="whitespace-nowrap font-mono text-xs"><Time value={t.created_at} /></TableCell>
               <TableCell hideBelow="md" className="whitespace-nowrap font-mono text-xs">
                 {t.last_used_at ? <Time value={t.last_used_at} /> : <span className="text-ink-faint">never</span>}

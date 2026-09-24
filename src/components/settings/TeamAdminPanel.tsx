@@ -8,22 +8,19 @@ import { useConsole } from '@/lib/api';
 import { type Me } from '@/lib/api-shapes';
 
 /**
- * The team tier of Settings (← Task I-14, AC-5 / AC-9) — visible only to someone who
- * administers at least one team, or a superadmin.
+ * The team tier of Settings — visible only to someone who administers at least one team, or
+ * a superadmin.
  *
- * HIDING IS COURTESY, NOT ENFORCEMENT. `me.teams.some(t => t.slug === team && t.role
- * === 'admin') || me.superadmin` decides what this component renders; it decides
- * NOTHING about what the gateway accepts. Every route under `/settings/team/*` runs
- * `teamAuthority` again on the team the request actually names (settings.ts), so a
- * stale or forged value here gets the same 403 an MCP caller would.
+ * Hiding is courtesy, not enforcement: what this renders decides nothing about what the
+ * gateway accepts. Every route under `/settings/team/*` runs `teamAuthority` again on the
+ * team the request names (settings.ts), so a stale or forged value here gets the same 403 an
+ * MCP caller would.
  *
- * TEAM IN VIEW is local state, not this console's platform/team mode
- * (`useConsoleMode`) — that toggle picks a superadmin's OWN acting scope for reads
- * elsewhere on the console, and a team admin managing this surface may administer a
- * team that is not their active one, or (for a superadmin) any team at all. A plain
- * `<Select>` of the caller's own admin teams covers the common case; a superadmin
- * additionally gets a free-text field with those same teams as suggestions, since
- * they may reach for a team they do not personally belong to.
+ * The team in view is local state, not this console's platform/team mode (`useConsoleMode`)
+ * — that toggle picks a superadmin's own acting scope for reads elsewhere, and a team admin
+ * here may administer a team that is not their active one. A `<Select>` of the caller's own
+ * admin teams covers that; a superadmin gets a free-text field with those teams as
+ * suggestions, since they may reach for a team they do not belong to.
  */
 export function TeamAdminPanel() {
   const me = useConsole<Me>('/me');

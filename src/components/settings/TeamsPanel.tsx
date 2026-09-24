@@ -11,27 +11,23 @@ import { type MyTeams } from '@/lib/api-shapes';
 import { useConsoleMutation } from '@/lib/mutate';
 
 /**
- * Your own teams, and which one you act for — the browser counterpart of
- * `my_teams` (server.ts, sharing `myTeamsSummary` with settings.ts's route).
+ * Your own teams, and which one you act for — the browser counterpart of `team_mine` (access-door.ts,
+ * sharing `myTeamsSummary` with settings.ts's route).
  *
- * IT USED TO BE READ-ONLY, on the reasoning that switching was "a per-client concept
- * (`switch_team` over MCP moves an agent's own session)" and a control here "would only
- * ever act on the wrong session". That was wrong about where the fact lives. The team a
- * person acts for is `principal.active_team_id`, which `chosenTeam` (identity.ts) reads on
- * every request from every client — so it is a property of the PERSON, and moving it moves
- * the browser and their agents alike. There is one acting team, and this is where you set
- * it.
+ * The team a person acts for is `principal.active_team_id`, which `chosenTeam` (identity.ts) reads
+ * on every request from every client, so it is a property of the person: moving it moves the
+ * browser and their agents alike. There is one acting team, and this is where it is set.
  *
- * WHY IT MATTERS MORE THAN A CONVENIENCE: this console shows one team at a time, and every
- * page is scoped to the active one by the gateway. Without a control here, a member in two
- * teams could see one of them and had no way in this product to reach the other.
+ * This console shows one team at a time and every page is scoped to the active one by the gateway,
+ * so without a control here a member in two teams can see one of them and has no way in this
+ * product to reach the other.
  */
 export function TeamsPanel() {
   const teams = useConsole<MyTeams>('/settings/me/teams');
-  // `useConsoleMutation` already invalidates the whole `['console']` key on success, which
-  // is the honest blast radius here: EVERY read this console makes is scoped by the acting
-  // team, so every one of them is stale the moment this returns — not just `/me`. Naming
-  // the affected paths instead would be a list to keep in step with every page ever added.
+  // `useConsoleMutation` already invalidates the whole `['console']` key on success, which is the
+  // honest blast radius here: every read this console makes is scoped by the acting team, so every
+  // one of them is stale the moment this returns, not just `/me`. Naming the affected paths would
+  // be a list to keep in step with every page ever added.
   const switchTo = useConsoleMutation<{ actingFor: string }, { team: string }>(
     '/settings/me/active-team',
   );
@@ -60,7 +56,7 @@ export function TeamsPanel() {
   );
 }
 
-/** ITS OWN COMPONENT so it can hold the page state — the rows come from a `Query` render prop. */
+/** Its own component so it can hold the page state — the rows come from a `Query` render prop. */
 function TeamsTable({ t, pending, onSwitch }: { t: MyTeams; pending: boolean; onSwitch: (team: string) => void }) {
   const { page, controls } = usePaged(t.teams);
   return (
@@ -75,9 +71,9 @@ function TeamsTable({ t, pending, onSwitch }: { t: MyTeams; pending: boolean; on
           </TableRow>
         </TableHeader>
         <TableBody>
-          {/* A PERSON CAN BE ON NO TEAM — a principal exists before anybody adds them to
-              one, and this table rendered its headers over nothing for them. Saying so is
-              the difference between "you have no teams" and a screen that looks broken. */}
+          {/* A person can be on no team — a principal exists before anybody adds them to one,
+              and saying so is the difference between "you have no teams" and a screen that
+              looks broken. */}
           {t.teams.length === 0 ? (
             <TableRow>
               <TableCell className="text-ink-faint" colSpan={4}>

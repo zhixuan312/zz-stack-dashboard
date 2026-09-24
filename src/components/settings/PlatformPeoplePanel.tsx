@@ -15,32 +15,11 @@ import { ApiError, useConsole } from '@/lib/api';
 import { type PlatformPersonRow } from '@/lib/api-shapes';
 import { useConsoleMutation } from '@/lib/mutate';
 
-/**
- * Every principal on the platform (← Task I-15, AC-5) — a superadmin's roster, add a
- * person, and deactivate one. The browser counterpart of `list_people` / `add_person` /
- * `deactivate_person` (admin.ts), reached through `/api/console/settings/platform/people`
- * rather than `/admin/mcp` directly, the same relationship `TeamMembersPanel` has to
- * `add_member` / `remove_member`.
- *
- * ENROLMENT IS HOW A PERSON GETS A DOOR AT ALL. Adding a principal does not let anyone in:
- * the console's only door is a passkey, and a passkey attaches to an account through a
- * one-time link a superadmin mints here. That is the point of the design rather than an extra
- * step — an authenticator asserts possession of a key, never an identity, so a registration
- * that could name its own account would be open self-registration. The link is shown once,
- * for the same reason a freshly issued token is.
- *
- * DEACTIVATION'S OWN BLIND SPOT, SAID HERE. `deactivate_person`'s own comment (admin.ts)
- * is what the confirm question and the success toast both repeat: deactivating stops
- * sign-in and does NOTHING about any building-block key stored under that address — those
- * stay live at the block's own service until someone runs `admin_delete_credential` for it.
- * Hiding that here would let a superadmin believe deactivating someone finished the job.
- */
 /** The link, shown once, the same shape as a freshly issued token.
  *
- * Only the token's hash is stored, so this is the only moment it exists in a readable form —
- * a person who closes this without copying it asks for another, which is a click and not a
- * problem. Modelled on `IssuedTokenBanner` deliberately: two secrets that behave the same way
- * should look the same way, so nobody has to learn twice that "shown once" is literal. */
+ * Only the token's hash is stored, so this is the only moment it exists in a readable form; a
+ * person who closes this without copying it asks for another. Modelled on `IssuedTokenBanner`, so
+ * two secrets that behave the same way look the same way. */
 function IssuedEnrolmentBanner({ email, url, onDismiss }: { email: string; url: string; onDismiss: () => void }) {
   const [copied, setCopied] = useState(false);
 
@@ -79,6 +58,21 @@ function IssuedEnrolmentBanner({ email, url, onDismiss }: { email: string; url: 
   );
 }
 
+/**
+ * Every principal on the platform — a superadmin's roster, add a person, and
+ * deactivate one. The browser counterpart of `person_list` / `person_add` / `person_deactivate`
+ * (admin.ts), reached through `/api/console/settings/platform/people` rather than `/manage/mcp`
+ * directly, the same relationship `TeamMembersPanel` has to `member_add` / `member_remove`.
+ *
+ * Enrolment is how a person gets a door at all. Adding a principal does not let anyone in: the
+ * console's only door is a passkey, and a passkey attaches to an account through a one-time link a
+ * superadmin mints here. An authenticator asserts possession of a key, never an identity, so a
+ * registration that could name its own account would be open self-registration. The link is shown
+ * once, for the same reason a freshly issued token is.
+ *
+ * The success toast is the gateway's own sentence: deactivating revokes every live token, and
+ * adding the person back later brings none of them back.
+ */
 export function PlatformPeoplePanel() {
   const list = useConsole<PlatformPersonRow[]>('/settings/platform/people');
   const [email, setEmail] = useState('');
@@ -90,7 +84,7 @@ export function PlatformPeoplePanel() {
     '/settings/platform/people',
   );
   // `confirm` is the email this row already shows, not something the person types — the
-  // inline Cancel/Deactivate swap below IS the confirmation (NFR-4).
+  // inline Cancel/Deactivate swap below is the confirmation.
   const deactivateMutation = useConsoleMutation<{ ok: true; result: string }, string>(
     (target) => ({ path: '/settings/platform/people', method: 'DELETE', body: { email: target, confirm: target } }),
   );
@@ -123,9 +117,8 @@ export function PlatformPeoplePanel() {
   async function deactivate(target: string) {
     try {
       const result = await deactivateMutation.mutateAsync(target);
-      // The full sentence from `deactivate_person`'s own comment (admin.ts) — what this
-      // does NOT do matters as much as what it does, so it goes in the toast rather than a
-      // generic "deactivated".
+      // The gateway's full sentence: what this does not undo matters as much as what it does, so
+      // it goes in the toast rather than a generic "deactivated".
       showToast({ type: 'success', message: result.result });
     } catch (err) {
       showToast({ type: 'error', message: err instanceof ApiError ? err.message : 'Could not deactivate — try again.' });
@@ -185,11 +178,10 @@ export function PlatformPeoplePanel() {
   );
 }
 
-/** ITS OWN COMPONENT so it can hold the page state — the rows come from a `Query` render prop.
+/** Its own component so it can hold the page state — the rows come from a `Query` render prop.
  *
- * FOUR COLUMNS, sized to the reading column Settings sits in: who (with their name and teams
- * beneath), what they are (role over status), when, and what can be done. Seven columns side
- * by side did not fit that width without scrolling. */
+ * Four columns, sized to the reading column Settings sits in: who (with their name and teams
+ * beneath), what they are (role over status), when, and what can be done. */
 function PeopleTable({ rows, enrolling, deactivating, onEnrol, onDeactivate }: {
   rows: PlatformPersonRow[];
   enrolling: boolean;

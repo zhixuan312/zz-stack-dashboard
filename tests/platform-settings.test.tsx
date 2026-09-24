@@ -4,13 +4,13 @@ import { PlatformSection } from '@/components/settings/PlatformSection';
 import type { Me } from '@/lib/api-shapes';
 
 /**
- * Task I-15's console-side rule (← AC-5, AC-9): the platform tier of Settings shows its
- * controls only when `me.superadmin` is true — and HIDES them for a team admin, who the
- * gateway would refuse 403 anyway (see `PlatformSection`'s own header: this is courtesy,
- * not the authorisation itself). The same discipline `tests/team-settings.test.tsx` proves
- * for `TeamAdminPanel`: every case answers `GET /api/console/me` with a fixture and lets
- * `PlatformSection` run its own visibility rule for real, rather than asserting on a copy
- * of that rule.
+ * The console-side rule: the platform tier of Settings shows its controls
+ * only when `me.superadmin` is true, and hides them for a team admin, who the gateway would
+ * refuse 403 anyway — the visibility is courtesy, not the authorisation.
+ *
+ * Every case answers `GET /api/console/me` with a fixture and lets `PlatformSection` run its
+ * own visibility rule, rather than asserting on a copy of that rule.
+ * `tests/team-settings.test.tsx` does the same for `TeamAdminPanel`.
  */
 const base: Omit<Me, 'teams' | 'superadmin'> = {
   email: 'a@b.example.com', name: 'A', role: 'member', mayRead: true, via: 'session', activeTeam: 'team_one',
@@ -78,7 +78,6 @@ describe('PlatformSection — who sees the platform controls', () => {
       await waitFor(() => expect(screen.getByText('Platform administration')).toBeInTheDocument());
       expect(screen.getByText('People')).toBeInTheDocument();
       expect(screen.getByText('Create a team')).toBeInTheDocument();
-      expect(screen.getByText("Set someone's password")).toBeInTheDocument();
     } finally {
       restore();
     }

@@ -4,10 +4,8 @@ import { canAsk, KnowledgeAsk } from '@/components/KnowledgeAsk';
 import { citationHref } from '@/lib/citations';
 import { consoleMutate } from '@/lib/mutate';
 
-// The one network call this component makes goes through `consoleMutate` — mocked here
-// rather than the module's underlying `fetch`, the same boundary `ApproveAction`'s and
-// `DocumentThread`'s own tests would mock if they needed a mutation's result at all (they
-// don't; this component is the first that renders what a mutation returns).
+// The one network call this component makes goes through `consoleMutate`, mocked here rather
+// than the module's underlying `fetch`.
 vi.mock('@/lib/mutate', () => ({ consoleMutate: vi.fn() }));
 
 const mockedMutate = vi.mocked(consoleMutate);
@@ -112,13 +110,10 @@ describe('KnowledgeAsk', () => {
   });
 
   it('shows the server\'s own sentence on failure, including a 503 naming a variable', async () => {
-    // The variable name here is a stand-in, deliberately not `generate.ts`'s own
-    // `LLM_API_KEY`/`LLM_BASE_URL` — scripts/gate.ts's "the server-held LLM client stays
-    // off the console" refuses any file under this repo that names either, on the theory
-    // that a credential the browser can reach is a credential every visitor can reach (see
-    // that check's own header). This test only needs to prove the server's exact sentence
-    // reaches the screen unmodified, which naming a THIRD, unreserved variable does just as
-    // well without tripping a check written for a different boundary than this test covers.
+    // DELIBERATE: a stand-in variable name, not `generate.ts`'s own `LLM_API_KEY` or
+    // `LLM_BASE_URL` — scripts/gate.ts's "the server-held LLM client stays off the console"
+    // refuses any file under this repo that names either. The test only needs the server's
+    // sentence to reach the screen unmodified.
     const { ApiError } = await import('@/lib/api');
     mockedMutate.mockRejectedValue(
       new ApiError(503, 'the ask feature has no LLM endpoint configured — set PLATFORM_BASE_MODEL'),

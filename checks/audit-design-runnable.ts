@@ -1,6 +1,6 @@
-// The failure this catches is specific: a dangling symlink made `audit:design` die with
-// ERR_MODULE_NOT_FOUND against a path in a deleted temp directory, which reads as a broken
-// script rather than a missing dependency and so never got fixed.
+// `audit:design` must still run. A dangling symlink makes it die with ERR_MODULE_NOT_FOUND
+// against a path in a deleted temp directory, which reads as a broken script rather than as
+// a missing dependency.
 import { execFileSync } from 'node:child_process';
 import { execOutput } from '../scripts/lib/exec.ts';
 import { lstatSync, existsSync, realpathSync, readFileSync } from 'node:fs';

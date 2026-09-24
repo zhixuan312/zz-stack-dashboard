@@ -6,8 +6,8 @@ import { Freshness } from '@/components/ui/freshness';
  * looking identical. Both render as a flat line; only the timestamp tells them
  * apart. These lock the three states it has to get right.
  *
- * `now` is injected throughout — a test that reads the wall clock to assert
- * something about elapsed time is a test that fails at midnight.
+ * DELIBERATE: `now` is injected throughout. A test that reads the wall clock
+ * to assert something about elapsed time fails at midnight.
  */
 const NOW = new Date('2026-08-16T09:00:00Z');
 

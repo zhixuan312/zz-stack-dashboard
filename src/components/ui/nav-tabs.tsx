@@ -4,18 +4,13 @@ import { cn } from '@/lib/cn';
 /**
  * NavTabs — the underlined page sub-nav that sits in a PageFrame header.
  *
- * Five of these existed (journal, loops, usage, org settings, team settings), each with
- * the same tablist wrapper, the same Link, the same three aria attributes and the same
- * forty-character class string; several carried a comment noting they matched one of the
- * others. Differences were confined to the tab list itself.
+ * Distinct from `TabBar`, the segmented pill switcher inside a panel header, and not
+ * interchangeable with it. These are real navigation — each tab links to its own page — so
+ * they stay `Link`-based and keep `aria-current="page"`.
  *
- * Distinct from `TabBar`, which is the segmented pill switcher inside a panel header.
- * These are real navigation — each tab is a link to its own page — so they must stay
- * `Link`-based and keep `aria-current="page"`. The two are not interchangeable.
- *
- * Deliberately NOT a client component: every caller is a server component that passes the
- * active tab in, and adding `'use client'` would pull the whole sub-nav into the browser
- * bundle for no behaviour.
+ * DELIBERATE: not a client component. Every caller is a server component that passes the
+ * active tab in, and `'use client'` would pull the sub-nav into the browser bundle for no
+ * behaviour.
  */
 interface NavTab {
   /** Identifies the tab; compared against `active`. */

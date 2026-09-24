@@ -4,22 +4,14 @@ import { Row, Stack } from '@/components/ui/layout';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 
 /**
- * Loading placeholders.
+ * Loading placeholders — one loading vocabulary for the whole app.
  *
- * ONE loading vocabulary for the whole app. The most-cited loading mistake is
- * not "no spinner" — it is a product where one screen spins, the next shows
- * skeletons and a third dims behind an overlay, so the reader never learns what
- * "busy" looks like and reads every one of them as a possible failure.
+ * Anything that occupies layout while it loads gets a skeleton shaped like the thing that is
+ * coming; a discrete action (a button, a validate step) gets the `Spinner`. Never both in
+ * one place.
  *
- * The rule here: anything that occupies LAYOUT while it loads gets a skeleton
- * shaped like the thing that is coming; anything that is a discrete action gets
- * the `Spinner` (a button, a validate step). Never both in one place.
- *
- * A skeleton must MATCH the real layout. A generic grey block that resolves
- * into something a different size makes the page jump, which is worse than
- * showing nothing — that is why the presets below are built from the same
- * `Row` / `Card` primitives as the real screens rather than from
- * free-floating rectangles.
+ * COUPLED: the presets below are built from the same `Row` / `Card` primitives as the real
+ * screens, so a skeleton matches the layout it resolves into and the page does not jump.
  *
  * `ds-shimmer` respects `prefers-reduced-motion` via the global reduce block.
  */
@@ -43,8 +35,8 @@ function SkeletonMetricRow({ count = 4 }: { count?: number }) {
           className="flex flex-col gap-2 rounded-[var(--r-md)] border border-line bg-surface px-4 py-3.5"
         >
           <Skeleton className="h-3 w-20" />
-          {/* Matches `.t-stat`'s rendered height, so the row does not resize
-              when the real numbers land. */}
+          {/* COUPLED: matches `.t-stat`'s rendered height, so the row does not resize when
+              the real numbers land. */}
           <Skeleton className="h-9 w-32" />
           <Skeleton className="h-2.5 w-24" />
         </div>
@@ -76,8 +68,8 @@ function SkeletonPanel({ lines = 5, className }: { lines?: number; className?: s
 }
 
 /**
- * The standard page-loading shape: the metric row, then a full-width panel over a
- * `1/2` row — the commonest page shape, so the swap to real content moves least.
+ * The standard page-loading shape: the metric row, then a full-width panel over a `1/2` row,
+ * which is the commonest page shape, so the swap to real content moves least.
  */
 export function SkeletonPage({ metrics = 4 }: { metrics?: number }) {
   return (

@@ -1,11 +1,10 @@
 /**
  * The WCAG relative-luminance formula, in one place.
  *
- * WHY THIS MODULE EXISTS. `scripts/design-metrics.ts` carries its own copy of `lum()` and
- * `ratio()` — not by oversight, but because they live inside `measureInPage`, which Puppeteer
- * SERIALISES into the browser. A serialised function cannot close over an import, so that copy
- * has to stay inline. Two copies of one formula is the kind of duplication that drifts, so
- * `checks/contrast-formula-agrees.ts` asserts the two agree on a fixed sample.
+ * COUPLED: `scripts/design-metrics.ts` carries its own copy of `lum()` and `ratio()`, because
+ * they live inside `measureInPage`, which Puppeteer serialises into the browser and a
+ * serialised function cannot close over an import. `checks/contrast-formula-agrees.ts` asserts
+ * the two copies agree on a fixed sample.
  */
 
 /** sRGB channel → linear. */
@@ -29,12 +28,12 @@ export function ratio(a: string, b: string): number {
 }
 
 /**
- * Read the custom properties declared in the FIRST `:root { … }` block of a stylesheet and
+ * Read the custom properties declared in the first `:root { … }` block of a stylesheet and
  * resolve `var()` chains to literal hex.
  *
  * Only the first block: a stylesheet may redefine the same token under a media query or an
- * attribute selector, and taking the last declaration would measure whichever theme happened
- * to be written last rather than the one that ships.
+ * attribute selector, and the last declaration is whichever theme was written last rather than
+ * the one that ships.
  */
 export function readTokens(css: string): Record<string, string | null> {
   const start = css.indexOf(':root');

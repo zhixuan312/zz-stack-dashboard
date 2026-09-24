@@ -15,10 +15,9 @@ interface TrendPoint {
   /**
    * What the axis shows for this point, when `date.slice(5)` is not it.
    *
-   * The slice is right for `YYYY-MM-DD` and wrong for everything else, which was fine
-   * while every series here was daily. An HOUR bucket arrives as a UTC instant and has
-   * to be rendered in the reader's own zone, and only the caller knows that — so the
-   * caller passes the finished string rather than this component growing a date library.
+   * The slice is right for `YYYY-MM-DD` and wrong for everything else. An hour bucket
+   * arrives as a UTC instant and has to be rendered in the reader's own zone, which only
+   * the caller knows, so the caller passes the finished string.
    */
   label?: string;
   [seriesKey: string]: string | number | undefined;
@@ -33,16 +32,15 @@ interface TrendSeries {
    * How the series draws:
    *   `area` — solid line with a gradient fill under it. The headline series.
    *   `line` — dashed line, no fill. A comparison against the area series.
-   *   `bar`  — faint bars on their OWN scale, in a band across the bottom 30%.
-   *            Use it for a volume/count series whose units differ from the
-   *            value axis; it deliberately does not share the axis, because a
-   *            count and a rate on one scale flattens whichever is smaller.
-   *   `stack` — solid bars stacked on the MAIN axis, one column per point.
-   *            For parts of one whole that share a unit: the stack height is a
-   *            real total, and the y-axis measures it. Every `stack` series must
-   *            be DISJOINT from the others — if a call can be counted in two of
-   *            them the column is taller than the thing it claims to measure.
-   *            Distinct from `bar`, which is a background band on its own scale.
+   *   `bar`  — faint bars on their own scale, in a band across the bottom 30%.
+   *            For a volume/count series whose units differ from the value axis.
+   *            DELIBERATE: it does not share the axis, because a count and a rate
+   *            on one scale flattens whichever is smaller.
+   *   `stack` — solid bars stacked on the main axis, one column per point, for
+   *            parts of one whole that share a unit: the stack height is a real
+   *            total and the y-axis measures it. Every `stack` series must be
+   *            disjoint from the others, or the column is taller than the thing
+   *            it claims to measure.
    */
   shape: 'area' | 'line' | 'bar' | 'stack';
   /** Palette token. Defaults to the categorical cycle by series index. */
@@ -51,7 +49,7 @@ interface TrendSeries {
    * Names the formatter for the tooltip, the sr-only table, and — for the first
    * non-bar series — the y-axis ticks. Defaults to `count`.
    *
-   * A NAME, not a function: this component is `'use client'`, and a server
+   * A name, not a function: this component is `'use client'`, and a server
    * component cannot hand a function across the RSC boundary. See
    * `NumberFormat` in `@/lib/format`.
    */
@@ -96,15 +94,12 @@ function TooltipRow(
 /**
  * Time-series chart — any mix of area, dashed-line and volume-bar series.
  *
- * Hand-drawn SVG with no chart library, so it inherits the app's palette
- * through CSS variables rather than carrying a second theme. That is the point:
- * a charting library ships its own colour scale and its own type ramp, and the
- * dashboard then has two design systems that drift apart.
+ * Hand-drawn SVG with no chart library, so it inherits the app's palette through
+ * CSS variables rather than carrying a second theme.
  *
- * The `<svg>` is `aria-hidden` and the same numbers are emitted below as an
- * `sr-only` table — the tooltip is mouse-only, so the table is the only way the
- * data is reachable otherwise. Mandatory, not optional: if you fork this chart,
- * the table forks with it.
+ * COUPLED: the `<svg>` is `aria-hidden` and the same numbers are emitted below as
+ * an `sr-only` table. The tooltip is mouse-only, so the table is the only other way
+ * the data is reachable; a fork of this chart forks the table with it.
  */
 export function TrendChart({
   points,
@@ -165,8 +160,8 @@ export function TrendChart({
   const innerW = Math.max(1, w - padL - padR);
   const innerH = Math.max(1, height - padT - padB);
 
-  /* THE STACK TOTAL, not the largest single series. A column of 40 + 79 + 38 is 157 tall,
-   * and scaling to the biggest part alone would draw it off the top of the chart. */
+  /* The stack total, not the largest single series: a column of 40 + 79 + 38 is 157 tall,
+   * and scaling to the biggest part alone draws it off the top of the chart. */
   const rawMax = Math.max(
     0,
     ...valueSeries.flatMap((s) => points.map((p) => num(p, s.key))),
@@ -178,10 +173,10 @@ export function TrendChart({
 
   const x = (i: number) => padL + (i / (points.length - 1)) * innerW;
 
-  /* A COLUMN OWNS A BAND; A LINE OWNS A POINT. `x()` spreads points edge to edge, which is
-   * right for a line and wrong for a bar: a bar centred on `x(0)` has half its width to the
-   * LEFT of the plot area, drawn over the y-axis labels — at a low bucket count the first
-   * column covered the "0" tick entirely. A band-centred column cannot leave its own chart.
+  /* A column owns a band; a line owns a point. `x()` spreads points edge to edge, which is
+   * right for a line and wrong for a bar: a bar centred on `x(0)` has half its width left of
+   * the plot area, drawn over the y-axis labels. A band-centred column cannot leave its own
+   * chart.
    *
    * Only for a chart whose series are all columns. Where a line shares the axis, the line's
    * geometry decides the x positions and the bars follow it. */
@@ -195,11 +190,10 @@ export function TrendChart({
 
   const bandH = innerH * 0.3;
   const barW = Math.max(1, (innerW / points.length / Math.max(1, barSeries.length)) * 0.55);
-  /* Wider than a volume bar and not divided between series, because a stack is ONE column
+  /* Wider than a volume bar and not divided between series, because a stack is one column
    * per point however many parts it has. 0.62 of the band keeps the gap between neighbours
-   * visible at 24 buckets; the CAP is for the other end — over a long period the grain
-   * widens and a two-bucket chart gave each column a third of the panel, which reads as a
-   * slab lying on the axis rather than as a bar. */
+   * visible at 24 buckets; the 40px cap is for the other end, where a two-bucket chart would
+   * give each column a third of the panel. */
   const stackW = Math.max(2, Math.min(40, bandW * 0.62));
 
   const ticks: number[] = [];
@@ -284,16 +278,12 @@ export function TrendChart({
                 y={padT + innerH - h}
                 width={barW}
                 height={h}
-                /* FILL AND EDGE, not one opacity for both. The fill is faint because a
-                   volume band must not compete with the area series above it; the stroke
-                   is the same hue at FULL strength, so the bar keeps a readable boundary
-                   at the opacity that makes it recede. This is the SVG form of
-                   `--chart-edge` — `box-shadow: inset` does nothing to an SVG rect, so
-                   the rule that every pastel fill carries an edge needs a second spelling
-                   here rather than an exemption.
-
-                   It became load-bearing when the cycle moved to the kit pastels: a
-                   status hue at 0.2 on cream was merely quiet, a pastel at 0.2 is gone. */
+                /* Fill and edge, not one opacity for both: the fill is faint so a volume
+                   band does not compete with the area series above it, and the stroke is
+                   the same hue at full strength so the bar keeps a readable boundary. This
+                   is the SVG form of `--chart-edge` — `box-shadow: inset` does nothing to
+                   an SVG rect, so the rule that every pastel fill carries an edge needs a
+                   second spelling here. */
                 fill={s.color}
                 fillOpacity={hover === i ? 0.38 : 0.2}
                 stroke={s.color}
@@ -304,9 +294,9 @@ export function TrendChart({
           }),
         )}
 
-        {/* STACKED COLUMNS, on the main axis. Painted at full strength with the hairline
-            edge, because these are the subject of their chart rather than a band behind
-            one — the faint fill `bar` uses would be the wrong register here. */}
+        {/* Stacked columns, on the main axis, painted at full strength with the hairline
+            edge: these are the subject of their chart rather than a band behind one, so the
+            faint fill `bar` uses would be the wrong register. */}
         {stackSeries.map((s, si) =>
           points.map((p, i) => {
             const below = stackSeries.slice(0, si).reduce((n, b) => n + num(p, b.key), 0);
@@ -384,10 +374,9 @@ export function TrendChart({
           className="pointer-events-none absolute top-2 rounded-[var(--r)] border border-line bg-surface px-3 py-2 text-xs shadow-[var(--shadow-pop)]"
           style={{ left: Math.min(w - 170, Math.max(0, xAt(hover!) + 10)), minWidth: 150 }}
         >
-          {/* THE LABEL, not `date`. `date` is the raw instant the gateway sent — the tooltip
-              printed `2026-09-15T00:00:00Z` beside an axis reading `09-16`, which is the
-              same moment told two ways and neither of them the reader's. `label` is the
-              one the caller already formatted, on the deployment's own calendar. */}
+          {/* `label`, not `date`: `date` is the raw instant the gateway sent, which prints as
+              `2026-09-15T00:00:00Z` beside an axis reading `09-16`. `label` is what the caller
+              already formatted, on the deployment's own calendar. */}
           <div className="mb-1 font-mono text-[0.625rem] uppercase tracking-[0.06em] text-ink-faint">
             {hp.label ?? hp.date}
           </div>
@@ -397,10 +386,8 @@ export function TrendChart({
               tint={s.color}
               label={s.label}
               value={s.fmt(num(hp, s.key))}
-              /* THE SHARE, for a stacked series only. A part of a column means little
-                 without the whole — 131 is large or small depending on whether the hour
-                 held 200 calls or 2,000, and the reader should not have to add the three
-                 numbers up to find out. A line has no whole to be a share of. */
+              /* The share, for a stacked series only: a part of a column means little
+                 without the whole. A line has no whole to be a share of. */
               share={s.shape === 'stack' && hoverTotal > 0 ? num(hp, s.key) / hoverTotal : undefined}
             />
           ))}
@@ -411,10 +398,9 @@ export function TrendChart({
         {resolved.map((s) => (
           <span key={s.key} className="flex items-center gap-1.5">
             {s.shape === 'bar' || s.shape === 'stack' ? (
-              /* Full strength plus the edge, NOT the 0.3 the bar itself is painted at.
-                 A legend swatch is an identifier, not a sample of the ink: at 10x8px a
-                 pastel at 30% is a smudge, and the reader is matching a colour, which is
-                 the one job it has. */
+              /* Full strength plus the edge, not the 0.3 the bar itself is painted at: a
+                 legend swatch is an identifier rather than a sample of the ink, and at
+                 10x8px a pastel at 30% is a smudge. */
               <i
                 className="inline-block h-2.5 w-2 rounded-[var(--r-sm)]"
                 style={{ background: s.color, boxShadow: CHART_EDGE }}
@@ -427,11 +413,10 @@ export function TrendChart({
         ))}
       </div>
 
-      {/* The accessible twin of the chart, wrapped in an `sr-only` DIV rather
-          than carrying the class itself. `sr-only` works by pinning height to
-          1px, and a <table> treats height as a MINIMUM — so the class left a
-          2001px table in the layout, silently inflating the card's content to
-          2314px inside a 332px box. A div honours the height and clips. */}
+      {/* The accessible twin of the chart, wrapped in an `sr-only` div rather than carrying
+          the class itself: `sr-only` pins height to 1px and a <table> treats height as a
+          minimum, so the class on the table leaves it at full height in the layout. A div
+          honours the height and clips. */}
       <div className="sr-only">
         <table>
           <caption>{resolved.map((s) => s.label).join(', ')} over time</caption>

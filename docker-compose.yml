@@ -1,32 +1,20 @@
 # The console, deployed beside zz-stack — never inside its compose file.
 #
-# WHY SEPARATE. zz-stack's compose is part of its release: the image tags are
-# literals, the gate checks them, and `scripts/release.ts` builds and verifies
-# every service in it. Folding the console in would put a second repository's
-# build into that release and make every console change a platform release. Two
-# files, two lifecycles, one host.
+# DELIBERATE: separate from zz-stack's compose, whose image tags are literals its release builds
+# and verifies; folding the console in would make every console change a platform release.
+# zz-stack's `scripts/release.ts` still releases the console as its own component, with its own
+# version and image. This file is the only thing that goes to the host: the release copies it
+# there and pulls the image it names.
 #
-# WHAT SEPARATE NEVER MEANT. It is still released by zz-stack's
-# `scripts/release.ts`, as its own component with its own version and its own
-# image — because it ships to the same host, in front of the same people. For a
-# while it was not: the console reached production by rsyncing this source tree
-# and building on the host, which is how production stopped running published
-# images without anybody deciding to. THIS FILE IS THE ONLY THING THAT GOES TO
-# THE HOST; the release copies it there and pulls the image it names.
+# The version is a literal, so a host that receives this file needs nothing else typed.
+# COUPLED: the release bumps it together with package.json, and zz-stack's gate holds the two.
 #
-# The version below is a literal, not a required .env entry, for the same reason
-# zz-stack's is: a host that receives this file needs nothing else typed to run
-# the right thing. The release bumps it together with package.json.
-#
-# BOUND TO LOOPBACK. Caddy on the host is the only way in, and it is what
-# terminates TLS and splits the path: /auth/* and /api/* go to the gateway,
-# everything else comes here. A container published to 0.0.0.0 would be a second
-# unauthenticated door onto the same box.
+# DELIBERATE: bound to loopback. Caddy on the host is the only way in: it terminates TLS and
+# sends /auth/*, /oauth/* and /api/console/* to the gateway and everything else here. Published
+# on 0.0.0.0 it would be a second unauthenticated door onto the box.
 services:
   console:
     image: ghcr.io/zhixuan312/zz-stack-dashboard:${ZZ_DASHBOARD_VERSION:-0.17.3}
     restart: unless-stopped
     ports: ["127.0.0.1:3100:3000"]
-    # No environment at all, and that is not an omission: the app resolves its
-    # API against the page's own origin, so there is nothing to configure per
-    # deployment and nothing to get wrong between UAT and production.
+    # No environment: the app resolves its API against the page's own origin.

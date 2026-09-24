@@ -1,5 +1,5 @@
-// Proves the checker FAILS when it should. A contrast check that only ever passes is
-// indistinguishable from no check at all, which is the state this replaces.
+// Proves the checker fails when it should: a contrast check that only ever passes is
+// indistinguishable from no check at all.
 import { execFileSync } from 'node:child_process';
 import { asExecError } from '../scripts/lib/exec.ts';
 import { readFileSync, writeFileSync, unlinkSync } from 'node:fs';
@@ -13,17 +13,10 @@ const run = (file: string): number => {
 let code = 0;
 if (run(CSS) !== 0) { console.error('FAIL clean tree should exit 0'); code = 1; }
 
-/* A TEMPORARY COPY, never the real stylesheet.
- *
- * This used to back up `app/globals.css`, write a broken palette OVER it, and restore in a
- * `finally`. It worked, and it meant that for a few hundred milliseconds of every run the
- * product's own stylesheet was corrupt — and that a SIGKILL, an OOM kill or a CI timeout in
- * that window left the working tree with an unreadable `--c-900` and a stray backup file,
- * announced by nothing except contrast failing afterwards for the wrong reason.
- *
- * A check that proves a failure mode must not be able to CAUSE one. The verifier now takes
- * the stylesheet as argv[1], so the broken copy lives in the OS temp directory and the real
- * file is never opened for writing at all. */
+/* DELIBERATE: a temporary copy, never the real stylesheet. The verifier takes the stylesheet
+ * as argv[1] so the broken palette lives in the OS temp directory and `app/globals.css` is
+ * never opened for writing — a check that proves a failure mode must not be able to cause
+ * one. */
 const tmp = join(tmpdir(), `zz-contrast-broken-${process.pid}.css`);
 try {
   const css = readFileSync(CSS, 'utf8');

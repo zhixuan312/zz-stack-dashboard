@@ -1,25 +1,17 @@
-/* A TABLE CELL'S CONTENT IS INLINE-LEVEL, or the column header stops sitting over it.
+/* A table cell's content is inline-level, or the column header stops sitting over it.
  *
  * `Table` sets the alignment for every column in one rule — middle columns centre, the first
- * is left, the last is right — and `text-align` only moves INLINE content. A block-level box
+ * is left, the last is right — and `text-align` only moves inline content. A block-level box
  * inside a cell takes the full cell width and hands placement to its own `justify-content`,
- * which defaults to `flex-start`. The cell is still centred; what is drawn inside it is not.
+ * which defaults to `flex-start`: the cell is still centred, what is drawn inside it is not,
+ * and the header and the content read as different columns.
  *
- * WHAT IT LOOKS LIKE, and why it is worth a build failure rather than a review note: the
- * column header centres, the content sits hard left, and the two read as different columns.
- * It was reported three separate times on three separate pages — "the header and content not
- * in a row", "header is again not in same col" — and each was fixed on its own, because from
- * a screenshot it looks like a width problem rather than one rule applied five times. The
- * cases were `FlowMini` on /initiatives and a team page, and the badge rows on /plugins, both
- * /knowledge pages and the people panel.
- *
- * THE FIX IS ALWAYS THE SAME WORD: `inline-flex` instead of `flex`. An inline-level flex
- * container shrinks to its content and obeys whatever alignment the cell sets, which is the
- * behaviour every other cell already has.
+ * The fix is always `inline-flex` instead of `flex`. An inline-level flex container shrinks to
+ * its content and obeys whatever alignment the cell sets.
  *
  * This reads the two lines after a `<TableCell`, which is where a wrapper lands in this
- * codebase. A cell whose content is a COMPONENT is not checked here — the component owns its
- * own display, and `FlowMini` carries the reasoning at its own definition.
+ * codebase. A cell whose content is a component is not checked here — the component owns its
+ * own display.
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';

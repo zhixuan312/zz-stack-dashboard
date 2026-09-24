@@ -30,10 +30,8 @@ export function TabBar({
   return (
     <div
       role="tablist"
-      // `w-fit`: a segmented control is the size of its segments. As a block-level
-      // child of a flex column this stretched to the full width of the page, so
-      // nine tabs sat packed against the left of a bar that ran to the right edge
-      // — which reads as a container that failed to fill rather than a control.
+      // DELIBERATE: `w-fit` — a segmented control is the size of its segments. Without it
+      // a block-level child of a flex column stretches to the full page width.
       className={cn('flex w-fit max-w-full flex-wrap items-center rounded-[var(--r)] border border-line bg-surface-2 p-0.5', className)}
     >
       {tabs.map((t) =>
@@ -52,11 +50,9 @@ export function TabBar({
             {t.label}
           </button>
         ) : (
-          // Still a `tab`, just not operable. A `role="tablist"` whose children are plain
-          // spans is a tablist with no tabs: a screen reader announces the group and finds
-          // nothing in it, and WHICH tab is current is left to the background colour alone —
-          // the same colour-only state fixed on the findings checkbox, the Visibility control
-          // and the stage-flow preview.
+          // Still a `tab`, just not operable: a `role="tablist"` whose children are plain
+          // spans is a tablist with no tabs, and which tab is current is then left to the
+          // background colour alone.
           <span
             key={t.id}
             role="tab"

@@ -3,23 +3,20 @@ import { INITIATIVE_STATES, initiativeState, type StateOf } from '@/components/S
 import { periodCutoff } from '@/lib/period';
 
 /**
- * The state vocabulary the badge renders and the facet filters by — ONE definition, tested
- * once. It was a chain of returns inside the badge's JSX, so a filter wanting the same
- * answer would have had to write the rule a second time and be free to disagree with it the
- * day a fourth outcome is added.
+ * The state vocabulary the badge renders and the facet filters by — one definition, tested
+ * once.
  */
-/** `gates` is one entry per gate: `true` passed, `false` written and unsigned, `null`
- *  NOT WRITTEN YET. The third is the one this fixture could not express — it modelled every
- *  unpassed gate as a signature owed, which is the mistake the code made too. */
+/** `gates` is one entry per gate: `true` passed, `false` written and unsigned, `null` not
+ *  written yet. The third is the distinction that matters — an unpassed gate is not
+ *  automatically a signature owed. */
 const of = (outcome: string | null, gates: (boolean | null)[],
             handover?: boolean | null): StateOf => ({
   outcome,
   gates: [
     ...gates.map((g, n) => ({ name: `g${n}`, passed: g === true, written: g !== null })),
-    // THE DERIVED HANDOVER, when the case wants one. The platform appends a gated
-    // handover.md to every gating flow and it is signed AFTER the close, so on an open
-    // initiative it is always unwritten — which made `Ready to close` unreachable the moment
-    // the console started receiving it. Absent from a fixture, that regression is invisible.
+    // The derived handover, when the case wants one. The platform appends a gated handover.md
+    // to every gating flow and it is signed after the close, so on an open initiative it is
+    // always unwritten — which is what makes `Ready to close` reachable or not.
     ...(handover === undefined ? [] : [{
       name: 'approve handover', role: 'handover',
       passed: handover === true, written: handover !== null,
@@ -45,9 +42,8 @@ describe('what an initiative is doing', () => {
 
   it('separates work that needs a signature from work that is merely open', () => {
     expect(initiativeState(of(null, [true, false]))).toBe('Waiting on you');
-    // A GATE NOBODY HAS DRAFTED IS NOT A SIGNATURE OWED. There is nothing for a person to
-    // read, so the work is waiting on the agent — which is what the Overview tile has always
-    // said and what this column said the opposite of, one page apart.
+    // A gate nobody has drafted is not a signature owed: there is nothing for a person to
+    // read, so the work is waiting on the agent. COUPLED: the Overview tile says the same.
     expect(initiativeState(of(null, [true, null]))).toBe('In progress');
     expect(initiativeState(of(null, [null, null]))).toBe('In progress');
     // Every gate passed, nothing recorded: done, and nobody closed it. Actionable, and a

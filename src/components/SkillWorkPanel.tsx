@@ -14,20 +14,12 @@ import type { Skill } from '@/lib/api-shapes';
  * Where the work happens — every skill that ran in the window, ranked on whichever cost the
  * reader is asking about.
  *
- * THE FOUR AXES ARE FOUR DIFFERENT QUESTIONS and the ranking flips between them. Measured on
- * this deployment: sdlc-explore leads on runs (60) and is nearly last on total time (28s);
- * sdlc-spec 1.2 ran six times and spent seven hours. "Which skill is the platform busiest
- * with" and "which skill is the platform spending its life inside" have different answers,
- * and a table sorted one way only ever tells one of them.
+ * The four axes are four different questions and the ranking flips between them: the skill
+ * the platform runs most often is not the one it spends its life inside.
  *
- * THE BAR CARRIES THE SELECTED AXIS, not a fixed column. A bar that always drew calls beside
- * a table sorted by time would be a picture of the wrong quantity — the toggle has to move
- * the visual or it is only a sort, and the reader is left comparing a bar against a ranking
- * it does not explain. One bar, and the segmented control says what it means.
- *
- * This replaced a nine-column table (runs · calls · avg · peak · refused · median · longest ·
- * per run) that ranked by runs forever and truncated on any laptop. Every column it dropped
- * was a second-order statistic nobody sorted by; what it gained is the team and the total.
+ * DELIBERATE: the bar carries the selected axis, not a fixed column. A bar drawing calls
+ * beside a table sorted by time is a picture of the wrong quantity, and the toggle would be
+ * only a sort.
  */
 export function SkillWorkPanel({ skills }: { skills: Skill[] }) {
   const [axis, setAxis] = useState<Axis>('calls');
@@ -36,11 +28,11 @@ export function SkillWorkPanel({ skills }: { skills: Skill[] }) {
   const scale = Math.max(...rows.map((k) => metric(k, axis)), 0);
   const totalRuns = skills.reduce((n, k) => n + k.runs, 0);
   const totalCalls = skills.reduce((n, k) => n + k.calls, 0);
-  /* The caveat is stated once, as a measurement, and only when it applies — see the gateway's
-     /skills comment for why a single-call run has no span to report. On an empty window there
-     is nothing to caveat, and a note that fires on emptiness teaches the reader to skip it. */
+  /* The caveat is stated once and only when it applies — see the gateway's /skills comment
+     for why a single-call run has no span to report. A note that fires on an empty window
+     teaches the reader to skip it. */
   const untimed = skills.reduce((n, k) => n + (k.runs - k.timedRuns), 0);
-  // THE AXIS RESETS THE PAGE. It re-ranks rather than narrows, but page three of a new
+  // The axis resets the page: it re-ranks rather than narrows, and page three of a new
   // ranking is not a place anybody asked to be.
   const { page, controls } = usePaged(rows, axis);
 
@@ -61,7 +53,7 @@ export function SkillWorkPanel({ skills }: { skills: Skill[] }) {
       }
       padded={false}
     >
-      {/* IN THE BODY, not the header: the header's aside never shrinks, and four segments
+      {/* In the body, not the header: the header's aside never shrinks, and four segments
           beside a title push a phone-width card past its edge. */}
       <div className="border-b border-line px-4 py-2.5">
         <Segmented
@@ -81,7 +73,7 @@ export function SkillWorkPanel({ skills }: { skills: Skill[] }) {
             <TableHead hideBelow="xl">Total time</TableHead>
             <TableHead hideBelow="md">Calls</TableHead>
             {/* The bar's header is the axis it is drawing, so the column is never an
-                unlabelled decoration the way it is when the toggle only sorts. */}
+                unlabelled decoration. */}
             <TableHead hideBelow="md" className="w-[9rem]">{AXES.find((a) => a.value === axis)!.label}</TableHead>
             <TableHead hideBelow="lg">Refused</TableHead>
           </TableRow>
@@ -95,8 +87,8 @@ export function SkillWorkPanel({ skills }: { skills: Skill[] }) {
                 <TableCell className="break-words">
                   <span className="font-medium text-ink">{k.name}</span>{' '}
                   <span className="font-mono text-xs text-ink-faint">{k.version}</span>
-                  {/* Retired travels with the row for the same reason the gateway emits it:
-                      these rows own their history and must not read as current. */}
+                  {/* Retired travels with the row, as the gateway emits it: these rows own
+                      their history and must not read as current. */}
                   {k.retired ? <span className="ml-1.5 t-micro text-ink-faint">retired</span> : null}
                 </TableCell>
                 <TableCell className="font-medium tabular-nums">{k.runs}</TableCell>
@@ -104,10 +96,9 @@ export function SkillWorkPanel({ skills }: { skills: Skill[] }) {
                   <span className={cn(k.durationMedian === null && 'text-ink-faint')}>
                     {formatSeconds(k.durationMedian)}
                   </span>
-                  {/* WHAT THE MEDIAN IS A MEDIAN OF, whenever that is not the run count in the
-                      column beside it. sdlc-plan reads "25 min · 3 of N timed" — a real number
-                      resting on thin evidence, which is a different thing from a typical run
-                      and the reader cannot tell them apart without this. */}
+                  {/* What the median is a median of, whenever that is not the run count in
+                      the column beside it — "25 min · 3 of N timed" is a real number resting
+                      on thin evidence, which the run count alone does not say. */}
                   {k.timedRuns < k.runs ? (
                     <span className="block t-micro text-ink-faint">
                       {k.timedRuns ? `${k.timedRuns} of ${k.runs} timed` : 'none timed'}
@@ -129,8 +120,8 @@ export function SkillWorkPanel({ skills }: { skills: Skill[] }) {
                   </span>
                 </TableCell>
                 <TableCell hideBelow="lg" className="tabular-nums text-xs">
-                  {/* A PILL, not coloured text. Colour alone is the one channel a reader may
-                      not have, and this column is the one worth scanning for. */}
+                  {/* A pill, not coloured text: colour alone is the one channel a reader may
+                      not have, and this is the column worth scanning for. */}
                   {k.refusals
                     ? <Badge size="sm" variant="rose">{k.refusals}</Badge>
                     : <span className="text-ink-faint">—</span>}

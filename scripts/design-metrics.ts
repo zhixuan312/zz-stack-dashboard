@@ -1,44 +1,33 @@
 /**
- * Design metrics — measures the VISUAL system of every page, so "this looks
- * unprofessional" becomes a number you can argue with.
+ * Design metrics — measures the visual system of every page.
  *
  * The layout audit (layout-audit.ts) asks "is it broken?". This asks "is it
- * disciplined?" — a page can pass every structural invariant and still look
- * amateur because it uses 19 font sizes, 6 shadow recipes and 4 radii.
+ * disciplined?" — a page can pass every structural invariant and still use 19
+ * font sizes, 6 shadow recipes and 4 radii.
  *
- * What it counts, and why each one is a proxy for craft:
+ * What it counts:
  *
- *   TYPE SCALE      distinct font-size values in use. A system has ~7. A page
- *                   with 15 was authored by eyeballing, and it reads that way.
+ *   TYPE SCALE      distinct font-size values in use. A system has ~7.
  *   WEIGHTS         distinct font-weight values. Four is the ceiling.
- *   RADII           distinct border-radius values. Mixed radii are the single
- *                   most common tell of an unsystematised UI.
- *   SHADOWS         distinct box-shadow recipes. Blurred shadows at multiple
- *                   depths read as consumer-soft; one or two hard offsets read
- *                   as instrument-grade.
+ *   RADII           distinct border-radius values.
+ *   SHADOWS         distinct box-shadow recipes.
  *   OFF-SCALE SPACE padding/gap values that are not on the spacing scale.
- *                   "If it is not on the scale, it is not in the system."
- *   INK LADDER      distinct text colours. A ladder has 3-4 rungs; 9 means
- *                   nobody decided.
+ *   INK LADDER      distinct text colours. A ladder has 3-4 rungs.
  *   ACCENTS         distinct saturated (non-neutral) colours actually painted.
  *                   One accent plus a reserved status trio is the discipline.
  *   CONTRAST        text failing WCAG AA (4.5:1 body, 3:1 large).
- *   HIERARCHY       largest text on the page vs the median. A page whose
- *                   biggest element is only slightly bigger than its body has
- *                   no dominant object, and the eye has nowhere to land.
+ *   HIERARCHY       largest text on the page vs the median.
  *
- * Run: node scripts/design-metrics.ts   (dev server must be running)
+ * Run: AUDIT_BASE=https://<console host> AUDIT_TOKEN=zzp_… node scripts/design-metrics.ts
+ *      (a deployment: every page reads /api/console, which a dev server does not serve)
  */
 
 const BASE = process.env.AUDIT_BASE ?? 'http://127.0.0.1:3000';
 
-// FROM src/nav.ts, the way layout-audit.ts already does it, and for the reason it says: a
-// hardcoded list goes stale silently and the audit keeps reporting on pages that are not there.
-// This one had — /records, /health and /components stopped existing, so three of its six pages
-// were 404s, and the "contrast failures" it reported were measured on the error page.
-//
-// layout-audit refuses to run when it finds no route ("the audit would pass by visiting
-// nothing"). Same guard here: an audit that visits nothing is worse than one that fails.
+// Routes come from src/nav.ts, the way layout-audit.ts does it: a hardcoded list goes stale
+// silently and the audit keeps reporting on pages that are not there. As in layout-audit, this
+// refuses to run when it finds no route — an audit that visits nothing would pass by visiting
+// nothing.
 import { readFileSync } from 'node:fs';
 
 const PERIODS = new Set(['/', '/activity']);
@@ -175,13 +164,9 @@ function measureInPage(scale: number[]) {
     }
     if (cs.boxShadow && cs.boxShadow !== 'none') bump(shadows, cs.boxShadow, el);
 
-    // Off-scale spacing.
-    //
-    // `.prose` is exempt. The typography plugin sets its internal rhythm in `em`,
-    // so a list indent computes to 4.5px at 12px type and 6px at 16px — correct
-    // typography, and deliberately NOT on a pixel scale. Holding rendered
-    // markdown to the app's px grid would mean overriding a plugin that is doing
-    // the right thing, to satisfy a check that is asking the wrong question.
+    // Off-scale spacing. `.prose` is exempt: the typography plugin sets its internal rhythm in
+    // `em`, so a list indent computes to 4.5px at 12px type and 6px at 16px — correct
+    // typography, deliberately not on a pixel scale.
     if (el.closest('.prose')) continue;
     const SPACING = ['paddingTop', 'paddingLeft', 'gap', 'rowGap', 'columnGap'] as const;
     for (const prop of SPACING) {
@@ -221,30 +206,25 @@ let puppeteer;
 try {
   ({ default: puppeteer } = await import('puppeteer'));
 } catch {
-  console.error('puppeteer is not installed — run `pnpm add -D puppeteer`.');
+  console.error('puppeteer is not installed — run `pnpm install`.');
   process.exit(2);
 }
 
-// `true` IS the new headless. 'new' was puppeteer 20's spelling and has not been a
+// `true` is the new headless. 'new' was puppeteer 20's spelling and has not been a
 // documented value since 22; it still worked only because every branch tests === 'shell'.
 const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
 const page = await browser.newPage();
 await page.setViewport(VIEWPORT);
+// A superadmin platform token authenticates every request the page makes, as in layout-audit.ts.
+if (process.env.AUDIT_TOKEN) {
+  await page.setExtraHTTPHeaders({ authorization: `Bearer ${process.env.AUDIT_TOKEN}` });
+}
 
 /**
- * ONE theme, so there is one measurement.
+ * One theme, so there is one measurement. There is no dark mode to audit.
  *
- * This used to loop over light and dark and take an `AUDIT_THEME` env var, for
- * a good reason: a rung that clears 4.5:1 on white can sit at 3:1 on a dark
- * panel, and a one-theme audit is how a dark mode ships broken. The 2026-09
- * brand adoption deleted dark mode rather than carrying it, so there is now no
- * second theme to miss — and the env var is gone rather than kept as a no-op
- * that would print `theme: dark` while measuring the only theme there is.
- *
- * Contrast is no longer this script's job either: `scripts/verify-contrast.ts`
- * checks 31 enumerated pairs against the tokens and EXITS NON-ZERO. This one
- * measures discipline — how many type sizes, weights, radii and off-scale
- * spacings a page actually renders — and its exit code stays advisory.
+ * Contrast is `scripts/verify-contrast.ts`'s job: it checks enumerated pairs against the tokens
+ * and exits non-zero. This measures discipline and its exit code stays advisory.
  */
 
 const union = {
@@ -261,13 +241,9 @@ let totalContrastFails = 0;
 let vacuous = 0;
 for (const [name, path] of PAGES) {
   await page.goto(BASE + path, { waitUntil: 'networkidle0', timeout: 120_000 });
-  // GUARD AGAINST A VACUOUS PASS, the same one layout-audit.ts carries and this did not.
-  //
-  // This script has no authentication step at all, so every page redirected to /login and
-  // every number it printed described the sign-in screen: three type sizes, no radii, no
-  // paints, and the same contrast failure once per page — measured on the same button each
-  // time. Numbers about the wrong page are worse than no numbers, because they look like an
-  // answer. It fails now instead.
+  // Guard against a vacuous pass: a run without AUDIT_TOKEN lands on /login and every number
+  // describes the sign-in screen. Numbers about the wrong page look like an answer, so it fails
+  // instead.
   if (new URL(page.url()).pathname.startsWith('/login')) {
     console.error(`  FAIL ${name}: landed on /login — this audit is not authenticated`);
     vacuous += 1;
@@ -317,6 +293,6 @@ console.log(`  off-scale spacings    ${union.offScale.size}   ${[...union.offSca
 console.log(`  contrast failures     ${totalContrastFails}`);
 if (vacuous) {
   console.error(`\n  ${vacuous} of ${PAGES.length} page(s) redirected to /login — every metric above is ` +
-                `about the sign-in screen. Set AUDIT_EMAIL and AUDIT_PASSWORD, as layout-audit.ts does.`);
+                `about the sign-in screen. Set AUDIT_TOKEN to a superadmin platform token.`);
   process.exit(1);
 }

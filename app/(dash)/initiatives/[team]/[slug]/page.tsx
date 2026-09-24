@@ -17,10 +17,8 @@ import { type InitiativeDetail } from '@/lib/api-shapes';
 /**
  * One initiative, end to end.
  *
- * The acceptance-criterion ledger at the bottom is the densest real content the
- * platform holds — one row per criterion, with the verdict the selection step
- * reached and the qualifier that says how sure it is ("seam-dependent, may
- * degrade" is a real one) — and nothing has ever displayed it.
+ * The acceptance-criterion ledger at the bottom is one row per criterion, carrying the
+ * verdict the selection step reached and the qualifier that says how sure it is.
  */
 export default function InitiativePage({
   params,
@@ -58,14 +56,10 @@ export default function InitiativePage({
                 <FlowStepper gates={d.gates} outcome={d.outcome} steps={d.steps} complete={d.complete} />
               </Panel>
 
-              {/* GROUPED BY WHAT A DOCUMENT IS, not sorted by its path.
-                  Alphabetical order interleaved three different kinds of file —
-                  the flow's live deliverables, the raw material behind them, and
-                  frozen snapshots of earlier drafts — so `_versions/intent.v1.md`
-                  sorted above the actual `intent.md` and a reader had to know the
-                  convention to tell which one was the document. The path stays,
-                  because it is what the store is keyed by, but it is no longer
-                  the thing you read first. */}
+              {/* Grouped by what a document is, not sorted by its path: alphabetical order
+                  interleaves the flow's live deliverables, the raw material behind them and
+                  frozen snapshots of earlier drafts. The path stays, because it is what the
+                  store is keyed by, but it is not read first. */}
               <Panel
                 title="The documents"
                 aside={`${live.length} — in the order the flow produces them`}
@@ -94,11 +88,9 @@ export default function InitiativePage({
                 </Panel>
               ) : null}
 
-              {/* The acceptance-criterion ledger used to sit here, detached from
-                  the document that has to answer for it. It is keyed by document
-                  path — a ledger is what one particular selection or spec claims —
-                  so it now lives inside that document, one click away, where the
-                  criteria sit beside the text that argues for them. */}
+              {/* COUPLED: the acceptance-criterion ledger is keyed by document path — a
+                  ledger is what one particular selection or spec claims — so it renders
+                  inside that document rather than here. */}
             </>
           );
         }}
@@ -109,16 +101,12 @@ export default function InitiativePage({
 
 type Doc = InitiativeDetail['documents'][number];
 
-// THE ORDER THE FLOW PRODUCES THEM IN, when the flow says. `d.steps` is the
-// manifest's, so a document's place comes from the flow rather than from a list
-// of ops-flow's types — which put `rulers.md` under "What will be built" because
-// its role is `agreement`, a word ops-flow uses for a spec.
+// The fallback order, used only when the flow does not say. `d.steps` is the manifest's, so
+// a document's place comes from the flow rather than from this list of ops-flow's types.
 const ORDER = ['intent', 'agreement', 'spec', 'selection', 'plan', 'verification', 'guide', 'learnings'];
-// A ROLE MEANS DIFFERENT THINGS IN DIFFERENT FLOWS, so the subtitle is only
-// written where it is true of every flow that uses the role. Where it is not,
-// no subtitle beats a confident wrong one: a skill evaluation's `agreement` is
-// a definition of good, and calling it "What will be built" is a lie about the
-// document a reader is deciding whether to open.
+// DELIBERATE: a role means different things in different flows, so a subtitle is written
+// only where it is true of every flow using that role, and omitted otherwise. A skill
+// evaluation's `agreement` is a definition of good, not what will be built.
 const WHAT: Record<string, string> = {
   intent: 'What they asked for',
   selection: 'Which plugins deliver it',
@@ -129,7 +117,7 @@ const WHAT: Record<string, string> = {
 const href = (base: string, path: string) =>
   `${base}/${path.split('/').map(encodeURIComponent).join('/')}`;
 
-/** ITS OWN COMPONENT so it can hold the page state — the rows come from a `Query` render prop. */
+/** Its own component so it can hold the page state — the rows come from a `Query` render prop. */
 function DocumentTable({ docs, base, showWhat }: { docs: Doc[]; base: string; showWhat: boolean }) {
   const { page, controls } = usePaged(docs);
   return (
@@ -148,8 +136,8 @@ function DocumentTable({ docs, base, showWhat }: { docs: Doc[]; base: string; sh
           {page.map((doc) => (
             <TableRow key={doc.path}>
               <TableCell className="max-w-[30ch]">
-                {/* The point of the row. A reader came to read the document,
-                    not to learn that it is 54,691 bytes. */}
+                {/* The point of the row: a reader came to read the document, not to learn
+                    its size. */}
                 <Link href={href(base, doc.path)} className="block break-all font-medium text-accent hover:underline">
                   {doc.path.replace(/^(_versions|sources)\//, '')}
                 </Link>
@@ -167,9 +155,8 @@ function DocumentTable({ docs, base, showWhat }: { docs: Doc[]; base: string; sh
               </TableCell>
               <TableCell hideBelow="lg" className="max-w-[26ch] truncate text-xs" title={doc.approved_by ?? ''}>
                 {doc.approved_by ?? (
-                  // Binary, like the gate itself. "not approved" read the
-                  // same on a document waiting for a person and on one no
-                  // person will ever be asked about.
+                  // Binary, like the gate itself: a document waiting for a person and one
+                  // no person will be asked about say different things.
                   <span className="text-ink-faint">
                     {doc.gated === false ? 'no approval needed'
                       : doc.gated === true ? 'not approved'
@@ -190,8 +177,7 @@ function DocumentTable({ docs, base, showWhat }: { docs: Doc[]; base: string; sh
   );
 }
 
-/* Evidence is attached, never approved, so it has no approval column — a column
-   of dashes is the grey area this page is trying to remove. */
+/* Evidence is attached, never approved, so this table has no approval column. */
 function SourceTable({ docs, base }: { docs: Doc[]; base: string }) {
   const { page, controls } = usePaged(docs);
   return (

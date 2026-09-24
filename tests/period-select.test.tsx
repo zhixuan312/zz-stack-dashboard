@@ -5,21 +5,15 @@ import { beforeEach, describe, expect, it } from 'vitest';
 /**
  * The picker writes the URL, and the URL is what every reader of the period reads.
  *
- * Worth its own test because this control has now been broken twice in two different ways,
- * both invisible to a render assertion. First it wrote a URL parameter nothing consumed.
- * Then it wrote one that `useSearchParams()` never read back on a statically prerendered
- * route, so the trigger sat on its initial label for ever while every option did nothing.
- *
- * So these drive it the way a person does — open the menu, click an option — and assert
- * BOTH halves: the state the page reads, and the label the person reads. Either one alone
- * is what let each version look fine.
+ * These drive it the way a person does — open the menu, click an option — and assert both
+ * halves: the state the page reads, and the label the person reads. Either half alone passes
+ * on a picker that renders correctly and changes nothing.
  */
 import { PeriodProvider, usePeriod } from '@/components/PeriodProvider';
 import { PeriodSelect } from '@/components/PeriodSelect';
 
-/** Reports what the provider currently holds, so a test can assert the state MOVED
- *  rather than only that the trigger's label did. Those are the two halves the broken
- *  version got wrong in opposite directions. */
+/** Reports what the provider currently holds, so a test can assert the state moved rather
+ *  than only that the trigger's label did. */
 function Readout() {
   return <output data-testid="period">{usePeriod().period}</output>;
 }

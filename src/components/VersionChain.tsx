@@ -10,35 +10,16 @@ import { cn } from '@/lib/cn';
 import { collapse, diffLines, diffStat } from '@/lib/diff';
 import type { DocumentDetail } from '@/lib/api-shapes';
 
-/**
- * How this document got to be what it is.
- *
- * A document store's whole argument is that a revision happens BECAUSE something
- * was learned — a stakeholder answered, an interview landed, a probe came back.
- * The platform records both halves and the console showed neither: you could see
- * that `_versions/spec.v1.md` existed and never what made v2 different, nor what
- * anybody said that caused it.
- *
- * So the two are shown together. The diff answers "what changed"; the sources
- * beside it answer "why", and they are not a guess — every source declares the
- * document it supports and the platform has always written it down.
- */
 /** The version numbers that were used and never frozen.
  *
- * `_versions/` freezes one copy per APPROVAL, and the version counter advances on every
- * REVISION — so a draft revised again before anyone approved it consumes a number and leaves
- * no file. The list then reads v1, v3, v4, and the missing number is explained nowhere, which
- * reads as data loss rather than as the rule working.
+ * `_versions/` freezes one copy per approval and the version counter advances on every
+ * revision, so a draft revised again before anyone approved it consumes a number and leaves no
+ * file. The list then reads v1, v3, v4. Nothing was signed at v2, and `_versions/` is the record
+ * of what was signed.
  *
- * It is not loss: nothing was ever signed at v2, and `_versions/` is the record of what was
- * signed. But "there is no v2 here" and "v2 never existed" are different statements, and the
- * page was making neither.
- *
- * Derived from the numbers already on the page — no new endpoint and no event stream. The
- * live document's 9999 sentinel is not a snapshot number, so it is excluded from the range;
- * counting it would report thousands of missing versions on every document.
- *
- * Exported because it is the whole rule, and a rule is worth a test.
+ * Derived from the numbers already on the page. The live document's 9999 sentinel is not a
+ * snapshot number, so it is excluded from the range; counting it would report thousands of
+ * missing versions on every document.
  */
 export function unretainedVersions(versions: number[]): number[] {
   const kept = versions.filter((n) => n !== 9999);
@@ -47,27 +28,28 @@ export function unretainedVersions(versions: number[]): number[] {
     .filter((n) => !kept.includes(n));
 }
 
+/**
+ * How this document got to be what it is.
+ *
+ * A revision happens because something was learned, and the platform records
+ * both halves. The diff answers "what changed"; the sources beside it answer
+ * "why" — every source declares the document it supports.
+ */
 export function VersionChain({ doc }: { doc: DocumentDetail }) {
   const sources = doc.sources ?? [];
 
-  /* A VERSION IS A CONTENT CHANGE, not a snapshot.
+  /* A version is a content change, not a snapshot.
    *
-   * The store freezes a copy every time a document is APPROVED, so approving a
-   * document without editing it produces a new numbered file whose content is
-   * identical to the one before. Listing those as versions made the page claim a
-   * change that never happened, and left a reader comparing "v4" against
-   * "current" and being told they were the same — which is true and says nothing.
+   * The store freezes a copy every time a document is approved, so approving a
+   * document without editing it produces a new numbered file identical to the
+   * one before.
    *
-   * Not a YAML question. zz.doc.body is stored with the envelope already
+   * Not a YAML question: zz.doc.body is stored with the envelope already
    * stripped, so status, approved_at and the version number never reach this
-   * comparison. Two snapshots that differ only in frontmatter ARE the same
-   * content, and that is the whole point: approval is given to the content, and
-   * nobody approves a frontmatter field.
+   * comparison.
    *
-   * So consecutive snapshots carrying the same content collapse into one step,
-   * and the step remembers how many approvals it accumulated — because "approved
-   * three times without an edit" is a real fact about a document and is worth
-   * seeing, just not as three versions. */
+   * Consecutive snapshots carrying the same content collapse into one step, and
+   * the step remembers how many approvals it accumulated. */
   const raw = doc.versions ?? [];
   const steps: { first: typeof raw[number]; last: typeof raw[number]; snapshots: number }[] = [];
   for (const v of raw) {
@@ -98,15 +80,14 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
 
   const label = (v: { version: number }) => (v.version === 9999 ? 'current' : `v${v.version}`);
   /* A step spans every snapshot that carried the same content, so it is named for
-   * the range rather than for one of them — "v3–current" says more honestly what
-   * the reader is looking at than either end alone. */
+   * the range rather than for one end — "v3–current". */
   const stepLabel = (s: { first: { version: number }; last: { version: number } }) =>
     s.first.version === s.last.version
       ? label(s.first)
       : `${label(s.first)}–${label(s.last)}`;
 
-  // A FRAGMENT, so each panel is a card of the page's own stack rather than a card nested in
-  // a column of this component's.
+  // A fragment, so each panel is a card of the page's own stack rather than a card nested in a
+  // column of this component's.
   return (
     <>
       {pair ? (
@@ -114,7 +95,7 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
           title="Changes and their reasons"
           aside={
             <span className="flex items-center gap-3">
-              {/* A SELECT, not a segmented strip: one segment per change grows with the
+              {/* A Select, not a segmented strip: one segment per change grows with the
                   document's history, and a strip that cannot wrap pushes the card wider. */}
               {pairs.length > 1 ? (
                 <Select value={String(at)} onValueChange={(v) => setAt(Number(v))}>
@@ -147,8 +128,8 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
           }
         >
           <div className="flex flex-col gap-4">
-            {/* WHY, above the diff. The sources are the reason the change exists,
-                so they are read first — a diff with no cause is a list of edits. */}
+            {/* Why, above the diff: the sources are the reason the change exists, so they are
+                read first. */}
             {sources.length ? (
               <div className="rounded-[var(--r)] border border-line bg-surface-2 p-3">
                 <p className="mb-2 text-[0.6875rem] font-medium uppercase tracking-[0.04em] text-ink-faint">
@@ -171,7 +152,7 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
                         </span>
                       </button>
                       {openSource === s.path ? (
-                        // The person's own words, verbatim, which is what a source IS.
+                        // The person's own words, verbatim, which is what a source is.
                         <p className="mt-2 max-w-[80ch] whitespace-pre-wrap break-words rounded-[var(--r-sm)] border-l-2 border-accent bg-surface px-3 py-2 text-[13px] leading-relaxed text-ink-soft">
                           {s.body?.trim() || '(no text stored)'}
                         </p>
@@ -187,12 +168,10 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
               </p>
             )}
 
-            {/* NOTHING TO SHOW IS SAID, not rendered as an empty diff.
-                A version is snapshotted when a document is approved, so a document
-                approved once and never revised has a v1 byte-identical to the live
-                file. Running that through the diff produced a panel headed "what
-                changed" containing "86 unchanged lines" — technically true, useless,
-                and it reads as a broken page rather than as an answer. */}
+            {/* Nothing to show is said, not rendered as an empty diff. A version is snapshotted
+                when a document is approved, so a document approved once and never revised has a
+                v1 byte-identical to the live file, and running that through the diff produces a
+                panel headed "what changed" containing "86 unchanged lines". */}
             {!stat.added && !stat.removed ? (
               <p className="rounded-[var(--r)] bg-surface-2 px-3.5 py-2.5 text-[13px] leading-relaxed text-ink-soft">
                 <strong className="text-ink">{stepLabel(pair.after)}</strong> and{' '}
@@ -205,8 +184,8 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
               {/* `table-fixed`, or a long unbroken line sets the table's minimum width and
                   `break-words` never gets the chance to wrap it. */}
               <table className="w-full table-fixed border-collapse font-mono text-[12px] leading-[1.6]">
-                {/* THE WIDTHS LIVE HERE: a fixed table sizes its columns from the first row,
-                    and that is usually a one-cell "unchanged lines" row. */}
+                {/* The widths live here: a fixed table sizes its columns from the first row, and
+                    that is usually a one-cell "unchanged lines" row. */}
                 <colgroup><col className="w-8" /><col /></colgroup>
                 <tbody>
                   {shown.map((l, i) =>

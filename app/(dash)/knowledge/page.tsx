@@ -26,10 +26,8 @@ const TAGS_SHOWN = 10;
  * The knowledge base: the shelf, and each row opens the node on its own page — the same
  * list → entry shape Initiatives has.
  *
- * TEAM IS SHOWN ON EVERY ROW when more than one team is in view. Each team numbers its own
- * nodes from 0001, so a list mixing two teams reads "1, 1, 2, 2, 3, 3" and looks duplicated
- * — which is exactly how it was read the first time anybody opened it. The number alone was
- * never an identity.
+ * Team is shown on every row when more than one team is in view. Each team numbers its own
+ * nodes from 0001, so a list mixing two teams reads "1, 1, 2, 2, 3, 3" and looks duplicated.
  */
 export default function KnowledgePage() {
   const { mode } = useConsoleMode();
@@ -38,23 +36,22 @@ export default function KnowledgePage() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [allTags, setAllTags] = useState(false);
 
-  // ONE READ, ALWAYS THE SAME. The gateway scopes this to the caller's acting team in team
+  // One read, always the same. The gateway scopes this to the caller's acting team in team
   // mode and spans every team in platform mode, so there is nothing for this page to name.
   const list = useConsole<{ nodes: KnowledgeNode[] }>('/knowledge');
 
   const nodes = list.data?.nodes ?? [];
-  // Teams actually present in what loaded — answers "does this list mix teams", which the
-  // row label and the count need. NOT the team control's options (see `teamFacetOptions`).
+  // Teams actually present in what loaded — answers "does this list mix teams", which the row
+  // label and the count need. Not the team control's options (see `teamFacetOptions`).
   const teamsInView = [...new Set(nodes.map((n) => n.team))].sort();
-  // FROM `status`, THE SAME FIELD THE ROW BADGE READS. These were derived from
-  // `superseded_by` — the POINTER to the replacement — while the badge three hundred lines
-  // down tests `n.status`, the lifecycle column. A node whose lifecycle is `superseded` but
-  // whose pointer is null counted as Adopted in the tile and rendered "superseded" in its own
-  // row, on one screen.
+  // COUPLED: derived from `status`, the same field the row badge reads. Deriving them from
+  // `superseded_by`, the pointer to the replacement, counts a node whose lifecycle is
+  // `superseded` and whose pointer is null as Adopted in the tile while its own row renders
+  // "superseded".
   const superseded = nodes.filter((n) => n.status !== 'adopted').length;
   const adopted = nodes.length - superseded;
   // The newest node's own recorded date. `updated` is an instant, so the max is a string
-  // comparison on ISO — no Date objects allocated per row to answer one question.
+  // comparison on ISO — no Date objects allocated per row.
   const lastRecorded = nodes.length
     ? nodes.reduce((a, n) => (n.updated > a ? n.updated : a), nodes[0].updated).slice(0, 10)
     : null;
@@ -84,10 +81,9 @@ export default function KnowledgePage() {
       showPeriod={false}
       updatedAt={freshnessOf(list)}
       subnav={<KnowledgeTabs active="nodes" />}
-      // THE SAME FOUR QUESTIONS THE SHELF IS SCANNED FOR, above it rather than counted by
-      // eye down the list. `superseded` is the one worth a tile of its own: a shelf where
-      // half the nodes have been replaced is a different thing to read than one where none
-      // have, and nothing on the page said so.
+      // The same four questions the shelf is scanned for, above it rather than counted by eye
+      // down the list. `superseded` gets a tile of its own: a shelf where half the nodes have
+      // been replaced reads differently from one where none have.
       metrics={
         nodes.length
           ? [
@@ -118,9 +114,8 @@ export default function KnowledgePage() {
               <div className="min-w-0 flex-1">
                 <SearchInput label="titles and bodies" value={filter} onChange={setFilter} />
               </div>
-              {/* PLATFORM MODE ONLY. The shelf spans every team there, so choosing one is a
-                  real narrowing of rows already on screen. In team mode the shelf that
-                  loaded IS the acting team's, and switching teams is a Settings act. */}
+              {/* Platform mode only: the shelf spans every team there, so choosing one narrows
+                  rows already on screen. In team mode the loaded shelf is the acting team's. */}
               {mode === 'platform' && teamOptions.length > 1 ? (
                 <Select value={team} onValueChange={setTeam}>
                   <SelectTrigger className="w-[13rem]" aria-label="Team">
@@ -145,9 +140,9 @@ export default function KnowledgePage() {
                 </Button>
               ) : null}
             </Toolbar>
-            {/* The tags actually present, each counted from the loaded set (see
-                `tagFacetCounts`), and selectable — a real facet, not the substring match the
-                search box does. Multiple tags OR together; see `filterKnowledgeNodes`. */}
+            {/* The tags actually present, counted from the loaded set (`tagFacetCounts`) and
+                selectable — a facet, not the substring match the search box does. Multiple tags
+                OR together; see `filterKnowledgeNodes`. */}
             {tagCounts.length ? (
               <div
                 role="group"
@@ -187,10 +182,9 @@ export default function KnowledgePage() {
               resetKey={JSON.stringify([filter.trim().toLowerCase(), team, selectedTags])}
             />
             {rows.length === 0 ? (
-              /* TWO EMPTY STATES, NOT ONE. "Nothing matches your filters" and "nothing has
-                 been written here yet" are different facts about the product, and a blank
-                 list's silence must never be how a reader learns which one they are
-                 looking at. */
+              /* Two empty states, not one: "nothing matches your filters" and "nothing has
+                 been written here yet" are different facts, and a blank list cannot say
+                 which. */
               <EmptyState
                 className="py-10"
                 illustration={
@@ -221,7 +215,7 @@ export default function KnowledgePage() {
   );
 }
 
-/** The shelf, ten rows at a time. ITS OWN COMPONENT so it can hold the page state — a hook
+/** The shelf, ten rows at a time. Its own component so it can hold the page state — a hook
  *  cannot be called from the `Query` render prop. */
 function NodeTable({ rows, multiTeam, resetKey }: {
   rows: KnowledgeNode[]; multiTeam: boolean; resetKey: string;
@@ -243,8 +237,8 @@ function NodeTable({ rows, multiTeam, resetKey }: {
         <TableBody>
           {page.map((n) => (
             <TableRow key={n.key}>
-              {/* The team only when there is more than one shelf — the number is unique
-                  inside a team, so naming it matters the moment two are shown together. */}
+              {/* The team only when more than one shelf is in view: the number is unique
+                  inside a team, not across teams. */}
               <TableCell className="whitespace-nowrap font-mono text-xs text-ink-faint">
                 {multiTeam ? `${n.team} · ${n.num}` : n.num}
               </TableCell>

@@ -20,13 +20,11 @@ interface BarRow {
  * A ranked horizontal bar list — the workhorse for "by model", "by route",
  * "by person", "by tool".
  *
- * Bars are scaled against `total` when one is given — the bar and the percentage beside
- * it are then the same number, so a row that is 50% of the whole is half a bar. It scaled
- * against the largest row while the label read share-of-total, which drew 50% as a full
- * bar. With no total, the largest row is the scale. A hairline floor keeps a non-zero
- * row visible. A row whose value is genuinely zero renders a bare
- * track: a measured zero looks different from a small number, which is the
- * point.
+ * Bars are scaled against `total` when one is given, so the bar and the percentage beside it
+ * are the same number and a row that is 50% of the whole is half a bar. With no total, the
+ * largest row is the scale. A hairline floor keeps a non-zero row visible, and a row whose
+ * value is genuinely zero renders a bare track, so a measured zero looks different from a
+ * small number.
  */
 export function BarList({
   rows,
@@ -41,10 +39,8 @@ export function BarList({
   /**
    * Show at most this many rows, then one summary line for the rest.
    *
-   * A ranked list with a long tail buries its own signal — spend by model runs
-   * to 27 entries here, a dozen of them under a dollar, and the panel ends up
-   * three times the height of the one beside it. The remainder is summed rather
-   * than dropped, because a cap nobody states reads as "this is everything".
+   * The remainder is summed into one line rather than dropped, because a cap nobody
+   * states reads as "this is everything".
    */
   limit?: number;
   /** Noun for the summary line: "+12 others". */
@@ -52,12 +48,11 @@ export function BarList({
   /**
    * The whole these rows are parts of, which turns every value into a share as well.
    *
-   * REQUIRED TO BE PASSED, never inferred from the rows, because the rows are not always
-   * the whole. `busiestTools` is the top eight tools of however many a skill called, and a
-   * percentage computed from those eight would read as "38% of this skill's calls" while
-   * actually meaning "38% of its eight busiest" — a number that changes when the limit
-   * changes and is wrong either way. A caller that knows the denominator passes it; one
-   * that does not gets no percentages, which is the honest outcome.
+   * DELIBERATE: passed, never inferred from the rows, because the rows are not always the
+   * whole. `busiestTools` is the top eight tools of however many a skill called, so a
+   * percentage computed from those eight would read as a share of the skill's calls while
+   * meaning a share of its eight busiest. A caller that does not know the denominator gets
+   * no percentages.
    *
    * `limit` does not affect it: the rows past the cap are still part of the whole, and the
    * remainder line carries its own share so the column sums to 100%.
@@ -86,9 +81,8 @@ export function BarList({
               className="block h-full rounded-[var(--r-sm)]"
               style={{
                 width: `${pct}%`,
-                // The theme's accent, on every row: the length does the ranking and the
-                // colour says this is the house's chart. A row's own `tint` wins where
-                // the colour carries a category.
+                // The theme's accent on every row: the length does the ranking. A row's own
+                // `tint` wins where the colour carries a category.
                 background: r.tint ? TINT_VAR[r.tint] : 'var(--accent)',
                 // The pastels cannot separate from the cream ground by luminance.
                 // Without this edge a bar genuinely disappears. See CHART_EDGE.
@@ -98,9 +92,9 @@ export function BarList({
           </span>
         );
         return (
-          /* ONE NUMBER PER ROW. The count ends the label line; the share is on the bar, on
-             hover or focus. Two numbers side by side — `2 50%` — gave the eye nothing to say
-             which was which, and the bar's length already draws the share. */
+          /* One number per row: the count ends the label line and the share is on the bar, on
+             hover or focus. Two side by side (`2 50%`) read as one number, and the bar's
+             length already draws the share. */
           <li key={r.key} className="flex flex-col gap-1">
             <span className="flex min-w-0 items-baseline justify-between gap-3 text-sm">
               <span className="min-w-0 truncate text-ink" title={typeof r.label === 'string' ? r.label : r.key}>
@@ -142,9 +136,9 @@ export function BarList({
 /**
  * One row's share of the whole, as a reader would say it out loud.
  *
- * `< 1%` IS A BAND, not a rounding. A row that exists at all is not 0% of anything, and
- * rounding 0.4% down prints the one number the bar beside it visibly contradicts. Whole
- * percents otherwise: a decimal place here is precision nobody asked a ranked list for.
+ * `< 1%` is a band, not a rounding: a row that exists at all is not 0% of anything, and
+ * rounding 0.4% down prints the one number the bar beside it contradicts. Whole percents
+ * otherwise.
  */
 function share(value: number, total: number): string {
   if (total <= 0) return '';

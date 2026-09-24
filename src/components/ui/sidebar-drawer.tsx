@@ -8,23 +8,16 @@ import { cn } from '@/lib/cn';
 /**
  * The rail, below `lg`.
  *
- * A fixed 232px rail on a 390px screen leaves 158px of content — the dashboard
- * is not "cramped" at that width, it is unusable, and the layout audit does not
- * catch it because it only drives viewports from 1280px up. So the rail is
- * `hidden lg:flex` in `AppShell` and this renders the same nav as an overlay
- * drawer underneath that breakpoint.
+ * A fixed 232px rail on a 390px screen leaves 158px of content. The rail is `hidden lg:flex` in
+ * `AppShell` and this renders the same nav as an overlay drawer underneath that breakpoint.
+ * COUPLED: the same sidebar node is rendered in both places — there is no second navigation.
  *
- * The SAME sidebar node is rendered in both places — no second navigation to
- * keep in sync. The drawer is the rail, moved.
- *
- * Behaviour that a hand-rolled drawer usually misses, and why each matters:
- *   - closes on route change, or you tap a link and the drawer stays over the
- *     page you just navigated to
+ * Behaviour this drawer carries:
+ *   - closes on route change, so a tapped link does not leave it over the new page
  *   - closes on Escape and on backdrop press
- *   - `aria-expanded` + `aria-controls` on the trigger, `role="dialog"` +
- *     `aria-modal` on the panel
- *   - returns focus to the trigger on close, so keyboard focus does not fall
- *     back to the top of the document
+ *   - `aria-expanded` + `aria-controls` on the trigger, `role="dialog"` + `aria-modal` on the
+ *     panel
+ *   - returns focus to the trigger on close
  *   - locks body scroll while open
  */
 export function SidebarDrawer({ children }: { children: ReactNode }) {
@@ -33,9 +26,8 @@ export function SidebarDrawer({ children }: { children: ReactNode }) {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
-  // Navigating closes it. Keyed on pathname rather than on the link's onClick so
-  // it holds for every way a route can change — a link, a redirect, the back
-  // button.
+  // Navigating closes it. Keyed on pathname rather than on the link's onClick so it holds for
+  // every way a route can change — a link, a redirect, the back button.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- closing on navigation is exactly "synchronise React state with an external system": the route is the external system, and there is no render-time value to derive from because the drawer must also survive re-renders that do NOT change the route.
     setOpen(false);
@@ -78,11 +70,9 @@ export function SidebarDrawer({ children }: { children: ReactNode }) {
 
       {open ? (
         <div className="fixed inset-0 z-50 lg:hidden">
-          {/* The scrim is a DIV, not a button. As a button it was a second
-              control with the identical accessible name "Close navigation", so
-              a screen-reader user met the same command twice and could not tell
-              the two apart. Pointer users get tap-to-dismiss; keyboard users get
-              Escape and the visible ✕, which is the one announced control. */}
+          {/* DELIBERATE: the scrim is a div, not a button. A button here carries the same
+              accessible name as the visible ✕, so a screen-reader user meets one command
+              twice. Pointer users get tap-to-dismiss; keyboard users get Escape and the ✕. */}
           <div
             aria-hidden
             onClick={() => {

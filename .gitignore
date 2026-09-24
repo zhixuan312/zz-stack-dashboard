@@ -1,17 +1,7 @@
-# ── LOAD-BEARING: do not delete the `!*` below ───────────────────────────
-# When this repo is cloned inside a parent workspace, the parent's
-# .gitignore is a single `*` (the wrapper directory excludes everything because
-# its real source lives in nested repos).
-#
-# Tailwind v4's file scanner walks UP the directory tree collecting .gitignore
-# files and honours them. That single `*` makes every file here invisible to it:
-# the build emits the theme, the base layer and the hand-written classes but
-# ZERO utilities, and every page renders as one unstyled column while still
-# looking, at a glance, like the CSS loaded — fonts and colours are fine, only
-# layout is gone. Re-including our own tree here is what fixes it.
-#
-# app/globals.css also names its sources explicitly (`@source`) as a second
-# belt. Keep both.
+# DELIBERATE: the `!*` below re-includes this tree. Cloned inside the parent workspace, whose
+# .gitignore is a single `*`, the tree is invisible to Tailwind v4's scanner, which walks up
+# collecting .gitignore files: the build then emits no utilities and every page loses its
+# layout. COUPLED: app/globals.css also names its sources with `@source`; keep both.
 !*
 
 # dependencies
@@ -30,7 +20,7 @@ next-env.d.ts
 coverage
 test-results
 
-# secrets and local overrides — `.env.example` IS committed, real values never are
+# secrets and local overrides
 .env
 .env*.local
 *.local
@@ -47,8 +37,6 @@ test-results
 .idea
 .vscode
 
-# throwaway audit/screenshot scripts written next to the repo root while
-# iterating. They are meant to be deleted; this stops one that isn't from
-# landing in a commit.
+# throwaway scripts written at the repo root while iterating
 /shot.mjs
 /probe.mjs

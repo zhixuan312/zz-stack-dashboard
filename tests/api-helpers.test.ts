@@ -3,21 +3,15 @@ import { freshnessOf } from '@/lib/api';
 import { teamSlug } from '@/lib/api-shapes';
 
 /**
- * The two pure functions in `@/lib/api`, each written because a page got the answer wrong.
+ * The two pure functions in `@/lib/api`.
  *
- * THIS FILE REPLACES `me-shape.test.ts`, which constructed a `Me` literal and then asserted
- * that the literal it had just written said what it said. It exercised no code and no
- * response: it would have passed unchanged the day the gateway reverted `teams` to
- * `string[]`, because the only thing standing behind it was the compiler, asserted twice.
- *
- * This file lives in `tests/` because vitest.config.ts scans ONLY `tests/**` — a test
- * anywhere else is skipped in silence while the suite still reports success.
+ * COUPLED: this file lives in `tests/` because vitest.config.ts scans only `tests/**` — a
+ * test anywhere else is skipped in silence while the suite still reports success.
  */
 describe('teamSlug', () => {
   it('takes the team out of a `<slug> (<role>)` entry', () => {
-    // `/people` formats each membership for display, so the People page counted
-    // `xuan (admin)` and `xuan (member)` as two different teams: a platform of three read
-    // four, five or six the moment any team had both a member and an admin.
+    // `/people` formats each membership for display, so one person holding two roles on a
+    // team arrives as two entries that must fold to one team.
     expect(teamSlug('xuan (admin)')).toBe('xuan');
     expect(teamSlug('xuan (member)')).toBe('xuan');
     expect(new Set(['xuan (admin)', 'xuan (member)', 'quan (admin)'].map(teamSlug)).size).toBe(2);
@@ -37,9 +31,8 @@ describe('freshnessOf', () => {
   });
 
   it('is null before anything has loaded, never now', () => {
-    // Every page used to pass `updatedAt={new Date()}`, evaluated at render — so the header
-    // read "Updated just now" over thirty-second-old cached data and over the error state
-    // itself. A stamp that cannot be false is not a stamp.
+    // Null, not now: a header over cached data or over an error state must not claim to have
+    // been updated at render time.
     expect(freshnessOf({ dataUpdatedAt: 0 })).toBeNull();
     expect(freshnessOf({})).toBeNull();
     expect(freshnessOf()).toBeNull();

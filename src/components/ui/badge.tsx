@@ -6,9 +6,6 @@ import { cn } from '@/lib/cn';
  * Badge — a pill for status / category labels. Each variant pairs a `*-tint`
  * background with its strong foreground. `dot` prefixes a small status dot;
  * `icon` slots a leading lucide icon. Keep these terse — one or two words.
- *
- * The `steel` variant used the raw cool-world vars directly, with a note explaining
- * that `--color-steel*` theme utilities did not exist. They do now.
  */
 const badgeVariants = cva(
   'inline-flex select-none items-center gap-1.5 whitespace-nowrap rounded-full font-medium leading-none',

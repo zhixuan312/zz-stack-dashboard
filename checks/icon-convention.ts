@@ -1,20 +1,14 @@
-/* ASSERTS AGAINST THE BUILT OUTPUT, NOT THE SOURCE — which is the whole reason this
- * check is worth its runtime.
+/* Asserts against the built output, not the source.
  *
- * `app/icon.png` and `app/apple-icon.png` are Next FILE CONVENTIONS: the framework finds
- * them by path and emits the <link> tags itself. Declaring `metadata.icons` in
- * `app/layout.tsx` does not ADD to that, it SUPPRESSES it — `resolve-metadata.js` merges
- * file-convention icons only `if (!resolvedMetadata.icons)`. So the source can look
- * entirely correct, the build can succeed, every test can pass, and the served HTML can
- * carry no apple-touch-icon at all. Nothing but reading the emitted markup finds that.
+ * `app/icon.png` and `app/apple-icon.png` are Next file conventions: the framework finds them
+ * by path and emits the <link> tags itself. Declaring `metadata.icons` in `app/layout.tsx`
+ * suppresses that rather than adding to it — `resolve-metadata.js` merges file-convention
+ * icons only `if (!resolvedMetadata.icons)`. So the source can look correct, the build can
+ * succeed, every test can pass, and the served HTML can carry no apple-touch-icon at all.
  *
- * DEVIATION FROM THE PLAN, recorded here rather than silently: the plan specified
- * `app/icon.svg` and two SVG-shaped assertions (that it carries no stroke, and none of
- * the old indigo). The implementation uses `app/icon.png`, rasterised from the flat-Z
- * master by `scripts/build-brand-assets.py`, because the tab icon is a 32px raster
- * downscale rather than a traced vector. The SVG assertions are therefore not merely
- * skipped — they have no subject. What replaces them is `app-icons-rebuilt.ts`'s
- * provenance-and-reproducibility guard over the same file.
+ * COUPLED: `app/icon.png` is rasterised from the flat-Z master by
+ * `scripts/build-brand-assets.py`, and `app-icons-rebuilt.ts` is the provenance-and-
+ * reproducibility guard over the same file.
  */
 import { execFileSync } from 'node:child_process';
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
@@ -29,9 +23,9 @@ for (const f of ['app/icon.png', 'app/apple-icon.png']) {
 }
 if (existsSync('app/icon.svg')) { console.error('FAIL app/icon.svg is back; the PNG is the convention now'); code = 1; }
 
-/* Neither is a scaled copy of the other: the tab icon is the flat single-Z (two letters
- * at 16px is mush), the home-screen icon is the mascot squircle (at 180px there is room
- * for the character). Same bytes would mean somebody scaled one from the other. */
+/* Neither is a scaled copy of the other: the tab icon is the flat single-Z (two letters at
+ * 16px is mush), the home-screen icon is the mascot squircle. Same bytes would mean somebody
+ * scaled one from the other. */
 if (existsSync('app/icon.png') && existsSync('app/apple-icon.png')) {
   const a = readFileSync('app/icon.png'), b = readFileSync('app/apple-icon.png');
   if (a.equals(b)) { console.error('FAIL the two icons are the same file'); code = 1; }

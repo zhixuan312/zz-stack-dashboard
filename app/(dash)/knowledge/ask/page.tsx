@@ -26,16 +26,14 @@ const GUIDANCE =
 /**
  * Ask — a question answered from one team's own documents.
  *
- * IT USED TO SIT ON TOP OF THE SHELF, a form squeezed above a two-pane reader, and it read
- * as a search box for the list below it. It is not: `POST /ask` answers from every document
- * in the team's folder — specs, decisions, sources — not only from the `_knowledge/` nodes
- * the shelf shows, so putting it above the shelf described its scope wrongly as well as
- * cramping both.
+ * `POST /ask` answers from every document in the team's folder — specs, decisions, sources —
+ * not only from the `_knowledge/` nodes the shelf shows, so this is its own page rather than a
+ * form above the shelf.
  *
- * ONE TEAM, ALWAYS. `/ask` refuses `?scope=platform` outright (console-ask.ts: a question
- * is answered from one team's knowledge), so in team mode this is the team being acted for
- * and in platform mode a superadmin has to name one. That is the only control on the page,
- * and it sits in the header because it scopes what the whole page answers from.
+ * One team, always: `/ask` refuses `?scope=platform` outright (console-ask.ts), so in team mode
+ * this is the team being acted for and in platform mode a superadmin has to name one. That is
+ * the only control on the page, and it sits in the header because it scopes what the whole page
+ * answers from.
  */
 export default function KnowledgeAskPage() {
   const meQ = useConsole<Me>('/me');
@@ -79,17 +77,14 @@ export default function KnowledgeAskPage() {
           </Select>
         ) : null
       }
-      // GUARDED ON THE DATA. Built unconditionally these read a confident zero while the
-      // request was in flight, and kept reading it after a failure, above a panel saying the
-      // load failed.
+      // Guarded on the data: built unconditionally these read a confident zero while the
+      // request is in flight, and go on reading it after a failure.
       metrics={list.data ? [
         { label: 'Answering from', value: team ?? '—', muted: !team,
           sublabel: mode === 'team' ? 'The team you act for' : 'Pick one team' },
-        // NOT "SEARCHABLE", and not the whole platform's. The corpus this page answers from
-        // is every document in the chosen team's folder — the panel beside it says so in as
-        // many words — while this counted NODES, and in platform mode counted every team's
-        // nodes even after the reader had picked one team to answer from. Two wrong claims
-        // in one tile: the wrong population and the wrong scope.
+        // Counts nodes on the chosen team's shelf, not the whole platform's: the corpus this
+        // page answers from is every document in that team's folder, and an unfiltered count
+        // would name a different population and a wider scope than the answer uses.
         { label: 'Nodes on the shelf',
           value: nodes.filter((n) => !team || n.team === team).length,
           sublabel: team ? `on ${team}'s shelf` : 'across every team', icon: <BookOpen /> },

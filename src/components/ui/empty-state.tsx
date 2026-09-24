@@ -8,10 +8,9 @@ import { Heading, TextSm } from '@/components/ui/typography';
  * `TextSm`, an optional action, and either a mascot illustration or a lucide icon in a
  * tinted circle.
  *
- * `icon` STAYS REQUIRED even though `illustration` usually supersedes it. Making it
- * optional would allow a state with neither, and the icon is the fallback that keeps a
- * failed image from leaving an empty state with no picture and no explanation of itself.
- * An illustration is decorative; the words carry the meaning and must always render.
+ * DELIBERATE: `icon` stays required even though `illustration` usually supersedes it. It is
+ * the fallback that keeps a failed image from leaving the state with no picture; optional, it
+ * would allow a state with neither.
  */
 interface EmptyStateProps {
   icon: ReactNode;

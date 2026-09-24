@@ -2,12 +2,12 @@
  * Design-system barrel. Screens import primitives from `@/components/ui`:
  *   import { Button, Card, Field, Input, Badge } from '@/components/ui';
  *
- * Two modules are deliberately NOT re-exported here, and are imported by path:
+ * DELIBERATE: two modules are not re-exported here and are imported by path, so that each
+ * has one valid import path:
  *   - `./toast`     — a module-level store plus the `Toaster` mount, not a primitive
  *                     you compose into a screen (`@/components/ui/toast`).
  *   - `./nav-tabs`  — the page sub-nav, whose callers are themselves components
  *                     rather than screens (`@/components/ui/nav-tabs`).
- * Keep it that way: adding them would give each two valid import paths.
  */
 
 // Foundation

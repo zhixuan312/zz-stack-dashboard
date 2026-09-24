@@ -15,47 +15,39 @@ import { freshnessOf, useConsole } from '@/lib/api';
 import { type PluginRow, type Skill, type SkillDetail, type SkillText } from '@/lib/api-shapes';
 
 /**
- * LAYER THREE: one skill, read.
+ * Layer three: one skill, read. Shows the text and what it cost to run, whichever kind of
+ * plugin ships it.
  *
- * ONE PAGE WHERE THERE WERE TWO. A flow's skills were judged and unreadable; a block's were
- * countable and unjudged. They are the same kind of thing — text somebody wrote for an agent
- * to load — so this reads the text AND shows what it cost to run, whichever kind ships it.
- *
- * Whose it is leads the page, because it decides what you can do about what you read: a
- * skill marked THEIRS is a block team's own, vendored, and changing it means agreeing a change
- * with them.
+ * Whose it is leads the page, because it decides what can be done about what you read: a skill
+ * marked theirs is vendored from somebody else, and changing it means agreeing a change with
+ * them.
  */
 export default function PluginSkillPage({ params }: { params: Promise<{ plugin: string; skill: string }> }) {
   const { plugin: pluginName, skill: name } = use(params);
   const list = useConsole<{ skills: Skill[] }>('/skills');
-  // WHICH PLUGIN, FROM THE URL. This searched every flow for a skill of this name, which
-  // answers a question the address already answered — and answered it differently if two
-  // packages ever shipped a skill of one name.
+  // Which plugin, from the URL. Searching every flow for a skill of this name answers a
+  // question the address already answered, and answers it differently if two packages ship a
+  // skill of one name.
   const plugins = useConsole<{ plugins: PluginRow[] }>('/plugins');
   const plugin = plugins.data?.plugins.find((p) => p.plugin === pluginName);
   const shipped = plugin?.skills.find((x) => x.name === name);
   const known = !plugins.data || !!shipped;
 
-  // WHAT THIS STAGE WRITES AND WHAT CLOSES IT, from the plugin's manifest — never from a table
-  // of one method's skills. This page carried a map of ops-flow's six, so every evaluation
-  // stage was reported as producing nothing and having no gate, and for zz-skill-define —
-  // which writes rulers.md, the gate of its flow — both were false.
+  // What this stage writes and what gates it, from the plugin's own manifest. A table of one
+  // flow's stages reports every other flow's as producing nothing and having no gate.
   const produces = plugin?.documents.filter((x) => x.stage === name).map((x) => x.name).join(', ') ?? '';
   const gatedHere = plugin?.documents.find((x) => x.stage === name && x.gate);
   const closes = gatedHere ? { name: `approve ${gatedHere.name.replace(/\.md$/, '')}` } : null;
 
   const skill = list.data?.skills.find((s) => s.name === name);
   const detail = useConsole<SkillDetail>(known ? `/skills/${name}` : null);
-  // THE SKILL ITSELF. This page could report that sdlc-plan scored 3.42 and never show a line
-  // of what sdlc-plan asks for — a score about something the reader cannot see.
+  // The skill's own text, so a score on this page is about something the reader can see.
   const text = useConsole<SkillText>(known ? `/plugins/${pluginName}/skills/${name}` : null).data;
   const view = useSkillView(!!text?.references.length);
 
-  // THE PER-SKILL SCORES PAGE IS GONE, with the subject it was about. It listed the documents
-  // one skill produced and how each was judged; an evaluation's subject is a plugin version
-  // now, so nothing can write a per-skill score again. Not relinked at a plugin-level page
-  // either: a scores view keyed on a skill and nested under a plugin would invite exactly the
-  // per-skill comparison the new design refuses, because every ruler belongs to one plugin.
+  // No scores link. An evaluation's subject is a plugin version, so nothing writes a per-skill
+  // score, and a scores view nested under a skill would invite a per-skill comparison no ruler
+  // supports — every ruler belongs to one plugin.
 
   return (
     <DashboardPage
@@ -69,13 +61,11 @@ export default function PluginSkillPage({ params }: { params: Promise<{ plugin: 
       showPeriod={false}
       updatedAt={freshnessOf(list, plugins, detail)}
       subnav={<SkillViewTabs skill={text} view={view} />}
-      // NO SIBLING SWITCHER. A strip of the plugin's other skills sat here, and every one of
-      // them is a row on the page you just came from — the breadcrumb goes back there in one
-      // click. A second copy of a list you have already seen is not navigation.
+      // No sibling switcher: every one of the plugin's other skills is a row on the page the
+      // breadcrumb goes back to.
       //
-      // FOUR METRICS, not eight. The page used to open with two rows of cards, which makes
-      // eight things equally loud and none of them the headline. These four are what someone
-      // asks first; the rest are diagnostics and live in "Where its calls went" below.
+      // Four metrics, not eight. These four are what someone asks first; the rest are
+      // diagnostics and live in "Where its calls went" below.
       metrics={
         skill
           ? [
@@ -105,11 +95,11 @@ export default function PluginSkillPage({ params }: { params: Promise<{ plugin: 
             </Panel>
           ) : (
             <>
-              {/* WHAT THE SKILL IS, and the verdict beside it; the tab below is the evidence.
-                  NOT GATED ON THE COST RECORD. The identity of a skill is knowable whether or
-                  not anybody has run it, and the front door is precisely the skill with no
-                  runs. Version and Evaluated come from that record and say so when it is
-                  missing; the rest comes from the catalog. */}
+              {/* What the skill is, with the verdict beside it. DELIBERATE: not gated on the
+                  cost record — a skill's identity is knowable whether or not anybody has run
+                  it, and a plugin's front door is precisely the skill with no runs. Version
+                  and Evaluated come from that record and say so when it is missing; the rest
+                  comes from the catalog. */}
               <Row split={skill ? '1/2' : 'full'}>
                 <Panel title="About this skill">
                   <dl className="flex flex-col gap-3 text-[13px]">
@@ -135,18 +125,16 @@ export default function PluginSkillPage({ params }: { params: Promise<{ plugin: 
                         : <Badge variant="neutral" className="whitespace-normal leading-snug">no gate — the next step simply follows</Badge>}
                     />
                     <Field k="Version" v={<span className="break-all font-mono text-xs">{skill?.version ?? text?.version ?? '—'}</span>} />
-                    {/* THE PROVENANCE LINE, verbatim. It is the sentence that says who owns the
-                        content and what of it is ours, and paraphrasing it here would make this
-                        page a second claim about ownership rather than a copy of the one the file
-                        makes. */}
+                    {/* The provenance line, rendered verbatim: paraphrasing it would make this
+                        page a second claim about ownership rather than a copy of the file's
+                        own. */}
                     {text?.source ? (
                       <Field k="Source" v={<span className="break-words text-[12px] leading-relaxed text-ink-soft">{text.source}</span>} />
                     ) : null}
                   </dl>
                 </Panel>
-                {/* THE VERDICT is derived from the numbers, so it needs them. A skill with no
-                    recorded run has none, and an invented conclusion would be the one thing on
-                    this page nothing stands behind. */}
+                {/* The verdict is derived from the numbers, so a skill with no recorded run
+                    gets none rather than an invented one. */}
                 {skill ? (
                   <Query query={detail} skeletonRows={3}>
                     {(d) => <Conclusion skill={skill} detail={d} />}
@@ -154,11 +142,11 @@ export default function PluginSkillPage({ params }: { params: Promise<{ plugin: 
                 ) : null}
               </Row>
 
-              {/* NOT GATED ON `skill`. The cost record comes from recorded runs, so a skill
-                  nobody has called is absent from it — and a front door that describes a whole
-                  method is exactly such a skill. Gating the page on it rendered a header and an
-                  empty body for the one skill most worth reading. The text stands on its own;
-                  the evaluation says "never run" for itself. */}
+              {/* DELIBERATE: not gated on `skill`. The cost record comes from recorded runs,
+                  so a skill nobody has called is absent from it — and a front door describing
+                  a whole method is exactly such a skill. Gating here renders a header and an
+                  empty body for it. The text stands on its own, and the evaluation says
+                  "never run" for itself. */}
               <Query query={detail} skeletonRows={6}>
                 {(d) => (
                   <>
@@ -187,9 +175,8 @@ function Field({ k, v }: { k: string; v: React.ReactNode }) {
 }
 
 /**
- * The verdict, written from the numbers on the page rather than stored beside
- * them. A conclusion in a fixture is a conclusion that stops being true the
- * first time the data moves; this one cannot drift because it is derived.
+ * The verdict, derived from the numbers on the page rather than stored beside them, so it
+ * cannot drift from what the page shows.
  */
 function Conclusion({ skill, detail }: { skill: Skill; detail: SkillDetail }) {
   const rate = skill.calls ? (skill.refusals / skill.calls) * 100 : 0;
@@ -212,11 +199,10 @@ function Conclusion({ skill, detail }: { skill: Skill; detail: SkillDetail }) {
               ? <>A {rate.toFixed(1)}% refusal rate: {skill.refusals} refusals over {formatCount(skill.calls)} calls.</>
               : <>No refusals recorded at all.</>}
         </li>
-        {/* NO QUALITY LINE. This read a mean and its weakest dimension from
-            `detail.dimensions`, which the gateway stopped sending when an evaluation's
-            subject became a plugin VERSION rather than a skill — so the paragraph could
-            only ever have been written from a field that is now always undefined. A
-            skill's quality is read on its plugin's page, where the ruler lives. */}
+        {/* DELIBERATE: no quality line. The gateway does not send `detail.dimensions` — an
+            evaluation's subject is a plugin version, not a skill — so a mean and its weakest
+            dimension could only be written from an undefined field. A skill's quality is read
+            on its plugin's page, where the ruler lives. */}
       </ul>
     </Panel>
   );

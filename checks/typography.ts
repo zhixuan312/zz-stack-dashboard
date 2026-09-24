@@ -5,8 +5,8 @@ const css = readFileSync('app/globals.css', 'utf8');
 let code = 0;
 if (!/Rubik\(/.test(layout)) { console.error('FAIL Rubik is not loaded'); code = 1; }
 if (!/Baloo_2\(/.test(layout)) { console.error('FAIL Baloo 2 is not loaded'); code = 1; }
-// Look for the font CALL, not the word: the file's comment explains that Rubik replaced
-// Inter, which is history worth keeping and must not trip this.
+// DELIBERATE: match the font call, not the word, so prose in layout.tsx mentioning Inter
+// does not trip this.
 if (/\bInter\(/.test(layout) || /from 'next\/font\/google'[^\n]*\bInter\b/.test(layout)) {
   console.error('FAIL Inter is still loaded'); code = 1;
 }
@@ -31,10 +31,10 @@ const disp = css.slice(css.indexOf('.t-display {'), css.indexOf('}', css.indexOf
 for (const [n, block] of [['.t-stat', stat], ['.t-display', disp]]) {
   if (!/--font-display-family/.test(block)) { console.error(`FAIL ${n} does not use the display family`); code = 1; }
 }
-/* THE TAILWIND MAPPING, which nothing else here covered. A colour or family is only usable
- * as a utility if `@theme inline` lists it; repoint this one at the sans family and
- * `font-display` silently resolves to the body face with no error anywhere. Both display
- * classes would still pass, because they reference the raw variable directly. */
+/* The Tailwind mapping. A family is usable as a utility only if `@theme inline` lists it;
+ * repoint this one at the sans family and `font-display` silently resolves to the body face
+ * with no error anywhere, while both display classes still pass by referencing the raw
+ * variable directly. */
 if (!/--font-display:\s*var\(--font-display-family\)/.test(css)) {
   console.error('FAIL @theme inline no longer maps --font-display to the display family'); code = 1;
 }

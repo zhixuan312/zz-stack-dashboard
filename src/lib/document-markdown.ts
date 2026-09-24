@@ -1,22 +1,17 @@
 /**
  * Prepare a stored document for rendering.
  *
- * ONE PROBLEM, AND IT IS THE STORE'S OWN SHAPE. Acceptance criteria are written
- * one per line with no blank line between them:
+ * Acceptance criteria are stored one per line with no blank line between them:
  *
  *     **AC-1.1** `[me]` — Booking a walk that has capacity is confirmed…
  *     **AC-1.2** `[me]` — Once a walk has reached twenty confirmed bookings…
  *
- * In markdown that is ONE paragraph, so the renderer correctly joined a dozen
- * criteria into a wall of text where each one ran into the next mid-sentence.
- * The document is not wrong — every writer of these files reads them as lines —
- * and the renderer is not wrong either. What is missing is the blank line the
- * format needs, which is added here rather than in three hundred files.
+ * In markdown that is one paragraph, so a renderer joins a dozen criteria into a wall of
+ * text. The blank line the format needs is added here rather than in every stored document.
  *
- * TARGETED, not a blanket "honour every newline". Prose in these documents is
- * hard-wrapped at about ninety characters, and forcing a break at every newline
- * would render every paragraph ragged. Only a line that OPENS a new labelled
- * item gets separated, which is exactly the case that reads wrong.
+ * DELIBERATE: targeted, not a blanket "honour every newline". Prose in these documents is
+ * hard-wrapped at about ninety characters, so forcing a break at every newline would render
+ * every paragraph ragged. Only a line that opens a new labelled item gets separated.
  */
 const ITEM = /^\*\*(AC|Task|Gap|Goal|Decision|Risk|Check)[-\s0-9.]*\*\*/;
 

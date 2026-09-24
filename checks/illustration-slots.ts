@@ -1,9 +1,7 @@
-/* THE RISK IS A "HELPFUL" REFACTOR, and both spellings of it compile.
- *
- * Making `icon` optional would allow an EmptyState with neither icon nor illustration —
- * the icon is the fallback that keeps a failed image from leaving an empty state with no
- * picture and no explanation. Changing the toast's default branch would restyle 36
- * callers to express a decision about one.
+/* DELIBERATE: `icon` stays required and the toast keeps its default branch. Both "helpful"
+ * refactors compile. An optional `icon` allows an EmptyState with neither icon nor
+ * illustration, and the icon is the fallback when the image fails to load. Changing the
+ * toast's default branch restyles every caller to express a decision about one.
  */
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';

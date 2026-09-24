@@ -14,14 +14,14 @@ pnpm dev                  # against a gateway you can reach
 ```bash
 pnpm typecheck            # tsc --noEmit
 pnpm lint                 # eslint
-pnpm test                 # vitest, 151 tests
+pnpm test                 # vitest
 pnpm gate                 # this repo's own gate — run it last
 ```
 
-`pnpm gate` is the one worth knowing about. It is six checks, and like the platform's they
-are written as properties rather than test names — *"a timestamp is rendered through
-`<Time>`"*, *"no map is keyed by the names of one flow, block or skill"*. They exist because each one
-encodes something that broke here once. A red gate is never bypassed: if a check is wrong, fix
+`pnpm gate` is the one worth knowing about. Its checks, like the platform's, are written as
+properties rather than test names — *"a timestamp is rendered through
+`<Time>`"*, *"no map is keyed by the names of one flow or skill"*. A red gate is never
+bypassed: if a check is wrong, fix
 the check and say in its comment what it was wrong about.
 
 ## Where things are
@@ -36,9 +36,9 @@ docs/        written for somebody who does not work on this every day.
 
 ## House rules
 
-- **Dates and times go through `<Time>`.** Not `toLocaleString`, not a raw ISO string. A
-  reader eight hours from the server read 04:43 when it was 12:43 for them, on every label,
-  and the gate now refuses the direct call.
+- **Dates and times go through `<Time>`.** Not `toLocaleString`, not a raw ISO string: a
+  raw time is off by the reader's distance from the server, and the gate refuses the direct
+  call.
 - **No flow's stage names in a map key.** A component keyed on one flow's stages silently
   shows nothing for the next flow. The gate checks this too.
 - **Branches are `master` or `release/<version>`.** Nothing else.
@@ -60,8 +60,8 @@ Two prefixes, because an agent greps before it edits:
 - `COUPLED:` — editing here requires editing there. Name the there.
 
 `grep -rn "DELIBERATE:\|COUPLED:"` a directory before changing anything in it. zz-stack's
-CONTRIBUTING.md carries the same rule and the measurements behind it; this console's own
-checks in `checks/` read source text too, so run them after a comment sweep.
+CONTRIBUTING.md carries the same rule; this console's own checks in `checks/` read source text
+too, so run them after a comment sweep.
 
 ## Releasing
 

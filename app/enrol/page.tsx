@@ -9,23 +9,19 @@ import { Button } from '@/components/ui';
 /**
  * Where an enrolment link lands: register a passkey, once, and be signed in with it.
  *
- * THE TOKEN IS IN THE FRAGMENT, and that is the whole reason this page reads it with script
- * instead of taking a search parameter. A `?t=` token is written to Caddy's access log, to the
- * browser's history, and to the `Referer` of anything the page loads afterwards. A fragment is
- * never sent to a server at all, so it reaches none of those — the page reads
- * `window.location.hash` and posts it, and then clears it so a screenshot or a back button
- * does not carry it either.
+ * The token is in the fragment, which is why this page reads it with script instead of taking a
+ * search parameter. A `?t=` token is written to Caddy's access log, to the browser's history,
+ * and to the `Referer` of anything the page loads afterwards. A fragment is never sent to a
+ * server, so it reaches none of those; the page reads `window.location.hash`, posts it, and
+ * clears it.
  *
- * WHY THIS PAGE EXISTS RATHER THAN A FIELD ON THE SIGN-IN SCREEN. An authenticator asserts
- * possession of a key, never an identity. So a registration that named its own account would
- * be open self-registration: anybody reaching the console could mint themselves a principal.
- * The link names the principal instead, and the principal was created by a superadmin before
- * the link existed. The gateway reads it off the token's row and never off this page's body.
+ * An authenticator asserts possession of a key, never an identity, so a registration that named
+ * its own account would be open self-registration. The link names the principal, which a
+ * superadmin created before the link existed, and the gateway reads it off the token's row and
+ * never off this page's body.
  *
- * SINGLE USE, SPENT WHEN THE CEREMONY STARTS. Cancelling the browser's prompt burns the link
- * — that is deliberate, and the wording below says so before the button is pressed rather
- * than after. A link that survived a cancel is a link somebody can retry with, which is not
- * what "usable once" means.
+ * Single use, spent when the ceremony starts: cancelling the browser's prompt burns the link.
+ * The wording below says so before the button is pressed.
  */
 export default function EnrolPage() {
   const [token, setToken] = useState<string | null>(null);

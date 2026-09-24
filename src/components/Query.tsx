@@ -9,11 +9,10 @@ import type { ApiError } from '@/lib/api';
 /**
  * Render a query's three states without every page rewriting them.
  *
- * THE ERROR IS SHOWN, IN THE SERVER'S OWN WORDS. The gateway refuses with a
- * sentence that names the problem — which team does not exist, which door the
- * caller came through — and replacing that with "something went wrong" throws
- * away the only diagnosis anybody has. A dashboard that cannot load is a
- * dashboard whose job is now to explain why.
+ * DELIBERATE: the error is shown in the server's own words. The gateway
+ * refuses with a sentence that names the problem — which team does not exist,
+ * which door the caller came through — and "something went wrong" would throw
+ * away the only diagnosis anybody has.
  */
 export function Query<T>({
   query,

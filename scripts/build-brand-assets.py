@@ -3,14 +3,10 @@
 Requires Pillow (`pip install Pillow`). It is an ambient dependency: this repository has no
 requirements.txt or pyproject.toml, and `build-app-icon.py` has the same one.
 
-WHY A SCRIPT AND NOT A FOLDER OF HAND-MADE PNGs. An asset nobody can regenerate is a
-one-off: when the master changes, or a rendered size changes, somebody has to redo by hand
-what they cannot reproduce. Everything here is a pure function of a master and a size, so
-re-running produces byte-identical output and the check asserts exactly that.
+Every output is a pure function of a master and a size, so re-running produces byte-identical
+output, and the check asserts exactly that.
 
-WHAT IS DELIBERATELY NOT BUILT. `mascot-working.png` has no call site anywhere in the
-console — the container it was imagined for does not exist as a distinct empty state. It
-stays in design/in-use/ unbuilt rather than being given an invented home.
+DELIBERATE: `mascot-working.png` is not built. No surface in the console uses it.
 """
 from pathlib import Path
 from PIL import Image, ImageDraw
@@ -21,12 +17,12 @@ OUT = ROOT / 'public/assets/brand'
 OUT.mkdir(parents=True, exist_ok=True)
 
 # The favicon master is a 980x980 purple square centred on an off-white canvas with
-# exactly 137px of margin on all four sides. Measured, not guessed.
+# exactly 137px of margin on all four sides.
 FAVICON_BOX = (137, 137, 1117, 1117)
 
 
 def trim(im):
-    """Crop to the non-transparent content, so a rendered size means the ARTWORK's size."""
+    """Crop to the non-transparent content, so a rendered size means the artwork's size."""
     box = im.getbbox()
     return im.crop(box) if box else im
 
@@ -42,23 +38,11 @@ def fit(im, box):
 
 
 def emit(master, stem, rendered):
-    """Write ONE file, at twice the rendered size.
+    """Write one file, at twice the rendered size.
 
-    This used to write `stem`.png at the rendered size AND `stem`@2x.png at twice it. The
-    @2x half was never referenced by anything — `@2x` is an Apple / CSS `image-set()`
-    filename convention, and `next/image` has no such convention: it builds a srcset
-    pointing at its own optimizer (`/_next/image?url=...&w=...`) and scales DOWN from the
-    one source it is given. So 760 KB, 76% of this directory, shipped in every image and
-    could not be requested by any mechanism.
-
-    Worse, the half that WAS referenced was the 1x one — so `next/image` had only
-    render-size pixels to work with and every mascot was soft on a retina screen. The
-    optimizer cannot invent detail.
-
-    One file at 2x fixes both: the srcset's 2x entry is now genuinely sharp, the 1x entry
-    is a clean downscale, and there is nothing on disk that nothing asks for. Call sites
-    keep declaring the RENDERED size in `width`/`height` — that is the CSS box, not the
-    file.
+    `next/image` builds its srcset from the one source it is given and scales down, so a
+    2x file gives a sharp 2x entry and a clean 1x downscale. Call sites declare the rendered
+    size in `width`/`height`: that is the CSS box, not the file.
     """
     path = SRC / master
     if not path.exists():
@@ -87,21 +71,15 @@ emit('mascot-thinking.png', 'state-thinking', 72)
 
 # --- the two icons, from the two masters drawn for their size bands --------
 #
-# THE SPEC ASKED FOR A TRACED SVG HERE AND THIS EMITS A PNG. Tracing a bitmap to vector
-# needs a vectoriser (potrace or similar) that this repository does not have, and the
-# alternative — hand-drawing an approximation of the mark — is precisely the "a
-# reconstruction is a DIFFERENT logo" failure the spec rejects for the wordmark. A PNG
-# derived from the real master is honest; a hand-drawn SVG that merely resembles it is not.
-# Next's app/ file convention accepts icon.png exactly as it accepts icon.svg.
+# DELIBERATE: PNG, not SVG. Tracing the bitmap needs a vectoriser this repository does not
+# have, and a hand-drawn approximation would be a different logo. Next's app/ file convention
+# accepts icon.png as it does icon.svg.
 #
 # The two masters are not interchangeable and neither is a scaled copy of the other:
 # the flat single-Z reads at 16px in a tab strip where two letters would be mush; the
 # mascot squircle has room for the character at 180px and up, which is where a
 # home-screen icon earns its personality.
-# ONE SIZE, not two. A 64px `public/assets/brand/favicon-64.png` was built here and
-# referenced by nothing — no manifest, no <link>, no component. It shipped inside the
-# image anyway. The tab icon is `app/icon.png`, found by Next's file convention; a second
-# raster that nobody names is not a fallback, it is weight.
+# One size: the tab icon is `app/icon.png`, found by Next's file convention.
 def _transparent_corners(tile):
     """Knock the background out from around a rounded tile, leaving its corners CLEAR.
 
@@ -118,7 +96,7 @@ def _transparent_corners(tile):
     transparency rather than against white and the edge is clean at 32px.
     """
     KEY = (255, 0, 255)          # a colour the kit does not contain
-    # .copy() is load-bearing: PIL's convert() returns the SAME object when the mode
+    # DELIBERATE: .copy(). PIL's convert() returns the same object when the mode
     # already matches, so without it the flood fill runs on the tile itself and the
     # finished icon carries magenta in its corners.
     probe = tile.convert('RGB').copy()
@@ -133,7 +111,7 @@ def _transparent_corners(tile):
             if keyed[x, y] == KEY:
                 ap[x, y] = 0
 
-    # PASTE ONTO A CLEAR CANVAS rather than putalpha onto the tile. `putalpha` leaves the
+    # Paste onto a clear canvas rather than putalpha onto the tile. `putalpha` leaves the
     # original RGB under the transparent pixels, and if the flood fill touched the tile
     # (PIL's convert() can hand back the same object) that RGB is the key colour — which
     # then bleeds magenta into the rounded edge when LANCZOS resamples. Compositing

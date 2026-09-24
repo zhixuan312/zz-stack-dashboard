@@ -1,7 +1,7 @@
-/* THE FOUR SURFACES THAT ARE NOT EmptyState, plus the one that must stay untouched.
+/* The four surfaces that are not EmptyState, plus the one that must stay untouched.
  *
  * `mascot-assignment.ts` pins each of these to its single allowed file; this checks the
- * other half — that the surface still HAS its mascot and its fallback, and that the
+ * other half — that the surface still has its mascot and its fallback, and that the
  * blast radius stayed one call site wide.
  */
 import { readFileSync, readdirSync, statSync } from 'node:fs';
@@ -16,20 +16,19 @@ has('app/login/page.tsx', 'mascot-hero', 'AI friend for a brighter you');
 has('app/signed-out/page.tsx', 'state-goodbye');
 has('src/components/ApproveAction.tsx', 'state-approved');
 
-/* The mascot substitutes for the spinner on the ONE screen where a person waits on an
- * answer rather than on a button — and `Spinner` stays imported as the fallback if the
- * image fails. Dropping it trades a reliable indicator for a decorative one. */
+/* The mascot substitutes for the spinner on the one screen where a person waits on an
+ * answer rather than on a button, and a screen-reader-only `Spinner` beside it carries the
+ * accessible busy label. */
 const ka = has('src/components/KnowledgeAsk.tsx', 'state-thinking');
-if (!/Spinner/.test(ka)) { console.error('FAIL KnowledgeAsk dropped the Spinner fallback'); code = 1; }
+if (!/Spinner/.test(ka)) { console.error('FAIL KnowledgeAsk dropped the screen-reader Spinner'); code = 1; }
 
-/* FR-33 forbids touching the spinner primitive itself. Busy-state vocabulary is one
- * decision for the whole product; putting a mascot in here would make it every screen's. */
+/* DELIBERATE: the spinner primitive itself stays plain: a mascot in here would apply to
+ * every screen, and busy-state vocabulary is one decision for the whole product. */
 const spinner = readFileSync('src/components/ui/spinner.tsx', 'utf8');
-if (/illustration|mascot/.test(spinner)) { console.error('FAIL spinner.tsx was modified; FR-33 forbids it'); code = 1; }
+if (/illustration|mascot/.test(spinner)) { console.error('FAIL spinner.tsx carries an illustration; the spinner primitive stays plain'); code = 1; }
 
-/* EXACTLY ONE showToast caller may set an illustration. This is the blast-radius
- * assertion: 38 other call sites hit the untouched default branch and were never read,
- * let alone edited. A second setter means somebody generalised a one-file decision. */
+/* Exactly one showToast caller may set an illustration. A second setter means somebody
+ * generalised a one-file decision; every other call site takes the default branch. */
 const walk = (d: string, o: string[] = []): string[] => {
   for (const e of readdirSync(d)) {
     const p = join(d, e);

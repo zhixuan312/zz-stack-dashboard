@@ -11,39 +11,32 @@ import { useConsole, useConsoleMode } from '@/lib/api';
 import { type Me } from '@/lib/api-shapes';
 
 /**
- * The primary rail. Route knowledge lives in `@/nav`, not here — this component
- * only renders the sections that mode asks for and marks the active one.
+ * The primary rail. Route knowledge lives in `@/nav`; this component renders the
+ * sections mode asks for and marks the active one.
  *
- * THE MODE, NOT `me.superadmin`, decides which items appear. A member defaults
- * to team mode and a superadmin to platform (see `ConsoleModeProvider`), so
- * keying on mode narrows the rail for a real member AND makes the superadmin's
- * Team view a faithful preview of what that member sees — which is the only
- * thing the switch was ever for. Keying on the role instead would have left the
- * preview showing the fleet's own rail.
+ * The mode, not `me.superadmin`, decides which items appear. A member defaults to
+ * team mode and a superadmin to platform (see `ConsoleModeProvider`), so keying on
+ * mode narrows the rail for a real member and makes the superadmin's Team view a
+ * faithful preview of what that member sees.
  *
- * NOTHING IS DRAWN UNTIL `/me` HAS ANSWERED. A member never touches
- * `ModeSwitch`, so nothing ever writes their choice to localStorage and
- * `ConsoleModeProvider` falls back to `platform` for the whole time `/me` is in
- * flight — which meant the rail painted Flows, Blocks, Runs and Activity on
- * every cold page load and then collapsed by four links a moment later. Holding
- * the links back for one round trip costs a member nothing (they were about to
- * lose them anyway) and spares everyone the flicker; the rail keeps its width
- * and its wordmark throughout, so nothing moves but the links themselves. The
- * `/me` read is the same unscoped query key `SidebarFooter` and
- * `ConsoleModeProvider` already share — a cache hit, not a third request.
+ * Nothing is drawn until `/me` has answered. A member never touches `ModeSwitch`, so
+ * nothing writes their choice to localStorage and `ConsoleModeProvider` falls back to
+ * `platform` while `/me` is in flight — which would paint Teams, Plugins, Runs and
+ * Activity on every cold load and then collapse by four links. The rail keeps its
+ * width and its wordmark throughout, so nothing moves but the links. The `/me` read is
+ * the same unscoped query key `SidebarFooter` and `ConsoleModeProvider` share, so it
+ * is a cache hit.
  *
- * `footer` is the rail's own status block. Without something down there the
- * lower two thirds of the rail is empty pale surface, which reads as a panel
- * that stops short rather than a full-height rail. Use `SidebarStat` for the
- * usual two-column label/value lines.
+ * `footer` is the rail's own status block; without it the lower two thirds is empty
+ * surface. Use `SidebarStat` for the usual two-column label/value lines.
  */
 export function Sidebar({ footer }: { footer?: ReactNode }) {
   const pathname = usePathname();
   const { mode } = useConsoleMode();
   const me = useConsole<Me>('/me');
-  // `isFetched`, not `data`: an anonymous visitor's 401 is an ANSWER — they get
-  // the platform rail, exactly as they did before, because the layout wants
-  // them to see what this product is before they sign in.
+  // `isFetched`, not `data`: an anonymous visitor's 401 is an answer — they get the
+  // platform rail, because the layout wants them to see what this product is before
+  // they sign in.
   const sections = me.isFetched ? navSections(mode) : [];
 
   function renderLink(item: NavItem) {
@@ -107,11 +100,9 @@ export function Sidebar({ footer }: { footer?: ReactNode }) {
 /**
  * The kit's four-point sparkle, marking the page you are on.
  *
- * INLINE, NEVER AN IMAGE FILE. It is on every page, and it has to be there before any
- * asset loads — it is what carries the brand in the first paint, when the mascot has not
- * arrived and may never arrive on a slow connection. It is also decorative, so it is
- * `aria-hidden`: `aria-current="page"` on the link is what actually announces the active
- * item, and a second signal would just be noise to a screen reader.
+ * Inline, never an image file: it is on every page and has to be there before any asset
+ * loads. It is decorative, so it is `aria-hidden` — `aria-current="page"` on the link is
+ * what announces the active item.
  */
 function Sparkle() {
   return (

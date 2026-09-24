@@ -5,9 +5,8 @@ import Link from 'next/link';
 /**
  * Where /auth/logout lands.
  *
- * Outside the (dash) group on purpose: the shell's gate would immediately offer
- * to sign the person back in, which is a strange thing to do to somebody who
- * has just asked to leave.
+ * DELIBERATE: outside the (dash) group, because the shell's gate would
+ * immediately offer to sign the person back in.
  */
 export default function SignedOutPage() {
   return (

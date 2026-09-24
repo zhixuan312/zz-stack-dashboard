@@ -1,26 +1,21 @@
 import { Badge } from '@/components/ui';
 
 /**
- * WHAT IS HAPPENING TO AN INITIATIVE, in one closed vocabulary, on every page that shows one.
+ * What is happening to an initiative, in one closed vocabulary, on every page that shows one.
+ * Not a stage name — the flow-position column answers where it is.
  *
- * The initiatives list and a team's page both list initiatives and said different things
- * about them: one showed an outcome for closed rows and a STAGE NAME for open ones, the other
- * showed no state at all. A stage name answers "where is it", which the flow-position column
- * already answers; this column answers "what is happening", and the two are not
- * interchangeable.
+ * The three closed values are the platform's own: `close()` records exactly one of `accepted`,
+ * `delivered` or `abandoned` (OUTCOMES in @zz/contracts), and all three mean closed. Accepted
+ * is a person saying it is what they wanted, delivered is work that finished without that
+ * signature, abandoned is work that stopped.
  *
- * THE THREE CLOSED VALUES ARE THE PLATFORM'S OWN. `close()` records exactly one of
- * `accepted`, `delivered` or `abandoned` (see OUTCOMES in @zz/contracts) and all three mean
- * closed: accepted is a person saying it is what they wanted, delivered is work that finished
- * without that signature, abandoned is work that stopped.
- *
- * One rule per colour, so the column can be read without a key: green is closed and signed,
- * amber ALWAYS means a person must act, grey never means a problem.
+ * One rule per colour, so the column reads without a key: green is closed and signed, amber
+ * always means a person must act, grey never means a problem.
  */
 export interface StateOf {
   outcome: string | null;
   /** `written` tells "nobody has drafted it" from "drafted and unsigned" — see api.ts's
-   *  Gate. Without it this function read the first as the second. */
+   *  Gate. */
   gates: { name: string; passed: boolean; written: boolean; role?: string }[];
 }
 
@@ -31,27 +26,20 @@ export const INITIATIVE_STATES = [
 type InitiativeState = (typeof INITIATIVE_STATES)[number];
 
 /**
- * The rule, extracted from the badge so a FILTER can ask the same question the column
- * answers.
- *
- * Filtering by state is the thing this list is opened to do — "what is waiting on me" — and
- * writing that predicate a second time in the page would be two spellings of one vocabulary,
- * free to disagree the day a fourth outcome is added. The badge renders what this returns;
- * the facet groups by it. There is one definition.
+ * The rule, extracted from the badge so a filter can ask the same question the column answers.
+ * The badge renders what this returns and the facet groups by it — one definition.
  */
 export function initiativeState(of: StateOf): InitiativeState {
   if (of.outcome === 'accepted') return 'Accepted';
   if (of.outcome === 'delivered') return 'Delivered';
   if (of.outcome === 'abandoned') return 'Abandoned';
-  // EVERY BRANCH BELOW IS ABOUT AN OPEN INITIATIVE, so the handover is not one of its gates:
-  // it is written after the close. Counting it made `Ready to close` unreachable — the one
-  // state that says "the work is done and nobody has closed it" — because the handover gate
-  // is unwritten on every initiative that has not closed.
+  // Every branch below is about an open initiative, so the handover is not one of its gates:
+  // it is written after the close. Counting it makes `Ready to close` unreachable, because
+  // the handover gate is unwritten on every initiative that has not closed.
   const gates = of.gates.filter((g) => g.role !== 'handover');
-  // WRITTEN AND UNSIGNED, not merely unsigned. A gate whose document nobody has drafted is
-  // waiting on the AGENT — there is nothing for a person to read — so counting it here put
-  // "Waiting on you: 3" on a team whose three gate documents had not been started, while the
-  // Overview tile beside it said none were awaiting anybody. Same rule, one place apart.
+  // Written and unsigned, not merely unsigned. A gate whose document nobody has drafted is
+  // waiting on the agent — there is nothing for a person to read. COUPLED: the Overview
+  // tile counts the same way.
   if (gates.some((g) => g.written && !g.passed)) return 'Waiting on you';
   if (gates.some((g) => !g.written)) return 'In progress';
   // Every gate passed and no outcome recorded. Not the same as in progress, and the

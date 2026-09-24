@@ -1,13 +1,10 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
-/* Tailwind v4 finds source files by walking up to a project root, and it uses the
-   enclosing git repository to decide where that root is. This directory is
-   deliberately not a git repo, so detection matched nothing: the build emitted the
-   theme, the base layer and the hand-written classes, but ZERO utilities. Every page
-   rendered as a single unstyled column while still looking, at a glance, like the CSS
-   had loaded — fonts and colours were fine, only layout was gone. Naming the sources
-   removes the dependency on that inference. */
+/* DELIBERATE: the sources are named. Tailwind v4 otherwise finds them by walking up to the
+   enclosing git repository, and where that inference matches nothing the build emits the
+   theme and the hand-written classes but no utilities — every page renders as one unstyled
+   column while fonts and colours look fine. */
 @source "./**/*.{ts,tsx}";
 @source "../src/**/*.{ts,tsx}";
 
@@ -32,9 +29,9 @@
   --color-accent-deep: var(--accent-deep);
   --color-accent-tint: var(--accent-tint);
   --color-sage: var(--sage);
-  /* A colour MUST be listed here to be usable as a utility. `text-sage-deep` was written
-     by components while only the raw variable existed, and emitted no CSS at all — the
-     element silently kept its inherited colour. Same scar for steel and ember below. */
+  /* A colour must be listed here to be usable as a utility. A class naming a colour that is
+     only a raw variable emits no CSS at all, and the element silently keeps its inherited
+     colour. */
   --color-sage-deep: var(--sage-deep);
   --color-sage-tint: var(--sage-tint);
   --color-amber: var(--amber);
@@ -73,12 +70,12 @@
   /* ---- elevation: hard offsets, not blurs ----
      A soft, wide, multi-layer blur is what makes a UI read as a consumer app.
      A hard offset reads as a printed object on a desk — which is the register
-     this system is in. In-page surfaces get NO shadow at all; they are
+     this system is in. In-page surfaces get no shadow at all; they are
      separated by hairlines and space. Only things that genuinely float above
      the page (menus, popovers, dialogs, toasts) get one, and it is a single
      crisp offset plus a hairline, never a halo.
 
-     `--shadow-sm` and `--shadow` are deliberately `none`. They exist so that a
+     DELIBERATE: `--shadow-sm` and `--shadow` are `none`. They exist so that a
      component asking for a small elevation gets nothing rather than an
      off-system blur, and so `shadow-sm` in a Tailwind class is inert instead of
      silently reintroducing the soft look. */
@@ -93,37 +90,16 @@
   --ease-spring: cubic-bezier(0.34, 1.4, 0.5, 1);
 }
 
-/* ════════════════════════════════════════════════════════════════════════
-   THE PALETTE — one cream ramp, one accent, three status hues.
+/* The palette — one cream ramp, one accent, three status hues.
 
-   THIS REVERSES A DECISION THIS FILE USED TO ARGUE FOR, and the history is worth
-   keeping rather than quietly overwriting. A warm cream-and-ember palette shipped
-   here once and was replaced by a neutral grey one, on the reasoning that a
-   coloured ground makes the accent fight the page and turns colour into
-   decoration. That reasoning was sound and the neutral system was good.
+   DELIBERATE: the ground is coloured. The ZZ brand kit has cream as its own primary and the
+   console carries the brand; ink, the accent and the status hues all clear their floors on it.
+   Colour is still for meaning: green, amber and red mean good, warn and bad and are never chart
+   series, and one accent marks the primary action, the active nav item, the focus ring and the
+   one number that carries the finding.
 
-   What changed is not the reasoning but the brief. The ZZ brand kit arrived with
-   cream as its own primary, and the product owner chose to carry the brand rather
-   than to avoid mistakes. So the ground is coloured again — deliberately, with the
-   measurements taken this time rather than assumed:
-
-     ink on ground        14.79:1    (the objection to a cream ground was that it
-                                      could not be read on. It can.)
-     accent on ground      5.04:1
-     white on accent       5.71:1
-     status hues           4.61 / 4.59 / 4.79:1
-
-   The old argument's real content survives intact: colour is still for MEANING.
-   Green, amber and red still mean good, warn and bad and are no longer handed out
-   as chart series. One accent still marks the primary action, the active nav item,
-   the focus ring and the one number that carries the finding.
-
-   Every value below is verified against every surface it can legally sit on —
-   computed, not eyeballed. `node scripts/verify-contrast.mjs` re-checks it and
-   EXITS NON-ZERO, which is the part that did not exist before: `audit:design`
-   printed contrast failures and returned 0, so a palette that failed everywhere
-   would have shipped green and silent.
-   ════════════════════════════════════════════════════════════════════════ */
+   Every value below is verified against every surface it can legally sit on.
+   `scripts/verify-contrast.ts` re-checks it and exits non-zero. */
 :root {
   /* ---- the cream ramp ----
      Warm, never cool. One ramp: every neutral in the product is a rung on it,
@@ -132,55 +108,50 @@
 
      The ground is the kit's own primary, #F8EFEA. Ink is warmed toward the
      brand rather than left a cold near-black, so the neutral reads as chosen
-     rather than inherited — it measures 14.79:1 on the ground. */
+     rather than inherited. */
   --c-0: #ffffff;
   --c-25: #fffbf9;
   --c-50: #f8efea;
   --c-100: #f4e9e3;
   --c-200: #e9ddd6;
   --c-300: #d8c8be;
-  /* Darkened from #7a7080, which was chosen by eye and measured 4.16:1 on the
-     ground and 3.95:1 on the sunk surface — under the floor on both. Same hue,
-     enough weight to clear 4.5:1 everywhere `--ink-faint` can legally sit.
-     `scripts/verify-contrast.mjs` is what caught it. */
+  /* The ramp's hue with enough weight to clear 4.5:1 everywhere `--ink-faint` can
+     legally sit. */
   --c-500: #6e6574;
   --c-700: #5a5160;
   --c-900: #221b26;
 
   /* ---- brand ----
-     ONE accent. It marks the primary action, the active nav item, the focus
+     One accent. It marks the primary action, the active nav item, the focus
      ring, and the single number on a page that carries the finding. That is the
      whole list.
 
      It sits at the kit lavender's exact hue, 258.8 degrees, but darker: the
-     kit's own lavender measures 1.77:1 on cream and cannot be an accent. This
-     tone clears 5.04:1 on the ground and 5.71:1 with a white label on it. */
+     kit's own lavender is too light on cream to be an accent. This tone clears the
+     floor on the ground and with a white label on it. */
   --zz-purple: #7548d8;
   --zz-purple-deep: #5e2bcc;
   --zz-purple-tint: #f1ebff;
 
   /* ---- the kit's pastels, deepened ----
      Chart series and soft fills only — never text, never status. At their kit
-     values (#C4A9FF, #FFB6C8, #8FD3FF) they measure 1.77, 1.45 and 1.43 on
-     cream and genuinely disappear as bars. These keep the hue and gain enough
-     weight to read. Even so they clear only ~1.8-2.4:1 against the ground, so
-     every chart mark carries a hairline edge and the separation comes from
-     that, not from luminance. See `--chart-edge` below. */
+     values (#C4A9FF, #FFB6C8, #8FD3FF) they disappear as bars on cream; these keep
+     the hue and gain enough weight to read. Even so they sit around 2:1 against the
+     ground, so every chart mark carries a hairline edge and the separation comes
+     from that, not from luminance. See `--chart-edge` below. */
   --zz-lavender: #a98cf5;
   --zz-pink: #f58fa8;
   --zz-blue: #5fbdf5;
-  /* The kit blue is a LIGHT sky hue — it is a chart fill, and it cannot be read as a glyph
-   * or sit behind one. These two give it the soft-ground/strong-glyph pair the status hues
-   * already have, so a tile can take blue as its identity without inventing a colour at the
-   * call site. 5.98:1, measured, not chosen by eye. */
+  /* The kit blue is a light sky hue — a chart fill that cannot be read as a glyph or sit
+   * behind one. These two give it the soft-ground/strong-glyph pair the status hues have,
+   * so a tile can take blue as its identity without inventing a colour at the call site. */
   --zz-blue-tint: #e6f4fd;
   --zz-blue-deep: #0d6190;
 
   /* ---- status: reserved ----
      These mean good / warn / bad. Never a chart series, never decoration. Each
-     has a FILL tone (paint with it) and a TEXT tone (write with it); the two
-     are different because a fill that reads well as a dot fails as 12px type.
-     Re-verified against the cream ground: 4.61, 4.59 and 4.79:1. */
+     has a fill tone (paint with it) and a text tone (write with it); the two
+     are different because a fill that reads well as a dot fails as 12px type. */
   --green: #22a05a;
   --green-text: #1c7c44;
   --green-tint: #e4f2e9;
@@ -192,10 +163,9 @@
   --red-tint: #f9e7e3;
 
   /* ---- geometry ----
-     Rounder than the system this replaced (4/6/8/10), because the kit's whole
-     register is soft. What it does NOT take from the kit is gloss: see the
-     elevation block above, where the shadows stay `none`. Warmth and rounding
-     without bevels is the whole design decision. */
+     Rounded, because the kit's whole register is soft. What it does not take from
+     the kit is gloss: see the elevation block above, where the shadows stay `none`.
+     Warmth and rounding without bevels is the whole design decision. */
   --r-sm: 8px;
   --r: 10px;
   --r-md: 12px;
@@ -219,8 +189,7 @@
 
   /* Text ON a filled surface, and the fills that need it.
 
-     These survive the move to one theme. A filled button's label is not a
-     constant just because there is only one palette now: `--danger-fill` is
+     A filled button's label is not a constant: `--danger-fill` is
      darker than `--red` precisely so white type on it clears 4.5:1, while
      `--red` stays the lighter tone for dots and bars. Hard-coding `text-white`
      on a button is how that distinction gets lost. */
@@ -233,8 +202,8 @@
      A series rendered without this genuinely disappears. */
   --chart-edge: inset 0 0 0 1px rgba(34, 27, 38, 0.13);
 
-  /* Aliases kept so the components and charts that name the old hues still
-     resolve. Swapping the ramp above re-themes them all. */
+  /* The names components and charts use for the status hues, resolved to the ramp above,
+     so swapping the ramp re-themes them all. */
   --sage: var(--green);
   --sage-deep: var(--green-text);
   --sage-tint: var(--green-tint);
@@ -251,17 +220,15 @@
 }
 
 
-/* ── APP-SHELL ROOT LOCK ──────────────────────────────────────────────────
-   The document itself NEVER scrolls — the only scroll region is ShellBody
-   (inside the `fixed inset-0` AppShell). Locking the root here means the shell
-   cannot be shifted by page scroll, rubber-band, or a tall child, even as a
-   belt-and-suspenders against a future containing-block regression.
+/* App-shell root lock. The document itself never scrolls — the only scroll region is
+   ShellBody (inside the `fixed inset-0` AppShell). Locking the root means the shell cannot
+   be shifted by page scroll, rubber-band, or a tall child.
 
-   ⚠️  NEVER set `transform`, `filter`, `perspective`, `will-change: transform`,
-   or `contain: layout/paint/strict` on `html`, `body`, or any wrapper ABOVE
-   `AppShell`. Any of those turns the shell's `position: fixed` from
-   viewport-relative into ancestor-relative, and then page scroll WILL shift it.
-   Per-component animations (menus, skeletons) are fine — they're below the shell. */
+   COUPLED: never set `transform`, `filter`, `perspective`, `will-change: transform`, or
+   `contain: layout/paint/strict` on `html`, `body`, or any wrapper above `AppShell`. Any of
+   those turns the shell's `position: fixed` from viewport-relative into ancestor-relative,
+   and then page scroll shifts it. Per-component animations (menus, skeletons) are fine —
+   they are below the shell. */
 html,
 body {
   height: 100%;
@@ -276,11 +243,9 @@ body {
   font-family: var(--font-sans), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  /* The inherited body size — 14px, on the scale. It was 14.5px, which is on
-     nothing: every table cell and every unclassed span inherited a half-pixel
-     value that rounded to 15 and became the app's most-used size without ever
-     appearing in the scale. A base size is the one value most likely to escape
-     a type system, precisely because nothing declares it. */
+  /* The inherited body size — 14px, on the scale. A base size is the one value most
+     likely to escape a type system, because every table cell and unclassed span
+     inherits it and nothing declares it. */
   font-size: 14px;
   line-height: 1.5;
 }
@@ -313,49 +278,36 @@ body {
   letter-spacing: -0.011em;
 }
 
-/* ════════════════════════════════════════════════════════════════════════
-   DESIGN SYSTEM — foundation
+/* Design system — foundation.
    The type scale is the source of hierarchy. Prefer the <Display>/<Heading>/
    <Text>/<Eyebrow> components (src/components/ui/typography.tsx); these classes
-   back them and may be used directly.
-   ════════════════════════════════════════════════════════════════════════ */
+   back them and may be used directly. */
 :root {
   --ring: 0 0 0 3px color-mix(in oklab, var(--accent) 30%, transparent);
   --ring-offset: 0 0 0 2px var(--bg);
 }
 
-/* ── CANONICAL APPLICATION BACKGROUND ─────────────────────────────────────
-   A flat neutral. Apply this ONE class at every full-page background surface
-   (the AppShell root); do not hand-roll a background elsewhere.
+/* The application background: the flat ground. Apply this one class at every full-page
+   background surface (the AppShell root); do not hand-roll a background elsewhere. The ground
+   is silent — no bloom, no wash of the accent behind content.
 
-   It used to carry a tinted radial bloom from the top-right. On a warm cream
-   ground that read as atmosphere; on a neutral ground it is the single thing
-   that would still look "themed", and it put a wash of the accent behind
-   content that is supposed to be the only place the accent appears. The ground
-   should be silent.
-
-   NOTE: this must live on the painted page surface, not on `body` — the shell
-   roots are opaque `fixed inset-0` layers that would paint over a `body`
-   background. */
+   COUPLED: this lives on the painted page surface, not on `body` — the shell roots are opaque
+   `fixed inset-0` layers that would paint over a `body` background. */
 .app-bg {
   background-color: var(--bg);
 }
 
-/* Type scale -------------------------------------------------------------
-   THREE REGISTERS, not one continuous ramp:
+/* Type scale. Three registers, not one continuous ramp:
 
      Display  attracts — the one thing the eye lands on first
      Reading  explains — prose, labels, table cells
-     Label    annotates — mono, uppercase, always quiet
+     Label    annotates — small, uppercase, always quiet
 
-   The registers are what create hierarchy; size alone does not. A page should
-   have exactly ONE dominant object, and the ratio between it and the body text
-   is the measurement of whether it does. This system was rebuilt because that
-   ratio measured 1.33×–2.33× across the five pages — the largest text on the
-   Records page was 20px against a 15px median, which is not a hierarchy, it is
-   a rounding error. `scripts/design-metrics.mjs` reports it; keep it above 3×.
+   The registers are what create hierarchy; size alone does not. A page should have
+   exactly one dominant object, and the ratio between it and the body text measures
+   whether it does. `scripts/design-metrics.ts` reports it; keep it above 3×.
 
-   THE SCALE IS SEVEN VALUES. Nothing else is allowed on a page:
+   The scale is seven values. Nothing else is allowed on a page:
 
      40  stat      the dominant number          .t-stat            (Baloo 2)
      32  display   the largest heading          .t-display         (Baloo 2)
@@ -365,21 +317,12 @@ body {
      12  small     captions, meta, dense cells  .t-sm / .t-mono
      11  label     uppercase eyebrows, ticks    .t-eyebrow / .t-micro
 
-   THE NUMBERS ABOVE WERE 44 / 28 / … / 10 AND NAMED FIVE OF THE ELEVEN CLASSES.
-   That ladder belonged to a scale two revisions back: 44 and 28 do not exist,
-   .t-title has been 22 and separate from .t-display's clamp for longer than this
-   comment has been wrong, and .t-micro is 11 — the same rung as .t-eyebrow — not
-   10. The count of seven was right the whole time, which is exactly why nobody
-   re-read the rows under it.
-
-   It measured TEN before this was written down — 9, 13 and 15 existed only
-   because two different components each reached for "a bit smaller than body"
-   and picked different rem values. `pnpm audit:design` counts them; if the
-   count goes above seven, something was added by eye rather than chosen.
+   `pnpm audit:design` counts the distinct sizes; if the count goes above seven,
+   something was added by eye rather than chosen.
 
    Never shrink type to fit. Cut words instead. */
 .t-stat {
-  /* The dominant object on a dashboard is a NUMBER, so the display register is
+  /* The dominant object on a dashboard is a number, so the display register is
      led by the stat, not by a heading. Tabular figures so a row of tiles aligns
      on the decimal, and tight tracking (-0.022em, the value the reference
      systems converge on) because large type set at default tracking reads
@@ -461,10 +404,9 @@ body {
 
 /* Shared focus ring for all interactive primitives.
 
-   The ring itself is the accessibility contract and is unchanged: an offset in the page
-   colour, then a 3px accent halo. What the brand adds is the tint underneath — the same
-   four-point-sparkle purple, at a weight low enough that it reads as warmth rather than
-   as a second ring. The contrast of the ring is not reduced by it. */
+   The ring itself is the accessibility contract: an offset in the page colour, then a 3px
+   accent halo. The tint underneath is the sparkle's purple, at a weight low enough that it
+   reads as warmth rather than as a second ring, and it does not reduce the ring's contrast. */
 .focus-ring:focus-visible {
   outline: none;
   box-shadow: var(--ring-offset), var(--ring);
@@ -586,8 +528,8 @@ body {
 }
 
 /* Scrollbars are hidden everywhere — panels still scroll (wheel, trackpad, keyboard,
-   drag), only the visual bar is suppressed. Declared inside `@layer base` so Tailwind v4
-   keeps it: raw top-level rules with vendor pseudo-elements were being pruned. */
+   drag), only the visual bar is suppressed. DELIBERATE: inside `@layer base`, because
+   Tailwind v4 prunes raw top-level rules with vendor pseudo-elements. */
 @layer base {
   * {
     scrollbar-width: none;
@@ -599,30 +541,22 @@ body {
   }
 }
 
-/* ─────────────────────────────────────────────────────────────────────────
- * Hover ring — a calm, STABLE affordance (no cursor-tracking, no motion). While
- * a box is hovered, its whole border warms to the brand accent and gains a soft
- * ambient glow, so it's clear which card the pointer is over. Applied to boxes
- * (Card, MetricCard, table panels …).
- * ───────────────────────────────────────────────────────────────────────── */
+/* Hover acknowledgement — a calm, stable affordance (no cursor-tracking, no glow). While a
+   box is hovered, its hairline darkens to `--line-strong`, so it is clear which card the
+   pointer is over. Applied to boxes (Card, MetricCard, table panels …). */
 .ds-spotlight {
   transition:
     border-color 150ms var(--ease-out),
     box-shadow 150ms var(--ease-out);
 }
-/* One hairline darkens to the accent. That is the whole affordance.
-   It used to add a 2px accent ring PLUS a 30px accent-tinted bloom, which is
-   the single most consumer-soft gesture in the system: on a page of six panels
-   the pointer dragged a coloured halo around behind it, and a dense metric row
-   flickered as the glow crossed each tile. A readout should not light up when
-   you point at it — it should just acknowledge that it is the thing under the
-   cursor. */
+/* DELIBERATE: one hairline darkens, and that is the whole affordance. A readout should not
+   light up when you point at it — a halo following the pointer across a dense metric row
+   flickers as it crosses each tile. */
 .ds-spotlight:hover {
   border-color: var(--line-strong);
 }
-/* A card nested inside another card never glows — hovering a child would otherwise light
-   BOTH frames and draw two accent borders around the same content. Only the outermost
-   surface responds. */
+/* A card nested inside another card does not respond — hovering a child would otherwise
+   darken both frames around the same content. Only the outermost surface responds. */
 .ds-spotlight .ds-spotlight:hover {
   border-color: var(--line);
 }

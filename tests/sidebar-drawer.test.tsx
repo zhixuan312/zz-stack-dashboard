@@ -8,12 +8,10 @@ vi.mock('next/navigation', () => ({
 }));
 
 /**
- * The rail below `lg`.
+ * The rail below `lg`, where the fixed 232px column becomes a drawer.
  *
- * The drawer exists because a fixed 232px rail left 158px of usable content on a
- * 390px screen — and every structural check passed, because every check ran at
- * 1280px and up. These lock the behaviours a hand-rolled drawer usually misses;
- * each one is invisible until someone actually uses it on a phone.
+ * These lock the behaviours a hand-rolled drawer misses; each is invisible to a
+ * check that renders at desktop width.
  */
 describe('SidebarDrawer', () => {
   beforeEach(() => {

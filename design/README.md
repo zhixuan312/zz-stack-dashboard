@@ -3,7 +3,7 @@
 Brand source material for the ZZ Console. **Nothing here is served to a browser.**
 
 `.dockerignore` excludes this directory, so none of it reaches the production image. That is the
-whole reason it is not under `public/` — `Dockerfile:34` copies `public/` into the runtime image
+whole reason it is not under `public/` — the `Dockerfile` copies `public/` into the runtime image
 unconditionally, and `.dockerignore` gets no second pass over that line. Source material left in
 `public/` ships, whether anything references it or not.
 
@@ -35,9 +35,9 @@ Do not scale one of them into another's band.
 | `mascot-bust.png` | 1254 × 1254 | yes | "Nothing here yet" empty states |
 | `mascot-waving.png` | 1122 × 1402 | yes | The login hero, and "add the first one" empty states |
 | `mascot-celebrating.png` | 1122 × 1402 | yes | "Nothing to do, and that is a good outcome" |
-| `mascot-working.png` | 1122 × 1402 | yes | Containers that fill up on their own |
+| `mascot-working.png` | 1122 × 1402 | yes | Nothing yet — no surface uses it, so it is not built |
 | `mascot-error.png` | 1122 × 1402 | yes | The error boundary, and the query-error fallback every page routes through |
-| `mascot-notfound.png` | 1122 × 1402 | yes | 404, and the unknown block / flow / skill pages |
+| `mascot-notfound.png` | 1122 × 1402 | yes | 404, and the unknown plugin / skill pages |
 | `mascot-approved.png` | 1122 × 1402 | yes | The approval success toast — this platform's signature act |
 | `mascot-goodbye.png` | 1122 × 1402 | yes | The signed-out screen |
 | `mascot-thinking.png` | 1122 × 1402 | yes | Knowledge Ask, while a question is being answered |
@@ -69,10 +69,3 @@ ui-state-illustrations.png   empty / loading / error / approved states, with cap
 **One caution about `ui-kit-elements.png`.** It is not a component library. The console keeps
 flat surfaces — `--shadow-sm` and `--shadow` are `none` on purpose — so that sheet is a reference
 for colour and mood, not a set of components to reproduce.
-
-## History worth knowing
-
-The first app icons were built from a **183 × 179px** panel on `brand-kit-sheet.png` that the
-sheet labels "1024 × 1024" — that label is drawn-on annotation, not a file size. Everything above
-about 180px in that first icon set was an upscale. `in-use/mascot-bust.png` is a true 1254 × 1254
-master, so the icon set is rebuilt from it and no longer contains an upscale.

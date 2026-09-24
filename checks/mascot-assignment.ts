@@ -1,26 +1,20 @@
-/* THE MAPPING IS THE POINT, not the presence of a mascot.
+/* Which artwork each surface carries, per the mascot mapping — not merely that a mascot is
+ * present. Eight illustrations that all mean "something happened" tell the reader the product
+ * is not reading the situation either.
  *
- * A cast of eight illustrations that all mean "something happened" is worse than no
- * illustration at all: it tells the reader the product is not reading the situation
- * either. So this asserts WHICH artwork each surface carries, per the spec's mascot
- * mapping, and fails when one drifts to whichever file was nearest to hand.
- *
- * Two halves, because the assignments live in two different shapes. Most are EmptyState
- * call sites and are checked exhaustively — every one must carry an assigned illustration
- * and the total must match. Four are one-off surfaces (a waiting screen, a success toast,
- * the sign-out page, the login hero) that are not EmptyStates at all; each is pinned to
- * its file by name. Leaving those out was the gap this check used to have — the design
- * system documented nine assignments and the check enforced five.
+ * Two halves, because the assignments live in two shapes. Most are EmptyState call sites and
+ * are checked exhaustively: every one must carry an assigned illustration and the total must
+ * match. Four are one-off surfaces — a waiting screen, a success toast, the sign-out page,
+ * the login hero — that are not EmptyStates, and each is pinned to its file by name.
  */
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 /* EmptyState surfaces: illustration -> the files the spec assigns it to. */
 const WANT: Record<string, string[]> = {
-  // `teams/page.tsx` joined when the teams LIST grew a search and a status facet: a filter
-  // that can match nothing needs the same "nothing matches" surface /initiatives has, and it
-  // is the same illustration for the same reason. `teams/[slug]/page.tsx` beside it is the
-  // one team's own detail page, which is a different empty.
+  // `teams/page.tsx` is the teams list, whose search and status facet can match nothing — the
+  // same "nothing matches" surface /initiatives has. `teams/[slug]/page.tsx` beside it is one
+  // team's detail page, which is a different empty.
   'state-empty': ['knowledge/log/page.tsx', 'initiatives/page.tsx', 'teams/page.tsx', 'teams/[slug]/page.tsx', 'SkillCost.tsx', 'knowledge/page.tsx'],
   'state-welcome': ['TokensPanel.tsx', 'TeamMembersPanel.tsx', 'PlatformPeoplePanel.tsx'],
   'state-error': ['error.tsx', 'Query.tsx'],
@@ -73,8 +67,8 @@ for (const [asset, [owner, why]] of Object.entries(ONE_OFF)) {
   }
 }
 
-/* THE ROOT 404, which is not an EmptyState and is the page a stranger is most likely to
- * see. Without this file Next serves its own black default — see app/not-found.tsx. */
+/* The root 404, which is not an EmptyState. Without app/not-found.tsx, Next serves its own
+ * black default. */
 const root = 'app/not-found.tsx';
 if (!files.includes(root)) {
   fail404('the root 404 does not exist — Next will serve its black built-in default');

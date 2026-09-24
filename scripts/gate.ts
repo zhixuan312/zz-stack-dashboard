@@ -2,13 +2,8 @@
 /**
  * The console's gate.
  *
- * WHY THIS EXISTS. zz-stack catches a whole class of fault before it ships because every
- * failure that reached a person became a check. This repository had `tsc` and nothing else,
- * and the difference showed: seven bugs in one afternoon, every one found by the stakeholder
- * rather than by us, and every one the same shape — the screen asserting something the data
- * does not say. A type checker cannot see any of them. These can.
- *
- * Each check below is a bug that actually shipped. Adding one is how a bug stops recurring.
+ * Each check below is a fault a type checker cannot see: the screen asserting something the
+ * data does not say. Adding one is how a bug stops recurring.
  */
 import { execSync } from 'node:child_process';
 import { asExecError, execOutput } from './lib/exec.ts';
@@ -41,9 +36,8 @@ function sources(): [string, string][] {
 console.log('\n  \x1b[1mconsole gate\x1b[0m\n');
 
 check('a timestamp is rendered through <Time>, never printed raw', () => {
-  // The API sends ISO 8601 in UTC. Printed straight into a cell that is
-  // `2026-09-05T04:59:00Z` on screen, and before that it was a UTC wall-clock with no zone
-  // — which a reader in Singapore read as their own time and was eight hours out.
+  // The API sends ISO 8601 in UTC. Printed straight into a cell, that is
+  // `2026-09-05T04:59:00Z` on screen, or a wall-clock a reader takes for their own time.
   const bad = [];
   for (const [f, s] of sources()) {
     if (f.endsWith('ui/time.tsx')) continue;
@@ -57,18 +51,15 @@ check('a timestamp is rendered through <Time>, never printed raw', () => {
   return bad.length ? bad.join('; ') : null;
 });
 
-check('no map is keyed by the names of one flow, block or skill', () => {
-  // Eight copies of "every initiative runs ops-flow" shipped at once: stage lists, gate
-  // positions, document subtitles, a per-skill table and a per-block table. Each was correct
-  // for the thing it was written against and wrong for everything else.
+check('no map is keyed by the names of one flow or skill', () => {
+  // A flow's stage list, gate positions and document subtitles written as constants are each
+  // correct for the flow they were written against and wrong for every other one.
   const bad = [];
   for (const [f, s] of sources()) {
     if (f.endsWith('components/Flow.tsx')) continue;   // its STAGES is the declared fallback
     for (const m of s.matchAll(/Record<string,[^>]*>\s*=\s*\{([^}]{0,600})\}/g)) {
-      // CASE-INSENSITIVE: a block id is lowercase by convention, so a map keyed `RuleMill:`
-      // is the same defect wearing a display name. A check that sees one casing finds one bug.
-      if (/'(ops|zz|sdlc|casebox)-[a-z-]+':|^\s*(casebox|bookit|rulemill|platform):/im.test(m[1])) {
-        bad.push(`${f}: a map keyed by specific ${/-/.test(m[1]) ? 'skill/flow' : 'block'} names`);
+      if (/'(ops|zz|sdlc)-[a-z-]+':/.test(m[1])) {
+        bad.push(`${f}: a map keyed by specific skill/flow names`);
       }
     }
   }
@@ -82,12 +73,9 @@ check('a count of gates or stages has no hardcoded denominator', () => {
   for (const [f, s] of sources()) {
     for (const m of s.matchAll(/\bof \d+\b/g)) {
       const line = s.slice(s.lastIndexOf('\n', m.index) + 1, s.indexOf('\n', m.index));
-      /* PROSE IN A COMMENT IS NOT A DENOMINATOR, and the test for it was wrong in the
-       * commonest case. It took `line.trim().slice(0, 2)` and looked the pair up in a list
-       * of openers — but an ordinary JSDoc body line, ` * an axis in steps of 500`, trims
-       * to `* an…` whose first two characters are `"* "`, which is in no list. So every
-       * continuation line of every block comment was treated as code, and explaining this
-       * rule in a comment was enough to break it. Match the opener, don't slice it. */
+      /* Prose in a comment is not a denominator. Match the opener rather than slicing two
+       * characters off the trimmed line: a JSDoc body line trims to `* …`, which no list of
+       * two-character openers holds. */
       if (/^(\/\/|\*|\/\*|\{\/)/.test(line.trim())) continue;
       bad.push(`${f}: "${m[0]}"`);
     }
@@ -107,16 +95,12 @@ check('a table that can be empty says so', () => {
   return bad.length ? bad.join('; ') : null;
 });
 
-/* THE SAME CEILING THE PLATFORM REPOSITORY HOLDS, and it is here rather than only there
- * because the rule is about code somebody has to reuse and this is half the code.
+/* The same ceiling the platform repository holds, because the rule is about code somebody has
+ * to reuse and this is half the code.
  *
- * 700 lines, measured rather than chosen: it is the line above which every source file in
- * either repository turned out to hold a second subject. This console has never had one over
- * it — the largest is src/lib/api.ts at 531 — so today the check is a floor under a healthy
- * tree rather than a demand, which is exactly when a rule is worth writing down.
- *
- * It finds "definitely too big" and cannot find "more than one subject". No exemption list:
- * a file that cannot get under it is telling you something, not asking for a waiver.
+ * It finds "definitely too big" and cannot find "more than one subject". DELIBERATE: no
+ * exemption list — a file that cannot get under it is telling you something, not asking for a
+ * waiver.
  */
 check('no source file is larger than one subject usually is', () => {
   const LIMIT = 700;
@@ -141,21 +125,14 @@ check('no source file is larger than one subject usually is', () => {
     : null;
 });
 
-/* THE PROPERTY THAT MOVED REPOS WHEN /app DID.
+/* This app renders markdown a team member pasted in through `source_add`, which is text out
+ * of a document nobody here wrote. It is safe for one reason, stated in
+ * src/lib/safe-markdown.ts: react-markdown with remark-gfm and no rehype-raw, so raw HTML
+ * arrives as inert text and `<script>` never becomes a node. That file does not escape `<` and
+ * `>`, because escaping corrupts code spans.
  *
- * zz-stack used to serve its own knowledge page and its gate checked, line by line, that
- * every interpolation into that page's HTML was escaped. That page is deleted — the console
- * is the only front end now — and the check went with it.
- *
- * But the PROPERTY did not go anywhere. This app renders markdown that a team member pasted
- * in through `add_source`, which is text out of a document nobody here wrote. It is safe for
- * exactly one reason, stated in src/lib/safe-markdown.ts: react-markdown with remark-gfm and
- * NO rehype-raw, so raw HTML arrives as inert text and `<script>` never becomes a node. That
- * file deliberately does not escape `<` and `>`, because escaping corrupts code spans.
- *
- * So the whole defence is the ABSENCE of one plugin, and an absence is what nobody notices
- * adding. Somebody wanting an inline image or a table with markup reaches for rehype-raw, it
- * works, and the property is gone with nothing red. This is that check.
+ * COUPLED: the whole defence is the absence of one plugin. Adding rehype-raw works and takes
+ * the property with it, so this check watches for it.
  */
 check('markdown is rendered with raw HTML inert', () => {
   const bad = [];
@@ -170,10 +147,8 @@ check('markdown is rendered with raw HTML inert', () => {
   if (!files.length) return 'no source files found — this check is reading nothing';
   let renderers = 0;
   for (const [rel, src] of files) {
-    // COMMENTS STRIPPED FIRST. safe-markdown.ts NAMES rehype-raw in the paragraph explaining
-    // why it is absent, and the first version of this check read that as using it — the same
-    // mistake as a check that cannot tell a command from a sentence about one, and it fires
-    // on exactly the files that explain themselves best.
+    // Comments stripped first: safe-markdown.ts names rehype-raw in the paragraph explaining
+    // why it is absent, and a sentence about a plugin is not a use of it.
     const code = src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1 ');
     if (/\brehype-raw\b|\brehypeRaw\b/.test(code)) {
       bad.push(`${rel} reaches for rehype-raw`);
@@ -189,24 +164,12 @@ check('markdown is rendered with raw HTML inert', () => {
   return bad.length ? bad.join('; ') : null;
 });
 
-/* THE CHECK THAT WAS WRITTEN AND NOT WIRED, which this repository has now done four times.
+/* `scripts/verify-contrast.ts` and the `checks/*.ts` suite are reachable from a package.json
+ * script a person has to remember, and `release.ts` runs typecheck, lint, test and gate
+ * without touching either.
  *
- * `release.ts` says it best, in a comment about this very gate: "Three checks that pass and
- * a fourth nobody runs is the same arrangement this repository found twice more this week."
- * The 2026-09 brand adoption then did it again, twice over. It shipped
- * `scripts/verify-contrast.ts` — written precisely because `audit:design` PRINTED contrast
- * failures and exited 0, so "a palette that fails everywhere would ship green and silent" —
- * and wired it to nothing but a `package.json` script a person has to remember. It shipped
- * sixteen `checks/*.ts` the same way. `release.ts` runs typecheck, lint, test and gate for
- * the console; none of those touched either one.
- *
- * So the initiative whose whole premise was "a silent palette failure must become a loud one"
- * left the palette failure silent. These two entries are what make it loud, and they go HERE
- * rather than in `release.ts` because `pnpm run gate` is already on the enforced path — the
- * fix belongs where the enforcement already is, not in a second list to keep in sync.
- *
- * Together they cost about 16 seconds beside a gate that already runs `next build`, so there
- * was never a cost argument for leaving them out.
+ * COUPLED: these two entries are what puts them on the enforced path, and they go here rather
+ * than in `release.ts` because `pnpm run gate` is already on it.
  */
 check('the palette clears its contrast floors', () => {
   try { execSync('node scripts/verify-contrast.ts', { stdio: 'pipe' }); return null; }

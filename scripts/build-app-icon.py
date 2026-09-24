@@ -3,24 +3,18 @@
 Requires Pillow (`pip install Pillow`). It is an ambient dependency: this repository has no
 requirements.txt or pyproject.toml.
 
-Source: public/assets/brand-kit-sheet.png, the "03 APP ICON" squircle at
-(1013,70)-(1196,249) native — 183x179 px. Everything above ~180px is therefore
-an upscale of a contact-sheet crop, not a fresh render.
+Source: design/in-use/app-icon-squircle.png, a 1254x1254 master.
 
 A mobile app icon must be full-bleed: iOS applies its own squircle and Android
 its own mask, so baked-in rounded corners show up as a dark ring inside the
-system mask. The kit's panel has white sheet corners, so the lavender ground is
-extrapolated outward and the artwork composited back over it.
+system mask. The master has white corners, so the lavender ground is extrapolated
+outward and the artwork composited back over it.
 """
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFilter
 
 ROOT = Path(__file__).resolve().parents[1]
-# The MASTER, not a contact-sheet panel. The first version of this script cropped a
-# 183x179 region of brand-kit-sheet.png that the sheet itself labelled "1024 x 1024" --
-# drawn-on annotation, not a file size -- so every icon above ~180px was an upscale.
-# This master is a real 1254x1254 render.
 SHEET = ROOT / 'design/in-use/app-icon-squircle.png'
 OUT = ROOT / 'public/assets/app-icon/'
 BOX = None                       # the master is full-bleed; no crop
@@ -79,7 +73,7 @@ for cy in range(GRID):
 ground = grid.resize((w, h), Image.BICUBIC)
 
 # --- 2. composite the real artwork over the ground -------------------------
-# The background is found by flooding inward from the four corners, NOT by a
+# The background is found by flooding inward from the four corners, not by a
 # colour test: the helmet's cream (#F8EFEA) and its specular highlights are
 # within a hair of the sheet's white, and a global test punches holes in them.
 probe = src.copy()
@@ -114,7 +108,7 @@ SAFE = 717                                        # 70% of 1024
 OFF = (1024 - SAFE) // 2
 art = master.resize((SAFE, SAFE), Image.LANCZOS)
 
-# The ground behind it has to be the SAME gradient continued outward, or the
+# The ground behind it has to be the same gradient continued outward, or the
 # shrunk art reads as a square tile pasted on a different purple. Clamp the
 # ground's edge pixels out to the canvas instead of re-stretching the gradient.
 g = ground.resize((SAFE, SAFE), Image.BICUBIC)

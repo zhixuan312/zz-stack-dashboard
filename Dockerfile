@@ -1,38 +1,29 @@
 # ZZ Console — the admin dashboard.
 #
-# NODE 24 IS THE FLOOR, and `engines` in package.json says so. scripts/ and checks/ are
-# TypeScript run by Node directly — no build step, no bundler — and native type stripping
-# only reached Stable in 24.12. `pnpm install` reads that `engines` field in this image,
-# so the two have to agree.
+# COUPLED: Node 24 is the floor, as `engines` in package.json says, and `pnpm install` reads
+# that field in this image. scripts/ and checks/ are TypeScript run by Node directly, and native
+# type stripping is stable from 24.12.
 #
-# A standalone Next build, which is why there are two stages and no node_modules
-# in the final image: `output: 'standalone'` traces the modules the server
-# actually reaches and copies just those, so the runtime layer is the app plus
-# what it imports rather than the whole dependency tree.
+# A standalone Next build: `output: 'standalone'` traces the modules the server reaches and
+# copies just those, so the final stage has no node_modules.
 #
-# IT HOLDS NO SECRET AND TALKS TO NOTHING. Every read the console does happens in
-# the browser, against /api/console on the same origin, carrying the person's own
-# cookie. This container serves HTML and JavaScript and has no database URL, no
-# token and no upstream — which is the property that makes deploying it beside
-# the gateway uninteresting rather than delicate.
+# It holds no secret and talks to nothing. Every read happens in the browser, against
+# /api/console on the same origin with the person's own cookie; this container serves HTML and
+# JavaScript and has no database URL, no token and no upstream.
 FROM node:24-alpine AS build
 WORKDIR /app
 RUN corepack enable
-# Manifest and lockfile first: this layer is the install, and it should be reused
-# on every build where the dependencies have not moved.
+# Manifest and lockfile first, so the install layer is reused while dependencies stay put.
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY . .
-# Fails the build on a type error rather than shipping one — `next build` runs
-# tsc, and the whole point of catching it here is that the container is the
-# artifact everything downstream trusts.
+# `next build` runs tsc, so a type error fails the image build.
 RUN pnpm build
 
 FROM node:24-alpine AS run
 WORKDIR /app
 ENV NODE_ENV=production HOSTNAME=0.0.0.0 PORT=3000
-# Not root. Nothing in here needs to write anywhere, so the runtime user owns
-# nothing and the filesystem stays as the build left it.
+# Not root.
 RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
 COPY --from=build --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=build --chown=nextjs:nodejs /app/.next/static ./.next/static

@@ -1,11 +1,9 @@
 import type { KnowledgeNode } from './api-shapes';
 
 /**
- * The three filters the knowledge shelf composes, kept dependency-free
- * (no React, no Next) so this file can sit alongside `page.tsx` and be
- * imported by a plain Vitest test without dragging a component tree,
- * a router, or a network layer into the test — the same reason
- * `period.ts` and `format.ts` are shaped this way.
+ * The three filters the knowledge shelf composes, kept dependency-free (no React, no Next) so a
+ * plain Vitest test can import this without a component tree, a router or a network layer — the
+ * same reason `period.ts` and `format.ts` are shaped this way.
  */
 interface KnowledgeFilters {
   /** A team slug, or `'all'` for no team narrowing. */
@@ -17,18 +15,14 @@ interface KnowledgeFilters {
 }
 
 /**
- * AND across team, tags and search — each filter a reader sets narrows the
- * shelf further, which is the composition the AC calls for. OR *within* the
- * tag facet — checking a second tag widens the facet's own contribution
- * (nodes carrying either tag) rather than demanding both on one node, which
- * is the standard "select tags" reading and the one that keeps adding a tag
- * from ever *shrinking* what the facet alone would show.
+ * AND across team, tags and search — each filter a reader sets narrows the shelf further. OR within
+ * the tag facet: checking a second tag widens the facet's own contribution (nodes carrying either
+ * tag) rather than demanding both on one node, so adding a tag never shrinks what the facet alone
+ * would show.
  *
- * The free-text search matches title and excerpt only, not tags — the
- * stakeholder asked for tags as a real facet (exact, selectable, counted),
- * explicitly not something a substring search happens to also match. Giving
- * a tag two different ways to be found — one exact, one fuzzy — is the kind
- * of drift this split is meant to prevent.
+ * The free-text search matches title and excerpt only, not tags: tags are a real facet — exact,
+ * selectable, counted — and giving a tag two ways to be found, one exact and one fuzzy, is the
+ * drift this split prevents.
  */
 export function filterKnowledgeNodes(
   nodes: KnowledgeNode[],
@@ -46,14 +40,11 @@ export function filterKnowledgeNodes(
 }
 
 /**
- * Tags actually present, each with its count — counted from the LOADED node
- * set, not from whatever the other filters have already narrowed to. A count
- * that shifted every time a reader typed a search character would make the
- * facet a moving target; a stable count next to a filtered-to-zero shelf is
- * what the empty state's "nothing matches" wording is for instead.
+ * Tags actually present, each with its count — counted from the loaded node set, not from whatever
+ * the other filters have narrowed to, so a count does not shift every time a reader types a search
+ * character.
  *
- * Sorted most-common first (what a reader scans a facet for), ties broken
- * alphabetically so the order is stable across renders.
+ * Sorted most-common first, ties broken alphabetically so the order is stable across renders.
  */
 export function tagFacetCounts(nodes: KnowledgeNode[]): { tag: string; count: number }[] {
   const counts = new Map<string, number>();
@@ -68,16 +59,10 @@ export function tagFacetCounts(nodes: KnowledgeNode[]): { tag: string; count: nu
 /**
  * The team control's options — the teams present in the loaded set.
  *
- * PLATFORM MODE IS THE ONLY CALLER. This used to take a `mode` and a `Me`, because in team
- * mode it listed the caller's OTHER memberships so they could switch shelves from here.
- * That was an offer the page could not honour twice over: the gateway scopes a team-mode
- * read to `active_team_id`, so a sibling team's rows were never fetched and picking one
- * emptied the list; and switching the team a person acts for changes every page at once,
- * which is a decision that belongs in Settings rather than in one list's filter row.
- *
- * A platform read already spans every team the caller may act on, so here "what came back"
- * and "what they can reach" are the same question — which is why the loaded set is the
- * honest source for the options.
+ * Platform mode is the only caller. In team mode the gateway scopes a read to `active_team_id`, so
+ * a sibling team's rows are never fetched and offering one empties the list; switching the team a
+ * person acts for changes every page at once, which belongs in Settings. A platform read already
+ * spans every team the caller may act on, so the loaded set is the honest source for the options.
  */
 export function teamFacetOptions(nodes: KnowledgeNode[]): { slug: string; count: number }[] {
   const countFor = (slug: string) => nodes.filter((n) => n.team === slug).length;

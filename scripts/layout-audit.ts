@@ -1,20 +1,10 @@
 /**
- * Layout audit — asserts the shell's structural invariants on every page, at
- * several viewport sizes, in a real browser.
+ * Layout audit — asserts the shell's structural invariants on every page, at several viewport
+ * sizes, in a real browser.
  *
- * ## Why this exists
- *
- * This design system's characteristic failure is a page that is BROKEN AND
- * GREEN. A records table once shipped with its content clipped instead of
- * scrolled: the panel grew to 35,616px inside a 674px box whose parent had
- * `overflow: hidden`, so the rest was simply cut off with no scrollbar. Nothing
- * failed. TypeScript was happy, the tests passed, the page returned 200, and a
- * screenshot looked plausible because the visible rows were correct. A human
- * had to notice.
- *
- * That is a whole CLASS of bug — a container that is not height-bounded, or is
- * bounded but cannot scroll — and it is invisible to every other check. These
- * invariants catch it mechanically:
+ * It catches a container that is not height-bounded, or is bounded but cannot scroll. Content
+ * clipped instead of scrolled leaves TypeScript happy, the tests passing, the page returning
+ * 200 and a screenshot looking plausible, because the visible rows are correct.
  *
  *   A. the document itself never scrolls (the shell is `fixed inset-0`)
  *   B. nothing is clipped horizontally
@@ -30,54 +20,33 @@
  *
  * ## Running it
  *
- *   pnpm add -D puppeteer          # once — deliberately not a default dep
- *   AUDIT_BASE=https://console.<host> \
- *   AUDIT_EMAIL=someone@example.com \
- *   AUDIT_PASSWORD=… \
+ *   AUDIT_BASE=https://<console host> \
+ *   AUDIT_TOKEN=zzp_… \
  *     pnpm audit:layout
  *
- * AGAINST A DEPLOYMENT, not `pnpm dev`. Every route is behind ConsoleGate, and
- * signing in needs `/auth/password`, which is the gateway — `src/lib/api.ts`
- * explains that in local development nothing serves those paths at all. Caddy
- * puts the console and the gateway on one origin on a real host, which is what
- * makes a cookie from the API usable by the app.
- *
- * Puppeteer is NOT in devDependencies: it downloads a ~150MB browser, which is
- * a lot to impose on everyone who clones a template. Install it when you want
- * the audit.
+ * Against a deployment, not `pnpm dev`: every route reads `/api/console`, which is the gateway,
+ * and in local development nothing serves it. `AUDIT_TOKEN` is a superadmin platform token —
+ * the console API accepts one from a script in place of a passkey session.
  *
  * ## Adapting it
  *
- * Edit `PAGES`. If your app has an auth gate, add the login step where
- * `authenticate()` is stubbed below — and keep the `/login` redirect guard, or
- * an unauthenticated run passes vacuously, which is the worst outcome for a
- * check like this.
+ * Edit `PAGES`, and keep the `/login` redirect guard — an unauthenticated run passes vacuously.
  */
 
 import { readFileSync } from 'node:fs';
 
 const BASE = process.env.AUDIT_BASE ?? 'http://127.0.0.1:3000';
 
-/** [name, path] — every route worth auditing, READ FROM `src/nav.ts` rather than
- * copied out of it.
+/** [name, path] — every route worth auditing, read from `src/nav.ts` rather than copied out of
+ * it.
  *
- * This list used to be the upstream template's — `/records`, `/health`,
- * `/components` — none of which are routes in this console, while `/blocks`,
- * `/flows`, `/initiatives`, `/knowledge`, `/people`, `/runs` and `/teams` all
- * are and none were audited. Two of six entries pointed at a real page. The
- * instruction above it said "keep in sync with src/nav.ts", which is the kind
- * of rule that is true on the day it is written and false a month later,
- * because nothing enforces it.
+ * COUPLED: `src/nav.ts` is the one place the navigation lives — the Sidebar renders it and owns
+ * no route knowledge of its own. A page added there is audited here with no second edit, and a
+ * page removed there stops being requested. Regex rather than an import because this is plain
+ * ESM run by node with no TypeScript loader; the shape it matches is a literal `href: '...'`.
  *
- * So it is not a rule any more. `src/nav.ts` is the one place the navigation
- * lives — the Sidebar renders it and owns no route knowledge of its own — and
- * this reads the same file. A page added there is audited here with no second
- * edit, and a page removed there stops being requested. Regex rather than an
- * import because this is plain ESM run by node with no TypeScript loader; the
- * shape it matches is a literal `href: '...'` and the file is ours.
- *
- * `?period=90d` is appended to the two pages that take a period, so the audit
- * exercises the widest data those pages render rather than their default.
+ * `?period=90d` is appended to the two pages that take a period, so the audit exercises the
+ * widest data those pages render rather than their default.
  */
 const PERIODS = new Set(['/', '/activity']);
 const navSource = readFileSync(new URL('../src/nav.ts', import.meta.url), 'utf8');
@@ -95,10 +64,8 @@ if (!PAGES.length) {
 /** Sub-pixel rounding and 1px borders produce noise; only flag real overflow. */
 const SLOP = 4;
 
-// Narrow viewports are NOT optional here. The rail was a fixed 232px at every
-// width until this list included a phone: at 390px that left 158px of content
-// and the dashboard was unusable — and every check passed, because every check
-// ran at 1280px and up. An audit only covers what it visits.
+// Narrow viewports are not optional. A rail fixed at 232px leaves 158px of content at 390px,
+// and every check still passes if every check runs at 1280px and up.
 const VIEWPORTS = [
   { name: 'phone', width: 390, height: 844 },
   { name: 'tablet', width: 820, height: 1180 },
@@ -126,9 +93,8 @@ function auditInPage(slop: number, panelClass: string) {
   };
 
   /**
-   * Visually-hidden-but-accessible content is clipped ON PURPOSE — the
-   * `sr-only` pattern pins a 1px box and hides the overflow so screen readers
-   * still reach it. Flagging it would train us to ignore the check.
+   * DELIBERATE: visually-hidden-but-accessible content is clipped on purpose — the `sr-only`
+   * pattern pins a 1px box and hides the overflow so screen readers still reach it.
    */
   const isVisuallyHidden = (el: Element): boolean => {
     const cs = getComputedStyle(el);
@@ -150,11 +116,9 @@ function auditInPage(slop: number, panelClass: string) {
 
   /** The same question, sideways — see check B for why it needs asking.
    *
-   * A wide table inside a Panel's `overflow-x-auto` is reachable: the reader
-   * drags it and the last column arrives. The shell around it still measures a
-   * scrollWidth larger than its clientWidth, because that measurement does not
-   * care which descendant can scroll, and reporting the shell for it describes
-   * a page that is working. */
+   * A wide table inside a Panel's `overflow-x-auto` is reachable: the reader drags it and the
+   * last column arrives. The shell around it still measures a scrollWidth larger than its
+   * clientWidth, because that measurement does not care which descendant can scroll. */
   const hasHorizontalScrollerInside = (el: Element): boolean => {
     const cands = [el, ...el.querySelectorAll('*')];
     return cands.some((c) => {
@@ -184,23 +148,12 @@ function auditInPage(slop: number, panelClass: string) {
 
     // B — horizontal clipping that actually loses content.
     //
-    // Only `overflow-x: hidden` counts: `visible` overflow is not lost (it
-    // paints outside the box, which is how the scroll-pane clearance and the
-    // cards' hover bloom work), and `truncate` sets ellipsis deliberately.
-    // Nor does it count when the overflow belongs to a descendant that sits
-    // inside its OWN horizontal scroller — the content is reachable, which is
-    // the entire question this invariant asks. Check C already draws exactly
-    // this distinction vertically ("with no scroller anywhere inside it that
-    // could reach the rest"); B did not, and the asymmetry produced a false
-    // report the first time this audit ran authenticated: `div.app-bg.fixed`
-    // measured 456 against 390 on /initiatives at phone width, because a
-    // 993px table was reachable inside a Panel's `overflow-x-auto` two levels
-    // down. Verified by driving it — scrollLeft went 0 to 645 and the last
-    // column, "Updated (SGT)", landed fully inside the viewport.
-    //
-    // A check that reports a non-problem is worse here than one that reports
-    // nothing, because this file's neighbours already record what that costs:
-    // it "trains people to ignore a gate".
+    // Only `overflow-x: hidden` counts: `visible` overflow is not lost (it paints outside the
+    // box, which is how the scroll-pane clearance and the cards' hover bloom work), and
+    // `truncate` sets ellipsis deliberately. Nor does it count when the overflow belongs to a
+    // descendant that sits inside its own horizontal scroller — the content is reachable,
+    // which is the entire question this invariant asks. Check C draws the same distinction
+    // vertically ("with no scroller anywhere inside it that could reach the rest").
     if (
       cs.overflowX === 'hidden' &&
       cs.textOverflow !== 'ellipsis' &&
@@ -235,7 +188,7 @@ function auditInPage(slop: number, panelClass: string) {
     if (!moved) out.push(`D scroller does not move: ${label(el)}`);
   }
 
-  // L — ONE SCROLLER. Only the page body and the rail may scroll, and nothing may scroll
+  // L — one scroller. Only the page body and the rail may scroll, and nothing may scroll
   //     sideways at all. A scroller that has nothing to scroll is harmless and ignored;
   //     one that is actually scrolling is a card that should have paged or wrapped.
   for (const el of all) {
@@ -258,15 +211,13 @@ function auditInPage(slop: number, panelClass: string) {
     const cs = getComputedStyle(el);
     if (cs.display === 'none' || cs.visibility === 'hidden') continue;
     if (el.closest('.sr-only')) continue;
-    // Not exposed to assistive tech and not tabbable — e.g. the visually
-    // hidden native <select> Radix renders purely for form/autofill
-    // compatibility. Flagging it would be noise, and noise gets ignored.
+    // Not exposed to assistive tech and not tabbable — e.g. the visually hidden native
+    // <select> Radix renders purely for form and autofill compatibility.
     if (el.getAttribute('aria-hidden') === 'true' || el.closest('[aria-hidden="true"]')) continue;
     if (!(el instanceof HTMLElement) || el.tabIndex < 0) continue;
-    // A `<label for>` association counts. It has to: `Field` names its control
-    // that way (it owns `htmlFor` + the generated id), so a check that only
-    // looked at `aria-label` flagged every correctly-labelled form field in the
-    // app — and a check that cries wolf on the happy path gets switched off.
+    // A `<label for>` association counts: `Field` names its control that way, owning `htmlFor`
+    // and the generated id, so looking at `aria-label` alone flags every correctly-labelled
+    // form field in the app.
     const labelledBy = (el.getAttribute('aria-labelledby') || '')
       .split(/\s+/)
       .filter(Boolean)
@@ -305,10 +256,8 @@ function auditInPage(slop: number, panelClass: string) {
     if (h > 0 && h < 40) out.push(`J panel collapsed to ${Math.round(h)}px: ${label(card)}`);
   }
 
-  // E — the rail must reach the bottom of the viewport. Desktop only: below the
-  //     `lg` breakpoint the rail is an overlay drawer and is correctly absent
-  //     from the page, so asserting its presence there would fail the very fix
-  //     that makes narrow widths usable.
+  // E — the rail must reach the bottom of the viewport. Desktop only: below the `lg`
+  //     breakpoint the rail is an overlay drawer and is correctly absent from the page.
   if (window.innerWidth >= 1024) {
     const side = document.querySelector('[data-testid="sidebar"]');
     if (!side) {
@@ -323,21 +272,17 @@ function auditInPage(slop: number, panelClass: string) {
 }
 
 /**
- * K — a table must never be clipped, and should not need horizontal scrolling
- * at the widest viewport.
- *
- * Two different failures. Clipping (no scroll container at all) is a hard
- * violation: the rightmost columns are simply unreachable. Needing to scroll on
- * a 1920px screen is a soft one — reachable, but nobody scrolls a table
- * sideways to discover a column exists, so the data is effectively invisible.
+ * K — a table must never be clipped, and should not need horizontal scrolling at the widest
+ * viewport. Clipping (no scroll container at all) is a hard violation: the rightmost columns
+ * are unreachable. Needing to scroll on a 1920px screen is a soft one — reachable, but nobody
+ * scrolls a table sideways to discover a column exists, so the data is effectively invisible.
  */
 function tablesFitOrScroll(vpWidth: number) {
   const out: string[] = [];
   for (const t of document.querySelectorAll('table')) {
-    // Skip the charts' accessible twin tables. They live inside `.sr-only`,
-    // which pins a 1px box and hides the overflow ON PURPOSE, so every one of
-    // them looks like a table 228px wider than its container with no scroller.
-    // Three false positives on one page is how a check stops being read.
+    // Skip the charts' accessible twin tables. They live inside `.sr-only`, which pins a 1px
+    // box and hides the overflow on purpose, so every one of them looks like a table wider
+    // than its container with no scroller.
     if (t.closest('.sr-only')) continue;
     let n = t.parentElement;
     let scroller = null;
@@ -399,67 +344,30 @@ if (!probe) {
   process.exit(2);
 }
 
-// `true` IS the new headless; see design-metrics.ts for why 'new' survived this long.
+// `true` is the new headless; see design-metrics.ts for why 'new' survived this long.
 const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
 const page = await browser.newPage();
 
 /**
- * Sign in, so the audit sees the dashboard rather than eleven copies of the
- * login screen.
+ * Authenticate every request the page makes with a superadmin platform token, so the audit
+ * sees the dashboard rather than eleven copies of the login screen. A passkey ceremony cannot
+ * be completed by a headless browser.
  *
- * THIS IS WHY THE PASSWORD DOOR EXISTS FOR MORE THAN BREAK-GLASS. Every route
- * here is behind `ConsoleGate`, and the only way in used to be a redirect
- * through SsoAuth — an interactive consent flow at somebody else's identity
- * provider, which a headless browser cannot complete and which this repository
- * should not be scripting anyway. `POST /auth/password` is a single request
- * that returns a session cookie, so a machine can hold a session the same way
- * a person does, and this check became possible the day that door was built.
- *
- * IT RUNS INSIDE THE PAGE, not from node. The cookie is host-only and
- * SameSite=Lax; fetching from node would put it in node's jar, where the
- * browser doing the actual navigating would never see it. `page.evaluate` runs
- * in the document's own origin, so the Set-Cookie lands where it is needed.
- *
- * IT NEEDS A DEPLOYMENT, not a dev server. `src/lib/api.ts` says it plainly:
- * in local development nothing serves `/api/console`, and by the same token
- * nothing serves `/auth/password`. So point AUDIT_BASE at a host where Caddy
- * puts the console and the gateway on one origin.
+ * DELIBERATE: abort rather than continue unauthenticated. A run that carries on reports every
+ * page as a login-redirect failure, which reads like a broken layout and is a missing credential.
  */
 async function authenticate() {
-  const email = process.env.AUDIT_EMAIL;
-  const password = process.env.AUDIT_PASSWORD;
-  if (!email || !password) {
+  const token = process.env.AUDIT_TOKEN;
+  if (!token) {
     console.error(
-      'AUDIT_EMAIL and AUDIT_PASSWORD are not set — every page would redirect to /login\n' +
-        'and this audit would report failures that say nothing about layout.\n' +
-        'Set them to a principal whose password has been set, and point AUDIT_BASE at a\n' +
-        'deployment (a local dev server has no gateway behind /auth or /api/console).',
+      'AUDIT_TOKEN is not set — every page would redirect to /login and this audit would\n' +
+        'report failures that say nothing about layout. Set it to a superadmin platform token,\n' +
+        'and point AUDIT_BASE at a deployment (a local dev server has no gateway behind\n' +
+        '/api/console).',
     );
     process.exit(2);
   }
-  await page.goto(BASE + '/login', { waitUntil: 'domcontentloaded' });
-  const outcome = await page.evaluate(
-    async (creds) => {
-      const res = await fetch('/auth/password', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ email: creds.email, password: creds.password }),
-      });
-      const body = await res.json().catch(() => null);
-      return { status: res.status, message: body?.message ?? null, ok: body?.ok === true };
-    },
-    { email, password },
-  );
-  if (!outcome.ok) {
-    // ABORT, never continue unauthenticated. A run that carries on would report
-    // every page as a login-redirect failure, which reads like a broken layout
-    // and is really a broken credential — the slowest possible way to find out.
-    console.error(
-      `sign-in failed (HTTP ${outcome.status})${outcome.message ? `: ${outcome.message}` : ''}`,
-    );
-    process.exit(2);
-  }
+  await page.setExtraHTTPHeaders({ authorization: `Bearer ${token}` });
 }
 await authenticate();
 

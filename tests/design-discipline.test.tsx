@@ -4,13 +4,8 @@ import { BarList } from '@/components/charts/BarList';
 import { AXIS_FORMATTERS, FORMATTERS } from '@/lib/format';
 
 /**
- * These lock the DISCIPLINE, not the pixels.
- *
- * Every rule here was broken at some point by a page that rendered fine and
- * simply looked wrong — four differently-coloured metric tiles, six accent bars,
- * a `$12.00` axis tick. A visual rule that only lives in a doc comment gets
- * re-broken by the next person who needs "just one more colour"; asserted, it
- * has to be argued with.
+ * These lock the discipline, not the pixels — the visual rules a page can break while still
+ * rendering fine.
  */
 
 describe('metric tile law', () => {
@@ -33,11 +28,9 @@ describe('metric tile law', () => {
       <MetricCard label="Spend" value="$660" delta={{ value: '$23', direction: 'up' }} />,
     );
     const chip = container.querySelector('.tabular-nums');
-    // THE PROPERTY, NOT THE CLASS NAME. This asserted `ink-faint` literally and went red
-    // when the neutral pill moved to `ink-soft` on a `surface-2` ground — a change that
-    // kept the property exactly and only altered which rung of the ink ladder it sits on.
-    // What must hold is that a delta with no stated sentiment says nothing about whether
-    // the movement is good: no status hue, and a neutral ink token.
+    // DELIBERATE: the assertion is the property, not the class name. A delta with no stated
+    // sentiment must say nothing about whether the movement is good — no status hue, and any
+    // rung of the ink ladder.
     expect(chip?.className).toMatch(/text-ink(-soft|-faint)?\b/);
     expect(chip?.className).not.toMatch(/sage|rose|amber/);
   });

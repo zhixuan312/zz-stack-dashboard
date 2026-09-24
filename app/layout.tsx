@@ -5,35 +5,27 @@ import { Providers } from '@/components/Providers';
 import { APP_NAME } from '@/nav';
 
 /**
- * THREE families, and the third is confined on purpose.
+ * Three families, and the third is confined on purpose.
  *
- * There was a serif here, carrying every heading and every metric value. It is
- * the fastest way to make a product interface look like a publication: a serif
- * headline reads as editorial voice, and a dashboard has no voice — it has a
- * hierarchy. That hierarchy now comes from weight, size and tracking, which is
- * how the interfaces this is modelled on do it.
+ * Hierarchy comes from weight, size and tracking, never from a serif.
  *
- * Rubik replaced Inter when the ZZ brand arrived. It has rounded terminals on every
- * glyph, which is what the kit's register asks for, and — the part that actually decided
- * it — a REAL `tnum` feature, verified by reading the shipped Google Fonts binary rather
- * than a feature listing. That matters because 44 call sites use `tabular-nums`; a face
- * without it drops the declaration silently, with no error, and every numeric column
- * frays. Poppins, which the kit names, has no tabular figures at all.
+ * DELIBERATE: any replacement for Rubik must carry a real `tnum` feature, verified in the
+ * shipped font binary rather than a feature listing. Numeric columns use `tabular-nums`, and a
+ * face without it drops the declaration silently and frays every numeric column. Poppins,
+ * which the brand kit names, has no tabular figures at all.
  *
- * Baloo 2 carries `.t-stat` and `.t-display` ONLY — the one big number on a page and its
- * title. It is where the brand's warmth gets to appear on the element every page is built
- * around. It is confined because its own foundry calls it a display typeface, and it is
- * safe there because it too carries `tnum`, so the stat still aligns.
+ * Baloo 2 carries `.t-stat` and `.t-display` only — the one big number on a page and its
+ * title. Confined because its foundry calls it a display typeface, and safe there because it
+ * carries `tnum` too.
  *
- * Mono is reserved for identifiers and code — NOT for labels, which is where it had
- * spread to.
+ * Mono is reserved for identifiers and code, never for labels.
  */
 const sans = Rubik({
   variable: '--font-sans-family',
   subsets: ['latin'],
   display: 'swap',
-  // Three weights. Four is the ceiling and three is usually enough: regular for
-  // prose, medium for labels and controls, semibold for headings and stats.
+  // Three weights, four is the ceiling: regular for prose, medium for labels and controls,
+  // semibold for headings and stats.
   weight: ['400', '500', '600'],
 });
 
@@ -54,11 +46,10 @@ const mono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: APP_NAME,
-  // NO `icons` KEY, DELIBERATELY. The tab icon and the apple-touch icon are served by Next's
-  // app/ file convention from app/icon.png and app/apple-icon.png. Declaring `icons` here does
-  // not duplicate that — it SUPPRESSES it: resolve-metadata.js merges file-convention icons
-  // only `if (!resolvedMetadata.icons)`, so an explicit declaration silently drops every icon
-  // file. It was invisible before only because both paths pointed at the same file.
+  // DELIBERATE: no `icons` key. The tab icon and the apple-touch icon are served by Next's
+  // app/ file convention from app/icon.png and app/apple-icon.png, and resolve-metadata.js
+  // merges those only `if (!resolvedMetadata.icons)` — so declaring `icons` here suppresses
+  // every icon file rather than adding to them.
   description: 'Every team, flow, skill and initiative on the ZZ platform, and how far each got.',
 };
 
@@ -66,8 +57,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html
       lang="en"
-      // `h-full` on both html and body: the shell is `fixed inset-0` and the
-      // document itself never scrolls (see the ROOT LOCK block in globals.css).
+      // COUPLED: `h-full` on both html and body. The shell is `fixed inset-0` and the
+      // document never scrolls — see the root lock block in globals.css.
       className={`${sans.variable} ${display.variable} ${mono.variable} h-full antialiased`}
     >
       <body className="h-full">

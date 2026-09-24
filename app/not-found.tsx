@@ -3,21 +3,16 @@ import Image from 'next/image';
 import { AppMark } from '@/components/AppMark';
 
 /**
- * The ROOT 404 — and until the brand adoption it did not exist, which meant the most
- * likely page a stranger ever sees was Next's built-in default: a BLACK page with
- * "404 | This page could not be found." in the system font. On a product with no dark
- * mode that is not merely unstyled, it is a different product.
+ * The root 404, for a URL that matches no route at all. Without it Next serves its own
+ * built-in default, a black page in the system font.
  *
- * `app/(dash)/not-found.tsx` was already there and is not this. That one catches
- * `notFound()` raised INSIDE the authenticated shell — a team or node that does not
- * exist — and renders inside the rail, which is right, because the reader is signed in
- * and going somewhere else next. A URL that matches no route at all never reaches the
- * group, so it fell through to the framework. Two 404s, two situations, and the one
- * nobody had written was the one served to everybody.
+ * COUPLED: `app/(dash)/not-found.tsx` is the other one and is not this. It catches
+ * `notFound()` raised inside the authenticated shell — a team or node that does not exist —
+ * and renders inside the rail. A URL matching no route never reaches that group.
  *
- * Outside every group on purpose, like `signed-out`: an unknown URL must not render the
- * authenticated shell, and must not ask an unauthenticated stranger to sign in to see a
- * page that is not there.
+ * DELIBERATE: outside every group, like `signed-out`. An unknown URL must not render the
+ * authenticated shell, and must not ask an unauthenticated stranger to sign in to see a page
+ * that is not there.
  */
 export default function NotFound() {
   return (

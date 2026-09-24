@@ -2,10 +2,8 @@
 #
 #   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
 #
-# `image:` is deliberately NOT repeated here: the base file names it, so what you
-# build lands under the tag that file already names, and a later plain
-# `docker compose up -d` runs what you just built rather than quietly pulling a
-# different thing under the same name.
+# DELIBERATE: `image:` is not repeated here. What you build lands under the tag the base file
+# names, so a later plain `docker compose up -d` runs what you just built.
 services:
   console:
     build: .

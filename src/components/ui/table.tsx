@@ -2,10 +2,10 @@ import { type HTMLAttributes, type TdHTMLAttributes, type ThHTMLAttributes } fro
 import { cn } from '@/lib/cn';
 
 /**
- * WHICH COLUMNS GO FIRST when the card is narrow. Nothing in the console scrolls sideways,
- * so a table that does not fit drops its least important columns instead: put the same
- * `hideBelow` on a column's head and on its cells. Literal strings, because Tailwind scans
- * source text and a class built at runtime generates no CSS.
+ * Which columns drop when the card is narrow. Nothing in the console scrolls sideways, so a
+ * table that does not fit drops its least important columns: put the same `hideBelow` on a
+ * column's head and on its cells. Literal strings, because Tailwind scans source text and a
+ * class built at runtime generates no CSS.
  */
 const HIDE_BELOW = {
   md: 'hidden md:table-cell',
@@ -15,54 +15,39 @@ const HIDE_BELOW = {
 } as const;
 type HideBelow = keyof typeof HIDE_BELOW;
 
+/** Where every column aligns, decided once for the whole console: first column left, last
+ * column right, everything between centred, header and cell alike.
+ *
+ * DELIBERATE: child selectors on the table rather than classes passed through
+ * TableHead/TableCell. A cell does not know whether it is first or last, so the alternative is
+ * threading an index through every call site.
+ *
+ * A column hidden at narrow widths is still the DOM's last child, so where the last column is
+ * hidden the right-alignment goes with it and the visible last column is centred. */
+const ALIGNMENT = '[&_tr>*]:text-center [&_tr>*:first-child]:text-left [&_tr>*:last-child]:text-right';
+
 /**
  * Table — the token-styled table primitives (shadcn pattern). Thin, semantic
  * wrappers around the native table elements, themed with our tokens. A table
  * with more than ten rows pages with `usePaged` + `PageControl`.
  */
-/** WHERE EVERY COLUMN ALIGNS, decided once for the whole console.
- *
- * First column left, last column right, everything between centred — header and cell alike,
- * because a header that does not sit over its own figures is the raggedness this rule exists
- * to remove. It is a rule of the TABLE, not of each page: alignment was a class on individual
- * cells, so every new table re-decided it and no two agreed.
- *
- * Written as child selectors rather than passed down through TableHead/TableCell: a cell does
- * not know whether it is first or last, and threading an index through every call site to tell
- * it would be the same decision made in twenty places again.
- *
- * A column hidden at narrow widths is still the DOM's last child, so at a width where the last
- * column is hidden the right-alignment goes with it and the visible last column is centred.
- * That is the one case this cannot see; it is also the width at which the column was judged not
- * worth showing. */
-const ALIGNMENT = '[&_tr>*]:text-center [&_tr>*:first-child]:text-left [&_tr>*:last-child]:text-right';
-
 export function Table({ className, ...props }: HTMLAttributes<HTMLTableElement>) {
   return <table className={cn('w-full caption-bottom', ALIGNMENT, className)} {...props} />;
 }
 
 /**
- * The column headers, and they STICK to the top of the scroll region.
+ * The column headers, sticky to the top of the scroll region.
  *
- * WHY THIS IS NOT THE PATTERN shell.tsx argues against. That file keeps the PAGE header
- * physically outside the scroller because a sticky element inside a sub-scroller recomputes
- * its offset on the main thread and a fast fling can out-run it for a frame. A column header
- * cannot be moved outside the scroller: it is a `<thead>`, and a table's header belongs to
- * its table. The trade is also different — the page header is one band the reader sees all
- * the time either way, while a column header that scrolls away leaves the reader looking at
- * twenty rows of figures with nothing saying which column is which.
+ * DELIBERATE: sticky inside the scroller, although shell.tsx keeps the page header outside
+ * one. A `<thead>` cannot be moved out of its table, and a column header that scrolls away
+ * leaves twenty rows of figures with nothing saying which column is which.
  *
- * It became worth doing when tables started opening at twenty rows rather than ten: at ten
- * the whole table fitted a laptop window and the header never left, so the defect did not
- * exist to be noticed.
- *
- * THE BACKGROUND IS NOT OPTIONAL. A sticky row with a transparent background lets the rows
- * pass UNDERNEATH it and both render at once, which reads as a rendering fault rather than
- * as a header. `surface` is the card's own ground, so the header looks identical parked as
- * it does at rest.
+ * The opaque background is not optional: a sticky row with a transparent background lets the
+ * rows render underneath it. `surface` is the card's own ground, so the header looks identical
+ * parked and at rest.
  *
  * `z-10` clears the composition bars and badges in the rows below, which carry their own
- * stacking contexts; the popovers and tooltips are portalled and sit far above both.
+ * stacking contexts; popovers and tooltips are portalled above both.
  */
 export function TableHeader({ className, ...props }: HTMLAttributes<HTMLTableSectionElement>) {
   return (

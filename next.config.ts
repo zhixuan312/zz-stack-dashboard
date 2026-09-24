@@ -1,26 +1,20 @@
 import type { NextConfig } from 'next';
 
 /**
- * LOCAL DEVELOPMENT ONLY, and opt-in: nothing here changes unless `ZZ_GATEWAY` is set.
+ * Local development only, and opt-in: the rewrite below does not exist unless `ZZ_GATEWAY`
+ * is set, via `.env.local`.
  *
- * The console calls `/api/console/...` as a RELATIVE path on purpose — in production Caddy
- * routes that path on the console's own host to the gateway, so the page and its API are
- * one origin and this app never holds anybody's credential. See `src/lib/api.ts`.
- *
- * On a laptop there is no Caddy, so every call 404s against `next dev` and the console
- * cannot be looked at. This rewrite puts a gateway behind that path locally — the same
- * routing Caddy does, in the one place a laptop has to do it. The browser still holds the
- * session cookie and still sends it to the origin it is looking at; nothing is minted,
- * stored or read here.
- *
- * Point it at a gateway with `ZZ_GATEWAY=https://…` in `.env.local`. Unset, the rewrite
- * does not exist and a local call fails exactly as it did before.
+ * DELIBERATE: the console calls `/api/console/...` as a relative path. In production Caddy
+ * routes that path on the console's own host to the gateway, so the page and its API are one
+ * origin and this app never holds anybody's credential. See `src/lib/api.ts`. A laptop has no
+ * Caddy, so this rewrite does that routing locally. The browser still holds the session cookie
+ * and sends it to the origin it is looking at; nothing is minted, stored or read here.
  */
 const gateway = process.env.ZZ_GATEWAY;
 
 const nextConfig: NextConfig = {
-  // Standalone output so a derived app ships as a single container without
-  // extra config. Harmless for `next dev` / `next start`.
+  // Standalone output so a derived app ships as a single container. No effect on
+  // `next dev` / `next start`.
   output: 'standalone',
   ...(gateway
     ? {

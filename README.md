@@ -53,15 +53,11 @@ holds a passkey there is no superadmin session to mint it with:
 ./issue-enrolment.sh someone@example.com     # on the host, from deploy/
 ```
 
-Later ones come from the console, or from `issue_enrolment` on `/manage/mcp`.
+Later ones come from the console, or from `enrolment_issue` on `/manage/mcp`.
 
 **A credential is bound to the hostname in `CONSOLE_PUBLIC_URL`.** Change it and every
 registered passkey stops verifying at once, and everybody re-enrols. Worth knowing before
 you move a host, not after.
-
-> This section described directory sign-in through SsoAuth until 2026-09-11, naming a module
-> and environment variables that are not in the tree. An operator following it would have set
-> values nothing reads, and registered a callback for a flow that does not exist.
 
 ## Running it
 
@@ -91,7 +87,7 @@ supply it — one automatic, one manual.
 #### A superadmin PAT (what to use)
 
 ```sh
-echo "ZZ_DEV_PAT=$(cat ~/.zz/token)" >> .env.local   # must be a SUPERADMIN token
+echo "ZZ_DEV_PAT=$(cat ~/.zz/token)" >> .env.local   # must be a superadmin token
 pnpm dev
 ```
 
@@ -100,7 +96,7 @@ and drops any stale `zz_console` cookie so the gateway reads the token rather th
 on the cookie. Real data, no browser ceremony, nothing to redo when a session expires.
 
 This is not a workaround. `mayReadConsole()` in the gateway
-(`services/gateway/src/console/shared.ts`) has always read:
+(`services/gateway/src/console/shared.ts`) reads:
 
 ```ts
 if (id.via === "session") return true;   // signed in through the browser
@@ -108,9 +104,7 @@ return isSuper(id);                      // or a superadmin PAT, for scripts
 ```
 
 A **member** PAT authenticates and is then refused with *"the console needs a browser
-sign-in"* and `mayRead: false` — which is correct, and is what this README described for
-months as "a PAT is refused by these routes on purpose". That was wrong about the superadmin
-case, and being wrong about it meant the only documented path was the manual one below.
+sign-in"* and `mayRead: false`, which is correct.
 
 The middleware is inert unless `ZZ_DEV_PAT` is set, and returns immediately when
 `NODE_ENV === 'production'`. It forwards a credential and neither mints nor stores one.
@@ -149,13 +143,13 @@ of them rather than a superset. The gate does not run the other three (it ends i
 
 What the gate adds on top is the house rules — a timestamp rendered through `<Time>`,
 a table that can be empty saying so, no source file over 700 lines — plus **the
-contrast floor**, 31 enumerated token pairs exiting non-zero, plus every check under
+contrast floor**, every enumerated token pair exiting non-zero, plus every check under
 `checks/`: one mark, one sparkle, no dark mode, the kit's chart cycle, the mascot
 assignments, asset custody, and the counts in `docs/DESIGN-SYSTEM.md`.
 
 ```sh
-pnpm checks           # the 17 design-system checks, named, with a count
-pnpm verify:contrast  # the 31 pairs on their own
+pnpm checks           # the design-system checks, named, with a count
+pnpm verify:contrast  # the contrast pairs on their own
 pnpm audit:design     # discipline counters — advisory, does not gate
 ```
 
@@ -164,16 +158,12 @@ when the gate goes red it is quicker to run the one that failed.
 
 ## Deploying
 
-**Released by zz-stack, not by hand.** The console is one of three components in a platform
+**Released by zz-stack, not by hand.** The console is one of two components in a platform
 release — `zz-stack/scripts/release.ts <platform-version> --dashboard=<console-version>` —
 which runs this repo's `typecheck`, `lint` and `test`, bumps `package.json` and the compose
 literal together, builds and pushes `ghcr.io/zhixuan312/zz-stack-dashboard`, copies
 `docker-compose.yml` to the host, and rolls it back with the platform if verification fails.
 See `/release` in the parent checkout.
-
-The reason it is not deployed by hand: for a while it was, by rsyncing this source tree and
-building on the host, and that is how production stopped running published images without
-anybody deciding to.
 
 On the host, then, the whole deployment is one file and one image:
 
@@ -184,7 +174,7 @@ docker compose up -d          # pulls ghcr.io/zhixuan312/zz-stack-dashboard:<lit
 Binds to `127.0.0.1:3100`. Caddy on the host is the only way in and is what splits the
 path — see the site block in zz-stack's `deploy/Caddyfile`.
 
-To run the container from THIS checkout instead of the published image:
+To run the container from this checkout instead of the published image:
 
 ```sh
 docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
@@ -198,7 +188,7 @@ docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
 | **Teams** | Every team and what it holds — documents, sources, knowledge nodes; open one for its initiatives and members |
 | **Initiatives** | Every piece of work and how far through its flow it got |
 | **Knowledge** | The nodes, with the whole body open beside the list |
-| **Plugins** | What a person installs: each plugin's skills, its servers, and what each skill costs and scored |
+| **Plugins** | What a person installs: each plugin's skills, its servers, what each skill costs, and the plugin's latest evaluation |
 | **Runs** | Every run by the skill that drove it |
 | **Activity** | The audit log |
 | **People** | Everyone the platform knows, and what they can reach |

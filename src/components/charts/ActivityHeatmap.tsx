@@ -16,21 +16,12 @@ const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 /**
  * When work actually happens — weekday × hour of day.
  *
- * Worth its own chart rather than another bar list because the question it
- * answers is two-dimensional: a daily total cannot tell you whether Tuesday is
- * busy all day or spikes for one hour, and an hourly total cannot tell you
- * whether that hour is a weekday habit or a weekend catch-up.
+ * Intensity is linear against the busiest cell. DELIBERATE: not a square-root ramp — on this
+ * corpus's spread it puts the median near half strength, so every cell comes out the same
+ * mid-tone.
  *
- * Intensity is **linear** against the busiest cell. A square-root ramp was tried
- * first, on the usual reasoning that run counts are skewed — but measured on
- * this corpus the spread is min 1 / median 63 / max 264, and the square root of
- * that puts the median at 49% and the peak at 100%. Every cell came out the
- * same mid-tone and the chart looked broken rather than flat. Linear puts the
- * median at 24% and the busy hours actually stand out.
- *
- * Bucket your data in `DISPLAY_TIMEZONE` (`@/lib/format-date`) — the footer
- * names that zone, so bucketing in UTC while labelling it as local shifts every
- * cell by the offset and the chart lies quietly.
+ * COUPLED: bucket the data in `DISPLAY_TIMEZONE` (`@/lib/format-date`), which the footer names.
+ * Bucketing in UTC while labelling it as local shifts every cell by the offset.
  */
 export function ActivityHeatmap({
   cells,
@@ -58,7 +49,7 @@ export function ActivityHeatmap({
 
   return (
     <div className={cn('flex flex-col gap-2', className)}>
-      {/* NO MINIMUM WIDTH AND NO SIDEWAYS SCROLL: 24 `minmax(0,1fr)` columns shrink with the
+      {/* No minimum width and no sideways scroll: 24 `minmax(0,1fr)` columns shrink with the
           card, and a cell is still a square at 12px. */}
       <div>
         <div>
@@ -87,8 +78,8 @@ export function ActivityHeatmap({
                     title={`${day} ${String(h).padStart(2, '0')}:00 — ${formatCount(value)} ${unitLabel}`}
                     className="aspect-square rounded-[var(--r-sm)]"
                     style={{
-                      // A single accent hue at varying strength, not a rainbow:
-                      // the value is one ordered quantity, so it gets one ramp.
+                      // A single accent hue at varying strength: the value is one ordered
+                      // quantity, so it gets one ramp.
                       background:
                         value === 0
                           ? 'var(--surface-2)'

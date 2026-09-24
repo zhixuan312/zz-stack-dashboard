@@ -2,13 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { ModeSwitch } from '@/components/ModeSwitch';
 
-// Rendering is not enforcement — the server decides scope — but a control shown
-// to someone who cannot use it is a lie about their authority, so the render
-// rule is worth asserting on its own. `Segmented` renders role="radiogroup",
-// not "group". No provider is mounted here: `useConsoleMode` falls back to an
-// inert default outside `ConsoleModeProvider` specifically so a component that
-// only reads it can be rendered standalone, in a test, without dragging in
-// `QueryClientProvider` and a real `/me` fetch just to check whether it renders.
+// Rendering is not enforcement — the server decides scope — but the render rule is asserted
+// on its own so a control never shows to someone who cannot use it. `Segmented` renders
+// role="radiogroup", not "group". DELIBERATE: no provider is mounted. `useConsoleMode` falls
+// back to an inert default outside `ConsoleModeProvider`, so a component that only reads it
+// renders standalone without `QueryClientProvider` and a real `/me` fetch.
 const base = {
   email: 'a@b.example.com', name: 'A', role: 'member' as const, mayRead: true,
   via: 'session', teams: [{ slug: 'team-one', role: 'member' as const }],

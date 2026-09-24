@@ -32,9 +32,9 @@ export default function KnowledgeNodePage({
   const list = useConsole<{ nodes: KnowledgeNode[] }>('/knowledge');
   const nodes = list.data?.nodes ?? [];
   const self = nodes.find((n) => n.team === team && n.path === rel);
-  // Nodes that share a tag with this one — the store records no node-to-node link, so a
-  // shared subject is the honest form of "related", and it is labelled as that rather than
-  // dressed up as a citation.
+  // Nodes that share a tag with this one. The store records no node-to-node link, so a
+  // shared subject is what "related" means here, and the heading says so rather than
+  // implying a citation.
   const related = self
     ? nodes.filter((n) => n.key !== self.key && (n.tags ?? []).some((t) => (self.tags ?? []).includes(t)))
     : [];
@@ -57,9 +57,7 @@ export default function KnowledgeNodePage({
                       Superseded by {b.superseded_by} — kept readable, no longer current.
                     </div>
                   ) : null}
-                  {/* Fills its card, like every other piece of content in this console. It
-                      was capped at 74ch, which left a node's text using half its panel while
-                      the panel and everything beside it used all of it. */}
+                  {/* Fills its card, like every other piece of content in this console. */}
                   <p className="whitespace-pre-wrap break-words text-[13.5px] leading-[1.85] text-ink-soft">
                     {b.body.trim()}
                   </p>
@@ -76,16 +74,15 @@ export default function KnowledgeNodePage({
                     {self ? <span className="ml-2 font-mono text-xs text-ink-faint">node {self.num}</span> : null}
                   </Fact>
                   <Fact label="Recorded"><Time value={b.updated} /></Fact>
-                  {/* WHERE IT CAME FROM. Without this a node reads as an assertion from
-                      nowhere; with it, the reader can open the work that produced the lesson. */}
+                  {/* Where it came from, so the reader can open the work that produced the
+                      lesson rather than read the node as an assertion from nowhere. */}
                   {b.evidence_in?.length ? (
                     <Fact label="Learned in">
                       <span className="flex flex-col gap-1">
-                        {/* THE TEAM THE INITIATIVE IS ACTUALLY IN, from the API. Linked under
-                            `b.team` this pointed a platform-shelf node's evidence at
-                            /initiatives/zz-platform/<slug> — the initiative is the tenant's —
-                            and every one of those links answered "not found". An entry the
-                            platform cannot place is its own name, not a dead link. */}
+                        {/* DELIBERATE: the team comes from the API entry, not from `b.team`.
+                            A platform-shelf node's evidence sits in a tenant's initiative, so
+                            /initiatives/<b.team>/<slug> does not resolve. An entry the
+                            platform cannot place renders as its own name, not a link. */}
                         {b.evidence_in.map((e) => (
                           e.team ? (
                             <Link

@@ -4,20 +4,16 @@ import { formatDateTime, formatRelative } from '@/lib/format-date';
 /**
  * When this data is from.
  *
- * A dashboard that does not say how old its numbers are cannot be trusted, and
- * the reader has no way to tell a stalled pipeline from a quiet Tuesday — both
- * render as a flat line. It matters more, not less, when a screen mixes
- * refresh rates: a real-time error count beside an hourly cost rollup beside a
- * nightly aggregate, all undated, is three different claims about "now"
- * presented as one.
+ * A stalled pipeline and a quiet Tuesday both render as a flat line, and a screen mixing
+ * refresh rates — a real-time error count beside an hourly cost rollup beside a nightly
+ * aggregate, all undated — is three different claims about "now" presented as one.
  *
- * `staleAfterMs` is the contract: past it, the stamp turns amber and says so.
- * Set it to a little over the real refresh interval, so "stale" means the
- * pipeline actually missed a beat rather than that a tick is in flight. Omit it
- * only when the data genuinely has no refresh cadence.
+ * `staleAfterMs` is the contract: past it, the stamp turns amber and says so. Set it a little
+ * over the real refresh interval, so "stale" means the pipeline missed a beat rather than that
+ * a tick is in flight. Omit it only when the data has no refresh cadence.
  *
- * The absolute time is in the `title`, because "4 min ago" is the right default
- * for scanning and the wrong thing to paste into an incident report.
+ * The absolute time is in the `title`, because "4 min ago" is the right default for scanning
+ * and the wrong thing to paste into an incident report.
  */
 export function Freshness({
   at,
@@ -32,10 +28,10 @@ export function Freshness({
   staleAfterMs?: number;
   label?: string;
   /**
-   * Injectable clock. Pass one for a fixed-clock page (a seeded demo, a test, a
-   * replayed window). It also removes a hydration hazard: a relative timestamp
-   * derived from `new Date()` is evaluated on the server and again on the
-   * client, and at a rollover boundary the two render different text.
+   * Injectable clock. Pass one for a fixed-clock page (a seeded demo, a test, a replayed
+   * window). It also removes a hydration hazard: a relative timestamp derived from `new Date()`
+   * is evaluated on the server and again on the client, and at a rollover boundary the two
+   * render different text.
    */
   now?: Date;
   className?: string;

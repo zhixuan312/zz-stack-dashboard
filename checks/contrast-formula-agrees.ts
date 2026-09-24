@@ -1,15 +1,14 @@
-// design-metrics.ts keeps its own inline copy of lum()/ratio() because Puppeteer serialises
-// measureInPage into the browser and a serialised function cannot close over an import.
-// Two copies of one formula drift. This asserts they do not.
+// COUPLED: design-metrics.ts keeps its own inline copy of lum()/ratio(), because Puppeteer
+// serialises measureInPage into the browser and a serialised function cannot close over an
+// import. This asserts the two copies still agree.
 import { readFileSync } from 'node:fs';
 import { stripTypeScriptTypes } from 'node:module';
 import { ratio } from '../scripts/lib/contrast.ts';
 const src = readFileSync('scripts/design-metrics.ts', 'utf8');
-/* The slice is design-metrics' own SOURCE, and that source is TypeScript. `new Function`
- * is a JavaScript parser and nothing else — it does not strip types, so an annotated copy
- * reaches it as a SyntaxError on a colon. Stripping it with the same function Node itself
- * uses to run these files is not a workaround: it makes this check compare the exact text
- * Node executes, which is what "the two copies agree" is supposed to mean. */
+/* The slice is design-metrics' own TypeScript source, and `new Function` is a JavaScript
+ * parser that does not strip types — an annotated copy reaches it as a SyntaxError on a
+ * colon. Stripping with the same function Node uses to run these files makes this compare the
+ * exact text Node executes. */
 const body = stripTypeScriptTypes(
   src.slice(src.indexOf('const lum ='), src.indexOf('const over =')),
 );

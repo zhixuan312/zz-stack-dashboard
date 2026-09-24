@@ -7,48 +7,35 @@ import { cn } from '@/lib/cn';
 /**
  * A table's page control: how many rows at a time, and which page of them.
  *
- * WHY A CONTROL AND NOT A CAP. A cap ("show 44 more") answers "this list is long" and
- * nothing else — it can only ever go one way, it forgets on every render, and a reader who
- * wants the fortieth row has to expand all of them to reach it. Paging is the control a
- * reader already knows: pick a size, land on a page, come back to the same place. The cap
- * this replaced was the cheaper thing to build, not the better thing to use.
+ * DELIBERATE: below the smallest page size the whole strip is absent rather than
+ * present-and-inert. A disabled control on a three-row table is chrome describing a problem
+ * the table does not have — the same rule the Runs banner and the refusal callout follow.
  *
- * IT DISAPPEARS WHEN IT HAS NOTHING TO SAY. Below the smallest page size there is exactly
- * one page and no choice to make, so the whole strip is absent rather than present-and-inert
- * — a disabled control on a three-row table is chrome describing a problem the table does
- * not have. This is the same rule the Runs banner and the refusal callout already follow.
- *
- * THE RANGE IS ALWAYS STATED. "1–10 of 54" is the part that stops a page of rows reading as
- * the whole list, which is the one thing a paged table must never do.
+ * The range is always stated ("1–10 of 54"), so a page of rows never reads as the whole list.
  */
 export const PAGE_SIZES = [10, 20, 30] as const;
 
 /** How many rows a table opens with.
  *
- *  NAMED, NOT `PAGE_SIZES[0]`. The default was the first offered size by accident of
- *  indexing, so "what a table opens with" and "the smallest size a reader may pick" were
- *  the same number for no reason anyone had decided. They answer different questions: the
- *  floor exists so a reader can make a long table short, and the default exists so the
- *  first screen shows enough to be worth reading. Ten filled about a third of a 1440px
- *  window and sent a reader to the pager to see a list of twenty-nine.
+ *  DELIBERATE: named, not `PAGE_SIZES[0]`. The smallest size a reader may pick and the size
+ *  a table opens at answer different questions.
  *
- *  It is still one of PAGE_SIZES, because the select has no option for a size it is not
- *  offering — a table opening at a size its own control cannot return to is a state a
- *  reader gets out of once and cannot get back into. */
+ *  It must stay one of PAGE_SIZES: the select has no option for a size it is not offering,
+ *  so a table opening at any other size is a state a reader cannot get back into. */
 export const DEFAULT_PAGE_SIZE: (typeof PAGE_SIZES)[number] = 20;
 
 export function usePaged<T>(rows: T[], resetKey: string = ''): {
   page: T[]; controls: PageControlProps;
 } {
   const [size, setSize] = useState<number>(DEFAULT_PAGE_SIZE);
-  /* THE PAGE IS REMEMBERED AGAINST THE QUESTION IT ANSWERED. `resetKey` is whatever narrows
-     the rows — a search, a facet. Reading page 4 of every initiative and then typing a search
-     must land on page 1 of the matches, not on page 4 of a list that no longer has one. */
+  /* The page is remembered against the question it answered. `resetKey` is whatever narrows
+     the rows — a search, a facet — so typing a search on page 4 lands on page 1 of the
+     matches rather than page 4 of a list that no longer has one. */
   const [at, setAt] = useState<{ key: string; i: number }>({ key: resetKey, i: 0 });
   const pages = Math.max(1, Math.ceil(rows.length / size));
-  /* CLAMPED ON READ, not in an effect. Shrinking the page size, or a refetch that returns
-     fewer rows, can leave `at` past the end — and a page that renders empty because of its
-     own stale state looks exactly like a list that lost its data. */
+  /* DELIBERATE: clamped on read, not in an effect. Shrinking the page size or a refetch
+     returning fewer rows leaves `at` past the end, and a page rendering empty from its own
+     stale state looks like a list that lost its data. */
   const current = at.key === resetKey ? Math.min(at.i, pages - 1) : 0;
   const start = current * size;
   return {
@@ -140,9 +127,8 @@ const GAP = -1;
  * Which page numbers to draw: always the first and last, always the current and its
  * neighbours, an ellipsis for whatever that skips.
  *
- * A WINDOW, NOT EVERY PAGE. 100 initiatives at ten a page is ten buttons and fits; 4,000
- * documents is four hundred, which wraps to a paragraph of numbers and makes the control
- * taller than the rows it pages. The window is a fixed width at any length.
+ * A window, not every page: the control is a fixed width at any length, so a four-hundred
+ * page list does not wrap to a paragraph of numbers taller than the rows it pages.
  */
 function pageList(at: number, pages: number): number[] {
   if (pages <= 7) return [...Array(pages).keys()];

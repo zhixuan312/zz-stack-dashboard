@@ -18,15 +18,15 @@ import { type Initiative, type Team, type TeamDetail } from '@/lib/api-shapes';
 /**
  * One team: what it is working on, what it holds, and who is in it.
  *
- * THE DETAIL SHAPE: four tiles, the team's work as one full-width list, then its members. The tiles are what makes this page open like the Overview rather than like a
- * table with a title — the four things somebody arrives here to learn, before any list.
+ * Four tiles, the team's work as one full-width list, then its members, so the page opens
+ * as the Overview does rather than as a table with a title.
  */
 export default function TeamPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
   const team = useConsole<TeamDetail>(`/teams/${slug}`);
   const inits = useConsole<{ initiatives: Initiative[] }>(`/initiatives?team=${slug}`);
-  // THE COUNTS FROM THE TEAMS LIST, not a second query for the same numbers: that endpoint is
-  // the one definition of what a team holds.
+  // The counts come from the teams list, not a second query for the same numbers: that
+  // endpoint is the one definition of what a team holds.
   const teams = useConsole<{ teams: Team[] }>('/teams');
   const held = teams.data?.teams.find((t) => t.slug === slug);
   const list = inits.data?.initiatives;
@@ -87,9 +87,8 @@ export default function TeamPage({ params }: { params: Promise<{ slug: string }>
   );
 }
 
-/** The team's initiatives, paged. ITS OWN COMPONENT so it can hold the page state: the
- *  table is rendered inside a `Query` render prop, and a hook cannot be called from a
- *  callback. */
+/** The team's initiatives, paged. Its own component so it can hold the page state: the table
+ *  renders inside a `Query` render prop, and a hook cannot be called from a callback. */
 function InitiativeTable({ initiatives }: { initiatives: Initiative[] }) {
   const { page, controls } = usePaged(initiatives);
   return (
@@ -98,10 +97,9 @@ function InitiativeTable({ initiatives }: { initiatives: Initiative[] }) {
         <TableHeader>
           <TableRow>
             <TableHead>Initiative</TableHead>
-            {/* WHICH FLOW, immediately left of the position, for the reason /initiatives
-                gives: "S5" is FLOW-RELATIVE — `plugin report` on zz-plugin-eval and `build`
-                on ops-flow — so a column of positions with no flow beside it names a stage
-                the reader cannot place. The two read as one fact and sit together. */}
+            {/* COUPLED: Flow sits immediately left of Flow position, as on /initiatives. A
+                position like "S5" is flow-relative — the same number names a different step in
+                each flow — so the two read as one fact and sit together. */}
             <TableHead hideBelow="lg">Flow</TableHead>
             <TableHead hideBelow="md">Flow position</TableHead>
             <TableHead>State</TableHead>
@@ -122,10 +120,10 @@ function InitiativeTable({ initiatives }: { initiatives: Initiative[] }) {
                   {i.slug}
                 </Link>
               </TableCell>
-              {/* `flow` is NULLABLE and a blank cell would hide why. An initiative with no
-                  flow has no chain of gates resolved against it — no required document and
-                  no closing rule is enforced on it — so it is a defect the page should
-                  name, not whitespace. Same words as /initiatives, deliberately. */}
+              {/* `flow` is nullable and renders as "not declared" rather than blank: an
+                  initiative with no flow has no chain of gates resolved against it, so no
+                  required document and no closing rule is enforced on it. COUPLED: the same
+                  words on /initiatives. */}
               <TableCell hideBelow="lg" className="whitespace-nowrap text-[13px]">
                 {i.flow
                   ? <span className="text-ink-soft">{i.flow}</span>

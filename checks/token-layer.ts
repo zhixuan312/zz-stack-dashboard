@@ -1,13 +1,10 @@
-/* THE FROZEN VALUES, read back out of the stylesheet.
+/* The frozen values, read back out of the stylesheet.
  *
- * Reading the file rather than trusting the diff is the point: a token can be declared
- * twice and the last one wins, so `decl()` deliberately takes the LAST match.
+ * DELIBERATE: `decl()` takes the last match, because a token can be declared twice and the
+ * last one wins.
  *
- * This is the check that was missing while `--c-500` was silently corrected from the
- * spec's frozen `#7a7080` to `#6e6574` — a correct change (the frozen value measured
- * 4.16:1 against a 4.5:1 floor) that nothing would have caught had it been a typo
- * instead. `verify-contrast.ts` proves the palette is LEGIBLE; this proves it is the
- * palette that was agreed.
+ * `verify-contrast.ts` proves the palette is legible; this proves it is the palette that was
+ * agreed.
  */
 import { readFileSync } from 'node:fs';
 const css = readFileSync('app/globals.css', 'utf8');
@@ -30,9 +27,9 @@ for (const [k, v] of Object.entries(want)) {
 if (/--n-[0-9]/.test(css)) { console.error('FAIL the old neutral ramp is still declared'); code = 1; }
 if (/--indigo/.test(css)) { console.error('FAIL --indigo is still declared'); code = 1; }
 
-/* THE TAILWIND MAPPING. A colour absent from `@theme inline` emits no utility at all —
- * the class is accepted, no CSS is produced, and the element keeps its inherited colour.
- * There is no error anywhere; the page just looks slightly wrong. */
+/* The Tailwind mapping. A colour absent from `@theme inline` emits no utility at all — the
+ * class is accepted, no CSS is produced, and the element keeps its inherited colour, with no
+ * error anywhere. */
 const theme = css.slice(css.indexOf('@theme inline'), css.indexOf('}', css.indexOf('@theme inline')));
 for (const c of ['--color-zz-lavender', '--color-zz-pink', '--color-zz-blue',
                  '--color-accent', '--color-ink', '--color-surface',

@@ -14,17 +14,15 @@ export const buttonVariants = cva(
   {
     variants: {
       variant: {
-        // `text-on-accent`, NOT `text-white`. In dark the accent fill is a LIGHT
-        // indigo, and white on it measures 3.05:1 — unreadable, and invisible to
-        // anyone reviewing in light. The token flips with the theme.
+        // DELIBERATE: `text-on-accent`, not `text-white`. In dark the accent fill
+        // is a light indigo and white on it is unreadable; the token flips with
+        // the theme.
         primary: 'bg-accent text-on-accent hover:bg-accent-deep',
         secondary:
           'border border-line-strong bg-surface text-ink hover:border-ink-faint hover:bg-surface-2',
-        // The full-width dark CTA that ends a stage ("Continue to Spec", "Mark
-        // complete"). Distinct from `primary` on purpose: accent is for actions
-        // inside a stage, ink is for leaving it.
-        // `bg-ink` inverts with the theme, so the label has to be the page
-        // ground rather than a fixed white.
+        // The full-width dark CTA that ends a stage. Accent is for actions
+        // inside a stage, ink is for leaving it. `bg-ink` inverts with the
+        // theme, so the label is the page ground rather than a fixed white.
         solid: 'bg-ink text-bg hover:bg-ink/90 disabled:bg-ink/30 disabled:opacity-100',
         subtle: 'bg-surface-2 text-ink hover:bg-bg-sunk',
         ghost: 'text-ink-soft hover:bg-surface-2 hover:text-ink',
@@ -60,11 +58,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
     <button
       ref={ref}
       disabled={disabled || loading}
-      // `loading` was carried by a spinner glyph and nothing else: the glyph is `aria-hidden`
-      // (correctly — it is decoration), so a screen reader heard only that the button had
-      // become disabled, with no indication that work was under way rather than the action
-      // being unavailable. Every stage in the app puts a caller in that state for seconds at
-      // a time.
+      // The spinner glyph is `aria-hidden`, so `aria-busy` is what tells a screen reader the
+      // button is working rather than unavailable.
       aria-busy={loading || undefined}
       className={cn(buttonVariants({ variant, size, fullWidth }), className)}
       {...rest}

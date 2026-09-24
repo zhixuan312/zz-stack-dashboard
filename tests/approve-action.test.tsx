@@ -7,10 +7,9 @@ import type { DocumentDetail, Me } from '@/lib/api-shapes';
 
 // Rendering is not enforcement — see canApprove's own comment — but a control
 // shown to someone who cannot use it, or hidden from a document nobody can
-// approve, is exactly the bug this locks down. `canApprove` is exported and
-// tested directly for the same reason `ModeSwitch`'s render rule is: the page
-// calls it a second time (to decide whether to hand DocumentShell an `actions`
-// slot at all), and a divergence between the two call sites would be silent.
+// approve, is the bug this locks down. COUPLED: the page calls `canApprove` a
+// second time, to decide whether to hand DocumentShell an `actions` slot at
+// all, and a divergence between the two call sites would be silent.
 const me: Me = {
   email: 'a@b.example.com', name: 'A', role: 'member', mayRead: true,
   superadmin: false, via: 'session', teams: [{ slug: 'team-one', role: 'member' }],
@@ -87,16 +86,8 @@ describe('ApproveAction', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  /* THE ONE TRANSIENT IN THE BRAND ADOPTION, and the only new surface a screenshot
-   * cannot reach: it exists for about three seconds after a click that mutates real
-   * state. Every other mascot was validated by rendering the page and looking at it.
-   * This one had nothing — so it gets the test the screenshots could not be.
-   *
-   * It is also the surface with the weakest provenance. The spec asked for the mascot
-   * on ApproveAction's SUCCESS toast; ApproveAction had no success toast at all, only
-   * an error one, plus a comment arguing that the receipt for a successful approval is
-   * the approvers row appearing. Adding one reversed a decision somebody had made on
-   * purpose. A reversal that nothing tests is a reversal that quietly un-reverses.
+  /* The success toast is transient — it exists for about three seconds after a click that
+   * mutates real state — so a screenshot cannot reach it and this test is what holds it.
    */
   it('marks a successful approval with the approved mascot, not just an error path', async () => {
     const user = userEvent.setup();
@@ -116,11 +107,9 @@ describe('ApproveAction', () => {
       await user.click(screen.getByRole('button', { name: 'Confirm' }));
 
       const toast = await screen.findByText(`Approved ${doc.path}.`);
-      /* The CARD, addressed by its role. `closest('div')` finds the inner text wrapper
-         — which holds the message and no image — and the assertion then fails against a
-         component that is perfectly correct. A success toast is role="status"; an error
-         toast is role="alert", and asserting the role here also pins that this is the
-         success path rather than the error one that already existed. */
+      /* The card, addressed by its role: `closest('div')` finds the inner text wrapper,
+         which holds the message and no image. A success toast is role="status" and an
+         error toast is role="alert", so the role also pins this to the success path. */
       const card = toast.closest('[role="status"]');
       expect(card, 'the success toast is not role="status"').not.toBeNull();
 

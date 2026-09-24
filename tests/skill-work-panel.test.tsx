@@ -5,13 +5,11 @@ import { SkillWorkPanel } from '@/components/SkillWorkPanel';
 import type { Skill } from '@/lib/api-shapes';
 
 /**
- * WHAT THE DURATION COLUMNS ARE ALLOWED TO CLAIM.
+ * What the duration columns are allowed to claim.
  *
- * A run's span is the gap between its first and last tool call, so a single-call run has no
- * span — `ended_at = started_at` by construction, on 148 of this deployment's 336 runs. The
- * gateway therefore takes every duration over `ended_at > started_at` only. These fixtures
- * are the three shapes that produces, with the real numbers that motivated the change:
- * sdlc-plan's median moved from 0s to 25 minutes once the structural zeroes stopped voting.
+ * A run's span is the gap between its first and last tool call, so a single-call run has none
+ * — `ended_at = started_at` by construction — and the gateway takes every duration over
+ * `ended_at > started_at` only. These fixtures are the shapes that produces.
  */
 const skill = (over: Partial<Skill>): Skill => ({
   name: 'x', version: '1.0', kind: 'flow', flow: null, retired: false,
@@ -35,9 +33,8 @@ const SKILLS: Skill[] = [
   skill({ name: 'sdlc-deck', runs: 1, timedRuns: 0, calls: 1 }),
 ];
 
-/* BY THE FIRST CELL, not by text anywhere in the row. A team is named `zz-platform` and so
- * is a skill — true of the real data, not just this fixture — so matching on text alone
- * finds the chip as readily as the name and throws "found multiple elements". */
+/* By the first cell, not by text anywhere in the row: a team and a skill can share a name,
+ * so matching on text alone finds the chip too and throws "found multiple elements". */
 const row = (name: string) => screen.getAllByRole('row')
   .find((r) => r.querySelector('td')?.textContent?.trim().startsWith(name)) as HTMLElement;
 
@@ -48,14 +45,15 @@ describe('SkillWorkPanel', () => {
     expect(within(row('sdlc-plan')).getByText('3 of 34 timed')).toBeInTheDocument();
     // Timed and run counts agreeing means there is nothing to caveat, and no caption.
     expect(within(row('zz-platform')).queryByText(/timed/)).not.toBeInTheDocument();
-    // …but a row that IS short of its run count says so, wherever it sits.
+    // …but a row that is short of its run count says so, wherever it sits.
     expect(within(row('sdlc-explore')).getByText('37 of 60 timed')).toBeInTheDocument();
     expect(within(row('sdlc-deck')).getByText('none timed')).toBeInTheDocument();
   });
 
   it('separates a measured sub-second run from an unmeasured one', () => {
     render(<SkillWorkPanel skills={SKILLS} />);
-    // THE DISTINCTION THE OLD `if (!s) return '—'` DESTROYED: both printed a dash.
+    // A row short of its run count and a row with no median print differently; `if (!s) return '—'`
+    // would print a dash for both.
     expect(within(row('sdlc-explore')).getByText('< 1 s')).toBeInTheDocument();
     expect(within(row('sdlc-deck')).getAllByText('—').length).toBeGreaterThan(0);
   });

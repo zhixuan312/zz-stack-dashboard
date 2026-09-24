@@ -8,11 +8,9 @@ import { SidebarFooter } from '@/components/SidebarFooter';
  * The locked console frame. Only `ShellBody` — reached through each page's
  * `DashboardPage` — ever scrolls.
  *
- * The gate wraps the CHILDREN and not the shell, deliberately: a person who is
- * not signed in still sees the rail and the wordmark, so the sign-in screen
- * reads as this product asking them to sign in rather than as a bare page that
- * might be anything. The rail's own links do nothing useful until they are in,
- * and that is honest — they can see what is here before they decide to.
+ * DELIBERATE: the gate wraps the children and not the shell, so a person who is
+ * not signed in still sees the rail and the wordmark. The rail's own links do
+ * nothing useful until they are in.
  */
 export default function DashLayout({ children }: { children: ReactNode }) {
   return (
@@ -20,10 +18,8 @@ export default function DashLayout({ children }: { children: ReactNode }) {
       sidebar={
         <Sidebar
           /* The heading lives inside SidebarFooter, which renders nothing at
-             all until there is a session — a rail that announces "Signed in"
-             to an anonymous visitor undermines the one screen whose whole job
-             is to be trusted. The theme toggle used to sit below it; it is a
-             setting, so it lives in Settings now. */
+             all until there is a session, so an anonymous visitor is never
+             told "Signed in". */
           footer={<SidebarFooter />}
         />
       }

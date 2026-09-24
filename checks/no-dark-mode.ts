@@ -1,19 +1,16 @@
-// A half-removed theme is worse than either keeping or removing it: the tokens resolve in
-// some places and not others, and the result looks like a rendering bug rather than a choice.
+// The console has no dark mode: neither its machinery nor a Tailwind dark variant may appear
+// under app/ or src/.
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-/* FOUR SPELLINGS OF THE MACHINERY, and one of the RULE itself.
+/* Four spellings of the machinery, and one of the rule itself.
  *
- * The first four are the plumbing that used to exist here and is now deleted. The fifth,
- * `dark:`, is the one a person adds by reflex months from now — Tailwind's dark variant
- * compiles happily against a project with no dark mode and emits a rule that can never
- * match, so the element silently keeps its light styling and the author believes they
- * shipped a dark treatment. A mutation test put `dark:bg-black` in the rail and this
- * check passed; it was looking for the removal and not for the rule.
+ * The fifth is Tailwind's dark variant, which compiles happily against a project with no dark
+ * mode and emits a rule that can never match, so the element keeps its light styling while
+ * the author believes they shipped a dark treatment.
  *
- * Matched with a word boundary so `dark:` is caught and the words "dark mode" in a
- * comment recording WHY it was removed are not — that history is worth keeping, and a
- * check that forbids describing its own reason teaches people to delete the reason. */
+ * DELIBERATE: the variant is matched with a leading boundary and a following letter, so the
+ * words "dark mode" in prose are not caught. A check that forbids describing its own reason
+ * teaches people to delete the reason. */
 const BANNED = /prefers-color-scheme|data-theme|ThemeToggle|AppearancePanel|(?:^|[\s"'`:])dark:[a-z[]/;
 const EXT = new Set(['.ts', '.tsx', '.css']);
 let code = 0;

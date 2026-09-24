@@ -5,13 +5,8 @@ import { ProseBlock } from '@/components/patterns/prose-block';
 import type { SkillText } from '@/lib/api-shapes';
 
 /**
- * WHAT SHIPS BESIDE THE SKILL — its own tab.
- *
- * The Agent Skills standard puts long reference material next to SKILL.md so it is read
- * when the work needs it rather than loaded every time. Stacked under the skill it had
- * the same problem in the browser that it solves in a context window: five thousand
- * characters of traps below five thousand characters of method, with nothing saying the
- * second one was there.
+ * What ships beside the skill — the reference material the Agent Skills standard puts next
+ * to SKILL.md — on its own tab rather than stacked below the skill text.
  */
 export function SkillReferences({ skill }: { skill: SkillText }) {
   return (

@@ -16,15 +16,13 @@ import { type TeamMemberRow } from '@/lib/api-shapes';
 import { useConsoleMutation } from '@/lib/mutate';
 
 /**
- * A team admin's roster for ONE team — add, remove, and change role. The browser
- * counterpart of `add_member` / `remove_member` (admin.ts), reached through
- * `/api/console/settings/team/members` (Task I-14) rather than `/admin/mcp` directly,
- * the same relationship `CredentialsPanel` has to `set_my_credential`.
+ * A team admin's roster for one team — add, remove, and change role. The browser counterpart of
+ * `member_add` / `member_remove` (admin.ts), reached through
+ * `/api/console/settings/team/members` rather than `/manage/mcp` directly.
  *
- * `team` is chosen by the parent (`TeamAdminPanel`) — this component trusts it is
- * one the caller administers, because the gateway route re-checks `teamAuthority`
- * regardless of what this page assumes. Hiding the controls is courtesy; the refusal
- * is the gateway's.
+ * `team` is chosen by the parent (`TeamAdminPanel`) and trusted here, because the gateway route
+ * re-checks `teamAuthority` regardless. Hiding the controls is courtesy; the refusal is the
+ * gateway's.
  */
 export function TeamMembersPanel({ team }: { team: string }) {
   const list = useConsole<TeamMemberRow[]>(`/settings/team/members?team=${encodeURIComponent(team)}`);
@@ -32,16 +30,14 @@ export function TeamMembersPanel({ team }: { team: string }) {
   const [role, setRole] = useState<'member' | 'admin'>('member');
   const [error, setError] = useState<string | null>(null);
 
-  // ADD and CHANGE-ROLE are the same call — `addMember`'s own `on conflict ... do update
-  // set role` (admin.ts) is why — so this form's submit and the role Select below share
-  // one mutation rather than two that could drift on what they send.
+  // Add and change-role are the same call — `addMember`'s own `on conflict ... do update set role`
+  // — so this form's submit and the role Select below share one mutation.
   const upsertMutation = useConsoleMutation<{ ok: true; result: string }, { email: string; role: 'member' | 'admin' }>(
     (v) => ({ path: '/settings/team/members', method: 'POST', body: { team, email: v.email, role: v.role } }),
   );
   const removeMutation = useConsoleMutation<{ ok: true; result: string }, string>(
-    // `confirm` is the team slug this panel already knows, not something the person
-    // types — the inline Cancel/Confirm swap below IS the confirmation (NFR-4); it does
-    // not ask them to retype the team's name on top of it.
+    // `confirm` is the team slug this panel already knows, not something the person types: the
+    // inline Cancel/Confirm swap below is the confirmation.
     (memberEmail) => ({ path: '/settings/team/members', method: 'DELETE', body: { team, email: memberEmail, confirm: team } }),
   );
 
@@ -71,8 +67,8 @@ export function TeamMembersPanel({ team }: { team: string }) {
       await removeMutation.mutateAsync(memberEmail);
       showToast({ type: 'success', message: `Removed ${memberEmail} from ${team}.` });
     } catch (err) {
-      // `remove_member`'s own "nothing was removed" refusal (a mistyped address) surfaces
-      // here rather than reading as success — see settings.ts's own comment on that route.
+      // `member_remove`'s own "nothing was removed" refusal — a mistyped address — surfaces here
+      // rather than reading as success.
       showToast({ type: 'error', message: err instanceof ApiError ? err.message : 'Could not remove member — try again.' });
     }
   }
@@ -136,7 +132,7 @@ export function TeamMembersPanel({ team }: { team: string }) {
   );
 }
 
-/** ITS OWN COMPONENT so it can hold the page state — the rows come from a `Query` render prop.
+/** Its own component so it can hold the page state — the rows come from a `Query` render prop.
  *  `team` is the reset key: switching team lands on the first page of the new roster. */
 function MembersTable({ rows, team, pending, onRole, onRemove }: {
   rows: TeamMemberRow[];

@@ -16,57 +16,29 @@ import { Row, type MetricCardProps } from '@/components/ui';
 import { usePeriod } from '@/components/PeriodProvider';
 
 /**
- * The landing page — the fleet's census, or one team's.
+ * The landing page — the fleet's census, or one team's, by console mode.
  *
- * EVERY LABEL ON IT USED TO SAY "every team", and until the gateway's `/overview` learned
- * a scope that was simply true: the route was `teamless`, so a member's first screen was
- * the whole platform's numbers. Now that it answers per scope, the words have to move with
- * it — a page that reads "across every team" over one team's totals is worse than the leak
- * was, because the number is right and the sentence is wrong.
+ * The status row answers four questions that do not overlap: is work progressing, is what we
+ * write down worth reading, is the tool surface breaking, is the system straining.
  *
- * THE STATUS ROW ANSWERS FOUR QUESTIONS AND THEY DO NOT OVERLAP: is work progressing, is
- * what we write down worth reading, is the tool surface breaking, is the system straining.
- * It used to lead with `Teams`, `People` and `Documents` — org facts and a count that
- * unioned 838 knowledge nodes with the governed document chain — none of which is a
- * question somebody opening this page has.
+ * The period is the URL. `?period=` is read here and sent straight to the gateway, which
+ * applies the cutoff in SQL — the page never filters rows it already has, because only the
+ * totals travel. That is also what makes the picker linkable and refreshable.
  *
- * THE PERIOD IS THE URL. `?period=` is read here and sent straight to the gateway, which
- * applies the cutoff in SQL — the page never filters rows it already has, because it does
- * not have them: 43,000 events are counted server-side and only the totals travel. That is
- * also what makes the picker linkable and refreshable, which a React state would not be.
- *
- * WHAT THE WINDOW MEANS, PER TILE, because it does not mean the same thing for all of
- * them. Events, failures, the chart, the refusal table and the event kinds are FLOWS —
- * things that happened, and a window over them is the obvious reading. Documents and
- * Initiatives are windowed on `updated_at`, so under a period they answer "touched since",
- * and the sublabel says so rather than leaving a smaller number to be read as a smaller
- * total. People and Teams are STATE, not flow: a headcount has no window that means
- * anything, so they ignore the picker and their sublabels never claim otherwise.
+ * What the window means differs per tile. Events, failures, the chart, the refusal table and
+ * the event kinds are flows. Documents and initiatives are windowed on `updated_at`, so under
+ * a period they answer "touched since", and the sublabel says so. People and teams are state,
+ * so they ignore the picker.
  */
 /**
- * One bucket's axis label, in the grain the gateway chose.
- *
- * AN HOUR IS RENDERED IN THE READER'S OWN ZONE and a date is not. Every bucket arrives as
- * a UTC instant; taking `15:00` off that instant and printing it is 23:00 to somebody in
- * Singapore — eight hours wrong on every label, which is the exact failure the gateway's
- * "times go out as an instant" rule exists to prevent. A day, a week and a month need no
- * zone (the gateway's own words: "a day needs no zone"), so those are sliced from the ISO
- * string rather than pushed through a local conversion that could roll them onto the wrong
- * side of midnight.
- */
-/**
- * A bucket's label, on the DEPLOYMENT'S calendar — `timezone` off the payload, never the
- * viewer's and never UTC.
- *
- * Both of the old spellings were wrong in the same direction. The hour passed `undefined`
- * as the locale, which formats in whatever zone the laptop is in; the day and month SLICED
- * the ISO string, which is UTC, so a bucket cut at midnight in Singapore was labelled with
- * the date it had eight hours earlier in London — the bar and its own label describing
- * different days, with nothing on screen to show it.
+ * A bucket's label, on the deployment's calendar — `timezone` off the payload, never the
+ * viewer's and never UTC. Every bucket arrives as a UTC instant, so formatting it in the
+ * laptop's zone, or slicing the ISO string, labels a bar with a different day than it was
+ * cut on.
  */
 function bucketLabel(bucket: string, grain: Overview['grain'], timeZone: string): string {
   const d = new Date(bucket);
-  // `en-CA` for its ISO-shaped output: `09-16`, not `16/09` or `Sep 16`.
+  // `en-CA` below for its ISO-shaped output: `09-16`, not `16/09` or `Sep 16`.
   if (grain === 'hour') {
     return new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', minute: '2-digit' }).format(d);
   }
@@ -84,9 +56,8 @@ const kbText = (kb: number | null): string =>
 /**
  * Movement against the previous window, or nothing at all.
  *
- * NOTHING, NOT A DASH, when there is no comparable window. All time has no previous all
- * time, and with a young platform most windows have no populated predecessor either — a
- * row of four "—" arrows reads as a broken page rather than as an absent comparison.
+ * Undefined, not a dash, when there is no comparable window: all time has no previous all
+ * time, and a row of "—" arrows reads as a broken page rather than as an absent comparison.
  *
  * `goodWhen` is required and not derivable: refusals up is never good news, knowledge from
  * work up always is, and the two tiles sit next to each other in the same row.
@@ -96,9 +67,8 @@ function delta(
   fmt: (v: number | null) => string,
 ): MetricCardProps['delta'] {
   if (now === null || prev === null || prev === 0) return undefined;
-  // The previous figure rides on the pill, not on a line of its own: a comparison row that
-  // appears in some tiles and not others is what put the row out of alignment, and the
-  // period it compares against is already chosen at the top of the page.
+  // The previous figure rides on the pill, not on a line of its own, so a tile without a
+  // delta is the same height as one with it.
   const was = `was ${fmt(prev)}`;
   const diff = unit === 'pts' ? now - prev : ((now - prev) / prev) * 100;
   if (Math.abs(diff) < 0.05) return { value: 'no change', direction: 'flat', sentiment: 'neutral', was };
@@ -112,20 +82,11 @@ function delta(
 }
 
 /**
- * The four tiles, built from figures alone.
- *
- * EVERY WORD HERE IS FIXED OR A TEMPLATE. No sentence is composed at render time and no
- * number is typed in — the console has to run without a model in the path, so the API sends
- * figures and this function owns the labels. The `help` strings are the one place a
- * definition, a caveat or a direction lives; the face carries the number.
- */
-/**
  * Measured runs grouped into size decades — the mark under "Context pulled per run".
  *
- * DECADES, BECAUSE THE DISTRIBUTION SPANS THEM. Equal-width bands over a range whose
- * median is 1 KB and whose maximum is past a megabyte put every run but a handful in
- * the first band, which says nothing. An empty band is dropped rather than drawn at the
- * 2% minimum width: a band nothing fell into is not a small category, it is absent.
+ * Decades, because the distribution spans them: equal-width bands over a range whose median
+ * is 1 KB and whose maximum is past a megabyte put every run but a handful in the first band.
+ * An empty band is dropped rather than drawn at the minimum width.
  */
 function contextBands(runs: { kb: number }[]): { key: string; value: number; tint: Tint }[] {
   const BANDS: { key: string; max: number; tint: Tint }[] = [
@@ -141,6 +102,11 @@ function contextBands(runs: { kb: number }[]): { key: string; value: number; tin
   })).filter((b) => b.value > 0);
 }
 
+/**
+ * The four tiles, built from figures alone. Every word is a fixed label or a template: no
+ * sentence is composed at render time and no number is typed in. The `help` strings are the
+ * one place a definition, a caveat or a direction lives; the face carries the number.
+ */
 function buildMetrics(m: OverviewMetrics): MetricCardProps[] {
   const shelf = m.knowledge.fromWork + m.knowledge.imported;
   return [
@@ -150,24 +116,12 @@ function buildMetrics(m: OverviewMetrics): MetricCardProps[] {
       icon: <Layers />,
       tint: 'accent',
       description: 'median completeness of open work',
-      /* "OPEN", because the word is the whole correction. The median used to be taken over
-       * every scoreable initiative including the CLOSED ones — 13 permanent 100s against 3
-       * real numbers, on the day this was found — so the tile read 100% and could not read
-       * anything else. The sublabel says which population the median is over, so a reader
-       * can see that 3 is the number it rests on. */
-      /* THE WAITING COUNT SHARES THIS FACE because it answers the question the number
-         above it raises: if work is not advancing, what is holding it? It is the only
-         figure on this page naming something a PERSON can unblock — everything else here
-         is a rate or a volume. Stated plainly and not in amber: three documents awaiting
-         approval is the ordinary shape of work in progress, and a tile that dresses
-         ordinary state as a warning is the same mistake as a banner that fires on an
-         empty table. The reader can see 3.9 days and judge. */
+      /* The waiting count shares this face because it answers the question the number above
+         it raises: if work is not advancing, what is holding it. Stated plainly and not in
+         amber — documents awaiting approval are the ordinary shape of work in progress. */
       sublabel: [
-        // WHAT THE MEDIAN IS TAKEN OVER, said as such. This read
-        // `${scoreable} open · ${active} active`, and `scoreable` is not "open" — it is the
-        // open initiatives that DECLARE A FLOW, which is the only population a completeness
-        // median can be computed over. The two words together were arithmetically
-        // impossible: "6 open · 7 active" above a bar saying 2 of the 7 are closed.
+        // What the median is taken over: `scoreable` is the open initiatives that declare a
+        // flow, which is the only population a completeness median can be computed over.
         m.progressing.scoreable
           ? `${m.progressing.scoreable} of ${m.progressing.active} active`
           : 'none measured',
@@ -176,14 +130,10 @@ function buildMetrics(m: OverviewMetrics): MetricCardProps[] {
             + (m.progressing.waitingOldestDays !== null ? ` (${m.progressing.waitingOldestDays}d)` : '')
           : null,
       ].filter(Boolean).join(' · '),
-      /* FOUR BANDS, BECAUSE THE BAR DRAWS FOUR. The six stages were listed six times under
-       * a bar that could only ever show four colours: `no flow` and `not started` are both
-       * steel, `gated` and `closed` are both sage, and two adjacent slices in one colour
-       * are one slice to the eye. So the legend named distinctions the chart above it did
-       * not draw, wrapped onto a second line doing it, and made the whole row taller.
-       *
-       * Pairs are merged where they already shared a colour, and nowhere else — the split
-       * that is still visible is still named. `help` carries all six. */
+      /* Four slices, because the bar can draw four colours: `no flow` and `not started` are
+       * both steel, `gated` and `closed` are both sage, and two adjacent slices in one colour
+       * are one slice to the eye. Pairs are merged only where they already shared a colour;
+       * `help` carries all six stages. */
       mark: (
         <CompositionBar
           legend="none"
@@ -255,22 +205,15 @@ function buildMetrics(m: OverviewMetrics): MetricCardProps[] {
       label: 'Refusal rate',
       value: pctText(m.refusals.value),
       icon: <AlertTriangle />,
-      // The one tile whose identity hue carries meaning: refusals are bad, and rose means
-      // bad everywhere in this system. The hue says what the tile is ABOUT; whether it
-      // needs somebody today is what the delta pill and the number say.
+      // The one tile whose identity hue carries meaning: rose means bad everywhere in this
+      // system, and the hue says what the tile is about, not whether it needs somebody today.
       tint: 'rose',
       description: 'share of tool calls refused',
       delta: delta(m.refusals.value, m.refusals.prev, 'down', 'pts', pctText),
       sublabel: `${formatCount(m.refusals.refused)} of ${formatCount(m.refusals.calls)} calls refused`,
-      /* WHICH DOOR IS REFUSING. Rule 6 is satisfied because this is not the rate drawn
-       * twice: the number says how much, the mark says where, and neither is derivable
-       * from the other. Same predicate, grouped rather than counted, so the slices sum to
-       * the count in the sublabel exactly.
-       *
-       * THE DOOR, NOT THE BLOCK — and the difference is the whole mark. 0.40.0 grouped by
-       * `event.block`, which is null on every tool call this platform has ever recorded,
-       * so the bar was one full-width slice drawing the number a second time: the exact
-       * decoration Rule 6 forbids, shipped under a comment claiming it was not. */
+      /* Which door is refusing: the number says how much, the mark says where, and neither is
+       * derivable from the other. Same predicate, grouped rather than counted, so the slices
+       * sum to the count in the sublabel exactly. */
       mark: (
         <CompositionBar
           legend="none"
@@ -287,42 +230,29 @@ function buildMetrics(m: OverviewMetrics): MetricCardProps[] {
         + 'only tile naming a defect somebody can fix today.',
         'The mark splits the same refused calls by the DOOR that refused them — core, eval or '
         + 'manage, read off the tool name — so it sums to the count beside it and says where to '
-        + 'go. Not by `block`: nothing has ever written one onto a tool call, so that split was '
-        + 'one bar drawing the number twice.',
+        + 'go.',
       ],
     },
     {
       label: 'Context pulled per run',
       value: kbText(m.context.value),
       icon: <Gauge />,
-      // Amber, and it is the hue doing its job rather than decoration: this tile's own
-      // question is "is the system straining?", and its dot strip draws a reference line
-      // at roughly one context window. Warn is what it is about.
+      // Amber because this tile's question is "is the system straining?" — warn is what it
+      // is about.
       tint: 'amber',
       description: 'median tool output per run',
       delta: delta(m.context.value, m.context.prev, 'down', 'pct', kbText),
-      /* THE SUBLABEL IS FIGURES. It opened with "text the agent carries on every later
-       * step", which is the tile's DEFINITION — `description` already carries that, one
-       * line above — and the repetition pushed the line into a second row that made this
-       * the tallest tile in the row. Rule 2 puts the meaning on the face once. */
+      /* Figures only: the tile's definition is on `description`, one line above. */
       sublabel: m.context.p90 === null
         ? 'no measured run'
         : `top 10% ≥ ${kbText(m.context.p90)}`
           + (m.context.unmeasured ? ` · ${formatCount(m.context.unmeasured)} unmeasured` : '')
-          // SAID WHEN IT MATTERS. Past the gateway's row cap the previous-window figure is a
-          // median over a truncated tail; without this the delta keeps rendering and quietly
-          // stops meaning what it says.
+          // Past the gateway's row cap the previous-window figure is a median over a
+          // truncated tail, so the delta is qualified rather than dropped.
           + (m.context.capped ? ' · capped' : ''),
-      /* SIZE BANDS, NOT A DOT PER RUN. This was a strip that drew every measured run as
-       * its own dot on a log axis, and at the volume this platform now records it was a
-       * wall of dots — a different species of object from the three composition bars
-       * beside it, and the untidiest thing in the row. What the strip existed to show is
-       * the TAIL, and a band states the tail better than a cloud does: "n runs over
-       * 100 KB" is the fact, in words, on the same bar the other three tiles use.
-       *
-       * Log-spaced, because the thing being shown spans orders of magnitude — the bands
-       * are decades, not equal widths. `runs` holds only MEASURED runs; the unmeasured
-       * ones are counted in the sublabel and never folded in as zero. */
+      /* Size bands rather than a dot per run, because what matters here is the tail and a
+       * band states it in words. `runs` holds only measured runs; the unmeasured ones are
+       * counted in the sublabel and never folded in as zero. */
       mark: (
         <CompositionBar
           legend="none"
@@ -373,23 +303,15 @@ export default function OverviewPage() {
     >
       <Query query={q}>
         {(d) => {
-          /* SUMMED FROM THE BARS, not counted separately. The header states the total of
-             the chart beneath it, so reading it off anything else invites the two to
-             disagree — and a header that contradicts its own chart is worse than none. */
+          /* Summed from the bars, not counted separately: the header states the total of the
+             chart beneath it, so reading it off anything else lets the two disagree. */
           const toolCalls = d.toolTrend.reduce((n, b) => n + b.inside + b.outside + b.refused, 0);
           const events = d.eventKinds.reduce((n, k) => n + k.n, 0);
           return (
           <>
-            {/* The aside names the teamless remainder because the Teams page shows a
-                per-team figure and the two will never add up: turns, tool calls made
-                outside a team, and admin acts that belong to a person carry no team by
-                design. A reader who tries the addition should find the answer here
-                rather than assume a bug.
-
-                NOT IN TEAM MODE, where the remainder is 0 by construction — the gateway
-                reaches these events through `team_id`, so none of them can be teamless.
-                "0 belong to no team" is a true sentence answering a question nobody in
-                that view is asking. */}
+            {/* The aside names the teamless remainder, because the Teams page shows a
+                per-team figure and the two never add up: turns, tool calls made outside a
+                team, and admin acts belonging to a person carry no team. */}
             <Panel
               title="Tool calls over time"
               aside={`${formatCount(toolCalls)} calls · one bar per ${d.grain}`}
@@ -397,28 +319,19 @@ export default function OverviewPage() {
               <TrendChart
                 points={d.toolTrend.map((x) => ({
                   date: x.bucket,
-                  // AN HOUR IS RENDERED IN THE READER'S ZONE, a day is not. The gateway
-                  // sends every bucket as a UTC instant; a bare `15:00` off that instant
-                  // is 23:00 to somebody in Singapore, which is the exact failure the
-                  // gateway's own "times go out as an instant" rule exists for. A day
-                  // needs no zone, so it keeps the plain MM-DD the axis already used.
                   label: bucketLabel(x.bucket, d.grain, d.timezone),
                   inside: x.inside,
                   outside: x.outside,
                   refused: x.refused,
                 }))}
-                /* STACKED, AND THE THREE ARE DISJOINT — a call is refused, or it has been
-                   attributed to a run, or it has not yet been, and never two of those. That
-                   is what lets the column height be read as the number of calls in the hour.
-                   Refused sits on top, where a stack is easiest to compare across
-                   columns, because it is the part somebody is looking for. */
+                /* Stacked, and the three are disjoint — a call is refused, or attributed to a
+                   run, or not yet attributed, never two of those — so the column height is
+                   the number of calls in the bucket. Refused sits on top, where a stack is
+                   easiest to compare across columns. */
                 series={[
-                  // "ATTRIBUTED", NOT "INSIDE A RUN". `run_id` is written by the
-                  // reconciler, which sweeps every five minutes and only links an event whose
-                  // step names a skill the platform knows — so the current bucket always
-                  // draws as 100% unattributed and flips once the timer fires. That shape is
-                  // an artifact of the sweep, not of anybody's behaviour, and reading it as
-                  // "these calls happened outside a run" is reading the clock as a finding.
+                  // "Attributed", not "inside a run": `run_id` is written by the reconciler,
+                  // which sweeps every five minutes, so the current bucket always draws as
+                  // 100% unattributed and flips once the timer fires.
                   { key: 'inside', label: 'attributed to a run', shape: 'stack', tint: 'accent' },
                   { key: 'outside', label: 'not yet attributed', shape: 'stack', tint: 'blue' },
                   { key: 'refused', label: 'refused', shape: 'stack', tint: 'rose' },
@@ -427,13 +340,12 @@ export default function OverviewPage() {
             </Panel>
 
             <Row split="1/2">
-              {/* THE TOTAL, not the number of kinds: the rows are shares of it, and "5 kinds"
-                  gave the percentages nothing to be a share of. */}
+              {/* The total, not the number of kinds: the rows are drawn as shares of it. */}
               <Panel title="Event kinds" aside={`${formatCount(events)} events`}>
                 <BarList
                   limit={10}
-                  /* EVERY kind is in this array — `limit` caps what is drawn, not what was
-                     counted — so summing it is the real denominator rather than a sample's. */
+                  /* Every kind is in this array — `limit` caps what is drawn, not what was
+                     counted — so the sum is the real denominator. */
                   total={events}
                   rows={d.eventKinds.map((k) => ({
                     key: k.kind,

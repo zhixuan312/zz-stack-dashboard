@@ -14,11 +14,10 @@ import { type ActivityEvent } from '@/lib/api-shapes';
 /**
  * The audit view. Every tool call, gate and admin action, newest first.
  *
- * `team` is null for a great many rows and that is CORRECT, not missing data:
- * issuing a token or downloading a client package is a thing a person did, not
- * a thing a team did. The API reads the team through its foreign key rather
- * than the denormalised column beside it, so a blank here means "no team was
- * involved" rather than "the team went missing".
+ * DELIBERATE: `team` is null for a great many rows and that is not missing data.
+ * Issuing a token or downloading a client package is a thing a person did, not a
+ * thing a team did. The API reads the team through its foreign key rather than the
+ * denormalised column beside it, so a blank means "no team was involved".
  */
 export default function ActivityPage() {
   const { mode } = useConsoleMode();
@@ -106,10 +105,9 @@ function EventTable({ events, filter }: { events: ActivityEvent[]; filter: strin
           {events.length === 0 && (
             <TableRow>
               <TableCell colSpan={8} className="py-8 text-ink-faint">
-                {/* NO WINDOW ON THIS PAGE. It sets `showPeriod={false}` and sends no
-                    period, and the route reads only `kind`, `failed` and `limit` — so this
-                    named a control the reader cannot see and a filter the server does not
-                    apply. */}
+                {/* No reporting window on this page: it sets `showPeriod={false}` and
+                    sends no period, and the route reads only `kind`, `failed` and `limit`.
+                    So the empty message must not name one. */}
                 Nothing recorded yet.
               </TableCell>
             </TableRow>

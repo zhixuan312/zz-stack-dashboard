@@ -5,13 +5,12 @@ import { DashboardPage } from '@/components/DashboardPage';
 import { GUTTER, Row, WIDTH, type PageWidth, type Split } from '@/components/ui';
 
 /**
- * THE LAYOUT CONTRACT, per page shape — see `src/components/ui/layout.tsx`.
+ * The layout contract, per page shape — see `src/components/ui/layout.tsx`.
  *
  * jsdom does no layout, so "does the page scroll" is not observable here. The facts under it
- * are: which elements CAN scroll, what is inside the one that does, and which classes the
- * content column carries. Asserted for every combination a page can be — with and without
- * a metric row, with and without a sub-nav, at both widths — because the bug this replaces
- * was never a wrong rule, it was a rule that only one of four branches ran.
+ * are: which elements can scroll, what is inside the one that does, and which classes the
+ * content column carries. Asserted for every combination a page can be — with and without a
+ * metric row, with and without a sub-nav, at both widths.
  */
 const draw = (p: { width: PageWidth; metrics: boolean; subnav: boolean }) =>
   render(
@@ -55,9 +54,9 @@ describe.each(SHAPES)('a page — %o', (shape) => {
     for (const cls of GUTTER.split(' ')) expect(region.className).toContain(cls);
     expect(column.className).toContain(WIDTH[shape.width]);
     expect(column.className).toContain('mx-auto');
-    // THE GUTTER AND THE WIDTH ON DIFFERENT ELEMENTS, in the header as in the body. On one
-    // element `max-width` swallows the padding and the cards start a gutter right of the
-    // title once the window is wider than the column.
+    // DELIBERATE: the gutter and the width sit on different elements, in the header as in the
+    // body. On one element `max-width` swallows the padding and the cards start a gutter right
+    // of the title once the window is wider than the column.
     expect(column.className).not.toMatch(/\bp[xy]?-\d/);
     const header = c.querySelector('header')!;
     expect(header.firstElementChild!.className).toContain(WIDTH[shape.width]);

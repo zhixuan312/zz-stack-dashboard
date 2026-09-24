@@ -2,11 +2,10 @@ import { describe, expect, it } from 'vitest';
 import type { KnowledgeNode } from '@/lib/api-shapes';
 import { filterKnowledgeNodes, knowledgeNodeHref, tagFacetCounts, teamFacetOptions } from '@/lib/knowledge-filters';
 
-// This file lives in `tests/` because vitest.config.ts scans ONLY `tests/**` —
-// a test anywhere else is skipped in silence while the suite still reports
-// success. The filtering logic itself is exported from `src/lib/knowledge-filters.ts`
-// (not left inline in `page.tsx`) specifically so it can be exercised here
-// without mounting the page, its query client, or the Next router.
+// This file lives in `tests/` because vitest.config.ts scans only `tests/**` — a test
+// anywhere else is skipped in silence while the suite still reports success. The filtering
+// logic is exported from `src/lib/knowledge-filters.ts` so it can be exercised here without
+// mounting the page, its query client, or the Next router.
 
 function node(partial: Partial<KnowledgeNode> & { key: string; team: string }): KnowledgeNode {
   return {
@@ -44,9 +43,9 @@ describe('filterKnowledgeNodes', () => {
   });
 
   it('matches search against title and excerpt, never against tags', () => {
-    // "reliability" is a TAG on a/1 and b/1, not a substring of either title or
-    // excerpt — free text must not double as tag matching now that tags have
-    // their own facet (the stakeholder's own words: selectable, not free-text).
+    // "reliability" is a tag on a/1 and b/1, not a substring of either title or
+    // excerpt — free text must not double as tag matching, because tags have
+    // their own facet.
     expect(filterKnowledgeNodes(nodes, { team: 'all', tags: [], search: 'reliability' })).toHaveLength(0);
     expect(filterKnowledgeNodes(nodes, { team: 'all', tags: [], search: 'retry storm' })
       .map((n) => n.key)).toEqual(['a/1']);
@@ -80,7 +79,7 @@ describe('tagFacetCounts', () => {
 
   it('does not shrink when a team or search filter is applied elsewhere — it reads the loaded set', () => {
     // Regression guard for the "counts computed from the loaded node set" contract:
-    // calling it on a team-narrowed slice (what the page must NOT do) gives a
+    // calling it on a team-narrowed slice (what the page must not do) gives a
     // different, smaller answer, which is exactly why the page always calls
     // this on `nodes`, not on `rows`.
     const teamA = filterKnowledgeNodes(nodes, { team: 'a', tags: [], search: '' });
@@ -95,15 +94,10 @@ describe('tagFacetCounts', () => {
 
 describe('teamFacetOptions', () => {
   /**
-   * ONE QUESTION NOW: which teams are on screen. It used to take a mode and a `Me` so that
-   * in team mode it could list the caller's OTHER memberships, and those tests are gone with
-   * that behaviour — deliberately, because the behaviour was wrong in two ways at once.
-   *
-   * The gateway scopes a team-mode read to `active_team_id`, so a sibling team's rows were
-   * never fetched: naming that team at "count 0" offered a shelf the page could not show,
-   * and picking it emptied the list. And switching the team a person acts for changes every
-   * page at once, so it belongs in Settings, not in one list's filter row. The facet is
-   * platform-mode only now, where a read really does span every team.
+   * One question: which teams are on screen. The gateway scopes a team-mode read to
+   * `active_team_id`, so a sibling team's rows are never fetched and naming that team at
+   * "count 0" would offer a shelf the page cannot show. The facet is platform-mode only,
+   * where a read really does span every team.
    */
   it('names every team present in the loaded set, with its true count', () => {
     expect(teamFacetOptions(nodes)).toEqual([
@@ -113,10 +107,9 @@ describe('teamFacetOptions', () => {
   });
 
   it('names one team when one team is loaded — not silence, and not a zero for the others', () => {
-    // The original bug this function was extracted for: visibility derived from
-    // `new Set(nodes.map(n => n.team)).length > 1` hid the control the moment every loaded
-    // row shared a team, leaving a reader unable to tell "filtering is missing" from
-    // "there is only one team". One option, named, is the honest answer.
+    // Visibility derived from `new Set(nodes.map(n => n.team)).length > 1` hides the control
+    // the moment every loaded row shares a team, leaving a reader unable to tell "filtering is
+    // missing" from "there is only one team". One option, named, is the honest answer.
     const teamAOnly = filterKnowledgeNodes(nodes, { team: 'a', tags: [], search: '' });
     expect(teamFacetOptions(teamAOnly)).toEqual([{ slug: 'a', count: 2 }]);
   });

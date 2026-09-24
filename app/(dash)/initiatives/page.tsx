@@ -33,21 +33,18 @@ export default function InitiativesPage() {
   const [flow, setFlow] = useState<string | null>(null);
   const [state, setState] = useState<string | null>(null);
   const [openOnly, setOpenOnly] = useState(false);
-  // THE DATE IS THE REPORTING PERIOD, the same control the Overview carries, held in the
-  // same context — so a window chosen on one page is still the window on the other. It sits
-  // in the page header rather than in the toolbar below because it scopes what this page is
-  // ABOUT, where the facets narrow within that; and because a second, differently-shaped
-  // date control beside the Selects would be a fourth control style on one screen.
+  // The date is the reporting period, held in the same context the Overview reads, so a
+  // window chosen on one page is still the window on the other. It sits in the page header
+  // rather than the toolbar because it scopes what this page is about; the facets narrow
+  // within that.
   const { period, setPeriod } = usePeriod();
   const needle = filter.trim().toLowerCase();
 
   return (
     <DashboardPage
       title="Initiatives"
-      // THE SCOPE THE READ ACTUALLY HAS. The gateway narrows this list to the caller's own
-      // team unless they are in platform mode, and the sentence claimed the platform over it
-      // — a member read "Every piece of work on the platform" above their own eleven rows.
-      // The Overview switches its sentence on `mode` for exactly this reason.
+      // The scope the read actually has: the gateway narrows this list to the caller's own
+      // team unless they are in platform mode, so the sentence switches on `mode` too.
       description={mode === 'team'
         ? "Every piece of work your team has open or closed, and how far through the flow it got."
         : "Every piece of work on the platform, and how far through the flow it got."}
@@ -56,13 +53,10 @@ export default function InitiativesPage() {
     >
       <Query query={q}>
         {(d) => {
-          // THE WINDOW IS APPLIED FIRST, and the facet counts are tallied from what
-          // survives it. A date range is not a fourth facet — it says which initiatives
-          // this page is talking about at all — so a flow reading "ops-flow 50" while the
-          // last 7 days hold three of them is a count that answers a question nobody asked
-          // and empties the table when clicked. Narrowing WITHIN the window is what the
-          // Selects do, and their counts stay stable as the others move, which is the same
-          // rule the knowledge shelf's tag facet follows.
+          // The window is applied first and the facet counts are tallied from what survives
+          // it, because a date range says which initiatives this page is talking about at
+          // all. The Selects narrow within it, and their counts stay stable as the others
+          // move.
           const since = periodCutoff(period);
           const inWindow = since
             ? d.initiatives.filter((i) => new Date(i.updated) >= since)
@@ -73,12 +67,9 @@ export default function InitiativesPage() {
             && (!team || i.team === team)
             && (!flow || i.flow === flow)
             && (!state || initiativeState(i) === state)
-            // "Needs a signature" is the question this page gets opened for, and it was the
-            // one thing the list could not be narrowed to.
-            // WRITTEN AND UNSIGNED. "Needs a signature" is the question this page gets
-            // opened for, and an unwritten gate document is not one: there is nothing for a
-            // person to read. Filtering on `!passed` alone put initiatives nobody could act
-            // on at the top of the one list built for acting on them.
+            // Written and unsigned. An unwritten gate document is not "needs a signature":
+            // there is nothing for a person to read, so `!passed` alone would list
+            // initiatives nobody can act on.
             && (!openOnly || i.gates.some((g) => g.role !== 'handover' && g.written && !g.passed)));
           // Whether the reader narrowed anything — the date window included, since it is a
           // control on this page like any other.
@@ -87,9 +78,8 @@ export default function InitiativesPage() {
           return (
             <Panel
                 title="All initiatives"
-                // NAMES THE WINDOW when there is one. "12 of 57" under a 7-day period reads
-                // as 45 missing initiatives rather than 45 untouched ones, and the reader
-                // has no way to tell which from the number alone.
+                // Names the window when there is one: "12 of 57" alone reads as 45 missing
+                // initiatives rather than 45 untouched ones.
                 aside={
                   since
                     ? `${rows.length} of ${inWindow.length} updated · ${PERIOD_LABEL[period].toLowerCase()}`
@@ -97,10 +87,8 @@ export default function InitiativesPage() {
                 }
                 padded={false}
               >
-                {/* THE CONTROL BELONGS TO THE LIST IT FILTERS. It floated above the
-                    panel as an input attached to nothing, and the relationship
-                    between typing there and the rows changing was left to be
-                    inferred. Pinned inside the panel, above its own table. */}
+                {/* The control belongs to the list it filters, so it sits inside the panel
+                    above its own table rather than floating over it. */}
                 <Toolbar className="border-b border-line p-3">
                   <div className="min-w-0 flex-1">
                     <SearchInput label="initiatives" value={filter} onChange={setFilter} />
@@ -121,12 +109,9 @@ export default function InitiativesPage() {
                   rows={rows}
                   resetKey={JSON.stringify([needle, team, flow, state, openOnly, period])}
                 />
-                {/* TWO EMPTY STATES, because they are two different facts and only one of
-                    them is the reader's doing. "Nothing matches those filters" was shown
-                    whenever the list was empty — including on a fresh install with every
-                    facet unset, where it blamed filters nobody had set and offered a Clear
-                    button that does nothing. The Knowledge shelf has had both states for
-                    this reason; this list had one. */}
+                {/* Two empty states: only one of them is the reader's doing. On a fresh
+                    install with every facet unset, "nothing matches those filters" blames
+                    filters nobody set and offers a Clear button that does nothing. */}
                 {rows.length === 0 && (
                   filtered ? (
                     <EmptyState
@@ -165,7 +150,7 @@ export default function InitiativesPage() {
 
 /** The list, ten rows at a time, like every list in the console.
  *
- * ITS OWN COMPONENT so it can hold the page state: the rows are computed inside a `Query`
+ * Its own component so it can hold the page state: the rows are computed inside a `Query`
  * render prop, and a hook cannot be called from a callback. `resetKey` is every filter at
  * once, so narrowing the list always lands on its first page. */
 function InitiativeTable({ rows, resetKey }: { rows: Initiative[]; resetKey: string }) {
@@ -177,14 +162,9 @@ function InitiativeTable({ rows, resetKey }: { rows: Initiative[]; resetKey: str
           <TableRow>
             <TableHead>Initiative</TableHead>
             <TableHead hideBelow="md">Team</TableHead>
-            {/* THE FLOW ITSELF, which this table never showed. "Flow position" is
-                FLOW-RELATIVE -- S5 is `plan audit` on sdlc-flow and `build` on
-                ops-flow -- so two rows both reading "S5" were at unrelated stages and
-                the page gave no way to tell them apart. The flow was already in the
-                payload; only the facet used it. It sits immediately left of the
-                position so the two read as one fact.
-                Docs went to make room: a bare document count answered nothing this
-                page is opened for, while Gates answers "does this need a signature". */}
+            {/* "Flow position" is flow-relative — S5 is `plan audit` on sdlc-flow and
+                `report` on zz-plugin-eval — so the flow sits immediately left of the position
+                and the two read as one fact. */}
             <TableHead hideBelow="2xl">Flow</TableHead>
             <TableHead hideBelow="lg">Flow position</TableHead>
             <TableHead>State</TableHead>
@@ -205,10 +185,9 @@ function InitiativeTable({ rows, resetKey }: { rows: Initiative[]; resetKey: str
                 </Link>
               </TableCell>
               <TableCell hideBelow="md"><Badge variant="neutral">{i.team}</Badge></TableCell>
-              {/* `flow` is NULLABLE, and a blank cell would hide why. An initiative
-                  with no flow has no chain of gates resolved against it -- no required
-                  document and no closing rule is enforced on it -- so it is a defect
-                  the page should name, not whitespace. */}
+              {/* `flow` is nullable and a blank cell would hide why: an initiative with
+                  no flow has no chain of gates resolved against it, so no required
+                  document and no closing rule is enforced on it. */}
               <TableCell hideBelow="2xl" className="whitespace-nowrap text-[13px]">
                 {i.flow
                   ? <span className="text-ink-soft">{i.flow}</span>
@@ -217,10 +196,9 @@ function InitiativeTable({ rows, resetKey }: { rows: Initiative[]; resetKey: str
               <TableCell hideBelow="lg"><FlowMini at={i.at} of={i.of} name={i.stage} /></TableCell>
               <TableCell><StateBadge of={i} /></TableCell>
               <TableCell hideBelow="lg" className="whitespace-nowrap text-xs tabular-nums">
-                {/* The flow's own gates. The derived handover is a real gate the platform
-                    enforces, but it is signed after the close — so counting it here left an
-                    initiative that had passed every gate its flow declares reading as one
-                    short, for ever. */}
+                {/* The flow's own gates. The derived handover is a real gate, but it is
+                    signed after the close, so counting it leaves an initiative that passed
+                    every gate its flow declares reading as one short. */}
                 {i.gates.filter((g) => g.role !== 'handover' && g.passed).length} of{' '}
                 {i.gates.filter((g) => g.role !== 'handover').length}
               </TableCell>

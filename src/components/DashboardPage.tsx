@@ -9,10 +9,8 @@ import { Freshness } from '@/components/ui/freshness';
  * of rows — the metric row first when there is one, then whatever the page puts in
  * `children`, which is `Row`s of cards.
  *
- * IT HAS NO LAYOUT SWITCHES. It used to take `scroll`, `fill`, `align`, `rail` and `note`,
- * and each page picked a combination — so Teams scrolled inside its card, Overview scrolled
- * the page, and a page with a rail scrolled two columns independently. The page scrolls,
- * always, and a split is a `Row`. See `@/components/ui/layout`.
+ * DELIBERATE: no layout switches. The page scrolls, always, and a split is a `Row`. See
+ * `@/components/ui/layout`.
  */
 export function DashboardPage({
   title,
@@ -31,8 +29,7 @@ export function DashboardPage({
   title: string;
   /**
    * The trail back up. A page reached by drilling in must say where it sits and
-   * offer the way out, and a `← back` button in the actions cluster says only one
-   * of those — from a skill it named its flow and never the list above it.
+   * offer the way out; a `← back` button says only the second.
    */
   breadcrumb?: Crumb[];
   /** A real sentence, or nothing. Not a restatement of the period — the picker says that. */
@@ -44,11 +41,9 @@ export function DashboardPage({
    * When this page's data was last refreshed. Rendered as a freshness stamp in
    * the header, left of the period picker.
    *
-   * Pass it. A dashboard that does not say how old its numbers are cannot be
-   * trusted, and a stalled pipeline and a quiet Tuesday both render as a flat
-   * line. `null` means "never refreshed" and says so; omitting the prop hides
-   * the stamp entirely, which should be reserved for a page whose data has no
-   * refresh cadence at all — a settings form, not a metric.
+   * `null` means "never refreshed" and says so; omitting the prop hides the stamp
+   * entirely, which is for a page whose data has no refresh cadence at all — a
+   * settings form, not a metric.
    */
   updatedAt?: Date | string | null;
   /** Past this age the stamp turns amber. See `Freshness`. */
@@ -56,21 +51,17 @@ export function DashboardPage({
   /**
    * Clock for the freshness stamp. Pass one when the page runs on a fixed clock
    * — a seeded demo, a test, a replayed incident window — so the relative time
-   * is computed against the same instant the data was generated from.
-   *
-   * It also removes a hydration hazard: a relative timestamp derived from
-   * `new Date()` is evaluated once on the server and again on the client, and at
-   * a rollover boundary those two render different text.
+   * is computed against the instant the data was generated from. It also removes
+   * a hydration hazard: a time derived from `new Date()` is evaluated on the
+   * server and again on the client, which render different text at a rollover.
    */
   now?: Date;
   /** Pages with no time dimension hide the picker. */
   showPeriod?: boolean;
   /**
-   * A switcher band under the header — WHICH of a set of things this page is
-   * showing. It belongs here rather than at the top of the body: a control that
-   * scrolls away with the content it controls is content, and the reader loses
-   * the ability to change what they are looking at as soon as they read any of
-   * it.
+   * A switcher band under the header — which of a set of things this page is
+   * showing. It belongs here rather than at the top of the body, because a
+   * control that scrolls away with the content it controls is content.
    */
   subnav?: ReactNode;
   /** `reading` for a document, a form or prose — see `WIDTH`. */
@@ -95,9 +86,8 @@ export function DashboardPage({
               />
             ) : null}
             {actions}
-            {/* No Suspense any more: the picker reads context, not searchParams, so it
-                no longer de-opts this route to client rendering just to learn which
-                window is selected. */}
+            {/* No Suspense: the picker reads context rather than searchParams, so it does
+                not de-opt this route to client rendering. */}
             {showPeriod ? <PeriodSelect /> : null}
           </>
         )

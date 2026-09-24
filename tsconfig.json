@@ -17,10 +17,10 @@
     "jsx": "react-jsx",
     "incremental": true,
     // vitest runs with `globals: true`, so `describe`/`it`/`expect` are ambient
-    // at runtime. Without this they are ambient to the RUNNER but unknown to
+    // at runtime. Without this they are ambient to the runner but unknown to
     // tsc, and `pnpm typecheck` fails on every test file while `pnpm test`
     // passes — two checks disagreeing about the same code.
-    // `node` because scripts/ and checks/ are now TypeScript run by Node directly, and they
+    // `node` because scripts/ and checks/ are TypeScript run by Node directly, and they
     // reach for `process`, `Buffer` and friends. `types` is a whitelist: naming only
     // vitest/globals here left every one of those globals unknown to tsc.
     "types": [
@@ -28,7 +28,7 @@
       "node"
     ],
     // scripts/ and checks/ are executed by Node's native type stripping, which erases
-    // annotations and refuses to EMIT anything. Enums, namespaces and parameter properties
+    // annotations and refuses to emit anything. Enums, namespaces and parameter properties
     // compile under tsc and then throw at runtime, so the compiler has to refuse them here.
     "erasableSyntaxOnly": true,
     // Those same files import each other by the name Node will open — `./lib/contrast.ts`.

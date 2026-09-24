@@ -6,27 +6,19 @@ import { Children, Fragment, type ComponentProps, type ReactNode } from 'react';
 import { cn } from '@/lib/cn';
 import { safeMarkdownUrl, sanitizeUserVisibleMarkdown } from '@/lib/safe-markdown';
 
-/* NOTHING IN A DOCUMENT SCROLLS SIDEWAYS. A fenced block wraps, and a table cell breaks a
+/* Nothing in a document scrolls sideways. A fenced block wraps, and a table cell breaks a
    long token anywhere rather than pushing the table past its card. */
 const FIT = 'prose-pre:whitespace-pre-wrap prose-pre:break-words prose-td:[overflow-wrap:anywhere] ';
 
-/* CONTENT FILLS ITS CARD, and that is the whole rule.
+/* Content fills its card.
  *
  * Tailwind Typography caps a prose block at 65ch, which is why every variant clears it with
- * `max-w-none`. Two other arrangements were tried and both made a page LESS coherent than
- * this one:
+ * `max-w-none`. Capping the text elements and leaving tables full width puts a 74ch paragraph
+ * beside a full-width ledger in the same card; shrinking the page instead makes one page of
+ * twenty half the width of the other nineteen under a full-width header band.
  *
- *   - Shrinking the whole PAGE to 832px. One page of twenty was then half the width of the
- *     other nineteen, so opening a spec from its initiative halved the layout under a header
- *     band that stayed full width.
- *   - Capping the text elements and leaving tables full width. That put a 74ch paragraph
- *     beside a full-width ledger in the same card — half the page empty, half of it used,
- *     which reads as broken rather than as typography.
- *
- * A long measure is a real cost and it is the smaller one. A card that is one width is a page
- * somebody can look at; a card that is two widths is a page that looks wrong before anybody
- * reads a word of it. If the measure needs solving, it is solved by the CARD's width, in one
- * place, for everything in it — not by singling out the paragraphs. */
+ * A long measure is the smaller cost. If it needs solving, it is solved by the card's width,
+ * in one place, for everything in it — not by singling out the paragraphs. */
 const VARIANT_CLASSES = {
   document:
     FIT + 'prose prose-sm max-w-none text-ink',
@@ -75,10 +67,9 @@ interface ProseBlockProps {
   /**
    * Decorate plain-text runs of the rendered markdown — e.g. highlighting @-mentions.
    *
-   * Applied to STRING children only, so it never sees markup and cannot inject any: it
+   * Applied to string children only, so it never sees markup and cannot inject any: it
    * receives text react-markdown has already parsed out, and whatever it returns is React
-   * nodes, not HTML. Without this a caller has to choose between markdown and its own text
-   * pass, and ends up rendering the same content two different ways on two surfaces.
+   * nodes, not HTML.
    */
   highlight?: (text: string) => ReactNode;
 }

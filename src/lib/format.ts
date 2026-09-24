@@ -1,11 +1,10 @@
 /**
- * Dense-table formatters. Every one accepts `null` and renders it as an em
- * dash, so a missing measurement never renders as `0` — the distinction
- * between "we measured zero" and "nobody measured" is one a dashboard has to
- * keep, and it is lost the moment a formatter coerces.
+ * Dense-table formatters. Every one accepts `null` and renders it as an em dash, so a missing
+ * measurement never renders as `0` — "we measured zero" and "nobody measured" are different facts,
+ * and the distinction is lost the moment a formatter coerces.
  *
- * Add your domain's formatters here rather than inline at the call site, so a
- * quantity reads the same in a metric tile, a table cell and a tooltip.
+ * Add your domain's formatters here rather than inline at the call site, so a quantity reads the
+ * same in a metric tile, a table cell and a tooltip.
  */
 
 export function formatCost(usd: number | null): string {
@@ -51,15 +50,13 @@ export function formatPercent(fraction: number | null, digits = 1): string {
 /**
  * Serializable formatter names.
  *
- * A client component cannot receive a FUNCTION prop from a server component —
- * React cannot serialize it across the RSC boundary and the page 500s with
- * "Functions cannot be passed directly to Client Components". So any chart
- * config that crosses that boundary names its formatter instead of carrying it,
- * and the client resolves the name here.
+ * A client component cannot receive a function prop from a server component — React cannot
+ * serialize it across the RSC boundary and the page 500s with "Functions cannot be passed directly
+ * to Client Components". So a chart config that crosses that boundary names its formatter and the
+ * client resolves the name here.
  *
- * Server components (BarList, CompositionBar) may still take a function
- * directly — they never cross the boundary. Only `'use client'` components need
- * this.
+ * Server components (BarList, CompositionBar) may take a function directly; only `'use client'`
+ * components need this.
  */
 export type NumberFormat = 'count' | 'cost' | 'duration' | 'percent';
 
@@ -76,26 +73,10 @@ export function formatBy(kind: NumberFormat | undefined, value: number | null): 
 }
 
 /**
- * Axis-tick formatters.
- *
- * An axis label has different needs from an inline value: it repeats four or
- * five times up the side of a chart, it is read as a SCALE rather than as a
- * quantity, and every character it spends pushes the plot area narrower. So
- * `$12.00` becomes `$12` and `1,200,000` becomes `1.2M` — the cents and the
- * exact digits are in the tooltip and the sr-only table, where someone actually
- * reading a number can find them.
- *
- * Same keys as `FORMATTERS`, so a series names its format once and both the
- * value and the axis do the right thing.
- */
-/**
- * A count for an AXIS TICK, where the only thing that matters is that neighbouring ticks
- * read as different numbers.
- *
- * `formatTokens` rounds to whole thousands, which is right in prose and wrong here: an
- * axis running 0…3,000 in steps of 500 rendered `0 · 500 · 1K · 2K · 2K · 3K · 3K`, with
- * three pairs of duplicate labels, and an axis that cannot tell 1,500 from 2,000 is not
- * measuring anything. One decimal where the value needs it, none where it does not.
+ * A count for an axis tick, where the only thing that matters is that neighbouring ticks read as
+ * different numbers. `formatTokens` rounds to whole thousands, which on an axis running 0…3,000 in
+ * steps of 500 gives three pairs of duplicate labels. One decimal where the value needs it, none
+ * where it does not.
  */
 export function formatAxisCount(n: number): string {
   if (n === 0) return '0';
@@ -106,6 +87,15 @@ export function formatAxisCount(n: number): string {
   return n.toLocaleString();
 }
 
+/**
+ * Axis-tick formatters. An axis label repeats four or five times up the side of a chart, is read as
+ * a scale rather than as a quantity, and every character it spends pushes the plot area narrower —
+ * so `$12.00` becomes `$12` and `1,200,000` becomes `1.2M`. The cents and the exact digits are in
+ * the tooltip and the sr-only table.
+ *
+ * Same keys as `FORMATTERS`, so a series names its format once and both the value and the axis do
+ * the right thing.
+ */
 export const AXIS_FORMATTERS: Record<NumberFormat, (n: number | null) => string> = {
   count: (n) => (n === null ? '—' : formatAxisCount(n)),
   cost: (n) => {
@@ -121,13 +111,8 @@ export const AXIS_FORMATTERS: Record<NumberFormat, (n: number | null) => string>
 /**
  * Seconds → the coarsest unit that still reads as a duration.
  *
- * ONE COPY. There were three, in the two skill pages and the runs table, and they had
- * already drifted apart in the only case that matters — what to print when there is no
- * number. `if (!s) return '—'` collapsed null and a real sub-second measurement into the
- * same dash, and this platform has both: a skill with no run long enough to time, and
- * sdlc-explore's genuine 0.1s median across 37 timed runs.
- *
- * `< 1 s` IS A BAND, not a rounding down. The dash is reserved for null — nothing measured.
+ * `< 1 s` is a band, not a rounding down. The dash is reserved for null — nothing measured — and
+ * this platform has both: a skill with no run long enough to time, and a genuine 0.1s median.
  */
 export function formatSeconds(s: number | null): string {
   if (s === null || !Number.isFinite(s)) return '—';
@@ -140,10 +125,8 @@ export function formatSeconds(s: number | null): string {
 /**
  * Kilobytes → KB or MB, whichever reads without a leading zero.
  *
- * Null is a dash and never "0 KB". The three call sites this replaces all did
- * `Math.round(kbPerRun)` on a field the gateway sends as null, so a skill nobody has
- * measured the payload of reported having moved nothing — the exact conflation migration
- * 051 removed one layer down, reintroduced by the type that claimed the field was a number.
+ * Null is a dash and never "0 KB". The gateway sends this field as null for a skill nobody has
+ * measured the payload of, and rounding it reports a skill that moved nothing.
  */
 export function formatKb(kb: number | null): string {
   if (kb === null || !Number.isFinite(kb)) return '—';

@@ -3,8 +3,7 @@ import { cn } from '@/lib/cn';
 
 /**
  * FieldGrid — lays form fields in columns that collapse to a single column on
- * narrow screens, so forms read as structured rows instead of one tall stack of
- * full-width inputs. Wrap related `Field`s; a field can span the full row with
+ * narrow screens. Wrap related `Field`s; a field can span the full row with
  * `className="sm:col-span-2"`.
  *
  *   <FieldGrid cols={2}>

@@ -5,7 +5,7 @@ import { cn } from '@/lib/cn';
  * Toolbar — the filter/control strip above a list or grid. Lays its controls in
  * a wrapping row with consistent spacing and pushes an optional `actions` slot
  * (the page's primary action) to the right. Stacks controls above actions on
- * narrow screens. Replaces the cramped hand-rolled flex rows on the list pages.
+ * narrow screens.
  *
  *   <Toolbar actions={<Button>New</Button>}>
  *     <SearchInput /> <FilterPills /> <Toggle />

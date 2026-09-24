@@ -37,18 +37,14 @@ export default function TeamsPage() {
   );
 }
 
-/** Count headers never wrap; where each column ALIGNS is the Table's own rule. */
+/** Count headers never wrap; where each column aligns is the Table's own rule. */
 const NUM = 'whitespace-nowrap';
 
 /**
- * Its own component so it can hold the filter and page state — see `InitiativeTable` on
- * /initiatives, whose toolbar this matches deliberately.
+ * Its own component so it can hold the filter and page state.
  *
- * THE SAME TOOLBAR EVERYWHERE OR IT IS NOT A TOOLBAR. This table had a pager and no filter,
- * which is the half that stops mattering first: paging answers "show me more" and filtering
- * answers "show me the one I came for", and a reader who has learned the second control on
- * /initiatives finds nothing here. Three teams do not need either — a hundred do, and the
- * page that acquires them should not be the one that has to grow the control.
+ * COUPLED: the toolbar matches `InitiativeTable` on /initiatives — a search box, then the
+ * facets, with the pager below the table.
  */
 function TeamsPanel({ teams }: { teams: Team[] }) {
   const [filter, setFilter] = useState('');
@@ -62,8 +58,7 @@ function TeamsPanel({ teams }: { teams: Team[] }) {
   return (
     <Panel
       title="All teams"
-      // THE SHOWN COUNT AND THE TOTAL, because a filtered table whose header still says
-      // "3 total" is a table claiming to show rows it is hiding.
+      // The shown count and the total, so a filtered header never claims rows it is hiding.
       aside={rows.length === teams.length
         ? `${teams.length} total`
         : `${rows.length} of ${teams.length}`}
@@ -78,8 +73,7 @@ function TeamsPanel({ teams }: { teams: Team[] }) {
                 <SearchInput label="teams" value={filter} onChange={setFilter} />
               </div>
               {/* Counted over every team rather than over the filtered rows, so the numbers
-                  beside the options do not change as the search narrows — a facet whose
-                  counts move while you type cannot be used to decide what to pick. */}
+                  beside the options do not change as the search narrows. */}
               <Facet all="All statuses" values={tally(teams.map((t) => t.status))}
                      value={status} onChange={setStatus} />
             </Toolbar>
@@ -105,11 +99,10 @@ function TeamTable({ teams, resetKey }: { teams: Team[]; resetKey: string }) {
   const count = (n: number) => (n ? formatCount(n) : '—');
   return (
     <>
-      {/* HOW THE WIDTH IS SHARED. Every count column is the same width; Team gets a share
-          of its own; Status is as wide as its badge. The spare width is spread across all of
-          them, never handed to one column — Team taking everything left over put half the
-          table between the names and the first figure. Headers never wrap; where each column
-          aligns is the Table primitive's rule, not this page's. */}
+      {/* How the width is shared: every count column is the same width, Team gets a share of
+          its own, Status is as wide as its badge, and the spare width is spread across all of
+          them rather than handed to one. Headers never wrap; where each column aligns is the
+          Table primitive's rule, not this page's. */}
       <Table className="table-fixed">
         <colgroup>
           <col className="w-[18%]" />

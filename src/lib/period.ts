@@ -1,20 +1,15 @@
 /**
  * The reporting-period vocabulary, shared by pages, queries and the picker.
  *
- * Deliberately dependency-free so a `'use client'` control can import it
- * without dragging a database driver into the browser bundle — the picker and
- * the query that answers it must agree on the vocabulary, and one module is how
- * you guarantee that.
+ * DELIBERATE: dependency-free, so a `'use client'` control can import it without
+ * dragging a database driver into the browser bundle.
  */
 export const PERIODS = ['1d', '7d', '30d', '90d', 'all'] as const;
 export type Period = (typeof PERIODS)[number];
 
 /**
- * ALL TIME IS THE DEFAULT, and that is a decision about honesty rather than about
- * convenience. A console that silently opens on the last 30 days shows a total which is
- * not the total, under a heading that does not say so — and every number on this page is
- * the kind somebody quotes. Opening on everything means the first read is the true one and
- * narrowing is the deliberate act.
+ * DELIBERATE: all time is the default. A console that opens on the last 30 days shows a
+ * total that is not the total, under a heading that does not say so.
  */
 export const DEFAULT_PERIOD: Period = 'all';
 

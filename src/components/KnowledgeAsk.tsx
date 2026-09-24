@@ -13,35 +13,28 @@ import { type AskAnswer } from '@/lib/api-shapes';
 import { consoleMutate } from '@/lib/mutate';
 import { citationHref } from '@/lib/citations';
 
-/** Whether a question can be submitted at all — the only rule the surface itself enforces,
- *  the server names every other refusal in its own sentence. Exported (not just used
- *  inline) so the disabled state on the button and the test asserting the same thing call
- *  the one function, never two copies of "is this blank" that could drift apart. */
+/** Whether a question can be submitted at all — the only rule the surface itself enforces; the
+ *  server names every other refusal in its own sentence. COUPLED: the button's disabled state
+ *  and the test asserting the same thing both call this, never a second copy of "is this blank". */
 export function canAsk(question: string): boolean {
   return question.trim().length > 0;
 }
 
 /**
- * The ask surface on the Knowledge page (Task I-24, AC-8/AC-9): a question in, an answer
- * grounded in this team's own documents out, each claim traceable to a real console link.
+ * The ask surface on the Knowledge page: a question in, an answer grounded in this team's own
+ * documents out, each claim traceable to a real console link.
  *
- * ONE TEAM, ALWAYS. `team` is `null` exactly when the caller has not resolved to a single
- * team — platform mode with "All" selected — and the control disables itself rather than
- * guess one: `POST /api/console/ask` refuses `?scope=platform` outright (a question is
- * answered from ONE team's knowledge, never a fleet-wide reading of it — see
- * console-ask.ts), so there is no team this call could send that the server would accept.
+ * One team, always. `team` is `null` exactly when the caller has not resolved to a single team —
+ * platform mode with "All" selected — and the control disables itself rather than guess, because
+ * `POST /api/console/ask` refuses `?scope=platform` outright.
  *
- * NO OPTIMISTIC ANSWER, AND NO SILENT WAIT: `asking` renders its own inline state (a
- * spinner and a sentence) rather than leaving the panel exactly as it was until the
- * response lands — a blank pause here reads as a broken page. A failure keeps the
- * SERVER's own sentence verbatim, `Banner`'s persistent description rather than a toast
- * that vanishes before an operator can read the missing-credential name in a 503.
+ * `asking` renders its own inline state rather than leaving the panel unchanged until the
+ * response lands. A failure keeps the server's own sentence verbatim, in `Banner`'s persistent
+ * description rather than a toast that vanishes before an operator can read it.
  *
- * CITATIONS RENDER AS LINKS ONLY WHEN THEY RESOLVE. `c.path === null` means the gateway
- * found a real document but not one this team's console can open (its own shared platform
- * shelf — see `console-ask.ts`'s `buildCitations`); that title is still shown, as plain
- * text, because the answer really was grounded in it — a citation is not an invented one
- * just because this page has nowhere to send a reader today.
+ * A citation renders as a link only when it resolves. `c.path === null` means the gateway found
+ * a real document this team's console cannot open (see `console-ask.ts`'s `buildCitations`); the
+ * title is still shown as plain text, because the answer was grounded in it.
  */
 export function KnowledgeAsk({ team }: { team: string | null }) {
   const [question, setQuestion] = useState('');
@@ -108,9 +101,9 @@ export function KnowledgeAsk({ team }: { team: string | null }) {
           </Button>
           {asking ? (
             <span className="flex items-center gap-2 text-xs text-ink-faint">
-              {/* The mascot stands in for the spinner ONLY here — this is the one screen
-                  where a person waits on an answer rather than on a button. `Spinner` is
-                  untouched and still imported: if the image fails, it is what shows. */}
+              {/* The mascot stands in for the spinner only here — this is the one screen where
+                  a person waits on an answer rather than on a button. The screen-reader-only
+                  `Spinner` beside it carries the accessible label. */}
               <Image
                 src="/assets/brand/state-thinking.png"
                 alt=""

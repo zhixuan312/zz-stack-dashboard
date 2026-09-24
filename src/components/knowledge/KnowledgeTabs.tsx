@@ -4,22 +4,18 @@ import { NavTabs } from '@/components/ui/nav-tabs';
 type KnowledgeView = 'nodes' | 'ask' | 'log';
 
 /**
- * The knowledge base's three views, as REAL ROUTES.
+ * The knowledge base's three views, as real routes.
  *
- * Not `?view=` on one route, which is how `SkillViewTabs` does it and is the trap this
- * console has already fallen into twice: a tab written as a search parameter is read back
- * with `useSearchParams()`, and on a statically prerendered route that read never sees the
- * write. It works for a skill only because `/plugins/[plugin]/[skill]` is server-rendered per
- * request; `/knowledge` is static, so the same shape would render a tab strip where
- * clicking does nothing — exactly what the period picker did before it moved into context.
+ * DELIBERATE: not `?view=` on one route, the way `SkillViewTabs` does it. A tab written as a
+ * search parameter is read back with `useSearchParams()`, and on a statically prerendered
+ * route that read never sees the write. `/plugins/[plugin]/[skill]` gets away with it because
+ * it is server-rendered per request; `/knowledge` is static, so the same shape would render a
+ * tab strip where clicking does nothing. `NavTabs` is `Link`-based, so each tab is ordinary
+ * navigation and each view is linkable and back-button-correct.
  *
- * `NavTabs` is `Link`-based, so each tab is ordinary navigation. That also makes each view
- * linkable and back-button-correct for free, which is what the search parameter was
- * supposed to buy and did not.
- *
- * THREE, NOT FOUR. The journal in multi-model-agent-forge — the shape this follows — has a Graph tab beside these
- * and it is deliberately not here: the platform records no node-to-node edge, so a graph
- * would be drawn from shared tags and would assert relationships nobody wrote down.
+ * DELIBERATE: three tabs, not four. There is no Graph tab because the platform records no
+ * node-to-node edge, so a graph would be drawn from shared tags and would assert
+ * relationships nobody wrote down.
  */
 const TABS = [
   { key: 'nodes', label: 'Nodes', href: '/knowledge', glyph: <BookOpen className="size-4" /> },

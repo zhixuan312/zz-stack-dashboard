@@ -17,13 +17,9 @@ function Paged({ n, resetKey }: { n: number; resetKey?: string }) {
 }
 const draw = (n: number) => render(<Paged n={n} />);
 
-/* THE DEFAULT IS ASSERTED ONCE, HERE, and every range below is derived from it.
- *
- * These ranges were written as literals against a default of ten, so raising it turned
- * seven behavioural tests red at once — none of which was about the default. Worse, they
- * would have gone green again on any wrong value a careless edit produced, because the
- * numbers were retyped by hand rather than computed. Anchoring to the constant means
- * exactly one test fails if the default moves, and it is the one whose name says so. */
+/* DELIBERATE: the default page size is asserted once, here, and every range below is derived
+ * from it. Written as literals, moving the default turns every behavioural test red, and none
+ * of them is about the default. */
 const SIZE = DEFAULT_PAGE_SIZE;
 
 /** Rows that can shrink underneath a reader who is already on a later page — a refetch, a
@@ -39,8 +35,8 @@ function Shrinking() {
 }
 
 describe('PageControl', () => {
-  /* CHROME FOR A PROBLEM THE TABLE DOES NOT HAVE. A disabled pager under three rows is the
-   * same mistake as the Runs banner firing on an empty table. */
+  /* No pager when everything fits: a disabled pager under three rows is chrome for a problem
+   * the table does not have. */
   it('is absent when everything fits on one page', () => {
     draw(10);
     expect(screen.queryByLabelText('Pages')).not.toBeInTheDocument();
@@ -66,7 +62,7 @@ describe('PageControl', () => {
     expect(screen.getByLabelText('Page 2')).toHaveAttribute('aria-current', 'page');
   });
 
-  /* THE LAST PAGE IS SHORT, and its range has to say so rather than claiming a full page. */
+  /* The last page is short, and its range says so rather than claiming a full page. */
   it('reports a short final page honestly', async () => {
     draw(54);
     await userEvent.click(screen.getByLabelText('Page 3'));
@@ -81,8 +77,8 @@ describe('PageControl', () => {
     expect(screen.getByLabelText('Previous page')).toBeEnabled();
   });
 
-  /* CHANGING SIZE RETURNS TO THE FIRST PAGE. Staying on page 6 of 6 while the size grows
-   * lands the reader past the end of the list they just asked to see more of. */
+  /* Changing the size returns to the first page: staying on the last page while the size
+   * grows lands the reader past the end of the list. */
   it('goes back to the first page when the size changes', async () => {
     draw(54);
     await userEvent.click(screen.getByLabelText('Page 3'));
@@ -90,9 +86,8 @@ describe('PageControl', () => {
     expect(screen.getByText('1–30 of 54')).toBeInTheDocument();
   });
 
-  /* CLAMPED ON READ, not in an effect. A refetch that returns fewer rows leaves `at` past
-   * the end, and a page that renders empty because of its own stale state looks exactly
-   * like a list that lost its data — the worst possible reading of a working table. */
+  /* Clamped on read, not in an effect: a refetch that returns fewer rows leaves `at` past the
+   * end, and a page rendering empty from its own stale state reads as lost data. */
   it('falls back to the last real page when the rows shrink underneath it', async () => {
     render(<Shrinking />);
     await userEvent.click(screen.getByLabelText('Page 3'));
@@ -103,8 +98,8 @@ describe('PageControl', () => {
     expect(screen.getByText(`row-${SIZE + 1}`)).toBeInTheDocument();
   });
 
-  /* A NEW QUESTION STARTS AT PAGE 1. The reset key is the filter; keeping page 4 after a
-   * search was typed shows the matches from row 31 on, and the first thirty look missing. */
+  /* A new question starts at page 1. The reset key is the filter; keeping a later page after
+   * a search shows the matches from partway down, and the earlier ones look missing. */
   it('returns to the first page when the reset key changes', async () => {
     function Filtered() {
       const [q, setQ] = useState('');
@@ -122,7 +117,7 @@ describe('PageControl', () => {
     expect(screen.getByText(`1–${SIZE} of 40`)).toBeInTheDocument();
   });
 
-  /* A WINDOW, NOT EVERY PAGE — 400 buttons is a paragraph of numbers. */
+  /* A window, not every page — 400 buttons is a paragraph of numbers. */
   it('windows the page numbers on a long list', () => {
     draw(4000);
     const last = 4000 / SIZE;

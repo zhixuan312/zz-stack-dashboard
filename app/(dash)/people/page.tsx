@@ -12,9 +12,8 @@ import { teamSlug, type Person } from '@/lib/api-shapes';
 /**
  * People, their teams, and their tokens' state.
  *
- * NEVER THE TOKENS. zz.pat stores a hash; this shows whether one is live and
- * when it was last used, which is what an administrator actually asks, and
- * nothing that could be replayed.
+ * DELIBERATE: never the tokens. zz.pat stores a hash; this shows whether one
+ * is live and when it was last used, and nothing that could be replayed.
  */
 export default function PeoplePage() {
   const { mode } = useConsoleMode();
@@ -39,9 +38,8 @@ export default function PeoplePage() {
               { label: 'Never used a token', value: String(people.filter((p) => !p.last_used).length),
                 muted: people.every((p) => p.last_used),
                 sublabel: 'no platform call on record' },
-              // THE TEAM, NOT THE MEMBERSHIP. `p.teams` holds `<slug> (<role>)` strings, so a
-              // bare Set counted `xuan (admin)` and `xuan (member)` as two teams — a platform
-              // of 3 read 4, 5 or 6 the moment any team had both.
+              // The team, not the membership. `p.teams` holds `<slug> (<role>)` strings, so a
+              // bare Set counts a team once per role its members hold.
               { label: 'Teams', value: String(new Set(people.flatMap((p) => p.teams.map(teamSlug))).size),
                 sublabel: 'across every principal' },
             ]

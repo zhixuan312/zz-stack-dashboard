@@ -10,23 +10,14 @@ import { formatCount, formatKb } from '@/lib/format';
 import type { Skill, SkillDetail } from '@/lib/api-shapes';
 
 /**
- * WHAT A SKILL COST TO RUN.
+ * What a skill cost to run.
  *
- * NO SCORES, AND THERE CANNOT BE ANY. This also drew a rubric, its dimensions and the
- * judge's recurring findings, from `detail.dimensions` and `detail.findings` — fields
- * `GET /skills/:name` stopped sending when an evaluation's subject became a PLUGIN VERSION
- * rather than a skill. Nothing can ever write a per-skill score again. The reads were left
- * standing, so `d.findings` was `undefined` and every skill with a recorded run threw on the
- * route error boundary instead of rendering: the page was unreachable, and the "No rubric
- * yet" empty state written for this case sat below the line that crashed.
+ * No scores: an evaluation's subject is a plugin version, not a skill, so `GET /skills/:name`
+ * carries no per-skill score.
  *
- * `skill` is null for one that has never run: the cost list is built from recorded runs,
- * so a skill nobody has called is genuinely absent from it. That is a state to render,
- * not a crash — an unrun skill is the normal condition of one a block team has just
- * published.
- *
- * `scoresHref` is optional because only a document-producing skill has documents to
- * list. A block's skills produce none, so there is nothing for that page to link to.
+ * `skill` is null for one that has never run: the cost list is built from recorded runs, so a
+ * skill nobody has called is absent from it. That is a state to render — an unrun skill is the
+ * normal condition of one just published.
  */
 export function SkillCost({
   skill, detail,
@@ -37,10 +28,8 @@ export function SkillCost({
   const d = detail;
   return (
     <>
-      {/* NEVER RUN is a state, not a gap. The cost list is built from recorded runs, so
-          a skill nobody has called is genuinely absent from it — which is the normal
-          condition of one a block team has just published, and of every step of a flow
-          nobody has installed. Saying so beats four dashes. */}
+      {/* Never run is a state, not a gap: the cost list is built from recorded runs, so a
+          skill nobody has called is absent from it. */}
       {!skill ? (
         <Panel title="Cost to run">
           <EmptyState
@@ -59,21 +48,16 @@ export function SkillCost({
             <CompositionBar
               slices={d.surfaces.map((x) => ({ key: x.surface, label: x.surface, value: x.calls }))}
             />
-            {/* SAY WHAT THE ATTRIBUTION IS. A call is filed under the last
-                skill served to that caller, and the caller key is a person
-                plus a client — not a conversation. So one person working on
-                two things at once has every call filed under whichever skill
-                loaded most recently, and ops-intent shows block calls it
-                could not have made. The number is real; what it is a number
-                OF is the thing that needed saying. */}
+            {/* A call is filed under the last skill served to that caller, and the caller
+                key is a person plus a client, not a conversation — so one person working on
+                two things has every call filed under whichever skill loaded most recently. */}
             <p className="mt-3 text-[11px] leading-relaxed text-ink-faint">
               Attributed by the last skill served to the caller, not by what the
               skill declares. One person running two conversations at once has
               their calls filed under whichever skill loaded last.
             </p>
-            {/* The four demoted metrics. Diagnostics, not headlines — they
-                answer "how much did it move", which is a follow-up to the
-                composition above rather than a question of its own. */}
+            {/* The four demoted metrics: diagnostics rather than headlines, answering "how
+                much did it move" as a follow-up to the composition above. */}
             <div className="mt-4 grid grid-cols-2 gap-4 border-t border-line pt-4 sm:grid-cols-4">
               <Mini
                 k="Payload per run"
@@ -88,9 +72,9 @@ export function SkillCost({
 
           <Panel title="Busiest tools" aside="calls, and how many were refused">
             <BarList
-              /* NOT the sum of these rows: the gateway returns the eight busiest tools,
-                 and a share of eight would read as a share of all. `surfaces` groups the
-                 same tool calls by surface with no limit, so it sums to the true total. */
+              /* Not the sum of these rows: the gateway returns the eight busiest tools, and a
+                 share of eight would read as a share of all. `surfaces` groups the same tool
+                 calls by surface with no limit, so it sums to the true total. */
               total={d.surfaces.reduce((n, s) => n + s.calls, 0)}
               rows={d.busiestTools.map((t) => ({
                 key: t.tool,

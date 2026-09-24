@@ -2,11 +2,9 @@ import { readFileSync, readdirSync, existsSync } from 'node:fs';
 const fail = (m: string): void => { console.error('FAIL ' + m); process.exitCode = 1; };
 
 const ignore = readFileSync('.dockerignore', 'utf8').split('\n').map((s) => s.trim());
-/* `design/` is 38MB of source art, tracked in git (a master that lives on one laptop is a
- * master the team does not have) and shipped to nobody. The failure is INVISIBLE if this
- * line goes missing — the image builds fine, just fatter, forever — which is exactly the
- * kind of thing a check is for and a review is not. `checks/` rides along for the same
- * reason `tests` does: it runs in CI, never in the container. */
+/* `design/` is source art: tracked in git, shipped to nobody. Drop the .dockerignore entry
+ * and the image still builds, just permanently fatter, with no error anywhere. `checks/` is
+ * excluded for the same reason `tests` is: it runs in CI, never in the container. */
 for (const entry of ['design', 'checks']) {
   if (!ignore.includes(entry)) fail('.dockerignore has no `' + entry + '` entry');
 }
@@ -18,10 +16,8 @@ for (const [dir, want] of CUSTODY) {
   if (n !== want) fail(`${dir} holds ${n} PNGs, expected ${want}`);
 }
 
-/* AC-1.1's OTHER HALF. The spec asks for two folders AND a README saying which is which
- * and why; this check counted the folders and never looked for the README. It happens to
- * exist — it predates this work — so the criterion was satisfied by luck, and a check that
- * is right by luck tells you nothing the day somebody tidies the file away. */
+/* The two folders do not say which is which, or why; the README does, so counting the
+ * folders alone is not enough. */
 if (!existsSync('design/README.md')) {
   fail('design/README.md is missing — nothing says which folder is which, or why');
 } else {

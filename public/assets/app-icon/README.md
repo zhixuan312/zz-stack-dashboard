@@ -12,10 +12,8 @@ Regenerate with `python3 scripts/build-app-icon.py` (needs Pillow).
 Built from `design/in-use/app-icon-squircle.png` — a purpose-drawn **1254 × 1254** master, so
 every size here is a downscale. Nothing in this directory is an upscale.
 
-That was not always true. The first version of this set was cropped from panel 03 of
-`brand-kit-sheet.png`, a region the sheet itself labels "1024 × 1024" and which is actually
-**183 × 179 px** — the label is drawn-on annotation, not a file size. Everything above ~180px
-was therefore a sharpened LANCZOS upscale. The master replaced it on 2026-09-13.
+Do not crop an icon out of `design/reference/brand-kit-sheet.png`: its "1024 × 1024" panel label
+is drawn-on annotation, and the panel itself is about 183 × 179px.
 
 ## Files
 
@@ -26,7 +24,7 @@ was therefore a sharpened LANCZOS upscale. The master replaced it on 2026-09-13.
 | `apple-touch-icon-180.png` | `<link rel="apple-touch-icon">` — iOS home screen. |
 | `app-icon-64.png` | Large favicon / tab strip on hi-dpi. |
 | `app-icon-maskable-1024.png`, `-512`, `-192` | PWA manifest `icons`, `purpose: "maskable"`. |
-| `641F2C18-7277-46EE-9788-B7590FD375BB.png` | **Not part of this set and not built by the script.** 61 × 61, RGBA, a pink-haired character portrait — not one of the three ZZ marks. A UUID filename is what a design tool writes on export rather than on placement, so it arrived here by accident. Nothing references it: grepped across `ts`, `tsx`, `json` and `html`. Kept on the stakeholder's instruction, documented rather than tidied away, because a file in this directory that the table does not name is the thing this README exists to prevent. |
+| `641F2C18-7277-46EE-9788-B7590FD375BB.png` | **Not part of this set and not built by the script.** 61 × 61, RGBA, a character portrait — not one of the three ZZ marks, and referenced by nothing. DELIBERATE: kept, and named here because every file in this directory must be. |
 
 ## Two variants, and why
 
@@ -52,15 +50,6 @@ full-bleed one belongs: at full size it looks small and floaty.
 ]
 ```
 
-Nothing in the app points at these yet — there is no web manifest. That half of the
-paragraph that used to sit here was true; the other half has been false since the brand
-adoption landed, and it is worth saying what it claimed, because the file it named is gone.
-
-It said the tab icon was "still the indigo hexagon at `app/icon.svg`, which is a different
-brand from this kit — switching it over is a product decision, not a build step." The
-product decision was made: the kit was adopted whole. `app/icon.svg` is deleted, the tab
-icon is `app/icon.png` (the flat single-Z, because two letters at 16px is mush), and
-`AppMark` renders `/assets/brand/wordmark.png` — a sibling of this directory.
-
-So these eight PWA icons are built, documented and wired to nothing. That is a real loose
-end rather than a decision: add a manifest and they are already here.
+Nothing in the app points at these — there is no web manifest. Add one and they are already
+here. The tab icon is `app/icon.png` (the flat single-Z) and `AppMark` renders
+`/assets/brand/wordmark.png`; neither is built from this directory.
