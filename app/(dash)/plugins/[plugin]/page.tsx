@@ -9,17 +9,27 @@ import { Query } from '@/components/Query';
 import {
   Badge, EmptyState, PageControl, Row, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Time, usePaged,
 } from '@/components/ui';
-import { EvalScore, EvalVerdict } from '@/components/EvalScore';
+import { EvalHeadline, EvalHealth, EvalQuality } from '@/components/PluginEvalOverview';
+import { EvalLearning, EvalUsage } from '@/components/PluginEvalEvidence';
+import { EvalAutomationTrust, EvalEvolution } from '@/components/PluginEvalEvolution';
 import { formatCount } from '@/lib/format';
 import { freshnessOf, useConsole } from '@/lib/api';
-import { type PluginRow } from '@/lib/api-shapes';
+import { type PluginEval, type PluginRow } from '@/lib/api-shapes';
 
 /**
- * Layer two: one plugin — what it is, what it reaches, and every skill it ships.
+ * Layer two: one plugin — what it is, what it reaches, every skill it ships, and (spec v8
+ * FR-55) its whole plugin-evaluation story: overall score/status/protocol first, then Health,
+ * Quality, Usage, Learning, Evolution, Automation & Trust.
  *
- * DELIBERATE: reads the same `/plugins` payload as the list rather than a per-plugin
- * endpoint. There is a handful of plugins and the response is small, and a second endpoint
- * returning a subset of the first is a second place for the shape to drift.
+ * DELIBERATE: the catalog half (`/plugins`) reads the same payload as the list rather than a
+ * per-plugin endpoint — there is a handful of plugins and the response is small, and a second
+ * endpoint returning a subset of the first is a second place for the shape to drift.
+ *
+ * The eval half is a second, independent query (`/plugins/:plugin/eval`) against `zz.plugin`
+ * directly, because a `plugin_register`ed third-party subject has no catalog entry at all — see
+ * that route's own module header in zz-stack. `pluginEval.found` therefore gates the eval
+ * sections on its own; `p` (the catalog row) gates only About/documents/skills, so a third-party
+ * plugin still shows its whole evaluation story with no manifest panel above it.
  *
  * Its skills, not its stages: the manifest's stages are the method's running order and not
  * its contents, and a plugin ships more skills than it declares stages. A stage's position
@@ -28,6 +38,7 @@ import { type PluginRow } from '@/lib/api-shapes';
 export default function PluginPage({ params }: { params: Promise<{ plugin: string }> }) {
   const { plugin } = use(params);
   const q = useConsole<{ plugins: PluginRow[] }>('/plugins');
+  const qEval = useConsole<PluginEval>(`/plugins/${plugin}/eval`);
   const p = q.data?.plugins.find((x) => x.plugin === plugin);
 
   return (
@@ -37,7 +48,7 @@ export default function PluginPage({ params }: { params: Promise<{ plugin: strin
       // DELIBERATE: no subtitle. The manifest description runs to two lines and is the first
       // thing "What this plugin is" says, lower down.
       showPeriod={false}
-      updatedAt={freshnessOf(q)}
+      updatedAt={freshnessOf(q, qEval)}
       metrics={
         p
           ? [
@@ -54,9 +65,9 @@ export default function PluginPage({ params }: { params: Promise<{ plugin: strin
           : undefined
       }
     >
-      <Query query={q}>
-        {() =>
-          !p ? (
+      <Query query={qEval}>
+        {(pluginEval) =>
+          !p && !pluginEval.found ? (
             <Panel title="No such plugin">
               <EmptyState
                 illustration={{ src: '/assets/brand/state-notfound.png', width: 76, height: 96 }}
@@ -67,153 +78,93 @@ export default function PluginPage({ params }: { params: Promise<{ plugin: strin
             </Panel>
           ) : (
             <>
-              {/* What the plugin is, then what its skills did. */}
-              <Row split="1/2">
+              {/* FR-55: overall score, status and protocol version, before anything else. */}
+              <EvalHeadline pluginEval={pluginEval} />
+
+              {/* What the plugin is, then what its skills did — only for a plugin this
+                  catalog ships. A `plugin_register`ed third-party subject has none of this:
+                  its whole story lives in the eval sections below. */}
+              {p ? (
+                <Row split="1/2">
+                  <Panel title="About this plugin">
+                    <dl className="flex flex-col gap-3 text-[13px]">
+                      <Field k="Does" v={<span className="text-ink-soft">{p.description ?? '—'}</span>} />
+                      {/* DELIBERATE: no "whose" field. `origin` is hardcoded `platform` on
+                          every catalog row, so it could only ever say "ours". */}
+                      {p.owner ? <Field k="Owner" v={<span className="break-all font-mono text-xs">{p.owner}</span>} /> : null}
+                      {/* DELIBERATE: the version and the digest render together or not at all.
+                          The number is a claim and the digest is what makes it true, so a
+                          version with no digest means release has not vouched for it — it was
+                          never released, or has been edited since. */}
+                      <Field
+                        k="Version"
+                        v={p.version
+                          ? <span className="break-all font-mono text-xs">
+                              {p.version}
+                              {p.release
+                                ? <span className="ml-2 text-ink-faint">+{p.release.digest}</span>
+                                : <span className="ml-2 text-ink-faint">— not released</span>}
+                            </span>
+                          : <span className="text-ink-faint">declares none</span>}
+                      />
+                      <Field
+                        k="Reaches"
+                        v={p.servers.length
+                          ? <span className="flex flex-wrap gap-1">
+                              {p.servers.map((s) => (
+                                <Badge key={s} variant={s === 'zz-core' ? 'accent' : 'neutral'}>{s}</Badge>
+                              ))}
+                            </span>
+                          : <span className="text-ink-faint">no server — skills only</span>}
+                      />
+                    </dl>
+                  </Panel>
+
+                  <Panel title="The documents it governs" aside={p.gates ? `${p.gates} gated` : 'none'}>
+                    {p.documents.length ? (
+                      <ul className="flex flex-col gap-2 text-[13px]">
+                        {p.documents.map((doc) => (
+                          <li key={doc.name} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                            <span className="min-w-0 break-all font-mono text-xs text-ink">{doc.name}</span>
+                            {doc.gate
+                              ? <Badge variant="accent" dot>a person must approve</Badge>
+                              : <Badge variant="neutral">no approval needed</Badge>}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-[13px] text-ink-faint">
+                        None. This plugin produces no document and gates nothing — an assistant, not a
+                        delivery method.
+                      </p>
+                    )}
+                  </Panel>
+                </Row>
+              ) : (
                 <Panel title="About this plugin">
-                  <dl className="flex flex-col gap-3 text-[13px]">
-                    <Field k="Does" v={<span className="text-ink-soft">{p.description ?? '—'}</span>} />
-                    {/* DELIBERATE: no "whose" field. `origin` is hardcoded `platform` on
-                        every catalog row, so it could only ever say "ours". */}
-                    {p.owner ? <Field k="Owner" v={<span className="break-all font-mono text-xs">{p.owner}</span>} /> : null}
-                    {/* DELIBERATE: the version and the digest render together or not at all.
-                        The number is a claim and the digest is what makes it true, so a
-                        version with no digest means release has not vouched for it — it was
-                        never released, or has been edited since. */}
-                    <Field
-                      k="Version"
-                      v={p.version
-                        ? <span className="break-all font-mono text-xs">
-                            {p.version}
-                            {p.release
-                              ? <span className="ml-2 text-ink-faint">+{p.release.digest}</span>
-                              : <span className="ml-2 text-ink-faint">— not released</span>}
-                          </span>
-                        : <span className="text-ink-faint">declares none</span>}
-                    />
-                    <Field
-                      k="Reaches"
-                      v={p.servers.length
-                        ? <span className="flex flex-wrap gap-1">
-                            {p.servers.map((s) => (
-                              <Badge key={s} variant={s === 'zz-core' ? 'accent' : 'neutral'}>{s}</Badge>
-                            ))}
-                          </span>
-                        : <span className="text-ink-faint">no server — skills only</span>}
-                    />
-                  </dl>
-                </Panel>
-
-                <Panel title="The documents it governs" aside={p.gates ? `${p.gates} gated` : 'none'}>
-                  {p.documents.length ? (
-                    <ul className="flex flex-col gap-2 text-[13px]">
-                      {p.documents.map((doc) => (
-                        <li key={doc.name} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-                          <span className="min-w-0 break-all font-mono text-xs text-ink">{doc.name}</span>
-                          {doc.gate
-                            ? <Badge variant="accent" dot>a person must approve</Badge>
-                            : <Badge variant="neutral">no approval needed</Badge>}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-[13px] text-ink-faint">
-                      None. This plugin produces no document and gates nothing — an assistant, not a
-                      delivery method.
-                    </p>
-                  )}
-                </Panel>
-              </Row>
-
-              {/* How it scored, and the way back to the report that says why. */}
-              <Panel
-                title="Latest evaluation"
-                aside={p.latestEval
-                  ? `${p.latestEval.headroomState} · measured at v${p.latestEval.version}`
-                  : 'never evaluated'}
-              >
-                {p.latestEval ? (
-                  <div className="flex flex-col gap-4">
-                    {/* DELIBERATE: two axes, side by side and never added up. How good it
-                        is and what is left to do are different questions — a plugin scoring 9
-                        can still have something named to fix. */}
-                    <div className="flex flex-wrap items-end gap-x-10 gap-y-4">
-                      <div>
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-faint">
-                          Effectiveness
-                        </p>
-                        <EvalScore of={p.latestEval} className="text-3xl" />
-                        <p className="mt-0.5 text-[13px] text-ink-soft">
-                          {p.latestEval.band}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-faint">
-                          Room to improve
-                        </p>
-                        <p className="text-3xl font-semibold tabular-nums text-ink">
-                          {p.latestEval.headroomPoints === null
-                            ? <span className="text-ink-faint">—</span>
-                            : <>{p.latestEval.headroomPoints.toFixed(2)}
-                                <span className="text-[0.7em] font-normal text-ink-faint"> pts</span></>}
-                        </p>
-                        <p className="mt-0.5 text-[13px] text-ink-soft">
-                          {p.latestEval.headroomNamed === null
-                            ? 'not recorded'
-                            : p.latestEval.headroomNamed === 0
-                              ? 'nothing named'
-                              : `${p.latestEval.headroomNamed} named change${p.latestEval.headroomNamed === 1 ? '' : 's'} open`}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-faint">
-                          What is left to do
-                        </p>
-                        <p className="mt-1">
-                          <EvalVerdict of={p.latestEval} />
-                        </p>
-                        {/* DELIBERATE: no recommendation. The state above reports what the
-                            evidence says about the gap and prescribes nothing. */}
-                      </div>
-                    </div>
-                    <p className="text-[13px] text-ink-soft">
-                      {p.latestEval.initiative ? (
-                        <>
-                          Measured at <strong className="font-medium text-ink">v{p.latestEval.version}</strong> on{' '}
-                          <Time value={p.latestEval.at} />.{' '}
-                          <Link
-                            href={`/initiatives/${p.latestEval.initiative.team}/${p.latestEval.initiative.slug}`}
-                            className="font-medium text-accent hover:underline"
-                          >
-                            Read the evaluation →
-                          </Link>
-                        </>
-                      ) : (
-                        // DELIBERATE: absent, never guessed. A round that predates the
-                        // platform recording which initiative produced it is not matched by
-                        // plugin name and date — see journal 0116.
-                        <>
-                          Measured at <strong className="font-medium text-ink">v{p.latestEval.version}</strong> on{' '}
-                          <Time value={p.latestEval.at} />. This round predates the platform
-                          recording which initiative produced it, so there is no report to link.
-                        </>
-                      )}
-                    </p>
-                  </div>
-                ) : (
                   <p className="text-[13px] text-ink-faint">
-                    No round has reached a verdict for this plugin. A score arrives when
-                    zz-plugin-eval runs a round and records a recommendation.
+                    Registered through plugin_register as a third-party subject — no manifest,
+                    skills or documents to show here. Its evaluation story is below.
                   </p>
-                )}
-              </Panel>
+                </Panel>
+              )}
 
-              <Panel
-                title="Its skills"
-                aside={`${p.skills.length} — pick one to read it and see what it scored`}
-                padded={false}
-              >
-                <SkillTable plugin={plugin} skills={p.skills} />
-              </Panel>
+              <EvalHealth run={pluginEval.run} />
+              <EvalQuality run={pluginEval.run} />
+              <EvalUsage run={pluginEval.run} />
+              <EvalLearning findings={pluginEval.found ? pluginEval.findings : null} />
+              <EvalEvolution pluginEval={pluginEval} />
+              <EvalAutomationTrust pluginEval={pluginEval} />
+
+              {p ? (
+                <Panel
+                  title="Its skills"
+                  aside={`${p.skills.length} — pick one to read it and see what it scored`}
+                  padded={false}
+                >
+                  <SkillTable plugin={plugin} skills={p.skills} />
+                </Panel>
+              ) : null}
             </>
           )
         }

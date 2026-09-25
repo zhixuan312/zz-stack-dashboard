@@ -139,10 +139,14 @@ export interface Gate {
  *
  *  `done` every declared document exists and every gate on them is approved;
  *  `partial` they exist but a gate is still open; `empty` none is written;
- *  `untracked` the step declares no document, so nothing could evidence it. */
+ *  `untracked` the step declares no document, so nothing could evidence it;
+ *  `skipped` (FR-58) every document this step declares was ruled `not_applicable` on this
+ *  initiative's own branch — the branch already answered it, and it never blocks;
+ *  `waiting` (FR-58) a document this step declares is `undetermined` — the branch has not been
+ *  decided yet, which is not the same sentence as "nothing written". */
 export interface Step {
   name: string; what: string; produces: string;
-  state: 'done' | 'partial' | 'empty' | 'untracked';
+  state: 'done' | 'partial' | 'empty' | 'untracked' | 'skipped' | 'waiting';
   current: boolean;
 }
 
@@ -359,6 +363,87 @@ export interface PluginRow {
     initiative: { team: string; slug: string } | null;
     at: string;
   } | null;
+}
+
+/** One canonical scoring dimension of a run, exactly as `zz.eval_run.dimension_scores`
+ *  (spec v8 FR-19/FR-20) stores it — the gateway reads this jsonb straight back rather than
+ *  re-deriving it, so this type is that column's own shape. `score` is null both when a
+ *  dimension is not `applicable` (see `notApplicableReason`) and when a *required* measure of
+ *  an applicable one has no value — the two read differently in `applicable`. */
+export interface DimensionScore {
+  key: string; canonicalKind: string; score: number | null; applicable: boolean;
+  notApplicableReason: string | null; weight: number; required: boolean;
+  measuresScored: number; measuresTotal: number; measures: MeasureScore[];
+}
+/** Not exported: no reader outside `DimensionScore.measures` names it by type — a component
+ *  reading one measure lets structural typing carry the shape rather than importing this. */
+interface MeasureScore {
+  key: string; evaluatorType: string; weight: number; required: boolean;
+  value: number | null; excluded: boolean; excludedReason: string | null; guardrail: boolean;
+}
+export interface GuardrailScore { key: string; threshold: number; value: number | null; status: 'pass' | 'fail' | 'not_established' }
+export interface EvalFinding {
+  id: string; pattern: string; ownerKind: string | null; ownerRef: string | null;
+  /** A count, not the refs themselves — evidence is read on the eval_run this page already
+   *  names, not re-fetched per finding. */
+  evidenceRefs: number;
+  expectedEffect: unknown; decision: string; decisionNote: string | null;
+}
+/** A candidate's proof, reduced to the one word FR-28 allows a search context (which a
+ *  dashboard viewer is) to see: `zz.candidate.status` itself, never the sealed
+ *  `candidate_evaluation` row proof produced. `not_proved` is this type's own word for a
+ *  candidate whose search never reached `candidate_prove` at all. */
+export type ProofStatus = 'not_proved' | 'proving' | 'proof_passed' | 'proof_failed' | 'proof_not_established';
+
+/** `GET /plugins/:plugin/eval` (spec v8 FR-55) — the whole plugin-evaluation story for one
+ *  plugin: the gateway's own reduction of Tasks I-1 to I-29's protocol/evaluation/candidate/
+ *  release tables, since the dashboard holds no data layer of its own (see plugin-eval.ts's
+ *  module header in zz-stack).
+ *
+ *  `found: false` is a plugin name nothing has registered — a legitimate answer, not a
+ *  refusal. `subjectVersion: null` is registered but never profiled (OBSERVE has not run).
+ *  `run: null` is profiled but never scored (EVALUATE has not run). Each is its own quiet
+ *  state; the page never guesses which from the others. */
+export interface PluginEval {
+  plugin: string; found: boolean;
+  origin: string | null; ownerTeam: string | null; evolvable: boolean; releaseOwners: string[];
+  /** `evaluation_only` on a `plugin_register`ed third-party subject (spec v8 decision 12): it
+   *  may be evaluated and diagnosed, and Evolution may still list proposals, but nothing here
+   *  can ever be released. */
+  ownershipMode: 'owned' | 'evaluation_only' | null;
+  subjectVersion: { id: string; declaredVersion: string; contentDigest: string; capturedAt: string } | null;
+  run: {
+    id: string; runStatus: string;
+    scoreStatus: 'established' | 'provisional' | 'not_established' | null;
+    overallScore: number | null;
+    scoreInterval: unknown;
+    guardrailStatus: 'pass' | 'fail' | 'not_established' | null;
+    guardrails: GuardrailScore[];
+    protocol: { key: string; version: number };
+    createdAt: string;
+    dimensions: DimensionScore[];
+    /** Usage's own evidence — every rate here carries this denominator (FR-9). */
+    coverage: {
+      usableRunCount: number | null; totalRunCount: number | null;
+      surfaceObserved: number | null; surfaceTotal: number | null;
+    } | null;
+  } | null;
+  evaluatorTrust: { stableKey: string; state: string | null; qualifiedAt: string | null }[];
+  findings: { strengths: EvalFinding[]; defects: EvalFinding[]; unknowns: EvalFinding[] };
+  candidates: {
+    id: string; generation: number; hypothesis: string; status: string;
+    complexityDelta: number; touchedComponents: unknown; touchedOwners: string[]; createdAt: string;
+    /** Validation is reused freely by search (FR-40) — its real numbers travel. Proof does
+     *  not; see `ProofStatus`. */
+    validation: { meanDelta: number; lower: number; upper: number; verdict: string; guardrails: unknown } | null;
+    proof: ProofStatus;
+    cost: number | null; durationMsAvg: number | null; replayRuns: number;
+    release: {
+      status: string; reason: string | null; releasedDeclaredVersion: string | null;
+      releaseRef: string | null; verdict: string | null; verificationReason: string | null;
+      rolledBack: boolean;
+    } | null;
+  }[];
 }
 
 /** A skill, read — `/plugins/:plugin/skills/:skill`. The same shape whatever ships it. */

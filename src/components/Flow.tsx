@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { Check, Lock } from 'lucide-react';
+import { Check, CircleHelp, Lock, Minus } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import type { Gate, Step } from '@/lib/api-shapes';
 
@@ -106,6 +106,15 @@ export function FlowStepper({ gates, outcome, steps, complete }: {
     const done = stage.state === 'done';
     const partial = stage.state === 'partial';
     const untracked = stage.state === 'untracked';
+    // `skipped` (FR-58, Task I-27): every document this step owed was ruled `not_applicable`
+    // on this initiative's own branch. It is drawn like `empty` — a solid, neutral node — but
+    // with a dash instead of the step number: there is nothing missing to wait on, the branch
+    // already answered it.
+    const skipped = stage.state === 'skipped';
+    // `waiting` (FR-58): a document this step owes is `undetermined` — the branch has not
+    // decided whether this step even applies yet. Distinct from `partial` (written, waiting on
+    // a *person*): this waits on the branch itself, before anyone can write anything.
+    const waiting = stage.state === 'waiting';
     const now = stage.current;
     const here = gateAfter.get(n) ?? [];
 
@@ -114,9 +123,11 @@ export function FlowStepper({ gates, outcome, steps, complete }: {
         <span
           key={`c${n}`}
           aria-hidden
-          // `min-w` so it never collapses to nothing on a tight row.
+          // `min-w` so it never collapses to nothing on a tight row. `skipped` fills the
+          // connector too — shared.ts treats a ruled-out step as passed through, not as a gap
+          // the diagram should still look blocked on.
           className={cn('ml-[12px] h-3 w-[1.5px] @min-[920px]:mt-[13px] @min-[920px]:ml-0 @min-[920px]:h-[1.5px] @min-[920px]:w-auto @min-[920px]:min-w-[14px] @min-[920px]:flex-1',
-            stages[i - 1].state === 'done' ? 'bg-[var(--green)]' : 'bg-line')}
+            stages[i - 1].state === 'done' || stages[i - 1].state === 'skipped' ? 'bg-[var(--green)]' : 'bg-line')}
         />,
       );
     }
@@ -136,14 +147,29 @@ export function FlowStepper({ gates, outcome, steps, complete }: {
             !done && !partial && !now && !untracked && 'border-line-strong bg-surface text-ink-faint',
           )}
         >
-          {/* DELIBERATE: the number renders on every node, done or not, and the tick is a
-              corner badge beside it. Replacing the number with a tick breaks the sequence a
-              reader counts along. */}
+          {/* DELIBERATE: the number renders on every node, done or not, and the tick — or the
+              skipped/waiting glyph — is a corner badge beside it. Replacing the number breaks
+              the sequence a reader counts along. */}
           {n}
           {done && (
             <span className="absolute -right-1 -top-1 grid size-[13px] place-items-center rounded-full bg-[var(--green)]"
                   aria-hidden>
               <Check className="size-2.5 text-white" strokeWidth={3.5} />
+            </span>
+          )}
+          {/* Neutral badges, not a fourth hue: `skipped`/`waiting` are not good, warn or bad —
+              the reserved status trio names none of them — so the glyph alone carries the
+              difference, on the same neutral fill `empty` already uses. */}
+          {skipped && (
+            <span className="absolute -right-1 -top-1 grid size-[13px] place-items-center rounded-full border border-line-strong bg-surface"
+                  aria-hidden>
+              <Minus className="size-2.5 text-ink-faint" strokeWidth={3.5} />
+            </span>
+          )}
+          {waiting && (
+            <span className="absolute -right-1 -top-1 grid size-[13px] place-items-center rounded-full border border-line-strong bg-surface"
+                  aria-hidden>
+              <CircleHelp className="size-2.5 text-ink-faint" strokeWidth={2.6} />
             </span>
           )}
         </span>
@@ -156,6 +182,10 @@ export function FlowStepper({ gates, outcome, steps, complete }: {
             <span className="block text-[10px] text-ink-faint">
               {outcome}{complete === false ? ' · stopped short' : ''}
             </span>
+          ) : skipped ? (
+            <span className="block text-[10px] text-ink-faint">not on this branch</span>
+          ) : waiting ? (
+            <span className="block text-[10px] text-ink-faint">waiting on the branch</span>
           ) : null}
           {/* `stage.what` is the node's `title`, not a line under it: a stepper is read at a
               glance, so the name shows and the description is one hover away. */}
@@ -201,11 +231,15 @@ export function FlowStepper({ gates, outcome, steps, complete }: {
         <Legend className="border-accent bg-accent">where it is now</Legend>
         <Legend className="border-[var(--amber)] bg-[var(--amber-tint)]">written, waiting on a person</Legend>
         <Legend className="border-line-strong bg-surface">nothing written</Legend>
-        {/* The fourth state. A stage that produces a record or nothing cannot leave a
-            document, so "nothing written" would be a claim about a stage that never could
-            have written one. COUPLED: the nodes above draw four states; this legend lists
-            all four. */}
+        {/* A stage that produces a record or nothing cannot leave a document, so "nothing
+            written" would be a claim about a stage that never could have written one.
+            COUPLED: the nodes above draw six states; this legend lists all six. */}
         <Legend className="border-dashed border-line-strong bg-surface">no document to leave</Legend>
+        {/* FR-58 (Task I-27): the branch already ruled this step out — not missing, decided. */}
+        <Legend className="border-line-strong bg-surface">not on this branch</Legend>
+        {/* FR-58: the branch has not yet decided whether this step applies at all — distinct
+            from "written, waiting on a person" above, which waits on a person, not the branch. */}
+        <Legend className="border-line-strong bg-surface">waiting on the branch</Legend>
       </div>
     </div>
   );
