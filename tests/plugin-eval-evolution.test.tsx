@@ -5,11 +5,9 @@ import type { PluginEval } from '@/lib/api-shapes';
 
 type Candidate = PluginEval['candidates'][number];
 const candidate = (over: Partial<Candidate>): Candidate => ({
-  id: 'c1', generation: 1, hypothesis: 'tighten the refusal message', status: 'proof_passed',
+  id: 'c1', hypothesis: 'tighten the refusal message', status: 'valid',
   complexityDelta: 12, touchedComponents: [], touchedOwners: ['zz'], createdAt: '2026-09-03T00:00:00Z',
-  validation: { meanDelta: 0.4, lower: 0.2, upper: 0.6, verdict: 'improves', guardrails: null },
-  proof: 'proof_passed', cost: 1.2345, durationMsAvg: 4200, replayRuns: 3,
-  release: null, ...over,
+  build: { ok: true, stage: null }, release: null, ...over,
 });
 function pluginEval(over: Partial<PluginEval> = {}): PluginEval {
   return {
@@ -21,22 +19,27 @@ function pluginEval(over: Partial<PluginEval> = {}): PluginEval {
 }
 
 describe('EvalEvolution', () => {
-  it('never shows a proof number — only one of the fixed pass/fail-shaped words (FR-28)', () => {
-    render(<EvalEvolution pluginEval={pluginEval({ candidates: [candidate({ proof: 'proof_passed' })] })} />);
-    expect(screen.getByText('pass')).toBeInTheDocument();
-    // The validation column DOES carry numbers — only proof is sealed to a word.
-    expect(screen.getByText(/Δ 0.400/)).toBeInTheDocument();
+  it('shows each candidate\'s status by its own word', () => {
+    render(<EvalEvolution pluginEval={pluginEval({ candidates: [
+      candidate({ id: 'c1', status: 'recorded', build: null }),
+      candidate({ id: 'c2', status: 'awaiting_build', build: null }),
+      candidate({ id: 'c3', status: 'invalid', build: { ok: false, stage: 'gate' } }),
+    ] })} />);
+    expect(screen.getByText('recorded')).toBeInTheDocument();
+    expect(screen.getByText('awaiting build')).toBeInTheDocument();
+    expect(screen.getByText('invalid')).toBeInTheDocument();
   });
 
-  it('reduces every proof state to its own word, never a shared "done"', () => {
+  it('shows the build result: passed, failed at its stage, or not built', () => {
     render(<EvalEvolution pluginEval={pluginEval({ candidates: [
-      candidate({ id: 'c1', proof: 'proof_failed' }),
-      candidate({ id: 'c2', proof: 'proof_not_established' }),
-      candidate({ id: 'c3', proof: 'not_proved', validation: null }),
+      candidate({ id: 'c1', build: { ok: true, stage: null } }),
+      candidate({ id: 'c2', status: 'invalid', build: { ok: false, stage: 'install' } }),
+      candidate({ id: 'c3', status: 'recorded', build: null }),
     ] })} />);
-    expect(screen.getByText('fail')).toBeInTheDocument();
-    expect(screen.getByText('not established')).toBeInTheDocument();
-    expect(screen.getByText('not proved yet')).toBeInTheDocument();
+    expect(screen.getByText('passed')).toBeInTheDocument();
+    expect(screen.getByText('failed')).toBeInTheDocument();
+    expect(screen.getByText('at install')).toBeInTheDocument();
+    expect(screen.getByText('not built')).toBeInTheDocument();
   });
 
   it('reads "Evaluation only" on a third-party plugin\'s Evolution', () => {
@@ -55,10 +58,11 @@ describe('EvalEvolution', () => {
 
   it('names a rollback, not the plain release status, once one has happened', () => {
     render(<EvalEvolution pluginEval={pluginEval({ candidates: [candidate({
+      status: 'rolled_back',
       release: { status: 'released', reason: null, releasedDeclaredVersion: '1.1.0',
         releaseRef: 'rel-1', verdict: 'rolled_back', verificationReason: 'regression on capability suite', rolledBack: true },
     })] })} />);
-    expect(screen.getByText('rolled back')).toBeInTheDocument();
+    expect(screen.getAllByText('rolled back')).toHaveLength(2);
     expect(screen.queryByText('released')).not.toBeInTheDocument();
   });
 });

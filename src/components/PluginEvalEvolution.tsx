@@ -2,18 +2,15 @@
 
 import { Panel } from '@/components/Panel';
 import { Badge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Time } from '@/components/ui';
-import { formatCost, formatDuration } from '@/lib/format';
-import type { PluginEval, ProofStatus } from '@/lib/api-shapes';
+import type { CandidateStatus, PluginEval } from '@/lib/api-shapes';
 
-/** FR-28's own console rule, spelled out as a lookup rather than a number: proof answers with
- *  one of these words, never the sealed score/interval `candidate_prove` produced. */
-const PROOF_LABEL: Record<ProofStatus, string> = {
-  not_proved: 'not proved yet', proving: 'proving', proof_passed: 'pass',
-  proof_failed: 'fail', proof_not_established: 'not established',
+const STATUS_LABEL: Record<CandidateStatus, string> = {
+  recorded: 'recorded', awaiting_build: 'awaiting build', valid: 'valid',
+  invalid: 'invalid', released: 'released', rolled_back: 'rolled back',
 };
-const PROOF_TONE: Record<ProofStatus, 'sage' | 'rose' | 'amber' | 'neutral'> = {
-  not_proved: 'neutral', proving: 'amber', proof_passed: 'sage',
-  proof_failed: 'rose', proof_not_established: 'neutral',
+const STATUS_TONE: Record<CandidateStatus, 'sage' | 'rose' | 'amber' | 'neutral'> = {
+  recorded: 'neutral', awaiting_build: 'amber', valid: 'sage',
+  invalid: 'rose', released: 'sage', rolled_back: 'rose',
 };
 
 /** A quiet sub-panel state, plain text rather than a mascot — see PluginEvalOverview.tsx's own
@@ -28,10 +25,9 @@ function Quiet({ title, description }: { title: string; description: string }) {
 }
 
 /**
- * Evolution: every candidate the run's findings seeded, validation's real numbers beside proof
- * reduced to a word (never sealed data reaching a viewer — see `ProofStatus`'s own doc comment),
- * and where release/rollback stands. `ownershipMode === 'evaluation_only'` reads exactly that on
- * a third-party plugin, per this task's own console rule — it can still be diagnosed and
+ * Evolution: every candidate the run's findings seeded, its hypothesis and status, how its local
+ * build and gate went, and where release/rollback stands. `ownershipMode === 'evaluation_only'`
+ * reads exactly that on a third-party plugin, per this task's own console rule — it can still be diagnosed and
  * proposed to (spec v8 FR-51), it can never be released, and the aside says so before the table
  * does.
  */
@@ -55,10 +51,7 @@ export function EvalEvolution({ pluginEval }: { pluginEval: PluginEval }) {
           <TableRow>
             <TableHead>Candidate</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead>Validation</TableHead>
-            <TableHead>Proof</TableHead>
-            <TableHead>Cost</TableHead>
-            <TableHead>Latency</TableHead>
+            <TableHead>Build</TableHead>
             <TableHead>Release</TableHead>
           </TableRow>
         </TableHeader>
@@ -67,20 +60,17 @@ export function EvalEvolution({ pluginEval }: { pluginEval: PluginEval }) {
             <TableRow key={c.id}>
               <TableCell className="max-w-[280px]">
                 <span className="block text-sm text-ink">{c.hypothesis}</span>
-                <span className="text-[11px] text-ink-faint">gen {c.generation} · <Time value={c.createdAt} /></span>
+                <span className="text-[11px] text-ink-faint"><Time value={c.createdAt} /></span>
               </TableCell>
-              <TableCell className="text-xs text-ink-soft">{c.status}</TableCell>
-              <TableCell className="tabular-nums text-xs">
-                {c.validation
-                  ? <>Δ {c.validation.meanDelta.toFixed(3)} [{c.validation.lower.toFixed(3)}, {c.validation.upper.toFixed(3)}]
-                      <span className="block text-ink-faint">{c.validation.verdict}</span></>
-                  : <span className="text-ink-faint">not validated</span>}
+              <TableCell><Badge variant={STATUS_TONE[c.status]}>{STATUS_LABEL[c.status]}</Badge></TableCell>
+              <TableCell className="text-xs">
+                {!c.build ? <span className="text-ink-faint">not built</span>
+                  : c.build.ok ? <Badge variant="sage">passed</Badge>
+                  : <>
+                      <Badge variant="rose">failed</Badge>
+                      {c.build.stage ? <span className="block text-ink-faint">at {c.build.stage}</span> : null}
+                    </>}
               </TableCell>
-              <TableCell><Badge variant={PROOF_TONE[c.proof]}>{PROOF_LABEL[c.proof]}</Badge></TableCell>
-              <TableCell className="tabular-nums text-xs">
-                {formatCost(c.cost)}<span className="block text-ink-faint">{c.replayRuns} run{c.replayRuns === 1 ? '' : 's'}</span>
-              </TableCell>
-              <TableCell className="tabular-nums text-xs">{formatDuration(c.durationMsAvg)}</TableCell>
               <TableCell className="text-xs">
                 {!c.release ? <span className="text-ink-faint">not released</span> : (
                   <>

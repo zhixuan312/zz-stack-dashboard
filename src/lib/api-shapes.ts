@@ -389,11 +389,8 @@ export interface EvalFinding {
   evidenceRefs: number;
   expectedEffect: unknown; decision: string; decisionNote: string | null;
 }
-/** A candidate's proof, reduced to the one word FR-28 allows a search context (which a
- *  dashboard viewer is) to see: `zz.candidate.status` itself, never the sealed
- *  `candidate_evaluation` row proof produced. `not_proved` is this type's own word for a
- *  candidate whose search never reached `candidate_prove` at all. */
-export type ProofStatus = 'not_proved' | 'proving' | 'proof_passed' | 'proof_failed' | 'proof_not_established';
+/** `zz.candidate.status` — where a candidate's search stands. */
+export type CandidateStatus = 'recorded' | 'awaiting_build' | 'valid' | 'invalid' | 'released' | 'rolled_back';
 
 /** `GET /plugins/:plugin/eval` (spec v8 FR-55) — the whole plugin-evaluation story for one
  *  plugin: the gateway's own reduction of Tasks I-1 to I-29's protocol/evaluation/candidate/
@@ -431,13 +428,11 @@ export interface PluginEval {
   evaluatorTrust: { stableKey: string; state: string | null; qualifiedAt: string | null }[];
   findings: { strengths: EvalFinding[]; defects: EvalFinding[]; unknowns: EvalFinding[] };
   candidates: {
-    id: string; generation: number; hypothesis: string; status: string;
+    id: string; hypothesis: string; status: CandidateStatus;
     complexityDelta: number; touchedComponents: unknown; touchedOwners: string[]; createdAt: string;
-    /** Validation is reused freely by search (FR-40) — its real numbers travel. Proof does
-     *  not; see `ProofStatus`. */
-    validation: { meanDelta: number; lower: number; upper: number; verdict: string; guardrails: unknown } | null;
-    proof: ProofStatus;
-    cost: number | null; durationMsAvg: number | null; replayRuns: number;
+    /** The candidate's local build and gate: `null` until one has run; `stage` names where a
+     *  failed build stopped (apply, install, build, gate, timeout, host). */
+    build: { ok: boolean; stage: string | null } | null;
     release: {
       status: string; reason: string | null; releasedDeclaredVersion: string | null;
       releaseRef: string | null; verdict: string | null; verificationReason: string | null;
