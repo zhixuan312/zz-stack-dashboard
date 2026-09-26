@@ -185,7 +185,7 @@ docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
 | | |
 |---|---|
 | **Overview** | Four questions first — is work progressing, is what we write down worth reading, is the tool surface breaking, is the system straining — then tool calls over time, event kinds, and where refusals come from |
-| **Teams** | Every team and what it holds — documents, sources, knowledge nodes; open one for its initiatives and members |
+| **Teams** | Every team and what it holds — documents, sources, knowledge nodes; open one for its initiatives and members. Switching here moves **this browser's session only**: your agents keep acting for the team `team_switch` on `/manage` set |
 | **Initiatives** | Every piece of work and how far through its flow it got |
 | **Knowledge** | The nodes, with the whole body open beside the list |
 | **Plugins** | What a person installs; open one and it leads with its overall evaluation score, then the evidence behind it — health, quality by dimension, usage, findings, candidates and releases, and who may change it |
