@@ -14,9 +14,11 @@ import { useConsoleMutation } from '@/lib/mutate';
  * Your own teams, and which one you act for — the browser counterpart of `team_mine` (access-door.ts,
  * sharing `myTeamsSummary` with settings.ts's route).
  *
- * The team a person acts for is `principal.active_team_id`, which `chosenTeam` (identity.ts) reads
- * on every request from every client, so it is a property of the person: moving it moves the
- * browser and their agents alike. There is one acting team, and this is where it is set.
+ * The team this browser acts for is this console session's own (`console_session.team_id`), which
+ * `resolveSession` (identity.ts) reads on every request and the gateway forwards to every call the
+ * page makes. It is a property of the session, not of the person: your agents keep acting for
+ * `principal.active_team_id`, which `team_switch` on /manage moves. So switching here changes what
+ * this browser shows, and nothing about what your agents see.
  *
  * This console shows one team at a time and every page is scoped to the active one by the gateway,
  * so without a control here a member in two teams can see one of them and has no way in this
@@ -33,7 +35,7 @@ export function TeamsPanel() {
   );
 
   return (
-    <Panel title="Teams" aside="which one you act for right now" padded={false}>
+    <Panel title="Teams" aside="which one this browser acts for" padded={false}>
       <Query query={teams}>
         {(t) => (
           <TeamsTable

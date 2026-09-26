@@ -59,10 +59,12 @@ export function tagFacetCounts(nodes: KnowledgeNode[]): { tag: string; count: nu
 /**
  * The team control's options — the teams present in the loaded set.
  *
- * Platform mode is the only caller. In team mode the gateway scopes a read to `active_team_id`, so
- * a sibling team's rows are never fetched and offering one empties the list; switching the team a
- * person acts for changes every page at once, which belongs in Settings. A platform read already
- * spans every team the caller may act on, so the loaded set is the honest source for the options.
+ * Platform mode is the only caller. In team mode the gateway scopes a read to the console
+ * session's team (`console_session.team_id`, which this browser switches in Settings), so a sibling
+ * team's rows are never fetched and offering one empties the list; switching the team this browser
+ * acts for changes every page at once, and leaves the team the person's agents act for alone. A
+ * platform read already spans every team the caller may act on, so the loaded set is the honest
+ * source for the options.
  */
 export function teamFacetOptions(nodes: KnowledgeNode[]): { slug: string; count: number }[] {
   const countFor = (slug: string) => nodes.filter((n) => n.team === slug).length;
