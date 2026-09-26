@@ -338,29 +338,18 @@ export interface PluginRow {
    *  makes the version true. Null when nothing has vouched for that number, which is not an
    *  error. */
   release: { version: string; digest: string; evals: number } | null;
-  /** The last round that reached a verdict, and the report behind it.
+  /** The newest completed evaluation run, from zz.eval_run.
    *
-   *  `effectiveness` is 0-10 and `headroomPoints` is its distance from 10 — two independent
-   *  axes, not one scale: a plugin can score 9 and still have something named to fix.
-   *
-   *  Every figure below is nullable separately, and a round that carries no score reads as a
-   *  verdict with no score and no link. */
+   *  `overallScore` is 0-10. It is shown only when `scoreStatus` is not `not_established`, the
+   *  same rule the plugin's own page applies. `openDefects` counts the run's plugin-owned defect
+   *  findings still deferred. */
   latestEval: {
     /** The version that was measured, which is not necessarily the one on the shelf today. */
     version: string;
-    effectiveness: number | null;
-    /** The score's own word: working well / working / working poorly / not working, or
-     *  `not measurable` when the round produced no score. Derived by the gateway from the
-     *  score through one shared rule, never stored. */
-    band: string;
-    headroomPoints: number | null;
-    headroomNamed: number | null;
-    /** The second axis: one of `no change needed`, `change identified`, `unexplained gap`,
-     *  `not measured`. It reports what the evidence says about the gap and prescribes
-     *  nothing. */
-    headroomState: string;
-    /** Both halves of zz.doc's key, or null. A slug without its team cannot be addressed. */
-    initiative: { team: string; slug: string } | null;
+    overallScore: number | null;
+    scoreStatus: string | null;
+    guardrailStatus: string | null;
+    openDefects: number;
     at: string;
   } | null;
 }

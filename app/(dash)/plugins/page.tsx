@@ -70,9 +70,9 @@ function PluginTable({ rows }: { rows: PluginRow[] }) {
             <TableHead hideBelow="lg">Reaches</TableHead>
             <TableHead>Calls</TableHead>
             <TableHead hideBelow="md">Last run</TableHead>
-            {/* What the last round concluded, and the way back to the report that explains it. */}
+            {/* What the newest completed evaluation run concluded, and the way into it. */}
             <TableHead hideBelow="lg">Eval score</TableHead>
-            <TableHead hideBelow="xl">Room to improve</TableHead>
+            <TableHead hideBelow="xl">Status</TableHead>
             <TableHead hideBelow="lg">Evaluated</TableHead>
             <TableHead hideBelow="xl">Gates</TableHead>
           </TableRow>
@@ -105,7 +105,7 @@ function PluginTable({ rows }: { rows: PluginRow[] }) {
               </TableCell>
               <TableCell hideBelow="lg"><EvalCell of={p.latestEval} /></TableCell>
               <TableCell hideBelow="xl"><EvalVerdict of={p.latestEval} /></TableCell>
-              <TableCell hideBelow="lg" className="whitespace-nowrap text-xs"><EvalWhen of={p.latestEval} /></TableCell>
+              <TableCell hideBelow="lg" className="whitespace-nowrap text-xs"><EvalWhen of={p.latestEval} plugin={p.plugin} /></TableCell>
               <TableCell hideBelow="xl" className="break-words text-xs">
                 {/* A plugin with no gates is an assistant; "0" alone reads as a delivery method
                     that forgot its approvals. */}
