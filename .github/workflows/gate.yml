@@ -1,0 +1,45 @@
+# The console's gate, on every push to master.
+#
+# The console is its own repository with its own suite, and zz-stack's gate cannot see it. That
+# separation is real — a wording change here is not a platform release — but it meant the only thing
+# that ran this suite was `node scripts/release.ts` in the other repository, at the moment a release
+# could least afford a surprise. 0.83.1's console gate failed inside a release and passed on every
+# manual run; with the suite's output swallowed by the release script there was no way to tell a
+# broken build from a killed one.
+#
+# `pnpm`, because this repository declares `packageManager: pnpm@10.33.0` and carries a pnpm
+# lockfile. `gate` includes `next build`, which is the slowest step here.
+name: gate
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+# Queued, not cancelled: every push gets a verdict.
+concurrency:
+  group: gate-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      # corepack reads `packageManager` from package.json, so the runner uses the pinned pnpm
+      # rather than whatever the image happens to carry.
+      - run: corepack enable
+
+      - run: pnpm install --frozen-lockfile
+
+      # The same four scripts `node scripts/release.ts` runs, in its order.
+      - run: pnpm run typecheck
+      - run: pnpm run lint
+      - run: pnpm run test
+      - run: pnpm run gate
