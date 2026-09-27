@@ -35,7 +35,7 @@ export class ApiError extends Error {
   }
 }
 
-export async function consoleFetch<T>(path: string): Promise<T> {
+async function consoleFetch<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     // The cookie is HttpOnly and same-origin; this says "send it".
     credentials: 'same-origin',

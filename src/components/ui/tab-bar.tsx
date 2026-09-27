@@ -3,10 +3,8 @@
 import { cn } from '@/lib/cn';
 
 /**
- * TabBar — the segmented switcher that sits at the right of a panel header. Shared so the
- * toggle looks identical wherever it appears, whether or not the panel is a document:
- * `DocumentShell` uses it for Spec ⋅ Audit / Plan ⋅ Discussion, and Explore uses it for
- * Brain-dump ⋅ Tasks, which are plain Content-Shell panels rather than documents.
+ * TabBar — the segmented switcher that sits at the right of a panel header. The skill view is
+ * its one caller today: Cost to run ⋅ The skill ⋅ Reference · n.
  *
  * Omit `onTabChange` for a read-only bar (the caller drives the active tab elsewhere).
  */

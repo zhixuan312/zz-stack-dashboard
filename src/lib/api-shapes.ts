@@ -183,7 +183,10 @@ interface DocRow {
 }
 export interface InitiativeDetail {
   team: string; slug: string; documents: DocRow[];
-  decisions: { path: string; role: string; key: string; verdict: string;
+  /** A claim that states no verdict arrives as `null`, not `""`: `decisionRows` gives every
+   *  field a string, and the route collapses the empty spelling before it answers so that a
+   *  blank column reads as "nothing here states one" rather than as a derivation that stopped. */
+  decisions: { path: string; role: string; key: string; verdict: string | null;
                qualifier: string | null; detail: string | null;
                checker: string | null }[];
   /** What the ledger actually holds, so a column of blanks reads as a fact about the
@@ -207,8 +210,9 @@ export interface DocumentDetail {
   gated?: boolean | null;
   closing?: boolean;
   requiredForClose?: boolean;
-  /** Keyed by this document's path — a ledger is what this document claims. */
-  decisions: { key: string; role: string; verdict: string; qualifier: string | null;
+  /** Keyed by this document's path — a ledger is what this document claims. `verdict` is
+   *  `null` where a row states none, as in `InitiativeDetail.decisions`. */
+  decisions: { key: string; role: string; verdict: string | null; qualifier: string | null;
                detail: string | null; checker: string | null }[];
   /** What the ledger actually holds, so a column of blanks reads as a fact about the
    *  document rather than as a derivation that has stopped running. */

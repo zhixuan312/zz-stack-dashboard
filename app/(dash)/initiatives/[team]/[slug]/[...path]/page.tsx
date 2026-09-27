@@ -9,25 +9,15 @@ import { Query } from '@/components/Query';
 import {
   Badge, PageControl, Segmented, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Time, usePaged,
 } from '@/components/ui';
-import { DocumentShell, type DocumentShellTab } from '@/components/patterns/document-shell';
+import { DocumentShell } from '@/components/patterns/document-shell';
 import { ProseBlock } from '@/components/patterns/prose-block';
 import { DocStatus } from '@/components/DocStatus';
 import { readableDocument } from '@/lib/document-markdown';
 import { VersionChain } from '@/components/VersionChain';
 import { formatCount } from '@/lib/format';
 import { ApproveAction, canApprove } from '@/components/ApproveAction';
-import {
-  DocumentThreadComposer, DocumentThreadMessages, DocumentThreadRevise, canReviseFromThread, useDocumentThread,
-} from '@/components/DocumentThread';
 import { freshnessOf, useConsole } from '@/lib/api';
 import { type DocumentDetail, type Me } from '@/lib/api-shapes';
-
-/** The shell's two tabs, document chrome first. COUPLED: `DocumentShell`'s `onDocumentTab`
- *  relies on that ordering to scope `actions` and `approvers` to tab zero. */
-const TABS: readonly DocumentShellTab[] = [
-  { id: 'document', label: 'Document' },
-  { id: 'discussion', label: 'Discussion' },
-];
 
 /**
  * One document, read.
@@ -51,12 +41,6 @@ export default function DocumentPage({
   // away: these documents are markdown a flow parses, and the headings and ledger
   // tables the platform keys on are worth seeing exactly as stored.
   const [view, setView] = useState<'read' | 'source'>('read');
-  const [activeTab, setActiveTab] = useState<string>(TABS[0].id);
-  // One hook, called on every render regardless of which tab is showing, but its effect only
-  // fetches and streams while `active` is true. One hook rather than two because the message
-  // list (`body`) and the composer (`footer`) are two `DocumentShell` slots sharing one
-  // thread's state.
-  const thread = useDocumentThread({ team, initiative: slug, path: rel, active: activeTab === 'discussion' });
 
   return (
     <DashboardPage
@@ -97,9 +81,6 @@ export default function DocumentPage({
               // disagree with the chain. The sentinel 9999 the gateway stamps on the live
               // row is for ordering and is excluded here the same way the chain excludes it.
               version={Math.max(1, ...d.versions.map((v) => v.version).filter((n) => n !== 9999))}
-              tabs={TABS}
-              activeTab={activeTab}
-              onTabChange={setActiveTab}
               approvers={
                 <dl className="flex flex-wrap items-center gap-x-6 gap-y-1 border-b border-line bg-surface-2/40 px-5 py-2.5 text-[13px]">
                   <span className="flex items-center gap-2">
@@ -128,110 +109,62 @@ export default function DocumentPage({
               }
               actions={meQ.data && canApprove(d, meQ.data) ? <ApproveAction doc={d} me={meQ.data} /> : undefined}
               body={
-                activeTab === 'discussion' ? (
-                  <DocumentThreadMessages
-                    messages={thread.messages}
-                    loading={thread.loading}
-                    loadError={thread.loadError}
-                  />
-                ) : (
-                  <div className="flex flex-col gap-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <dl className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[13px]">
-                        <span className="flex items-center gap-2">
-                          <dt className="text-ink-faint">Type</dt>
-                          <dd><Badge variant="neutral">{d.type}</Badge></dd>
-                        </span>
-                        {/* COUPLED: the same component the documents table uses, so a
-                            document cannot be "delivered" in the list and "draft" one
-                            click in. */}
-                        <span className="flex items-center gap-2">
-                          <dt className="text-ink-faint">Status</dt>
-                          <dd>
-                            <DocStatus
-                              status={d.status}
-                              outcome={d.outcome}
-                              gated={d.gated}
-                              requiredForClose={d.requiredForClose}
-                            />
-                          </dd>
-                        </span>
-                        <span className="flex items-center gap-2">
-                          <dt className="text-ink-faint">Updated</dt>
-                          <dd><Time value={d.updated_at} /></dd>
-                        </span>
-                      </dl>
-                      <span className="flex shrink-0 items-center gap-3 text-xs text-ink-faint">
-                        <Segmented
-                          label="Document view"
-                          value={view}
-                          onChange={(v) => setView(v as 'read' | 'source')}
-                          options={[{ value: 'read', label: 'Read' }, { value: 'source', label: 'Source' }]}
-                        />
-                        <span>{formatCount(d.bytes)} bytes</span>
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <dl className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[13px]">
+                      <span className="flex items-center gap-2">
+                        <dt className="text-ink-faint">Type</dt>
+                        <dd><Badge variant="neutral">{d.type}</Badge></dd>
                       </span>
-                    </div>
-
-                    <div className="h-px bg-line" />
-
-                    {d.body?.trim() ? (
-                      view === 'read' ? (
-                        // The card's full width, and so is everything beside it: a spec is
-                        // half decision tables and criterion ledgers, and capping the prose
-                        // but not them puts two widths in one card.
-                        <ProseBlock>{readableDocument(d.body)}</ProseBlock>
-                      ) : (
-                        // Wrapped, not scrolled sideways: a source line longer than the
-                        // column breaks, and a hard-wrapped one is untouched.
-                        <pre className="whitespace-pre-wrap break-words font-mono text-[12.5px] leading-[1.7] text-ink-soft">
-                          {d.body}
-                        </pre>
-                      )
-                    ) : (
-                      <p className="text-sm text-ink-faint">This document has no body in the store.</p>
-                    )}
-                  </div>
-                )
-              }
-              // Discussion-only, and not scoped by the shell the way `actions`/`approvers`
-              // are: `footer` is deliberately unscoped, because the apply bar and this
-              // composer belong to a non-document tab. The page does the scoping instead.
-              footer={
-                activeTab === 'discussion' ? (
-                  <div className="flex flex-col">
-                    {/* Above the composer, not inside it: revising is an act on the whole
-                        thread so far, not something typed alongside the next message. */}
-                    <div className="flex items-center justify-end gap-2 border-t border-line px-5 py-2.5">
-                      {/* Not offered where it cannot work: `revise_document` refuses a
-                          frozen snapshot under `_versions/` and a source under `sources/`,
-                          both immutable. A control whose only possible outcome is the
-                          server's refusal teaches a reader to distrust the ones that work.
-                          The same three-state reasoning `gated` gets on the document tab. */}
-                      <DocumentThreadRevise
-                        team={team}
-                        initiative={slug}
-                        path={rel}
-                        disabled={
-                          !canReviseFromThread(thread.messages) ||
-                          /^(_versions|sources)\//.test(rel) ||
-                          // And not on a closed initiative. zz-core carries `outcome` and
-                          // `closed_by` forward across a revision rather than deleting them,
-                          // so a revise corrupts nothing — but a closed initiative's
-                          // documents are the record the ledger row was written from, and
-                          // offering to rewrite one invites a disagreement between document
-                          // and ledger.
-                          Boolean(d.outcome)
-                        }
+                      {/* COUPLED: the same component the documents table uses, so a
+                          document cannot be "delivered" in the list and "draft" one
+                          click in. */}
+                      <span className="flex items-center gap-2">
+                        <dt className="text-ink-faint">Status</dt>
+                        <dd>
+                          <DocStatus
+                            status={d.status}
+                            outcome={d.outcome}
+                            gated={d.gated}
+                            requiredForClose={d.requiredForClose}
+                          />
+                        </dd>
+                      </span>
+                      <span className="flex items-center gap-2">
+                        <dt className="text-ink-faint">Updated</dt>
+                        <dd><Time value={d.updated_at} /></dd>
+                      </span>
+                    </dl>
+                    <span className="flex shrink-0 items-center gap-3 text-xs text-ink-faint">
+                      <Segmented
+                        label="Document view"
+                        value={view}
+                        onChange={(v) => setView(v as 'read' | 'source')}
+                        options={[{ value: 'read', label: 'Read' }, { value: 'source', label: 'Source' }]}
                       />
-                    </div>
-                    <DocumentThreadComposer
-                      draft={thread.draft}
-                      onDraftChange={thread.setDraft}
-                      onSubmit={thread.submit}
-                      posting={thread.posting}
-                    />
+                      <span>{formatCount(d.bytes)} bytes</span>
+                    </span>
                   </div>
-                ) : undefined
+
+                  <div className="h-px bg-line" />
+
+                  {d.body?.trim() ? (
+                    view === 'read' ? (
+                      // The card's full width, and so is everything beside it: a spec is
+                      // half decision tables and criterion ledgers, and capping the prose
+                      // but not them puts two widths in one card.
+                      <ProseBlock>{readableDocument(d.body)}</ProseBlock>
+                    ) : (
+                      // Wrapped, not scrolled sideways: a source line longer than the
+                      // column breaks, and a hard-wrapped one is untouched.
+                      <pre className="whitespace-pre-wrap break-words font-mono text-[12.5px] leading-[1.7] text-ink-soft">
+                        {d.body}
+                      </pre>
+                    )
+                  ) : (
+                    <p className="text-sm text-ink-faint">This document has no body in the store.</p>
+                  )}
+                </div>
               }
             />
 
