@@ -38,6 +38,17 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # The asset generators' one dependency, from the file that declares it. Two design-system
+      # checks re-run `scripts/build-*.py` and require byte-identical output; without Pillow they
+      # fail, and this is where that was first found — the console's gate had only ever run on a
+      # machine where Pillow happened to be installed.
+      #
+      # `--break-system-packages` because the runner's python is externally managed (PEP 668) and
+      # this image is thrown away at the end of the job; a venv would hide `python3` from the
+      # checks, which call it by name.
+      - name: Install the asset generators' dependency
+        run: python3 -m pip install --break-system-packages -r requirements.txt
+
       # The same four scripts `node scripts/release.ts` runs, in its order.
       - run: pnpm run typecheck
       - run: pnpm run lint

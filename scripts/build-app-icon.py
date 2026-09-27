@@ -1,7 +1,8 @@
 """Build the ZZ app icon set from the purpose-drawn app-icon master.
 
-Requires Pillow (`pip install Pillow`). It is an ambient dependency: this repository has no
-requirements.txt or pyproject.toml.
+Requires Pillow, declared in `requirements.txt` at the repository root
+(`python3 -m pip install -r requirements.txt`). It was ambient until CI ran the checks on a
+clean clone, where both generators failed for its absence.
 
 Source: design/in-use/app-icon-squircle.png, a 1254x1254 master.
 

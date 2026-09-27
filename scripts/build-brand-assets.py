@@ -1,7 +1,8 @@
 """Derive every runtime brand asset from the masters in design/in-use/.
 
-Requires Pillow (`pip install Pillow`). It is an ambient dependency: this repository has no
-requirements.txt or pyproject.toml, and `build-app-icon.py` has the same one.
+Requires Pillow, declared in `requirements.txt` at the repository root
+(`python3 -m pip install -r requirements.txt`); `build-app-icon.py` has the same one. It was
+ambient until CI ran the checks on a clean clone, where both failed for its absence.
 
 Every output is a pure function of a master and a size, so re-running produces byte-identical
 output, and the check asserts exactly that.
