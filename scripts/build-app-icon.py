@@ -11,6 +11,7 @@ its own mask, so baked-in rounded corners show up as a dark ring inside the
 system mask. The master has white corners, so the lavender ground is extrapolated
 outward and the artwork composited back over it.
 """
+import sys
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFilter
@@ -18,6 +19,20 @@ from PIL import Image, ImageDraw, ImageFilter
 ROOT = Path(__file__).resolve().parents[1]
 SHEET = ROOT / 'design/in-use/app-icon-squircle.png'
 OUT = ROOT / 'public/assets/app-icon/'
+
+# `--digest` prints one line per output: its name and the sha256 of its DECODED pixels. The checks
+# compare that across a generator run instead of the files' bytes, because PNG encoding is a property
+# of the Pillow build's zlib/libpng: the same Pillow version produces different bytes on Linux and on
+# macOS for pixel-for-pixel identical images (`app-icon-1024.png` is 1,223,250 bytes on macOS and
+# 1,200,072 on Linux, the same picture). Comparing bytes therefore asserted a property of the
+# encoder's PLATFORM and could only pass on the machine that produced the committed files — which is
+# what CI found the first time it ran this on Linux. The derivation is what must be reproducible.
+if '--digest' in sys.argv:
+    import hashlib
+    for p in sorted(OUT.glob('*.png')):
+        im = Image.open(p)
+        print(p.name + ' ' + hashlib.sha256(f'{im.size}{im.mode}'.encode() + im.tobytes()).hexdigest())
+    raise SystemExit(0)
 BOX = None                       # the master is full-bleed; no crop
 CORNER_R = 0.22                  # squircle radius as a fraction of the side
 GRID = 12                        # cells per side for the ground extrapolation

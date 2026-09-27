@@ -1,12 +1,19 @@
 // Two claims: the icons are built from the master, and the build is reproducible.
 // Reproducibility is the one that rots silently — a script that emits a new timestamp or a
-// re-dithered pixel each run cannot be trusted to have produced what shipped.
+// re-dithered pixel each run cannot be trusted to have produced what shipped. It is asserted
+// over decoded pixels rather than encoded bytes, for the reason the digest below gives.
 import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { createHash } from 'node:crypto';
 const DIR = 'public/assets/app-icon';
-const hash = () => Object.fromEntries(readdirSync(DIR).filter((f) => f.endsWith('.png'))
-  .sort().map((f) => [f, createHash('sha256').update(readFileSync(DIR + '/' + f)).digest('hex')]));
+/* The digest is over the DECODED pixels, not the files' bytes. PNG encoding is a property of the
+ * Pillow build's zlib/libpng, so Linux and macOS produce different bytes for pixel-for-pixel identical
+ * images; comparing bytes asserted a property of the encoder's PLATFORM and could only pass on the
+ * machine that produced these files. CI found that the first time it ran this on Linux: eight of nine
+ * files hashed differently and every one decoded to the same pixels. The DERIVATION is what has to be
+ * reproducible, and the generator's `--digest` prints exactly that. */
+const hash = () => Object.fromEntries(execFileSync('python3', ['scripts/build-app-icon.py', '--digest'],
+  { encoding: 'utf8' }).trim().split('\n').filter(Boolean)
+  .map((l) => l.split(' ') as [string, string]));
 let code = 0;
 const src = readFileSync('scripts/build-app-icon.py', 'utf8');
 if (!src.includes('design/in-use/app-icon-squircle.png')) {

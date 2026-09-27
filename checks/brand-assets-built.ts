@@ -1,10 +1,10 @@
 /* Provenance and reproducibility for the runtime assets: every file the browser downloads must
- * derive from a master under `design/in-use/`, and running the script again must produce the
- * identical bytes. The same property `app-icons-rebuilt.ts` holds for the icon script.
+ * derive from a master under `design/in-use/`, and running the script again must produce the same
+ * image. The same property `app-icons-rebuilt.ts` holds for the icon script, and both assert it
+ * over decoded pixels rather than encoded bytes — see the digest's own note.
  */
 import { execFileSync } from 'node:child_process';
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
-import { createHash } from 'node:crypto';
 const DIR = 'public/assets/brand';
 const WANT = ['wordmark.png', 'mascot-hero.png', 'state-empty.png', 'state-welcome.png',
               'state-error.png', 'state-notfound.png',
@@ -50,8 +50,15 @@ for (const f of readdirSync(DIR)) {
   }
 }
 
-const hash = () => Object.fromEntries(readdirSync(DIR).sort()
-  .map((f) => [f, createHash('sha256').update(readFileSync(DIR + '/' + f)).digest('hex')]));
+/* The digest is over the DECODED pixels, not the files' bytes. PNG encoding is a property of the
+ * Pillow build's zlib/libpng, so Linux and macOS produce different bytes for pixel-for-pixel identical
+ * images; comparing bytes asserted a property of the encoder's PLATFORM and could only pass on the
+ * machine that produced these files. CI found that the first time it ran this on Linux: eight of nine
+ * files hashed differently and every one decoded to the same pixels. The DERIVATION is what has to be
+ * reproducible, and the generator's `--digest` prints exactly that. */
+const hash = () => Object.fromEntries(execFileSync('python3', ['scripts/build-brand-assets.py', '--digest'],
+  { encoding: 'utf8' }).trim().split('\n').filter(Boolean)
+  .map((l) => l.split(' ') as [string, string]));
 const before = hash();
 execFileSync('python3', ['scripts/build-brand-assets.py'], { stdio: 'pipe' });
 const after = hash();
