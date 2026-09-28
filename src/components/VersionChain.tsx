@@ -10,24 +10,6 @@ import { cn } from '@/lib/cn';
 import { collapse, diffLines, diffStat } from '@/lib/diff';
 import type { DocumentDetail } from '@/lib/api-shapes';
 
-/** The version numbers that were used and never frozen.
- *
- * `_versions/` freezes one copy per approval and the version counter advances on every
- * revision, so a draft revised again before anyone approved it consumes a number and leaves no
- * file. The list then reads v1, v3, v4. Nothing was signed at v2, and `_versions/` is the record
- * of what was signed.
- *
- * Derived from the numbers already on the page. The live document's 9999 sentinel is not a
- * snapshot number, so it is excluded from the range; counting it would report thousands of
- * missing versions on every document.
- */
-export function unretainedVersions(versions: number[]): number[] {
-  const kept = versions.filter((n) => n !== 9999);
-  if (!kept.length) return [];
-  return Array.from({ length: Math.max(...kept) }, (_, i) => i + 1)
-    .filter((n) => !kept.includes(n));
-}
-
 /**
  * How this document got to be what it is.
  *
@@ -40,9 +22,8 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
 
   /* A version is a content change, not a snapshot.
    *
-   * The store freezes a copy every time a document is approved, so approving a
-   * document without editing it produces a new numbered file identical to the
-   * one before.
+   * A revision row is filed on every write, so approving a document without editing
+   * it files a revision identical to the one before.
    *
    * Not a YAML question: zz.doc.body is stored with the envelope already
    * stripped, so status, approved_at and the version number never reach this
@@ -61,7 +42,6 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
       steps.push({ first: v, last: v, snapshots: 1 });
     }
   }
-  const missing = unretainedVersions(raw.map((v) => v.version));
 
   // Newest first: a reader lands on the most recent real change.
   const pairs = steps.slice(1).map((s, i) => ({ before: steps[i], after: s })).reverse();
@@ -251,19 +231,6 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
           padded={false}
         >
           <ul className="divide-y divide-line">
-            {missing.length ? (
-              <li className="px-4 py-2.5 text-[12px] leading-relaxed text-ink-faint">
-                <span className="font-mono text-ink-soft">
-                  v{missing.join(', v')}
-                </span>{' '}
-                {missing.length === 1 ? 'is' : 'are'} not listed: the store freezes a copy when a
-                document is APPROVED, and the version number advances on every REVISION.{' '}
-                {missing.length === 1 ? 'That version was' : 'Those versions were'} revised again
-                before {missing.length === 1 ? 'it was' : 'they were'} ever approved, so no copy
-                was kept and nobody signed {missing.length === 1 ? 'it' : 'them'}. What changed
-                across {missing.length === 1 ? 'it' : 'them'} is inside the next step below.
-              </li>
-            ) : null}
             {stepPage.map((st) => (
               <li key={st.first.path} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-2.5 text-[13px]">
                 <GitCompare className="mt-0.5 size-3.5 shrink-0 text-ink-faint" aria-hidden />
