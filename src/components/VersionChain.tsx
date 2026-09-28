@@ -252,11 +252,12 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
           </ul>
           {collapsed ? (
             <p className="border-t border-line px-4 py-2.5 text-[12px] leading-relaxed text-ink-faint">
-              {collapsed} {collapsed === 1 ? 'snapshot is' : 'snapshots are'} not listed
-              separately: the store freezes a copy every time a document is approved, and{' '}
-              {collapsed === 1 ? 'that one carries' : 'those carry'} the same content as the
-              version above. Approval is given to the content, so an approval that changed no
-              content is not a new version of it.
+              {collapsed} {collapsed === 1 ? 'revision is' : 'revisions are'} not listed
+              separately: a revision row is filed on every write, so approving a document without
+              editing it files{' '}
+              {collapsed === 1 ? 'one' : 'ones'} carrying the same content as the version above.
+              Approval is given to the content, so an approval that changed no content is not a
+              new version of it.
             </p>
           ) : null}
           <PageControl {...controls} />
