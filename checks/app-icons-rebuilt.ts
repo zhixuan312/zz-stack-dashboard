@@ -11,9 +11,24 @@ const DIR = 'public/assets/app-icon';
  * machine that produced these files. CI found that the first time it ran this on Linux: eight of nine
  * files hashed differently and every one decoded to the same pixels. The DERIVATION is what has to be
  * reproducible, and the generator's `--digest` prints exactly that. */
-const hash = () => Object.fromEntries(execFileSync('python3', ['scripts/build-app-icon.py', '--digest'],
-  { encoding: 'utf8' }).trim().split('\n').filter(Boolean)
-  .map((l) => l.split(' ') as [string, string]));
+/* The generator needs python3 AND Pillow. Without them the spawn throws, and the gate reported
+ * only "app-icons-rebuilt FAIL" — which reads as a broken icon and sends a maintainer hunting the
+ * wrong thing. This says which dependency is missing instead. A machine that cannot run the
+ * generator cannot make the claim, so it fails rather than skipping: a check that passes because
+ * it never ran is the failure mode this whole file exists to prevent. */
+const py = (args: string[]) => {
+  try {
+    return execFileSync('python3', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  } catch (err) {
+    const e = err as { stderr?: string; message?: string; code?: string };
+    const detail = (e.stderr || e.message || '').trim().split('\n').slice(-3).join(' ');
+    console.error('FAIL app-icons-rebuilt cannot run scripts/build-app-icon.py — it needs python3 ' +
+      `with Pillow installed (\`python3 -m pip install pillow\`). ${detail}`);
+    process.exit(1);
+  }
+};
+const hash = () => Object.fromEntries(py(['scripts/build-app-icon.py', '--digest'])
+  .trim().split('\n').filter(Boolean).map((l) => l.split(' ') as [string, string]));
 let code = 0;
 const src = readFileSync('scripts/build-app-icon.py', 'utf8');
 if (!src.includes('design/in-use/app-icon-squircle.png')) {
@@ -44,7 +59,7 @@ const written = () => Object.fromEntries(readdirSync(DIR).filter((f) => f.endsWi
   .map((f) => [f, statSync(DIR + '/' + f).mtimeMs]));
 const before = hash();
 const stamps = written();
-execFileSync('python3', ['scripts/build-app-icon.py'], { stdio: 'pipe' });
+py(['scripts/build-app-icon.py']);
 const after = hash();
 const fresh = written();
 for (const k of Object.keys(before)) {

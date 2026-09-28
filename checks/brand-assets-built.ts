@@ -56,11 +56,24 @@ for (const f of readdirSync(DIR)) {
  * machine that produced these files. CI found that the first time it ran this on Linux: eight of nine
  * files hashed differently and every one decoded to the same pixels. The DERIVATION is what has to be
  * reproducible, and the generator's `--digest` prints exactly that. */
-const hash = () => Object.fromEntries(execFileSync('python3', ['scripts/build-brand-assets.py', '--digest'],
-  { encoding: 'utf8' }).trim().split('\n').filter(Boolean)
-  .map((l) => l.split(' ') as [string, string]));
+/* python3 AND Pillow, for the reason `app-icons-rebuilt.ts` states: the spawn throws without them,
+ * and the gate's line then names the assets rather than the missing dependency. Failing with the
+ * reason is right; skipping would be a check that passed because it never ran. */
+const py = (args: string[]) => {
+  try {
+    return execFileSync('python3', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  } catch (err) {
+    const e = err as { stderr?: string; message?: string };
+    const detail = (e.stderr || e.message || '').trim().split('\n').slice(-3).join(' ');
+    console.error('FAIL brand-assets-built cannot run scripts/build-brand-assets.py — it needs ' +
+      `python3 with Pillow installed (\`python3 -m pip install pillow\`). ${detail}`);
+    process.exit(1);
+  }
+};
+const hash = () => Object.fromEntries(py(['scripts/build-brand-assets.py', '--digest'])
+  .trim().split('\n').filter(Boolean).map((l) => l.split(' ') as [string, string]));
 const before = hash();
-execFileSync('python3', ['scripts/build-brand-assets.py'], { stdio: 'pipe' });
+py(['scripts/build-brand-assets.py']);
 const after = hash();
 for (const k of Object.keys(before)) {
   if (before[k] !== after[k]) { console.error('FAIL not reproducible: ' + k); code = 1; }
