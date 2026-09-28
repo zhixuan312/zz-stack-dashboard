@@ -44,7 +44,7 @@ export default function DocumentPage({
 
   return (
     <DashboardPage
-      title={rel.replace(/^(_versions|sources)\//, '')}
+      title={rel.replace(/^sources\//, '')}
       description={
         <>
           <Link href={`/initiatives/${team}/${slug}`} className="text-accent hover:underline">

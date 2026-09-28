@@ -42,14 +42,18 @@ export default function InitiativePage({
     >
       <Query query={q}>
         {(d) => {
+          // Sources are their own panel below; everything else is a document of the flow.
+          // DELIBERATE: no `_versions/` branch. The frozen copies were `doc` rows until 0.88.0
+          // deleted the ones the carry filed twice, and nothing has written one since — a
+          // revision is a `doc_revision` row now, which is what the document page's own version
+          // chain reads. Filtering a prefix no row carries is a rule with nothing to apply to.
           const live = d.documents
-            .filter((x) => !x.path.startsWith('_versions/') && !x.path.startsWith('sources/'))
+            .filter((x) => !x.path.startsWith('sources/'))
             .sort((a, b) => {
               const ia = ORDER.indexOf(a.type), ib = ORDER.indexOf(b.type);
               return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.path.localeCompare(b.path);
             });
           const sources = d.documents.filter((x) => x.path.startsWith('sources/'));
-          const versions = d.documents.filter((x) => x.path.startsWith('_versions/'));
           return (
             <>
               <Panel title="Progress">
@@ -78,15 +82,6 @@ export default function InitiativePage({
                 </Panel>
               ) : null}
 
-              {versions.length ? (
-                <Panel
-                  title="Earlier versions"
-                  aside={`${versions.length} — frozen at approval, kept readable`}
-                  padded={false}
-                >
-                  <DocumentTable docs={versions} base={`/initiatives/${team}/${slug}`} showWhat={false} />
-                </Panel>
-              ) : null}
 
               {/* COUPLED: the acceptance-criterion ledger is keyed by document path — a
                   ledger is what one particular selection or spec claims — so it renders
@@ -139,7 +134,7 @@ function DocumentTable({ docs, base, showWhat }: { docs: Doc[]; base: string; sh
                 {/* The point of the row: a reader came to read the document, not to learn
                     its size. */}
                 <Link href={href(base, doc.path)} className="block break-all font-medium text-accent hover:underline">
-                  {doc.path.replace(/^(_versions|sources)\//, '')}
+                  {doc.path.replace(/^sources\//, '')}
                 </Link>
                 {showWhat && WHAT[doc.type] ? (
                   <span className="block text-xs text-ink-faint">{WHAT[doc.type]}</span>
