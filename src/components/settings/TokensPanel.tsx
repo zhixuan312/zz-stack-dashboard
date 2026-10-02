@@ -153,7 +153,7 @@ function TokensTable({ rows, pending, onRevoke }: {
         <TableHeader>
           <TableRow>
             <TableHead>Label</TableHead>
-            <TableHead>Issued</TableHead>
+            <TableHead hideBelow="md">Issued</TableHead>
             <TableHead hideBelow="md">Last used</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Revoke</TableHead>
@@ -162,8 +162,8 @@ function TokensTable({ rows, pending, onRevoke }: {
         <TableBody>
           {page.map((t) => (
             <TableRow key={t.id}>
-              <TableCell className="break-words text-xs">{t.label || <span className="text-ink-faint">—</span>}</TableCell>
-              <TableCell className="whitespace-nowrap font-mono text-xs"><Time value={t.created_at} /></TableCell>
+              <TableCell className="text-xs [overflow-wrap:anywhere]">{t.label || <span className="text-ink-faint">—</span>}</TableCell>
+              <TableCell hideBelow="md" className="whitespace-nowrap font-mono text-xs"><Time value={t.created_at} /></TableCell>
               <TableCell hideBelow="md" className="whitespace-nowrap font-mono text-xs">
                 {t.last_used_at ? <Time value={t.last_used_at} /> : <span className="text-ink-faint">never</span>}
               </TableCell>

@@ -196,7 +196,7 @@ function PeopleTable({ rows, enrolling, deactivating, onEnrol, onDeactivate }: {
         <TableHeader>
           <TableRow>
             <TableHead>Person</TableHead>
-            <TableHead>Role</TableHead>
+            <TableHead hideBelow="md">Role</TableHead>
             <TableHead hideBelow="md">Created</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
@@ -212,8 +212,13 @@ function PeopleTable({ rows, enrolling, deactivating, onEnrol, onDeactivate }: {
                     ? p.teams.map((t) => `${t.team} (${t.role})`).join(', ')
                     : <span className="text-ink-faint">no team</span>}
                 </span>
+                {/* On a phone the Role column is dropped to fit, and the role travels with the
+                    person instead. */}
+                <span className="mt-1 flex gap-1 md:hidden">
+                  <Badge variant={p.role === 'superadmin' ? 'accent' : 'neutral'} dot size="sm">{p.role}</Badge>
+                </span>
               </TableCell>
-              <TableCell>
+              <TableCell hideBelow="md">
                 <span className="inline-flex flex-col items-start gap-1">
                   <Badge variant={p.role === 'superadmin' ? 'accent' : 'neutral'} dot size="sm">{p.role}</Badge>
                   <Badge variant={p.status === 'active' ? 'sage' : 'neutral'} dot size="sm">{p.status}</Badge>

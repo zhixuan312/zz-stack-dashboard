@@ -74,7 +74,7 @@ function PluginTable({ rows }: { rows: PluginRow[] }) {
             <TableHead hideBelow="lg">Eval score</TableHead>
             <TableHead hideBelow="xl">Status</TableHead>
             <TableHead hideBelow="lg">Evaluated</TableHead>
-            <TableHead hideBelow="xl">Gates</TableHead>
+            <TableHead hideBelow="2xl">Gates</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -106,7 +106,7 @@ function PluginTable({ rows }: { rows: PluginRow[] }) {
               <TableCell hideBelow="lg"><EvalCell of={p.latestEval} /></TableCell>
               <TableCell hideBelow="xl"><EvalVerdict of={p.latestEval} /></TableCell>
               <TableCell hideBelow="lg" className="whitespace-nowrap text-xs"><EvalWhen of={p.latestEval} plugin={p.plugin} /></TableCell>
-              <TableCell hideBelow="xl" className="whitespace-nowrap">
+              <TableCell hideBelow="2xl" className="whitespace-nowrap">
                 {/* A plugin with no gates is an assistant; "0" alone reads as a delivery method
                     that forgot its approvals. One number per cell — the gated documents are
                     named on hover, because three file names wrap the column to three lines. */}

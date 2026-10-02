@@ -170,7 +170,7 @@ export function PageFrame({
               {breadcrumb ? <Breadcrumb items={breadcrumb} /> : null}
               {/* The page title is the display register: the one heading per screen, and the
                   thing that tells you where you landed. It rises in with the page. */}
-              <Display key={typeof title === 'string' ? title : undefined} className="title-in min-w-0 truncate">{title}</Display>
+              <Display key={typeof title === 'string' ? title : undefined} className="title-in min-w-0 truncate !leading-[1.35]">{title}</Display>
               {description ? (
                 <p className="hidden max-w-[92ch] text-xs leading-[1.5] text-ink-soft lg:block">
                   {description}

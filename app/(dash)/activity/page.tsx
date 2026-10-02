@@ -67,7 +67,7 @@ function EventTable({ events, filter }: { events: ActivityEvent[]; filter: strin
           <TableRow>
             <TableHead>When</TableHead>
             <TableHead hideBelow="md">Actor</TableHead>
-            <TableHead hideBelow="xl">Team</TableHead>
+            <TableHead hideBelow="2xl">Team</TableHead>
             <TableHead>Kind</TableHead>
             <TableHead hideBelow="lg">Subject</TableHead>
             <TableHead hideBelow="2xl">Step</TableHead>
@@ -82,7 +82,7 @@ function EventTable({ events, filter }: { events: ActivityEvent[]; filter: strin
               <TableCell hideBelow="md" className="max-w-[18ch] truncate font-mono text-xs" title={e.actor ?? ''}>
                 {e.actor ? e.actor.split('@')[0] : <span className="text-ink-faint">—</span>}
               </TableCell>
-              <TableCell hideBelow="xl" className="text-xs">
+              <TableCell hideBelow="2xl" className="text-xs">
                 {e.team ?? <span className="text-ink-faint">—</span>}
               </TableCell>
               <TableCell className="break-all font-mono text-xs">{e.kind}</TableCell>

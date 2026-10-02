@@ -47,7 +47,7 @@ export function FlowMini({ at, of, name }: { at: number; of?: number; name?: str
           <span
             key={i}
             className={cn(
-              'block h-1.5 w-3 rounded-[2px]',
+              'block h-1.5 w-3 rounded-[var(--r-pill)]',
               i + 1 < at ? 'bg-[var(--green)]' : i + 1 === at ? 'bg-accent' : 'bg-line',
             )}
           />

@@ -67,7 +67,7 @@ function TeamsTable({ t, pending, onSwitch }: { t: MyTeams; pending: boolean; on
         <TableHeader>
           <TableRow>
             <TableHead>Team</TableHead>
-            <TableHead>Role</TableHead>
+            <TableHead hideBelow="md">Role</TableHead>
             <TableHead>Acting</TableHead>
             <TableHead>{null}</TableHead>
           </TableRow>
@@ -86,7 +86,7 @@ function TeamsTable({ t, pending, onSwitch }: { t: MyTeams; pending: boolean; on
           {page.map((row) => (
             <TableRow key={row.team}>
               <TableCell className="break-all font-mono text-xs">{row.team}</TableCell>
-              <TableCell><Badge variant={row.role === 'admin' ? 'accent' : 'neutral'} size="sm">{row.role}</Badge></TableCell>
+              <TableCell hideBelow="md"><Badge variant={row.role === 'admin' ? 'accent' : 'neutral'} size="sm">{row.role}</Badge></TableCell>
               <TableCell>{row.active ? <Badge variant="sage" dot size="sm">acting</Badge> : null}</TableCell>
               <TableCell>
                 {/* No button on the row you are already acting for — an action whose
