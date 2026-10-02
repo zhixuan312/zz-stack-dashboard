@@ -74,7 +74,8 @@ function SkeletonPanel({ lines = 5, className }: { lines?: number; className?: s
 export function SkeletonPage({ metrics = 4 }: { metrics?: number }) {
   return (
     <Stack role="status" aria-label="Loading">
-      <SkeletonMetricRow count={metrics} />
+      {/* `0` for a page whose tiles load on a query of their own. */}
+      {metrics > 0 ? <SkeletonMetricRow count={metrics} /> : null}
       <SkeletonPanel lines={6} />
       <Row split="1/2">
         <SkeletonPanel lines={4} />

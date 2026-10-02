@@ -12,7 +12,7 @@ import { formatCount } from '@/lib/format';
 import type { Tint } from '@/lib/tints';
 import { freshnessOf, useConsole, useConsoleMode } from '@/lib/api';
 import { type Overview, type OverviewMetrics } from '@/lib/api-shapes';
-import { Row, type MetricCardProps } from '@/components/ui';
+import { Row, SkeletonPage, type MetricCardProps } from '@/components/ui';
 import { usePeriod } from '@/components/PeriodProvider';
 
 /**
@@ -301,7 +301,7 @@ export default function OverviewPage() {
       updatedAt={freshnessOf(q)}
       metrics={m ? buildMetrics(m) : undefined}
     >
-      <Query query={q}>
+      <Query query={q} skeleton={<SkeletonPage metrics={0} />}>
         {(d) => {
           /* Summed from the bars, not counted separately: the header states the total of the
              chart beneath it, so reading it off anything else lets the two disagree. */

@@ -4,7 +4,7 @@ import { DashboardPage } from '@/components/DashboardPage';
 import { Query } from '@/components/Query';
 import { SkillWorkPanel } from '@/components/SkillWorkPanel';
 import { usePeriod } from '@/components/PeriodProvider';
-import { MetricCard, Row } from '@/components/ui';
+import { MetricCard, Row, SkeletonPage } from '@/components/ui';
 import { formatCount } from '@/lib/format';
 import { freshnessOf, useConsole } from '@/lib/api';
 import { type Runs, type Skill } from '@/lib/api-shapes';
@@ -24,7 +24,7 @@ export default function RunsPage() {
       description="Every recorded run, by the skill that drove it."
       updatedAt={freshnessOf(runs, skills)}
     >
-      <Query query={runs}>
+      <Query query={runs} skeleton={<SkeletonPage metrics={3} />}>
         {(r) => (
           <>
             <Row split="1/4">

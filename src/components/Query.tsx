@@ -18,12 +18,17 @@ export function Query<T>({
   query,
   children,
   skeletonRows = 6,
+  skeleton,
 }: {
   query: UseQueryResult<T, ApiError>;
   children: (data: T) => ReactNode;
   skeletonRows?: number;
+  /** The shape of what is coming, when it is a page rather than a list — `SkeletonPage` — so the
+   *  swap to real content moves as little as possible. */
+  skeleton?: ReactNode;
 }) {
   if (query.isPending) {
+    if (skeleton) return <>{skeleton}</>;
     return (
       <div className="flex flex-col gap-2" aria-busy="true" aria-label="Loading">
         {Array.from({ length: skeletonRows }, (_, i) => (
