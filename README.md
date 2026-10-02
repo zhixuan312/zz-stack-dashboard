@@ -188,7 +188,7 @@ docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
 | **Teams** | Every team and what it holds — documents, sources, knowledge nodes; open one for its initiatives and members. Switching here moves **this browser's session only**: your agents keep acting for the team `team_switch` on `/manage` set |
 | **Initiatives** | Every piece of work and how far through its flow it got |
 | **Knowledge** | The nodes, with the whole body open beside the list |
-| **Plugins** | What a person installs; open one and it leads with its overall evaluation score, then the evidence behind it — health, quality by dimension, usage, findings, candidates and releases, and who may change it |
+| **Plugins** | What a person installs; open one and it leads with its overall evaluation score, then the evidence behind it — health, quality by dimension, usage, findings, candidates and releases (one compact panel until a run has completed), and who may change it |
 | **Runs** | Every run by the skill that drove it |
 | **Activity** | The audit log |
 | **People** | Everyone the platform knows, and what they can reach |
