@@ -5,7 +5,7 @@ team's work, knowledge and telemetry in one place.
 
 Built on the
 [multi-model-agent-dashboard-template](https://github.com/zhixuan312/multi-model-agent-dashboard-template)
-design system — one neutral ramp, one accent, three reserved status hues, seven type
+design system — one neutral ramp, one accent, three reserved status hues, eight type
 sizes. `docs/DESIGN-SYSTEM.md` is the contract; follow it rather than inventing a
 second look.
 

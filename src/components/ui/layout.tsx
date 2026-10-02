@@ -1,4 +1,4 @@
-import { type HTMLAttributes } from 'react';
+import { Children, type HTMLAttributes } from 'react';
 import { cn } from '@/lib/cn';
 
 /**
@@ -47,7 +47,8 @@ export type PageWidth = keyof typeof WIDTH;
 
 /** A page body: rows, top to bottom, one gap apart. */
 export function Stack({ className, ...rest }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('flex min-w-0 flex-col', GAP, className)} {...rest} />;
+  // `stagger`: the rows arrive in reading order when the data lands — see app/motion.css.
+  return <div className={cn('stagger flex min-w-0 flex-col', GAP, className)} {...rest} />;
 }
 
 /**
@@ -65,9 +66,21 @@ const SPLIT = {
   '1/2': 'lg:grid-cols-2',
   '2/3': 'lg:grid-cols-3 lg:[&>*:first-child]:col-span-2',
   '1/3': 'lg:grid-cols-3 lg:[&>*:last-child]:col-span-2',
-  // Four columns only when each tile is at least 20rem wide, which is what the tile's
-  // one-line slots need. Below that, two.
-  '1/4': '@min-[34rem]:grid-cols-2 @min-[85rem]:grid-cols-4',
+  // Decided by `TILES` below, from how many tiles the row holds.
+  '1/4': '',
+} as const;
+
+/**
+ * A metric row's columns, by how many tiles it holds. Each tile needs about 16rem for its
+ * one-line slots, so a row goes to one line of tiles as soon as they all fit, and never leaves a
+ * hole: three tiles are three columns or one, never two-and-an-orphan.
+ *
+ * DELIBERATE: literal strings, for the same reason as `SPLIT`.
+ */
+const TILES = {
+  2: '@min-[34rem]:grid-cols-2',
+  3: '@min-[50rem]:grid-cols-3',
+  4: '@min-[34rem]:grid-cols-2 @min-[66rem]:grid-cols-4',
 } as const;
 export type Split = keyof typeof SPLIT;
 
@@ -81,15 +94,23 @@ export type Split = keyof typeof SPLIT;
  * width and pushes the whole row wider than the page.
  */
 export function Row({ split = 'full', className, ...rest }: HTMLAttributes<HTMLDivElement> & { split?: Split }) {
+  const tiles = split === '1/4';
+  const count = Children.toArray(rest.children).length;
   const row = (
     <div
       data-split={split}
-      className={cn('grid min-w-0 grid-cols-1 [&>*]:min-w-0', GAP, SPLIT[split], className)}
+      className={cn(
+        'grid min-w-0 grid-cols-1 [&>*]:min-w-0', GAP,
+        tiles ? TILES[Math.min(Math.max(count, 2), 4) as 2 | 3 | 4] : SPLIT[split],
+        // The tiles arrive one after another, so the row itself does not also rise.
+        tiles && 'stagger',
+        className,
+      )}
       {...rest}
     />
   );
   // A row of tiles counts its columns from its own width, not the viewport's: what decides
   // whether a tile's title fits one line is the tile's width, which the viewport does not
   // give once the rail is open.
-  return split === '1/4' ? <div className="@container min-w-0">{row}</div> : row;
+  return tiles ? <div className="no-rise @container min-w-0">{row}</div> : row;
 }

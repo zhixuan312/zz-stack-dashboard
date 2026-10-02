@@ -58,10 +58,10 @@ export function Sidebar({ footer }: { footer?: ReactNode }) {
         {active ? (
           <span
             aria-hidden
-            className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-accent"
+            className="nav-marker absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-accent"
           />
         ) : null}
-        <Icon className="size-[18px] shrink-0" strokeWidth={2} aria-hidden />
+        <Icon className="nav-icon size-[18px] shrink-0" strokeWidth={2} aria-hidden />
         <span className="truncate">{item.label}</span>
         {active ? <Sparkle /> : null}
       </Link>
@@ -91,7 +91,7 @@ export function Sidebar({ footer }: { footer?: ReactNode }) {
       </nav>
 
       {footer ? (
-        <div className="mt-auto flex flex-col gap-2 border-t border-line pt-3">{footer}</div>
+        <div className="mt-auto flex flex-col gap-2 pt-6">{footer}</div>
       ) : null}
     </aside>
   );
@@ -109,34 +109,19 @@ function Sparkle() {
     <svg
       aria-hidden
       viewBox="0 0 12 12"
-      className="ml-auto size-3 shrink-0 text-accent"
+      className="sparkle-in ml-auto size-3 shrink-0 text-accent"
     >
       <path d="M6 0.6 7.1 4.2 10.7 5.3 7.1 6.4 6 10 4.9 6.4 1.3 5.3 4.9 4.2 Z" fill="currentColor" />
     </svg>
   );
 }
 
-/** A label/value line for the sidebar footer. `attention` tints the value amber. */
-export function SidebarStat({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: string;
-  tone?: 'attention';
-}) {
+/** A label/value line for the sidebar footer. */
+export function SidebarStat({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="flex items-baseline justify-between gap-2">
-      <dt className="text-[0.6875rem] text-ink-faint">{label}</dt>
-      <dd
-        className={cn(
-          'truncate text-[0.6875rem] tabular-nums',
-          tone === 'attention' ? 'font-medium text-[var(--amber-deep)]' : 'text-ink-soft',
-        )}
-      >
-        {value}
-      </dd>
+      <dt className="text-xs text-ink-faint">{label}</dt>
+      <dd className="truncate text-xs tabular-nums text-ink-soft">{value}</dd>
     </div>
   );
 }

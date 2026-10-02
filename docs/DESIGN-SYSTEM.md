@@ -109,6 +109,11 @@ In-page surfaces get **no shadow**. They are separated by hairlines and by
 space. Only things that genuinely float — menus, popovers, dialogs, toasts — get
 `--shadow-pop`.
 
+Two deliberate exceptions, both hard offsets rather than blurs. Metric tiles and the
+sign-in card carry `--shadow-lg` (`3px 3px 0`), which reads as a printed card on a
+desk. The **primary button** stands 2px proud on an edge of `--accent-deep`, and the
+press pushes it flush — the same register, made tactile.
+
 ### The surface weight ladder
 
 `<Card weight>` has four steps:
@@ -121,6 +126,39 @@ space. Only things that genuinely float — menus, popovers, dialogs, toasts —
 | `hard` | 2px ink edge | the single most important object. One per screen. |
 
 Whitespace groups before borders do.
+
+### Motion — three jobs, one file
+
+Every keyframe, duration and curve is in `app/motion.css`, and motion has three
+jobs and no others:
+
+| Job | What moves | How |
+|---|---|---|
+| **Arrive** | data landing | rows rise in reading order (`Stack` is `.stagger`), metric numbers count to their value (`Ticker`), bars grow from their baseline, a stacked bar wipes in as one object, a trend line draws itself |
+| **Answer** | a control acknowledging you | `.row-link` draws its underline, `.press` gives 1px, the active nav marker springs into place and the sparkle turns in as it lands, a nav icon leans toward the pointer |
+| **Float** | things above the page | popovers, menus and toasts enter and leave on `[data-state]` |
+
+Four durations — `--dur-press` 120ms, `--dur-hover` 200ms, `--dur-enter` 360ms,
+`--dur-grow` 720ms — and two curves: `--ease-out` for everything that arrives,
+`--ease-spring` only for what should feel physical (the nav marker, a release).
+
+Nothing loops except a skeleton's shimmer and the sign-in mascot's idle drift, and
+nothing moves while somebody is reading it: an animation plays when its data
+lands, once.
+
+**Reduced motion collapses durations _and_ delays.** Collapsing only the duration
+leaves a staggered row sitting at its invisible first frame for its delay.
+`Ticker` asks the same media query in script, and with no `matchMedia` at all (a
+test DOM) it prints the value and starts no clock.
+
+**`Ticker` never changes what the element says.** Its text is always the final
+value — what a screen reader, a copy or a test reads — and the counting figure is
+painted over it by `.ticker[data-shown]::after` while the real text is
+transparent, so the tile is its final width from the first frame.
+
+`checks/motion.ts` holds it: no `@keyframes` outside `app/motion.css`, the
+reduced-motion block intact, `Ticker`'s query present, and no transform, filter,
+will-change or animation on `html` or `body`.
 
 ### One theme — there is no dark mode
 
@@ -164,37 +202,45 @@ whatever you remap must clear the same contrast floors: add the pairs to
 `scripts/verify-contrast.ts`, because a scope nothing enumerates is a scope
 nothing checks.
 
-### Type — three families, seven sizes
+### Type — three families, eight sizes
 
-**Rubik** for everything, **Baloo 2** for the two largest steps, **JetBrains
+**Rubik** for everything, **Baloo 2** for the three largest steps, **JetBrains
 Mono** for identifiers and code. There is no serif. A serif headline reads as
 editorial voice, and an interface has a hierarchy rather than a voice.
 
 Rubik is a workhorse UI face with slightly rounded terminals that sits with the
 kit's geometry, and it holds at 11px.
 
-**Baloo 2 is used at exactly two sizes and nowhere else** — `.t-stat` (40px) and
-`.t-display` (32px), bound through `--font-display-family`. It is a rounded
-display face: at 40px it makes a number feel drawn, at 14px it would make the
-product look like a children's app. Do not reach for it for a panel title.
+**Baloo 2 is used at exactly three sizes and nowhere else** — `.t-hero` (72px),
+`.t-stat` (40px) and `.t-display` (32px), bound through `--font-display-family`.
+It is a rounded display face: at 40px it makes a number feel drawn, at 14px it
+would make the product look like a children's app. Do not reach for it for a
+panel title.
+
+**`.t-hero` is for screens outside the shell only** — sign-in, signed out, the
+404, enrolment. Those screens have no data to lead with, so one sentence at poster
+size is the page; inside the shell a 72px heading is a page shouting its own name.
+The standalone screens end their title on an accent full stop — the one place the
+accent is used as punctuation.
 
 `.t-stat` also sets `tabular-nums`, so a column of figures lines up and a metric
 does not jitter as it updates.
 
 | px | name | role | class |
 |---|---|---|---|
+| 72 | hero | a standalone screen's one sentence | `.t-hero` |
 | 40 | stat | the dominant number | `.t-stat` |
-| 32 | display | the largest heading | `.t-display` |
-| 22 | title | page and section headings | `.t-title` |
+| 32 | display | the page title, one per screen | `.t-display` |
+| 22 | title | section headings | `.t-title` |
 | 16 | lead | panel titles | `CardTitle` `.t-heading` |
 | 14 | body | prose, table cells, controls | `.t-body` `.t-label` |
 | 12 | small | captions, meta, dense cells | `.t-sm` `.t-mono` |
 | 11 | label | uppercase eyebrows, axis ticks, legends | `.t-eyebrow` `.t-micro` |
 
-**Seven rungs, more classes.** The classes outnumber the sizes because a name
+**Eight rungs, more classes.** The classes outnumber the sizes because a name
 says what a thing is, and two things at the same size can be different things:
 `.t-eyebrow` and `.t-micro` are both 11px, `.t-body` and `.t-label` both 14.
-Renaming one does not resize it. What is not allowed is an eighth rung.
+Renaming one does not resize it. What is not allowed is a ninth rung.
 
 Three weights — 400 body, 500 labels and controls, 600 headings and stats.
 Four is the ceiling.
@@ -245,6 +291,11 @@ lower: the object carrying the page is not type.
   direction; crossing a threshold has no visual, and the number carries the tile.
   `emphasis` is for singling one tile out, one per row.
 - Soft fill + strong border is the house pattern for a tinted object.
+- **Links in a table are ink, not accent.** The primary column of a list is a
+  column of destinations, and painting all of them in the accent is a wall of the
+  one colour meant to mark one thing. They take `.row-link`: ink at rest, and on
+  hover the underline draws in from the left as the text takes `--accent-deep`. A
+  link inside a sentence stays accent.
 
 ### Chart pastels are exempt from the contrast gate — on purpose
 
@@ -387,6 +438,9 @@ every number in it. A page has no layout switches.
 3. **Four splits.** A page is a stack of rows. A row is one full-width card, or
    cards split `1/2`, `2/3`, `1/3` or `1/4` (`Row split=…`). Cards in one row are
    the same height. One card per cell: a second card is a second row.
+   A `1/4` row is a row of metric tiles, and its columns follow how many tiles it
+   holds: two tiles are two columns, three are three or one, four are four or two.
+   A row never leaves a hole.
 4. **Two widths.** `data` for dashboards, lists and detail pages — it fills the
    window, less the rail and the gutter, with no cap. `reading` (832px) for a
    document, a form or prose, and that one centres.
@@ -495,7 +549,7 @@ because the visible rows are correct. Run it before shipping a new page shape.
 |---|---|
 | Foundation | `Button` `Card` (+`CardHeader`/`CardTitle`/`CardContent`) `typography` |
 | Forms | `Field` `FieldGrid` `Input` `Textarea` `Select` `Switch` `Segmented` `SearchInput` `field-styles` |
-| Display | `Table` `Badge` `Banner` `EmptyState` `MetricCard` `Spinner` `Tooltip` |
+| Display | `Table` `Badge` `Banner` `EmptyState` `MetricCard` `Ticker`² `Spinner` `Tooltip` |
 | Overlay & nav | `Breadcrumb` `TabBar` `NavTabs`¹ `Toolbar` |
 | Layout | `AppShell` `PageFrame` `Stack` `Row` |
 | Feedback | `showToast` / `Toaster`¹ |
@@ -503,6 +557,9 @@ because the visible rows are correct. Run it before shipping a new page shape.
 A row in this table has an importer behind it. Add a primitive the moment a
 screen needs it, not before: a design system's inventory is read as permission
 to reach for what it lists.
+
+² Not in the barrel either; `MetricCard` is its importer, and a string value
+counts up through it automatically.
 
 ¹ Not in the barrel — import by path (`@/components/ui/toast`,
 `@/components/ui/nav-tabs`). DELIBERATE: giving them two valid import paths is
@@ -524,6 +581,7 @@ how a module ends up mounted twice.
 | `FormPanel` | **the** form shell — heading, fields, error line, owned footer |
 | `ProseBlock` | sanitised markdown, themed to the tokens |
 | `DocumentShell` | long-form document layout |
+| `Standalone` | a screen outside the shell — signed out, the 404, enrolment: the mark in the corner, the moment's mascot on a tinted disc, one `.t-hero` sentence |
 
 ### Data freshness and busy states
 
@@ -645,7 +703,7 @@ into the browser by Puppeteer and cannot be imported.)
 
 | Measure | Budget |
 |---|---:|
-| Distinct type sizes | 7 |
+| Distinct type sizes | 8 |
 | Distinct weights | ≤4 |
 | Distinct radii | ≤5 |
 | Off-scale spacings | 0 |
@@ -663,7 +721,7 @@ the thing at once does.
 
 ### Run them with `pnpm checks`
 
-`pnpm checks` runs all nineteen and prints `19/19`. Run it rather than looping
+`pnpm checks` runs all twenty and prints `20/20`. Run it rather than looping
 over `checks/*.ts` in a shell: `scripts/run-checks.ts` declares the expected list
 **literally** rather than deriving it from `readdir`, so a declared check that is
 missing and an undeclared one that appears both fail. A shell loop can only count

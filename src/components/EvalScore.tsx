@@ -17,16 +17,20 @@ const STATUS_TONE: Record<string, 'sage' | 'amber' | 'neutral'> = {
   established: 'sage', provisional: 'amber', not_established: 'neutral',
 };
 
+/** The status as a reader says it — `not_established` is an enum, not a word. */
+const said = (status: string) => status.replace(/_/g, ' ');
+
 const shown = (of: Verdict) => of.scoreStatus !== 'not_established' && of.overallScore !== null;
 
-/** The score, or the status word when the run could not establish one. */
+/** The score, or a dash when the run could not establish one — the status column beside it
+ *  already says why, and the same word in two adjacent cells is one fact twice. */
 export function EvalCell({ of }: { of: Verdict | null }) {
-  if (!of) return <span className="text-xs italic text-ink-faint">never evaluated</span>;
+  if (!of) return <span className="text-xs text-ink-faint">never evaluated</span>;
   if (!shown(of)) {
-    return <span className="text-xs text-ink-faint">{of.scoreStatus ?? 'not_established'}</span>;
+    return <span className="text-ink-faint" title={said(of.scoreStatus ?? 'not_established')}>—</span>;
   }
   return (
-    <span className="text-[15px] font-semibold tabular-nums text-ink">
+    <span className="text-sm font-semibold tabular-nums text-ink">
       {of.overallScore!.toFixed(2)}
       <span className="text-[0.7em] font-normal text-ink-faint"> / 10</span>
     </span>
@@ -39,7 +43,7 @@ export function EvalVerdict({ of }: { of: Verdict | null }) {
   const status = of.scoreStatus ?? 'not_established';
   return (
     <span className="inline-flex flex-col items-center gap-0.5">
-      <Badge variant={STATUS_TONE[status] ?? 'neutral'}>{status}</Badge>
+      <Badge variant={STATUS_TONE[status] ?? 'neutral'}>{said(status)}</Badge>
       {of.openDefects ? (
         <span className="text-[11px] tabular-nums text-ink-faint">{of.openDefects} open defect{of.openDefects === 1 ? '' : 's'}</span>
       ) : null}
@@ -57,7 +61,7 @@ export function EvalVerdict({ of }: { of: Verdict | null }) {
 export function EvalWhen({ of, plugin }: { of: Verdict | null; plugin: string }) {
   if (!of) return <span className="text-xs text-ink-faint">—</span>;
   return (
-    <Link href={`/plugins/${plugin}`} className="text-accent hover:underline" title="open this plugin's evaluation">
+    <Link href={`/plugins/${plugin}`} className="row-link text-ink-soft" title="open this plugin's evaluation">
       <Time value={of.at} />
       <span className="block text-[11px] text-ink-faint">at v{of.version}</span>
     </Link>

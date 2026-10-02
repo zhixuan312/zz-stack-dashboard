@@ -73,14 +73,16 @@ export function BarList({
 
   return (
     <ul className={cn('flex flex-col gap-2.5', className)}>
-      {shown.map((r) => {
+      {shown.map((r, i) => {
         const pct = scale > 0 && r.value > 0 ? Math.max(1.5, (r.value / scale) * 100) : 0;
         const bar = (
           <span className="block h-1.5 cursor-default overflow-hidden rounded-[var(--r-sm)] bg-surface-2">
             <span
-              className="block h-full rounded-[var(--r-sm)]"
+              className="bar-grow block h-full rounded-[var(--r-sm)]"
               style={{
                 width: `${pct}%`,
+                // The rows grow in rank order — see `.bar-grow` in app/motion.css.
+                ['--i' as string]: i,
                 // The theme's accent on every row: the length does the ranking. A row's own
                 // `tint` wins where the colour carries a category.
                 background: r.tint ? TINT_VAR[r.tint] : 'var(--accent)',

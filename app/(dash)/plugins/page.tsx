@@ -81,7 +81,7 @@ function PluginTable({ rows }: { rows: PluginRow[] }) {
           {page.map((p) => (
             <TableRow key={p.plugin}>
               <TableCell className="max-w-[36ch]">
-                <Link href={`/plugins/${p.plugin}`} className="block break-words font-medium text-accent hover:underline">
+                <Link href={`/plugins/${p.plugin}`} className="row-link block break-words font-medium text-ink">
                   {p.plugin}
                 </Link>
                 <span className="block truncate text-xs text-ink-faint" title={p.description ?? ''}>
@@ -106,19 +106,20 @@ function PluginTable({ rows }: { rows: PluginRow[] }) {
               <TableCell hideBelow="lg"><EvalCell of={p.latestEval} /></TableCell>
               <TableCell hideBelow="xl"><EvalVerdict of={p.latestEval} /></TableCell>
               <TableCell hideBelow="lg" className="whitespace-nowrap text-xs"><EvalWhen of={p.latestEval} plugin={p.plugin} /></TableCell>
-              <TableCell hideBelow="xl" className="break-words text-xs">
+              <TableCell hideBelow="xl" className="whitespace-nowrap">
                 {/* A plugin with no gates is an assistant; "0" alone reads as a delivery method
-                    that forgot its approvals. */}
+                    that forgot its approvals. One number per cell — the gated documents are
+                    named on hover, because three file names wrap the column to three lines. */}
                 {p.gates
-                  ? <span className="text-ink">{p.gates} · {p.documents.filter((x) => x.gate).map((x) => x.name).join(', ')}</span>
-                  : <span className="text-ink-faint">none — an assistant</span>}
+                  ? <span className="tabular-nums text-ink" title={p.documents.filter((x) => x.gate).map((x) => x.name).join(', ')}>{p.gates}</span>
+                  : <span className="text-xs text-ink-faint">assistant</span>}
               </TableCell>
             </TableRow>
           ))}
 
           {rows.length === 0 && (
             <TableRow>
-              <TableCell colSpan={7} className="py-8 text-ink-faint">
+              <TableCell colSpan={8} className="py-8 text-ink-faint">
                 No plugin is installed.
               </TableCell>
             </TableRow>

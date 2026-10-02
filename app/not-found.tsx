@@ -1,6 +1,6 @@
 import Link from 'next/link';
-import Image from 'next/image';
-import { AppMark } from '@/components/AppMark';
+import { Standalone } from '@/components/patterns/standalone';
+import { buttonVariants } from '@/components/ui/button';
 
 /**
  * The root 404, for a URL that matches no route at all. Without it Next serves its own
@@ -16,28 +16,18 @@ import { AppMark } from '@/components/AppMark';
  */
 export default function NotFound() {
   return (
-    <main className="grid min-h-screen place-items-center bg-bg p-8">
-      <div className="flex max-w-sm flex-col items-center gap-4 text-center">
-        <AppMark withWordmark />
-        <Image
-          src="/assets/brand/state-notfound.png"
-          alt=""
-          width={128}
-          height={160}
-          className="h-32 w-auto object-contain"
-        />
-        <h1 className="text-[22px] font-semibold tracking-[-0.018em] text-ink">No such page</h1>
-        <p className="text-sm leading-relaxed text-ink-soft">
-          Nothing lives at this address. The link may be out of date, or the record it
-          pointed at may have been removed.
-        </p>
-        <Link
-          href="/"
-          className="rounded-[var(--r)] bg-accent px-3.5 py-2 text-sm font-medium text-[var(--on-accent)] hover:bg-accent-deep"
-        >
-          Back to the console
-        </Link>
-      </div>
-    </main>
+    <Standalone
+      illustration={{ src: '/assets/brand/state-notfound.png', width: 128, height: 160 }}
+      eyebrow="404"
+      title={<>No such page<span className="text-accent">.</span></>}
+    >
+      <p className="t-lead max-w-[44ch]">
+        Nothing lives at this address. The link may be out of date, or the record it pointed at
+        may have been removed.
+      </p>
+      <Link href="/" className={buttonVariants({ variant: 'primary', size: 'lg' })}>
+        Back to the console
+      </Link>
+    </Standalone>
   );
 }

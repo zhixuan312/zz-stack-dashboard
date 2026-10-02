@@ -245,7 +245,7 @@ function NodeTable({ rows, multiTeam, resetKey }: {
               <TableCell>
                 <Link
                   href={knowledgeNodeHref(n.team, n.path)}
-                  className="font-medium leading-snug text-accent hover:underline"
+                  className="row-link font-medium leading-snug text-ink"
                 >
                   {n.title}
                 </Link>

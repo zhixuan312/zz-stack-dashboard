@@ -257,7 +257,7 @@ export function TrendChart({
               y={y(v) + 3}
               textAnchor="end"
               className="fill-ink-faint"
-              style={{ fontSize: 10, fontVariantNumeric: 'tabular-nums' }}
+              style={{ fontSize: 11, fontVariantNumeric: 'tabular-nums' }}
             >
               {axisFmt(v)}
             </text>
@@ -274,6 +274,8 @@ export function TrendChart({
               <rect
                 key={`${s.key}-${p.date}`}
                 data-role="volume-bar"
+                className="col-grow"
+                style={{ ['--i' as string]: i }}
                 x={x(i) - barW / 2 + offset}
                 y={padT + innerH - h}
                 width={barW}
@@ -297,34 +299,39 @@ export function TrendChart({
         {/* Stacked columns, on the main axis, painted at full strength with the hairline
             edge: these are the subject of their chart rather than a band behind one, so the
             faint fill `bar` uses would be the wrong register. */}
-        {stackSeries.map((s, si) =>
-          points.map((p, i) => {
-            const below = stackSeries.slice(0, si).reduce((n, b) => n + num(p, b.key), 0);
-            const v = num(p, s.key);
-            if (v <= 0) return null;
-            const yTop = y(below + v);
-            return (
-              <rect
-                key={`${s.key}-${p.date}`}
-                data-role="stack-bar"
-                x={xAt(i) - stackW / 2}
-                y={yTop}
-                width={stackW}
-                height={Math.max(0.5, y(below) - yTop)}
-                fill={s.color}
-                fillOpacity={hover === i ? 1 : 0.85}
-                stroke={s.color}
-                strokeWidth={1}
-                vectorEffect="non-scaling-stroke"
-              />
-            );
-          }),
-        )}
+        {/* One group per column, so the column grows from the axis as one object: scaling
+            each segment from its own foot would open gaps between them mid-flight. */}
+        {stackSeries.length > 0 && points.map((p, i) => (
+          <g key={`col-${p.date}`} className="col-grow" style={{ ['--i' as string]: i }}>
+            {stackSeries.map((s, si) => {
+              const below = stackSeries.slice(0, si).reduce((n, b) => n + num(p, b.key), 0);
+              const v = num(p, s.key);
+              if (v <= 0) return null;
+              const yTop = y(below + v);
+              return (
+                <rect
+                  key={s.key}
+                  data-role="stack-bar"
+                  x={xAt(i) - stackW / 2}
+                  y={yTop}
+                  width={stackW}
+                  height={Math.max(0.5, y(below) - yTop)}
+                  fill={s.color}
+                  fillOpacity={hover === i ? 1 : 0.85}
+                  stroke={s.color}
+                  strokeWidth={1}
+                  vectorEffect="non-scaling-stroke"
+                />
+              );
+            })}
+          </g>
+        ))}
 
         {areaKey ? (
           <path
             d={`${path(areaKey)} L ${x(points.length - 1).toFixed(1)} ${(padT + innerH).toFixed(1)} L ${x(0).toFixed(1)} ${(padT + innerH).toFixed(1)} Z`}
             fill={`url(#${gradId})`}
+            className="area-in"
           />
         ) : null}
 
@@ -338,6 +345,10 @@ export function TrendChart({
             stroke={s.color}
             strokeWidth={s.shape === 'area' ? 2 : 1.5}
             strokeDasharray={s.shape === 'area' ? undefined : '4,3'}
+            /* A solid line draws itself in; a dashed one cannot, because the draw is itself a
+               dash pattern. `pathLength` normalises the dash maths. */
+            pathLength={s.shape === 'area' ? 1 : undefined}
+            className={s.shape === 'area' ? 'line-draw' : undefined}
             vectorEffect="non-scaling-stroke"
           />
         ))}
@@ -350,7 +361,7 @@ export function TrendChart({
               y={height - 8}
               textAnchor="middle"
               className="fill-ink-faint"
-              style={{ fontSize: 10 }}
+              style={{ fontSize: 11 }}
             >
               {p.label ?? p.date.slice(5)}
             </text>
@@ -377,7 +388,7 @@ export function TrendChart({
           {/* `label`, not `date`: `date` is the raw instant the gateway sent, which prints as
               `2026-09-15T00:00:00Z` beside an axis reading `09-16`. `label` is what the caller
               already formatted, on the deployment's own calendar. */}
-          <div className="mb-1 font-mono text-[0.625rem] uppercase tracking-[0.06em] text-ink-faint">
+          <div className="mb-1 text-[0.6875rem] font-medium uppercase tracking-[0.04em] text-ink-faint">
             {hp.label ?? hp.date}
           </div>
           {resolved.map((s) => (

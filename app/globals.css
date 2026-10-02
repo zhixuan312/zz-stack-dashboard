@@ -1,4 +1,6 @@
 @import "tailwindcss";
+/* The motion vocabulary — durations, curves, and every keyframe. */
+@import "./motion.css";
 @plugin "@tailwindcss/typography";
 
 /* DELIBERATE: the sources are named. Tailwind v4 otherwise finds them by walking up to the
@@ -307,8 +309,9 @@ body {
    exactly one dominant object, and the ratio between it and the body text measures
    whether it does. `scripts/design-metrics.ts` reports it; keep it above 3×.
 
-   The scale is seven values. Nothing else is allowed on a page:
+   The scale is eight values. Nothing else is allowed on a page:
 
+     72  hero      a standalone screen's poster .t-hero            (Baloo 2)
      40  stat      the dominant number          .t-stat            (Baloo 2)
      32  display   the largest heading          .t-display         (Baloo 2)
      22  title     page and section headings    .t-title
@@ -317,10 +320,22 @@ body {
      12  small     captions, meta, dense cells  .t-sm / .t-mono
      11  label     uppercase eyebrows, ticks    .t-eyebrow / .t-micro
 
-   `pnpm audit:design` counts the distinct sizes; if the count goes above seven,
+   `pnpm audit:design` counts the distinct sizes; if the count goes above eight,
    something was added by eye rather than chosen.
 
    Never shrink type to fit. Cut words instead. */
+.t-hero {
+  /* The poster register, for the screens that stand alone — sign-in, signed out, a 404 — where
+     there is no data to lead with and the page is the product's first impression. Never inside
+     the app shell: a 72px heading over a dashboard is a page shouting its own name.
+     Tighter tracking than the stat, because at this size default spacing opens visible gaps. */
+  font-family: var(--font-display-family), var(--font-sans-family), sans-serif;
+  font-size: clamp(2.5rem, 1.4rem + 3.4vw, 4.5rem);
+  font-weight: 600;
+  line-height: 1.02;
+  letter-spacing: -0.032em;
+  color: var(--ink);
+}
 .t-stat {
   /* The dominant object on a dashboard is a number, so the display register is
      led by the stat, not by a heading. Tabular figures so a row of tiles aligns
@@ -419,114 +434,6 @@ body {
   background: var(--line);
 }
 
-/* Page-load reveal — one orchestrated stagger, reduced-motion safe. */
-@keyframes ds-rise {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-.animate-rise {
-  animation: ds-rise 0.5s var(--ease-out) both;
-}
-
-/* Toast auto-dismiss countdown — a thin sliver shrinks left-to-right over the toast's
-   dismiss delay (duration is set inline per toast). Linear so it reads as a real timer. */
-@keyframes ds-toast-countdown {
-  from {
-    transform: scaleX(1);
-  }
-  to {
-    transform: scaleX(0);
-  }
-}
-.toast-countdown {
-  animation-name: ds-toast-countdown;
-  animation-timing-function: linear;
-  animation-fill-mode: forwards;
-}
-@media (prefers-reduced-motion: reduce) {
-  .animate-rise,
-  .toast-countdown {
-    animation: none;
-  }
-}
-
-/* Skeleton shimmer — a faint sheen sweeps across loading placeholders. */
-@keyframes ds-shimmer {
-  100% {
-    background-position: -200% 0;
-  }
-}
-.ds-shimmer {
-  background-image: linear-gradient(
-    90deg,
-    transparent 0%,
-    color-mix(in oklab, var(--ink) 5%, transparent) 50%,
-    transparent 100%
-  );
-  background-size: 200% 100%;
-  background-repeat: no-repeat;
-  background-position: 200% 0;
-  animation: ds-shimmer 1.4s var(--ease-out) infinite;
-}
-
-/* Radix data-state animations — the canonical entry/exit for overlays and popover
-   content (dialog, dropdown, tooltip, popover). Bound to `[data-state]` so Radix
-   drives them on mount/unmount; gives the framework primitives the house feel. */
-@keyframes ds-fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-@keyframes ds-fade-out {
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-  }
-}
-@keyframes ds-pop-in {
-  from {
-    opacity: 0;
-    transform: translateY(6px) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-@keyframes ds-pop-out {
-  from {
-    opacity: 1;
-    transform: none;
-  }
-  to {
-    opacity: 0;
-    transform: translateY(4px) scale(0.98);
-  }
-}
-.ds-overlay[data-state='open'] {
-  animation: ds-fade-in 0.2s var(--ease-out);
-}
-.ds-overlay[data-state='closed'] {
-  animation: ds-fade-out 0.15s var(--ease-out);
-}
-.ds-pop[data-state='open'] {
-  animation: ds-pop-in 0.18s var(--ease-out);
-}
-.ds-pop[data-state='closed'] {
-  animation: ds-pop-out 0.14s var(--ease-out);
-}
-
 /* Scrollbars are hidden everywhere — panels still scroll (wheel, trackpad, keyboard,
    drag), only the visual bar is suppressed. DELIBERATE: inside `@layer base`, because
    Tailwind v4 prunes raw top-level rules with vendor pseudo-elements. */
@@ -541,32 +448,3 @@ body {
   }
 }
 
-/* Hover acknowledgement — a calm, stable affordance (no cursor-tracking, no glow). While a
-   box is hovered, its hairline darkens to `--line-strong`, so it is clear which card the
-   pointer is over. Applied to boxes (Card, MetricCard, table panels …). */
-.ds-spotlight {
-  transition:
-    border-color 150ms var(--ease-out),
-    box-shadow 150ms var(--ease-out);
-}
-/* DELIBERATE: one hairline darkens, and that is the whole affordance. A readout should not
-   light up when you point at it — a halo following the pointer across a dense metric row
-   flickers as it crosses each tile. */
-.ds-spotlight:hover {
-  border-color: var(--line-strong);
-}
-/* A card nested inside another card does not respond — hovering a child would otherwise
-   darken both frames around the same content. Only the outermost surface responds. */
-.ds-spotlight .ds-spotlight:hover {
-  border-color: var(--line);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-}

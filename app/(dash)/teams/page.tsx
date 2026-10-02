@@ -128,7 +128,7 @@ function TeamTable({ teams, resetKey }: { teams: Team[]; resetKey: string }) {
           {page.map((t) => (
             <TableRow key={t.slug}>
               <TableCell>
-                <Link href={`/teams/${t.slug}`} className="font-medium text-accent hover:underline">
+                <Link href={`/teams/${t.slug}`} className="row-link font-medium text-ink">
                   {t.slug}
                 </Link>
                 <span className="block text-xs text-ink-faint">{t.name}</span>

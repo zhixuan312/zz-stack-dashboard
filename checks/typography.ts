@@ -25,11 +25,12 @@ const stale = [...walk('app'), ...walk('src')];
 if (stale.length) { console.error('FAIL ss01/cv05 still present in: ' + stale.join(', ')); code = 1; }
 // tabular-nums is why these two faces were chosen; it must survive.
 if (!/tabular-nums/.test(css)) { console.error('FAIL tabular-nums was removed from .t-stat'); code = 1; }
-// display family confined to the two display classes
-const stat = css.slice(css.indexOf('.t-stat {'), css.indexOf('}', css.indexOf('.t-stat {')));
-const disp = css.slice(css.indexOf('.t-display {'), css.indexOf('}', css.indexOf('.t-display {')));
-for (const [n, block] of [['.t-stat', stat], ['.t-display', disp]]) {
-  if (!/--font-display-family/.test(block)) { console.error(`FAIL ${n} does not use the display family`); code = 1; }
+// display family confined to the three display classes
+const block = (cls: string) => css.slice(css.indexOf(`${cls} {`), css.indexOf('}', css.indexOf(`${cls} {`)));
+for (const n of ['.t-hero', '.t-stat', '.t-display']) {
+  const b = block(n);
+  if (!css.includes(`${n} {`)) { console.error(`FAIL ${n} is not declared`); code = 1; continue; }
+  if (!/--font-display-family/.test(b)) { console.error(`FAIL ${n} does not use the display family`); code = 1; }
 }
 /* The Tailwind mapping. A family is usable as a utility only if `@theme inline` lists it;
  * repoint this one at the sans family and `font-display` silently resolves to the body face
@@ -39,6 +40,6 @@ if (!/--font-display:\s*var\(--font-display-family\)/.test(css)) {
   console.error('FAIL @theme inline no longer maps --font-display to the display family'); code = 1;
 }
 const uses = (css.match(/--font-display-family/g) || []).length;
-if (uses > 3) { console.error(`FAIL the display family is referenced ${uses} times; it belongs on two classes`); code = 1; }
+if (uses > 4) { console.error(`FAIL the display family is referenced ${uses} times; it belongs on three classes`); code = 1; }
 if (!code) console.log('PASS Rubik + Baloo 2 wired, Inter features gone, numerals preserved');
 process.exitCode = code;

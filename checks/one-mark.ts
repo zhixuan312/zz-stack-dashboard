@@ -8,9 +8,13 @@ if (!/src=["']\/assets\/brand\/wordmark\.png["']/.test(mark)) {
   console.error('FAIL AppMark does not render the wordmark raster'); code = 1;
 }
 if (/Hexagon/.test(mark)) { console.error('FAIL AppMark still draws the hexagon'); code = 1; }
-for (const f of ['app/login/page.tsx', 'app/enrol/page.tsx', 'app/signed-out/page.tsx']) {
+/* The screens outside the shell carry the mark too — directly, or through `Standalone`, which is
+ * itself held to rendering it. */
+const STANDALONE = 'src/components/patterns/standalone.tsx';
+if (!/<AppMark/.test(readFileSync(STANDALONE, 'utf8'))) { console.error(`FAIL ${STANDALONE} does not render AppMark`); code = 1; }
+for (const f of ['app/login/page.tsx', 'app/enrol/page.tsx', 'app/signed-out/page.tsx', 'app/not-found.tsx']) {
   const src = readFileSync(f, 'utf8');
-  if (!/<AppMark/.test(src)) { console.error('FAIL ' + f + ' does not render AppMark'); code = 1; }
+  if (!/<(AppMark|Standalone)\b/.test(src)) { console.error('FAIL ' + f + ' renders neither AppMark nor Standalone'); code = 1; }
   if (/>\s*ZZ\s*</.test(src)) { console.error('FAIL ' + f + ' still hand-draws a ZZ monogram'); code = 1; }
   if (/["'`]ZZ Console["'`]/.test(src)) { console.error('FAIL ' + f + ' hardcodes the product name'); code = 1; }
 }

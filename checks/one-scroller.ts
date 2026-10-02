@@ -4,7 +4,8 @@
  * shell offers means changing the allowances below.
  *
  * Allowed scrollers are the shell's own: the page body and the sidebar rail (and its drawer
- * copy), plus /login, which sits outside the shell and is its own single page. Anything else
+ * copy), plus /login and `Standalone` (signed out, the 404, enrolment), which sit outside the
+ * shell and are each their own single page — the document is locked, so they scroll themselves. Anything else
  * that scrolls — vertically or sideways — is a card that should have paged or wrapped.
  *
  * Page grids: nothing under app/(dash) spells `grid-cols-*`. A page is a stack of `Row`s, and
@@ -19,6 +20,7 @@ const SCROLLER_OK = new Set([
   'src/components/ui/shell.tsx',
   'src/components/ui/sidebar-drawer.tsx',
   'app/login/page.tsx',
+  'src/components/patterns/standalone.tsx',
 ]);
 
 let code = 0;

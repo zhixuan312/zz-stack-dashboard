@@ -207,7 +207,7 @@ function SkillTable({ plugin, skills }: { plugin: string; skills: PluginRow['ski
                 {s.position ?? '—'}
               </TableCell>
               <TableCell className="break-words">
-                <Link href={`/plugins/${plugin}/${s.name}`} className="font-medium text-accent hover:underline">
+                <Link href={`/plugins/${plugin}/${s.name}`} className="row-link font-medium text-ink">
                   {s.name}
                 </Link>
                 {s.isEntry ? <span className="ml-2 text-xs text-ink-faint">the front door</span> : null}

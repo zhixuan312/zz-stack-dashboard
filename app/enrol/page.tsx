@@ -1,6 +1,6 @@
 'use client';
 
-import { AppMark } from '@/components/AppMark';
+import { Standalone } from '@/components/patterns/standalone';
 import { useEffect, useState } from 'react';
 import { KeyRound, ShieldAlert } from 'lucide-react';
 import { startRegistration } from '@simplewebauthn/browser';
@@ -82,56 +82,39 @@ export default function EnrolPage() {
     }
   }
 
-  return (
-    <main className="grid min-h-dvh place-items-center bg-bg p-8">
-      <div className="flex w-full max-w-[25rem] flex-col gap-6">
-        <AppMark withWordmark />
-
-        {token ? (
-          <>
-            <div className="flex flex-col gap-2">
-              <h1 className="text-[22px] font-semibold tracking-[-0.018em] text-ink">
-                Register your passkey
-              </h1>
-              <p className="text-sm leading-relaxed text-ink-soft">
-                Your browser will ask you to confirm — Touch ID, Windows Hello, a
-                phone, or a security key. After that you sign in with it and never
-                need this link again.
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-3">
-              <Button variant="primary" size="lg" fullWidth onClick={() => void enrol()} disabled={busy}>
-                <KeyRound className="size-[18px]" aria-hidden />
-                {busy ? 'Waiting for your device…' : 'Register a passkey'}
-              </Button>
-              {error ? (
-                <p role="alert" className="text-[13px] leading-relaxed text-[var(--rose-deep)]">{error}</p>
-              ) : null}
-            </div>
-
-            <p className="text-xs leading-relaxed text-ink-faint">
-              This link works once. Register on the device you actually want to sign
-              in from — an administrator can issue another for a second device.
-            </p>
-          </>
-        ) : (
-          <div className="flex flex-col gap-3 rounded-[var(--r-lg)] border border-[var(--amber)] bg-[var(--amber-tint)] p-4">
-            <span className="flex items-center gap-2 text-[13px] font-semibold text-[var(--amber-text)]">
-              <ShieldAlert className="size-4" aria-hidden />
-              No enrolment link
-            </span>
-            <p className="text-[13px] leading-relaxed text-ink-soft">
-              This page needs the link an administrator sent you, opened whole —
-              including everything after the <code>#</code>. Accounts are created on
-              the platform, so there is nothing to fill in here.
-            </p>
-          </div>
-        )}
-
-        <div className="pt-1">
-        </div>
+  return token ? (
+    <Standalone
+      eyebrow="One-time enrolment"
+      title={<>Register your passkey<span className="text-accent">.</span></>}
+    >
+      <p className="t-lead max-w-[46ch]">
+        Your browser will ask you to confirm — Touch ID, Windows Hello, a phone, or a security
+        key. After that you sign in with it and never need this link again.
+      </p>
+      <div className="flex w-full max-w-[22rem] flex-col gap-3">
+        <Button variant="primary" size="lg" fullWidth onClick={() => void enrol()} disabled={busy}>
+          <KeyRound className="size-[18px]" aria-hidden />
+          {busy ? 'Waiting for your device…' : 'Register a passkey'}
+        </Button>
+        {error ? (
+          <p role="alert" className="text-xs leading-relaxed text-[var(--rose-deep)]">{error}</p>
+        ) : null}
       </div>
-    </main>
+      <p className="max-w-[44ch] text-xs leading-relaxed text-ink-faint">
+        This link works once. Register on the device you actually want to sign in from — an
+        administrator can issue another for a second device.
+      </p>
+    </Standalone>
+  ) : (
+    <Standalone eyebrow="Enrolment" title={<>No enrolment link<span className="text-accent">.</span></>}>
+      <div className="flex max-w-[30rem] items-start gap-3 rounded-[var(--r-lg)] border border-[var(--amber)] bg-[var(--amber-tint)] p-4 text-left">
+        <ShieldAlert className="mt-0.5 size-4 shrink-0 text-[var(--amber-text)]" aria-hidden />
+        <p className="text-sm leading-relaxed text-ink-soft">
+          This page needs the link an administrator sent you, opened whole — including everything
+          after the <code className="font-mono text-xs">#</code>. Accounts are created on the
+          platform, so there is nothing to fill in here.
+        </p>
+      </div>
+    </Standalone>
   );
 }

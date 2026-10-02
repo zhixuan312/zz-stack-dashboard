@@ -179,7 +179,7 @@ function InitiativeTable({ rows, resetKey }: { rows: Initiative[]; resetKey: str
                 <Link
                   href={`/initiatives/${i.team}/${i.slug}`}
                   title={i.slug}
-                  className="block truncate whitespace-nowrap font-medium text-accent hover:underline"
+                  className="row-link block truncate whitespace-nowrap font-medium text-ink"
                 >
                   {i.slug}
                 </Link>

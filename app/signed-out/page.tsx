@@ -1,6 +1,6 @@
-import Image from 'next/image';
-import { AppMark } from '@/components/AppMark';
 import Link from 'next/link';
+import { Standalone } from '@/components/patterns/standalone';
+import { buttonVariants } from '@/components/ui/button';
 
 /**
  * Where /auth/logout lands.
@@ -10,28 +10,18 @@ import Link from 'next/link';
  */
 export default function SignedOutPage() {
   return (
-    <main className="grid min-h-screen place-items-center bg-bg p-8">
-      <div className="flex max-w-sm flex-col items-center gap-4 text-center">
-        <AppMark withWordmark />
-        <Image
-          src="/assets/brand/state-goodbye.png"
-          alt=""
-          width={128}
-          height={160}
-          className="h-32 w-auto object-contain"
-        />
-        <h1 className="text-[22px] font-semibold tracking-[-0.018em] text-ink">Signed out</h1>
-        <p className="text-sm leading-relaxed text-ink-soft">
-          Your console session has ended. Your passkey is untouched — sign back in
-          with it whenever you like.
-        </p>
-        <Link
-          href="/login"
-          className="rounded-[var(--r)] bg-accent px-3.5 py-2 text-sm font-medium text-[var(--on-accent)] hover:bg-accent-deep"
-        >
-          Sign in again
-        </Link>
-      </div>
-    </main>
+    <Standalone
+      illustration={{ src: '/assets/brand/state-goodbye.png', width: 128, height: 160 }}
+      eyebrow="Session ended"
+      title={<>Signed out<span className="text-accent">.</span></>}
+    >
+      <p className="t-lead max-w-[42ch]">
+        Your console session has ended. Your passkey is untouched — sign back in with it whenever
+        you like.
+      </p>
+      <Link href="/login" className={buttonVariants({ variant: 'primary', size: 'lg' })}>
+        Sign in again
+      </Link>
+    </Standalone>
   );
 }

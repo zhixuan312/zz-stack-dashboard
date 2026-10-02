@@ -68,7 +68,9 @@ export function CompositionBar({
           but the one under the cursor, so a 2%-wide sliver is readable as itself, and the
           figure arrives in the themed tooltip. The slices are focusable so the readout does
           not need a mouse. */}
-      <div className="group flex h-3 overflow-hidden rounded-full bg-surface-2">
+      {/* `wipe-in`: the bar reveals left to right as one object, so its proportions are true
+          on every frame of the reveal. */}
+      <div className="wipe-in group flex h-3 overflow-hidden rounded-full bg-surface-2">
         {withTint.map((s) => {
           const share = s.value / total;
           return (

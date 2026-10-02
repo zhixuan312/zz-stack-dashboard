@@ -79,7 +79,18 @@ describe('Row', () => {
     const cls = (s: Split) => render(<Row split={s} />).container.querySelector('[data-split]')!.className;
     expect(cls('2/3')).toContain('lg:[&>*:first-child]:col-span-2');
     expect(cls('1/3')).toContain('lg:[&>*:last-child]:col-span-2');
-    expect(cls('1/4')).toContain('@min-[85rem]:grid-cols-4');
+  });
+
+  // A metric row's columns follow its tile count, so it never leaves a hole.
+  it.each([
+    [2, '@min-[34rem]:grid-cols-2', /grid-cols-[34]/],
+    [3, '@min-[50rem]:grid-cols-3', /grid-cols-[24]/],
+    [4, '@min-[66rem]:grid-cols-4', /grid-cols-3/],
+  ])('1/4 with %i tiles lays out without an orphan', (n, want, never) => {
+    const tiles = Array.from({ length: n }, (_, i) => <div key={i} />);
+    const cls = render(<Row split="1/4">{tiles}</Row>).container.querySelector('[data-split]')!.className;
+    expect(cls).toContain(want);
+    expect(cls).not.toMatch(never);
   });
 
   // A tile row counts columns from its own width, so it needs a container to measure.

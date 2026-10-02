@@ -1,6 +1,6 @@
 import { type ReactNode } from 'react';
 import { cn } from '@/lib/cn';
-import { Title, Text } from '@/components/ui/typography';
+import { Display, Text } from '@/components/ui/typography';
 import { Breadcrumb, type Crumb } from '@/components/ui/breadcrumb';
 import { SidebarDrawer } from '@/components/ui/sidebar-drawer';
 import { GUTTER, GUTTER_X, WIDTH, type PageWidth } from '@/components/ui/layout';
@@ -168,9 +168,11 @@ export function PageFrame({
           <>
             <div className="flex min-w-0 flex-col gap-1">
               {breadcrumb ? <Breadcrumb items={breadcrumb} /> : null}
-              <Title className="min-w-0 truncate">{title}</Title>
+              {/* The page title is the display register: the one heading per screen, and the
+                  thing that tells you where you landed. It rises in with the page. */}
+              <Display key={typeof title === 'string' ? title : undefined} className="title-in min-w-0 truncate">{title}</Display>
               {description ? (
-                <p className="hidden max-w-[92ch] text-[13px] leading-[1.5] text-ink-soft lg:block">
+                <p className="hidden max-w-[92ch] text-xs leading-[1.5] text-ink-soft lg:block">
                   {description}
                 </p>
               ) : null}

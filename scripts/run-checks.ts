@@ -23,6 +23,7 @@ const EXPECTED = [
   'icon-convention',          // both icon links present in the built html
   'illustration-slots',       // both slots optional and additive
   'mascot-assignment',        // every mascot assignment, plus the root 404
+  'motion',                   // keyframes in one file, reduced motion collapses, shell still
   'no-dark-mode',             // no machinery, and no `dark:` variant
   'one-mark',                 // the brand is drawn in exactly one place
   'one-scroller',             // only the shell scrolls; page grids are Rows

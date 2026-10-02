@@ -17,7 +17,9 @@ export const buttonVariants = cva(
         // DELIBERATE: `text-on-accent`, not `text-white`. In dark the accent fill
         // is a light indigo and white on it is unreadable; the token flips with
         // the theme.
-        primary: 'bg-accent text-on-accent hover:bg-accent-deep',
+        // The primary action stands 2px proud of the page on a hard edge of its own deep tone, and
+        // the press pushes it flush — the printed-object register of the tiles, made tactile.
+        primary: 'bg-accent text-on-accent shadow-[0_2px_0_var(--accent-deep)] hover:bg-accent-deep active:shadow-none',
         secondary:
           'border border-line-strong bg-surface text-ink hover:border-ink-faint hover:bg-surface-2',
         // The full-width dark CTA that ends a stage. Accent is for actions
@@ -32,7 +34,7 @@ export const buttonVariants = cva(
       size: {
         sm: 'h-8 px-3 text-xs [&_svg]:size-3.5',
         md: 'h-9 px-4 text-sm [&_svg]:size-4',
-        lg: 'h-11 px-5 text-[15px] [&_svg]:size-[18px]',
+        lg: 'h-11 px-5 text-sm [&_svg]:size-[18px]',
         icon: 'size-9 [&_svg]:size-[18px]',
       },
       fullWidth: { true: 'w-full' },

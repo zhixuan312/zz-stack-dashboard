@@ -3,6 +3,7 @@ import { cn } from '@/lib/cn';
 import { CHIP, type ChipTint } from '@/lib/tints';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Ticker } from '@/components/ui/ticker';
 
 /**
  * MetricCard — one cell of the status row, and usually the dominant object on
@@ -135,7 +136,7 @@ export function MetricCard({
     <Popover>
       <PopoverTrigger
         aria-label={`How "${typeof label === 'string' ? label : 'this metric'}" is measured`}
-        className="ml-auto grid size-[1.375rem] shrink-0 cursor-help place-items-center self-center rounded-full border border-line text-[0.625rem] font-medium text-ink-faint hover:border-accent hover:bg-accent hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent data-[state=open]:border-accent data-[state=open]:bg-accent data-[state=open]:text-white"
+        className="press ml-auto grid size-[1.375rem] shrink-0 cursor-help place-items-center self-center rounded-full border border-line text-[0.6875rem] font-medium text-ink-faint hover:border-accent hover:bg-accent hover:text-[var(--on-accent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent data-[state=open]:border-accent data-[state=open]:bg-accent data-[state=open]:text-[var(--on-accent)]"
       >
         i
       </PopoverTrigger>
@@ -188,10 +189,10 @@ export function MetricCard({
         ) : null}
 
         <div className="min-w-0 flex-1">
-          <h3 className="overflow-hidden whitespace-nowrap text-[0.9375rem] font-semibold leading-tight text-ink">
+          <h3 className="overflow-hidden whitespace-nowrap text-sm font-semibold leading-tight text-ink">
             {label}
           </h3>
-          <p className="mt-0.5 min-h-[1lh] overflow-hidden whitespace-nowrap text-[0.8125rem] leading-snug text-ink-soft">
+          <p className="mt-0.5 min-h-[1lh] overflow-hidden whitespace-nowrap text-xs leading-snug text-ink-soft">
             {description}
           </p>
         </div>
@@ -204,7 +205,7 @@ export function MetricCard({
         <span
           className={cn('t-stat', muted ? '!text-ink-faint' : emphasis ? '!text-accent-deep' : '!text-ink')}
         >
-          {value}
+          {typeof value === 'string' ? <Ticker value={value} /> : value}
         </span>
         {delta && delta.was ? (
           <Tooltip>
@@ -215,7 +216,7 @@ export function MetricCard({
         {helpDot}
       </div>
 
-      <p className="min-h-[1lh] overflow-hidden whitespace-nowrap text-[0.8125rem] leading-snug text-ink-soft">{sublabel}</p>
+      <p className="min-h-[1lh] overflow-hidden whitespace-nowrap text-xs leading-snug text-ink-soft">{sublabel}</p>
 
       {mark ? <div className="mt-auto">{mark}</div> : null}
 

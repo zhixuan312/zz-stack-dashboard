@@ -115,7 +115,7 @@ function buildMetrics(m: OverviewMetrics): MetricCardProps[] {
       value: pctText(m.progressing.value),
       icon: <Layers />,
       tint: 'accent',
-      description: 'median completeness of open work',
+      description: 'median progress of open work',
       /* The waiting count shares this face because it answers the question the number above
          it raises: if work is not advancing, what is holding it. Stated plainly and not in
          amber — documents awaiting approval are the ordinary shape of work in progress. */
@@ -175,7 +175,7 @@ function buildMetrics(m: OverviewMetrics): MetricCardProps[] {
       value: pctText(m.knowledge.value),
       icon: <BookOpen />,
       tint: 'blue',
-      description: 'share of nodes learned from work',
+      description: 'share of all knowledge nodes',
       delta: delta(m.knowledge.value, m.knowledge.prev, 'up', 'pct', pctText),
       sublabel: `${formatCount(m.knowledge.fromWork)} of ${formatCount(shelf)} nodes · ${formatCount(m.knowledge.searches)} searches`,
       mark: (
@@ -208,7 +208,7 @@ function buildMetrics(m: OverviewMetrics): MetricCardProps[] {
       // The one tile whose identity hue carries meaning: rose means bad everywhere in this
       // system, and the hue says what the tile is about, not whether it needs somebody today.
       tint: 'rose',
-      description: 'share of tool calls refused',
+      description: 'share of calls refused',
       delta: delta(m.refusals.value, m.refusals.prev, 'down', 'pts', pctText),
       sublabel: `${formatCount(m.refusals.refused)} of ${formatCount(m.refusals.calls)} calls refused`,
       /* Which door is refusing: the number says how much, the mark says where, and neither is

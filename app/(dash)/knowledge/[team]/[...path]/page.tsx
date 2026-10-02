@@ -88,7 +88,7 @@ export default function KnowledgeNodePage({
                             <Link
                               key={e.name}
                               href={`/initiatives/${e.team}/${e.name}`}
-                              className="break-all font-medium text-accent hover:underline"
+                              className="row-link break-all font-medium text-ink"
                             >
                               {e.name}
                             </Link>
@@ -160,7 +160,7 @@ function RelatedTable({ rows, tags, multiTeam }: { rows: KnowledgeNode[]; tags: 
                 {multiTeam ? `${n.team} · ${n.num}` : n.num}
               </TableCell>
               <TableCell>
-                <Link href={knowledgeNodeHref(n.team, n.path)} className="font-medium leading-snug text-accent hover:underline">
+                <Link href={knowledgeNodeHref(n.team, n.path)} className="row-link font-medium leading-snug text-ink">
                   {n.title}
                 </Link>
               </TableCell>

@@ -25,7 +25,8 @@ export function SkillWorkPanel({ skills }: { skills: Skill[] }) {
   const [axis, setAxis] = useState<Axis>('calls');
 
   const rows = [...skills].sort((a, b) => metric(b, axis) - metric(a, axis));
-  const scale = Math.max(...rows.map((k) => metric(k, axis)), 0);
+  // A bar's length is its share of the total it is labelled against, not of the largest row.
+  const total = rows.reduce((n, k) => n + metric(k, axis), 0);
   const totalRuns = skills.reduce((n, k) => n + k.runs, 0);
   const totalCalls = skills.reduce((n, k) => n + k.calls, 0);
   /* The caveat is stated once and only when it applies — see the gateway's /skills comment
@@ -67,21 +68,21 @@ export function SkillWorkPanel({ skills }: { skills: Skill[] }) {
         <TableHeader>
           <TableRow>
             <TableHead>Skill</TableHead>
-            <TableHead hideBelow="lg">Team</TableHead>
             <TableHead>Runs</TableHead>
             <TableHead>Median</TableHead>
             <TableHead hideBelow="xl">Total time</TableHead>
             <TableHead hideBelow="md">Calls</TableHead>
-            {/* The bar's header is the axis it is drawing, so the column is never an
-                unlabelled decoration. */}
-            <TableHead hideBelow="md" className="w-[9rem]">{AXES.find((a) => a.value === axis)!.label}</TableHead>
+            {/* The bar's header names the axis it is drawing, so the column is never an
+                unlabelled decoration — and never a second "Calls". */}
+            <TableHead hideBelow="md" className="w-[10rem]">Share of {AXES.find((a) => a.value === axis)!.label}</TableHead>
             <TableHead hideBelow="lg">Refused</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {page.map((k) => {
             const v = metric(k, axis);
-            const pct = scale > 0 && v > 0 ? Math.max(1.5, (v / scale) * 100) : 0;
+            const share = total > 0 ? v / total : 0;
+            const pct = v > 0 ? Math.max(1.5, share * 100) : 0;
             return (
               <TableRow key={`${k.name}-${k.version}`} className="transition-colors hover:bg-surface-2">
                 <TableCell className="break-words">
@@ -111,10 +112,10 @@ export function SkillWorkPanel({ skills }: { skills: Skill[] }) {
                   </span>
                 </TableCell>
                 <TableCell hideBelow="md" className="tabular-nums">{formatCount(k.calls)}</TableCell>
-                <TableCell hideBelow="md">
+                <TableCell hideBelow="md" title={`${(share * 100).toFixed(1)}% of all ${AXES.find((a) => a.value === axis)!.label}`}>
                   <span className="block h-1.5 overflow-hidden rounded-[var(--r-sm)] bg-surface-2">
                     <span
-                      className="block h-full rounded-[var(--r-sm)]"
+                      className="bar-grow block h-full rounded-[var(--r-sm)]"
                       style={{ width: `${pct}%`, background: 'var(--accent)', boxShadow: CHART_EDGE }}
                     />
                   </span>
@@ -131,7 +132,7 @@ export function SkillWorkPanel({ skills }: { skills: Skill[] }) {
           })}
           {rows.length === 0 && (
             <TableRow>
-              <TableCell colSpan={8} className="py-8 text-ink-faint">
+              <TableCell colSpan={7} className="py-8 text-ink-faint">
                 No skill has a recorded run in this period.
               </TableCell>
             </TableRow>

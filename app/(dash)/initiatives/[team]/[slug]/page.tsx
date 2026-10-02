@@ -133,7 +133,7 @@ function DocumentTable({ docs, base, showWhat }: { docs: Doc[]; base: string; sh
               <TableCell className="max-w-[30ch]">
                 {/* The point of the row: a reader came to read the document, not to learn
                     its size. */}
-                <Link href={href(base, doc.path)} className="block break-all font-medium text-accent hover:underline">
+                <Link href={href(base, doc.path)} className="row-link block break-all font-medium text-ink">
                   {doc.path.replace(/^sources\//, '')}
                 </Link>
                 {showWhat && WHAT[doc.type] ? (
@@ -190,7 +190,7 @@ function SourceTable({ docs, base }: { docs: Doc[]; base: string }) {
           {page.map((x) => (
             <TableRow key={x.path}>
               <TableCell className="max-w-[42ch]">
-                <Link href={href(base, x.path)} className="break-words font-medium text-accent hover:underline">
+                <Link href={href(base, x.path)} className="row-link break-words font-medium text-ink">
                   {x.title || x.path.replace(/^sources\//, '')}
                 </Link>
               </TableCell>

@@ -115,7 +115,7 @@ function InitiativeTable({ initiatives }: { initiatives: Initiative[] }) {
                 <Link
                   href={`/initiatives/${i.team}/${i.slug}`}
                   title={i.slug}
-                  className="block truncate font-medium text-accent hover:underline"
+                  className="row-link block truncate font-medium text-ink"
                 >
                   {i.slug}
                 </Link>
