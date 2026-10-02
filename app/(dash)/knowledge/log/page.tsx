@@ -117,7 +117,7 @@ function JournalTable({ entries, teams }: { entries: KnowledgeLogEntry[]; teams:
                     log row reading "node 3" is a number nobody recognises; the recorded title
                     is what is left when the node is gone from the shelf. */}
                 <span className="flex flex-col gap-0.5">
-                  <span className="text-[13px] leading-snug text-ink">
+                  <span className="text-xs leading-snug text-ink">
                     {e.node_title ?? e.recorded_title ?? <span className="italic text-ink-faint">no longer on the shelf</span>}
                   </span>
                   <span className="font-mono text-[11px] text-ink-faint">

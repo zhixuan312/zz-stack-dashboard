@@ -10,7 +10,7 @@ import {
   Badge, EmptyState, PageControl, Row, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Time, usePaged,
 } from '@/components/ui';
 import { EvalHeadline, EvalHealth, EvalQuality } from '@/components/PluginEvalOverview';
-import { EvalLearning, EvalUsage } from '@/components/PluginEvalEvidence';
+import { EvalLearning, EvalNotYet, EvalUsage } from '@/components/PluginEvalEvidence';
 import { EvalAutomationTrust, EvalEvolution } from '@/components/PluginEvalEvolution';
 import { formatCount } from '@/lib/format';
 import { freshnessOf, useConsole } from '@/lib/api';
@@ -87,7 +87,7 @@ export default function PluginPage({ params }: { params: Promise<{ plugin: strin
               {p ? (
                 <Row split="1/2">
                   <Panel title="About this plugin">
-                    <dl className="flex flex-col gap-3 text-[13px]">
+                    <dl className="flex flex-col gap-3 text-xs">
                       <Field k="Does" v={<span className="text-ink-soft">{p.description ?? '—'}</span>} />
                       {/* DELIBERATE: no "whose" field. `origin` is hardcoded `platform` on
                           every catalog row, so it could only ever say "ours". */}
@@ -122,7 +122,7 @@ export default function PluginPage({ params }: { params: Promise<{ plugin: strin
 
                   <Panel title="The documents it governs" aside={p.gates ? `${p.gates} gated` : 'none'}>
                     {p.documents.length ? (
-                      <ul className="flex flex-col gap-2 text-[13px]">
+                      <ul className="flex flex-col gap-2 text-xs">
                         {p.documents.map((doc) => (
                           <li key={doc.name} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
                             <span className="min-w-0 break-all font-mono text-xs text-ink">{doc.name}</span>
@@ -133,7 +133,7 @@ export default function PluginPage({ params }: { params: Promise<{ plugin: strin
                         ))}
                       </ul>
                     ) : (
-                      <p className="text-[13px] text-ink-faint">
+                      <p className="text-xs text-ink-faint">
                         None. This plugin produces no document and gates nothing — an assistant, not a
                         delivery method.
                       </p>
@@ -142,18 +142,24 @@ export default function PluginPage({ params }: { params: Promise<{ plugin: strin
                 </Row>
               ) : (
                 <Panel title="About this plugin">
-                  <p className="text-[13px] text-ink-faint">
+                  <p className="text-xs text-ink-faint">
                     Registered through plugin_register as a third-party subject — no manifest,
                     skills or documents to show here. Its evaluation story is below.
                   </p>
                 </Panel>
               )}
 
-              <EvalHealth run={pluginEval.run} />
-              <EvalQuality run={pluginEval.run} />
-              <EvalUsage run={pluginEval.run} />
-              <EvalLearning findings={pluginEval.found ? pluginEval.findings : null} />
-              <EvalEvolution pluginEval={pluginEval} />
+              {notYet(pluginEval) ? (
+                <EvalNotYet evaluationOnly={pluginEval.ownershipMode === 'evaluation_only'} />
+              ) : (
+                <>
+                  <EvalHealth run={pluginEval.run} />
+                  <EvalQuality run={pluginEval.run} />
+                  <EvalUsage run={pluginEval.run} />
+                  <EvalLearning findings={pluginEval.found ? pluginEval.findings : null} />
+                  <EvalEvolution pluginEval={pluginEval} />
+                </>
+              )}
               <EvalAutomationTrust pluginEval={pluginEval} />
 
               {p ? (
@@ -250,4 +256,11 @@ function Field({ k, v }: { k: string; v: React.ReactNode }) {
       <dd className="text-ink">{v}</dd>
     </div>
   );
+}
+
+/** Nothing any of the five evidence panels could draw: no completed run, no finding, no candidate. */
+function notYet(e: PluginEval): boolean {
+  const f = e.found ? e.findings : null;
+  const findings = f ? f.strengths.length + f.defects.length + f.unknowns.length : 0;
+  return !e.run && findings === 0 && e.candidates.length === 0;
 }

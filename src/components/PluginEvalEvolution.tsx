@@ -19,7 +19,7 @@ function Quiet({ title, description }: { title: string; description: string }) {
   return (
     <div className="py-2">
       <p className="text-sm font-medium text-ink">{title}</p>
-      <p className="mt-0.5 text-[13px] text-ink-faint">{description}</p>
+      <p className="mt-0.5 text-xs text-ink-faint">{description}</p>
     </div>
   );
 }
@@ -100,7 +100,7 @@ export function EvalAutomationTrust({ pluginEval }: { pluginEval: PluginEval }) 
   return (
     <Panel title="Automation & Trust" aside={pluginEval.ownershipMode === 'evaluation_only' ? 'evaluation only' : 'owned'}>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="flex flex-col gap-3 text-[13px]">
+        <div className="flex flex-col gap-3 text-xs">
           <Field k="Origin" v={pluginEval.origin ?? '—'} />
           <Field k="Owner team" v={pluginEval.ownerTeam ?? 'none recorded'} />
           <Field k="Evolvable" v={pluginEval.evolvable ? 'yes' : 'no'} />
@@ -113,7 +113,7 @@ export function EvalAutomationTrust({ pluginEval }: { pluginEval: PluginEval }) 
           ) : (
             <ul className="flex flex-col gap-2">
               {pluginEval.evaluatorTrust.map((t) => (
-                <li key={t.stableKey} className="flex items-center justify-between gap-3 text-[13px]">
+                <li key={t.stableKey} className="flex items-center justify-between gap-3 text-xs">
                   <span className="min-w-0 truncate font-mono text-xs text-ink">{t.stableKey}</span>
                   <span className="shrink-0 text-right">
                     <Badge variant={t.state === 'human_calibrated' || t.state === 'operationally_qualified' ? 'sage' : t.state === 'mechanically_qualified' ? 'amber' : 'neutral'}>

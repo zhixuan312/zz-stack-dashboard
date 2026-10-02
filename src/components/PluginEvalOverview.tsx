@@ -23,7 +23,7 @@ function Quiet({ title, description }: { title: string; description: string }) {
   return (
     <div className="py-2">
       <p className="text-sm font-medium text-ink">{title}</p>
-      <p className="mt-0.5 text-[13px] text-ink-faint">{description}</p>
+      <p className="mt-0.5 text-xs text-ink-faint">{description}</p>
     </div>
   );
 }

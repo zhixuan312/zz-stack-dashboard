@@ -123,7 +123,7 @@ export function KnowledgeAsk({ team }: { team: string | null }) {
 
         {result ? (
           <div className="flex flex-col gap-2 border-t border-line pt-3">
-            <p className="whitespace-pre-wrap text-[13.5px] leading-[1.75] text-ink-soft">
+            <p className="whitespace-pre-wrap text-sm leading-[1.75] text-ink-soft">
               {result.answer}
             </p>
             {result.citations.length ? (

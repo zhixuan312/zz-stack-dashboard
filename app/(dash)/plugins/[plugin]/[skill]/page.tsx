@@ -102,7 +102,7 @@ export default function PluginSkillPage({ params }: { params: Promise<{ plugin: 
                   comes from the catalog. */}
               <Row split={skill ? '1/2' : 'full'}>
                 <Panel title="About this skill">
-                  <dl className="flex flex-col gap-3 text-[13px]">
+                  <dl className="flex flex-col gap-3 text-xs">
                     <Field k="Does" v={<span className="text-ink-soft">{text?.description ?? '—'}</span>} />
                     <Field
                       k="Whose"
@@ -184,7 +184,7 @@ function Conclusion({ skill, detail }: { skill: Skill; detail: SkillDetail }) {
 
   return (
     <Panel title="Conclusion" weight="hard">
-      <ul className="flex flex-col gap-2 text-[13px] leading-relaxed text-ink-soft">
+      <ul className="flex flex-col gap-2 text-xs leading-relaxed text-ink-soft">
         <li>
           <b className="text-ink">Cost.</b> {skill.runs} runs at {skill.callsAvg.toFixed(1)} calls each,
           median {formatSeconds(skill.durationMedian)}, {formatKb(skill.kbPerRun)} per run

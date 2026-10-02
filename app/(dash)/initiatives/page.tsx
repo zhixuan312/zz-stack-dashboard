@@ -100,7 +100,7 @@ export default function InitiativesPage() {
                   <Facet all="All states"
                          values={tallyStates(inWindow.map(initiativeState))}
                          value={state} onChange={setState} />
-                  <label className="flex cursor-pointer items-center gap-2 whitespace-nowrap text-[13px] text-ink-soft">
+                  <label className="flex cursor-pointer items-center gap-2 whitespace-nowrap text-xs text-ink-soft">
                     <Switch checked={openOnly} onCheckedChange={setOpenOnly} />
                     Open gates only
                   </label>
@@ -188,7 +188,7 @@ function InitiativeTable({ rows, resetKey }: { rows: Initiative[]; resetKey: str
               {/* `flow` is nullable and a blank cell would hide why: an initiative with
                   no flow has no chain of gates resolved against it, so no required
                   document and no closing rule is enforced on it. */}
-              <TableCell hideBelow="2xl" className="whitespace-nowrap text-[13px]">
+              <TableCell hideBelow="2xl" className="whitespace-nowrap text-xs">
                 {i.flow
                   ? <span className="text-ink-soft">{i.flow}</span>
                   : <span className="text-ink-faint italic">not declared</span>}

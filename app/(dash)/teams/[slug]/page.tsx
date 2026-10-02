@@ -35,7 +35,10 @@ export default function TeamPage({ params }: { params: Promise<{ slug: string }>
   return (
     <DashboardPage
       title={slug}
-      description={team.data?.team.name ?? 'Team'}
+      breadcrumb={[{ label: 'Teams', href: '/teams' }, { label: slug }]}
+      // The name only when it says something the slug does not: "quan" under "quan" is one
+      // fact twice.
+      description={team.data && team.data.team.name !== slug ? team.data.team.name : undefined}
       showPeriod={false}
       updatedAt={freshnessOf(team, inits)}
       metrics={
@@ -124,7 +127,7 @@ function InitiativeTable({ initiatives }: { initiatives: Initiative[] }) {
                   initiative with no flow has no chain of gates resolved against it, so no
                   required document and no closing rule is enforced on it. COUPLED: the same
                   words on /initiatives. */}
-              <TableCell hideBelow="lg" className="whitespace-nowrap text-[13px]">
+              <TableCell hideBelow="lg" className="whitespace-nowrap text-xs">
                 {i.flow
                   ? <span className="text-ink-soft">{i.flow}</span>
                   : <span className="text-ink-faint italic">not declared</span>}

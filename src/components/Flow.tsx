@@ -126,7 +126,7 @@ export function FlowStepper({ gates, outcome, steps, complete }: {
           // `min-w` so it never collapses to nothing on a tight row. `skipped` fills the
           // connector too — shared.ts treats a ruled-out step as passed through, not as a gap
           // the diagram should still look blocked on.
-          className={cn('ml-[12px] h-3 w-[1.5px] @min-[920px]:mt-[13px] @min-[920px]:ml-0 @min-[920px]:h-[1.5px] @min-[920px]:w-auto @min-[920px]:min-w-[14px] @min-[920px]:flex-1',
+          className={cn('ml-[12px] h-3 w-[1.5px] @min-[920px]:mt-[13px] @min-[920px]:ml-0 @min-[920px]:h-[1.5px] @min-[920px]:w-auto @min-[920px]:min-w-[8px] @min-[920px]:flex-[0.4]',
             stages[i - 1].state === 'done' || stages[i - 1].state === 'skipped' ? 'bg-[var(--green)]' : 'bg-line')}
         />,
       );
@@ -134,10 +134,13 @@ export function FlowStepper({ gates, outcome, steps, complete }: {
 
     items.push(
       <div key={`s${n}-${stage.name}`} title={stage.what}
-           className="flex items-center gap-2.5 @min-[920px]:w-[92px] @min-[920px]:shrink-0 @min-[920px]:flex-col @min-[920px]:gap-[7px]">
+           // In a row every node takes an equal share of the width, never a fixed one: a flow
+           // with ten stages and three gates does not fit ninety-two pixels a node, and a
+           // stepper wider than its card is clipped at the gate that matters most.
+           className="flex items-center gap-2.5 @min-[920px]:min-w-[60px] @min-[920px]:flex-1 @min-[920px]:basis-0 @min-[920px]:flex-col @min-[920px]:gap-[7px]">
         <span
           className={cn(
-            'relative grid size-[26px] shrink-0 place-items-center rounded-full border text-[10px] font-semibold',
+            'relative grid size-[26px] shrink-0 place-items-center rounded-full border text-[11px] font-semibold',
             done && 'border-[var(--green)] bg-[var(--green-tint)] text-[var(--green-text)]',
             partial && 'border-[var(--amber)] bg-[var(--amber-tint)] text-[var(--amber-text)]',
             now && !done && 'border-accent bg-accent text-[var(--on-accent)] ring-[3px] ring-accent-tint',
@@ -179,13 +182,13 @@ export function FlowStepper({ gates, outcome, steps, complete }: {
           {/* The outcome sits under the node that carries it, the way a gate says "approved"
               below itself, rather than as a sentence under the whole diagram. */}
           {isClosing && outcome ? (
-            <span className="block text-[10px] text-ink-faint">
+            <span className="block text-[11px] text-ink-faint">
               {outcome}{complete === false ? ' · stopped short' : ''}
             </span>
           ) : skipped ? (
-            <span className="block text-[10px] text-ink-faint">not on this branch</span>
+            <span className="block text-[11px] text-ink-faint">not on this branch</span>
           ) : waiting ? (
-            <span className="block text-[10px] text-ink-faint">waiting on the branch</span>
+            <span className="block text-[11px] text-ink-faint">waiting on the branch</span>
           ) : null}
           {/* `stage.what` is the node's `title`, not a line under it: a stepper is read at a
               glance, so the name shows and the description is one hover away. */}
@@ -194,11 +197,25 @@ export function FlowStepper({ gates, outcome, steps, complete }: {
     );
 
     for (const gate of here) {
+      const status = gate.passed ? 'approved' : gate.written ? 'waiting on a person' : 'not written yet';
+      // The track runs through the gate too, so the row reads as one line from open to close.
       items.push(
-        <div key={`g${n}-${gate.name}`} className="my-1 flex items-center gap-2 @min-[920px]:mx-[3px] @min-[920px]:my-0 @min-[920px]:shrink-0 @min-[920px]:flex-col @min-[920px]:gap-[7px]">
+        <span
+          key={`gc${n}-${gate.name}`}
+          aria-hidden
+          className={cn('ml-[12px] h-3 w-[1.5px] @min-[920px]:mt-[13px] @min-[920px]:ml-0 @min-[920px]:h-[1.5px] @min-[920px]:w-auto @min-[920px]:min-w-[8px] @min-[920px]:flex-[0.4]',
+            gate.written || gate.passed ? 'bg-[var(--green)]' : 'bg-line')}
+        />,
+      );
+      items.push(
+        // A gate is a diamond in a row and a pill in a column: circles are stages and diamonds
+        // are the points where a person has to sign, so the two read apart at a glance. In a row
+        // the name moves under the diamond, where a stage's name sits.
+        <div key={`g${n}-${gate.name}`} className="my-1 flex items-center gap-2 @min-[920px]:my-0 @min-[920px]:min-w-[60px] @min-[920px]:flex-1 @min-[920px]:basis-0 @min-[920px]:flex-col @min-[920px]:gap-[7px]">
           <span
             className={cn(
-              'inline-flex h-[26px] items-center gap-1 whitespace-nowrap rounded-full border px-2 text-[10px] font-medium',
+              'inline-flex h-[26px] items-center gap-1 whitespace-nowrap rounded-full border px-2 text-[11px] font-medium',
+              '@min-[920px]:size-[22px] @min-[920px]:mt-[2px] @min-[920px]:justify-center @min-[920px]:rotate-45 @min-[920px]:rounded-[var(--r-sm)] @min-[920px]:px-0',
               gate.passed
                 ? 'border-[var(--green)] bg-[var(--green-tint)] text-[var(--green-text)]'
                 // From the gate, not from the stage: a stage can hold two gates in
@@ -208,13 +225,19 @@ export function FlowStepper({ gates, outcome, steps, complete }: {
                   : 'border-dashed border-line-strong bg-surface text-ink-faint',
             )}
           >
-            {gate.passed
-              ? <Check className="size-3" strokeWidth={2.6} aria-hidden />
-              : <Lock className="size-3" aria-hidden />}
-            {gate.name}
+            <span className="inline-flex @min-[920px]:-rotate-45">
+              {gate.passed
+                ? <Check className="size-3" strokeWidth={2.6} aria-hidden />
+                : <Lock className="size-3" aria-hidden />}
+            </span>
+            <span className="@min-[920px]:hidden">{gate.name}</span>
           </span>
-          <span className="text-[10px] leading-tight text-ink-faint @min-[920px]:max-w-[78px] @min-[920px]:text-center">
-            {gate.passed ? 'approved' : gate.written ? 'waiting on a person' : 'not written yet'}
+          <span className="text-[11px] leading-tight text-ink-faint @min-[920px]:text-center">
+            <span className={cn('hidden @min-[920px]:block font-medium',
+              gate.passed ? 'text-[var(--green-text)]' : gate.written ? 'text-[var(--amber-text)]' : 'text-ink-faint')}>
+              {gate.name}
+            </span>
+            {status}
           </span>
         </div>,
       );
@@ -226,7 +249,7 @@ export function FlowStepper({ gates, outcome, steps, complete }: {
       <div className="@container pb-1.5">
         <div className="flex flex-col @min-[920px]:flex-row @min-[920px]:items-start">{items}</div>
       </div>
-      <div className="flex flex-wrap gap-4 text-[11.5px] text-ink-faint">
+      <div className="flex flex-wrap gap-x-4 gap-y-2 text-[11px] text-ink-faint">
         <Legend className="border-[var(--green)] bg-[var(--green-tint)]">done</Legend>
         <Legend className="border-accent bg-accent">where it is now</Legend>
         <Legend className="border-[var(--amber)] bg-[var(--amber-tint)]">written, waiting on a person</Legend>

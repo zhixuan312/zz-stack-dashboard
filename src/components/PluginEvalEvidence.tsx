@@ -14,7 +14,7 @@ function Quiet({ title, description }: { title: string; description: string }) {
   return (
     <div className="py-2">
       <p className="text-sm font-medium text-ink">{title}</p>
-      <p className="mt-0.5 text-[13px] text-ink-faint">{description}</p>
+      <p className="mt-0.5 text-xs text-ink-faint">{description}</p>
     </div>
   );
 }
@@ -119,6 +119,37 @@ export function EvalLearning({ findings }: { findings: PluginEval['findings'] | 
           <FindingTable rows={findings.strengths} emptyLabel="No strength is recorded against this run." />
         </div>
       </div>
+    </Panel>
+  );
+}
+
+/** The five evidence panels at once, for the state every plugin starts in: no completed run, so
+ *  no guardrail, dimension, snapshot, finding or candidate to show.
+ *
+ *  DELIBERATE: one panel, not five. Five full-width cards each saying "nothing yet" is a screen
+ *  of chrome around five sentences, and it pushes the skills table — the one thing on the page
+ *  with content — below the fold. The moment any of the five has something, the page goes back
+ *  to drawing them separately. */
+export function EvalNotYet({ evaluationOnly }: { evaluationOnly: boolean }) {
+  const parts: [string, string][] = [
+    ['Health', 'No completed run to read guardrails from.'],
+    ['Quality', 'No completed run to read dimensions from.'],
+    ['Usage', 'OBSERVE has not built a production snapshot for this subject.'],
+    ['Learning', 'No strength, defect or unknown recorded yet.'],
+    ['Evolution', evaluationOnly
+      ? 'A third-party plugin may still receive a proposal, once a plugin-owned finding seeds one.'
+      : 'No finding has started an improvement run.'],
+  ];
+  return (
+    <Panel title="Evaluation evidence" aside="no completed run yet" padded={false}>
+      <dl className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5">
+        {parts.map(([k, v]) => (
+          <div key={k} className="flex flex-col gap-1.5 border-line px-5 py-4 [&:not(:first-child)]:border-t sm:[&:not(:first-child)]:border-t-0 sm:[&:nth-child(n+3)]:border-t xl:[&:nth-child(n+3)]:border-t-0 xl:[&:not(:first-child)]:border-l">
+            <dt className="t-eyebrow">{k}</dt>
+            <dd className="text-xs leading-relaxed text-ink-soft">{v}</dd>
+          </div>
+        ))}
+      </dl>
     </Panel>
   );
 }

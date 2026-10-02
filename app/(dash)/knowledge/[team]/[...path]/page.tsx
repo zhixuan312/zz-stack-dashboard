@@ -58,13 +58,13 @@ export default function KnowledgeNodePage({
                     </div>
                   ) : null}
                   {/* Fills its card, like every other piece of content in this console. */}
-                  <p className="whitespace-pre-wrap break-words text-[13.5px] leading-[1.85] text-ink-soft">
+                  <p className="whitespace-pre-wrap break-words text-sm leading-[1.85] text-ink-soft">
                     {b.body.trim()}
                   </p>
                 </article>
               </Panel>
               <Panel title="About this node">
-                <dl className="flex flex-col gap-3 text-[13px]">
+                <dl className="flex flex-col gap-3 text-xs">
                   <Fact label="Status">
                     <Badge variant={b.status === 'adopted' ? 'sage' : 'neutral'} dot>{b.status}</Badge>
                   </Fact>

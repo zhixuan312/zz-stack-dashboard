@@ -4,6 +4,7 @@ import { CHIP, type ChipTint } from '@/lib/tints';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Ticker } from '@/components/ui/ticker';
+import { formatCount } from '@/lib/format';
 
 /**
  * MetricCard — one cell of the status row, and usually the dominant object on
@@ -205,7 +206,10 @@ export function MetricCard({
         <span
           className={cn('t-stat', muted ? '!text-ink-faint' : emphasis ? '!text-accent-deep' : '!text-ink')}
         >
-          {typeof value === 'string' ? <Ticker value={value} /> : value}
+          {/* A bare number is a count: grouped like every other count, and counted up like
+              every other figure. */}
+          {typeof value === 'number' ? <Ticker value={formatCount(value)} />
+            : typeof value === 'string' ? <Ticker value={value} /> : value}
         </span>
         {delta && delta.was ? (
           <Tooltip>

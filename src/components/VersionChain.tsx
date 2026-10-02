@@ -124,7 +124,7 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
                         className="flex w-full items-baseline gap-2 text-left"
                       >
                         <FileText className="mt-0.5 size-3.5 shrink-0 text-ink-faint" aria-hidden />
-                        <span className="min-w-0 flex-1 break-words text-[13px] text-accent hover:underline">
+                        <span className="min-w-0 flex-1 break-words text-sm text-accent hover:underline">
                           {s.title || s.path.replace(/^sources\//, '')}
                         </span>
                         <span className="whitespace-nowrap font-mono text-[11px] text-ink-faint">
@@ -133,7 +133,7 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
                       </button>
                       {openSource === s.path ? (
                         // The person's own words, verbatim, which is what a source is.
-                        <p className="mt-2 max-w-[80ch] whitespace-pre-wrap break-words rounded-[var(--r-sm)] border-l-2 border-accent bg-surface px-3 py-2 text-[13px] leading-relaxed text-ink-soft">
+                        <p className="mt-2 max-w-[80ch] whitespace-pre-wrap break-words rounded-[var(--r-sm)] border-l-2 border-accent bg-surface px-3 py-2 text-sm leading-relaxed text-ink-soft">
                           {s.body?.trim() || '(no text stored)'}
                         </p>
                       ) : null}
@@ -142,7 +142,7 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
                 </ul>
               </div>
             ) : (
-              <p className="text-[13px] text-ink-faint">
+              <p className="text-sm text-ink-faint">
                 No source is attached to this document, so the record does not say what
                 prompted the change.
               </p>
@@ -153,7 +153,7 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
                 v1 byte-identical to the live file, and running that through the diff produces a
                 panel headed "what changed" containing "86 unchanged lines". */}
             {!stat.added && !stat.removed ? (
-              <p className="rounded-[var(--r)] bg-surface-2 px-3.5 py-2.5 text-[13px] leading-relaxed text-ink-soft">
+              <p className="rounded-[var(--r)] bg-surface-2 px-3.5 py-2.5 text-sm leading-relaxed text-ink-soft">
                 <strong className="text-ink">{stepLabel(pair.after)}</strong> and{' '}
                 <strong className="text-ink">{stepLabel(pair.before)}</strong> carry the same
                 content.
@@ -210,8 +210,8 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
           <ul className="flex flex-col gap-3">
             {sources.map((s) => (
               <li key={s.path}>
-                <p className="break-words text-[13px] font-medium text-ink">{s.title || s.path}</p>
-                <p className="mt-1 max-w-[80ch] whitespace-pre-wrap break-words text-[13px] leading-relaxed text-ink-soft">
+                <p className="break-words text-sm font-medium text-ink">{s.title || s.path}</p>
+                <p className="mt-1 max-w-[80ch] whitespace-pre-wrap break-words text-sm leading-relaxed text-ink-soft">
                   {s.body?.trim()}
                 </p>
               </li>
@@ -232,7 +232,7 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
         >
           <ul className="divide-y divide-line">
             {stepPage.map((st) => (
-              <li key={st.first.path} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-2.5 text-[13px]">
+              <li key={st.first.path} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-2.5 text-sm">
                 <GitCompare className="mt-0.5 size-3.5 shrink-0 text-ink-faint" aria-hidden />
                 <span className="w-24 font-mono text-xs text-ink">{stepLabel(st)}</span>
                 <span className="min-w-0 flex-1 break-all font-mono text-xs text-ink-faint">{st.first.path}</span>

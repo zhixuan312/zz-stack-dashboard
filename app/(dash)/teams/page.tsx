@@ -131,7 +131,7 @@ function TeamTable({ teams, resetKey }: { teams: Team[]; resetKey: string }) {
                 <Link href={`/teams/${t.slug}`} className="row-link font-medium text-ink">
                   {t.slug}
                 </Link>
-                <span className="block text-xs text-ink-faint">{t.name}</span>
+                {t.name !== t.slug ? <span className="block text-xs text-ink-faint">{t.name}</span> : null}
               </TableCell>
               <TableCell hideBelow="md">
                 <Badge variant={t.status === 'active' ? 'sage' : 'neutral'} dot>

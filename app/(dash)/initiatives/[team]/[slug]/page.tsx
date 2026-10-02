@@ -31,12 +31,8 @@ export default function InitiativePage({
   return (
     <DashboardPage
       title={slug}
-      description={
-        <>
-          in <Link href={`/teams/${team}`} className="text-accent hover:underline">{team}</Link>
-          {' · '}read from the document store — the platform stamped every gate
-        </>
-      }
+      breadcrumb={[{ label: 'Initiatives', href: '/initiatives' }, { label: team, href: `/teams/${team}` }, { label: slug }]}
+      description="Read from the document store — the platform stamped every gate."
       showPeriod={false}
       updatedAt={freshnessOf(q)}
     >

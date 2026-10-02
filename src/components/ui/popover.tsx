@@ -42,7 +42,7 @@ export function PopoverContent({
         // phone, where 34rem is wider than the screen.
         className={cn(
           'ds-pop z-50 w-[min(34rem,calc(100vw-2rem))] rounded-[var(--r-lg)] border border-line',
-          'bg-surface p-4 text-[13px] leading-[1.6] text-ink-soft shadow-[var(--shadow-pop)]',
+          'bg-surface p-4 text-sm leading-[1.6] text-ink-soft shadow-[var(--shadow-pop)]',
           // DELIBERATE: no height cap and no scroll of its own, though this is a portalled
           // layer. One-scroller is about how many things a reader can be scrolling, not
           // which element owns the overflow. Content too long to stand gets shortened or

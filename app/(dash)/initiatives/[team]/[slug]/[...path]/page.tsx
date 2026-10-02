@@ -82,7 +82,7 @@ export default function DocumentPage({
               // row is for ordering and is excluded here the same way the chain excludes it.
               version={Math.max(1, ...d.versions.map((v) => v.version).filter((n) => n !== 9999))}
               approvers={
-                <dl className="flex flex-wrap items-center gap-x-6 gap-y-1 border-b border-line bg-surface-2/40 px-5 py-2.5 text-[13px]">
+                <dl className="flex flex-wrap items-center gap-x-6 gap-y-1 border-b border-line bg-surface-2/40 px-5 py-2.5 text-xs">
                   <span className="flex items-center gap-2">
                     <dt className="text-ink-faint">Approved by</dt>
                     <dd className="break-all font-mono text-xs text-ink">
@@ -111,7 +111,7 @@ export default function DocumentPage({
               body={
                 <div className="flex flex-col gap-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
-                    <dl className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[13px]">
+                    <dl className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
                       <span className="flex items-center gap-2">
                         <dt className="text-ink-faint">Type</dt>
                         <dd><Badge variant="neutral">{d.type}</Badge></dd>
@@ -157,7 +157,7 @@ export default function DocumentPage({
                     ) : (
                       // Wrapped, not scrolled sideways: a source line longer than the
                       // column breaks, and a hard-wrapped one is untouched.
-                      <pre className="whitespace-pre-wrap break-words font-mono text-[12.5px] leading-[1.7] text-ink-soft">
+                      <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-[1.7] text-ink-soft">
                         {d.body}
                       </pre>
                     )

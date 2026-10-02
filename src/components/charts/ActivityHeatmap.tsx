@@ -57,7 +57,7 @@ export function ActivityHeatmap({
           <div className="mb-1 grid grid-cols-[2.5rem_repeat(24,minmax(0,1fr))] items-end gap-[2px]">
             <span />
             {Array.from({ length: 24 }, (_, h) => (
-              <span key={h} className="text-center font-mono text-[10px] text-ink-faint">
+              <span key={h} className="text-center font-mono text-[11px] text-ink-faint">
                 {h % 3 === 0 ? String(h).padStart(2, '0') : ''}
               </span>
             ))}
@@ -68,7 +68,7 @@ export function ActivityHeatmap({
               key={day}
               className="grid grid-cols-[2.5rem_repeat(24,minmax(0,1fr))] items-center gap-[2px] py-[1px]"
             >
-              <span className="pr-2 text-right font-mono text-[10px] text-ink-faint">{day}</span>
+              <span className="pr-2 text-right font-mono text-[11px] text-ink-faint">{day}</span>
               {Array.from({ length: 24 }, (_, h) => {
                 const value = byKey.get(`${d}:${h}`) ?? 0;
                 const t = intensity(value);
