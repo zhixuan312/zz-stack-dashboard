@@ -301,7 +301,7 @@ export default function OverviewPage() {
       updatedAt={freshnessOf(q)}
       metrics={m ? buildMetrics(m) : undefined}
     >
-      <Query query={q} skeleton={<SkeletonPage metrics={0} />}>
+      <Query query={q} skeleton={<SkeletonPage metrics={4} />}>
         {(d) => {
           /* Summed from the bars, not counted separately: the header states the total of the
              chart beneath it, so reading it off anything else lets the two disagree. */
