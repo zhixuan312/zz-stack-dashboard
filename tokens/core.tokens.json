@@ -383,15 +383,7 @@
     }
   },
   "blur": {
-    "$description": "Blur: the frost behind glass. Only translucent layers over moving content use it: the rail, the stuck top bar, the shell tools, a scrim.",
-    "blur-sm": {
-      "$type": "dimension",
-      "$value": {
-        "value": 8,
-        "unit": "px"
-      },
-      "$description": "A scrim over the page, behind a dialog or the phone rail."
-    },
+    "$description": "Blur: the frost behind glass. Only translucent layers over moving content use it: the rail, the stuck top bar, the shell tools. A scrim only dims: blurring the whole page behind a dialog or the phone rail cost a phone more than 100 ms on every open.",
     "blur-md": {
       "$type": "dimension",
       "$value": {

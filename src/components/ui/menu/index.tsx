@@ -35,8 +35,15 @@ const item = MENU_ITEM;
 export function MenuItem({ className, shortcut, tone, children, ...rest }: ComponentProps<typeof M.Item> & { shortcut?: ReactNode; tone?: 'critical' }) {
   return (
     <M.Item className={cn(item, tone === 'critical' && 'text-critical-ink [&_svg]:text-critical-ink', className)} {...rest}>
-      {children}
-      {shortcut ? <span className="ml-auto pl-4 text-xs text-ink-3">{shortcut}</span> : null}
+      {/* asChild hands the item to its one child (a Link): Radix's Slot takes exactly one, so no shortcut beside it. */}
+      {rest.asChild ? (
+        children
+      ) : (
+        <>
+          {children}
+          {shortcut ? <span className="ml-auto pl-4 text-xs text-ink-3">{shortcut}</span> : null}
+        </>
+      )}
     </M.Item>
   );
 }

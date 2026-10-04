@@ -26,7 +26,7 @@ export function Breadcrumb({ items, className }: { items: Crumb[]; className?: s
               <li className={cn('flex min-w-0 items-center', last ? 'shrink' : 'shrink-0')}>
                 {c === 'fold' ? (
                   <Menu>
-                    <MenuTrigger aria-label={`${hidden.length} more levels`} className="press grid h-5 w-6 place-items-center rounded-xs text-ink-3 hover:bg-fill-hover hover:text-ink">
+                    <MenuTrigger aria-label={`${hidden.length} more levels`} className="press hit grid h-5 w-6 place-items-center rounded-xs text-ink-3 hover:bg-fill-hover hover:text-ink">
                       <MoreHorizontal className="size-3.5" />
                     </MenuTrigger>
                     <MenuContent>
@@ -40,7 +40,8 @@ export function Breadcrumb({ items, className }: { items: Crumb[]; className?: s
                 ) : last ? (
                   <span aria-current="page" className="truncate font-medium text-ink">{c.label}</span>
                 ) : c.href ? (
-                  <Link href={c.href} className="row-link truncate text-ink-2 hover:text-ink">{c.label}</Link>
+                  // The hit area is drawn outside the link, so the link itself does not clip: the label inside it truncates.
+                  <Link href={c.href} className="hit row-link flex min-w-0 text-ink-2 hover:text-ink"><span className="truncate">{c.label}</span></Link>
                 ) : (
                   <span className="truncate text-ink-2">{c.label}</span>
                 )}

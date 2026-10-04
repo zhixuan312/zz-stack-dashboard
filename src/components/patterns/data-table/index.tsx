@@ -6,6 +6,7 @@ import { useMemo, useState, type MouseEvent, type ReactNode } from 'react';
 import { RotateCw } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui/button';
+import { CardHeader } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Pagination } from '@/components/ui/pagination';
@@ -29,7 +30,7 @@ export type Column<R> = {
   hideBelow?: Breakpoint;
   /** The one column that takes the remaining width: the record's name. */
   grow?: boolean;
-  /** A width class for a column whose content is short and fixed (an ID, a key), so the spare width goes elsewhere. */
+  /** A width class for a column whose content is short and fixed (an ID, a key, a date), so the spare width goes to the others: `w-28`. */
   width?: string;
   /**
    * Its place in the card a row becomes on phones: the `title` (one column, the record's name), a `status` at the end
@@ -67,6 +68,9 @@ export function DataTable<R>({
   rowHref,
   caption,
   noun = 'rows',
+  title,
+  description,
+  actions,
   toolbar,
   state: controlled,
   onStateChange,
@@ -94,6 +98,12 @@ export function DataTable<R>({
   caption: string;
   /** What a row is, for the range line and the empty states: "requests". */
   noun?: string;
+  /** The card's heading, when the table is one card among others on a page: "Claims", "Members". */
+  title?: ReactNode;
+  /** One line under the title: what the rows are, or how they are ordered. */
+  description?: ReactNode;
+  /** Beside the title: a link to the full view, an export. */
+  actions?: ReactNode;
   /** A band above the table, inside the card: a Filter bar. */
   toolbar?: ReactNode;
   /** Sort and page from outside (the URL, with useTableQuery); otherwise the table keeps its own. */
@@ -159,7 +169,7 @@ export function DataTable<R>({
     router.push(href);
   };
 
-  const title = columns.find((c) => c.mobile === 'title') ?? columns[0];
+  const titleColumn = columns.find((c) => c.mobile === 'title') ?? columns[0];
   const status = columns.find((c) => c.mobile === 'status');
   const facts = columns.filter((c) => c.mobile === 'fact').slice(0, 3);
 
@@ -223,7 +233,7 @@ export function DataTable<R>({
                         ) : null}
                         {columns.map((c) => (
                           <TableCell key={c.key} align={c.align} numeric={c.numeric} muted={c.muted} truncate={c.truncate} hideBelow={c.hideBelow}>
-                            {c === title && href ? <Link href={href} className="row-link">{c.cell(r)}</Link> : c.cell(r)}
+                            {c === titleColumn && href ? <Link href={href} className="row-link">{c.cell(r)}</Link> : c.cell(r)}
                           </TableCell>
                         ))}
                       </TableRow>
@@ -247,7 +257,7 @@ export function DataTable<R>({
                   <>
                     <span className="flex min-w-0 items-center gap-3">
                       {selectable ? <Checkbox aria-label={`Select ${k}`} checked={sel.has(k)} onCheckedChange={() => toggle(k)} /> : null}
-                      <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{(title.mobileCell ?? title.cell)(r)}</span>
+                      <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{(titleColumn.mobileCell ?? titleColumn.cell)(r)}</span>
                       {status ? <span className="shrink-0">{(status.mobileCell ?? status.cell)(r)}</span> : null}
                     </span>
                     {facts.length ? (
@@ -279,6 +289,7 @@ export function DataTable<R>({
 
   return (
     <section aria-label={caption} className={cn('relative flex min-w-0 flex-col overflow-hidden rounded-lg border border-line bg-surface shadow-card', className)}>
+      {title ? <CardHeader title={title} description={description} actions={actions} divided={!toolbar} /> : null}
       {toolbar ? <div className="px-(--card-pad) py-3.5 md:border-b md:border-line">{toolbar}</div> : null}
       {body}
       {!error && total > Math.min(size, ...pageSizes) ? (

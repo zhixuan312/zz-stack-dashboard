@@ -21,7 +21,7 @@ export function openCommand() {
  * Every destination and every global action behind one keystroke (⌘K or Ctrl K). Type to filter; the arrow keys
  * move, Enter runs, Escape closes. Matches are ranked by where the query starts, then by order.
  */
-export function CommandPalette({ nav }: { /** Every destination the rail offers, one "Go to" each. */ nav: NavGroup[] }) {
+export function CommandPalette({ nav }: { /** Every destination the rail offers, one "Go to" each: pass the same groups as the Rail. */ nav: NavGroup[] }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   // The cursor belongs to one query: typing, or opening afresh, starts it at the top again without an effect.
@@ -87,7 +87,7 @@ export function CommandPalette({ nav }: { /** Every destination the rail offers,
   return (
     <D.Root open={open} onOpenChange={(o) => { setOpen(o); if (!o) setQ(''); }}>
       <D.Portal>
-        <D.Overlay className="scrim-in fixed inset-0 z-(--layer-overlay) bg-scrim backdrop-blur-[2px]" />
+        <D.Overlay className="scrim-in fixed inset-0 z-(--layer-overlay) bg-scrim" />
         <D.Content
           aria-describedby={undefined}
           className="dialog-in fixed top-[14vh] left-1/2 z-(--layer-overlay) w-[min(600px,calc(100vw-24px))] -translate-x-1/2 overflow-hidden rounded-xl bg-surface-raised shadow-overlay"

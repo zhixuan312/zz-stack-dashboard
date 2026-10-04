@@ -1,7 +1,14 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/cn';
 
-export type KeyValueItem = { label: ReactNode; value: ReactNode; action?: ReactNode; mono?: boolean; /** A value read in full (a path, an address, a list of links): it wraps instead of ending in an ellipsis. */ wrap?: boolean };
+export type KeyValueItem = {
+  label: ReactNode;
+  value: ReactNode;
+  action?: ReactNode;
+  mono?: boolean;
+  /** A value read in full (a path, an address, a list of links): it wraps instead of ending in an ellipsis. */
+  wrap?: boolean;
+};
 
 /**
  * Facts about one thing, label and value per row, divided by hairlines: a request's method and status, a key's

@@ -26,7 +26,8 @@ export const RadioGroup = forwardRef<HTMLDivElement, Omit<ComponentPropsWithoutR
                 'peer relative grid size-4 shrink-0 place-items-center rounded-full border border-line-control bg-surface',
                 'transition-[border-color,background-color] duration-(--dur-hover) hover:border-ink-3',
                 'data-[state=checked]:border-accent data-[state=checked]:bg-accent',
-                'before:absolute before:-inset-2 before:content-[""]',
+                // The hit area: 32px for a pointer, 44px for a finger.
+                'before:absolute before:-inset-2 before:content-[""] pointer-coarse:before:-inset-4',
                 'disabled:cursor-not-allowed disabled:border-line-strong disabled:bg-surface-sunk',
               )}
             >
@@ -55,7 +56,7 @@ export const RadioGroup = forwardRef<HTMLDivElement, Omit<ComponentPropsWithoutR
           return (
             <div key={o.value} className="flex items-start gap-2.5">
               <span className="flex h-5 items-center">{dot}</span>
-              <label htmlFor={id} className={cn('min-w-0 text-sm leading-5', o.disabled ? 'cursor-not-allowed text-ink-disabled' : 'cursor-pointer text-ink')}>
+              <label htmlFor={id} data-disabled={o.disabled ? '' : undefined} className={cn('min-w-0 text-sm leading-5 pointer-coarse:-my-3 pointer-coarse:py-3', o.disabled ? 'cursor-not-allowed text-ink-disabled' : 'cursor-pointer text-ink')}>
                 {o.label}
                 {o.description ? <span className="block text-xs leading-snug text-ink-3">{o.description}</span> : null}
               </label>

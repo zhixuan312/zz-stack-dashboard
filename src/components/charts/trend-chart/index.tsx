@@ -22,6 +22,9 @@ export type TrendSeries = {
  * A time series: one shared axis, at most one area, any number of lines. Never two y-scales: two measures of a
  * different size are two charts on one Meridian. Point, or move with the arrow keys, to read a day; every chart on
  * the page follows.
+ *
+ * `stacked` is the other form: the series are the parts of one whole (calls split into attributed, unattributed and
+ * refused), drawn as bands one on another, so the top edge is the total. The readout names each part and the total.
  */
 export function TrendChart({
   dates,
@@ -31,6 +34,7 @@ export function TrendChart({
   label,
   legend,
   tick,
+  stacked = false,
   className,
 }: {
   dates: string[];
@@ -44,6 +48,8 @@ export function TrendChart({
   legend?: boolean;
   /** How a point's instant reads, on the axis and in the readout, when the points are not days: "14:00", "Week of 3 Mar". */
   tick?: (date: string) => string;
+  /** The series are parts of one whole: bands stacked in order, the first at the bottom, each in its categorical slot. */
+  stacked?: boolean;
   className?: string;
 }) {
   const [box, size] = useSize<HTMLDivElement>();
@@ -56,7 +62,19 @@ export function TrendChart({
 
   const fmt = FORMATTERS[format];
   const axis = AXIS_FORMATTERS[format];
-  const max = Math.max(1, ...series.flatMap((s) => s.values.filter((v): v is number => v !== null)));
+  // Stacked, each band sits on the sum of the ones below it; a missing value is no contribution that day.
+  const bases = useMemo(() => {
+    if (!stacked) return null;
+    const acc = dates.map(() => 0);
+    return series.map((s) => {
+      const lower = [...acc];
+      s.values.forEach((v, i) => (acc[i] += v ?? 0));
+      return { lower, upper: [...acc] };
+    });
+  }, [stacked, series, dates]);
+  const totals = bases ? bases[bases.length - 1]?.upper ?? [] : null;
+  const colorOf = (s: TrendSeries, k: number) => SERIES_VAR(s.color ?? (stacked ? k + 1 : s.kind === 'dashed' ? 'neutral' : 'accent'));
+  const max = Math.max(1, ...(totals ?? series.flatMap((s) => s.values.filter((v): v is number => v !== null))));
   const ticks = niceTicks(max, h < 200 ? 3 : 4);
   const top = ticks[ticks.length - 1];
   const left = Math.max(...ticks.map((t) => axis(t).length)) * 6.4 + 12;
@@ -66,6 +84,17 @@ export function TrendChart({
   const n = dates.length;
   const x = (i: number) => pad.l + (n <= 1 ? W / 2 : (i / (n - 1)) * W);
   const y = (v: number) => pad.t + H - (v / top) * H;
+
+  const bands = useMemo(
+    () =>
+      bases?.map(({ lower, upper }, k) => {
+        const top = upper.map((v, i) => [x(i), y(v)] as [number, number]);
+        const bottom = lower.map((v, i) => [x(i), y(v)] as [number, number]).reverse();
+        return { s: series[k], k, line: monotonePath(top), area: `${monotonePath(top)}${monotonePath(bottom).replace(/^M/, 'L')}Z` };
+      }) ?? [],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [bases, width, h, top],
+  );
 
   const paths = useMemo(
     () =>
@@ -141,7 +170,14 @@ export function TrendChart({
               {tick ? tick(d) : formatDate(d).replace(/,? \d{4}$/, '')}
             </text>
           ))}
-          {paths.map(({ s, area, line }) => (
+          {bands.map(({ s, k, area, line }) => (
+            <g key={`${s.key}-${dates[0]}-${n}`} className="reveal-x">
+              <path d={area} fill={colorOf(s, k)} fillOpacity={0.78} />
+              {/* A hairline of the card between bands, so neighbouring parts never run together. */}
+              <path d={line} fill="none" stroke="var(--surface)" strokeWidth={1.5} strokeLinejoin="round" />
+            </g>
+          ))}
+          {(stacked ? [] : paths).map(({ s, area, line }) => (
             // Keyed by the span it shows: a new period redraws the line from the left instead of snapping to new data.
             <g key={`${s.key}-${dates[0]}-${n}`}>
               {s.kind === 'area' ? <path d={area} fill={`url(#${gid}-${s.key})`} className="reveal-x" /> : null}
@@ -163,10 +199,10 @@ export function TrendChart({
             // The cursor glides from day to day (transform, so it eases) rather than jumping.
             <g pointerEvents="none" className="transition-transform duration-(--dur-hover) ease-out" style={{ transform: `translateX(${cx}px)` }}>
               <line x1={0} x2={0} y1={pad.t - 6} y2={pad.t + H} stroke="var(--ink-3)" strokeOpacity={0.55} />
-              {series.map((s) => {
-                const v = s.values[active];
+              {series.map((s, k) => {
+                const v = bases ? bases[k].upper[active] : s.values[active];
                 return v === null ? null : (
-                  <circle key={s.key} cx={0} cy={0} r={4} className="transition-transform duration-(--dur-hover) ease-out" style={{ transform: `translateY(${y(v)}px)` }} fill={SERIES_VAR(s.color ?? (s.kind === 'dashed' ? 'neutral' : 'accent'))} stroke="var(--surface)" strokeWidth={2} />
+                  <circle key={s.key} cx={0} cy={0} r={4} className="transition-transform duration-(--dur-hover) ease-out" style={{ transform: `translateY(${y(v)}px)` }} fill={colorOf(s, k)} stroke="var(--surface)" strokeWidth={2} />
                 );
               })}
             </g>
@@ -175,10 +211,10 @@ export function TrendChart({
       ) : null}
       {showLegend && width > 0 ? (
         <ul aria-hidden className="absolute top-0 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-2" style={{ left: pad.l }}>
-          {series.map((s) => (
+          {series.map((s, k) => (
             <li key={s.key} className="flex items-center gap-1.5">
               <svg width="14" height="4" className="shrink-0 overflow-visible">
-                <line x1="1" x2="13" y1="2" y2="2" stroke={SERIES_VAR(s.color ?? (s.kind === 'dashed' ? 'neutral' : 'accent'))} strokeWidth={2} strokeLinecap="round" strokeDasharray={s.kind === 'dashed' ? '2 3' : undefined} />
+                <line x1="1" x2="13" y1="2" y2="2" stroke={colorOf(s, k)} strokeWidth={stacked ? 4 : 2} strokeLinecap="round" strokeDasharray={s.kind === 'dashed' ? '2 3' : undefined} />
               </svg>
               {s.label}
             </li>
@@ -196,19 +232,26 @@ export function TrendChart({
           style={{ top: pad.t - 4, left: tipLeft ? undefined : cx + 12, right: tipLeft ? width - cx + 12 : undefined }}
         >
           <p className="t-eyebrow mb-1.5">{tick ? tick(dates[active]) : formatDate(dates[active])}</p>
-          {series.map((s) => (
+          {/* Stacked, the readout lists the bands top to bottom, as they sit on the chart, then the total. */}
+          {(stacked ? series.map((s, k) => ({ s, k })).reverse() : series.map((s, k) => ({ s, k }))).map(({ s, k }) => (
             <p key={s.key} className="flex items-center gap-2 text-xs leading-6">
-              <span className="h-0.5 w-2.5 rounded-full" style={{ background: SERIES_VAR(s.color ?? (s.kind === 'dashed' ? 'neutral' : 'accent')) }} />
+              <span className={cn('w-2.5 rounded-full', stacked ? 'h-1' : 'h-0.5')} style={{ background: colorOf(s, k) }} />
               <span className="text-ink-2">{s.label}</span>
               <span className="t-num ml-auto pl-4 font-medium text-ink">{fmt(s.values[active])}</span>
             </p>
           ))}
+          {totals ? (
+            <p className="mt-1 flex items-center gap-2 border-t border-line pt-1 text-xs leading-6">
+              <span className="text-ink-2">Total</span>
+              <span className="t-num ml-auto pl-4 font-semibold text-ink">{fmt(totals[active])}</span>
+            </p>
+          ) : null}
         </div>
       ) : null}
       <table className="sr-only">
         <caption>{label}</caption>
-        <thead><tr><th>Date</th>{series.map((s) => <th key={s.key}>{s.label}</th>)}</tr></thead>
-        <tbody>{dates.map((d, i) => <tr key={d}><td>{d}</td>{series.map((s) => <td key={s.key}>{fmt(s.values[i])}</td>)}</tr>)}</tbody>
+        <thead><tr><th>Date</th>{series.map((s) => <th key={s.key}>{s.label}</th>)}{totals ? <th>Total</th> : null}</tr></thead>
+        <tbody>{dates.map((d, i) => <tr key={d}><td>{d}</td>{series.map((s) => <td key={s.key}>{fmt(s.values[i])}</td>)}{totals ? <td>{fmt(totals[i])}</td> : null}</tr>)}</tbody>
       </table>
     </div>
   );

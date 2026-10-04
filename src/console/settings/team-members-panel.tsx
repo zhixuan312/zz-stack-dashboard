@@ -9,7 +9,8 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PageControl, usePaged } from '@/console/paged';
+import { usePaged } from '@/components/ui/pagination';
+import { PageControl } from '@/console/paged';
 import { Select } from '@/components/ui/select';
 import { toast } from '@/components/ui/toast';
 import { ApiError, useConsole } from '@/lib/api';
@@ -129,7 +130,7 @@ function MembersTable({ rows, team, pending, onRole, onRemove }: {
   onRole: (email: string, next: 'member' | 'admin') => void;
   onRemove: (email: string) => void;
 }) {
-  const { page, controls } = usePaged(rows, team);
+  const { rows: page, ...pager } = usePaged(rows, { resetKey: team });
   return (
     <>
       <Table>
@@ -160,7 +161,7 @@ function MembersTable({ rows, team, pending, onRole, onRemove }: {
           ))}
         </TableBody>
       </Table>
-      <PageControl {...controls} />
+      <PageControl {...pager} />
     </>
   );
 }

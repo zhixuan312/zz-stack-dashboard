@@ -5,7 +5,8 @@ import { Query } from '@/console/query';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PageControl, usePaged } from '@/console/paged';
+import { usePaged } from '@/components/ui/pagination';
+import { PageControl } from '@/console/paged';
 import { toast } from '@/components/ui/toast';
 import { useConsole } from '@/lib/api';
 import { type MyTeams } from '@/lib/api-shapes';
@@ -61,7 +62,7 @@ export function TeamsPanel() {
 
 /** Its own component so it can hold the page state — the rows come from a `Query` render prop. */
 function TeamsTable({ t, pending, onSwitch }: { t: MyTeams; pending: boolean; onSwitch: (team: string) => void }) {
-  const { page, controls } = usePaged(t.teams);
+  const { rows: page, ...pager } = usePaged(t.teams);
   return (
     <>
       <Table>
@@ -103,7 +104,7 @@ function TeamsTable({ t, pending, onSwitch }: { t: MyTeams; pending: boolean; on
         </TableBody>
       </Table>
       {t.note ? <p className="border-t border-line px-4 py-3 text-xs text-ink-3">{t.note}</p> : null}
-      <PageControl {...controls} />
+      <PageControl {...pager} />
     </>
   );
 }

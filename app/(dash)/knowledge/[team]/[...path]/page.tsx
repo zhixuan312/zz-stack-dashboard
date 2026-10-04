@@ -12,7 +12,7 @@ import { aligned } from '@/console/columns';
 import { KnowledgeTabs } from '@/console/knowledge-tabs';
 import { ConsolePage } from '@/console/page';
 import { Panel } from '@/console/panel';
-import { Prose } from '@/console/prose';
+import { Prose } from '@/components/patterns/prose';
 import { Query } from '@/console/query';
 import { When } from '@/console/when';
 import { freshnessOf, useConsole } from '@/lib/api';

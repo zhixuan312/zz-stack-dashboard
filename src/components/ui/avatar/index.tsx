@@ -16,6 +16,7 @@ export function Avatar({ name, src, size = 'md', className }: { name: string; sr
       className={cn('relative inline-grid shrink-0 place-items-center overflow-hidden rounded-full font-semibold ring-2 ring-surface', SIZE[size], className)}
       style={{ background: `color-mix(in oklab, var(--series-${slot}) 22%, var(--surface))`, color: `color-mix(in oklab, var(--series-${slot}) 52%, var(--ink))` }}
     >
+      {/* eslint-disable-next-line @next/next/no-img-element -- a decorative 20-40px picture from any origin the product's users have; next/image would need every origin listed in next.config. */}
       {src ? <img src={src} alt="" className="size-full object-cover" /> : initials}
     </span>
   );

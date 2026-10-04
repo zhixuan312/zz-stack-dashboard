@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { Check, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { IconButton } from '@/components/ui/icon-button';
@@ -100,4 +101,31 @@ export function Pagination({
       </div>
     </nav>
   );
+}
+
+/**
+ * A list that is not a data table, paged: a roster in a settings card, a short list inside a card. `resetKey` is
+ * whatever narrows the rows (a search, a filter): the page is remembered against it, so narrowing lands on the first
+ * page without an effect. The page is clamped on read, so a refetch that returns fewer rows never leaves an empty page.
+ * Spread `pagination` onto <Pagination> when `paged` is true; a list that fits on one page shows no pager.
+ */
+export function usePaged<T>(rows: readonly T[], { pageSize = 10, resetKey = '' }: { pageSize?: number; resetKey?: string } = {}) {
+  const [size, setSize] = useState(pageSize);
+  const [at, setAt] = useState({ key: resetKey, page: 1 });
+  const count = Math.max(1, Math.ceil(rows.length / size));
+  const page = at.key === resetKey ? Math.min(at.page, count) : 1;
+  return {
+    rows: rows.slice((page - 1) * size, page * size),
+    paged: rows.length > pageSize,
+    pagination: {
+      page,
+      pageSize: size,
+      total: rows.length,
+      onPageChange: (p: number) => setAt({ key: resetKey, page: p }),
+      onPageSizeChange: (n: number) => {
+        setSize(n);
+        setAt({ key: resetKey, page: 1 });
+      },
+    },
+  };
 }

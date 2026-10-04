@@ -13,7 +13,8 @@ import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { When } from '@/console/when';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PageControl, usePaged } from '@/console/paged';
+import { usePaged } from '@/components/ui/pagination';
+import { PageControl } from '@/console/paged';
 import { toast } from '@/components/ui/toast';
 import { ApiError, useConsole } from '@/lib/api';
 import { type PlatformPersonRow } from '@/lib/api-shapes';
@@ -188,7 +189,7 @@ function PeopleTable({ rows, enrolling, deactivating, onEnrol, onDeactivate }: {
   onEnrol: (email: string) => void;
   onDeactivate: (email: string) => void;
 }) {
-  const { page, controls } = usePaged(rows);
+  const { rows: page, ...pager } = usePaged(rows);
   return (
     <>
       <Table>
@@ -250,7 +251,7 @@ function PeopleTable({ rows, enrolling, deactivating, onEnrol, onDeactivate }: {
           ))}
         </TableBody>
       </Table>
-      <PageControl {...controls} />
+      <PageControl {...pager} />
     </>
   );
 }

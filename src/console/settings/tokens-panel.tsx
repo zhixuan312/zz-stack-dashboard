@@ -14,7 +14,8 @@ import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { When } from '@/console/when';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PageControl, usePaged } from '@/console/paged';
+import { usePaged } from '@/components/ui/pagination';
+import { PageControl } from '@/console/paged';
 import { toast } from '@/components/ui/toast';
 import { ApiError, useConsole } from '@/lib/api';
 import { type IssuedToken, type MyAccessToken } from '@/lib/api-shapes';
@@ -145,7 +146,7 @@ export function TokensPanel() {
 function TokensTable({ rows, pending, onRevoke }: {
   rows: MyAccessToken[]; pending: boolean; onRevoke: (id: string) => void;
 }) {
-  const { page, controls } = usePaged(rows);
+  const { rows: page, ...pager } = usePaged(rows);
   return (
     <>
       <Table>
@@ -188,7 +189,7 @@ function TokensTable({ rows, pending, onRevoke }: {
           ))}
         </TableBody>
       </Table>
-      <PageControl {...controls} />
+      <PageControl {...pager} />
     </>
   );
 }

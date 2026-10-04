@@ -1,4 +1,4 @@
-import { LinkTabs } from '@/console/link-tabs';
+import { LinkTabs } from '@/components/ui/tabs';
 
 /**
  * The knowledge base's three views, as routes. No Graph view: the platform records no edge between nodes, so a graph

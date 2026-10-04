@@ -31,7 +31,7 @@ export function DialogContent({
 }: Omit<ComponentProps<typeof D.Content>, 'title'> & { title: ReactNode; description?: ReactNode; footer?: ReactNode; size?: 'sm' | 'md' | 'lg' }) {
   return (
     <D.Portal>
-      <D.Overlay className="scrim-in fixed inset-0 z-(--layer-overlay) bg-scrim backdrop-blur-[2px]" />
+      <D.Overlay className="scrim-in fixed inset-0 z-(--layer-overlay) bg-scrim" />
       <D.Content
         className={cn(
           'dialog-in fixed z-(--layer-overlay) pb-[env(safe-area-inset-bottom)] sm:pb-0',

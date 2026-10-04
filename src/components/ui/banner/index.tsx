@@ -52,7 +52,7 @@ export function Banner({
         {action ? <div className="flex shrink-0 items-center gap-2 sm:-my-1">{action}</div> : null}
       </div>
       {onDismiss ? (
-        <button type="button" aria-label="Dismiss" onClick={onDismiss} className="press -my-0.5 -mr-1.5 grid size-6 shrink-0 place-items-center rounded-sm text-ink-3 hover:bg-fill-hover hover:text-ink">
+        <button type="button" aria-label="Dismiss" onClick={onDismiss} className="press hit -my-0.5 -mr-1.5 grid size-6 shrink-0 place-items-center rounded-sm text-ink-3 hover:bg-fill-hover hover:text-ink">
           <X className="size-3.5" />
         </button>
       ) : null}

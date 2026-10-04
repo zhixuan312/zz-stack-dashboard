@@ -11,7 +11,7 @@ import { aligned } from '@/console/columns';
 import { DocStatus } from '@/console/doc-status';
 import { ConsolePage } from '@/console/page';
 import { Panel } from '@/console/panel';
-import { Prose } from '@/console/prose';
+import { Prose } from '@/components/patterns/prose';
 import { Query } from '@/console/query';
 import { VersionChain } from '@/console/version-chain';
 import { When } from '@/console/when';

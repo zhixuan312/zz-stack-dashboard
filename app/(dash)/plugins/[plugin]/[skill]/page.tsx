@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
 import { KeyValue } from '@/components/ui/key-value';
 import { Skeleton } from '@/components/ui/skeleton';
-import { LinkTabs } from '@/console/link-tabs';
+import { LinkTabs } from '@/components/ui/tabs';
 import { ConsolePage } from '@/console/page';
 import { Panel } from '@/console/panel';
 import { Query } from '@/console/query';
@@ -23,7 +23,7 @@ import { formatCount, formatKb, formatSeconds } from '@/lib/format';
 type View = 'cost' | 'read' | 'references';
 
 // The markdown renderer arrives only with the views that read text: the cost view, the default, never needs it.
-const Prose = dynamic(() => import('@/console/prose').then((m) => m.Prose), { loading: () => <Skeleton className="h-64 rounded-md" /> });
+const Prose = dynamic(() => import('@/components/patterns/prose').then((m) => m.Prose), { loading: () => <Skeleton className="h-64 rounded-md" /> });
 
 /** What a skill costs to run, from its recorded runs. A skill nobody has called is absent from that record, so never run is a state, not a gap. */
 function Cost({ skill, detail }: { skill: Skill | undefined; detail: SkillDetail }) {

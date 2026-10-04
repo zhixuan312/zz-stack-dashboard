@@ -7,6 +7,7 @@ import { PageFrame, Stack, type PageWidth } from '@/components/base/shell';
 import { Freshness } from '@/components/patterns/freshness';
 import { PeriodSelect } from '@/components/patterns/period-select';
 import { useConsoleMode } from '@/lib/api';
+import { usePeriod } from '@/console/period';
 
 /** A step back up from a record: the list it belongs to, then the parent record. */
 export type Crumb = { label: string; href?: string };
@@ -62,9 +63,15 @@ export function ConsolePage({
       width={width}
       toolbar={toolbar}
       meta={updatedAt !== undefined ? <Freshness updatedAt={updatedAt} staleAfterMs={10 * 60_000} /> : undefined}
-      actions={actions || showPeriod ? <>{actions}{showPeriod ? <PeriodSelect /> : null}</> : undefined}
+      actions={actions || showPeriod ? <>{actions}{showPeriod ? <PagePeriod /> : null}</> : undefined}
     >
       <Stack>{children}</Stack>
     </PageFrame>
   );
+}
+
+/** The page's period control, held in the console's period context. */
+function PagePeriod() {
+  const { period, setPeriod } = usePeriod();
+  return <PeriodSelect value={period} onChange={setPeriod} />;
 }
