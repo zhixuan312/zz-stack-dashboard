@@ -279,12 +279,22 @@ export interface KnowledgeLogEntry {
 export interface KnowledgeBody {
   team: string; path: string; type: string; status: string; title: string;
   tags: string[] | null; updated: string; body: string;
+  /** The number the LIST shows for this node — per team, without leading zeros. */
+  num: string;
   evidence: string[] | null; superseded_by: string | null;
   /** Each piece of evidence with the team its initiative lives in, resolved by the gateway —
    *  not the node's own team, since a node may cite an initiative in another. `team` is null
    *  when nothing on this deployment has an initiative by that name, and the name is then
    *  text rather than a link. */
   evidence_in: { name: string; team: string | null }[] | null;
+  /** The nodes sharing a tag with this one — the only link the store records between two nodes —
+   *  read against the caller's scope, so a team sees its own. Served with the node rather than
+   *  found on the client: the reading pane used to fetch the whole shelf, hundreds of nodes each
+   *  with a title, tags, an excerpt and a byte count, to show a handful of neighbours. */
+  related: KnowledgeNode[];
+  /** Whether that shelf spans more than one team, which decides whether a neighbour's number is
+   *  enough to identify it. */
+  multi_team: boolean;
 }
 /** One line of `POST /api/console/ask`'s answer, built by the gateway from the retrieved
  *  document(s) it actually named — never from the model's own text (see console-ask.ts).

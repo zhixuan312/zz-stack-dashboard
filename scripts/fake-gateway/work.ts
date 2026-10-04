@@ -253,8 +253,12 @@ export function knowledgeBody(team: string, path: string): KnowledgeBody | null 
   return {
     team, path, type: n.type, status: n.status, title: n.title, tags: n.tags, updated: n.updated,
     body: `\n${n.title}.\n\n- **What happened.** The initiative found it the slow way, and wrote down how.\n- **What to do.** Check it before you build on it; it takes one command.\n\n\`\`\`sh\npnpm verify\n\`\`\`\n`,
-    evidence: n.evidence, superseded_by: n.superseded_by,
+    evidence: n.evidence, superseded_by: n.superseded_by, num: n.num,
     evidence_in: n.evidence?.map((name) => ({ name, team: INITIATIVES.find((i) => i.slug === name)?.team ?? null })) ?? null,
+    // The neighbours and the shelf's span, served with the node rather than found on the client —
+    // see `KnowledgeBody.related`.
+    related: KNOWLEDGE.filter((x) => x.key !== n.key && (x.tags ?? []).some((t) => (n.tags ?? []).includes(t))),
+    multi_team: new Set(KNOWLEDGE.map((x) => x.team)).size > 1,
   };
 }
 

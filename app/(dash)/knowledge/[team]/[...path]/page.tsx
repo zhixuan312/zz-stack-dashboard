@@ -28,12 +28,11 @@ export default function KnowledgeNodePage({ params }: { params: Promise<{ team: 
   const team = decodeURIComponent(rawTeam);
   const rel = path.map(decodeURIComponent).join('/');
   const body = useConsole<KnowledgeBody>(`/knowledge/${team}/${rel}`);
-  const list = useConsole<{ nodes: KnowledgeNode[] }>('/knowledge');
-  const nodes = list.data?.nodes ?? [];
-  const self = nodes.find((n) => n.team === team && n.path === rel);
-  const multiTeam = new Set(nodes.map((n) => n.team)).size > 1;
+  const self = body.data;
+  const multiTeam = body.data?.multi_team ?? false;
   // A shared tag is the only link the store records between two nodes, so it is said as that and nothing more.
-  const related = self ? nodes.filter((n) => n.key !== self.key && (n.tags ?? []).some((t) => (self.tags ?? []).includes(t))) : [];
+  // The neighbours come with the node: see `KnowledgeBody.related`.
+  const related = body.data?.related ?? [];
   const relatedColumns: Column<KnowledgeNode>[] = aligned([
     { key: 'num', header: 'Node', width: multiTeam ? 'w-36' : 'w-24', cell: (n) => <span className="font-mono text-xs text-ink-3">{multiTeam ? `${n.team} · ${n.num}` : n.num}</span> },
     { key: 'title', header: 'Title', align: 'left', grow: true, mobile: 'title', cell: (n) => <span className="block py-1 leading-snug font-medium whitespace-normal text-ink">{n.title}</span> },
