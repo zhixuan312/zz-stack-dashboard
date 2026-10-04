@@ -7,7 +7,8 @@
  * The phone is Lighthouse's mobile profile: CPU slowed four times, Slow 4G (150 ms round trip, 1.6 Mbps down,
  * 750 kbps up), a 390 px touch screen at 3x, motion not reduced. LCP and CLS come from PerformanceObservers installed
  * before the page loads. INP is the slowest interaction among real taps on the page's controls (the period, the
- * workspace menu, the alerts, the command palette), from Event Timing. A dropped frame is a gap over 50 ms between
+ * workspace menu, the alerts, the command palette), from Event Timing, counting only each tap's pointer, touch and
+ * click events. A dropped frame is a gap over 50 ms between
  * animation frames during those taps. Run it against a production build (`next start`), never `next dev`.
  *
  * Fails (exit 1) when a page's LCP is 2.5 s or more, INP 200 ms or more, or CLS 0.1 or more.
@@ -31,7 +32,10 @@ const OBSERVE = `(() => {
     v.session = e.startTime - v.last < 1000 && v.session ? v.session + e.value : e.value;
     v.last = e.startTime; v.cls = Math.max(v.cls, v.session);
   } }).observe({ type: 'layout-shift', buffered: true });
-  new PerformanceObserver((l) => { for (const e of l.getEntries()) if (e.interactionId) v.inp = Math.max(v.inp, e.duration); }).observe({ type: 'event', buffered: true, durationThreshold: 16 });
+  // Only the tap's own events. The Escape that closes what a tap opened can report late in headless Chrome, as a
+  // phantom interaction hundreds of milliseconds long that a person never felt.
+  const TAP = /^(pointer(down|up)|touch(start|end)|click)$/;
+  new PerformanceObserver((l) => { for (const e of l.getEntries()) if (e.interactionId && TAP.test(e.name)) v.inp = Math.max(v.inp, e.duration); }).observe({ type: 'event', buffered: true, durationThreshold: 16 });
   let prev = 0;
   const tick = (t) => { if (v.recording && prev) v.frames.push(t - prev); prev = t; requestAnimationFrame(tick); };
   requestAnimationFrame(tick);
