@@ -1,0 +1,109 @@
+'use client';
+
+import { Panel } from '@/console/panel';
+import { Query } from '@/console/query';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { PageControl, usePaged } from '@/console/paged';
+import { toast } from '@/components/ui/toast';
+import { useConsole } from '@/lib/api';
+import { type MyTeams } from '@/lib/api-shapes';
+import { useConsoleMutation } from '@/lib/mutate';
+
+/**
+ * Your own teams, and which one you act for — the browser counterpart of `team_mine` (access-door.ts,
+ * sharing `myTeamsSummary` with settings.ts's route).
+ *
+ * The team this browser acts for is this console session's own (`console_session.team_id`), which
+ * `resolveSession` (identity.ts) reads on every request and the gateway forwards to every call the
+ * page makes. It is a property of the session, not of the person: your agents keep acting for
+ * `principal.active_team_id`, which `team_switch` on /manage moves. So switching here changes what
+ * this browser shows, and nothing about what your agents see.
+ *
+ * This console shows one team at a time and every page is scoped to the active one by the gateway,
+ * so without a control here a member in two teams can see one of them and has no way in this
+ * product to reach the other.
+ */
+export function TeamsPanel() {
+  const teams = useConsole<MyTeams>('/settings/me/teams');
+  // `useConsoleMutation` already invalidates the whole `['console']` key on success, which is the
+  // honest blast radius here: every read this console makes is scoped by the acting team, so every
+  // one of them is stale the moment this returns, not just `/me`. Naming the affected paths would
+  // be a list to keep in step with every page ever added.
+  const switchTo = useConsoleMutation<{ actingFor: string }, { team: string }>(
+    '/settings/me/active-team',
+  );
+
+  return (
+    <Panel title="Teams" description="which one this browser acts for" flush>
+      <Query query={teams}>
+        {(t) => (
+          <TeamsTable
+            t={t}
+            pending={switchTo.isPending}
+            onSwitch={(team) =>
+              switchTo.mutate(
+                { team },
+                {
+                  onSuccess: (r) =>
+                    toast({ tone: 'positive', title: `Now acting for ${r.actingFor}` }),
+                  onError: (e) => toast({ tone: 'critical', title: e.message }),
+                },
+              )
+            }
+          />
+        )}
+      </Query>
+    </Panel>
+  );
+}
+
+/** Its own component so it can hold the page state — the rows come from a `Query` render prop. */
+function TeamsTable({ t, pending, onSwitch }: { t: MyTeams; pending: boolean; onSwitch: (team: string) => void }) {
+  const { page, controls } = usePaged(t.teams);
+  return (
+    <>
+      <Table>
+        <TableHead>
+          <TableRow>
+            <TableHeader>Team</TableHeader>
+            <TableHeader hideBelow="md">Role</TableHeader>
+            <TableHeader>Acting</TableHeader>
+            <TableHeader>{null}</TableHeader>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {/* A person can be on no team — a principal exists before anybody adds them to one,
+              and saying so is the difference between "you have no teams" and a screen that
+              looks broken. */}
+          {t.teams.length === 0 ? (
+            <TableRow>
+              <TableCell className="text-ink-3" colSpan={4}>
+                You are not a member of any team yet. A team admin adds you.
+              </TableCell>
+            </TableRow>
+          ) : null}
+          {page.map((row) => (
+            <TableRow key={row.team}>
+              <TableCell className="break-all font-mono text-xs">{row.team}</TableCell>
+              <TableCell hideBelow="md"><Badge tone={row.role === 'admin' ? 'accent' : 'neutral'}>{row.role}</Badge></TableCell>
+              <TableCell>{row.active ? <Badge tone="positive" dot>acting</Badge> : null}</TableCell>
+              <TableCell>
+                {/* No button on the row you are already acting for — an action whose
+                    effect is "stay where you are" is a control that does nothing. */}
+                {row.active ? null : (
+                  <Button size="sm" variant="secondary" disabled={pending} onClick={() => onSwitch(row.team)}>
+                    Act as this team
+                  </Button>
+                )}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      {t.note ? <p className="border-t border-line px-4 py-3 text-xs text-ink-3">{t.note}</p> : null}
+      <PageControl {...controls} />
+    </>
+  );
+}

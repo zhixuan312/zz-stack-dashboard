@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
-import { TeamAdminPanel } from '@/console-old/settings/TeamAdminPanel';
+import { TeamAdminPanel } from '@/console/settings/team-admin-panel';
 import type { Me } from '@/lib/api-shapes';
 
 /**

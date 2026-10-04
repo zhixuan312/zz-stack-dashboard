@@ -1,0 +1,168 @@
+'use client';
+
+import { useState } from 'react';
+import { Users } from 'lucide-react';
+import { Panel } from '@/console/panel';
+import { Query } from '@/console/query';
+import { FieldGrid, FormPanel } from '@/console/form-panel';
+import { InlineDestructive } from '@/console/settings/inline-destructive';
+import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Field } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { PageControl, usePaged } from '@/console/paged';
+import { Select } from '@/components/ui/select';
+import { toast } from '@/components/ui/toast';
+import { ApiError, useConsole } from '@/lib/api';
+import { type TeamMemberRow } from '@/lib/api-shapes';
+import { useConsoleMutation } from '@/lib/mutate';
+
+/**
+ * A team admin's roster for one team — add, remove, and change role. The browser counterpart of
+ * `member_add` / `member_remove` (admin.ts), reached through
+ * `/api/console/settings/team/members` rather than `/manage/mcp` directly.
+ *
+ * `team` is chosen by the parent (`TeamAdminPanel`) and trusted here, because the gateway route
+ * re-checks `teamAuthority` regardless. Hiding the controls is courtesy; the refusal is the
+ * gateway's.
+ */
+export function TeamMembersPanel({ team }: { team: string }) {
+  const list = useConsole<TeamMemberRow[]>(`/settings/team/members?team=${encodeURIComponent(team)}`);
+  const [email, setEmail] = useState('');
+  const [role, setRole] = useState<'member' | 'admin'>('member');
+  const [error, setError] = useState<string | null>(null);
+
+  // Add and change-role are the same call — `addMember`'s own `on conflict ... do update set role`
+  // — so this form's submit and the role Select below share one mutation.
+  const upsertMutation = useConsoleMutation<{ ok: true; result: string }, { email: string; role: 'member' | 'admin' }>(
+    (v) => ({ path: '/settings/team/members', method: 'POST', body: { team, email: v.email, role: v.role } }),
+  );
+  const removeMutation = useConsoleMutation<{ ok: true; result: string }, string>(
+    // `confirm` is the team slug this panel already knows, not something the person types: the
+    // inline Cancel/Confirm swap below is the confirmation.
+    (memberEmail) => ({ path: '/settings/team/members', method: 'DELETE', body: { team, email: memberEmail, confirm: team } }),
+  );
+
+  async function add() {
+    setError(null);
+    try {
+      await upsertMutation.mutateAsync({ email: email.trim(), role });
+      setEmail('');
+      setRole('member');
+      toast({ tone: 'positive', title: `Added ${email.trim()} to ${team}.` });
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not add member — try again.');
+    }
+  }
+
+  async function changeRole(memberEmail: string, next: 'member' | 'admin') {
+    try {
+      await upsertMutation.mutateAsync({ email: memberEmail, role: next });
+      toast({ tone: 'positive', title: `${memberEmail} is now ${next} of ${team}.` });
+    } catch (err) {
+      toast({ tone: 'critical', title: err instanceof ApiError ? err.message : 'Could not change role — try again.' });
+    }
+  }
+
+  async function remove(memberEmail: string) {
+    try {
+      await removeMutation.mutateAsync(memberEmail);
+      toast({ tone: 'positive', title: `Removed ${memberEmail} from ${team}.` });
+    } catch (err) {
+      // `member_remove`'s own "nothing was removed" refusal — a mistyped address — surfaces here
+      // rather than reading as success.
+      toast({ tone: 'critical', title: err instanceof ApiError ? err.message : 'Could not remove member — try again.' });
+    }
+  }
+
+  return (
+    <>
+      <Panel title="Members" description={`${team} — add, remove, or change role`} flush>
+        <Query query={list}>
+          {(rows) =>
+            rows.length === 0 ? (
+              <div className="px-5 py-8">
+                <EmptyState title="Nobody on this team yet">Add the first member below.</EmptyState>
+              </div>
+            ) : (
+              <MembersTable
+                rows={rows}
+                team={team}
+                pending={removeMutation.isPending}
+                onRole={(email, next) => void changeRole(email, next)}
+                onRemove={(email) => void remove(email)}
+              />
+            )
+          }
+        </Query>
+      </Panel>
+
+      <FormPanel
+        ariaLabel={`Add a member to ${team}`}
+        heading="Add a member"
+        onSubmit={add}
+        busy={upsertMutation.isPending}
+        canSave={email.trim().length > 0}
+        saveLabel="Add"
+        error={error}
+      >
+        <FieldGrid>
+          <Field label="Email">
+            {(p) => <Input {...p} type="email" value={email} onChange={(e) => setEmail(e.target.value)} />}
+          </Field>
+          <Field label="Role">
+            {(p) => (
+              <Select id={p.id} aria-describedby={p['aria-describedby']} value={role} onValueChange={(v) => setRole(v as 'member' | 'admin')} options={[{ value: 'member', label: 'Member' }, { value: 'admin', label: 'Admin' }]} />
+            )}
+          </Field>
+        </FieldGrid>
+      </FormPanel>
+    </>
+  );
+}
+
+/** Its own component so it can hold the page state — the rows come from a `Query` render prop.
+ *  `team` is the reset key: switching team lands on the first page of the new roster. */
+function MembersTable({ rows, team, pending, onRole, onRemove }: {
+  rows: TeamMemberRow[];
+  team: string;
+  pending: boolean;
+  onRole: (email: string, next: 'member' | 'admin') => void;
+  onRemove: (email: string) => void;
+}) {
+  const { page, controls } = usePaged(rows, team);
+  return (
+    <>
+      <Table>
+        <TableHead>
+          <TableRow>
+            <TableHeader>Person</TableHeader>
+            <TableHeader>Role</TableHeader>
+            <TableHeader>Remove</TableHeader>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {page.map((m) => (
+            <TableRow key={m.email}>
+              <TableCell className="break-all text-xs">{m.email}</TableCell>
+              <TableCell>
+                <Select size="sm" aria-label={`${m.email}'s role`} value={m.role} onValueChange={(v) => onRole(m.email, v as 'member' | 'admin')} options={[{ value: 'member', label: 'Member' }, { value: 'admin', label: 'Admin' }]} className="w-32" />
+              </TableCell>
+              <TableCell>
+                <InlineDestructive
+                  label="Remove"
+                  question={`Remove ${m.email} from ${team}?`}
+                  confirmLabel="Remove"
+                  pending={pending}
+                  onConfirm={() => onRemove(m.email)}
+                />
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      <PageControl {...controls} />
+    </>
+  );
+}

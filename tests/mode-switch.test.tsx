@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { ModeSwitch } from '@/console-old/ModeSwitch';
+import { ModeSwitch } from '@/console/settings/console-scope-panel';
 
 // Rendering is not enforcement — the server decides scope — but the render rule is asserted
 // on its own so a control never shows to someone who cannot use it. `Segmented` renders
