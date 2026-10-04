@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 
 /**
@@ -28,3 +29,13 @@ for (const m of ['hasPointerCapture', 'setPointerCapture', 'releasePointerCaptur
     Element.prototype[m] = (() => false) as never;
   }
 }
+
+/**
+ * The App Router's hooks, for components rendered outside a Next request: Meridian's data table and filter bar read
+ * the router and the search params. A test that cares about navigation mocks the module itself, which wins.
+ */
+vi.mock('next/navigation', () => ({
+  usePathname: () => '/',
+  useSearchParams: () => new URLSearchParams(),
+  useRouter: () => ({ push() {}, replace() {}, refresh() {}, back() {}, prefetch() {} }),
+}));

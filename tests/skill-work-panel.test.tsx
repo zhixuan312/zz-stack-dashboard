@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
-import { SkillWorkPanel } from '@/console-old/SkillWorkPanel';
+import { SkillWorkPanel } from '@/console/skill-work';
 import type { Skill } from '@/lib/api-shapes';
 
 /**
@@ -70,7 +70,7 @@ describe('SkillWorkPanel', () => {
       .map((r) => r.querySelector('td')!.textContent!.trim().split(' ')[0]);
     // By calls: explore (97) leads plan (69).
     expect(order()[0]).toBe('sdlc-explore');
-    await userEvent.click(screen.getByRole('radio', { name: 'total time' }));
+    await userEvent.click(screen.getByRole('radio', { name: 'Total time' }));
     // By total time the answer inverts — explore spent 28s, plan spent two hours.
     expect(order()[0]).toBe('sdlc-plan');
   });
@@ -82,6 +82,6 @@ describe('SkillWorkPanel refusals', () => {
     // Nearly every skill refuses something; a status hue on each row means nothing.
     const cell = within(row('sdlc-explore')).getByText('68');
     expect(cell.closest('[class*="rose"]')).toBeNull();
-    expect(cell.closest('td')).toHaveAttribute('title', '70.1% of its calls refused');
+    expect(cell.closest('[title]')).toHaveAttribute('title', '70.1% of its calls refused');
   });
 });

@@ -1,55 +1,43 @@
 'use client';
 
-import { DashboardPage } from '@/console-old/DashboardPage';
-import { Query } from '@/console-old/Query';
-import { SkillWorkPanel } from '@/console-old/SkillWorkPanel';
+import { Activity, HardDrive, Timer } from 'lucide-react';
+import { Row } from '@/components/base/shell';
+import { MetricTile } from '@/components/patterns/metric-tile';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ConsolePage } from '@/console/page';
 import { usePeriod } from '@/console/period';
-import { MetricCard, Row, SkeletonPage } from '@/console-old/ui';
-import { formatCount } from '@/lib/format';
+import { Query } from '@/console/query';
+import { SkillWorkPanel } from '@/console/skill-work';
 import { freshnessOf, useConsole } from '@/lib/api';
-import { type Runs, type Skill } from '@/lib/api-shapes';
+import type { Runs, Skill } from '@/lib/api-shapes';
+import { formatCount } from '@/lib/format';
 
+/**
+ * Every recorded run, by the skill that drove it. Both reads take the window: tiles answering all time above a table
+ * answering the picker would put two true numbers about different spans an inch apart.
+ */
 export default function RunsPage() {
   const { period } = usePeriod();
-  /* Both routes take the window. The tiles sit directly above the panel, so one answering
-     all time while the other answered the picker puts two true numbers about different
-     spans an inch apart, with nothing on the page saying which is which. */
   const q = (path: string) => (period === 'all' ? path : `${path}?period=${period}`);
   const runs = useConsole<Runs>(q('/runs'));
   const skills = useConsole<{ skills: Skill[] }>(q('/skills'));
 
   return (
-    <DashboardPage
-      title="Runs"
-      description="Every recorded run, by the skill that drove it."
-      updatedAt={freshnessOf(runs, skills)}
-    >
-      <Query query={runs} skeleton={<SkeletonPage metrics={3} />}>
+    <ConsolePage title="Runs" description="Every recorded run, by the skill that drove it." updatedAt={freshnessOf(runs, skills)}>
+      <Query query={runs} skeleton={<Skeleton className="h-36 rounded-lg" />}>
         {(r) => (
-          <>
-            <Row split="1/4">
-              <MetricCard label="Runs" description="skill sessions recorded"
-                value={formatCount(r.totals.runs)} />
-              {/* "Calls in runs", not "Tool calls": the Overview's tile of that name counts
-                  every call, and calls no run claimed are missing here — two different
-                  totals for one window under one name read as a bug. */}
-              <MetricCard label="Calls in runs" description="tool calls a run made"
-                value={formatCount(r.totals.calls)}
-                sublabel={`${formatCount(r.totals.refusals)} refused`} />
-              {/* `mb` is `sum(bytes_total)`, SQL-null for any window with no run. Null is
-                  not zero, and interpolating it raw renders the text "null MB". */}
-              <MetricCard label="Payload moved" description="tool output, across those runs"
-                value={r.totals.mb === null ? '—' : `${r.totals.mb} MB`} />
-            </Row>
-
-            {/* DELIBERATE: no turns tile here. `zz.run.turns` is written by nothing, so a
-                tile over it can only ever read "—". */}
-            <Query query={skills} skeletonRows={6}>
-              {(s) => <SkillWorkPanel skills={s.skills} />}
-            </Query>
-          </>
+          <Row split="tiles">
+            <MetricTile label="Runs" icon={<Timer />} value={r.totals.runs} note="Skill sessions recorded" />
+            {/* "Calls in runs", not "Tool calls": the Overview counts every call, and calls no run claimed are not here. */}
+            <MetricTile label="Calls in runs" icon={<Activity />} value={r.totals.calls} note={`${formatCount(r.totals.refusals)} refused`} />
+            {/* Null is not zero: a window with no measured run has moved nothing anyone counted. */}
+            <MetricTile label="Payload moved" icon={<HardDrive />} value={r.totals.mb === null ? 'Not measured' : r.totals.mb} format={(n) => `${n.toLocaleString('en-US')} MB`} note="Tool output, across those runs" />
+          </Row>
         )}
       </Query>
-    </DashboardPage>
+      <Query query={skills} skeleton={<Skeleton className="h-96 rounded-lg" />}>
+        {(s) => <SkillWorkPanel skills={s.skills} />}
+      </Query>
+    </ConsolePage>
   );
 }
