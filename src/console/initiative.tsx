@@ -84,7 +84,7 @@ export function initiativeColumns({ team = false }: { team?: boolean } = {}): Co
 }
 
 /** One gate document a person can sign today: written, not approved, on an open initiative. */
-export type WaitingGate = { id: string; gate: string; initiative: Initiative };
+type WaitingGate = { id: string; gate: string; initiative: Initiative };
 
 /** Every gate waiting on a person, newest first. The bell and the Overview read the same list. */
 export function waitingGates(initiatives: Initiative[]): WaitingGate[] {
