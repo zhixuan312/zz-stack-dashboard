@@ -22,9 +22,8 @@ shapes are still the gateway's (`src/lib/api-shapes.ts`). The routes are the sam
 - **Accent `zz`.** Derived from the ZZ brand purple `#7548d8` by `scripts/brand.ts --hex`: OKLCH hue 292,
   chroma 0.18. It is 70° or more from every status hue, so an accent fill never reads as a state. The contrast
   gate passes in both themes without lowering the fill.
-- **The mark.** A capital and a small Z on the accent tile, drawn in SVG (`src/components/base/app-mark`),
-  and the same paths for the tab icon (`app/icon.ts`). The PNG wordmark, the mascot and the illustrated empty
-  states are gone: Meridian's empty states carry the message in words and one action.
+- **The brand on top.** Meridian is the structure; ZZ's marks, mascot and voice sit on it. `docs/brand.md`
+  holds those principles.
 - **Scope in the workspace menu.** A superadmin switches between the whole platform and their own team from
   the rail's workspace menu (and in Settings). The rail drops the platform-only pages in team mode
   (`src/nav.ts`).
@@ -39,11 +38,24 @@ shapes are still the gateway's (`src/lib/api-shapes.ts`). The routes are the sam
 
 ## How it is checked
 
-`pnpm verify` runs the gate (tokens, specifications, contrast, types, tests), builds the app against a fake
-gateway (`scripts/fake-gateway/`), serves it, audits every page at five widths in both themes, and presses
-every control and follows every link. The fake gateway exists because the presses approve, revoke and archive
-whatever a page offers, so they must never reach the real deployment. Its records are synthetic; nobody in
-them is a real person.
+`pnpm verify` runs the gate (tokens, specifications, the console's own rules, contrast, lint, types, tests),
+builds the app against a fake gateway (`scripts/fake-gateway/`), serves it, audits every page at five widths in
+both themes, presses every control, follows every link, walks the whole keyboard path, and measures Web Vitals on
+a mid-range phone. The fake gateway exists because the presses approve, revoke and archive whatever a page offers,
+so they must never reach the real deployment. Its records are synthetic; nobody in them is a real person.
+
+## Staying in step with Meridian
+
+The console's copy of Meridian is kept as close to upstream as it can be, so a re-sync is a copy rather than a
+merge. What stays the console's own, and why:
+
+- `base/shell`, `patterns/rail`, `base/app-mark` and `base/providers`: no assistant, a rail that waits for `/me`,
+  and the ZZ wordmark.
+- `src/lib/period.ts` (a 24-hour period, all time by default) and the one line in PeriodSelect that labels it.
+- `src/lib/format.ts`, `color.ts` and `preferences.ts`: exports the console uses or does not, and the `zz` accent.
+- The `zz` accent in `tokens/` (`accent.zz.tokens.json`, the resolver's default).
+- Two hooks in `scripts/`, proposed to Meridian under these names: the gate runs `scripts/check.local.ts`, and
+  verify runs each script in `verify.config.ts`'s `browserChecks`.
 
 What `verify` cannot say is how the pages look against production data. The fixtures cover the states a page
 draws (empty, waiting, closed three ways, long names, a vendored plugin never run), and real data has more.

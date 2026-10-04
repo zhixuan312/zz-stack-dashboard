@@ -137,23 +137,24 @@ pnpm typecheck && pnpm lint && pnpm test && pnpm gate   # what the release runs
 ```
 
 Those four, in that order, are what `zz-stack/scripts/release.ts` runs against this
-repo before it will build an image — so they are the real bar, and `pnpm gate` is one
-of them rather than a superset. The gate does not run the other three (it ends in
-`next build`, which type-checks but runs no tests).
+repo before it will build an image, so they are the real bar.
 
 `pnpm gate` is Meridian's: tokens are fresh, the specifications are consistent (every
-colour a role, every utility on Meridian's scales, no dormant export, no source file over 700
-lines, a spec beside every route), contrast holds for every pair in both themes and every
-accent, route types, types and tests.
+colour a role, every utility on Meridian's scales, no dormant export, markdown renders raw HTML
+inert), the console's own rules hold (`scripts/check.local.ts`: no raw timestamp, no hardcoded
+denominator, an empty hand-built table says so, no source file over 700 lines), contrast holds
+for every pair in both themes and every accent, then route types, lint, types and tests.
 
 ```sh
-pnpm verify    # the gate, a build against the fake gateway, the browser audit, every control pressed
+pnpm verify    # the gate, a build against the fake gateway, the browser checks, Web Vitals
 ```
 
 `pnpm verify` is the whole standard and what CI runs. It builds the console against
 `scripts/fake-gateway/` (synthetic records, writes accepted and forgotten) because its presses
 approve, revoke and archive whatever a page offers, then audits every page at five widths in
-both themes and presses every control. The report is `out/verify.txt`.
+both themes, presses every control, walks the whole keyboard path (`scripts/keyboard.ts`), and
+measures LCP, INP and CLS on a mid-range phone. What it checks beyond the static routes, and
+against what, is in `scripts/verify.config.ts`. The report is `out/verify.txt`.
 
 ## Deploying
 
