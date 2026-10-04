@@ -3,11 +3,11 @@
 The superadmin dashboard for [zz-stack](https://github.com/zhixuan312/zz-stack): every
 team's work, knowledge and telemetry in one place.
 
-Built on the
-[multi-model-agent-dashboard-template](https://github.com/zhixuan312/multi-model-agent-dashboard-template)
-design system — one neutral ramp, one accent, three reserved status hues, eight type
-sizes. `docs/DESIGN-SYSTEM.md` is the contract; follow it rather than inventing a
-second look.
+Built on [ZZ Meridian](https://github.com/zhixuan312/zz-meridian), a dashboard design system:
+DTCG tokens in `tokens/`, four layers of components in `src/components/`, dark first with a light
+theme, and the `zz` accent from the brand purple. The console's own compositions are in
+`src/console/`. `docs/brief.md` records the decisions; build up from Meridian's components and
+tokens rather than inventing a second look.
 
 ## How it fits together
 
@@ -141,20 +141,19 @@ repo before it will build an image — so they are the real bar, and `pnpm gate`
 of them rather than a superset. The gate does not run the other three (it ends in
 `next build`, which type-checks but runs no tests).
 
-What the gate adds on top is the house rules — a timestamp rendered through `<Time>`,
-a table that can be empty saying so, no source file over 700 lines — plus **the
-contrast floor**, every enumerated token pair exiting non-zero, plus every check under
-`checks/`: one mark, one sparkle, no dark mode, the kit's chart cycle, the mascot
-assignments, asset custody, and the counts in `docs/DESIGN-SYSTEM.md`.
+`pnpm gate` is Meridian's: tokens are fresh, the specifications are consistent (every
+colour a role, every utility on Meridian's scales, no dormant export, no source file over 700
+lines, a spec beside every route), contrast holds for every pair in both themes and every
+accent, route types, types and tests.
 
 ```sh
-pnpm checks           # the design-system checks, named, with a count
-pnpm verify:contrast  # the contrast pairs on their own
-pnpm audit:design     # discipline counters — advisory, does not gate
+pnpm verify    # the gate, a build against the fake gateway, the browser audit, every control pressed
 ```
 
-The first two are in `pnpm gate` and need no separate run; they are listed because
-when the gate goes red it is quicker to run the one that failed.
+`pnpm verify` is the whole standard and what CI runs. It builds the console against
+`scripts/fake-gateway/` (synthetic records, writes accepted and forgotten) because its presses
+approve, revoke and archive whatever a page offers, then audits every page at five widths in
+both themes and presses every control. The report is `out/verify.txt`.
 
 ## Deploying
 

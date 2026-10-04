@@ -8,6 +8,10 @@
  * - Every token a specification names in backticks, and every var(--x) or (--x) a component uses, exists.
  * - No literal colour (hex, rgb, hsl) and no Tailwind default palette in the layers: colours come from roles.
  * - No dormant code: every export of src/lib and src/data is imported by a file a product keeps.
+ * - No source file over 700 lines: past that a file holds two things, and the split is agreed before it grows.
+ * - The console's own rules: a timestamp is never printed raw, no map is keyed by one flow's or skill's names, a
+ *   gate count has no hardcoded denominator, a hand-built table that can be empty says so, and markdown renders raw
+ *   HTML inert.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -148,6 +152,57 @@ for (const f of walk('src', /\.tsx?$/).filter((x) => SWEPT.test(x) && !/(^|\/)pr
   const u = used.get(f);
   if (u?.has('*')) continue;
   for (const n of names) if (!u?.has(n)) problems.push(`${f}: exports ${n}, which nothing a product keeps imports`);
+}
+
+
+// ── The console's own rules ──────────────────────────────────────────────────────────────────────────
+// Product code only: Meridian's own layers are checked by the rules above.
+const PRODUCT = LAYERS.filter((f) => /^(app|src\/console|src\/lib|src\/nav)/.test(f));
+const code = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1 ');
+for (const f of PRODUCT) {
+  const src = read(f);
+  const c = code(src);
+  // The API sends ISO 8601 in UTC; printed into a cell it is `2026-09-05T04:59:00Z`, or a wall clock a reader takes
+  // for their own. A time goes through <When> or src/lib/format-date.
+  for (const m of c.matchAll(/(?<!\$)\{(?:[a-z]\w*)\.(updated|updated_at|ts|expires|last_used|lastRun|created_at|createdAt)\}/g)) {
+    const line = c.slice(c.lastIndexOf('\n', m.index) + 1, c.indexOf('\n', m.index));
+    if (!/key=|at=\{|dateTime=\{/.test(line)) problems.push(`${f}: ${m[0]} prints a raw timestamp (use <When at>)`);
+  }
+  // A flow's stages or a skill's names written as map keys are right for one flow and wrong for every other.
+  for (const m of c.matchAll(/Record<string,[^>]*>\s*=\s*\{([^}]{0,600})\}/g)) {
+    if (/'(ops|zz|sdlc)-[a-z-]+':/.test(m[1])) problems.push(`${f}: a map keyed by specific flow or skill names`);
+  }
+  // "0 of 4" on a flow with one gate: the denominator is the flow's, never a literal.
+  for (const m of c.matchAll(/\bof \d+\b/g)) problems.push(`${f}: "${m[0]}" is a hardcoded denominator`);
+  // A hand-built table (not Meridian's DataTable, which has its empty states) must say when it has nothing.
+  if (c.includes('<TableBody>') && !/length === 0|EmptyState|\.length \?|!\w+\.length/.test(c)) problems.push(`${f}: a table that can be empty does not say so`);
+}
+// Markdown a team member pasted in is safe for one reason: react-markdown with no rehype-raw, so raw HTML stays text.
+// The whole defence is the absence of one plugin, so its arrival fails here.
+{
+  const pkg = JSON.parse(read('package.json'));
+  for (const d of Object.keys({ ...pkg.dependencies, ...pkg.devDependencies })) {
+    if (/^rehype-raw$|^rehype-dangerous|^remark-html$/.test(d)) problems.push(`package.json depends on ${d}: raw HTML would stop being inert`);
+  }
+  let renderers = 0;
+  for (const f of LAYERS) {
+    const c = code(read(f));
+    if (/\brehype-raw\b|\brehypeRaw\b/.test(c)) problems.push(`${f} reaches for rehype-raw`);
+    // A second way in: __html from anything but a literal or the pre-paint script, which is a constant string.
+    for (const m of c.matchAll(/dangerouslySetInnerHTML=\{\{\s*__html:\s*([^}]+)\}\}/g)) {
+      const expr = m[1].trim();
+      if (!/^[`'"]/.test(expr) && expr !== 'PREPAINT') problems.push(`${f} sets __html from ${expr.slice(0, 40)}`);
+    }
+    if (/from 'react-markdown'/.test(c)) renderers++;
+  }
+  if (!renderers) problems.push('nothing renders markdown: the raw-HTML rule is reading nothing');
+}
+
+// ── Size: the console's ceiling ──────────────────────────────────────────────────────────────────────
+const CEILING = 700;
+for (const f of [...LAYERS, ...walk('scripts', /\.tsx?$/), ...walk('tests', /\.tsx?$/)]) {
+  const n = read(f).split('\n').length;
+  if (n > CEILING) problems.push(`${f}: ${n} lines, over the ${CEILING}-line ceiling (split it)`);
 }
 
 console.log(problems.join('\n') || 'check: ok');
