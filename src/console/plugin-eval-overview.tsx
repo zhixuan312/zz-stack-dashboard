@@ -119,18 +119,18 @@ export function EvalHealth({ run }: { run: Run | null }) {
           <TableHead>
             <TableRow>
               <TableHeader>Guardrail</TableHeader>
-              <TableHeader>Value vs threshold</TableHeader>
-              <TableHeader>Status</TableHeader>
+              <TableHeader hideBelow="sm" align="center">Value vs threshold</TableHeader>
+              <TableHeader align="right">Status</TableHeader>
             </TableRow>
           </TableHead>
           <TableBody>
             {run.guardrails.map((g: GuardrailScore) => (
               <TableRow key={g.key}>
                 <TableCell className="font-mono text-xs">{g.key}</TableCell>
-                <TableCell className="tabular-nums text-xs">
+                <TableCell hideBelow="sm" align="center" className="tabular-nums text-xs">
                   {g.value === null ? '—' : g.value.toFixed(4)} / {g.threshold.toFixed(2)}
                 </TableCell>
-                <TableCell>
+                <TableCell align="right">
                   <Badge tone={g.status === 'pass' ? 'positive' : g.status === 'fail' ? 'critical' : 'neutral'}>{g.status}</Badge>
                 </TableCell>
               </TableRow>
@@ -171,24 +171,24 @@ export function EvalQuality({ run }: { run: Run | null }) {
         <TableHead>
           <TableRow>
             <TableHeader>Dimension</TableHeader>
-            <TableHeader hideBelow="md">Kind</TableHeader>
-            <TableHeader>Score</TableHeader>
-            <TableHeader>Weight</TableHeader>
-            <TableHeader>Measures</TableHeader>
+            <TableHeader hideBelow="md" align="center">Kind</TableHeader>
+            <TableHeader align="center">Score</TableHeader>
+            <TableHeader hideBelow="sm" align="center">Weight</TableHeader>
+            <TableHeader hideBelow="sm" align="right">Measures</TableHeader>
           </TableRow>
         </TableHead>
         <TableBody>
           {run.dimensions.map((d: DimensionScore) => (
             <TableRow key={d.key}>
               <TableCell className="font-mono text-xs">{d.key}{d.required ? ' *' : ''}</TableCell>
-              <TableCell hideBelow="md" className="text-xs text-ink-2">{d.canonicalKind}</TableCell>
-              <TableCell className="tabular-nums">
+              <TableCell hideBelow="md" align="center" className="text-xs text-ink-2">{d.canonicalKind}</TableCell>
+              <TableCell align="center" className="tabular-nums">
                 {d.applicable
                   ? (d.score === null ? <span className="text-ink-3">not scored</span> : d.score.toFixed(4))
                   : <span className="text-ink-3" title={d.notApplicableReason ?? undefined}>not applicable</span>}
               </TableCell>
-              <TableCell className="tabular-nums text-xs">{formatPercent(d.weight)}</TableCell>
-              <TableCell className="tabular-nums text-xs">
+              <TableCell hideBelow="sm" align="center" className="tabular-nums text-xs">{formatPercent(d.weight)}</TableCell>
+              <TableCell hideBelow="sm" align="right" className="tabular-nums text-xs">
                 {formatCount(d.measuresScored)} of {formatCount(d.measuresTotal)}
               </TableCell>
             </TableRow>

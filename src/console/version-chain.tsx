@@ -110,7 +110,7 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
                       <button
                         type="button"
                         onClick={() => setOpenSource(openSource === s.path ? null : s.path)}
-                        className="flex w-full items-baseline gap-2 text-left"
+                        className="hit flex min-h-6 w-full items-baseline gap-2 text-left"
                       >
                         <FileText className="mt-0.5 size-3.5 shrink-0 text-ink-3" aria-hidden />
                         <span className="min-w-0 flex-1 break-words text-sm text-accent-ink hover:underline">

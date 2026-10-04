@@ -49,7 +49,7 @@ export function ConsolePage({
       {crumbs.map((c, i) => (
         <Fragment key={`${c.label}-${i}`}>
           {i ? <span aria-hidden className="text-ink-3">/</span> : null}
-          {c.href ? <Link href={c.href} className="rounded-xs hover:text-ink">{c.label}</Link> : <span className="min-w-0 [overflow-wrap:anywhere]">{c.label}</span>}
+          {c.href ? <Link href={c.href} className="hit rounded-xs hover:text-ink">{c.label}</Link> : <span className="min-w-0 [overflow-wrap:anywhere]">{c.label}</span>}
         </Fragment>
       ))}
     </span>

@@ -52,9 +52,9 @@ export function EvalEvolution({ pluginEval }: { pluginEval: PluginEval }) {
         <TableHead>
           <TableRow>
             <TableHeader>Candidate</TableHeader>
-            <TableHeader>Status</TableHeader>
-            <TableHeader>Build</TableHeader>
-            <TableHeader>Release</TableHeader>
+            <TableHeader align="center">Status</TableHeader>
+            <TableHeader hideBelow="sm" align="center">Build</TableHeader>
+            <TableHeader hideBelow="md" align="right">Release</TableHeader>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -64,8 +64,8 @@ export function EvalEvolution({ pluginEval }: { pluginEval: PluginEval }) {
                 <span className="block text-sm text-ink">{c.hypothesis}</span>
                 <span className="text-2xs text-ink-3"><When at={c.createdAt} /></span>
               </TableCell>
-              <TableCell><Badge tone={STATUS_TONE[c.status]}>{STATUS_LABEL[c.status]}</Badge></TableCell>
-              <TableCell className="text-xs">
+              <TableCell align="center"><Badge tone={STATUS_TONE[c.status]}>{STATUS_LABEL[c.status]}</Badge></TableCell>
+              <TableCell hideBelow="sm" align="center" className="text-xs">
                 {!c.build ? <span className="text-ink-3">not built</span>
                   : c.build.ok ? <Badge tone="positive">passed</Badge>
                   : <>
@@ -73,7 +73,7 @@ export function EvalEvolution({ pluginEval }: { pluginEval: PluginEval }) {
                       {c.build.stage ? <span className="block text-ink-3">at {c.build.stage}</span> : null}
                     </>}
               </TableCell>
-              <TableCell className="text-xs">
+              <TableCell hideBelow="md" align="right" className="text-xs">
                 {!c.release ? <span className="text-ink-3">not released</span> : (
                   <>
                     <Badge tone={c.release.status === 'released' ? 'positive' : c.release.status === 'refused' || c.release.status === 'failed' ? 'critical' : 'neutral'}>

@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useSyncExternalStore, type ReactNode } from 'react';
 import { DEFAULT_PERIOD, parsePeriod, type Period } from '@/lib/period';
 
 /**
@@ -38,11 +38,27 @@ function readUrlPeriod(): Period | null {
   }
 }
 
+/**
+ * The chosen period, as an external store. The address wins whenever it names one (a shared link, a refresh); a
+ * page reached inside the console without the parameter keeps the period last chosen; a choice is mirrored back into
+ * the address. DELIBERATE: not a `useState` initializer. The
+ * server cannot read the browser's address, so an initializer that does renders the shared link's period over a
+ * server render of the default, and React refuses the hydration (#418).
+ */
+let chosen: Period | null = null;
+const listeners = new Set<() => void>();
+const subscribe = (onChange: () => void) => {
+  listeners.add(onChange);
+  return () => { listeners.delete(onChange); };
+};
+const snapshot = () => readUrlPeriod() ?? chosen ?? DEFAULT_PERIOD;
+
 export function PeriodProvider({ children }: { children: ReactNode }) {
-  const [period, setState] = useState<Period>(() => readUrlPeriod() ?? DEFAULT_PERIOD);
+  const period = useSyncExternalStore(subscribe, snapshot, () => DEFAULT_PERIOD);
 
   const setPeriod = useCallback((next: Period) => {
-    setState(next);
+    chosen = next;
+    for (const l of listeners) l();
     try {
       const url = new URL(window.location.href);
       // The default period is the absence of the parameter, so `?period=all` and a bare `/`

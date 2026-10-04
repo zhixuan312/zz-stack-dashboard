@@ -72,7 +72,7 @@ export default function KnowledgeNodePage({ params }: { params: Promise<{ team: 
                       value: (
                         <span className="flex flex-col gap-1">
                           {b.evidence_in.map((e) => (e.team
-                            ? <Link key={e.name} href={`/initiatives/${e.team}/${e.name}`} className="link [overflow-wrap:anywhere]">{e.name}</Link>
+                            ? <Link key={e.name} href={`/initiatives/${e.team}/${e.name}`} className="link hit [overflow-wrap:anywhere]">{e.name}</Link>
                             : <span key={e.name} className="[overflow-wrap:anywhere]" title="No initiative by this name on the platform">{e.name}</span>))}
                         </span>
                       ),

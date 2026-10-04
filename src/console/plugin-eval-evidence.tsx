@@ -65,20 +65,20 @@ function FindingTable({ rows, emptyLabel }: { rows: EvalFinding[]; emptyLabel: s
       <TableHead>
         <TableRow>
           <TableHeader>Pattern</TableHeader>
-          <TableHeader>Owner</TableHeader>
-          <TableHeader>Decision</TableHeader>
+          <TableHeader hideBelow="sm" align="center">Owner</TableHeader>
+          <TableHeader align="right">Decision</TableHeader>
         </TableRow>
       </TableHead>
       <TableBody>
         {rows.map((f) => (
           <TableRow key={f.id}>
             <TableCell className="max-w-[420px] text-sm">{f.pattern}</TableCell>
-            <TableCell>
+            <TableCell hideBelow="sm" align="center">
               <Badge tone={f.ownerKind === 'plugin' ? 'accent' : 'neutral'}>
                 {OWNER_LABEL[f.ownerKind ?? 'unknown']}
               </Badge>
             </TableCell>
-            <TableCell className="text-xs text-ink-2">{f.decision}</TableCell>
+            <TableCell align="right" className="text-xs text-ink-2">{f.decision}</TableCell>
           </TableRow>
         ))}
       </TableBody>

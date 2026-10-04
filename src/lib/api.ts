@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
-import { createContext, createElement, useContext, useState, type ReactNode } from 'react';
+import { createContext, createElement, useContext, useSyncExternalStore, type ReactNode } from 'react';
 
 // The one shape the transport itself needs: `useConsoleMode` reads the caller's role off
 // `/me` to decide whether the platform view is even offered. Shapes never import back.
@@ -87,6 +87,24 @@ function writeStoredMode(mode: ConsoleMode) {
   } catch {
     // See readStoredMode — persistence is a nicety, not a requirement.
   }
+  for (const l of modeListeners) l();
+}
+
+/**
+ * The stored choice as an external store. DELIBERATE: not a `useState` initializer. The server
+ * cannot read localStorage, so an initializer that does renders "team" in the browser over a
+ * server render of "platform", and React refuses the hydration (#418) on every page a superadmin
+ * opens after choosing their team. `useSyncExternalStore` renders the server's answer while
+ * hydrating and the stored one straight after.
+ */
+const modeListeners = new Set<() => void>();
+function subscribeMode(onChange: () => void) {
+  modeListeners.add(onChange);
+  window.addEventListener('storage', onChange);
+  return () => {
+    modeListeners.delete(onChange);
+    window.removeEventListener('storage', onChange);
+  };
 }
 
 /**
@@ -100,7 +118,7 @@ function writeStoredMode(mode: ConsoleMode) {
  * wins over the me-derived default.
  */
 export function ConsoleModeProvider({ children }: { children: ReactNode }) {
-  const [explicitMode, setExplicitMode] = useState<ConsoleMode | null>(readStoredMode);
+  const explicitMode = useSyncExternalStore(subscribeMode, readStoredMode, () => null);
   // Not `useConsole('/me')`: that hook reads this context to build its query, and this
   // component is still producing it, so the hook would read whatever is above this provider
   // rather than the value this render is about to supply. A plain `useQuery` keyed identically
@@ -130,7 +148,6 @@ export function ConsoleModeProvider({ children }: { children: ReactNode }) {
     ?? (me.data ? (me.data.superadmin ? 'platform' : 'team') : 'platform');
 
   function setMode(next: ConsoleMode) {
-    setExplicitMode(next);
     writeStoredMode(next);
   }
 
