@@ -65,7 +65,7 @@ function Tiles({ m }: { m: OverviewMetrics }) {
         hint={`Share of the knowledge shelf written by initiatives rather than imported in bulk (more than ${m.knowledge.importThresholdPerHour} nodes from one source in an hour). Higher is better.`}
         value={m.knowledge.value === null ? '—' : m.knowledge.value / 100}
         format={(n) => formatPercent(n, 0)}
-        delta={change(m.knowledge.value, m.knowledge.prev)}
+        delta={m.knowledge.value === null ? undefined : change(m.knowledge.value, m.knowledge.prev)}
         note={!shelf ? 'Nothing on the shelf yet' : m.knowledge.prev === null ? `${formatCount(m.knowledge.fromWork)} of ${formatCount(shelf)} nodes` : undefined}
       />
       <MetricTile
@@ -75,7 +75,7 @@ function Tiles({ m }: { m: OverviewMetrics }) {
         value={m.context.value ?? '—'}
         format={formatKb}
         intent="down"
-        delta={change(m.context.value, m.context.prev)}
+        delta={m.context.value === null ? undefined : change(m.context.value, m.context.prev)}
         note={m.context.prev === null ? (m.context.p90 === null ? 'No run measured yet' : `Top 10% at ${formatKb(m.context.p90)} or more`) : undefined}
       />
     </div>
@@ -147,7 +147,7 @@ export default function OverviewPage() {
                   format={formatCompact}
                   caption={calls
                     ? <>One point per {d.grain}. The busiest {d.grain === 'week' ? 'was the week of' : 'was'} {bucketLabel(dates[busiest], d.grain, d.timezone)}, with {formatCount(totals[busiest])} calls.</>
-                    : period === 'all' ? 'Nothing has called the platform yet.' : 'No tool call in this period.'}
+                    : undefined}
                 >
                   {calls ? <TrendChart
                     height="fill"
@@ -160,16 +160,20 @@ export default function OverviewPage() {
                       { key: 'refused', label: 'Refused', values: d.toolTrend.map((b) => b.refused), kind: 'line', color: 'neutral' },
                     ]}
                   /> : (
-                    <EmptyState title="No tool call yet" action={<Button asChild variant="primary"><Link href="/settings">Set up a client</Link></Button>}>
-                      Calls arrive when a client connected to the platform runs a skill. Settings has the setup for yours.
-                    </EmptyState>
+                    period === 'all' ? (
+                      <EmptyState title="No tool call yet" action={<Button asChild variant="primary"><Link href="/settings">Set up a client</Link></Button>}>
+                        Calls arrive when a client connected to the platform runs a skill. Settings has the setup for yours.
+                      </EmptyState>
+                    ) : (
+                      <EmptyState kind="filtered" title={`No tool call in the ${PERIOD_LABEL[period].toLowerCase()}`}>A longer period, or All, shows what came before.</EmptyState>
+                    )
                   )}
                 </FeaturedMetric>
                 <Tiles m={d.metrics} />
               </Row>
               <Row split="2/3">
                 <WaitingPanel />
-                <Panel title="Open work by stage" description={`${formatCount(d.metrics.progressing.active)} open ${d.metrics.progressing.active === 1 ? 'initiative' : 'initiatives'}`}>
+                <Panel title="Open work by stage" description={d.metrics.progressing.active ? `${formatCount(d.metrics.progressing.active)} open ${d.metrics.progressing.active === 1 ? 'initiative' : 'initiatives'}` : 'Where each open initiative is in its flow'}>
                   {d.metrics.progressing.active ? (
                     <CompositionBar
                       label="Open initiatives by stage"

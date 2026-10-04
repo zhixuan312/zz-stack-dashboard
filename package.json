@@ -2,7 +2,7 @@
   "name": "zz-stack-dashboard",
   "version": "0.23.0",
   "license": "MIT",
-  "description": "ZZ Console — the superadmin dashboard for zz-stack",
+  "description": "ZZ Console \u2014 the superadmin dashboard for zz-stack",
   "type": "module",
   "packageManager": "pnpm@10.33.0",
   "engines": {
@@ -26,7 +26,9 @@
     "shot": "node scripts/shot.ts",
     "brand": "node scripts/brand.ts",
     "verify": "node scripts/verify.ts",
-    "fake-gateway": "node scripts/fake-gateway/server.ts"
+    "fake-gateway": "node scripts/fake-gateway/server.ts",
+    "keyboard": "node scripts/keyboard.ts",
+    "vitals": "node scripts/vitals.ts"
   },
   "dependencies": {
     "@simplewebauthn/browser": "^14.0.0",

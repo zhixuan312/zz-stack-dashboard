@@ -1,7 +1,8 @@
 /**
  * Verify the console against the Meridian standard, in one command: the gate, a production build pointed at the fake
  * gateway (scripts/fake-gateway), the built app started on a free port, the browser audit of every page against it,
- * every control pressed and every link followed (scripts/interactions.ts), and a report.
+ * every control pressed and every link followed (scripts/interactions.ts), the whole keyboard path of every page
+ * (scripts/keyboard.ts), and a report. Core Web Vitals are `pnpm vitals`, apart: they depend on the machine.
  *
  *   pnpm verify [--quick] [--extra /teams/atlas,/plugins/sdlc]
  *
@@ -94,13 +95,15 @@ log(`ok   the built app is serving on port ${port}, reading the fake gateway at 
 // The audit and the presses each run their own browser, so they run side by side against the one built app.
 const t = Date.now();
 const base = ['--base', `http://127.0.0.1:${port}`, ...pass];
-const [audit, presses] = await Promise.all([run('scripts/audit.ts', base), run('scripts/interactions.ts', base)]);
+const [audit, presses, keys] = await Promise.all([run('scripts/audit.ts', base), run('scripts/interactions.ts', base), run('scripts/keyboard.ts', ['--base', `http://127.0.0.1:${port}`])]);
 log(audit.status === 0 ? 'ok   browser audit' : 'FAIL browser audit');
 log(audit.out.split('\n').slice(-80).join('\n'));
 log(presses.status === 0 ? 'ok   every control and link works' : 'FAIL controls or links that do nothing');
 log(presses.out.split('\n').slice(-40).join('\n'));
+log(keys.status === 0 ? 'ok   the whole keyboard path' : 'FAIL keyboard path');
+log(keys.out.split('\n').filter((l) => !l.startsWith('ok ')).slice(-30).join('\n'));
 log(`(browser checks ${((Date.now() - t) / 60_000).toFixed(1)} min)`);
 stopAll();
-const ok = audit.status === 0 && presses.status === 0;
+const ok = audit.status === 0 && presses.status === 0 && keys.status === 0;
 log(ok ? '\nverify: the project meets the Meridian standard' : '\nverify: fix the issues above and run pnpm verify again');
 finish(ok ? 0 : 1);
