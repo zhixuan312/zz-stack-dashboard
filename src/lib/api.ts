@@ -68,7 +68,7 @@ interface ConsoleModeState {
 
 const ConsoleModeContext = createContext<ConsoleModeState | null>(null);
 
-const MODE_STORAGE_KEY = 'zz-console-mode';
+const MODE_STORAGE_KEY = 'zz-stack-mode';
 
 function readStoredMode(): ConsoleMode | null {
   try {

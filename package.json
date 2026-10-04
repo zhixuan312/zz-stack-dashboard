@@ -2,7 +2,7 @@
   "name": "zz-stack-dashboard",
   "version": "0.23.0",
   "license": "MIT",
-  "description": "ZZ Console \u2014 the superadmin dashboard for zz-stack",
+  "description": "ZZ Stack: the console of the zz-stack platform",
   "type": "module",
   "packageManager": "pnpm@10.33.0",
   "engines": {

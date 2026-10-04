@@ -1,7 +1,7 @@
-# ZZ Console
+# ZZ Stack
 
-The superadmin dashboard for [zz-stack](https://github.com/zhixuan312/zz-stack): every
-team's work, knowledge and telemetry in one place.
+The console of [zz-stack](https://github.com/zhixuan312/zz-stack): every team's work, knowledge and
+telemetry in one place. It is called ZZ Stack, the platform's own name, because the two ship as one set.
 
 Built on [ZZ Meridian](https://github.com/zhixuan312/zz-meridian), a dashboard design system:
 DTCG tokens in `tokens/`, four layers of components in `src/components/`, dark first with a light

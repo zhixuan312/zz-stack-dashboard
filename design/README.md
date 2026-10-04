@@ -1,6 +1,6 @@
 # Design source
 
-Brand source material for the ZZ Console. **Nothing here is served to a browser.**
+Brand source material for ZZ Stack's console. **Nothing here is served to a browser.**
 
 `.dockerignore` excludes this directory, so none of it reaches the production image. That is the
 whole reason it is not under `public/` — the `Dockerfile` copies `public/` into the runtime image

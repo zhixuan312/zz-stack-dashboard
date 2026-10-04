@@ -1,10 +1,10 @@
-# ZZ Console on Meridian: the brief
+# ZZ Stack on Meridian: the brief
 
 The decisions behind the console's move to ZZ Meridian, so they outlive the conversation that made them.
 
 ## What it is and for whom
 
-ZZ Console is the browser console for the ZZ platform. A superadmin reads the whole platform; a member reads
+ZZ Stack is the browser console for the zz-stack platform. It carries the platform's name rather than one of its own, because it ships with the platform as one set. A superadmin reads the whole platform; a member reads
 their own team. The home page answers one question: is the platform's work moving, and what is waiting on a
 person?
 

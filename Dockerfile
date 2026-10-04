@@ -1,4 +1,4 @@
-# ZZ Console — the admin dashboard.
+# ZZ Stack — the console of the zz-stack platform.
 #
 # COUPLED: Node 24 is the floor, as `engines` in package.json says, and `pnpm install` reads
 # that field in this image. scripts/ is TypeScript run by Node directly, and native type stripping
