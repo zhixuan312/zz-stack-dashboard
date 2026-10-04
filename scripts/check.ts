@@ -7,11 +7,9 @@
  * - Every page specification exists and follows the page anatomy.
  * - Every token a specification names in backticks, and every var(--x) or (--x) a component uses, exists.
  * - No literal colour (hex, rgb, hsl) and no Tailwind default palette in the layers: colours come from roles.
+ * - One implementation: the fixtures a collection serves are read through src/data/collections.ts, not imported again.
  * - No dormant code: every export of src/lib and src/data is imported by a file a product keeps.
- * - No source file over 700 lines: past that a file holds two things, and the split is agreed before it grows.
- * - The console's own rules: a timestamp is never printed raw, no map is keyed by one flow's or skill's names, a
- *   gate count has no hardcoded denominator, a hand-built table that can be empty says so, and markdown renders raw
- *   HTML inert.
+ * - Markdown stays inert: no raw-HTML plugin in the dependencies or the source.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -92,9 +90,9 @@ for (const f of LAYERS) {
     // Meridian resets Tailwind's scales; a utility outside them emits no CSS and fails silently.
     const dead = line.match(/\b(?:font-(?:normal|light|bold|extrabold|black|thin)|rounded-(?:2xl|3xl)|shadow-(?:sm|md|lg|xl|2xl)|text-(?:3xl|4xl|5xl))\b/);
     if (dead) problems.push(`${at}: ${dead[0]} is outside Meridian's scale and renders nothing (use font-regular, rounded-xl, shadow-card…)`);
-    // Blur names its token (blur-sm, blur-md, blur-xl) or an arbitrary value; a bare or other name emits no filter.
-    const blur = line.match(/\b(?:backdrop-)?blur(?:-(?!sm\b|md\b|xl\b|\[|\()[a-z0-9]+)?(?![-\w[(])/);
-    if (blur && !/glow-blur/.test(blur.input!.slice(Math.max(0, blur.index! - 6), blur.index! + blur[0].length))) problems.push(`${at}: ${blur[0]} is outside Meridian's blur scale and renders nothing (use backdrop-blur-sm, -md or -xl)`);
+    // Blur names its token (blur-md, blur-xl) or an arbitrary value; a bare or other name emits no filter.
+    const blur = line.match(/\b(?:backdrop-)?blur(?:-(?!md\b|xl\b|\[|\()[a-z0-9]+)?(?![-\w[(])/);
+    if (blur && !/glow-blur/.test(blur.input!.slice(Math.max(0, blur.index! - 6), blur.index! + blur[0].length))) problems.push(`${at}: ${blur[0]} is outside Meridian's blur scale and renders nothing (use backdrop-blur-md or -xl)`);
     // Motion is tokens: a literal duration or delay drifts from the system and ignores the reduced-motion collapse.
     const dur = line.match(/\b(?:duration|delay)-(?:\[\d[^\]]*\]|\d+)\b/);
     if (dur) problems.push(`${at}: ${dur[0]} is a literal duration (use duration-(--dur-hover), --dur-enter, --dur-exit…)`);
@@ -110,10 +108,58 @@ for (const f of LAYERS) {
   }
 }
 
+// ── One implementation: a collection's rows are read through the collection ──────────────────────────
+// The covered fixtures are the names src/data/collections.ts passes as `rows:` (read from the file, so a product's own
+// collection is covered without editing this rule). Other fixture exports it imports, such as DEMO_NOW or ROLES, are not records.
+// A project without the collections seam (an existing app that brought Meridian in) has nothing for this rule to read.
+const COLLECTIONS = 'src/data/collections.ts';
+if (fs.existsSync(path.join(ROOT, COLLECTIONS))) {
+  const FIXTURE_IMPORT = /(?:import|export)\s+(type\s+)?\{([^}]*)\}\s*from\s*['"]([^'"]*fixtures\/[^'"]*)['"]/g;
+  /** A whole fixture module taken at once: `import * as`, `export * from`, or a dynamic `import()`. */
+  const FIXTURE_WHOLE = /(?:import\s+\*\s+as\s+\w+\s+from|export\s+\*(?:\s+as\s+\w+)?\s+from|import\()\s*['"]([^'"]*fixtures\/[^'"]*)['"]/g;
+  const valueNames = (clause: string) => clause.split(',').map((s) => s.trim()).filter((s) => s && !/^type\s/.test(s)).map((s) => s.split(/\s+as\s+/)[0]);
+  const fixtureModule = (spec: string) => spec.slice(spec.indexOf('fixtures/')).replace(/\.tsx?$/, '');
+  const collectionsSrc = read(COLLECTIONS);
+  const served = new Set([...collectionsSrc.matchAll(/\brows:\s*([A-Za-z_]\w*)/g)].map((m) => m[1]));
+  /** Each covered name, and the fixture module it comes from. */
+  const covered = new Map([...collectionsSrc.matchAll(FIXTURE_IMPORT)].filter((m) => !m[1]).flatMap((m) => valueNames(m[2]).filter((n) => served.has(n)).map((n) => [n, fixtureModule(m[3])] as const)));
+  const coveredModules = new Set(covered.values());
+  for (const f of LAYERS) {
+    if (f === COLLECTIONS || /^src\/system\/fixtures\//.test(f) || /(^|\/)preview\.tsx$/.test(f)) continue;
+    const src = read(f);
+    for (const m of src.matchAll(FIXTURE_IMPORT)) {
+      if (m[1]) continue;
+      for (const n of valueNames(m[2])) if (covered.has(n)) problems.push(`${f}: imports ${n} from the fixtures; read it through ${COLLECTIONS}`);
+    }
+    for (const m of src.matchAll(FIXTURE_WHOLE)) {
+      const mod = fixtureModule(m[1]);
+      if (coveredModules.has(mod)) problems.push(`${f}: imports all of ${mod}, which holds ${[...covered].filter(([, x]) => x === mod).map(([n]) => n).join(', ')}; read it through ${COLLECTIONS}`);
+    }
+  }
+}
+
+// ── Markdown stays inert ───────────────────────────────────────────────────────────────────────────────
+// Prose renders what people and models wrote, and is safe for one reason: react-markdown with no raw-HTML plugin, so
+// HTML in the text stays text. The whole defence is the absence of a package, so its arrival fails here.
+{
+  const pkg = JSON.parse(read('package.json'));
+  for (const d of Object.keys({ ...pkg.dependencies, ...pkg.devDependencies })) {
+    if (/^(rehype-raw|rehype-dangerous-html|remark-html)$/.test(d)) problems.push(`package.json depends on ${d}: raw HTML in rendered markdown would stop being inert`);
+  }
+  // Code only: a comment that names the plugin to explain why it is absent is not a use.
+  const code = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1 ');
+  for (const f of LAYERS) if (/\brehype-?raw\b/i.test(code(read(f)))) problems.push(`${f}: reaches for rehype-raw; render markdown with Prose, where raw HTML stays text`);
+}
+
 // ── No dormant code: an export nothing a product keeps imports ───────────────────────────────────────
-// What the console ships is everything under src, app and scripts except card previews; tests do not count as a use.
+// A product keeps everything except tests, previews, the Atlas pages and the Atlas-only modules scripts/brand.ts removes
+// (read from its list, so the two never disagree). A type the docs tell a product to use stays exported by the sample using it.
+// A project without the Atlas (src/system) has no Atlas-only modules, and may not carry brand.ts at all.
+const hasAtlas = fs.existsSync(path.join(ROOT, 'src/system')) && fs.existsSync(path.join(ROOT, 'scripts/brand.ts'));
+const atlasOnly = hasAtlas ? [...read('scripts/brand.ts').matchAll(/const atlasOnly = \[([^\]]*)\]/g)].flatMap((m) => [...m[1].matchAll(/'([^']+)'/g)].map((x) => `src/system/${x[1]}`)) : [];
+if (hasAtlas && !atlasOnly.length) problems.push('scripts/brand.ts: no atlasOnly list found, so the dormant-code rule cannot tell what a product keeps');
 const SWEPT = /^src\/(lib|data)\//;
-const kept = ['src', 'app', 'scripts'].flatMap((d) => walk(d, /\.tsx?$/)).filter((f) => !/(^|\/)preview\.tsx$/.test(f));
+const kept = ['src', 'app', 'scripts'].flatMap((d) => walk(d, /\.tsx?$/)).filter((f) => !/(^|\/)preview\.tsx$/.test(f) && !f.startsWith('app/system/') && !atlasOnly.includes(f));
 const resolveSpec = (from: string, spec: string) => {
   const base = spec.startsWith('@/') ? path.join('src', spec.slice(2)) : spec.startsWith('.') ? path.join(path.dirname(from), spec) : null;
   if (!base) return null;
@@ -152,57 +198,6 @@ for (const f of walk('src', /\.tsx?$/).filter((x) => SWEPT.test(x) && !/(^|\/)pr
   const u = used.get(f);
   if (u?.has('*')) continue;
   for (const n of names) if (!u?.has(n)) problems.push(`${f}: exports ${n}, which nothing a product keeps imports`);
-}
-
-
-// ── The console's own rules ──────────────────────────────────────────────────────────────────────────
-// Product code only: Meridian's own layers are checked by the rules above.
-const PRODUCT = LAYERS.filter((f) => /^(app|src\/console|src\/lib|src\/nav)/.test(f));
-const code = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1 ');
-for (const f of PRODUCT) {
-  const src = read(f);
-  const c = code(src);
-  // The API sends ISO 8601 in UTC; printed into a cell it is `2026-09-05T04:59:00Z`, or a wall clock a reader takes
-  // for their own. A time goes through <When> or src/lib/format-date.
-  for (const m of c.matchAll(/(?<!\$)\{(?:[a-z]\w*)\.(updated|updated_at|ts|expires|last_used|lastRun|created_at|createdAt)\}/g)) {
-    const line = c.slice(c.lastIndexOf('\n', m.index) + 1, c.indexOf('\n', m.index));
-    if (!/key=|at=\{|dateTime=\{/.test(line)) problems.push(`${f}: ${m[0]} prints a raw timestamp (use <When at>)`);
-  }
-  // A flow's stages or a skill's names written as map keys are right for one flow and wrong for every other.
-  for (const m of c.matchAll(/Record<string,[^>]*>\s*=\s*\{([^}]{0,600})\}/g)) {
-    if (/'(ops|zz|sdlc)-[a-z-]+':/.test(m[1])) problems.push(`${f}: a map keyed by specific flow or skill names`);
-  }
-  // "0 of 4" on a flow with one gate: the denominator is the flow's, never a literal.
-  for (const m of c.matchAll(/\bof \d+\b/g)) problems.push(`${f}: "${m[0]}" is a hardcoded denominator`);
-  // A hand-built table (not Meridian's DataTable, which has its empty states) must say when it has nothing.
-  if (c.includes('<TableBody>') && !/length === 0|EmptyState|\.length \?|!\w+\.length/.test(c)) problems.push(`${f}: a table that can be empty does not say so`);
-}
-// Markdown a team member pasted in is safe for one reason: react-markdown with no rehype-raw, so raw HTML stays text.
-// The whole defence is the absence of one plugin, so its arrival fails here.
-{
-  const pkg = JSON.parse(read('package.json'));
-  for (const d of Object.keys({ ...pkg.dependencies, ...pkg.devDependencies })) {
-    if (/^rehype-raw$|^rehype-dangerous|^remark-html$/.test(d)) problems.push(`package.json depends on ${d}: raw HTML would stop being inert`);
-  }
-  let renderers = 0;
-  for (const f of LAYERS) {
-    const c = code(read(f));
-    if (/\brehype-raw\b|\brehypeRaw\b/.test(c)) problems.push(`${f} reaches for rehype-raw`);
-    // A second way in: __html from anything but a literal or the pre-paint script, which is a constant string.
-    for (const m of c.matchAll(/dangerouslySetInnerHTML=\{\{\s*__html:\s*([^}]+)\}\}/g)) {
-      const expr = m[1].trim();
-      if (!/^[`'"]/.test(expr) && expr !== 'PREPAINT') problems.push(`${f} sets __html from ${expr.slice(0, 40)}`);
-    }
-    if (/from 'react-markdown'/.test(c)) renderers++;
-  }
-  if (!renderers) problems.push('nothing renders markdown: the raw-HTML rule is reading nothing');
-}
-
-// ── Size: the console's ceiling ──────────────────────────────────────────────────────────────────────
-const CEILING = 700;
-for (const f of [...LAYERS, ...walk('scripts', /\.tsx?$/), ...walk('tests', /\.tsx?$/)]) {
-  const n = read(f).split('\n').length;
-  if (n > CEILING) problems.push(`${f}: ${n} lines, over the ${CEILING}-line ceiling (split it)`);
 }
 
 console.log(problems.join('\n') || 'check: ok');

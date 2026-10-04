@@ -13,10 +13,14 @@ const STEPS: [string, string[]][] = [
   // A product build (brand.ts --product) has no card previews, so no registry to keep fresh.
   ...(fs.existsSync(path.join(ROOT, 'src/system/registry.ts')) ? [['the registry is fresh', ['node', 'scripts/registry.ts', '--check']] as [string, string[]]] : []),
   ['specifications are consistent', ['node', 'scripts/check.ts']],
+  // A project's own rules, beside Meridian's.
+  ...(fs.existsSync(path.join(ROOT, 'scripts/check.local.ts')) ? [['the project\'s own rules hold', ['node', 'scripts/check.local.ts']] as [string, string[]]] : []),
   ['contrast holds in every theme and accent', ['node', 'scripts/contrast.ts']],
   // Route types first: a page added since the last build would otherwise fail against stale generated routes.
   ['route types are generated', ['pnpm', 'exec', 'next', 'typegen']],
   ['types check', ['pnpm', 'exec', 'tsc', '--noEmit']],
+  // eslint-config-next is what every Next project runs; a template that fails it hands its users errors on day one.
+  ['lint passes', ['pnpm', 'exec', 'eslint', '.']],
   ['tests pass', ['pnpm', 'exec', 'vitest', 'run']],
 ];
 

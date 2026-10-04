@@ -10,12 +10,12 @@
  */
 import { launch } from './lib/chrome.ts';
 import { discover } from './lib/routes.ts';
-import { DETAIL_ROUTES } from './fake-gateway/routes.ts';
+import config from './verify.config.ts';
 
 const args = process.argv.slice(2);
 const opt = (k: string, d: string) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
 const base = opt('--base', 'http://localhost:3314');
-const ROUTES = opt('--routes', '') ? opt('--routes', '').split(',') : [...discover().filter((r) => r !== '/this-page-does-not-exist'), ...DETAIL_ROUTES];
+const ROUTES = opt('--routes', '') ? opt('--routes', '').split(',') : [...discover().filter((r) => r !== '/this-page-does-not-exist'), ...config.detailRoutes];
 
 /** Tag every visible control the keyboard should reach; return how many. */
 const TAG = `(() => {
