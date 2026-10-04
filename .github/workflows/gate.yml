@@ -8,7 +8,7 @@
 # broken build from a killed one.
 #
 # `pnpm`, because this repository declares `packageManager: pnpm@10.33.0` and carries a pnpm
-# lockfile. `gate` includes `next build`, which is the slowest step here.
+# lockfile. `verify` builds and serves the app and drives a browser, the slowest step here.
 name: gate
 
 on:
@@ -38,19 +38,19 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # The asset generators' one dependency, from the file that declares it. Two design-system
-      # checks re-run `scripts/build-*.py` and require byte-identical output; without Pillow they
-      # fail, and this is where that was first found — the console's gate had only ever run on a
-      # machine where Pillow happened to be installed.
-      #
-      # `--break-system-packages` because the runner's python is externally managed (PEP 668) and
-      # this image is thrown away at the end of the job; a venv would hide `python3` from the
-      # checks, which call it by name.
-      - name: Install the asset generators' dependency
-        run: python3 -m pip install --break-system-packages -r requirements.txt
-
-      # The same four scripts `node scripts/release.ts` runs, in its order.
-      - run: pnpm run typecheck
       - run: pnpm run lint
-      - run: pnpm run test
-      - run: pnpm run gate
+
+      # Meridian's whole standard in one command: the gate (tokens, specifications, contrast,
+      # types, tests), a production build against the fake gateway, the browser audit of every
+      # page at five widths in both themes, and every control pressed. The browser checks drive
+      # the runner's own Chrome; nothing reaches the real deployment.
+      - run: pnpm run verify
+        env:
+          CHROME: /usr/bin/google-chrome
+
+      - name: Keep the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verify-report
+          path: out/verify.txt

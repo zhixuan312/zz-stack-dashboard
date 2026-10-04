@@ -1,24 +1,15 @@
 import Link from 'next/link';
-import { Compass } from 'lucide-react';
-import { EmptyState, PageFrame, buttonVariants } from '@/console-old/ui';
+import { PageFrame } from '@/components/base/shell';
+import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
 
+/** A console address that leads nowhere: the rail stays, so the way on is one press away. */
 export default function NotFound() {
   return (
-    <PageFrame title="Not found">
-      <EmptyState
-        illustration={{ src: '/assets/brand/state-notfound.png', width: 76, height: 96 }}
-        icon={<Compass />}
-        title="No such page"
-        description="The link may be out of date, or the record may have been removed."
-        // `Button` renders a real <button>; a navigation target must be an
-        // anchor, so the link borrows the button's classes instead of being
-        // wrapped in one.
-        action={
-          <Link href="/" className={buttonVariants()}>
-            Back to overview
-          </Link>
-        }
-      />
+    <PageFrame title="Not found" kicker="404">
+      <EmptyState kind="filtered" title="No such page" className="py-16" action={<Button asChild variant="primary"><Link href="/">Back to the overview</Link></Button>}>
+        The link may be out of date, or the record may have been removed.
+      </EmptyState>
     </PageFrame>
   );
 }

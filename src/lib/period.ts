@@ -22,7 +22,7 @@ export const PERIOD_LABEL: Record<Period, string> = {
 };
 
 /** Days in a period, or `null` for `all`. */
-export const PERIOD_DAYS: Record<Period, number | null> = {
+const PERIOD_DAYS: Record<Period, number | null> = {
   '1d': 1,
   '7d': 7,
   '30d': 30,

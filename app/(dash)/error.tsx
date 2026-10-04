@@ -1,38 +1,20 @@
 'use client';
 
 import { useEffect } from 'react';
-import { TriangleAlert } from 'lucide-react';
-import { Button, EmptyState, PageFrame } from '@/console-old/ui';
+import { PageFrame } from '@/components/base/shell';
+import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
 
-/**
- * The route-level error boundary. It shows the digest rather than the message:
- * a production build replaces server error messages with a digest anyway, and
- * showing a stale local message trains people to ignore what is on screen.
- */
-export default function DashError({
-  error,
-  reset,
-}: {
-  error: Error & { digest?: string };
-  reset: () => void;
-}) {
+/** A page that threw while rendering: what failed, the reference to quote, and Retry. The rail stays. */
+export default function DashError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
     console.error(error);
   }, [error]);
-
   return (
     <PageFrame title="Something went wrong">
-      <EmptyState
-        illustration={{ src: '/assets/brand/state-error.png', width: 74, height: 96 }}
-        icon={<TriangleAlert />}
-        title="This page failed to render"
-        description={
-          error.digest
-            ? `Reference ${error.digest} — quote it if you report this.`
-            : 'The error was logged to the console.'
-        }
-        action={<Button onClick={reset}>Try again</Button>}
-      />
+      <EmptyState kind="error" title="This page failed to render" className="py-16" action={<Button variant="primary" onClick={reset}>Try again</Button>}>
+        {error.digest ? `Reference ${error.digest}; quote it if you report this.` : 'The error was logged to the browser console.'}
+      </EmptyState>
     </PageFrame>
   );
 }

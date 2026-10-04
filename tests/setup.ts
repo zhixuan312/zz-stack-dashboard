@@ -39,3 +39,6 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
   useRouter: () => ({ push() {}, replace() {}, refresh() {}, back() {}, prefetch() {} }),
 }));
+
+/* jsdom has no IntersectionObserver; Meridian's PageFrame watches its masthead to show the compact title. */
+globalThis.IntersectionObserver ??= class { observe() {} unobserve() {} disconnect() {} takeRecords() { return []; } } as unknown as typeof IntersectionObserver;

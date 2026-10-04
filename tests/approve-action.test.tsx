@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { ApproveAction, canApprove } from '@/console-old/ApproveAction';
-import { Toaster } from '@/console-old/ui/toast';
+import { ApproveAction, canApprove } from '@/console/approve';
+import { Toaster } from '@/components/ui/toast';
 import type { DocumentDetail, Me } from '@/lib/api-shapes';
 
 // Rendering is not enforcement — see canApprove's own comment — but a control
@@ -86,10 +86,10 @@ describe('ApproveAction', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  /* The success toast is transient — it exists for about three seconds after a click that
-   * mutates real state — so a screenshot cannot reach it and this test is what holds it.
+  /* The success toast is transient (it leaves after five seconds) so a screenshot cannot reach
+   * it, and this test is what holds it: a success says so, not only a failure.
    */
-  it('marks a successful approval with the approved mascot, not just an error path', async () => {
+  it('confirms a successful approval in a toast, not only the error path', async () => {
     const user = userEvent.setup();
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ ok: true }), {
@@ -106,18 +106,8 @@ describe('ApproveAction', () => {
       await user.click(screen.getByRole('button', { name: 'Approve' }));
       await user.click(screen.getByRole('button', { name: 'Confirm' }));
 
-      const toast = await screen.findByText(`Approved ${doc.path}.`);
-      /* The card, addressed by its role: `closest('div')` finds the inner text wrapper,
-         which holds the message and no image. A success toast is role="status" and an
-         error toast is role="alert", so the role also pins this to the success path. */
-      const card = toast.closest('[role="status"]');
-      expect(card, 'the success toast is not role="status"').not.toBeNull();
-
-      const img = card!.querySelector('img');
-      expect(img, 'the success toast renders no illustration').not.toBeNull();
-      expect(img!.getAttribute('src')).toContain('state-approved');
-      // Decorative: the message beside it already carries the meaning.
-      expect(img!.getAttribute('alt')).toBe('');
+      expect(await screen.findByText(`Approved ${doc.path}`)).toBeInTheDocument();
+      expect(screen.queryByText('Not approved')).toBeNull();
     } finally {
       fetchMock.mockRestore();
     }

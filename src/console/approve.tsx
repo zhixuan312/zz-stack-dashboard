@@ -19,7 +19,7 @@ export function canApprove(doc: DocumentDetail, me: Me | undefined): boolean {
 
 /**
  * Approve one gated document. Inline confirmation, never a modal: Approve swaps for "Approve this document? Cancel /
- * Approve" in the same place. The receipt is the stamped approver, which the mutation's refetch shows without a
+ * Confirm" in the same place. The receipt is the stamped approver, which the mutation's refetch shows without a
  * reload; a refusal leaves the document as it was and says the gateway's own sentence.
  */
 export function ApproveAction({ doc, me }: { doc: DocumentDetail; me: Me }) {
@@ -43,7 +43,7 @@ export function ApproveAction({ doc, me }: { doc: DocumentDetail; me: Me }) {
     <span className="flex flex-wrap items-center gap-2">
       <span className="text-sm text-ink-2">Approve this document?</span>
       <Button variant="ghost" onClick={() => setConfirming(false)} disabled={mutation.isPending}>Cancel</Button>
-      <Button variant="primary" onClick={() => void approve()} busy={mutation.isPending}>Approve</Button>
+      <Button variant="primary" onClick={() => void approve()} busy={mutation.isPending}>Confirm</Button>
     </span>
   );
 }

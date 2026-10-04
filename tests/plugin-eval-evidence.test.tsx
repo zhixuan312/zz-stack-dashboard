@@ -2,7 +2,9 @@ import { render as rtlRender, screen } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { describe, expect, it } from 'vitest';
 import { EvalLearning, EvalUsage } from '@/console/plugin-eval-evidence';
-import { TooltipProvider } from '@/console-old/ui/tooltip';
+import { Tooltip } from 'radix-ui';
+
+const TooltipProvider = Tooltip.Provider;
 import type { EvalFinding, PluginEval } from '@/lib/api-shapes';
 
 /** `EvalLearning`'s composition bar is a Radix tooltip — see plugin-eval-overview.test.tsx. */

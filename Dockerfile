@@ -1,11 +1,12 @@
 # ZZ Console — the admin dashboard.
 #
 # COUPLED: Node 24 is the floor, as `engines` in package.json says, and `pnpm install` reads
-# that field in this image. scripts/ and checks/ are TypeScript run by Node directly, and native
-# type stripping is stable from 24.12.
+# that field in this image. scripts/ is TypeScript run by Node directly, and native type stripping
+# is stable from 24.12.
 #
 # A standalone Next build: `output: 'standalone'` traces the modules the server reaches and
-# copies just those, so the final stage has no node_modules.
+# copies just those, so the final stage has no node_modules. There is no public/: the tab icon is
+# drawn from the accent tokens by app/icon.ts, and the fonts are self-hosted by next/font.
 #
 # It holds no secret and talks to nothing. Every read happens in the browser, against
 # /api/console on the same origin with the person's own cookie; this container serves HTML and
@@ -27,7 +28,6 @@ ENV NODE_ENV=production HOSTNAME=0.0.0.0 PORT=3000
 RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
 COPY --from=build --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=build --chown=nextjs:nodejs /app/.next/static ./.next/static
-COPY --from=build --chown=nextjs:nodejs /app/public ./public
 USER nextjs
 EXPOSE 3000
 CMD ["node", "server.js"]

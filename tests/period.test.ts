@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
-  DEFAULT_PERIOD, PERIODS, PERIOD_DAYS, PERIOD_LABEL, parsePeriod, periodCutoff,
+  DEFAULT_PERIOD, PERIODS, PERIOD_LABEL, parsePeriod, periodCutoff,
 } from '@/lib/period';
 
 /**
- * The reporting-period vocabulary — which is duplicated, on purpose, in the gateway's own
+ * The reporting-period vocabulary, which is duplicated on purpose in the gateway's own
  * `PERIOD_DAYS` (console.ts). Two build systems, one origin, no shared module between
  * them, so these tests pin the half this repository owns and the gateway's fallback covers
  * the day they disagree: an unknown period there means all time, never an error.
@@ -15,15 +15,12 @@ describe('the period vocabulary', () => {
     expect(DEFAULT_PERIOD).toBe('all');
   });
 
-  it('labels and day-counts every period it offers, with no orphans either way', () => {
-    // A period in the list with no label renders a blank menu row; a label with no period
-    // is dead text nobody can select. Both directions, so neither can rot alone.
-    for (const p of PERIODS) {
-      expect(PERIOD_LABEL[p]).toBeTruthy();
-      expect(p in PERIOD_DAYS).toBe(true);
-    }
+  it('labels every period it offers, with no orphans either way', () => {
+    // A period in the list with no label renders a blank segment; a label with no period is
+    // dead text nobody can select. Both directions, so neither can rot alone. (The day counts
+    // are a Record over the same type, so the compiler holds those.)
+    for (const p of PERIODS) expect(PERIOD_LABEL[p]).toBeTruthy();
     expect(Object.keys(PERIOD_LABEL).sort()).toEqual([...PERIODS].sort());
-    expect(Object.keys(PERIOD_DAYS).sort()).toEqual([...PERIODS].sort());
   });
 
   it('treats anything it does not recognise as the default, never as a cast', () => {
@@ -43,7 +40,6 @@ describe('the cutoff a period resolves to', () => {
     // predicate off. A cutoff at the epoch would filter, and would be wrong the day
     // somebody backdates a row.
     expect(periodCutoff('all', now)).toBeNull();
-    expect(PERIOD_DAYS.all).toBeNull();
   });
 
   it('counts back exactly the days it names', () => {

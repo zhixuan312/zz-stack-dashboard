@@ -17,7 +17,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // `@` aliases src/, and the page lives under app/ — relative, so no alias is invented
 // for one test file.
 import { PeriodProvider } from '@/console/period';
-import { TooltipProvider } from '@/console-old/ui/tooltip';
+import { Tooltip } from 'radix-ui';
+
+const TooltipProvider = Tooltip.Provider;
 import type { Overview } from '@/lib/api-shapes';
 import OverviewPage from '../app/(dash)/page';
 
@@ -111,14 +113,13 @@ beforeEach(() => {
 describe('the overview page', () => {
   it('renders the gateway response instead of throwing on it', async () => {
     mount();
-    // A tile's value proves `metrics` was read; the panel title proves `grain` was.
-    // `9.3%` is the refusal rate — the one number on this page somebody acts on.
-    await waitFor(() => expect(screen.getByText('9.3%')).toBeInTheDocument());
-    expect(screen.getByText('Tool calls over time')).toBeInTheDocument();
-    // All four tiles, and each labelled by the question it answers rather than by a
-    // count the platform happens to hold.
-    for (const label of ['Initiatives progressing', 'Knowledge from work',
-                         'Refusal rate', 'Context pulled per run']) {
+    // The featured kicker proves the trend was read; the refusal rate is the gateway's own figure,
+    // the one number on this page somebody acts on.
+    await waitFor(() => expect(screen.getByText(/Tool calls · All time/)).toBeInTheDocument());
+    expect(screen.getByText(/9\.3% of all calls/)).toBeInTheDocument();
+    // The three tiles, each labelled by the question it answers rather than by a count the
+    // platform happens to hold.
+    for (const label of ['Initiatives progressing', 'Knowledge from work', 'Context per run']) {
       expect(screen.getByText(label)).toBeInTheDocument();
     }
   });
@@ -149,17 +150,17 @@ describe('the overview page', () => {
       ({ ok: true, json: async () => (url.includes('/me') ? ME : daily) }) as unknown as Response,
     ) as unknown as typeof fetch;
     const { container } = mount();
-    await waitFor(() => expect(screen.getByText('Tool calls over time')).toBeInTheDocument());
-    const labels = [...container.querySelectorAll('svg text')].map((t) => t.textContent);
-    /* The two buckets are `09-14 · 09-15` on Singapore's calendar and `09-13 · 09-14` on UTC's, so
-       each calendar has one label the other cannot produce. Asserting the overlap (`09-14`) would
-       pass either way. */
-    expect(labels).toContain('09-15');     // only Singapore says this
-    expect(labels).not.toContain('09-13'); // only UTC says this
+    await waitFor(() => expect(screen.getByText(/Tool calls · All time/)).toBeInTheDocument());
+    const text = container.textContent ?? '';
+    /* The two buckets are `14 Sept · 15 Sept` on Singapore's calendar and `13 Sept · 14 Sept` on UTC's,
+       so each calendar has one label the other cannot produce. Asserting the overlap would pass
+       either way. */
+    expect(text).toContain('15 Sept');     // only Singapore says this
+    expect(text).not.toContain('13 Sept'); // only UTC says this
   });
 
   it('states the grain that came back, not a hardcoded one', async () => {
-    // A day-grained response must not still say "per hour" — the grain is data, not a
+    // A day-grained response must not still say "per hour": the grain is data, not a
     // constant, and this is the assertion that keeps it that way.
     const daily = { ...OVERVIEW, grain: 'day',
       toolTrend: [{ bucket: '2026-09-08T00:00:00Z', inside: 1, outside: 0, refused: 0 },
@@ -168,7 +169,7 @@ describe('the overview page', () => {
       ({ ok: true, json: async () => (url.includes('/me') ? ME : daily) }) as unknown as Response,
     ) as unknown as typeof fetch;
     mount();
-    await waitFor(() => expect(screen.getByText(/one bar per day/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/One point per day/)).toBeInTheDocument());
   });
 
   /* The one figure on this page naming something a person can unblock, so it has to be on the face
@@ -176,7 +177,7 @@ describe('the overview page', () => {
   it('states what is waiting on a person, and for how long', async () => {
     mount();
     await waitFor(() => expect(screen.getByText(/Initiatives progressing/)).toBeInTheDocument());
-    expect(screen.getByText(/3 awaiting \(3.9d\)/)).toBeInTheDocument();
+    expect(screen.getByText(/3 waiting on a person, oldest 3\.9 d/)).toBeInTheDocument();
   });
 
   /* Nothing waiting is not a clause reading "0 waiting". A tile that always carries the sentence
@@ -190,7 +191,7 @@ describe('the overview page', () => {
     ) as unknown as typeof fetch;
     mount();
     await waitFor(() => expect(screen.getByText(/Initiatives progressing/)).toBeInTheDocument());
-    expect(screen.queryByText(/awaiting/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/waiting on a person/)).not.toBeInTheDocument();
     // …and the sublabel it shares a line with survives intact.
     //
     // `6 of 7 active`, never "6 open". `scoreable` is the open initiatives that declare a flow —
@@ -203,8 +204,8 @@ describe('the overview page', () => {
   it('states each refusal row as a share of the period total', async () => {
     mount();
     await waitFor(() => expect(screen.getByText('Refusals')).toBeInTheDocument());
-    // The share is on the bar, read on hover and by a screen reader.
-    expect(screen.getByLabelText('86% of 21')).toBeInTheDocument();   // core:knowledge_add
-    expect(screen.getByLabelText('14% of 21')).toBeInTheDocument();   // core:document_write
+    // The share is on the row, read on hover.
+    expect(screen.getByTitle('85.7% of 21')).toBeInTheDocument();   // core:knowledge_add
+    expect(screen.getByTitle('14.3% of 21')).toBeInTheDocument();   // core:document_write
   });
 });

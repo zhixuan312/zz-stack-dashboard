@@ -32,7 +32,7 @@ export function EvalCell({ of }: { of: Verdict | null }) {
   return (
     <span className="text-sm font-semibold tabular-nums text-ink">
       {of.overallScore!.toFixed(2)}
-      <span className="text-xs font-normal text-ink-3"> / 10</span>
+      <span className="text-xs font-regular text-ink-3"> / 10</span>
     </span>
   );
 }

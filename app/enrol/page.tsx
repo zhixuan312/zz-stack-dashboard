@@ -1,10 +1,11 @@
 'use client';
 
-import { Standalone } from '@/console-old/patterns/standalone';
 import { useEffect, useState } from 'react';
 import { KeyRound, ShieldAlert } from 'lucide-react';
 import { startRegistration } from '@simplewebauthn/browser';
-import { Button } from '@/console-old/ui';
+import { Banner } from '@/components/ui/banner';
+import { Button } from '@/components/ui/button';
+import { Standalone, StandalonePanel } from '@/console/standalone';
 
 /**
  * Where an enrolment link lands: register a passkey, once, and be signed in with it.
@@ -84,37 +85,27 @@ export default function EnrolPage() {
 
   return token ? (
     <Standalone
-      eyebrow="One-time enrolment"
-      title={<>Register your passkey<span className="text-accent">.</span></>}
-    >
-      <p className="t-lead max-w-[46ch]">
-        Your browser will ask you to confirm — Touch ID, Windows Hello, a phone, or a security
-        key. After that you sign in with it and never need this link again.
-      </p>
-      <div className="flex w-full max-w-[22rem] flex-col gap-3">
-        <Button variant="primary" size="lg" fullWidth onClick={() => void enrol()} disabled={busy}>
-          <KeyRound className="size-[18px]" aria-hidden />
-          {busy ? 'Waiting for your device…' : 'Register a passkey'}
-        </Button>
-        {error ? (
-          <p role="alert" className="text-xs leading-relaxed text-[var(--rose-deep)]">{error}</p>
-        ) : null}
-      </div>
-      <p className="max-w-[44ch] text-xs leading-relaxed text-ink-faint">
-        This link works once. Register on the device you actually want to sign in from — an
-        administrator can issue another for a second device.
-      </p>
-    </Standalone>
+      kicker="One-time enrolment"
+      sentence="Register your passkey."
+      lead="Your browser asks you to confirm: Touch ID, Windows Hello, a phone or a security key. After that you sign in with it and never need this link again."
+      aside={
+        <StandalonePanel labelledBy="enrol">
+          <div className="flex flex-col gap-5">
+            <h2 id="enrol" className="t-section">Register this device</h2>
+            <Button variant="primary" size="lg" block icon={<KeyRound />} onClick={() => void enrol()} busy={busy}>
+              {busy ? 'Waiting for your device…' : 'Register a passkey'}
+            </Button>
+            {error ? <p role="alert" className="t-small text-critical-ink">{error}</p> : null}
+            <p className="t-caption text-pretty">This link works once. Register on the device you want to sign in from; an administrator can issue another for a second device.</p>
+          </div>
+        </StandalonePanel>
+      }
+    />
   ) : (
-    <Standalone eyebrow="Enrolment" title={<>No enrolment link<span className="text-accent">.</span></>}>
-      <div className="flex max-w-[30rem] items-start gap-3 rounded-[var(--r-lg)] border border-[var(--amber)] bg-[var(--amber-tint)] p-4 text-left">
-        <ShieldAlert className="mt-0.5 size-4 shrink-0 text-[var(--amber-text)]" aria-hidden />
-        <p className="text-sm leading-relaxed text-ink-soft">
-          This page needs the link an administrator sent you, opened whole — including everything
-          after the <code className="font-mono text-xs">#</code>. Accounts are created on the
-          platform, so there is nothing to fill in here.
-        </p>
-      </div>
+    <Standalone kicker="Enrolment" sentence="No enrolment link.">
+      <Banner tone="warning" title="Open the whole link" icon={<ShieldAlert />} className="mt-8 max-w-xl">
+        This page needs the link an administrator sent you, opened whole, including everything after the <code className="font-mono text-xs">#</code>. Accounts are created on the platform, so there is nothing to fill in here.
+      </Banner>
     </Standalone>
   );
 }

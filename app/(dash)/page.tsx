@@ -124,7 +124,6 @@ export default function OverviewPage() {
           const dates = d.toolTrend.map((b) => b.bucket);
           const totals = d.toolTrend.map((b) => b.inside + b.outside + b.refused);
           const calls = totals.reduce((a, b) => a + b, 0);
-          const refused = d.toolTrend.reduce((a, b) => a + b.refused, 0);
           const events = d.eventKinds.reduce((a, k) => a + k.n, 0);
           const stages = d.metrics.progressing.stages;
           const busiest = d.toolTrend.reduce((m, b, i) => (totals[i] > totals[m] ? i : m), 0);
@@ -166,7 +165,9 @@ export default function OverviewPage() {
                     ]}
                   />
                 </Panel>
-                <Refusals r={d.refusals} rate={refused && calls ? (refused / calls) * 100 : d.metrics.refusals.value} />
+                {/* The gateway's rate, over the same refused calls the panel counts: computing one from the chart's buckets
+                    would let two numbers for one fact disagree. */}
+                <Refusals r={d.refusals} rate={d.metrics.refusals.value} />
               </Row>
               <Row>
                 <Panel title="Event kinds" description={`${formatCount(events)} events, ${formatCount(d.counts.unattributedEvents)} belonging to no team`}>

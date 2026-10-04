@@ -109,7 +109,6 @@ if (hue !== undefined) {
   let prefs = read('src/lib/preferences.ts');
   if (!prefs.includes(`'${id}'`)) {
     prefs = prefs.replace(/export const ACCENTS = \[([^\]]*)\] as const;/, (_, list) => `export const ACCENTS = [${list}, '${id}'] as const;`);
-    prefs = prefs.replace(/(export const ACCENT_SWATCH[^{]*\{)([^}]*)\}/, (_, head, body) => `${head} ${body.trim()}, ${id}: 'oklch(0.56 ${c} ${h})' }`);
     write('src/lib/preferences.ts', prefs);
   }
   defaultAccent(id);

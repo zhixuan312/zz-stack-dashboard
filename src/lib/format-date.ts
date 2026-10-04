@@ -12,7 +12,7 @@ import { app } from '@/app.config';
  * boundary server-side, or the chart and the totals will disagree by a day at
  * the edges and nothing in the UI will explain why.
  */
-export const DISPLAY_TIMEZONE = app.timezone;
+const DISPLAY_TIMEZONE = app.timezone;
 
 type DateInput = Date | string | number;
 
@@ -49,14 +49,6 @@ export function formatDateTime(input: DateInput): string {
   if (!d) return String(input);
   const p = parts(d);
   return `${p.day} ${p.month} ${p.year}, ${p.hour}:${p.minute}`;
-}
-
-/** `08:04:31`, for a feed where the day is already said. */
-export function formatTime(input: DateInput): string {
-  const d = toDate(input);
-  if (!d) return String(input);
-  const p = parts(d);
-  return `${p.hour}:${p.minute}:${p.second}`;
 }
 
 /** `just now` · `5 min ago` · `3 h ago` · `7 d ago` · then an absolute date. */

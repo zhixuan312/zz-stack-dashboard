@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { INITIATIVE_STATES, initiativeState, type StateOf } from '@/console-old/StateBadge';
+import { INITIATIVE_STATES, initiativeState, type StateOf } from '@/console/initiative';
 import { periodCutoff } from '@/lib/period';
 
 /**

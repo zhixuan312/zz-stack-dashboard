@@ -1,21 +1,14 @@
-import { PageFrame } from '@/console-old/ui';
-import { SkeletonPage } from '@/console-old/ui/skeleton';
+import { PageFrame, Row, Stack } from '@/components/base/shell';
+import { Skeleton } from '@/components/ui/skeleton';
 
-/**
- * The route-level busy state, shared by every page in the group.
- *
- * Without a `loading.tsx`, Next holds the previous screen on a router transition
- * while the next route's data resolves: the nav highlight moves and the content
- * under it does not.
- *
- * The frame is real (the header and rail are already there); only the body is a
- * skeleton, so the shell does not flash. A route whose shape differs enough to
- * cause a jump gets its own `loading.tsx` beside its `page.tsx`.
- */
+/** While a page's code arrives: the masthead and a page-shaped skeleton, so the swap to content moves little. */
 export default function DashLoading() {
   return (
-    <PageFrame title="…">
-      <SkeletonPage />
+    <PageFrame title={<Skeleton className="h-10 w-56" />}>
+      <Stack aria-busy="true" aria-label="Loading">
+        <Row split="tiles">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-32 rounded-lg" />)}</Row>
+        <Skeleton className="h-96 rounded-lg" />
+      </Stack>
     </PageFrame>
   );
 }

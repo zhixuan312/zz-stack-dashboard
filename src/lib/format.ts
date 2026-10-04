@@ -13,7 +13,7 @@ import { app } from '@/app.config';
 const CURRENCY = new Intl.NumberFormat('en-US', { style: 'currency', currency: app.currency, currencyDisplay: 'narrowSymbol' }).formatToParts(0).find((p) => p.type === 'currency')?.value ?? app.currency;
 
 /** Money in `app.currency`, symbol first: $298.43, €1,204. */
-export function formatCost(amount: number | null): string {
+function formatCost(amount: number | null): string {
   if (amount === null) return '—';
   if (amount === 0) return `${CURRENCY}0`;
   if (Math.abs(amount) < 0.01) return `${CURRENCY}${amount.toFixed(4)}`;
@@ -105,8 +105,9 @@ export function formatBy(kind: NumberFormat | undefined, value: number | null): 
  * value and the axis do the right thing.
  */
 export const AXIS_FORMATTERS: Record<NumberFormat, (n: number | null) => string> = {
-  count: (n) => (n === null ? '—' : formatCompact(n)),
-  compact: (n) => (n === null ? '—' : formatCompact(n)),
+  // Not formatCompact: it rounds to whole thousands, so a 0–2,000 scale in steps of 500 read "1K · 2K · 2K".
+  count: (n) => (n === null ? '—' : formatAxisCount(n)),
+  compact: (n) => (n === null ? '—' : formatAxisCount(n)),
   'cost-compact': formatCostCompact,
   cost: (n) => {
     if (n === null) return '—';
@@ -119,7 +120,7 @@ export const AXIS_FORMATTERS: Record<NumberFormat, (n: number | null) => string>
 };
 
 /** A count on an axis tick: 0, 250, 1.5K, 2M; as short as the scale allows. */
-export function formatAxisCount(n: number): string {
+function formatAxisCount(n: number): string {
   if (n === 0) return '0';
   const trim = (v: number): string => (Number.isInteger(v) ? String(v) : v.toFixed(1));
   const abs = Math.abs(n);

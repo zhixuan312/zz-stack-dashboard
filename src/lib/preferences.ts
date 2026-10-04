@@ -2,11 +2,9 @@
 import { slug } from '@/app.config';
 const THEMES = ['system', 'dark', 'light'] as const;
 export const ACCENTS = ['indigo', 'cobalt', 'jade', 'graphite', 'zz'] as const;
-/** A swatch for each accent preset, for pickers. The fill lightness is the dark theme's; graphite is ink itself. */
-export const ACCENT_SWATCH: Record<(typeof ACCENTS)[number], string> = { indigo: 'oklch(0.56 0.2 277)', cobalt: 'oklch(0.56 0.17 255)', jade: 'oklch(0.56 0.12 168)', graphite: 'var(--ink)', zz: 'oklch(0.56 0.18 292)' };
 const DENSITIES = ['comfortable', 'compact'] as const;
 type ThemePref = (typeof THEMES)[number];
-export type Accent = (typeof ACCENTS)[number];
+type Accent = (typeof ACCENTS)[number];
 type Density = (typeof DENSITIES)[number];
 export type Preferences = { theme: ThemePref; accent: Accent; density: Density };
 
