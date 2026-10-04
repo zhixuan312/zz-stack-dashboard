@@ -1,6 +1,6 @@
 /** Colour maths shared by the gates and the Atlas: parse CSS colours, composite, WCAG contrast, OKLab, and CVD simulation. One copy, so the browser and the gate never disagree. */
 
-export type RGBA = [number, number, number, number]; // 0..1 sRGB, alpha
+type RGBA = [number, number, number, number]; // 0..1 sRGB, alpha
 
 const lin = (x: number) => (x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4);
 const gam = (x: number) => (x <= 0.0031308 ? 12.92 * x : 1.055 * x ** (1 / 2.4) - 0.055);
