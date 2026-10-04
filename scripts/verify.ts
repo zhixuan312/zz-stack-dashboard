@@ -5,6 +5,8 @@
  *
  *   pnpm verify [--quick] [--extra /teams/atlas,/plugins/sdlc]
  *
+ * Without --extra, the detail pages in scripts/fake-gateway/routes.ts are checked beside every static route.
+ *
  * Why a fake gateway: the presses approve, revoke and archive whatever a page offers, so they must never reach the
  * real deployment. `next.config.ts` bakes `ZZ_GATEWAY` into the build's rewrites, so the gateway starts first and the
  * build is made against it. That build is for checking only; the image the release ships is built without it.
@@ -18,8 +20,12 @@ import fs from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
 
+import { DETAIL_ROUTES } from './fake-gateway/routes.ts';
+
 const ROOT = path.resolve(import.meta.dirname, '..');
-const pass = process.argv.slice(2);
+const argv = process.argv.slice(2);
+// The fake gateway's records give the detail pages worth seeing; --extra replaces them.
+const pass = argv.includes('--extra') ? argv : [...argv, '--extra', DETAIL_ROUTES.join(',')];
 const lines: string[] = [];
 const log = (s: string) => { console.log(s); lines.push(s); };
 const finish = (code: number) => {
