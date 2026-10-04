@@ -54,7 +54,7 @@ export function AppShell({
         </aside>
         <Dialog.Root open={open} onOpenChange={setOpen}>
           <Dialog.Portal>
-            {/* No backdrop blur: a full-screen blur is the costliest paint on a phone, and opening the drawer waited for it. */}
+            {/* No backdrop filter on the scrim: filtering the whole screen is the costliest paint on a phone, and opening the drawer waited for it. */}
             <Dialog.Overlay className="scrim-in fixed inset-0 z-(--layer-rail) bg-scrim lg:hidden" />
             <Dialog.Content
               aria-describedby={undefined}
