@@ -1,6 +1,6 @@
 {
   "name": "zz-stack-dashboard",
-  "version": "0.24.0",
+  "version": "0.24.1",
   "license": "MIT",
   "description": "ZZ Stack: the console of the zz-stack platform",
   "type": "module",
