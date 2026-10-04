@@ -1,11 +1,11 @@
 'use client';
 
-import { DashboardPage } from '@/components/DashboardPage';
-import { Panel } from '@/components/Panel';
-import { Query } from '@/components/Query';
+import { DashboardPage } from '@/console-old/DashboardPage';
+import { Panel } from '@/console-old/Panel';
+import { Query } from '@/console-old/Query';
 import {
   Badge, PageControl, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Time, usePaged,
-} from '@/components/ui';
+} from '@/console-old/ui';
 import { freshnessOf, useConsole, useConsoleMode } from '@/lib/api';
 import { teamSlug, type Person } from '@/lib/api-shapes';
 

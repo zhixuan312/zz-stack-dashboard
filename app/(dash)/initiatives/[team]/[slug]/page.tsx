@@ -2,14 +2,14 @@
 
 import { use } from 'react';
 import Link from 'next/link';
-import { DashboardPage } from '@/components/DashboardPage';
-import { Panel } from '@/components/Panel';
-import { DocStatus } from '@/components/DocStatus';
-import { Query } from '@/components/Query';
-import { FlowStepper } from '@/components/Flow';
+import { DashboardPage } from '@/console-old/DashboardPage';
+import { Panel } from '@/console-old/Panel';
+import { DocStatus } from '@/console-old/DocStatus';
+import { Query } from '@/console-old/Query';
+import { FlowStepper } from '@/console-old/Flow';
 import {
   PageControl, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Time, usePaged,
-} from '@/components/ui';
+} from '@/console-old/ui';
 import { formatCount } from '@/lib/format';
 import { freshnessOf, useConsole } from '@/lib/api';
 import { type InitiativeDetail } from '@/lib/api-shapes';

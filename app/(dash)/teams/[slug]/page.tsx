@@ -3,15 +3,15 @@
 import { use } from 'react';
 import Link from 'next/link';
 import { Inbox } from 'lucide-react';
-import { DashboardPage } from '@/components/DashboardPage';
-import { Panel } from '@/components/Panel';
-import { Query } from '@/components/Query';
-import { FlowMini } from '@/components/Flow';
-import { StateBadge, initiativeState } from '@/components/StateBadge';
+import { DashboardPage } from '@/console-old/DashboardPage';
+import { Panel } from '@/console-old/Panel';
+import { Query } from '@/console-old/Query';
+import { FlowMini } from '@/console-old/Flow';
+import { StateBadge, initiativeState } from '@/console-old/StateBadge';
 import {
   EmptyState, PageControl, Table, TableBody, TableCell, TableHead, TableHeader,
   TableRow, Time, usePaged,
-} from '@/components/ui';
+} from '@/console-old/ui';
 import { freshnessOf, useConsole } from '@/lib/api';
 import { type Initiative, type Team, type TeamDetail } from '@/lib/api-shapes';
 

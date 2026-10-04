@@ -1,0 +1,55 @@
+{
+  "$schema": "https://www.designtokens.org/schemas/2025.10/format.json",
+  "$description": "Meridian compact density: for operators who scan many rows. Only the control group changes; type stays the same size.",
+  "control": {
+    "$description": "Controls in compact density.",
+    "control-sm": {
+      "$type": "dimension",
+      "$value": {
+        "value": 28,
+        "unit": "px"
+      },
+      "$description": "Small controls."
+    },
+    "control-md": {
+      "$type": "dimension",
+      "$value": {
+        "value": 32,
+        "unit": "px"
+      },
+      "$description": "Default controls."
+    },
+    "control-lg": {
+      "$type": "dimension",
+      "$value": {
+        "value": 38,
+        "unit": "px"
+      },
+      "$description": "Large controls."
+    },
+    "row-height": {
+      "$type": "dimension",
+      "$value": {
+        "value": 38,
+        "unit": "px"
+      },
+      "$description": "A table row."
+    },
+    "card-pad": {
+      "$type": "dimension",
+      "$value": {
+        "value": 16,
+        "unit": "px"
+      },
+      "$description": "Inside a card."
+    },
+    "stack-gap": {
+      "$type": "dimension",
+      "$value": {
+        "value": 12,
+        "unit": "px"
+      },
+      "$description": "Between cards."
+    }
+  }
+}

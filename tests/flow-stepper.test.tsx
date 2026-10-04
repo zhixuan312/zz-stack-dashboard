@@ -1,6 +1,6 @@
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { FlowStepper } from '@/components/Flow';
+import { FlowStepper } from '@/console-old/Flow';
 import type { Step } from '@/lib/api-shapes';
 
 /** FR-58 (Task I-27): `skipped` and `waiting` are two of the stepper's states, alongside the

@@ -1,19 +1,19 @@
 'use client';
 
 import { AlertTriangle, BookOpen, Gauge, Layers } from 'lucide-react';
-import { DashboardPage } from '@/components/DashboardPage';
-import { Panel } from '@/components/Panel';
-import { RefusalsPanel } from '@/components/RefusalsPanel';
-import { Query } from '@/components/Query';
-import { BarList } from '@/components/charts/BarList';
-import { CompositionBar } from '@/components/charts/CompositionBar';
-import { TrendChart } from '@/components/charts/TrendChart';
+import { DashboardPage } from '@/console-old/DashboardPage';
+import { Panel } from '@/console-old/Panel';
+import { RefusalsPanel } from '@/console-old/RefusalsPanel';
+import { Query } from '@/console-old/Query';
+import { BarList } from '@/console-old/charts/BarList';
+import { CompositionBar } from '@/console-old/charts/CompositionBar';
+import { TrendChart } from '@/console-old/charts/TrendChart';
 import { formatCount } from '@/lib/format';
 import type { Tint } from '@/lib/tints';
 import { freshnessOf, useConsole, useConsoleMode } from '@/lib/api';
 import { type Overview, type OverviewMetrics } from '@/lib/api-shapes';
-import { Row, SkeletonPage, type MetricCardProps } from '@/components/ui';
-import { usePeriod } from '@/components/PeriodProvider';
+import { Row, SkeletonPage, type MetricCardProps } from '@/console-old/ui';
+import { usePeriod } from '@/console/period';
 
 /**
  * The landing page — the fleet's census, or one team's, by console mode.

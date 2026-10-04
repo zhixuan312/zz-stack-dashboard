@@ -1,0 +1,17 @@
+{
+  "$schema": "https://www.designtokens.org/schemas/2025.10/format.json",
+  "$description": "Meridian accent preset: indigo. An electric blue-violet: the default. Vivid on the night ground, still exact on white.",
+  "accent": {
+    "$description": "The two numbers a preset owns.",
+    "accent-h": {
+      "$type": "number",
+      "$value": 277,
+      "$description": "Hue, in OKLCH degrees."
+    },
+    "accent-c": {
+      "$type": "number",
+      "$value": 0.2,
+      "$description": "Chroma, in OKLCH."
+    }
+  }
+}

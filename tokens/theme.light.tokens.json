@@ -1,0 +1,977 @@
+{
+  "$schema": "https://www.designtokens.org/schemas/2025.10/format.json",
+  "$description": "Meridian light theme: semantic colour, chart colour and elevation.",
+  "surface": {
+    "$description": "Ground and surfaces: a pale lavender ground lit by the accent; cards are white.",
+    "ground": {
+      "$type": "color",
+      "$value": "{palette.neutral.95-5}",
+      "$description": "The page: every view sits on it, under the accent light."
+    },
+    "frame": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          1,
+          1,
+          1
+        ],
+        "alpha": 0.42,
+        "hex": "#FFFFFF"
+      },
+      "$description": "The rail: a lighter, translucent wash over the ground."
+    },
+    "surface": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          1,
+          1,
+          1
+        ],
+        "alpha": 0.74,
+        "hex": "#FFFFFF"
+      },
+      "$description": "Cards and tables: frosted white over the lit ground."
+    },
+    "surface-sunk": {
+      "$type": "color",
+      "$value": "{palette.neutral.97}",
+      "$description": "Recessed areas inside a surface: table heads, wells, code, the segmented track."
+    },
+    "surface-raised": {
+      "$type": "color",
+      "$value": "{palette.neutral.100}",
+      "$description": "Menus, popovers, dialogs and toasts: they float, so they carry a shadow."
+    },
+    "surface-inverse": {
+      "$type": "color",
+      "$value": "{palette.neutral.19}",
+      "$description": "Tooltips and the cursor flag."
+    },
+    "scrim": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.0627,
+          0.0706,
+          0.1098
+        ],
+        "alpha": 0.36,
+        "hex": "#10121C"
+      },
+      "$description": "Behind dialogs and the navigation drawer."
+    }
+  },
+  "line": {
+    "$description": "Lines: washes of ink.",
+    "line": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.0627,
+          0.0706,
+          0.1098
+        ],
+        "alpha": 0.08,
+        "hex": "#10121C"
+      },
+      "$description": "Hairlines."
+    },
+    "line-strong": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.0627,
+          0.0706,
+          0.1098
+        ],
+        "alpha": 0.14,
+        "hex": "#10121C"
+      },
+      "$description": "Control outlines at rest."
+    },
+    "line-control": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.0627,
+          0.0706,
+          0.1098
+        ],
+        "alpha": 0.46,
+        "hex": "#10121C"
+      },
+      "$description": "An outline that is the only signal. At least 3:1 on surface."
+    },
+    "chart-grid": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.0627,
+          0.0706,
+          0.1098
+        ],
+        "alpha": 0.07,
+        "hex": "#10121C"
+      },
+      "$description": "Chart gridlines."
+    },
+    "chart-axis": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.0627,
+          0.0706,
+          0.1098
+        ],
+        "alpha": 0.2,
+        "hex": "#10121C"
+      },
+      "$description": "The chart baseline."
+    }
+  },
+  "fill": {
+    "$description": "Fills: ink washes.",
+    "fill-hover": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.0627,
+          0.0706,
+          0.1098
+        ],
+        "alpha": 0.04,
+        "hex": "#10121C"
+      },
+      "$description": "Under the pointer."
+    },
+    "fill-active": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.0627,
+          0.0706,
+          0.1098
+        ],
+        "alpha": 0.07,
+        "hex": "#10121C"
+      },
+      "$description": "Pressed; the current neutral item."
+    },
+    "fill-track": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.0627,
+          0.0706,
+          0.1098
+        ],
+        "alpha": 0.07,
+        "hex": "#10121C"
+      },
+      "$description": "Tracks."
+    }
+  },
+  "ink": {
+    "$description": "Ink: the dark theme mirrored.",
+    "ink": {
+      "$type": "color",
+      "$value": "{palette.neutral.19}",
+      "$description": "Titles, figures, body copy."
+    },
+    "ink-2": {
+      "$type": "color",
+      "$value": "{palette.neutral.46}",
+      "$description": "Secondary copy, labels, inactive navigation."
+    },
+    "ink-3": {
+      "$type": "color",
+      "$value": "{palette.neutral.53}",
+      "$description": "Captions, axis ticks, kickers, placeholders."
+    },
+    "ink-disabled": {
+      "$type": "color",
+      "$value": "{palette.neutral.74}",
+      "$description": "Disabled labels."
+    },
+    "ink-inverse": {
+      "$type": "color",
+      "$value": "{palette.neutral.97}",
+      "$description": "Text on the inverse surface."
+    }
+  },
+  "accent": {
+    "$description": "Accent: the one brand colour. The preset owns its hue and chroma (accent-h, accent-c); the theme owns only lightness and opacity, so every preset holds the same contrast in both themes.",
+    "accent-l": {
+      "$type": "number",
+      "$value": 0.52,
+      "$description": "Lightness of the accent fill."
+    },
+    "accent-l-hover": {
+      "$type": "number",
+      "$value": 0.46,
+      "$description": "Lightness of the fill under the pointer."
+    },
+    "accent-l-ink": {
+      "$type": "number",
+      "$value": 0.48,
+      "$description": "Lightness of accent text."
+    },
+    "accent-k-ink": {
+      "$type": "number",
+      "$value": 1,
+      "$description": "Chroma of accent text, as a share of the preset chroma."
+    },
+    "accent-a-tint": {
+      "$type": "number",
+      "$value": 0.1,
+      "$description": "Opacity of the accent wash."
+    },
+    "accent-a-line": {
+      "$type": "number",
+      "$value": 0.38,
+      "$description": "Opacity of a tinted outline."
+    },
+    "accent-a-glow": {
+      "$type": "number",
+      "$value": 0.12,
+      "$description": "Opacity of the light the accent casts on the ground."
+    },
+    "accent-a-feature": {
+      "$type": "number",
+      "$value": 0.07,
+      "$description": "Opacity of the wash inside the featured card."
+    },
+    "accent-a-halo": {
+      "$type": "number",
+      "$value": 0.12,
+      "$description": "Opacity of the halo around a lit card."
+    },
+    "accent-a-edge": {
+      "$type": "number",
+      "$value": 0.5,
+      "$description": "Opacity of a lit edge at its brightest."
+    },
+    "accent": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.3216,
+          0.3216,
+          0.8471
+        ],
+        "hex": "#5252D8"
+      },
+      "$description": "The primary action, the active navigation marker, the focus ring, the one highlighted mark in a chart.",
+      "$extensions": {
+        "dev.zz.meridian": {
+          "css": "oklch(var(--accent-l) var(--accent-c) var(--accent-h))"
+        }
+      }
+    },
+    "accent-hover": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.2667,
+          0.2431,
+          0.7647
+        ],
+        "hex": "#443EC3"
+      },
+      "$description": "The primary action under the pointer.",
+      "$extensions": {
+        "dev.zz.meridian": {
+          "css": "oklch(var(--accent-l-hover) var(--accent-c) var(--accent-h))"
+        }
+      }
+    },
+    "accent-ink": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.2824,
+          0.2706,
+          0.7922
+        ],
+        "hex": "#4845CA"
+      },
+      "$description": "Accent as text: an inline link, the active navigation label, the figure that carries the finding.",
+      "$extensions": {
+        "dev.zz.meridian": {
+          "css": "oklch(var(--accent-l-ink) calc(var(--accent-c) * var(--accent-k-ink)) var(--accent-h))"
+        }
+      }
+    },
+    "accent-tint": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.3216,
+          0.3216,
+          0.8471
+        ],
+        "hex": "#5252D8"
+      },
+      "$description": "A wash of the accent: the active navigation item, a selected row, text selection.",
+      "$extensions": {
+        "dev.zz.meridian": {
+          "css": "oklch(var(--accent-l) var(--accent-c) var(--accent-h) / var(--accent-a-tint))"
+        }
+      }
+    },
+    "accent-line": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.2824,
+          0.2706,
+          0.7922
+        ],
+        "hex": "#4845CA"
+      },
+      "$description": "The outline of a tinted accent object: the featured card, a selected option.",
+      "$extensions": {
+        "dev.zz.meridian": {
+          "css": "oklch(var(--accent-l-ink) var(--accent-c) var(--accent-h) / var(--accent-a-line))"
+        }
+      }
+    },
+    "on-accent": {
+      "$type": "color",
+      "$value": "{palette.neutral.100}",
+      "$description": "Text and icons on an accent fill."
+    },
+    "accent-fill": {
+      "$type": "gradient",
+      "$value": [
+        {
+          "color": "#5252D8",
+          "position": 0
+        },
+        {
+          "color": "#7246CF",
+          "position": 1
+        }
+      ],
+      "$description": "The primary action: the accent turning a few degrees toward violet, top to bottom. Text sits on the darker end.",
+      "$extensions": {
+        "dev.zz.meridian": {
+          "css": "linear-gradient(180deg, oklch(calc(var(--accent-l) + 0.03) var(--accent-c) var(--accent-h)), oklch(var(--accent-l) var(--accent-c) calc(var(--accent-h) + 16)))"
+        }
+      }
+    },
+    "edge-lit": {
+      "$type": "gradient",
+      "$value": [
+        {
+          "color": "#4845CA",
+          "position": 0
+        },
+        {
+          "color": "#00000000",
+          "position": 1
+        }
+      ],
+      "$description": "A lit edge: a hairline that is brightest where the light comes from (top right) and fades away from it.",
+      "$extensions": {
+        "dev.zz.meridian": {
+          "css": "linear-gradient(215deg, oklch(var(--accent-l-ink) var(--accent-c) var(--accent-h) / var(--accent-a-edge)), oklch(var(--accent-l-ink) var(--accent-c) calc(var(--accent-h) + 30) / calc(var(--accent-a-edge) * 0.4)) 40%, transparent 72%)"
+        }
+      }
+    },
+    "shadow-halo": {
+      "$type": "shadow",
+      "$value": [
+        {
+          "color": {
+            "colorSpace": "srgb",
+            "components": [
+              0.3373,
+              0.349,
+              0.9255
+            ],
+            "alpha": 0.1,
+            "hex": "#5659EC"
+          },
+          "offsetX": {
+            "value": 0,
+            "unit": "px"
+          },
+          "offsetY": {
+            "value": 0,
+            "unit": "px"
+          },
+          "blur": {
+            "value": 28,
+            "unit": "px"
+          },
+          "spread": {
+            "value": -6,
+            "unit": "px"
+          }
+        }
+      ],
+      "$description": "A lit card's halo: the accent and its violet neighbour, very faint.",
+      "$extensions": {
+        "dev.zz.meridian": {
+          "css": "0 0 28px -6px oklch(var(--accent-l) var(--accent-c) var(--accent-h) / var(--accent-a-halo)), 0 0 60px -20px oklch(var(--accent-l) var(--accent-c) calc(var(--accent-h) + 20) / calc(var(--accent-a-halo) * 0.8))"
+        }
+      }
+    },
+    "glow-ground": {
+      "$type": "gradient",
+      "$value": [
+        {
+          "color": "#5252D8",
+          "position": 0
+        },
+        {
+          "color": "#00000000",
+          "position": 1
+        }
+      ],
+      "$description": "The light on the ground: the accent from the top right, a trace of teal from the top left. Fixed behind the page.",
+      "$extensions": {
+        "dev.zz.meridian": {
+          "css": "radial-gradient(64vw 44vw at 82% -8%, oklch(var(--accent-l) var(--accent-c) var(--accent-h) / var(--accent-a-glow)), transparent 70%), radial-gradient(42vw 30vw at 6% 2%, oklch(0.72 0.12 175 / calc(var(--accent-a-glow) * 0.3)), transparent 70%), radial-gradient(50vw 40vw at 70% 105%, oklch(var(--accent-l) var(--accent-c) calc(var(--accent-h) + 22) / calc(var(--accent-a-glow) * 0.45)), transparent 70%)"
+        }
+      }
+    },
+    "glow-feature": {
+      "$type": "gradient",
+      "$value": [
+        {
+          "color": "#5252D8",
+          "position": 0
+        },
+        {
+          "color": "#00000000",
+          "position": 1
+        }
+      ],
+      "$description": "The featured card: an accent wash that fades down, with a pool of light at the top right.",
+      "$extensions": {
+        "dev.zz.meridian": {
+          "css": "radial-gradient(120% 90% at 100% 0%, oklch(var(--accent-l) var(--accent-c) var(--accent-h) / calc(var(--accent-a-feature) * 1.6)), transparent 60%), linear-gradient(180deg, oklch(var(--accent-l) var(--accent-c) var(--accent-h) / var(--accent-a-feature)), oklch(var(--accent-l) var(--accent-c) var(--accent-h) / calc(var(--accent-a-feature) * 0.25)))"
+        }
+      }
+    }
+  },
+  "status": {
+    "$description": "Status, stepped for the light ground.",
+    "positive": {
+      "$type": "color",
+      "$value": "{palette.status.positive-56}",
+      "$description": "Positive marks."
+    },
+    "positive-ink": {
+      "$type": "color",
+      "$value": "{palette.status.positive-48}",
+      "$description": "Positive text."
+    },
+    "positive-tint": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.8863,
+          0.9725,
+          0.9176
+        ],
+        "hex": "#E2F8EA"
+      },
+      "$description": "Positive ground.",
+      "$extensions": {
+        "dev.zz.meridian": {
+          "css": "oklch(0.56 0.14 158 / 0.1)"
+        }
+      }
+    },
+    "warning": {
+      "$type": "color",
+      "$value": "{palette.status.warning-64}",
+      "$description": "Warning marks."
+    },
+    "warning-ink": {
+      "$type": "color",
+      "$value": "{palette.status.warning-50}",
+      "$description": "Warning text."
+    },
+    "warning-tint": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          1,
+          0.9333,
+          0.8353
+        ],
+        "hex": "#FFEED5"
+      },
+      "$description": "Warning ground.",
+      "$extensions": {
+        "dev.zz.meridian": {
+          "css": "oklch(0.72 0.15 72 / 0.14)"
+        }
+      }
+    },
+    "critical": {
+      "$type": "color",
+      "$value": "{palette.status.critical-58}",
+      "$description": "Critical marks."
+    },
+    "critical-ink": {
+      "$type": "color",
+      "$value": "{palette.status.critical-50}",
+      "$description": "Critical text."
+    },
+    "critical-tint": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          1,
+          0.9255,
+          0.9176
+        ],
+        "hex": "#FFECEA"
+      },
+      "$description": "Critical ground.",
+      "$extensions": {
+        "dev.zz.meridian": {
+          "css": "oklch(0.58 0.19 22 / 0.09)"
+        }
+      }
+    },
+    "on-critical": {
+      "$type": "color",
+      "$value": "{palette.neutral.100}",
+      "$description": "Text on the destructive button."
+    },
+    "critical-fill": {
+      "$type": "color",
+      "$value": "{palette.status.critical-50}",
+      "$description": "The destructive button."
+    }
+  },
+  "chart": {
+    "$description": "Chart colour for the light ground: the same hues, stepped for it.",
+    "series-1": {
+      "$type": "color",
+      "$value": "{palette.series.indigo-55}",
+      "$description": "Slot 1."
+    },
+    "series-2": {
+      "$type": "color",
+      "$value": "{palette.series.coral-67}",
+      "$description": "Slot 2."
+    },
+    "series-3": {
+      "$type": "color",
+      "$value": "{palette.series.teal-62}",
+      "$description": "Slot 3."
+    },
+    "series-4": {
+      "$type": "color",
+      "$value": "{palette.series.orchid-57}",
+      "$description": "Slot 4."
+    },
+    "series-5": {
+      "$type": "color",
+      "$value": "{palette.series.saffron-72}",
+      "$description": "Slot 5 (below 3:1 on surface: always labelled)."
+    },
+    "series-6": {
+      "$type": "color",
+      "$value": "{palette.series.sky-55}",
+      "$description": "Slot 6."
+    },
+    "chart-neutral": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [
+          0.88,
+          0.012,
+          275
+        ],
+        "hex": "#D5D7E0"
+      },
+      "$description": "The neutral population."
+    },
+    "chart-neutral-strong": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [
+          0.62,
+          0.014,
+          275
+        ],
+        "hex": "#83868F"
+      },
+      "$description": "A neutral mark that must hold 3:1."
+    },
+    "chart-glow-a": {
+      "$type": "number",
+      "$value": 0.14,
+      "$description": "On white a glow reads as a smudge: only a faint light, set just below the line."
+    },
+    "chart-glow-blur": {
+      "$type": "number",
+      "$value": 3,
+      "$description": "Blur of that light, in pixels."
+    },
+    "chart-area-a": {
+      "$type": "number",
+      "$value": 0.14,
+      "$description": "Opacity of an area at its top: lighter on white, so the line leads."
+    }
+  },
+  "elevation": {
+    "$description": "Elevation on light: soft shadows read, so they carry the lift.",
+    "shadow-card": {
+      "$type": "shadow",
+      "$value": [
+        {
+          "color": {
+            "colorSpace": "srgb",
+            "components": [
+              0.0627,
+              0.0706,
+              0.1098
+            ],
+            "alpha": 0.04,
+            "hex": "#10121C"
+          },
+          "offsetX": {
+            "value": 0,
+            "unit": "px"
+          },
+          "offsetY": {
+            "value": 1,
+            "unit": "px"
+          },
+          "blur": {
+            "value": 2,
+            "unit": "px"
+          },
+          "spread": {
+            "value": 0,
+            "unit": "px"
+          }
+        },
+        {
+          "color": {
+            "colorSpace": "srgb",
+            "components": [
+              0.0627,
+              0.0706,
+              0.1098
+            ],
+            "alpha": 0.04,
+            "hex": "#10121C"
+          },
+          "offsetX": {
+            "value": 0,
+            "unit": "px"
+          },
+          "offsetY": {
+            "value": 8,
+            "unit": "px"
+          },
+          "blur": {
+            "value": 24,
+            "unit": "px"
+          },
+          "spread": {
+            "value": -12,
+            "unit": "px"
+          }
+        }
+      ],
+      "$description": "A card."
+    },
+    "shadow-raise": {
+      "$type": "shadow",
+      "$value": [
+        {
+          "color": {
+            "colorSpace": "srgb",
+            "components": [
+              0.0627,
+              0.0706,
+              0.1098
+            ],
+            "alpha": 0.05,
+            "hex": "#10121C"
+          },
+          "offsetX": {
+            "value": 0,
+            "unit": "px"
+          },
+          "offsetY": {
+            "value": 1,
+            "unit": "px"
+          },
+          "blur": {
+            "value": 2,
+            "unit": "px"
+          },
+          "spread": {
+            "value": 0,
+            "unit": "px"
+          }
+        },
+        {
+          "color": {
+            "colorSpace": "srgb",
+            "components": [
+              0.0627,
+              0.0706,
+              0.1098
+            ],
+            "alpha": 0.12,
+            "hex": "#10121C"
+          },
+          "offsetX": {
+            "value": 0,
+            "unit": "px"
+          },
+          "offsetY": {
+            "value": 18,
+            "unit": "px"
+          },
+          "blur": {
+            "value": 40,
+            "unit": "px"
+          },
+          "spread": {
+            "value": -20,
+            "unit": "px"
+          }
+        }
+      ],
+      "$description": "An interactive card under the pointer."
+    },
+    "shadow-overlay": {
+      "$type": "shadow",
+      "$value": [
+        {
+          "color": {
+            "colorSpace": "srgb",
+            "components": [
+              0.0627,
+              0.0706,
+              0.1098
+            ],
+            "alpha": 0.06,
+            "hex": "#10121C"
+          },
+          "offsetX": {
+            "value": 0,
+            "unit": "px"
+          },
+          "offsetY": {
+            "value": 1,
+            "unit": "px"
+          },
+          "blur": {
+            "value": 2,
+            "unit": "px"
+          },
+          "spread": {
+            "value": 0,
+            "unit": "px"
+          }
+        },
+        {
+          "color": {
+            "colorSpace": "srgb",
+            "components": [
+              0.0627,
+              0.0706,
+              0.1098
+            ],
+            "alpha": 0.14,
+            "hex": "#10121C"
+          },
+          "offsetX": {
+            "value": 0,
+            "unit": "px"
+          },
+          "offsetY": {
+            "value": 16,
+            "unit": "px"
+          },
+          "blur": {
+            "value": 40,
+            "unit": "px"
+          },
+          "spread": {
+            "value": -8,
+            "unit": "px"
+          }
+        },
+        {
+          "color": {
+            "colorSpace": "srgb",
+            "components": [
+              0.0627,
+              0.0706,
+              0.1098
+            ],
+            "alpha": 0.08,
+            "hex": "#10121C"
+          },
+          "offsetX": {
+            "value": 0,
+            "unit": "px"
+          },
+          "offsetY": {
+            "value": 0,
+            "unit": "px"
+          },
+          "blur": {
+            "value": 0,
+            "unit": "px"
+          },
+          "spread": {
+            "value": 1,
+            "unit": "px"
+          }
+        }
+      ],
+      "$description": "Menus, popovers, dialogs, toasts."
+    },
+    "shadow-control": {
+      "$type": "shadow",
+      "$value": [
+        {
+          "color": {
+            "colorSpace": "srgb",
+            "components": [
+              0.0627,
+              0.0706,
+              0.1098
+            ],
+            "alpha": 0.05,
+            "hex": "#10121C"
+          },
+          "offsetX": {
+            "value": 0,
+            "unit": "px"
+          },
+          "offsetY": {
+            "value": 1,
+            "unit": "px"
+          },
+          "blur": {
+            "value": 2,
+            "unit": "px"
+          },
+          "spread": {
+            "value": 0,
+            "unit": "px"
+          }
+        }
+      ],
+      "$description": "An outlined control at rest."
+    },
+    "shadow-accent": {
+      "$type": "shadow",
+      "$value": [
+        {
+          "color": {
+            "colorSpace": "srgb",
+            "components": [
+              1,
+              1,
+              1
+            ],
+            "alpha": 0.18,
+            "hex": "#FFFFFF"
+          },
+          "offsetX": {
+            "value": 0,
+            "unit": "px"
+          },
+          "offsetY": {
+            "value": 1,
+            "unit": "px"
+          },
+          "blur": {
+            "value": 0,
+            "unit": "px"
+          },
+          "spread": {
+            "value": 0,
+            "unit": "px"
+          },
+          "inset": true
+        },
+        {
+          "color": {
+            "colorSpace": "srgb",
+            "components": [
+              0.0627,
+              0.0706,
+              0.1098
+            ],
+            "alpha": 0.16,
+            "hex": "#10121C"
+          },
+          "offsetX": {
+            "value": 0,
+            "unit": "px"
+          },
+          "offsetY": {
+            "value": 1,
+            "unit": "px"
+          },
+          "blur": {
+            "value": 2,
+            "unit": "px"
+          },
+          "spread": {
+            "value": 0,
+            "unit": "px"
+          }
+        }
+      ],
+      "$description": "An accent fill."
+    },
+    "highlight-top": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          1,
+          1,
+          1
+        ],
+        "alpha": 0,
+        "hex": "#FFFFFF"
+      },
+      "$description": "None on light, where the shadow does the work."
+    }
+  }
+}

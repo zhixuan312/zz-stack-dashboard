@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { TriangleAlert } from 'lucide-react';
-import { Button, EmptyState, PageFrame } from '@/components/ui';
+import { Button, EmptyState, PageFrame } from '@/console-old/ui';
 
 /**
  * The route-level error boundary. It shows the digest rather than the message:

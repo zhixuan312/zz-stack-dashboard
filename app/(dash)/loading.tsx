@@ -1,5 +1,5 @@
-import { PageFrame } from '@/components/ui';
-import { SkeletonPage } from '@/components/ui/skeleton';
+import { PageFrame } from '@/console-old/ui';
+import { SkeletonPage } from '@/console-old/ui/skeleton';
 
 /**
  * The route-level busy state, shared by every page in the group.

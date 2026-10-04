@@ -1,19 +1,19 @@
 'use client';
 
 import { useState } from 'react';
-import { Facet, tally } from '@/components/TableFacet';
+import { Facet, tally } from '@/console-old/TableFacet';
 import Link from 'next/link';
 import { SearchX } from 'lucide-react';
-import { DashboardPage } from '@/components/DashboardPage';
-import { Panel } from '@/components/Panel';
-import { Query } from '@/components/Query';
-import { FlowMini } from '@/components/Flow';
-import { INITIATIVE_STATES, StateBadge, initiativeState } from '@/components/StateBadge';
-import { usePeriod } from '@/components/PeriodProvider';
+import { DashboardPage } from '@/console-old/DashboardPage';
+import { Panel } from '@/console-old/Panel';
+import { Query } from '@/console-old/Query';
+import { FlowMini } from '@/console-old/Flow';
+import { INITIATIVE_STATES, StateBadge, initiativeState } from '@/console-old/StateBadge';
+import { usePeriod } from '@/console/period';
 import { DEFAULT_PERIOD, PERIOD_LABEL, periodCutoff } from '@/lib/period';
 import {
   Badge, Button, EmptyState, PageControl, SearchInput, Switch, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Time, Toolbar, TZ_LABEL, usePaged,
-} from '@/components/ui';
+} from '@/console-old/ui';
 import { freshnessOf, useConsole, useConsoleMode } from '@/lib/api';
 import { type Initiative } from '@/lib/api-shapes';
 

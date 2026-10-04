@@ -1,8 +1,8 @@
 import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { TooltipProvider } from '@/components/ui/tooltip';
-import { DashboardPage } from '@/components/DashboardPage';
-import { GUTTER, Row, WIDTH, type PageWidth, type Split } from '@/components/ui';
+import { TooltipProvider } from '@/console-old/ui/tooltip';
+import { DashboardPage } from '@/console-old/DashboardPage';
+import { GUTTER, Row, WIDTH, type PageWidth, type Split } from '@/console-old/ui';
 
 /**
  * The layout contract, per page shape — see `src/components/ui/layout.tsx`.

@@ -1,13 +1,18 @@
+import { app } from '@/app.config';
 /**
  * Every date this product displays goes through this module. Nothing calls
  * `toLocaleDateString` directly.
  *
- * COUPLED: `DISPLAY_TIMEZONE` is the reporting timezone, and the server-side
- * buckets must be aggregated on the same boundary. Otherwise a "day" in the
- * chart and a "day" in the totals differ by one at the edges, and nothing in
- * the UI explains why.
+ * The timezone is a cross-cutting invariant, not a display preference: the
+ * reporting periods and the daily buckets are cut on the same boundary, so a
+ * "day" in the chart and a "day" in the totals are the same day.
+ *
+ * TEMPLATE KNOB — set this to your product's reporting timezone once, here.
+ * Whatever you pick, pick it deliberately: aggregate your buckets on the same
+ * boundary server-side, or the chart and the totals will disagree by a day at
+ * the edges and nothing in the UI will explain why.
  */
-export const DISPLAY_TIMEZONE = 'Asia/Singapore';
+export const DISPLAY_TIMEZONE = app.timezone;
 
 type DateInput = Date | string | number;
 
@@ -31,7 +36,7 @@ function parts(d: Date): Record<string, string> {
 }
 
 /** `09 Jun 2026` */
-function formatDate(input: DateInput): string {
+export function formatDate(input: DateInput): string {
   const d = toDate(input);
   if (!d) return String(input);
   const p = parts(d);
@@ -46,7 +51,7 @@ export function formatDateTime(input: DateInput): string {
   return `${p.day} ${p.month} ${p.year}, ${p.hour}:${p.minute}`;
 }
 
-/** `08:04:31` */
+/** `08:04:31`, for a feed where the day is already said. */
 export function formatTime(input: DateInput): string {
   const d = toDate(input);
   if (!d) return String(input);

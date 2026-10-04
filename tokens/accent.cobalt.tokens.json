@@ -1,0 +1,17 @@
+{
+  "$schema": "https://www.designtokens.org/schemas/2025.10/format.json",
+  "$description": "Meridian accent preset: cobalt. A deep, even blue for products that want the classic signal of trust.",
+  "accent": {
+    "$description": "The two numbers a preset owns.",
+    "accent-h": {
+      "$type": "number",
+      "$value": 255,
+      "$description": "Hue, in OKLCH degrees."
+    },
+    "accent-c": {
+      "$type": "number",
+      "$value": 0.17,
+      "$description": "Chroma, in OKLCH."
+    }
+  }
+}

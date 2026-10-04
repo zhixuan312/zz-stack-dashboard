@@ -1,10 +1,10 @@
 import { render as rtlRender, screen } from '@testing-library/react';
 import type { ReactElement } from 'react';
-import { TooltipProvider } from '@/components/ui/tooltip';
-import { TrendChart, niceScale } from '@/components/charts/TrendChart';
-import { ActivityHeatmap } from '@/components/charts/ActivityHeatmap';
-import { BarList } from '@/components/charts/BarList';
-import { CompositionBar } from '@/components/charts/CompositionBar';
+import { TooltipProvider } from '@/console-old/ui/tooltip';
+import { TrendChart, niceScale } from '@/console-old/charts/TrendChart';
+import { ActivityHeatmap } from '@/console-old/charts/ActivityHeatmap';
+import { BarList } from '@/console-old/charts/BarList';
+import { CompositionBar } from '@/console-old/charts/CompositionBar';
 
 /**
  * These assert the contracts that are easy to break and hard to see: the

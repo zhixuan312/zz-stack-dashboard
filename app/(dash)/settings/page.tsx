@@ -1,12 +1,12 @@
 'use client';
 
-import { DashboardPage } from '@/components/DashboardPage';
-import { ClientSetupPanel } from '@/components/settings/ClientSetupPanel';
-import { ConsoleScopePanel } from '@/components/settings/ConsoleScopePanel';
-import { PlatformSection } from '@/components/settings/PlatformSection';
-import { TeamAdminPanel } from '@/components/settings/TeamAdminPanel';
-import { TeamsPanel } from '@/components/settings/TeamsPanel';
-import { TokensPanel } from '@/components/settings/TokensPanel';
+import { DashboardPage } from '@/console-old/DashboardPage';
+import { ClientSetupPanel } from '@/console-old/settings/ClientSetupPanel';
+import { ConsoleScopePanel } from '@/console-old/settings/ConsoleScopePanel';
+import { PlatformSection } from '@/console-old/settings/PlatformSection';
+import { TeamAdminPanel } from '@/console-old/settings/TeamAdminPanel';
+import { TeamsPanel } from '@/console-old/settings/TeamsPanel';
+import { TokensPanel } from '@/console-old/settings/TokensPanel';
 
 /**
  * My settings — a member's own write surface, a team tier for anyone who administers one, and

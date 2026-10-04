@@ -1,0 +1,38 @@
+{
+  "$schema": "https://www.designtokens.org/schemas/2025.10/format.json",
+  "$description": "Meridian accent preset: graphite. No hue: ink is the accent. For products whose own brand lives in content, or a white-label.",
+  "accent": {
+    "$description": "The two numbers a preset owns.",
+    "accent-h": {
+      "$type": "number",
+      "$value": 275,
+      "$description": "Hue, in OKLCH degrees."
+    },
+    "accent-c": {
+      "$type": "number",
+      "$value": 0,
+      "$description": "Chroma, in OKLCH."
+    }
+  },
+  "$extensions": {
+    "dev.zz.meridian": {
+      "overrides": {
+        "light": {
+          "accent-l": 0.22,
+          "accent-l-hover": 0.32,
+          "accent-l-ink": 0.22,
+          "accent-a-tint": 0.07,
+          "accent-a-glow": 0.05
+        },
+        "dark": {
+          "accent-l": 0.95,
+          "accent-l-hover": 0.86,
+          "accent-l-ink": 0.95,
+          "accent-a-tint": 0.1,
+          "accent-a-glow": 0.07,
+          "on-accent": "#0B0C12"
+        }
+      }
+    }
+  }
+}

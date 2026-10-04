@@ -16,8 +16,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
  */
 // `@` aliases src/, and the page lives under app/ — relative, so no alias is invented
 // for one test file.
-import { PeriodProvider } from '@/components/PeriodProvider';
-import { TooltipProvider } from '@/components/ui/tooltip';
+import { PeriodProvider } from '@/console/period';
+import { TooltipProvider } from '@/console-old/ui/tooltip';
 import type { Overview } from '@/lib/api-shapes';
 import OverviewPage from '../app/(dash)/page';
 

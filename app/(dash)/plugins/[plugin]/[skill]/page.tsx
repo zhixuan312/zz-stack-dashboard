@@ -2,15 +2,15 @@
 
 import { use } from 'react';
 import { FlaskConical } from 'lucide-react';
-import { DashboardPage } from '@/components/DashboardPage';
-import { Panel } from '@/components/Panel';
-import { Query } from '@/components/Query';
-import { Badge, EmptyState, Row } from '@/components/ui';
+import { DashboardPage } from '@/console-old/DashboardPage';
+import { Panel } from '@/console-old/Panel';
+import { Query } from '@/console-old/Query';
+import { Badge, EmptyState, Row } from '@/console-old/ui';
 import { formatCount, formatKb, formatSeconds } from '@/lib/format';
-import { SkillReader } from '@/components/SkillReader';
-import { SkillReferences } from '@/components/SkillReferences';
-import { SkillCost } from '@/components/SkillCost';
-import { SkillViewTabs, useSkillView } from '@/components/SkillViewTabs';
+import { SkillReader } from '@/console-old/SkillReader';
+import { SkillReferences } from '@/console-old/SkillReferences';
+import { SkillCost } from '@/console-old/SkillCost';
+import { SkillViewTabs, useSkillView } from '@/console-old/SkillViewTabs';
 import { freshnessOf, useConsole } from '@/lib/api';
 import { type PluginRow, type Skill, type SkillDetail, type SkillText } from '@/lib/api-shapes';
 

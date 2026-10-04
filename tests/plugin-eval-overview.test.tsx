@@ -1,8 +1,8 @@
 import { render as rtlRender, screen } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { describe, expect, it } from 'vitest';
-import { EvalHeadline, EvalHealth, EvalQuality } from '@/components/PluginEvalOverview';
-import { TooltipProvider } from '@/components/ui/tooltip';
+import { EvalHeadline, EvalHealth, EvalQuality } from '@/console-old/PluginEvalOverview';
+import { TooltipProvider } from '@/console-old/ui/tooltip';
 import type { DimensionScore, PluginEval } from '@/lib/api-shapes';
 
 /** `EvalQuality`'s composition bar is a Radix tooltip, which throws outside a provider — the

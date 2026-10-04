@@ -1,0 +1,155 @@
+/* ZZ Meridian · Layer 1 · Base
+ *
+ * What a page has before it holds a single component: element defaults, the text roles, focus, selection and the
+ * scrollbars. Uses only tokens. Specified in src/components/base/README.md and its cards. */
+
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+
+  /* The ground: the page in either theme, under a light the accent casts from the top right, a trace of teal from the
+     top left and a violet trace below, painted once as the root's background. There is no grain: a repeated texture under
+     translucent cards stalls rasterisation on high-density screens, and the light alone carries the depth. */
+  html {
+    background-color: var(--ground);
+    background-image: var(--glow-ground);
+    background-size: 100% 100dvh;
+    background-repeat: no-repeat;
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: var(--leading-normal);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    -webkit-text-size-adjust: 100%;
+    font-synthesis-weight: none;
+  }
+  body { margin: 0; min-height: 100dvh; background: transparent; }
+  /* A guest in a host: no light; the host's ground shows through. */
+  [data-surface='embed'] { background-image: none; }
+
+  h1, h2, h3, h4, h5, h6 { margin: 0; font-weight: var(--weight-semibold); text-wrap: balance; }
+  p { margin: 0; text-wrap: pretty; }
+  ul, ol { margin: 0; padding: 0; list-style: none; }
+  a { color: inherit; text-decoration: none; }
+  button { font: inherit; color: inherit; cursor: pointer; background: none; border: 0; padding: 0; }
+  button:disabled { cursor: not-allowed; }
+  input, select, textarea { font: inherit; color: inherit; }
+  img, svg { display: block; }
+  table { border-collapse: collapse; }
+  code, kbd, pre, samp { font-family: var(--font-mono); font-size: 0.92em; }
+  hr { border: 0; border-top: 1px solid var(--line); margin: 0; }
+  ::placeholder { color: var(--ink-3); opacity: 1; }
+
+  /* Focus is for the keyboard: a 2px accent ring with a 2px gap, so it reads on any fill. */
+  :focus { outline: none; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-xs); }
+
+  ::selection { background: var(--accent-tint); color: var(--ink); }
+
+  /* Scrollbars recede: thin, the strong line colour, no track. */
+  * { scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
+}
+
+@layer components {
+  /* ── Text roles ─────────────────────────────────────────────────────────────────────────────────────
+     One role per job. Titles and figures are set semi-condensed (stretch-figure), so a large number is
+     dense and exact; running text stays at full width. Eight sizes, three weights, and that is all. */
+  .t-display {
+    font-size: var(--text-display); font-weight: var(--weight-semibold);
+    line-height: 0.96; letter-spacing: var(--tracking-display);
+  }
+  .t-page {
+    font-size: var(--text-page); font-weight: var(--weight-semibold);
+    line-height: 1.02; letter-spacing: var(--tracking-display);
+  }
+  .t-section {
+    font-size: var(--text-xl); font-weight: var(--weight-semibold);
+    line-height: var(--leading-tight); letter-spacing: var(--tracking-title);
+  }
+  .t-card {
+    font-size: var(--text-md); font-weight: var(--weight-semibold);
+    line-height: var(--leading-snug); letter-spacing: -0.012em;
+  }
+  .t-hero {
+    font-size: var(--text-hero); font-weight: var(--weight-semibold);
+    line-height: 0.95; letter-spacing: var(--tracking-display); font-variant-numeric: lining-nums;
+  }
+  .t-figure {
+    font-size: var(--text-2xl); font-weight: var(--weight-semibold);
+    line-height: 1; letter-spacing: -0.03em; font-variant-numeric: lining-nums;
+  }
+  .t-lead { font-size: var(--text-md); line-height: 1.6; color: var(--ink-2); }
+  .t-body { font-size: var(--text-base); line-height: var(--leading-normal); }
+  .t-small { font-size: var(--text-sm); line-height: 1.5; }
+  .t-caption { font-size: var(--text-xs); line-height: 1.45; color: var(--ink-3); }
+  /* The kicker: mono caps over a title, led by the slash of the mark. Says where you are, never what to do. */
+  .t-kicker {
+    display: inline-flex; align-items: center; gap: var(--space-2);
+    font-family: var(--font-mono); font-size: var(--text-2xs); font-weight: var(--weight-regular); line-height: 1.2;
+    letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--ink-3);
+  }
+  .t-kicker::before {
+    content: ""; flex: none; width: 7px; height: 11px; background: currentColor; opacity: 0.75;
+    clip-path: polygon(58% 0, 100% 0, 42% 100%, 0 100%);
+  }
+  .t-eyebrow {
+    font-family: var(--font-mono); font-size: var(--text-2xs); font-weight: var(--weight-regular); line-height: 1.2;
+    letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--ink-3);
+  }
+  .t-mono { font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: 0; }
+  .t-num { font-variant-numeric: tabular-nums lining-nums; }
+
+  /* A figure's fraction and unit step down, so the integer carries the reading. */
+  :is(.t-figure, .t-hero) :is(.unit, .frac) { font-size: 0.5em; letter-spacing: -0.01em; color: var(--ink-3); font-weight: var(--weight-medium); }
+  :is(.t-figure, .t-hero) .frac { margin-left: 0.02em; }
+  :is(.t-figure, .t-hero) .unit { margin-left: 0.14em; }
+  :is(.t-figure, .t-hero) .unit.pre { margin-left: 0; margin-right: 0.04em; font-size: 0.56em; vertical-align: 0.36em; }
+
+  /* A lit edge: a hairline drawn by a masked gradient, brightest where the ground's light comes from. On the featured
+     card it is always on; on an interactive card it fades in under the pointer. It never loops. */
+  .edge-lit { position: relative; isolation: isolate; }
+  .edge-lit::after {
+    content: ""; position: absolute; inset: -1px; z-index: 1; border-radius: inherit; padding: 1px; pointer-events: none;
+    background: var(--edge-lit);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
+    mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+    transition: opacity var(--dur-enter) var(--ease-out);
+  }
+  .edge-hover::after { opacity: 0; }
+  .edge-hover:hover::after, .edge-hover:focus-within::after { opacity: 1; }
+
+  /* A target: a small control answers a square around itself without growing, 24px under a mouse and 44px under a
+     finger. Tagged controls (.hit), and every link laid out as a box (a link inside running text keeps its line). */
+  :is(.hit, a:is(.flex, .inline-flex, .grid, .inline-grid, .block, .inline-block):not([class*="before:"])) { --hit: 24px; }
+  :is(.hit, a:is(.flex, .inline-flex, .grid, .inline-grid, .block, .inline-block):not([class*="before:"])):not(.absolute, .fixed, .sticky) { position: relative; }
+  :is(.hit, a:is(.flex, .inline-flex, .grid, .inline-grid, .block, .inline-block):not([class*="before:"]))::before { content: ""; position: absolute; left: 50%; top: 50%; width: max(100%, var(--hit)); height: max(100%, var(--hit)); transform: translate(-50%, -50%); }
+  @media (pointer: coarse) {
+    :is(.hit, a:is(.flex, .inline-flex, .grid, .inline-grid, .block, .inline-block):not([class*="before:"])) { --hit: 44px; }
+    .control-frame { min-height: 44px; }
+  }
+
+
+  /* A table ignores width and overflow and grows to its content, so a wide hidden table (a heatmap's) would widen the
+     page. As a block it is clipped like anything else, and screen readers still read it as a table. */
+  table.sr-only { display: block; }
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
+    clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+
+  /* A link inside a sentence is accent ink with an underline that draws in from the left. */
+  .link {
+    color: var(--accent-ink); text-decoration: none;
+    background: linear-gradient(currentColor, currentColor) 0 100% / 0 1px no-repeat;
+    transition: background-size var(--dur-hover) var(--ease-out);
+  }
+  .link:hover { background-size: 100% 1px; }
+
+  /* A destination in a list stays ink; the underline draws on hover. */
+  .row-link {
+    background: linear-gradient(currentColor, currentColor) 0 100% / 0 1px no-repeat;
+    transition: background-size var(--dur-hover) var(--ease-out), color var(--dur-hover);
+  }
+  .row-link:hover { background-size: 100% 1px; color: var(--accent-ink); }
+}

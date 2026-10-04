@@ -1,14 +1,14 @@
 'use client';
 
 import { Archive, GitFork, History, PlusCircle } from 'lucide-react';
-import { DashboardPage } from '@/components/DashboardPage';
-import { KnowledgeTabs } from '@/components/knowledge/KnowledgeTabs';
-import { Panel } from '@/components/Panel';
-import { Query } from '@/components/Query';
+import { DashboardPage } from '@/console-old/DashboardPage';
+import { KnowledgeTabs } from '@/console-old/knowledge/KnowledgeTabs';
+import { Panel } from '@/console-old/Panel';
+import { Query } from '@/console-old/Query';
 import {
   Badge, EmptyState, PageControl, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Time,
   TZ_LABEL, usePaged,
-} from '@/components/ui';
+} from '@/console-old/ui';
 import { freshnessOf, useConsole, useConsoleMode } from '@/lib/api';
 import { type KnowledgeLogEntry } from '@/lib/api-shapes';
 

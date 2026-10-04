@@ -1,0 +1,696 @@
+{
+  "$schema": "https://www.designtokens.org/schemas/2025.10/format.json",
+  "$description": "Meridian core tokens: type, space, radius, controls, layout, layers and motion. The same in every theme and accent; the compact density overrides the control group.",
+  "type": {
+    "$description": "Type: one family. Geist for every word and every number; Geist Mono for kickers, table heads in caps, identifiers and code.",
+    "font-sans": {
+      "$type": "fontFamily",
+      "$value": [
+        "Geist",
+        "ui-sans-serif",
+        "system-ui",
+        "-apple-system",
+        "Segoe UI",
+        "sans-serif"
+      ],
+      "$description": "Every word and every number. The app loads the face and names it --font-face-sans; the family name is the fallback.",
+      "$extensions": {
+        "dev.zz.meridian": {
+          "css": "var(--font-face-sans, \"Geist\"), ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", sans-serif"
+        }
+      }
+    },
+    "font-mono": {
+      "$type": "fontFamily",
+      "$value": [
+        "Geist Mono",
+        "ui-monospace",
+        "SFMono-Regular",
+        "Menlo",
+        "monospace"
+      ],
+      "$description": "Kickers (uppercase, tracked), identifiers, keys, hashes and code.",
+      "$extensions": {
+        "dev.zz.meridian": {
+          "css": "var(--font-face-mono, \"Geist Mono\"), ui-monospace, SFMono-Regular, Menlo, monospace"
+        }
+      }
+    },
+    "text-2xs": {
+      "$type": "dimension",
+      "$value": {
+        "value": 11,
+        "unit": "px"
+      },
+      "$description": "Axis ticks, eyebrows and legends: the smallest text, never body copy."
+    },
+    "text-xs": {
+      "$type": "dimension",
+      "$value": {
+        "value": 12,
+        "unit": "px"
+      },
+      "$description": "Captions, meta lines, badges and dense table cells."
+    },
+    "text-sm": {
+      "$type": "dimension",
+      "$value": {
+        "value": 13,
+        "unit": "px"
+      },
+      "$description": "Table cells, secondary copy and small controls."
+    },
+    "text-base": {
+      "$type": "dimension",
+      "$value": {
+        "value": 14,
+        "unit": "px"
+      },
+      "$description": "Body copy and controls: the inherited size."
+    },
+    "text-md": {
+      "$type": "dimension",
+      "$value": {
+        "value": 16,
+        "unit": "px"
+      },
+      "$description": "Card titles and lead lines."
+    },
+    "text-lg": {
+      "$type": "dimension",
+      "$value": {
+        "value": 20,
+        "unit": "px"
+      },
+      "$description": "Card titles that lead a section, dialog titles.",
+      "$extensions": {
+        "dev.zz.meridian": {
+          "css": "clamp(18px, 1.5vw, 21px)"
+        }
+      }
+    },
+    "text-xl": {
+      "$type": "dimension",
+      "$value": {
+        "value": 30,
+        "unit": "px"
+      },
+      "$description": "Section headings inside a page.",
+      "$extensions": {
+        "dev.zz.meridian": {
+          "css": "clamp(24px, 2.2vw, 32px)"
+        }
+      }
+    },
+    "text-2xl": {
+      "$type": "dimension",
+      "$value": {
+        "value": 40,
+        "unit": "px"
+      },
+      "$description": "The metric figure: the number a tile exists to show.",
+      "$extensions": {
+        "dev.zz.meridian": {
+          "css": "clamp(32px, 2.6vw, 42px)"
+        }
+      }
+    },
+    "text-page": {
+      "$type": "dimension",
+      "$value": {
+        "value": 52,
+        "unit": "px"
+      },
+      "$description": "The page title: one per screen.",
+      "$extensions": {
+        "dev.zz.meridian": {
+          "css": "clamp(36px, 3.8vw, 56px)"
+        }
+      }
+    },
+    "text-hero": {
+      "$type": "dimension",
+      "$value": {
+        "value": 76,
+        "unit": "px"
+      },
+      "$description": "The hero figure: the one number a page leads with, in its featured card.",
+      "$extensions": {
+        "dev.zz.meridian": {
+          "css": "clamp(52px, 5.4vw, 80px)"
+        }
+      }
+    },
+    "text-display": {
+      "$type": "dimension",
+      "$value": {
+        "value": 96,
+        "unit": "px"
+      },
+      "$description": "Screens outside the shell (sign-in, not found) and the Atlas front door: one sentence at poster size.",
+      "$extensions": {
+        "dev.zz.meridian": {
+          "css": "clamp(52px, 7vw, 104px)"
+        }
+      }
+    },
+    "weight-regular": {
+      "$type": "fontWeight",
+      "$value": 400,
+      "$description": "Body copy and table cells."
+    },
+    "weight-medium": {
+      "$type": "fontWeight",
+      "$value": 500,
+      "$description": "Labels, controls, navigation and emphasis inside a sentence."
+    },
+    "weight-semibold": {
+      "$type": "fontWeight",
+      "$value": 600,
+      "$description": "Titles and figures. The heaviest weight in the system."
+    },
+    "leading-tight": {
+      "$type": "number",
+      "$value": 1.1,
+      "$description": "Figures and display titles."
+    },
+    "leading-snug": {
+      "$type": "number",
+      "$value": 1.3,
+      "$description": "Titles and one-line controls."
+    },
+    "leading-normal": {
+      "$type": "number",
+      "$value": 1.55,
+      "$description": "Body copy."
+    },
+    "tracking-display": {
+      "$type": "dimension",
+      "$value": {
+        "value": -0.035,
+        "unit": "em"
+      },
+      "$description": "Display titles and figures: large type set loose reads as a price tag.",
+      "$extensions": {
+        "dev.zz.meridian": {
+          "css": "-0.035em"
+        }
+      }
+    },
+    "tracking-title": {
+      "$type": "dimension",
+      "$value": {
+        "value": -0.022,
+        "unit": "em"
+      },
+      "$description": "Section and card titles.",
+      "$extensions": {
+        "dev.zz.meridian": {
+          "css": "-0.022em"
+        }
+      }
+    },
+    "tracking-caps": {
+      "$type": "dimension",
+      "$value": {
+        "value": 0.12,
+        "unit": "em"
+      },
+      "$description": "Mono kickers and table heads in caps.",
+      "$extensions": {
+        "dev.zz.meridian": {
+          "css": "0.12em"
+        }
+      }
+    }
+  },
+  "space": {
+    "$description": "Space: a 4px scale. The step is the multiple of 4 (space-6 is 24px); half steps exist below 8px only.",
+    "space-0-5": {
+      "$type": "dimension",
+      "$value": {
+        "value": 2,
+        "unit": "px"
+      },
+      "$description": "Hairline gaps: a dot beside its label."
+    },
+    "space-1": {
+      "$type": "dimension",
+      "$value": {
+        "value": 4,
+        "unit": "px"
+      },
+      "$description": "Icon to text inside a badge."
+    },
+    "space-1-5": {
+      "$type": "dimension",
+      "$value": {
+        "value": 6,
+        "unit": "px"
+      },
+      "$description": "Icon to label inside a control."
+    },
+    "space-2": {
+      "$type": "dimension",
+      "$value": {
+        "value": 8,
+        "unit": "px"
+      },
+      "$description": "Between related small items."
+    },
+    "space-3": {
+      "$type": "dimension",
+      "$value": {
+        "value": 12,
+        "unit": "px"
+      },
+      "$description": "Inside dense controls and list rows."
+    },
+    "space-4": {
+      "$type": "dimension",
+      "$value": {
+        "value": 16,
+        "unit": "px"
+      },
+      "$description": "Card padding in compact density; the gap between cards on phones."
+    },
+    "space-5": {
+      "$type": "dimension",
+      "$value": {
+        "value": 20,
+        "unit": "px"
+      },
+      "$description": "Between a card title and its content."
+    },
+    "space-6": {
+      "$type": "dimension",
+      "$value": {
+        "value": 24,
+        "unit": "px"
+      },
+      "$description": "Card padding; the gap between cards."
+    },
+    "space-8": {
+      "$type": "dimension",
+      "$value": {
+        "value": 32,
+        "unit": "px"
+      },
+      "$description": "The page gutter on wide screens."
+    },
+    "space-10": {
+      "$type": "dimension",
+      "$value": {
+        "value": 40,
+        "unit": "px"
+      },
+      "$description": "Between page sections."
+    },
+    "space-12": {
+      "$type": "dimension",
+      "$value": {
+        "value": 48,
+        "unit": "px"
+      },
+      "$description": "Above a page title on standalone screens."
+    },
+    "space-16": {
+      "$type": "dimension",
+      "$value": {
+        "value": 64,
+        "unit": "px"
+      },
+      "$description": "Section rhythm in the Atlas and standalone screens."
+    },
+    "space-24": {
+      "$type": "dimension",
+      "$value": {
+        "value": 96,
+        "unit": "px"
+      },
+      "$description": "The largest step: the Atlas front door."
+    }
+  },
+  "radius": {
+    "$description": "Radius: five steps and the pill. Nested corners step down one so the inner edge stays concentric.",
+    "radius-xs": {
+      "$type": "dimension",
+      "$value": {
+        "value": 5,
+        "unit": "px"
+      },
+      "$description": "Marks inside a control: a checkbox, a bar end, a kbd."
+    },
+    "radius-sm": {
+      "$type": "dimension",
+      "$value": {
+        "value": 8,
+        "unit": "px"
+      },
+      "$description": "Badges, menu items, small controls."
+    },
+    "radius-md": {
+      "$type": "dimension",
+      "$value": {
+        "value": 10,
+        "unit": "px"
+      },
+      "$description": "Buttons, inputs, selects, segmented tracks."
+    },
+    "radius-lg": {
+      "$type": "dimension",
+      "$value": {
+        "value": 16,
+        "unit": "px"
+      },
+      "$description": "Cards, popovers, menus."
+    },
+    "radius-xl": {
+      "$type": "dimension",
+      "$value": {
+        "value": 24,
+        "unit": "px"
+      },
+      "$description": "Dialogs, sheets, the featured card and the sign-in panel."
+    },
+    "radius-full": {
+      "$type": "dimension",
+      "$value": {
+        "value": 9999,
+        "unit": "px"
+      },
+      "$description": "Pills, avatars, switches, status dots: roundness that means something."
+    }
+  },
+  "blur": {
+    "$description": "Blur: the frost behind glass. Only translucent layers over moving content use it: the rail, the stuck top bar, the shell tools, a scrim.",
+    "blur-sm": {
+      "$type": "dimension",
+      "$value": {
+        "value": 8,
+        "unit": "px"
+      },
+      "$description": "A scrim over the page, behind a dialog or the phone rail."
+    },
+    "blur-md": {
+      "$type": "dimension",
+      "$value": {
+        "value": 12,
+        "unit": "px"
+      },
+      "$description": "Small glass: the shell tools, a floating control."
+    },
+    "blur-xl": {
+      "$type": "dimension",
+      "$value": {
+        "value": 24,
+        "unit": "px"
+      },
+      "$description": "Large glass: the rail and the stuck top bar, where whole cards pass beneath."
+    }
+  },
+  "control": {
+    "$description": "Controls: three heights and the density-dependent rhythm of tables and cards. Compact density redefines this group.",
+    "control-sm": {
+      "$type": "dimension",
+      "$value": {
+        "value": 32,
+        "unit": "px"
+      },
+      "$description": "Small buttons, toolbar filters, pagination."
+    },
+    "control-md": {
+      "$type": "dimension",
+      "$value": {
+        "value": 38,
+        "unit": "px"
+      },
+      "$description": "Default buttons, inputs and selects."
+    },
+    "control-lg": {
+      "$type": "dimension",
+      "$value": {
+        "value": 46,
+        "unit": "px"
+      },
+      "$description": "Primary actions on standalone screens; the touch target."
+    },
+    "row-height": {
+      "$type": "dimension",
+      "$value": {
+        "value": 52,
+        "unit": "px"
+      },
+      "$description": "A table row."
+    },
+    "card-pad": {
+      "$type": "dimension",
+      "$value": {
+        "value": 24,
+        "unit": "px"
+      },
+      "$description": "Inside a card.",
+      "$extensions": {
+        "dev.zz.meridian": {
+          "css": "clamp(20px, 1.9vw, 28px)"
+        }
+      }
+    },
+    "stack-gap": {
+      "$type": "dimension",
+      "$value": {
+        "value": 20,
+        "unit": "px"
+      },
+      "$description": "Between rows of cards and between cards in a row.",
+      "$extensions": {
+        "dev.zz.meridian": {
+          "css": "clamp(14px, 1.4vw, 20px)"
+        }
+      }
+    }
+  },
+  "layout": {
+    "$description": "Layout: the shell and the two content widths.",
+    "rail-width": {
+      "$type": "dimension",
+      "$value": {
+        "value": 260,
+        "unit": "px"
+      },
+      "$description": "The navigation rail, expanded."
+    },
+    "assistant-width": {
+      "$type": "dimension",
+      "$value": {
+        "value": 400,
+        "unit": "px"
+      },
+      "$description": "The assistant panel as a third column of the shell, from 1024px; below that it is a sheet no wider than the viewport."
+    },
+    "rail-collapsed": {
+      "$type": "dimension",
+      "$value": {
+        "value": 68,
+        "unit": "px"
+      },
+      "$description": "The navigation rail, collapsed to icons."
+    },
+    "data-width": {
+      "$type": "dimension",
+      "$value": {
+        "value": 1560,
+        "unit": "px"
+      },
+      "$description": "Dashboards fill the canvas at every size: no cap, so a 2560px screen shows more, not a centred strip. The value is the width the layout is designed at; the CSS is 100%.",
+      "$extensions": {
+        "dev.zz.meridian": {
+          "css": "100%"
+        }
+      }
+    },
+    "stage-width": {
+      "$type": "dimension",
+      "$value": {
+        "value": 1560,
+        "unit": "px"
+      },
+      "$description": "A standalone screen (sign in, not found): one sentence and one panel read as a pair, so they stay within this width and centre."
+    },
+    "reading-width": {
+      "$type": "dimension",
+      "$value": {
+        "value": 832,
+        "unit": "px"
+      },
+      "$description": "Forms, documents and settings: about ninety characters of body text."
+    },
+    "gutter": {
+      "$type": "dimension",
+      "$value": {
+        "value": 32,
+        "unit": "px"
+      },
+      "$description": "Space between the content and the window or rail.",
+      "$extensions": {
+        "dev.zz.meridian": {
+          "css": "clamp(16px, 2.4vw, 56px)"
+        }
+      }
+    }
+  },
+  "layer": {
+    "$description": "Layers: stacking order, lowest first.",
+    "layer-rail": {
+      "$type": "number",
+      "$value": 20,
+      "$description": "The navigation rail and its drawer on small screens."
+    },
+    "layer-sticky": {
+      "$type": "number",
+      "$value": 30,
+      "$description": "The masthead once the page scrolls."
+    },
+    "layer-overlay": {
+      "$type": "number",
+      "$value": 40,
+      "$description": "Dialogs, sheets and their scrim."
+    },
+    "layer-popover": {
+      "$type": "number",
+      "$value": 50,
+      "$description": "Menus, selects and popovers, above an open dialog."
+    },
+    "layer-toast": {
+      "$type": "number",
+      "$value": 60,
+      "$description": "Toasts."
+    },
+    "layer-tooltip": {
+      "$type": "number",
+      "$value": 70,
+      "$description": "Tooltips, above everything."
+    }
+  },
+  "motion": {
+    "$description": "Motion: three jobs (arrive, answer, float), durations for each job and three curves. Reduced motion collapses every duration and delay to zero.",
+    "dur-press": {
+      "$type": "duration",
+      "$value": {
+        "value": 110,
+        "unit": "ms"
+      },
+      "$description": "A control giving under the pointer."
+    },
+    "dur-hover": {
+      "$type": "duration",
+      "$value": {
+        "value": 160,
+        "unit": "ms"
+      },
+      "$description": "Colour and outline changes on hover and selection."
+    },
+    "dur-enter": {
+      "$type": "duration",
+      "$value": {
+        "value": 320,
+        "unit": "ms"
+      },
+      "$description": "Overlays and rows arriving; indicators sliding."
+    },
+    "dur-exit": {
+      "$type": "duration",
+      "$value": {
+        "value": 140,
+        "unit": "ms"
+      },
+      "$description": "Overlays leaving: menus, popovers, dialogs and the scrim go faster than they came."
+    },
+    "dur-exit-sheet": {
+      "$type": "duration",
+      "$value": {
+        "value": 200,
+        "unit": "ms"
+      },
+      "$description": "A sheet leaving over its own distance."
+    },
+    "dur-grow": {
+      "$type": "duration",
+      "$value": {
+        "value": 820,
+        "unit": "ms"
+      },
+      "$description": "Data arriving: a bar growing, a line drawing, a figure counting."
+    },
+    "stagger": {
+      "$type": "duration",
+      "$value": {
+        "value": 45,
+        "unit": "ms"
+      },
+      "$description": "Between siblings that arrive in reading order."
+    },
+    "stagger-bar": {
+      "$type": "duration",
+      "$value": {
+        "value": 12,
+        "unit": "ms"
+      },
+      "$description": "Columns of a chart growing one after another; many, so the step is small."
+    },
+    "ease-out": {
+      "$type": "cubicBezier",
+      "$value": [
+        0.16,
+        1,
+        0.3,
+        1
+      ],
+      "$description": "Everything that arrives: fast, then settles. The default curve."
+    },
+    "ease-in-out": {
+      "$type": "cubicBezier",
+      "$value": [
+        0.65,
+        0,
+        0.35,
+        1
+      ],
+      "$description": "Things that move from one place to another while visible."
+    },
+    "ease-spring": {
+      "$type": "cubicBezier",
+      "$value": [
+        0.34,
+        1.36,
+        0.5,
+        1
+      ],
+      "$description": "Only what should feel physical: the navigation marker, a switch thumb."
+    },
+    "dur-loop-spin": {
+      "$type": "duration",
+      "$value": {
+        "value": 800,
+        "unit": "ms"
+      },
+      "$description": "One turn of a spinner."
+    },
+    "dur-loop-shimmer": {
+      "$type": "duration",
+      "$value": {
+        "value": 1600,
+        "unit": "ms"
+      },
+      "$description": "One pass of a skeleton's shimmer."
+    },
+    "dur-loop-pulse": {
+      "$type": "duration",
+      "$value": {
+        "value": 2400,
+        "unit": "ms"
+      },
+      "$description": "One breath of a live dot: slow enough to sit in the corner of the eye."
+    }
+  }
+}

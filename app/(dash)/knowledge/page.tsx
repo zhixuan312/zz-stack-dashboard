@@ -3,15 +3,15 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { Archive, BookOpen, CheckCircle2, History, SearchX } from 'lucide-react';
-import { DashboardPage } from '@/components/DashboardPage';
-import { KnowledgeTabs } from '@/components/knowledge/KnowledgeTabs';
-import { Panel } from '@/components/Panel';
-import { Query } from '@/components/Query';
+import { DashboardPage } from '@/console-old/DashboardPage';
+import { KnowledgeTabs } from '@/console-old/knowledge/KnowledgeTabs';
+import { Panel } from '@/console-old/Panel';
+import { Query } from '@/console-old/Query';
 import {
   Badge, Button, EmptyState, PageControl, SearchInput, Select, SelectContent, SelectItem,
   SelectTrigger, SelectValue, Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
   Time, Toolbar, usePaged,
-} from '@/components/ui';
+} from '@/console-old/ui';
 import { cn } from '@/lib/cn';
 import { freshnessOf, useConsole, useConsoleMode } from '@/lib/api';
 import { type KnowledgeNode } from '@/lib/api-shapes';

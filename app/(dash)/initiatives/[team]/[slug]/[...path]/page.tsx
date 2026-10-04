@@ -3,19 +3,19 @@
 import { useState, use } from 'react';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
-import { DashboardPage } from '@/components/DashboardPage';
-import { Panel } from '@/components/Panel';
-import { Query } from '@/components/Query';
+import { DashboardPage } from '@/console-old/DashboardPage';
+import { Panel } from '@/console-old/Panel';
+import { Query } from '@/console-old/Query';
 import {
   Badge, PageControl, Segmented, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Time, usePaged,
-} from '@/components/ui';
-import { DocumentShell } from '@/components/patterns/document-shell';
-import { ProseBlock } from '@/components/patterns/prose-block';
-import { DocStatus } from '@/components/DocStatus';
+} from '@/console-old/ui';
+import { DocumentShell } from '@/console-old/patterns/document-shell';
+import { ProseBlock } from '@/console-old/patterns/prose-block';
+import { DocStatus } from '@/console-old/DocStatus';
 import { readableDocument } from '@/lib/document-markdown';
-import { VersionChain } from '@/components/VersionChain';
+import { VersionChain } from '@/console-old/VersionChain';
 import { formatCount } from '@/lib/format';
-import { ApproveAction, canApprove } from '@/components/ApproveAction';
+import { ApproveAction, canApprove } from '@/console-old/ApproveAction';
 import { freshnessOf, useConsole } from '@/lib/api';
 import { type DocumentDetail, type Me } from '@/lib/api-shapes';
 

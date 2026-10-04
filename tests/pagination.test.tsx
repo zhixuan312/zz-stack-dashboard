@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { useState } from 'react';
-import { DEFAULT_PAGE_SIZE, PAGE_SIZES, PageControl, usePaged } from '@/components/ui/pagination';
+import { DEFAULT_PAGE_SIZE, PAGE_SIZES, PageControl, usePaged } from '@/console-old/ui/pagination';
 
 /** A table is the only honest fixture here: the hook and the control are one feature. */
 function Paged({ n, resetKey }: { n: number; resetKey?: string }) {

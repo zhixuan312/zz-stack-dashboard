@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { canAsk, KnowledgeAsk } from '@/components/KnowledgeAsk';
+import { canAsk, KnowledgeAsk } from '@/console-old/KnowledgeAsk';
 import { citationHref } from '@/lib/citations';
 import { consoleMutate } from '@/lib/mutate';
 

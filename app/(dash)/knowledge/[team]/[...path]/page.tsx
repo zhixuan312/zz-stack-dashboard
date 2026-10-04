@@ -2,14 +2,14 @@
 
 import { use, type ReactNode } from 'react';
 import Link from 'next/link';
-import { DashboardPage } from '@/components/DashboardPage';
-import { KnowledgeTabs } from '@/components/knowledge/KnowledgeTabs';
-import { Panel } from '@/components/Panel';
-import { Query } from '@/components/Query';
+import { DashboardPage } from '@/console-old/DashboardPage';
+import { KnowledgeTabs } from '@/console-old/knowledge/KnowledgeTabs';
+import { Panel } from '@/console-old/Panel';
+import { Query } from '@/console-old/Query';
 import {
   Badge, PageControl, Row, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Time,
   usePaged,
-} from '@/components/ui';
+} from '@/console-old/ui';
 import { useConsole } from '@/lib/api';
 import { type KnowledgeBody, type KnowledgeNode } from '@/lib/api-shapes';
 import { knowledgeNodeHref } from '@/lib/knowledge-filters';

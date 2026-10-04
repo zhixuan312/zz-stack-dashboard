@@ -3,14 +3,14 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { SearchX } from 'lucide-react';
-import { DashboardPage } from '@/components/DashboardPage';
-import { Facet, tally } from '@/components/TableFacet';
-import { Panel } from '@/components/Panel';
-import { Query } from '@/components/Query';
+import { DashboardPage } from '@/console-old/DashboardPage';
+import { Facet, tally } from '@/console-old/TableFacet';
+import { Panel } from '@/console-old/Panel';
+import { Query } from '@/console-old/Query';
 import {
   Badge, Button, EmptyState, PageControl, SearchInput, Table, TableBody, TableCell, TableHead,
   TableHeader, TableRow, Toolbar, usePaged,
-} from '@/components/ui';
+} from '@/console-old/ui';
 import { formatCount } from '@/lib/format';
 import { freshnessOf, useConsole, useConsoleMode } from '@/lib/api';
 import { type Team } from '@/lib/api-shapes';

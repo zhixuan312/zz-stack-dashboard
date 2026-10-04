@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { Freshness } from '@/components/ui/freshness';
+import { Freshness } from '@/console-old/ui/freshness';
 
 /**
  * The freshness stamp exists so a stalled pipeline and a quiet Tuesday stop

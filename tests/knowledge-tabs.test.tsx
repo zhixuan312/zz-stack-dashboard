@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { KnowledgeTabs } from '@/components/knowledge/KnowledgeTabs';
+import { KnowledgeTabs } from '@/console-old/knowledge/KnowledgeTabs';
 
 /**
  * DELIBERATE: the tabs are real links, and that is the assertion.

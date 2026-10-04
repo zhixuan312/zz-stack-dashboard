@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { ProseBlock } from '@/components/patterns/prose-block';
+import { ProseBlock } from '@/console-old/patterns/prose-block';
 
 describe('ProseBlock', () => {
   it('names a task-list box by its state', () => {

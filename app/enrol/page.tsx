@@ -1,10 +1,10 @@
 'use client';
 
-import { Standalone } from '@/components/patterns/standalone';
+import { Standalone } from '@/console-old/patterns/standalone';
 import { useEffect, useState } from 'react';
 import { KeyRound, ShieldAlert } from 'lucide-react';
 import { startRegistration } from '@simplewebauthn/browser';
-import { Button } from '@/components/ui';
+import { Button } from '@/console-old/ui';
 
 /**
  * Where an enrolment link lands: register a passkey, once, and be signed in with it.

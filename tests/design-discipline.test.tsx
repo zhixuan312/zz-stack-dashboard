@@ -1,6 +1,6 @@
 import { render } from '@testing-library/react';
-import { MetricCard } from '@/components/ui/metric-card';
-import { BarList } from '@/components/charts/BarList';
+import { MetricCard } from '@/console-old/ui/metric-card';
+import { BarList } from '@/console-old/charts/BarList';
 import { AXIS_FORMATTERS, FORMATTERS } from '@/lib/format';
 
 /**

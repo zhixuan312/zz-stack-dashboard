@@ -1,0 +1,75 @@
+/* ZZ Meridian · Layer 1 · Motion
+ *
+ * Every keyframe in the system lives here. Motion has three jobs and no others:
+ *   Arrive  data landing: rows rise in reading order, bars grow from their baseline, a line draws, a figure counts
+ *   Answer  a control acknowledging the pointer: press, the sliding marker, an underline drawing
+ *   Float   things above the page: menus, dialogs, toasts entering and leaving
+ * Nothing loops but a skeleton's shimmer and a live dot's pulse. Reduced motion collapses every duration and delay. */
+
+@keyframes m-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes m-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes m-grow-x { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes m-grow-y { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes m-draw { from { stroke-dashoffset: var(--m-len, 1); } to { stroke-dashoffset: 0; } }
+@keyframes m-reveal-x { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes m-pop { from { opacity: 0; transform: translateY(-4px) scale(0.97); } to { opacity: 1; transform: none; } }
+@keyframes m-pop-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: scale(0.98); } }
+@keyframes m-dialog { from { opacity: 0; transform: translateY(10px) scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes m-sheet { from { transform: translateX(-100%); } to { transform: none; } }
+@keyframes m-sheet-up { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes m-sheet-right { from { transform: translateX(100%); } to { transform: none; } }
+@keyframes m-toast { from { opacity: 0; transform: translateY(12px) scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes m-shimmer { from { background-position: 150% 0; } to { background-position: -50% 0; } }
+@keyframes m-pulse { 0% { box-shadow: 0 0 0 0 color-mix(in oklab, currentColor 45%, transparent); } 70%, 100% { box-shadow: 0 0 0 6px transparent; } }
+@keyframes m-spin { to { transform: rotate(360deg); } }
+
+@layer components {
+  /* Arrive: children of .arrive rise in reading order. Set --i on a child to place it in the sequence. */
+  .arrive > * { animation: m-rise var(--dur-enter) var(--ease-out) both; animation-delay: calc(var(--i, 0) * var(--stagger)); }
+  .arrive > :nth-child(1) { --i: 0; } .arrive > :nth-child(2) { --i: 1; } .arrive > :nth-child(3) { --i: 2; }
+  .arrive > :nth-child(4) { --i: 3; } .arrive > :nth-child(5) { --i: 4; } .arrive > :nth-child(6) { --i: 5; }
+  .arrive > :nth-child(n + 7) { --i: 6; }
+  .rise { animation: m-rise var(--dur-enter) var(--ease-out) both; animation-delay: calc(var(--i, 0) * var(--stagger)); }
+  .fade-in { animation: m-fade var(--dur-enter) var(--ease-out) both; }
+
+  /* Data: bars grow from the baseline, lines draw, an area reveals left to right. */
+  .grow-x { transform-origin: left center; animation: m-grow-x var(--dur-grow) var(--ease-out) both; animation-delay: calc(var(--i, 0) * var(--stagger)); }
+  .grow-y { transform-origin: center bottom; transform-box: fill-box; animation: m-grow-y var(--dur-grow) var(--ease-out) both; animation-delay: calc(var(--i, 0) * var(--stagger-bar)); }
+  .draw { stroke-dasharray: var(--m-len, 1); animation: m-draw var(--dur-grow) var(--ease-out) both; }
+  .reveal-x { animation: m-reveal-x var(--dur-grow) var(--ease-out) both; }
+
+  /* Answer: a control gives 1px under the pointer. */
+  .press { transition: transform var(--dur-press) var(--ease-out); }
+  .press:active:not(:disabled) { transform: translateY(0.5px) scale(0.985); }
+
+  /* Float: overlays enter on [data-state=open] and leave on [data-state=closed]. */
+  .float-in[data-state='open'], .float-in:not([data-state]) { animation: m-pop var(--dur-enter) var(--ease-out); }
+  .float-in[data-state='closed'] { animation: m-pop-out var(--dur-exit) var(--ease-out) forwards; }
+  .dialog-in[data-state='open'] { animation: m-dialog var(--dur-enter) var(--ease-out); }
+  .dialog-in[data-state='closed'] { animation: m-pop-out var(--dur-exit) var(--ease-out) forwards; }
+  .scrim-in[data-state='open'] { animation: m-fade var(--dur-enter) var(--ease-out); }
+  .scrim-in[data-state='closed'] { animation: m-fade var(--dur-exit) var(--ease-out) reverse forwards; }
+  .sheet-in[data-state='open'] { animation: m-sheet var(--dur-enter) var(--ease-out); }
+  .sheet-in[data-state='closed'] { animation: m-sheet var(--dur-exit-sheet) var(--ease-in-out) reverse forwards; }
+  .sheet-right-in[data-state='open'] { animation: m-sheet-right var(--dur-enter) var(--ease-out); }
+  .sheet-right-in[data-state='closed'] { animation: m-sheet-right var(--dur-exit-sheet) var(--ease-in-out) reverse forwards; }
+  .sheet-up-in[data-state='open'] { animation: m-sheet-up var(--dur-enter) var(--ease-out); }
+  .sheet-up-in[data-state='closed'] { animation: m-sheet-up var(--dur-exit-sheet) var(--ease-in-out) reverse forwards; }
+
+  /* The two loops: a skeleton's shimmer and a live dot's pulse. */
+  .shimmer {
+    background: linear-gradient(90deg, var(--fill-track) 0%, var(--fill-track) 35%, var(--fill-active) 50%, var(--fill-track) 65%, var(--fill-track) 100%) 0 0 / 250% 100%;
+    animation: m-shimmer var(--dur-loop-shimmer) linear infinite;
+  }
+  .pulse { animation: m-pulse var(--dur-loop-pulse) var(--ease-out) infinite; }
+  .spin { animation: m-spin var(--dur-loop-spin) linear infinite; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important; animation-delay: 0ms !important; animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important; transition-delay: 0ms !important; scroll-behavior: auto !important;
+  }
+  /* Arrivals show their final state outright: a near-zero animation on an element mounted late can be left at its first frame. */
+  .arrive > *, .rise, .fade-in, .grow-x, .grow-y, .draw, .reveal-x, .shimmer, .pulse { animation: none !important; }
+}

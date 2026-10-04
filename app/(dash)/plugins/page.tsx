@@ -1,13 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { DashboardPage } from '@/components/DashboardPage';
-import { Panel } from '@/components/Panel';
-import { Query } from '@/components/Query';
+import { DashboardPage } from '@/console-old/DashboardPage';
+import { Panel } from '@/console-old/Panel';
+import { Query } from '@/console-old/Query';
 import {
   Badge, PageControl, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Time, usePaged,
-} from '@/components/ui';
-import { EvalCell, EvalVerdict, EvalWhen } from '@/components/EvalScore';
+} from '@/console-old/ui';
+import { EvalCell, EvalVerdict, EvalWhen } from '@/console-old/EvalScore';
 import { formatCount } from '@/lib/format';
 import { freshnessOf, useConsole } from '@/lib/api';
 import { type PluginRow } from '@/lib/api-shapes';

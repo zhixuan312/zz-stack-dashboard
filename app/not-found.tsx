@@ -1,6 +1,6 @@
 import Link from 'next/link';
-import { Standalone } from '@/components/patterns/standalone';
-import { buttonVariants } from '@/components/ui/button';
+import { Standalone } from '@/console-old/patterns/standalone';
+import { buttonVariants } from '@/console-old/ui/button';
 
 /**
  * The root 404, for a URL that matches no route at all. Without it Next serves its own

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://www.designtokens.org/schemas/2025.10/format.json",
+  "$description": "Accent preset: zz. The product's brand hue.",
+  "accent": {
+    "$description": "The two numbers a preset owns.",
+    "accent-h": {
+      "$type": "number",
+      "$value": 292,
+      "$description": "Hue, in OKLCH degrees."
+    },
+    "accent-c": {
+      "$type": "number",
+      "$value": 0.18,
+      "$description": "Chroma, in OKLCH."
+    }
+  },
+  "$extensions": {
+    "dev.zz.meridian": {
+      "overrides": {
+        "light": {},
+        "dark": {}
+      }
+    }
+  }
+}

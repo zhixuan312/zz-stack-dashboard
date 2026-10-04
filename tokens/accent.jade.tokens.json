@@ -1,0 +1,27 @@
+{
+  "$schema": "https://www.designtokens.org/schemas/2025.10/format.json",
+  "$description": "Meridian accent preset: jade. A green-teal for finance, health and climate products. It sits near positive: never put a jade highlight next to a positive delta without the delta arrow. Green is luminous, so its dark fill sits lower to hold white text.",
+  "accent": {
+    "$description": "The two numbers a preset owns.",
+    "accent-h": {
+      "$type": "number",
+      "$value": 168,
+      "$description": "Hue, in OKLCH degrees."
+    },
+    "accent-c": {
+      "$type": "number",
+      "$value": 0.12,
+      "$description": "Chroma, in OKLCH."
+    }
+  },
+  "$extensions": {
+    "dev.zz.meridian": {
+      "overrides": {
+        "light": {},
+        "dark": {
+          "accent-l": 0.52
+        }
+      }
+    }
+  }
+}

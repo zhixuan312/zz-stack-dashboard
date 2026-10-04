@@ -1,10 +1,10 @@
 'use client';
 
-import { DashboardPage } from '@/components/DashboardPage';
-import { Query } from '@/components/Query';
-import { SkillWorkPanel } from '@/components/SkillWorkPanel';
-import { usePeriod } from '@/components/PeriodProvider';
-import { MetricCard, Row, SkeletonPage } from '@/components/ui';
+import { DashboardPage } from '@/console-old/DashboardPage';
+import { Query } from '@/console-old/Query';
+import { SkillWorkPanel } from '@/console-old/SkillWorkPanel';
+import { usePeriod } from '@/console/period';
+import { MetricCard, Row, SkeletonPage } from '@/console-old/ui';
 import { formatCount } from '@/lib/format';
 import { freshnessOf, useConsole } from '@/lib/api';
 import { type Runs, type Skill } from '@/lib/api-shapes';

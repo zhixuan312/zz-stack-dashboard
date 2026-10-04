@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { ApproveAction, canApprove } from '@/components/ApproveAction';
-import { Toaster } from '@/components/ui/toast';
+import { ApproveAction, canApprove } from '@/console-old/ApproveAction';
+import { Toaster } from '@/console-old/ui/toast';
 import type { DocumentDetail, Me } from '@/lib/api-shapes';
 
 // Rendering is not enforcement — see canApprove's own comment — but a control

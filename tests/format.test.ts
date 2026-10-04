@@ -1,4 +1,4 @@
-import { niceScale } from '@/components/charts/TrendChart';
+import { niceScale } from '@/console-old/charts/TrendChart';
 import {
   FORMATTERS,
   formatAxisCount,
@@ -7,7 +7,7 @@ import {
   formatCount,
   formatDuration,
   formatPercent,
-  formatTokens,
+  formatCompact,
 } from '@/lib/format';
 import { parsePeriod, periodCutoff, DEFAULT_PERIOD } from '@/lib/period';
 import { TINTS, TINT_VAR, cycleTint } from '@/lib/tints';
@@ -22,7 +22,7 @@ describe('formatters', () => {
     expect(formatCount(null)).toBe('—');
     expect(formatDuration(null)).toBe('—');
     expect(formatPercent(null)).toBe('—');
-    expect(formatTokens(null)).toBe('—');
+    expect(formatCompact(null)).toBe('—');
   });
 
   it('renders a measured zero as zero', () => {
@@ -32,7 +32,7 @@ describe('formatters', () => {
   });
 
   it('never rounds 999,999 up to 1000K', () => {
-    expect(formatTokens(999_999)).toBe('1.0M');
+    expect(formatCompact(999_999)).toBe('1.0M');
   });
 
   it('does not report Infinity for a non-finite percentage', () => {

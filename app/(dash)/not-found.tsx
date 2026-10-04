@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { Compass } from 'lucide-react';
-import { EmptyState, PageFrame, buttonVariants } from '@/components/ui';
+import { EmptyState, PageFrame, buttonVariants } from '@/console-old/ui';
 
 export default function NotFound() {
   return (

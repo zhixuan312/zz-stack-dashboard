@@ -2,15 +2,15 @@
 
 import { useState } from 'react';
 import { BookOpen, MessageCircleQuestion, Tag, Users } from 'lucide-react';
-import { DashboardPage } from '@/components/DashboardPage';
-import { KnowledgeAsk } from '@/components/KnowledgeAsk';
-import { KnowledgeTabs } from '@/components/knowledge/KnowledgeTabs';
-import { Panel } from '@/components/Panel';
-import { ProseBlock } from '@/components/patterns/prose-block';
-import { Query } from '@/components/Query';
+import { DashboardPage } from '@/console-old/DashboardPage';
+import { KnowledgeAsk } from '@/console-old/KnowledgeAsk';
+import { KnowledgeTabs } from '@/console-old/knowledge/KnowledgeTabs';
+import { Panel } from '@/console-old/Panel';
+import { ProseBlock } from '@/console-old/patterns/prose-block';
+import { Query } from '@/console-old/Query';
 import {
   Row, Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui';
+} from '@/console-old/ui';
 import { freshnessOf, useConsole, useConsoleMode } from '@/lib/api';
 import { type KnowledgeNode, type Me } from '@/lib/api-shapes';
 import { tagFacetCounts, teamFacetOptions } from '@/lib/knowledge-filters';

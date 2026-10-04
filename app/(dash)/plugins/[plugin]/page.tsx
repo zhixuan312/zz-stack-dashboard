@@ -3,15 +3,15 @@
 import { use } from 'react';
 import { Package } from 'lucide-react';
 import Link from 'next/link';
-import { DashboardPage } from '@/components/DashboardPage';
-import { Panel } from '@/components/Panel';
-import { Query } from '@/components/Query';
+import { DashboardPage } from '@/console-old/DashboardPage';
+import { Panel } from '@/console-old/Panel';
+import { Query } from '@/console-old/Query';
 import {
   Badge, EmptyState, PageControl, Row, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Time, usePaged,
-} from '@/components/ui';
-import { EvalHeadline, EvalHealth, EvalQuality } from '@/components/PluginEvalOverview';
-import { EvalLearning, EvalNotYet, EvalUsage } from '@/components/PluginEvalEvidence';
-import { EvalAutomationTrust, EvalEvolution } from '@/components/PluginEvalEvolution';
+} from '@/console-old/ui';
+import { EvalHeadline, EvalHealth, EvalQuality } from '@/console-old/PluginEvalOverview';
+import { EvalLearning, EvalNotYet, EvalUsage } from '@/console-old/PluginEvalEvidence';
+import { EvalAutomationTrust, EvalEvolution } from '@/console-old/PluginEvalEvolution';
 import { formatCount } from '@/lib/format';
 import { freshnessOf, useConsole } from '@/lib/api';
 import { type PluginEval, type PluginRow } from '@/lib/api-shapes';

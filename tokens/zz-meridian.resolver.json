@@ -1,0 +1,100 @@
+{
+  "$schema": "https://www.designtokens.org/schemas/2025.10/resolver.json",
+  "name": "ZZ Meridian",
+  "version": "2025.10",
+  "description": "Palette and core always apply; three modifiers pick a theme, an accent and a density. Each modifier is independent, so any accent works in either theme at either density.",
+  "sets": {
+    "palette": {
+      "sources": [
+        {
+          "$ref": "palette.tokens.json"
+        }
+      ]
+    },
+    "core": {
+      "sources": [
+        {
+          "$ref": "core.tokens.json"
+        }
+      ]
+    }
+  },
+  "modifiers": {
+    "theme": {
+      "description": "Dark is the default and is written on :root; the operating system may ask for light; data-theme overrides both.",
+      "default": "dark",
+      "contexts": {
+        "dark": [
+          {
+            "$ref": "theme.dark.tokens.json"
+          }
+        ],
+        "light": [
+          {
+            "$ref": "theme.light.tokens.json"
+          }
+        ]
+      }
+    },
+    "accent": {
+      "description": "The brand hue: data-accent on the root or any subtree.",
+      "default": "zz",
+      "contexts": {
+        "indigo": [
+          {
+            "$ref": "accent.indigo.tokens.json"
+          }
+        ],
+        "cobalt": [
+          {
+            "$ref": "accent.cobalt.tokens.json"
+          }
+        ],
+        "jade": [
+          {
+            "$ref": "accent.jade.tokens.json"
+          }
+        ],
+        "graphite": [
+          {
+            "$ref": "accent.graphite.tokens.json"
+          }
+        ],
+        "zz": [
+          {
+            "$ref": "accent.zz.tokens.json"
+          }
+        ]
+      }
+    },
+    "density": {
+      "description": "Comfortable is the core control group; compact redefines it.",
+      "default": "comfortable",
+      "contexts": {
+        "comfortable": [],
+        "compact": [
+          {
+            "$ref": "density.compact.tokens.json"
+          }
+        ]
+      }
+    }
+  },
+  "resolutionOrder": [
+    {
+      "$ref": "#/sets/palette"
+    },
+    {
+      "$ref": "#/sets/core"
+    },
+    {
+      "$ref": "#/modifiers/theme"
+    },
+    {
+      "$ref": "#/modifiers/accent"
+    },
+    {
+      "$ref": "#/modifiers/density"
+    }
+  ]
+}
