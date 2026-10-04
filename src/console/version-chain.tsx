@@ -8,7 +8,38 @@ import { Panel } from '@/console/panel';
 import { When } from '@/console/when';
 import { cn } from '@/lib/cn';
 import { collapse, diffLines, diffStat } from '@/lib/diff';
-import type { DocumentDetail } from '@/lib/api-shapes';
+import { useConsole } from '@/lib/api';
+import type { DocumentDetail, DocumentRevision } from '@/lib/api-shapes';
+
+/** One revision's text, as the panel needs it.
+ *
+ * `body` is `undefined` while it is still being read, `null` when the revision carries no text,
+ * and the text itself once it is in hand — three states, because "not read yet" and "read, and
+ * empty" must not render alike. */
+interface RevisionText { body: string | null | undefined; failed: boolean }
+
+/**
+ * One revision's own text: the document's body when this is the live revision, and otherwise a
+ * read of that one revision.
+ *
+ * DELIBERATE: the history arrives as metadata and its texts are read one at a time. A document's
+ * history has no bound — one on this deployment carries 109 revisions totalling 94 MB — and a
+ * reader looking at one change needs the two texts it is drawn between, not all of them.
+ *
+ * The live revision is the document's own `body`, which the page already has: re-reading it would
+ * be a second download of the same bytes.
+ */
+function useRevisionText(doc: DocumentDetail, version: number | undefined): RevisionText {
+  const live = version !== undefined && version === doc.current_revision;
+  const q = useConsole<DocumentRevision>(
+    version === undefined || live
+      ? null
+      : `/document/${doc.team}/${doc.initiative}/${doc.path}?revision=${version}`);
+  if (version === undefined) return { body: undefined, failed: false };
+  if (live) return { body: doc.body ?? null, failed: false };
+  if (q.isError) return { body: null, failed: true };
+  return { body: q.data ? (q.data.body ?? null) : undefined, failed: false };
+}
 
 /**
  * How this document got to be what it is.
@@ -25,17 +56,19 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
    * A revision row is filed on every write, so approving a document without editing
    * it files a revision identical to the one before.
    *
-   * Not a YAML question: zz.doc.body is stored with the envelope already
-   * stripped, so status, approved_at and the version number never reach this
-   * comparison.
+   * Not a YAML question: the body is stored with the envelope already stripped, so
+   * status, approved_at and the version number never reach this comparison — which is
+   * why the fingerprint is the gateway's md5 of the body and not
+   * `doc_revision.content_hash`, which covers the envelope and moves on an approval.
    *
    * Consecutive snapshots carrying the same content collapse into one step, and
-   * the step remembers how many approvals it accumulated. */
+   * the step remembers how many approvals it accumulated. Fingerprints, not texts:
+   * the two texts a change is drawn between are read only when it is opened. */
   const raw = doc.versions ?? [];
   const steps: { first: typeof raw[number]; last: typeof raw[number]; snapshots: number }[] = [];
   for (const v of raw) {
     const tail = steps[steps.length - 1];
-    if (tail && (tail.last.body ?? '') === (v.body ?? '')) {
+    if (tail && tail.last.hash === v.hash) {
       tail.last = v;
       tail.snapshots += 1;
     } else {
@@ -50,17 +83,23 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
   const [openSource, setOpenSource] = useState<string | null>(null);
   // Newest first, like the pairs.
   const history = [...steps].reverse();
+  const pair = pairs[at];
+
+  /* The two texts this change is drawn between. The step's `last` is the newest snapshot in it,
+   * which is the revision the step is named for. */
+  const before = useRevisionText(doc, pair?.before.last.version);
+  const after = useRevisionText(doc, pair?.after.last.version);
+  const ready = before.body !== undefined && after.body !== undefined;
+  const failed = before.failed || after.failed;
+  const lines = ready && !failed ? diffLines(before.body ?? '', after.body ?? '') : [];
+  const stat = diffStat(lines);
+  const { lines: shown, truncated } = collapse(lines);
 
   if (raw.length < 2 && !sources.length) return null;
 
-  const pair = pairs[at];
-  const lines = pair ? diffLines(pair.before.last.body ?? '', pair.after.last.body ?? '') : [];
-  const stat = diffStat(lines);
-  const shown = collapse(lines);
-
-  const label = (v: { version: number }) => (v.version === 9999 ? 'current' : `v${v.version}`);
+  const label = (v: { version: number }) => `v${v.version}`;
   /* A step spans every snapshot that carried the same content, so it is named for
-   * the range rather than for one end — "v3–current". */
+   * the range rather than for one end — "v3–v4". */
   const stepLabel = (s: { first: { version: number }; last: { version: number } }) =>
     s.first.version === s.last.version
       ? label(s.first)
@@ -84,15 +123,17 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
                   {stepLabel(pair.before)} → {stepLabel(pair.after)}
                 </span>
               )}
-              {stat.added || stat.removed ? (
-                <span className="whitespace-nowrap font-mono text-xs">
-                  <span className="text-positive-ink">+{stat.added}</span>{' '}
-                  <span className="text-critical-ink">−{stat.removed}</span>
-                </span>
-              ) : (
-                // Said, rather than shown as +0 −0 and left to look like a bug.
-                <span className="whitespace-nowrap text-xs text-ink-3">identical</span>
-              )}
+              {ready && !failed ? (
+                stat.added || stat.removed ? (
+                  <span className="whitespace-nowrap font-mono text-xs">
+                    <span className="text-positive-ink">+{stat.added}</span>{' '}
+                    <span className="text-critical-ink">−{stat.removed}</span>
+                  </span>
+                ) : (
+                  // Said, rather than shown as +0 −0 and left to look like a bug.
+                  <span className="whitespace-nowrap text-xs text-ink-3">identical</span>
+                )
+              ) : null}
             </span>
           }
         >
@@ -137,11 +178,21 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
               </p>
             )}
 
-            {/* Nothing to show is said, not rendered as an empty diff. A version is snapshotted
-                when a document is approved, so a document approved once and never revised has a
-                v1 byte-identical to the live file, and running that through the diff produces a
-                panel headed "what changed" containing "86 unchanged lines". */}
-            {!stat.added && !stat.removed ? (
+            {/* The change itself, once both of its texts are here. Nothing to show is said, not
+                rendered as an empty diff: a version is snapshotted when a document is approved,
+                so a document approved once and never revised has a v1 byte-identical to the live
+                file, and running that through the diff produces a panel headed "what changed"
+                containing "86 unchanged lines". */}
+            {failed ? (
+              <p className="rounded-md bg-surface-sunk px-3.5 py-2.5 text-sm leading-relaxed text-ink-2">
+                The text of one of these two revisions could not be read, so the change cannot be
+                shown. Nothing is missing from the document above.
+              </p>
+            ) : !ready ? (
+              <p className="rounded-md bg-surface-sunk px-3.5 py-2.5 text-sm leading-relaxed text-ink-3">
+                Reading the two revisions this change is drawn between…
+              </p>
+            ) : !stat.added && !stat.removed ? (
               <p className="rounded-md bg-surface-sunk px-3.5 py-2.5 text-sm leading-relaxed text-ink-2">
                 <strong className="text-ink">{stepLabel(pair.after)}</strong> and{' '}
                 <strong className="text-ink">{stepLabel(pair.before)}</strong> carry the same
@@ -183,13 +234,21 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
                             l.op === 'same' && 'text-ink-3',
                           )}
                         >
-                          {l.text || ' '}
+                          {l.text || ' '}
                         </td>
                       </tr>
                     ),
                   )}
                 </tbody>
               </table>
+              {/* A change with more in it than the panel draws. Said, not silently cut: the
+                  count is the number of lines that were computed and left out. */}
+              {truncated ? (
+                <p className="border-t border-line px-3 py-2 text-xs leading-relaxed text-ink-3">
+                  {truncated} further {truncated === 1 ? 'line' : 'lines'} changed and not shown —
+                  this change is larger than the panel draws.
+                </p>
+              ) : null}
             </div>
             )}
           </div>

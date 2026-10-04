@@ -200,6 +200,10 @@ export interface InitiativeDetail {
 }
 export interface DocumentDetail {
   team: string; initiative: string; path: string; flow: string | null;
+  /** Which revision `body` holds — the live one. It is read from the document rather than
+   *  assumed to be the highest-numbered revision, so the panel knows which of `versions` it
+   *  already has the text of and does not fetch it a second time. */
+  current_revision: number;
   type: string; status: string | null; outcome: string | null;
   approved_by: string | null; approved_at: string | null; closed_by: string | null;
   title: string | null; tags: string[] | null; evidence: string[] | null;
@@ -217,13 +221,25 @@ export interface DocumentDetail {
   /** What the ledger actually holds, so a column of blanks reads as a fact about the
    *  document rather than as a derivation that has stopped running. */
   decisionCounts: { rows: number; withVerdict: number; withQualifier: number; withChecker: number };
-  /** Every version of this document, oldest first: the frozen snapshots and the live one. */
-  versions: { path: string; body: string | null; status: string | null;
-              approved_by: string | null; updated_at: string; bytes: number; version: number }[];
+  /** Every revision of this document, oldest first, as its metadata alone.
+   *
+   *  A revision's text is not carried here. A document's history has no bound — one on this
+   *  deployment has 109 revisions totalling 94 MB — so the reader asks for the one revision it
+   *  is showing, through `?revision=`.
+   *
+   *  `hash` is the fingerprint of the revision's body, which is what tells a revision that
+   *  carries the same content as the one above it apart from one that does not. */
+  versions: { path: string; hash: string; status: string | null;
+              approved_by: string | null; updated_at: string; version: number }[];
   /** The supporting information attached to this document — why it changed. */
   sources: { path: string; title: string | null; body: string | null;
              supports: string; added: string; bytes: number }[];
 }
+/** One revision's own text — `/document/:team/:slug/:path?revision=N`.
+ *
+ *  Read on its own so that a document with a hundred revisions costs the two texts of the one
+ *  change being drawn, never all hundred. */
+export interface DocumentRevision { version: number; body: string | null }
 export interface KnowledgeNode {
   /** Unique across teams: `<team>/<path>`. The number is not — every team numbers
    *  its own nodes from 0001, so two teams both have a node 1. */

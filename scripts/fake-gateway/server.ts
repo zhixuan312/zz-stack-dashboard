@@ -25,7 +25,7 @@ import http from 'node:http';
 import { ME, MY_CLIENT_SETUP, MY_TEAMS, MY_TOKENS, PEOPLE, PLATFORM_PEOPLE, TEAMS, teamDetail, teamMembers } from './people.ts';
 import { ACTIVITY, PLUGINS, SKILLS, overview, pluginEval, runs, skillDetail, skillText } from './platform.ts';
 import { empty, extreme } from './states.ts';
-import { INITIATIVES, KNOWLEDGE, KNOWLEDGE_LOG, documentDetail, initiativeDetail, knowledgeBody } from './work.ts';
+import { INITIATIVES, KNOWLEDGE, KNOWLEDGE_LOG, documentDetail, documentRevision, initiativeDetail, knowledgeBody } from './work.ts';
 
 const args = process.argv.slice(2);
 const port = Number(args[args.indexOf('--port') + 1] ?? 0) || 0;
@@ -53,7 +53,11 @@ function read(seg: string[], q: URLSearchParams): Answer {
     case 'initiatives':
       if (a && b) return or404(initiativeDetail(a, b), `initiative ${a}/${b}`);
       return ok({ initiatives: q.get('team') ? INITIATIVES.filter((i) => i.team === q.get('team')) : mine(INITIATIVES) });
-    case 'document': return or404(documentDetail(a, b, rest.join('/')), `document ${seg.slice(1).join('/')}`);
+    case 'document': {
+      const rev = q.get('revision');
+      if (rev !== null) return or404(documentRevision(a, b, rest.join('/'), Number(rev)), `revision ${rev} of ${seg.slice(1).join('/')}`);
+      return or404(documentDetail(a, b, rest.join('/')), `document ${seg.slice(1).join('/')}`);
+    }
     case 'knowledge':
       if (a === 'log') return ok({ entries: mine(KNOWLEDGE_LOG) });
       if (a) return or404(knowledgeBody(a, [b, ...rest].join('/')), `knowledge ${seg.slice(1).join('/')}`);

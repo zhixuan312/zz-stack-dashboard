@@ -17,14 +17,15 @@ const me: Me = {
 };
 
 const doc: DocumentDetail = {
-  team: 'team-one', initiative: 'init-1', path: 'spec.md', flow: 'sdlc-flow',
+  team: 'team-one', initiative: 'init-1', path: 'spec.md', flow: 'sdlc-flow', current_revision: 1,
   type: 'spec', status: 'draft', outcome: null,
   approved_by: null, approved_at: null, closed_by: null,
   title: 'The spec', tags: null, evidence: null, superseded_by: null, body: 'body',
   updated_at: '2026-09-01T00:00:00Z', bytes: 4,
   gated: true, closing: false, requiredForClose: false,
-  decisions: [], decisionCounts: { rows: 0, withVerdict: 0, withQualifier: 0, withChecker: 0 }, versions: [{ path: 'spec.md', body: 'body', status: 'draft', approved_by: null,
-                              updated_at: '2026-09-01T00:00:00Z', bytes: 4, version: 9999 }],
+  decisions: [], decisionCounts: { rows: 0, withVerdict: 0, withQualifier: 0, withChecker: 0 },
+  versions: [{ path: 'spec.md', hash: 'h1', status: 'draft', approved_by: null,
+               updated_at: '2026-09-01T00:00:00Z', version: 1 }],
   sources: [],
 };
 

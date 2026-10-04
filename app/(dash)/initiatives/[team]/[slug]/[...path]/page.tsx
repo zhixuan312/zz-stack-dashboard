@@ -47,8 +47,8 @@ export default function DocumentPage({ params }: { params: Promise<{ team: strin
   // Rendered by default, because a person came to read it; the stored markdown is one press away.
   const [view, setView] = useState<'read' | 'source'>('read');
   const d = q.data;
-  // The document's own version number; the gateway stamps 9999 on the live row for ordering only.
-  const version = d ? Math.max(1, ...d.versions.map((v) => v.version).filter((n) => n !== 9999)) : null;
+  // The document's own version number, from the highest revision it carries.
+  const version = d?.versions.length ? Math.max(...d.versions.map((v) => v.version)) : null;
 
   return (
     <ConsolePage

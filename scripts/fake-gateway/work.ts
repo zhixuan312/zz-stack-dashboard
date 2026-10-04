@@ -9,7 +9,8 @@
  * on approval.
  */
 import type {
-  DocumentDetail, Gate, Initiative, InitiativeDetail, KnowledgeBody, KnowledgeLogEntry, KnowledgeNode, Step,
+  DocumentDetail, DocumentRevision, Gate, Initiative, InitiativeDetail, KnowledgeBody,
+  KnowledgeLogEntry, KnowledgeNode, Step,
 } from '../../src/lib/api-shapes.ts';
 import { ago } from './clock.ts';
 
@@ -183,19 +184,34 @@ export function documentDetail(team: string, initiative: string, path: string): 
   if (!d || !row) return null;
   const isSpec = initiative === '2026-09-28-search-relevance' && path === 'spec.md';
   const text = isSpec ? SPEC_BODY : body(row.title ?? path);
+  // Metadata only, like the gateway: a revision's text is read on its own, through
+  // `documentRevision` below.
   const versions = isSpec
-    ? [1, 2, 3].map((v) => ({ path, version: v, body: v === 3 ? text : text.replace('120 ms', v === 1 ? '200 ms' : '150 ms'), status: v === 3 ? 'approved' : 'draft', approved_by: v === 3 ? row.approved_by : null, updated_at: ago(60 + (3 - v) * 20), bytes: row.bytes - (3 - v) * 900 }))
-    : [{ path, version: 1, body: text, status: row.status, approved_by: row.approved_by, updated_at: row.updated_at, bytes: row.bytes }];
+    ? [1, 2, 3].map((v) => ({ path, version: v, hash: `spec-${v}`, status: v === 3 ? 'approved' : 'draft', approved_by: v === 3 ? row.approved_by : null, updated_at: ago(60 + (3 - v) * 20) }))
+    : [{ path, version: 1, hash: 'v1', status: row.status, approved_by: row.approved_by, updated_at: row.updated_at }];
   const sources = d.documents.filter((x) => x.supports === path).map((x) => ({ path: x.path, title: x.title, body: body(x.title ?? x.path), supports: path, added: x.updated_at.slice(0, 10), bytes: x.bytes }));
   const decisions = d.decisions.filter((x) => x.path === path).map(({ path: _p, ...rest }) => rest);
   return {
-    team, initiative, path, flow: row.type === 'note' ? null : FLOW, type: row.type, status: row.status, outcome: row.outcome,
+    team, initiative, path, current_revision: isSpec ? 3 : 1,
+    flow: row.type === 'note' ? null : FLOW, type: row.type, status: row.status, outcome: row.outcome,
     approved_by: row.approved_by, approved_at: row.approved_by ? row.updated_at : null, closed_by: null,
     title: row.title, tags: isSpec ? ['search', 'ranking', 'explainability'] : null, evidence: null, superseded_by: null,
     body: text, updated_at: row.updated_at, bytes: row.bytes, gated: row.gated, closing: row.closing, requiredForClose: row.requiredForClose,
     decisions, decisionCounts: { rows: decisions.length, withVerdict: decisions.filter((x) => x.verdict).length, withQualifier: decisions.filter((x) => x.qualifier).length, withChecker: decisions.filter((x) => x.checker).length },
     versions, sources,
   };
+}
+
+/** One revision's text, as `/document/:team/:slug/:path?revision=N` serves it. */
+export function documentRevision(team: string, initiative: string, path: string, version: number): DocumentRevision | null {
+  const d = initiativeDetail(team, initiative);
+  const row = d?.documents.find((x) => x.path === path);
+  if (!d || !row) return null;
+  const isSpec = initiative === '2026-09-28-search-relevance' && path === 'spec.md';
+  const text = isSpec ? SPEC_BODY : body(row.title ?? path);
+  if (!isSpec) return version === 1 ? { version, body: text } : null;
+  if (version < 1 || version > 3) return null;
+  return { version, body: version === 3 ? text : text.replace('120 ms', version === 1 ? '200 ms' : '150 ms') };
 }
 
 type NodeSeed = [team: string, num: string, type: string, status: string, title: string, tags: string[], evidence: string | null, hours: number];
