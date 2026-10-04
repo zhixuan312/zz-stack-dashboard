@@ -152,4 +152,23 @@
     transition: background-size var(--dur-hover) var(--ease-out), color var(--dur-hover);
   }
   .row-link:hover { background-size: 100% 1px; color: var(--accent-ink); }
+
+  /* A scrolling strip fades out at an edge with more behind it, so a cut-off item reads as "more this way", never as
+     broken. The fade follows the strip's own scroll: none at rest when everything fits, none at the end it has reached.
+     Where scroll timelines are missing, the strip is cut as before. */
+  .scroll-fade-x { mask-image: linear-gradient(to right, transparent, #000 var(--fade-a), #000 calc(100% - var(--fade-b)), transparent); }
+  .scroll-fade-y { mask-image: linear-gradient(to bottom, transparent, #000 var(--fade-a), #000 calc(100% - var(--fade-b)), transparent); }
+  @supports (animation-timeline: scroll()) {
+    .scroll-fade-x { animation: m-scroll-edges linear both; animation-timeline: scroll(self inline); }
+    .scroll-fade-y { animation: m-scroll-edges linear both; animation-timeline: scroll(self block); }
+  }
+}
+
+@property --fade-a { syntax: "<length>"; inherits: false; initial-value: 0px; }
+@property --fade-b { syntax: "<length>"; inherits: false; initial-value: 0px; }
+@keyframes m-scroll-edges {
+  0% { --fade-a: 0px; --fade-b: 24px; }
+  8% { --fade-a: 24px; }
+  92% { --fade-b: 24px; }
+  100% { --fade-a: 24px; --fade-b: 0px; }
 }

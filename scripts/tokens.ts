@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- DTCG token JSON files have no types; this file runs in Node, never in a page. */
 /**
  * Generate the CSS of Layer 0 from the DTCG 2025.10 token files in tokens/.
  *

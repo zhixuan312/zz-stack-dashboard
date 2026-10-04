@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Fragment, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { ArrowLeft, MoreHorizontal } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { Badge, type Tone } from '@/components/ui/badge';
@@ -35,15 +35,18 @@ function Name({ name, mono, status }: Pick<DetailHeadProps, 'name' | 'mono' | 's
   );
 }
 
+/**
+ * Each fact carries its own leading dot, and the row is pulled left by one dot's width and clipped: the dot that starts
+ * a line falls outside, so a wrapped row never ends on a dangling separator or starts with one.
+ */
 function Facts({ facts }: { facts: ReactNode[] }) {
   return (
-    <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-      {facts.map((f, i) => (
-        <Fragment key={i}>
-          {i > 0 ? <span aria-hidden className="size-1 rounded-full bg-ink-3/60" /> : null}
-          <span className="t-num">{f}</span>
-        </Fragment>
-      ))}
+    <span className="block overflow-hidden">
+      <span className="-ml-6 flex flex-wrap items-center gap-y-1">
+        {facts.map((f, i) => (
+          <span key={i} className="t-num relative pl-6 before:absolute before:top-1/2 before:left-2.5 before:size-1 before:-translate-y-1/2 before:rounded-full before:bg-ink-3/60">{f}</span>
+        ))}
+      </span>
     </span>
   );
 }

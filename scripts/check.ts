@@ -159,6 +159,10 @@ const hasAtlas = fs.existsSync(path.join(ROOT, 'src/system')) && fs.existsSync(p
 const atlasOnly = hasAtlas ? [...read('scripts/brand.ts').matchAll(/const atlasOnly = \[([^\]]*)\]/g)].flatMap((m) => [...m[1].matchAll(/'([^']+)'/g)].map((x) => `src/system/${x[1]}`)) : [];
 if (hasAtlas && !atlasOnly.length) problems.push('scripts/brand.ts: no atlasOnly list found, so the dormant-code rule cannot tell what a product keeps');
 const SWEPT = /^src\/(lib|data)\//;
+// In a project that adopted Meridian (zz-meridian adopt), Meridian's own modules are a library it uses in part; only
+// the project's own src/lib and src/data are swept. A created dashboard is swept whole, as the template is.
+const manifestPath = path.join(ROOT, '.meridian/manifest.json');
+const adopted = fs.existsSync(manifestPath) && JSON.parse(fs.readFileSync(manifestPath, 'utf8')).route === 'adopt' ? new Set(Object.keys(JSON.parse(fs.readFileSync(manifestPath, 'utf8')).files)) : new Set<string>();
 const kept = ['src', 'app', 'scripts'].flatMap((d) => walk(d, /\.tsx?$/)).filter((f) => !/(^|\/)preview\.tsx$/.test(f) && !f.startsWith('app/system/') && !atlasOnly.includes(f));
 const resolveSpec = (from: string, spec: string) => {
   const base = spec.startsWith('@/') ? path.join('src', spec.slice(2)) : spec.startsWith('.') ? path.join(path.dirname(from), spec) : null;
@@ -190,7 +194,7 @@ for (const f of kept) {
   for (const m of src.matchAll(/\bimport\(\s*['"]([^'"]+)['"]\s*\)/g)) record(resolveSpec(f, m[1]), '*');
 }
 const EXPORT_DECL = /^export\s+(?:declare\s+)?(?:async\s+)?(?:const|let|var|function\*?|class|abstract\s+class|type|interface|enum)\s+([A-Za-z_$][\w$]*)/gm;
-for (const f of walk('src', /\.tsx?$/).filter((x) => SWEPT.test(x) && !/(^|\/)preview\.tsx$/.test(x))) {
+for (const f of walk('src', /\.tsx?$/).filter((x) => SWEPT.test(x) && !/(^|\/)preview\.tsx$/.test(x) && !adopted.has(x))) {
   const src = read(f);
   const names = new Set([...src.matchAll(EXPORT_DECL)].map((m) => m[1]));
   if (/^export\s+default\b/m.test(src)) names.add('default');

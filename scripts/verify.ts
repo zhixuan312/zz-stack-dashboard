@@ -11,9 +11,10 @@
  *   walk-through (scripts/assistant.ts: asks, approves and dismisses on /members, then the thread, the switch, the
  *   layout, a refused key and the key's absence from the browser).
  *
- *   pnpm verify [--quick] [--extra /requests/req_1,/customers/acme]
+ *   pnpm verify [--quick] [--no-vitals] [--extra /requests/req_1,/customers/acme]
  *
- * The detail pages in scripts/verify.config.ts are checked by default; --extra replaces them for one run.
+ * The detail pages in scripts/verify.config.ts are checked by default; --extra replaces them for one run. --no-vitals
+ * leaves Web Vitals out, for a CI runner, where throttling measures the shared machine; a release still runs them locally.
  * Exit 0 only when everything passes. The report is written to out/verify.txt.
  */
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
@@ -22,11 +23,13 @@ import fs from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
 
+import { bin } from './lib/bin.ts';
 import config from './verify.config.ts';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 
-const argv = process.argv.slice(2);
+const noVitals = process.argv.includes('--no-vitals');
+const argv = process.argv.slice(2).filter((a) => a !== '--no-vitals');
 // The detail pages in scripts/verify.config.ts are checked by default; --extra replaces them for one run.
 const pass = argv.includes('--extra') || !config.detailRoutes.length ? argv : [...argv, '--extra', config.detailRoutes.join(',')];
 // A project that has not adopted the assistant has no walk-through to run, only the pages.
@@ -62,7 +65,7 @@ const stop = (c: ChildProcess) => { try { process.kill(-c.pid!, 'SIGTERM'); } ca
 /** Start the built app on a free port with the given environment and wait until it answers. */
 async function start(env: NodeJS.ProcessEnv) {
   const port = await freePort();
-  const server = spawn('pnpm', ['exec', 'next', 'start', '-p', String(port)], { cwd: ROOT, env, stdio: 'ignore', detached: true });
+  const server = spawn(bin('next'), ['start', '-p', String(port)], { cwd: ROOT, env, stdio: 'ignore', detached: true });
   children.push(server);
   for (let i = 0; i < 120; i++) {
     try { if ((await fetch(`http://127.0.0.1:${port}/`)).status < 500) return { port, server }; } catch { await new Promise((r) => setTimeout(r, 500)); }
@@ -97,7 +100,7 @@ if (config.fakeApi) {
   app = { ...clean, [config.fakeApi.env]: apiUrl };
   log(`ok   the fake API is serving at ${apiUrl} (${config.fakeApi.env})`);
 }
-step('production build', 'pnpm', ['exec', 'next', 'build'], app);
+step('production build', bin('next'), ['build'], app);
 
 let on: { status: number | null; out: string } = { status: 0, out: '' };
 let port: number;
@@ -156,8 +159,8 @@ extras.forEach((r, i) => {
 log(`(browser checks ${((Date.now() - t) / 60_000).toFixed(1)} min)`);
 
 // Web Vitals on a mid-range phone, alone: CPU throttling measures the machine too, so nothing else runs beside it.
-const vitals = await run('scripts/vitals.ts', base);
-log(vitals.status === 0 ? 'ok   LCP, INP and CLS on a mid-range phone' : 'FAIL Web Vitals on a mid-range phone');
+const vitals = noVitals ? { status: 0, out: '' } : await run('scripts/vitals.ts', base);
+log(noVitals ? 'skip Web Vitals (--no-vitals)' : vitals.status === 0 ? 'ok   LCP, INP and CLS on a mid-range phone' : 'FAIL Web Vitals on a mid-range phone');
 log(vitals.out.split('\n').slice(-30).join('\n'));
 stopAll();
 const ok = audit.status === 0 && presses.status === 0 && keys.status === 0 && extras.every((r) => r.status === 0) && on.status === 0 && vitals.status === 0;

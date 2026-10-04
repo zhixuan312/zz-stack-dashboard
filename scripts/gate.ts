@@ -1,11 +1,12 @@
 /**
  * Every gate the system must pass before a commit, in order; stops at the first failure.
  *
- *   pnpm gate
+ *   pnpm gate   (or npm run gate: the tools run from node_modules/.bin, under any package manager)
  */
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import { bin } from './lib/bin.ts';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const STEPS: [string, string[]][] = [
@@ -17,11 +18,11 @@ const STEPS: [string, string[]][] = [
   ...(fs.existsSync(path.join(ROOT, 'scripts/check.local.ts')) ? [['the product\'s own rules hold', ['node', 'scripts/check.local.ts']] as [string, string[]]] : []),
   ['contrast holds in every theme and accent', ['node', 'scripts/contrast.ts']],
   // Route types first: a page added since the last build would otherwise fail against stale generated routes.
-  ['route types are generated', ['pnpm', 'exec', 'next', 'typegen']],
-  ['types check', ['pnpm', 'exec', 'tsc', '--noEmit']],
+  ['route types are generated', [bin('next'), 'typegen']],
+  ['types check', [bin('tsc'), '--noEmit']],
   // eslint-config-next is what every Next project runs; a template that fails it hands its users errors on day one.
-  ['lint passes', ['pnpm', 'exec', 'eslint', '.']],
-  ['tests pass', ['pnpm', 'exec', 'vitest', 'run']],
+  ['lint passes', [bin('eslint'), '.']],
+  ['tests pass', [bin('vitest'), 'run']],
 ];
 
 for (const [name, [cmd, ...args]] of STEPS) {

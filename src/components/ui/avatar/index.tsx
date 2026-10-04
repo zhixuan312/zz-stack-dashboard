@@ -1,6 +1,9 @@
 import { cn } from '@/lib/cn';
 
 const SIZE = { sm: 'size-6 text-2xs', md: 'size-8 text-xs', lg: 'size-10 text-sm' } as const;
+/* Each disc tucks under the next by a sliver (2, 4, 6px), so the next one's surface ring draws the seam without
+   covering a letter; any deeper and it cuts the second initial ("AO" reads "AC"). */
+const OVERLAP = { sm: '-ml-0.5', md: '-ml-1', lg: '-ml-1.5' } as const;
 
 /**
  * A person or an organisation: their picture, or their initials on a soft tint of one chart hue derived from the
@@ -23,7 +26,7 @@ export function Avatar({ name, src, size = 'md', className }: { name: string; sr
 }
 
 /**
- * Who is involved, at a glance: up to `max` avatars overlapping by a third, then a "+N" chip. The full list is in
+ * Who is involved, at a glance: up to `max` avatars tucked under each other by a sliver, then a "+N" chip. The full list is in
  * the accessible name (and a tooltip where the group is interactive).
  */
 export function AvatarGroup({ names, max = 4, size = 'sm', className }: { names: string[]; max?: number; size?: keyof typeof SIZE; className?: string }) {
@@ -32,10 +35,10 @@ export function AvatarGroup({ names, max = 4, size = 'sm', className }: { names:
   return (
     <span role="img" aria-label={names.join(', ')} className={cn('inline-flex items-center', className)}>
       {shown.map((n, i) => (
-        <Avatar key={n + i} name={n} size={size} className={i > 0 ? (size === 'lg' ? '-ml-3' : size === 'md' ? '-ml-2.5' : '-ml-2') : undefined} />
+        <Avatar key={n + i} name={n} size={size} className={i > 0 ? OVERLAP[size] : undefined} />
       ))}
       {rest > 0 ? (
-        <span className={cn('relative -ml-2 inline-grid shrink-0 place-items-center rounded-full bg-fill-active font-medium text-ink-2 ring-2 ring-surface', SIZE[size])}>
+        <span className={cn('relative inline-grid shrink-0 place-items-center rounded-full bg-fill-active font-medium text-ink-2 ring-2 ring-surface', OVERLAP[size], SIZE[size])}>
           +{rest}
         </span>
       ) : null}

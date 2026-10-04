@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- token JSON files have no types; this file runs in Node, never in a page. */
 /**
  * Brand a copy of Meridian for a product, in place.
  *
@@ -14,7 +15,8 @@
  * --product goes further, for a dashboard that is not the design system: --no-atlas, and the card specs and previews,
  * page specs, docs, decisions, changelog and skill go too (the assistant, its collections and its fake model stay); the components, tokens, scripts and gates stay.
  * --existing is for an existing project that brought Meridian in (route A in the skill): it sets the name, accent and the
- * rest, never renames package.json unless --package is given, and has no Atlas or product branch to run.
+ * rest, never renames package.json unless --package is given, has no Atlas or product branch to run, and appends Meridian's
+ * rules to the project's AGENTS.md once, so its next agent session keeps the dashboard on Meridian.
  */
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -166,6 +168,12 @@ if (has('--no-atlas') || has('--product')) {
   // Nav entries for /system and /system/... exactly (never /systemic), then any group they leave empty.
   let cfg = read('src/app.config.ts').replace(/\n\s*\{ href: '\/system(?:\/[^']*)?'[^}]*\},/g, '');
   cfg = cfg.replace(/\n {2}\{\n(?: {4}label: '[^']*',\n)? {4}items: \[\s*\],\n {2}\},/g, '');
+  // The icons only those entries used: an import left behind fails the lint gate.
+  cfg = cfg.replace(/import \{([^}]*)\} from 'lucide-react';/, (_m, names: string) => {
+    const body = cfg.slice(cfg.indexOf("from 'lucide-react';") + 20);
+    const kept = names.split(',').map((n) => n.trim()).filter((n) => n && (n.startsWith('type ') || new RegExp(`\\b${n}\\b`).test(body)));
+    return `import {\n  ${kept.join(', ')},\n} from 'lucide-react';`;
+  });
   write('src/app.config.ts', cfg);
   // The standalone screens' footer link to the Atlas (the sample's footer, src/views/sample-footer.tsx).
   write('src/views/sample-footer.tsx', read('src/views/sample-footer.tsx').replace(/\n\s*<Link href="\/system"[^\n]*<\/Link>/, ''));
@@ -218,6 +226,25 @@ Built on ZZ Meridian. Keep it the way it was built:
 - **Before finishing**: \`pnpm verify\` (the gate, a production build, the browser audit at every width and theme, and every control pressed).
 `);
   done.push('product only: card specs and previews, page specs, docs, decisions, the changelog and the skill removed; README rewritten for the product');
+}
+
+// An existing project keeps its own AGENTS.md and gains the rules its next agent session needs to stay on Meridian.
+// Appended once: a second run finds the heading and leaves the file alone.
+if (existing) {
+  const heading = '# Built on ZZ Meridian';
+  const agents = fs.existsSync(file('AGENTS.md')) ? read('AGENTS.md') : '';
+  if (!agents.includes(heading)) {
+    write('AGENTS.md', `${agents.trim() ? `${agents.trimEnd()}\n\n` : ''}${heading}
+
+The interface is built on ZZ Meridian (https://github.com/zhixuan312/zz-meridian). Keep it that way:
+
+- **Build up, never sideways.** A page arranges patterns from \`src/components/patterns\`; a pattern composes \`src/components/ui\`; a value is a token. Never write a colour, size or shadow that is not a token; \`node scripts/check.ts\` fails on literal colours and on Tailwind utilities outside Meridian's scales (they render nothing).
+- **Tokens** live in \`tokens/*.tokens.json\`; run \`pnpm tokens\` after a change and never edit \`src/styles/tokens.css\` or \`theme.css\`.
+- **A component Meridian lacks** is built the same way, in \`src/components/<layer>/<name>/\`, from tokens and the components already there. The specification of every existing one is in the template on GitHub (\`src/components/<layer>/<name>/README.md\`).
+- **Before finishing**: \`pnpm verify\` (the gate, a production build, the browser audit at every width and theme, every control pressed, the keyboard path and Web Vitals). It presses Delete too, so it runs against the fake API named in \`scripts/verify.config.ts\` whenever the pages call a live one.
+`);
+    done.push('AGENTS.md: the Meridian rules appended, so the next agent session keeps the dashboard on Meridian');
+  }
 }
 
 execFileSync('node', ['scripts/tokens.ts'], { cwd: ROOT, stdio: 'ignore' });

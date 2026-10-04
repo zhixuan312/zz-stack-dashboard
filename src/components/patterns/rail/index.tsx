@@ -90,7 +90,7 @@ export function Rail({
           </MenuContent>
         </Menu>
       </div>
-      <nav ref={list} aria-label="Main" className="relative flex-1 overflow-y-auto px-3 pt-3 pb-4">
+      <nav ref={list} aria-label="Main" className="scroll-fade-y relative flex-1 overflow-y-auto px-3 pt-3 pb-4">
         {marker ? (
           <span
             aria-hidden

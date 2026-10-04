@@ -46,8 +46,9 @@ const COMPONENTS: Components = {
     // eslint-disable-next-line @next/next/no-img-element -- same-origin only (safeMarkdownUrl), at whatever size the writer's file has; next/image needs both known ahead.
     src ? <img src={String(src)} alt={alt ?? ''} className="max-w-full rounded-md" /> : <em className="text-ink-2">{alt || 'Image not shown'}</em>,
   // A task box: remark-gfm draws a bare disabled checkbox with no name, and its state is all it says.
-  input: ({ node: _node, ...rest }) =>
-    rest.type === 'checkbox' ? <input {...rest} aria-label={rest.checked ? 'Done' : 'Not done'} className="mr-2 size-3.5 align-[-2px] accent-(--accent)" /> : <input {...rest} />,
+  // react-markdown's node is dropped, never spread onto the input.
+  input: ({ node, ...rest }) => (void node,
+    rest.type === 'checkbox' ? <input {...rest} aria-label={rest.checked ? 'Done' : 'Not done'} className="mr-2 size-3.5 align-[-2px] accent-(--accent)" /> : <input {...rest} />),
 };
 
 export function Prose({ children, size = 'base', className }: { children: string; /** `sm` for a side panel, a comment or a quoted body. */ size?: 'base' | 'sm'; className?: string }) {

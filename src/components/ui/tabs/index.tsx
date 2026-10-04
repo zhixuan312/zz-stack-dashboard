@@ -41,7 +41,7 @@ export function TabList({ className, children, ...rest }: ComponentProps<typeof 
     <T.List
       ref={list}
       className={cn(
-        'relative flex snap-x snap-mandatory items-stretch gap-1 overflow-x-auto border-b border-line [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+        'scroll-fade-x relative flex snap-x snap-mandatory items-stretch gap-1 overflow-x-auto border-b border-line [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
         className,
       )}
       {...rest}
@@ -92,7 +92,7 @@ export type LinkTab = { key: string; label: ReactNode; href: string; count?: Rea
  */
 export function LinkTabs({ tabs, active, label, className }: { tabs: readonly LinkTab[]; active: string; label: string; className?: string }) {
   return (
-    <nav aria-label={label} className={cn('flex snap-x snap-mandatory items-stretch gap-1 overflow-x-auto border-b border-line [scrollbar-width:none] [&::-webkit-scrollbar]:hidden', className)}>
+    <nav aria-label={label} className={cn('scroll-fade-x flex snap-x snap-mandatory items-stretch gap-1 overflow-x-auto border-b border-line [scrollbar-width:none] [&::-webkit-scrollbar]:hidden', className)}>
       {tabs.map((t) => {
         const on = t.key === active;
         return (

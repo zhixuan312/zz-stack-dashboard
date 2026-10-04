@@ -31,7 +31,9 @@ export const Select = forwardRef<HTMLButtonElement, {
   'aria-invalid'?: boolean;
   'aria-required'?: boolean;
   required?: boolean;
-}>(function Select({ value, defaultValue, onValueChange, options, placeholder = 'Choose…', size = 'md', invalid, disabled, leading, className, required, name, 'aria-required': _req, ...aria }, ref) {
+}>(function Select({ value, defaultValue, onValueChange, options, placeholder = 'Choose…', size = 'md', invalid, disabled, leading, className, required, name, 'aria-required': ariaRequired, ...aria }, ref) {
+  // aria-required is dropped: Radix's trigger takes `required` instead.
+  void ariaRequired;
   return (
     <S.Root value={value} defaultValue={defaultValue} onValueChange={onValueChange} disabled={disabled} required={required} name={name}>
       <S.Trigger

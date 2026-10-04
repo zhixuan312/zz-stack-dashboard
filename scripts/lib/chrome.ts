@@ -1,10 +1,13 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Chrome's DevTools protocol has no types here; this file runs in Node, never in a page. */
 /** A headless Chrome over the DevTools protocol, with no dependency: Node's own fetch and WebSocket. */
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-const CHROME = process.env.CHROME ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const CHROME = process.env.CHROME ?? (process.platform === 'darwin' ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' : process.platform === 'win32' ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe' : '/usr/bin/google-chrome');
+// A Linux CI runner (Ubuntu 24.04's AppArmor) refuses Chrome's sandbox; there it only ever opens the app just built.
+const SANDBOX = process.platform === 'linux' && process.env.CI === 'true' ? ['--no-sandbox'] : [];
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export type Page = {
@@ -21,7 +24,7 @@ export async function launch(): Promise<Page> {
   // Port 0 lets Chrome pick a free port and write it into its own profile, so this never attaches to another
   // session's browser that happens to hold a guessed port.
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'meridian-chrome-'));
-  const proc = spawn(CHROME, ['--headless=new', '--disable-gpu', '--hide-scrollbars', '--force-color-profile=srgb', '--remote-debugging-port=0', `--user-data-dir=${dir}`, 'about:blank'], { stdio: 'ignore' });
+  const proc = spawn(CHROME, [...SANDBOX, '--headless=new', '--disable-gpu', '--hide-scrollbars', '--force-color-profile=srgb', '--remote-debugging-port=0', `--user-data-dir=${dir}`, 'about:blank'], { stdio: 'ignore' });
   let list: any[] | undefined;
   for (let i = 0; i < 80 && !list; i++) {
     try {

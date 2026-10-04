@@ -23,7 +23,7 @@ export function pageList(page: number, count: number): (number | 'gap')[] {
 
 /**
  * Moves through a long list a page at a time, and says where you are: "21–40 of 240". Every list that can pass ten
- * rows pages, which is what lets a card stay its content's height. On phones only the arrows and "Page 2 of 12" remain.
+ * rows pages, which is what lets a card stay its content's height. Where the pager is narrow (a phone, a card in a column) only the arrows and "Page 2 of 12" remain.
  */
 export function Pagination({
   page,
@@ -51,16 +51,16 @@ export function Pagination({
   const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const to = Math.min(total, page * pageSize);
   return (
-    <nav aria-label="Pagination" className={cn('flex min-w-0 items-center gap-3 text-sm', className)}>
+    <nav aria-label="Pagination" className={cn('@container/pager flex min-w-0 items-center gap-3 text-sm', className)}>
       <p className="t-num min-w-0 truncate text-ink-2">
-        <span className="max-sm:hidden">
+        <span className="@max-[32rem]/pager:hidden">
           <span className="font-medium text-ink">{from.toLocaleString('en-US')}–{to.toLocaleString('en-US')}</span> of {total.toLocaleString('en-US')} {noun}
         </span>
-        <span className="sm:hidden">Page <span className="font-medium text-ink">{page}</span> of {count}</span>
+        <span className="@min-[32rem]/pager:hidden">Page <span className="font-medium text-ink">{page}</span> of {count}</span>
       </p>
       {pageSizes && onPageSizeChange ? (
         <Menu>
-          <MenuTrigger className="press inline-flex h-(--control-sm) items-center gap-1.5 rounded-md px-2 text-sm text-ink-2 hover:bg-fill-hover hover:text-ink max-md:hidden">
+          <MenuTrigger className="press inline-flex h-(--control-sm) items-center gap-1.5 rounded-md px-2 text-sm text-ink-2 hover:bg-fill-hover hover:text-ink @max-[44rem]/pager:hidden">
             <span><span className="t-num">{pageSize}</span> per page</span><ChevronDown className="size-3.5" />
           </MenuTrigger>
           <MenuContent align="end" className="min-w-36">
@@ -75,7 +75,7 @@ export function Pagination({
       ) : null}
       <div className="ml-auto flex items-center gap-1">
         <IconButton size="sm" variant="ghost" label="Previous page" icon={<ChevronLeft />} disabled={page <= 1} onClick={() => onPageChange(page - 1)} />
-        <ol className="flex items-center gap-0.5 max-sm:hidden">
+        <ol className="flex items-center gap-0.5 @max-[32rem]/pager:hidden">
           {pageList(page, count).map((p, i) => (
             <li key={p === 'gap' ? `gap-${i}` : p}>
               {p === 'gap' ? (

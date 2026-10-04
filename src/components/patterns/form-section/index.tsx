@@ -52,7 +52,7 @@ export function FormSection({
   };
   return (
     <section className={cn('@container', className)}>
-      <form onSubmit={submit} className="grid gap-x-10 gap-y-5 @3xl:grid-cols-[15rem_minmax(0,1fr)]">
+      <form onSubmit={submit} className="grid gap-x-10 gap-y-5 @3xl:grid-cols-[15rem_minmax(0,64rem)]">
         <header className="min-w-0 @3xl:pt-1">
           <h2 className={cn('t-card', tone === 'critical' && 'text-critical-ink')}>{title}</h2>
           {description ? <p className="t-small mt-2 text-pretty text-ink-2">{description}</p> : null}

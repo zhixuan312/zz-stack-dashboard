@@ -33,6 +33,8 @@ export const Switch = forwardRef<HTMLButtonElement, Props>(function Switch({ lab
       <S.Thumb
         className={cn(
           'block rounded-full bg-on-accent shadow-control ring-1 ring-line transition-transform duration-(--dur-enter) ease-spring',
+          // Disabled, the thumb loses its lift; off, it greys too, so a control nobody can flip never looks ready.
+          'data-disabled:shadow-none data-disabled:data-[state=unchecked]:bg-ink-disabled data-disabled:data-[state=unchecked]:ring-0',
           size === 'sm' ? 'size-3.5 data-[state=checked]:translate-x-3.5' : 'size-4.5 data-[state=checked]:translate-x-4',
         )}
       />
@@ -41,7 +43,7 @@ export const Switch = forwardRef<HTMLButtonElement, Props>(function Switch({ lab
   if (!label) return sw;
   return (
     <div className={cn('flex items-start justify-between gap-4', className)}>
-      <label htmlFor={sid} className={cn('min-w-0 text-sm leading-5', rest.disabled ? 'cursor-not-allowed text-ink-2' : 'cursor-pointer text-ink')}>
+      <label htmlFor={sid} data-disabled={rest.disabled ? '' : undefined} className={cn('min-w-0 text-sm leading-5', rest.disabled ? 'cursor-not-allowed text-ink-disabled' : 'cursor-pointer text-ink')}>
         {label}
         {description ? <span className="mt-0.5 block text-xs leading-snug text-ink-3">{description}</span> : null}
       </label>

@@ -18,8 +18,8 @@ import { cn } from '@/lib/cn';
  *         └─ Stack       rows, one gap apart
  *            └─ Row      one card, or cards split 1/2, 2/3, 1/3, or a row of tiles
  *
- * Four rules: one scroller; cards are their content's height; four splits; two widths (data, capped at 1560px, and
- * reading, 832px; both centre).
+ * Four rules: one scroller; cards are their content's height; four splits; two widths (data, the whole canvas, for every
+ * console page; reading, 832px and centred, for one long document).
  */
 
 const ShellCtx = createContext<{ openNav: () => void; tools: ReactNode }>({ openNav: () => {}, tools: null });
