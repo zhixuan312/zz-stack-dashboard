@@ -53,6 +53,8 @@ export function TrendChart({
   className?: string;
 }) {
   const [box, size] = useSize<HTMLDivElement>();
+  // The legend wraps on a narrow card; the plot starts under however many lines it took.
+  const [legendBox, legendSize] = useSize<HTMLUListElement>();
   const width = size.width;
   const fill = height === 'fill';
   const [local, setLocal] = useState(false);
@@ -73,13 +75,20 @@ export function TrendChart({
     });
   }, [stacked, series, dates]);
   const totals = bases ? bases[bases.length - 1]?.upper ?? [] : null;
-  const colorOf = (s: TrendSeries, k: number) => SERIES_VAR(s.color ?? (stacked ? k + 1 : s.kind === 'dashed' ? 'neutral' : 'accent'));
+  // Stacked parts are one whole, so they share one hue: the accent, deepest at the bottom and paler toward the surface
+  // with each part above. How deep and how pale is the theme's (chart-stack-hi, -lo): dark needs a wider span for the
+  // bands to read apart. A series given its own colour keeps it.
+  const tone = (k: number) => {
+    const t = (k / Math.max(1, series.length - 1)).toFixed(3);
+    return `color-mix(in oklab, var(--accent) calc((var(--chart-stack-hi) - (var(--chart-stack-hi) - var(--chart-stack-lo)) * ${t}) * 100%), var(--surface))`;
+  };
+  const colorOf = (s: TrendSeries, k: number) => (stacked && !s.color ? tone(k) : SERIES_VAR(s.color ?? (s.kind === 'dashed' ? 'neutral' : 'accent')));
   const max = Math.max(1, ...(totals ?? series.flatMap((s) => s.values.filter((v): v is number => v !== null))));
   const ticks = niceTicks(max, h < 200 ? 3 : 4);
   const top = ticks[ticks.length - 1];
   const left = Math.max(...ticks.map((t) => axis(t).length)) * 6.4 + 12;
   const showLegend = legend ?? series.length > 1;
-  const pad = { t: showLegend ? 34 : 14, r: 4, b: 26, l: left };
+  const pad = { t: showLegend ? Math.max(34, legendSize.height + 16) : 14, r: 4, b: 26, l: left };
   const W = Math.max(0, width - pad.l - pad.r), H = h - pad.t - pad.b;
   const n = dates.length;
   const x = (i: number) => pad.l + (n <= 1 ? W / 2 : (i / (n - 1)) * W);
@@ -152,6 +161,18 @@ export function TrendChart({
           onBlur={() => setIndex(null)}
         >
           <defs>
+            {stacked ? (
+              // The stack fades toward the baseline, as the single-series area does: lit at the total, quiet at zero.
+              <linearGradient id={`${gid}-fade`} x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0" stopColor="white" stopOpacity={1} />
+                <stop offset="1" stopColor="white" style={{ stopOpacity: 'var(--chart-stack-fade)' }} />
+              </linearGradient>
+            ) : null}
+            {stacked ? (
+              <mask id={`${gid}-stack`} maskContentUnits="userSpaceOnUse">
+                <rect x={0} y={pad.t} width={width} height={H} fill={`url(#${gid}-fade)`} />
+              </mask>
+            ) : null}
             {paths.filter((p) => p.s.kind === 'area').map((p) => (
               <linearGradient key={p.s.key} id={`${gid}-${p.s.key}`} x1="0" x2="0" y1="0" y2="1">
                 <stop offset="0" stopColor={SERIES_VAR(p.s.color ?? 'accent')} style={{ stopOpacity: 'var(--chart-area-a)' }} />
@@ -170,13 +191,22 @@ export function TrendChart({
               {tick ? tick(d) : formatDate(d).replace(/,? \d{4}$/, '')}
             </text>
           ))}
+          <g mask={stacked ? `url(#${gid}-stack)` : undefined}>
           {bands.map(({ s, k, area, line }) => (
             <g key={`${s.key}-${dates[0]}-${n}`} className="reveal-x">
-              <path d={area} fill={colorOf(s, k)} fillOpacity={0.78} />
+              <path d={area} fill={colorOf(s, k)} />
               {/* A hairline of the card between bands, so neighbouring parts never run together. */}
-              <path d={line} fill="none" stroke="var(--surface)" strokeWidth={1.5} strokeLinejoin="round" />
+              <path d={line} fill="none" stroke="var(--surface)" strokeWidth={1} strokeLinejoin="round" />
             </g>
           ))}
+          </g>
+          {bands.length ? (
+            // The total is the line the chart is about: the accent stroke and its glow, as on the single-series area.
+            <g key={`total-${dates[0]}-${n}`}>
+              <path d={bands[bands.length - 1].line} fill="none" stroke="var(--accent)" strokeWidth={5} strokeLinecap="round" pathLength={1} className="draw" style={{ opacity: 'var(--chart-glow-a)', filter: 'blur(calc(var(--chart-glow-blur) * 1px))', transform: 'translateY(2px)' }} />
+              <path d={bands[bands.length - 1].line} fill="none" stroke="var(--accent)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" pathLength={1} className="draw" />
+            </g>
+          ) : null}
           {(stacked ? [] : paths).map(({ s, area, line }) => (
             // Keyed by the span it shows: a new period redraws the line from the left instead of snapping to new data.
             <g key={`${s.key}-${dates[0]}-${n}`}>
@@ -209,8 +239,8 @@ export function TrendChart({
           ) : null}
         </svg>
       ) : null}
-      {showLegend && width > 0 ? (
-        <ul aria-hidden className="absolute top-0 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-2" style={{ left: pad.l }}>
+      {showLegend ? (
+        <ul ref={legendBox} aria-hidden className="absolute top-0 right-0 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-2" style={{ left: pad.l }}>
           {series.map((s, k) => (
             <li key={s.key} className="flex items-center gap-1.5">
               <svg width="14" height="4" className="shrink-0 overflow-visible">

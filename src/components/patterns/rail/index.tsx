@@ -35,7 +35,7 @@ export function Rail({
   workspace?: string;
   /** The scopes the workspace menu switches between; the active one carries the check. */
   scopes?: Scope[];
-  /** The signed-in person; pass your session's. `null` while it is still being found out: a placeholder, not a name. */
+  /** The signed-in person; pass your session's. `null` while it is still being found out: a placeholder, not a name. Defaults to the sample user in app.config. */
   user?: { name: string; role: string } | null;
   /** Where Sign out goes (a route), what it does (a function, such as your auth's signOut), or null to hide it. */
   signOut?: string | (() => void) | null;
@@ -85,7 +85,7 @@ export function Rail({
               </MenuItem>
             )}
             {hasSettings || signOut ? <MenuSeparator /> : null}
-            {hasSettings ? <MenuItem onSelect={() => router.push('/settings')}><Settings />Settings</MenuItem> : null}
+            {hasSettings ? <MenuItem onSelect={() => router.push('/settings')}><Settings />Workspace settings</MenuItem> : null}
             {signOut ? <MenuItem onSelect={() => (typeof signOut === 'function' ? signOut() : router.push(signOut))}><LogOut />Sign out</MenuItem> : null}
           </MenuContent>
         </Menu>

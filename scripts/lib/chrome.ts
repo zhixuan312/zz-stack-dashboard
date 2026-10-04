@@ -83,7 +83,7 @@ export async function launch(): Promise<Page> {
         await sleep(1200);
         await page.eval("new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(true))))");
       }
-      const r = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: full, clip: { x: 0, y: 0, width: width ?? m.w, height: h, scale: 1 } });
+      const r = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: full && m.sh > 0, clip: { x: 0, y: 0, width: width ?? m.w, height: h, scale: 1 } });
       fs.mkdirSync(path.dirname(file), { recursive: true });
       fs.writeFileSync(file, Buffer.from(r.result.data, 'base64'));
       return h;

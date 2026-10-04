@@ -1,7 +1,8 @@
 /**
  * Verify a Meridian project against the standard, in one command: the gate, a production build, the built app started
  * on a free port, the browser audit of every page and embed view against it, every control pressed and every link
- * followed (scripts/interactions.ts), LCP, INP and CLS on a mid-range phone (scripts/vitals.ts), and a report.
+ * followed (scripts/interactions.ts), the whole keyboard path (scripts/keyboard.ts), the product's own browser checks
+ * (`browserChecks` in scripts/verify.config.ts), LCP, INP and CLS on a mid-range phone (scripts/vitals.ts), and a report.
  *
  * Two steps depend on the project, read from scripts/verify.config.ts and app/:
  * - With a fake API configured, it starts first and the app is built and served against it, so the presses (Approve,
@@ -135,15 +136,22 @@ if (hasAssistant) {
 // The audit and the presses each run their own browser, so they run side by side against the one built app.
 const t = Date.now();
 const base = ['--base', `http://127.0.0.1:${port}`, ...pass];
-// A project's own browser checks (scripts/verify.config.ts) run beside them, each given only the app's address.
-const [audit, presses, ...own] = await Promise.all([run('scripts/audit.ts', base), run('scripts/interactions.ts', base), ...(config.browserChecks ?? []).map((s) => run(s, ['--base', `http://127.0.0.1:${port}`]))]);
+const own = config.browserChecks ?? [];
+const [audit, presses, keys, ...extras] = await Promise.all([
+  run('scripts/audit.ts', base),
+  run('scripts/interactions.ts', base),
+  run('scripts/keyboard.ts', base),
+  ...own.map((script) => run(script, ['--base', `http://127.0.0.1:${port}`])),
+]);
 log(audit.status === 0 ? 'ok   browser audit' : 'FAIL browser audit');
 log(audit.out.split('\n').slice(-80).join('\n'));
 log(presses.status === 0 ? 'ok   every control and link works' : 'FAIL controls or links that do nothing');
 log(presses.out.split('\n').slice(-40).join('\n'));
-own.forEach((r, i) => {
-  log(`${r.status === 0 ? 'ok  ' : 'FAIL'} ${config.browserChecks![i]}`);
-  log(r.out.split('\n').filter((l) => !l.startsWith('ok ')).slice(-30).join('\n'));
+log(keys.status === 0 ? 'ok   the whole keyboard path, every stop ringed and on top' : 'FAIL the keyboard path');
+log(keys.out.split('\n').slice(-30).join('\n'));
+extras.forEach((r, i) => {
+  log(r.status === 0 ? `ok   ${own[i]}` : `FAIL ${own[i]}`);
+  log(r.out.split('\n').slice(-30).join('\n'));
 });
 log(`(browser checks ${((Date.now() - t) / 60_000).toFixed(1)} min)`);
 
@@ -152,6 +160,6 @@ const vitals = await run('scripts/vitals.ts', base);
 log(vitals.status === 0 ? 'ok   LCP, INP and CLS on a mid-range phone' : 'FAIL Web Vitals on a mid-range phone');
 log(vitals.out.split('\n').slice(-30).join('\n'));
 stopAll();
-const ok = audit.status === 0 && presses.status === 0 && own.every((r) => r.status === 0) && on.status === 0 && vitals.status === 0;
+const ok = audit.status === 0 && presses.status === 0 && keys.status === 0 && extras.every((r) => r.status === 0) && on.status === 0 && vitals.status === 0;
 log(ok ? '\nverify: the project meets the Meridian standard' : '\nverify: fix the issues above and run pnpm verify again');
 finish(ok ? 0 : 1);

@@ -1,7 +1,7 @@
 /**
  * The whole keyboard path of every page: Tab from the top until focus comes back round, and check each stop.
  *
- *   node scripts/keyboard.ts [--base http://localhost:3314] [--routes /,/teams]
+ *   node scripts/keyboard.ts [--base http://localhost:3100] [--routes /,/teams]
  *
  * Fails (exit 1) when the first stop inside the shell is not "Skip to content", when a stop shows no focus ring (an outline, or a
  * ring drawn as a box shadow, on the control or the frame around it), when a focused control is hidden under
@@ -14,7 +14,7 @@ import config from './verify.config.ts';
 
 const args = process.argv.slice(2);
 const opt = (k: string, d: string) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
-const base = opt('--base', 'http://localhost:3314');
+const base = opt('--base', process.env.BASE ?? 'http://localhost:3100');
 const ROUTES = opt('--routes', '') ? opt('--routes', '').split(',') : [...discover().filter((r) => r !== '/this-page-does-not-exist'), ...config.detailRoutes];
 
 /** Tag every visible control the keyboard should reach; return how many. */

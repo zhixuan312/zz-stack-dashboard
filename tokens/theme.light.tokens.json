@@ -644,6 +644,21 @@
       "$type": "number",
       "$value": 0.14,
       "$description": "Opacity of an area at its top: lighter on white, so the line leads."
+    },
+    "chart-stack-hi": {
+      "$type": "number",
+      "$value": 0.72,
+      "$description": "How much accent the bottom band of a stacked chart carries, mixed into the surface."
+    },
+    "chart-stack-lo": {
+      "$type": "number",
+      "$value": 0.36,
+      "$description": "How much accent the top band of a stacked chart carries; the bands between step evenly."
+    },
+    "chart-stack-fade": {
+      "$type": "number",
+      "$value": 0.45,
+      "$description": "The stack's opacity at the baseline (1 at the total): a fade toward zero, as the single-series area has."
     }
   },
   "elevation": {

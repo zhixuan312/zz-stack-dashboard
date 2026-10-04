@@ -16,8 +16,8 @@ export type VerifyConfig = {
    */
   fakeApi?: { script: string; env: string };
   /**
-   * The project's own browser checks: scripts verify runs with `--base <url>` beside the audit and the presses, failing
-   * verify when one exits non-zero.
+   * The product's own browser checks, beside Meridian's audit, presses and keyboard walk: scripts verify runs with
+   * `--base <url>` against the built app, failing when one exits non-zero.
    */
   browserChecks?: string[];
 };
@@ -47,8 +47,6 @@ const config: VerifyConfig = {
   ],
   // The presses approve, revoke and archive whatever a page offers; they reach the fake gateway, never the deployment.
   fakeApi: { script: 'scripts/fake-gateway/server.ts', env: 'ZZ_GATEWAY' },
-  // The whole keyboard path of every page; the audit checks only the first eighteen stops.
-  browserChecks: ['scripts/keyboard.ts'],
 };
 
 export default config;

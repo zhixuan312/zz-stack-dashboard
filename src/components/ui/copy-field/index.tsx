@@ -28,7 +28,9 @@ export function CopyField({
     const t = setTimeout(() => setCopied(false), 1600);
     return () => clearTimeout(t);
   }, [copied]);
-  const display = shown ? value : value.slice(0, 7) + '•'.repeat(Math.max(8, Math.min(24, value.length - 11))) + value.slice(-4);
+  // A masked secret keeps its prefix up to the last underscore (zzm_live_), so live and test still read apart, and
+  // always shows eight dots, so the mask says nothing about the length.
+  const display = shown ? value : value.slice(0, value.lastIndexOf('_') + 1) + '•'.repeat(8) + value.slice(-4);
   return (
     <div className={cn('flex h-(--control-md) min-w-0 items-center rounded-md border border-line-strong bg-surface-sunk pl-3 shadow-control', className)}>
       <code aria-label={label} className="min-w-0 flex-1 truncate font-mono text-xs text-ink">{display}</code>

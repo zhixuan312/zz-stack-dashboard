@@ -49,13 +49,12 @@ so they must never reach the real deployment. Its records are synthetic; nobody 
 The console's copy of Meridian is kept as close to upstream as it can be, so a re-sync is a copy rather than a
 merge. What stays the console's own, and why:
 
-- `base/shell`, `patterns/rail`, `base/app-mark` and `base/providers`: no assistant, a rail that waits for `/me`,
-  and the ZZ wordmark.
+- `base/shell`, `base/app-mark` and `base/providers`: no assistant, and the ZZ wordmark.
 - `src/lib/period.ts` (a 24-hour period, all time by default) and the one line in PeriodSelect that labels it.
 - `src/lib/format.ts`, `color.ts` and `preferences.ts`: exports the console uses or does not, and the `zz` accent.
 - The `zz` accent in `tokens/` (`accent.zz.tokens.json`, the resolver's default).
-- Two hooks in `scripts/`, proposed to Meridian under these names: the gate runs `scripts/check.local.ts`, and
-  verify runs each script in `verify.config.ts`'s `browserChecks`.
+- The project's half of Meridian's hooks: `scripts/check.local.ts` (run by the gate) and `scripts/verify.config.ts`
+  (the detail routes and the fake gateway).
 
 What `verify` cannot say is how the pages look against production data. The fixtures cover the states a page
 draws (empty, waiting, closed three ways, long names, a vendored plugin never run), and real data has more.

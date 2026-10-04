@@ -171,6 +171,9 @@
   --chart-glow-a:0.24;
   --chart-glow-blur:4;
   --chart-area-a:0.3;
+  --chart-stack-hi:0.92;
+  --chart-stack-lo:0.2;
+  --chart-stack-fade:1;
   /* elevation */
   --shadow-card:0 1px 2px rgba(0,0,0,0.25);
   --shadow-raise:0 24px 60px -30px rgba(0,0,0,0.8);
@@ -258,6 +261,9 @@
       --chart-glow-a:0.14;
       --chart-glow-blur:3;
       --chart-area-a:0.14;
+      --chart-stack-hi:0.72;
+      --chart-stack-lo:0.36;
+      --chart-stack-fade:0.45;
       /* elevation */
       --shadow-card:0 1px 2px rgba(16,18,28,0.04),0 8px 24px -12px rgba(16,18,28,0.04);
       --shadow-raise:0 1px 2px rgba(16,18,28,0.05),0 18px 40px -20px rgba(16,18,28,0.12);
@@ -340,6 +346,9 @@
   --chart-glow-a:0.14;
   --chart-glow-blur:3;
   --chart-area-a:0.14;
+  --chart-stack-hi:0.72;
+  --chart-stack-lo:0.36;
+  --chart-stack-fade:0.45;
   /* elevation */
   --shadow-card:0 1px 2px rgba(16,18,28,0.04),0 8px 24px -12px rgba(16,18,28,0.04);
   --shadow-raise:0 1px 2px rgba(16,18,28,0.05),0 18px 40px -20px rgba(16,18,28,0.12);
@@ -420,6 +429,9 @@
   --chart-glow-a:0.24;
   --chart-glow-blur:4;
   --chart-area-a:0.3;
+  --chart-stack-hi:0.92;
+  --chart-stack-lo:0.2;
+  --chart-stack-fade:1;
   /* elevation */
   --shadow-card:0 1px 2px rgba(0,0,0,0.25);
   --shadow-raise:0 24px 60px -30px rgba(0,0,0,0.8);

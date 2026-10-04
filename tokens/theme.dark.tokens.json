@@ -652,6 +652,21 @@
       "$type": "number",
       "$value": 0.3,
       "$description": "Opacity of an area at its top, fading to nothing at the baseline."
+    },
+    "chart-stack-hi": {
+      "$type": "number",
+      "$value": 0.92,
+      "$description": "How much accent the bottom band of a stacked chart carries, mixed into the surface."
+    },
+    "chart-stack-lo": {
+      "$type": "number",
+      "$value": 0.2,
+      "$description": "How much accent the top band of a stacked chart carries; the bands between step evenly."
+    },
+    "chart-stack-fade": {
+      "$type": "number",
+      "$value": 1,
+      "$description": "The stack's opacity at the baseline (1 at the total): none on dark, where the bands need all their depth to read apart."
     }
   },
   "elevation": {
