@@ -17,6 +17,9 @@
  *   J. no panel collapsed to a sliver
  *   K. tables are reachable, and fit at the widest viewport
  *   L. nothing but the page body and the rail scrolls, and nothing scrolls sideways
+ *   M. no text spills out of its own box onto its neighbour
+ *
+ * Every page in `src/nav.ts`, and one page of each detail route found by following their links.
  *
  * ## Running it
  *
@@ -173,6 +176,22 @@ function auditInPage(slop: number, panelClass: string) {
       out.push(
         `C unreachable content: ${label(el)} — ${el.scrollHeight}px of content in a ${el.clientHeight}px box, nothing scrolls`,
       );
+    }
+  }
+
+  // M — text that spills out of its own box. B and C see only `overflow: hidden`; text in a
+  //     `visible` box that its flex parent squeezed narrower than one word paints straight over
+  //     its neighbour, and nothing is clipped. The Overview's "Refusals" title did exactly that
+  //     at 390px, under its own aside. Only boxes holding text directly are asked, so a card's
+  //     hover bloom and the scroll pane's clearance (visible overflow of children) stay out.
+  for (const el of all) {
+    const cs = getComputedStyle(el);
+    if (cs.display === 'none' || cs.display === 'inline' || cs.visibility === 'hidden') continue;
+    if (cs.overflowX !== 'visible' || isVisuallyHidden(el) || el.closest('.sr-only')) continue;
+    const ownText = [...el.childNodes].some((n) => n.nodeType === Node.TEXT_NODE && n.textContent?.trim());
+    if (!ownText) continue;
+    if (el.scrollWidth > el.clientWidth + slop) {
+      out.push(`M text spills out of its box: ${label(el)} "${el.textContent?.trim().slice(0, 32)}" — ${el.scrollWidth} > ${el.clientWidth}`);
     }
   }
 
@@ -380,6 +399,44 @@ function assertNotLoginRedirect(name: string): boolean {
   }
   return true;
 }
+
+/**
+ * The detail pages — a team, an initiative, a document, a plugin, a skill — are reached from the
+ * nav pages rather than listed in `src/nav.ts`, so they are discovered: the first link of each
+ * route shape (same depth, same first segment) on every nav page, and on what those lead to, one
+ * level further. Read from live data so a route added under a nav page is audited with no edit
+ * here. The `[...path]` routes appear twice, as a document and as a source, because their depth
+ * differs.
+ */
+async function discoverDetailPages(): Promise<string[][]> {
+  await page.setViewport({ width: 1440, height: 900 });
+  const known = new Set(PAGES.map(([, p]) => p.split('?')[0]));
+  const shapes = new Set<string>();
+  const found: string[][] = [];
+  let frontier = PAGES.map(([, p]) => p);
+  for (let depth = 0; depth < 3 && frontier.length; depth++) {
+    const next: string[] = [];
+    for (const from of frontier) {
+      await page.goto(BASE + from, { waitUntil: 'networkidle0', timeout: 120_000 });
+      await new Promise((r) => setTimeout(r, 400));
+      const hrefs: string[] = await page.$$eval('a[href^="/"]', (as) => as.map((a) => a.getAttribute('href') ?? ''));
+      for (const raw of hrefs) {
+        const href = raw.split('#')[0]!.split('?')[0]!;
+        if (known.has(href) || /^\/(login|signed-out|enrol|auth)\b/.test(href)) continue;
+        const parts = href.split('/');
+        const shape = `${parts[1]}|${parts.length}`;
+        if (shapes.has(shape)) continue;
+        shapes.add(shape);
+        known.add(href);
+        found.push([href.slice(1).replace(/\//g, ' › ').slice(0, 60), href]);
+        next.push(href);
+      }
+    }
+    frontier = next;
+  }
+  return found;
+}
+PAGES.push(...await discoverDetailPages());
 
 let violations = 0;
 let checks = 0;
