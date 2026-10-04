@@ -28,7 +28,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 const GATEWAY = process.env.ZZ_GATEWAY;
 const DEV_PAT = process.env.ZZ_DEV_PAT;
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   // The production guard is first and is not a matcher condition, because a matcher is
   // configuration and this is a rule. Anything below it is a laptop's business only.
   if (process.env.NODE_ENV === 'production') return NextResponse.next();

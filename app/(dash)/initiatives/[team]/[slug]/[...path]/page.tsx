@@ -1,264 +1,110 @@
 'use client';
 
 import { useState, use } from 'react';
-import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
-import { DashboardPage } from '@/console-old/DashboardPage';
-import { Panel } from '@/console-old/Panel';
-import { Query } from '@/console-old/Query';
-import {
-  Badge, PageControl, Segmented, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Time, usePaged,
-} from '@/console-old/ui';
-import { DocumentShell } from '@/console-old/patterns/document-shell';
-import { ProseBlock } from '@/console-old/patterns/prose-block';
-import { DocStatus } from '@/console-old/DocStatus';
-import { readableDocument } from '@/lib/document-markdown';
-import { VersionChain } from '@/console-old/VersionChain';
-import { formatCount } from '@/lib/format';
-import { ApproveAction, canApprove } from '@/console-old/ApproveAction';
+import { DataTable, type Column } from '@/components/patterns/data-table';
+import { Badge } from '@/components/ui/badge';
+import { KeyValue } from '@/components/ui/key-value';
+import { Segmented } from '@/components/ui/segmented';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ApproveAction, canApprove } from '@/console/approve';
+import { aligned } from '@/console/columns';
+import { DocStatus } from '@/console/doc-status';
+import { ConsolePage } from '@/console/page';
+import { Panel } from '@/console/panel';
+import { Prose } from '@/console/prose';
+import { Query } from '@/console/query';
+import { VersionChain } from '@/console/version-chain';
+import { When } from '@/console/when';
 import { freshnessOf, useConsole } from '@/lib/api';
-import { type DocumentDetail, type Me } from '@/lib/api-shapes';
+import type { DocumentDetail, Me } from '@/lib/api-shapes';
+import { readableDocument } from '@/lib/document-markdown';
+import { formatKb } from '@/lib/format';
+
+type Decision = DocumentDetail['decisions'][number];
 
 /**
- * One document, read.
- *
- * The acceptance-criterion ledger lives here rather than on the initiative, because it is
- * keyed by document path: a ledger is what one particular document claims.
+ * The claims a document makes, one row each. The columns follow the role, because the rows do: a selection judges
+ * each criterion (verdict and qualifier), a plan's rows are tasks (and the qualifier is which criteria each covers),
+ * and an agreement states the criteria, so its verdicts are empty.
  */
-export default function DocumentPage({
-  params,
-}: {
-  params: Promise<{ team: string; slug: string; path: string[] }>;
-}) {
+function decisionColumns(role: string): Column<Decision>[] {
+  const judged = role === 'selection', plan = role === 'plan';
+  return aligned([
+    { key: 'key', header: plan ? 'Task' : 'Key', mobile: 'title', width: 'w-28', cell: (x) => <span className="font-mono text-xs font-medium text-ink">{x.key}</span> },
+    ...(judged ? [{ key: 'verdict', header: 'Verdict', mobile: 'status' as const, cell: (x: Decision) => (x.verdict ? <Badge tone={x.verdict === 'native' || x.verdict === 'met' ? 'positive' : 'warning'} dot>{x.verdict}</Badge> : '—') }] : []),
+    ...(judged || plan ? [{ key: 'qualifier', header: plan ? 'Covers' : 'Qualifier', hideBelow: 'md' as const, width: 'w-36', cell: (x: Decision) => <span className="font-mono text-xs text-ink-2">{x.qualifier ?? '—'}</span> }] : []),
+    // Full text: this is the column the table exists for.
+    { key: 'detail', header: judged ? 'How it is delivered' : plan ? 'What the task does' : 'What it says', align: 'left', mobile: 'fact', cell: (x) => <span className="block py-1 text-sm leading-relaxed whitespace-normal [overflow-wrap:anywhere]">{x.detail ?? '—'}</span> },
+  ]);
+}
+
+/** One document, read: the text itself, how it changed and on what evidence, and the claims it makes. */
+export default function DocumentPage({ params }: { params: Promise<{ team: string; slug: string; path: string[] }> }) {
   const { team, slug, path } = use(params);
   const rel = path.map(decodeURIComponent).join('/');
   const q = useConsole<DocumentDetail>(`/document/${team}/${slug}/${rel}`);
-  // Shares the same query key `ConsoleModeProvider` seeds (see api.ts), so this is a
-  // cache hit in the common case. Unscoped for the same reason that provider's is:
-  // "who is this" carries no team or mode.
-  const meQ = useConsole<Me>('/me');
-  // Rendered by default, because a person came to read it. The source is one click
-  // away: these documents are markdown a flow parses, and the headings and ledger
-  // tables the platform keys on are worth seeing exactly as stored.
+  const me = useConsole<Me>('/me');
+  // Rendered by default, because a person came to read it; the stored markdown is one press away.
   const [view, setView] = useState<'read' | 'source'>('read');
+  const d = q.data;
+  // The document's own version number; the gateway stamps 9999 on the live row for ordering only.
+  const version = d ? Math.max(1, ...d.versions.map((v) => v.version).filter((n) => n !== 9999)) : null;
 
   return (
-    <DashboardPage
-      title={rel.replace(/^sources\//, '')}
-      description={
-        <>
-          <Link href={`/initiatives/${team}/${slug}`} className="text-accent hover:underline">
-            {slug}
-          </Link>
-          {' · '}
-          <Link href={`/teams/${team}`} className="text-accent hover:underline">{team}</Link>
-        </>
-      }
+    <ConsolePage
+      title={d?.title || rel.replace(/^sources\//, '')}
+      crumbs={[{ label: 'Initiatives', href: '/initiatives' }, { label: team, href: `/teams/${team}` }, { label: slug, href: `/initiatives/${team}/${slug}` }]}
+      description={d ? <span className="font-mono text-sm">{rel}{version ? ` · v${version}` : ''}</span> : undefined}
       showPeriod={false}
       updatedAt={freshnessOf(q)}
-      // Reading width: the page is one column — the document, how it changed, and its
-      // claims, each a full-width card.
-      actions={
-        <Link
-          href={`/initiatives/${team}/${slug}`}
-          className="inline-flex items-center gap-1.5 text-sm text-accent hover:underline"
-        >
-          <ArrowLeft className="size-4" aria-hidden />
-          Back to the initiative
-        </Link>
-      }
+      actions={d && me.data && canApprove(d, me.data) ? <ApproveAction doc={d} me={me.data} /> : undefined}
+      width="reading"
     >
-      <Query query={q} skeletonRows={12}>
-        {(d) => (
+      <Query query={q} skeleton={<div className="flex flex-col gap-(--stack-gap)"><Skeleton className="h-24 rounded-lg" /><Skeleton className="h-[28rem] rounded-lg" /></div>}>
+        {(doc) => (
           <>
-            <DocumentShell
-              title={d.title || rel}
-              // `versions` is every snapshot of this document, oldest first, ending with
-              // the live one; there is no top-level version number.
-              //
-              // The document's own version number, not a count of snapshots: a revision
-              // consumes a version without freezing a file, so `d.versions.length` would
-              // disagree with the chain. The sentinel 9999 the gateway stamps on the live
-              // row is for ordering and is excluded here the same way the chain excludes it.
-              version={Math.max(1, ...d.versions.map((v) => v.version).filter((n) => n !== 9999))}
-              approvers={
-                <dl className="flex flex-wrap items-center gap-x-6 gap-y-1 border-b border-line bg-surface-2/40 px-5 py-2.5 text-xs">
-                  <span className="flex items-center gap-2">
-                    <dt className="text-ink-faint">Approved by</dt>
-                    <dd className="break-all font-mono text-xs text-ink">
-                      {d.approved_by ?? (
-                        // Three states, not two. `false` is "the flow gates this and
-                        // nobody has"; `null` is a file the flow says nothing about — a
-                        // source — where "not approved" would imply an approval was ever
-                        // on the table.
-                        <span className="font-sans text-ink-faint">
-                          {d.gated === false ? 'no approval needed'
-                            : d.gated === true ? 'not approved'
-                            : '—'}
-                        </span>
-                      )}
-                    </dd>
-                  </span>
-                  {d.approved_by ? (
-                    <span className="flex items-center gap-2">
-                      <dt className="text-ink-faint">Approved at</dt>
-                      <dd><Time value={d.approved_at} /></dd>
-                    </span>
-                  ) : null}
-                </dl>
-              }
-              actions={meQ.data && canApprove(d, meQ.data) ? <ApproveAction doc={d} me={meQ.data} /> : undefined}
-              body={
-                <div className="flex flex-col gap-4">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <dl className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
-                      <span className="flex items-center gap-2">
-                        <dt className="text-ink-faint">Type</dt>
-                        <dd><Badge variant="neutral">{d.type}</Badge></dd>
-                      </span>
-                      {/* COUPLED: the same component the documents table uses, so a
-                          document cannot be "delivered" in the list and "draft" one
-                          click in. */}
-                      <span className="flex items-center gap-2">
-                        <dt className="text-ink-faint">Status</dt>
-                        <dd>
-                          <DocStatus
-                            status={d.status}
-                            outcome={d.outcome}
-                            gated={d.gated}
-                            requiredForClose={d.requiredForClose}
-                          />
-                        </dd>
-                      </span>
-                      <span className="flex items-center gap-2">
-                        <dt className="text-ink-faint">Updated</dt>
-                        <dd><Time value={d.updated_at} /></dd>
-                      </span>
-                    </dl>
-                    <span className="flex shrink-0 items-center gap-3 text-xs text-ink-faint">
-                      <Segmented
-                        label="Document view"
-                        value={view}
-                        onChange={(v) => setView(v as 'read' | 'source')}
-                        options={[{ value: 'read', label: 'Read' }, { value: 'source', label: 'Source' }]}
-                      />
-                      <span>{formatCount(d.bytes)} bytes</span>
-                    </span>
+            <Panel
+              title="Document"
+              description={formatKb(doc.bytes / 1024)}
+              actions={<Segmented size="sm" label="Document view" value={view} onChange={setView} options={[{ value: 'read', label: 'Read' }, { value: 'source', label: 'Source' }]} />}
+            >
+              <KeyValue
+                columns={2}
+                className="mb-6"
+                items={[
+                  { label: 'Type', value: doc.type },
+                  { label: 'Status', value: <DocStatus status={doc.status} outcome={doc.outcome} gated={doc.gated} requiredForClose={doc.requiredForClose} /> },
+                  // Three states, not two: a source is a file the flow says nothing about, so "not approved" would imply an approval was ever on the table.
+                  { label: 'Approved by', value: doc.approved_by ?? (doc.gated === false ? 'No approval needed' : doc.gated === true ? 'Not yet' : '—') },
+                  { label: 'Updated', value: <When at={doc.updated_at} /> },
+                ]}
+              />
+              {doc.body?.trim()
+                ? view === 'read'
+                  ? <Prose>{readableDocument(doc.body)}</Prose>
+                  : <pre className="rounded-lg border border-line bg-surface-sunk p-4 font-mono text-xs leading-[1.7] whitespace-pre-wrap text-ink-2 [overflow-wrap:anywhere]">{doc.body}</pre>
+                : <p className="t-small text-ink-3">This document has no body in the store.</p>}
+            </Panel>
+            <VersionChain doc={doc} />
+            {doc.decisions.length ? (
+              <DataTable
+                caption="Claims"
+                noun="claims"
+                rows={doc.decisions}
+                columns={decisionColumns(doc.decisions[0]?.role ?? '')}
+                rowKey={(x) => x.key}
+                pageSize={20}
+                toolbar={
+                  <div>
+                    <h2 className="t-card">{doc.decisions[0]?.role === 'plan' ? 'Which criteria each task covers' : 'The claims this document makes'}</h2>
+                    <p className="t-caption mt-1">{doc.decisionCounts.rows} rows{doc.decisionCounts.rows && !doc.decisionCounts.withVerdict ? ', none stating a verdict' : ''}</p>
                   </div>
-
-                  <div className="h-px bg-line" />
-
-                  {d.body?.trim() ? (
-                    view === 'read' ? (
-                      // The card's full width, and so is everything beside it: a spec is
-                      // half decision tables and criterion ledgers, and capping the prose
-                      // but not them puts two widths in one card.
-                      <ProseBlock>{readableDocument(d.body)}</ProseBlock>
-                    ) : (
-                      // Wrapped, not scrolled sideways: a source line longer than the
-                      // column breaks, and a hard-wrapped one is untouched.
-                      <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-[1.7] text-ink-soft">
-                        {d.body}
-                      </pre>
-                    )
-                  ) : (
-                    <p className="text-sm text-ink-faint">This document has no body in the store.</p>
-                  )}
-                </div>
-              }
-            />
-
-            <VersionChain doc={d} />
-
-            {d.decisions.length ? <DecisionPanel decisions={d.decisions} counts={d.decisionCounts} /> : null}
+                }
+              />
+            ) : null}
           </>
         )}
       </Query>
-    </DashboardPage>
-  );
-}
-
-/** Its own component so it can hold the page state — a spec carries hundreds of rows. */
-function DecisionPanel({ decisions, counts }: {
-  decisions: DocumentDetail['decisions'];
-  counts: DocumentDetail['decisionCounts'];
-}) {
-  const { page, controls } = usePaged(decisions);
-  // The columns depend on the role, because the rows do. A selection judges each
-  // criterion, so it carries a verdict and a mechanism. An agreement
-  // (the spec) is where the criteria are stated, so every verdict and qualifier on its
-  // rows is empty. A plan's rows are tasks, and the qualifier holds which criteria each
-  // one discharges.
-  const role = decisions[0]?.role ?? '';
-  const judged = role === 'selection';
-  const isPlan = role === 'plan';
-  return (
-    <Panel
-      // The claims, not "the acceptance criteria". These rows come from decisionRows(),
-      // whose key pattern is deliberately generic and does not ask what each key means —
-      // an sdlc-flow spec lists FR-1..FR-14 under a heading reading "acceptance
-      // criteria", because those lines open with a bold key while its real AC-* lines are
-      // checklist items.
-      //
-      // A selection and a plan keep their own titles: for those roles the rows genuinely
-      // are what the titles say, judged and traced respectively.
-      title={
-        judged ? 'How each criterion will be delivered'
-          : isPlan ? 'Which criteria each task discharges'
-          : 'The claims this document makes'
-      }
-      // The counts, not just the row total: the gateway sends them so a table of blanks is
-      // readable as a fact about these documents rather than as the extractor having
-      // stopped. Said only where it is the interesting half.
-      aside={counts.rows && !counts.withVerdict
-        ? `${counts.rows} — none states a verdict`
-        : `${counts.rows}`}
-      padded={false}
-    >
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-[5.5rem]">{isPlan ? 'Task' : judged ? 'AC' : 'Key'}</TableHead>
-            {judged ? <TableHead className="w-[7.5rem]">Verdict</TableHead> : null}
-            {judged ? <TableHead hideBelow="md" className="w-[11rem]">Qualifier</TableHead> : null}
-            {isPlan ? <TableHead hideBelow="md" className="w-[9rem]">Covers</TableHead> : null}
-            <TableHead>
-              {judged ? 'How it is delivered' : isPlan ? 'What the task does' : 'What it says'}
-            </TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {page.map((x, i) => (
-            <TableRow key={`${x.key}-${i}`}>
-              <TableCell className="break-all font-mono text-xs font-medium text-ink">
-                {x.key}
-              </TableCell>
-              {judged ? (
-                <TableCell>
-                  {x.verdict ? (
-                    <Badge variant={x.verdict === 'native' ? 'sage' : 'amber'} dot>
-                      {x.verdict}
-                    </Badge>
-                  ) : <span className="text-xs text-ink-faint">—</span>}
-                </TableCell>
-              ) : null}
-              {judged ? (
-                <TableCell hideBelow="md" className="text-xs text-[var(--amber-deep)]">
-                  {x.qualifier || <span className="text-ink-faint">—</span>}
-                </TableCell>
-              ) : null}
-              {isPlan ? (
-                <TableCell hideBelow="md" className="font-mono text-[11px] text-ink-faint [overflow-wrap:anywhere]">
-                  {x.qualifier || '—'}
-                </TableCell>
-              ) : null}
-              {/* Full text, not truncated: this is the column the table exists for. */}
-              <TableCell className="text-xs leading-relaxed [overflow-wrap:anywhere]">{x.detail ?? '—'}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      <PageControl {...controls} />
-    </Panel>
+    </ConsolePage>
   );
 }

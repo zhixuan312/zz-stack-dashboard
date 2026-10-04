@@ -91,7 +91,7 @@ echo "ZZ_DEV_PAT=$(cat ~/.zz/token)" >> .env.local   # must be a superadmin toke
 pnpm dev
 ```
 
-`middleware.ts` attaches it as `Authorization: Bearer …` on `/api/console/*` and `/auth/*`,
+`proxy.ts` attaches it as `Authorization: Bearer …` on `/api/console/*` and `/auth/*`,
 and drops any stale `zz_console` cookie so the gateway reads the token rather than refusing
 on the cookie. Real data, no browser ceremony, nothing to redo when a session expires.
 
@@ -106,7 +106,7 @@ return isSuper(id);                      // or a superadmin PAT, for scripts
 A **member** PAT authenticates and is then refused with *"the console needs a browser
 sign-in"* and `mayRead: false`, which is correct.
 
-The middleware is inert unless `ZZ_DEV_PAT` is set, and returns immediately when
+The proxy is inert unless `ZZ_DEV_PAT` is set, and returns immediately when
 `NODE_ENV === 'production'`. It forwards a credential and neither mints nor stores one.
 `.env.local` is gitignored; keep it `chmod 600` and treat the value as the live credential
 it is.

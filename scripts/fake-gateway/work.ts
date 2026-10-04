@@ -24,7 +24,7 @@ const STAGES: [name: string, produces: string, what: string][] = [
   ['review', 'review.md', 'Verify what was built before it ships.'],
 ];
 const GATE_AFTER: [name: string, role: string, after: number][] = [
-  ['approve spec', 'agreement', 2], ['approve plan', 'plan', 4], ['approve review', 'verification', 7], ['approve handover', 'handover', 7],
+  ['approve spec', 'agreement', 3], ['approve plan', 'plan', 5], ['approve review', 'verification', 8], ['approve handover', 'handover', 8],
 ];
 
 type Seed = {

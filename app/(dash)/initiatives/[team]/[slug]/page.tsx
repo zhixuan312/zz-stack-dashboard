@@ -1,209 +1,121 @@
 'use client';
 
 import { use } from 'react';
-import Link from 'next/link';
-import { DashboardPage } from '@/console-old/DashboardPage';
-import { Panel } from '@/console-old/Panel';
-import { DocStatus } from '@/console-old/DocStatus';
-import { Query } from '@/console-old/Query';
-import { FlowStepper } from '@/console-old/Flow';
-import {
-  PageControl, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Time, usePaged,
-} from '@/console-old/ui';
-import { formatCount } from '@/lib/format';
+import { DataTable, type Column } from '@/components/patterns/data-table';
+import { Skeleton } from '@/components/ui/skeleton';
+import { aligned } from '@/console/columns';
+import { DocStatus } from '@/console/doc-status';
+import { FlowStepper } from '@/console/flow';
+import { StateBadge } from '@/console/initiative';
+import { ConsolePage } from '@/console/page';
+import { Panel } from '@/console/panel';
+import { Query } from '@/console/query';
+import { When } from '@/console/when';
 import { freshnessOf, useConsole } from '@/lib/api';
-import { type InitiativeDetail } from '@/lib/api-shapes';
+import type { InitiativeDetail } from '@/lib/api-shapes';
+import { formatKb } from '@/lib/format';
 
-/**
- * One initiative, end to end.
- *
- * The acceptance-criterion ledger at the bottom is one row per criterion, carrying the
- * verdict the selection step reached and the qualifier that says how sure it is.
- */
-export default function InitiativePage({
-  params,
-}: {
-  params: Promise<{ team: string; slug: string }>;
-}) {
+type Doc = InitiativeDetail['documents'][number];
+
+// The fallback order, used only where two documents share a stage: the flow's own steps decide first.
+const ORDER = ['intent', 'ground', 'agreement', 'spec', 'selection', 'plan', 'verification', 'handover', 'guide', 'learnings'];
+// A role means different things in different flows, so a line is written only where it is true of every flow.
+const WHAT: Record<string, string> = { intent: 'What they asked for', selection: 'Which plugins deliver it', plan: 'How it will be built', learnings: 'What was learned' };
+
+const encodePath = (path: string) => path.split('/').map(encodeURIComponent).join('/');
+const name = (d: Doc) => d.path.replace(/^sources\//, '');
+
+const DOCUMENTS: Column<Doc>[] = aligned([
+  {
+    key: 'doc', header: 'Document', grow: true, mobile: 'title', sortValue: (d) => d.path,
+    cell: (d) => (
+      <span className="block min-w-0">
+        <span className="block font-medium text-ink [overflow-wrap:anywhere]">{d.title ?? d.path}</span>
+        <span className="t-caption block font-mono">{d.path}{WHAT[d.type] ? ` · ${WHAT[d.type]}` : ''}</span>
+      </span>
+    ),
+    mobileCell: (d) => d.title ?? d.path,
+  },
+  { key: 'status', header: 'Approval', mobile: 'status', cell: (d) => <DocStatus status={d.status} outcome={d.outcome} gated={d.gated} requiredForClose={d.requiredForClose} /> },
+  {
+    key: 'by', header: 'Approved by', hideBelow: 'lg', truncate: true,
+    // Binary, like the gate itself: a document waiting for a person and one no person will be asked about differ.
+    cell: (d) => d.approved_by ?? <span className="text-ink-3">{d.gated === false ? 'No approval needed' : d.gated === true ? 'Not yet' : '—'}</span>,
+  },
+  { key: 'size', header: 'Size', numeric: true, hideBelow: 'xl', sortValue: (d) => d.bytes, cell: (d) => formatKb(d.bytes / 1024) },
+  { key: 'updated', header: 'Updated', numeric: true, mobile: 'fact', sortValue: (d) => d.updated_at, cell: (d) => <When at={d.updated_at} />, mobileCell: (d) => <>Updated <When at={d.updated_at} /></> },
+]);
+
+/* Evidence is attached, never approved, so sources have no approval column. */
+const SOURCES: Column<Doc>[] = aligned([
+  { key: 'source', header: 'Source', grow: true, mobile: 'title', cell: (d) => <span className="font-medium text-ink [overflow-wrap:anywhere]">{d.title || name(d)}</span> },
+  { key: 'supports', header: 'Supports', hideBelow: 'md', mobile: 'fact', cell: (d) => <span className="font-mono text-xs text-ink-2">{d.supports ?? '—'}</span> },
+  { key: 'size', header: 'Size', numeric: true, hideBelow: 'xl', cell: (d) => formatKb(d.bytes / 1024) },
+  { key: 'added', header: 'Added', numeric: true, mobile: 'fact', cell: (d) => <When at={d.updated_at} /> },
+]);
+
+/** One initiative, end to end: where it is in its flow, the documents the flow produced, and the evidence behind them. */
+export default function InitiativePage({ params }: { params: Promise<{ team: string; slug: string }> }) {
   const { team, slug } = use(params);
   const q = useConsole<InitiativeDetail>(`/initiatives/${team}/${slug}`);
+  const base = `/initiatives/${team}/${slug}`;
 
   return (
-    <DashboardPage
+    <ConsolePage
       title={slug}
-      breadcrumb={[{ label: 'Initiatives', href: '/initiatives' }, { label: team, href: `/teams/${team}` }, { label: slug }]}
-      description="Read from the document store — the platform stamped every gate."
+      crumbs={[{ label: 'Initiatives', href: '/initiatives' }, { label: team, href: `/teams/${team}` }]}
+      description={q.data ? <span className="inline-flex flex-wrap items-center gap-2">Read from the document store; the platform stamped every gate. <StateBadge of={q.data} /></span> : undefined}
       showPeriod={false}
       updatedAt={freshnessOf(q)}
     >
-      <Query query={q}>
+      <Query query={q} skeleton={<div className="flex flex-col gap-(--stack-gap)"><Skeleton className="h-40 rounded-lg" /><Skeleton className="h-72 rounded-lg" /></div>}>
         {(d) => {
-          // Sources are their own panel below; everything else is a document of the flow.
-          // DELIBERATE: no `_versions/` branch. The frozen copies were `doc` rows until 0.88.0
-          // deleted the ones the carry filed twice, and nothing has written one since — a
-          // revision is a `doc_revision` row now, which is what the document page's own version
-          // chain reads. Filtering a prefix no row carries is a rule with nothing to apply to.
-          const live = d.documents
-            .filter((x) => !x.path.startsWith('sources/'))
-            .sort((a, b) => {
-              const ia = ORDER.indexOf(a.type), ib = ORDER.indexOf(b.type);
-              return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.path.localeCompare(b.path);
-            });
-          // By the title a reader scans, in natural order: sources are usually numbered
-          // ("Explore R2", "Explore R10"), and the gateway's path order put R10–R14 above R1.
-          const sources = d.documents
-            .filter((x) => x.path.startsWith('sources/'))
+          const stepOf = (doc: Doc) => d.steps.findIndex((s) => s.produces === doc.path);
+          const live = d.documents.filter((x) => !x.path.startsWith('sources/')).sort((a, b) => {
+            const sa = stepOf(a), sb = stepOf(b);
+            if (sa !== sb) return (sa < 0 ? 99 : sa) - (sb < 0 ? 99 : sb);
+            const ia = ORDER.indexOf(a.type), ib = ORDER.indexOf(b.type);
+            return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.path.localeCompare(b.path);
+          });
+          // By the title a reader scans, in natural order: sources are numbered ("R2", "R10").
+          const sources = d.documents.filter((x) => x.path.startsWith('sources/'))
             .sort((a, b) => (a.title || a.path).localeCompare(b.title || b.path, 'en', { numeric: true }));
           return (
             <>
-              <Panel title="Progress">
-                <FlowStepper gates={d.gates} outcome={d.outcome} steps={d.steps} complete={d.complete} />
-              </Panel>
-
-              {/* Grouped by what a document is, not sorted by its path: alphabetical order
-                  interleaves the flow's live deliverables, the raw material behind them and
-                  frozen snapshots of earlier drafts. The path stays, because it is what the
-                  store is keyed by, but it is not read first. */}
-              <Panel
-                title="The documents"
-                aside={`${live.length} — in the order the flow produces them`}
-                padded={false}
-              >
-                <DocumentTable docs={live} base={`/initiatives/${team}/${slug}`} showWhat />
-              </Panel>
-
-              {sources.length ? (
-                <Panel
-                  title="Sources"
-                  aside={`${sources.length} — what someone said, attached as evidence`}
-                  padded={false}
-                >
-                  <SourceTable docs={sources} base={`/initiatives/${team}/${slug}`} />
+              {d.steps.length ? (
+                <Panel title="Progress" description={`Stage ${d.at} of ${d.of}${d.stage ? `, ${d.stage}` : ''}`}>
+                  <FlowStepper gates={d.gates} outcome={d.outcome} steps={d.steps} complete={d.complete} />
                 </Panel>
               ) : null}
-
-
-              {/* COUPLED: the acceptance-criterion ledger is keyed by document path — a
-                  ledger is what one particular selection or spec claims — so it renders
-                  inside that document rather than here. */}
+              <DataTable
+                caption="Documents"
+                noun="documents"
+                rows={live}
+                columns={DOCUMENTS}
+                rowKey={(x) => x.path}
+                rowHref={(x) => `${base}/${encodePath(x.path)}`}
+                pageSize={10}
+                pageSizes={[10, 20, 50]}
+                toolbar={<div><h2 className="t-card">Documents</h2><p className="t-caption mt-1">In the order the flow produces them</p></div>}
+                empty={{ title: 'Nothing written yet', body: 'The first stage of the flow writes the first document.' }}
+              />
+              {sources.length ? (
+                <DataTable
+                  caption="Sources"
+                  noun="sources"
+                  rows={sources}
+                  columns={SOURCES}
+                  rowKey={(x) => x.path}
+                  rowHref={(x) => `${base}/${encodePath(x.path)}`}
+                  pageSize={10}
+                  pageSizes={[10, 20, 50]}
+                  toolbar={<div><h2 className="t-card">Sources</h2><p className="t-caption mt-1">What someone said or found, attached as evidence</p></div>}
+                />
+              ) : null}
             </>
           );
         }}
       </Query>
-    </DashboardPage>
-  );
-}
-
-type Doc = InitiativeDetail['documents'][number];
-
-// The fallback order, used only when the flow does not say. `d.steps` is the manifest's, so
-// a document's place comes from the flow rather than from this list of ops-flow's types.
-const ORDER = ['intent', 'agreement', 'spec', 'selection', 'plan', 'verification', 'guide', 'learnings'];
-// DELIBERATE: a role means different things in different flows, so a subtitle is written
-// only where it is true of every flow using that role, and omitted otherwise. A skill
-// evaluation's `agreement` is a definition of good, not what will be built.
-const WHAT: Record<string, string> = {
-  intent: 'What they asked for',
-  selection: 'Which plugins deliver it',
-  plan: 'How it will be built',
-  learnings: 'What was learned',
-};
-
-const href = (base: string, path: string) =>
-  `${base}/${path.split('/').map(encodeURIComponent).join('/')}`;
-
-/** Its own component so it can hold the page state — the rows come from a `Query` render prop. */
-function DocumentTable({ docs, base, showWhat }: { docs: Doc[]; base: string; showWhat: boolean }) {
-  const { page, controls } = usePaged(docs);
-  return (
-    <>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Document</TableHead>
-            <TableHead>Approval</TableHead>
-            <TableHead hideBelow="lg">Approved by</TableHead>
-            <TableHead hideBelow="md">Updated</TableHead>
-            <TableHead hideBelow="xl">Bytes</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {page.map((doc) => (
-            <TableRow key={doc.path}>
-              <TableCell className="max-w-[30ch]">
-                {/* The point of the row: a reader came to read the document, not to learn
-                    its size. */}
-                <Link href={href(base, doc.path)} className="row-link block break-all font-medium text-ink">
-                  {doc.path.replace(/^sources\//, '')}
-                </Link>
-                {showWhat && WHAT[doc.type] ? (
-                  <span className="block text-xs text-ink-faint">{WHAT[doc.type]}</span>
-                ) : null}
-              </TableCell>
-              <TableCell>
-                <DocStatus
-                  status={doc.status}
-                  outcome={doc.outcome}
-                  gated={doc.gated}
-                  requiredForClose={doc.requiredForClose}
-                />
-              </TableCell>
-              <TableCell hideBelow="lg" className="max-w-[26ch] truncate text-xs" title={doc.approved_by ?? ''}>
-                {doc.approved_by ?? (
-                  // Binary, like the gate itself: a document waiting for a person and one
-                  // no person will be asked about say different things.
-                  <span className="text-ink-faint">
-                    {doc.gated === false ? 'no approval needed'
-                      : doc.gated === true ? 'not approved'
-                      : '—'}
-                  </span>
-                )}
-              </TableCell>
-              <TableCell hideBelow="md"><Time value={doc.updated_at} /></TableCell>
-              <TableCell hideBelow="xl" className="whitespace-nowrap tabular-nums text-xs">
-                {formatCount(doc.bytes)}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      <PageControl {...controls} />
-    </>
-  );
-}
-
-/* Evidence is attached, never approved, so this table has no approval column. */
-function SourceTable({ docs, base }: { docs: Doc[]; base: string }) {
-  const { page, controls } = usePaged(docs);
-  return (
-    <>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Attached source</TableHead>
-            <TableHead hideBelow="md">Supports</TableHead>
-            <TableHead>Added</TableHead>
-            <TableHead hideBelow="xl">Bytes</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {page.map((x) => (
-            <TableRow key={x.path}>
-              <TableCell className="max-w-[42ch]">
-                <Link href={href(base, x.path)} className="row-link font-medium text-ink [overflow-wrap:anywhere]">
-                  {x.title || x.path.replace(/^sources\//, '')}
-                </Link>
-              </TableCell>
-              <TableCell hideBelow="md" className="break-all font-mono text-xs">{x.supports ?? '—'}</TableCell>
-              <TableCell><Time value={x.updated_at} /></TableCell>
-              <TableCell hideBelow="xl" className="whitespace-nowrap tabular-nums text-xs">
-                {formatCount(x.bytes)}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      <PageControl {...controls} />
-    </>
+    </ConsolePage>
   );
 }

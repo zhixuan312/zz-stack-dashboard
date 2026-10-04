@@ -29,6 +29,8 @@ export type Column<R> = {
   hideBelow?: Breakpoint;
   /** The one column that takes the remaining width: the record's name. */
   grow?: boolean;
+  /** A width class for a column whose content is short and fixed (an ID, a key), so the spare width goes elsewhere. */
+  width?: string;
   /**
    * Its place in the card a row becomes on phones: the `title` (one column, the record's name), a `status` at the end
    * of the title line, a `fact` in the line under it (two or three at most), or `hidden`. Unset means hidden.
@@ -190,7 +192,7 @@ export function DataTable<R>({
                   </TableHeader>
                 ) : null}
                 {columns.map((c) => (
-                  <TableHeader key={c.key} align={c.align ?? (c.numeric ? 'right' : 'left')} hideBelow={c.hideBelow} grow={c.grow} sort={c.sortValue ? dirOf(c) : undefined} onSort={c.sortValue ? () => toggleSort(c) : undefined}>
+                  <TableHeader key={c.key} align={c.align ?? (c.numeric ? 'right' : 'left')} hideBelow={c.hideBelow} grow={c.grow} className={c.width} sort={c.sortValue ? dirOf(c) : undefined} onSort={c.sortValue ? () => toggleSort(c) : undefined}>
                     {c.header}
                   </TableHeader>
                 ))}
