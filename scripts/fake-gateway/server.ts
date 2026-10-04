@@ -2,7 +2,7 @@
  * A fake ZZ gateway: answers every `/api/console/*` and `/auth/*` route the console calls, from
  * the synthetic fixtures beside this file, and changes nothing anywhere.
  *
- *   node scripts/fake-gateway/server.ts [--port 0]
+ *   node scripts/fake-gateway/server.ts [--port 0] [--mode normal|empty|error|slow|extreme]
  *
  * Why it exists: `pnpm verify` presses every control on every page. Against the real deployment
  * that would approve documents, revoke tokens and archive teams, so the browser checks run against
@@ -15,14 +15,23 @@
  * browser with no session. The page's own address arrives as the Referer.
  *
  * Writes answer success and are forgotten, so every run starts from the same data.
+ *
+ * `--mode` draws the states a page has to design for, from the same routes: `empty` (a fresh deployment, nothing
+ * recorded), `error` (every read but /me fails with the gateway's own sentence), `slow` (every answer waits four
+ * seconds, so the loading state can be looked at), `extreme` (a busy platform: six-figure counts, hundreds of rows,
+ * names longer than any layout planned for). `GET /__mode?set=<mode>` switches it while running.
  */
 import http from 'node:http';
 import { ME, MY_CLIENT_SETUP, MY_TEAMS, MY_TOKENS, PEOPLE, PLATFORM_PEOPLE, TEAMS, teamDetail, teamMembers } from './people.ts';
 import { ACTIVITY, PLUGINS, SKILLS, overview, pluginEval, runs, skillDetail, skillText } from './platform.ts';
+import { empty, extreme } from './states.ts';
 import { INITIATIVES, KNOWLEDGE, KNOWLEDGE_LOG, documentDetail, initiativeDetail, knowledgeBody } from './work.ts';
 
 const args = process.argv.slice(2);
 const port = Number(args[args.indexOf('--port') + 1] ?? 0) || 0;
+const MODES = ['normal', 'empty', 'error', 'slow', 'extreme'];
+let mode = args.includes('--mode') ? args[args.indexOf('--mode') + 1] : 'normal';
+if (!MODES.includes(mode)) throw new Error(`--mode ${mode}: ${MODES.join(', ')}`);
 
 const SIGNED_OUT = /^\/(login|enrol|signed-out)(\/|$)/;
 
@@ -101,18 +110,33 @@ const server = http.createServer((req, res) => {
     const referer = (() => { try { return new URL(req.headers.referer ?? '').pathname; } catch { return ''; } })();
     const seg = url.pathname.split('/').filter(Boolean).map(decodeURIComponent);
     let answer: Answer;
+    // `/__mode?set=empty` switches the world without a rebuild: the build bakes in one gateway address.
+    if (seg[0] === '__mode') {
+      const next = url.searchParams.get('set') ?? '';
+      if (MODES.includes(next)) mode = next;
+      res.writeHead(MODES.includes(next) || !next ? 200 : 400, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ mode }));
+      return;
+    }
     if (seg[0] === 'auth') answer = auth(seg.slice(1));
     else if (seg[0] !== 'api' || seg[1] !== 'console') answer = missing(url.pathname);
     else if (seg[2] === 'me' && SIGNED_OUT.test(referer)) answer = [401, { error: 'not signed in' }];
-    else if (req.method === 'GET') answer = read(seg.slice(2), url.searchParams);
+    else if (mode === 'error' && seg[2] !== 'me') answer = [503, { error: 'The gateway could not reach its database: connection to 10.0.0.12:5432 refused. Nothing was changed.' }];
+    else if (req.method === 'GET') {
+      answer = read(seg.slice(2), url.searchParams);
+      if (answer[0] === 200 && mode === 'empty') answer = [200, empty(seg.slice(2), answer[1])];
+      if (answer[0] === 200 && mode === 'extreme') answer = [200, extreme(seg.slice(2), answer[1])];
+    }
     else answer = write(seg.slice(2), url.searchParams, req.method ?? 'POST', (() => { try { return JSON.parse(raw || '{}'); } catch { return {}; } })());
-    res.writeHead(answer[0], { 'content-type': 'application/json', 'cache-control': 'no-store' });
-    res.end(JSON.stringify(answer[1]));
+    setTimeout(() => {
+      res.writeHead(answer[0], { 'content-type': 'application/json', 'cache-control': 'no-store' });
+      res.end(JSON.stringify(answer[1]));
+    }, mode === 'slow' ? 4000 : 0);
   });
 });
 
 server.listen(port, '127.0.0.1', () => {
   const { port: p } = server.address() as { port: number };
   // verify.ts reads this line to learn the address.
-  console.log(`fake-gateway listening on http://127.0.0.1:${p}`);
+  console.log(`fake-gateway listening on http://127.0.0.1:${p}${mode === 'normal' ? '' : ` (${mode})`}`);
 });

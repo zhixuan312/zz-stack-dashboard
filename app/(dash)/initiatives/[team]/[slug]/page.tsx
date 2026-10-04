@@ -64,7 +64,7 @@ export default function InitiativePage({ params }: { params: Promise<{ team: str
     <ConsolePage
       title={slug}
       crumbs={[{ label: 'Initiatives', href: '/initiatives' }, { label: team, href: `/teams/${team}` }]}
-      description={q.data ? <span className="inline-flex flex-wrap items-center gap-2">Read from the document store; the platform stamped every gate. <StateBadge of={q.data} /></span> : undefined}
+      description={<span className="inline-flex flex-wrap items-center gap-2">Read from the document store; the platform stamped every gate. {q.data ? <StateBadge of={q.data} /> : <Skeleton className="inline-block h-5 w-28 rounded-full" />}</span>}
       showPeriod={false}
       updatedAt={freshnessOf(q)}
     >

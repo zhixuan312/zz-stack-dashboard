@@ -9,16 +9,15 @@ import { KnowledgeAsk } from '@/console/knowledge-ask';
 import { KnowledgeTabs } from '@/console/knowledge-tabs';
 import { ConsolePage } from '@/console/page';
 import { Panel } from '@/console/panel';
-import { Prose } from '@/console/prose';
 import { freshnessOf, useConsole, useConsoleMode } from '@/lib/api';
 import type { KnowledgeNode, Me } from '@/lib/api-shapes';
 import { tagFacetCounts, teamFacetOptions } from '@/lib/knowledge-filters';
 
-const GUIDANCE = [
-  "- **Everything in the team's folder:** specs, decisions, sources and knowledge nodes, not just the nodes on the Nodes tab.",
-  '- **One team at a time:** a question is answered from one shelf, so there is no platform-wide answer to ask for.',
-  '- **Citations are the platform’s:** built from the documents actually retrieved, never from the model’s own text.',
-].join('\n');
+const GUIDANCE: [string, string][] = [
+  ["Everything in the team's folder", 'specs, decisions, sources and knowledge nodes, not just the nodes on the Nodes tab.'],
+  ['One team at a time', 'a question is answered from one shelf, so there is no platform-wide answer to ask for.'],
+  ['Citations are the platform’s', 'built from the documents actually retrieved, never from the model’s own text.'],
+];
 
 /**
  * A question answered from one team's own documents. One team, always: `/ask` refuses `?scope=platform`, so in team
@@ -53,7 +52,9 @@ export default function KnowledgeAskPage() {
       <Row split="2/3">
         <KnowledgeAsk team={team} />
         <Panel title="What this reads">
-          <Prose size="sm">{GUIDANCE}</Prose>
+          <ul className="t-small flex flex-col gap-3 text-ink-2">
+            {GUIDANCE.map(([lead, rest]) => <li key={lead}><b className="font-semibold text-ink">{lead}:</b> {rest}</li>)}
+          </ul>
         </Panel>
       </Row>
     </ConsolePage>

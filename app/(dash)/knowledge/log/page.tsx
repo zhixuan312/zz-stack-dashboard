@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { aligned } from '@/console/columns';
 import { KnowledgeTabs } from '@/console/knowledge-tabs';
 import { ConsolePage } from '@/console/page';
+import { failureOf } from '@/console/query';
 import { When } from '@/console/when';
 import { freshnessOf, useConsole, useConsoleMode } from '@/lib/api';
 import type { KnowledgeLogEntry } from '@/lib/api-shapes';
@@ -64,7 +65,7 @@ export default function KnowledgeLogPage() {
         columns={columns(multiTeam)}
         rowKey={(e) => `${e.ts}-${e.team}-${e.node}-${e.kind}`}
         loading={q.isPending}
-        error={q.error?.message}
+        error={failureOf(q)}
         onRetry={() => void q.refetch()}
         empty={{ title: 'Nothing recorded yet', body: 'The log starts the next time a node is minted or superseded. Older nodes are on the Nodes tab.' }}
       />

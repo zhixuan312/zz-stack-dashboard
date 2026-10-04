@@ -31,7 +31,7 @@ function metric(k: Skill, axis: Axis): number {
  * spends its life inside. The bar carries the chosen axis as a share of its total, so it is never a picture of a
  * different quantity than the order.
  */
-export function SkillWorkPanel({ skills }: { skills: Skill[] }) {
+export function SkillWorkPanel({ skills, loading, error, onRetry }: { skills: Skill[]; loading?: boolean; error?: string; onRetry?: () => void }) {
   const [axis, setAxis] = useState<Axis>('calls');
   const a = AXES.find((x) => x.value === axis)!;
   const rows = [...skills].sort((x, y) => metric(y, axis) - metric(x, axis));
@@ -89,6 +89,9 @@ export function SkillWorkPanel({ skills }: { skills: Skill[] }) {
         rows={rows}
         columns={columns}
         rowKey={(k) => `${k.name}-${k.version}`}
+        loading={loading}
+        error={error}
+        onRetry={onRetry}
         empty={{ title: 'No skill ran in this period' }}
         toolbar={
           <div className="flex flex-wrap items-center justify-between gap-3">

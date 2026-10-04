@@ -3,10 +3,11 @@
 import { Activity, HardDrive, Timer } from 'lucide-react';
 import { Row } from '@/components/base/shell';
 import { MetricTile } from '@/components/patterns/metric-tile';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
 import { ConsolePage } from '@/console/page';
 import { usePeriod } from '@/console/period';
-import { Query } from '@/console/query';
+import { failureOf } from '@/console/query';
 import { SkillWorkPanel } from '@/console/skill-work';
 import { freshnessOf, useConsole } from '@/lib/api';
 import type { Runs, Skill } from '@/lib/api-shapes';
@@ -21,23 +22,20 @@ export default function RunsPage() {
   const q = (path: string) => (period === 'all' ? path : `${path}?period=${period}`);
   const runs = useConsole<Runs>(q('/runs'));
   const skills = useConsole<{ skills: Skill[] }>(q('/skills'));
+  const r = runs.data?.totals;
 
   return (
     <ConsolePage title="Runs" description="Every recorded run, by the skill that drove it." updatedAt={freshnessOf(runs, skills)}>
-      <Query query={runs} skeleton={<Skeleton className="h-36 rounded-lg" />}>
-        {(r) => (
-          <Row split="tiles">
-            <MetricTile label="Runs" icon={<Timer />} value={r.totals.runs} note="Skill sessions recorded" />
-            {/* "Calls in runs", not "Tool calls": the Overview counts every call, and calls no run claimed are not here. */}
-            <MetricTile label="Calls in runs" icon={<Activity />} value={r.totals.calls} note={`${formatCount(r.totals.refusals)} refused`} />
-            {/* Null is not zero: a window with no measured run has moved nothing anyone counted. */}
-            <MetricTile label="Payload moved" icon={<HardDrive />} value={r.totals.mb === null ? 'Not measured' : r.totals.mb} format={(n) => `${n.toLocaleString('en-US')} MB`} note="Tool output, across those runs" />
-          </Row>
-        )}
-      </Query>
-      <Query query={skills} skeleton={<Skeleton className="h-96 rounded-lg" />}>
-        {(s) => <SkillWorkPanel skills={s.skills} />}
-      </Query>
+      {/* The tiles stand from the first paint and read an ellipsis until the totals arrive, so nothing moves. */}
+      <Row split="tiles">
+        <MetricTile label="Runs" icon={<Timer />} value={r ? r.runs : '…'} note="Skill sessions recorded" />
+        {/* "Calls in runs", not "Tool calls": the Overview counts every call, and calls no run claimed are not here. */}
+        <MetricTile label="Calls in runs" icon={<Activity />} value={r ? r.calls : '…'} note={r ? `${formatCount(r.refusals)} refused` : 'Refused calls beside it'} />
+        {/* Null is not zero: a window with no measured run has moved nothing anyone counted. */}
+        <MetricTile label="Payload moved" icon={<HardDrive />} value={!r ? '…' : r.mb === null ? 'Not measured' : r.mb} format={(n) => `${n.toLocaleString('en-US')} MB`} note="Tool output, across those runs" />
+      </Row>
+      {runs.error && runs.error.status !== 401 ? <EmptyState kind="error" title="The run totals did not load" action={<Button size="sm" onClick={() => void runs.refetch()}>Retry</Button>}>{runs.error.message}</EmptyState> : null}
+      <SkillWorkPanel skills={skills.data?.skills ?? []} loading={skills.isPending} error={failureOf(skills)} onRetry={() => void skills.refetch()} />
     </ConsolePage>
   );
 }

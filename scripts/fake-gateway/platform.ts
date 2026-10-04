@@ -166,17 +166,44 @@ export function pluginEval(plugin: string): PluginEval {
   };
 }
 
-/** Buckets for one reporting period, in the deployment's zone: hours for a day, days to a month, weeks, months. */
+/** A repeatable 0..1 from an integer, so the same hour always draws the same noise. */
+const hash = (n: number) => { let x = Math.imul(n ^ 0x9e3779b9, 0x85ebca6b); x ^= x >>> 13; x = Math.imul(x, 0xc2b2ae35); x ^= x >>> 16; return (x >>> 0) / 4294967296; };
+
+/**
+ * Tool calls in one hour, as a working team makes them: busy in the deployment's working day (UTC+8), quiet at night,
+ * a third as much at the weekend, growing about 40% over half a year, with noise. Refusals run near 3%, with two bad
+ * days when a release shipped a tool whose arguments every client still had cached.
+ */
+function hourly(h: number): { calls: number; refused: number } {
+  const t = new Date(h * 3_600_000);
+  const local = (t.getUTCHours() + 8) % 24, dow = new Date(h * 3_600_000 + 8 * 3_600_000).getUTCDay();
+  const day = local >= 9 && local < 19 ? 1 : local >= 7 && local < 23 ? 0.35 : 0.06;
+  const week = dow === 0 || dow === 6 ? 0.3 : 1;
+  const age = (now() / 3_600_000 - h) / (24 * 182);
+  const growth = 1.4 - 0.4 * Math.min(1, Math.max(0, age));
+  const calls = Math.round(9 * day * week * growth * (0.6 + 0.8 * hash(h)));
+  const daysAgo = Math.floor((now() / 3_600_000 - h) / 24);
+  const spike = daysAgo === 12 || daysAgo === 47 ? 0.22 : 0.03;
+  return { calls, refused: Math.round(calls * spike * (0.5 + hash(h + 7))) };
+}
+
+/** Buckets for one reporting period, in the deployment's zone: hours for a day, days to a month, weeks beyond. */
 function trend(period: string): Pick<Overview, 'grain' | 'toolTrend'> {
-  const spec: Record<string, [Overview['grain'], number, number]> = { '1d': ['hour', 24, 3_600_000], '7d': ['day', 7, 86_400_000], '30d': ['day', 30, 86_400_000], '90d': ['week', 13, 604_800_000], all: ['week', 26, 604_800_000] };
-  const [grain, n, step] = spec[period] ?? spec.all;
-  const start = Math.floor(now() / step) * step;
+  const spec: Record<string, [Overview['grain'], number, number]> = { '1d': ['hour', 24, 1], '7d': ['day', 7, 24], '30d': ['day', 30, 24], '90d': ['week', 13, 168], all: ['week', 26, 168] };
+  const [grain, n, hours] = spec[period] ?? spec.all;
+  const nowH = Math.floor(now() / 3_600_000);
+  // Buckets end on the current hour; the reconciler attributes calls to runs every few minutes, so the newest bucket
+  // is mostly not yet attributed, as it is on the real platform.
+  const end = hours === 1 ? nowH : Math.floor((nowH + 8) / 24) * 24 - 8 + 24;
   return {
     grain,
     toolTrend: Array.from({ length: n }, (_, i) => {
-      const k = n - 1 - i;
-      const wave = Math.round((Math.sin(i * 0.9) + 1.4) * (step / 3_600_000 > 1 ? 40 : 6));
-      return { bucket: new Date(start - k * step).toISOString().replace(/\.\d{3}Z$/, 'Z'), inside: wave * 3 + (i % 4) * 5, outside: wave + (i % 3) * 4, refused: i % 5 === 2 ? 0 : Math.round(wave / 6) };
+      const from = end - (n - i) * hours;
+      let calls = 0, refused = 0;
+      for (let h = from; h < from + hours && h <= nowH; h++) { const x = hourly(h); calls += x.calls; refused += x.refused; }
+      const ok = calls - refused;
+      const share = i === n - 1 ? 0.25 : 0.7 + 0.1 * hash(from);
+      return { bucket: new Date(from * 3_600_000).toISOString().replace(/\.\d{3}Z$/, 'Z'), inside: Math.round(ok * share), outside: ok - Math.round(ok * share), refused };
     }),
   };
 }

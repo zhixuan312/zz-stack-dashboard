@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { aligned } from '@/console/columns';
 import { facet } from '@/console/facets';
 import { ConsolePage } from '@/console/page';
+import { failureOf } from '@/console/query';
 import { When } from '@/console/when';
 import { freshnessOf, useConsole, useConsoleMode } from '@/lib/api';
 import { teamSlug, type Person } from '@/lib/api-shapes';
@@ -75,7 +76,7 @@ export default function PeoplePage() {
         columns={COLUMNS}
         rowKey={(p) => p.email}
         loading={q.isPending}
-        error={q.error?.message}
+        error={failureOf(q)}
         onRetry={() => void q.refetch()}
         state={{ sort: f.sort, dir: f.dir, page: f.page }}
         onStateChange={set}

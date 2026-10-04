@@ -7,6 +7,7 @@ import { MetricTile } from '@/components/patterns/metric-tile';
 import { aligned } from '@/console/columns';
 import { EvalCell, EvalVerdict, EvalWhen } from '@/console/eval-score';
 import { ConsolePage } from '@/console/page';
+import { failureOf } from '@/console/query';
 import { When } from '@/console/when';
 import { freshnessOf, useConsole } from '@/lib/api';
 import type { PluginRow } from '@/lib/api-shapes';
@@ -58,7 +59,7 @@ export default function PluginsPage() {
         rowKey={(p) => p.plugin}
         rowHref={(p) => `/plugins/${p.plugin}`}
         loading={q.isPending}
-        error={q.error?.message}
+        error={failureOf(q)}
         onRetry={() => void q.refetch()}
         empty={{ title: 'No plugin in the catalog' }}
         toolbar={<div><h2 className="t-card">Every plugin</h2><p className="t-caption mt-1">Most recently used first</p></div>}

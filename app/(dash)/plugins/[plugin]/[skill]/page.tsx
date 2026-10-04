@@ -1,6 +1,7 @@
 'use client';
 
 import { use } from 'react';
+import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 import { Activity, Ban, Repeat, Timer } from 'lucide-react';
 import { Row } from '@/components/base/shell';
@@ -14,13 +15,15 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { LinkTabs } from '@/console/link-tabs';
 import { ConsolePage } from '@/console/page';
 import { Panel } from '@/console/panel';
-import { Prose } from '@/console/prose';
 import { Query } from '@/console/query';
 import { freshnessOf, useConsole } from '@/lib/api';
 import type { PluginRow, Skill, SkillDetail, SkillText } from '@/lib/api-shapes';
 import { formatCount, formatKb, formatSeconds } from '@/lib/format';
 
 type View = 'cost' | 'read' | 'references';
+
+// The markdown renderer arrives only with the views that read text: the cost view, the default, never needs it.
+const Prose = dynamic(() => import('@/console/prose').then((m) => m.Prose), { loading: () => <Skeleton className="h-64 rounded-md" /> });
 
 /** What a skill costs to run, from its recorded runs. A skill nobody has called is absent from that record, so never run is a state, not a gap. */
 function Cost({ skill, detail }: { skill: Skill | undefined; detail: SkillDetail }) {
@@ -88,7 +91,7 @@ export default function PluginSkillPage({ params }: { params: Promise<{ plugin: 
     <ConsolePage
       title={name}
       crumbs={[{ label: 'Plugins', href: '/plugins' }, { label: pluginName, href: `/plugins/${pluginName}` }]}
-      description={text?.description ?? undefined}
+      description={text ? text.description ?? 'A skill with no description of its own.' : known ? <Skeleton className="inline-block h-4 w-64 max-w-full align-middle" /> : undefined}
       showPeriod={false}
       updatedAt={freshnessOf(list, plugins, detail)}
       toolbar={known ? <LinkTabs label="Skill views" active={view} tabs={[{ key: 'cost', label: 'Cost to run', href: base }, { key: 'read', label: 'The skill', href: `${base}?view=read` }, ...(refs ? [{ key: 'references', label: 'Reference', href: `${base}?view=references`, count: refs }] : [])]} /> : undefined}
@@ -97,12 +100,12 @@ export default function PluginSkillPage({ params }: { params: Promise<{ plugin: 
         <EmptyState kind="filtered" title={`'${name}' is not shipped by ${pluginName}`} className="py-16">It may have been renamed, or it belongs to another plugin. The plugin&apos;s page lists everything it ships.</EmptyState>
       ) : (
         <>
-          {skill ? (
+          {skill || list.isPending ? (
             <Row split="tiles">
-              <MetricTile label="Runs" icon={<Repeat />} value={skill.runs} note="Recorded" />
-              <MetricTile label="Calls per run" icon={<Activity />} value={skill.callsAvg} format={(n) => n.toFixed(1)} note={`${formatCount(skill.calls)} in total, peak ${skill.callsMax}`} />
-              <MetricTile label="Median run" icon={<Timer />} value={skill.durationMedian === null ? 'Not timed' : formatSeconds(skill.durationMedian)} note={`Longest ${formatSeconds(skill.durationMax)}`} />
-              <MetricTile label="Refused" icon={<Ban />} value={skill.calls ? skill.refusals / skill.calls : 'No calls'} format={(n) => `${(n * 100).toFixed(1)}%`} note={`${skill.refusals} of ${formatCount(skill.calls)} calls`} />
+              <MetricTile label="Runs" icon={<Repeat />} value={skill ? skill.runs : '…'} note="Recorded" />
+              <MetricTile label="Calls per run" icon={<Activity />} value={skill ? skill.callsAvg : '…'} format={(n) => n.toFixed(1)} note={skill ? `${formatCount(skill.calls)} in total, peak ${skill.callsMax}` : 'Average and peak'} />
+              <MetricTile label="Median run" icon={<Timer />} value={!skill ? '…' : skill.durationMedian === null ? 'Not timed' : formatSeconds(skill.durationMedian)} note={skill ? `Longest ${formatSeconds(skill.durationMax)}` : 'And the longest'} />
+              <MetricTile label="Refused" icon={<Ban />} value={!skill ? '…' : skill.calls ? skill.refusals / skill.calls : 'No calls'} format={(n) => `${(n * 100).toFixed(1)}%`} note={skill ? `${skill.refusals} of ${formatCount(skill.calls)} calls` : 'Share of its calls'} />
             </Row>
           ) : null}
           {/* What the skill is: knowable whether or not anybody has run it, and a front door is exactly the skill with no runs. */}

@@ -9,7 +9,12 @@ import { useConsole } from '@/lib/api';
 import type { Me } from '@/lib/api-shapes';
 
 /**
- * The gate in front of every console route.
+ * The gate in front of every console route's data, not its layout.
+ *
+ * While `/me` is in flight the page renders: its masthead is static and its panels show skeletons, and their reads
+ * start beside `/me` rather than after it, so a signed-in person sees the page one round trip sooner. Nothing is
+ * disclosed by that: every read is refused by the gateway without a session, and a refused read draws as loading
+ * (see `Query`) until the redirect below lands.
  *
  * It redirects to `/login`; it does not render a door inside the shell. That keeps the URL honest, gives the back
  * button something sensible to do, and lets the sign-in screen be designed as a screen. `?next=` carries the page
@@ -57,13 +62,12 @@ export function ConsoleGate({ children }: { children: ReactNode }) {
     );
   }
 
-  if (me.isPending || unauthenticated || refused || notAllowed) {
-    // A spinner, not a flash of the sign-in screen: the check is one request, and somebody who is signed in should
-    // never see a door.
+  if (unauthenticated || refused || notAllowed) {
+    // Being sent to sign in: a spinner, not a flash of the page they cannot read.
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-ink-3">
-        <Spinner label="Checking your sign-in" />
-        <p className="t-small">Checking your sign-in…</p>
+        <Spinner label="Taking you to sign in" />
+        <p className="t-small">Taking you to sign in…</p>
       </div>
     );
   }

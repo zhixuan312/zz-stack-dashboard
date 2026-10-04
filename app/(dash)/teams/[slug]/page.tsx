@@ -4,11 +4,13 @@ import { use } from 'react';
 import { BookOpen, ListTree, Signature, Users } from 'lucide-react';
 import { Row } from '@/components/base/shell';
 import { MetricTile } from '@/components/patterns/metric-tile';
+import { Skeleton } from '@/components/ui/skeleton';
 import { DataTable, type Column } from '@/components/patterns/data-table';
 import { Badge } from '@/components/ui/badge';
 import { aligned } from '@/console/columns';
 import { initiativeColumns, waitingOnYou } from '@/console/initiative';
 import { ConsolePage } from '@/console/page';
+import { failureOf } from '@/console/query';
 import { freshnessOf, useConsole } from '@/lib/api';
 import type { Initiative, Team, TeamDetail } from '@/lib/api-shapes';
 import { formatDate } from '@/lib/format-date';
@@ -49,7 +51,8 @@ export default function TeamPage({ params }: { params: Promise<{ slug: string }>
       title={slug}
       crumbs={[{ label: 'Teams', href: '/teams' }, { label: slug }]}
       // The name only when it says something the slug does not.
-      description={missing ? 'No team by this name exists on the platform.' : team.data && team.data.team.name !== slug ? team.data.team.name : undefined}
+      // Always a line, so the masthead does not grow under the reader when the team arrives.
+      description={missing ? 'No team by this name exists on the platform.' : team.data ? `${team.data.team.name !== slug ? `${team.data.team.name}, created` : 'Created'} ${formatDate(team.data.team.created)}` : <Skeleton className="inline-block h-4 w-64 max-w-full align-middle" />}
       showPeriod={false}
       updatedAt={freshnessOf(team, inits)}
     >
@@ -70,7 +73,7 @@ export default function TeamPage({ params }: { params: Promise<{ slug: string }>
             rowKey={(i) => i.slug}
             rowHref={(i) => `/initiatives/${i.team}/${i.slug}`}
             loading={inits.isPending}
-            error={inits.error?.message}
+            error={failureOf(inits)}
             onRetry={() => void inits.refetch()}
             pageSize={10}
             pageSizes={[10, 20, 50]}
@@ -84,7 +87,7 @@ export default function TeamPage({ params }: { params: Promise<{ slug: string }>
             toolbar={<h2 className="t-card">Members</h2>}
             rowKey={(m) => m.email}
             loading={team.isPending}
-            error={team.error?.message}
+            error={failureOf(team)}
             onRetry={() => void team.refetch()}
             pageSize={10}
             pageSizes={[10, 20, 50]}

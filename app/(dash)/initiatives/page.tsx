@@ -7,6 +7,7 @@ import { Segmented } from '@/components/ui/segmented';
 import { facet } from '@/console/facets';
 import { INITIATIVE_STATES, initiativeColumns, initiativeState, waitingOnYou } from '@/console/initiative';
 import { ConsolePage } from '@/console/page';
+import { failureOf } from '@/console/query';
 import { usePeriod } from '@/console/period';
 import { freshnessOf, useConsole, useConsoleMode } from '@/lib/api';
 import type { Initiative } from '@/lib/api-shapes';
@@ -55,7 +56,7 @@ export default function InitiativesPage() {
         rowKey={(i) => `${i.team}/${i.slug}`}
         rowHref={(i) => `/initiatives/${i.team}/${i.slug}`}
         loading={q.isPending}
-        error={q.error?.message}
+        error={failureOf(q)}
         onRetry={() => void q.refetch()}
         state={{ sort: f.sort, dir: f.dir, page: f.page }}
         onStateChange={set}

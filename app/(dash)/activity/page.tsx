@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Segmented } from '@/components/ui/segmented';
 import { aligned } from '@/console/columns';
 import { ConsolePage } from '@/console/page';
+import { failureOf } from '@/console/query';
 import { When } from '@/console/when';
 import { freshnessOf, useConsole, useConsoleMode } from '@/lib/api';
 import type { ActivityEvent } from '@/lib/api-shapes';
@@ -51,7 +52,7 @@ export default function ActivityPage() {
         columns={COLUMNS}
         rowKey={(e) => e.id}
         loading={q.isPending}
-        error={q.error?.message}
+        error={failureOf(q)}
         onRetry={() => void q.refetch()}
         state={{ sort: '', dir: 'desc', page: f.page }}
         onStateChange={(p) => set({ page: p.page ?? f.page })}

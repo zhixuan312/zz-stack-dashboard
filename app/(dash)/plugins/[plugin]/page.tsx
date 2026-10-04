@@ -69,16 +69,17 @@ export default function PluginPage({ params }: { params: Promise<{ plugin: strin
     <ConsolePage
       title={plugin}
       crumbs={[{ label: 'Plugins', href: '/plugins' }]}
-      description={p ? p.description ?? p.agentName ?? undefined : undefined}
+      description={p ? p.description ?? p.agentName ?? 'A plugin with no description of its own.' : q.isPending ? <Skeleton className="inline-block h-4 w-64 max-w-full align-middle" /> : undefined}
       showPeriod={false}
       updatedAt={freshnessOf(q, qEval)}
     >
-      {p ? (
+      {/* Standing from the first paint, an ellipsis until the catalog arrives; gone only for a plugin it does not list. */}
+      {p || q.isPending ? (
         <Row split="tiles">
-          <MetricTile label="Skills" icon={<Puzzle />} value={p.skills.length} note={p.stages.length ? `${p.stages.length} of them stages, in order` : 'No declared method'} />
-          <MetricTile label="Gates" icon={<Lock />} value={p.gates} note={p.gates ? 'A person must approve' : 'An assistant, not a method'} />
-          <MetricTile label="Calls" icon={<Activity />} value={p.calls} note={p.failed ? `${formatCount(p.failed)} refused` : 'None refused'} />
-          <MetricTile label="Never run" icon={<CircleOff />} value={p.skills.filter((s) => !s.everRun).length} emphasis={p.skills.some((s) => !s.everRun)} note={`Of ${p.skills.length} skills`} />
+          <MetricTile label="Skills" icon={<Puzzle />} value={p ? p.skills.length : '…'} note={!p ? 'Shipped by this plugin' : p.stages.length ? `${p.stages.length} of them stages, in order` : 'No declared method'} />
+          <MetricTile label="Gates" icon={<Lock />} value={p ? p.gates : '…'} note={!p || p.gates ? 'A person must approve' : 'An assistant, not a method'} />
+          <MetricTile label="Calls" icon={<Activity />} value={p ? p.calls : '…'} note={!p ? 'Across its skills' : p.failed ? `${formatCount(p.failed)} refused` : 'None refused'} />
+          <MetricTile label="Never run" icon={<CircleOff />} value={p ? p.skills.filter((s) => !s.everRun).length : '…'} emphasis={!!p?.skills.some((s) => !s.everRun)} note={p ? `Of ${p.skills.length} skills` : 'Skills nobody called'} />
         </Row>
       ) : null}
       <Query query={qEval} skeleton={<Skeleton className="h-40 rounded-lg" />}>

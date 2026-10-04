@@ -54,7 +54,7 @@ export default function DocumentPage({ params }: { params: Promise<{ team: strin
     <ConsolePage
       title={d?.title || rel.replace(/^sources\//, '')}
       crumbs={[{ label: 'Initiatives', href: '/initiatives' }, { label: team, href: `/teams/${team}` }, { label: slug, href: `/initiatives/${team}/${slug}` }]}
-      description={d ? <span className="font-mono text-sm">{rel}{version ? ` · v${version}` : ''}</span> : undefined}
+      description={<span className="font-mono text-sm">{rel}{version ? ` · v${version}` : ''}</span>}
       showPeriod={false}
       updatedAt={freshnessOf(q)}
       actions={d && me.data && canApprove(d, me.data) ? <ApproveAction doc={d} me={me.data} /> : undefined}

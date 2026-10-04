@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { aligned } from '@/console/columns';
 import { KnowledgeTabs } from '@/console/knowledge-tabs';
 import { ConsolePage } from '@/console/page';
+import { failureOf } from '@/console/query';
 import { When } from '@/console/when';
 import { freshnessOf, useConsole, useConsoleMode } from '@/lib/api';
 import type { KnowledgeNode } from '@/lib/api-shapes';
@@ -67,7 +68,7 @@ export default function KnowledgePage() {
         rowKey={(n) => n.key}
         rowHref={(n) => knowledgeNodeHref(n.team, n.path)}
         loading={list.isPending}
-        error={list.error?.message}
+        error={failureOf(list)}
         onRetry={() => void list.refetch()}
         state={{ sort: f.sort, dir: f.dir, page: f.page }}
         onStateChange={set}

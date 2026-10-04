@@ -24,7 +24,8 @@ export function Query<T>({
   /** The shape of what is coming, when it is a page rather than a list, so the swap moves as little as possible. */
   skeleton?: ReactNode;
 }) {
-  if (query.isPending) {
+  // A refused read (no session) draws as loading: the gate is already sending the person to sign in.
+  if (query.isPending || query.error?.status === 401) {
     if (skeleton) return <>{skeleton}</>;
     return (
       <div className="flex flex-col gap-2" aria-busy="true" aria-label="Loading">
@@ -44,4 +45,9 @@ export function Query<T>({
     );
   }
   return <>{children(query.data as T)}</>;
+}
+
+/** What failed, for a data table's error state; nothing for a refused read, which the gate turns into a sign-in. */
+export function failureOf(query: { error: ApiError | null }): string | undefined {
+  return query.error && query.error.status !== 401 ? query.error.message : undefined;
 }

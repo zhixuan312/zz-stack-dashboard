@@ -6,6 +6,7 @@ import { FilterBar } from '@/components/patterns/filter-bar';
 import { Badge } from '@/components/ui/badge';
 import { aligned } from '@/console/columns';
 import { ConsolePage } from '@/console/page';
+import { failureOf } from '@/console/query';
 import { freshnessOf, useConsole } from '@/lib/api';
 import type { Team } from '@/lib/api-shapes';
 import { formatCount } from '@/lib/format';
@@ -55,7 +56,7 @@ export default function TeamsPage() {
         rowKey={(t) => t.slug}
         rowHref={(t) => `/teams/${t.slug}`}
         loading={q.isPending}
-        error={q.error?.message}
+        error={failureOf(q)}
         onRetry={() => void q.refetch()}
         state={{ sort: f.sort, dir: f.dir, page: f.page }}
         onStateChange={set}
