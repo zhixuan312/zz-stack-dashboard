@@ -69,9 +69,7 @@ function TeamsPanel({ teams }: { teams: Team[] }) {
         : (
           <>
             <Toolbar className="border-b border-line p-3">
-              <div className="min-w-0 flex-1">
-                <SearchInput label="teams" value={filter} onChange={setFilter} />
-              </div>
+              <SearchInput label="teams" value={filter} onChange={setFilter} />
               {/* Counted over every team rather than over the filtered rows, so the numbers
                   beside the options do not change as the search narrows. */}
               <Facet all="All statuses" values={tally(teams.map((t) => t.status))}
@@ -105,7 +103,7 @@ function TeamTable({ teams, resetKey }: { teams: Team[]; resetKey: string }) {
           Table primitive's rule, not this page's. */}
       <Table className="table-fixed">
         <colgroup>
-          <col className="w-[18%]" />
+          <col className="w-3/5 md:w-[18%]" />
           <col className="hidden w-28 md:table-column" />
           <col className="hidden md:table-column" />
           <col />

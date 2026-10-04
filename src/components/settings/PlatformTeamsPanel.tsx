@@ -73,7 +73,7 @@ export function PlatformTeamsPanel() {
         </FieldGrid>
       </FormPanel>
 
-      <Panel title="Archive a team" aside="reversible — create_team on the same slug restores it">
+      <Panel title="Archive a team" aside="reversible — team_create on the same slug restores it">
         <div className="flex flex-wrap items-end gap-3">
           <Field label="Team slug" className="flex-1">
             {(p) => <Input {...p} value={archiveSlug} onChange={(e) => setArchiveSlug(e.target.value)} />}

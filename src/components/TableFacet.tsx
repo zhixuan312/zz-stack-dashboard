@@ -27,7 +27,7 @@ export function Facet({ all, values, value, onChange }: {
   if (values.length === 0) return null;
   return (
     <Select value={value ?? '*'} onValueChange={(v) => onChange(v === '*' ? null : v)}>
-      <SelectTrigger className="w-[13rem]">
+      <SelectTrigger className="w-full sm:w-[13rem]">
         <SelectValue placeholder={all} />
       </SelectTrigger>
       <SelectContent>

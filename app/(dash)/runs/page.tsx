@@ -28,12 +28,17 @@ export default function RunsPage() {
         {(r) => (
           <>
             <Row split="1/4">
-              <MetricCard label="Runs" value={formatCount(r.totals.runs)} />
-              <MetricCard label="Tool calls" value={formatCount(r.totals.calls)}
+              <MetricCard label="Runs" description="skill sessions recorded"
+                value={formatCount(r.totals.runs)} />
+              {/* "Calls in runs", not "Tool calls": the Overview's tile of that name counts
+                  every call, and calls no run claimed are missing here — two different
+                  totals for one window under one name read as a bug. */}
+              <MetricCard label="Calls in runs" description="tool calls a run made"
+                value={formatCount(r.totals.calls)}
                 sublabel={`${formatCount(r.totals.refusals)} refused`} />
               {/* `mb` is `sum(bytes_total)`, SQL-null for any window with no run. Null is
                   not zero, and interpolating it raw renders the text "null MB". */}
-              <MetricCard label="Payload moved"
+              <MetricCard label="Payload moved" description="tool output, across those runs"
                 value={r.totals.mb === null ? '—' : `${r.totals.mb} MB`} />
             </Row>
 

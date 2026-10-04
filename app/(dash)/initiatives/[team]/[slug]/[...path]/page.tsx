@@ -248,12 +248,12 @@ function DecisionPanel({ decisions, counts }: {
                 </TableCell>
               ) : null}
               {isPlan ? (
-                <TableCell hideBelow="md" className="break-words font-mono text-[11px] text-ink-faint">
+                <TableCell hideBelow="md" className="font-mono text-[11px] text-ink-faint [overflow-wrap:anywhere]">
                   {x.qualifier || '—'}
                 </TableCell>
               ) : null}
               {/* Full text, not truncated: this is the column the table exists for. */}
-              <TableCell className="break-words text-xs leading-relaxed">{x.detail ?? '—'}</TableCell>
+              <TableCell className="text-xs leading-relaxed [overflow-wrap:anywhere]">{x.detail ?? '—'}</TableCell>
             </TableRow>
           ))}
         </TableBody>

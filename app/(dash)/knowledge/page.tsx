@@ -111,14 +111,12 @@ export default function KnowledgePage() {
             padded={false}
           >
             <Toolbar className="border-b border-line p-3">
-              <div className="min-w-0 flex-1">
-                <SearchInput label="titles and bodies" value={filter} onChange={setFilter} />
-              </div>
+              <SearchInput label="titles and bodies" value={filter} onChange={setFilter} />
               {/* Platform mode only: the shelf spans every team there, so choosing one narrows
                   rows already on screen. In team mode the loaded shelf is the acting team's. */}
               {mode === 'platform' && teamOptions.length > 1 ? (
                 <Select value={team} onValueChange={setTeam}>
-                  <SelectTrigger className="w-[13rem]" aria-label="Team">
+                  <SelectTrigger className="w-full sm:w-[13rem]" aria-label="Team">
                     <SelectValue placeholder="All teams" />
                   </SelectTrigger>
                   <SelectContent>

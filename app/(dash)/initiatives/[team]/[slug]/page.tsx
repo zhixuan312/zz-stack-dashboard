@@ -49,7 +49,11 @@ export default function InitiativePage({
               const ia = ORDER.indexOf(a.type), ib = ORDER.indexOf(b.type);
               return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.path.localeCompare(b.path);
             });
-          const sources = d.documents.filter((x) => x.path.startsWith('sources/'));
+          // By the title a reader scans, in natural order: sources are usually numbered
+          // ("Explore R2", "Explore R10"), and the gateway's path order put R10–R14 above R1.
+          const sources = d.documents
+            .filter((x) => x.path.startsWith('sources/'))
+            .sort((a, b) => (a.title || a.path).localeCompare(b.title || b.path, 'en', { numeric: true }));
           return (
             <>
               <Panel title="Progress">
@@ -186,7 +190,7 @@ function SourceTable({ docs, base }: { docs: Doc[]; base: string }) {
           {page.map((x) => (
             <TableRow key={x.path}>
               <TableCell className="max-w-[42ch]">
-                <Link href={href(base, x.path)} className="row-link break-words font-medium text-ink">
+                <Link href={href(base, x.path)} className="row-link font-medium text-ink [overflow-wrap:anywhere]">
                   {x.title || x.path.replace(/^sources\//, '')}
                 </Link>
               </TableCell>

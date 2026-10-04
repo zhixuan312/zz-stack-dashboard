@@ -193,7 +193,6 @@ function SkillTable({ plugin, skills }: { plugin: string; skills: PluginRow['ski
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-8">#</TableHead>
             <TableHead>Skill</TableHead>
             {/* Kept, unlike the plugin-level "whose" above: a skill's origin is derived
                 from a `source:` line in its own SKILL.md, so it varies the day a vendored
@@ -208,11 +207,14 @@ function SkillTable({ plugin, skills }: { plugin: string; skills: PluginRow['ski
         <TableBody>
           {page.map((s) => (
             <TableRow key={s.name}>
-              <TableCell className="tabular-nums text-xs text-ink-faint">
-                {/* The front door is unnumbered: it is not step zero, it is the plugin. */}
-                {s.position ?? '—'}
-              </TableCell>
+              {/* The stage number prefixes the name rather than leading as its own column: the
+                  first column is the left-aligned one (`Table`'s ALIGNMENT), and a `#` there
+                  centred every skill name. The front door is unnumbered: it is not step zero,
+                  it is the plugin. */}
               <TableCell className="break-words">
+                <span className="mr-2 inline-block w-4 text-right tabular-nums text-xs text-ink-faint">
+                  {s.position ?? '—'}
+                </span>
                 <Link href={`/plugins/${plugin}/${s.name}`} className="row-link font-medium text-ink">
                   {s.name}
                 </Link>
@@ -236,7 +238,7 @@ function SkillTable({ plugin, skills }: { plugin: string; skills: PluginRow['ski
           ))}
           {skills.length === 0 && (
             <TableRow>
-              <TableCell colSpan={7} className="py-8 text-ink-faint">
+              <TableCell colSpan={5} className="py-8 text-ink-faint">
                 This plugin ships no skill — it grants an MCP surface and nothing else.
               </TableCell>
             </TableRow>

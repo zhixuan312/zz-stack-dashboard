@@ -75,3 +75,13 @@ describe('SkillWorkPanel', () => {
     expect(order()[0]).toBe('sdlc-plan');
   });
 });
+
+describe('SkillWorkPanel refusals', () => {
+  it('prints refusals as a number, not a red pill on every row', () => {
+    render(<SkillWorkPanel skills={SKILLS} />);
+    // Nearly every skill refuses something; a status hue on each row means nothing.
+    const cell = within(row('sdlc-explore')).getByText('68');
+    expect(cell.closest('[class*="rose"]')).toBeNull();
+    expect(cell.closest('td')).toHaveAttribute('title', '70.1% of its calls refused');
+  });
+});

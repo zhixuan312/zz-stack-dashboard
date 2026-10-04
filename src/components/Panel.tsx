@@ -27,14 +27,15 @@ export function Panel({
 } & Omit<ComponentProps<typeof Card>, 'title' | 'children'>) {
   return (
     <Card className={cn('flex flex-col', className)} {...rest}>
-      {/* `min-w-0` on the title and `shrink-0` on the aside is the pair that makes a
-          two-part header survive a long title. Without them both children shrink
-          proportionally and the aside wraps too. The title is the part that may wrap;
-          the meta beside it is a label and never should. */}
-      <CardHeader className="items-start">
-        <CardTitle className="min-w-0">{title}</CardTitle>
+      {/* The title's 10rem basis is what lets the row wrap: with `min-w-0` alone a wide aside
+          (a count plus a Segmented) squeezed "Refusals" to 9px at 390px and it painted under
+          the aside. Now the aside drops to its own line, still right-aligned, before the
+          title goes below one word; `max-w-full` lets a sentence aside wrap there rather than
+          run past the card. */}
+      <CardHeader className="flex-wrap items-start gap-y-2">
+        <CardTitle className="min-w-0 flex-[1_1_10rem]">{title}</CardTitle>
         {aside ? (
-          <span className="shrink-0 text-right text-xs text-ink-faint">{aside}</span>
+          <span className="ml-auto max-w-full shrink-0 text-right text-xs text-ink-faint">{aside}</span>
         ) : null}
       </CardHeader>
       {/* `padded={false}` when a table or list runs edge to edge. No horizontal scroll,

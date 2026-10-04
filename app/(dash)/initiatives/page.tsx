@@ -90,9 +90,7 @@ export default function InitiativesPage() {
                 {/* The control belongs to the list it filters, so it sits inside the panel
                     above its own table rather than floating over it. */}
                 <Toolbar className="border-b border-line p-3">
-                  <div className="min-w-0 flex-1">
-                    <SearchInput label="initiatives" value={filter} onChange={setFilter} />
-                  </div>
+                  <SearchInput label="initiatives" value={filter} onChange={setFilter} />
                   <Facet all="All teams" values={tally(inWindow.map((i) => i.team))}
                          value={team} onChange={setTeam} />
                   <Facet all="All flows" values={tally(inWindow.map((i) => i.flow))}

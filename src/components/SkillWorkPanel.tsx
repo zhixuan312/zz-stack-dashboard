@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Panel } from '@/components/Panel';
 import {
-  Badge, PageControl, Segmented, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, usePaged,
+  PageControl, Segmented, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, usePaged,
 } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import { formatCount, formatSeconds } from '@/lib/format';
@@ -120,12 +120,15 @@ export function SkillWorkPanel({ skills }: { skills: Skill[] }) {
                     />
                   </span>
                 </TableCell>
-                <TableCell hideBelow="lg" className="tabular-nums text-xs">
-                  {/* A pill, not coloured text: colour alone is the one channel a reader may
-                      not have, and this is the column worth scanning for. */}
-                  {k.refusals
-                    ? <Badge size="sm" variant="rose">{k.refusals}</Badge>
-                    : <span className="text-ink-faint">—</span>}
+                {/* Ink, not a rose pill: nearly every skill refuses something, and a red pill on
+                    every row of a refusals column says nothing — colour has to mean something.
+                    The rate is on hover, where a reader comparing two rows looks for it. */}
+                <TableCell
+                  hideBelow="lg"
+                  className="tabular-nums"
+                  title={k.refusals && k.calls ? `${((k.refusals / k.calls) * 100).toFixed(1)}% of its calls refused` : undefined}
+                >
+                  {k.refusals ? formatCount(k.refusals) : <span className="text-ink-faint">—</span>}
                 </TableCell>
               </TableRow>
             );

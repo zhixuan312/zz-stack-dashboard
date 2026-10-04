@@ -6,9 +6,13 @@ import { Children, Fragment, type ComponentProps, type ReactNode } from 'react';
 import { cn } from '@/lib/cn';
 import { safeMarkdownUrl, sanitizeUserVisibleMarkdown } from '@/lib/safe-markdown';
 
-/* Nothing in a document scrolls sideways. A fenced block wraps, and a table cell breaks a
-   long token anywhere rather than pushing the table past its card. */
-const FIT = 'prose-pre:whitespace-pre-wrap prose-pre:break-words prose-td:[overflow-wrap:anywhere] ';
+/* Nothing in a document scrolls sideways. A fenced block wraps, and any long token — a URL,
+   an inline `code` run, a path in a table cell — breaks anywhere rather than pushing its
+   paragraph or table past the card. Set on the root because it inherits, and `anywhere`
+   rather than `break-word` because only `anywhere` lowers the min-content width a table sizes
+   its columns from: with it on `td` alone, paragraphs and `th` still ran 500px into a 316px
+   card at 390px. */
+const FIT = '[overflow-wrap:anywhere] prose-pre:whitespace-pre-wrap ';
 
 /* Content fills its card.
  *
@@ -60,6 +64,15 @@ function DroppedImage(props: ComponentProps<'img'> & { node?: unknown }) {
   return <img src={src} alt={alt ?? ''} />;
 }
 
+/** A GFM task-list box (`- [ ]` / `- [x]`). remark-gfm renders a bare disabled checkbox with no
+ *  name, which a screen reader announces as "checkbox" and nothing else; the state is the
+ *  whole of what it says, so the state is its name. */
+function TaskBox(props: ComponentProps<'input'> & { node?: unknown }) {
+  const { node: _node, ...rest } = props;
+  if (rest.type !== 'checkbox') return <input {...rest} />;
+  return <input {...rest} aria-label={rest.checked ? 'done' : 'not done'} />;
+}
+
 interface ProseBlockProps {
   children: string;
   variant?: ProseVariant;
@@ -99,7 +112,7 @@ export function ProseBlock({ children, variant = 'document', className, highligh
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         urlTransform={safeMarkdownUrl}
-        components={{ code: CodeBlock as never, img: DroppedImage as never, ...decorated }}
+        components={{ code: CodeBlock as never, img: DroppedImage as never, input: TaskBox as never, ...decorated }}
       >
         {sanitizeUserVisibleMarkdown(children)}
       </ReactMarkdown>
