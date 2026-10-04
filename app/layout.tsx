@@ -8,7 +8,9 @@ import './globals.css';
 
 /* The faces are self-hosted by next/font and handed to the tokens as --font-face-sans and --font-face-mono. */
 const sans = Geist({ subsets: ['latin'], variable: '--font-face-sans', display: 'swap' });
-const mono = Geist_Mono({ subsets: ['latin'], weight: ['400', '500'], variable: '--font-face-mono', display: 'swap' });
+// Mono sets only small labels and identifiers, so it is not preloaded: on a slow phone it would contend with the
+// page's own script for the first second of bandwidth.
+const mono = Geist_Mono({ subsets: ['latin'], weight: ['400', '500'], variable: '--font-face-mono', display: 'swap', preload: false });
 
 export const metadata: Metadata = {
   title: { default: app.name, template: `%s · ${app.name}` },

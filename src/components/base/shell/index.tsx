@@ -54,7 +54,8 @@ export function AppShell({
         </aside>
         <Dialog.Root open={open} onOpenChange={setOpen}>
           <Dialog.Portal>
-            <Dialog.Overlay className="scrim-in fixed inset-0 z-(--layer-rail) bg-scrim backdrop-blur-sm lg:hidden" />
+            {/* No backdrop blur: a full-screen blur is the costliest paint on a phone, and opening the drawer waited for it. */}
+            <Dialog.Overlay className="scrim-in fixed inset-0 z-(--layer-rail) bg-scrim lg:hidden" />
             <Dialog.Content
               aria-describedby={undefined}
               className="sheet-in fixed inset-y-0 left-0 z-(--layer-rail) flex w-(--rail-width) max-w-[86vw] border-r border-line bg-ground shadow-overlay lg:hidden"

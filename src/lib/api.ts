@@ -2,6 +2,7 @@
 
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { createContext, createElement, useContext, useSyncExternalStore, type ReactNode } from 'react';
+import { preload } from 'react-dom';
 
 // The one shape the transport itself needs: `useConsoleMode` reads the caller's role off
 // `/me` to decide whether the platform view is even offered. Shapes never import back.
@@ -123,6 +124,7 @@ export function ConsoleModeProvider({ children }: { children: ReactNode }) {
   // component is still producing it, so the hook would read whatever is above this provider
   // rather than the value this render is about to supply. A plain `useQuery` keyed identically
   // sidesteps the self-reference and still shares the one cached `/me` result.
+  preload(`${BASE}/me`, { as: 'fetch', crossOrigin: 'anonymous' });
   const me = useQuery<Me, ApiError>({
     queryKey: ['console', '/me'],
     queryFn: () => consoleFetch<Me>('/me'),
@@ -208,6 +210,10 @@ export function useConsole<T>(path: string | null): UseQueryResult<T, ApiError> 
   const { mode } = useConsoleMode();
   const scoped = path !== null && path !== '/me';
   const url = scoped ? withScope(path as string, mode) : path;
+  // A resource hint, written into the page's HTML when it renders on the server: the browser starts the read while
+  // it is still parsing, instead of after the script has downloaded and hydrated, and the fetch below picks the
+  // response up. Still the browser's own request with its own cookie; this app never holds it.
+  if (url !== null) preload(`${BASE}${url}`, { as: 'fetch', crossOrigin: 'anonymous' });
   return useQuery<T, ApiError>({
     queryKey: scoped ? ['console', path, mode] : ['console', path],
     queryFn: () => consoleFetch<T>(url as string),

@@ -57,12 +57,18 @@ for (const route of ROUTES) {
   await page.send('Emulation.setCPUThrottlingRate', { rate: 4 });
   await page.open(base + route, { width: 390, height: 844, theme: 'dark', reduced: false, wait: 7000 });
   await page.eval('window.__v.recording = true');
+  let slowest = { ms: 0, tap: '' };
   for (const sel of TAPS) {
     const at = await page.eval<{ x: number; y: number } | null>(`(() => { const el = document.querySelector(${JSON.stringify(sel)}); if (!el) return null; const r = el.getBoundingClientRect(); if (!r.width) return null; return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
     if (!at) continue;
+    const before = await page.eval<number>('window.__v.inp');
+    await page.eval('window.__v.inp = 0');
     await page.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [at] });
     await page.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
     await sleep(900);
+    const ms = await page.eval<number>('window.__v.inp');
+    if (ms > slowest.ms) slowest = { ms, tap: sel.replace(/\[aria-label[$^]?="?([^"\]]*)"?\]/, '$1').slice(0, 40) };
+    await page.eval(`window.__v.inp = Math.max(${before}, ${ms})`);
     await page.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
     await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
     await sleep(500);
@@ -71,7 +77,7 @@ for (const route of ROUTES) {
   const dropped = v.frames.filter((f) => f > 50).length;
   const bad = v.lcp >= 2500 || v.inp >= 200 || v.cls >= 0.1;
   if (bad) failures++;
-  rows.push(`${bad ? 'FAIL' : 'ok  '} ${route.padEnd(46)} LCP ${(v.lcp / 1000).toFixed(2)} s · INP ${Math.round(v.inp)} ms · CLS ${v.cls.toFixed(3)} · frames over 50 ms: ${dropped} of ${v.frames.length}`);
+  rows.push(`${bad ? 'FAIL' : 'ok  '} ${route.padEnd(46)} LCP ${(v.lcp / 1000).toFixed(2)} s · INP ${Math.round(v.inp)} ms · CLS ${v.cls.toFixed(3)} · frames over 50 ms: ${dropped} of ${v.frames.length}${slowest.ms >= 100 ? ` · slowest tap: ${slowest.tap}` : ''}`);
   console.log(rows.at(-1));
 }
 await page.send('Emulation.setCPUThrottlingRate', { rate: 1 });

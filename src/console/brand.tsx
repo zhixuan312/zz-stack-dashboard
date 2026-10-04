@@ -1,6 +1,7 @@
 'use client';
 
-import Image from 'next/image';
+import Image, { getImageProps } from 'next/image';
+import { preload } from 'react-dom';
 import type { ReactNode } from 'react';
 import { EmptyStateArt } from '@/components/ui/empty-state';
 import { cn } from '@/lib/cn';
@@ -36,13 +37,19 @@ export function Mascot({ pose, scale = 1, className }: { pose: Pose; scale?: num
   return (
     <span aria-hidden className={cn('relative grid place-items-center', className)}>
       <span className="absolute rounded-full bg-accent-tint" style={{ width: p.h * scale * 1.25, height: p.h * scale * 1.25 }} />
-      <Image src={p.src} alt="" width={p.w * scale} height={p.h * scale} className="relative object-contain" />
+      {/* Eager: an empty state's mascot is usually the largest thing on the page, so lazy loading it delays the paint. */}
+      <Image src={p.src} alt="" width={p.w * scale} height={p.h * scale} loading="eager" className="relative object-contain" />
     </span>
   );
 }
 
 /** Every centred empty state gets the mascot for its kind: first run, filtered to nothing, failed. */
 export function BrandArt({ children }: { children: ReactNode }) {
+  // The first-run pose is often the largest paint of an empty page, and it can only start loading once the page knows
+  // it is empty. A hint in the HTML, with the srcset next/image will choose from, has it ready by then. Only this one:
+  // the other poses are rarer than the bytes they would cost every page.
+  const empty = getImageProps({ src: POSES.empty.src, width: POSES.empty.w, height: POSES.empty.h, alt: '' }).props;
+  preload(empty.src, { as: 'image', imageSrcSet: empty.srcSet, fetchPriority: 'low' });
   return (
     <EmptyStateArt value={{ 'first-run': <Mascot pose="empty" />, filtered: <Mascot pose="notfound" />, error: <Mascot pose="error" /> }}>
       {children}
