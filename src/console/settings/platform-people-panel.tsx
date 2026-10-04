@@ -180,7 +180,7 @@ export function PlatformPeoplePanel() {
 
 /** Its own component so it can hold the page state — the rows come from a `Query` render prop.
  *
- * Four columns, sized to the reading column Settings sits in: who (with their name and teams
+ * Four columns: who (with their name and teams
  * beneath), what they are (role over status), when, and what can be done. */
 function PeopleTable({ rows, enrolling, deactivating, onEnrol, onDeactivate }: {
   rows: PlatformPersonRow[];

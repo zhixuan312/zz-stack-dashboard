@@ -38,7 +38,7 @@ export function TeamAdminPanel() {
   return (
     <>
       <Panel title="Team administration" description="members and roles for a team you administer">
-        <Field label="Team" hint={data.superadmin ? 'Any team slug — as a superadmin you administer all of them' : undefined}>
+        <Field label="Team" className="max-w-(--reading-width)" hint={data.superadmin ? 'Any team slug — as a superadmin you administer all of them' : undefined}>
           {(p) =>
             data.superadmin ? (
               <>

@@ -7,7 +7,7 @@ import { Panel } from '@/console/panel';
 
 /**
  * One form in a settings card: a title, the fields, the gateway's refusal when there is one, and a single primary
- * action. `onSubmit` may be async; a rejected promise is said in a toast rather than left unhandled.
+ * action. The form keeps to the reading width inside a card as wide as the page, so a field never spans the screen. `onSubmit` may be async; a rejected promise is said in a toast rather than left unhandled.
  */
 export function FormPanel({
   ariaLabel, heading, onSubmit, children, busy = false, saveLabel = 'Save', canSave = true, error,
@@ -31,7 +31,7 @@ export function FormPanel({
   };
   return (
     <Panel title={heading}>
-      <form aria-label={ariaLabel} onSubmit={submit} className="flex flex-col gap-4">
+      <form aria-label={ariaLabel} onSubmit={submit} className="flex max-w-(--reading-width) flex-col gap-4">
         {children}
         {error ? <p role="alert" className="t-small text-critical-ink">{error}</p> : null}
         <div className="flex justify-end">

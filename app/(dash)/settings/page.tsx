@@ -1,5 +1,6 @@
 'use client';
 
+import { Row } from '@/components/base/shell';
 import { ConsolePage } from '@/console/page';
 import { ClientSetupPanel } from '@/console/settings/client-setup-panel';
 import { ConsoleScopePanel } from '@/console/settings/console-scope-panel';
@@ -18,11 +19,13 @@ import { TokensPanel } from '@/console/settings/tokens-panel';
  */
 export default function SettingsPage() {
   return (
-    <ConsolePage title="Settings" description="What this console shows you, plus your tokens, client setup and teams." showPeriod={false} width="reading">
-      <ConsoleScopePanel />
+    <ConsolePage title="Settings" description="What this console shows you, plus your tokens, client setup and teams." showPeriod={false}>
+      <Row split="1/2">
+        <ConsoleScopePanel />
+        <TeamsPanel />
+      </Row>
       <TokensPanel />
       <ClientSetupPanel />
-      <TeamsPanel />
       <TeamAdminPanel />
       <PlatformSection />
     </ConsolePage>

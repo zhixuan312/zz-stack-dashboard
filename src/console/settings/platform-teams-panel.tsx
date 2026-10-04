@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Panel } from '@/console/panel';
 import { FieldGrid, FormPanel } from '@/console/form-panel';
+import { Row } from '@/components/base/shell';
 import { InlineDestructive } from '@/console/settings/inline-destructive';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
@@ -56,7 +57,7 @@ export function PlatformTeamsPanel() {
   }
 
   return (
-    <>
+    <Row split="1/2">
       <FormPanel
         ariaLabel="Create a team"
         heading="Create a team"
@@ -94,6 +95,6 @@ export function PlatformTeamsPanel() {
           )}
         </div>
       </Panel>
-    </>
+    </Row>
   );
 }
