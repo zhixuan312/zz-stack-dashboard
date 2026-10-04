@@ -49,7 +49,7 @@ export default function KnowledgeNodePage({ params }: { params: Promise<{ team: 
       updatedAt={freshnessOf(body)}
       toolbar={<KnowledgeTabs active="nodes" />}
     >
-      <Query query={body} skeleton={<Row split="2/3"><Skeleton className="h-80 rounded-lg" /><Skeleton className="h-80 rounded-lg" /></Row>}>
+      <Query query={body} what="This node" skeleton={<Row split="2/3"><Skeleton className="h-80 rounded-lg" /><Skeleton className="h-80 rounded-lg" /></Row>}>
         {(b) => (
           <>
             {b.superseded_by ? <Banner tone="warning" title={`Superseded by node ${b.superseded_by}`}>Kept readable; it is no longer the current lesson.</Banner> : null}

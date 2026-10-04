@@ -9,6 +9,7 @@ import { ConsoleGate } from '@/console/gate';
 import { useConsole, useConsoleMode } from '@/lib/api';
 import type { Initiative, Me } from '@/lib/api-shapes';
 import { navGroups } from '@/nav';
+import { waitingGates } from '@/console/initiative';
 
 /** Sign out is a POST, so a link prefetch can never end a session: build the form and submit it. */
 function signOut() {
@@ -25,18 +26,15 @@ function signOut() {
  */
 function useWaitingAlerts(enabled: boolean): Alert[] {
   const q = useConsole<{ initiatives: Initiative[] }>(enabled ? '/initiatives' : null);
-  return (q.data?.initiatives ?? [])
-    .filter((i) => !i.closed)
-    .flatMap((i) => i.gates.filter((g) => g.written && !g.passed && g.role !== 'handover').map((g) => ({
-      id: `${i.team}/${i.slug}/${g.name}`,
-      title: `${g.name.replace(/^approve /, '')} waits for approval`,
-      detail: `${i.team} · ${i.slug}`,
-      at: i.updated,
-      href: `/initiatives/${i.team}/${i.slug}`,
-      tone: 'warning' as const,
-      unread: true,
-    })))
-    .sort((a, b) => b.at.localeCompare(a.at));
+  return waitingGates(q.data?.initiatives ?? []).map((w) => ({
+    id: w.id,
+    title: `${w.gate[0].toUpperCase()}${w.gate.slice(1)} waits for approval`,
+    detail: `${w.initiative.team} · ${w.initiative.slug}`,
+    at: w.initiative.updated,
+    href: `/initiatives/${w.initiative.team}/${w.initiative.slug}`,
+    tone: 'warning' as const,
+    unread: true,
+  }));
 }
 
 /**
@@ -57,7 +55,7 @@ export function ConsoleFrame({ children }: { children: ReactNode }) {
       { id: 'team', label: team ? `Your team · ${team}` : 'Your team', active: mode === 'team', onSelect: () => setMode('team') },
     ]
     : [];
-  const user = me.data ? { name: me.data.name || me.data.email, role: me.data.superadmin ? 'Superadmin' : 'Member' } : undefined;
+  const user = me.data ? { name: me.data.name || me.data.email, role: me.data.superadmin ? 'Superadmin' : 'Member' } : null;
   return (
     <AppShell
       rail={<Rail nav={nav} workspace={mode === 'platform' ? 'The platform' : team ?? 'Your team'} scopes={scopes} user={user} signOut={signedIn ? signOut : null} />}

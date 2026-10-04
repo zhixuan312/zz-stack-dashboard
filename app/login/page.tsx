@@ -102,23 +102,21 @@ function Login() {
       }
     >
       <ol className="mt-12 grid max-w-2xl gap-6 sm:grid-cols-3">
-        <Line n="01" icon={<ListTree />} title="Teams and initiatives">Where every piece of work sits in its flow, and which gate it waits on.</Line>
-        <Line n="02" icon={<BookOpen />} title="Knowledge">What the platform has learned, kept as nodes; corrections supersede, nothing is deleted.</Line>
-        <Line n="03" icon={<Activity />} title="Plugins and runs">What each step costs to run, how it is judged, and how every door refuses.</Line>
+        <Line icon={<ListTree />} title="Teams and initiatives">Where every piece of work sits in its flow, and which gate it waits on.</Line>
+        <Line icon={<BookOpen />} title="Knowledge">What the platform has learned, kept as nodes; corrections supersede, nothing is deleted.</Line>
+        <Line icon={<Activity />} title="Plugins and runs">What each step costs to run, how it is judged, and how every door refuses.</Line>
       </ol>
     </Standalone>
   );
 }
 
-function Line({ n, icon, title, children }: { n: string; icon: React.ReactNode; title: string; children: React.ReactNode }) {
+function Line({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
   return (
-    <li className="flex flex-col gap-2">
-      <span className="flex items-center gap-2 text-ink-3">
-        <span className="t-eyebrow t-num">{n}</span>
-        <span aria-hidden className="h-px flex-1 bg-line" />
-        <span aria-hidden className="[&_svg]:size-4">{icon}</span>
+    <li className="flex flex-col gap-2 border-t border-line pt-4">
+      <span className="flex items-center gap-2 text-sm font-semibold text-ink">
+        <span aria-hidden className="text-accent-ink [&_svg]:size-4">{icon}</span>
+        {title}
       </span>
-      <span className="text-sm font-semibold text-ink">{title}</span>
       <span className="t-caption">{children}</span>
     </li>
   );

@@ -82,7 +82,7 @@ export default function PluginPage({ params }: { params: Promise<{ plugin: strin
           <MetricTile label="Never run" icon={<CircleOff />} value={p ? p.skills.filter((s) => !s.everRun).length : '…'} emphasis={!!p?.skills.some((s) => !s.everRun)} note={p ? `Of ${p.skills.length} skills` : 'Skills nobody called'} />
         </Row>
       ) : null}
-      <Query query={qEval} skeleton={<Skeleton className="h-40 rounded-lg" />}>
+      <Query query={qEval} what="The evaluation" skeleton={<Skeleton className="h-40 rounded-lg" />}>
         {(e) => !p && !e.found && !q.isPending ? (
           <EmptyState kind="filtered" title={`'${plugin}' is not a plugin the console lists`} className="py-16">It may have been renamed or removed. Plugins lists what is there.</EmptyState>
         ) : (

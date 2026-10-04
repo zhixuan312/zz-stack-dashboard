@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { BookOpen, Gauge, Layers } from 'lucide-react';
 import { useState } from 'react';
 import { Row } from '@/components/base/shell';
@@ -9,12 +10,15 @@ import { Meridian } from '@/components/charts/meridian';
 import { TrendChart } from '@/components/charts/trend-chart';
 import { FeaturedMetric } from '@/components/patterns/featured-metric';
 import { MetricTile } from '@/components/patterns/metric-tile';
+import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Segmented } from '@/components/ui/segmented';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ConsolePage } from '@/console/page';
 import { Panel } from '@/console/panel';
 import { usePeriod } from '@/console/period';
 import { Query } from '@/console/query';
+import { WaitingPanel } from '@/console/waiting';
 import { freshnessOf, useConsole, useConsoleMode } from '@/lib/api';
 import type { Overview, OverviewMetrics } from '@/lib/api-shapes';
 import { formatCompact, formatCount, formatKb, formatPercent } from '@/lib/format';
@@ -51,34 +55,34 @@ function Tiles({ m }: { m: OverviewMetrics }) {
         label="Initiatives progressing"
         icon={<Layers />}
         hint="Median completeness of the open initiatives that declare a flow: absent documents count 0, written a half, approved 1. Closed work is left out, or the figure climbs to 100% and stays there."
-        value={p.value === null ? 'None measured' : p.value / 100}
+        value={p.value === null ? '—' : p.value / 100}
         format={(n) => formatPercent(n, 0)}
-        note={p.waiting ? `${p.waiting} waiting on a person${p.waitingOldestDays !== null ? `, oldest ${p.waitingOldestDays} d` : ''}` : `${p.scoreable} of ${p.active} active measured`}
+        note={!p.active ? 'No open initiative to measure' : p.waiting ? `${p.waiting} waiting on a person${p.waitingOldestDays !== null ? `, oldest ${Math.round(p.waitingOldestDays)} d` : ''}` : `${p.scoreable} of ${p.active} open initiatives measured`}
       />
       <MetricTile
         label="Knowledge from work"
         icon={<BookOpen />}
         hint={`Share of the knowledge shelf written by initiatives rather than imported in bulk (more than ${m.knowledge.importThresholdPerHour} nodes from one source in an hour). Higher is better.`}
-        value={m.knowledge.value === null ? 'Nothing yet' : m.knowledge.value / 100}
+        value={m.knowledge.value === null ? '—' : m.knowledge.value / 100}
         format={(n) => formatPercent(n, 0)}
         delta={change(m.knowledge.value, m.knowledge.prev)}
-        note={m.knowledge.prev === null ? `${formatCount(m.knowledge.fromWork)} of ${formatCount(shelf)} nodes` : undefined}
+        note={!shelf ? 'Nothing on the shelf yet' : m.knowledge.prev === null ? `${formatCount(m.knowledge.fromWork)} of ${formatCount(shelf)} nodes` : undefined}
       />
       <MetricTile
         label="Context per run"
         icon={<Gauge />}
         hint={`Median tool output one skill run pulls into an agent's context. One context window is about ${m.context.contextWindowKb} KB at four bytes a token, a rule of thumb rather than a count. Lower is better.`}
-        value={m.context.value ?? 'Not measured'}
+        value={m.context.value ?? '—'}
         format={formatKb}
         intent="down"
         delta={change(m.context.value, m.context.prev)}
-        note={m.context.prev === null ? (m.context.p90 === null ? 'No measured run' : `Top 10% at ${formatKb(m.context.p90)} or more`) : undefined}
+        note={m.context.prev === null ? (m.context.p90 === null ? 'No run measured yet' : `Top 10% at ${formatKb(m.context.p90)} or more`) : undefined}
       />
     </div>
   );
 }
 
-function Refusals({ r, rate }: { r: Overview['refusals']; rate: number | null }) {
+function Refusals({ r, rate, doors }: { r: Overview['refusals']; rate: number | null; doors: { door: string; n: number }[] }) {
   const [axis, setAxis] = useState<'tool' | 'message'>('tool');
   const items = axis === 'tool'
     ? r.byTool.map((x) => ({ key: x.tool, label: <span className="font-mono text-xs">{x.tool}</span>, value: x.n }))
@@ -91,7 +95,13 @@ function Refusals({ r, rate }: { r: Overview['refusals']; rate: number | null })
         <Segmented label="Group refusals by" value={axis} onChange={setAxis} options={[{ value: 'tool', label: 'Tool' }, { value: 'message', label: 'Message' }]} />
       ) : undefined}
     >
-      {r.total ? <BarList label={`Refused calls by ${axis}`} limit={6} total={r.total} items={items} format={formatCount} /> : null}
+      {r.total ? (
+        <div className="flex flex-col gap-6">
+          {/* Which door refused: core, eval or manage, read off the tool name. It says where to go first. */}
+          {doors.length > 1 ? <CompositionBar label="Refused calls by door" format={formatCount} parts={doors.map((d) => ({ label: d.door, value: d.n }))} /> : null}
+          <BarList label={`Refused calls by ${axis}`} limit={5} total={r.total} items={items} format={formatCount} />
+        </div>
+      ) : <EmptyState layout="inline" title="Nothing refused">Every call in this period got an answer.</EmptyState>}
     </Panel>
   );
 }
@@ -119,7 +129,7 @@ export default function OverviewPage() {
       description={mode === 'platform' ? 'Everything the platform records, across every team.' : 'Everything the platform records for your team.'}
       updatedAt={freshnessOf(q)}
     >
-      <Query query={q} skeleton={<OverviewSkeleton />}>
+      <Query query={q} what="The overview" skeleton={<OverviewSkeleton />}>
         {(d) => {
           const dates = d.toolTrend.map((b) => b.bucket);
           const totals = d.toolTrend.map((b) => b.inside + b.outside + b.refused);
@@ -137,9 +147,9 @@ export default function OverviewPage() {
                   format={formatCompact}
                   caption={calls
                     ? <>One point per {d.grain}. The busiest {d.grain === 'week' ? 'was the week of' : 'was'} {bucketLabel(dates[busiest], d.grain, d.timezone)}, with {formatCount(totals[busiest])} calls.</>
-                    : 'No tool call was recorded in this period.'}
+                    : period === 'all' ? 'Nothing has called the platform yet.' : 'No tool call in this period.'}
                 >
-                  <TrendChart
+                  {calls ? <TrendChart
                     height="fill"
                     label={`Tool calls per ${d.grain}`}
                     dates={dates}
@@ -149,29 +159,36 @@ export default function OverviewPage() {
                       { key: 'attributed', label: 'Attributed to a run', values: d.toolTrend.map((b) => b.inside), kind: 'line', color: 2 },
                       { key: 'refused', label: 'Refused', values: d.toolTrend.map((b) => b.refused), kind: 'line', color: 'neutral' },
                     ]}
-                  />
+                  /> : (
+                    <EmptyState title="No tool call yet" action={<Button asChild variant="primary"><Link href="/settings">Set up a client</Link></Button>}>
+                      Calls arrive when a client connected to the platform runs a skill. Settings has the setup for yours.
+                    </EmptyState>
+                  )}
                 </FeaturedMetric>
                 <Tiles m={d.metrics} />
               </Row>
-              <Row split="1/2">
-                <Panel title="Open work by stage" description={`${formatCount(d.metrics.progressing.active)} active initiatives`}>
-                  <CompositionBar
-                    label="Active initiatives by stage"
-                    parts={[
-                      { label: 'Not started', value: stages.noflow + stages.notstarted, color: 'neutral' },
-                      { label: 'Drafting', value: stages.drafting, color: 'warning' },
-                      { label: 'Agreed', value: stages.agreed, color: 'accent' },
-                      { label: 'Settled', value: stages.gated + stages.closed, color: 'positive' },
-                    ]}
-                  />
+              <Row split="2/3">
+                <WaitingPanel />
+                <Panel title="Open work by stage" description={`${formatCount(d.metrics.progressing.active)} open ${d.metrics.progressing.active === 1 ? 'initiative' : 'initiatives'}`}>
+                  {d.metrics.progressing.active ? (
+                    <CompositionBar
+                      label="Open initiatives by stage"
+                      parts={[
+                        { label: 'Not started', value: stages.noflow + stages.notstarted, color: 'neutral' },
+                        { label: 'Drafting', value: stages.drafting, color: 'warning' },
+                        { label: 'Agreed', value: stages.agreed, color: 'accent' },
+                        { label: 'Settled', value: stages.gated + stages.closed, color: 'positive' },
+                      ]}
+                    />
+                  ) : <EmptyState layout="inline" title="No open initiative">One starts with initiative_open.</EmptyState>}
                 </Panel>
+              </Row>
+              <Row split="1/2">
                 {/* The gateway's rate, over the same refused calls the panel counts: computing one from the chart's buckets
                     would let two numbers for one fact disagree. */}
-                <Refusals r={d.refusals} rate={d.metrics.refusals.value} />
-              </Row>
-              <Row>
-                <Panel title="Event kinds" description={`${formatCount(events)} events, ${formatCount(d.counts.unattributedEvents)} belonging to no team`}>
-                  <BarList label="Events by kind" limit={10} total={events} format={formatCount} items={d.eventKinds.map((k) => ({ key: k.kind, label: <span className="font-mono text-xs">{k.kind}</span>, value: k.n }))} />
+                <Refusals r={d.refusals} rate={d.metrics.refusals.value} doors={d.metrics.refusals.byDoor} />
+                <Panel title="Event kinds" description={events ? `${formatCount(events)} events${d.counts.unattributedEvents ? `, ${formatCount(d.counts.unattributedEvents)} belonging to no team` : ''}` : 'Nothing recorded in this period'}>
+                  {events ? <BarList label="Events by kind" limit={5} total={events} format={formatCount} items={d.eventKinds.map((k) => ({ key: k.kind, label: <span className="font-mono text-xs">{k.kind}</span>, value: k.n }))} /> : <EmptyState layout="inline" title="No event yet">Every tool call, document write and approval is recorded here as it happens.</EmptyState>}
                 </Panel>
               </Row>
             </Meridian>

@@ -58,9 +58,12 @@ export function MetricTile({
   const word = typeof value === 'string';
   const text = word && reading === null ? value : fmt(reading ?? (word ? 0 : value));
   const parts = word && reading === null ? { int: value } : (split ?? defaultSplit)(text);
+  // Phones, without a sparkline: one row, the label and its line on the left and the figure on the right, so a stack
+  // of four tiles is half a screen rather than a whole one. Designed for the width, not shrunk to it.
+  const row = !daily;
   return (
-    <Card className={cn('gap-0 overflow-hidden px-(--card-pad) pt-[calc(var(--card-pad)-2px)] pb-0', className)}>
-      <div className="flex items-center gap-2">
+    <Card className={cn('gap-0 overflow-hidden px-(--card-pad) pt-[calc(var(--card-pad)-2px)] pb-0', row && 'max-sm:grid max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:items-center max-sm:gap-x-4 max-sm:py-3.5', className)}>
+      <div className={cn('flex items-center gap-2', row && 'max-sm:col-start-1 max-sm:row-start-1')}>
         {icon ? <span className="text-ink-3 [&_svg]:size-3.5">{icon}</span> : null}
         <h2 className="t-small min-w-0 flex-1 truncate font-medium text-ink-2">{label}</h2>
         {hint ? (
@@ -72,15 +75,15 @@ export function MetricTile({
         ) : null}
       </div>
       {/* Phones: the sparkline sits beside the figure, so a stack of tiles stays short. */}
-      <div className={cn('grid grid-cols-1', daily && 'max-sm:grid-cols-[minmax(0,1fr)_7rem] max-sm:items-end max-sm:gap-4 max-sm:pb-(--card-pad)')}>
-        <div className="min-w-0">
-          <p className={cn(word && reading === null ? 'mt-3 truncate text-2xl leading-[1.15] font-semibold tracking-[-0.02em]' : 't-figure t-num mt-3', emphasis ? 'text-accent-ink' : 'text-ink')} aria-live="off">
+      <div className={cn('grid grid-cols-1', daily && 'max-sm:grid-cols-[minmax(0,1fr)_7rem] max-sm:items-end max-sm:gap-4 max-sm:pb-(--card-pad)', row && 'max-sm:contents')}>
+        <div className={cn('min-w-0', row && 'max-sm:contents')}>
+          <p className={cn(word && reading === null ? 'mt-3 truncate text-2xl leading-[1.15] font-semibold tracking-[-0.02em]' : 't-figure t-num mt-3', emphasis ? 'text-accent-ink' : 'text-ink', row && 'max-sm:col-start-2 max-sm:row-span-2 max-sm:row-start-1 max-sm:mt-0 max-sm:text-xl')} aria-live="off">
             {parts.pre ? <span className="unit pre">{parts.pre}</span> : null}
             {parts.int}
             {parts.frac ? <span className="frac">{parts.frac}</span> : null}
             {parts.unit ? <span className="unit">{parts.unit}</span> : null}
           </p>
-          <div className="mt-2 flex h-5 items-center gap-2 text-xs">
+          <div className={cn('mt-2 flex h-5 items-center gap-2 text-xs', row && 'max-sm:col-start-1 max-sm:row-start-2 max-sm:mt-0.5 max-sm:min-w-0')}>
             {reading !== null ? (
               <span className="t-num font-medium text-ink-2">{formatDate(dates[index!])}</span>
             ) : delta === null ? (
@@ -100,7 +103,7 @@ export function MetricTile({
             <Sparkline values={daily} color={emphasis ? 'accent' : 'neutral'} height={40} />
           </div>
         ) : (
-          <div className="h-(--card-pad)" />
+          <div className="h-(--card-pad) max-sm:hidden" />
         )}
       </div>
     </Card>

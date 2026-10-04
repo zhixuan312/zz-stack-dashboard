@@ -202,7 +202,7 @@ function trend(period: string): Pick<Overview, 'grain' | 'toolTrend'> {
       let calls = 0, refused = 0;
       for (let h = from; h < from + hours && h <= nowH; h++) { const x = hourly(h); calls += x.calls; refused += x.refused; }
       const ok = calls - refused;
-      const share = i === n - 1 ? 0.25 : 0.7 + 0.1 * hash(from);
+      const share = i === n - 1 && hours === 1 ? 0.25 : 0.7 + 0.1 * hash(from);
       return { bucket: new Date(from * 3_600_000).toISOString().replace(/\.\d{3}Z$/, 'Z'), inside: Math.round(ok * share), outside: ok - Math.round(ok * share), refused };
     }),
   };

@@ -17,12 +17,15 @@ export function Query<T>({
   children,
   skeletonRows = 6,
   skeleton,
+  what = 'This',
 }: {
   query: UseQueryResult<T, ApiError>;
   children: (data: T) => ReactNode;
   skeletonRows?: number;
   /** The shape of what is coming, when it is a page rather than a list, so the swap moves as little as possible. */
   skeleton?: ReactNode;
+  /** What is loading, for the failure's title: "The overview" reads "The overview did not load". */
+  what?: string;
 }) {
   // A refused read (no session) draws as loading: the gate is already sending the person to sign in.
   if (query.isPending || query.error?.status === 401) {
@@ -36,8 +39,8 @@ export function Query<T>({
   if (query.error) {
     return (
       <EmptyState
-        kind="error"
-        title={query.error.status === 404 ? 'This does not exist' : 'This could not be loaded'}
+        kind={query.error.status === 404 ? 'filtered' : 'error'}
+        title={query.error.status === 404 ? `${what} does not exist` : `${what} did not load`}
         action={<Button size="sm" variant="secondary" busy={query.isFetching} onClick={() => void query.refetch()}>Retry</Button>}
       >
         {query.error.message}

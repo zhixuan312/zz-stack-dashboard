@@ -82,3 +82,14 @@ export function initiativeColumns({ team = false }: { team?: boolean } = {}): Co
     { key: 'updated', header: 'Updated', numeric: true, mobile: 'fact', sortValue: (i) => i.updated, cell: (i) => <When at={i.updated} />, mobileCell: (i) => <>Updated <When at={i.updated} /></> },
   ]);
 }
+
+/** One gate document a person can sign today: written, not approved, on an open initiative. */
+export type WaitingGate = { id: string; gate: string; initiative: Initiative };
+
+/** Every gate waiting on a person, newest first. The bell and the Overview read the same list. */
+export function waitingGates(initiatives: Initiative[]): WaitingGate[] {
+  return initiatives
+    .filter((i) => !i.closed)
+    .flatMap((i) => ownGates(i).filter((g) => g.written && !g.passed).map((g) => ({ id: `${i.team}/${i.slug}/${g.name}`, gate: g.name.replace(/^approve /, ''), initiative: i })))
+    .sort((a, b) => b.initiative.updated.localeCompare(a.initiative.updated));
+}

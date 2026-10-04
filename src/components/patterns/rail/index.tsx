@@ -8,6 +8,7 @@ import { app, type NavGroup } from '@/app.config';
 import { cn } from '@/lib/cn';
 import { AppMark } from '@/components/base/app-mark';
 import { Avatar } from '@/components/ui/avatar';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from '@/components/ui/menu';
 import { AppearanceMenu } from '@/components/patterns/appearance-menu';
 
@@ -34,8 +35,8 @@ export function Rail({
   workspace?: string;
   /** The scopes the workspace menu switches between; the active one carries the check. */
   scopes?: Scope[];
-  /** The signed-in person; pass your session's. Defaults to the placeholder in app.config. */
-  user?: { name: string; role: string };
+  /** The signed-in person; pass your session's. `null` while it is still being found out: a placeholder, not a name. */
+  user?: { name: string; role: string } | null;
   /** Where Sign out goes (a route), what it does (a function, such as your auth's signOut), or null to hide it. */
   signOut?: string | (() => void) | null;
 }) {
@@ -128,11 +129,20 @@ export function Rail({
         ))}
       </nav>
       <div className="m-3 flex items-center gap-3 rounded-lg border border-line bg-surface/50 p-2.5">
-        <Avatar name={user.name} size="md" />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm leading-tight font-medium">{user.name}</p>
-          <p className="truncate text-xs leading-tight text-ink-3">{user.role}</p>
-        </div>
+        {user ? (
+          <>
+            <Avatar name={user.name} size="md" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm leading-tight font-medium">{user.name}</p>
+              <p className="truncate text-xs leading-tight text-ink-3">{user.role}</p>
+            </div>
+          </>
+        ) : (
+          <div aria-hidden className="flex min-w-0 flex-1 items-center gap-3">
+            <Skeleton className="size-8 rounded-full" />
+            <span className="flex flex-1 flex-col gap-1.5"><Skeleton className="h-3 w-24" /><Skeleton className="h-2.5 w-16" /></span>
+          </div>
+        )}
         <AppearanceMenu />
       </div>
     </div>

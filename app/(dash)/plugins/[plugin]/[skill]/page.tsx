@@ -123,7 +123,7 @@ export default function PluginSkillPage({ params }: { params: Promise<{ plugin: 
               ]}
             />
           </Panel>
-          {view === 'cost' ? <Query query={detail} skeleton={<Skeleton className="h-72 rounded-lg" />}>{(d) => <Cost skill={skill} detail={d} />}</Query> : null}
+          {view === 'cost' ? <Query query={detail} what="The cost record" skeleton={<Skeleton className="h-72 rounded-lg" />}>{(d) => <Cost skill={skill} detail={d} />}</Query> : null}
           {view === 'read' && text ? <Panel title="The skill" description={`${text.body.length.toLocaleString('en-US')} characters`}><Prose>{text.body}</Prose></Panel> : null}
           {view === 'references' && text ? text.references.map((r) => (
             <Panel key={r.path} title={r.path} description={`${r.content.length.toLocaleString('en-US')} characters`}>

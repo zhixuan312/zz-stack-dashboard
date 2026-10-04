@@ -68,7 +68,7 @@ export default function InitiativePage({ params }: { params: Promise<{ team: str
       showPeriod={false}
       updatedAt={freshnessOf(q)}
     >
-      <Query query={q} skeleton={<div className="flex flex-col gap-(--stack-gap)"><Skeleton className="h-40 rounded-lg" /><Skeleton className="h-72 rounded-lg" /></div>}>
+      <Query query={q} what="This initiative" skeleton={<div className="flex flex-col gap-(--stack-gap)"><Skeleton className="h-40 rounded-lg" /><Skeleton className="h-72 rounded-lg" /></div>}>
         {(d) => {
           const stepOf = (doc: Doc) => d.steps.findIndex((s) => s.produces === doc.path);
           const live = d.documents.filter((x) => !x.path.startsWith('sources/')).sort((a, b) => {

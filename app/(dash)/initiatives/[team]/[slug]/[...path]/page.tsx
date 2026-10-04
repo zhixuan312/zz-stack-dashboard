@@ -60,7 +60,7 @@ export default function DocumentPage({ params }: { params: Promise<{ team: strin
       actions={d && me.data && canApprove(d, me.data) ? <ApproveAction doc={d} me={me.data} /> : undefined}
       width="reading"
     >
-      <Query query={q} skeleton={<div className="flex flex-col gap-(--stack-gap)"><Skeleton className="h-24 rounded-lg" /><Skeleton className="h-[28rem] rounded-lg" /></div>}>
+      <Query query={q} what="This document" skeleton={<div className="flex flex-col gap-(--stack-gap)"><Skeleton className="h-24 rounded-lg" /><Skeleton className="h-[28rem] rounded-lg" /></div>}>
         {(doc) => (
           <>
             <Panel
