@@ -154,10 +154,11 @@ export default function OverviewPage() {
                     label={`Tool calls per ${d.grain}`}
                     dates={dates}
                     tick={(b) => bucketLabel(b, d.grain, d.timezone)}
+                    stacked
                     series={[
-                      { key: 'calls', label: 'All calls', values: totals, kind: 'area' },
-                      { key: 'attributed', label: 'Attributed to a run', values: d.toolTrend.map((b) => b.inside), kind: 'line', color: 2 },
-                      { key: 'refused', label: 'Refused', values: d.toolTrend.map((b) => b.refused), kind: 'line', color: 'neutral' },
+                      { key: 'attributed', label: 'In a run', values: d.toolTrend.map((b) => b.inside) },
+                      { key: 'outside', label: 'Outside a run', values: d.toolTrend.map((b) => b.outside) },
+                      { key: 'refused', label: 'Refused', values: d.toolTrend.map((b) => b.refused) },
                     ]}
                   /> : (
                     period === 'all' ? (
