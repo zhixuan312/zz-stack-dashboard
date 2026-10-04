@@ -73,9 +73,9 @@ export default function DocumentPage({ params }: { params: Promise<{ team: strin
                 className="mb-6"
                 items={[
                   { label: 'Type', value: doc.type },
-                  { label: 'Status', value: <DocStatus status={doc.status} outcome={doc.outcome} gated={doc.gated} requiredForClose={doc.requiredForClose} /> },
+                  { label: 'Status', wrap: true, value: <DocStatus status={doc.status} outcome={doc.outcome} gated={doc.gated} requiredForClose={doc.requiredForClose} /> },
                   // Three states, not two: a source is a file the flow says nothing about, so "not approved" would imply an approval was ever on the table.
-                  { label: 'Approved by', value: doc.approved_by ?? (doc.gated === false ? 'No approval needed' : doc.gated === true ? 'Not yet' : '—') },
+                  { label: 'Approved by', wrap: true, value: doc.approved_by ?? (doc.gated === false ? 'No approval needed' : doc.gated === true ? 'Not yet' : '—') },
                   { label: 'Updated', value: <When at={doc.updated_at} /> },
                 ]}
               />

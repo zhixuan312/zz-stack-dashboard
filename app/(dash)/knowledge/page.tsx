@@ -1,271 +1,92 @@
 'use client';
 
-import { useState } from 'react';
-import Link from 'next/link';
-import { Archive, BookOpen, CheckCircle2, History, SearchX } from 'lucide-react';
-import { DashboardPage } from '@/console-old/DashboardPage';
-import { KnowledgeTabs } from '@/console-old/knowledge/KnowledgeTabs';
-import { Panel } from '@/console-old/Panel';
-import { Query } from '@/console-old/Query';
-import {
-  Badge, Button, EmptyState, PageControl, SearchInput, Select, SelectContent, SelectItem,
-  SelectTrigger, SelectValue, Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-  Time, Toolbar, usePaged,
-} from '@/console-old/ui';
-import { cn } from '@/lib/cn';
+import { useMemo } from 'react';
+import { Archive, BookOpen, CheckCircle2, History } from 'lucide-react';
+import { Row } from '@/components/base/shell';
+import { DataTable, useQueryState, type Column } from '@/components/patterns/data-table';
+import { FilterBar } from '@/components/patterns/filter-bar';
+import { MetricTile } from '@/components/patterns/metric-tile';
+import { Badge } from '@/components/ui/badge';
+import { aligned } from '@/console/columns';
+import { KnowledgeTabs } from '@/console/knowledge-tabs';
+import { ConsolePage } from '@/console/page';
+import { When } from '@/console/when';
 import { freshnessOf, useConsole, useConsoleMode } from '@/lib/api';
-import { type KnowledgeNode } from '@/lib/api-shapes';
-import {
-  filterKnowledgeNodes, knowledgeNodeHref, tagFacetCounts, teamFacetOptions,
-} from '@/lib/knowledge-filters';
-
-/** Tags shown before the "+N more" control. The rest are one click away, never scrolled to. */
-const TAGS_SHOWN = 10;
+import type { KnowledgeNode } from '@/lib/api-shapes';
+import { formatDate, formatRelative } from '@/lib/format-date';
+import { filterKnowledgeNodes, knowledgeNodeHref, tagFacetCounts, teamFacetOptions } from '@/lib/knowledge-filters';
 
 /**
- * The knowledge base: the shelf, and each row opens the node on its own page — the same
- * list → entry shape Initiatives has.
- *
- * Team is shown on every row when more than one team is in view. Each team numbers its own
- * nodes from 0001, so a list mixing two teams reads "1, 1, 2, 2, 3, 3" and looks duplicated.
+ * The shelf. The team leads the number when more than one shelf is in view: every team numbers its own nodes from
+ * 0001, so a mixed list read "1, 1, 2, 2" and looked duplicated.
  */
+function columns(multiTeam: boolean): Column<KnowledgeNode>[] {
+  return aligned([
+    { key: 'num', header: 'Node', width: multiTeam ? 'w-36' : 'w-24', sortValue: (n) => `${n.team}/${n.num}`, cell: (n) => <span className="font-mono text-xs text-ink-3">{multiTeam ? `${n.team} · ${n.num}` : n.num}</span> },
+    { key: 'title', header: 'Title', align: 'left', grow: true, mobile: 'title', sortValue: (n) => n.title, cell: (n) => <span className="block py-1 leading-snug font-medium whitespace-normal text-ink">{n.title}</span> },
+    { key: 'tags', header: 'Tags', hideBelow: 'xl', cell: (n) => <span className="font-mono text-xs text-ink-3">{(n.tags ?? []).slice(0, 3).join(' · ') || '—'}</span> },
+    // Colour only where it means something: superseded is still readable, so neutral; adopted is the current lesson.
+    { key: 'status', header: 'Status', hideBelow: 'md', mobile: 'status', sortValue: (n) => n.status, cell: (n) => <Badge tone={n.status === 'adopted' ? 'positive' : 'neutral'} dot>{n.status}</Badge> },
+    { key: 'updated', header: 'Recorded', numeric: true, mobile: 'fact', sortValue: (n) => n.updated, cell: (n) => <When at={n.updated} />, mobileCell: (n) => <>Recorded <When at={n.updated} /></> },
+  ]);
+}
+
+/** What the platform has learned, kept as nodes. Each one comes out of a real initiative. */
 export default function KnowledgePage() {
   const { mode } = useConsoleMode();
-  const [filter, setFilter] = useState('');
-  const [team, setTeam] = useState('all');
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [allTags, setAllTags] = useState(false);
-
-  // One read, always the same. The gateway scopes this to the caller's acting team in team
-  // mode and spans every team in platform mode, so there is nothing for this page to name.
   const list = useConsole<{ nodes: KnowledgeNode[] }>('/knowledge');
-
-  const nodes = list.data?.nodes ?? [];
-  // Teams actually present in what loaded — answers "does this list mix teams", which the row
-  // label and the count need. Not the team control's options (see `teamFacetOptions`).
-  const teamsInView = [...new Set(nodes.map((n) => n.team))].sort();
-  // COUPLED: derived from `status`, the same field the row badge reads. Deriving them from
-  // `superseded_by`, the pointer to the replacement, counts a node whose lifecycle is
-  // `superseded` and whose pointer is null as Adopted in the tile while its own row renders
-  // "superseded".
-  const superseded = nodes.filter((n) => n.status !== 'adopted').length;
-  const adopted = nodes.length - superseded;
-  // The newest node's own recorded date. `updated` is an instant, so the max is a string
-  // comparison on ISO — no Date objects allocated per row.
-  const lastRecorded = nodes.length
-    ? nodes.reduce((a, n) => (n.updated > a ? n.updated : a), nodes[0].updated).slice(0, 10)
-    : null;
-  const teamOptions = teamFacetOptions(nodes);
-  const tagCounts = tagFacetCounts(nodes);
-  const rows = filterKnowledgeNodes(nodes, { team, tags: selectedTags, search: filter });
-  const filtersActive = team !== 'all' || selectedTags.length > 0 || filter.trim().length > 0;
-  // A selected tag past the cut stays visible, or deselecting it means expanding first.
-  const tagsShown = allTags
-    ? tagCounts
-    : tagCounts.filter((t, i) => i < TAGS_SHOWN || selectedTags.includes(t.tag));
-
-  function toggleTag(tag: string) {
-    setSelectedTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]));
-  }
-
-  function clearFilters() {
-    setFilter('');
-    setTeam('all');
-    setSelectedTags([]);
-  }
+  const [f, set] = useQueryState({ q: '', team: 'all', tag: 'all', sort: 'updated', dir: 'desc', page: '1' });
+  const nodes = useMemo(() => list.data?.nodes ?? [], [list.data]);
+  const multiTeam = new Set(nodes.map((n) => n.team)).size > 1;
+  const rows = useMemo(() => filterKnowledgeNodes(nodes, { team: f.team, tags: f.tag === 'all' ? [] : [f.tag], search: f.q }), [nodes, f.team, f.tag, f.q]);
+  const cols = useMemo(() => columns(multiTeam), [multiTeam]);
+  const adopted = nodes.filter((n) => n.status === 'adopted').length;
+  const latest = nodes.reduce<string | null>((a, n) => (!a || n.updated > a ? n.updated : a), null);
+  const filtered = f.q !== '' || f.team !== 'all' || f.tag !== 'all';
+  const clear = () => set({ q: '', team: 'all', tag: 'all', page: '1' });
 
   return (
-    <DashboardPage
+    <ConsolePage
       title="Knowledge"
       description="What the platform has learned, kept as nodes. Each one comes out of a real initiative."
       showPeriod={false}
       updatedAt={freshnessOf(list)}
-      subnav={<KnowledgeTabs active="nodes" />}
-      // The same four questions the shelf is scanned for, above it rather than counted by eye
-      // down the list. `superseded` gets a tile of its own: a shelf where half the nodes have
-      // been replaced reads differently from one where none have.
-      metrics={
-        nodes.length
-          ? [
-              { label: 'Nodes', value: nodes.length, sublabel: 'On this shelf',
-                icon: <BookOpen /> },
-              { label: 'Adopted', value: adopted, muted: adopted === 0,
-                sublabel: 'Current lessons', icon: <CheckCircle2 /> },
-              { label: 'Superseded', value: superseded, muted: superseded === 0,
-                sublabel: 'Replaced, still readable', icon: <Archive /> },
-              { label: 'Last recorded', value: lastRecorded ?? '—', muted: !lastRecorded,
-                sublabel: 'Most recent node', icon: <History /> },
-            ]
-          : undefined
-      }
+      toolbar={<KnowledgeTabs active="nodes" />}
     >
-      <Query query={list}>
-        {() => (
-          <Panel
-            title="Nodes"
-            aside={
-              teamsInView.length > 1
-                ? `${rows.length} of ${nodes.length} across ${teamsInView.length} teams`
-                : `${rows.length} of ${nodes.length}`
-            }
-            padded={false}
-          >
-            <Toolbar className="border-b border-line p-3">
-              <SearchInput label="titles and bodies" value={filter} onChange={setFilter} />
-              {/* Platform mode only: the shelf spans every team there, so choosing one narrows
-                  rows already on screen. In team mode the loaded shelf is the acting team's. */}
-              {mode === 'platform' && teamOptions.length > 1 ? (
-                <Select value={team} onValueChange={setTeam}>
-                  <SelectTrigger className="w-full sm:w-[13rem]" aria-label="Team">
-                    <SelectValue placeholder="All teams" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All teams</SelectItem>
-                    {teamOptions.map((o) => (
-                      <SelectItem key={o.slug} value={o.slug}>
-                        <span className="flex w-full items-center justify-between gap-4">
-                          <span className="truncate">{o.slug}</span>
-                          <span className="tabular-nums text-ink-faint">{o.count}</span>
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : null}
-              {filtersActive ? (
-                <Button type="button" variant="ghost" size="sm" onClick={clearFilters}>
-                  Clear filters
-                </Button>
-              ) : null}
-            </Toolbar>
-            {/* The tags actually present, counted from the loaded set (`tagFacetCounts`) and
-                selectable — a facet, not the substring match the search box does. Multiple tags
-                OR together; see `filterKnowledgeNodes`. */}
-            {tagCounts.length ? (
-              <div
-                role="group"
-                aria-label="Tags"
-                className="flex flex-wrap items-center gap-1.5 border-b border-line px-3 py-2.5"
-              >
-                {tagsShown.map(({ tag, count }) => (
-                  <button
-                    key={tag}
-                    type="button"
-                    aria-pressed={selectedTags.includes(tag)}
-                    onClick={() => toggleTag(tag)}
-                    className={cn(
-                      'rounded-[var(--r-sm)] px-2 py-0.5 font-mono text-[11px]',
-                      selectedTags.includes(tag)
-                        ? 'bg-accent-tint text-accent-deep'
-                        : 'bg-surface-2 text-ink-faint hover:bg-accent-tint hover:text-accent-deep',
-                    )}
-                  >
-                    {tag} <span className="opacity-70">{count}</span>
-                  </button>
-                ))}
-                {tagCounts.length > TAGS_SHOWN ? (
-                  <button
-                    type="button"
-                    onClick={() => setAllTags((v) => !v)}
-                    className="px-1 text-[11px] font-medium text-accent hover:underline"
-                  >
-                    {allTags ? 'Fewer tags' : `+${tagCounts.length - tagsShown.length} more`}
-                  </button>
-                ) : null}
-              </div>
-            ) : null}
-            <NodeTable
-              rows={rows}
-              multiTeam={teamsInView.length > 1}
-              resetKey={JSON.stringify([filter.trim().toLowerCase(), team, selectedTags])}
-            />
-            {rows.length === 0 ? (
-              /* Two empty states, not one: "nothing matches your filters" and "nothing has
-                 been written here yet" are different facts, and a blank list cannot say
-                 which. */
-              <EmptyState
-                className="py-10"
-                illustration={
-                  filtersActive
-                    ? { src: '/assets/brand/state-notfound.png', width: 78, height: 96 }
-                    : { src: '/assets/brand/state-empty.png', width: 78, height: 96 }
-                }
-                icon={filtersActive ? <SearchX className="size-5" strokeWidth={2} /> : <Archive className="size-5" strokeWidth={2} />}
-                title={filtersActive ? 'Nothing matches the selected filters' : 'Nothing to read yet'}
-                description={
-                  filtersActive
-                    ? 'Every node is filtered out by the current team, tag or search.'
-                    : 'No knowledge has been written to this shelf. A node arrives when an initiative closes and something in it was worth keeping.'
-                }
-                action={
-                  filtersActive ? (
-                    <Button type="button" variant="ghost" size="sm" onClick={clearFilters}>
-                      Clear filters
-                    </Button>
-                  ) : null
-                }
-              />
-            ) : null}
-          </Panel>
-        )}
-      </Query>
-    </DashboardPage>
-  );
-}
-
-/** The shelf, ten rows at a time. Its own component so it can hold the page state — a hook
- *  cannot be called from the `Query` render prop. */
-function NodeTable({ rows, multiTeam, resetKey }: {
-  rows: KnowledgeNode[]; multiTeam: boolean; resetKey: string;
-}) {
-  const { page, controls } = usePaged(rows, resetKey);
-  if (rows.length === 0) return null;
-  return (
-    <>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-[1%]">Node</TableHead>
-            <TableHead>Title</TableHead>
-            <TableHead hideBelow="lg">Tags</TableHead>
-            <TableHead hideBelow="md">Status</TableHead>
-            <TableHead hideBelow="md">Recorded</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {page.map((n) => (
-            <TableRow key={n.key}>
-              {/* The team only when more than one shelf is in view: the number is unique
-                  inside a team, not across teams. */}
-              <TableCell className="whitespace-nowrap font-mono text-xs text-ink-faint">
-                {multiTeam ? `${n.team} · ${n.num}` : n.num}
-              </TableCell>
-              <TableCell>
-                <Link
-                  href={knowledgeNodeHref(n.team, n.path)}
-                  className="row-link font-medium leading-snug text-ink"
-                >
-                  {n.title}
-                </Link>
-              </TableCell>
-              <TableCell hideBelow="lg">
-                <span className="inline-flex flex-wrap gap-1">
-                  {(n.tags ?? []).slice(0, 3).map((t) => (
-                    <span key={t} className="rounded-[var(--r-sm)] bg-surface-2 px-1.5 py-0.5 font-mono text-[11px] text-ink-faint">
-                      {t}
-                    </span>
-                  ))}
-                </span>
-              </TableCell>
-              <TableCell hideBelow="md">
-                <Badge variant={n.status === 'adopted' ? 'sage' : 'neutral'} dot>{n.status}</Badge>
-              </TableCell>
-              <TableCell hideBelow="md"><Time value={n.updated} /></TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      <PageControl {...controls} />
-    </>
+      <Row split="tiles">
+        <MetricTile label="Nodes" icon={<BookOpen />} value={list.data ? nodes.length : '…'} note="On this shelf" />
+        <MetricTile label="Adopted" icon={<CheckCircle2 />} value={list.data ? adopted : '…'} note="Current lessons" />
+        <MetricTile label="Superseded" icon={<Archive />} value={list.data ? nodes.filter((n) => n.status === 'superseded').length : '…'} note="Replaced, still readable" />
+        <MetricTile label="Last recorded" icon={<History />} value={latest ? formatRelative(latest) : 'Never'} note={latest ? formatDate(latest) : 'Nothing on the shelf'} />
+      </Row>
+      <DataTable
+        caption="Knowledge nodes"
+        noun="nodes"
+        rows={rows}
+        columns={cols}
+        rowKey={(n) => n.key}
+        rowHref={(n) => knowledgeNodeHref(n.team, n.path)}
+        loading={list.isPending}
+        error={list.error?.message}
+        onRetry={() => void list.refetch()}
+        state={{ sort: f.sort, dir: f.dir, page: f.page }}
+        onStateChange={set}
+        filtered={filtered}
+        onClearFilters={clear}
+        empty={{ title: 'Nothing to read yet', body: 'A node arrives when an initiative closes and something in it was worth keeping.' }}
+        toolbar={
+          <FilterBar
+            search={{ value: f.q, onChange: (v) => set({ q: v, page: '1' }), placeholder: 'Search titles and text' }}
+            filters={[
+              // Platform mode only: in team mode the shelf loaded is the acting team's, so another team empties it.
+              ...(mode === 'platform' && multiTeam ? [{ key: 'team', label: 'Team', value: f.team, onChange: (v: string) => set({ team: v, page: '1' }), options: [{ value: 'all', label: 'All' }, ...teamFacetOptions(nodes).map((o) => ({ value: o.slug, label: `${o.slug} · ${o.count}` }))] }] : []),
+              { key: 'tag', label: 'Tag', value: f.tag, onChange: (v) => set({ tag: v, page: '1' }), options: [{ value: 'all', label: 'All' }, ...tagFacetCounts(nodes).map((t) => ({ value: t.tag, label: `${t.tag} · ${t.count}` }))] },
+            ]}
+            result={<>{rows.length} of {nodes.length}</>}
+            onClear={clear}
+          />
+        }
+      />
+    </ConsolePage>
   );
 }

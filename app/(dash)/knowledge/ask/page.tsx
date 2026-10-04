@@ -1,116 +1,61 @@
 'use client';
 
 import { useState } from 'react';
-import { BookOpen, MessageCircleQuestion, Tag, Users } from 'lucide-react';
-import { DashboardPage } from '@/console-old/DashboardPage';
-import { KnowledgeAsk } from '@/console-old/KnowledgeAsk';
-import { KnowledgeTabs } from '@/console-old/knowledge/KnowledgeTabs';
-import { Panel } from '@/console-old/Panel';
-import { ProseBlock } from '@/console-old/patterns/prose-block';
-import { Query } from '@/console-old/Query';
-import {
-  Row, Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/console-old/ui';
+import { BookOpen, Tag } from 'lucide-react';
+import { Row } from '@/components/base/shell';
+import { MetricTile } from '@/components/patterns/metric-tile';
+import { Select } from '@/components/ui/select';
+import { KnowledgeAsk } from '@/console/knowledge-ask';
+import { KnowledgeTabs } from '@/console/knowledge-tabs';
+import { ConsolePage } from '@/console/page';
+import { Panel } from '@/console/panel';
+import { Prose } from '@/console/prose';
 import { freshnessOf, useConsole, useConsoleMode } from '@/lib/api';
-import { type KnowledgeNode, type Me } from '@/lib/api-shapes';
+import type { KnowledgeNode, Me } from '@/lib/api-shapes';
 import { tagFacetCounts, teamFacetOptions } from '@/lib/knowledge-filters';
 
-const GUIDANCE =
-  "- **Everything in the team's folder** — specs, decisions, sources and knowledge nodes, " +
-  'not just the nodes on the Nodes tab\n' +
-  '- **One team at a time** — a question is answered from one shelf, so there is no ' +
-  'platform-wide answer to ask for\n' +
-  '- **Citations are the platform’s** — built from the documents actually retrieved, ' +
-  'never from the model’s own text';
+const GUIDANCE = [
+  "- **Everything in the team's folder:** specs, decisions, sources and knowledge nodes, not just the nodes on the Nodes tab.",
+  '- **One team at a time:** a question is answered from one shelf, so there is no platform-wide answer to ask for.',
+  '- **Citations are the platform’s:** built from the documents actually retrieved, never from the model’s own text.',
+].join('\n');
 
 /**
- * Ask — a question answered from one team's own documents.
- *
- * `POST /ask` answers from every document in the team's folder — specs, decisions, sources —
- * not only from the `_knowledge/` nodes the shelf shows, so this is its own page rather than a
- * form above the shelf.
- *
- * One team, always: `/ask` refuses `?scope=platform` outright (console-ask.ts), so in team mode
- * this is the team being acted for and in platform mode a superadmin has to name one. That is
- * the only control on the page, and it sits in the header because it scopes what the whole page
- * answers from.
+ * A question answered from one team's own documents. One team, always: `/ask` refuses `?scope=platform`, so in team
+ * mode it is the team being acted for, and in platform mode a superadmin names one.
  */
 export default function KnowledgeAskPage() {
-  const meQ = useConsole<Me>('/me');
+  const me = useConsole<Me>('/me');
   const { mode } = useConsoleMode();
   const list = useConsole<{ nodes: KnowledgeNode[] }>('/knowledge');
   const nodes = list.data?.nodes ?? [];
-  const teamOptions = teamFacetOptions(nodes);
+  const teams = teamFacetOptions(nodes);
   const [picked, setPicked] = useState<string | null>(null);
-
-  // In team mode there is nothing to choose — the gateway already scoped the read, and the
-  // team being acted for is the team whose documents answer. Switching it is a Settings act.
-  const team = mode === 'team'
-    ? meQ.data?.activeTeam ?? null
-    : picked ?? (teamOptions.length === 1 ? teamOptions[0].slug : null);
-
-  const tags = tagFacetCounts(nodes);
+  const team = mode === 'team' ? me.data?.activeTeam ?? null : picked ?? (teams.length === 1 ? teams[0].slug : null);
+  const shelf = nodes.filter((n) => !team || n.team === team);
 
   return (
-    <DashboardPage
+    <ConsolePage
       title="Knowledge"
-      description="Ask a question and have it answered from your team's own documents."
+      description="Ask a question and have it answered from a team's own documents."
       showPeriod={false}
       updatedAt={freshnessOf(list)}
-      subnav={<KnowledgeTabs active="ask" />}
-      actions={
-        mode === 'platform' && teamOptions.length > 1 ? (
-          <Select value={team ?? ''} onValueChange={setPicked}>
-            <SelectTrigger className="w-[13rem]" aria-label="Answer from">
-              <SelectValue placeholder="Answer from…" />
-            </SelectTrigger>
-            <SelectContent>
-              {teamOptions.map((o) => (
-                <SelectItem key={o.slug} value={o.slug}>
-                  <span className="flex w-full items-center justify-between gap-4">
-                    <span className="truncate">{o.slug}</span>
-                    <span className="tabular-nums text-ink-faint">{o.count}</span>
-                  </span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ) : null
-      }
-      // Guarded on the data: built unconditionally these read a confident zero while the
-      // request is in flight, and go on reading it after a failure.
-      metrics={list.data ? [
-        { label: 'Answering from', value: team ?? '—', muted: !team,
-          sublabel: mode === 'team' ? 'The team you act for' : 'Pick one team' },
-        // Counts nodes on the chosen team's shelf, not the whole platform's: the corpus this
-        // page answers from is every document in that team's folder, and an unfiltered count
-        // would name a different population and a wider scope than the answer uses.
-        { label: 'Nodes on the shelf',
-          value: nodes.filter((n) => !team || n.team === team).length,
-          sublabel: team ? `on ${team}'s shelf` : 'across every team', icon: <BookOpen /> },
-        { label: 'Subjects', value: tags.length, muted: tags.length === 0,
-          sublabel: 'Distinct tags', icon: <Tag /> },
-        { label: 'Teams in view', value: teamOptions.length, muted: teamOptions.length === 0,
-          sublabel: mode === 'team' ? 'Yours' : 'Across the platform', icon: <Users /> },
-      ] : undefined}
+      toolbar={<KnowledgeTabs active="ask" />}
+      actions={mode === 'platform' && teams.length > 1 ? (
+        <Select aria-label="Answer from" placeholder="Answer from…" value={team ?? undefined} onValueChange={setPicked} options={teams.map((o) => ({ value: o.slug, label: o.slug }))} className="w-52" />
+      ) : undefined}
     >
-      <Query query={list} skeletonRows={4}>
-        {() => (
-          <Row split="2/3">
-            <KnowledgeAsk team={team} />
-            <Panel
-              title={
-                <span className="flex items-center gap-2">
-                  <MessageCircleQuestion className="size-4 text-ink-faint" aria-hidden />
-                  What this reads
-                </span>
-              }
-            >
-              <ProseBlock variant="rail">{GUIDANCE}</ProseBlock>
-            </Panel>
-          </Row>
-        )}
-      </Query>
-    </DashboardPage>
+      <Row split="tiles">
+        <MetricTile label="Answering from" value={team ?? 'No team yet'} note={mode === 'team' ? 'The team you act for' : 'Pick one team above'} />
+        <MetricTile label="Nodes on the shelf" icon={<BookOpen />} value={list.data ? shelf.length : '…'} note={team ? `On ${team}'s shelf` : 'Across every team'} />
+        <MetricTile label="Subjects" icon={<Tag />} value={list.data ? tagFacetCounts(shelf).length : '…'} note="Distinct tags" />
+      </Row>
+      <Row split="2/3">
+        <KnowledgeAsk team={team} />
+        <Panel title="What this reads">
+          <Prose size="sm">{GUIDANCE}</Prose>
+        </Panel>
+      </Row>
+    </ConsolePage>
   );
 }

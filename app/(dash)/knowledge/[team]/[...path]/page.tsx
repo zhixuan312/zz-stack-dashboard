@@ -1,30 +1,29 @@
 'use client';
 
-import { use, type ReactNode } from 'react';
+import { use } from 'react';
 import Link from 'next/link';
-import { DashboardPage } from '@/console-old/DashboardPage';
-import { KnowledgeTabs } from '@/console-old/knowledge/KnowledgeTabs';
-import { Panel } from '@/console-old/Panel';
-import { Query } from '@/console-old/Query';
-import {
-  Badge, PageControl, Row, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Time,
-  usePaged,
-} from '@/console-old/ui';
-import { useConsole } from '@/lib/api';
-import { type KnowledgeBody, type KnowledgeNode } from '@/lib/api-shapes';
+import { Row } from '@/components/base/shell';
+import { DataTable, type Column } from '@/components/patterns/data-table';
+import { Badge } from '@/components/ui/badge';
+import { Banner } from '@/components/ui/banner';
+import { KeyValue } from '@/components/ui/key-value';
+import { Skeleton } from '@/components/ui/skeleton';
+import { aligned } from '@/console/columns';
+import { KnowledgeTabs } from '@/console/knowledge-tabs';
+import { ConsolePage } from '@/console/page';
+import { Panel } from '@/console/panel';
+import { Prose } from '@/console/prose';
+import { Query } from '@/console/query';
+import { When } from '@/console/when';
+import { freshnessOf, useConsole } from '@/lib/api';
+import type { KnowledgeBody, KnowledgeNode } from '@/lib/api-shapes';
 import { knowledgeNodeHref } from '@/lib/knowledge-filters';
 
 /**
- * One knowledge node, read — reached from a row on the shelf or from an Ask citation.
- *
- * The node's own `/knowledge/<team>/<path>` body carries everything but its number and its
- * neighbours; those come from the shelf read, which is the same cached query the list used.
+ * One knowledge node, read: reached from a row on the shelf or from an Ask citation. The node's own body carries
+ * everything but its number and its neighbours; those come from the shelf, the same cached read the list used.
  */
-export default function KnowledgeNodePage({
-  params,
-}: {
-  params: Promise<{ team: string; path: string[] }>;
-}) {
+export default function KnowledgeNodePage({ params }: { params: Promise<{ team: string; path: string[] }> }) {
   const { team: rawTeam, path } = use(params);
   const team = decodeURIComponent(rawTeam);
   const rel = path.map(decodeURIComponent).join('/');
@@ -32,153 +31,74 @@ export default function KnowledgeNodePage({
   const list = useConsole<{ nodes: KnowledgeNode[] }>('/knowledge');
   const nodes = list.data?.nodes ?? [];
   const self = nodes.find((n) => n.team === team && n.path === rel);
-  // Nodes that share a tag with this one. The store records no node-to-node link, so a
-  // shared subject is what "related" means here, and the heading says so rather than
-  // implying a citation.
-  const related = self
-    ? nodes.filter((n) => n.key !== self.key && (n.tags ?? []).some((t) => (self.tags ?? []).includes(t)))
-    : [];
+  const multiTeam = new Set(nodes.map((n) => n.team)).size > 1;
+  // A shared tag is the only link the store records between two nodes, so it is said as that and nothing more.
+  const related = self ? nodes.filter((n) => n.key !== self.key && (n.tags ?? []).some((t) => (self.tags ?? []).includes(t))) : [];
+  const relatedColumns: Column<KnowledgeNode>[] = aligned([
+    { key: 'num', header: 'Node', width: multiTeam ? 'w-36' : 'w-24', cell: (n) => <span className="font-mono text-xs text-ink-3">{multiTeam ? `${n.team} · ${n.num}` : n.num}</span> },
+    { key: 'title', header: 'Title', align: 'left', grow: true, mobile: 'title', cell: (n) => <span className="block py-1 leading-snug font-medium whitespace-normal text-ink">{n.title}</span> },
+    { key: 'shared', header: 'Shared tags', hideBelow: 'lg', cell: (n) => <span className="font-mono text-xs text-ink-3">{(n.tags ?? []).filter((t) => self?.tags?.includes(t)).join(' · ')}</span> },
+    { key: 'updated', header: 'Recorded', numeric: true, mobile: 'fact', cell: (n) => <When at={n.updated} /> },
+  ]);
 
   return (
-    <DashboardPage
+    <ConsolePage
       title={body.data?.title ?? rel}
-      breadcrumb={[{ label: 'Knowledge', href: '/knowledge' }, { label: self ? `node ${self.num}` : rel }]}
+      crumbs={[{ label: 'Knowledge', href: '/knowledge' }, { label: self ? `${team} · node ${self.num}` : team }]}
       showPeriod={false}
-      subnav={<KnowledgeTabs active="nodes" />}
+      updatedAt={freshnessOf(body)}
+      toolbar={<KnowledgeTabs active="nodes" />}
     >
-      <Query query={body} skeletonRows={10}>
+      <Query query={body} skeleton={<Row split="2/3"><Skeleton className="h-80 rounded-lg" /><Skeleton className="h-80 rounded-lg" /></Row>}>
         {(b) => (
           <>
+            {b.superseded_by ? <Banner tone="warning" title={`Superseded by node ${b.superseded_by}`}>Kept readable; it is no longer the current lesson.</Banner> : null}
             <Row split="2/3">
-              <Panel title="Node">
-                <article className="flex flex-col gap-4">
-                  {b.superseded_by ? (
-                    <div className="rounded-[var(--r)] border border-[var(--amber)] bg-[var(--amber-tint)] px-3 py-2 text-xs text-[var(--amber-text)]">
-                      Superseded by {b.superseded_by} — kept readable, no longer current.
-                    </div>
-                  ) : null}
-                  {/* Fills its card, like every other piece of content in this console. */}
-                  <p className="whitespace-pre-wrap break-words text-sm leading-[1.85] text-ink-soft">
-                    {b.body.trim()}
-                  </p>
-                </article>
+              <Panel title="The lesson">
+                <Prose>{b.body.trim()}</Prose>
               </Panel>
               <Panel title="About this node">
-                <dl className="flex flex-col gap-3 text-xs">
-                  <Fact label="Status">
-                    <Badge variant={b.status === 'adopted' ? 'sage' : 'neutral'} dot>{b.status}</Badge>
-                  </Fact>
-                  <Fact label="Type"><Badge variant="neutral">{b.type}</Badge></Fact>
-                  <Fact label="Team">
-                    <Link href={`/teams/${b.team}`} className="text-accent hover:underline">{b.team}</Link>
-                    {self ? <span className="ml-2 font-mono text-xs text-ink-faint">node {self.num}</span> : null}
-                  </Fact>
-                  <Fact label="Recorded"><Time value={b.updated} /></Fact>
-                  {/* Where it came from, so the reader can open the work that produced the
-                      lesson rather than read the node as an assertion from nowhere. */}
-                  {b.evidence_in?.length ? (
-                    <Fact label="Learned in">
-                      <span className="flex flex-col gap-1">
-                        {/* DELIBERATE: the team comes from the API entry, not from `b.team`.
-                            A platform-shelf node's evidence sits in a tenant's initiative, so
-                            /initiatives/<b.team>/<slug> does not resolve. An entry the
-                            platform cannot place renders as its own name, not a link. */}
-                        {b.evidence_in.map((e) => (
-                          e.team ? (
-                            <Link
-                              key={e.name}
-                              href={`/initiatives/${e.team}/${e.name}`}
-                              className="row-link break-all font-medium text-ink"
-                            >
-                              {e.name}
-                            </Link>
-                          ) : (
-                            <span key={e.name} className="break-all text-ink-soft" title="no initiative by this name on the platform">
-                              {e.name}
-                            </span>
-                          )
-                        ))}
-                      </span>
-                    </Fact>
-                  ) : null}
-                  {b.tags?.length ? (
-                    <Fact label="Tags">
-                      <span className="flex flex-wrap gap-1.5">
-                        {b.tags.map((t) => (
-                          <span key={t} className="rounded-[var(--r-sm)] bg-surface-2 px-2 py-0.5 font-mono text-[11px] text-ink-faint">
-                            {t}
-                          </span>
-                        ))}
-                      </span>
-                    </Fact>
-                  ) : null}
-                  <Fact label="Path">
-                    <span className="break-all font-mono text-xs text-ink-faint">{b.path}</span>
-                  </Fact>
-                </dl>
+                <KeyValue
+                  items={[
+                    { label: 'Status', value: <Badge tone={b.status === 'adopted' ? 'positive' : 'neutral'} dot>{b.status}</Badge> },
+                    { label: 'Type', value: b.type },
+                    { label: 'Team', value: <Link href={`/teams/${b.team}`} className="link">{b.team}</Link> },
+                    { label: 'Recorded', value: <When at={b.updated} /> },
+                    // Where it came from, so a reader can open the work that produced the lesson. The team comes from
+                    // the gateway's entry, not the node's: a node may cite an initiative in another team.
+                    ...(b.evidence_in?.length ? [{
+                      label: 'Learned in',
+                      wrap: true,
+                      value: (
+                        <span className="flex flex-col gap-1">
+                          {b.evidence_in.map((e) => (e.team
+                            ? <Link key={e.name} href={`/initiatives/${e.team}/${e.name}`} className="link [overflow-wrap:anywhere]">{e.name}</Link>
+                            : <span key={e.name} className="[overflow-wrap:anywhere]" title="No initiative by this name on the platform">{e.name}</span>))}
+                        </span>
+                      ),
+                    }] : []),
+                    ...(b.tags?.length ? [{ label: 'Tags', wrap: true, value: <span className="font-mono text-xs">{b.tags.join(' · ')}</span> }] : []),
+                    { label: 'Path', mono: true, wrap: true, value: b.path },
+                  ]}
+                />
               </Panel>
             </Row>
             {related.length ? (
-              <Panel title="Shares a subject with" aside={`${related.length} nodes`} padded={false}>
-                <RelatedTable rows={related} tags={self?.tags ?? []} multiTeam={new Set(nodes.map((n) => n.team)).size > 1} />
-              </Panel>
+              <DataTable
+                caption="Nodes that share a tag"
+                noun="nodes"
+                rows={related}
+                columns={relatedColumns}
+                rowKey={(n) => n.key}
+                rowHref={(n) => knowledgeNodeHref(n.team, n.path)}
+                pageSize={10}
+                pageSizes={[10, 20, 50]}
+                toolbar={<div><h2 className="t-card">Shares a tag with</h2><p className="t-caption mt-1">{related.length} nodes</p></div>}
+              />
             ) : null}
           </>
         )}
       </Query>
-    </DashboardPage>
-  );
-}
-
-function Fact({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="flex flex-col gap-1">
-      <dt className="text-[0.6875rem] font-medium uppercase tracking-[0.04em] text-ink-faint">{label}</dt>
-      <dd className="min-w-0">{children}</dd>
-    </div>
-  );
-}
-
-/** Its own component so the page state lives outside the `Query` render prop. */
-function RelatedTable({ rows, tags, multiTeam }: { rows: KnowledgeNode[]; tags: string[]; multiTeam: boolean }) {
-  const { page, controls } = usePaged(rows);
-  return (
-    <>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-[1%]">Node</TableHead>
-            <TableHead>Title</TableHead>
-            <TableHead hideBelow="lg">Shared tags</TableHead>
-            <TableHead hideBelow="md">Recorded</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {page.map((n) => (
-            <TableRow key={n.key}>
-              <TableCell className="whitespace-nowrap font-mono text-xs text-ink-faint">
-                {multiTeam ? `${n.team} · ${n.num}` : n.num}
-              </TableCell>
-              <TableCell>
-                <Link href={knowledgeNodeHref(n.team, n.path)} className="row-link font-medium leading-snug text-ink">
-                  {n.title}
-                </Link>
-              </TableCell>
-              <TableCell hideBelow="lg">
-                <span className="inline-flex flex-wrap gap-1">
-                  {(n.tags ?? []).filter((t) => tags.includes(t)).map((t) => (
-                    <span key={t} className="rounded-[var(--r-sm)] bg-surface-2 px-1.5 py-0.5 font-mono text-[11px] text-ink-faint">
-                      {t}
-                    </span>
-                  ))}
-                </span>
-              </TableCell>
-              <TableCell hideBelow="md"><Time value={n.updated} /></TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      <PageControl {...controls} />
-    </>
+    </ConsolePage>
   );
 }
