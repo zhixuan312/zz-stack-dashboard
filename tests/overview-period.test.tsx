@@ -177,7 +177,7 @@ describe('the overview page', () => {
   it('states what is waiting on a person, and for how long', async () => {
     mount();
     await waitFor(() => expect(screen.getByText(/Initiatives progressing/)).toBeInTheDocument());
-    expect(screen.getByText(/3 waiting on a person, oldest 3\.9 d/)).toBeInTheDocument();
+    expect(screen.getByText(/3 waiting on a person, oldest 4 d/)).toBeInTheDocument();
   });
 
   /* Nothing waiting is not a clause reading "0 waiting". A tile that always carries the sentence
@@ -194,9 +194,9 @@ describe('the overview page', () => {
     expect(screen.queryByText(/waiting on a person/)).not.toBeInTheDocument();
     // …and the sublabel it shares a line with survives intact.
     //
-    // `6 of 7 active`, never "6 open". `scoreable` is the open initiatives that declare a flow —
+    // `6 of 7 open initiatives measured`: `scoreable` of `active`. `scoreable` is the open initiatives that declare a flow —
     // the only population a completeness median can be taken over.
-    expect(screen.getByText(/^6 of 7 active/)).toBeInTheDocument();
+    expect(screen.getByText(/^6 of 7 open initiatives measured/)).toBeInTheDocument();
   });
 
   /* The share is the whole point of passing a total, and it is computed against the total
