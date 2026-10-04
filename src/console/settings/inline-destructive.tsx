@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
  * The shape `ApproveAction`'s confirm swap also takes: a button that, on click,
  * replaces itself with "<question>? Cancel / <verb>" in the same spot — no dialog
  * primitive, no second surface to dismiss. Its own component because revoking a
- * token and removing a member are table-row actions, and a `FormPanel` around
+ * token and removing a member are table-row actions, and a form around
  * each row would need a Save button for nothing.
  */
 export function InlineDestructive({
@@ -17,6 +17,7 @@ export function InlineDestructive({
   onConfirm,
   pending,
   size = 'sm',
+  trigger = 'ghost',
 }: {
   label: string;
   question: string;
@@ -24,12 +25,14 @@ export function InlineDestructive({
   onConfirm: () => void;
   pending?: boolean;
   size?: 'sm' | 'md';
+  /** The first button's look: `ghost` in a table row, `secondary` beside a field. */
+  trigger?: 'ghost' | 'secondary';
 }) {
   const [confirming, setConfirming] = useState(false);
 
   if (!confirming) {
     return (
-      <Button type="button" size={size} variant="ghost" onClick={() => setConfirming(true)}>
+      <Button type="button" size={size} variant={trigger} onClick={() => setConfirming(true)}>
         {label}
       </Button>
     );

@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 import { Check, Copy, KeyRound } from 'lucide-react';
-import { Panel } from '@/console/panel';
+import { CardBody } from '@/components/ui/card';
+import { SettingsCard, SettingsSection } from '@/console/settings/section';
 import { Query } from '@/console/query';
-import { FieldGrid, FormPanel } from '@/console/form-panel';
+import { InlineForm } from '@/console/inline-form';
 import { InlineDestructive } from '@/console/settings/inline-destructive';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -131,50 +132,44 @@ export function PlatformPeoplePanel() {
   }
 
   return (
-    <>
+    <SettingsSection
+      title="People"
+      description={`Everyone on this deployment${list.data ? `, ${list.data.length} in all` : ''}. Every change here is logged with who made it, from this console.`}
+    >
       {issued ? (
         <IssuedEnrolmentBanner email={issued.email} url={issued.url} onDismiss={() => setIssued(null)} />
       ) : null}
 
-      <Panel title="People" description={list.data ? `${list.data.length} principals` : undefined} flush>
-        <Query query={list}>
-          {(rows) =>
-            rows.length === 0 ? (
-              <div className="px-5 py-8">
-                <EmptyState title="Nobody yet">Add the first person below.</EmptyState>
-              </div>
-            ) : (
-              <PeopleTable
-                rows={rows}
-                enrolling={enrolMutation.isPending}
-                deactivating={deactivateMutation.isPending}
-                onEnrol={(email) => void enrol(email)}
-                onDeactivate={(email) => void deactivate(email)}
-              />
-            )
-          }
-        </Query>
-      </Panel>
-
-      <FormPanel
-        ariaLabel="Add a person"
-        heading="Add a person"
-        onSubmit={add}
-        busy={addMutation.isPending}
-        canSave={email.trim().length > 0}
-        saveLabel="Add"
-        error={error}
-      >
-        <FieldGrid>
-          <Field label="Email">
-            {(p) => <Input {...p} type="email" value={email} onChange={(e) => setEmail(e.target.value)} />}
-          </Field>
-          <Field label="Display name" hint="optional">
-            {(p) => <Input {...p} value={displayName} onChange={(e) => setDisplayName(e.target.value)} />}
-          </Field>
-        </FieldGrid>
-      </FormPanel>
-    </>
+      <SettingsCard>
+        <CardBody flush>
+          <Query query={list}>
+            {(rows) =>
+              rows.length === 0 ? (
+                <div className="px-5 py-8">
+                  <EmptyState title="Nobody yet">Add the first person below.</EmptyState>
+                </div>
+              ) : (
+                <PeopleTable
+                  rows={rows}
+                  enrolling={enrolMutation.isPending}
+                  deactivating={deactivateMutation.isPending}
+                  onEnrol={(email) => void enrol(email)}
+                  onDeactivate={(email) => void deactivate(email)}
+                />
+              )
+            }
+          </Query>
+          <InlineForm ariaLabel="Add a person" onSubmit={add} busy={addMutation.isPending} canSave={email.trim().length > 0} saveLabel="Add person" error={error}>
+            <Field label="Email">
+              {(p) => <Input {...p} type="email" placeholder="name@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />}
+            </Field>
+            <Field label="Display name" optional>
+              {(p) => <Input {...p} value={displayName} onChange={(e) => setDisplayName(e.target.value)} />}
+            </Field>
+          </InlineForm>
+        </CardBody>
+      </SettingsCard>
+    </SettingsSection>
   );
 }
 

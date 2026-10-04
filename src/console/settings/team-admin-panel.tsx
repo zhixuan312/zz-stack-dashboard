@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Panel } from '@/console/panel';
+import { CardBody } from '@/components/ui/card';
+import { SettingsCard, SettingsSection } from '@/console/settings/section';
 import { TeamMembersPanel } from '@/console/settings/team-members-panel';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -36,33 +37,32 @@ export function TeamAdminPanel() {
   const team = data.superadmin ? manualTeam.trim() : (manualTeam || adminTeams[0] || '');
 
   return (
-    <>
-      <Panel title="Team administration" description="members and roles for a team you administer">
-        <Field label="Team" className="max-w-(--reading-width)" hint={data.superadmin ? 'Any team slug — as a superadmin you administer all of them' : undefined}>
-          {(p) =>
-            data.superadmin ? (
-              <>
-                <Input
-                  {...p}
-                  list="team-admin-suggestions"
-                  placeholder="team slug"
-                  value={manualTeam}
-                  onChange={(e) => setManualTeam(e.target.value)}
-                />
-                <datalist id="team-admin-suggestions">
-                  {adminTeams.map((slug) => <option key={slug} value={slug} />)}
-                </datalist>
-              </>
-            ) : (
-              <Select id={p.id} aria-describedby={p['aria-describedby']} value={team} onValueChange={setManualTeam} options={adminTeams.map((slug) => ({ value: slug, label: slug }))} />
-            )
-          }
-        </Field>
-      </Panel>
-
-      {team ? (
-        <TeamMembersPanel team={team} />
-      ) : null}
-    </>
+    <SettingsSection title="Team administration" description="Members and roles for a team you administer.">
+      <SettingsCard>
+        <CardBody>
+          <Field label="Team" className="max-w-sm" hint={data.superadmin ? 'Any team slug — as a superadmin you administer all of them' : undefined}>
+            {(p) =>
+              data.superadmin ? (
+                <>
+                  <Input
+                    {...p}
+                    list="team-admin-suggestions"
+                    placeholder="team slug"
+                    value={manualTeam}
+                    onChange={(e) => setManualTeam(e.target.value)}
+                  />
+                  <datalist id="team-admin-suggestions">
+                    {adminTeams.map((slug) => <option key={slug} value={slug} />)}
+                  </datalist>
+                </>
+              ) : (
+                <Select id={p.id} aria-describedby={p['aria-describedby']} value={team} onValueChange={setManualTeam} options={adminTeams.map((slug) => ({ value: slug, label: slug }))} />
+              )
+            }
+          </Field>
+        </CardBody>
+        {team ? <TeamMembersPanel team={team} /> : null}
+      </SettingsCard>
+    </SettingsSection>
   );
 }

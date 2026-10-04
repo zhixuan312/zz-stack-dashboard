@@ -1,7 +1,7 @@
 'use client';
 
+import { FormSection, SettingRow } from '@/components/patterns/form-section';
 import { Segmented } from '@/components/ui/segmented';
-import { Panel } from '@/console/panel';
 import { useConsole, useConsoleMode } from '@/lib/api';
 import { type Me } from '@/lib/api-shapes';
 
@@ -22,19 +22,25 @@ export function ConsoleScopePanel() {
   if (!me.data?.superadmin) return null;
 
   return (
-    <Panel title="Console scope" description="superadmin">
-      <div className="flex flex-col gap-3">
-        <p className="text-xs text-ink-3">
-          <strong className="font-medium text-ink-2">Platform</strong> shows the whole
-          fleet — every team&rsquo;s work, plus the teams, plugins, runs and activity that
-          only you can act on.{' '}
-          <strong className="font-medium text-ink-2">Team</strong> is what an ordinary
-          member of {me.data.activeTeam ?? 'your active team'} sees: their team, its
-          initiatives, its knowledge and its people, and nothing else in the rail.
-        </p>
+    <FormSection
+      title="Console scope"
+      description="What the rail and every page show you. Only a superadmin has the choice."
+      footnote="Applies at once, in this browser. The rail's workspace menu offers the same switch."
+    >
+      <SettingRow
+        label="Show"
+        description={
+          <>
+            <strong className="font-medium text-ink-2">Platform</strong>: every team&rsquo;s work, plus the teams,
+            plugins, runs and activity only you can act on.{' '}
+            <strong className="font-medium text-ink-2">Team</strong>: what an ordinary member of{' '}
+            {me.data.activeTeam ?? 'your active team'} sees, and nothing else in the rail.
+          </>
+        }
+      >
         <ModeSwitch me={me.data} />
-      </div>
-    </Panel>
+      </SettingRow>
+    </FormSection>
   );
 }
 

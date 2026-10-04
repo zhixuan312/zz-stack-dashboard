@@ -1,6 +1,5 @@
 'use client';
 
-import { Panel } from '@/console/panel';
 import { PlatformPeoplePanel } from '@/console/settings/platform-people-panel';
 import { PlatformTeamsPanel } from '@/console/settings/platform-teams-panel';
 import { useConsole } from '@/lib/api';
@@ -22,12 +21,6 @@ export function PlatformSection() {
 
   return (
     <>
-      <Panel title="Platform administration" description="every principal and team on this deployment">
-        <p className="text-xs text-ink-3">
-          Add and deactivate people, and create and archive teams. Every write here logs who
-          did it and that it came from this console.
-        </p>
-      </Panel>
       <PlatformPeoplePanel />
       <PlatformTeamsPanel />
     </>

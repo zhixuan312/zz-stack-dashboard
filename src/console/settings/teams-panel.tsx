@@ -1,6 +1,7 @@
 'use client';
 
-import { Panel } from '@/console/panel';
+import { CardBody } from '@/components/ui/card';
+import { SettingsCard, SettingsSection } from '@/console/settings/section';
 import { Query } from '@/console/query';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -37,26 +38,30 @@ export function TeamsPanel() {
   );
 
   return (
-    <Panel title="Teams" description="which one this browser acts for" flush>
-      <Query query={teams}>
-        {(t) => (
-          <TeamsTable
-            t={t}
-            pending={switchTo.isPending}
-            onSwitch={(team) =>
-              switchTo.mutate(
-                { team },
-                {
-                  onSuccess: (r) =>
-                    toast({ tone: 'positive', title: `Now acting for ${r.actingFor}` }),
-                  onError: (e) => toast({ tone: 'critical', title: e.message }),
-                },
-              )
-            }
-          />
-        )}
-      </Query>
-    </Panel>
+    <SettingsSection title="Your teams" description="The teams you belong to, and which one this browser acts for.">
+      <SettingsCard>
+        <CardBody flush>
+          <Query query={teams}>
+            {(t) => (
+              <TeamsTable
+                t={t}
+                pending={switchTo.isPending}
+                onSwitch={(team) =>
+                  switchTo.mutate(
+                    { team },
+                    {
+                      onSuccess: (r) =>
+                        toast({ tone: 'positive', title: `Now acting for ${r.actingFor}` }),
+                      onError: (e) => toast({ tone: 'critical', title: e.message }),
+                    },
+                  )
+                }
+              />
+            )}
+          </Query>
+        </CardBody>
+      </SettingsCard>
+    </SettingsSection>
   );
 }
 

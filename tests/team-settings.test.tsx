@@ -66,8 +66,8 @@ describe('TeamAdminPanel — who sees the team controls', () => {
       // The Select is defaulted to the caller's own (only) admin team, not left empty —
       // its value renders as the trigger's visible text.
       expect(await screen.findByText('team_one')).toBeInTheDocument();
-      // And the members panel for that team is mounted underneath it.
-      await waitFor(() => expect(screen.getByText('Members')).toBeInTheDocument());
+      // And that team's roster is mounted underneath it, with its add form.
+      await waitFor(() => expect(screen.getByRole('form', { name: 'Add a member to team_one' })).toBeInTheDocument());
     } finally {
       restore();
     }

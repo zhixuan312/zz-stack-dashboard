@@ -3,9 +3,10 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Check, Copy } from 'lucide-react';
-import { Panel } from '@/console/panel';
+import { CardBody } from '@/components/ui/card';
 import { Query } from '@/console/query';
-import { FormPanel } from '@/console/form-panel';
+import { InlineForm } from '@/console/inline-form';
+import { SettingsCard, SettingsSection } from '@/console/settings/section';
 import { InlineDestructive } from '@/console/settings/inline-destructive';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -109,36 +110,30 @@ export function TokensPanel() {
   }
 
   return (
-    <>
+    <SettingsSection title="Access tokens" description="For Claude Code or any MCP client, acting as you. A new token is shown once, when it is issued.">
       {issued ? <IssuedTokenBanner issued={issued} onDismiss={() => setIssued(null)} /> : null}
 
-      <Panel title="Access tokens" description="for Claude Code or any MCP client" flush>
-        <Query query={list}>
-          {(rows) =>
-            rows.length === 0 ? (
-              <div className="px-5 py-8">
-                <EmptyState title="No token issued yet">Issue one below to connect a client to this platform as yourself.</EmptyState>
-              </div>
-            ) : (
-              <TokensTable rows={rows} pending={revokeMutation.isPending} onRevoke={(id) => void revoke(id)} />
-            )
-          }
-        </Query>
-      </Panel>
-
-      <FormPanel
-        ariaLabel="Issue a new access token"
-        heading="Issue a new token"
-        onSubmit={issue}
-        busy={issuing}
-        saveLabel="Issue token"
-        error={error}
-      >
-        <Field label="Label" hint="What it is for, e.g. 'laptop — Claude Code'. Optional.">
-          {(p) => <Input {...p} value={label} onChange={(e) => setLabel(e.target.value)} />}
-        </Field>
-      </FormPanel>
-    </>
+      <SettingsCard>
+        <CardBody flush>
+          <Query query={list}>
+            {(rows) =>
+              rows.length === 0 ? (
+                <div className="px-5 py-8">
+                  <EmptyState title="No token issued yet">Issue one below to connect a client to this platform as yourself.</EmptyState>
+                </div>
+              ) : (
+                <TokensTable rows={rows} pending={revokeMutation.isPending} onRevoke={(id) => void revoke(id)} />
+              )
+            }
+          </Query>
+          <InlineForm ariaLabel="Issue a new access token" onSubmit={issue} busy={issuing} saveLabel="Issue token" error={error}>
+            <Field label="New token" optional>
+              {(p) => <Input {...p} placeholder="What it is for, e.g. laptop — Claude Code" value={label} onChange={(e) => setLabel(e.target.value)} />}
+            </Field>
+          </InlineForm>
+        </CardBody>
+      </SettingsCard>
+    </SettingsSection>
   );
 }
 

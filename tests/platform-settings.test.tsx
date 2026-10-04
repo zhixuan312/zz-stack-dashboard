@@ -52,7 +52,7 @@ describe('PlatformSection — who sees the platform controls', () => {
     const { restore, container } = renderSection(me);
     try {
       await waitFor(() => expect(global.fetch).toHaveBeenCalled());
-      expect(screen.queryByText('Platform administration')).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'People' })).not.toBeInTheDocument();
       expect(container).toBeEmptyDOMElement();
     } finally {
       restore();
@@ -64,7 +64,7 @@ describe('PlatformSection — who sees the platform controls', () => {
     const { restore, container } = renderSection(me);
     try {
       await waitFor(() => expect(global.fetch).toHaveBeenCalled());
-      expect(screen.queryByText('Platform administration')).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'People' })).not.toBeInTheDocument();
       expect(container).toBeEmptyDOMElement();
     } finally {
       restore();
@@ -75,9 +75,10 @@ describe('PlatformSection — who sees the platform controls', () => {
     const me: Me = { ...base, superadmin: true, role: 'superadmin', teams: [{ slug: 'zz-platform', role: 'admin' }] };
     const { restore } = renderSection(me);
     try {
-      await waitFor(() => expect(screen.getByText('Platform administration')).toBeInTheDocument());
-      expect(screen.getByText('People')).toBeInTheDocument();
-      expect(screen.getByText('Create a team')).toBeInTheDocument();
+      await waitFor(() => expect(screen.getByRole('heading', { name: 'People' })).toBeInTheDocument());
+      expect(screen.getByRole('form', { name: 'Add a person' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Platform teams' })).toBeInTheDocument();
+      expect(screen.getByRole('form', { name: 'Create a team' })).toBeInTheDocument();
     } finally {
       restore();
     }

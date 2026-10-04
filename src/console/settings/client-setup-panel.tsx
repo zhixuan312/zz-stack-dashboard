@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { Check, Copy } from 'lucide-react';
-import { Panel } from '@/console/panel';
+import { CardBody } from '@/components/ui/card';
+import { SettingsCard, SettingsSection } from '@/console/settings/section';
 import { Query } from '@/console/query';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/toast';
@@ -30,27 +31,27 @@ export function ClientSetupPanel() {
   }
 
   return (
-    <Panel
+    <SettingsSection
       title="Client setup"
-      description={
-        <Button type="button" size="sm" variant="ghost" icon={copied ? <Check /> : <Copy />}
-                onClick={() => setup.data && void copy(setup.data.config)} disabled={!setup.data}>
-          {copied ? 'Copied' : 'Copy'}
-        </Button>
-      }
+      description="What to run in Claude Code to connect it to this platform as you. Put an access token where it says to."
     >
-      <div className="flex flex-col gap-3">
-        <Query query={setup} skeletonRows={4}>
-          {(s) => (
-            <pre className="whitespace-pre-wrap break-all rounded-md bg-surface-sunk p-3 font-mono text-2xs leading-relaxed">
-              {s.config}
-            </pre>
-          )}
-        </Query>
-        <p className="text-xs text-ink-3">
-          Pair this with an access token below — the placeholder in the config needs a real one to connect.
-        </p>
-      </div>
-    </Panel>
+      <SettingsCard>
+        <CardBody>
+          <Query query={setup} skeletonRows={4}>
+            {(s) => (
+              <div className="relative">
+                <pre className="whitespace-pre-wrap rounded-md bg-surface-sunk p-4 pr-24 font-mono text-xs leading-relaxed [overflow-wrap:anywhere]">
+                  {s.config}
+                </pre>
+                <Button type="button" size="sm" variant="secondary" icon={copied ? <Check /> : <Copy />}
+                        onClick={() => void copy(s.config)} className="absolute top-2.5 right-2.5">
+                  {copied ? 'Copied' : 'Copy'}
+                </Button>
+              </div>
+            )}
+          </Query>
+        </CardBody>
+      </SettingsCard>
+    </SettingsSection>
   );
 }

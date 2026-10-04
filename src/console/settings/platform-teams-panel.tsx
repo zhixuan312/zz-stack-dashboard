@@ -1,9 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Panel } from '@/console/panel';
-import { FieldGrid, FormPanel } from '@/console/form-panel';
-import { Row } from '@/components/base/shell';
+import { SettingsCard, SettingsSection } from '@/console/settings/section';
+import { InlineForm } from '@/console/inline-form';
 import { InlineDestructive } from '@/console/settings/inline-destructive';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
@@ -57,33 +56,35 @@ export function PlatformTeamsPanel() {
   }
 
   return (
-    <Row split="1/2">
-      <FormPanel
-        ariaLabel="Create a team"
-        heading="Create a team"
-        onSubmit={create}
-        busy={createMutation.isPending}
-        canSave={slug.trim().length > 0 && name.trim().length > 0}
-        saveLabel="Create"
-        error={createError}
-      >
-        <FieldGrid>
-          <Field label="Slug" hint="lowercase letters, digits, - or _ — the stable identity used everywhere">
-            {(p) => <Input {...p} value={slug} onChange={(e) => setSlug(e.target.value)} />}
+    <SettingsSection
+      title="Platform teams"
+      description="Create a team, or archive one. A slug is lowercase letters, digits, - or _, and never changes. Archiving is undone by creating the same slug again."
+    >
+      <SettingsCard>
+        <InlineForm
+          ariaLabel="Create a team"
+          onSubmit={create}
+          busy={createMutation.isPending}
+          canSave={slug.trim().length > 0 && name.trim().length > 0}
+          saveLabel="Create team"
+          error={createError}
+        >
+          <Field label="New team slug">
+            {(p) => <Input {...p} placeholder="e.g. search-quality" value={slug} onChange={(e) => setSlug(e.target.value)} />}
           </Field>
           <Field label="Name">
             {(p) => <Input {...p} value={name} onChange={(e) => setName(e.target.value)} />}
           </Field>
-        </FieldGrid>
-      </FormPanel>
+        </InlineForm>
 
-      <Panel title="Archive a team" description="reversible — team_create on the same slug restores it">
-        <div className="flex flex-wrap items-end gap-3">
-          <Field label="Team slug" className="flex-1">
-            {(p) => <Input {...p} value={archiveSlug} onChange={(e) => setArchiveSlug(e.target.value)} />}
+        <div className="flex flex-wrap items-end gap-3 border-t border-line px-(--card-pad) py-4">
+          <Field label="Archive a team" className="min-w-0 flex-1 basis-72">
+            {(p) => <Input {...p} placeholder="team slug" value={archiveSlug} onChange={(e) => setArchiveSlug(e.target.value)} />}
           </Field>
           {archiveSlug.trim() ? (
             <InlineDestructive
+              size="md"
+              trigger="secondary"
               label="Archive"
               question={`Archive ${archiveSlug.trim()}? Members lose it from their access.`}
               confirmLabel="Archive"
@@ -91,10 +92,10 @@ export function PlatformTeamsPanel() {
               onConfirm={() => void archive()}
             />
           ) : (
-            <Button type="button" size="sm" variant="ghost" disabled>Archive</Button>
+            <Button type="button" variant="secondary" disabled>Archive</Button>
           )}
         </div>
-      </Panel>
-    </Row>
+      </SettingsCard>
+    </SettingsSection>
   );
 }

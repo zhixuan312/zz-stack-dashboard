@@ -1,9 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Panel } from '@/console/panel';
 import { Query } from '@/console/query';
-import { FieldGrid, FormPanel } from '@/console/form-panel';
+import { InlineForm } from '@/console/inline-form';
 import { InlineDestructive } from '@/console/settings/inline-destructive';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Field } from '@/components/ui/field';
@@ -76,48 +75,42 @@ export function TeamMembersPanel({ team }: { team: string }) {
   }
 
   return (
-    <>
-      <Panel title="Members" description={`${team} — add, remove, or change role`} flush>
-        <Query query={list}>
-          {(rows) =>
-            rows.length === 0 ? (
-              <div className="px-5 py-8">
-                <EmptyState title="Nobody on this team yet">Add the first member below.</EmptyState>
-              </div>
-            ) : (
-              <MembersTable
-                rows={rows}
-                team={team}
-                pending={removeMutation.isPending}
-                onRole={(email, next) => void changeRole(email, next)}
-                onRemove={(email) => void remove(email)}
-              />
-            )
-          }
-        </Query>
-      </Panel>
-
-      <FormPanel
+    <div className="border-t border-line">
+      <Query query={list}>
+        {(rows) =>
+          rows.length === 0 ? (
+            <div className="px-5 py-8">
+              <EmptyState title="Nobody on this team yet">Add the first member below.</EmptyState>
+            </div>
+          ) : (
+            <MembersTable
+              rows={rows}
+              team={team}
+              pending={removeMutation.isPending}
+              onRole={(email, next) => void changeRole(email, next)}
+              onRemove={(email) => void remove(email)}
+            />
+          )
+        }
+      </Query>
+      <InlineForm
         ariaLabel={`Add a member to ${team}`}
-        heading="Add a member"
         onSubmit={add}
         busy={upsertMutation.isPending}
         canSave={email.trim().length > 0}
-        saveLabel="Add"
+        saveLabel="Add member"
         error={error}
       >
-        <FieldGrid>
-          <Field label="Email">
-            {(p) => <Input {...p} type="email" value={email} onChange={(e) => setEmail(e.target.value)} />}
-          </Field>
-          <Field label="Role">
-            {(p) => (
-              <Select id={p.id} aria-describedby={p['aria-describedby']} value={role} onValueChange={(v) => setRole(v as 'member' | 'admin')} options={[{ value: 'member', label: 'Member' }, { value: 'admin', label: 'Admin' }]} />
-            )}
-          </Field>
-        </FieldGrid>
-      </FormPanel>
-    </>
+        <Field label="Email">
+          {(p) => <Input {...p} type="email" value={email} onChange={(e) => setEmail(e.target.value)} />}
+        </Field>
+        <Field label="Role">
+          {(p) => (
+            <Select id={p.id} aria-describedby={p['aria-describedby']} value={role} onValueChange={(v) => setRole(v as 'member' | 'admin')} options={[{ value: 'member', label: 'Member' }, { value: 'admin', label: 'Admin' }]} />
+          )}
+        </Field>
+      </InlineForm>
+    </div>
   );
 }
 
