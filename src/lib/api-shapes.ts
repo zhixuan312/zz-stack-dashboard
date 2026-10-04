@@ -134,6 +134,17 @@ export interface Gate {
   written: boolean;
   after: number;
 }
+/** One gate document a person can sign today: written, not approved, on an open initiative.
+ *
+ *  Its own read — `/initiatives?waiting=1` — because the console's alert bell sits in the frame
+ *  every page renders. Asking for the whole initiative list instead made every page carry a
+ *  stepper and a gate list per initiative, for every initiative the caller may read, to draw a
+ *  badge that is usually empty. */
+export interface WaitingGate {
+  id: string; gate: string; team: string; slug: string; updated: string;
+  /** Where the initiative sits in its flow, for the position line under the row. */
+  stage: string; at: number; of: number;
+}
 /** One node of the diagram, as the API derived it — including the `open` and `closed`
  *  bookends every initiative has and no manifest declares.
  *

@@ -25,7 +25,7 @@ import http from 'node:http';
 import { ME, MY_CLIENT_SETUP, MY_TEAMS, MY_TOKENS, PEOPLE, PLATFORM_PEOPLE, TEAMS, teamDetail, teamMembers } from './people.ts';
 import { ACTIVITY, PLUGINS, SKILLS, overview, pluginEval, runs, skillDetail, skillText } from './platform.ts';
 import { empty, extreme } from './states.ts';
-import { INITIATIVES, KNOWLEDGE, KNOWLEDGE_LOG, documentDetail, documentRevision, initiativeDetail, knowledgeBody } from './work.ts';
+import { INITIATIVES, KNOWLEDGE, KNOWLEDGE_LOG, WAITING, documentDetail, documentRevision, initiativeDetail, knowledgeBody } from './work.ts';
 
 const args = process.argv.slice(2);
 const port = Number(args[args.indexOf('--port') + 1] ?? 0) || 0;
@@ -51,6 +51,9 @@ function read(seg: string[], q: URLSearchParams): Answer {
     case 'overview': return ok(overview(period));
     case 'teams': return a ? or404(teamDetail(a), `team ${a}`) : ok({ teams: TEAMS });
     case 'initiatives':
+      // The bell's own projection — see WAITING in work.ts. It answers before the detail route,
+      // because `?waiting=1` names no initiative of its own.
+      if (q.get('waiting') === '1') return ok({ waiting: mine(WAITING) });
       if (a && b) return or404(initiativeDetail(a, b), `initiative ${a}/${b}`);
       return ok({ initiatives: q.get('team') ? INITIATIVES.filter((i) => i.team === q.get('team')) : mine(INITIATIVES) });
     case 'document': {

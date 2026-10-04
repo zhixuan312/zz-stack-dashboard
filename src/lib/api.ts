@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery, type UseQueryResult } from '@tanstack/react-query';
+import { useQuery, useQueryClient, type Query, type UseQueryResult } from '@tanstack/react-query';
 import { createContext, createElement, useContext, useSyncExternalStore, type ReactNode } from 'react';
 import { preload } from 'react-dom';
 
@@ -119,6 +119,7 @@ function subscribeMode(onChange: () => void) {
  * wins over the me-derived default.
  */
 export function ConsoleModeProvider({ children }: { children: ReactNode }) {
+  const client = useQueryClient();
   const explicitMode = useSyncExternalStore(subscribeMode, readStoredMode, () => null);
   // Not `useConsole('/me')`: that hook reads this context to build its query, and this
   // component is still producing it, so the hook would read whatever is above this provider
@@ -149,7 +150,17 @@ export function ConsoleModeProvider({ children }: { children: ReactNode }) {
   const mode: ConsoleMode = honoured
     ?? (me.data ? (me.data.superadmin ? 'platform' : 'team') : 'platform');
 
+  /* Switching scope by hand is the one act that makes the cached rows the wrong ones: the reads
+   * share one entry across the two scopes (see `useConsole`), so nothing in the key would move
+   * without this. Dropping them leaves the mounted page with no data, which is the skeleton it
+   * shows today, and the next render reads under the scope that was chosen.
+   *
+   * DELIBERATE: `/me` is kept. It answers who is calling, not what they may read, and dropping
+   * it would re-ask a question whose answer is what this switch just acted on. */
   function setMode(next: ConsoleMode) {
+    client.removeQueries({
+      predicate: (q: Query) => q.queryKey[0] === 'console' && q.queryKey[1] !== '/me',
+    });
     writeStoredMode(next);
   }
 
@@ -200,25 +211,51 @@ export function freshnessOf(...queries: { dataUpdatedAt?: number }[]): Date | nu
  * `retry: false` because the two failures that matter — 401 (not signed in) and 403 (signed in,
  * wrong door) — are answers, not outages.
  *
- * COUPLED: the mode is part of the query key. Without it, switching from team to platform mode
- * would serve rows TanStack Query cached for the other scope. `/me` is the one exception: it
- * answers "who is this", not "which team's data", so it carries neither the parameter nor the
- * mode segment — `ConsoleModeProvider` depends on that to avoid refetching `/me` when its own
- * default computation changes the mode.
+ * DELIBERATE: the mode is NOT part of the query key, though it decides the URL. It used to be,
+ * and that cost every member a second read of everything: the mode starts at `platform` while
+ * `/me` is in flight, so a page's first read goes out scoped `platform`; when `/me` answers
+ * "member" the mode becomes `team`, the key changed with it, and the same rows were fetched
+ * again — a wasted round trip and a second full read on every page, for everybody who is not a
+ * superadmin. Keyed on the path alone, that first response is the one the page keeps.
+ *
+ * Sharing one entry across the two scopes is sound because the gateway decides a scope from the
+ * CALLER, not from the parameter: `resolveScope` reads `?scope=platform` only when the caller is
+ * a superadmin, and otherwise answers exactly what the parameterless request would have got
+ * (`scope.ts`). So the response under this key is the caller's own data either way — never
+ * another team's, and never a scope they do not hold.
+ *
+ * The one case where the URL's meaning really does change is a person switching scope by hand,
+ * and `ConsoleModeProvider.setMode` is what answers for it: it drops the console cache, so the
+ * next render re-reads under the scope they chose.
+ *
+ * `/me` is the exception to all of this: it answers "who is this", not "which team's data", so it
+ * carries neither the parameter nor a mode segment — `ConsoleModeProvider` depends on that to
+ * avoid refetching `/me` when its own default computation changes the mode.
  */
 export function useConsole<T>(path: string | null): UseQueryResult<T, ApiError> {
   const { mode } = useConsoleMode();
   const scoped = path !== null && path !== '/me';
   const url = scoped ? withScope(path as string, mode) : path;
-  // A resource hint, written into the page's HTML when it renders on the server: the browser starts the read while
-  // it is still parsing, instead of after the script has downloaded and hydrated, and the fetch below picks the
-  // response up. Still the browser's own request with its own cookie; this app never holds it.
-  if (url !== null) preload(`${BASE}${url}`, { as: 'fetch', crossOrigin: 'anonymous' });
-  return useQuery<T, ApiError>({
-    queryKey: scoped ? ['console', path, mode] : ['console', path],
+  const query = useQuery<T, ApiError>({
+    queryKey: ['console', path],
     queryFn: () => consoleFetch<T>(url as string),
     enabled: path !== null,
     retry: false,
     staleTime: 30_000,
   });
+  /* A resource hint, written into the page's HTML when it renders on the server: the browser
+   * starts the read while it is still parsing, instead of after the script has downloaded and
+   * hydrated, and the fetch above picks the response up. Still the browser's own request with its
+   * own cookie; this app never holds it.
+   *
+   * DELIBERATE: only while this read has neither an answer nor a request in flight. The mode
+   * starts at `platform` and settles on `team` for everybody who is not a superadmin, so the
+   * render that follows `/me` names a second URL for the same read — and hinting that one fetches
+   * in full a payload the page is already waiting for or holding, and will not look at. The hint
+   * that matters is the undecided one, which is what the server rendered and what the browser
+   * starts while it parses. */
+  if (url !== null && !query.dataUpdatedAt && !query.isFetching) {
+    preload(`${BASE}${url}`, { as: 'fetch', crossOrigin: 'anonymous' });
+  }
+  return query;
 }

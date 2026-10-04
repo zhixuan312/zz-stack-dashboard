@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { FileText, GitCompare } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Select } from '@/components/ui/select';
@@ -91,9 +91,15 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
   const after = useRevisionText(doc, pair?.after.last.version);
   const ready = before.body !== undefined && after.body !== undefined;
   const failed = before.failed || after.failed;
-  const lines = ready && !failed ? diffLines(before.body ?? '', after.body ?? '') : [];
-  const stat = diffStat(lines);
-  const { lines: shown, truncated } = collapse(lines);
+  /* Memoised on the two texts, not run in the render body. The diff is the most expensive thing
+   * this component does, and the component re-renders for reasons that have nothing to do with it:
+   * its own change selector, a source expanded, and every re-render above it. `diffLines` trims the
+   * common head and tail before it builds a table, so a pair that differs a little is cheap and one
+   * that differs a lot is not — which is exactly the pair a reader goes looking for. */
+  const { lines: shown, stat, truncated } = useMemo(() => {
+    const lines = ready && !failed ? diffLines(before.body ?? '', after.body ?? '') : [];
+    return { stat: diffStat(lines), ...collapse(lines) };
+  }, [ready, failed, before.body, after.body]);
 
   if (raw.length < 2 && !sources.length) return null;
 

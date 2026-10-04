@@ -2,7 +2,8 @@ import type { Column } from '@/components/patterns/data-table';
 import { Badge } from '@/components/ui/badge';
 import { aligned } from '@/console/columns';
 import { When } from '@/console/when';
-import type { Initiative } from '@/lib/api-shapes';
+import { useConsole } from '@/lib/api';
+import type { Initiative, WaitingGate } from '@/lib/api-shapes';
 import { cn } from '@/lib/cn';
 
 /**
@@ -83,13 +84,12 @@ export function initiativeColumns({ team = false }: { team?: boolean } = {}): Co
   ]);
 }
 
-/** One gate document a person can sign today: written, not approved, on an open initiative. */
-type WaitingGate = { id: string; gate: string; initiative: Initiative };
-
-/** Every gate waiting on a person, newest first. The bell and the Overview read the same list. */
-export function waitingGates(initiatives: Initiative[]): WaitingGate[] {
-  return initiatives
-    .filter((i) => !i.closed)
-    .flatMap((i) => ownGates(i).filter((g) => g.written && !g.passed).map((g) => ({ id: `${i.team}/${i.slug}/${g.name}`, gate: g.name.replace(/^approve /, ''), initiative: i })))
-    .sort((a, b) => b.initiative.updated.localeCompare(a.initiative.updated));
+/** Every gate waiting on a person, newest first. The bell and the Overview read the same list.
+ *
+ *  DELIBERATE: its own read rather than the whole initiative list. The alert bell is inside the
+ *  console frame, which wraps every route, so asking for the list made every page download a
+ *  stepper and a gate list for every initiative the caller may read — kilobytes — to draw a badge
+ *  that is usually empty. The gateway answers this projection in a row per open gate. */
+export function useWaitingGates(enabled = true) {
+  return useConsole<{ waiting: WaitingGate[] }>(enabled ? '/initiatives?waiting=1' : null);
 }

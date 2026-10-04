@@ -7,9 +7,9 @@ import { Rail, type Scope } from '@/components/patterns/rail';
 import { ShellTools, type Alert } from '@/components/patterns/shell-tools';
 import { ConsoleGate } from '@/console/gate';
 import { useConsole, useConsoleMode } from '@/lib/api';
-import type { Initiative, Me } from '@/lib/api-shapes';
+import type { Me } from '@/lib/api-shapes';
 import { navGroups } from '@/nav';
-import { waitingGates } from '@/console/initiative';
+import { useWaitingGates } from '@/console/initiative';
 
 /** Sign out is a POST, so a link prefetch can never end a session: build the form and submit it. */
 function signOut() {
@@ -25,13 +25,13 @@ function signOut() {
  * bell is the one place the console says "this needs you" without being asked.
  */
 function useWaitingAlerts(enabled: boolean): Alert[] {
-  const q = useConsole<{ initiatives: Initiative[] }>(enabled ? '/initiatives' : null);
-  return waitingGates(q.data?.initiatives ?? []).map((w) => ({
+  const q = useWaitingGates(enabled);
+  return (q.data?.waiting ?? []).map((w) => ({
     id: w.id,
     title: `${w.gate[0].toUpperCase()}${w.gate.slice(1)} waits for approval`,
-    detail: `${w.initiative.team} · ${w.initiative.slug}`,
-    at: w.initiative.updated,
-    href: `/initiatives/${w.initiative.team}/${w.initiative.slug}`,
+    detail: `${w.team} · ${w.slug}`,
+    at: w.updated,
+    href: `/initiatives/${w.team}/${w.slug}`,
     tone: 'warning' as const,
     unread: true,
   }));

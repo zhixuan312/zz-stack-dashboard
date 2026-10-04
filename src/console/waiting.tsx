@@ -4,11 +4,9 @@ import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
-import { FlowPosition, waitingGates } from '@/console/initiative';
+import { FlowPosition, useWaitingGates } from '@/console/initiative';
 import { Panel } from '@/console/panel';
 import { When } from '@/console/when';
-import { useConsole } from '@/lib/api';
-import type { Initiative } from '@/lib/api-shapes';
 
 const SHOWN = 4;
 
@@ -17,8 +15,8 @@ const SHOWN = 4;
  * initiative where it is signed. The one panel on the Overview that asks something of the reader.
  */
 export function WaitingPanel() {
-  const q = useConsole<{ initiatives: Initiative[] }>('/initiatives');
-  const waiting = waitingGates(q.data?.initiatives ?? []);
+  const q = useWaitingGates();
+  const waiting = q.data?.waiting ?? [];
   return (
     <Panel
       title="Waiting on you"
@@ -34,13 +32,13 @@ export function WaitingPanel() {
           <ul className="divide-y divide-line">
             {waiting.slice(0, SHOWN).map((w) => (
               <li key={w.id}>
-                <Link href={`/initiatives/${w.initiative.team}/${w.initiative.slug}`} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 gap-y-1.5 px-(--card-pad) py-3.5 transition-colors hover:bg-fill-hover">
+                <Link href={`/initiatives/${w.team}/${w.slug}`} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 gap-y-1.5 px-(--card-pad) py-3.5 transition-colors hover:bg-fill-hover">
                   <span className="min-w-0">
                     <span className="block text-sm font-medium text-ink">{w.gate[0].toUpperCase()}{w.gate.slice(1)} waits for approval</span>
-                    <span className="t-caption block truncate">{w.initiative.team} · {w.initiative.slug}</span>
+                    <span className="t-caption block truncate">{w.team} · {w.slug}</span>
                   </span>
-                  <span className="t-caption justify-self-end whitespace-nowrap"><When at={w.initiative.updated} /></span>
-                  <span className="col-span-2 max-sm:hidden"><FlowPosition at={w.initiative.at} of={w.initiative.of} name={w.initiative.stage} /></span>
+                  <span className="t-caption justify-self-end whitespace-nowrap"><When at={w.updated} /></span>
+                  <span className="col-span-2 max-sm:hidden"><FlowPosition at={w.at} of={w.of} name={w.stage} /></span>
                 </Link>
               </li>
             ))}

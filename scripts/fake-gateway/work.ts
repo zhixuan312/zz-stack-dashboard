@@ -10,7 +10,7 @@
  */
 import type {
   DocumentDetail, DocumentRevision, Gate, Initiative, InitiativeDetail, KnowledgeBody,
-  KnowledgeLogEntry, KnowledgeNode, Step,
+  KnowledgeLogEntry, KnowledgeNode, Step, WaitingGate,
 } from '../../src/lib/api-shapes.ts';
 import { ago } from './clock.ts';
 
@@ -77,6 +77,17 @@ export const INITIATIVES: Initiative[] = SEEDS.map((s) => ({
   accepted: s.outcome === 'accepted', complete: s.outcome === 'accepted' || s.outcome === 'delivered',
   closed: s.outcome !== null, outcome: s.outcome,
 }));
+
+/** What `/initiatives?waiting=1` answers: every gate written and unsigned on an open initiative,
+ *  newest first — the projection the console's alert bell and its Overview panel read instead of
+ *  the whole list. */
+export const WAITING: WaitingGate[] = INITIATIVES
+  .filter((i) => !i.closed)
+  .flatMap((i) => i.gates.filter((g) => g.written && !g.passed).map((g) => ({
+    id: `${i.team}/${i.slug}/${g.name}`, gate: g.name.replace(/^approve /, ''),
+    team: i.team, slug: i.slug, updated: i.updated, stage: i.stage, at: i.at, of: i.of,
+  })))
+  .sort((a, b) => b.updated.localeCompare(a.updated));
 
 type Doc = InitiativeDetail['documents'][number];
 const doc = (path: string, type: string, o: Partial<Doc> & { hours: number; bytes: number }): Doc => ({
