@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Check, Copy, KeyRound } from 'lucide-react';
+import { Check, Copy } from 'lucide-react';
 import { Panel } from '@/console/panel';
 import { Query } from '@/console/query';
-import { FieldGrid, FormPanel } from '@/console/form-panel';
+import { FormPanel } from '@/console/form-panel';
 import { InlineDestructive } from '@/console/settings/inline-destructive';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';

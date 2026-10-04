@@ -28,6 +28,7 @@ export function Providers({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- the stored choice is an external store read once on mount; there is no render-time value to derive it from, because the server render never sees localStorage.
       setPrefs((p) => ({ ...p, ...stored }));
     } catch {
       /* storage unavailable: the defaults stand */

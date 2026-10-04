@@ -8,7 +8,7 @@
  * are composited over the background they sit on, which is itself composited over the ground.
  */
 import { load, resolver, tokensOf, cssValue, NS } from './tokens.ts';
-import { parse, over, ratio, simulate, deltaE, oklchOf, hex, type RGBA } from '../src/lib/color.ts';
+import { parse, over, ratio, simulate, deltaE, oklchOf, hex } from '../src/lib/color.ts';
 
 const TEXT = 4.5, UI = 3;
 type Pair = [fg: string, bg: string | string[], min: number, what: string];

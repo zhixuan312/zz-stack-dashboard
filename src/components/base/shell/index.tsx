@@ -34,9 +34,11 @@ export function AppShell({
   tools?: ReactNode;
   children: ReactNode;
 }) {
-  const [open, setOpen] = useState(false);
   const path = usePathname();
-  useEffect(() => setOpen(false), [path]);
+  // The drawer remembers the page it opened on, so navigating closes it without an effect.
+  const [openOn, setOpenOn] = useState<string | null>(null);
+  const open = openOn === path;
+  const setOpen = (o: boolean) => setOpenOn(o ? path : null);
   return (
     <ShellCtx.Provider value={{ openNav: () => setOpen(true), tools }}>
       <div className="fixed inset-0 isolate flex overflow-hidden">

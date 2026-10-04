@@ -147,7 +147,8 @@ export function DataTable<R>({
   };
   const toggle = (k: string) => {
     const n = new Set(sel);
-    n.has(k) ? n.delete(k) : n.add(k);
+    if (n.has(k)) n.delete(k);
+    else n.add(k);
     onSelectedChange?.(n);
   };
 

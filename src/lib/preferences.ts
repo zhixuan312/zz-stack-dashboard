@@ -1,11 +1,9 @@
 /** Appearance preferences: theme, accent and density, stored on the device and applied as attributes on <html>. */
 import { slug } from '@/app.config';
-const THEMES = ['system', 'dark', 'light'] as const;
 export const ACCENTS = ['indigo', 'cobalt', 'jade', 'graphite', 'zz'] as const;
-const DENSITIES = ['comfortable', 'compact'] as const;
-type ThemePref = (typeof THEMES)[number];
+type ThemePref = 'system' | 'dark' | 'light';
 type Accent = (typeof ACCENTS)[number];
-type Density = (typeof DENSITIES)[number];
+type Density = 'comfortable' | 'compact';
 export type Preferences = { theme: ThemePref; accent: Accent; density: Density };
 
 /** Per product, from the name: two Meridian apps on one host keep their own theme and accent. */

@@ -1,12 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { Users } from 'lucide-react';
 import { Panel } from '@/console/panel';
 import { Query } from '@/console/query';
 import { FieldGrid, FormPanel } from '@/console/form-panel';
 import { InlineDestructive } from '@/console/settings/inline-destructive';
-import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';

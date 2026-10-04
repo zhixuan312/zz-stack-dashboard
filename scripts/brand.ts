@@ -20,7 +20,6 @@ import { parse, rgbToOklab } from '../src/lib/color.ts';
 const ROOT = path.resolve(import.meta.dirname, '..');
 const argv = process.argv.slice(2);
 const opt = (k: string) => { const i = argv.indexOf(k); return i >= 0 ? argv[i + 1] : undefined; };
-const has = (k: string) => argv.includes(k);
 const file = (p: string) => path.join(ROOT, p);
 const read = (p: string) => fs.readFileSync(file(p), 'utf8');
 const write = (p: string, s: string) => fs.writeFileSync(file(p), s);

@@ -24,7 +24,11 @@ export function openCommand() {
 export function CommandPalette({ nav }: { /** Every destination the rail offers, one "Go to" each. */ nav: NavGroup[] }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
-  const [at, setAt] = useState(0);
+  // The cursor belongs to one query: typing, or opening afresh, starts it at the top again without an effect.
+  const [cursor, setCursor] = useState({ key: '', i: 0 });
+  const key = `${open}|${q}`;
+  const at = cursor.key === key ? cursor.i : 0;
+  const setAt = (next: number | ((i: number) => number)) => setCursor({ key, i: typeof next === 'function' ? next(at) : next });
   const list = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const { set } = usePreferences();
@@ -69,7 +73,6 @@ export function CommandPalette({ nav }: { /** Every destination the rail offers,
       .map((x) => x.c);
   }, [q, commands]);
 
-  useEffect(() => setAt(0), [q, open]);
   useEffect(() => {
     list.current?.querySelector(`[data-index="${at}"]`)?.scrollIntoView({ block: 'nearest' });
   }, [at]);

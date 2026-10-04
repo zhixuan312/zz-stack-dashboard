@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Check, Copy, KeyRound, UserPlus } from 'lucide-react';
+import { Check, Copy, KeyRound } from 'lucide-react';
 import { Panel } from '@/console/panel';
 import { Query } from '@/console/query';
 import { FieldGrid, FormPanel } from '@/console/form-panel';

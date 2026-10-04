@@ -19,6 +19,12 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  {
+    // The tooling speaks Chrome's DevTools protocol and reads JSON token files, neither of which has types; `any`
+    // there is the protocol's honest shape, and nothing in scripts/ ships to a browser.
+    files: ['scripts/**/*.ts'],
+    rules: { '@typescript-eslint/no-explicit-any': 'off' },
+  },
 ]);
 
 export default eslintConfig;

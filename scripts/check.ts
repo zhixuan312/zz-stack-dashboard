@@ -117,9 +117,9 @@ const resolveSpec = (from: string, spec: string) => {
 };
 /** For every module: the names a kept importer uses, or '*' when one takes them all. */
 const used = new Map<string, Set<string>>();
-const use = (f: string | null, name: string) => { if (f) used.set(f, (used.get(f) ?? new Set()).add(name)); };
-const useNames = (f: string | null, clause: string) => {
-  for (const part of clause.split(',').map((s) => s.trim()).filter(Boolean)) use(f, part.replace(/^type\s+/, '').split(/\s+as\s+/)[0]);
+const record = (f: string | null, name: string) => { if (f) used.set(f, (used.get(f) ?? new Set()).add(name)); };
+const recordNames = (f: string | null, clause: string) => {
+  for (const part of clause.split(',').map((s) => s.trim()).filter(Boolean)) record(f, part.replace(/^type\s+/, '').split(/\s+as\s+/)[0]);
 };
 for (const f of kept) {
   const src = read(f).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
@@ -127,17 +127,17 @@ for (const f of kept) {
     const to = resolveSpec(f, m[2]);
     if (to === f) continue;
     const clause = m[1].trim();
-    if (/^\*/.test(clause) || clause === '') use(to, '*');
+    if (/^\*/.test(clause) || clause === '') record(to, '*');
     else {
       const def = clause.match(/^([A-Za-z_$][\w$]*)\s*(?:,|$)/);
-      if (def) use(to, 'default');
+      if (def) record(to, 'default');
       const named = clause.match(/\{([^}]*)\}/);
-      if (named) useNames(to, named[1]);
-      if (/,\s*\*\s+as\b/.test(clause)) use(to, '*');
+      if (named) recordNames(to, named[1]);
+      if (/,\s*\*\s+as\b/.test(clause)) record(to, '*');
     }
   }
-  for (const m of src.matchAll(/\bimport\s*['"]([^'"]+)['"]/g)) use(resolveSpec(f, m[1]), '*');
-  for (const m of src.matchAll(/\bimport\(\s*['"]([^'"]+)['"]\s*\)/g)) use(resolveSpec(f, m[1]), '*');
+  for (const m of src.matchAll(/\bimport\s*['"]([^'"]+)['"]/g)) record(resolveSpec(f, m[1]), '*');
+  for (const m of src.matchAll(/\bimport\(\s*['"]([^'"]+)['"]\s*\)/g)) record(resolveSpec(f, m[1]), '*');
 }
 const EXPORT_DECL = /^export\s+(?:declare\s+)?(?:async\s+)?(?:const|let|var|function\*?|class|abstract\s+class|type|interface|enum)\s+([A-Za-z_$][\w$]*)/gm;
 for (const f of walk('src', /\.tsx?$/).filter((x) => SWEPT.test(x) && !/(^|\/)preview\.tsx$/.test(x))) {

@@ -2,7 +2,6 @@
 
 import { Search, X } from 'lucide-react';
 import { forwardRef, useEffect, useImperativeHandle, useRef, type ChangeEvent } from 'react';
-import { cn } from '@/lib/cn';
 import { Input, type InputProps } from '@/components/ui/input';
 import { Kbd } from '@/components/ui/kbd';
 
