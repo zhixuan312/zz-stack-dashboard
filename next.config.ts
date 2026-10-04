@@ -16,6 +16,7 @@ const nextConfig: NextConfig = {
   // Standalone output so a derived app ships as a single container. No effect on
   // `next dev` / `next start`.
   output: 'standalone',
+  devIndicators: false,
   // The tab icon is drawn from the accent tokens when it is first requested.
   outputFileTracingIncludes: { '/icon': ['./tokens/**/*.json'] },
   ...(gateway

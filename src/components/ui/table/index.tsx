@@ -104,10 +104,12 @@ export function TableHeader({
             'group/sort hit -mx-1.5 inline-flex h-7 items-center gap-1 rounded-xs px-1.5 transition-colors hover:bg-fill-hover hover:text-ink',
             sort && 'text-ink',
             align === 'right' && 'flex-row-reverse',
+            align === 'center' && 'relative',
           )}
         >
           {children}
-          <Icon className={cn('size-3 shrink-0', sort ? 'text-accent-ink' : 'opacity-0 group-hover/sort:opacity-100 group-focus-visible/sort:opacity-100')} strokeWidth={2.25} />
+          {/* Centred, the arrow hangs outside the label so the label centres over its cells. */}
+          <Icon className={cn('size-3 shrink-0', align === 'center' && 'absolute -right-3', sort ? 'text-accent-ink' : 'opacity-0 group-hover/sort:opacity-100 group-focus-visible/sort:opacity-100')} strokeWidth={2.25} />
         </button>
       ) : (
         children

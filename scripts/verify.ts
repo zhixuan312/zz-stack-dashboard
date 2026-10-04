@@ -1,15 +1,19 @@
 /**
- * Verify a Meridian project against the standard, in one command: the gate, a production build, the built app
- * started on a free port twice (without the assistant, then with it pointed at a fake LLM), the assistant walk-through
- * (scripts/assistant.ts, which asks, approves and dismisses on /members, then walks the thread, the switch, the layout, a refused key and the key's absence from the browser), the browser audit of every page and embed view against it, every control pressed and every
- * link followed (scripts/interactions.ts), and a report.
+ * Verify the console against the Meridian standard, in one command: the gate, a production build pointed at the fake
+ * gateway (scripts/fake-gateway), the built app started on a free port, the browser audit of every page against it,
+ * every control pressed and every link followed (scripts/interactions.ts), and a report.
  *
- *   pnpm verify [--quick] [--extra /requests/req_1,/customers/acme]
+ *   pnpm verify [--quick] [--extra /teams/atlas,/plugins/sdlc]
+ *
+ * Why a fake gateway: the presses approve, revoke and archive whatever a page offers, so they must never reach the
+ * real deployment. `next.config.ts` bakes `ZZ_GATEWAY` into the build's rewrites, so the gateway starts first and the
+ * build is made against it. That build is for checking only; the image the release ships is built without it.
+ *
+ * Meridian's own verify also walks its assistant; the console has not adopted the assistant, so it has no such step.
  *
  * Exit 0 only when everything passes. The report is written to out/verify.txt.
  */
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
-import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
@@ -26,9 +30,10 @@ const finish = (code: number) => {
 
 const freePort = () => new Promise<number>((res) => { const s = net.createServer(); s.listen(0, () => { const p = (s.address() as net.AddressInfo).port; s.close(() => res(p)); }); });
 
-// The assistant is off unless configured: the build and the first start must not see the caller's own variables.
+// The build must not see a gateway from the caller's own environment: only the fake one.
 const clean: NodeJS.ProcessEnv = { ...process.env };
-for (const k of Object.keys(clean)) if (k.startsWith('ASSISTANT_')) delete clean[k];
+delete clean.ZZ_GATEWAY;
+delete clean.ZZ_DEV_PAT;
 
 function step(name: string, cmd: string, args: string[], env = clean) {
   const t = Date.now();
@@ -42,7 +47,6 @@ function step(name: string, cmd: string, args: string[], env = clean) {
 const children: ChildProcess[] = [];
 const stopAll = () => { for (const c of children) { try { process.kill(-c.pid!, 'SIGTERM'); } catch { /* already gone */ } } };
 process.on('exit', stopAll);
-const stop = (c: ChildProcess) => { try { process.kill(-c.pid!, 'SIGTERM'); } catch { /* already gone */ } };
 
 /** Start the built app on a free port with the given environment and wait until it answers. */
 async function start(env: NodeJS.ProcessEnv) {
@@ -65,35 +69,21 @@ const run = (script: string, extra: string[], env: NodeJS.ProcessEnv = process.e
   child.on('close', (status) => resolve({ status, out: out.trim() }));
 });
 
-step('gate: tokens, registry, specifications, contrast, types, tests', 'node', ['scripts/gate.ts']);
-step('production build', 'pnpm', ['exec', 'next', 'build']);
+step('gate: tokens, specifications, contrast, types, tests', 'node', ['scripts/gate.ts']);
 
-// Start 1: no variables. The assistant must be absent.
-const first = await start(clean);
-const off = await run('scripts/assistant.ts', ['--base', `http://127.0.0.1:${first.port}`, '--expect', 'off'], clean);
-stop(first.server);
-log(off.out);
-if (off.status !== 0) { log('FAIL assistant off'); finish(1); }
-
-// Start 2: pointed at the fake LLM. The audit and the presses then see the launcher.
-const fake = spawn('node', ['scripts/fake-llm.ts', '--port', '0'], { cwd: ROOT, stdio: ['ignore', 'pipe', 'inherit'], detached: true });
-children.push(fake);
-const llmUrl = await new Promise<string>((resolve) => {
+// The fake gateway first: its address goes into the build.
+const gateway = spawn('node', ['scripts/fake-gateway/server.ts', '--port', '0'], { cwd: ROOT, stdio: ['ignore', 'pipe', 'inherit'], detached: true });
+children.push(gateway);
+const gatewayUrl = await new Promise<string>((resolve) => {
   let buf = '';
-  fake.stdout!.on('data', (d) => { buf += d; const m = /fake-llm listening on (\S+)/.exec(buf); if (m) resolve(m[1]); });
-  fake.on('close', () => resolve(''));
+  gateway.stdout!.on('data', (d) => { buf += d; const m = /fake-gateway listening on (\S+)/.exec(buf); if (m) resolve(m[1]); });
+  gateway.on('close', () => resolve(''));
 });
-if (!llmUrl) { log('FAIL the fake LLM did not start'); finish(1); }
-// A distinctive key per run: the walk-through searches everything the browser can get for it.
-const key = `verify-${randomBytes(16).toString('hex')}`;
-const { port } = await start({ ...clean, ASSISTANT_PROVIDER: 'openai-compatible', ASSISTANT_BASE_URL: llmUrl, ASSISTANT_API_KEY: key, ASSISTANT_MODEL: 'fake' });
-log(`ok   the built app is serving on port ${port}`);
-
-// The walk-through changes the sample's data (it suspends members), so it runs first and alone; the audit and the
-// presses then run on what it left, and their presses never change what it reads.
-const on = await run('scripts/assistant.ts', ['--base', `http://127.0.0.1:${port}`, '--expect', 'on', '--llm', llmUrl, '--key', key]);
-log(on.out);
-if (on.status !== 0) log('FAIL assistant on');
+if (!gatewayUrl) { log('FAIL the fake gateway did not start'); finish(1); }
+const withGateway: NodeJS.ProcessEnv = { ...clean, ZZ_GATEWAY: gatewayUrl };
+step('production build, against the fake gateway', 'pnpm', ['exec', 'next', 'build'], withGateway);
+const { port } = await start(withGateway);
+log(`ok   the built app is serving on port ${port}, reading the fake gateway at ${gatewayUrl}`);
 
 // The audit and the presses each run their own browser, so they run side by side against the one built app.
 const t = Date.now();
@@ -105,6 +95,6 @@ log(presses.status === 0 ? 'ok   every control and link works' : 'FAIL controls 
 log(presses.out.split('\n').slice(-40).join('\n'));
 log(`(browser checks ${((Date.now() - t) / 60_000).toFixed(1)} min)`);
 stopAll();
-const ok = audit.status === 0 && presses.status === 0 && on.status === 0;
+const ok = audit.status === 0 && presses.status === 0;
 log(ok ? '\nverify: the project meets the Meridian standard' : '\nverify: fix the issues above and run pnpm verify again');
 finish(ok ? 0 : 1);

@@ -11,6 +11,7 @@ export function BarList({
   format = (n) => n.toLocaleString('en-US'),
   highlight,
   limit = 6,
+  total,
   label,
   className,
 }: {
@@ -19,20 +20,25 @@ export function BarList({
   /** The key of the one row worth pointing at. Omit it and every bar is neutral. */
   highlight?: string;
   limit?: number;
+  /** The whole the rows are a share of: each bar's length is its value over this, and its share shows on hover. Left
+   * out, bars are drawn against the largest row. */
+  total?: number;
   label: string;
   className?: string;
 }) {
   const sorted = [...items].sort((a, b) => b.value - a.value);
-  const shown = sorted.slice(0, limit);
-  const rest = sorted.slice(limit);
+  // One row past the limit is shown as itself: "1 other" hides a name to save no space.
+  const cut = sorted.length === limit + 1 ? limit + 1 : limit;
+  const shown = sorted.slice(0, cut);
+  const rest = sorted.slice(cut);
   if (rest.length) shown.push({ key: '__others', label: `${rest.length} others`, value: rest.reduce((a, b) => a + b.value, 0) });
-  const max = Math.max(1, ...shown.map((i) => i.value));
+  const max = Math.max(1, total ?? 0, ...shown.map((i) => i.value));
   return (
     <ul aria-label={label} className={cn('flex flex-col gap-3.5', className)}>
       {shown.map((it, n) => {
         const hot = it.key === highlight;
         return (
-          <li key={it.key} className="group/bar">
+          <li key={it.key} className="group/bar" title={total ? `${((it.value / Math.max(1, total)) * 100).toFixed(1)}% of ${format(total)}` : undefined}>
             <div className="mb-1.5 flex items-baseline gap-3 text-sm">
               <span className={cn('min-w-0 flex-1 truncate', hot ? 'font-medium text-ink' : 'text-ink-2', it.key === '__others' && 'text-ink-3')}>{it.label}</span>
               {it.meta ? <span className="t-caption hidden sm:inline">{it.meta}</span> : null}

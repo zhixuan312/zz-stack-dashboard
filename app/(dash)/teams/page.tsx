@@ -1,151 +1,76 @@
 'use client';
 
-import { useState } from 'react';
-import Link from 'next/link';
-import { SearchX } from 'lucide-react';
-import { DashboardPage } from '@/console-old/DashboardPage';
-import { Facet, tally } from '@/console-old/TableFacet';
-import { Panel } from '@/console-old/Panel';
-import { Query } from '@/console-old/Query';
-import {
-  Badge, Button, EmptyState, PageControl, SearchInput, Table, TableBody, TableCell, TableHead,
-  TableHeader, TableRow, Toolbar, usePaged,
-} from '@/console-old/ui';
+import { useMemo } from 'react';
+import { DataTable, useQueryState, type Column } from '@/components/patterns/data-table';
+import { FilterBar } from '@/components/patterns/filter-bar';
+import { Badge } from '@/components/ui/badge';
+import { aligned } from '@/console/columns';
+import { ConsolePage } from '@/console/page';
+import { freshnessOf, useConsole } from '@/lib/api';
+import type { Team } from '@/lib/api-shapes';
 import { formatCount } from '@/lib/format';
-import { freshnessOf, useConsole, useConsoleMode } from '@/lib/api';
-import { type Team } from '@/lib/api-shapes';
 
+/** A zero is a dash: a team with no documents has nothing to count, and "0" reads as a measured result. */
+const count = (n: number) => (n ? formatCount(n) : '—');
+
+const columns: Column<Team>[] = aligned([
+  {
+    key: 'team', header: 'Team', grow: true, mobile: 'title', sortValue: (t) => t.slug,
+    cell: (t) => (
+      <span className="block min-w-0">
+        <span className="block truncate font-medium text-ink">{t.slug}</span>
+        {t.name !== t.slug ? <span className="t-caption block truncate">{t.name}</span> : null}
+      </span>
+    ),
+    mobileCell: (t) => t.slug,
+  },
+  // Colour only where a row needs a look: active is the normal case, so it stays quiet.
+  { key: 'status', header: 'Status', mobile: 'status', sortValue: (t) => t.status, cell: (t) => <Badge tone={t.status === 'active' ? 'neutral' : 'warning'} dot>{t.status === 'active' ? 'Active' : 'Archived'}</Badge> },
+  { key: 'members', header: 'People', numeric: true, hideBelow: 'md', sortValue: (t) => t.members, cell: (t) => count(t.members) },
+  { key: 'initiatives', header: 'Initiatives', numeric: true, mobile: 'fact', sortValue: (t) => t.initiatives, cell: (t) => count(t.initiatives), mobileCell: (t) => `${count(t.initiatives)} initiatives` },
+  { key: 'documents', header: 'Documents', numeric: true, hideBelow: 'lg', mobile: 'fact', sortValue: (t) => t.documents, cell: (t) => count(t.documents), mobileCell: (t) => `${count(t.documents)} documents` },
+  { key: 'sources', header: 'Sources', numeric: true, hideBelow: 'xl', sortValue: (t) => t.sources, cell: (t) => count(t.sources) },
+  { key: 'knowledge', header: 'Knowledge', numeric: true, hideBelow: 'lg', sortValue: (t) => t.knowledge, cell: (t) => count(t.knowledge) },
+]);
+
+/** Every team on the platform: who is in it and what it holds. A platform page; a member's own team is the Overview. */
 export default function TeamsPage() {
-  const { mode } = useConsoleMode();
   const q = useConsole<{ teams: Team[] }>('/teams');
+  const [f, set] = useQueryState({ q: '', status: 'all', sort: 'initiatives', dir: 'desc', page: '1' });
+  const teams = useMemo(() => q.data?.teams ?? [], [q.data]);
+  const rows = useMemo(() => {
+    const needle = f.q.trim().toLowerCase();
+    return teams.filter((t) => (f.status === 'all' || t.status === f.status) && (!needle || t.slug.includes(needle) || t.name.toLowerCase().includes(needle)));
+  }, [teams, f.q, f.status]);
+  const filtered = f.q !== '' || f.status !== 'all';
+  const clear = () => set({ q: '', status: 'all', page: '1' });
 
   return (
-    <DashboardPage
-      title="Teams"
-      description={mode === 'team'
-        ? 'Your team: who is in it and what it holds.'
-        : 'Every team on the platform: who is in it and what it holds.'}
-      showPeriod={false}
-      updatedAt={freshnessOf(q)}
-    >
-      <Query query={q}>
-        {(d) => (
-          <TeamsPanel teams={d.teams} />
-        )}
-      </Query>
-    </DashboardPage>
-  );
-}
-
-/** Count headers never wrap; where each column aligns is the Table's own rule. */
-const NUM = 'whitespace-nowrap';
-
-/**
- * Its own component so it can hold the filter and page state.
- *
- * COUPLED: the toolbar matches `InitiativeTable` on /initiatives — a search box, then the
- * facets, with the pager below the table.
- */
-function TeamsPanel({ teams }: { teams: Team[] }) {
-  const [filter, setFilter] = useState('');
-  const [status, setStatus] = useState<string | null>(null);
-
-  const needle = filter.trim().toLowerCase();
-  const rows = teams.filter((t) =>
-    (!needle || t.slug.toLowerCase().includes(needle) || t.name.toLowerCase().includes(needle))
-    && (!status || t.status === status));
-
-  return (
-    <Panel
-      title="All teams"
-      // The shown count and the total, so a filtered header never claims rows it is hiding.
-      aside={rows.length === teams.length
-        ? `${teams.length} total`
-        : `${rows.length} of ${teams.length}`}
-      padded={false}
-    >
-      {teams.length === 0
-        ? <p className="p-6 text-sm text-ink-faint">No team yet.</p>
-        : (
-          <>
-            <Toolbar className="border-b border-line p-3">
-              <SearchInput label="teams" value={filter} onChange={setFilter} />
-              {/* Counted over every team rather than over the filtered rows, so the numbers
-                  beside the options do not change as the search narrows. */}
-              <Facet all="All statuses" values={tally(teams.map((t) => t.status))}
-                     value={status} onChange={setStatus} />
-            </Toolbar>
-            {rows.length === 0
-              ? (
-                <EmptyState
-                  illustration={{ src: '/assets/brand/state-empty.png', width: 96, height: 96 }}
-                  icon={<SearchX className="size-5" aria-hidden />}
-                  title="No team matches"
-                  description="Nothing here matches the search and filter above."
-                  action={<Button variant="secondary" onClick={() => { setFilter(''); setStatus(null); }}>Clear</Button>}
-                />
-              )
-              : <TeamTable teams={rows} resetKey={`${needle}|${status ?? ''}`} />}
-          </>
-        )}
-    </Panel>
-  );
-}
-
-function TeamTable({ teams, resetKey }: { teams: Team[]; resetKey: string }) {
-  const { page, controls } = usePaged(teams, resetKey);
-  const count = (n: number) => (n ? formatCount(n) : '—');
-  return (
-    <>
-      {/* How the width is shared: every count column is the same width, Team gets a share of
-          its own, Status is as wide as its badge, and the spare width is spread across all of
-          them rather than handed to one. Headers never wrap; where each column aligns is the
-          Table primitive's rule, not this page's. */}
-      <Table className="table-fixed">
-        <colgroup>
-          <col className="w-3/5 md:w-[18%]" />
-          <col className="hidden w-28 md:table-column" />
-          <col className="hidden md:table-column" />
-          <col />
-          <col className="hidden xl:table-column" />
-          <col className="hidden xl:table-column" />
-          <col className="hidden lg:table-column" />
-        </colgroup>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Team</TableHead>
-            <TableHead hideBelow="md" className={NUM}>Status</TableHead>
-            <TableHead hideBelow="md" className={NUM}>People</TableHead>
-            <TableHead className={NUM}>Initiatives</TableHead>
-            <TableHead hideBelow="xl" className={NUM}>Documents</TableHead>
-            <TableHead hideBelow="xl" className={NUM}>Sources</TableHead>
-            <TableHead hideBelow="lg" className={NUM} title="Knowledge nodes on the team's shelf">Knowledge</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {page.map((t) => (
-            <TableRow key={t.slug}>
-              <TableCell>
-                <Link href={`/teams/${t.slug}`} className="row-link font-medium text-ink">
-                  {t.slug}
-                </Link>
-                {t.name !== t.slug ? <span className="block text-xs text-ink-faint">{t.name}</span> : null}
-              </TableCell>
-              <TableCell hideBelow="md">
-                <Badge variant={t.status === 'active' ? 'sage' : 'neutral'} dot>
-                  {t.status}
-                </Badge>
-              </TableCell>
-              <TableCell hideBelow="md" className="tabular-nums">{t.members}</TableCell>
-              <TableCell className="tabular-nums">{count(t.initiatives)}</TableCell>
-              <TableCell hideBelow="xl" className="tabular-nums">{count(t.documents)}</TableCell>
-              <TableCell hideBelow="xl" className="tabular-nums">{count(t.sources)}</TableCell>
-              <TableCell hideBelow="lg" className="tabular-nums">{count(t.knowledge)}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      <PageControl {...controls} />
-    </>
+    <ConsolePage title="Teams" description="Every team on the platform: who is in it and what it holds." showPeriod={false} updatedAt={freshnessOf(q)}>
+      <DataTable
+        caption="Teams"
+        noun="teams"
+        rows={rows}
+        columns={columns}
+        rowKey={(t) => t.slug}
+        rowHref={(t) => `/teams/${t.slug}`}
+        loading={q.isPending}
+        error={q.error?.message}
+        onRetry={() => void q.refetch()}
+        state={{ sort: f.sort, dir: f.dir, page: f.page }}
+        onStateChange={set}
+        filtered={filtered}
+        onClearFilters={clear}
+        empty={{ title: 'No team yet', body: 'A superadmin creates the first one in Settings.' }}
+        toolbar={
+          <FilterBar
+            search={{ value: f.q, onChange: (v) => set({ q: v, page: '1' }), placeholder: 'Search teams' }}
+            filters={[{ key: 'status', label: 'Status', value: f.status, onChange: (v) => set({ status: v, page: '1' }), options: [{ value: 'all', label: 'All' }, { value: 'active', label: 'Active' }, { value: 'archived', label: 'Archived' }] }]}
+            result={<>{rows.length} of {teams.length}</>}
+            onClear={clear}
+          />
+        }
+      />
+    </ConsolePage>
   );
 }

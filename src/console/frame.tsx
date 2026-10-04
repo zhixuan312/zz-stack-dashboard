@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { Suspense, type ReactNode } from 'react';
 import { AppShell } from '@/components/base/shell';
 import { CommandPalette } from '@/components/patterns/command-palette';
 import { Rail, type Scope } from '@/components/patterns/rail';
@@ -63,7 +63,8 @@ export function ConsoleFrame({ children }: { children: ReactNode }) {
       rail={<Rail nav={nav} workspace={mode === 'platform' ? 'The platform' : team ?? 'Your team'} scopes={scopes} user={user} signOut={signedIn ? signOut : null} />}
       tools={<ShellTools alerts={alerts} />}
     >
-      <ConsoleGate>{children}</ConsoleGate>
+      {/* Pages keep their filters in the address (useQueryState), which suspends while the search params resolve. */}
+      <ConsoleGate><Suspense fallback={null}>{children}</Suspense></ConsoleGate>
       <CommandPalette nav={nav} />
     </AppShell>
   );

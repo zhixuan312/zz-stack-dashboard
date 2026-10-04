@@ -30,6 +30,7 @@ export function TrendChart({
   height = 248,
   label,
   legend,
+  tick,
   className,
 }: {
   dates: string[];
@@ -41,6 +42,8 @@ export function TrendChart({
   label: string;
   /** The legend above the plot. On by default when there are two or more series; a single series is named by its card. */
   legend?: boolean;
+  /** How a point's instant reads, on the axis and in the readout, when the points are not days: "14:00", "Week of 3 Mar". */
+  tick?: (date: string) => string;
   className?: string;
 }) {
   const [box, size] = useSize<HTMLDivElement>();
@@ -135,7 +138,7 @@ export function TrendChart({
           ))}
           {xLabels.map(({ d, i }) => (
             <text key={d} x={x(i)} y={h - 6} textAnchor={i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'} className="fill-ink-3 text-2xs">
-              {formatDate(d).replace(/,? \d{4}$/, '')}
+              {tick ? tick(d) : formatDate(d).replace(/,? \d{4}$/, '')}
             </text>
           ))}
           {paths.map(({ s, area, line }) => (
@@ -192,7 +195,7 @@ export function TrendChart({
           )}
           style={{ top: pad.t - 4, left: tipLeft ? undefined : cx + 12, right: tipLeft ? width - cx + 12 : undefined }}
         >
-          <p className="t-eyebrow mb-1.5">{formatDate(dates[active])}</p>
+          <p className="t-eyebrow mb-1.5">{tick ? tick(dates[active]) : formatDate(dates[active])}</p>
           {series.map((s) => (
             <p key={s.key} className="flex items-center gap-2 text-xs leading-6">
               <span className="h-0.5 w-2.5 rounded-full" style={{ background: SERIES_VAR(s.color ?? (s.kind === 'dashed' ? 'neutral' : 'accent')) }} />
