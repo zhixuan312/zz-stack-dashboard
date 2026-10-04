@@ -138,7 +138,7 @@ export function pluginEval(plugin: string): PluginEval {
     weight: 0.25, required: true, measuresScored: applicable ? 3 : 0, measuresTotal: 3,
     measures: [
       { key: `${key}.rate`, evaluatorType: 'computed', weight: 0.5, required: true, value: score, excluded: false, excludedReason: null, guardrail: false },
-      { key: `${key}.judged`, evaluatorType: 'model', weight: 0.5, required: false, value: score === null ? null : score - 0.4, excluded: !applicable, excludedReason: applicable ? null : 'not applicable', guardrail: false },
+      { key: `${key}.judged`, evaluatorType: 'model', weight: 0.5, required: false, value: score === null ? null : score - 0.04, excluded: !applicable, excludedReason: applicable ? null : 'not applicable', guardrail: false },
     ],
   });
   const finding = (id: string, pattern: string, decision: string) => ({ id, pattern, ownerKind: 'plugin', ownerRef: 'sdlc', evidenceRefs: 4, expectedEffect: null, decision, decisionNote: decision === 'deferred' ? null : 'Applied in 0.92.10.' });
@@ -149,7 +149,7 @@ export function pluginEval(plugin: string): PluginEval {
       id: 'run_sdlc_12', runStatus: 'completed', scoreStatus: 'established', overallScore: 8.64, scoreInterval: null, guardrailStatus: 'pass',
       guardrails: [{ key: 'refusal-rate', threshold: 0.1, value: 0.031, status: 'pass' }, { key: 'abandoned-runs', threshold: 0.2, value: null, status: 'not_established' }],
       protocol: { key: 'sdlc-protocol', version: 3 }, createdAt: ago(20),
-      dimensions: [dim('completion', 'outcome', 9.1), dim('gate-discipline', 'process', 8.8), dim('evidence', 'quality', 7.9), dim('handover', 'outcome', null, false)],
+      dimensions: [dim('completion', 'outcome', 0.91), dim('gate-discipline', 'process', 0.88), dim('evidence', 'quality', 0.79), dim('handover', 'outcome', null, false)],
       coverage: { usableRunCount: 61, totalRunCount: 68, surfaceObserved: 14, surfaceTotal: 16 },
     },
     evaluatorTrust: [{ stableKey: 'judge.evidence.v2', state: 'qualified', qualifiedAt: ago(200) }, { stableKey: 'judge.handover.v1', state: null, qualifiedAt: null }],

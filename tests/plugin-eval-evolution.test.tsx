@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { EvalAutomationTrust, EvalEvolution } from '@/console-old/PluginEvalEvolution';
+import { EvalAutomationTrust, EvalEvolution } from '@/console/plugin-eval-evolution';
 import type { PluginEval } from '@/lib/api-shapes';
 
 type Candidate = PluginEval['candidates'][number];

@@ -1,268 +1,143 @@
 'use client';
 
 import { use } from 'react';
-import { Package } from 'lucide-react';
-import Link from 'next/link';
-import { DashboardPage } from '@/console-old/DashboardPage';
-import { Panel } from '@/console-old/Panel';
-import { Query } from '@/console-old/Query';
-import {
-  Badge, EmptyState, PageControl, Row, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Time, usePaged,
-} from '@/console-old/ui';
-import { EvalHeadline, EvalHealth, EvalQuality } from '@/console-old/PluginEvalOverview';
-import { EvalLearning, EvalNotYet, EvalUsage } from '@/console-old/PluginEvalEvidence';
-import { EvalAutomationTrust, EvalEvolution } from '@/console-old/PluginEvalEvolution';
-import { formatCount } from '@/lib/format';
+import { Activity, CircleOff, Lock, Puzzle } from 'lucide-react';
+import { Row } from '@/components/base/shell';
+import { DataTable, type Column } from '@/components/patterns/data-table';
+import { MetricTile } from '@/components/patterns/metric-tile';
+import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/ui/empty-state';
+import { KeyValue } from '@/components/ui/key-value';
+import { Skeleton } from '@/components/ui/skeleton';
+import { aligned } from '@/console/columns';
+import { ConsolePage } from '@/console/page';
+import { Panel } from '@/console/panel';
+import { EvalLearning, EvalNotYet, EvalUsage } from '@/console/plugin-eval-evidence';
+import { EvalAutomationTrust, EvalEvolution } from '@/console/plugin-eval-evolution';
+import { EvalHeadline, EvalHealth, EvalQuality } from '@/console/plugin-eval-overview';
+import { Query } from '@/console/query';
+import { When } from '@/console/when';
 import { freshnessOf, useConsole } from '@/lib/api';
-import { type PluginEval, type PluginRow } from '@/lib/api-shapes';
+import type { PluginEval, PluginRow } from '@/lib/api-shapes';
+import { formatCount } from '@/lib/format';
+
+type PluginSkill = PluginRow['skills'][number];
+
+function skillColumns(plugin: string): Column<PluginSkill>[] {
+  return aligned([
+    {
+      // The stage number prefixes the name: the front door is unnumbered, because it is not step zero, it is the plugin.
+      key: 'skill', header: 'Skill', grow: true, mobile: 'title',
+      cell: (s) => (
+        <span className="flex min-w-0 items-baseline gap-2">
+          <span className="t-num w-4 shrink-0 text-right text-xs text-ink-3">{s.position ?? '—'}</span>
+          <span className="font-medium text-ink">{s.name}</span>
+          {s.isEntry ? <span className="t-caption">the front door</span> : null}
+        </span>
+      ),
+      mobileCell: (s) => s.name,
+    },
+    // A skill's origin comes from a `source:` line in its own SKILL.md, so it varies the day a vendored skill ships.
+    { key: 'whose', header: 'Whose', hideBelow: 'md', mobile: 'status', cell: (s) => (s.origin === 'theirs' ? <Badge tone="accent">The {plugin} team&rsquo;s</Badge> : <Badge tone="neutral">Ours</Badge>) },
+    { key: 'versions', header: 'Versions', numeric: true, hideBelow: 'lg', cell: (s) => s.versions || '—' },
+    { key: 'calls', header: 'Calls', numeric: true, mobile: 'fact', cell: (s) => (s.everRun ? formatCount(s.calls) : '—'), mobileCell: (s) => (s.everRun ? `${formatCount(s.calls)} calls` : 'Never run') },
+    { key: 'last', header: 'Last run', numeric: true, hideBelow: 'md', cell: (s) => (s.lastRun ? <When at={s.lastRun} /> : <span className="text-ink-3">Never run</span>) },
+  ]);
+}
+
+/** Nothing any evidence panel could draw: no completed run, no finding, no candidate. */
+function notYet(e: PluginEval): boolean {
+  const f = e.found ? e.findings : null;
+  return !e.run && (f ? f.strengths.length + f.defects.length + f.unknowns.length : 0) === 0 && e.candidates.length === 0;
+}
 
 /**
- * Layer two: one plugin — what it is, what it reaches, every skill it ships, and (spec v8
- * FR-55) its whole plugin-evaluation story: overall score/status/protocol first, then Health,
- * Quality, Usage, Learning, Evolution, Automation & Trust.
- *
- * DELIBERATE: the catalog half (`/plugins`) reads the same payload as the list rather than a
- * per-plugin endpoint — there is a handful of plugins and the response is small, and a second
- * endpoint returning a subset of the first is a second place for the shape to drift.
- *
- * The eval half is a second, independent query (`/plugins/:plugin/eval`) against `zz.plugin`
- * directly, because a `plugin_register`ed third-party subject has no catalog entry at all — see
- * that route's own module header in zz-stack. `pluginEval.found` therefore gates the eval
- * sections on its own; `p` (the catalog row) gates only About/documents/skills, so a third-party
- * plugin still shows its whole evaluation story with no manifest panel above it.
- *
- * Its skills, not its stages: the manifest's stages are the method's running order and not
- * its contents, and a plugin ships more skills than it declares stages. A stage's position
- * is shown where the method declares one; a skill that is simply shipped shows none.
+ * One plugin: what it is, what it reaches, every skill it ships, and its whole evaluation story (score and protocol
+ * first, then health, quality, usage, learning, evolution, automation and trust). The evaluation is its own read: a
+ * third-party subject registered with plugin_register has no catalog entry at all, so it still shows its evaluation
+ * with no manifest above it.
  */
 export default function PluginPage({ params }: { params: Promise<{ plugin: string }> }) {
   const { plugin } = use(params);
   const q = useConsole<{ plugins: PluginRow[] }>('/plugins');
   const qEval = useConsole<PluginEval>(`/plugins/${plugin}/eval`);
   const p = q.data?.plugins.find((x) => x.plugin === plugin);
+  // Stages first and in order, then everything else the plugin ships: alphabetical would put step 6 above step 2.
+  const skills = p ? [...p.skills].sort((a, b) => (a.position ?? Infinity) - (b.position ?? Infinity) || a.name.localeCompare(b.name)) : [];
 
   return (
-    <DashboardPage
-      title={p && p.agentName ? `${plugin} — ${p.agentName}` : plugin}
-      breadcrumb={[{ label: 'Plugins', href: '/plugins' }, { label: plugin }]}
-      // DELIBERATE: no subtitle. The manifest description runs to two lines and is the first
-      // thing "What this plugin is" says, lower down.
+    <ConsolePage
+      title={plugin}
+      crumbs={[{ label: 'Plugins', href: '/plugins' }]}
+      description={p ? p.description ?? p.agentName ?? undefined : undefined}
       showPeriod={false}
       updatedAt={freshnessOf(q, qEval)}
-      metrics={
-        p
-          ? [
-              { label: 'Skills', value: String(p.skills.length),
-                sublabel: p.stages.length ? `${p.stages.length} of them stages, in order` : 'no declared method' },
-              { label: 'Gates', value: String(p.gates),
-                sublabel: p.gates ? 'a person must approve' : 'an assistant, not a delivery method' },
-              { label: 'Calls', value: formatCount(p.calls),
-                sublabel: p.failed ? `${formatCount(p.failed)} refused` : 'none refused' },
-              { label: 'Never run', value: String(p.skills.filter((s) => !s.everRun).length),
-                sublabel: `of ${p.skills.length} skills`,
-                emphasis: p.skills.some((s) => !s.everRun) },
-            ]
-          : undefined
-      }
     >
-      <Query query={qEval}>
-        {(pluginEval) =>
-          !p && !pluginEval.found ? (
-            <Panel title="No such plugin">
-              <EmptyState
-                illustration={{ src: '/assets/brand/state-notfound.png', width: 76, height: 96 }}
-                icon={<Package />}
-                title={`'${plugin}' is not a plugin the console lists`}
-                description="It may have been renamed or removed. All plugins lists what is there."
-              />
-            </Panel>
-          ) : (
-            <>
-              {/* FR-55: overall score, status and protocol version, before anything else. */}
-              <EvalHeadline pluginEval={pluginEval} />
-
-              {/* What the plugin is, then what its skills did — only for a plugin this
-                  catalog ships. A `plugin_register`ed third-party subject has none of this:
-                  its whole story lives in the eval sections below. */}
-              {p ? (
-                <Row split="1/2">
-                  <Panel title="About this plugin">
-                    <dl className="flex flex-col gap-3 text-xs">
-                      <Field k="Does" v={<span className="text-ink-soft">{p.description ?? '—'}</span>} />
-                      {/* DELIBERATE: no "whose" field. `origin` is hardcoded `platform` on
-                          every catalog row, so it could only ever say "ours". */}
-                      {p.owner ? <Field k="Owner" v={<span className="break-all font-mono text-xs">{p.owner}</span>} /> : null}
-                      {/* DELIBERATE: the version and the digest render together or not at all.
-                          The number is a claim and the digest is what makes it true, so a
-                          version with no digest means release has not vouched for it — it was
-                          never released, or has been edited since. */}
-                      <Field
-                        k="Version"
-                        v={p.version
-                          ? <span className="break-all font-mono text-xs">
-                              {p.version}
-                              {p.release
-                                ? <span className="ml-2 text-ink-faint">+{p.release.digest}</span>
-                                : <span className="ml-2 text-ink-faint">— not released</span>}
-                            </span>
-                          : <span className="text-ink-faint">declares none</span>}
-                      />
-                      <Field
-                        k="Reaches"
-                        v={p.servers.length
-                          ? <span className="flex flex-wrap gap-1">
-                              {p.servers.map((s) => (
-                                <Badge key={s} variant={s === 'zz-core' ? 'accent' : 'neutral'}>{s}</Badge>
-                              ))}
-                            </span>
-                          : <span className="text-ink-faint">no server — skills only</span>}
-                      />
-                    </dl>
-                  </Panel>
-
-                  <Panel title="The documents it governs" aside={p.gates ? `${p.gates} gated` : 'none'}>
-                    {p.documents.length ? (
-                      <ul className="flex flex-col gap-2 text-xs">
-                        {p.documents.map((doc) => (
-                          <li key={doc.name} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-                            <span className="min-w-0 break-all font-mono text-xs text-ink">{doc.name}</span>
-                            {doc.gate
-                              ? <Badge variant="accent" dot>a person must approve</Badge>
-                              : <Badge variant="neutral">no approval needed</Badge>}
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="text-xs text-ink-faint">
-                        None. This plugin produces no document and gates nothing — an assistant, not a
-                        delivery method.
-                      </p>
-                    )}
-                  </Panel>
-                </Row>
-              ) : (
+      {p ? (
+        <Row split="tiles">
+          <MetricTile label="Skills" icon={<Puzzle />} value={p.skills.length} note={p.stages.length ? `${p.stages.length} of them stages, in order` : 'No declared method'} />
+          <MetricTile label="Gates" icon={<Lock />} value={p.gates} note={p.gates ? 'A person must approve' : 'An assistant, not a method'} />
+          <MetricTile label="Calls" icon={<Activity />} value={p.calls} note={p.failed ? `${formatCount(p.failed)} refused` : 'None refused'} />
+          <MetricTile label="Never run" icon={<CircleOff />} value={p.skills.filter((s) => !s.everRun).length} emphasis={p.skills.some((s) => !s.everRun)} note={`Of ${p.skills.length} skills`} />
+        </Row>
+      ) : null}
+      <Query query={qEval} skeleton={<Skeleton className="h-40 rounded-lg" />}>
+        {(e) => !p && !e.found && !q.isPending ? (
+          <EmptyState kind="filtered" title={`'${plugin}' is not a plugin the console lists`} className="py-16">It may have been renamed or removed. Plugins lists what is there.</EmptyState>
+        ) : (
+          <>
+            <EvalHeadline pluginEval={e} />
+            {p ? (
+              <Row split="1/2">
                 <Panel title="About this plugin">
-                  <p className="text-xs text-ink-faint">
-                    Registered through plugin_register as a third-party subject — no manifest,
-                    skills or documents to show here. Its evaluation story is below.
-                  </p>
+                  <KeyValue
+                    items={[
+                      ...(p.owner ? [{ label: 'Owner', value: p.owner, mono: true }] : []),
+                      // The version and the digest together or not at all: the number is a claim and the digest makes it true.
+                      { label: 'Version', wrap: true, value: p.version ? <span className="font-mono text-xs">{p.version} <span className="text-ink-3">{p.release ? `+${p.release.digest}` : 'not released'}</span></span> : <span className="text-ink-3">Declares none</span> },
+                      { label: 'Reaches', wrap: true, value: p.servers.length ? <span className="font-mono text-xs">{p.servers.join(' · ')}</span> : <span className="text-ink-3">No server, skills only</span> },
+                      { label: 'Entry', value: p.entry ?? '—', mono: true },
+                    ]}
+                  />
                 </Panel>
-              )}
-
-              {notYet(pluginEval) ? (
-                <EvalNotYet evaluationOnly={pluginEval.ownershipMode === 'evaluation_only'} />
-              ) : (
-                <>
-                  <EvalHealth run={pluginEval.run} />
-                  <EvalQuality run={pluginEval.run} />
-                  <EvalUsage run={pluginEval.run} />
-                  <EvalLearning findings={pluginEval.found ? pluginEval.findings : null} />
-                  <EvalEvolution pluginEval={pluginEval} />
-                </>
-              )}
-              <EvalAutomationTrust pluginEval={pluginEval} />
-
-              {p ? (
-                <Panel
-                  title="Its skills"
-                  aside={`${p.skills.length} — pick one to read it and see what it scored`}
-                  padded={false}
-                >
-                  <SkillTable plugin={plugin} skills={p.skills} />
+                <Panel title="The documents it governs" description={p.gates ? `${p.gates} gated` : 'None'}>
+                  {p.documents.length ? (
+                    <KeyValue items={p.documents.map((d) => ({ label: <span className="font-mono text-xs text-ink">{d.name}</span>, value: d.gate ? <Badge tone="accent" dot>A person approves</Badge> : <Badge tone="neutral">No approval needed</Badge> }))} />
+                  ) : (
+                    <p className="t-small text-ink-3">None. This plugin writes no document and gates nothing: an assistant, not a delivery method.</p>
+                  )}
                 </Panel>
-              ) : null}
-            </>
-          )
-        }
+              </Row>
+            ) : (
+              <Panel title="About this plugin"><p className="t-small text-ink-3">Registered through plugin_register as a third-party subject, with no manifest, skills or documents to show. Its evaluation is below.</p></Panel>
+            )}
+            {notYet(e) ? <EvalNotYet evaluationOnly={e.ownershipMode === 'evaluation_only'} /> : (
+              <>
+                <Row split="1/2">
+                  <EvalHealth run={e.run} />
+                  <EvalUsage run={e.run} />
+                </Row>
+                <EvalQuality run={e.run} />
+                <EvalLearning findings={e.found ? e.findings : null} />
+                <EvalEvolution pluginEval={e} />
+              </>
+            )}
+            <EvalAutomationTrust pluginEval={e} />
+            {p ? (
+              <DataTable
+                caption={`${plugin}'s skills`}
+                noun="skills"
+                rows={skills}
+                columns={skillColumns(plugin)}
+                rowKey={(s) => s.name}
+                rowHref={(s) => `/plugins/${plugin}/${s.name}`}
+                empty={{ title: 'This plugin ships no skill', body: 'It grants an MCP surface and nothing else.' }}
+                toolbar={<div><h2 className="t-card">Its skills</h2><p className="t-caption mt-1">Open one to read it</p></div>}
+              />
+            ) : null}
+          </>
+        )}
       </Query>
-    </DashboardPage>
+    </ConsolePage>
   );
-}
-
-/** The skills, ten rows at a time — its own component because a hook cannot run inside the
- *  `Query` render prop. */
-function SkillTable({ plugin, skills }: { plugin: string; skills: PluginRow['skills'] }) {
-  /* Stages first and in order, then everything else the plugin ships. `stages` carries the
-     running order and the rest have none, so sorting alphabetically across both would put
-     step 6 above step 2. */
-  const rows = [...skills].sort((a, b) =>
-    (a.position ?? Infinity) - (b.position ?? Infinity) || a.name.localeCompare(b.name));
-  const { page, controls } = usePaged(rows);
-  return (
-    <>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Skill</TableHead>
-            {/* Kept, unlike the plugin-level "whose" above: a skill's origin is derived
-                from a `source:` line in its own SKILL.md, so it varies the day a vendored
-                skill ships. No skill carries one today, which makes the column quiet rather
-                than constant. */}
-            <TableHead hideBelow="md">Whose</TableHead>
-            <TableHead hideBelow="lg">Versions</TableHead>
-            <TableHead>Calls</TableHead>
-            <TableHead hideBelow="md">Last run</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {page.map((s) => (
-            <TableRow key={s.name}>
-              {/* The stage number prefixes the name rather than leading as its own column: the
-                  first column is the left-aligned one (`Table`'s ALIGNMENT), and a `#` there
-                  centred every skill name. The front door is unnumbered: it is not step zero,
-                  it is the plugin. */}
-              <TableCell className="break-words">
-                <span className="mr-2 inline-block w-4 text-right tabular-nums text-xs text-ink-faint">
-                  {s.position ?? '—'}
-                </span>
-                <Link href={`/plugins/${plugin}/${s.name}`} className="row-link font-medium text-ink">
-                  {s.name}
-                </Link>
-                {s.isEntry ? <span className="ml-2 text-xs text-ink-faint">the front door</span> : null}
-              </TableCell>
-              <TableCell hideBelow="md">
-                {s.origin === 'theirs'
-                  ? <Badge variant="accent" dot>the {plugin} team&rsquo;s</Badge>
-                  : <Badge variant="neutral">ours</Badge>}
-              </TableCell>
-              <TableCell hideBelow="lg" className="tabular-nums text-xs">{s.versions || '—'}</TableCell>
-              <TableCell className="tabular-nums">
-                {s.everRun ? formatCount(s.calls) : '—'}
-              </TableCell>
-              <TableCell hideBelow="md" className="text-xs">
-                {s.lastRun
-                  ? <Time value={s.lastRun} className="text-ink-soft" />
-                  : <Badge variant="neutral">never run</Badge>}
-              </TableCell>
-            </TableRow>
-          ))}
-          {skills.length === 0 && (
-            <TableRow>
-              <TableCell colSpan={5} className="py-8 text-ink-faint">
-                This plugin ships no skill — it grants an MCP surface and nothing else.
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
-      <PageControl {...controls} />
-    </>
-  );
-}
-
-/** A label/value line, stacked — the card is half the page at most. */
-function Field({ k, v }: { k: string; v: React.ReactNode }) {
-  return (
-    <div className="flex flex-col gap-0.5">
-      <dt className="text-[0.6875rem] font-medium uppercase tracking-[0.04em] text-ink-faint">{k}</dt>
-      <dd className="text-ink">{v}</dd>
-    </div>
-  );
-}
-
-/** Nothing any of the five evidence panels could draw: no completed run, no finding, no candidate. */
-function notYet(e: PluginEval): boolean {
-  const f = e.found ? e.findings : null;
-  const findings = f ? f.strengths.length + f.defects.length + f.unknowns.length : 0;
-  return !e.run && findings === 0 && e.candidates.length === 0;
 }

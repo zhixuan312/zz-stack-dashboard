@@ -1,7 +1,7 @@
 import { render as rtlRender, screen } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { describe, expect, it } from 'vitest';
-import { EvalLearning, EvalUsage } from '@/console-old/PluginEvalEvidence';
+import { EvalLearning, EvalUsage } from '@/console/plugin-eval-evidence';
 import { TooltipProvider } from '@/console-old/ui/tooltip';
 import type { EvalFinding, PluginEval } from '@/lib/api-shapes';
 
