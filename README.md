@@ -184,10 +184,10 @@ docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
 
 | | |
 |---|---|
-| **Overview** | Four questions first — is work progressing, is what we write down worth reading, is the tool surface breaking, is the system straining — then tool calls over time, event kinds, and where refusals come from |
+| **Overview** | Tool calls over the period, stacked by whether they ran inside a run, outside one or were refused, beside three tiles: initiatives progressing, knowledge from work, context per run. Then the gates waiting on a person and open work by stage, then where refusals come from and event kinds |
 | **Teams** | Every team and what it holds — documents, sources, knowledge nodes; open one for its initiatives and members. Switching here moves **this browser's session only**: your agents keep acting for the team `team_switch` on `/manage` set |
 | **Initiatives** | Every piece of work and how far through its flow it got |
-| **Knowledge** | The nodes, with the whole body open beside the list |
+| **Knowledge** | The nodes, with the whole body open beside the list; Ask the store a question, or read its log of every node recorded or retired |
 | **Plugins** | What a person installs; open one and it leads with its overall evaluation score, then the evidence behind it — health, quality by dimension, usage, findings, candidates and releases (one compact panel until a run has completed), and who may change it |
 | **Runs** | Every run by the skill that drove it |
 | **Activity** | The audit log |
