@@ -1,5 +1,7 @@
+'use client';
+
 import { Inbox, SearchX, TriangleAlert } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { createContext, useContext, type ReactNode } from 'react';
 import { cn } from '@/lib/cn';
 
 export type EmptyKind = 'first-run' | 'filtered' | 'error';
@@ -9,6 +11,13 @@ const KIND: Record<EmptyKind, { disc: string; Icon: typeof Inbox }> = {
   filtered: { disc: 'bg-fill-track text-ink-3', Icon: SearchX },
   error: { disc: 'bg-critical-tint text-critical-ink', Icon: TriangleAlert },
 };
+
+/**
+ * A product's own art for each kind of empty, in place of the disc on a centred empty state: a mascot, an
+ * illustration. Provided once near the root; inline empty states keep their disc, because art at 36px is a smudge.
+ */
+const Art = createContext<Partial<Record<EmptyKind, ReactNode>>>({});
+export const EmptyStateArt = Art.Provider;
 
 /**
  * What a view shows when it has nothing to show, and why: never created (first run), filtered to nothing, or failed
@@ -36,6 +45,7 @@ export function EmptyState({
   className?: string;
 }) {
   const k = KIND[kind];
+  const art = useContext(Art)[kind];
   const disc = (
     <span aria-hidden className={cn('relative grid shrink-0 place-items-center rounded-full', layout === 'centered' ? 'size-12 [&_svg]:size-5' : 'size-9 [&_svg]:size-4', k.disc)}>
       {layout === 'centered' ? (
@@ -60,8 +70,8 @@ export function EmptyState({
     );
   return (
     <div role={kind === 'error' ? 'alert' : undefined} className={cn('flex flex-col items-center px-6 py-14 text-center', className)}>
-      {disc}
-      <p className="t-card mt-8 max-w-sm text-balance">{title}</p>
+      {art && !icon ? <span aria-hidden className="grid place-items-center">{art}</span> : disc}
+      <p className={cn('t-card max-w-sm text-balance', art && !icon ? 'mt-5' : 'mt-8')}>{title}</p>
       {children ? <p className="t-small mt-1.5 max-w-sm text-pretty text-ink-2">{children}</p> : null}
       {action ? <div className="mt-5 flex flex-wrap justify-center gap-2">{action}</div> : null}
     </div>

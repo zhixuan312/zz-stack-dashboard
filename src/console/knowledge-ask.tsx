@@ -7,6 +7,7 @@ import { Banner } from '@/components/ui/banner';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
 import { Spinner } from '@/components/ui/spinner';
+import { Mascot } from '@/console/brand';
 import { Textarea } from '@/components/ui/textarea';
 import { Panel } from '@/console/panel';
 import { ApiError } from '@/lib/api';
@@ -70,7 +71,7 @@ export function KnowledgeAsk({ team }: { team: string | null }) {
         </Field>
         <div className="flex items-center gap-3">
           <Button variant="primary" icon={<Sparkles />} disabled={!team || !canAsk(question) || asking} onClick={() => void ask()}>Ask</Button>
-          {asking ? <span className="flex items-center gap-2 text-sm text-ink-3"><Spinner size="sm" label="Asking" />Reading the team&apos;s documents…</span> : null}
+          {asking ? <span className="flex items-center gap-3 text-sm text-ink-3"><Mascot pose="thinking" scale={0.6} /><Spinner size="sm" label="Asking" className="sr-only" />Reading the team&apos;s documents…</span> : null}
         </div>
         {error ? <Banner tone="critical" title="Could not answer">{error}</Banner> : null}
         {result ? (

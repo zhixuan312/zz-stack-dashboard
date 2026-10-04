@@ -17,8 +17,6 @@ const nextConfig: NextConfig = {
   // `next dev` / `next start`.
   output: 'standalone',
   devIndicators: false,
-  // The tab icon is drawn from the accent tokens when it is first requested.
-  outputFileTracingIncludes: { '/icon': ['./tokens/**/*.json'] },
   ...(gateway
     ? {
       async rewrites() {

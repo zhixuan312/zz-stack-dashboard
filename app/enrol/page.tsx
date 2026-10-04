@@ -85,6 +85,7 @@ export default function EnrolPage() {
 
   return token ? (
     <Standalone
+      pose="welcome"
       kicker="One-time enrolment"
       sentence="Register your passkey."
       lead="Your browser asks you to confirm: Touch ID, Windows Hello, a phone or a security key. After that you sign in with it and never need this link again."
@@ -102,7 +103,7 @@ export default function EnrolPage() {
       }
     />
   ) : (
-    <Standalone kicker="Enrolment" sentence="No enrolment link.">
+    <Standalone pose="notfound" kicker="Enrolment" sentence="No enrolment link.">
       <Banner tone="warning" title="Open the whole link" icon={<ShieldAlert />} className="mt-8 max-w-xl">
         This page needs the link an administrator sent you, opened whole, including everything after the <code className="font-mono text-xs">#</code>. Accounts are created on the platform, so there is nothing to fill in here.
       </Banner>

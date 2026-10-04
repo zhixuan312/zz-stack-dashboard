@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
 import { ConsoleModeProvider } from '@/lib/api';
+import { BrandArt } from '@/console/brand';
 import { PeriodProvider } from '@/console/period';
 
 /**
@@ -13,13 +14,16 @@ import { PeriodProvider } from '@/console/period';
  *   it sits inside `QueryClientProvider` because it reads `/me` to pick a default.
  * - `PeriodProvider` holds the reporting period above the pages, so the picker and the page that answers it cannot
  *   disagree about which window is selected.
+ * - `BrandArt` gives every centred empty state ZZ's mascot for its kind.
  */
 export function ConsoleProviders({ children }: { children: ReactNode }) {
   const [client] = useState(() => new QueryClient());
   return (
     <QueryClientProvider client={client}>
       <ConsoleModeProvider>
-        <PeriodProvider>{children}</PeriodProvider>
+        <PeriodProvider>
+          <BrandArt>{children}</BrandArt>
+        </PeriodProvider>
       </ConsoleModeProvider>
     </QueryClientProvider>
   );

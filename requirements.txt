@@ -1,0 +1,3 @@
+# The brand asset generator's one dependency: scripts/build-brand-assets.py, run by hand after a
+# master in design/in-use changes. Its outputs are committed, so neither the build nor CI needs it.
+Pillow==11.3.0

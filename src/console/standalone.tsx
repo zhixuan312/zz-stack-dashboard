@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Mascot, type Pose } from '@/console/brand';
 import { app } from '@/app.config';
 import { AppMark } from '@/components/base/app-mark';
 
@@ -7,7 +8,7 @@ import { AppMark } from '@/components/base/app-mark';
  * one sentence at poster size that ends on an accent full stop, the one place the accent is punctuation. `aside` is
  * the panel a person acts in.
  */
-export function Standalone({ kicker, sentence, lead, aside, children }: { kicker?: ReactNode; sentence: string; lead?: ReactNode; aside?: ReactNode; children?: ReactNode }) {
+export function Standalone({ kicker, sentence, lead, aside, pose, children }: { kicker?: ReactNode; sentence: string; lead?: ReactNode; aside?: ReactNode; /** The mascot's pose for this moment, above the sentence. */ pose?: Pose; children?: ReactNode }) {
   return (
     <main className="relative isolate flex min-h-dvh flex-col overflow-x-hidden">
       <header className="flex h-20 items-center px-(--gutter)">
@@ -18,6 +19,7 @@ export function Standalone({ kicker, sentence, lead, aside, children }: { kicker
       </header>
       <div className="mx-auto grid w-full max-w-(--stage-width) flex-1 items-center gap-12 px-(--gutter) pt-6 pb-16 lg:grid-cols-[minmax(0,1.25fr)_minmax(22rem,26rem)] lg:gap-20">
         <div className="min-w-0">
+          {pose ? <Mascot pose={pose} scale={1.25} className="mb-10 w-fit" /> : null}
           {kicker ? <p className="t-kicker mb-6">{kicker}</p> : null}
           <h1 className="t-display max-w-[13ch] text-balance">
             {sentence.replace(/\.$/, '')}
@@ -29,7 +31,7 @@ export function Standalone({ kicker, sentence, lead, aside, children }: { kicker
         {aside ? <div className="min-w-0 max-lg:max-w-md">{aside}</div> : null}
       </div>
       <footer className="flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-line px-(--gutter) py-5 text-xs text-ink-3">
-        <span>{app.name}, the console for the ZZ platform</span>
+        <span>{app.name} · AI friend for a brighter you</span>
       </footer>
     </main>
   );

@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Activity, BookOpen, KeyRound, ListTree, ShieldAlert } from 'lucide-react';
@@ -66,10 +67,17 @@ function Login() {
 
   return (
     <Standalone
-      kicker={`${app.name} · The ZZ platform`}
+      kicker={`${app.name} · AI friend for a brighter you`}
       sentence="Everything the platform records."
       lead="Every team's work, the knowledge behind it, and what the plugins and skills it runs on cost and refuse."
       aside={
+        <div className="flex flex-col items-center">
+        {/* The greeter stands on the card: the one place the whole mascot appears, because sign-in is the screen with
+            nothing to lead with but who the product is. */}
+        <figure className="flex flex-col items-center">
+          <Image src="/assets/brand/mascot-hero.png" alt="" width={168} height={213} priority className="relative z-10 -mb-3 h-40 w-auto object-contain sm:h-52" />
+          <figcaption className="sr-only">ZZ, the platform&apos;s mascot</figcaption>
+        </figure>
         <StandalonePanel labelledBy="sign-in">
           <div className="flex flex-col gap-6">
             {denied ? (
@@ -90,6 +98,7 @@ function Login() {
             <p className="t-caption text-pretty">No passkey yet? Ask an administrator for an enrolment link: accounts are created on the platform, never at this screen. A session here is for this console only.</p>
           </div>
         </StandalonePanel>
+        </div>
       }
     >
       <ol className="mt-12 grid max-w-2xl gap-6 sm:grid-cols-3">

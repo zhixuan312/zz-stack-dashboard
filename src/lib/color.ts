@@ -6,7 +6,7 @@ const lin = (x: number) => (x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 
 const gam = (x: number) => (x <= 0.0031308 ? 12.92 * x : 1.055 * x ** (1 / 2.4) - 0.055);
 const clamp = (x: number) => Math.min(1, Math.max(0, x));
 
-export function oklchToRgb(L: number, C: number, h: number): [number, number, number] {
+function oklchToRgb(L: number, C: number, h: number): [number, number, number] {
   const a = C * Math.cos((h * Math.PI) / 180), b = C * Math.sin((h * Math.PI) / 180);
   const l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3;
   const m = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3;
