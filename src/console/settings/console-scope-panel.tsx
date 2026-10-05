@@ -2,6 +2,7 @@
 
 import { FormSection, SettingRow } from '@/components/patterns/form-section';
 import { Segmented } from '@/components/ui/segmented';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useConsole, useConsoleMode } from '@/lib/api';
 import { type Me } from '@/lib/api-shapes';
 
@@ -19,7 +20,26 @@ import { type Me } from '@/lib/api-shapes';
  */
 export function ConsoleScopePanel() {
   const me = useConsole<Me>('/me');
-  if (!me.data?.superadmin) return null;
+  const data = me.data;
+  // The shape it will have, drawn while `/me` is in flight. Returning `null` and then appearing
+  // made this section — about 374px of prose and a control, measured — push every section below
+  // it down: /settings measured CLS 0.286 on Linux, and 0.000 where the read wins the race to
+  // first paint, which is why only CI saw it. A placeholder of the same shape shifts nothing
+  // whichever way the read goes, where leaving the space out shifts it every time.
+  if (!data) {
+    return (
+      <FormSection
+        title="Console scope"
+        description="What the rail and every page show you. Only a superadmin has the choice."
+        footnote="Applies at once, in this browser. The rail's workspace menu offers the same switch."
+      >
+        <SettingRow label="Show" description={<Skeleton className="block h-16 w-full max-w-[60ch]" />}>
+          <Skeleton className="h-8 w-44 rounded-md" />
+        </SettingRow>
+      </FormSection>
+    );
+  }
+  if (!data.superadmin) return null;
 
   return (
     <FormSection
