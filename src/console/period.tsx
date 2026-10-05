@@ -7,9 +7,15 @@ import { DEFAULT_PERIOD, parsePeriod, type Period } from '@/lib/period';
  * The reporting period, held in context — the same shape `ConsoleModeProvider` uses for the
  * platform/team choice.
  *
- * DELIBERATE: context, not the URL. On this app's statically prerendered routes a
- * `router.push` of `?period=30d` is not seen by `useSearchParams()`, so the control sits on
- * its old value while every option does nothing.
+ * DELIBERATE: context, not the URL. The claim this used to make — that on a prerendered route a
+ * `router.push` of `?period=30d` "is not seen by `useSearchParams()`" — is NOT what happens now,
+ * and it read as a warning that the four pages' filters could not work either, since they are
+ * written with `router.replace` and read exactly that way. Measured in a browser on `/initiatives`:
+ * pressing a filter took the table from 8 rows to 2 and the address from `/initiatives` to
+ * `/initiatives?show=waiting`. So the period could live in the address like every other view
+ * state — the one thing this store's own `setPeriod` cannot do today is be cleared by a page's
+ * "Clear filters", because that writes the address through the router and this writes it with
+ * `replaceState`, and the router re-applies what it last knew. Worth doing; not done here.
  *
  * The URL is still written, with `history.replaceState`, so a windowed view stays linkable and
  * survives a refresh — but nothing re-renders off it. `replaceState`, not `pushState`: five
