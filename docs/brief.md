@@ -35,6 +35,11 @@ shapes are still the gateway's (`src/lib/api-shapes.ts`). The routes are the sam
   and centred between (`src/console/columns.ts`). A bar's length is its share of the total it is labelled
   against (`BarList total`). A tile or bar used as a mark has no legend row; hover names the part. Colour
   means something: a refusals list is not red on every row.
+- **A view is its address, and the address is read from the window.** Every filter, tab and period is a query
+  parameter, and `src/lib/address.ts` is the one reader of it. Reading Next's search params instead costs a
+  prerendered route its prerender — `useSearchParams` client-renders every Client Component up to the nearest
+  Suspense boundary, and a console page has none — which measured 2212ms of LCP on `/teams` against 632ms once
+  the address was read directly. `scripts/check.ts` refuses the pattern in any page that has no boundary of its own.
 
 ## How it is checked
 
@@ -44,13 +49,22 @@ both themes, presses every control, follows every link, walks the whole keyboard
 a mid-range phone. The fake gateway exists because the presses approve, revoke and archive whatever a page offers,
 so they must never reach the real deployment. Its records are synthetic; nobody in them is a real person.
 
+`verify` runs the fixture in `normal` mode. Its other four worlds — `empty`, `slow` (every answer four seconds
+late), `error` and `extreme` (names longer than any layout planned for) — are reached with
+`GET /__mode?set=<mode>` on the running fake gateway and are swept by hand: twelve routes through all five, which
+is how the layout shift a stalled read can cause was ruled out of `/settings`. A page's states are design work
+that a green `verify` does not see.
+
 ## Staying in step with Meridian
 
 The console's copy of Meridian is kept as close to upstream as it can be, so a re-sync is a copy rather than a
 merge. What stays the console's own, and why:
 
 - `base/shell`, `base/app-mark` and `base/providers`: no assistant, and the ZZ wordmark.
-- `src/lib/period.ts` (a 24-hour period, all time by default) and the one line in PeriodSelect that labels it.
+- `src/lib/address.ts`: the reader the console's view state goes through, because Next's `useSearchParams` costs a
+  page the prerender that carries its own text.
+- `src/lib/period.ts` (a 24-hour period, all time by default), and the write in PeriodSelect that rebuilds the
+  address from the address rather than from Next's copy of it.
 - `src/lib/format.ts`, `color.ts` and `preferences.ts`: exports the console uses or does not, and the `zz` accent.
 - The `zz` accent in `tokens/` (`accent.zz.tokens.json`, the resolver's default).
 - The project's half of Meridian's hooks: `scripts/check.local.ts` (run by the gate) and `scripts/verify.config.ts`

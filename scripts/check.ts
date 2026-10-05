@@ -9,6 +9,8 @@
  * - No literal colour (hex, rgb, hsl) and no Tailwind default palette in the layers: colours come from roles.
  * - One implementation: the fixtures a collection serves are read through src/data/collections.ts, not imported again.
  * - No dormant code: every export of src/lib and src/data is imported by a file a product keeps.
+ * - No page reads Next's search params without its own Suspense boundary: that costs the route its prerender, which
+ *   measured 2212ms against 632ms on the same page.
  * - Markdown stays inert: no raw-HTML plugin in the dependencies or the source.
  */
 import fs from 'node:fs';
@@ -202,6 +204,28 @@ for (const f of walk('src', /\.tsx?$/).filter((x) => SWEPT.test(x) && !/(^|\/)pr
   const u = used.get(f);
   if (u?.has('*')) continue;
   for (const n of names) if (!u?.has(n)) problems.push(`${f}: exports ${n}, which nothing a product keeps imports`);
+}
+
+// ── The prerender is not given away ──────────────────────────────────────────────────────────────────
+/* Reading Next's search params costs the route its prerender. In this version `useSearchParams` client-renders
+ * every Client Component up to the nearest Suspense boundary, and a console page has none — so the WHOLE route
+ * stopped being prerendered and painted its own masthead only once hydration finished. Measured on `/teams` at the
+ * phone profile `scripts/vitals.ts` uses: LCP 2212ms while it read the hook, 632ms once it did not, beside the
+ * console pages that never read it at 620ms throughout. View state comes from `src/lib/address.ts`, which reads the
+ * address directly and says the same thing at length. A file may still call the hook if it carries its own Suspense
+ * boundary — `app/login/page.tsx` does, for the two parameters a signed-out visitor arrives with. */
+/** A rule about what a file DOES must not fire on a sentence naming the thing it does: a doc block that
+ *  quotes `useSearchParams()` to explain this very rule is not a file that reads search params. Comments are
+ *  blanked for the call test only — the import test needs the quoted module path, which a string-stripper eats. */
+const withoutComments = (src: string): string =>
+  src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ');
+const READS_SEARCH_PARAMS = /import\s*(?:type\s*)?\{[^}]*\buseSearchParams\b[^}]*\}\s*from\s*['"]next\/navigation['"]/;
+for (const f of [...walk('app', /\.tsx?$/), ...walk('src', /\.tsx?$/)]) {
+  const src = read(f);
+  if (!READS_SEARCH_PARAMS.test(src) && !/\buseSearchParams\s*\(/.test(withoutComments(src))) continue;
+  if (!/<Suspense/.test(src)) {
+    problems.push(`${f}: reads Next's search params with no Suspense boundary of its own, which costs the route its prerender`);
+  }
 }
 
 console.log(problems.join('\n') || 'check: ok');

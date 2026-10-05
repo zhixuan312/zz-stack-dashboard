@@ -2,7 +2,6 @@
 
 import { use } from 'react';
 import dynamic from 'next/dynamic';
-import { useSearchParams } from 'next/navigation';
 import { Activity, Ban, Repeat, Timer } from 'lucide-react';
 import { Row } from '@/components/base/shell';
 import { BarList } from '@/components/charts/bar-list';
@@ -17,6 +16,7 @@ import { LinkTabs } from '@/components/ui/tabs';
 import { ConsolePage } from '@/console/page';
 import { Panel } from '@/console/panel';
 import { failureOf, Query } from '@/console/query';
+import { useAddressParam } from '@/lib/address';
 import { freshnessOf, useConsole } from '@/lib/api';
 import type { PluginRow, Skill, SkillDetail, SkillText } from '@/lib/api-shapes';
 import { formatCount, formatKb, formatSeconds } from '@/lib/format';
@@ -88,7 +88,7 @@ export default function PluginSkillPage({ params }: { params: Promise<{ plugin: 
   const detail = useConsole<SkillDetail>(known ? `/skills/${name}` : null);
   const text = useConsole<SkillText>(known ? `/plugins/${pluginName}/skills/${name}` : null).data;
   const refs = text?.references.length ?? 0;
-  const asked = useSearchParams().get('view');
+  const asked = useAddressParam('view');
   const view: View = asked === 'read' ? 'read' : asked === 'references' && refs ? 'references' : 'cost';
   const produces = plugin?.documents.filter((x) => x.stage === name).map((x) => x.name).join(', ');
   const gated = plugin?.documents.find((x) => x.stage === name && x.gate);

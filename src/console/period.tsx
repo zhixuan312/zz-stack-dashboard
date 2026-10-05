@@ -1,6 +1,8 @@
 'use client';
 
 import { createContext, useCallback, useContext, useSyncExternalStore, type ReactNode } from 'react';
+
+import { addressSearch, announceAddress } from '@/lib/address';
 import { DEFAULT_PERIOD, parsePeriod, type Period } from '@/lib/period';
 
 /**
@@ -40,17 +42,13 @@ const PeriodContext = createContext<PeriodState | null>(null);
 /**
  * The period named in the address bar, or null.
  *
- * Reads `window` inside a try/catch and returns null on any failure, as `readStoredMode` does
- * in api.ts: on the server `window` is undefined and throws, so this is safe to run during
- * render in both environments.
+ * The address through `lib/address.ts`, which is the one place that says why it is `window` rather
+ * than `useSearchParams`; that reader is safe to run during render in both environments, on the
+ * server included, which is what the server snapshot below relies on.
  */
 function readUrlPeriod(): Period | null {
-  try {
-    const raw = new URLSearchParams(window.location.search).get('period');
-    return raw ? parsePeriod(raw) : null;
-  } catch {
-    return null;
-  }
+  const raw = new URLSearchParams(addressSearch()).get('period');
+  return raw ? parsePeriod(raw) : null;
 }
 
 /**
@@ -81,6 +79,9 @@ export function PeriodProvider({ children }: { children: ReactNode }) {
       if (next === DEFAULT_PERIOD) url.searchParams.delete('period');
       else url.searchParams.set('period', next);
       window.history.replaceState(null, '', url);
+      // Every other reader of the address hears about it: this write does not go through the router,
+      // so nothing else would tell them their view has moved under them.
+      announceAddress();
     } catch {
       // A URL the browser will not let us rewrite does not fail the change: the state above
       // has already moved.
