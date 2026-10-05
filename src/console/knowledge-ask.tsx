@@ -79,13 +79,18 @@ export function KnowledgeAsk({ team }: { team: string | null }) {
             <p className="t-body whitespace-pre-wrap text-ink">{result.answer}</p>
             {result.citations.length ? (
               <ul className="flex flex-col gap-1.5 text-sm">
-                {result.citations.map((c, i) => (
-                  <li key={`${c.path ?? c.title}-${i}`}>
-                    {c.path && team
-                      ? <Link href={citationHref(c.path, team)} className="link">{c.title}</Link>
-                      : <span className="text-ink-3">{c.title} (not viewable from this team&apos;s console)</span>}
-                  </li>
-                ))}
+                {result.citations.map((c, i) => {
+                  // A link only where there is somewhere to go: `citationHref` answers `null` for a
+                  // path this team's console cannot open, the shelf itself among them.
+                  const href = c.path && team ? citationHref(c.path, team) : null;
+                  return (
+                    <li key={`${c.path ?? c.title}-${i}`}>
+                      {href
+                        ? <Link href={href} className="link">{c.title}</Link>
+                        : <span className="text-ink-3">{c.title} (not viewable from this team&apos;s console)</span>}
+                    </li>
+                  );
+                })}
               </ul>
             ) : null}
           </div>

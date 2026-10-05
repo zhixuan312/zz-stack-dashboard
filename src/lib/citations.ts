@@ -18,8 +18,13 @@ import { knowledgeNodeHref } from "@/lib/knowledge-filters";
  * COUPLED: the store-path shapes come from `buildCitations` in the gateway's
  * `console-ask.ts`.
  */
-export function citationHref(path: string, team: string): string {
-  if (path === "_knowledge" || path.startsWith("_knowledge/")) {
+export function citationHref(path: string, team: string): string | null {
+  // The shelf itself, which is not a node and has no page: `knowledgeNodeHref` with an empty path
+  // built `/knowledge/<team>/`, and the route below it is a required catch-all, so that was a 404
+  // offered as a link. `null` is the same answer this file already gives for a path this team
+  // cannot open, and the caller renders the title as plain text.
+  if (path === "_knowledge") return null;
+  if (path.startsWith("_knowledge/")) {
     return knowledgeNodeHref(team, path.slice("_knowledge/".length));
   }
   const slash = path.indexOf("/");
