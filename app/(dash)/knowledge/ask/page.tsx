@@ -4,11 +4,14 @@ import { useState } from 'react';
 import { BookOpen, Tag } from 'lucide-react';
 import { Row } from '@/components/base/shell';
 import { MetricTile } from '@/components/patterns/metric-tile';
+import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Select } from '@/components/ui/select';
 import { KnowledgeAsk } from '@/console/knowledge-ask';
 import { KnowledgeTabs } from '@/console/knowledge-tabs';
 import { ConsolePage } from '@/console/page';
 import { Panel } from '@/console/panel';
+import { failureOf } from '@/console/query';
 import { freshnessOf, useConsole, useConsoleMode } from '@/lib/api';
 import type { KnowledgeNode, Me } from '@/lib/api-shapes';
 import { tagFacetCounts, teamFacetOptions } from '@/lib/knowledge-filters';
@@ -46,9 +49,18 @@ export default function KnowledgeAskPage() {
     >
       <Row split="tiles">
         <MetricTile label="Answering from" value={team ?? 'No team yet'} note={mode === 'team' ? 'The team you act for' : 'Pick one team above'} />
-        <MetricTile label="Nodes on the shelf" icon={<BookOpen />} value={list.data ? shelf.length : '…'} note={team ? `On ${team}'s shelf` : 'Across every team'} />
-        <MetricTile label="Subjects" icon={<Tag />} value={list.data ? tagFacetCounts(shelf).length : '…'} note="Distinct tags" />
+        <MetricTile label="Nodes on the shelf" icon={<BookOpen />} value={list.data ? shelf.length : list.isPending ? '…' : '—'} note={team ? `On ${team}'s shelf` : 'Across every team'} />
+        <MetricTile label="Subjects" icon={<Tag />} value={list.data ? tagFacetCounts(shelf).length : list.isPending ? '…' : '—'} note="Distinct tags" />
       </Row>
+      {/* The two tiles above read the shelf, and this is the one page with no table to report a
+          failed read for: `…` is what they draw while loading, so on a failure they said "still
+          coming" for ever with nothing to send a reader to look again. */}
+      {failureOf(list) ? (
+        <EmptyState kind="error" title="The shelf could not be read" className="py-8"
+                    action={<Button size="sm" onClick={() => void list.refetch()}>Retry</Button>}>
+          {failureOf(list)}
+        </EmptyState>
+      ) : null}
       <Row split="2/3">
         <KnowledgeAsk team={team} />
         <Panel title="What this reads">
