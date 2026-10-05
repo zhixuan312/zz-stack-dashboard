@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { Check, ChevronsUpDown, LogOut, Settings } from 'lucide-react';
 import { app, type NavGroup } from '@/app.config';
 import { cn } from '@/lib/cn';
@@ -52,10 +52,22 @@ export function Rail({
   const here = nav.flatMap((g) => g.items.map((it) => it.href)).filter(matches).sort((a, b) => b.length - a.length)[0];
   const isActive = (href: string) => href === here;
 
-  useLayoutEffect(() => {
+  const measure = useCallback(() => {
     const el = list.current?.querySelector<HTMLElement>('[aria-current="page"]');
     setMarker(el ? { y: el.offsetTop, h: el.offsetHeight } : null);
-  }, [path]);
+  }, []);
+  // COUPLED: what the marker follows. `[path]` alone re-measured only when the ROUTE changed, so
+  // the ring stayed where the active item used to be whenever the list moved under it — a group
+  // opened or closed, the rail resized, a font arriving after first paint. `here` is the active
+  // item, and the observer is everything else that moves it without changing either.
+  useLayoutEffect(() => { measure(); }, [measure, path, here]);
+  useLayoutEffect(() => {
+    const node = list.current;
+    if (!node || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => measure());
+    ro.observe(node);
+    return () => ro.disconnect();
+  }, [measure]);
 
   return (
     <div className="flex h-full w-full flex-col">
