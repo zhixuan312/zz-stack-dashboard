@@ -18,6 +18,26 @@ describe('the fixture can shape every answer its routes produce', () => {
     expect(extreme(['initiatives'], { waiting: [] })).toEqual({ waiting: [] });
   });
 
+  it('leaves an empty list empty rather than inventing rows it cannot shape', () => {
+    // `/initiatives?team=<a team with no work>` is empty, and it is a state the console draws. A
+    // mode that filled it in grew its rows from `rows[i % 0]` — `undefined` — so every fabricated
+    // row carried the slug below and none of the fields an initiative has. The page's columns
+    // dereference `stages`, and /teams/dune died in its error boundary on the whole page.
+    expect(extreme(['initiatives'], { initiatives: [] })).toEqual({ initiatives: [] });
+    expect(extreme(['teams'], { teams: [] })).toEqual({ teams: [] });
+    expect(extreme(['knowledge'], { nodes: [] })).toEqual({ nodes: [] });
+  });
+
+  it('every row it adds keeps the shape of the row it was grown from', () => {
+    const one = { slug: 'a', stages: [{ name: 'spec', state: 'done' }], gates: [], team: 'atlas', closed: false };
+    const got = extreme(['initiatives'], { initiatives: [one] }) as { initiatives: Record<string, unknown>[] };
+    expect(got.initiatives.length).toBeGreaterThan(1);
+    for (const row of got.initiatives) {
+      expect(Array.isArray(row.stages), `a row lost its stages: ${JSON.stringify(row)}`).toBe(true);
+      expect(row.team).toBe('atlas');
+    }
+  });
+
   it('shapes a projection that has rows', () => {
     const one = { id: 'a/b/approve spec', gate: 'spec', team: 'a', slug: 'b', updated: '2026-10-05', stage: 'spec', at: 2, of: 7 };
     const got = extreme(['initiatives'], { waiting: [one] }) as { waiting: unknown[] };

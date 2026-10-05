@@ -43,6 +43,23 @@ export function empty(seg: string[], body: unknown): unknown {
 const LONG = 'with-a-name-nobody-planned-for-because-it-came-from-a-ticket-title';
 const big = (n: number) => n * 1_000 + (n % 7) * 137;
 
+/**
+ * `n` more rows, grown from the ones already there.
+ *
+ * Nothing to grow from means nothing invented. An empty answer is a real state — a team with no
+ * work, a platform where nothing is waiting, a log with nothing recorded — and it is one the
+ * console has to draw, so a mode named for the states a page must design for cannot overwrite it.
+ *
+ * It is also the only correct copy: `rows[i % 0]` is `undefined`, and spreading that leaves a row
+ * carrying the overrides below and none of the fields they did not name. `/initiatives?team=<a team
+ * with no work>` came back as 240 rows of `{ slug }` alone, and the console's initiative columns
+ * dereference `stages` — so the page died in its error boundary on a shape no deployment sends.
+ */
+function grown<T>(rows: T[], n: number, more: (base: T, i: number) => T): T[] {
+  if (!rows.length) return rows;
+  return [...rows, ...Array.from({ length: n }, (_, i) => more(rows[i % rows.length], i))];
+}
+
 /** A busy platform: six-figure counts, hundreds of rows, and names longer than any layout planned for. */
 export function extreme(seg: string[], body: unknown): unknown {
   const [head, a, b] = seg;
@@ -64,7 +81,7 @@ export function extreme(seg: string[], body: unknown): unknown {
     case 'teams': {
       if (a) return body;
       const t = (body as { teams: Team[] }).teams;
-      return { teams: [...t, ...Array.from({ length: 60 }, (_, i): Team => ({ ...t[i % t.length], slug: `team-${i + 1}-${LONG}`.slice(0, 63), name: `Regional delivery group ${i + 1}, ${LONG.replace(/-/g, ' ')}`, members: 300 + i, initiatives: 1_000 + i * 17, documents: 48_000 + i, sources: 120_000 + i, knowledge: 9_000 + i }))] };
+      return { teams: grown(t, 60, (base, i): Team => ({ ...base, slug: `team-${i + 1}-${LONG}`.slice(0, 63), name: `Regional delivery group ${i + 1}, ${LONG.replace(/-/g, ' ')}`, members: 300 + i, initiatives: 1_000 + i * 17, documents: 48_000 + i, sources: 120_000 + i, knowledge: 9_000 + i })) };
     }
     /* Two answers come off this route: the list, and the projection the alert bell asks for with
      * `?waiting=1`. Both are shaped here — a reader that recognises only one of them is a reader
@@ -73,25 +90,24 @@ export function extreme(seg: string[], body: unknown): unknown {
       if (a && b) return body;
       if (a === 'waiting' || 'waiting' in (body as object)) {
         const w = (body as { waiting: WaitingGate[] }).waiting ?? [];
-        return { waiting: w.length
-          ? [...w, ...Array.from({ length: 40 }, (_, i): WaitingGate => ({ ...w[i % w.length], id: `extreme/${i}`, gate: `approve spec ${LONG.replace(/-/g, ' ')}` }))]
-          // An empty projection is a real state — nothing is waiting — so there is nothing to
-          // invent from it; a hundred fabricated gates would be a state the console cannot reach.
-          : w };
+        return { waiting: grown(w, 40, (base, i): WaitingGate => ({ ...base, id: `extreme/${i}`, gate: `approve spec ${LONG.replace(/-/g, ' ')}` })) };
       }
       const l = (body as { initiatives: Initiative[] }).initiatives;
-      return { initiatives: [...l, ...Array.from({ length: 240 }, (_, i): Initiative => ({ ...l[i % l.length], slug: `2026-0${(i % 9) + 1}-${String((i % 27) + 1).padStart(2, '0')}-${LONG}-${i}` }))] };
+      return { initiatives: grown(l, 240, (base, i): Initiative => ({ ...base, slug: `2026-0${(i % 9) + 1}-${String((i % 27) + 1).padStart(2, '0')}-${LONG}-${i}` })) };
     }
     case 'knowledge': {
-      if (a === 'log') return { entries: [...(body as { entries: KnowledgeLogEntry[] }).entries, ...Array.from({ length: 300 }, (_, i): KnowledgeLogEntry => ({ ts: new Date(Date.now() - i * 3_600_000).toISOString(), actor: 'maximiliana.fitzgerald-oyelaran@example.com', team: 'atlas', kind: 'knowledge.add', node: String(1000 + i), recorded_title: `A lesson ${LONG.replace(/-/g, ' ')} number ${i}`, superseded_by: null, node_title: null, node_status: null }))] };
+      if (a === 'log') {
+        const entries = (body as { entries: KnowledgeLogEntry[] }).entries;
+        return { entries: grown(entries, 300, (_, i): KnowledgeLogEntry => ({ ts: new Date(Date.now() - i * 3_600_000).toISOString(), actor: 'maximiliana.fitzgerald-oyelaran@example.com', team: 'atlas', kind: 'knowledge.add', node: String(1000 + i), recorded_title: `A lesson ${LONG.replace(/-/g, ' ')} number ${i}`, superseded_by: null, node_title: null, node_status: null })) };
+      }
       if (a) return body;
       const n = (body as { nodes: KnowledgeNode[] }).nodes;
-      return { nodes: [...n, ...Array.from({ length: 300 }, (_, i): KnowledgeNode => ({ ...n[i % n.length], key: `extreme/${i}`, num: String(1000 + i).padStart(4, '0'), path: `nodes/${1000 + i}.md`, title: `When the gateway rejects an argument the client cached, reconnect before retrying, ${LONG.replace(/-/g, ' ')} (${i})`, tags: ['gateway', 'clients', 'schema-cache', 'reconnect', 'retries'] }))] };
+      return { nodes: grown(n, 300, (base, i): KnowledgeNode => ({ ...base, key: `extreme/${i}`, num: String(1000 + i).padStart(4, '0'), path: `nodes/${1000 + i}.md`, title: `When the gateway rejects an argument the client cached, reconnect before retrying, ${LONG.replace(/-/g, ' ')} (${i})`, tags: ['gateway', 'clients', 'schema-cache', 'reconnect', 'retries'] })) };
     }
     case 'skills': return a ? body : { skills: (body as { skills: Skill[] }).skills.map((s) => ({ ...s, runs: big(s.runs), calls: big(s.calls), refusals: big(s.refusals), durationTotal: s.durationTotal === null ? null : s.durationTotal * 900 })) };
     case 'people': {
       const p = (body as { people: Person[] }).people;
-      return { people: [...p, ...Array.from({ length: 180 }, (_, i): Person => ({ ...p[i % p.length], email: `person.${i}.${LONG}@example.com`, name: `Person ${i} ${LONG.replace(/-/g, ' ')}`, teams: Array.from({ length: 6 }, (_, j) => `team-${j + 1} (member)`), tokens: 40 + i }))] };
+      return { people: grown(p, 180, (base, i): Person => ({ ...base, email: `person.${i}.${LONG}@example.com`, name: `Person ${i} ${LONG.replace(/-/g, ' ')}`, teams: Array.from({ length: 6 }, (_, j) => `team-${j + 1} (member)`), tokens: 40 + i })) };
     }
     case 'activity': return { ...(body as object), events: (body as { events: ActivityEvent[] }).events.map((e) => ({ ...e, subject: e.subject ? `${e.subject}_${LONG}` : e.subject })) };
     case 'runs': { const r = (body as Runs).totals; return { totals: { runs: big(r.runs), calls: big(r.calls), refusals: big(r.refusals), mb: r.mb === null ? null : r.mb * 1_000 } } satisfies Runs; }
