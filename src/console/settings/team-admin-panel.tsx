@@ -28,13 +28,17 @@ import { type Me } from '@/lib/api-shapes';
 export function TeamAdminPanel() {
   const me = useConsole<Me>('/me');
   const [manualTeam, setManualTeam] = useState('');
+  // The slug the panel below reads, which is not the same as what is being typed into it. Keyed on
+  // the field's value, every keystroke named a team — `a`, `at`, `atl` — and each one was a request
+  // for that team's members, all of them superseded before they arrived.
+  const [committed, setCommitted] = useState('');
   const data = me.data;
 
   if (!data) return null;
   const adminTeams = data.teams.filter((t) => t.role === 'admin').map((t) => t.slug);
   if (!data.superadmin && adminTeams.length === 0) return null;
 
-  const team = data.superadmin ? manualTeam.trim() : (manualTeam || adminTeams[0] || '');
+  const team = data.superadmin ? committed : (manualTeam || adminTeams[0] || '');
 
   return (
     <SettingsSection title="Team administration" description="Members and roles for a team you administer.">
@@ -50,13 +54,16 @@ export function TeamAdminPanel() {
                     placeholder="team slug"
                     value={manualTeam}
                     onChange={(e) => setManualTeam(e.target.value)}
+                    // A slug is one word: Enter or leaving the field is what says it is finished.
+                    onBlur={(e) => setCommitted(e.target.value.trim())}
+                    onKeyDown={(e) => { if (e.key === 'Enter') setCommitted(e.currentTarget.value.trim()); }}
                   />
                   <datalist id="team-admin-suggestions">
                     {adminTeams.map((slug) => <option key={slug} value={slug} />)}
                   </datalist>
                 </>
               ) : (
-                <Select id={p.id} aria-describedby={p['aria-describedby']} value={team} onValueChange={setManualTeam} options={adminTeams.map((slug) => ({ value: slug, label: slug }))} />
+                <Select id={p.id} aria-describedby={p['aria-describedby']} value={team} onValueChange={(next) => { setManualTeam(next); setCommitted(next); }} options={adminTeams.map((slug) => ({ value: slug, label: slug }))} />
               )
             }
           </Field>
