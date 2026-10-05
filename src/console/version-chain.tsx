@@ -308,8 +308,8 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
             <p className="border-t border-line px-4 py-2.5 text-xs leading-relaxed text-ink-3">
               {collapsed} {collapsed === 1 ? 'revision is' : 'revisions are'} not listed
               separately: a revision row is filed on every write, so approving a document without
-              editing it files{' '}
-              {collapsed === 1 ? 'one' : 'ones'} carrying the same content as the version above.
+              editing it adds {collapsed === 1 ? 'one revision' : `${collapsed} revisions`}{' '}
+              carrying the same content as the version above.
               Approval is given to the content, so an approval that changed no content is not a
               new version of it.
             </p>
