@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery, useQueryClient, type Query, type UseQueryResult } from '@tanstack/react-query';
-import { createContext, createElement, useContext, useEffect, useSyncExternalStore, type ReactNode } from 'react';
+import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useSyncExternalStore, type ReactNode } from 'react';
 import { preload } from 'react-dom';
 
 // The one shape the transport itself needs: `useConsoleMode` reads the caller's role off
@@ -157,12 +157,12 @@ export function ConsoleModeProvider({ children }: { children: ReactNode }) {
    *
    * DELIBERATE: `/me` is kept. It answers who is calling, not what they may read, and dropping
    * it would re-ask a question whose answer is what this switch just acted on. */
-  function setMode(next: ConsoleMode) {
+  const setMode = useCallback((next: ConsoleMode) => {
     client.removeQueries({
       predicate: (q: Query) => q.queryKey[0] === 'console' && q.queryKey[1] !== '/me',
     });
     writeStoredMode(next);
-  }
+  }, [client]);
 
   /* A scope chosen in ANOTHER tab arrives as a `storage` event, and drops the rows the same way.
    *
@@ -183,7 +183,11 @@ export function ConsoleModeProvider({ children }: { children: ReactNode }) {
   }, [client]);
 
   // `createElement`, not JSX: this module is `.ts`, not `.tsx`.
-  return createElement(ConsoleModeContext.Provider, { value: { mode, setMode } }, children);
+  // One value for as long as the choice stands. A fresh object re-renders every consumer of this
+  // context on every render of the provider — and its consumers are every component that reads a
+  // console read, so one `/me` refetch re-rendered the whole page.
+  const value = useMemo(() => ({ mode, setMode }), [mode, setMode]);
+  return createElement(ConsoleModeContext.Provider, { value }, children);
 }
 
 const DEFAULT_MODE_STATE: ConsoleModeState = { mode: 'platform', setMode: () => {} };
