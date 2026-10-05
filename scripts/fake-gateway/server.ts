@@ -131,8 +131,21 @@ const server = http.createServer((req, res) => {
     else if (mode === 'error' && seg[2] !== 'me') answer = [503, { error: 'The gateway could not reach its database: connection to 10.0.0.12:5432 refused. Nothing was changed.' }];
     else if (req.method === 'GET') {
       answer = read(seg.slice(2), url.searchParams);
-      if (answer[0] === 200 && mode === 'empty') answer = [200, empty(seg.slice(2), answer[1])];
-      if (answer[0] === 200 && mode === 'extreme') answer = [200, extreme(seg.slice(2), answer[1])];
+      // A transform reads the answer by its own idea of the route's shape, so a route that grows a
+      // second answer shape — `/initiatives?waiting=1` returns `{ waiting }` where the list returns
+      // `{ initiatives }` — reaches it as something it does not recognise. That threw OUT of this
+      // handler and killed the process: every page after it reported "cannot reach the platform",
+      // and the shape that caused it was the only thing NOT visible in the report. A mode that
+      // cannot shape an answer serves it unshaped and says so.
+      const shape = (what: string, f: (seg: string[], body: unknown) => unknown) => {
+        try { return f(seg.slice(2), answer[1]); }
+        catch (err) {
+          console.error(`fake-gateway: ${what} could not shape ${url.pathname} — serving it as it is:`, (err as Error).message);
+          return answer[1];
+        }
+      };
+      if (answer[0] === 200 && mode === 'empty') answer = [200, shape('empty', empty)];
+      if (answer[0] === 200 && mode === 'extreme') answer = [200, shape('extreme', extreme)];
     }
     else answer = write(seg.slice(2), url.searchParams, req.method ?? 'POST', (() => { try { return JSON.parse(raw || '{}'); } catch { return {}; } })());
     setTimeout(() => {

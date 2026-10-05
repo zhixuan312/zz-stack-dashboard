@@ -4,7 +4,7 @@
  * breaking a mode nobody updated.
  */
 import type {
-  ActivityEvent, Initiative, KnowledgeLogEntry, KnowledgeNode, Overview, Person, PlatformPersonRow, Runs, Skill, Team,
+  ActivityEvent, Initiative, KnowledgeLogEntry, KnowledgeNode, Overview, Person, PlatformPersonRow, Runs, Skill, Team, WaitingGate,
 } from '../../src/lib/api-shapes.ts';
 
 /** Nothing recorded yet: every list empty, every figure absent rather than zero where the API says so. */
@@ -66,8 +66,19 @@ export function extreme(seg: string[], body: unknown): unknown {
       const t = (body as { teams: Team[] }).teams;
       return { teams: [...t, ...Array.from({ length: 60 }, (_, i): Team => ({ ...t[i % t.length], slug: `team-${i + 1}-${LONG}`.slice(0, 63), name: `Regional delivery group ${i + 1}, ${LONG.replace(/-/g, ' ')}`, members: 300 + i, initiatives: 1_000 + i * 17, documents: 48_000 + i, sources: 120_000 + i, knowledge: 9_000 + i }))] };
     }
+    /* Two answers come off this route: the list, and the projection the alert bell asks for with
+     * `?waiting=1`. Both are shaped here — a reader that recognises only one of them is a reader
+     * that fails on the other, which is how this transform used to take the whole gateway down. */
     case 'initiatives': {
       if (a && b) return body;
+      if (a === 'waiting' || 'waiting' in (body as object)) {
+        const w = (body as { waiting: WaitingGate[] }).waiting ?? [];
+        return { waiting: w.length
+          ? [...w, ...Array.from({ length: 40 }, (_, i): WaitingGate => ({ ...w[i % w.length], id: `extreme/${i}`, gate: `approve spec ${LONG.replace(/-/g, ' ')}` }))]
+          // An empty projection is a real state — nothing is waiting — so there is nothing to
+          // invent from it; a hundred fabricated gates would be a state the console cannot reach.
+          : w };
+      }
       const l = (body as { initiatives: Initiative[] }).initiatives;
       return { initiatives: [...l, ...Array.from({ length: 240 }, (_, i): Initiative => ({ ...l[i % l.length], slug: `2026-0${(i % 9) + 1}-${String((i % 27) + 1).padStart(2, '0')}-${LONG}-${i}` }))] };
     }
