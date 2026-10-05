@@ -98,7 +98,8 @@ export default function PluginSkillPage({ params }: { params: Promise<{ plugin: 
     <ConsolePage
       title={name}
       crumbs={[{ label: 'Plugins', href: '/plugins' }, { label: pluginName, href: `/plugins/${pluginName}` }]}
-      description={text ? text.description ?? 'A skill with no description of its own.' : known ? <Skeleton className="inline-block h-4 w-64 max-w-full align-middle" /> : undefined}
+      // A sentence first, always — see teams/[slug]/page.tsx. The skill's own words follow it.
+      description={<span className="inline-flex flex-wrap items-center gap-2">One skill a plugin ships: what it costs to run, the text itself, and what ships beside it.{text?.description ? ` ${text.description}.` : null}</span>}
       showPeriod={false}
       updatedAt={freshnessOf(list, plugins, detail)}
       toolbar={known ? <LinkTabs label="Skill views" active={view} tabs={[{ key: 'cost', label: 'Cost to run', href: base }, { key: 'read', label: 'The skill', href: `${base}?view=read` }, ...(refs ? [{ key: 'references', label: 'Reference', href: `${base}?view=references`, count: refs }] : [])]} /> : undefined}

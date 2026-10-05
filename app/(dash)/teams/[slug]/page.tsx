@@ -4,7 +4,6 @@ import { use } from 'react';
 import { BookOpen, ListTree, Signature, Users } from 'lucide-react';
 import { Row } from '@/components/base/shell';
 import { MetricTile } from '@/components/patterns/metric-tile';
-import { Skeleton } from '@/components/ui/skeleton';
 import { DataTable, type Column } from '@/components/patterns/data-table';
 import { Badge } from '@/components/ui/badge';
 import { aligned } from '@/console/columns';
@@ -52,7 +51,10 @@ export default function TeamPage({ params }: { params: Promise<{ slug: string }>
       crumbs={[{ label: 'Teams', href: '/teams' }, { label: slug }]}
       // The name only when it says something the slug does not.
       // Always a line, so the masthead does not grow under the reader when the team arrives.
-      description={missing ? 'No team by this name exists on the platform.' : team.data ? `${team.data.team.name !== slug ? `${team.data.team.name}, created` : 'Created'} ${formatDate(team.data.team.created)}` : <Skeleton className="inline-block h-4 w-64 max-w-full align-middle" />}
+      // A sentence first, always: this is the page's largest text block, and a masthead whose only
+      // line is the team's own name paints at hydration (measured 2.32s) where a sentence in the
+      // HTML paints at 0.61s. The same trade `/initiatives/[team]/[slug]` makes with its badge.
+      description={<span className="inline-flex flex-wrap items-center gap-2">{missing ? 'No team by this name exists on the platform.' : <>What this team holds: its people, its work, and what it has settled.{team.data ? ` Created ${formatDate(team.data.team.created)}${team.data.team.name !== slug ? ` from ${team.data.team.name}` : ''}.` : null}</>}</span>}
       showPeriod={false}
       updatedAt={freshnessOf(team, inits)}
     >

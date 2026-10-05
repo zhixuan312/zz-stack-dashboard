@@ -70,7 +70,8 @@ export default function PluginPage({ params }: { params: Promise<{ plugin: strin
     <ConsolePage
       title={plugin}
       crumbs={[{ label: 'Plugins', href: '/plugins' }]}
-      description={p ? p.description ?? p.agentName ?? 'A plugin with no description of its own.' : q.isPending ? <Skeleton className="inline-block h-4 w-64 max-w-full align-middle" /> : undefined}
+      // A sentence first, always — see teams/[slug]/page.tsx. The plugin's own words follow it.
+      description={<span className="inline-flex flex-wrap items-center gap-2">What this plugin ships, what it governs, and how its runs went.{p?.description || p?.agentName ? ` ${p.description ?? p.agentName}.` : null}</span>}
       showPeriod={false}
       updatedAt={freshnessOf(q, qEval)}
     >
