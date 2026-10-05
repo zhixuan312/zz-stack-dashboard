@@ -18,6 +18,20 @@ describe('safeMarkdownUrl', () => {
   it('reads a colon after a slash as part of a path', () => {
     expect(safeMarkdownUrl('a/path:with-colon', 'href')).toBe('a/path:with-colon');
   });
+  it('drops a scheme the URL parser would only see after it strips the whitespace', () => {
+    // A URL parser removes tab, newline and carriage return from anywhere in a URL, and leading
+    // C0 controls and spaces from its ends, BEFORE it reads the scheme. So `java\tscript:` is
+    // `javascript:` to every browser — and a policy that reads the tab as an ordinary path
+    // character hands the link straight through. Every entry here is a link a reader clicks.
+    const smuggled = [
+      'java\tscript:alert(1)', 'java\nscript:alert(1)', 'java\rscript:alert(1)',
+      '\u0000javascript:alert(1)', '\u0001javascript:alert(1)', ' javascript:alert(1)',
+      'da\tta:text/html,<script>alert(1)</script>', 'vb\tscript:x',
+    ];
+    for (const u of smuggled) expect(safeMarkdownUrl(u, 'href'), u).toBe('');
+    // The image rule too: whatever it is, an image is fetched without the reader agreeing to it.
+    for (const u of ['ja\tvascript:x', 'da\tta:image/png;base64,AAAA']) expect(safeMarkdownUrl(u, 'src'), u).toBe('');
+  });
 });
 
 describe('Prose', () => {
