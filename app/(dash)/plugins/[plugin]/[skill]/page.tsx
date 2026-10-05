@@ -9,13 +9,14 @@ import { BarList } from '@/components/charts/bar-list';
 import { CompositionBar } from '@/components/charts/composition-bar';
 import { MetricTile } from '@/components/patterns/metric-tile';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { KeyValue } from '@/components/ui/key-value';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LinkTabs } from '@/components/ui/tabs';
 import { ConsolePage } from '@/console/page';
 import { Panel } from '@/console/panel';
-import { Query } from '@/console/query';
+import { failureOf, Query } from '@/console/query';
 import { freshnessOf, useConsole } from '@/lib/api';
 import type { PluginRow, Skill, SkillDetail, SkillText } from '@/lib/api-shapes';
 import { formatCount, formatKb, formatSeconds } from '@/lib/format';
@@ -76,6 +77,12 @@ export default function PluginSkillPage({ params }: { params: Promise<{ plugin: 
   const plugins = useConsole<{ plugins: PluginRow[] }>('/plugins');
   const plugin = plugins.data?.plugins.find((p) => p.plugin === pluginName);
   const shipped = plugin?.skills.find((x) => x.name === name);
+  // COUPLED: only a SUCCESSFUL read may say a skill is not shipped, and only one that arrived may
+  // draw its figures. `known = !plugins.data || !!shipped` treated a FAILED read as one that
+  // shipped the skill: the page drew `…` tiles for ever, never said the read had failed, and said
+  // nothing that would send a reader to look again. The sibling page made the mirror-image
+  // mistake, reporting a failed read as "not a plugin the console lists".
+  const failed = failureOf(plugins) ?? failureOf(list);
   const known = !plugins.data || !!shipped;
   const skill = list.data?.skills.find((s) => s.name === name);
   const detail = useConsole<SkillDetail>(known ? `/skills/${name}` : null);
@@ -96,7 +103,12 @@ export default function PluginSkillPage({ params }: { params: Promise<{ plugin: 
       updatedAt={freshnessOf(list, plugins, detail)}
       toolbar={known ? <LinkTabs label="Skill views" active={view} tabs={[{ key: 'cost', label: 'Cost to run', href: base }, { key: 'read', label: 'The skill', href: `${base}?view=read` }, ...(refs ? [{ key: 'references', label: 'Reference', href: `${base}?view=references`, count: refs }] : [])]} /> : undefined}
     >
-      {!known ? (
+      {failed ? (
+        <EmptyState kind="error" title="This skill could not be read" className="py-16"
+                    action={<Button size="sm" onClick={() => { void plugins.refetch(); void list.refetch(); }}>Retry</Button>}>
+          {failed}
+        </EmptyState>
+      ) : !known ? (
         <EmptyState kind="filtered" title={`'${name}' is not shipped by ${pluginName}`} className="py-16">It may have been renamed, or it belongs to another plugin. The plugin&apos;s page lists everything it ships.</EmptyState>
       ) : (
         <>
