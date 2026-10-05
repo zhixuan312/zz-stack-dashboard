@@ -30,12 +30,22 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** Installed before any page script: every vital the page produces lands on window.__v. */
 const OBSERVE = `(() => {
-  const v = window.__v = { lcp: 0, cls: 0, session: 0, last: 0, taps: [], frames: [], recording: false, since: 0 };
+  const v = window.__v = { lcp: 0, cls: 0, session: 0, last: 0, taps: [], frames: [], recording: false, since: 0, sources: {} };
   new PerformanceObserver((l) => { for (const e of l.getEntries()) v.lcp = e.startTime; }).observe({ type: 'largest-contentful-paint', buffered: true });
   new PerformanceObserver((l) => { for (const e of l.getEntries()) {
     if (e.hadRecentInput) continue;
     v.session = e.startTime - v.last < 1000 && v.session ? v.session + e.value : e.value;
     v.last = e.startTime; v.cls = Math.max(v.cls, v.session);
+    // WHAT moved, because a CLS of 0.286 with no element named is a number nobody can act on —
+    // /settings reported it once on CI and it could not be reproduced anywhere else. Summed over
+    // every shift rather than over the winning session window alone: this is a pointer to the
+    // element, not a second CLS.
+    for (const s of e.sources || []) {
+      const n = s.node;
+      const raw = !n ? 'detached' : (n.nodeType === 1 ? (n.getAttribute('aria-label') || n.className || n.tagName) : n.nodeName);
+      const k = String(raw || '?').trim().split(/\\s+/).slice(0, 2).join(' ') || '?';
+      v.sources[k] = (v.sources[k] || 0) + e.value;
+    }
   } }).observe({ type: 'layout-shift', buffered: true });
   const TAP = /^(pointer|touch|mouse|click|gesture)/;
   new PerformanceObserver((l) => { for (const e of l.getEntries()) if (e.interactionId && TAP.test(e.name) && e.startTime >= v.since) v.taps.push(e.duration); }).observe({ type: 'event', buffered: true, durationThreshold: 16 });
@@ -78,11 +88,17 @@ for (const route of ROUTES) {
     await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
     await sleep(500);
   }
-  const v = await page.eval<{ lcp: number; cls: number; frames: number[] }>('window.__v');
+  const v = await page.eval<{ lcp: number; cls: number; frames: number[]; sources: Record<string, number> }>('window.__v');
   const dropped = v.frames.filter((f) => f > 50).length;
   const bad = v.lcp >= 2500 || inp >= 200 || v.cls >= 0.1;
   if (bad) failures++;
-  console.log(`${bad ? 'FAIL' : 'ok  '} ${route.padEnd(36)} LCP ${(v.lcp / 1000).toFixed(2)} s · INP ${Math.round(inp)} ms · CLS ${v.cls.toFixed(3)} · frames over 50 ms: ${dropped} of ${v.frames.length}${inp >= 100 ? ` · slowest tap: ${slowest}` : ''}`);
+  // What moved, on a page that failed CLS: without it the number is the whole report, and a 0.286
+  // nobody can attribute is a failure nobody can fix. A pointer, not a metric — the sums are over
+  // every shift, so they do not add up to the CLS beside them.
+  const shifted = bad && v.cls >= 0.1
+    ? ` · shifted: ${Object.entries(v.sources).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, n]) => `${k} (${n.toFixed(3)})`).join(', ') || 'nothing recorded'}`
+    : '';
+  console.log(`${bad ? 'FAIL' : 'ok  '} ${route.padEnd(36)} LCP ${(v.lcp / 1000).toFixed(2)} s · INP ${Math.round(inp)} ms · CLS ${v.cls.toFixed(3)} · frames over 50 ms: ${dropped} of ${v.frames.length}${inp >= 100 ? ` · slowest tap: ${slowest}` : ''}${shifted}`);
 }
 await page.send('Emulation.setCPUThrottlingRate', { rate: 1 });
 page.close();
