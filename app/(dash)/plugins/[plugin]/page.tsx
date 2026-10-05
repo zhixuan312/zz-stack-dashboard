@@ -6,6 +6,7 @@ import { Row } from '@/components/base/shell';
 import { DataTable, type Column } from '@/components/patterns/data-table';
 import { MetricTile } from '@/components/patterns/metric-tile';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { KeyValue } from '@/components/ui/key-value';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -15,7 +16,7 @@ import { Panel } from '@/console/panel';
 import { EvalLearning, EvalNotYet, EvalUsage } from '@/console/plugin-eval-evidence';
 import { EvalAutomationTrust, EvalEvolution } from '@/console/plugin-eval-evolution';
 import { EvalHeadline, EvalHealth, EvalQuality } from '@/console/plugin-eval-overview';
-import { Query } from '@/console/query';
+import { failureOf, Query } from '@/console/query';
 import { When } from '@/console/when';
 import { freshnessOf, useConsole } from '@/lib/api';
 import type { PluginEval, PluginRow } from '@/lib/api-shapes';
@@ -84,7 +85,17 @@ export default function PluginPage({ params }: { params: Promise<{ plugin: strin
       ) : null}
       <Query query={qEval} what="The evaluation" skeleton={<Skeleton className="h-40 rounded-lg" />}>
         {(e) => !p && !e.found && !q.isPending ? (
-          <EmptyState kind="filtered" title={`'${plugin}' is not a plugin the console lists`} className="py-16">It may have been renamed or removed. Plugins lists what is there.</EmptyState>
+          failureOf(q) ? (
+            // The list itself did not load, which is a different fact from this plugin not being
+            // in it — and reporting the second when the first happened is how a reader concludes
+            // a plugin was deleted. The gateway's own sentence, and a retry.
+            <EmptyState kind="error" title="Plugins could not be read" className="py-16"
+                        action={<Button size="sm" onClick={() => void q.refetch()}>Retry</Button>}>
+              {failureOf(q)}
+            </EmptyState>
+          ) : (
+            <EmptyState kind="filtered" title={`'${plugin}' is not a plugin the console lists`} className="py-16">It may have been renamed or removed. Plugins lists what is there.</EmptyState>
+          )
         ) : (
           <>
             <EvalHeadline pluginEval={e} />
