@@ -55,9 +55,9 @@ export default function KnowledgePage() {
       toolbar={<KnowledgeTabs active="nodes" />}
     >
       <Row split="tiles">
-        <MetricTile label="Nodes" icon={<BookOpen />} value={list.data ? nodes.length : '…'} note="On this shelf" />
-        <MetricTile label="Adopted" icon={<CheckCircle2 />} value={list.data ? adopted : '…'} note="Current lessons" />
-        <MetricTile label="Superseded" icon={<Archive />} value={list.data ? nodes.filter((n) => n.status === 'superseded').length : '…'} note="Replaced, still readable" />
+        <MetricTile label="Nodes" icon={<BookOpen />} value={list.data ? nodes.length : list.isPending ? '…' : '—'} note="On this shelf" />
+        <MetricTile label="Adopted" icon={<CheckCircle2 />} value={list.data ? adopted : list.isPending ? '…' : '—'} note="Current lessons" />
+        <MetricTile label="Superseded" icon={<Archive />} value={list.data ? nodes.filter((n) => n.status === 'superseded').length : list.isPending ? '…' : '—'} note="Replaced, still readable" />
         <MetricTile label="Last recorded" icon={<History />} value={latest ? formatRelative(latest) : 'Never'} note={latest ? formatDate(latest) : 'Nothing on the shelf'} />
       </Row>
       <DataTable

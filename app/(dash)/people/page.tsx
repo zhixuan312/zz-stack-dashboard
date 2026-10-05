@@ -64,10 +64,10 @@ export default function PeoplePage() {
       updatedAt={freshnessOf(q)}
     >
       <Row split="tiles">
-        <MetricTile label="People" icon={<UserRound />} value={q.data ? people.length : '…'} note={`${people.filter((p) => p.role === 'superadmin').length} superadmin`} />
-        <MetricTile label="Live tokens" icon={<KeyRound />} value={q.data ? tokens : '…'} note={`Held by ${people.filter((p) => p.tokens > 0).length} people`} />
-        <MetricTile label="Never used a token" icon={<UserX />} value={q.data ? people.filter((p) => !p.last_used).length : '…'} note="No platform call on record" />
-        <MetricTile label="Teams" icon={<Users />} value={q.data ? new Set(people.flatMap((p) => p.teams.map(teamSlug))).size : '…'} note="Across everyone listed" />
+        <MetricTile label="People" icon={<UserRound />} value={q.data ? people.length : q.isPending ? '…' : '—'} note={`${people.filter((p) => p.role === 'superadmin').length} superadmin`} />
+        <MetricTile label="Live tokens" icon={<KeyRound />} value={q.data ? tokens : q.isPending ? '…' : '—'} note={`Held by ${people.filter((p) => p.tokens > 0).length} people`} />
+        <MetricTile label="Never used a token" icon={<UserX />} value={q.data ? people.filter((p) => !p.last_used).length : q.isPending ? '…' : '—'} note="No platform call on record" />
+        <MetricTile label="Teams" icon={<Users />} value={q.data ? new Set(people.flatMap((p) => p.teams.map(teamSlug))).size : q.isPending ? '…' : '—'} note="Across everyone listed" />
       </Row>
       <DataTable
         caption="People"

@@ -46,10 +46,10 @@ export default function PluginsPage() {
       updatedAt={freshnessOf(q)}
     >
       <Row split="tiles">
-        <MetricTile label="Plugins" icon={<Box />} value={q.data ? plugins.length : '…'} note="In the catalog" />
-        <MetricTile label="Skills" icon={<Puzzle />} value={q.data ? plugins.reduce((a, p) => a + p.skills.length, 0) : '…'} note="Across every plugin" />
-        <MetricTile label="Released" icon={<PackageCheck />} value={q.data ? plugins.filter((p) => p.release).length : '…'} note={`Of ${plugins.filter((p) => p.version).length} declaring a version`} />
-        <MetricTile label="Never run" icon={<CircleOff />} value={q.data ? neverRun : '…'} emphasis={neverRun > 0} note="Skills shipped, never called" />
+        <MetricTile label="Plugins" icon={<Box />} value={q.data ? plugins.length : q.isPending ? '…' : '—'} note="In the catalog" />
+        <MetricTile label="Skills" icon={<Puzzle />} value={q.data ? plugins.reduce((a, p) => a + p.skills.length, 0) : q.isPending ? '…' : '—'} note="Across every plugin" />
+        <MetricTile label="Released" icon={<PackageCheck />} value={q.data ? plugins.filter((p) => p.release).length : q.isPending ? '…' : '—'} note={`Of ${plugins.filter((p) => p.version).length} declaring a version`} />
+        <MetricTile label="Never run" icon={<CircleOff />} value={q.data ? neverRun : q.isPending ? '…' : '—'} emphasis={neverRun > 0} note="Skills shipped, never called" />
       </Row>
       <DataTable
         caption="Plugins"

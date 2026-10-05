@@ -59,10 +59,10 @@ export default function TeamPage({ params }: { params: Promise<{ slug: string }>
       {missing ? null : (
         <>
           <Row split="tiles">
-            <MetricTile label="Initiatives" icon={<ListTree />} value={inits.data ? list.length : '…'} note={`${list.filter((i) => !i.closed).length} still open`} />
-            <MetricTile label="Waiting on you" icon={<Signature />} value={inits.data ? waiting : '…'} emphasis={waiting > 0} note={waiting ? 'A gate needs a signature' : 'Nothing to sign'} />
-            <MetricTile label="Members" icon={<Users />} value={team.data ? members.length : '…'} note={`${members.filter((m) => m.role === 'admin').length} admin`} />
-            <MetricTile label="Knowledge nodes" icon={<BookOpen />} value={held ? held.knowledge : '…'} note={held ? `${held.documents} documents, ${held.sources} sources` : undefined} />
+            <MetricTile label="Initiatives" icon={<ListTree />} value={inits.data ? list.length : inits.isPending ? '…' : '—'} note={`${list.filter((i) => !i.closed).length} still open`} />
+            <MetricTile label="Waiting on you" icon={<Signature />} value={inits.data ? waiting : inits.isPending ? '…' : '—'} emphasis={waiting > 0} note={waiting ? 'A gate needs a signature' : 'Nothing to sign'} />
+            <MetricTile label="Members" icon={<Users />} value={team.data ? members.length : team.isPending ? '…' : '—'} note={`${members.filter((m) => m.role === 'admin').length} admin`} />
+            <MetricTile label="Knowledge nodes" icon={<BookOpen />} value={held ? held.knowledge : teams.isPending ? '…' : '—'} note={held ? `${held.documents} documents, ${held.sources} sources` : undefined} />
           </Row>
           <DataTable
             caption={`${slug}'s initiatives`}

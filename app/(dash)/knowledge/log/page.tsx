@@ -54,9 +54,9 @@ export default function KnowledgeLogPage() {
       toolbar={<KnowledgeTabs active="log" />}
     >
       <Row split="tiles">
-        <MetricTile label="Entries" icon={<History />} value={q.data ? entries.length : '…'} note={entries[0] ? <>Latest <When at={entries[0].ts} /></> : 'Nothing yet'} />
-        <MetricTile label="Recorded" icon={<PlusCircle />} value={q.data ? added : '…'} note="Nodes minted" />
-        <MetricTile label="Superseded" icon={<GitFork />} value={q.data ? entries.length - added : '…'} note="Replaced by a newer node" />
+        <MetricTile label="Entries" icon={<History />} value={q.data ? entries.length : q.isPending ? '…' : '—'} note={entries[0] ? <>Latest <When at={entries[0].ts} /></> : 'Nothing yet'} />
+        <MetricTile label="Recorded" icon={<PlusCircle />} value={q.data ? added : q.isPending ? '…' : '—'} note="Nodes minted" />
+        <MetricTile label="Superseded" icon={<GitFork />} value={q.data ? entries.length - added : q.isPending ? '…' : '—'} note="Replaced by a newer node" />
       </Row>
       <DataTable
         caption="Knowledge log"

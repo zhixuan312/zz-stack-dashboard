@@ -114,10 +114,10 @@ export default function PluginSkillPage({ params }: { params: Promise<{ plugin: 
         <>
           {skill || list.isPending ? (
             <Row split="tiles">
-              <MetricTile label="Runs" icon={<Repeat />} value={skill ? skill.runs : '…'} note="Recorded" />
-              <MetricTile label="Calls per run" icon={<Activity />} value={skill ? skill.callsAvg : '…'} format={(n) => n.toFixed(1)} note={skill ? `${formatCount(skill.calls)} in total, peak ${skill.callsMax}` : 'Average and peak'} />
-              <MetricTile label="Median run" icon={<Timer />} value={!skill ? '…' : skill.durationMedian === null ? 'Not timed' : formatSeconds(skill.durationMedian)} note={skill ? `Longest ${formatSeconds(skill.durationMax)}` : 'And the longest'} />
-              <MetricTile label="Refused" icon={<Ban />} value={!skill ? '…' : skill.calls ? skill.refusals / skill.calls : 'No calls'} format={(n) => `${(n * 100).toFixed(1)}%`} note={skill ? `${skill.refusals} of ${formatCount(skill.calls)} calls` : 'Share of its calls'} />
+              <MetricTile label="Runs" icon={<Repeat />} value={skill ? skill.runs : list.isPending ? '…' : '—'} note="Recorded" />
+              <MetricTile label="Calls per run" icon={<Activity />} value={skill ? skill.callsAvg : list.isPending ? '…' : '—'} format={(n) => n.toFixed(1)} note={skill ? `${formatCount(skill.calls)} in total, peak ${skill.callsMax}` : 'Average and peak'} />
+              <MetricTile label="Median run" icon={<Timer />} value={!skill ? (list.isPending ? '…' : '—') : skill.durationMedian === null ? 'Not timed' : formatSeconds(skill.durationMedian)} note={skill ? `Longest ${formatSeconds(skill.durationMax)}` : 'And the longest'} />
+              <MetricTile label="Refused" icon={<Ban />} value={!skill ? (list.isPending ? '…' : '—') : skill.calls ? skill.refusals / skill.calls : 'No calls'} format={(n) => `${(n * 100).toFixed(1)}%`} note={skill ? `${skill.refusals} of ${formatCount(skill.calls)} calls` : 'Share of its calls'} />
             </Row>
           ) : null}
           {/* What the skill is: knowable whether or not anybody has run it, and a front door is exactly the skill with no runs. */}
