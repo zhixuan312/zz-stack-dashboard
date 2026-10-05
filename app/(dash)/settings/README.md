@@ -7,7 +7,9 @@ A person's own tokens, client setup and teams, plus team and platform administra
 Sections 56px apart, each with its title and purpose on the left and its cards on the right (one column on a phone),
 at the data width like every other page.
 
-- Console scope (superadmin): one setting row, the switch on the right; applies at once.
+- Console scope: one setting row, the switch on the right; applies at once. The section is drawn for
+  everyone and says which of the two scopes a superadmin has the choice of — only the switch is theirs, and
+  its place is held either way, so nothing below moves when `/me` lands.
 - Your teams: the teams this person belongs to, and which one this browser acts for.
 - Access tokens: the table, and issuing a new one on its last line (shown once).
 - Client setup: the setup to copy, Copy on the code itself.

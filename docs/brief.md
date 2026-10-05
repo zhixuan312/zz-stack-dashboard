@@ -35,6 +35,14 @@ shapes are still the gateway's (`src/lib/api-shapes.ts`). The routes are the sam
   and centred between (`src/console/columns.ts`). A bar's length is its share of the total it is labelled
   against (`BarList total`). A tile or bar used as a mark has no legend row; hover names the part. Colour
   means something: a refusals list is not red on every row.
+- **The console-scope section is drawn for everyone; only its switch is earned.** `/settings` opens with it, so
+  its PRESENCE may not depend on what `/me` says. Returning `null` until the read landed kept the page's largest
+  text block out of the HTML, and `/settings` was the console's slowest page because of it (LCP 2624ms against 0.6s
+  on every page that ships its own words). The sentence is the same for a member and for a superadmin and says
+  which of them has the choice, so a member reads why they have no switch rather than nothing. The row holds the
+  height it would have either way — a member's slot keeps the space the switch takes and nothing in it, `aria-hidden`
+  because a gap is not a control — and the sentence names no team, because a largest block that changes when the
+  read lands re-paints, and the paint after hydration is the one the LCP takes.
 - **A view is its address, and the address is read from the window.** Every filter, tab and period is a query
   parameter, and `src/lib/address.ts` is the one reader of it. Reading Next's search params instead costs a
   prerendered route its prerender — `useSearchParams` client-renders every Client Component up to the nearest
