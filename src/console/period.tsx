@@ -12,10 +12,19 @@ import { DEFAULT_PERIOD, parsePeriod, type Period } from '@/lib/period';
  * and it read as a warning that the four pages' filters could not work either, since they are
  * written with `router.replace` and read exactly that way. Measured in a browser on `/initiatives`:
  * pressing a filter took the table from 8 rows to 2 and the address from `/initiatives` to
- * `/initiatives?show=waiting`. So the period could live in the address like every other view
- * state — the one thing this store's own `setPeriod` cannot do today is be cleared by a page's
- * "Clear filters", because that writes the address through the router and this writes it with
- * `replaceState`, and the router re-applies what it last knew. Worth doing; not done here.
+ * `/initiatives?show=waiting`.
+ *
+ * It stays out of the URL all the same, for two reasons that are now the ones that hold:
+ *
+ *   `useSearchParams` would cost the prerender. This provider wraps the whole shell, and reading
+ *   search params in a prerendered route client-renders every Client Component up to the nearest
+ *   Suspense boundary — the shell, its rail, every page frame. The period is not worth that.
+ *
+ *   The reporting window is the chrome's, not a page's. `useQueryState`'s "Clear filters" clears
+ *   the filters of the page it sits on; this spans every page and is chosen once in the top bar, so
+ *   clearing one page's table filters must not reset it. `history.replaceState` is what keeps the
+ *   two apart, and `useQueryState` rebuilds from the address rather than from Next's copy of it
+ *   precisely so a filter change cannot drop `?period=` on its way past.
  *
  * The URL is still written, with `history.replaceState`, so a windowed view stays linkable and
  * survives a refresh — but nothing re-renders off it. `replaceState`, not `pushState`: five
