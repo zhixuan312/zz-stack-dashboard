@@ -6,6 +6,8 @@
  * - A timestamp is never printed raw, no map is keyed by one flow's or skill's names, a gate count has no hardcoded
  *   denominator, and a hand-built table that can be empty says so.
  * - No `__html` from anything but a literal or the pre-paint script: the second way raw HTML could get in.
+ * - Every webfont face states a `display` and a `fallback` that ends in a generic family, so a failed face leaves a
+ *   real font rather than the browser's initial one.
  * - No source file over 700 lines: past that a file holds two things, and the split is agreed before it grows.
  */
 import fs from 'node:fs';
@@ -56,6 +58,39 @@ for (const f of SOURCE) {
   for (const m of code(read(f)).matchAll(/dangerouslySetInnerHTML=\{\{\s*__html:\s*([^}]+)\}\}/g)) {
     const expr = m[1].trim();
     if (!/^[`'"]/.test(expr) && expr !== 'PREPAINT') problems.push(`${f} sets __html from ${expr.slice(0, 40)}`);
+  }
+}
+
+// ── Every webfont face lands on a real family when it fails ───────────────────────────────────────────
+// next/font generates its metric fallback from `local("Arial")` alone. On a machine without Arial — every Linux
+// server, and the CI runner's own Chrome — that generated face errors, and a face that names no `fallback` of its
+// own then leaves the browser's INITIAL font, a serif, in its place until the real one arrives. The swap reflows
+// the page, which is why /this-page-does-not-exist measured CLS 0.117 on Linux and 0.000 on a laptop: the laptop has
+// Arial, so its generated fallback works and there is nothing to reflow to. Only `scripts/vitals.ts` on a machine
+// without Arial can see the shift; this catches the font stack that makes it possible.
+const GENERIC = /^(sans-serif|serif|monospace|system-ui|ui-sans-serif|ui-monospace|cursive|fantasy|math|emoji)$/;
+/** The props of every `SomeFace({ … })` call, brace-balanced so a nested array or object is kept whole. */
+function faceProps(src: string): string[] {
+  const out: string[] = [];
+  for (const m of src.matchAll(/=\s*[A-Z]\w*\(\{/g)) {
+    let depth = 0, j = m.index! + m[0].length - 1;
+    for (; j < src.length; j++) {
+      if (src[j] === '{') depth++;
+      else if (src[j] === '}' && --depth === 0) break;
+    }
+    out.push(src.slice(m.index! + m[0].length - 1, j + 1));
+  }
+  return out;
+}
+for (const f of SOURCE) {
+  const src = code(read(f));
+  if (!/from 'next\/font\//.test(src)) continue;
+  for (const props of faceProps(src)) {
+    const family = /variable:\s*'([^']+)'/.exec(props)?.[1] ?? props.slice(0, 30);
+    if (!/display:\s*'/.test(props)) problems.push(`${f}: ${family} states no font-display`);
+    const list = /fallback:\s*\[([^\]]*)\]/.exec(props)?.[1];
+    if (!list) problems.push(`${f}: ${family} names no fallback, so a failed generated fallback leaves a serif`);
+    else if (!GENERIC.test((list.match(/'([^']+)'/g)?.pop() ?? "''").replace(/'/g, ''))) problems.push(`${f}: ${family}'s fallback does not end in a generic family`);
   }
 }
 
