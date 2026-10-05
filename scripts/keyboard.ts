@@ -52,8 +52,29 @@ for (const route of ROUTES) {
   for (let i = 0; i < 400; i++) {
     await page.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9 });
     await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9 });
-    // Two frames: the focus styles (the skip link sliding in) paint after the key event, not with it.
-    await page.eval('new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(true))))');
+    // The stop is judged once its geometry has SETTLED, not at a fixed two frames. The focus styles
+    // (the skip link sliding in) paint after the key event rather than with it, so some wait is
+    // owed — but on a loaded runner the paint lands later than two frames, and an element read
+    // before its style arrives is at its unfocused position: the skip link is 64px above the
+    // viewport until `focus-visible` moves it down, and `elementFromPoint` clamped to y=0 there
+    // returns the rail's brand row. That is a reachable, on-top skip link reported as
+    // `hidden under div.flex.h-16`. Measured: this walk is 0 issues on a laptop and reported that
+    // one issue on CI at the same commit, twice passing and once failing on the runner.
+    //
+    // Waiting for the rect to hold across three frames cannot hide a real failure: a stop that is
+    // genuinely covered stays covered no matter how long the wait.
+    await page.eval(`(() => new Promise((resolve) => {
+      let last = '', same = 0, frames = 0;
+      const step = () => {
+        const el = document.activeElement;
+        const r = el && el !== document.body ? (el.getClientRects()[0] ?? el.getBoundingClientRect()) : null;
+        const now = r ? [r.left, r.top, r.width, r.height].join() : '';
+        same = now === last ? same + 1 : 0;
+        last = now;
+        if (same >= 2 || ++frames > 12) resolve(true); else requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    }))()`);
     const s = await page.eval<{ kb: string | null; name: string; ring: boolean; onTop: boolean; covered: string } | null>(STOP);
     if (!s) continue;
     if (i === 0 || (!first && s)) first = first || s.name;
