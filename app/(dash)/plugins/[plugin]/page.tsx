@@ -70,7 +70,7 @@ export default function PluginPage({ params }: { params: Promise<{ plugin: strin
     <ConsolePage
       title={plugin}
       crumbs={[{ label: 'Plugins', href: '/plugins' }]}
-      description={p ? p.description ?? p.agentName ?? 'A plugin with no description of its own.' : q.isPending ? <Skeleton className="inline-block h-4 w-64 max-w-full align-middle" /> : undefined}
+      description={p ? p.description ?? p.agentName ?? 'A plugin with no description of its own.' : q.isPending ? <Skeleton className="block h-10 w-full max-w-[60ch]" /> : undefined}
       showPeriod={false}
       updatedAt={freshnessOf(q, qEval)}
     >

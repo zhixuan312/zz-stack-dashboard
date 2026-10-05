@@ -52,7 +52,7 @@ export default function TeamPage({ params }: { params: Promise<{ slug: string }>
       crumbs={[{ label: 'Teams', href: '/teams' }, { label: slug }]}
       // The name only when it says something the slug does not.
       // Always a line, so the masthead does not grow under the reader when the team arrives.
-      description={missing ? 'No team by this name exists on the platform.' : team.data ? `${team.data.team.name !== slug ? `${team.data.team.name}, created` : 'Created'} ${formatDate(team.data.team.created)}` : <Skeleton className="inline-block h-4 w-64 max-w-full align-middle" />}
+      description={missing ? 'No team by this name exists on the platform.' : team.data ? `${team.data.team.name !== slug ? `${team.data.team.name}, created` : 'Created'} ${formatDate(team.data.team.created)}` : <Skeleton className="block h-10 w-full max-w-[60ch]" />}
       showPeriod={false}
       updatedAt={freshnessOf(team, inits)}
     >

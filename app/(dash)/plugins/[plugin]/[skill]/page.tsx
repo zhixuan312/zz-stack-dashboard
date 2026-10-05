@@ -98,7 +98,7 @@ export default function PluginSkillPage({ params }: { params: Promise<{ plugin: 
     <ConsolePage
       title={name}
       crumbs={[{ label: 'Plugins', href: '/plugins' }, { label: pluginName, href: `/plugins/${pluginName}` }]}
-      description={text ? text.description ?? 'A skill with no description of its own.' : known ? <Skeleton className="inline-block h-4 w-64 max-w-full align-middle" /> : undefined}
+      description={text ? text.description ?? 'A skill with no description of its own.' : known ? <Skeleton className="block h-10 w-full max-w-[60ch]" /> : undefined}
       showPeriod={false}
       updatedAt={freshnessOf(list, plugins, detail)}
       toolbar={known ? <LinkTabs label="Skill views" active={view} tabs={[{ key: 'cost', label: 'Cost to run', href: base }, { key: 'read', label: 'The skill', href: `${base}?view=read` }, ...(refs ? [{ key: 'references', label: 'Reference', href: `${base}?view=references`, count: refs }] : [])]} /> : undefined}
