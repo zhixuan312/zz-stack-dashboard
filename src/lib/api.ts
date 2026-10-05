@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery, useQueryClient, type Query, type UseQueryResult } from '@tanstack/react-query';
-import { createContext, createElement, useContext, useSyncExternalStore, type ReactNode } from 'react';
+import { createContext, createElement, useContext, useEffect, useSyncExternalStore, type ReactNode } from 'react';
 import { preload } from 'react-dom';
 
 // The one shape the transport itself needs: `useConsoleMode` reads the caller's role off
@@ -163,6 +163,24 @@ export function ConsoleModeProvider({ children }: { children: ReactNode }) {
     });
     writeStoredMode(next);
   }
+
+  /* A scope chosen in ANOTHER tab arrives as a `storage` event, and drops the rows the same way.
+   *
+   * `mode` is deliberately not in the query key (see `useConsole`), so the choice alone relabels
+   * every page and leaves every panel holding the other scope's rows under the new name — two
+   * tabs, two answers, one of them labelled with the scope it is not showing. The event is the
+   * only signal that the change was not this tab's, and `storage` never fires in the tab that
+   * wrote it, so this cannot loop with `setMode` above. */
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== null && e.key !== MODE_STORAGE_KEY) return;
+      client.removeQueries({
+        predicate: (q: Query) => q.queryKey[0] === 'console' && q.queryKey[1] !== '/me',
+      });
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, [client]);
 
   // `createElement`, not JSX: this module is `.ts`, not `.tsx`.
   return createElement(ConsoleModeContext.Provider, { value: { mode, setMode } }, children);

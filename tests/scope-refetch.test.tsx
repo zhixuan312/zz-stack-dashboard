@@ -49,6 +49,9 @@ function mount() {
 }
 
 beforeEach(() => {
+  // The stored scope outlives a test: the provider restores it on mount, so one case writing
+  // `team` decides what the next one starts from.
+  window.localStorage.clear();
   calls = [];
   vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
@@ -70,6 +73,28 @@ describe('a scope that settles from /me', () => {
     // One read of `/overview`, whatever scope the first one went out under. Before this held, a
     // member read every endpoint twice — once scoped `platform` and once `team`.
     expect(calls.filter((u) => u.includes('/overview'))).toHaveLength(1);
+  });
+});
+
+describe('a scope that arrives from another tab', () => {
+  it('drops the rows the other scope filled, and reads again', async () => {
+    process.env.ZZ_TEST_SUPER = '1';
+    mount();
+    await waitFor(() => expect(screen.getByTestId('marker')).toHaveTextContent('platform'));
+    const before = calls.filter((u) => u.includes('/overview')).length;
+
+    // What the browser fires in every OTHER tab when one of them writes the key. jsdom has no
+    // other tab, so it is dispatched by hand — which is the whole of what the listener sees.
+    await act(async () => {
+      window.localStorage.setItem('zz-stack-mode', 'team');
+      window.dispatchEvent(new StorageEvent('storage', { key: 'zz-stack-mode', newValue: 'team' }));
+    });
+
+    // The choice alone relabels the rail; without dropping the cache the page keeps reading
+    // `platform` while its own label says `team` — two tabs disagreeing about one deployment.
+    await waitFor(() => expect(screen.getByTestId('mode')).toHaveTextContent('team'));
+    await waitFor(() => expect(calls.filter((u) => u.includes('/overview')).length).toBeGreaterThan(before));
+    await waitFor(() => expect(screen.getByTestId('marker')).toHaveTextContent('team'));
   });
 });
 
