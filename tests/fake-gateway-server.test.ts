@@ -83,4 +83,24 @@ describe('the fake gateway as the sweep uses it', () => {
     expect(err).toMatch(/nope/);
     expect(err).toMatch(/normal/);
   });
+
+  it('takes the console\'s presentation and approval the way the gateway does', async () => {
+    // `verify` presses Approve against this fixture: a page that sent the old `{ initiative, path }` would pass
+    // here and be refused by the gateway, so the fixture refuses it too.
+    const base = await start();
+    const post = (path: string, body: unknown) => fetch(`${base}/api/console/${path}?team=atlas`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    const doc = await (await fetch(`${base}/api/console/document/atlas/2026-09-28-search-relevance/spec.md`)).json() as
+      { content_revision: string };
+    expect(doc.content_revision).toMatch(/^cr_[a-z2-7]{26}$/);
+
+    const shown = await (await post('documents/shown', { initiative: 'i', path: 'spec.md', content_revision: doc.content_revision })).json() as
+      { review_context: string };
+    expect(shown.review_context).toMatch(/^rc_[a-z2-7]{26}$/);
+
+    expect((await post('documents/approve', { initiative: 'i', path: 'spec.md' })).status).toBe(400);
+    const signed = await post('documents/approve', { initiative: 'i', path: 'spec.md', expected_revision: doc.content_revision,
+                                                      review_context: shown.review_context });
+    expect(signed.status).toBe(200);
+  });
 });

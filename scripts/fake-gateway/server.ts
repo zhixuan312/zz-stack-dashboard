@@ -88,6 +88,9 @@ function read(seg: string[], q: URLSearchParams): Answer {
   }
 }
 
+/** The review context the console is handed on a document's first showing: `rc_` and 26 base32 characters. */
+const CONSOLE_CONTEXT = 'rc_consolereviewcontextfakeaa';
+
 /** One write under `/api/console`. Accepted, answered in the route's own shape, and not kept. */
 function write(seg: string[], q: URLSearchParams, method: string, body: Record<string, unknown>): Answer {
   const path = seg.join('/');
@@ -97,6 +100,15 @@ function write(seg: string[], q: URLSearchParams, method: string, body: Record<s
   }
   if (path === 'settings/me/tokens' && method === 'POST') {
     return ok({ token: 'zz_pat_example_0123456789abcdef', label: String(body.label ?? 'console'), email: ME.email });
+  }
+  // The console's presentation and its approval, as the gateway takes them: Approve names the snapshot it showed and
+  // the context `documents/shown` answered, and a call missing either is refused the way the gateway refuses it.
+  if (path === 'documents/shown') {
+    if (!body.initiative || !body.path || !body.content_revision) return [400, { error: 'initiative, path and content_revision required' }];
+    return ok({ ok: true, review_context: String(body.review_context ?? CONSOLE_CONTEXT), content_revision: String(body.content_revision), recorded: true });
+  }
+  if (path === 'documents/approve' && (!body.initiative || !body.path || !body.expected_revision || !body.review_context)) {
+    return [400, { error: 'initiative, path, expected_revision and review_context required' }];
   }
   if (path === 'settings/me/active-team') return ok({ actingFor: String(body.team ?? ME.activeTeam) });
   if (path === 'settings/platform/enrolments') return ok({ ok: true, url: 'https://console.example.com/enrol#t=example-enrolment', result: `An enrolment link for ${String(body.email)}` });

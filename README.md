@@ -106,6 +106,10 @@ return isSuper(id);                      // or a superadmin PAT, for scripts
 A **member** PAT authenticates and is then refused with *"the console needs a browser
 sign-in"* and `mayRead: false`, which is correct.
 
+A dev-PAT session reads everything a browser session reads but is **not offered Approve**: an
+approval rests on a presentation the person's own console session recorded (`x-zz-via: session`),
+and a PAT is not a console session. Approve from a real browser sign-in.
+
 The proxy is inert unless `ZZ_DEV_PAT` is set, and returns immediately when
 `NODE_ENV === 'production'`. It forwards a credential and neither mints nor stores one.
 `.env.local` is gitignored; keep it `chmod 600` and treat the value as the live credential

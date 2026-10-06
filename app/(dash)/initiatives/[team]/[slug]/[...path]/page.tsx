@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { KeyValue } from '@/components/ui/key-value';
 import { Segmented } from '@/components/ui/segmented';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ApproveAction, canApprove } from '@/console/approve';
+import { ApproveAction, OutOfDate, canApprove, useRecordShown } from '@/console/approve';
 import { aligned } from '@/console/columns';
 import { DocStatus } from '@/console/doc-status';
 import { ConsolePage } from '@/console/page';
@@ -50,6 +50,21 @@ export default function DocumentPage({ params }: { params: Promise<{ team: strin
   // The document's own public version. Not the highest of `versions`: those name the snapshot each version is read
   // as, and several snapshots can share one version.
   const version = d?.current_version ?? null;
+  // Approve is on offer, so what this page displays is recorded as shown to the reader — once per snapshot, after
+  // the render that put its body on screen — and Approve signs exactly that snapshot under the context it answers.
+  // Not while a refetch failed: the panel then shows the failure, not the body this would vouch for.
+  const offered = !!(d && !q.error && me.data && canApprove(d, me.data));
+  const { shown, again } = useRecordShown(d, offered);
+  // A 409 from Approve: the document moved after this page showed it, or nothing of this session's shows it now.
+  const [stale, setStale] = useState<string | null>(null);
+  const notice = stale ?? (shown.state === 'stale' || shown.state === 'failed' ? shown.message : null);
+  async function reload() {
+    setStale(null);
+    const before = d?.content_revision;
+    const next = await q.refetch();
+    // A newer snapshot is recorded by its own key; the same one is recorded again only when asked.
+    if (next.data?.content_revision === before) again();
+  }
 
   return (
     <ConsolePage
@@ -58,9 +73,10 @@ export default function DocumentPage({ params }: { params: Promise<{ team: strin
       description={<span className="font-mono text-sm">{rel}{version ? ` · v${version}` : ''}</span>}
       showPeriod={false}
       updatedAt={freshnessOf(q)}
-      actions={d && me.data && canApprove(d, me.data) ? <ApproveAction doc={d} me={me.data} /> : undefined}
+      actions={d && me.data && offered ? <ApproveAction doc={d} me={me.data} shown={shown} onStale={setStale} /> : undefined}
       width="reading"
     >
+      {notice ? <OutOfDate message={notice} failed={!stale && shown.state === 'failed'} onReload={() => void reload()} /> : null}
       <Query query={q} what="This document" skeleton={<div className="flex flex-col gap-(--stack-gap)"><Skeleton className="h-24 rounded-lg" /><Skeleton className="h-[28rem] rounded-lg" /></div>}>
         {(doc) => (
           <>

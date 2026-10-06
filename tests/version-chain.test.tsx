@@ -25,7 +25,7 @@ beforeEach(() => {
 
 const doc: DocumentDetail = {
   team: 'team-one', initiative: 'init-1', path: 'spec.md', flow: 'sdlc-flow',
-  current_revision: 4, current_version: 2, correction: null,
+  current_revision: 4, current_version: 2, correction: null, content_revision: 'cr_dddddddddddddddddddddddddd',
   type: 'agreement', status: 'draft', outcome: null,
   approved_by: null, approved_at: null, closed_by: null,
   title: 'The spec', tags: null, evidence: null, superseded_by: null, body: 'text of r4\n',

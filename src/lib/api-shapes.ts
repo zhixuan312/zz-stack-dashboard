@@ -230,6 +230,10 @@ export interface DocumentDetail {
   current_version: number;
   /** See `DocRow.correction`. */
   correction: number | null;
+  /** The identity of the snapshot `body` holds, the `cr_…` token zz-core names it by. The page records that it
+   *  showed exactly this snapshot (`POST /documents/shown`) and Approve signs exactly it (`expected_revision`).
+   *  Opaque: compared for equality, never parsed. */
+  content_revision: string;
   type: string; status: string | null; outcome: string | null;
   approved_by: string | null; approved_at: string | null; closed_by: string | null;
   title: string | null; tags: string[] | null; evidence: string[] | null;
@@ -264,6 +268,9 @@ export interface DocumentDetail {
   sources: { path: string; title: string | null; body: string | null;
              supports: string; added: string; bytes: number }[];
 }
+/** `POST /documents/shown`: the console's review context for the document, minted on its first showing and the
+ *  same on every later one it is passed back with. `recorded` is false when this snapshot was already shown under it. */
+export interface DocumentShown { ok: true; review_context: string; content_revision: string; recorded: boolean }
 /** One snapshot's own text — `/document/:team/:slug/:path?revision=N`, N the snapshot id — with
  *  the public version it belongs to.
  *

@@ -9,6 +9,7 @@
  * versions over four snapshots (v3 presented, then approved), sources numbered past 9 so their
  * order is tested, and a plan waiting on approval.
  */
+import { createHash } from 'node:crypto';
 import type {
   DocumentDetail, DocumentRevision, Gate, Initiative, InitiativeDetail, KnowledgeBody,
   KnowledgeLogEntry, KnowledgeNode, Step, WaitingGate,
@@ -228,6 +229,16 @@ function textOf(live: string, revision: number, count: number): string {
     : live.replace('in one paragraph', `in one paragraph (snapshot ${revision})`);
 }
 
+/** A snapshot's `content_revision`, shaped as the gateway's: `cr_` and 26 lowercase base32 characters, here of
+ *  sha256 of the document's address and its snapshot, so every run names a snapshot alike. */
+function contentRevisionOf(team: string, initiative: string, path: string, revision: number): string {
+  const ALPHABET = 'abcdefghijklmnopqrstuvwxyz234567';
+  const bytes = createHash('sha256').update(`${team}/${initiative}/${path}:${revision}`).digest();
+  let out = '';
+  for (let i = 0; out.length < 26; i++) out += ALPHABET[bytes[i] % 32];
+  return `cr_${out}`;
+}
+
 export function documentDetail(team: string, initiative: string, path: string): DocumentDetail | null {
   const d = initiativeDetail(team, initiative);
   const row = d?.documents.find((x) => x.path === path);
@@ -252,6 +263,7 @@ export function documentDetail(team: string, initiative: string, path: string): 
   const decisions = d.decisions.filter((x) => x.path === path).map(({ path: _p, ...rest }) => rest);
   return {
     team, initiative, path, current_revision: current, current_version: snaps[current - 1].version, correction: row.correction,
+    content_revision: contentRevisionOf(team, initiative, path, current),
     flow: row.type === 'note' ? null : FLOW, type: row.type, status: row.status, outcome: row.outcome,
     approved_by: row.approved_by, approved_at: row.approved_by ? row.updated_at : null, closed_by: null,
     title: row.title, tags: isSpec ? ['search', 'ranking', 'explainability'] : null, evidence: null, superseded_by: null,
