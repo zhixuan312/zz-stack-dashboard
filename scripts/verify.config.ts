@@ -24,17 +24,20 @@ export type VerifyConfig = {
 
 const config: VerifyConfig = {
   // One per state worth seeing, taken from the fake gateway's own records (scripts/fake-gateway): a team with
-  // work and one with none, an initiative waiting on a person, a closed one, one with no flow, a document approved and
-  // one awaiting approval, a current and a superseded knowledge node, a plugin with an evaluation, one never profiled,
-  // one vendored and never run, and a skill in each of its views.
+  // work and one with none, an initiative waiting on a person, a closed one, one closed with a correction awaiting
+  // approval, one with no flow, a document approved, one awaiting approval and that correction, a current and a
+  // superseded knowledge node, a plugin with an evaluation, one never profiled, one vendored and never run, and a skill
+  // in each of its views.
   detailRoutes: [
     '/teams/atlas',
     '/teams/dune',
     '/initiatives/atlas/2026-09-28-search-relevance',
     '/initiatives/cinder/2026-08-20-incident-runbooks',
+    '/initiatives/beacon/2026-09-22-payout-schedule',
     '/initiatives/atlas/2026-09-05-research-notes',
     '/initiatives/atlas/2026-09-28-search-relevance/spec.md',
     '/initiatives/atlas/2026-09-28-search-relevance/plan.md',
+    '/initiatives/beacon/2026-09-22-payout-schedule/review.md',
     '/knowledge/atlas/nodes/0002-match-reasons-come-from-the-index-never-from-a-model.md',
     '/knowledge/atlas/nodes/0004-rank-by-recency-first.md',
     '/plugins/sdlc',

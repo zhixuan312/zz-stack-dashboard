@@ -11,16 +11,17 @@ import { collapse, diffLines, diffStat } from '@/lib/diff';
 import { useConsole } from '@/lib/api';
 import type { DocumentDetail, DocumentRevision } from '@/lib/api-shapes';
 
-/** One revision's text, as the panel needs it.
+/** One snapshot's text, as the panel needs it.
  *
- * `body` is `undefined` while it is still being read, `null` when the revision carries no text,
+ * `body` is `undefined` while it is still being read, `null` when the snapshot carries no text,
  * and the text itself once it is in hand — three states, because "not read yet" and "read, and
  * empty" must not render alike. */
 interface RevisionText { body: string | null | undefined; failed: boolean }
 
 /**
- * One revision's own text: the document's body when this is the live revision, and otherwise a
- * read of that one revision.
+ * One snapshot's own text, by its snapshot id (`revision`, never the public `version` — a version
+ * can hold several snapshots): the document's body when this is the live snapshot, and otherwise a
+ * read of that one snapshot.
  *
  * DELIBERATE: the history arrives as metadata and its texts are read one at a time. A document's
  * history has no bound — one on this deployment carries 109 revisions totalling 94 MB — and a
@@ -29,13 +30,13 @@ interface RevisionText { body: string | null | undefined; failed: boolean }
  * The live revision is the document's own `body`, which the page already has: re-reading it would
  * be a second download of the same bytes.
  */
-function useRevisionText(doc: DocumentDetail, version: number | undefined): RevisionText {
-  const live = version !== undefined && version === doc.current_revision;
+function useRevisionText(doc: DocumentDetail, revision: number | undefined): RevisionText {
+  const live = revision !== undefined && revision === doc.current_revision;
   const q = useConsole<DocumentRevision>(
-    version === undefined || live
+    revision === undefined || live
       ? null
-      : `/document/${doc.team}/${doc.initiative}/${doc.path}?revision=${version}`);
-  if (version === undefined) return { body: undefined, failed: false };
+      : `/document/${doc.team}/${doc.initiative}/${doc.path}?revision=${revision}`);
+  if (revision === undefined) return { body: undefined, failed: false };
   if (live) return { body: doc.body ?? null, failed: false };
   if (q.isError) return { body: null, failed: true };
   return { body: q.data ? (q.data.body ?? null) : undefined, failed: false };
@@ -44,35 +45,36 @@ function useRevisionText(doc: DocumentDetail, version: number | undefined): Revi
 /**
  * How this document got to be what it is.
  *
- * A revision happens because something was learned, and the platform records
+ * A version happens because something was learned, and the platform records
  * both halves. The diff answers "what changed"; the sources beside it answer
  * "why" — every source declares the document it supports.
  */
 export function VersionChain({ doc }: { doc: DocumentDetail }) {
   const sources = doc.sources ?? [];
 
-  /* A version is a content change, not a snapshot.
+  /* A step is a change of text, and the gateway sends one entry per public version.
    *
-   * A revision row is filed on every write, so approving a document without editing
-   * it files a revision identical to the one before.
+   * Two neighbouring versions can carry the same text: a version opened by a change to the
+   * title, tags or other metadata alone, and, before versions followed their causes, a version
+   * filed by an approval that edited nothing.
    *
    * Not a YAML question: the body is stored with the envelope already stripped, so
    * status, approved_at and the version number never reach this comparison — which is
    * why the fingerprint is the gateway's md5 of the body and not
    * `doc_revision.content_hash`, which covers the envelope and moves on an approval.
    *
-   * Consecutive snapshots carrying the same content collapse into one step, and
-   * the step remembers how many approvals it accumulated. Fingerprints, not texts:
-   * the two texts a change is drawn between are read only when it is opened. */
+   * Consecutive versions carrying the same text collapse into one step, and the step
+   * remembers how many versions it spans. Fingerprints, not texts: the two texts a change
+   * is drawn between are read only when it is opened. */
   const raw = doc.versions ?? [];
-  const steps: { first: typeof raw[number]; last: typeof raw[number]; snapshots: number }[] = [];
+  const steps: { first: typeof raw[number]; last: typeof raw[number]; versions: number }[] = [];
   for (const v of raw) {
     const tail = steps[steps.length - 1];
     if (tail && tail.last.hash === v.hash) {
       tail.last = v;
-      tail.snapshots += 1;
+      tail.versions += 1;
     } else {
-      steps.push({ first: v, last: v, snapshots: 1 });
+      steps.push({ first: v, last: v, versions: 1 });
     }
   }
 
@@ -85,10 +87,10 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
   const history = [...steps].reverse();
   const pair = pairs[at];
 
-  /* The two texts this change is drawn between. The step's `last` is the newest snapshot in it,
-   * which is the revision the step is named for. */
-  const before = useRevisionText(doc, pair?.before.last.version);
-  const after = useRevisionText(doc, pair?.after.last.version);
+  /* The two texts this change is drawn between. The step's `last` is the newest version in it,
+   * read by the snapshot that version is read as. */
+  const before = useRevisionText(doc, pair?.before.last.revision);
+  const after = useRevisionText(doc, pair?.after.last.revision);
   const ready = before.body !== undefined && after.body !== undefined;
   const failed = before.failed || after.failed;
   /* Memoised on the two texts, not run in the render body. The diff is the most expensive thing
@@ -104,7 +106,7 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
   if (raw.length < 2 && !sources.length) return null;
 
   const label = (v: { version: number }) => `v${v.version}`;
-  /* A step spans every snapshot that carried the same content, so it is named for
+  /* A step spans every version that carried the same text, so it is named for
    * the range rather than for one end — "v3–v4". */
   const stepLabel = (s: { first: { version: number }; last: { version: number } }) =>
     s.first.version === s.last.version
@@ -185,18 +187,17 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
             )}
 
             {/* The change itself, once both of its texts are here. Nothing to show is said, not
-                rendered as an empty diff: a version is snapshotted when a document is approved,
-                so a document approved once and never revised has a v1 byte-identical to the live
-                file, and running that through the diff produces a panel headed "what changed"
-                containing "86 unchanged lines". */}
+                rendered as an empty diff: two versions can carry the same text, and running that
+                through the diff produces a panel headed "what changed" containing "86 unchanged
+                lines". */}
             {failed ? (
               <p className="rounded-md bg-surface-sunk px-3.5 py-2.5 text-sm leading-relaxed text-ink-2">
-                The text of one of these two revisions could not be read, so the change cannot be
+                The text of one of these two versions could not be read, so the change cannot be
                 shown. Nothing is missing from the document above.
               </p>
             ) : !ready ? (
               <p className="rounded-md bg-surface-sunk px-3.5 py-2.5 text-sm leading-relaxed text-ink-3">
-                Reading the two revisions this change is drawn between…
+                Reading the two versions this change is drawn between…
               </p>
             ) : !stat.added && !stat.removed ? (
               <p className="rounded-md bg-surface-sunk px-3.5 py-2.5 text-sm leading-relaxed text-ink-2">
@@ -279,8 +280,8 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
           title="Content history"
           description={
             steps.length === 1
-              ? `one version of the content, ${raw.length} approvals`
-              : `${steps.length} versions of the content across ${raw.length} snapshots`
+              ? `${raw.length} versions, all with the same text`
+              : `${steps.length} changes of the text across ${raw.length} versions`
           }
           flush
         >
@@ -290,11 +291,11 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
                 <GitCompare className="mt-0.5 size-3.5 shrink-0 text-ink-3" aria-hidden />
                 <span className="w-24 font-mono text-xs text-ink">{stepLabel(st)}</span>
                 <span className="min-w-0 flex-1 break-all font-mono text-xs text-ink-3">{st.first.path}</span>
-                {/* An approval that changed nothing is a real fact and worth
-                    seeing — just not as a separate version. */}
-                {st.snapshots > 1 ? (
+                {/* A version that changed no text is a real fact and worth
+                    seeing — just not as a separate change. */}
+                {st.versions > 1 ? (
                   <span className="whitespace-nowrap text-2xs text-ink-3">
-                    approved {st.snapshots}× without an edit
+                    {st.versions} versions, same text
                   </span>
                 ) : null}
                 {st.last.status === 'approved' ? <Badge tone="positive" dot>Approved</Badge> : null}
@@ -306,12 +307,10 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
           </ul>
           {collapsed ? (
             <p className="border-t border-line px-4 py-2.5 text-xs leading-relaxed text-ink-3">
-              {collapsed} {collapsed === 1 ? 'revision is' : 'revisions are'} not listed
-              separately: a revision row is filed on every write, so approving a document without
-              editing it adds {collapsed === 1 ? 'one revision' : `${collapsed} revisions`}{' '}
-              carrying the same content as the version above.
-              Approval is given to the content, so an approval that changed no content is not a
-              new version of it.
+              {collapsed} {collapsed === 1 ? 'version is' : 'versions are'} listed with the one
+              before {collapsed === 1 ? 'it' : 'them'}: the text is the same, and what changed was
+              the title, tags or other metadata, or, before versions followed their causes, only
+              an approval.
             </p>
           ) : null}
         </Panel>

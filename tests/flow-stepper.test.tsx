@@ -57,3 +57,21 @@ describe('FlowStepper — skipped and waiting', () => {
     expect(screen.getByText('waiting on the branch')).toBeInTheDocument();
   });
 });
+
+describe('FlowStepper — a closed initiative and its outcome', () => {
+  const closed = [step('open', 'done'), step('review', 'partial'), step('closed', 'done')];
+
+  it('says a close that stopped short stopped short', () => {
+    render(<FlowStepper gates={[]} outcome="abandoned" steps={closed} complete={false} />);
+    const node = within(screen.getByTitle('about closed'));
+    expect(node.getByText(/abandoned · stopped short/)).toBeInTheDocument();
+  });
+
+  it('reads a pending correction as a correction, not as a close that stopped short', () => {
+    render(<FlowStepper gates={[]} outcome="accepted" steps={closed} complete
+                        correction={{ path: 'review.md', version: 2 }} />);
+    const node = within(screen.getByTitle('about closed'));
+    expect(node.getByText('correction v2 awaiting approval')).toBeInTheDocument();
+    expect(node.queryByText(/stopped short/)).not.toBeInTheDocument();
+  });
+});

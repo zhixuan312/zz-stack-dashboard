@@ -3,10 +3,11 @@
  * knowledge store they fed.
  *
  * One initiative per state a page draws: drafting, waiting on a person, not started, closed three
- * ways (accepted, delivered, abandoned) and one with no flow at all. `atlas/…-search-relevance`
- * is the rich one: a document with every block a reader meets (a table, code, a task list, a long
- * address), three versions, sources numbered past 9 so their order is tested, and a plan waiting
- * on approval.
+ * ways (accepted, delivered, abandoned), closed with its closing document's correction awaiting
+ * approval, and one with no flow at all. `atlas/…-search-relevance` is the rich one: a document
+ * with every block a reader meets (a table, code, a task list, a long address), three public
+ * versions over four snapshots (v3 presented, then approved), sources numbered past 9 so their
+ * order is tested, and a plan waiting on approval.
  */
 import type {
   DocumentDetail, DocumentRevision, Gate, Initiative, InitiativeDetail, KnowledgeBody,
@@ -33,6 +34,8 @@ type Seed = {
   /** Gates approved, then gates written but not approved, counting from the first. */
   passed: number; written: number;
   outcome: 'accepted' | 'delivered' | 'abandoned' | null; flow?: false;
+  /** Closed, then review.md corrected: the public version of the correction awaiting approval. */
+  correction?: number;
 };
 
 const SEEDS: Seed[] = [
@@ -43,6 +46,7 @@ const SEEDS: Seed[] = [
   { team: 'beacon', slug: '2026-09-30-refund-flow', at: 2, updated: 9, stakeholder: 'jonas.weber@example.com', passed: 0, written: 1, outcome: null },
   { team: 'beacon', slug: '2026-10-01-ledger-migration-to-double-entry-bookkeeping-with-nightly-reconciliation', at: 0, updated: 30, stakeholder: null, passed: 0, written: 0, outcome: null },
   { team: 'beacon', slug: '2026-09-18-chargeback-alerts', at: 7, updated: 300, stakeholder: 'mei.tanaka@example.com', passed: 4, written: 4, outcome: 'delivered' },
+  { team: 'beacon', slug: '2026-09-22-payout-schedule', at: 7, updated: 26, stakeholder: 'jonas.weber@example.com', passed: 4, written: 4, outcome: 'accepted', correction: 2 },
   { team: 'cinder', slug: '2026-08-20-incident-runbooks', at: 3, updated: 900, stakeholder: 'leo.santos@example.com', passed: 1, written: 1, outcome: 'abandoned' },
 ];
 
@@ -51,8 +55,9 @@ function steps(s: Seed): Step[] {
   const closed = s.outcome !== null;
   const body = STAGES.map(([name, produces, what], i): Step => {
     const n = i + 1;
+    // A correction is the closing stage's document written and waiting on a person again.
     const state: Step['state'] = produces === '' ? (n <= s.at ? 'done' : 'untracked')
-      : n < s.at ? 'done' : n === s.at ? (closed ? 'done' : 'partial') : 'empty';
+      : n < s.at ? 'done' : n === s.at ? (closed && !s.correction ? 'done' : 'partial') : 'empty';
     return { name, produces, what, state, current: !closed && n === s.at };
   });
   return [
@@ -62,7 +67,8 @@ function steps(s: Seed): Step[] {
   ];
 }
 
-const gates = (s: Seed): Gate[] => s.flow === false ? [] : GATE_AFTER.map(([name, role, after], i) => ({ name, role, after, passed: i < s.passed, written: i < s.written }));
+// A correction reopens review.md's gate (the third) while the close stands.
+const gates = (s: Seed): Gate[] => s.flow === false ? [] : GATE_AFTER.map(([name, role, after], i) => ({ name, role, after, passed: i < s.passed && !(s.correction && i === 2), written: i < s.written }));
 
 function stageOf(s: Seed) {
   if (s.flow === false) return '';
@@ -76,23 +82,33 @@ export const INITIATIVES: Initiative[] = SEEDS.map((s) => ({
   at: s.at, of: s.flow === false ? 0 : 7, stage: stageOf(s), steps: steps(s), gates: gates(s),
   accepted: s.outcome === 'accepted', complete: s.outcome === 'accepted' || s.outcome === 'delivered',
   closed: s.outcome !== null, outcome: s.outcome,
+  correction: s.correction ? { path: 'review.md', version: s.correction } : null,
 }));
 
 /** What `/initiatives?waiting=1` answers: every gate written and unsigned on an open initiative,
  *  newest first — the projection the console's alert bell and its Overview panel read instead of
  *  the whole list. */
 export const WAITING: WaitingGate[] = INITIATIVES
-  .filter((i) => !i.closed)
-  .flatMap((i) => i.gates.filter((g) => g.written && !g.passed).map((g) => ({
-    id: `${i.team}/${i.slug}/${g.name}`, gate: g.name.replace(/^approve /, ''),
-    team: i.team, slug: i.slug, updated: i.updated, stage: i.stage, at: i.at, of: i.of,
-  })))
+  .flatMap((i) => {
+    const where = { team: i.team, slug: i.slug, updated: i.updated, stage: i.stage, at: i.at, of: i.of };
+    // A closed initiative waits on a person only for its closing document's correction, as the
+    // gateway's own projection answers.
+    if (i.closed) {
+      return i.correction
+        ? [{ id: `${i.team}/${i.slug}/${i.correction.path}`,
+             gate: `${i.correction.path.replace(/\.md$/, '')} correction v${i.correction.version}`, ...where }]
+        : [];
+    }
+    return i.gates.filter((g) => g.written && !g.passed).map((g) => ({
+      id: `${i.team}/${i.slug}/${g.name}`, gate: g.name.replace(/^approve /, ''), ...where,
+    }));
+  })
   .sort((a, b) => b.updated.localeCompare(a.updated));
 
 type Doc = InitiativeDetail['documents'][number];
 const doc = (path: string, type: string, o: Partial<Doc> & { hours: number; bytes: number }): Doc => ({
   path, type, status: null, outcome: null, approved_by: null, title: null, supports: null, gated: null,
-  closing: false, requiredForClose: false, updated_at: ago(o.hours), ...o,
+  closing: false, requiredForClose: false, correction: null, updated_at: ago(o.hours), ...o,
 });
 
 /** The documents of one initiative: the rich one by hand, every other one from its stage. */
@@ -118,11 +134,13 @@ function documents(s: Seed): Doc[] {
   }
   const out: Doc[] = [];
   const add = (path: string, type: string, title: string, gateIndex: number | null, n: number) => {
-    const passed = gateIndex !== null && gateIndex < s.passed;
+    const corrected = type === 'verification' && !!s.correction;
+    const passed = gateIndex !== null && gateIndex < s.passed && !corrected;
     out.push(doc(path, type, {
       title, gated: gateIndex !== null, status: gateIndex === null ? '' : passed ? 'approved' : 'draft',
       approved_by: passed ? s.stakeholder : null, hours: s.updated + n * 6, bytes: 4_000 + n * 3_100,
       ...(type === 'verification' ? { closing: true, requiredForClose: true, outcome: s.outcome } : {}),
+      ...(corrected ? { correction: s.correction, hours: s.updated - 20 } : {}),
     }));
   };
   if (s.at >= 1) add('explore.md', 'ground', 'Exploration', null, 4);
@@ -150,6 +168,7 @@ export function initiativeDetail(team: string, slug: string): InitiativeDetail |
     team, slug, documents: documents(s), decisions,
     decisionCounts: { rows: decisions.length, withVerdict: decisions.filter((d) => d.verdict).length, withQualifier: decisions.filter((d) => d.qualifier).length, withChecker: decisions.filter((d) => d.checker).length },
     at: i.at, of: i.of, stage: i.stage, steps: i.steps, gates: i.gates, accepted: i.accepted, complete: i.complete, closed: i.closed, outcome: i.outcome,
+    correction: i.correction,
   };
 }
 
@@ -189,21 +208,50 @@ The scoring weights live in \`config/ranking.json\`; see https://docs.example.co
 
 const body = (title: string) => `# ${title}\n\n## Summary\n\nWhat this document settles, in one paragraph a reader can act on.\n\n## Details\n\n- The first point, with the reason it holds.\n- The second point, and what would change it.\n`;
 
+/** The snapshots of one document, oldest first: its public version, and whether it was approved.
+ *  The rich spec has three versions over four snapshots — v3 was presented as r3 and approved as
+ *  r4 — so a version and the snapshot it is read as differ; a corrected review.md was approved as
+ *  v1 and is a draft v2. Every other document is one snapshot. */
+function snapshotsOf(initiative: string, path: string, row: Doc): { version: number; approved: boolean }[] {
+  if (initiative === '2026-09-28-search-relevance' && path === 'spec.md') {
+    return [{ version: 1, approved: false }, { version: 2, approved: false }, { version: 3, approved: false }, { version: 3, approved: true }];
+  }
+  if (row.correction) return [{ version: 1, approved: true }, { version: row.correction, approved: false }];
+  return [{ version: 1, approved: row.status === 'approved' }];
+}
+
+/** A snapshot's text: the live text for the last one, and an earlier wording for the rest. */
+function textOf(live: string, revision: number, count: number): string {
+  if (revision === count) return live;
+  return live.includes('120 ms')
+    ? live.replace('120 ms', `${200 - revision * 25} ms`)
+    : live.replace('in one paragraph', `in one paragraph (snapshot ${revision})`);
+}
+
 export function documentDetail(team: string, initiative: string, path: string): DocumentDetail | null {
   const d = initiativeDetail(team, initiative);
   const row = d?.documents.find((x) => x.path === path);
   if (!d || !row) return null;
   const isSpec = initiative === '2026-09-28-search-relevance' && path === 'spec.md';
   const text = isSpec ? SPEC_BODY : body(row.title ?? path);
-  // Metadata only, like the gateway: a revision's text is read on its own, through
-  // `documentRevision` below.
-  const versions = isSpec
-    ? [1, 2, 3].map((v) => ({ path, version: v, hash: `spec-${v}`, status: v === 3 ? 'approved' : 'draft', approved_by: v === 3 ? row.approved_by : null, updated_at: ago(60 + (3 - v) * 20) }))
-    : [{ path, version: 1, hash: 'v1', status: row.status, approved_by: row.approved_by, updated_at: row.updated_at }];
+  const snaps = snapshotsOf(initiative, path, row);
+  const current = snaps.length;
+  // Who approved an earlier snapshot of a document that is a draft now: the initiative's stakeholder.
+  const signer = INITIATIVES.find((x) => x.team === team && x.slug === initiative)?.stakeholder ?? null;
+  // Metadata only, like the gateway, one entry per public version: its approved snapshot, else its
+  // last. A snapshot's text is read on its own, through `documentRevision` below.
+  const versions = [...new Set(snaps.map((x) => x.version))].map((v) => {
+    const mine = snaps.map((x, i) => ({ ...x, revision: i + 1 })).filter((x) => x.version === v);
+    const pick = mine.filter((x) => x.approved).pop() ?? mine[mine.length - 1];
+    return { path, version: v, revision: pick.revision, hash: `${path}-${pick.revision}`,
+             status: pick.approved ? 'approved' : pick.revision === current ? row.status : 'draft',
+             approved_by: pick.approved ? (row.approved_by ?? signer) : null,
+             updated_at: ago(60 + (current - pick.revision) * 20) };
+  });
   const sources = d.documents.filter((x) => x.supports === path).map((x) => ({ path: x.path, title: x.title, body: body(x.title ?? x.path), supports: path, added: x.updated_at.slice(0, 10), bytes: x.bytes }));
   const decisions = d.decisions.filter((x) => x.path === path).map(({ path: _p, ...rest }) => rest);
   return {
-    team, initiative, path, current_revision: isSpec ? 3 : 1,
+    team, initiative, path, current_revision: current, current_version: snaps[current - 1].version, correction: row.correction,
     flow: row.type === 'note' ? null : FLOW, type: row.type, status: row.status, outcome: row.outcome,
     approved_by: row.approved_by, approved_at: row.approved_by ? row.updated_at : null, closed_by: null,
     title: row.title, tags: isSpec ? ['search', 'ranking', 'explainability'] : null, evidence: null, superseded_by: null,
@@ -213,16 +261,16 @@ export function documentDetail(team: string, initiative: string, path: string): 
   };
 }
 
-/** One revision's text, as `/document/:team/:slug/:path?revision=N` serves it. */
-export function documentRevision(team: string, initiative: string, path: string, version: number): DocumentRevision | null {
+/** One snapshot's text, as `/document/:team/:slug/:path?revision=N` serves it, N the snapshot id. */
+export function documentRevision(team: string, initiative: string, path: string, revision: number): DocumentRevision | null {
   const d = initiativeDetail(team, initiative);
   const row = d?.documents.find((x) => x.path === path);
   if (!d || !row) return null;
   const isSpec = initiative === '2026-09-28-search-relevance' && path === 'spec.md';
   const text = isSpec ? SPEC_BODY : body(row.title ?? path);
-  if (!isSpec) return version === 1 ? { version, body: text } : null;
-  if (version < 1 || version > 3) return null;
-  return { version, body: version === 3 ? text : text.replace('120 ms', version === 1 ? '200 ms' : '150 ms') };
+  const snaps = snapshotsOf(initiative, path, row);
+  if (!Number.isInteger(revision) || revision < 1 || revision > snaps.length) return null;
+  return { version: snaps[revision - 1].version, revision, body: textOf(text, revision, snaps.length) };
 }
 
 type NodeSeed = [team: string, num: string, type: string, status: string, title: string, tags: string[], evidence: string | null, hours: number];

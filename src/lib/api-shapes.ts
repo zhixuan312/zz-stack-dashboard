@@ -175,7 +175,13 @@ export interface Initiative {
   /** One of `accepted` | `delivered` | `abandoned`, or null while it is open. All three mean
    *  closed — close() records exactly one. See OUTCOMES in @zz/contracts. */
   outcome: string | null;
+  /** On a closed initiative, its closing document's correction awaiting approval: the document
+   *  and the public version waiting. The close stands meanwhile, so it does not make the close
+   *  read as stopped short. */
+  correction: Correction | null;
 }
+/** A closing document changed after the close and not yet approved again. */
+interface Correction { path: string; version: number }
 interface DocRow {
   path: string; type: string; status: string | null; outcome: string | null;
   approved_by: string | null; updated_at: string; bytes: number; title: string | null;
@@ -191,6 +197,9 @@ interface DocRow {
   requiredForClose?: boolean;
   /** For a source: the document it was attached to. */
   supports?: string | null;
+  /** The public version of this document's correction awaiting approval, when it is a closed
+   *  initiative's closing document changed after the close; null otherwise. */
+  correction: number | null;
 }
 export interface InitiativeDetail {
   team: string; slug: string; documents: DocRow[];
@@ -208,6 +217,7 @@ export interface InitiativeDetail {
   complete: boolean;
   closed: boolean;
   outcome: string | null;
+  correction: Correction | null;
 }
 export interface DocumentDetail {
   team: string; initiative: string; path: string; flow: string | null;
@@ -215,6 +225,11 @@ export interface DocumentDetail {
    *  assumed to be the highest-numbered revision, so the panel knows which of `versions` it
    *  already has the text of and does not fetch it a second time. */
   current_revision: number;
+  /** The public version the document is at — what a reader calls it. Several snapshots can
+   *  share one version, so this is the document's own number, never the highest of `versions`. */
+  current_version: number;
+  /** See `DocRow.correction`. */
+  correction: number | null;
   type: string; status: string | null; outcome: string | null;
   approved_by: string | null; approved_at: string | null; closed_by: string | null;
   title: string | null; tags: string[] | null; evidence: string[] | null;
@@ -232,25 +247,29 @@ export interface DocumentDetail {
   /** What the ledger actually holds, so a column of blanks reads as a fact about the
    *  document rather than as a derivation that has stopped running. */
   decisionCounts: { rows: number; withVerdict: number; withQualifier: number; withChecker: number };
-  /** Every revision of this document, oldest first, as its metadata alone.
+  /** One entry per public version of this document, oldest first, as its metadata alone. A
+   *  version can hold several snapshots; its entry is the one it is read as — its approved
+   *  snapshot when it has one, else its last. `version` is the public number and `revision` the
+   *  snapshot id `?revision=` reads.
    *
-   *  A revision's text is not carried here. A document's history has no bound — one on this
-   *  deployment has 109 revisions totalling 94 MB — so the reader asks for the one revision it
+   *  A snapshot's text is not carried here. A document's history has no bound — one on this
+   *  deployment has 109 revisions totalling 94 MB — so the reader asks for the one snapshot it
    *  is showing, through `?revision=`.
    *
-   *  `hash` is the fingerprint of the revision's body, which is what tells a revision that
-   *  carries the same content as the one above it apart from one that does not. */
+   *  `hash` is the fingerprint of the snapshot's body, which is what tells a version that
+   *  carries the same text as the one above it apart from one that does not. */
   versions: { path: string; hash: string; status: string | null;
-              approved_by: string | null; updated_at: string; version: number }[];
+              approved_by: string | null; updated_at: string; version: number; revision: number }[];
   /** The supporting information attached to this document — why it changed. */
   sources: { path: string; title: string | null; body: string | null;
              supports: string; added: string; bytes: number }[];
 }
-/** One revision's own text — `/document/:team/:slug/:path?revision=N`.
+/** One snapshot's own text — `/document/:team/:slug/:path?revision=N`, N the snapshot id — with
+ *  the public version it belongs to.
  *
  *  Read on its own so that a document with a hundred revisions costs the two texts of the one
  *  change being drawn, never all hundred. */
-export interface DocumentRevision { version: number; body: string | null }
+export interface DocumentRevision { version: number; revision: number; body: string | null }
 export interface KnowledgeNode {
   /** Unique across teams: `<team>/<path>`. The number is not — every team numbers
    *  its own nodes from 0001, so two teams both have a node 1. */

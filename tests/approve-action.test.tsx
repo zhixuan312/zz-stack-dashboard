@@ -18,6 +18,7 @@ const me: Me = {
 
 const doc: DocumentDetail = {
   team: 'team-one', initiative: 'init-1', path: 'spec.md', flow: 'sdlc-flow', current_revision: 1,
+  current_version: 1, correction: null,
   type: 'spec', status: 'draft', outcome: null,
   approved_by: null, approved_at: null, closed_by: null,
   title: 'The spec', tags: null, evidence: null, superseded_by: null, body: 'body',
@@ -25,7 +26,7 @@ const doc: DocumentDetail = {
   gated: true, closing: false, requiredForClose: false,
   decisions: [], decisionCounts: { rows: 0, withVerdict: 0, withQualifier: 0, withChecker: 0 },
   versions: [{ path: 'spec.md', hash: 'h1', status: 'draft', approved_by: null,
-               updated_at: '2026-09-01T00:00:00Z', version: 1 }],
+               updated_at: '2026-09-01T00:00:00Z', version: 1, revision: 1 }],
   sources: [],
 };
 

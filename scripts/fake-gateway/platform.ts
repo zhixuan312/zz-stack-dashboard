@@ -99,7 +99,7 @@ export function skillDetail(name: string): SkillDetail | null {
   if (!s) return null;
   const [, , , calls, refusals] = s;
   if (!calls) return { skill: name, surfaces: [], busiestTools: [] };
-  const tools = ['document_patch', 'document_revise', 'document_approve', 'document_read', 'skill_read', 'source_add', 'document_write', 'knowledge_search'];
+  const tools = ['document_edit', 'document_approve', 'document_read', 'skill_read', 'source_add', 'document_write', 'knowledge_search'];
   return {
     skill: name,
     surfaces: [{ surface: 'core', calls: Math.round(calls * 0.92), failed: Math.round(refusals * 0.9), tools: 14 }, { surface: 'eval', calls: Math.round(calls * 0.08), failed: refusals - Math.round(refusals * 0.9), tools: 3 }],
@@ -240,7 +240,7 @@ export function overview(period: string): Overview {
 
 const KINDS = ['tool_call', 'document.write', 'document.document_approve', 'knowledge.search', 'skill_read', 'knowledge.add', 'initiative_status'];
 const ACTORS = ['noah.okafor@example.com', 'mei.tanaka@example.com', 'jonas.weber@example.com', null];
-const TOOLS = ['core:document_read', 'core:document_patch', 'core:knowledge_search', 'core:document_approve', 'eval:finding_record'];
+const TOOLS = ['core:document_read', 'core:document_edit', 'core:knowledge_search', 'core:document_approve', 'eval:finding_record'];
 
 export const ACTIVITY: ActivityEvent[] = Array.from({ length: 120 }, (_, i): ActivityEvent => {
   const kind = KINDS[i % KINDS.length];

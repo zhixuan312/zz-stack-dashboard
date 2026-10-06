@@ -36,7 +36,7 @@ const DOCUMENTS: Column<Doc>[] = aligned([
     ),
     mobileCell: (d) => d.title ?? d.path,
   },
-  { key: 'status', header: 'Approval', mobile: 'status', cell: (d) => <DocStatus status={d.status} outcome={d.outcome} gated={d.gated} requiredForClose={d.requiredForClose} /> },
+  { key: 'status', header: 'Approval', mobile: 'status', cell: (d) => <DocStatus status={d.status} outcome={d.outcome} gated={d.gated} requiredForClose={d.requiredForClose} correction={d.correction} /> },
   {
     key: 'by', header: 'Approved by', hideBelow: 'lg', truncate: true,
     // Binary, like the gate itself: a document waiting for a person and one no person will be asked about differ.
@@ -84,7 +84,7 @@ export default function InitiativePage({ params }: { params: Promise<{ team: str
             <>
               {d.steps.length ? (
                 <Panel title="Progress" description={`Stage ${d.at} of ${d.of}${d.stage ? `, ${d.stage}` : ''}`}>
-                  <FlowStepper gates={d.gates} outcome={d.outcome} steps={d.steps} complete={d.complete} />
+                  <FlowStepper gates={d.gates} outcome={d.outcome} steps={d.steps} complete={d.complete} correction={d.correction} />
                 </Panel>
               ) : null}
               <DataTable

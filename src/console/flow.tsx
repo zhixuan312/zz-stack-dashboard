@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react';
 import { Check, CircleHelp, Lock, Minus } from 'lucide-react';
 import { cn } from '@/lib/cn';
-import type { Gate, Step } from '@/lib/api-shapes';
+import type { Gate, Initiative, Step } from '@/lib/api-shapes';
 
 /**
  * An initiative's position in its flow, as a stepper: every stage the API returns (the `open` and `closed` bookends
@@ -12,8 +12,11 @@ import type { Gate, Step } from '@/lib/api-shapes';
  */
 /** Where it is now is a property of a step, not a number this component is given: the API
  *  marks the current one. */
-export function FlowStepper({ gates, outcome, steps, complete }: {
+export function FlowStepper({ gates, outcome, steps, complete, correction }: {
   gates: Gate[]; outcome: string | null; steps: Step[]; complete?: boolean;
+  /** The closing document's correction awaiting approval. The close stands while it waits, so the
+   *  API does not count it against `complete`, and it is said under the close in its own words. */
+  correction?: Initiative['correction'];
 }) {
   // Every node comes from the API, bookends included: `open`, the flow's own stages, `closed`. Which stages a flow
   // has, which write a document, which of those are gated and what the record shows are all answered by the manifest
@@ -132,6 +135,9 @@ export function FlowStepper({ gates, outcome, steps, complete }: {
           {isClosing && outcome ? (
             <span className="block text-2xs text-ink-3">
               {outcome}{complete === false ? ' · stopped short' : ''}
+              {correction ? (
+                <span className="block text-warning-ink">correction v{correction.version} awaiting approval</span>
+              ) : null}
             </span>
           ) : skipped ? (
             <span className="block text-2xs text-ink-3">not on this branch</span>
