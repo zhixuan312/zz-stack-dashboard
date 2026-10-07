@@ -3,8 +3,10 @@
  * knowledge store they fed.
  *
  * One initiative per state a page draws: drafting, waiting on a person, not started, closed three
- * ways (accepted, delivered, abandoned), closed with its closing document's correction awaiting
- * approval, and one with no flow at all. `atlas/…-search-relevance` is the rich one: a document
+ * ways (accepted, delivered, abandoned), closed with a correction awaiting
+ * approval (in the signed-in user's own team, where they may sign it, and in another of their
+ * teams, where they are told to switch), a document another session revises after every read,
+ * and one with no flow at all. `atlas/…-search-relevance` is the rich one: a document
  * with every block a reader meets (a table, code, a task list, a long address), three public
  * versions over four snapshots (v3 presented, then approved), sources numbered past 9 so their
  * order is tested, and a plan waiting on approval.
@@ -37,12 +39,15 @@ type Seed = {
   outcome: 'accepted' | 'delivered' | 'abandoned' | null; flow?: false;
   /** Closed, then review.md corrected: the public version of the correction awaiting approval. */
   correction?: number;
+  /** A document another session revises a moment after every read: the store is one snapshot ahead
+   *  of what a page is served, so recording it as shown is refused as out of date — see `revisionInStore`. */
+  moving?: string;
 };
 
 const SEEDS: Seed[] = [
   { team: 'atlas', slug: '2026-09-28-search-relevance', at: 4, updated: 2, stakeholder: 'noah.okafor@example.com', passed: 1, written: 2, outcome: null },
-  { team: 'atlas', slug: '2026-10-02-query-latency', at: 1, updated: 5, stakeholder: null, passed: 0, written: 0, outcome: null },
-  { team: 'atlas', slug: '2026-09-12-onboarding-revamp', at: 7, updated: 220, stakeholder: 'ava.lindqvist@example.com', passed: 4, written: 4, outcome: 'accepted' },
+  { team: 'atlas', slug: '2026-10-02-query-latency', at: 2, updated: 5, stakeholder: null, passed: 0, written: 1, outcome: null, moving: 'spec.md' },
+  { team: 'atlas', slug: '2026-09-12-onboarding-revamp', at: 7, updated: 220, stakeholder: 'ava.lindqvist@example.com', passed: 4, written: 4, outcome: 'accepted', correction: 2 },
   { team: 'atlas', slug: '2026-09-05-research-notes', at: 0, updated: 400, stakeholder: null, passed: 0, written: 0, outcome: null, flow: false },
   { team: 'beacon', slug: '2026-09-30-refund-flow', at: 2, updated: 9, stakeholder: 'jonas.weber@example.com', passed: 0, written: 1, outcome: null },
   { team: 'beacon', slug: '2026-10-01-ledger-migration-to-double-entry-bookkeeping-with-nightly-reconciliation', at: 0, updated: 30, stakeholder: null, passed: 0, written: 0, outcome: null },
@@ -87,12 +92,12 @@ export const INITIATIVES: Initiative[] = SEEDS.map((s) => ({
 }));
 
 /** What `/initiatives?waiting=1` answers: every gate written and unsigned on an open initiative,
- *  newest first — the projection the console's alert bell and its Overview panel read instead of
+ *  and a closed one's correction awaiting approval, newest first — the projection the console's alert bell and its Overview panel read instead of
  *  the whole list. */
 export const WAITING: WaitingGate[] = INITIATIVES
   .flatMap((i) => {
     const where = { team: i.team, slug: i.slug, updated: i.updated, stage: i.stage, at: i.at, of: i.of };
-    // A closed initiative waits on a person only for its closing document's correction, as the
+    // A closed initiative waits on a person only for a correction, as the
     // gateway's own projection answers.
     if (i.closed) {
       return i.correction
@@ -249,11 +254,11 @@ export function documentDetail(team: string, initiative: string, path: string): 
   const current = snaps.length;
   // Who approved an earlier snapshot of a document that is a draft now: the initiative's stakeholder.
   const signer = INITIATIVES.find((x) => x.team === team && x.slug === initiative)?.stakeholder ?? null;
-  // Metadata only, like the gateway, one entry per public version: its approved snapshot, else its
-  // last. A snapshot's text is read on its own, through `documentRevision` below.
+  // Metadata only, like the gateway, one entry per public version: its last retained state, the
+  // version's last snapshot. A snapshot's text is read on its own, through `documentRevision` below.
   const versions = [...new Set(snaps.map((x) => x.version))].map((v) => {
     const mine = snaps.map((x, i) => ({ ...x, revision: i + 1 })).filter((x) => x.version === v);
-    const pick = mine.filter((x) => x.approved).pop() ?? mine[mine.length - 1];
+    const pick = mine[mine.length - 1];
     return { path, version: v, revision: pick.revision, hash: `${path}-${pick.revision}`,
              status: pick.approved ? 'approved' : pick.revision === current ? row.status : 'draft',
              approved_by: pick.approved ? (row.approved_by ?? signer) : null,
@@ -267,10 +272,21 @@ export function documentDetail(team: string, initiative: string, path: string): 
     flow: row.type === 'note' ? null : FLOW, type: row.type, status: row.status, outcome: row.outcome,
     approved_by: row.approved_by, approved_at: row.approved_by ? row.updated_at : null, closed_by: null,
     title: row.title, tags: isSpec ? ['search', 'ranking', 'explainability'] : null, evidence: null, superseded_by: null,
+    stakeholder: row.gated ? signer : null, fields: isSpec ? { audience: 'research archive users', risk: 'medium' } : {},
     body: text, updated_at: row.updated_at, bytes: row.bytes, gated: row.gated, closing: row.closing, requiredForClose: row.requiredForClose,
     decisions, decisionCounts: { rows: decisions.length, withVerdict: decisions.filter((x) => x.verdict).length, withQualifier: decisions.filter((x) => x.qualifier).length, withChecker: decisions.filter((x) => x.checker).length },
     versions, sources,
   };
+}
+
+/** The `content_revision` the store holds for a document now, which `documents/shown` and
+ *  `documents/approve` hold a page's snapshot against: the one a read serves, except for a moving
+ *  document, whose store is always one snapshot ahead. Null for a document that does not exist. */
+export function revisionInStore(team: string, initiative: string, path: string): string | null {
+  const d = documentDetail(team, initiative, path);
+  if (!d) return null;
+  const moving = SEEDS.find((x) => x.team === team && x.slug === initiative)?.moving === path;
+  return moving ? contentRevisionOf(team, initiative, path, d.current_revision + 1) : d.content_revision;
 }
 
 /** One snapshot's text, as `/document/:team/:slug/:path?revision=N` serves it, N the snapshot id. */

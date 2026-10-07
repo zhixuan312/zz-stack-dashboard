@@ -21,8 +21,9 @@ function signOut() {
 }
 
 /**
- * Work sitting on a person: every gate document that is written and not yet approved, on an open initiative. The
- * bell is the one place the console says "this needs you" without being asked.
+ * Work sitting on a person: every gate document that is written and not yet approved, on an open initiative, and a
+ * closed initiative's correction awaiting approval. The bell is the one place the console says "this
+ * needs you" without being asked.
  */
 function useWaitingAlerts(enabled: boolean): Alert[] {
   const q = useWaitingGates(enabled);

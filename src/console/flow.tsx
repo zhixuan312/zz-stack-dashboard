@@ -14,7 +14,7 @@ import type { Gate, Initiative, Step } from '@/lib/api-shapes';
  *  marks the current one. */
 export function FlowStepper({ gates, outcome, steps, complete, correction }: {
   gates: Gate[]; outcome: string | null; steps: Step[]; complete?: boolean;
-  /** The closing document's correction awaiting approval. The close stands while it waits, so the
+  /** A correction awaiting approval. The close stands while it waits, so the
    *  API does not count it against `complete`, and it is said under the close in its own words. */
   correction?: Initiative['correction'];
 }) {

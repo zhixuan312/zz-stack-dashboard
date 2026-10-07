@@ -134,7 +134,8 @@ export interface Gate {
   written: boolean;
   after: number;
 }
-/** One gate document a person can sign today: written, not approved, on an open initiative.
+/** One gate document a person can sign today: written, not approved, on an open initiative — or a closed
+ *  initiative's correction awaiting approval.
  *
  *  Its own read — `/initiatives?waiting=1` — because the console's alert bell sits in the frame
  *  every page renders. Asking for the whole initiative list instead made every page carry a
@@ -175,7 +176,7 @@ export interface Initiative {
   /** One of `accepted` | `delivered` | `abandoned`, or null while it is open. All three mean
    *  closed — close() records exactly one. See OUTCOMES in @zz/contracts. */
   outcome: string | null;
-  /** On a closed initiative, its closing document's correction awaiting approval: the document
+  /** On a closed initiative, a correction awaiting approval: the document
    *  and the public version waiting. The close stands meanwhile, so it does not make the close
    *  read as stopped short. */
   correction: Correction | null;
@@ -237,6 +238,11 @@ export interface DocumentDetail {
   type: string; status: string | null; outcome: string | null;
   approved_by: string | null; approved_at: string | null; closed_by: string | null;
   title: string | null; tags: string[] | null; evidence: string[] | null;
+  /** The live snapshot's stakeholder, as its envelope names it. */
+  stakeholder: string | null;
+  /** The live snapshot's own fields: every envelope field the platform does not reserve, which a flow declares.
+   *  With the title, tags, stakeholder and body, this is what an approval signs, so the page shows all of it. */
+  fields: Record<string, string>;
   superseded_by: string | null; body: string | null;
   updated_at: string; bytes: number;
   /** The flow's rule for this document — see `DocRow.gated`. Null means the

@@ -28,7 +28,8 @@ shapes are still the gateway's (`src/lib/api-shapes.ts`). The routes are the sam
   the rail's workspace menu (and in Settings). The rail drops the platform-only pages in team mode
   (`src/nav.ts`).
 - **The bell lists waiting gates.** Every gate document that is written and not approved, on an open
-  initiative, with a link to the initiative.
+  initiative, or a closed initiative's correction awaiting approval, with a link to the
+  initiative.
 - **No assistant.** Meridian's built-in assistant is not adopted: it needs collections the console does not
   have and a model key nobody asked for. The shell no longer mounts it, and `verify` has no assistant step.
 - **The console's own rules, kept inside Meridian.** Tables read left in the first column, right in the last

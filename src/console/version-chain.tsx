@@ -54,9 +54,8 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
 
   /* A step is a change of text, and the gateway sends one entry per public version.
    *
-   * Two neighbouring versions can carry the same text: a version opened by a change to the
-   * title, tags or other metadata alone, and, before versions followed their causes, a version
-   * filed by an approval that edited nothing.
+   * Two neighbouring versions can carry the same text only on an older document: it filed a
+   * version for every approval and every metadata write. Neither opens a version now.
    *
    * Not a YAML question: the body is stored with the envelope already stripped, so
    * status, approved_at and the version number never reach this comparison — which is
@@ -308,9 +307,8 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
           {collapsed ? (
             <p className="border-t border-line px-4 py-2.5 text-xs leading-relaxed text-ink-3">
               {collapsed} {collapsed === 1 ? 'version is' : 'versions are'} listed with the one
-              before {collapsed === 1 ? 'it' : 'them'}: the text is the same, and what changed was
-              the title, tags or other metadata, or, before versions followed their causes, only
-              an approval.
+              before {collapsed === 1 ? 'it' : 'them'}: same text. Older documents filed a version
+              for every approval or metadata change.
             </p>
           ) : null}
         </Panel>

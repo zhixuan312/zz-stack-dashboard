@@ -90,17 +90,66 @@ describe('the fake gateway as the sweep uses it', () => {
     const base = await start();
     const post = (path: string, body: unknown) => fetch(`${base}/api/console/${path}?team=atlas`, {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
-    const doc = await (await fetch(`${base}/api/console/document/atlas/2026-09-28-search-relevance/spec.md`)).json() as
+    const doc = await (await fetch(`${base}/api/console/document/atlas/2026-09-28-search-relevance/plan.md`)).json() as
       { content_revision: string };
     expect(doc.content_revision).toMatch(/^cr_[a-z2-7]{26}$/);
+    const at = { initiative: '2026-09-28-search-relevance', path: 'plan.md' };
 
-    const shown = await (await post('documents/shown', { initiative: 'i', path: 'spec.md', content_revision: doc.content_revision })).json() as
+    const shown = await (await post('documents/shown', { ...at, content_revision: doc.content_revision })).json() as
       { review_context: string };
     expect(shown.review_context).toMatch(/^rc_[a-z2-7]{26}$/);
 
-    expect((await post('documents/approve', { initiative: 'i', path: 'spec.md' })).status).toBe(400);
-    const signed = await post('documents/approve', { initiative: 'i', path: 'spec.md', expected_revision: doc.content_revision,
-                                                      review_context: shown.review_context });
+    expect((await post('documents/approve', at)).status).toBe(400);
+    const signed = await post('documents/approve', { ...at, expected_revision: doc.content_revision, review_context: shown.review_context });
     expect(signed.status).toBe(200);
+  });
+
+  // The page's out-of-date states are drawn from these answers, so the fixture must be able to give them, in the
+  // gateway's own sentences (services/gateway/src/console-write.ts, `staleAnswer`).
+  it('refuses what the gateway refuses, and answers a page that is out of date with 409', async () => {
+    const base = await start();
+    const post = (path: string, body: unknown, q = 'team=atlas') => fetch(`${base}/api/console/${path}?${q}`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    const doc = await (await fetch(`${base}/api/console/document/atlas/2026-09-28-search-relevance/plan.md`)).json() as
+      { content_revision: string };
+    const at = { initiative: '2026-09-28-search-relevance', path: 'plan.md' };
+    const older = 'cr_aaaaaaaaaaaaaaaaaaaaaaaaaa';
+
+    expect((await post('documents/shown', { ...at, content_revision: doc.content_revision }, 'scope=platform')).status).toBe(400);
+    expect((await post('documents/approve', { ...at, expected_revision: doc.content_revision, review_context: 'rc_x' }, 'scope=platform')).status).toBe(400);
+    expect((await post('documents/shown', { initiative: 'i', path: 'plan.md', content_revision: doc.content_revision })).status).toBe(400);
+    // A document of another team is not one this team's session can show.
+    expect((await post('documents/shown', { ...at, content_revision: doc.content_revision }, 'team=beacon')).status).toBe(400);
+
+    const stale = await post('documents/shown', { ...at, content_revision: older });
+    expect(stale.status).toBe(409);
+    expect(await stale.json()).toMatchObject({ conflict: 'changed', error: 'plan.md changed after this page loaded it. Reload to read what it says now.' });
+
+    const { review_context } = await (await post('documents/shown', { ...at, content_revision: doc.content_revision })).json() as { review_context: string };
+    const moved = await post('documents/approve', { ...at, expected_revision: older, review_context });
+    expect(moved.status).toBe(409);
+    expect(await moved.json()).toMatchObject({ conflict: 'changed',
+      error: 'plan.md changed after this page showed it, so it was not approved. Reload to read what it says now, then approve that.' });
+
+    const unshown = await post('documents/approve', { ...at, expected_revision: doc.content_revision, review_context: 'rc_notonethisconsolewasgiven' });
+    expect(unshown.status).toBe(409);
+    expect(await unshown.json()).toMatchObject({ conflict: 'unshown' });
+  });
+
+  // `verify` runs the normal world only, so the states this change adds live in its records: a correction the
+  // signed-in user may approve, and a document another session revises after every read.
+  it('holds a correction this user can approve, and a document that moves after it is read', async () => {
+    const base = await start();
+    const me = await (await fetch(`${base}/api/console/me`)).json() as { activeTeam: string };
+    const correction = await (await fetch(`${base}/api/console/document/${me.activeTeam}/2026-09-12-onboarding-revamp/review.md`)).json() as
+      { team: string; correction: number | null; gated: boolean; approved_by: string | null };
+    expect(correction).toMatchObject({ team: me.activeTeam, correction: 2, gated: true, approved_by: null });
+
+    const moving = await (await fetch(`${base}/api/console/document/atlas/2026-10-02-query-latency/spec.md`)).json() as
+      { content_revision: string; gated: boolean; approved_by: string | null };
+    expect(moving).toMatchObject({ gated: true, approved_by: null });
+    const shown = await fetch(`${base}/api/console/documents/shown?team=atlas`, { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ initiative: '2026-10-02-query-latency', path: 'spec.md', content_revision: moving.content_revision }) });
+    expect(shown.status).toBe(409);
   });
 });

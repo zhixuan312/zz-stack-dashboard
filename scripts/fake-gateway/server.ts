@@ -14,7 +14,9 @@
  * before signing in (`/login`, `/enrol`, `/signed-out`), where `/me` answers 401 as it does for a
  * browser with no session. The page's own address arrives as the Referer.
  *
- * Writes answer success and are forgotten, so every run starts from the same data.
+ * Writes answer success and are forgotten, so every run starts from the same data. The console's
+ * presentation and approval are the exception: they are held against the store's snapshot and
+ * refused the way the gateway refuses them, so a page's out-of-date states can be drawn.
  *
  * `--mode` draws the states a page has to design for, from the same routes: `empty` (a fresh deployment, nothing
  * recorded), `error` (every read but /me fails with the gateway's own sentence), `slow` (every answer waits four
@@ -25,7 +27,7 @@ import http from 'node:http';
 import { ME, MY_CLIENT_SETUP, MY_TEAMS, MY_TOKENS, PEOPLE, PLATFORM_PEOPLE, TEAMS, teamDetail, teamMembers } from './people.ts';
 import { ACTIVITY, PLUGINS, SKILLS, overview, pluginEval, runs, skillDetail, skillText } from './platform.ts';
 import { empty, extreme } from './states.ts';
-import { INITIATIVES, KNOWLEDGE, KNOWLEDGE_LOG, WAITING, documentDetail, documentRevision, initiativeDetail, knowledgeBody } from './work.ts';
+import { INITIATIVES, KNOWLEDGE, KNOWLEDGE_LOG, WAITING, documentDetail, documentRevision, initiativeDetail, knowledgeBody, revisionInStore } from './work.ts';
 
 const args = process.argv.slice(2);
 const port = Number(args[args.indexOf('--port') + 1] ?? 0) || 0;
@@ -91,6 +93,41 @@ function read(seg: string[], q: URLSearchParams): Answer {
 /** The review context the console is handed on a document's first showing: `rc_` and 26 base32 characters. */
 const CONSOLE_CONTEXT = 'rc_consolereviewcontextfakeaa';
 
+/**
+ * The console's presentation (`documents/shown`) and its approval (`documents/approve`), as the gateway takes them: one
+ * team, never `?scope=platform`; a document of the team the session acts for, which is the team zz-core acts in; the
+ * snapshot the page holds checked against the store's; and Approve signing only under the context `shown` answered.
+ * Every 409 carries the gateway's own sentence (`staleAnswer` in services/gateway/src/console-write.ts), and its
+ * `detail` the zz-core opening the gateway reads.
+ *
+ * DELIBERATE: one context for every presentation. zz-core continues the context a page hands back and starts a new one
+ * for an unknown one; either way the page holds what it was answered, which is all the console reads.
+ */
+function present(signing: boolean, q: URLSearchParams, body: Record<string, unknown>): Answer {
+  const team = q.get('team');
+  if (!team) return [400, { error: `${signing ? 'approve' : 'shown'} needs one team — pass ?team=<slug>, not ?scope=platform` }];
+  const [initiative, path, held, context] = [body.initiative, body.path, signing ? body.expected_revision : body.content_revision, body.review_context]
+    .map((v) => (typeof v === 'string' ? v : ''));
+  if (!initiative || !path || !held || (signing && !context)) {
+    return [400, { error: signing ? 'initiative, path, expected_revision and review_context required' : 'initiative, path and content_revision required' }];
+  }
+  const store = team === ME.activeTeam ? revisionInStore(team, initiative, path) : null;
+  if (!store) return [400, { error: `ERROR: ${initiative}/${path} is not a document of ${ME.activeTeam ?? 'any team'}.` }];
+  if (held !== store) {
+    return [409, signing
+      ? { conflict: 'changed', error: `${path} changed after this page showed it, so it was not approved. Reload to read what it says now, then approve that.`,
+          detail: `ERROR: APPROVAL_CONFLICT — ${initiative}/${path} is at content revision ${store}, not ${held}.` }
+      : { conflict: 'changed', error: `${path} changed after this page loaded it. Reload to read what it says now.`,
+          detail: `ERROR: ${initiative}/${path} is at content revision ${store} now, not ${held}.` }];
+  }
+  if (!signing) return ok({ ok: true, review_context: CONSOLE_CONTEXT, content_revision: held, recorded: true });
+  if (context !== CONSOLE_CONTEXT) {
+    return [409, { conflict: 'unshown', error: `${path} was not approved: the console has no record of showing you what it says now. Reload the page, then approve.`,
+                   detail: `ERROR: PRESENTATION_REQUIRED — the review context ${context} is not one of yours for ${initiative}/${path}.` }];
+  }
+  return ok({ ok: true, result: `Approved ${initiative}/${path}.` });
+}
+
 /** One write under `/api/console`. Accepted, answered in the route's own shape, and not kept. */
 function write(seg: string[], q: URLSearchParams, method: string, body: Record<string, unknown>): Answer {
   const path = seg.join('/');
@@ -101,15 +138,7 @@ function write(seg: string[], q: URLSearchParams, method: string, body: Record<s
   if (path === 'settings/me/tokens' && method === 'POST') {
     return ok({ token: 'zz_pat_example_0123456789abcdef', label: String(body.label ?? 'console'), email: ME.email });
   }
-  // The console's presentation and its approval, as the gateway takes them: Approve names the snapshot it showed and
-  // the context `documents/shown` answered, and a call missing either is refused the way the gateway refuses it.
-  if (path === 'documents/shown') {
-    if (!body.initiative || !body.path || !body.content_revision) return [400, { error: 'initiative, path and content_revision required' }];
-    return ok({ ok: true, review_context: String(body.review_context ?? CONSOLE_CONTEXT), content_revision: String(body.content_revision), recorded: true });
-  }
-  if (path === 'documents/approve' && (!body.initiative || !body.path || !body.expected_revision || !body.review_context)) {
-    return [400, { error: 'initiative, path, expected_revision and review_context required' }];
-  }
+  if (path === 'documents/shown' || path === 'documents/approve') return present(path === 'documents/approve', q, body);
   if (path === 'settings/me/active-team') return ok({ actingFor: String(body.team ?? ME.activeTeam) });
   if (path === 'settings/platform/enrolments') return ok({ ok: true, url: 'https://console.example.com/enrol#t=example-enrolment', result: `An enrolment link for ${String(body.email)}` });
   return ok({ ok: true, result: `${method} ${path}: done`, revoked: seg.at(-1) });

@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { KeyValue } from '@/components/ui/key-value';
 import { Segmented } from '@/components/ui/segmented';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ApproveAction, OutOfDate, canApprove, useRecordShown } from '@/console/approve';
+import { ApproveAction, OutOfDate, canApprove, switchToApprove, useRecordShown } from '@/console/approve';
 import { aligned } from '@/console/columns';
 import { DocStatus } from '@/console/doc-status';
 import { ConsolePage } from '@/console/page';
@@ -50,20 +50,17 @@ export default function DocumentPage({ params }: { params: Promise<{ team: strin
   // The document's own public version. Not the highest of `versions`: those name the snapshot each version is read
   // as, and several snapshots can share one version.
   const version = d?.current_version ?? null;
-  // Approve is on offer, so what this page displays is recorded as shown to the reader — once per snapshot, after
-  // the render that put its body on screen — and Approve signs exactly that snapshot under the context it answers.
-  // Not while a refetch failed: the panel then shows the failure, not the body this would vouch for.
+  // Approve is on offer, so what this page displays is recorded as shown to the reader — the first snapshot of the
+  // visit after the render that put its body on screen, any later one when the reader reloads — and Approve signs
+  // exactly that snapshot under the context it answers. Not while a refetch failed: the panel then shows the failure,
+  // not the body this would vouch for.
   const offered = !!(d && !q.error && me.data && canApprove(d, me.data));
-  const { shown, again } = useRecordShown(d, offered);
-  // A 409 from Approve: the document moved after this page showed it, or nothing of this session's shows it now.
-  const [stale, setStale] = useState<string | null>(null);
-  const notice = stale ?? (shown.state === 'stale' || shown.state === 'failed' ? shown.message : null);
+  const { shown, again, outdated } = useRecordShown(d, offered);
   async function reload() {
-    setStale(null);
-    const before = d?.content_revision;
-    const next = await q.refetch();
-    // A newer snapshot is recorded by its own key; the same one is recorded again only when asked.
-    if (next.data?.content_revision === before) again();
+    // `/me` as well: a record refused because the session now acts for another team clears only once the page knows.
+    const [next] = await Promise.all([q.refetch(), me.refetch()]);
+    // The snapshot the reload brought is the one the reader now asks to approve, the same one again included.
+    if (next.data) again(next.data.content_revision);
   }
 
   return (
@@ -73,10 +70,10 @@ export default function DocumentPage({ params }: { params: Promise<{ team: strin
       description={<span className="font-mono text-sm">{rel}{version ? ` · v${version}` : ''}</span>}
       showPeriod={false}
       updatedAt={freshnessOf(q)}
-      actions={d && me.data && offered ? <ApproveAction doc={d} me={me.data} shown={shown} onStale={setStale} /> : undefined}
+      actions={d && me.data && (offered || switchToApprove(d, me.data)) ? <ApproveAction doc={d} me={me.data} shown={shown} onStale={outdated} /> : undefined}
       width="reading"
     >
-      {notice ? <OutOfDate message={notice} failed={!stale && shown.state === 'failed'} onReload={() => void reload()} /> : null}
+      <OutOfDate shown={shown} onReload={() => void reload()} />
       <Query query={q} what="This document" skeleton={<div className="flex flex-col gap-(--stack-gap)"><Skeleton className="h-24 rounded-lg" /><Skeleton className="h-[28rem] rounded-lg" /></div>}>
         {(doc) => (
           <>
@@ -94,6 +91,11 @@ export default function DocumentPage({ params }: { params: Promise<{ team: strin
                   // Three states, not two: a source is a file the flow says nothing about, so "not approved" would imply an approval was ever on the table.
                   { label: 'Approved by', wrap: true, value: doc.approved_by ?? (doc.gated === false ? 'No approval needed' : doc.gated === true ? 'Not yet' : '—') },
                   { label: 'Updated', value: <When at={doc.updated_at} /> },
+                  // The review metadata: an approval signs it with the body, and recording this page as shown says
+                  // the reader saw it, so every piece is on screen. The title is the masthead's.
+                  { label: 'Stakeholder', wrap: true, value: doc.stakeholder || 'None named' },
+                  { label: 'Tags', wrap: true, value: doc.tags?.length ? doc.tags.join(', ') : 'None' },
+                  ...Object.entries(doc.fields).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => ({ label: k, wrap: true, value: v })),
                 ]}
               />
               {doc.body?.trim()
