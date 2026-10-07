@@ -258,9 +258,14 @@ export interface DocumentDetail {
    *  document rather than as a derivation that has stopped running. */
   decisionCounts: { rows: number; withVerdict: number; withQualifier: number; withChecker: number };
   /** One entry per public version of this document, oldest first, as its metadata alone. A
-   *  version can hold several snapshots; its entry is the one it is read as — its approved
-   *  snapshot when it has one, else its last. `version` is the public number and `revision` the
-   *  snapshot id `?revision=` reads.
+   *  version can hold several snapshots; its entry is the one it is read as — the version's last.
+   *  `version` is the public number and `revision` the snapshot id `?revision=` reads.
+   *
+   *  `superseded_approved` names the approved snapshot a later, unsigned row of the same version
+   *  superseded — a metadata-only change after an approval, a closed document's correction among
+   *  them — so a signed snapshot the version no longer reads as stays findable: `content_revision`
+   *  is the token zz-core's `document_read` reads it by, null on a row written before generations
+   *  were kept. Null when the entry is itself approved or no approval preceded it.
    *
    *  A snapshot's text is not carried here. A document's history has no bound — one on this
    *  deployment has 109 revisions totalling 94 MB — so the reader asks for the one snapshot it
@@ -269,7 +274,9 @@ export interface DocumentDetail {
    *  `hash` is the fingerprint of the snapshot's body, which is what tells a version that
    *  carries the same text as the one above it apart from one that does not. */
   versions: { path: string; hash: string; status: string | null;
-              approved_by: string | null; updated_at: string; version: number; revision: number }[];
+              approved_by: string | null; updated_at: string; version: number; revision: number;
+              superseded_approved: { revision: number; content_revision: string | null;
+                                     approved_by: string | null; approved_at: string | null } | null }[];
   /** The supporting information attached to this document — why it changed. */
   sources: { path: string; title: string | null; body: string | null;
              supports: string; added: string; bytes: number }[];

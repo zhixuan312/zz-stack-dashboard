@@ -156,8 +156,9 @@ pnpm verify    # the gate, a build against the fake gateway, the browser checks,
 `pnpm verify` is the whole standard and what CI runs. It builds the console against
 `scripts/fake-gateway/` (synthetic records, writes accepted and forgotten) because its presses
 approve, revoke and archive whatever a page offers, then audits every page at five widths in
-both themes, presses every control, walks the whole keyboard path (`scripts/keyboard.ts`), and
-measures LCP, INP and CLS on a mid-range phone. What it checks beyond the static routes, and
+both themes, presses every control, walks the whole keyboard path (`scripts/keyboard.ts`), draws
+the Approve banners a page load cannot reach (`scripts/approve-banners.ts`), and measures LCP,
+INP and CLS on a mid-range phone. What it checks beyond the static routes, and
 against what, is in `scripts/verify.config.ts`. The report is `out/verify.txt`.
 
 ## Deploying

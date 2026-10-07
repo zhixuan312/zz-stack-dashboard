@@ -6,7 +6,8 @@
  * ways (accepted, delivered, abandoned), closed with a correction awaiting
  * approval (in the signed-in user's own team, where they may sign it, and in another of their
  * teams, where they are told to switch), a document another session revises after every read,
- * and one with no flow at all. `atlas/…-search-relevance` is the rich one: a document
+ * one it revises every few seconds, one whose presentation zz-core refuses, and one with no
+ * flow at all. `atlas/…-search-relevance` is the rich one: a document
  * with every block a reader meets (a table, code, a task list, a long address), three public
  * versions over four snapshots (v3 presented, then approved), sources numbered past 9 so their
  * order is tested, and a plan waiting on approval.
@@ -16,7 +17,7 @@ import type {
   DocumentDetail, DocumentRevision, Gate, Initiative, InitiativeDetail, KnowledgeBody,
   KnowledgeLogEntry, KnowledgeNode, Step, WaitingGate,
 } from '../../src/lib/api-shapes.ts';
-import { ago } from './clock.ts';
+import { ago, now } from './clock.ts';
 
 const FLOW = 'sdlc-flow';
 const STAGES: [name: string, produces: string, what: string][] = [
@@ -37,22 +38,31 @@ type Seed = {
   /** Gates approved, then gates written but not approved, counting from the first. */
   passed: number; written: number;
   outcome: 'accepted' | 'delivered' | 'abandoned' | null; flow?: false;
-  /** Closed, then review.md corrected: the public version of the correction awaiting approval. */
+  /** Closed, then review.md corrected: the public version of the correction awaiting approval — the next one,
+   *  or 1 for a metadata-only correction, which files a later row in the approved version. */
   correction?: number;
   /** A document another session revises a moment after every read: the store is one snapshot ahead
    *  of what a page is served, so recording it as shown is refused as out of date — see `revisionInStore`. */
   moving?: string;
+  /** A document another session revises every `DRIFT_MS`: a read serves the snapshot the store holds at that moment,
+   *  so a page records the one it loaded, and a focus refetch past the console's staleTime brings a newer one. */
+  drifting?: string;
+  /** A document whose presentation zz-core refuses outright — not a 409 — so Approve is unavailable. */
+  unrecordable?: string;
 };
 
 const SEEDS: Seed[] = [
   { team: 'atlas', slug: '2026-09-28-search-relevance', at: 4, updated: 2, stakeholder: 'noah.okafor@example.com', passed: 1, written: 2, outcome: null },
   { team: 'atlas', slug: '2026-10-02-query-latency', at: 2, updated: 5, stakeholder: null, passed: 0, written: 1, outcome: null, moving: 'spec.md' },
+  { team: 'atlas', slug: '2026-10-03-ranking-weights', at: 2, updated: 3, stakeholder: null, passed: 0, written: 1, outcome: null, drifting: 'spec.md' },
+  { team: 'atlas', slug: '2026-10-04-index-rebuild', at: 2, updated: 4, stakeholder: null, passed: 0, written: 1, outcome: null, unrecordable: 'spec.md' },
   { team: 'atlas', slug: '2026-09-12-onboarding-revamp', at: 7, updated: 220, stakeholder: 'ava.lindqvist@example.com', passed: 4, written: 4, outcome: 'accepted', correction: 2 },
   { team: 'atlas', slug: '2026-09-05-research-notes', at: 0, updated: 400, stakeholder: null, passed: 0, written: 0, outcome: null, flow: false },
   { team: 'beacon', slug: '2026-09-30-refund-flow', at: 2, updated: 9, stakeholder: 'jonas.weber@example.com', passed: 0, written: 1, outcome: null },
   { team: 'beacon', slug: '2026-10-01-ledger-migration-to-double-entry-bookkeeping-with-nightly-reconciliation', at: 0, updated: 30, stakeholder: null, passed: 0, written: 0, outcome: null },
   { team: 'beacon', slug: '2026-09-18-chargeback-alerts', at: 7, updated: 300, stakeholder: 'mei.tanaka@example.com', passed: 4, written: 4, outcome: 'delivered' },
-  { team: 'beacon', slug: '2026-09-22-payout-schedule', at: 7, updated: 26, stakeholder: 'jonas.weber@example.com', passed: 4, written: 4, outcome: 'accepted', correction: 2 },
+  // A metadata-only correction: it stays in v1, so v1 reads as the correction and names the approval it superseded.
+  { team: 'beacon', slug: '2026-09-22-payout-schedule', at: 7, updated: 26, stakeholder: 'jonas.weber@example.com', passed: 4, written: 4, outcome: 'accepted', correction: 1 },
   { team: 'cinder', slug: '2026-08-20-incident-runbooks', at: 3, updated: 900, stakeholder: 'leo.santos@example.com', passed: 1, written: 1, outcome: 'abandoned' },
 ];
 
@@ -217,7 +227,8 @@ const body = (title: string) => `# ${title}\n\n## Summary\n\nWhat this document 
 /** The snapshots of one document, oldest first: its public version, and whether it was approved.
  *  The rich spec has three versions over four snapshots — v3 was presented as r3 and approved as
  *  r4 — so a version and the snapshot it is read as differ; a corrected review.md was approved as
- *  v1 and is a draft v2. Every other document is one snapshot. */
+ *  v1 and is a draft of its correction's version — v1 itself for a metadata-only one, whose approval
+ *  the draft supersedes. Every other document is one snapshot. */
 function snapshotsOf(initiative: string, path: string, row: Doc): { version: number; approved: boolean }[] {
   if (initiative === '2026-09-28-search-relevance' && path === 'spec.md') {
     return [{ version: 1, approved: false }, { version: 2, approved: false }, { version: 3, approved: false }, { version: 3, approved: true }];
@@ -244,6 +255,21 @@ function contentRevisionOf(team: string, initiative: string, path: string, revis
   return `cr_${out}`;
 }
 
+/** How often another session revises a `drifting` document: under the console's thirty-second staleTime, so the
+ *  refetch a returning reader's focus triggers always lands on a later snapshot than the one the page loaded. */
+const DRIFT_MS = 15_000;
+
+/** Snapshots a `drifting` document has gained since the server started; zero for every other document. */
+function drift(team: string, initiative: string, path: string): number {
+  const drifting = SEEDS.find((x) => x.team === team && x.slug === initiative)?.drifting === path;
+  return drifting ? Math.floor((Date.now() - now()) / DRIFT_MS) : 0;
+}
+
+/** Whether zz-core refuses to record a presentation of this document (`unrecordable`). */
+export function refusesRecord(team: string, initiative: string, path: string): boolean {
+  return SEEDS.find((x) => x.team === team && x.slug === initiative)?.unrecordable === path;
+}
+
 export function documentDetail(team: string, initiative: string, path: string): DocumentDetail | null {
   const d = initiativeDetail(team, initiative);
   const row = d?.documents.find((x) => x.path === path);
@@ -255,20 +281,25 @@ export function documentDetail(team: string, initiative: string, path: string): 
   // Who approved an earlier snapshot of a document that is a draft now: the initiative's stakeholder.
   const signer = INITIATIVES.find((x) => x.team === team && x.slug === initiative)?.stakeholder ?? null;
   // Metadata only, like the gateway, one entry per public version: its last retained state, the
-  // version's last snapshot. A snapshot's text is read on its own, through `documentRevision` below.
+  // version's last snapshot, naming the approved one it superseded when it is not approved itself.
+  // A snapshot's text is read on its own, through `documentRevision` below.
   const versions = [...new Set(snaps.map((x) => x.version))].map((v) => {
     const mine = snaps.map((x, i) => ({ ...x, revision: i + 1 })).filter((x) => x.version === v);
     const pick = mine[mine.length - 1];
+    const sealed = pick.approved ? undefined : mine.filter((x) => x.approved).pop();
     return { path, version: v, revision: pick.revision, hash: `${path}-${pick.revision}`,
              status: pick.approved ? 'approved' : pick.revision === current ? row.status : 'draft',
              approved_by: pick.approved ? (row.approved_by ?? signer) : null,
-             updated_at: ago(60 + (current - pick.revision) * 20) };
+             updated_at: ago(60 + (current - pick.revision) * 20),
+             superseded_approved: sealed ? { revision: sealed.revision, approved_by: row.approved_by ?? signer,
+                                             content_revision: contentRevisionOf(team, initiative, path, sealed.revision),
+                                             approved_at: ago(60 + (current - sealed.revision) * 20) } : null };
   });
   const sources = d.documents.filter((x) => x.supports === path).map((x) => ({ path: x.path, title: x.title, body: body(x.title ?? x.path), supports: path, added: x.updated_at.slice(0, 10), bytes: x.bytes }));
   const decisions = d.decisions.filter((x) => x.path === path).map(({ path: _p, ...rest }) => rest);
   return {
     team, initiative, path, current_revision: current, current_version: snaps[current - 1].version, correction: row.correction,
-    content_revision: contentRevisionOf(team, initiative, path, current),
+    content_revision: contentRevisionOf(team, initiative, path, current + drift(team, initiative, path)),
     flow: row.type === 'note' ? null : FLOW, type: row.type, status: row.status, outcome: row.outcome,
     approved_by: row.approved_by, approved_at: row.approved_by ? row.updated_at : null, closed_by: null,
     title: row.title, tags: isSpec ? ['search', 'ranking', 'explainability'] : null, evidence: null, superseded_by: null,

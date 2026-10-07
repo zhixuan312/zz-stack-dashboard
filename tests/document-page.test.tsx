@@ -35,7 +35,7 @@ const docAt = (content_revision: string, body: string): DocumentDetail => ({
   gated: true, closing: false, requiredForClose: false,
   decisions: [], decisionCounts: { rows: 0, withVerdict: 0, withQualifier: 0, withChecker: 0 },
   // One version, so the history panel reads nothing of its own.
-  versions: [{ path: 'spec.md', hash: 'h1', status: 'draft', approved_by: null, updated_at: '2026-09-01T00:00:00Z', version: 1, revision: 1 }],
+  versions: [{ path: 'spec.md', hash: 'h1', status: 'draft', approved_by: null, updated_at: '2026-09-01T00:00:00Z', version: 1, revision: 1, superseded_approved: null }],
   sources: [],
 });
 

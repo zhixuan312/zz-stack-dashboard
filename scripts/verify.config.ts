@@ -27,8 +27,9 @@ const config: VerifyConfig = {
   // work and one with none, an initiative waiting on a person, a closed one, one closed with a correction awaiting
   // approval, one with no flow, a document approved, one awaiting approval, a correction the signed-in user may approve
   // and one in another of their teams (which tells them to switch), a document that moves after every read (out of
-  // date), a current and a superseded knowledge node, a plugin with an evaluation, one never profiled, one vendored and
-  // never run, and a skill in each of its views.
+  // date), one whose record of being shown is refused (Approve unavailable), a current and a superseded knowledge
+  // node, a plugin with an evaluation, one never profiled, one vendored and never run, and a skill in each of its
+  // views.
   detailRoutes: [
     '/teams/atlas',
     '/teams/dune',
@@ -41,6 +42,7 @@ const config: VerifyConfig = {
     '/initiatives/atlas/2026-09-12-onboarding-revamp/review.md',
     '/initiatives/beacon/2026-09-22-payout-schedule/review.md',
     '/initiatives/atlas/2026-10-02-query-latency/spec.md',
+    '/initiatives/atlas/2026-10-04-index-rebuild/spec.md',
     '/knowledge/atlas/nodes/0002-match-reasons-come-from-the-index-never-from-a-model.md',
     '/knowledge/atlas/nodes/0004-rank-by-recency-first.md',
     '/plugins/sdlc',
@@ -53,6 +55,9 @@ const config: VerifyConfig = {
   ],
   // The presses approve, revoke and archive whatever a page offers; they reach the fake gateway, never the deployment.
   fakeApi: { script: 'scripts/fake-gateway/server.ts', env: 'ZZ_GATEWAY' },
+  // The Approve banner a load cannot reach — a document that changed while it was being read needs a refetch — and a
+  // check that the refused record's banner is what its detail route draws.
+  browserChecks: ['scripts/approve-banners.ts'],
 };
 
 export default config;

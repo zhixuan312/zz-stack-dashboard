@@ -85,6 +85,11 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
   // Newest first, like the pairs.
   const history = [...steps].reverse();
   const pair = pairs[at];
+  /* An approval a later row of its version superseded — a metadata-only change after it, a closed
+   * document's correction among them. The version reads as that later row, so the approval is named
+   * on its own line with the token zz-core reads it by; without it, the approval's reply was the one
+   * place the token was ever shown. */
+  const sealedAway = raw.filter((v) => v.superseded_approved);
 
   /* The two texts this change is drawn between. The step's `last` is the newest version in it,
    * read by the snapshot that version is read as. */
@@ -102,7 +107,7 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
     return { stat: diffStat(lines), ...collapse(lines) };
   }, [ready, failed, before.body, after.body]);
 
-  if (raw.length < 2 && !sources.length) return null;
+  if (raw.length < 2 && !sources.length && !sealedAway.length) return null;
 
   const label = (v: { version: number }) => `v${v.version}`;
   /* A step spans every version that carried the same text, so it is named for
@@ -274,11 +279,13 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
         </Panel>
       ) : null}
 
-      {raw.length > 1 ? (
+      {raw.length > 1 || sealedAway.length ? (
         <Panel
           title="Content history"
           description={
-            steps.length === 1
+            raw.length === 1
+              ? '1 version'
+              : steps.length === 1
               ? `${raw.length} versions, all with the same text`
               : `${steps.length} changes of the text across ${raw.length} versions`
           }
@@ -301,6 +308,20 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
                 <span className="whitespace-nowrap font-mono text-2xs text-ink-3">
                   <When at={st.last.updated_at} />
                 </span>
+                {sealedAway.filter((v) => v.version >= st.first.version && v.version <= st.last.version).map((v) => (
+                  <p key={v.version} className="basis-full pl-[1.625rem] text-xs leading-relaxed text-ink-3">
+                    Approved{v.superseded_approved?.approved_by ? ` by ${v.superseded_approved.approved_by}` : ''}, then
+                    superseded inside v{v.version}.{' '}
+                    {v.superseded_approved?.content_revision ? (
+                      <>
+                        That approved snapshot is read by its content revision{' '}
+                        <code className="break-all font-mono text-2xs text-ink-2">{v.superseded_approved.content_revision}</code>
+                      </>
+                    ) : (
+                      'It was written before snapshots carried a content revision, so no token reads it.'
+                    )}
+                  </p>
+                ))}
               </li>
             ))}
           </ul>

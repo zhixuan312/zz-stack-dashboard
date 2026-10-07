@@ -54,8 +54,8 @@ shapes are still the gateway's (`src/lib/api-shapes.ts`). The routes are the sam
 
 `pnpm verify` runs the gate (tokens, specifications, the console's own rules, contrast, lint, types, tests),
 builds the app against a fake gateway (`scripts/fake-gateway/`), serves it, audits every page at five widths in
-both themes, presses every control, follows every link, walks the whole keyboard path, and measures Web Vitals on
-a mid-range phone. The fake gateway exists because the presses approve, revoke and archive whatever a page offers,
+both themes, presses every control, follows every link, walks the whole keyboard path, draws the Approve banners a
+page load cannot reach (`scripts/approve-banners.ts`), and measures Web Vitals on a mid-range phone. The fake gateway exists because the presses approve, revoke and archive whatever a page offers,
 so they must never reach the real deployment. Its records are synthetic; nobody in them is a real person.
 
 `verify` runs the fixture in `normal` mode. Its other four worlds — `empty`, `slow` (every answer four seconds

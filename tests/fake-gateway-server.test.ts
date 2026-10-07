@@ -1,5 +1,6 @@
 import { spawn, type ChildProcess } from 'node:child_process';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { documentDetail, revisionInStore } from '../scripts/fake-gateway/work.ts';
 
 /**
  * The fixture as a SERVER, which is how a sweep uses it.
@@ -151,5 +152,52 @@ describe('the fake gateway as the sweep uses it', () => {
     const shown = await fetch(`${base}/api/console/documents/shown?team=atlas`, { method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ initiative: '2026-10-02-query-latency', path: 'spec.md', content_revision: moving.content_revision }) });
     expect(shown.status).toBe(409);
+  });
+
+  // A metadata-only correction stays in the approved version: v1 reads as the correction, and the approval it
+  // superseded is named by the token zz-core reads it by, as the gateway names it.
+  it('names the approval a metadata-only correction superseded inside its version', async () => {
+    const base = await start();
+    const doc = await (await fetch(`${base}/api/console/document/beacon/2026-09-22-payout-schedule/review.md`)).json() as
+      { correction: number | null; versions: { version: number; revision: number; superseded_approved: { revision: number; content_revision: string | null } | null }[] };
+    expect(doc.correction).toBe(1);
+    expect(doc.versions).toHaveLength(1);
+    expect(doc.versions[0]).toMatchObject({ version: 1, revision: 2, superseded_approved: { revision: 1 } });
+    expect(doc.versions[0].superseded_approved?.content_revision).toMatch(/^cr_[a-z2-7]{26}$/);
+  });
+
+  // The two Approve banners no other record reaches. "Approve is unavailable" is a refusal of the record that is not a
+  // 409: zz-core's own sentence, which the gateway answers 400.
+  it('holds a document whose presentation zz-core refuses outright', async () => {
+    const base = await start();
+    const path = 'document/atlas/2026-10-04-index-rebuild/spec.md';
+    const doc = await (await fetch(`${base}/api/console/${path}`)).json() as { content_revision: string; gated: boolean; approved_by: string | null };
+    expect(doc).toMatchObject({ gated: true, approved_by: null });
+    const shown = await fetch(`${base}/api/console/documents/shown?team=atlas`, { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ initiative: '2026-10-04-index-rebuild', path: 'spec.md', content_revision: doc.content_revision }) });
+    expect(shown.status).toBe(400);
+    expect(await shown.json()).toEqual({ error: 'ERROR: no team to record this for' });
+  });
+});
+
+// "This document changed while you were reading it" needs a refetch to bring a newer snapshot than the page recorded:
+// a document another session revises on a clock, so the first read is recorded and a focus refetch past the console's
+// thirty-second staleTime lands on a newer one. Imported rather than served, so the clock can be moved.
+describe('a document another session keeps revising', () => {
+  it('serves the snapshot the store holds now, and a newer one once its revision period has passed', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      const at = ['atlas', '2026-10-03-ranking-weights', 'spec.md'] as const;
+      const first = documentDetail(...at)!;
+      expect(first).toMatchObject({ gated: true, approved_by: null });
+      expect(documentDetail(...at)!.content_revision).toBe(first.content_revision);
+      expect(revisionInStore(...at)).toBe(first.content_revision);
+      vi.setSystemTime(Date.now() + 31_000);
+      const later = documentDetail(...at)!;
+      expect(later.content_revision).not.toBe(first.content_revision);
+      expect(revisionInStore(...at)).toBe(later.content_revision);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

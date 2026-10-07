@@ -34,8 +34,8 @@ const doc: DocumentDetail = {
   gated: true, closing: false, requiredForClose: false,
   decisions: [], decisionCounts: { rows: 0, withVerdict: 0, withQualifier: 0, withChecker: 0 },
   versions: [
-    { path: 'spec.md', hash: 'h2', status: 'draft', approved_by: null, updated_at: '2026-08-30T00:00:00Z', version: 1, revision: 2 },
-    { path: 'spec.md', hash: 'h3', status: 'approved', approved_by: 'a@b.example.com', updated_at: '2026-08-31T00:00:00Z', version: 2, revision: 3 },
+    { path: 'spec.md', hash: 'h2', status: 'draft', approved_by: null, updated_at: '2026-08-30T00:00:00Z', version: 1, revision: 2, superseded_approved: null },
+    { path: 'spec.md', hash: 'h3', status: 'approved', approved_by: 'a@b.example.com', updated_at: '2026-08-31T00:00:00Z', version: 2, revision: 3, superseded_approved: null },
   ],
   sources: [],
 };
@@ -58,12 +58,25 @@ describe('VersionChain', () => {
     await waitFor(() => expect(screen.getByText(/could not be read, so the change cannot be/)).toBeInTheDocument());
   });
 
+  // A metadata-only change after an approval (a closed document's correction among them) files a later row in the same
+  // version: the version reads as that row, and the approval it superseded is named by the token that reads it.
+  it('names the approved snapshot a later row superseded inside its version, by its content revision', () => {
+    const corrected = { ...doc, current_revision: 2, current_version: 1, status: 'draft', approved_by: null, body: 'text of r2\n', versions: [
+      { path: 'spec.md', hash: 'h2', status: 'draft', approved_by: null, updated_at: '2026-09-01T00:00:00Z', version: 1, revision: 2,
+        superseded_approved: { revision: 1, content_revision: 'cr_sealedsealedsealedsealedse', approved_by: 'a@b.example.com',
+                               approved_at: '2026-08-31T00:00:00Z' } },
+    ] };
+    render(<QueryClientProvider client={new QueryClient()}><VersionChain doc={corrected} /></QueryClientProvider>);
+    expect(screen.getByText('cr_sealedsealedsealedsealedse')).toBeInTheDocument();
+    expect(screen.getByText(/Approved by a@b\.example\.com, then superseded inside v1/)).toBeInTheDocument();
+  });
+
   // Older documents filed a version for every approval or metadata write, so neighbours can carry the same text.
   it('lists versions with the same text as one change, and says why without promising they still happen', () => {
     const same = { ...doc, current_revision: 3, current_version: 3, status: 'approved', approved_by: 'a@b.example.com', body: 'text of r3\n', versions: [
-      { path: 'spec.md', hash: 'h1', status: 'draft', approved_by: null, updated_at: '2026-08-30T00:00:00Z', version: 1, revision: 1 },
-      { path: 'spec.md', hash: 'h3', status: 'draft', approved_by: null, updated_at: '2026-08-31T00:00:00Z', version: 2, revision: 2 },
-      { path: 'spec.md', hash: 'h3', status: 'approved', approved_by: 'a@b.example.com', updated_at: '2026-09-01T00:00:00Z', version: 3, revision: 3 },
+      { path: 'spec.md', hash: 'h1', status: 'draft', approved_by: null, updated_at: '2026-08-30T00:00:00Z', version: 1, revision: 1, superseded_approved: null },
+      { path: 'spec.md', hash: 'h3', status: 'draft', approved_by: null, updated_at: '2026-08-31T00:00:00Z', version: 2, revision: 2, superseded_approved: null },
+      { path: 'spec.md', hash: 'h3', status: 'approved', approved_by: 'a@b.example.com', updated_at: '2026-09-01T00:00:00Z', version: 3, revision: 3, superseded_approved: null },
     ] };
     render(<QueryClientProvider client={new QueryClient()}><VersionChain doc={same} /></QueryClientProvider>);
     expect(screen.getByText('v2–v3')).toBeInTheDocument();

@@ -27,7 +27,7 @@ import http from 'node:http';
 import { ME, MY_CLIENT_SETUP, MY_TEAMS, MY_TOKENS, PEOPLE, PLATFORM_PEOPLE, TEAMS, teamDetail, teamMembers } from './people.ts';
 import { ACTIVITY, PLUGINS, SKILLS, overview, pluginEval, runs, skillDetail, skillText } from './platform.ts';
 import { empty, extreme } from './states.ts';
-import { INITIATIVES, KNOWLEDGE, KNOWLEDGE_LOG, WAITING, documentDetail, documentRevision, initiativeDetail, knowledgeBody, revisionInStore } from './work.ts';
+import { INITIATIVES, KNOWLEDGE, KNOWLEDGE_LOG, WAITING, documentDetail, documentRevision, initiativeDetail, knowledgeBody, refusesRecord, revisionInStore } from './work.ts';
 
 const args = process.argv.slice(2);
 const port = Number(args[args.indexOf('--port') + 1] ?? 0) || 0;
@@ -113,6 +113,8 @@ function present(signing: boolean, q: URLSearchParams, body: Record<string, unkn
   }
   const store = team === ME.activeTeam ? revisionInStore(team, initiative, path) : null;
   if (!store) return [400, { error: `ERROR: ${initiative}/${path} is not a document of ${ME.activeTeam ?? 'any team'}.` }];
+  // zz-core's refusal when it resolves no team for the caller, which the gateway answers 400 with zz-core's sentence.
+  if (!signing && refusesRecord(team, initiative, path)) return [400, { error: 'ERROR: no team to record this for' }];
   if (held !== store) {
     return [409, signing
       ? { conflict: 'changed', error: `${path} changed after this page showed it, so it was not approved. Reload to read what it says now, then approve that.`,
