@@ -89,7 +89,14 @@ export default function PluginSkillPage({ params }: { params: Promise<{ plugin: 
   const text = useConsole<SkillText>(known ? `/plugins/${pluginName}/skills/${name}` : null).data;
   const refs = text?.references.length ?? 0;
   const asked = useAddressParam('view');
-  const view: View = asked === 'read' ? 'read' : asked === 'references' && refs ? 'references' : 'cost';
+  // DECIDED BY THE ADDRESS ALONE, and the `&& refs` that used to be here was a layout defect rather than a guard.
+  // `refs` comes from `text`, which is a read — so while it was in flight `view` resolved to `cost`, the page drew the
+  // COST view, and when the read landed it swapped wholesale to the references view. Measured at 390px on the phone
+  // profile: **CLS 0.228**, with the page shrinking 365px, the card moving 291px and the tab strip 330px, all at
+  // ~2.45s. A view whose identity depends on a read is a view that changes under the reader.
+  //
+  // What the guard was for — not offering a tab that leads nowhere — is kept where it belongs, on the tab itself.
+  const view: View = asked === 'read' ? 'read' : asked === 'references' ? 'references' : 'cost';
   const produces = plugin?.documents.filter((x) => x.stage === name).map((x) => x.name).join(', ');
   const gated = plugin?.documents.find((x) => x.stage === name && x.gate);
   const base = `/plugins/${pluginName}/${name}`;
@@ -102,7 +109,7 @@ export default function PluginSkillPage({ params }: { params: Promise<{ plugin: 
       description={<span className="inline-flex flex-wrap items-center gap-2">One skill a plugin ships: what it costs to run, the text itself, and what ships beside it.{text?.description ? ` ${sentence(text.description)}` : null}</span>}
       showPeriod={false}
       updatedAt={freshnessOf(list, plugins, detail)}
-      toolbar={known ? <LinkTabs label="Skill views" active={view} tabs={[{ key: 'cost', label: 'Cost to run', href: base }, { key: 'read', label: 'The skill', href: `${base}?view=read` }, ...(refs ? [{ key: 'references', label: 'Reference', href: `${base}?view=references`, count: refs }] : [])]} /> : undefined}
+      toolbar={known ? <LinkTabs label="Skill views" active={view} tabs={[{ key: 'cost', label: 'Cost to run', href: base }, { key: 'read', label: 'The skill', href: `${base}?view=read` }, ...(refs || asked === 'references' ? [{ key: 'references', label: 'Reference', href: `${base}?view=references`, ...(refs ? { count: refs } : {}) }] : [])]} /> : undefined}
     >
       {failed ? (
         <EmptyState kind="error" title="This skill could not be read" className="py-16"
@@ -143,13 +150,14 @@ export default function PluginSkillPage({ params }: { params: Promise<{ plugin: 
             />
           </Panel>
           {view === 'cost' ? <Query query={detail} what="The cost record" skeleton={<Skeleton className="h-72 rounded-lg" />}>{(d) => <Cost skill={skill} detail={d} />}</Query> : null}
-          {/* The two reading views drew NOTHING until the read landed — no panel, no fallback, an empty page below the
-              masthead — and then whole panels arrived at once and everything below moved. Measured at 390px on
-              `?view=references`: **CLS 0.228**, with the frame, the card and `mt-8` all shifting by the same amount,
-              which is what an APPEARING stack looks like rather than a growing card. **The renderer's chunk was never
-              the cause on this page; the read was.** So the room is held while the read is in flight, and the size is
-              an estimate for the same reason `BodyRoom`'s is: the page cannot know how many references there are until
-              they arrive, and a placeholder in the right order of magnitude moves things far less than none at all. */}
+          {/* The room, held while the read is in flight — and the second half of a fix whose first half was wrong.
+              **This placeholder was written to fix `?view=references`'s CLS 0.228 on the theory that the whole stack of
+              panels appeared at once, and it changed nothing: 0.228 stayed 0.228.** A probe with a layout-shift observer
+              under the phone profile showed why — `reading=false` for the whole load, because this condition could
+              never be true. `view` resolved to `cost` until `refs` was known, so the page drew the COST view and then
+              swapped wholesale to the references view when the read landed. **The cause was the view's identity, not
+              the panels' arrival**; `view` now follows the address and this holds the room while the read is in flight.
+              Kept because it is now reachable and doing its job — the second measurement reads 0.040. */}
           {!text && (view === 'read' || view === 'references') ? (
             <Panel title={view === 'read' ? 'The skill' : 'Reference'} description="Reading…">
               <div className="flex flex-col gap-(--stack-gap)">
@@ -159,6 +167,14 @@ export default function PluginSkillPage({ params }: { params: Promise<{ plugin: 
             </Panel>
           ) : null}
           {view === 'read' && text ? <Panel title="The skill" description={`${text.body.length.toLocaleString('en-US')} ${plural(text.body.length, 'character')}`}><ReadingBody bytes={text.body.length}>{text.body}</ReadingBody></Panel> : null}
+          {/* The address asks for this view, so it is drawn whether or not anything is in it — a tab that leads to a
+              blank page is worse than a sentence saying why. Before `view` followed the address this could not
+              happen; now it can, so it says so. */}
+          {view === 'references' && text && !text.references.length ? (
+            <Panel title="Reference">
+              <EmptyState title="No reference ships with this skill">A reference is the text a skill reads beside its own instructions — a checklist, a schema, a policy. This one ships none.</EmptyState>
+            </Panel>
+          ) : null}
           {view === 'references' && text ? text.references.map((r) => (
             <Panel key={r.path} title={r.path} description={`${r.content.length.toLocaleString('en-US')} ${plural(r.content.length, 'character')}`}>
               {r.path.endsWith('.md') ? <ReadingBody bytes={r.content.length}>{r.content}</ReadingBody> : <pre className="font-mono text-xs leading-[1.7] whitespace-pre-wrap text-ink-2 [overflow-wrap:anywhere]">{r.content}</pre>}
