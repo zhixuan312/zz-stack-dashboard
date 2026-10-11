@@ -116,7 +116,10 @@ export default function PluginSkillPage({ params }: { params: Promise<{ plugin: 
         <EmptyState kind="filtered" title={`'${name}' is not shipped by ${pluginName}`} className="py-16">It may have been renamed, or it belongs to another plugin. The plugin&apos;s page lists everything it ships.</EmptyState>
       ) : (
         <>
-          {skill || list.isPending ? (
+          {/* The tiles are the cost summary, and `Cost to run` is the tab they belong to. They were rendered for every
+              tab, under the tab strip, so a reader who picked `The skill` met four cost figures and a colophon before a
+              line of the text — the strip appeared to govern them, and on two of its three tabs it did not. */}
+          {view === 'cost' && (skill || list.isPending) ? (
             <Row split="tiles">
               <MetricTile label="Runs" icon={<Repeat />} value={skill ? skill.runs : list.isPending ? '…' : '—'} note="Recorded" />
               <MetricTile label="Calls per run" icon={<Activity />} value={skill ? skill.callsAvg : list.isPending ? '…' : '—'} format={(n) => n.toFixed(1)} note={skill ? `${formatCount(skill.calls)} in total, peak ${skill.callsMax}` : 'Average and peak'} />
