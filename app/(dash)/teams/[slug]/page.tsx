@@ -6,6 +6,7 @@ import { Row } from '@/components/base/shell';
 import { MetricTile } from '@/components/patterns/metric-tile';
 import { DataTable, type Column } from '@/components/patterns/data-table';
 import { Badge } from '@/components/ui/badge';
+import { plural } from '@/console/words';
 import { aligned } from '@/console/columns';
 import { initiativeColumns, waitingOnYou } from '@/console/initiative';
 import { ConsolePage } from '@/console/page';
@@ -66,7 +67,7 @@ export default function TeamPage({ params }: { params: Promise<{ slug: string }>
             <MetricTile label="Initiatives" icon={<ListTree />} value={inits.data ? list.length : inits.isPending ? '…' : '—'} note={`${list.filter((i) => !i.closed).length} still open`} />
             <MetricTile label="Waiting on you" icon={<Signature />} value={inits.data ? waiting : inits.isPending ? '…' : '—'} emphasis={waiting > 0} note={waiting ? 'A gate needs a signature' : 'Nothing to sign'} />
             <MetricTile label="Members" icon={<Users />} value={team.data ? members.length : team.isPending ? '…' : '—'} note={`${members.filter((m) => m.role === 'admin').length} admin`} />
-            <MetricTile label="Knowledge nodes" icon={<BookOpen />} value={held ? held.knowledge : teams.isPending ? '…' : '—'} note={held ? `${held.documents} documents, ${held.sources} sources` : undefined} />
+            <MetricTile label="Knowledge nodes" icon={<BookOpen />} value={held ? held.knowledge : teams.isPending ? '…' : '—'} note={held ? `${held.documents} ${plural(held.documents, 'document')}, ${held.sources} ${plural(held.sources, 'source')}` : undefined} />
           </Row>
           <DataTable
             caption={`${slug}'s initiatives`}

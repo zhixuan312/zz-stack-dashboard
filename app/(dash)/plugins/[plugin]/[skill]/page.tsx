@@ -13,7 +13,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { KeyValue } from '@/components/ui/key-value';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LinkTabs } from '@/components/ui/tabs';
-import { sentence } from '@/console/sentence';
+import { plural, sentence } from '@/console/words';
 import { ConsolePage } from '@/console/page';
 import { Panel } from '@/console/panel';
 import { failureOf, Query } from '@/console/query';
@@ -38,7 +38,7 @@ function Cost({ skill, detail }: { skill: Skill | undefined; detail: SkillDetail
   return (
     <>
       <Row split="1/2">
-        <Panel title="Calls by door" description={`${formatCount(skill.calls)} calls, ${skill.logged?.tools ?? 0} distinct tools`}>
+        <Panel title="Calls by door" description={`${formatCount(skill.calls)} ${plural(skill.calls, 'call')}, ${skill.logged?.tools ?? 0} distinct ${plural(skill.logged?.tools ?? 0, 'tool')}`}>
           <div className="flex flex-col gap-5">
             <CompositionBar label="Calls by door" parts={detail.surfaces.map((x) => ({ label: x.surface, value: x.calls }))} />
             <KeyValue

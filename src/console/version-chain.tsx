@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { FileText, GitCompare } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Select } from '@/components/ui/select';
+import { plural } from '@/console/words';
 import { Panel } from '@/console/panel';
 import { When } from '@/console/when';
 import { cn } from '@/lib/cn';
@@ -286,8 +287,8 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
             raw.length === 1
               ? '1 version'
               : steps.length === 1
-              ? `${raw.length} versions, all with the same text`
-              : `${steps.length} changes of the text across ${raw.length} versions`
+              ? `${raw.length} ${plural(raw.length, 'version')}, all with the same text`
+              : `${steps.length} ${plural(steps.length, 'change')} of the text across ${raw.length} ${plural(raw.length, 'version')}`
           }
           flush
         >

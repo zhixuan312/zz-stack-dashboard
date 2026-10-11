@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Segmented } from '@/components/ui/segmented';
 import { Skeleton } from '@/components/ui/skeleton';
+import { plural } from '@/console/words';
 import { ConsolePage } from '@/console/page';
 import { Panel } from '@/console/panel';
 import { usePeriod } from '@/console/period';
@@ -194,7 +195,7 @@ export default function OverviewPage() {
                 {/* The gateway's rate, over the same refused calls the panel counts: computing one from the chart's buckets
                     would let two numbers for one fact disagree. */}
                 <Refusals r={d.refusals} rate={d.metrics.refusals.value} doors={d.metrics.refusals.byDoor} />
-                <Panel title="Event kinds" description={events ? `${formatCount(events)} events${d.counts.unattributedEvents ? `, ${formatCount(d.counts.unattributedEvents)} belonging to no team` : ''}` : 'Nothing recorded in this period'}>
+                <Panel title="Event kinds" description={events ? `${formatCount(events)} ${plural(events, 'event')}${d.counts.unattributedEvents ? `, ${formatCount(d.counts.unattributedEvents)} belonging to no team` : ''}` : 'Nothing recorded in this period'}>
                   {events ? <BarList label="Events by kind" limit={5} total={events} format={formatCount} items={d.eventKinds.map((k) => ({ key: k.kind, label: <span className="font-mono text-xs">{k.kind}</span>, value: k.n }))} /> : <EmptyState layout="inline" title="No event yet">Every tool call, document write and approval is recorded here as it happens.</EmptyState>}
                 </Panel>
               </Row>

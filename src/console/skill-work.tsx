@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { DataTable, type Column } from '@/components/patterns/data-table';
 import { Segmented } from '@/components/ui/segmented';
+import { plural } from '@/console/words';
 import { aligned } from '@/console/columns';
 import type { Skill } from '@/lib/api-shapes';
 import { formatCount, formatSeconds } from '@/lib/format';
@@ -50,7 +51,7 @@ export function SkillWorkPanel({ skills, loading, error, onRetry }: { skills: Sk
         </span>
       ),
     },
-    { key: 'runs', header: 'Runs', numeric: true, mobile: 'fact', cell: (k) => formatCount(k.runs), mobileCell: (k) => `${formatCount(k.runs)} runs` },
+    { key: 'runs', header: 'Runs', numeric: true, mobile: 'fact', cell: (k) => formatCount(k.runs), mobileCell: (k) => `${formatCount(k.runs)} ${plural(k.runs, 'run')}` },
     {
       key: 'median', header: 'Median', numeric: true,
       cell: (k) => (
@@ -62,7 +63,7 @@ export function SkillWorkPanel({ skills, loading, error, onRetry }: { skills: Sk
       ),
     },
     { key: 'total', header: 'Total time', numeric: true, hideBelow: 'xl', cell: (k) => <span className={k.durationTotal === null ? 'text-ink-3' : undefined}>{formatSeconds(k.durationTotal)}</span> },
-    { key: 'calls', header: 'Calls', numeric: true, hideBelow: 'md', mobile: 'fact', cell: (k) => formatCount(k.calls), mobileCell: (k) => `${formatCount(k.calls)} calls` },
+    { key: 'calls', header: 'Calls', numeric: true, hideBelow: 'md', mobile: 'fact', cell: (k) => formatCount(k.calls), mobileCell: (k) => `${formatCount(k.calls)} ${plural(k.calls, 'call')}` },
     {
       key: 'share', header: `Share of ${a.label.toLowerCase()}`, hideBelow: 'md', width: 'w-40',
       cell: (k) => {

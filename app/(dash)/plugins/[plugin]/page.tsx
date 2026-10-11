@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { KeyValue } from '@/components/ui/key-value';
 import { Skeleton } from '@/components/ui/skeleton';
-import { sentence } from '@/console/sentence';
+import { plural, sentence } from '@/console/words';
 import { aligned } from '@/console/columns';
 import { ConsolePage } from '@/console/page';
 import { Panel } from '@/console/panel';
@@ -43,7 +43,7 @@ function skillColumns(plugin: string): Column<PluginSkill>[] {
     // A skill's origin comes from a `source:` line in its own SKILL.md, so it varies the day a vendored skill ships.
     { key: 'whose', header: 'Whose', hideBelow: 'md', mobile: 'status', cell: (s) => (s.origin === 'theirs' ? <Badge tone="accent">The {plugin} team&rsquo;s</Badge> : <Badge tone="neutral">Ours</Badge>) },
     { key: 'versions', header: 'Versions', numeric: true, hideBelow: 'lg', cell: (s) => s.versions || '—' },
-    { key: 'calls', header: 'Calls', numeric: true, mobile: 'fact', cell: (s) => (s.everRun ? formatCount(s.calls) : '—'), mobileCell: (s) => (s.everRun ? `${formatCount(s.calls)} ${s.calls === 1 ? 'call' : 'calls'}` : 'Never run') },
+    { key: 'calls', header: 'Calls', numeric: true, mobile: 'fact', cell: (s) => (s.everRun ? formatCount(s.calls) : '—'), mobileCell: (s) => (s.everRun ? `${formatCount(s.calls)} ${plural(s.calls, 'call')}` : 'Never run') },
     { key: 'last', header: 'Last run', numeric: true, hideBelow: 'md', cell: (s) => (s.lastRun ? <When at={s.lastRun} /> : <span className="text-ink-3">Never run</span>) },
   ]);
 }
@@ -84,7 +84,7 @@ export default function PluginPage({ params }: { params: Promise<{ plugin: strin
           <MetricTile label="Skills" icon={<Puzzle />} value={p ? p.skills.length : q.isPending ? '…' : '—'} note={!p ? 'Shipped by this plugin' : p.stages.length ? `${p.stages.length} of them stages, in order` : 'No declared method'} />
           <MetricTile label="Gates" icon={<Lock />} value={p ? p.gates : q.isPending ? '…' : '—'} note={!p || p.gates ? 'A person must approve' : 'An assistant, not a method'} />
           <MetricTile label="Calls" icon={<Activity />} value={p ? p.calls : q.isPending ? '…' : '—'} note={!p ? 'Across its skills' : p.failed ? `${formatCount(p.failed)} refused` : 'None refused'} />
-          <MetricTile label="Never run" icon={<CircleOff />} value={p ? p.skills.filter((s) => !s.everRun).length : q.isPending ? '…' : '—'} emphasis={!!p?.skills.some((s) => !s.everRun)} note={p ? `Of ${p.skills.length} skills` : 'Skills nobody called'} />
+          <MetricTile label="Never run" icon={<CircleOff />} value={p ? p.skills.filter((s) => !s.everRun).length : q.isPending ? '…' : '—'} emphasis={!!p?.skills.some((s) => !s.everRun)} note={p ? `Of ${p.skills.length} ${plural(p.skills.length, 'skill')}` : 'Skills nobody called'} />
         </Row>
       ) : null}
       <Query query={qEval} what="The evaluation" skeleton={<Skeleton className="h-40 rounded-lg" />}>
