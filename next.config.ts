@@ -16,6 +16,8 @@ const nextConfig: NextConfig = {
   // Standalone output so a derived app ships as a single container. No effect on
   // `next dev` / `next start`.
   output: 'standalone',
+  cacheComponents: true,
+  partialPrefetching: true,
   devIndicators: false,
   ...(gateway
     ? {

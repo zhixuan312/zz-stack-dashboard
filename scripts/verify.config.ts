@@ -34,11 +34,6 @@ export type VerifyConfig = {
     resultSelector: string;
   }[];
   /**
-   * Routes that cannot be prerendered, each with the reason. `node scripts/route-policy.ts`, which verify runs after its
-   * production build, fails any non-API route that is neither static nor partial unless it is named here.
-   */
-  requestDependentRoutes?: { path: string; reason: string }[];
-  /**
    * The product's own browser checks, beside Meridian's audit, presses and keyboard walk: scripts verify runs with
    * `--base <url>` against the built app, failing when one exits non-zero.
    */
@@ -53,9 +48,10 @@ const config: VerifyConfig = {
    */
   budgets: { htmlKb: { '/initiatives': 80, '/people': 80 } },
   /**
-   * The three routes the default smoke visits — the landing route and the next two in the rail. Each selector was read
-   * off the built app served against the fake gateway on 2026-10-11, not guessed: `/` draws 26 table rows and one
-   * `aria-haspopup="dialog"` control, `/teams` 4 rows and one search field, `/initiatives` 11 rows and one.
+   * One for every route in the rail, which is what `--full` and `--perf` require. Each selector was read off the built
+   * app served against the fake gateway on 2026-10-11, not guessed: `/` draws 26 table rows and one
+   * `aria-haspopup="dialog"` control, `/teams` 4 rows beside a search field, `/initiatives` 11, `/knowledge` 10,
+   * `/people` 7, `/plugins` 4 with no search field, `/runs` 16, `/activity` 20, `/settings` 13.
    *
    * The probe is the one that changes something unambiguous. On `/teams` and `/initiatives` a search field filters the
    * rows it is beside; on `/` there is no search field, and its radios are two segmented groups whose checked item
@@ -65,46 +61,16 @@ const config: VerifyConfig = {
     { path: '/', title: 'Overview', readySelector: 'main table tbody tr', probe: 'dialog', controlSelector: 'main button[aria-haspopup="dialog"]', resultSelector: '[role="dialog"]' },
     { path: '/teams', title: 'Teams', readySelector: 'main table tbody tr', probe: 'filter', controlSelector: 'main input[type="search"]', resultSelector: 'main table tbody tr' },
     { path: '/initiatives', title: 'Initiatives', readySelector: 'main table tbody tr', probe: 'filter', controlSelector: 'main input[type="search"]', resultSelector: 'main table tbody tr' },
+    { path: '/knowledge', title: 'Knowledge', readySelector: 'main table tbody tr', probe: 'filter', controlSelector: 'main input[type="search"]', resultSelector: 'main table tbody tr' },
+    { path: '/people', title: 'People', readySelector: 'main table tbody tr', probe: 'filter', controlSelector: 'main input[type="search"]', resultSelector: 'main table tbody tr' },
+    // No search field on these four, so the dialog is the change the check can read. Every one of them draws a table,
+    // so `main table tbody tr` is what says the data arrived.
+    { path: '/plugins', title: 'Plugins', readySelector: 'main table tbody tr', probe: 'dialog', controlSelector: 'main button[aria-haspopup="dialog"]', resultSelector: '[role="dialog"]' },
+    { path: '/runs', title: 'Runs', readySelector: 'main table tbody tr', probe: 'dialog', controlSelector: 'main button[aria-haspopup="dialog"]', resultSelector: '[role="dialog"]' },
+    { path: '/activity', title: 'Activity', readySelector: 'main table tbody tr', probe: 'dialog', controlSelector: 'main button[aria-haspopup="dialog"]', resultSelector: '[role="dialog"]' },
+    { path: '/settings', title: 'Settings', readySelector: 'main table tbody tr', probe: 'dialog', controlSelector: 'main button[aria-haspopup="dialog"]', resultSelector: '[role="dialog"]' },
   ],
-  /**
-   * Every non-API route whose rendering `scripts/route-policy.ts` cannot read, with why.
-   *
-   * Six of these are genuinely request-dependent: their path is keyed by a team, an initiative, a plugin or a knowledge
-   * path that lives in the gateway's data, so a build has nothing to enumerate.
-   *
-   * The other eighteen ARE prerendered — all of them appear in the build's `prerender-manifest.json`, as
-   * `pnpm verify` reported before this list existed. They are here because that check reads each route's
-   * `renderingMode`, and Next only writes that field when `cacheComponents` is on. This console cannot turn it on (see
-   * docs/brief.md, and `cache-components-config` in the 0.13.0 update session): the release's own answer is a server
-   * promise per piece of chrome, which needs the access seam this console does not have. Declaring them keeps the
-   * check's verdict honest — "not known to be prerendered" — instead of claiming they read a request they never touch.
-   */
-  requestDependentRoutes: [
-    { path: '/initiatives/[team]/[slug]', reason: 'the initiative only exists in the gateway’s data; the build cannot enumerate it.' },
-    { path: '/initiatives/[team]/[slug]/[...path]', reason: 'a document inside that initiative: same reason, one level deeper.' },
-    { path: '/knowledge/[team]/[...path]', reason: 'a knowledge node’s path is its own slug, recorded at runtime.' },
-    { path: '/plugins/[plugin]', reason: 'the plugin estate is the platform’s, not this repository’s.' },
-    { path: '/plugins/[plugin]/[skill]', reason: 'a skill inside that plugin: same reason.' },
-    { path: '/teams/[slug]', reason: 'a team is a row in the platform’s database.' },
-    { path: '/_global-error', reason: 'prerendered; listed because route-policy cannot read a build without cacheComponents.' },
-    { path: '/_not-found', reason: 'prerendered; listed because route-policy cannot read a build without cacheComponents.' },
-    { path: '/', reason: 'prerendered; listed because route-policy cannot read a build without cacheComponents.' },
-    { path: '/activity', reason: 'prerendered; listed because route-policy cannot read a build without cacheComponents.' },
-    { path: '/apple-icon.png', reason: 'prerendered; listed because route-policy cannot read a build without cacheComponents.' },
-    { path: '/enrol', reason: 'prerendered; listed because route-policy cannot read a build without cacheComponents.' },
-    { path: '/icon.png', reason: 'prerendered; listed because route-policy cannot read a build without cacheComponents.' },
-    { path: '/initiatives', reason: 'prerendered; listed because route-policy cannot read a build without cacheComponents.' },
-    { path: '/knowledge', reason: 'prerendered; listed because route-policy cannot read a build without cacheComponents.' },
-    { path: '/knowledge/ask', reason: 'prerendered; listed because route-policy cannot read a build without cacheComponents.' },
-    { path: '/knowledge/log', reason: 'prerendered; listed because route-policy cannot read a build without cacheComponents.' },
-    { path: '/login', reason: 'prerendered; listed because route-policy cannot read a build without cacheComponents.' },
-    { path: '/people', reason: 'prerendered; listed because route-policy cannot read a build without cacheComponents.' },
-    { path: '/plugins', reason: 'prerendered; listed because route-policy cannot read a build without cacheComponents.' },
-    { path: '/runs', reason: 'prerendered; listed because route-policy cannot read a build without cacheComponents.' },
-    { path: '/settings', reason: 'prerendered; listed because route-policy cannot read a build without cacheComponents.' },
-    { path: '/signed-out', reason: 'prerendered; listed because route-policy cannot read a build without cacheComponents.' },
-    { path: '/teams', reason: 'prerendered; listed because route-policy cannot read a build without cacheComponents.' },
-  ],
+
   // One per state worth seeing, taken from the fake gateway's own records (scripts/fake-gateway): a team with
   // work and one with none, an initiative waiting on a person, a closed one, one closed with a correction awaiting
   // approval, one with no flow, a document approved, one awaiting approval, a correction the signed-in user may approve

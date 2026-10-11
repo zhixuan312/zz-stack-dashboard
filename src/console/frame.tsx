@@ -1,15 +1,11 @@
 'use client';
 
-import { Suspense, type ReactNode } from 'react';
-import { AppShell } from '@/components/base/shell';
+import { Suspense } from 'react';
 import { CommandPalette } from '@/components/patterns/command-palette';
 import { Rail, type Scope } from '@/components/patterns/rail';
 import { ShellTools, type Alert } from '@/components/patterns/shell-tools';
-import { ConsoleGate } from '@/console/gate';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useConsole, useConsoleMode, useDataClock } from '@/lib/api';
-
-/** This console mounts no assistant: the release's shell asks for a promise, and `false` is this product's answer. */
-const NO_ASSISTANT = Promise.resolve(false);
 import type { Me } from '@/lib/api-shapes';
 import { navGroups } from '@/nav';
 import { useWaitingGates } from '@/console/initiative';
@@ -42,18 +38,56 @@ function useWaitingAlerts(enabled: boolean): Alert[] {
 }
 
 /**
- * The console's frame: Meridian's shell, with a rail scoped to who is signed in. A superadmin switches between the
- * whole platform and their own team from the workspace menu; a member sees their team only. The gate wraps the page
- * and not the shell, so a visitor who is not signed in still sees the rail while they are sent to sign in.
+ * The rail's shape while it is on its way: the frame's space, held open so the page never shifts.
+ *
+ * Deliberately a skeleton and not the rail's own frame — a fallback that drew the real rail would put a second copy of
+ * it in every page's HTML, which is what the `htmlKb` budget in `pnpm verify` refuses.
  */
-export function ConsoleFrame({ children }: { children: ReactNode }) {
+function RailPending() {
+  return (
+    <div aria-hidden className="flex h-full w-full flex-col">
+      <div className="flex h-16 items-center px-4">
+        <span className="flex min-w-0 flex-1 items-center gap-2.5">
+          <Skeleton className="size-7 rounded-md" />
+          <span className="flex min-w-0 flex-1 flex-col gap-1.5"><Skeleton className="h-3 w-24" /><Skeleton className="h-2.5 w-16" /></span>
+        </span>
+      </div>
+      <div className="flex flex-1 flex-col gap-1.5 px-3 pt-3">
+        {Array.from({ length: 8 }, (_, i) => <Skeleton key={i} className="h-7 w-full rounded-md" />)}
+      </div>
+      <div className="m-3 flex items-center gap-3 p-2.5">
+        <Skeleton className="size-8 rounded-full" />
+        <span className="flex flex-1 flex-col gap-1.5"><Skeleton className="h-3 w-24" /><Skeleton className="h-2.5 w-16" /></span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The console's chrome: the rail, the tools beside it and the command palette. Three client components, because each
+ * reads who is signed in from `/me` in the browser, and each keeps its own `<Suspense>` boundary.
+ *
+ * The boundary is not tidiness. The rail, the tools and the palette read `usePathname` and `useRouter`, and Cache
+ * Components refuses a dynamic client hook outside a boundary: the build fails the route outright rather than
+ * prerendering it. This is the release's own shape (`src/views/console-chrome.tsx`) — the boundary is what the static
+ * shell streams first, and the person's own rail follows in the same response, so no destination is ever drawn and
+ * then taken away. Until `/me` answers the rail keeps its frame, the placeholder person and no destination.
+ *
+ * They are rendered from `app/(dash)/layout.tsx`, a Server Component, and not from a client frame: that is what keeps
+ * `AppShell` itself out of the client render, so the shell's own `usePathname` is never a hook reached through a client
+ * boundary. The release's layout is built the same way.
+ */
+export function ConsoleRail() {
+  return (
+    <Suspense fallback={<RailPending />}>
+      <ResolvedRail />
+    </Suspense>
+  );
+}
+
+function ResolvedRail() {
   const me = useConsole<Me>('/me');
   const { mode, setMode } = useConsoleMode();
-  // The data's clock, for the alert times under the bell: never `new Date()` at render.
-  const clock = useDataClock();
-  const nav = navGroups(mode);
-  const signedIn = !!me.data?.mayRead;
-  const alerts = useWaitingAlerts(signedIn);
   const team = me.data?.activeTeam;
   const scopes: Scope[] = me.data?.superadmin
     ? [
@@ -63,14 +97,42 @@ export function ConsoleFrame({ children }: { children: ReactNode }) {
     : [];
   const user = me.data ? { name: me.data.name || me.data.email, role: me.data.superadmin ? 'Superadmin' : 'Member' } : null;
   return (
-    <AppShell
-      assistant={NO_ASSISTANT}
-      rail={<Rail nav={nav} workspace={mode === 'platform' ? 'The platform' : team ?? 'Your team'} scopes={scopes} user={user} signOut={signedIn ? signOut : null} />}
-      tools={<ShellTools alerts={alerts} now={clock} />}
-    >
-      {/* Pages keep their filters in the address (useQueryState), which suspends while the search params resolve. */}
-      <ConsoleGate><Suspense fallback={null}>{children}</Suspense></ConsoleGate>
-      <CommandPalette nav={nav} />
-    </AppShell>
+    <Rail
+      nav={navGroups(mode)}
+      workspace={mode === 'platform' ? 'The platform' : team ?? 'Your team'}
+      scopes={scopes}
+      user={user}
+      signOut={me.data?.mayRead ? signOut : null}
+    />
   );
+}
+
+/** The bell and the alert times. Its own boundary, for the same reason as the rail's: the clock and the alerts are reads. */
+export function ConsoleTools() {
+  return (
+    <Suspense fallback={<span aria-hidden className="inline-block size-9" />}>
+      <ResolvedTools />
+    </Suspense>
+  );
+}
+
+function ResolvedTools() {
+  const me = useConsole<Me>('/me');
+  // The data's clock, for the alert times under the bell: never `new Date()` at render.
+  const clock = useDataClock();
+  return <ShellTools alerts={useWaitingAlerts(!!me.data?.mayRead)} now={clock} />;
+}
+
+/** The palette reads the router to close itself on navigation, so it is behind a boundary too. */
+export function ConsolePalette() {
+  return (
+    <Suspense fallback={null}>
+      <ResolvedPalette />
+    </Suspense>
+  );
+}
+
+function ResolvedPalette() {
+  const { mode } = useConsoleMode();
+  return <CommandPalette nav={navGroups(mode)} />;
 }
