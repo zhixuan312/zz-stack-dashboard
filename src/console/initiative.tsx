@@ -75,7 +75,12 @@ export const waitingOnYou = (of: StateOf) => ownGates(of).some((g) => g.written 
 export function initiativeColumns({ team = false }: { team?: boolean } = {}): Column<Initiative>[] {
   const passed = (i: Initiative) => ownGates(i).filter((g) => g.passed).length;
   return aligned([
-    { key: 'slug', header: 'Initiative', grow: true, truncate: true, mobile: 'title', sortValue: (i) => i.slug, cell: (i) => <span title={i.slug} className="font-medium text-ink">{i.slug}</span> },
+    // Wrap rather than truncate. A truncated slug hides the *tail*, which is the part that tells two initiatives of the
+    // same project apart: at 768px `2026-10-01-ledger-migration-to-d…` hid 50 of its 71 characters, the whole of
+    // `double-entry-bookkeeping-with-nightly-reconciliation`. `anywhere` keeps the min-content width at one character
+    // so the table can still shrink the column — the same idiom the document page's path cell uses — and a slug that
+    // fits stays on one line, so nothing changes above 900px.
+    { key: 'slug', header: 'Initiative', grow: true, mobile: 'title', sortValue: (i) => i.slug, cell: (i) => <span title={i.slug} className="font-medium whitespace-normal text-ink [overflow-wrap:anywhere]">{i.slug}</span> },
     ...(team ? [{ key: 'team', header: 'Team', hideBelow: 'md' as const, mobile: 'fact' as const, sortValue: (i: Initiative) => i.team, cell: (i: Initiative) => <span className="text-ink-2">{i.team}</span> }] : []),
     // Carried on the phone card too: this list says how far through its flow each piece of work got, and a reader on a
     // phone could not see it at all. `S3 · plan` with its notches is compact enough to sit among the card's facts.
