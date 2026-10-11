@@ -160,6 +160,16 @@ function auth(seg: string[]): Answer {
   return [400, { error: 'This preview has no passkey to offer. Sign in on the deployment.' }];
 }
 
+/**
+ * How many times each collection has been read since this process started, and the last path that was read.
+ *
+ * A check needs to see that a tab READ a collection again, not only that what it read changed — the bell's own read is
+ * the case that matters and its content is a fixture nothing can alter. Counting is the honest observation: it says a
+ * request arrived, which is exactly what "the tab read it again" means.
+ */
+const reads = new Map<string, number>();
+const countRead = (resource: string) => { reads.set(resource, (reads.get(resource) ?? 0) + 1); };
+
 const server = http.createServer((req, res) => {
   const url = new URL(req.url ?? '/', 'http://fake');
   let raw = '';
@@ -208,12 +218,12 @@ const server = http.createServer((req, res) => {
       }
       const reached = (COLLECTIONS as readonly string[]).includes(collection) ? hint(collection) : 0;
       res.writeHead(reached ? 200 : 404, { 'content-type': 'application/json' });
-      res.end(JSON.stringify({ collection, reached, renamed }));
+      res.end(JSON.stringify({ collection, reached, renamed, reads: Object.fromEntries(reads) }));
       return;
     }
     if (hook === '__streams') {
       res.writeHead(200, { 'content-type': 'application/json' });
-      res.end(JSON.stringify({ streams: liveStreams(), collections: COLLECTIONS }));
+      res.end(JSON.stringify({ streams: liveStreams(), collections: COLLECTIONS, reads: Object.fromEntries(reads) }));
       return;
     }
     // The live stream is not an answer to be serialised: it is a response held open, so it is served before the
@@ -233,6 +243,7 @@ const server = http.createServer((req, res) => {
     else if (seg[2] === 'me' && SIGNED_OUT.test(referer)) answer = [401, { error: 'not signed in' }];
     else if (mode === 'error' && seg[2] !== 'me') answer = [503, { error: 'The gateway could not reach its database: connection to 10.0.0.12:5432 refused. Nothing was changed.' }];
     else if (req.method === 'GET') {
+      if (seg[2]) countRead(seg[2]);
       answer = read(seg.slice(2), url.searchParams);
       // A transform reads the answer by its own idea of the route's shape, so a route that grows a
       // second answer shape — `/initiatives?waiting=1` returns `{ waiting }` where the list returns

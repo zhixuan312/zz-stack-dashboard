@@ -47,6 +47,9 @@ const hint = (query: string) => page.eval<{ reached: number; renamed: string | n
 
 const streams = () => page.eval<{ streams: number }>(`fetch('/api/console/__streams', { credentials: 'same-origin' }).then((r) => r.json())`);
 
+/** How many times the gateway has been asked for each collection since it started. */
+const counts = () => page.eval<Record<string, number>>(`fetch('/api/console/__streams', { credentials: 'same-origin' }).then((r) => r.json()).then((s) => s.reads ?? {})`);
+
 /** Wait for `seen` to hold of the page's text, up to `ms`. */
 async function until(seen: (t: string) => boolean, ms: number): Promise<boolean> {
   const deadline = Date.now() + ms;
@@ -88,6 +91,31 @@ const leaked = await until((t) => t.includes(UNSOLICITED_TO), QUIET_MS);
 if (leaked) failures.push('/teams: a change to runs reached the teams page, so the tab reads collections it does not show');
 
 if (page.errors.length) failures.push(`/teams: ${page.errors[0]}`);
+
+/**
+ * The chrome's own read, on a page that does not show it.
+ *
+ * `/people` reads `people` and nothing else, so any read of `initiatives` there is the BELL's — the one place the console
+ * says "this needs you" without being asked. It registers `initiatives` itself (`src/console/frame.tsx`), and without
+ * that registration a gate approved in another tab leaves its count stale on every page whose own read is not also
+ * `initiatives`, which is all of them but two.
+ *
+ * Asserted on the gateway's read count, not on the bell's markup: the waiting list is a fixed fixture, so a refetch
+ * returns the same rows and the bell looks identical either way. The count says the request arrived, which is what "the
+ * tab read it again" means.
+ */
+await page.open(base + '/people', { width: 1440, theme: 'dark' });
+if (page.errors.length) failures.push(`/people: ${page.errors[0]}`);
+const bellBefore = (await counts()).initiatives ?? 0;
+await hint('collection=initiatives');
+let bellRead = false;
+for (let i = 0; i < 24 && !bellRead; i++) {
+  await sleep(250);
+  bellRead = ((await counts()).initiatives ?? 0) > bellBefore;
+}
+if (!bellRead) failures.push('/people: a hint for initiatives was never read again, though the bell beside that page shows it');
+
+if (page.errors.length) failures.push(`/people: ${page.errors[0]}`);
 
 page.close();
 for (const f of failures) console.log('FAIL ' + f);
