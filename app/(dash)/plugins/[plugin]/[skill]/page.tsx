@@ -122,7 +122,10 @@ export default function PluginSkillPage({ params }: { params: Promise<{ plugin: 
           {view === 'cost' && (skill || list.isPending) ? (
             <Row split="tiles">
               <MetricTile label="Runs" icon={<Repeat />} value={skill ? skill.runs : list.isPending ? '…' : '—'} note="Recorded" />
-              <MetricTile label="Calls per run" icon={<Activity />} value={skill ? skill.callsAvg : list.isPending ? '…' : '—'} format={(n) => n.toFixed(1)} note={skill ? `${formatCount(skill.calls)} in total, peak ${skill.callsMax}` : 'Average and peak'} />
+              {/* The empty state in words, like the two beside it: "Not timed" for a median nobody measured, "No calls" for a share
+                of nothing. A skill that has never run has no average calls per run — an average of no runs is undefined, not
+                zero — and "0.0" claims a measurement that was never taken. */}
+              <MetricTile label="Calls per run" icon={<Activity />} value={!skill ? (list.isPending ? '…' : '—') : skill.runs ? skill.callsAvg : 'No runs'} format={(n) => n.toFixed(1)} note={!skill ? 'Average and peak' : skill.runs ? `${formatCount(skill.calls)} in total, peak ${skill.callsMax}` : 'Nothing has called it'} />
               <MetricTile label="Median run" icon={<Timer />} value={!skill ? (list.isPending ? '…' : '—') : skill.durationMedian === null ? 'Not timed' : formatSeconds(skill.durationMedian)} note={skill ? `Longest ${formatSeconds(skill.durationMax)}` : 'And the longest'} />
               <MetricTile label="Refused" icon={<Ban />} value={!skill ? (list.isPending ? '…' : '—') : skill.calls ? skill.refusals / skill.calls : 'No calls'} format={(n) => `${(n * 100).toFixed(1)}%`} note={skill ? `${skill.refusals} of ${formatCount(skill.calls)} calls` : 'Share of its calls'} />
             </Row>
