@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { KeyValue } from '@/components/ui/key-value';
 import { Skeleton } from '@/components/ui/skeleton';
+import { sentence } from '@/console/sentence';
 import { aligned } from '@/console/columns';
 import { ConsolePage } from '@/console/page';
 import { Panel } from '@/console/panel';
@@ -59,17 +60,6 @@ function notYet(e: PluginEval): boolean {
  * third-party subject registered with plugin_register has no catalog entry at all, so it still shows its evaluation
  * with no manifest above it.
  */
-/**
- * The plugin's own sentence, ending in a period — but only one.
- *
- * A description is written by whoever wrote the plugin and usually ends in a full stop, so appending one
- * unconditionally read "…then close and hand over.." under the page's title. An agent name never ends in one, which
- * is why the unconditional version looked right on those.
- */
-function sentence(text: string): string {
-  return /[.!?]$/.test(text.trim()) ? text : `${text}.`;
-}
-
 export default function PluginPage({ params }: { params: Promise<{ plugin: string }> }) {
   useLive(['plugins']);
   const { plugin } = use(params);
