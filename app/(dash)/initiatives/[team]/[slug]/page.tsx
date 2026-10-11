@@ -39,7 +39,9 @@ const DOCUMENTS: Column<Doc>[] = aligned([
     ),
     mobileCell: (d) => d.title ?? d.path,
   },
-  { key: 'status', header: 'Approval', mobile: 'status', cell: (d) => <DocStatus status={d.status} outcome={d.outcome} gated={d.gated} requiredForClose={d.requiredForClose} correction={d.correction} /> },
+  { key: 'status', header: 'Approval', mobile: 'status', cell: (d) => <DocStatus status={d.status} outcome={d.outcome} gated={d.gated} requiredForClose={d.requiredForClose} correction={d.correction} />,
+    // The card's status slot holds one badge and cannot shrink, so it takes the verdict alone; see DocStatus's `compact`.
+    mobileCell: (d) => <DocStatus compact status={d.status} outcome={d.outcome} gated={d.gated} requiredForClose={d.requiredForClose} correction={d.correction} /> },
   {
     key: 'by', header: 'Approved by', hideBelow: 'lg', truncate: true,
     // Binary, like the gate itself: a document waiting for a person and one no person will be asked about differ.
