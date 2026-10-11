@@ -162,28 +162,27 @@ for (const f of [...walk('app', /\.tsx$/), ...walk('src/console', /\.tsx$/)]) {
 }
 
 // ── A count agrees with its noun ──────────────────────────────────────────────────────────────────────
-/* `src/console/words.ts` is the one place a plural is decided. It was written because the same plural was wrong in six
- * files while the idiom sat in four others — and writing it down did not stop it: a sweep after the fact found **eight
- * more**, six of them a hand-rolled `=== 1 ? '' : 's'` at the call site and two that printed wrong on the page today
- * (`2 superadmin` on `/people`, `2 admin` on a team page).
+/* `src/console/words.ts` is the one place a plural is decided. **Seventeen sites hand-rolled it anyway** — and writing
+ * the module down is what did not stop them, which is the whole reason this check exists rather than another note.
  *
  * That is the mechanism this round keeps meeting: a rule written where it is first needed is a rule the second use
  * re-derives. **The first draft of this check was too narrow and the measurement says so:** it refused only
- * `=== 1 ? '' : 's'` and a `.length` choosing between two quoted forms, which between them caught **2 of the 10**
- * sites a hand sweep then found. A guard that catches a fifth of its class is decoration.
+ * `=== 1 ? '' : 's'` and a `.length` choosing between two quoted forms, and against the ten sites already known it
+ * caught **two**. A guard that catches a fifth of its class is decoration, and its green line is indistinguishable from
+ * a real one.
  *
  * What replaced it: a `=== 1 ? '…' : '…'` is a plural when its two branches **differ the way a plural differs from its
- * singular** — one is the other with `s`, `es`, or `y`→`ies`. That is the whole rule, it is decided at run time rather
- * than by pattern-matching the left operand, and it needs no list. Measured against every ternary in the product: it
- * fires on all five `-s` sites and on **no** innocent one — `status === 1 ? 'active' : 'idle'` is not a plural pair,
- * so it stays clean.
+ * singular** — one is the other with `s`, `es`, or `y`→`ies`. That is the whole rule, decided at run time rather than by
+ * pattern-matching the left operand, and it needs no list of nouns. Fed every site the sweep had found, it fires on
+ * every `-s` pair; fed the product's innocent numeric ternaries it stays clean, because `active`/`idle` is not a plural
+ * pair.
  *
- * **The residue, named rather than papered over:** an irregular plural (`'it' : 'them'`, `'version is' : 'versions
- * are'`, `'gate needs' : 'gates need'`) is not a `-s` pair and is not caught. Both `(s)`-style patterns that were tried
- * for it were thrown away: `'…(s)…'` fired on six files containing no plural at all, because between two single quotes
- * anywhere in a file `(s)` is far more often an arrow function's parameter, `filter((s) => …)`. **A scanner that reads
- * two statements as one is worse than no scanner: it is loud, it is wrong, and it gets switched off.** The irregulars
- * are left to a reader — which is how all ten were found in the first place.
+ * **The residue, named rather than papered over:** an irregular (`it`/`them`, `version is`/`versions are`,
+ * `gate needs`/`gates need`) is not a `-s` pair and is not caught. Both `(s)`-style patterns tried for it were thrown
+ * away: `'…(s)…'` fired on six files containing no plural at all, because between two single quotes anywhere in a file
+ * `(s)` is far more often an arrow function's parameter, `filter((s) => …)`. **A scanner that reads two statements as
+ * one is worse than no scanner: it is loud, it is wrong, and it gets switched off.** The irregulars are left to a
+ * reader — which is how all seventeen were found.
  *
  * `words.ts` is exempt: it is where the ternary belongs. */
 const TERNARY = /===\s*1\s*\?\s*(['"])([^'"\n]*)\1\s*:\s*(['"])([^'"\n]*)\3/g;
