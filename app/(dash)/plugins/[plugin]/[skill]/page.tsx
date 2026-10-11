@@ -166,7 +166,7 @@ export default function PluginSkillPage({ params }: { params: Promise<{ plugin: 
               </div>
             </Panel>
           ) : null}
-          {view === 'read' && text ? <Panel title="The skill" description={`${text.body.length.toLocaleString('en-US')} ${plural(text.body.length, 'character')}`}><ReadingBody bytes={text.body.length}>{text.body}</ReadingBody></Panel> : null}
+          {view === 'read' && text ? <Panel title="The skill" description={`${text.body.length.toLocaleString('en-US')} ${plural(text.body.length, 'character')}`}><ReadingBody>{text.body}</ReadingBody></Panel> : null}
           {/* The address asks for this view, so it is drawn whether or not anything is in it — a tab that leads to a
               blank page is worse than a sentence saying why. Before `view` followed the address this could not
               happen; now it can, so it says so. */}
@@ -177,7 +177,7 @@ export default function PluginSkillPage({ params }: { params: Promise<{ plugin: 
           ) : null}
           {view === 'references' && text ? text.references.map((r) => (
             <Panel key={r.path} title={r.path} description={`${r.content.length.toLocaleString('en-US')} ${plural(r.content.length, 'character')}`}>
-              {r.path.endsWith('.md') ? <ReadingBody bytes={r.content.length}>{r.content}</ReadingBody> : <pre className="font-mono text-xs leading-[1.7] whitespace-pre-wrap text-ink-2 [overflow-wrap:anywhere]">{r.content}</pre>}
+              {r.path.endsWith('.md') ? <ReadingBody>{r.content}</ReadingBody> : <pre className="font-mono text-xs leading-[1.7] whitespace-pre-wrap text-ink-2 [overflow-wrap:anywhere]">{r.content}</pre>}
             </Panel>
           )) : null}
         </>

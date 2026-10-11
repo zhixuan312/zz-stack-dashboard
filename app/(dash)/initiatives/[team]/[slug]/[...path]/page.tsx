@@ -155,7 +155,7 @@ export default function DocumentPage({ params }: { params: Promise<{ team: strin
                 <div className="[&_li]:max-w-[92ch] [&_ol]:max-w-[92ch] [&_p]:max-w-[92ch] [&_ul]:max-w-[92ch]">
                   {doc.body?.trim()
                     ? view === 'read'
-                      ? <ReadingBody bytes={doc.bytes}>{readableDocument(doc.body, doc.title)}</ReadingBody>
+                      ? <ReadingBody>{readableDocument(doc.body, doc.title)}</ReadingBody>
                       : <pre className="rounded-lg border border-line bg-surface-sunk p-4 font-mono text-xs leading-[1.7] whitespace-pre-wrap text-ink-2 [overflow-wrap:anywhere]">{doc.body}</pre>
                     : <p className="t-small text-ink-3">This document has no body in the store.</p>}
                 </div>

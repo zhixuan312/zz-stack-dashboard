@@ -21,15 +21,25 @@ import { lazy, Suspense } from 'react';
  */
 export const Prose = lazy(() => import('@/components/patterns/prose').then((m) => ({ default: m.Prose })));
 
-/** About 26 bytes of markdown to a rendered pixel, taken from a measurement rather than guessed: a 38 KB spec renders
- *  1,475px in a 2/3 cell at 390px wide. Clamped, so a pathological body cannot reserve an unbounded page. */
-export function BodyRoom({ bytes }: { bytes: number }) {
-  const height = Math.min(Math.max(320, Math.round(bytes / 26)), 20000);
-  return <div aria-hidden className="shimmer block rounded-md" style={{ height }} />;
-}
 
-/** The body, with its room held until the renderer's chunk lands. `bytes` is the body's own length — `doc.bytes` for a
- *  document, `content.length` for a skill's text and a reference's — and nothing here needs it to be exact. */
-export function ReadingBody({ bytes, children }: { bytes: number; children: string }) {
-  return <Suspense fallback={<BodyRoom bytes={bytes} />}><Prose>{children}</Prose></Suspense>;
+/**
+ * The body itself while the renderer's chunk is in flight — **not a placeholder, and not a second markdown renderer**:
+ * it is the same `whitespace-pre-wrap` the page's Source view already draws, so the reader has the document's own words
+ * at once instead of a grey block. The renderer then replaces it with the same words, laid out.
+ *
+ * The measured reason: the body is in hand at ~350 ms and the renderer's chunk lands at ~2,861 ms, and the phone profile's
+ * largest contentful paint is *the body's first paragraph* — so a page whose body arrives before its renderer fails LCP
+ * on the one element it is waiting for. Six document routes measure 2.88–3.04 s against a 2.5 s bar for exactly this.
+ *
+ * **And it is a trade rather than a free fix, which is why it is one line and measured rather than argued**: the plain
+ * text's height is not the formatted height — headings are larger in prose and the marks go — so the swap can move the
+ * page. `BodyRoom` reserves room instead, and that is what took this page's CLS from 0.116 to 0.035. Whichever this
+ * measures, the other number is the cost.
+ */
+export function ReadingBody({ children }: { children: string }) {
+  return (
+    <Suspense fallback={<pre className="rounded-lg border border-line bg-surface-sunk p-4 font-mono text-xs leading-[1.7] whitespace-pre-wrap text-ink-2 [overflow-wrap:anywhere]">{children}</pre>}>
+      <Prose>{children}</Prose>
+    </Suspense>
+  );
 }
