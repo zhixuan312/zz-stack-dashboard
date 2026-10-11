@@ -23,7 +23,8 @@ export default function DashLayout({ children }: { children: ReactNode }) {
     >
       {/* No boundary of its own around the page: `loading.tsx` beside this file already gives the segment its
           streamed fallback, and a second one with `fallback={null}` put the page in a boundary whose server HTML and
-          client hydration disagreed — React reported #418 on /settings at every width and in both themes. */}
+          client hydration disagreed — React threw its hydration-mismatch error on /settings at every width and in both
+          themes. */}
       <ConsoleGate>{children}</ConsoleGate>
       <ConsolePalette />
     </AppShell>
