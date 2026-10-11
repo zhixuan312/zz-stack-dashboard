@@ -5,7 +5,10 @@
  * beside a fixed plural appeared in ten places — five phone cards, four notes and a version chain — while four other
  * files in this same repository already had the `n === 1 ? 'x' : 'xs'` idiom, and nobody notices the tenth. A rule
  * written twice is a rule that drifts; a rule written ten times is a rule that is already wrong.
+ *
+ * The count, the plural and the dash are one subject, so they live in one file.
  */
+import { formatCount } from '@/lib/format';
 
 /**
  * The noun for a count, in the number it is.
@@ -15,6 +18,19 @@
  */
 export function plural(n: number, singular: string, pluralForm?: string): string {
   return n === 1 ? singular : (pluralForm ?? `${singular}s`);
+}
+
+/**
+ * A count of nothing is a dash, not a zero: `0` reads as a measured result, and a team with no documents has not
+ * measured anything. Written here rather than in the page that needed it first — it sat in `teams/page.tsx` while a
+ * plugin's version count re-derived it as `s.versions || '—'`, which also lost the thousands separator that
+ * `formatCount` puts in.
+ *
+ * This is a *count*. An absent value and an empty list read the same way on the page and are not the same rule — an
+ * empty tag list has no number to format — so those stay where they are rather than being funnelled through here.
+ */
+export function count(n: number): string {
+  return n ? formatCount(n) : '—';
 }
 
 /**

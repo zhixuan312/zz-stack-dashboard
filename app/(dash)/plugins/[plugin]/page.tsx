@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { KeyValue } from '@/components/ui/key-value';
 import { Skeleton } from '@/components/ui/skeleton';
-import { plural, sentence } from '@/console/words';
+import { count, plural, sentence } from '@/console/words';
 import { aligned } from '@/console/columns';
 import { ConsolePage } from '@/console/page';
 import { Panel } from '@/console/panel';
@@ -42,7 +42,7 @@ function skillColumns(plugin: string): Column<PluginSkill>[] {
     },
     // A skill's origin comes from a `source:` line in its own SKILL.md, so it varies the day a vendored skill ships.
     { key: 'whose', header: 'Whose', hideBelow: 'md', mobile: 'status', cell: (s) => (s.origin === 'theirs' ? <Badge tone="accent">The {plugin} team&rsquo;s</Badge> : <Badge tone="neutral">Ours</Badge>) },
-    { key: 'versions', header: 'Versions', numeric: true, hideBelow: 'lg', cell: (s) => s.versions || '—' },
+    { key: 'versions', header: 'Versions', numeric: true, hideBelow: 'lg', cell: (s) => count(s.versions) },
     { key: 'calls', header: 'Calls', numeric: true, mobile: 'fact', cell: (s) => (s.everRun ? formatCount(s.calls) : '—'), mobileCell: (s) => (s.everRun ? `${formatCount(s.calls)} ${plural(s.calls, 'call')}` : 'Never run') },
     { key: 'last', header: 'Last run', numeric: true, hideBelow: 'md', cell: (s) => (s.lastRun ? <When at={s.lastRun} /> : <span className="text-ink-3">Never run</span>) },
   ]);

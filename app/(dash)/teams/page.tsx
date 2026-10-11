@@ -4,17 +4,13 @@ import { useMemo } from 'react';
 import { DataTable, useQueryState, type Column } from '@/components/patterns/data-table';
 import { FilterBar } from '@/components/patterns/filter-bar';
 import { Badge } from '@/components/ui/badge';
-import { plural } from '@/console/words';
+import { count, plural } from '@/console/words';
 import { aligned } from '@/console/columns';
 import { ConsolePage } from '@/console/page';
 import { failureOf } from '@/console/query';
 import { freshnessOf, useConsole } from '@/lib/api';
 import type { Team } from '@/lib/api-shapes';
-import { formatCount } from '@/lib/format';
 import { useLive } from '@/lib/live';
-
-/** A zero is a dash: a team with no documents has nothing to count, and "0" reads as a measured result. */
-const count = (n: number) => (n ? formatCount(n) : '—');
 
 const columns: Column<Team>[] = aligned([
   {
