@@ -43,7 +43,7 @@ function useWaitingAlerts(enabled: boolean): Alert[] {
  * Deliberately a skeleton and not the rail's own frame — a fallback that drew the real rail would put a second copy of
  * it in every page's HTML, which is what the `htmlKb` budget in `pnpm verify` refuses.
  */
-function RailPending() {
+export function RailPending() {
   return (
     <div aria-hidden className="flex h-full w-full flex-col">
       <div className="flex h-16 items-center px-4">
@@ -59,6 +59,32 @@ function RailPending() {
         <Skeleton className="size-8 rounded-full" />
         <span className="flex flex-1 flex-col gap-1.5"><Skeleton className="h-3 w-24" /><Skeleton className="h-2.5 w-16" /></span>
       </div>
+    </div>
+  );
+}
+
+/**
+ * The shell's shape while it is on its way, for the one boundary `app/(dash)/layout.tsx` puts around `AppShell`.
+ *
+ * That boundary is not tidiness and its fallback is not decoration. `AppShell` calls `usePathname`, and Next resolves
+ * that on the server only where every segment is known at build time: on a route with an unknown dynamic param
+ * (`/initiatives/[team]/[slug]`, `/teams/[slug]`, `/plugins/[plugin]`) the hook SUSPENDS while prerendering, so the
+ * boundary is postponed and its fallback is what the prerendered HTML holds. `fallback={null}` made that fallback
+ * nothing at all, and a page load then put the client's own render of the shell where the server had emitted no nodes:
+ * React reported a hydration mismatch (error #418), on a different route each run and only under load, which is what
+ * took three separate audits to see. Next's own guidance is to wrap the hook in a boundary "with a fallback".
+ *
+ * It draws the shell's own frame — the rail's column at its own width, the canvas beside it — so the fallback holds the
+ * space the real shell takes, exactly as `RailPending` does for the rail. The canvas stays empty on purpose: the page
+ * has its own `loading.tsx`, and a second skeleton drawn here would be two loading states for one page.
+ */
+export function ShellPending() {
+  return (
+    <div aria-hidden className="fixed inset-0 isolate flex overflow-hidden">
+      <aside className="hidden h-full w-(--rail-width) shrink-0 border-r border-line bg-frame backdrop-blur-xl backdrop-saturate-150 lg:flex">
+        <RailPending />
+      </aside>
+      <main className="relative flex min-w-0 flex-1 flex-col" />
     </div>
   );
 }
