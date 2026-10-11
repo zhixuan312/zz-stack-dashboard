@@ -124,8 +124,12 @@ checkout:
 ```
 npx zz-meridian@latest update --dry-run   # what it would change, and what needs a decision
 npx zz-meridian@latest update             # apply, stage the conflicts, install
-npx zz-meridian@0.13.0 update --finalize  # pinned to the release that started the session
+npx zz-meridian@0.14.0 update --finalize  # pinned to the release that started the session
 ```
+
+`--dry-run` first is not a courtesy. It replays *both* releases carrying this product's own brand, and without that
+replay every managed file holding our accent or our product name looks like a collision: a hand diff against the
+release's pristine template reports 39 conflicts here where the true number is 15.
 
 What stays the console's own, and why:
 
@@ -144,6 +148,10 @@ What stays the console's own, and why:
 - `src/console/words.ts`: the two rules a count and a borrowed sentence need — `plural(n, 'skill')` and
   `sentence(text)`. One module rather than ten call sites, because the plural was wrong in six files while the idiom sat
   in four others, and a rule written twice is a rule that drifts.
+- `src/console/settings/section.tsx`: the same grid as Meridian's `FormSection` — a 15rem head column beside a card
+  capped at `--field-width` — but not `FormSection` itself, which wraps its card in one form with one save bar. A
+  Settings section here holds tables and forms of its own, each with its own save. Since 0.14.0 the Settings *page*
+  passes `width="form"`, which is the measure those two columns add up to.
 - `proxy.ts`: the laptop's dev-only PAT passthrough, plus one addition this product made — a preload hint for a
   document route's read. A route with an unknown dynamic param cannot render its page on the server, so nothing writes
   the hint `useConsole` was designed to write from the HTML, and the read then waits for the route's own JS. Measured:
