@@ -45,6 +45,10 @@ export function FlowStepper({ gates, outcome, steps, complete, correction }: {
   const items: ReactNode[] = [];
   stages.forEach((stage, i) => {
     const n = i + 1;
+    // `open` and `closed` are bookends, not stages of the flow, and the API counts `at`/`of` over the flow's own
+    // stages. Numbering every row made the two counts disagree on one screen: this page's panel reads "Stage 4 of 7,
+    // plan" while the circle beside `plan` read 5, because `open` took a number and shifted all seven of them.
+    const bookend = i === 0 || i === stages.length - 1;
     // What the record shows, as the API derived it. `done` is every document this step
     // declares written and every gate on them approved; `partial` is written but still
     // waiting on a person; `empty` is nothing written; `untracked` is a step that declares no
@@ -101,10 +105,11 @@ export function FlowStepper({ gates, outcome, steps, complete, correction }: {
             !done && !partial && !now && !untracked && 'border-line-strong bg-surface text-ink-3',
           )}
         >
-          {/* DELIBERATE: the number renders on every node, done or not, and the tick — or the
-              skipped/waiting glyph — is a corner badge beside it. Replacing the number breaks
-              the sequence a reader counts along. */}
-          {n}
+          {/* DELIBERATE: a stage carries its number whether it is done or not, and the tick — or the skipped/waiting
+              glyph — is a corner badge beside it, because the sequence a reader counts along is the flow's stages.
+              The two bookends carry a dot instead: they are not stages, and numbering them put this stepper one ahead
+              of the `at of of` the panel above it reads. */}
+          {bookend ? <span aria-hidden className="size-1.5 rounded-full bg-current" /> : i}
           {done && (
             <span className="absolute -right-1 -top-1 grid size-[13px] place-items-center rounded-full bg-positive"
                   aria-hidden>

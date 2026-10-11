@@ -77,7 +77,9 @@ export function initiativeColumns({ team = false }: { team?: boolean } = {}): Co
   return aligned([
     { key: 'slug', header: 'Initiative', grow: true, truncate: true, mobile: 'title', sortValue: (i) => i.slug, cell: (i) => <span title={i.slug} className="font-medium text-ink">{i.slug}</span> },
     ...(team ? [{ key: 'team', header: 'Team', hideBelow: 'md' as const, mobile: 'fact' as const, sortValue: (i: Initiative) => i.team, cell: (i: Initiative) => <span className="text-ink-2">{i.team}</span> }] : []),
-    { key: 'position', header: 'Flow position', hideBelow: 'lg', sortValue: (i) => (i.of ? i.at / i.of : -1), cell: (i) => <FlowPosition at={i.at} of={i.of} name={i.stage} closed={i.closed} /> },
+    // Carried on the phone card too: this list says how far through its flow each piece of work got, and a reader on a
+    // phone could not see it at all. `S3 · plan` with its notches is compact enough to sit among the card's facts.
+    { key: 'position', header: 'Flow position', hideBelow: 'lg', mobile: 'fact', sortValue: (i) => (i.of ? i.at / i.of : -1), cell: (i) => <FlowPosition at={i.at} of={i.of} name={i.stage} closed={i.closed} /> },
     { key: 'state', header: 'State', mobile: 'status', sortValue: (i) => INITIATIVE_STATES.indexOf(initiativeState(i)), cell: (i) => <StateBadge of={i} /> },
     { key: 'gates', header: 'Gates', numeric: true, hideBelow: 'xl', sortValue: passed, cell: (i) => (ownGates(i).length ? `${passed(i)} of ${ownGates(i).length}` : '—') },
     { key: 'updated', header: 'Updated', numeric: true, mobile: 'fact', sortValue: (i) => i.updated, cell: (i) => <When at={i.updated} />, mobileCell: (i) => <>Updated <When at={i.updated} /></> },

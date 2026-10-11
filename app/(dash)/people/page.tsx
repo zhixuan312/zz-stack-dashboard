@@ -39,7 +39,7 @@ const COLUMNS: Column<Person>[] = aligned([
   },
   { key: 'teams', header: 'Teams', hideBelow: 'lg', cell: (p) => (p.teams.length ? p.teams.map(teamSlug).join(', ') : <span className="text-ink-3">None</span>) },
   // Never the tokens themselves: the store keeps a hash. This says whether one is live and when it last worked.
-  { key: 'tokens', header: 'Tokens', numeric: true, hideBelow: 'md', mobile: 'fact', sortValue: (p) => p.tokens, cell: (p) => p.tokens || '—', mobileCell: (p) => `${p.tokens} tokens` },
+  { key: 'tokens', header: 'Tokens', numeric: true, hideBelow: 'md', mobile: 'fact', sortValue: (p) => p.tokens, cell: (p) => p.tokens || '—', mobileCell: (p) => `${p.tokens} ${p.tokens === 1 ? 'token' : 'tokens'}` },
   { key: 'used', header: 'Last used', hideBelow: 'md', mobile: 'fact', sortValue: (p) => p.last_used ?? '', cell: (p) => <When at={p.last_used} />, mobileCell: (p) => (p.last_used ? <>Used <When at={p.last_used} /></> : 'Never used') },
   { key: 'created', header: 'Joined', numeric: true, hideBelow: 'xl', sortValue: (p) => p.created, cell: (p) => formatDate(p.created) },
 ]);

@@ -42,7 +42,7 @@ function skillColumns(plugin: string): Column<PluginSkill>[] {
     // A skill's origin comes from a `source:` line in its own SKILL.md, so it varies the day a vendored skill ships.
     { key: 'whose', header: 'Whose', hideBelow: 'md', mobile: 'status', cell: (s) => (s.origin === 'theirs' ? <Badge tone="accent">The {plugin} team&rsquo;s</Badge> : <Badge tone="neutral">Ours</Badge>) },
     { key: 'versions', header: 'Versions', numeric: true, hideBelow: 'lg', cell: (s) => s.versions || '—' },
-    { key: 'calls', header: 'Calls', numeric: true, mobile: 'fact', cell: (s) => (s.everRun ? formatCount(s.calls) : '—'), mobileCell: (s) => (s.everRun ? `${formatCount(s.calls)} calls` : 'Never run') },
+    { key: 'calls', header: 'Calls', numeric: true, mobile: 'fact', cell: (s) => (s.everRun ? formatCount(s.calls) : '—'), mobileCell: (s) => (s.everRun ? `${formatCount(s.calls)} ${s.calls === 1 ? 'call' : 'calls'}` : 'Never run') },
     { key: 'last', header: 'Last run', numeric: true, hideBelow: 'md', cell: (s) => (s.lastRun ? <When at={s.lastRun} /> : <span className="text-ink-3">Never run</span>) },
   ]);
 }

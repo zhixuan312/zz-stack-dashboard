@@ -29,8 +29,8 @@ const columns: Column<Team>[] = aligned([
   // Colour only where a row needs a look: active is the normal case, so it stays quiet.
   { key: 'status', header: 'Status', mobile: 'status', sortValue: (t) => t.status, cell: (t) => <Badge tone={t.status === 'active' ? 'neutral' : 'warning'} dot>{t.status === 'active' ? 'Active' : 'Archived'}</Badge> },
   { key: 'members', header: 'People', numeric: true, hideBelow: 'md', sortValue: (t) => t.members, cell: (t) => count(t.members) },
-  { key: 'initiatives', header: 'Initiatives', numeric: true, mobile: 'fact', sortValue: (t) => t.initiatives, cell: (t) => count(t.initiatives), mobileCell: (t) => `${count(t.initiatives)} initiatives` },
-  { key: 'documents', header: 'Documents', numeric: true, hideBelow: 'lg', mobile: 'fact', sortValue: (t) => t.documents, cell: (t) => count(t.documents), mobileCell: (t) => `${count(t.documents)} documents` },
+  { key: 'initiatives', header: 'Initiatives', numeric: true, mobile: 'fact', sortValue: (t) => t.initiatives, cell: (t) => count(t.initiatives), mobileCell: (t) => `${count(t.initiatives)} ${t.initiatives === 1 ? 'initiative' : 'initiatives'}` },
+  { key: 'documents', header: 'Documents', numeric: true, hideBelow: 'lg', mobile: 'fact', sortValue: (t) => t.documents, cell: (t) => count(t.documents), mobileCell: (t) => `${count(t.documents)} ${t.documents === 1 ? 'document' : 'documents'}` },
   { key: 'sources', header: 'Sources', numeric: true, hideBelow: 'xl', sortValue: (t) => t.sources, cell: (t) => count(t.sources) },
   { key: 'knowledge', header: 'Knowledge', numeric: true, hideBelow: 'lg', sortValue: (t) => t.knowledge, cell: (t) => count(t.knowledge) },
 ]);
