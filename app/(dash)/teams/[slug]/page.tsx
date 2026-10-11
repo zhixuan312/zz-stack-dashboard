@@ -13,6 +13,7 @@ import { failureOf } from '@/console/query';
 import { freshnessOf, useConsole } from '@/lib/api';
 import type { Initiative, Team, TeamDetail } from '@/lib/api-shapes';
 import { formatDate } from '@/lib/format-date';
+import { useLive } from '@/lib/live';
 
 type Member = TeamDetail['members'][number];
 
@@ -34,6 +35,7 @@ const MEMBERS: Column<Member>[] = aligned([
 
 /** One team: what it is working on, what it holds, and who is in it. */
 export default function TeamPage({ params }: { params: Promise<{ slug: string }> }) {
+  useLive(['teams', 'initiatives']);
   const { slug } = use(params);
   const team = useConsole<TeamDetail>(`/teams/${slug}`);
   const inits = useConsole<{ initiatives: Initiative[] }>(`/initiatives?team=${slug}`);

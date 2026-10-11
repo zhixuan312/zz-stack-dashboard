@@ -15,4 +15,4 @@ Everyone the platform knows, their teams, and whether their tokens are live.
 
 ## Surfaces
 
-Console, desktop and phone. Reads `GET /people`.
+Console, desktop and phone. Reads `GET /people`. Live: follows `people`, so a change made anywhere — another tab, another person — reads this page again.

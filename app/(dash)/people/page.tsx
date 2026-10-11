@@ -16,6 +16,7 @@ import { When } from '@/console/when';
 import { freshnessOf, useConsole, useConsoleMode } from '@/lib/api';
 import { teamSlug, type Person } from '@/lib/api-shapes';
 import { formatDate } from '@/lib/format-date';
+import { useLive } from '@/lib/live';
 
 const COLUMNS: Column<Person>[] = aligned([
   {
@@ -45,6 +46,7 @@ const COLUMNS: Column<Person>[] = aligned([
 
 /** Everyone the platform knows, the teams they belong to, and whether their tokens are live. */
 export default function PeoplePage() {
+  useLive(['people']);
   const { mode } = useConsoleMode();
   const q = useConsole<{ people: Person[] }>('/people');
   const people = useMemo(() => q.data?.people ?? [], [q.data]);

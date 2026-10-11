@@ -12,6 +12,7 @@ import { When } from '@/console/when';
 import { freshnessOf, useConsole } from '@/lib/api';
 import type { PluginRow } from '@/lib/api-shapes';
 import { formatCount } from '@/lib/format';
+import { useLive } from '@/lib/live';
 
 const COLUMNS: Column<PluginRow>[] = aligned([
   {
@@ -34,6 +35,7 @@ const COLUMNS: Column<PluginRow>[] = aligned([
 
 /** What a person installs: a package's skills plus the MCP servers those skills call, under one declared version. */
 export default function PluginsPage() {
+  useLive(['plugins']);
   const q = useConsole<{ plugins: PluginRow[] }>('/plugins');
   const plugins = q.data?.plugins ?? [];
   const neverRun = plugins.reduce((a, p) => a + p.skills.filter((s) => !s.everRun).length, 0);

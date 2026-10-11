@@ -15,6 +15,7 @@ import { failureOf } from '@/console/query';
 import { freshnessOf, useConsole, useConsoleMode } from '@/lib/api';
 import type { KnowledgeNode, Me } from '@/lib/api-shapes';
 import { tagFacetCounts, teamFacetOptions } from '@/lib/knowledge-filters';
+import { useLive } from '@/lib/live';
 
 const GUIDANCE: [string, string][] = [
   ["Everything in the team's folder", 'specs, decisions, sources and knowledge nodes, not just the nodes on the Nodes tab.'],
@@ -27,6 +28,7 @@ const GUIDANCE: [string, string][] = [
  * mode it is the team being acted for, and in platform mode a superadmin names one.
  */
 export default function KnowledgeAskPage() {
+  useLive(['knowledge']);
   const me = useConsole<Me>('/me');
   const { mode } = useConsoleMode();
   const list = useConsole<{ nodes: KnowledgeNode[] }>('/knowledge');

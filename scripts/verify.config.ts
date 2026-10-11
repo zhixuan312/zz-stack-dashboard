@@ -105,7 +105,7 @@ const config: VerifyConfig = {
   fakeApi: { script: 'scripts/fake-gateway/server.ts', env: 'ZZ_GATEWAY' },
   // The Approve banner a load cannot reach — a document that changed while it was being read needs a refetch — and a
   // check that the refused record's banner is what its detail route draws.
-  browserChecks: ['scripts/approve-banners.ts'],
+  browserChecks: ['scripts/approve-banners.ts', 'scripts/live-check.ts'],
 };
 
 export default config;

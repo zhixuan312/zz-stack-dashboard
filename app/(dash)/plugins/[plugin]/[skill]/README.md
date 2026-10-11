@@ -16,4 +16,4 @@ One skill a plugin ships: what it costs to run, its text, and what ships beside 
 
 ## Surfaces
 
-Console, desktop and phone. Reads `GET /skills`, `GET /plugins`, `GET /skills/:name`, `GET /plugins/:plugin/skills/:skill`.
+Console, desktop and phone. Reads `GET /skills`, `GET /plugins`, `GET /skills/:name`, `GET /plugins/:plugin/skills/:skill`. Live: follows `plugins and skills`, so a change made anywhere — another tab, another person — reads this page again.

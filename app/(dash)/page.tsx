@@ -23,6 +23,7 @@ import { freshnessOf, useConsole, useConsoleMode } from '@/lib/api';
 import type { Overview, OverviewMetrics } from '@/lib/api-shapes';
 import { formatCompact, formatCount, formatKb, formatPercent } from '@/lib/format';
 import { PERIOD_LABEL } from '@/lib/period';
+import { useLive } from '@/lib/live';
 
 /**
  * The landing page: the fleet's census, or one team's, by console mode.
@@ -119,6 +120,7 @@ function OverviewSkeleton() {
 }
 
 export default function OverviewPage() {
+  useLive(['overview']);
   const { period } = usePeriod();
   const { mode } = useConsoleMode();
   const q = useConsole<Overview>(period === 'all' ? '/overview' : `/overview?period=${period}`);

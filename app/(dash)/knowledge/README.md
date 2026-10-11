@@ -16,4 +16,4 @@ What the platform has learned, kept as nodes, each out of a real initiative.
 
 ## Surfaces
 
-Console, desktop and phone. Reads `GET /knowledge`.
+Console, desktop and phone. Reads `GET /knowledge`. Live: follows `knowledge`, so a change made anywhere — another tab, another person — reads this page again.

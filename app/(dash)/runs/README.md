@@ -15,4 +15,4 @@ Every recorded run, by the skill that drove it.
 
 ## Surfaces
 
-Console, desktop and phone. Reads `GET /runs?period=`, `GET /skills?period=`.
+Console, desktop and phone. Reads `GET /runs?period=`, `GET /skills?period=`. Live: follows `runs and skills`, so a change made anywhere — another tab, another person — reads this page again.

@@ -18,4 +18,4 @@ One plugin: what it is, what it reaches, its skills, and its whole evaluation st
 
 ## Surfaces
 
-Console, desktop and phone. Reads `GET /plugins`, `GET /plugins/:plugin/eval`.
+Console, desktop and phone. Reads `GET /plugins`, `GET /plugins/:plugin/eval`. Live: follows `plugins`, so a change made anywhere — another tab, another person — reads this page again.

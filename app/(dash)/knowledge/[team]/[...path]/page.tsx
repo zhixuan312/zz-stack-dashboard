@@ -18,6 +18,7 @@ import { When } from '@/console/when';
 import { freshnessOf, useConsole } from '@/lib/api';
 import type { KnowledgeBody, KnowledgeNode } from '@/lib/api-shapes';
 import { knowledgeNodeHref } from '@/lib/knowledge-filters';
+import { useLive } from '@/lib/live';
 
 // The markdown renderer arrives only with the node's body: the node's own facts and its neighbours are what a first
 // paint shows, and the body is fetched after that either way. Loaded eagerly it was 141 KiB of this route's first-load
@@ -29,6 +30,7 @@ const Prose = dynamic(() => import('@/components/patterns/prose').then((m) => m.
  * everything but its number and its neighbours; those come from the shelf, the same cached read the list used.
  */
 export default function KnowledgeNodePage({ params }: { params: Promise<{ team: string; path: string[] }> }) {
+  useLive(['knowledge']);
   const { team: rawTeam, path } = use(params);
   const team = decodeURIComponent(rawTeam);
   const rel = path.map(decodeURIComponent).join('/');

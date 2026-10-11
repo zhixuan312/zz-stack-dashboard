@@ -12,11 +12,13 @@ import { usePeriod } from '@/console/period';
 import { freshnessOf, useConsole, useConsoleMode } from '@/lib/api';
 import type { Initiative } from '@/lib/api-shapes';
 import { PERIOD_LABEL, periodCutoff } from '@/lib/period';
+import { useLive } from '@/lib/live';
 
 const COLUMNS = initiativeColumns({ team: true });
 
 /** Every piece of work, open or closed, and how far through its flow it got. Windowed on when it was last touched. */
 export default function InitiativesPage() {
+  useLive(['initiatives']);
   const { mode } = useConsoleMode();
   const { period } = usePeriod();
   const q = useConsole<{ initiatives: Initiative[] }>('/initiatives');

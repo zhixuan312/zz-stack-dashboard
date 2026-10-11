@@ -14,6 +14,7 @@ import { When } from '@/console/when';
 import { freshnessOf, useConsole } from '@/lib/api';
 import type { InitiativeDetail } from '@/lib/api-shapes';
 import { formatKb } from '@/lib/format';
+import { useLive } from '@/lib/live';
 
 type Doc = InitiativeDetail['documents'][number];
 
@@ -61,6 +62,7 @@ const SOURCES: Column<Doc>[] = aligned([
 
 /** One initiative, end to end: where it is in its flow, the documents the flow produced, and the evidence behind them. */
 export default function InitiativePage({ params }: { params: Promise<{ team: string; slug: string }> }) {
+  useLive(['initiatives']);
   const { team, slug } = use(params);
   const q = useConsole<InitiativeDetail>(`/initiatives/${team}/${slug}`);
   const base = `/initiatives/${team}/${slug}`;

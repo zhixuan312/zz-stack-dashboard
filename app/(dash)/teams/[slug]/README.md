@@ -16,4 +16,4 @@ One team: what it is working on, what it holds, and who is in it.
 
 ## Surfaces
 
-Console, desktop and phone. Reads `GET /teams/:slug`, `GET /initiatives?team=`, `GET /teams`.
+Console, desktop and phone. Reads `GET /teams/:slug`, `GET /initiatives?team=`, `GET /teams`. Live: follows `teams and initiatives`, so a change made anywhere — another tab, another person — reads this page again.

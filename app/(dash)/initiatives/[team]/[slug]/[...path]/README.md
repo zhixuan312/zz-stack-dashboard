@@ -29,5 +29,5 @@ One document, read: the text, how it changed and on what evidence, and the claim
 
 ## Surfaces
 
-Console, desktop and phone. Reads `GET /document/:team/:slug/:path`, `POST /documents/shown`,
+Console, desktop and phone. Reads `GET /document/:team/:slug/:path`, `POST /documents/shown`, Live: follows `document`, so a change made anywhere — another tab, another person — reads this page again.
 `POST /documents/approve`.

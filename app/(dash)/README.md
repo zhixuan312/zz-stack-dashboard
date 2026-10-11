@@ -19,4 +19,4 @@ The platform's census, or one team's: whether work is moving, and what waits on 
 
 ## Surfaces
 
-Console, desktop and phone. Reads `GET /overview?period=`.
+Console, desktop and phone. Reads `GET /overview?period=`. Live: follows `overview`, so a change made anywhere — another tab, another person — reads this page again.

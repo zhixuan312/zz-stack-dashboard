@@ -10,6 +10,7 @@ import { failureOf } from '@/console/query';
 import { freshnessOf, useConsole } from '@/lib/api';
 import type { Team } from '@/lib/api-shapes';
 import { formatCount } from '@/lib/format';
+import { useLive } from '@/lib/live';
 
 /** A zero is a dash: a team with no documents has nothing to count, and "0" reads as a measured result. */
 const count = (n: number) => (n ? formatCount(n) : '—');
@@ -36,6 +37,7 @@ const columns: Column<Team>[] = aligned([
 
 /** Every team on the platform: who is in it and what it holds. A platform page; a member's own team is the Overview. */
 export default function TeamsPage() {
+  useLive(['teams']);
   const q = useConsole<{ teams: Team[] }>('/teams');
   const [f, set] = useQueryState({ q: '', status: 'all', sort: 'initiatives', dir: 'desc', page: '1' });
   const teams = useMemo(() => q.data?.teams ?? [], [q.data]);

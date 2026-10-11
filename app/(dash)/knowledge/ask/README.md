@@ -16,4 +16,4 @@ A question answered from one team's own documents, with citations the platform b
 
 ## Surfaces
 
-Console, desktop and phone. Reads `GET /knowledge`, `POST /ask?team=`.
+Console, desktop and phone. Reads `GET /knowledge`, `POST /ask?team=`. Live: follows `knowledge`, so a change made anywhere — another tab, another person — reads this page again.

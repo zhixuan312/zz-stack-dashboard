@@ -12,12 +12,14 @@ import { SkillWorkPanel } from '@/console/skill-work';
 import { freshnessOf, useConsole } from '@/lib/api';
 import type { Runs, Skill } from '@/lib/api-shapes';
 import { formatCount } from '@/lib/format';
+import { useLive } from '@/lib/live';
 
 /**
  * Every recorded run, by the skill that drove it. Both reads take the window: tiles answering all time above a table
  * answering the picker would put two true numbers about different spans an inch apart.
  */
 export default function RunsPage() {
+  useLive(['runs', 'skills']);
   const { period } = usePeriod();
   const q = (path: string) => (period === 'all' ? path : `${path}?period=${period}`);
   const runs = useConsole<Runs>(q('/runs'));

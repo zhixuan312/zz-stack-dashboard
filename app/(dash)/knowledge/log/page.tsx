@@ -12,6 +12,7 @@ import { failureOf } from '@/console/query';
 import { When } from '@/console/when';
 import { freshnessOf, useConsole, useConsoleMode } from '@/lib/api';
 import type { KnowledgeLogEntry } from '@/lib/api-shapes';
+import { useLive } from '@/lib/live';
 
 function columns(multiTeam: boolean): Column<KnowledgeLogEntry>[] {
   return aligned([
@@ -39,6 +40,7 @@ function columns(multiTeam: boolean): Column<KnowledgeLogEntry>[] {
  * retires a node, not derived from the nodes: a node's date is when it last changed, and no node says who wrote it.
  */
 export default function KnowledgeLogPage() {
+  useLive(['knowledge']);
   const { mode } = useConsoleMode();
   const q = useConsole<{ entries: KnowledgeLogEntry[] }>('/knowledge/log');
   const entries = q.data?.entries ?? [];

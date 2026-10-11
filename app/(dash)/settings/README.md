@@ -25,4 +25,4 @@ at the data width like every other page.
 
 ## Surfaces
 
-Console, desktop and phone. Reads `/settings/me/*`, `/settings/team/*`, `/settings/platform/*`.
+Console, desktop and phone. Reads `/settings/me/*`, `/settings/team/*`, `/settings/platform/*`. Live: follows `settings`, so a change made anywhere — another tab, another person — reads this page again.

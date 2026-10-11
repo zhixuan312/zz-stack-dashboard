@@ -16,4 +16,4 @@ Every piece of work, open or closed, and how far through its flow it got.
 
 ## Surfaces
 
-Console, desktop and phone. Reads `GET /initiatives`.
+Console, desktop and phone. Reads `GET /initiatives`. Live: follows `initiatives`, so a change made anywhere — another tab, another person — reads this page again.

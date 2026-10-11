@@ -14,4 +14,4 @@ What a person installs: a package's skills and the servers they call, under one 
 
 ## Surfaces
 
-Console, desktop and phone. Reads `GET /plugins`.
+Console, desktop and phone. Reads `GET /plugins`. Live: follows `plugins`, so a change made anywhere — another tab, another person — reads this page again.

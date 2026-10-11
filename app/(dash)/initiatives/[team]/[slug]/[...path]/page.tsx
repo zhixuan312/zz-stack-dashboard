@@ -24,6 +24,7 @@ import { readableDocument } from '@/lib/document-markdown';
 // eagerly it was 141 KiB of the route's first-load JS, which put this route 124 KiB over the 820 KiB cap.
 const Prose = dynamic(() => import('@/components/patterns/prose').then((m) => m.Prose), { loading: () => <Skeleton className="h-64 rounded-md" /> });
 import { formatKb } from '@/lib/format';
+import { useLive } from '@/lib/live';
 
 type Decision = DocumentDetail['decisions'][number];
 
@@ -45,6 +46,7 @@ function decisionColumns(role: string): Column<Decision>[] {
 
 /** One document, read: the text itself, how it changed and on what evidence, and the claims it makes. */
 export default function DocumentPage({ params }: { params: Promise<{ team: string; slug: string; path: string[] }> }) {
+  useLive(['document']);
   const { team, slug, path } = use(params);
   const rel = path.map(decodeURIComponent).join('/');
   const q = useConsole<DocumentDetail>(`/document/${team}/${slug}/${rel}`);

@@ -16,6 +16,7 @@ import { freshnessOf, useConsole, useConsoleMode, useDataClock } from '@/lib/api
 import type { KnowledgeNode } from '@/lib/api-shapes';
 import { formatDate, formatRelative } from '@/lib/format-date';
 import { filterKnowledgeNodes, knowledgeNodeHref, tagFacetCounts, teamFacetOptions } from '@/lib/knowledge-filters';
+import { useLive } from '@/lib/live';
 
 /**
  * The shelf. The team leads the number when more than one shelf is in view: every team numbers its own nodes from
@@ -34,6 +35,7 @@ function columns(multiTeam: boolean): Column<KnowledgeNode>[] {
 
 /** What the platform has learned, kept as nodes. Each one comes out of a real initiative. */
 export default function KnowledgePage() {
+  useLive(['knowledge']);
   const { mode } = useConsoleMode();
   // The data's clock for the relative stamp below: never `new Date()` at render.
   const clock = useDataClock();

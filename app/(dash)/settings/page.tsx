@@ -7,6 +7,7 @@ import { PlatformSection } from '@/console/settings/platform-section';
 import { TeamAdminPanel } from '@/console/settings/team-admin-panel';
 import { TeamsPanel } from '@/console/settings/teams-panel';
 import { TokensPanel } from '@/console/settings/tokens-panel';
+import { useLive } from '@/lib/live';
 
 /**
  * A person's own settings, a team tier for anyone who administers one, and a platform tier for a superadmin.
@@ -17,6 +18,7 @@ import { TokensPanel } from '@/console/settings/tokens-panel';
  * (theme, accent, density) is in the rail's menu and the command palette, Meridian's own place for it.
  */
 export default function SettingsPage() {
+  useLive(['settings']);
   return (
     <ConsolePage title="Settings" description="What this console shows you, plus your tokens, client setup and teams." showPeriod={false}>
       {/* Sections 56px apart, as Meridian's settings stack them: yours, then your team's, then the platform's. */}

@@ -17,4 +17,4 @@ One initiative end to end: where it is in its flow, its documents, and the evide
 
 ## Surfaces
 
-Console, desktop and phone. Reads `GET /initiatives/:team/:slug`.
+Console, desktop and phone. Reads `GET /initiatives/:team/:slug`. Live: follows `initiatives`, so a change made anywhere — another tab, another person — reads this page again.

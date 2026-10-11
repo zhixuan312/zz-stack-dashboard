@@ -2,6 +2,7 @@ import { Suspense, type ReactNode } from 'react';
 import { AppShell } from '@/components/base/shell';
 import { ConsolePalette, ConsoleRail, ConsoleTools, ShellPending } from '@/console/frame';
 import { ConsoleGate } from '@/console/gate';
+import { ConsoleLive } from '@/views/console-live';
 
 /**
  * Every console page: the rail on the frame, the page on the canvas, the sign-in gate in front of the page.
@@ -29,11 +30,13 @@ export default function DashLayout({ children }: { children: ReactNode }) {
         rail={<ConsoleRail />}
         tools={<ConsoleTools />}
       >
-        {/* No boundary of its own around the page: `loading.tsx` beside this file already gives the segment its
-            streamed fallback, and a second one with `fallback={null}` put the page in a boundary whose server HTML and
-            client hydration disagreed — React threw its hydration-mismatch error on /settings at every width and in
-            both themes. */}
-        <ConsoleGate>{children}</ConsoleGate>
+        <ConsoleLive>
+          {/* No boundary of its own around the page: `loading.tsx` beside this file already gives the segment its
+              streamed fallback, and a second one with `fallback={null}` put the page in a boundary whose server HTML and
+              client hydration disagreed — React threw its hydration-mismatch error on /settings at every width and in
+              both themes. */}
+          <ConsoleGate>{children}</ConsoleGate>
+        </ConsoleLive>
         <ConsolePalette />
       </AppShell>
     </Suspense>

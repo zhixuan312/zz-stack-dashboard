@@ -14,4 +14,4 @@ Every node recorded or retired, newest first, and who wrote it down.
 
 ## Surfaces
 
-Console, desktop and phone. Reads `GET /knowledge/log`.
+Console, desktop and phone. Reads `GET /knowledge/log`. Live: follows `knowledge`, so a change made anywhere — another tab, another person — reads this page again.

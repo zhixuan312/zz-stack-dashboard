@@ -20,6 +20,7 @@ import { useAddressParam } from '@/lib/address';
 import { freshnessOf, useConsole } from '@/lib/api';
 import type { PluginRow, Skill, SkillDetail, SkillText } from '@/lib/api-shapes';
 import { formatCount, formatKb, formatSeconds } from '@/lib/format';
+import { useLive } from '@/lib/live';
 
 type View = 'cost' | 'read' | 'references';
 
@@ -72,6 +73,7 @@ function Cost({ skill, detail }: { skill: Skill | undefined; detail: SkillDetail
  * address (`?view=`), so each one is linkable; cost is the default, because it is the reason to open a skill here.
  */
 export default function PluginSkillPage({ params }: { params: Promise<{ plugin: string; skill: string }> }) {
+  useLive(['plugins', 'skills']);
   const { plugin: pluginName, skill: name } = use(params);
   const list = useConsole<{ skills: Skill[] }>('/skills');
   const plugins = useConsole<{ plugins: PluginRow[] }>('/plugins');

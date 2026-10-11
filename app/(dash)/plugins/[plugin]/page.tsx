@@ -21,6 +21,7 @@ import { When } from '@/console/when';
 import { freshnessOf, useConsole } from '@/lib/api';
 import type { PluginEval, PluginRow } from '@/lib/api-shapes';
 import { formatCount } from '@/lib/format';
+import { useLive } from '@/lib/live';
 
 type PluginSkill = PluginRow['skills'][number];
 
@@ -59,6 +60,7 @@ function notYet(e: PluginEval): boolean {
  * with no manifest above it.
  */
 export default function PluginPage({ params }: { params: Promise<{ plugin: string }> }) {
+  useLive(['plugins']);
   const { plugin } = use(params);
   const q = useConsole<{ plugins: PluginRow[] }>('/plugins');
   const qEval = useConsole<PluginEval>(`/plugins/${plugin}/eval`);

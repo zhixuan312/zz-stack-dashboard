@@ -16,4 +16,4 @@ Every team on the platform, who is in it and what it holds.
 
 ## Surfaces
 
-Console, desktop and phone. Reads `GET /teams`.
+Console, desktop and phone. Reads `GET /teams`. Live: follows `teams`, so a change made anywhere — another tab, another person — reads this page again.

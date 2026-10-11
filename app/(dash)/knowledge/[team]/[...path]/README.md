@@ -16,4 +16,4 @@ One knowledge node, read, with where it was learned and what shares its subject.
 
 ## Surfaces
 
-Console, desktop and phone. Reads `GET /knowledge/:team/:path`, `GET /knowledge`.
+Console, desktop and phone. Reads `GET /knowledge/:team/:path`, `GET /knowledge`. Live: follows `knowledge`, so a change made anywhere — another tab, another person — reads this page again.
