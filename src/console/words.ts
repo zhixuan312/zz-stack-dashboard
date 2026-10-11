@@ -1,5 +1,10 @@
 /**
- * Text the console did not write, and words the console writes about a count: `plural`, `count` and `sentence`.
+ * Text the console did not write, and the two words the console writes about a count: `count` and `sentence`.
+ *
+ * **`plural` left this file the day Meridian shipped it.** It was written here because the release had none, with the
+ * argument this file's header makes — a rule written where it is first needed is a rule the second use re-derives — and
+ * 0.14.1 added the same function to `lib/format`, which is where a count and its word belong. Two copies of one rule is
+ * the thing this file exists to prevent, so ours is deleted and every caller takes the release's.
  *
  * **All three live here because each was written where it was first needed and then missed everywhere else.** The
  * plural appeared hand-rolled in seventeen places while the fix for it sat in one; the dash for a count of nothing was
@@ -12,15 +17,6 @@
  */
 import { formatCount } from '@/lib/format';
 
-/**
- * The noun for a count, in the number it is.
- *
- * `plural(1, 'skill')` is "skill", `plural(0, 'skill')` is "skills" — English counts zero as a plural, and a reader
- * who sees "0 skill" reads a bug rather than a fact.
- */
-export function plural(n: number, singular: string, pluralForm?: string): string {
-  return n === 1 ? singular : (pluralForm ?? `${singular}s`);
-}
 
 /**
  * A count of nothing is a dash, not a zero: `0` reads as a measured result, and a team with no documents has not

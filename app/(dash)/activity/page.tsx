@@ -19,10 +19,11 @@ type Row = ActivityEvent & { id: string };
 
 const COLUMNS: Column<Row>[] = aligned([
   { key: 'when', header: 'When', width: 'w-28', mobile: 'fact', cell: (e) => <When at={e.ts} /> },
-  // `align: 'left'` explicit: this column is a card's title on a phone, and Meridian's `aligned` would centre it
-  // here because `When` precedes it. A centred title reads as a mistake — the eye has no left edge to come back to,
-  // and every other card in the console starts at one.
-  { key: 'kind', header: 'Kind', align: 'left', mobile: 'title', cell: (e) => <span className="font-mono text-xs text-ink">{e.kind}</span> },
+  // No `align` here, and the stand-in that used to be is gone. It existed because a card's title took the table's
+  // alignment, and `aligned` centres this column — `When` precedes it — so a phone card opened on a centred title with
+  // no left edge to come back to. **0.14.1 fixes that in the component**: `@max-[640px]:[&_td[data-mobile=title]]:!text-left`
+  // puts a card's title at the left edge whatever the column order. So the column takes the console's own rule again.
+  { key: 'kind', header: 'Kind', mobile: 'title', cell: (e) => <span className="font-mono text-xs text-ink">{e.kind}</span> },
   { key: 'subject', header: 'Subject', hideBelow: 'lg', truncate: true, cell: (e) => (e.subject ? <span title={e.subject} className="font-mono text-xs">{e.subject}</span> : dash) },
   // On the phone card too: a feed of everything the platform recorded, with nobody named on it, cannot answer who
   // did it. The local part alone — `jane.doe`, never the domain — and `title` carries the whole address on hover.

@@ -4,9 +4,9 @@ import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
-import { plural } from '@/console/words';
 import { FlowPosition, useWaitingGates } from '@/console/initiative';
 import { Panel } from '@/console/panel';
+import { plural } from '@/lib/format';
 import { When } from '@/console/when';
 
 const SHOWN = 4;

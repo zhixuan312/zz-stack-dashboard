@@ -1,11 +1,11 @@
 'use client';
 
 import { Panel } from '@/console/panel';
-import { plural } from '@/console/words';
 import { CompositionBar } from '@/components/charts/composition-bar';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatCount, formatPercent } from '@/lib/format';
+import { plural } from '@/lib/format';
 import type { DimensionScore, GuardrailScore, PluginEval } from '@/lib/api-shapes';
 
 type Run = NonNullable<PluginEval['run']>;

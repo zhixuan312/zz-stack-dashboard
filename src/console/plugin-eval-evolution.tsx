@@ -1,7 +1,7 @@
 'use client';
 
 import { Panel } from '@/console/panel';
-import { plural } from '@/console/words';
+import { plural } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
 import { When } from '@/console/when';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';

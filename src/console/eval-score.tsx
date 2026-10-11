@@ -1,8 +1,8 @@
 'use client';
 
 import { Badge } from '@/components/ui/badge';
-import { plural } from '@/console/words';
 import { When } from '@/console/when';
+import { plural } from '@/lib/format';
 import type { PluginRow } from '@/lib/api-shapes';
 
 type Verdict = NonNullable<PluginRow['latestEval']>;

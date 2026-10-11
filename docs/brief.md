@@ -150,11 +150,10 @@ What stays the console's own, and why:
   replaced — `refresh` drops React Query's cache for the collection a hint names, where the release calls a Server Action
   and refreshes the router, because this product reads from the browser and has nothing on the server to drop.
 - `scripts/check.local.ts` and `scripts/verify.config.ts`: the project's half of Meridian's hooks.
-- **Two local fixes stand in for gaps Meridian has now fixed upstream, and should be removed when the release carries them.**
-  `/activity`'s `kind` column declares `align: 'left'` because a phone card's title used to keep its table alignment;
-  Meridian's `data-table` resets it now. And the craft screenshots are taken against `next start` rather than
-  `next dev`, which is what `standard.md` prescribes now. Both were reported with measurements, both were fixed in the
-  template's own repository on 2026-10-11, and neither is in 0.14.0.
+- **Both stand-ins are gone, and this is the record of why.** 0.14.1 carries them: `data-table` puts a phone card's title
+  at the left edge whatever the column order, so `/activity`'s `kind` column no longer needs its own `align: 'left'`, and
+  the craft recipe prescribes a built app, so the note about rendering against `next start` rather than `next dev` is the
+  release's own now. Both were reported with measurements on 2026-10-11 and are in 0.14.1.
 - `src/console/words.ts`: the three rules the words about a count need — `plural(n, 'skill')`,
   `sentence(text)` and `count(n)`. One module rather than three dozen call sites, because the plural was wrong in
   seventeen places while the idiom sat in others, the dash was written once and re-derived once, and a rule written
