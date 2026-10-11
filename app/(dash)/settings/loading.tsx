@@ -17,12 +17,14 @@ export default function SettingsLoading() {
     <PageFrame title={<Skeleton className="h-10 w-56" />} width={width}>
       <Stack aria-busy="true" aria-label="Loading">
         {[0, 1, 2].map((i) => (
-          <div key={i} className="grid gap-x-10 gap-y-5 @3xl:grid-cols-[15rem_minmax(0,var(--field-width))]">
-            <div className="flex flex-col gap-2">
-              <Skeleton className="h-5 w-32" />
-              <Skeleton className="h-4 w-full" />
+          <div key={i} className="@container">
+            <div className="grid gap-x-10 gap-y-5 @3xl:grid-cols-[15rem_minmax(0,var(--field-width))]">
+              <div className="flex flex-col gap-2">
+                <Skeleton className="h-5 w-32" />
+                <Skeleton className="h-4 w-full" />
+              </div>
+              <Skeleton className="h-40 rounded-lg" />
             </div>
-            <Skeleton className="h-40 rounded-lg" />
           </div>
         ))}
       </Stack>
