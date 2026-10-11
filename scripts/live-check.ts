@@ -8,10 +8,18 @@
  *
  * What it proves, and what it does not. It proves the console's half of the contract in `references/live.md`: a page
  * opens one stream and follows its own collection, a hint for that collection is read again and what arrived is on
- * screen, a hint for a collection the page does not show changes nothing, and no frame arrives with the stream closed
- * again. It does NOT prove the multi-tab and offline behaviour Meridian's own check does — one `launch()` here owns one
- * page, and a second tab is not something this harness can open. The stream is shared per origin, so a hint reaching
- * this tab is the same frame a second tab would get; the reader should know that is an argument, not a measurement.
+ * screen, a hint for a collection the page does not show changes nothing, and the bell's own read follows a hint for
+ * the collection it watches. It does NOT prove the multi-tab and offline behaviour Meridian's own check does — one
+ * `launch()` here owns one page, and a second tab is not something this harness can open. The stream is shared per
+ * origin, so a hint reaching this tab is the same frame a second tab would get; the reader should know that is an
+ * argument, not a measurement.
+ *
+ * ONE CAVEAT under `verify --full`, where it matters: the read counts are the gateway's, per collection, and the
+ * presses suite shares that gateway. A page the presses visit may read `initiatives` in the same window this check is
+ * watching, which would let the bell case pass without this tab having read anything. The cases that assert on the page
+ * itself are unaffected, and the negative control was run outside that concurrency: the case fails when the thing it
+ * names is broken, and passes here — which is what a check should do, but is weaker evidence under a shared gateway
+ * than when run alone.
  *
  * The change is driven through the fake gateway's own hooks, which live under the path the app proxies
  * (`/api/console/__hint`) so this check never has to know the gateway's address. Against a real gateway there are no
