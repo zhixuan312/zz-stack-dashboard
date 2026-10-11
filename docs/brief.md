@@ -72,6 +72,26 @@ agent opens the same view by naming the same parameters. `src/lib/address.ts` is
   shell, and the rail, the tools and the palette each resolve their own reads behind their own `<Suspense>` with a
   skeleton fallback. A route that fails with `CLIENT_HOOK_DYNAMIC` is asking for a boundary, and a page gets smaller
   for it — `/initiatives` serves 38 KiB of HTML where it served 65.
+- **Live data: the release's `ConsoleLive`, with React Query where the release refreshes the router.** One stream per
+  tab carries hints naming a collection and never data, and the tab reads that collection again. The release's
+  `src/views/console-live.tsx` is adopted whole with its one product-specific part replaced: there `refresh` calls a
+  Server Action that drops the tenant's cached reads and refreshes the router, and here there is nothing on the server
+  to drop, because `src/lib/api.ts` reads from the browser and says why — so the cache is React Query's and dropping it
+  is `invalidateQueries` over the console queries whose collection the hint names. A read's collection is its own first
+  path segment (`/teams` reads `teams`), so no new vocabulary crosses the wire, and each page says what it shows in one
+  `useLive([...])` line. The stream opens only once `/me` answers, so a signed-out tab opens none.
+- **The shell's `<Suspense>` carries a fallback that draws the frame, not `null`.** That boundary is load-bearing —
+  `AppShell` calls `usePathname`, and Cache Components will not prerender a client hook in a route it can prerender
+  whole, so removing it fails every route with `CLIENT_HOOK_DYNAMIC`. Next resolves the hook on the server only where
+  every segment is known at build time; on a route with an unknown dynamic param it suspends, so the boundary is
+  postponed and the prerendered HTML holds the fallback. With `fallback={null}` that was no nodes at all, and a page
+  load put the client's own render of the shell where the server had emitted nothing: React's hydration mismatch
+  (#418), on a different route each run and only under load.
+- **The phone card's approval slot shows the verdict alone.** A card puts it at the end of the title line, where the
+  slot is one badge wide and the cell that holds it is `shrink-0` — Meridian's own rule — so it cannot shrink to fit.
+  The longest row carried a correction badge *and* an outcome badge, each nowrap: 348px in the 336px a 390px card has
+  left after its padding, which pushed the row 12px past its frame. `DocStatus` grows `compact` and the column's
+  `mobileCell` renders it; the two extras are still read on the same page, in the table and in the flow stepper above.
 - **The assistant is Meridian's, and this console does not mount it.** Its components and its route-side code ship with
   the release and stay on disk as part of Meridian's library; nothing renders the launcher, and the shell passes no
   assistant. Adopting them is a decision for whoever brings the collections and the model key.
