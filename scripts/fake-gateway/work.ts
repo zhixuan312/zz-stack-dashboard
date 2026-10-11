@@ -222,7 +222,36 @@ The scoring weights live in \`config/ranking.json\`; see https://docs.example.co
 > Out of scope: personalised ranking. Nothing here learns from one person's clicks.
 `;
 
-const body = (title: string) => `# ${title}\n\n## Summary\n\nWhat this document settles, in one paragraph a reader can act on.\n\n## Details\n\n- The first point, with the reason it holds.\n- The second point, and what would change it.\n`;
+/**
+ * A document's own text, shaped by the role the flow gives it.
+ *
+ * DELIBERATE, and the register says it plainly: sample data is "realistic data in the person's domain, never lorem
+ * ipsum or 'Item 1'". This used to be one generic body — "What this document settles, in one paragraph a reader can
+ * act on" — for every document and every source, which is what the craft step reads when it opens a rendered page. A
+ * spec that does not read like a spec makes the reading view look like a demonstration of one.
+ *
+ * Every body carries the clause "after two rounds of review" so `textOf` has something to vary for an earlier
+ * snapshot; without it a version chain would show two snapshots with identical text.
+ */
+/** Evidence attached to a document. A source carries no flow stage and its path is a bare filename, so it is told
+ *  apart by what it is rather than by where it sits — it is the one document nothing is gated on. */
+function sourceBody(title: string): string {
+  return `# ${title}\n\n## What it is\n\nA record of one afternoon's work, kept because a later decision leans on it. It is evidence,\nnever an agreement: nobody signs a source, and nothing is gated on one.\n\n## What it supports\n\nThe claim it was filed against, and the one figure in it that a reader would want to check: the\ncounts are of sessions on the sample index, not of the platform.\n`;
+}
+
+function body(title: string, path: string): string {
+  const head = `# ${title}\n\n`;
+  if (path.startsWith('explore')) {
+    return `${head}## What we are deciding\n\nWhether this is worth a spec at all, and which of two ways in we would take. Ground is\nwhat turns a feeling into something a spec can be written against.\n\n## What we found\n\nTwo things, and one of them only after the second look: the slow path is taken by the\nthing we thought was rare. Settled after two rounds of review.\n\n## What would change the answer\n\nA week of figures showing the other path is common, which the sample index cannot say.\n`;
+  }
+  if (path.startsWith('plan')) {
+    return `${head}## Approach\n\nContract first: the criteria below are written before anything is built, and each task\nnames the criterion it answers. Settled after two rounds of review.\n\n## Tasks\n\n- **I-1** The index carries the reason a result matched, so no caller reconstructs it.\n- **I-2** Suggestions come from the query log. A model never invents a spelling.\n- **I-3** The latency budget is measured on the sample index and printed by the gate.\n\n## What is not in this plan\n\nAnything that needs a person to be online while a query runs.\n`;
+  }
+  if (path.startsWith('review')) {
+    return `${head}## What was built\n\nThe plan's three tasks, in the order it named them, with the criteria traced back to\nthe checks that hold them.\n\n## What the evidence shows\n\nEvery acceptance criterion has a check, except one that the sample data cannot reach —\nthat one is written down as unmet rather than as passed. Settled after two rounds of review.\n\n## What is left\n\nTwo things a person has to decide, and neither is a defect: how long to keep the old\nindex beside the new one, and whether the budget moves with the corpus.\n`;
+  }
+  return `${head}## Summary\n\nWhat this document settles, in one paragraph a reader can act on, with the figure it\nleans on named so a later reader can check it. Settled after two rounds of review.\n\n## Details\n\n- The decision, the alternative it was chosen over, and what ruled that one out.\n- What would change it, and the measurement that would have to move first.\n`;
+}
 
 /** The snapshots of one document, oldest first: its public version, and whether it was approved.
  *  The rich spec has three versions over four snapshots — v3 was presented as r3 and approved as
@@ -238,11 +267,13 @@ function snapshotsOf(initiative: string, path: string, row: Doc): { version: num
 }
 
 /** A snapshot's text: the live text for the last one, and an earlier wording for the rest. */
+const ROUNDS = ['one', 'two', 'three', 'four'];
 function textOf(live: string, revision: number, count: number): string {
   if (revision === count) return live;
-  return live.includes('120 ms')
-    ? live.replace('120 ms', `${200 - revision * 25} ms`)
-    : live.replace('in one paragraph', `in one paragraph (snapshot ${revision})`);
+  const n = Math.min(revision, ROUNDS.length);
+  return live
+    .replace('after two rounds of review', `after ${ROUNDS[n - 1]} round${n === 2 ? '' : 's'} of review`)
+    .replace('120 ms', `${200 - revision * 25} ms`);
 }
 
 /** A snapshot's `content_revision`, shaped as the gateway's: `cr_` and 26 lowercase base32 characters, here of
@@ -275,7 +306,7 @@ export function documentDetail(team: string, initiative: string, path: string): 
   const row = d?.documents.find((x) => x.path === path);
   if (!d || !row) return null;
   const isSpec = initiative === '2026-09-28-search-relevance' && path === 'spec.md';
-  const text = isSpec ? SPEC_BODY : body(row.title ?? path);
+  const text = isSpec ? SPEC_BODY : body(row.title ?? path, path);
   const snaps = snapshotsOf(initiative, path, row);
   const current = snaps.length;
   // Who approved an earlier snapshot of a document that is a draft now: the initiative's stakeholder.
@@ -295,7 +326,7 @@ export function documentDetail(team: string, initiative: string, path: string): 
                                              content_revision: contentRevisionOf(team, initiative, path, sealed.revision),
                                              approved_at: ago(60 + (current - sealed.revision) * 20) } : null };
   });
-  const sources = d.documents.filter((x) => x.supports === path).map((x) => ({ path: x.path, title: x.title, body: body(x.title ?? x.path), supports: path, added: x.updated_at.slice(0, 10), bytes: x.bytes }));
+  const sources = d.documents.filter((x) => x.supports === path).map((x) => ({ path: x.path, title: x.title, body: sourceBody(x.title ?? x.path), supports: path, added: x.updated_at.slice(0, 10), bytes: x.bytes }));
   const decisions = d.decisions.filter((x) => x.path === path).map(({ path: _p, ...rest }) => rest);
   return {
     team, initiative, path, current_revision: current, current_version: snaps[current - 1].version, correction: row.correction,
@@ -326,7 +357,7 @@ export function documentRevision(team: string, initiative: string, path: string,
   const row = d?.documents.find((x) => x.path === path);
   if (!d || !row) return null;
   const isSpec = initiative === '2026-09-28-search-relevance' && path === 'spec.md';
-  const text = isSpec ? SPEC_BODY : body(row.title ?? path);
+  const text = isSpec ? SPEC_BODY : body(row.title ?? path, path);
   const snaps = snapshotsOf(initiative, path, row);
   if (!Number.isInteger(revision) || revision < 1 || revision > snaps.length) return null;
   return { version: snaps[revision - 1].version, revision, body: textOf(text, revision, snaps.length) };
