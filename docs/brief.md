@@ -66,6 +66,12 @@ agent opens the same view by naming the same parameters. `src/lib/address.ts` is
 - **The console-scope section is drawn for everyone; only its switch is earned.** `/settings` opens with it, so its
   presence may not depend on what `/me` says; the sentence says which of the two people has the choice, and the row holds
   the height it would have either way.
+- **Cache Components is on, and every route is partial.** `cacheComponents` and `partialPrefetching` are set in
+  `next.config.ts`, and `scripts/route-policy.ts` reads 2 static and 22 partial of 24 non-API routes. It is the
+  boundaries that make it work, not a server data layer: `app/(dash)/layout.tsx` is a Server Component rendering the
+  shell, and the rail, the tools and the palette each resolve their own reads behind their own `<Suspense>` with a
+  skeleton fallback. A route that fails with `CLIENT_HOOK_DYNAMIC` is asking for a boundary, and a page gets smaller
+  for it — `/initiatives` serves 38 KiB of HTML where it served 65.
 - **The assistant is Meridian's, and this console does not mount it.** Its components and its route-side code ship with
   the release and stay on disk as part of Meridian's library; nothing renders the launcher, and the shell passes no
   assistant. Adopting them is a decision for whoever brings the collections and the model key.
