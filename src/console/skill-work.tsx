@@ -70,7 +70,7 @@ export function SkillWorkPanel({ skills, loading, error, onRetry }: { skills: Sk
         const share = total > 0 ? metric(k, axis) / total : 0;
         return (
           <span title={`${(share * 100).toFixed(1)}% of all ${a.label.toLowerCase()}`} className="block h-1.5 overflow-hidden rounded-full bg-fill-track">
-            <span className="grow-x block h-full rounded-full bg-chart-neutral" style={{ width: `${share > 0 ? Math.max(1.5, share * 100) : 0}%` }} />
+            <span className="grow-x block h-full rounded-full bg-chart-neutral-strong" style={{ width: `${share > 0 ? Math.max(1.5, share * 100) : 0}%` }} />
           </span>
         );
       },
