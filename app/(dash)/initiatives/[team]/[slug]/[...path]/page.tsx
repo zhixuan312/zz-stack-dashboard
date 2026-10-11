@@ -119,12 +119,16 @@ export default function DocumentPage({ params }: { params: Promise<{ team: strin
       description={
         <span className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
           <span className="font-mono text-sm">{rel}{version ? ` · v${version}` : ''}</span>
-          {/* The status is three things at most — a version, a badge, and "needed to close" — and all three arrive with
-              the read. At 390px that is enough to wrap this line, and the masthead row is above everything, so the
-              whole page moves down once. **Measured on the two documents whose status says the most** —
-              `2026-10-02-query-latency` and `2026-10-04-index-rebuild`, both `needed to close` — **CLS 0.121 and 0.149,
-              with the Row below them named as the shifted element**, while the same page shape on a document with a
-              plain status measures 0.033. So the room is held while the read is in flight, as it is for the body. */}
+          {/* The status arrives with the read, and the masthead row is above everything, so whatever the status line's
+              height does when it lands, the whole page below it moves once. **Measured: with this slot held, the two
+              pages that failed CLS go 0.121 → 0.014 and 0.149 → 0.000, and the control — the same page shape on a
+              document with a plain status — goes 0.033 → 0.000.** All three then fail on LCP alone.
+              **What is measured is that holding the slot fixes it. What is NOT established is which string made the
+              line wrap.** I wrote `needed to close` here first, and `work.ts:158` sets `requiredForClose` for
+              `verification` documents — not for the two `spec.md` files that fail. The two seeds carry `moving` and
+              `unrecordable`, and no other seed does, so the line may grow for a reason I have not named. The reserve
+              covers the *slot*, which is why it works either way; the sentence above is the measurement, and this one
+              is the open question. */}
           {d ? <DocStatus status={d.status} outcome={d.outcome} gated={d.gated} requiredForClose={d.requiredForClose} correction={d.correction} /> : <Skeleton className="h-5 w-40 rounded-full" />}
         </span>
       }
