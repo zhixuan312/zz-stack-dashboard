@@ -119,16 +119,18 @@ export default function DocumentPage({ params }: { params: Promise<{ team: strin
       description={
         <span className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
           <span className="font-mono text-sm">{rel}{version ? ` · v${version}` : ''}</span>
-          {/* The status arrives with the read, and the masthead row is above everything, so whatever the status line's
-              height does when it lands, the whole page below it moves once. **Measured: with this slot held, the two
-              pages that failed CLS go 0.121 → 0.014 and 0.149 → 0.000, and the control — the same page shape on a
-              document with a plain status — goes 0.033 → 0.000.** All three then fail on LCP alone.
-              **What is measured is that holding the slot fixes it. What is NOT established is which string made the
-              line wrap.** I wrote `needed to close` here first, and `work.ts:158` sets `requiredForClose` for
-              `verification` documents — not for the two `spec.md` files that fail. The two seeds carry `moving` and
-              `unrecordable`, and no other seed does, so the line may grow for a reason I have not named. The reserve
-              covers the *slot*, which is why it works either way; the sentence above is the measurement, and this one
-              is the open question. */}
+          {/* The status arrives with the read, and the masthead row is above everything, so whatever its line does when
+              it lands, the whole page below moves once. So the room is held while the read is in flight.
+
+              **What this does and does not do, corrected after a full sweep contradicted my first measurement.** Alone
+              on a quiet box it takes the two failing pages from 0.121 and 0.149 to 0.014 and 0.000. In the suite sweep —
+              where three heavy suites run at once — **they measure 0.121 and 0.149, unchanged from before this was
+              added.** Layout does not depend on load, so the shift's size is the same either way; what load changes is
+              *when the read lands*. Alone it lands around 350 ms, long before the ~2,100 ms first paint, so the shift
+              is not counted. Under contention it lands after, and it is. **So this is not "fixed" — it is a reserve
+              whose width is a guess, measured working on a quiet box and not holding under the instrument the standard
+              uses.** The `w-40` is the suspect: the real status can render a badge *and* "needed to close", and a
+              reserve narrower than the thing it stands for still lets the line wrap. Open, with that as the lead. */}
           {d ? <DocStatus status={d.status} outcome={d.outcome} gated={d.gated} requiredForClose={d.requiredForClose} correction={d.correction} /> : <Skeleton className="h-5 w-40 rounded-full" />}
         </span>
       }
