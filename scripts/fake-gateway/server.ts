@@ -115,7 +115,7 @@ function present(signing: boolean, q: URLSearchParams, body: Record<string, unkn
   const store = team === ME.activeTeam ? revisionInStore(team, initiative, path) : null;
   if (!store) return [400, { error: `ERROR: ${initiative}/${path} is not a document of ${ME.activeTeam ?? 'any team'}.` }];
   // zz-core's refusal when it resolves no team for the caller, which the gateway answers 400 with zz-core's sentence.
-  if (!signing && refusesRecord(team, initiative, path)) return [400, { error: 'ERROR: no team to record this for' }];
+  if (!signing && refusesRecord(team, initiative, path)) return [400, { error: 'the console is not acting for the team this document belongs to, so there is nowhere to record it' }];
   if (held !== store) {
     return [409, signing
       ? { conflict: 'changed', error: `${path} changed after this page showed it, so it was not approved. Reload to read what it says now, then approve that.`,

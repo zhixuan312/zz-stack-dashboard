@@ -5,6 +5,7 @@ import { KeyRound, ShieldAlert } from 'lucide-react';
 import { startRegistration } from '@simplewebauthn/browser';
 import { Banner } from '@/components/ui/banner';
 import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 import { Standalone, StandalonePanel } from '@/console/standalone';
 
 /**
@@ -107,6 +108,11 @@ export default function EnrolPage() {
       <Banner tone="warning" title="Open the whole link" icon={<ShieldAlert />} className="mt-8 max-w-xl">
         This page needs the link an administrator sent you, opened whole, including everything after the <code className="font-mono text-xs">#</code>. Accounts are created on the platform, so there is nothing to fill in here.
       </Banner>
+      {/* The way back. `/signed-out` offers "Sign in again" and the 404 offers "Back to the console"; this screen offered
+          nothing at all, and Meridian's own shell makes the wordmark a `<span>` rather than a link, so a person who
+          arrived without the fragment had no control to press anywhere on the page. Secondary, not primary: the action
+          this screen is for is reopening the whole link, and signing in is the other way in rather than the asked-for one. */}
+      <Button asChild variant="secondary" size="lg" className="mt-6"><Link href="/login">Sign in instead</Link></Button>
     </Standalone>
   );
 }

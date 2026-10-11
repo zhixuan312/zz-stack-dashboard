@@ -213,7 +213,9 @@ describe('the fake gateway as the sweep uses it', () => {
     const shown = await fetch(`${base}/api/console/documents/shown?team=atlas`, { method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ initiative: '2026-10-04-index-rebuild', path: 'spec.md', content_revision: doc.content_revision }) });
     expect(shown.status).toBe(400);
-    expect(await shown.json()).toEqual({ error: 'ERROR: no team to record this for' });
+    // The gateway's sentence, not a developer's: the console prints this under its own sentence on the page, so it
+    // reads to the person rather than to whoever wrote the route.
+    expect(await shown.json()).toEqual({ error: 'the console is not acting for the team this document belongs to, so there is nowhere to record it' });
   });
 });
 
