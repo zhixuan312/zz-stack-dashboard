@@ -1,6 +1,7 @@
 'use client';
 
 import { Panel } from '@/console/panel';
+import { plural } from '@/console/words';
 import { CompositionBar } from '@/components/charts/composition-bar';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -111,7 +112,7 @@ export function EvalHealth({ run }: { run: Run | null }) {
     return <Panel title="Health"><Quiet title="Nothing to check" description="No completed run to read guardrails from." /></Panel>;
   }
   return (
-    <Panel title="Health" description={`${run.guardrails.length} guardrail${run.guardrails.length === 1 ? '' : 's'}`}>
+    <Panel title="Health" description={`${run.guardrails.length} ${plural(run.guardrails.length, 'guardrail')}`}>
       {run.guardrails.length === 0 ? (
         <p className="py-2 text-sm text-ink-3">This protocol declares no critical guardrail.</p>
       ) : (
@@ -159,7 +160,7 @@ export function EvalQuality({ run }: { run: Run | null }) {
   const applicable = run.dimensions.filter((d) => d.applicable);
   const notApplicable = run.dimensions.filter((d) => !d.applicable);
   return (
-    <Panel title="Quality" description={`${applicable.length}/${run.dimensions.length} dimension(s) applicable`}>
+    <Panel title="Quality" description={`${applicable.length} of ${run.dimensions.length} ${plural(run.dimensions.length, 'dimension')} applicable`}>
       {/* The bar reads in the same units as overall_score's own formula (`10 × Σ weight × score`): a part is its point
           contribution, not a raw fraction of 1, so the parts at their measured scores sum to the headline number. */}
       <CompositionBar

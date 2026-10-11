@@ -58,6 +58,10 @@ export default function PeoplePage() {
   }, [people, f.q, f.team]);
   const clear = () => set({ q: '', team: 'all', page: '1' });
   const tokens = people.reduce((a, p) => a + p.tokens, 0);
+  // Counted once and pluralised at the caption: `2 superadmin` and `Held by 1 people` were both printing here, which
+  // is the seventh and eighth place this round found a number followed by a noun that does not agree with it.
+  const supers = people.filter((p) => p.role === 'superadmin').length;
+  const holders = people.filter((p) => p.tokens > 0).length;
 
   return (
     <ConsolePage
@@ -67,8 +71,8 @@ export default function PeoplePage() {
       updatedAt={freshnessOf(q)}
     >
       <Row split="tiles">
-        <MetricTile label="People" icon={<UserRound />} value={q.data ? people.length : q.isPending ? '…' : '—'} note={`${people.filter((p) => p.role === 'superadmin').length} superadmin`} />
-        <MetricTile label="Live tokens" icon={<KeyRound />} value={q.data ? tokens : q.isPending ? '…' : '—'} note={`Held by ${people.filter((p) => p.tokens > 0).length} people`} />
+        <MetricTile label="People" icon={<UserRound />} value={q.data ? people.length : q.isPending ? '…' : '—'} note={`${supers} ${plural(supers, 'superadmin')}`} />
+        <MetricTile label="Live tokens" icon={<KeyRound />} value={q.data ? tokens : q.isPending ? '…' : '—'} note={`Held by ${holders} ${plural(holders, 'person', 'people')}`} />
         <MetricTile label="Never used a token" icon={<UserX />} value={q.data ? people.filter((p) => !p.last_used).length : q.isPending ? '…' : '—'} note="No platform call on record" />
         <MetricTile label="Teams" icon={<Users />} value={q.data ? new Set(people.flatMap((p) => p.teams.map(teamSlug))).size : q.isPending ? '…' : '—'} note="Across everyone listed" />
       </Row>

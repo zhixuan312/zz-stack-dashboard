@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
+import { plural } from '@/console/words';
 import { FlowPosition, useWaitingGates } from '@/console/initiative';
 import { Panel } from '@/console/panel';
 import { When } from '@/console/when';
@@ -20,7 +21,7 @@ export function WaitingPanel() {
   return (
     <Panel
       title="Waiting on you"
-      description={q.data ? (waiting.length ? `${waiting.length} ${waiting.length === 1 ? 'gate needs' : 'gates need'} a person's approval` : 'Nothing needs a signature') : 'Gates that need a signature'}
+      description={q.data ? (waiting.length ? `${waiting.length} ${plural(waiting.length, 'gate needs', 'gates need')} a person's approval` : 'Nothing needs a signature') : 'Gates that need a signature'}
       flush
     >
       {q.isPending ? (

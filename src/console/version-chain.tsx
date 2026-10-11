@@ -270,7 +270,7 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
           </div>
         </Panel>
       ) : sources.length ? (
-        <Panel title="Sources behind the change" description={`${sources.length} ${sources.length === 1 ? 'source' : 'sources'}`}>
+        <Panel title="Sources behind the change" description={`${sources.length} ${plural(sources.length, 'source')}`}>
           <ul className="flex flex-col gap-3">
             {sources.map((s) => (
               <li key={s.path}>

@@ -1,6 +1,7 @@
 'use client';
 
 import { Panel } from '@/console/panel';
+import { plural } from '@/console/words';
 import { CompositionBar } from '@/components/charts/composition-bar';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -98,7 +99,7 @@ export function EvalLearning({ findings }: { findings: PluginEval['findings'] | 
     return <Panel title="Learning"><Quiet title="No finding recorded" description="This run produced no strength, defect or unknown yet." /></Panel>;
   }
   return (
-    <Panel title="Learning" description={`${total} finding${total === 1 ? '' : 's'}`}>
+    <Panel title="Learning" description={`${total} ${plural(total, 'finding')}`}>
       <CompositionBar
         label="Findings by kind"
         parts={[

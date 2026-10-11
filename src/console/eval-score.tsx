@@ -1,6 +1,7 @@
 'use client';
 
 import { Badge } from '@/components/ui/badge';
+import { plural } from '@/console/words';
 import { When } from '@/console/when';
 import type { PluginRow } from '@/lib/api-shapes';
 
@@ -45,7 +46,7 @@ export function EvalVerdict({ of }: { of: Verdict | null }) {
     <span className="inline-flex flex-col items-center gap-0.5">
       <Badge tone={STATUS_TONE[status] ?? 'neutral'}>{said(status)}</Badge>
       {of.openDefects ? (
-        <span className="text-2xs tabular-nums text-ink-3">{of.openDefects} open defect{of.openDefects === 1 ? '' : 's'}</span>
+        <span className="text-2xs tabular-nums text-ink-3">{of.openDefects} open {plural(of.openDefects, 'defect')}</span>
       ) : null}
     </span>
   );

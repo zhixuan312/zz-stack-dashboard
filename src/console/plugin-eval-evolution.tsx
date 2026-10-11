@@ -1,6 +1,7 @@
 'use client';
 
 import { Panel } from '@/console/panel';
+import { plural } from '@/console/words';
 import { Badge } from '@/components/ui/badge';
 import { When } from '@/console/when';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -35,7 +36,7 @@ function Quiet({ title, description }: { title: string; description: string }) {
  */
 export function EvalEvolution({ pluginEval }: { pluginEval: PluginEval }) {
   const { candidates, ownershipMode } = pluginEval;
-  const aside = ownershipMode === 'evaluation_only' ? 'Evaluation only' : `${candidates.length} candidate${candidates.length === 1 ? '' : 's'}`;
+  const aside = ownershipMode === 'evaluation_only' ? 'Evaluation only' : `${candidates.length} ${plural(candidates.length, 'candidate')}`;
   if (!candidates.length) {
     return (
       <Panel title="Evolution" description={aside}>

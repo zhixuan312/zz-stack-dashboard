@@ -161,6 +161,45 @@ for (const f of [...walk('app', /\.tsx$/), ...walk('src/console', /\.tsx$/)]) {
   }
 }
 
+// ── A count agrees with its noun ──────────────────────────────────────────────────────────────────────
+/* `src/console/words.ts` is the one place a plural is decided. It was written because the same plural was wrong in six
+ * files while the idiom sat in four others — and writing it down did not stop it: a sweep after the fact found **eight
+ * more**, six of them a hand-rolled `=== 1 ? '' : 's'` at the call site and two that printed wrong on the page today
+ * (`2 superadmin` on `/people`, `2 admin` on a team page).
+ *
+ * That is the mechanism this round keeps meeting: a rule written where it is first needed is a rule the second use
+ * re-derives. Two shapes are refused here, and **only these two, because only these two cannot be anything else**:
+ *
+ * - `=== 1 ? '' : 's'` — an empty branch beside a bare `s` is never anything but a plural.
+ * - `.length === 1 ? '…' : '…'` — a length choosing between two quoted forms is always a count agreeing with a noun.
+ *
+ * **Everything wider was tried and thrown away, and that is the part worth keeping.** The first draft matched
+ * `'…(s)…'` and fired on **six files that contain no plural at all**: between two single quotes anywhere in a file,
+ * `(s)` is far more often an arrow function's parameter, `filter((s) => …)`, than a lazy plural. Widening the left
+ * operand to any word ending in `s`, to catch `of.openDefects`, would fire on every `status === 1 ? 'active' : 'idle'`
+ * in the product. **A scanner that reads two statements as one is worse than no scanner: it is loud, it is wrong, and
+ * it gets switched off** — this round's own lesson about checks, applied to a check. The residue, a bare count
+ * variable choosing between two quoted nouns, is left to a reader, and was found by one.
+ *
+ * `words.ts` is exempt: it is where the ternary belongs. */
+const HAND_ROLLED = [
+  /===\s*1\s*\?\s*''\s*:\s*'s'/,
+  /===\s*1\s*\?\s*""\s*:\s*"s"/,
+  /\.length\s*===\s*1\s*\?\s*'[^'\n]*'\s*:\s*'[^'\n]*'/,
+  /\.length\s*===\s*1\s*\?\s*"[^"\n]*"\s*:\s*"[^"\n]*"/,
+];
+for (const f of [...walk('app', /\.tsx?$/), ...walk('src/console', /\.tsx?$/)]) {
+  if (f === 'src/console/words.ts') continue;
+  const src = noComments(read(f));
+  for (const re of HAND_ROLLED) {
+    const hit = re.exec(src);
+    if (hit) {
+      problems.push(`${f}: decides a plural itself (${JSON.stringify(hit[0])}) — use \`plural(n, 'noun')\` from \`src/console/words.ts\`, which is the one place it is decided`);
+      break;
+    }
+  }
+}
+
 // ── Size: the console's ceiling ──────────────────────────────────────────────────────────────────────
 const CEILING = 700;
 for (const f of [...SOURCE, ...walk('scripts', /\.tsx?$/), ...walk('tests', /\.tsx?$/)]) {
