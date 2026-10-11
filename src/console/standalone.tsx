@@ -17,8 +17,13 @@ export function Standalone({ kicker, sentence, lead, aside, pose, children }: { 
           {app.name}
         </span>
       </header>
-      <div className="mx-auto grid w-full max-w-(--stage-width) flex-1 items-center gap-12 px-(--gutter) pt-6 pb-16 lg:grid-cols-[minmax(0,1.25fr)_minmax(22rem,26rem)] lg:gap-20">
-        <div className="min-w-0">
+      {/* Three blocks, not two, because the order differs by width and one column cannot express both. A phone reads
+          top to bottom — what this is, then what to do about it, then what it holds. `aside` is documented as "the panel
+          a person acts in", and putting `children` before it in the DOM (which the wide layout wants) put `Sign in`
+          under three paragraphs about the product: the action was below the fold on every phone. On `lg` the hero and
+          what it holds stack in the left column and the action takes the right, spanning both. */}
+      <div className="mx-auto grid w-full max-w-(--stage-width) flex-1 items-center gap-12 px-(--gutter) pt-6 pb-16 lg:grid-cols-[minmax(0,1.25fr)_minmax(22rem,26rem)] lg:content-center lg:gap-x-20">
+        <div className="min-w-0 lg:col-start-1 lg:row-start-1">
           {pose ? <Mascot pose={pose} scale={1.25} className="mb-10 w-fit" /> : null}
           {kicker ? <p className="t-kicker mb-6">{kicker}</p> : null}
           <h1 className="t-display max-w-[13ch] text-balance">
@@ -26,9 +31,9 @@ export function Standalone({ kicker, sentence, lead, aside, pose, children }: { 
             <span className="text-accent">.</span>
           </h1>
           {lead ? <p className="t-lead mt-6 max-w-[46ch]">{lead}</p> : null}
-          {children}
         </div>
-        {aside ? <div className="min-w-0 max-lg:max-w-md">{aside}</div> : null}
+        {aside ? <div className="min-w-0 max-lg:max-w-md lg:col-start-2 lg:row-span-2 lg:row-start-1">{aside}</div> : null}
+        {children ? <div className="min-w-0 lg:col-start-1 lg:row-start-2">{children}</div> : null}
       </div>
       <footer className="flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-line px-(--gutter) py-5 text-xs text-ink-3">
         <span>{app.name} · AI friend for a brighter you</span>
