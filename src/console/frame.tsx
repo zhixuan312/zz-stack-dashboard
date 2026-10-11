@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useConsole, useConsoleMode, useDataClock } from '@/lib/api';
 import type { Me } from '@/lib/api-shapes';
 import { navGroups } from '@/nav';
+import { useLive } from '@/lib/live';
 import { useWaitingGates } from '@/console/initiative';
 
 /** Sign out is a POST, so a link prefetch can never end a session: build the form and submit it. */
@@ -25,6 +26,12 @@ function signOut() {
  * needs you" without being asked.
  */
 function useWaitingAlerts(enabled: boolean): Alert[] {
+  /* The chrome reads too, so the chrome registers too: without this the bell keeps a count nothing ever corrects. It is
+   * the ONE place the console says "this needs you", and a gate approved in another tab left it stale on every page
+   * whose own read is not also `initiatives` — which is all of them but two. Registered here, beside the read, rather
+   * than by the pages: what a component shows is the component's to declare. Nothing registers while the bell is
+   * disabled and reading nothing. */
+  useLive(enabled ? ['initiatives'] : []);
   const q = useWaitingGates(enabled);
   return (q.data?.waiting ?? []).map((w) => ({
     id: w.id,
@@ -112,6 +119,7 @@ export function ConsoleRail() {
 }
 
 function ResolvedRail() {
+  useLive(['me']);
   const me = useConsole<Me>('/me');
   const { mode, setMode } = useConsoleMode();
   const team = me.data?.activeTeam;
