@@ -132,8 +132,13 @@ What stays the console's own, and why:
 - `src/app.config.ts`, `src/nav.ts`, `src/console/`, `app/`, `src/lib/{api,mutate,api-shapes,address,format,color,knowledge-filters}.ts`
   and the rest of the data layer: the console's product, its routes and the shape the gateway answers in.
 - `src/lib/period.ts`: the 24-hour period, all time by default, and `PERIOD_SHORT`'s `24H`.
+- `src/views/console-live.tsx`: the release's team-owned live glue, adopted whole with its one product-specific part
+  replaced — `refresh` drops React Query's cache for the collection a hint names, where the release calls a Server Action
+  and refreshes the router, because this product reads from the browser and has nothing on the server to drop.
 - `scripts/check.local.ts` and `scripts/verify.config.ts`: the project's half of Meridian's hooks.
-- `scripts/fake-gateway/` and `scripts/approve-banners.ts`: the fixture `verify` runs against.
+- `scripts/fake-gateway/`, `scripts/approve-banners.ts` and `scripts/live-check.ts`: the fixture and the product's own
+  checks that `verify` runs. The live check drives a change through the fake gateway's own hooks, which wear the path
+  the app proxies (`/api/console/__hint`) so a check never has to know the gateway's address.
 
 What `verify` cannot say is how the pages look against production data. The fixtures cover the states a page draws,
 and real data has more.
