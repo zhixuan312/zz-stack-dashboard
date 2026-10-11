@@ -136,6 +136,11 @@ What stays the console's own, and why:
   replaced — `refresh` drops React Query's cache for the collection a hint names, where the release calls a Server Action
   and refreshes the router, because this product reads from the browser and has nothing on the server to drop.
 - `scripts/check.local.ts` and `scripts/verify.config.ts`: the project's half of Meridian's hooks.
+- **Two local fixes stand in for gaps Meridian has now fixed upstream, and should be removed when the release carries them.**
+  `/activity`'s `kind` column declares `align: 'left'` because a phone card's title used to keep its table alignment;
+  Meridian's `data-table` resets it now. And the craft screenshots are taken against `next start` rather than
+  `next dev`, which is what `standard.md` prescribes now. Both were reported with measurements, both were fixed in the
+  template's own repository on 2026-10-11, and neither is in 0.14.0.
 - `proxy.ts`: the laptop's dev-only PAT passthrough, plus one addition this product made — a preload hint for a
   document route's read. A route with an unknown dynamic param cannot render its page on the server, so nothing writes
   the hint `useConsole` was designed to write from the HTML, and the read then waits for the route's own JS. Measured:
