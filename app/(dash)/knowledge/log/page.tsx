@@ -17,8 +17,6 @@ import { useLive } from '@/lib/live';
 function columns(multiTeam: boolean): Column<KnowledgeLogEntry>[] {
   return aligned([
     { key: 'when', header: 'When', width: 'w-32', mobile: 'fact', cell: (e) => <When at={e.ts} /> },
-    // Recorded is the ordinary act; superseded is the one a reader looks for, so it carries the colour.
-    { key: 'act', header: 'Act', hideBelow: 'md', mobile: 'status', cell: (e) => (e.kind === 'knowledge.add' ? <Badge tone="neutral" dot>Recorded</Badge> : <Badge tone="warning" dot>Superseded</Badge>) },
     {
       // The title as it stands now, falling back to the one typed at the time: "node 3" is a number nobody recognises.
       key: 'node', header: 'Node', align: 'left', grow: true, mobile: 'title',
@@ -30,6 +28,11 @@ function columns(multiTeam: boolean): Column<KnowledgeLogEntry>[] {
       ),
       mobileCell: (e) => e.node_title ?? e.recorded_title ?? `node ${e.node}`,
     },
+    // The row's name leads, then what happened to it: Meridian's phone rules give the title and the status the same
+    // `order`, so the column order decides which of the two sits on the card's left edge, and a status ahead of the name
+    // pushed the title into whatever width the badge left it. Every other list here leads with the name.
+    // Recorded is the ordinary act; superseded is the one a reader looks for, so it carries the colour.
+    { key: 'act', header: 'Act', hideBelow: 'md', mobile: 'status', cell: (e) => (e.kind === 'knowledge.add' ? <Badge tone="neutral" dot>Recorded</Badge> : <Badge tone="warning" dot>Superseded</Badge>) },
     ...(multiTeam ? [{ key: 'team', header: 'Team', hideBelow: 'xl' as const, cell: (e: KnowledgeLogEntry) => e.team ?? '—' }] : []),
     { key: 'who', header: 'Who', hideBelow: 'lg', cell: (e) => (e.actor ? e.actor.split('@')[0] : '—') },
   ]);
