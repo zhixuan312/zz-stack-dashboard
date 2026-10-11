@@ -18,12 +18,14 @@ const opt = (k: string, d: string) => { const i = args.indexOf(k); return i >= 0
 const base = opt('--base', 'http://localhost:3100');
 const width = Number(opt('--width', '1024'));
 const theme = opt('--theme', 'light') as 'light' | 'dark';
+const rate = Number(opt('--throttle', '1'));
 const routes = args.length ? args : ['/'];
 
 const page = await launch();
 try {
   for (const route of routes) {
-    await page.open(`${base}${route}`, { width, theme, wait: 2500 });
+    if (rate > 1) await page.send('Emulation.setCPUThrottlingRate', { rate });
+    await page.open(`${base}${route}`, { width, theme, wait: 4000 });
     console.log(`\n===== ${route} @${width}px ${theme} =====`);
     console.log(page.errors.length ? page.errors.join('\n') : '(no error logged)');
   }
