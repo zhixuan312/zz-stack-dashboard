@@ -103,7 +103,7 @@ export default function InitiativePage({ params }: { params: Promise<{ team: str
                 rowHref={(x) => `${base}/${encodePath(x.path)}`}
                 pageSize={10}
                 pageSizes={[10, 20, 50]}
-                toolbar={<div><h2 className="t-card">Documents</h2><p className="t-caption mt-1">In the order the flow produces them</p></div>}
+                toolbar={<div><h2 className="t-card">Documents</h2><p className="t-caption mt-1">{d.of ? 'In the order the flow produces them' : 'Everything written in this initiative'}</p></div>}
                 empty={{ title: 'Nothing written yet', body: 'The first stage of the flow writes the first document.' }}
               />
               {sources.length ? (
