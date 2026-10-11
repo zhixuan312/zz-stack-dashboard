@@ -21,6 +21,19 @@ export type VerifyConfig = {
    */
   budgets?: { htmlKb?: Record<string, number> };
   /**
+   * One check for every route in the rail. `--full` and `--perf` fail on a rail route that has none; the default smoke
+   * reports its data and interaction as not configured. Probes never write.
+   */
+  navigationChecks?: {
+    path: string;
+    title: string;
+    readySelector: string;
+    readyText?: string;
+    probe: 'dialog' | 'filter' | 'sort' | 'toggle' | 'link';
+    controlSelector: string;
+    resultSelector: string;
+  }[];
+  /**
    * Routes that cannot be prerendered, each with the reason. `node scripts/route-policy.ts`, which verify runs after its
    * production build, fails any non-API route that is neither static nor partial unless it is named here.
    */
@@ -39,6 +52,20 @@ const config: VerifyConfig = {
    * a fifth above what they measure, which is room for a column and not for a second table.
    */
   budgets: { htmlKb: { '/initiatives': 80, '/people': 80 } },
+  /**
+   * The three routes the default smoke visits — the landing route and the next two in the rail. Each selector was read
+   * off the built app served against the fake gateway on 2026-10-11, not guessed: `/` draws 26 table rows and one
+   * `aria-haspopup="dialog"` control, `/teams` 4 rows and one search field, `/initiatives` 11 rows and one.
+   *
+   * The probe is the one that changes something unambiguous. On `/teams` and `/initiatives` a search field filters the
+   * rows it is beside; on `/` there is no search field, and its radios are two segmented groups whose checked item
+   * simply moves, so the dialog is the change this can read.
+   */
+  navigationChecks: [
+    { path: '/', title: 'Overview', readySelector: 'main table tbody tr', probe: 'dialog', controlSelector: 'main button[aria-haspopup="dialog"]', resultSelector: '[role="dialog"]' },
+    { path: '/teams', title: 'Teams', readySelector: 'main table tbody tr', probe: 'filter', controlSelector: 'main input[type="search"]', resultSelector: 'main table tbody tr' },
+    { path: '/initiatives', title: 'Initiatives', readySelector: 'main table tbody tr', probe: 'filter', controlSelector: 'main input[type="search"]', resultSelector: 'main table tbody tr' },
+  ],
   /**
    * Every non-API route whose rendering `scripts/route-policy.ts` cannot read, with why.
    *
