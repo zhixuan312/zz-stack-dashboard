@@ -117,20 +117,17 @@ export default function DocumentPage({ params }: { params: Promise<{ team: strin
       title={d?.title || rel.replace(/^sources\//, '')}
       crumbs={[{ label: 'Initiatives', href: '/initiatives' }, { label: team, href: `/teams/${team}` }, { label: slug, href: `/initiatives/${team}/${slug}` }]}
       description={
-        <span className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        // TWO ROWS ALWAYS, and the second one is the status's own. It used to be a single wrapping line with the status
+        // appended, so whether that line took one row or two depended on **the width of a badge that arrives with the
+        // read** — and the masthead is above everything, so when it took two the whole page below moved once.
+        //
+        // A wider placeholder does not fix that; nothing in a row of variable content can. What fixes it is taking the
+        // status out of the row that decides the height. **Measured on a quiet box the shift is never counted** (the
+        // read lands ~350 ms; the phone profile's first paint is ~2,100 ms) **and under the sweep it is** — 0.121 and
+        // 0.149 against a 0.1 bar — which is why two hand measurements and a full suite disagreed about the same build
+        // for an hour. Removing the shift is the only answer that does not depend on which of those runs you are in.
+        <span className="flex flex-col items-start gap-1.5">
           <span className="font-mono text-sm">{rel}{version ? ` · v${version}` : ''}</span>
-          {/* The status arrives with the read, and the masthead row is above everything, so whatever its line does when
-              it lands, the whole page below moves once. So the room is held while the read is in flight.
-
-              **What this does and does not do, corrected after a full sweep contradicted my first measurement.** Alone
-              on a quiet box it takes the two failing pages from 0.121 and 0.149 to 0.014 and 0.000. In the suite sweep —
-              where three heavy suites run at once — **they measure 0.121 and 0.149, unchanged from before this was
-              added.** Layout does not depend on load, so the shift's size is the same either way; what load changes is
-              *when the read lands*. Alone it lands around 350 ms, long before the ~2,100 ms first paint, so the shift
-              is not counted. Under contention it lands after, and it is. **So this is not "fixed" — it is a reserve
-              whose width is a guess, measured working on a quiet box and not holding under the instrument the standard
-              uses.** The `w-40` is the suspect: the real status can render a badge *and* "needed to close", and a
-              reserve narrower than the thing it stands for still lets the line wrap. Open, with that as the lead. */}
           {d ? <DocStatus status={d.status} outcome={d.outcome} gated={d.gated} requiredForClose={d.requiredForClose} correction={d.correction} /> : <Skeleton className="h-5 w-40 rounded-full" />}
         </span>
       }
