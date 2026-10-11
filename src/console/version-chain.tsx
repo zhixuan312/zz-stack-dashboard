@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import Link from 'next/link';
 import { FileText, GitCompare } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Select } from '@/components/ui/select';
@@ -50,6 +51,9 @@ function useRevisionText(doc: DocumentDetail, revision: number | undefined): Rev
  * both halves. The diff answers "what changed"; the sources beside it answer
  * "why" — every source declares the document it supports.
  */
+/** A path as an address: each segment encoded, the slashes kept. */
+const encodePath = (path: string) => path.split('/').map(encodeURIComponent).join('/');
+
 export function VersionChain({ doc }: { doc: DocumentDetail }) {
   const sources = doc.sources ?? [];
 
@@ -270,10 +274,12 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
           <ul className="flex flex-col gap-3">
             {sources.map((s) => (
               <li key={s.path}>
-                <p className="break-words text-sm font-medium text-ink">{s.title || s.path}</p>
-                <p className="mt-1 max-w-[80ch] whitespace-pre-wrap break-words text-sm leading-relaxed text-ink-2">
-                  {s.body?.trim()}
-                </p>
+                {/* The title, and the way in. DELIBERATE: a source's body is not inlined here. It was, as
+                    `whitespace-pre-wrap` plain text, which printed the stored markdown's own syntax on the page — a
+                    reader met `# sources/…` and `## What it is` — and a source whose title is absent fell back to its
+                    path, so the path appeared twice. A list of the evidence behind a change is a list: each one opens
+                    its own page, where the body renders as prose like every other document. */}
+                <Link href={`/initiatives/${doc.team}/${doc.initiative}/${encodePath(s.path)}`} className="hit text-sm font-medium text-ink [overflow-wrap:anywhere] hover:text-accent-ink">{s.title || s.path}</Link>
               </li>
             ))}
           </ul>
