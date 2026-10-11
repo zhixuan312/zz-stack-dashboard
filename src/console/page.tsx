@@ -40,7 +40,8 @@ export function ConsolePage({
   actions?: ReactNode;
   /** Tabs or filters that govern the whole page, in a band under the masthead. */
   toolbar?: ReactNode;
-  /** `reading` for a document, a form or prose. */
+  /** `data` for a page read across the canvas, `form` for one whose head column and field-width card add up to a
+   *  measure of their own, `reading` for one long document. */
   width?: PageWidth;
   children: ReactNode;
 }) {

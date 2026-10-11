@@ -20,7 +20,7 @@ import { useLive } from '@/lib/live';
 export default function SettingsPage() {
   useLive(['settings']);
   return (
-    <ConsolePage title="Settings" description="What this console shows you, plus your tokens, client setup and teams." showPeriod={false}>
+    <ConsolePage title="Settings" description="What this console shows you, plus your tokens, client setup and teams." showPeriod={false} width="form">
       {/* Sections 56px apart, as Meridian's settings stack them: yours, then your team's, then the platform's. */}
       <div className="flex flex-col gap-14">
         <ConsoleScopePanel />
