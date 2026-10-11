@@ -108,7 +108,12 @@ export function FlowStepper({ gates, outcome, steps, complete, correction }: {
           {/* DELIBERATE: a stage carries its number whether it is done or not, and the tick — or the skipped/waiting
               glyph — is a corner badge beside it, because the sequence a reader counts along is the flow's stages.
               The two bookends carry a dot instead: they are not stages, and numbering them put this stepper one ahead
-              of the `at of of` the panel above it reads. */}
+              of the `at of of` the panel above it reads.
+              The number drawn is `i` and NOT `n`, and `n = i + 1` sixty lines above makes that look like a slip. It
+              is the whole point: `i` counts the `open` bookend, so it is a stage's position among the flow's OWN
+              stages, which is the number the panel reads. `n` counts every node, so it is one ahead — it keys the gate
+              map and does nothing else. Changing this to `n` reintroduces the disagreement the sentence above fixed;
+              `tests/flow-stepper.test.tsx` pins it. */}
           {bookend ? <span aria-hidden className="size-1.5 rounded-full bg-current" /> : i}
           {done && (
             <span className="absolute -right-1 -top-1 grid size-[13px] place-items-center rounded-full bg-positive"

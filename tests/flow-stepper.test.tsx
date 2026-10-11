@@ -59,6 +59,23 @@ describe('FlowStepper — skipped and waiting', () => {
   });
 });
 
+describe('FlowStepper — the numbering', () => {
+  /** The panel above the stepper reads "Stage N of M" over the flow's OWN stages, so the circle beside a stage must
+   *  read the same N. `open` and `closed` are bookends the API appends, and numbering them put every circle one ahead
+   *  of the panel — which is why the code draws `i` rather than the `n = i + 1` that sits above it. This test exists
+   *  because that reads like a slip and will be "fixed" back to `n` by someone who has not seen the panel. */
+  it('numbers a stage by its place among the flow’s own stages, bookends aside', () => {
+    render(<FlowStepper gates={[]} outcome={null} steps={[
+      step('open', 'done'), step('explore', 'done'), step('spec', 'done'), step('plan', 'waiting'), step('closed', 'empty'),
+    ]} />);
+    // `plan` is the third of the flow's own three stages, so it reads 3 — not 4, which is what counting `open` gives.
+    expect(within(screen.getByTitle('about plan')).getByText('3')).toBeInTheDocument();
+    // The bookends carry a dot: `open` shows no number at all, so nothing here reads 1 except `explore`.
+    expect(within(screen.getByTitle('about open')).queryByText('1')).not.toBeInTheDocument();
+    expect(within(screen.getByTitle('about explore')).getByText('1')).toBeInTheDocument();
+  });
+});
+
 describe('FlowStepper — a closed initiative and its outcome', () => {
   const closed = [step('open', 'done'), step('review', 'partial'), step('closed', 'done')];
 
