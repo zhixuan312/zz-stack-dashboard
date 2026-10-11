@@ -6,6 +6,7 @@ import { DataTable, type Column } from '@/components/patterns/data-table';
 import { MetricTile } from '@/components/patterns/metric-tile';
 import { aligned } from '@/console/columns';
 import { EvalCell, EvalVerdict, EvalWhen } from '@/console/eval-score';
+import { plural } from '@/console/words';
 import { ConsolePage } from '@/console/page';
 import { failureOf } from '@/console/query';
 import { When } from '@/console/when';
@@ -26,7 +27,7 @@ const COLUMNS: Column<PluginRow>[] = aligned([
     mobileCell: (p) => p.plugin,
   },
   { key: 'reaches', header: 'Reaches', hideBelow: 'xl', cell: (p) => (p.servers.length ? <span className="font-mono text-xs">{p.servers.join(' · ')}</span> : <span className="text-ink-3">Skills only</span>) },
-  { key: 'calls', header: 'Calls', numeric: true, mobile: 'fact', sortValue: (p) => p.calls, cell: (p) => formatCount(p.calls), mobileCell: (p) => `${formatCount(p.calls)} ${p.calls === 1 ? 'call' : 'calls'}` },
+  { key: 'calls', header: 'Calls', numeric: true, mobile: 'fact', sortValue: (p) => p.calls, cell: (p) => formatCount(p.calls), mobileCell: (p) => `${formatCount(p.calls)} ${plural(p.calls, 'call')}` },
   { key: 'last', header: 'Last run', hideBelow: 'md', sortValue: (p) => p.lastRun ?? '', cell: (p) => (p.lastRun ? <When at={p.lastRun} /> : <span className="text-ink-3">Never run</span>) },
   { key: 'score', header: 'Eval score', hideBelow: 'lg', sortValue: (p) => p.latestEval?.overallScore ?? -1, cell: (p) => <EvalCell of={p.latestEval} /> },
   { key: 'status', header: 'Status', hideBelow: 'xl', mobile: 'status', cell: (p) => <EvalVerdict of={p.latestEval} /> },

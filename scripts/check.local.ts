@@ -168,35 +168,38 @@ for (const f of [...walk('app', /\.tsx$/), ...walk('src/console', /\.tsx$/)]) {
  * (`2 superadmin` on `/people`, `2 admin` on a team page).
  *
  * That is the mechanism this round keeps meeting: a rule written where it is first needed is a rule the second use
- * re-derives. Two shapes are refused here, and **only these two, because only these two cannot be anything else**:
+ * re-derives. **The first draft of this check was too narrow and the measurement says so:** it refused only
+ * `=== 1 ? '' : 's'` and a `.length` choosing between two quoted forms, which between them caught **2 of the 10**
+ * sites a hand sweep then found. A guard that catches a fifth of its class is decoration.
  *
- * - `=== 1 ? '' : 's'` — an empty branch beside a bare `s` is never anything but a plural.
- * - `.length === 1 ? '…' : '…'` — a length choosing between two quoted forms is always a count agreeing with a noun.
+ * What replaced it: a `=== 1 ? '…' : '…'` is a plural when its two branches **differ the way a plural differs from its
+ * singular** — one is the other with `s`, `es`, or `y`→`ies`. That is the whole rule, it is decided at run time rather
+ * than by pattern-matching the left operand, and it needs no list. Measured against every ternary in the product: it
+ * fires on all five `-s` sites and on **no** innocent one — `status === 1 ? 'active' : 'idle'` is not a plural pair,
+ * so it stays clean.
  *
- * **Everything wider was tried and thrown away, and that is the part worth keeping.** The first draft matched
- * `'…(s)…'` and fired on **six files that contain no plural at all**: between two single quotes anywhere in a file,
- * `(s)` is far more often an arrow function's parameter, `filter((s) => …)`, than a lazy plural. Widening the left
- * operand to any word ending in `s`, to catch `of.openDefects`, would fire on every `status === 1 ? 'active' : 'idle'`
- * in the product. **A scanner that reads two statements as one is worse than no scanner: it is loud, it is wrong, and
- * it gets switched off** — this round's own lesson about checks, applied to a check. The residue, a bare count
- * variable choosing between two quoted nouns, is left to a reader, and was found by one.
+ * **The residue, named rather than papered over:** an irregular plural (`'it' : 'them'`, `'version is' : 'versions
+ * are'`, `'gate needs' : 'gates need'`) is not a `-s` pair and is not caught. Both `(s)`-style patterns that were tried
+ * for it were thrown away: `'…(s)…'` fired on six files containing no plural at all, because between two single quotes
+ * anywhere in a file `(s)` is far more often an arrow function's parameter, `filter((s) => …)`. **A scanner that reads
+ * two statements as one is worse than no scanner: it is loud, it is wrong, and it gets switched off.** The irregulars
+ * are left to a reader — which is how all ten were found in the first place.
  *
  * `words.ts` is exempt: it is where the ternary belongs. */
-const HAND_ROLLED = [
-  /===\s*1\s*\?\s*''\s*:\s*'s'/,
-  /===\s*1\s*\?\s*""\s*:\s*"s"/,
-  /\.length\s*===\s*1\s*\?\s*'[^'\n]*'\s*:\s*'[^'\n]*'/,
-  /\.length\s*===\s*1\s*\?\s*"[^"\n]*"\s*:\s*"[^"\n]*"/,
-];
+const TERNARY = /===\s*1\s*\?\s*(['"])([^'"\n]*)\1\s*:\s*(['"])([^'"\n]*)\3/g;
+
+/** One branch is the other with a plural suffix — `s`, `es`, or a `y` that becomes `ies`. */
+function isPluralPair(a: string, b: string): boolean {
+  const grows = (x: string, y: string) => y === `${x}s` || y === `${x}es` || (x.endsWith('y') && y === `${x.slice(0, -1)}ies`);
+  return grows(a, b) || grows(b, a);
+}
+
 for (const f of [...walk('app', /\.tsx?$/), ...walk('src/console', /\.tsx?$/)]) {
   if (f === 'src/console/words.ts') continue;
   const src = noComments(read(f));
-  for (const re of HAND_ROLLED) {
-    const hit = re.exec(src);
-    if (hit) {
-      problems.push(`${f}: decides a plural itself (${JSON.stringify(hit[0])}) — use \`plural(n, 'noun')\` from \`src/console/words.ts\`, which is the one place it is decided`);
-      break;
-    }
+  for (let m = TERNARY.exec(src); m; m = TERNARY.exec(src)) {
+    if (!isPluralPair(m[2], m[4])) continue;
+    problems.push(`${f}: decides a plural itself (${JSON.stringify(m[0])}) — use \`plural(n, '${m[2] || m[4]}')\` from \`src/console/words.ts\`, which is the one place it is decided`);
   }
 }
 

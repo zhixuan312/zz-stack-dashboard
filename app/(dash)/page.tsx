@@ -177,7 +177,7 @@ export default function OverviewPage() {
               </Row>
               <Row split="2/3">
                 <WaitingPanel />
-                <Panel title="Open work by stage" description={d.metrics.progressing.active ? `${formatCount(d.metrics.progressing.active)} open ${d.metrics.progressing.active === 1 ? 'initiative' : 'initiatives'}` : 'Where each open initiative is in its flow'}>
+                <Panel title="Open work by stage" description={d.metrics.progressing.active ? `${formatCount(d.metrics.progressing.active)} open ${plural(d.metrics.progressing.active, 'initiative')}` : 'Where each open initiative is in its flow'}>
                   {d.metrics.progressing.active ? (
                     <CompositionBar
                       label="Open initiatives by stage"

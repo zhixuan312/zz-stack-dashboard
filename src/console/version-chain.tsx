@@ -228,7 +228,7 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
                     l.op === 'skip' ? (
                       <tr key={i}>
                         <td className="bg-surface-sunk px-3 py-1 text-center text-2xs text-ink-3" colSpan={2}>
-                          {l.n} unchanged {l.n === 1 ? 'line' : 'lines'}
+                          {l.n} unchanged {plural(l.n, 'line')}
                         </td>
                       </tr>
                     ) : (
@@ -261,7 +261,7 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
                   count is the number of lines that were computed and left out. */}
               {truncated ? (
                 <p className="border-t border-line px-3 py-2 text-xs leading-relaxed text-ink-3">
-                  {truncated} further {truncated === 1 ? 'line' : 'lines'} changed and not shown —
+                  {truncated} further {plural(truncated, 'line')} changed and not shown —
                   this change is larger than the panel draws.
                 </p>
               ) : null}
@@ -334,8 +334,8 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
           </ul>
           {collapsed ? (
             <p className="border-t border-line px-4 py-2.5 text-xs leading-relaxed text-ink-3">
-              {collapsed} {collapsed === 1 ? 'version is' : 'versions are'} listed with the one
-              before {collapsed === 1 ? 'it' : 'them'}: same text. Older documents filed a version
+              {collapsed} {plural(collapsed, 'version is', 'versions are')} listed with the one
+              before {plural(collapsed, 'it', 'them')}: same text. Older documents filed a version
               for every approval or metadata change.
             </p>
           ) : null}

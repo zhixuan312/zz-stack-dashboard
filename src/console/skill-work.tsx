@@ -106,7 +106,7 @@ export function SkillWorkPanel({ skills, loading, error, onRetry }: { skills: Sk
       />
       {untimed > 0 ? (
         <p className="t-caption px-1">
-          A run&rsquo;s duration is the span between its first and last tool call, so the {formatCount(untimed)} single-call {untimed === 1 ? 'run' : 'runs'} in this window have no span to report. Times are taken over the rest.
+          A run&rsquo;s duration is the span between its first and last tool call, so the {formatCount(untimed)} single-call {plural(untimed, 'run')} in this window have no span to report. Times are taken over the rest.
         </p>
       ) : null}
     </div>
