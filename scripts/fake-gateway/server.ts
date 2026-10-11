@@ -24,7 +24,6 @@
  * names longer than any layout planned for). `GET /__mode?set=<mode>` switches it while running.
  */
 import http from 'node:http';
-import { day } from './clock.ts';
 import { COLLECTIONS, hint, liveStreams, parseNames, serveLive } from './live.ts';
 import { ME, MY_CLIENT_SETUP, MY_TEAMS, MY_TOKENS, PEOPLE, PLATFORM_PEOPLE, TEAMS, teamDetail, teamMembers } from './people.ts';
 import { ACTIVITY, PLUGINS, SKILLS, overview, pluginEval, runs, skillDetail, skillText } from './platform.ts';
@@ -185,21 +184,31 @@ const server = http.createServer((req, res) => {
      * The live checks' two hooks, beside `__mode`.
      *
      * `/api/console/__hint?collection=teams` tells every open tab that the collection changed, which is the only way a
-     * check can fire a change at a moment it chose. `&add=<name>` first records one more team, so a check has something
-     * to see arrive: a hint alone proves a tab was told, and the new row proves the tab went and read again. The console
-     * never touches this — its own writes are still answered and forgotten — and each run starts from the fixtures
-     * because the gateway is a fresh process.
+     * check can fire a change at a moment it chose. `&rename=<slug>:<name>` first renames one of the fixture's own
+     * teams, so a check has something to see arrive: a hint alone proves a tab was told, the new name proves the tab
+     * went and read again.
+     *
+     * DELIBERATE, and it is why this renames rather than adds: `verify` runs the checks and the presses suite against
+     * ONE gateway at the same time, so anything this records is also something the presses see. A row this added would
+     * be a link the presses would follow to a team page the fixture does not know, which is a 404 this check caused and
+     * another suite would report. A rename changes no row, adds no link, and is undone by the next run's fresh process.
+     * The console itself never touches this — its own writes are still answered and forgotten.
      *
      * `/api/console/__streams` says how many tabs are following something, so a check waits for a stream to open
      * rather than guessing.
      */
     if (hook === '__hint') {
       const collection = url.searchParams.get('collection') ?? '';
-      const add = url.searchParams.get('add');
-      if (add) TEAMS.push({ slug: add.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''), name: add, status: 'active', created: day(0), members: 0, initiatives: 0, documents: 0, sources: 0, knowledge: 0 });
+      const rename = url.searchParams.get('rename');
+      let renamed: string | null = null;
+      if (rename) {
+        const [slug, ...rest] = rename.split(':');
+        const team = TEAMS.find((t) => t.slug === slug);
+        if (team && rest.length) { team.name = rest.join(':'); renamed = team.slug; }
+      }
       const reached = (COLLECTIONS as readonly string[]).includes(collection) ? hint(collection) : 0;
       res.writeHead(reached ? 200 : 404, { 'content-type': 'application/json' });
-      res.end(JSON.stringify({ collection, reached, added: add ?? null }));
+      res.end(JSON.stringify({ collection, reached, renamed }));
       return;
     }
     if (hook === '__streams') {

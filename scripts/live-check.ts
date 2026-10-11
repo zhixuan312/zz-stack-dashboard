@@ -23,8 +23,12 @@ const args = process.argv.slice(2);
 const opt = (k: string, d: string) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
 const base = opt('--base', process.env.BASE ?? 'http://localhost:3100');
 
-/** The team this check invents, so no name it asserts on is one the fixtures already carry. */
-const NEW_TEAM = 'Live Check Provisional';
+/** The fixture team this check renames, and what it renames it to: no row is added, so nothing else in `verify` sees a
+ * link it cannot follow. See the hook's own comment in `scripts/fake-gateway/server.ts`. */
+const RENAMED_SLUG = 'dune';
+const RENAMED_TO = 'Dune Renamed By The Live Check';
+/** The second rename, hinted at a collection the page does not follow. */
+const UNSOLICITED_TO = 'Dune Renamed Unsolicited';
 /** How long a tab is given to show what it read again, well inside the 30 s safety poll: a pass here is a hint's doing. */
 const SHOW_MS = 8000;
 /** How long the "nothing should happen" case watches for, for the same reason. */
@@ -39,7 +43,7 @@ const failures: string[] = [];
 const text = () => page.eval<string>('document.body.innerText.replace(/\\s+/g, " ")');
 
 /** Fire the fake gateway's hint, through the app's own origin. */
-const hint = (query: string) => page.eval<{ reached: number }>(`fetch('/api/console/__hint?${query}', { credentials: 'same-origin' }).then((r) => r.json())`);
+const hint = (query: string) => page.eval<{ reached: number; renamed: string | null }>(`fetch('/api/console/__hint?${query}', { credentials: 'same-origin' }).then((r) => r.json())`);
 
 const streams = () => page.eval<{ streams: number }>(`fetch('/api/console/__streams', { credentials: 'same-origin' }).then((r) => r.json())`);
 
@@ -68,19 +72,19 @@ if (open < 0) failures.push('/teams: the app did not proxy the fake gateway\'s `
 else if (open < 1) failures.push(`/teams: no stream is open, though the page shows teams (following ${open})`);
 
 const before = await text();
-if (before.includes(NEW_TEAM)) failures.push(`/teams: ${NEW_TEAM} is on the page before this check made one`);
+if (before.includes(RENAMED_TO)) failures.push(`/teams: ${RENAMED_TO} is on the page before this check made it`);
 
 // A change to a collection the page follows is read again and what arrived is on screen.
-const reached = await hint(`collection=teams&add=${encodeURIComponent(NEW_TEAM)}`);
+const reached = await hint(`collection=teams&rename=${RENAMED_SLUG}:${encodeURIComponent(RENAMED_TO)}`);
 if (reached.reached < 1) failures.push('/teams: the hint reached no tab — the page is not following teams');
-const arrived = await until((t) => t.includes(NEW_TEAM), SHOW_MS);
+if (!reached.renamed) failures.push(`/teams: the fixture has no team ${RENAMED_SLUG} to rename`);
+const arrived = await until((t) => t.includes(RENAMED_TO), SHOW_MS);
 if (!arrived) failures.push('/teams: a change to teams never showed, so the tab did not read the collection again');
 
-// A change to a collection the page does not show is left alone. The second team really is added to the fixture and
-// `runs` is what gets hinted, so a tab that read teams again for any reason would show it — which is what gives this
-// case its meaning.
-await hint(`collection=runs&add=${encodeURIComponent(`${NEW_TEAM} Unsolicited`)}`);
-const leaked = await until((t) => t.includes(`${NEW_TEAM} Unsolicited`), QUIET_MS);
+// A change to a collection the page does not show is left alone. The second rename really is made and `runs` is what
+// gets hinted, so a tab that read teams again for any reason would show it — which is what gives this case its meaning.
+await hint(`collection=runs&rename=${RENAMED_SLUG}:${encodeURIComponent(UNSOLICITED_TO)}`);
+const leaked = await until((t) => t.includes(UNSOLICITED_TO), QUIET_MS);
 if (leaked) failures.push('/teams: a change to runs reached the teams page, so the tab reads collections it does not show');
 
 if (page.errors.length) failures.push(`/teams: ${page.errors[0]}`);

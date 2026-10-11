@@ -52,6 +52,28 @@ describe('the fake gateway as the sweep uses it', () => {
     expect((await me.json() as { email?: string }).email).toBeTruthy();
   });
 
+  it('renames one of its own teams on a hint, and adds no row', async () => {
+    // What `scripts/live-check.ts` drives. It renames rather than adds because `verify` runs the checks and the presses
+    // suite against ONE gateway at once: a row this added would be a link the presses would follow to a team page the
+    // fixture does not know, which is a 404 this check caused and another suite would report.
+    const base = await start();
+    const before = await (await fetch(`${base}/api/console/teams`)).json() as { teams: { slug: string; name: string }[] };
+    const rows = before.teams.length;
+    expect(before.teams.find((t) => t.slug === 'dune')?.name).toBe('Dune');
+
+    const hinted = await (await fetch(`${base}/api/console/__hint?collection=teams&rename=dune:Dune%20Renamed`)).json() as { reached: number; renamed: string | null };
+    expect(hinted.renamed).toBe('dune');
+    // No tab is following anything in this test, so the hint reaches none — which is the other half of what it says.
+    expect(hinted.reached).toBe(0);
+
+    const after = await (await fetch(`${base}/api/console/teams`)).json() as { teams: { slug: string; name: string }[] };
+    expect(after.teams.length).toBe(rows);
+    expect(after.teams.find((t) => t.slug === 'dune')?.name).toBe('Dune Renamed');
+
+    const unknown = await fetch(`${base}/api/console/__hint?collection=teams&rename=nobody:X`);
+    expect((await unknown.json() as { renamed: string | null }).renamed).toBeNull();
+  });
+
   it('holds an answer four seconds in slow mode', async () => {
     const base = await start('--mode', 'slow');
     const quickly = await fetch(`${base}/api/console/teams`, { signal: AbortSignal.timeout(1000) }).then(
