@@ -119,7 +119,13 @@ export default function DocumentPage({ params }: { params: Promise<{ team: strin
       description={
         <span className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
           <span className="font-mono text-sm">{rel}{version ? ` · v${version}` : ''}</span>
-          {d ? <DocStatus status={d.status} outcome={d.outcome} gated={d.gated} requiredForClose={d.requiredForClose} correction={d.correction} /> : null}
+          {/* The status is three things at most — a version, a badge, and "needed to close" — and all three arrive with
+              the read. At 390px that is enough to wrap this line, and the masthead row is above everything, so the
+              whole page moves down once. **Measured on the two documents whose status says the most** —
+              `2026-10-02-query-latency` and `2026-10-04-index-rebuild`, both `needed to close` — **CLS 0.121 and 0.149,
+              with the Row below them named as the shifted element**, while the same page shape on a document with a
+              plain status measures 0.033. So the room is held while the read is in flight, as it is for the body. */}
+          {d ? <DocStatus status={d.status} outcome={d.outcome} gated={d.gated} requiredForClose={d.requiredForClose} correction={d.correction} /> : <Skeleton className="h-5 w-40 rounded-full" />}
         </span>
       }
       showPeriod={false}
