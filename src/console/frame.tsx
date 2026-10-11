@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { CommandPalette } from '@/components/patterns/command-palette';
 import { Rail, type Scope } from '@/components/patterns/rail';
 import { ShellTools, type Alert } from '@/components/patterns/shell-tools';
@@ -122,21 +122,41 @@ function ResolvedRail() {
   useLive(['me']);
   const me = useConsole<Me>('/me');
   const { mode, setMode } = useConsoleMode();
-  const team = me.data?.activeTeam;
-  const scopes: Scope[] = me.data?.superadmin
+  // NOTHING THE SERVER CANNOT HAVE MAY REACH THE MARKUP ON THE HYDRATION RENDER.
+  //
+  // The server has no `/me`, so this component renders there with `me.data` undefined. The client hydrates the *same*
+  // component, and if `/me` has already answered by then it renders with the answer — and the rail's own label turns on
+  // it: `switcher` is `scopes.length > 1`, so the server drew `aria-label="…: account menu"` and a superadmin's client
+  // draws `"…: workspace menu"`. **That is React #418**, and it is the mismatch this project has chased for five hours
+  // across four routes, four suites and every width: it looked like a race only because the boundary resolves at
+  // different moments, while the *content* of the mismatch was fixed and the server could be caught holding it.
+  //
+  // Found by curling the served HTML of a production build — `grep -o 'aria-label="[^"]*"'` — after five hours of
+  // driving browsers at it. `next dev` cannot show it: dev server-renders on demand, so there is no
+  // prerender-versus-hydrate gap to find.
+  //
+  // The fix is that the first client render agrees with the server's: no `/me` until the client is past hydration.
+  // One frame later the rail is whole. `mode` is read from a context whose server default is the same as its client
+  // default, so it is not gated here — and if the reproducer says otherwise, this is not the whole fix.
+  const [hydrated, setHydrated] = useState(false);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setHydrated(true); }, []);
+  const data = hydrated ? me.data : undefined;
+  const team = data?.activeTeam;
+  const scopes: Scope[] = data?.superadmin
     ? [
       { id: 'platform', label: 'The whole platform', active: mode === 'platform', onSelect: () => setMode('platform') },
       { id: 'team', label: team ? `Your team · ${team}` : 'Your team', active: mode === 'team', onSelect: () => setMode('team') },
     ]
     : [];
-  const user = me.data ? { name: me.data.name || me.data.email, role: me.data.superadmin ? 'Superadmin' : 'Member' } : null;
+  const user = data ? { name: data.name || data.email, role: data.superadmin ? 'Superadmin' : 'Member' } : null;
   return (
     <Rail
       nav={navGroups(mode)}
       workspace={mode === 'platform' ? 'The platform' : team ?? 'Your team'}
       scopes={scopes}
       user={user}
-      signOut={me.data?.mayRead ? signOut : null}
+      signOut={data?.mayRead ? signOut : null}
     />
   );
 }
