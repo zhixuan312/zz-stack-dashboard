@@ -29,10 +29,17 @@ export type VerifyConfig = {
 
 const config: VerifyConfig = {
   /**
-   * The six routes whose path is only known at request time. Every fixed route is prerendered — all 18 of them appear
-   * in the build's `prerender-manifest.json` — but these are keyed by a team, an initiative, a plugin or a knowledge
-   * path that exists in the gateway's data, not in this repository, so a build has nothing to enumerate. The console
-   * renders their content in the browser from `/api/console/*` either way.
+   * Every non-API route whose rendering `scripts/route-policy.ts` cannot read, with why.
+   *
+   * Six of these are genuinely request-dependent: their path is keyed by a team, an initiative, a plugin or a knowledge
+   * path that lives in the gateway's data, so a build has nothing to enumerate.
+   *
+   * The other eighteen ARE prerendered — all of them appear in the build's `prerender-manifest.json`, as
+   * `pnpm verify` reported before this list existed. They are here because that check reads each route's
+   * `renderingMode`, and Next only writes that field when `cacheComponents` is on. This console cannot turn it on (see
+   * docs/brief.md, and `cache-components-config` in the 0.13.0 update session): the release's own answer is a server
+   * promise per piece of chrome, which needs the access seam this console does not have. Declaring them keeps the
+   * check's verdict honest — "not known to be prerendered" — instead of claiming they read a request they never touch.
    */
   requestDependentRoutes: [
     { path: '/initiatives/[team]/[slug]', reason: 'the initiative only exists in the gateway’s data; the build cannot enumerate it.' },
@@ -41,6 +48,24 @@ const config: VerifyConfig = {
     { path: '/plugins/[plugin]', reason: 'the plugin estate is the platform’s, not this repository’s.' },
     { path: '/plugins/[plugin]/[skill]', reason: 'a skill inside that plugin: same reason.' },
     { path: '/teams/[slug]', reason: 'a team is a row in the platform’s database.' },
+    { path: '/_global-error', reason: 'prerendered; listed because route-policy cannot read a build without cacheComponents.' },
+    { path: '/_not-found', reason: 'prerendered; listed because route-policy cannot read a build without cacheComponents.' },
+    { path: '/', reason: 'prerendered; listed because route-policy cannot read a build without cacheComponents.' },
+    { path: '/activity', reason: 'prerendered; listed because route-policy cannot read a build without cacheComponents.' },
+    { path: '/apple-icon.png', reason: 'prerendered; listed because route-policy cannot read a build without cacheComponents.' },
+    { path: '/enrol', reason: 'prerendered; listed because route-policy cannot read a build without cacheComponents.' },
+    { path: '/icon.png', reason: 'prerendered; listed because route-policy cannot read a build without cacheComponents.' },
+    { path: '/initiatives', reason: 'prerendered; listed because route-policy cannot read a build without cacheComponents.' },
+    { path: '/knowledge', reason: 'prerendered; listed because route-policy cannot read a build without cacheComponents.' },
+    { path: '/knowledge/ask', reason: 'prerendered; listed because route-policy cannot read a build without cacheComponents.' },
+    { path: '/knowledge/log', reason: 'prerendered; listed because route-policy cannot read a build without cacheComponents.' },
+    { path: '/login', reason: 'prerendered; listed because route-policy cannot read a build without cacheComponents.' },
+    { path: '/people', reason: 'prerendered; listed because route-policy cannot read a build without cacheComponents.' },
+    { path: '/plugins', reason: 'prerendered; listed because route-policy cannot read a build without cacheComponents.' },
+    { path: '/runs', reason: 'prerendered; listed because route-policy cannot read a build without cacheComponents.' },
+    { path: '/settings', reason: 'prerendered; listed because route-policy cannot read a build without cacheComponents.' },
+    { path: '/signed-out', reason: 'prerendered; listed because route-policy cannot read a build without cacheComponents.' },
+    { path: '/teams', reason: 'prerendered; listed because route-policy cannot read a build without cacheComponents.' },
   ],
   // One per state worth seeing, taken from the fake gateway's own records (scripts/fake-gateway): a team with
   // work and one with none, an initiative waiting on a person, a closed one, one closed with a correction awaiting
