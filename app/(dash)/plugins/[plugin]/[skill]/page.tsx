@@ -143,6 +143,21 @@ export default function PluginSkillPage({ params }: { params: Promise<{ plugin: 
             />
           </Panel>
           {view === 'cost' ? <Query query={detail} what="The cost record" skeleton={<Skeleton className="h-72 rounded-lg" />}>{(d) => <Cost skill={skill} detail={d} />}</Query> : null}
+          {/* The two reading views drew NOTHING until the read landed — no panel, no fallback, an empty page below the
+              masthead — and then whole panels arrived at once and everything below moved. Measured at 390px on
+              `?view=references`: **CLS 0.228**, with the frame, the card and `mt-8` all shifting by the same amount,
+              which is what an APPEARING stack looks like rather than a growing card. **The renderer's chunk was never
+              the cause on this page; the read was.** So the room is held while the read is in flight, and the size is
+              an estimate for the same reason `BodyRoom`'s is: the page cannot know how many references there are until
+              they arrive, and a placeholder in the right order of magnitude moves things far less than none at all. */}
+          {!text && (view === 'read' || view === 'references') ? (
+            <Panel title={view === 'read' ? 'The skill' : 'Reference'} description="Reading…">
+              <div className="flex flex-col gap-(--stack-gap)">
+                <Skeleton className="h-72 rounded-lg" />
+                {view === 'references' ? <Skeleton className="h-72 rounded-lg" /> : null}
+              </div>
+            </Panel>
+          ) : null}
           {view === 'read' && text ? <Panel title="The skill" description={`${text.body.length.toLocaleString('en-US')} ${plural(text.body.length, 'character')}`}><ReadingBody bytes={text.body.length}>{text.body}</ReadingBody></Panel> : null}
           {view === 'references' && text ? text.references.map((r) => (
             <Panel key={r.path} title={r.path} description={`${r.content.length.toLocaleString('en-US')} ${plural(r.content.length, 'character')}`}>
