@@ -44,11 +44,14 @@ const DOCUMENTS: Column<Doc>[] = aligned([
     // The card's status slot holds one badge and cannot shrink, so it takes the verdict alone; see DocStatus's `compact`.
     mobileCell: (d) => <DocStatus compact status={d.status} outcome={d.outcome} gated={d.gated} requiredForClose={d.requiredForClose} correction={d.correction} /> },
   {
-    // `w-40` as well as `truncate`: an auto-laid-out table gives a truncating cell whatever is left over, and on an
-    // initiative whose Review row carries two badges the neighbouring Approval column widens to hold them — which left
-    // this one rendering `No approval ne…` and `jonas.weber@e…` where the same column is whole on every other
-    // initiative. A width is a floor the leftover cannot go below.
-    key: 'by', header: 'Approved by', hideBelow: 'lg', truncate: true, width: 'w-40',
+    // No `truncate`, and the whole `w-40` story written down because it was wrong once. An auto-laid-out table gives a
+    // truncating cell whatever is left over, and on an initiative whose Review row carries two badges the neighbouring
+    // Approval column widens to hold them — so this one rendered `No approval ne…` and `jonas.weber@e…` where the same
+    // column is whole on every other initiative. `w-40` fixed that at 1440 and was measured not to hold at 2560, where
+    // the cell capped itself at ~120px: a 22-character address needs ~190px even at the most conservative reading of
+    // its font size. A truncated address is an address nobody can use — it is the one value here a reader acts on — and
+    // the column beside it holds 8-character badges in ~500px, so the table has the room. It sizes to its content now.
+    key: 'by', header: 'Approved by', hideBelow: 'lg',
     // Binary, like the gate itself: a document waiting for a person and one no person will be asked about differ.
     cell: (d) => d.approved_by ?? <span className="text-ink-3">{d.gated === false ? 'No approval needed' : d.gated === true ? 'Not yet' : '—'}</span>,
   },

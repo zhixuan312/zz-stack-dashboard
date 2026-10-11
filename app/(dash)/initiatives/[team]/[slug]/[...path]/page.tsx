@@ -147,7 +147,7 @@ export default function DocumentPage({ params }: { params: Promise<{ team: strin
                     wide screen, and a 533px strip in a 1,400px canvas makes one longer than it is: the cap is worth
                     2,200px of scroll on a 60,000-character document. Tables and code already fill the cell; this lets
                     the running text join them. */}
-                <div className="[&_li]:max-w-none [&_ol]:max-w-none [&_p]:max-w-none [&_ul]:max-w-none">
+                <div className="[&_li]:max-w-[92ch] [&_ol]:max-w-[92ch] [&_p]:max-w-[92ch] [&_ul]:max-w-[92ch]">
                   {doc.body?.trim()
                     ? view === 'read'
                       ? <Prose>{readableDocument(doc.body, doc.title)}</Prose>
