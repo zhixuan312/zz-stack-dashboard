@@ -136,6 +136,10 @@ What stays the console's own, and why:
   replaced — `refresh` drops React Query's cache for the collection a hint names, where the release calls a Server Action
   and refreshes the router, because this product reads from the browser and has nothing on the server to drop.
 - `scripts/check.local.ts` and `scripts/verify.config.ts`: the project's half of Meridian's hooks.
+- `proxy.ts`: the laptop's dev-only PAT passthrough, plus one addition this product made — a preload hint for a
+  document route's read. A route with an unknown dynamic param cannot render its page on the server, so nothing writes
+  the hint `useConsole` was designed to write from the HTML, and the read then waits for the route's own JS. Measured:
+  2,180 ms to 164 ms.
 - `scripts/fake-gateway/`, `scripts/approve-banners.ts` and `scripts/live-check.ts`: the fixture and the product's own
   checks that `verify` runs. The live check drives a change through the fake gateway's own hooks, which wear the path
   the app proxies (`/api/console/__hint`) so a check never has to know the gateway's address.
