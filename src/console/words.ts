@@ -1,12 +1,14 @@
 /**
- * Text the console did not write, and words the console writes about a count.
+ * Text the console did not write, and words the console writes about a count: `plural`, `count` and `sentence`.
  *
- * Both rules live here because both were written where they were first needed and then missed everywhere else. A count
- * beside a fixed plural appeared in ten places — five phone cards, four notes and a version chain — while four other
- * files in this same repository already had the `n === 1 ? 'x' : 'xs'` idiom, and nobody notices the tenth. A rule
- * written twice is a rule that drifts; a rule written ten times is a rule that is already wrong.
+ * **All three live here because each was written where it was first needed and then missed everywhere else.** The
+ * plural appeared hand-rolled in seventeen places while the fix for it sat in one; the dash for a count of nothing was
+ * written once and re-derived in a second file, which also lost the thousands separator; and the borrowed sentence
+ * began as a conditional at its first call site. A rule written twice is a rule that drifts; a rule written seventeen
+ * times is a rule that is already wrong.
  *
- * The count, the plural and the dash are one subject, so they live in one file.
+ * The plural, the count and the dash are one subject — how a number becomes a phrase. `sentence` is here because it is
+ * the same job in the other direction: text someone else wrote, made to sit inside a sentence this console did.
  */
 import { formatCount } from '@/lib/format';
 
