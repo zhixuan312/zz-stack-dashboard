@@ -212,16 +212,18 @@ export function FlowStepper({ gates, outcome, steps, complete, correction }: {
         <Legend className="border-positive bg-positive-tint">done</Legend>
         <Legend className="border-accent bg-accent">where it is now</Legend>
         <Legend className="border-warning bg-warning-tint">written, waiting on a person</Legend>
-        <Legend className="border-line-strong bg-surface">nothing written</Legend>
+        {/* COUPLED: the nodes above draw six states; this legend lists all six. Four of them leave the same mark — an
+            empty stage — and the node says beside itself which of the four it is: nothing was written, the branch ruled
+            the step out (FR-58, Task I-27), or the branch has not decided yet. **One swatch naming all three is the
+            truth.** They used to be three entries with identical swatches and identical dashes, which told a reader that
+            three different marks existed and that this legend would explain them; at 3× they were one hollow grey ring,
+            and no reader could tell which word went with which shape. The words were the only thing that ever
+            distinguished them, and the words are on the node. */}
+        <Legend className="border-line-strong bg-surface">nothing written · not on this branch · waiting on the branch</Legend>
         {/* A stage that produces a record or nothing cannot leave a document, so "nothing
-            written" would be a claim about a stage that never could have written one.
-            COUPLED: the nodes above draw six states; this legend lists all six. */}
+            written" would be a claim about a stage that never could have written one. The one
+            state that does draw a different mark, and so the one that earns its own entry. */}
         <Legend className="border-dashed border-line-strong bg-surface">no document to leave</Legend>
-        {/* FR-58 (Task I-27): the branch already ruled this step out — not missing, decided. */}
-        <Legend className="border-line-strong bg-surface">not on this branch</Legend>
-        {/* FR-58: the branch has not yet decided whether this step applies at all — distinct
-            from "written, waiting on a person" above, which waits on a person, not the branch. */}
-        <Legend className="border-line-strong bg-surface">waiting on the branch</Legend>
       </div>
     </div>
   );
