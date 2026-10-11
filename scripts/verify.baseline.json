@@ -1,0 +1,26 @@
+{
+  "method": "route-bundle-stats firstLoadChunkPaths, deduplicated, uncompressed bytes",
+  "routes": {
+    "/": 781892,
+    "/_not-found": 622391,
+    "/activity": 770812,
+    "/enrol": 640950,
+    "/initiatives": 806089,
+    "/initiatives/[team]/[slug]": 782401,
+    "/initiatives/[team]/[slug]/[...path]": 822200,
+    "/knowledge": 823616,
+    "/knowledge/[team]/[...path]": 780443,
+    "/knowledge/ask": 801075,
+    "/knowledge/log": 787189,
+    "/login": 643887,
+    "/people": 819370,
+    "/plugins": 785544,
+    "/plugins/[plugin]": 804184,
+    "/plugins/[plugin]/[skill]": 773088,
+    "/runs": 784958,
+    "/settings": 813171,
+    "/signed-out": 622391,
+    "/teams": 808330,
+    "/teams/[slug]": 783246
+  }
+}

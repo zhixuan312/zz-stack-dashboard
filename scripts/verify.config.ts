@@ -16,6 +16,11 @@ export type VerifyConfig = {
    */
   fakeApi?: { script: string; env: string };
   /**
+   * Limits verify enforces. `htmlKb` caps a route's uncompressed HTML, through the end of the streamed response; it has
+   * no default, and there is no point setting one without a measurement behind it.
+   */
+  budgets?: { htmlKb?: Record<string, number> };
+  /**
    * Routes that cannot be prerendered, each with the reason. `node scripts/route-policy.ts`, which verify runs after its
    * production build, fails any non-API route that is neither static nor partial unless it is named here.
    */
@@ -28,6 +33,12 @@ export type VerifyConfig = {
 };
 
 const config: VerifyConfig = {
+  /**
+   * Measured on 2026-10-11, served against the fake gateway: the list pages are the console's heaviest uncompressed
+   * HTML, `/initiatives` at 65 KiB and `/people` at 63, against 36 on `/` and 45 on `/settings`. The caps hold roughly
+   * a fifth above what they measure, which is room for a column and not for a second table.
+   */
+  budgets: { htmlKb: { '/initiatives': 80, '/people': 80 } },
   /**
    * Every non-API route whose rendering `scripts/route-policy.ts` cannot read, with why.
    *

@@ -1,6 +1,7 @@
 'use client';
 
 import { use } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { Row } from '@/components/base/shell';
 import { DataTable, type Column } from '@/components/patterns/data-table';
@@ -12,12 +13,16 @@ import { aligned } from '@/console/columns';
 import { KnowledgeTabs } from '@/console/knowledge-tabs';
 import { ConsolePage } from '@/console/page';
 import { Panel } from '@/console/panel';
-import { Prose } from '@/components/patterns/prose';
 import { Query } from '@/console/query';
 import { When } from '@/console/when';
 import { freshnessOf, useConsole } from '@/lib/api';
 import type { KnowledgeBody, KnowledgeNode } from '@/lib/api-shapes';
 import { knowledgeNodeHref } from '@/lib/knowledge-filters';
+
+// The markdown renderer arrives only with the node's body: the node's own facts and its neighbours are what a first
+// paint shows, and the body is fetched after that either way. Loaded eagerly it was 141 KiB of this route's first-load
+// JS, which put the route 83 KiB over the 820 KiB cap.
+const Prose = dynamic(() => import('@/components/patterns/prose').then((m) => m.Prose), { loading: () => <Skeleton className="h-64 rounded-md" /> });
 
 /**
  * One knowledge node, read: reached from a row on the shelf or from an Ask citation. The node's own body carries

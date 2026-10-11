@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, use } from 'react';
+import dynamic from 'next/dynamic';
 import { DataTable, type Column } from '@/components/patterns/data-table';
 import { Badge } from '@/components/ui/badge';
 import { KeyValue } from '@/components/ui/key-value';
@@ -11,13 +12,17 @@ import { aligned } from '@/console/columns';
 import { DocStatus } from '@/console/doc-status';
 import { ConsolePage } from '@/console/page';
 import { Panel } from '@/console/panel';
-import { Prose } from '@/components/patterns/prose';
 import { Query } from '@/console/query';
 import { VersionChain } from '@/console/version-chain';
 import { When } from '@/console/when';
 import { freshnessOf, useConsole } from '@/lib/api';
 import type { DocumentDetail, Me } from '@/lib/api-shapes';
 import { readableDocument } from '@/lib/document-markdown';
+
+// The markdown renderer arrives only with the view that reads a document body: this route's header, its version chain
+// and its tables are what a first paint shows, and the body is fetched from the gateway after that either way. Loaded
+// eagerly it was 141 KiB of the route's first-load JS, which put this route 124 KiB over the 820 KiB cap.
+const Prose = dynamic(() => import('@/components/patterns/prose').then((m) => m.Prose), { loading: () => <Skeleton className="h-64 rounded-md" /> });
 import { formatKb } from '@/lib/format';
 
 type Decision = DocumentDetail['decisions'][number];
