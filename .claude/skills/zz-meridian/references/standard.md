@@ -96,13 +96,13 @@ refuses, listing every gap, until these hold.
 
 ### The craft: judged on the renders, with evidence
 
-Look at every view rendered, not at the code. With `node_modules/.bin/next dev --port 3100` running (the port the screenshot and audit
-scripts read; stop it again before `pnpm verify`, which builds in the same folder), run
+Look at every view rendered, not at the code. Serve a production build — `pnpm build`, then `node_modules/.bin/next start --port 3100` (the port the screenshot and audit
+scripts read; stop it again before `pnpm verify`, which builds in the same folder) — and run
 `node scripts/shot.ts <routes> --width 1440,390 --theme dark,light --full`, plus 768 and 2560 where the layout depends on
-width (tables, grids, side panels), and open every PNG in `out/shots/`. A dialog, sheet, menu or popover is shot open:
+width (tables, grids, side panels), and open every PNG in `out/shots/`. **A craft screenshot is evidence only from a built app:** under `next dev` a page's browser-side reads can fail to fire, and the render is then a picture of the loading state — which passes every check, because a skeleton has nothing to clip, nothing unnamed and nothing to contrast. A dialog, sheet, menu or popover is shot open:
 `--press "<the name of the control that opens it>"` (the first visible control with that name; give row actions names
 of their own, "Delete order CR-10425"), repeated for a menu item inside it. With a fake API, every server a render or
-a check reads from is started with its address (`API_URL=<fake> node_modules/.bin/next dev …`), never the `.env` one. `node scripts/audit.ts --routes <routes>` against
+a check reads from is started with its address (`API_URL=<fake> node_modules/.bin/next start …`), never the `.env` one. `node scripts/audit.ts --routes <routes>` against
 the same server ends with "Design metrics at 1440" for each route: the type sizes and weights in use, the radii, and the
 hierarchy ratio (the largest text over the median).
 

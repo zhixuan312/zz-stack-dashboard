@@ -26,6 +26,12 @@ export type Column<R> = {
   numeric?: boolean;
   muted?: boolean;
   truncate?: boolean;
+  /**
+   * The whole value, for a cell that draws *more* than it: an avatar beside a name, a method chip beside a route. A cell
+   * that is a plain value needs none — the component titles it from the value itself, because a value it can see is a
+   * value it can keep. A cell it cannot see (a node) it cannot keep, which is what this is for.
+   */
+  title?: (row: R) => string;
   /** Drop the column below this width (the least important columns go first). */
   hideBelow?: Breakpoint;
   /** The one column that takes the remaining width: the record's name. */
@@ -97,8 +103,11 @@ const PHONE_CELLS = '@max-[640px]:[&_td:not([data-mobile=hidden])]:!h-auto @max-
  * card's own rule is the role, not the width. */
 const PHONE_ROLES = [
   '@max-[640px]:[&_td[data-mobile=check]]:order-0 @max-[640px]:[&_td[data-mobile=check]]:mr-1.5',
-  '@max-[640px]:[&_td[data-mobile=title]]:order-1 @max-[640px]:[&_td[data-mobile=title]]:flex-1 @max-[640px]:[&_td[data-mobile=title]]:font-medium',
-  '@max-[640px]:[&_td[data-mobile=status]]:order-1 @max-[640px]:[&_td[data-mobile=status]]:ml-auto @max-[640px]:[&_td[data-mobile=status]]:shrink-0',
+  '@max-[640px]:[&_td[data-mobile=title]]:order-1 @max-[640px]:[&_td[data-mobile=title]]:flex-1 @max-[640px]:[&_td[data-mobile=title]]:font-medium @max-[640px]:[&_td[data-mobile=title]]:!text-left',
+  // The badge sits beside the title, never before it: with the same `order` the column order decided which of the two took
+  // the card's left edge, so a table that listed a status column before its title wrapped the title into the width the
+  // badge left it. `check` stays ahead of both, and a fact follows them.
+  '@max-[640px]:[&_td[data-mobile=status]]:order-2 @max-[640px]:[&_td[data-mobile=status]]:ml-auto @max-[640px]:[&_td[data-mobile=status]]:shrink-0',
   // Facts flow on the second line, left to right whatever their column's alignment, each whole; one longer than the
   // card ends in an ellipsis.
   // A fact is a flex row of its content and its dot, so the dot stays beside it whatever element the cell renders.
@@ -308,9 +317,13 @@ export function DataTable<R>({
                       const role = roleOf(c);
                       // The title is the row's link wherever it is shown, phone included: the whole card takes the
                       // pointer too (the row's own click), but the link is what a keyboard and a screen reader follow.
-                      const content = c === titleColumn && href ? <Link href={href}>{c.cell(r)}</Link> : c.cell(r);
+                      // The value is called once: it is both what we draw and what the title carries when the column
+                      // truncates. A cut value is cut everywhere on the page — a slug's tail is the part that identifies
+                      // it — and this card's own spec has said so since before the component did it.
+                      const value = c.cell(r);
+                      const content = c === titleColumn && href ? <Link href={href}>{value}</Link> : value;
                       return (
-                        <td key={c.key} data-mobile={role} data-num={c.numeric ? 'num' : c.align === 'right' ? 'true' : undefined} className={cellClass(c) || undefined}>
+                        <td key={c.key} data-mobile={role} data-num={c.numeric ? 'num' : c.align === 'right' ? 'true' : undefined} title={c.title ? c.title(r) : c.truncate && (typeof value === 'string' || typeof value === 'number') ? String(value) : undefined} className={cellClass(c) || undefined}>
                           {/* A phone may want other words for the same cell — "Used 1 min ago", not "1 min ago" — so
                               both are rendered and one is hidden: a few words each, never a second copy of the row. */}
                           {c.mobileCell ? (

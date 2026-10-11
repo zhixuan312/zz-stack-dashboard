@@ -72,13 +72,14 @@ const WIDTHS = ATLAS ? [1440, 390] : [2560, 1440, 1024, 768, 390];
 const THEMES = ['dark', 'light'];
 
 type Report = {
+  path: string; text: number;
   sideways: string[]; clipped: string[]; focusless: string[]; unnamed: string[]; unmeasured: string[]; scrollers: string[]; contrast: string[]; targets: string[]; headings: string[];
   sizes: number[]; weights: number[]; radii: number[]; ratio: number;
 };
 
 /** Runs inside the page. Plain JavaScript: it is serialised into the browser. */
 const MEASURE = `(() => {
-  const W = innerWidth, out = { sideways: [], clipped: [], unnamed: [], unmeasured: [], scrollers: [], contrast: [], targets: [], headings: [], sizes: [], weights: [], radii: [], ratio: 0 };
+  const W = innerWidth, out = { path: location.pathname, text: 0, sideways: [], clipped: [], unnamed: [], unmeasured: [], scrollers: [], contrast: [], targets: [], headings: [], sizes: [], weights: [], radii: [], ratio: 0 };
   const label = (el) => (el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + (el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\\s+/).slice(0, 3).join('.') : '')).slice(0, 90);
   /* closest() across open roots and slots: deepParent (injected from scripts/lib/deep.ts) steps through both */
   const deepClosest = (el, sel) => { for (let n = el; n; n = deepParent(n)) if (n.matches(sel)) return n; return null; };
@@ -173,6 +174,12 @@ const MEASURE = `(() => {
   out.ratio = sorted.length ? +(sorted[sorted.length - 1] / sorted[Math.floor(sorted.length / 2)]).toFixed(1) : 0;
   out.sizes = [...new Set(out.sizes)].sort((a, b) => a - b); out.weights = [...new Set(out.weights)].sort(); out.radii = [...new Set(out.radii)].sort((a, b) => a - b);
   out.contrast = [...new Set(out.contrast)].slice(0, 8); out.clipped = [...new Set(out.clipped)].slice(0, 8); out.unnamed = [...new Set(out.unnamed)].slice(0, 8); out.unmeasured = [...new Set(out.unmeasured)].slice(0, 8);
+  // A page that rendered nothing fails every check above without being told to: nothing sideways, nothing clipped, no
+  // unnamed control, no heading to skip, no colour, no target. So what was measured is recorded here — the path the
+  // browser is on, and how many characters the page's own content region holds — and the caller fails a route the
+  // audit never really reached. A loading skeleton holds none: its boxes have no text, its aria-label is an attribute.
+  const content = deepAll(document.body).find((n) => n.matches('[data-scroll-region]')) || document.body;
+  out.text = (content.textContent || '').replace(/\\s+/g, ' ').trim().length;
   return out;
 })()`;
 
@@ -225,6 +232,10 @@ const run = async (route: string, width: number, theme: string, embed: boolean) 
   r.focusless = [...new Set(r.focusless)].slice(0, 6);
   const scrollers = r.scrollers.filter((s) => !ALLOWED_SCROLLERS.test(s));
   const issues = [
+    // First, because it is the one that fails in the direction of looking clean: a route that never rendered passes
+    // everything below, and the run would end with the standard's line over a page nobody measured.
+    ...(r.path.replace(/\/$/, '') !== route.replace(/\/$/, '') ? [`the audit measured ${r.path} while asking for ${route} — the route served another page`] : []),
+    ...(r.text < 24 ? [`the page holds ${r.text} characters of text — it rendered nothing, or only its loading state`] : []),
     ...r.sideways.map((x) => 'sideways: ' + x),
     ...r.clipped.map((x) => 'clipped: ' + x),
     ...r.unnamed.map((x) => 'unnamed: ' + x),

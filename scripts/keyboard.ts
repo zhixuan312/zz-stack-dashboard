@@ -139,6 +139,32 @@ const press = async (modifiers: number) => {
 };
 
 const page = await launch();
+
+/**
+ * Wait for the shell's chrome before walking the tab order, anchored to the page's own signal rather than to a duration.
+ * One control arrives late and is announced: the assistant's launcher sits inside a boundary that resolves when the
+ * request's own work does (`app/(dashboard)/layout.tsx` hands `AppShell` a promise, deliberately, so the frame never
+ * blocks). sgds-ac measured what a fixed wait costs: assistant off, 39 stops, pass; assistant on, 41 stops, pass idle and
+ * **fail under load**, a forward pass of 39 against a reverse pass of 40. So the wait is anchored to `[data-assistant-slot]`
+ * — in the page from the first byte, `aria-hidden` until the answer is known — and falls back to quiescence for anything
+ * else late. With no assistant configured there is nothing to wait for, so that is asked once, of the one endpoint that
+ * answers for it, and the wait is then a few frames.
+ */
+const settle = async () => {
+  const hasAssistant = (await page.eval<number>('fetch("/api/assistant", { method: "POST" }).then((r) => r.status).catch(() => 404)')) !== 404;
+  await page.eval(`new Promise((done) => {
+    let last = '', stable = 0, tries = 0;
+    const count = () => deepAll(document.body).filter((el) => el.matches('a[href],button,input,select,textarea,[tabindex]') && !el.hasAttribute('disabled') && el.tabIndex >= 0).length;
+    const slotResolved = () => { const el = deepAll(document.body).find((n) => n.matches('[data-assistant-slot]')); return !el || el.getAttribute('aria-hidden') === null; };
+    const tick = () => {
+      const now = String(count()), ready = !${hasAssistant} || slotResolved();
+      if (ready && now === last) { if (++stable >= 3) return done(+now); } else { stable = 0; last = now; }
+      if (++tries > 140) return done(+now);
+      setTimeout(tick, 50);
+    };
+    tick();
+  })`);
+};
 let failures = 0;
 for (const route of ROUTES) {
   await page.open(base + route, { width: 1440, height: 900, theme: 'dark', wait: 2500, cookie });
@@ -150,6 +176,7 @@ for (const route of ROUTES) {
     page.close();
     process.exit(1);
   }
+  await settle();
   const total = await page.eval<number>(TAG);
   const reached = new Set<string>();
   const order: string[] = [];

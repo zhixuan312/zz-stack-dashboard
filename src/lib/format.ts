@@ -12,6 +12,13 @@ import { app } from '../app.config';
 /** The symbol for `app.currency`: $, €, £, ¥; the narrow symbol, so SGD reads $1,234, not SGD1,234. */
 const CURRENCY = new Intl.NumberFormat('en-US', { style: 'currency', currency: app.currency, currencyDisplay: 'narrowSymbol' }).formatToParts(0).find((p) => p.type === 'currency')?.value ?? app.currency;
 
+/** A count with its word: 1 day, 2 days; 1 key has, 3 keys have. `other` is for the words that do not take an `s`.
+ *  It lives here for the reason the header gives: a count reads the same in a tile, a table cell, a tooltip and an
+ *  aria-label, and the ten places that wrote their own `=== 1 ?` are how two of them came to say "1 days" and "1 others". */
+export function plural(n: number, one: string, other?: string): string {
+  return n === 1 ? one : (other ?? `${one}s`);
+}
+
 /** Built once: an Intl formatter costs far more to construct than to use, and a table formats a figure per cell. */
 const INT = new Intl.NumberFormat('en-US');
 const CENTS = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });

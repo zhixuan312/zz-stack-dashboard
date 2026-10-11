@@ -3,6 +3,7 @@
 import { useId, useState } from 'react';
 import { cn } from '../../../lib/cn';
 import { formatDate } from '../../../lib/format-date';
+import { plural } from '../../../lib/format';
 
 export type DayState = 'operational' | 'degraded' | 'outage' | 'none';
 /* Healthy days are the baseline, one quiet rect across the period, so the eye lands on the days something happened.
@@ -101,7 +102,7 @@ export function UptimeBars({
       ) : null}
       <p className="sr-only" aria-live="polite">{hover !== null ? `${formatDate(dateOf(hover))}: ${WORD[shown[hover]]}` : ''}</p>
       <p id={summaryId} className="sr-only">
-        {`${label}: ${pct(uptime)} ${measure} over ${shown.length} days, ${formatDate(dateOf(0))} to ${formatDate(dateOf(shown.length - 1))}.`}
+        {`${label}: ${pct(uptime)} ${measure} over ${shown.length} ${plural(shown.length, 'day')}, ${formatDate(dateOf(0))} to ${formatDate(dateOf(shown.length - 1))}.`}
         {marked.length === 0 ? ' No incidents.' : marked.map(({ d, i }) => ` ${formatDate(dateOf(i))}: ${WORD[d]}.`).join('')}
       </p>
     </figure>

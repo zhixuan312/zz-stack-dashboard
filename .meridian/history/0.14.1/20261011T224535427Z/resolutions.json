@@ -1,0 +1,130 @@
+[
+  {
+    "id": "file:scripts/check.ts",
+    "status": "resolved",
+    "reason": "Meridian did not change this file in 0.14.1 — against a replay of our brand the release copy is byte-identical to the base — so the team's edit stands untouched.",
+    "files": {
+      "scripts/check.ts": "sha256-287fa5d9f28b3b7ae20d3d8ace8b31c7c88d2ae7a9c27fc9cf01767afabd87fb"
+    }
+  },
+  {
+    "id": "file:src/components/patterns/rail/index.tsx",
+    "status": "resolved",
+    "reason": "Meridian did not change this file in 0.14.1 — against a replay of our brand the release copy is byte-identical to the base — so the team's edit stands untouched.",
+    "files": {
+      "src/components/patterns/rail/index.tsx": "sha256-766e061f62baa2e64c5c36f8e158084ff8e7fe52960486e09e10f0d32daf0310"
+    }
+  },
+  {
+    "id": "file:src/components/patterns/prose/index.tsx",
+    "status": "resolved",
+    "reason": "Meridian did not change this file in 0.14.1 — against a replay of our brand the release copy is byte-identical to the base — so the team's edit stands untouched.",
+    "files": {
+      "src/components/patterns/prose/index.tsx": "sha256-3080884c99c4f500cbf70b043477f55c0382c622cb47a26e2ecfda1cc8859f5b"
+    }
+  },
+  {
+    "id": "file:scripts/vitals.ts",
+    "status": "resolved",
+    "reason": "Meridian did not change this file in 0.14.1 — against a replay of our brand the release copy is byte-identical to the base — so the team's edit stands untouched.",
+    "files": {
+      "scripts/vitals.ts": "sha256-ebd41ca44b9ac4031308da8517f8910c154d6a310e722cd0755b71a04c8870fd"
+    }
+  },
+  {
+    "id": "file:tests/setup.ts",
+    "status": "resolved",
+    "reason": "Meridian did not change this file in 0.14.1 — against a replay of our brand the release copy is byte-identical to the base — so the team's edit stands untouched.",
+    "files": {
+      "tests/setup.ts": "sha256-7e31a7569524f92926afe3cb9f8361061f0ab5c19353c1c21a4a061c72911a86"
+    }
+  },
+  {
+    "id": "file:src/lib/color.ts",
+    "status": "resolved",
+    "reason": "Meridian did not change this file in 0.14.1 — against a replay of our brand the release copy is byte-identical to the base — so the team's edit stands untouched.",
+    "files": {
+      "src/lib/color.ts": "sha256-4216e16b90d96dbcf7295aa88cc8b1f264ac44270d0a99a3c89515eade395d18"
+    }
+  },
+  {
+    "id": "file:src/lib/period.ts",
+    "status": "resolved",
+    "reason": "Meridian did not change this file in 0.14.1 — against a replay of our brand the release copy is byte-identical to the base — so the team's edit stands untouched.",
+    "files": {
+      "src/lib/period.ts": "sha256-cf533250e5f601e122cc1ebb37e14afef4841be9ba59d1183e7b9de773986680"
+    }
+  },
+  {
+    "id": "file:src/lib/safe-markdown.ts",
+    "status": "resolved",
+    "reason": "Meridian did not change this file in 0.14.1 — against a replay of our brand the release copy is byte-identical to the base — so the team's edit stands untouched.",
+    "files": {
+      "src/lib/safe-markdown.ts": "sha256-3ffe6bd92781030cd96d15dc7d91eeecfa828dfd220256f5426c4c1d9a0a2f8a"
+    }
+  },
+  {
+    "id": "file:src/components/base/app-mark/index.tsx",
+    "status": "resolved",
+    "reason": "Meridian did not change this file in 0.14.1 — against a replay of our brand the release copy is byte-identical to the base — so the team's edit stands untouched.",
+    "files": {
+      "src/components/base/app-mark/index.tsx": "sha256-3a77e1c95de16b69eba388deeeecd1c0720c302dc0d74b68078a0cd59b8e2931"
+    }
+  },
+  {
+    "id": "file:src/components/patterns/data-table/use-query-state.ts",
+    "status": "resolved",
+    "reason": "Meridian did not change this file in 0.14.1 — against a replay of our brand the release copy is byte-identical to the base — so the team's edit stands untouched.",
+    "files": {
+      "src/components/patterns/data-table/use-query-state.ts": "sha256-3eeb12a269a482287caa7494d17e0837ae927604f6dd767d0237ccc37ada8146"
+    }
+  },
+  {
+    "id": "file:src/components/ui/search-input/index.tsx",
+    "status": "resolved",
+    "reason": "Meridian did not change this file in 0.14.1 — against a replay of our brand the release copy is byte-identical to the base — so the team's edit stands untouched.",
+    "files": {
+      "src/components/ui/search-input/index.tsx": "sha256-384374bc85fbb2cdc141afdd201e95b3f2b8a874891f9561784a3a28b9011cf6"
+    }
+  },
+  {
+    "id": "file:src/components/ui/toast/index.tsx",
+    "status": "resolved",
+    "reason": "Meridian did not change this file in 0.14.1 — against a replay of our brand the release copy is byte-identical to the base — so the team's edit stands untouched.",
+    "files": {
+      "src/components/ui/toast/index.tsx": "sha256-f1c202145ccd230ee172867efcde3956eb36a98513eaff95c1597b980d04146d"
+    }
+  },
+  {
+    "id": "file:scripts/lib/context-check.ts",
+    "status": "resolved",
+    "reason": "Meridian did not change this file in 0.14.1 — against a replay of our brand the release copy is byte-identical to the base — so the team's edit stands untouched.",
+    "files": {
+      "scripts/lib/context-check.ts": "sha256-a53a45d51cc877cff33d446687dc171591c61e3110ca25b3b1832d57edf4edaf"
+    }
+  },
+  {
+    "id": "file:src/lib/format.ts",
+    "status": "resolved",
+    "reason": "Merged by hand: took 0.14.1's new `plural` (the release now ships the rule this project wrote for itself) and kept our two export changes — `formatCost` un-exported, `formatCount` exported. Different regions.",
+    "files": {
+      "src/lib/format.ts": "sha256-8f2f05634d6561d6f1fdd26fa633d1ef012c15b362f9ffc5648930e8192bf0e0"
+    }
+  },
+  {
+    "id": "file:scripts/keyboard.ts",
+    "status": "resolved",
+    "reason": "Merged by hand: took 0.14.1's `settle()` (it waits on the shell's own `[data-assistant-slot]` rather than a duration before walking the tab order) and kept our `press` wait, which holds the focused element's rect across three frames — a different wait, in a different function, so both stand.",
+    "files": {
+      "scripts/keyboard.ts": "sha256-d42713743fe08cee19d5c40766a4c935828946c3747da5e39c202fa331b7ce9e"
+    }
+  },
+  {
+    "id": "migration:dependency:jsdom",
+    "status": "resolved",
+    "reason": "Left at ^30.1.2 as the update intends: the gate, one production build and the full browser suite run against it before this session is finalized.",
+    "files": {
+      "package.json": "sha256-bc9c426a0b2cf30a7c963114ddb426a420fcb37a6b53e70575d96b7c18c4177c"
+    }
+  }
+]

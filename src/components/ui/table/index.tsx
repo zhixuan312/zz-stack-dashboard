@@ -132,6 +132,10 @@ export function TableCell({
   return (
     <td
       data-num={numeric || align === 'right' || undefined}
+      // A cut value is cut everywhere on the page, and this README has always said the cell carries the whole one in its
+      // title. The component does it now for a cell that is a value, rather than each page remembering; a cell that is a
+      // node is its author's, and a `title` passed in wins over this one because the spread comes after.
+      title={truncate && (typeof children === 'string' || typeof children === 'number') ? String(children) : undefined}
       className={cn(
         'h-(--row-height) px-4 align-middle',
         ALIGN[align ?? (numeric ? 'right' : 'left')],

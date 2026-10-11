@@ -257,6 +257,11 @@ export function TrendChart({
           {series.map((s, k) => (
             <li key={s.key} className="flex items-center gap-1.5">
               <svg width="14" height="4" className="shrink-0 overflow-visible">
+                {/* Stacked, a part can be the accent at 36% toward the surface — as a 4px line on a light card that is a whisper,
+                    and a swatch is the one mark whose whole job is to be seen. The hairline behind it does that without
+                    flattening the tone ordering, which is the rest of what the legend is telling: measured, the palest of four
+                    parts in light sits at 0.83 alpha, in dark at 0.69. */}
+                {stacked ? <line x1="1" x2="13" y1="2" y2="2" stroke="var(--ink-3)" strokeWidth={6} strokeLinecap="round" /> : null}
                 <line x1="1" x2="13" y1="2" y2="2" stroke={colorOf(s, k)} strokeWidth={stacked ? 4 : 2} strokeLinecap="round" strokeDasharray={s.kind === 'dashed' ? '2 3' : undefined} />
               </svg>
               {s.label}

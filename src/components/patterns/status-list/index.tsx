@@ -6,6 +6,7 @@ import { StatusDot } from '../../ui/status-dot/index';
 import type { Tone } from '../../ui/badge/index';
 import { UptimeBars } from '../../charts/uptime-bars/index';
 import { summarise, SERVICE_NOUN, type Noun } from './summarise';
+import { plural } from '../../../lib/format';
 
 export { summarise };
 
@@ -67,7 +68,7 @@ export function StatusList({
         <div role="status" className="flex items-center gap-3 border-b border-line px-(--card-pad) py-4">
           <StatusDot tone={head.tone} live={s.status !== 'operational'} className="size-2.5" />
           <p className={cn('text-md font-semibold tracking-[-0.012em]', s.status === 'operational' ? 'text-ink' : head.ink)}>{s.text}</p>
-          <p className="t-caption ml-auto hidden @md:block">{services.length} {services.length === 1 ? noun.one : noun.other}</p>
+          <p className="t-caption ml-auto hidden @md:block">{services.length} {plural(services.length, noun.one, noun.other)}</p>
         </div>
       ) : null}
       <ul className={ROWS}>

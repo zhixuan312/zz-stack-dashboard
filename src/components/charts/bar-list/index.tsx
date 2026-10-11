@@ -1,4 +1,5 @@
-import { cn } from '@/lib/cn';
+import { cn } from '../../../lib/cn';
+import { plural } from '../../../lib/format';
 
 export type BarItem = { key: string; label: React.ReactNode; value: number; meta?: React.ReactNode; href?: string };
 
@@ -31,7 +32,7 @@ export function BarList({
   const cut = sorted.length === limit + 1 ? limit + 1 : limit;
   const shown = sorted.slice(0, cut);
   const rest = sorted.slice(cut);
-  if (rest.length) shown.push({ key: '__others', label: `${rest.length} others`, value: rest.reduce((a, b) => a + b.value, 0) });
+  if (rest.length) shown.push({ key: '__others', label: `${rest.length} ${plural(rest.length, 'other')}`, value: rest.reduce((a, b) => a + b.value, 0) });
   const max = Math.max(1, total ?? 0, ...shown.map((i) => i.value));
   return (
     <ul aria-label={label} className={cn('flex flex-col gap-3.5', className)}>

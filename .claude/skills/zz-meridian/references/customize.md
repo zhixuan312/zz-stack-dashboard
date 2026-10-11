@@ -94,7 +94,7 @@ Rules that make every page look like it belongs:
 - **Charts on one page share one `Meridian`** (wrap the rows in `<Meridian dates={...}>`), so pointing at a day reads it
   everywhere. Two measures of a different size are two charts, never one chart with two axes.
 - **Tables**: mark one column `grow` (the lead), numbers `numeric`, low-value columns `hideBelow`; give `rowHref` so rows
-  open their record. Below 768px a data table becomes a card list by itself.
+  open their record. Below 768px a `DataTable` becomes a card list by itself — a markdown table inside `Prose` does not: it keeps its columns and scrolls sideways, so a document meant to be read on a phone wants a list, not a table.
 - **Every state**: loading (`loading.tsx` with skeletons shaped like the page; read through `read()` so the page is
   in its prerendered shell and the skeleton is rarely seen, since a request-time read waits at least 300 ms behind it:
   `cache.md`), empty (Empty state with the one action), error (`error.tsx`, what failed and Retry).
