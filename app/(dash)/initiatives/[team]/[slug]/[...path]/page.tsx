@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, use, type ReactNode } from 'react';
-import dynamic from 'next/dynamic';
 import { DataTable, type Column } from '@/components/patterns/data-table';
 import { Badge } from '@/components/ui/badge';
 import { Segmented } from '@/components/ui/segmented';
@@ -19,11 +18,8 @@ import { decodePath } from '@/lib/address';
 import { freshnessOf, useConsole } from '@/lib/api';
 import type { DocumentDetail, Me } from '@/lib/api-shapes';
 import { readableDocument } from '@/lib/document-markdown';
+import { ReadingBody } from '@/console/reading';
 
-// The markdown renderer arrives only with the view that reads a document body: this route's header, its version chain
-// and its tables are what a first paint shows, and the body is fetched from the gateway after that either way. Loaded
-// eagerly it was 141 KiB of the route's first-load JS, which put this route 124 KiB over the 820 KiB cap.
-const Prose = dynamic(() => import('@/components/patterns/prose').then((m) => m.Prose), { loading: () => <Skeleton className="h-64 rounded-md" /> });
 import { formatKb } from '@/lib/format';
 import { useLive } from '@/lib/live';
 
@@ -151,7 +147,7 @@ export default function DocumentPage({ params }: { params: Promise<{ team: strin
                 <div className="[&_li]:max-w-[92ch] [&_ol]:max-w-[92ch] [&_p]:max-w-[92ch] [&_ul]:max-w-[92ch]">
                   {doc.body?.trim()
                     ? view === 'read'
-                      ? <Prose>{readableDocument(doc.body, doc.title)}</Prose>
+                      ? <ReadingBody bytes={doc.bytes}>{readableDocument(doc.body, doc.title)}</ReadingBody>
                       : <pre className="rounded-lg border border-line bg-surface-sunk p-4 font-mono text-xs leading-[1.7] whitespace-pre-wrap text-ink-2 [overflow-wrap:anywhere]">{doc.body}</pre>
                     : <p className="t-small text-ink-3">This document has no body in the store.</p>}
                 </div>

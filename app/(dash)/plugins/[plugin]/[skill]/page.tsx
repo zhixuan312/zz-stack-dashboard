@@ -1,7 +1,6 @@
 'use client';
 
 import { use } from 'react';
-import dynamic from 'next/dynamic';
 import { Activity, Ban, Repeat, Timer } from 'lucide-react';
 import { Row } from '@/components/base/shell';
 import { BarList } from '@/components/charts/bar-list';
@@ -14,6 +13,7 @@ import { KeyValue } from '@/components/ui/key-value';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LinkTabs } from '@/components/ui/tabs';
 import { plural, sentence } from '@/console/words';
+import { ReadingBody } from '@/console/reading';
 import { ConsolePage } from '@/console/page';
 import { Panel } from '@/console/panel';
 import { failureOf, Query } from '@/console/query';
@@ -24,9 +24,6 @@ import { formatCount, formatKb, formatSeconds } from '@/lib/format';
 import { useLive } from '@/lib/live';
 
 type View = 'cost' | 'read' | 'references';
-
-// The markdown renderer arrives only with the views that read text: the cost view, the default, never needs it.
-const Prose = dynamic(() => import('@/components/patterns/prose').then((m) => m.Prose), { loading: () => <Skeleton className="h-64 rounded-md" /> });
 
 /** What a skill costs to run, from its recorded runs. A skill nobody has called is absent from that record, so never run is a state, not a gap. */
 function Cost({ skill, detail }: { skill: Skill | undefined; detail: SkillDetail }) {
@@ -146,10 +143,10 @@ export default function PluginSkillPage({ params }: { params: Promise<{ plugin: 
             />
           </Panel>
           {view === 'cost' ? <Query query={detail} what="The cost record" skeleton={<Skeleton className="h-72 rounded-lg" />}>{(d) => <Cost skill={skill} detail={d} />}</Query> : null}
-          {view === 'read' && text ? <Panel title="The skill" description={`${text.body.length.toLocaleString('en-US')} ${plural(text.body.length, 'character')}`}><Prose>{text.body}</Prose></Panel> : null}
+          {view === 'read' && text ? <Panel title="The skill" description={`${text.body.length.toLocaleString('en-US')} ${plural(text.body.length, 'character')}`}><ReadingBody bytes={text.body.length}>{text.body}</ReadingBody></Panel> : null}
           {view === 'references' && text ? text.references.map((r) => (
             <Panel key={r.path} title={r.path} description={`${r.content.length.toLocaleString('en-US')} ${plural(r.content.length, 'character')}`}>
-              {r.path.endsWith('.md') ? <Prose>{r.content}</Prose> : <pre className="font-mono text-xs leading-[1.7] whitespace-pre-wrap text-ink-2 [overflow-wrap:anywhere]">{r.content}</pre>}
+              {r.path.endsWith('.md') ? <ReadingBody bytes={r.content.length}>{r.content}</ReadingBody> : <pre className="font-mono text-xs leading-[1.7] whitespace-pre-wrap text-ink-2 [overflow-wrap:anywhere]">{r.content}</pre>}
             </Panel>
           )) : null}
         </>
