@@ -15,6 +15,7 @@ import { ConsolePage } from '@/console/page';
 import { Panel } from '@/console/panel';
 import { Query } from '@/console/query';
 import { When } from '@/console/when';
+import { decodePath } from '@/lib/address';
 import { freshnessOf, useConsole } from '@/lib/api';
 import type { KnowledgeBody, KnowledgeNode } from '@/lib/api-shapes';
 import { knowledgeNodeHref } from '@/lib/knowledge-filters';
@@ -33,7 +34,7 @@ export default function KnowledgeNodePage({ params }: { params: Promise<{ team: 
   useLive(['knowledge']);
   const { team: rawTeam, path } = use(params);
   const team = decodeURIComponent(rawTeam);
-  const rel = path.map(decodeURIComponent).join('/');
+  const rel = decodePath(path);
   const body = useConsole<KnowledgeBody>(`/knowledge/${team}/${rel}`);
   const self = body.data;
   const multiTeam = body.data?.multi_team ?? false;

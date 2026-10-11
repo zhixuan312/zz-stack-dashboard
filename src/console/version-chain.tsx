@@ -10,6 +10,7 @@ import { Panel } from '@/console/panel';
 import { When } from '@/console/when';
 import { cn } from '@/lib/cn';
 import { collapse, diffLines, diffStat } from '@/lib/diff';
+import { encodePath } from '@/lib/address';
 import { useConsole } from '@/lib/api';
 import type { DocumentDetail, DocumentRevision } from '@/lib/api-shapes';
 
@@ -52,8 +53,6 @@ function useRevisionText(doc: DocumentDetail, revision: number | undefined): Rev
  * "why" — every source declares the document it supports.
  */
 /** A path as an address: each segment encoded, the slashes kept. */
-const encodePath = (path: string) => path.split('/').map(encodeURIComponent).join('/');
-
 export function VersionChain({ doc }: { doc: DocumentDetail }) {
   const sources = doc.sources ?? [];
 

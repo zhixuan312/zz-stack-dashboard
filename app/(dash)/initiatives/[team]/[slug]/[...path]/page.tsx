@@ -15,6 +15,7 @@ import { Panel } from '@/console/panel';
 import { Query } from '@/console/query';
 import { VersionChain } from '@/console/version-chain';
 import { When } from '@/console/when';
+import { decodePath } from '@/lib/address';
 import { freshnessOf, useConsole } from '@/lib/api';
 import type { DocumentDetail, Me } from '@/lib/api-shapes';
 import { readableDocument } from '@/lib/document-markdown';
@@ -93,7 +94,7 @@ function Colophon({ label, children }: { label: string; children: ReactNode }) {
 export default function DocumentPage({ params }: { params: Promise<{ team: string; slug: string; path: string[] }> }) {
   useLive(['document']);
   const { team, slug, path } = use(params);
-  const rel = path.map(decodeURIComponent).join('/');
+  const rel = decodePath(path);
   const q = useConsole<DocumentDetail>(`/document/${team}/${slug}/${rel}`);
   const me = useConsole<Me>('/me');
   // Rendered by default, because a person came to read it; the stored markdown is one press away.

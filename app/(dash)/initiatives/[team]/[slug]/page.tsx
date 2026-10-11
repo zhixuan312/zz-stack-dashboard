@@ -11,6 +11,7 @@ import { ConsolePage } from '@/console/page';
 import { Panel } from '@/console/panel';
 import { Query } from '@/console/query';
 import { When } from '@/console/when';
+import { encodePath } from '@/lib/address';
 import { freshnessOf, useConsole } from '@/lib/api';
 import type { InitiativeDetail } from '@/lib/api-shapes';
 import { formatKb } from '@/lib/format';
@@ -23,7 +24,6 @@ const ORDER = ['intent', 'ground', 'agreement', 'spec', 'selection', 'plan', 've
 // A role means different things in different flows, so a line is written only where it is true of every flow.
 const WHAT: Record<string, string> = { intent: 'What they asked for', selection: 'Which plugins deliver it', plan: 'How it will be built', learnings: 'What was learned' };
 
-const encodePath = (path: string) => path.split('/').map(encodeURIComponent).join('/');
 const name = (d: Doc) => d.path.replace(/^sources\//, '');
 
 const DOCUMENTS: Column<Doc>[] = aligned([
