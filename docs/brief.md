@@ -39,7 +39,9 @@ reads the oldest arrival time among a page's queries, and `useDataClock` reads i
 its own; `Freshness`, `ShellTools` and every relative time are stamped against that clock rather than `new Date()`.
 
 A view's state lives in its address — every filter, tab and period is a query parameter — so a link is shareable and an
-agent opens the same view by naming the same parameters. `src/lib/address.ts` is the one reader of it.
+agent opens the same view by naming the same parameters. `src/lib/address.ts` is the one reader of it, and the one place
+a store path is turned into route segments and back — `encodePath`/`decodePath`, which must handle a path one segment at
+a time or `sources/2026-10-06-call.md` arrives as a single segment named after itself.
 
 ## Decisions
 
@@ -145,9 +147,11 @@ What stays the console's own, and why:
   Meridian's `data-table` resets it now. And the craft screenshots are taken against `next start` rather than
   `next dev`, which is what `standard.md` prescribes now. Both were reported with measurements, both were fixed in the
   template's own repository on 2026-10-11, and neither is in 0.14.0.
-- `src/console/words.ts`: the two rules a count and a borrowed sentence need — `plural(n, 'skill')` and
-  `sentence(text)`. One module rather than ten call sites, because the plural was wrong in six files while the idiom sat
-  in four others, and a rule written twice is a rule that drifts.
+- `src/console/words.ts`: the three rules the words about a count need — `plural(n, 'skill')`,
+  `sentence(text)` and `count(n)`. One module rather than three dozen call sites, because the plural was wrong in
+  seventeen places while the idiom sat in others, the dash was written once and re-derived once, and a rule written
+  twice is a rule that drifts. `scripts/check.local.ts` refuses the two shapes of a hand-rolled plural that cannot be
+  anything else.
 - `src/console/settings/section.tsx`: the same grid as Meridian's `FormSection` — a 15rem head column beside a card
   capped at `--field-width` — but not `FormSection` itself, which wraps its card in one form with one save bar. A
   Settings section here holds tables and forms of its own, each with its own save. Since 0.14.0 the Settings *page*
