@@ -31,7 +31,10 @@ const DOCUMENTS: Column<Doc>[] = aligned([
     cell: (d) => (
       <span className="block min-w-0">
         <span className="block font-medium text-ink [overflow-wrap:anywhere]">{d.title ?? d.path}</span>
-        <span className="t-caption block font-mono">{d.path}{WHAT[d.type] ? ` · ${WHAT[d.type]}` : ''}</span>
+        {/* `anywhere` on the path too: it is monospace, so it has no break opportunity of its own, and a long slug
+            widened this cell past the phone's frame — the audit read it as sideways scroll on the one initiative whose
+            paths are longest (368px of table in a 356px frame at 390px). The title above already wrapped. */}
+        <span className="t-caption block font-mono [overflow-wrap:anywhere]">{d.path}{WHAT[d.type] ? ` · ${WHAT[d.type]}` : ''}</span>
       </span>
     ),
     mobileCell: (d) => d.title ?? d.path,

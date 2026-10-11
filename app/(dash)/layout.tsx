@@ -21,11 +21,10 @@ export default function DashLayout({ children }: { children: ReactNode }) {
       rail={<ConsoleRail />}
       tools={<ConsoleTools />}
     >
-      {/* The gate reads the path and the router to send a signed-out visitor to sign in, and pages keep their filters
-          in the address (`useQueryState`) — both are dynamic client hooks, so both are behind this one boundary. */}
-      <Suspense fallback={null}>
-        <ConsoleGate>{children}</ConsoleGate>
-      </Suspense>
+      {/* No boundary of its own around the page: `loading.tsx` beside this file already gives the segment its
+          streamed fallback, and a second one with `fallback={null}` put the page in a boundary whose server HTML and
+          client hydration disagreed — React reported #418 on /settings at every width and in both themes. */}
+      <ConsoleGate>{children}</ConsoleGate>
       <ConsolePalette />
     </AppShell>
     </Suspense>
