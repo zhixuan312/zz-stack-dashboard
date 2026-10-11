@@ -10,8 +10,12 @@ import { createContext, useContext, useMemo, useState, type ReactNode } from 're
 type Ctx = { dates: string[]; index: number | null; setIndex: (i: number | null) => void; shared: boolean };
 const MeridianCtx = createContext<Ctx | null>(null);
 
-export function Meridian({ dates, children }: { dates: string[]; children: ReactNode }) {
-  const [index, setIndex] = useState<number | null>(null);
+/**
+ * `day` (YYYY-MM-DD) opens the page pointed at that day, so an address can name it (`?day=2026-09-22`) and a link
+ * reproduces what an agent or a person was looking at. The person's own pointer takes over from there.
+ */
+export function Meridian({ dates, day, children }: { dates: string[]; day?: string | null; children: ReactNode }) {
+  const [index, setIndex] = useState<number | null>(() => (day && dates.includes(day) ? dates.indexOf(day) : null));
   const value = useMemo(() => ({ dates, index, setIndex, shared: true }), [dates, index]);
   return <MeridianCtx.Provider value={value}>{children}</MeridianCtx.Provider>;
 }
@@ -27,4 +31,10 @@ export function useMeridian(dates: string[]): Ctx {
 export function useMeridianIndex(): { index: number | null; dates: string[] } {
   const c = useContext(MeridianCtx);
   return { index: c?.index ?? null, dates: c?.dates ?? [] };
+}
+
+/** Points the page's Meridian at a day (YYYY-MM-DD), from outside a chart: a finding that names a day shows it. No-op without a Meridian. */
+export function usePointMeridian(): (date: string) => void {
+  const c = useContext(MeridianCtx);
+  return (date) => { const i = c?.dates.indexOf(date) ?? -1; if (c && i >= 0) c.setIndex(i); };
 }

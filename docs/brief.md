@@ -1,83 +1,113 @@
-# ZZ Stack on Meridian: the brief
+# ZZ Stack console: the brief
 
-The decisions behind the console's move to ZZ Meridian, so they outlive the conversation that made them.
+The console's product, users, data and decisions, so they outlive the conversation that made them.
 
-## What it is and for whom
+## Product
 
-ZZ Stack is the browser console for the zz-stack platform. It carries the platform's name rather than one of its own, because it ships with the platform as one set. A superadmin reads the whole platform; a member reads
-their own team. The home page answers one question: is the platform's work moving, and what is waiting on a
-person?
+ZZ Stack's console is the browser view of the zz-stack platform: one place to answer whether the platform's work is
+moving, and what is waiting on a person. It carries the platform's name rather than one of its own, because it ships
+with the platform as one set.
 
-## Route
+The question it exists to answer is "what needs me now" — which initiative is blocked, which gate document was written
+and not approved, which run failed, which plugin has never been evaluated. Every page reports work already recorded
+somewhere else; none of them asks a person to enter it again.
 
-Meridian came into the existing project (Meridian's route A): its tokens, components, shell and scripts were
-copied in, and every page was rebuilt on them. The data layer did not move. Every read is still a browser
-fetch to `/api/console/*` (`src/lib/api.ts`), every write goes through `src/lib/mutate.ts`, and the payload
-shapes are still the gateway's (`src/lib/api-shapes.ts`). The routes are the same routes.
+## Users
+
+A superadmin reads the whole platform: every team's initiatives, the plugin estate, the fleet's runs and activity, and
+the people and tokens behind them.
+
+A member reads their own team. The gateway narrows every read to the caller's own team, so the console's job is to show
+the right pages rather than to enforce what may be read.
+
+Both arrive with a question already in mind and want an answer in one glance, not a dashboard to explore. Neither may
+ever be shown another team's documents, another person's API key, or a key's value after it was issued — the last of
+those is a rule the gateway keeps, and the console must not become a second place it could leak from.
+
+The console is read on a laptop, at a desk, between other work; the phone layout exists so a gate can be approved away
+from the desk, not so the product can be browsed on a train.
+
+## Data
+
+Every read is a browser fetch to `/api/console/*` by `src/lib/api.ts`, and every write goes through `src/lib/mutate.ts`.
+The payload shapes are the gateway's, recorded in `src/lib/api-shapes.ts`. The console holds nobody's credential: the
+browser has a session cookie, sends it to the origin that issued it, and this app is a renderer. Caddy routes
+`/api/console` on the console's own host to the gateway, so the page and its API are one origin.
+
+Freshness means when the data arrived in this browser, not when the page rendered. `freshnessOf` in `src/lib/api.ts`
+reads the oldest arrival time among a page's queries, and `useDataClock` reads it for a component that holds no query of
+its own; `Freshness`, `ShellTools` and every relative time are stamped against that clock rather than `new Date()`.
+
+A view's state lives in its address — every filter, tab and period is a query parameter — so a link is shareable and an
+agent opens the same view by naming the same parameters. `src/lib/address.ts` is the one reader of it.
 
 ## Decisions
 
-- **Dark first, light available.** Meridian's register. The person switches theme, accent and density in the
-  rail's appearance menu or the command palette. The old console's single cream theme is retired.
-- **Accent `zz`.** Derived from the ZZ brand purple `#7548d8` by `scripts/brand.ts --hex`: OKLCH hue 292,
-  chroma 0.18. It is 70° or more from every status hue, so an accent fill never reads as a state. The contrast
-  gate passes in both themes without lowering the fill.
-- **The brand on top.** Meridian is the structure; ZZ's marks, mascot and voice sit on it. `docs/brand.md`
-  holds those principles.
-- **Scope in the workspace menu.** A superadmin switches between the whole platform and their own team from
-  the rail's workspace menu (and in Settings). The rail drops the platform-only pages in team mode
-  (`src/nav.ts`).
-- **The bell lists waiting gates.** Every gate document that is written and not approved, on an open
-  initiative, or a closed initiative's correction awaiting approval, with a link to the
-  initiative.
-- **No assistant.** Meridian's built-in assistant is not adopted: it needs collections the console does not
-  have and a model key nobody asked for. The shell no longer mounts it, and `verify` has no assistant step.
-- **The console's own rules, kept inside Meridian.** Tables read left in the first column, right in the last
-  and centred between (`src/console/columns.ts`). A bar's length is its share of the total it is labelled
-  against (`BarList total`). A tile or bar used as a mark has no legend row; hover names the part. Colour
-  means something: a refusals list is not red on every row.
-- **The console-scope section is drawn for everyone; only its switch is earned.** `/settings` opens with it, so
-  its PRESENCE may not depend on what `/me` says. Returning `null` until the read landed kept the page's largest
-  text block out of the HTML, and `/settings` was the console's slowest page because of it (LCP 2624ms against 0.6s
-  on every page that ships its own words). The sentence is the same for a member and for a superadmin and says
-  which of them has the choice, so a member reads why they have no switch rather than nothing. The row holds the
-  height it would have either way — a member's slot keeps the space the switch takes and nothing in it, `aria-hidden`
-  because a gap is not a control — and the sentence names no team, because a largest block that changes when the
-  read lands re-paints, and the paint after hydration is the one the LCP takes.
-- **A view is its address, and the address is read from the window.** Every filter, tab and period is a query
-  parameter, and `src/lib/address.ts` is the one reader of it. Reading Next's search params instead costs a
-  prerendered route its prerender — `useSearchParams` client-renders every Client Component up to the nearest
-  Suspense boundary, and a console page has none — which measured 2212ms of LCP on `/teams` against 632ms once
-  the address was read directly. `scripts/check.ts` refuses the pattern in any page that has no boundary of its own.
+- **Dark first, light available.** Meridian's register. The person switches theme, accent and density in the rail's
+  appearance menu or the command palette. The old console's single cream theme is retired.
+- **Meridian is the base; ZZ's brand sits on it.** `docs/brand.md` holds the brand principles: three marks from the kit,
+  never redrawn; the purple accent for actions only; the mascot only where there is no data.
+- **The accent preset is `brand`.** Derived from the ZZ brand purple `#7548d8` by `scripts/brand.ts --hex`: OKLCH hue
+  292, chroma 0.18, at least 70° from every status hue so an accent fill never reads as a state. The name is what
+  Meridian's hue-and-chroma path calls it, which is what makes the brand reproducible from a release.
+- **Scope in the workspace menu.** A superadmin switches between the whole platform and their own team from the rail's
+  workspace menu and in Settings. The rail drops the platform-only pages in team mode, from `nav` in `src/app.config.ts`
+  narrowed by `src/nav.ts`.
+- **The bell lists waiting gates.** Every gate document written and not approved, on an open initiative, or a closed
+  initiative's correction awaiting approval, with a link to the initiative.
+- **The console's own rules, kept inside Meridian.** Tables read left in the first column, right in the last and centred
+  between (`src/console/columns.ts`). A bar's length is its share of the total it is labelled against. A tile or bar used
+  as a mark has no legend row; hover names the part. Colour means something: a refusals list is not red on every row.
+- **All time is the default period.** A console that opens on the last 30 days shows a total that is not the total, under
+  a heading that does not say so. A 24-hour period is the shortest offered.
+- **A view is its address, and the address is read from the window.** Reading Next's search params costs a prerendered
+  route its prerender — `useSearchParams` client-renders every Client Component up to the nearest Suspense boundary, and
+  a console page has none — which measured 2212ms of LCP on `/teams` against 632ms once the address was read directly.
+- **The console-scope section is drawn for everyone; only its switch is earned.** `/settings` opens with it, so its
+  presence may not depend on what `/me` says; the sentence says which of the two people has the choice, and the row holds
+  the height it would have either way.
+- **The assistant is Meridian's, and this console does not mount it.** Its components and its route-side code ship with
+  the release and stay on disk as part of Meridian's library; nothing renders the launcher, and the shell passes no
+  assistant. Adopting them is a decision for whoever brings the collections and the model key.
+
+## Glossary
+
+- **Gate.** A document that must be approved before anything downstream of it may be written.
+- **Initiative.** The unit of work: an open piece of work with its own documents, sources and outcome.
+- **Platform mode / team mode.** The scope a superadmin is reading in. A member is always in team mode.
+- **Waiting.** Written and not approved, on an initiative that is still open. The bell's own word.
+- **Routable door.** An MCP endpoint a client can be pointed at; the console shows which are live and which are refused.
+- **Fleet surface.** A page that reads across every team — Plugins, Runs, Teams and Activity. Dropped in team mode.
 
 ## How it is checked
 
-`pnpm verify` runs the gate (tokens, specifications, the console's own rules, contrast, lint, types, tests),
-builds the app against a fake gateway (`scripts/fake-gateway/`), serves it, audits every page at five widths in
-both themes, presses every control, follows every link, walks the whole keyboard path, draws the Approve banners a
-page load cannot reach (`scripts/approve-banners.ts`), and measures Web Vitals on a mid-range phone. The fake gateway exists because the presses approve, revoke and archive whatever a page offers,
-so they must never reach the real deployment. Its records are synthetic; nobody in them is a real person.
+`pnpm verify` runs the gate (tokens, specifications, the console's own rules, contrast, lint, types, tests), builds the
+app against a fake gateway (`scripts/fake-gateway`), serves it, and audits the routes it is configured for. The fake
+gateway exists because the presses approve, revoke and archive whatever a page offers, so they must never reach the real
+deployment. Its records are synthetic; nobody in them is a real person.
 
-`verify` runs the fixture in `normal` mode. Its other four worlds — `empty`, `slow` (every answer four seconds
-late), `error` and `extreme` (names longer than any layout planned for) — are reached with
-`GET /__mode?set=<mode>` on the running fake gateway and are swept by hand: twelve routes through all five, which
-is how the layout shift a stalled read can cause was ruled out of `/settings`. A page's states are design work
-that a green `verify` does not see.
+`pnpm verify --full` adds every mapped rail route and the exhaustive suites; `pnpm verify --perf` takes 20 samples per
+route, device and condition. What a run did not exercise, its coverage line says.
 
 ## Staying in step with Meridian
 
-The console's copy of Meridian is kept as close to upstream as it can be, so a re-sync is a copy rather than a
-merge. What stays the console's own, and why:
+This console is an adopter of the `zz-meridian` package, not a copy of its repository. `.meridian/manifest.json` records
+the release its files came from and a hash of each, so a sync is one command on any machine rather than a copy out of a
+checkout:
 
-- `base/shell`, `base/app-mark` and `base/providers`: no assistant, and the ZZ wordmark.
-- `src/lib/address.ts`: the reader the console's view state goes through, because Next's `useSearchParams` costs a
-  page the prerender that carries its own text.
-- `src/lib/period.ts` (a 24-hour period, all time by default), and the write in PeriodSelect that rebuilds the
-  address from the address rather than from Next's copy of it.
-- `src/lib/format.ts`, `color.ts` and `preferences.ts`: exports the console uses or does not, and the `zz` accent.
-- The `zz` accent in `tokens/` (`accent.zz.tokens.json`, the resolver's default).
-- The project's half of Meridian's hooks: `scripts/check.local.ts` (run by the gate) and `scripts/verify.config.ts`
-  (the detail routes and the fake gateway).
+```
+npx zz-meridian@latest update --dry-run   # what it would change, and what needs a decision
+npx zz-meridian@latest update             # apply, stage the conflicts, install
+npx zz-meridian@0.13.0 update --finalize  # pinned to the release that started the session
+```
 
-What `verify` cannot say is how the pages look against production data. The fixtures cover the states a page
-draws (empty, waiting, closed three ways, long names, a vendored plugin never run), and real data has more.
+What stays the console's own, and why:
+
+- `src/app.config.ts`, `src/nav.ts`, `src/console/`, `app/`, `src/lib/{api,mutate,api-shapes,address,format,color,knowledge-filters}.ts`
+  and the rest of the data layer: the console's product, its routes and the shape the gateway answers in.
+- `src/lib/period.ts`: the 24-hour period, all time by default, and `PERIOD_SHORT`'s `24H`.
+- `scripts/check.local.ts` and `scripts/verify.config.ts`: the project's half of Meridian's hooks.
+- `scripts/fake-gateway/` and `scripts/approve-banners.ts`: the fixture `verify` runs against.
+
+What `verify` cannot say is how the pages look against production data. The fixtures cover the states a page draws,
+and real data has more.

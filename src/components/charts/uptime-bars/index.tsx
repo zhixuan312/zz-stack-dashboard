@@ -1,20 +1,23 @@
 'use client';
 
-import { useState } from 'react';
-import { cn } from '@/lib/cn';
-import { formatDate } from '@/lib/format-date';
-import { useSize } from '@/components/charts/use-size';
+import { useId, useState } from 'react';
+import { cn } from '../../../lib/cn';
+import { formatDate } from '../../../lib/format-date';
 
-export type DayState = 'operational' | 'degraded' | 'outage';
-/* Healthy days recede, so the eye lands on the days something happened. */
-const FILL: Record<DayState, string> = { operational: 'bg-positive/22', degraded: 'bg-warning', outage: 'bg-critical' };
+export type DayState = 'operational' | 'degraded' | 'outage' | 'none';
+/* Healthy days are the baseline, one quiet rect across the period, so the eye lands on the days something happened.
+   A day with no data is opaque, so it never shows the operational fill beneath it. */
+const MARK: Record<Exclude<DayState, 'operational'>, string> = { degraded: 'fill-warning', outage: 'fill-critical', none: 'fill-line-strong' };
 /** 99.994%, 99.81%, 100%: as many decimals as the number needs, never trailing zeros. */
 const pct = (u: number) => `${Number((u * 100).toFixed(u >= 0.9999 ? 3 : 2))}%`;
-const WORD: Record<DayState, string> = { operational: 'Operational', degraded: 'Degraded', outage: 'Outage' };
+const WORD: Record<DayState, string> = { operational: 'Operational', degraded: 'Degraded', outage: 'Outage', none: 'No data' };
+/** The drawing's height in viewBox units; the width is one unit per day, so a narrow container scales every day down together. */
+const H = 10;
 
 /**
- * A service's recent history: one thin bar per day, oldest on the left. Healthy days are a quiet positive; a bad day
- * stands out in warning or critical, so the eye finds incidents first. A narrow container keeps every day and tightens the gaps.
+ * A service's recent history as one SVG, oldest day on the left. Healthy days are a quiet positive baseline; a bad day
+ * is a mark in warning or critical, and a day with no data a neutral one, so the eye finds incidents first. A narrow
+ * container keeps every day by scaling the drawing.
  */
 export function UptimeBars({
   days,
@@ -38,15 +41,14 @@ export function UptimeBars({
   size?: 'md' | 'lg';
   className?: string;
 }) {
-  const [box, { width }] = useSize<HTMLDivElement>();
+  const summaryId = useId();
   const [hover, setHover] = useState<number | null>(null);
   // Every day, always: the figure and the label describe all of them. A narrow strip tightens the gaps instead.
   const shown = days;
-  const narrow = width > 0 && width < 420;
   const dateOf = (i: number) => new Date(end.getTime() - (shown.length - 1 - i) * 86_400_000);
-  const bad = shown.filter((d) => d !== 'operational').length;
+  const marked = shown.flatMap((d, i) => (d === 'operational' ? [] : [{ d, i }]));
   return (
-    <figure ref={box} aria-label={label} className={cn('relative min-w-0', className)} onPointerLeave={() => setHover(null)}>
+    <figure aria-label={label} className={cn('relative min-w-0', className)} onPointerLeave={() => setHover(null)}>
       <div
         role="group"
         tabIndex={0}
@@ -60,16 +62,25 @@ export function UptimeBars({
           setHover(next);
         }}
         onBlur={() => setHover(null)}
-        className={cn('flex items-stretch rounded-xs', size === 'lg' ? 'h-14' : 'h-8', ' focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent', narrow ? 'gap-px' : 'gap-[2px]')}
+        className={cn('rounded-xs', size === 'lg' ? 'h-14' : 'h-8', 'focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent')}
       >
-        {shown.map((d, i) => (
-          <span
-            key={i}
-            aria-hidden
-            onPointerEnter={() => setHover(i)}
-            className={cn('min-w-0 flex-1 rounded-full transition-[opacity,transform] duration-(--dur-hover)', FILL[d], hover !== null && hover !== i && 'opacity-55', hover === i && 'scale-y-110')}
-          />
-        ))}
+        <svg
+          role="img"
+          aria-labelledby={summaryId}
+          viewBox={`0 0 ${shown.length} ${H}`}
+          preserveAspectRatio="none"
+          className="block size-full overflow-visible"
+          onPointerMove={(e) => {
+            const r = e.currentTarget.getBoundingClientRect();
+            if (r.width > 0) setHover(Math.min(shown.length - 1, Math.max(0, Math.floor(((e.clientX - r.left) / r.width) * shown.length))));
+          }}
+        >
+          <rect x={0} y={0} width={shown.length} height={H} className="fill-positive/22" />
+          {marked.map(({ d, i }) => (
+            <rect key={i} data-day={i} data-state={d} x={i} width={1} height={H} className={MARK[d as Exclude<DayState, 'operational'>]} />
+          ))}
+          {hover !== null ? <rect data-focus x={hover} y={0} width={1} height={H} className="fill-ink/25" /> : null}
+        </svg>
       </div>
       <figcaption className="mt-2 flex items-center gap-3 text-2xs text-ink-3">
         <span>{shown.length} days ago</span>
@@ -89,13 +100,10 @@ export function UptimeBars({
         </div>
       ) : null}
       <p className="sr-only" aria-live="polite">{hover !== null ? `${formatDate(dateOf(hover))}: ${WORD[shown[hover]]}` : ''}</p>
-      <p className="sr-only">
-        {label}: {pct(uptime)} {measure} over {shown.length} days; {bad === 0 ? 'no degraded days' : `${bad} days degraded or down`}.
+      <p id={summaryId} className="sr-only">
+        {`${label}: ${pct(uptime)} ${measure} over ${shown.length} days, ${formatDate(dateOf(0))} to ${formatDate(dateOf(shown.length - 1))}.`}
+        {marked.length === 0 ? ' No incidents.' : marked.map(({ d, i }) => ` ${formatDate(dateOf(i))}: ${WORD[d]}.`).join('')}
       </p>
-      <table className="sr-only">
-        <caption>{label}, by day</caption>
-        <tbody>{shown.map((d, i) => <tr key={i}><td>{formatDate(dateOf(i))}</td><td>{WORD[d]}</td></tr>)}</tbody>
-      </table>
     </figure>
   );
 }

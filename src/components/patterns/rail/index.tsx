@@ -1,19 +1,44 @@
 'use client';
 
-import Link from 'next/link';
+import Link, { useLinkStatus } from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { Check, ChevronsUpDown, LogOut, Settings } from 'lucide-react';
-import { app, type NavGroup } from '@/app.config';
-import { cn } from '@/lib/cn';
-import { AppMark } from '@/components/base/app-mark';
-import { Avatar } from '@/components/ui/avatar';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from '@/components/ui/menu';
-import { AppearanceMenu } from '@/components/patterns/appearance-menu';
+import { app, type NavGroup } from '../../../app.config';
+import { cn } from '../../../lib/cn';
+import { AppMark } from '../../base/app-mark/index';
+import { Avatar } from '../../ui/avatar/index';
+import { Skeleton } from '../../ui/skeleton/index';
+import { Spinner } from '../../ui/spinner/index';
+import { Menu, MenuContent, MenuItem, MenuLabel, MenuRadioGroup, MenuRadioItem, MenuSeparator, MenuTrigger } from '../../ui/menu/index';
+import { toast } from '../../ui/toast/index';
+import { AppearanceMenu } from '../appearance-menu/index';
 
 /** One scope the workspace menu offers: the console reads the whole platform or one team. */
 export type Scope = { id: string; label: string; active: boolean; onSelect: () => void };
+
+/** Who the console is being read as: the persona in view, the ones it may be switched to, and the action that does it. */
+export type ViewAs = {
+  /** The id of the persona in view; its option carries the check. */
+  current: string;
+  /** Every persona, in order. A persona who cannot be chosen now stays in the list, disabled. */
+  options: { id: string; label: string; disabled?: boolean }[];
+  /** Sign in as one: resolves once the route is refreshed, and rejects with a message for the person. */
+  choose: (id: string) => Promise<void>;
+};
+
+/**
+ * What every destination repeats, written once on the nav and keyed on `aria-current`: the pill's size and ink, and the
+ * icon's. A link carries only its own href. Literal strings, so Tailwind finds them.
+ */
+const LINKS = [
+  '[&_a]:relative [&_a]:flex [&_a]:h-9 pointer-coarse:[&_a]:h-11 [&_a]:items-center [&_a]:gap-3 [&_a]:rounded-md [&_a]:px-3 [&_a]:text-sm [&_a]:text-ink-2 [&_a]:transition-colors [&_a]:duration-(--dur-hover)',
+  '[&_a:not([aria-current]):hover]:bg-fill-hover [&_a:not([aria-current]):hover]:text-ink [&_a[aria-current=page]]:font-medium [&_a[aria-current=page]]:text-ink',
+  '[&_a_svg]:size-4 [&_a_svg]:shrink-0 [&_a_svg]:text-ink-3 [&_a_svg]:transition-colors [&_a:not([aria-current]):hover_svg]:text-ink-2 [&_a[aria-current=page]_svg]:text-accent-ink',
+].join(' ');
+
+/** The current link's own pill, drawn until the marker has measured where it goes; the marker brings the lit edge a frame later. */
+const UNMEASURED = '[&_a[aria-current=page]]:bg-accent-tint [&_a[aria-current=page]]:ring-1 [&_a[aria-current=page]]:ring-accent-line [&_a[aria-current=page]]:ring-inset';
 
 /**
  * The navigation rail: a translucent wash on the lit ground. The current page is an accent-tinted pill with a lit
@@ -26,6 +51,7 @@ export function Rail({
   scopes = [],
   user = app.user,
   signOut = '/sign-in',
+  viewAs,
 }: {
   /** The groups and destinations, as the signed-in person may see them. */
   nav: NavGroup[];
@@ -39,6 +65,8 @@ export function Rail({
   user?: { name: string; role: string } | null;
   /** Where Sign out goes (a route), what it does (a function, such as your auth's signOut), or null to hide it. */
   signOut?: string | (() => void) | null;
+  /** Who the console may be read as, shown as a "View as" group at the foot of the workspace menu. A product that has one session passes nothing. */
+  viewAs?: ViewAs;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -52,6 +80,16 @@ export function Rail({
   const here = nav.flatMap((g) => g.items.map((it) => it.href)).filter(matches).sort((a, b) => b.length - a.length)[0];
   const isActive = (href: string) => href === here;
 
+  // View as signs the console in as someone else and re-reads the route. A choice that fails says why in a toast and
+  // changes nothing: the check stays on the person in view, which is still who is signed in.
+  const choosePersona = (id: string) => {
+    if (!viewAs || id === viewAs.current) return;
+    void viewAs.choose(id).catch((e) => toast({ tone: 'critical', title: 'Person not changed', description: e instanceof Error ? e.message : undefined }));
+  };
+
+  // Measured after paint, not before it: a rail mounts inside the tap that opens the phone drawer, and a measurement
+  // there forces a layout of the whole page and a second render before the drawer can show. Until the marker has a
+  // position the current link draws the same pill itself, so nothing moves when the marker takes over.
   const measure = useCallback(() => {
     const el = list.current?.querySelector<HTMLElement>('[aria-current="page"]');
     setMarker(el ? { y: el.offsetTop, h: el.offsetHeight } : null);
@@ -63,7 +101,7 @@ export function Rail({
   useLayoutEffect(() => { measure(); }, [measure, path, here]);
   useLayoutEffect(() => {
     const node = list.current;
-    if (!node || typeof ResizeObserver === "undefined") return;
+    if (!node || typeof ResizeObserver === 'undefined') return;
     const ro = new ResizeObserver(() => measure());
     ro.observe(node);
     return () => ro.disconnect();
@@ -99,10 +137,22 @@ export function Rail({
             {hasSettings || signOut ? <MenuSeparator /> : null}
             {hasSettings ? <MenuItem onSelect={() => router.push('/settings')}><Settings />Workspace settings</MenuItem> : null}
             {signOut ? <MenuItem onSelect={() => (typeof signOut === 'function' ? signOut() : router.push(signOut))}><LogOut />Sign out</MenuItem> : null}
+            {viewAs ? (
+              <>
+                <MenuSeparator />
+                <MenuLabel>View as</MenuLabel>
+                {/* Radio items, so arrow keys move through the personas and the one in view reads as checked. */}
+                <MenuRadioGroup value={viewAs.current} onValueChange={choosePersona} aria-label="View as">
+                  {viewAs.options.map((o) => (
+                    <MenuRadioItem key={o.id} value={o.id} disabled={o.disabled}>{o.label}</MenuRadioItem>
+                  ))}
+                </MenuRadioGroup>
+              </>
+            ) : null}
           </MenuContent>
         </Menu>
       </div>
-      <nav ref={list} aria-label="Main" className="scroll-fade-y relative flex-1 overflow-y-auto px-3 pt-3 pb-4">
+      <nav ref={list} aria-label="Main" className={cn('scroll-fade-y relative flex-1 overflow-y-auto px-3 pt-3 pb-4', LINKS, !marker && UNMEASURED)}>
         {marker ? (
           <span
             aria-hidden
@@ -124,12 +174,8 @@ export function Rail({
                     <Link
                       href={it.href}
                       aria-current={on ? 'page' : undefined}
-                      className={cn(
-                        'group relative flex h-9 pointer-coarse:h-11 items-center gap-3 rounded-md px-3 text-sm transition-colors duration-(--dur-hover)',
-                        on ? 'font-medium text-ink' : 'text-ink-2 hover:bg-fill-hover hover:text-ink',
-                      )}
                     >
-                      <Icon className={cn('size-4 shrink-0 transition-colors', on ? 'text-accent-ink' : 'text-ink-3 group-hover:text-ink-2')} strokeWidth={1.75} />
+                      <LinkIcon icon={<Icon strokeWidth={1.75} />} label={it.label} />
                       <span className="flex-1 truncate">{it.label}</span>
                       {it.badge ? <span className="t-num grid h-5 min-w-5 place-items-center rounded-full bg-warning-tint px-1.5 text-2xs font-semibold text-warning-ink">{it.badge}</span> : null}
                     </Link>
@@ -159,4 +205,15 @@ export function Rail({
       </div>
     </div>
   );
+}
+
+/**
+ * A destination's icon, which turns into a spinner while its page is on the way. A route whose page renders on request
+ * and has no `loading.tsx` would otherwise give no answer to the click until the server does; a prefetched route is
+ * never pending, so it never shows. The spinner sits in the icon's 16px, so nothing shifts.
+ */
+function LinkIcon({ icon, label }: { icon: React.ReactNode; label: string }) {
+  const { pending } = useLinkStatus();
+  // The spinner takes the icon's own 16px, so the link carries no wrapper of its own and nothing shifts.
+  return pending ? <Spinner size="sm" label={`Opening ${label}`} className="size-4 items-center justify-center" /> : icon;
 }

@@ -2,11 +2,12 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Tooltip } from 'radix-ui';
-import { app } from '@/app.config';
-import { STORAGE_KEY, type Preferences } from '@/lib/preferences';
-import { Toaster } from '@/components/ui/toast';
+import { app } from '../../app.config';
+import { STORAGE_KEY, type Preferences } from '../../lib/preferences';
+import { Toaster } from '../ui/toast/index';
 
-const DEFAULTS: Preferences = { theme: 'system', accent: app.accent, density: 'comfortable' };
+const cfg: { name: string; theme?: 'dark' | 'light' } = app;
+const DEFAULTS: Preferences = { theme: cfg.theme ?? 'system', accent: app.accent, density: 'comfortable', assistant: true };
 const Ctx = createContext<{ prefs: Preferences; set: (p: Partial<Preferences>) => void }>({ prefs: DEFAULTS, set: () => {} });
 
 /** The person's appearance choices. Read with usePreferences(); the pre-paint script applies them before hydration. */
@@ -26,13 +27,25 @@ export function Providers({ children }: { children: ReactNode }) {
   const [prefs, setPrefs] = useState<Preferences>(DEFAULTS);
 
   useEffect(() => {
-    try {
-      const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- the stored choice is an external store read once on mount; there is no render-time value to derive it from, because the server render never sees localStorage.
-      setPrefs((p) => ({ ...p, ...stored }));
-    } catch {
-      /* storage unavailable: the defaults stand */
-    }
+    const read = () => {
+      try {
+        const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
+        // The stored choice is an external store: read on mount, and again when another tab writes. The server render
+        // never sees localStorage, so there is no render-time value to derive it from.
+        setPrefs((p) => {
+          const next = { ...p, ...stored };
+          apply(next);
+          return next;
+        });
+      } catch {
+        /* storage unavailable: the defaults stand */
+      }
+    };
+    read();
+    // Another tab's choice. `storage` fires only in the tabs that did NOT write, which is exactly the ones that need
+    // it: without this, two tabs of the same dashboard disagree about the theme until one of them reloads.
+    window.addEventListener('storage', read);
+    return () => window.removeEventListener('storage', read);
   }, []);
 
   const set = useCallback((patch: Partial<Preferences>) => {

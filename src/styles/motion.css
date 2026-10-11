@@ -17,7 +17,6 @@
 @keyframes m-dialog { from { opacity: 0; transform: translateY(10px) scale(0.98); } to { opacity: 1; transform: none; } }
 @keyframes m-sheet { from { transform: translateX(-100%); } to { transform: none; } }
 @keyframes m-sheet-up { from { transform: translateY(100%); } to { transform: none; } }
-@keyframes m-sheet-right { from { transform: translateX(100%); } to { transform: none; } }
 @keyframes m-toast { from { opacity: 0; transform: translateY(12px) scale(0.98); } to { opacity: 1; transform: none; } }
 @keyframes m-shimmer { from { background-position: 150% 0; } to { background-position: -50% 0; } }
 @keyframes m-pulse { 0% { box-shadow: 0 0 0 0 color-mix(in oklab, currentColor 45%, transparent); } 70%, 100% { box-shadow: 0 0 0 6px transparent; } }
@@ -38,6 +37,12 @@
   .draw { stroke-dasharray: var(--m-len, 1); animation: m-draw var(--dur-grow) var(--ease-out) both; }
   .reveal-x { animation: m-reveal-x var(--dur-grow) var(--ease-out) both; }
 
+  /* Data arrives once: on a page that was already there (reached by a click in the app, or shown again by the router),
+     every arrival takes no time and ends where it would have ended. `data-still` is set on the shell's main area when the
+     path changes and lifts once the longest arrival would be over, so a change made on the page afterwards still
+     animates. A duration changed on a running animation applies at once, so one already started ends there too. */
+  [data-still] :is(.arrive > *, .rise, .fade-in, .grow-x, .grow-y, .draw, .reveal-x) { animation-duration: 0s; animation-delay: 0s; }
+
   /* Answer: a control gives 1px under the pointer. */
   .press { transition: transform var(--dur-press) var(--ease-out); }
   .press:active:not(:disabled) { transform: translateY(0.5px) scale(0.985); }
@@ -51,10 +56,6 @@
   .scrim-in[data-state='closed'] { animation: m-fade var(--dur-exit) var(--ease-out) reverse forwards; }
   .sheet-in[data-state='open'] { animation: m-sheet var(--dur-enter) var(--ease-out); }
   .sheet-in[data-state='closed'] { animation: m-sheet var(--dur-exit-sheet) var(--ease-in-out) reverse forwards; }
-  .sheet-right-in[data-state='open'] { animation: m-sheet-right var(--dur-enter) var(--ease-out); }
-  .sheet-right-in[data-state='closed'] { animation: m-sheet-right var(--dur-exit-sheet) var(--ease-in-out) reverse forwards; }
-  .sheet-up-in[data-state='open'] { animation: m-sheet-up var(--dur-enter) var(--ease-out); }
-  .sheet-up-in[data-state='closed'] { animation: m-sheet-up var(--dur-exit-sheet) var(--ease-in-out) reverse forwards; }
 
   /* The two loops: a skeleton's shimmer and a live dot's pulse. */
   .shimmer {

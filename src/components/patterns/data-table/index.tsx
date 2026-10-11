@@ -4,14 +4,14 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState, type MouseEvent, type ReactNode } from 'react';
 import { RotateCw } from 'lucide-react';
-import { cn } from '@/lib/cn';
-import { Button } from '@/components/ui/button';
-import { CardHeader } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
-import { EmptyState } from '@/components/ui/empty-state';
-import { Pagination } from '@/components/ui/pagination';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, type Breakpoint, type SortDirection } from '@/components/ui/table';
+import { cn } from '../../../lib/cn';
+import { Button } from '../../ui/button/index';
+import { CardHeader } from '../../ui/card/index';
+import { Checkbox } from '../../ui/checkbox/index';
+import { EmptyState } from '../../ui/empty-state/index';
+import { Pagination } from '../../ui/pagination/index';
+import { Skeleton } from '../../ui/skeleton/index';
+import { Table, TableBody, TableHead, TableHeader, type Breakpoint, type SortDirection } from '../../ui/table/index';
 import { useQueryState } from './use-query-state';
 
 export { useQueryState } from './use-query-state';
@@ -43,6 +43,77 @@ export type Column<R> = {
 
 /** Sort and page, as strings so they can live in the address. `dir` is `asc` or `desc`; `page` is one-based. */
 export type TableState = { sort: string; dir: string; page: string };
+
+/**
+ * The phone presentation of a row, per column role.
+ *
+ * Below 768px the table's rows lay out as cards — the SAME cells, placed here, rather than a second copy of every
+ * record. The component used to render the table and a `<ul>` of the same rows and let CSS hide one: both trees were
+ * built on every render and both reached the DOM at every viewport, so every cell ran twice and each device downloaded
+ * a tree it could never show.
+ *
+ * `check` is the select-all column; `title`, `status` and `fact` are the roles a column declares (`Column.mobile`) and
+ * anything else is hidden on a phone. The card is the title and its status on the first line and up to three facts,
+ * in column order, flowing on the second.
+ */
+type Mobile = 'check' | 'title' | 'status' | 'fact' | 'hidden';
+
+/**
+ * The rules every cell and row repeats, written once on the table and keyed on the attributes the cells already carry
+ * (`data-mobile`, `data-num`, `data-sep`), so a row carries only what differs from its column: a width, a muted ink, a
+ * breakpoint. Twenty rows of seven cells used to repeat these class lists 160 times. Literal strings, so Tailwind finds them.
+ *
+ * `data-num` is `num` for a numeric column (never wrapped; its cells add `t-num` themselves, a plain class a variant cannot apply) and `true` for one that is only right-aligned.
+ */
+const CELLS = [
+  'text-ink',
+  '[&_td]:h-(--row-height) [&_td]:px-4 [&_td]:align-middle [&_td]:text-left',
+  '[&_td[data-num]]:text-right [&_td[data-num=num]]:whitespace-nowrap',
+  '[&_[data-sep]]:hidden',
+  '[&_tbody_tr]:transition-colors [&_tbody_tr]:duration-(--dur-hover) [&_tbody_td]:border-b [&_tbody_td]:border-line [&_tbody_tr:last-child_td]:border-0',
+].join(' ');
+
+/**
+ * What a row becomes when the TABLE is under 640px wide: a card. It is a wrapping row, not a grid: the title and the
+ * status share the first line, and a full-width break (the row's `::after`) sends the facts to a second line where they
+ * flow as one sentence, "391ms · Orbit Retail · 6 min ago", each whole. A grid of thirds put each dot at the edge of a
+ * third, or alone on a line of its own, and cut a date to fit its third.
+ * The table's own width, not the window's, as `hideBelow` reads it: a table in a half-width row on a wide screen, or
+ * beside the assistant's column, becomes cards instead of running past its frame (issue #9's Atlas audit).
+ */
+const PHONE_ROWS = [
+  '@max-[640px]:[&_tbody_tr]:flex @max-[640px]:[&_tbody_tr]:flex-wrap @max-[640px]:[&_tbody_tr]:items-center @max-[640px]:[&_tbody_tr]:gap-x-1.5 @max-[640px]:[&_tbody_tr]:gap-y-1',
+  '@max-[640px]:[&_tbody_tr]:after:order-2 @max-[640px]:[&_tbody_tr]:after:basis-full',
+  '@max-[640px]:[&_tbody_tr]:px-(--card-pad) @max-[640px]:[&_tbody_tr]:py-3.5 @max-[640px]:[&_tbody_td]:border-0 @max-[640px]:[&_tbody_tr]:border-b @max-[640px]:[&_tbody_tr]:border-line @max-[640px]:[&_tbody_tr:last-child]:border-b-0',
+].join(' ');
+
+/** The resets a cell needs once the row is a card: not a row height, not a padding box, free to shrink and to clip. */
+const PHONE_CELLS = '@max-[640px]:[&_td:not([data-mobile=hidden])]:!h-auto @max-[640px]:[&_td:not([data-mobile=hidden])]:!max-w-none @max-[640px]:[&_td:not([data-mobile=hidden])]:!p-0 @max-[640px]:[&_td:not([data-mobile=hidden])]:min-w-0 @max-[640px]:[&_td:not([data-mobile=hidden]):not([data-mobile=fact])]:!block @max-[640px]:[&_[data-sep]]:inline';
+
+/** Where a role sits in the card, and how it reads there.
+ *
+ * `!block` (above) is load-bearing: `hideBelow` drops a column when the TABLE is narrow, and on a phone the table is always
+ * narrow — but a card has room for three small facts, so a column the table dropped for width comes back here. The
+ * card's own rule is the role, not the width. */
+const PHONE_ROLES = [
+  '@max-[640px]:[&_td[data-mobile=check]]:order-0 @max-[640px]:[&_td[data-mobile=check]]:mr-1.5',
+  '@max-[640px]:[&_td[data-mobile=title]]:order-1 @max-[640px]:[&_td[data-mobile=title]]:flex-1 @max-[640px]:[&_td[data-mobile=title]]:font-medium',
+  '@max-[640px]:[&_td[data-mobile=status]]:order-1 @max-[640px]:[&_td[data-mobile=status]]:ml-auto @max-[640px]:[&_td[data-mobile=status]]:shrink-0',
+  // Facts flow on the second line, left to right whatever their column's alignment, each whole; one longer than the
+  // card ends in an ellipsis.
+  // A fact is a flex row of its content and its dot, so the dot stays beside it whatever element the cell renders.
+  '@max-[640px]:[&_td[data-mobile=fact]]:order-3 @max-[640px]:[&_td[data-mobile=fact]]:!flex @max-[640px]:[&_td[data-mobile=fact]]:items-center @max-[640px]:[&_td[data-mobile=fact]]:gap-1 @max-[640px]:[&_td[data-mobile=fact]]:max-w-full @max-[640px]:[&_td[data-mobile=fact]]:overflow-hidden @max-[640px]:[&_td[data-mobile=fact]]:whitespace-nowrap @max-[640px]:[&_td[data-mobile=fact]]:!text-left @max-[640px]:[&_td[data-mobile=fact]]:text-xs @max-[640px]:[&_td[data-mobile=fact]]:text-ink-3',
+  '@max-[640px]:[&_td[data-mobile=hidden]]:hidden',
+  // On the accent wash of a selected row, a fact steps up to ink-2: ink-3 on it falls under 4.5:1 in light.
+  '@max-[640px]:[&_tr[aria-selected]_td[data-mobile=fact]]:text-ink-2',
+].join(' ');
+
+/* Literal strings, as in the Table: Tailwind finds classes by reading the source. */
+const HIDE: Record<Breakpoint, string> = { sm: '@max-[512px]:hidden', md: '@max-[672px]:hidden', lg: '@max-[896px]:hidden', xl: '@max-[1152px]:hidden' };
+
+/** A cell's few own classes: what its column adds to the table's rules. */
+const cellClass = (c: { align?: 'left' | 'right' | 'center'; numeric?: boolean; muted?: boolean; truncate?: boolean; hideBelow?: Breakpoint }) =>
+  cn(c.numeric && 't-num', c.align === 'center' && '!text-center', c.muted && 'text-ink-2', c.truncate && 'max-w-0 truncate', c.hideBelow && HIDE[c.hideBelow]);
 
 /** The table's sort and page, kept in the URL: `?sort=latency&dir=desc&page=2`. Wrap the page in <Suspense>. */
 export function useTableQuery(defaults: Partial<TableState> = {}) {
@@ -79,6 +150,7 @@ export function DataTable<R>({
   manual,
   total: manualTotal,
   loading,
+  busy,
   error,
   onRetry,
   filtered,
@@ -115,6 +187,8 @@ export function DataTable<R>({
   manual?: boolean;
   total?: number;
   loading?: boolean;
+  /** New rows are on their way for a sort or a page already shown as chosen: the rows stay, quieter, until they land. */
+  busy?: boolean;
   /** What went wrong, in one sentence. Shows the error state with Retry. */
   error?: ReactNode;
   onRetry?: () => void;
@@ -191,104 +265,77 @@ export function DataTable<R>({
       </EmptyState>
     );
   } else {
+    const roleOf = (c: Column<R>): Mobile => (c === titleColumn ? 'title' : c === status ? 'status' : facts.includes(c) ? 'fact' : 'hidden');
     body = (
-      <>
-        <div className="max-md:hidden">
-          <Table caption={caption} aria-busy={loading || undefined}>
-            <TableHead>
-              <tr>
-                {selectable ? (
-                  <TableHeader className="w-10 !pr-0">
-                    <Checkbox aria-label={`Select every ${noun.replace(/s$/, '')} on this page`} checked={allOn ? true : someOn ? 'indeterminate' : false} onCheckedChange={toggleAll} />
-                  </TableHeader>
-                ) : null}
-                {columns.map((c) => (
-                  <TableHeader key={c.key} align={c.align ?? (c.numeric ? 'right' : 'left')} hideBelow={c.hideBelow} grow={c.grow} className={c.width} sort={c.sortValue ? dirOf(c) : undefined} onSort={c.sortValue ? () => toggleSort(c) : undefined}>
-                    {c.header}
-                  </TableHeader>
-                ))}
-              </tr>
-            </TableHead>
-            <TableBody>
-              {loading
-                ? Array.from({ length: Math.min(size, 8) }, (_, i) => (
-                    <TableRow key={i}>
-                      {selectable ? <TableCell className="!pr-0"><Skeleton className="size-4" /></TableCell> : null}
-                      {columns.map((c, j) => (
-                        <TableCell key={c.key} hideBelow={c.hideBelow} numeric={c.numeric}>
-                          <Skeleton className={cn('h-3', c.numeric ? 'ml-auto w-12' : c.grow ? ['w-48', 'w-40', 'w-56'][i % 3] : ['w-20', 'w-16', 'w-24'][(i + j) % 3])} />
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
-                : shown.map((r) => {
-                    const k = rowKey(r);
-                    const href = rowHref?.(r);
-                    return (
-                      <TableRow key={k} interactive={Boolean(href)} selected={sel.has(k)} onClick={(e) => open(e, href)}>
-                        {selectable ? (
-                          <TableCell className="!pr-0">
-                            <Checkbox aria-label={`Select ${k}`} checked={sel.has(k)} onCheckedChange={() => toggle(k)} />
-                          </TableCell>
-                        ) : null}
-                        {columns.map((c) => (
-                          <TableCell key={c.key} align={c.align} numeric={c.numeric} muted={c.muted} truncate={c.truncate} hideBelow={c.hideBelow}>
-                            {c === titleColumn && href ? <Link href={href} className="row-link">{c.cell(r)}</Link> : c.cell(r)}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    );
-                  })}
-            </TableBody>
-          </Table>
-        </div>
-        <ul aria-label={caption} aria-busy={loading || undefined} className="divide-y divide-line border-t border-line md:hidden">
+      <Table caption={caption} aria-busy={loading || busy || undefined} className={cn('@max-[640px]:block @max-[640px]:[&>thead]:hidden @max-[640px]:[&>tbody]:block', CELLS, PHONE_ROWS, PHONE_CELLS, PHONE_ROLES, '[&>tbody]:transition-opacity [&>tbody]:duration-(--dur-hover)', busy && '[&>tbody]:opacity-60')}>
+        <TableHead>
+          <tr>
+            {selectable ? (
+              <TableHeader className="w-10 !pr-0">
+                <Checkbox aria-label={`Select every ${noun.replace(/s$/, '')} on this page`} checked={allOn ? true : someOn ? 'indeterminate' : false} onCheckedChange={toggleAll} />
+              </TableHeader>
+            ) : null}
+            {columns.map((c) => (
+              <TableHeader key={c.key} align={c.align ?? (c.numeric ? 'right' : 'left')} hideBelow={c.hideBelow} grow={c.grow} className={c.width} sort={c.sortValue ? dirOf(c) : undefined} onSort={c.sortValue ? () => toggleSort(c) : undefined}>
+                {c.header}
+              </TableHeader>
+            ))}
+          </tr>
+        </TableHead>
+        <TableBody>
           {loading
-            ? Array.from({ length: 5 }, (_, i) => (
-                <li key={i} className="flex flex-col gap-2.5 px-(--card-pad) py-4">
-                  <span className="flex items-center gap-3"><Skeleton className="h-3.5 w-44" /><Skeleton className="ml-auto h-5 w-14 rounded-full" /></span>
-                  <Skeleton className="h-3 w-56" />
-                </li>
+            ? Array.from({ length: Math.min(size, 8) }, (_, i) => (
+                <tr key={i} className="group/row">
+                  {selectable ? <td data-mobile="check"><Skeleton className="size-4" /></td> : null}
+                  {columns.map((c, j) => (
+                    <td key={c.key} data-mobile={roleOf(c)} data-num={c.numeric ? 'num' : undefined} className={cellClass({ numeric: c.numeric, hideBelow: c.hideBelow })}>
+                      <Skeleton className={cn('h-3', c.numeric ? 'ml-auto w-12' : c.grow ? ['w-48', 'w-40', 'w-56'][i % 3] : ['w-20', 'w-16', 'w-24'][(i + j) % 3])} />
+                    </td>
+                  ))}
+                </tr>
               ))
             : shown.map((r) => {
                 const k = rowKey(r);
                 const href = rowHref?.(r);
-                const inner = (
-                  <>
-                    <span className="flex min-w-0 items-center gap-3">
-                      {selectable ? <Checkbox aria-label={`Select ${k}`} checked={sel.has(k)} onCheckedChange={() => toggle(k)} /> : null}
-                      <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{(titleColumn.mobileCell ?? titleColumn.cell)(r)}</span>
-                      {status ? <span className="shrink-0">{(status.mobileCell ?? status.cell)(r)}</span> : null}
-                    </span>
-                    {facts.length ? (
-                      <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-3">
-                        {facts.map((f, i) => (
-                          <span key={f.key} className="t-num inline-flex min-w-0 items-center gap-2">
-                            {i > 0 ? <span aria-hidden className="size-0.5 rounded-full bg-ink-3" /> : null}
-                            {(f.mobileCell ?? f.cell)(r)}
-                          </span>
-                        ))}
-                      </span>
-                    ) : null}
-                  </>
-                );
                 return (
-                  <li key={k} className={cn(sel.has(k) && 'bg-accent-tint')}>
-                    {href ? (
-                      <Link href={href} className="flex min-w-0 flex-col gap-1.5 px-(--card-pad) py-3.5 transition-colors hover:bg-fill-hover">{inner}</Link>
-                    ) : (
-                      <div className="flex min-w-0 flex-col gap-1.5 px-(--card-pad) py-3.5">{inner}</div>
-                    )}
-                  </li>
+                  <tr key={k} aria-selected={sel.has(k) || undefined} onClick={(e) => open(e, href)} className={cn('group/row', href && 'cursor-pointer hover:bg-fill-hover', sel.has(k) && 'bg-accent-tint hover:bg-accent-tint')}>
+                    {selectable ? (
+                      <td data-mobile="check" className="!pr-0">
+                        <Checkbox aria-label={`Select ${k}`} checked={sel.has(k)} onCheckedChange={() => toggle(k)} />
+                      </td>
+                    ) : null}
+                    {columns.map((c) => {
+                      const role = roleOf(c);
+                      // The title is the row's link wherever it is shown, phone included: the whole card takes the
+                      // pointer too (the row's own click), but the link is what a keyboard and a screen reader follow.
+                      const content = c === titleColumn && href ? <Link href={href}>{c.cell(r)}</Link> : c.cell(r);
+                      return (
+                        <td key={c.key} data-mobile={role} data-num={c.numeric ? 'num' : c.align === 'right' ? 'true' : undefined} className={cellClass(c) || undefined}>
+                          {/* A phone may want other words for the same cell — "Used 1 min ago", not "1 min ago" — so
+                              both are rendered and one is hidden: a few words each, never a second copy of the row. */}
+                          {c.mobileCell ? (
+                            <>
+                              <span className="@max-[640px]:hidden">{content}</span>
+                              <span className="hidden @max-[640px]:contents">{c.mobileCell(r)}</span>
+                            </>
+                          ) : content}
+                          {/* The dot that separates two facts, on a phone only — the table has a column for each of
+                              them, where a dot would be noise. It trails the fact it follows, so the line reads
+                              "391ms · Orbit Retail · 6 min ago" rather than starting every fact with a bullet. */}
+                          {role === 'fact' && facts.indexOf(c) < facts.length - 1 ? <span aria-hidden data-sep>·</span> : null}
+                        </td>
+                      );
+                    })}
+                  </tr>
                 );
               })}
-        </ul>
-      </>
+        </TableBody>
+      </Table>
     );
   }
 
   return (
-    <section aria-label={caption} className={cn('relative flex min-w-0 flex-col overflow-hidden rounded-lg border border-line bg-surface shadow-card', className)}>
+    <section aria-label={caption} className={cn('card overflow-hidden', className)}>
       {title ? <CardHeader title={title} description={description} actions={actions} divided={!toolbar} /> : null}
       {toolbar ? <div className="px-(--card-pad) py-3.5 md:border-b md:border-line">{toolbar}</div> : null}
       {body}

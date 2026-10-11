@@ -480,14 +480,6 @@
       },
       "$description": "The assistant panel as a third column of the shell, from 1024px; below that it is a sheet no wider than the viewport."
     },
-    "rail-collapsed": {
-      "$type": "dimension",
-      "$value": {
-        "value": 68,
-        "unit": "px"
-      },
-      "$description": "The navigation rail, collapsed to icons."
-    },
     "data-width": {
       "$type": "dimension",
       "$value": {

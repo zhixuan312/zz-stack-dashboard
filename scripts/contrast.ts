@@ -9,58 +9,10 @@
  */
 import { load, resolver, tokensOf, cssValue, NS } from './tokens.ts';
 import { parse, over, ratio, simulate, deltaE, oklchOf, hex } from '../src/lib/color.ts';
-
-const TEXT = 4.5, UI = 3;
-type Pair = [fg: string, bg: string | string[], min: number, what: string];
-
-export const PAIRS: Pair[] = [
-  ['ink', 'ground', TEXT, 'body text on the page'],
-  ['ink', 'surface', TEXT, 'body text in a card'],
-  ['ink', 'surface-raised', TEXT, 'text in a menu or dialog'],
-  ['ink-2', 'ground', TEXT, 'secondary copy on the page'],
-  ['ink-2', 'surface', TEXT, 'secondary copy and inactive navigation'],
-  ['ink-2', 'surface-sunk', TEXT, 'a segmented option at rest'],
-  ['ink-2', ['frame'], TEXT, 'inactive navigation in the rail'],
-  ['ink-3', ['frame'], TEXT, 'a group label in the rail'],
-  ['accent-ink', ['frame', 'accent-tint'], TEXT, 'the active navigation label in the rail'],
-  ['ink-3', 'ground', TEXT, 'captions on the page'],
-  ['ink-3', 'surface', TEXT, 'axis ticks, captions and placeholders in a card'],
-  ['ink-3', 'surface-sunk', TEXT, 'a table head'],
-  ['ink-3', 'surface-raised', TEXT, 'a shortcut hint in a menu'],
-  ['ink', ['surface', 'fill-hover'], TEXT, 'a row under the pointer'],
-  ['ink-inverse', 'surface-inverse', TEXT, 'tooltip text'],
-  ['on-accent', 'accent', TEXT, 'primary button label'],
-  ['on-accent', 'accent-hover', TEXT, 'primary button label on hover'],
-  ['accent-ink', 'surface', TEXT, 'an inline link in a card'],
-  ['accent-ink', 'ground', TEXT, 'an inline link on the page'],
-  ['accent-ink', ['surface', 'accent-tint'], TEXT, 'the active navigation label'],
-  ['ink', ['surface', 'accent-tint'], TEXT, 'a selected row'],
-  ['ink-2', ['surface', 'accent-tint'], TEXT, 'muted text in a selected row or on an accent wash (ink-3 is not enough there)'],
-  ['ink-2', ['surface', 'fill-track'], TEXT, 'a count on an inactive tab'],
-  ['positive-ink', 'surface', TEXT, 'an improving delta'],
-  ['positive-ink', ['surface', 'positive-tint'], TEXT, 'a positive badge'],
-  ['warning-ink', 'surface', TEXT, 'a warning message'],
-  ['warning-ink', ['surface', 'warning-tint'], TEXT, 'a warning badge'],
-  ['critical-ink', 'surface', TEXT, 'an error message'],
-  ['critical-ink', 'ground', TEXT, 'an error under a field on the page'],
-  ['critical-ink', ['surface', 'critical-tint'], TEXT, 'a critical badge'],
-  ['on-critical', 'critical-fill', TEXT, 'the destructive button label'],
-  ['accent', 'surface', UI, 'focus ring, active marker and the highlighted mark in a card'],
-  ['accent', 'ground', UI, 'focus ring on the page'],
-  ['line-control', 'surface', UI, 'a checkbox or radio at rest'],
-  ['positive', 'surface', UI, 'a positive status dot'],
-  ['warning', 'surface', UI, 'a warning status dot'],
-  ['critical', 'surface', UI, 'a critical status dot'],
-  ['chart-neutral-strong', 'surface', UI, 'a neutral comparison line'],
-  ['series-1', 'surface', UI, 'chart slot 1'],
-  ['series-2', 'surface', UI, 'chart slot 2'],
-  ['series-3', 'surface', UI, 'chart slot 3'],
-  ['series-4', 'surface', UI, 'chart slot 4'],
-  ['series-6', 'surface', UI, 'chart slot 6'],
-];
+import { PAIRS } from './lib/contrast-pairs.ts';
 
 /** Every custom property of one context, as raw CSS strings. */
-export function context(theme: string, accent: string): Record<string, string> {
+function context(theme: string, accent: string): Record<string, string> {
   const { sets, mods } = resolver();
   const env: Record<string, string> = {};
   for (const f of sets) if (!f.startsWith('palette')) for (const t of tokensOf(load(f))) env[t.name] = cssValue(t);
@@ -71,7 +23,7 @@ export function context(theme: string, accent: string): Record<string, string> {
   return env;
 }
 
-export function resolve(env: Record<string, string>, name: string, depth = 0): string {
+function resolve(env: Record<string, string>, name: string, depth = 0): string {
   if (depth > 8) throw new Error(`cycle at --${name}`);
   let v = env[name];
   if (v === undefined) throw new Error(`--${name} is not defined`);
@@ -79,7 +31,7 @@ export function resolve(env: Record<string, string>, name: string, depth = 0): s
   return v.replace(/calc\(([\d.]+)\s*\*\s*([\d.]+)\)/g, (_, x, y) => String(Number(x) * Number(y)));
 }
 
-export const colorOf = (env: Record<string, string>, name: string) => parse(resolve(env, name));
+const colorOf = (env: Record<string, string>, name: string) => parse(resolve(env, name));
 
 function measure(env: Record<string, string>, fg: string, bg: string | string[]) {
   let back = colorOf(env, 'ground');

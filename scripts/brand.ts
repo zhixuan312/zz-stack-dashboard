@@ -3,20 +3,22 @@
  * Brand a copy of Meridian for a product, in place.
  *
  *   node scripts/brand.ts --name "Atlas Ops" [--workspace "Production"] [--timezone "Europe/London"]
- *                         [--package atlas-ops] [--accent indigo|cobalt|jade|graphite]
+ *                         [--package atlas-ops] [--accent indigo|cobalt|jade|graphite] [--theme dark|light]
  *                         [--currency EUR] [--user "Ada Park" --role Admin]
  *                         [--hex '#E4572E' | --hue 25 --chroma 0.16] [--accent-name brand] [--no-atlas | --product | --existing]
  *
+ * --theme records the default theme in the app config; a person can still choose another in Settings.
+ * A brand accent is recognized from the app config (`accent`), so this script never edits src/lib/preferences.ts.
  * --hex derives the hue and chroma from a brand colour (chroma capped at 0.18; the theme owns lightness).
- * --hue/--chroma add a new accent preset (OKLCH hue in degrees, chroma 0 to 0.2) and make it the default. The contrast
+ * --hue/--chroma add a new accent preset (OKLCH hue in degrees, chroma 0 to 0.24, 0.12 to 0.18 is typical) and make it the default. The contrast
  * gate then runs; where white on the accent fill fails in a theme, the preset gets a lower fill lightness for that
  * theme, a step at a time, until every pair in every theme passes. --no-atlas removes the Design Atlas: its routes, its
  * modules, its nav and footer links and its build tracing (the card previews stay: the gate checks them; the markdown packages stay for Prose).
  * --product goes further, for a dashboard that is not the design system: --no-atlas, and the card specs and previews,
  * page specs, docs, decisions, changelog and skill go too (the assistant, its collections and its fake model stay); the components, tokens, scripts and gates stay.
  * --existing is for an existing project that brought Meridian in (route A in the skill): it sets the name, accent and the
- * rest, never renames package.json unless --package is given, has no Atlas or product branch to run, and appends Meridian's
- * rules to the project's AGENTS.md once, so its next agent session keeps the dashboard on Meridian.
+ * rest, never renames package.json unless --package is given, and has no Atlas or product branch to run. It never
+ * touches AGENTS.md: the CLI writes the managed block there.
  */
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -31,6 +33,10 @@ const file = (p: string) => path.join(ROOT, p);
 const read = (p: string) => fs.readFileSync(file(p), 'utf8');
 const write = (p: string, s: string) => fs.writeFileSync(file(p), s);
 const json = (p: string) => JSON.parse(read(p));
+// A brand value is written into TypeScript and JSON: a backslash or a line break could end the string it sits in.
+for (const [i, a] of argv.entries()) {
+  if (a.startsWith('--') && argv[i + 1] !== undefined && /[\\\r\n\u2028\u2029]/.test(argv[i + 1])) throw new Error(`${a} may not contain a backslash or a line break`);
+}
 const done: string[] = [];
 const existing = has('--existing');
 if (existing && (has('--no-atlas') || has('--product'))) {
@@ -41,9 +47,12 @@ function setConfig(key: string, value: string) {
   const s = read('src/app.config.ts');
   const re = new RegExp(`(\\n  ${key}: )'[^']*'`);
   if (!re.test(s)) throw new Error(`src/app.config.ts has no "${key}"`);
-  write('src/app.config.ts', s.replace(re, `$1'${value.replace(/'/g, "\\'")}'`));
+  write('src/app.config.ts', s.replace(re, (_m, head: string) => `${head}'${value.replace(/'/g, "\\'")}'`));
   done.push(`${key} = ${value}`);
 }
+
+const theme = opt('--theme');
+if (has('--theme') && theme !== 'dark' && theme !== 'light') throw new Error('--theme is dark or light');
 
 const name = opt('--name');
 if (name) setConfig('name', name);
@@ -62,7 +71,7 @@ if (user || role) {
   const m = s.match(/user: \{ name: '([^']*)', role: '([^']*)' \}/);
   if (!m) throw new Error('src/app.config.ts has no "user"');
   const esc = (v: string) => v.replace(/'/g, "\\'");
-  write('src/app.config.ts', s.replace(m[0], `user: { name: '${esc(user ?? m[1])}', role: '${esc(role ?? m[2])}' }`));
+  write('src/app.config.ts', s.replace(m[0], () => `user: { name: '${esc(user ?? m[1])}', role: '${esc(role ?? m[2])}' }`));
   done.push(`user = ${user ?? m[1]}, ${role ?? m[2]}`);
 }
 
@@ -71,8 +80,11 @@ const pkg = opt('--package') ?? (name && !existing ? name.toLowerCase().replace(
 if (pkg) {
   const p = json('package.json');
   p.name = pkg;
-  p.version = '0.1.0';
-  p.description = `${name ?? pkg}: a dashboard built on Meridian.`;
+  // An existing project keeps its own version and description; only a new product starts at 0.1.0.
+  if (!existing) {
+    p.version = '0.1.0';
+    p.description = `${name ?? pkg}: a dashboard built on Meridian.`;
+  }
   write('package.json', JSON.stringify(p, null, 2) + '\n');
   done.push(`package = ${pkg}`);
 }
@@ -117,12 +129,6 @@ if (hue !== undefined) {
   const r = json('tokens/zz-meridian.resolver.json');
   r.modifiers.accent.contexts[id] = [{ $ref: `accent.${id}.tokens.json` }];
   write('tokens/zz-meridian.resolver.json', JSON.stringify(r, null, 2) + '\n');
-  let prefs = read('src/lib/preferences.ts');
-  if (!prefs.includes(`'${id}'`)) {
-    prefs = prefs.replace(/export const ACCENTS = \[([^\]]*)\] as const;/, (_, list) => `export const ACCENTS = [${list}, '${id}'] as const;`);
-    prefs = prefs.replace(/(export const ACCENT_SWATCH[^{]*\{)([^}]*)\}/, (_, head, body) => `${head} ${body.trim()}, ${id}: 'oklch(0.56 ${c} ${h})' }`);
-    write('src/lib/preferences.ts', prefs);
-  }
   defaultAccent(id);
 
   // Hold contrast: lower a theme's fill lightness where white text on it fails, a step at a time.
@@ -159,11 +165,19 @@ if (hue !== undefined) {
   if (accent) defaultAccent(accent);
 }
 
+if (theme) {
+  const s = read('src/app.config.ts');
+  if (/\n {2}theme: '/.test(s)) write('src/app.config.ts', s.replace(/(\n {2}theme: )'[^']*'/, `$1'${theme}'`));
+  else if (/\n {2}accent: [^\n]*\n/.test(s)) write('src/app.config.ts', s.replace(/(\n {2}accent: [^\n]*\n)/, `$1  theme: '${theme}',\n`));
+  else throw new Error('src/app.config.ts has no "accent" line to put --theme after');
+  done.push(`theme = ${theme}`);
+}
+
 if (has('--no-atlas') || has('--product')) {
   // The routes, and the Atlas-only modules: the card previews keep specimen.tsx, sample-cells.tsx, registry.ts and
   // fixtures/, which the gate still checks.
   fs.rmSync(file('app/system'), { recursive: true, force: true });
-  const atlasOnly = ['content.ts', 'hero.tsx', 'markdown.tsx', 'page-stage.tsx', 'atlas-shell.tsx', 'card-stage.tsx', 'strata.tsx', 'token-view.tsx', 'tokens-data.ts'];
+  const atlasOnly = ['content.ts', 'hero.tsx', 'markdown.tsx', 'page-stage.tsx', 'atlas-shell.tsx', 'card-stage.tsx', 'preview-loaders.ts', 'strata.tsx', 'token-view.tsx', 'tokens-data.ts'];
   for (const f of atlasOnly) fs.rmSync(file(`src/system/${f}`), { force: true });
   // Nav entries for /system and /system/... exactly (never /systemic), then any group they leave empty.
   let cfg = read('src/app.config.ts').replace(/\n\s*\{ href: '\/system(?:\/[^']*)?'[^}]*\},/g, '');
@@ -177,11 +191,13 @@ if (has('--no-atlas') || has('--product')) {
   write('src/app.config.ts', cfg);
   // The standalone screens' footer link to the Atlas (the sample's footer, src/views/sample-footer.tsx).
   write('src/views/sample-footer.tsx', read('src/views/sample-footer.tsx').replace(/\n\s*<Link href="\/system"[^\n]*<\/Link>/, ''));
-  // Build tracing for the Atlas's markdown; the tab icon still reads tokens/.
-  write('next.config.ts', read('next.config.ts').replace(/\n\s*\/\/ Card specifications[^\n]*\n\s*outputFileTracingIncludes: \{[^\n]*\},/, "\n  // The tab icon reads the tokens at build time.\n  outputFileTracingIncludes: { '/icon': ['./tokens/**/*.json'] },"));
+  // The verification config's mappings and smoke routes for the Atlas, which verify --full would report as no route.
+  write('scripts/verify.config.ts', read('scripts/verify.config.ts').replace(/\n\s*\{ path: '\/system(?:\/[^']*)?'[^\n]*\},/g, '').replace(/,\s*'\/system(?:\/[^']*)?'/g, ''));
+  // Build tracing: only the Atlas's `/system/**` entry goes; the tab icon's and the assistant's brief stay.
+  write('next.config.ts', read('next.config.ts').replace(/\/\/ Card specifications[^\n]*/, '// The tab icon reads the tokens, and the assistant reads the brief, at build time.').replace(/'\/system\/\*\*':\s*\[[^\]]*\],\s*/, ''));
   // Route types generated for the removed pages would fail the type check until regenerated.
   for (const d of ['.next/types', '.next/dev/types']) fs.rmSync(file(d), { recursive: true, force: true });
-  done.push('the Design Atlas removed: app/system, its modules in src/system, its rail and footer links, and its build tracing');
+  done.push('the Design Atlas removed: app/system, its modules in src/system, its rail and footer links, its verification mappings and its build tracing');
 }
 
 if (has('--product')) {
@@ -190,13 +206,14 @@ if (has('--product')) {
   const walkDirs = (dir: string): string[] => fs.existsSync(file(dir)) ? fs.readdirSync(file(dir), { withFileTypes: true }).flatMap((e) => e.isDirectory() ? walkDirs(path.join(dir, e.name)) : [path.join(dir, e.name)]) : [];
   for (const f of walkDirs('src/components')) if (/\/(README\.md|preview\.tsx)$/.test(f)) fs.rmSync(file(f));
   for (const f of walkDirs('app')) if (/\/README\.md$/.test(f)) fs.rmSync(file(f));
-  for (const f of ['src/system/specimen.tsx', 'src/system/registry.ts', 'CONTRIBUTING.md', 'CHANGELOG.md']) fs.rmSync(file(f), { force: true });
+  // A test of a module removed here goes with it (tests/cli-product-prune.test.ts holds the two lists together).
+  for (const f of ['src/system/specimen.tsx', 'tests/specimen-still.test.tsx', 'src/system/registry.ts', 'CONTRIBUTING.md', 'CHANGELOG.md']) fs.rmSync(file(f), { force: true });
   for (const d of ['docs', 'decisions', 'skills']) fs.rmSync(file(d), { recursive: true, force: true });
   const p = json('package.json');
   delete p.scripts?.registry;
   write('package.json', JSON.stringify(p, null, 2) + '\n');
   const product = read('src/app.config.ts').match(/name: '([^']*)'/)?.[1] ?? 'Dashboard';
-  write('README.md', `# ${product}\n\nA dashboard built on ZZ Meridian (Next.js, React, Tailwind v4, DTCG tokens).\n\n## Run it\n\n\`\`\`sh\npnpm install\npnpm dev        # http://localhost:3000\npnpm verify     # the gate, a production build, the browser audit and every control pressed\n\`\`\`\n\n## Where things are\n\n| Path | What |\n|---|---|\n| \`src/app.config.ts\` | Name, workspace, accent, timezone, currency, the signed-in user and the navigation |\n| \`src/data/collections.ts\` | Where pages, actions and the assistant read and change records |\n| \`src/views/\`, \`app/\` | The pages |\n| \`src/components/\` | Meridian's components and patterns |\n| \`tokens/\` | Colour, type, space and motion (run \`pnpm tokens\` after a change) |
+  write('README.md', `# ${product}\n\nA dashboard built on ZZ Meridian (Next.js, React, Tailwind v4, DTCG tokens).\n\n## Run it\n\n\`\`\`sh\npnpm install\npnpm dev        # http://localhost:3000\npnpm verify     # the gate once, one build, the size checks and a smoke of up to three routes; --full runs the rest\n\`\`\`\n\n## Where things are\n\n| Path | What |\n|---|---|\n| \`src/app.config.ts\` | Name, workspace, accent, timezone, currency, the signed-in user and the navigation |\n| \`src/data/collections.ts\` | Where pages, actions and the assistant read and change records |\n| \`src/views/\`, \`app/\` | The pages |\n| \`src/components/\` | Meridian's components and patterns |\n| \`tokens/\` | Colour, type, space and motion (run \`pnpm tokens\` after a change) |
 
 ## Assistant
 
@@ -211,40 +228,12 @@ The dashboard carries an assistant panel. It is off until \`ASSISTANT_PROVIDER\`
 
 - Collections live in \`src/data/collections.ts\`: replace each \`rows\` with your API and \`clock\` with \`new Date()\`. The assistant reads and proposes changes only through them.
 - Add your sign-in check in the dashboard layout (\`app/(dashboard)/layout.tsx\`), in \`app/api/assistant/route.ts\` before the model is reached, and in every server action (each \`actions.ts\`): an action is a public endpoint the layout does not guard.
-- \`pnpm verify\` runs the assistant off, then on against a fake model (\`scripts/fake-llm.ts\`).
+- \`pnpm verify --full\` runs the assistant off, then on against a fake model (\`scripts/fake-llm.ts\`); the default \`pnpm verify\` does not.
 `);
   const agents = read('AGENTS.md');
   const cut = agents.indexOf('# Working in Meridian');
-  if (cut >= 0) write('AGENTS.md', agents.slice(0, cut) + `# Working in this dashboard
-
-Built on ZZ Meridian. Keep it the way it was built:
-
-- **Build up, never sideways.** A page arranges patterns from \`src/components/patterns\`; a pattern composes \`src/components/ui\`; a value is a token. Never write a colour, size or shadow that is not a token; \`node scripts/check.ts\` fails on literal colours and on Tailwind utilities outside Meridian's scales (they render nothing).
-- **Tokens** live in \`tokens/*.tokens.json\`; run \`pnpm tokens\` after a change and never edit \`src/styles/tokens.css\` or \`theme.css\`.
-- **Data** comes from \`src/data/collections.ts\` and nowhere else; the assistant reads the same collections.
-- **Agents in the product** read freely and write only through a Proposal; mark agent work with the Agent mark and "via".
-- **Before finishing**: \`pnpm verify\` (the gate, a production build, the browser audit at every width and theme, and every control pressed).
-`);
-  done.push('product only: card specs and previews, page specs, docs, decisions, the changelog and the skill removed; README rewritten for the product');
-}
-
-// An existing project keeps its own AGENTS.md and gains the rules its next agent session needs to stay on Meridian.
-// Appended once: a second run finds the heading and leaves the file alone.
-if (existing) {
-  const heading = '# Built on ZZ Meridian';
-  const agents = fs.existsSync(file('AGENTS.md')) ? read('AGENTS.md') : '';
-  if (!agents.includes(heading)) {
-    write('AGENTS.md', `${agents.trim() ? `${agents.trimEnd()}\n\n` : ''}${heading}
-
-The interface is built on ZZ Meridian (https://github.com/zhixuan312/zz-meridian). Keep it that way:
-
-- **Build up, never sideways.** A page arranges patterns from \`src/components/patterns\`; a pattern composes \`src/components/ui\`; a value is a token. Never write a colour, size or shadow that is not a token; \`node scripts/check.ts\` fails on literal colours and on Tailwind utilities outside Meridian's scales (they render nothing).
-- **Tokens** live in \`tokens/*.tokens.json\`; run \`pnpm tokens\` after a change and never edit \`src/styles/tokens.css\` or \`theme.css\`.
-- **A component Meridian lacks** is built the same way, in \`src/components/<layer>/<name>/\`, from tokens and the components already there. The specification of every existing one is in the template on GitHub (\`src/components/<layer>/<name>/README.md\`).
-- **Before finishing**: \`pnpm verify\` (the gate, a production build, the browser audit at every width and theme, every control pressed, the keyboard path and Web Vitals). It presses Delete too, so it runs against the fake API named in \`scripts/verify.config.ts\` whenever the pages call a live one.
-`);
-    done.push('AGENTS.md: the Meridian rules appended, so the next agent session keeps the dashboard on Meridian');
-  }
+  if (cut >= 0) write('AGENTS.md', agents.slice(0, cut));
+  done.push('product only: card specs and previews, page specs, docs, decisions, the changelog and the skill removed; README rewritten for the product, AGENTS.md cut at the template\'s own rules');
 }
 
 execFileSync('node', ['scripts/tokens.ts'], { cwd: ROOT, stdio: 'ignore' });

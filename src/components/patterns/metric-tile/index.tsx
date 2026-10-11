@@ -1,14 +1,15 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { cn } from '@/lib/cn';
-import { formatDate } from '@/lib/format-date';
-import { formatBy, type NumberFormat } from '@/lib/format';
-import { Card } from '@/components/ui/card';
-import { Delta } from '@/components/ui/delta';
-import { Tooltip } from '@/components/ui/tooltip';
-import { Sparkline } from '@/components/charts/sparkline';
-import { useMeridianIndex } from '@/components/charts/meridian';
+import { cn } from '../../../lib/cn';
+import { formatDate } from '../../../lib/format-date';
+import { fitFigure, formatBy, splitFigure, type NumberFormat } from '../../../lib/format';
+import { Card } from '../../ui/card/index';
+import { Delta } from '../../ui/delta/index';
+import { Tooltip } from '../../ui/tooltip/index';
+import { Sparkline } from '../../charts/sparkline/index';
+import { useMeridianIndex, usePointMeridian } from '../../charts/meridian/index';
+import { StatusDot } from '../../ui/status-dot/index';
 
 /**
  * One number the page exists to show, with its change and its shape. The figure is set at the figure size with
@@ -28,6 +29,8 @@ export function MetricTile({
   split,
   emphasis,
   icon,
+  baseline,
+  finding,
   className,
 }: {
   label: string;
@@ -50,14 +53,22 @@ export function MetricTile({
   split?: (s: string) => { pre?: string; int: string; frac?: string; unit?: string };
   emphasis?: boolean;
   icon?: ReactNode;
+  /** What is usual for one day of `daily` (its median): when the Meridian points at a day, the tile says how that day compares ("2.7× usual"). */
+  baseline?: number;
+  /**
+   * One thing the period's figures say that the number does not: "2.7× usual on 21 and 22 Sept". Computed by code, the
+   * same finding both agents read. With `day`, it is a button that points the page's Meridian at that day.
+   */
+  finding?: { text: string; day?: string };
   className?: string;
 }) {
   const { index, dates } = useMeridianIndex();
+  const point = usePointMeridian();
   const reading = index !== null && daily && index < daily.length ? daily[index] : null;
   const fmt = typeof format === 'function' ? format : (n: number) => formatBy(format ?? 'count', n);
   const word = typeof value === 'string';
-  const text = word && reading === null ? value : fmt(reading ?? (word ? 0 : value));
-  const parts = word && reading === null ? { int: value } : (split ?? defaultSplit)(text);
+  const text = word && reading === null ? value : fitFigure(fmt(reading ?? (word ? 0 : value)), reading ?? (word ? 0 : (value as number)));
+  const parts = word && reading === null ? { int: value } : (split ?? splitFigure)(text);
   // Phones, without a sparkline: one row, the label and its line on the left and the figure on the right, so a stack
   // of four tiles is half a screen rather than a whole one. Designed for the width, not shrunk to it.
   const row = !daily;
@@ -83,20 +94,44 @@ export function MetricTile({
             {parts.frac ? <span className="frac">{parts.frac}</span> : null}
             {parts.unit ? <span className="unit">{parts.unit}</span> : null}
           </p>
-          <div className={cn('mt-2 flex h-5 items-center gap-2 text-xs', row && 'max-sm:col-start-1 max-sm:row-start-2 max-sm:mt-0.5 max-sm:min-w-0')}>
+          {/* One line, high enough for one line: a part that does not fit wraps out of sight whole, rather than ending
+              "vs previou…". A screen reader still hears it, and the page's head says the period. */}
+          <div className={cn('mt-2 flex h-5 flex-wrap content-start items-center gap-x-2 overflow-hidden text-xs', row && 'max-sm:col-start-1 max-sm:row-start-2 max-sm:mt-0.5 max-sm:min-w-0')}>
             {reading !== null ? (
-              <span className="t-num font-medium text-ink-2">{formatDate(dates[index!])}</span>
+              <>
+                <span className="t-num font-medium text-ink-2">{formatDate(dates[index!])}</span>
+                {baseline ? <span className="t-num leading-5 whitespace-nowrap text-ink-3">{(reading / baseline).toFixed(1)}× usual</span> : null}
+              </>
             ) : delta === null ? (
               <span className="truncate text-ink-3">No earlier period to compare</span>
             ) : delta !== undefined ? (
               <>
                 <Delta value={delta} intent={intent} />
-                <span className="truncate text-ink-3">{compare}</span>
+                <span className="leading-5 whitespace-nowrap text-ink-3">{compare}</span>
               </>
             ) : note ? (
               <span className="truncate text-ink-3">{note}</span>
             ) : null}
           </div>
+          {finding ? (
+            finding.day ? (
+              <button
+                type="button"
+                onClick={() => point(finding.day!)}
+                aria-label={`${finding.text}. Point at ${formatDate(finding.day)}`}
+                className={cn('hit -mx-1 mt-1 flex max-w-full min-w-0 items-start gap-1.5 rounded-sm px-1 text-left text-xs text-ink-2 transition-colors duration-(--dur-hover) hover:text-ink', row && 'max-sm:col-start-1 max-sm:row-start-3')}
+              >
+                {/* A finding is short and its words are the point: it wraps rather than losing its end. */}
+                <StatusDot tone="warning" className="mt-[0.3em]" />
+                <span className="min-w-0 text-pretty">{finding.text}</span>
+              </button>
+            ) : (
+              <p className={cn('mt-1 flex min-w-0 items-start gap-1.5 text-xs text-ink-2', row && 'max-sm:col-start-1 max-sm:row-start-3')}>
+                <StatusDot tone="warning" className="mt-[0.3em]" />
+                <span className="min-w-0 text-pretty">{finding.text}</span>
+              </p>
+            )
+          ) : null}
         </div>
         {daily ? (
           <div className="-mx-(--card-pad) mt-3 max-sm:mx-0 max-sm:mt-0">
@@ -110,10 +145,3 @@ export function MetricTile({
   );
 }
 
-/** "$298.43" steps the cents down; "2.9M", "0.90%" and "294ms" keep the number whole and step the unit down. */
-function defaultSplit(s: string) {
-  const m = s.match(/^([^\d\s.,-]*)([\d,]+)(\.\d+)?\s*([%a-zA-Z]*)$/);
-  if (!m) return { int: s };
-  const money = Boolean(m[1]);
-  return { pre: m[1] || undefined, int: money ? m[2] : m[2] + (m[3] ?? ''), frac: money ? m[3] : undefined, unit: m[4] || undefined };
-}

@@ -2,13 +2,13 @@
 
 import { useState, type ReactNode } from 'react';
 import { SlidersHorizontal, X } from 'lucide-react';
-import { cn } from '@/lib/cn';
-import { AgentMark } from '@/components/ui/agent-mark';
-import { Button } from '@/components/ui/button';
-import { Field } from '@/components/ui/field';
-import { SearchInput } from '@/components/ui/search-input';
-import { Select, type SelectOption } from '@/components/ui/select';
-import { Sheet, SheetClose, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { cn } from '../../../lib/cn';
+import { AgentMark } from '../../ui/agent-mark';
+import { Button } from '../../ui/button';
+import { Field } from '../../ui/field';
+import { SearchInput } from '../../ui/search-input';
+import { Select, type SelectOption } from '../../ui/select';
+import { Sheet, SheetClose, SheetContent, SheetTrigger } from '../../ui/sheet';
 
 export type Filter = {
   key: string;
@@ -24,12 +24,17 @@ export type Filter = {
  * Search, filters and view controls for one list, in one row. On phones the search takes the row and the filters move
  * behind one Filters button that opens a sheet. When an agent set the filters, the bar says so ("Set by Claude")
  * until a person changes them, and Clear returns every filter to its off state.
+ *
+ * The bar reads its OWN width, not the window's: it is a container, and the row collapses on `@max-[52rem]` rather
+ * than on a viewport breakpoint. A bar in a split row, beside the assistant's column or inside an embed is narrow
+ * while the window is wide, and a viewport breakpoint would keep every filter in a row that has no room for them.
  */
 export function FilterBar({
   search,
   filters = [],
   view,
   result,
+  ask,
   setBy,
   onClear,
   className,
@@ -40,6 +45,8 @@ export function FilterBar({
   view?: ReactNode;
   /** A quiet count of what the filters let through: "214 requests". */
   result?: ReactNode;
+  /** Ask about the filtered list (`AskAbout`): it stays in the row at every width, because handing the list to an agent is not a filter. */
+  ask?: ReactNode;
   /** The agent that set the current filters. */
   setBy?: string;
   /** Return every filter (and the search) to its off state. Shown only while something is filtered. */
@@ -59,7 +66,7 @@ export function FilterBar({
           value={f.value}
           onValueChange={f.onChange}
           options={f.options}
-          leading={<span className="text-xs text-ink-3">{f.label}</span>}
+          leading={<span className={cn('text-xs', on ? 'text-ink-2' : 'text-ink-3')}>{f.label}</span>}
           className={cn(!block && 'w-auto min-w-0', on && !block && 'border-accent-line bg-accent-tint text-ink')}
         />
       );
@@ -69,7 +76,7 @@ export function FilterBar({
     });
 
   return (
-    <div className={cn('flex min-w-0 flex-col gap-3', className)}>
+    <div className={cn('@container flex min-w-0 flex-col gap-3', className)}>
       <div className="flex min-w-0 items-center gap-2">
         {search ? (
           <SearchInput
@@ -78,14 +85,14 @@ export function FilterBar({
             onValueChange={search.onChange}
             placeholder={search.placeholder ?? 'Search'}
             shortcut="/"
-            className="min-w-0 flex-1 md:max-w-72"
+            className="min-w-0 flex-1 @min-[52rem]:max-w-72"
           />
         ) : null}
-        <div className="flex min-w-0 items-center gap-2 max-md:hidden">{selects('sm')}</div>
+        <div className="flex min-w-0 items-center gap-2 @max-[52rem]:hidden">{selects('sm')}</div>
         {filters.length ? (
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
-              <Button size="sm" icon={<SlidersHorizontal />} className="md:hidden">
+              <Button size="sm" icon={<SlidersHorizontal />} className="@min-[52rem]:hidden">
                 Filters{active ? <span className="t-num -mr-0.5 grid h-4.5 min-w-4.5 place-items-center rounded-full bg-accent px-1 text-2xs font-semibold text-on-accent">{active}</span> : null}
               </Button>
             </SheetTrigger>
@@ -107,11 +114,12 @@ export function FilterBar({
           </Sheet>
         ) : null}
         {onClear && active ? (
-          <Button size="sm" variant="ghost" icon={<X />} onClick={onClear} className="max-md:hidden">Clear</Button>
+          <Button size="sm" variant="ghost" icon={<X />} onClick={onClear} className="@max-[52rem]:hidden">Clear</Button>
         ) : null}
         <div className="ml-auto flex shrink-0 items-center gap-3">
-          {result ? <span className="t-num text-xs whitespace-nowrap text-ink-3 max-lg:hidden">{result}</span> : null}
-          {view ? <div className="max-md:hidden">{view}</div> : null}
+          {result ? <span className="t-num text-xs whitespace-nowrap text-ink-3 @max-[60rem]:hidden">{result}</span> : null}
+          {view ? <div className="@max-[52rem]:hidden">{view}</div> : null}
+          {ask}
         </div>
       </div>
       {setBy && active ? (
@@ -120,7 +128,7 @@ export function FilterBar({
           <span>
             <span className="font-medium text-ink">Set by {setBy}</span> · these filters came from the assistant
           </span>
-          {onClear ? <button type="button" onClick={onClear} className="font-medium text-accent-ink hover:underline">Clear</button> : null}
+          {onClear ? <button type="button" onClick={onClear} className="hit font-medium text-accent-ink hover:text-ink">Clear</button> : null}
         </p>
       ) : null}
     </div>

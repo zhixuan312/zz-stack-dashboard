@@ -1,4 +1,4 @@
-import { app } from '@/app.config';
+import { app } from '../app.config';
 /**
  * Every date this product displays goes through this module. Nothing calls
  * `toLocaleDateString` directly.
@@ -21,24 +21,20 @@ function toDate(input: DateInput): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-/* Built once, not per call. `Intl.DateTimeFormat` resolves its timezone, its locale data and its
- * pattern on construction, and a table renders a `When` per row — which calls this twice a row,
- * once for the title and once for the text. Measured, constructing one per call was 0.06 ms, so a
- * 200-row Activity page spent about 24 ms a render building formatters it threw away. The formatter
- * holds no per-date state, so one is safe to share for the life of the page. */
-const FORMATTER = new Intl.DateTimeFormat('en-GB', {
-  timeZone: DISPLAY_TIMEZONE,
-  year: 'numeric',
-  month: 'short',
-  day: '2-digit',
-  hour: '2-digit',
-  minute: '2-digit',
-  second: '2-digit',
-  hour12: false,
-});
+/** Built once: an Intl formatter costs far more to construct than to use, and a table formats a date per row. */
+let FMT: Intl.DateTimeFormat | null = null;
 
 function parts(d: Date): Record<string, string> {
-  return Object.fromEntries(FORMATTER.formatToParts(d).map((p) => [p.type, p.value]));
+  FMT ??= new Intl.DateTimeFormat('en-GB', {
+    timeZone: DISPLAY_TIMEZONE,
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  return Object.fromEntries(FMT.formatToParts(d).map((p) => [p.type, p.value]));
 }
 
 /** `09 Jun 2026` */
@@ -47,6 +43,14 @@ export function formatDate(input: DateInput): string {
   if (!d) return String(input);
   const p = parts(d);
   return `${p.day} ${p.month} ${p.year}`;
+}
+
+/** `1 Oct`: a day inside a sentence, where a padded "01 Oct" reads like a table cell. Tables and axes keep formatDate. */
+export function formatDay(input: DateInput): string {
+  const d = toDate(input);
+  if (!d) return String(input);
+  const p = parts(d);
+  return `${Number(p.day)} ${p.month}`;
 }
 
 /** `09 Jun 2026, 08:04` */
@@ -58,7 +62,7 @@ export function formatDateTime(input: DateInput): string {
 }
 
 /** `just now` · `5 min ago` · `3 h ago` · `7 d ago` · then an absolute date. */
-export function formatRelative(input: DateInput, now: Date = new Date()): string {
+export function formatRelative(input: DateInput, now: Date): string {
   const d = toDate(input);
   if (!d) return String(input);
   const deltaMs = now.getTime() - d.getTime();

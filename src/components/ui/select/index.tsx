@@ -3,8 +3,8 @@
 import { Select as S } from 'radix-ui';
 import { Check, ChevronDown } from 'lucide-react';
 import { forwardRef, type ReactNode } from 'react';
-import { cn } from '@/lib/cn';
-import { CONTROL_SIZE, controlFrame, type ControlSize } from '@/components/ui/input';
+import { cn } from '../../../lib/cn';
+import { CONTROL_SIZE, controlFrame, type ControlSize } from '../input/index';
 
 export type SelectOption = { value: string; label: ReactNode; description?: ReactNode; disabled?: boolean };
 
@@ -83,12 +83,12 @@ function SelectItem({ value, label, description, disabled }: SelectOption) {
       value={value}
       disabled={disabled}
       className={cn(
-        'relative flex cursor-default flex-col justify-center rounded-sm py-1.5 pr-8 pl-2 text-sm text-ink outline-none select-none',
+        'group/item relative flex cursor-default flex-col justify-center rounded-sm py-1.5 pr-8 pl-2 text-sm text-ink outline-none select-none',
         'min-h-8 data-highlighted:bg-fill-hover data-disabled:text-ink-disabled',
       )}
     >
       <S.ItemText>{label}</S.ItemText>
-      {description ? <span className="text-xs text-ink-3">{description}</span> : null}
+      {description ? <span className="text-xs text-ink-3 group-data-disabled/item:text-ink-disabled">{description}</span> : null}
       <S.ItemIndicator className="absolute top-1/2 right-2 -translate-y-1/2">
         <Check className="size-4 text-accent" strokeWidth={2.25} />
       </S.ItemIndicator>

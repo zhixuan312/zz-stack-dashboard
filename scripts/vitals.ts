@@ -1,7 +1,7 @@
 /**
  * Core Web Vitals on a mid-range phone, per page: LCP, CLS and INP, and the frames dropped while a person used it.
  *
- *   node scripts/vitals.ts [--base http://localhost:3100] [--routes /,/requests] [--extra /requests/req_1]
+ *   node scripts/vitals.ts [--base http://localhost:3100] [--routes /,/requests]
  *
  * The phone is Lighthouse's mobile profile: CPU slowed four times, Slow 4G (150 ms round trip, 1.6 Mbps down,
  * 750 kbps up), a 390px touch screen, motion not reduced. LCP and CLS come from PerformanceObservers installed before
@@ -9,23 +9,26 @@
  * slowest of real taps on controls that change the screen (a period, the alerts, the workspace menu, the drawer), from
  * Event Timing, counting only the tap's own pointer, touch and click events: the Escape that closes what a tap opened
  * is not a person's interaction, and a headless browser can hold a no-op key event open until something else paints.
- * A dropped frame is a gap over 50 ms between animation frames while those taps play out.
+ * A dropped frame is a gap over 50 ms between animation frames while those taps play out. Each line says how many controls
+ * it tapped, found through open shadow roots (scripts/lib/deep.ts), so a page whose INP rests on no tap says so.
  *
  * Every static page and the detail pages in scripts/verify.config.ts are measured; the Atlas is not a product page.
  * Run it against a production build (`next start`), never `next dev`. Fails (exit 1) when a page's LCP is 2.5 s or more,
  * INP 200 ms or more, or CLS 0.1 or more.
  */
 import { launch } from './lib/chrome.ts';
+import { DEEP_SOURCE } from './lib/deep.ts';
 import { discover } from './lib/routes.ts';
 import config from './verify.config.ts';
 
 const args = process.argv.slice(2);
 const opt = (k: string, d: string) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
 const base = opt('--base', process.env.BASE ?? 'http://localhost:3100');
-const extra = opt('--extra', '').split(',').filter(Boolean);
+// verify.config.ts is the team's, so read the one field this needs through its own type.
+const detailRoutes = (config as { detailRoutes?: string[] }).detailRoutes ?? [];
 const ROUTES = opt('--routes', '')
   ? opt('--routes', '').split(',')
-  : [...discover().filter((r) => !r.startsWith('/system')), ...(extra.length ? extra : config.detailRoutes)];
+  : [...discover().filter((r) => !r.startsWith('/system')), ...detailRoutes];
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** Installed before any page script: every vital the page produces lands on window.__v. */
@@ -43,7 +46,7 @@ const OBSERVE = `(() => {
     for (const s of e.sources || []) {
       const n = s.node;
       const raw = !n ? 'detached' : (n.nodeType === 1 ? (n.getAttribute('aria-label') || n.className || n.tagName) : n.nodeName);
-      const k = String(raw || '?').trim().split(/\\s+/).slice(0, 2).join(' ') || '?';
+      const k = String(raw || '?').trim().split(/\s+/).slice(0, 2).join(' ') || '?';
       v.sources[k] = (v.sources[k] || 0) + e.value;
     }
   } }).observe({ type: 'layout-shift', buffered: true });
@@ -65,6 +68,7 @@ const TAPS = [
 
 const page = await launch();
 await page.send('Page.addScriptToEvaluateOnNewDocument', { source: OBSERVE });
+await page.send('Page.addScriptToEvaluateOnNewDocument', { source: DEEP_SOURCE });
 await page.send('Network.enable');
 let failures = 0;
 for (const route of ROUTES) {
@@ -73,10 +77,11 @@ for (const route of ROUTES) {
   await page.send('Emulation.setCPUThrottlingRate', { rate: 4 });
   await page.open(base + route, { width: 390, height: 844, theme: 'dark', reduced: false, wait: 7000 });
   await page.eval('window.__v.recording = true');
-  let inp = 0, slowest = '';
+  let inp = 0, slowest = '', tapped = 0;
   for (const sel of TAPS) {
-    const at = await page.eval<{ x: number; y: number } | null>(`(() => { const el = document.querySelector(${JSON.stringify(sel)}); if (!el) return null; const r = el.getBoundingClientRect(); if (!r.width || !r.height) return null; return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+    const at = await page.eval<{ x: number; y: number } | null>(`(() => { const el = deepQuery(${JSON.stringify(sel)}); if (!el) return null; const r = el.getBoundingClientRect(); if (!r.width || !r.height) return null; return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
     if (!at) continue;
+    tapped++;
     await page.eval('(window.__v.taps = [], window.__v.since = performance.now(), true)');
     await page.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [at] });
     await page.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
@@ -98,7 +103,7 @@ for (const route of ROUTES) {
   const shifted = bad && v.cls >= 0.1
     ? ` · shifted: ${Object.entries(v.sources).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, n]) => `${k} (${n.toFixed(3)})`).join(', ') || 'nothing recorded'}`
     : '';
-  console.log(`${bad ? 'FAIL' : 'ok  '} ${route.padEnd(36)} LCP ${(v.lcp / 1000).toFixed(2)} s · INP ${Math.round(inp)} ms · CLS ${v.cls.toFixed(3)} · frames over 50 ms: ${dropped} of ${v.frames.length}${inp >= 100 ? ` · slowest tap: ${slowest}` : ''}${shifted}`);
+  console.log(`${bad ? 'FAIL' : 'ok  '} ${route.padEnd(36)} LCP ${(v.lcp / 1000).toFixed(2)} s · INP ${Math.round(inp)} ms · CLS ${v.cls.toFixed(3)} · frames over 50 ms: ${dropped} of ${v.frames.length} · taps: ${tapped}${inp >= 100 ? ` · slowest tap: ${slowest}` : ''}${shifted}`);
 }
 await page.send('Emulation.setCPUThrottlingRate', { rate: 1 });
 page.close();

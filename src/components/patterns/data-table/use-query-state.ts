@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
-import { useCallback, useMemo, useSyncExternalStore } from 'react';
+import { useCallback, useMemo, useOptimistic, useSyncExternalStore, useTransition } from 'react';
 
 import { addressSearch, announceAddress, subscribeAddress } from '@/lib/address';
 
@@ -13,7 +13,7 @@ import { addressSearch, announceAddress, subscribeAddress } from '@/lib/address'
  * The address is read through `lib/address.ts`, which says why it is `window` rather than `useSearchParams` — it is
  * the difference between a page that ships its own text and one that paints it after hydration.
  */
-export function useQueryState<T extends Record<string, string>>(defaults: T): [T, (patch: Partial<T>) => void] {
+export function useQueryState<T extends Record<string, string>>(defaults: T): [T, (patch: Partial<T>) => void, boolean] {
   const router = useRouter();
   const path = usePathname();
   const key = JSON.stringify(defaults);
@@ -32,6 +32,15 @@ export function useQueryState<T extends Record<string, string>>(defaults: T): [T
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, key]);
 
+  // The address changes only when the navigation commits, which waits on the server; until then the state a press asked
+  // for is shown at once, so a sort arrow or a page number answers the press, and `pending` says the rows are on their way.
+  const [pending, startTransition] = useTransition();
+  const [shown, show] = useOptimistic(state, (cur: T, patch: Partial<T>) => {
+    const out = { ...cur };
+    for (const [k, v] of Object.entries(patch)) (out as Record<string, string>)[k] = v === undefined || v === '' ? (defaults[k] ?? '') : (v as string);
+    return out;
+  });
+
   const set = useCallback(
     (patch: Partial<T>) => {
       // The address as it stands at the moment of the write, not this render's snapshot of it: a
@@ -43,13 +52,16 @@ export function useQueryState<T extends Record<string, string>>(defaults: T): [T
         else next.set(k, v as string);
       }
       const q = next.toString();
-      // Through the router, so Next's own copy catches up on the first filter change; and the readers
-      // are told here as well, because a write that leaves the view unchanged navigates nowhere.
-      router.replace(q ? `${path}?${q}` : path, { scroll: false });
-      announceAddress();
+      startTransition(() => {
+        show(patch);
+        // Through the router, so Next's own copy catches up on the first filter change; and the readers
+        // are told here as well, because a write that leaves the view unchanged navigates nowhere.
+        router.replace(q ? `${path}?${q}` : path, { scroll: false });
+        announceAddress();
+      });
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [path, router, key],
   );
-  return [state, set];
+  return [shown, set, pending];
 }

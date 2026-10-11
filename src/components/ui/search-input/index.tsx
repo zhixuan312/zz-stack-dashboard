@@ -2,8 +2,8 @@
 
 import { Search, X } from 'lucide-react';
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type ChangeEvent } from 'react';
-import { Input, type InputProps } from '@/components/ui/input';
-import { Kbd } from '@/components/ui/kbd';
+import { Input, type InputProps } from '../input';
+import { Kbd } from '../kbd';
 
 type Props = Omit<InputProps, 'leading' | 'trailing' | 'type' | 'onChange' | 'value'> & {
   value: string;

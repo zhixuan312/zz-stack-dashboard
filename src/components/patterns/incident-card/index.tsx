@@ -1,9 +1,10 @@
-import { cn } from '@/lib/cn';
-import { formatDuration } from '@/lib/format';
-import { formatDate, formatDateTime, formatRelative } from '@/lib/format-date';
-import { Badge, type Tone } from '@/components/ui/badge';
-import { Card } from '@/components/ui/card';
-import { StatusDot } from '@/components/ui/status-dot';
+import { cn } from '../../../lib/cn';
+import { formatDuration } from '../../../lib/format';
+import { formatDate, formatDateTime, formatRelative } from '../../../lib/format-date';
+import { Badge, type Tone } from '../../ui/badge/index';
+import { Card } from '../../ui/card/index';
+import { StatusDot } from '../../ui/status-dot/index';
+import { keepHyphenated } from '../../base/text-roles/index';
 
 const STATE: Record<Incident['state'], { tone: Tone; word: string; ink: string; edge: string; border: string }> = {
   investigating: { tone: 'critical', word: 'Investigating', ink: 'text-critical-ink', edge: 'bg-critical', border: 'border-critical/30' },
@@ -17,8 +18,6 @@ const SEVERITY: Record<Incident['severity'], { tone: Tone; word: string }> = {
 
 
 /** An incident: what broke, where, how bad, its state and its updates, newest last. */
-/** Hold hyphenated identifiers such as eu-west-1 on one line; a break after the hyphen reads as two words. */
-const keepHyphenated = (text: string) => text.split(/(\S+-\S+)/).map((part, i) => (i % 2 ? <span key={i} className="whitespace-nowrap">{part}</span> : part));
 
 export type Incident = { id: string; title: string; service: string; severity: 'minor' | 'major'; state: 'investigating' | 'monitoring' | 'resolved'; started: string; resolved?: string; updates: { at: string; text: string }[] };
 /**

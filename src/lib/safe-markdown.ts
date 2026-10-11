@@ -9,6 +9,8 @@
  * So the rule is asymmetric. A link is navigation a reader chooses: relative or an http(s), mailto or tel address goes
  * through, and any other scheme (`javascript:`, `data:`, `vbscript:`) becomes nothing. An image is a fetch the reader
  * never agreed to: only a same-origin path goes through.
+ *
+ * The scheme is read the way a browser reads one, not the way it is written: see `safeMarkdownUrl`.
  */
 const NAVIGABLE = new Set(['http:', 'https:', 'mailto:', 'tel:']);
 
@@ -24,7 +26,13 @@ export function safeMarkdownUrl(url: string, key: string): string {
   // `//host/p.png` has no scheme and is not relative: the browser supplies one and fetches a third party.
   const protocolRelative = raw.startsWith('//');
   // A scheme only counts before the first `/`, `?` or `#`, so `a/path:with-colon` is a path, not the scheme `a/path`.
-  const scheme = /^([a-zA-Z][a-zA-Z0-9+.-]*):/.exec(raw.split(/[/?#]/, 1)[0] ?? '')?.[1];
+  //
+  // The scheme is read from a copy with the controls and spaces taken out, because that is what a browser does with a
+  // URL before it reads one: `java\tscript:alert(1)` — and the same with a newline or a NUL — IS `javascript:` to the
+  // browser, and a check that reads the raw string waves it through. Only the probe is stripped: a URL that passes is
+  // returned exactly as it was written.
+  const probe = raw.replace(/[\u0000- \u007F]/g, '');
+  const scheme = /^([a-zA-Z][a-zA-Z0-9+.-]*):/.exec(probe.split(/[/?#]/, 1)[0] ?? '')?.[1];
   if (key === 'src') return scheme !== undefined || protocolRelative ? '' : raw;
   if (scheme === undefined) return raw;
   return NAVIGABLE.has(`${scheme.toLowerCase()}:`) ? raw : '';

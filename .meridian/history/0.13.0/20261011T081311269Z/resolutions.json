@@ -1,0 +1,421 @@
+[
+  {
+    "id": "file:.agents/skills/zz-meridian/SKILL.md",
+    "status": "resolved",
+    "reason": "Restored the release's file: it is the agent guidance the update itself is run from, so it belongs in the project rather than being left out.",
+    "files": {
+      ".agents/skills/zz-meridian/SKILL.md": "sha256-2c17280f3eff7516f6696450014d9d6c0bfc2d4dc1c6a1e06f7e4909a39de129"
+    }
+  },
+  {
+    "id": "file:.agents/skills/zz-meridian/references/customize.md",
+    "status": "resolved",
+    "reason": "Restored the release's file: it is the agent guidance the update itself is run from, so it belongs in the project rather than being left out.",
+    "files": {
+      ".agents/skills/zz-meridian/references/customize.md": "sha256-4879896c10b1a3925da86f34a2ee12a277b22aa21862601c1099f5bf279a590c"
+    }
+  },
+  {
+    "id": "file:.agents/skills/zz-meridian/references/existing-project.md",
+    "status": "resolved",
+    "reason": "Restored the release's file: it is the agent guidance the update itself is run from, so it belongs in the project rather than being left out.",
+    "files": {
+      ".agents/skills/zz-meridian/references/existing-project.md": "sha256-9be83fcafc7d4090d0e180a771802f3611456a36b13f7d390833f09749950e92"
+    }
+  },
+  {
+    "id": "file:.agents/skills/zz-meridian/references/validation.md",
+    "status": "resolved",
+    "reason": "Restored the release's file: it is the agent guidance the update itself is run from, so it belongs in the project rather than being left out.",
+    "files": {
+      ".agents/skills/zz-meridian/references/validation.md": "sha256-2f79eb2b1647fdb54c44ca8cff071a1a1aa7fe2d5cea84d41e23271d47bb84d6"
+    }
+  },
+  {
+    "id": "file:.claude/skills/zz-meridian/SKILL.md",
+    "status": "resolved",
+    "reason": "Restored the release's file: it is the agent guidance the update itself is run from, so it belongs in the project rather than being left out.",
+    "files": {
+      ".claude/skills/zz-meridian/SKILL.md": "sha256-2c17280f3eff7516f6696450014d9d6c0bfc2d4dc1c6a1e06f7e4909a39de129"
+    }
+  },
+  {
+    "id": "file:.claude/skills/zz-meridian/references/customize.md",
+    "status": "resolved",
+    "reason": "Restored the release's file: it is the agent guidance the update itself is run from, so it belongs in the project rather than being left out.",
+    "files": {
+      ".claude/skills/zz-meridian/references/customize.md": "sha256-4879896c10b1a3925da86f34a2ee12a277b22aa21862601c1099f5bf279a590c"
+    }
+  },
+  {
+    "id": "file:.claude/skills/zz-meridian/references/existing-project.md",
+    "status": "resolved",
+    "reason": "Restored the release's file: it is the agent guidance the update itself is run from, so it belongs in the project rather than being left out.",
+    "files": {
+      ".claude/skills/zz-meridian/references/existing-project.md": "sha256-9be83fcafc7d4090d0e180a771802f3611456a36b13f7d390833f09749950e92"
+    }
+  },
+  {
+    "id": "file:.claude/skills/zz-meridian/references/validation.md",
+    "status": "resolved",
+    "reason": "Restored the release's file: it is the agent guidance the update itself is run from, so it belongs in the project rather than being left out.",
+    "files": {
+      ".claude/skills/zz-meridian/references/validation.md": "sha256-2f79eb2b1647fdb54c44ca8cff071a1a1aa7fe2d5cea84d41e23271d47bb84d6"
+    }
+  },
+  {
+    "id": "file:scripts/assistant.ts",
+    "status": "resolved",
+    "reason": "Restored the release's file. Meridian's components are a library this project holds whole; the console mounts no assistant and no embed surface, and nothing imports it.",
+    "files": {
+      "scripts/assistant.ts": "sha256-3395ff7faea2fd45c9396e122df5d983221e1a00b7aa7f44b63c740805ad79b5"
+    }
+  },
+  {
+    "id": "file:scripts/brand.ts",
+    "status": "resolved",
+    "reason": "Took the release's version: this project's copy was the earlier release's content, and the release's supersedes it.",
+    "files": {
+      "scripts/brand.ts": "sha256-fcf9db38511bf742cb90605af0c22df8ab31f4c97390d7de06db32bdc3faeae1"
+    }
+  },
+  {
+    "id": "file:scripts/check.ts",
+    "status": "resolved",
+    "reason": "Merged: the release's checks, plus this project's rule that no page reads Next's search params without its own Suspense boundary (2212ms against 632ms of LCP on a route that did), and the navigation rule rewritten for a console that gates by scope rather than by a per-item grant.",
+    "files": {
+      "scripts/check.ts": "sha256-9784cc6077f4a34c30bf5d28b3b22177aef827851e7871611e5d9632bb8c36b4"
+    }
+  },
+  {
+    "id": "file:scripts/fake-llm.ts",
+    "status": "resolved",
+    "reason": "Restored the release's file. Meridian's components are a library this project holds whole; the console mounts no assistant and no embed surface, and nothing imports it.",
+    "files": {
+      "scripts/fake-llm.ts": "sha256-2103fed87c04bf3c3151478093c872e141ce645bab9388ea632351e8eb2e77a5"
+    }
+  },
+  {
+    "id": "file:scripts/keyboard.ts",
+    "status": "resolved",
+    "reason": "Merged: the release's walk, with this project's wait, which judges a stop once its geometry has settled rather than at a fixed two frames; the fixed wait reported a reachable skip link as covered on CI.",
+    "files": {
+      "scripts/keyboard.ts": "sha256-747d7fbaafeffe7e51558f4d1f73d80c0e70656e66e5d6fc1bd2ae2afeb43a34"
+    }
+  },
+  {
+    "id": "file:scripts/verify.ts",
+    "status": "resolved",
+    "reason": "Took the release's version: this project's copy was the earlier release's content, and the release's supersedes it.",
+    "files": {
+      "scripts/verify.ts": "sha256-11d068dcb1726c7f45481626370e9424cf1453b0be6cdd3ef910826cdd56a63f"
+    }
+  },
+  {
+    "id": "file:scripts/vitals.ts",
+    "status": "resolved",
+    "reason": "Merged: the release's sampling, with this project's CLS attribution, which names what shifted so a failing number points at an element.",
+    "files": {
+      "scripts/vitals.ts": "sha256-ebd41ca44b9ac4031308da8517f8910c154d6a310e722cd0755b71a04c8870fd"
+    }
+  },
+  {
+    "id": "file:src/components/base/app-mark/index.tsx",
+    "status": "resolved",
+    "reason": "Merged: the release's app.logo support and its label, with ZZ's wordmark as the mark that renders when no logo is configured.",
+    "files": {
+      "src/components/base/app-mark/index.tsx": "sha256-3a77e1c95de16b69eba388deeeecd1c0720c302dc0d74b68078a0cd59b8e2931"
+    }
+  },
+  {
+    "id": "file:src/components/base/providers.tsx",
+    "status": "resolved",
+    "reason": "Took the release's version: this project's copy was the earlier release's content, and the release's supersedes it.",
+    "files": {
+      "src/components/base/providers.tsx": "sha256-044d409e2c75b2ea68b01b467211b6ba3f8fc3123cb0d4877f29de289e2d525e"
+    }
+  },
+  {
+    "id": "file:src/components/base/shell/index.tsx",
+    "status": "resolved",
+    "reason": "Took the release's version: this project's copy was the earlier release's content, and the release's supersedes it.",
+    "files": {
+      "src/components/base/shell/index.tsx": "sha256-58d0308e3cda7f249ec9f2402919f96e9670110c6b867bfa3a0581cb2dfdbded"
+    }
+  },
+  {
+    "id": "file:src/components/base/surface/index.tsx",
+    "status": "resolved",
+    "reason": "Restored the release's file. Meridian's components are a library this project holds whole; the console mounts no assistant and no embed surface, and nothing imports it.",
+    "files": {
+      "src/components/base/surface/index.tsx": "sha256-6c8271403083559dd123412dde1a4ce3a3f2310ecd23deb91939ccd2cdddd835"
+    }
+  },
+  {
+    "id": "file:src/components/base/use-share-view.ts",
+    "status": "resolved",
+    "reason": "Restored the release's file. Meridian's components are a library this project holds whole; the console mounts no assistant and no embed surface, and nothing imports it.",
+    "files": {
+      "src/components/base/use-share-view.ts": "sha256-47d83fb6283b45ea712a7c6911bf0ce74c7f6c1337b3dcd5ef352d610d689a23"
+    }
+  },
+  {
+    "id": "file:src/components/charts/timeline/index.tsx",
+    "status": "resolved",
+    "reason": "Deleted: the release removed it because no page used it, and no page in this console imports it either.",
+    "files": {
+      "src/components/charts/timeline/index.tsx": "sha256-ed5120125895ee169769455c04214202efe950933b81a719ad635c7de1ab0986"
+    }
+  },
+  {
+    "id": "file:src/components/patterns/ask-about/index.tsx",
+    "status": "resolved",
+    "reason": "Restored the release's file. Meridian's components are a library this project holds whole; the console mounts no assistant and no embed surface, and nothing imports it.",
+    "files": {
+      "src/components/patterns/ask-about/index.tsx": "sha256-800ea0ab2b460fecacea085308e5b1251cebdf38e06507c224d949a3b8ca7651"
+    }
+  },
+  {
+    "id": "file:src/components/patterns/assistant/index.tsx",
+    "status": "resolved",
+    "reason": "Restored the release's file. Meridian's components are a library this project holds whole; the console mounts no assistant and no embed surface, and nothing imports it.",
+    "files": {
+      "src/components/patterns/assistant/index.tsx": "sha256-f7cf6d69a1a49265885d29df263a05c7bbf55c3e5b7c46d62ec4207a90d40fcc"
+    }
+  },
+  {
+    "id": "file:src/components/patterns/assistant/text.tsx",
+    "status": "resolved",
+    "reason": "Restored the release's file. Meridian's components are a library this project holds whole; the console mounts no assistant and no embed surface, and nothing imports it.",
+    "files": {
+      "src/components/patterns/assistant/text.tsx": "sha256-ceda21c8fdec9b152d7a8b9bfce7ca6190f5b246683cc8450b4a25ab1ac9e45a"
+    }
+  },
+  {
+    "id": "file:src/components/patterns/assistant/thread.ts",
+    "status": "resolved",
+    "reason": "Restored the release's file. Meridian's components are a library this project holds whole; the console mounts no assistant and no embed surface, and nothing imports it.",
+    "files": {
+      "src/components/patterns/assistant/thread.ts": "sha256-4f3777980f8580f3e6b790ddfafcb24a61f79cef7d3c15a7ac6261cf2cbf8fe2"
+    }
+  },
+  {
+    "id": "file:src/components/patterns/data-table/use-query-state.ts",
+    "status": "resolved",
+    "reason": "Merged: the release's optimistic update and pending flag, over this project's reading of the address from the window rather than through useSearchParams, which costs a route its prerender.",
+    "files": {
+      "src/components/patterns/data-table/use-query-state.ts": "sha256-3eeb12a269a482287caa7494d17e0837ae927604f6dd767d0237ccc37ada8146"
+    }
+  },
+  {
+    "id": "file:src/components/patterns/embed-frame/index.tsx",
+    "status": "resolved",
+    "reason": "Restored the release's file. Meridian's components are a library this project holds whole; the console mounts no assistant and no embed surface, and nothing imports it.",
+    "files": {
+      "src/components/patterns/embed-frame/index.tsx": "sha256-7c5b327094eec716d93976d38c0e3e5a6d8c8ac56bed23f5e59aec5df83f3e60"
+    }
+  },
+  {
+    "id": "file:src/components/patterns/filter-bar/index.tsx",
+    "status": "resolved",
+    "reason": "Merged: the release's version, with this project's own change to the file kept.",
+    "files": {
+      "src/components/patterns/filter-bar/index.tsx": "sha256-7e1c228a413a447114715b97f4a996c4042dff864a7b3c49f97bce0d18e41cea"
+    }
+  },
+  {
+    "id": "file:src/components/patterns/form-section/index.tsx",
+    "status": "resolved",
+    "reason": "Merged: the release's version, with this project's own change to the file kept.",
+    "files": {
+      "src/components/patterns/form-section/index.tsx": "sha256-594d636a6495a4716cd7f1f1eac6d849493787bd5d22fd9e59b9997ee837dbbd"
+    }
+  },
+  {
+    "id": "file:src/components/patterns/period-select/index.tsx",
+    "status": "resolved",
+    "reason": "Took the release's version: this project's copy was the earlier release's content, and the release's supersedes it.",
+    "files": {
+      "src/components/patterns/period-select/index.tsx": "sha256-61a760364c72819c610cfb9f9b4491fc739e9c92938ade756b6abc2bef192ffb"
+    }
+  },
+  {
+    "id": "file:src/components/patterns/proposal/index.tsx",
+    "status": "resolved",
+    "reason": "Restored the release's file. Meridian's components are a library this project holds whole; the console mounts no assistant and no embed surface, and nothing imports it.",
+    "files": {
+      "src/components/patterns/proposal/index.tsx": "sha256-b4973b31cc7daa733b6993b82f6501b33f20a943967978a6ba7fdff9b6bd0325"
+    }
+  },
+  {
+    "id": "file:src/components/patterns/prose/index.tsx",
+    "status": "resolved",
+    "reason": "Merged: the release's version, with this project's memo, which stops a page re-parsing a document that has not changed.",
+    "files": {
+      "src/components/patterns/prose/index.tsx": "sha256-3080884c99c4f500cbf70b043477f55c0382c622cb47a26e2ecfda1cc8859f5b"
+    }
+  },
+  {
+    "id": "file:src/components/patterns/rail/index.tsx",
+    "status": "resolved",
+    "reason": "Merged: the release's rail, with this project's marker measurement, which re-measures when the list moves under the ring and not only when the route changes.",
+    "files": {
+      "src/components/patterns/rail/index.tsx": "sha256-e7f37196e80284bb9b21a9b1726990c2f367f397eb9444be5f34053252db5eb6"
+    }
+  },
+  {
+    "id": "file:src/components/patterns/status-list/summarise.ts",
+    "status": "resolved",
+    "reason": "Took the release's version: this project's copy was the earlier release's content, and the release's supersedes it.",
+    "files": {
+      "src/components/patterns/status-list/summarise.ts": "sha256-5ae555befd03cdd057922855c5df7c6103ef7d45d2e345b9a7000b40a7236b96"
+    }
+  },
+  {
+    "id": "file:src/components/ui/card/index.tsx",
+    "status": "resolved",
+    "reason": "Took the release's version: this project's copy was the earlier release's content, and the release's supersedes it.",
+    "files": {
+      "src/components/ui/card/index.tsx": "sha256-51f9735d774a55df54408dd0c658ba80fe9d2bfc523085eb14b2879312dec14b"
+    }
+  },
+  {
+    "id": "file:src/components/ui/search-input/index.tsx",
+    "status": "resolved",
+    "reason": "Merged: the release's version, with this project's own change to the file kept.",
+    "files": {
+      "src/components/ui/search-input/index.tsx": "sha256-384374bc85fbb2cdc141afdd201e95b3f2b8a874891f9561784a3a28b9011cf6"
+    }
+  },
+  {
+    "id": "file:src/components/ui/segmented/index.tsx",
+    "status": "resolved",
+    "reason": "Took the release's version: this project's copy was the earlier release's content, and the release's supersedes it.",
+    "files": {
+      "src/components/ui/segmented/index.tsx": "sha256-956f8c91b2f002fbf8e2efb77b469421deb63ca4d6e4895444b6703eb44296a9"
+    }
+  },
+  {
+    "id": "file:src/components/ui/toast/index.tsx",
+    "status": "resolved",
+    "reason": "Merged: the release's version, with this project's removal of aria-live from the stack, which announced every message twice beside the role each toast already carries.",
+    "files": {
+      "src/components/ui/toast/index.tsx": "sha256-f1c202145ccd230ee172867efcde3956eb36a98513eaff95c1597b980d04146d"
+    }
+  },
+  {
+    "id": "file:src/lib/assistant/prompt.ts",
+    "status": "resolved",
+    "reason": "Restored the release's file. Meridian's components are a library this project holds whole; the console mounts no assistant and no embed surface, and nothing imports it.",
+    "files": {
+      "src/lib/assistant/prompt.ts": "sha256-8e44869db416b90fcaf57e8fc68e36a34fc67419b4d31efecfcfe3df4d6bdb02"
+    }
+  },
+  {
+    "id": "file:src/lib/color.ts",
+    "status": "resolved",
+    "reason": "Merged: the release's version, with oklchToRgb left unexported, because this project's sweep holds every module to what something actually imports.",
+    "files": {
+      "src/lib/color.ts": "sha256-4216e16b90d96dbcf7295aa88cc8b1f264ac44270d0a99a3c89515eade395d18"
+    }
+  },
+  {
+    "id": "file:src/lib/format-date.ts",
+    "status": "resolved",
+    "reason": "Took the release's version: this project's copy was the earlier release's content, and the release's supersedes it.",
+    "files": {
+      "src/lib/format-date.ts": "sha256-c87ce0b82788d4a31da997279fa7be4b19afb327012073ccedf15a59f2ff8eb9"
+    }
+  },
+  {
+    "id": "file:src/lib/format.ts",
+    "status": "resolved",
+    "reason": "Merged: the release's version, with this project's own change to the file kept.",
+    "files": {
+      "src/lib/format.ts": "sha256-92d7b28f7f522f25134fb492aa9ff39cde2211cc5c19a78012cbc4137a901cf6"
+    }
+  },
+  {
+    "id": "file:src/lib/host.ts",
+    "status": "resolved",
+    "reason": "Restored the release's file. Meridian's components are a library this project holds whole; the console mounts no assistant and no embed surface, and nothing imports it.",
+    "files": {
+      "src/lib/host.ts": "sha256-3af2678f3d00b70e6b4890cba6640d1f598d1b2ef7421bbd83807c1b8182a681"
+    }
+  },
+  {
+    "id": "file:src/lib/period.ts",
+    "status": "resolved",
+    "reason": "Merged: this project's 24-hour period, all-time default, private day table and periodCutoff, with the release's PERIOD_SHORT export carrying this project's 24H.",
+    "files": {
+      "src/lib/period.ts": "sha256-cf533250e5f601e122cc1ebb37e14afef4841be9ba59d1183e7b9de773986680"
+    }
+  },
+  {
+    "id": "file:src/lib/preferences.ts",
+    "status": "resolved",
+    "reason": "Took the release's version: this project's copy was the earlier release's content, and the release's supersedes it.",
+    "files": {
+      "src/lib/preferences.ts": "sha256-8b49aa27aabd893057bb80ab323bcb7c6aa12d2b13730391f4ec95000a5667ce"
+    }
+  },
+  {
+    "id": "file:src/lib/safe-markdown.ts",
+    "status": "resolved",
+    "reason": "Kept this project's version: it normalises a URL the way a browser does before reading its scheme, so java\\tscript: cannot ride through a link policy the release's plain trim lets past.",
+    "files": {
+      "src/lib/safe-markdown.ts": "sha256-3ffe6bd92781030cd96d15dc7d91eeecfa828dfd220256f5426c4c1d9a0a2f8a"
+    }
+  },
+  {
+    "id": "file:src/views/console-chrome.tsx",
+    "status": "resolved",
+    "reason": "Restored the release's file. Meridian's components are a library this project holds whole; the console mounts no assistant and no embed surface, and nothing imports it.",
+    "files": {
+      "src/views/console-chrome.tsx": "sha256-8143e378476612eb033c90d03b19b02ba14264b9c79db767a98c76f14c2167e4"
+    }
+  },
+  {
+    "id": "file:tests/setup.ts",
+    "status": "resolved",
+    "reason": "Merged: the release's cleanup and async timeout, with this project's stubs, including a working localStorage, which this jsdom (Node 25) leaves present but unusable.",
+    "files": {
+      "tests/setup.ts": "sha256-7e31a7569524f92926afe3cb9f8361061f0ab5c19353c1c21a4a061c72911a86"
+    }
+  },
+  {
+    "id": "migration:dependency:vitest",
+    "status": "resolved",
+    "reason": "Raised vitest to ^5.0.3, the version the release is tested against. The gate and the suite run on it.",
+    "files": {
+      "package.json": "sha256-bc9c426a0b2cf30a7c963114ddb426a420fcb37a6b53e70575d96b7c18c4177c"
+    }
+  },
+  {
+    "id": "migration:dependency:jsdom",
+    "status": "resolved",
+    "reason": "Raised jsdom to ^30.1.1, the version the release is tested against.",
+    "files": {
+      "package.json": "sha256-bc9c426a0b2cf30a7c963114ddb426a420fcb37a6b53e70575d96b7c18c4177c"
+    }
+  },
+  {
+    "id": "migration:clock-now-required",
+    "status": "resolved",
+    "reason": "Passed the data's clock at every site: useDataClock() for components that hold no query of their own, and the page's own query for a relative stamp. No component reads the browser clock any more.",
+    "files": {
+      "app/(dash)/knowledge/page.tsx": "sha256-354454cf3fd3e0200124af1a0e6f181bc4cf993270c8b1b4b90975dfd951c463",
+      "src/console/frame.tsx": "sha256-1e1b32d7c4753922b808f09f2f001b04507c517c7ad4c80db9a48f04de59ec26",
+      "src/console/page.tsx": "sha256-990b941a36b1e9c1612be6906f0309cdd1bb90d1626445559b56e3aec7ec8ef4",
+      "src/console/when.tsx": "sha256-60e234e07cf54c5b9928f6144fa92b50475d0329120ad0f344a35139a1a17cfc"
+    }
+  },
+  {
+    "id": "migration:cache-components-config",
+    "status": "not-applicable",
+    "reason": "Not applicable to this architecture, and leaving the flag off is the measured choice. Nothing in this console reads the request on the server: every page is a Client Component fetching from the browser through src/lib/api.ts, and all 18 fixed routes already appear in the build's prerender-manifest.json, so the thing the migration exists to enforce \u2014 that every non-API route prerenders \u2014 already holds. Turning the flag on fails the build: Next reports CLIENT_HOOK_DYNAMIC at src/components/base/shell/index.tsx, reached from the console's own data provider, because the rail reads usePathname and useRouter and the provider reads /me on the client. Satisfying it means either reading the request on the server \u2014 the access seam this console deliberately does not adopt \u2014 or putting the rail and every page's data behind their own Suspense boundary, which is what its prerender (and the 632ms LCP it was measured at) is bought with. The six routes whose path is only known at request time are declared in verify.config.ts's requestDependentRoutes instead.",
+    "files": {
+      "next.config.ts": "sha256-a8d57cb4e1cfd4a240fa66608c5fcf767fb3186ca826383383588b415c839e80"
+    }
+  }
+]

@@ -74,7 +74,6 @@
   /* layout */
   --rail-width:260px;
   --assistant-width:400px;
-  --rail-collapsed:68px;
   --data-width:100%;
   --stage-width:1560px;
   --reading-width:832px;
@@ -458,21 +457,48 @@
   --accent-h:168;
   --accent-c:0.12;
 }
-[data-accent="jade"],[data-accent="jade"] [data-theme="dark"]{
+[data-accent="jade"]{
   --accent-l:0.52;
 }
 @media (prefers-color-scheme:light){
-  :root:not([data-theme="dark"])[data-accent="jade"],:root:not([data-theme="dark"]) [data-accent="jade"]{
+  :root:not([data-theme="dark"])[data-accent="jade"],:where(:root:not([data-theme="dark"])) [data-accent="jade"]{
+    --accent-l:0.52;
   }
 }
-[data-theme="light"][data-accent="jade"],[data-theme="light"] [data-accent="jade"],[data-accent="jade"] [data-theme="light"]{
+:where([data-theme="light"])[data-accent="jade"],:where([data-theme="light"]) [data-accent="jade"]{
+  --accent-l:0.52;
+}
+@scope ([data-theme="dark"]){
+  :where(:scope)[data-accent="jade"],[data-accent="jade"]{
+    --accent-l:0.52;
+  }
+}
+@scope ([data-theme="light"]){
+  :where(:scope)[data-accent="jade"],[data-accent="jade"]{
+    --accent-l:0.52;
+  }
+}
+@media (prefers-color-scheme:light){
+  @scope (:root:not([data-theme="dark"])){
+    :where(:scope)[data-accent="jade"],[data-accent="jade"]{
+      --accent-l:0.52;
+    }
+  }
+}
+@scope ([data-accent="jade"]) to ([data-accent]:not([data-accent="jade"])){
+  :where(:scope)[data-theme="dark"],[data-theme="dark"]{
+    --accent-l:0.52;
+  }
+  :where(:scope)[data-theme="light"],[data-theme="light"]{
+    --accent-l:0.52;
+  }
 }
 [data-accent="graphite"]{
   /* accent */
   --accent-h:275;
   --accent-c:0;
 }
-[data-accent="graphite"],[data-accent="graphite"] [data-theme="dark"]{
+[data-accent="graphite"]{
   --accent-l:0.95;
   --accent-l-hover:0.86;
   --accent-l-ink:0.95;
@@ -481,33 +507,105 @@
   --on-accent:#0B0C12;
 }
 @media (prefers-color-scheme:light){
-  :root:not([data-theme="dark"])[data-accent="graphite"],:root:not([data-theme="dark"]) [data-accent="graphite"]{
+  :root:not([data-theme="dark"])[data-accent="graphite"],:where(:root:not([data-theme="dark"])) [data-accent="graphite"]{
     --accent-l:0.22;
     --accent-l-hover:0.32;
     --accent-l-ink:0.22;
     --accent-a-tint:0.07;
     --accent-a-glow:0.05;
+    --on-accent:#FFFFFF;
   }
 }
-[data-theme="light"][data-accent="graphite"],[data-theme="light"] [data-accent="graphite"],[data-accent="graphite"] [data-theme="light"]{
+:where([data-theme="light"])[data-accent="graphite"],:where([data-theme="light"]) [data-accent="graphite"]{
   --accent-l:0.22;
   --accent-l-hover:0.32;
   --accent-l-ink:0.22;
   --accent-a-tint:0.07;
   --accent-a-glow:0.05;
+  --on-accent:#FFFFFF;
+}
+@scope ([data-theme="dark"]){
+  :where(:scope)[data-accent="graphite"],[data-accent="graphite"]{
+    --accent-l:0.95;
+    --accent-l-hover:0.86;
+    --accent-l-ink:0.95;
+    --accent-a-tint:0.1;
+    --accent-a-glow:0.07;
+    --on-accent:#0B0C12;
+  }
+}
+@scope ([data-theme="light"]){
+  :where(:scope)[data-accent="graphite"],[data-accent="graphite"]{
+    --accent-l:0.22;
+    --accent-l-hover:0.32;
+    --accent-l-ink:0.22;
+    --accent-a-tint:0.07;
+    --accent-a-glow:0.05;
+    --on-accent:#FFFFFF;
+  }
+}
+@media (prefers-color-scheme:light){
+  @scope (:root:not([data-theme="dark"])){
+    :where(:scope)[data-accent="graphite"],[data-accent="graphite"]{
+      --accent-l:0.22;
+      --accent-l-hover:0.32;
+      --accent-l-ink:0.22;
+      --accent-a-tint:0.07;
+      --accent-a-glow:0.05;
+      --on-accent:#FFFFFF;
+    }
+  }
+}
+@scope ([data-accent="graphite"]) to ([data-accent]:not([data-accent="graphite"])){
+  :where(:scope)[data-theme="dark"],[data-theme="dark"]{
+    --accent-l:0.95;
+    --accent-l-hover:0.86;
+    --accent-l-ink:0.95;
+    --accent-a-tint:0.1;
+    --accent-a-glow:0.07;
+    --on-accent:#0B0C12;
+  }
+  :where(:scope)[data-theme="light"],[data-theme="light"]{
+    --accent-l:0.22;
+    --accent-l-hover:0.32;
+    --accent-l-ink:0.22;
+    --accent-a-tint:0.07;
+    --accent-a-glow:0.05;
+    --on-accent:#FFFFFF;
+  }
 }
 [data-accent="brand"]{
   /* accent */
   --accent-h:292;
   --accent-c:0.18;
 }
-[data-accent="brand"],[data-accent="brand"] [data-theme="dark"]{
+[data-accent="brand"]{
 }
 @media (prefers-color-scheme:light){
-  :root:not([data-theme="dark"])[data-accent="brand"],:root:not([data-theme="dark"]) [data-accent="brand"]{
+  :root:not([data-theme="dark"])[data-accent="brand"],:where(:root:not([data-theme="dark"])) [data-accent="brand"]{
   }
 }
-[data-theme="light"][data-accent="brand"],[data-theme="light"] [data-accent="brand"],[data-accent="brand"] [data-theme="light"]{
+:where([data-theme="light"])[data-accent="brand"],:where([data-theme="light"]) [data-accent="brand"]{
+}
+@scope ([data-theme="dark"]){
+  :where(:scope)[data-accent="brand"],[data-accent="brand"]{
+  }
+}
+@scope ([data-theme="light"]){
+  :where(:scope)[data-accent="brand"],[data-accent="brand"]{
+  }
+}
+@media (prefers-color-scheme:light){
+  @scope (:root:not([data-theme="dark"])){
+    :where(:scope)[data-accent="brand"],[data-accent="brand"]{
+    }
+  }
+}
+@scope ([data-accent="brand"]) to ([data-accent]:not([data-accent="brand"])){
+  :where(:scope)[data-theme="dark"],[data-theme="dark"]{
+  }
+  :where(:scope)[data-theme="light"],[data-theme="light"]{
+  }
 }
 [data-theme],[data-accent]{
   /* accent */

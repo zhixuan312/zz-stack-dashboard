@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery, useQueryClient, type Query, type UseQueryResult } from '@tanstack/react-query';
-import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useSyncExternalStore, type ReactNode } from 'react';
+import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { preload } from 'react-dom';
 
 // The one shape the transport itself needs: `useConsoleMode` reads the caller's role off
@@ -225,6 +225,44 @@ function withScope(path: string, mode: ConsoleMode): string {
 export function freshnessOf(...queries: { dataUpdatedAt?: number }[]): Date | null {
   const stamps = queries.map((q) => q.dataUpdatedAt ?? 0).filter((n) => n > 0);
   return stamps.length ? new Date(Math.min(...stamps)) : null;
+}
+
+/**
+ * The data's clock for a component that holds no query of its own: the oldest arrival time among the queries that have
+ * data, read the same way `freshnessOf` reads a page's own. `Freshness`, `ShellTools`, `AlertsPanel` and
+ * `formatRelative` all take `now` because the clock is the data's, not the browser's — this is where a component that
+ * cannot ask its page for one gets it.
+ *
+ * `useSyncExternalStore` over the query cache, so the value is a number React can compare and a component re-renders
+ * when a query settles rather than on every notification. The snapshot is `0` until the first answer — on the server as
+ * well as in the browser — so the server render and the first client render agree, and `new Date(0)` is returned until
+ * real data gives the page a clock. Nothing renders a relative time without data, so nothing shows the placeholder.
+ *
+ * The browser clock is read in an effect, never at render: this is a Client Component, and Next fails the build on
+ * `Date.now()` evaluated during a prerender. Its own guidance is to defer it, which is what this does; the value is
+ * only what a component rendered with no data at all measures against.
+ */
+export function useDataClock(): Date {
+  const client = useQueryClient();
+  const stamp = useSyncExternalStore(
+    (notify) => client.getQueryCache().subscribe(notify),
+    () => {
+      let oldest = 0;
+      for (const q of client.getQueryCache().getAll()) {
+        const at = q.state.dataUpdatedAt;
+        if (at > 0 && (oldest === 0 || at < oldest)) oldest = at;
+      }
+      return oldest;
+    },
+    () => 0,
+  );
+  const [fallback, setFallback] = useState(0);
+  // The browser's clock is an external store read once on mount, the same shape `usePreferences` uses for
+  // localStorage: the server render never sees it, and reading it at render instead would fail the build, because Next
+  // reports a dynamic value evaluated during the prerender.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { if (!stamp) setFallback(Date.now()); }, [stamp]);
+  return useMemo(() => new Date(stamp || fallback), [stamp, fallback]);
 }
 
 /**

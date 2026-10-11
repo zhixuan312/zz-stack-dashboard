@@ -1,0 +1,28 @@
+zod is linked to /Users/zhangzhixuan/Documents/code/zz-parent/zz-stack-dashboard/node_modules from /private/tmp/claude-501/-Users-zhangzhixuan-Documents-code-zz-parent/8664e5c4-dbe0-44fc-a64f-f824faac03ad/scratchpad/pptr/node_modules/zod
+Progress: resolved 0, reused 1, downloaded 0, added 0
+ WARN  deprecated @testing-library/jest-dom@6.10.0: Incorrect minor release with breaking changes (Node >=22 and required @testing-library/dom peer). Use 6.9.1 for the 6.x line, or upgrade to 7.0.0.
+ WARN  deprecated eslint@9.39.5: This version is no longer supported. Please see https://eslint.org/version-support for other options.
+Progress: resolved 557, reused 546, downloaded 7, added 0
+Progress: resolved 707, reused 618, downloaded 17, added 0
+Progress: resolved 737, reused 625, downloaded 17, added 0
+Packages: +85 -71
++++++++++++++++++++++++++++++++++++++++++++-------------------------------------
+Progress: resolved 737, reused 625, downloaded 17, added 84
+Progress: resolved 737, reused 625, downloaded 17, added 85, done
+
+dependencies:
++ @ai-sdk/react 4.0.130 (4.0.140 is available)
++ ai 7.0.127 (7.0.137 is available)
++ zod 4.6.5
+
+devDependencies:
+- @testing-library/react 16.3.2
++ @testing-library/react 16.3.3
+- @types/react 19.2.18
++ @types/react 19.3.0
+- @types/react-dom 19.2.4
++ @types/react-dom 19.3.0
+- @vitejs/plugin-react 6.0.5
++ @vitejs/plugin-react 6.1.2
+
+Done in 4.3s using pnpm v10.33.0

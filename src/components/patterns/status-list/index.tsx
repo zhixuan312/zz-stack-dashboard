@@ -1,10 +1,10 @@
 'use client';
 
-import { cn } from '@/lib/cn';
-import { formatDuration } from '@/lib/format';
-import { StatusDot } from '@/components/ui/status-dot';
-import type { Tone } from '@/components/ui/badge';
-import { UptimeBars } from '@/components/charts/uptime-bars';
+import { cn } from '../../../lib/cn';
+import { formatDuration } from '../../../lib/format';
+import { StatusDot } from '../../ui/status-dot/index';
+import type { Tone } from '../../ui/badge/index';
+import { UptimeBars } from '../../charts/uptime-bars/index';
 import { summarise, SERVICE_NOUN, type Noun } from './summarise';
 
 export { summarise };
@@ -19,6 +19,16 @@ const STATE: Record<ServiceStatus, { tone: Tone; word: string; ink: string }> = 
 export type ServiceStatus = 'operational' | 'degraded' | 'outage';
 /** A service: what it is, its state now, its uptime and latency, and one state per day, oldest first. */
 export type Service = { name: string; description: string; status: ServiceStatus; uptime: number; latency: number; days: ServiceStatus[] };
+/**
+ * What every row repeats, written once on the list: the row's grid, its hairline, and where its three parts sit (the
+ * name, the bars, the state) on a wide card and on a narrow one. Literal strings, so Tailwind finds them.
+ */
+const ROWS = [
+  '[&>li]:grid [&>li]:grid-cols-[minmax(0,1fr)_auto] [&>li]:items-center [&>li]:gap-x-6 [&>li]:gap-y-3 [&>li]:border-b [&>li]:border-line [&>li]:px-(--card-pad) [&>li]:py-4 [&>li:last-child]:border-0 @2xl:[&>li]:grid-cols-[minmax(12rem,15rem)_minmax(0,1fr)_5.5rem]',
+  '[&>li>div:nth-child(2)]:col-span-2 [&>li>div:nth-child(2)]:row-start-2 [&>li>div:nth-child(2)]:min-w-0 @2xl:[&>li>div:nth-child(2)]:col-span-1 @2xl:[&>li>div:nth-child(2)]:row-start-auto',
+  '[&>li>div:nth-child(3)]:col-start-2 [&>li>div:nth-child(3)]:row-start-1 [&>li>div:nth-child(3)]:text-right @2xl:[&>li>div:nth-child(3)]:col-start-auto @2xl:[&>li>div:nth-child(3)]:row-start-auto',
+].join(' ');
+
 /**
  * Every service and how it is right now: a dot and a word for its state, its latency, and ninety days of history as
  * uptime bars. The summary line on top says the worst state in words. On a wide card the bars sit beside each service;
@@ -60,14 +70,11 @@ export function StatusList({
           <p className="t-caption ml-auto hidden @md:block">{services.length} {services.length === 1 ? noun.one : noun.other}</p>
         </div>
       ) : null}
-      <ul>
+      <ul className={ROWS}>
         {services.map((svc) => {
           const st = STATE[svc.status];
           return (
-            <li
-              key={svc.name}
-              className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 gap-y-3 border-b border-line px-(--card-pad) py-4 last:border-0 @2xl:grid-cols-[minmax(12rem,15rem)_minmax(0,1fr)_5.5rem]"
-            >
+            <li key={svc.name}>
               <div className="min-w-0">
                 <p className="flex items-center gap-2.5">
                   <StatusDot tone={st.tone} live={svc.status !== 'operational'} />
@@ -75,10 +82,10 @@ export function StatusList({
                 </p>
                 {descriptions ? <p className="t-caption mt-1 pl-[18px] text-pretty">{svc.description}</p> : null}
               </div>
-              <div className="col-span-2 row-start-2 min-w-0 @2xl:col-span-1 @2xl:row-start-auto">
+              <div>
                 <UptimeBars days={svc.days} uptime={svc.uptime} end={end} label={`${svc.name}, last 90 days`} measure={measure} />
               </div>
-              <div className="col-start-2 row-start-1 text-right @2xl:col-start-auto @2xl:row-start-auto">
+              <div>
                 <p className={cn('text-xs font-medium', st.ink)}>{st.word}</p>
                 <p className="t-num t-caption mt-0.5">{metric(svc)}</p>
               </div>

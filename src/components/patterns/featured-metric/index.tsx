@@ -1,10 +1,11 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { cn } from '@/lib/cn';
-import { formatDate } from '@/lib/format-date';
-import { Delta } from '@/components/ui/delta';
-import { useMeridianIndex } from '@/components/charts/meridian';
+import { cn } from '../../../lib/cn';
+import { formatDate } from '../../../lib/format-date';
+import { fitFigure, splitFigure } from '../../../lib/format';
+import { Delta } from '../../ui/delta/index';
+import { useMeridianIndex } from '../../charts/meridian/index';
 
 /**
  * The page's protagonist: the one number a dashboard leads with, at hero size, in the one card that carries the
@@ -39,8 +40,10 @@ export function FeaturedMetric({
 }) {
   const { index, dates } = useMeridianIndex();
   const reading = index !== null && daily && index < daily.length ? daily[index] : null;
-  const text = format(reading ?? value);
-  const m = text.match(/^([$€£]?)([\d,.]+)\s*([%A-Za-z]*)$/);
+  const text = fitFigure(format(reading ?? value), reading ?? value);
+  // One parser, shared with the Metric tile: it never fails to match, so no formatter a product passes can
+  // crash the figure — and the symbol may be any currency's, not a list of three.
+  const parts = splitFigure(text);
   return (
     <section
       className={cn(
@@ -55,20 +58,10 @@ export function FeaturedMetric({
       </div>
       <div className="flex flex-wrap items-end gap-x-5 gap-y-2 px-(--card-pad) pt-4">
         <p className="t-hero t-num">
-          {m ? (
-            <>
-              {m[1] ? <span className="unit pre">{m[1]}</span> : null}
-              {m[1] && m[2].includes('.') ? (
-                <>
-                  {m[2].slice(0, m[2].indexOf('.'))}
-                  <span className="frac">{m[2].slice(m[2].indexOf('.'))}</span>
-                </>
-              ) : (
-                m[2]
-              )}
-              {m[3] ? <span className="unit">{m[3]}</span> : null}
-            </>
-          ) : text}
+          {parts.pre ? <span className="unit pre">{parts.pre}</span> : null}
+          {parts.int}
+          {parts.frac ? <span className="frac">{parts.frac}</span> : null}
+          {parts.unit ? <span className="unit">{parts.unit}</span> : null}
         </p>
         <div className="pb-2.5">
           {reading !== null ? (

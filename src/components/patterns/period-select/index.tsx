@@ -1,23 +1,22 @@
 'use client';
 
-import { usePathname, useRouter } from 'next/navigation';
-import { PERIODS, PERIOD_LABEL, type Period } from '@/lib/period';
-import { Segmented } from '@/components/ui/segmented';
-import { addressSearch } from '@/lib/address';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { PERIODS, PERIOD_LABEL, PERIOD_SHORT, type Period } from '../../../lib/period';
+import { Segmented } from '../../ui/segmented/index';
 
 /** One period the control offers: its value, the short label it shows ("30D") and the full name in its title. */
 export type PeriodOption<P extends string = Period> = { value: P; short: string; label: string };
 
-const SHORT: Record<Period, string> = { '1d': '24H', '7d': '7D', '30d': '30D', '90d': '90D', all: 'All' };
-const DEFAULT_OPTIONS: PeriodOption[] = PERIODS.map((p) => ({ value: p, short: SHORT[p], label: PERIOD_LABEL[p] }));
+// Both labels come from `@/lib/period`, beside `PERIODS`: a product that adds a period there (a 24-hour one) must not
+// have to patch this component to make the types line up.
+const DEFAULT_OPTIONS: PeriodOption[] = PERIODS.map((p) => ({ value: p, short: PERIOD_SHORT[p], label: PERIOD_LABEL[p] }));
 
 /**
  * The reporting period for a whole page. Given `onChange`, it is controlled: the page holds the period (in state, in
- * a context, or in the URL its own way) and the control touches no router. Without it, the control writes `?period=`
- * itself with `router.replace`, and rebuilds that write from the address through `lib/address.ts` rather than from
- * `useSearchParams` — the reason that module exists, and the same one that took `?period=` off the end of a filter's
- * address. No Suspense boundary is owed for it in either form. `periods` replaces Meridian's four (7D, 30D, 90D, All)
- * with the product's own, a 24-hour period included.
+ * a context, or in the URL its own way) and the control touches no router, so it needs no Suspense boundary. Without
+ * it, the control writes `?period=` itself with `router.replace`, so a server component can read the period; that
+ * reads the search params, so it sits inside <Suspense>. `periods` replaces Meridian's four (7D, 30D, 90D, All) with the
+ * product's own, a 24-hour period included.
  */
 export function PeriodSelect<P extends string = Period>({
   value,
@@ -40,13 +39,13 @@ function Control<P extends string>({ value, onChange, options }: { value: P; onC
 function UrlControl<P extends string>({ value, options }: { value: P; options: readonly PeriodOption<P>[] }) {
   const router = useRouter();
   const path = usePathname();
-
+  const params = useSearchParams();
   return (
     <Control
       value={value}
       options={options}
       onChange={(p) => {
-        const next = new URLSearchParams(addressSearch());
+        const next = new URLSearchParams(params);
         next.set('period', p);
         router.replace(`${path}?${next}`, { scroll: false });
       }}

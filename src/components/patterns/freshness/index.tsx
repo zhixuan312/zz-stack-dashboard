@@ -1,21 +1,22 @@
-import { cn } from '@/lib/cn';
-import { formatDate, formatDateTime, formatRelative } from '@/lib/format-date';
-import { StatusDot } from '@/components/ui/status-dot';
+import { cn } from '../../../lib/cn';
+import { formatDate, formatDateTime, formatRelative } from '../../../lib/format-date';
+import { StatusDot } from '../../ui/status-dot/index';
 
 /**
  * "Updated 4 min ago": when the data last arrived. A stalled pipeline and a quiet day both draw a flat line; only
  * this stamp tells them apart. Past `staleAfterMs` it turns to warning and says so. Pass the time the data arrived,
- * never now(), and pass `now` on a page with a fixed clock.
+ * never now(), and pass `now`, the data's clock.
  */
 export function Freshness({
   updatedAt,
-  now = new Date(),
+  now,
   staleAfterMs = 15 * 60_000,
   run = false,
   className,
 }: {
   updatedAt: Date | null;
-  now?: Date;
+  /** The data's clock, never the browser's. */
+  now: Date;
   staleAfterMs?: number;
   /** A batch result (a nightly or ad hoc run): "Run 12 Mar 2026", a quiet dot, never stale on its own. */
   run?: boolean;

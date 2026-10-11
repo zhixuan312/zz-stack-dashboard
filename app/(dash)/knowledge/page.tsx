@@ -12,7 +12,7 @@ import { KnowledgeTabs } from '@/console/knowledge-tabs';
 import { ConsolePage } from '@/console/page';
 import { failureOf } from '@/console/query';
 import { When } from '@/console/when';
-import { freshnessOf, useConsole, useConsoleMode } from '@/lib/api';
+import { freshnessOf, useConsole, useConsoleMode, useDataClock } from '@/lib/api';
 import type { KnowledgeNode } from '@/lib/api-shapes';
 import { formatDate, formatRelative } from '@/lib/format-date';
 import { filterKnowledgeNodes, knowledgeNodeHref, tagFacetCounts, teamFacetOptions } from '@/lib/knowledge-filters';
@@ -35,6 +35,8 @@ function columns(multiTeam: boolean): Column<KnowledgeNode>[] {
 /** What the platform has learned, kept as nodes. Each one comes out of a real initiative. */
 export default function KnowledgePage() {
   const { mode } = useConsoleMode();
+  // The data's clock for the relative stamp below: never `new Date()` at render.
+  const clock = useDataClock();
   const list = useConsole<{ nodes: KnowledgeNode[] }>('/knowledge');
   const [f, set] = useQueryState({ q: '', team: 'all', tag: 'all', sort: 'updated', dir: 'desc', page: '1' });
   const nodes = useMemo(() => list.data?.nodes ?? [], [list.data]);
@@ -58,7 +60,7 @@ export default function KnowledgePage() {
         <MetricTile label="Nodes" icon={<BookOpen />} value={list.data ? nodes.length : list.isPending ? '…' : '—'} note="On this shelf" />
         <MetricTile label="Adopted" icon={<CheckCircle2 />} value={list.data ? adopted : list.isPending ? '…' : '—'} note="Current lessons" />
         <MetricTile label="Superseded" icon={<Archive />} value={list.data ? nodes.filter((n) => n.status === 'superseded').length : list.isPending ? '…' : '—'} note="Replaced, still readable" />
-        <MetricTile label="Last recorded" icon={<History />} value={latest ? formatRelative(latest) : 'Never'} note={latest ? formatDate(latest) : 'Nothing on the shelf'} />
+        <MetricTile label="Last recorded" icon={<History />} value={latest ? formatRelative(latest, clock) : 'Never'} note={latest ? formatDate(latest) : 'Nothing on the shelf'} />
       </Row>
       <DataTable
         caption="Knowledge nodes"

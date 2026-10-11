@@ -40,7 +40,29 @@ export function parse(v: string): RGBA {
     const p = m[1].split(/[\s/]+/).filter(Boolean).map(Number);
     return [...oklchToRgb(p[0], p[1], p[2]), p[3] ?? 1] as RGBA;
   }
+  // A minifier may rewrite an authored oklch() as CIE Lab, and the browser then reports it as lab().
+  m = v.match(/^lab\(([^)]+)\)$/);
+  if (m) {
+    const p = m[1].replace(/%/g, '').split(/[\s/]+/).filter(Boolean).map(Number);
+    return [...labToRgb(p[0], p[1], p[2]), p[3] ?? 1] as RGBA;
+  }
   throw new Error(`cannot parse colour: ${v}`);
+}
+
+/** CIE Lab (D50, as CSS defines lab()) to sRGB: through XYZ, adapted to D65 with Bradford. */
+function labToRgb(L: number, a: number, b: number): [number, number, number] {
+  const e = 216 / 24389, k = 24389 / 27;
+  const fy = (L + 16) / 116, fx = a / 500 + fy, fz = fy - b / 200;
+  const inv = (f: number) => (f ** 3 > e ? f ** 3 : (116 * f - 16) / k);
+  const [X, Y, Z] = [inv(fx) * 0.96422, (L > k * e ? fy ** 3 : L / k), inv(fz) * 0.82521];
+  const x = 0.9554734527 * X - 0.0230985369 * Y + 0.0632593087 * Z;
+  const y = -0.028369707 * X + 1.009995458 * Y + 0.021041399 * Z;
+  const z = 0.0123140017 * X - 0.0205076964 * Y + 1.3303659366 * Z;
+  return [
+    gam(3.2409699419 * x - 1.5373831776 * y - 0.4986107603 * z),
+    gam(-0.9692436363 * x + 1.8759675015 * y + 0.0415550574 * z),
+    gam(0.0556300797 * x - 0.2039769589 * y + 1.0569715142 * z),
+  ].map(clamp) as [number, number, number];
 }
 
 export const over = (fg: RGBA, bg: RGBA): RGBA => [0, 1, 2].map((i) => fg[i] * fg[3] + bg[i] * (1 - fg[3])).concat(1) as RGBA;

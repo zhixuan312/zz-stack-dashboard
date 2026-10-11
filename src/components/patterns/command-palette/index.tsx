@@ -4,10 +4,10 @@ import { Dialog as D } from 'radix-ui';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ArrowRight, CornerDownLeft, Monitor, Moon, Search, Sun } from 'lucide-react';
-import type { NavGroup } from '@/app.config';
-import { cn } from '@/lib/cn';
-import { usePreferences } from '@/components/base/providers';
-import { Kbd } from '@/components/ui/kbd';
+import type { NavGroup } from '../../../app.config';
+import { cn } from '../../../lib/cn';
+import { usePreferences } from '../../base/providers';
+import { Kbd } from '../../ui/kbd/index';
 
 export type Command = { id: string; group: string; label: string; hint?: string; icon: ReactNode; run: () => void };
 
@@ -133,8 +133,9 @@ export function CommandPanel({
   let lastGroup = '';
   return (
     <>
-      <div className="flex items-center gap-3 border-b border-line px-4">
-        <Search className="size-4.5 shrink-0 text-ink-3" strokeWidth={1.75} />
+      {/* Focus lives in the field for as long as the palette is open; the band's hairline takes the accent, as a field's outline does. */}
+      <div className="group/q flex items-center gap-3 border-b border-line px-4 transition-colors duration-(--dur-hover) focus-within:border-accent">
+        <Search className="size-4.5 shrink-0 text-ink-3 transition-colors duration-(--dur-hover) group-focus-within/q:text-accent-ink" strokeWidth={1.75} />
         <input
           autoFocus={autoFocus}
           value={query}

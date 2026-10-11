@@ -1,5 +1,10 @@
+import { createElement } from 'react';
 import { vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
+import { cleanup } from '@testing-library/react';
+import { afterEach } from 'vitest';
+
+afterEach(cleanup);
 
 /**
  * jsdom implements neither of these, and Radix and the charts both use them on
@@ -37,7 +42,13 @@ for (const m of ['hasPointerCapture', 'setPointerCapture', 'releasePointerCaptur
 vi.mock('next/navigation', () => ({
   usePathname: () => '/',
   useSearchParams: () => new URLSearchParams(),
-  useRouter: () => ({ push() {}, replace() {}, refresh() {}, back() {}, prefetch() {} }),
+  useRouter: () => ({ push() {}, replace() {}, refresh() {}, back() {}, forward() {}, prefetch() {} }),
+  notFound: () => {
+    throw new Error('NEXT_NOT_FOUND');
+  },
+  redirect: (url: string) => {
+    throw new Error(`NEXT_REDIRECT ${url}`);
+  },
 }));
 
 /* jsdom has no IntersectionObserver; Meridian's PageFrame watches its masthead to show the compact title. */
@@ -65,3 +76,20 @@ if (typeof globalThis.localStorage?.setItem !== 'function') {
   Object.defineProperty(globalThis, 'localStorage', { value: storage, configurable: true });
   Object.defineProperty(window, 'localStorage', { value: storage, configurable: true });
 }
+
+/**
+ * Every render goes through a QueryClientProvider. `useDataClock` (`src/lib/api.ts`) reads the console's cache to
+ * stamp a relative time, and these tests render one component at a time — with nothing above it, `useQueryClient`
+ * throws before the component draws. A fresh client per render, so no test inherits another's cached data.
+ */
+vi.mock('@testing-library/react', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@testing-library/react')>();
+  const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query');
+  const withQuery = ({ children }: { children: React.ReactNode }) =>
+    createElement(QueryClientProvider, { client: new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } }) }, children);
+  return {
+    ...actual,
+    render: (ui: React.ReactElement, options?: Parameters<typeof actual.render>[1]) =>
+      actual.render(ui, { ...options, wrapper: options?.wrapper ?? withQuery }),
+  };
+});

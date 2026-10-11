@@ -1,10 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { cn } from '@/lib/cn';
-import { useMeridian } from '@/components/charts/meridian';
-import { niceTicks } from '@/components/charts/scale';
-import { useSize } from '@/components/charts/use-size';
+import { cn } from '../../../lib/cn';
+import { useMeridian } from '../meridian/index';
+import { niceTicks } from '../scale';
+import { useSize } from '../use-size';
 
 export type Column = { key: string; label: string; value: number };
 
@@ -52,6 +52,9 @@ export function ColumnChart({
   const n = columns.length;
   const longest = Math.max(...columns.map((c) => c.label.length));
   const fit = Math.max(1, Math.ceil(n / Math.max(2, Math.floor((width - left) / (longest * 6.2 + 16)))));
+  // A category left unlabelled cannot be told apart, so categories each keep a label, cut to their own column, once
+  // a column has room for a few letters; dates keep their rhythm and skip.
+  const every1 = !timed && !every && (width - left) / n >= 36;
 
   return (
     <figure ref={box} aria-label={label} className={cn('relative min-w-0 select-none', className)} onPointerLeave={() => set(null)}>
@@ -84,8 +87,12 @@ export function ColumnChart({
       <div aria-hidden className="mt-2 flex gap-0.5 text-2xs text-ink-3" style={{ paddingLeft: left }}>
         {columns.map((c, i) => (
           <span key={c.key} className="relative h-4 min-w-0 flex-1">
-            {(every ? i % (every * Math.ceil(fit / every)) === 0 : (n - 1 - i) % fit === 0) || active === i ? (
-              <span className={cn('absolute left-1/2 -translate-x-1/2 whitespace-nowrap', active === i ? 'z-10 rounded-xs bg-surface px-1 text-ink' : '')}>{c.label}</span>
+            {active === i ? (
+              <span className="absolute left-1/2 z-10 -translate-x-1/2 rounded-xs bg-surface px-1 whitespace-nowrap text-ink">{c.label}</span>
+            ) : every1 ? (
+              <span className="block truncate px-0.5 text-center">{c.label}</span>
+            ) : (every ? i % (every * Math.ceil(fit / every)) === 0 : (n - 1 - i) % fit === 0) ? (
+              <span className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap">{c.label}</span>
             ) : null}
           </span>
         ))}

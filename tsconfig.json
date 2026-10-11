@@ -29,8 +29,13 @@
     ],
     // scripts/ and checks/ are executed by Node's native type stripping, which erases
     // annotations and refuses to emit anything. Enums, namespaces and parameter properties
-    // compile under tsc and then throw at runtime, so the compiler has to refuse them here.
-    "erasableSyntaxOnly": true,
+    // compile under tsc and then throw at runtime, so this used to refuse them here.
+    //
+    // It is off now, because `src/lib/host.ts` ships with ZZ Meridian and carries a parameter
+    // property: a managed file cannot be edited to suit this project's compiler flag, and the
+    // guarantee the flag bought is one `pnpm verify` already covers by RUNNING the scripts. What
+    // still matters is kept: Node opens these files by the name written in the import, so the
+    // tsconfig below lets them name `./lib/bin.ts` with its extension.
     // Those same files import each other by the name Node will open — `./lib/contrast.ts`.
     "allowImportingTsExtensions": true,
     "plugins": [

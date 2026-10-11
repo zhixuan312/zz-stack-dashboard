@@ -99,12 +99,32 @@
   }
   .t-mono { font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: 0; }
   .t-num { font-variant-numeric: tabular-nums lining-nums; }
+  /* The inline code chip. It is one class because a reading page renders hundreds of them: spelled as ten utilities
+     each, the class string alone was about 90 bytes an instance, in the markup and again in the flight payload. */
+  .t-code {
+    border: 1px solid var(--line); border-radius: var(--radius-xs); background: var(--surface-sunk); color: var(--ink);
+    padding: var(--space-0-5) var(--space-1-5); font-family: var(--font-mono); font-size: 0.84em;
+  }
 
   /* A figure's fraction and unit step down, so the integer carries the reading. */
   :is(.t-figure, .t-hero) :is(.unit, .frac) { font-size: 0.5em; letter-spacing: -0.01em; color: var(--ink-3); font-weight: var(--weight-medium); }
   :is(.t-figure, .t-hero) .frac { margin-left: 0.02em; }
   :is(.t-figure, .t-hero) .unit { margin-left: 0.14em; }
   :is(.t-figure, .t-hero) .unit.pre { margin-left: 0; margin-right: 0.04em; font-size: 0.56em; vertical-align: 0.36em; }
+
+  /* A card: one step above the canvas on `surface`, a hairline and a whisper of shadow; on dark a lit top edge does the
+     shadow's work. One class rather than a dozen utilities, because every card on every page writes it into the HTML
+     and the page payload; a utility on the card still overrides it (utilities come after components). A flush body as
+     the first child (a table's header row) fills the corner, so only then does the card clip, to keep it round. */
+  .card {
+    position: relative; display: flex; flex-direction: column; min-width: 0;
+    border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-card);
+  }
+  .card::before {
+    content: ""; position: absolute; left: var(--space-3); right: var(--space-3); top: 0; height: 1px;
+    background: var(--highlight-top); pointer-events: none;
+  }
+  .card:has(> [data-flush]:first-child) { overflow: hidden; }
 
   /* A lit edge: a hairline drawn by a masked gradient, brightest where the ground's light comes from. On the featured
      card it is always on; on an interactive card it fades in under the pointer. It never loops. */
@@ -138,20 +158,16 @@
     clip: rect(0 0 0 0); white-space: nowrap; border: 0;
   }
 
-  /* A link inside a sentence is accent ink with an underline that draws in from the left. */
-  .link {
-    color: var(--accent-ink); text-decoration: none;
-    background: linear-gradient(currentColor, currentColor) 0 100% / 0 1px no-repeat;
-    transition: background-size var(--dur-hover) var(--ease-out);
-  }
-  .link:hover { background-size: 100% 1px; }
+  /* Links are never underlined: hover is a colour change, and focus is the focus ring every control has.
+     A link inside a sentence is accent ink, and turns ink on hover. */
+  .link { color: var(--accent-ink); text-decoration: none; transition: color var(--dur-hover) var(--ease-out); }
+  .link:hover { color: var(--ink); }
 
-  /* A destination in a list stays ink; the underline draws on hover. */
-  .row-link {
-    background: linear-gradient(currentColor, currentColor) 0 100% / 0 1px no-repeat;
-    transition: background-size var(--dur-hover) var(--ease-out), color var(--dur-hover);
-  }
-  .row-link:hover { background-size: 100% 1px; color: var(--accent-ink); }
+  /* A destination in a list stays ink, and takes the accent on hover. A colour utility on the link (`text-ink`) sits in a
+     later layer and wins over this hover, so such a link also carries `hover:text-accent-ink`. A table row's title is
+     neither: the whole row is the target and takes the hover fill, and its title keeps its colour. */
+  .row-link { transition: color var(--dur-hover) var(--ease-out); }
+  .row-link:hover { color: var(--accent-ink); }
 
   /* A scrolling strip fades out at an edge with more behind it, so a cut-off item reads as "more this way", never as
      broken. The fade follows the strip's own scroll: none at rest when everything fits, none at the end it has reached.

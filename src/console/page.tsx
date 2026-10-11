@@ -6,7 +6,7 @@ import { app } from '@/app.config';
 import { PageFrame, Stack, type PageWidth } from '@/components/base/shell';
 import { Freshness } from '@/components/patterns/freshness';
 import { PeriodSelect } from '@/components/patterns/period-select';
-import { useConsoleMode } from '@/lib/api';
+import { useConsoleMode, useDataClock } from '@/lib/api';
 import { usePeriod } from '@/console/period';
 
 /** A step back up from a record: the list it belongs to, then the parent record. */
@@ -45,6 +45,8 @@ export function ConsolePage({
   children: ReactNode;
 }) {
   const { mode } = useConsoleMode();
+  // The data's clock, for the freshness stamp: never `new Date()` at render.
+  const clock = useDataClock();
   const kicker = crumbs?.length ? (
     <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
       {crumbs.map((c, i) => (
@@ -62,7 +64,7 @@ export function ConsolePage({
       kicker={kicker}
       width={width}
       toolbar={toolbar}
-      meta={updatedAt !== undefined ? <Freshness updatedAt={updatedAt} staleAfterMs={10 * 60_000} /> : undefined}
+      meta={updatedAt !== undefined ? <Freshness updatedAt={updatedAt} now={clock} staleAfterMs={10 * 60_000} /> : undefined}
       actions={actions || showPeriod ? <>{actions}{showPeriod ? <PagePeriod /> : null}</> : undefined}
     >
       <Stack>{children}</Stack>

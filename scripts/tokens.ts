@@ -15,12 +15,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-export const ROOT = path.resolve(import.meta.dirname, '..');
+const ROOT = path.resolve(import.meta.dirname, '..');
 const T = path.join(ROOT, 'tokens');
 export const NS = 'dev.zz.meridian';
 
 type Json = Record<string, any>;
-export type Token = { name: string; group: string; type: string; value: any; description: string; css?: string; raw: Json };
+type Token = { name: string; group: string; type: string; value: any; description: string; css?: string; raw: Json };
 
 export function load(file: string): Json {
   return JSON.parse(fs.readFileSync(path.join(T, file), 'utf8'));
@@ -99,7 +99,7 @@ const block = (sel: string, body: string[], scheme?: string) => [`${sel}{`, ...(
  * The embed bridge: on the MCP Apps surface, Meridian's neutral roles take the host's standard style variables, with
  * Meridian's own value for the theme as the fallback. Accent, status and chart colours never bridge: they carry meaning.
  */
-export const BRIDGE: Record<string, string> = {
+const BRIDGE: Record<string, string> = {
   surface: '--color-background-primary',
   'surface-sunk': '--color-background-secondary',
   'surface-raised': '--color-background-primary',
@@ -132,7 +132,7 @@ const HEADER = `/* ZZ Meridian · Layer 0 · Tokens
  */
 `;
 
-export function buildCss(): string {
+function buildCss(): string {
   const { sets, mods } = resolver();
   const core = sets.flatMap((f) => (f.startsWith('palette') ? [] : tokensOf(load(f))));
   const theme = (n: string) => tokensOf(load(mods.theme.contexts[n]!));
@@ -157,11 +157,27 @@ export function buildCss(): string {
     L.push(...block(`[data-accent="${a.n}"]`, decls(tokensOf(a.file), '  ')));
     const ov = a.file.$extensions?.[NS]?.overrides;
     if (ov) {
-      const o = (m: Json) => Object.entries(m).map(([k, v]) => `  --${k}:${v};`);
-      const s = `[data-accent="${a.n}"]`;
-      L.push(...block(`${s},${s} [data-theme="${first}"]`, o(ov[first] ?? {})));
-      L.push(`@media (prefers-color-scheme:${second}){`, ...block(`:root:not([data-theme="${first}"])${s},:root:not([data-theme="${first}"]) ${s}`, o(ov[second] ?? {})).map((l) => '  ' + l), '}');
-      L.push(...block(`[data-theme="${second}"]${s},[data-theme="${second}"] ${s},${s} [data-theme="${second}"]`, o(ov[second] ?? {})));
+      // Every rule declares every key either theme overrides, a missing one at that theme's own value: the cascade is
+      // per property, so a key set for one theme only would otherwise leak into a nested scope of the other.
+      const keys = [...new Set([first, second].flatMap((t) => Object.keys(ov[t] ?? {})))];
+      const base = (t: string, k: string) => cssValue((t === first ? main : other).find((x) => x.name === k)!);
+      const vals = (t: string) => Object.fromEntries(keys.map((k) => [k, (ov[t] as Json | undefined)?.[k] ?? base(t, k)]));
+      const o = (t: string) => Object.entries(vals(t)).map(([k, v]) => `  --${k}:${v};`);
+      const s = `[data-accent="${a.n}"]`, sys = `:root:not([data-theme="${first}"])`;
+      const at = (sel: string, t: string) => block(sel, o(t)).map((l) => '  ' + l);
+      // A preset's values differ by theme, and both are set on any subtree, so the nearest theme scope must decide.
+      // Ancestor selectors cannot say "nearest"; @scope can, by proximity. The unscoped rules first, all at the
+      // specificity of one attribute so proximity outranks them, are what a browser without @scope gets.
+      L.push(...block(s, o(first)));
+      // The root itself keeps the full selector: it must outrank the system theme's own `${sys}` block, and can
+      // match nothing nested.
+      L.push(`@media (prefers-color-scheme:${second}){`, ...at(`${sys}${s},:where(${sys}) ${s}`, second), '}');
+      L.push(...block(`:where([data-theme="${second}"])${s},:where([data-theme="${second}"]) ${s}`, o(second)));
+      // A scoped selector matches the scope's root only through :scope; :where() keeps it at one attribute.
+      const self = (sel: string) => `:where(:scope)${sel},${sel}`;
+      for (const t of [first, second]) L.push(`@scope ([data-theme="${t}"]){`, ...at(self(s), t), '}');
+      L.push(`@media (prefers-color-scheme:${second}){`, `  @scope (${sys}){`, ...at(self(s), second).map((l) => '  ' + l), '  }', '}');
+      L.push(`@scope (${s}) to ([data-accent]:not(${s})){`, ...at(self(`[data-theme="${first}"]`), first), ...at(self(`[data-theme="${second}"]`), second), '}');
     }
   }
   L.push(...block('[data-theme],[data-accent]', decls(roles, '  ')), '');
@@ -180,7 +196,7 @@ export function buildCss(): string {
 }
 
 /** Tailwind v4 bridge: reset Tailwind's scales, then expose only Meridian's names as utilities. */
-export function buildTheme(): string {
+function buildTheme(): string {
   const { sets, mods } = resolver();
   const core = sets.flatMap((f) => (f.startsWith('palette') ? [] : tokensOf(load(f))));
   const light = tokensOf(load(mods.theme.contexts.light!));

@@ -3,12 +3,12 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { Bell, Search } from 'lucide-react';
-import { cn } from '@/lib/cn';
-import { formatDateTime, formatRelative } from '@/lib/format-date';
-import { Kbd } from '@/components/ui/kbd';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { StatusDot } from '@/components/ui/status-dot';
-import { openCommand } from '@/components/patterns/command-palette';
+import { cn } from '../../../lib/cn';
+import { formatDateTime, formatRelative } from '../../../lib/format-date';
+import { Kbd } from '../../ui/kbd/index';
+import { Popover, PopoverContent, PopoverTrigger } from '../../ui/popover/index';
+import { StatusDot } from '../../ui/status-dot/index';
+import { openCommand } from '../command-palette/index';
 
 /** One thing that needs a person: what happened, where to act on it, and whether they have seen it. */
 export type Alert = { id: string; title: string; detail?: string; at: string; href: string; tone: 'critical' | 'warning' | 'positive' | 'neutral'; unread?: boolean };
@@ -17,7 +17,7 @@ export type Alert = { id: string; title: string; detail?: string; at: string; hr
  * The global tools in the top bar of every console page: search and commands (⌘K), and alerts. They stay put while
  * the page scrolls, so they are always one press away. Alerts open a panel; each alert links to where it is handled.
  */
-export function ShellTools({ alerts = [], now }: { alerts?: Alert[]; /** The data's clock, for "36 min ago". */ now?: Date }) {
+export function ShellTools({ alerts = [], now }: { alerts?: Alert[]; /** The data's clock, for "36 min ago". */ now: Date }) {
   const [read, setRead] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState(false);
   const unread = alerts.filter((a) => a.unread && !read.has(a.id)).length;
@@ -28,11 +28,11 @@ export function ShellTools({ alerts = [], now }: { alerts?: Alert[]; /** The dat
       <button
         type="button"
         onClick={openCommand}
-        className="press hit flex h-9 items-center gap-2.5 rounded-full border border-line-strong bg-surface/60 pr-1.5 pl-3 text-sm text-ink-3 shadow-control backdrop-blur-md transition-[color,background-color,border-color,transform] hover:border-line-control/40 hover:text-ink-2 max-sm:w-9 max-sm:justify-center max-sm:px-0"
+        className="press hit flex h-9 items-center gap-2.5 rounded-full border border-line-strong bg-surface/60 pr-1.5 pl-3 text-sm text-ink-3 shadow-control backdrop-blur-md transition-[color,background-color,border-color,transform] hover:border-line-control/40 hover:text-ink-2 @max-[40rem]:w-9 @max-[40rem]:justify-center @max-[40rem]:px-0"
       >
         <Search className="size-4" strokeWidth={1.75} />
-        <span className="w-36 text-left max-md:w-20 max-sm:hidden">Search</span>
-        <Kbd className="max-sm:hidden">⌘K</Kbd>
+        <span className="w-36 text-left @max-[48rem]:w-20 @max-[40rem]:hidden">Search</span>
+        <Kbd className="@max-[40rem]:hidden">⌘K</Kbd>
       </button>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
@@ -50,7 +50,7 @@ export function ShellTools({ alerts = [], now }: { alerts?: Alert[]; /** The dat
 }
 
 /** The alerts panel's body, as drawn in the popover; exported so a preview draws exactly what the bell opens. */
-export function AlertsPanel({ alerts, now, read = new Set(), onOpen, onMarkAll }: { alerts: Alert[]; now?: Date; read?: Set<string>; onOpen?: (id: string) => void; onMarkAll?: () => void }) {
+export function AlertsPanel({ alerts, now, read = new Set(), onOpen, onMarkAll }: { alerts: Alert[]; now: Date; read?: Set<string>; onOpen?: (id: string) => void; onMarkAll?: () => void }) {
   const unread = alerts.filter((a) => a.unread && !read.has(a.id)).length;
   return (
     <>
@@ -58,7 +58,7 @@ export function AlertsPanel({ alerts, now, read = new Set(), onOpen, onMarkAll }
         <p className="text-sm font-semibold">Alerts</p>
         {unread ? <span className="t-caption">{unread} new</span> : null}
         {unread && onMarkAll ? (
-          <button type="button" onClick={onMarkAll} className="ml-auto rounded-xs text-xs font-medium text-accent-ink hover:underline">
+          <button type="button" onClick={onMarkAll} className="hit ml-auto rounded-xs text-xs font-medium text-accent-ink hover:text-ink">
             Mark all read
           </button>
         ) : null}

@@ -1,8 +1,8 @@
 import { memo } from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { cn } from '@/lib/cn';
-import { safeMarkdownUrl } from '@/lib/safe-markdown';
+import { cn } from '../../../lib/cn';
+import { safeMarkdownUrl } from '../../../lib/safe-markdown';
 
 /** A link that leaves the product sends no referrer: the reader's address is not the author's business. */
 const external = (href?: string) => Boolean(href && /^(https?:)?\/\//i.test(href));

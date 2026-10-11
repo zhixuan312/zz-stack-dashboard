@@ -6,7 +6,10 @@ import { CommandPalette } from '@/components/patterns/command-palette';
 import { Rail, type Scope } from '@/components/patterns/rail';
 import { ShellTools, type Alert } from '@/components/patterns/shell-tools';
 import { ConsoleGate } from '@/console/gate';
-import { useConsole, useConsoleMode } from '@/lib/api';
+import { useConsole, useConsoleMode, useDataClock } from '@/lib/api';
+
+/** This console mounts no assistant: the release's shell asks for a promise, and `false` is this product's answer. */
+const NO_ASSISTANT = Promise.resolve(false);
 import type { Me } from '@/lib/api-shapes';
 import { navGroups } from '@/nav';
 import { useWaitingGates } from '@/console/initiative';
@@ -46,6 +49,8 @@ function useWaitingAlerts(enabled: boolean): Alert[] {
 export function ConsoleFrame({ children }: { children: ReactNode }) {
   const me = useConsole<Me>('/me');
   const { mode, setMode } = useConsoleMode();
+  // The data's clock, for the alert times under the bell: never `new Date()` at render.
+  const clock = useDataClock();
   const nav = navGroups(mode);
   const signedIn = !!me.data?.mayRead;
   const alerts = useWaitingAlerts(signedIn);
@@ -59,8 +64,9 @@ export function ConsoleFrame({ children }: { children: ReactNode }) {
   const user = me.data ? { name: me.data.name || me.data.email, role: me.data.superadmin ? 'Superadmin' : 'Member' } : null;
   return (
     <AppShell
+      assistant={NO_ASSISTANT}
       rail={<Rail nav={nav} workspace={mode === 'platform' ? 'The platform' : team ?? 'Your team'} scopes={scopes} user={user} signOut={signedIn ? signOut : null} />}
-      tools={<ShellTools alerts={alerts} />}
+      tools={<ShellTools alerts={alerts} now={clock} />}
     >
       {/* Pages keep their filters in the address (useQueryState), which suspends while the search params resolve. */}
       <ConsoleGate><Suspense fallback={null}>{children}</Suspense></ConsoleGate>

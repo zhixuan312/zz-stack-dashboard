@@ -2,7 +2,8 @@
 
 import { AlertTriangle, CheckCircle2, Info, Sparkles, X, XCircle, type LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { cn } from '@/lib/cn';
+import { cn } from '../../../lib/cn';
+import { keepHyphenated } from '../../base/text-roles/index';
 
 export type BannerTone = 'neutral' | 'accent' | 'positive' | 'warning' | 'critical';
 
@@ -46,8 +47,8 @@ export function Banner({
       <span className={cn('mt-px shrink-0 [&_svg]:size-4', t.icon)}>{icon ?? <t.Icon strokeWidth={2} />}</span>
       <div className="flex min-w-0 flex-1 flex-col gap-x-6 gap-y-2.5 sm:flex-row sm:items-start">
         <div className="min-w-0 flex-1">
-          <p className={cn('text-sm font-medium', t.title)}>{title}</p>
-          {children ? <div className="t-small mt-0.5 text-ink-2">{children}</div> : null}
+          <p className={cn('text-sm font-medium', t.title)}>{keepHyphenated(title)}</p>
+          {children ? <div className="t-small mt-0.5 text-ink-2">{keepHyphenated(children)}</div> : null}
         </div>
         {action ? <div className="flex shrink-0 items-center gap-2 sm:-my-1">{action}</div> : null}
       </div>

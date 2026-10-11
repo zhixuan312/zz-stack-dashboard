@@ -21,6 +21,21 @@ export const PERIOD_LABEL: Record<Period, string> = {
   all: 'All time',
 };
 
+/**
+ * The picker's short label per period, here beside the full name so one file holds the vocabulary: a product that adds
+ * its own period edits this file and the picker follows, with nothing to patch in the component.
+ *
+ * `24H` rather than `1D`: this console shows one day at a time more often than any other span, and in a row of `7D`,
+ * `30D`, `90D` a bare `1D` reads as the smallest bucket rather than as the last twenty-four hours.
+ */
+export const PERIOD_SHORT: Record<Period, string> = {
+  '1d': '24H',
+  '7d': '7D',
+  '30d': '30D',
+  '90d': '90D',
+  all: 'All',
+};
+
 /** Days in a period, or `null` for `all`. */
 const PERIOD_DAYS: Record<Period, number | null> = {
   '1d': 1,

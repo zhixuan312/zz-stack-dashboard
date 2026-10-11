@@ -2,7 +2,7 @@
 
 import { Popover as P } from 'radix-ui';
 import type { ComponentProps } from 'react';
-import { cn } from '@/lib/cn';
+import { cn } from '../../../lib/cn';
 
 /**
  * A small panel anchored to its trigger: a filter's options, a date range, a field's explanation with a link. It
@@ -10,7 +10,6 @@ import { cn } from '@/lib/cn';
  */
 export const Popover = P.Root;
 export const PopoverTrigger = P.Trigger;
-export const PopoverAnchor = P.Anchor;
 export const PopoverClose = P.Close;
 
 /** The surface, exported so a preview draws exactly what the popover draws. */

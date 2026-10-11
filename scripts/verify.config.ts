@@ -16,6 +16,11 @@ export type VerifyConfig = {
    */
   fakeApi?: { script: string; env: string };
   /**
+   * Routes that cannot be prerendered, each with the reason. `node scripts/route-policy.ts`, which verify runs after its
+   * production build, fails any non-API route that is neither static nor partial unless it is named here.
+   */
+  requestDependentRoutes?: { path: string; reason: string }[];
+  /**
    * The product's own browser checks, beside Meridian's audit, presses and keyboard walk: scripts verify runs with
    * `--base <url>` against the built app, failing when one exits non-zero.
    */
@@ -23,6 +28,20 @@ export type VerifyConfig = {
 };
 
 const config: VerifyConfig = {
+  /**
+   * The six routes whose path is only known at request time. Every fixed route is prerendered — all 18 of them appear
+   * in the build's `prerender-manifest.json` — but these are keyed by a team, an initiative, a plugin or a knowledge
+   * path that exists in the gateway's data, not in this repository, so a build has nothing to enumerate. The console
+   * renders their content in the browser from `/api/console/*` either way.
+   */
+  requestDependentRoutes: [
+    { path: '/initiatives/[team]/[slug]', reason: 'the initiative only exists in the gateway’s data; the build cannot enumerate it.' },
+    { path: '/initiatives/[team]/[slug]/[...path]', reason: 'a document inside that initiative: same reason, one level deeper.' },
+    { path: '/knowledge/[team]/[...path]', reason: 'a knowledge node’s path is its own slug, recorded at runtime.' },
+    { path: '/plugins/[plugin]', reason: 'the plugin estate is the platform’s, not this repository’s.' },
+    { path: '/plugins/[plugin]/[skill]', reason: 'a skill inside that plugin: same reason.' },
+    { path: '/teams/[slug]', reason: 'a team is a row in the platform’s database.' },
+  ],
   // One per state worth seeing, taken from the fake gateway's own records (scripts/fake-gateway): a team with
   // work and one with none, an initiative waiting on a person, a closed one, one closed with a correction awaiting
   // approval, one with no flow, a document approved, one awaiting approval, a correction the signed-in user may approve

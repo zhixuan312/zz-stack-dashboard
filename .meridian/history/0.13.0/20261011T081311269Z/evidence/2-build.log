@@ -1,0 +1,47 @@
+▲ Next.js 16.3.8 (Turbopack)
+- Environments: .env.local
+✓ Running next.config.ts took 10ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 770ms
+  Running TypeScript ...
+  Finished TypeScript in 1553ms ...
+  Collecting page data using 9 workers ...
+  Generating static pages using 9 workers (0/18) ...
+  Generating static pages using 9 workers (4/18) 
+  Generating static pages using 9 workers (8/18) 
+  Generating static pages using 9 workers (13/18) 
+✓ Generating static pages using 9 workers (18/18) in 250ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ○ /activity
+├ ○ /apple-icon.png
+├ ○ /enrol
+├ ○ /icon.png
+├ ○ /initiatives
+├ ƒ /initiatives/[team]/[slug]
+├ ƒ /initiatives/[team]/[slug]/[...path]
+├ ○ /knowledge
+├ ƒ /knowledge/[team]/[...path]
+├ ○ /knowledge/ask
+├ ○ /knowledge/log
+├ ○ /login
+├ ○ /people
+├ ○ /plugins
+├ ƒ /plugins/[plugin]
+├ ƒ /plugins/[plugin]/[skill]
+├ ○ /runs
+├ ○ /settings
+├ ○ /signed-out
+├ ○ /teams
+└ ƒ /teams/[slug]
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

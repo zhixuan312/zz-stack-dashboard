@@ -2,12 +2,12 @@
 
 import { ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react';
 import type { HTMLAttributes, ReactNode, TdHTMLAttributes, ThHTMLAttributes } from 'react';
-import { cn } from '@/lib/cn';
+import { cn } from '../../../lib/cn';
 
 /**
  * Rows of records compared across a few columns. It fills its card edge to edge and never scrolls sideways: when it is
- * too narrow, the least important columns drop (`hideBelow` on the head and the cells alike), and on phones a
- * DataTable shows a list of cards instead. Numbers align right in tabular figures.
+ * too narrow, the least important columns drop (`hideBelow` on the head and the cells alike), and a DataTable's rows
+ * become cards on phones. Numbers align right in tabular figures.
  *
  * `hideBelow` reads the table's own width, not the window's: the rail, a split row or an embed all narrow the table
  * without narrowing the window. sm under 512px, md under 672px, lg under 896px, xl under 1152px.
@@ -90,8 +90,9 @@ export function TableHeader({
         'h-9 border-y border-line bg-surface-sunk px-4 text-xs font-medium whitespace-nowrap text-ink-3 first:border-l-0',
         ALIGN[align],
         hideBelow && HIDE[hideBelow],
-        /* The lead column takes about a third; auto layout spreads the rest across the others by their content. */
-        grow && 'w-[30%] min-w-40 @min-[672px]:min-w-64',
+        /* The lead column takes about a third; auto layout spreads the rest across the others by their content. Under
+           512px of table, where most columns have dropped, it takes the slack, so its text is not cut beside empty space. */
+        grow && 'w-[30%] min-w-40 @max-[512px]:w-full @min-[672px]:min-w-64',
         className,
       )}
       {...rest}

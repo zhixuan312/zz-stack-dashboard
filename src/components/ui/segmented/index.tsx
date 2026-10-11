@@ -2,7 +2,7 @@
 
 import { ToggleGroup } from 'radix-ui';
 import { useLayoutEffect, useRef, useState } from 'react';
-import { cn } from '@/lib/cn';
+import { cn } from '../../../lib/cn';
 
 export type SegmentedOption<V extends string> = { value: V; label: React.ReactNode; title?: string };
 
@@ -46,7 +46,10 @@ export function Segmented<V extends string>({
       value={value}
       onValueChange={(v) => v && onChange(v as V)}
       aria-label={label}
-      className={cn('relative inline-flex shrink-0 items-center rounded-md bg-surface-sunk p-0.5 ring-1 ring-line ring-inset', className)}
+      className={cn(
+        'scroll-fade-x relative inline-flex min-w-0 max-w-full items-center overflow-x-auto rounded-md bg-surface-sunk p-0.5 ring-1 ring-line ring-inset [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+        className,
+      )}
     >
       {thumb ? (
         <span
