@@ -141,6 +141,9 @@ What stays the console's own, and why:
   Meridian's `data-table` resets it now. And the craft screenshots are taken against `next start` rather than
   `next dev`, which is what `standard.md` prescribes now. Both were reported with measurements, both were fixed in the
   template's own repository on 2026-10-11, and neither is in 0.14.0.
+- `src/console/words.ts`: the two rules a count and a borrowed sentence need — `plural(n, 'skill')` and
+  `sentence(text)`. One module rather than ten call sites, because the plural was wrong in six files while the idiom sat
+  in four others, and a rule written twice is a rule that drifts.
 - `proxy.ts`: the laptop's dev-only PAT passthrough, plus one addition this product made — a preload hint for a
   document route's read. A route with an unknown dynamic param cannot render its page on the server, so nothing writes
   the hint `useConsole` was designed to write from the HTML, and the read then waits for the route's own JS. Measured:
