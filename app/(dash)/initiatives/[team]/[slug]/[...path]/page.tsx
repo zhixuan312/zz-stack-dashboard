@@ -1,15 +1,15 @@
 'use client';
 
-import { useState, use } from 'react';
+import { useState, use, type ReactNode } from 'react';
 import dynamic from 'next/dynamic';
 import { DataTable, type Column } from '@/components/patterns/data-table';
 import { Badge } from '@/components/ui/badge';
-import { KeyValue } from '@/components/ui/key-value';
 import { Segmented } from '@/components/ui/segmented';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ApproveAction, OutOfDate, canApprove, switchToApprove, useRecordShown } from '@/console/approve';
 import { aligned } from '@/console/columns';
 import { DocStatus } from '@/console/doc-status';
+import { Row } from '@/components/base/shell';
 import { ConsolePage } from '@/console/page';
 import { Panel } from '@/console/panel';
 import { Query } from '@/console/query';
@@ -44,6 +44,51 @@ function decisionColumns(role: string): Column<Decision>[] {
   ]);
 }
 
+/**
+ * What the document is and where it stands, beside the text rather than above it.
+ *
+ * This was Meridian's `KeyValue` — a two-column label/value grid — sitting between the masthead and the first line of
+ * the document. It is a form's shape: a column of labels with a column of values, six rows of it, and it pushed the
+ * text a screenful down the page while reading as something a person was meant to fill in. Nothing here is a field.
+ *
+ * So the facts a reader wants at a glance — what kind of document this is, who approved it, when it last moved, who it
+ * is for, what it is tagged with, and whatever fields the flow carries — are set as a colophon in the narrow column,
+ * and the document's own status moved up into the masthead where it is visible at every width.
+ */
+function DocColophon({ doc }: { doc: DocumentDetail }) {
+  const fields = Object.entries(doc.fields).sort(([a], [b]) => a.localeCompare(b));
+  return (
+    <Panel title="This document" description="What it is, and who it is for.">
+      <div className="flex flex-col gap-4">
+        <Colophon label="Type">{doc.type}</Colophon>
+        {/* Three states, not two: a source is a file the flow says nothing about, so "not approved" would imply an
+            approval was ever on the table. */}
+        <Colophon label="Approved by">{doc.approved_by ?? (doc.gated === false ? 'No approval needed' : doc.gated === true ? 'Not yet' : '—')}</Colophon>
+        <Colophon label="Updated"><When at={doc.updated_at} /></Colophon>
+        <Colophon label="Stakeholder">{doc.stakeholder || 'None named'}</Colophon>
+        <Colophon label="Tags">
+          {doc.tags?.length
+            ? <span className="flex flex-wrap gap-1.5">{doc.tags.map((tag) => <Badge key={tag}>{tag}</Badge>)}</span>
+            : 'None'}
+        </Colophon>
+        {/* The review metadata: an approval signs it with the body, and recording this page as shown says the reader
+            saw it, so every piece is on screen. The title is the masthead's. */}
+        {fields.map(([key, value]) => <Colophon key={key} label={key}>{value}</Colophon>)}
+      </div>
+    </Panel>
+  );
+}
+
+/** One line of a colophon: what it is, in mono caps, over what it says. */
+function Colophon({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="min-w-0">
+      <p className="t-eyebrow">{label}</p>
+      <p className="t-small mt-1 min-w-0 text-ink [overflow-wrap:anywhere]">{children}</p>
+    </div>
+  );
+}
+
 /** One document, read: the text itself, how it changed and on what evidence, and the claims it makes. */
 export default function DocumentPage({ params }: { params: Promise<{ team: string; slug: string; path: string[] }> }) {
   useLive(['document']);
@@ -74,44 +119,47 @@ export default function DocumentPage({ params }: { params: Promise<{ team: strin
     <ConsolePage
       title={d?.title || rel.replace(/^sources\//, '')}
       crumbs={[{ label: 'Initiatives', href: '/initiatives' }, { label: team, href: `/teams/${team}` }, { label: slug, href: `/initiatives/${team}/${slug}` }]}
-      description={<span className="font-mono text-sm">{rel}{version ? ` · v${version}` : ''}</span>}
+      description={
+        <span className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          <span className="font-mono text-sm">{rel}{version ? ` · v${version}` : ''}</span>
+          {d ? <DocStatus status={d.status} outcome={d.outcome} gated={d.gated} requiredForClose={d.requiredForClose} correction={d.correction} /> : null}
+        </span>
+      }
       showPeriod={false}
       updatedAt={freshnessOf(q)}
       actions={d && me.data && (offered || switchToApprove(d, me.data)) ? <ApproveAction doc={d} me={me.data} shown={shown} onStale={outdated} /> : undefined}
-      width="reading"
+      width="data"
     >
       <OutOfDate shown={shown} onReload={() => void reload()} />
       <Query query={q} what="This document" skeleton={<div className="flex flex-col gap-(--stack-gap)"><Skeleton className="h-24 rounded-lg" /><Skeleton className="h-[28rem] rounded-lg" /></div>}>
         {(doc) => (
           <>
-            <Panel
-              title="Document"
-              description={formatKb(doc.bytes / 1024)}
-              actions={<Segmented size="sm" label="Document view" value={view} onChange={setView} options={[{ value: 'read', label: 'Read' }, { value: 'source', label: 'Source' }]} />}
-            >
-              <KeyValue
-                columns={2}
-                className="mb-6"
-                items={[
-                  { label: 'Type', value: doc.type },
-                  { label: 'Status', wrap: true, value: <DocStatus status={doc.status} outcome={doc.outcome} gated={doc.gated} requiredForClose={doc.requiredForClose} correction={doc.correction} /> },
-                  // Three states, not two: a source is a file the flow says nothing about, so "not approved" would imply an approval was ever on the table.
-                  { label: 'Approved by', wrap: true, value: doc.approved_by ?? (doc.gated === false ? 'No approval needed' : doc.gated === true ? 'Not yet' : '—') },
-                  { label: 'Updated', value: <When at={doc.updated_at} /> },
-                  // The review metadata: an approval signs it with the body, and recording this page as shown says
-                  // the reader saw it, so every piece is on screen. The title is the masthead's.
-                  { label: 'Stakeholder', wrap: true, value: doc.stakeholder || 'None named' },
-                  { label: 'Tags', wrap: true, value: doc.tags?.length ? doc.tags.join(', ') : 'None' },
-                  ...Object.entries(doc.fields).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => ({ label: k, wrap: true, value: v })),
-                ]}
-              />
-              {doc.body?.trim()
-                ? view === 'read'
-                  ? <Prose>{readableDocument(doc.body)}</Prose>
-                  : <pre className="rounded-lg border border-line bg-surface-sunk p-4 font-mono text-xs leading-[1.7] whitespace-pre-wrap text-ink-2 [overflow-wrap:anywhere]">{doc.body}</pre>
-                : <p className="t-small text-ink-3">This document has no body in the store.</p>}
-            </Panel>
-            <VersionChain doc={doc} />
+            {/* `items-start`: the document is as long as it is, and a card stretched to a taller neighbour's height
+                is a page of empty card under the last line of text. Cards in a row share a height when they are cards in
+                a row; one side here is a column of the document's own facts and the other is the text. */}
+            <Row split="2/3" className="items-start">
+              <Panel
+                title="Document"
+                description={formatKb(doc.bytes / 1024)}
+                actions={<Segmented size="sm" label="Document view" value={view} onChange={setView} options={[{ value: 'read', label: 'Read' }, { value: 'source', label: 'Source' }]} />}
+              >
+                {/* The reader's measure is this cell, not Meridian's 72-character cap. These are long documents on a
+                    wide screen, and a 533px strip in a 1,400px canvas makes one longer than it is: the cap is worth
+                    2,200px of scroll on a 60,000-character document. Tables and code already fill the cell; this lets
+                    the running text join them. */}
+                <div className="[&_li]:max-w-none [&_ol]:max-w-none [&_p]:max-w-none [&_ul]:max-w-none">
+                  {doc.body?.trim()
+                    ? view === 'read'
+                      ? <Prose>{readableDocument(doc.body, doc.title)}</Prose>
+                      : <pre className="rounded-lg border border-line bg-surface-sunk p-4 font-mono text-xs leading-[1.7] whitespace-pre-wrap text-ink-2 [overflow-wrap:anywhere]">{doc.body}</pre>
+                    : <p className="t-small text-ink-3">This document has no body in the store.</p>}
+                </div>
+              </Panel>
+              <div className="flex min-w-0 flex-col gap-(--stack-gap)">
+                <DocColophon doc={doc} />
+                <VersionChain doc={doc} />
+              </div>
+            </Row>
             {doc.decisions.length ? (
               <DataTable
                 caption="Claims"

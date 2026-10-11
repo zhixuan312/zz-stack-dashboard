@@ -137,7 +137,9 @@ describe('the document page under a refetch', () => {
     expect(screen.getByText('Stakeholder')).toBeInTheDocument();
     expect(screen.getByText('noah.okafor@example.com')).toBeInTheDocument();
     expect(screen.getByText('Tags')).toBeInTheDocument();
-    expect(screen.getByText('search, ranking')).toBeInTheDocument();
+    // Each tag is its own mark rather than one comma-joined string, so each is asserted where it sits.
+    expect(screen.getByText('search')).toBeInTheDocument();
+    expect(screen.getByText('ranking')).toBeInTheDocument();
     expect(screen.getByText('audience')).toBeInTheDocument();
     expect(screen.getByText('research team')).toBeInTheDocument();
     expect(screen.getByText('risk')).toBeInTheDocument();

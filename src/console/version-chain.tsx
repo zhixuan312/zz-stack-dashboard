@@ -123,7 +123,7 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
     <>
       {pair ? (
         <Panel
-          title="Changes and their reasons"
+          title="What changed"
           actions={
             <span className="flex items-center gap-3">
               {/* A Select, not a segmented strip: one segment per change grows with the

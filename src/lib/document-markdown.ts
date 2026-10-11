@@ -15,8 +15,28 @@
  */
 const ITEM = /^\*\*(AC|Task|Gap|Goal|Decision|Risk|Check)[-\s0-9.]*\*\*/;
 
-export function readableDocument(body: string): string {
-  const lines = body.replace(/\r\n/g, '\n').split('\n');
+/** An ATX heading, which is where these documents state their own title. */
+const HEADING = /^#{1,6}\s+(.*)$/;
+
+/**
+ * The body, with its own title dropped when the masthead is already showing it.
+ *
+ * These documents open with `# <their title>`, and the page's masthead is that same line: the reader saw
+ * "Spec: relevance that explains itself" at 55px, and then the identical sentence again 200px below it as the first
+ * line of the text. One of the two is the title; the masthead is. Only the FIRST heading is dropped, and only when its
+ * text is that title — a document whose first heading is a section is left alone.
+ */
+function withoutTitle(lines: string[], title: string | null | undefined): string[] {
+  if (!title) return lines;
+  const first = lines.findIndex((line) => line.trim() !== '');
+  if (first < 0) return lines;
+  const heading = HEADING.exec(lines[first].trim());
+  if (!heading) return lines;
+  return heading[1].trim().toLowerCase() === title.trim().toLowerCase() ? lines.slice(first + 1) : lines;
+}
+
+export function readableDocument(body: string, title?: string | null): string {
+  const lines = withoutTitle(body.replace(/\r\n/g, '\n').split('\n'), title);
   const out: string[] = [];
   for (const line of lines) {
     // A labelled item that follows a non-blank line needs the blank line
