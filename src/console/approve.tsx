@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { CheckCircle2, RotateCw } from 'lucide-react';
-import { Banner } from '@/components/ui/banner';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/toast';
 import { ApiError } from '@/lib/api';
@@ -113,30 +112,6 @@ export function useRecordShown(doc: DocumentDetail | undefined, offered: boolean
   };
 }
 
-/**
- * Why Approve is held: the page is older than the store, the document changed while it was being read, or the record
- * of showing it did not land. Stays until the reader reloads, because a toast would leave before the reason to reload
- * was read. Draws nothing while the page and the store agree.
- */
-export function OutOfDate({ shown, onReload }: { shown: Shown; onReload: () => void }) {
-  if (shown.state !== 'stale' && shown.state !== 'changed' && shown.state !== 'failed') return null;
-  const reload = <Button size="sm" icon={<RotateCw />} onClick={onReload}>Reload</Button>;
-  if (shown.state === 'failed') {
-    return (
-      <Banner tone="critical" title="Approve is unavailable" action={reload}>
-        The console could not record that it showed you this version, so it cannot approve it. {shown.message}
-      </Banner>
-    );
-  }
-  if (shown.state === 'changed') {
-    return (
-      <Banner tone="warning" title="This document changed while you were reading it" action={reload}>
-        The text on screen is what it says now. Reload to approve this version.
-      </Banner>
-    );
-  }
-  return <Banner tone="warning" title="This page is out of date" action={reload}>{shown.message}</Banner>;
-}
 
 /**
  * Approve one gated document. Inline confirmation, never a modal: Approve swaps for "Approve this document? Confirm /
@@ -146,7 +121,7 @@ export function OutOfDate({ shown, onReload }: { shown: Shown; onReload: () => v
  * `onStale`, which holds Approve and shows the page's banner; any other refusal says the gateway's own sentence in a
  * toast. A member acting for another of their teams is told which team to switch to.
  */
-export function ApproveAction({ doc, me, shown, onStale }: { doc: DocumentDetail; me: Me; shown: Shown; onStale: (message: string) => void }) {
+export function ApproveAction({ doc, me, shown, onStale, onReload }: { doc: DocumentDetail; me: Me; shown: Shown; onStale: (message: string) => void; onReload: () => void }) {
   // The record the reader pressed Approve on, by identity: every record is a new object, so a newer snapshot or the
   // same one recorded again by a reload closes the confirmation, and Confirm can only sign the record it opened on.
   const [confirmingFor, setConfirmingFor] = useState<Shown | null>(null);
@@ -169,6 +144,39 @@ export function ApproveAction({ doc, me, shown, onStale }: { doc: DocumentDetail
     setConfirmingFor(null);
   }
 
+  // THE RECORD IS NOT USABLE, SO SAY SO HERE — and here rather than in a banner above the page.
+  //
+  // This was a `<Banner>` rendered above the `<Query>`, in the page's own flow. It appears when the `documents/shown`
+  // call fails, which is *after* the first paint, so **everything below it moved down once**: measured on the two
+  // fixture documents whose record is refused (`moving`, `unrecordable`) at **CLS 0.116 and 0.143** against a 0.1 bar,
+  // with the `Row` named as the shifted element — while the control, whose record succeeds and whose banner therefore
+  // never renders, measured 0.035. The shifting element was the `Row` because the `Row` is the first thing beneath it.
+  //
+  // **The actions row is the one place above the content whose height does not depend on a late read**, so a control
+  // swapped for a control of the same size moves nothing. And it hides the failure from nobody: `offered` requires
+  // `canApprove`, so `useRecordShown` only ever records for a reader who *can* approve — the same reader who has this
+  // control in front of them.
+  //
+  // The cost, stated: the sentence each state carries is now the control's own name and description rather than a
+  // paragraph on the page, so a sighted reader meets it on hover or through a screen reader rather than at a glance.
+  if (shown.state === 'failed' || shown.state === 'stale' || shown.state === 'changed') {
+    const why =
+      shown.state === 'failed'
+        ? `Approve is unavailable: the console could not record that it showed you this version, so it cannot approve it. ${shown.message}`
+        : shown.state === 'changed'
+          ? 'This document changed while you were reading it. The text on screen is what it says now. Reload to approve this version.'
+          : `This page is out of date. ${shown.message}`;
+    return (
+      <>
+        {/* `aria-describedby`, not `aria-label`: the control's name must keep containing its visible word — "Reload" —
+            or a person driving it by voice cannot say what they see (WCAG 2.5.3). The sentence is the description. */}
+        <Button size="sm" variant="secondary" icon={<RotateCw />} onClick={onReload} title={why} aria-describedby="approve-unavailable">
+          {shown.state === 'failed' ? 'Approve unavailable · Reload' : 'Reload'}
+        </Button>
+        <span id="approve-unavailable" className="sr-only">{why}</span>
+      </>
+    );
+  }
   if (shown.state !== 'recorded' || confirmingFor !== shown) {
     return (
       <>

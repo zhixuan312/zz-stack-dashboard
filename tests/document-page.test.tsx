@@ -89,9 +89,11 @@ describe('the document page under a refetch', () => {
     await act(() => client.refetchQueries({ queryKey: ['console', '/document/team-one/init-1/spec.md'] }));
     await screen.findByText('What somebody else wrote since.');
 
+    // The failure is the control now, not a banner above the page: no live Approve to hold, and the sentence is what
+    // the Reload control describes rather than a status region that moved everything below it.
     expect(screen.queryByRole('button', { name: 'Confirm' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Approve' })).toBeDisabled();
-    expect(screen.getByRole('status')).toHaveTextContent('This document changed while you were reading it');
+    expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Reload' })).toHaveAccessibleDescription(/This document changed while you were reading it/);
     // The newer snapshot is not recorded as shown until the reader asks for it, and nothing was signed.
     expect(writes.filter((w) => w.route === 'documents/shown').map((w) => w.body.content_revision)).toEqual([OLD]);
     expect(writes.some((w) => w.route === 'documents/approve')).toBe(false);
@@ -117,10 +119,13 @@ describe('the document page under a refetch', () => {
     await user.click(screen.getByRole('button', { name: 'Approve' }));
     await user.click(screen.getByRole('button', { name: 'Confirm' }));
 
-    await screen.findByText(said);
-    expect(screen.getByRole('button', { name: 'Approve' })).toBeDisabled();
+    // A refused approval hands the page to `stale`, and the page answers with the Reload control rather than a
+    // disabled Approve plus a banner: same information, nothing above the content to move it.
+    const reloadButton = await screen.findByRole('button', { name: 'Reload' });
+    expect(reloadButton).toHaveAccessibleDescription(new RegExp(said.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull();
 
-    await user.click(screen.getByRole('button', { name: 'Reload' }));
+    await user.click(reloadButton);
     await waitFor(() => expect(screen.getByRole('button', { name: 'Approve' })).toBeEnabled());
     expect(screen.queryByText(said)).toBeNull();
   });

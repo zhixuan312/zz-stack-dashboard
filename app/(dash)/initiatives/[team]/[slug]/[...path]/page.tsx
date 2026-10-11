@@ -5,7 +5,7 @@ import { DataTable, type Column } from '@/components/patterns/data-table';
 import { Badge } from '@/components/ui/badge';
 import { Segmented } from '@/components/ui/segmented';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ApproveAction, OutOfDate, canApprove, switchToApprove, useRecordShown } from '@/console/approve';
+import { ApproveAction, canApprove, switchToApprove, useRecordShown } from '@/console/approve';
 import { aligned } from '@/console/columns';
 import { DocStatus } from '@/console/doc-status';
 import { Row } from '@/components/base/shell';
@@ -133,10 +133,9 @@ export default function DocumentPage({ params }: { params: Promise<{ team: strin
       }
       showPeriod={false}
       updatedAt={freshnessOf(q)}
-      actions={d && me.data && (offered || switchToApprove(d, me.data)) ? <ApproveAction doc={d} me={me.data} shown={shown} onStale={outdated} /> : undefined}
+      actions={d && me.data && (offered || switchToApprove(d, me.data)) ? <ApproveAction doc={d} me={me.data} shown={shown} onStale={outdated} onReload={() => void reload()} /> : undefined}
       width="data"
     >
-      <OutOfDate shown={shown} onReload={() => void reload()} />
       <Query query={q} what="This document" skeleton={<div className="flex flex-col gap-(--stack-gap)"><Skeleton className="h-24 rounded-lg" /><Skeleton className="h-[28rem] rounded-lg" /></div>}>
         {(doc) => (
           <>

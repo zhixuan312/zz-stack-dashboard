@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { ApproveAction, OutOfDate, canApprove, useRecordShown, type Shown } from '@/console/approve';
+import { ApproveAction, canApprove, useRecordShown, type Shown } from '@/console/approve';
 import { Toaster } from '@/components/ui/toast';
 import type { DocumentDetail, Me } from '@/lib/api-shapes';
 
@@ -198,20 +198,20 @@ describe('useRecordShown', () => {
 
 describe('ApproveAction', () => {
   it('shows the Approve control to an eligible team member', () => {
-    renderWithClient(<ApproveAction doc={doc} me={me} shown={recorded} onStale={() => {}} />);
+    renderWithClient(<ApproveAction doc={doc} me={me} shown={recorded} onStale={() => {}}  onReload={() => {}}/>);
     expect(screen.getByRole('button', { name: 'Approve' })).toBeInTheDocument();
   });
 
   it('renders nothing for someone on a different team', () => {
     const { container } = renderWithClient(
-      <ApproveAction doc={doc} me={{ ...me, teams: [{ slug: 'other-team', role: 'member' }] }} shown={recorded} onStale={() => {}} />,
+      <ApproveAction doc={doc} me={{ ...me, teams: [{ slug: 'other-team', role: 'member' }] }} shown={recorded} onStale={() => {}}  onReload={() => {}}/>,
     );
     expect(container).toBeEmptyDOMElement();
   });
 
   it('swaps to an inline confirmation, never a modal, on click', async () => {
     const user = userEvent.setup();
-    renderWithClient(<ApproveAction doc={doc} me={me} shown={recorded} onStale={() => {}} />);
+    renderWithClient(<ApproveAction doc={doc} me={me} shown={recorded} onStale={() => {}}  onReload={() => {}}/>);
     await user.click(screen.getByRole('button', { name: 'Approve' }));
     expect(screen.getByText('Approve this document?')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Confirm' })).toBeInTheDocument();
@@ -219,25 +219,45 @@ describe('ApproveAction', () => {
   });
 
   it('waits for the presentation to be recorded before it can be pressed', () => {
-    renderWithClient(<ApproveAction doc={doc} me={me} shown={{ state: 'recording', content_revision: doc.content_revision }} onStale={() => {}} />);
+    renderWithClient(<ApproveAction doc={doc} me={me} shown={{ state: 'recording', content_revision: doc.content_revision }} onStale={() => {}}  onReload={() => {}}/>);
     expect(screen.getByRole('button', { name: 'Approve' })).toBeDisabled();
   });
 
   it('says why Approve is held while the presentation is being recorded', () => {
-    renderWithClient(<ApproveAction doc={doc} me={me} shown={{ state: 'recording', content_revision: doc.content_revision }} onStale={() => {}} />);
+    renderWithClient(<ApproveAction doc={doc} me={me} shown={{ state: 'recording', content_revision: doc.content_revision }} onStale={() => {}}  onReload={() => {}}/>);
     const approve = screen.getByRole('button', { name: 'Approve' });
     expect(approve).toHaveAttribute('aria-busy', 'true');
     expect(approve).toHaveAccessibleDescription('Recording that this version was shown to you.');
   });
 
-  it('holds Approve while the page is out of date, so the banner never sits beside a live Approve', () => {
+  /** **The failure is the control, not a banner beside it.** These states used to draw a disabled `Approve` here *and*
+   *  a `<Banner>` above the page — and the banner, arriving after the first paint, moved everything below it: measured
+   *  at CLS 0.116 and 0.143 on the two fixture documents whose record is refused, against a 0.1 bar. There is now no
+   *  live Approve to hold, and nothing above the content to move it. */
+  it('offers Reload instead of Approve while the record is not usable, and reloads on request', async () => {
+    const user = userEvent.setup();
+    const onReload = vi.fn();
     for (const shown of [
       { state: 'stale', content_revision: doc.content_revision, message: 'changed' },
       { state: 'changed', content_revision: NEWER },
       { state: 'failed', content_revision: doc.content_revision, message: 'unreachable' },
     ] as Shown[]) {
-      const { unmount } = renderWithClient(<ApproveAction doc={doc} me={me} shown={shown} onStale={() => {}} />);
-      expect(screen.getByRole('button', { name: 'Approve' })).toBeDisabled();
+      const { unmount } = renderWithClient(<ApproveAction doc={doc} me={me} shown={shown} onStale={() => {}} onReload={onReload} />);
+      expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument();
+      await user.click(screen.getByRole('button'));
+      unmount();
+    }
+    expect(onReload).toHaveBeenCalledTimes(3);
+  });
+
+  it('says which way the record failed, on the control rather than beside it', () => {
+    for (const [shown, said] of [
+      [{ state: 'stale', content_revision: doc.content_revision, message: 'The store moved on.' }, 'This page is out of date. The store moved on.'],
+      [{ state: 'changed', content_revision: NEWER }, 'This document changed while you were reading it'],
+      [{ state: 'failed', content_revision: doc.content_revision, message: 'zz-core unreachable' }, 'the console could not record that it showed you this version'],
+    ] as [Shown, string][]) {
+      const { unmount } = renderWithClient(<ApproveAction doc={doc} me={me} shown={shown} onStale={() => {}} onReload={() => {}} />);
+      expect(screen.getByRole('button')).toHaveAccessibleDescription(expect.stringContaining(said));
       unmount();
     }
   });
@@ -248,11 +268,11 @@ describe('ApproveAction', () => {
     const user = userEvent.setup();
     const fetchMock = answering(200, { ok: true, result: 'approved' });
     try {
-      const { rerender } = renderWithClient(<ApproveAction doc={doc} me={me} shown={recorded} onStale={() => {}} />);
+      const { rerender } = renderWithClient(<ApproveAction doc={doc} me={me} shown={recorded} onStale={() => {}}  onReload={() => {}}/>);
       await user.click(screen.getByRole('button', { name: 'Approve' }));
       expect(screen.getByRole('button', { name: 'Confirm' })).toBeInTheDocument();
       rerender(<QueryClientProvider client={new QueryClient()}>
-        <ApproveAction doc={doc} me={me} shown={{ state: 'recorded', content_revision: NEWER, review_context: CONTEXT }} onStale={() => {}} />
+        <ApproveAction doc={doc} me={me} shown={{ state: 'recorded', content_revision: NEWER, review_context: CONTEXT }} onStale={() => {}}  onReload={() => {}}/>
       </QueryClientProvider>);
       expect(screen.queryByRole('button', { name: 'Confirm' })).toBeNull();
       expect(screen.getByRole('button', { name: 'Approve' })).toBeEnabled();
@@ -265,10 +285,10 @@ describe('ApproveAction', () => {
   it('closes the confirmation while the presentation is being recorded again', async () => {
     const user = userEvent.setup();
     const client = new QueryClient();
-    const { rerender } = render(<QueryClientProvider client={client}><ApproveAction doc={doc} me={me} shown={recorded} onStale={() => {}} /></QueryClientProvider>);
+    const { rerender } = render(<QueryClientProvider client={client}><ApproveAction doc={doc} me={me} shown={recorded} onStale={() => {}}  onReload={() => {}}/></QueryClientProvider>);
     await user.click(screen.getByRole('button', { name: 'Approve' }));
     rerender(<QueryClientProvider client={client}>
-      <ApproveAction doc={doc} me={me} shown={{ state: 'recording', content_revision: doc.content_revision }} onStale={() => {}} />
+      <ApproveAction doc={doc} me={me} shown={{ state: 'recording', content_revision: doc.content_revision }} onStale={() => {}}  onReload={() => {}}/>
     </QueryClientProvider>);
     expect(screen.queryByRole('button', { name: 'Confirm' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Approve' })).toBeDisabled();
@@ -280,7 +300,7 @@ describe('ApproveAction', () => {
     const user = userEvent.setup();
     const fetchMock = answering(200, { ok: true, result: 'approved' });
     try {
-      renderWithClient(<ApproveAction doc={doc} me={me} shown={recorded} onStale={() => {}} />);
+      renderWithClient(<ApproveAction doc={doc} me={me} shown={recorded} onStale={() => {}}  onReload={() => {}}/>);
       await user.click(screen.getByRole('button', { name: 'Approve' }));
       const [confirm, cancel] = [screen.getByRole('button', { name: 'Confirm' }), screen.getByRole('button', { name: 'Cancel' })];
       expect(confirm.compareDocumentPosition(cancel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -293,7 +313,7 @@ describe('ApproveAction', () => {
   });
 
   it('tells a member acting for another team to switch before approving', () => {
-    renderWithClient(<ApproveAction doc={doc} me={{ ...me, teams: [...me.teams, { slug: 'other-team', role: 'member' }], activeTeam: 'other-team' }} shown={{ state: 'off' }} onStale={() => {}} />);
+    renderWithClient(<ApproveAction doc={doc} me={{ ...me, teams: [...me.teams, { slug: 'other-team', role: 'member' }], activeTeam: 'other-team' }} shown={{ state: 'off' }} onStale={() => {}}  onReload={() => {}}/>);
     expect(screen.getByText('Switch to team-one to approve.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull();
   });
@@ -307,7 +327,7 @@ describe('ApproveAction', () => {
     try {
       renderWithClient(
         <>
-          <ApproveAction doc={doc} me={me} shown={recorded} onStale={() => {}} />
+          <ApproveAction doc={doc} me={me} shown={recorded} onStale={() => {}}  onReload={() => {}}/>
           <Toaster />
         </>,
       );
@@ -326,7 +346,7 @@ describe('ApproveAction', () => {
     const user = userEvent.setup();
     const fetchMock = answering(200, { ok: true, result: 'approved' });
     try {
-      renderWithClient(<ApproveAction doc={doc} me={me} shown={recorded} onStale={() => {}} />);
+      renderWithClient(<ApproveAction doc={doc} me={me} shown={recorded} onStale={() => {}}  onReload={() => {}}/>);
       await user.click(screen.getByRole('button', { name: 'Approve' }));
       await user.click(screen.getByRole('button', { name: 'Confirm' }));
       await waitFor(() => expect(fetchMock).toHaveBeenCalled());
@@ -344,7 +364,7 @@ describe('ApproveAction', () => {
     const fetchMock = answering(409, { error: said, conflict: 'changed' });
     const onStale = vi.fn();
     try {
-      renderWithClient(<><ApproveAction doc={doc} me={me} shown={recorded} onStale={onStale} /><Toaster /></>);
+      renderWithClient(<><ApproveAction doc={doc} me={me} shown={recorded} onStale={onStale}  onReload={() => {}}/><Toaster /></>);
       await user.click(screen.getByRole('button', { name: 'Approve' }));
       await user.click(screen.getByRole('button', { name: 'Confirm' }));
       await waitFor(() => expect(onStale).toHaveBeenCalledWith(said));
@@ -355,34 +375,3 @@ describe('ApproveAction', () => {
   });
 });
 
-describe('OutOfDate', () => {
-  it('says why the page is out of date and reloads on request', async () => {
-    const user = userEvent.setup();
-    const onReload = vi.fn();
-    const said = 'spec.md changed after this page showed it, so it was not approved. Reload to read what it says now, then approve that.';
-    render(<OutOfDate shown={{ state: 'stale', content_revision: doc.content_revision, message: said }} onReload={onReload} />);
-    expect(screen.getByRole('status')).toHaveTextContent('This page is out of date');
-    expect(screen.getByText(said)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Reload' }));
-    expect(onReload).toHaveBeenCalledTimes(1);
-  });
-
-  it('says the text changed while it was being read', () => {
-    render(<OutOfDate shown={{ state: 'changed', content_revision: NEWER }} onReload={() => {}} />);
-    expect(screen.getByRole('status')).toHaveTextContent('This document changed while you were reading it');
-    expect(screen.getByRole('status')).toHaveTextContent('Reload to approve this version.');
-  });
-
-  it('is an alert, in the reader\'s words first, when the record of showing it failed', () => {
-    render(<OutOfDate shown={{ state: 'failed', content_revision: doc.content_revision, message: 'zz-core unreachable' }} onReload={() => {}} />);
-    const alert = screen.getByRole('alert');
-    expect(alert).toHaveTextContent('Approve is unavailable');
-    expect(alert).toHaveTextContent('The console could not record that it showed you this version, so it cannot approve it.');
-    expect(alert).toHaveTextContent('zz-core unreachable');
-  });
-
-  it('draws nothing while the page is in step with the store', () => {
-    const { container } = render(<OutOfDate shown={recorded} onReload={() => {}} />);
-    expect(container).toBeEmptyDOMElement();
-  });
-});
