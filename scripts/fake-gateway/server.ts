@@ -24,6 +24,8 @@
  * names longer than any layout planned for). `GET /__mode?set=<mode>` switches it while running.
  */
 import http from 'node:http';
+import { day } from './clock.ts';
+import { COLLECTIONS, hint, liveStreams, parseNames, serveLive } from './live.ts';
 import { ME, MY_CLIENT_SETUP, MY_TEAMS, MY_TOKENS, PEOPLE, PLATFORM_PEOPLE, TEAMS, teamDetail, teamMembers } from './people.ts';
 import { ACTIVITY, PLUGINS, SKILLS, overview, pluginEval, runs, skillDetail, skillText } from './platform.ts';
 import { empty, extreme } from './states.ts';
@@ -138,9 +140,16 @@ function write(seg: string[], q: URLSearchParams, method: string, body: Record<s
     return ok({ answer: `From what ${q.get('team')} has written down: ${node.title.toLowerCase()}. The node cites the initiative it came from.`, citations: [{ path: `_knowledge/${node.path}`, title: node.title }] });
   }
   if (path === 'settings/me/tokens' && method === 'POST') {
+    hint('settings');
     return ok({ token: 'zz_pat_example_0123456789abcdef', label: String(body.label ?? 'console'), email: ME.email });
   }
-  if (path === 'documents/shown' || path === 'documents/approve') return present(path === 'documents/approve', q, body);
+  if (path === 'documents/shown' || path === 'documents/approve') {
+    const answer = present(path === 'documents/approve', q, body);
+    // An approval changes what the initiative's own page shows (the document's approval state) and the bell's
+    // projection of what waits on a person, so both are told. A refused approval changed nothing and says nothing.
+    if (answer[0] === 200 && path === 'documents/approve') hint('initiatives');
+    return answer;
+  }
   if (path === 'settings/me/active-team') return ok({ actingFor: String(body.team ?? ME.activeTeam) });
   if (path === 'settings/platform/enrolments') return ok({ ok: true, url: 'https://console.example.com/enrol#t=example-enrolment', result: `An enrolment link for ${String(body.email)}` });
   return ok({ ok: true, result: `${method} ${path}: done`, revoked: seg.at(-1) });
@@ -160,12 +169,54 @@ const server = http.createServer((req, res) => {
     const referer = (() => { try { return new URL(req.headers.referer ?? '').pathname; } catch { return ''; } })();
     const seg = url.pathname.split('/').filter(Boolean).map(decodeURIComponent);
     let answer: Answer;
-    // `/__mode?set=empty` switches the world without a rebuild: the build bakes in one gateway address.
-    if (seg[0] === '__mode') {
+    /* The test hooks wear the proxied prefix — `/api/console/__hint` — so a browser check reaches them through the app's
+     * own origin and never needs to know the gateway's address, which the app's build baked in and nothing serves back.
+     * The real gateway has no such routes; a check names them anyway, and against a real gateway it gets a 404. */
+    const hook = seg[0] === 'api' && seg[1] === 'console' ? seg[2] : seg[0];
+    // `/api/console/__mode?set=empty` switches the world without a rebuild: the build bakes in one gateway address.
+    if (hook === '__mode') {
       const next = url.searchParams.get('set') ?? '';
       if (MODES.includes(next)) mode = next;
       res.writeHead(MODES.includes(next) || !next ? 200 : 400, { 'content-type': 'application/json' });
       res.end(JSON.stringify({ mode }));
+      return;
+    }
+    /**
+     * The live checks' two hooks, beside `__mode`.
+     *
+     * `/api/console/__hint?collection=teams` tells every open tab that the collection changed, which is the only way a
+     * check can fire a change at a moment it chose. `&add=<name>` first records one more team, so a check has something
+     * to see arrive: a hint alone proves a tab was told, and the new row proves the tab went and read again. The console
+     * never touches this — its own writes are still answered and forgotten — and each run starts from the fixtures
+     * because the gateway is a fresh process.
+     *
+     * `/api/console/__streams` says how many tabs are following something, so a check waits for a stream to open
+     * rather than guessing.
+     */
+    if (hook === '__hint') {
+      const collection = url.searchParams.get('collection') ?? '';
+      const add = url.searchParams.get('add');
+      if (add) TEAMS.push({ slug: add.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''), name: add, status: 'active', created: day(0), members: 0, initiatives: 0, documents: 0, sources: 0, knowledge: 0 });
+      const reached = (COLLECTIONS as readonly string[]).includes(collection) ? hint(collection) : 0;
+      res.writeHead(reached ? 200 : 404, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ collection, reached, added: add ?? null }));
+      return;
+    }
+    if (hook === '__streams') {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ streams: liveStreams(), collections: COLLECTIONS }));
+      return;
+    }
+    // The live stream is not an answer to be serialised: it is a response held open, so it is served before the
+    // JSON path below, which would otherwise write a head and end it.
+    if (seg[0] === 'api' && seg[1] === 'console' && seg[2] === 'live') {
+      if (req.method !== 'GET') { res.writeHead(405, { 'content-type': 'application/json' }); res.end(JSON.stringify({ error: 'GET only' })); return; }
+      if (mode === 'error') { res.writeHead(503, { 'content-type': 'application/json' }); res.end(JSON.stringify({ error: 'The gateway could not reach its database.' })); return; }
+      const parsed = parseNames(url.searchParams.get('collections'));
+      if ('status' in parsed) { res.writeHead(parsed.status, { 'content-type': 'text/plain; charset=utf-8' }); res.end(parsed.error); return; }
+      // A visitor on the screens before sign-in has no session; every other screen here has one.
+      if (SIGNED_OUT.test(referer)) { res.writeHead(401, { 'content-type': 'text/plain; charset=utf-8' }); res.end('Sign in to continue.'); return; }
+      serveLive(res, parsed.names);
       return;
     }
     if (seg[0] === 'auth') answer = auth(seg.slice(1));

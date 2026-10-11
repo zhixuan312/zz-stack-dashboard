@@ -68,7 +68,7 @@ describe('the fake gateway as the sweep uses it', () => {
     const before = await (await fetch(`${base}/api/console/teams`)).json() as { teams: unknown[] };
     expect(before.teams.length).toBeGreaterThan(0);
 
-    const switched = await (await fetch(`${base}/__mode?set=empty`)).json() as { mode: string };
+    const switched = await (await fetch(`${base}/api/console/__mode?set=empty`)).json() as { mode: string };
     expect(switched.mode).toBe('empty');
     const after = await (await fetch(`${base}/api/console/teams`)).json() as { teams: unknown[] };
     expect(after.teams).toEqual([]);
