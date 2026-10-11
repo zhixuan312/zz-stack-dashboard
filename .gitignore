@@ -40,3 +40,7 @@ test-results
 # throwaway scripts written at the repo root while iterating
 /shot.mjs
 /probe.mjs
+
+# zz-meridian: an update in progress (the session folder), and its lock
+/.meridian/update/
+/.meridian/update.lock

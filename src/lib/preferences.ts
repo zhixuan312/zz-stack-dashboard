@@ -1,6 +1,6 @@
 /** Appearance preferences: theme, accent and density, stored on the device and applied as attributes on <html>. */
 import { slug } from '@/app.config';
-export const ACCENTS = ['indigo', 'cobalt', 'jade', 'graphite', 'zz'] as const;
+export const ACCENTS = ['indigo', 'cobalt', 'jade', 'graphite', 'brand'] as const;
 type ThemePref = 'system' | 'dark' | 'light';
 type Accent = (typeof ACCENTS)[number];
 type Density = 'comfortable' | 'compact';

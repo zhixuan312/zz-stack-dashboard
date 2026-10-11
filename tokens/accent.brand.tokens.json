@@ -1,6 +1,6 @@
 {
   "$schema": "https://www.designtokens.org/schemas/2025.10/format.json",
-  "$description": "Accent preset: zz. The product's brand hue.",
+  "$description": "Accent preset: brand. The product's brand hue.",
   "accent": {
     "$description": "The two numbers a preset owns.",
     "accent-h": {

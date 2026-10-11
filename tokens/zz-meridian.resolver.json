@@ -38,7 +38,7 @@
     },
     "accent": {
       "description": "The brand hue: data-accent on the root or any subtree.",
-      "default": "zz",
+      "default": "brand",
       "contexts": {
         "indigo": [
           {
@@ -60,9 +60,9 @@
             "$ref": "accent.graphite.tokens.json"
           }
         ],
-        "zz": [
+        "brand": [
           {
-            "$ref": "accent.zz.tokens.json"
+            "$ref": "accent.brand.tokens.json"
           }
         ]
       }
