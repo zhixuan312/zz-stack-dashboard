@@ -44,7 +44,11 @@ const DOCUMENTS: Column<Doc>[] = aligned([
     // The card's status slot holds one badge and cannot shrink, so it takes the verdict alone; see DocStatus's `compact`.
     mobileCell: (d) => <DocStatus compact status={d.status} outcome={d.outcome} gated={d.gated} requiredForClose={d.requiredForClose} correction={d.correction} /> },
   {
-    key: 'by', header: 'Approved by', hideBelow: 'lg', truncate: true,
+    // `w-40` as well as `truncate`: an auto-laid-out table gives a truncating cell whatever is left over, and on an
+    // initiative whose Review row carries two badges the neighbouring Approval column widens to hold them — which left
+    // this one rendering `No approval ne…` and `jonas.weber@e…` where the same column is whole on every other
+    // initiative. A width is a floor the leftover cannot go below.
+    key: 'by', header: 'Approved by', hideBelow: 'lg', truncate: true, width: 'w-40',
     // Binary, like the gate itself: a document waiting for a person and one no person will be asked about differ.
     cell: (d) => d.approved_by ?? <span className="text-ink-3">{d.gated === false ? 'No approval needed' : d.gated === true ? 'Not yet' : '—'}</span>,
   },
