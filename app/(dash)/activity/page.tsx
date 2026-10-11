@@ -8,6 +8,7 @@ import { ConsolePage } from '@/console/page';
 import { failureOf } from '@/console/query';
 import { When } from '@/console/when';
 import { freshnessOf, useConsole, useConsoleMode } from '@/lib/api';
+import { useLive } from '@/lib/live';
 import type { ActivityEvent } from '@/lib/api-shapes';
 
 /** A dash where nothing was involved: a token issued is a thing a person did, not a thing a team did. */
@@ -32,6 +33,7 @@ const COLUMNS: Column<Row>[] = aligned([
  * reads the team through its foreign key, so a blank means no team was involved.
  */
 export default function ActivityPage() {
+  useLive(['activity']);
   const { mode } = useConsoleMode();
   const [f, set] = useQueryState({ show: 'all', page: '1' });
   const q = useConsole<{ events: ActivityEvent[]; limit: number }>(`/activity?limit=200${f.show === 'failed' ? '&failed=1' : ''}`);

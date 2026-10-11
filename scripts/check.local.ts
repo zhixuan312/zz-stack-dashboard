@@ -94,6 +94,28 @@ for (const f of SOURCE) {
   }
 }
 
+// ── Live data: a page that reads declares what it reads ───────────────────────────────────────────────
+/* The console keeps every tab fresh with one stream that says which collection changed, and a tab is told only about the
+ * collections its components declared (`useLive`). A page that reads and declares nothing is invisible to that stream:
+ * nothing corrects it when the data moves, and nothing says so — the page simply shows what it read on arrival, for as
+ * long as it is open.
+ *
+ * This is a rule rather than a review because it is exactly how the bell was missed: `src/console/frame.tsx` reads
+ * `/initiatives?waiting=1` and declared nothing, so on fourteen of sixteen pages a gate approved in another tab left
+ * the count stale. The sweep that found it was by hand; this is what stops the next one.
+ *
+ * Only the console's own pages, and only when they read: `/login`, `/enrol` and `/signed-out` are outside the group
+ * whose layout mounts the provider, so declaring there would register into nothing. A page that composes panels reading
+ * for it (`/settings`) declares the collection those panels read, and the components in `src/console/` are declared for
+ * by the page that renders them (`version-chain.tsx` reads a document revision; the document page registers
+ * `document`). */
+for (const f of walk('app/(dash)', /\.tsx?$/).filter((x) => /\/page\.tsx$/.test(x))) {
+  const src = code(read(f));
+  if (/useConsole[<(]/.test(src) && !/useLive\(/.test(src)) {
+    problems.push(`${f}: reads through useConsole and declares nothing with useLive, so the live stream never corrects it`);
+  }
+}
+
 // ── Size: the console's ceiling ──────────────────────────────────────────────────────────────────────
 const CEILING = 700;
 for (const f of [...SOURCE, ...walk('scripts', /\.tsx?$/), ...walk('tests', /\.tsx?$/)]) {
