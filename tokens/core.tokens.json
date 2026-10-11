@@ -463,7 +463,7 @@
     }
   },
   "layout": {
-    "$description": "Layout: the shell and the two content widths.",
+    "$description": "Layout: the shell, the width each kind of page is read at, and the gutter.",
     "rail-width": {
       "$type": "dimension",
       "$value": {
@@ -507,7 +507,28 @@
         "value": 832,
         "unit": "px"
       },
-      "$description": "Forms, documents and settings: about ninety characters of body text."
+      "$description": "One long document: about ninety characters of body text, centred. A page that is one document uses it; a dashboard fills the canvas instead."
+    },
+    "field-width": {
+      "$type": "dimension",
+      "$value": {
+        "value": 64,
+        "unit": "rem"
+      },
+      "$description": "A form's card: the widest a field may be. A Form section caps its card at it, so a field never stretches across a wide screen. In rem, so the measure grows with the reader's text size."
+    },
+    "form-width": {
+      "$type": "dimension",
+      "$value": {
+        "value": 1253,
+        "unit": "px"
+      },
+      "$description": "A form page: its head column, the column gap and a field-width card, plus the page's own gutter. A form page centres on it once the canvas is wider, so the remainder splits evenly instead of leaving a strip at one side. The value is the width at the template's own root size and gutter; the CSS derives it from the parts, so it holds at any root.",
+      "$extensions": {
+        "dev.zz.meridian": {
+          "css": "calc(15rem + 2.5rem + var(--field-width) + 2 * var(--gutter))"
+        }
+      }
     },
     "gutter": {
       "$type": "dimension",
@@ -557,7 +578,7 @@
     }
   },
   "motion": {
-    "$description": "Motion: three jobs (arrive, answer, float), durations for each job and three curves. Reduced motion collapses every duration and delay to zero.",
+    "$description": "Motion: three jobs (arrive, answer, float), a duration for each, three curves, and the three loops that wait. Reduced motion collapses every duration and delay to zero.",
     "dur-press": {
       "$type": "duration",
       "$value": {

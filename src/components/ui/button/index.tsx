@@ -1,6 +1,7 @@
 import { Slot } from 'radix-ui';
 import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
-import { cn } from '@/lib/cn';
+import { cn } from '../../../lib/cn';
+import { Spinner } from '../spinner/index';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 export type ButtonSize = 'sm' | 'md' | 'lg';
@@ -26,7 +27,7 @@ export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   icon?: ReactNode;
   /** An icon after the label; a forward arrow moves 2px on hover. */
   trailing?: ReactNode;
-  /** Shows a spinner in place of the icon and blocks the action, keeping the width. */
+  /** Takes the icon's place with a spinner, at the icon's own size, and blocks the action. */
   busy?: boolean;
   block?: boolean;
 };
@@ -41,7 +42,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
     children
   ) : (
     <>
-      {busy ? <span aria-hidden className="spin size-3.5 rounded-full border-[1.5px] border-current border-r-transparent" /> : icon}
+      {busy ? <Spinner size={size} label={null} /> : icon}
       {children}
       {trailing ? <span className="transition-transform duration-(--dur-hover) ease-out group-hover/btn:translate-x-0.5">{trailing}</span> : null}
     </>
@@ -55,7 +56,10 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       className={cn(
         'group/btn press hit inline-flex shrink-0 items-center justify-center font-medium whitespace-nowrap select-none',
         'transition-[background-color,border-color,color,box-shadow,filter,transform] duration-(--dur-hover)',
-        'disabled:pointer-events-none disabled:opacity-45 disabled:shadow-none',
+        'disabled:pointer-events-none',
+        // A busy button is working, not unavailable: it keeps its colour, its shadow and its place, and the spinner is
+        // the answer. Only a button nobody may press greys out.
+        !busy && 'disabled:opacity-45 disabled:shadow-none',
         VARIANT[variant],
         SIZE[size],
         block && 'w-full',

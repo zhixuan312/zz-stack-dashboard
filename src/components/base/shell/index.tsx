@@ -30,8 +30,9 @@ const AssistantLauncher = dynamic(() => import('../../patterns/assistant/launche
  *   └─ assistant         optional, and the person can switch it off: a third column from 1024px, a sheet below; not in the page while closed
  *                        whether it exists arrives as a promise: the layout never waits for it, and its launcher and column resolve it behind their own boundaries
  *
- * Four rules: one scroller; cards are their content's height; four splits; two widths (data, the whole canvas, for every
- * console page; reading, 832px and centred, for one long document).
+ * Four rules: one scroller; cards are their content's height; four splits; three widths, one per kind of page (data, the
+ * whole canvas, for an analytical page; form, a form page's own measure, centred once the canvas is wider than it needs;
+ * reading, 832px and centred, for one long document).
  */
 
 const ShellCtx = createContext<{ openNav: () => void; tools: ReactNode; assistant: Promise<boolean> }>({ openNav: () => {}, tools: null, assistant: Promise.resolve(false) });
@@ -198,7 +199,7 @@ export function NavTrigger({ className }: { className?: string }) {
   );
 }
 
-export const WIDTH = { data: 'max-w-(--data-width)', reading: 'max-w-(--reading-width)' } as const;
+export const WIDTH = { data: 'max-w-(--data-width)', reading: 'max-w-(--reading-width)', form: 'max-w-(--form-width)' } as const;
 export type PageWidth = keyof typeof WIDTH;
 
 /**

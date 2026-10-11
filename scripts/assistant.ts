@@ -89,6 +89,10 @@ async function press(find: string) {
     at = next;
   }
   if (!at) return fail(`nothing to press: ${find}`);
+  // A control the layout has hidden at this width still answers a rect of 0x0, so the click below would land at the
+  // page's top-left corner and the step would fail somewhere else entirely (another session lost twenty minutes to
+  // exactly that on a pager hidden by a container query). Say which it is.
+  if (at.x === 0 && at.y === 0) return fail(`the control is in the DOM but has no box at 0x0 — hidden at this width?: ${find}`);
   for (const type of ['mouseMoved', 'mousePressed', 'mouseReleased'] as const) await page.send('Input.dispatchMouseEvent', { type, x: at.x, y: at.y, button: 'left', clickCount: 1 });
 }
 /** Press the button named `label` in the open Proposal card. */
@@ -241,12 +245,23 @@ try {
       if (!kept) fail('the dismissed removal took Alice Moreno out of the table');
       ok('the dismissed removal left Alice Moreno in the table');
 
-      await press(`deepQuery('button[aria-label="Actions for Amara Okafor"]')`);
+      // Which member, read from the first page rather than written here: the roster is ordered by last active, so a
+      // name in this line moves to page 2 the moment the sample's activity changes, and the row menu is then simply
+      // absent (found by a full run: "Actions for Amara Okafor" is on the second page).
+      const who = await until('a first-page row that offers its menu', () => page.eval<string | null>(`(() => {
+        for (const tr of deepQueryAll('tbody tr')) {
+          if (!/Active/.test(deepText(tr))) continue;
+          const b = deepQueryAll('button[aria-label^="Actions for "]', tr)[0];
+          if (b && !b.disabled) return (b.getAttribute('aria-label') || '').slice('Actions for '.length);
+        }
+        return null;
+      })()`), (v) => v !== null);
+      await press(`deepQueryAll('button[aria-label="Actions for ' + ${JSON.stringify(who)} + '"]')[0]`);
       await until('the row menu', () => page.eval<boolean>(`!!deepQuery('[role="menu"]')`), Boolean);
       await press(`deepQueryAll('[role="menuitem"]').find((i) => deepText(i).trim() === 'Suspend')`);
-      await until('Amara Okafor to read Suspended', () => row('Amara Okafor'), (t) => !!t?.includes('Suspended'));
+      await until(`${who} to read Suspended`, () => row(who as string), (t) => !!t?.includes('Suspended'));
       await ask('Who is suspended?');
-      const found = await until('the answer to name Amara Okafor', said, (t) => t.includes('Amara Okafor'));
+      const found = await until(`the answer to name ${who}`, said, (t) => t.includes(who as string));
       ok(`a member suspended from the row menu is found by the assistant's next query ("${found}")`);
 
       // The page context: the title and path, and the page's text, capped.

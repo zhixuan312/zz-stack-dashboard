@@ -6,7 +6,8 @@
  * Routes are discovered from app/ (every static page; embeds under /embed), with the detail pages in
  * scripts/verify.config.ts beside them; --routes replaces the pages for one run.
  *
- * --atlas audits the Design Atlas instead: every card's page and its bare preview, at 1440 and 390px in both themes.
+ * --atlas audits the Design Atlas instead: every card's page and its bare preview, and every other entry the Atlas
+ * serves — the token views, the page specs and the guides — at 1440 and 390px in both themes.
  * A card's preview is the one place it is drawn alone, so a defect in its own box shows there and nowhere else. It is
  * not part of `pnpm verify` (the default stays fast); run it when the question is the component surface. It takes
  * about ten minutes, and a project without the Atlas has nothing for it to read.
@@ -21,6 +22,8 @@
  * an analytical page.
  */
 import fs from 'node:fs';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { launch } from './lib/chrome.ts';
 import { DEEP_SOURCE } from './lib/deep.ts';
 import { discover } from './lib/routes.ts';
@@ -38,18 +41,32 @@ if (as && !cookie) { console.error(`audit: --as ${as} is not a declared persona.
 const EMBEDS_ONLY = args.includes('--embeds-only');
 const ATLAS = args.includes('--atlas');
 
-/** Every card's Atlas page and bare preview, from the keys scripts/registry.ts generates; only the template has them. */
-function atlasRoutes(): string[] {
+/**
+ * Every Atlas page: each card's page and its bare preview (from the keys scripts/registry.ts generates), plus every
+ * other entry the Atlas serves — the token views, the page specs and the guides. Those live under `[section]/[id]`, so
+ * `discover()` skips them as dynamic segments and nothing measured them: a defect in a token view, a page spec or a
+ * guide failed no suite. They are read through the module the Atlas itself renders from, so a new entry is audited
+ * without being listed. Only the template has an Atlas.
+ */
+async function atlasRoutes(): Promise<string[]> {
   const file = 'app/system/preview/[section]/[card]/keys.ts';
   if (!fs.existsSync(file)) { console.error('audit --atlas: this project has no Design Atlas to audit'); process.exit(1); }
   const keys = [...fs.readFileSync(file, 'utf8').matchAll(/'([a-z]+\/[a-z0-9-]+)'/g)].map((m) => m[1]);
-  return keys.flatMap((k) => [`/system/${k}`, `/system/preview/${k}`]);
+  const cards = keys.flatMap((k) => [`/system/${k}`, `/system/preview/${k}`]);
+  let entries: string[] = [];
+  try {
+    const mod = (await import(pathToFileURL(path.resolve('src/system/content.ts')).href)) as { entries?: () => { href: string }[] };
+    entries = (mod.entries?.() ?? []).map((e) => e.href);
+  } catch {
+    // A content module that plain node cannot read: the card routes alone, as before, rather than no audit at all.
+  }
+  return [...new Set([...cards, ...entries])];
 }
 
 const found = discover();
 // verify.config.ts is the team's, so read the one field this needs through its own type.
 const detailRoutes = (config as { detailRoutes?: string[] }).detailRoutes ?? [];
-const ROUTES = EMBEDS_ONLY ? [] : ATLAS ? atlasRoutes() : (opt('--routes', '') ? opt('--routes', '').split(',') : [...found.filter((r) => !r.startsWith('/embed')), ...detailRoutes]);
+const ROUTES = EMBEDS_ONLY ? [] : ATLAS ? await atlasRoutes() : (opt('--routes', '') ? opt('--routes', '').split(',') : [...found.filter((r) => !r.startsWith('/embed')), ...detailRoutes]);
 const EMBEDS = ATLAS ? [] : found.filter((r) => r.startsWith('/embed/'));
 const WIDTHS = ATLAS ? [1440, 390] : [2560, 1440, 1024, 768, 390];
 const THEMES = ['dark', 'light'];

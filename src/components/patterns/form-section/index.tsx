@@ -3,11 +3,11 @@
 import type { FormEvent, ReactNode } from 'react';
 import { Lock } from 'lucide-react';
 import { cn } from '../../../lib/cn';
-import { Banner } from '../../ui/banner';
-import { Button } from '../../ui/button';
+import { Banner } from '../../ui/banner/index';
+import { Button } from '../../ui/button/index';
 
 /** The title column and the card column, shared by the form and the layout-only variant. */
-const GRID = 'grid gap-x-10 gap-y-5 @3xl:grid-cols-[15rem_minmax(0,64rem)]';
+const GRID = 'grid gap-x-10 gap-y-5 @3xl:grid-cols-[15rem_minmax(0,var(--field-width))]';
 
 /**
  * A titled group of settings that saves on its own. Its title and one sentence sit on the left, the fields in a card on

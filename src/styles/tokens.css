@@ -77,6 +77,8 @@
   --data-width:100%;
   --stage-width:1560px;
   --reading-width:832px;
+  --field-width:64rem;
+  --form-width:calc(15rem + 2.5rem + var(--field-width) + 2 * var(--gutter));
   --gutter:clamp(16px, 2.4vw, 56px);
   /* layer */
   --layer-rail:20;

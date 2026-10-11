@@ -3,7 +3,7 @@
 import Link, { useLinkStatus } from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
-import { Check, ChevronsUpDown, LogOut, Settings } from 'lucide-react';
+import { Check, ChevronDown, ChevronsUpDown, LogOut, Settings } from 'lucide-react';
 import { app, type NavGroup } from '../../../app.config';
 import { cn } from '../../../lib/cn';
 import { AppMark } from '../../base/app-mark/index';
@@ -68,6 +68,9 @@ export function Rail({
   /** Who the console may be read as, shown as a "View as" group at the foot of the workspace menu. A product that has one session passes nothing. */
   viewAs?: ViewAs;
 }) {
+  // Nothing to switch between is not a switcher: with one workspace or none, the row opens the account menu and the menu
+  // carries no `Show` group and no checked row of its own (issue #20).
+  const switcher = scopes.length > 1;
   const pathname = usePathname();
   const router = useRouter();
   // Menu items only for routes the product has.
@@ -112,28 +115,28 @@ export function Rail({
       <div className="flex h-16 items-center px-4">
         <Menu>
           <MenuTrigger asChild>
-            <button type="button" aria-label={`${app.name}, ${workspace}: workspace menu`} className="group -mx-1.5 flex min-w-0 flex-1 items-center gap-2.5 rounded-md px-1.5 py-1.5 text-left hover:bg-fill-hover data-[state=open]:bg-fill-hover">
+            <button type="button" aria-label={`${app.name}, ${workspace}: ${switcher ? 'workspace menu' : 'account menu'}`} className="group -mx-1.5 flex min-w-0 flex-1 items-center gap-2.5 rounded-md px-1.5 py-1.5 text-left hover:bg-fill-hover data-[state=open]:bg-fill-hover">
               <AppMark size={28} />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-md leading-tight font-semibold tracking-[-0.015em]">{app.name}</span>
                 <span className="t-eyebrow mt-0.5 block truncate">{workspace}</span>
               </span>
-              <ChevronsUpDown className="size-3.5 text-ink-3 group-hover:text-ink-2" />
+              {/* `ChevronsUpDown` is the glyph for choosing between things; with nothing to switch, the row is the menu. */}
+              {switcher ? <ChevronsUpDown className="size-3.5 text-ink-3 group-hover:text-ink-2" /> : <ChevronDown className="size-3.5 text-ink-3 group-hover:text-ink-2" />}
             </button>
           </MenuTrigger>
           <MenuContent className="w-60">
-            <MenuLabel>{scopes.length > 1 ? 'Show' : 'Workspace'}</MenuLabel>
-            {scopes.length ? scopes.map((s) => (
-              <MenuItem key={s.id} onSelect={s.onSelect} aria-checked={s.active} role="menuitemradio">
-                <Check className={cn('size-4 text-accent', !s.active && 'invisible')} strokeWidth={2.25} />
-                <span className="min-w-0 flex-1 truncate text-ink">{s.label}</span>
-              </MenuItem>
-            )) : (
-              <MenuItem disabled className="opacity-100">
-                <Check className="size-4 text-accent" strokeWidth={2.25} />
-                <span className="min-w-0 flex-1 truncate text-ink">{app.name} {workspace}</span>
-              </MenuItem>
-            )}
+            {switcher ? (
+              <>
+                <MenuLabel>Show</MenuLabel>
+                {scopes.map((s) => (
+                  <MenuItem key={s.id} onSelect={s.onSelect} aria-checked={s.active} role="menuitemradio">
+                    <Check className={cn('size-4 text-accent', !s.active && 'invisible')} strokeWidth={2.25} />
+                    <span className="min-w-0 flex-1 truncate text-ink">{s.label}</span>
+                  </MenuItem>
+                ))}
+              </>
+            ) : null}
             {hasSettings || signOut ? <MenuSeparator /> : null}
             {hasSettings ? <MenuItem onSelect={() => router.push('/settings')}><Settings />Workspace settings</MenuItem> : null}
             {signOut ? <MenuItem onSelect={() => (typeof signOut === 'function' ? signOut() : router.push(signOut))}><LogOut />Sign out</MenuItem> : null}

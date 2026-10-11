@@ -83,7 +83,11 @@ its change compares with in `compare` ("vs the 3 days before") and takes a `note
 Rules that make every page look like it belongs:
 
 - **`PageFrame`** with `kicker` (where it sits: "Product · Workspace" or the parent record), `title`, one-sentence
-  `description`, then `meta` (Freshness) and `actions` (one primary at most).
+  `description`, then `meta` (Freshness) and `actions` (one primary at most). A dashboard page leaves `width` alone:
+  `data` fills the canvas, so a wider screen shows more. A page that is mostly a form takes `width="form"`, whose band
+  fills the canvas until the canvas is wider than a form needs and then centres — a field never stretches across a wide
+  screen, and the remainder splits evenly instead of leaving a strip at one side. A page that is one long document takes
+  `width="reading"`. A `loading.tsx` passes the same `width` its page does, or the skeleton moves the page when it arrives.
 - **`Stack` of `Row`s.** Splits are `full`, `1/2`, `2/3`, `1/3` and `tiles`. Cards in a row are the same height; one card
   per cell (a column of tiles is fine in a 1/3 cell).
 - **One protagonist.** At most one `FeaturedMetric` per page; everything else is a `MetricTile` or a `Card`.

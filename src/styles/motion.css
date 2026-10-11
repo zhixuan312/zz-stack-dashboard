@@ -57,7 +57,7 @@
   .sheet-in[data-state='open'] { animation: m-sheet var(--dur-enter) var(--ease-out); }
   .sheet-in[data-state='closed'] { animation: m-sheet var(--dur-exit-sheet) var(--ease-in-out) reverse forwards; }
 
-  /* The two loops: a skeleton's shimmer and a live dot's pulse. */
+  /* The three loops: a spinner's ring, a skeleton's shimmer and a live dot's pulse. */
   .shimmer {
     background: linear-gradient(90deg, var(--fill-track) 0%, var(--fill-track) 35%, var(--fill-active) 50%, var(--fill-track) 65%, var(--fill-track) 100%) 0 0 / 250% 100%;
     animation: m-shimmer var(--dur-loop-shimmer) linear infinite;
@@ -72,5 +72,5 @@
     transition-duration: 0.01ms !important; transition-delay: 0ms !important; scroll-behavior: auto !important;
   }
   /* Arrivals show their final state outright: a near-zero animation on an element mounted late can be left at its first frame. */
-  .arrive > *, .rise, .fade-in, .grow-x, .grow-y, .draw, .reveal-x, .shimmer, .pulse { animation: none !important; }
+  .arrive > *, .rise, .fade-in, .grow-x, .grow-y, .draw, .reveal-x, .shimmer, .pulse, .spin { animation: none !important; }
 }
