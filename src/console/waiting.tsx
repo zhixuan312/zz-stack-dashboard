@@ -35,7 +35,12 @@ export function WaitingPanel() {
                 <Link href={`/initiatives/${w.team}/${w.slug}`} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 gap-y-1.5 px-(--card-pad) py-3.5 transition-colors hover:bg-fill-hover">
                   <span className="min-w-0">
                     <span className="block text-sm font-medium text-ink">{w.gate[0].toUpperCase()}{w.gate.slice(1)} waits for approval</span>
-                    <span className="t-caption block truncate">{w.team} · {w.slug}</span>
+                    {/* Wraps, and carries the whole value. `w.slug` is an initiative slug: the date is at the FRONT
+                        and the distinguishing name at the TAIL — `2026-09-22-payout-schedule` — so an ellipsis eats
+                        exactly the part that tells two of that day's initiatives apart, in the one panel whose whole
+                        job is to say which one is waiting. `initiative.tsx` decided this for the same value on its own
+                        page and the decision never reached here. */}
+                    <span className="t-caption block whitespace-normal [overflow-wrap:anywhere]" title={`${w.team} · ${w.slug}`}>{w.team} · {w.slug}</span>
                   </span>
                   <span className="t-caption justify-self-end whitespace-nowrap"><When at={w.updated} /></span>
                   <span className="col-span-2 max-sm:hidden"><FlowPosition at={w.at} of={w.of} name={w.stage} /></span>

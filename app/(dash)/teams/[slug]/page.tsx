@@ -24,8 +24,8 @@ const MEMBERS: Column<Member>[] = aligned([
     key: 'person', header: 'Person', grow: true, truncate: true, mobile: 'title', sortValue: (m) => m.name || m.email,
     cell: (m) => (
       <span className="block min-w-0">
-        <span className="block truncate font-medium text-ink">{m.name || m.email}</span>
-        {m.name ? <span className="t-caption block truncate">{m.email}</span> : null}
+        <span className="block truncate font-medium text-ink" title={m.name || m.email}>{m.name || m.email}</span>
+        {m.name ? <span className="t-caption block truncate" title={m.email}>{m.email}</span> : null}
       </span>
     ),
     mobileCell: (m) => m.name || m.email,

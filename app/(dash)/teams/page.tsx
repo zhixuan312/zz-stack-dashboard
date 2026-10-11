@@ -21,8 +21,8 @@ const columns: Column<Team>[] = aligned([
     key: 'team', header: 'Team', grow: true, mobile: 'title', sortValue: (t) => t.slug,
     cell: (t) => (
       <span className="block min-w-0">
-        <span className="block truncate font-medium text-ink">{t.slug}</span>
-        {t.name !== t.slug ? <span className="t-caption block truncate">{t.name}</span> : null}
+        <span className="block truncate font-medium text-ink" title={t.slug}>{t.slug}</span>
+        {t.name !== t.slug ? <span className="t-caption block truncate" title={t.name}>{t.name}</span> : null}
       </span>
     ),
     mobileCell: (t) => t.slug,

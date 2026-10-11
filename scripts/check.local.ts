@@ -116,6 +116,51 @@ for (const f of walk('app/(dash)', /\.tsx?$/).filter((x) => /\/page\.tsx$/.test(
   }
 }
 
+// ── A truncated value keeps a way back ────────────────────────────────────────────────────────────────
+/* `DataTable`'s `truncate` adds `max-w-0 truncate` and nothing else: no title, no expansion, no wrap. So a cut value is
+ * cut everywhere on the page, and where the value identifies a record — a slug, a path, an id, an address, a stable key
+ * — the part an ellipsis eats is usually the part that tells two of them apart. `2026-09-22-payout-schedule` is the
+ * shape: the date at the front survives and the name that distinguishes it does not.
+ *
+ * The rule is one line: an element whose own class truncates carries `title`, or it does not truncate. Where the column
+ * has room the better answer is to wrap (`whitespace-normal [overflow-wrap:anywhere]`) and need no title at all; this
+ * check refuses only the silent cut, which is the one with no answer for the reader.
+ *
+ * `initiative.tsx` wrote this rule for its own slug and it did not travel: the team slug, a member's address, the bell's
+ * entry and the evaluator's stable key were all still cutting. A rule written where it is first needed is a rule the
+ * second use misses, so it is a check now. Only the console's own files are scanned — Meridian's are not ours to edit,
+ * and a hit there is a finding to report rather than a failure to fix. */
+const noComments = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, ' ');
+
+/** Every opening JSX tag, as its own text. A `>` inside `{…}` (an arrow, a comparison) does not end a tag, so this
+ *  tracks brace depth and quotes rather than matching to the first `>` — which is the bug that would make a naive
+ *  version of this check pass a tag whose `title` came after an `onClick={() => …}`. */
+function openTags(src: string): string[] {
+  const out: string[] = [];
+  for (let i = 0; i < src.length; i++) {
+    if (src[i] !== '<' || !/[A-Za-z]/.test(src[i + 1] ?? '')) continue;
+    let depth = 0;
+    let quote = '';
+    for (let j = i + 1; j < src.length; j++) {
+      const ch = src[j];
+      if (quote) { if (ch === quote) quote = ''; continue; }
+      if (ch === '"' || ch === "'" || ch === '`') { quote = ch; continue; }
+      if (ch === '{') depth++;
+      else if (ch === '}') depth--;
+      else if (ch === '>' && depth === 0) { out.push(src.slice(i, j + 1)); i = j; break; }
+    }
+  }
+  return out;
+}
+
+const TRUNCATES = /(^|["'\s])truncate(["'\s]|$)/;
+for (const f of [...walk('app', /\.tsx$/), ...walk('src/console', /\.tsx$/)]) {
+  for (const tag of openTags(noComments(read(f)))) {
+    if (!TRUNCATES.test(tag) || /\btitle=/.test(tag)) continue;
+    problems.push(`${f}: an element truncates with no \`title\`, so the whole value is nowhere on the page — carry it in \`title\`, or wrap with \`whitespace-normal [overflow-wrap:anywhere]\``);
+  }
+}
+
 // ── Size: the console's ceiling ──────────────────────────────────────────────────────────────────────
 const CEILING = 700;
 for (const f of [...SOURCE, ...walk('scripts', /\.tsx?$/), ...walk('tests', /\.tsx?$/)]) {

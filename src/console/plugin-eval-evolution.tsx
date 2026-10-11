@@ -116,7 +116,9 @@ export function EvalAutomationTrust({ pluginEval }: { pluginEval: PluginEval }) 
             <ul className="flex flex-col gap-2">
               {pluginEval.evaluatorTrust.map((t) => (
                 <li key={t.stableKey} className="flex items-center justify-between gap-3 text-xs">
-                  <span className="min-w-0 truncate font-mono text-xs text-ink">{t.stableKey}</span>
+                  {/* A stable key is an identifier, and its tail is what tells two of them apart; it wraps rather
+                      than cutting, and carries the whole value for the reader who still wants one line. */}
+                  <span className="min-w-0 font-mono text-xs text-ink [overflow-wrap:anywhere]" title={t.stableKey}>{t.stableKey}</span>
                   <span className="shrink-0 text-right">
                     <Badge tone={t.state === 'human_calibrated' || t.state === 'operationally_qualified' ? 'positive' : t.state === 'mechanically_qualified' ? 'warning' : 'neutral'}>
                       {t.state ?? 'never qualified'}

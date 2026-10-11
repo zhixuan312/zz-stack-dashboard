@@ -26,8 +26,8 @@ const COLUMNS: Column<Person>[] = aligned([
       <span className="flex min-w-0 items-center gap-3">
         <Avatar name={p.name || p.email} size="sm" />
         <span className="block min-w-0">
-          <span className="block truncate font-medium text-ink">{p.name || p.email}</span>
-          {p.name ? <span className="t-caption block truncate">{p.email}</span> : null}
+          <span className="block truncate font-medium text-ink" title={p.name || p.email}>{p.name || p.email}</span>
+          {p.name ? <span className="t-caption block truncate" title={p.email}>{p.email}</span> : null}
         </span>
       </span>
     ),
