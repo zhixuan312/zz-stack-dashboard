@@ -97,6 +97,14 @@ a time or `sources/2026-10-06-call.md` arrives as a single segment named after i
 - **The assistant is Meridian's, and this console does not mount it.** Its components and its route-side code ship with
   the release and stay on disk as part of Meridian's library; nothing renders the launcher, and the shell passes no
   assistant. Adopting them is a decision for whoever brings the collections and the model key.
+- **A document is read at the canvas width, with its running text capped at 92ch — not at `--reading-width`.** The
+  person's own complaint, in their words: the documents are already long, and squeezing one into a centred strip makes
+  it longer. `reading-width` is 832px, and this page is not one document — it is a document beside the colophon and
+  version chain that say what it is and how it changed, with tables and code inside it that want the room. At 2560 the
+  panel is about 1444px and the prose column about 828px inside it, which looks like a gap in arithmetic and reads as
+  the Decisions table's width on the page (measured 2026-10-12, `questions.md` 8). **0.14.0's own note agrees from the
+  other side**: `reading-width` "said it was for forms, documents and settings, which nothing did", and now says what
+  it is — one long document.
 
 ## Glossary
 
