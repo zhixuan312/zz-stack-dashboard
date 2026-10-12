@@ -222,6 +222,10 @@ What it reads:
   `query_initiatives`, `query_knowledge` and the rest.
 - **Another view.** One `view_<name>` tool per page (`src/views/tools.ts`), which opens
   that view at an address and returns the same context the page would share.
+- **What documents say.** `view_search` is the platform's own ranked search, run as the
+  person: the text of every document and knowledge node they may read, each result a
+  matched excerpt with the address of its page. Every other tool reads titles, states and
+  counts; this is the one that reads content.
 
 What it may do: read what the person may read, and nothing else. A member is offered the
 lists the rail shows a member; the gateway scopes every read whatever the assistant asks.

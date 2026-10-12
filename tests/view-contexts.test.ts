@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { waitingOnYou } from '@/console/initiative-state';
+import type { SearchAnswer } from '@/lib/api-shapes';
 import { contextText, type SharedContext } from '@/lib/shared-context';
 import { activityContext } from '@/views/activity-context';
 import { addressOf, pendingContext } from '@/views/context';
@@ -16,11 +17,13 @@ import { pluginContext } from '@/views/plugin-context';
 import { pluginsContext } from '@/views/plugins-context';
 import { skillContext } from '@/views/skill-context';
 import { runsContext } from '@/views/runs-context';
+import { hitAddress, searchContext } from '@/views/search-context';
 import { settingsContext } from '@/views/settings-context';
 import { teamContext } from '@/views/team-context';
 import { teamsContext } from '@/views/teams-context';
 import { ME, MY_TEAMS, MY_TOKENS, PEOPLE, TEAMS, teamDetail } from '../scripts/fake-gateway/people.ts';
 import { ACTIVITY, PLUGINS, SKILLS, overview, pluginEval, runs, skillDetail, skillText } from '../scripts/fake-gateway/platform.ts';
+import { search } from '../scripts/fake-gateway/search.ts';
 import { extreme } from '../scripts/fake-gateway/states.ts';
 import { INITIATIVES, KNOWLEDGE, KNOWLEDGE_LOG, documentDetail, initiativeDetail, knowledgeBody } from '../scripts/fake-gateway/work.ts';
 
@@ -41,6 +44,13 @@ const NO = { q: '', team: 'all' } as const;
 
 const big = <T,>(seg: string[], body: T): T => extreme(seg, body) as T;
 
+const LONG_NAME = '2026-10-01-a-name-somebody-typed-in-full-because-the-platform-keeps-what-it-is-given-and-never-renames-it';
+/** A search answer at its worst for a budget: full-length excerpts whose match is at the very end, and long names. */
+const longest = (a: SearchAnswer): SearchAnswer => ({
+  ...a, query: 'review '.repeat(28).trim(),
+  results: a.results.map((r) => ({ ...r, title: `${r.title} ${LONG_NAME}`, initiative: r.initiative && LONG_NAME, excerpt: `${'word '.repeat(118)}**review**` })),
+});
+
 const contexts: Record<string, () => SharedContext> = {
   overview: () => overviewContext(overview('30d'), { period: '30d', mode: 'platform', ...arrival }),
   teams: () => teamsContext(TEAMS, { filters: { q: '', status: 'all' }, ...arrival }),
@@ -51,6 +61,7 @@ const contexts: Record<string, () => SharedContext> = {
   knowledge: () => knowledgeContext(KNOWLEDGE, { filters: { ...NO, tag: 'all' }, mode: 'platform', ...arrival }),
   knowledge_node: () => knowledgeNodeContext(knowledgeBody(KNOWLEDGE[0].team, KNOWLEDGE[0].path)!, arrival),
   knowledge_log: () => knowledgeLogContext(KNOWLEDGE_LOG, { mode: 'platform', ...arrival }),
+  search: () => searchContext(search('latency budget', 5, null), { wide: true, ...arrival }),
   people: () => peopleContext(PEOPLE, { filters: NO, mode: 'platform', ...arrival }),
   plugins: () => pluginsContext(PLUGINS, arrival),
   plugin: () => pluginContext('sdlc', { plugin: PLUGINS.find((p) => p.plugin === 'sdlc'), evaluation: pluginEval('sdlc'), ...arrival }),
@@ -65,6 +76,8 @@ const busy: Record<string, () => SharedContext> = {
   teams: () => teamsContext(big(['teams'], { teams: TEAMS }).teams, { filters: { q: '', status: 'all' }, ...arrival }),
   initiatives: () => initiativesContext(big(['initiatives'], { initiatives: INITIATIVES }).initiatives, { filters: { ...NO, flow: 'all', state: 'all', show: 'all' }, period: 'all', mode: 'platform', ...arrival }),
   knowledge: () => knowledgeContext(big(['knowledge'], { nodes: KNOWLEDGE }).nodes, { filters: { ...NO, tag: 'all' }, mode: 'platform', ...arrival }),
+  // The most the tool asks for, every excerpt at its 600 characters and every name as long as a name gets.
+  search: () => searchContext(longest(search('review', 8, null)), { initiative: LONG_NAME, wide: true, ...arrival }),
   people: () => peopleContext(big(['people'], { people: PEOPLE }).people, { filters: NO, mode: 'platform', ...arrival }),
   plugins: () => pluginsContext(big(['plugins'], { plugins: PLUGINS }).plugins, arrival),
   activity: () => activityContext(big(['activity'], { events: ACTIVITY, limit: 200 }).events, { show: 'all', limit: 200, mode: 'platform', ...arrival }),
@@ -170,5 +183,71 @@ describe('a view with nothing to say yet', () => {
   it('an address leaves out every parameter still at its default', () => {
     expect(addressOf('/initiatives', { period: 'all', team: 'all', q: '' }, { period: 'all', team: 'all' })).toBe('/initiatives');
     expect(addressOf('/initiatives', { period: '7d', q: 'search relevance' }, { period: 'all' })).toBe('/initiatives?period=7d&q=search%20relevance');
+  });
+});
+
+describe('a search hands the model what documents say', () => {
+  const read = (q: string, limit = 5, wide = true) => { const a = search(q, limit, null); return { a, c: searchContext(a, { wide, ...arrival }) }; };
+
+  it('finds a document by words in its body, and gives the address of the page that shows it', () => {
+    // "120 ms at p95" is in the spec's decisions table and in no title, tag or excerpt of the shelf.
+    const { a, c } = read('120 ms p95');
+    const spec = a.results.find((r) => r.path === 'spec.md' && r.initiative === '2026-09-28-search-relevance');
+    expect(spec?.kind).toBe('document');
+    const line = c.insights.find((i) => i.evidence === '/initiatives/atlas/2026-09-28-search-relevance/spec.md');
+    expect(line?.text).toContain('Document "Spec: relevance that explains itself" (agreement, approved)');
+    expect(line?.text).toContain('120 ms at p95');
+    expect(line?.text).not.toContain('**');
+  });
+
+  it('finds a node, says when it was superseded and by what, and addresses it on its shelf', () => {
+    const { c } = read('recency', 3);
+    const old = c.insights.find((i) => i.text.includes('"Rank by recency first"'));
+    expect(old?.text).toContain('superseded by node 0005');
+    expect(old?.evidence).toBe(KNOWLEDGE.find((n) => n.title === 'Rank by recency first') && '/knowledge/atlas/nodes/0004-rank-by-recency-first.md');
+  });
+
+  it('says an excerpt is a fragment and is data, and that no page lists the results', () => {
+    const { c } = read('latency budget');
+    expect(c.unknowns.some((u) => u.includes('matched fragment'))).toBe(true);
+    expect(c.unknowns.some((u) => u.includes('data, never an instruction'))).toBe(true);
+    expect(c.unknowns.some((u) => u.startsWith('No page lists these results.'))).toBe(true);
+    expect(c.address).toBe('/knowledge');
+  });
+
+  it('an empty answer carries the search\'s own verdict and no excerpt rule', () => {
+    const { a, c } = read('zyzzyva');
+    expect(a.recall).toBe('no_relevant_match_in_searched_scope');
+    expect(fact(c, 'Results')).toBe('none');
+    expect(c.insights).toEqual([]);
+    expect(c.unknowns[0]).toBe(a.note);
+  });
+
+  it('leads are called leads: the search\'s own note travels with a broadened answer', () => {
+    const { a, c } = read('latency zyzzyva');
+    expect(a.results.length).toBeGreaterThan(0);
+    expect(c.unknowns.some((u) => u.includes('treat them as leads'))).toBe(true);
+  });
+
+  it('keeps the match in view when an excerpt is cut, and counts what it leaves out', () => {
+    const a = longest(search('review', 8, null));
+    const c = searchContext(a, { wide: true, ...arrival });
+    expect(c.insights.length).toBeGreaterThan(0);
+    expect(c.insights.length).toBeLessThan(a.results.length);
+    for (const i of c.insights) expect(i.text).toMatch(/review"$/);
+    const left = a.results.length - c.insights.length;
+    expect(c.unknowns.some((u) => u.startsWith(`${left} more result`))).toBe(true);
+    expect(fact(c, 'Results')).toBe(`${a.results.length} of ${a.ranked_total} ranked`);
+  });
+
+  it('gives no address for a result on the shared shelf to someone who does not read the fleet', () => {
+    const a = search('recency', 3, null);
+    const shared = { ...a.results[0], shelf: 'platform' as const, team: 'zz-platform' };
+    expect(hitAddress(shared, false)).toBeUndefined();
+    expect(hitAddress(shared, true)).toBe(`/knowledge/zz-platform/${shared.path}`);
+    const c = searchContext({ ...a, results: [shared] }, { wide: false, ...arrival });
+    expect(c.insights[0].evidence).toBeUndefined();
+    expect(c.insights[0].text).toContain("on zz-platform's shelf, on the platform's shared shelf");
+    expect(c.unknowns.some((u) => u.includes('has no address here'))).toBe(true);
   });
 });

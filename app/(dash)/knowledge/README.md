@@ -26,7 +26,7 @@ Whose shelf it is and the filters in force, then how many nodes match, how many 
 - The commonest subjects: search 4, payments 2, alerts 1, data 1, flow:sdlc-flow 1, ops 1, research 1.
 ```
 
-- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `query_knowledge` looks up what the page lists.
+- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `query_knowledge` looks up what the page lists. `view_search` is how it reads what a node says beyond the title and opening excerpt listed here, and what any document says: the platform's ranked search over their text, as the person, each result a matched excerpt with its address.
 
 ## Surfaces
 

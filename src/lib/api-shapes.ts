@@ -536,6 +536,29 @@ export interface Person {
   activeTeam: string | null; teams: string[]; tokens: number; last_used: string | null;
 }
 
+/* /search */
+
+/** One row of `GET /search`: a document or a knowledge node the platform's own search ranked for a question, with the
+ *  fields a console needs to link it. COUPLED: `linkable` in the gateway's console/search.ts. */
+export interface SearchHit {
+  kind: 'node' | 'document';
+  /** The team whose store holds it: the caller's own, or the platform's shared shelf's. */
+  team: string; shelf: 'team' | 'platform';
+  /** A document's initiative; nothing for a node. */
+  initiative: string | null; path: string; title: string;
+  type: string | null; status: string | null; superseded_by: string | null;
+  tags: string[]; evidence: string[]; flow: string | null; outcome: string | null;
+  approved_by: string | null; approved_at: string | null; updated: string | null;
+  /** The matched fragment of the text, at most 600 characters, each matched term between `**`. */
+  excerpt: string; score: number; via: string[];
+}
+/** `GET /search`: the search of the team the caller acts for and the platform's shared shelf, best first. `note` is
+ *  the search's own sentence about the answer, and `recall` says which kind of empty an empty answer is. */
+export interface SearchAnswer {
+  team: string; query: string; ranked_total: number; returned: number; withheld: number; superseded_in_results: number;
+  note: string | null; recall: string | null; results: SearchHit[];
+}
+
 /* /settings/me/* */
 export interface MyAccessToken {
   id: string; label: string;

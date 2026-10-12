@@ -122,6 +122,29 @@ describe('the fake gateway as the sweep uses it', () => {
     expect(err).toMatch(/normal/);
   });
 
+  it('searches documents and nodes by their text, as one team and never the fleet', async () => {
+    // The shape of `GET /api/console/search`, which is zz-core's own search run as the caller. A document found by
+    // words that are in its body alone is the case the assistant's search tool exists for.
+    type Hit = { kind: string; team: string; initiative: string | null; path: string; excerpt: string };
+    const base = await start();
+    const found = await (await fetch(`${base}/api/console/search?q=${encodeURIComponent('120 ms p95')}&limit=5`)).json() as { team: string; returned: number; recall: string | null; results: Hit[] };
+    expect(found.team).toBe('atlas');
+    const spec = found.results.find((r) => r.kind === 'document' && r.initiative === '2026-09-28-search-relevance' && r.path === 'spec.md');
+    expect(spec?.excerpt).toContain('**120** **ms** at **p95**');
+    expect(found.recall).toBeNull();
+
+    const nodes = await (await fetch(`${base}/api/console/search?q=recency`)).json() as { results: Hit[] };
+    expect(nodes.results.some((r) => r.kind === 'node' && r.initiative === null && /^nodes\//.test(r.path))).toBe(true);
+
+    const none = await (await fetch(`${base}/api/console/search?q=zyzzyva`)).json() as { returned: number; recall: string | null; note: string | null };
+    expect(none).toMatchObject({ returned: 0, recall: 'no_relevant_match_in_searched_scope' });
+    expect(none.note).toBeTruthy();
+
+    expect((await fetch(`${base}/api/console/search?q=latency&scope=platform`)).status).toBe(400);
+    expect((await fetch(`${base}/api/console/search`)).status).toBe(400);
+    expect((await fetch(`${base}/api/console/search?q=latency&limit=51`)).status).toBe(400);
+  });
+
   it('takes the console\'s presentation and approval the way the gateway does', async () => {
     // `verify` presses Approve against this fixture: a page that sent the old `{ initiative, path }` would pass
     // here and be refused by the gateway, so the fixture refuses it too.

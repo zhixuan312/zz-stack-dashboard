@@ -27,6 +27,7 @@ import http from 'node:http';
 import { COLLECTIONS, hint, liveStreams, parseNames, serveLive } from './live.ts';
 import { ME, MY_CLIENT_SETUP, MY_TEAMS, MY_TOKENS, PEOPLE, PLATFORM_PEOPLE, TEAMS, teamDetail, teamMembers } from './people.ts';
 import { ACTIVITY, PLUGINS, SKILLS, overview, pluginEval, runs, skillDetail, skillText } from './platform.ts';
+import { search } from './search.ts';
 import { empty, extreme } from './states.ts';
 import { INITIATIVES, KNOWLEDGE, KNOWLEDGE_LOG, WAITING, documentDetail, documentRevision, initiativeDetail, knowledgeBody, refusesRecord, revisionInStore } from './work.ts';
 
@@ -68,6 +69,15 @@ function read(seg: string[], q: URLSearchParams): Answer {
       if (a === 'log') return ok({ entries: mine(KNOWLEDGE_LOG) });
       if (a) return or404(knowledgeBody(a, [b, ...rest].join('/')), `knowledge ${seg.slice(1).join('/')}`);
       return ok({ nodes: mine(KNOWLEDGE) });
+    case 'search': {
+      // As the gateway answers it: one team's search and never the fleet's, a question required, a limit from 1 to 50.
+      if (platform) return [400, { error: "search runs as one team and the platform's shared shelf — it has no fleet-wide reading, so not ?scope=platform" }];
+      const question = (q.get('q') ?? '').trim();
+      if (!question) return [400, { error: 'q required — the question to search for' }];
+      const limit = q.get('limit') === null ? 15 : Number(q.get('limit'));
+      if (!Number.isInteger(limit) || limit < 1 || limit > 50) return [400, { error: 'limit must be a whole number from 1 to 50' }];
+      return ok(search(question, limit, q.get('initiative')));
+    }
     case 'plugins':
       if (a && b === 'eval') return ok(pluginEval(a));
       if (a && b === 'skills' && rest[0]) return or404(skillText(a, rest[0]), `skill ${a}/${rest[0]}`);

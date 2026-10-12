@@ -42,11 +42,16 @@ async function credential(): Promise<Record<string, string>> {
  * only for a superadmin and otherwise answers exactly what the parameterless request would have got. So this reads
  * the widest thing the caller may read, a superadmin every team and a member their own, without this app deciding
  * which of the two the caller is.
+ *
+ * Two reads are the caller's own whatever they hold, and take no scope: `/me`, which is who they are, and `/search`,
+ * which the platform runs as the team they act for. The gateway refuses a search asked for under the platform's name
+ * rather than answering one team's as the fleet's.
  */
 export async function gatewayGet<T>(path: string): Promise<T> {
   const base = process.env.ZZ_GATEWAY?.replace(/\/+$/, '');
   if (!base) throw new GatewayError(503, 'This console has no gateway address to read from.');
-  const scoped = path === '/me' ? path : `${path}${path.includes('?') ? '&' : '?'}scope=platform`;
+  const own = path === '/me' || path === '/search' || path.startsWith('/search?');
+  const scoped = own ? path : `${path}${path.includes('?') ? '&' : '?'}scope=platform`;
   const res = await fetch(`${base}/api/console${scoped}`, { headers: { accept: 'application/json', ...(await credential()) }, cache: 'no-store' });
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as { error?: string } | null;

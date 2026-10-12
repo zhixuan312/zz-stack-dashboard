@@ -21,6 +21,7 @@ import { assistantTools } from '@/lib/assistant/tools';
 import type { Me } from '@/lib/api-shapes';
 import { viewTools } from '@/views/tools';
 import { ME, PEOPLE, TEAMS } from '../scripts/fake-gateway/people.ts';
+import { search } from '../scripts/fake-gateway/search.ts';
 import { INITIATIVES, KNOWLEDGE } from '../scripts/fake-gateway/work.ts';
 
 const MEMBER: Me = { email: 'mei.tanaka@example.com', name: 'Mei Tanaka', role: 'member', mayRead: true, superadmin: false, via: 'session', teams: [{ slug: 'beacon', role: 'member' }], activeTeam: 'beacon' };
@@ -40,7 +41,8 @@ function gateway(who: Me | null | (() => Me | null)) {
         : path === '/initiatives' ? { initiatives: INITIATIVES }
           : path === '/knowledge' ? { nodes: KNOWLEDGE }
             : path === '/people' ? { people: PEOPLE }
-              : {};
+              : path === '/search' ? search(new URL(url).searchParams.get('q') ?? '', Number(new URL(url).searchParams.get('limit') ?? 15), new URL(url).searchParams.get('initiative'))
+                : {};
     return { ok: true, status: 200, json: async () => body } as Response;
   }) as typeof fetch;
 }
@@ -62,15 +64,18 @@ describe('the server\'s read of the gateway', () => {
     expect(Object.keys(calls[0].headers).sort()).toEqual(['accept', 'cookie']);
   });
 
-  it('asks for the platform scope on every read but /me, and leaves the gateway to decide it', async () => {
+  it('asks for the platform scope on every read but /me and /search, and leaves the gateway to decide it', async () => {
     gateway(ME);
     await gatewayGet('/me');
     await gatewayGet('/teams');
     await gatewayGet('/activity?limit=200');
+    // The search is the caller's own: the gateway refuses it a platform scope, so none is asked for.
+    await gatewayGet('/search?q=latency');
     expect(calls.map((c) => c.url)).toEqual([
       'http://gateway.test/api/console/me',
       'http://gateway.test/api/console/teams?scope=platform',
       'http://gateway.test/api/console/activity?limit=200&scope=platform',
+      'http://gateway.test/api/console/search?q=latency',
     ]);
   });
 
@@ -249,6 +254,24 @@ describe('a view tool\'s address', () => {
     for (const slug of ['../me', 'atlas/../../settings/platform/people', 'atlas?scope=platform', '', '.']) expect(tool('team').input.safeParse({ slug }).success).toBe(false);
     expect(tool('document').input.safeParse({ team: 'atlas', slug: '2026-09-28-search-relevance', path: 'sources/notes.md' }).success).toBe(true);
     for (const path of ['../spec.md', 'sources/../../x', '/etc/passwd', 'spec.md?revision=1', 'a//b']) expect(tool('document').input.safeParse({ team: 'atlas', slug: 's', path }).success).toBe(false);
+  });
+
+  it('the search takes a question and little else, and reaches the gateway as that question', async () => {
+    const input = tool('search').input;
+    expect(input.safeParse({ q: 'latency budget' }).success).toBe(true);
+    expect(input.safeParse({ q: 'latency', limit: 3, initiative: '2026-09-28-search-relevance' }).success).toBe(true);
+    for (const bad of [{}, { q: '' }, { q: 'x' }, { q: 'a'.repeat(201) }, { q: 'latency', limit: 0 }, { q: 'latency', limit: 9 }, { q: 'latency', initiative: '../spec.md' }, { q: 'latency', initiative: 'a?scope=platform' }]) {
+      expect(input.safeParse(bad).success).toBe(false);
+    }
+    gateway(MEMBER);
+    const { context } = await tool('search').read({ q: 'latency budget & more', limit: 3, initiative: '2026-09-28-search-relevance' });
+    expect(context.view).toBe('search');
+    const asked = calls.map((c) => c.url).find((u) => u.includes('/search'));
+    expect(asked).toBe('http://gateway.test/api/console/search?q=latency+budget+%26+more&limit=3&initiative=2026-09-28-search-relevance');
+    // A member is offered it wherever the Knowledge page is, and nobody is without a session.
+    expect(tool('search').needs).toBe(tool('knowledge').needs);
+    gateway(null);
+    await expect(tool('search').read({ q: 'latency' })).rejects.toBeTruthy();
   });
 
   it('a member cannot read a fleet view by naming its tool', async () => {

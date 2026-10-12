@@ -105,9 +105,17 @@ a time or `sources/2026-10-06-call.md` arrives as a single segment named after i
 - **The assistant's route is the one place this app's server reads the gateway, and it reads as the person.** The route
   has to know who is asking before a model is reached, and its tools look records up while a reply is written, so
   `src/data/gateway.ts` sends the caller's own `zz_console` cookie, that cookie alone, to the gateway that issued it,
-  and always asks for the platform scope, which the gateway grants only to a superadmin. Pages still read from the
-  browser. This is the "server replays the caller's cookie" shape the console avoided while it was only a renderer;
+  and asks for the platform scope on every read but `/me` and `/search`, which the gateway grants only to a superadmin.
+  Pages still read from the browser. This is the "server replays the caller's cookie" shape the console avoided while it was only a renderer;
   it was taken on deliberately for the assistant on 2026-10-12, bounded to that module, and it stores nothing.
+- **The assistant reads what documents say through the platform's own search.** `view_search` asks `GET /search`,
+  which is zz-core's `knowledge_search` run as the person: the text of every document and knowledge node of the team
+  they act for, and of the platform's shared shelf, ranked, each result a matched excerpt with the address of the page
+  that shows it. It is the one tool that reads content; every list the assistant can query holds titles, states and
+  counts, and the Knowledge page's own field filters titles and opening excerpts. It has no page of its own, its
+  context is held to a view's 2,400 characters by sharing the room between results, and it takes no platform scope:
+  the gateway refuses one team's search asked for as the fleet's. Set on 2026-10-12, when the Ask tab went: the
+  answer the gateway used to write is the assistant's to write, over the same retrieval.
 - **The chrome is the release's, told who is signed in from the browser.** The rail and the command palette are
   Meridian's `ConsoleRail` and `ConsolePalette` (`src/views/console-chrome.tsx`), unchanged. They take who is signed
   in as a promise; Meridian's layout makes that promise on the server, and this console makes it in the browser
