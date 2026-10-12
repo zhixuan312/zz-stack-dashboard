@@ -104,6 +104,18 @@ describe('the figures a context quotes are the data\'s', () => {
     expect(c.address).toBe('/?period=30d');
   });
 
+  it('the overview says which bucket the chart points at, with that bucket\'s own split', () => {
+    const d = overview('30d');
+    const at = d.toolTrend[5];
+    const total = at.inside + at.outside + at.refused;
+    const pointed = overviewContext(d, { period: '30d', mode: 'platform', index: 5, ...arrival });
+    expect(pointed.focus).toContain(`${total.toLocaleString('en-US')} calls`);
+    expect(pointed.focus).toContain(`${at.refused.toLocaleString('en-US')} refused`);
+    expect(contextText(pointed)).toContain('The person is pointing at: the day of');
+    expect(contexts.overview().focus).toBeUndefined();
+    expect(contextText(pointed).length).toBeLessThanOrEqual(BUDGET);
+  });
+
   it('teams and people count their rows', () => {
     expect(fact(contexts.teams(), 'Teams')).toBe(String(TEAMS.length));
     expect(fact(contexts.people(), 'People')).toBe(String(PEOPLE.length));

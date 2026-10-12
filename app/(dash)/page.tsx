@@ -2,11 +2,11 @@
 
 import Link from 'next/link';
 import { BookOpen, Gauge, Layers } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Row } from '@/components/base/shell';
 import { BarList } from '@/components/charts/bar-list';
 import { CompositionBar } from '@/components/charts/composition-bar';
-import { Meridian } from '@/components/charts/meridian';
+import { Meridian, useMeridianIndex } from '@/components/charts/meridian';
 import { TrendChart } from '@/components/charts/trend-chart';
 import { AskAbout } from '@/components/patterns/ask-about';
 import { FeaturedMetric } from '@/components/patterns/featured-metric';
@@ -104,6 +104,30 @@ function Refusals({ r, rate, doors, period }: { r: Overview['refusals']; rate: n
   );
 }
 
+/** How long the pointer has to rest on a bucket before the page takes it as what the person is pointing at. */
+const POINT_SETTLE_MS = 150;
+
+/**
+ * Tells the page which bucket the Meridian points at, once the pointer rests there. A sweep across the chart moves the
+ * pointer through every bucket, and re-rendering the page for each would cost every tile a render per pixel; what the
+ * assistant needs is where the person stopped.
+ */
+function Pointed({ onChange }: { onChange: (index: number | null) => void }) {
+  const { index } = useMeridianIndex();
+  useEffect(() => {
+    const t = setTimeout(() => onChange(index), POINT_SETTLE_MS);
+    return () => clearTimeout(t);
+  }, [index, onChange]);
+  return null;
+}
+
+/** Ask on the featured card: about the bucket the Meridian points at, or about the period. */
+function AskOverview({ span, grain, timezone }: { span: string; grain: Overview['grain']; timezone: string }) {
+  const { index, dates } = useMeridianIndex();
+  const at = index !== null ? dates[index] : null;
+  return <AskAbout iconBelowSm question={at ? `Why do tool calls on ${bucketLabel(at, grain, timezone)} look the way they do?` : `What stands out in tool calls over ${span}, and why?`} />;
+}
+
 function OverviewSkeleton() {
   return (
     <div aria-busy="true" aria-label="Loading" className="flex flex-col gap-(--stack-gap)">
@@ -123,8 +147,10 @@ export default function OverviewPage() {
   const q = useConsole<Overview>(period === 'all' ? '/overview' : `/overview?period=${period}`);
   const arrival = useArrival(q);
   const span = period === 'all' ? 'all time' : `the ${PERIOD_LABEL[period].toLowerCase()}`;
+  // The bucket the chart's pointer is on, reported up from inside the Meridian: it is part of what the page shows.
+  const [pointed, setPointed] = useState<number | null>(null);
   const context = q.data
-    ? overviewContext(q.data, { period, mode, ...arrival })
+    ? overviewContext(q.data, { period, mode, index: pointed, ...arrival })
     : pendingContext({ view: 'overview', title: 'Overview', address: addressOf('/', { period }, { period: 'all' }), scope: `${PERIOD_LABEL[period].toLowerCase()}, ${whose(mode)}` }, failureOf(q));
 
   return (
@@ -144,10 +170,11 @@ export default function OverviewPage() {
           const busiest = d.toolTrend.reduce((m, b, i) => (totals[i] > totals[m] ? i : m), 0);
           return (
             <Meridian dates={dates}>
+              <Pointed onChange={setPointed} />
               <Row split="2/3">
                 <FeaturedMetric
                   kicker={<>Tool calls · {PERIOD_LABEL[period]}</>}
-                  actions={calls ? <AskAbout iconBelowSm question={`What stands out in tool calls over ${span}, and why?`} /> : undefined}
+                  actions={calls ? <AskOverview span={span} grain={d.grain} timezone={d.timezone} /> : undefined}
                   value={calls}
                   daily={totals}
                   format={formatCompact}

@@ -5,6 +5,7 @@
  */
 import type { Overview } from '@/lib/api-shapes';
 import { formatPercent, plural } from '@/lib/format';
+import { median } from '@/lib/insight';
 import { formatCount, formatKb } from '@/lib/format-units';
 import { PERIOD_LABEL, type Period } from '@/lib/period';
 import type { Fact, Insight, SharedContext } from '@/lib/shared-context';
@@ -38,7 +39,11 @@ function against(now: number | null, prev: number | null, format: (n: number) =>
   return `${dir}${dir === 'unchanged' ? '' : ` ${formatPercent(Math.abs(c), 1)}`} vs the previous period (${format(prev)})`;
 }
 
-export function overviewContext(d: Overview, { period, mode, ...arrival }: { period: Period; mode: ViewMode } & Arrival): SharedContext {
+/**
+ * The Overview's context for `d`, with the person pointing at bucket `index` of the trend, or at nothing: the chart's
+ * shared pointer is part of what the page shows, so "why this one?" has a referent.
+ */
+export function overviewContext(d: Overview, { period, mode, index = null, ...arrival }: { period: Period; mode: ViewMode; index?: number | null } & Arrival): SharedContext {
   const m = d.metrics;
   const totals = d.toolTrend.map((b) => b.inside + b.outside + b.refused);
   const calls = totals.reduce((a, b) => a + b, 0);
@@ -94,12 +99,22 @@ export function overviewContext(d: Overview, { period, mode, ...arrival }: { per
   if (period === 'all') unknowns.push('All time has no previous period, so no figure here carries a change.');
   else unknowns.push(`Initiatives progressing carries no change: ${p.noDeltaBecause}`);
 
+  // What the pointer is on: that bucket's calls and their split, against the period's typical bucket.
+  const at = index !== null ? d.toolTrend[index] : undefined;
+  let focus: string | undefined;
+  if (at) {
+    const total = at.inside + at.outside + at.refused;
+    const typical = median(totals);
+    focus = `the ${d.grain} of ${bucketLabel(at.bucket, d.grain, d.timezone)}: ${formatCount(total)} ${plural(total, 'call')}${typical ? ` (${(total / typical).toFixed(1)}× the period's median ${d.grain} of ${formatCount(Math.round(typical))})` : ''}; ${formatCount(at.inside)} inside a run, ${formatCount(at.outside)} outside any run, ${formatCount(at.refused)} refused${total ? ` (${shareOf(at.refused, total)} of that ${d.grain}'s calls)` : ''}`;
+  }
+
   return budgeted({
     view: 'overview',
     title: 'Overview',
     address: addressOf('/', { period }, { period: 'all' }),
     scope: `${PERIOD_LABEL[period].toLowerCase()}, ${whose(mode)}`,
     freshness: arrived(arrival),
+    focus,
     facts,
     insights,
     unknowns,

@@ -19,11 +19,11 @@ The platform's census, or one team's: whether work is moving, and what waits on 
 
 ## Agents
 
-The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `overviewContext` in `src/views/overview-context.ts`, the same function `view_overview` calls, so the assistant quotes the figures the screen shows. Ask is on the featured card (what stands out in tool calls, and why) and on Refusals (which matter most, and what would stop them).
+The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `overviewContext` in `src/views/overview-context.ts`, the same function `view_overview` calls, so the assistant quotes the figures the screen shows. Ask is on the featured card (what stands out in tool calls and why, or why the bucket the chart points at looks the way it does) and on Refusals (which matter most, and what would stop them).
 
 ### What the agent reads
 
-The period and whose data it is, then every tile with the tile's own definition: tool calls, initiatives progressing, what waits on a person, knowledge from work, context per run and the refusal rate, each with its change against the previous period where one exists. What code found: how the calls split between runs, outside runs and refusals; the busiest bucket; open initiatives by stage; the tool and the message refused most; the shelf's size and how often it was searched. It says that context per run is KB of tool output and not a token count, how many runs were never measured, and why a figure carries no change.
+The period and whose data it is, the bucket the chart's pointer rests on with its calls and how they split, then every tile with the tile's own definition: tool calls, initiatives progressing, what waits on a person, knowledge from work, context per run and the refusal rate, each with its change against the previous period where one exists. What code found: how the calls split between runs, outside runs and refusals; the busiest bucket; open initiatives by stage; the tool and the message refused most; the shelf's size and how often it was searched. It says that context per run is KB of tool output and not a token count, how many runs were never measured, and why a figure carries no change.
 
 ```text
 - core:document_read refused most often: 30 of the 73 refused calls (41%). Evidence: /activity?show=failed
