@@ -19,7 +19,8 @@ import { pendingContext, whose } from '@/views/context';
 import { initiativesContext } from '@/views/initiatives-context';
 import { filterInitiatives, inPeriod } from '@/views/initiatives-filter';
 
-const COLUMNS = initiativeColumns({ team: true });
+// One set per view, built once: in the team view every row is the same team, so the column would be a constant.
+const COLUMNS = { platform: initiativeColumns({ team: true }), team: initiativeColumns() };
 
 /** Every piece of work, open or closed, and how far through its flow it got. Windowed on when it was last touched. */
 export default function InitiativesPage() {
@@ -54,7 +55,7 @@ export default function InitiativesPage() {
         caption="Initiatives"
         noun="initiatives"
         rows={rows}
-        columns={COLUMNS}
+        columns={COLUMNS[mode]}
         rowKey={(i) => `${i.team}/${i.slug}`}
         rowHref={(i) => `/initiatives/${i.team}/${i.slug}`}
         loading={q.isPending}
