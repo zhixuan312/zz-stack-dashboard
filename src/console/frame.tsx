@@ -55,7 +55,7 @@ function useWaitingAlerts(enabled: boolean): Alert[] {
  * same frame and keeps it private, and this console needs it in two places the release's chrome is not rendered: the
  * shell's fallback below, and the render before hydration. It goes when the release exports its own (zz-meridian#24).
  */
-export function RailPending() {
+function RailPending() {
   return (
     <div aria-hidden className="flex h-full w-full flex-col">
       <div className="flex h-16 items-center px-4">
