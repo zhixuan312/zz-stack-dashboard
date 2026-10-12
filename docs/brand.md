@@ -27,7 +27,7 @@ document title.
 
 ## 3. One brand colour, and it means "this is ZZ, act here"
 
-The accent is the brand's purple (`#7548d8`, OKLCH hue 292), registered as Meridian's `zz` preset so contrast holds
+The accent is the brand's purple (`#7548d8`, OKLCH hue 292), registered as Meridian's `brand` preset so contrast holds
 in both themes. It marks actions, selection, the current place, and the one featured figure on a page. It never
 marks a status: health, warnings and failures keep Meridian's status hues, which sit 70° or more away from it.
 

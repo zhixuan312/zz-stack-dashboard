@@ -5,7 +5,7 @@ telemetry in one place. It is called ZZ Stack, the platform's own name, because 
 
 Built on [ZZ Meridian](https://github.com/zhixuan312/zz-meridian), a dashboard design system:
 DTCG tokens in `tokens/`, four layers of components in `src/components/`, dark first with a light
-theme, and the `zz` accent from the brand purple. The console's own compositions are in
+theme, and the `brand` accent from the brand purple. The console's own compositions are in
 `src/console/`. `docs/brief.md` records the decisions; build up from Meridian's components and
 tokens rather than inventing a second look.
 
@@ -32,6 +32,20 @@ browser means this container is a renderer and nothing more.
 
 Same origin is what makes that work: the cookie is a plain first-party cookie, so there
 is no CORS, no preflight and no third-party-cookie behaviour to design around.
+
+**A page stays fresh without being polled.** Each tab follows one Server-Sent Events stream,
+`/api/console/live` on the same origin, which carries hints and never data: *the `teams`
+collection changed, and it is this team's business*. The tab then reads that collection again
+through the same authorized read it used on load. A missed hint costs freshness and never
+correctness — the client polls as a safety net, and resyncs every time the stream reopens — and
+what crosses the wire is a team and a collection name, never a row, a record or a cache tag.
+A page says in one line which collections it shows (`useLive([...])`); the per-page READMEs
+say which, and why.
+
+The stream is the gateway's (`services/gateway/src/console/live.ts` in zz-stack, with a database
+trigger raising each hint inside the writer's own transaction). Against a gateway older than
+0.95.0 the stream never opens and the console falls back to that poll — 30 seconds instead of a
+moment, and nothing else changes.
 
 ## Signing in
 
