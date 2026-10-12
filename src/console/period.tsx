@@ -71,7 +71,6 @@ export function PeriodProvider({ children }: { children: ReactNode }) {
 
   const setPeriod = useCallback((next: Period) => {
     chosen = next;
-    for (const l of listeners) l();
     try {
       const url = new URL(window.location.href);
       // The default period is the absence of the parameter, so `?period=all` and a bare `/`
@@ -79,13 +78,23 @@ export function PeriodProvider({ children }: { children: ReactNode }) {
       if (next === DEFAULT_PERIOD) url.searchParams.delete('period');
       else url.searchParams.set('period', next);
       window.history.replaceState(null, '', url);
-      // Every other reader of the address hears about it: this write does not go through the router,
-      // so nothing else would tell them their view has moved under them.
-      announceAddress();
     } catch {
       // A URL the browser will not let us rewrite does not fail the change: the state above
       // has already moved.
     }
+    /* AFTER the address, and that order is the whole of it. `snapshot` reads the address before it looks at
+     * `chosen`, and React checks a store's snapshot synchronously inside the notify — `useSyncExternalStore` skips
+     * the re-render when the snapshot it reads is the value already on screen. Notifying before the write therefore
+     * has the check compare against the window being replaced, report no change, and leave the control on the old
+     * option with the address already moved: every click after the first needed a second one to show, and the
+     * second was redundant. Measured on `/` at 1440px — `30D` then `7D` wrote `?period=7d` on the first click with
+     * the control still on 30D, and only the second click moved it. The first click of a visit escaped it because
+     * the address named no period yet and the snapshot fell through to `chosen`, which is why this read as a
+     * control that works once and then stops. */
+    for (const l of listeners) l();
+    // Every other reader of the address hears about it: this write does not go through the router,
+    // so nothing else would tell them their view has moved under them.
+    announceAddress();
   }, []);
 
   return (

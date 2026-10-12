@@ -1,0 +1,6 @@
+[
+  {
+    "path": "src/components/patterns/data-table/use-query-state.ts",
+    "reason": "Reads the address without Next's useSearchParams, and rebuilds a write from window.location rather than from Next's copy. Both are load-bearing and both are measured. Reading search params client-renders every Client Component up to the nearest Suspense boundary, which costs three pages their prerender: restoring Meridian's own text on 2026-10-12 put /teams at LCP 0.63 s -> 2.27 s, /people 0.64 -> 2.16 and /activity 0.64 -> 2.08 on the phone profile, and scripts/route-policy.ts reported `2 static, 22 partial, 0 dynamic` for BOTH builds, so it cannot see the difference. Rebuilding from Next's copy is the other half: the reporting period is written with history.replaceState, outside the router, so a copy that never saw it drops ?period= the moment a filter is touched. Reported upstream; this entry comes out when Meridian reads the address itself."
+  }
+]

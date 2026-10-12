@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
-import { useCallback, useMemo, useOptimistic, useSyncExternalStore, useTransition } from 'react';
+import { useCallback, useEffect, useMemo, useOptimistic, useRef, useSyncExternalStore, useTransition } from 'react';
 
 import { addressSearch, announceAddress, subscribeAddress } from '@/lib/address';
 
@@ -35,6 +35,27 @@ export function useQueryState<T extends Record<string, string>>(defaults: T): [T
   // The address changes only when the navigation commits, which waits on the server; until then the state a press asked
   // for is shown at once, so a sort arrow or a page number answers the press, and `pending` says the rows are on their way.
   const [pending, startTransition] = useTransition();
+
+  /* Tell the address readers once the navigation has committed — not inside the transition, which is where this used
+   * to be and why every filter took two presses.
+   *
+   * `router.replace` does not update `window.location` until the navigation commits, so a notify called beside it
+   * hands the readers the address as it still is. `state` is built from that read and `useOptimistic` gives the press
+   * back the moment the transition settles, so the control showed the pressed filter for as long as the navigation
+   * took and then reverted to the one it started on: measured on `/initiatives`, pressing "Waiting on you" landed
+   * `?show=waiting` in the address on the first press with the control still reading "All". Upstream's own copy reads
+   * Next's `useSearchParams`, which is why it does not have this — that hook is the value this file replaced to get
+   * the pages' prerender back, and this is the half of it that had to come with the replacement.
+   *
+   * The ref, rather than `[pending]` alone, so a mount does not announce an address nothing moved. */
+  const moved = useRef(false);
+  useEffect(() => {
+    if (pending) { moved.current = true; return; }
+    if (!moved.current) return;
+    moved.current = false;
+    announceAddress();
+  }, [pending]);
+
   const [shown, show] = useOptimistic(state, (cur: T, patch: Partial<T>) => {
     const out = { ...cur };
     for (const [k, v] of Object.entries(patch)) (out as Record<string, string>)[k] = v === undefined || v === '' ? (defaults[k] ?? '') : (v as string);
@@ -54,10 +75,9 @@ export function useQueryState<T extends Record<string, string>>(defaults: T): [T
       const q = next.toString();
       startTransition(() => {
         show(patch);
-        // Through the router, so Next's own copy catches up on the first filter change; and the readers
-        // are told here as well, because a write that leaves the view unchanged navigates nowhere.
+        // Through the router, so Next's own copy catches up. The address readers are told when this commits, by the
+        // effect above — beside this line it was called a navigation too early, and every filter needed two presses.
         router.replace(q ? `${path}?${q}` : path, { scroll: false });
-        announceAddress();
       });
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
