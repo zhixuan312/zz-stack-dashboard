@@ -89,7 +89,7 @@ export default function KnowledgePage() {
         empty={{ title: 'Nothing to read yet', body: 'A node arrives when an initiative closes and something in it was worth keeping.' }}
         toolbar={
           <FilterBar
-            search={{ value: f.q, onChange: (v) => set({ q: v, page: '1' }), placeholder: 'Search titles and text' }}
+            search={{ value: f.q, onChange: (v) => set({ q: v, page: '1' }), placeholder: 'Search nodes' }}
             filters={[
               // Platform mode only: in team mode the shelf loaded is the acting team's, so another team empties it.
               ...(mode === 'platform' && multiTeam ? [{ key: 'team', label: 'Team', value: f.team, onChange: (v: string) => set({ team: v, page: '1' }), options: [{ value: 'all', label: 'All' }, ...teamFacetOptions(nodes).map((o) => ({ value: o.slug, label: `${o.slug} · ${o.count}` }))] }] : []),
