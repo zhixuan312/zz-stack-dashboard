@@ -15,9 +15,13 @@
  *
  *   : beat 1791181947919
  *
- * A hint names a collection and nothing else — never a record, a team or a cache tag — and is never
- * data: a missed hint costs freshness, never correctness, which is why the tab also has a safety
- * poll and resyncs on every open. There is no `id:` because the stream does not replay.
+ * The `resync` frame is part of the shape and this fixture never sends one: the real gateway raises it for the two
+ * things that mean a tab missed changes, and neither is reachable here — see `hint` below, which is the only thing
+ * this file can raise.
+ *
+ * A hint names a collection and nothing else — never a record, a team or a cache tag — and is never data: a missed
+ * hint costs freshness, never correctness, which is why the tab also has a safety poll and takes its own catch-up
+ * when it is coming back. There is no `id:` because the stream does not replay.
  */
 import type { ServerResponse } from 'node:http';
 
@@ -40,7 +44,6 @@ type Subscriber = {
 const subscribers = new Set<Subscriber>();
 
 const frame = (event: string, data: unknown) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-const resyncOf = (names: string[]) => frame('resync', { collections: names });
 
 /**
  * Tell every tab following `name` that its collection changed, and return how many were reached.
