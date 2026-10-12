@@ -72,14 +72,14 @@ const WIDTHS = ATLAS ? [1440, 390] : [2560, 1440, 1024, 768, 390];
 const THEMES = ['dark', 'light'];
 
 type Report = {
-  path: string; text: number;
+  path: string; href: string; text: number;
   sideways: string[]; clipped: string[]; focusless: string[]; unnamed: string[]; unmeasured: string[]; scrollers: string[]; contrast: string[]; targets: string[]; headings: string[];
   sizes: number[]; weights: number[]; radii: number[]; ratio: number;
 };
 
 /** Runs inside the page. Plain JavaScript: it is serialised into the browser. */
 const MEASURE = `(() => {
-  const W = innerWidth, out = { path: location.pathname, text: 0, sideways: [], clipped: [], unnamed: [], unmeasured: [], scrollers: [], contrast: [], targets: [], headings: [], sizes: [], weights: [], radii: [], ratio: 0 };
+  const W = innerWidth, out = { path: location.pathname, href: location.href, text: 0, sideways: [], clipped: [], unnamed: [], unmeasured: [], scrollers: [], contrast: [], targets: [], headings: [], sizes: [], weights: [], radii: [], ratio: 0 };
   const label = (el) => (el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + (el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\\s+/).slice(0, 3).join('.') : '')).slice(0, 90);
   /* closest() across open roots and slots: deepParent (injected from scripts/lib/deep.ts) steps through both */
   const deepClosest = (el, sel) => { for (let n = el; n; n = deepParent(n)) if (n.matches(sel)) return n; return null; };
@@ -234,7 +234,18 @@ const run = async (route: string, width: number, theme: string, embed: boolean) 
   const issues = [
     // First, because it is the one that fails in the direction of looking clean: a route that never rendered passes
     // everything below, and the run would end with the standard's line over a page nobody measured.
-    ...(r.path.replace(/\/$/, '') !== route.replace(/\/$/, '') ? [`the audit measured ${r.path} while asking for ${route} — the route served another page`] : []),
+    //
+    // `location.pathname` never carries a query, so comparing it to the route *as asked* fails every route that has one —
+    // parent-ba measured ten combinations of five widths and two themes failing that way, deterministically, on a page
+    // that renders correctly. Comparing the path alone would go too far the other way: a route that dropped its query and
+    // served the default view would pass, audited as something it is not. So the path is compared, and every parameter
+    // that was asked for has to still be in the address. (Both halves from parent-ba, 2026-10-12.)
+    ...((): string[] => {
+      const asked = new URL(route, 'http://x'), here = new URL(r.href);
+      if (here.pathname.replace(/\/$/, '') !== asked.pathname.replace(/\/$/, '')) return [`the audit measured ${here.pathname} while asking for ${route} — the route served another page`];
+      const dropped = [...asked.searchParams.keys()].filter((k) => !here.searchParams.has(k));
+      return dropped.length ? [`the address dropped ${dropped.join(', ')} — the audit measured a different view than it asked for`] : [];
+    })(),
     ...(r.text < 24 ? [`the page holds ${r.text} characters of text — it rendered nothing, or only its loading state`] : []),
     ...r.sideways.map((x) => 'sideways: ' + x),
     ...r.clipped.map((x) => 'clipped: ' + x),
