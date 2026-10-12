@@ -177,12 +177,13 @@ five widths in both themes, presses every control, walks the whole keyboard path
 (`scripts/approve-banners.ts`), and measures LCP, INP and CLS on a mid-range phone — about 19
 minutes.
 
-**Which depth CI runs is `.github/workflows/gate.yml`, and until now it has been the shallow one.**
-The default exits 0 with `not run: audit, presses, keyboard, vitals` and the sentence "pnpm verify
---full runs the rest", so a green tick here has not meant a green whole standard — six document
-routes sat above the LCP bar for a day of work before anything said so. The guard is being moved
-to `--full`. Until that lands, read the coverage line at the end of `out/verify.txt`, which names
-every suite that did not run, before believing a pass.
+**Which depth CI runs is `.github/workflows/gate.yml`, and it runs `--full`.** It did not always: the
+workflow ran the shallow default for its whole life while its own comment described the deep one, so
+CI was green while the deep standard was red — six document routes sat above the LCP bar for a day
+of work before anything said so, and the only thing that ever said so was running the real thing by
+hand. Read the coverage line at the end of `out/verify.txt` before believing any pass, in CI or
+locally: it names every suite that did not run, and a check that did not run reads exactly like one
+that passed.
 
 What each suite checks beyond the static routes, and against what, is in
 `scripts/verify.config.ts`. The report is `out/verify.txt`.
