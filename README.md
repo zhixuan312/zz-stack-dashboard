@@ -173,8 +173,10 @@ stops after the static checks and a three-route navigation smoke — about 40 s.
 the console against `scripts/fake-gateway/` (synthetic records, writes accepted and forgotten)
 because its presses approve, revoke and archive whatever a page offers, then audits every page at
 five widths in both themes, presses every control, walks the whole keyboard path
-(`scripts/keyboard.ts`), draws the Approve banners a page load cannot reach
-(`scripts/approve-banners.ts`), and measures LCP, INP and CLS on a mid-range phone — about 19
+(`scripts/keyboard.ts`), and runs the product's own browser checks: the Approve banners a page load
+cannot reach (`scripts/approve-banners.ts`), that a change made anywhere reaches the page a person
+is looking at (`scripts/live-check.ts`), and that a control showing a selection shows the one that
+was pressed (`scripts/selection-check.ts`). Then LCP, INP and CLS on a mid-range phone — about 19
 minutes.
 
 **Which depth CI runs is `.github/workflows/gate.yml`, and it runs `--full`.** It did not always: the
