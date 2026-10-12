@@ -1,7 +1,8 @@
 /** One team's shared context (decision 0011): its work, what waits on a person, its people and what it holds. */
 import { initiativeState, waitingGates, waitingOnYou } from '@/console/initiative-state';
 import type { Initiative, Team, TeamDetail } from '@/lib/api-shapes';
-import { formatCount, plural } from '@/lib/format';
+import { plural } from '@/lib/format';
+import { formatCount } from '@/lib/format-units';
 import { formatDate } from '@/lib/format-date';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
 import { arrived, budgeted, clip, type Arrival } from './context';

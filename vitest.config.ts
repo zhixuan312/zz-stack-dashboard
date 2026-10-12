@@ -11,7 +11,8 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     include: ['tests/**/*.test.{ts,tsx}'],
-    setupFiles: ['./tests/setup.ts'],
+    // Meridian's own setup, as the release wrote it, then what only this console's tests need.
+    setupFiles: ['./tests/setup.ts', './tests/setup.console.ts'],
     testTimeout: 20_000,
   },
 });

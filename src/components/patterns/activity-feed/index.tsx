@@ -1,7 +1,7 @@
-import { cn } from '@/lib/cn';
-import { formatDateTime, formatRelative } from '@/lib/format-date';
-import { Avatar } from '@/components/ui/avatar';
-import { AgentMark } from '@/components/ui/agent-mark';
+import { cn } from '../../../lib/cn';
+import { formatDateTime, formatRelative } from '../../../lib/format-date';
+import { Avatar } from '../../ui/avatar/index';
+import { AgentMark } from '../../ui/agent-mark/index';
 
 /** One event: who did what to what, and when. `via` names the agent when an assistant acted for `actor`; `system` marks the product acting on its own. */
 export type ActivityEvent = { id: string; at: string; actor: string; system?: boolean; via?: string; verb: string; object: string; tone?: 'positive' | 'warning' | 'critical' };

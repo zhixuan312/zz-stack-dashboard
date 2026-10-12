@@ -3,7 +3,7 @@
 import { Checkbox as C } from 'radix-ui';
 import { Check, Minus } from 'lucide-react';
 import { forwardRef, useId, type ComponentPropsWithoutRef, type ReactNode } from 'react';
-import { cn } from '@/lib/cn';
+import { cn } from '../../../lib/cn';
 
 type Props = Omit<ComponentPropsWithoutRef<typeof C.Root>, 'children'> & {
   /** The label beside the box. Without one, pass `aria-label`. */

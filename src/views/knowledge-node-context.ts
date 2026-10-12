@@ -3,7 +3,7 @@
  * the assistant reads what an earlier initiative settled without the person opening the node.
  */
 import type { KnowledgeBody } from '@/lib/api-shapes';
-import { formatCount } from '@/lib/format';
+import { formatCount } from '@/lib/format-units';
 import { formatDate } from '@/lib/format-date';
 import { knowledgeNodeHref } from '@/lib/knowledge-filters';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';

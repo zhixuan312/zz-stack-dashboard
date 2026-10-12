@@ -2,7 +2,7 @@
 
 import { Tooltip as T } from 'radix-ui';
 import { useState, type ReactNode } from 'react';
-import { cn } from '@/lib/cn';
+import { cn } from '../../../lib/cn';
 
 /**
  * A short explanation under the pointer or on keyboard focus. Never holds an action, never the only place a fact lives.

@@ -11,9 +11,10 @@ import type { ConsoleMode } from '@/lib/api';
  */
 export function navGroups(mode: ConsoleMode): NavGroup[] {
   return nav.flatMap((section) => {
-    const items = mode === 'platform' ? section.items : section.items.filter((i) => !i.platformOnly);
+    // Team mode is what a member sees: every destination that needs more than being signed in is left out.
+    const items = mode === 'platform' ? section.items : section.items.filter((i) => i.needs === 'public');
     if (!items.length) return [];
     const label = mode === 'platform' ? section.label : section.teamLabel ?? section.label;
-    return [{ label, items: items.map(({ href, label: l, icon, badge }) => ({ href, label: l, icon, badge })) }];
+    return [{ label, items: items.map(({ href, label: l, icon, badge, needs }) => ({ href, label: l, icon, badge, needs })) }];
   });
 }

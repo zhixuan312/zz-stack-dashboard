@@ -2,7 +2,7 @@
 
 import { RadioGroup as R } from 'radix-ui';
 import { forwardRef, useId, type ComponentPropsWithoutRef, type ReactNode } from 'react';
-import { cn } from '@/lib/cn';
+import { cn } from '../../../lib/cn';
 
 export type RadioOption = { value: string; label: ReactNode; description?: ReactNode; disabled?: boolean };
 

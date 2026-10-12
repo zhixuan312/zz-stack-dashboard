@@ -2,7 +2,7 @@
 
 import { useId, type ReactNode } from 'react';
 import { CircleAlert } from 'lucide-react';
-import { cn } from '@/lib/cn';
+import { cn } from '../../../lib/cn';
 
 /** The props a Field hands its control, so the label, hint and error are wired without the page doing it. */
 export type FieldControlProps = {

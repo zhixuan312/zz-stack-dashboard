@@ -1,6 +1,7 @@
 /** The Knowledge log's shared context (decision 0011): every node recorded on the shelf and every node superseded. */
 import type { KnowledgeLogEntry } from '@/lib/api-shapes';
-import { formatCount, plural } from '@/lib/format';
+import { plural } from '@/lib/format';
+import { formatCount } from '@/lib/format-units';
 import { formatDate } from '@/lib/format-date';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
 import { arrived, budgeted, whose, type Arrival, type ViewMode } from './context';

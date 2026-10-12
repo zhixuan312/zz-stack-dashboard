@@ -11,7 +11,7 @@ import { failureOf } from '@/console/query';
 import { SkillWorkPanel } from '@/console/skill-work';
 import { freshnessOf, useConsole } from '@/lib/api';
 import type { Runs, Skill } from '@/lib/api-shapes';
-import { formatCount } from '@/lib/format';
+import { formatCount } from '@/lib/format-units';
 import { PERIOD_LABEL } from '@/lib/period';
 import { useLive } from '@/lib/live';
 import { addressOf, pendingContext } from '@/views/context';

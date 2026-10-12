@@ -24,7 +24,7 @@ const INT = new Intl.NumberFormat('en-US');
 const CENTS = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 /** Money in `app.currency`, symbol first: $298.43, €1,204. */
-function formatCost(amount: number | null): string {
+export function formatCost(amount: number | null): string {
   if (amount === null) return '—';
   if (amount === 0) return `${CURRENCY}0`;
   if (Math.abs(amount) < 0.01) return `${CURRENCY}${amount.toFixed(4)}`;
@@ -98,7 +98,7 @@ export function formatDuration(ms: number | null): string {
   return `${(totalMinutes / 60).toFixed(1)}h`;
 }
 
-export function formatCount(n: number | null): string {
+function formatCount(n: number | null): string {
   if (n === null) return '—';
   return INT.format(n);
 }
@@ -167,7 +167,7 @@ export const AXIS_FORMATTERS: Record<NumberFormat, (n: number | null) => string>
   percent: (n) => formatPercent(n, 0),
 };
 
-/** A count on an axis tick: 0, 250, 1.5K, 2M; as short as the scale allows. */
+/** A count on an axis tick: 0, 250, 1.5K, 2M; as short as the scale allows, never two ticks reading the same. */
 function formatAxisCount(n: number): string {
   if (n === 0) return '0';
   const trim = (v: number): string => (Number.isInteger(v) ? String(v) : v.toFixed(1));
@@ -175,19 +175,4 @@ function formatAxisCount(n: number): string {
   if (abs >= 1_000_000) return `${trim(n / 1_000_000)}M`;
   if (abs >= 1_000) return `${trim(n / 1_000)}K`;
   return INT.format(n);
-}
-
-/** A run's span in seconds, at the unit a person reads it in: `< 1 s`, `42 s`, `7 min`, `1.4 h`. */
-export function formatSeconds(s: number | null): string {
-  if (s === null || !Number.isFinite(s)) return '—';
-  if (s < 1) return s === 0 ? '0 s' : '< 1 s';
-  if (s >= 3600) return `${(s / 3600).toFixed(1)} h`;
-  if (s >= 60) return `${Math.round(s / 60)} min`;
-  return `${Math.round(s)} s`;
-}
-
-/** Bytes moved, given in KB: `840 KB`, `1.6 MB`. */
-export function formatKb(kb: number | null): string {
-  if (kb === null || !Number.isFinite(kb)) return '—';
-  return kb >= 1024 ? `${(kb / 1024).toFixed(1)} MB` : `${Math.round(kb)} KB`;
 }

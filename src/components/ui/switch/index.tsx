@@ -2,7 +2,7 @@
 
 import { Switch as S } from 'radix-ui';
 import { forwardRef, useId, type ComponentPropsWithoutRef, type ReactNode } from 'react';
-import { cn } from '@/lib/cn';
+import { cn } from '../../../lib/cn';
 
 type Props = Omit<ComponentPropsWithoutRef<typeof S.Root>, 'children'> & {
   label?: ReactNode;

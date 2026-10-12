@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { Check, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
-import { cn } from '@/lib/cn';
-import { IconButton } from '@/components/ui/icon-button';
-import { Menu, MenuContent, MenuItem, MenuTrigger } from '@/components/ui/menu';
+import { cn } from '../../../lib/cn';
+import { IconButton } from '../icon-button/index';
+import { Menu, MenuContent, MenuItem, MenuTrigger } from '../menu/index';
 
 /** Page numbers with gaps: 1 … 4 5 6 … 12. Always the first, the last, and one either side of the current page. */
 export function pageList(page: number, count: number): (number | 'gap')[] {

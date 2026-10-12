@@ -70,6 +70,27 @@ def emit(master, stem, rendered):
 # --- the in-app mark -------------------------------------------------------
 emit('wordmark-zz.png', 'wordmark', 60)
 
+
+def as_logo(stem: str) -> None:
+    """Write `<stem>.svg`: the PNG just emitted, carried inside an SVG of the same size.
+
+    Meridian's `AppMark` draws a product's own mark from `app.logo`, which is a root-relative SVG under
+    `public/` and nothing else (`src/lib/logo.ts`). ZZ's wordmark is a bitmap from the brand kit and is
+    never redrawn, so the SVG is only its envelope: one `<image>` holding the same pixels, embedded as a
+    data URI because an SVG loaded through `<img>` may not fetch a second file.
+    """
+    import base64
+    png = OUT / f'{stem}.png'
+    width, height = Image.open(png).size
+    data = base64.b64encode(png.read_bytes()).decode('ascii')
+    (OUT / f'{stem}.svg').write_text(
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" width="{width}" height="{height}">'
+        f'<image width="{width}" height="{height}" href="data:image/png;base64,{data}"/></svg>\n')
+    print(f'  {stem + ".svg":<16} the same pixels, as the logo AppMark reads')
+
+
+as_logo('wordmark')
+
 # --- the login hero --------------------------------------------------------
 emit('mascot-waving.png', 'mascot-hero', 320)
 

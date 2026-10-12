@@ -21,7 +21,7 @@ import type { DocumentDetail, Me } from '@/lib/api-shapes';
 import { readableDocument } from '@/lib/document-markdown';
 import { ReadingBody } from '@/console/reading';
 
-import { formatKb } from '@/lib/format';
+import { formatKb } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
 import { pendingContext } from '@/views/context';
 import { documentContext } from '@/views/document-context';

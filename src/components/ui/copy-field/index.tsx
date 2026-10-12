@@ -2,7 +2,7 @@
 
 import { Check, Copy, Eye, EyeOff } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { cn } from '@/lib/cn';
+import { cn } from '../../../lib/cn';
 
 /**
  * A value to take elsewhere: an ID, an endpoint, a secret. Read-only, in mono, with a Copy button that turns into a

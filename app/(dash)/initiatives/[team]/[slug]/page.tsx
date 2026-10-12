@@ -14,7 +14,7 @@ import { When } from '@/console/when';
 import { encodePath } from '@/lib/address';
 import { freshnessOf, useConsole } from '@/lib/api';
 import type { InitiativeDetail } from '@/lib/api-shapes';
-import { formatKb } from '@/lib/format';
+import { formatKb } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
 import { pendingContext } from '@/views/context';
 import { initiativeContext } from '@/views/initiative-context';

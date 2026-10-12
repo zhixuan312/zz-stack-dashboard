@@ -1,4 +1,3 @@
-import Image from 'next/image';
 import { app } from '../../../app.config';
 import { cn } from '../../../lib/cn';
 import { logoSource } from '../../../lib/logo';
@@ -6,14 +5,9 @@ import { logoSource } from '../../../lib/logo';
 const cfg: { name: string; logo?: string } = app;
 
 /**
- * The product's mark: `app.logo` when it is a root-relative local SVG path, otherwise ZZ's wordmark.
- *
- * ZZ's mark is the Zz wordmark with its sparkle, from the brand kit, never redrawn. One of three ZZ marks and not
- * interchangeable with the others: the flat single Z is the tab icon (`app/icon.png`), because two letters at 16px is
- * mush, and the mascot squircle is the home-screen icon (`app/apple-icon.png`). The image is decorative: the product
- * name beside it is the accessible name, so pass `label` only when the mark stands alone.
- *
- * Built by `scripts/build-brand-assets.py`.
+ * The product's mark: `app.logo` when it is a root-relative local SVG path, otherwise the template's neutral mark, an
+ * accent tile holding a meridian, a trend crossed by the line that reads it. Beside the app name it is decorative (no
+ * `label`); on its own, pass the app name as `label`. Sizes are 20, 24, 28 and 32.
  */
 export function AppMark({ size = 24, className, label }: { size?: 20 | 24 | 28 | 32; className?: string; label?: string }) {
   const logo = logoSource(cfg.logo);
@@ -23,5 +17,19 @@ export function AppMark({ size = 24, className, label }: { size?: 20 | 24 | 28 |
       <img src={logo} width={size} height={size} alt={label ?? ''} className={cn('shrink-0', className)} />
     );
   }
-  return <Image src="/assets/brand/wordmark.png" alt={label ?? ''} width={size} height={size} priority className={cn('shrink-0 object-contain', className)} />;
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...(label ? { role: 'img', 'aria-label': label } : { 'aria-hidden': true })} className={cn('shrink-0', className)}>
+      <rect width="24" height="24" rx="6.5" fill="var(--accent)" />
+      <rect width="24" height="24" rx="6.5" fill="url(#am-sheen)" />
+      <path d="M4.5 15.5 8.2 11.6l3.1 2.4 4.2-5.6 4 3.6" fill="none" stroke="var(--on-accent)" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M15.5 4.6v14.8" stroke="var(--on-accent)" strokeOpacity=".55" strokeWidth="1.2" strokeLinecap="round" />
+      <circle cx="15.5" cy="8.4" r="1.9" fill="var(--on-accent)" />
+      <defs>
+        <linearGradient id="am-sheen" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="var(--on-accent)" stopOpacity=".18" />
+          <stop offset="1" stopColor="var(--on-accent)" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+    </svg>
+  );
 }

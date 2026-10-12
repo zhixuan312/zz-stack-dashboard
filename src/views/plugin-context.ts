@@ -2,7 +2,8 @@
  * One plugin's shared context (decision 0011): what it ships and governs, how much it is used, and its evaluation.
  */
 import type { PluginEval, PluginRow } from '@/lib/api-shapes';
-import { formatCount, plural } from '@/lib/format';
+import { plural } from '@/lib/format';
+import { formatCount } from '@/lib/format-units';
 import { formatDate } from '@/lib/format-date';
 import { listed, type Fact, type Insight, type SharedContext } from '@/lib/shared-context';
 import { arrived, budgeted, type Arrival } from './context';

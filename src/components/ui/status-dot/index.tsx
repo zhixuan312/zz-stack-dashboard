@@ -1,5 +1,5 @@
-import { cn } from '@/lib/cn';
-import type { Tone } from '@/components/ui/badge';
+import { cn } from '../../../lib/cn';
+import type { Tone } from '../badge/index';
 
 const TONE: Record<Tone, string> = { neutral: 'bg-ink-3 text-ink-3', accent: 'bg-accent text-accent', positive: 'bg-positive text-positive', warning: 'bg-warning text-warning', critical: 'bg-critical text-critical' };
 

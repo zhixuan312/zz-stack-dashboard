@@ -1,5 +1,5 @@
 import { Sparkles } from 'lucide-react';
-import { cn } from '@/lib/cn';
+import { cn } from '../../../lib/cn';
 
 const SIZE = { sm: 'size-5 [&_svg]:size-3', md: 'size-6 [&_svg]:size-3.5', lg: 'size-8 [&_svg]:size-4' } as const;
 

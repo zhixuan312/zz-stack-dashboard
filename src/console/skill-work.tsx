@@ -5,7 +5,7 @@ import { DataTable, type Column } from '@/components/patterns/data-table';
 import { Segmented } from '@/components/ui/segmented';
 import { aligned } from '@/console/columns';
 import type { Skill } from '@/lib/api-shapes';
-import { formatCount, formatSeconds } from '@/lib/format';
+import { formatCount, formatSeconds } from '@/lib/format-units';
 import { plural } from '@/lib/format';
 
 type Axis = 'calls' | 'runs' | 'median' | 'total';

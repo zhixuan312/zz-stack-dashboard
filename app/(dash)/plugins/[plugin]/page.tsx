@@ -22,7 +22,7 @@ import { failureOf, Query } from '@/console/query';
 import { When } from '@/console/when';
 import { freshnessOf, useConsole } from '@/lib/api';
 import type { PluginEval, PluginRow } from '@/lib/api-shapes';
-import { formatCount } from '@/lib/format';
+import { formatCount } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
 import { pendingContext } from '@/views/context';
 import { pluginContext } from '@/views/plugin-context';

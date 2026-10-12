@@ -1,6 +1,6 @@
 import { forwardRef, type TextareaHTMLAttributes } from 'react';
-import { cn } from '@/lib/cn';
-import { controlFrame } from '@/components/ui/input';
+import { cn } from '../../../lib/cn';
+import { controlFrame } from '../input/index';
 
 export type TextareaProps = TextareaHTMLAttributes<HTMLTextAreaElement> & {
   invalid?: boolean;

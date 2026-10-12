@@ -12,7 +12,7 @@ import { When } from '@/console/when';
 import { freshnessOf, useConsole } from '@/lib/api';
 import { plural } from '@/lib/format';
 import type { PluginRow } from '@/lib/api-shapes';
-import { formatCount } from '@/lib/format';
+import { formatCount } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
 import { pendingContext } from '@/views/context';
 import { pluginsContext } from '@/views/plugins-context';

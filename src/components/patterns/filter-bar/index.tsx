@@ -3,12 +3,12 @@
 import { useState, type ReactNode } from 'react';
 import { SlidersHorizontal, X } from 'lucide-react';
 import { cn } from '../../../lib/cn';
-import { AgentMark } from '../../ui/agent-mark';
-import { Button } from '../../ui/button';
-import { Field } from '../../ui/field';
-import { SearchInput } from '../../ui/search-input';
-import { Select, type SelectOption } from '../../ui/select';
-import { Sheet, SheetClose, SheetContent, SheetTrigger } from '../../ui/sheet';
+import { AgentMark } from '../../ui/agent-mark/index';
+import { Button } from '../../ui/button/index';
+import { Field } from '../../ui/field/index';
+import { SearchInput } from '../../ui/search-input/index';
+import { Select, type SelectOption } from '../../ui/select/index';
+import { Sheet, SheetClose, SheetContent, SheetTrigger } from '../../ui/sheet/index';
 
 export type Filter = {
   key: string;

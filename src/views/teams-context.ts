@@ -1,6 +1,7 @@
 /** The Teams list's shared context (decision 0011): what the page and the assistant are both told about every team and what it holds. */
 import type { Team } from '@/lib/api-shapes';
-import { formatCount, plural } from '@/lib/format';
+import { plural } from '@/lib/format';
+import { formatCount } from '@/lib/format-units';
 import { largest } from '@/lib/insight';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
 import { addressOf, arrived, budgeted, shareOf, type Arrival } from './context';

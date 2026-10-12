@@ -1,4 +1,4 @@
-import { cn } from '@/lib/cn';
+import { cn } from '../../../lib/cn';
 
 const SIZE = { sm: 'size-6 text-2xs', md: 'size-8 text-xs', lg: 'size-10 text-sm' } as const;
 /* Each disc tucks under the next by a sliver (2, 4, 6px), so the next one's surface ring draws the seam without

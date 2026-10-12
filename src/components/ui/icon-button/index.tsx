@@ -1,8 +1,8 @@
 'use client';
 
 import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
-import { cn } from '@/lib/cn';
-import { Tooltip } from '@/components/ui/tooltip';
+import { cn } from '../../../lib/cn';
+import { Tooltip } from '../tooltip/index';
 
 export type IconButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> & {
   /** The accessible name, and the tooltip when `tooltip` is set. Required: an icon alone names nothing. */

@@ -3,7 +3,7 @@
 import { Dialog as D } from 'radix-ui';
 import { X } from 'lucide-react';
 import type { ComponentProps, ReactNode } from 'react';
-import { cn } from '@/lib/cn';
+import { cn } from '../../../lib/cn';
 
 /**
  * One task at a time, over a dimmed page. Focus moves in on open and returns to the trigger on close; Escape and the

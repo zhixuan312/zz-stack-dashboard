@@ -1,5 +1,5 @@
-import { cn } from '@/lib/cn';
-import { SERIES_VAR } from '@/components/charts/scale';
+import { cn } from '../../../lib/cn';
+import { SERIES_VAR } from '../scale';
 
 export type Part = { label: string; value: number; color?: number | 'accent' | 'neutral' | 'neutral-ink' | 'positive' | 'warning' | 'critical' };
 

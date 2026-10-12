@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Tabs as T } from 'radix-ui';
 import { useLayoutEffect, useRef, useState, type ComponentProps, type ReactNode } from 'react';
-import { cn } from '@/lib/cn';
+import { cn } from '../../../lib/cn';
 
 /**
  * Views of one subject, one at a time: a record's Overview, Logs and Settings; a list's All, Failed and Slow. The

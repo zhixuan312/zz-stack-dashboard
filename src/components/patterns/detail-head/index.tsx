@@ -3,10 +3,10 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { ArrowLeft, MoreHorizontal } from 'lucide-react';
-import { cn } from '@/lib/cn';
-import { Badge, type Tone } from '@/components/ui/badge';
-import { IconButton } from '@/components/ui/icon-button';
-import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from '@/components/ui/menu';
+import { cn } from '../../../lib/cn';
+import { Badge, type Tone } from '../../ui/badge/index';
+import { IconButton } from '../../ui/icon-button/index';
+import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from '../../ui/menu/index';
 
 export type DetailAction = { label: string; icon?: ReactNode; onSelect: () => void; tone?: 'critical' };
 

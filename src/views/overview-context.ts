@@ -4,7 +4,8 @@
  * button and the assistant read the same words.
  */
 import type { Overview } from '@/lib/api-shapes';
-import { formatCount, formatKb, formatPercent, plural } from '@/lib/format';
+import { formatPercent, plural } from '@/lib/format';
+import { formatCount, formatKb } from '@/lib/format-units';
 import { PERIOD_LABEL, type Period } from '@/lib/period';
 import type { Fact, Insight, SharedContext } from '@/lib/shared-context';
 import { addressOf, arrived, budgeted, shareOf, whose, type Arrival, type ViewMode } from './context';

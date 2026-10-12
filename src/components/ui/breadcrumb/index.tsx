@@ -3,8 +3,8 @@
 import Link from 'next/link';
 import { ChevronRight, MoreHorizontal } from 'lucide-react';
 import { Fragment } from 'react';
-import { cn } from '@/lib/cn';
-import { Menu, MenuContent, MenuItem, MenuTrigger } from '@/components/ui/menu';
+import { cn } from '../../../lib/cn';
+import { Menu, MenuContent, MenuItem, MenuTrigger } from '../menu/index';
 
 export type Crumb = { label: string; href?: string };
 

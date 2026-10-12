@@ -4,7 +4,8 @@
  * plaintext value is shown once, on the page, when a token is issued.
  */
 import type { Me, MyAccessToken, MyTeams } from '@/lib/api-shapes';
-import { formatCount, plural } from '@/lib/format';
+import { plural } from '@/lib/format';
+import { formatCount } from '@/lib/format-units';
 import { formatDate } from '@/lib/format-date';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
 import { arrived, budgeted, type Arrival, type ViewMode } from './context';

@@ -3,7 +3,7 @@
  * earlier initiatives settled.
  */
 import type { KnowledgeNode } from '@/lib/api-shapes';
-import { formatCount } from '@/lib/format';
+import { formatCount } from '@/lib/format-units';
 import { formatDate, formatRelative } from '@/lib/format-date';
 import { filterKnowledgeNodes, knowledgeNodeHref, tagFacetCounts, teamFacetOptions } from '@/lib/knowledge-filters';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';

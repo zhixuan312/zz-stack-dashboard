@@ -1,6 +1,7 @@
 /** The Runs page's shared context (decision 0011): every recorded run, by the skill that drove it. */
 import type { Runs, Skill } from '@/lib/api-shapes';
-import { formatCount, formatKb, formatSeconds, plural } from '@/lib/format';
+import { plural } from '@/lib/format';
+import { formatCount, formatKb, formatSeconds } from '@/lib/format-units';
 import { PERIOD_LABEL, type Period } from '@/lib/period';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
 import { addressOf, arrived, budgeted, shareOf, type Arrival } from './context';

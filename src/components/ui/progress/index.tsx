@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
-import { cn } from '@/lib/cn';
-import type { Tone } from '@/components/ui/badge';
+import { cn } from '../../../lib/cn';
+import type { Tone } from '../badge/index';
 
 const FILL: Record<Tone, string> = { neutral: 'bg-ink-3', accent: 'bg-accent', positive: 'bg-positive', warning: 'bg-warning', critical: 'bg-critical' };
 

@@ -1,6 +1,7 @@
 /** The People list's shared context (decision 0011): who the platform knows, their teams, and whether their tokens are live. */
 import { teamSlug, type Person } from '@/lib/api-shapes';
-import { formatCount, plural } from '@/lib/format';
+import { plural } from '@/lib/format';
+import { formatCount } from '@/lib/format-units';
 import { formatDate } from '@/lib/format-date';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
 import { addressOf, arrived, budgeted, whose, type Arrival, type ViewMode } from './context';

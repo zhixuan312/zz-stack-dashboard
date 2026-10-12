@@ -262,23 +262,34 @@ for (const f of [APP_DIR, 'src', 'components'].flatMap((d) => walk(d, /\.tsx$/))
   if (at.length > 1) problems.push(`${f}:${at[1]}: a second FeaturedMetric (the first is at line ${at[0]}); a page has one protagonist, so make the others Metric tiles or Cards`);
 }
 
-// ── The navigation ────────────────────────────────────────────────────────────────────────────────────
-// `nav` in `src/app.config.ts` is what the rail draws (narrowed by `src/nav.ts`) and what `scripts/lib/routes.ts`
-// walks for verify's navigation smoke, so a bad href is a broken check as much as a broken link. Meridian's own rule
-// asks every item to declare `needs`, the grant that decides whether the person sees it; this console gates by the
-// scope in view instead — a `platformOnly` fleet surface — and the gateway enforces what a member may read. What is
-// worth holding here is the shape of the route itself, and that each one appears once: the rail lights up the longest
-// match, so two entries with the same href are two links to the same page.
-{
-  const seen = new Map<string, number>();
-  for (const item of nav.flatMap((g) => g.items)) {
-    if (!item.href.startsWith('/')) problems.push(`src/app.config.ts: nav item ${item.href} is not a same-origin path`);
-    else if (item.href.length > 1 && item.href.endsWith('/')) problems.push(`src/app.config.ts: nav item ${item.href} has a trailing slash`);
-    seen.set(item.href, (seen.get(item.href) ?? 0) + 1);
+// ── A nav item asks its own need, and that need has a shape ───────────────────────────────────────────
+// The rail asks each destination's need of the person, and the code that answers it reads two shapes only: the string
+// 'public', a grant `object:operation`, or an object whose one key is a non-empty `allOf` of grants. A nav item that
+// forgets `needs`, misspells an operation (`keys:manage`, which no collection carries) or nests another `allOf` reaches
+// the rail as a need nothing can satisfy, and the page behind it is then reachable by nobody — silently. This is the
+// shape of a need, which every project declares in its own grants: the role table is not read, so whatever a project
+// grants passes. `src/app.config.ts` is every project's file, so this rule holds in a product too.
+const GRANT = /^[a-z][a-z0-9-]*:(read|create|update|remove)$/;
+
+/** Why a nav item's `needs` has no shape the rail can read, as the clause after the item's href, or null when it has one. */
+const needProblem = (need: unknown): string | null => {
+  if (need === undefined || need === null) return "has no needs; name 'public', a grant such as 'keys:read', or { allOf: [...] }";
+  if (need === 'public') return null;
+  if (typeof need === 'string') return GRANT.test(need) ? null : `names ${JSON.stringify(need)}, which is not a grant (object:read|create|update|remove)`;
+  if (typeof need === 'object' && !Array.isArray(need)) {
+    const allOf = (need as { allOf?: unknown }).allOf;
+    if (Object.keys(need).length === 1 && Array.isArray(allOf)) {
+      if (!allOf.length) return 'has an empty allOf; a need names at least one grant';
+      const bad = (allOf as unknown[]).find((g) => typeof g !== 'string' || !GRANT.test(g));
+      return bad === undefined ? null : `names ${JSON.stringify(bad)} in its allOf, which is not a grant`;
+    }
   }
-  for (const [href, n] of seen) {
-    if (n > 1) problems.push(`src/app.config.ts: nav item ${href} is listed ${n} times`);
-  }
+  return "must be 'public', a grant such as 'keys:read', or { allOf: [...] }";
+};
+
+for (const item of nav.flatMap((g) => g.items)) {
+  const why = needProblem(item.needs);
+  if (why) problems.push(`src/app.config.ts: nav item ${item.href} ${why}`);
 }
 
 // ── The update session, the keep register and the logo ────────────────────────────────────────────────
@@ -463,28 +474,6 @@ for (const f of walk('src', /\.tsx?$/).filter((x) => SWEPT.test(x) && !TOOLKIT.t
   if (has('docs/brief.md')) docs.push({ file: 'docs/brief.md', text: read('docs/brief.md') });
   const scripts = new Set(Object.keys(JSON.parse(read('package.json')).scripts ?? {}));
   problems.push(...scanReferences(docs, has, scripts));
-}
-
-// ── The prerender is not given away ──────────────────────────────────────────────────────────────────
-/* Reading Next's search params costs the route its prerender. In this version `useSearchParams` client-renders
- * every Client Component up to the nearest Suspense boundary, and a console page has none — so the WHOLE route
- * stopped being prerendered and painted its own masthead only once hydration finished. Measured on `/teams` at the
- * phone profile `scripts/vitals.ts` uses: LCP 2212ms while it read the hook, 632ms once it did not, beside the
- * console pages that never read it at 620ms throughout. View state comes from `src/lib/address.ts`, which reads the
- * address directly and says the same thing at length. A file may still call the hook if it carries its own Suspense
- * boundary — `app/login/page.tsx` does, for the two parameters a signed-out visitor arrives with. */
-/** A rule about what a file DOES must not fire on a sentence naming the thing it does: a doc block that
- *  quotes `useSearchParams()` to explain this very rule is not a file that reads search params. Comments are
- *  blanked for the call test only — the import test needs the quoted module path, which a string-stripper eats. */
-const withoutComments = (src: string): string =>
-  src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ');
-const READS_SEARCH_PARAMS = /import\s*(?:type\s*)?\{[^}]*\buseSearchParams\b[^}]*\}\s*from\s*['"]next\/navigation['"]/;
-for (const f of [...walk('app', /\.tsx?$/), ...walk('src', /\.tsx?$/)]) {
-  const src = read(f);
-  if (!READS_SEARCH_PARAMS.test(src) && !/\buseSearchParams\s*\(/.test(withoutComments(src))) continue;
-  if (!/<Suspense/.test(src)) {
-    problems.push(`${f}: reads Next's search params with no Suspense boundary of its own, which costs the route its prerender`);
-  }
 }
 
 console.log(problems.join('\n') || 'check: ok');

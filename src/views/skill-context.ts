@@ -1,6 +1,7 @@
 /** One skill's shared context (decision 0011): what it costs to run, where it sits in its plugin's method, and what it is for. */
 import type { PluginRow, Skill, SkillDetail, SkillText } from '@/lib/api-shapes';
-import { formatCount, formatKb, formatSeconds, plural } from '@/lib/format';
+import { plural } from '@/lib/format';
+import { formatCount, formatKb, formatSeconds } from '@/lib/format-units';
 import type { Fact, Insight, SharedContext } from '@/lib/shared-context';
 import { arrived, budgeted, type Arrival } from './context';
 

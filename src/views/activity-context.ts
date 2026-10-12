@@ -1,6 +1,7 @@
 /** The Activity page's shared context (decision 0011): the latest events the platform recorded, newest first. */
 import type { ActivityEvent } from '@/lib/api-shapes';
-import { formatCount, plural } from '@/lib/format';
+import { plural } from '@/lib/format';
+import { formatCount } from '@/lib/format-units';
 import { formatDateTime } from '@/lib/format-date';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
 import { addressOf, arrived, budgeted, shareOf, whose, type Arrival, type ViewMode } from './context';

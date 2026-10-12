@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, type KeyboardEvent } from 'react';
-import { cn } from '@/lib/cn';
-import { useSize } from '@/components/charts/use-size';
+import { cn } from '../../../lib/cn';
+import { useSize } from '../use-size';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 /** Six steps from nothing to the most: an empty track, then the accent mixed into the surface. */

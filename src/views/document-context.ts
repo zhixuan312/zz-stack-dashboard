@@ -3,7 +3,8 @@
  * is, where it stands with its gate, and how it changed.
  */
 import type { DocumentDetail } from '@/lib/api-shapes';
-import { formatCount, formatKb, plural } from '@/lib/format';
+import { plural } from '@/lib/format';
+import { formatCount, formatKb } from '@/lib/format-units';
 import { formatDate, formatDateTime } from '@/lib/format-date';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
 import { arrived, budgeted, type Arrival } from './context';

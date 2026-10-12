@@ -1,4 +1,4 @@
-import { cn } from '@/lib/cn';
+import { cn } from '../../../lib/cn';
 
 /**
  * A change against the previous period. The arrow carries the direction; the colour carries the judgement, which is

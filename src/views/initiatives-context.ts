@@ -4,7 +4,7 @@
  */
 import { INITIATIVE_STATES, initiativeState, waitingGates, waitingOnYou } from '@/console/initiative-state';
 import type { Initiative } from '@/lib/api-shapes';
-import { formatCount } from '@/lib/format';
+import { formatCount } from '@/lib/format-units';
 import { formatDate } from '@/lib/format-date';
 import { PERIOD_LABEL, periodCutoff, type Period } from '@/lib/period';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';

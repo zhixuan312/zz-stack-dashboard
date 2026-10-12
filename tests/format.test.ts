@@ -1,13 +1,6 @@
 import { niceTicks } from '@/components/charts/scale';
-import {
-  AXIS_FORMATTERS,
-  FORMATTERS,
-  formatBy,
-  formatCount,
-  formatDuration,
-  formatPercent,
-  formatCompact,
-} from '@/lib/format';
+import { AXIS_FORMATTERS, FORMATTERS, formatBy, formatDuration, formatPercent, formatCompact } from '@/lib/format';
+import { formatCount } from '@/lib/format-units';
 import { parsePeriod, periodCutoff, DEFAULT_PERIOD } from '@/lib/period';
 
 /**

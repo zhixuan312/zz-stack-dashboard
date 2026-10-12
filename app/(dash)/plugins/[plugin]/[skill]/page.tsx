@@ -21,7 +21,7 @@ import { failureOf, Query } from '@/console/query';
 import { useAddressParam } from '@/lib/address';
 import { freshnessOf, useConsole } from '@/lib/api';
 import type { PluginRow, Skill, SkillDetail, SkillText } from '@/lib/api-shapes';
-import { formatCount, formatKb, formatSeconds } from '@/lib/format';
+import { formatCount, formatKb, formatSeconds } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
 import { pendingContext } from '@/views/context';
 import { skillContext } from '@/views/skill-context';

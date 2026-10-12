@@ -3,7 +3,7 @@
 import { DropdownMenu as M } from 'radix-ui';
 import { Check } from 'lucide-react';
 import type { ComponentProps, ReactNode } from 'react';
-import { cn } from '@/lib/cn';
+import { cn } from '../../../lib/cn';
 
 /** A list of actions or choices that opens from a trigger. Items run on click or Enter; a choice shows a check. */
 export const Menu = M.Root;

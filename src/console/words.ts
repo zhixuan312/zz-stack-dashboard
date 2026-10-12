@@ -15,7 +15,7 @@
  * The plural, the count and the dash are one subject — how a number becomes a phrase. `sentence` is here because it is
  * the same job in the other direction: text someone else wrote, made to sit inside a sentence this console did.
  */
-import { formatCount } from '@/lib/format';
+import { formatCount } from '@/lib/format-units';
 
 
 /**

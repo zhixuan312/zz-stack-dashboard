@@ -3,7 +3,8 @@
  */
 import { initiativeState, ownGates, waitingGates } from '@/console/initiative-state';
 import type { InitiativeDetail } from '@/lib/api-shapes';
-import { formatCount, plural } from '@/lib/format';
+import { plural } from '@/lib/format';
+import { formatCount } from '@/lib/format-units';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
 import { arrived, budgeted, type Arrival } from './context';
 

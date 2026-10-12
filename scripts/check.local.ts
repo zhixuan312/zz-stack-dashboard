@@ -14,6 +14,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import { nav } from '../src/app.config.ts';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const read = (p: string) => fs.readFileSync(path.join(ROOT, p), 'utf8');
@@ -52,6 +53,45 @@ for (const f of SOURCE.filter((x) => /^(app|src\/console|src\/lib|src\/nav)/.tes
   for (const m of c.matchAll(/\bof \d+\b/g)) problems.push(`${f}: "${m[0]}" is a hardcoded denominator`);
   // A hand-built table (not Meridian's DataTable, which has its empty states) must say when it has nothing.
   if (c.includes('<TableBody>') && !/length === 0|EmptyState|\.length \?|!\w+\.length/.test(c)) problems.push(`${f}: a table that can be empty does not say so`);
+}
+
+// ── The navigation ────────────────────────────────────────────────────────────────────────────────────
+// `nav` in `src/app.config.ts` is what the rail draws (narrowed by `src/nav.ts`) and what `scripts/lib/routes.ts`
+// walks for verify's navigation smoke, so a bad href is a broken check as much as a broken link. Meridian's check.ts
+// holds each item's `needs` to the shape the rail can read; this holds the route itself, and that each one appears
+// once: the rail lights up the longest match, so two entries with the same href are two links to the same page.
+{
+  const seen = new Map<string, number>();
+  for (const item of nav.flatMap((g) => g.items)) {
+    if (!item.href.startsWith('/')) problems.push(`src/app.config.ts: nav item ${item.href} is not a same-origin path`);
+    else if (item.href.length > 1 && item.href.endsWith('/')) problems.push(`src/app.config.ts: nav item ${item.href} has a trailing slash`);
+    seen.set(item.href, (seen.get(item.href) ?? 0) + 1);
+  }
+  for (const [href, n] of seen) {
+    if (n > 1) problems.push(`src/app.config.ts: nav item ${href} is listed ${n} times`);
+  }
+}
+
+// ── The prerender is not given away ──────────────────────────────────────────────────────────────────
+/* Reading Next's search params costs the route its prerender. In this version `useSearchParams` client-renders
+ * every Client Component up to the nearest Suspense boundary, and a console page has none — so the WHOLE route
+ * stopped being prerendered and painted its own masthead only once hydration finished. Measured on `/teams` at the
+ * phone profile `scripts/vitals.ts` uses: LCP 2212ms while it read the hook, 632ms once it did not, beside the
+ * console pages that never read it at 620ms throughout. View state comes from `src/lib/address.ts`, which reads the
+ * address directly and says the same thing at length. A file may still call the hook if it carries its own Suspense
+ * boundary — `app/login/page.tsx` does, for the two parameters a signed-out visitor arrives with. */
+/** A rule about what a file DOES must not fire on a sentence naming the thing it does: a doc block that
+ *  quotes `useSearchParams()` to explain this very rule is not a file that reads search params. Comments are
+ *  blanked for the call test only — the import test needs the quoted module path, which a string-stripper eats. */
+const withoutComments = (src: string): string =>
+  src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ');
+const READS_SEARCH_PARAMS = /import\s*(?:type\s*)?\{[^}]*\buseSearchParams\b[^}]*\}\s*from\s*['"]next\/navigation['"]/;
+for (const f of [...walk('app', /\.tsx?$/), ...walk('src', /\.tsx?$/)]) {
+  const src = read(f);
+  if (!READS_SEARCH_PARAMS.test(src) && !/\buseSearchParams\s*\(/.test(withoutComments(src))) continue;
+  if (!/<Suspense/.test(src)) {
+    problems.push(`${f}: reads Next's search params with no Suspense boundary of its own, which costs the route its prerender`);
+  }
 }
 
 // ── Every console page says what the assistant reads ──────────────────────────────────────────────────

@@ -4,7 +4,8 @@ import { Panel } from '@/console/panel';
 import { CompositionBar } from '@/components/charts/composition-bar';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { formatCount, formatPercent } from '@/lib/format';
+import { formatPercent } from '@/lib/format';
+import { formatCount } from '@/lib/format-units';
 import { plural } from '@/lib/format';
 import type { DimensionScore, GuardrailScore, PluginEval } from '@/lib/api-shapes';
 
