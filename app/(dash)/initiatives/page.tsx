@@ -16,7 +16,8 @@ import type { Initiative } from '@/lib/api-shapes';
 import { PERIOD_LABEL } from '@/lib/period';
 import { useLive } from '@/lib/live';
 import { pendingContext, whose } from '@/views/context';
-import { filterInitiatives, inPeriod, initiativesContext } from '@/views/initiatives-context';
+import { initiativesContext } from '@/views/initiatives-context';
+import { filterInitiatives, inPeriod } from '@/views/initiatives-filter';
 
 const COLUMNS = initiativeColumns({ team: true });
 

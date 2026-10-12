@@ -28,7 +28,8 @@ import { formatCount, formatKb } from '@/lib/format-units';
 import { PERIOD_LABEL } from '@/lib/period';
 import { useLive } from '@/lib/live';
 import { addressOf, pendingContext, whose } from '@/views/context';
-import { OVERVIEW_METRICS, bucketLabel, change, overviewContext } from '@/views/overview-context';
+import { overviewContext } from '@/views/overview-context';
+import { OVERVIEW_METRICS, bucketLabel, change } from '@/views/overview-metrics';
 
 /**
  * The landing page: the fleet's census, or one team's, by console mode.

@@ -5,15 +5,7 @@ import { formatCount } from '@/lib/format-units';
 import { formatDate } from '@/lib/format-date';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
 import { addressOf, arrived, budgeted, whose, type Arrival, type ViewMode } from './context';
-
-/** The filters the People list keeps in its address. */
-type PeopleFilters = { q: string; team: string };
-
-/** The rows the list shows for `f`: the page's own filter. */
-export function filterPeople(people: Person[], f: PeopleFilters): Person[] {
-  const needle = f.q.trim().toLowerCase();
-  return people.filter((p) => (f.team === 'all' || p.teams.some((t) => teamSlug(t) === f.team)) && (!needle || p.email.includes(needle) || p.name.toLowerCase().includes(needle)));
-}
+import { filterPeople, type PeopleFilters } from './people-filter';
 
 export function peopleContext(people: Person[], { filters, mode, ...arrival }: { filters: PeopleFilters; mode: ViewMode } & Arrival): SharedContext {
   const rows = filterPeople(people, filters);

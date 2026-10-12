@@ -6,29 +6,10 @@ import { INITIATIVE_STATES, initiativeState, waitingGates, waitingOnYou } from '
 import type { Initiative } from '@/lib/api-shapes';
 import { formatCount } from '@/lib/format-units';
 import { formatDate } from '@/lib/format-date';
-import { PERIOD_LABEL, periodCutoff, type Period } from '@/lib/period';
+import { PERIOD_LABEL, type Period } from '@/lib/period';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
 import { addressOf, arrived, budgeted, clip, whose, type Arrival, type ViewMode } from './context';
-
-/** The filters the Initiatives list keeps in its address. */
-type InitiativesFilters = { q: string; team: string; flow: string; state: string; show: string };
-
-/** The initiatives last touched inside the period: the window says which the page is about at all. */
-export function inPeriod(all: Initiative[], period: Period, now: Date = new Date()): Initiative[] {
-  const since = periodCutoff(period, now);
-  return since ? all.filter((i) => new Date(i.updated) >= since) : all;
-}
-
-/** The rows the list shows for `f`, within the window: the page's own filter. */
-export function filterInitiatives(inWindow: Initiative[], f: InitiativesFilters): Initiative[] {
-  const needle = f.q.trim().toLowerCase();
-  return inWindow.filter((i) =>
-    (!needle || i.slug.toLowerCase().includes(needle) || i.team.includes(needle) || (i.flow ?? '').includes(needle))
-    && (f.team === 'all' || i.team === f.team)
-    && (f.flow === 'all' || (i.flow ?? 'No flow') === f.flow)
-    && (f.state === 'all' || initiativeState(i) === f.state)
-    && (f.show === 'all' || waitingOnYou(i)));
-}
+import { filterInitiatives, inPeriod, type InitiativesFilters } from './initiatives-filter';
 
 /** An initiative as a list names it: its team and its slug, a very long slug cut. */
 const named = (i: { team: string; slug: string }) => `${i.team}/${clip(i.slug)}`;

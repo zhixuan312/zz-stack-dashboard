@@ -14,7 +14,8 @@ import { freshnessOf, useConsole } from '@/lib/api';
 import type { Team } from '@/lib/api-shapes';
 import { useLive } from '@/lib/live';
 import { pendingContext } from '@/views/context';
-import { filterTeams, teamsContext } from '@/views/teams-context';
+import { teamsContext } from '@/views/teams-context';
+import { filterTeams } from '@/views/teams-filter';
 
 const columns: Column<Team>[] = aligned([
   {

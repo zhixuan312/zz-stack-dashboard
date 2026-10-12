@@ -5,15 +5,7 @@ import { formatCount } from '@/lib/format-units';
 import { largest } from '@/lib/insight';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
 import { addressOf, arrived, budgeted, shareOf, type Arrival } from './context';
-
-/** The filters the Teams list keeps in its address. */
-type TeamsFilters = { q: string; status: string };
-
-/** The rows the list shows for `f`: the page's own filter, so the page and the context cannot disagree. */
-export function filterTeams(teams: Team[], f: TeamsFilters): Team[] {
-  const needle = f.q.trim().toLowerCase();
-  return teams.filter((t) => (f.status === 'all' || t.status === f.status) && (!needle || t.slug.includes(needle) || t.name.toLowerCase().includes(needle)));
-}
+import { filterTeams, type TeamsFilters } from './teams-filter';
 
 export function teamsContext(teams: Team[], { filters, ...arrival }: { filters: TeamsFilters } & Arrival): SharedContext {
   const rows = filterTeams(teams, filters);

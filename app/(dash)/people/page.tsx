@@ -20,7 +20,8 @@ import { teamSlug, type Person } from '@/lib/api-shapes';
 import { formatDate } from '@/lib/format-date';
 import { useLive } from '@/lib/live';
 import { pendingContext } from '@/views/context';
-import { filterPeople, peopleContext } from '@/views/people-context';
+import { peopleContext } from '@/views/people-context';
+import { filterPeople } from '@/views/people-filter';
 
 const COLUMNS: Column<Person>[] = aligned([
   {
