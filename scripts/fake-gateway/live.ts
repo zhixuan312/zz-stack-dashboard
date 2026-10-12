@@ -106,7 +106,18 @@ export function serveLive(res: ServerResponse, names: string[]): void {
    * `req.on('close')` fires at once and would close every stream the moment it opened. */
   res.on('close', s.close);
   subscribers.add(s);
-  // The first frame is a resync of everything asked for: a tab that has just opened has read nothing yet.
   s.write(`retry: 3000\n\n`);
-  s.write(resyncOf(names));
+  /* DELIBERATE: no resync here, which is the real gateway's shape too.
+   *
+   * This used to write one, on the reasoning that "a tab that has just opened has read nothing yet" — which is the
+   * half that is wrong, and it cost a document route its LCP. The tab has read: it read every collection it shows
+   * while the page mounted, a moment before it subscribed. Answering the connect with a resync told it to read them
+   * all again, so it threw away answers it held, re-rendered every panel, and did it in the window where the page's
+   * largest element was waiting to be painted — measured at 390px with the phone profile, the body was read three
+   * times and the paint the LCP is taken from landed at 2,676 ms against a 2,500 ms bar.
+   *
+   * `resync` therefore means what its name says: the tab missed changes. `hint` above is the only thing that raises
+   * one here, and the real gateway raises it for the same two reasons — its `LISTEN` connection was down, or a burst
+   * overflowed the queue. A tab coming back from an error or from being hidden takes its own catch-up; the console's
+   * `src/lib/live.ts` says how it knows to. */
 }
