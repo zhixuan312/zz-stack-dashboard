@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, use, type ReactNode } from 'react';
+import { Suspense, lazy, useState, use, type ReactNode } from 'react';
 import { DataTable, type Column } from '@/components/patterns/data-table';
 import { Badge } from '@/components/ui/badge';
 import { Segmented } from '@/components/ui/segmented';
@@ -13,7 +13,6 @@ import { AskAbout } from '@/components/patterns/ask-about';
 import { ConsolePage, useArrival } from '@/console/page';
 import { Panel } from '@/console/panel';
 import { Query, failureOf } from '@/console/query';
-import { VersionChain } from '@/console/version-chain';
 import { When } from '@/console/when';
 import { decodePath } from '@/lib/address';
 import { freshnessOf, useConsole } from '@/lib/api';
@@ -27,6 +26,18 @@ import { pendingContext } from '@/views/context';
 import { documentContext } from '@/views/document-context';
 
 type Decision = DocumentDetail['decisions'][number];
+
+/**
+ * The version chain, behind a chunk of its own.
+ *
+ * It sits under the colophon, below everything a first paint shows, and it carries the line differ with it. In the
+ * page's first load it was one request more than the route had before the assistant was mounted: 21 scripts where
+ * there had been 20. The phone profile `scripts/vitals.ts` measures on is HTTP/1.1 with 150 ms on every request, and
+ * the document's own text, the page's largest paint, waits for the last of them: measured on three document routes,
+ * 2.24-2.40 s with 20 scripts and 2.34-2.62 s with 21, against a 2.5 s bar. Loaded when the page has mounted, the
+ * route is back to 20 scripts and 34 KiB lighter.
+ */
+const VersionChain = lazy(() => import('@/console/version-chain').then((m) => ({ default: m.VersionChain })));
 
 /**
  * The claims a document makes, one row each. The columns follow the role, because the rows do: a selection judges
@@ -170,7 +181,7 @@ export default function DocumentPage({ params }: { params: Promise<{ team: strin
               </Panel>
               <div className="flex min-w-0 flex-col gap-(--stack-gap)">
                 <DocColophon doc={doc} />
-                <VersionChain doc={doc} />
+                <Suspense fallback={<Skeleton className="h-40 rounded-lg" />}><VersionChain doc={doc} /></Suspense>
               </div>
             </Row>
             {doc.decisions.length ? (
