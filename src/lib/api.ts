@@ -245,7 +245,11 @@ export function freshnessOf(...queries: { dataUpdatedAt?: number }[]): Date | nu
 export function useDataClock(): Date {
   const client = useQueryClient();
   const stamp = useSyncExternalStore(
-    (notify) => client.getQueryCache().subscribe(notify),
+    // Only what can move the clock: a query that settled, or one that left. The cache also announces a query the
+    // moment `useQuery` builds one, which is during another component's render, and telling React to re-render this
+    // one from inside that render is the "cannot update a component while rendering a different component" warning.
+    // A query that was only just built has no data, so it never changes the answer below.
+    (notify) => client.getQueryCache().subscribe((event) => { if (event.type === 'updated' || event.type === 'removed') notify(); }),
     () => {
       let oldest = 0;
       for (const q of client.getQueryCache().getAll()) {
