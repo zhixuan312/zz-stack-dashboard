@@ -178,9 +178,10 @@ because its presses approve, revoke and archive whatever a page offers, then aud
 five widths in both themes, presses every control, walks the whole keyboard path
 (`scripts/keyboard.ts`), and runs the product's own browser checks: the Approve banners a page load
 cannot reach (`scripts/approve-banners.ts`), that a change made anywhere reaches the page a person
-is looking at (`scripts/live-check.ts`), and that a control showing a selection shows the one that
-was pressed (`scripts/selection-check.ts`). Then LCP, INP and CLS on a mid-range phone — about 19
-minutes.
+is looking at (`scripts/live-check.ts`), that a control showing a selection shows the one that
+was pressed (`scripts/selection-check.ts`), and that no page disagrees with its own server HTML
+when the main thread is slow enough for its reads to answer before it hydrates
+(`scripts/hydration-check.ts`). Then LCP, INP and CLS on a mid-range phone — about 22 minutes.
 
 **Which depth CI runs is `.github/workflows/gate.yml`, and it runs `--full`.** It did not always: the
 workflow ran the shallow default for its whole life while its own comment described the deep one, so

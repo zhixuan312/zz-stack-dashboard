@@ -1,10 +1,10 @@
 'use client';
 
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useDeferredValue, useMemo } from 'react';
 import type { Scope } from '@/components/patterns/rail';
 import { ShellTools, type Alert } from '@/components/patterns/shell-tools';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useConsole, useConsoleMode, useDataClock } from '@/lib/api';
+import { useConsole, useConsoleMode, useDataClock, useHydrated } from '@/lib/api';
 import type { Me } from '@/lib/api-shapes';
 import type { ChromeAccess } from '@/lib/collection';
 import { shownIn } from '@/nav';
@@ -113,11 +113,11 @@ export function ShellPending() {
  * and the person. The chrome cannot tell the difference, which is the point.
  *
  * **Nothing the server cannot have reaches the markup on the hydration render.** The server has no `/me`, and a promise
- * that never settles would hold its response open, so the server and the first client render draw `RailPending` and no
- * palette. One frame after hydration the release's chrome takes over with the promise. That rule is why this console
- * stopped throwing React #418: a rail that rendered `/me` on the hydration pass disagreed with the server's HTML
- * whenever `/me` had already answered, on a different route each run. Found by curling the served HTML of a production
- * build; `next dev` cannot show it, since it renders on demand and has no prerender to disagree with.
+ * that never settles would hold its response open, so the server and the hydrating render draw `RailPending` and no
+ * palette, and the release's chrome takes over with the promise on the render after (`useHydrated`). That rule is why
+ * this console stopped throwing React #418: a rail that rendered `/me` on the hydration pass disagreed with the
+ * server's HTML whenever `/me` had already answered, on a different route each run. Found by curling the served HTML
+ * of a production build; `next dev` cannot show it, since it renders on demand and has no prerender to disagree with.
  *
  * `viewAs` is left out of what `access` settles with, which the release's `Rail` reads as "nobody to view as" and draws
  * no group for. `ChromeAccess` in 0.14.1 declares it required, so the value is narrowed to the type at the one place
@@ -142,12 +142,15 @@ function settled(value: ChromeAccess): Promise<ChromeAccess | null> {
 
 /** Who is signed in and what the view in force shows, as the promise Meridian's chrome takes; `null` before hydration. */
 function useChromeAccess(): { access: Promise<ChromeAccess | null> | null; me: Me | undefined } {
+  // `useConsole` answers nothing while this component hydrates, and `useHydrated` is how the chrome is kept off that
+  // render altogether: the server cannot be handed a promise that never settles.
   const me = useConsole<Me>('/me');
   const { mode } = useConsoleMode();
-  const [hydrated, setHydrated] = useState(false);
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { setHydrated(true); }, []);
-  const data = hydrated ? me.data : undefined;
+  const hydrated = useHydrated();
+  // The page first, the chrome after. `/me` usually answers in the same moment a page's own read does, and drawing the
+  // rail and the palette for it is the heavier render of the two; deferred, React commits what the page has to show
+  // and comes back for the chrome when the main thread is free.
+  const data = useDeferredValue(me.data);
   const name = data ? data.name || data.email : null;
   const superadmin = data?.superadmin ?? false;
   const access = useMemo(() => {
@@ -202,7 +205,9 @@ function ResolvedTools() {
   const me = useConsole<Me>('/me');
   // The data's clock, for the alert times under the bell: never `new Date()` at render.
   const clock = useDataClock();
-  return <ShellTools alerts={useWaitingAlerts(!!me.data?.mayRead)} now={clock} />;
+  // Deferred for the same reason as the rail: the bell's list waits for the page.
+  const mayRead = useDeferredValue(!!me.data?.mayRead);
+  return <ShellTools alerts={useWaitingAlerts(mayRead)} now={clock} />;
 }
 
 /** The palette: the release's, over the same destinations the rail shows. */

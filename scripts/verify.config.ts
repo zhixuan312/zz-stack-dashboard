@@ -113,7 +113,9 @@ const config: VerifyConfig = {
   // check that the refused record's banner is what its detail route draws.
   // `selection-check` is the one Meridian's presses suite cannot make: it asks whether a press changed SOMETHING,
   // which the address alone satisfies, and this asks whether the control shows the thing that was pressed.
-  browserChecks: ['scripts/approve-banners.ts', 'scripts/live-check.ts', 'scripts/selection-check.ts'],
+  // `hydration-check` makes a race occur that the audit can only catch when it happens to: it slows the main thread
+  // until every read a page shares with the shell has answered before the page hydrates, and fails on React's error.
+  browserChecks: ['scripts/approve-banners.ts', 'scripts/live-check.ts', 'scripts/selection-check.ts', 'scripts/hydration-check.ts'],
 };
 
 export default config;

@@ -193,6 +193,25 @@ export function ConsoleModeProvider({ children }: { children: ReactNode }) {
   return createElement(ConsoleModeContext.Provider, { value }, children);
 }
 
+/**
+ * False on the server and on the render that hydrates a component, true on every render after it.
+ *
+ * What it is for: React hydrates a page in pieces, a `<Suspense>` boundary at a time, and the shell's pieces come
+ * first. They read `/me`, so by the time a later piece hydrates the answer can already be in the cache, and a component
+ * that draws it on that first render draws something the server's HTML does not hold: React #418. `/settings` did
+ * exactly that, since every section there branches on who is signed in — 4 loads in 6 with the CPU slowed 20 times,
+ * none without, and once in a run on the CI runner. A component that renders the server's answer while it hydrates and
+ * its own straight after never disagrees, whatever arrived in between.
+ *
+ * `useSyncExternalStore` is the hook React gives for this: the server snapshot is used for the hydrating render and
+ * the client's replaces it at once, in the same commit pass, with no effect and no extra paint. A component mounted by
+ * a later navigation is not hydrating, so it reads `true` from its first render and waits for nothing.
+ */
+const neverChanges = () => () => {};
+export function useHydrated(): boolean {
+  return useSyncExternalStore(neverChanges, () => true, () => false);
+}
+
 const DEFAULT_MODE_STATE: ConsoleModeState = { mode: 'platform', setMode: () => {} };
 
 /**
@@ -202,7 +221,10 @@ const DEFAULT_MODE_STATE: ConsoleModeState = { mode: 'platform', setMode: () => 
  * inertly, in a test or story that mounts it on its own.
  */
 export function useConsoleMode(): ConsoleModeState {
-  return useContext(ConsoleModeContext) ?? DEFAULT_MODE_STATE;
+  const state = useContext(ConsoleModeContext) ?? DEFAULT_MODE_STATE;
+  // The server renders every page in the platform view, since it knows neither who is signed in nor what they chose.
+  // A component hydrating after `/me` has answered would otherwise draw "Your team" over the server's "The platform".
+  return useHydrated() || state.mode === 'platform' ? state : { mode: 'platform', setMode: state.setMode };
 }
 
 /**
@@ -300,7 +322,10 @@ export function useDataClock(): Date {
  * avoid refetching `/me` when its own default computation changes the mode.
  */
 export function useConsole<T>(path: string | null): UseQueryResult<T, ApiError> {
-  const { mode } = useConsoleMode();
+  // The choice itself, not what `useConsoleMode` shows while hydrating: this decides the URL of a read, and a read sent
+  // under the wrong scope would fill the cache with the other scope's rows.
+  const { mode } = useContext(ConsoleModeContext) ?? DEFAULT_MODE_STATE;
+  const hydrated = useHydrated();
   const scoped = path !== null && path !== '/me';
   const url = scoped ? withScope(path as string, mode) : path;
   const query = useQuery<T, ApiError>({
@@ -324,5 +349,19 @@ export function useConsole<T>(path: string | null): UseQueryResult<T, ApiError> 
   if (url !== null && !query.dataUpdatedAt && !query.isFetching) {
     preload(`${BASE}${url}`, { as: 'fetch', crossOrigin: 'anonymous' });
   }
-  return query;
+  // While this component hydrates it is told what the server was told: nothing has arrived (`useHydrated`). The read
+  // itself is untouched, so whatever is in the cache is on screen one render later, with no second request.
+  return hydrated || path === null ? query : asOnTheServer(query);
+}
+
+/** A read as the server rendered it: asked for, and not yet answered. */
+function asOnTheServer<T>(query: UseQueryResult<T, ApiError>): UseQueryResult<T, ApiError> {
+  return {
+    ...query,
+    data: undefined, error: null, dataUpdatedAt: 0, errorUpdatedAt: 0,
+    status: 'pending', fetchStatus: 'fetching',
+    isPending: true, isLoading: true, isFetching: true, isInitialLoading: true,
+    isSuccess: false, isError: false, isLoadingError: false, isRefetchError: false,
+    isFetched: false, isFetchedAfterMount: false, isRefetching: false, isPlaceholderData: false, isStale: true,
+  } as UseQueryResult<T, ApiError>;
 }
