@@ -17,4 +17,19 @@ services:
     image: ghcr.io/zhixuan312/zz-stack-dashboard:${ZZ_DASHBOARD_VERSION:-0.26.1}
     restart: unless-stopped
     ports: ["127.0.0.1:3100:3000"]
-    # No environment: the app resolves its API against the page's own origin.
+    # For its pages the app needs no environment: it resolves its API against the page's own origin.
+    #
+    # The assistant is the one thing configured here, and it is off unless the host sets it: the four ASSISTANT_*
+    # variables, and ZZ_GATEWAY, the address this app's server reaches the gateway at to ask who is calling. Each
+    # passes through from the host's own .env beside this file and defaults to empty, which the app reads as unset, so
+    # a host with none of them runs the renderer and nothing else. No value is written in this file, and the key is
+    # never in the image.
+    #
+    # ZZ_GATEWAY on this host is the gateway's public address (the api. host in zz-stack's Caddyfile): the gateway is
+    # published on the host's loopback, which a container on its own bridge network cannot reach.
+    environment:
+      - ASSISTANT_PROVIDER=${ASSISTANT_PROVIDER:-}
+      - ASSISTANT_API_KEY=${ASSISTANT_API_KEY:-}
+      - ASSISTANT_MODEL=${ASSISTANT_MODEL:-}
+      - ASSISTANT_BASE_URL=${ASSISTANT_BASE_URL:-}
+      - ZZ_GATEWAY=${ZZ_GATEWAY:-}
