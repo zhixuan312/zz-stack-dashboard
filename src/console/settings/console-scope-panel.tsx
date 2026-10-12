@@ -16,7 +16,7 @@ import { type Me } from '@/lib/api-shapes';
  * no way back short of clearing localStorage.
  *
  * Rendering is not enforcement: the gateway scopes every read whatever parameter the browser
- * sends; this decides only which parameter goes out, and which rail `navGroups` draws. The
+ * sends; this decides only which parameter goes out, and which destinations `shownIn` gives the rail. The
  * rail's workspace menu offers the same choice.
  *
  * THE SECTION IS DRAWN FOR EVERYONE; ONLY THE SWITCH IS EARNED. An earlier version returned

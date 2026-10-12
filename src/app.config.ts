@@ -45,22 +45,24 @@ type NavItem = {
 };
 export type NavGroup = {
   label?: string;
-  /** The same group's eyebrow in team mode, when "Platform" would be a lie. */
-  teamLabel?: string;
   items: NavItem[];
 };
 
 /**
  * The whole primary navigation, in one place: every destination, in the order the rail shows them.
  *
- * Three groups, split by whose the thing is rather than by how many pages there are: the work — the teams and the
- * initiatives they run; what the work is read against — the knowledge it produced, the people who did it, and the
- * machinery it ran on; and Settings, which belongs to the person.
+ * Three groups, split by who reads the thing. The first is the work and what it is read against: the teams, the
+ * initiatives they run, the knowledge that came out of them and the people who did them. A member's rail is this group
+ * and Settings. The second is the platform's own machinery, the plugins, the runs and the audit feed, which a
+ * superadmin reads across the fleet: every destination in it needs `platform:read`, so the group is there or not as a
+ * whole, and its name is true whenever it is shown. The third is Settings, which belongs to the person.
  *
- * A tool reads this to know which routes exist — `scripts/lib/routes.ts` walks it for verify's navigation smoke and
- * `--full`'s mapping. `src/nav.ts` reads it too and narrows it to what the signed-in person and the scope in view may
- * see: Plugins, Runs, Teams and the platform activity feed are fleet surfaces, and two of them are served by `teamless`
- * gateway routes that hand the whole platform's rows to anybody who asks.
+ * DELIBERATE: a group's name never depends on who is reading. Meridian's chrome narrows a group's items by what the
+ * person may see and keeps its label, so a group that mixed a member's pages with the fleet's read "Platform" over one
+ * team's shelf. Grouping by reader is what makes the release's chrome say the right thing with nothing of our own.
+ *
+ * A tool reads this to know which routes exist: `scripts/lib/routes.ts` walks it for verify's navigation smoke and
+ * `--full`'s mapping. `src/nav.ts` says which of these the view in force shows.
  */
 export const nav: NavGroup[] = [
   {
@@ -71,25 +73,22 @@ export const nav: NavGroup[] = [
       // their initiatives, their documents — is the Overview.
       { href: '/teams', label: 'Teams', icon: Users, needs: 'platform:read' },
       { href: '/initiatives', label: 'Initiatives', icon: ListTree, needs: 'public' },
+      { href: '/knowledge', label: 'Knowledge', icon: BookOpen, needs: 'public' },
+      { href: '/people', label: 'People', icon: UserSquare, needs: 'public' },
     ],
   },
   {
     label: 'Platform',
-    // In team mode this group is down to Knowledge and People, both of which arrive scoped to the
-    // caller's own team, so calling it "Platform" would name the wrong owner.
-    teamLabel: 'Your team',
     items: [
       // Plugins, one page. A plugin is a package's skills plus the MCP servers those skills call,
       // shipped together under one declared version — `claude plugin install sdlc@zz-stack`
       // fetches both halves at once — and an evaluation asks its questions of the whole.
       //
-      // Still platform machinery: a plugin is read here to evaluate or change it, which is not a
-      // member's job.
+      // Platform machinery: a plugin is read here to evaluate or change it, which is not a
+      // member's job. Runs and Activity are served by routes that answer with the whole fleet.
       { href: '/plugins', label: 'Plugins', icon: Package, needs: 'platform:read' },
-      { href: '/knowledge', label: 'Knowledge', icon: BookOpen, needs: 'public' },
       { href: '/runs', label: 'Runs', icon: Timer, needs: 'platform:read' },
       { href: '/activity', label: 'Activity', icon: Activity, needs: 'platform:read' },
-      { href: '/people', label: 'People', icon: UserSquare, needs: 'public' },
     ],
   },
   {

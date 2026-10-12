@@ -9,14 +9,17 @@ import { preload } from 'react-dom';
 import type { Me } from './api-shapes';
 
 /**
- * Every read the console does.
+ * Every read a page does.
  *
  * From the browser, never from this app's server. The session cookie belongs to the person at
  * the browser; a Next server component would have to take it out of the incoming request and
  * replay it upstream, which is the "a proxy forwards the caller's credentials" shape the
- * platform forbids and has a check for. Fetching from the client means this app never holds
+ * platform forbids and has a check for. Fetching from the client means no page of this app holds
  * anybody's credential: the browser has a cookie, it sends it to the origin that issued it,
- * and this app is a renderer.
+ * and for its pages this app is a renderer.
+ *
+ * The one read this app's server does make is the assistant's, in `src/data/gateway.ts`, and that
+ * module says what it sends and why; nothing here goes through it.
  *
  * Which is why the path is relative. `/api/console/...` resolves against whatever host the page
  * was served from, and Caddy routes that path on the console host to the gateway — no base URL,
@@ -310,7 +313,7 @@ export function useConsole<T>(path: string | null): UseQueryResult<T, ApiError> 
   /* A resource hint, written into the page's HTML when it renders on the server: the browser
    * starts the read while it is still parsing, instead of after the script has downloaded and
    * hydrated, and the fetch above picks the response up. Still the browser's own request with its
-   * own cookie; this app never holds it.
+   * own cookie; the page's server never holds it.
    *
    * DELIBERATE: only while this read has neither an answer nor a request in flight. The mode
    * starts at `platform` and settles on `team` for everybody who is not a superadmin, so the

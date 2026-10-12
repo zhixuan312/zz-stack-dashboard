@@ -6,7 +6,7 @@ import type { NextConfig } from 'next';
  *
  * DELIBERATE: the console calls `/api/console/...` as a relative path. In production Caddy
  * routes that path on the console's own host to the gateway, so the page and its API are one
- * origin and this app never holds anybody's credential. See `src/lib/api.ts`. A laptop has no
+ * origin and no page of this app holds anybody's credential. See `src/lib/api.ts`. A laptop has no
  * Caddy, so this rewrite does that routing locally. The browser still holds the session cookie
  * and sends it to the origin it is looking at; nothing is minted, stored or read here.
  */

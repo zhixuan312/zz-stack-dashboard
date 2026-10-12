@@ -1,15 +1,16 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
-import { CommandPalette } from '@/components/patterns/command-palette';
-import { Rail, type Scope } from '@/components/patterns/rail';
+import { Suspense, useEffect, useMemo, useState } from 'react';
+import type { Scope } from '@/components/patterns/rail';
 import { ShellTools, type Alert } from '@/components/patterns/shell-tools';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useConsole, useConsoleMode, useDataClock } from '@/lib/api';
 import type { Me } from '@/lib/api-shapes';
-import { navGroups } from '@/nav';
+import type { ChromeAccess } from '@/lib/collection';
+import { shownIn } from '@/nav';
+import { ConsolePalette as ReleasePalette, ConsoleRail as ReleaseRail } from '@/views/console-chrome';
 import { useLive } from '@/lib/live';
-import { useWaitingGates } from '@/console/initiative';
+import { useWaitingGates } from '@/console/waiting-gates';
 
 /** Sign out is a POST, so a link prefetch can never end a session: build the form and submit it. */
 function signOut() {
@@ -49,6 +50,10 @@ function useWaitingAlerts(enabled: boolean): Alert[] {
  *
  * Deliberately a skeleton and not the rail's own frame — a fallback that drew the real rail would put a second copy of
  * it in every page's HTML, which is what the `htmlKb` budget in `pnpm verify` refuses.
+ *
+ * INTERIM: this is the release's own pending rail, written out a second time. `src/views/console-chrome.tsx` draws the
+ * same frame and keeps it private, and this console needs it in two places the release's chrome is not rendered: the
+ * shell's fallback below, and the render before hydration. It goes when the release exports its own (zz-meridian#24).
  */
 export function RailPending() {
   return (
@@ -97,73 +102,89 @@ export function ShellPending() {
 }
 
 /**
- * The console's chrome: the rail, the tools beside it and the command palette. Three client components, because each
- * reads who is signed in from `/me` in the browser, and each keeps its own `<Suspense>` boundary.
+ * The console's chrome is Meridian's: the rail and the command palette are the release's own `ConsoleRail` and
+ * `ConsolePalette` (`src/views/console-chrome.tsx`), which draw the destinations, the person, the pending frame and the
+ * boundary around each. This file tells them who is signed in, and nothing about how a rail is drawn.
  *
- * INTERIM, and it says what it is waiting for. Meridian ships this chrome as `src/views/console-chrome.tsx`, and this
- * file is the console's own copy of the same shape. It is not the release's for two reasons, both reported: in 0.14.1
- * `ChromeAccess.viewAs` is required and the rail draws a "View as" group whenever it is given, which a console with
- * one session per person has nothing to put in (zz-meridian#23); and the release's chrome learns who is signed in only
- * from a promise the server resolves, where this console learns it in the browser (zz-meridian#24). When the release
- * takes either a resolved value or an optional `viewAs`, this file goes and the layout renders `console-chrome.tsx`.
+ * **What it has to bridge.** The release's chrome takes who is signed in as `access`, a promise it resolves inside its
+ * own `<Suspense>`. Meridian's own layout builds that promise on the server; this console learns who is signed in from
+ * `/me` in the browser, because the session is a cookie the browser sends to the gateway. So the promise is made here,
+ * in the browser: pending until `/me` answers, then settled with the destinations the view in force shows (`shownIn`)
+ * and the person. The chrome cannot tell the difference, which is the point.
  *
- * The boundary is not tidiness. The rail, the tools and the palette read `usePathname` and `useRouter`, and Cache
- * Components refuses a dynamic client hook outside a boundary: the build fails the route outright rather than
- * prerendering it. This is the release's own shape (`src/views/console-chrome.tsx`) — the boundary is what the static
- * shell streams first, and the person's own rail follows in the same response, so no destination is ever drawn and
- * then taken away. Until `/me` answers the rail keeps its frame, the placeholder person and no destination.
+ * **Nothing the server cannot have reaches the markup on the hydration render.** The server has no `/me`, and a promise
+ * that never settles would hold its response open, so the server and the first client render draw `RailPending` and no
+ * palette. One frame after hydration the release's chrome takes over with the promise. That rule is why this console
+ * stopped throwing React #418: a rail that rendered `/me` on the hydration pass disagreed with the server's HTML
+ * whenever `/me` had already answered, on a different route each run. Found by curling the served HTML of a production
+ * build; `next dev` cannot show it, since it renders on demand and has no prerender to disagree with.
+ *
+ * `viewAs` is left out of what `access` settles with, which the release's `Rail` reads as "nobody to view as" and draws
+ * no group for. `ChromeAccess` in 0.14.1 declares it required, so the value is narrowed to the type at the one place
+ * below; Meridian's own head has made it optional, and zz-meridian#23 asks for that in a release.
  *
  * They are rendered from `app/(dash)/layout.tsx`, a Server Component, and not from a client frame: that is what keeps
  * `AppShell` itself out of the client render, so the shell's own `usePathname` is never a hook reached through a client
  * boundary. The release's layout is built the same way.
  */
-export function ConsoleRail() {
-  return (
-    <Suspense fallback={<RailPending />}>
-      <ResolvedRail />
-    </Suspense>
-  );
+
+/** Until `/me` answers: the release's chrome waits on this in its own boundary and draws its pending frame. */
+const PENDING: Promise<ChromeAccess | null> = new Promise(() => {});
+
+/**
+ * A promise already settled with `value`, marked the way React reads one (`status`, `value`), so the chrome that
+ * receives it renders at once: an untracked promise suspends for a tick even when it has resolved, and switching the
+ * view would flash the pending frame.
+ */
+function settled(value: ChromeAccess): Promise<ChromeAccess | null> {
+  return Object.assign(Promise.resolve<ChromeAccess | null>(value), { status: 'fulfilled' as const, value });
 }
 
-function ResolvedRail() {
-  useLive(['me']);
+/** Who is signed in and what the view in force shows, as the promise Meridian's chrome takes; `null` before hydration. */
+function useChromeAccess(): { access: Promise<ChromeAccess | null> | null; me: Me | undefined } {
   const me = useConsole<Me>('/me');
-  const { mode, setMode } = useConsoleMode();
-  // NOTHING THE SERVER CANNOT HAVE MAY REACH THE MARKUP ON THE HYDRATION RENDER.
-  //
-  // The server has no `/me`, so this component renders there with `me.data` undefined. The client hydrates the *same*
-  // component, and if `/me` has already answered by then it renders with the answer — and the rail's own label turns on
-  // it: `switcher` is `scopes.length > 1`, so the server drew `aria-label="…: account menu"` and a superadmin's client
-  // draws `"…: workspace menu"`. **That is React #418**, and it is the mismatch this project has chased for five hours
-  // across four routes, four suites and every width: it looked like a race only because the boundary resolves at
-  // different moments, while the *content* of the mismatch was fixed and the server could be caught holding it.
-  //
-  // Found by curling the served HTML of a production build — `grep -o 'aria-label="[^"]*"'` — after five hours of
-  // driving browsers at it. `next dev` cannot show it: dev server-renders on demand, so there is no
-  // prerender-versus-hydrate gap to find.
-  //
-  // The fix is that the first client render agrees with the server's: no `/me` until the client is past hydration.
-  // One frame later the rail is whole. `mode` is read from a context whose server default is the same as its client
-  // default, so it is not gated here — and if the reproducer says otherwise, this is not the whole fix.
+  const { mode } = useConsoleMode();
   const [hydrated, setHydrated] = useState(false);
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setHydrated(true); }, []);
   const data = hydrated ? me.data : undefined;
-  const team = data?.activeTeam;
-  const scopes: Scope[] = data?.superadmin
+  const name = data ? data.name || data.email : null;
+  const superadmin = data?.superadmin ?? false;
+  const access = useMemo(() => {
+    if (name === null) return PENDING;
+    // The one place the value is narrowed: see the note on `viewAs` above.
+    return settled({ only: shownIn(mode), user: { name, role: superadmin ? 'Superadmin' : 'Member' } } as ChromeAccess);
+  }, [name, superadmin, mode]);
+  return { access: hydrated ? access : null, me: data };
+}
+
+/** The rail: the release's, told who is signed in, with the console's own scope switch and sign-out. */
+export function ConsoleRail() {
+  return (
+    <Suspense fallback={<RailPending />}>
+      <SignedInRail />
+    </Suspense>
+  );
+}
+
+function SignedInRail() {
+  useLive(['me']);
+  const { access, me } = useChromeAccess();
+  const { mode, setMode } = useConsoleMode();
+  if (!access) return <RailPending />;
+  const team = me?.activeTeam;
+  const scopes: Scope[] = me?.superadmin
     ? [
       { id: 'platform', label: 'The whole platform', active: mode === 'platform', onSelect: () => setMode('platform') },
       { id: 'team', label: team ? `Your team · ${team}` : 'Your team', active: mode === 'team', onSelect: () => setMode('team') },
     ]
     : [];
-  const user = data ? { name: data.name || data.email, role: data.superadmin ? 'Superadmin' : 'Member' } : null;
   return (
-    <Rail
-      nav={navGroups(mode)}
+    <ReleaseRail
+      access={access}
       workspace={mode === 'platform' ? 'The platform' : team ?? 'Your team'}
       scopes={scopes}
-      user={user}
-      signOut={data?.mayRead ? signOut : null}
+      signOut={me?.mayRead ? signOut : null}
     />
   );
 }
@@ -184,16 +205,16 @@ function ResolvedTools() {
   return <ShellTools alerts={useWaitingAlerts(!!me.data?.mayRead)} now={clock} />;
 }
 
-/** The palette reads the router to close itself on navigation, so it is behind a boundary too. */
+/** The palette: the release's, over the same destinations the rail shows. */
 export function ConsolePalette() {
   return (
     <Suspense fallback={null}>
-      <ResolvedPalette />
+      <SignedInPalette />
     </Suspense>
   );
 }
 
-function ResolvedPalette() {
-  const { mode } = useConsoleMode();
-  return <CommandPalette nav={navGroups(mode)} />;
+function SignedInPalette() {
+  const { access } = useChromeAccess();
+  return access ? <ReleasePalette access={access} /> : null;
 }

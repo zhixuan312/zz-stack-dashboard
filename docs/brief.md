@@ -108,11 +108,20 @@ a time or `sources/2026-10-06-call.md` arrives as a single segment named after i
   and always asks for the platform scope, which the gateway grants only to a superadmin. Pages still read from the
   browser. This is the "server replays the caller's cookie" shape the console avoided while it was only a renderer;
   it was taken on deliberately for the assistant on 2026-10-12, bounded to that module, and it stores nothing.
-- **One thing is still the console's own where Meridian has an answer, waiting on a named report.** The shell chrome
-  (`src/console/frame.tsx`) instead of the release's `console-chrome.tsx`: 0.14.1 requires a "View as" group this
-  console has nothing to put in, and resolves who is signed in on the server (zz-meridian#23, #24). It says so in its
-  own header and goes when the release ships the fix. The rule, set on 2026-10-12: use the release; where it lacks
-  something or gets it wrong, read the issue list and file it; write the console's own only as the interim.
+- **The chrome is the release's, told who is signed in from the browser.** The rail and the command palette are
+  Meridian's `ConsoleRail` and `ConsolePalette` (`src/views/console-chrome.tsx`), unchanged. They take who is signed
+  in as a promise; Meridian's layout makes that promise on the server, and this console makes it in the browser
+  (`src/console/frame.tsx`), because which view is in force, the platform or the person's team, is a choice the
+  browser holds, and `/me` is read there like every page's data. Two things in that file wait on the release:
+  `viewAs` is left out through a narrowing because 0.14.1 declares it required (zz-meridian#23), and the pending
+  rail is drawn twice because the release does not export its own (zz-meridian#24).
+- **The rail is grouped by who reads a page, so a group's name is true for everybody.** The work, its knowledge and its
+  people first; then "Platform", the plugins, runs and audit feed only a superadmin reads; then Settings. Meridian's
+  chrome narrows a group's items and keeps its label, so a group that mixed a member's pages with the fleet's would
+  read "Platform" over one team's shelf. Set on 2026-10-12, replacing a group that renamed itself per view.
+- **The rule for anything Meridian has an answer to**, set on 2026-10-12: use the release; where it lacks something or
+  gets it wrong, read the issue list and file it; write the console's own only as the interim, and say so where it is
+  written.
 - **A collection's conditions, sort and page are the release's.** `src/data/gateway-collection.ts` reads the gateway
   and hands the rows to `arrayCollection`, one store per query, dropped when it has answered, so there is no second
   copy of the query rules here. A row query exported on its own would make that plainer; zz-meridian#24 asks for it.
