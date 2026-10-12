@@ -13,7 +13,7 @@ The brand kit is in `design/reference/` (read it, never build from it) and the m
 |---|---|---|
 | The flat **Z** with its sparkle | the browser tab, 16 to 32 px | `app/icon.png` |
 | The **mascot squircle** | the home screen, 180 px and up | `app/apple-icon.png` |
-| The **Zz wordmark** with its sparkle | inside the product, beside the name | `public/assets/brand/wordmark.png`, drawn by `AppMark` |
+| The **Zz wordmark** with its sparkle | inside the product, beside the name | `public/assets/brand/wordmark.svg`, drawn by `AppMark` |
 
 Each is cut from its own master by `scripts/build-brand-assets.py`. None is a scaled copy of another, and none is
 redrawn in code: a hand-drawn approximation is a different logo.

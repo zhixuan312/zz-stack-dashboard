@@ -94,15 +94,35 @@ as_logo('wordmark')
 # --- the login hero --------------------------------------------------------
 emit('mascot-waving.png', 'mascot-hero', 320)
 
+def emit_pose(master, stem, rendered):
+    """Write one pose of the mascot as WebP, at the rendered size and at twice it.
+
+    The poses are drawn by a plain `<img srcset>` (`src/console/brand.tsx`), not by `next/image`: every console page
+    carries the brand layer, and the image component cost each of them 12 kB of script to resize six small files that
+    this script can size once. So both densities are written here, and the browser picks.
+
+    Lossy at quality 90: the artwork is soft-shaded and a pose is 5 kB at 1x where the lossless file is three times
+    that. `--digest` does not cover these, because a lossy encoder's output is a property of its version.
+    """
+    path = SRC / master
+    if not path.exists():
+        raise SystemExit(f'missing master: {path}')
+    art = trim(Image.open(path).convert('RGBA'))
+    for scale, suffix in ((1, ''), (2, '-2x')):
+        fit(art, rendered * scale).save(OUT / f'{stem}{suffix}.webp', quality=90, method=6)
+    w, h = fit(art, rendered).size
+    print(f'  {stem:<16} {w}x{h} rendered, 1x and 2x on disk  <- {master}')
+
+
 # --- the four state illustrations -----------------------------------------
-emit('mascot-bust.png', 'state-empty', 96)
-emit('mascot-waving.png', 'state-welcome', 96)
-emit('mascot-error.png', 'state-error', 96)
-emit('mascot-notfound.png', 'state-notfound', 96)
+emit_pose('mascot-bust.png', 'state-empty', 96)
+emit_pose('mascot-waving.png', 'state-welcome', 96)
+emit_pose('mascot-error.png', 'state-error', 96)
+emit_pose('mascot-notfound.png', 'state-notfound', 96)
 
 # --- the two bespoke surfaces ---------------------------------------------
-emit('mascot-approved.png', 'state-approved', 40)
-emit('mascot-goodbye.png', 'state-goodbye', 128)
+emit_pose('mascot-approved.png', 'state-approved', 40)
+emit_pose('mascot-goodbye.png', 'state-goodbye', 128)
 
 # --- the two icons, from the two masters drawn for their size bands --------
 #
