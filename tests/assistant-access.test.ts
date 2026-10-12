@@ -205,6 +205,26 @@ describe('a collection read from the gateway', () => {
     expect(rows.length).toBe(KNOWLEDGE.filter((n) => n.tags?.some((t) => t.toLowerCase().includes(tag.toLowerCase()))).length);
   });
 
+  it('two questions asked at once each get their own rows', async () => {
+    gateway(ME);
+    const scope = await resolveAccess();
+    // The rows pass through the release's own store, one per query, dropped when it has answered: asked together,
+    // neither list may answer with the other's rows, and a second ask reads the gateway again rather than a kept copy.
+    const [teams, people, again] = await Promise.all([
+      collectionFor(scope, 'teams').query({}),
+      collectionFor(scope, 'people').query({ sort: { field: 'name', dir: 'asc' } }),
+      collectionFor(scope, 'teams').query({ limit: 1 }),
+    ]);
+    expect(teams.rows.map((t) => t.slug).sort()).toEqual(TEAMS.map((t) => t.slug).sort());
+    expect(people.total).toBe(PEOPLE.length);
+    expect(people.rows.every((p) => 'email' in p)).toBe(true);
+    expect(again.total).toBe(TEAMS.length);
+    expect(again.rows).toHaveLength(1);
+    const reads = calls.filter((c) => c.url.includes('/teams')).length;
+    await collectionFor(scope, 'teams').query({});
+    expect(calls.filter((c) => c.url.includes('/teams')).length).toBe(reads + 1);
+  });
+
   it('re-asks who is calling at the moment a handed query runs', async () => {
     let who: Me | null = ME;
     gateway(() => who);

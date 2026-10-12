@@ -1,64 +1,31 @@
 /**
- * A collection whose rows are one gateway read: the `Collection` contract (`src/lib/collection.ts`) written for a real
- * store, as Meridian's assistant guide asks of a product whose data is not an in-memory array.
+ * A collection whose rows are one gateway read: the `Collection` contract (`src/lib/collection.ts`) for a real store,
+ * as Meridian's assistant guide asks of a product whose data is not an in-memory array.
  *
  * Read-only for an agent. A collection built here is given a `query_<name>` tool and no tool that changes anything:
  * every change in this console is made on a page, by the person. An operation a page performs is declared with
  * `onPage`, which is Meridian's `pageOnly`: no tool is built for it, so it is never run from here, and the assistant
  * can say where the thing is done rather than that nobody can do it.
  *
- * The gateway answers a list whole and already scoped to the caller, so `query` reads it and then applies the
- * conditions, the sort and the page here, with the same meaning `arrayCollection` gives them: a field with no value
- * matches only `ne`, `gt` and `lt` compare like with like, `contains` ignores case, and rows with no value sort last.
+ * **The conditions, the sort and the page are Meridian's own, not a copy of them.** The gateway answers a list whole
+ * and already scoped to the caller, so `query` reads it and hands the rows to the release's `arrayCollection`, which
+ * is where a field with no value matching only `ne`, `gt` and `lt` comparing like with like, `contains` ignoring case
+ * and rows with no value sorting last are decided. One implementation, the release's.
  *
- * INTERIM: `compare`, `matches` and `applyQuery` below repeat what `src/lib/collection.ts` does inside
- * `arrayCollection`, because 0.14.1 exports none of it and Meridian's guide tells a product with a real store to
- * write the collection itself. Reported as zz-meridian#24; when the release exports a row query, this file calls it
- * and the three functions go. `onPage` is the same: a throwing operation marked `pageOnly`, until a collection can
- * declare where a change is made without implementing it.
+ * `arrayCollection` keeps its rows in a store per tenant and name for as long as the process lives, which is right for
+ * a sample and wrong for rows that are the gateway's answer to one person at one moment. So each query gets a tenant
+ * of its own and the store is dropped the moment it has answered. Build, query and drop happen in one synchronous
+ * stretch (the release's `query` has no `await` in it), so two questions asked at once never see each other's rows.
+ * `resetCollections` is how the release drops a store; a narrower one, or a row query exported on its own, is asked
+ * for in zz-meridian#24, and this file shrinks to the read when it lands.
  */
 import type { z } from 'zod';
-import type { Collection, Query } from '@/lib/collection';
+import { arrayCollection, resetCollections, type Collection } from '@/lib/collection';
 
 type Row = Record<string, unknown>;
-type Condition = NonNullable<Query['where']>[number];
 
-/** Code-point order for strings, numeric order for numbers. */
-function compare(a: unknown, b: unknown): number {
-  if (typeof a === 'number' && typeof b === 'number') return a - b;
-  const x = String(a), y = String(b);
-  return x < y ? -1 : x > y ? 1 : 0;
-}
-
-function matches(row: Row, { field, op, value }: Condition): boolean {
-  const v = row[field];
-  if (v === null || v === undefined) return op === 'ne';
-  switch (op) {
-    case 'eq': return v === value;
-    case 'ne': return v !== value;
-    case 'gt': return typeof v === typeof value && compare(v, value) > 0;
-    case 'lt': return typeof v === typeof value && compare(v, value) < 0;
-    case 'contains': return String(v).toLowerCase().includes(String(value).toLowerCase());
-    case 'in': return Array.isArray(value) && value.includes(v as string | number | boolean | null);
-  }
-}
-
-/** `rows` narrowed, ordered and paged as `q` asks; `total` counts what matched before the page was cut. */
-function applyQuery<T extends Row>(rows: T[], key: string, { where = [], sort, limit, offset = 0 }: Query): { rows: T[]; total: number } {
-  const hits = rows.filter((r) => where.every((w) => matches(r, w)));
-  if (sort) {
-    const s = sort.dir === 'desc' ? -1 : 1;
-    hits.sort((a, b) => {
-      const x = a[sort.field], y = b[sort.field];
-      if (x != null && y != null) {
-        const d = s * compare(x, y);
-        if (d) return d;
-      } else if (x != null || y != null) return x == null ? 1 : -1;
-      return compare(a[key], b[key]);
-    });
-  }
-  return { rows: limit === undefined ? hits.slice(offset) : hits.slice(offset, offset + limit), total: hits.length };
-}
+/** A tenant per query: no two queries share a store, whoever asked and whenever. */
+let asked = 0;
 
 export function gatewayCollection<T extends Row, K extends keyof T & string>(def: {
   name: string;
@@ -75,7 +42,17 @@ export function gatewayCollection<T extends Row, K extends keyof T & string>(def
   onPage?: { ops: ('create' | 'update' | 'remove')[]; where: string };
 }): Collection<T, K> {
   const { load, onPage, ...rest } = def;
-  const collection: Collection<T, K> = { ...rest, query: async (q) => applyQuery(await load(), def.key, q) };
+  const collection: Collection<T, K> = {
+    ...rest,
+    query: async (q) => {
+      const rows = await load();
+      try {
+        return await arrayCollection<T, K>({ ...rest, rows, allow: [], tenantId: `gateway-read-${asked++}` }).query(q);
+      } finally {
+        resetCollections();
+      }
+    },
+  };
   if (onPage) {
     // Declared, never run: `pageOnly` keeps every one of these out of the assistant's tools.
     const refuse = async (): Promise<never> => { throw new Error(`That is done on ${onPage.where}, by the person.`); };

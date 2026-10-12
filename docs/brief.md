@@ -108,12 +108,14 @@ a time or `sources/2026-10-06-call.md` arrives as a single segment named after i
   and always asks for the platform scope, which the gateway grants only to a superadmin. Pages still read from the
   browser. This is the "server replays the caller's cookie" shape the console avoided while it was only a renderer;
   it was taken on deliberately for the assistant on 2026-10-12, bounded to that module, and it stores nothing.
-- **Two things are still the console's own where Meridian has an answer, each waiting on a named report.** The shell
-  chrome (`src/console/frame.tsx`) instead of the release's `console-chrome.tsx`: 0.14.1 requires a "View as" group
-  this console has nothing to put in, and resolves who is signed in on the server (zz-meridian#23, #24). The row filter
-  in `src/data/gateway-collection.ts`: the release does not export its own (zz-meridian#24). Both say so in their own
-  header and go when the release ships the fix. The rule, set on 2026-10-12: use the release; where it lacks something
-  or gets it wrong, read the issue list and file it; write the console's own only as the interim.
+- **One thing is still the console's own where Meridian has an answer, waiting on a named report.** The shell chrome
+  (`src/console/frame.tsx`) instead of the release's `console-chrome.tsx`: 0.14.1 requires a "View as" group this
+  console has nothing to put in, and resolves who is signed in on the server (zz-meridian#23, #24). It says so in its
+  own header and goes when the release ships the fix. The rule, set on 2026-10-12: use the release; where it lacks
+  something or gets it wrong, read the issue list and file it; write the console's own only as the interim.
+- **A collection's conditions, sort and page are the release's.** `src/data/gateway-collection.ts` reads the gateway
+  and hands the rows to `arrayCollection`, one store per query, dropped when it has answered, so there is no second
+  copy of the query rules here. A row query exported on its own would make that plainer; zz-meridian#24 asks for it.
 - **The assistant reads and does not write, by the release's own switch.** A collection gives an agent a tool only for
   an operation it allows, and this console's allow none: what a page does is declared `pageOnly`. Letting it propose a
   change (revoke a token, add a member, archive a team) is a feature to decide, not a gap in the adoption, and it needs
