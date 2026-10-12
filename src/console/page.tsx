@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Fragment, type ReactNode } from 'react';
+import { Fragment, useEffect, useState, type ReactNode } from 'react';
 import { app } from '@/app.config';
 import { PageFrame, Stack, type PageWidth } from '@/components/base/shell';
 import { Freshness } from '@/components/patterns/freshness';
@@ -48,6 +48,7 @@ export function ConsolePage({
   const { mode } = useConsoleMode();
   // The data's clock, for the freshness stamp: never `new Date()` at render.
   const clock = useDataClock();
+  const arriving = useStillWhileArriving();
   const kicker = crumbs?.length ? (
     <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
       {crumbs.map((c, i) => (
@@ -68,9 +69,39 @@ export function ConsolePage({
       meta={updatedAt !== undefined ? <Freshness updatedAt={updatedAt} now={clock} staleAfterMs={10 * 60_000} /> : undefined}
       actions={actions || showPeriod ? <>{actions}{showPeriod ? <PagePeriod /> : null}</> : undefined}
     >
-      <Stack>{children}</Stack>
+      <Stack data-still={arriving || undefined}>{children}</Stack>
     </PageFrame>
   );
+}
+
+/**
+ * The mark that stops a page's own arrival from being animated, held for as long as one takes.
+ *
+ * Meridian's `Stack` rises its children in reading order, and the shell already marks the main area still whenever the
+ * path changes, because a page reached by a click was already there and the data is what arrived. **A cold load is the
+ * same case and was the one left out**: the shimmer the content replaces is the shell's own server-rendered HTML, and
+ * the reader has been looking at it. So this page marks its own stack, and the cost it removes is the page's largest
+ * paint — measured on `/initiatives/atlas/2026-09-28-search-relevance/plan.md` at 390px under `scripts/vitals.ts`'s
+ * phone profile: the document's text entered the DOM at 2,227 ms and the paint the LCP is taken from landed at
+ * 2,652 ms, 425 ms later. That is `--dur-enter` (320 ms) plus the second step of the stagger (45 ms), because the rise
+ * starts at `opacity: 0` and the text is not presented until it lifts. With the arrival suppressed the same paint is at
+ * 2,236 ms. The bar is 2,500 ms.
+ *
+ * DELIBERATE: the mark lifts after the longest arrival would have ended, on the shell's own arithmetic and read from
+ * the same tokens, so everything that arrives afterwards — a new period, a filter, a hint — still rises exactly as
+ * `Stack` documents. This is the design system's own escape (`[data-still]` in `styles/motion.css`) applied one level
+ * down from where the shell applies it; it belongs in the shell for every product, and is written here until it is.
+ */
+function useStillWhileArriving(): boolean {
+  const [still, setStill] = useState(true);
+  useEffect(() => {
+    const css = getComputedStyle(document.documentElement);
+    // A build may write 820ms as .82s, so read the unit, not only the number.
+    const ms = (name: string) => { const v = css.getPropertyValue(name).trim(); return parseFloat(v) * (v.endsWith('ms') ? 1 : 1000); };
+    const t = setTimeout(() => setStill(false), ms('--dur-grow') + ms('--dur-enter'));
+    return () => clearTimeout(t);
+  }, []);
+  return still;
 }
 
 /** The page's period control, held in the console's period context. */
