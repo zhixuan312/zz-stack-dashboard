@@ -164,16 +164,28 @@ denominator, an empty hand-built table says so, no source file over 700 lines), 
 for every pair in both themes and every accent, then route types, lint, types and tests.
 
 ```sh
-pnpm verify    # the gate, a build against the fake gateway, the browser checks, Web Vitals
+pnpm verify           # the gate, a build against the fake gateway, the route and size checks
+pnpm verify --full    # the whole standard: the audit, the presses, the keyboard path, Web Vitals
 ```
 
-`pnpm verify` is the whole standard and what CI runs. It builds the console against
-`scripts/fake-gateway/` (synthetic records, writes accepted and forgotten) because its presses
-approve, revoke and archive whatever a page offers, then audits every page at five widths in
-both themes, presses every control, walks the whole keyboard path (`scripts/keyboard.ts`), draws
-the Approve banners a page load cannot reach (`scripts/approve-banners.ts`), and measures LCP,
-INP and CLS on a mid-range phone. What it checks beyond the static routes, and
-against what, is in `scripts/verify.config.ts`. The report is `out/verify.txt`.
+**`--full` is the whole standard, and the two depths are not interchangeable.** The default
+stops after the static checks and a three-route navigation smoke — about 40 s. `--full` builds
+the console against `scripts/fake-gateway/` (synthetic records, writes accepted and forgotten)
+because its presses approve, revoke and archive whatever a page offers, then audits every page at
+five widths in both themes, presses every control, walks the whole keyboard path
+(`scripts/keyboard.ts`), draws the Approve banners a page load cannot reach
+(`scripts/approve-banners.ts`), and measures LCP, INP and CLS on a mid-range phone — about 19
+minutes.
+
+**Which depth CI runs is `.github/workflows/gate.yml`, and until now it has been the shallow one.**
+The default exits 0 with `not run: audit, presses, keyboard, vitals` and the sentence "pnpm verify
+--full runs the rest", so a green tick here has not meant a green whole standard — six document
+routes sat above the LCP bar for a day of work before anything said so. The guard is being moved
+to `--full`. Until that lands, read the coverage line at the end of `out/verify.txt`, which names
+every suite that did not run, before believing a pass.
+
+What each suite checks beyond the static routes, and against what, is in
+`scripts/verify.config.ts`. The report is `out/verify.txt`.
 
 ## Deploying
 

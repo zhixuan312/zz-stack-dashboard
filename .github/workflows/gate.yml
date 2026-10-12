@@ -40,10 +40,16 @@ jobs:
 
       - run: pnpm run lint
 
-      # Meridian's whole standard in one command: the gate (tokens, specifications, contrast,
-      # types, tests), a production build against the fake gateway, the browser audit of every
-      # page at five widths in both themes, and every control pressed. The browser checks drive
-      # the runner's own Chrome; nothing reaches the real deployment.
+      # Meridian's SHALLOW depth, which is what this command has always run: the gate (tokens,
+      # specifications, contrast, types, tests), a production build against the fake gateway, the
+      # route policy and the size checks, and a three-route navigation smoke -- about 40 s.
+      #
+      # DELIBERATE, AND TEMPORARY: this comment used to claim the audit of every page at five
+      # widths in both themes and every control pressed, which is what `--full` does and what this
+      # job has never done. Nobody looked, because the comment said it was covered. Six document
+      # routes then sat above the LCP bar unnoticed. `--full` is about 19 minutes and is red until
+      # those six are fixed, so the flag changes with that fix, not before it. The browser checks
+      # drive the runner's own Chrome; nothing reaches the real deployment.
       - run: pnpm run verify
         env:
           CHROME: /usr/bin/google-chrome
