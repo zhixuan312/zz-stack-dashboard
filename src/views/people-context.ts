@@ -7,7 +7,7 @@ import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
 import { addressOf, arrived, budgeted, whose, type Arrival, type ViewMode } from './context';
 
 /** The filters the People list keeps in its address. */
-export type PeopleFilters = { q: string; team: string };
+type PeopleFilters = { q: string; team: string };
 
 /** The rows the list shows for `f`: the page's own filter. */
 export function filterPeople(people: Person[], f: PeopleFilters): Person[] {

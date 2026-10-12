@@ -13,7 +13,7 @@ import { arrived, budgeted, type Arrival } from './context';
 const BODY_LIMIT = 1200;
 
 /** Where a document stands with its gate, in the words the page's own badge uses. */
-export function approvalOf(d: Pick<DocumentDetail, 'status' | 'gated' | 'correction' | 'approved_by' | 'approved_at'>): string {
+function approvalOf(d: Pick<DocumentDetail, 'status' | 'gated' | 'correction' | 'approved_by' | 'approved_at'>): string {
   if (d.status === 'approved') return `approved${d.approved_by ? ` by ${d.approved_by}` : ''}${d.approved_at ? ` on ${formatDate(d.approved_at)}` : ''}`;
   if (d.correction) return `correction v${d.correction} awaiting approval`;
   if (d.gated === false) return 'delivered; its flow asks for no approval';

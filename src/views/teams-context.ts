@@ -7,7 +7,7 @@ import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
 import { addressOf, arrived, budgeted, shareOf, type Arrival } from './context';
 
 /** The filters the Teams list keeps in its address. */
-export type TeamsFilters = { q: string; status: string };
+type TeamsFilters = { q: string; status: string };
 
 /** The rows the list shows for `f`: the page's own filter, so the page and the context cannot disagree. */
 export function filterTeams(teams: Team[], f: TeamsFilters): Team[] {

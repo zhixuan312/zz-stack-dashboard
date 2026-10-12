@@ -11,7 +11,7 @@ import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
 import { addressOf, arrived, budgeted, clip, whose, type Arrival, type ViewMode } from './context';
 
 /** The filters the Initiatives list keeps in its address. */
-export type InitiativesFilters = { q: string; team: string; flow: string; state: string; show: string };
+type InitiativesFilters = { q: string; team: string; flow: string; state: string; show: string };
 
 /** The initiatives last touched inside the period: the window says which the page is about at all. */
 export function inPeriod(all: Initiative[], period: Period, now: Date = new Date()): Initiative[] {

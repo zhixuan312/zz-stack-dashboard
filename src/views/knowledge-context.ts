@@ -11,7 +11,7 @@ import { addressOf, arrived, budgeted, whose, type Arrival, type ViewMode } from
 import { nodeName as name } from './knowledge-name';
 
 /** The filters the shelf keeps in its address. */
-export type KnowledgeFilters = { q: string; team: string; tag: string };
+type KnowledgeFilters = { q: string; team: string; tag: string };
 
 export function knowledgeContext(nodes: KnowledgeNode[], { filters, mode, ...arrival }: { filters: KnowledgeFilters; mode: ViewMode } & Arrival): SharedContext {
   const rows = filterKnowledgeNodes(nodes, { team: filters.team, tags: filters.tag === 'all' ? [] : [filters.tag], search: filters.q });
