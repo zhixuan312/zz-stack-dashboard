@@ -2,8 +2,8 @@
  * The fake gateway's live stream, as `references/live.md` specifies it.
  *
  * What is asserted here is the contract the console consumes and the refusals a caller can drive, not the framing
- * details: the names a tab may follow, one body for an unknown name and a forbidden one, a resync first, a hint that
- * names a collection and nothing else, and frames only to the tabs that follow it.
+ * details: the names a tab may follow, one body for an unknown name and a forbidden one, nothing but `retry` on
+ * connect, a hint that names a collection and nothing else, and frames only to the tabs that follow it.
  */
 import type { ServerResponse } from 'node:http';
 import { describe, expect, it } from 'vitest';
@@ -61,13 +61,15 @@ describe('the names a tab may follow', () => {
 });
 
 describe('a stream', () => {
-  it('resynchronises before anything else, and says it does not replay', () => {
+  it('opens with nothing but `retry`, and says it does not replay', () => {
     const res = stubRes();
     serveLive(res, ['initiatives']);
     const text = res.frames.join('');
     expect(text).toContain('retry: 3000');
-    expect(events(res.frames)).toEqual(['event: resync']);
-    expect(text).toContain('data: {"collections":["initiatives"]}');
+    // NOT a resync. That frame means the tab missed changes, and a subscriber is registered by connecting, so a
+    // connect cannot have missed anything: the tab read every collection it shows while it mounted. The real
+    // gateway raises one for its `LISTEN` being down and for a queue overflow, neither of which this fixture has.
+    expect(events(res.frames)).toEqual([]);
     expect(text).not.toContain('id:');           // an `id:` would claim a replay the stream cannot make
     res.away();
   });
@@ -90,8 +92,8 @@ describe('a stream', () => {
     serveLive(other, ['teams']);
     expect(liveStreams()).toBe(2);
     expect(hint('initiatives')).toBe(1);
-    expect(events(follows.frames)).toEqual(['event: resync', 'event: change']);
-    expect(events(other.frames)).toEqual(['event: resync']);
+    expect(events(follows.frames)).toEqual(['event: change']);
+    expect(events(other.frames)).toEqual([]);
     follows.away();
     other.away();
   });
@@ -100,7 +102,7 @@ describe('a stream', () => {
     const res = stubRes();
     serveLive(res, ['teams']);
     expect(hint('runs')).toBe(0);
-    expect(events(res.frames)).toEqual(['event: resync']);
+    expect(events(res.frames)).toEqual([]);
     res.away();
   });
 
