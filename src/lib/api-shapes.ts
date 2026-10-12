@@ -335,13 +335,6 @@ export interface KnowledgeBody {
    *  enough to identify it. */
   multi_team: boolean;
 }
-/** One line of `POST /api/console/ask`'s answer, built by the gateway from the retrieved
- *  document(s) it actually named — never from the model's own text (see console-ask.ts).
- *  `path` is a raw store path (`<initiative>/<path>`), not a URL — `citationHref` (`@/lib/
- *  citations`) turns it into one — and is `null` when the cited document is real but not
- *  one this team's console can open (the platform's own shared knowledge shelf). */
-interface AskCitation { path: string | null; title: string }
-export interface AskAnswer { answer: string; citations: AskCitation[] }
 export interface Skill {
   name: string; version: string; kind: string; flow: string | null;
   /** Still served, or kept only because it owns these runs. */

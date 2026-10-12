@@ -46,7 +46,6 @@ The mascot is the product's face, so it shows up in the moments a person meets t
 | Nothing here yet (a first-run list) | empty |
 | Nothing matches the filters, or no such page | not found |
 | Something failed | error |
-| Waiting for an answer from Ask | thinking |
 | Signed out | goodbye |
 
 Poses are chosen in one place, `src/console/brand.tsx`, and a state never borrows another's face. **The mascot

@@ -10,7 +10,6 @@
     "/initiatives/[team]/[slug]/[...path]": 829599,
     "/knowledge": 830981,
     "/knowledge/[team]/[...path]": 787808,
-    "/knowledge/ask": 808440,
     "/knowledge/log": 794554,
     "/login": 645467,
     "/people": 826732,

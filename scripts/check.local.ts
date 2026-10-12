@@ -9,6 +9,8 @@
  * - Every webfont face states a `display` and a `fallback` that ends in a generic family, so a failed face leaves a
  *   real font rather than the browser's initial one.
  * - No source file over 700 lines: past that a file holds two things, and the split is agreed before it grows.
+ * - Every page in the console's shell says what it tells the assistant: its spec has "### What the agent reads" under
+ *   "## Agents", and names the context function it shares.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -50,6 +52,19 @@ for (const f of SOURCE.filter((x) => /^(app|src\/console|src\/lib|src\/nav)/.tes
   for (const m of c.matchAll(/\bof \d+\b/g)) problems.push(`${f}: "${m[0]}" is a hardcoded denominator`);
   // A hand-built table (not Meridian's DataTable, which has its empty states) must say when it has nothing.
   if (c.includes('<TableBody>') && !/length === 0|EmptyState|\.length \?|!\w+\.length/.test(c)) problems.push(`${f}: a table that can be empty does not say so`);
+}
+
+// ── Every console page says what the assistant reads ──────────────────────────────────────────────────
+// Meridian's check.ts asks this of `app/(dashboard)/`, the template's own route group; this console's is `(dash)`, so
+// the release's rule matches nothing here and would pass a page that shares no context. `ConsolePage` already refuses
+// to compile without one (its `context` prop is required); this holds the page's spec to the same thing, so what the
+// assistant is told is written down where a person reads what the page is.
+for (const f of walk('app/(dash)', /^README\.md$/)) {
+  const md = read(f);
+  if (!/^## Agents\n[\s\S]*?^### What the agent reads$/m.test(md)) problems.push(`${f}: no "### What the agent reads" under ## Agents`);
+  const named = /`(\w+Context)` in `(src\/views\/[\w-]+\.ts)`/.exec(md);
+  if (!named) problems.push(`${f}: its Agents section does not name the context function the page shares`);
+  else if (!fs.existsSync(path.join(ROOT, named[2])) || !new RegExp(`export function ${named[1]}\\b`).test(read(named[2]))) problems.push(`${f}: names ${named[1]} in ${named[2]}, which does not export it`);
 }
 
 // ── Raw HTML stays inert ─────────────────────────────────────────────────────────────────────────────

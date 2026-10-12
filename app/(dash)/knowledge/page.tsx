@@ -4,12 +4,13 @@ import { useMemo } from 'react';
 import { Archive, BookOpen, CheckCircle2, History } from 'lucide-react';
 import { Row } from '@/components/base/shell';
 import { DataTable, useQueryState, type Column } from '@/components/patterns/data-table';
+import { AskAbout } from '@/components/patterns/ask-about';
 import { FilterBar } from '@/components/patterns/filter-bar';
 import { MetricTile } from '@/components/patterns/metric-tile';
 import { Badge } from '@/components/ui/badge';
 import { aligned } from '@/console/columns';
 import { KnowledgeTabs } from '@/console/knowledge-tabs';
-import { ConsolePage } from '@/console/page';
+import { ConsolePage, useArrival } from '@/console/page';
 import { failureOf } from '@/console/query';
 import { When } from '@/console/when';
 import { freshnessOf, useConsole, useConsoleMode, useDataClock } from '@/lib/api';
@@ -17,6 +18,8 @@ import type { KnowledgeNode } from '@/lib/api-shapes';
 import { formatDate, formatRelative } from '@/lib/format-date';
 import { filterKnowledgeNodes, knowledgeNodeHref, tagFacetCounts, teamFacetOptions } from '@/lib/knowledge-filters';
 import { useLive } from '@/lib/live';
+import { pendingContext, whose } from '@/views/context';
+import { knowledgeContext } from '@/views/knowledge-context';
 
 /**
  * The shelf. The team leads the number when more than one shelf is in view: every team numbers its own nodes from
@@ -49,6 +52,10 @@ export default function KnowledgePage() {
   const latest = nodes.reduce<string | null>((a, n) => (!a || n.updated > a ? n.updated : a), null);
   const filtered = f.q !== '' || f.team !== 'all' || f.tag !== 'all';
   const clear = () => set({ q: '', team: 'all', tag: 'all', page: '1' });
+  const arrival = useArrival(list);
+  const context = list.data
+    ? knowledgeContext(nodes, { filters: { q: f.q, team: f.team, tag: f.tag }, mode, ...arrival })
+    : pendingContext({ view: 'knowledge', title: 'Knowledge', address: '/knowledge', scope: `the knowledge shelf of ${whose(mode)}` }, failureOf(list));
 
   return (
     <ConsolePage
@@ -56,6 +63,7 @@ export default function KnowledgePage() {
       description="What the platform has learned, kept as nodes. Each one comes out of a real initiative."
       showPeriod={false}
       updatedAt={freshnessOf(list)}
+      context={context}
       toolbar={<KnowledgeTabs active="nodes" />}
     >
       <Row split="tiles">
@@ -88,6 +96,7 @@ export default function KnowledgePage() {
               { key: 'tag', label: 'Tag', value: f.tag, onChange: (v) => set({ tag: v, page: '1' }), options: [{ value: 'all', label: 'All' }, ...tagFacetCounts(nodes).map((t) => ({ value: t.tag, label: `${t.tag} · ${t.count}` }))] },
             ]}
             result={<>{rows.length} of {nodes.length}</>}
+            ask={<AskAbout question={filtered ? 'What do the nodes in this list say, taken together?' : 'What has the platform learned most about, and what was recorded most recently?'} />}
             onClear={clear}
           />
         }

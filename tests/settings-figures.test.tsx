@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, waitFor } from '@testing-library/react';
+import { act, render, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 /**
@@ -130,14 +130,18 @@ beforeEach(() => {
   global.fetch = mockFetch() as unknown as typeof fetch;
 });
 
-function mount() {
+/**
+ * Awaited inside `act`: the Assistant section waits on the layout's promise of whether the console has an assistant,
+ * so the page suspends on its first render, and React flushes nothing after an `act` that was not awaited.
+ */
+async function mount() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={client}><SettingsPage /></QueryClientProvider>);
+  await act(async () => { render(<QueryClientProvider client={client}><SettingsPage /></QueryClientProvider>); });
 }
 
 describe('the figures on the settings page', () => {
   it('counts the people the platform read holds, in the sentence that carries the number', async () => {
-    mount();
+    await mount();
     // The count arrives with the read; the sentence without it ("Everyone on this deployment.") is on the page first.
     await waitFor(() => expect(text()).toContain('Everyone on this deployment, 5 in all'));
     // Five people, where the teams panel holds two and the tokens panel three — so this sentence is not reachable by
@@ -148,7 +152,7 @@ describe('the figures on the settings page', () => {
   });
 
   it('joins each person’s teams from their own row, and says so when there are none', async () => {
-    mount();
+    await mount();
     await waitFor(() => expect(text()).toContain('one@example.com'));
     expect(row(section('People'), 'two@example.com').textContent).toContain('atlas (member), beacon (member)');
     expect(row(section('People'), 'one@example.com').textContent).toContain('atlas (admin)');
@@ -157,7 +161,7 @@ describe('the figures on the settings page', () => {
   });
 
   it('marks the team this browser acts for, and only that one', async () => {
-    mount();
+    await mount();
     await waitFor(() => expect(text()).toContain('beacon'));
     const teams = section('Your teams');
     expect(badges(teams, 'acting')).toHaveLength(1);
@@ -167,7 +171,7 @@ describe('the figures on the settings page', () => {
   });
 
   it('reads each token’s state from its own record', async () => {
-    mount();
+    await mount();
     await waitFor(() => expect(text()).toContain('laptop — Claude Code'));
     const tokens = section('Access tokens');
     expect(badges(tokens, 'revoked')).toHaveLength(1);
@@ -178,7 +182,7 @@ describe('the figures on the settings page', () => {
   });
 
   it('draws the client setup the read answered with, verbatim', async () => {
-    mount();
+    await mount();
     // A wrong-shaped answer here throws and the boundary draws; the config text is what says the panel got its own.
     await waitFor(() => expect(text()).toContain('mcpServers'));
     expect(text()).toContain('https://example.invalid/mcp');

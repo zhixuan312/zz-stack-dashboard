@@ -4,9 +4,12 @@ import Link from 'next/link';
 import { Fragment, useEffect, useState, type ReactNode } from 'react';
 import { app } from '@/app.config';
 import { PageFrame, Stack, type PageWidth } from '@/components/base/shell';
+import { useShareView } from '@/components/base/use-share-view';
 import { Freshness } from '@/components/patterns/freshness';
 import { PeriodSelect } from '@/components/patterns/period-select';
-import { useConsoleMode, useDataClock } from '@/lib/api';
+import { freshnessOf, useConsoleMode, useDataClock } from '@/lib/api';
+import type { SharedContext } from '@/lib/shared-context';
+import type { Arrival } from '@/views/context';
 import { usePeriod } from '@/console/period';
 
 /** A step back up from a record: the list it belongs to, then the parent record. */
@@ -16,10 +19,15 @@ export type Crumb = { label: string; href?: string };
  * Every console page: Meridian's `PageFrame` with the console's masthead conventions. The kicker says where the page
  * sits (the scope in view, or the trail back up from a record), the freshness stamp says when its data arrived, and
  * the period picker governs every figure on a page that has a time dimension.
+ *
+ * `context` is the page's shared context (decision 0011), and it is not optional: every console page tells the
+ * assistant what it shows, its scope, its figures with their definitions and what the data cannot say, built by the
+ * pure function beside its view in `src/views/`. A page with nothing to say yet passes `pendingContext`.
  */
 export function ConsolePage({
   title,
   description,
+  context,
   crumbs,
   updatedAt,
   showPeriod = true,
@@ -31,6 +39,8 @@ export function ConsolePage({
   title: ReactNode;
   /** One sentence: what this page answers. */
   description?: ReactNode;
+  /** What this page tells the assistant about itself: the whole state, every time it changes. */
+  context: SharedContext;
   /** The trail back up from a record; a top-level page leaves it out and the kicker names the scope. */
   crumbs?: Crumb[];
   /** When the page's data arrived (`freshnessOf`); `null` reads "never updated"; left out, no stamp. */
@@ -46,6 +56,7 @@ export function ConsolePage({
   children: ReactNode;
 }) {
   const { mode } = useConsoleMode();
+  useShareView(context);
   // The data's clock, for the freshness stamp: never `new Date()` at render.
   const clock = useDataClock();
   const arriving = useStillWhileArriving();
@@ -108,4 +119,13 @@ function useStillWhileArriving(): boolean {
 function PagePeriod() {
   const { period, setPeriod } = usePeriod();
   return <PeriodSelect value={period} onChange={setPeriod} />;
+}
+
+/**
+ * When the page's reads arrived and the clock that is measured against, for its shared context: the same two values
+ * the freshness stamp is drawn from, so the page and the assistant say one thing about how fresh the data is.
+ */
+export function useArrival(...queries: { dataUpdatedAt?: number }[]): Arrival {
+  const now = useDataClock();
+  return { updatedAt: freshnessOf(...queries), now };
 }

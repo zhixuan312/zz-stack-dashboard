@@ -15,7 +15,7 @@ import { LinkTabs } from '@/components/ui/tabs';
 import { sentence } from '@/console/words';
 import { plural } from '@/lib/format';
 import { ReadingBody } from '@/console/reading';
-import { ConsolePage } from '@/console/page';
+import { ConsolePage, useArrival } from '@/console/page';
 import { Panel } from '@/console/panel';
 import { failureOf, Query } from '@/console/query';
 import { useAddressParam } from '@/lib/address';
@@ -23,6 +23,8 @@ import { freshnessOf, useConsole } from '@/lib/api';
 import type { PluginRow, Skill, SkillDetail, SkillText } from '@/lib/api-shapes';
 import { formatCount, formatKb, formatSeconds } from '@/lib/format';
 import { useLive } from '@/lib/live';
+import { pendingContext } from '@/views/context';
+import { skillContext } from '@/views/skill-context';
 
 type View = 'cost' | 'read' | 'references';
 
@@ -101,6 +103,10 @@ export default function PluginSkillPage({ params }: { params: Promise<{ plugin: 
   const produces = plugin?.documents.filter((x) => x.stage === name).map((x) => x.name).join(', ');
   const gated = plugin?.documents.find((x) => x.stage === name && x.gate);
   const base = `/plugins/${pluginName}/${name}`;
+  const arrival = useArrival(list, plugins, detail);
+  const context = plugins.data && list.data
+    ? skillContext(pluginName, name, { plugin, skill, detail: detail.data, text, ...arrival })
+    : pendingContext({ view: 'skill', title: name, address: base, scope: `one skill of the ${pluginName} plugin, all time` }, failed);
 
   return (
     <ConsolePage
@@ -110,6 +116,7 @@ export default function PluginSkillPage({ params }: { params: Promise<{ plugin: 
       description={<span className="inline-flex flex-wrap items-center gap-2">One skill a plugin ships: what it costs to run, the text itself, and what ships beside it.{text?.description ? ` ${sentence(text.description)}` : null}</span>}
       showPeriod={false}
       updatedAt={freshnessOf(list, plugins, detail)}
+      context={context}
       toolbar={known ? <LinkTabs label="Skill views" active={view} tabs={[{ key: 'cost', label: 'Cost to run', href: base }, { key: 'read', label: 'The skill', href: `${base}?view=read` }, ...(refs || asked === 'references' ? [{ key: 'references', label: 'Reference', href: `${base}?view=references`, ...(refs ? { count: refs } : {}) }] : [])]} /> : undefined}
     >
       {failed ? (

@@ -3,23 +3,10 @@
  * instruction documents make to files and package scripts. No I/O here: the caller reads the files and says what exists.
  */
 import path from 'node:path';
+import { BRIEF_GUIDANCE } from '../../src/lib/assistant/prompt.ts';
 
 /** The headings a brief must have, once each, in the order the template writes them. */
 const REQUIRED = ['Product', 'Users', 'Data', 'Decisions', 'Glossary'] as const;
-
-/**
- * What the brief template says under each heading, so an untouched section is recognised as one.
- *
- * DELIBERATE: this console has no assistant, so `src/lib/assistant/prompt.ts` — where the template reads it from —
- * is not part of this project. The five lines are kept here instead, beside the only thing that reads them.
- */
-const BRIEF_GUIDANCE: Readonly<Record<(typeof REQUIRED)[number], string>> = {
-  Product: 'What this dashboard is for, in two or three sentences: who opens it, what decision it helps them make.',
-  Users: 'Who uses it and how often; what they know already; what they must never be shown.',
-  Data: 'Where the numbers come from (systems, tables, APIs), how fresh they are, and what now means for this product.',
-  Decisions: 'Brand, layout and behaviour choices already made, one line each with its reason, so no session re-decides them.',
-  Glossary: "The team's own words for things, one per line: term and what it means here.",
-};
 
 /**
  * Check a brief. A required `## ` heading that is missing or appears twice is an error; a section whose only non-blank

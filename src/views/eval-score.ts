@@ -1,0 +1,2 @@
+/** A plugin's evaluation score as every view words it, 0 to 10; a score nobody established is not a number to quote. */
+export const scoreOf = (e: { overallScore: number | null; scoreStatus: string | null } | null | undefined): string => (!e ? 'never evaluated' : e.scoreStatus === 'not_established' || e.overallScore === null ? 'not established' : `${e.overallScore.toFixed(1)} of 10 (${e.scoreStatus})`);

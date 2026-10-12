@@ -134,10 +134,6 @@ function present(signing: boolean, q: URLSearchParams, body: Record<string, unkn
 /** One write under `/api/console`. Accepted, answered in the route's own shape, and not kept. */
 function write(seg: string[], q: URLSearchParams, method: string, body: Record<string, unknown>): Answer {
   const path = seg.join('/');
-  if (path === 'ask') {
-    const node = KNOWLEDGE.find((n) => n.team === q.get('team')) ?? KNOWLEDGE[0];
-    return ok({ answer: `From what ${q.get('team')} has written down: ${node.title.toLowerCase()}. The node cites the initiative it came from.`, citations: [{ path: `_knowledge/${node.path}`, title: node.title }] });
-  }
   if (path === 'settings/me/tokens' && method === 'POST') {
     hint('settings');
     return ok({ token: 'zz_pat_example_0123456789abcdef', label: String(body.label ?? 'console'), email: ME.email });

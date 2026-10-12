@@ -13,7 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { count, sentence } from '@/console/words';
 import { plural } from '@/lib/format';
 import { aligned } from '@/console/columns';
-import { ConsolePage } from '@/console/page';
+import { ConsolePage, useArrival } from '@/console/page';
 import { Panel } from '@/console/panel';
 import { EvalLearning, EvalNotYet, EvalUsage } from '@/console/plugin-eval-evidence';
 import { EvalAutomationTrust, EvalEvolution } from '@/console/plugin-eval-evolution';
@@ -24,6 +24,8 @@ import { freshnessOf, useConsole } from '@/lib/api';
 import type { PluginEval, PluginRow } from '@/lib/api-shapes';
 import { formatCount } from '@/lib/format';
 import { useLive } from '@/lib/live';
+import { pendingContext } from '@/views/context';
+import { pluginContext } from '@/views/plugin-context';
 
 type PluginSkill = PluginRow['skills'][number];
 
@@ -68,6 +70,10 @@ export default function PluginPage({ params }: { params: Promise<{ plugin: strin
   const qEval = useConsole<PluginEval>(`/plugins/${plugin}/eval`);
   const p = q.data?.plugins.find((x) => x.plugin === plugin);
   // Stages first and in order, then everything else the plugin ships: alphabetical would put step 6 above step 2.
+  const arrival = useArrival(q, qEval);
+  const context = q.data && qEval.data
+    ? pluginContext(plugin, { plugin: p, evaluation: qEval.data, ...arrival })
+    : pendingContext({ view: 'plugin', title: plugin, address: `/plugins/${plugin}`, scope: 'one plugin' }, failureOf(q) ?? failureOf(qEval));
   const skills = p ? [...p.skills].sort((a, b) => (a.position ?? Infinity) - (b.position ?? Infinity) || a.name.localeCompare(b.name)) : [];
 
   return (
@@ -78,6 +84,7 @@ export default function PluginPage({ params }: { params: Promise<{ plugin: strin
       description={<span className="inline-flex flex-wrap items-center gap-2">What this plugin ships, what it governs, and how its runs went.{p?.description || p?.agentName ? ` ${sentence(p.description ?? p.agentName ?? '')}` : null}</span>}
       showPeriod={false}
       updatedAt={freshnessOf(q, qEval)}
+      context={context}
     >
       {/* Standing from the first paint, an ellipsis until the catalog arrives; gone only for a plugin it does not list. */}
       {p || q.isPending ? (

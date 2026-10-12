@@ -19,6 +19,9 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   devIndicators: false,
+  // The assistant reads the product brief on every reply (`src/lib/assistant/brief.ts`), with `node:fs`, so the
+  // standalone build has to be told the file belongs to that route or the image ships without it.
+  outputFileTracingIncludes: { '/api/assistant': ['./docs/brief.md'] },
   ...(gateway
     ? {
       async rewrites() {

@@ -6,7 +6,7 @@ import { DataTable, type Column } from '@/components/patterns/data-table';
 import { MetricTile } from '@/components/patterns/metric-tile';
 import { aligned } from '@/console/columns';
 import { EvalCell, EvalVerdict, EvalWhen } from '@/console/eval-score';
-import { ConsolePage } from '@/console/page';
+import { ConsolePage, useArrival } from '@/console/page';
 import { failureOf } from '@/console/query';
 import { When } from '@/console/when';
 import { freshnessOf, useConsole } from '@/lib/api';
@@ -14,6 +14,8 @@ import { plural } from '@/lib/format';
 import type { PluginRow } from '@/lib/api-shapes';
 import { formatCount } from '@/lib/format';
 import { useLive } from '@/lib/live';
+import { pendingContext } from '@/views/context';
+import { pluginsContext } from '@/views/plugins-context';
 
 const COLUMNS: Column<PluginRow>[] = aligned([
   {
@@ -38,6 +40,10 @@ const COLUMNS: Column<PluginRow>[] = aligned([
 export default function PluginsPage() {
   useLive(['plugins']);
   const q = useConsole<{ plugins: PluginRow[] }>('/plugins');
+  const arrival = useArrival(q);
+  const context = q.data
+    ? pluginsContext(q.data.plugins, arrival)
+    : pendingContext({ view: 'plugins', title: 'Plugins', address: '/plugins', scope: 'every plugin in the catalog, all time' }, failureOf(q));
   const plugins = q.data?.plugins ?? [];
   const neverRun = plugins.reduce((a, p) => a + p.skills.filter((s) => !s.everRun).length, 0);
 
@@ -47,6 +53,7 @@ export default function PluginsPage() {
       description="What a person installs: a package's skills plus the MCP servers those skills call, under one declared version."
       showPeriod={false}
       updatedAt={freshnessOf(q)}
+      context={context}
     >
       <Row split="tiles">
         <MetricTile label="Plugins" icon={<Box />} value={q.data ? plugins.length : q.isPending ? '…' : '—'} note="In the catalog" />

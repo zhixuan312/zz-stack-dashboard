@@ -13,6 +13,20 @@ Every recorded run, by the skill that drove it.
 - Empty period: no skill ran.
 - Single-call runs: a line under the table says they have no span to time.
 
+## Agents
+
+The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `runsContext` in `src/views/runs-context.ts`, the same function `view_runs` calls, so the assistant quotes the figures the screen shows. No Ask on this page: the table under the tiles is the breakdown.
+
+### What the agent reads
+
+The period, then the runs recorded, the calls in them with how many were refused, and the payload moved. What code found: the skill that drove the most runs with its share, the skills refused on more than 5% of their calls, the skill that pulls the most into context, and every skill with its runs, calls and median run (15 at most). It says that an unmeasured payload is unknown and not zero, and that a run is timed only when it has more than one call.
+
+```text
+- zz-platform drove the most runs: 210 of 1,261 (17%), at 16.1 calls a run.
+```
+
+- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `query_skills` looks up what the page lists.
+
 ## Surfaces
 
 Console, desktop and phone. Reads `GET /runs?period=`, `GET /skills?period=`. Live: follows `runs and skills`, so a change made anywhere — another tab, another person — reads this page again.

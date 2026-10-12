@@ -79,10 +79,9 @@ emit('mascot-waving.png', 'state-welcome', 96)
 emit('mascot-error.png', 'state-error', 96)
 emit('mascot-notfound.png', 'state-notfound', 96)
 
-# --- the three bespoke surfaces -------------------------------------------
+# --- the two bespoke surfaces ---------------------------------------------
 emit('mascot-approved.png', 'state-approved', 40)
 emit('mascot-goodbye.png', 'state-goodbye', 128)
-emit('mascot-thinking.png', 'state-thinking', 72)
 
 # --- the two icons, from the two masters drawn for their size bands --------
 #

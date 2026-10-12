@@ -5,41 +5,7 @@ import { When } from '@/console/when';
 import { useConsole } from '@/lib/api';
 import type { Initiative, WaitingGate } from '@/lib/api-shapes';
 import { cn } from '@/lib/cn';
-
-/**
- * What is happening to an initiative, in one closed vocabulary, on every page that shows one. Not a stage name: the
- * flow position answers where it is.
- *
- * The three closed values are the platform's own: `close()` records exactly one of `accepted`, `delivered` or
- * `abandoned`, and all three mean closed. One rule per colour, so the column reads without a key: positive is closed
- * with what was asked for, warning always means a person must act, neutral never means a problem.
- */
-export interface StateOf {
-  outcome: string | null;
-  /** `written` tells "nobody has drafted it" from "drafted and unsigned". */
-  gates: { name: string; passed: boolean; written: boolean; role?: string }[];
-}
-
-/** The six words the state can say, most-closed first: the order a filter lists them in. */
-export const INITIATIVE_STATES = ['Accepted', 'Delivered', 'Abandoned', 'Waiting on you', 'Ready to close', 'In progress'] as const;
-type InitiativeState = (typeof INITIATIVE_STATES)[number];
-
-/** The gates an open initiative is judged on: the handover is written after the close, so it is never one of them. */
-const ownGates = (of: StateOf) => of.gates.filter((g) => g.role !== 'handover');
-
-/** The rule, apart from the badge, so a filter can ask the same question the column answers. */
-export function initiativeState(of: StateOf): InitiativeState {
-  if (of.outcome === 'accepted') return 'Accepted';
-  if (of.outcome === 'delivered') return 'Delivered';
-  if (of.outcome === 'abandoned') return 'Abandoned';
-  const gates = ownGates(of);
-  // Written and unsigned, not merely unsigned: a gate nobody has drafted waits on the agent, not a person.
-  if (gates.some((g) => g.written && !g.passed)) return 'Waiting on you';
-  if (gates.some((g) => !g.written)) return 'In progress';
-  // Every gate passed and no outcome recorded: the work is done and nobody has closed it.
-  if (gates.length) return 'Ready to close';
-  return 'In progress';
-}
+import { INITIATIVE_STATES, initiativeState, ownGates, type StateOf } from '@/console/initiative-state';
 
 export function StateBadge({ of }: { of: StateOf }) {
   const state = initiativeState(of);
@@ -67,9 +33,6 @@ export function FlowPosition({ at, of, name, closed = false }: { at: number; of:
     </span>
   );
 }
-
-/** Written and unsigned: a gate document a person can read and sign today. */
-export const waitingOnYou = (of: StateOf) => ownGates(of).some((g) => g.written && !g.passed);
 
 /** The initiative list's columns, shared by /initiatives and a team's page; `team` adds the team column. */
 export function initiativeColumns({ team = false }: { team?: boolean } = {}): Column<Initiative>[] {

@@ -25,6 +25,11 @@ const eslintConfig = defineConfig([
     files: ['scripts/**/*.ts'],
     rules: { '@typescript-eslint/no-explicit-any': 'off' },
   },
+  {
+    // Tests stand fakes in for a model, a transport or a store; casting a fake to the real type is the point of it.
+    files: ['tests/**/*.{ts,tsx}'],
+    rules: { '@typescript-eslint/no-explicit-any': 'off' },
+  },
 ]);
 
 export default eslintConfig;

@@ -19,21 +19,34 @@ if (!globalThis.ResizeObserver) {
   } as unknown as typeof ResizeObserver;
 }
 
-if (!Element.prototype.scrollIntoView) {
-  Element.prototype.scrollIntoView = () => {};
+// The DOM stubs apply to jsdom files only; the route, tool and model tests run in node, where there is no Element.
+if (typeof Element !== 'undefined') {
+  if (!Element.prototype.scrollIntoView) {
+    Element.prototype.scrollIntoView = () => {};
+  }
+
+  /**
+   * The Pointer Capture API, which jsdom does not implement and Radix's Select calls on the
+   * pointer-down that opens it. Without these stubs no test can open a Select: every attempt
+   * dies on `target.hasPointerCapture is not a function` before an option is visible, so a
+   * dropdown wired to nothing still passes its render test.
+   */
+  for (const m of ['hasPointerCapture', 'setPointerCapture', 'releasePointerCapture'] as const) {
+    if (!Element.prototype[m]) {
+      Element.prototype[m] = (() => false) as never;
+    }
+  }
 }
 
 /**
- * The Pointer Capture API, which jsdom does not implement and Radix's Select calls on the
- * pointer-down that opens it. Without these stubs no test can open a Select: every attempt
- * dies on `target.hasPointerCapture is not a function` before an option is visible, so a
- * dropdown wired to nothing still passes its render test.
+ * The request's cookies, for the access policy's `current()` (`src/data/access.ts`), which reads the session cookie
+ * to ask the gateway who is calling. The jar is empty by default; a test that cares about the cookie replaces this
+ * mock with its own, which wins.
  */
-for (const m of ['hasPointerCapture', 'setPointerCapture', 'releasePointerCapture'] as const) {
-  if (!Element.prototype[m]) {
-    Element.prototype[m] = (() => false) as never;
-  }
-}
+vi.mock('next/headers', () => ({
+  cookies: async () => ({ get: () => undefined, set: () => {}, delete: () => {} }),
+  headers: async () => new Headers(),
+}));
 
 /**
  * The App Router's hooks, for components rendered outside a Next request: Meridian's data table and filter bar read
@@ -63,7 +76,7 @@ globalThis.IntersectionObserver ??= class { observe() {} unobserve() {} disconne
  *
  * A Map behind the Storage interface, so a test can assert the choice was remembered.
  */
-if (typeof globalThis.localStorage?.setItem !== 'function') {
+if (typeof window !== 'undefined' && typeof globalThis.localStorage?.setItem !== 'function') {
   const store = new Map<string, string>();
   const storage: Storage = {
     get length() { return store.size; },

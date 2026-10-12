@@ -23,12 +23,15 @@ tokens rather than inventing a second look.
    (session, data)    (HTML and JS, nothing else)
 ```
 
-**This app holds no credential and calls nothing.** Every read happens in the browser
-against `/api/console` on the same origin, carrying the person's own HttpOnly session
-cookie. If the Next server fetched the API instead it would have to take that cookie out
-of the request and replay it upstream — which is the "a proxy forwards the caller's
-credentials" shape zz-stack forbids and has a gate check for. Keeping the fetches in the
-browser means this container is a renderer and nothing more.
+**For every page, this app holds no credential and calls nothing.** Every read happens in
+the browser against `/api/console` on the same origin, carrying the person's own HttpOnly
+session cookie, so for its pages this container is a renderer and nothing more.
+
+**The assistant is the one exception, and it is off until it is configured.** Its route
+runs on this app's server, has to know who is asking before a model is reached, and looks
+records up while it writes a reply. So `src/data/gateway.ts` sends the caller's own
+`zz_console` cookie, that cookie alone, to the gateway that issued it, and stores nothing.
+See [The assistant](#the-assistant).
 
 Same origin is what makes that work: the cookie is a plain first-party cookie, so there
 is no CORS, no preflight and no third-party-cookie behaviour to design around.
@@ -190,6 +193,45 @@ that passed.
 What each suite checks beyond the static routes, and against what, is in
 `scripts/verify.config.ts`. The report is `out/verify.txt`.
 
+## The assistant
+
+A panel in the shell that reads the page a person is on, answers about it from the
+platform's own records, and changes nothing. It is Meridian's assistant, mounted the way
+Meridian's guide describes; `docs/brief.md` records what this console decided about it.
+
+It is off until four variables are set, read from the environment on every request, so one
+build serves both. With none set there is no launcher, no panel and no Ask, and
+`POST /api/assistant` answers 404. `.env.example` lists them.
+
+| Variable | Meaning |
+|---|---|
+| `ASSISTANT_PROVIDER` | `anthropic`, or `openai-compatible` for any service that speaks the OpenAI chat-completions format |
+| `ASSISTANT_API_KEY` | The provider's key. It never reaches the browser |
+| `ASSISTANT_MODEL` | The model's id, exactly as the provider lists it. It must be able to call tools |
+| `ASSISTANT_BASE_URL` | The provider's address. Required for `openai-compatible` |
+| `ZZ_GATEWAY` | Where this app's server reaches the gateway. The route asks it who is calling and reads from it as that person |
+
+What it reads:
+
+- **The page.** Every console page shares a context (`src/views/*-context.ts`): its scope,
+  how fresh the data is, each figure with its definition, what code computed from them,
+  and what the data cannot say. Each page's `README.md` says what its context holds.
+- **The records.** One read-only collection per list (`src/data/collections.ts`), each the
+  same gateway route its page reads, as the person asking: `query_teams`,
+  `query_initiatives`, `query_knowledge` and the rest.
+- **Another view.** One `view_<name>` tool per page (`src/views/tools.ts`), which opens
+  that view at an address and returns the same context the page would share.
+
+What it may do: read what the person may read, and nothing else. A member is offered the
+lists the rail shows a member; the gateway scopes every read whatever the assistant asks.
+No tool writes. A person approves a document, issues a token and changes a team on the
+page, as before.
+
+Each question is sent to the model provider with the page's text, its context and the
+Product, Users and Glossary sections of `docs/brief.md`, so none of those may hold a
+secret. The thread stays in the browser's local storage; Settings has the person's own
+switch for the panel.
+
 ## Deploying
 
 **Released by zz-stack, not by hand.** The console is one of two components in a platform
@@ -221,7 +263,7 @@ docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
 | **Overview** | Tool calls over the period, stacked by whether they ran inside a run, outside one or were refused, beside three tiles: initiatives progressing, knowledge from work, context per run. Then the gates waiting on a person and open work by stage, then where refusals come from and event kinds |
 | **Teams** | Every team and what it holds — documents, sources, knowledge nodes; open one for its initiatives and members. Switching here moves **this browser's session only**: your agents keep acting for the team `team_switch` on `/manage` set |
 | **Initiatives** | Every piece of work and how far through its flow it got |
-| **Knowledge** | The nodes, with the whole body open beside the list; Ask the store a question, or read its log of every node recorded or retired |
+| **Knowledge** | The nodes, with the whole body open beside the list, and the store's log of every node recorded or retired |
 | **Plugins** | What a person installs; open one and it leads with its overall evaluation score, then the evidence behind it — health, quality by dimension, usage, findings, candidates and releases (one compact panel until a run has completed), and who may change it |
 | **Runs** | Every run by the skill that drove it |
 | **Activity** | The audit log |

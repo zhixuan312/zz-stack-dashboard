@@ -4,13 +4,14 @@ import { useMemo } from 'react';
 import { KeyRound, UserRound, UserX, Users } from 'lucide-react';
 import { Row } from '@/components/base/shell';
 import { DataTable, useQueryState, type Column } from '@/components/patterns/data-table';
+import { AskAbout } from '@/components/patterns/ask-about';
 import { FilterBar } from '@/components/patterns/filter-bar';
 import { MetricTile } from '@/components/patterns/metric-tile';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { aligned } from '@/console/columns';
 import { facet } from '@/console/facets';
-import { ConsolePage } from '@/console/page';
+import { ConsolePage, useArrival } from '@/console/page';
 import { failureOf } from '@/console/query';
 import { When } from '@/console/when';
 import { freshnessOf, useConsole, useConsoleMode } from '@/lib/api';
@@ -18,6 +19,8 @@ import { plural } from '@/lib/format';
 import { teamSlug, type Person } from '@/lib/api-shapes';
 import { formatDate } from '@/lib/format-date';
 import { useLive } from '@/lib/live';
+import { pendingContext } from '@/views/context';
+import { filterPeople, peopleContext } from '@/views/people-context';
 
 const COLUMNS: Column<Person>[] = aligned([
   {
@@ -52,10 +55,11 @@ export default function PeoplePage() {
   const q = useConsole<{ people: Person[] }>('/people');
   const people = useMemo(() => q.data?.people ?? [], [q.data]);
   const [f, set] = useQueryState({ q: '', team: 'all', sort: 'used', dir: 'desc', page: '1' });
-  const rows = useMemo(() => {
-    const needle = f.q.trim().toLowerCase();
-    return people.filter((p) => (f.team === 'all' || p.teams.some((t) => teamSlug(t) === f.team)) && (!needle || p.email.includes(needle) || p.name.toLowerCase().includes(needle)));
-  }, [people, f.q, f.team]);
+  const rows = useMemo(() => filterPeople(people, { q: f.q, team: f.team }), [people, f.q, f.team]);
+  const arrival = useArrival(q);
+  const context = q.data
+    ? peopleContext(people, { filters: { q: f.q, team: f.team }, mode, ...arrival })
+    : pendingContext({ view: 'people', title: 'People', address: '/people', scope: mode === 'platform' ? 'everyone the platform knows' : 'everyone on your team' }, failureOf(q));
   const clear = () => set({ q: '', team: 'all', page: '1' });
   const tokens = people.reduce((a, p) => a + p.tokens, 0);
   // Counted once and pluralised at the caption: `2 superadmin` and `Held by 1 people` were both printing here, which
@@ -69,6 +73,7 @@ export default function PeoplePage() {
       description={mode === 'team' ? 'Everyone on your team, and what they can reach.' : 'Everyone the platform knows, and what they can reach.'}
       showPeriod={false}
       updatedAt={freshnessOf(q)}
+      context={context}
     >
       <Row split="tiles">
         <MetricTile label="People" icon={<UserRound />} value={q.data ? people.length : q.isPending ? '…' : '—'} note={`${supers} ${plural(supers, 'superadmin')}`} />
@@ -95,6 +100,7 @@ export default function PeoplePage() {
             search={{ value: f.q, onChange: (v) => set({ q: v, page: '1' }), placeholder: 'Search people' }}
             filters={mode === 'platform' ? [{ key: 'team', label: 'Team', value: f.team, onChange: (v) => set({ team: v, page: '1' }), options: facet('All', people.flatMap((p) => p.teams.map(teamSlug))) }] : []}
             result={<>{rows.length} of {people.length}</>}
+            ask={<AskAbout question="Who has a live token they have never used, and who has no token at all?" />}
             onClear={clear}
           />
         }

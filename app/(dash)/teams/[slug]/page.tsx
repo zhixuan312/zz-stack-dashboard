@@ -7,14 +7,17 @@ import { MetricTile } from '@/components/patterns/metric-tile';
 import { DataTable, type Column } from '@/components/patterns/data-table';
 import { Badge } from '@/components/ui/badge';
 import { aligned } from '@/console/columns';
-import { initiativeColumns, waitingOnYou } from '@/console/initiative';
-import { ConsolePage } from '@/console/page';
+import { initiativeColumns } from '@/console/initiative';
+import { waitingOnYou } from '@/console/initiative-state';
+import { ConsolePage, useArrival } from '@/console/page';
 import { failureOf } from '@/console/query';
 import { freshnessOf, useConsole } from '@/lib/api';
 import { plural } from '@/lib/format';
 import type { Initiative, Team, TeamDetail } from '@/lib/api-shapes';
 import { formatDate } from '@/lib/format-date';
 import { useLive } from '@/lib/live';
+import { pendingContext } from '@/views/context';
+import { teamContext } from '@/views/team-context';
 
 type Member = TeamDetail['members'][number];
 
@@ -47,6 +50,10 @@ export default function TeamPage({ params }: { params: Promise<{ slug: string }>
   const members = team.data?.members ?? [];
   const waiting = list.filter(waitingOnYou).length;
   const missing = team.error?.status === 404;
+  const arrival = useArrival(team, inits);
+  const context = team.data && inits.data
+    ? teamContext(slug, { team: team.data, initiatives: list, held, ...arrival })
+    : pendingContext({ view: 'team', title: `Team ${slug}`, address: `/teams/${slug}`, scope: 'one team' }, missing ? 'No team by this name exists on the platform.' : failureOf(team) ?? failureOf(inits));
 
   return (
     <ConsolePage
@@ -60,6 +67,7 @@ export default function TeamPage({ params }: { params: Promise<{ slug: string }>
       description={<span className="inline-flex flex-wrap items-center gap-2">{missing ? 'No team by this name exists on the platform.' : <>What this team holds: its people, its work, and what it has settled.{team.data ? ` Created ${formatDate(team.data.team.created)}${team.data.team.name !== slug ? ` from ${team.data.team.name}` : ''}.` : null}</>}</span>}
       showPeriod={false}
       updatedAt={freshnessOf(team, inits)}
+      context={context}
     >
       {missing ? null : (
         <>

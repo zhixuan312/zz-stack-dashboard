@@ -5,14 +5,17 @@ import { Row } from '@/components/base/shell';
 import { MetricTile } from '@/components/patterns/metric-tile';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
-import { ConsolePage } from '@/console/page';
+import { ConsolePage, useArrival } from '@/console/page';
 import { usePeriod } from '@/console/period';
 import { failureOf } from '@/console/query';
 import { SkillWorkPanel } from '@/console/skill-work';
 import { freshnessOf, useConsole } from '@/lib/api';
 import type { Runs, Skill } from '@/lib/api-shapes';
 import { formatCount } from '@/lib/format';
+import { PERIOD_LABEL } from '@/lib/period';
 import { useLive } from '@/lib/live';
+import { addressOf, pendingContext } from '@/views/context';
+import { runsContext } from '@/views/runs-context';
 
 /**
  * Every recorded run, by the skill that drove it. Both reads take the window: tiles answering all time above a table
@@ -25,9 +28,13 @@ export default function RunsPage() {
   const runs = useConsole<Runs>(q('/runs'));
   const skills = useConsole<{ skills: Skill[] }>(q('/skills'));
   const r = runs.data?.totals;
+  const arrival = useArrival(runs, skills);
+  const context = runs.data && skills.data
+    ? runsContext({ totals: runs.data.totals, skills: skills.data.skills, period, ...arrival })
+    : pendingContext({ view: 'runs', title: 'Runs', address: addressOf('/runs', { period }, { period: 'all' }), scope: `${PERIOD_LABEL[period].toLowerCase()}, every team on the platform` }, failureOf(runs) ?? failureOf(skills));
 
   return (
-    <ConsolePage title="Runs" description="Every recorded run, by the skill that drove it." updatedAt={freshnessOf(runs, skills)}>
+    <ConsolePage title="Runs" description="Every recorded run, by the skill that drove it." updatedAt={freshnessOf(runs, skills)} context={context}>
       {/* The tiles stand from the first paint and read an ellipsis until the totals arrive, so nothing moves.
           COUPLED: `…` means coming, `—` means it is not. They were the same mark, so a failed read
           looked exactly like a slow one. */}

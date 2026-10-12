@@ -30,8 +30,9 @@ from the desk, not so the product can be browsed on a train.
 ## Data
 
 Every read is a browser fetch to `/api/console/*` by `src/lib/api.ts`, and every write goes through `src/lib/mutate.ts`.
-The payload shapes are the gateway's, recorded in `src/lib/api-shapes.ts`. The console holds nobody's credential: the
-browser has a session cookie, sends it to the origin that issued it, and this app is a renderer. Caddy routes
+The payload shapes are the gateway's, recorded in `src/lib/api-shapes.ts`. The console stores nobody's credential: the
+browser has a session cookie, sends it to the origin that issued it, and for every page this app is a renderer. The
+one server-side read is the assistant's (`src/data/gateway.ts`), made as the person asking. Caddy routes
 `/api/console` on the console's own host to the gateway, so the page and its API are one origin.
 
 Freshness means when the data arrived in this browser, not when the page rendered. `freshnessOf` in `src/lib/api.ts`
@@ -94,9 +95,23 @@ a time or `sources/2026-10-06-call.md` arrives as a single segment named after i
   The longest row carried a correction badge *and* an outcome badge, each nowrap: 348px in the 336px a 390px card has
   left after its padding, which pushed the row 12px past its frame. `DocStatus` grows `compact` and the column's
   `mobileCell` renders it; the two extras are still read on the same page, in the table and in the flow stepper above.
-- **The assistant is Meridian's, and this console does not mount it.** Its components and its route-side code ship with
-  the release and stay on disk as part of Meridian's library; nothing renders the launcher, and the shell passes no
-  assistant. Adopting them is a decision for whoever brings the collections and the model key.
+- **The assistant is Meridian's, mounted the way Meridian's guide says, and it changes nothing.** The panel, the
+  route (`app/api/assistant/route.ts`) and `src/lib/assistant/` are the release's own; `src/data/` and `src/views/` are
+  this console's: the access policy, one read-only collection per list, and one shared context per page (decision
+  0011), built by a pure function the page and its `view_<name>` tool both call. It is off until the four `ASSISTANT_*`
+  variables are set, read per request. Every change in this console stays on its page, by the person: no collection
+  gives an agent a tool that writes, and what a page does is declared `pageOnly` so the assistant says where it is
+  done. Approval above all: a document is approved by a member who was shown that exact snapshot, never by an agent.
+- **The assistant's route is the one place this app's server reads the gateway, and it reads as the person.** The route
+  has to know who is asking before a model is reached, and its tools look records up while a reply is written, so
+  `src/data/gateway.ts` sends the caller's own `zz_console` cookie, that cookie alone, to the gateway that issued it,
+  and always asks for the platform scope, which the gateway grants only to a superadmin. Pages still read from the
+  browser. This is the "server replays the caller's cookie" shape the console avoided while it was only a renderer;
+  it was taken on deliberately for the assistant on 2026-10-12, bounded to that module, and it stores nothing.
+- **Knowledge has no Ask tab.** The page that answered a question from one team's shelf, through the gateway's own
+  model call, is gone: the assistant is the one place a question is asked. It finds nodes with `query_knowledge` and
+  reads one with `view_knowledge_node`, whose context carries the lesson itself. What that drops is the gateway's
+  ranked retrieval over document bodies; the assistant searches titles, excerpts and tags.
 - **A document is read at the canvas width, with its running text capped at 92ch — not at `--reading-width`.** The
   person's own complaint, in their words: the documents are already long, and squeezing one into a centred strip makes
   it longer. `reading-width` is 832px, and this page is not one document — it is a document beside the colophon and
@@ -111,7 +126,8 @@ a time or `sources/2026-10-06-call.md` arrives as a single segment named after i
 - **Gate.** A document that must be approved before anything downstream of it may be written.
 - **Initiative.** The unit of work: an open piece of work with its own documents, sources and outcome.
 - **Platform mode / team mode.** The scope a superadmin is reading in. A member is always in team mode.
-- **Waiting.** Written and not approved, on an initiative that is still open. The bell's own word.
+- **Waiting.** A gate document written and not approved: on an initiative that is still open, or on a closed one whose
+  closing document was corrected after the close. The bell's own word.
 - **Routable door.** An MCP endpoint a client can be pointed at; the console shows which are live and which are refused.
 - **Fleet surface.** A page that reads across every team — Plugins, Runs, Teams and Activity. Dropped in team mode.
 

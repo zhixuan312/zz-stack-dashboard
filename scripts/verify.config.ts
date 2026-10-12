@@ -42,11 +42,17 @@ export type VerifyConfig = {
 
 const config: VerifyConfig = {
   /**
-   * Measured on 2026-10-11, served against the fake gateway: the list pages are the console's heaviest uncompressed
-   * HTML, `/initiatives` at 65 KiB and `/people` at 63, against 36 on `/` and 45 on `/settings`. The caps hold roughly
+   * Measured on 2026-10-12, served against the fake gateway: the list pages are the console's heaviest uncompressed
+   * HTML, `/initiatives` at 90 KiB and `/people` at 88, against 61 on `/` and 75 on `/settings`. The caps hold roughly
    * a fifth above what they measure, which is room for a column and not for a second table.
+   *
+   * They were 65 and 63 the day before, and the 25 KiB between is one thing: the layout now asks, on each request,
+   * whether the console has an assistant (`connection()` in `app/(dash)/layout.tsx`, as Meridian's guide writes it), so
+   * every page has a request-time part and Next sends the page's flight payload a second time beside the prerendered
+   * one. It is the same text twice, so it compresses away: `/initiatives` is 11,229 bytes gzipped without it and 11,966
+   * with it. The cap measures uncompressed bytes, which is why it moved and the page a person downloads barely did.
    */
-  budgets: { htmlKb: { '/initiatives': 80, '/people': 80 } },
+  budgets: { htmlKb: { '/initiatives': 108, '/people': 108 } },
   /**
    * One for every route in the rail, which is what `--full` and `--perf` require. Each selector was read off the built
    * app served against the fake gateway on 2026-10-11, not guessed: `/` draws 26 table rows and one

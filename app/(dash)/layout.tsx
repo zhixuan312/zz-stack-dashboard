@@ -1,7 +1,9 @@
+import { connection } from 'next/server';
 import { Suspense, type ReactNode } from 'react';
 import { AppShell } from '@/components/base/shell';
 import { ConsolePalette, ConsoleRail, ConsoleTools, ShellPending } from '@/console/frame';
 import { ConsoleGate } from '@/console/gate';
+import { assistantConfig } from '@/lib/assistant/config';
 import { ConsoleLive } from '@/views/console-live';
 
 /**
@@ -22,11 +24,14 @@ import { ConsoleLive } from '@/views/console-live';
  * the shell's own frame so nothing shifts when the real shell arrives.
  */
 export default function DashLayout({ children }: { children: ReactNode }) {
+  // The assistant is on or off per request, from the environment at request time, never baked into the build. The layout
+  // hands the shell a promise instead of awaiting it, so the request never blocks the frame: the shell streams in the
+  // static chrome and the launcher resolves behind its own boundary.
+  const assistant = connection().then(() => assistantConfig(process.env) !== null);
   return (
     <Suspense fallback={<ShellPending />}>
       <AppShell
-        // This console mounts no assistant: the release's shell asks for a promise, and `false` is this product's answer.
-        assistant={Promise.resolve(false)}
+        assistant={assistant}
         rail={<ConsoleRail />}
         tools={<ConsoleTools />}
       >

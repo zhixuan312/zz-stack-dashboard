@@ -4,11 +4,13 @@ import { DataTable, useQueryState, type Column } from '@/components/patterns/dat
 import { Badge } from '@/components/ui/badge';
 import { Segmented } from '@/components/ui/segmented';
 import { aligned } from '@/console/columns';
-import { ConsolePage } from '@/console/page';
+import { ConsolePage, useArrival } from '@/console/page';
 import { failureOf } from '@/console/query';
 import { When } from '@/console/when';
 import { freshnessOf, useConsole, useConsoleMode } from '@/lib/api';
 import { useLive } from '@/lib/live';
+import { activityContext } from '@/views/activity-context';
+import { addressOf, pendingContext, whose } from '@/views/context';
 import type { ActivityEvent } from '@/lib/api-shapes';
 
 /** A dash where nothing was involved: a token issued is a thing a person did, not a thing a team did. */
@@ -44,6 +46,10 @@ export default function ActivityPage() {
   const [f, set] = useQueryState({ show: 'all', page: '1' });
   const q = useConsole<{ events: ActivityEvent[]; limit: number }>(`/activity?limit=200${f.show === 'failed' ? '&failed=1' : ''}`);
   const events: Row[] = (q.data?.events ?? []).map((e, i) => ({ ...e, id: String(i) }));
+  const arrival = useArrival(q);
+  const context = q.data
+    ? activityContext(q.data.events, { show: f.show, limit: q.data.limit, mode, ...arrival })
+    : pendingContext({ view: 'activity', title: 'Activity', address: addressOf('/activity', { show: f.show }, { show: 'all' }), scope: `the latest events recorded for ${whose(mode)}` }, failureOf(q));
 
   return (
     <ConsolePage
@@ -51,6 +57,7 @@ export default function ActivityPage() {
       description={mode === 'team' ? 'Everything recorded for your team, newest first.' : 'Everything the platform recorded, newest first.'}
       showPeriod={false}
       updatedAt={freshnessOf(q)}
+      context={context}
       actions={<Segmented label="Show" value={f.show} onChange={(v) => set({ show: v, page: '1' })} options={[{ value: 'all', label: 'Everything' }, { value: 'failed', label: 'Refusals only' }]} />}
     >
       <DataTable

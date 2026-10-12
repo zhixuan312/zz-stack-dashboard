@@ -1,12 +1,11 @@
 import { LinkTabs } from '@/components/ui/tabs';
 
 /**
- * The knowledge base's three views, as routes. No Graph view: the platform records no edge between nodes, so a graph
+ * The knowledge base's two views, as routes. No Graph view: the platform records no edge between nodes, so a graph
  * would be drawn from shared tags and assert relationships nobody wrote down.
  */
 const TABS = [
   { key: 'nodes', label: 'Nodes', href: '/knowledge' },
-  { key: 'ask', label: 'Ask', href: '/knowledge/ask' },
   { key: 'log', label: 'Log', href: '/knowledge/log' },
 ] as const;
 

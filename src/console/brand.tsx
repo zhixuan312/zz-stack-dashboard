@@ -23,8 +23,6 @@ const POSES = {
   welcome: { src: '/assets/brand/state-welcome.png', w: 78, h: 96 },
   /** The session ended. */
   goodbye: { src: '/assets/brand/state-goodbye.png', w: 102, h: 128 },
-  /** A question is being answered. */
-  thinking: { src: '/assets/brand/state-thinking.png', w: 58, h: 72 },
   /** A gate was approved: the platform's signature act. */
   approved: { src: '/assets/brand/state-approved.png', w: 32, h: 40 },
 } as const;

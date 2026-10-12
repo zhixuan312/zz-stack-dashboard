@@ -11,15 +11,18 @@ import { KeyValue } from '@/components/ui/key-value';
 import { Skeleton } from '@/components/ui/skeleton';
 import { aligned } from '@/console/columns';
 import { KnowledgeTabs } from '@/console/knowledge-tabs';
-import { ConsolePage } from '@/console/page';
+import { AskAbout } from '@/components/patterns/ask-about';
+import { ConsolePage, useArrival } from '@/console/page';
 import { Panel } from '@/console/panel';
-import { Query } from '@/console/query';
+import { Query, failureOf } from '@/console/query';
 import { When } from '@/console/when';
 import { decodePath } from '@/lib/address';
 import { freshnessOf, useConsole } from '@/lib/api';
 import type { KnowledgeBody, KnowledgeNode } from '@/lib/api-shapes';
 import { knowledgeNodeHref } from '@/lib/knowledge-filters';
 import { useLive } from '@/lib/live';
+import { pendingContext } from '@/views/context';
+import { knowledgeNodeContext } from '@/views/knowledge-node-context';
 
 // The markdown renderer arrives only with the node's body: the node's own facts and its neighbours are what a first
 // paint shows, and the body is fetched after that either way. Loaded eagerly it was 141 KiB of this route's first-load
@@ -38,6 +41,10 @@ export default function KnowledgeNodePage({ params }: { params: Promise<{ team: 
   const body = useConsole<KnowledgeBody>(`/knowledge/${team}/${rel}`);
   const self = body.data;
   const multiTeam = body.data?.multi_team ?? false;
+  const arrival = useArrival(body);
+  const context = body.data
+    ? knowledgeNodeContext(body.data, arrival)
+    : pendingContext({ view: 'knowledge_node', title: rel, address: `/knowledge/${team}/${rel}`, scope: `one knowledge node of ${team}` }, failureOf(body));
   // A shared tag is the only link the store records between two nodes, so it is said as that and nothing more.
   // The neighbours come with the node: see `KnowledgeBody.related`.
   const related = body.data?.related ?? [];
@@ -54,6 +61,7 @@ export default function KnowledgeNodePage({ params }: { params: Promise<{ team: 
       crumbs={[{ label: 'Knowledge', href: '/knowledge' }, { label: self ? `${team} · node ${self.num}` : team }]}
       showPeriod={false}
       updatedAt={freshnessOf(body)}
+      context={context}
       toolbar={<KnowledgeTabs active="nodes" />}
     >
       <Query query={body} what="This node" skeleton={<Row split="2/3"><Skeleton className="h-80 rounded-lg" /><Skeleton className="h-80 rounded-lg" /></Row>}>
@@ -61,7 +69,7 @@ export default function KnowledgeNodePage({ params }: { params: Promise<{ team: 
           <>
             {b.superseded_by ? <Banner tone="warning" title={`Superseded by node ${b.superseded_by}`}>Kept readable; it is no longer the current lesson.</Banner> : null}
             <Row split="2/3">
-              <Panel title="The lesson">
+              <Panel title="The lesson" actions={<AskAbout iconBelowSm question="What does this lesson mean for work we are doing now?" />}>
                 <Prose>{b.body.trim()}</Prose>
               </Panel>
               <Panel title="About this node">

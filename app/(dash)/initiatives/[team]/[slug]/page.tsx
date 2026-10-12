@@ -7,15 +7,17 @@ import { aligned } from '@/console/columns';
 import { DocStatus } from '@/console/doc-status';
 import { FlowStepper } from '@/console/flow';
 import { StateBadge } from '@/console/initiative';
-import { ConsolePage } from '@/console/page';
+import { ConsolePage, useArrival } from '@/console/page';
 import { Panel } from '@/console/panel';
-import { Query } from '@/console/query';
+import { Query, failureOf } from '@/console/query';
 import { When } from '@/console/when';
 import { encodePath } from '@/lib/address';
 import { freshnessOf, useConsole } from '@/lib/api';
 import type { InitiativeDetail } from '@/lib/api-shapes';
 import { formatKb } from '@/lib/format';
 import { useLive } from '@/lib/live';
+import { pendingContext } from '@/views/context';
+import { initiativeContext } from '@/views/initiative-context';
 
 type Doc = InitiativeDetail['documents'][number];
 
@@ -72,6 +74,10 @@ export default function InitiativePage({ params }: { params: Promise<{ team: str
   useLive(['initiatives']);
   const { team, slug } = use(params);
   const q = useConsole<InitiativeDetail>(`/initiatives/${team}/${slug}`);
+  const arrival = useArrival(q);
+  const context = q.data
+    ? initiativeContext(q.data, arrival)
+    : pendingContext({ view: 'initiative', title: slug, address: `/initiatives/${team}/${slug}`, scope: `one initiative of team ${team}` }, failureOf(q));
   const base = `/initiatives/${team}/${slug}`;
 
   return (
@@ -81,6 +87,7 @@ export default function InitiativePage({ params }: { params: Promise<{ team: str
       description={<span className="inline-flex flex-wrap items-center gap-2">Read from the document store; the platform stamped every gate. {q.data ? <StateBadge of={q.data} /> : <Skeleton className="inline-block h-5 w-28 rounded-full" />}</span>}
       showPeriod={false}
       updatedAt={freshnessOf(q)}
+      context={context}
     >
       <Query query={q} what="This initiative" skeleton={<div className="flex flex-col gap-(--stack-gap)"><Skeleton className="h-40 rounded-lg" /><Skeleton className="h-72 rounded-lg" /></div>}>
         {(d) => {

@@ -27,6 +27,20 @@ One document, read: the text, how it changed and on what evidence, and the claim
 - A document with no body says so.
 - Not found: the gateway's sentence.
 
+## Agents
+
+The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `documentContext` in `src/views/document-context.ts`, the same function `view_document` calls, so the assistant quotes the figures the screen shows. Ask is on the Document card: what it commits the team to and what to check before approving, or what it says in a few lines.
+
+### What the agent reads
+
+The document's path, its initiative and flow, then where it stands with its gate, its type, version, size, stakeholder and when it changed. What code found: how its text opens (1,200 characters; the page text carries the rest), that approval is given on this page by a member of the team and never by an agent, its versions with who approved each, the sources attached to it, and how many claims its ledger records.
+
+```text
+- Approval is given on this page, by a member of the document's team who has been shown this exact snapshot. An agent cannot approve it.
+```
+
+- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `query_initiatives` looks up what the page lists.
+
 ## Surfaces
 
 Console, desktop and phone. Reads `GET /document/:team/:slug/:path`, `POST /documents/shown`, Live: follows `document`, so a change made anywhere — another tab, another person — reads this page again.

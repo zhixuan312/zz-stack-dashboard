@@ -2,17 +2,21 @@
 
 import { useMemo } from 'react';
 import { DataTable, useQueryState } from '@/components/patterns/data-table';
+import { AskAbout } from '@/components/patterns/ask-about';
 import { FilterBar } from '@/components/patterns/filter-bar';
 import { Segmented } from '@/components/ui/segmented';
 import { facet } from '@/console/facets';
-import { INITIATIVE_STATES, initiativeColumns, initiativeState, waitingOnYou } from '@/console/initiative';
-import { ConsolePage } from '@/console/page';
+import { initiativeColumns } from '@/console/initiative';
+import { INITIATIVE_STATES, initiativeState } from '@/console/initiative-state';
+import { ConsolePage, useArrival } from '@/console/page';
 import { failureOf } from '@/console/query';
 import { usePeriod } from '@/console/period';
 import { freshnessOf, useConsole, useConsoleMode } from '@/lib/api';
 import type { Initiative } from '@/lib/api-shapes';
-import { PERIOD_LABEL, periodCutoff } from '@/lib/period';
+import { PERIOD_LABEL } from '@/lib/period';
 import { useLive } from '@/lib/live';
+import { pendingContext, whose } from '@/views/context';
+import { filterInitiatives, inPeriod, initiativesContext } from '@/views/initiatives-context';
 
 const COLUMNS = initiativeColumns({ team: true });
 
@@ -26,20 +30,14 @@ export default function InitiativesPage() {
 
   // The window first: it says which initiatives the page is about at all. The filters narrow within it, and their
   // counts are taken from what survives it.
-  const inWindow = useMemo(() => {
-    const since = periodCutoff(period);
-    const all = q.data?.initiatives ?? [];
-    return since ? all.filter((i) => new Date(i.updated) >= since) : all;
-  }, [q.data, period]);
-  const rows = useMemo(() => {
-    const needle = f.q.trim().toLowerCase();
-    return inWindow.filter((i) =>
-      (!needle || i.slug.toLowerCase().includes(needle) || i.team.includes(needle) || (i.flow ?? '').includes(needle))
-      && (f.team === 'all' || i.team === f.team)
-      && (f.flow === 'all' || (i.flow ?? 'No flow') === f.flow)
-      && (f.state === 'all' || initiativeState(i) === f.state)
-      && (f.show === 'all' || waitingOnYou(i)));
-  }, [inWindow, f.q, f.team, f.flow, f.state, f.show]);
+  const arrival = useArrival(q);
+  const filters = useMemo(() => ({ q: f.q, team: f.team, flow: f.flow, state: f.state, show: f.show }), [f.q, f.team, f.flow, f.state, f.show]);
+  // Against the data's clock, as the context is: the page and the assistant then window the same initiatives.
+  const inWindow = useMemo(() => inPeriod(q.data?.initiatives ?? [], period, new Date(arrival.now)), [q.data, period, arrival.now]);
+  const rows = useMemo(() => filterInitiatives(inWindow, filters), [inWindow, filters]);
+  const context = q.data
+    ? initiativesContext(q.data.initiatives, { filters, period, mode, ...arrival })
+    : pendingContext({ view: 'initiatives', title: 'Initiatives', address: '/initiatives', scope: `${PERIOD_LABEL[period].toLowerCase()}, ${whose(mode)}` }, failureOf(q));
   const filtered = f.q !== '' || f.team !== 'all' || f.flow !== 'all' || f.state !== 'all' || f.show !== 'all';
   const clear = () => set({ q: '', team: 'all', flow: 'all', state: 'all', show: 'all', page: '1' });
   const page = (patch: Partial<typeof f>) => set({ ...patch, page: '1' });
@@ -49,6 +47,7 @@ export default function InitiativesPage() {
       title="Initiatives"
       description={mode === 'team' ? 'Every piece of work your team has open or closed, and how far through its flow it got.' : 'Every piece of work on the platform, and how far through its flow it got.'}
       updatedAt={freshnessOf(q)}
+      context={context}
     >
       <DataTable
         caption="Initiatives"
@@ -75,6 +74,7 @@ export default function InitiativesPage() {
             ]}
             view={<Segmented size="sm" label="Show" value={f.show} onChange={(v) => page({ show: v })} options={[{ value: 'all', label: 'All' }, { value: 'waiting', label: 'Waiting on you' }]} />}
             result={<>{rows.length} of {inWindow.length}{period === 'all' ? '' : `, ${PERIOD_LABEL[period].toLowerCase()}`}</>}
+            ask={<AskAbout question={f.show === 'waiting' ? 'Which of these should be approved first, and what is each waiting on?' : filtered ? 'What do the initiatives in this list have in common, and which are stuck?' : 'Which initiatives are stuck, and what is each waiting on?'} />}
             onClear={clear}
           />
         }

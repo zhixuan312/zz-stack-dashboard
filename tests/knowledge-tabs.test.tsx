@@ -13,7 +13,7 @@ describe('the knowledge tab strip', () => {
   it('renders one real link per view, to its own route', () => {
     render(<KnowledgeTabs active="nodes" />);
     const hrefs = screen.getAllByRole('link').map((a) => a.getAttribute('href'));
-    expect(hrefs).toEqual(['/knowledge', '/knowledge/ask', '/knowledge/log']);
+    expect(hrefs).toEqual(['/knowledge', '/knowledge/log']);
   });
 
   it('marks the active view for assistive tech, not only visually', () => {

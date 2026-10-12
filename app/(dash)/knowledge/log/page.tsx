@@ -7,12 +7,14 @@ import { MetricTile } from '@/components/patterns/metric-tile';
 import { Badge } from '@/components/ui/badge';
 import { aligned } from '@/console/columns';
 import { KnowledgeTabs } from '@/console/knowledge-tabs';
-import { ConsolePage } from '@/console/page';
+import { ConsolePage, useArrival } from '@/console/page';
 import { failureOf } from '@/console/query';
 import { When } from '@/console/when';
 import { freshnessOf, useConsole, useConsoleMode } from '@/lib/api';
 import type { KnowledgeLogEntry } from '@/lib/api-shapes';
 import { useLive } from '@/lib/live';
+import { pendingContext, whose } from '@/views/context';
+import { knowledgeLogContext } from '@/views/knowledge-log-context';
 
 function columns(multiTeam: boolean): Column<KnowledgeLogEntry>[] {
   return aligned([
@@ -49,6 +51,10 @@ export default function KnowledgeLogPage() {
   const entries = q.data?.entries ?? [];
   const added = entries.filter((e) => e.kind === 'knowledge.add').length;
   const multiTeam = new Set(entries.map((e) => e.team).filter(Boolean)).size > 1;
+  const arrival = useArrival(q);
+  const context = q.data
+    ? knowledgeLogContext(entries, { mode, ...arrival })
+    : pendingContext({ view: 'knowledge_log', title: 'Knowledge log', address: '/knowledge/log', scope: `every node recorded or retired, for ${whose(mode)}` }, failureOf(q));
 
   return (
     <ConsolePage
@@ -56,6 +62,7 @@ export default function KnowledgeLogPage() {
       description={mode === 'team' ? 'Every node this team recorded or retired, newest first.' : 'Every node recorded or retired across the platform, newest first.'}
       showPeriod={false}
       updatedAt={freshnessOf(q)}
+      context={context}
       toolbar={<KnowledgeTabs active="log" />}
     >
       <Row split="tiles">

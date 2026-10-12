@@ -15,6 +15,20 @@ One initiative end to end: where it is in its flow, its documents, and the evide
 - Closed: every node done and the outcome under the last.
 - Not found: the gateway's sentence.
 
+## Agents
+
+The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `initiativeContext` in `src/views/initiative-context.ts`, the same function `view_initiative` calls, so the assistant quotes the figures the screen shows. No Ask on this page: the stepper and the document list are the answer, and the documents carry their own.
+
+### What the agent reads
+
+The initiative's state with what each state means, its position in its flow, how many of its gates are approved, and its documents and sources. What code found: the gates waiting on a person, the step it is at with what that step does and produces, every step's state, every document with its approval, and a correction awaiting approval after the close. It says when the initiative is closed, with what outcome, and whether it stopped short.
+
+```text
+- It is at the plan step: Turn an approved spec into a contract-first plan. That step produces plan.md.
+```
+
+- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `query_initiatives` looks up what the page lists.
+
 ## Surfaces
 
 Console, desktop and phone. Reads `GET /initiatives/:team/:slug`. Live: follows `initiatives`, so a change made anywhere — another tab, another person — reads this page again.

@@ -9,9 +9,10 @@ import { ApproveAction, canApprove, switchToApprove, useRecordShown } from '@/co
 import { aligned } from '@/console/columns';
 import { DocStatus } from '@/console/doc-status';
 import { Row } from '@/components/base/shell';
-import { ConsolePage } from '@/console/page';
+import { AskAbout } from '@/components/patterns/ask-about';
+import { ConsolePage, useArrival } from '@/console/page';
 import { Panel } from '@/console/panel';
-import { Query } from '@/console/query';
+import { Query, failureOf } from '@/console/query';
 import { VersionChain } from '@/console/version-chain';
 import { When } from '@/console/when';
 import { decodePath } from '@/lib/address';
@@ -22,6 +23,8 @@ import { ReadingBody } from '@/console/reading';
 
 import { formatKb } from '@/lib/format';
 import { useLive } from '@/lib/live';
+import { pendingContext } from '@/views/context';
+import { documentContext } from '@/views/document-context';
 
 type Decision = DocumentDetail['decisions'][number];
 
@@ -95,6 +98,10 @@ export default function DocumentPage({ params }: { params: Promise<{ team: strin
   const me = useConsole<Me>('/me');
   // Rendered by default, because a person came to read it; the stored markdown is one press away.
   const [view, setView] = useState<'read' | 'source'>('read');
+  const arrival = useArrival(q);
+  const context = q.data
+    ? documentContext(q.data, arrival)
+    : pendingContext({ view: 'document', title: rel, address: `/initiatives/${team}/${slug}/${rel}`, scope: `one document of initiative ${team}/${slug}` }, failureOf(q));
   const d = q.data;
   // The document's own public version. Not the highest of `versions`: those name the snapshot each version is read
   // as, and several snapshots can share one version.
@@ -133,6 +140,7 @@ export default function DocumentPage({ params }: { params: Promise<{ team: strin
       }
       showPeriod={false}
       updatedAt={freshnessOf(q)}
+      context={context}
       actions={d && me.data && (offered || switchToApprove(d, me.data)) ? <ApproveAction doc={d} me={me.data} shown={shown} onStale={outdated} onReload={() => void reload()} /> : undefined}
       width="data"
     >
@@ -146,7 +154,7 @@ export default function DocumentPage({ params }: { params: Promise<{ team: strin
               <Panel
                 title="Document"
                 description={formatKb(doc.bytes / 1024)}
-                actions={<Segmented size="sm" label="Document view" value={view} onChange={setView} options={[{ value: 'read', label: 'Read' }, { value: 'source', label: 'Source' }]} />}
+                actions={<><AskAbout iconBelowSm question={doc.gated === true && !doc.approved_by ? 'What does this document commit us to, and what should I check before approving it?' : 'What does this document say, in a few lines?'} /><Segmented size="sm" label="Document view" value={view} onChange={setView} options={[{ value: 'read', label: 'Read' }, { value: 'source', label: 'Source' }]} /></>}
               >
                 {/* The reader's measure is this cell, not Meridian's 72-character cap. These are long documents on a
                     wide screen, and a 533px strip in a 1,400px canvas makes one longer than it is: the cap is worth
