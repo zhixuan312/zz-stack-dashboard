@@ -100,6 +100,13 @@ export function ShellPending() {
  * The console's chrome: the rail, the tools beside it and the command palette. Three client components, because each
  * reads who is signed in from `/me` in the browser, and each keeps its own `<Suspense>` boundary.
  *
+ * INTERIM, and it says what it is waiting for. Meridian ships this chrome as `src/views/console-chrome.tsx`, and this
+ * file is the console's own copy of the same shape. It is not the release's for two reasons, both reported: in 0.14.1
+ * `ChromeAccess.viewAs` is required and the rail draws a "View as" group whenever it is given, which a console with
+ * one session per person has nothing to put in (zz-meridian#23); and the release's chrome learns who is signed in only
+ * from a promise the server resolves, where this console learns it in the browser (zz-meridian#24). When the release
+ * takes either a resolved value or an optional `viewAs`, this file goes and the layout renders `console-chrome.tsx`.
+ *
  * The boundary is not tidiness. The rail, the tools and the palette read `usePathname` and `useRouter`, and Cache
  * Components refuses a dynamic client hook outside a boundary: the build fails the route outright rather than
  * prerendering it. This is the release's own shape (`src/views/console-chrome.tsx`) — the boundary is what the static

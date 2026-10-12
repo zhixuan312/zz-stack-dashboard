@@ -10,6 +10,12 @@
  * The gateway answers a list whole and already scoped to the caller, so `query` reads it and then applies the
  * conditions, the sort and the page here, with the same meaning `arrayCollection` gives them: a field with no value
  * matches only `ne`, `gt` and `lt` compare like with like, `contains` ignores case, and rows with no value sort last.
+ *
+ * INTERIM: `compare`, `matches` and `applyQuery` below repeat what `src/lib/collection.ts` does inside
+ * `arrayCollection`, because 0.14.1 exports none of it and Meridian's guide tells a product with a real store to
+ * write the collection itself. Reported as zz-meridian#24; when the release exports a row query, this file calls it
+ * and the three functions go. `onPage` is the same: a throwing operation marked `pageOnly`, until a collection can
+ * declare where a change is made without implementing it.
  */
 import type { z } from 'zod';
 import type { Collection, Query } from '@/lib/collection';

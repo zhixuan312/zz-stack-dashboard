@@ -108,6 +108,16 @@ a time or `sources/2026-10-06-call.md` arrives as a single segment named after i
   and always asks for the platform scope, which the gateway grants only to a superadmin. Pages still read from the
   browser. This is the "server replays the caller's cookie" shape the console avoided while it was only a renderer;
   it was taken on deliberately for the assistant on 2026-10-12, bounded to that module, and it stores nothing.
+- **Two things are still the console's own where Meridian has an answer, each waiting on a named report.** The shell
+  chrome (`src/console/frame.tsx`) instead of the release's `console-chrome.tsx`: 0.14.1 requires a "View as" group
+  this console has nothing to put in, and resolves who is signed in on the server (zz-meridian#23, #24). The row filter
+  in `src/data/gateway-collection.ts`: the release does not export its own (zz-meridian#24). Both say so in their own
+  header and go when the release ships the fix. The rule, set on 2026-10-12: use the release; where it lacks something
+  or gets it wrong, read the issue list and file it; write the console's own only as the interim.
+- **The assistant reads and does not write, by the release's own switch.** A collection gives an agent a tool only for
+  an operation it allows, and this console's allow none: what a page does is declared `pageOnly`. Letting it propose a
+  change (revoke a token, add a member, archive a team) is a feature to decide, not a gap in the adoption, and it needs
+  the gateway to record that a change was made through the assistant.
 - **Knowledge has no Ask tab.** The page that answered a question from one team's shelf, through the gateway's own
   model call, is gone: the assistant is the one place a question is asked. It finds nodes with `query_knowledge` and
   reads one with `view_knowledge_node`, whose context carries the lesson itself. What that drops is the gateway's
