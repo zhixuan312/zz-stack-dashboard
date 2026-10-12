@@ -22,7 +22,7 @@ export const app = {
   user: { name: 'Signing in', role: 'ZZ' },
 } as const;
 
-export type NavItem = {
+type NavItem = {
   href: string;
   label: string;
   icon: LucideIcon;
