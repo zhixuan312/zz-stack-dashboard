@@ -2,8 +2,7 @@
 
 import { useState } from 'react';
 import { Check, Copy, KeyRound } from 'lucide-react';
-import { CardBody } from '@/components/ui/card';
-import { SettingsCard, SettingsSection } from '@/console/settings/section';
+import { FormSection } from '@/components/patterns/form-section';
 import { Query } from '@/console/query';
 import { InlineForm } from '@/console/inline-form';
 import { InlineDestructive } from '@/console/settings/inline-destructive';
@@ -132,16 +131,15 @@ export function PlatformPeoplePanel() {
   }
 
   return (
-    <SettingsSection
+    <FormSection
+      as="div"
+      flush
       title="People"
       description={`Everyone on this deployment${list.data ? `, ${list.data.length} in all` : ''}. Every change here is logged with who made it, from this console.`}
     >
       {issued ? (
-        <IssuedEnrolmentBanner email={issued.email} url={issued.url} onDismiss={() => setIssued(null)} />
+        <div className="border-b border-line p-(--card-pad)"><IssuedEnrolmentBanner email={issued.email} url={issued.url} onDismiss={() => setIssued(null)} /></div>
       ) : null}
-
-      <SettingsCard>
-        <CardBody flush>
           <Query query={list}>
             {(rows) =>
               rows.length === 0 ? (
@@ -167,9 +165,7 @@ export function PlatformPeoplePanel() {
               {(p) => <Input {...p} value={displayName} onChange={(e) => setDisplayName(e.target.value)} />}
             </Field>
           </InlineForm>
-        </CardBody>
-      </SettingsCard>
-    </SettingsSection>
+    </FormSection>
   );
 }
 

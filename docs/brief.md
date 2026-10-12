@@ -175,10 +175,10 @@ What stays the console's own, and why:
   seventeen places while the idiom sat in others, the dash was written once and re-derived once, and a rule written
   twice is a rule that drifts. `scripts/check.local.ts` refuses the two shapes of a hand-rolled plural that cannot be
   anything else.
-- `src/console/settings/section.tsx`: the same grid as Meridian's `FormSection` — a 15rem head column beside a card
-  capped at `--field-width` — but not `FormSection` itself, which wraps its card in one form with one save bar. A
-  Settings section here holds tables and forms of its own, each with its own save. Since 0.14.0 the Settings *page*
-  passes `width="form"`, which is the measure those two columns add up to.
+- Settings sections are Meridian's `FormSection` with `as="div"`: the same head column and card with no form around
+  them, `flush` where the card holds a table. The console's own `SettingsSection` stood in for it until the release
+  had that variant (zz-meridian#5) and is gone; a one-time token or enrolment link is shown at the top of the card it
+  belongs to.
 - `proxy.ts`: the laptop's dev-only PAT passthrough, plus one addition this product made — a preload hint for a
   document route's read. A route with an unknown dynamic param cannot render its page on the server, so nothing writes
   the hint `useConsole` was designed to write from the HTML, and the read then waits for the route's own JS. Measured:

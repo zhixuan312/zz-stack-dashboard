@@ -2,8 +2,7 @@
 
 import { useState } from 'react';
 import { Check, Copy } from 'lucide-react';
-import { CardBody } from '@/components/ui/card';
-import { SettingsCard, SettingsSection } from '@/console/settings/section';
+import { FormSection } from '@/components/patterns/form-section';
 import { Query } from '@/console/query';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/toast';
@@ -31,12 +30,11 @@ export function ClientSetupPanel() {
   }
 
   return (
-    <SettingsSection
+    <FormSection
+      as="div"
       title="Client setup"
       description="What to run in Claude Code to connect it to this platform as you. Put an access token where it says to."
     >
-      <SettingsCard>
-        <CardBody>
           <Query query={setup} skeletonRows={4}>
             {(s) => (
               <div className="relative">
@@ -50,8 +48,6 @@ export function ClientSetupPanel() {
               </div>
             )}
           </Query>
-        </CardBody>
-      </SettingsCard>
-    </SettingsSection>
+    </FormSection>
   );
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { SettingsCard, SettingsSection } from '@/console/settings/section';
+import { FormSection } from '@/components/patterns/form-section';
 import { InlineForm } from '@/console/inline-form';
 import { InlineDestructive } from '@/console/settings/inline-destructive';
 import { Button } from '@/components/ui/button';
@@ -56,11 +56,12 @@ export function PlatformTeamsPanel() {
   }
 
   return (
-    <SettingsSection
+    <FormSection
+      as="div"
+      flush
       title="Platform teams"
       description="Create a team, or archive one. A slug is lowercase letters, digits, - or _, and never changes. Archiving is undone by creating the same slug again."
     >
-      <SettingsCard>
         <InlineForm
           ariaLabel="Create a team"
           onSubmit={create}
@@ -95,7 +96,6 @@ export function PlatformTeamsPanel() {
             <Button type="button" variant="secondary" disabled>Archive</Button>
           )}
         </div>
-      </SettingsCard>
-    </SettingsSection>
+    </FormSection>
   );
 }

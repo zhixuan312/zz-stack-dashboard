@@ -1,7 +1,6 @@
 'use client';
 
-import { CardBody } from '@/components/ui/card';
-import { SettingsCard, SettingsSection } from '@/console/settings/section';
+import { FormSection } from '@/components/patterns/form-section';
 import { Query } from '@/console/query';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -38,9 +37,7 @@ export function TeamsPanel() {
   );
 
   return (
-    <SettingsSection title="Your teams" description="The teams you belong to, and which one this browser acts for.">
-      <SettingsCard>
-        <CardBody flush>
+    <FormSection as="div" flush title="Your teams" description="The teams you belong to, and which one this browser acts for.">
           <Query query={teams}>
             {(t) => (
               <TeamsTable
@@ -59,9 +56,7 @@ export function TeamsPanel() {
               />
             )}
           </Query>
-        </CardBody>
-      </SettingsCard>
-    </SettingsSection>
+    </FormSection>
   );
 }
 

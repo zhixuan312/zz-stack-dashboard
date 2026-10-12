@@ -3,10 +3,9 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Check, Copy } from 'lucide-react';
-import { CardBody } from '@/components/ui/card';
 import { Query } from '@/console/query';
 import { InlineForm } from '@/console/inline-form';
-import { SettingsCard, SettingsSection } from '@/console/settings/section';
+import { FormSection } from '@/components/patterns/form-section';
 import { InlineDestructive } from '@/console/settings/inline-destructive';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -110,11 +109,9 @@ export function TokensPanel() {
   }
 
   return (
-    <SettingsSection title="Access tokens" description="For Claude Code or any MCP client, acting as you. A new token is shown once, when it is issued.">
-      {issued ? <IssuedTokenBanner issued={issued} onDismiss={() => setIssued(null)} /> : null}
-
-      <SettingsCard>
-        <CardBody flush>
+    <FormSection as="div" flush title="Access tokens" description="For Claude Code or any MCP client, acting as you. A new token is shown once, when it is issued.">
+      {/* In the card it belongs to, above the list it will join: the section's card is the one place its content goes. */}
+      {issued ? <div className="border-b border-line p-(--card-pad)"><IssuedTokenBanner issued={issued} onDismiss={() => setIssued(null)} /></div> : null}
           <Query query={list}>
             {(rows) =>
               rows.length === 0 ? (
@@ -131,9 +128,7 @@ export function TokensPanel() {
               {(p) => <Input {...p} placeholder="What it is for, e.g. laptop — Claude Code" value={label} onChange={(e) => setLabel(e.target.value)} />}
             </Field>
           </InlineForm>
-        </CardBody>
-      </SettingsCard>
-    </SettingsSection>
+    </FormSection>
   );
 }
 

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { CardBody } from '@/components/ui/card';
-import { SettingsCard, SettingsSection } from '@/console/settings/section';
+import { FormSection } from '@/components/patterns/form-section';
 import { TeamMembersPanel } from '@/console/settings/team-members-panel';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -41,8 +41,7 @@ export function TeamAdminPanel() {
   const team = data.superadmin ? committed : (manualTeam || adminTeams[0] || '');
 
   return (
-    <SettingsSection title="Team administration" description="Members and roles for a team you administer.">
-      <SettingsCard>
+    <FormSection as="div" flush title="Team administration" description="Members and roles for a team you administer.">
         <CardBody>
           <Field label="Team" className="max-w-sm" hint={data.superadmin ? 'Any team slug — as a superadmin you administer all of them' : undefined}>
             {(p) =>
@@ -69,7 +68,6 @@ export function TeamAdminPanel() {
           </Field>
         </CardBody>
         {team ? <TeamMembersPanel team={team} /> : null}
-      </SettingsCard>
-    </SettingsSection>
+    </FormSection>
   );
 }
