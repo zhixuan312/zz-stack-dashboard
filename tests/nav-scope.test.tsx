@@ -51,7 +51,7 @@ describe('the rail in team mode', () => {
 describe('the feature table', () => {
   /** What each page asks for once People is the superadmin's, written out from the spec's tables and not read from the code. */
   const NEEDS: Record<string, string> = {
-    home: 'work:read', initiatives: 'work:read', knowledge: 'work:read', settings: 'work:read', 'platform-status': 'platform:read',
+    home: 'work:read', record: 'work:read', initiatives: 'work:read', approvals: 'work:read', knowledge: 'work:read', settings: 'work:read', 'platform-status': 'platform:read',
     teams: 'fleet:read', people: 'fleet:read', plugins: 'fleet:read', runs: 'fleet:read', activity: 'fleet:read',
     usage: 'platform:read', 'knowledge-health': 'platform:read', audit: 'fleet:read',
   };

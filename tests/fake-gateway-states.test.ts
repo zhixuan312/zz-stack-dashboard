@@ -1,8 +1,11 @@
 // @vitest-environment node
 import { spawn, type ChildProcess } from 'node:child_process';
 import { afterEach, describe, expect, it } from 'vitest';
+import type { InitiativeList } from '../src/lib/work-shapes.ts';
+import { ME } from '../scripts/fake-gateway/people.ts';
 import { PLATFORM_STATUS } from '../scripts/fake-gateway/platform-status.ts';
 import { empty, extreme } from '../scripts/fake-gateway/states.ts';
+import { initiativeList } from '../scripts/fake-gateway/work-initiatives.ts';
 import config from '../scripts/verify.config.ts';
 
 /**
@@ -12,9 +15,13 @@ import config from '../scripts/verify.config.ts';
  * threw out of the request handler and killed the gateway process: every page after it reported
  * "cannot reach the platform", and the shape that caused it was the only thing the report did not
  * show. A transform reads an answer by its own idea of that route's shape, so a route that grows a
- * second answer — `/initiatives?waiting=1` returns `{ waiting }`, the list returns `{ initiatives }`
+ * second answer — `/initiatives?waiting=1` returns `{ waiting }`, the list returns `{ rows, total, … }`
  * — is where it will break next.
  */
+/** The initiatives list as the fixture answers the superadmin for `query`. */
+const LIST = (query = ''): InitiativeList => initiativeList(ME, new URLSearchParams(query))[1] as InitiativeList;
+/** A list a team with no work is answered. */
+const NONE = (): InitiativeList => ({ ...LIST(), rows: [], total: 0 });
 describe('the fixture can shape every answer its routes produce', () => {
   it('leaves an empty projection empty rather than inventing rows', () => {
     // Nothing waiting is a state the console draws ("Nothing needs a signature"); forty fabricated
@@ -27,18 +34,22 @@ describe('the fixture can shape every answer its routes produce', () => {
     // mode that filled it in grew its rows from `rows[i % 0]` — `undefined` — so every fabricated
     // row carried the slug below and none of the fields an initiative has. The page's columns
     // dereference `stages`, and /teams/dune died in its error boundary on the whole page.
-    expect(extreme(['initiatives'], { initiatives: [] })).toEqual({ initiatives: [] });
+    const none = NONE();
+    expect((extreme(['initiatives'], none) as InitiativeList)).toMatchObject({ rows: [], total: 0 });
     expect(extreme(['teams'], { teams: [] })).toEqual({ teams: [] });
     expect(extreme(['knowledge'], { nodes: [] })).toEqual({ nodes: [] });
   });
 
-  it('every row it adds keeps the shape of the row it was grown from', () => {
-    const one = { slug: 'a', stages: [{ name: 'spec', state: 'done' }], gates: [], team: 'atlas', closed: false };
-    const got = extreme(['initiatives'], { initiatives: [one] }) as { initiatives: Record<string, unknown>[] };
-    expect(got.initiatives.length).toBeGreaterThan(1);
-    for (const row of got.initiatives) {
-      expect(Array.isArray(row.stages), `a row lost its stages: ${JSON.stringify(row)}`).toBe(true);
-      expect(row.team).toBe('atlas');
+  it('makes a busy list a page of long names under large counts, never more rows than the page asked for', () => {
+    // The list is paged on the server, so however busy the team, a page holds what it asked for.
+    const list = LIST();
+    const got = extreme(['initiatives'], list) as InitiativeList;
+    expect(got.rows).toHaveLength(list.rows.length);
+    expect(got.total).toBeGreaterThan(1_000);
+    expect(got.summary.state === 'ok' && got.summary.data.total).toBe(got.total);
+    for (const [i, row] of got.rows.entries()) {
+      expect(Object.keys(row).sort(), `a row lost a field: ${JSON.stringify(row)}`).toEqual(Object.keys(list.rows[i]).sort());
+      expect(row.slug.length).toBeGreaterThan(60);
     }
   });
 
@@ -49,14 +60,6 @@ describe('the fixture can shape every answer its routes produce', () => {
     expect(got.waiting[0]).toEqual(one);
   });
 
-  it('shapes the list it has always shaped', () => {
-    const one = { team: 'a', slug: 'b', flow: null, documents: 1, approvals: 0, updated: '2026-10-05',
-                  stakeholder: null, at: 1, of: 7, stage: 'open', steps: [], gates: [], accepted: false,
-                  complete: false, closed: false, outcome: null };
-    const got = extreme(['initiatives'], { initiatives: [one] }) as { initiatives: unknown[] };
-    expect(got.initiatives.length).toBeGreaterThan(1);
-  });
-
   it('shapes every answer the routes actually produce, empty lists included', () => {
     // Each route paired with the answers `read()` gives it — the property that matters: a shape a
     // route really produces must not be a shape this mode does not know. The server catches what is
@@ -65,7 +68,8 @@ describe('the fixture can shape every answer its routes produce', () => {
     const answers: [string[], unknown][] = [
       [['initiatives'], { waiting: [{ id: 'x', gate: 'g', team: 'a', slug: 'b', updated: 'u', stage: 's', at: 1, of: 2 }] }],
       [['initiatives'], { waiting: [] }],
-      [['initiatives'], { initiatives: [] }],
+      [['initiatives'], LIST()],
+      [['initiatives'], NONE()],
       [['knowledge'], { nodes: [] }],
       [['knowledge', 'log'], { entries: [] }],
       [['teams'], { teams: [] }],
@@ -85,7 +89,9 @@ describe('the fixture can shape every answer its routes produce', () => {
     // A fresh deployment has no gate waiting on anybody: the bell read the same seven it reads on a busy one.
     const one = { id: 'a/b/approve spec', gate: 'spec', team: 'a', slug: 'b', updated: '2026-10-05', stage: 'spec', at: 2, of: 7 };
     expect(empty(['initiatives'], { waiting: [one] })).toEqual({ waiting: [] });
-    expect(empty(['initiatives'], { initiatives: [{ slug: 'b' }] })).toEqual({ initiatives: [] });
+    const list = empty(['initiatives'], LIST()) as InitiativeList;
+    expect(list).toMatchObject({ rows: [], total: 0, tiles: { open: 0, waiting: 0, closed: { accepted: 0, delivered: 0, abandoned: 0 } } });
+    expect(list.summary.state === 'ok' && list.summary.data.total).toBe(0);
   });
 
   it('serves the platform\'s status as it is in both worlds', () => {
@@ -155,7 +161,8 @@ describe('every mode answers both people', () => {
   const ask = (base: string, cookie: string | null, path: string, ms = 10_000) =>
     fetch(`${base}/api/console/${path}`, { headers: cookie === null ? {} : { cookie: `zz_console=${cookie}` }, signal: AbortSignal.timeout(ms) });
   const READS = ['overview', 'initiatives', 'initiatives?waiting=1', 'knowledge', 'knowledge/log', 'activity', 'runs',
-                 'plugins', 'skills', 'settings/me/tokens', 'settings/me/teams', 'platform/status'];
+                 'plugins', 'skills', 'settings/me/tokens', 'settings/me/teams', 'platform/status',
+                 'home', 'record', 'approvals', 'work/query?measure=closures&by=outcome'];
   /** The superadmin's alone: a member is refused them in every world. */
   const FLEET = ['teams', 'teams?scope=platform', 'teams/atlas', 'people', 'people?scope=platform'];
   const REFUSAL = { error: 'not permitted' };
@@ -166,8 +173,9 @@ describe('every mode answers both people', () => {
     return {
       teams: superadmin ? (await get('teams?scope=platform&limit=100')).teams : [],
       people: superadmin ? (await get('people?scope=platform&limit=100')).people : [],
+      initiatives: (await get('initiatives?scope=platform&limit=100')).rows,
       byTeam: [
-        ...(await get('initiatives?scope=platform')).initiatives, ...(await get('initiatives?waiting=1&scope=platform')).waiting,
+        ...(await get('initiatives?waiting=1&scope=platform')).waiting,
         ...(await get('knowledge?scope=platform')).nodes, ...(await get('knowledge/log?scope=platform')).entries,
         ...(await get('activity?scope=platform')).events,
       ],
@@ -186,8 +194,8 @@ describe('every mode answers both people', () => {
         else expect(res.status, `${mode}, ${name}: GET ${path}`).toBe(200);
       }
 
-      const { teams, people, byTeam } = await lists(base, cookie, role === 'superadmin');
-      if (mode === 'empty') expect([teams, people, byTeam], name).toEqual([[], [], []]);
+      const { teams, people, initiatives, byTeam } = await lists(base, cookie, role === 'superadmin');
+      if (mode === 'empty') expect([teams, people, initiatives, byTeam], name).toEqual([[], [], [], []]);
       else if (role === 'member') {
         expect(byTeam.length).toBeGreaterThan(20);
         for (const row of byTeam) expect(row.team, JSON.stringify(row).slice(0, 120)).toBe(me.activeTeam);

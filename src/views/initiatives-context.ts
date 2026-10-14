@@ -1,53 +1,56 @@
 /**
- * The Initiatives list's shared context (decision 0011): what the page and the assistant are both told about where
- * each piece of work is in its flow and what waits on a person.
+ * The Initiatives list's shared context (decision 0011): what the page and the assistant are both told about the active
+ * team's work, from the one `InitiativeList` the gateway answered. The rows are the page in view; the counts are the
+ * summary the gateway computed over the whole filtered population, so a context never grows with the data and never
+ * counts one page as if it were all of it.
  */
-import { INITIATIVE_STATES, initiativeState, waitingGates, waitingOnYou } from '@/console/initiative-state';
-import type { Initiative } from '@/lib/api-shapes';
 import { formatCount } from '@/lib/format-units';
 import { formatDate } from '@/lib/format-date';
-import { PERIOD_LABEL, type Period } from '@/lib/period';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
-import { addressOf, arrived, budgeted, clip, whose, type Arrival, type ViewMode } from './context';
-import { filterInitiatives, inPeriod, type InitiativesFilters } from './initiatives-filter';
+import type { InitiativeList, InitiativeRow } from '@/lib/work-shapes';
+import { addressOf, arrived, budgeted, clip, type Arrival } from './context';
+import { LIST_STATES, PAGE_SIZE, STATE_LABEL, narrowed, type InitiativesFilters } from './initiatives-filter';
 
-/** An initiative as a list names it: its team and its slug, a very long slug cut. */
-const named = (i: { team: string; slug: string }) => `${i.team}/${clip(i.slug)}`;
+/** Where a row goes next, in the words zz-core's `next_move` answers. */
+const move = (r: InitiativeRow): string => (r.nextMove ? `${r.nextMove.action}${r.nextMove.document ? ` ${r.nextMove.document}` : ''}` : 'unknown');
+/** That, and who it waits on, as a row's flow position reads. */
+export const nextOf = (r: InitiativeRow): string => (r.nextMove ? `${move(r)}${r.nextMove.waitingOn ? `, waiting on ${r.nextMove.waitingOn}` : ''}` : 'next move unavailable');
 
-export function initiativesContext(all: Initiative[], { filters, period, mode, ...arrival }: { filters: InitiativesFilters; period: Period; mode: ViewMode } & Arrival): SharedContext {
-  const inWindow = inPeriod(all, period, new Date(arrival.now));
-  const rows = filterInitiatives(inWindow, filters);
-  const narrowed = Object.entries(filters).some(([k, v]) => (k === 'q' ? v !== '' : v !== 'all'));
-  const byState = INITIATIVE_STATES.map((s) => [s, rows.filter((i) => initiativeState(i) === s).length] as const).filter(([, n]) => n);
-  const waiting = rows.filter(waitingOnYou);
-  const open = rows.filter((i) => !i.closed);
+export function initiativesContext(list: InitiativeList, { filters, page, ...arrival }: { filters: InitiativesFilters; page: number } & Arrival): SharedContext {
+  const summary = list.summary.state === 'ok' ? list.summary.data : null;
+  const first = (page - 1) * PAGE_SIZE;
   const insights: Insight[] = [];
-  if (byState.length) insights.push({ text: `By state: ${byState.map(([s, n]) => `${n} ${s.toLowerCase()}`).join(', ')}.` });
-  if (waiting.length) insights.push({ text: `Waiting on a person: ${listed(waiting, (i) => `${named(i)} (${waitingGates(i).join(', ')})`, 'show Waiting on you on /initiatives', 12)}.`, evidence: '/initiatives?show=waiting' });
-  const corrected = waiting.filter((i) => i.closed);
-  if (corrected.length) insights.push({ text: `${corrected.length} of those ${corrected.length === 1 ? 'is' : 'are'} already closed: ${listed(corrected, named, 'see /initiatives?show=waiting', 8)}. A closing document changed after the close and awaits approval again, so the State column still reads the outcome while the initiative is listed as waiting.` });
-  const stalest = open.reduce<Initiative | null>((a, i) => (!a || i.updated < a.updated ? i : a), null);
-  if (stalest && open.length > 1) insights.push({ text: `The open initiative untouched longest is ${named(stalest)}, last touched ${formatDate(stalest.updated)}${stalest.of ? ` at stage ${stalest.at} of ${stalest.of}${stalest.stage ? ` (${stalest.stage})` : ''}` : ', with no flow declared'}.`, evidence: `/initiatives/${stalest.team}/${stalest.slug}` });
-  const flows = [...new Set(rows.map((i) => i.flow ?? 'No flow'))].map((f) => `${f} ${rows.filter((i) => (i.flow ?? 'No flow') === f).length}`);
-  if (flows.length > 1) insights.push({ text: `By flow: ${flows.join(', ')}.` });
-  if (rows.length) insights.push({ text: `The initiatives listed: ${listed(rows, (i) => `${named(i)} (${initiativeState(i)}${i.of ? `, stage ${i.at} of ${i.of}` : ''})`, 'filter or search on /initiatives', 12)}.` });
-  const said = [filters.team !== 'all' ? `team ${filters.team}` : '', filters.flow !== 'all' ? `flow ${filters.flow}` : '', filters.state !== 'all' ? `state ${filters.state}` : '', filters.show !== 'all' ? 'waiting on you only' : '', filters.q ? `matching "${filters.q}"` : ''].filter(Boolean);
+  if (summary) {
+    const byState = LIST_STATES.filter((st) => summary.byState[st]).map((st) => `${summary.byState[st]} ${STATE_LABEL[st].toLowerCase()}`);
+    if (byState.length) insights.push({ text: `By state: ${byState.join(', ')}.` });
+  }
+  if (list.rows.length) {
+    insights.push({
+      text: `Rows ${first + 1} to ${first + list.rows.length} of ${list.total}, waiting first: ${listed(list.rows, (r) => `${clip(r.slug)} (${STATE_LABEL[r.state].toLowerCase()}, ${r.gates.of ? `${r.gates.passed} of ${r.gates.of} gates` : 'no gates'}, touched ${formatDate(r.lastTouched)}; next: ${move(r)})`, 'page or filter on /initiatives', PAGE_SIZE)}.`,
+      evidence: addressOf('/initiatives', { ...filters, page: String(page) }, { state: 'all', flow: 'all', page: '1' }),
+    });
+  }
+  if (summary && summary.byFlow.length > 1) insights.push({ text: `By flow: ${summary.byFlow.map((f) => `${f.flow ?? 'no flow'} ${f.count}`).join(', ')}.` });
+  const said = [filters.state !== 'all' ? `state ${filters.state}` : '', filters.flow !== 'all' ? `flow ${filters.flow}` : '', filters.q.trim() ? `matching "${filters.q.trim()}"` : ''].filter(Boolean);
+  const closed = list.tiles.closed;
   return budgeted({
     view: 'initiatives',
     title: 'Initiatives',
-    address: addressOf('/initiatives', { period, ...filters }, { period: 'all', team: 'all', flow: 'all', state: 'all', show: 'all' }),
-    scope: `${period === 'all' ? 'all time' : `last touched in the ${PERIOD_LABEL[period].toLowerCase()}`}, ${whose(mode)}${said.length ? `; filtered to ${said.join(', ')}` : ''}`,
+    address: addressOf('/initiatives', { ...filters, page: String(page) }, { state: 'all', flow: 'all', page: '1' }),
+    scope: `your active team's work${said.length ? `, filtered to ${said.join(', ')}` : ''}; page ${page} of ${Math.max(1, Math.ceil(list.total / PAGE_SIZE))}`,
     freshness: arrived(arrival),
     facts: [
-      { label: 'Initiatives', value: `${formatCount(rows.length)}${narrowed ? ` of ${formatCount(inWindow.length)}` : ''}`, definition: 'Pieces of work, open or closed. An initiative starts with initiative_open, and every document written afterwards lands under it.' },
-      { label: 'Open', value: formatCount(open.length), definition: 'No outcome recorded yet.' },
-      { label: 'Waiting on you', value: formatCount(waiting.length), definition: 'A gate document is written and nobody has approved it, a closed initiative\'s corrected closing document among them. A gate nobody has drafted waits on the agent, not on a person.' },
-      { label: 'Closed', value: formatCount(rows.length - open.length), definition: 'Closed as accepted, delivered or abandoned; close() records exactly one.' },
+      { label: 'Initiatives', value: formatCount(list.total), definition: narrowed(filters) ? 'All that these filters match, not this page.' : 'Every piece of work the team has opened.' },
+      { label: 'Open', value: formatCount(list.tiles.open), definition: 'No outcome yet, the waiting and quiet among them; the whole team\'s.' },
+      { label: 'Waiting', value: formatCount(list.tiles.waiting), definition: 'A revision presented and not yet approved.' },
+      { label: 'Closed', value: formatCount(closed.accepted + closed.delivered + closed.abandoned), change: `${closed.accepted} accepted, ${closed.delivered} delivered, ${closed.abandoned} abandoned` },
     ],
     insights,
     unknowns: [
-      ...(period === 'all' ? [] : ['The period windows on when an initiative was last touched, not on when it was opened.']),
-      ...(rows.length ? [] : [narrowed || inWindow.length < all.length ? 'No initiative matches this period and these filters.' : 'No initiative has been opened yet.']),
+      'Work is your active team\'s alone; another team\'s initiatives are not in this list.',
+      ...(summary ? [] : ['The counts by state and flow could not be read; the rows and the total stand.']),
+      ...(list.nextMoveState === 'ok' ? [] : [list.nextMoveState === 'partial' ? 'zz-core did not answer for some rows, so their next move is unknown.' : 'zz-core did not answer, so no row\'s next move is known.']),
+      ...(list.rows.length ? [] : [narrowed(filters) ? 'No initiative matches these filters.' : page > 1 ? 'This page is past the last initiative.' : 'No initiative has been opened yet.']),
     ],
   });
 }

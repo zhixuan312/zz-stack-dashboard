@@ -41,6 +41,12 @@
  * the superadmin's alone and refused like a report. `GET /api/console/teams`, `/teams/:slug` and `/people` are the
  * superadmin's reads with each team's and person's figures, filtered and paged; a member is still answered their own
  * team's records in the fields they had before.
+ *
+ * Work's reads are the caller's active team's, for the superadmin too, and `?team=` or `?scope=platform` widen nothing:
+ * `GET /api/console/home`, `/record?period`, `/approvals?tab`, the paged `/initiatives?state&flow&q&limit&offset` and the
+ * prepared `/work/query`, one fixture each, the approvals in them the caller's own. `?waiting=1` still answers the
+ * bell's projection. `POST /api/console/initiatives/:team/:slug/close` is answered as the platform decides a close and
+ * refuses one, and forgotten like every other write.
  */
 import http from 'node:http';
 import type { Me, Overview } from '../../src/lib/api-shapes.ts';
@@ -58,7 +64,12 @@ import { usage } from './platform-usage.ts';
 import { ACTIVITY, PLUGINS, SKILLS, overview, pluginEval, runs, skillDetail, skillText } from './platform.ts';
 import { search } from './search.ts';
 import { empty, extreme } from './states.ts';
-import { INITIATIVES, KNOWLEDGE, KNOWLEDGE_LOG, WAITING, documentDetail, documentRevision, initiativeDetail, knowledgeBody, refusesRecord, revisionInStore } from './work.ts';
+import { KNOWLEDGE, KNOWLEDGE_LOG, WAITING, documentDetail, documentRevision, initiativeDetail, knowledgeBody, refusesRecord, revisionInStore } from './work.ts';
+import { approvals } from './work-approvals.ts';
+import { home } from './work-home.ts';
+import { close, initiativeList } from './work-initiatives.ts';
+import { workQuery } from './work-query.ts';
+import { record } from './work-record.ts';
 
 const args = process.argv.slice(2);
 const port = Number(args[args.indexOf('--port') + 1] ?? 0) || 0;
@@ -108,6 +119,10 @@ function read(who: Me, seg: string[], q: URLSearchParams): Answer {
   switch (head) {
     case 'me': return ok(who);
     case 'overview': return ok(own ? teamCensus(overview(period), own) : overview(period));
+    case 'home': return a ? missing(seg.join('/')) : ok(home(who));
+    case 'record': return a ? missing(seg.join('/')) : record(who, q);
+    case 'approvals': return a ? missing(seg.join('/')) : approvals(who, q);
+    case 'work': return a === 'query' && !b ? workQuery(who, q) : missing(seg.join('/'));
     // Whom Teams and People answer, and in which shape, is their fixtures' to decide: the superadmin's read, filtered
     // and paged, and the gateway's refusal to anybody else.
     case 'teams': return a ? team(who, a) : teams(who, q, page(q)) ?? BAD_PAGE;
@@ -116,9 +131,8 @@ function read(who: Me, seg: string[], q: URLSearchParams): Answer {
       // because `?waiting=1` names no initiative of its own.
       if (q.get('waiting') === '1') return ok({ waiting: mine(WAITING) });
       if (a && b) return foreign(a) ? missing(`initiative ${a}/${b}`) : or404(initiativeDetail(a, b), `initiative ${a}/${b}`);
-      const team = q.get('team');
-      if (team && foreign(team)) return [403, { error: `not a member of ${team}` }];
-      return ok({ initiatives: team ? INITIATIVES.filter((i) => i.team === team) : mine(INITIATIVES) });
+      // Work is the active team's: the list answers it alone, whatever `?team=` or `?scope=` asked.
+      return a ? missing(seg.join('/')) : initiativeList(who, q);
     }
     case 'document': {
       const rev = q.get('revision');
@@ -278,6 +292,9 @@ function write(who: Me, seg: string[], q: URLSearchParams, method: string, body:
     const report = bugReport(resolving[1]);
     return report ? resolve(report, body) : UNKNOWN;
   }
+  // `POST /api/console/initiatives/:team/:slug/close`: the facts of a close, the outcome the platform's to derive.
+  const closing = /^initiatives\/([^/]+)\/([^/]+)\/close$/.exec(path);
+  if (closing && method === 'POST') return close(who, closing[1], closing[2], body);
   // `POST /api/console/page-view`: one committed navigation, by its feature. Nothing to say back, so no body.
   if (path === 'page-view' && method === 'POST') {
     if (typeof body.feature !== 'string' || !body.feature) return [400, { error: 'feature required — the destination that was opened' }];

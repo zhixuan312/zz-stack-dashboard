@@ -7,13 +7,10 @@ import { MetricTile } from '@/components/patterns/metric-tile';
 import { DataTable, type Column } from '@/components/patterns/data-table';
 import { Badge } from '@/components/ui/badge';
 import { aligned } from '@/console/columns';
-import { initiativeColumns } from '@/console/initiative';
-import { waitingOnYou } from '@/console/initiative-state';
 import { ConsolePage, useArrival } from '@/console/page';
 import { failureOf } from '@/console/query';
 import { freshnessOf, useConsole } from '@/lib/api';
 import { plural } from '@/lib/format';
-import type { Initiative, Team } from '@/lib/api-shapes';
 import type { TeamDetail } from '@/lib/fleet-shapes';
 import { formatDate } from '@/lib/format-date';
 import { useLive } from '@/lib/live';
@@ -22,7 +19,6 @@ import { teamContext } from '@/views/team-context';
 
 type Member = TeamDetail['members'][number];
 
-const INITIATIVES = initiativeColumns();
 const MEMBERS: Column<Member>[] = aligned([
   {
     key: 'person', header: 'Person', grow: true, truncate: true, mobile: 'title', sortValue: (m) => m.name || m.email,
@@ -38,22 +34,24 @@ const MEMBERS: Column<Member>[] = aligned([
   { key: 'joined', header: 'Joined', numeric: true, mobile: 'fact', sortValue: (m) => m.joined, cell: (m) => formatDate(m.joined), mobileCell: (m) => `Joined ${formatDate(m.joined)}` },
 ]);
 
-/** One team: what it is working on, what it holds, and who is in it. */
+/**
+ * One team: what it holds, how much of its work is open and waiting, and who is in it. Its counts are the team's own
+ * read, the same functions as its row in the list. Its initiatives are not listed: Work answers the active team's work
+ * alone, so another team's is read nowhere in the console.
+ */
 export function TeamView({ params }: { params: Promise<{ slug: string }> }) {
-  useLive(['teams', 'initiatives']);
+  useLive(['teams']);
   const { slug } = use(params);
   const team = useConsole<TeamDetail>(`/teams/${slug}`);
-  const inits = useConsole<{ initiatives: Initiative[] }>(`/initiatives?team=${slug}`);
-  // The counts are the team's own read: the same functions as its row in the list, so the two cannot disagree.
-  const held: Team | undefined = team.data ? { ...team.data.team, ...team.data.counts } : undefined;
-  const list = inits.data?.initiatives ?? [];
+  const held = team.data?.counts;
+  const tiles = team.data?.tiles;
   const members = team.data?.members ?? [];
-  const waiting = list.filter(waitingOnYou).length;
   const missing = team.error?.status === 404;
-  const arrival = useArrival(team, inits);
-  const context = team.data && inits.data
-    ? teamContext(slug, { team: team.data, initiatives: list, held, ...arrival })
-    : pendingContext({ view: 'team', title: `Team ${slug}`, address: `/teams/${slug}`, scope: 'one team' }, missing ? 'No team by this name exists on the platform.' : failureOf(team) ?? failureOf(inits));
+  const arrival = useArrival(team);
+  const context = team.data
+    ? teamContext(slug, { team: team.data, ...arrival })
+    : pendingContext({ view: 'team', title: `Team ${slug}`, address: `/teams/${slug}`, scope: 'one team' }, missing ? 'No team by this name exists on the platform.' : failureOf(team));
+  const pending = team.isPending ? '…' : '—';
 
   return (
     <ConsolePage
@@ -66,32 +64,17 @@ export function TeamView({ params }: { params: Promise<{ slug: string }> }) {
       // HTML paints at 0.61s. The same trade `/initiatives/[team]/[slug]` makes with its badge.
       description={<span className="inline-flex flex-wrap items-center gap-2">{missing ? 'No team by this name exists on the platform.' : <>What this team holds: its people, its work, and what it has settled.{team.data ? ` Created ${formatDate(team.data.team.created)}${team.data.team.name !== slug ? ` from ${team.data.team.name}` : ''}.` : null}</>}</span>}
       showPeriod={false}
-      updatedAt={freshnessOf(team, inits)}
+      updatedAt={freshnessOf(team)}
       context={context}
     >
       {missing ? null : (
         <>
           <Row split="tiles">
-            <MetricTile label="Initiatives" icon={<ListTree />} value={inits.data ? list.length : inits.isPending ? '…' : '—'} note={`${list.filter((i) => !i.closed).length} still open`} />
-            <MetricTile label="Waiting on you" icon={<Signature />} value={inits.data ? waiting : inits.isPending ? '…' : '—'} emphasis={waiting > 0} note={waiting ? 'A gate needs a signature' : 'Nothing to sign'} />
-            <MetricTile label="Members" icon={<Users />} value={team.data ? members.length : team.isPending ? '…' : '—'} note={`${members.filter((m) => m.role === 'admin').length} ${plural(members.filter((m) => m.role === 'admin').length, 'admin')}`} />
-            <MetricTile label="Knowledge nodes" icon={<BookOpen />} value={held ? held.knowledge : team.isPending ? '…' : '—'} note={held ? `${held.documents} ${plural(held.documents, 'document')}, ${held.sources} ${plural(held.sources, 'source')}` : undefined} />
+            <MetricTile label="Initiatives" icon={<ListTree />} value={held ? held.initiatives : pending} note={tiles ? `${tiles.openWork} still open` : undefined} />
+            <MetricTile label="Revisions waiting" icon={<Signature />} value={tiles ? tiles.waiting : pending} emphasis={(tiles?.waiting ?? 0) > 0} note={tiles?.waiting ? 'Presented and not yet approved' : 'Nothing waits on a decision'} />
+            <MetricTile label="Members" icon={<Users />} value={team.data ? members.length : pending} note={`${members.filter((m) => m.role === 'admin').length} ${plural(members.filter((m) => m.role === 'admin').length, 'admin')}`} />
+            <MetricTile label="Knowledge nodes" icon={<BookOpen />} value={held ? held.knowledge : pending} note={held ? `${held.documents} ${plural(held.documents, 'document')}, ${held.sources} ${plural(held.sources, 'source')}` : undefined} />
           </Row>
-          <DataTable
-            caption={`${slug}'s initiatives`}
-            noun="initiatives"
-            rows={list}
-            columns={INITIATIVES}
-            toolbar={<h2 className="t-card">Initiatives</h2>}
-            rowKey={(i) => i.slug}
-            rowHref={(i) => `/initiatives/${i.team}/${i.slug}`}
-            loading={inits.isPending}
-            error={failureOf(inits)}
-            onRetry={() => void inits.refetch()}
-            pageSize={10}
-            pageSizes={[10, 20, 50]}
-            empty={{ title: 'No initiative yet', body: `${slug} is set up, and nobody has started a piece of work in it.` }}
-          />
           <DataTable
             caption={`${slug}'s members`}
             noun="members"

@@ -4,8 +4,9 @@
  * breaking a mode nobody updated.
  */
 import type {
-  ActivityEvent, Initiative, KnowledgeLogEntry, KnowledgeNode, Overview, Person, PlatformPersonRow, Runs, Skill, Team, WaitingGate,
+  ActivityEvent, KnowledgeLogEntry, KnowledgeNode, Overview, Person, PlatformPersonRow, Runs, Skill, Team, WaitingGate,
 } from '../../src/lib/api-shapes.ts';
+import type { InitiativeList } from '../../src/lib/work-shapes.ts';
 
 /** Nothing recorded yet: every list empty, every figure absent rather than zero where the API says so. */
 export function empty(seg: string[], body: unknown): unknown {
@@ -30,7 +31,7 @@ export function empty(seg: string[], body: unknown): unknown {
     }
     case 'teams': return a ? body : list('teams');
     // Two answers come off this route, as in `extreme` below: the list, and the bell's projection of what waits.
-    case 'initiatives': return a && b ? body : 'waiting' in (body as object) ? list('waiting') : list('initiatives');
+    case 'initiatives': return a && b ? body : 'waiting' in (body as object) ? list('waiting') : nothingListed(body as InitiativeList);
     case 'knowledge': return a === 'log' ? list('entries') : a ? body : list('nodes');
     case 'skills': return a ? { ...(body as object), surfaces: [], busiestTools: [] } : list('skills');
     case 'people': return list('people');
@@ -39,6 +40,23 @@ export function empty(seg: string[], body: unknown): unknown {
     case 'settings': return Array.isArray(body) ? (a === 'platform' ? (body as PlatformPersonRow[]).slice(0, 1) : []) : body;
     default: return body;
   }
+}
+
+/** The initiatives list of a team with no work: no row, every count zero, every week read and holding none. */
+function nothingListed(l: InitiativeList): InitiativeList {
+  const zero = { value: 0, why: null };
+  return {
+    ...l,
+    tiles: { open: 0, waiting: 0, closed: { accepted: 0, delivered: 0, abandoned: 0 } },
+    closures: l.closures.state === 'ok' ? { state: 'ok', data: l.closures.data.map((w) => ({ ...w, accepted: zero, delivered: zero, abandoned: zero })) } : l.closures,
+    rows: [], total: 0,
+    summary: l.summary.state === 'ok' ? { state: 'ok', data: {
+      ...l.summary.data, total: 0, byFlow: [],
+      byState: { open: 0, waiting: 0, quiet: 0, accepted: 0, delivered: 0, abandoned: 0 },
+      touched: l.summary.data.touched.map((w) => ({ ...w, figure: zero, numerator: 0 })),
+      previous: { ...l.summary.data.previous, total: 0 },
+    } } : l.summary,
+  };
 }
 
 const LONG = 'with-a-name-nobody-planned-for-because-it-came-from-a-ticket-title';
@@ -52,9 +70,9 @@ const big = (n: number) => n * 1_000 + (n % 7) * 137;
  * console has to draw, so a mode named for the states a page must design for cannot overwrite it.
  *
  * It is also the only correct copy: `rows[i % 0]` is `undefined`, and spreading that leaves a row
- * carrying the overrides below and none of the fields they did not name. `/initiatives?team=<a team
- * with no work>` came back as 240 rows of `{ slug }` alone, and the console's initiative columns
- * dereference `stages` — so the page died in its error boundary on a shape no deployment sends.
+ * carrying the overrides below and none of the fields they did not name. A team with no work came
+ * back as 240 initiatives of `{ slug }` alone, and the console's initiative columns dereferenced
+ * `stages` — so the page died in its error boundary on a shape no deployment sends.
  */
 function grown<T>(rows: T[], n: number, more: (base: T, i: number) => T): T[] {
   if (!rows.length) return rows;
@@ -98,8 +116,17 @@ export function extreme(seg: string[], body: unknown, own: string | null = null)
         const w = (body as { waiting: WaitingGate[] }).waiting ?? [];
         return { waiting: grown(w, 40, (base, i): WaitingGate => ({ ...base, id: `extreme/${i}`, gate: `approve spec ${LONG.replace(/-/g, ' ')}` })) };
       }
-      const l = (body as { initiatives: Initiative[] }).initiatives;
-      return { initiatives: grown(l, 240, (base, i): Initiative => ({ ...base, slug: `2026-0${(i % 9) + 1}-${String((i % 27) + 1).padStart(2, '0')}-${LONG}-${i}` })) };
+      // The list is paged on the server, so a busy team is a page of names longer than any layout planned for under
+      // counts in the thousands, never more rows than the page asked for.
+      const l = body as InitiativeList;
+      const more = 3_904;
+      return {
+        ...l,
+        tiles: { open: l.tiles.open + 812, waiting: l.tiles.waiting + 140, closed: { accepted: big(l.tiles.closed.accepted), delivered: big(l.tiles.closed.delivered), abandoned: big(l.tiles.closed.abandoned) } },
+        rows: l.rows.map((r, i) => ({ ...r, slug: `2026-0${(i % 9) + 1}-${String((i % 27) + 1).padStart(2, '0')}-${LONG}-${i}`, flow: r.flow && `${r.flow}-${LONG}` })),
+        total: l.total ? l.total + more : 0,
+        summary: l.summary.state === 'ok' && l.total ? { state: 'ok', data: { ...l.summary.data, total: l.summary.data.total + more } } : l.summary,
+      } satisfies InitiativeList;
     }
     case 'knowledge': {
       if (a === 'log') {

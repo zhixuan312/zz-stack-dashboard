@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { NO_SESSION } from '../scripts/fake-gateway/people.ts';
 import { PLATFORM_STATUS } from '../scripts/fake-gateway/platform-status.ts';
+import { INITIATIVES } from '../scripts/fake-gateway/work.ts';
 import config from '../scripts/verify.config.ts';
 
 /**
@@ -70,16 +71,19 @@ async function teams(): Promise<{ own: string; others: Team[]; named: RegExp }> 
 async function memberReads(): Promise<string[]> {
   const own = (await read<Me>(MEMBER, 'me')).activeTeam!;
   const paths = [
-    'me', 'overview', 'overview?period=7d', 'initiatives', 'initiatives?waiting=1', `initiatives?team=${own}`,
+    'me', 'overview', 'overview?period=7d', 'initiatives', 'initiatives?offset=10', 'initiatives?state=quiet', 'initiatives?waiting=1',
+    'home', 'record', 'record?period=quarter', 'approvals', 'approvals?tab=history', 'work/query?measure=closures&by=outcome',
+    'work/query?measure=runs&by=initiative&group=2026-09-28-search-relevance',
     'knowledge', 'knowledge/log', 'activity', 'activity?failed=1', 'runs', 'plugins', 'plugins/sdlc/eval',
     'plugins/sdlc/skills/sdlc-spec', 'skills', 'skills/sdlc-spec', 'search?q=recency', 'search?q=review%20rounds&limit=50',
     'settings/me/tokens', 'settings/me/client-setup', 'settings/me/teams', `settings/team/members?team=${own}`, 'platform/status',
   ];
-  const { initiatives } = await read<{ initiatives: { team: string; slug: string }[] }>(MEMBER, 'initiatives');
-  for (const i of initiatives) {
-    paths.push(`initiatives/${i.team}/${i.slug}`);
-    const detail = await read<{ documents: { path: string }[] }>(MEMBER, `initiatives/${i.team}/${i.slug}`);
-    for (const d of detail.documents) paths.push(`document/${i.team}/${i.slug}/${d.path}`, `document/${i.team}/${i.slug}/${d.path}?revision=1`);
+  // The list's rows name no team: each is the active team's, and its page opens under that team.
+  const { rows } = await read<{ rows: { slug: string }[] }>(MEMBER, 'initiatives?limit=100');
+  for (const i of rows) {
+    paths.push(`initiatives/${own}/${i.slug}`);
+    const detail = await read<{ documents: { path: string }[] }>(MEMBER, `initiatives/${own}/${i.slug}`);
+    for (const d of detail.documents) paths.push(`document/${own}/${i.slug}/${d.path}`, `document/${own}/${i.slug}/${d.path}?revision=1`);
   }
   const { nodes } = await read<{ nodes: { team: string; path: string }[] }>(MEMBER, 'knowledge');
   for (const n of nodes) paths.push(`knowledge/${n.team}/${n.path}`);
@@ -137,8 +141,11 @@ describe('what a member is answered', () => {
   it('lists their own team\'s records only, whether or not they ask for the platform', async () => {
     const { own } = await teams();
     for (const scope of ['', '?scope=platform']) {
+      // Work's list names no team at all: it is the active team's, whatever was asked.
+      const list = await read<{ rows: Json[] }>(MEMBER, `initiatives${scope ? `${scope}&` : '?'}limit=100`);
+      expect(new Set(list.rows.map((r) => r.slug))).toEqual(new Set(INITIATIVES.filter((i) => i.team === own).map((i) => i.slug)));
+      for (const r of list.rows) expect(r.team).toBeUndefined();
       const rows = [
-        ...(await read<{ initiatives: { team: string }[] }>(MEMBER, `initiatives${scope}`)).initiatives,
         ...(await read<{ waiting: { team: string }[] }>(MEMBER, `initiatives${scope ? `${scope}&` : '?'}waiting=1`)).waiting,
         ...(await read<{ nodes: { team: string }[] }>(MEMBER, `knowledge${scope}`)).nodes,
         ...(await read<{ entries: { team: string }[] }>(MEMBER, `knowledge/log${scope}`)).entries,
@@ -163,7 +170,7 @@ describe('what a member is answered', () => {
       expect(named.exec(text)?.[0], `GET ${path} names another team`).toBeUndefined();
     }
     // The same sweep finds those names in what a superadmin is answered, so it can fail.
-    const fleet = JSON.stringify([await read(null, 'teams'), await read(null, 'people?scope=platform'), await read(null, 'initiatives?scope=platform')]);
+    const fleet = JSON.stringify([await read(null, 'teams'), await read(null, 'people?scope=platform')]);
     for (const t of others) expect(fleet).toContain(t.name);
   });
 
@@ -182,7 +189,7 @@ describe('what a member is answered', () => {
     // As the gateway does: a 403 would confirm the other team is real.
     const { others } = await teams();
     const other = others[0].slug;
-    const theirs = (await read<{ initiatives: { team: string; slug: string }[] }>(null, `initiatives?team=${other}`)).initiatives[0];
+    const theirs = INITIATIVES.find((i) => i.team === other)!;
     const node = (await read<{ nodes: { team: string; path: string }[] }>(null, 'knowledge?scope=platform')).nodes.find((n) => n.team === other)!;
     const doc = (await read<{ documents: { path: string }[] }>(null, `initiatives/${other}/${theirs.slug}`)).documents[0].path;
     for (const path of [`initiatives/${other}/${theirs.slug}`, `document/${other}/${theirs.slug}/${doc}`,
@@ -200,7 +207,8 @@ describe('what a member is answered', () => {
   it('refuses a team they are not in, and the platform\'s own settings', async () => {
     const { own, others } = await teams();
     const other = others[0].slug;
-    expect((await ask(MEMBER, `initiatives?team=${other}`)).status).toBe(403);
+    // Work's list is the active team's: naming another team widens nothing and refuses nothing.
+    expect(await read(MEMBER, `initiatives?team=${other}`)).toEqual(await read(MEMBER, 'initiatives'));
     expect((await ask(MEMBER, `settings/team/members?team=${other}`)).status).toBe(403);
     expect((await ask(MEMBER, 'settings/platform/people')).status).toBe(403);
     expect((await ask(MEMBER, `settings/team/members?team=${own}`)).status).toBe(200);

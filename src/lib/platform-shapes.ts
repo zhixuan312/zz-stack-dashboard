@@ -49,7 +49,7 @@ export type Measure = {
 };
 /* The one sentence a figure is said in, chosen by the gateway (console/findings.ts) so the page and the assistant say
  * the same thing; `dates` are the local dates it names, in the read's timezone. */
-type Finding = {
+export type Finding = {
   kind: 'best_week' | 'high_week' | 'low_week' | 'run' | 'no_failure' | 'count' | 'incomplete';
   text: string; dates: string[]; tie: boolean;
 };

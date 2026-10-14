@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { waitingOnYou } from '@/console/initiative-state';
 import type { SearchAnswer } from '@/lib/api-shapes';
+import type { InitiativeList } from '@/lib/work-shapes';
 import { contextText, type SharedContext } from '@/lib/shared-context';
 import { activityContext } from '@/views/activity-context';
 import { addressOf, pendingContext } from '@/views/context';
@@ -28,6 +28,7 @@ import { ACTIVITY, PLUGINS, SKILLS, overview, pluginEval, runs, skillDetail, ski
 import { search } from '../scripts/fake-gateway/search.ts';
 import { extreme } from '../scripts/fake-gateway/states.ts';
 import { INITIATIVES, KNOWLEDGE, KNOWLEDGE_LOG, documentDetail, initiativeDetail, knowledgeBody } from '../scripts/fake-gateway/work.ts';
+import { initiativeList } from '../scripts/fake-gateway/work-initiatives.ts';
 
 /**
  * What every view tells the assistant is the data's (decision 0011): each context is built from the fake gateway's own
@@ -45,6 +46,9 @@ const fact = (c: SharedContext, label: string) => c.facts.find((f) => f.label ==
 const NO = { q: '', team: 'all' } as const;
 
 const big = <T,>(seg: string[], body: T): T => extreme(seg, body) as T;
+/** The initiatives list the fake answers the superadmin for `query`. */
+const listOf = (query = ''): InitiativeList => initiativeList(ME, new URLSearchParams(query))[1] as InitiativeList;
+const ALL = { q: '', state: 'all', flow: 'all' };
 
 const LONG_NAME = '2026-10-01-a-name-somebody-typed-in-full-because-the-platform-keeps-what-it-is-given-and-never-renames-it';
 /** A search answer at its worst for a budget: full-length excerpts whose match is at the very end, and long names. */
@@ -56,8 +60,8 @@ const longest = (a: SearchAnswer): SearchAnswer => ({
 const contexts: Record<string, () => SharedContext> = {
   overview: () => overviewContext(overview('30d'), { period: '30d', mode: 'platform', ...arrival }),
   teams: () => teamsContext(TEAMS, { filters: { q: '', status: 'all' }, ...arrival }),
-  team: () => teamContext('atlas', { team: teamDetail('atlas')!, initiatives: INITIATIVES.filter((i) => i.team === 'atlas'), held: TEAMS.find((t) => t.slug === 'atlas'), ...arrival }),
-  initiatives: () => initiativesContext(INITIATIVES, { filters: { ...NO, flow: 'all', state: 'all', show: 'all' }, period: 'all', mode: 'platform', ...arrival }),
+  team: () => teamContext('atlas', { team: teamDetail('atlas')!, ...arrival }),
+  initiatives: () => initiativesContext(listOf(), { filters: ALL, page: 1, ...arrival }),
   initiative: () => initiativeContext(initiativeDetail('atlas', '2026-09-28-search-relevance')!, arrival),
   document: () => documentContext(documentDetail('atlas', '2026-09-28-search-relevance', 'spec.md')!, arrival),
   knowledge: () => knowledgeContext(KNOWLEDGE, { filters: { ...NO, tag: 'all' }, mode: 'platform', ...arrival }),
@@ -76,7 +80,7 @@ const contexts: Record<string, () => SharedContext> = {
 const busy: Record<string, () => SharedContext> = {
   overview: () => overviewContext(big(['overview'], overview('all')), { period: 'all', mode: 'platform', ...arrival }),
   teams: () => teamsContext(big(['teams'], { teams: TEAMS }).teams, { filters: { q: '', status: 'all' }, ...arrival }),
-  initiatives: () => initiativesContext(big(['initiatives'], { initiatives: INITIATIVES }).initiatives, { filters: { ...NO, flow: 'all', state: 'all', show: 'all' }, period: 'all', mode: 'platform', ...arrival }),
+  initiatives: () => initiativesContext(big(['initiatives'], listOf()), { filters: ALL, page: 1, ...arrival }),
   knowledge: () => knowledgeContext(big(['knowledge'], { nodes: KNOWLEDGE }).nodes, { filters: { ...NO, tag: 'all' }, mode: 'platform', ...arrival }),
   // The most the tool asks for, every excerpt at its 600 characters and every name as long as a name gets.
   search: () => searchContext(longest(search('review', 8, null)), { initiative: LONG_NAME, wide: true, ...arrival }),
@@ -137,18 +141,36 @@ describe('the figures a context quotes are the data\'s', () => {
     expect(fact(contexts.people(), 'Live tokens')).toBe(String(PEOPLE.reduce((a, p) => a + p.tokens, 0)));
   });
 
-  it('initiatives count what waits on a person by the rule the State column and the filter use', () => {
+  it('initiatives count the whole list the gateway summarised, and say each row in view with its next move', () => {
+    const list = listOf();
     const c = contexts.initiatives();
-    expect(fact(c, 'Waiting on you')).toBe(String(INITIATIVES.filter(waitingOnYou).length));
-    expect(fact(c, 'Open')).toBe(String(INITIATIVES.filter((i) => !i.closed).length));
+    expect(fact(c, 'Initiatives')).toBe(String(list.total));
+    expect(fact(c, 'Open')).toBe(String(list.tiles.open));
+    expect(fact(c, 'Waiting')).toBe(String(list.tiles.waiting));
+    const text = contextText(c);
+    for (const r of list.rows) expect(text).toContain(r.slug.slice(0, 40));
+    expect(text).toContain(`next: ${list.rows[0].nextMove!.action}`);
+    // Ten rows in view of more than ten: the context says which page, never counts one page as the whole.
+    expect(list.total).toBeGreaterThan(list.rows.length);
+    expect(text).toContain(`Rows 1 to ${list.rows.length} of ${list.total}`);
   });
 
-  it('a filter narrows the context exactly as it narrows the page, and is in the address', () => {
-    const c = initiativesContext(INITIATIVES, { filters: { q: '', team: 'beacon', flow: 'all', state: 'all', show: 'all' }, period: 'all', mode: 'platform', ...arrival });
-    const beacon = INITIATIVES.filter((i) => i.team === 'beacon').length;
-    expect(fact(c, 'Initiatives')).toBe(`${beacon} of ${INITIATIVES.length}`);
-    expect(c.address).toBe('/initiatives?team=beacon');
-    expect(c.scope).toContain('team beacon');
+  it('a filter and a page are the server\'s: the context reads what the gateway answered for them, and they are in the address', () => {
+    const quiet = listOf('state=quiet');
+    const c = initiativesContext(quiet, { filters: { ...ALL, state: 'quiet' }, page: 1, ...arrival });
+    expect(fact(c, 'Initiatives')).toBe(String(quiet.total));
+    expect(c.address).toBe('/initiatives?state=quiet');
+    expect(c.scope).toContain('state quiet');
+    expect(initiativesContext(listOf('offset=10'), { filters: ALL, page: 2, ...arrival }).address).toBe('/initiatives?page=2');
+  });
+
+  it('a team reports its own counts alone, and names none of its initiatives', () => {
+    const detail = teamDetail('atlas')!;
+    const c = contexts.team();
+    expect(fact(c, 'Initiatives')).toBe(String(detail.counts.initiatives));
+    expect(fact(c, 'Revisions waiting')).toBe(String(detail.tiles.waiting));
+    const text = contextText(c);
+    for (const i of INITIATIVES.filter((x) => x.team === 'atlas')) expect(text).not.toContain(i.slug);
   });
 
   it('the knowledge shelf counts adopted and superseded apart, and a node carries its own lesson', () => {

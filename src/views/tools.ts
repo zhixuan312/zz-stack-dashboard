@@ -12,10 +12,11 @@ import { may, requireNeed } from '@/data/access';
 import { FEATURES, FLEET } from '@/data/features';
 import { gatewayGet } from '@/data/gateway';
 import type {
-  ActivityEvent, DocumentDetail, Initiative, InitiativeDetail, KnowledgeBody, KnowledgeLogEntry, KnowledgeNode, Me,
+  ActivityEvent, DocumentDetail, InitiativeDetail, KnowledgeBody, KnowledgeLogEntry, KnowledgeNode, Me,
   MyAccessToken, MyTeams, Overview, Person, PluginEval, PluginRow, Runs, SearchAnswer, Skill, SkillDetail, SkillText, Team,
 } from '@/lib/api-shapes';
 import type { TeamDetail } from '@/lib/fleet-shapes';
+import type { InitiativeList } from '@/lib/work-shapes';
 import { PERIODS } from '@/lib/period';
 import { defineViewTool, type ViewTool } from '@/lib/shared-context';
 import { activityContext } from './activity-context';
@@ -23,6 +24,7 @@ import type { Arrival, ViewMode } from './context';
 import { documentContext } from './document-context';
 import { initiativeContext } from './initiative-context';
 import { initiativesContext } from './initiatives-context';
+import { LIST_STATES, listPath, offsetOf } from './initiatives-filter';
 import { knowledgeContext } from './knowledge-context';
 import { knowledgeLogContext } from './knowledge-log-context';
 import { knowledgeNodeContext } from './knowledge-node-context';
@@ -84,39 +86,33 @@ const teamsTool = defineViewTool({
 const teamTool = defineViewTool({
   name: 'team',
   title: 'Team',
-  description: 'One team: its initiatives and their state, what waits on a person, its people and what it holds.',
+  description: 'One team: what it holds, how much of its work is open and waiting, and its people. Its initiatives are its own to read, so they are not listed.',
   needs: FEATURES.teams.needs,
   input: z.object({ slug: segment('The team\'s slug.') }),
   async read({ slug }) {
     await requireNeed(FEATURES.teams.needs);
-    const [team, inits] = await Promise.all([
-      gatewayGet<TeamDetail>(`/teams/${slug}`),
-      gatewayGet<{ initiatives: Initiative[] }>(`/initiatives?team=${slug}`),
-    ]);
-    // What it holds is the team's own read, as its page builds it: the same counts as its row in the list.
-    const held: Team = { ...team.team, ...team.counts };
-    const data = { team, initiatives: inits.initiatives, held };
-    return { context: teamContext(slug, { ...data, ...justRead() }), data };
+    // The team's own read, as its page builds it: the same counts as its row in the list.
+    const team = await gatewayGet<TeamDetail>(`/teams/${slug}`);
+    return { context: teamContext(slug, { team, ...justRead() }), data: team };
   },
 });
 
 const initiativesTool = defineViewTool({
   name: 'initiatives',
   title: 'Initiatives',
-  description: 'Every piece of work, filtered and windowed on when it was last touched: how many are open, closed and waiting on a person, and which.',
+  description: 'The active team\'s work, filtered and paged by the gateway, ten to a page: how many match by state and flow over all of them, the open, waiting and closed counts, and each initiative in the page with where it goes next.',
   needs: FEATURES.initiatives.needs,
   input: z.object({
-    period,
-    q: search.describe('Text in the slug, the team or the flow.'),
-    team: z.string().max(100).optional().describe('A team\'s slug.'),
-    flow: z.string().max(100).optional().describe('A flow\'s name, or "No flow".'),
-    state: z.enum(['all', 'Accepted', 'Delivered', 'Abandoned', 'Waiting on you', 'Ready to close', 'In progress']).optional(),
-    show: z.enum(['all', 'waiting']).optional().describe('waiting: only the initiatives with a gate document awaiting approval.'),
+    q: search.describe('Text in the slug.'),
+    state: z.enum(['all', ...LIST_STATES]).optional().describe('waiting: a revision presented and not yet approved; quiet: open and untouched for 14 days or more.'),
+    flow: z.string().max(100).optional().describe('A flow\'s name, exactly.'),
+    page: z.number().int().min(1).max(10_000).optional().describe('The page, from 1.'),
   }),
-  async read({ period: p = 'all', q = '', team = 'all', flow = 'all', state = 'all', show = 'all' }) {
+  async read({ q = '', state = 'all', flow = 'all', page = 1 }) {
     await requireNeed(FEATURES.initiatives.needs);
-    const data = await gatewayGet<{ initiatives: Initiative[] }>('/initiatives');
-    return { context: initiativesContext(data.initiatives, { filters: { q, team, flow, state, show }, period: p, mode: await modeOf(), ...justRead() }), data };
+    const filters = { q, state, flow };
+    const data = await gatewayGet<InitiativeList>(listPath(filters, { offset: offsetOf(page) }));
+    return { context: initiativesContext(data, { filters, page, ...justRead() }), data };
   },
 });
 

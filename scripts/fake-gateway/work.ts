@@ -2,12 +2,12 @@
  * The fake gateway's work: initiatives on the sdlc flow, their documents and sources, and the
  * knowledge store they fed.
  *
- * One initiative per state a page draws: drafting, waiting on a person, not started, closed three
- * ways (accepted, delivered, abandoned), closed with a correction awaiting
+ * One initiative per state a page draws: drafting, waiting on a person, not started, ready to close,
+ * gone quiet, closed three ways (accepted, delivered, abandoned), closed with a correction awaiting
  * approval (in the signed-in user's own team, where they may sign it, and in another of their
  * teams, where they are told to switch), a document another session revises after every read,
  * one it revises every few seconds, one whose presentation zz-core refuses, and one with no
- * flow at all. `atlas/…-search-relevance` is the rich one: a document
+ * flow at all, and more than ten in atlas, so its list pages. `atlas/…-search-relevance` is the rich one: a document
  * with every block a reader meets (a table, code, a task list, a long address), three public
  * versions over four snapshots (v3 presented, then approved), sources numbered past 9 so their
  * order is tested, and a plan waiting on approval.
@@ -58,6 +58,14 @@ const SEEDS: Seed[] = [
   { team: 'atlas', slug: '2026-10-04-index-rebuild', at: 2, updated: 4, stakeholder: null, passed: 0, written: 1, outcome: null, unrecordable: 'spec.md' },
   { team: 'atlas', slug: '2026-09-12-onboarding-revamp', at: 7, updated: 220, stakeholder: 'ava.lindqvist@example.com', passed: 4, written: 4, outcome: 'accepted', correction: 2 },
   { team: 'atlas', slug: '2026-09-05-research-notes', at: 0, updated: 400, stakeholder: null, passed: 0, written: 0, outcome: null, flow: false },
+  // Enough more of atlas's work that its list pages at ten: open work ready to close (every gate it is judged on
+  // passed) and not started, work gone quiet, and closed work of every outcome.
+  { team: 'atlas', slug: '2026-10-08-result-explanations', at: 7, updated: 6, stakeholder: 'noah.okafor@example.com', passed: 3, written: 3, outcome: null },
+  { team: 'atlas', slug: '2026-10-06-snippet-quality', at: 1, updated: 30, stakeholder: null, passed: 0, written: 0, outcome: null },
+  { team: 'atlas', slug: '2026-09-15-tagging-model', at: 3, updated: 380, stakeholder: null, passed: 1, written: 1, outcome: null },
+  { team: 'atlas', slug: '2026-08-25-eval-harness', at: 7, updated: 500, stakeholder: 'noah.okafor@example.com', passed: 4, written: 4, outcome: 'delivered' },
+  { team: 'atlas', slug: '2026-08-14-citation-graph', at: 7, updated: 650, stakeholder: 'ava.lindqvist@example.com', passed: 4, written: 4, outcome: 'accepted' },
+  { team: 'atlas', slug: '2026-08-02-ingest-pipeline', at: 2, updated: 160, stakeholder: null, passed: 0, written: 1, outcome: 'abandoned' },
   { team: 'beacon', slug: '2026-09-30-refund-flow', at: 2, updated: 9, stakeholder: 'jonas.weber@example.com', passed: 0, written: 1, outcome: null },
   { team: 'beacon', slug: '2026-10-01-ledger-migration-to-double-entry-bookkeeping-with-nightly-reconciliation', at: 0, updated: 30, stakeholder: null, passed: 0, written: 0, outcome: null },
   { team: 'beacon', slug: '2026-09-18-chargeback-alerts', at: 7, updated: 300, stakeholder: 'mei.tanaka@example.com', passed: 4, written: 4, outcome: 'delivered' },

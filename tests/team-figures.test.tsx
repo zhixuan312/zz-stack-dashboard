@@ -5,7 +5,9 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 /**
  * A team's page reads its counts from the team's own read, `/teams/:slug`, and never from the list. The list is
- * paged, so a team past its first page would read no counts at all if the page went looking for its row there.
+ * paged, so a team past its first page would read no counts at all if the page went looking for its row there. Nor does
+ * it read the team's initiatives: Work answers the active team's work alone, so the page draws the team's counts of
+ * open and waiting work and lists none of it.
  *
  * The fixture's counts are each distinct, so a tile reading another count's value cannot pass, and every request
  * is recorded so a read of the list is caught whatever the page does with the answer.
@@ -40,7 +42,6 @@ function mockFetch() {
     asked.push(url);
     const body = url.includes('/me') ? ME
       : url.includes('/teams/atlas') ? DETAIL
-      : url.includes('/initiatives') ? { initiatives: [] }
       : {};
     return { ok: true, json: async () => body } as unknown as Response;
   };
@@ -68,6 +69,13 @@ describe('the figures on a team page', () => {
     await mount();
     await waitFor(() => expect(document.body.textContent).toContain('7 documents, 11 sources'));
     expect(document.body.textContent).toContain('13');
+  });
+
+  it('draws the team\'s work from its counts: initiatives, open work and revisions waiting', async () => {
+    await mount();
+    await waitFor(() => expect(document.body.textContent).toContain('2 still open'));
+    expect(document.body.textContent).toContain('Revisions waiting');
+    expect(asked.filter((u) => u.includes('/initiatives'))).toEqual([]);
   });
 
   it('never asks for the list of teams', async () => {

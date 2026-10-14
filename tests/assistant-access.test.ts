@@ -24,7 +24,8 @@ import { ME } from '../scripts/fake-gateway/people.ts';
 import { PEOPLE } from '../scripts/fake-gateway/platform-people.ts';
 import { TEAMS, teamDetail } from '../scripts/fake-gateway/platform-teams.ts';
 import { search } from '../scripts/fake-gateway/search.ts';
-import { INITIATIVES, KNOWLEDGE } from '../scripts/fake-gateway/work.ts';
+import { KNOWLEDGE } from '../scripts/fake-gateway/work.ts';
+import { initiativeList } from '../scripts/fake-gateway/work-initiatives.ts';
 
 const MEMBER: Me = { email: 'mei.tanaka@example.com', name: 'Mei Tanaka', role: 'member', mayRead: true, superadmin: false, via: 'session', teams: [{ slug: 'beacon', role: 'member' }], activeTeam: 'beacon' };
 
@@ -46,7 +47,7 @@ function gateway(who: Me | null | (() => Me | null), { shared = false } = {}) {
     const body = path === '/me' ? me
       : path === '/teams' ? { teams: TEAMS }
         : path.startsWith('/teams/') ? teamDetail(path.slice('/teams/'.length))
-          : path === '/initiatives' ? { initiatives: INITIATIVES }
+          : path === '/initiatives' ? initiativeList(me, new URL(url).searchParams)[1]
             : path === '/knowledge' ? { nodes: KNOWLEDGE }
               : path === '/people' ? { people: PEOPLE }
                 : path === '/search' ? found(new URL(url).searchParams, shared)
@@ -225,11 +226,32 @@ describe('what an agent is offered', () => {
 });
 
 describe('a collection read from the gateway', () => {
-  it('flattens an initiative to the state and the gates its page shows', async () => {
+  it('reads initiatives a page at a time from the route that filters them, and answers the route\'s total', async () => {
     gateway(ME);
-    const { rows, total } = await collectionFor(await resolveAccess(), 'initiatives').query({ where: [{ field: 'id', op: 'eq', value: 'atlas/2026-09-28-search-relevance' }] });
-    expect(total).toBe(1);
-    expect(rows[0]).toMatchObject({ team: 'atlas', slug: '2026-09-28-search-relevance', state: 'Waiting on you', waitingOn: 'approve plan' });
+    const initiatives = collectionFor(await resolveAccess(), 'initiatives');
+    // What the list was asked, less the scope every server read carries (`gatewayGet`), which Work's list ignores.
+    const asked = () => calls.map((c) => new URL(c.url)).filter((u) => u.pathname === '/api/console/initiatives')
+      .map((u) => Object.fromEntries([...u.searchParams].filter(([k]) => k !== 'scope')));
+    const first = await initiatives.query({});
+    expect(asked()).toEqual([{ limit: '10', offset: '0' }]);
+    expect(first.rows).toHaveLength(10);
+    // The route's total, so a count is of every initiative that matches, never of the page that came back.
+    expect(first.total).toBe((initiativeList(ME, new URLSearchParams())[1] as { total: number }).total);
+    expect(first.total).toBeGreaterThan(first.rows.length);
+    gateway(ME);
+    const found = await initiatives.query({ where: [{ field: 'state', op: 'eq', value: 'waiting' }, { field: 'slug', op: 'contains', value: 'search' }], limit: 5, offset: 0 });
+    expect(asked()).toEqual([{ state: 'waiting', q: 'search', limit: '5', offset: '0' }]);
+    expect(found.total).toBe(1);
+    expect(found.rows[0]).toMatchObject({ slug: '2026-09-28-search-relevance', state: 'waiting', next: 'approve', nextDocument: 'plan.md', gatesPassed: 1, gates: 3 });
+  });
+
+  it('refuses a condition or an order the route does not take, before anything is read', async () => {
+    gateway(ME);
+    const initiatives = collectionFor(await resolveAccess(), 'initiatives');
+    await expect(initiatives.query({ where: [{ field: 'gates', op: 'gt', value: 1 }] })).rejects.toThrow(/state eq, flow eq, slug contains/);
+    await expect(initiatives.query({ where: [{ field: 'state', op: 'eq', value: 'open' }, { field: 'state', op: 'eq', value: 'quiet' }] })).rejects.toThrow(/each once/);
+    await expect(initiatives.query({ sort: { field: 'lastTouched', dir: 'asc' } })).rejects.toThrow(/ordered by the gateway/);
+    expect(calls.some((c) => new URL(c.url).pathname === '/api/console/initiatives')).toBe(false);
   });
 
   it('filters, sorts and pages with the meaning an array collection gives them', async () => {
@@ -312,7 +334,9 @@ describe('the fleet\'s lists, read whole', () => {
     const own = teamDetail('atlas')!;
     const { context, data } = await viewTools.find((v) => v.name === 'team')!.read({ slug: 'atlas' });
     expect(calls.map((c) => new URL(c.url).pathname)).not.toContain('/api/console/teams');
-    expect((data as { held: unknown }).held).toEqual({ ...own.team, ...own.counts });
+    // Nor the team's initiatives: Work answers the active team's work alone.
+    expect(calls.map((c) => new URL(c.url).pathname)).not.toContain('/api/console/initiatives');
+    expect(data).toEqual(own);
     expect(context.facts.find((f) => f.label === 'Knowledge nodes')?.value).toBe(String(own.counts.knowledge));
   });
 });

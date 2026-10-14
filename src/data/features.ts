@@ -6,8 +6,9 @@
  * `src/app.config.ts` points each item at its feature's need **by reference** (`needs: FEATURES.teams.needs`), so an
  * item and the table never restate one another.
  *
- * This is the table of the pages the console has today, at today's addresses, and of the Fleet pages the platform
- * declares before they are mounted, so a page can gate on its feature the day it lands. Everybody reads their own work,
+ * This is the table of the pages the console has today, at today's addresses, and of the Work and Fleet pages the
+ * platform declares before they are mounted (Record, Approvals and Fleet's), so a page can gate on its feature the day
+ * it lands and the rail offers none of them until then. Everybody reads their own work,
  * the platform's Status, Usage and Knowledge health; Teams, People, Audit and the other fleet pages are a superadmin's.
  *
  * Pure data with type-only imports, so plain `node` can import it: `scripts/check.ts` reads `src/app.config.ts`, which
@@ -28,13 +29,15 @@ export const FLEET = 'fleet:read' satisfies HeldRead;
 
 /** Every page the console offers, by the id the rail, the palette and a page's gate name it. */
 export type FeatureId =
-  | 'home' | 'initiatives' | 'knowledge' | 'people' | 'settings' | 'teams' | 'plugins' | 'runs' | 'activity'
+  | 'home' | 'record' | 'initiatives' | 'approvals' | 'knowledge' | 'people' | 'settings' | 'teams' | 'plugins' | 'runs' | 'activity'
   | 'platform-status' | 'usage' | 'knowledge-health' | 'audit';
 
 /** Each feature: its name as a person reads it, and the need a person must satisfy to reach it. Never `public`. */
 export const FEATURES: Record<FeatureId, { title: string; needs: HeldRead }> = {
   home: { title: 'Overview', needs: WORK },
+  record: { title: 'Record', needs: WORK },
   initiatives: { title: 'Initiatives', needs: WORK },
+  approvals: { title: 'Approvals', needs: WORK },
   knowledge: { title: 'Knowledge', needs: WORK },
   people: { title: 'People', needs: FLEET },
   settings: { title: 'Settings', needs: WORK },

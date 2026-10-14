@@ -55,7 +55,7 @@ export function overviewContext(d: Overview, { period, mode, index = null, ...ar
   if (p.active) {
     const s = p.stages;
     insights.push({ text: `${formatCount(p.active)} open ${plural(p.active, 'initiative')} by stage: ${s.noflow + s.notstarted} not started, ${s.drafting} drafting, ${s.agreed} agreed, ${s.gated + s.closed} settled. ${p.scoreable} of them declare a flow and are measured.`, evidence: '/initiatives' });
-    if (p.waiting) insights.push({ text: `${formatCount(p.waiting)} ${plural(p.waiting, 'gate document')} ${p.waiting === 1 ? 'waits' : 'wait'} on a person's approval${p.waitingOldestDays === null ? '' : `, the oldest for ${Math.round(p.waitingOldestDays)} ${plural(Math.round(p.waitingOldestDays), 'day')}`}.`, evidence: '/initiatives?show=waiting' });
+    if (p.waiting) insights.push({ text: `${formatCount(p.waiting)} ${plural(p.waiting, 'gate document')} ${p.waiting === 1 ? 'waits' : 'wait'} on a person's approval${p.waitingOldestDays === null ? '' : `, the oldest for ${Math.round(p.waitingOldestDays)} ${plural(Math.round(p.waitingOldestDays), 'day')}`}.`, evidence: '/initiatives?state=waiting' });
   } else unknowns.push('No initiative is open, so there is no progress to measure.');
 
   const shelf = m.knowledge.fromWork + m.knowledge.imported;

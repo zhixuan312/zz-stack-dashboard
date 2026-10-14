@@ -1,87 +1,105 @@
 'use client';
 
 import { useMemo } from 'react';
-import { DataTable, useQueryState, useSearchDraft } from '@/components/patterns/data-table';
+import { DataTable, useQueryState, useSearchDraft, type Column } from '@/components/patterns/data-table';
 import { AskAbout } from '@/components/patterns/ask-about';
 import { FilterBar } from '@/components/patterns/filter-bar';
-import { Segmented } from '@/components/ui/segmented';
-import { facet } from '@/console/facets';
-import { initiativeColumns } from '@/console/initiative';
-import { INITIATIVE_STATES, initiativeState } from '@/console/initiative-state';
+import { Records } from '@/components/templates/records';
+import { Badge } from '@/components/ui/badge';
+import { aligned } from '@/console/columns';
 import { ConsolePage, useArrival } from '@/console/page';
 import { failureOf } from '@/console/query';
-import { usePeriod } from '@/console/period';
-import { freshnessOf, useConsole, useConsoleMode } from '@/lib/api';
-import type { Initiative } from '@/lib/api-shapes';
-import { PERIOD_LABEL } from '@/lib/period';
+import { When } from '@/console/when';
+import { freshnessOf, useConsole } from '@/lib/api';
+import { plural } from '@/lib/format';
+import type { Me } from '@/lib/api-shapes';
 import { useLive } from '@/lib/live';
-import { pendingContext, whose } from '@/views/context';
-import { initiativesContext } from '@/views/initiatives-context';
-import { filterInitiatives, inPeriod } from '@/views/initiatives-filter';
+import type { InitiativeList, InitiativeRow } from '@/lib/work-shapes';
+import { pendingContext } from '@/views/context';
+import { initiativesContext, nextOf } from '@/views/initiatives-context';
+import { LIST_STATES, PAGE_SIZE, STATE_LABEL, listPath, narrowed, offsetOf } from '@/views/initiatives-filter';
 
-// One set per view, built once: in the team view every row is the same team, so the column would be a constant.
-const COLUMNS = { platform: initiativeColumns({ team: true }), team: initiativeColumns() };
+/** One rule per colour, as every state badge: warning means a person must act, positive closed with what was asked. */
+const TONE: Record<InitiativeRow['state'], 'warning' | 'positive' | 'neutral'> = {
+  waiting: 'warning', accepted: 'positive', delivered: 'positive', open: 'neutral', quiet: 'neutral', abandoned: 'neutral',
+};
 
-/** Every piece of work, open or closed, and how far through its flow it got. Windowed on when it was last touched. */
+/** The table's columns, in the server's order: the list is sorted and paged where it is read. */
+const COLUMNS: Column<InitiativeRow>[] = aligned([
+  // Wrap rather than truncate: a slug's tail tells two pieces of work of one project apart.
+  { key: 'slug', header: 'Initiative', grow: true, mobile: 'title', cell: (r) => <span title={r.slug} className="font-medium whitespace-normal text-ink [overflow-wrap:anywhere]">{r.slug}</span> },
+  { key: 'next', header: 'Flow position', hideBelow: 'lg', mobile: 'fact', cell: (r) => <span className="text-xs text-ink-2" title={r.nextMove?.why}>{r.flow ? nextOf(r) : 'No flow'}</span> },
+  { key: 'state', header: 'State', mobile: 'status', cell: (r) => <Badge tone={TONE[r.state]} dot>{STATE_LABEL[r.state]}</Badge> },
+  { key: 'gates', header: 'Gates', numeric: true, hideBelow: 'xl', cell: (r) => (r.gates.of ? `${r.gates.passed} of ${r.gates.of}` : '—') },
+  { key: 'touched', header: 'Last touched', numeric: true, mobile: 'fact', cell: (r) => <When at={r.lastTouched} />, mobileCell: (r) => <>Touched <When at={r.lastTouched} /></> },
+]);
+
+const STATE_OPTIONS = [{ value: 'all', label: 'All' }, ...LIST_STATES.map((s) => ({ value: s, label: STATE_LABEL[s] }))];
+
+/** The active team's work, open or closed, and where each goes next. Filtered, searched and paged by the server. */
 export function InitiativesView() {
   useLive(['initiatives']);
-  const { mode } = useConsoleMode();
-  const { period } = usePeriod();
-  const q = useConsole<{ initiatives: Initiative[] }>('/initiatives');
-  const [f, set] = useQueryState({ q: '', team: 'all', flow: 'all', state: 'all', show: 'all', sort: 'updated', dir: 'desc', page: '1' });
+  const [f, set] = useQueryState({ q: '', state: 'all', flow: 'all', page: '1' });
   const [draft, setDraft] = useSearchDraft(f.q, (q) => set({ q, page: '1' }));
-
-  // The window first: it says which initiatives the page is about at all. The filters narrow within it, and their
-  // counts are taken from what survives it.
+  const filters = useMemo(() => ({ q: f.q, state: f.state, flow: f.flow }), [f.q, f.state, f.flow]);
+  const page = Math.max(1, Number(f.page) || 1);
+  const me = useConsole<Me>('/me');
+  const q = useConsole<InitiativeList>(listPath(filters, { offset: offsetOf(page) }));
   const arrival = useArrival(q);
-  const filters = useMemo(() => ({ q: f.q, team: f.team, flow: f.flow, state: f.state, show: f.show }), [f.q, f.team, f.flow, f.state, f.show]);
-  // Against the data's clock, as the context is: the page and the assistant then window the same initiatives.
-  const inWindow = useMemo(() => inPeriod(q.data?.initiatives ?? [], period, new Date(arrival.now)), [q.data, period, arrival.now]);
-  const rows = useMemo(() => filterInitiatives(inWindow, filters), [inWindow, filters]);
   const context = q.data
-    ? initiativesContext(q.data.initiatives, { filters, period, mode, ...arrival })
-    : pendingContext({ view: 'initiatives', title: 'Initiatives', address: '/initiatives', scope: `${PERIOD_LABEL[period].toLowerCase()}, ${whose(mode)}` }, failureOf(q));
-  const filtered = f.q !== '' || f.team !== 'all' || f.flow !== 'all' || f.state !== 'all' || f.show !== 'all';
-  const clear = () => set({ q: '', team: 'all', flow: 'all', state: 'all', show: 'all', page: '1' });
-  const page = (patch: Partial<typeof f>) => set({ ...patch, page: '1' });
+    ? initiativesContext(q.data, { filters, page, ...arrival })
+    : pendingContext({ view: 'initiatives', title: 'Initiatives', address: '/initiatives', scope: 'your active team\'s work' }, failureOf(q));
+  // The flows the filtered population holds, and the one chosen, which a narrower filter could otherwise drop.
+  const flows = useMemo(() => {
+    const named = q.data?.summary.state === 'ok' ? q.data.summary.data.byFlow.flatMap((b) => (b.flow ? [b.flow] : [])) : [];
+    return [...new Set([...named, ...(f.flow === 'all' ? [] : [f.flow])])];
+  }, [q.data, f.flow]);
+  const filtered = narrowed(filters);
+  const clear = () => set({ q: '', state: 'all', flow: 'all', page: '1' });
+  const team = me.data?.activeTeam;
 
   return (
     <ConsolePage
       title="Initiatives"
-      description={mode === 'team' ? 'Every piece of work your team has open or closed, and how far through its flow it got.' : 'Every piece of work on the platform, and how far through its flow it got.'}
+      description="Every piece of work your active team has open or closed, and where each goes next."
+      showPeriod={false}
       updatedAt={freshnessOf(q)}
       context={context}
     >
-      <DataTable
-        caption="Initiatives"
-        noun="initiatives"
-        rows={rows}
-        columns={COLUMNS[mode]}
-        rowKey={(i) => `${i.team}/${i.slug}`}
-        rowHref={(i) => `/initiatives/${i.team}/${i.slug}`}
-        loading={q.isPending}
-        error={failureOf(q)}
-        onRetry={() => void q.refetch()}
-        state={{ sort: f.sort, dir: f.dir, page: f.page }}
-        onStateChange={set}
-        filtered={filtered || inWindow.length < (q.data?.initiatives.length ?? 0)}
-        onClearFilters={clear}
-        empty={{ title: 'No initiative yet', body: 'An initiative starts with initiative_open, and every document written afterwards lands under it.' }}
-        toolbar={
-          <FilterBar
-            search={{ value: draft, onChange: setDraft, placeholder: 'Search initiatives' }}
-            filters={[
-              ...(mode === 'platform' ? [{ key: 'team', label: 'Team', value: f.team, onChange: (v: string) => page({ team: v }), options: facet('All', inWindow.map((i) => i.team)) }] : []),
-              { key: 'flow', label: 'Flow', value: f.flow, onChange: (v) => page({ flow: v }), options: facet('All', inWindow.map((i) => i.flow ?? 'No flow')) },
-              { key: 'state', label: 'State', value: f.state, onChange: (v) => page({ state: v }), options: facet('All', inWindow.map(initiativeState), INITIATIVE_STATES) },
-            ]}
-            view={<Segmented size="sm" label="Show" value={f.show} onChange={(v) => page({ show: v })} options={[{ value: 'all', label: 'All' }, { value: 'waiting', label: 'Waiting on you' }]} />}
-            result={<>{rows.length} of {inWindow.length}{period === 'all' ? '' : `, ${PERIOD_LABEL[period].toLowerCase()}`}</>}
-            ask={<AskAbout question={f.show === 'waiting' ? 'Which of these should be approved first, and what is each waiting on?' : filtered ? 'What do the initiatives in this list have in common, and which are stuck?' : 'Which initiatives are stuck, and what is each waiting on?'} />}
-            onClear={clear}
-          />
-        }
-      />
+      <Records>
+        <DataTable
+          caption="Initiatives"
+          noun="initiatives"
+          rows={q.data?.rows ?? []}
+          columns={COLUMNS}
+          rowKey={(r) => r.slug}
+          rowHref={team ? (r) => `/initiatives/${team}/${r.slug}` : undefined}
+          manual
+          total={q.data?.total ?? 0}
+          pageSize={PAGE_SIZE}
+          pageSizes={[PAGE_SIZE]}
+          loading={q.isPending}
+          error={failureOf(q)}
+          onRetry={() => void q.refetch()}
+          state={{ sort: '', dir: 'desc', page: String(page) }}
+          onStateChange={(p) => { if (p.page) set({ page: p.page }); }}
+          filtered={filtered}
+          onClearFilters={clear}
+          empty={{ title: 'No initiative yet', body: 'An initiative starts with initiative_open, and every document written afterwards lands under it.' }}
+          toolbar={
+            <FilterBar
+              search={{ value: draft, onChange: setDraft, placeholder: 'Search initiatives' }}
+              filters={[
+                { key: 'state', label: 'State', value: f.state, onChange: (v) => set({ state: v, page: '1' }), options: STATE_OPTIONS },
+                { key: 'flow', label: 'Flow', value: f.flow, onChange: (v) => set({ flow: v, page: '1' }), options: [{ value: 'all', label: 'All' }, ...flows.map((v) => ({ value: v, label: v }))] },
+              ]}
+              result={<>{q.data ? `${q.data.total} ${plural(q.data.total, 'initiative')}` : '…'}</>}
+              ask={<AskAbout question={filtered ? 'What do the initiatives in this list have in common, and which needs me next?' : 'Which initiatives need me next, and what is each waiting on?'} />}
+              onClear={clear}
+            />
+          }
+        />
+      </Records>
     </ConsolePage>
   );
 }

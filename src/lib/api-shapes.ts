@@ -117,10 +117,6 @@ export interface Team {
   /** Knowledge nodes on the team's shelf. */
   knowledge: number;
 }
-export interface TeamDetail {
-  team: { slug: string; name: string; status: string; created: string };
-  members: { email: string; name: string; role: string; joined: string }[];
-}
 export interface Gate {
   name: string;
   /** `handover` is the platform's own closing step, appended to every gating flow. It gates,

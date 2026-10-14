@@ -11,13 +11,14 @@
  * operations that exist at all are declared with `onPage` (`src/data/gateway-collection.ts`).
  */
 import { z } from 'zod';
-import { gatewayCollection } from '@/data/gateway-collection';
+import { gatewayCollection, routeCollection } from '@/data/gateway-collection';
 import { gatewayGet } from '@/data/gateway';
-import { initiativeState } from '@/console/initiative-state';
 import type {
-  ActivityEvent, Initiative, KnowledgeLogEntry, KnowledgeNode, MyAccessToken, Person, PluginRow, Skill, Team,
+  ActivityEvent, KnowledgeLogEntry, KnowledgeNode, MyAccessToken, Person, PluginRow, Skill, Team,
 } from '@/lib/api-shapes';
 import type { AnyCollection } from '@/lib/collection';
+import type { InitiativeList } from '@/lib/work-shapes';
+import { LIST_STATES, listPath } from '@/views/initiatives-filter';
 
 /** The data's clock. The console reads a live deployment, so it is the wall clock. */
 export const clock = (): Date => new Date();
@@ -57,37 +58,39 @@ const teams = gatewayCollection<Flat<Team>, 'slug'>({
 });
 
 type InitiativeRow = {
-  id: string; team: string; slug: string; flow: string | null; state: string; stage: string; at: number; of: number;
-  documents: number; approvals: number; gatesPassed: number; gates: number; waitingOn: string | null;
-  updated: string; stakeholder: string | null; closed: boolean; outcome: string | null; correction: string | null;
+  slug: string; flow: string | null; state: string; next: string | null; nextDocument: string | null; waitingOn: string | null;
+  why: string | null; gatesPassed: number; gates: number; lastTouched: string; opened: string; closed: string | null;
 };
 
-const initiatives = gatewayCollection<InitiativeRow, 'id'>({
+/* The active team's work, read a page at a time from the route that filters it: its state, its flow and text in its
+ * slug are the route's parameters, and its total is the route's, so a count is never of one page. */
+const initiatives = routeCollection<InitiativeRow, 'slug'>({
   name: 'initiatives',
   label: 'Initiatives',
-  description: 'Every piece of work the person may read, open or closed, and how far through its flow it got. The key is "<team>/<slug>", and /initiatives/<team>/<slug> opens it.',
-  key: 'id',
-  title: (i) => i.id,
+  description: 'The active team\'s work, open or closed, and where each goes next, as zz-core\'s next_move says. The key is the slug, and /initiatives/<team>/<slug> opens it with the active team\'s slug. The gateway filters and pages it: filter by state eq, flow eq and slug contains, page with limit, and read total for how many match.',
+  key: 'slug',
+  title: (i) => i.slug,
   fields: z.object({
-    team: text, slug: text, flow: maybeText.describe('The flow it runs, such as sdlc; nothing when it declares none.'),
-    state: z.enum(['Accepted', 'Delivered', 'Abandoned', 'Waiting on you', 'Ready to close', 'In progress']).describe('Waiting on you: a gate document is written and nobody has approved it. Ready to close: every gate is approved and no outcome is recorded.'),
-    stage: text.describe('The name of the flow stage it is at.'), at: count.describe('The position of that stage in its flow, from 1.'), of: count.describe('How many stages the flow has; 0 with no flow.'),
-    documents: count, approvals: count,
-    gatesPassed: count.describe('Gates approved, the handover left out.'), gates: count.describe('Gates the flow declares, the handover left out.'),
-    waitingOn: maybeText.describe('The gates written and not yet approved, comma-separated. A closed initiative has one when its closing document was corrected after the close.'),
-    updated: when('When it was last touched'), stakeholder: maybeText,
-    closed: z.boolean(), outcome: maybeText.describe('accepted, delivered or abandoned once closed.'),
-    correction: maybeText.describe('On a closed initiative, the closing document changed after the close and awaiting approval again.'),
+    flow: maybeText.describe('The flow it runs, such as sdlc-flow; nothing when it declares none.'),
+    state: z.enum(LIST_STATES).describe('waiting: a revision presented and not yet approved. quiet: open, and nothing of it written for 14 days or more.'),
+    next: maybeText.describe('What zz-core says comes next: approve, write, close, or none once closed; nothing when zz-core did not answer.'),
+    nextDocument: maybeText.describe('The document the next move is about.'), waitingOn: maybeText.describe('Who the next move waits on: a person or the agent.'),
+    why: maybeText.describe('zz-core\'s reason for the next move.'),
+    gatesPassed: count.describe('Gates approved, the handover left out.'), gates: count.describe('Gated documents the flow declares, the handover left out.'),
+    lastTouched: when('When anything of it was last written'), opened: when('When it was opened'), closed: maybeWhen('When it was closed'),
   }),
-  load: async () => (await gatewayGet<{ initiatives: Initiative[] }>('/initiatives')).initiatives.map((i) => {
-    const own = i.gates.filter((g) => g.role !== 'handover');
+  conditions: { state: { op: 'eq', param: 'state' }, flow: { op: 'eq', param: 'flow' }, slug: { op: 'contains', param: 'q' } },
+  read: async ({ state = 'all', flow = 'all', q = '' }, page) => {
+    const list = await gatewayGet<InitiativeList>(listPath({ state, flow, q }, page));
     return {
-      id: `${i.team}/${i.slug}`, team: i.team, slug: i.slug, flow: i.flow, state: initiativeState(i), stage: i.stage, at: i.at, of: i.of,
-      documents: i.documents, approvals: i.approvals, gatesPassed: own.filter((g) => g.passed).length, gates: own.length,
-      waitingOn: joined(own.filter((g) => g.written && !g.passed).map((g) => g.name)),
-      updated: i.updated, stakeholder: i.stakeholder, closed: i.closed, outcome: i.outcome, correction: i.correction?.path ?? null,
+      total: list.total,
+      rows: list.rows.map((i) => ({
+        slug: i.slug, flow: i.flow, state: i.state, next: i.nextMove?.action ?? null, nextDocument: i.nextMove?.document ?? null,
+        waitingOn: i.nextMove?.waitingOn ?? null, why: i.nextMove?.why ?? null, gatesPassed: i.gates.passed, gates: i.gates.of,
+        lastTouched: i.lastTouched, opened: i.opened, closed: i.closed,
+      })),
     };
-  }),
+  },
 });
 
 type KnowledgeRow = Omit<KnowledgeNode, 'tags' | 'evidence'> & { tags: string | null; evidence: string | null };

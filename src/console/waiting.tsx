@@ -51,7 +51,7 @@ export function WaitingPanel() {
             ))}
           </ul>
           {waiting.length > SHOWN ? (
-            <Link href="/initiatives?show=waiting" className="flex items-center gap-1.5 border-t border-line px-(--card-pad) py-3 text-sm font-medium text-ink hover:bg-fill-hover">
+            <Link href="/initiatives?state=waiting" className="flex items-center gap-1.5 border-t border-line px-(--card-pad) py-3 text-sm font-medium text-ink hover:bg-fill-hover">
               All {waiting.length} waiting <ArrowRight className="size-3.5" />
             </Link>
           ) : null}

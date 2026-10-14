@@ -1,20 +1,20 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 /**
- * The figures the initiatives page shows are the data's — the seventh page of `standard.md`'s floor, and the third of the
- * table-led kind.
+ * The figures the initiatives page shows are the gateway's: the list answers its rows already filtered and paged for the
+ * active team, so the page draws each row's gates, state and next move as given, and asks the server again for a
+ * filter or a page rather than narrowing what it holds.
  *
- * What it pins is the page's most derived cell: **Gates**. It is not a count of the gates the data carries but
- * `${passed} of ${own}`, where `own` leaves out the platform's own `handover` step — that one is written after the
- * close, so a question about an open initiative must not count it. So a fixture with a handover gate makes the cell say
- * "1 of 2" where a page counting every gate would say "1 of 3", and both render perfectly.
+ * What it pins is the page's most derived cell, **Gates**, `${passed} of ${of}` as the row carries it, so a page that
+ * counted anything itself cannot pass both rows; that the Team column is gone, since Work is the active team's; and the
+ * addresses the page asks, which carry its filters and its page of ten.
  *
- * `cell()` is the teams page's, unchanged: read the header row for a column's position, then that cell of the row
- * carrying the needle, taking the cell's FIRST child because a `DataTable` also draws the words a phone card uses.
+ * `cell()` reads the header row for a column's position, then that cell of the row carrying the needle, taking the
+ * cell's FIRST child because a `DataTable` also draws the words a phone card uses.
  */
-import type { Initiative } from '@/lib/api-shapes';
+import type { InitiativeList, InitiativeRow } from '@/lib/work-shapes';
 import { InitiativesView } from '@/views/pages/initiatives';
 
 const ME = {
@@ -22,33 +22,37 @@ const ME = {
   via: 'session', teams: [{ slug: 'atlas', role: 'admin' }], activeTeam: 'atlas',
 };
 
-const step = (name: string, current: boolean) => ({ name, what: `The ${name} step`, produces: `${name}.md`, state: 'done' as const, current });
+const WINDOW = { from: '2026-10-05T00:00:00Z', to: '2026-10-12T00:00:00Z', observedFrom: '2026-10-05T00:00:00Z', observedThrough: '2026-10-12T00:00:00Z', complete: true };
 
-/* Two initiatives whose gate fractions differ in both numbers, so a page that counted every gate, or counted the same
- * gate twice, cannot pass both rows. `handover` is one of atlas's three gates and counts for neither half of the cell. */
-const INITIATIVES: Initiative[] = [
-  { team: 'atlas', slug: '2026-09-28-search-relevance', flow: 'sdlc', documents: 4, approvals: 2,
-    updated: '2026-10-01T00:00:00Z', stakeholder: 'Maya', at: 3, of: 7, stage: 'plan',
-    steps: [step('intent', false), step('spec', true)], gates: [
-      { name: 'spec', passed: true, written: true, after: 1 },
-      { name: 'plan', passed: false, written: true, after: 2 },
-      { name: 'handover', role: 'handover', passed: false, written: false, after: 3 },
-    ], accepted: false, complete: false, closed: false, outcome: null, correction: null },
-  { team: 'beacon', slug: '2026-09-22-payout-schedule', flow: 'ops', documents: 2, approvals: 0,
-    updated: '2026-09-30T00:00:00Z', stakeholder: null, at: 1, of: 5, stage: 'intent',
-    steps: [step('intent', true)], gates: [
-      { name: 'intent', passed: false, written: false, after: 1 },
-    ], accepted: false, complete: false, closed: false, outcome: null, correction: null },
+const ROWS: InitiativeRow[] = [
+  { slug: '2026-09-28-search-relevance', flow: 'sdlc-flow', state: 'waiting', gates: { passed: 1, of: 2 },
+    nextMove: { action: 'approve', stage: 'plan', document: 'plan.md', waitingOn: 'a person', why: 'plan.md is written and waits on approval' },
+    lastTouched: '2026-10-01T00:00:00Z', opened: '2026-09-28T00:00:00Z', closed: null },
+  { slug: '2026-09-22-payout-schedule', flow: 'ops', state: 'open', gates: { passed: 0, of: 1 },
+    nextMove: { action: 'write', stage: 'intent', document: 'intent.md', waitingOn: 'the agent', why: 'the intent stage is under way' },
+    lastTouched: '2026-09-30T00:00:00Z', opened: '2026-09-22T00:00:00Z', closed: null },
 ];
+
+const LIST: InitiativeList = {
+  meta: { asOf: '2026-10-15T00:00:00Z', timezone: 'UTC', period: { from: WINDOW.from, to: '2026-10-15T00:00:00Z' }, scope: 'active-team', population: 'atlas', coverageFrom: null },
+  tiles: { open: 2, waiting: 1, closed: { accepted: 3, delivered: 1, abandoned: 2 } },
+  closures: { state: 'ok', data: [] },
+  rows: ROWS, total: 23,
+  summary: { state: 'ok', data: {
+    total: 23, byState: { open: 1, waiting: 1, quiet: 15, accepted: 3, delivered: 1, abandoned: 2 },
+    byFlow: [{ flow: 'sdlc-flow', count: 20 }, { flow: 'ops', count: 2 }, { flow: null, count: 1 }],
+    touched: [], previous: { window: WINDOW, total: 21 },
+  } },
+  nextMoveState: 'ok',
+};
+
+let asked: URL[] = [];
 
 function mockFetch() {
   return async (input: RequestInfo | URL) => {
-    const url = String(input);
-    const body = url.includes('/me')
-      ? ME
-      : url.includes('waiting=1')
-        ? { waiting: [] }
-        : { initiatives: INITIATIVES };
+    const url = new URL(String(input), 'http://console.test');
+    asked.push(url);
+    const body = url.pathname.endsWith('/me') ? ME : LIST;
     return { ok: true, json: async () => body } as unknown as Response;
   };
 }
@@ -63,7 +67,12 @@ function cell(needle: string, header: string): string {
   return (td?.firstElementChild ?? td)?.textContent?.trim() ?? '';
 }
 
+/** The list reads the page asked for, by their query strings, less the console's scope, which Work's list ignores. */
+const listReads = () => asked.filter((u) => u.pathname.endsWith('/initiatives'))
+  .map((u) => new URLSearchParams([...u.searchParams].filter(([k]) => k !== 'scope')));
+
 beforeEach(() => {
+  asked = [];
   window.history.replaceState(null, '', '/initiatives');
   global.fetch = mockFetch() as unknown as typeof fetch;
 });
@@ -74,19 +83,40 @@ function mount() {
 }
 
 describe('the figures on the initiatives page', () => {
-  it('counts the gates an open initiative is judged on, leaving the handover out of both halves', async () => {
+  it('draws each row\'s gates, state and next move as the gateway answered them', async () => {
     mount();
     await waitFor(() => expect(document.body.textContent).toContain('2026-09-28-search-relevance'));
-    // Three gates in the data, one of them the platform's handover: one passed of two that count.
     expect(cell('2026-09-28-search-relevance', 'Gates')).toBe('1 of 2');
-    // One gate, none passed: a page that carried the other row's figures would say "1 of 3".
     expect(cell('2026-09-22-payout-schedule', 'Gates')).toBe('0 of 1');
+    expect(cell('2026-09-28-search-relevance', 'State')).toBe('Waiting');
+    expect(cell('2026-09-28-search-relevance', 'Flow position')).toBe('approve plan.md, waiting on a person');
+    expect(document.body.textContent).toContain('23 initiatives');
   });
 
-  it('names each initiative in its own team', async () => {
+  it('has no Team column: Work is the active team\'s', async () => {
     mount();
     await waitFor(() => expect(document.body.textContent).toContain('2026-09-28-search-relevance'));
-    expect(cell('2026-09-28-search-relevance', 'Team')).toBe('atlas');
-    expect(cell('2026-09-22-payout-schedule', 'Team')).toBe('beacon');
+    expect([...document.querySelectorAll('th')].map((h) => h.textContent?.trim())).not.toContain('Team');
+  });
+
+  it('asks the server for its first page of ten, and for a filter rather than narrowing what it holds', async () => {
+    mount();
+    await waitFor(() => expect(document.body.textContent).toContain('2026-09-28-search-relevance'));
+    const first = listReads()[0];
+    expect(Object.fromEntries(first)).toEqual({ limit: '10', offset: '0' });
+    expect(asked.some((u) => u.searchParams.get('waiting') === '1')).toBe(false);
+
+    window.history.replaceState(null, '', '/initiatives?state=quiet&page=2');
+    asked = [];
+    mount();
+    await waitFor(() => expect(listReads().length).toBeGreaterThan(0));
+    expect(Object.fromEntries(listReads()[0])).toEqual({ state: 'quiet', limit: '10', offset: '10' });
+  });
+
+  it('pages through the server: the next page is another read', async () => {
+    mount();
+    await waitFor(() => expect(document.body.textContent).toContain('2026-09-28-search-relevance'));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Next page' })[0]);
+    await waitFor(() => expect(listReads().some((p) => p.get('offset') === '10')).toBe(true));
   });
 });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { INITIATIVE_STATES, initiativeState, type StateOf } from '@/console/initiative-state';
-import { periodCutoff } from '@/lib/period';
+import { listPath, narrowed, offsetOf } from '@/views/initiatives-filter';
 
 /**
  * The state vocabulary the badge renders and the facet filters by — one definition, tested
@@ -69,19 +69,23 @@ describe('what an initiative is doing', () => {
   });
 });
 
-describe('the date window over an initiative list', () => {
-  const now = new Date('2026-09-10T00:00:00Z');
-  const updated = (iso: string) => new Date(iso);
+describe('the address an initiative list is read at', () => {
+  const NONE = { q: '', state: 'all', flow: 'all' };
+  const params = (path: string) => Object.fromEntries(new URL(path, 'http://gateway.test').searchParams);
 
-  it('keeps what moved inside the window and drops what did not', () => {
-    const since = periodCutoff('7d', now)!;
-    expect(updated('2026-09-09T23:41:00Z') >= since).toBe(true);
-    expect(updated('2026-08-24T10:00:00Z') >= since).toBe(false);
+  it('asks for the first page of ten with no filter, and names only the filters in force', () => {
+    expect(listPath(NONE)).toBe('/initiatives?limit=10&offset=0');
+    expect(params(listPath({ q: '  search ', state: 'quiet', flow: 'sdlc-flow' }))).toEqual({ q: 'search', state: 'quiet', flow: 'sdlc-flow', limit: '10', offset: '0' });
+    expect(narrowed(NONE)).toBe(false);
+    expect(narrowed({ ...NONE, q: ' ' })).toBe(false);
+    expect(narrowed({ ...NONE, flow: 'sdlc-flow' })).toBe(true);
   });
 
-  it('filters nothing at all time, which is the default', () => {
-    // `null` is an absent bound, not an old one — the page skips the filter entirely
-    // rather than comparing against a date, so a backdated row cannot be excluded.
-    expect(periodCutoff('all', now)).toBeNull();
+  it('pages on the server: page n starts ten rows after page n - 1', () => {
+    expect(offsetOf(1)).toBe(0);
+    expect(offsetOf(3)).toBe(20);
+    // A page before the first is the first, never a negative offset the route refuses.
+    expect(offsetOf(0)).toBe(0);
+    expect(params(listPath(NONE, { limit: 50, offset: 100 }))).toEqual({ limit: '50', offset: '100' });
   });
 });

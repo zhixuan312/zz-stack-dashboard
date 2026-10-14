@@ -1,34 +1,34 @@
 # Initiatives
 
-Every piece of work, open or closed, and how far through its flow it got.
+The active team's work, open or closed, and where each goes next, filtered and paged by the server.
 
 ## Structure
 
 - Gate first: the page asks for `initiatives` before it renders, so a person who does not hold it is shown NoAccess and nothing on the page is read.
-- A data table: initiative, team (platform mode), flow position, state, gates passed, updated; rows open the initiative.
-- Filter bar: search, team, flow and state, and a Waiting on you switch; the reporting period windows the list by when it was last touched.
+- The Records template: a data table of ten rows a page, paged by the server: initiative, flow position (zz-core's next move), state, gates passed, last touched; rows open the initiative.
+- Filter bar: search on the slug, state (open, waiting, quiet, accepted, delivered, abandoned) and flow, each sent to the route; no period and no Team column, since Work is the active team's.
 
 ## States
 
 - Loading: skeleton rows.
 - Error: the gateway's sentence and Retry.
 - Empty: no initiative yet.
-- Filtered or windowed to nothing: Clear filters.
+- Filtered to nothing: Clear filters.
 
 ## Agents
 
-The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `initiativesContext` in `src/views/initiatives-context.ts`, the same function `view_initiatives` calls, so the assistant quotes the figures the screen shows. Ask is in the filter bar: which are stuck and what each waits on, or which to approve first when the list shows only what waits on a person.
+The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `initiativesContext` in `src/views/initiatives-context.ts`, the same function `view_initiatives` calls, so the assistant quotes the figures the screen shows. Ask is in the filter bar: which initiatives need the person next and what each waits on, or what the filtered ones have in common.
 
 ### What the agent reads
 
-The period, whose work it is and every filter in force, then how many initiatives match and how many of those are open, waiting on a person and closed. What code found: the count by state, each initiative waiting with the gate it waits on, which of those are already closed and waiting on a correction, the open initiative untouched longest, the count by flow, and the initiatives listed (12 at most). It says that the period windows on when an initiative was last touched, not on when it was opened.
+Whose work it is, every filter in force and the page, then how many initiatives match (counted on the server over all of them) and the team's open, waiting and closed counts. What code found: the count by state, the rows in view with their state, gates, last touched and next move, and the count by flow. It says that another team's work is not in this list, and when zz-core could not say a row's next move.
 
 ```text
-- 2 of those are already closed: atlas/2026-09-12-onboarding-revamp; beacon/2026-09-22-payout-schedule. A closing document changed after the close and awaits approval again, so the State column still reads the outcome while the initiative is listed as waiting.
+- Rows 1 to 10 of 12, waiting first: 2026-09-28-search-relevance (waiting, 1 of 3 gates, touched 15 Oct 2026; next: approve plan.md); …
 ```
 
-- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `query_initiatives` looks up what the page lists.
+- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `query_initiatives` pages the route with its filters and answers the route's total.
 
 ## Surfaces
 
-Console, desktop and phone. Reads `GET /initiatives`. Live: follows `initiatives`, so a change made anywhere — another tab, another person — reads this page again.
+Console, desktop and phone. Reads `GET /initiatives?state&flow&q&limit&offset`. Live: follows `initiatives`, so a change made anywhere — another tab, another person — reads this page again.

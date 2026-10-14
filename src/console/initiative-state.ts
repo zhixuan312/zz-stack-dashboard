@@ -40,6 +40,3 @@ export function initiativeState(of: StateOf): InitiativeState {
 
 /** The gates of an initiative that are written and not yet approved, by name. */
 export const waitingGates = (of: StateOf): string[] => ownGates(of).filter((g) => g.written && !g.passed).map((g) => g.name);
-
-/** Written and unsigned: a gate document a person can read and sign today. */
-export const waitingOnYou = (of: StateOf) => ownGates(of).some((g) => g.written && !g.passed);
