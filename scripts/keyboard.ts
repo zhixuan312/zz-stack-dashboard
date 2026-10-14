@@ -28,6 +28,7 @@
 import { launch } from './lib/chrome.ts';
 import { DEEP_SOURCE } from './lib/deep.ts';
 import { discover } from './lib/routes.ts';
+import { settle } from './lib/settle.ts';
 import config from './verify.config.ts';
 
 const args = process.argv.slice(2);
@@ -113,58 +114,25 @@ const SHIFT_TAB = 8;
 const press = async (modifiers: number) => {
   await page.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9, modifiers });
   await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9, modifiers });
-  // The stop is judged once its geometry has SETTLED, not at a fixed two frames. The focus styles
-  // (the skip link sliding in) paint after the key event rather than with it, so some wait is
-  // owed — but on a loaded runner the paint lands later than two frames, and an element read
-  // before its style arrives is at its unfocused position: the skip link is 64px above the
-  // viewport until `focus-visible` moves it down, and `elementFromPoint` clamped to y=0 there
-  // returns the rail's brand row. That is a reachable, on-top skip link reported as
-  // `hidden under div.flex.h-16`. Measured: this walk is 0 issues on a laptop and reported that
-  // one issue on CI at the same commit, twice passing and once failing on the runner.
-  //
-  // Waiting for the rect to hold across three frames cannot hide a real failure: a stop that is
-  // genuinely covered stays covered no matter how long the wait.
-  await page.eval(`(() => new Promise((resolve) => {
-    let last = '', same = 0, frames = 0;
-    const step = () => {
-      const el = document.activeElement;
-      const r = el && el !== document.body ? (el.getClientRects()[0] ?? el.getBoundingClientRect()) : null;
-      const now = r ? [r.left, r.top, r.width, r.height].join() : '';
-      same = now === last ? same + 1 : 0;
+  // The focus styles (the skip link sliding in) paint after the key event, and on a loaded machine later than any fixed
+  // number of frames: a stop is judged once its box has held still for three frames, or after twelve. A stop that is
+  // really covered stays covered however long the wait.
+  await page.eval(`new Promise((resolve) => {
+    let last = '', held = 0, frames = 0;
+    const tick = () => {
+      const r = document.activeElement ? document.activeElement.getBoundingClientRect() : null;
+      const now = r ? [r.x, r.y, r.width, r.height].join(',') : '';
+      held = now === last ? held + 1 : 0;
       last = now;
-      if (same >= 2 || ++frames > 12) resolve(true); else requestAnimationFrame(step);
+      if (held >= 3 || ++frames >= 12) resolve(true);
+      else requestAnimationFrame(tick);
     };
-    requestAnimationFrame(step);
-  }))()`);
+    requestAnimationFrame(tick);
+  })`);
 };
 
 const page = await launch();
 
-/**
- * Wait for the shell's chrome before walking the tab order, anchored to the page's own signal rather than to a duration.
- * One control arrives late and is announced: the assistant's launcher sits inside a boundary that resolves when the
- * request's own work does (`app/(dashboard)/layout.tsx` hands `AppShell` a promise, deliberately, so the frame never
- * blocks). sgds-ac measured what a fixed wait costs: assistant off, 39 stops, pass; assistant on, 41 stops, pass idle and
- * **fail under load**, a forward pass of 39 against a reverse pass of 40. So the wait is anchored to `[data-assistant-slot]`
- * — in the page from the first byte, `aria-hidden` until the answer is known — and falls back to quiescence for anything
- * else late. With no assistant configured there is nothing to wait for, so that is asked once, of the one endpoint that
- * answers for it, and the wait is then a few frames.
- */
-const settle = async () => {
-  const hasAssistant = (await page.eval<number>('fetch("/api/assistant", { method: "POST" }).then((r) => r.status).catch(() => 404)')) !== 404;
-  await page.eval(`new Promise((done) => {
-    let last = '', stable = 0, tries = 0;
-    const count = () => deepAll(document.body).filter((el) => el.matches('a[href],button,input,select,textarea,[tabindex]') && !el.hasAttribute('disabled') && el.tabIndex >= 0).length;
-    const slotResolved = () => { const el = deepAll(document.body).find((n) => n.matches('[data-assistant-slot]')); return !el || el.getAttribute('aria-hidden') === null; };
-    const tick = () => {
-      const now = String(count()), ready = !${hasAssistant} || slotResolved();
-      if (ready && now === last) { if (++stable >= 3) return done(+now); } else { stable = 0; last = now; }
-      if (++tries > 140) return done(+now);
-      setTimeout(tick, 50);
-    };
-    tick();
-  })`);
-};
 let failures = 0;
 for (const route of ROUTES) {
   await page.open(base + route, { width: 1440, height: 900, theme: 'dark', wait: 2500, cookie });
@@ -176,7 +144,8 @@ for (const route of ROUTES) {
     page.close();
     process.exit(1);
   }
-  await settle();
+  // The shell's late chrome first: a walk that starts before it has arrived counts a different page on the way back.
+  await settle(page);
   const total = await page.eval<number>(TAG);
   const reached = new Set<string>();
   const order: string[] = [];

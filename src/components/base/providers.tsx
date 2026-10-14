@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, startTransition, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Tooltip } from 'radix-ui';
 import { app } from '../../app.config';
 import { STORAGE_KEY, type Preferences } from '../../lib/preferences';
@@ -32,11 +32,16 @@ export function Providers({ children }: { children: ReactNode }) {
         const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
         // The stored choice is an external store: read on mount, and again when another tab writes. The server render
         // never sees localStorage, so there is no render-time value to derive it from.
-        setPrefs((p) => {
+        //
+        // As a transition, because it is an update above every part of the page whose code has not arrived yet (a
+        // `dynamic()` card, a lazy panel). Made urgently, React answers it by discarding the server's HTML for such a
+        // part and drawing its fallback until the code loads: a page that arrived whole empties and fills again. A
+        // transition waits for the part to hydrate first. The pre-paint script has already put the choice on the root.
+        startTransition(() => setPrefs((p) => {
           const next = { ...p, ...stored };
           apply(next);
           return next;
-        });
+        }));
       } catch {
         /* storage unavailable: the defaults stand */
       }

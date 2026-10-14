@@ -179,6 +179,9 @@ if (has('--no-atlas') || has('--product')) {
   fs.rmSync(file('app/system'), { recursive: true, force: true });
   const atlasOnly = ['content.ts', 'hero.tsx', 'markdown.tsx', 'page-stage.tsx', 'atlas-shell.tsx', 'card-stage.tsx', 'preview-loaders.ts', 'strata.tsx', 'token-view.tsx', 'tokens-data.ts'];
   for (const f of atlasOnly) fs.rmSync(file(`src/system/${f}`), { force: true });
+  // The shipped tests of those modules go with them: a test of a module the project no longer has would fail there.
+  // tests/cli-atlas-prune.test.ts holds this list and the modules above together.
+  for (const t of ['tests/atlas-layers.test.ts', 'tests/card-stage-hydration.test.tsx']) fs.rmSync(file(t), { force: true });
   // Nav entries for /system and /system/... exactly (never /systemic), then any group they leave empty.
   let cfg = read('src/app.config.ts').replace(/\n\s*\{ href: '\/system(?:\/[^']*)?'[^}]*\},/g, '');
   cfg = cfg.replace(/\n {2}\{\n(?: {4}label: '[^']*',\n)? {4}items: \[\s*\],\n {2}\},/g, '');
@@ -207,7 +210,7 @@ if (has('--product')) {
   for (const f of walkDirs('src/components')) if (/\/(README\.md|preview\.tsx)$/.test(f)) fs.rmSync(file(f));
   for (const f of walkDirs('app')) if (/\/README\.md$/.test(f)) fs.rmSync(file(f));
   // A test of a module removed here goes with it (tests/cli-product-prune.test.ts holds the two lists together).
-  for (const f of ['src/system/specimen.tsx', 'tests/specimen-still.test.tsx', 'src/system/registry.ts', 'CONTRIBUTING.md', 'CHANGELOG.md']) fs.rmSync(file(f), { force: true });
+  for (const f of ['src/system/specimen.tsx', 'tests/specimen-still.test.tsx', 'tests/atlas-product-slice.test.tsx', 'tests/atlas-template-contracts.test.tsx', 'src/system/registry.ts', 'CONTRIBUTING.md', 'CHANGELOG.md']) fs.rmSync(file(f), { force: true });
   for (const d of ['docs', 'decisions', 'skills']) fs.rmSync(file(d), { recursive: true, force: true });
   const p = json('package.json');
   delete p.scripts?.registry;

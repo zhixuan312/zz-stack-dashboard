@@ -16,7 +16,7 @@ How a Meridian dashboard speaks: in titles, labels, buttons, empty states, error
 
 | Moment | Write | Not |
 |---|---|---|
-| Page title | Overview · Requests · Health | Dashboard home · Request explorer |
+| Page title | Overview · Requests · Operations | Dashboard home · Request explorer |
 | Head-note | Traffic, reliability and spend across every endpoint, for the period you choose. | Welcome to your dashboard! |
 | Empty, first run | No API keys yet. Create one to start sending requests. | Nothing here. |
 | Empty, filtered | No requests match "status: 5xx" in the last 7 days. Clear filters | No results found. |

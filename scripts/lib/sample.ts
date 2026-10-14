@@ -11,10 +11,13 @@ export type SampleSurfaces = { overview: boolean; members: boolean; keys: boolea
 
 export function sampleSurfaces(root: string, appDir: string): SampleSurfaces {
   const has = (p: string) => fs.existsSync(path.join(root, p));
+  // The console is the route group at the top of the app folder: `(dashboard)` in the template, any name in a product.
+  const groups = has(appDir) ? fs.readdirSync(path.join(root, appDir)).filter((n) => /^\(.+\)$/.test(n)) : [];
+  const page = (rest: string) => groups.some((g) => has(`${appDir}/${g}/${rest}/page.tsx`));
   return {
-    overview: has(`${appDir}/(dashboard)/(overview)/page.tsx`) && has('src/views/overview-context.ts'),
-    members: has(`${appDir}/(dashboard)/members/page.tsx`) && has('src/views/members.tsx'),
-    keys: has(`${appDir}/(dashboard)/keys/page.tsx`),
+    overview: page('(overview)') && has('src/views/overview-context.ts'),
+    members: page('members') && has('src/views/members.tsx'),
+    keys: page('keys'),
     settings: has('src/views/settings.tsx'),
   };
 }

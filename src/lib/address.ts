@@ -61,6 +61,7 @@ export function addressSearch(): string {
  * One listener for the module, added on the first subscriber and kept — the store is small, and
  * tracking who is left to remove it costs more than it saves. */
 let lastSeen = '';
+let announcements = 0;
 if (typeof window !== 'undefined') {
   lastSeen = addressSearch();
   window.addEventListener('popstate', () => {
@@ -82,7 +83,14 @@ export function subscribeAddress(notify: () => void): () => void {
  *  behind and a later back-press is compared against the address as it really was. */
 export function announceAddress(): void {
   lastSeen = addressSearch();
+  announcements++;
   for (const notify of listeners) notify();
+}
+
+/** How many times the readers have been told. A writer that shows its write before the address has moved keeps
+ *  showing it until this changes: from then on the address is what every reader has, and the write is in it. */
+export function addressAnnouncements(): number {
+  return announcements;
 }
 
 /** One parameter of the address, or null. Null is also the server's answer: the view with no parameters is the

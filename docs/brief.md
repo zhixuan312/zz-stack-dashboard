@@ -131,8 +131,8 @@ a time or `sources/2026-10-06-call.md` arrives as a single segment named after i
   gets it wrong, read the issue list and file it; write the console's own only as the interim, and say so where it is
   written.
 - **A collection's conditions, sort and page are the release's.** `src/data/gateway-collection.ts` reads the gateway
-  and hands the rows to `arrayCollection`, one store per query, dropped when it has answered, so there is no second
-  copy of the query rules here. A row query exported on its own would make that plainer; zz-meridian#24 asks for it.
+  and hands the rows to the release's `queryRows`, so there is no second copy of the query rules here. zz-meridian#24
+  asked for a row query exported on its own, and 0.15.0 ships it.
 - **The assistant reads and does not write, by the release's own switch.** A collection gives an agent a tool only for
   an operation it allows, and this console's allow none: what a page does is declared `pageOnly`. Letting it propose a
   change (revoke a token, add a member, archive a team) is a feature to decide, not a gap in the adoption, and it needs

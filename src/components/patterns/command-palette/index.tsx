@@ -2,6 +2,7 @@
 
 import { Dialog as D } from 'radix-ui';
 import { useRouter } from 'next/navigation';
+import { useLeave } from '../../base/shell/index';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ArrowRight, CornerDownLeft, Monitor, Moon, Search, Sun } from 'lucide-react';
 import type { NavGroup } from '../../../app.config';
@@ -31,6 +32,7 @@ export function CommandPalette({ nav }: { /** Every destination the rail offers,
   const setAt = (next: number | ((i: number) => number)) => setCursor({ key, i: typeof next === 'function' ? next(at) : next });
   const list = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const leave = useLeave();
   const { set } = usePreferences();
 
   useEffect(() => {
@@ -53,14 +55,14 @@ export function CommandPalette({ nav }: { /** Every destination the rail offers,
       ...nav.flatMap((g) =>
         g.items.map((it) => {
           const Icon = it.icon;
-          return { id: it.href, group: 'Go to', label: it.label, hint: g.label, icon: <Icon />, run: () => router.push(it.href) };
+          return { id: it.href, group: 'Go to', label: it.label, hint: g.label, icon: <Icon />, run: () => leave(() => router.push(it.href)) };
         }),
       ),
       { id: 'theme-light', group: 'Appearance', label: 'Use the light theme', icon: <Sun />, run: () => set({ theme: 'light' }) },
       { id: 'theme-dark', group: 'Appearance', label: 'Use the dark theme', icon: <Moon />, run: () => set({ theme: 'dark' }) },
       { id: 'theme-system', group: 'Appearance', label: 'Follow the system theme', icon: <Monitor />, run: () => set({ theme: 'system' }) },
     ],
-    [nav, router, set],
+    [nav, router, leave, set],
   );
 
   const shown = useMemo(() => {

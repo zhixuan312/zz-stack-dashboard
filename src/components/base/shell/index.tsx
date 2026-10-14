@@ -1,9 +1,9 @@
 'use client';
 
-import { Children, Suspense, createContext, use, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type HTMLAttributes, type ReactNode } from 'react';
+import { Children, Suspense, createContext, use, useCallback, useContext, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type HTMLAttributes, type ReactNode, type Ref, type RefObject } from 'react';
 import { Dialog } from 'radix-ui';
 import { Menu, X } from 'lucide-react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '../../../lib/cn';
 import { usePreferences } from '../providers';
 import { ConsoleSurface } from '../surface/index';
@@ -15,6 +15,11 @@ import dynamic from 'next/dynamic';
 // adopter's build, issue #7 — into every page that carries a button nobody had pressed.
 const AssistantColumn = dynamic(() => import('../../patterns/assistant/index').then((m) => m.AssistantColumn));
 const AssistantLauncher = dynamic(() => import('../../patterns/assistant/launcher').then((m) => m.AssistantLauncher));
+// The question the leave guard asks is the same kind of code: a dialog and two buttons that most pages never show. With it
+// in the shell's own file every Atlas page downloaded them (25 to 29 KB of first-load JS, measured), so it is a chunk of
+// its own, fetched when something on the page first becomes unsaved and drawn when a person tries to leave.
+const loadLeaveQuestion = () => import('./leave-question').then((m) => m.LeaveQuestion);
+const LeaveQuestion = dynamic(loadLeaveQuestion);
 
 /**
  * The shell and the layout contract, in one file. src/components/base/shell/README.md is the prose for it.
@@ -36,6 +41,83 @@ const AssistantLauncher = dynamic(() => import('../../patterns/assistant/launche
  */
 
 const ShellCtx = createContext<{ openNav: () => void; tools: ReactNode; assistant: Promise<boolean> }>({ openNav: () => {}, tools: null, assistant: Promise.resolve(false) });
+
+/**
+ * The leave guard. Something on the page that holds unsaved changes says so with `useUnsavedChanges`; while any does, the
+ * shell holds a plain click on a link and a navigation that code starts through `useLeave`, and asks first. Outside a
+ * shell (a card's preview, an embed, a test that draws a form alone) nothing is registered and `leave(go)` runs `go`.
+ */
+const LeaveCtx = createContext<{ hold: () => () => void; leave: (go: () => void) => void }>({ hold: () => () => {}, leave: (go) => go() });
+
+/** A component calls this to say it holds unsaved changes while `dirty` is true. Saved, discarded or unmounted, it stops holding at once. */
+export function useUnsavedChanges(dirty: boolean) {
+  const { hold } = useContext(LeaveCtx);
+  // An effect, not a render-time write: a page the router keeps hidden has its effects cleaned up, so it holds nothing while hidden.
+  useEffect(() => (dirty ? hold() : undefined), [dirty, hold]);
+}
+
+/**
+ * Answers `leave(go)`: `go` runs at once when nothing is unsaved, and otherwise only if the person chooses to leave.
+ * Code that navigates (a button, a menu, a palette command) goes through it; a link needs nothing, the shell hears it.
+ */
+export function useLeave(): (go: () => void) => void {
+  return useContext(LeaveCtx).leave;
+}
+
+/** Whether a click on this link is one the browser would follow in this tab, to a page of this origin other than the one in view. */
+function plainFollow(e: MouseEvent): string | null {
+  if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return null;
+  const a = e.target instanceof Element ? e.target.closest('a[href]') : null;
+  if (!(a instanceof HTMLAnchorElement) || a.hasAttribute('download') || (a.target && a.target !== '_self')) return null;
+  const url = new URL(a.href, location.href);
+  if (url.origin !== location.origin) return null;
+  // A place on the page already in view is the browser's to scroll to.
+  if (url.pathname + url.search === location.pathname + location.search) return null;
+  return url.pathname + url.search + url.hash;
+}
+
+/** The question, and the guard behind it. It sits at the shell's top and reads no address: it only listens. */
+function useLeaveGuard() {
+  const router = useRouter();
+  const held = useRef(0);
+  // The person has answered Leave: the move they chose may end in a full page load, and the browser must not ask again.
+  const leaving = useRef(false);
+  const [pending, setPending] = useState<(() => void) | null>(null);
+  const hold = useCallback(() => {
+    held.current += 1;
+    leaving.current = false;
+    // Something is unsaved, so the question may be needed: fetch it now and it is there by the time it is asked.
+    void loadLeaveQuestion();
+    return () => { held.current -= 1; };
+  }, []);
+  const leave = useCallback((go: () => void) => {
+    if (held.current === 0) go();
+    // One question at most: a second navigation while one is open waits behind the dialog, which is modal.
+    else setPending((open) => open ?? go);
+  }, []);
+  useEffect(() => {
+    // The capture phase of the document runs before any handler of the link, which in a router's link component is
+    // where it navigates; a listener after it would find the navigation done.
+    const onClick = (e: MouseEvent) => {
+      if (held.current === 0) return;
+      const follow = plainFollow(e);
+      if (!follow) return;
+      e.preventDefault();
+      e.stopPropagation();
+      leave(() => router.push(follow));
+    };
+    const onUnload = (e: Event) => { if (held.current > 0 && !leaving.current) e.preventDefault(); };
+    document.addEventListener('click', onClick, true);
+    window.addEventListener('beforeunload', onUnload);
+    return () => {
+      document.removeEventListener('click', onClick, true);
+      window.removeEventListener('beforeunload', onUnload);
+    };
+  }, [leave, router]);
+  const value = useMemo(() => ({ hold, leave }), [hold, leave]);
+  const question = pending ? <LeaveQuestion onStay={() => setPending(null)} onLeave={() => { setPending(null); leaving.current = true; pending(); }} /> : null;
+  return { value, question };
+}
 
 /** The promise of whether the product has an assistant: Settings offers the person's switch only when it resolves true. */
 export function useAssistantAvailable(): Promise<boolean> {
@@ -70,29 +152,78 @@ function ResolvedColumn({ assistant, open, used, onClose, ask, onAsked }: { assi
 }
 
 /**
- * Data arrives once. The first page of a visit rises and grows into place; a page reached by a click in the app, or one
+ * Data arrives once. The first page of a visit rises and grows into place, unless the reader has already waited longer
+ * than that arrival lasts: motion after a long wait is no feedback, only a later page, and on a slow phone it held the
+ * page's own text back (issue #21). A page reached by a click in the app, or one
  * the router kept and shows again (Cache Components keeps visited routes mounted and hidden, and showing an element
  * again restarts its animations), is already there and must not replay, or a ready page reads as still loading
  * (issue #19). A change of path marks the main area still before paint; the mark lifts once the longest arrival would
  * have ended, so a change made on the page afterwards, such as a new period, still animates. A change of query alone
  * keeps the path, so it is not a navigation here.
+ *
+ * It reads the address, so it is a part of its own behind its own boundary and draws nothing (see `AppShell`).
  */
-function useStillOnNavigation(path: string) {
-  const [still, setStill] = useState(false);
-  const shown = useRef(path);
+function StillOnNavigation({ main }: { main: RefObject<HTMLElement | null> }) {
+  const path = usePathname();
+  const shown = useRef<string | null>(null);
   useLayoutEffect(() => {
-    if (shown.current === path) return;
+    const el = main.current;
+    if (shown.current === path || !el) return;
+    const first = shown.current === null;
     shown.current = path;
-    setStill(true);
     const css = getComputedStyle(document.documentElement);
     // A build may write 820ms as .82s, so read the unit, not only the number.
     const ms = (name: string) => { const v = css.getPropertyValue(name).trim(); return parseFloat(v) * (v.endsWith('ms') ? 1 : 1000); };
-    const t = setTimeout(() => setStill(false), ms('--dur-grow') + ms('--dur-enter'));
-    return () => clearTimeout(t);
-  }, [path]);
-  return still;
+    const arrival = ms('--dur-grow') + ms('--dur-enter');
+    // `performance.now()` counts from the start of the page load, so on the first page it is how long the reader waited.
+    if (first && !(performance.now() > arrival)) return;
+    el.setAttribute('data-still', '');
+    const t = setTimeout(() => el.removeAttribute('data-still'), arrival);
+    return () => { clearTimeout(t); el.removeAttribute('data-still'); };
+  }, [path, main]);
+  return null;
 }
 
+/**
+ * The navigation drawer below 1024px. It remembers the page it opened on, so navigating closes it without an effect;
+ * that is a read of the address, so the drawer is a part of its own behind its own boundary (see `AppShell`), and the
+ * shell opens it through the handle.
+ */
+function Drawer({ rail, ref }: { rail: ReactNode; ref: Ref<{ open: () => void }> }) {
+  const path = usePathname();
+  const [openOn, setOpenOn] = useState<string | null>(null);
+  useImperativeHandle(ref, () => ({ open: () => setOpenOn(path) }), [path]);
+  return (
+    <Dialog.Root open={openOn === path} onOpenChange={(o) => setOpenOn(o ? path : null)}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="scrim-in fixed inset-0 z-(--layer-rail) bg-scrim lg:hidden" />
+        <Dialog.Content
+          aria-describedby={undefined}
+          className="sheet-in fixed inset-y-0 left-0 z-(--layer-rail) flex w-(--rail-width) max-w-[86vw] border-r border-line bg-ground shadow-overlay lg:hidden"
+        >
+          <Dialog.Title className="sr-only">Navigation</Dialog.Title>
+          {rail}
+          <Dialog.Close
+            aria-label="Close navigation"
+            className="absolute top-4 -right-12 grid size-9 place-items-center rounded-full bg-surface-raised text-ink-2 shadow-overlay"
+          >
+            <X className="size-4" />
+          </Dialog.Close>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+
+/**
+ * The shell itself never reads the address. A route with a parameter the build did not know (a record's own page, which
+ * in a product is every record) has no pathname until the request, and a component that asks for one waits for it; when
+ * the shell asked, at its top, the whole page waited with it and nothing at all was prerendered for such a route — the
+ * build's shell for `/requests/[id]` was an empty file, and an adopter whose layout put a boundary above the shell was
+ * served that boundary's fallback and nothing else. So what reads the address is each a part of its own, behind its own
+ * boundary, with a fallback that takes the same room: the drawer, the mark that holds a navigated page still, and the
+ * rail, whatever a product passes for one.
+ */
 export function AppShell({
   rail,
   tools,
@@ -106,12 +237,9 @@ export function AppShell({
   assistant: Promise<boolean>;
   children: ReactNode;
 }) {
-  const path = usePathname();
-  const still = useStillOnNavigation(path);
-  // The drawer remembers the page it opened on, so navigating closes it without an effect.
-  const [openOn, setOpenOn] = useState<string | null>(null);
-  const open = openOn === path;
-  const setOpen = (o: boolean) => setOpenOn(o ? path : null);
+  const drawer = useRef<{ open: () => void }>(null);
+  const guard = useLeaveGuard();
+  const main = useRef<HTMLElement>(null);
   const [assistantOpen, setAssistantOpen] = useState(false);
   // The panel's chunk is a third of a megabyte, so it is NOT in a page's first load: the column mounts the first time
   // somebody opens it, and stays mounted from then on, so closing it and reopening keeps the thread. Before this, a
@@ -145,7 +273,8 @@ export function AppShell({
     </>
   );
   return (
-    <ShellCtx.Provider value={{ openNav: () => setOpen(true), tools: allTools, assistant }}>
+    <LeaveCtx.Provider value={guard.value}>
+    <ShellCtx.Provider value={{ openNav: () => drawer.current?.open(), tools: allTools, assistant }}>
       <div className="fixed inset-0 isolate flex overflow-hidden">
         {/* The first stop for a keyboard: past the rail and the top bar, straight to the page's masthead (PageFrame). */}
         <a
@@ -155,32 +284,23 @@ export function AppShell({
           Skip to content
         </a>
         <aside aria-label="Primary" className="hidden h-full w-(--rail-width) shrink-0 border-r border-line bg-frame backdrop-blur-xl backdrop-saturate-150 lg:flex">
-          {rail}
+          <Suspense fallback={null}>{rail}</Suspense>
         </aside>
-        <Dialog.Root open={open} onOpenChange={setOpen}>
-          <Dialog.Portal>
-            <Dialog.Overlay className="scrim-in fixed inset-0 z-(--layer-rail) bg-scrim lg:hidden" />
-            <Dialog.Content
-              aria-describedby={undefined}
-              className="sheet-in fixed inset-y-0 left-0 z-(--layer-rail) flex w-(--rail-width) max-w-[86vw] border-r border-line bg-ground shadow-overlay lg:hidden"
-            >
-              <Dialog.Title className="sr-only">Navigation</Dialog.Title>
-              {rail}
-              <Dialog.Close
-                aria-label="Close navigation"
-                className="absolute top-4 -right-12 grid size-9 place-items-center rounded-full bg-surface-raised text-ink-2 shadow-overlay"
-              >
-                <X className="size-4" />
-              </Dialog.Close>
-            </Dialog.Content>
-          </Dialog.Portal>
-        </Dialog.Root>
-        <main data-still={still || undefined} className="relative flex min-w-0 flex-1 flex-col"><ConsoleSurface ask={ask}>{children}</ConsoleSurface></main>
+        <Suspense fallback={null}>
+          <Drawer ref={drawer} rail={rail} />
+        </Suspense>
+        <main ref={main} className="relative flex min-w-0 flex-1 flex-col"><ConsoleSurface ask={ask}>{children}</ConsoleSurface></main>
+        {/* After the main area, so the main area is there to mark when this first runs. */}
+        <Suspense fallback={null}>
+          <StillOnNavigation main={main} />
+        </Suspense>
         <Suspense fallback={null}>
           <ResolvedColumn assistant={assistant} open={assistantOpen} used={assistantUsed} onClose={() => setAssistantOpen(false)} ask={pendingAsk} onAsked={() => setPendingAsk(null)} />
         </Suspense>
       </div>
+      {guard.question}
     </ShellCtx.Provider>
+    </LeaveCtx.Provider>
   );
 }
 
@@ -203,7 +323,6 @@ export const WIDTH = { data: 'max-w-(--data-width)', reading: 'max-w-(--reading-
 export type PageWidth = keyof typeof WIDTH;
 
 /**
- * A page: one scroll region holding a glass top bar/**
  * A page: one scroll region holding a glass top bar, the masthead and the rows. The masthead (kicker, title, one
  * sentence, actions) scrolls away with the content; once the title leaves view, a compact title fades into the top
  * bar, which also carries the global tools. Every band shares the gutter and the width, so the title starts exactly

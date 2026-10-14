@@ -9,6 +9,12 @@ const CHROME = process.env.CHROME ?? (process.platform === 'darwin' ? '/Applicat
 // A Linux CI runner (Ubuntu 24.04's AppArmor) refuses Chrome's sandbox; there it only ever opens the app just built.
 const SANDBOX = process.platform === 'linux' && process.env.CI === 'true' ? ['--no-sandbox'] : [];
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+/**
+ * The device pixel ratio a page is opened at: 1 unless `DPR` asks for another. A check measures geometry, and for as long
+ * as this default was 2 while `pnpm verify` set 1, one suite gave two answers for one page, by hand and inside verify (a
+ * table 368px wide in a 356px frame at 2x that fits at 1x). A picture for the eye asks for 2 itself (scripts/shot.ts).
+ */
+const dpr = () => Number(process.env.DPR ?? 1);
 
 export type Page = {
   /** Uncaught exceptions and console errors since the last open(). */
@@ -22,34 +28,64 @@ export type Page = {
   close: () => void;
 };
 
+type Launched = { proc: ChildProcess; dir: string; guard?: ChildProcess };
 /** Every Chrome this process launched and has not closed: each is killed, and its profile removed, whichever way the process ends. */
-const launched = new Set<{ proc: ChildProcess; dir: string }>();
+const launched = new Set<Launched>();
+/** Profiles whose removal has started in the background and not finished: a process that exits first finishes them itself. */
+const removing = new Set<string>();
+function removeNow(dir: string) {
+  try {
+    fs.rmSync(dir, { recursive: true, force: true, maxRetries: 20, retryDelay: 50 });
+  } catch {
+    /* a profile left in the temp folder is cheaper than a run that failed tidying up after itself */
+  }
+}
 /**
  * Kill a browser and remove its profile. The removal is never the caller's work: a suite closes its browser inside a hook
  * and a hook has a ten-second ceiling, while a profile that has loaded many pages runs to tens of megabytes — removing one
  * that way timed a hook out on a runner (`Hook timed out in 10000ms`, tests/deep-dom.test.ts's afterAll), and before that
  * it threw `ENOTEMPTY: directory not empty` when Chrome was still writing into the directory. So it starts at once, in the
- * background; at exit, where nothing is timed, it is one last synchronous attempt for a browser nobody closed.
+ * background; at exit, where nothing is timed, it is one last synchronous attempt — for a browser nobody closed, and for
+ * every removal still under way, since a check ends `page.close(); process.exit()` and a removal the exit cut short left
+ * the whole profile behind on every run.
  */
-function reap(c: { proc: ChildProcess; dir: string }, sync = false) {
+function reap(c: Launched, sync = false) {
   launched.delete(c);
+  c.guard?.kill('SIGKILL');
   c.proc.kill('SIGKILL');
-  if (!sync) { fs.rm(c.dir, { recursive: true, force: true }, () => {}); return; }
-  try {
-    fs.rmSync(c.dir, { recursive: true, force: true, maxRetries: 20, retryDelay: 50 });
-  } catch {
-    /* a profile left in the temp folder is cheaper than a run that failed tidying up after itself */
-  }
+  if (sync) return removeNow(c.dir);
+  removing.add(c.dir);
+  fs.rm(c.dir, { recursive: true, force: true }, () => removing.delete(c.dir));
 }
-process.on('exit', () => { for (const c of [...launched]) reap(c, true); });
-for (const sig of ['SIGINT', 'SIGTERM'] as const) process.on(sig, () => process.exit(sig === 'SIGINT' ? 130 : 143));
+process.on('exit', () => {
+  for (const c of [...launched]) reap(c, true);
+  for (const dir of removing) removeNow(dir);
+});
+// A signal that ends the process by default runs no exit handler unless it is caught: a closed terminal (SIGHUP) and a
+// quit (SIGQUIT) each left a whole browser running under launchd. The codes are the shell's: 128 plus the signal.
+for (const [sig, code] of [['SIGHUP', 129], ['SIGINT', 130], ['SIGQUIT', 131], ['SIGTERM', 143]] as const) process.on(sig, () => process.exit(code));
+
+/**
+ * The one ending nothing in this process can answer is being killed outright (SIGKILL: a harness's timeout, `kill -9`),
+ * so something outside it has to. A shell watches this process and, once it is gone, kills the browser and removes the
+ * profile. It kills only a process whose command line still names this browser's own profile, so a pid the system has
+ * handed to something else since is never touched. Not on Windows, which has no such shell; there the handlers above are
+ * the whole of it.
+ */
+function guard(proc: ChildProcess, dir: string): ChildProcess | undefined {
+  if (process.platform === 'win32' || !proc.pid) return undefined;
+  const watch = 'while kill -0 "$1" 2>/dev/null; do sleep 1; done; case "$(ps -p "$2" -o command= 2>/dev/null)" in *"$3"*) kill -9 "$2" 2>/dev/null;; esac; rm -rf "$3"';
+  const g = spawn('/bin/sh', ['-c', watch, 'sh', String(process.pid), String(proc.pid), dir], { stdio: 'ignore', detached: true });
+  g.unref();
+  return g;
+}
 
 export async function launch(): Promise<Page> {
   // Port 0 lets Chrome pick a free port and write it into its own profile, so this never attaches to another
   // session's browser that happens to hold a guessed port.
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'meridian-chrome-'));
   const proc = spawn(CHROME, [...SANDBOX, '--headless=new', '--disable-gpu', '--hide-scrollbars', '--force-color-profile=srgb', '--remote-debugging-port=0', `--user-data-dir=${dir}`, 'about:blank'], { stdio: 'ignore' });
-  const handle = { proc, dir };
+  const handle: Launched = { proc, dir, guard: guard(proc, dir) };
   launched.add(handle);
   try {
     return await attach(proc, dir, handle);
@@ -59,7 +95,7 @@ export async function launch(): Promise<Page> {
   }
 }
 
-async function attach(proc: ChildProcess, dir: string, handle: { proc: ChildProcess; dir: string }): Promise<Page> {
+async function attach(proc: ChildProcess, dir: string, handle: Launched): Promise<Page> {
   let list: any[] | undefined;
   // A cold Chrome on a busy machine or runner can take well over ten seconds to open its debugging port; wait up to 30 s,
   // and stop at once if it exited instead.
@@ -80,6 +116,11 @@ async function attach(proc: ChildProcess, dir: string, handle: { proc: ChildProc
   ws.addEventListener('message', (e) => {
     const m = JSON.parse(String(e.data));
     if (m.method === 'Page.fileChooserOpened') choosers++;
+    // A page that holds unsaved changes asks the browser to warn before it unloads, and the warning waits for an answer: with
+    // nobody to give one, the next open() timed out (30 s, measured on a form with a typed-in value). A check that opens
+    // another address has chosen to leave, so it says so. Only this question is answered: an alert or a confirm the page
+    // raises itself is the page's behaviour, and a check should meet it as it is.
+    if (m.method === 'Page.javascriptDialogOpening' && m.params.type === 'beforeunload') ws.send(JSON.stringify({ id: ++id, method: 'Page.handleJavaScriptDialog', params: { accept: true } }));
     if (m.id && pending.has(m.id)) { pending.get(m.id)!(m); pending.delete(m.id); return; }
     if (m.method === 'Runtime.exceptionThrown') errors.push('exception: ' + (m.params.exceptionDetails?.exception?.description ?? m.params.exceptionDetails?.text ?? '').split('\n')[0]);
     if (m.method === 'Runtime.consoleAPICalled' && m.params.type === 'error') errors.push('console.error: ' + m.params.args.map((a: any) => a.value ?? a.description ?? '').join(' ').slice(0, 200));
@@ -109,7 +150,7 @@ async function attach(proc: ChildProcess, dir: string, handle: { proc: ChildProc
       if (theme) features.push({ name: 'prefers-color-scheme', value: theme });
       errors.length = 0;
       await send('Emulation.setEmulatedMedia', { features });
-      await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: Number(process.env.DPR ?? 2), mobile: width < 600 });
+      await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: dpr(), mobile: width < 600 });
       // A phone is touch: pointer: coarse, so touch targets and tap behaviour are what a phone gets.
       await send('Emulation.setTouchEmulationEnabled', width < 600 ? { enabled: true, maxTouchPoints: 5 } : { enabled: false });
       // A cookie is set through the network domain, BEFORE the navigation, so the very first request already carries it
@@ -133,7 +174,7 @@ async function attach(proc: ChildProcess, dir: string, handle: { proc: ChildProc
       if (full && m.sh > 0) {
         // The document never scrolls: grow the viewport by the scroll region's overflow so the whole page shows.
         h = m.h + m.sh;
-        await send('Emulation.setDeviceMetricsOverride', { width: width ?? m.w, height: h, deviceScaleFactor: Number(process.env.DPR ?? 2), mobile: (width ?? m.w) < 600 });
+        await send('Emulation.setDeviceMetricsOverride', { width: width ?? m.w, height: h, deviceScaleFactor: dpr(), mobile: (width ?? m.w) < 600 });
         await sleep(1200);
         await page.eval("new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(true))))");
       }

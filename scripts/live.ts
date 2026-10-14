@@ -245,9 +245,9 @@ async function invite(page: Page, name: string, confirm = true): Promise<number>
   await click(page, find('input[type="email"]', undefined, IN_DIALOG));
   const email = `${name.replace(/\s+/g, '.')}@live-check.example`;
   await page.send('Input.insertText', { text: email });
-  const pressed = await press(page, find('button', 'Send invitation'));
+  const pressed = await press(page, find('button', 'Invite'));
   // The table's own answer: a toast says the server took the invitation, or why it did not.
-  if (confirm) await refused(page, 4000, `Invitation sent to ${email}`);
+  if (confirm) await refused(page, 4000, `Invited ${email}`);
   return pressed;
 }
 

@@ -1,7 +1,7 @@
 /**
  * The browser audit: every page and embed view, at every width, in both themes, measured.
  *
- *   node scripts/audit.ts [--base http://localhost:3100] [--routes /,/requests] [--embeds-only] [--atlas]
+ *   node scripts/audit.ts [--base http://localhost:3100] [--routes /,/requests] [--embeds-only] [--atlas] [--list]
  *
  * Routes are discovered from app/ (every static page; embeds under /embed), with the detail pages in
  * scripts/verify.config.ts beside them; --routes replaces the pages for one run.
@@ -10,23 +10,26 @@
  * serves — the token views, the page specs and the guides — at 1440 and 390px in both themes.
  * A card's preview is the one place it is drawn alone, so a defect in its own box shows there and nowhere else. It is
  * not part of `pnpm verify` (the default stays fast); run it when the question is the component surface. It takes
- * about ten minutes, and a project without the Atlas has nothing for it to read.
+ * about twenty minutes, and a project without the Atlas has nothing for it to read. `--list` prints the routes a run would
+ * visit, and for `--atlas` what they are by kind, and exits without opening a browser: what a run covers, before it runs.
  *
  * The walk enters open shadow roots and follows slots (scripts/lib/deep.ts, injected into every page), so a custom element's
  * own content is measured like any other. A defined custom element that shows a box but exposes no open root and no
  * light-DOM content, and one that is still undefined after the settle wait, are reported as `unmeasured:` instead of passed.
  *
- * Fails (exit 1) on: sideways scroll, text clipped without an ellipsis, a control with no accessible name, more than
- * one page scroller, and rendered text under its WCAG minimum. Prints the design metrics per page: distinct type
+ * Fails (exit 1) on: sideways scroll, text clipped without an ellipsis, text cut with an ellipsis that keeps the whole
+ * of it nowhere, two pieces of text in the same place or a line drawn through one, a control with no accessible name,
+ * more than one page scroller, and rendered text under its WCAG minimum, an SVG's text included, read by its `fill`
+ * against whatever the SVG paints behind it. Prints the design metrics per page: distinct type
  * sizes, weights and radii, and the hierarchy ratio (largest text over the median), which should be 3 or more on
  * an analytical page.
  */
 import fs from 'node:fs';
-import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { atlasCoverage, atlasEntries } from './lib/atlas.ts';
 import { launch } from './lib/chrome.ts';
 import { DEEP_SOURCE } from './lib/deep.ts';
 import { discover } from './lib/routes.ts';
+import { settle } from './lib/settle.ts';
 import config from './verify.config.ts';
 
 const args = process.argv.slice(2);
@@ -44,23 +47,19 @@ const ATLAS = args.includes('--atlas');
 /**
  * Every Atlas page: each card's page and its bare preview (from the keys scripts/registry.ts generates), plus every
  * other entry the Atlas serves — the token views, the page specs and the guides. Those live under `[section]/[id]`, so
- * `discover()` skips them as dynamic segments and nothing measured them: a defect in a token view, a page spec or a
- * guide failed no suite. They are read through the module the Atlas itself renders from, so a new entry is audited
- * without being listed. Only the template has an Atlas.
+ * `discover()` skips them as dynamic segments. They are read through the module the Atlas itself renders from, so a new
+ * entry is audited without being listed; an Atlas whose entries cannot be read fails the run, and the coverage line says
+ * what was reached. Only the template has an Atlas.
  */
+let atlasLine = '';
 async function atlasRoutes(): Promise<string[]> {
   const file = 'app/system/preview/[section]/[card]/keys.ts';
   if (!fs.existsSync(file)) { console.error('audit --atlas: this project has no Design Atlas to audit'); process.exit(1); }
   const keys = [...fs.readFileSync(file, 'utf8').matchAll(/'([a-z]+\/[a-z0-9-]+)'/g)].map((m) => m[1]);
   const cards = keys.flatMap((k) => [`/system/${k}`, `/system/preview/${k}`]);
-  let entries: string[] = [];
-  try {
-    const mod = (await import(pathToFileURL(path.resolve('src/system/content.ts')).href)) as { entries?: () => { href: string }[] };
-    entries = (mod.entries?.() ?? []).map((e) => e.href);
-  } catch {
-    // A content module that plain node cannot read: the card routes alone, as before, rather than no audit at all.
-  }
-  return [...new Set([...cards, ...entries])];
+  const entries = await atlasEntries().catch((e: Error) => { console.error(`audit --atlas: ${e.message}`); process.exit(1); });
+  atlasLine = `atlas: ${atlasCoverage(entries)}, and ${keys.length} bare previews`;
+  return [...new Set([...cards, ...entries.map((e) => e.href)])];
 }
 
 const found = discover();
@@ -70,16 +69,22 @@ const ROUTES = EMBEDS_ONLY ? [] : ATLAS ? await atlasRoutes() : (opt('--routes',
 const EMBEDS = ATLAS ? [] : found.filter((r) => r.startsWith('/embed/'));
 const WIDTHS = ATLAS ? [1440, 390] : [2560, 1440, 1024, 768, 390];
 const THEMES = ['dark', 'light'];
+if (args.includes('--list')) {
+  console.log([...ROUTES, ...EMBEDS].join('\n'));
+  if (atlasLine) console.log(atlasLine);
+  process.exit(0);
+}
+if (atlasLine) console.log(atlasLine);
 
 type Report = {
   path: string; href: string; text: number;
-  sideways: string[]; clipped: string[]; focusless: string[]; unnamed: string[]; unmeasured: string[]; scrollers: string[]; contrast: string[]; targets: string[]; headings: string[];
+  sideways: string[]; clipped: string[]; truncated: string[]; overlap: string[]; focusless: string[]; unnamed: string[]; unmeasured: string[]; scrollers: string[]; contrast: string[]; targets: string[]; headings: string[];
   sizes: number[]; weights: number[]; radii: number[]; ratio: number;
 };
 
 /** Runs inside the page. Plain JavaScript: it is serialised into the browser. */
 const MEASURE = `(() => {
-  const W = innerWidth, out = { path: location.pathname, href: location.href, text: 0, sideways: [], clipped: [], unnamed: [], unmeasured: [], scrollers: [], contrast: [], targets: [], headings: [], sizes: [], weights: [], radii: [], ratio: 0 };
+  const W = innerWidth, out = { path: location.pathname, href: location.href, text: 0, sideways: [], clipped: [], truncated: [], overlap: [], unnamed: [], unmeasured: [], scrollers: [], contrast: [], targets: [], headings: [], sizes: [], weights: [], radii: [], ratio: 0 };
   const label = (el) => (el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + (el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\\s+/).slice(0, 3).join('.') : '')).slice(0, 90);
   /* closest() across open roots and slots: deepParent (injected from scripts/lib/deep.ts) steps through both */
   const deepClosest = (el, sel) => { for (let n = el; n; n = deepParent(n)) if (n.matches(sel)) return n; return null; };
@@ -112,6 +117,30 @@ const MEASURE = `(() => {
     for (let i = stack.length - 1; i >= 0; i--) b = over(stack[i], b);
     return b;
   };
+  // An SVG's text is painted by fill, not color, and what it sits on is whatever the SVG painted before it: the page
+  // behind the SVG, then every filled shape under the text's centre, in document order (which is paint order). The
+  // shapes are asked directly (isPointInFill) rather than hit-tested, so one drawn with pointer-events off still counts.
+  // A gradient, behind the text or as its fill, has no single colour to compare and is left unmeasured.
+  const svgInk = (c) => { const f = c.fill; if (!f || f === 'none' || /^url\\(|context-/.test(f)) return null; const p = rgba(f); p[3] *= parseFloat(c.fillOpacity || '1'); return p[3] > 0.02 ? p : null; };
+  const svgBack = (el) => {
+    const root = el.ownerSVGElement; let b = backOf(root || el); if (!b || !root) return b;
+    const box = el.getBoundingClientRect(), x = box.left + box.width / 2, y = box.top + box.height / 2;
+    for (const g of root.querySelectorAll('rect,path,circle,ellipse,polygon')) {
+      if (!(g.compareDocumentPosition(el) & 4) || g.closest('defs,clipPath,mask,pattern,marker,symbol')) continue;
+      const gc = getComputedStyle(g); if (gc.display === 'none' || gc.visibility === 'hidden' || gc.fill === 'none') continue;
+      const m = g.getScreenCTM(); if (!m) continue;
+      let inside = false; try { inside = g.isPointInFill(new DOMPoint(x, y).matrixTransform(m.inverse())); } catch { continue; }
+      if (!inside) continue;
+      if (/^url\\(/.test(gc.fill)) return null;
+      const f = rgba(gc.fill); f[3] *= parseFloat(gc.fillOpacity || '1') * parseFloat(gc.opacity || '1');
+      if (f[3] > 0) b = over(f, b);
+    }
+    return b;
+  };
+  // Text cut with an ellipsis has to keep the whole of itself where a pointer can reach it: a title on the element or
+  // on what holds it (a cell, a row, a link), or on the one thing inside it that the pointer is over.
+  const titled = (el) => { for (let n = el, i = 0; n && i < 4; n = deepParent(n), i++) if ((n.getAttribute('title') || '').trim()) return true; return [...el.querySelectorAll('[title]')].some((n) => n.getAttribute('title').trim()); };
+  const inked = [];
   const ringSig = (c) => [c.outlineStyle, c.outlineWidth, c.outlineColor, c.boxShadow, c.borderTopStyle, c.borderTopWidth, c.borderTopColor, c.borderBottomColor, c.borderLeftColor, c.borderRightColor].join('|');
   const texts = [];
   for (const el of all) {
@@ -129,14 +158,20 @@ const MEASURE = `(() => {
       const fs = parseFloat(c.fontSize);
       texts.push(fs); out.sizes.push(Math.round(fs)); out.weights.push(+c.fontWeight);
       if (el.scrollWidth > el.clientWidth + 1 && c.textOverflow !== 'ellipsis' && /hidden|clip/.test(c.overflow) && el.clientWidth > 0) out.clipped.push(label(el) + ' "' + el.textContent.trim().slice(0, 30) + '"');
+      if (el.scrollWidth > el.clientWidth + 1 && c.textOverflow === 'ellipsis' && /hidden|clip/.test(c.overflowX) && el.clientWidth > 0 && !titled(el)) out.truncated.push(label(el) + ' "' + el.textContent.trim().slice(0, 30) + '"');
+      inked.push(el);
       // Gradient text paints its glyphs with a clipped background (color is transparent); both ends sit at accent-ink's
       // lightness, which the contrast gate already holds, so it is not measured here.
-      if (!deepClosest(el, 'svg') && !/text/.test(c.backgroundClip + ' ' + c.webkitBackgroundClip) && !deepClosest(el, '[data-contrast-exempt]') && !deepClosest(el, ':disabled,[aria-disabled="true"],[data-disabled]')) {
-        const back = backOf(el);
+      if (!/text/.test(c.backgroundClip + ' ' + c.webkitBackgroundClip) && !deepClosest(el, '[data-contrast-exempt]') && !deepClosest(el, ':disabled,[aria-disabled="true"],[data-disabled]')) {
+        const svg = el instanceof SVGElement;
+        const ink = svg ? svgInk(c) : rgba(c.color);
+        const back = ink && (svg ? svgBack(el) : backOf(el));
         if (back) {
-          const fg = over(rgba(c.color), back);
+          const fg = over(ink, back);
           const a = lum(fg), b = lum(back), r = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
-          const large = fs >= 24 || (fs >= 18.6 && +c.fontWeight >= 600);
+          // An SVG scales its text with its viewBox, so the size that matters is the one drawn.
+          const m = svg && el.getScreenCTM ? el.getScreenCTM() : null, size = fs * (m ? Math.hypot(m.a, m.b) : 1);
+          const large = size >= 24 || (size >= 18.6 && +c.fontWeight >= 600);
           if (r < (large ? 3 : 4.5) - 0.05) out.contrast.push(r.toFixed(2) + ':1 ' + label(el) + ' "' + el.textContent.trim().slice(0, 24) + '"');
         }
       }
@@ -163,6 +198,68 @@ const MEASURE = `(() => {
       }
     }
   }
+  // Two things in the same place. Every other measurement here is against the frame (does it fit, is it cut, can it be
+  // read against its ground); none asked whether a neighbour is drawn where the text is, so a sparkline through its own
+  // caption passed at five widths in both themes. Two cases, each unambiguous: two pieces of text whose glyph boxes
+  // share a third of a line or more, and a stroked line (a shape with no fill) that runs through a text's box. A filled
+  // shape under text is a ground, and the contrast pass reads it as one. What a layer is meant to cover is left out:
+  // anything fixed or sticky, anything faded out by an ancestor, and whatever has a box and is not on the page: text
+  // or a line an overflow has clipped away, and the content of a closed disclosure.
+  // checkVisibility answers for what has a box and is not drawn: the text of a closed disclosure, a subtree with content-visibility hidden.
+  const off = (el) => { if (el.checkVisibility && !el.checkVisibility()) return true; for (let n = el; n && n !== document.documentElement; n = deepParent(n)) { const c = getComputedStyle(n); if (c.position === 'fixed' || c.position === 'sticky' || parseFloat(c.opacity) < 0.05) return true; } return false; };
+  // What of a box is on the page at all: the part no clipping ancestor cuts away. From the element itself, since a
+  // clamp or a truncation hides its own later lines and their boxes are still where the text would have been; and for
+  // a shape as much as for text, since an icon scrolled out of a list is still, by its geometry, wherever the list ends.
+  const seen = (el, r) => {
+    let x1 = Math.max(r.left, 0), y1 = r.top, x2 = Math.min(r.right, W), y2 = r.bottom;
+    for (let n = el; n && n !== document.documentElement; n = deepParent(n)) {
+      const c = getComputedStyle(n);
+      if (/hidden|clip|auto|scroll/.test(c.overflowX + ' ' + c.overflowY)) { const b = n.getBoundingClientRect(); x1 = Math.max(x1, b.left); y1 = Math.max(y1, b.top); x2 = Math.min(x2, b.right); y2 = Math.min(y2, b.bottom); }
+    }
+    return x2 - x1 > 2 && y2 - y1 > 2 ? { left: x1, top: y1, right: x2, bottom: y2 } : null;
+  };
+  const quote = (el) => label(el) + ' "' + el.textContent.trim().replace(/\\s+/g, ' ').slice(0, 24) + '"';
+  const boxes = [];
+  for (const el of inked) {
+    if (off(el)) continue;
+    const rs = [];
+    for (const n of el.childNodes) {
+      if (n.nodeType !== 3 || !n.textContent.trim()) continue;
+      const range = document.createRange(); range.selectNodeContents(n);
+      let rects = [...range.getClientRects()]; if (!rects.length && el instanceof SVGElement) rects = [el.getBoundingClientRect()];
+      for (const r of rects) { const v = seen(el, r); if (v) rs.push(v); }
+    }
+    if (rs.length) boxes.push({ el, rs });
+  }
+  for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
+    const a = boxes[i], b = boxes[j];
+    const hit = a.rs.some((p) => b.rs.some((q) => Math.min(p.right, q.right) - Math.max(p.left, q.left) > 3 && Math.min(p.bottom, q.bottom) - Math.max(p.top, q.top) > Math.max(3, 0.34 * Math.min(p.bottom - p.top, q.bottom - q.top))));
+    if (hit && !a.el.contains(b.el) && !b.el.contains(a.el)) out.overlap.push(quote(a.el) + ' and ' + quote(b.el) + ' are drawn in the same place');
+  }
+  for (const g of all) {
+    if (!(g instanceof SVGGeometryElement) || g.closest('defs,clipPath,mask,pattern,marker,symbol')) continue;
+    const c = getComputedStyle(g);
+    if (c.display === 'none' || c.visibility === 'hidden' || c.stroke === 'none' || !(parseFloat(c.strokeWidth) > 0) || parseFloat(c.strokeOpacity || '1') * parseFloat(c.opacity || '1') < 0.2) continue;
+    if (c.fill !== 'none' && parseFloat(c.fillOpacity || '1') > 0 && rgba(c.fill)[3] > 0) continue;
+    const whole = g.getBoundingClientRect(); if (!whole.width && !whole.height) continue;
+    // A level line has a box of no height: widened by its own stroke and a little more, so a rule is not mistaken for nothing.
+    const gb = seen(g, { left: whole.left - 3, top: whole.top - 3, right: whole.right + 3, bottom: whole.bottom + 3 }); if (!gb) continue;
+    // Only the middle of a line of text counts: a rule that runs under its baseline or over its cap height is beside it.
+    const near = boxes.filter((t) => !g.contains(t.el)).map((t) => ({ el: t.el, rs: t.rs.map((r) => { const h = r.bottom - r.top; return { left: r.left + 1, right: r.right - 1, top: r.top + 0.22 * h, bottom: r.bottom - 0.22 * h }; }).filter((r) => r.right > gb.left && r.left < gb.right && r.bottom > gb.top && r.top < gb.bottom) })).filter((t) => t.rs.length);
+    if (!near.length || off(g)) continue;
+    const m = g.getScreenCTM(); if (!m) continue;
+    let length = 0; try { length = g.getTotalLength(); } catch { continue; }
+    const step = 2 / (Math.hypot(m.a, m.b) || 1), n = Math.min(Math.ceil(length / step), 4000);
+    const inside = new Map();
+    for (let i = 0; i <= n; i++) {
+      const p = new DOMPoint(g.getPointAtLength(i * step).x, g.getPointAtLength(i * step).y).matrixTransform(m);
+      if (p.x < gb.left || p.x > gb.right || p.y < gb.top || p.y > gb.bottom) continue;
+      for (const t of near) if (t.rs.some((r) => p.x > r.left && p.x < r.right && p.y > r.top && p.y < r.bottom)) inside.set(t.el, (inside.get(t.el) || 0) + 1);
+    }
+    // Sampled every two pixels: four samples is eight pixels of line inside the text.
+    for (const [el, k] of inside) if (k >= 4) out.overlap.push('a line (' + label(g) + ') is drawn through ' + quote(el));
+  }
+  out.overlap = [...new Set(out.overlap)].slice(0, 8); out.truncated = [...new Set(out.truncated)].slice(0, 8);
   // Headings descend one level at a time, so a screen reader's outline has no holes.
   // A specimen's headings are the card's own, at the level the card uses where it is placed, not the documentation page's.
   const levels = [...document.querySelectorAll('h1,h2,h3,h4,h5,h6')].filter((h) => !h.closest('[aria-hidden="true"]') && !h.closest('[data-specimen]')).map((h) => +h.tagName[1]);
@@ -201,6 +298,8 @@ const run = async (route: string, width: number, theme: string, embed: boolean) 
     page.close();
     process.exit(1);
   }
+  // The page's late chrome first (scripts/lib/settle.ts): what arrives after the measurement is taken is never measured.
+  await settle(page);
   const r = await page.eval<Report>(MEASURE);
   // Focus: press Tab through the page as a person would; every stop must show a ring (outline or box-shadow ring) on the
   // focused element or the frame around it.
@@ -249,6 +348,8 @@ const run = async (route: string, width: number, theme: string, embed: boolean) 
     ...(r.text < 24 ? [`the page holds ${r.text} characters of text — it rendered nothing, or only its loading state`] : []),
     ...r.sideways.map((x) => 'sideways: ' + x),
     ...r.clipped.map((x) => 'clipped: ' + x),
+    ...r.truncated.map((x) => 'truncated: ' + x + ' is cut with an ellipsis and no title holds the whole of it'),
+    ...r.overlap.map((x) => 'overlap: ' + x),
     ...r.unnamed.map((x) => 'unnamed: ' + x),
     ...r.unmeasured.map((x) => 'unmeasured: ' + x),
     ...[...new Set(r.headings)].map((x) => 'heading skips a level: ' + x),

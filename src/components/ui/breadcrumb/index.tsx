@@ -10,7 +10,8 @@ export type Crumb = { label: string; href?: string };
 
 /**
  * Where this page sits: its ancestors, each a link, then the page itself. Past four levels the middle ones fold into
- * a menu, so the trail stays one line and the first and the last two are always visible.
+ * a menu, so the trail stays one line and the first and the last two are always visible. A label the line cuts keeps
+ * the whole of itself in its title.
  */
 export function Breadcrumb({ items, className }: { items: Crumb[]; className?: string }) {
   const folded = items.length > 4;
@@ -38,12 +39,12 @@ export function Breadcrumb({ items, className }: { items: Crumb[]; className?: s
                     </MenuContent>
                   </Menu>
                 ) : last ? (
-                  <span aria-current="page" className="truncate font-medium text-ink">{c.label}</span>
+                  <span aria-current="page" title={c.label} className="truncate font-medium text-ink">{c.label}</span>
                 ) : c.href ? (
                   // The hit area is drawn outside the link, so the link itself does not clip: the label inside it truncates.
-                  <Link href={c.href} className="hit row-link flex min-w-0 text-ink-2 hover:text-ink"><span className="truncate">{c.label}</span></Link>
+                  <Link href={c.href} className="hit row-link flex min-w-0 text-ink-2 hover:text-ink"><span title={c.label} className="truncate">{c.label}</span></Link>
                 ) : (
-                  <span className="truncate text-ink-2">{c.label}</span>
+                  <span title={c.label} className="truncate text-ink-2">{c.label}</span>
                 )}
               </li>
               {!last ? (

@@ -19,6 +19,10 @@
  * Controls are found through open shadow roots (scripts/lib/deep.ts), so a design system whose buttons, rows and menus are
  * web components is walked the same way: a control is searched for under the light-DOM container that holds it (the panel,
  * the page's scroll region, the rail's `nav`) and named by its rendered text.
+ *
+ * A rail may draw only the part of the navigation its page belongs to. The walk-through therefore follows only a link that is on
+ * screen (the first one that is neither the page it is on nor an Atlas page), and where a step needs a page the rail on screen
+ * does not link to, it opens that address.
  */
 import path from 'node:path';
 import { slug } from '../src/app.config.ts';
@@ -127,7 +131,10 @@ try {
     const here = () => page.eval<string>(`location.pathname`);
     const cards = () => page.eval<{ text: string; buttons: string[] }[]>(`${PROPOSALS}.map((a) => ({ text: a.textContent, buttons: deepQueryAll('button', a).map((b) => deepText(b).trim()) }))`);
     // The rail's link, as navigate.ts finds it: a link inside a nav, the one on screen.
-    const follow = async (href: string) => { await press(`deepQueryAll('nav a[href="${href}"]').find((a) => a.getBoundingClientRect().width > 0)`); await until(`the address to be ${href}`, here, (p) => p === href); };
+    const linkTo = (href: string) => `deepQueryAll('nav a[href="${href}"]').find((a) => a.getBoundingClientRect().width > 0)`;
+    const follow = async (href: string) => { await press(linkTo(href)); await until(`the address to be ${href}`, here, (p) => p === href); };
+    // The rail may draw only the part of the navigation the address belongs to: follow the link when it is on screen, open the address when it is not.
+    const reach = async (href: string) => { if (await page.eval<boolean>(`!!${linkTo(href)}`)) await follow(href); else await page.open(`${base}${href}`, { width: 1440 }); };
     const recorded = async () => (await (await fetch(`${llm}/requests`)).json()) as { messages?: { role: string; content: unknown }[] }[];
     const LOCAL = `${slug}.assistant`;
     const ABOUT_PAGE = /^This is the .+ page\.$/;
@@ -277,7 +284,8 @@ try {
     // Navigation: the rail keeps the panel open with the thread, each message labelled with the page it was asked on.
     const from = await here();
     const fromTitle = SAMPLE.members ? 'Members' : from === landing ? landingTitle : 'Overview';
-    const to = SAMPLE.members && SAMPLE.keys ? '/keys' : rail.find((r) => r !== from && !r.startsWith('/system'));
+    let to: string | undefined;
+    for (const r of rail) if (!to && r !== from && !r.startsWith('/system') && (await page.eval<boolean>(`!!${linkTo(r)}`))) to = r;
     if (to) {
       await follow(to);
       if (!(await panelOpen())) fail(`following the rail to ${to} closed the panel`);
@@ -323,7 +331,7 @@ try {
       await ask('What is this page?');
       await until('the reply', said, (t) => ABOUT_PAGE.test(t));
       await until('the thread to be stored', stored, (v) => !!v?.includes('What is this page?'));
-      await follow('/settings');
+      await reach('/settings');
       const SWITCH = `deepQueryAll('label').find((x) => deepText(x).includes('Show the assistant'))?.control`;
       const absent = () => page.eval<boolean>(`!${LAUNCHER} && !${PANEL}`);
       await press(SWITCH);

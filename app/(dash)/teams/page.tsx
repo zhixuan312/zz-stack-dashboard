@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { DataTable, useQueryState, type Column } from '@/components/patterns/data-table';
+import { DataTable, useQueryState, useSearchDraft, type Column } from '@/components/patterns/data-table';
 import { AskAbout } from '@/components/patterns/ask-about';
 import { FilterBar } from '@/components/patterns/filter-bar';
 import { Badge } from '@/components/ui/badge';
@@ -42,6 +42,7 @@ export default function TeamsPage() {
   useLive(['teams']);
   const q = useConsole<{ teams: Team[] }>('/teams');
   const [f, set] = useQueryState({ q: '', status: 'all', sort: 'initiatives', dir: 'desc', page: '1' });
+  const [draft, setDraft] = useSearchDraft(f.q, (q) => set({ q, page: '1' }));
   const teams = useMemo(() => q.data?.teams ?? [], [q.data]);
   const rows = useMemo(() => filterTeams(teams, { q: f.q, status: f.status }), [teams, f.q, f.status]);
   const arrival = useArrival(q);
@@ -70,7 +71,7 @@ export default function TeamsPage() {
         empty={{ title: 'No team yet', body: 'A superadmin creates the first one in Settings.' }}
         toolbar={
           <FilterBar
-            search={{ value: f.q, onChange: (v) => set({ q: v, page: '1' }), placeholder: 'Search teams' }}
+            search={{ value: draft, onChange: setDraft, placeholder: 'Search teams' }}
             filters={[{ key: 'status', label: 'Status', value: f.status, onChange: (v) => set({ status: v, page: '1' }), options: [{ value: 'all', label: 'All' }, { value: 'active', label: 'Active' }, { value: 'archived', label: 'Archived' }] }]}
             result={<>{rows.length} of {teams.length}</>}
             ask={<AskAbout question={filtered ? 'What do the teams in this list have in common?' : 'Which teams are doing the most work, and which have gone quiet?'} />}

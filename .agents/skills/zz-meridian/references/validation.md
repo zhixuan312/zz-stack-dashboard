@@ -24,7 +24,9 @@ passed; not run: <suites>`; only a run with nothing left unrun ends with `the pr
 Steps in order:
 
 0. **Rail navigation** (`--full` only): every rail route is navigated, with its data and interaction mappings from
-   `navigationChecks`.
+   `navigationChecks`. A journey starts from the nearest rail route, in rail order, whose rail draws a link to the
+   destination, so a rail that shows only part of the navigation on a page is followed; a destination no other route's
+   rail links to is reported as a problem, never as a pass.
 1. **The gate** (`node scripts/gate.ts`): tokens regenerate to the same CSS; the card registry is fresh; every card and
    page specification follows the anatomy; the product's own rules in `optional:scripts/check.local.ts`, when the file exists;
    contrast holds for every pair in every theme and accent, and the chart palette passes the colour-vision checks;
@@ -39,13 +41,18 @@ Steps in order:
    model. What every product shares runs on its own rail (no agent control while off, the panel, a reply, the page the
    model was told, markdown, the thread across navigation, Clear, the layout, a refused key, the key never reaching the
    browser); the steps that drive the template's sample Overview, Members, API keys and Settings run while those pages
-   exist and print `n/a` with the reason once the product has replaced them. It finds the launcher, the panel's controls,
+   exist and print `n/a` with the reason once the product has replaced them. It follows only rail links that are on screen
+   and opens an address when the rail on screen does not link to it. It finds the launcher, the panel's controls,
    rows and menus inside open shadow roots too, so a design system built from web components is walked the same way.
 4. **The built app, served**, and the **browser audit** of every static route under `app/` and the `detailRoutes` in
    `scripts/verify.config.ts` (embeds under `/embed` on a simulated host ground) at 2560, 1440, 1024, 768 and 390px in
    both themes. It measures inside open shadow roots as well as the light DOM, so a web component's text, names, targets,
    contrast and focus rings count; a custom element it cannot look inside is `unmeasured:` (see "Lines that are not
-   about the page" below).
+   about the page" below). It reads an SVG's text too, by its `fill` against whatever the SVG paints behind it, and it
+   asks three things about text beyond "does it fit": whether text cut with an ellipsis keeps the whole of itself in a
+   `title`, whether two pieces of text are drawn in the same place, and whether a stroked line runs through one. Like
+   the presses and the keyboard walk, it first waits for the shell's late chrome (the assistant's launcher) by the
+   page's own signal, never by a duration, so a control that arrives late is measured and not passed over.
 5. **Every control pressed, every link followed** (`scripts/interactions.ts`) on the built app: mouse at 1440px, taps at
    390px. A button that changes nothing, a control something else covers, and a link that answers 4xx all fail. A control
    inside an open shadow root is pressed too, and named with its host: `Save (in x-card)`.
@@ -69,7 +76,8 @@ Steps in order:
    data`, which does not count against the outcome, and proves its own live pages through `browserChecks`. It presses
    the sheet, the row menu and the Remove dialog inside open shadow roots too.
 8. **Web Vitals on a mid-range phone** (`scripts/vitals.ts`): Lighthouse's mobile profile (CPU slowed four times, Slow 4G,
-   390px touch). Every product page must hold LCP under 2.5 s, INP under 200 ms and CLS under 0.1; INP is the slowest
+   390px touch). Every page must hold LCP under 2.5 s, INP under 200 ms and CLS under 0.1, the template's Design Atlas
+   included (its front page and one card page; `node scripts/vitals.ts --atlas` measures every entry); INP is the slowest
    tap on a control that changes the screen, found inside open shadow roots too, and each line ends with `taps: N`, the
    controls it tapped (`taps: 0` means the page's INP rests on no tap). It runs alone, after the others, since throttling measures the machine
    too: on a busy machine, run it again before believing a near miss.
@@ -96,9 +104,12 @@ and supply-chain check before a script runs; that is pnpm, not an install, and n
 |---|---|---|
 | `sideways: scroll region 1042 > 768` | Something wider than the window | A table with too many columns: `hideBelow` on low-value ones; a long id: `truncate` with a `title`; a fixed width: use `min-w-0` and fractions |
 | `clipped: … "text"` | Text cut without an ellipsis | Give the element `truncate`, or let it wrap; never shrink the type |
+| `truncated: … "text" is cut with an ellipsis and no title holds the whole of it` | Text is cut on purpose and the whole value is kept nowhere a pointer can reach | A `title` with the whole text on the element or what holds it (a `DataTable` column's `title`, a `TableCell` whose cell is a value sets its own); or let it wrap |
+| `overlap: … and … are drawn in the same place` | Two pieces of text share a third of a line or more: a negative margin, an absolute label, a row that did not wrap | Give each its own place: a gap, a wrap, or a narrower label at that width |
+| `overlap: a line (…) is drawn through … "text"` | A stroked shape (a sparkline, a rule, an axis) crosses the middle of a line of text | Move the caption out of the plot, or end the line before it; a filled shape under text is a ground and is read by the contrast check instead |
 | `unnamed: button…` | An icon-only control (a web component's button counts the text slotted into its host as its name) | `aria-label` on it (Icon button requires one) |
 | `scrollers: …` | A card scrolls on its own | Page the list (`DataTable` pages at 20) or cap it ("top 5"); only the page scrolls |
-| `contrast: 3.1:1 … "text"` | Text below 4.5:1 | Use `ink`, `ink-2` or `ink-3` on surfaces; status text uses `*-ink`, never the fill colour |
+| `contrast: 3.1:1 … "text"` | Text below 4.5:1 (3:1 for large text). An SVG's `<text>` counts: its colour is its `fill`, its ground is what the SVG painted under it | Use `ink`, `ink-2` or `ink-3` on surfaces; status text uses `*-ink`, never the fill colour; in a chart, `fill-ink-2` or `fill-ink-3` for labels |
 | `no focus ring: …` | A control with `outline-none` and no ring, or one whose outline, shadow or border is the same with and without focus | Remove `outline-none`, or add `focus-visible:outline-2 focus-visible:outline-accent`. A ring painted permanently is not a focus ring; a specimen that depicts the focus state is drawn inert (`State` with `still`) |
 | `unmeasured: x-card (no open shadow root)` | A custom element shows a box but exposes no open root and no content in the page, so nothing inside it was measured | Attach its root open (`attachShadow({ mode: 'open' })`), or render its content as light DOM in a slot; the audit fails until it can look |
 | `unmeasured: x-card (not defined)` | A custom element was still not registered after the settle wait | Register it (`customElements.define`) before the page settles, or remove the tag from the page |

@@ -103,14 +103,15 @@ export function MetricTile({
                 {baseline ? <span className="t-num leading-5 whitespace-nowrap text-ink-3">{(reading / baseline).toFixed(1)}× usual</span> : null}
               </>
             ) : delta === null ? (
-              <span className="truncate text-ink-3">No earlier period to compare</span>
+              <span className="truncate text-ink-3" title="No earlier period to compare">No earlier period to compare</span>
             ) : delta !== undefined ? (
               <>
                 <Delta value={delta} intent={intent} />
                 <span className="leading-5 whitespace-nowrap text-ink-3">{compare}</span>
               </>
             ) : note ? (
-              <span className="truncate text-ink-3">{note}</span>
+              // One line, cut where the tile ends: a line of text keeps the whole of itself in its title.
+              <span className="truncate text-ink-3" title={typeof note === 'string' ? note : undefined}>{note}</span>
             ) : null}
           </div>
           {finding ? (

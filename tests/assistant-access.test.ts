@@ -213,8 +213,8 @@ describe('a collection read from the gateway', () => {
   it('two questions asked at once each get their own rows', async () => {
     gateway(ME);
     const scope = await resolveAccess();
-    // The rows pass through the release's own store, one per query, dropped when it has answered: asked together,
-    // neither list may answer with the other's rows, and a second ask reads the gateway again rather than a kept copy.
+    // Each query is its own gateway read and nothing is kept between two: asked together, neither list may answer
+    // with the other's rows, and a second ask reads the gateway again rather than a kept copy.
     const [teams, people, again] = await Promise.all([
       collectionFor(scope, 'teams').query({}),
       collectionFor(scope, 'people').query({ sort: { field: 'name', dir: 'asc' } }),

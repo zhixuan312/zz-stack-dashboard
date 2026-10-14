@@ -62,17 +62,23 @@ Migrate in place, page by page, keeping their data layer.
    in `optional:app/(dashboard)/`. Without network access to GitHub, `npx zz-meridian@<version> create /tmp/meridian-ref
    --no-install` writes the same files to a scratch folder.
 3. Wrap their root layout like the template's `app/layout.tsx` (fonts, the pre-paint script, `Providers`) and their
-   console routes in `AppShell` with the rail, `ShellTools` and the command palette (see `optional:app/(dashboard)/layout.tsx`).
-   The template's layout passes `ShellTools` the sample `ALERTS` and `DEMO_NOW` from `optional:src/data/sample.ts`, which
-   is not copied: pass their own alerts (an empty list until they have some) and their own clock. Give each `nav`
+   console routes in `AppShell` with the rail, the bell and the command palette (see `optional:app/(dashboard)/layout.tsx`).
+   The template's layout hands `AppShell` its tools as `<ShellAlerts alerts={…} />` (`optional:src/views/shell-alerts.tsx`),
+   given the promise of `readAlerts()` from `optional:src/data/alerts.ts`, unawaited and settled on `null` when the read
+   fails; the answer carries the alerts and the clock they were read at. Neither file is copied: hand `ShellTools` (the
+   pattern `ShellAlerts` renders) their own alerts, an empty list until they have some, and their own clock. The template
+   draws `WorkspaceRail` and `WorkspacePalette`; a console with one navigation draws `ConsoleRail` and `ConsolePalette`
+   as below. Give each `nav`
    entry in `src/app.config.ts` its icon and group. The Rail and the palette are rendered from a client module
    (`src/views/console-chrome.tsx`), since each destination carries its icon component, and take what depends on the
    request from the layout as props: `<ConsoleRail access={…} signOut={…} />` and `<ConsolePalette access={…} />`,
    where `access` is a promise of `{ only, user, viewAs }` — the hrefs this person may see, the signed-in person from
-   their session, and a View as group if they have one (`ChromeAccess` from `@/lib/collection`, built by your own
-   `chromeAccess()`). Both pieces of chrome wait for that promise in their own `<Suspense>` boundary, so the frame is in
-   the static shell and the person's own rail streams in the same response; pass the promise without awaiting it, and
-   never draw the sample person while it is pending. `workspace` and `scopes` still arrive as plain props. A console
+   their session, and a View as group if they have one; leave `viewAs` out and the menu has no such group
+   (`ChromeAccess` from `@/lib/collection`, built by your own `chromeAccess()`). Both take an optional `nav` as well,
+   for a product that draws other destinations than the `nav` in `src/app.config.ts`: it is drawn in its own groups and
+   order, filtered by `access` the same way, and an empty list stays empty. Both pieces of chrome wait for that promise
+   in their own `<Suspense>` boundary, so the frame is in the static shell and the person's own rail streams in the same
+   response; pass the promise without awaiting it, and never draw the sample person while it is pending. `workspace` and `scopes` still arrive as plain props. A console
    with no sign-in passes no `access` at all, and the chrome then shows the full `nav` and the `app.user` it was given,
    so the rail never shows a sample person or a Sign out that goes nowhere.
    **Turn on Cache Components.** Meridian's pages prerender a shell and stream what each request reads, and the route
@@ -85,7 +91,8 @@ Migrate in place, page by page, keeping their data layer.
    **Catch the shell's own data in the layout.** A page's error boundary only catches what the page throws: if the
    layout awaits something the shell needs — the alert list, the signed-in person — one failed query takes the whole
    layout down, and the framework's bare error page shows instead of the designed one inside the shell. Read those
-   defensively (`const alerts = await recentAlerts().catch(() => [])`), so the shell stands and the page's own
+   defensively, as the template does (`const alerts = readAlerts().catch(() => null)`, handed to the shell unawaited, and
+   `null` leaves the bell quiet), so the shell stands and the page's own
    `error.tsx` shows "This view did not load" with Retry.
 4. Rebuild each page on `PageFrame`, `Stack` and `Row` with Meridian components (imported as
    `@meridian/components/…`), keeping their data fetching and business logic untouched. Their old Tailwind utilities
@@ -130,11 +137,42 @@ add `@ai-sdk/anthropic`, `@ai-sdk/openai-compatible` and `zod` to the dependenci
 (plus `ASSISTANT_BASE_URL` for `openai-compatible`): it stays off until they are set. The "Show the assistant" switch is
 in `optional:src/views/settings.tsx`.
 
+Three things an adopter meets here. The layout's promise is a request-time part of every page, so each page's HTML
+carries that part's flight data beside the prerendered one: one adopter measured a page going from 65 to 90 KiB of
+HTML (11.2 to 12.0 KiB compressed), so a team with an `htmlKb` budget in `scripts/verify.config.ts` should expect the
+number to move and record it again. The assistant walk-through in `pnpm verify --full` drives the sample's own Overview
+and Settings, and reports those steps as not applicable in a product that replaced them; what the product's own
+Overview hands the assistant is checked by a journey the product writes, a script named in `browserChecks` in
+`scripts/verify.config.ts`, as `optional:journeys/workspaces.ts` is. And a test setup of the product's own (a provider
+around every render, a polyfill) goes in a second file listed after `./tests/setup.ts` in `setupFiles` in
+`vitest.config.ts`: `tests/setup.ts` is Meridian's, and an update replaces it.
+
 When their `rows` becomes a real database, two things matter. Pages read through `read()` (`optional:src/data/read.ts`),
 which caches per caller's scope and refreshes exactly the tenant a write touched, so do not wrap the read in a second
 cache; writes call `updateTag` after the commit (`cache.md`, "Authorized, scoped reads" and "Writes authorize, then
 invalidate"). And raise the connection pool's idle timeout past `pg`'s 10-second default, since a cache miss is a round
 trip each. Issue #7 has the numbers.
+
+## When the data source signs in the person, not the server
+
+The template reads on the server: `read()` in `optional:src/data/read.ts` caches per scope and reads with a credential the
+server holds. A product whose only source is an API that decides what the caller may read from the caller's own session
+cookie has no such credential, and a cached function cannot read `cookies()`. It keeps another shape, and this is it:
+
+- **Pages read in the browser**, with the person's cookie, through the client the product already has. The route is then
+  a static shell. Put each table that keeps its filters in the address (`useQueryState`) inside a `<Suspense>` of its
+  own, with the table's skeleton as the fallback: reading the address makes everything up to the nearest boundary
+  render in the browser, so a boundary around the whole page costs the page its prerendered masthead (issue #22
+  measured the largest paint on a phone at 2.2 s that way, against 0.6 s).
+- **Who is signed in is learned in the browser too.** Pass `ConsoleRail` and `ConsolePalette` the value once it is
+  known, `access={chrome}` (`null` for nobody), and draw `RailPending` from `@/views/console-chrome` in the rail's place
+  until then. `RailPending` is also what the fallback of a `<Suspense>` around the shell draws in the rail's column,
+  so the prerendered HTML holds the rail's space.
+- **The assistant's route reads as the person.** It forwards the session cookie the request carried to the API,
+  uncached, and builds its collections from the answer. A collection over a list calls `queryRows(rows, key, query)`
+  from `@/lib/collection`, so `where`, `sort`, `limit` and `offset` mean what they mean in the sample. A change the page
+  makes through its own call is named in `pageOnly` with no implementation, and the assistant then says it is made on
+  the page, where "nobody can" would be untrue.
 
 ## The database behind the collections
 

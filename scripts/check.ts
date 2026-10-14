@@ -26,7 +26,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { importTarget, projectAliases } from './lib/aliases.ts';
 import { checkBrief, scanReferences } from './lib/context-check.ts';
-import { APP_DIR } from './lib/routes.ts';
+import { APP_DIR, agentPageSpec } from './lib/routes.ts';
 import { keepProblems, unresolved, parseJournal, parseKeep, parseResolutions, verifiedRetirements, type Hash, type Retirement } from './lib/update-session.ts';
 import { cards } from './registry.ts';
 import { app, nav } from '../src/app.config.ts';
@@ -74,7 +74,7 @@ for (const p of PAGE_SPECS) {
   if (!/^# .+\n\n[^#\n].+/.test(md)) problems.push(`${p}: must open with "# Name" and a one-sentence summary`);
   for (const s of ['## Structure', '## States']) if (!md.includes(s)) problems.push(`${p}: missing ${s}`);
   // Every console page and embed view shares a context with both agents (decision 0011), and its spec says what it says.
-  if (/^app\/(\(dashboard\)|embed)\//.test(p) && !/^## Agents\n[\s\S]*?^### What the agent reads$/m.test(md)) problems.push(`${p}: no "### What the agent reads" under ## Agents`);
+  if (agentPageSpec(p) && !/^## Agents\n[\s\S]*?^### What the agent reads$/m.test(md)) problems.push(`${p}: no "### What the agent reads" under ## Agents`);
 }
 
 // ── Token names in specifications ────────────────────────────────────────────────────────────────────

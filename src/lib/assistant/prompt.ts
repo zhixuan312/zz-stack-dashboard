@@ -10,7 +10,7 @@ export type PageContext = { path: string; title: string; context?: string; text:
 
 /** The most page text the model is given, in characters. */
 const PAGE_TEXT_LIMIT = 24_000;
-/** The most view context the model is given: a view's budget is 2,400; this leaves room and stops a forged flood. */
+/** The most view context the model is given: a view's budget is 2,600; this leaves room and stops a forged flood. */
 const CONTEXT_LIMIT = 6_000;
 
 /** A title or path as one short line, so it cannot add lines to the prompt. */

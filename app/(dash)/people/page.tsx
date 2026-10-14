@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { KeyRound, UserRound, UserX, Users } from 'lucide-react';
 import { Row } from '@/components/base/shell';
-import { DataTable, useQueryState, type Column } from '@/components/patterns/data-table';
+import { DataTable, useQueryState, useSearchDraft, type Column } from '@/components/patterns/data-table';
 import { AskAbout } from '@/components/patterns/ask-about';
 import { FilterBar } from '@/components/patterns/filter-bar';
 import { MetricTile } from '@/components/patterns/metric-tile';
@@ -56,6 +56,7 @@ export default function PeoplePage() {
   const q = useConsole<{ people: Person[] }>('/people');
   const people = useMemo(() => q.data?.people ?? [], [q.data]);
   const [f, set] = useQueryState({ q: '', team: 'all', sort: 'used', dir: 'desc', page: '1' });
+  const [draft, setDraft] = useSearchDraft(f.q, (q) => set({ q, page: '1' }));
   const rows = useMemo(() => filterPeople(people, { q: f.q, team: f.team }), [people, f.q, f.team]);
   const arrival = useArrival(q);
   const context = q.data
@@ -98,7 +99,7 @@ export default function PeoplePage() {
         empty={{ title: 'Nobody yet', body: 'A superadmin adds the first person in Settings.' }}
         toolbar={
           <FilterBar
-            search={{ value: f.q, onChange: (v) => set({ q: v, page: '1' }), placeholder: 'Search people' }}
+            search={{ value: draft, onChange: setDraft, placeholder: 'Search people' }}
             filters={mode === 'platform' ? [{ key: 'team', label: 'Team', value: f.team, onChange: (v) => set({ team: v, page: '1' }), options: facet('All', people.flatMap((p) => p.teams.map(teamSlug))) }] : []}
             result={<>{rows.length} of {people.length}</>}
             ask={<AskAbout question="Who has a live token they have never used, and who has no token at all?" />}

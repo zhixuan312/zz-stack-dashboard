@@ -17,6 +17,9 @@
 import path from 'node:path';
 import { launch, type Page } from './lib/chrome.ts';
 
+// A picture is for the eye, on a screen that is usually 2x: the checks measure at 1x (scripts/lib/chrome.ts), this draws at 2x.
+process.env.DPR ??= '2';
+
 const args = process.argv.slice(2);
 const opt = (k: string, d: string) => { const i = args.indexOf(k); return i >= 0 ? args.splice(i, 2)[1] : d; };
 const flag = (k: string) => { const i = args.indexOf(k); return i >= 0 ? (args.splice(i, 1), true) : false; };

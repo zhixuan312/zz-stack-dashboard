@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { DataTable, useQueryState } from '@/components/patterns/data-table';
+import { DataTable, useQueryState, useSearchDraft } from '@/components/patterns/data-table';
 import { AskAbout } from '@/components/patterns/ask-about';
 import { FilterBar } from '@/components/patterns/filter-bar';
 import { Segmented } from '@/components/ui/segmented';
@@ -29,6 +29,7 @@ export default function InitiativesPage() {
   const { period } = usePeriod();
   const q = useConsole<{ initiatives: Initiative[] }>('/initiatives');
   const [f, set] = useQueryState({ q: '', team: 'all', flow: 'all', state: 'all', show: 'all', sort: 'updated', dir: 'desc', page: '1' });
+  const [draft, setDraft] = useSearchDraft(f.q, (q) => set({ q, page: '1' }));
 
   // The window first: it says which initiatives the page is about at all. The filters narrow within it, and their
   // counts are taken from what survives it.
@@ -68,7 +69,7 @@ export default function InitiativesPage() {
         empty={{ title: 'No initiative yet', body: 'An initiative starts with initiative_open, and every document written afterwards lands under it.' }}
         toolbar={
           <FilterBar
-            search={{ value: f.q, onChange: (v) => page({ q: v }), placeholder: 'Search initiatives' }}
+            search={{ value: draft, onChange: setDraft, placeholder: 'Search initiatives' }}
             filters={[
               ...(mode === 'platform' ? [{ key: 'team', label: 'Team', value: f.team, onChange: (v: string) => page({ team: v }), options: facet('All', inWindow.map((i) => i.team)) }] : []),
               { key: 'flow', label: 'Flow', value: f.flow, onChange: (v) => page({ flow: v }), options: facet('All', inWindow.map((i) => i.flow ?? 'No flow')) },

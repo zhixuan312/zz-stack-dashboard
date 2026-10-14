@@ -1,6 +1,11 @@
 import '@testing-library/jest-dom/vitest';
 import { cleanup, configure } from '@testing-library/react';
+import { ReadableStream, TransformStream, WritableStream } from 'node:stream/web';
 import { afterEach, vi } from 'vitest';
+
+// A test file runs in a context of its own (the `vmThreads` pool in vitest.config.ts), and a jsdom context has no web
+// streams, which the assistant's client needs to read a reply: without them the panel never loads.
+Object.assign(globalThis, { ReadableStream: globalThis.ReadableStream ?? ReadableStream, TransformStream: globalThis.TransformStream ?? TransformStream, WritableStream: globalThis.WritableStream ?? WritableStream });
 
 afterEach(cleanup);
 

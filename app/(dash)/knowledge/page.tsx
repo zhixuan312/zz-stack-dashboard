@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { Archive, BookOpen, CheckCircle2, History } from 'lucide-react';
 import { Row } from '@/components/base/shell';
-import { DataTable, useQueryState, type Column } from '@/components/patterns/data-table';
+import { DataTable, useQueryState, useSearchDraft, type Column } from '@/components/patterns/data-table';
 import { AskAbout } from '@/components/patterns/ask-about';
 import { FilterBar } from '@/components/patterns/filter-bar';
 import { MetricTile } from '@/components/patterns/metric-tile';
@@ -44,6 +44,7 @@ export default function KnowledgePage() {
   const clock = useDataClock();
   const list = useConsole<{ nodes: KnowledgeNode[] }>('/knowledge');
   const [f, set] = useQueryState({ q: '', team: 'all', tag: 'all', sort: 'updated', dir: 'desc', page: '1' });
+  const [draft, setDraft] = useSearchDraft(f.q, (q) => set({ q, page: '1' }));
   const nodes = useMemo(() => list.data?.nodes ?? [], [list.data]);
   const multiTeam = new Set(nodes.map((n) => n.team)).size > 1;
   const rows = useMemo(() => filterKnowledgeNodes(nodes, { team: f.team, tags: f.tag === 'all' ? [] : [f.tag], search: f.q }), [nodes, f.team, f.tag, f.q]);
@@ -89,7 +90,7 @@ export default function KnowledgePage() {
         empty={{ title: 'Nothing to read yet', body: 'A node arrives when an initiative closes and something in it was worth keeping.' }}
         toolbar={
           <FilterBar
-            search={{ value: f.q, onChange: (v) => set({ q: v, page: '1' }), placeholder: 'Search nodes' }}
+            search={{ value: draft, onChange: setDraft, placeholder: 'Search nodes' }}
             filters={[
               // Platform mode only: in team mode the shelf loaded is the acting team's, so another team empties it.
               ...(mode === 'platform' && multiTeam ? [{ key: 'team', label: 'Team', value: f.team, onChange: (v: string) => set({ team: v, page: '1' }), options: [{ value: 'all', label: 'All' }, ...teamFacetOptions(nodes).map((o) => ({ value: o.slug, label: `${o.slug} · ${o.count}` }))] }] : []),

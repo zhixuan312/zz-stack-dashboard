@@ -1,6 +1,7 @@
 /**
  * Generate src/system/registry.ts: every card folder (a README.md beside an index.tsx) in the component layers, with a
- * lazy import of its preview. The Atlas reads it; nothing else does. Also, for the bare preview route: the same previews
+ * lazy import of its preview. A page template is a card folder too, in src/components/templates: it is listed in Pages
+ * under `template-<folder>`, an id no bound page can take (src/system/content.ts derives the same id for the Atlas). The Atlas reads it; nothing else does. Also, for the bare preview route: the same previews
  * as client loaders by "section/id" (src/system/preview-loaders.ts) and their plain list of keys, which the server page
  * reads for its static params and its not-found (app/system/preview/[section]/[card]/keys.ts). The server page names no
  * preview, so the route's first load carries one card's chunks, not all of them.
@@ -13,10 +14,11 @@ import path from 'node:path';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const LAYERS = [
-  { dir: 'src/components/base', layer: 1, section: 'base' },
-  { dir: 'src/components/ui', layer: 2, section: 'components' },
-  { dir: 'src/components/patterns', layer: 3, section: 'patterns' },
-  { dir: 'src/components/charts', layer: 3, section: 'patterns' },
+  { dir: 'src/components/base', layer: 1, section: 'base', idPrefix: '' },
+  { dir: 'src/components/ui', layer: 2, section: 'components', idPrefix: '' },
+  { dir: 'src/components/patterns', layer: 3, section: 'patterns', idPrefix: '' },
+  { dir: 'src/components/charts', layer: 3, section: 'patterns', idPrefix: '' },
+  { dir: 'src/components/templates', layer: 4, section: 'pages', idPrefix: 'template-' },
 ] as const;
 
 type CardEntry = { id: string; layer: number; section: string; dir: string; hasPreview: boolean };
@@ -25,10 +27,12 @@ export function cards(): CardEntry[] {
   const out: CardEntry[] = [];
   for (const l of LAYERS) {
     const abs = path.join(ROOT, l.dir);
+    // A project may have no folder for a layer (one that keeps no page templates): it has no cards there, and is read as before.
+    if (!fs.existsSync(abs)) continue;
     for (const name of fs.readdirSync(abs).sort()) {
       const d = path.join(abs, name);
       if (!fs.statSync(d).isDirectory() || !fs.existsSync(path.join(d, 'README.md'))) continue;
-      out.push({ id: name, layer: l.layer, section: l.section, dir: `${l.dir}/${name}`, hasPreview: fs.existsSync(path.join(d, 'preview.tsx')) });
+      out.push({ id: `${l.idPrefix}${name}`, layer: l.layer, section: l.section, dir: `${l.dir}/${name}`, hasPreview: fs.existsSync(path.join(d, 'preview.tsx')) });
     }
   }
   return out;

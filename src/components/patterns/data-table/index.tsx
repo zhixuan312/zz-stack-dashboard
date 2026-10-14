@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useLeave } from '../../base/shell/index';
 import { useMemo, useState, type MouseEvent, type ReactNode } from 'react';
 import { RotateCw } from 'lucide-react';
 import { cn } from '../../../lib/cn';
@@ -15,6 +16,7 @@ import { Table, TableBody, TableHead, TableHeader, type Breakpoint, type SortDir
 import { useQueryState } from './use-query-state';
 
 export { useQueryState } from './use-query-state';
+export { useSearchDraft } from './use-search-draft';
 
 export type Column<R> = {
   key: string;
@@ -53,8 +55,8 @@ export type TableState = { sort: string; dir: string; page: string };
 /**
  * The phone presentation of a row, per column role.
  *
- * Below 768px the table's rows lay out as cards — the SAME cells, placed here, rather than a second copy of every
- * record. The component used to render the table and a `<ul>` of the same rows and let CSS hide one: both trees were
+ * When the table is under 640px wide its rows lay out as cards — the SAME cells, placed here, rather than a second copy of
+ * every record. The component used to render the table and a `<ul>` of the same rows and let CSS hide one: both trees were
  * built on every render and both reached the DOM at every viewport, so every cell ran twice and each device downloaded
  * a tree it could never show.
  *
@@ -212,6 +214,7 @@ export function DataTable<R>({
   className?: string;
 }) {
   const router = useRouter();
+  const leave = useLeave();
   const [own, setOwn] = useState<TableState>({ sort: '', dir: 'desc', page: '1' });
   const [size, setSize] = useState(initialSize);
   const st = controlled ?? own;
@@ -249,7 +252,7 @@ export function DataTable<R>({
     if (!href) return;
     if ((e.target as HTMLElement).closest('a,button,input,[role="checkbox"],[role="menuitem"]')) return;
     if (window.getSelection()?.toString()) return;
-    router.push(href);
+    leave(() => router.push(href));
   };
 
   const titleColumn = columns.find((c) => c.mobile === 'title') ?? columns[0];

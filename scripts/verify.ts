@@ -355,7 +355,7 @@ async function start(env: NodeJS.ProcessEnv) {
 /** Run a node script to completion and keep what it printed; `echo` also shows its progress (stderr) as it goes, for a run measured in minutes. */
 const run = (script: string, extra: string[], env: NodeJS.ProcessEnv = process.env, echo = false) => new Promise<{ status: number | null; out: string; took: number }>((resolve) => {
   const t = Date.now();
-  const child = spawn('node', [script, ...extra], { cwd: ROOT, env: { ...env, DPR: process.env.DPR ?? '1' } as NodeJS.ProcessEnv });
+  const child = spawn('node', [script, ...extra], { cwd: ROOT, env });
   suites.add(child);
   let out = '';
   child.stdout.on('data', (d) => (out += d));
@@ -482,7 +482,7 @@ if (asPersonas.length) {
             if (extra.length) problems.push(`${name}: the rail shows ${extra.join(', ')}, which this persona is not expected to see`);
           }
           // (b) The role-dependent routes this persona expects, every control pressed at 1440px as that person.
-          const roleRoutes = ['/keys', '/members', '/settings'].filter((r) => persona.expectedRoutes.includes(r));
+          const roleRoutes = ['/keys', '/operations-tickets', '/members', '/settings'].filter((r) => persona.expectedRoutes.includes(r));
           if (roleRoutes.length) {
             const presses = await run('scripts/interactions.ts', ['--base', here, '--as', name, '--width', '1440', '--routes', roleRoutes.join(',')], app);
             if (presses.status !== 0) problems.push(`${name}: the presses failed on ${roleRoutes.join(', ')} — ${presses.out.split('\n').filter(Boolean).slice(-1)[0] ?? 'no output'}`);

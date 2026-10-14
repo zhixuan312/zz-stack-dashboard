@@ -169,13 +169,15 @@ update (`2` pending, `0` finalized, `1` failure). `--abort`: `0` aborted, `1` re
 
 ## Resolving 0.9.0's migrations
 
-Moving a project to 0.9.0 can report two more `migration:<id>` items, and to 0.10.0 a third for an assistant kept from before, resolved the same way as those below:
+Moving a project to 0.9.0 can report two more `migration:<id>` items, to 0.10.0 a third for an assistant kept from before, to 0.13.0 a fourth for a navigation item without a `needs`, and to 0.15.0 a fifth for a page under the project's own route group, resolved the same way as those below:
 
 | Id | The old shape it found | The change |
 |----|------------------------|------------|
 | `share-view-context` | `useShareView(text, structured)`, a sentence and an object | one shared context per view, `useShareView(context)`: `agents.md`, "Legible", and `customize.md`, "A shared context" |
 | `agent-reads-section` | a page README under `optional:app/(dashboard)/` or `optional:app/embed/` with no `### What the agent reads` | add the part under `## Agents`: `customize.md`, "A page spec"; checked by the gate |
 | `assistant-view-tools` (0.10.0) | an assistant route, `optional:src/lib/assistant/tools.ts` or `optional:src/lib/assistant/respond.ts` kept from before view tools | bring the two files over from the release and pass `views` to `respond` (the template's `viewTools`, your own, or none): `example:docs/assistant.md`, "Adding an MCP server later" |
+| `nav-needs` (0.13.0) | an item of `nav` in `src/app.config.ts` with no `needs`, or a `NavItem` type declared without the property | add `needs: 'public'` where everyone may open the page, or `needs: FEATURES.<id>.needs`: `customize.md`, "Navigation", and "5. Decide who may do what" in `optional:docs/start-a-dashboard.md`; checked by the gate |
+| `agent-reads-own-group` (0.15.0) | a page README under a route group of the project's own at the top of its app folder (`example:app/(dash)/`) with no `### What the agent reads`: the gate asked only under `optional:app/(dashboard)/` before | add the part under `## Agents`: `customize.md`, "A page spec"; checked by the gate. A copy of the rule in `optional:scripts/check.local.ts` can go |
 
 A created project that never changed the template's pages brings the release's version of each affected file over, with
 the files that arrived with them: the view contexts `optional:src/views/overview-context.ts` and its siblings, the view

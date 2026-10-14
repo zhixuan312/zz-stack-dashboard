@@ -4,9 +4,10 @@
  *
  *   node scripts/navigate.ts --base http://127.0.0.1:3000 [--routes /,/requests,/settings] [--mode default|full] [--samples 1]
  *
- * Each journey starts from the rail route before the destination (the one after it for the first), waits for what a visitor
- * would wait for (the destination's router prefetch and every chunk it brought in, once its link is shown; the drawer on a
- * phone), presses the destination in the rail and times three things from that press:
+ * Each journey starts from the rail route before the destination (the one after it for the first) whose rail draws a link to
+ * it, because a rail may show only the part of the navigation its page belongs to; a destination no other route's rail links to
+ * is a problem, never a pass. It waits for what a visitor would wait for (the destination's router prefetch and every chunk
+ * it brought in, once its link is shown; the drawer on a phone), presses the destination in the rail and times three things from that press:
  * the shell (the path and the heading), the data (the mapping's `readySelector` and `readyText`, never a skeleton's rows) and the interaction (its
  * `probe` on `controlSelector`, observed on `resultSelector`). Times are the page's own clock, from the press event to the first
  * frame that shows the condition, never round trips over the debugging protocol. The phone is 390 wide, 4x CPU throttled, 150 ms and 1.6 Mbps,
@@ -333,25 +334,37 @@ export async function liveRefresh(page: Page, wait = REFRESH_WAIT): Promise<void
 
 /**
  * Where a journey to `route` starts: the rail route before it in rail order, so the sequence a person browses in is the one
- * measured, or the one after it for the first. `pool` is the routes that may start one; undefined when it has none but `route`.
+ * measured, or the one after it for the first. `pool` is the routes that may start one. `drawn`, when it is known, maps a
+ * route to the addresses its rail links to, and a route whose rail does not link to `route` cannot start the journey (a route
+ * `drawn` does not name links to nothing): the rail may show only the part of the navigation the page belongs to. Undefined
+ * when no route can.
  */
-export function startFor(order: string[], route: string, pool: string[] = order): string | undefined {
+export function startFor(order: string[], route: string, pool: string[] = order, drawn?: Record<string, string[]>): string | undefined {
   const at = order.indexOf(route);
-  return [...order.slice(0, Math.max(at, 0)).reverse(), ...order.slice(at + 1)].find((r) => pool.includes(r) && r !== route);
+  return [...order.slice(0, Math.max(at, 0)).reverse(), ...order.slice(at + 1)].find((r) => pool.includes(r) && r !== route && (!drawn || (drawn[r] ?? []).includes(route)));
 }
 
 /**
- * The rail routes whose phone page has the console's drawer: a journey can only start from one. A route with a frame of its own
- * (the Atlas) is a destination, never a start, so the start is the nearest console route before it.
+ * What each rail route's phone page offers a journey: `starts`, the routes whose page has the console's drawer (a journey can
+ * only start from one; a route with a frame of its own, the Atlas, is a destination, never a start), and `drawn`, the addresses
+ * the rail on each route links to. The rail arrives after the page's frame, so it is read once it has drawn a link, with the
+ * patience the visit has; every link in it is read whether or not it is displayed, since at a phone's width the rail is in the
+ * page and hidden until the drawer opens.
  */
-export async function drawerRoutes(page: Page, origin: string, routes: string[]): Promise<string[]> {
-  const have: string[] = [];
+export async function drawerRoutes(page: Page, origin: string, routes: string[]): Promise<{ starts: string[]; drawn: Record<string, string[]> }> {
+  const starts: string[] = [];
+  const drawn: Record<string, string[]> = {};
+  const read = `(() => {
+    const links = typeof deepQueryAll === 'function' ? deepQueryAll('nav a[href]') : [...document.querySelectorAll('nav a[href]')];
+    return [...new Set(links.map((a) => a.getAttribute('href')))];
+  })()`;
   for (const route of routes) {
     await page.open(origin + route, { ...PHONE, theme: 'dark', wait: 200 });
     const shown = await poll(() => page.eval<boolean>(`document.readyState === 'complete' && !!document.querySelector('h1')`), Date.now() + PATIENCE.phone);
-    if (shown && (await page.eval<boolean>(`!!document.querySelector('button[aria-label="Open navigation"]')`))) have.push(route);
+    if (shown && (await page.eval<boolean>(`!!document.querySelector('button[aria-label="Open navigation"]')`))) starts.push(route);
+    drawn[route] = !shown ? [] : (await poll(async () => { const l = await page.eval<string[]>(read); return l.length ? l : null; }, Date.now() + PATIENCE.phone)) ?? [];
   }
-  return have;
+  return { starts, drawn };
 }
 
 export async function journey(page: Page, device: Device, start: string, route: string, check: NavigationCheck | undefined, run: { origin: string; condition: Condition }): Promise<Sample> {
@@ -603,11 +616,11 @@ async function main(): Promise<number> {
   let problems: string[] = [];
   try {
     await prepare(page);
-    const starts = await drawerRoutes(page, base, rail.routes);
+    const { starts, drawn } = await drawerRoutes(page, base, rail.routes);
     for (const route of routes) {
       const check = checks.find((c) => c.path === route);
-      // Each journey comes from the rail route before the destination, so it is a navigation and not the page already shown.
-      const start = startFor(rail.routes, route, starts);
+      // Each journey comes from the nearest rail route whose rail links to the destination, so it is a navigation and not the page already shown.
+      const start = startFor(rail.routes, route, starts, drawn);
       for (const device of DEVICES) {
         const limits = Object.fromEntries(METRICS.map((m) => {
           // A route's own figure, where the config gives one, stands in for the shared one on that metric and device.

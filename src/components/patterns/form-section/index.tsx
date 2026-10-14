@@ -5,6 +5,7 @@ import { Lock } from 'lucide-react';
 import { cn } from '../../../lib/cn';
 import { Banner } from '../../ui/banner/index';
 import { Button } from '../../ui/button/index';
+import { useUnsavedChanges } from '../../base/shell/index';
 
 /** The title column and the card column, shared by the form and the layout-only variant. */
 const GRID = 'grid gap-x-10 gap-y-5 @3xl:grid-cols-[15rem_minmax(0,var(--field-width))]';
@@ -40,7 +41,7 @@ export function FormSection({
   /** What these settings change, for whom, in one or two sentences. */
   description?: ReactNode;
   children: ReactNode;
-  /** The values differ from what is saved: show the save bar. */
+  /** The values differ from what is saved: show the save bar, and ask before the person leaves the page. */
   dirty?: boolean;
   saving?: boolean;
   /** Why the last save failed, and what to do. Shown above the fields. */
@@ -59,6 +60,8 @@ export function FormSection({
   footnote?: ReactNode;
   className?: string;
 }) {
+  // Inside the shell, leaving while this is dirty asks first; the save bar is the answer to that question.
+  useUnsavedChanges(dirty);
   const submit = (e: FormEvent) => {
     e.preventDefault();
     if (dirty && !saving) void onSave?.();

@@ -33,7 +33,8 @@ export function CopyField({
   const display = shown ? value : value.slice(0, value.lastIndexOf('_') + 1) + '•'.repeat(8) + value.slice(-4);
   return (
     <div className={cn('flex h-(--control-md) min-w-0 items-center rounded-md border border-line-strong bg-surface-sunk pl-3 shadow-control', className)}>
-      <code aria-label={label} className="min-w-0 flex-1 truncate font-mono text-xs text-ink">{display}</code>
+      {/* The title is what is shown, whole: for a masked secret that is the mask, never the secret. */}
+      <code aria-label={label} title={display} className="min-w-0 flex-1 truncate font-mono text-xs text-ink">{display}</code>
       {secret ? (
         <button
           type="button"

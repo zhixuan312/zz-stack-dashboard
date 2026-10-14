@@ -16,6 +16,7 @@
 import { launch, type Page } from './lib/chrome.ts';
 import { DEEP_SOURCE } from './lib/deep.ts';
 import { discover } from './lib/routes.ts';
+import { settle } from './lib/settle.ts';
 import config from './verify.config.ts';
 
 const args = process.argv.slice(2);
@@ -102,7 +103,8 @@ let pressed = 0;
 for (const width of WIDTHS) {
   const touch = width < 600;
   for (const route of ROUTES) {
-    const fresh = async () => { await page.open(base + route, { width, theme: 'dark', cookie }); await inject(route); return page.eval<{ controls: string[]; links: string[] }>(LIST); };
+    // The page's late chrome first (scripts/lib/settle.ts): a control that arrives after the list is taken is never pressed, and the count reads as if it had been.
+    const fresh = async () => { await page.open(base + route, { width, theme: 'dark', cookie }); await inject(route); await settle(page); return page.eval<{ controls: string[]; links: string[] }>(LIST); };
     const { controls, links } = await fresh();
     for (const href of new Set(links)) {
       if (!href.startsWith('/') || checkedLinks.has(href)) continue;

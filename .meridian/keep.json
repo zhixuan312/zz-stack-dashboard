@@ -1,23 +1,7 @@
 [
   {
     "path": "src/components/patterns/data-table/use-query-state.ts",
-    "reason": "Reads the address without Next's useSearchParams, and rebuilds a write from window.location rather than from Next's copy. Both are load-bearing and both are measured. Reading search params client-renders every Client Component up to the nearest Suspense boundary, which costs three pages their prerender: restoring Meridian's own text on 2026-10-12 put /teams at LCP 0.63 s -> 2.27 s, /people 0.64 -> 2.16 and /activity 0.64 -> 2.08 on the phone profile, and scripts/route-policy.ts reported `2 static, 22 partial, 0 dynamic` for BOTH builds, so it cannot see the difference. Rebuilding from Next's copy is the other half: the reporting period is written with history.replaceState, outside the router, so a copy that never saw it drops ?period= the moment a filter is touched. Reported upstream as zz-meridian#22; this entry comes out when Meridian reads the address itself."
-  },
-  {
-    "path": "src/components/ui/toast/index.tsx",
-    "reason": "An accessibility fix the release does not have: the stack carried `aria-live` while every toast carries its own `status` or `alert` role, so a screen reader announced each message twice and a critical one as both. The item's role is the announcement. Reported upstream as zz-meridian#23; this entry comes out when the release drops the stack's live region."
-  },
-  {
-    "path": "src/components/patterns/prose/index.tsx",
-    "reason": "`Prose` is memoised on its text. `react-markdown` parses its whole input on every render, measured at about 26 ms for a 10 kB body and 190 ms for a 90 kB one, and a document page re-renders for a filter, a tab or a query beside it. Reported upstream as zz-meridian#24; this entry comes out when the release memoises it."
-  },
-  {
-    "path": "src/components/patterns/rail/index.tsx",
-    "reason": "The active marker is re-measured when the list moves, not only when the route does: with `[path]` alone the ring stayed where the active item used to be after a group opened, the rail resized or a font arrived. Reported upstream as zz-meridian#23; this entry comes out when the release observes the list."
-  },
-  {
-    "path": "src/components/ui/search-input/index.tsx",
-    "reason": "The field sends what was typed once the typing stops (200 ms) instead of on every keystroke. The address is the state, so each character was a router write and a render of every row: eight characters, eight reads of the table. Clearing is still immediate. Reported upstream as zz-meridian#24; this entry comes out when the release settles the same way."
+    "reason": "Reads the address without Next's useSearchParams, which the release's hook still reads in 0.15.0. Reading search params client-renders every Client Component up to the nearest Suspense boundary, which costs three pages their prerender: restoring Meridian's own text on 2026-10-12 put /teams at LCP 0.63 s -> 2.27 s, /people 0.64 -> 2.16 and /activity 0.64 -> 2.08 on the phone profile, and scripts/route-policy.ts reported `2 static, 22 partial, 0 dynamic` for BOTH builds, so it cannot see the difference. Rebuilding a write from window.location rather than from Next's copy was the other half of this entry, and 0.15.0 does that itself. Reading the address here owes two things the release's hook does not: the readers are told once the navigation has committed, and a write stays shown until they are told. The transition settles one render before that, and a search box kept with the release's useSearchDraft took the address as it was before the write for a change from elsewhere: on /teams a key typed up to 40 ms after the box's own write was lost in 15 of 24 trials, and in 0 of 24 with the write held (2026-10-14). Reported upstream as zz-meridian#22; this entry comes out when Meridian reads the address itself."
   },
   {
     "path": "src/lib/live.ts",
@@ -26,17 +10,5 @@
   {
     "path": "src/lib/period.ts",
     "reason": "The product's own period vocabulary, which this file's own comment says a product edits here so the picker follows: a 24-hour period, all time as the default (a console that opens on 30 days shows a total that is not the total), and `periodCutoff`. Meridian manages the file and also directs a product to edit it; reported upstream as zz-meridian#24."
-  },
-  {
-    "path": "scripts/audit.ts",
-    "reason": "The route guard compares the path and requires every query parameter that was asked for to still be in the address. The release compares `location.pathname` with the route as asked, which fails every route that has a query on a page that renders correctly. Taken from Meridian's unreleased head and reported as zz-meridian#23; this entry comes out with the release that ships it."
-  },
-  {
-    "path": "scripts/keyboard.ts",
-    "reason": "A keyboard stop is judged once its geometry has held for three frames, not after a fixed two: on a loaded runner the focus style paints later, and a skip link read before it arrives is reported as hidden under the rail. Measured as 0 issues on a laptop and one on CI at the same commit. Reported upstream as zz-meridian#23; this entry comes out when the release waits for the rect to settle."
-  },
-  {
-    "path": "scripts/vitals.ts",
-    "reason": "A page that fails CLS names what moved, from the shift entries' own sources. A CLS of 0.286 with no element named is a number nobody can act on, and it could not be reproduced off CI. Reported upstream as zz-meridian#24; this entry comes out when the release prints the sources."
   }
 ]

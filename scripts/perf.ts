@@ -7,8 +7,8 @@
  * It is the journey of scripts/navigate.ts (the press time and the frame clock are the page's own) taken `--samples` times,
  * 20 by default, with no retake: every sample counts, and what is reported is the p95 of the lot, never the best of them.
  * - warm: the destination's prefetch and the chunks it brought in finished first, as a visitor who waited would have. A
- *   journey starts from the rail route before its destination (the one after it for the first), so the order a person
- *   browses in is the one measured.
+ *   journey starts from the rail route before its destination (the one after it for the first) whose rail links to it, so
+ *   the order a person browses in is the one measured; a destination no other route's rail links to is a problem.
  * - cold: a fresh browser (no cache, no storage, no router state) for every sample, and the page refuses every prefetch of
  *   the destination before it leaves the page. The sample is void, and fails, if the browser's own record shows a request
  *   for the destination made before the press. Other routes are still prefetched and awaited, as in the warm sample, so
@@ -91,12 +91,13 @@ async function openTab(refuse?: string): Promise<Page> {
  * Every rail route that answers a live resync with a verified refresh, so an after-live journey can start from one, and every
  * route whose phone page has the console's drawer, so any journey can.
  */
-async function startRoutes(routes: string[]): Promise<{ live: string[]; starts: string[] }> {
+async function startRoutes(routes: string[]): Promise<{ live: string[]; starts: string[]; drawn: Record<string, string[]> }> {
   const page = await openTab();
   const live: string[] = [];
   let starts: string[] = [];
+  let drawn: Record<string, string[]> = {};
   try {
-    starts = await drawerRoutes(page, base, routes);
+    ({ starts, drawn } = await drawerRoutes(page, base, routes));
     for (const route of routes) {
       await page.send('Network.clearBrowserCache');
       await page.open(base + route, { width: 1440, theme: 'dark', wait: 200 });
@@ -110,7 +111,7 @@ async function startRoutes(routes: string[]): Promise<{ live: string[]; starts: 
   } finally {
     page.close();
   }
-  return { live, starts };
+  return { live, starts, drawn };
 }
 
 async function main(): Promise<number> {
@@ -152,11 +153,12 @@ async function main(): Promise<number> {
 
   let live: string[];
   let starts: string[];
+  let drawn: Record<string, string[]>;
   const results: Result[] = [];
   const shared: Partial<Record<Device, Page>> = {};
   try {
     try {
-      ({ live, starts } = await startRoutes(rail.routes));
+      ({ live, starts, drawn } = await startRoutes(rail.routes));
     } catch (e) {
       const first = (e as Error).message.split('\n')[0];
       const reason = e instanceof ChromeStartError ? `Chrome could not start (${first})` : `the rail's routes could not be probed (${first})`;
@@ -173,7 +175,7 @@ async function main(): Promise<number> {
         const limits = Object.fromEntries(METRICS.map((m) => [m, budgets.navigation[condition][BUDGET_KEY[m]][device]])) as Record<Metric, number>;
         for (const route of routes) {
           const check = checks.find((c) => c.path === route);
-          const start = startFor(rail.routes, route, condition === 'afterLive' ? live.filter((r) => starts.includes(r)) : starts);
+          const start = startFor(rail.routes, route, condition === 'afterLive' ? live.filter((r) => starts.includes(r)) : starts, drawn);
           console.error(`… ${condition} ${device} ${route}`);
           const series: Record<Metric, number[]> = { shell: [], data: [], interactive: [] };
           const drawer: number[] = [];

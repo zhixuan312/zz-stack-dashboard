@@ -4,18 +4,23 @@
  *   node scripts/rail.ts [--base http://localhost:3100] [--as viewer]
  *
  * `--as` reads a persona from scripts/verify.config.ts and signs the browser in as that person with the persona's own
- * cookie, set before the first request (scripts/lib/chrome.ts). It opens the landing route and prints, as its last line,
- * `rail: <json>` — the hrefs inside the rail's `nav[aria-label="Main"]`, in document order.
+ * cookie, set before the first request (scripts/lib/chrome.ts). It opens the landing route, then goes through the
+ * configured rail routes once, in their order, opening each one that no rail read so far has linked to, and prints, as its
+ * last line, `rail: <json>` — every address the rail linked to, inside `nav[aria-label="Main"]`, each once, in the order first
+ * drawn. A rail may show only the part of the navigation its page belongs to, so the landing page alone would not hold a
+ * persona against all of their routes; a route no rail links to (one the persona may not open) is opened once and adds
+ * nothing, and a product whose landing rail links to every route is opened once.
  *
  * This is a suite of its own because `pnpm verify --as` compares the rail with a persona's hand-written expected routes,
- * and that comparison needs what the browser actually drew rather than what `src/app.config.ts` declares. It is the
- * smallest of the browser suites: one page, one question. It launches Chrome through scripts/lib/chrome.ts and closes it,
- * so nothing is left running.
+ * and that comparison needs what the browser actually drew rather than what `src/app.config.ts` declares. It launches
+ * Chrome through scripts/lib/chrome.ts and closes it, so nothing is left running.
  *
- * Exits non-zero, naming the declared personas, when `--as` names one that is not declared — and when the rail drew
- * nothing, which is a page that never resolved the person rather than a persona who may see no destination.
+ * Exits non-zero, naming the declared personas, when `--as` names one that is not declared — and when the landing rail drew
+ * nothing, which is a page that never resolved the person rather than a persona who may see no destination. A navigation
+ * that cannot be read leaves the landing page alone.
  */
 import { launch } from './lib/chrome.ts';
+import { railRoutes } from './lib/routes.ts';
 import config from './verify.config.ts';
 
 const args = process.argv.slice(2);
@@ -30,20 +35,33 @@ if (as && !persona) {
   process.exit(1);
 }
 
+// The routes the configuration declares, in order; a navigation that cannot be read leaves the landing page alone.
+const { routes: configured, landing } = await railRoutes().catch(() => ({ routes: [] as string[], landing: '/' }));
+
 const page = await launch();
 try {
-  await page.open(base + '/', { width: 1440, height: 900, theme: 'dark', cookie: persona?.cookie });
+  await page.open(base + landing, { width: 1440, height: 900, theme: 'dark', cookie: persona?.cookie });
   // The rail streams behind the shell's frame, and every destination is chosen on the client: read what is there, and
-  // give a page that is still resolving the person a few seconds to draw it before calling the rail empty.
-  const links = await page.eval<string[]>(`(async () => {
+  // give a page that is still resolving the person a few seconds to draw it before calling the rail empty. Every link is
+  // read, displayed or not.
+  const read = () => page.eval<string[]>(`(async () => {
     const read = () => { const n = document.querySelector('nav[aria-label="Main"]'); return n ? [...n.querySelectorAll('a[href]')].map((a) => a.getAttribute('href')) : null; };
     const end = Date.now() + 10000;
     let out = read();
     while ((!out || !out.length) && Date.now() < end) { await new Promise((r) => setTimeout(r, 100)); out = read(); }
     return out ?? [];
   })()`);
+  const links = await read();
   if (!links.length) { console.error('rail: the rail drew no links'); page.close(); process.exit(1); }
-  console.log(`rail: ${JSON.stringify(links)}`);
+  const seen = new Set(links);
+  const order = [...links];
+  const note = (found: string[]) => { for (const h of found) if (!seen.has(h)) { seen.add(h); order.push(h); } };
+  for (const route of configured) {
+    if (route === landing || seen.has(route)) continue;
+    await page.open(base + route, { width: 1440, height: 900, theme: 'dark', cookie: persona?.cookie });
+    note(await read());
+  }
+  console.log(`rail: ${JSON.stringify(order)}`);
 } catch (e) {
   console.error(`rail: ${(e as Error).message}`);
   page.close();

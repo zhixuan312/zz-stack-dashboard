@@ -159,6 +159,9 @@ npx zz-meridian@latest create <target> --name "<Product>" --workspace "<Workspac
 cd <target>
 ```
 
+`--workspace` sets `app.workspace`, the environment line in a page's kicker ("Production"); it is not one of the navigation
+workspaces in `src/app.config.ts` (`references/customize.md`, "Navigation").
+
 It copies the template, brands it, installs the dependencies, initialises git, installs this skill into the project
 (`optional:.agents/skills/`, `optional:.claude/skills/`) and records every file in `optional:.meridian/manifest.json`. The person gets their
 dashboard, not a copy of the design system: the Design Atlas, the card and page specifications, `optional:docs/`, `decisions/`
@@ -171,7 +174,7 @@ lightness so contrast holds), registered everywhere, and checked by the contrast
 the hue; when it warns that the hue is near a status hue, step 4 says what to run next. To
 change the brand later, run `npx zz-meridian@<the manifest's version> brand` with the new flags; never `node scripts/brand.ts`, which the manifest does not record.
 
-Requirements: Node 22.18 or newer. A new project uses pnpm when it is installed, npm otherwise; an existing one keeps the
+Requirements: Node 22.18 or newer. A new project uses pnpm when it is installed or corepack can run it, npm otherwise; an existing one keeps the
 package manager its lockfile names, and one with no lockfile gets npm, as `adopt` chooses. The commands here say `pnpm`: in an npm project `pnpm verify` is `npm run verify`, and a flag goes after `--`
 (`npm run verify -- --full`). The browser checks use Google Chrome
 (`CHROME=/path/to/chrome` if it is not where the platform keeps it; a Chromium build works too). When one is missing,
@@ -233,12 +236,14 @@ Read `references/customize.md` and follow it. In short:
   says plainly why the sample is a single process and holds the Postgres and Redis adapters).
 - **Data first.** Write `src/data/<product>.ts` for the person's domain: real types from their schema or materials, and
   deterministic sample data until they wire their API. Pages import data from `optional:src/data/` and nowhere else. Delete the
-  sample pages you replace. `optional:src/data/collections.ts` and `optional:src/data/sample.ts` import `optional:src/system/fixtures/` (and the dashboard layout imports
-  `DEMO_NOW` and `ALERTS` through `optional:src/data/sample.ts`), so the fixtures and `optional:src/system/sample-cells.tsx` stay until nothing imports them:
+  sample pages you replace. `optional:src/data/collections.ts` and `optional:src/data/sample.ts` import `optional:src/system/fixtures/` (and the bell's alerts, `readAlerts` in `optional:src/data/alerts.ts`, are worked out
+  from the same collections), so the fixtures and `optional:src/system/sample-cells.tsx` stay until nothing imports them:
   replace each collection's `rows` with the person's data first, then delete them. Prove the
   numbers before building pages: a `example:tests/data.test.ts` asserting the counts your pages need (vitest resolves `@/`;
   plain `node` does not).
-- **Navigation** in `src/app.config.ts`; one line per page.
+- **Navigation** in `src/app.config.ts`; one line per page. A created project starts with the sample's three workspaces:
+  keep them (every new entry names a `workspace`) when the person asked for several places to look, and take them out
+  when they did not say (`references/customize.md`, "Navigation" says how). An adopted project has none.
 - **Pages from presets.** Start each page from the closest template page and change what it shows, not how it is laid
   out. Every page has one protagonist (a featured metric, a table, a form), a kicker, a title and one sentence.
 - **Remove what they did not ask for**: sample pages, their nav lines, their embed views, their entries in
@@ -253,7 +258,7 @@ Read `references/customize.md` and follow it. In short:
 - **MCP App views** under `optional:app/embed/` only if they asked for the agent surface; see `references/agents.md`.
 
 Build up, never sideways: use Meridian's components and tokens. A new colour, size or shadow is a token, never a literal;
-a missing component is specified as a card per `CONTRIBUTING.md`. Interface copy follows `references/voice.md`: sentence case,
+a missing component is specified as a card per `optional:CONTRIBUTING.md`, which Meridian's own repository has. Interface copy follows `references/voice.md`: sentence case,
 verbs on buttons, units and periods on every number.
 
 ## 6. Score it, and improve it until it meets the standard

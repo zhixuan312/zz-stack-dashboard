@@ -7,7 +7,8 @@
  *
  * It reads the build's own manifests in the configured `distDir`: every app route in app-path-routes-manifest.json, and
  * the prerendered ones in prerender-manifest.json, where `renderingMode` says STATIC or PARTIALLY_STATIC (a partial
- * prerender). A route in the first and absent from the second is dynamic. `pnpm verify` runs it right after its production build.
+ * prerender). A route in the first and absent from the second is dynamic. It also fails a partial route whose shell for a
+ * parameter the build did not know is an empty file. `pnpm verify` runs it right after its production build.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -29,6 +30,25 @@ export function offenders(routes: { path: string; kind: RouteKind }[], allowed: 
   }
   const declared = new Set(allowed.map((a) => a.path));
   return routes.filter((r) => r.kind === 'dynamic' && !r.path.startsWith('/api/') && !declared.has(r.path)).map((r) => r.path);
+}
+
+/**
+ * The partial routes whose prerendered shell is empty: a route with a parameter the build did not know, for which
+ * nothing at all was prerendered. Such a route is counted as partial and behaves as dynamic, since every request waits
+ * for the whole page. It means something above the page reads the address or the request outside a Suspense boundary
+ * (a `usePathname()` at the top of a shell did it here: the build's shell for `/requests/[id]` was a file of 0 bytes).
+ */
+export function emptyShells(shells: { path: string; bytes: number | null }[]): string[] {
+  return shells.filter((s) => s.bytes === 0).map((s) => s.path);
+}
+
+/** The prerendered shell of every route with a parameter the build did not know, and its size (null when the build wrote none). */
+function shellsOf(dist: string): { path: string; bytes: number | null }[] {
+  const prerender: { dynamicRoutes: Record<string, { renderingMode?: string }> } = JSON.parse(fs.readFileSync(path.join(dist, 'prerender-manifest.json'), 'utf8'));
+  return Object.entries(prerender.dynamicRoutes).filter(([, r]) => r.renderingMode === 'PARTIALLY_STATIC').map(([p]) => {
+    const file = path.join(dist, 'server/app', `${p}.html`);
+    return { path: p, bytes: fs.existsSync(file) ? fs.statSync(file).size : null };
+  });
 }
 
 /** Every app route of the build, and how it is served. */
@@ -56,7 +76,9 @@ if (import.meta.main) {
     process.exit(1);
   }
   for (const p of bad) console.log(`dynamic route ${p}: prerender it, or declare it in requestDependentRoutes with a reason`);
+  const empty = emptyShells(shellsOf(dist));
+  for (const p of empty) console.log(`empty shell ${p}: nothing is prerendered for a parameter the build did not know, so every such request waits for the whole page; something above the page reads the address or the request outside a Suspense boundary`);
   const count = (k: RouteKind) => routes.filter((r) => r.kind === k && !r.path.startsWith('/api/')).length;
-  console.log(`route-policy: ${count('static')} static, ${count('partial')} partial, ${bad.length} dynamic of ${routes.filter((r) => !r.path.startsWith('/api/')).length} non-API routes`);
-  process.exit(bad.length ? 1 : 0);
+  console.log(`route-policy: ${count('static')} static, ${count('partial')} partial, ${bad.length} dynamic of ${routes.filter((r) => !r.path.startsWith('/api/')).length} non-API routes; ${empty.length} empty shells`);
+  process.exit(bad.length || empty.length ? 1 : 0);
 }

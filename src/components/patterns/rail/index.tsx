@@ -2,7 +2,8 @@
 
 import Link, { useLinkStatus } from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { useLeave } from '../../base/shell/index';
+import { useEffect, useRef, useState } from 'react';
 import { Check, ChevronDown, ChevronsUpDown, LogOut, Settings } from 'lucide-react';
 import { app, type NavGroup } from '../../../app.config';
 import { cn } from '../../../lib/cn';
@@ -73,6 +74,7 @@ export function Rail({
   const switcher = scopes.length > 1;
   const pathname = usePathname();
   const router = useRouter();
+  const leave = useLeave();
   // Menu items only for routes the product has.
   const hasSettings = nav.some((g) => g.items.some((it) => it.href === '/settings'));
   const path = current ?? pathname;
@@ -93,22 +95,23 @@ export function Rail({
   // Measured after paint, not before it: a rail mounts inside the tap that opens the phone drawer, and a measurement
   // there forces a layout of the whole page and a second render before the drawer can show. Until the marker has a
   // position the current link draws the same pill itself, so nothing moves when the marker takes over.
-  const measure = useCallback(() => {
-    const el = list.current?.querySelector<HTMLElement>('[aria-current="page"]');
-    setMarker(el ? { y: el.offsetTop, h: el.offsetHeight } : null);
-  }, []);
-  // COUPLED: what the marker follows. `[path]` alone re-measured only when the ROUTE changed, so
-  // the ring stayed where the active item used to be whenever the list moved under it — a group
-  // opened or closed, the rail resized, a font arriving after first paint. `here` is the active
-  // item, and the observer is everything else that moves it without changing either.
-  useLayoutEffect(() => { measure(); }, [measure, path, here]);
-  useLayoutEffect(() => {
-    const node = list.current;
-    if (!node || typeof ResizeObserver === 'undefined') return;
-    const ro = new ResizeObserver(() => measure());
-    ro.observe(node);
+  // The link also moves without a navigation (the rail is resized, a font arrives late, a group above it changes
+  // height), so the list is observed and the marker measured again whenever its size changes.
+  useEffect(() => {
+    const nav = list.current;
+    if (!nav) return;
+    const measure = () => {
+      const el = nav.querySelector<HTMLElement>('[aria-current="page"]');
+      setMarker((was) => {
+        const now = el ? { y: el.offsetTop, h: el.offsetHeight } : null;
+        return was?.y === now?.y && was?.h === now?.h ? was : now;
+      });
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(nav);
     return () => ro.disconnect();
-  }, [measure]);
+  }, [path, here]);
 
   return (
     <div className="flex h-full w-full flex-col">
@@ -138,8 +141,8 @@ export function Rail({
               </>
             ) : null}
             {hasSettings || signOut ? <MenuSeparator /> : null}
-            {hasSettings ? <MenuItem onSelect={() => router.push('/settings')}><Settings />Workspace settings</MenuItem> : null}
-            {signOut ? <MenuItem onSelect={() => (typeof signOut === 'function' ? signOut() : router.push(signOut))}><LogOut />Sign out</MenuItem> : null}
+            {hasSettings ? <MenuItem onSelect={() => leave(() => router.push('/settings'))}><Settings />Workspace settings</MenuItem> : null}
+            {signOut ? <MenuItem onSelect={() => leave(() => (typeof signOut === 'function' ? signOut() : router.push(signOut)))}><LogOut />Sign out</MenuItem> : null}
             {viewAs ? (
               <>
                 <MenuSeparator />

@@ -275,6 +275,9 @@ the timeouts and the safety poll. How it behaves:
 
 - A transport open is not `live`: the first resynchronization must succeed. A failed read keeps the previous observation
   and shows the data as stale; it never advances the data's observation time.
+- An open is one read. The client reads every name when the stream opens, and the stream's first frame, which is always
+  a `resync`, asks for the read the open has already begun; the client does not answer it a second time. A `resync`
+  that arrives later is the server reporting lost hints, and is read.
 - Hints wait at most 500 ms and coalesce. One refresh runs at a time, and what arrives meanwhile runs next. A refresh
   slower than 10 s counts as failed.
 - A safety refresh runs every `pollMs` (30 s) even on a healthy stream. A failed connection is retried after a second;

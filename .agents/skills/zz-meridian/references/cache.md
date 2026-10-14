@@ -26,7 +26,10 @@ remove that and read the request-dependent data behind a boundary. A promise bui
 `connection().then(() => ...)`, that a component resolves behind a boundary is how the shell reads the environment
 without blocking the frame. `node scripts/route-policy.ts` classifies every route of a production build and fails a
 route that is neither static nor partial, unless `optional:scripts/verify.config.ts` lists it in `requestDependentRoutes` with a
-reason.
+reason. It also fails a partial route whose shell for a parameter the build did not know is an empty file (`empty shell
+/requests/[id]`): such a route prerenders nothing, so every record's page waits whole. The usual cause is a read of the
+address above the page with no boundary around it — `usePathname()` or `useSearchParams()` in a layout's client
+component, or `await params` in a page with no `loading.tsx`: put what reads it behind its own `Suspense`.
 
 A navigation is as fast as where its data comes from. Data read through `read()` (cached and tagged, so a write
 refreshes it) is in the prerendered shell; prefetching brings it, and the page is whole in about 30 ms. A request-time
@@ -66,8 +69,8 @@ resolving never moves the row. An unavailable assistant is never a clickable dea
 
 `formatRelative(input, now)`, `Freshness`, `ShellTools` and `AlertsPanel` take a required `now`: the data's clock, which is
 the `observedAt` a `read()` returned, or `clock()` from `optional:src/data/collections.ts`. None of them reads the
-browser's clock, so a prerendered page and its hydration agree. Pass `now={observedAt}` to `<Freshness>` and
-`formatRelative(at, observedAt)` in a view; a view that formats times takes `now` as a prop from its page.
+browser's clock, so a prerendered page and its hydration agree. Pass `now={new Date(observedAt)}` to `<Freshness>` (`observedAt` is an ISO string, `Freshness` takes a `Date`) and
+`formatRelative(at, new Date(observedAt))` in a view; a view that formats times takes `now` as a prop from its page.
 
 ## Authorized, scoped reads
 
@@ -82,8 +85,8 @@ must change whenever what the scope may see changes; derive it on the server fro
 authorization revision. If an adapter cannot supply a stable, correct visibility identity, leave its read uncached
 until it can.
 
-`optional:src/data/access.ts` builds `resolveAccess`, `collectionFor` and `can` from one policy. The sample binds a
-single scope. A product replaces `policy.current` with its session (null when there is none), `policy.bind` with the
+`optional:src/data/access.ts` builds `resolveAccess`, `collectionFor` and `can` from one policy. The sample binds one
+tenant and resolves the person asking, one of its five, on every request. A product replaces `policy.current` with its session (null when there is none), `policy.bind` with the
 collection of that tenant with its database predicate already applied, and `policy.allows` with its permission check.
 A production adapter binds the predicate and the subscription filter; prepending a cache key is not isolation.
 
@@ -108,10 +111,11 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import type { JSX } from 'react';
 import { nav } from '@/app.config';
-import { activity, customers, days, endpoints, incidents, keys, members, requests, responses, services, workspace } from '@/data/collections';
+import { activity, customers, days, endpoints, hours, incidents, keys, members, regions, releases, requests, responses, services, tests, tickets, workspace } from '@/data/collections';
 import { FEATURES, type FeatureId } from '@/data/features';
 import { effective, roleLabel, type AddOn, type MainRole } from '@/data/roles';
 import { membersFor } from '@/data/member-mutations';
+import { ticketsFor } from '@/data/ticket-mutations';
 import { chooseViewAs } from '@/data/view-as';
 import { NoAccess } from '@/views/no-access';
 import type { Member } from '@/data/sample';
@@ -208,11 +212,16 @@ const DEMO_COLLECTIONS: Record<string, { collection: AnyCollection; ops: readonl
   days: { collection: days, ops: ['read'] },
   endpoints: { collection: endpoints, ops: ['read'] },
   responses: { collection: responses, ops: ['read'] },
+  hours: { collection: hours, ops: ['read'] },
+  regions: { collection: regions, ops: ['read'] },
   services: { collection: services, ops: ['read'] },
   incidents: { collection: incidents, ops: ['read'] },
   activity: { collection: activity, ops: ['read', 'create'] },
   customers: { collection: customers, ops: ['read'] },
-  workspace: { collection: workspace, ops: ['read', 'update', 'remove'] },
+  tickets: { collection: tickets, ops: ['read', 'create', 'update'] },
+  tests: { collection: tests, ops: ['read'] },
+  releases: { collection: releases, ops: ['read'] },
+  workspace: { collection: workspace, ops: ['read', 'update'] },
 };
 
 export const { resolveAccess, collectionFor, can, nameOf } = accessFrom({
@@ -220,8 +229,13 @@ export const { resolveAccess, collectionFor, can, nameOf } = accessFrom({
     const member = await currentMember();
     return member ? { tenantId: TENANT, subjectId: member.id, authorizationKey: authorizationKeyOf(member) } : null;
   },
-  // Members are bound through the boundary (`member-mutations.ts`), so no write reaches the raw collection.
-  bind: (scope, name) => (scope.tenantId === TENANT ? (name === 'members' ? membersFor(scope) : DEMO_COLLECTIONS[name]?.collection) : undefined),
+  // Members and tickets are bound through their boundaries (`member-mutations.ts`, `ticket-mutations.ts`), so no write reaches the raw collection.
+  bind: (scope, name) => {
+    if (scope.tenantId !== TENANT) return undefined;
+    if (name === 'members') return membersFor(scope);
+    if (name === 'tickets') return ticketsFor(scope);
+    return DEMO_COLLECTIONS[name]?.collection;
+  },
   allows: async (scope, name, op, ids) => {
     const member = await memberById(scope.subjectId);
     if (!member || member.status !== 'Active') return false;
@@ -244,8 +258,8 @@ export const { resolveAccess, collectionFor, can, nameOf } = accessFrom({
  * proved; a grant is asked of the role table (`effective`, main role and add-ons unioned), an `allOf` of every grant.
  *
  * The question is the role's, not the collection's. A grant a role carries is what that person may do, and whether a
- * collection of that name is bound — `can` — is a question about the data behind it. `customers:read` is every viewer's
- * grant and the Customers page reads a fixture rather than a collection, so the rail asks `effective` for it.
+ * collection of that name is bound — `can` — is a question about the data behind it. The rail asks `effective` for the
+ * grant because it draws a destination, not a read.
  */
 function satisfies(member: Member, need: Need): boolean {
   if (member.status !== 'Active') return false;
@@ -360,6 +374,24 @@ export async function read(name: string, q: Query = {}): Promise<{ rows: Record<
   const scope = await resolveAccess();
   if (!(await can(scope, name, 'read'))) throw new AccessDenied();
   return cachedRead(scope, name, normalizeQuery(collectionFor(scope, name), q));
+}
+
+/** The most rows one read returns (`normalizeQuery`'s own ceiling). */
+const PAGE = 500;
+
+/**
+ * Every row of a collection the caller may read. A read returns a page, so this keeps asking until the total is in
+ * hand: a count, a join or a summary over a collection starts here, never from a first page.
+ */
+export async function readAll(name: string): Promise<{ rows: Record<string, unknown>[]; observedAt: string }> {
+  const first = await read(name, { limit: PAGE });
+  const rows = [...first.rows];
+  while (rows.length < first.total) {
+    const next = await read(name, { limit: PAGE, offset: rows.length });
+    if (next.rows.length === 0) throw new Error(`${name} could not be read in full.`);
+    rows.push(...next.rows);
+  }
+  return { rows, observedAt: first.observedAt };
 }
 ```
 

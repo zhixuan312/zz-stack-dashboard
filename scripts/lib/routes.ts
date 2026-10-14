@@ -8,6 +8,16 @@ const ROOT = path.resolve(import.meta.dirname, '../..');
 /** Where the routes live: `app/`, or `src/app/` in a project that keeps its app under src. */
 export const APP_DIR = fs.existsSync(path.join(ROOT, 'app')) ? 'app' : 'src/app';
 
+/**
+ * Whether a page specification under the app folder is one of the console's or an embed view's: the pages that share a
+ * context with the agents. The console is whatever route group the project keeps at the top of its app folder,
+ * `(dashboard)` in the template and any other name in a product that had its own.
+ */
+export function agentPageSpec(file: string, appDir = APP_DIR): boolean {
+  const rest = file.startsWith(`${appDir}/`) ? file.slice(appDir.length + 1) : null;
+  return rest !== null && /^(\([^/)]+\)|embed)\//.test(rest);
+}
+
 /** Every static page, as a route: route groups dropped, dynamic segments skipped (verify.config.ts lists them in detailRoutes). */
 export function discover(): string[] {
   const out: string[] = [];
