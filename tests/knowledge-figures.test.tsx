@@ -16,7 +16,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
  */
 import type { KnowledgeNode } from '@/lib/api-shapes';
 import { formatDate } from '@/lib/format-date';
-import KnowledgePage from '../app/(dash)/knowledge/page';
+import { KnowledgeView } from '@/views/pages/knowledge';
 
 const ME = {
   email: 'a@b.example.com', name: 'A', role: 'superadmin', mayRead: true, superadmin: true,
@@ -56,7 +56,7 @@ beforeEach(() => {
 describe('the figures on the knowledge page', () => {
   it("dates the shelf from its newest node, not from the first one read", async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    render(<QueryClientProvider client={client}><KnowledgePage /></QueryClientProvider>);
+    render(<QueryClientProvider client={client}><KnowledgeView /></QueryClientProvider>);
     await waitFor(() => expect(text()).toContain('Last recorded'));
     expect(text()).toContain(formatDate(newest.updated));
     // The other two are on the page as rows, so their dates being absent from the tile is a choice and not an accident.
@@ -65,7 +65,7 @@ describe('the figures on the knowledge page', () => {
 
   it('lists the nodes the data holds, superseded ones included', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    render(<QueryClientProvider client={client}><KnowledgePage /></QueryClientProvider>);
+    render(<QueryClientProvider client={client}><KnowledgeView /></QueryClientProvider>);
     await waitFor(() => expect(text()).toContain('Newest lesson'));
     expect(text()).toContain('Oldest lesson');
     // Superseded is a status, not a deletion: `live.md` and the store both keep it readable.

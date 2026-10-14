@@ -4,6 +4,7 @@ Every node recorded or retired, newest first, and who wrote it down.
 
 ## Structure
 
+- Gate first: the page asks for `knowledge` before it renders, so a person who does not hold it is shown NoAccess and nothing on the page is read.
 - Tiles: entries, recorded, superseded.
 - A data table: when, act, node (title now, or as typed), team, who.
 

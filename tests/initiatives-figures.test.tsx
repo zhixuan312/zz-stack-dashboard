@@ -15,7 +15,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
  * carrying the needle, taking the cell's FIRST child because a `DataTable` also draws the words a phone card uses.
  */
 import type { Initiative } from '@/lib/api-shapes';
-import InitiativesPage from '../app/(dash)/initiatives/page';
+import { InitiativesView } from '@/views/pages/initiatives';
 
 const ME = {
   email: 'a@b.example.com', name: 'A', role: 'superadmin', mayRead: true, superadmin: true,
@@ -70,7 +70,7 @@ beforeEach(() => {
 
 function mount() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={client}><InitiativesPage /></QueryClientProvider>);
+  return render(<QueryClientProvider client={client}><InitiativesView /></QueryClientProvider>);
 }
 
 describe('the figures on the initiatives page', () => {

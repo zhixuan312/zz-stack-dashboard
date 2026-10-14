@@ -8,6 +8,7 @@ import { documentDetail, revisionInStore } from '../scripts/fake-gateway/work.ts
  * `fake-gateway-states.test.ts` covers the two modes that reshape an answer, because those are pure
  * functions. The other two are behaviours of the running server and had no check at all: `error`,
  * which makes every route except `/me` answer 503, and `slow`, which holds every answer four seconds.
+ * The status read is the exception to both, and its own two cases are below.
  * This file's own note says why that matters — "a mode that throws is a mode nothing notices" — and
  * both of these are modes a person is told to sweep by hand, so a broken one misleads exactly the
  * person following the instruction.
@@ -37,6 +38,9 @@ function start(...args: string[]): Promise<string> {
 
 afterEach(() => { for (const p of servers.splice(0)) p.kill(); });
 
+/** The two people the fixture answers as: the superadmin, who sends no cookie, and the member. */
+const BOTH: Record<string, string>[] = [{}, { cookie: 'zz_console=member' }];
+
 describe('the fake gateway as the sweep uses it', () => {
   it('answers every route but /me with 503 in error mode', async () => {
     // DELIBERATE, and the reason the exception exists: a gateway that cannot reach its database must
@@ -50,6 +54,19 @@ describe('the fake gateway as the sweep uses it', () => {
     const me = await fetch(`${base}/api/console/me`);
     expect(me.status).toBe(200);
     expect((await me.json() as { email?: string }).email).toBeTruthy();
+  });
+
+  it('fails the status read as its own route does in error mode', async () => {
+    // The read a page makes on the console's server: a query that fails there is a 500 with the route's own sentence,
+    // never a partial body that reads as zero, and that is the answer the page's error state is drawn from.
+    const base = await start('--mode', 'error');
+    for (const headers of BOTH) {
+      const refused = await fetch(`${base}/api/console/platform/status`, { headers });
+      expect(refused.status).toBe(500);
+      expect(await refused.json()).toEqual({ error: "could not read the platform's status" });
+    }
+    // A write is not that read: it fails as every other route does.
+    expect((await fetch(`${base}/api/console/page-view`, { method: 'POST', body: '{"feature":"home"}' })).status).toBe(503);
   });
 
   it('renames one of its own teams on a hint, and adds no row', async () => {
@@ -97,6 +114,21 @@ describe('the fake gateway as the sweep uses it', () => {
     const later = await fetch(`${base}/api/console/teams`, { signal: AbortSignal.timeout(8000) });
     expect(later.status).toBe(200);
   }, 20_000);
+
+  it('holds the status read past the five seconds a page gives it in slow mode', async () => {
+    // A page shows a bounded unavailable state by five seconds, so the delay that draws it has to outlast that.
+    const base = await start('--mode', 'slow');
+    const outcomes = await Promise.all(BOTH.map(async (headers) => {
+      const within = await fetch(`${base}/api/console/platform/status`, { headers, signal: AbortSignal.timeout(5000) }).then(
+        () => 'answered', (e: Error) => e.name);
+      const later = await fetch(`${base}/api/console/platform/status`, { headers, signal: AbortSignal.timeout(10_000) });
+      return { within, status: later.status };
+    }));
+    for (const o of outcomes) {
+      expect(o.within).toBe('TimeoutError');
+      expect(o.status).toBe(200);
+    }
+  }, 30_000);
 
   it('switches world while running, without a rebuild', async () => {
     // The build bakes in one gateway address, so a mode that could not be switched at runtime would

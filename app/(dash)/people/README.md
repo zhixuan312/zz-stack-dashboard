@@ -4,6 +4,7 @@ Everyone the platform knows, their teams, and whether their tokens are live.
 
 ## Structure
 
+- Gate first: the page asks for `people` before it renders, so a person who does not hold it is shown NoAccess and nothing on the page is read.
 - Tiles: people, live tokens, never used a token, teams.
 - A data table: person, role or deactivated, teams, tokens, last used, joined; search and a team filter.
 

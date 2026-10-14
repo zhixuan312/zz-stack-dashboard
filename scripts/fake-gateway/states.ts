@@ -29,7 +29,8 @@ export function empty(seg: string[], body: unknown): unknown {
       } satisfies Overview;
     }
     case 'teams': return a ? body : list('teams');
-    case 'initiatives': return a && b ? body : list('initiatives');
+    // Two answers come off this route, as in `extreme` below: the list, and the bell's projection of what waits.
+    case 'initiatives': return a && b ? body : 'waiting' in (body as object) ? list('waiting') : list('initiatives');
     case 'knowledge': return a === 'log' ? list('entries') : a ? body : list('nodes');
     case 'skills': return a ? { ...(body as object), surfaces: [], busiestTools: [] } : list('skills');
     case 'people': return list('people');
@@ -60,8 +61,13 @@ function grown<T>(rows: T[], n: number, more: (base: T, i: number) => T): T[] {
   return [...rows, ...Array.from({ length: n }, (_, i) => more(rows[i % rows.length], i))];
 }
 
-/** A busy platform: six-figure counts, hundreds of rows, and names longer than any layout planned for. */
-export function extreme(seg: string[], body: unknown): unknown {
+/**
+ * A busy platform: six-figure counts, hundreds of rows, and names longer than any layout planned for.
+ *
+ * `own` is the one team a member is held to. However busy the platform, a member is still answered their own team,
+ * so no row grown for them names another.
+ */
+export function extreme(seg: string[], body: unknown, own: string | null = null): unknown {
   const [head, a, b] = seg;
   switch (head) {
     case 'overview': {
@@ -79,7 +85,7 @@ export function extreme(seg: string[], body: unknown): unknown {
       } satisfies Overview;
     }
     case 'teams': {
-      if (a) return body;
+      if (a || own) return body;
       const t = (body as { teams: Team[] }).teams;
       return { teams: grown(t, 60, (base, i): Team => ({ ...base, slug: `team-${i + 1}-${LONG}`.slice(0, 63), name: `Regional delivery group ${i + 1}, ${LONG.replace(/-/g, ' ')}`, members: 300 + i, initiatives: 1_000 + i * 17, documents: 48_000 + i, sources: 120_000 + i, knowledge: 9_000 + i })) };
     }
@@ -98,7 +104,7 @@ export function extreme(seg: string[], body: unknown): unknown {
     case 'knowledge': {
       if (a === 'log') {
         const entries = (body as { entries: KnowledgeLogEntry[] }).entries;
-        return { entries: grown(entries, 300, (_, i): KnowledgeLogEntry => ({ ts: new Date(Date.now() - i * 3_600_000).toISOString(), actor: 'maximiliana.fitzgerald-oyelaran@example.com', team: 'atlas', kind: 'knowledge.add', node: String(1000 + i), recorded_title: `A lesson ${LONG.replace(/-/g, ' ')} number ${i}`, superseded_by: null, node_title: null, node_status: null })) };
+        return { entries: grown(entries, 300, (_, i): KnowledgeLogEntry => ({ ts: new Date(Date.now() - i * 3_600_000).toISOString(), actor: 'maximiliana.fitzgerald-oyelaran@example.com', team: own ?? 'atlas', kind: 'knowledge.add', node: String(1000 + i), recorded_title: `A lesson ${LONG.replace(/-/g, ' ')} number ${i}`, superseded_by: null, node_title: null, node_status: null })) };
       }
       if (a) return body;
       const n = (body as { nodes: KnowledgeNode[] }).nodes;
@@ -107,7 +113,7 @@ export function extreme(seg: string[], body: unknown): unknown {
     case 'skills': return a ? body : { skills: (body as { skills: Skill[] }).skills.map((s) => ({ ...s, runs: big(s.runs), calls: big(s.calls), refusals: big(s.refusals), durationTotal: s.durationTotal === null ? null : s.durationTotal * 900 })) };
     case 'people': {
       const p = (body as { people: Person[] }).people;
-      return { people: grown(p, 180, (base, i): Person => ({ ...base, email: `person.${i}.${LONG}@example.com`, name: `Person ${i} ${LONG.replace(/-/g, ' ')}`, teams: Array.from({ length: 6 }, (_, j) => `team-${j + 1} (member)`), tokens: 40 + i })) };
+      return { people: grown(p, 180, (base, i): Person => ({ ...base, email: `person.${i}.${LONG}@example.com`, name: `Person ${i} ${LONG.replace(/-/g, ' ')}`, teams: own ? [`${own} (member)`] : Array.from({ length: 6 }, (_, j) => `team-${j + 1} (member)`), tokens: 40 + i })) };
     }
     case 'activity': return { ...(body as object), events: (body as { events: ActivityEvent[] }).events.map((e) => ({ ...e, subject: e.subject ? `${e.subject}_${LONG}` : e.subject })) };
     case 'runs': { const r = (body as Runs).totals; return { totals: { runs: big(r.runs), calls: big(r.calls), refusals: big(r.refusals), mb: r.mb === null ? null : r.mb * 1_000 } } satisfies Runs; }

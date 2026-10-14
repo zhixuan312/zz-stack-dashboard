@@ -15,7 +15,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
  * learned that the hard way by pinning a row count and meeting a different one.
  */
 import type { Team } from '@/lib/api-shapes';
-import TeamsPage from '../app/(dash)/teams/page';
+import { TeamsView } from '@/views/pages/teams';
 
 const ME = {
   email: 'a@b.example.com', name: 'A', role: 'superadmin', mayRead: true, superadmin: true,
@@ -56,7 +56,7 @@ beforeEach(() => {
 
 function mount() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={client}><TeamsPage /></QueryClientProvider>);
+  return render(<QueryClientProvider client={client}><TeamsView /></QueryClientProvider>);
 }
 
 describe('the figures on the teams page', () => {

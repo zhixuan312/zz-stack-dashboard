@@ -14,7 +14,7 @@ vi.mock('next/headers', () => ({ cookies: async () => ({ get: (name: string) => 
 
 import { AccessDenied, Unauthenticated, can, collectionFor, may, requireNeed, resolveAccess } from '@/data/access';
 import { collections } from '@/data/collections';
-import { PLATFORM } from '@/data/features';
+import { FLEET } from '@/data/features';
 import { GatewayError, gatewayGet } from '@/data/gateway';
 import { handedTo } from '@/lib/assistant/scoped';
 import { assistantTools } from '@/lib/assistant/tools';
@@ -26,9 +26,12 @@ import { INITIATIVES, KNOWLEDGE } from '../scripts/fake-gateway/work.ts';
 
 const MEMBER: Me = { email: 'mei.tanaka@example.com', name: 'Mei Tanaka', role: 'member', mayRead: true, superadmin: false, via: 'session', teams: [{ slug: 'beacon', role: 'member' }], activeTeam: 'beacon' };
 
-/** Every request the server made, and the gateway that answers them as `who`; `null` is a browser with no session. */
+/**
+ * Every request the server made, and the gateway that answers them as `who`; `null` is a browser with no session.
+ * With `shared`, every search result comes back as one on the platform's shared shelf.
+ */
 let calls: { url: string; headers: Record<string, string> }[] = [];
-function gateway(who: Me | null | (() => Me | null)) {
+function gateway(who: Me | null | (() => Me | null), { shared = false } = {}) {
   calls = [];
   global.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
@@ -41,10 +44,15 @@ function gateway(who: Me | null | (() => Me | null)) {
         : path === '/initiatives' ? { initiatives: INITIATIVES }
           : path === '/knowledge' ? { nodes: KNOWLEDGE }
             : path === '/people' ? { people: PEOPLE }
-              : path === '/search' ? search(new URL(url).searchParams.get('q') ?? '', Number(new URL(url).searchParams.get('limit') ?? 15), new URL(url).searchParams.get('initiative'))
+              : path === '/search' ? found(new URL(url).searchParams, shared)
                 : {};
     return { ok: true, status: 200, json: async () => body } as Response;
   }) as typeof fetch;
+}
+
+function found(query: URLSearchParams, shared: boolean) {
+  const answer = search(query.get('q') ?? '', Number(query.get('limit') ?? 15), query.get('initiative'));
+  return shared ? { ...answer, results: answer.results.map((r) => ({ ...r, shelf: 'platform' as const, team: 'zz-platform' })) } : answer;
 }
 
 const saved = { ...process.env };
@@ -111,11 +119,22 @@ describe('who the request is', () => {
     await expect(resolveAccess()).rejects.toMatchObject({ status: 503 });
   });
 
-  it('a superadmin\'s tenant is the platform and a member\'s is the team they act for', async () => {
+  it('the tenant is the team the person acts for, a superadmin\'s as a member\'s, and the subject is their email', async () => {
     gateway(ME);
-    expect(await resolveAccess()).toMatchObject({ tenantId: 'platform', subjectId: ME.email });
+    expect(await resolveAccess()).toMatchObject({ tenantId: 'atlas', subjectId: ME.email });
     gateway(MEMBER);
-    expect(await resolveAccess()).toMatchObject({ tenantId: 'team:beacon', subjectId: MEMBER.email });
+    expect(await resolveAccess()).toMatchObject({ tenantId: 'beacon', subjectId: MEMBER.email });
+    // A superadmin in no team acts for none, and is still themselves.
+    gateway({ ...ME, teams: [], activeTeam: null });
+    expect(await resolveAccess()).toMatchObject({ tenantId: '', subjectId: ME.email });
+  });
+
+  it('a role the table does not have, or one the gateway contradicts, is no scope', async () => {
+    for (const body of [{ ...MEMBER, role: 'auditor' }, { ...MEMBER, superadmin: true }, { ...ME, superadmin: false }]) {
+      gateway(body as Me);
+      await expect(resolveAccess()).rejects.toBeInstanceOf(Unauthenticated);
+      await expect(may(FLEET)).rejects.toBeInstanceOf(Unauthenticated);
+    }
   });
 });
 
@@ -126,8 +145,17 @@ describe('what an agent is offered', () => {
     const offered = [];
     for (const c of collections) if (await can(scope, c.name, 'read')) offered.push(c.name);
     expect(offered).toEqual(['initiatives', 'knowledge', 'knowledge_log', 'people', 'tokens']);
-    expect(await may(PLATFORM)).toBe(false);
-    await expect(requireNeed(PLATFORM)).rejects.toBeInstanceOf(AccessDenied);
+    expect(await may(FLEET)).toBe(false);
+    await expect(requireNeed(FLEET)).rejects.toBeInstanceOf(AccessDenied);
+  });
+
+  it('a member holds platform:read, and it opens none of the fleet', async () => {
+    gateway(MEMBER);
+    expect(await may('platform:read')).toBe(true);
+    // The views the route registers for them: the ones whose need they satisfy (`app/api/assistant/route.ts`).
+    const views = [];
+    for (const v of viewTools) if (await may(v.needs)) views.push(v.name);
+    expect(views).toEqual(['overview', 'initiatives', 'initiative', 'document', 'knowledge', 'knowledge_node', 'knowledge_log', 'search', 'people', 'settings']);
   });
 
   it('a superadmin is offered every list', async () => {
@@ -142,8 +170,11 @@ describe('what an agent is offered', () => {
     const scope = await resolveAccess();
     who = MEMBER;
     expect(await can(scope, 'initiatives', 'read')).toBe(false);
-    who = { ...ME, activeTeam: 'beacon' };
+    // The same person under another name is the same scope; acting for another team, or in other teams, is not.
+    who = { ...ME, name: 'Ava L.' };
     expect(await can(scope, 'initiatives', 'read')).toBe(true);
+    who = { ...ME, activeTeam: 'beacon' };
+    expect(await can(scope, 'initiatives', 'read')).toBe(false);
     who = { ...ME, teams: [] };
     expect(await can(scope, 'initiatives', 'read')).toBe(false);
   });
@@ -246,7 +277,8 @@ describe('a view tool\'s address', () => {
 
   it('every tool has its own name and a need', () => {
     expect(new Set(viewTools.map((v) => v.name)).size).toBe(viewTools.length);
-    for (const v of viewTools) expect(v.needs === 'public' || v.needs === PLATFORM).toBe(true);
+    for (const v of viewTools) expect(['work:read', FLEET]).toContain(v.needs);
+    expect(viewTools.filter((v) => v.needs === FLEET).map((v) => v.name)).toEqual(['teams', 'team', 'plugins', 'plugin', 'skill', 'runs', 'activity']);
   });
 
   it('refuses a segment that would leave the path it is placed in', () => {
@@ -276,8 +308,26 @@ describe('a view tool\'s address', () => {
 
   it('a member cannot read a fleet view by naming its tool', async () => {
     gateway(MEMBER);
-    await expect(tool('teams').read({})).rejects.toBeInstanceOf(AccessDenied);
-    await expect(tool('plugins').read({})).rejects.toBeInstanceOf(AccessDenied);
+    for (const name of ['teams', 'team', 'plugins', 'plugin', 'skill', 'runs', 'activity']) {
+      await expect(tool(name).read({ slug: 'atlas', plugin: 'sdlc', skill: 'sdlc-spec' }), name).rejects.toBeInstanceOf(AccessDenied);
+    }
+    // Refused on who they are, before a row is asked for: nothing but `/me` was read.
+    expect(calls.length).toBeGreaterThan(0);
+    expect(calls.every((c) => new URL(c.url).pathname === '/api/console/me')).toBe(true);
     expect((await tool('initiatives').read({})).context.view).toBe('initiatives');
+  });
+
+  it('a member searches as their own team, and a superadmin as somebody who reads the fleet', async () => {
+    gateway(MEMBER, { shared: true });
+    const own = await tool('search').read({ q: 'recency', limit: 3 });
+    // No scope is asked for, so the gateway searches as the team the member acts for; and a result on the shared
+    // shelf is given no address, because no page of theirs opens it.
+    expect(calls.map((c) => c.url).find((u) => u.includes('/search'))).toBe('http://gateway.test/api/console/search?q=recency&limit=3');
+    expect(own.context.insights.length).toBeGreaterThan(0);
+    expect(own.context.insights.every((i) => i.evidence === undefined)).toBe(true);
+    gateway(ME, { shared: true });
+    const wide = await tool('search').read({ q: 'recency', limit: 3 });
+    expect(wide.context.insights.length).toBeGreaterThan(0);
+    expect(wide.context.insights.every((i) => i.evidence?.includes('/zz-platform/'))).toBe(true);
   });
 });

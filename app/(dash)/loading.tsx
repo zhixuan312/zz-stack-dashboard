@@ -1,14 +1,17 @@
-import { PageFrame, Row, Stack } from '@/components/base/shell';
-import { Skeleton } from '@/components/ui/skeleton';
+import { LoadingPage, TableSkeleton } from '@/components/patterns/page-loading';
 
-/** While a page's code arrives: the masthead and a page-shaped skeleton, so the swap to content moves little. */
+/**
+ * The shell's own fallback, which names no page.
+ *
+ * Every route has its own `loading.tsx` with its page's title, because each page asks the gate at request time and the
+ * title is what says a navigation has arrived. This boundary sits above all of them, and every route's prerendered shell
+ * holds it pending ahead of the route's own content for as long as the parse takes, so it may be painted on any route:
+ * it carries no title, or a direct load of `/teams` could open on another page's name.
+ */
 export default function DashLoading() {
   return (
-    <PageFrame title={<Skeleton className="h-10 w-56" />}>
-      <Stack aria-busy="true" aria-label="Loading">
-        <Row split="tiles">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-32 rounded-lg" />)}</Row>
-        <Skeleton className="h-96 rounded-lg" />
-      </Stack>
-    </PageFrame>
+    <LoadingPage name="page">
+      <TableSkeleton rows={8} filters={false} />
+    </LoadingPage>
   );
 }

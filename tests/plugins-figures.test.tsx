@@ -18,7 +18,7 @@ import { Tooltip } from 'radix-ui';
  */
 import { PeriodProvider } from '@/console/period';
 import type { PluginRow } from '@/lib/api-shapes';
-import PluginsPage from '../app/(dash)/plugins/page';
+import { PluginsView } from '@/views/pages/plugins';
 
 const TooltipProvider = Tooltip.Provider;
 
@@ -78,7 +78,7 @@ function mount() {
     <QueryClientProvider client={client}>
       <PeriodProvider>
         <TooltipProvider>
-          <PluginsPage />
+          <PluginsView />
         </TooltipProvider>
       </PeriodProvider>
     </QueryClientProvider>,

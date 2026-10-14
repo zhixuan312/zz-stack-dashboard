@@ -14,14 +14,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
  * Mounted inside a real `PeriodProvider` rather than against a mocked router, because the provider
  * is the mechanism under test.
  */
-// `@` aliases src/, and the page lives under app/ — relative, so no alias is invented
-// for one test file.
 import { PeriodProvider } from '@/console/period';
 import { Tooltip } from 'radix-ui';
 
 const TooltipProvider = Tooltip.Provider;
 import type { Overview } from '@/lib/api-shapes';
-import OverviewPage from '../app/(dash)/page';
+import { OverviewView } from '@/views/pages/overview';
 
 const ME = {
   email: 'a@b.example.com', name: 'A', role: 'superadmin', mayRead: true, superadmin: true,
@@ -97,7 +95,7 @@ function mount() {
     <QueryClientProvider client={client}>
       <PeriodProvider>
         <TooltipProvider>
-          <OverviewPage />
+          <OverviewView />
         </TooltipProvider>
       </PeriodProvider>
     </QueryClientProvider>,

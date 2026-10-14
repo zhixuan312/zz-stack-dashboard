@@ -4,6 +4,7 @@ One team: what it is working on, what it holds, and who is in it.
 
 ## Structure
 
+- Gate first: the page asks for `teams` before it renders, so a person who does not hold it is shown NoAccess and nothing on the page is read.
 - Tiles: initiatives, waiting on you, members, knowledge nodes.
 - Initiatives: a data table, rows open the initiative.
 - Members: a data table with role and when they joined.

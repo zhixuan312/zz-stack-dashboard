@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Tooltip } from 'radix-ui';
 
 import { PeriodProvider } from '@/console/period';
-import RunsPage from '../app/(dash)/runs/page';
+import { RunsView } from '@/views/pages/runs';
 
 const TooltipProvider = Tooltip.Provider;
 
@@ -29,7 +29,7 @@ describe('every read on a page failing', () => {
     render(
       <QueryClientProvider client={client}>
         <PeriodProvider>
-          <TooltipProvider><RunsPage /></TooltipProvider>
+          <TooltipProvider><RunsView /></TooltipProvider>
         </PeriodProvider>
       </QueryClientProvider>,
     );

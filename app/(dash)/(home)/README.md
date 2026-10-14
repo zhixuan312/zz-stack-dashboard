@@ -4,6 +4,7 @@ The platform's census, or one team's: whether work is moving, and what waits on 
 
 ## Structure
 
+- Gate first: the page asks for `home` before it renders, so a person who does not hold it is shown NoAccess and nothing on the page is read.
 - Featured metric: tool calls over the period, with the trend of all calls, calls attributed to a run, and refused calls (one Meridian).
 - Three tiles beside it: initiatives progressing (median completeness, and what waits on a person), knowledge from work, context per run.
 - Open work by stage: one composition bar over the active initiatives.

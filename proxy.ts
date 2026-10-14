@@ -1,6 +1,9 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
 /**
+ * Two things, on two kinds of request. Every page request is told its own address (`page`, at the foot of this file),
+ * in every build. The rest of this comment is about the other: a request for one of the gateway's own paths.
+ *
  * The laptop's session, and nothing else. Dev-only, opt-in, and inert without both keys.
  *
  * `next.config.ts` routes `/api/console/*` and `/auth/*` to a gateway on a laptop, but a rewrite
@@ -48,7 +51,8 @@ const DEV_PAT = process.env.ZZ_DEV_PAT;
  * The console's mode starts at `platform` while `/me` is in flight and is never part of a query key, so the first read
  * a page makes is the scoped one; that is the URL written here.
  *
- * DELIBERATE: written in every build, production included — unlike everything below this line, which is a laptop's.
+ * DELIBERATE: written in every build, production included, as a page's own address is (`page` below) — unlike the
+ * rewrite at the foot of this file, which is a laptop's.
  */
 const DOCUMENT = /^\/initiatives\/([^/]+)\/([^/]+)\/(.+)$/;
 
@@ -69,11 +73,32 @@ function hint(res: NextResponse, pathname: string): NextResponse {
   return res;
 }
 
+/** The gateway's own paths, which a laptop routes to it. Everything else this file matches is a page. */
+const GATEWAY_PATH = /^\/(api\/console|auth)(\/|$)/;
+
+// COUPLED: `gate` in `src/data/access.ts` reads this header to send a signed-out person back where they were going.
+const PATH_HEADER = 'x-zz-path';
+
+/**
+ * A page request, told its own address. A Server Component is not given the request, so the gate cannot know what was
+ * asked for unless it is written here: the path and its query, on the headers the app is handed, over whatever the
+ * browser sent under that name. Nothing else about the request changes, and it is never sent anywhere but the app.
+ */
+function page(req: NextRequest): NextResponse {
+  const { pathname, search } = req.nextUrl;
+  const headers = new Headers(req.headers);
+  headers.set(PATH_HEADER, pathname + search);
+  return hint(NextResponse.next({ request: { headers } }), pathname);
+}
+
 export function proxy(req: NextRequest) {
-  // The production guard is first and is not a matcher condition, because a matcher is
-  // configuration and this is a rule. Anything below it is a laptop's business only.
-  if (process.env.NODE_ENV === 'production') return hint(NextResponse.next(), req.nextUrl.pathname);
-  if (!GATEWAY || !DEV_PAT) return hint(NextResponse.next(), req.nextUrl.pathname);
+  // A page first, in every build, and never past this line: what follows sends a request to the gateway.
+  if (!GATEWAY_PATH.test(req.nextUrl.pathname)) return page(req);
+
+  // The production guard comes before anything a laptop does and is not a matcher condition, because
+  // a matcher is configuration and this is a rule. Anything below it is a laptop's business only.
+  if (process.env.NODE_ENV === 'production') return NextResponse.next();
+  if (!GATEWAY || !DEV_PAT) return NextResponse.next();
 
   const url = new URL(req.nextUrl.pathname + req.nextUrl.search, GATEWAY);
   const headers = new Headers(req.headers);
@@ -87,7 +112,7 @@ export function proxy(req: NextRequest) {
 }
 
 export const config = {
-  // The document routes are here for the hint above, and for nothing else: the rest of this file only ever matches
-  // the gateway's own paths.
-  matcher: ['/api/console/:path*', '/auth/:path*', '/initiatives/:team/:slug/:path*'],
+  // Every page, and the gateway's own paths for the laptop's rewrite. Not Next's internals or the files under
+  // `public/`: nothing here has anything to say about a script, a stylesheet or an image.
+  matcher: ['/((?!_next/|assets/|icon\\.png|apple-icon\\.png).*)'],
 };

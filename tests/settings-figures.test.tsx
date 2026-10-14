@@ -31,7 +31,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
  * superadmin's page — the team field is free text and starts empty. `tests/team-settings.test.tsx` covers that panel.
  */
 import type { Me, MyAccessToken, MyClientSetup, MyTeams, PlatformPersonRow } from '@/lib/api-shapes';
-import SettingsPage from '../app/(dash)/settings/page';
+import { SettingsView } from '@/views/pages/settings';
 
 const ME: Me = {
   email: 'a@b.example.com', name: 'A', role: 'superadmin', mayRead: true, superadmin: true,
@@ -136,7 +136,7 @@ beforeEach(() => {
  */
 async function mount() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  await act(async () => { render(<QueryClientProvider client={client}><SettingsPage /></QueryClientProvider>); });
+  await act(async () => { render(<QueryClientProvider client={client}><SettingsView /></QueryClientProvider>); });
 }
 
 describe('the figures on the settings page', () => {

@@ -4,6 +4,7 @@ Every team on the platform, who is in it and what it holds.
 
 ## Structure
 
+- Gate first: the page asks for `teams` before it renders, so a person who does not hold it is shown NoAccess and nothing on the page is read.
 - A data table: team (slug and name), status, people, initiatives, documents, sources, knowledge; rows open the team.
 - Filter bar: search and status, kept in the address.
 

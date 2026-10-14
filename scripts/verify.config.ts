@@ -1,6 +1,17 @@
 /**
  * What `pnpm verify` needs to know about this project that it cannot discover from `app/`. Edit it; verify reads it.
  */
+
+/** One way `pnpm verify --as` signs the browser in: the cookie that names the person, and what that person is expected to see. */
+type Persona = {
+  /** The cookie every browser suite carries, set before the first request; its value names one of the fake gateway's people. */
+  cookie: { name: string; value: string };
+  /** The rail routes this person may open, written by hand and never derived from the rail or the policy under test. */
+  expectedRoutes: readonly string[];
+  /** For each route this person may NOT open: one protected string that must not appear on the NoAccess answer. */
+  deniedProbe?: Record<string, string>;
+};
+
 export type VerifyConfig = {
   /**
    * Detail pages checked beside every static route, one per state worth seeing (a normal record, a failed one, a missing
@@ -38,6 +49,19 @@ export type VerifyConfig = {
    * `--base <url>` against the built app, failing when one exits non-zero.
    */
   browserChecks?: string[];
+  /**
+   * Routes that cannot be prerendered, each with the reason. `node scripts/route-policy.ts`, which verify runs after its
+   * production build, fails any non-API route that is neither static nor partial unless it is named here.
+   */
+  requestDependentRoutes?: { path: string; reason: string }[];
+  /** The up to three rail routes the default smoke visits. Without it: the landing route and the next two rail routes. */
+  smokeRoutes?: string[];
+  /**
+   * The people `pnpm verify --as <persona>` can sign the browser in as, by name. Each carries the cookie a suite sets
+   * before its first request, the routes that person is expected to see (written by hand), and, for the routes that
+   * person may not open, one protected string that must not appear on the page.
+   */
+  personas?: Record<string, Persona>;
 };
 
 const config: VerifyConfig = {
@@ -116,6 +140,25 @@ const config: VerifyConfig = {
   // `hydration-check` makes a race occur that the audit can only catch when it happens to: it slows the main thread
   // until every read a page shares with the shell has answered before the page hydrates, and fails on React's error.
   browserChecks: ['scripts/approve-banners.ts', 'scripts/live-check.ts', 'scripts/selection-check.ts', 'scripts/hydration-check.ts'],
+  /**
+   * The fake gateway's two people (scripts/fake-gateway/people.ts), each by the value of the `zz_console` cookie it
+   * reads. A run without `--as` sends no cookie, and the fake gateway answers that as the superadmin.
+   *
+   * The routes are the rail each is shown today, written out. The member is one person in one team, `atlas`, and is
+   * refused the fleet's four pages; the name of a team they are not in is on Teams for a superadmin, and must not
+   * reach the page a member is refused.
+   */
+  personas: {
+    superadmin: {
+      cookie: { name: 'zz_console', value: 'superadmin' },
+      expectedRoutes: ['/', '/teams', '/initiatives', '/knowledge', '/people', '/plugins', '/runs', '/activity', '/settings'],
+    },
+    member: {
+      cookie: { name: 'zz_console', value: 'member' },
+      expectedRoutes: ['/', '/initiatives', '/knowledge', '/people', '/settings'],
+      deniedProbe: { '/teams': 'Beacon Payments' },
+    },
+  },
 };
 
 export default config;

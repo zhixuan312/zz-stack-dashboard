@@ -13,6 +13,7 @@ import { startAuthentication } from '@simplewebauthn/browser';
 import { useQuery } from '@tanstack/react-query';
 import { useConsole } from '@/lib/api';
 import { type Me } from '@/lib/api-shapes';
+import { ownPath } from '@/lib/own-path';
 
 /**
  * The sign-in screen: a route, not a state of the dashboard.
@@ -48,7 +49,10 @@ export default function LoginPage() {
 function Login() {
   const params = useSearchParams();
   const router = useRouter();
-  const next = params.get('next') ?? '/';
+  // A path on this site and nothing else: `?next=` arrives in an address anybody can write, and the gate writes only
+  // paths it has checked the same way.
+  const asked = params.get('next');
+  const next = asked !== null && ownPath(asked) ? asked : '/';
   const denied = params.get('denied') === '1';
   const reason = params.get('reason');
 

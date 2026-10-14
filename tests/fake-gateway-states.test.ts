@@ -1,5 +1,9 @@
-import { describe, expect, it } from 'vitest';
-import { extreme } from '../scripts/fake-gateway/states.ts';
+// @vitest-environment node
+import { spawn, type ChildProcess } from 'node:child_process';
+import { afterEach, describe, expect, it } from 'vitest';
+import { PLATFORM_STATUS } from '../scripts/fake-gateway/platform-status.ts';
+import { empty, extreme } from '../scripts/fake-gateway/states.ts';
+import config from '../scripts/verify.config.ts';
 
 /**
  * The fixture's own modes, which are what every state the console draws is checked against.
@@ -67,11 +71,149 @@ describe('the fixture can shape every answer its routes produce', () => {
       [['teams'], { teams: [] }],
       [['people'], { people: [] }],
       [['runs'], { totals: { runs: 1, calls: 1, refusals: 0, mb: null } }],
+      [['platform', 'status'], PLATFORM_STATUS],
       [['unknown-head'], { anything: true }],
       [[], {}],
     ];
     for (const [seg, body] of answers) {
       expect(() => extreme(seg, body), `extreme(${JSON.stringify(seg)}) threw`).not.toThrow();
+      expect(() => empty(seg, body), `empty(${JSON.stringify(seg)}) threw`).not.toThrow();
     }
   });
+
+  it('empties the projection of what waits, as it empties the list', () => {
+    // A fresh deployment has no gate waiting on anybody: the bell read the same seven it reads on a busy one.
+    const one = { id: 'a/b/approve spec', gate: 'spec', team: 'a', slug: 'b', updated: '2026-10-05', stage: 'spec', at: 2, of: 7 };
+    expect(empty(['initiatives'], { waiting: [one] })).toEqual({ waiting: [] });
+    expect(empty(['initiatives'], { initiatives: [{ slug: 'b' }] })).toEqual({ initiatives: [] });
+  });
+
+  it('serves the platform\'s status as it is in both worlds', () => {
+    // Neither mode knows the status read, so both leave it alone: its weeks, and the four it picks from them, stay
+    // whole. A mode that emptied them would hand a page a shape the fixture is held never to have.
+    expect(extreme(['platform', 'status'], PLATFORM_STATUS)).toBe(PLATFORM_STATUS);
+    expect(empty(['platform', 'status'], PLATFORM_STATUS)).toBe(PLATFORM_STATUS);
+  });
+});
+
+describe('a busy platform is still one team to a member', () => {
+  const person = { email: 'a@example.com', name: 'A', role: 'member', status: 'active', created: '2026-10-01', activeTeam: 'atlas', teams: ['atlas (admin)'], tokens: 1, last_used: null };
+  const entry = { ts: '2026-10-05T00:00:00Z', actor: 'a@example.com', team: 'beacon', kind: 'knowledge.add', node: '0001', recorded_title: 't', superseded_by: null, node_title: 't', node_status: 'adopted' };
+
+  it('grows no team beside their own', () => {
+    const one = { slug: 'atlas', name: 'Atlas Research' };
+    expect(extreme(['teams'], { teams: [one] }, 'atlas')).toEqual({ teams: [one] });
+    expect((extreme(['teams'], { teams: [one] }) as { teams: unknown[] }).teams.length).toBeGreaterThan(1);
+  });
+
+  it('grows people and log entries that name their team and no other', () => {
+    const people = (extreme(['people'], { people: [person] }, 'atlas') as { people: { teams: string[] }[] }).people;
+    expect(people.length).toBeGreaterThan(100);
+    for (const p of people) for (const t of p.teams) expect(t.startsWith('atlas (')).toBe(true);
+    // Held to nobody, the same rows name the platform's other teams, which is what the superadmin is shown.
+    const fleet = (extreme(['people'], { people: [person] }) as { people: { teams: string[] }[] }).people;
+    expect(fleet.at(-1)!.teams.length).toBeGreaterThan(1);
+
+    const log = (extreme(['knowledge', 'log'], { entries: [entry] }, 'beacon') as { entries: { team: string }[] }).entries;
+    expect(log.length).toBeGreaterThan(100);
+    for (const e of log) expect(e.team).toBe('beacon');
+  });
+});
+
+/**
+ * The five modes as a SERVER, for each of the two people it answers as: a mode that worked for the superadmin and
+ * broke, or widened, for the member is a mode nobody sweeping by hand would be told about.
+ */
+describe('every mode answers both people', () => {
+  type Me = { role: string; activeTeam: string };
+  const servers: ChildProcess[] = [];
+  afterEach(() => { for (const p of servers.splice(0)) p.kill(); });
+
+  /** Start the fixture in one mode and wait for the address it prints. */
+  function start(mode: string): Promise<string> {
+    return new Promise<string>((resolve, reject) => {
+      const p = spawn('node', ['scripts/fake-gateway/server.ts', '--port', '0', '--mode', mode], { stdio: ['ignore', 'pipe', 'pipe'] });
+      servers.push(p);
+      let out = '';
+      const timer = setTimeout(() => reject(new Error(`no address printed: ${out}`)), 15_000);
+      p.stdout!.on('data', (d: Buffer) => {
+        out += String(d);
+        const m = /listening on (\S+)/.exec(out);
+        if (m) { clearTimeout(timer); resolve(m[1]); }
+      });
+      p.stderr!.on('data', (d: Buffer) => { out += String(d); });
+      p.on('close', (code) => { clearTimeout(timer); reject(new Error(`the fixture exited ${code}: ${out}`)); });
+    });
+  }
+
+  /** Each person by the cookie `pnpm verify --as` sends for them; the superadmin also as the default run asks, with none. */
+  const PEOPLE: [name: string, role: string, cookie: string | null][] = [
+    ['no cookie', 'superadmin', null],
+    ['superadmin', 'superadmin', config.personas!.superadmin.cookie.value],
+    ['member', 'member', config.personas!.member.cookie.value],
+  ];
+  const ask = (base: string, cookie: string | null, path: string, ms = 10_000) =>
+    fetch(`${base}/api/console/${path}`, { headers: cookie === null ? {} : { cookie: `zz_console=${cookie}` }, signal: AbortSignal.timeout(ms) });
+  const READS = ['overview', 'teams', 'initiatives', 'initiatives?waiting=1', 'knowledge', 'knowledge/log', 'people', 'activity', 'runs',
+                 'plugins', 'skills', 'settings/me/tokens', 'settings/me/teams', 'platform/status'];
+
+  /** Every list a rail page reads, as the rows it answers. */
+  async function lists(base: string, cookie: string | null) {
+    const get = async (path: string) => (await ask(base, cookie, path)).json() as Promise<Record<string, { team: string; teams: string[] }[]>>;
+    return {
+      teams: (await get('teams?scope=platform')).teams,
+      people: (await get('people?scope=platform')).people,
+      byTeam: [
+        ...(await get('initiatives?scope=platform')).initiatives, ...(await get('initiatives?waiting=1&scope=platform')).waiting,
+        ...(await get('knowledge?scope=platform')).nodes, ...(await get('knowledge/log?scope=platform')).entries,
+        ...(await get('activity?scope=platform')).events,
+      ],
+    };
+  }
+
+  it.each(['normal', 'empty', 'extreme'])('%s: every read answers, and the member is held to their own team', async (mode) => {
+    const base = await start(mode);
+    for (const [name, role, cookie] of PEOPLE) {
+      const me = await (await ask(base, cookie, 'me')).json() as Me;
+      expect(me.role, name).toBe(role);
+      for (const path of READS) expect((await ask(base, cookie, path)).status, `${mode}, ${name}: GET ${path}`).toBe(200);
+
+      const { teams, people, byTeam } = await lists(base, cookie);
+      if (mode === 'empty') expect([teams, people, byTeam], name).toEqual([[], [], []]);
+      else if (role === 'member') {
+        expect(teams, name).toHaveLength(1);
+        expect(byTeam.length).toBeGreaterThan(20);
+        for (const row of byTeam) expect(row.team, JSON.stringify(row).slice(0, 120)).toBe(me.activeTeam);
+        expect(people.length).toBeGreaterThan(1);
+        for (const p of people) for (const t of p.teams) expect(t.startsWith(`${me.activeTeam} (`), t).toBe(true);
+      } else {
+        expect(teams.length, name).toBeGreaterThan(mode === 'extreme' ? 60 : 3);
+        expect(new Set(byTeam.map((r) => r.team)).size, name).toBeGreaterThan(2);
+      }
+    }
+    // The status is one public answer in every world.
+    const status = await Promise.all(PEOPLE.map(async ([, , cookie]) => (await ask(base, cookie, 'platform/status')).json()));
+    expect(status[1]).toEqual(status[0]);
+    expect(status[2]).toEqual(status[0]);
+  });
+
+  it('error: every read but /me fails for both, and neither is sent to sign in', async () => {
+    const base = await start('error');
+    for (const [name, role, cookie] of PEOPLE) {
+      const me = await ask(base, cookie, 'me');
+      expect(me.status, name).toBe(200);
+      expect((await me.json() as Me).role, name).toBe(role);
+      for (const path of ['teams', 'initiatives', 'people', 'settings/me/tokens']) expect((await ask(base, cookie, path)).status, `${name}: GET ${path}`).toBe(503);
+    }
+  });
+
+  it('slow: an answer is held four seconds for both', async () => {
+    const base = await start('slow');
+    await Promise.all(PEOPLE.map(async ([name, role, cookie]) => {
+      const quickly = await ask(base, cookie, 'me', 1000).then(() => 'answered', (e: Error) => e.name);
+      expect(quickly, name).toBe('TimeoutError');
+      const later = await ask(base, cookie, 'me', 8000);
+      expect((await later.json() as Me).role, name).toBe(role);
+    }));
+  }, 20_000);
 });

@@ -141,7 +141,7 @@ function OverviewSkeleton() {
   );
 }
 
-export default function OverviewPage() {
+export function OverviewView() {
   useLive(['overview']);
   const { period } = usePeriod();
   const { mode } = useConsoleMode();

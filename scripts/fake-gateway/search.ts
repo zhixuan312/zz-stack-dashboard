@@ -8,8 +8,8 @@
  * three kinds are the real route's: every word found, some of them found (leads, and the note says so), and nothing
  * found, with the search's own verdict.
  *
- * Whose search: the team the signed-in person acts for, as the platform runs it. The fixtures hold no shared shelf, so
- * every row is `shelf: "team"`.
+ * Whose search: the team the signed-in person acts for, as the platform runs it, and the superadmin's when no team is
+ * named. The fixtures hold no shared shelf, so every row is `shelf: "team"`.
  */
 import type { SearchAnswer, SearchHit } from '../../src/lib/api-shapes.ts';
 import { ME } from './people.ts';
@@ -47,8 +47,7 @@ function excerptOf(text: string, words: string[]): string {
   return flat.slice(from, from + 600).replace(new RegExp(`\\b(${escaped.join('|')})\\b`, 'gi'), '**$1**');
 }
 
-export function search(q: string, limit: number, initiative: string | null): SearchAnswer {
-  const team = ME.activeTeam ?? '';
+export function search(q: string, limit: number, initiative: string | null, team = ME.activeTeam ?? ''): SearchAnswer {
   const words = [...new Set(q.toLowerCase().match(/[a-z0-9]+/g)?.filter((w) => w.length > 1 && w !== 'or') ?? [])];
   const scored = corpus(team, initiative)
     .map((c) => ({ c, found: words.filter((w) => `${c.title} ${c.text}`.toLowerCase().includes(w)) }))

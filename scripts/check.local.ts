@@ -11,10 +11,13 @@
  * - No source file over 700 lines: past that a file holds two things, and the split is agreed before it grows.
  * - Every page in the console's shell says what it tells the assistant: its spec has "### What the agent reads" under
  *   "## Agents", and names the context function it shares.
+ * - Every page in the console's shell is a server page that asks the gate before anything else, for a feature the
+ *   console has.
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { nav } from '../src/app.config.ts';
+import { FEATURES } from '../src/data/features.ts';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const read = (p: string) => fs.readFileSync(path.join(ROOT, p), 'utf8');
@@ -36,8 +39,9 @@ const SOURCE = [...walk('src', /\.tsx?$/), ...walk('app', /\.tsx?$/)];
 const code = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1 ');
 
 // ── The console's pages ──────────────────────────────────────────────────────────────────────────────
-// Product code only: Meridian's own layers are checked by check.ts.
-for (const f of SOURCE.filter((x) => /^(app|src\/console|src\/lib|src\/nav)/.test(x))) {
+// Product code only: Meridian's own layers are checked by check.ts. A page's content is the client view it renders,
+// under src/views/pages.
+for (const f of SOURCE.filter((x) => /^(app|src\/console|src\/lib|src\/nav|src\/views\/pages\/)/.test(x))) {
   const c = code(read(f));
   // The API sends ISO 8601 in UTC; printed into a cell it is `2026-09-05T04:59:00Z`, or a wall clock a reader takes
   // for their own. A time goes through <When> or src/lib/format-date.
@@ -163,11 +167,31 @@ for (const f of SOURCE) {
  * whose layout mounts the provider, so declaring there would register into nothing. A page that composes panels reading
  * for it (`/settings`) declares the collection those panels read, and the components in `src/console/` are declared for
  * by the page that renders them (`version-chain.tsx` reads a document revision; the document page registers
- * `document`). */
-for (const f of walk('app/(dash)', /\.tsx?$/).filter((x) => /\/page\.tsx$/.test(x))) {
+ * `document`). A page's reads are in the client view it renders, under `src/views/pages/`, so both are scanned. */
+for (const f of [...walk('app/(dash)', /\.tsx?$/).filter((x) => /\/page\.tsx$/.test(x)), ...walk('src/views/pages', /\.tsx$/)]) {
   const src = code(read(f));
   if (/useConsole[<(]/.test(src) && !/useLive\(/.test(src)) {
     problems.push(`${f}: reads through useConsole and declares nothing with useLive, so the live stream never corrects it`);
+  }
+}
+
+// ── A page asks the gate before anything else ─────────────────────────────────────────────────────────
+/* The rail hiding a destination forbids nothing: what stops a read is the page's own `gate`. So every page in the
+ * console's shell is a server page whose default export opens with `const denied = await gate('<feature>');` and
+ * `if (denied) return denied;`, with nothing awaited before it: a person who does not hold the feature is shown
+ * NoAccess, and the client view that reads is never rendered. `tests/page-gate.test.ts` holds each page to the feature
+ * its address is given; this holds the shape, and that the feature is one `src/data/features.ts` has. */
+const GATE_FIRST = /\)\s*(?::[^{;]*)?\{\s*const\s+denied\s*=\s*await\s+gate\(\s*'([a-z-]+)'\s*\)\s*;\s*if\s*\(\s*denied\s*\)\s*return\s+denied\s*;/;
+for (const f of walk('app/(dash)', /^page\.tsx$/)) {
+  const src = code(read(f));
+  if (/['"]use client['"]/.test(src)) problems.push(`${f}: is a Client Component; a page is a server page that asks the gate first`);
+  const at = src.search(/export\s+default\s+async\s+function\b/);
+  const rest = at < 0 ? '' : src.slice(at);
+  const opens = GATE_FIRST.exec(rest);
+  if (!opens || rest.slice(0, opens.index + opens[0].length).match(/\bawait\b/g)?.length !== 1) {
+    problems.push(`${f}: does not open with \`const denied = await gate('<feature>'); if (denied) return denied;\`, so it can render before it is allowed to`);
+  } else if (!Object.hasOwn(FEATURES, opens[1])) {
+    problems.push(`${f}: asks the gate for '${opens[1]}', which src/data/features.ts does not have`);
   }
 }
 
@@ -209,7 +233,7 @@ function openTags(src: string): string[] {
 }
 
 const TRUNCATES = /(^|["'\s])truncate(["'\s]|$)/;
-for (const f of [...walk('app', /\.tsx$/), ...walk('src/console', /\.tsx$/)]) {
+for (const f of [...walk('app', /\.tsx$/), ...walk('src/views/pages', /\.tsx$/), ...walk('src/console', /\.tsx$/)]) {
   for (const tag of openTags(noComments(read(f)))) {
     if (!TRUNCATES.test(tag) || /\btitle=/.test(tag)) continue;
     problems.push(`${f}: an element truncates with no \`title\`, so the whole value is nowhere on the page — carry it in \`title\`, or wrap with \`whitespace-normal [overflow-wrap:anywhere]\``);
@@ -248,7 +272,7 @@ function isPluralPair(a: string, b: string): boolean {
   return grows(a, b) || grows(b, a);
 }
 
-for (const f of [...walk('app', /\.tsx?$/), ...walk('src/console', /\.tsx?$/)]) {
+for (const f of [...walk('app', /\.tsx?$/), ...walk('src/views/pages', /\.tsx?$/), ...walk('src/console', /\.tsx?$/)]) {
   if (f === 'src/console/words.ts') continue;
   const src = noComments(read(f));
   for (let m = TERNARY.exec(src); m; m = TERNARY.exec(src)) {

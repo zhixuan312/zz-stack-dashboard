@@ -4,6 +4,7 @@ One knowledge node, read, with where it was learned and what shares its subject.
 
 ## Structure
 
+- Gate first: the page asks for `knowledge` before it renders, so a person who does not hold it is shown NoAccess and nothing on the page is read.
 - A warning banner when the node is superseded.
 - The lesson, rendered; facts beside it: status, type, team, recorded, learned in, tags, path.
 - Nodes that share a tag.

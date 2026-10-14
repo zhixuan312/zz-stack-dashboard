@@ -1,5 +1,5 @@
 /**
- * The fake gateway's people: teams, principals, the signed-in superadmin and their settings.
+ * The fake gateway's people: teams, principals, the two people who can be signed in and their settings.
  *
  * Synthetic on purpose. This repository is public, so nothing here is a real person, address or
  * team; every address is under `example.com`, which is reserved for documentation. The shapes are
@@ -9,6 +9,10 @@
  * The cast covers the states a page has to draw: an active team with work, one with no work at
  * all, an archived one, a person who never signed in, a deactivated one, and a name long enough
  * to wrap.
+ *
+ * Two of them can be signed in, and the `zz_console` cookie's value says which: `ME`, a superadmin
+ * in two teams, and `MEMBER`, one person in one team. `pnpm verify --as` signs a browser in as either
+ * (`personas` in scripts/verify.config.ts).
  */
 import type {
   Me, MyAccessToken, MyClientSetup, MyTeams, PlatformPersonRow, Person, Team, TeamDetail, TeamMemberRow,
@@ -26,6 +30,38 @@ export const ME: Me = {
   activeTeam: 'atlas',
 };
 
+/** The member: one team, and its admin, which is what the platform makes of every person it adds. */
+export const MEMBER: Me = {
+  email: 'noah.okafor@example.com',
+  name: 'Noah Okafor',
+  role: 'member',
+  mayRead: true,
+  superadmin: false,
+  via: 'session',
+  teams: [{ slug: 'atlas', role: 'admin' }],
+  activeTeam: 'atlas',
+};
+
+/** The gateway's own name for the console session (`CONSOLE_COOKIE` in services/gateway/src/identity.ts). */
+const SESSION_COOKIE = 'zz_console';
+/** Who each value of that cookie signs in. COUPLED: `personas` in scripts/verify.config.ts sends these values. */
+const SESSIONS: Record<string, Me> = { superadmin: ME, member: MEMBER };
+/** A value that signs nobody in, kept for tests: it is how a request with no session is made, since a request with
+ *  no cookie at all is the superadmin. Every value `SESSIONS` does not name is answered the same way. */
+export const NO_SESSION = 'signed-out';
+
+/**
+ * Who a request is from, by its `Cookie` header; null when it carries a session this fixture does not know.
+ *
+ * DELIBERATE: no `zz_console` cookie is the superadmin, not nobody. The default `pnpm verify` signs nobody in, and
+ * every page it opens has to keep reading what it read when this fixture had one person.
+ */
+export function signedIn(header: string | undefined): Me | null {
+  const session = (header ?? '').split(';').map((c) => c.trim()).find((c) => c.startsWith(`${SESSION_COOKIE}=`));
+  if (session === undefined) return ME;
+  return SESSIONS[session.slice(SESSION_COOKIE.length + 1)] ?? null;
+}
+
 export const TEAMS: Team[] = [
   { slug: 'atlas', name: 'Atlas Research', status: 'active', created: day(64), members: 4, initiatives: 4, documents: 23, sources: 41, knowledge: 6 },
   { slug: 'beacon', name: 'Beacon Payments', status: 'active', created: day(51), members: 3, initiatives: 3, documents: 11, sources: 17, knowledge: 3 },
@@ -37,7 +73,7 @@ type Seed = { email: string; name: string; role: 'superadmin' | 'member'; status
 
 const SEEDS: Seed[] = [
   { email: ME.email, name: ME.name, role: 'superadmin', status: 'active', created: 88, teams: [['atlas', 'admin'], ['beacon', 'member']], active: 'atlas', tokens: 3, lastUsed: 0.2 },
-  { email: 'noah.okafor@example.com', name: 'Noah Okafor', role: 'member', status: 'active', created: 64, teams: [['atlas', 'admin']], active: 'atlas', tokens: 2, lastUsed: 3 },
+  { email: MEMBER.email, name: MEMBER.name, role: 'member', status: 'active', created: 64, teams: [['atlas', 'admin']], active: 'atlas', tokens: 2, lastUsed: 3 },
   { email: 'mei.tanaka@example.com', name: 'Mei Tanaka', role: 'member', status: 'active', created: 60, teams: [['atlas', 'member'], ['beacon', 'member']], active: 'beacon', tokens: 1, lastUsed: 26 },
   { email: 'jonas.weber@example.com', name: 'Jonas Weber', role: 'member', status: 'active', created: 51, teams: [['beacon', 'admin']], active: 'beacon', tokens: 2, lastUsed: 7 },
   { email: 'maximiliana.fitzgerald-oyelaran@example.com', name: 'Maximiliana Fitzgerald-Oyelaran Kowalczyk', role: 'member', status: 'active', created: 40, teams: [['atlas', 'member']], active: 'atlas', tokens: 0, lastUsed: null },
@@ -50,6 +86,12 @@ export const PEOPLE: Person[] = SEEDS.map((s) => ({
   activeTeam: s.active, teams: s.teams.map(([t, r]) => `${t} (${r})`), tokens: s.tokens,
   last_used: s.lastUsed === null ? null : ago(s.lastUsed),
 }));
+
+/** One team's people as a member of it is answered: the same rows, and nothing in one names another team. */
+export function rosterOf(team: string): Person[] {
+  const here = (t: string) => t.startsWith(`${team} `);
+  return PEOPLE.filter((p) => p.teams.some(here)).map((p) => ({ ...p, activeTeam: p.activeTeam === team ? team : null, teams: p.teams.filter(here) }));
+}
 
 export const PLATFORM_PEOPLE: PlatformPersonRow[] = SEEDS.map((s) => ({
   email: s.email, display_name: s.name, role: s.role, status: s.status, created_at: ago(s.created * 24),
@@ -78,10 +120,20 @@ export const MY_TOKENS: MyAccessToken[] = [
   { id: 'tok_3c4d5e6f', label: 'old ci runner', created_at: ago(1500), last_used_at: ago(1200), revoked_at: ago(1100) },
 ];
 
-export const MY_CLIENT_SETUP: MyClientSetup = {
+/** The member's own tokens, as `MY_TOKENS` is the superadmin's. */
+const MEMBER_TOKENS: MyAccessToken[] = [
+  { id: 'tok_7b8c9d0e', label: `mcp oauth — /core/mcp — ${MEMBER.email}`, created_at: ago(120), last_used_at: ago(3), revoked_at: null },
+  { id: 'tok_2d3e4f5a', label: 'laptop', created_at: ago(900), last_used_at: ago(70), revoked_at: null },
+];
+
+/** `GET /settings/me/tokens`: a person's own tokens and nobody else's. */
+export const tokensOf = (who: Me): MyAccessToken[] => (who.email === MEMBER.email ? MEMBER_TOKENS : MY_TOKENS);
+
+/** `GET /settings/me/client-setup`, written for the person asking. */
+export const clientSetupOf = (who: Me): MyClientSetup => ({
   client: 'claude-code',
   config: [
-    `# ZZ setup for ${ME.email}`,
+    `# ZZ setup for ${who.email}`,
     '',
     '## 1. Get a token (once)',
     'Ask the **ZZ Access** agent for a token. It is shown ONCE. Then `export ZZ_TOKEN=<it>` for the commands below.',
@@ -97,10 +149,13 @@ export const MY_CLIENT_SETUP: MyClientSetup = {
     '## 3. Check',
     'Run `/zz-core:whoami` in a new session; it names you and the team you act for.',
   ].join('\n'),
-};
+});
 
-export const MY_TEAMS: MyTeams = {
-  actingFor: 'atlas',
-  teams: [{ team: 'atlas', role: 'admin', active: true }, { team: 'beacon', role: 'member', active: false }],
+/** `GET /settings/me/teams`: the teams a person is in, and the one they act for. */
+export const teamsOf = (who: Me): MyTeams => ({
+  actingFor: who.activeTeam ?? '',
+  teams: who.teams.map((t) => ({ team: t.slug, role: t.role, active: t.slug === who.activeTeam })),
   note: 'team_switch moves you to another one. You act for exactly one team at a time, so switching changes what every client shows you.',
-};
+});
+
+export const MY_TEAMS: MyTeams = teamsOf(ME);

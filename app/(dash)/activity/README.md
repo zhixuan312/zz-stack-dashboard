@@ -4,6 +4,7 @@ Every tool call, gate and admin act the platform recorded, newest first.
 
 ## Structure
 
+- Gate first: the page asks for `activity` before it renders, so a person who does not hold it is shown NoAccess and nothing on the page is read.
 - Show everything or refusals only.
 - A data table: when, kind, subject, actor, team, result, refusal; a refusal is the one row in colour.
 

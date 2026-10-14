@@ -4,6 +4,7 @@ What the platform has learned, kept as nodes, each out of a real initiative.
 
 ## Structure
 
+- Gate first: the page asks for `knowledge` before it renders, so a person who does not hold it is shown NoAccess and nothing on the page is read.
 - Tabs: Nodes, Log.
 - Tiles: nodes, adopted, superseded, last recorded.
 - A data table of nodes with search, team (platform mode) and tag filters; rows open the node.

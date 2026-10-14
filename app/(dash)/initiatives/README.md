@@ -4,6 +4,7 @@ Every piece of work, open or closed, and how far through its flow it got.
 
 ## Structure
 
+- Gate first: the page asks for `initiatives` before it renders, so a person who does not hold it is shown NoAccess and nothing on the page is read.
 - A data table: initiative, team (platform mode), flow position, state, gates passed, updated; rows open the initiative.
 - Filter bar: search, team, flow and state, and a Waiting on you switch; the reporting period windows the list by when it was last touched.
 

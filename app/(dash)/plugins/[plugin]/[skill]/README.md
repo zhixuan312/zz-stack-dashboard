@@ -4,6 +4,7 @@ One skill a plugin ships: what it costs to run, its text, and what ships beside 
 
 ## Structure
 
+- Gate first: the page asks for `plugins` before it renders, so a person who does not hold it is shown NoAccess and nothing on the page is read.
 - Tabs (in the address): Cost to run, The skill, Reference.
 - Tiles: runs, calls per run, median run, refused.
 - About this skill: whose, position, produces, closed by, version, source.

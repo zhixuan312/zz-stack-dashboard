@@ -1,31 +1,40 @@
 /**
- * What each destination needs of the person opening it, in one table: a view tool and a collection ask it by
- * reference, so an agent is offered a view or a list exactly where the rail offers the page.
+ * The pages this console offers: one table the rail, the command palette,
+ * every page's gate and every view tool ask, so a destination, a page and a tool cannot drift apart.
  *
- * The needs are read off `nav` in `src/app.config.ts` rather than restated: each destination declares its own there,
- * as Meridian's rail asks, and that is the one rule here too. Two needs exist. `public` is any signed-in person the
- * console lets in; `platform:read` is a superadmin reading the fleet.
+ * A feature's `needs` is what a person must hold to reach the page behind it, and names grants only: the role names and the grant table stay in `roles.ts`. The nav in
+ * `src/app.config.ts` points each item at its feature's need **by reference** (`needs: FEATURES.teams.needs`), so an
+ * item and the table never restate one another.
  *
- * This says what an agent is offered, never what a person may read: the gateway decides that on every request, from
- * the caller's own credential, and a list an agent is handed still arrives scoped by it.
+ * This is the table of the pages the console has today, at today's addresses. A page keeps the readers it has until the
+ * phase that rebuilds it: everybody reads their own work, and the four fleet pages are a superadmin's.
+ *
+ * Pure data with type-only imports, so plain `node` can import it: `scripts/check.ts` reads `src/app.config.ts`, which
+ * reaches this file.
  */
-import { nav } from '@/app.config';
-import type { Need } from '@/lib/collection';
+import type { Grant } from '@/lib/collection';
+import type { GRANTS, MainRole } from '@/data/roles';
 
-/** The grant a fleet surface asks for. */
-export const PLATFORM: Need = 'platform:read';
+/** A read some role on the table holds: a page that asked for any other grant would be a page nobody can open. */
+type HeldRead = Extract<(typeof GRANTS)[MainRole][number], Grant>;
 
-const DESTINATIONS = nav.flatMap((g) => g.items);
-const needOf = (href: string): Need => DESTINATIONS.find((i) => i.href === href)?.needs ?? PLATFORM;
+/** What a person's own work asks for. */
+const WORK = 'work:read' satisfies HeldRead;
+/** What a fleet page asks for: every team's rows, which only a superadmin reads. */
+export const FLEET = 'fleet:read' satisfies HeldRead;
 
-export const FEATURES = {
-  overview: { href: '/', needs: needOf('/') },
-  teams: { href: '/teams', needs: needOf('/teams') },
-  initiatives: { href: '/initiatives', needs: needOf('/initiatives') },
-  plugins: { href: '/plugins', needs: needOf('/plugins') },
-  knowledge: { href: '/knowledge', needs: needOf('/knowledge') },
-  runs: { href: '/runs', needs: needOf('/runs') },
-  activity: { href: '/activity', needs: needOf('/activity') },
-  people: { href: '/people', needs: needOf('/people') },
-  settings: { href: '/settings', needs: needOf('/settings') },
-} as const satisfies Record<string, { href: string; needs: Need }>;
+/** Every page the console offers, by the id the rail, the palette and a page's gate name it. */
+export type FeatureId = 'home' | 'initiatives' | 'knowledge' | 'people' | 'settings' | 'teams' | 'plugins' | 'runs' | 'activity';
+
+/** Each feature: its name as a person reads it, and the need a person must satisfy to reach it. Never `public`. */
+export const FEATURES: Record<FeatureId, { title: string; needs: HeldRead }> = {
+  home: { title: 'Overview', needs: WORK },
+  initiatives: { title: 'Initiatives', needs: WORK },
+  knowledge: { title: 'Knowledge', needs: WORK },
+  people: { title: 'People', needs: WORK },
+  settings: { title: 'Settings', needs: WORK },
+  teams: { title: 'Teams', needs: FLEET },
+  plugins: { title: 'Plugins', needs: FLEET },
+  runs: { title: 'Runs', needs: FLEET },
+  activity: { title: 'Activity', needs: FLEET },
+};

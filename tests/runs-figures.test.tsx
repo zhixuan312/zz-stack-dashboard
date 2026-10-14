@@ -19,7 +19,7 @@ import { Tooltip } from 'radix-ui';
  */
 import { PeriodProvider } from '@/console/period';
 import type { Runs } from '@/lib/api-shapes';
-import RunsPage from '../app/(dash)/runs/page';
+import { RunsView } from '@/views/pages/runs';
 
 const TooltipProvider = Tooltip.Provider;
 
@@ -60,7 +60,7 @@ function mount() {
     <QueryClientProvider client={client}>
       <PeriodProvider>
         <TooltipProvider>
-          <RunsPage />
+          <RunsView />
         </TooltipProvider>
       </PeriodProvider>
     </QueryClientProvider>,

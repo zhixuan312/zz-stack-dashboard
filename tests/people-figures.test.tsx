@@ -20,7 +20,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
  * with the page.
  */
 import type { Person } from '@/lib/api-shapes';
-import PeoplePage from '../app/(dash)/people/page';
+import { PeopleView } from '@/views/pages/people';
 
 const ME = {
   email: 'a@b.example.com', name: 'A', role: 'superadmin', mayRead: true, superadmin: true,
@@ -61,20 +61,20 @@ beforeEach(() => {
 describe('the figures on the people page', () => {
   it('counts the superadmins the data holds', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    render(<QueryClientProvider client={client}><PeoplePage /></QueryClientProvider>);
+    render(<QueryClientProvider client={client}><PeopleView /></QueryClientProvider>);
     await waitFor(() => expect(text()).toContain('1 superadmin'));
   });
 
   it('says how many people hold a token, which is not how many tokens there are', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    render(<QueryClientProvider client={client}><PeoplePage /></QueryClientProvider>);
+    render(<QueryClientProvider client={client}><PeopleView /></QueryClientProvider>);
     // Two people hold six tokens. A page that showed the token count here would still render, and be wrong.
     await waitFor(() => expect(text()).toContain('Held by 2 people'));
   });
 
   it("lists the people the data holds, one row each", async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    render(<QueryClientProvider client={client}><PeoplePage /></QueryClientProvider>);
+    render(<QueryClientProvider client={client}><PeopleView /></QueryClientProvider>);
     const rows = await screen.findAllByRole('row');
     // How many rows the page draws is its own business — a table, a card list for the phone, a second table — so this
     // does not pin a count. What it pins is that the people the data holds are the people listed, by the addresses the

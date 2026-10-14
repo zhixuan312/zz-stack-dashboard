@@ -4,6 +4,7 @@ One document, read: the text, how it changed and on what evidence, and the claim
 
 ## Structure
 
+- Gate first: the page asks for `initiatives` before it renders, so a person who does not hold it is shown NoAccess and nothing on the page is read.
 - Masthead: the title, the path and version, and Approve when the reader may sign the gate; a member whose session
   acts for another of their teams is told which team to switch to.
 - When Approve is on offer, the page records that it showed the reader the first snapshot it rendered, and any later

@@ -4,6 +4,7 @@ Every recorded run, by the skill that drove it.
 
 ## Structure
 
+- Gate first: the page asks for `runs` before it renders, so a person who does not hold it is shown NoAccess and nothing on the page is read.
 - Tiles: runs, calls in runs, payload moved.
 - Where the work happens: every skill, ranked by calls, runs, median or total time, each with its share of the chosen axis.
 

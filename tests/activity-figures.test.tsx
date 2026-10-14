@@ -15,7 +15,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
  * page's own `overview-period` test pins a date to its zone instead, which is where that belongs.
  */
 import type { ActivityEvent } from '@/lib/api-shapes';
-import ActivityPage from '../app/(dash)/activity/page';
+import { ActivityView } from '@/views/pages/activity';
 
 const ME = {
   email: 'a@b.example.com', name: 'A', role: 'superadmin', mayRead: true, superadmin: true,
@@ -57,7 +57,7 @@ beforeEach(() => {
 
 function mount() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={client}><ActivityPage /></QueryClientProvider>);
+  return render(<QueryClientProvider client={client}><ActivityView /></QueryClientProvider>);
 }
 
 describe('the figures on the activity feed', () => {

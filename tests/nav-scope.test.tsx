@@ -36,7 +36,7 @@ describe('the rail in team mode', () => {
     expect(groups('team').map((s) => s.label)).not.toContain('Platform');
     const platform = groups('platform').find((s) => s.label === 'Platform');
     expect(platform?.items.map((i) => i.href)).toEqual(['/plugins', '/runs', '/activity']);
-    expect(platform?.items.every((i) => i.needs === 'platform:read')).toBe(true);
+    expect(platform?.items.every((i) => i.needs === 'fleet:read')).toBe(true);
   });
 
   it('drops a group whose every destination is hidden, so nothing is left headless', () => {

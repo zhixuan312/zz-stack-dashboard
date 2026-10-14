@@ -10,22 +10,30 @@
  * rewrite into the build, and the pages then fetch from here exactly as they fetch from the
  * gateway behind Caddy in production.
  *
- * Who is calling: the signed-in superadmin in `people.ts`, except on the screens a visitor sees
- * before signing in (`/login`, `/enrol`, `/signed-out`), where `/me` answers 401 as it does for a
- * browser with no session. The page's own address arrives as the Referer.
+ * Who is calling: one of the two people in `people.ts`, named by the `zz_console` cookie's value. A
+ * request with no such cookie is the superadmin, because `pnpm verify` signs nobody in unless it is
+ * run with `--as`; the member's value is one person in one team, who is answered that team's records
+ * and nothing that names another; any other value has no session and is answered 401. On the
+ * screens a visitor sees before signing in (`/login`, `/enrol`, `/signed-out`) `/me` answers 401 too,
+ * as it does for a browser with no session. The page's own address arrives as the Referer.
  *
  * Writes answer success and are forgotten, so every run starts from the same data. The console's
  * presentation and approval are the exception: they are held against the store's snapshot and
  * refused the way the gateway refuses them, so a page's out-of-date states can be drawn.
  *
- * `--mode` draws the states a page has to design for, from the same routes: `empty` (a fresh deployment, nothing
- * recorded), `error` (every read but /me fails with the gateway's own sentence), `slow` (every answer waits four
- * seconds, so the loading state can be looked at), `extreme` (a busy platform: six-figure counts, hundreds of rows,
- * names longer than any layout planned for). `GET /__mode?set=<mode>` switches it while running.
+ * `--mode` draws the states a page has to design for, from the same routes and for either person: `empty` (a fresh
+ * deployment, nothing recorded), `error` (every read but /me fails with the gateway's own sentence), `slow` (every
+ * answer waits four seconds, so the loading state can be looked at), `extreme` (a busy platform: six-figure counts,
+ * hundreds of rows, names longer than any layout planned for). `GET /__mode?set=<mode>` switches it while running.
+ *
+ * The status read, `GET /api/console/platform/status`, is the one a page makes on the console's server and gives
+ * five seconds: `error` answers it 500 with its own route's sentence, and `slow` holds it six seconds, past that bound.
  */
 import http from 'node:http';
+import type { Me, Overview } from '../../src/lib/api-shapes.ts';
 import { COLLECTIONS, hint, liveStreams, parseNames, serveLive } from './live.ts';
-import { ME, MY_CLIENT_SETUP, MY_TEAMS, MY_TOKENS, PEOPLE, PLATFORM_PEOPLE, TEAMS, teamDetail, teamMembers } from './people.ts';
+import { PEOPLE, PLATFORM_PEOPLE, TEAMS, clientSetupOf, rosterOf, signedIn, teamDetail, teamMembers, teamsOf, tokensOf } from './people.ts';
+import { PLATFORM_STATUS } from './platform-status.ts';
 import { ACTIVITY, PLUGINS, SKILLS, overview, pluginEval, runs, skillDetail, skillText } from './platform.ts';
 import { search } from './search.ts';
 import { empty, extreme } from './states.ts';
@@ -44,30 +52,59 @@ const ok = (body: unknown): Answer => [200, body];
 const missing = (what: string): Answer => [404, { error: `${what} does not exist on this deployment` }];
 const or404 = (body: unknown, what: string): Answer => (body ? ok(body) : missing(what));
 
-/** One GET under `/api/console`, by path segments and query. */
-function read(seg: string[], q: URLSearchParams): Answer {
-  const platform = q.get('scope') === 'platform';
-  const mine = <T extends { team: string | null }>(rows: T[]) => (platform ? rows : rows.filter((r) => r.team === ME.activeTeam));
+/** The one team a member is held to; nothing for a superadmin, who may open any team's records. */
+const heldTo = (who: Me): string | null => (who.superadmin ? null : who.activeTeam);
+
+/** The census as one team's, the way the gateway counts it in team scope: one team, its own people and work, and no
+ *  event without a team. */
+function teamCensus(o: Overview, team: string): Overview {
+  const t = TEAMS.find((x) => x.slug === team);
+  const people = rosterOf(team);
+  return { ...o, counts: {
+    ...o.counts, teams: 1, activeTeams: t?.status === 'active' ? 1 : 0, people: people.length, superadmins: people.filter((p) => p.role === 'superadmin').length,
+    documents: t?.documents ?? 0, initiatives: t?.initiatives ?? 0, unattributedEvents: 0,
+  } };
+}
+
+/**
+ * One GET under `/api/console`, by path segments and query, as `who`.
+ *
+ * A member is answered as the gateway's own scope answers them (`resolveScope` in services/gateway/src/scope.ts):
+ * `?scope=platform` is honoured for a superadmin and otherwise answers what the request would have got without it, a
+ * team they are not in is refused by name, and another team's record is answered as one that does not exist, never
+ * with a 403 that would confirm it does.
+ */
+function read(who: Me, seg: string[], q: URLSearchParams): Answer {
+  const platform = q.get('scope') === 'platform' && who.superadmin;
+  const own = heldTo(who);
+  const foreign = (team: string | undefined) => own !== null && team !== own;
+  const mine = <T extends { team: string | null }>(rows: T[]) => (platform ? rows : rows.filter((r) => r.team === who.activeTeam));
   const period = q.get('period') ?? 'all';
   const [head, a, b, ...rest] = seg;
   switch (head) {
-    case 'me': return ok(ME);
-    case 'overview': return ok(overview(period));
-    case 'teams': return a ? or404(teamDetail(a), `team ${a}`) : ok({ teams: TEAMS });
-    case 'initiatives':
+    case 'me': return ok(who);
+    case 'overview': return ok(own ? teamCensus(overview(period), own) : overview(period));
+    case 'teams':
+      if (a) return foreign(a) ? missing(`team ${a}`) : or404(teamDetail(a), `team ${a}`);
+      return ok({ teams: own ? TEAMS.filter((t) => t.slug === own) : TEAMS });
+    case 'initiatives': {
       // The bell's own projection — see WAITING in work.ts. It answers before the detail route,
       // because `?waiting=1` names no initiative of its own.
       if (q.get('waiting') === '1') return ok({ waiting: mine(WAITING) });
-      if (a && b) return or404(initiativeDetail(a, b), `initiative ${a}/${b}`);
-      return ok({ initiatives: q.get('team') ? INITIATIVES.filter((i) => i.team === q.get('team')) : mine(INITIATIVES) });
+      if (a && b) return foreign(a) ? missing(`initiative ${a}/${b}`) : or404(initiativeDetail(a, b), `initiative ${a}/${b}`);
+      const team = q.get('team');
+      if (team && foreign(team)) return [403, { error: `not a member of ${team}` }];
+      return ok({ initiatives: team ? INITIATIVES.filter((i) => i.team === team) : mine(INITIATIVES) });
+    }
     case 'document': {
       const rev = q.get('revision');
+      if (foreign(a)) return missing(rev === null ? `document ${seg.slice(1).join('/')}` : `revision ${rev} of ${seg.slice(1).join('/')}`);
       if (rev !== null) return or404(documentRevision(a, b, rest.join('/'), Number(rev)), `revision ${rev} of ${seg.slice(1).join('/')}`);
       return or404(documentDetail(a, b, rest.join('/')), `document ${seg.slice(1).join('/')}`);
     }
     case 'knowledge':
       if (a === 'log') return ok({ entries: mine(KNOWLEDGE_LOG) });
-      if (a) return or404(knowledgeBody(a, [b, ...rest].join('/')), `knowledge ${seg.slice(1).join('/')}`);
+      if (a) return foreign(a) ? missing(`knowledge ${seg.slice(1).join('/')}`) : or404(knowledgeBody(a, [b, ...rest].join('/'), own), `knowledge ${seg.slice(1).join('/')}`);
       return ok({ nodes: mine(KNOWLEDGE) });
     case 'search': {
       // As the gateway answers it: one team's search and never the fleet's, a question required, a limit from 1 to 50.
@@ -76,14 +113,16 @@ function read(seg: string[], q: URLSearchParams): Answer {
       if (!question) return [400, { error: 'q required — the question to search for' }];
       const limit = q.get('limit') === null ? 15 : Number(q.get('limit'));
       if (!Number.isInteger(limit) || limit < 1 || limit > 50) return [400, { error: 'limit must be a whole number from 1 to 50' }];
-      return ok(search(question, limit, q.get('initiative')));
+      return ok(search(question, limit, q.get('initiative'), who.activeTeam ?? ''));
     }
     case 'plugins':
       if (a && b === 'eval') return ok(pluginEval(a));
       if (a && b === 'skills' && rest[0]) return or404(skillText(a, rest[0]), `skill ${a}/${rest[0]}`);
       return ok({ plugins: PLUGINS });
     case 'skills': return a ? or404(skillDetail(a), `skill ${a}`) : ok({ skills: SKILLS });
-    case 'people': return ok({ people: platform ? PEOPLE : PEOPLE.filter((p) => p.teams.some((t) => t.startsWith(`${ME.activeTeam} `))) });
+    case 'people':
+      if (own) return ok({ people: rosterOf(own) });
+      return ok({ people: platform ? PEOPLE : PEOPLE.filter((p) => p.teams.some((t) => t.startsWith(`${who.activeTeam} `))) });
     case 'runs': return ok(runs(period));
     case 'activity': {
       const limit = Number(q.get('limit') ?? 200);
@@ -91,12 +130,19 @@ function read(seg: string[], q: URLSearchParams): Answer {
       return ok({ events, limit });
     }
     case 'settings':
-      if (a === 'me' && b === 'tokens') return ok(MY_TOKENS);
-      if (a === 'me' && b === 'client-setup') return ok(MY_CLIENT_SETUP);
-      if (a === 'me' && b === 'teams') return ok(MY_TEAMS);
-      if (a === 'team' && b === 'members') return ok(teamMembers(q.get('team') ?? ''));
-      if (a === 'platform' && b === 'people') return ok(PLATFORM_PEOPLE);
+      if (a === 'me' && b === 'tokens') return ok(tokensOf(who));
+      if (a === 'me' && b === 'client-setup') return ok(clientSetupOf(who));
+      if (a === 'me' && b === 'teams') return ok(teamsOf(who));
+      if (a === 'team' && b === 'members') {
+        // The gateway's own guard (`teamAuthority`): a team's roster is for its admins and for a superadmin.
+        const team = q.get('team') ?? '';
+        if (!who.superadmin && !who.teams.some((t) => t.slug === team && t.role === 'admin')) return [403, { error: `team admin or superadmin required for ${team}` }];
+        return ok(teamMembers(team));
+      }
+      if (a === 'platform' && b === 'people') return who.superadmin ? ok(PLATFORM_PEOPLE) : [403, { error: 'superadmin required' }];
       return missing(`settings/${a}/${b}`);
+    // Public by its route, not by a parameter: everyone signed in is answered the same status, whatever they ask for.
+    case 'platform': return a === 'status' && b === undefined ? ok(PLATFORM_STATUS) : missing(seg.join('/'));
     default: return missing(seg.join('/'));
   }
 }
@@ -114,7 +160,7 @@ const CONSOLE_CONTEXT = 'rc_consolereviewcontextfakeaa';
  * DELIBERATE: one context for every presentation. zz-core continues the context a page hands back and starts a new one
  * for an unknown one; either way the page holds what it was answered, which is all the console reads.
  */
-function present(signing: boolean, q: URLSearchParams, body: Record<string, unknown>): Answer {
+function present(who: Me, signing: boolean, q: URLSearchParams, body: Record<string, unknown>): Answer {
   const team = q.get('team');
   if (!team) return [400, { error: `${signing ? 'approve' : 'shown'} needs one team — pass ?team=<slug>, not ?scope=platform` }];
   const [initiative, path, held, context] = [body.initiative, body.path, signing ? body.expected_revision : body.content_revision, body.review_context]
@@ -122,8 +168,8 @@ function present(signing: boolean, q: URLSearchParams, body: Record<string, unkn
   if (!initiative || !path || !held || (signing && !context)) {
     return [400, { error: signing ? 'initiative, path, expected_revision and review_context required' : 'initiative, path and content_revision required' }];
   }
-  const store = team === ME.activeTeam ? revisionInStore(team, initiative, path) : null;
-  if (!store) return [400, { error: `ERROR: ${initiative}/${path} is not a document of ${ME.activeTeam ?? 'any team'}.` }];
+  const store = team === who.activeTeam ? revisionInStore(team, initiative, path) : null;
+  if (!store) return [400, { error: `ERROR: ${initiative}/${path} is not a document of ${who.activeTeam ?? 'any team'}.` }];
   // zz-core's refusal when it resolves no team for the caller, which the gateway answers 400 with zz-core's sentence.
   if (!signing && refusesRecord(team, initiative, path)) return [400, { error: 'the console is not acting for the team this document belongs to, so there is nowhere to record it' }];
   if (held !== store) {
@@ -141,21 +187,37 @@ function present(signing: boolean, q: URLSearchParams, body: Record<string, unkn
   return ok({ ok: true, result: `Approved ${initiative}/${path}.` });
 }
 
-/** One write under `/api/console`. Accepted, answered in the route's own shape, and not kept. */
-function write(seg: string[], q: URLSearchParams, method: string, body: Record<string, unknown>): Answer {
+/**
+ * The features a page view may name: the destinations the console's feature table will hold when every phase has
+ * landed, and the ones today's pages have. A closed list, as the gateway's is, so an address or a record's name can
+ * never be recorded as one. COUPLED: the gateway's console/page-view.ts keeps the list this one copies.
+ */
+const PAGE_FEATURES = [
+  'home', 'record', 'initiatives', 'approvals', 'knowledge', 'activity', 'runs', 'plugins', 'access', 'settings',
+  'platform-status', 'releases', 'bugs', 'bug', 'evaluation', 'teams', 'people', 'usage', 'audit', 'knowledge-health',
+];
+
+/** One write under `/api/console`, as `who`. Accepted, answered in the route's own shape, and not kept. */
+function write(who: Me, seg: string[], q: URLSearchParams, method: string, body: Record<string, unknown>): Answer {
   const path = seg.join('/');
+  // `POST /api/console/page-view`: one committed navigation, by its feature. Nothing to say back, so no body.
+  if (path === 'page-view' && method === 'POST') {
+    if (typeof body.feature !== 'string' || !body.feature) return [400, { error: 'feature required — the destination that was opened' }];
+    if (!PAGE_FEATURES.includes(body.feature)) return [400, { error: `${body.feature} is not one of the console's destinations` }];
+    return [204, null];
+  }
   if (path === 'settings/me/tokens' && method === 'POST') {
     hint('settings');
-    return ok({ token: 'zz_pat_example_0123456789abcdef', label: String(body.label ?? 'console'), email: ME.email });
+    return ok({ token: 'zz_pat_example_0123456789abcdef', label: String(body.label ?? 'console'), email: who.email });
   }
   if (path === 'documents/shown' || path === 'documents/approve') {
-    const answer = present(path === 'documents/approve', q, body);
+    const answer = present(who, path === 'documents/approve', q, body);
     // An approval changes what the initiative's own page shows (the document's approval state) and the bell's
     // projection of what waits on a person, so both are told. A refused approval changed nothing and says nothing.
     if (answer[0] === 200 && path === 'documents/approve') hint('initiatives');
     return answer;
   }
-  if (path === 'settings/me/active-team') return ok({ actingFor: String(body.team ?? ME.activeTeam) });
+  if (path === 'settings/me/active-team') return ok({ actingFor: String(body.team ?? who.activeTeam) });
   if (path === 'settings/platform/enrolments') return ok({ ok: true, url: 'https://console.example.com/enrol#t=example-enrolment', result: `An enrolment link for ${String(body.email)}` });
   return ok({ ok: true, result: `${method} ${path}: done`, revoked: seg.at(-1) });
 }
@@ -183,6 +245,8 @@ const server = http.createServer((req, res) => {
   req.on('end', () => {
     const referer = (() => { try { return new URL(req.headers.referer ?? '').pathname; } catch { return ''; } })();
     const seg = url.pathname.split('/').filter(Boolean).map(decodeURIComponent);
+    const who = signedIn(req.headers.cookie);
+    const status = req.method === 'GET' && url.pathname === '/api/console/platform/status';
     let answer: Answer;
     /* The test hooks wear the proxied prefix — `/api/console/__hint` — so a browser check reaches them through the app's
      * own origin and never needs to know the gateway's address, which the app's build baked in and nothing serves back.
@@ -239,18 +303,20 @@ const server = http.createServer((req, res) => {
       if (mode === 'error') { res.writeHead(503, { 'content-type': 'application/json' }); res.end(JSON.stringify({ error: 'The gateway could not reach its database.' })); return; }
       const parsed = parseNames(url.searchParams.get('collections'));
       if ('status' in parsed) { res.writeHead(parsed.status, { 'content-type': 'text/plain; charset=utf-8' }); res.end(parsed.error); return; }
-      // A visitor on the screens before sign-in has no session; every other screen here has one.
-      if (SIGNED_OUT.test(referer)) { res.writeHead(401, { 'content-type': 'text/plain; charset=utf-8' }); res.end('Sign in to continue.'); return; }
+      // A visitor on the screens before sign-in has no session, and neither has a cookie this fixture does not know.
+      if (!who || SIGNED_OUT.test(referer)) { res.writeHead(401, { 'content-type': 'text/plain; charset=utf-8' }); res.end('Sign in to continue.'); return; }
       serveLive(res, parsed.names);
       return;
     }
     if (seg[0] === 'auth') answer = auth(seg.slice(1));
     else if (seg[0] !== 'api' || seg[1] !== 'console') answer = missing(url.pathname);
-    else if (seg[2] === 'me' && SIGNED_OUT.test(referer)) answer = [401, { error: 'not signed in' }];
+    else if (!who || (seg[2] === 'me' && SIGNED_OUT.test(referer))) answer = [401, { error: 'not signed in' }];
+    // The status read fails as its own route does when a query fails; every other route, as a gateway with no database.
+    else if (mode === 'error' && status) answer = [500, { error: "could not read the platform's status" }];
     else if (mode === 'error' && seg[2] !== 'me') answer = [503, { error: 'The gateway could not reach its database: connection to 10.0.0.12:5432 refused. Nothing was changed.' }];
     else if (req.method === 'GET') {
       if (seg[2]) countRead(seg[2]);
-      answer = read(seg.slice(2), url.searchParams);
+      answer = read(who, seg.slice(2), url.searchParams);
       // A transform reads the answer by its own idea of the route's shape, so a route that grows a
       // second answer shape — `/initiatives?waiting=1` returns `{ waiting }` where the list returns
       // `{ initiatives }` — reaches it as something it does not recognise. That threw OUT of this
@@ -265,13 +331,15 @@ const server = http.createServer((req, res) => {
         }
       };
       if (answer[0] === 200 && mode === 'empty') answer = [200, shape('empty', empty)];
-      if (answer[0] === 200 && mode === 'extreme') answer = [200, shape('extreme', extreme)];
+      if (answer[0] === 200 && mode === 'extreme') answer = [200, shape('extreme', (s, body) => extreme(s, body, heldTo(who)))];
     }
-    else answer = write(seg.slice(2), url.searchParams, req.method ?? 'POST', (() => { try { return JSON.parse(raw || '{}'); } catch { return {}; } })());
+    else answer = write(who, seg.slice(2), url.searchParams, req.method ?? 'POST', (() => { try { return JSON.parse(raw || '{}') ?? {}; } catch { return {}; } })());
     setTimeout(() => {
+      // A 204 has no body to serialise, and a client that is sent one reads the next response wrong.
+      if (answer[0] === 204) { res.writeHead(204, { 'cache-control': 'no-store' }); res.end(); return; }
       res.writeHead(answer[0], { 'content-type': 'application/json', 'cache-control': 'no-store' });
       res.end(JSON.stringify(answer[1]));
-    }, mode === 'slow' ? 4000 : 0);
+    }, mode !== 'slow' ? 0 : status ? 6000 : 4000);
   });
 });
 

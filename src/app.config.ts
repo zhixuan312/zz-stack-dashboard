@@ -2,7 +2,9 @@ import {
   Activity, BookOpen, LayoutGrid, ListTree, Package, Settings, Timer, UserSquare, Users,
   type LucideIcon,
 } from 'lucide-react';
-import type { Need } from './lib/collection';
+// Relative with its extension, and a type-only need below: `scripts/check.ts` imports this file under plain node.
+import { FEATURES } from './data/features.ts';
+import type { Need } from './lib/collection.ts';
 
 /**
  * Everything that makes this console ZZ Stack's, in one file: the name, the accent, the zone every date is shown in,
@@ -31,22 +33,19 @@ export const app = {
   user: { name: 'Signing in', role: 'ZZ' },
 } as const;
 
-type NavItem = {
-  href: string;
-  label: string;
-  icon: LucideIcon;
-  badge?: string;
-  /**
-   * What a person must hold to be shown this destination, in Meridian's vocabulary: `public` is anyone the console lets
-   * in, and `platform:read` is a superadmin reading the fleet, which team mode leaves out of the rail. The assistant is
-   * offered a page's view and its list by the same need (`src/data/features.ts`).
-   */
-  needs: Need;
-};
-export type NavGroup = {
-  label?: string;
-  items: NavItem[];
-};
+/**
+ * The console's workspaces, in the order the rail's menu lists them. A workspace is where a person looks, not what they
+ * may do: access is decided by each page's feature, never by this. Each is `label` (its name), `audience` (who it is
+ * for) and `homeHref` (the entry the menu opens).
+ */
+export const workspaces = {
+  main: { label: 'Work', audience: 'You and your agents', homeHref: '/' },
+} as const;
+export type WorkspaceId = keyof typeof workspaces;
+
+/** `needs` is the feature's own need from `src/data/features.ts`, by reference: the rail asks it of the person. */
+type NavItem = { href: string; label: string; icon: LucideIcon; badge?: string; workspace?: WorkspaceId; needs: Need };
+export type NavGroup = { label?: string; items: NavItem[] };
 
 /**
  * The whole primary navigation, in one place: every destination, in the order the rail shows them.
@@ -54,7 +53,7 @@ export type NavGroup = {
  * Three groups, split by who reads the thing. The first is the work and what it is read against: the teams, the
  * initiatives they run, the knowledge that came out of them and the people who did them. A member's rail is this group
  * and Settings. The second is the platform's own machinery, the plugins, the runs and the audit feed, which a
- * superadmin reads across the fleet: every destination in it needs `platform:read`, so the group is there or not as a
+ * superadmin reads across the fleet: every destination in it needs `fleet:read`, so the group is there or not as a
  * whole, and its name is true whenever it is shown. The third is Settings, which belongs to the person.
  *
  * DELIBERATE: a group's name never depends on who is reading. Meridian's chrome narrows a group's items by what the
@@ -67,14 +66,14 @@ export type NavGroup = {
 export const nav: NavGroup[] = [
   {
     items: [
-      { href: '/', label: 'Overview', icon: LayoutGrid, needs: 'public' },
+      { href: '/', label: 'Overview', icon: LayoutGrid, workspace: 'main', needs: FEATURES.home.needs },
       // Teams is a platform page. A member acts as exactly one team at a time, so this renders
       // "All teams · 1 total" over a single row. What that row would have told them — their people,
       // their initiatives, their documents — is the Overview.
-      { href: '/teams', label: 'Teams', icon: Users, needs: 'platform:read' },
-      { href: '/initiatives', label: 'Initiatives', icon: ListTree, needs: 'public' },
-      { href: '/knowledge', label: 'Knowledge', icon: BookOpen, needs: 'public' },
-      { href: '/people', label: 'People', icon: UserSquare, needs: 'public' },
+      { href: '/teams', label: 'Teams', icon: Users, workspace: 'main', needs: FEATURES.teams.needs },
+      { href: '/initiatives', label: 'Initiatives', icon: ListTree, workspace: 'main', needs: FEATURES.initiatives.needs },
+      { href: '/knowledge', label: 'Knowledge', icon: BookOpen, workspace: 'main', needs: FEATURES.knowledge.needs },
+      { href: '/people', label: 'People', icon: UserSquare, workspace: 'main', needs: FEATURES.people.needs },
     ],
   },
   {
@@ -86,16 +85,16 @@ export const nav: NavGroup[] = [
       //
       // Platform machinery: a plugin is read here to evaluate or change it, which is not a
       // member's job. Runs and Activity are served by routes that answer with the whole fleet.
-      { href: '/plugins', label: 'Plugins', icon: Package, needs: 'platform:read' },
-      { href: '/runs', label: 'Runs', icon: Timer, needs: 'platform:read' },
-      { href: '/activity', label: 'Activity', icon: Activity, needs: 'platform:read' },
+      { href: '/plugins', label: 'Plugins', icon: Package, workspace: 'main', needs: FEATURES.plugins.needs },
+      { href: '/runs', label: 'Runs', icon: Timer, workspace: 'main', needs: FEATURES.runs.needs },
+      { href: '/activity', label: 'Activity', icon: Activity, workspace: 'main', needs: FEATURES.activity.needs },
     ],
   },
   {
     // No eyebrow. "You" over a single item called Settings says nothing Settings does not, and a
     // one-item group under a heading reads as though the rest of the group failed to load.
     items: [
-      { href: '/settings', label: 'Settings', icon: Settings, needs: 'public' },
+      { href: '/settings', label: 'Settings', icon: Settings, workspace: 'main', needs: FEATURES.settings.needs },
     ],
   },
 ];

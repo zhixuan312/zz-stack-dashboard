@@ -4,6 +4,7 @@ One plugin: what it is, what it reaches, its skills, and its whole evaluation st
 
 ## Structure
 
+- Gate first: the page asks for `plugins` before it renders, so a person who does not hold it is shown NoAccess and nothing on the page is read.
 - Tiles: skills, gates, calls, never run.
 - Overall fit for purpose: score, status, protocol, guardrails.
 - About and the documents it governs.

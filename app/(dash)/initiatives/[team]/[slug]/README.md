@@ -4,6 +4,7 @@ One initiative end to end: where it is in its flow, its documents, and the evide
 
 ## Structure
 
+- Gate first: the page asks for `initiatives` before it renders, so a person who does not hold it is shown NoAccess and nothing on the page is read.
 - Progress: the flow stepper, stages as circles and gates as diamonds, with the outcome on the closing node.
 - Documents: in the order the flow produces them, with approval and approver.
 - Sources: the evidence attached, in natural order.

@@ -7,6 +7,7 @@ A person's own tokens, client setup and teams, plus team and platform administra
 Sections 56px apart, each with its title and purpose on the left and its cards on the right (one column on a phone),
 at the data width like every other page.
 
+- Gate first: the page asks for `settings` before it renders, so a person who does not hold it is shown NoAccess and nothing on the page is read.
 - Console scope: one setting row, the switch on the right; applies at once. The section is drawn for
   everyone and says which of the two scopes a superadmin has the choice of — only the switch is theirs, and
   its place is held either way, so nothing below moves when `/me` lands.

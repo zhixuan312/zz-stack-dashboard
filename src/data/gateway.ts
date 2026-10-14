@@ -1,10 +1,12 @@
 /**
- * The server's read of the gateway, for the assistant: the same `/api/console/*` routes a page reads from the browser,
- * asked by this app's server as the person who asked the assistant.
+ * The server's read of the gateway: the same `/api/console/*` routes a page reads from the browser, asked by this app's
+ * server as the person whose request it is.
  *
- * Every page reads from the browser (`src/lib/api.ts`), and this module does not change that. It exists because the
- * assistant's route runs on the server: it has to know who is asking before a model is reached, and its tools look
- * records up while the reply is being written. Both ask the gateway, which is the only authority on either.
+ * Every page's data is read from the browser (`src/lib/api.ts`), and this module does not change that. It exists for
+ * the two things the server has to know for itself. One is who is asking, which a page's gate and the console's chrome
+ * settle before anything is drawn and the assistant's route settles before a model is reached (`src/data/access.ts`).
+ * The other is the assistant's tools, which look records up while the reply is being written. Both ask the gateway,
+ * which is the only authority on either.
  *
  * DELIBERATE: one credential goes upstream, and only to the gateway that issued it. In a deployment that is the
  * `zz_console` session cookie the person's own request carried, named here and copied alone: no other cookie and no
@@ -48,11 +50,15 @@ async function credential(): Promise<Record<string, string>> {
  * rather than answering one team's as the fleet's.
  */
 export async function gatewayGet<T>(path: string): Promise<T> {
+  // DELIBERATE: the request before the address. `next build` prerenders with no request and no gateway address (the
+  // image is built without one); reading the cookies is what leaves a gated page to request time, and refusing for the
+  // address first failed the build on every page. tests/gateway-read.test.ts holds the order.
+  const asCaller = await credential();
   const base = process.env.ZZ_GATEWAY?.replace(/\/+$/, '');
   if (!base) throw new GatewayError(503, 'This console has no gateway address to read from.');
   const own = path === '/me' || path === '/search' || path.startsWith('/search?');
   const scoped = own ? path : `${path}${path.includes('?') ? '&' : '?'}scope=platform`;
-  const res = await fetch(`${base}/api/console${scoped}`, { headers: { accept: 'application/json', ...(await credential()) }, cache: 'no-store' });
+  const res = await fetch(`${base}/api/console${scoped}`, { headers: { accept: 'application/json', ...asCaller }, cache: 'no-store' });
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as { error?: string } | null;
     throw new GatewayError(res.status, body?.error ?? `HTTP ${res.status}`);

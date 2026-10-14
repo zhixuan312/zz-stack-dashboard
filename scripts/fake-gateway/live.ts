@@ -48,9 +48,9 @@ const frame = (event: string, data: unknown) => `event: ${event}\ndata: ${JSON.s
 /**
  * Tell every tab following `name` that its collection changed, and return how many were reached.
  *
- * DELIBERATE, in two places, and both are where the real gateway is not this simple. There is one signed-in person
- * here and no way to revoke them mid-stream, so nothing re-authorizes before a frame — the real
- * `/api/console/live` asks the session and the scope again before every data-bearing frame, and closes the stream when
+ * DELIBERATE, in two places, and both are where the real gateway is not this simple. Nobody signed in here can be
+ * revoked mid-stream, so nothing re-authorizes before a frame — the real `/api/console/live` asks the session and
+ * the scope again before every data-bearing frame, and closes the stream when
  * the caller may no longer read what they subscribed to. And a frame is written here as soon as it is raised, where
  * the real one queues hints behind that check and collapses the queue into a single `resync` past 100 waiting: with
  * nothing to await there is nothing to queue, and a bound on a queue that never holds more than one thing would be a

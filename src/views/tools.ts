@@ -9,7 +9,7 @@
  */
 import { z } from 'zod';
 import { may, requireNeed } from '@/data/access';
-import { FEATURES, PLATFORM } from '@/data/features';
+import { FEATURES, FLEET } from '@/data/features';
 import { gatewayGet } from '@/data/gateway';
 import type {
   ActivityEvent, DocumentDetail, Initiative, InitiativeDetail, KnowledgeBody, KnowledgeLogEntry, KnowledgeNode, Me,
@@ -49,17 +49,17 @@ const file = (what: string) => z.string().regex(/^[A-Za-z0-9_][A-Za-z0-9._-]*(\/
 /** A read made now: the data's clock is the moment the gateway answered. */
 const justRead = (): Arrival => { const now = new Date(); return { updatedAt: now, now }; };
 /** Whose rows the gateway returned: every team's to a superadmin, the caller's own team's otherwise. */
-const modeOf = async (): Promise<ViewMode> => ((await may(PLATFORM)) ? 'platform' : 'team');
+const modeOf = async (): Promise<ViewMode> => ((await may(FLEET)) ? 'platform' : 'team');
 const withPeriod = (path: string, p?: string) => (p && p !== 'all' ? `${path}?period=${p}` : path);
 
 const overviewTool = defineViewTool({
   name: 'overview',
   title: 'Overview',
   description: 'How the platform is being used over a period: tool calls and their trend, how far open initiatives have got, what waits on a person, the knowledge shelf, context per run, and what refused.',
-  needs: FEATURES.overview.needs,
+  needs: FEATURES.home.needs,
   input: z.object({ period }),
   async read({ period: p = 'all' }) {
-    await requireNeed(FEATURES.overview.needs);
+    await requireNeed(FEATURES.home.needs);
     const data = await gatewayGet<Overview>(withPeriod('/overview', p));
     return { context: overviewContext(data, { period: p, mode: await modeOf(), ...justRead() }), data };
   },
@@ -174,7 +174,7 @@ const searchTool = defineViewTool({
     await requireNeed(FEATURES.knowledge.needs);
     const query = new URLSearchParams({ q, limit: String(limit), ...(initiative ? { initiative } : {}) });
     const data = await gatewayGet<SearchAnswer>(`/search?${query}`);
-    return { context: searchContext(data, { initiative, wide: await may(PLATFORM), ...justRead() }), data };
+    return { context: searchContext(data, { initiative, wide: await may(FLEET), ...justRead() }), data };
   },
 });
 

@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PeriodProvider } from '@/console/period';
 import type { DocumentDetail, Me } from '@/lib/api-shapes';
-import DocumentPage from '../app/(dash)/initiatives/[team]/[slug]/[...path]/page';
+import { DocumentView } from '@/views/pages/document';
 
 /**
  * The document page and the presentation it records, wired together.
@@ -68,7 +68,7 @@ async function renderPage(client: QueryClient) {
     <QueryClientProvider client={client}>
       <PeriodProvider>
         <Tooltip.Provider>
-          <Suspense fallback={null}><DocumentPage params={params} /></Suspense>
+          <Suspense fallback={null}><DocumentView params={params} /></Suspense>
         </Tooltip.Provider>
       </PeriodProvider>
     </QueryClientProvider>,
