@@ -240,18 +240,27 @@ type PeriodFigure = {
   window: { from: string; to: string; observedFrom: string | null; observedThrough: string | null; complete: boolean };
   figure: { value: number | null; why: string | null }; numerator: number | null; denominator: number | null;
 };
+type Need = { kind: string; title: string; detail: string; instanceCount: number; oldestAt: string | null; href: string | null; tone: string };
+type Day = { date: string; calls: number; toolFailures: number; state: string; complete: boolean };
+type Door = { door: string; days: Day[]; run: { days: number; atLeast: boolean; through: string } | null;
+              totals: { calls: number; toolFailures: number; others: number; faultDays: number; lastFaultDay: string | null };
+              finding: { kind: string; text: string } };
 type Status = {
   meta: { asOf: string; timezone: string; period: { from: string; to: string }; scope: string; population: string; coverageFrom: string | null };
-  needs: { state: string; rows: unknown[]; total: number | null; knownCount: number; unavailableKinds: string[]; overflowByKind: Json };
+  needs: { state: string; rows: Need[]; total: number | null; knownCount: number; unavailableKinds: string[];
+           overflowByKind: Record<string, number>; headline: string };
   measures: ({ key: string; weeks: PeriodFigure[]; better: string; judgement: string }
     & Record<'first' | 'best' | 'last' | 'previous' | 'highest' | 'lowest', PeriodFigure | null>)[];
-  records: Json; doors: Json; running: Json; own: { state: string; data?: unknown };
+  records: { state: string; data: { daysWithWork: number; daysUnderOnePercent: number; longestUnderOnePercent: { days: number; from: string; to: string } | null } };
+  doors: { state: string; data: Door[] };
+  running: { state: string; data: { platform: string; console: string | null; releasedAt: string; previous: string | null; migrations: number | null } };
+  own: { state: string; data?: unknown };
 };
 
 describe('GET /api/console/platform/status', () => {
-  it('answers both people the same public figure', async () => {
+  it('answers both people the same public figure, and only the member\'s needs in their own projection', async () => {
     const [ava, noah] = [await read<Status>(null, 'platform/status'), await read<Status>(MEMBER, 'platform/status')];
-    expect(noah).toEqual(ava);
+    expect({ ...noah, needs: null }).toEqual({ ...ava, needs: null });
     expect(await read<Status>(SUPERADMIN, 'platform/status?scope=platform&team=beacon')).toEqual(ava);
     expect(ava.meta.scope).toBe('platform-public');
     expect(ava.meta.population).toMatch(/real-work/);
@@ -316,12 +325,71 @@ describe('GET /api/console/platform/status', () => {
     expect([m.highest, m.lowest]).toEqual([null, null]);
   });
 
-  it('answers the parts not yet built as unavailable, never as empty', async () => {
-    const s = await read<Status>(MEMBER, 'platform/status');
-    expect(s.needs).toEqual({ state: 'unavailable', rows: [], total: null, knownCount: 0,
-                              unavailableKinds: ['bugs', 'evaluation', 'approvals', 'drift', 'door'], overflowByKind: {} });
-    for (const part of [s.records, s.doors, s.running]) expect(part).toEqual({ state: 'unavailable', reason: 'not_built' });
-    expect(Object.keys(s).sort()).toEqual(['doors', 'measures', 'meta', 'needs', 'own', 'records', 'running']);
+  it('answers what needs attention as the superadmin reads it: five rows at most, and the overflow, adding up to the total', async () => {
+    const { needs } = await read<Status>(null, 'platform/status');
+    expect(needs.state).toBe('complete');
+    expect(needs.unavailableKinds).toEqual([]);
+    expect(needs.rows.length).toBeLessThanOrEqual(5);
+    const counted = needs.rows.reduce((n, r) => n + r.instanceCount, 0) + Object.values(needs.overflowByKind).reduce((n, v) => n + v, 0);
+    expect(counted).toBe(needs.total);
+    expect(needs.knownCount).toBe(needs.total);
+    expect(needs.headline).toBe(`${needs.total} things need you`);
+    // Worst first: every critical row before every warning, and the kinds in their order within each.
+    const order = ['bugs', 'door', 'evaluation', 'approvals', 'drift'];
+    const rank = (r: Need) => (r.tone === 'critical' ? 0 : 10) + order.indexOf(r.kind);
+    expect(needs.rows.map(rank)).toEqual([...needs.rows.map(rank)].sort((a, b) => a - b));
+    // Only a team's page is released: every other row links nowhere.
+    for (const r of needs.rows) expect(r.href === null || /^\/teams\/[a-z0-9_-]+$/.test(r.href), JSON.stringify(r)).toBe(true);
+    // A fault day today is one door's need, and the door's own days say so.
+    const { doors } = await read<Status>(null, 'platform/status');
+    for (const r of needs.rows.filter((x) => x.kind === 'door')) {
+      const today = doors.data.find((d) => r.title.includes(` ${d.door} `))!.days.at(-1)!;
+      expect(['marked', 'red']).toContain(today.state);
+    }
+  });
+
+  it('answers a member what is known and open, every team\'s approvals folded into one row that names no team and links nowhere', async () => {
+    const [ava, noah] = [(await read<Status>(null, 'platform/status')).needs, (await read<Status>(MEMBER, 'platform/status')).needs];
+    expect(noah.total).toBe(ava.total);
+    expect(noah.headline).toBe(`${noah.total} things are known and open`);
+    const approvals = noah.rows.filter((r) => r.kind === 'approvals');
+    expect(approvals).toHaveLength(1);
+    expect(approvals[0].href).toBeNull();
+    expect(approvals[0].instanceCount).toBe(ava.rows.filter((r) => r.kind === 'approvals').reduce((n, r) => n + r.instanceCount, 0)
+      + (ava.overflowByKind.approvals ?? 0));
+    expect(noah.overflowByKind.approvals).toBeUndefined();
+    const counted = noah.rows.reduce((n, r) => n + r.instanceCount, 0) + Object.values(noah.overflowByKind).reduce((n, v) => n + v, 0);
+    expect(counted).toBe(noah.total);
+    for (const team of ['atlas', 'beacon']) expect(JSON.stringify(noah), team).not.toContain(team);
+  });
+
+  it('answers each door\'s days through today, its totals as their sums, its run and its finding', async () => {
+    const { doors, meta } = await read<Status>(MEMBER, 'platform/status');
+    expect(doors.state).toBe('ok');
+    expect(doors.data.map((d) => d.door)).toEqual(['core', 'manage', 'eval']);
+    for (const d of doors.data) {
+      expect(d.days[0].date, d.door).toBe(meta.coverageFrom!.slice(0, 10));
+      expect(d.days.at(-1)!.date, d.door).toBe(meta.asOf.slice(0, 10));
+      d.days.forEach((x, i) => expect(x.complete, `${d.door} ${x.date}`).toBe(i < d.days.length - 1));
+      expect(d.totals.calls).toBe(d.days.reduce((n, x) => n + x.calls, 0));
+      expect(d.totals.toolFailures).toBe(d.days.reduce((n, x) => n + x.toolFailures, 0));
+      // Fault days are complete days at 1% tool failures or more; today is shown apart, so far.
+      const faults = d.days.filter((x) => x.complete && x.toolFailures * 100 >= x.calls && x.calls > 0);
+      expect(d.totals.faultDays).toBe(faults.length);
+      expect(d.totals.lastFaultDay).toBe(faults.at(-1)?.date ?? null);
+      expect(d.finding.text).toBeTruthy();
+      if (d.run) expect(d.run.through).toBe(d.days.at(-2)!.date);
+    }
+  });
+
+  it('answers the records and what is running', async () => {
+    const { records, running } = await read<Status>(MEMBER, 'platform/status');
+    expect(records.state).toBe('ok');
+    expect(records.data.daysUnderOnePercent).toBeLessThanOrEqual(records.data.daysWithWork);
+    expect(records.data.longestUnderOnePercent!.days).toBeLessThanOrEqual(records.data.daysUnderOnePercent);
+    expect(running.state).toBe('ok');
+    expect(running.data.platform).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(Number.isNaN(Date.parse(running.data.releasedAt))).toBe(false);
   });
 
   it('answers the reader\'s own team\'s malformed calls, refusals put right, sessions and bug reports, over the measures\' weeks', async () => {

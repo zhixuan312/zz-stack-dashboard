@@ -64,11 +64,22 @@ type Needs = {
   total: number | null; knownCount: number;   // instances found by the checks that completed; equal to total when all did
   unavailableKinds: NeedKind[];
   overflowByKind: Partial<Record<NeedKind, number>>;
+  /* The sentence the page leads with, chosen by the gateway for the reader: `N things need you` (the superadmin) or
+   * `N things are known and open` (a member), `Nothing needs you` or `No known open issues` when every check found
+   * nothing, `N known issues; some checks unavailable`, or `Status checks unavailable`. */
+  headline: string;
 };
+/* One door's real-work calls by local day, from where the record begins (at most 365 days) through today, which is not
+ * complete; its totals over those days, `others` the refusals classified `other`, which the page draws beside tool
+ * failures, and fault days counted over complete days only, `lastFaultDay` null for none recorded; its run of days
+ * under 1% tool failures, null under three; and the one finding said of them. */
 type DoorObservation = {
   door: 'core' | 'manage' | 'eval';
   days: { date: string; calls: number | null; toolFailures: number | null;
     state: 'clear' | 'marked' | 'red' | 'none' | 'unavailable'; complete: boolean }[];
+  totals: { calls: number; toolFailures: number; others: number; faultDays: number; lastFaultDay: string | null };
+  run: { days: number; atLeast: boolean; through: string } | null;
+  finding: Finding;
 };
 /** `GET /platform/status`: the platform's own health, answered alike to everyone signed in. */
 export type PlatformStatus = {

@@ -43,7 +43,7 @@ import { PEOPLE, PLATFORM_PEOPLE, TEAMS, clientSetupOf, rosterOf, signedIn, team
 import { badFilter, bugReport, bugs, duplicates, resolve } from './platform-bugs.ts';
 import { evaluation } from './platform-evaluation.ts';
 import { releaseDetail, releases } from './platform-releases.ts';
-import { PLATFORM_STATUS } from './platform-status.ts';
+import { MEMBER_STATUS, PLATFORM_STATUS } from './platform-status.ts';
 import { ACTIVITY, PLUGINS, SKILLS, overview, pluginEval, runs, skillDetail, skillText } from './platform.ts';
 import { search } from './search.ts';
 import { empty, extreme } from './states.ts';
@@ -169,14 +169,15 @@ const BAD_PAGE: Answer = [400, { error: 'limit must be a whole number from 1 to 
 
 /**
  * One GET under `/api/console/platform`. Public by its route, not by a parameter: `?scope=` and `?team=` change
- * nothing, and the status is answered alike to everyone. A report and its duplicate targets are the superadmin's.
+ * nothing, and the status is answered alike to everyone but for a member's `needs`, in the gateway's member projection.
+ * A report and its duplicate targets are the superadmin's.
  */
 function platformRead(who: Me, seg: string[], q: URLSearchParams): Answer {
   const [, what, id, sub, ...more] = seg;
   const p = page(q);
   if (more.length) return missing(seg.join('/'));
   switch (what) {
-    case 'status': return id === undefined ? ok(PLATFORM_STATUS) : missing(seg.join('/'));
+    case 'status': return id === undefined ? ok(who.superadmin ? PLATFORM_STATUS : MEMBER_STATUS) : missing(seg.join('/'));
     case 'releases':
       if (sub !== undefined) return missing(seg.join('/'));
       if (id !== undefined) { const release = releaseDetail(id); return release ? ok(release) : UNKNOWN; }

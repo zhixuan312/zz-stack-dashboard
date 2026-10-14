@@ -191,8 +191,8 @@ describe('every mode answers both people', () => {
         expect(new Set(byTeam.map((r) => r.team)).size, name).toBeGreaterThan(2);
       }
     }
-    // The status is one public answer in every world.
-    const status = await Promise.all(PEOPLE.map(async ([, , cookie]) => (await ask(base, cookie, 'platform/status')).json()));
+    // The status is one public answer in every world, but for what needs attention, which a member reads in their projection.
+    const status = await Promise.all(PEOPLE.map(async ([, , cookie]) => ({ ...(await (await ask(base, cookie, 'platform/status')).json()), needs: null })));
     expect(status[1]).toEqual(status[0]);
     expect(status[2]).toEqual(status[0]);
   });

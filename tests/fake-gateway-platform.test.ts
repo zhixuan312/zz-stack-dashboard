@@ -2,7 +2,7 @@
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process';
 import fs from 'node:fs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { PLATFORM_STATUS } from '../scripts/fake-gateway/platform-status.ts';
+import { MEMBER_STATUS, PLATFORM_STATUS } from '../scripts/fake-gateway/platform-status.ts';
 import config from '../scripts/verify.config.ts';
 
 /**
@@ -374,7 +374,8 @@ describe('the fake gateway beside Platform\'s new routes', () => {
   it('leaves the status answer exactly as its fixture holds it', async () => {
     // The fixture's times are offsets from the moment its process started, so the server's and this one's differ.
     const untimed = (v: unknown) => JSON.parse(JSON.stringify(v, (_k, x) => (typeof x === 'string' && /^\d{4}-\d\d-\d\dT/.test(x) ? 'time' : x)));
-    for (const who of [null, MEMBER]) expect(untimed(await read(who, 'platform/status'))).toEqual(untimed(PLATFORM_STATUS));
+    expect(untimed(await read(null, 'platform/status'))).toEqual(untimed(PLATFORM_STATUS));
+    expect(untimed(await read(MEMBER, 'platform/status'))).toEqual(untimed(MEMBER_STATUS));
   });
 
   it('still answers 404 for a Platform route it does not have', async () => {
