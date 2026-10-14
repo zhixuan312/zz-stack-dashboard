@@ -129,7 +129,11 @@ function read(who: Me, seg: string[], q: URLSearchParams): Answer {
       return ok(search(question, limit, q.get('initiative'), who.activeTeam ?? ''));
     }
     case 'plugins':
-      if (a && b === 'eval') return ok(pluginEval(a));
+      // A plugin's evaluation is its owning team's words: the superadmin and that team alone, as the gateway answers it.
+      if (a && b === 'eval') {
+        const evaluation = pluginEval(a);
+        return who.superadmin || (evaluation.found && evaluation.ownerTeam === who.activeTeam) ? ok(evaluation) : [403, { error: 'not permitted' }];
+      }
       if (a && b === 'skills' && rest[0]) return or404(skillText(a, rest[0]), `skill ${a}/${rest[0]}`);
       return ok({ plugins: PLUGINS });
     case 'skills': return a ? or404(skillDetail(a), `skill ${a}`) : ok({ skills: SKILLS });

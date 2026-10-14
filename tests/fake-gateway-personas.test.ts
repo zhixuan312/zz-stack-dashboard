@@ -115,6 +115,12 @@ describe('who the fake gateway answers as', () => {
     }
   });
 
+  it('answers a plugin\'s evaluation to the superadmin and its owning team alone, one refusal for everything else', async () => {
+    expect((await ask(MEMBER, 'plugins/sdlc/eval')).status).toBe(200);
+    expect((await ask(MEMBER, 'plugins/no-such-plugin/eval')).status).toBe(403);
+    expect(await read<{ found: boolean }>(null, 'plugins/no-such-plugin/eval')).toMatchObject({ found: false });
+  });
+
   it('answers the superadmin with no cookie exactly what it answers their cookie', async () => {
     // The default `pnpm verify` sends no cookie, so this is what keeps its pages reading what they read.
     for (const path of ['teams', 'teams?scope=platform', 'initiatives?scope=platform', 'knowledge', 'people?scope=platform',
