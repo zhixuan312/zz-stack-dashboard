@@ -1,5 +1,5 @@
 import { gatewayGet } from '@/data/gateway';
-import type { PlatformStatus } from '@/lib/api-shapes';
+import type { PlatformStatus } from '@/lib/platform-shapes';
 import { STATUS_BOUND_MS, statusRead, type StatusRead } from '@/views/platform-status-context';
 
 /**

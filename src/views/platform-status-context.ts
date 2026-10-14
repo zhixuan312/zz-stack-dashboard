@@ -6,7 +6,7 @@
  * Only that figure is read. What else the status read carries, and the parts it marks unavailable, are not drawn and
  * not described: no verdict, no list of what needs attention, no doors.
  */
-import type { Measure, PeriodFigure, PlatformStatus } from '@/lib/api-shapes';
+import type { Measure, PeriodFigure, PlatformStatus } from '@/lib/platform-shapes';
 import { formatCount } from '@/lib/format-units';
 import { formatDate, formatDateTime, formatDay } from '@/lib/format-date';
 import type { SharedContext } from '@/lib/shared-context';

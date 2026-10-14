@@ -335,7 +335,7 @@ describe('GET /api/console/platform/status', () => {
   });
 
   it('still answers 404 for a route it does not have', async () => {
-    for (const path of ['platform', 'platform/status/extra', 'platform/releases', 'no-such-route']) {
+    for (const path of ['platform', 'platform/status/extra', 'platform/usage', 'no-such-route']) {
       for (const who of [null, MEMBER]) expect((await ask(who, path)).status, `GET ${path}`).toBe(404);
     }
   });

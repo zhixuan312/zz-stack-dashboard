@@ -28,11 +28,21 @@
  *
  * The status read, `GET /api/console/platform/status`, is the one a page makes on the console's server and gives
  * five seconds: `error` answers it 500 with its own route's sentence, and `slow` holds it six seconds, past that bound.
+ *
+ * Platform's other reads are public by their route, answered to everyone signed in from one fixture each, the
+ * superadmin's answer adding what the gateway adds and a member's derived from it by the gateway's projection:
+ * `GET /api/console/platform/releases` and `/platform/releases/:version`, `GET /api/console/platform/bugs`, and
+ * `GET /api/console/platform/evaluation`. A report, `GET /api/console/platform/bugs/:id`, its duplicate targets,
+ * `/platform/bugs/:id/duplicates`, and its resolution, `POST /api/console/platform/bugs/:id/resolve`, are the
+ * superadmin's alone: anyone else is refused 403 before anything is read, with nothing in the body that says who may.
  */
 import http from 'node:http';
 import type { Me, Overview } from '../../src/lib/api-shapes.ts';
 import { COLLECTIONS, hint, liveStreams, parseNames, serveLive } from './live.ts';
 import { PEOPLE, PLATFORM_PEOPLE, TEAMS, clientSetupOf, rosterOf, signedIn, teamDetail, teamMembers, teamsOf, tokensOf } from './people.ts';
+import { badFilter, bugReport, bugs, duplicates, resolve } from './platform-bugs.ts';
+import { evaluation } from './platform-evaluation.ts';
+import { releaseDetail, releases } from './platform-releases.ts';
 import { PLATFORM_STATUS } from './platform-status.ts';
 import { ACTIVITY, PLUGINS, SKILLS, overview, pluginEval, runs, skillDetail, skillText } from './platform.ts';
 import { search } from './search.ts';
@@ -51,6 +61,9 @@ type Answer = [status: number, body: unknown];
 const ok = (body: unknown): Answer => [200, body];
 const missing = (what: string): Answer => [404, { error: `${what} does not exist on this deployment` }];
 const or404 = (body: unknown, what: string): Answer => (body ? ok(body) : missing(what));
+/** Platform's refusals: a fixed sentence that names no role, person or team, and a 404 that echoes nothing asked. */
+const REFUSED: Answer = [403, { error: 'not permitted' }];
+const UNKNOWN: Answer = [404, null];
 
 /** The one team a member is held to; nothing for a superadmin, who may open any team's records. */
 const heldTo = (who: Me): string | null => (who.superadmin ? null : who.activeTeam);
@@ -141,8 +154,46 @@ function read(who: Me, seg: string[], q: URLSearchParams): Answer {
       }
       if (a === 'platform' && b === 'people') return who.superadmin ? ok(PLATFORM_PEOPLE) : [403, { error: 'superadmin required' }];
       return missing(`settings/${a}/${b}`);
-    // Public by its route, not by a parameter: everyone signed in is answered the same status, whatever they ask for.
-    case 'platform': return a === 'status' && b === undefined ? ok(PLATFORM_STATUS) : missing(seg.join('/'));
+    case 'platform': return platformRead(who, seg, q);
+    default: return missing(seg.join('/'));
+  }
+}
+
+/** `?limit&offset` as Platform's lists take them: 10 rows by default, at most 100, from a whole offset of 0 or more. */
+function page(q: URLSearchParams): { limit: number; offset: number } | null {
+  const limit = Number(q.get('limit') ?? 10);
+  const offset = Number(q.get('offset') ?? 0);
+  return Number.isInteger(limit) && limit >= 1 && limit <= 100 && Number.isInteger(offset) && offset >= 0 ? { limit, offset } : null;
+}
+const BAD_PAGE: Answer = [400, { error: 'limit must be a whole number from 1 to 100, and offset one from 0' }];
+
+/**
+ * One GET under `/api/console/platform`. Public by its route, not by a parameter: `?scope=` and `?team=` change
+ * nothing, and the status is answered alike to everyone. A report and its duplicate targets are the superadmin's.
+ */
+function platformRead(who: Me, seg: string[], q: URLSearchParams): Answer {
+  const [, what, id, sub, ...more] = seg;
+  const p = page(q);
+  if (more.length) return missing(seg.join('/'));
+  switch (what) {
+    case 'status': return id === undefined ? ok(PLATFORM_STATUS) : missing(seg.join('/'));
+    case 'releases':
+      if (sub !== undefined) return missing(seg.join('/'));
+      if (id !== undefined) { const release = releaseDetail(id); return release ? ok(release) : UNKNOWN; }
+      return p ? ok(releases(p.limit, p.offset)) : BAD_PAGE;
+    case 'bugs': {
+      if (sub !== undefined && sub !== 'duplicates') return missing(seg.join('/'));
+      if (id === undefined) {
+        const filter = { state: q.get('state'), impact: q.get('impact'), surface: q.get('surface') };
+        const bad = badFilter(filter);
+        if (bad) return [400, { error: bad }];
+        return p ? ok(bugs(who.superadmin, filter, p.limit, p.offset)) : BAD_PAGE;
+      }
+      if (!who.superadmin) return REFUSED;
+      const found = sub === undefined ? bugReport(id) : duplicates(id);
+      return found ? ok(found) : UNKNOWN;
+    }
+    case 'evaluation': return id === undefined ? ok(evaluation(who.superadmin)) : missing(seg.join('/'));
     default: return missing(seg.join('/'));
   }
 }
@@ -200,6 +251,13 @@ const PAGE_FEATURES = [
 /** One write under `/api/console`, as `who`. Accepted, answered in the route's own shape, and not kept. */
 function write(who: Me, seg: string[], q: URLSearchParams, method: string, body: Record<string, unknown>): Answer {
   const path = seg.join('/');
+  // `POST /api/console/platform/bugs/:id/resolve`: the superadmin's alone, refused before the report is looked for.
+  const resolving = /^platform\/bugs\/([^/]+)\/resolve$/.exec(path);
+  if (resolving && method === 'POST') {
+    if (!who.superadmin) return REFUSED;
+    const report = bugReport(resolving[1]);
+    return report ? resolve(report, body) : UNKNOWN;
+  }
   // `POST /api/console/page-view`: one committed navigation, by its feature. Nothing to say back, so no body.
   if (path === 'page-view' && method === 'POST') {
     if (typeof body.feature !== 'string' || !body.feature) return [400, { error: 'feature required — the destination that was opened' }];
@@ -335,8 +393,8 @@ const server = http.createServer((req, res) => {
     }
     else answer = write(who, seg.slice(2), url.searchParams, req.method ?? 'POST', (() => { try { return JSON.parse(raw || '{}') ?? {}; } catch { return {}; } })());
     setTimeout(() => {
-      // A 204 has no body to serialise, and a client that is sent one reads the next response wrong.
-      if (answer[0] === 204) { res.writeHead(204, { 'cache-control': 'no-store' }); res.end(); return; }
+      // A 204, or a 404 that says nothing, has no body to serialise, and a client that is sent one reads it wrong.
+      if (answer[1] === null) { res.writeHead(answer[0], { 'cache-control': 'no-store' }); res.end(); return; }
       res.writeHead(answer[0], { 'content-type': 'application/json', 'cache-control': 'no-store' });
       res.end(JSON.stringify(answer[1]));
     }, mode !== 'slow' ? 0 : status ? 6000 : 4000);

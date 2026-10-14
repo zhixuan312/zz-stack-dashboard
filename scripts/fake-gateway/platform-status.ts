@@ -13,7 +13,7 @@
  * with the real route's answer, key set by key set. So nothing here is imported through the console's path alias,
  * and the measure's `first`, `best`, `last` and `previous` are all weeks, never null: a null has no shape to compare.
  */
-import type { Measure, PeriodFigure, PlatformStatus } from '../../src/lib/api-shapes.ts';
+import type { Measure, PeriodFigure, PlatformStatus } from '../../src/lib/platform-shapes.ts';
 import { now } from './clock.ts';
 
 const DAY = 24 * 3_600_000;

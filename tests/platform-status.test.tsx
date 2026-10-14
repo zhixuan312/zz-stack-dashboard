@@ -14,7 +14,7 @@ vi.mock('@/data/gateway', () => ({ gatewayGet: gateway.get }));
 import { nav, workspaces } from '@/app.config';
 import { FEATURES } from '@/data/features';
 import { MAIN_ROLES, effective, whoCan } from '@/data/roles';
-import type { PeriodFigure } from '@/lib/api-shapes';
+import type { PeriodFigure } from '@/lib/platform-shapes';
 import { formatDateTime, formatDay } from '@/lib/format-date';
 import { contextText } from '@/lib/shared-context';
 import { PlatformStatusAsOf, PlatformStatusView } from '@/views/pages/platform-status';

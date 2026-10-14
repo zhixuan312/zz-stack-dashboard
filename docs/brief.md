@@ -30,7 +30,7 @@ from the desk, not so the product can be browsed on a train.
 ## Data
 
 A page's own content is a browser fetch to `/api/console/*` by `src/lib/api.ts`, and every write goes through
-`src/lib/mutate.ts`. The payload shapes are the gateway's, recorded in `src/lib/api-shapes.ts`. The console stores
+`src/lib/mutate.ts`. The payload shapes are the gateway's, recorded in `src/lib/api-shapes.ts` (Work) and `src/lib/platform-shapes.ts` (Platform). The console stores
 nobody's credential: the browser has a session cookie and sends it to the origin that issued it. The server reads the
 gateway as the person asking, through `src/data/gateway.ts`, for two things: `/me` once per request for every page,
 which decides whether the page may render and what the rail draws (`src/data/access.ts`), and the assistant's reads.
@@ -194,7 +194,7 @@ release's pristine template reports 39 conflicts here where the true number is 1
 
 What stays the console's own, and why:
 
-- `src/app.config.ts`, `src/nav.ts`, `src/console/`, `app/`, `src/lib/{api,mutate,api-shapes,address,format,color,knowledge-filters}.ts`
+- `src/app.config.ts`, `src/nav.ts`, `src/console/`, `app/`, `src/lib/{api,mutate,api-shapes,platform-shapes,address,format,color,knowledge-filters}.ts`
   and the rest of the data layer: the console's product, its routes and the shape the gateway answers in.
 - `src/lib/period.ts`: the 24-hour period, all time by default, and `PERIOD_SHORT`'s `24H`.
 - `src/views/console-live.tsx`: the release's team-owned live glue, adopted whole with its one product-specific part
