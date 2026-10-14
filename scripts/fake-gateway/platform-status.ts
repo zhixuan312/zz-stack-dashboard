@@ -40,12 +40,14 @@ function week(back: number, numerator: number, denominator: number): PeriodFigur
 const WEEKS = [week(5, 10, 100), week(4, 0, 0), week(3, 3, 12), week(2, 4, 200), week(1, 8, 125), week(0, 1, 5)];
 
 /** `first`, `best`, `last` and `previous` are whole weeks with thirty calls or more; fewer malformed calls is better,
- *  so the best is the lowest rate, and the last week's is above the one before it. */
+ *  so the best is the lowest rate, and the last week's is above the one before it. Three weeks are comparable and the
+ *  last is not the best, so its finding is its counts, dated by the Monday it began. */
 const MALFORMED: Measure = {
   key: 'malformed_per_1000', weeks: WEEKS,
   first: WEEKS[0], best: WEEKS[3], last: WEEKS[4], previous: WEEKS[3],
   highest: null, lowest: null,
   better: 'down', judgement: 'worsened',
+  finding: { kind: 'count', text: '8 of 125 calls refused for their shape', dates: [WEEKS[4].window.from.slice(0, 10)], tie: false },
 };
 
 const NOT_BUILT = { state: 'unavailable', reason: 'not_built' } as const;

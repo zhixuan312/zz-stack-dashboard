@@ -6,7 +6,7 @@
 /* /platform/status */
 
 /* The shapes every figure a destination draws arrives in, as the gateway writes them: one read cutoff per response,
- * every number finite, and null never meaning zero. COUPLED: the gateway's console/platform-status.ts. */
+ * every number finite, and null never meaning zero. COUPLED: the gateway's console/figures.ts and console/findings.ts. */
 export type Figure = {
   value: number | null;
   why: 'no_data' | 'insufficient' | 'unavailable' | null;   // null when the value stands
@@ -36,6 +36,13 @@ export type Measure = {
   highest: PeriodFigure | null; lowest: PeriodFigure | null;
   better: 'up' | 'down' | 'neutral';
   judgement: 'improved' | 'worsened' | 'unchanged' | 'neutral' | 'not_comparable';
+  finding: Finding | null;        // null when nothing holds: the page draws no finding
+};
+/* The one sentence a figure is said in, chosen by the gateway (console/findings.ts) so the page and the assistant say
+ * the same thing; `dates` are the local dates it names, in the read's timezone. */
+type Finding = {
+  kind: 'best_week' | 'high_week' | 'low_week' | 'run' | 'no_failure' | 'count' | 'incomplete';
+  text: string; dates: string[]; tie: boolean;
 };
 type NeedKind = 'bugs' | 'evaluation' | 'approvals' | 'drift' | 'door';
 type Need = {
