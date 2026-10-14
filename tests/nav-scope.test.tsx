@@ -1,23 +1,24 @@
 import { describe, expect, it } from 'vitest';
+import { nav } from '@/app.config';
 import { shownIn } from '@/nav';
 import { visible } from '@/views/console-chrome';
 
 /**
- * What a team member sees in the rail — the rule, not the pixels.
+ * The superadmin's team view, as a rule over what the server answered — not the pixels.
  *
- * The platform surfaces are gone in team mode, and the five a member actually works in are
- * still there. Two of the platform ones (`/plugins`, `/runs`) are served by `teamless` gateway
- * routes that answer with the whole fleet for anybody who asks.
- *
- * Asserted through the two functions the rail is drawn from, and not through a rendered rail: `shownIn` says which
- * destinations the view in force shows, and Meridian's own `visible` narrows `nav` to them, which is what the release's
- * `ConsoleRail` and `ConsolePalette` render. Mounting the rail would drag in a router and a `/me` fetch.
+ * The server says which destinations a person may open (`chromeAccess().only`); in `Your team` the browser narrows that
+ * to what a member is shown, and it can only take away. Asserted through the two functions the rail is drawn from:
+ * `shownIn` narrows the server's answer, and Meridian's own `visible` narrows `nav` to it, which is what the release's
+ * `ConsoleRail` and `ConsolePalette` render.
  */
-const groups = (mode: 'platform' | 'team') => visible(shownIn(mode));
-const hrefs = (mode: 'platform' | 'team') => groups(mode).flatMap((s) => s.items.map((i) => i.href));
+const EVERY = nav.flatMap((g) => g.items).map((i) => i.href);
+/** What the server answers a member today: every destination that does not need the fleet's grant. */
+const MEMBER = ['/', '/initiatives', '/knowledge', '/people', '/settings'];
+const groups = (mode: 'platform' | 'team', only = EVERY) => visible(shownIn(only, mode));
+const hrefs = (mode: 'platform' | 'team', only = EVERY) => groups(mode, only).flatMap((s) => s.items.map((i) => i.href));
 
 describe('the rail in team mode', () => {
-  it('hides every platform surface', () => {
+  it('hides every platform surface the server answered a superadmin', () => {
     const team = hrefs('team');
     for (const href of ['/teams', '/plugins', '/runs', '/activity']) {
       expect(team).not.toContain(href);
@@ -25,7 +26,7 @@ describe('the rail in team mode', () => {
   });
 
   it("keeps the member's own working set", () => {
-    expect(hrefs('team')).toEqual(['/', '/initiatives', '/knowledge', '/people', '/settings']);
+    expect(hrefs('team')).toEqual(MEMBER);
   });
 
   it('does not put a member\'s pages under "Platform"', () => {
@@ -47,12 +48,31 @@ describe('the rail in team mode', () => {
 });
 
 describe('the rail in platform mode', () => {
-  it('offers every surface, in the rail\'s order', () => {
+  it('offers every surface the server answered, in the rail\'s order', () => {
     expect(hrefs('platform')).toEqual([
       '/', '/teams', '/initiatives', '/knowledge', '/people',
       '/plugins', '/runs', '/activity',
       '/settings',
     ]);
+  });
+});
+
+describe('the narrowing only takes away', () => {
+  it('returns the server\'s answer as it is in platform mode', () => {
+    expect(shownIn(EVERY, 'platform')).toEqual(EVERY);
+    expect(shownIn(MEMBER, 'platform')).toEqual(MEMBER);
+  });
+
+  it('never adds a destination the server did not answer, in either mode', () => {
+    // A member who chose `platform` on a shared machine, or a stored choice that outlived a superadmin's session: the
+    // view may say platform, but what is drawn is still only what the server answered.
+    for (const mode of ['platform', 'team'] as const) {
+      expect(hrefs(mode, MEMBER)).toEqual(MEMBER);
+      const fewer = ['/', '/settings'];
+      expect(hrefs(mode, fewer)).toEqual(fewer);
+      expect(hrefs(mode, [])).toEqual([]);
+      for (const href of shownIn(MEMBER, mode)) expect(MEMBER).toContain(href);
+    }
   });
 });
 

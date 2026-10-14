@@ -9,22 +9,18 @@ import { preload } from 'react-dom';
 import type { Me } from './api-shapes';
 
 /**
- * Every read a page does.
+ * Every read a page does for its own content.
  *
- * From the browser, never from this app's server. The session cookie belongs to the person at
- * the browser; a Next server component would have to take it out of the incoming request and
- * replay it upstream, which is the "a proxy forwards the caller's credentials" shape the
- * platform forbids and has a check for. Fetching from the client means no page of this app holds
- * anybody's credential: the browser has a cookie, it sends it to the origin that issued it,
- * and for its pages this app is a renderer.
- *
- * The one read this app's server does make is the assistant's, in `src/data/gateway.ts`, and that
- * module says what it sends and why; nothing here goes through it.
+ * From the browser. The session cookie belongs to the person at the browser, and it sends it to the origin that issued
+ * it. The console's server makes one read of its own for every page, `/me` as the caller, to decide whether the page
+ * may render and which destinations the rail draws (`src/data/access.ts`, through `src/data/gateway.ts`, which says what
+ * it sends and why), and the assistant's route reads through the same module. A page's own content is still read here,
+ * in the browser: nothing in this file goes through that module.
  *
  * Which is why the path is relative. `/api/console/...` resolves against whatever host the page
  * was served from, and Caddy routes that path on the console host to the gateway — no base URL,
- * no CORS, no preflight. In local development there is no gateway behind that path and every
- * call fails with a connection error; the console has no offline mode.
+ * no CORS, no preflight. On a laptop `next.config.ts` routes it to the gateway in `ZZ_GATEWAY`, the
+ * same address the server reads `/me` from; the console has no offline mode.
  */
 const BASE = '/api/console';
 
@@ -208,7 +204,7 @@ export function ConsoleModeProvider({ children }: { children: ReactNode }) {
  * a later navigation is not hydrating, so it reads `true` from its first render and waits for nothing.
  */
 const neverChanges = () => () => {};
-export function useHydrated(): boolean {
+function useHydrated(): boolean {
   return useSyncExternalStore(neverChanges, () => true, () => false);
 }
 

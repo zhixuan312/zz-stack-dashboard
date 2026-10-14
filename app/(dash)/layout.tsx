@@ -1,13 +1,15 @@
 import { connection } from 'next/server';
 import { Suspense, type ReactNode } from 'react';
 import { AppShell } from '@/components/base/shell';
-import { ConsolePalette, ConsoleRail, ConsoleTools, ShellPending } from '@/console/frame';
-import { ConsoleGate } from '@/console/gate';
+import { ConsoleTools, ShellPending } from '@/console/frame';
+import { chromeAccess } from '@/data/access';
 import { assistantConfig } from '@/lib/assistant/config';
 import { ConsoleLive } from '@/views/console-live';
+import { WorkspacePalette, WorkspaceRail } from '@/views/workspace-chrome';
 
 /**
- * Every console page: the rail on the frame, the page on the canvas, the sign-in gate in front of the page.
+ * Every console page: the rail on the frame, the page on the canvas. The sign-in gate is each page's own first
+ * statement (`gate` in `src/data/access.ts`), so nothing here decides whether a page may render.
  *
  * A Server Component, and `AppShell` is rendered here rather than inside a client frame. That is what keeps the shell
  * out of the client render: rendered from a Client Component, the shell's own `usePathname` is a dynamic client hook
@@ -28,21 +30,26 @@ export default function DashLayout({ children }: { children: ReactNode }) {
   // hands the shell a promise instead of awaiting it, so the request never blocks the frame: the shell streams in the
   // static chrome and the launcher resolves behind its own boundary.
   const assistant = connection().then(() => assistantConfig(process.env) !== null);
+  // The rail's destinations and the signed-in person, one promise for both pieces of chrome: not awaited, so the frame
+  // is still the first thing streamed, and the same request-scoped read of `/me` the page's gate makes. An identity
+  // nobody can resolve, or a gateway that cannot be reached, settles on null, which the chrome draws as the placeholder
+  // person and no destination; the page's own gate is what answers it.
+  const access = chromeAccess().catch(() => null);
   return (
     <Suspense fallback={<ShellPending />}>
       <AppShell
         assistant={assistant}
-        rail={<ConsoleRail />}
+        rail={<WorkspaceRail access={access} />}
         tools={<ConsoleTools />}
       >
         <ConsoleLive>
-          {/* No boundary of its own around the page: `loading.tsx` beside this file already gives the segment its
+          {/* No boundary of its own around the page: `loading.tsx` beside each page already gives the segment its
               streamed fallback, and a second one with `fallback={null}` put the page in a boundary whose server HTML and
               client hydration disagreed — React threw its hydration-mismatch error on /settings at every width and in
               both themes. */}
-          <ConsoleGate>{children}</ConsoleGate>
+          {children}
         </ConsoleLive>
-        <ConsolePalette />
+        <WorkspacePalette access={access} />
       </AppShell>
     </Suspense>
   );

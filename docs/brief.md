@@ -29,11 +29,13 @@ from the desk, not so the product can be browsed on a train.
 
 ## Data
 
-Every read is a browser fetch to `/api/console/*` by `src/lib/api.ts`, and every write goes through `src/lib/mutate.ts`.
-The payload shapes are the gateway's, recorded in `src/lib/api-shapes.ts`. The console stores nobody's credential: the
-browser has a session cookie, sends it to the origin that issued it, and for every page this app is a renderer. The
-one server-side read is the assistant's (`src/data/gateway.ts`), made as the person asking. Caddy routes
-`/api/console` on the console's own host to the gateway, so the page and its API are one origin.
+A page's own content is a browser fetch to `/api/console/*` by `src/lib/api.ts`, and every write goes through
+`src/lib/mutate.ts`. The payload shapes are the gateway's, recorded in `src/lib/api-shapes.ts`. The console stores
+nobody's credential: the browser has a session cookie and sends it to the origin that issued it. The server reads the
+gateway as the person asking, through `src/data/gateway.ts`, for two things: `/me` once per request for every page,
+which decides whether the page may render and what the rail draws (`src/data/access.ts`), and the assistant's reads.
+So `ZZ_GATEWAY` is required for every page. Caddy routes `/api/console` on the console's own host to the gateway, so
+the page and its API are one origin.
 
 Freshness means when the data arrived in this browser, not when the page rendered. `freshnessOf` in `src/lib/api.ts`
 reads the oldest arrival time among a page's queries, and `useDataClock` reads it for a component that holds no query of
@@ -54,8 +56,8 @@ a time or `sources/2026-10-06-call.md` arrives as a single segment named after i
   292, chroma 0.18, at least 70° from every status hue so an accent fill never reads as a state. The name is what
   Meridian's hue-and-chroma path calls it, which is what makes the brand reproducible from a release.
 - **Scope in the workspace menu.** A superadmin switches between the whole platform and their own team from the rail's
-  workspace menu and in Settings. The rail drops the platform-only pages in team mode, from `nav` in `src/app.config.ts`
-  narrowed by `src/nav.ts`.
+  workspace menu and in Settings. In team mode the rail and the palette drop the platform-only pages: `src/nav.ts`
+  narrows the destinations the server answered, in the browser, so the choice can hide a destination and never add one.
 - **The bell lists waiting gates.** Every gate document written and not approved, on an open initiative, or a closed
   initiative's correction awaiting approval, with a link to the initiative.
 - **The console's own rules, kept inside Meridian.** Tables read left in the first column, right in the last and centred
@@ -70,10 +72,11 @@ a time or `sources/2026-10-06-call.md` arrives as a single segment named after i
   presence may not depend on what `/me` says; the sentence says which of the two people has the choice, and the row holds
   the height it would have either way.
 - **Cache Components is on, and every route is partial.** `cacheComponents` and `partialPrefetching` are set in
-  `next.config.ts`, and `scripts/route-policy.ts` reads 2 static and 22 partial of 24 non-API routes. It is the
-  boundaries that make it work, not a server data layer: `app/(dash)/layout.tsx` is a Server Component rendering the
-  shell, and the rail, the tools and the palette each resolve their own reads behind their own `<Suspense>` with a
-  skeleton fallback. A route that fails with `CLIENT_HOOK_DYNAMIC` is asking for a boundary, and a page gets smaller
+  `next.config.ts`, and `scripts/route-policy.ts` reads 2 static and 21 partial of 23 non-API routes. Every page asks
+  `gate` on the server first, inside the boundary its own `loading.tsx` gives it, so a page's static shell is the frame
+  and its loading page, and the page streams in once the gate has passed. `app/(dash)/layout.tsx` is a Server Component
+  rendering the shell, and the rail, the tools and the palette each resolve what they need behind their own
+  `<Suspense>` with a skeleton fallback. A route that fails with `CLIENT_HOOK_DYNAMIC` is asking for a boundary, and a page gets smaller
   for it — `/initiatives` serves 38 KiB of HTML where it served 65.
 - **Live data: the release's `ConsoleLive`, with React Query where the release refreshes the router.** One stream per
   tab carries hints naming a collection and never data, and the tab reads that collection again. The release's
@@ -102,12 +105,13 @@ a time or `sources/2026-10-06-call.md` arrives as a single segment named after i
   variables are set, read per request. Every change in this console stays on its page, by the person: no collection
   gives an agent a tool that writes, and what a page does is declared `pageOnly` so the assistant says where it is
   done. Approval above all: a document is approved by a member who was shown that exact snapshot, never by an agent.
-- **The assistant's route is the one place this app's server reads the gateway, and it reads as the person.** The route
-  has to know who is asking before a model is reached, and its tools look records up while a reply is written, so
-  `src/data/gateway.ts` sends the caller's own `zz_console` cookie, that cookie alone, to the gateway that issued it,
-  and asks for the platform scope on every read but `/me` and `/search`, which the gateway grants only to a superadmin.
-  Pages still read from the browser. This is the "server replays the caller's cookie" shape the console avoided while it was only a renderer;
-  it was taken on deliberately for the assistant on 2026-10-12, bounded to that module, and it stores nothing.
+- **This app's server reads the gateway as the person, in one module.** Every page's gate and the chrome read `/me`
+  once per request, and the assistant's route has to know who is asking before a model is reached while its tools look
+  records up as a reply is written. `src/data/gateway.ts` sends the caller's own `zz_console` cookie, that cookie
+  alone, to the gateway that issued it, and asks for the platform scope on every read but `/me` and `/search`, which
+  the gateway grants only to a superadmin. A page's own content is still read from the browser. This is the "server
+  replays the caller's cookie" shape the console avoided while it was only a renderer; it was taken on for the
+  assistant on 2026-10-12 and for every page's gate on 2026-10-14, bounded to that module, and it stores nothing.
 - **The assistant reads what documents say through the platform's own search.** `view_search` asks `GET /search`,
   which is zz-core's `knowledge_search` run as the person: the text of every document and knowledge node of the team
   they act for, and of the platform's shared shelf, ranked, each result a matched excerpt with the address of the page
@@ -116,13 +120,12 @@ a time or `sources/2026-10-06-call.md` arrives as a single segment named after i
   context is held to a view's 2,400 characters by sharing the room between results, and it takes no platform scope:
   the gateway refuses one team's search asked for as the fleet's. Set on 2026-10-12, when the Ask tab went: the
   answer the gateway used to write is the assistant's to write, over the same retrieval.
-- **The chrome is the release's, told who is signed in from the browser.** The rail and the command palette are
-  Meridian's `ConsoleRail` and `ConsolePalette` (`src/views/console-chrome.tsx`), unchanged. They take who is signed
-  in as a promise; Meridian's layout makes that promise on the server, and this console makes it in the browser
-  (`src/console/frame.tsx`), because which view is in force, the platform or the person's team, is a choice the
-  browser holds, and `/me` is read there like every page's data. Two things in that file wait on the release:
-  `viewAs` is left out through a narrowing because 0.14.1 declares it required (zz-meridian#23), and the pending
-  rail is drawn twice because the release does not export its own (zz-meridian#24).
+- **The chrome is the release's, drawn from the server's answer.** The rail and the command palette are Meridian's
+  `ConsoleRail` and `ConsolePalette` (`src/views/console-chrome.tsx`), unchanged, given the workspace the address is in
+  by `src/views/workspace-chrome.tsx`, the release's adapter. The layout hands both one promise, `chromeAccess()`, made
+  on the server and not awaited: the destinations the person may open and who they are, from the same request's read of
+  `/me`. An identity nobody can resolve settles on `null`, and the chrome names nobody. The browser adds one thing: the
+  superadmin's team view narrows that answer, and can only take away.
 - **The rail is grouped by who reads a page, so a group's name is true for everybody.** The work, its knowledge and its
   people first; then "Platform", the plugins, runs and audit feed only a superadmin reads; then Settings. Meridian's
   chrome narrows a group's items and keeps its label, so a group that mixed a member's pages with the fleet's would
@@ -208,8 +211,9 @@ What stays the console's own, and why:
   them, `flush` where the card holds a table. The console's own `SettingsSection` stood in for it until the release
   had that variant (zz-meridian#5) and is gone; a one-time token or enrolment link is shown at the top of the card it
   belongs to.
-- `proxy.ts`: the laptop's dev-only PAT passthrough, plus one addition this product made — a preload hint for a
-  document route's read. A route with an unknown dynamic param cannot render its page on the server, so nothing writes
+- `proxy.ts`: the address every page request asked for, which the gate sends a signed-out person back to after sign-in,
+  and the laptop's dev-only PAT passthrough, plus one addition this product made — a preload hint for a document
+  route's read. A route with an unknown dynamic param cannot render its page on the server, so nothing writes
   the hint `useConsole` was designed to write from the HTML, and the read then waits for the route's own JS. Measured:
   2,180 ms to 164 ms.
 - `scripts/fake-gateway/`, `scripts/approve-banners.ts` and `scripts/live-check.ts`: the fixture and the product's own

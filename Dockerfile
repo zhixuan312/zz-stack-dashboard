@@ -7,14 +7,14 @@
 # A standalone Next build: `output: 'standalone'` traces the modules the server reaches and
 # copies just those, so the final stage has no node_modules.
 #
-# For its pages it holds no secret and talks to nothing. Every read happens in the browser, against
-# /api/console on the same origin with the person's own cookie; this container serves HTML and
-# JavaScript and has no database URL and no token.
+# It holds no secret and no database URL. For every page its server reads the gateway once, as the person:
+# /me, with the caller's own session cookie, at the address in ZZ_GATEWAY, which the container's environment
+# must carry (docker-compose.yml requires it). A page's own content is read in the browser, against
+# /api/console on the same origin.
 #
-# The assistant is the one exception, and only where a deployment sets it up: with the ASSISTANT_*
-# variables and ZZ_GATEWAY in the container's environment, /api/assistant reads the gateway as the
-# person asking and calls the model provider. None of them is in the image; without them the
-# route answers 404 and the container is the renderer described above.
+# The assistant is off unless a deployment sets the ASSISTANT_* variables: /api/assistant then reads the
+# gateway as the person asking and calls the model provider. None of them is in the image; without them the
+# route answers 404.
 FROM node:24-alpine AS build
 WORKDIR /app
 RUN corepack enable

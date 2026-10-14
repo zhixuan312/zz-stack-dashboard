@@ -1,8 +1,10 @@
 import type { NextConfig } from 'next';
 
 /**
- * Local development only, and opt-in: the rewrite below does not exist unless `ZZ_GATEWAY`
- * is set, via `.env.local`.
+ * `ZZ_GATEWAY` is the address this app's server reads the gateway at, and every page needs it:
+ * a page's gate asks it who is calling before the page renders (`src/data/gateway.ts`). Where it
+ * is set when Next loads this file (a laptop's `.env.local`, or verify's fake gateway), the
+ * rewrite below also routes the browser's own reads to it; the image is built without it.
  *
  * DELIBERATE: the console calls `/api/console/...` as a relative path. In production Caddy
  * routes that path on the console's own host to the gateway, so the page and its API are one

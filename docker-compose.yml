@@ -17,19 +17,18 @@ services:
     image: ghcr.io/zhixuan312/zz-stack-dashboard:${ZZ_DASHBOARD_VERSION:-0.27.0}
     restart: unless-stopped
     ports: ["127.0.0.1:3100:3000"]
-    # For its pages the app needs no environment: it resolves its API against the page's own origin.
-    #
-    # The assistant is the one thing configured here, and it is off unless the host sets it: the four ASSISTANT_*
-    # variables, and ZZ_GATEWAY, the address this app's server reaches the gateway at to ask who is calling. Each
-    # passes through from the host's own .env beside this file and defaults to empty, which the app reads as unset, so
-    # a host with none of them runs the renderer and nothing else. No value is written in this file, and the key is
-    # never in the image.
-    #
+    # Every page needs ZZ_GATEWAY: before a page renders, this app's server asks the gateway who is calling (`/me`),
+    # sending the caller's own session cookie and storing nothing. It is required here, so compose refuses to start a
+    # console that has none: a console without it would open no page, each one saying it cannot reach the platform.
     # ZZ_GATEWAY on this host is the gateway's public address (the api. host in zz-stack's Caddyfile): the gateway is
     # published on the host's loopback, which a container on its own bridge network cannot reach.
+    #
+    # The assistant is off unless the host sets the four ASSISTANT_* variables. Each passes through from the host's own
+    # .env beside this file and defaults to empty, which the app reads as unset. No value is written in this file, and
+    # the key is never in the image.
     environment:
       - ASSISTANT_PROVIDER=${ASSISTANT_PROVIDER:-}
       - ASSISTANT_API_KEY=${ASSISTANT_API_KEY:-}
       - ASSISTANT_MODEL=${ASSISTANT_MODEL:-}
       - ASSISTANT_BASE_URL=${ASSISTANT_BASE_URL:-}
-      - ZZ_GATEWAY=${ZZ_GATEWAY:-}
+      - ZZ_GATEWAY=${ZZ_GATEWAY:?set ZZ_GATEWAY in the .env beside this file to the gateway's public address, https://api.<host>; without it no console page opens}

@@ -1,19 +1,33 @@
 'use client';
 
 import { useEffect } from 'react';
+import { RotateCw } from 'lucide-react';
 import { PageFrame } from '@/components/base/shell';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 
-/** A page that threw while rendering: what failed, the reference to quote, and Retry. The rail stays. */
-export default function DashError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+/**
+ * A page that threw, in place of the page and inside the shell, so the rail stays: what failed, the reference to quote,
+ * and Retry, which asks the server again rather than redrawing what failed.
+ *
+ * An error from the server carries a digest, and the one thing a page asks the server before it renders is its gate's
+ * read of `/me`: so a digest is the console failing to reach the platform. One without a digest was thrown while the
+ * page drew in this browser.
+ */
+export default function DashError({ error, retry }: { error: Error & { digest?: string }; retry: () => void }) {
   useEffect(() => {
     console.error(error);
   }, [error]);
+  const server = error.digest !== undefined;
   return (
-    <PageFrame title="Something went wrong">
-      <EmptyState kind="error" title="This page failed to render" className="py-16" action={<Button variant="primary" onClick={reset}>Try again</Button>}>
-        {error.digest ? `Reference ${error.digest}; quote it if you report this.` : 'The error was logged to the browser console.'}
+    <PageFrame title={server ? 'The console cannot reach the platform' : 'This page failed to render'}>
+      <EmptyState
+        kind="error"
+        title={server ? 'Nothing on this page was read' : 'Something went wrong while it was drawn'}
+        className="py-16"
+        action={<Button variant="primary" icon={<RotateCw />} onClick={retry}>Retry</Button>}
+      >
+        {server ? `Retrying usually works. Reference ${error.digest}; quote it if you report this.` : 'The error was logged to the browser console.'}
       </EmptyState>
     </PageFrame>
   );

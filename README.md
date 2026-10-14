@@ -20,18 +20,24 @@ tokens rather than inventing a second look.
       │ /api/console/* │
       ▼                ▼
    zz-stack gateway   this app
-   (session, data)    (HTML and JS, nothing else)
+   (session, data)    (HTML and JS, and one read of who is asking)
 ```
 
-**For every page, this app holds no credential and calls nothing.** Every read happens in
-the browser against `/api/console` on the same origin, carrying the person's own HttpOnly
-session cookie, so for its pages this container is a renderer and nothing more.
-
-**The assistant is the one exception, and it is off until it is configured.** Its route
-runs on this app's server, has to know who is asking before a model is reached, and looks
-records up while it writes a reply. So `src/data/gateway.ts` sends the caller's own
+**For every page, this app's server makes one read, and makes it as the person.** Before a
+page renders, its gate asks the gateway `/me` (`gate` in `src/data/access.ts`), and that one
+answer, read once per request, decides whether the page may render and which destinations
+the rail and the command palette draw. `src/data/gateway.ts` sends the caller's own
 `zz_console` cookie, that cookie alone, to the gateway that issued it, and stores nothing.
-See [The assistant](#the-assistant).
+A page's own content is still read in the browser, against `/api/console` on the same
+origin, carrying the person's own HttpOnly session cookie.
+
+**So `ZZ_GATEWAY` is required for every page.** It is the address this app's server reads
+the gateway at. Without it no page opens: each one says the console cannot reach the
+platform, and offers a retry.
+
+**The assistant reads through the same module, and it is off until it is configured.** Its
+route has to know who is asking before a model is reached, and looks records up while it
+writes a reply, as the person. See [The assistant](#the-assistant).
 
 Same origin is what makes that work: the cookie is a plain first-party cookie, so there
 is no CORS, no preflight and no third-party-cookie behaviour to design around.
@@ -83,15 +89,17 @@ pnpm install
 pnpm dev          # http://localhost:3000
 ```
 
-Locally there is no gateway behind `/api/console`, so every page shows the error the
-fetch actually produced. That is deliberate: the console has no offline mode, and
-fixtures that drift from the real API are worse than an honest failure.
+Locally there is no gateway to ask who is signing in, so every page says the console cannot
+reach the platform. That is deliberate: the console has no offline mode, and fixtures that
+drift from the real API are worse than an honest failure. `pnpm verify` runs it against the
+fake gateway instead (`scripts/fake-gateway/`).
 
 ### Against real data
 
-Set `ZZ_GATEWAY` and `next dev` routes `/api/console/*` and `/auth/*` to that gateway —
-the same split Caddy performs in production, in the one place a laptop has to do it
-itself. Unset, there is no rewrite and a local call fails exactly as described above.
+Set `ZZ_GATEWAY` and the server asks that gateway who is signing in for every page, and
+`next dev` routes `/api/console/*` and `/auth/*` to it — the same split Caddy performs in
+production, in the one place a laptop has to do it itself. Unset, no page opens, exactly as
+described above.
 
 ```sh
 echo 'ZZ_GATEWAY=https://api.<your-host>' >> .env.local
@@ -127,8 +135,9 @@ A dev-PAT session reads everything a browser session reads but is **not offered 
 approval rests on a presentation the person's own console session recorded (`x-zz-via: session`),
 and a PAT is not a console session. Approve from a real browser sign-in.
 
-The proxy is inert unless `ZZ_DEV_PAT` is set, and returns immediately when
-`NODE_ENV === 'production'`. It forwards a credential and neither mints nor stores one.
+The token is attached only when `ZZ_DEV_PAT` is set, and never when
+`NODE_ENV === 'production'`; the server's own read of `/me` (`src/data/gateway.ts`) sends the
+same token under the same guard. It forwards a credential and neither mints nor stores one.
 `.env.local` is gitignored; keep it `chmod 600` and treat the value as the live credential
 it is.
 
@@ -200,9 +209,10 @@ A panel in the shell that reads the page a person is on, answers about it from t
 platform's own records, and changes nothing. It is Meridian's assistant, mounted the way
 Meridian's guide describes; `docs/brief.md` records what this console decided about it.
 
-It is off until four variables are set, read from the environment on every request, so one
-build serves both. With none set there is no launcher, no panel and no Ask, and
-`POST /api/assistant` answers 404. `.env.example` lists them.
+It is off until the four `ASSISTANT_*` variables are set, read from the environment on every
+request, so one build serves both. With none set there is no launcher, no panel and no Ask,
+and `POST /api/assistant` answers 404. It also reads through `ZZ_GATEWAY`, which every page
+already needs. `.env.example` lists them.
 
 | Variable | Meaning |
 |---|---|
@@ -210,7 +220,7 @@ build serves both. With none set there is no launcher, no panel and no Ask, and
 | `ASSISTANT_API_KEY` | The provider's key. It never reaches the browser |
 | `ASSISTANT_MODEL` | The model's id, exactly as the provider lists it. It must be able to call tools |
 | `ASSISTANT_BASE_URL` | The provider's address. Required for `openai-compatible` |
-| `ZZ_GATEWAY` | Where this app's server reaches the gateway. The route asks it who is calling and reads from it as that person |
+| `ZZ_GATEWAY` | Where this app's server reaches the gateway. Required for every page, not only the assistant: see [How it fits together](#how-it-fits-together) |
 
 What it reads:
 
@@ -254,6 +264,10 @@ docker compose up -d          # pulls ghcr.io/zhixuan312/zz-stack-dashboard:<lit
 
 Binds to `127.0.0.1:3100`. Caddy on the host is the only way in and is what splits the
 path — see the site block in zz-stack's `deploy/Caddyfile`.
+
+`ZZ_GATEWAY` must be set in the `.env` beside the compose file, to the gateway's public
+address (`https://api.<host>`): the gateway is published on the host's loopback, which the
+console's container cannot reach. Compose refuses to start the console without it.
 
 To run the container from this checkout instead of the published image:
 

@@ -2,17 +2,16 @@ import { nav } from '@/app.config';
 import { FLEET } from '@/data/features';
 import type { ConsoleMode } from '@/lib/api';
 
+const needOf = new Map(nav.flatMap((group) => group.items).map((item) => [item.href, item.needs]));
+
 /**
- * The destinations the view in force shows, as hrefs: what Meridian's chrome narrows `nav` by (`visible` in
- * `src/views/console-chrome.tsx`), for the rail and the command palette alike.
+ * The superadmin's team view, applied in the browser to the destinations the server answered (`chromeAccess().only`):
+ * the platform view keeps them all, and the team view leaves out every one that needs the fleet's grant, which is what
+ * a member is shown. It only ever removes: a destination the server did not answer is never added back.
  *
- * The platform view shows every destination. The team view is what a member sees: every destination that needs the
- * fleet's grant is left out. A pure function over the config, so which routes a member is offered is a question a test
- * can ask directly.
- *
- * This decides what is drawn, never what may be read: the gateway scopes every read by the caller, whatever the rail
- * shows.
+ * This decides what is drawn, never what may be read: each page carries its own gate, and the gateway scopes every
+ * read by the caller, whatever the rail shows.
  */
-export function shownIn(mode: ConsoleMode): string[] {
-  return nav.flatMap((group) => group.items).filter((item) => mode === 'platform' || item.needs !== FLEET).map((item) => item.href);
+export function shownIn(only: string[], mode: ConsoleMode): string[] {
+  return mode === 'platform' ? only : only.filter((href) => needOf.get(href) !== FLEET);
 }
