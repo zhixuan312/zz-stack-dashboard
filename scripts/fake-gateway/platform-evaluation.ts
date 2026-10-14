@@ -28,14 +28,14 @@ const CORE: Protocol = { key: 'core-door-reliability', version: 1 };
 const EVAL: Protocol = { key: 'eval-scoring-honesty', version: 1 };
 const RECORDED = 'the surface recorded at that version';
 
-/** Oldest first within each plugin. */
+/** Oldest first within each plugin. A score is out of 10, as `eval_run.overall_score` records it. */
 const RUNS: Run[] = [
-  { plugin: 'sdlc', protocol: SDLC_V1, population: RECORDED, hoursAgo: 640, score: 0.58, lower: 0.49, upper: 0.66, standing: 'provisional', guardrails: 'pass' },
-  { plugin: 'sdlc', protocol: SDLC_V2, population: RECORDED, hoursAgo: 330, score: 0.64, lower: 0.57, upper: 0.71, standing: 'established', guardrails: 'pass' },
-  { plugin: 'sdlc', protocol: SDLC_V2, population: RECORDED, hoursAgo: 70, score: 0.71, lower: 0.65, upper: 0.77, standing: 'established', guardrails: 'pass' },
-  { plugin: 'zz-core', protocol: CORE, population: "the nearest recorded version's surface", hoursAgo: 500, score: 0.82, lower: 0.78, upper: 0.86, standing: 'established', guardrails: 'pass' },
-  { plugin: 'zz-core', protocol: CORE, population: RECORDED, hoursAgo: 90, score: 0.79, lower: 0.74, upper: 0.84, standing: 'established', guardrails: 'fail' },
-  { plugin: 'zz-plugin-eval', protocol: EVAL, population: 'no door of its own', hoursAgo: 420, score: 0.47, lower: 0.31, upper: 0.63, standing: 'provisional', guardrails: 'pass' },
+  { plugin: 'sdlc', protocol: SDLC_V1, population: RECORDED, hoursAgo: 640, score: 5.8, lower: 4.9, upper: 6.6, standing: 'provisional', guardrails: 'pass' },
+  { plugin: 'sdlc', protocol: SDLC_V2, population: RECORDED, hoursAgo: 330, score: 6.4, lower: 5.7, upper: 7.1, standing: 'established', guardrails: 'pass' },
+  { plugin: 'sdlc', protocol: SDLC_V2, population: RECORDED, hoursAgo: 70, score: 7.1, lower: 6.5, upper: 7.7, standing: 'established', guardrails: 'pass' },
+  { plugin: 'zz-core', protocol: CORE, population: "the nearest recorded version's surface", hoursAgo: 500, score: 8.2, lower: 7.8, upper: 8.6, standing: 'established', guardrails: 'pass' },
+  { plugin: 'zz-core', protocol: CORE, population: RECORDED, hoursAgo: 90, score: 7.9, lower: 7.4, upper: 8.4, standing: 'established', guardrails: 'fail' },
+  { plugin: 'zz-plugin-eval', protocol: EVAL, population: 'no door of its own', hoursAgo: 420, score: 4.7, lower: 3.1, upper: 6.3, standing: 'provisional', guardrails: 'pass' },
   { plugin: 'zz-plugin-eval', protocol: EVAL, population: 'no door of its own', hoursAgo: 150, score: null, lower: null, upper: null, standing: 'not_established', guardrails: 'not_established' },
 ];
 
@@ -96,7 +96,9 @@ export function evaluation(admin: boolean): Evaluation {
       return { plugin: p, series, statement };
     }) },
     byDecision: { state: 'ok', data: { applied: tally('applied'), rejected: tally('rejected'), deferred: tally('deferred') } },
-    byOwner: { state: 'ok', data: Object.fromEntries([...new Set(decided.map((f) => f.owner))].map((o) => [o, decided.filter((f) => f.owner === o).length])) },
+    // Most findings first, then by name, as the gateway orders them.
+    byOwner: { state: 'ok', data: Object.fromEntries([...new Set(decided.map((f) => f.owner))].sort()
+      .map((o) => [o, decided.filter((f) => f.owner === o).length] as const).sort((a, b) => b[1] - a[1])) },
     waiting: { state: 'ok', data: { total: waiting.length, rows: waiting.map((f): SafeFinding => ({
       id: f.id, plugin: f.plugin, kind: f.kind as SafeFinding['kind'], owner: f.owner, measure: admin ? f.measure : null,
       waitingSince: ago(f.hoursAgo), summary: summary(f), ...(admin ? { pattern: f.pattern } : {}),

@@ -72,9 +72,9 @@ function side(self: Seed, from: number, to: number, counts: Counts): ReleaseRow[
     window: { from: iso(from), to: iso(to), observedFrom: iso(observedFrom), observedThrough: iso(observedThrough),
       complete: observedFrom === from && observedThrough === to },
     calls: stands(counts.calls), malformed: stands(counts.malformed), toolFailures: stands(counts.toolFailures),
-    // No calls is no rate and no latency, never a zero.
+    // No calls is no rate and no latency, never a zero; under thirty calls, either keeps its value as insufficient.
     malformedPer1000: counts.calls === 0 ? none : { value: (1000 * counts.malformed) / counts.calls, why: counts.calls < 30 ? 'insufficient' : null },
-    p95Ms: counts.calls === 0 || counts.p95Ms === null ? none : stands(counts.p95Ms),
+    p95Ms: counts.calls === 0 || counts.p95Ms === null ? none : { value: counts.p95Ms, why: counts.calls < 30 ? 'insufficient' : null },
     overlappingVersions,
   };
 }
@@ -95,7 +95,7 @@ export function releases(limit: number, offset: number): Releases {
   const rows = RELEASES.map(({ changelog: _c, upgradeNotes: _u, ...row }): ReleaseRow => row);
   const malformed = PLATFORM_STATUS.measures.find((m) => m.key === 'malformed_per_1000')!;
   return {
-    meta: { ...PLATFORM_STATUS.meta, asOf, period: { from: iso(COVERAGE), to: asOf } },
+    meta: { ...PLATFORM_STATUS.meta, asOf, period: { from: iso(COVERAGE), to: asOf }, population: 'recorded releases, and real-work tool calls around them' },
     tiles: {
       releases: rows.length,
       lastWeek: rows.filter((r) => now() - Date.parse(r.releasedAt) < 7 * 24 * HOUR).length,
