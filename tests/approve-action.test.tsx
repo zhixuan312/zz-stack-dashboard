@@ -213,7 +213,7 @@ describe('ApproveAction', () => {
     const user = userEvent.setup();
     renderWithClient(<ApproveAction doc={doc} me={me} shown={recorded} onStale={() => {}}  onReload={() => {}}/>);
     await user.click(screen.getByRole('button', { name: 'Approve' }));
-    expect(screen.getByText('Approve this document?')).toBeInTheDocument();
+    expect(screen.getByText('Approve this document as your own decision?')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Confirm' })).toBeInTheDocument();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });

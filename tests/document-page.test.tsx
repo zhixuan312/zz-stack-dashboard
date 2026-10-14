@@ -13,7 +13,7 @@ import { DocumentView } from '@/views/pages/document';
  * The document page and the presentation it records, wired together.
  *
  * A read can refetch on its own (window focus, another write's invalidation), and a refetch can bring a newer
- * snapshot of the document while the reader has "Approve this document?" open. Confirm must never sign that newer
+ * snapshot of the document while the reader has "Approve this document as your own decision?" open. Confirm must never sign that newer
  * text: the reader pressed Approve on what they had read. The page says the document changed, holds Approve, and
  * records the newer snapshot only when the reader reloads.
  */

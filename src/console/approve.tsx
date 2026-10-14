@@ -114,8 +114,9 @@ export function useRecordShown(doc: DocumentDetail | undefined, offered: boolean
 
 
 /**
- * Approve one gated document. Inline confirmation, never a modal: Approve swaps for "Approve this document? Confirm /
- * Cancel" in the same place, Cancel on the edge Approve sat on. It signs exactly the snapshot the page recorded as
+ * Approve one gated document. Inline confirmation, never a modal: Approve swaps for "Approve this document as your own
+ * decision? Confirm / Cancel" in the same place, Cancel on the edge Approve sat on. The question says "your own" because
+ * the console records the approval's decision basis as explicit. It signs exactly the snapshot the page recorded as
  * shown, under the context that record answered, and is held until that record lands. The receipt is the stamped
  * approver, which the mutation's refetch shows without a reload; a page that is out of date (409) is handed to
  * `onStale`, which holds Approve and shows the page's banner; any other refusal says the gateway's own sentence in a
@@ -193,7 +194,7 @@ export function ApproveAction({ doc, me, shown, onStale, onReload }: { doc: Docu
   }
   return (
     <span className="flex flex-wrap items-center gap-2">
-      <span className="text-sm text-ink-2">Approve this document?</span>
+      <span className="text-sm text-ink-2">Approve this document as your own decision?</span>
       {/* DELIBERATE: a click that is the second of a double-click is not a confirmation. The first opened this
           confirmation where Approve was; Cancel sits on that edge, and this refuses what still reaches Confirm. */}
       <Button variant="primary" onClick={(e) => { if (e.detail < 2) void approve(shown); }} busy={mutation.isPending}>Confirm</Button>
