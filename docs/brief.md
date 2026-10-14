@@ -27,6 +27,29 @@ those is a rule the gateway keeps, and the console must not become a second plac
 The console is read on a laptop, at a desk, between other work; the phone layout exists so a gate can be approved away
 from the desk, not so the product can be browsed on a train.
 
+## A person and their agent, both first-class
+
+Every destination has two customers: the person, and the agent working with them, the console's assistant and any agent
+reading the same facts through the platform's door. This is the design premise of every page, not a feature for pages
+whose data is too large to read: a destination is designed from the start for both, and is not finished while either
+side is missing. Agents do most of the work on this platform, so a console only a person can use serves the smaller half
+of it.
+
+So each destination states, together and in the same change:
+
+- what the person sees and does;
+- what the agent reads: a tool over the same response the page draws, and the page's shared context, which says what is
+  on screen (the period, the date the cursor points at, the filters, the rows in view), the summary of everything behind
+  it, and what the data cannot say;
+- where the two meet: `AskAbout` in the header actions of the page's protagonist card, asking about exactly what that
+  card shows, and what the agent helps the person judge there.
+
+The agent gets the right data at the right time: the context follows the person's view as it changes, and a list's
+summary is computed over its whole filtered population on the server, so an agent can help with what no person could
+read row by row (an audit trail of millions of events) as readily as with a week's figures. The person decides: an
+approval, a close or a change is made by the person, and the agent says where it is made and never claims to have made
+it.
+
 ## Data
 
 A page's own content is a browser fetch to `/api/console/*` by `src/lib/api.ts`, and every write goes through
