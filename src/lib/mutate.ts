@@ -15,7 +15,7 @@ import { ApiError } from '@/lib/api';
  * Method is a parameter, defaulting to POST. The settings console's DELETE
  * routes (revoke a token, remove a member, deactivate a person) take no
  * body, so `body` is optional and its content-type header is sent only when
- * there is one to describe.
+ * there is one to describe. A 204 resolves with `undefined`.
  */
 const BASE = '/api/console';
 
@@ -37,7 +37,7 @@ export async function consoleMutate<T>(
     const errBody = (await res.json().catch(() => null)) as { error?: string } | null;
     throw new ApiError(res.status, errBody?.error ?? `HTTP ${res.status}`);
   }
-  return (await res.json()) as T;
+  return (res.status === 204 ? undefined : await res.json()) as T;
 }
 
 /**

@@ -12,6 +12,7 @@ export function Panel({
   actions,
   children,
   flush = false,
+  wrap = false,
   className,
   ...rest
 }: {
@@ -22,11 +23,15 @@ export function Panel({
   actions?: ReactNode;
   children: ReactNode;
   flush?: boolean;
+  /** Let the title wrap rather than truncate: for a card in a narrow column whose head also holds controls, where one
+   *  line would cut a short label. Meridian's `CardHeader` puts no `title` on a truncated heading, so a cut one loses
+   *  its words. */
+  wrap?: boolean;
   className?: string;
 } & Omit<HTMLAttributes<HTMLDivElement>, 'title' | 'children'>) {
   return (
     <Card className={className} {...rest}>
-      <CardHeader title={title} description={description} actions={actions} divided={flush} />
+      <CardHeader title={title} description={description} actions={actions} divided={flush} wrap={wrap} />
       <CardBody flush={flush}>{children}</CardBody>
     </Card>
   );

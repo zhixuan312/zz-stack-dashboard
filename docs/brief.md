@@ -55,9 +55,12 @@ a time or `sources/2026-10-06-call.md` arrives as a single segment named after i
 - **The accent preset is `brand`.** Derived from the ZZ brand purple `#7548d8` by `scripts/brand.ts --hex`: OKLCH hue
   292, chroma 0.18, at least 70° from every status hue so an accent fill never reads as a state. The name is what
   Meridian's hue-and-chroma path calls it, which is what makes the brand reproducible from a release.
-- **Scope in the workspace menu.** A superadmin switches between the whole platform and their own team from the rail's
-  workspace menu and in Settings. In team mode the rail and the palette drop the platform-only pages: `src/nav.ts`
-  narrows the destinations the server answered, in the browser, so the choice can hide a destination and never add one.
+- **Two workspaces, one menu.** Work (`/`) and Platform (`/platform`, the platform's Status) are chosen in the rail's
+  workspace menu; a workspace is offered when the person may open one of its destinations, and the line under the
+  product name names the workspace in view. A superadmin also switches between the whole platform and their own team
+  (`Your team · <slug>`), in the same menu under the workspaces and in Settings. In team mode the rail and the
+  palette drop the platform-only pages: `src/nav.ts` narrows the destinations the server answered, in the browser,
+  so the choice can hide a destination and never add one.
 - **The bell lists waiting gates.** Every gate document written and not approved, on an open initiative, or a closed
   initiative's correction awaiting approval, with a link to the initiative.
 - **The console's own rules, kept inside Meridian.** Tables read left in the first column, right in the last and centred

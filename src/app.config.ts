@@ -1,9 +1,9 @@
 import {
-  Activity, BookOpen, LayoutGrid, ListTree, Package, Settings, Timer, UserSquare, Users,
+  Activity, BookOpen, HeartPulse, LayoutGrid, ListTree, Package, Settings, Timer, UserSquare, Users,
   type LucideIcon,
 } from 'lucide-react';
 // Relative with its extension, and a type-only need below: `scripts/check.ts` imports this file under plain node.
-import { FEATURES } from './data/features.ts';
+import { FEATURES, type FeatureId } from './data/features.ts';
 import type { Need } from './lib/collection.ts';
 
 /**
@@ -40,11 +40,15 @@ export const app = {
  */
 export const workspaces = {
   main: { label: 'Work', audience: 'You and your agents', homeHref: '/' },
+  platform: { label: 'Platform', audience: 'The platform itself', homeHref: '/platform' },
 } as const;
 export type WorkspaceId = keyof typeof workspaces;
 
-/** `needs` is the feature's own need from `src/data/features.ts`, by reference: the rail asks it of the person. */
-type NavItem = { href: string; label: string; icon: LucideIcon; badge?: string; workspace?: WorkspaceId; needs: Need };
+/**
+ * `feature` is the page's own id in `src/data/features.ts`, the one its gate asks and a page view records; `needs` is
+ * that feature's need, by reference: the rail asks it of the person.
+ */
+type NavItem = { href: string; label: string; icon: LucideIcon; badge?: string; workspace?: WorkspaceId; feature: FeatureId; needs: Need };
 export type NavGroup = { label?: string; items: NavItem[] };
 
 /**
@@ -54,7 +58,8 @@ export type NavGroup = { label?: string; items: NavItem[] };
  * initiatives they run, the knowledge that came out of them and the people who did them. A member's rail is this group
  * and Settings. The second is the platform's own machinery, the plugins, the runs and the audit feed, which a
  * superadmin reads across the fleet: every destination in it needs `fleet:read`, so the group is there or not as a
- * whole, and its name is true whenever it is shown. The third is Settings, which belongs to the person.
+ * whole, and its name is true whenever it is shown. The third is Settings, which belongs to the person. These three are
+ * Work's; the fourth, Health, is the Platform workspace's, and holds Status.
  *
  * DELIBERATE: a group's name never depends on who is reading. Meridian's chrome narrows a group's items by what the
  * person may see and keeps its label, so a group that mixed a member's pages with the fleet's read "Platform" over one
@@ -66,14 +71,14 @@ export type NavGroup = { label?: string; items: NavItem[] };
 export const nav: NavGroup[] = [
   {
     items: [
-      { href: '/', label: 'Overview', icon: LayoutGrid, workspace: 'main', needs: FEATURES.home.needs },
+      { href: '/', label: 'Overview', icon: LayoutGrid, workspace: 'main', feature: 'home', needs: FEATURES.home.needs },
       // Teams is a platform page. A member acts as exactly one team at a time, so this renders
       // "All teams · 1 total" over a single row. What that row would have told them — their people,
       // their initiatives, their documents — is the Overview.
-      { href: '/teams', label: 'Teams', icon: Users, workspace: 'main', needs: FEATURES.teams.needs },
-      { href: '/initiatives', label: 'Initiatives', icon: ListTree, workspace: 'main', needs: FEATURES.initiatives.needs },
-      { href: '/knowledge', label: 'Knowledge', icon: BookOpen, workspace: 'main', needs: FEATURES.knowledge.needs },
-      { href: '/people', label: 'People', icon: UserSquare, workspace: 'main', needs: FEATURES.people.needs },
+      { href: '/teams', label: 'Teams', icon: Users, workspace: 'main', feature: 'teams', needs: FEATURES.teams.needs },
+      { href: '/initiatives', label: 'Initiatives', icon: ListTree, workspace: 'main', feature: 'initiatives', needs: FEATURES.initiatives.needs },
+      { href: '/knowledge', label: 'Knowledge', icon: BookOpen, workspace: 'main', feature: 'knowledge', needs: FEATURES.knowledge.needs },
+      { href: '/people', label: 'People', icon: UserSquare, workspace: 'main', feature: 'people', needs: FEATURES.people.needs },
     ],
   },
   {
@@ -85,16 +90,23 @@ export const nav: NavGroup[] = [
       //
       // Platform machinery: a plugin is read here to evaluate or change it, which is not a
       // member's job. Runs and Activity are served by routes that answer with the whole fleet.
-      { href: '/plugins', label: 'Plugins', icon: Package, workspace: 'main', needs: FEATURES.plugins.needs },
-      { href: '/runs', label: 'Runs', icon: Timer, workspace: 'main', needs: FEATURES.runs.needs },
-      { href: '/activity', label: 'Activity', icon: Activity, workspace: 'main', needs: FEATURES.activity.needs },
+      { href: '/plugins', label: 'Plugins', icon: Package, workspace: 'main', feature: 'plugins', needs: FEATURES.plugins.needs },
+      { href: '/runs', label: 'Runs', icon: Timer, workspace: 'main', feature: 'runs', needs: FEATURES.runs.needs },
+      { href: '/activity', label: 'Activity', icon: Activity, workspace: 'main', feature: 'activity', needs: FEATURES.activity.needs },
     ],
   },
   {
     // No eyebrow. "You" over a single item called Settings says nothing Settings does not, and a
     // one-item group under a heading reads as though the rest of the group failed to load.
     items: [
-      { href: '/settings', label: 'Settings', icon: Settings, workspace: 'main', needs: FEATURES.settings.needs },
+      { href: '/settings', label: 'Settings', icon: Settings, workspace: 'main', feature: 'settings', needs: FEATURES.settings.needs },
+    ],
+  },
+  {
+    // The Platform workspace: how the platform itself is doing, which every role reads.
+    label: 'Health',
+    items: [
+      { href: '/platform', label: 'Status', icon: HeartPulse, workspace: 'platform', feature: 'platform-status', needs: FEATURES['platform-status'].needs },
     ],
   },
 ];

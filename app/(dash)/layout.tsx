@@ -2,6 +2,7 @@ import { connection } from 'next/server';
 import { Suspense, type ReactNode } from 'react';
 import { AppShell } from '@/components/base/shell';
 import { ConsoleTools, ShellPending } from '@/console/frame';
+import { PageViews } from '@/console/page-view';
 import { chromeAccess } from '@/data/access';
 import { assistantConfig } from '@/lib/assistant/config';
 import { ConsoleLive } from '@/views/console-live';
@@ -50,6 +51,8 @@ export default function DashLayout({ children }: { children: ReactNode }) {
           {children}
         </ConsoleLive>
         <WorkspacePalette access={access} />
+        {/* One page view per committed navigation, inside this boundary because it reads the pathname too. */}
+        <PageViews />
       </AppShell>
     </Suspense>
   );

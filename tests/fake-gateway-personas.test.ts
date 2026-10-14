@@ -363,8 +363,8 @@ describe('POST /api/console/page-view', () => {
 });
 
 describe('the personas pnpm verify --as signs in as', () => {
-  /** The rail today, in its own order; written out here and not read from `nav`. */
-  const RAIL = ['/', '/teams', '/initiatives', '/knowledge', '/people', '/plugins', '/runs', '/activity', '/settings'];
+  /** The rail today across both workspaces, in its own order (Work's, then Platform's); written out here and not read from `nav`. */
+  const RAIL = ['/', '/teams', '/initiatives', '/knowledge', '/people', '/plugins', '/runs', '/activity', '/settings', '/platform'];
 
   it('are the superadmin and the member, each by the cookie the fixture reads', async () => {
     expect(Object.keys(personas).sort()).toEqual(['member', 'superadmin']);
@@ -376,7 +376,7 @@ describe('the personas pnpm verify --as signs in as', () => {
 
   it('expect the rail each is shown today', () => {
     expect([...personas.superadmin.expectedRoutes]).toEqual(RAIL);
-    expect([...personas.member.expectedRoutes]).toEqual(['/', '/initiatives', '/knowledge', '/people', '/settings']);
+    expect([...personas.member.expectedRoutes]).toEqual(['/', '/initiatives', '/knowledge', '/people', '/settings', '/platform']);
     expect(personas.superadmin.deniedProbe).toBeUndefined();
   });
 

@@ -9,11 +9,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
  * server runs it, against a gateway stood up as `fetch` at an absolute address; a read the browser made would be the
  * relative `/api/console/...`, and none is made.
  */
-const at = vi.hoisted(() => ({ path: '/' }));
+const at = vi.hoisted(() => ({ path: '/', push: vi.fn() }));
 vi.mock('next/navigation', () => ({
   usePathname: () => at.path,
   useSearchParams: () => new URLSearchParams(),
-  useRouter: () => ({ push() {}, replace() {}, refresh() {}, back() {}, forward() {}, prefetch() {} }),
+  useRouter: () => ({ push: at.push, replace() {}, refresh() {}, back() {}, forward() {}, prefetch() {} }),
   redirect: (to: string) => {
     throw new Error(`redirect to ${to}`);
   },
@@ -74,6 +74,7 @@ async function paletteOffers(): Promise<string[]> {
 const saved = { ...process.env };
 beforeEach(() => {
   at.path = '/';
+  at.push.mockReset();
   calls = [];
   for (const k of Object.keys(jar)) delete jar[k];
   jar.zz_console = 'session-1';
@@ -119,6 +120,55 @@ describe('the rail and the palette draw what the server answered for the person 
     await chrome();
     await screen.findByText('Mei');
     expect(screen.getByRole('link', { name: 'Initiatives' }).getAttribute('aria-current')).toBe('page');
+  });
+});
+
+describe('the workspace menu', () => {
+  /** The rail's menu, opened as a keyboard opens it, and its rows by name. */
+  async function menu(): Promise<string[]> {
+    fireEvent.keyDown(screen.getByRole('button', { name: /: workspace menu$/ }), { key: 'Enter' });
+    return within(await screen.findByRole('menu')).getAllByRole('menuitemradio').map((r) => r.textContent ?? '');
+  }
+  const choose = async (name: string) => {
+    await act(async () => { fireEvent.click(within(screen.getByRole('menu')).getByRole('menuitemradio', { name })); });
+  };
+
+  it('offers a member Work and Platform, names the workspace in view, and opens Platform at its home', async () => {
+    gateway(MEMBER);
+    await chrome();
+    await screen.findByText('Mei');
+    expect(screen.getByRole('button', { name: 'ZZ Stack, Work: workspace menu' })).toBeInTheDocument();
+    expect(await menu()).toEqual(['Work', 'Platform']);
+    await choose('Platform');
+    expect(at.push).toHaveBeenCalledWith('/platform');
+  });
+
+  it('draws Platform\'s rail at its address, and Work opens the home', async () => {
+    gateway(MEMBER);
+    at.path = '/platform';
+    await chrome();
+    await screen.findByText('Mei');
+    expect(screen.getByRole('button', { name: 'ZZ Stack, Platform: workspace menu' })).toBeInTheDocument();
+    expect(links()).toEqual(['Status']);
+    await menu();
+    await choose('Work');
+    expect(at.push).toHaveBeenCalledWith('/');
+  });
+
+  it('gives a superadmin the workspaces and, under them, the scope with the team they act for', async () => {
+    gateway(SUPERADMIN);
+    await chrome();
+    await screen.findByText('Owner');
+    expect(await menu()).toEqual(['Work', 'Platform', 'The whole platform', 'Your team · atlas']);
+  });
+
+  it('does nothing when the workspace in view is chosen', async () => {
+    gateway(MEMBER);
+    await chrome();
+    await screen.findByText('Mei');
+    await menu();
+    await choose('Work');
+    expect(at.push).not.toHaveBeenCalled();
   });
 });
 

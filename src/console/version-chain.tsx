@@ -128,6 +128,7 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
       {pair ? (
         <Panel
           title="What changed"
+          wrap
           actions={
             <span className="flex items-center gap-3">
               {/* A Select, not a segmented strip: one segment per change grows with the
@@ -269,7 +270,7 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
           </div>
         </Panel>
       ) : sources.length ? (
-        <Panel title="Sources behind the change" description={`${sources.length} ${plural(sources.length, 'source')}`}>
+        <Panel title="Sources behind the change" wrap description={`${sources.length} ${plural(sources.length, 'source')}`}>
           <ul className="flex flex-col gap-3">
             {sources.map((s) => (
               <li key={s.path}>

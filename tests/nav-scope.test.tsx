@@ -13,7 +13,7 @@ import { visible } from '@/views/console-chrome';
  */
 const EVERY = nav.flatMap((g) => g.items).map((i) => i.href);
 /** What the server answers a member today: every destination that does not need the fleet's grant. */
-const MEMBER = ['/', '/initiatives', '/knowledge', '/people', '/settings'];
+const MEMBER = ['/', '/initiatives', '/knowledge', '/people', '/settings', '/platform'];
 const groups = (mode: 'platform' | 'team', only = EVERY) => visible(shownIn(only, mode));
 const hrefs = (mode: 'platform' | 'team', only = EVERY) => groups(mode, only).flatMap((s) => s.items.map((i) => i.href));
 
@@ -53,6 +53,7 @@ describe('the rail in platform mode', () => {
       '/', '/teams', '/initiatives', '/knowledge', '/people',
       '/plugins', '/runs', '/activity',
       '/settings',
+      '/platform',
     ]);
   });
 });

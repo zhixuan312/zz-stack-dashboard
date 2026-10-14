@@ -1,6 +1,10 @@
 /**
  * What `pnpm verify` needs to know about this project that it cannot discover from `app/`. Edit it; verify reads it.
  */
+import { PLATFORM_STATUS } from './fake-gateway/platform-status.ts';
+
+/** The figure `/platform` draws from the fake gateway's last whole week, as the page writes it: one decimal place. */
+const STATUS_FIGURE = PLATFORM_STATUS.measures.find((m) => m.key === 'malformed_per_1000')!.last!.figure.value!.toFixed(1);
 
 /** One way `pnpm verify --as` signs the browser in: the cookie that names the person, and what that person is expected to see. */
 type Persona = {
@@ -99,6 +103,9 @@ const config: VerifyConfig = {
     { path: '/runs', title: 'Runs', readySelector: 'main table tbody tr', probe: 'dialog', controlSelector: 'main button[aria-haspopup="dialog"]', resultSelector: '[role="dialog"]' },
     { path: '/activity', title: 'Activity', readySelector: 'main table tbody tr', probe: 'dialog', controlSelector: 'main button[aria-haspopup="dialog"]', resultSelector: '[role="dialog"]' },
     { path: '/settings', title: 'Settings', readySelector: 'main table tbody tr', probe: 'dialog', controlSelector: 'main button[aria-haspopup="dialog"]', resultSelector: '[role="dialog"]' },
+    // Status draws one tile and no table: the data is its figure, read on the server, and the one control is the tile's
+    // info button, whose tooltip says what the figure counts. Read off the source on 2026-10-14, not yet off a build.
+    { path: '/platform', title: 'Status', readySelector: 'main .t-figure', readyText: STATUS_FIGURE, probe: 'toggle', controlSelector: 'main button[aria-label^="About "]', resultSelector: '[role="tooltip"]' },
   ],
 
   // One per state worth seeing, taken from the fake gateway's own records (scripts/fake-gateway): a team with
@@ -139,23 +146,24 @@ const config: VerifyConfig = {
   // which the address alone satisfies, and this asks whether the control shows the thing that was pressed.
   // `hydration-check` makes a race occur that the audit can only catch when it happens to: it slows the main thread
   // until every read a page shares with the shell has answered before the page hydrates, and fails on React's error.
-  browserChecks: ['scripts/approve-banners.ts', 'scripts/live-check.ts', 'scripts/selection-check.ts', 'scripts/hydration-check.ts'],
+  // `workspace-switch` walks the workspace menu as each persona: Work to Platform, the figure, and back.
+  browserChecks: ['scripts/approve-banners.ts', 'scripts/live-check.ts', 'scripts/selection-check.ts', 'scripts/hydration-check.ts', 'scripts/workspace-switch.ts'],
   /**
    * The fake gateway's two people (scripts/fake-gateway/people.ts), each by the value of the `zz_console` cookie it
    * reads. A run without `--as` sends no cookie, and the fake gateway answers that as the superadmin.
    *
-   * The routes are the rail each is shown today, written out. The member is one person in one team, `atlas`, and is
-   * refused the fleet's four pages; the name of a team they are not in is on Teams for a superadmin, and must not
-   * reach the page a member is refused.
+   * The routes are the rail each is shown today, written out, across both workspaces: Work's, then Platform's Status,
+   * which both read. The member is one person in one team, `atlas`, and is refused the fleet's four pages; the name of
+   * a team they are not in is on Teams for a superadmin, and must not reach the page a member is refused.
    */
   personas: {
     superadmin: {
       cookie: { name: 'zz_console', value: 'superadmin' },
-      expectedRoutes: ['/', '/teams', '/initiatives', '/knowledge', '/people', '/plugins', '/runs', '/activity', '/settings'],
+      expectedRoutes: ['/', '/teams', '/initiatives', '/knowledge', '/people', '/plugins', '/runs', '/activity', '/settings', '/platform'],
     },
     member: {
       cookie: { name: 'zz_console', value: 'member' },
-      expectedRoutes: ['/', '/initiatives', '/knowledge', '/people', '/settings'],
+      expectedRoutes: ['/', '/initiatives', '/knowledge', '/people', '/settings', '/platform'],
       deniedProbe: { '/teams': 'Beacon Payments' },
     },
   },
