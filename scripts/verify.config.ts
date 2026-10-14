@@ -147,7 +147,9 @@ const config: VerifyConfig = {
   // `hydration-check` makes a race occur that the audit can only catch when it happens to: it slows the main thread
   // until every read a page shares with the shell has answered before the page hydrates, and fails on React's error.
   // `workspace-switch` walks the workspace menu as each persona: Work to Platform, the figure, and back.
-  browserChecks: ['scripts/approve-banners.ts', 'scripts/live-check.ts', 'scripts/selection-check.ts', 'scripts/hydration-check.ts', 'scripts/workspace-switch.ts'],
+  // `primary-data` times each route's own data beside its largest paint, as each persona, and holds a delayed read to a
+  // bounded state. It runs beside the audit, the presses and the keyboard walk, so its times are taken under their load.
+  browserChecks: ['scripts/approve-banners.ts', 'scripts/live-check.ts', 'scripts/selection-check.ts', 'scripts/hydration-check.ts', 'scripts/workspace-switch.ts', 'scripts/primary-data.ts'],
   /**
    * The fake gateway's two people (scripts/fake-gateway/people.ts), each by the value of the `zz_console` cookie it
    * reads. A run without `--as` sends no cookie, and the fake gateway answers that as the superadmin.

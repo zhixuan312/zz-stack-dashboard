@@ -15,9 +15,9 @@
  *
  *   : beat 1791181947919
  *
- * The `resync` frame is part of the shape and this fixture never sends one: the real gateway raises it for the two
- * things that mean a tab missed changes, and neither is reachable here — see `hint` below, which is the only thing
- * this file can raise.
+ * The `resync` frame opens every stream as its greeting, as the real gateway's does; after that the real gateway raises
+ * it for the two things that mean a tab missed changes, and neither is reachable here, so `hint` below is the only
+ * other frame this file can raise.
  *
  * A hint names a collection and nothing else — never a record, a team or a cache tag — and is never data: a missed
  * hint costs freshness, never correctness, which is why the tab also has a safety poll and takes its own catch-up
@@ -110,17 +110,12 @@ export function serveLive(res: ServerResponse, names: string[]): void {
   res.on('close', s.close);
   subscribers.add(s);
   s.write(`retry: 3000\n\n`);
-  /* DELIBERATE: no resync here, which is the real gateway's shape too.
+  /* The stream opens with one resync of the names this tab follows: the greeting, which the real gateway sends too
+   * (zz-stack's `services/gateway/src/console/live.ts`, held by its `checks/console-live-greeting.ts`).
    *
-   * This used to write one, on the reasoning that "a tab that has just opened has read nothing yet" — which is the
-   * half that is wrong, and it cost a document route its LCP. The tab has read: it read every collection it shows
-   * while the page mounted, a moment before it subscribed. Answering the connect with a resync told it to read them
-   * all again, so it threw away answers it held, re-rendered every panel, and did it in the window where the page's
-   * largest element was waiting to be painted — measured at 390px with the phone profile, the body was read three
-   * times and the paint the LCP is taken from landed at 2,676 ms against a 2,500 ms bar.
-   *
-   * `resync` therefore means what its name says: the tab missed changes. `hint` above is the only thing that raises
-   * one here, and the real gateway raises it for the same two reasons — its `LISTEN` connection was down, or a burst
-   * overflowed the queue. A tab coming back from an error or from being hidden takes its own catch-up; the console's
-   * `src/lib/live.ts` says how it knows to. */
+   * COUPLED: `src/lib/live.ts`, ZZ Meridian's own file, takes the first resync on a stream as the read the page made
+   * while it mounted and reads nothing for it, then reads again on every later one. A stream with no greeting would have
+   * its first real resync taken for the greeting and thrown away. `hint` above raises a later one, for the same two
+   * reasons the real gateway does: its `LISTEN` connection was down, or a burst overflowed the queue. */
+  s.write(frame('resync', { collections: names }));
 }

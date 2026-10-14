@@ -61,15 +61,14 @@ describe('the names a tab may follow', () => {
 });
 
 describe('a stream', () => {
-  it('opens with nothing but `retry`, and says it does not replay', () => {
+  it('opens with `retry` and one greeting resync of the names it follows, and says it does not replay', () => {
     const res = stubRes();
-    serveLive(res, ['initiatives']);
+    serveLive(res, ['initiatives', 'knowledge']);
     const text = res.frames.join('');
     expect(text).toContain('retry: 3000');
-    // NOT a resync. That frame means the tab missed changes, and a subscriber is registered by connecting, so a
-    // connect cannot have missed anything: the tab read every collection it shows while it mounted. The real
-    // gateway raises one for its `LISTEN` being down and for a queue overflow, neither of which this fixture has.
-    expect(events(res.frames)).toEqual([]);
+    // The greeting, as the real gateway sends it (checks/console-live-greeting.ts in zz-stack): ZZ Meridian's stream
+    // client takes the first resync as the read the page made while it mounted, and reads again on every later one.
+    expect(res.frames.filter((f) => f.startsWith('event: '))).toEqual(['event: resync\ndata: {"collections":["initiatives","knowledge"]}\n\n']);
     expect(text).not.toContain('id:');           // an `id:` would claim a replay the stream cannot make
     res.away();
   });
@@ -92,8 +91,8 @@ describe('a stream', () => {
     serveLive(other, ['teams']);
     expect(liveStreams()).toBe(2);
     expect(hint('initiatives')).toBe(1);
-    expect(events(follows.frames)).toEqual(['event: change']);
-    expect(events(other.frames)).toEqual([]);
+    expect(events(follows.frames)).toEqual(['event: resync', 'event: change']);
+    expect(events(other.frames)).toEqual(['event: resync']);
     follows.away();
     other.away();
   });
@@ -102,7 +101,7 @@ describe('a stream', () => {
     const res = stubRes();
     serveLive(res, ['teams']);
     expect(hint('runs')).toBe(0);
-    expect(events(res.frames)).toEqual([]);
+    expect(events(res.frames)).toEqual(['event: resync']);
     res.away();
   });
 

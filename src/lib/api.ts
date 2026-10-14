@@ -35,11 +35,44 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * How long a page read may go unanswered, from the moment it is sent, before the page says it failed: half a second
+ * under the spec's five, which is what the phone profile takes to draw that state, so a person sees it within five
+ * seconds of the read (spec AC-8.7; measured 111 to 255 ms on 2026-10-14). COUPLED: `scripts/primary-data.ts` holds
+ * the screen to five seconds with no allowance.
+ */
+const READ_BOUND_MS = 4_500;
+
+/**
+ * One page read, given `READ_BOUND_MS`: a read that has not answered by then is a 504 with a sentence that says so, and
+ * the request is aborted. A page never shows an endless skeleton; it shows the read's error state, whose Retry reads
+ * again. The sentence names no number, so it stays true whatever the bound is. The bound is a race, not only the abort, so it holds when a request does not honour the signal,
+ * and an answer that arrives after it is never seen.
+ *
+ * Page reads only. The live stream is an EventSource held open by design, and writes go through `src/lib/mutate.ts`.
+ */
 async function consoleFetch<T>(path: string): Promise<T> {
+  const abort = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const bound = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      abort.abort();
+      reject(new ApiError(504, 'The platform did not answer in time. Nothing in this part of the page was read.'));
+    }, READ_BOUND_MS);
+  });
+  try {
+    return await Promise.race([read<T>(path, abort.signal), bound]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function read<T>(path: string, signal: AbortSignal): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     // The cookie is HttpOnly and same-origin; this says "send it".
     credentials: 'same-origin',
     headers: { accept: 'application/json' },
+    signal,
   });
   if (!res.ok) {
     // The gateway names its refusals — "the console needs a browser sign-in — x@y

@@ -1,14 +1,14 @@
 /**
  * Live data in the browser: one stream per tab that hints which collections changed, and a scheduler that reads them
  * again. A hint is never data: it only says a collection is worth reading, so a missed hint costs freshness, never
- * correctness, and the safety poll and the resync on coming back bound that cost.
+ * correctness, and the safety poll and the resync on every open bound that cost.
  *
  * `createLiveClient` is the whole scheduler and needs no framework; `LiveProvider` and `useLive` put it in a React tree.
  * The page's `refresh` is injected, so this file imports nothing from a product's data layer.
  */
 import { createContext, createElement, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
-/** `connecting` until the stream is open on a tab that holds a full read, `live` while hints and resyncs both work, `polling` after the stream gave up, `paused` when access was refused, `stale` when the last read failed. */
+/** `connecting` until the first resync succeeds, `live` while hints and resyncs both work, `polling` after the stream gave up, `paused` when access was refused, `stale` when the last read failed. */
 export type LiveState = 'connecting' | 'live' | 'polling' | 'paused' | 'stale';
 
 export type LiveClientOptions = {
@@ -54,10 +54,7 @@ export function createLiveClient({ refresh, endpoint = '/api/live', pollMs = 300
   let epoch = 0;
   let source: EventSource | null = null;
   let opened = false;
-  /**
-   * Whether the tab holds a complete read of what it shows: the page's own reads on the stream a page load opens, or
-   * a full resync after one came back. Only then does a hint's refresh mean `live`.
-   */
+  /** Whether a full read has succeeded since the stream last opened; only then does a hint's refresh mean `live`. */
   let synced = false;
   let attempts = 0;
   let polls = 0;
@@ -142,15 +139,7 @@ export function createLiveClient({ refresh, endpoint = '/api/live', pollMs = 300
     if (!inFlight && dirtyTimer === undefined) dirtyTimer = setTimeout(pump, MAX_WAIT_MS);
   };
 
-  /**
-   * Opens the stream, and says whether this one is catching up on anything.
-   *
-   * `catchingUp` is false for the connection a subscription change asks for: the page that just registered its names
-   * is the page that has just read them, so a resync here reads every panel again for the answers it already has.
-   * It is true for the three connections that follow being away — after a failed attempt, after the tab was hidden,
-   * and on the poll's own retry — because those are the ones with hints they missed.
-   */
-  function connect(catchingUp: boolean) {
+  function connect() {
     closeSource();
     clearTimeout(reconnectTimer);
     reconnectTimer = undefined;
@@ -165,16 +154,21 @@ export function createLiveClient({ refresh, endpoint = '/api/live', pollMs = 300
       opened = true;
       attempts = 0;
       polling = false;
-      // The tab's own reads are the catch-up a fresh stream would ask for: measured on a document route at 390px,
-      // with the phone profile, resyncing here read the body three times and pushed the paint the LCP is taken from
-      // to 2,676 ms against a 2,500 ms bar. The stream is open and hints are flowing either way, which is what `live`
-      // means; a read that fails still reports `stale` through the poll's own resync.
-      if (catchingUp) resync();
-      else { synced = true; emit('live'); }
+      resync();
     });
-    mine.addEventListener('resync', () => { if (current()) resync(); });
+    // The stream's first frame is always a resync of every name (src/data/live-stream.ts), written before the server
+    // subscribes to anything. The open above has just asked for that read, and it began after the frame was written, so
+    // the frame says nothing the open did not: answering both read every collection twice on every open, and on a page
+    // load the second router read sent every prefetch out again. Any later resync is the server reporting lost hints.
+    let greeting = true;
+    mine.addEventListener('resync', () => {
+      if (!current()) return;
+      if (greeting) { greeting = false; return; }
+      resync();
+    });
     mine.addEventListener('change', (e) => {
       if (!current()) return;
+      greeting = false;
       try {
         const { collection } = JSON.parse((e as MessageEvent<string>).data) as { collection?: unknown };
         if (typeof collection === 'string') hint(collection);
@@ -198,7 +192,7 @@ export function createLiveClient({ refresh, endpoint = '/api/live', pollMs = 300
       return;
     }
     if (!polling) emit('connecting');
-    reconnectTimer = setTimeout(() => connect(true), RECONNECT_MS);
+    reconnectTimer = setTimeout(connect, RECONNECT_MS);
   }
 
   function startPoll() {
@@ -209,7 +203,7 @@ export function createLiveClient({ refresh, endpoint = '/api/live', pollMs = 300
       polls += 1;
       if (polls % RETRY_EVERY === 0) {
         attempts = MAX_ATTEMPTS - 1;
-        connect(true);
+        connect();
       }
     }, pollMs);
   }
@@ -225,8 +219,7 @@ export function createLiveClient({ refresh, endpoint = '/api/live', pollMs = 300
       closeSource();
       stopTimers();
       if (names.length === 0) return;
-      // The page that just registered these names has just read them; a new stream arriving is not news about them.
-      connect(false);
+      connect();
       startPoll();
     },
     setVisible(next) {
@@ -240,8 +233,7 @@ export function createLiveClient({ refresh, endpoint = '/api/live', pollMs = 300
       }
       if (active()) {
         attempts = 0;
-        // The tab was hidden, so the stream was closed and this one may have a gap in it.
-        connect(true);
+        connect();
         startPoll();
       }
     },
