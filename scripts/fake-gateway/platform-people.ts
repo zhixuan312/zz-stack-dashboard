@@ -81,6 +81,9 @@ export function rosterOf(team: string): Person[] {
   return PEOPLE.filter((p) => p.teams.some(here)).map((p) => ({ ...asToday(p), activeTeam: p.activeTeam === team ? team : null, teams: p.teams.filter(here) }));
 }
 
+/** The first recorded sign-in, where the gateway says its record of them begins. */
+const FIRST_SIGN_IN = iso(Math.min(...SEEDS.flatMap((s) => s.signIns.map(([back, hours]) => inWeek(back, hours)))));
+
 /** The recorded sign-ins in the last complete week, every person's. */
 const SIGN_INS_LAST_WEEK: PeriodFigure = (() => {
   const n = SEEDS.reduce((sum, s) => sum + s.signIns.filter(([back]) => back === 1).length, 0);
@@ -92,12 +95,13 @@ const STATES = ['active', 'deactivated'];
 /**
  * `GET /people`, as `who`, on `page`; null when the superadmin asked for a page the read does not take.
  *
- * The superadmin is answered every person, `?q` matching an email or a name and `?state` one of the two states, with
- * the tiles over everybody. A member is answered as today: their own team's roster, or nothing for a person in no team.
+ * The superadmin is answered every person, `?q` matching an email or a name and `?state` one of the two states, each
+ * given at most once, with the tiles over everybody; the read's coverage begins at the first recorded sign-in. A member is answered as today: their own team's roster, or nothing for a person in no team.
  */
 export function people(who: Me, q: URLSearchParams, page: { limit: number; offset: number } | null): [status: number, body: unknown] | null {
   if (!who.superadmin) return [200, { people: who.activeTeam ? rosterOf(who.activeTeam) : [] }];
   if (!page) return null;
+  if (q.getAll('q').length > 1 || q.getAll('state').length > 1) return [400, { error: 'each filter and the page are given at most once' }];
   const state = q.get('state');
   if (state !== null && !STATES.includes(state)) return [400, { error: `state must be one of ${STATES.join(', ')}` }];
   const text = (q.get('q') ?? '').trim().toLowerCase();
@@ -106,8 +110,8 @@ export function people(who: Me, q: URLSearchParams, page: { limit: number; offse
     .filter((p) => state === null || p.state === state);
   const asOf = iso(now());
   const answer: People = {
-    meta: { ...PLATFORM_STATUS.meta, asOf, period: { from: WEEKS[0].from, to: asOf }, scope: 'platform-admin',
-      population: 'people, their passkeys and their recorded console sign-ins' },
+    meta: { ...PLATFORM_STATUS.meta, asOf, period: { from: FIRST_SIGN_IN, to: asOf }, scope: 'platform-admin',
+      population: 'people, their passkeys and their recorded console sign-ins', coverageFrom: FIRST_SIGN_IN },
     tiles: {
       people: PEOPLE.length, withPasskey: PEOPLE.filter((p) => p.passkeys > 0).length,
       neverSignedIn: PEOPLE.filter((p) => p.state === 'active' && p.lastSignIn === null).length,

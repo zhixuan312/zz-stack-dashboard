@@ -70,7 +70,8 @@ const FOLLOWUP_WEEKS = FOLLOWUP.weeks.map((putRight, i) => {
 });
 
 /* Each registered tool's median call in its first comparable week (the first complete week with thirty calls that have
- * a duration) and in the last complete week, whose median is insufficient under thirty. */
+ * a duration; failing that, the first with any) and in the last complete week, whose median is insufficient under
+ * thirty; `calls` are the calls the median is over. */
 const TOOLS: [tool: string, first: number, firstMs: number, firstCalls: number, lastMs: number, lastCalls: number][] = [
   ['core:document_read', 0, 610, 48, 540, 52],
   ['core:knowledge_search', 3, 880, 31, 910, 40],
@@ -102,12 +103,13 @@ function rhythm(): number[][] {
 const modelWeek = (i: number, calls: number, failed: number, inputTokens: number, outputTokens: number): ModelWeek =>
   ({ window: WEEKS[i], calls, failed, inputTokens, outputTokens });
 
-/** `GET /platform/usage`. The superadmin's weeks carry their split by team; a member's carry none. */
+/** `GET /platform/usage`, public by route: the superadmin's weeks carry their split by team, a member's none, and
+ *  nothing else differs. */
 export function usage(admin: boolean): Usage {
   const asOf = iso(now());
   return {
-    meta: { ...PLATFORM_STATUS.meta, asOf, period: { from: WEEKS[0].from, to: asOf }, scope: admin ? 'platform-admin' : 'platform-public',
-      population: "real-work tool calls, maintenance calls where a part names them, recorded approvals and the platform's own model calls" },
+    meta: { ...PLATFORM_STATUS.meta, asOf, period: { from: WEEKS[0].from, to: asOf }, scope: 'platform-public',
+      population: "real-work tool calls; the platform's own traffic and all refusals by population also count maintenance calls; calls per approval divide by the approvals zz-core recorded; model calls are the platform's own" },
     tiles: { state: 'ok', data: {
       calls: tile(CALLS.map((n, i) => tally(i, n))),
       refusedShare: tile(REFUSALS.map((n, i) => rate(i, n, CALLS[i], 100))),

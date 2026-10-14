@@ -126,9 +126,10 @@ export function knowledge(admin: boolean, own: string | null): KnowledgeHealth {
     }) } },
     cohorts: { state: 'ok', data: { rows: WEEKS.map((window, i) => {
       const imported = IMPORTED_EXACT[i] + IMPORTED_BY_DAY[i];
+      // A week any of whose imports rests on the day rule is labelled by the day, as the gateway labels it.
       return {
         window, made: MADE[i] + imported, supersededSince: SUPERSEDED_SINCE[i], imported,
-        basis: IMPORTED_EXACT[i] ? 'exact' as const : IMPORTED_BY_DAY[i] ? 'by_day' as const : null,
+        basis: IMPORTED_BY_DAY[i] ? 'by_day' as const : IMPORTED_EXACT[i] ? 'exact' as const : null,
       };
     }) } },
     byKind: { state: 'ok', data: BY_KIND },

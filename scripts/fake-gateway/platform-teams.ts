@@ -94,12 +94,13 @@ const STATUSES = ['active', 'archived'];
 /**
  * `GET /teams`, as `who`, on `page`; null when the superadmin asked for a page the read does not take.
  *
- * The superadmin is answered every team, `?q` matching a slug or a name and `?status` one of the two states, with the
- * tiles over every team. A member is answered as today: their own team, in today's fields.
+ * The superadmin is answered every team, `?q` matching a slug or a name and `?status` one of the two states, each
+ * given at most once, with the tiles over every team. A member is answered as today: their own team, in today's fields.
  */
 export function teams(who: Me, q: URLSearchParams, page: { limit: number; offset: number } | null): [status: number, body: unknown] | null {
   if (!who.superadmin) return [200, { teams: (who.activeTeam ? TEAMS.filter((t) => t.slug === who.activeTeam) : TEAMS).map(asToday) }];
   if (!page) return null;
+  if (q.getAll('q').length > 1 || q.getAll('status').length > 1) return [400, { error: 'each filter and the page are given at most once' }];
   const status = q.get('status');
   if (status !== null && !STATUSES.includes(status)) return [400, { error: `status must be one of ${STATUSES.join(', ')}` }];
   const text = (q.get('q') ?? '').trim().toLowerCase();

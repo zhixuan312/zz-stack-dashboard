@@ -53,7 +53,8 @@ const COLUMNS: Column<Person>[] = aligned([
 export function PeopleView() {
   useLive(['people']);
   const { mode } = useConsoleMode();
-  const q = useConsole<{ people: Person[] }>('/people');
+  // The read pages at 10 by default; this page filters and pages the rows itself, so it asks for the most one read answers.
+  const q = useConsole<{ people: Person[] }>('/people?limit=100');
   const people = useMemo(() => q.data?.people ?? [], [q.data]);
   const [f, set] = useQueryState({ q: '', team: 'all', sort: 'used', dir: 'desc', page: '1' });
   const [draft, setDraft] = useSearchDraft(f.q, (q) => set({ q, page: '1' }));

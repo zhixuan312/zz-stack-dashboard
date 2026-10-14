@@ -13,7 +13,8 @@ import { ConsolePage, useArrival } from '@/console/page';
 import { failureOf } from '@/console/query';
 import { freshnessOf, useConsole } from '@/lib/api';
 import { plural } from '@/lib/format';
-import type { Initiative, Team, TeamDetail } from '@/lib/api-shapes';
+import type { Initiative, Team } from '@/lib/api-shapes';
+import type { TeamDetail } from '@/lib/fleet-shapes';
 import { formatDate } from '@/lib/format-date';
 import { useLive } from '@/lib/live';
 import { pendingContext } from '@/views/context';
@@ -43,9 +44,8 @@ export function TeamView({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
   const team = useConsole<TeamDetail>(`/teams/${slug}`);
   const inits = useConsole<{ initiatives: Initiative[] }>(`/initiatives?team=${slug}`);
-  // The counts come from the teams list: that endpoint is the one definition of what a team holds.
-  const teams = useConsole<{ teams: Team[] }>('/teams');
-  const held = teams.data?.teams.find((t) => t.slug === slug);
+  // The counts are the team's own read: the same functions as its row in the list, so the two cannot disagree.
+  const held: Team | undefined = team.data ? { ...team.data.team, ...team.data.counts } : undefined;
   const list = inits.data?.initiatives ?? [];
   const members = team.data?.members ?? [];
   const waiting = list.filter(waitingOnYou).length;
@@ -75,7 +75,7 @@ export function TeamView({ params }: { params: Promise<{ slug: string }> }) {
             <MetricTile label="Initiatives" icon={<ListTree />} value={inits.data ? list.length : inits.isPending ? '…' : '—'} note={`${list.filter((i) => !i.closed).length} still open`} />
             <MetricTile label="Waiting on you" icon={<Signature />} value={inits.data ? waiting : inits.isPending ? '…' : '—'} emphasis={waiting > 0} note={waiting ? 'A gate needs a signature' : 'Nothing to sign'} />
             <MetricTile label="Members" icon={<Users />} value={team.data ? members.length : team.isPending ? '…' : '—'} note={`${members.filter((m) => m.role === 'admin').length} ${plural(members.filter((m) => m.role === 'admin').length, 'admin')}`} />
-            <MetricTile label="Knowledge nodes" icon={<BookOpen />} value={held ? held.knowledge : teams.isPending ? '…' : '—'} note={held ? `${held.documents} ${plural(held.documents, 'document')}, ${held.sources} ${plural(held.sources, 'source')}` : undefined} />
+            <MetricTile label="Knowledge nodes" icon={<BookOpen />} value={held ? held.knowledge : team.isPending ? '…' : '—'} note={held ? `${held.documents} ${plural(held.documents, 'document')}, ${held.sources} ${plural(held.sources, 'source')}` : undefined} />
           </Row>
           <DataTable
             caption={`${slug}'s initiatives`}

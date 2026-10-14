@@ -31,4 +31,4 @@ The team's name, status and creation date, then its initiatives and how many are
 
 ## Surfaces
 
-Console, desktop and phone. Reads `GET /teams/:slug`, `GET /initiatives?team=`, `GET /teams`. Live: follows `teams and initiatives`, so a change made anywhere — another tab, another person — reads this page again.
+Console, desktop and phone. Reads `GET /teams/:slug`, whose counts are the team's own, and `GET /initiatives?team=`. Live: follows `teams and initiatives`, so a change made anywhere — another tab, another person — reads this page again.

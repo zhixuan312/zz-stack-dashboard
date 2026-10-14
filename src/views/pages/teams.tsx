@@ -40,7 +40,8 @@ const columns: Column<Team>[] = aligned([
 /** Every team on the platform: who is in it and what it holds. A platform page; a member's own team is the Overview. */
 export function TeamsView() {
   useLive(['teams']);
-  const q = useConsole<{ teams: Team[] }>('/teams');
+  // Every team on one page: the gateway pages at 10 rows by default, and this table filters and sorts in the browser.
+  const q = useConsole<{ teams: Team[] }>('/teams?limit=100');
   const [f, set] = useQueryState({ q: '', status: 'all', sort: 'initiatives', dir: 'desc', page: '1' });
   const [draft, setDraft] = useSearchDraft(f.q, (q) => set({ q, page: '1' }));
   const teams = useMemo(() => q.data?.teams ?? [], [q.data]);
