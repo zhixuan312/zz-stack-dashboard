@@ -26,10 +26,10 @@ const WINDOW = { from: '2026-10-05T00:00:00Z', to: '2026-10-12T00:00:00Z', obser
 
 const ROWS: InitiativeRow[] = [
   { slug: '2026-09-28-search-relevance', flow: 'sdlc-flow', state: 'waiting', gates: { passed: 1, of: 2 },
-    nextMove: { action: 'approve', stage: 'plan', document: 'plan.md', waitingOn: 'a person', why: 'plan.md is written and waits on approval' },
+    nextMove: { action: 'await_approval', stage: 'plan', document: 'plan.md', waitingOn: 'stakeholder', why: 'plan.md is written and waits on approval' },
     lastTouched: '2026-10-01T00:00:00Z', opened: '2026-09-28T00:00:00Z', closed: null },
   { slug: '2026-09-22-payout-schedule', flow: 'ops', state: 'open', gates: { passed: 0, of: 1 },
-    nextMove: { action: 'write', stage: 'intent', document: 'intent.md', waitingOn: 'the agent', why: 'the intent stage is under way' },
+    nextMove: { action: 'write_document', stage: 'intent', document: 'intent.md', waitingOn: 'agent', why: 'the intent stage is under way' },
     lastTouched: '2026-09-30T00:00:00Z', opened: '2026-09-22T00:00:00Z', closed: null },
 ];
 
@@ -89,7 +89,7 @@ describe('the figures on the initiatives page', () => {
     expect(cell('2026-09-28-search-relevance', 'Gates')).toBe('1 of 2');
     expect(cell('2026-09-22-payout-schedule', 'Gates')).toBe('0 of 1');
     expect(cell('2026-09-28-search-relevance', 'State')).toBe('Waiting');
-    expect(cell('2026-09-28-search-relevance', 'Flow position')).toBe('approve plan.md, waiting on a person');
+    expect(cell('2026-09-28-search-relevance', 'Flow position')).toBe('Approve plan.md, waiting on a person');
     expect(document.body.textContent).toContain('23 initiatives');
   });
 

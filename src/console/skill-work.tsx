@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { DataTable, type Column } from '@/components/patterns/data-table';
 import { Segmented } from '@/components/ui/segmented';
 import { aligned } from '@/console/columns';
@@ -32,7 +32,8 @@ function metric(k: Skill, axis: Axis): number {
  * spends its life inside. The bar carries the chosen axis as a share of its total, so it is never a picture of a
  * different quantity than the order.
  */
-export function SkillWorkPanel({ skills, loading, error, onRetry }: { skills: Skill[]; loading?: boolean; error?: string; onRetry?: () => void }) {
+/** `ask` is the page's Ask about, drawn in the table's head beside the ranking control. */
+export function SkillWorkPanel({ skills, loading, error, onRetry, ask }: { skills: Skill[]; loading?: boolean; error?: string; onRetry?: () => void; ask?: ReactNode }) {
   const [axis, setAxis] = useState<Axis>('calls');
   const a = AXES.find((x) => x.value === axis)!;
   const rows = [...skills].sort((x, y) => metric(y, axis) - metric(x, axis));
@@ -100,7 +101,7 @@ export function SkillWorkPanel({ skills, loading, error, onRetry }: { skills: Sk
               <h2 className="t-card">Where the work happens</h2>
               <p className="t-caption mt-1">Every skill that ran in this window, by {a.noun}</p>
             </div>
-            <Segmented size="sm" label="Rank skills by" value={axis} onChange={setAxis} options={AXES.map((x) => ({ value: x.value, label: x.label }))} />
+            <div className="flex items-center gap-1.5">{ask}<Segmented size="sm" label="Rank skills by" value={axis} onChange={setAxis} options={AXES.map((x) => ({ value: x.value, label: x.label }))} /></div>
           </div>
         }
       />

@@ -2,6 +2,7 @@
 
 import { Activity, HardDrive, Timer } from 'lucide-react';
 import { Row } from '@/components/base/shell';
+import { AskAbout } from '@/components/patterns/ask-about';
 import { MetricTile } from '@/components/patterns/metric-tile';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -34,7 +35,12 @@ export function RunsView() {
     : pendingContext({ view: 'runs', title: 'Runs', address: addressOf('/runs', { period }, { period: 'all' }), scope: `${PERIOD_LABEL[period].toLowerCase()}, every team on the platform` }, failureOf(runs) ?? failureOf(skills));
 
   return (
-    <ConsolePage title="Runs" description="Every recorded run, by the skill that drove it." updatedAt={freshnessOf(runs, skills)} context={context}>
+    <ConsolePage
+      title="Runs"
+      description="Every recorded run, by the skill that drove it."
+      updatedAt={freshnessOf(runs, skills)}
+      context={context}
+    >
       {/* The tiles stand from the first paint and read an ellipsis until the totals arrive, so nothing moves.
           COUPLED: `…` means coming, `—` means it is not. They were the same mark, so a failed read
           looked exactly like a slow one. */}
@@ -46,7 +52,13 @@ export function RunsView() {
         <MetricTile label="Payload moved" icon={<HardDrive />} value={!r ? runs.isPending ? '…' : '—' : r.mb === null ? 'Not measured' : r.mb} format={(n) => `${n.toLocaleString('en-US')} MB`} note="Tool output, across those runs" />
       </Row>
       {runs.error && runs.error.status !== 401 ? <EmptyState kind="error" title="The run totals did not load" action={<Button size="sm" onClick={() => void runs.refetch()}>Retry</Button>}>{runs.error.message}</EmptyState> : null}
-      <SkillWorkPanel skills={skills.data?.skills ?? []} loading={skills.isPending} error={failureOf(skills)} onRetry={() => void skills.refetch()} />
+      <SkillWorkPanel
+        skills={skills.data?.skills ?? []}
+        loading={skills.isPending}
+        error={failureOf(skills)}
+        onRetry={() => void skills.refetch()}
+        ask={<AskAbout iconBelowSm question={`Which skills did the most work over ${PERIOD_LABEL[period].toLowerCase()}, and where were calls refused?`} />}
+      />
     </ConsolePage>
   );
 }

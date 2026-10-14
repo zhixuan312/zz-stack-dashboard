@@ -5,6 +5,7 @@ import { BookOpen, ListTree, Signature, Users } from 'lucide-react';
 import { Row } from '@/components/base/shell';
 import { MetricTile } from '@/components/patterns/metric-tile';
 import { DataTable, type Column } from '@/components/patterns/data-table';
+import { AskAbout } from '@/components/patterns/ask-about';
 import { Badge } from '@/components/ui/badge';
 import { aligned } from '@/console/columns';
 import { ConsolePage, useArrival } from '@/console/page';
@@ -80,7 +81,12 @@ export function TeamView({ params }: { params: Promise<{ slug: string }> }) {
             noun="members"
             rows={members}
             columns={MEMBERS}
-            toolbar={<h2 className="t-card">Members</h2>}
+            toolbar={
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="t-card min-w-0">Members</h2>
+                <AskAbout question={`Who is in ${slug}, who administers it, and who joined most recently?`} />
+              </div>
+            }
             rowKey={(m) => m.email}
             loading={team.isPending}
             error={failureOf(team)}

@@ -1,5 +1,6 @@
 'use client';
 
+import { AskAbout } from '@/components/patterns/ask-about';
 import { DataTable, useQueryState, type Column } from '@/components/patterns/data-table';
 import { Badge } from '@/components/ui/badge';
 import { Segmented } from '@/components/ui/segmented';
@@ -74,7 +75,15 @@ export function ActivityView() {
         filtered={f.show === 'failed'}
         onClearFilters={() => set({ show: 'all', page: '1' })}
         empty={{ title: 'Nothing recorded yet' }}
-        toolbar={<div><h2 className="t-card">Events</h2><p className="t-caption mt-1">The latest {q.data?.limit ?? 200}{f.show === 'failed' ? ' refusals' : ''}</p></div>}
+        toolbar={
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="t-card">Events</h2>
+              <p className="t-caption mt-1">The latest {q.data?.limit ?? 200}{f.show === 'failed' ? ' refusals' : ''}</p>
+            </div>
+            <AskAbout question={f.show === 'failed' ? 'Which of the latest refusals matter most, and what would stop them?' : 'What stands out in the latest events, and is anything being refused?'} />
+          </div>
+        }
       />
     </ConsolePage>
   );

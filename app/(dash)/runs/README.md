@@ -16,7 +16,7 @@ Every recorded run, by the skill that drove it.
 
 ## Agents
 
-The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `runsContext` in `src/views/runs-context.ts`, the same function `view_runs` calls, so the assistant quotes the figures the screen shows. No Ask on this page: the table under the tiles is the breakdown.
+The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `runsContext` in `src/views/runs-context.ts`, the same function `view_runs` calls, so the assistant quotes the figures the screen shows. Ask is in the head of the Where the work happens table: which skills did the most work over the period and where calls were refused.
 
 ### What the agent reads
 

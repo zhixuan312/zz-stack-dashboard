@@ -3,6 +3,7 @@
 import { use } from 'react';
 import { Activity, CircleOff, Lock, Puzzle } from 'lucide-react';
 import { Row } from '@/components/base/shell';
+import { AskAbout } from '@/components/patterns/ask-about';
 import { DataTable, type Column } from '@/components/patterns/data-table';
 import { MetricTile } from '@/components/patterns/metric-tile';
 import { Badge } from '@/components/ui/badge';
@@ -113,7 +114,7 @@ export function PluginView({ params }: { params: Promise<{ plugin: string }> }) 
             <EvalHeadline pluginEval={e} />
             {p ? (
               <Row split="1/2">
-                <Panel title="About this plugin">
+                <Panel title="About this plugin" actions={<AskAbout iconBelowSm question={`What does ${plugin} ship and reach, and is the version it declares released?`} />}>
                   <KeyValue
                     items={[
                       ...(p.owner ? [{ label: 'Owner', value: p.owner, mono: true }] : []),
@@ -133,7 +134,7 @@ export function PluginView({ params }: { params: Promise<{ plugin: string }> }) 
                 </Panel>
               </Row>
             ) : (
-              <Panel title="About this plugin"><p className="t-small text-ink-3">Registered through plugin_register as a third-party subject, with no manifest, skills or documents to show. Its evaluation is below.</p></Panel>
+              <Panel title="About this plugin" actions={<AskAbout iconBelowSm question={`What does the evaluation of ${plugin} say, with no manifest of it to read?`} />}><p className="t-small text-ink-3">Registered through plugin_register as a third-party subject, with no manifest, skills or documents to show. Its evaluation is below.</p></Panel>
             )}
             {notYet(e) ? <EvalNotYet evaluationOnly={e.ownershipMode === 'evaluation_only'} /> : (
               <>

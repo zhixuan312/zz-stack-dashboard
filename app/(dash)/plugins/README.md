@@ -15,7 +15,7 @@ What a person installs: a package's skills and the servers they call, under one 
 
 ## Agents
 
-The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `pluginsContext` in `src/views/plugins-context.ts`, the same function `view_plugins` calls, so the assistant quotes the figures the screen shows. No Ask on this page: the table is the comparison.
+The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `pluginsContext` in `src/views/plugins-context.ts`, the same function `view_plugins` calls, so the assistant quotes the figures the screen shows. Ask is in the head of the Every plugin table: which plugins are used most, and which ship skills nobody has run.
 
 ### What the agent reads
 

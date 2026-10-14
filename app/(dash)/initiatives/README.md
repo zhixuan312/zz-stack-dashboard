@@ -24,7 +24,7 @@ The assistant reads this page and changes nothing: every change in this console 
 Whose work it is, every filter in force and the page, then how many initiatives match (counted on the server over all of them) and the team's open, waiting and closed counts. What code found: the count by state, the rows in view with their state, gates, last touched and next move, and the count by flow. It says that another team's work is not in this list, and when zz-core could not say a row's next move.
 
 ```text
-- Rows 1 to 10 of 12, waiting first: 2026-09-28-search-relevance (waiting, 1 of 3 gates, touched 15 Oct 2026; next: approve plan.md); …
+- Rows 1 to 10 of 12, waiting first: 2026-09-28-search-relevance (waiting, 1 of 3 gates, touched 15 Oct 2026; next: Approve plan.md, waiting on a person); …
 ```
 
 - **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `query_initiatives` pages the route with its filters and answers the route's total.

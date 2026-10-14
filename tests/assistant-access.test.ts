@@ -19,9 +19,12 @@ import { GatewayError, gatewayGet } from '@/data/gateway';
 import { handedTo } from '@/lib/assistant/scoped';
 import { assistantTools } from '@/lib/assistant/tools';
 import type { Me } from '@/lib/api-shapes';
+import type { InitiativeList } from '@/lib/work-shapes';
+import { platformStatusContext, statusRead } from '@/views/platform-status-context';
 import { viewTools } from '@/views/tools';
 import { ME } from '../scripts/fake-gateway/people.ts';
 import { PEOPLE } from '../scripts/fake-gateway/platform-people.ts';
+import { MEMBER_STATUS, PLATFORM_STATUS } from '../scripts/fake-gateway/platform-status.ts';
 import { TEAMS, teamDetail } from '../scripts/fake-gateway/platform-teams.ts';
 import { search } from '../scripts/fake-gateway/search.ts';
 import { KNOWLEDGE } from '../scripts/fake-gateway/work.ts';
@@ -51,7 +54,8 @@ function gateway(who: Me | null | (() => Me | null), { shared = false } = {}) {
             : path === '/knowledge' ? { nodes: KNOWLEDGE }
               : path === '/people' ? { people: PEOPLE }
                 : path === '/search' ? found(new URL(url).searchParams, shared)
-                  : {};
+                  : path === '/platform/status' ? (me.superadmin ? PLATFORM_STATUS : MEMBER_STATUS)
+                    : {};
     return { ok: true, status: 200, json: async () => body } as Response;
   }) as typeof fetch;
 }
@@ -161,7 +165,7 @@ describe('what an agent is offered', () => {
     // The views the route registers for them: the ones whose need they satisfy (`app/api/assistant/route.ts`).
     const views = [];
     for (const v of viewTools) if (await may(v.needs)) views.push(v.name);
-    expect(views).toEqual(['overview', 'initiatives', 'initiative', 'document', 'knowledge', 'knowledge_node', 'knowledge_log', 'search', 'settings']);
+    expect(views).toEqual(['overview', 'initiatives', 'initiative', 'document', 'knowledge', 'knowledge_node', 'knowledge_log', 'search', 'settings', 'platform_status']);
   });
 
   it('a superadmin is offered every list', async () => {
@@ -242,7 +246,9 @@ describe('a collection read from the gateway', () => {
     const found = await initiatives.query({ where: [{ field: 'state', op: 'eq', value: 'waiting' }, { field: 'slug', op: 'contains', value: 'search' }], limit: 5, offset: 0 });
     expect(asked()).toEqual([{ state: 'waiting', q: 'search', limit: '5', offset: '0' }]);
     expect(found.total).toBe(1);
-    expect(found.rows[0]).toMatchObject({ slug: '2026-09-28-search-relevance', state: 'waiting', next: 'approve', nextDocument: 'plan.md', gatesPassed: 1, gates: 3 });
+    // The next move in `initiative_status`'s own words, as the fake answers them: the row carries the action as it came.
+    const next = (initiativeList(ME, new URLSearchParams('state=waiting&q=search'))[1] as InitiativeList).rows[0].nextMove?.action ?? null;
+    expect(found.rows[0]).toMatchObject({ slug: '2026-09-28-search-relevance', state: 'waiting', next, nextDocument: 'plan.md', gatesPassed: 1, gates: 3 });
   });
 
   it('refuses a condition or an order the route does not take, before anything is read', async () => {
@@ -346,7 +352,7 @@ describe('a view tool\'s address', () => {
 
   it('every tool has its own name and a need', () => {
     expect(new Set(viewTools.map((v) => v.name)).size).toBe(viewTools.length);
-    for (const v of viewTools) expect(['work:read', FLEET]).toContain(v.needs);
+    for (const v of viewTools) expect(['work:read', 'platform:read', FLEET]).toContain(v.needs);
     expect(viewTools.filter((v) => v.needs === FLEET).map((v) => v.name)).toEqual(['teams', 'team', 'people', 'plugins', 'plugin', 'skill', 'runs', 'activity']);
   });
 
@@ -373,6 +379,17 @@ describe('a view tool\'s address', () => {
     expect(tool('search').needs).toBe(tool('knowledge').needs);
     gateway(null);
     await expect(tool('search').read({ q: 'latency' })).rejects.toBeTruthy();
+  });
+
+  it('reads Status from the response its page draws, reduced the same way, for a member as for a superadmin', async () => {
+    for (const [who, answer] of [[MEMBER, MEMBER_STATUS], [ME, PLATFORM_STATUS]] as const) {
+      gateway(who);
+      const { context } = await tool('platform_status').read({});
+      expect(calls.map((c) => new URL(c.url).pathname + new URL(c.url).search)).toContain('/api/console/platform/status?scope=platform');
+      expect(context).toEqual(platformStatusContext(statusRead(answer)));
+    }
+    gateway(null);
+    await expect(tool('platform_status').read({})).rejects.toBeTruthy();
   });
 
   it('a member cannot read a fleet view by naming its tool', async () => {

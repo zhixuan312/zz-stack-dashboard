@@ -73,8 +73,8 @@ const initiatives = routeCollection<InitiativeRow, 'slug'>({
   fields: z.object({
     flow: maybeText.describe('The flow it runs, such as sdlc-flow; nothing when it declares none.'),
     state: z.enum(LIST_STATES).describe('waiting: a revision presented and not yet approved. quiet: open, and nothing of it written for 14 days or more.'),
-    next: maybeText.describe('What zz-core says comes next: approve, write, close, or none once closed; nothing when zz-core did not answer.'),
-    nextDocument: maybeText.describe('The document the next move is about.'), waitingOn: maybeText.describe('Who the next move waits on: a person or the agent.'),
+    next: maybeText.describe('zz-core\'s next_move action, as initiative_status answers it: write_document, await_approval, add_source, decide, fix, run_experiment, run_stage, resolve_branch, close, closed, or none for an open initiative with no flow; nothing when zz-core did not answer.'),
+    nextDocument: maybeText.describe('The document the next move is about.'), waitingOn: maybeText.describe('Who the next move waits on, as zz-core says it: stakeholder (a person), agent, or nobody.'),
     why: maybeText.describe('zz-core\'s reason for the next move.'),
     gatesPassed: count.describe('Gates approved, the handover left out.'), gates: count.describe('Gated documents the flow declares, the handover left out.'),
     lastTouched: when('When anything of it was last written'), opened: when('When it was opened'), closed: maybeWhen('When it was closed'),

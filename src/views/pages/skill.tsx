@@ -5,6 +5,7 @@ import { Activity, Ban, Repeat, Timer } from 'lucide-react';
 import { Row } from '@/components/base/shell';
 import { BarList } from '@/components/charts/bar-list';
 import { CompositionBar } from '@/components/charts/composition-bar';
+import { AskAbout } from '@/components/patterns/ask-about';
 import { MetricTile } from '@/components/patterns/metric-tile';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -143,7 +144,7 @@ export function SkillView({ params }: { params: Promise<{ plugin: string; skill:
             </Row>
           ) : null}
           {/* What the skill is: knowable whether or not anybody has run it, and a front door is exactly the skill with no runs. */}
-          <Panel title="About this skill">
+          <Panel title="About this skill" actions={<AskAbout iconBelowSm question={`What is ${name} for, and where does it sit in ${pluginName}'s method?`} />}>
             <KeyValue
               columns={2}
               items={[

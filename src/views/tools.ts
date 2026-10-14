@@ -16,6 +16,7 @@ import type {
   MyAccessToken, MyTeams, Overview, Person, PluginEval, PluginRow, Runs, SearchAnswer, Skill, SkillDetail, SkillText, Team,
 } from '@/lib/api-shapes';
 import type { TeamDetail } from '@/lib/fleet-shapes';
+import type { PlatformStatus } from '@/lib/platform-shapes';
 import type { InitiativeList } from '@/lib/work-shapes';
 import { PERIODS } from '@/lib/period';
 import { defineViewTool, type ViewTool } from '@/lib/shared-context';
@@ -30,6 +31,7 @@ import { knowledgeLogContext } from './knowledge-log-context';
 import { knowledgeNodeContext } from './knowledge-node-context';
 import { overviewContext } from './overview-context';
 import { peopleContext } from './people-context';
+import { platformStatusContext, statusRead } from './platform-status-context';
 import { pluginContext } from './plugin-context';
 import { pluginsContext } from './plugins-context';
 import { skillContext } from './skill-context';
@@ -304,7 +306,21 @@ const settingsTool = defineViewTool({
   },
 });
 
+/** The platform's Status: the same response its page reads on the server, reduced by the same `statusRead`. */
+const platformStatusTool = defineViewTool({
+  name: 'platform_status',
+  title: 'Status',
+  description: 'How often real work called a tool the wrong way: malformed calls per 1,000 real-work calls in the last whole week, with the counts behind the figure and the week it is for.',
+  needs: FEATURES['platform-status'].needs,
+  input: z.object({}),
+  async read() {
+    await requireNeed(FEATURES['platform-status'].needs);
+    const data = await gatewayGet<PlatformStatus>('/platform/status');
+    return { context: platformStatusContext(statusRead(data)), data };
+  },
+});
+
 export const viewTools: ViewTool[] = [
   overviewTool, teamsTool, teamTool, initiativesTool, initiativeTool, documentTool, knowledgeTool, knowledgeNodeTool, knowledgeLogTool,
-  searchTool, peopleTool, pluginsTool, pluginTool, skillTool, runsTool, activityTool, settingsTool,
+  searchTool, peopleTool, pluginsTool, pluginTool, skillTool, runsTool, activityTool, settingsTool, platformStatusTool,
 ] as ViewTool[];

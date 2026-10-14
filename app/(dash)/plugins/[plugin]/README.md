@@ -19,7 +19,7 @@ One plugin: what it is, what it reaches, its skills, and its whole evaluation st
 
 ## Agents
 
-The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `pluginContext` in `src/views/plugin-context.ts`, the same function `view_plugin` calls, so the assistant quotes the figures the screen shows. No Ask on this page: each evaluation card states its own finding.
+The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `pluginContext` in `src/views/plugin-context.ts`, the same function `view_plugin` calls, so the assistant quotes the figures the screen shows. Ask is on About this plugin: what the plugin ships and reaches and whether the version it declares is released, or, for a third-party subject with no manifest, what its evaluation says.
 
 ### What the agent reads
 

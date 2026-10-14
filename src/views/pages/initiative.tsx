@@ -1,6 +1,7 @@
 'use client';
 
 import { use } from 'react';
+import { AskAbout } from '@/components/patterns/ask-about';
 import { DataTable, type Column } from '@/components/patterns/data-table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { aligned } from '@/console/columns';
@@ -117,7 +118,15 @@ export function InitiativeView({ params }: { params: Promise<{ team: string; slu
                 rowHref={(x) => `${base}/${encodePath(x.path)}`}
                 pageSize={10}
                 pageSizes={[10, 20, 50]}
-                toolbar={<div><h2 className="t-card">Documents</h2><p className="t-caption mt-1">{d.of ? 'In the order the flow produces them' : 'Everything written in this initiative'}</p></div>}
+                toolbar={
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <h2 className="t-card">Documents</h2>
+                      <p className="t-caption mt-1">{d.of ? 'In the order the flow produces them' : 'Everything written in this initiative'}</p>
+                    </div>
+                    <AskAbout question={`Where does ${slug} stand, and which of its documents needs me next?`} />
+                  </div>
+                }
                 empty={{ title: 'Nothing written yet', body: 'The first stage of the flow writes the first document.' }}
               />
               {sources.length ? (

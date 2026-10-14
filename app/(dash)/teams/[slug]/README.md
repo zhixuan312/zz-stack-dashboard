@@ -15,7 +15,7 @@ One team: what it holds, how much of its work is open and waiting, and who is in
 
 ## Agents
 
-The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `teamContext` in `src/views/team-context.ts`, the same function `view_team` calls, so the assistant quotes the figures the screen shows. No Ask on this page: its tiles and one table are read whole.
+The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `teamContext` in `src/views/team-context.ts`, the same function `view_team` calls, so the assistant quotes the figures the screen shows. Ask is in the head of the Members table: who is in the team, who administers it, and who joined most recently.
 
 ### What the agent reads
 

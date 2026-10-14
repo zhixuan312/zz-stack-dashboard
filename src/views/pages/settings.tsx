@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { AskAbout } from '@/components/patterns/ask-about';
 import { ConsolePage, useArrival } from '@/console/page';
 import { failureOf } from '@/console/query';
 import { AssistantPanel } from '@/console/settings/assistant-panel';
@@ -61,7 +62,15 @@ function SettingsFrame({ children }: { children: ReactNode }) {
     ? settingsContext({ me: me.data, teams: teams.data, tokens: tokens.data, mode, ...arrival })
     : pendingContext({ view: 'settings', title: 'Settings', address: '/settings', scope: 'your own settings' }, failureOf(me));
   return (
-    <ConsolePage title="Settings" description="What this console shows you, plus your tokens, client setup and teams." showPeriod={false} width="form" context={context}>
+    <ConsolePage
+      title="Settings"
+      description="What this console shows you, plus your tokens, client setup and teams."
+      showPeriod={false}
+      width="form"
+      context={context}
+      // In the masthead: every section is a form section, whose head takes no actions.
+      actions={<AskAbout iconBelowSm question="Which team am I acting for, and which of my tokens are live?" />}
+    >
       {children}
     </ConsolePage>
   );

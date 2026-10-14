@@ -17,7 +17,7 @@ One skill a plugin ships: what it costs to run, its text, and what ships beside 
 
 ## Agents
 
-The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `skillContext` in `src/views/skill-context.ts`, the same function `view_skill` calls, so the assistant quotes the figures the screen shows. No Ask on this page: Conclusion already says what the figures mean.
+The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `skillContext` in `src/views/skill-context.ts`, the same function `view_skill` calls, so the assistant quotes the figures the screen shows. Ask is on About this skill, the card every view of the page draws: what the skill is for and where it sits in its plugin's method.
 
 ### What the agent reads
 

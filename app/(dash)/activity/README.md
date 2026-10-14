@@ -16,7 +16,7 @@ Every tool call, gate and admin act the platform recorded, newest first.
 
 ## Agents
 
-The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `activityContext` in `src/views/activity-context.ts`, the same function `view_activity` calls, so the assistant quotes the figures the screen shows. No Ask on this page: it is the audit feed, read in order.
+The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `activityContext` in `src/views/activity-context.ts`, the same function `view_activity` calls, so the assistant quotes the figures the screen shows. Ask is in the head of the Events table: what stands out in the latest events and whether anything is being refused, or, with Refusals only, which of the latest refusals matter most and what would stop them.
 
 ### What the agent reads
 

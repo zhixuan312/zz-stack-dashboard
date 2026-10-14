@@ -18,7 +18,7 @@ One initiative end to end: where it is in its flow, its documents, and the evide
 
 ## Agents
 
-The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `initiativeContext` in `src/views/initiative-context.ts`, the same function `view_initiative` calls, so the assistant quotes the figures the screen shows. No Ask on this page: the stepper and the document list are the answer, and the documents carry their own.
+The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `initiativeContext` in `src/views/initiative-context.ts`, the same function `view_initiative` calls, so the assistant quotes the figures the screen shows. Ask is in the head of the Documents table, which every initiative has, with a flow or without: where the initiative stands and which of its documents needs the person next.
 
 ### What the agent reads
 

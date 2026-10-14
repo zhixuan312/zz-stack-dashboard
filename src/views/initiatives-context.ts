@@ -11,10 +11,34 @@ import type { InitiativeList, InitiativeRow } from '@/lib/work-shapes';
 import { addressOf, arrived, budgeted, clip, type Arrival } from './context';
 import { LIST_STATES, PAGE_SIZE, STATE_LABEL, narrowed, type InitiativesFilters } from './initiatives-filter';
 
-/** Where a row goes next, in the words zz-core's `next_move` answers. */
-const move = (r: InitiativeRow): string => (r.nextMove ? `${r.nextMove.action}${r.nextMove.document ? ` ${r.nextMove.document}` : ''}` : 'unknown');
-/** That, and who it waits on, as a row's flow position reads. */
-export const nextOf = (r: InitiativeRow): string => (r.nextMove ? `${move(r)}${r.nextMove.waitingOn ? `, waiting on ${r.nextMove.waitingOn}` : ''}` : 'next move unavailable');
+/**
+ * What comes next, in words. zz-core's `next_move` answers a token (`await_approval`) that an agent reads as it is, in
+ * `query_initiatives`; a person, and the context that quotes the page, read the sentence. A token not named here is
+ * shown with its underscores as spaces rather than hidden.
+ */
+const ACTION: Record<string, (doc: string | null, stage: string | null) => string> = {
+  write_document: (d) => (d ? `Write ${d}` : 'Write the next document'),
+  await_approval: (d) => (d ? `Approve ${d}` : 'Approve the document presented'),
+  add_source: (d) => (d ? `Add a source for ${d}` : 'Add a source'),
+  decide: (d) => (d ? `Decide on ${d}` : 'A decision'),
+  fix: (d) => (d ? `Fix what the review of ${d} found` : 'Fix what the review found'),
+  run_experiment: () => 'Run an experiment',
+  run_stage: (_d, st) => (st ? `Run ${st}` : 'Run the next stage'),
+  resolve_branch: () => 'Choose the branch to take',
+  close: () => 'Close it',
+  closed: () => 'Closed',
+  none: () => 'No next move',
+};
+const WAITER: Record<string, string> = { stakeholder: 'a person', agent: 'the agent' };
+
+/** Where a row goes next and who it waits on, as its flow position reads on the page and in the context. */
+export const nextOf = (r: InitiativeRow): string => {
+  const m = r.nextMove;
+  if (!m) return 'Next move unavailable';
+  const said = ACTION[m.action]?.(m.document, m.stage) ?? `${m.action.replaceAll('_', ' ')}${m.document ? ` ${m.document}` : ''}`;
+  const waiter = m.waitingOn ? WAITER[m.waitingOn] : undefined;
+  return waiter ? `${said}, waiting on ${waiter}` : said;
+};
 
 export function initiativesContext(list: InitiativeList, { filters, page, ...arrival }: { filters: InitiativesFilters; page: number } & Arrival): SharedContext {
   const summary = list.summary.state === 'ok' ? list.summary.data : null;
@@ -26,7 +50,7 @@ export function initiativesContext(list: InitiativeList, { filters, page, ...arr
   }
   if (list.rows.length) {
     insights.push({
-      text: `Rows ${first + 1} to ${first + list.rows.length} of ${list.total}, waiting first: ${listed(list.rows, (r) => `${clip(r.slug)} (${STATE_LABEL[r.state].toLowerCase()}, ${r.gates.of ? `${r.gates.passed} of ${r.gates.of} gates` : 'no gates'}, touched ${formatDate(r.lastTouched)}; next: ${move(r)})`, 'page or filter on /initiatives', PAGE_SIZE)}.`,
+      text: `Rows ${first + 1} to ${first + list.rows.length} of ${list.total}, waiting first: ${listed(list.rows, (r) => `${clip(r.slug)} (${STATE_LABEL[r.state].toLowerCase()}, ${r.gates.of ? `${r.gates.passed} of ${r.gates.of} gates` : 'no gates'}, touched ${formatDate(r.lastTouched)}; next: ${nextOf(r)})`, 'page or filter on /initiatives', PAGE_SIZE)}.`,
       evidence: addressOf('/initiatives', { ...filters, page: String(page) }, { state: 'all', flow: 'all', page: '1' }),
     });
   }

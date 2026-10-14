@@ -96,7 +96,8 @@ export type WaitingRow = { initiative: string; path: string; version: number; co
 /** `GET /approvals?tab=waiting|history&limit&offset`: `tab` pages its own list, the other answers its first page. */
 export type Approvals = {
   meta: ReadMeta;
-  tiles: { waiting: number; oldestWaitingSince: string | null; inYourName: number; noPresentation: { count: number; of: number } };
+  /** null where the list it counts could not be read: a failed read is never a zero. */
+  tiles: { waiting: number | null; oldestWaitingSince: string | null; inYourName: number | null; noPresentation: { count: number; of: number } | null };
   weeks: PeriodFigure[];
   waiting: Part<{
     rows: WaitingRow[]; total: number; queue: 'team';

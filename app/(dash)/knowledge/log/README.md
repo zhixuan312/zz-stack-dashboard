@@ -6,7 +6,7 @@ Every node recorded or retired, newest first, and who wrote it down.
 
 - Gate first: the page asks for `knowledge` before it renders, so a person who does not hold it is shown NoAccess and nothing on the page is read.
 - Tiles: entries, recorded, superseded.
-- A data table: when, act, node (title now, or as typed), team, who.
+- A data table headed Recorded and superseded, newest first: when, act, node (title now, or as typed), team, who.
 
 ## States
 
@@ -15,7 +15,7 @@ Every node recorded or retired, newest first, and who wrote it down.
 
 ## Agents
 
-The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `knowledgeLogContext` in `src/views/knowledge-log-context.ts`, the same function `view_knowledge_log` calls, so the assistant quotes the figures the screen shows. No Ask on this page: it is a log, read in order.
+The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `knowledgeLogContext` in `src/views/knowledge-log-context.ts`, the same function `view_knowledge_log` calls, so the assistant quotes the figures the screen shows. Ask is in the head of the log's table, Recorded and superseded: what was recorded and superseded most recently, by whom, and what replaced what.
 
 ### What the agent reads
 

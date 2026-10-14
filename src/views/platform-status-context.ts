@@ -1,7 +1,8 @@
 /**
  * The platform's Status page's shared context (decision 0011), and the words its one tile is drawn with: malformed calls
  * per 1,000 real-work calls, for the last whole week the gateway answered. The page draws these words and the
- * assistant is told the same ones, so it quotes the figure the screen shows.
+ * assistant is told the same ones, as the page's shared context and through `view_platform_status`, which reduces the
+ * same response with `statusRead` (`src/views/tools.ts`), so it quotes the figure the screen shows.
  *
  * Only that figure is read. What else the status read carries (what needs attention, the doors, the records, what is
  * running) is not drawn and not described here until the page is built on it: no verdict, no list, no doors.
@@ -68,7 +69,7 @@ export function troubleOf(state: Exclude<StatusRead['state'], 'ok'>): { title: s
   return { title: "The platform's status did not load", detail: 'The platform did not answer the read. Nothing on this page was read.' };
 }
 
-const VIEW = { view: 'platform-status', title: 'Status', address: '/platform' } as const;
+const VIEW = { view: 'platform_status', title: 'Status', address: '/platform' } as const;
 
 export function platformStatusContext(read: StatusRead): SharedContext {
   if (read.state !== 'ok') {

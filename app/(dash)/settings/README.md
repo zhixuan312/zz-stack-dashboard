@@ -26,7 +26,7 @@ at the data width like every other page.
 
 ## Agents
 
-The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `settingsContext` in `src/views/settings-context.ts`, the same function `view_settings` calls, so the assistant quotes the figures the screen shows. No Ask on this page. Its last section, Assistant, holds the person's own switch for the panel ("Show the assistant"), drawn only where the console has an assistant.
+The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `settingsContext` in `src/views/settings-context.ts`, the same function `view_settings` calls, so the assistant quotes the figures the screen shows. Ask is in the masthead, because every section is a form section and a form section's head takes no actions: which team the person is acting for, and which of their tokens are live. Its last section, Assistant, holds the person's own switch for the panel ("Show the assistant"), drawn only where the console has an assistant.
 
 ### What the agent reads
 

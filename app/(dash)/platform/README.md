@@ -5,7 +5,7 @@ How often real work called a tool the wrong way in the last whole week, read on 
 ## Structure
 
 - Gate first: the page asks for `platform-status` before it renders, so a person who does not hold it is shown NoAccess and nothing on the page is read. Every role holds `platform:read`, so a member and a superadmin both open it.
-- Masthead: the kicker `ZZ Stack · Platform`, the title, one sentence, and the as-of line, which is the read's own `meta.asOf` through the console's date formatter. The masthead is drawn before the read answers; the as-of line and the tile wait for it inside their own boundaries.
+- Masthead: the kicker `ZZ Stack · Platform`, the title, one sentence, the as-of line, which is the read's own `meta.asOf` through the console's date formatter, and Ask beside it where the console has an assistant. The masthead is drawn before the read answers; the as-of line, Ask and the tile wait for it inside their own boundaries.
 - One tile, `Malformed calls per 1,000`: the last whole week's rate to one decimal place, and on its one line the counts behind it and the week it is for, as `8 of 125 real-work calls, week of 5 Oct`. The info button says what the figure counts.
 - Nothing else. The read also carries what needs attention, a scoreboard, the doors, the running versions and the team's own counts; the gateway answers them, and this page draws none of them and says nothing about them until it is rebuilt on them: no verdict, no list, no doors.
 
@@ -25,7 +25,7 @@ How often real work called a tool the wrong way in the last whole week, read on 
 
 ## Agents
 
-The assistant reads this page and changes nothing. The page shares its context through `platformStatusContext` in `src/views/platform-status-context.ts`, built from the same read and the same words as the tile, so the assistant quotes the figure the screen shows.
+The assistant reads this page and changes nothing. The page shares its context through `platformStatusContext` in `src/views/platform-status-context.ts`, built from the same read and the same words as the tile, and `view_platform_status` builds the same context from the same response (`GET /platform/status`, reduced by `statusRead`), so the assistant quotes the figure the screen shows. Ask is in the masthead, beside the as-of line, because the tile is a Metric tile and has no head to hold it: what malformed calls per 1,000 in the tile's week say about how real work calls tools, or, with no whole week yet, why there is none to read.
 
 ### What the agent reads
 
@@ -35,7 +35,7 @@ The figure, its value to one decimal place, the counts and the week behind it, a
 - Malformed calls per 1,000: 64.0, 8 of 125 real-work calls, week of 5 Oct. (Tool calls refused as malformed ...)
 ```
 
-- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address, and the page text after it for anything the context does not cover.
+- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address, and the page text after it for anything the context does not cover; `view_platform_status` answers the same text from anywhere in the console.
 
 ## Surfaces
 

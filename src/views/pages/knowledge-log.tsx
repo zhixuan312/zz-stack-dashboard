@@ -2,6 +2,7 @@
 
 import { GitFork, History, PlusCircle } from 'lucide-react';
 import { Row } from '@/components/base/shell';
+import { AskAbout } from '@/components/patterns/ask-about';
 import { DataTable, type Column } from '@/components/patterns/data-table';
 import { MetricTile } from '@/components/patterns/metric-tile';
 import { Badge } from '@/components/ui/badge';
@@ -80,6 +81,15 @@ export function KnowledgeLogView() {
         error={failureOf(q)}
         onRetry={() => void q.refetch()}
         empty={{ title: 'Nothing recorded yet', body: 'The log starts the next time a node is minted or superseded. Older nodes are on the Nodes tab.' }}
+        toolbar={
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="t-card">Recorded and superseded</h2>
+              <p className="t-caption mt-1">Newest first</p>
+            </div>
+            <AskAbout question="What was recorded and superseded most recently, by whom, and what replaced what?" />
+          </div>
+        }
       />
     </ConsolePage>
   );

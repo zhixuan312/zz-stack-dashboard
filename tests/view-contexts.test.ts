@@ -7,12 +7,13 @@ import { activityContext } from '@/views/activity-context';
 import { addressOf, pendingContext } from '@/views/context';
 import { documentContext } from '@/views/document-context';
 import { initiativeContext } from '@/views/initiative-context';
-import { initiativesContext } from '@/views/initiatives-context';
+import { initiativesContext, nextOf } from '@/views/initiatives-context';
 import { knowledgeContext } from '@/views/knowledge-context';
 import { knowledgeLogContext } from '@/views/knowledge-log-context';
 import { knowledgeNodeContext } from '@/views/knowledge-node-context';
 import { overviewContext } from '@/views/overview-context';
 import { peopleContext } from '@/views/people-context';
+import { platformStatusContext, statusRead } from '@/views/platform-status-context';
 import { pluginContext } from '@/views/plugin-context';
 import { pluginsContext } from '@/views/plugins-context';
 import { skillContext } from '@/views/skill-context';
@@ -23,6 +24,7 @@ import { teamContext } from '@/views/team-context';
 import { teamsContext } from '@/views/teams-context';
 import { ME, MY_TEAMS, MY_TOKENS } from '../scripts/fake-gateway/people.ts';
 import { PEOPLE } from '../scripts/fake-gateway/platform-people.ts';
+import { PLATFORM_STATUS } from '../scripts/fake-gateway/platform-status.ts';
 import { TEAMS, teamDetail } from '../scripts/fake-gateway/platform-teams.ts';
 import { ACTIVITY, PLUGINS, SKILLS, overview, pluginEval, runs, skillDetail, skillText } from '../scripts/fake-gateway/platform.ts';
 import { search } from '../scripts/fake-gateway/search.ts';
@@ -113,6 +115,27 @@ describe('every view shares a context', () => {
   });
 });
 
+/**
+ * Status says how fresh it is with the read's own cutoff ("As of …", `tests/platform-status.test.tsx`), not with the
+ * console's freshness words, so it is held to the rest of the shape here rather than in the table above.
+ */
+describe('the platform\'s Status shares a context', () => {
+  const status = () => platformStatusContext(statusRead(PLATFORM_STATUS));
+
+  it('names itself as its tool does, its address and its scope, says its cutoff, and quotes the figure', () => {
+    const c = status();
+    expect(c.view).toBe('platform_status');
+    expect(c.address).toBe('/platform');
+    expect(c.scope).not.toBe('');
+    expect(c.freshness).toMatch(/^As of /);
+    expect(c.facts.map((f) => f.label)).toContain('Malformed calls per 1,000');
+  });
+
+  it('stays inside the budget', () => {
+    expect(contextText(status()).length).toBeLessThanOrEqual(BUDGET);
+  });
+});
+
 describe('the figures a context quotes are the data\'s', () => {
   it('the overview counts every call in the trend, and its refusal insight names the tool the panel leads with', () => {
     const d = overview('30d');
@@ -149,7 +172,8 @@ describe('the figures a context quotes are the data\'s', () => {
     expect(fact(c, 'Waiting')).toBe(String(list.tiles.waiting));
     const text = contextText(c);
     for (const r of list.rows) expect(text).toContain(r.slug.slice(0, 40));
-    expect(text).toContain(`next: ${list.rows[0].nextMove!.action}`);
+    expect(text).toContain(`next: ${nextOf(list.rows[0])}`);
+    expect(text).not.toContain(`next: ${list.rows[0].nextMove!.action}`);
     // Ten rows in view of more than ten: the context says which page, never counts one page as the whole.
     expect(list.total).toBeGreaterThan(list.rows.length);
     expect(text).toContain(`Rows 1 to ${list.rows.length} of ${list.total}`);

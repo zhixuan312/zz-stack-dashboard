@@ -74,20 +74,32 @@ const QUIET_AFTER = 14 * DAY;
 /** A gate's document, by the gate's name: `approve plan` is plan.md's. */
 const documentOf = (gate: string) => `${gate.replace(/^approve /, '')}.md`;
 
-/** Where it goes next, as `initiative_status` would say it. */
+/** Where it goes next, in `initiative_status`'s own words: its actions and who it waits on. An open initiative no
+ *  flow governs has none to name, which the gateway answers as `none` with zz-core's sentence saying why. */
 function nextMoveOf(i: Initiative): NextMove {
   const own = i.gates.filter((g) => g.role !== 'handover');
   const waiting = own.find((g) => g.written && !g.passed);
+  const approve = (document: string): NextMove => ({
+    action: 'await_approval', stage: null, document, waitingOn: 'stakeholder',
+    why: `${document} is draft; call document_approve("${i.slug}/${document}") once the stakeholder agrees — nothing downstream may be written until that gate is recorded`,
+  });
   if (i.closed) {
     return i.correction
-      ? { action: 'approve', stage: i.stage || null, document: i.correction.path, waitingOn: 'a person', why: `${i.correction.path} was corrected after the close and waits on approval again` }
-      : { action: 'none', stage: null, document: null, waitingOn: null, why: `closed as ${i.outcome}` };
+      ? approve(i.correction.path)
+      : { action: 'closed', stage: null, document: null, waitingOn: 'nobody', why: `closed with outcome: ${i.outcome}. The ledger row is the record.` };
   }
-  if (!i.flow) return { action: 'write', stage: null, document: null, waitingOn: 'the agent', why: 'no flow is declared, so nothing says what comes next' };
-  if (waiting) return { action: 'approve', stage: i.stage || null, document: documentOf(waiting.name), waitingOn: 'a person', why: `${documentOf(waiting.name)} is written and waits on approval` };
-  if (own.length && own.every((g) => g.passed)) return { action: 'close', stage: i.stage || null, document: 'review.md', waitingOn: 'a person', why: 'every gate is approved and no outcome is recorded' };
+  if (!i.flow) {
+    return { action: 'none', stage: null, document: null, waitingOn: null,
+      why: 'no flow governs this initiative, so there is no declared chain and therefore no next stage to name. That is the answer, not a gap.' };
+  }
+  if (waiting) return approve(documentOf(waiting.name));
+  if (own.length && own.every((g) => g.passed)) {
+    return { action: 'close', stage: null, document: 'review.md', waitingOn: 'agent', why: 'every declared document exists and every gate is recorded — close it with initiative_close once somebody has accepted' };
+  }
   const step = i.steps.find((s) => s.current);
-  return { action: 'write', stage: step?.name ?? (i.stage || null), document: step?.produces || null, waitingOn: 'the agent', why: `the ${step?.name ?? i.stage} stage is under way` };
+  return step?.produces
+    ? { action: 'write_document', stage: null, document: step.produces, waitingOn: 'agent', why: `${step.produces} is the next document this flow declares` }
+    : { action: 'run_stage', stage: step?.name ?? (i.stage || null), document: null, waitingOn: 'agent', why: `${step?.name ?? i.stage} is not finished` };
 }
 
 /** One initiative as the list reads it. */
@@ -162,7 +174,9 @@ export function initiativeList(who: Me, q: URLSearchParams): Answer {
     summary: { state: 'ok', data: {
       total: rows.length,
       byState: Object.fromEntries(STATES.map((s) => [s, rows.filter((r) => r.state === s).length])) as Record<InitiativeRow['state'], number>,
-      byFlow: flows.map((flow) => ({ flow, count: rows.filter((r) => r.flow === flow).length })).sort((a, b) => b.count - a.count || String(a.flow).localeCompare(String(b.flow))),
+      byFlow: flows.map((flow) => ({ flow, count: rows.filter((r) => r.flow === flow).length }))
+        // The largest first, the initiatives with no flow last of a tie, as the gateway orders them.
+        .sort((a, b) => b.count - a.count || Number(a.flow === null) - Number(b.flow === null) || String(a.flow).localeCompare(String(b.flow))),
       touched: WEEKS.map((w, i) => tally(i, rows.filter((r) => within(r.lastTouched, w)).length)),
       previous: { window: previous, total: rows.filter((r) => r.opened < previous.to).length },
     } },

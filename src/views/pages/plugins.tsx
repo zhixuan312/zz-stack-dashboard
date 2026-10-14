@@ -2,6 +2,7 @@
 
 import { Box, CircleOff, PackageCheck, Puzzle } from 'lucide-react';
 import { Row } from '@/components/base/shell';
+import { AskAbout } from '@/components/patterns/ask-about';
 import { DataTable, type Column } from '@/components/patterns/data-table';
 import { MetricTile } from '@/components/patterns/metric-tile';
 import { aligned } from '@/console/columns';
@@ -72,7 +73,15 @@ export function PluginsView() {
         error={failureOf(q)}
         onRetry={() => void q.refetch()}
         empty={{ title: 'No plugin in the catalog' }}
-        toolbar={<div><h2 className="t-card">Every plugin</h2><p className="t-caption mt-1">Most recently used first</p></div>}
+        toolbar={
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="t-card">Every plugin</h2>
+              <p className="t-caption mt-1">Most recently used first</p>
+            </div>
+            <AskAbout question="Which plugins are used most, and which ship skills nobody has run?" />
+          </div>
+        }
       />
     </ConsolePage>
   );
