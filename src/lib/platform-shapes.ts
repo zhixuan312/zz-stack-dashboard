@@ -37,6 +37,15 @@ export type Measure = {
   better: 'up' | 'down' | 'neutral';
   judgement: 'improved' | 'worsened' | 'unchanged' | 'neutral' | 'not_comparable';
   finding: Finding | null;        // null when nothing holds: the page draws no finding
+  /* What a measure's page draws beside its weeks, one entry a week and on the measure it belongs to: the refusals
+   * behind refusals put right; the calls with no usable duration beside each latency; the share of searches widened
+   * and the refused searches beside searches that found something; the calls with no session beside sessions. A
+   * measure whose counts could not be read carries its arrays empty. */
+  followupCounts?: { refusals: number; eligible: number; missingSession: number; withinLookahead: number }[];
+  missingDuration?: number[];
+  widened?: PeriodFigure[];
+  failed?: number[];
+  withoutSession?: number[];
 };
 /* The one sentence a figure is said in, chosen by the gateway (console/findings.ts) so the page and the assistant say
  * the same thing; `dates` are the local dates it names, in the read's timezone. */

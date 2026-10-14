@@ -245,7 +245,7 @@ type Status = {
   needs: { state: string; rows: unknown[]; total: number | null; knownCount: number; unavailableKinds: string[]; overflowByKind: Json };
   measures: ({ key: string; weeks: PeriodFigure[]; better: string; judgement: string }
     & Record<'first' | 'best' | 'last' | 'previous' | 'highest' | 'lowest', PeriodFigure | null>)[];
-  records: Json; doors: Json; running: Json; own: Json;
+  records: Json; doors: Json; running: Json; own: { state: string; data?: unknown };
 };
 
 describe('GET /api/console/platform/status', () => {
@@ -258,9 +258,12 @@ describe('GET /api/console/platform/status', () => {
     expect(Number.isNaN(Date.parse(ava.meta.asOf))).toBe(false);
   });
 
-  it('builds one measure, malformed calls per 1,000, whose weeks are the rate their own counts give', async () => {
+  it('answers the eight measures in the spec\'s order, the first malformed calls per 1,000, whose weeks are the rate their own counts give', async () => {
     const { measures, meta } = await read<Status>(MEMBER, 'platform/status');
-    expect(measures.map((m) => m.key)).toEqual(['malformed_per_1000']);
+    expect(measures.map((m) => m.key)).toEqual(['malformed_per_1000', 'same_tool_followup_pct', 'call_p50_ms', 'call_p95_ms',
+      'searches_with_results_pct', 'bugs_per_1000', 'sessions', 'work_finished']);
+    // Every measure is drawn over the same weeks.
+    for (const other of measures) expect(other.weeks.map((w) => w.window), other.key).toEqual(measures[0].weeks.map((w) => w.window));
     const [m] = measures;
     expect(m.weeks.length).toBeGreaterThanOrEqual(5);
     let withCalls = 0;
@@ -313,12 +316,25 @@ describe('GET /api/console/platform/status', () => {
     expect([m.highest, m.lowest]).toEqual([null, null]);
   });
 
-  it('answers the parts Phase 0 does not build as unavailable, never as empty', async () => {
+  it('answers the parts not yet built as unavailable, never as empty', async () => {
     const s = await read<Status>(MEMBER, 'platform/status');
     expect(s.needs).toEqual({ state: 'unavailable', rows: [], total: null, knownCount: 0,
                               unavailableKinds: ['bugs', 'evaluation', 'approvals', 'drift', 'door'], overflowByKind: {} });
-    for (const part of [s.records, s.doors, s.running, s.own]) expect(part).toEqual({ state: 'unavailable', reason: 'not_built' });
+    for (const part of [s.records, s.doors, s.running]) expect(part).toEqual({ state: 'unavailable', reason: 'not_built' });
     expect(Object.keys(s).sort()).toEqual(['doors', 'measures', 'meta', 'needs', 'own', 'records', 'running']);
+  });
+
+  it('answers the reader\'s own team\'s malformed calls, refusals put right, sessions and bug reports, over the measures\' weeks', async () => {
+    const s = await read<Status>(MEMBER, 'platform/status');
+    expect(s.own.state).toBe('ok');
+    const own = s.own.data as { malformed: PeriodFigure[]; followup: PeriodFigure[]; sessions: PeriodFigure[]; bugs: Record<string, number> };
+    for (const weeks of [own.malformed, own.followup, own.sessions]) {
+      expect(weeks.map((w) => w.window)).toEqual(s.measures[0].weeks.map((w) => w.window));
+    }
+    // A team's own figures keep no sample minimum: a week with calls stands, its counts beside it.
+    for (const w of own.malformed) expect(w.figure.why).toBe(w.denominator === 0 ? 'no_data' : null);
+    expect(Object.keys(own.bugs).sort()).toEqual(['duplicate', 'filed', 'fixed', 'notABug', 'open']);
+    expect(own.bugs.filed).toBe(own.bugs.fixed + own.bugs.notABug + own.bugs.duplicate + own.bugs.open);
   });
 
   it('is data the platform\'s own check can import with plain node', () => {

@@ -32,7 +32,7 @@ export function statusRead(status: PlatformStatus): StatusRead {
 }
 
 export const LABEL = 'Malformed calls per 1,000';
-export const DEFINITION = 'Tool calls refused as malformed (a missing argument, an invalid value) in every 1,000 real-work calls over one whole week. The release check, imports and the doctor are not real work.';
+export const DEFINITION = 'Tool calls refused as malformed in every 1,000 real-work calls over one whole week: mostly calls of the wrong shape (a missing argument, an invalid value), and also a call naming something that does not resolve. The release check, imports and the doctor are not real work.';
 const TOO_FEW = 'Too few calls to compare';
 
 const RATE = new Intl.NumberFormat('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
