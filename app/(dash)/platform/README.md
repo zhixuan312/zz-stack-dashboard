@@ -7,7 +7,7 @@ How often real work called a tool the wrong way in the last whole week, read on 
 - Gate first: the page asks for `platform-status` before it renders, so a person who does not hold it is shown NoAccess and nothing on the page is read. Every role holds `platform:read`, so a member and a superadmin both open it.
 - Masthead: the kicker `ZZ Stack · Platform`, the title, one sentence, and the as-of line, which is the read's own `meta.asOf` through the console's date formatter. The masthead is drawn before the read answers; the as-of line and the tile wait for it inside their own boundaries.
 - One tile, `Malformed calls per 1,000`: the last whole week's rate to one decimal place, and on its one line the counts behind it and the week it is for, as `8 of 125 real-work calls, week of 5 Oct`. The info button says what the figure counts.
-- Nothing else. The read also carries what needs attention, a scoreboard, the doors, the running versions and the team's own counts; the platform marks those unavailable for now, and the page draws none of them and says nothing about them: no verdict, no list, no doors.
+- Nothing else. The read also carries what needs attention, a scoreboard, the doors, the running versions and the team's own counts; the gateway answers them, and this page draws none of them and says nothing about them until it is rebuilt on them: no verdict, no list, no doors.
 
 ## States
 

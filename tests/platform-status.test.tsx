@@ -83,7 +83,7 @@ describe('the tile', () => {
     expect(screen.getByText(`Week of ${formatDay(none.window.from)}`)).toBeInTheDocument();
   });
 
-  it('draws nothing of the parts the read marks unavailable, and no verdict', () => {
+  it('draws nothing of the read\'s other parts, and no verdict', () => {
     const { container } = draw(statusRead(PLATFORM_STATUS));
     expect(container.textContent).not.toMatch(/need|attention|door|running|better|worse|improved|worsened|operational|healthy/i);
     expect(screen.queryAllByRole('link')).toEqual([]);

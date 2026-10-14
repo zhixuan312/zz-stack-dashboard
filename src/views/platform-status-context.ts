@@ -3,8 +3,8 @@
  * per 1,000 real-work calls, for the last whole week the gateway answered. The page draws these words and the
  * assistant is told the same ones, so it quotes the figure the screen shows.
  *
- * Only that figure is read. What else the status read carries, and the parts it marks unavailable, are not drawn and
- * not described: no verdict, no list of what needs attention, no doors.
+ * Only that figure is read. What else the status read carries (what needs attention, the doors, the records, what is
+ * running) is not drawn and not described here until the page is built on it: no verdict, no list, no doors.
  */
 import type { Measure, PeriodFigure, PlatformStatus } from '@/lib/platform-shapes';
 import { formatCount } from '@/lib/format-units';
