@@ -6,7 +6,7 @@ import config from '../scripts/verify.config.ts';
 /**
  * Fleet's reads as the fake gateway answers them: Teams, a team and People to the superadmin, Usage and Knowledge health
  * to both people, and Audit to the superadmin with a member refused. What a member is answered for Teams and People is
- * the console's grants' to change, and is not asserted here.
+ * asserted in fake-gateway-fleet-member.test.ts.
  *
  * The key sets below are written out from the shapes the gateway's tasks declare and never read from the fixture, so
  * a field the fake adds or drops fails here before the platform's own checks compare it with the real routes. A

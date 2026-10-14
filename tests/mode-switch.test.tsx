@@ -52,7 +52,7 @@ describe('ModeSwitch', () => {
  */
 describe('the scope in the rail\'s workspace menu', () => {
   const EVERY = ['/', '/teams', '/initiatives', '/knowledge', '/people', '/plugins', '/runs', '/activity', '/settings'];
-  const MEMBER = ['/', '/initiatives', '/knowledge', '/people', '/settings'];
+  const MEMBER = ['/', '/initiatives', '/knowledge', '/settings'];
   let calls: string[];
 
   /** A page's read beside the rail, so the scope it sends can be read off the request. */

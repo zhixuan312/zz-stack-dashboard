@@ -2,8 +2,8 @@
  * The fake gateway's teams: what `GET /api/console/teams` and `/teams/:slug` answer.
  *
  * One fixture, the teams as the superadmin reads them: the fields today's pages read and, beside them, each team's
- * figures against its own past, the list filtered and paged on the server. A member is still answered as today, their
- * own team in today's fields, until the console's grants turn that into the gateway's refusal.
+ * figures against its own past, the list filtered and paged on the server. Anybody else is refused both reads, as the
+ * gateway refuses them.
  *
  * The teams cover the states the pages draw: a team with work and revisions waiting, one with no work at all, an
  * archived one whose calls stopped weeks ago, and more than four with calls, so Usage's split by team has a fourth
@@ -13,7 +13,7 @@
  * COUPLED: zz-stack's `checks/console-platform-teams.ts` imports this file with plain `node` and compares its key sets
  * with the real routes' answers. So nothing here is imported through the console's path alias.
  */
-import type { Me, Team, TeamDetail as TodayDetail } from '../../src/lib/api-shapes.ts';
+import type { Me } from '../../src/lib/api-shapes.ts';
 import type { TeamDetail, TeamRow, Teams } from '../../src/lib/fleet-shapes.ts';
 import type { PeriodFigure } from '../../src/lib/platform-shapes.ts';
 import { day, now } from './clock.ts';
@@ -78,11 +78,9 @@ export const TEAMS: TeamRow[] = SEEDS.map((s) => ({
   lastActive: s.lastActive === null ? null : iso(inWeek(...s.lastActive)),
 })).sort((a, b) => (b.lastActive ?? '').localeCompare(a.lastActive ?? '') || a.slug.localeCompare(b.slug));
 
-/** A team as today's `/teams` answered it. */
-const asToday = (t: TeamRow): Team => ({
-  slug: t.slug, name: t.name, status: t.status, created: t.created,
-  members: t.members, initiatives: t.initiatives, documents: t.documents, sources: t.sources, knowledge: t.knowledge,
-});
+/** The gateway's refusal to anybody but the superadmin, made before anything is read: it names nobody and says nothing
+ *  of whether the team asked for exists. */
+const REFUSED: [number, unknown] = [403, { error: 'not permitted' }];
 
 const meta = (population: string) => {
   const asOf = iso(now());
@@ -95,10 +93,10 @@ const STATUSES = ['active', 'archived'];
  * `GET /teams`, as `who`, on `page`; null when the superadmin asked for a page the read does not take.
  *
  * The superadmin is answered every team, `?q` matching a slug or a name and `?status` one of the two states, each
- * given at most once, with the tiles over every team. A member is answered as today: their own team, in today's fields.
+ * given at most once, with the tiles over every team. Anybody else is refused, whatever they asked.
  */
 export function teams(who: Me, q: URLSearchParams, page: { limit: number; offset: number } | null): [status: number, body: unknown] | null {
-  if (!who.superadmin) return [200, { teams: (who.activeTeam ? TEAMS.filter((t) => t.slug === who.activeTeam) : TEAMS).map(asToday) }];
+  if (!who.superadmin) return REFUSED;
   if (!page) return null;
   if (q.getAll('q').length > 1 || q.getAll('status').length > 1) return [400, { error: 'each filter and the page are given at most once' }];
   const status = q.get('status');
@@ -134,15 +132,10 @@ export function teamDetail(slug: string): TeamDetail | null {
 
 /**
  * `GET /teams/:slug`, as `who`. The superadmin is answered any team, and a slug no team has is 404 with nothing in it.
- * A member is answered as today: their own team in today's shape, and any other as one that does not exist.
+ * Anybody else is refused, their own team as much as one that does not exist.
  */
 export function team(who: Me, slug: string): [status: number, body: unknown] {
-  const missing: [number, unknown] = [404, { error: `team ${slug} does not exist on this deployment` }];
-  if (!who.superadmin) {
-    if (who.activeTeam !== null && slug !== who.activeTeam) return missing;
-    const detail = teamDetail(slug);
-    return detail ? [200, { team: detail.team, members: detail.members } satisfies TodayDetail] : missing;
-  }
+  if (!who.superadmin) return REFUSED;
   const detail = teamDetail(slug);
   return detail ? [200, detail] : [404, null];
 }

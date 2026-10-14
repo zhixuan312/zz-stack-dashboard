@@ -3,10 +3,9 @@
  * `/settings`.
  *
  * Synthetic on purpose, as people.ts says: every address is under `example.com`. One fixture, the people as the
- * superadmin reads them; a member's answer is derived from it. The superadmin reads every person with their passkeys,
- * their last recorded sign-in and their state, filtered and paged on the server; a member is still answered today's
- * roster of their own team, each person's teams narrowed to it, until the console's grants turn that into the
- * gateway's refusal.
+ * superadmin reads them. The superadmin reads every person with their passkeys, their last recorded sign-in and their
+ * state, filtered and paged on the server; anybody else is refused the read, as the gateway refuses it. A team's
+ * census is still counted from its roster.
  *
  * The cast covers the states the page draws: a person who never signed in, a deactivated one with sign-ins before,
  * a superadmin in no team of the others, a person in two teams, and a name long enough to wrap.
@@ -75,7 +74,7 @@ const asToday = (p: PersonRow): Person => ({
   tokens: p.tokens, last_used: p.last_used,
 });
 
-/** One team's people as a member of it is answered: the same rows, and nothing in one names another team. */
+/** One team's people, as its census counts them: the same rows, and nothing in one names another team. */
 export function rosterOf(team: string): Person[] {
   const here = (t: string) => t.startsWith(`${team} `);
   return PEOPLE.filter((p) => p.teams.some(here)).map((p) => ({ ...asToday(p), activeTeam: p.activeTeam === team ? team : null, teams: p.teams.filter(here) }));
@@ -96,10 +95,11 @@ const STATES = ['active', 'deactivated'];
  * `GET /people`, as `who`, on `page`; null when the superadmin asked for a page the read does not take.
  *
  * The superadmin is answered every person, `?q` matching an email or a name and `?state` one of the two states, each
- * given at most once, with the tiles over everybody; the read's coverage begins at the first recorded sign-in. A member is answered as today: their own team's roster, or nothing for a person in no team.
+ * given at most once, with the tiles over everybody; the read's coverage begins at the first recorded sign-in. Anybody
+ * else is refused before anything is read, with the gateway's sentence, which names nobody.
  */
 export function people(who: Me, q: URLSearchParams, page: { limit: number; offset: number } | null): [status: number, body: unknown] | null {
-  if (!who.superadmin) return [200, { people: who.activeTeam ? rosterOf(who.activeTeam) : [] }];
+  if (!who.superadmin) return [403, { error: 'not permitted' }];
   if (!page) return null;
   if (q.getAll('q').length > 1 || q.getAll('state').length > 1) return [400, { error: 'each filter and the page are given at most once' }];
   const state = q.get('state');

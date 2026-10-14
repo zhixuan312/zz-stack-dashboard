@@ -155,8 +155,9 @@ const config: VerifyConfig = {
    * reads. A run without `--as` sends no cookie, and the fake gateway answers that as the superadmin.
    *
    * The routes are the rail each is shown today, written out, across both workspaces: Work's, then Platform's Status,
-   * which both read. The member is one person in one team, `atlas`, and is refused the fleet's four pages; the name of
-   * a team they are not in is on Teams for a superadmin, and must not reach the page a member is refused.
+   * which both read. The member is one person in one team, `atlas`, and is refused the fleet's five pages, People among
+   * them. The name of a team they are not in is on Teams for a superadmin, and the name of a person in no team of theirs
+   * on People; neither may reach the page a member is refused.
    */
   personas: {
     superadmin: {
@@ -165,8 +166,8 @@ const config: VerifyConfig = {
     },
     member: {
       cookie: { name: 'zz_console', value: 'member' },
-      expectedRoutes: ['/', '/initiatives', '/knowledge', '/people', '/settings', '/platform'],
-      deniedProbe: { '/teams': 'Beacon Payments' },
+      expectedRoutes: ['/', '/initiatives', '/knowledge', '/settings', '/platform'],
+      deniedProbe: { '/teams': 'Beacon Payments', '/people': 'Jonas Weber' },
     },
   },
 };

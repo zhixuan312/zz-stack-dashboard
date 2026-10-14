@@ -16,7 +16,8 @@
  *   change, a team switch or a sign-out takes effect at the next operation.
  * - `bind` returns the collection as it is. A collection's rows are a gateway read made with the caller's own
  *   credential, so the gateway has already applied the predicate: a member's read comes back as their team's rows and
- *   a superadmin's as every team's. There is no second, wider copy for a scope to be bound away from.
+ *   a superadmin's as every team's, and a read only the superadmin may make, as Teams and People are, refuses anyone
+ *   else. There is no second, wider copy for a scope to be bound away from.
  *
  * None of this widens a read: the gateway refuses what the person may not read whatever this says.
  *

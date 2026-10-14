@@ -40,8 +40,8 @@ const SUPERADMIN: Body = { email: 'owner@example.com', name: 'Owner', role: 'sup
 const MEMBER: Body = { email: 'mei@example.com', name: 'Mei', role: 'member', mayRead: true, superadmin: false, via: 'session', teams: [{ slug: 'beacon', role: 'admin' }], activeTeam: 'beacon' };
 
 const EVERYTHING = ['Overview', 'Teams', 'Initiatives', 'Knowledge', 'People', 'Plugins', 'Runs', 'Activity', 'Settings'];
-const WORKING_SET = ['Overview', 'Initiatives', 'Knowledge', 'People', 'Settings'];
-const FLEET = ['Teams', 'Plugins', 'Runs', 'Activity'];
+const WORKING_SET = ['Overview', 'Initiatives', 'Knowledge', 'Settings'];
+const FLEET = ['Teams', 'People', 'Plugins', 'Runs', 'Activity'];
 
 let calls: string[];
 /** The gateway answers `/me` with a body, with a bare status, or not at all. */

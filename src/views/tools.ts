@@ -13,8 +13,9 @@ import { FEATURES, FLEET } from '@/data/features';
 import { gatewayGet } from '@/data/gateway';
 import type {
   ActivityEvent, DocumentDetail, Initiative, InitiativeDetail, KnowledgeBody, KnowledgeLogEntry, KnowledgeNode, Me,
-  MyAccessToken, MyTeams, Overview, Person, PluginEval, PluginRow, Runs, SearchAnswer, Skill, SkillDetail, SkillText, Team, TeamDetail,
+  MyAccessToken, MyTeams, Overview, Person, PluginEval, PluginRow, Runs, SearchAnswer, Skill, SkillDetail, SkillText, Team,
 } from '@/lib/api-shapes';
+import type { TeamDetail } from '@/lib/fleet-shapes';
 import { PERIODS } from '@/lib/period';
 import { defineViewTool, type ViewTool } from '@/lib/shared-context';
 import { activityContext } from './activity-context';
@@ -38,6 +39,8 @@ import { teamsContext } from './teams-context';
 
 /** How many events the Activity page asks for; its tool asks for the same. */
 const ACTIVITY_LIMIT = 200;
+/** The page Teams and People ask for, every row on one: the gateway answers 10 unless asked. */
+const EVERY_ROW = 'limit=100';
 
 const period = z.enum(PERIODS).optional().describe('The reporting period; all time when not given.');
 const search = z.string().max(100).optional();
@@ -73,7 +76,7 @@ const teamsTool = defineViewTool({
   input: z.object({ q: search.describe('Text in the slug or the name.'), status: z.enum(['all', 'active', 'archived']).optional() }),
   async read({ q = '', status = 'all' }) {
     await requireNeed(FEATURES.teams.needs);
-    const data = await gatewayGet<{ teams: Team[] }>('/teams');
+    const data = await gatewayGet<{ teams: Team[] }>(`/teams?${EVERY_ROW}`);
     return { context: teamsContext(data.teams, { filters: { q, status }, ...justRead() }), data };
   },
 });
@@ -86,12 +89,13 @@ const teamTool = defineViewTool({
   input: z.object({ slug: segment('The team\'s slug.') }),
   async read({ slug }) {
     await requireNeed(FEATURES.teams.needs);
-    const [team, inits, teams] = await Promise.all([
+    const [team, inits] = await Promise.all([
       gatewayGet<TeamDetail>(`/teams/${slug}`),
       gatewayGet<{ initiatives: Initiative[] }>(`/initiatives?team=${slug}`),
-      gatewayGet<{ teams: Team[] }>('/teams'),
     ]);
-    const data = { team, initiatives: inits.initiatives, held: teams.teams.find((t) => t.slug === slug) };
+    // What it holds is the team's own read, as its page builds it: the same counts as its row in the list.
+    const held: Team = { ...team.team, ...team.counts };
+    const data = { team, initiatives: inits.initiatives, held };
     return { context: teamContext(slug, { ...data, ...justRead() }), data };
   },
 });
@@ -207,12 +211,12 @@ const knowledgeLogTool = defineViewTool({
 const peopleTool = defineViewTool({
   name: 'people',
   title: 'People',
-  description: 'Everyone the person may read, filtered: their role, their teams, and whether their tokens are live and used.',
+  description: 'Everyone on the platform, filtered: their role, their teams, and whether their tokens are live and used.',
   needs: FEATURES.people.needs,
   input: z.object({ q: search.describe('Text in the name or the email.'), team: z.string().max(100).optional().describe('A team\'s slug.') }),
   async read({ q = '', team = 'all' }) {
     await requireNeed(FEATURES.people.needs);
-    const data = await gatewayGet<{ people: Person[] }>('/people');
+    const data = await gatewayGet<{ people: Person[] }>(`/people?${EVERY_ROW}`);
     return { context: peopleContext(data.people, { filters: { q, team }, mode: await modeOf(), ...justRead() }), data };
   },
 });

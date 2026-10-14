@@ -70,8 +70,8 @@ async function teams(): Promise<{ own: string; others: Team[]; named: RegExp }> 
 async function memberReads(): Promise<string[]> {
   const own = (await read<Me>(MEMBER, 'me')).activeTeam!;
   const paths = [
-    'me', 'overview', 'overview?period=7d', 'teams', `teams/${own}`, 'initiatives', 'initiatives?waiting=1', `initiatives?team=${own}`,
-    'knowledge', 'knowledge/log', 'people', 'activity', 'activity?failed=1', 'runs', 'plugins', 'plugins/sdlc/eval',
+    'me', 'overview', 'overview?period=7d', 'initiatives', 'initiatives?waiting=1', `initiatives?team=${own}`,
+    'knowledge', 'knowledge/log', 'activity', 'activity?failed=1', 'runs', 'plugins', 'plugins/sdlc/eval',
     'plugins/sdlc/skills/sdlc-spec', 'skills', 'skills/sdlc-spec', 'search?q=recency', 'search?q=review%20rounds&limit=50',
     'settings/me/tokens', 'settings/me/client-setup', 'settings/me/teams', `settings/team/members?team=${own}`, 'platform/status',
   ];
@@ -128,8 +128,8 @@ describe('who the fake gateway answers as', () => {
       expect(await read(null, path), path).toEqual(await read(SUPERADMIN, path));
     }
     expect((await read<{ teams: Team[] }>(null, 'teams')).teams.length).toBeGreaterThan(1);
-    expect((await read<{ people: unknown[] }>(null, 'people?scope=platform')).people.length).toBeGreaterThan(
-      (await read<{ people: unknown[] }>(MEMBER, 'people?scope=platform')).people.length);
+    expect((await read<{ people: unknown[] }>(null, 'people?scope=platform')).people.length).toBeGreaterThan(1);
+    expect((await ask(MEMBER, 'people?scope=platform')).status).toBe(403);
   });
 });
 
@@ -137,7 +137,6 @@ describe('what a member is answered', () => {
   it('lists their own team\'s records only, whether or not they ask for the platform', async () => {
     const { own } = await teams();
     for (const scope of ['', '?scope=platform']) {
-      expect((await read<{ teams: Team[] }>(MEMBER, `teams${scope}`)).teams.map((t) => t.slug)).toEqual([own]);
       const rows = [
         ...(await read<{ initiatives: { team: string }[] }>(MEMBER, `initiatives${scope}`)).initiatives,
         ...(await read<{ waiting: { team: string }[] }>(MEMBER, `initiatives${scope ? `${scope}&` : '?'}waiting=1`)).waiting,
@@ -147,18 +146,10 @@ describe('what a member is answered', () => {
       ];
       expect(rows.length).toBeGreaterThan(20);
       for (const row of rows) expect(row.team, JSON.stringify(row).slice(0, 120)).toBe(own);
-
-      const { people } = await read<{ people: { email: string; activeTeam: string | null; teams: string[] }[] }>(MEMBER, `people${scope}`);
-      expect(people.length).toBeGreaterThan(1);
-      for (const p of people) {
-        expect(p.teams.length, p.email).toBeGreaterThan(0);
-        for (const t of p.teams) expect(t.startsWith(`${own} (`), `${p.email}: ${t}`).toBe(true);
-        expect([own, null], p.email).toContain(p.activeTeam);
-      }
     }
     // The census is the team's: one team, and no more people than are in it.
     const overview = await read<{ counts: { teams: number; activeTeams: number; people: number; unattributedEvents: number } }>(MEMBER, 'overview');
-    const roster = (await read<{ people: unknown[] }>(MEMBER, 'people')).people.length;
+    const roster = (await read<unknown[]>(MEMBER, `settings/team/members?team=${own}`)).length;
     expect(overview.counts).toMatchObject({ teams: 1, activeTeams: 1, people: roster, unattributedEvents: 0 });
   });
 
@@ -176,6 +167,17 @@ describe('what a member is answered', () => {
     for (const t of others) expect(fleet).toContain(t.name);
   });
 
+  it('is refused Teams, any team\'s page and People, as the gateway refuses them', async () => {
+    const { own, others } = await teams();
+    for (const path of ['teams', `teams/${own}`, `teams/${others[0].slug}`, 'teams/no-such-team', 'people']) {
+      for (const scope of ['', '?scope=platform']) {
+        const res = await ask(MEMBER, path + scope);
+        expect(res.status, `member GET ${path}${scope}`).toBe(403);
+        expect(await res.json()).toEqual({ error: 'not permitted' });
+      }
+    }
+  });
+
   it('answers another team\'s record as one that does not exist', async () => {
     // As the gateway does: a 403 would confirm the other team is real.
     const { others } = await teams();
@@ -183,7 +185,7 @@ describe('what a member is answered', () => {
     const theirs = (await read<{ initiatives: { team: string; slug: string }[] }>(null, `initiatives?team=${other}`)).initiatives[0];
     const node = (await read<{ nodes: { team: string; path: string }[] }>(null, 'knowledge?scope=platform')).nodes.find((n) => n.team === other)!;
     const doc = (await read<{ documents: { path: string }[] }>(null, `initiatives/${other}/${theirs.slug}`)).documents[0].path;
-    for (const path of [`teams/${other}`, `initiatives/${other}/${theirs.slug}`, `document/${other}/${theirs.slug}/${doc}`,
+    for (const path of [`initiatives/${other}/${theirs.slug}`, `document/${other}/${theirs.slug}/${doc}`,
                         `document/${other}/${theirs.slug}/${doc}?revision=1`, `knowledge/${other}/${node.path}`]) {
       expect((await ask(null, path)).status, `superadmin GET ${path}`).toBe(200);
       for (const scope of ['', `${path.includes('?') ? '&' : '?'}scope=platform`]) {
@@ -466,22 +468,22 @@ describe('the personas pnpm verify --as signs in as', () => {
 
   it('expect the rail each is shown today', () => {
     expect([...personas.superadmin.expectedRoutes]).toEqual(RAIL);
-    expect([...personas.member.expectedRoutes]).toEqual(['/', '/initiatives', '/knowledge', '/people', '/settings', '/platform']);
+    expect([...personas.member.expectedRoutes]).toEqual(['/', '/initiatives', '/knowledge', '/settings', '/platform']);
     expect(personas.superadmin.deniedProbe).toBeUndefined();
   });
 
-  it('probe a page the member is refused for a string that is another team\'s, and the fixture holds', async () => {
-    const { others } = await teams();
+  it('probe each page the member is refused for a string its read holds and no read of the member\'s does', async () => {
     const probes = Object.entries(personas.member.deniedProbe ?? {});
-    expect(probes.length).toBeGreaterThan(0);
+    expect(probes.map(([route]) => route).sort()).toEqual(['/people', '/teams']);
+    const theirs = JSON.stringify(await Promise.all((await memberReads()).map((path) => read(MEMBER, path))));
     for (const [route, probe] of probes) {
       expect(RAIL, route).toContain(route);
       expect(personas.member.expectedRoutes, route).not.toContain(route);
-      expect(others.some((t) => probe.includes(t.name) || probe.includes(t.slug)), probe).toBe(true);
-      // The page's own read holds it for the superadmin, and not for the member.
+      // The page's own read holds it for the superadmin; the member is refused that read, and reads it nowhere else.
       const collection = route.slice(1);
-      expect(JSON.stringify(await read(null, `${collection}?scope=platform`))).toContain(probe);
-      expect(JSON.stringify(await read(MEMBER, `${collection}?scope=platform`))).not.toContain(probe);
+      expect(JSON.stringify(await read(null, `${collection}?limit=100`))).toContain(probe);
+      expect((await ask(MEMBER, `${collection}?limit=100`)).status, route).toBe(403);
+      expect(theirs, route).not.toContain(probe);
     }
   });
 });

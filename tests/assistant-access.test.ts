@@ -22,7 +22,7 @@ import type { Me } from '@/lib/api-shapes';
 import { viewTools } from '@/views/tools';
 import { ME } from '../scripts/fake-gateway/people.ts';
 import { PEOPLE } from '../scripts/fake-gateway/platform-people.ts';
-import { TEAMS } from '../scripts/fake-gateway/platform-teams.ts';
+import { TEAMS, teamDetail } from '../scripts/fake-gateway/platform-teams.ts';
 import { search } from '../scripts/fake-gateway/search.ts';
 import { INITIATIVES, KNOWLEDGE } from '../scripts/fake-gateway/work.ts';
 
@@ -30,6 +30,7 @@ const MEMBER: Me = { email: 'mei.tanaka@example.com', name: 'Mei Tanaka', role: 
 
 /**
  * Every request the server made, and the gateway that answers them as `who`; `null` is a browser with no session.
+ * Teams, a team and People are the superadmin's, and anybody else is refused them as the gateway refuses them.
  * With `shared`, every search result comes back as one on the platform's shared shelf.
  */
 let calls: { url: string; headers: Record<string, string> }[] = [];
@@ -41,13 +42,15 @@ function gateway(who: Me | null | (() => Me | null), { shared = false } = {}) {
     const me = typeof who === 'function' ? who() : who;
     if (!me) return { ok: false, status: 401, json: async () => ({ error: 'not signed in' }) } as Response;
     const path = new URL(url).pathname.replace('/api/console', '');
+    if (/^\/(teams|people)(\/|$)/.test(path) && !me.superadmin) return { ok: false, status: 403, json: async () => ({ error: 'not permitted' }) } as Response;
     const body = path === '/me' ? me
       : path === '/teams' ? { teams: TEAMS }
-        : path === '/initiatives' ? { initiatives: INITIATIVES }
-          : path === '/knowledge' ? { nodes: KNOWLEDGE }
-            : path === '/people' ? { people: PEOPLE }
-              : path === '/search' ? found(new URL(url).searchParams, shared)
-                : {};
+        : path.startsWith('/teams/') ? teamDetail(path.slice('/teams/'.length))
+          : path === '/initiatives' ? { initiatives: INITIATIVES }
+            : path === '/knowledge' ? { nodes: KNOWLEDGE }
+              : path === '/people' ? { people: PEOPLE }
+                : path === '/search' ? found(new URL(url).searchParams, shared)
+                  : {};
     return { ok: true, status: 200, json: async () => body } as Response;
   }) as typeof fetch;
 }
@@ -146,7 +149,7 @@ describe('what an agent is offered', () => {
     const scope = await resolveAccess();
     const offered = [];
     for (const c of collections) if (await can(scope, c.name, 'read')) offered.push(c.name);
-    expect(offered).toEqual(['initiatives', 'knowledge', 'knowledge_log', 'people', 'tokens']);
+    expect(offered).toEqual(['initiatives', 'knowledge', 'knowledge_log', 'tokens']);
     expect(await may(FLEET)).toBe(false);
     await expect(requireNeed(FLEET)).rejects.toBeInstanceOf(AccessDenied);
   });
@@ -157,7 +160,7 @@ describe('what an agent is offered', () => {
     // The views the route registers for them: the ones whose need they satisfy (`app/api/assistant/route.ts`).
     const views = [];
     for (const v of viewTools) if (await may(v.needs)) views.push(v.name);
-    expect(views).toEqual(['overview', 'initiatives', 'initiative', 'document', 'knowledge', 'knowledge_node', 'knowledge_log', 'search', 'people', 'settings']);
+    expect(views).toEqual(['overview', 'initiatives', 'initiative', 'document', 'knowledge', 'knowledge_node', 'knowledge_log', 'search', 'settings']);
   });
 
   it('a superadmin is offered every list', async () => {
@@ -215,6 +218,9 @@ describe('what an agent is offered', () => {
     expect(await can(member, 'tokens', 'create')).toBe(true);
     const people = await handedTo(member, collectionFor(member, 'people'), 'people');
     expect(people.create).toBeUndefined();
+    // People is the superadmin's: a member's query is refused on who they are, before the gateway is asked for a row.
+    await expect(people.query({})).rejects.toBeInstanceOf(AccessDenied);
+    expect(calls.some((c) => new URL(c.url).pathname === '/api/console/people')).toBe(false);
   });
 });
 
@@ -274,13 +280,50 @@ describe('a collection read from the gateway', () => {
   });
 });
 
+describe('the fleet\'s lists, read whole', () => {
+  // The gateway pages Teams and People at 10 rows unless asked; the assistant counts over every row, so it asks for them all.
+  it('asks for every team and every person on one page, from a collection and from a view', async () => {
+    gateway(ME);
+    const scope = await resolveAccess();
+    await collectionFor(scope, 'teams').query({});
+    await collectionFor(scope, 'people').query({});
+    await viewTools.find((v) => v.name === 'teams')!.read({});
+    await viewTools.find((v) => v.name === 'people')!.read({});
+    const lists = calls.map((c) => c.url).filter((u) => /\/(teams|people)\?/.test(u));
+    expect(lists).toEqual([
+      'http://gateway.test/api/console/teams?limit=100&scope=platform',
+      'http://gateway.test/api/console/people?limit=100&scope=platform',
+      'http://gateway.test/api/console/teams?limit=100&scope=platform',
+      'http://gateway.test/api/console/people?limit=100&scope=platform',
+    ]);
+  });
+
+  it('hands the assistant a team as the scalars its list declares, never the figures by week beside them', async () => {
+    gateway(ME);
+    const { rows } = await collectionFor(await resolveAccess(), 'teams').query({});
+    expect(rows).toHaveLength(TEAMS.length);
+    for (const row of rows) {
+      expect(Object.keys(row).sort()).toEqual(['created', 'documents', 'initiatives', 'knowledge', 'members', 'name', 'slug', 'sources', 'status']);
+    }
+  });
+
+  it('reads one team from its own read, and never looks for it in the list', async () => {
+    gateway(ME);
+    const own = teamDetail('atlas')!;
+    const { context, data } = await viewTools.find((v) => v.name === 'team')!.read({ slug: 'atlas' });
+    expect(calls.map((c) => new URL(c.url).pathname)).not.toContain('/api/console/teams');
+    expect((data as { held: unknown }).held).toEqual({ ...own.team, ...own.counts });
+    expect(context.facts.find((f) => f.label === 'Knowledge nodes')?.value).toBe(String(own.counts.knowledge));
+  });
+});
+
 describe('a view tool\'s address', () => {
   const tool = (name: string) => viewTools.find((v) => v.name === name)!;
 
   it('every tool has its own name and a need', () => {
     expect(new Set(viewTools.map((v) => v.name)).size).toBe(viewTools.length);
     for (const v of viewTools) expect(['work:read', FLEET]).toContain(v.needs);
-    expect(viewTools.filter((v) => v.needs === FLEET).map((v) => v.name)).toEqual(['teams', 'team', 'plugins', 'plugin', 'skill', 'runs', 'activity']);
+    expect(viewTools.filter((v) => v.needs === FLEET).map((v) => v.name)).toEqual(['teams', 'team', 'people', 'plugins', 'plugin', 'skill', 'runs', 'activity']);
   });
 
   it('refuses a segment that would leave the path it is placed in', () => {
@@ -310,7 +353,7 @@ describe('a view tool\'s address', () => {
 
   it('a member cannot read a fleet view by naming its tool', async () => {
     gateway(MEMBER);
-    for (const name of ['teams', 'team', 'plugins', 'plugin', 'skill', 'runs', 'activity']) {
+    for (const name of ['teams', 'team', 'people', 'plugins', 'plugin', 'skill', 'runs', 'activity']) {
       await expect(tool(name).read({ slug: 'atlas', plugin: 'sdlc', skill: 'sdlc-spec' }), name).rejects.toBeInstanceOf(AccessDenied);
     }
     // Refused on who they are, before a row is asked for: nothing but `/me` was read.

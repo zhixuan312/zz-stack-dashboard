@@ -154,15 +154,18 @@ describe('every mode answers both people', () => {
   ];
   const ask = (base: string, cookie: string | null, path: string, ms = 10_000) =>
     fetch(`${base}/api/console/${path}`, { headers: cookie === null ? {} : { cookie: `zz_console=${cookie}` }, signal: AbortSignal.timeout(ms) });
-  const READS = ['overview', 'teams', 'initiatives', 'initiatives?waiting=1', 'knowledge', 'knowledge/log', 'people', 'activity', 'runs',
+  const READS = ['overview', 'initiatives', 'initiatives?waiting=1', 'knowledge', 'knowledge/log', 'activity', 'runs',
                  'plugins', 'skills', 'settings/me/tokens', 'settings/me/teams', 'platform/status'];
+  /** The superadmin's alone: a member is refused them in every world. */
+  const FLEET = ['teams', 'teams?scope=platform', 'teams/atlas', 'people', 'people?scope=platform'];
+  const REFUSAL = { error: 'not permitted' };
 
-  /** Every list a rail page reads, as the rows it answers. */
-  async function lists(base: string, cookie: string | null) {
+  /** Every list a rail page reads, as the rows it answers; Teams and People only to the superadmin, who may read them. */
+  async function lists(base: string, cookie: string | null, superadmin: boolean) {
     const get = async (path: string) => (await ask(base, cookie, path)).json() as Promise<Record<string, { team: string; teams: string[] }[]>>;
     return {
-      teams: (await get('teams?scope=platform')).teams,
-      people: (await get('people?scope=platform')).people,
+      teams: superadmin ? (await get('teams?scope=platform&limit=100')).teams : [],
+      people: superadmin ? (await get('people?scope=platform&limit=100')).people : [],
       byTeam: [
         ...(await get('initiatives?scope=platform')).initiatives, ...(await get('initiatives?waiting=1&scope=platform')).waiting,
         ...(await get('knowledge?scope=platform')).nodes, ...(await get('knowledge/log?scope=platform')).entries,
@@ -171,21 +174,23 @@ describe('every mode answers both people', () => {
     };
   }
 
-  it.each(['normal', 'empty', 'extreme'])('%s: every read answers, and the member is held to their own team', async (mode) => {
+  it.each(['normal', 'empty', 'extreme'])('%s: every read answers, and the member is held to their own team and refused the fleet', async (mode) => {
     const base = await start(mode);
     for (const [name, role, cookie] of PEOPLE) {
       const me = await (await ask(base, cookie, 'me')).json() as Me;
       expect(me.role, name).toBe(role);
       for (const path of READS) expect((await ask(base, cookie, path)).status, `${mode}, ${name}: GET ${path}`).toBe(200);
+      for (const path of FLEET) {
+        const res = await ask(base, cookie, path);
+        if (role === 'member') expect([res.status, await res.json()], `${mode}, ${name}: GET ${path}`).toEqual([403, REFUSAL]);
+        else expect(res.status, `${mode}, ${name}: GET ${path}`).toBe(200);
+      }
 
-      const { teams, people, byTeam } = await lists(base, cookie);
+      const { teams, people, byTeam } = await lists(base, cookie, role === 'superadmin');
       if (mode === 'empty') expect([teams, people, byTeam], name).toEqual([[], [], []]);
       else if (role === 'member') {
-        expect(teams, name).toHaveLength(1);
         expect(byTeam.length).toBeGreaterThan(20);
         for (const row of byTeam) expect(row.team, JSON.stringify(row).slice(0, 120)).toBe(me.activeTeam);
-        expect(people.length).toBeGreaterThan(1);
-        for (const p of people) for (const t of p.teams) expect(t.startsWith(`${me.activeTeam} (`), t).toBe(true);
       } else {
         expect(teams.length, name).toBeGreaterThan(mode === 'extreme' ? 60 : 3);
         expect(new Set(byTeam.map((r) => r.team)).size, name).toBeGreaterThan(2);

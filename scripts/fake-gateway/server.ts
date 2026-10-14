@@ -109,7 +109,7 @@ function read(who: Me, seg: string[], q: URLSearchParams): Answer {
     case 'me': return ok(who);
     case 'overview': return ok(own ? teamCensus(overview(period), own) : overview(period));
     // Whom Teams and People answer, and in which shape, is their fixtures' to decide: the superadmin's read, filtered
-    // and paged, and a member's as it was before it was the superadmin's.
+    // and paged, and the gateway's refusal to anybody else.
     case 'teams': return a ? team(who, a) : teams(who, q, page(q)) ?? BAD_PAGE;
     case 'initiatives': {
       // The bell's own projection — see WAITING in work.ts. It answers before the detail route,

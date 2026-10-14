@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { nav } from '@/app.config';
+import { FEATURES } from '@/data/features';
 import { shownIn } from '@/nav';
 import { visible } from '@/views/console-chrome';
 
@@ -13,14 +14,14 @@ import { visible } from '@/views/console-chrome';
  */
 const EVERY = nav.flatMap((g) => g.items).map((i) => i.href);
 /** What the server answers a member today: every destination that does not need the fleet's grant. */
-const MEMBER = ['/', '/initiatives', '/knowledge', '/people', '/settings', '/platform'];
+const MEMBER = ['/', '/initiatives', '/knowledge', '/settings', '/platform'];
 const groups = (mode: 'platform' | 'team', only = EVERY) => visible(shownIn(only, mode));
 const hrefs = (mode: 'platform' | 'team', only = EVERY) => groups(mode, only).flatMap((s) => s.items.map((i) => i.href));
 
 describe('the rail in team mode', () => {
   it('hides every platform surface the server answered a superadmin', () => {
     const team = hrefs('team');
-    for (const href of ['/teams', '/plugins', '/runs', '/activity']) {
+    for (const href of ['/teams', '/people', '/plugins', '/runs', '/activity']) {
       expect(team).not.toContain(href);
     }
   });
@@ -30,7 +31,7 @@ describe('the rail in team mode', () => {
   });
 
   it('does not put a member\'s pages under "Platform"', () => {
-    // Knowledge and People arrive scoped to the caller's own team, so the fleet's eyebrow over them would name the
+    // Knowledge arrives scoped to the caller's own team, so the fleet's eyebrow over it would name the
     // wrong owner on the one view meant to show a member their boundary. Meridian's chrome keeps a group's label and
     // narrows its items, so the rule is held by the grouping: the group called Platform holds only fleet surfaces,
     // and is gone as a whole when none of them is shown.
@@ -44,6 +45,24 @@ describe('the rail in team mode', () => {
     // A group filtered down to zero items would render as a bare eyebrow with nothing under it.
     for (const group of groups('team')) expect(group.items.length).toBeGreaterThan(0);
     expect(groups('team')).toHaveLength(groups('platform').length - 1);
+  });
+});
+
+describe('the feature table', () => {
+  /** What each page asks for once People is the superadmin's, written out from the spec's tables and not read from the code. */
+  const NEEDS: Record<string, string> = {
+    home: 'work:read', initiatives: 'work:read', knowledge: 'work:read', settings: 'work:read', 'platform-status': 'platform:read',
+    teams: 'fleet:read', people: 'fleet:read', plugins: 'fleet:read', runs: 'fleet:read', activity: 'fleet:read',
+    usage: 'platform:read', 'knowledge-health': 'platform:read', audit: 'fleet:read',
+  };
+
+  it('asks of every page what the grants table says, People and Audit of the fleet\'s grant', () => {
+    expect(Object.fromEntries(Object.entries(FEATURES).map(([id, f]) => [id, f.needs]))).toEqual(NEEDS);
+  });
+
+  it('keeps Teams and People on the superadmin\'s Work rail until the phase that moves them', () => {
+    const work = groups('platform').find((s) => s.items.some((i) => i.href === '/teams'));
+    expect(work?.items.map((i) => i.href)).toEqual(['/', '/teams', '/initiatives', '/knowledge', '/people']);
   });
 });
 

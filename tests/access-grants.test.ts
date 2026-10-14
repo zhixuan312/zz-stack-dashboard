@@ -6,12 +6,6 @@ import { GRANTS, MAIN_ROLES, effective } from '@/data/roles';
 const BOTH = ['work:read', 'platform:read', 'documents:approve', 'initiatives:close', 'tokens:manage'];
 const SUPERADMIN_ONLY = ['fleet:read', 'bugs:resolve', 'teams:manage', 'people:manage'];
 
-/** The spec's rails table for Phase 0: what each of today's pages asks for. */
-const PHASE_0_NEEDS: Record<string, string> = {
-  home: 'work:read', initiatives: 'work:read', knowledge: 'work:read', people: 'work:read', settings: 'work:read',
-  teams: 'fleet:read', plugins: 'fleet:read', runs: 'fleet:read', activity: 'fleet:read',
-};
-
 describe('the role table', () => {
   it('has exactly the two roles the platform has', () => {
     expect([...MAIN_ROLES]).toEqual(['Superadmin', 'Member']);
@@ -35,11 +29,6 @@ describe('the role table', () => {
 });
 
 describe('the feature table', () => {
-  it('asks of each of today\'s pages what the rails table says', () => {
-    const features = FEATURES as Record<string, { needs: unknown }>;
-    for (const [id, need] of Object.entries(PHASE_0_NEEDS)) expect(features[id]?.needs, id).toBe(need);
-  });
-
   it('never leaves a page open to anyone signed in', () => {
     for (const [id, feature] of Object.entries(FEATURES as Record<string, { needs: unknown }>)) {
       expect(feature.needs, id).not.toBe('public');

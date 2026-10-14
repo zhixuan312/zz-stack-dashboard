@@ -39,7 +39,7 @@ const SETTINGS = { ops: ['create' as const, 'remove' as const], where: 'the Sett
 const teams = gatewayCollection<Flat<Team>, 'slug'>({
   name: 'teams',
   label: 'Teams',
-  description: 'Every team the person may read, with what it holds. The key is the team\'s slug. A superadmin adds or archives a team on the Settings page.',
+  description: 'Every team on the platform, with what it holds. The key is the team\'s slug. A team is added or archived on the Settings page.',
   key: 'slug',
   title: (t) => t.slug,
   fields: z.object({
@@ -47,7 +47,12 @@ const teams = gatewayCollection<Flat<Team>, 'slug'>({
     members: count.describe('People in the team.'), initiatives: count, documents: count.describe('Written documents, sources not counted.'),
     sources: count, knowledge: count.describe('Knowledge nodes on the team\'s shelf.'),
   }),
-  load: async () => (await gatewayGet<{ teams: Team[] }>('/teams')).teams,
+  // The gateway pages the list at 10 rows unless asked; a query counts over every team, so it asks for all of them. A
+  // row also carries the team's figures by week, which are not scalars, so it is cut to the fields above.
+  load: async () => (await gatewayGet<{ teams: Team[] }>('/teams?limit=100')).teams.map((t) => ({
+    slug: t.slug, name: t.name, status: t.status, created: t.created,
+    members: t.members, initiatives: t.initiatives, documents: t.documents, sources: t.sources, knowledge: t.knowledge,
+  })),
   onPage: SETTINGS,
 });
 
@@ -125,7 +130,7 @@ type PersonRow = Omit<Person, 'teams'> & { teams: string | null };
 const people = gatewayCollection<PersonRow, 'email'>({
   name: 'people',
   label: 'People',
-  description: 'Everyone the person may read: a superadmin everyone on the platform, a member their own team. Tokens are counted, never shown. A superadmin adds or deactivates a person on the Settings page.',
+  description: 'Everyone on the platform. Tokens are counted, never shown. A person is added or deactivated on the Settings page.',
   key: 'email',
   title: (p) => p.name || p.email,
   fields: z.object({
@@ -133,7 +138,7 @@ const people = gatewayCollection<PersonRow, 'email'>({
     activeTeam: maybeText.describe('The team they act for.'), teams: maybeText.describe('Their memberships as "<team> (<role>)", comma-separated.'),
     tokens: count.describe('Live platform tokens they hold.'), last_used: maybeWhen('When one of their tokens last made a platform call'),
   }),
-  load: async () => (await gatewayGet<{ people: Person[] }>('/people')).people.map((p) => ({ ...p, teams: joined(p.teams) })),
+  load: async () => (await gatewayGet<{ people: Person[] }>('/people?limit=100')).people.map((p) => ({ ...p, teams: joined(p.teams) })),
   onPage: SETTINGS,
 });
 
