@@ -44,11 +44,16 @@ So each destination states, together and in the same change:
 - where the two meet: `AskAbout` in the header actions of the page's protagonist card, asking about exactly what that
   card shows, and what the agent helps the person judge there.
 
-The agent gets the right data at the right time: the context follows the person's view as it changes, and a list's
-summary is computed over its whole filtered population on the server, so an agent can help with what no person could
-read row by row (an audit trail of millions of events) as readily as with a week's figures. The person decides: an
-approval, a close or a change is made by the person, and the agent says where it is made and never claims to have made
-it.
+The agent gets the right data at the right time, and is never handed a whole population. Its context stays small and
+follows the person's view as it changes: what is on screen, a summary of the population behind it computed on the
+server, and what the data cannot say. When it needs more, it queries back. A page is fixed, so the tables and the
+queries behind it are fixed and known, and each destination's data is offered to the agent as prepared, parameterised
+queries written ahead and checked like any other read: the page's filters, a grouping by a declared dimension or a time
+grain, a window, a comparison with the previous window, and a drill down to a group's rows. The agent chooses and fills
+them in; it never writes its own SQL, and every query answers within the person's authority and the page's projection.
+That is how an agent helps with what no person could read row by row (an audit trail of millions of events) as readily
+as with a week's figures. The person decides: an approval, a close or a change is made by the person, and the agent says
+where it is made and never claims to have made it.
 
 ## Data
 
