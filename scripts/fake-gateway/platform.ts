@@ -219,7 +219,7 @@ export function overview(period: string): Overview {
       refusals: { value: calls ? (refused / calls) * 100 : null, prev: 4.8, refused, calls, byDoor: [{ door: 'core', n: Math.ceil(refused * 0.7) }, { door: 'eval', n: Math.floor(refused * 0.3) }] },
       context: { value: 15.7, prev: 18.2, p90: 438.4, runs: SKILL_SEEDS.filter(([, , , c]) => c).map(([skill, , , c]) => ({ skill, kb: 2 + (c % 400) })), unmeasured: 3, capped: false, contextWindowKb: 800 },
     },
-    counts: { teams: 4, activeTeams: 3, people: 7, superadmins: 2, documents: 38, initiatives: 8, events: calls + 1_910, failures: refused, unattributedEvents: 12 },
+    counts: { teams: 6, activeTeams: 5, people: 9, superadmins: 2, documents: 38, initiatives: 8, events: calls + 1_910, failures: refused, unattributedEvents: 12 },
     ...t,
     timezone: 'UTC',
     eventKinds: [

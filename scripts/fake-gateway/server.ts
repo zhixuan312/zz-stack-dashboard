@@ -35,15 +35,26 @@
  * `GET /api/console/platform/evaluation`. A report, `GET /api/console/platform/bugs/:id`, its duplicate targets,
  * `/platform/bugs/:id/duplicates`, and its resolution, `POST /api/console/platform/bugs/:id/resolve`, are the
  * superadmin's alone: anyone else is refused 403 before anything is read, with nothing in the body that says who may.
+ *
+ * Fleet's reads are answered the same way. `GET /api/console/platform/usage` and `/platform/knowledge` are public, the
+ * superadmin's answer naming the teams and the questions a member's leaves out; `GET /api/console/platform/audit` is
+ * the superadmin's alone and refused like a report. `GET /api/console/teams`, `/teams/:slug` and `/people` are the
+ * superadmin's reads with each team's and person's figures, filtered and paged; a member is still answered their own
+ * team's records in the fields they had before.
  */
 import http from 'node:http';
 import type { Me, Overview } from '../../src/lib/api-shapes.ts';
 import { COLLECTIONS, hint, liveStreams, parseNames, serveLive } from './live.ts';
-import { PEOPLE, PLATFORM_PEOPLE, TEAMS, clientSetupOf, rosterOf, signedIn, teamDetail, teamMembers, teamsOf, tokensOf } from './people.ts';
+import { clientSetupOf, signedIn, teamsOf, tokensOf } from './people.ts';
+import { audit } from './platform-audit.ts';
 import { badFilter, bugReport, bugs, duplicates, resolve } from './platform-bugs.ts';
 import { evaluation } from './platform-evaluation.ts';
+import { knowledge } from './platform-knowledge.ts';
+import { PLATFORM_PEOPLE, people, rosterOf, teamMembers } from './platform-people.ts';
 import { releaseDetail, releases } from './platform-releases.ts';
 import { MEMBER_STATUS, PLATFORM_STATUS } from './platform-status.ts';
+import { TEAMS, team, teams } from './platform-teams.ts';
+import { usage } from './platform-usage.ts';
 import { ACTIVITY, PLUGINS, SKILLS, overview, pluginEval, runs, skillDetail, skillText } from './platform.ts';
 import { search } from './search.ts';
 import { empty, extreme } from './states.ts';
@@ -97,9 +108,9 @@ function read(who: Me, seg: string[], q: URLSearchParams): Answer {
   switch (head) {
     case 'me': return ok(who);
     case 'overview': return ok(own ? teamCensus(overview(period), own) : overview(period));
-    case 'teams':
-      if (a) return foreign(a) ? missing(`team ${a}`) : or404(teamDetail(a), `team ${a}`);
-      return ok({ teams: own ? TEAMS.filter((t) => t.slug === own) : TEAMS });
+    // Whom Teams and People answer, and in which shape, is their fixtures' to decide: the superadmin's read, filtered
+    // and paged, and a member's as it was before it was the superadmin's.
+    case 'teams': return a ? team(who, a) : teams(who, q, page(q)) ?? BAD_PAGE;
     case 'initiatives': {
       // The bell's own projection — see WAITING in work.ts. It answers before the detail route,
       // because `?waiting=1` names no initiative of its own.
@@ -137,9 +148,7 @@ function read(who: Me, seg: string[], q: URLSearchParams): Answer {
       if (a && b === 'skills' && rest[0]) return or404(skillText(a, rest[0]), `skill ${a}/${rest[0]}`);
       return ok({ plugins: PLUGINS });
     case 'skills': return a ? or404(skillDetail(a), `skill ${a}`) : ok({ skills: SKILLS });
-    case 'people':
-      if (own) return ok({ people: rosterOf(own) });
-      return ok({ people: platform ? PEOPLE : PEOPLE.filter((p) => p.teams.some((t) => t.startsWith(`${who.activeTeam} `))) });
+    case 'people': return people(who, q, page(q)) ?? BAD_PAGE;
     case 'runs': return ok(runs(period));
     case 'activity': {
       const limit = Number(q.get('limit') ?? 200);
@@ -174,7 +183,7 @@ const BAD_PAGE: Answer = [400, { error: 'limit must be a whole number from 1 to 
 /**
  * One GET under `/api/console/platform`. Public by its route, not by a parameter: `?scope=` and `?team=` change
  * nothing, and the status is answered alike to everyone but for a member's `needs`, in the gateway's member projection.
- * A report and its duplicate targets are the superadmin's.
+ * A report, its duplicate targets and the audit are the superadmin's.
  */
 function platformRead(who: Me, seg: string[], q: URLSearchParams): Answer {
   const [, what, id, sub, ...more] = seg;
@@ -199,6 +208,12 @@ function platformRead(who: Me, seg: string[], q: URLSearchParams): Answer {
       return found ? ok(found) : UNKNOWN;
     }
     case 'evaluation': return id === undefined ? ok(evaluation(who.superadmin)) : missing(seg.join('/'));
+    case 'usage': return id === undefined ? ok(usage(who.superadmin)) : missing(seg.join('/'));
+    case 'knowledge': return id === undefined ? ok(knowledge(who.superadmin, who.activeTeam)) : missing(seg.join('/'));
+    case 'audit':
+      if (id !== undefined) return missing(seg.join('/'));
+      if (!who.superadmin) return REFUSED;
+      return audit(q, p) ?? BAD_PAGE;
     default: return missing(seg.join('/'));
   }
 }

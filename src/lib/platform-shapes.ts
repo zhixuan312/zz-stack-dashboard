@@ -11,7 +11,7 @@ export type Figure = {
   value: number | null;
   why: 'no_data' | 'insufficient' | 'unavailable' | null;   // null when the value stands
 };
-type Window = {
+export type Window = {
   from: string; to: string;       // requested half-open interval [from, to)
   observedFrom: string | null; observedThrough: string | null;
   complete: boolean;              // ended AND fully observed under this definition
@@ -20,13 +20,13 @@ export type PeriodFigure = {
   window: Window; figure: Figure;
   numerator: number | null; denominator: number | null;
 };
-type ReadMeta = {
+export type ReadMeta = {
   asOf: string; timezone: string;
   period: { from: string; to: string };
   scope: 'active-team' | 'caller-in-active-team' | 'platform-public' | 'platform-admin';
   population: string; coverageFrom: string | null;
 };
-type Part<T> = { state: 'ok'; data: T } | { state: 'unavailable'; reason: string };
+export type Part<T> = { state: 'ok'; data: T } | { state: 'unavailable'; reason: string };
 type MeasureKey = 'malformed_per_1000' | 'same_tool_followup_pct' | 'call_p50_ms' | 'call_p95_ms'
   | 'searches_with_results_pct' | 'bugs_per_1000' | 'sessions' | 'work_finished';
 export type Measure = {

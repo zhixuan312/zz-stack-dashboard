@@ -20,7 +20,9 @@ import { handedTo } from '@/lib/assistant/scoped';
 import { assistantTools } from '@/lib/assistant/tools';
 import type { Me } from '@/lib/api-shapes';
 import { viewTools } from '@/views/tools';
-import { ME, PEOPLE, TEAMS } from '../scripts/fake-gateway/people.ts';
+import { ME } from '../scripts/fake-gateway/people.ts';
+import { PEOPLE } from '../scripts/fake-gateway/platform-people.ts';
+import { TEAMS } from '../scripts/fake-gateway/platform-teams.ts';
 import { search } from '../scripts/fake-gateway/search.ts';
 import { INITIATIVES, KNOWLEDGE } from '../scripts/fake-gateway/work.ts';
 

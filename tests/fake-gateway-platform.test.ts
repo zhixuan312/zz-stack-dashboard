@@ -379,7 +379,7 @@ describe('the fake gateway beside Platform\'s new routes', () => {
   });
 
   it('still answers 404 for a Platform route it does not have', async () => {
-    for (const path of ['platform', 'platform/status/extra', 'platform/releases/0.96.0/notes', 'platform/bugs/x/y/z', 'platform/evaluation/sdlc', 'platform/usage']) {
+    for (const path of ['platform', 'platform/status/extra', 'platform/releases/0.96.0/notes', 'platform/bugs/x/y/z', 'platform/evaluation/sdlc', 'platform/usage/extra']) {
       for (const who of [null, MEMBER]) expect((await ask(who, path)).status, `GET ${path}`).toBe(404);
     }
   });
