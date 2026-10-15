@@ -54,6 +54,7 @@
  * public scores are everybody's. `GET /api/console/access` is the caller's alone, and so are its two revokes,
  * `DELETE /api/console/settings/me/applications/:client` and `/settings/me/browsers/:id`, answered as the platform
  * decides them and forgotten. A superadmin who acts for no team is refused Work's reads, as the gateway refuses them.
+ * A lesson on the shared shelf (`zz-platform`) opens for anyone signed in, marked `shared`; another team's still does not.
  */
 import http from 'node:http';
 import type { Me, Overview } from '../../src/lib/api-shapes.ts';
@@ -77,7 +78,7 @@ import { activityLog, activitySummary } from './work-activity.ts';
 import { approvals } from './work-approvals.ts';
 import { home } from './work-home.ts';
 import { close, initiativeList } from './work-initiatives.ts';
-import { knowledgeList, knowledgeSummary, lesson } from './work-knowledge.ts';
+import { knowledgeList, knowledgeSummary, lesson, SHARED_TEAM } from './work-knowledge.ts';
 import { plugins, skillDetail, skills } from './work-plugins.ts';
 import { workQuery } from './work-query.ts';
 import { record } from './work-record.ts';
@@ -156,7 +157,8 @@ function read(who: Me, seg: string[], q: URLSearchParams): Answer {
       // The summary answers before the node route, because `summary` names no team of its own.
       if (a === 'summary' && !b) return knowledgeSummary(who);
       if (a === 'log') return ok({ entries: mine(KNOWLEDGE_LOG) });
-      if (a) return foreign(a) ? missing(`knowledge ${seg.slice(1).join('/')}`) : or404(lesson(a, [b, ...rest].join('/'), own), `knowledge ${seg.slice(1).join('/')}`);
+      // The shared shelf is nobody's own: any signed-in person opens its lessons, read-only.
+      if (a) return foreign(a) && a !== SHARED_TEAM ? missing(`knowledge ${seg.slice(1).join('/')}`) : or404(lesson(a, [b, ...rest].join('/'), own), `knowledge ${seg.slice(1).join('/')}`);
       return knowledgeList(who, q);
     case 'search': {
       // As the gateway answers it: one team's search and never the fleet's, a question required, a limit from 1 to 50.

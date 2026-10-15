@@ -121,9 +121,14 @@ export function runs(who: Me, q: URLSearchParams): Answer {
   const output = mean(measured.map((r) => r.bytes!));
   const largest = measured.reduce<TeamRun | null>((a, r) => (!a || r.bytes! > a.bytes! ? r : a), null);
   const skills = [...new Set(mine.map((r) => r.skill))];
+  const since = mine.length ? mine.reduce((a, r) => (r.startedAt < a ? r.startedAt : a), mine[0].startedAt) : null;
+  const meta = workMeta('active-team', skill === null
+    ? `${team}'s recorded skill runs, every one since its first`
+    : `${team}'s recorded runs of ${skill}, every one since its first`);
   const answer: Runs = {
-    meta: workMeta('active-team', `${team}'s recorded skill runs, every one since its first`),
-    since: mine.length ? mine.reduce((a, r) => (r.startedAt < a ? r.startedAt : a), mine[0].startedAt) : null,
+    // The period is the team's record, from its first run to the cutoff, as the gateway states it.
+    meta: { ...meta, period: { from: since ?? meta.asOf, to: meta.asOf }, coverageFrom: since },
+    since,
     tiles: {
       runs: { value: mine.length, why: null },
       outputPerRun: { value: output === null ? null : Math.round(output), why: output === null ? 'no_data' : null, unmeasured: mine.length - measured.length },

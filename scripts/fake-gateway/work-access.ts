@@ -58,16 +58,22 @@ function applicationsOf(who: Me): AccessApplication[] {
   });
 }
 
-/** `GET /access`, as `who`: everything of theirs, and nothing of anybody else's. */
+/** `GET /access`, as `who`: everything of theirs, and nothing of anybody else's. The period runs from the first of their
+ *  tokens, browsers and passkeys, as the gateway's does; a person who acts for no team is answered no teams. */
 export function access(who: Me): Answer {
   const { actingFor, teams } = teamsOf(who);
+  const issued = issuedOf(who);
+  const browsers = BROWSERS[who.email] ?? [];
+  const authenticators = PASSKEYS[who.email] ?? [];
+  const meta = workMeta('caller-in-active-team', "the caller's own tokens, applications, browsers and passkeys");
+  const first = [...issued.map((t) => t.createdAt), ...browsers.map((b) => b.issuedAt), ...authenticators.map((k) => k.createdAt)].sort()[0];
   const answer: Access = {
-    meta: workMeta('caller-in-active-team', `${who.email}'s own tokens, applications, browsers and passkeys`),
-    issued: issuedOf(who),
+    meta: { ...meta, period: { from: first ?? meta.asOf, to: meta.asOf }, coverageFrom: null },
+    issued,
     applications: applicationsOf(who),
-    browsers: BROWSERS[who.email] ?? [],
-    authenticators: PASSKEYS[who.email] ?? [],
-    teams: { actingFor: actingFor || null, teams },
+    browsers,
+    authenticators,
+    teams: actingFor ? { actingFor, teams } : { actingFor: null, teams: [] },
     setup: clientSetupOf(who),
   };
   return [200, answer];
@@ -77,7 +83,7 @@ export function access(who: Me): Answer {
  *  and the client stays registered; 404 for an application that is not theirs. */
 export function revokeApplication(who: Me, client: string): Answer {
   const mine = issuedOf(who).filter((t) => t.application === client);
-  if (!mine.length) return [404, { error: `no application ${client} of yours on this deployment` }];
+  if (!mine.length) return [404, { error: 'no application of yours is registered as that client' }];
   return [200, { ok: true, revoked: mine.filter((t) => !t.revokedAt).length } satisfies Revoked];
 }
 
@@ -85,7 +91,7 @@ export function revokeApplication(who: Me, client: string): Answer {
  *  theirs, and 400 for the one asking, which signs out from its own menu. */
 export function revokeBrowser(who: Me, id: string): Answer {
   const browser = (BROWSERS[who.email] ?? []).find((b) => b.id === id);
-  if (!browser) return [404, { error: `no browser ${id} of yours is signed in` }];
+  if (!browser) return [404, { error: 'no browser of yours is signed in with that id' }];
   if (browser.current) return [400, { error: 'this is the browser you are using: sign out from the menu to end this session' }];
   return [200, { ok: true, revoked: 1 } satisfies Revoked];
 }

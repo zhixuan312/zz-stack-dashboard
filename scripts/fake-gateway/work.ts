@@ -409,6 +409,7 @@ export function knowledgeBody(team: string, path: string, own: string | null = n
     // see `KnowledgeBody.related`.
     related: shelf.filter((x) => x.key !== n.key && (x.tags ?? []).some((t) => (n.tags ?? []).includes(t))),
     multi_team: new Set(shelf.map((x) => x.team)).size > 1,
+    shelf: 'team',
   };
 }
 

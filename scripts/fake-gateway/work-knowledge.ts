@@ -11,7 +11,7 @@
  * Atlas, which both people act for, holds more than ten lessons so its shelf pages, one of them superseded and two
  * imported; it asked one question three times with no result (once in other capitals and spacing) and more than ten
  * others once, so the questions say their total. The shared shelf holds two lessons, which a search finds among a
- * team's own and the list never answers.
+ * team's own, the list never answers, and anyone signed in opens by the node route, marked shared.
  *
  * COUPLED: zz-stack's `checks/console-work-knowledge.ts` imports this file with plain `node` and compares its key sets
  * with the real routes' answers. So nothing here is imported through the console's path alias.
@@ -56,12 +56,12 @@ export const SHELF: KnowledgeNode[] = [...KNOWLEDGE, ...ADDED];
 const IMPORTED = new Set(SEEDS.filter((s) => s[7]).map(([team, num, , title]) => `${team}/${nodePath(num, title)}`));
 
 /** One lesson, whole: the work fixture's own, or one added here. `own` is the one team a member is held to, whose
- *  shelf is the only one they open; the superadmin opens any, the shared shelf's among them. */
+ *  shelf is theirs to open beside the shared shelf, which is everybody's; the superadmin opens any. */
 export function lesson(team: string, path: string, own: string | null = null): KnowledgeBody | null {
   const known = knowledgeBody(team, path, own);
   if (known) return known;
   const n = ADDED.find((x) => x.team === team && x.path === path);
-  if (!n || (own !== null && team !== own)) return null;
+  if (!n || (own !== null && team !== own && team !== SHARED_TEAM)) return null;
   const shelf = own === null ? SHELF : SHELF.filter((x) => x.team === own);
   return {
     team, path, type: n.type, status: n.status, title: n.title, tags: n.tags, updated: n.updated, num: n.num,
@@ -70,6 +70,7 @@ export function lesson(team: string, path: string, own: string | null = null): K
     evidence_in: n.evidence?.map((name) => ({ name, team: INITIATIVES.find((i) => i.slug === name)?.team ?? null })) ?? null,
     related: shelf.filter((x) => x.key !== n.key && (x.tags ?? []).some((t) => (n.tags ?? []).includes(t))),
     multi_team: new Set(shelf.map((x) => x.team)).size > 1,
+    shelf: team === SHARED_TEAM ? 'shared' : 'team',
   };
 }
 
