@@ -438,11 +438,14 @@ describe('a member in two teams', () => {
 });
 
 describe('the shared shelf', () => {
-  it('opens a lesson of the shared shelf to the member, marked shared, and not another team\'s', async () => {
+  it('opens a lesson of the shared shelf to the member, marked shared, and another team\'s to nobody, the superadmin included', async () => {
     const shared = (await read(MEMBER, 'search?q=recency')).results.find((r: Json) => r.team === 'zz-platform' && r.kind === 'node');
     const lesson = await read(MEMBER, `knowledge/zz-platform/${shared.path}`);
     expect(lesson.shelf).toBe('shared');
     expect((await ask(MEMBER, 'knowledge/beacon/nodes/0001-refunds-are-a-ledger-entry-never-an-edit.md')).status).toBe(404);
-    expect((await ask(SUPERADMIN, 'knowledge/beacon/nodes/0001-refunds-are-a-ledger-entry-never-an-edit.md')).status).toBe(200);
+    // Work is the active team's for the superadmin too: a scope the request names widens nothing.
+    for (const scope of ['', '?scope=platform', '?team=beacon']) {
+      expect((await ask(SUPERADMIN, `knowledge/beacon/nodes/0001-refunds-are-a-ledger-entry-never-an-edit.md${scope}`)).status, scope).toBe(404);
+    }
   });
 });

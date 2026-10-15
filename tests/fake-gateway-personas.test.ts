@@ -196,7 +196,8 @@ describe('what a member is answered', () => {
     const doc = (await read<{ documents: { path: string }[] }>(null, `initiatives/${other}/${theirs.slug}`)).documents[0].path;
     for (const path of [`initiatives/${other}/${theirs.slug}`, `document/${other}/${theirs.slug}/${doc}`,
                         `document/${other}/${theirs.slug}/${doc}?revision=1`, `knowledge/${other}/${node.path}`]) {
-      expect((await ask(null, path)).status, `superadmin GET ${path}`).toBe(200);
+      // A lesson is Work's, the active team's for the superadmin too; an initiative and a document still open to them.
+      expect((await ask(null, path)).status, `superadmin GET ${path}`).toBe(path.startsWith('knowledge/') ? 404 : 200);
       for (const scope of ['', `${path.includes('?') ? '&' : '?'}scope=platform`]) {
         const res = await ask(MEMBER, path + scope);
         expect(res.status, `member GET ${path}${scope}`).toBe(404);

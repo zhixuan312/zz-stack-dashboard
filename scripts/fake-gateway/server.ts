@@ -79,7 +79,7 @@ import { search } from './search.ts';
 import { empty, extreme } from './states.ts';
 import { KNOWLEDGE_LOG, WAITING, documentDetail, documentRevision, initiativeDetail, refusesRecord, revisionInStore } from './work.ts';
 import { access, revokeApplication, revokeBrowser } from './work-access.ts';
-import { activityLog, activitySummary } from './work-activity.ts';
+import { activityLog, activitySummary, NO_TEAM } from './work-activity.ts';
 import { approvals } from './work-approvals.ts';
 import { home } from './work-home.ts';
 import { close, initiativeList } from './work-initiatives.ts';
@@ -202,8 +202,13 @@ function read(who: Me, seg: string[], q: URLSearchParams): Answer {
       // The summary answers before the node route, because `summary` names no team of its own.
       if (a === 'summary' && !b) return knowledgeSummary(who);
       if (a === 'log') return ok({ entries: mine(KNOWLEDGE_LOG) });
-      // The shared shelf is nobody's own: any signed-in person opens its lessons, read-only.
-      if (a) return foreign(a) && a !== SHARED_TEAM ? missing(`knowledge ${seg.slice(1).join('/')}`) : or404(lesson(a, [b, ...rest].join('/'), own), `knowledge ${seg.slice(1).join('/')}`);
+      // A lesson is the active team's, for the superadmin too, as the gateway answers it; the shared shelf is nobody's
+      // own, so any signed-in person opens its lessons, read-only. A team or a scope the request names widens nothing.
+      if (a) {
+        if (!who.activeTeam) return NO_TEAM;
+        if (a !== who.activeTeam && a !== SHARED_TEAM) return missing(`knowledge ${seg.slice(1).join('/')}`);
+        return or404(lesson(a, [b, ...rest].join('/'), who.activeTeam), `knowledge ${seg.slice(1).join('/')}`);
+      }
       return knowledgeList(who, q);
     case 'search': {
       // As the gateway answers it: one team's search and never the fleet's, a question required, a limit from 1 to 50.
