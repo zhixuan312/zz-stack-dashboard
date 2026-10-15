@@ -50,7 +50,7 @@ const WORDS: [initiative: string, path: string, added: number, back: number, hou
   ['2026-10-08-result-explanations', 'review.md', 2_100, 1, 70], ['2026-10-02-query-latency', 'spec.md', 1_700, 1, 110],
   ['2026-10-03-ranking-weights', 'spec.md', 2_100, 0, 0],
 ];
-const LESSONS: [kind: string, back: number, hours: number][] = [['decision', 4, 20], ['gotcha', 2, 40], ['convention', 1, 30], ['decision', 1, 60]];
+const LESSONS: [kind: string, back: number, hours: number, words: number][] = [['decision', 4, 20, 140], ['gotcha', 2, 40, 95], ['convention', 1, 30, 120], ['decision', 1, 60, 80]];
 const RUNS: [skill: string, initiative: string | null, back: number, hours: number, minutes: number][] = [
   ['sdlc-spec', '2026-10-02-query-latency', 1, 10, 42], ['sdlc-plan', '2026-09-28-search-relevance', 1, 34, 95],
   ['sdlc-plan-audit', '2026-09-28-search-relevance', 1, 58, 18], ['sdlc-review', '2026-10-08-result-explanations', 1, 80, 64],
@@ -66,8 +66,13 @@ function factsOf(measure: Measure, who: Me, p: { state: string | null; flow: str
     case 'closures': return filtered(team, p).filter((r) => r.closed !== null)
       .map((r) => ({ at: r.closed!, value: 1, keys: { outcome: r.state, flow: r.flow ?? 'none', initiative: r.slug }, row: { ...r } }));
     case 'opened': return filtered(team, p).map((r) => ({ at: r.opened, value: 1, keys: { flow: r.flow ?? 'none' }, row: { ...r } }));
-    case 'words': return team !== 'atlas' ? [] : WORDS.map(([initiative, path, added, back, hours]) =>
-      ({ at: at(back, hours), value: added, keys: { document: `${initiative}/${path}`, initiative }, row: { initiative, path, added } }));
+    // A lesson's words count as Home's do, grouped as lessons: a lesson is no document and has no initiative.
+    case 'words': return team !== 'atlas' ? [] : [
+      ...WORDS.map(([initiative, path, added, back, hours]) =>
+        ({ at: at(back, hours), value: added, keys: { document: `${initiative}/${path}`, initiative }, row: { initiative, path, added } })),
+      ...LESSONS.map(([, back, hours, added]) =>
+        ({ at: at(back, hours), value: added, keys: { document: 'lessons', initiative: 'lessons' }, row: { initiative: null, path: null, added } })),
+    ];
     case 'approvals': return callerApprovalRows(team, who.email).map((a) =>
       ({ at: a.approvedAt, value: 1, keys: { presentation: a.presentation, decision_basis: a.decisionBasis, initiative: a.initiative }, row: a }));
     case 'lessons': return team !== 'atlas' ? [] : LESSONS.map(([kind, back, hours]) => ({ at: at(back, hours), value: 1, keys: { kind }, row: { kind, at: at(back, hours) } }));
@@ -132,7 +137,7 @@ export function workQuery(who: Me, q: URLSearchParams): Answer {
   const groups = keys.map((key) => {
     const value = sum(inWindow.filter((f) => keyOf(f) === key));
     return {
-      key, label: grain ? `${grain === 'week' ? 'Week' : grain === 'month' ? 'Month' : 'Quarter'} from ${key.slice(0, 10)}` : key,
+      key, label: grain ? `${grain === 'week' ? 'Week' : grain === 'month' ? 'Month' : 'Quarter'} from ${key.slice(0, 10)}` : key === 'lessons' ? 'Lessons' : key,
       value: figure(value), share: total ? value / total : null,
       previous: compare ? figure(sum(before.filter((f) => keyOf(f, span) === key))) : null,
     };

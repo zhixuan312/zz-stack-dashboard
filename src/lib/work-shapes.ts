@@ -152,7 +152,8 @@ type FirstsSlice = {
 export type RecordRead = {
   meta: ReadMeta;
   period: 'quarter' | 'year' | 'all';
-  lead: { estimate: WritingEstimate; asOf: string };
+  /** estimate is null when the retained text could not be read: no coverage of zeros stands in for one. */
+  lead: { estimate: WritingEstimate | null; asOf: string };
   cumulative: PeriodFigure[];
   foot: { closed: Figure; opened: Figure; documents: Figure; versions: Figure; approvalsInYourName: Figure };
   work: Part<WorkSlice>;
@@ -175,7 +176,7 @@ export type RecordRead = {
 /** One row of a drilled group: the row its measure's page shows, never a body or a question's text. */
 export type WorkQueryRow =
   | InitiativeRow                                                                   // closures, opened
-  | { initiative: string; path: string; added: number }                             // words
+  | { initiative: string | null; path: string | null; added: number }               // words; a lesson's has neither
   | ApprovalRow                                                                     // approvals
   | { kind: string; at: string }                                                    // lessons
   | { skill: string; initiative: string | null; startedAt: string; lengthMs: number } // runs

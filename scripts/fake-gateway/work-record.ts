@@ -4,8 +4,9 @@
  * One fixture, the active team's record: the retained text as of the cutoff, the same in every period and labelled as
  * of it; the period's work in its six slices; and the record of every initiative, a table paged on the server. The
  * period starts on the quarter's first day, on 1 January, or on the team's first record, and runs to the cutoff; a
- * period of up to 26 weeks answers weeks and a longer one months, as the gateway's `grainFor` chooses. Approvals are
- * the caller's own, the rest the active team's.
+ * period of up to 26 weeks answers weeks and a longer one months, as the gateway's `grainFor` chooses, and every figure by
+ * period, the closures and the median hours to close among them, is cut at that grain. Approvals are the caller's own,
+ * the rest the active team's, labelled team history: the fake's people joined after the team's first record.
  *
  * Its closures, initiatives and approvals are read off the initiatives list and the approvals fixture, and its words
  * off Home's, so every Work page reads the same team. The coverage carries the import-made documents and the gaps
@@ -20,7 +21,7 @@ import type { RecordRead } from '../../src/lib/work-shapes.ts';
 import { now } from './clock.ts';
 import { callerApprovalRows } from './work-approvals.ts';
 import { COVERAGE, estimateOf } from './work-home.ts';
-import { WEEKS, closuresOf, counted, iso, rowsOf, workMeta } from './work-initiatives.ts';
+import { WEEKS, counted, iso, rowsOf, workMeta } from './work-initiatives.ts';
 import { initiativeDetail } from './work.ts';
 
 type Answer = [status: number, body: unknown];
@@ -63,8 +64,9 @@ function periodsFrom(from: number): { grain: 'week' | 'month'; windows: Window[]
 }
 
 const count = (window: Window, n: number): PeriodFigure => ({ window, figure: counted(n), numerator: n, denominator: null });
+/** A team's own median stands at any count, drawn beside it: the gateway never marks it insufficient. */
 const median = (window: Window, hours: number | null, cohort: number): PeriodFigure =>
-  ({ window, figure: hours === null ? { value: null, why: 'no_data' } : { value: hours, why: cohort < 5 ? 'insufficient' : null }, numerator: null, denominator: cohort });
+  ({ window, figure: hours === null ? { value: null, why: 'no_data' } : { value: hours, why: null }, numerator: null, denominator: cohort });
 const spread = (m: number, largest: number): { median: Figure; largest: Figure } => ({ median: counted(m), largest: counted(largest) });
 
 /** The record of `team` over `period`, the caller's approvals those signed in `email`'s name; its table paged. */
@@ -76,13 +78,18 @@ function recordOf(team: string | null, email: string, period: Period, page: { li
   const inPeriod = (at: string | null) => at !== null && at >= whole.from && at < asOf;
   const all = rowsOf(team);
   const closed = all.filter((r) => inPeriod(r.closed));
+  const closedIn = (w: Window) => closed.filter((r) => r.closed! >= w.from && r.closed! < w.to);
   const outcome = (o: string) => counted(closed.filter((r) => r.state === o).length);
+  const outcomeIn = (w: Window, o: string) => counted(closedIn(w).filter((r) => r.state === o).length);
   const approvals = callerApprovalRows(team, email).filter((a) => a.approvedAt >= whole.from.slice(0, a.approvedAt.length));
   const added = windows.map((_, i) => 1_500 + ((i * 1_700) % 9_000));
   const byOpened = [...all].sort((a, b) => b.opened.localeCompare(a.opened) || a.slug.localeCompare(b.slug));
   const flows = [...new Set(all.map((r) => r.flow))];
   return {
-    meta: { ...workMeta('caller-in-active-team', `${team}'s record, and the approvals signed in the caller's name there`), period: { from: whole.from, to: asOf } },
+    meta: {
+      ...workMeta('caller-in-active-team', `${team}'s team history, and the approvals signed in the caller's name there`),
+      period: { from: whole.from, to: asOf }, coverageFrom: iso(FIRST_RECORD),
+    },
     period,
     lead: { estimate: estimateOf('retained_stock', RETAINED), asOf },
     cumulative: windows.map((w, i) => count(w, added.slice(0, i + 1).reduce((a, b) => a + b, 0))),
@@ -96,8 +103,8 @@ function recordOf(team: string | null, email: string, period: Period, page: { li
       medianHoursToClose: median(whole, closed.length ? 312 : null, closed.length),
       medianHoursToAbandon: median(whole, closed.some((r) => r.state === 'abandoned') ? 96 : null, closed.filter((r) => r.state === 'abandoned').length),
       closuresInAll: windows.map((w) => count(w, all.filter((r) => r.closed !== null && r.closed < w.to).length)),
-      closuresByWeek: closuresOf(all),
-      medianHoursByWeek: WEEKS.map((w, i) => (i % 2 ? median(w, 120 + i * 30, 1) : median(w, null, 0))),
+      closuresByWeek: windows.map((w) => ({ window: w, accepted: outcomeIn(w, 'accepted'), delivered: outcomeIn(w, 'delivered'), abandoned: outcomeIn(w, 'abandoned') })),
+      medianHoursByWeek: windows.map((w, i) => (closedIn(w).length ? median(w, 120 + i * 30, closedIn(w).length) : median(w, null, 0))),
       typical: { documents: spread(5, 12), versions: spread(9, 31), sources: spread(4, 13), words: spread(6_800, 24_100) },
     } },
     documents: { state: 'ok', data: {
