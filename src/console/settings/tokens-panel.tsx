@@ -9,6 +9,7 @@ import { FormSection } from '@/components/patterns/form-section';
 import { InlineDestructive } from '@/console/settings/inline-destructive';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -27,11 +28,17 @@ import { consoleMutate, useConsoleMutation } from '@/lib/mutate';
  * `data` for as long as `gcTime`, and a plaintext token must not be retrievable
  * a second time from anywhere. Dismissing, or navigating away, sets `issued`
  * back to `null` in the parent, so the value is dropped rather than hidden.
+ *
+ * In a dialog, never in the page: the assistant sends the text of the page's
+ * scroll region with every message, and the dialog is portalled outside it, so
+ * the value never enters the assistant's context (bug ee35a0d7). It closes only
+ * when the person says so, never on a stray click or Escape.
  */
-function IssuedTokenBanner({ issued, onDismiss }: { issued: IssuedToken; onDismiss: () => void }) {
+function IssuedTokenDialog({ issued, onDismiss }: { issued: IssuedToken | null; onDismiss: () => void }) {
   const [copied, setCopied] = useState(false);
 
   async function copy() {
+    if (!issued) return;
     try {
       await navigator.clipboard.writeText(issued.token);
       setCopied(true);
@@ -42,32 +49,38 @@ function IssuedTokenBanner({ issued, onDismiss }: { issued: IssuedToken; onDismi
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-md border border-warning bg-warning-tint p-4">
-      <p className="text-sm font-medium text-warning-ink">
-        Your token{issued.label ? ` (${issued.label})` : ''} — shown once, store it now
-      </p>
-      <div className="flex items-center gap-2">
-        <code className="min-w-0 flex-1 break-all rounded-sm bg-surface px-3 py-2 font-mono text-xs">
-          {issued.token}
-        </code>
-        <Button type="button" size="sm" variant="secondary" icon={copied ? <Check /> : <Copy />} onClick={() => void copy()}>
-          {copied ? 'Copied' : 'Copy'}
-        </Button>
-      </div>
-      <p className="text-xs text-warning-ink">
-        It will not be shown again — not on this page, not by asking again. If it leaks, revoke it below and issue a new one.
-      </p>
-      <Button type="button" size="sm" variant="ghost" className="self-start" onClick={onDismiss}>
-        I&rsquo;ve stored it
-      </Button>
-    </div>
+    <Dialog open={issued !== null} onOpenChange={(open) => { if (!open) onDismiss(); }}>
+      {issued ? (
+        <DialogContent
+          title={`Your token${issued.label ? ` (${issued.label})` : ''}`}
+          description="Shown once. Store it now."
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+          footer={<Button type="button" onClick={onDismiss}>I&rsquo;ve stored it</Button>}
+        >
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <code className="min-w-0 flex-1 break-all rounded-sm bg-surface px-3 py-2 font-mono text-xs">
+                {issued.token}
+              </code>
+              <Button type="button" size="sm" variant="secondary" icon={copied ? <Check /> : <Copy />} onClick={() => void copy()}>
+                {copied ? 'Copied' : 'Copy'}
+              </Button>
+            </div>
+            <p className="text-xs text-warning-ink">
+              It will not be shown again — not on this page, not by asking again. If it leaks, revoke it and issue a new one.
+            </p>
+          </div>
+        </DialogContent>
+      ) : null}
+    </Dialog>
   );
 }
 
 /**
  * Your own personal access tokens — the browser counterpart of
  * `pat_list` / `pat_issue` / `pat_revoke`
- * (admin.ts). See `IssuedTokenBanner` above for why issuing one bypasses
+ * (admin.ts). See `IssuedTokenDialog` above for why issuing one bypasses
  * `useConsoleMutation`'s cache entirely.
  */
 export function TokensPanel() {
@@ -89,7 +102,7 @@ export function TokensPanel() {
       setIssued(result);
       setLabel('');
       // `useConsoleMutation` does this invalidation itself on success; this call
-      // skips that hook on purpose (see `IssuedTokenBanner`), so the tokens list
+      // skips that hook on purpose (see `IssuedTokenDialog`), so the tokens list
       // has to be told to refetch by hand.
       await queryClient.invalidateQueries({ queryKey: ['console'] });
     } catch (err) {
@@ -110,8 +123,7 @@ export function TokensPanel() {
 
   return (
     <FormSection as="div" flush title="Access tokens" description="For Claude Code or any MCP client, acting as you. A new token is shown once, when it is issued.">
-      {/* In the card it belongs to, above the list it will join: the section's card is the one place its content goes. */}
-      {issued ? <div className="border-b border-line p-(--card-pad)"><IssuedTokenBanner issued={issued} onDismiss={() => setIssued(null)} /></div> : null}
+      <IssuedTokenDialog issued={issued} onDismiss={() => setIssued(null)} />
           <Query query={list}>
             {(rows) =>
               rows.length === 0 ? (

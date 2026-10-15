@@ -8,6 +8,7 @@ import { InlineForm } from '@/console/inline-form';
 import { InlineDestructive } from '@/console/settings/inline-destructive';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -23,14 +24,16 @@ import { useConsoleMutation } from '@/lib/mutate';
 /** The link, shown once, the same shape as a freshly issued token.
  *
  * Only the token's hash is stored, so this is the only moment it exists in a readable form; a
- * person who closes this without copying it asks for another. Modelled on `IssuedTokenBanner`, so
- * two secrets that behave the same way look the same way. */
-function IssuedEnrolmentBanner({ email, url, onDismiss }: { email: string; url: string; onDismiss: () => void }) {
+ * person who closes this without copying it asks for another. Modelled on `IssuedTokenDialog`, so
+ * two secrets that behave the same way look the same way: in a dialog portalled outside the page's
+ * scroll region, whose text the assistant sends with every message (bug ee35a0d7). */
+function IssuedEnrolmentDialog({ issued, onDismiss }: { issued: { email: string; url: string } | null; onDismiss: () => void }) {
   const [copied, setCopied] = useState(false);
 
   async function copy() {
+    if (!issued) return;
     try {
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(issued.url);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -39,27 +42,33 @@ function IssuedEnrolmentBanner({ email, url, onDismiss }: { email: string; url: 
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-md border border-warning bg-warning-tint p-4">
-      <p className="text-sm font-medium text-warning-ink">
-        Enrolment link for {email} — shown once, send it now
-      </p>
-      <div className="flex items-center gap-2">
-        <code className="min-w-0 flex-1 break-all rounded-sm bg-surface px-3 py-2 font-mono text-xs">
-          {url}
-        </code>
-        <Button type="button" size="sm" variant="secondary" icon={copied ? <Check /> : <Copy />} onClick={() => void copy()}>
-          {copied ? 'Copied' : 'Copy'}
-        </Button>
-      </div>
-      <p className="text-xs text-warning-ink">
-        Usable once, and good for seven days. They should open it on the device whose passkey
-        they want to use — the part after the <code>#</code> is the whole secret, so send the
-        link whole.
-      </p>
-      <Button type="button" size="sm" variant="ghost" className="self-start" onClick={onDismiss}>
-        I&rsquo;ve sent it
-      </Button>
-    </div>
+    <Dialog open={issued !== null} onOpenChange={(open) => { if (!open) onDismiss(); }}>
+      {issued ? (
+        <DialogContent
+          title={`Enrolment link for ${issued.email}`}
+          description="Shown once. Send it now."
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+          footer={<Button type="button" onClick={onDismiss}>I&rsquo;ve sent it</Button>}
+        >
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <code className="min-w-0 flex-1 break-all rounded-sm bg-surface px-3 py-2 font-mono text-xs">
+                {issued.url}
+              </code>
+              <Button type="button" size="sm" variant="secondary" icon={copied ? <Check /> : <Copy />} onClick={() => void copy()}>
+                {copied ? 'Copied' : 'Copy'}
+              </Button>
+            </div>
+            <p className="text-xs text-warning-ink">
+              Usable once, and good for seven days. They should open it on the device whose passkey
+              they want to use — the part after the <code>#</code> is the whole secret, so send the
+              link whole.
+            </p>
+          </div>
+        </DialogContent>
+      ) : null}
+    </Dialog>
   );
 }
 
@@ -137,9 +146,7 @@ export function PlatformPeoplePanel() {
       title="People"
       description={`Everyone on this deployment${list.data ? `, ${list.data.length} in all` : ''}. Every change here is logged with who made it, from this console.`}
     >
-      {issued ? (
-        <div className="border-b border-line p-(--card-pad)"><IssuedEnrolmentBanner email={issued.email} url={issued.url} onDismiss={() => setIssued(null)} /></div>
-      ) : null}
+      <IssuedEnrolmentDialog issued={issued} onDismiss={() => setIssued(null)} />
           <Query query={list}>
             {(rows) =>
               rows.length === 0 ? (
