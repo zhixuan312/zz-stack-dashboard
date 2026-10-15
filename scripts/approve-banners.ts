@@ -43,13 +43,16 @@ async function offered(): Promise<State> {
 const drifting = '/initiatives/atlas/2026-10-03-ranking-weights/spec.md';
 await page.open(base + drifting, { width: 1440, theme: 'dark' });
 let first = await offered();
-// A read and its record that straddle one of the document's revisions land on "out of date" — a true state, not this
-// one — so the page is opened once more.
-if (!first.approve && first.text.includes('This page is out of date')) {
+// A read and its record that straddle one of the document's revisions (every 15 s) land on "out of date", or a refetch
+// in between on "changed" — true states, not this one — so the page is opened again. Under a full verify's load one
+// reopening was not always enough (job 2141; three runs alone all passed at the first open), so it is up to three.
+const straddled = (s: State) => !s.approve && (s.text.includes('This page is out of date') || s.text.includes('This document changed while you were reading it'));
+for (let reopened = 0; reopened < 3 && straddled(first); reopened++) {
   await page.open(base + drifting, { width: 1440, theme: 'dark' });
   first = await offered();
 }
-if (!first.approve) failures.push(`${drifting}: Approve is not offered once the page has recorded what it shows`);
+const banner = ['This page is out of date', 'This document changed while you were reading it', 'Approve is unavailable'].find((t) => first.text.includes(t));
+if (!first.approve) failures.push(`${drifting}: Approve is not offered once the page has recorded what it shows (${banner ? `the page reads "${banner}"` : 'no banner drawn'})`);
 await sleep(31_000);
 await page.eval(`window.dispatchEvent(new Event('visibilitychange'))`);
 await sleep(2_500);
