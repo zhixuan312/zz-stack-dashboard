@@ -15,7 +15,7 @@
  * the real route's answer. So nothing here is imported through the console's path alias.
  */
 import type { Me } from '../../src/lib/api-shapes.ts';
-import type { PeriodFigure } from '../../src/lib/platform-shapes.ts';
+import type { Finding, PeriodFigure } from '../../src/lib/platform-shapes.ts';
 import type { ActiveGroup, Home, WritingCoverage, WritingEstimate } from '../../src/lib/work-shapes.ts';
 import { ago } from './clock.ts';
 import { callerApprovalRows, callerWeeks, waitingOf } from './work-approvals.ts';
@@ -33,15 +33,38 @@ export const estimateOf = (basis: WritingEstimate['basis'], words: number): Writ
   ({ basis, words, assumedWordsPerHour: WORDS_PER_HOUR, hours: words / WORDS_PER_HOUR, coverage: COVERAGE });
 
 /** Words added by week, oldest first, the running week last; null for the week with no recorded words. */
-const WORDS: (number | null)[] = [12_400, null, 8_300, 15_400, 9_100, 2_100];
+const WORDS: (number | null)[] = [12_400, null, 8_300, 9_100, 15_400, 2_100];
 
 /** The words' weeks: a week with no recorded revision has no value, never a zero. */
 const wordWeeks = (): PeriodFigure[] => WORDS.map((n, i) => (n === null
   ? { window: WEEKS[i], figure: { value: null, why: 'no_data' }, numerator: null, denominator: null }
   : tally(i, n)));
 
-/** The local date a week begins on, which a finding names. */
-const begins = (i: number) => WEEKS[i].from.slice(0, 10);
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+/** A date as a finding's sentence prints it: `28 Sep`. */
+const sayDay = (date: string) => `${Number(date.slice(8, 10))} ${MONTHS[Number(date.slice(5, 7)) - 1]}`;
+
+/**
+ * What the gateway says of a neutral measure's last whole week: its high or its low since the first comparable week,
+ * a tie with the earliest week it ties named, or nothing. COUPLED: periodFinding's neutral branch in the gateway's
+ * console/findings.ts, which Home calls with no count label, so a plain week has no finding.
+ */
+function neutralFinding(weeks: PeriodFigure[], label: string): Finding | null {
+  const whole = weeks.filter((w) => w.window.complete);
+  const valued = whole.filter((w) => w.figure.value !== null);
+  const last = whole.at(-1);
+  const at = last ? [last.window.from.slice(0, 10)] : [];
+  if (valued.length < 3 || !last) return { kind: 'incomplete', text: 'Not enough complete weeks to compare yet', dates: at, tie: false };
+  const v = last.figure.value;
+  if (v === null) return null;
+  const others = valued.filter((w) => w !== last).map((w) => w.figure.value!);
+  const kind = others.every((o) => o <= v) ? 'high_week' : others.every((o) => o >= v) ? 'low_week' : null;
+  if (!kind) return null;
+  const from = valued[0].window.from.slice(0, 10);
+  const text = `${kind === 'high_week' ? 'Most' : 'Fewest'} recorded ${label} in a week since ${sayDay(from)}`;
+  const tied = valued.find((w) => w !== last && w.figure.value === v)?.window.from.slice(0, 10);
+  return tied ? { kind, text: `${text}, tied with ${sayDay(tied)}`, dates: [...at, from, tied], tie: true } : { kind, text, dates: [...at, from], tie: false };
+}
 
 /** Each run active now: six, in five groups, so the page shows four and says one more. */
 const ACTIVE: [initiative: string | null, skill: string, startedHoursAgo: number][] = [
@@ -89,11 +112,11 @@ export function homeOf(team: string | null, email: string): Home {
     } },
     words: { state: 'ok', data: {
       weeks: words, coverage: COVERAGE,
-      finding: { kind: 'high_week', text: `The most words added in a complete week, the week of ${begins(3)}`, dates: [begins(3)], tie: false },
+      finding: neutralFinding(words, 'words added'),
     } },
     approvals: { state: 'ok', data: {
       weeks: mine,
-      finding: { kind: 'count', text: `${mine[LAST_WEEK].numerator} recorded in your name last week`, dates: [begins(LAST_WEEK)], tie: false },
+      finding: neutralFinding(mine, 'approvals in your name'),
     } },
     foot: {
       estimate: estimateOf('period_net_additions', lastWords),
@@ -101,7 +124,8 @@ export function homeOf(team: string | null, email: string): Home {
     },
     tiles: {
       closed: tally(LAST_WEEK, closedLast.length),
-      medianHoursToClose: { window: last, figure: { value: 41.5, why: 'insufficient' }, numerator: null, denominator: closedLast.length },
+      // A team's own figure stands at any count, drawn beside it: the gateway never marks it insufficient.
+      medianHoursToClose: { window: last, figure: { value: 41.5, why: null }, numerator: null, denominator: closedLast.length },
       searchesWithResults: { window: last, figure: { value: 90, why: null }, numerator: 36, denominator: 40 },
       agentDays: { window: last, figure: { value: 6, why: null }, numerator: 6, denominator: 7 },
     },

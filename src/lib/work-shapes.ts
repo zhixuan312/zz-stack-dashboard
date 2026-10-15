@@ -73,7 +73,8 @@ export type Home = {
   waiting: Part<{ count: number; oldestSince: string | null; one: { initiative: string; path: string; version: number } | null }>;
   words: Part<{ weeks: PeriodFigure[]; finding: Finding | null; coverage: WritingCoverage }>;
   approvals: Part<{ weeks: PeriodFigure[]; finding: Finding | null }>;
-  foot: { estimate: WritingEstimate; coverageMs: Figure; peak: Figure };
+  /** estimate is null when the words could not be read: no coverage of zeros stands in for one. */
+  foot: { estimate: WritingEstimate | null; coverageMs: Figure; peak: Figure };
   tiles: { closed: PeriodFigure; medianHoursToClose: PeriodFigure; searchesWithResults: PeriodFigure; agentDays: PeriodFigure };
   runs: Part<{ active: ActiveGroup[]; more: number; lastRunAt: string | null }>;
   milestones: Part<Milestone[]>;
