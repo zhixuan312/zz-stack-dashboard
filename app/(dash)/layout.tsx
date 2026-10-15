@@ -4,6 +4,7 @@ import { AppShell } from '@/components/base/shell';
 import { ConsoleTools, ShellPending } from '@/console/frame';
 import { PageViews } from '@/console/page-view';
 import { chromeAccess } from '@/data/access';
+import { ConsoleCaller } from '@/lib/api';
 import { assistantConfig } from '@/lib/assistant/config';
 import { ConsoleLive } from '@/views/console-live';
 import { WorkspacePalette, WorkspaceRail } from '@/views/workspace-chrome';
@@ -38,22 +39,24 @@ export default function DashLayout({ children }: { children: ReactNode }) {
   const access = chromeAccess().catch(() => null);
   return (
     <Suspense fallback={<ShellPending />}>
-      <AppShell
-        assistant={assistant}
-        rail={<WorkspaceRail access={access} />}
-        tools={<ConsoleTools />}
-      >
-        <ConsoleLive>
-          {/* No boundary of its own around the page: `loading.tsx` beside each page already gives the segment its
-              streamed fallback, and a second one with `fallback={null}` put the page in a boundary whose server HTML and
-              client hydration disagreed — React threw its hydration-mismatch error on /settings at every width and in
-              both themes. */}
-          {children}
-        </ConsoleLive>
-        <WorkspacePalette access={access} />
-        {/* One page view per committed navigation, inside this boundary because it reads the pathname too. */}
-        <PageViews />
-      </AppShell>
+      <ConsoleCaller access={access}>
+        <AppShell
+          assistant={assistant}
+          rail={<WorkspaceRail access={access} />}
+          tools={<ConsoleTools />}
+        >
+          <ConsoleLive>
+            {/* No boundary of its own around the page: `loading.tsx` beside each page already gives the segment its
+                streamed fallback, and a second one with `fallback={null}` put the page in a boundary whose server HTML and
+                client hydration disagreed — React threw its hydration-mismatch error on /settings at every width and in
+                both themes. */}
+            {children}
+          </ConsoleLive>
+          <WorkspacePalette access={access} />
+          {/* One page view per committed navigation, inside this boundary because it reads the pathname too. */}
+          <PageViews />
+        </AppShell>
+      </ConsoleCaller>
     </Suspense>
   );
 }

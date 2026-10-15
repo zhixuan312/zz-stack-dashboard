@@ -5,6 +5,7 @@
  * console/record.ts, console/record-slices.ts, console/initiative-list.ts, console/work-figures.ts, console/writing.ts,
  * console/runs-observed.ts, console/home-findings.ts, console/approvals.ts, console/work-query.ts and console-close.ts.
  */
+import type { ActivityRow, KnowledgeRow, RunRow } from './destination-shapes';
 import type { Figure, Finding, Part, PeriodFigure, ReadMeta, Window } from './platform-shapes';
 
 /* /initiatives */
@@ -173,21 +174,27 @@ export type RecordRead = {
 
 /* /work/query */
 
-/** One row of a drilled group: the row its measure's page shows, never a body or a question's text. */
+/** One row of a drilled group: the row its measure's page shows, never a body; a question only where it found nothing. */
 export type WorkQueryRow =
   | InitiativeRow                                                                   // closures, opened
   | { initiative: string | null; path: string | null; added: number }               // words; a lesson's has neither
   | ApprovalRow                                                                     // approvals
   | { kind: string; at: string }                                                    // lessons
   | { skill: string; initiative: string | null; startedAt: string; lengthMs: number } // runs
-  | { at: string; found: boolean };                                                 // searches
-/** `GET /work/query?measure&by&from&to&compare&state&flow&q&group&limit&offset`: one prepared question, answered. */
+  | { at: string; found: boolean; question: string | null }                         // searches; null where it found something
+  | ActivityRow                                                                     // calls, refusals
+  | RunRow                                                                          // output
+  | KnowledgeRow;                                                                   // shelf; skill_calls is not drilled
+/** A figure; for output, beside it the runs that measured none, and for the shelf its standing lessons an import made. */
+type Counted = Figure & { unmeasured?: number; imported?: number };
+/** `GET /work/query?measure&by&from&to&compare&state&flow&q&group&limit&offset`: one prepared question, answered. The
+ *  shelf is a stock as of the window's end, so its `previous` is always null. */
 export type WorkQuery = {
   meta: ReadMeta;
   measure: string; by: string; window: Window;
   grain: 'week' | 'month' | 'quarter' | null;
-  groups: { key: string; label: string; value: Figure; share: number | null; previous: Figure | null }[];
+  groups: { key: string; label: string; value: Counted; share: number | null; previous: Counted | null }[];
   rest: { groups: number; value: number } | null;
-  total: Figure;
+  total: Counted;
   rows: Part<{ rows: WorkQueryRow[]; total: number }> | null;
 };

@@ -7,7 +7,8 @@ import config from '../scripts/verify.config.ts';
 
 /**
  * Work's remaining destinations as the fake gateway answers them: Knowledge, Activity, Runs and Plugins to both people,
- * each for the caller's active team, and Access for the caller alone, with its two revokes.
+ * each for the caller's active team, and Access for the caller alone, with its two revokes; a member in two teams who
+ * switches and is answered the other team's afterwards; and the shared shelf's lesson, open to a member as shared.
  *
  * The key sets are written out from the shapes the gateway's tasks declare and never read from the fixture, so a field
  * the fake adds or drops fails here before the platform's own checks compare it with the real routes. Each case the
@@ -380,5 +381,68 @@ describe('Access', () => {
     expect((await ask(MEMBER, `settings/me/browsers/${other.id}`, 'DELETE')).status).toBe(404);
     // Forgotten, like every write: the next read is the same.
     expect(await read(SUPERADMIN, 'access')).toMatchObject({ applications: ava.applications, browsers: ava.browsers });
+  });
+});
+
+describe('a member in two teams', () => {
+  // A cookie of their own, so the switch below moves nobody another case reads as.
+  const TWO = 'member-two-teams';
+  const post = (who: string, body: unknown) => fetch(`${base}/api/console/settings/me/active-team`, {
+    method: 'POST', headers: { cookie: `zz_console=${who}`, 'content-type': 'application/json' }, body: JSON.stringify(body),
+  });
+  const teamsOf = (rows: Json[]) => [...new Set(rows.map((r) => r.team))];
+
+  it('posts /settings/me/active-team and is answered the other team\'s data afterwards', async () => {
+    const me = await read(TWO, 'me');
+    expect([me.email, me.role, me.activeTeam]).toEqual([NOAH, 'member', 'atlas']);
+    expect(me.teams.map((t: Json) => t.slug)).toEqual(['atlas', 'beacon']);
+    const before = { knowledge: (await read(TWO, 'knowledge?limit=100')).rows, initiatives: await read(TWO, 'initiatives?limit=100') };
+    expect(teamsOf(before.knowledge)).toEqual(['atlas']);
+    expect(before.initiatives.meta.population).toMatch(/^atlas's/);
+    const atlasInitiative = before.initiatives.rows[0];
+    expect((await ask(TWO, `initiatives/atlas/${atlasInitiative.slug}`)).status).toBe(200);
+
+    // A team they are not in is refused as the gateway refuses it, and moves nothing.
+    const refused = await post(TWO, { team: 'cinder' });
+    expect([refused.status, await refused.json()]).toEqual([400, { error: 'not a member of cinder' }]);
+    expect((await read(TWO, 'me')).activeTeam).toBe('atlas');
+
+    const switched = await post(TWO, { team: 'beacon' });
+    expect([switched.status, await switched.json()]).toEqual([200, { ok: true, actingFor: 'beacon', from: 'atlas' }]);
+
+    expect((await read(TWO, 'me')).activeTeam).toBe('beacon');
+    expect((await read(TWO, 'settings/me/teams')).actingFor).toBe('beacon');
+    const after = { knowledge: (await read(TWO, 'knowledge?limit=100')).rows, initiatives: await read(TWO, 'initiatives?limit=100') };
+    expect(teamsOf(after.knowledge)).toEqual(['beacon']);
+    expect(after.initiatives.meta.population).toMatch(/^beacon's/);
+    const slugs = (l: Json) => l.rows.map((r: Json) => r.slug);
+    expect(slugs(after.initiatives).length).toBeGreaterThan(0);
+    expect(slugs(after.initiatives).filter((x: string) => slugs(before.initiatives).includes(x))).toEqual([]);
+    for (const path of ['knowledge/summary', 'activity/summary', 'activity', 'runs']) expect((await read(TWO, path)).meta.population, path).toMatch(/^beacon's/);
+    // A deep link to the old team's initiative is a record that does not exist, as the gateway answers it.
+    expect((await ask(TWO, `initiatives/atlas/${atlasInitiative.slug}`)).status).toBe(404);
+    // The session is the cookie's: the member signed in with their own still reads their own team.
+    expect((await read(MEMBER, 'me')).activeTeam).toBe('atlas');
+
+    expect((await post(TWO, { team: 'atlas' })).status).toBe(200);
+    expect((await read(TWO, 'me')).activeTeam).toBe('atlas');
+  });
+
+  it('refuses a slug that is not one, and keeps nothing for a request with no session cookie', async () => {
+    expect((await post(TWO, { team: 'Not A Slug' })).status).toBe(400);
+    const cookieless = await fetch(`${base}/api/console/settings/me/active-team`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ team: 'beacon' }) });
+    expect([cookieless.status, await cookieless.json()]).toEqual([200, { ok: true, actingFor: 'beacon', from: 'atlas' }]);
+    const ava = await fetch(`${base}/api/console/me`);
+    expect((await ava.json()).activeTeam).toBe('atlas');
+  });
+});
+
+describe('the shared shelf', () => {
+  it('opens a lesson of the shared shelf to the member, marked shared, and not another team\'s', async () => {
+    const shared = (await read(MEMBER, 'search?q=recency')).results.find((r: Json) => r.team === 'zz-platform' && r.kind === 'node');
+    const lesson = await read(MEMBER, `knowledge/zz-platform/${shared.path}`);
+    expect(lesson.shelf).toBe('shared');
+    expect((await ask(MEMBER, 'knowledge/beacon/nodes/0001-refunds-are-a-ledger-entry-never-an-edit.md')).status).toBe(404);
+    expect((await ask(SUPERADMIN, 'knowledge/beacon/nodes/0001-refunds-are-a-ledger-entry-never-an-edit.md')).status).toBe(200);
   });
 });

@@ -11,7 +11,9 @@ at the data width like every other page.
 - Console scope: one setting row, the switch on the right; applies at once. The section is drawn for
   everyone and says which of the two scopes a superadmin has the choice of — only the switch is theirs, and
   its place is held either way, so nothing below moves when `/me` lands.
-- Your teams: the teams this person belongs to, and which one this browser acts for.
+- Your teams: the teams this person belongs to, and which one this browser acts for. Acting for another team clears
+  the assistant's thread and reloads the page at the same address, in every tab of this browser, so nothing of the
+  old team stays on screen or in the assistant; a refused switch changes nothing.
 - Access tokens: the table, and issuing a new one on its last line (shown once).
 - Client setup: the setup to copy, Copy on the code itself.
 - Team administration (team admins): the team, its roster, and adding a member on the roster's last line.

@@ -7,10 +7,11 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { usePaged } from '@/components/ui/pagination';
 import { PageControl } from '@/console/paged';
+import { useMutation } from '@tanstack/react-query';
 import { toast } from '@/components/ui/toast';
-import { useConsole } from '@/lib/api';
+import { afterTeamSwitch, useConsole, type ApiError } from '@/lib/api';
 import { type MyTeams } from '@/lib/api-shapes';
-import { useConsoleMutation } from '@/lib/mutate';
+import { consoleMutate } from '@/lib/mutate';
 
 /**
  * Your own teams, and which one you act for — the browser counterpart of `team_mine` (access-door.ts,
@@ -25,16 +26,18 @@ import { useConsoleMutation } from '@/lib/mutate';
  * This console shows one team at a time and every page is scoped to the active one by the gateway,
  * so without a control here a member in two teams can see one of them and has no way in this
  * product to reach the other.
+ *
+ * A switch the gateway accepts keeps nothing of the old team (`afterTeamSwitch`): the assistant's thread
+ * is cleared and the document replaced with the same address, so the server draws the chrome again and
+ * every read is made afresh. DELIBERATE: not `useConsoleMutation`, whose invalidation refetches what is
+ * on screen under the old team's keys before the document goes, and would draw the new team's rows
+ * under them. A refused switch says why and changes nothing.
  */
 export function TeamsPanel() {
   const teams = useConsole<MyTeams>('/settings/me/teams');
-  // `useConsoleMutation` already invalidates the whole `['console']` key on success, which is the
-  // honest blast radius here: every read this console makes is scoped by the acting team, so every
-  // one of them is stale the moment this returns, not just `/me`. Naming the affected paths would
-  // be a list to keep in step with every page ever added.
-  const switchTo = useConsoleMutation<{ actingFor: string }, { team: string }>(
-    '/settings/me/active-team',
-  );
+  const switchTo = useMutation<{ actingFor: string }, ApiError, { team: string }>({
+    mutationFn: (body) => consoleMutate('/settings/me/active-team', body),
+  });
 
   return (
     <FormSection as="div" flush title="Your teams" description="The teams you belong to, and which one this browser acts for.">
@@ -42,13 +45,13 @@ export function TeamsPanel() {
             {(t) => (
               <TeamsTable
                 t={t}
-                pending={switchTo.isPending}
+                // Still pending once accepted: the document is on its way out, and a second press would switch again.
+                pending={switchTo.isPending || switchTo.isSuccess}
                 onSwitch={(team) =>
                   switchTo.mutate(
                     { team },
                     {
-                      onSuccess: (r) =>
-                        toast({ tone: 'positive', title: `Now acting for ${r.actingFor}` }),
+                      onSuccess: afterTeamSwitch,
                       onError: (e) => toast({ tone: 'critical', title: e.message }),
                     },
                   )

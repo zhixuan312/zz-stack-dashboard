@@ -25,11 +25,45 @@ function limitsOf(collections: AnyCollection[]): string[] {
 /** The most model steps one reply may take. */
 const MAX_STEPS = 8;
 
-/** Streams the model's answer to `messages`, about `page`, as a UI message stream response. `guard` is asked again as each approved change runs. */
-export async function respond({ model, secret, messages, page, collections, views = [], guard, now }: { model: LanguageModel; secret: string; messages: UIMessage[]; page: PageContext; collections: AnyCollection[]; views?: ViewTool[]; guard: Guard; now: Date }): Promise<Response> {
-  const modelMessages = await convertToModelMessages(messages);
+/**
+ * Who a reply was answered for: the caller's address and the team they acted for, null for none. Written on the first
+ * part of every reply, so a reply cut off mid-stream is stamped too. COUPLED: `clearThreadOfAnother` in `src/lib/api.ts`
+ * reads it back from the stored thread.
+ */
+type Stamp = { caller: string; team: string | null };
+
+const stampOf = (m: UIMessage): Stamp | null => {
+  const s = m.metadata as { caller?: unknown; team?: unknown } | undefined;
+  return m.role === 'assistant' && typeof s?.caller === 'string' ? { caller: s.caller, team: typeof s.team === 'string' ? s.team : null } : null;
+};
+
+/**
+ * The messages the model may read for `stamp`: those after the last reply stamped for another caller or team, so a
+ * reply streamed into a thread after a switch, a thread another tab saved back or one stored before it hands the model
+ * nothing of the old team or person. With nothing after that reply, the last question alone, answered as a first one.
+ */
+function forCaller(messages: UIMessage[], stamp: Stamp): UIMessage[] {
+  const other = messages.findLastIndex((m) => {
+    const s = stampOf(m);
+    return s !== null && (s.caller !== stamp.caller || s.team !== stamp.team);
+  });
+  if (other < 0) return messages;
+  const after = messages.slice(other + 1);
+  if (after.length) return after;
+  const question = messages.findLast((m) => m.role === 'user');
+  return question ? [question] : [];
+}
+
+/**
+ * Streams the model's answer to `messages`, about `page`, as a UI message stream response, stamped for `stamp` and read
+ * only as far back as `forCaller` allows. `guard` is asked again as each approved change runs.
+ */
+export async function respond({ model, secret, messages, page, collections, views = [], guard, now, stamp }: { model: LanguageModel; secret: string; messages: UIMessage[]; page: PageContext; collections: AnyCollection[]; views?: ViewTool[]; guard: Guard; now: Date; stamp: Stamp }): Promise<Response> {
+  const modelMessages = await convertToModelMessages(forCaller(messages, stamp));
   const stream = createUIMessageStream({
     execute: ({ writer }) => {
+      // The stamp is the reply's first part, before the model is reached, so whatever follows it is answered for this caller.
+      writer.write({ type: 'start', messageMetadata: stamp });
       const { tools, toolApproval } = assistantTools(collections, writer, guard, views);
       const result = streamText({
         model,
@@ -40,7 +74,7 @@ export async function respond({ model, secret, messages, page, collections, view
         experimental_toolApprovalSecret: secret,
         stopWhen: isStepCount(MAX_STEPS),
       });
-      writer.merge(toUIMessageStream({ stream: result.stream, onError: plainError }));
+      writer.merge(toUIMessageStream({ stream: result.stream, onError: plainError, sendStart: false }));
     },
     onError: plainError,
   });

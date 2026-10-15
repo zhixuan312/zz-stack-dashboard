@@ -55,11 +55,16 @@
  * `DELETE /api/console/settings/me/applications/:client` and `/settings/me/browsers/:id`, answered as the platform
  * decides them and forgotten. A superadmin who acts for no team is refused Work's reads, as the gateway refuses them.
  * A lesson on the shared shelf (`zz-platform`) opens for anyone signed in, marked `shared`; another team's still does not.
+ *
+ * `POST /api/console/settings/me/active-team` is the one write that is kept: the team it moves a session to stays that
+ * cookie's for the life of the process, as the gateway keeps it on the session's own row, so every read after it is
+ * answered for the new team. It is refused as the gateway refuses it: a team the person is not in, or a caller who is
+ * not a signed-in browser. A third cookie value, `member-two-teams`, signs in the member as a member of two teams.
  */
 import http from 'node:http';
 import type { Me, Overview } from '../../src/lib/api-shapes.ts';
 import { COLLECTIONS, hint, liveStreams, parseNames, serveLive } from './live.ts';
-import { clientSetupOf, signedIn, teamsOf, tokensOf } from './people.ts';
+import { MEMBER, clientSetupOf, signedIn, teamsOf, tokensOf } from './people.ts';
 import { audit } from './platform-audit.ts';
 import { badFilter, bugReport, bugs, duplicates, resolve } from './platform-bugs.ts';
 import { evaluation } from './platform-evaluation.ts';
@@ -99,6 +104,46 @@ const or404 = (body: unknown, what: string): Answer => (body ? ok(body) : missin
 /** Platform's refusals: a fixed sentence that names no role, person or team, and a 404 that echoes nothing asked. */
 const REFUSED: Answer = [403, { error: 'not permitted' }];
 const UNKNOWN: Answer = [404, null];
+
+/**
+ * The member as a second team would make him: admin of his own and a member of Beacon. Here rather than among the
+ * personas because only a team switch reads him, and every fixture keyed by his address answers him as the member.
+ */
+const TWO_TEAMS = 'member-two-teams';
+const MEMBER_OF_TWO: Me = { ...MEMBER, teams: [...MEMBER.teams, { slug: 'beacon', role: 'member' }] };
+
+/** The `zz_console` cookie's value, or null when the request carries none. */
+function cookieOf(header: string | undefined): string | null {
+  const session = (header ?? '').split(';').map((c) => c.trim()).find((c) => c.startsWith('zz_console='));
+  return session === undefined ? null : session.slice('zz_console='.length);
+}
+
+/** The team each cookie's session was switched to: the gateway's `console_session.team_id`. */
+const switched = new Map<string, string>();
+
+/** Who a request is from, acting for the team its session was last switched to. */
+function callerOf(header: string | undefined): Me | null {
+  const cookie = cookieOf(header);
+  const who = cookie === TWO_TEAMS ? MEMBER_OF_TWO : signedIn(header);
+  const team = cookie === null ? undefined : switched.get(cookie);
+  return who && team ? { ...who, activeTeam: team } : who;
+}
+
+/**
+ * `POST /settings/me/active-team`, as the gateway answers it: a signed-in browser alone, a slug, a team the person is
+ * in, and `{ ok, actingFor, from }`.
+ *
+ * DELIBERATE: a request with no cookie is answered and not kept. It is every browser `pnpm verify` runs side by side,
+ * the audit, the presses and the keyboard walk, so one press of "Act as this team" would move the others mid-run.
+ */
+function switchTeam(who: Me, cookie: string | null, body: Record<string, unknown>): Answer {
+  if (who.via !== 'session') return [400, { error: 'this moves the team a signed-in console browser acts for, and this request is not one. To move the team your agents act for, call team_switch on the /manage door.' }];
+  const team = body.team;
+  if (typeof team !== 'string' || !/^[a-z0-9][a-z0-9_-]{1,63}$/.test(team)) return [400, { error: 'team must be a slug' }];
+  if (!who.teams.some((t) => t.slug === team)) return [400, { error: `not a member of ${team}` }];
+  if (cookie !== null) switched.set(cookie, team);
+  return ok({ ok: true, actingFor: team, from: who.activeTeam });
+}
 
 /** The one team a member is held to; nothing for a superadmin, who may open any team's records. */
 const heldTo = (who: Me): string | null => (who.superadmin ? null : who.activeTeam);
@@ -297,8 +342,8 @@ const PAGE_FEATURES = [
   'platform-status', 'releases', 'bugs', 'bug', 'evaluation', 'teams', 'people', 'usage', 'audit', 'knowledge-health',
 ];
 
-/** One write under `/api/console`, as `who`. Accepted, answered in the route's own shape, and not kept. */
-function write(who: Me, seg: string[], q: URLSearchParams, method: string, body: Record<string, unknown>): Answer {
+/** One write under `/api/console`, as `who`. Accepted, answered in the route's own shape, and not kept but for a team switch. */
+function write(who: Me, cookie: string | null, seg: string[], q: URLSearchParams, method: string, body: Record<string, unknown>): Answer {
   const path = seg.join('/');
   // Reads with no write of their own: nothing starts an evaluation, and nothing here changes a team's record.
   if (['knowledge', 'activity', 'runs', 'plugins', 'skills', 'access'].includes(seg[0])) return missing(path);
@@ -337,7 +382,7 @@ function write(who: Me, seg: string[], q: URLSearchParams, method: string, body:
     if (answer[0] === 200 && path === 'documents/approve') hint('initiatives');
     return answer;
   }
-  if (path === 'settings/me/active-team') return ok({ actingFor: String(body.team ?? who.activeTeam) });
+  if (path === 'settings/me/active-team' && method === 'POST') return switchTeam(who, cookie, body);
   if (path === 'settings/platform/enrolments') return ok({ ok: true, url: 'https://console.example.com/enrol#t=example-enrolment', result: `An enrolment link for ${String(body.email)}` });
   return ok({ ok: true, result: `${method} ${path}: done`, revoked: seg.at(-1) });
 }
@@ -365,7 +410,7 @@ const server = http.createServer((req, res) => {
   req.on('end', () => {
     const referer = (() => { try { return new URL(req.headers.referer ?? '').pathname; } catch { return ''; } })();
     const seg = url.pathname.split('/').filter(Boolean).map(decodeURIComponent);
-    const who = signedIn(req.headers.cookie);
+    const who = callerOf(req.headers.cookie);
     const status = req.method === 'GET' && url.pathname === '/api/console/platform/status';
     let answer: Answer;
     /* The test hooks wear the proxied prefix — `/api/console/__hint` — so a browser check reaches them through the app's
@@ -453,7 +498,7 @@ const server = http.createServer((req, res) => {
       if (answer[0] === 200 && mode === 'empty') answer = [200, shape('empty', empty)];
       if (answer[0] === 200 && mode === 'extreme') answer = [200, shape('extreme', (s, body) => extreme(s, body, heldTo(who)))];
     }
-    else answer = write(who, seg.slice(2), url.searchParams, req.method ?? 'POST', (() => { try { return JSON.parse(raw || '{}') ?? {}; } catch { return {}; } })());
+    else answer = write(who, cookieOf(req.headers.cookie), seg.slice(2), url.searchParams, req.method ?? 'POST', (() => { try { return JSON.parse(raw || '{}') ?? {}; } catch { return {}; } })());
     setTimeout(() => {
       // A 204, or a 404 that says nothing, has no body to serialise, and a client that is sent one reads it wrong.
       if (answer[1] === null) { res.writeHead(answer[0], { 'cache-control': 'no-store' }); res.end(); return; }

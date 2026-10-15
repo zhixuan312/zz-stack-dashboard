@@ -15,7 +15,10 @@ import { viewTools } from '@/views/tools';
 const MAX_MESSAGES = 100;
 const MAX_BODY = 2_000_000;
 
-/** `POST /api/assistant`: answers about the page the person is on. 401 without a session, 404 until the `ASSISTANT_*` variables are set. */
+/**
+ * `POST /api/assistant`: answers about the page the person is on, each reply stamped with the caller and the team it was
+ * answered for. 401 without a session, 404 until the `ASSISTANT_*` variables are set.
+ */
 export async function POST(request: Request): Promise<Response> {
   const scope = await resolveAccess().catch((e: unknown) => { if (e instanceof Unauthenticated) return null; throw e; });
   if (!scope) return new Response(null, { status: 401 });
@@ -68,6 +71,9 @@ export async function POST(request: Request): Promise<Response> {
     guard,
     now: clock(),
     messages: valid.data,
+    // Who this reply is answered for, as the gateway named them for this request: every reply carries it, and a thread
+    // holding a reply answered for anyone else reaches the model only from after that reply.
+    stamp: { caller: scope.subjectId, team: scope.tenantId || null },
     page: { path: String(page?.path ?? ''), title: String(page?.title ?? ''), context: String(page?.context ?? ''), text: String(page?.text ?? '') },
   });
 }

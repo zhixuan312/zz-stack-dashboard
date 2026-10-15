@@ -1,8 +1,9 @@
 'use client';
 
 import { useQuery, useQueryClient, type Query, type UseQueryResult } from '@tanstack/react-query';
-import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { Suspense, createContext, createElement, use, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { preload } from 'react-dom';
+import { clearThread, loadThread } from '@/components/patterns/assistant/thread';
 
 // The one shape the transport itself needs: `useConsoleMode` reads the caller's role off
 // `/me` to decide whether the platform view is even offered. Shapes never import back.
@@ -202,9 +203,16 @@ export function ConsoleModeProvider({ children }: { children: ReactNode }) {
    * every page and leaves every panel holding the other scope's rows under the new name — two
    * tabs, two answers, one of them labelled with the scope it is not showing. The event is the
    * only signal that the change was not this tab's, and `storage` never fires in the tab that
-   * wrote it, so this cannot loop with `setMode` above. */
+   * wrote it, so this cannot loop with `setMode` above.
+   *
+   * A team switched in another tab arrives the same way, and this tab follows it as the switching tab did
+   * (`afterTeamSwitch`): the session is the browser's, so every tab now reads the new team. */
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
+      if (e.key === SWITCH_KEY) {
+        if (e.newValue !== null) leaveForTheNewTeam();
+        return;
+      }
       if (e.key !== null && e.key !== MODE_STORAGE_KEY) return;
       client.removeQueries({
         predicate: (q: Query) => q.queryKey[0] === 'console' && q.queryKey[1] !== '/me',
@@ -220,6 +228,88 @@ export function ConsoleModeProvider({ children }: { children: ReactNode }) {
   // console read, so one `/me` refetch re-rendered the whole page.
   const value = useMemo(() => ({ mode, setMode }), [mode, setMode]);
   return createElement(ConsoleModeContext.Provider, { value }, children);
+}
+
+/**
+ * Who a page is read by, as the console's server resolved it for the page: the caller's address, the team they act for
+ * and their role, from `chromeAccess()` (`src/data/access.ts`), the one promise the layout makes and hands down. Every
+ * read's key carries the three, so an answer is drawn only for the caller, team and role it was asked as.
+ */
+type PageCaller = { caller: string; team: string | null; role: string };
+
+/** What the layout hands down: `chromeAccess()`'s promise, settled on null when nobody could be resolved. */
+type ServerAccess = Promise<{ caller?: string; team?: string | null; user: { role: string } } | null>;
+
+const CallerContext = createContext<ServerAccess | null>(null);
+
+function callerOf(access: Awaited<ServerAccess>): PageCaller | null {
+  return access?.caller ? { caller: access.caller, team: access.team ?? null, role: access.user.role } : null;
+}
+
+/**
+ * Mounted by the layout around the shell, with the promise the rail is given. It holds the promise, never awaits it:
+ * a read awaits it (`useConsole`), and the server resolved it before any page's content, so in the browser it has
+ * settled before anything reads it and nothing waits.
+ *
+ * Its one act: before the assistant's panel first renders, a stored thread whose last stamped reply was answered for
+ * another caller or team is cleared (`clearThreadOfAnother`). The panel loads its thread in a passive effect once it is
+ * opened; a layout effect runs before that, whatever order the two are drawn in.
+ */
+export function ConsoleCaller({ access, children }: { access: ServerAccess; children?: ReactNode }) {
+  return createElement(
+    CallerContext.Provider,
+    { value: access },
+    createElement(Suspense, { fallback: null }, createElement(ThreadOwner, { access })),
+    children,
+  );
+}
+
+function ThreadOwner({ access }: { access: ServerAccess }) {
+  const who = callerOf(use(access));
+  const [caller, team, role] = [who?.caller, who?.team ?? null, who?.role ?? ''];
+  useLayoutEffect(() => {
+    if (caller) clearThreadOfAnother(window.localStorage, { caller, team, role });
+  }, [caller, team, role]);
+  return null;
+}
+
+/** The stamp the assistant's route writes on the first part of every reply. COUPLED: `Stamp` in `src/lib/assistant/respond.ts`. */
+type Stamp = { caller?: unknown; team?: unknown };
+
+/**
+ * Clears the assistant's stored thread when its last stamped reply names another caller or team: one left by a person
+ * who signed out, or saved back by a stream or a tab after a switch. A thread with no stamped reply is left as it is.
+ */
+function clearThreadOfAnother(storage: Storage, who: PageCaller): void {
+  const last = loadThread(storage).findLast((m) => m.role === 'assistant' && typeof (m.metadata as Stamp | undefined)?.caller === 'string');
+  const stamp = last?.metadata as Stamp | undefined;
+  if (stamp && (stamp.caller !== who.caller || (stamp.team ?? null) !== who.team)) clearThread(storage);
+}
+
+/** The key a team switch is announced on to every other tab of this browser. */
+const SWITCH_KEY = 'zz-stack-team-switch';
+
+/** Clears the thread, then replaces the document with the same address: every query, the mounted assistant and any answer or stream in flight go with it. */
+function leaveForTheNewTeam(tellTheOtherTabs = false) {
+  clearThread(window.localStorage);
+  if (tellTheOtherTabs) {
+    try {
+      // A fresh value every time: the browser announces a write to the other tabs only when the value changes.
+      window.localStorage.setItem(SWITCH_KEY, `${Date.now()}:${Math.random()}`);
+    } catch {
+      // Storage refused: the other tabs are not told, and each reads the new team at its next load.
+    }
+  }
+  window.location.replace(window.location.href);
+}
+
+/**
+ * What a team switch the gateway accepted does, in this order: the assistant's thread is cleared, every other tab is
+ * told, and this document is replaced with the same address, so the server draws the chrome again for the new team and
+ * the next load reads an empty thread. A refused switch never reaches this, and leaves the page as it was.
+ */
+export function afterTeamSwitch(): void {
+  leaveForTheNewTeam(true);
 }
 
 /**
@@ -346,19 +436,29 @@ export function useDataClock(): Date {
  * and `ConsoleModeProvider.setMode` is what answers for it: it drops the console cache, so the
  * next render re-reads under the scope they chose.
  *
+ * The key does carry who the page is read by: the caller, the team they act for and their role, as the console's
+ * server resolved them for the page (`ConsoleCaller`), after the path. A team switch replaces the document, so the
+ * cache never outlives the team it was read for; the key is what holds when something does, a response for the old
+ * team held back past the switch landing under the old team's key and never drawn for the new one. Outside
+ * `ConsoleCaller` the three are null.
+ *
  * `/me` is the exception to all of this: it answers "who is this", not "which team's data", so it
- * carries neither the parameter nor a mode segment — `ConsoleModeProvider` depends on that to
- * avoid refetching `/me` when its own default computation changes the mode.
+ * carries neither the parameter, a mode segment nor the caller — `ConsoleModeProvider` depends on that to
+ * avoid refetching `/me` when its own default computation changes the mode, and reads it above the layout that
+ * resolves the caller.
  */
 export function useConsole<T>(path: string | null): UseQueryResult<T, ApiError> {
   // The choice itself, not what `useConsoleMode` shows while hydrating: this decides the URL of a read, and a read sent
   // under the wrong scope would fill the cache with the other scope's rows.
   const { mode } = useContext(ConsoleModeContext) ?? DEFAULT_MODE_STATE;
+  const access = useContext(CallerContext);
   const hydrated = useHydrated();
   const scoped = path !== null && path !== '/me';
   const url = scoped ? withScope(path as string, mode) : path;
+  const who = scoped && access ? callerOf(use(access)) : null;
   const query = useQuery<T, ApiError>({
-    queryKey: ['console', path],
+    // COUPLED: the path stays second, where `ConsoleLive` and `ConsoleModeProvider` read it.
+    queryKey: scoped ? ['console', path, who?.caller ?? null, who?.team ?? null, who?.role ?? null] : ['console', path],
     queryFn: () => consoleFetch<T>(url as string),
     enabled: path !== null,
     retry: false,

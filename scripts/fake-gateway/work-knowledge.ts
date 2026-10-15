@@ -53,7 +53,7 @@ const ADDED: KnowledgeNode[] = SEEDS.map(([team, num, type, title, tags, evidenc
 /** Every lesson on every shelf, the shared one's among them. */
 export const SHELF: KnowledgeNode[] = [...KNOWLEDGE, ...ADDED];
 /** The lessons brought in by an import rather than made by an initiative. */
-const IMPORTED = new Set(SEEDS.filter((s) => s[7]).map(([team, num, , title]) => `${team}/${nodePath(num, title)}`));
+export const IMPORTED = new Set(SEEDS.filter((s) => s[7]).map(([team, num, , title]) => `${team}/${nodePath(num, title)}`));
 
 /** One lesson, whole: the work fixture's own, or one added here. `own` is the one team a member is held to, whose
  *  shelf is theirs to open beside the shared shelf, which is everybody's; the superadmin opens any. */

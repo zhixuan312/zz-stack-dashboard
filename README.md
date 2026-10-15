@@ -245,7 +245,9 @@ page, as before.
 Each question is sent to the model provider with the page's text, its context and the
 Product, Users and Glossary sections of `docs/brief.md`, so none of those may hold a
 secret. The thread stays in the browser's local storage; Settings has the person's own
-switch for the panel.
+switch for the panel. Every reply is stamped with the person and the team it answered, so a
+thread from another person or team is cleared before the panel opens and never reaches the
+model.
 
 ## Deploying
 

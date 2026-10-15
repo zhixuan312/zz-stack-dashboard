@@ -240,8 +240,9 @@ export async function gate(feature: FeatureId): Promise<JSX.Element | null> {
  * `only` is the nav's own destinations whose `needs` this person satisfies. It is what the rail and the palette draw,
  * and it is presentation only: hiding a destination is not the gate, which every page carries itself. There is nobody
  * to view the console as, so `viewAs` is left out. `team` is the team the person acts for, which the superadmin's
- * scope names. With nobody the role table can place this rejects `Unauthenticated`, and the chrome keeps its
- * placeholder rather than naming anyone.
+ * scope names. `caller` is their address, which every browser read's key carries with the team and the role
+ * (`ConsoleCaller` in `src/lib/api.ts`). With nobody the role table can place this rejects `Unauthenticated`, and the
+ * chrome keeps its placeholder rather than naming anyone.
  */
 export async function chromeAccess(): Promise<ConsoleChromeAccess> {
   const who = await identity();
@@ -250,8 +251,9 @@ export async function chromeAccess(): Promise<ConsoleChromeAccess> {
     only: nav.flatMap((g) => g.items).filter((i) => satisfies(who.role, i.needs)).map((i) => i.href),
     user: { name: who.me.name || who.me.email, role: who.role },
     team: who.me.activeTeam,
+    caller: who.me.email,
   };
 }
 
-/** The release's chrome answer and the team the person acts for: `null` for none, left out where nobody said. */
-export type ConsoleChromeAccess = ChromeAccess & { team?: string | null };
+/** The release's chrome answer, the team the person acts for (`null` for none, left out where nobody said) and their address. */
+export type ConsoleChromeAccess = ChromeAccess & { team?: string | null; caller?: string };

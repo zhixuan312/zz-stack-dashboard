@@ -7,7 +7,8 @@ import { ConsoleModeProvider, useConsole, useConsoleMode } from '@/lib/api';
  * When the console reads its data again.
  *
  * COUPLED: `ConsoleModeProvider.setMode` and the query key `useConsole` builds. The key is the
- * path alone, and the scope travels in the URL, because the gateway decides a scope from the
+ * path and who the page is read by (`tests/team-switch.test.tsx`), never the scope, which travels
+ * in the URL, because the gateway decides a scope from the
  * CALLER rather than from the parameter (`services/gateway/src/scope.ts`): a non-superadmin
  * sending `scope=platform` gets exactly what it would have got without it. So the mode settles
  * from `/me` and the read it already made stands, and a scope somebody chooses by hand is the one
