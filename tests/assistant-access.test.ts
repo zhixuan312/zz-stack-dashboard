@@ -27,8 +27,10 @@ import { PEOPLE } from '../scripts/fake-gateway/platform-people.ts';
 import { MEMBER_STATUS, PLATFORM_STATUS } from '../scripts/fake-gateway/platform-status.ts';
 import { TEAMS, teamDetail } from '../scripts/fake-gateway/platform-teams.ts';
 import { search } from '../scripts/fake-gateway/search.ts';
-import { KNOWLEDGE } from '../scripts/fake-gateway/work.ts';
+import { activityLog } from '../scripts/fake-gateway/work-activity.ts';
 import { initiativeList } from '../scripts/fake-gateway/work-initiatives.ts';
+import { knowledgeList } from '../scripts/fake-gateway/work-knowledge.ts';
+import { plugins, skills } from '../scripts/fake-gateway/work-plugins.ts';
 
 const MEMBER: Me = { email: 'mei.tanaka@example.com', name: 'Mei Tanaka', role: 'member', mayRead: true, superadmin: false, via: 'session', teams: [{ slug: 'beacon', role: 'member' }], activeTeam: 'beacon' };
 
@@ -47,15 +49,19 @@ function gateway(who: Me | null | (() => Me | null), { shared = false } = {}) {
     if (!me) return { ok: false, status: 401, json: async () => ({ error: 'not signed in' }) } as Response;
     const path = new URL(url).pathname.replace('/api/console', '');
     if (/^\/(teams|people)(\/|$)/.test(path) && !me.superadmin) return { ok: false, status: 403, json: async () => ({ error: 'not permitted' }) } as Response;
+    const query = new URL(url).searchParams;
     const body = path === '/me' ? me
       : path === '/teams' ? { teams: TEAMS }
         : path.startsWith('/teams/') ? teamDetail(path.slice('/teams/'.length))
-          : path === '/initiatives' ? initiativeList(me, new URL(url).searchParams)[1]
-            : path === '/knowledge' ? { nodes: KNOWLEDGE }
-              : path === '/people' ? { people: PEOPLE }
-                : path === '/search' ? found(new URL(url).searchParams, shared)
-                  : path === '/platform/status' ? (me.superadmin ? PLATFORM_STATUS : MEMBER_STATUS)
-                    : {};
+          : path === '/initiatives' ? initiativeList(me, query)[1]
+            : path === '/knowledge' ? knowledgeList(me, query)[1]
+              : path === '/activity' ? activityLog(me, query)[1]
+                : path === '/skills' ? skills(me, query)[1]
+                  : path === '/plugins' ? plugins(me)[1]
+                    : path === '/people' ? { people: PEOPLE }
+                      : path === '/search' ? found(query, shared)
+                        : path === '/platform/status' ? (me.superadmin ? PLATFORM_STATUS : MEMBER_STATUS)
+                          : {};
     return { ok: true, status: 200, json: async () => body } as Response;
   }) as typeof fetch;
 }
@@ -86,13 +92,13 @@ describe('the server\'s read of the gateway', () => {
     gateway(ME);
     await gatewayGet('/me');
     await gatewayGet('/teams');
-    await gatewayGet('/activity?limit=200');
+    await gatewayGet('/activity?limit=10');
     // The search is the caller's own: the gateway refuses it a platform scope, so none is asked for.
     await gatewayGet('/search?q=latency');
     expect(calls.map((c) => c.url)).toEqual([
       'http://gateway.test/api/console/me',
       'http://gateway.test/api/console/teams?scope=platform',
-      'http://gateway.test/api/console/activity?limit=200&scope=platform',
+      'http://gateway.test/api/console/activity?limit=10&scope=platform',
       'http://gateway.test/api/console/search?q=latency',
     ]);
   });
@@ -270,11 +276,50 @@ describe('a collection read from the gateway', () => {
     expect((await teams.query({ where: [{ field: 'initiatives', op: 'gt', value: 100 }] })).total).toBe(0);
   });
 
-  it('finds a knowledge node by a tag, which arrives as a list and is read as text', async () => {
+  /** What `route` was asked, less the scope every server read carries (`gatewayGet`), which Work's reads ignore. */
+  const askedOf = (route: string) => calls.map((c) => new URL(c.url)).filter((u) => u.pathname === `/api/console${route}`)
+    .map((u) => Object.fromEntries([...u.searchParams].filter(([k]) => k !== 'scope')));
+
+  it('reads the knowledge shelf a page at a time from the route that filters it, and answers the route\'s total', async () => {
     gateway(ME);
-    const tag = KNOWLEDGE.find((n) => n.tags?.length)!.tags![0];
-    const { rows } = await collectionFor(await resolveAccess(), 'knowledge').query({ where: [{ field: 'tags', op: 'contains', value: tag }] });
-    expect(rows.length).toBe(KNOWLEDGE.filter((n) => n.tags?.some((t) => t.toLowerCase().includes(tag.toLowerCase()))).length);
+    const knowledge = collectionFor(await resolveAccess(), 'knowledge');
+    const first = await knowledge.query({});
+    expect(askedOf('/knowledge')).toEqual([{ limit: '10', offset: '0' }]);
+    expect(first.rows).toHaveLength(10);
+    expect(first.total).toBe((knowledgeList(ME, new URLSearchParams())[1] as { total: number }).total);
+    expect(first.total).toBeGreaterThan(first.rows.length);
+    // A lesson's tags arrive as a list and are read as text.
+    expect(first.rows.every((r) => r.tags === null || typeof r.tags === 'string')).toBe(true);
+    gateway(ME);
+    const found = await knowledge.query({ where: [{ field: 'title', op: 'contains', value: 'index' }, { field: 'type', op: 'eq', value: 'decision' }], limit: 100 });
+    expect(askedOf('/knowledge')).toEqual([{ q: 'index', kind: 'decision', limit: '100', offset: '0' }]);
+    expect(found.total).toBe((knowledgeList(ME, new URLSearchParams('q=index&kind=decision'))[1] as { total: number }).total);
+    expect(found.rows.length).toBeGreaterThan(0);
+    expect(found.rows.every((r) => r.type === 'decision')).toBe(true);
+    await expect(knowledge.query({ where: [{ field: 'tags', op: 'contains', value: 'search' }] })).rejects.toThrow(/title contains, type eq/);
+  });
+
+  it('reads the activity log from the route that filters it, refused calls by a yes, and never more than 100 a page', async () => {
+    gateway(ME);
+    const activity = collectionFor(await resolveAccess(), 'activity');
+    const refused = await activity.query({ where: [{ field: 'refused', op: 'eq', value: true }, { field: 'tool', op: 'eq', value: 'core:document_approve' }], limit: 500, offset: 0 });
+    expect(askedOf('/activity')).toEqual([{ refused: 'true', tool: 'core:document_approve', limit: '100', offset: '0' }]);
+    expect(refused.rows.length).toBeGreaterThan(0);
+    expect(refused.rows.every((r) => r.refused === true && r.ok === false && r.tool === 'core:document_approve')).toBe(true);
+    expect(refused.total).toBe((activityLog(ME, new URLSearchParams('refused=true&tool=core:document_approve'))[1] as { total: number }).total);
+    await expect(activity.query({ where: [{ field: 'owner', op: 'eq', value: 'ours' }] })).rejects.toThrow(/kind eq, tool eq, initiative eq, refused eq/);
+  });
+
+  it('narrows the skills to one plugin\'s on the route, and names the plugin that ships each', async () => {
+    gateway(ME);
+    const team = await collectionFor(await resolveAccess(), 'skills').query({ where: [{ field: 'plugin', op: 'eq', value: 'zz-core' }] });
+    expect(askedOf('/skills')).toEqual([{ plugin: 'zz-core' }]);
+    expect(team.rows.map((r) => r.name).sort()).toEqual(['zz-handover', 'zz-platform']);
+    expect(team.rows.every((r) => r.plugin === 'zz-core')).toBe(true);
+    expect(team.total).toBe(2);
+    const paged = await collectionFor(await resolveAccess(), 'skills').query({ limit: 2 });
+    expect(paged.rows).toHaveLength(2);
+    expect(paged.total).toBeGreaterThan(2);
   });
 
   it('two questions asked at once each get their own rows', async () => {

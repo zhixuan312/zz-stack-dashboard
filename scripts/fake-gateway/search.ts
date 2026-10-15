@@ -9,15 +9,16 @@
  * found, with the search's own verdict.
  *
  * Whose search: the team the signed-in person acts for, as the platform runs it, and the superadmin's when no team is
- * named. The fixtures hold no shared shelf, so every row is `shelf: "team"`.
+ * named, with the platform's shared shelf beside it, whose lessons come back as `shelf: "platform"` among the team's.
  */
 import type { SearchAnswer, SearchHit } from '../../src/lib/api-shapes.ts';
 import { ME } from './people.ts';
-import { INITIATIVES, KNOWLEDGE, documentDetail, initiativeDetail, knowledgeBody } from './work.ts';
+import { INITIATIVES, documentDetail, initiativeDetail } from './work.ts';
+import { SHARED_TEAM, SHELF, lesson } from './work-knowledge.ts';
 
 type Candidate = Omit<SearchHit, 'excerpt' | 'score' | 'via'> & { text: string };
 
-/** Every document and node of one team, with the text a search reads. */
+/** Every document and node of one team, and the shared shelf's lessons, with the text a search reads. */
 function corpus(team: string, initiative: string | null): Candidate[] {
   const documents = INITIATIVES.filter((i) => i.team === team && (!initiative || i.slug === initiative)).flatMap((i) =>
     (initiativeDetail(i.team, i.slug)?.documents ?? []).flatMap((row): Candidate[] => {
@@ -30,10 +31,10 @@ function corpus(team: string, initiative: string | null): Candidate[] {
       }];
     }));
   // A node belongs to no initiative, so a search narrowed to one finds none.
-  const nodes = initiative ? [] : KNOWLEDGE.filter((n) => n.team === team).map((n): Candidate => ({
-    kind: 'node', team, shelf: 'team', initiative: null, path: n.path, title: n.title, type: n.type, status: n.status,
-    superseded_by: n.superseded_by, tags: n.tags ?? [], evidence: n.evidence ?? [], flow: null, outcome: null,
-    approved_by: null, approved_at: null, updated: n.updated, text: knowledgeBody(n.team, n.path)?.body ?? n.excerpt,
+  const nodes = initiative ? [] : SHELF.filter((n) => n.team === team || n.team === SHARED_TEAM).map((n): Candidate => ({
+    kind: 'node', team: n.team, shelf: n.team === SHARED_TEAM ? 'platform' : 'team', initiative: null, path: n.path, title: n.title, type: n.type,
+    status: n.status, superseded_by: n.superseded_by, tags: n.tags ?? [], evidence: n.evidence ?? [], flow: null, outcome: null,
+    approved_by: null, approved_at: null, updated: n.updated, text: lesson(n.team, n.path)?.body ?? n.excerpt,
   }));
   return [...documents, ...nodes];
 }

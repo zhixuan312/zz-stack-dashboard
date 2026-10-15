@@ -1,37 +1,60 @@
-/** The Runs page's shared context (decision 0011): every recorded run, by the skill that drove it. */
-import type { Runs, Skill } from '@/lib/api-shapes';
+/**
+ * The Runs page's shared context (decision 0011): every run the active team recorded since its first, by the skill that
+ * drove it and lately, from the one `Runs` the gateway answered. A run's bytes are the response bytes of its own calls,
+ * its observed output, which is neither what a model read nor anything paid for; and a run is never said to be running.
+ */
+import type { RunRow, Runs } from '@/lib/destination-shapes';
 import { plural } from '@/lib/format';
 import { formatCount, formatKb, formatSeconds } from '@/lib/format-units';
-import { PERIOD_LABEL, type Period } from '@/lib/period';
+import { formatDate, formatDateTime } from '@/lib/format-date';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
-import { addressOf, arrived, budgeted, shareOf, type Arrival } from './context';
+import { addressOf, arrived, budgeted, clip, type Arrival } from './context';
 
-export function runsContext({ totals, skills, period, ...arrival }: { totals: Runs['totals']; skills: Skill[]; period: Period } & Arrival): SharedContext {
-  const ran = skills.filter((s) => s.runs > 0);
+/** The rows one page of the recent runs holds. */
+const PAGE_SIZE = 10;
+
+/** The gateway address of the team's runs, narrowed to `skill` unless it is `all`, `limit` recent runs from `offset`. */
+export function runsPath(skill: string, { limit = PAGE_SIZE, offset = 0 }: { limit?: number; offset?: number } = {}): string {
+  const p = new URLSearchParams();
+  if (skill !== 'all') p.set('skill', skill);
+  p.set('limit', String(limit));
+  p.set('offset', String(offset));
+  return `/runs?${p}`;
+}
+
+/** Observed output in words, from bytes; a run nothing measured has none to quote. */
+export const outputOf = (bytes: number | null): string => (bytes === null ? 'not measured' : formatKb(bytes / 1024));
+
+/** How a run stands, in words: active while its last call is recent, never running beyond it. */
+const stateOf = (r: RunRow): string => (r.state === 'active' ? 'active' : r.state === 'one_call' ? 'one call' : `last call ${formatDateTime(r.lastCallAt)}`);
+
+export function runsContext(runs: Runs, { skill, ...arrival }: { skill: string } & Arrival): SharedContext {
+  const { tiles, coverage } = runs;
   const insights: Insight[] = [];
-  const busiest = ran.reduce<Skill | null>((a, s) => (!a || s.runs > a.runs ? s : a), null);
-  if (busiest) insights.push({ text: `${busiest.name} drove the most runs: ${formatCount(busiest.runs)} of ${formatCount(totals.runs)} (${shareOf(busiest.runs, totals.runs)}), at ${busiest.callsAvg.toFixed(1)} calls a run.` });
-  const refusing = ran.filter((s) => s.calls >= 20 && s.refusals / s.calls > 0.05).sort((a, b) => b.refusals / b.calls - a.refusals / a.calls);
-  if (refusing.length) insights.push({ text: `Skills refused on more than 5% of their calls: ${listed(refusing, (s) => `${s.name} ${((s.refusals / s.calls) * 100).toFixed(1)}% (${formatCount(s.refusals)} of ${formatCount(s.calls)})`, 'see /runs', 8)}.` });
-  const heaviest = ran.filter((s) => s.kbPerRun !== null).reduce<Skill | null>((a, s) => (!a || (s.kbPerRun as number) > (a.kbPerRun as number) ? s : a), null);
-  if (heaviest) insights.push({ text: `${heaviest.name} pulls the most into context: ${formatKb(heaviest.kbPerRun)} of tool output a run.` });
-  if (ran.length) insights.push({ text: `By skill: ${listed([...ran].sort((a, b) => b.runs - a.runs), (s) => `${s.name} (${formatCount(s.runs)} ${plural(s.runs, 'run')}, ${formatCount(s.calls)} calls, median ${s.durationMedian === null ? 'not timed' : formatSeconds(s.durationMedian)}${s.retired ? ', retired' : ''})`, 'see /runs', 15)}.` });
+  const bySkill = runs.bySkill.state === 'ok' ? runs.bySkill.data.rows : [];
+  const recent = runs.recent.state === 'ok' ? runs.recent.data : null;
+  insights.push({ text: `The runs cover ${formatSeconds(coverage.coverageMs / 1000)}, overlapping time counted once, against ${formatSeconds(coverage.summedMs / 1000)} summed; at most ${coverage.peak} ran at once, and ${formatCount(coverage.oneCall)} ${plural(coverage.oneCall, 'was', 'were')} one call.` });
+  if (bySkill.length) {
+    insights.push({ text: `By skill, the most observed output per run first: ${listed(bySkill, (s) => `${s.skill} (${formatCount(s.runs)} ${plural(s.runs, 'run')}, ${s.outputPerRun === null ? 'output not measured' : `${formatKb(s.outputPerRun / 1024)} a run`}, ${s.typicalMs === null ? 'none longer than one call' : `typically ${formatSeconds(s.typicalMs / 1000)}`}${s.shareRefused ? `, ${(s.shareRefused * 100).toFixed(1)}% refused` : ''})`, 'see /runs', 5)}.` });
+  }
+  if (recent?.rows.length) insights.push({ text: `The latest runs, of ${formatCount(recent.total)}: ${listed(recent.rows, (r) => `${r.skill} on ${clip(r.initiative ?? 'no initiative', 40)}, ${formatCount(r.calls)} ${plural(r.calls, 'call')}, ${outputOf(r.bytes)}, ${stateOf(r)}`, 'page on /runs', 5)}.` });
   return budgeted({
     view: 'runs',
     title: 'Runs',
-    address: addressOf('/runs', { period }, { period: 'all' }),
-    scope: `${PERIOD_LABEL[period].toLowerCase()}, every team on the platform`,
+    address: addressOf('/runs', { skill }, { skill: 'all' }),
+    scope: `your active team's runs${skill !== 'all' ? ` of ${skill}` : ''}, every one${runs.since ? ` since ${formatDate(runs.since)}` : ''}`,
     freshness: arrived(arrival),
     facts: [
-      { label: 'Runs', value: formatCount(totals.runs), definition: 'Skill sessions recorded: a run is one skill being followed by one caller.' },
-      { label: 'Calls in runs', value: formatCount(totals.calls), change: `${formatCount(totals.refusals)} refused`, definition: 'Tool calls a run claimed. The Overview counts every call; calls no run claimed are not here.' },
-      { label: 'Payload moved', value: totals.mb === null ? 'not measured' : `${totals.mb.toLocaleString('en-US')} MB`, definition: 'Tool output across those runs.' },
+      { label: 'Runs', value: formatCount(tiles.runs.value), definition: 'Skill runs recorded: one skill followed by one caller, from its first call to its last.' },
+      { label: 'Observed output per run', value: tiles.outputPerRun.value === null ? 'not measured' : formatKb(tiles.outputPerRun.value / 1024), change: tiles.outputPerRun.unmeasured ? `${tiles.outputPerRun.unmeasured} not measured` : undefined, definition: 'The response bytes of a run\'s own calls, the mean over the runs that measured them.' },
+      { label: 'Largest run', value: tiles.largest ? `${outputOf(tiles.largest.bytes)}, ${tiles.largest.skill}` : 'none measured', definition: tiles.largest?.initiative ? `On ${tiles.largest.initiative}.` : undefined },
     ],
     insights,
     unknowns: [
-      ...(totals.mb === null ? ['No run in this period had its output measured, so the payload is unknown, not zero.'] : []),
-      'A run is timed only when it has more than one call: a single call has one timestamp and no span.',
-      ...(ran.length ? [] : ['No run was recorded in this period.']),
+      'Observed output is the bytes a run\'s calls answered: it is not what a model read, and not anything paid for.',
+      'A run is active while its last call is within five minutes; nothing says one is still running after that.',
+      ...(tiles.outputPerRun.unmeasured ? [`${formatCount(tiles.outputPerRun.unmeasured)} ${plural(tiles.outputPerRun.unmeasured, 'run')} had no output measured, which is unknown, not zero.`] : []),
+      ...(tiles.runs.value ? [] : ['No run has been recorded yet.']),
     ],
   });
 }

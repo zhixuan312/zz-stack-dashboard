@@ -3,18 +3,19 @@ import { render, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 /**
- * The figures — and the derived words — the activity feed shows are the data's. The sixth page of `standard.md`'s
+ * The figures — and the derived words — the activity page shows are the data's. The sixth page of `standard.md`'s
  * floor, and the second of the table-led kind, after `teams-figures`.
  *
  * `cell()` is the same idea as the teams page's: read the header row for a column's position, then take that cell of the
  * row that carries `needle`. What this page adds is a derived value — the Actor column shows the local part of an
- * address, `jane.doe@example.com` becoming `jane.doe` — and three states that are not figures at all: a null team reads
- * as a dash rather than blank, and a result is "Refused", "OK" or a dash.
+ * address, `jane.doe@example.com` becoming `jane.doe` — a refusal's owner in the words a person reads it in, and a
+ * refusal recorded with no message said to have none rather than left blank. Above the log, last week's tiles are the
+ * summary's own figures.
  *
  * DELIBERATE: the "When" column is not asserted. It is a relative time ("3 hours ago") and moves with the clock; the
  * page's own `overview-period` test pins a date to its zone instead, which is where that belongs.
  */
-import type { ActivityEvent } from '@/lib/api-shapes';
+import type { ActivityLog, ActivitySummary } from '@/lib/destination-shapes';
 import { ActivityView } from '@/views/pages/activity';
 
 const ME = {
@@ -22,18 +23,36 @@ const ME = {
   via: 'session', teams: [{ slug: 'atlas', role: 'admin' }], activeTeam: 'atlas',
 };
 
-/* Two events that differ in every column worth reading, and the second one is the row a person is looking for: a
- * refusal, on no team's business, by somebody whose address is not the one the first row carries. */
-const EVENTS: ActivityEvent[] = [
-  { ts: '2026-10-01T02:00:00Z', actor: 'jane.doe@example.com', team: 'atlas', kind: 'tool_call',
-    subject: 'core:knowledge_search', initiative: 'atlas/2026-09-01-search', step: 'zz-core', ok: true, refusal: null },
-  { ts: '2026-10-02T02:00:00Z', actor: 'sam@example.com', team: null, kind: 'document_approve',
-    subject: 'atlas/spec.md', initiative: null, step: null, ok: false, refusal: 'ACCESS_DENIED — not a member' },
-];
+const WINDOW = { from: '2026-10-05T00:00:00Z', to: '2026-10-12T00:00:00Z', observedFrom: '2026-10-05T00:00:00Z', observedThrough: '2026-10-12T00:00:00Z', complete: true };
+const META = { asOf: '2026-10-15T00:00:00Z', timezone: 'UTC', period: { from: '2026-09-07T00:00:00Z', to: '2026-10-15T00:00:00Z' }, scope: 'active-team' as const, population: 'atlas', coverageFrom: null };
+
+const SUMMARY: ActivitySummary = {
+  meta: META,
+  tiles: {
+    calls: { window: WINDOW, figure: { value: 38, why: null }, numerator: 38, denominator: null },
+    refused: { window: WINDOW, figure: { value: 9, why: null }, numerator: 9, denominator: 38, owners: { guardrail: 4, ours: 2, theirs: 2, other: 1 } },
+    mostRefused: { tool: 'core:document_edit', count: 4, of: 9 },
+  },
+  weeks: { state: 'ok', data: [{ window: WINDOW, complete: true, calls: 38, refused: 9, owners: { guardrail: 4, ours: 2, theirs: 2, other: 1 } }] },
+  groups: { state: 'ok', data: { rows: [], groups: 0, rest: null } },
+  maintenance: { calls: 0, refused: 0 },
+};
+
+/* Three events that differ in every column worth reading: a call that answered, a refusal a guardrail held with its
+ * message, and a refusal recorded with no message at all. */
+const LOG: ActivityLog = {
+  meta: META, total: 3, ceiling: 500, kinds: ['document.patch', 'tool_call'], tools: ['core:document_approve', 'core:knowledge_search'],
+  rows: [
+    { id: 'e1', ts: '2026-10-01T02:00:00Z', kind: 'document.patch', tool: null, initiative: '2026-09-01-search', step: 'sdlc-plan', ok: null, owner: null, message: null, actor: 'jane.doe@example.com' },
+    { id: 'e2', ts: '2026-10-02T02:00:00Z', kind: 'tool_call', tool: 'core:document_approve', initiative: null, step: null, ok: false, owner: 'guardrail', message: 'ERROR: approval needs a stakeholder', actor: 'sam@example.com' },
+    { id: 'e3', ts: '2026-10-03T02:00:00Z', kind: 'tool_call', tool: 'core:knowledge_search', initiative: null, step: null, ok: false, owner: 'other', message: null, actor: null },
+  ],
+};
 
 function mockFetch() {
   return async (input: RequestInfo | URL) => {
-    const body = String(input).includes('/me') ? ME : { events: EVENTS, limit: 200 };
+    const url = String(input);
+    const body = url.includes('/me') ? ME : url.includes('/activity/summary') ? SUMMARY : LOG;
     return { ok: true, json: async () => body } as unknown as Response;
   };
 }
@@ -50,6 +69,12 @@ function cell(needle: string, header: string): string {
   return (td?.firstElementChild ?? td)?.textContent?.trim() ?? '';
 }
 
+/** The figure of the tile whose label is `label`: the first `<p>` inside its card, beside the heading. */
+function figure(label: string): string {
+  const mine = [...document.querySelectorAll('h2')].find((h) => h.textContent?.trim() === label);
+  return mine?.closest('div')?.parentElement?.querySelector('p')?.textContent?.trim() ?? '';
+}
+
 beforeEach(() => {
   window.history.replaceState(null, '', '/activity');
   global.fetch = mockFetch() as unknown as typeof fetch;
@@ -60,30 +85,39 @@ function mount() {
   return render(<QueryClientProvider client={client}><ActivityView /></QueryClientProvider>);
 }
 
-describe('the figures on the activity feed', () => {
+describe('the figures on the activity page', () => {
+  it('draws last week\'s tiles from the summary, the refusals with their four owners', async () => {
+    mount();
+    await waitFor(() => expect(figure('Calls last week')).toBe('38'));
+    expect(figure('Refused last week')).toBe('9');
+    expect(figure('Most refused')).toBe('4');
+    expect(document.body.textContent).toContain('4 guardrail, 2 malformed, 2 tool, 1 other');
+    expect(document.body.textContent).toContain('core:document_edit, of 9');
+  });
+
   it('names the actor by the local part of the address the data carries', async () => {
     mount();
-    await waitFor(() => expect(document.body.textContent).toContain('document_approve'));
-    expect(cell('document_approve', 'Actor')).toBe('sam');
+    await waitFor(() => expect(document.body.textContent).toContain('document.patch'));
+    expect(cell('core:document_approve', 'Actor')).toBe('sam');
     // The other row, so the column is read per row rather than once for the page.
-    expect(cell('core:knowledge_search', 'Actor')).toBe('jane.doe');
+    expect(cell('document.patch', 'Actor')).toBe('jane.doe');
   });
 
-  it('shows a result as its own word, and a team nobody acted for as a dash', async () => {
+  it('shows a result as its own word, and a refusal\'s owner in a person\'s words', async () => {
     mount();
-    await waitFor(() => expect(document.body.textContent).toContain('document_approve'));
-    expect(cell('document_approve', 'Result')).toBe('Refused');
-    expect(cell('core:knowledge_search', 'Result')).toBe('OK');
-    // A token issued is a thing a person did, not a thing a team did: the gateway reads the team through its foreign
-    // key, so a null one is a dash and never a blank the reader has to interpret.
-    expect(cell('document_approve', 'Team')).toBe('—');
-    expect(cell('core:knowledge_search', 'Team')).toBe('atlas');
+    await waitFor(() => expect(document.body.textContent).toContain('document.patch'));
+    expect(cell('core:document_approve', 'Result')).toBe('Refused');
+    expect(cell('core:document_approve', 'Why')).toBe('A guardrail held');
+    expect(cell('core:knowledge_search', 'Why')).toBe('Other');
+    // An event that is not a call has no result to give, and names no tool.
+    expect(cell('document.patch', 'Result')).toBe('—');
+    expect(cell('document.patch', 'Tool')).toBe('—');
   });
 
-  it('keeps the refusal sentence, which is the whole reason the row is coloured', async () => {
+  it('keeps the refusal\'s message, and says when none was recorded', async () => {
     mount();
-    await waitFor(() => expect(document.body.textContent).toContain('document_approve'));
-    expect(cell('document_approve', 'Refusal')).toContain('ACCESS_DENIED');
-    expect(cell('document_approve', 'Kind')).toBe('document_approve');
+    await waitFor(() => expect(document.body.textContent).toContain('document.patch'));
+    expect(cell('core:document_approve', 'Message')).toContain('approval needs a stakeholder');
+    expect(cell('core:knowledge_search', 'Message')).toBe('No message recorded');
   });
 });

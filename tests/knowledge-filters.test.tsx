@@ -1,125 +1,29 @@
 import { describe, expect, it } from 'vitest';
-import type { KnowledgeNode } from '@/lib/api-shapes';
-import { filterKnowledgeNodes, knowledgeNodeHref, tagFacetCounts, teamFacetOptions } from '@/lib/knowledge-filters';
+import { knowledgeNodeHref } from '@/lib/knowledge-filters';
+import { knowledgePath, narrowed } from '@/views/knowledge-context';
 
 // This file lives in `tests/` because vitest.config.ts scans only `tests/**` — a test
-// anywhere else is skipped in silence while the suite still reports success. The filtering
-// logic is exported from `src/lib/knowledge-filters.ts` so it can be exercised here without
-// mounting the page, its query client, or the Next router.
+// anywhere else is skipped in silence while the suite still reports success.
+//
+// The shelf is filtered and paged by the gateway, so what is left for the console is the one address the page, its
+// context, `view_knowledge` and the `knowledge` collection all read it at, and the link each lesson opens.
 
-function node(partial: Partial<KnowledgeNode> & { key: string; team: string }): KnowledgeNode {
-  return {
-    num: '0001', path: `nodes/${partial.key}`, type: 'lesson', status: 'adopted',
-    title: partial.key, tags: null, updated: '2026-01-01T00:00:00Z', bytes: 100,
-    excerpt: '', evidence: null, superseded_by: null,
-    ...partial,
-  };
-}
-
-const nodes: KnowledgeNode[] = [
-  node({
-    key: 'a/1', team: 'a', title: 'Retry storms take down the gateway',
-    excerpt: 'a retry storm during an incident', tags: ['reliability', 'gateway'],
-  }),
-  node({
-    key: 'a/2', team: 'a', title: 'Prompt shape for flow runs',
-    excerpt: 'a short plain opener works best', tags: ['prompting'],
-  }),
-  node({
-    key: 'b/1', team: 'b', title: 'Migrations need a rollback plan',
-    excerpt: 'schema changes without a way back', tags: ['reliability', 'migrations'],
-  }),
-  node({ key: 'b/2', team: 'b', title: 'Undocumented default', excerpt: 'a quiet default', tags: null }),
-];
-
-describe('filterKnowledgeNodes', () => {
-  it('returns everything when no filter is set', () => {
-    expect(filterKnowledgeNodes(nodes, { team: 'all', tags: [], search: '' })).toHaveLength(4);
+describe('knowledgePath', () => {
+  it('asks for one page of ten from the first when nothing narrows the shelf', () => {
+    expect(knowledgePath({ q: '', kind: 'all' })).toBe('/knowledge?limit=10&offset=0');
   });
 
-  it('narrows by team alone', () => {
-    const rows = filterKnowledgeNodes(nodes, { team: 'b', tags: [], search: '' });
-    expect(rows.map((n) => n.key)).toEqual(['b/1', 'b/2']);
-  });
-
-  it('matches search against title and excerpt, never against tags', () => {
-    // "reliability" is a tag on a/1 and b/1, not a substring of either title or
-    // excerpt — free text must not double as tag matching, because tags have
-    // their own facet.
-    expect(filterKnowledgeNodes(nodes, { team: 'all', tags: [], search: 'reliability' })).toHaveLength(0);
-    expect(filterKnowledgeNodes(nodes, { team: 'all', tags: [], search: 'retry storm' })
-      .map((n) => n.key)).toEqual(['a/1']);
-  });
-
-  it('ORs within the tag facet — selecting a second tag widens the facet, not narrows it', () => {
-    const oneTag = filterKnowledgeNodes(nodes, { team: 'all', tags: ['migrations'], search: '' });
-    expect(oneTag.map((n) => n.key)).toEqual(['b/1']);
-    const twoTags = filterKnowledgeNodes(nodes, { team: 'all', tags: ['migrations', 'prompting'], search: '' });
-    expect(twoTags.map((n) => n.key).sort()).toEqual(['a/2', 'b/1']);
-  });
-
-  it('ANDs team, tags and search together — each filter narrows further', () => {
-    // Both a/1 and b/1 carry "reliability", but only a/1 is on team "a" and
-    // matches the search term — team, tag and search must all hold at once.
-    const rows = filterKnowledgeNodes(nodes, { team: 'a', tags: ['reliability'], search: 'gateway' });
-    expect(rows.map((n) => n.key)).toEqual(['a/1']);
-    expect(filterKnowledgeNodes(nodes, { team: 'b', tags: ['reliability'], search: 'gateway' })).toHaveLength(0);
+  it('sends the text and the kind to the route, and the page it was asked for', () => {
+    expect(knowledgePath({ q: '  rank by recency ', kind: 'decision' }, { limit: 25, offset: 50 })).toBe('/knowledge?q=rank+by+recency&kind=decision&limit=25&offset=50');
   });
 });
 
-describe('tagFacetCounts', () => {
-  it('counts every tag in the loaded set, most-common first, ties broken alphabetically', () => {
-    expect(tagFacetCounts(nodes)).toEqual([
-      { tag: 'reliability', count: 2 },
-      { tag: 'gateway', count: 1 },
-      { tag: 'migrations', count: 1 },
-      { tag: 'prompting', count: 1 },
-    ]);
-  });
-
-  it('does not shrink when a team or search filter is applied elsewhere — it reads the loaded set', () => {
-    // Regression guard for the "counts computed from the loaded node set" contract:
-    // calling it on a team-narrowed slice (what the page must not do) gives a
-    // different, smaller answer, which is exactly why the page always calls
-    // this on `nodes`, not on `rows`.
-    const teamA = filterKnowledgeNodes(nodes, { team: 'a', tags: [], search: '' });
-    expect(tagFacetCounts(teamA)).toEqual([
-      { tag: 'gateway', count: 1 },
-      { tag: 'prompting', count: 1 },
-      { tag: 'reliability', count: 1 },
-    ]);
-    expect(tagFacetCounts(nodes)).not.toEqual(tagFacetCounts(teamA));
-  });
-});
-
-describe('teamFacetOptions', () => {
-  /**
-   * One question: which teams are on screen. The gateway scopes a team-mode read to
-   * `active_team_id`, so a sibling team's rows are never fetched and naming that team at
-   * "count 0" would offer a shelf the page cannot show. The facet is platform-mode only,
-   * where a read really does span every team.
-   */
-  it('names every team present in the loaded set, with its true count', () => {
-    expect(teamFacetOptions(nodes)).toEqual([
-      { slug: 'a', count: 2 },
-      { slug: 'b', count: 2 },
-    ]);
-  });
-
-  it('names one team when one team is loaded — not silence, and not a zero for the others', () => {
-    // Visibility derived from `new Set(nodes.map(n => n.team)).length > 1` hides the control
-    // the moment every loaded row shares a team, leaving a reader unable to tell "filtering is
-    // missing" from "there is only one team". One option, named, is the honest answer.
-    const teamAOnly = filterKnowledgeNodes(nodes, { team: 'a', tags: [], search: '' });
-    expect(teamFacetOptions(teamAOnly)).toEqual([{ slug: 'a', count: 2 }]);
-  });
-
-  it('is empty when nothing is loaded, rather than inventing a team', () => {
-    expect(teamFacetOptions([])).toEqual([]);
-  });
-
-  it('sorts by slug, so the control does not reorder itself between renders', () => {
-    expect(teamFacetOptions(nodes).map((o) => o.slug)).toEqual(['a', 'b']);
+describe('narrowed', () => {
+  it('is any filter but the defaults, and blank text is none', () => {
+    expect(narrowed({ q: '', kind: 'all' })).toBe(false);
+    expect(narrowed({ q: '   ', kind: 'all' })).toBe(false);
+    expect(narrowed({ q: 'gateway', kind: 'all' })).toBe(true);
+    expect(narrowed({ q: '', kind: 'style' })).toBe(true);
   });
 });
 

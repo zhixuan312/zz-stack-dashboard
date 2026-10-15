@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { NO_SESSION } from '../scripts/fake-gateway/people.ts';
 import { PLATFORM_STATUS } from '../scripts/fake-gateway/platform-status.ts';
-import { INITIATIVES } from '../scripts/fake-gateway/work.ts';
+import { INITIATIVES, KNOWLEDGE } from '../scripts/fake-gateway/work.ts';
 import config from '../scripts/verify.config.ts';
 
 /**
@@ -74,8 +74,10 @@ async function memberReads(): Promise<string[]> {
     'me', 'overview', 'overview?period=7d', 'initiatives', 'initiatives?offset=10', 'initiatives?state=quiet', 'initiatives?waiting=1',
     'home', 'record', 'record?period=quarter', 'approvals', 'approvals?tab=history', 'work/query?measure=closures&by=outcome',
     'work/query?measure=runs&by=initiative&group=2026-09-28-search-relevance',
-    'knowledge', 'knowledge/log', 'activity', 'activity?failed=1', 'runs', 'plugins', 'plugins/sdlc/eval',
-    'plugins/sdlc/skills/sdlc-spec', 'skills', 'skills/sdlc-spec', 'search?q=recency', 'search?q=review%20rounds&limit=50',
+    'knowledge/summary', 'knowledge', 'knowledge?offset=10', 'knowledge?kind=decision', 'knowledge/log',
+    'activity/summary', 'activity', 'activity?refused=true', 'activity?offset=10', 'runs', 'runs?skill=sdlc-plan', 'runs?offset=10',
+    'plugins', 'plugins/sdlc/eval', 'plugins/sdlc/skills/sdlc-spec', 'skills', 'skills?plugin=sdlc', 'skills/sdlc-spec', 'access',
+    'search?q=recency', 'search?q=review%20rounds&limit=50',
     'settings/me/tokens', 'settings/me/client-setup', 'settings/me/teams', `settings/team/members?team=${own}`, 'platform/status',
   ];
   // The list's rows name no team: each is the active team's, and its page opens under that team.
@@ -85,8 +87,8 @@ async function memberReads(): Promise<string[]> {
     const detail = await read<{ documents: { path: string }[] }>(MEMBER, `initiatives/${own}/${i.slug}`);
     for (const d of detail.documents) paths.push(`document/${own}/${i.slug}/${d.path}`, `document/${own}/${i.slug}/${d.path}?revision=1`);
   }
-  const { nodes } = await read<{ nodes: { team: string; path: string }[] }>(MEMBER, 'knowledge');
-  for (const n of nodes) paths.push(`knowledge/${n.team}/${n.path}`);
+  const shelf = await read<{ rows: { team: string; path: string }[] }>(MEMBER, 'knowledge?limit=100');
+  for (const n of shelf.rows) paths.push(`knowledge/${n.team}/${n.path}`);
   return paths.flatMap((p) => [p, `${p}${p.includes('?') ? '&' : '?'}scope=platform`]);
 }
 
@@ -147,9 +149,8 @@ describe('what a member is answered', () => {
       for (const r of list.rows) expect(r.team).toBeUndefined();
       const rows = [
         ...(await read<{ waiting: { team: string }[] }>(MEMBER, `initiatives${scope ? `${scope}&` : '?'}waiting=1`)).waiting,
-        ...(await read<{ nodes: { team: string }[] }>(MEMBER, `knowledge${scope}`)).nodes,
+        ...(await read<{ rows: { team: string }[] }>(MEMBER, `knowledge${scope ? `${scope}&` : '?'}limit=100`)).rows,
         ...(await read<{ entries: { team: string }[] }>(MEMBER, `knowledge/log${scope}`)).entries,
-        ...(await read<{ events: { team: string }[] }>(MEMBER, `activity${scope}`)).events,
       ];
       expect(rows.length).toBeGreaterThan(20);
       for (const row of rows) expect(row.team, JSON.stringify(row).slice(0, 120)).toBe(own);
@@ -190,7 +191,8 @@ describe('what a member is answered', () => {
     const { others } = await teams();
     const other = others[0].slug;
     const theirs = INITIATIVES.find((i) => i.team === other)!;
-    const node = (await read<{ nodes: { team: string; path: string }[] }>(null, 'knowledge?scope=platform')).nodes.find((n) => n.team === other)!;
+    // The shelf's list is the active team's, so another team's lesson is found in the fixture itself.
+    const node = KNOWLEDGE.find((n) => n.team === other)!;
     const doc = (await read<{ documents: { path: string }[] }>(null, `initiatives/${other}/${theirs.slug}`)).documents[0].path;
     for (const path of [`initiatives/${other}/${theirs.slug}`, `document/${other}/${theirs.slug}/${doc}`,
                         `document/${other}/${theirs.slug}/${doc}?revision=1`, `knowledge/${other}/${node.path}`]) {
@@ -236,10 +238,12 @@ describe('what a member is answered', () => {
 
   it('searches as their own team, and shows and approves its documents', async () => {
     const me = await read<Me>(MEMBER, 'me');
-    const found = await read<{ team: string; results: { team: string }[] }>(MEMBER, 'search?q=recency&scope=platform');
+    const found = await read<{ team: string; results: { team: string; shelf: string }[] }>(MEMBER, 'search?q=recency&scope=platform');
     expect(found.team).toBe(me.activeTeam);
     expect(found.results.length).toBeGreaterThan(0);
-    for (const r of found.results) expect(r.team).toBe(me.activeTeam);
+    // The team's own, and the platform's shared shelf beside it, which every team's search reads.
+    for (const r of found.results) expect([r.shelf, r.team]).toEqual(r.shelf === 'platform' ? ['platform', 'zz-platform'] : ['team', me.activeTeam]);
+    expect(found.results.some((r) => r.shelf === 'platform')).toBe(true);
     // A superadmin who asks for the fleet's search is still refused: it has no fleet-wide reading.
     expect((await ask(null, 'search?q=recency&scope=platform')).status).toBe(400);
 

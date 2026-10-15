@@ -78,10 +78,11 @@ export function routeCollection<T extends Row, K extends keyof T & string>(def: 
       const params: Record<string, string> = {};
       for (const w of where) {
         const c = conditions[w.field];
-        if (!c || c.op !== w.op || typeof w.value !== 'string' || c.param in params) {
-          throw new Error(`${def.label} are filtered by the gateway, which takes ${takes}, each once with one text value; ${w.field} ${w.op} is not one of them.`);
+        // A text or a yes-or-no, as the route's own parameter spells it: `refused eq true` is `?refused=true`.
+        if (!c || c.op !== w.op || (typeof w.value !== 'string' && typeof w.value !== 'boolean') || c.param in params) {
+          throw new Error(`${def.label} are filtered by the gateway, which takes ${takes}, each once with one text or true or false; ${w.field} ${w.op} is not one of them.`);
         }
-        params[c.param] = w.value;
+        params[c.param] = String(w.value);
       }
       return read(params, { limit: Math.min(Math.max(1, limit), ROUTE_MAX), offset: Math.max(0, offset) });
     },

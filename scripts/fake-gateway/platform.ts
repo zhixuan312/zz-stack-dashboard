@@ -1,15 +1,13 @@
 /**
- * The fake gateway's platform: plugins and their skills, one plugin evaluation, the overview's
- * figures, the activity feed and the run totals.
+ * The fake gateway's platform: the catalog's plugins and the skills each ships, one plugin evaluation, a skill's text,
+ * and the overview's figures. What a team made of the catalog (its calls, its runs) is `work-plugins.ts`'s.
  *
- * Four plugins, one per state the plugin pages draw: `sdlc` is a method (stages, gates) with an
- * established evaluation; `zz-core` is the platform, profiled and never scored; `zz-access` is
- * registered and never profiled; `research-kit` is vendored from another team, never run, with
- * no release and no evaluation.
+ * Five plugins, one per state the plugin pages draw: `sdlc` is a method (stages, gates) with an established evaluation;
+ * `zz-core` is the platform, profiled and never scored; `zz-access` is registered and never profiled; `zz-plugin-eval`
+ * is scored in public and was never registered here; `research-kit` is vendored from another team, never run, with no
+ * release and no evaluation.
  */
-import type {
-  ActivityEvent, Overview, PluginEval, PluginEvalFound, PluginRow, Runs, Skill, SkillDetail, SkillText,
-} from '../../src/lib/api-shapes.ts';
+import type { Overview, PluginEval, PluginEvalFound, PluginRow, SkillText } from '../../src/lib/api-shapes.ts';
 import { ago, now } from './clock.ts';
 
 type SkillSeed = [name: string, plugin: string, position: number | null, calls: number, refusals: number, runs: number];
@@ -27,40 +25,25 @@ const SKILL_SEEDS: SkillSeed[] = [
   ['zz-platform', 'zz-core', null, 3_380, 140, 210],
   ['zz-handover', 'zz-core', null, 290, 6, 41],
   ['zz-access', 'zz-access', null, 96, 5, 30],
+  ['zz-plugin-observe', 'zz-plugin-eval', 1, 0, 0, 0],
+  ['zz-plugin-evaluate', 'zz-plugin-eval', 2, 0, 0, 0],
   ['research-scan', 'research-kit', null, 0, 0, 0],
   ['research-cite', 'research-kit', null, 0, 0, 0],
 ];
 
 const describe = (name: string) => `What ${name} is for, in the words its own SKILL.md opens with.`;
 
-export const SKILLS: Skill[] = [
-  ...SKILL_SEEDS.map(([name, plugin, , calls, refusals, runs]): Skill => {
-    const timed = runs ? Math.max(1, runs - 3) : 0;
-    const avg = runs ? 120 + (calls % 900) : null;
-    return {
-      name, version: plugin === 'research-kit' ? '0.3' : '1.14', kind: 'plugin_skill', flow: plugin === 'sdlc' ? 'sdlc-flow' : null, retired: false,
-      runs, calls, callsAvg: runs ? +(calls / runs).toFixed(1) : 0, callsMax: runs ? Math.ceil((calls / runs) * 3) : 0, refusals, timedRuns: timed,
-      durationAvg: avg, durationMedian: avg === null ? null : Math.round(avg * 0.8), durationMax: avg === null ? null : avg * 6, durationTotal: avg === null ? null : avg * timed,
-      kbPerRun: runs ? +(4 + (calls % 300) / 7).toFixed(1) : null, mbTotal: runs ? +((runs * (4 + (calls % 300) / 7)) / 1024).toFixed(1) : null,
-      logged: runs ? { calls, failed: refusals, tools: 6 + (calls % 9) } : null,
-    };
-  }),
-  { name: 'building-a-block', version: '1.0', kind: 'plugin_skill', flow: null, retired: true, runs: 1, calls: 2, callsAvg: 2, callsMax: 2, timedRuns: 1, refusals: 0, durationAvg: 12.9, durationMedian: 12.9, durationMax: 12.9, durationTotal: 12.9, kbPerRun: 40.2, mbTotal: 0, logged: { calls: 2, failed: 0, tools: 1 } },
-];
+/** The skills the catalog ships, by plugin and their place in its method: the same for every team. */
+export const CATALOG_SKILLS = SKILL_SEEDS.map(([name, plugin, position]) => ({
+  name, plugin, position, version: plugin === 'research-kit' ? '0.3' : '1.14', description: describe(name),
+  origin: plugin === 'research-kit' ? 'theirs' as const : 'ours' as const,
+  source: plugin === 'research-kit' ? 'github.com/example-labs/research-kit' : null,
+}));
 
-function pluginSkills(plugin: string): PluginRow['skills'] {
-  return SKILL_SEEDS.filter(([, p]) => p === plugin).map(([name, , position, calls]) => ({
-    name, position, isEntry: name === 'sdlc-flow', origin: plugin === 'research-kit' ? 'theirs' : 'ours',
-    version: plugin === 'research-kit' ? '0.3' : '1.14', description: describe(name),
-    source: plugin === 'research-kit' ? 'github.com/example-labs/research-kit' : null,
-    versions: plugin === 'research-kit' ? 1 : 3 + (calls % 7), calls, evals: plugin === 'sdlc' ? 2 : 0,
-    everRun: calls > 0, lastRun: calls > 0 ? ago(1 + (calls % 40)) : null,
-  }));
-}
+/** A plugin as the catalog declares it: the same for every team, with none of a team's use of it. */
+type CatalogPlugin = Pick<PluginRow, 'plugin' | 'owner' | 'agentName' | 'version' | 'servers' | 'description' | 'stages' | 'entry' | 'documents' | 'gates' | 'release'>;
 
-const sum = (plugin: string, i: 3 | 4) => SKILL_SEEDS.filter(([, p]) => p === plugin).reduce((n, s) => n + s[i], 0);
-
-export const PLUGINS: PluginRow[] = [
+export const CATALOG: CatalogPlugin[] = [
   {
     plugin: 'sdlc', owner: 'sdlc', agentName: 'SDLC Agent', version: '0.92.10', servers: ['zz-core'],
     description: 'Software delivery: explore the ground, agree a spec, audit it, plan it, audit that, build it, review it, then close and hand over.',
@@ -71,49 +54,35 @@ export const PLUGINS: PluginRow[] = [
       { name: 'plan.md', role: 'plan', gate: true, stage: 'sdlc-plan' },
       { name: 'review.md', role: 'verification', gate: true, stage: 'sdlc-review' },
     ],
-    gates: 3, skills: pluginSkills('sdlc'), calls: sum('sdlc', 3), failed: sum('sdlc', 4), lastRun: ago(1),
-    release: { version: '0.92.10', digest: '2f16e125', evals: 2 },
-    latestEval: { version: '0.92.10', overallScore: 8.64, scoreStatus: 'established', guardrailStatus: 'pass', openDefects: 2, at: ago(20) },
+    gates: 3, release: { version: '0.92.10', digest: '2f16e125', evals: 2 },
   },
   {
     plugin: 'zz-core', owner: null, agentName: null, version: '0.92.10', servers: ['zz-core'],
     description: 'The platform itself: documents, gates, initiatives and the knowledge store every flow writes to.',
-    stages: [], entry: null, documents: [], gates: 0, skills: pluginSkills('zz-core'), calls: sum('zz-core', 3), failed: sum('zz-core', 4), lastRun: ago(0.5),
-    release: { version: '0.92.10', digest: '7c01aa94', evals: 0 }, latestEval: null,
+    stages: [], entry: null, documents: [], gates: 0, release: { version: '0.92.10', digest: '7c01aa94', evals: 0 },
   },
   {
     plugin: 'zz-access', owner: 'zz-access', agentName: 'ZZ Access', version: '0.92.10', servers: ['zz-access'],
     description: 'Your own access: who you are, which team you act for, your tokens and your client setup.',
-    stages: [], entry: null, documents: [], gates: 0, skills: pluginSkills('zz-access'), calls: sum('zz-access', 3), failed: sum('zz-access', 4), lastRun: ago(30),
-    release: null, latestEval: null,
+    stages: [], entry: null, documents: [], gates: 0, release: null,
+  },
+  {
+    plugin: 'zz-plugin-eval', owner: 'zz-plugin-eval', agentName: 'ZZ Plugin Eval', version: '0.92.10', servers: ['zz-plugin-eval', 'zz-core'],
+    description: 'Judges a plugin by what its real runs did, against a protocol a person agreed first.',
+    stages: SKILL_SEEDS.filter(([, p, pos]) => p === 'zz-plugin-eval' && pos !== null).map(([n]) => n), entry: null, documents: [], gates: 0,
+    release: { version: '0.92.10', digest: '91d3be40', evals: 2 },
   },
   {
     plugin: 'research-kit', owner: 'example-labs', agentName: null, version: null, servers: ['web-search', 'zz-core'],
-    description: null, stages: [], entry: null, documents: [], gates: 0, skills: pluginSkills('research-kit'), calls: 0, failed: 0, lastRun: null,
-    release: null, latestEval: null,
+    description: null, stages: [], entry: null, documents: [], gates: 0, release: null,
   },
 ];
 
-export function skillDetail(name: string): SkillDetail | null {
-  const s = SKILL_SEEDS.find(([n]) => n === name);
-  if (!s) return null;
-  const [, , , calls, refusals] = s;
-  if (!calls) return { skill: name, surfaces: [], busiestTools: [] };
-  const tools = ['document_edit', 'document_approve', 'document_read', 'skill_read', 'source_add', 'document_write', 'knowledge_search'];
-  return {
-    skill: name,
-    surfaces: [{ surface: 'core', calls: Math.round(calls * 0.92), failed: Math.round(refusals * 0.9), tools: 14 }, { surface: 'eval', calls: Math.round(calls * 0.08), failed: refusals - Math.round(refusals * 0.9), tools: 3 }],
-    busiestTools: tools.map((t, i) => ({ tool: `core:${t}`, calls: Math.round(calls / (i + 1.4)), failed: Math.round(refusals / (i + 2)) })),
-  };
-}
-
 export function skillText(plugin: string, name: string): SkillText | null {
-  const s = SKILL_SEEDS.find(([n, p]) => n === name && p === plugin);
+  const s = CATALOG_SKILLS.find((x) => x.name === name && x.plugin === plugin);
   if (!s) return null;
-  const theirs = plugin === 'research-kit';
   return {
-    skill: name, plugin, isEntry: name === 'sdlc-flow', origin: theirs ? 'theirs' : 'ours',
-    version: theirs ? '0.3' : '1.14', description: describe(name), source: theirs ? 'github.com/example-labs/research-kit' : null,
+    skill: name, plugin, isEntry: name === 'sdlc-flow', origin: s.origin, version: s.version, description: s.description, source: s.source,
     whenToUse: `Use ${name} when the stage before it has closed and its document is approved.`,
     body: `# ${name}\n\n${describe(name)}\n\n## Steps\n\n1. Read the approved document this stage starts from.\n2. Do the work, one change at a time, with its check.\n3. Write the result with \`document_write\` and ask for approval.\n\n## When it stops\n\nA gate that is not approved stops the stage; it asks the person named as stakeholder.\n`,
     references: name === 'sdlc-spec' ? [
@@ -249,25 +218,4 @@ export function overview(period: string): Overview {
       ],
     },
   };
-}
-
-const KINDS = ['tool_call', 'document.write', 'document.document_approve', 'knowledge.search', 'skill_read', 'knowledge.add', 'initiative_status'];
-const ACTORS = ['noah.okafor@example.com', 'mei.tanaka@example.com', 'jonas.weber@example.com', null];
-const TOOLS = ['core:document_read', 'core:document_edit', 'core:knowledge_search', 'core:document_approve', 'eval:finding_record'];
-
-export const ACTIVITY: ActivityEvent[] = Array.from({ length: 120 }, (_, i): ActivityEvent => {
-  const kind = KINDS[i % KINDS.length];
-  const refused = kind === 'tool_call' && i % 3 === 0;
-  return {
-    ts: ago(i * 0.7), actor: ACTORS[i % ACTORS.length], team: i % 11 === 0 ? null : ['atlas', 'beacon', 'atlas', 'cinder'][i % 4], kind,
-    subject: kind === 'tool_call' ? TOOLS[i % TOOLS.length] : kind === 'knowledge.add' ? String(i % 9 + 1).padStart(4, '0') : null,
-    initiative: i % 2 ? '2026-09-28-search-relevance' : null, step: i % 2 ? 'plan' : null,
-    ok: kind === 'tool_call' ? !refused : null,
-    refusal: refused ? (i % 2 ? 'ERROR: document not found: plan.md does not exist in this initiative yet' : 'ERROR: approval needs a stakeholder') : null,
-  };
-});
-
-export function runs(period: string): Runs {
-  const scale = { '1d': 0.02, '7d': 0.15, '30d': 0.5, '90d': 0.9 }[period] ?? 1;
-  return { totals: { runs: Math.round(1_261 * scale), calls: Math.round(12_904 * scale), refusals: Math.round(403 * scale), mb: +(198.7 * scale).toFixed(1) } };
 }

@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import type { SearchAnswer } from '@/lib/api-shapes';
+import type { PluginRow, SearchAnswer, Skill, SkillDetail } from '@/lib/api-shapes';
+import type { ActivityLog, ActivitySummary, KnowledgeList, KnowledgeSummary, Runs } from '@/lib/destination-shapes';
 import type { InitiativeList } from '@/lib/work-shapes';
 import { contextText, type SharedContext } from '@/lib/shared-context';
 import { activityContext } from '@/views/activity-context';
@@ -26,11 +27,15 @@ import { ME, MY_TEAMS, MY_TOKENS } from '../scripts/fake-gateway/people.ts';
 import { PEOPLE } from '../scripts/fake-gateway/platform-people.ts';
 import { PLATFORM_STATUS } from '../scripts/fake-gateway/platform-status.ts';
 import { TEAMS, teamDetail } from '../scripts/fake-gateway/platform-teams.ts';
-import { ACTIVITY, PLUGINS, SKILLS, overview, pluginEval, runs, skillDetail, skillText } from '../scripts/fake-gateway/platform.ts';
+import { overview, pluginEval, skillText } from '../scripts/fake-gateway/platform.ts';
 import { search } from '../scripts/fake-gateway/search.ts';
 import { extreme } from '../scripts/fake-gateway/states.ts';
 import { INITIATIVES, KNOWLEDGE, KNOWLEDGE_LOG, documentDetail, initiativeDetail, knowledgeBody } from '../scripts/fake-gateway/work.ts';
+import { activityLog, activitySummary } from '../scripts/fake-gateway/work-activity.ts';
 import { initiativeList } from '../scripts/fake-gateway/work-initiatives.ts';
+import { knowledgeList, knowledgeSummary } from '../scripts/fake-gateway/work-knowledge.ts';
+import { plugins, skillDetail, skills } from '../scripts/fake-gateway/work-plugins.ts';
+import { runs } from '../scripts/fake-gateway/work-runs.ts';
 
 /**
  * What every view tells the assistant is the data's (decision 0011): each context is built from the fake gateway's own
@@ -51,6 +56,17 @@ const big = <T,>(seg: string[], body: T): T => extreme(seg, body) as T;
 /** The initiatives list the fake answers the superadmin for `query`. */
 const listOf = (query = ''): InitiativeList => initiativeList(ME, new URLSearchParams(query))[1] as InitiativeList;
 const ALL = { q: '', state: 'all', flow: 'all' };
+/** The body of an answer the fake gave, without its status. */
+const as = <T,>(answer: [number, unknown]): T => answer[1] as T;
+const q = (query = '') => new URLSearchParams(query);
+const SUMMARY = as<ActivitySummary>(activitySummary(ME));
+const LOG = as<ActivityLog>(activityLog(ME, q()));
+const SHELF = as<KnowledgeList>(knowledgeList(ME, q()));
+const LEARNED = as<KnowledgeSummary>(knowledgeSummary(ME));
+const RUNS = as<Runs>(runs(ME, q()));
+const PLUGINS = as<{ plugins: PluginRow[] }>(plugins(ME)).plugins;
+const SKILLS = as<{ skills: Skill[] }>(skills(ME, q('plugin=sdlc'))).skills;
+const NO_FILTER = { kind: 'all', tool: 'all', initiative: 'all', refused: 'all' };
 
 const LONG_NAME = '2026-10-01-a-name-somebody-typed-in-full-because-the-platform-keeps-what-it-is-given-and-never-renames-it';
 /** A search answer at its worst for a budget: full-length excerpts whose match is at the very end, and long names. */
@@ -66,16 +82,16 @@ const contexts: Record<string, () => SharedContext> = {
   initiatives: () => initiativesContext(listOf(), { filters: ALL, page: 1, ...arrival }),
   initiative: () => initiativeContext(initiativeDetail('atlas', '2026-09-28-search-relevance')!, arrival),
   document: () => documentContext(documentDetail('atlas', '2026-09-28-search-relevance', 'spec.md')!, arrival),
-  knowledge: () => knowledgeContext(KNOWLEDGE, { filters: { ...NO, tag: 'all' }, mode: 'platform', ...arrival }),
+  knowledge: () => knowledgeContext({ summary: LEARNED, list: SHELF, filters: { q: '', kind: 'all' }, page: 1, ...arrival }),
   knowledge_node: () => knowledgeNodeContext(knowledgeBody(KNOWLEDGE[0].team, KNOWLEDGE[0].path)!, arrival),
   knowledge_log: () => knowledgeLogContext(KNOWLEDGE_LOG, { mode: 'platform', ...arrival }),
   search: () => searchContext(search('latency budget', 5, null), { wide: true, ...arrival }),
   people: () => peopleContext(PEOPLE, { filters: NO, mode: 'platform', ...arrival }),
   plugins: () => pluginsContext(PLUGINS, arrival),
   plugin: () => pluginContext('sdlc', { plugin: PLUGINS.find((p) => p.plugin === 'sdlc'), evaluation: pluginEval('sdlc'), ...arrival }),
-  skill: () => skillContext('sdlc', 'sdlc-spec', { plugin: PLUGINS.find((p) => p.plugin === 'sdlc'), skill: SKILLS.find((s) => s.name === 'sdlc-spec'), detail: skillDetail('sdlc-spec') ?? undefined, text: skillText('sdlc', 'sdlc-spec') ?? undefined, ...arrival }),
-  runs: () => runsContext({ totals: runs('all').totals, skills: SKILLS, period: 'all', ...arrival }),
-  activity: () => activityContext(ACTIVITY, { show: 'all', limit: 200, mode: 'platform', ...arrival }),
+  skill: () => skillContext('sdlc', 'sdlc-spec', { plugin: PLUGINS.find((p) => p.plugin === 'sdlc'), skill: SKILLS.find((s) => s.name === 'sdlc-spec'), detail: as<SkillDetail>(skillDetail(ME, 'sdlc-spec')), text: skillText('sdlc', 'sdlc-spec') ?? undefined, ...arrival }),
+  runs: () => runsContext(RUNS, { skill: 'all', ...arrival }),
+  activity: () => activityContext({ summary: SUMMARY, log: LOG, filters: NO_FILTER, page: 1, ...arrival }),
   settings: () => settingsContext({ me: ME, teams: MY_TEAMS, tokens: MY_TOKENS, mode: 'platform', ...arrival }),
 };
 
@@ -83,13 +99,13 @@ const busy: Record<string, () => SharedContext> = {
   overview: () => overviewContext(big(['overview'], overview('all')), { period: 'all', mode: 'platform', ...arrival }),
   teams: () => teamsContext(big(['teams'], { teams: TEAMS }).teams, { filters: { q: '', status: 'all' }, ...arrival }),
   initiatives: () => initiativesContext(big(['initiatives'], listOf()), { filters: ALL, page: 1, ...arrival }),
-  knowledge: () => knowledgeContext(big(['knowledge'], { nodes: KNOWLEDGE }).nodes, { filters: { ...NO, tag: 'all' }, mode: 'platform', ...arrival }),
+  knowledge: () => knowledgeContext({ summary: big(['knowledge', 'summary'], LEARNED), list: big(['knowledge'], SHELF), filters: { q: '', kind: 'all' }, page: 1, ...arrival }),
   // The most the tool asks for, every excerpt at its 600 characters and every name as long as a name gets.
   search: () => searchContext(longest(search('review', 8, null)), { initiative: LONG_NAME, wide: true, ...arrival }),
   people: () => peopleContext(big(['people'], { people: PEOPLE }).people, { filters: NO, mode: 'platform', ...arrival }),
   plugins: () => pluginsContext(big(['plugins'], { plugins: PLUGINS }).plugins, arrival),
-  activity: () => activityContext(big(['activity'], { events: ACTIVITY, limit: 200 }).events, { show: 'all', limit: 200, mode: 'platform', ...arrival }),
-  runs: () => runsContext({ totals: big(['runs'], runs('all')).totals, skills: big(['skills'], { skills: SKILLS }).skills, period: 'all', ...arrival }),
+  activity: () => activityContext({ summary: big(['activity', 'summary'], SUMMARY), log: big(['activity'], LOG), filters: NO_FILTER, page: 1, ...arrival }),
+  runs: () => runsContext(big(['runs'], RUNS), { skill: 'all', ...arrival }),
 };
 
 describe('every view shares a context', () => {
@@ -197,18 +213,59 @@ describe('the figures a context quotes are the data\'s', () => {
     for (const i of INITIATIVES.filter((x) => x.team === 'atlas')) expect(text).not.toContain(i.slug);
   });
 
-  it('the knowledge shelf counts adopted and superseded apart, and a node carries its own lesson', () => {
+  it('the knowledge shelf counts standing and superseded apart as the summary does, and a node carries its own lesson', () => {
     const c = contexts.knowledge();
-    expect(fact(c, 'Adopted')).toBe(String(KNOWLEDGE.filter((n) => n.status === 'adopted').length));
-    expect(fact(c, 'Superseded')).toBe(String(KNOWLEDGE.filter((n) => n.status === 'superseded').length));
+    expect(fact(c, 'Lessons')).toBe(String(SHELF.total));
+    expect(fact(c, 'Standing')).toBe(String(LEARNED.tiles.standing.value));
+    expect(fact(c, 'Superseded')).toBe(String(LEARNED.tiles.superseded.value));
+    expect(fact(c, 'Searches last week')).toBe(String(LEARNED.tiles.searches.figure.value));
+    // The team's own question asked most, and the page in view of more than one page.
+    const text = contextText(c);
+    expect(text).toContain('"how do we rotate the signing key" 3×');
+    expect(text).toContain(`Lessons 1 to ${SHELF.rows.length} of ${SHELF.total}`);
     const body = knowledgeBody(KNOWLEDGE[0].team, KNOWLEDGE[0].path)!;
     expect(contexts.knowledge_node().insights[0].text).toContain(body.body.trim().replace(/\s+/g, ' ').slice(0, 60));
   });
 
-  it('activity says its counts are of the latest events only, once the list is full', () => {
-    const full = activityContext(ACTIVITY.slice(0, 50), { show: 'all', limit: 50, mode: 'platform', ...arrival });
-    expect(full.unknowns.some((u) => u.includes('Only the latest 50'))).toBe(true);
-    expect(fact(full, 'Refused')).toBe(String(ACTIVITY.slice(0, 50).filter((e) => e.ok === false).length));
+  it('a knowledge filter and page are the server\'s, and in the address', () => {
+    const decisions = as<KnowledgeList>(knowledgeList(ME, q('kind=decision')));
+    const c = knowledgeContext({ summary: LEARNED, list: decisions, filters: { q: '', kind: 'decision' }, page: 1, ...arrival });
+    expect(fact(c, 'Lessons')).toBe(String(decisions.total));
+    expect(c.address).toBe('/knowledge?kind=decision');
+    expect(c.scope).toContain('kind decision');
+  });
+
+  it('activity counts each refusal once under one owner, and quotes the team\'s own messages alone', () => {
+    const c = contexts.activity();
+    expect(fact(c, 'Calls last week')).toBe(String(SUMMARY.tiles.calls.figure.value));
+    expect(fact(c, 'Refused last week')).toBe(String(SUMMARY.tiles.refused.figure.value));
+    expect(c.facts.find((f) => f.label === 'Refused last week')?.change).toBe('3 guardrail, 2 malformed, 1 tool failure, 1 other');
+    expect(fact(c, 'Events')).toBe(String(LOG.total));
+    const text = contextText(c);
+    expect(text).toContain('No message recorded');
+    // Another team's refusal sentences, and the platform's own maintenance, are never in atlas's context.
+    expect(text).not.toMatch(/beacon|chargeback|reindex/);
+    // The summary alone, as `view_activity` reads it, still says the week.
+    const alone = activityContext({ summary: SUMMARY, ...arrival });
+    expect(fact(alone, 'Refused last week')).toBe(fact(c, 'Refused last week'));
+    expect(fact(alone, 'Events')).toBeUndefined();
+  });
+
+  it('runs, a skill and activity call bytes observed output, and never a payload, a context or a cost', () => {
+    for (const c of [contexts.runs(), contexts.skill(), contexts.activity(), busy.runs()]) {
+      expect(contextText(c)).not.toMatch(/payload|context|\bcost/i);
+    }
+    expect(contextText(contexts.runs())).toContain('Observed output per run');
+    expect(fact(contexts.runs(), 'Runs')).toBe(String(RUNS.tiles.runs.value));
+  });
+
+  it('plugins quote each score with its protocol and whether it compares, and the team\'s calls as the team\'s', () => {
+    const text = contextText(contexts.plugins());
+    const sdlc = PLUGINS.find((p) => p.plugin === 'sdlc')!;
+    expect(text).toContain(`protocol sdlc-flow-quality v${sdlc.score!.protocol.version}`);
+    expect(text).toContain(sdlc.comparability);
+    expect(text).toContain('claude plugin install sdlc@zz-stack');
+    expect(fact(contexts.plugin(), 'Your team\'s calls')).toBe(String(sdlc.yourTeam.calls));
   });
 
   it('settings names the person and never a token\'s value', () => {

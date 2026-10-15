@@ -7,7 +7,7 @@
  * item and the table never restate one another.
  *
  * This is the table of the pages the console has today, at today's addresses, and of the Work and Fleet pages the
- * platform declares before they are mounted (Record, Approvals and Fleet's), so a page can gate on its feature the day
+ * platform declares before they are mounted (Record, Approvals, Access and Fleet's), so a page can gate on its feature the day
  * it lands and the rail offers none of them until then. Everybody reads their own work,
  * the platform's Status, Usage and Knowledge health; Teams, People, Audit and the other fleet pages are a superadmin's.
  *
@@ -29,7 +29,7 @@ export const FLEET = 'fleet:read' satisfies HeldRead;
 
 /** Every page the console offers, by the id the rail, the palette and a page's gate name it. */
 export type FeatureId =
-  | 'home' | 'record' | 'initiatives' | 'approvals' | 'knowledge' | 'people' | 'settings' | 'teams' | 'plugins' | 'runs' | 'activity'
+  | 'home' | 'record' | 'initiatives' | 'approvals' | 'knowledge' | 'people' | 'settings' | 'access' | 'teams' | 'plugins' | 'runs' | 'activity'
   | 'platform-status' | 'usage' | 'knowledge-health' | 'audit';
 
 /** Each feature: its name as a person reads it, and the need a person must satisfy to reach it. Never `public`. */
@@ -41,6 +41,7 @@ export const FEATURES: Record<FeatureId, { title: string; needs: HeldRead }> = {
   knowledge: { title: 'Knowledge', needs: WORK },
   people: { title: 'People', needs: FLEET },
   settings: { title: 'Settings', needs: WORK },
+  access: { title: 'Access', needs: WORK },
   teams: { title: 'Teams', needs: FLEET },
   plugins: { title: 'Plugins', needs: FLEET },
   runs: { title: 'Runs', needs: FLEET },

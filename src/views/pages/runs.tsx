@@ -1,63 +1,60 @@
 'use client';
 
-import { Activity, HardDrive, Timer } from 'lucide-react';
+import { HardDrive, Timer, Trophy } from 'lucide-react';
 import { Row } from '@/components/base/shell';
 import { AskAbout } from '@/components/patterns/ask-about';
 import { MetricTile } from '@/components/patterns/metric-tile';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ConsolePage, useArrival } from '@/console/page';
-import { usePeriod } from '@/console/period';
 import { failureOf } from '@/console/query';
 import { SkillWorkPanel } from '@/console/skill-work';
 import { freshnessOf, useConsole } from '@/lib/api';
-import type { Runs, Skill } from '@/lib/api-shapes';
-import { formatCount } from '@/lib/format-units';
-import { PERIOD_LABEL } from '@/lib/period';
+import type { Runs } from '@/lib/destination-shapes';
+import { formatDate } from '@/lib/format-date';
+import { formatKb } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
-import { addressOf, pendingContext } from '@/views/context';
-import { runsContext } from '@/views/runs-context';
+import { pendingContext } from '@/views/context';
+import { outputOf, runsContext, runsPath } from '@/views/runs-context';
 
 /**
- * Every recorded run, by the skill that drove it. Both reads take the window: tiles answering all time above a table
- * answering the picker would put two true numbers about different spans an inch apart.
+ * Every run the active team recorded since its first, by the skill that drove it. A run's bytes are its observed
+ * output: the response bytes of its own calls, never what a model read and never a cost.
  */
 export function RunsView() {
-  useLive(['runs', 'skills']);
-  const { period } = usePeriod();
-  const q = (path: string) => (period === 'all' ? path : `${path}?period=${period}`);
-  const runs = useConsole<Runs>(q('/runs'));
-  const skills = useConsole<{ skills: Skill[] }>(q('/skills'));
-  const r = runs.data?.totals;
-  const arrival = useArrival(runs, skills);
-  const context = runs.data && skills.data
-    ? runsContext({ totals: runs.data.totals, skills: skills.data.skills, period, ...arrival })
-    : pendingContext({ view: 'runs', title: 'Runs', address: addressOf('/runs', { period }, { period: 'all' }), scope: `${PERIOD_LABEL[period].toLowerCase()}, every team on the platform` }, failureOf(runs) ?? failureOf(skills));
+  useLive(['runs']);
+  const q = useConsole<Runs>(runsPath('all'));
+  const r = q.data;
+  const arrival = useArrival(q);
+  const context = r
+    ? runsContext(r, { skill: 'all', ...arrival })
+    : pendingContext({ view: 'runs', title: 'Runs', address: '/runs', scope: 'your active team\'s runs' }, failureOf(q));
+  const bySkill = r?.bySkill.state === 'ok' ? r.bySkill.data.rows : [];
+  // COUPLED: `…` means coming, `—` means it is not. They were the same mark, so a failed read looked exactly like a slow one.
+  const mark = q.isPending ? '…' : '—';
 
   return (
     <ConsolePage
       title="Runs"
-      description="Every recorded run, by the skill that drove it."
-      updatedAt={freshnessOf(runs, skills)}
+      description="Every run your team recorded, by the skill that drove it."
+      showPeriod={false}
+      updatedAt={freshnessOf(q)}
       context={context}
     >
-      {/* The tiles stand from the first paint and read an ellipsis until the totals arrive, so nothing moves.
-          COUPLED: `…` means coming, `—` means it is not. They were the same mark, so a failed read
-          looked exactly like a slow one. */}
       <Row split="tiles">
-        <MetricTile label="Runs" icon={<Timer />} value={r ? r.runs : runs.isPending ? '…' : '—'} note="Skill sessions recorded" />
-        {/* "Calls in runs", not "Tool calls": the Overview counts every call, and calls no run claimed are not here. */}
-        <MetricTile label="Calls in runs" icon={<Activity />} value={r ? r.calls : runs.isPending ? '…' : '—'} note={r ? `${formatCount(r.refusals)} refused` : 'Refused calls beside it'} />
-        {/* Null is not zero: a window with no measured run has moved nothing anyone counted. */}
-        <MetricTile label="Payload moved" icon={<HardDrive />} value={!r ? runs.isPending ? '…' : '—' : r.mb === null ? 'Not measured' : r.mb} format={(n) => `${n.toLocaleString('en-US')} MB`} note="Tool output, across those runs" />
+        <MetricTile label="Runs" icon={<Timer />} value={r?.tiles.runs.value ?? mark} note={r?.since ? `Since ${formatDate(r.since)}` : 'Skill runs recorded'} />
+        {/* Null is not zero: a run nothing measured has answered nothing anyone counted. */}
+        <MetricTile label="Observed output per run" icon={<HardDrive />} value={!r ? mark : r.tiles.outputPerRun.value === null ? 'Not measured' : formatKb(r.tiles.outputPerRun.value / 1024)}
+                    note={r?.tiles.outputPerRun.unmeasured ? `${r.tiles.outputPerRun.unmeasured} not measured` : 'Response bytes of its own calls'} />
+        <MetricTile label="Largest run" icon={<Trophy />} value={!r ? mark : r.tiles.largest ? outputOf(r.tiles.largest.bytes) : 'None measured'} note={r?.tiles.largest ? r.tiles.largest.skill : 'Its skill'} />
       </Row>
-      {runs.error && runs.error.status !== 401 ? <EmptyState kind="error" title="The run totals did not load" action={<Button size="sm" onClick={() => void runs.refetch()}>Retry</Button>}>{runs.error.message}</EmptyState> : null}
+      {q.error && q.error.status !== 401 ? <EmptyState kind="error" title="The runs did not load" action={<Button size="sm" onClick={() => void q.refetch()}>Retry</Button>}>{q.error.message}</EmptyState> : null}
       <SkillWorkPanel
-        skills={skills.data?.skills ?? []}
-        loading={skills.isPending}
-        error={failureOf(skills)}
-        onRetry={() => void skills.refetch()}
-        ask={<AskAbout iconBelowSm question={`Which skills did the most work over ${PERIOD_LABEL[period].toLowerCase()}, and where were calls refused?`} />}
+        skills={bySkill}
+        loading={q.isPending}
+        error={failureOf(q) ?? (r?.bySkill.state === 'unavailable' ? r.bySkill.reason : undefined)}
+        onRetry={() => void q.refetch()}
+        ask={<AskAbout iconBelowSm question="Which skill's runs answer the most output, and why does it matter?" />}
       />
     </ConsolePage>
   );

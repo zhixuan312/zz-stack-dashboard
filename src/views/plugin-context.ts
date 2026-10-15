@@ -1,5 +1,6 @@
 /**
- * One plugin's shared context (decision 0011): what it ships and governs, how much it is used, and its evaluation.
+ * One plugin's shared context (decision 0011): what it ships and governs, how to install it, how much the active team
+ * used it, its public score, and its evaluation.
  */
 import type { PluginEval, PluginRow } from '@/lib/api-shapes';
 import { plural } from '@/lib/format';
@@ -8,6 +9,7 @@ import { formatDate } from '@/lib/format-date';
 import { listed, type Fact, type Insight, type SharedContext } from '@/lib/shared-context';
 import { arrived, budgeted, type Arrival } from './context';
 import { scoreOf as score } from './eval-score';
+import { scoreSaid } from './plugins-context';
 
 export function pluginContext(name: string, { plugin: p, evaluation: e, ...arrival }: { plugin?: PluginRow; evaluation: PluginEval } & Arrival): SharedContext {
   const facts: Fact[] = [];
@@ -18,9 +20,11 @@ export function pluginContext(name: string, { plugin: p, evaluation: e, ...arriv
     facts.push(
       { label: 'Skills', value: formatCount(p.skills.length), change: p.stages.length ? `${p.stages.length} of them stages, in order` : undefined },
       { label: 'Gates', value: formatCount(p.gates), definition: 'Documents this plugin\'s method requires a person to approve.' },
-      { label: 'Calls', value: formatCount(p.calls), change: p.failed ? `${formatCount(p.failed)} refused` : 'none refused', definition: 'Tool calls across its skills, all time.' },
-      { label: 'Never run', value: `${formatCount(neverRun.length)} of ${formatCount(p.skills.length)} skills` },
+      { label: 'Your team\'s calls', value: formatCount(p.yourTeam.calls), change: p.yourTeam.failed ? `${formatCount(p.yourTeam.failed)} refused` : 'none refused', definition: 'Your active team\'s tool calls across its skills, all time.' },
+      { label: 'Never run by your team', value: `${formatCount(neverRun.length)} of ${formatCount(p.skills.length)} skills` },
+      { label: 'Public score', value: scoreSaid(p.score), change: p.comparability, definition: 'Its latest score out of 10, as the platform\'s Evaluation read selects it, and whether its scores compare.' },
     );
+    insights.push({ text: `It is ${p.required ? 'required: every client installs it' : 'optional'}; install it with ${p.install}.` });
     insights.push({ text: `It declares ${p.version ? `version ${p.version}, ${p.release ? `released with digest ${p.release.digest}` : 'which no release has vouched for'}` : 'no version'}${p.owner ? `, owned by ${p.owner}` : ''}, and ${p.servers.length ? `reaches the MCP ${plural(p.servers.length, 'server')} ${p.servers.join(', ')}` : 'reaches no server, skills only'}.` });
     if (p.stages.length) insights.push({ text: `Its method runs ${p.stages.join(', then ')}${p.entry ? `; ${p.entry} is the front door` : ''}.` });
     if (p.documents.length) insights.push({ text: `The documents it governs: ${p.documents.map((d) => `${d.name} (${d.gate ? 'a person approves' : 'no approval'})`).join(', ')}.` });

@@ -29,10 +29,10 @@ import { skillContext } from '@/views/skill-context';
 
 type View = 'cost' | 'read' | 'references';
 
-/** What a skill costs to run, from its recorded runs. A skill nobody has called is absent from that record, so never run is a state, not a gap. */
+/** How the active team's runs of a skill went, from its recorded runs. A skill the team never called is absent from that record, so never run is a state, not a gap. */
 function Cost({ skill, detail }: { skill: Skill | undefined; detail: SkillDetail }) {
   if (!skill) {
-    return <Panel title="Cost to run"><EmptyState title="Never run" className="py-10">No call has been recorded against this skill, so there is nothing to cost. Its text is under The skill.</EmptyState></Panel>;
+    return <Panel title="Its runs"><EmptyState title="Never run" className="py-10">Your team has recorded no call against this skill, so there is nothing to measure. Its text is under The skill.</EmptyState></Panel>;
   }
   const rate = skill.calls ? (skill.refusals / skill.calls) * 100 : 0;
   const heaviest = detail.surfaces[0];
@@ -45,8 +45,8 @@ function Cost({ skill, detail }: { skill: Skill | undefined; detail: SkillDetail
             <KeyValue
               columns={2}
               items={[
-                { label: 'Payload per run', value: formatKb(skill.kbPerRun) },
-                { label: 'Payload in total', value: skill.mbTotal === null ? 'Not measured' : `${skill.mbTotal} MB` },
+                { label: 'Observed output per run', value: skill.kbPerRun === null ? 'Not measured' : formatKb(skill.kbPerRun) },
+                { label: 'Observed output in total', value: skill.mbTotal === null ? 'Not measured' : `${skill.mbTotal} MB` },
                 { label: 'Calls in the log', value: formatCount(skill.logged?.calls ?? 0) },
                 { label: 'Refused in the log', value: formatCount(skill.logged?.failed ?? 0) },
               ]}
@@ -62,7 +62,7 @@ function Cost({ skill, detail }: { skill: Skill | undefined; detail: SkillDetail
       </Row>
       <Panel title="Conclusion">
         <ul className="t-small flex flex-col gap-2 text-ink-2">
-          <li><b className="text-ink">Cost.</b> {skill.runs} runs at {skill.callsAvg.toFixed(1)} calls each, median {formatSeconds(skill.durationMedian)}, {formatKb(skill.kbPerRun)} per run.{heaviest ? <> Most of its calls go to <b className="text-ink">{heaviest.surface}</b> ({formatCount(heaviest.calls)}).</> : null}</li>
+          <li><b className="text-ink">Runs.</b> {skill.runs} runs at {skill.callsAvg.toFixed(1)} calls each, median {formatSeconds(skill.durationMedian)}, {skill.kbPerRun === null ? 'output not measured' : `${formatKb(skill.kbPerRun)} of observed output`} per run.{heaviest ? <> Most of its calls go to <b className="text-ink">{heaviest.surface}</b> ({formatCount(heaviest.calls)}).</> : null}</li>
           <li><b className="text-ink">Reliability.</b> {rate > 5 ? <>It refuses <b className="text-critical-ink">{rate.toFixed(1)}%</b> of its calls, high enough to be the thing to look at.</> : rate > 0 ? <>A {rate.toFixed(1)}% refusal rate: {skill.refusals} refusals over {formatCount(skill.calls)} calls.</> : 'No refusal recorded.'}</li>
         </ul>
       </Panel>
@@ -71,13 +71,14 @@ function Cost({ skill, detail }: { skill: Skill | undefined; detail: SkillDetail
 }
 
 /**
- * One skill a plugin ships: what it costs to run, the text itself and what ships beside it. The view is in the
- * address (`?view=`), so each one is linkable; cost is the default, because it is the reason to open a skill here.
+ * One skill a plugin ships: how the active team's runs of it went, the text itself and what ships beside it. The view
+ * is in the address (`?view=`), so each one is linkable; the runs are the default, because they are the reason to open
+ * a skill here.
  */
 export function SkillView({ params }: { params: Promise<{ plugin: string; skill: string }> }) {
   useLive(['plugins', 'skills']);
   const { plugin: pluginName, skill: name } = use(params);
-  const list = useConsole<{ skills: Skill[] }>('/skills');
+  const list = useConsole<{ skills: Skill[] }>(`/skills?plugin=${encodeURIComponent(pluginName)}`);
   const plugins = useConsole<{ plugins: PluginRow[] }>('/plugins');
   const plugin = plugins.data?.plugins.find((p) => p.plugin === pluginName);
   const shipped = plugin?.skills.find((x) => x.name === name);
@@ -107,18 +108,18 @@ export function SkillView({ params }: { params: Promise<{ plugin: string; skill:
   const arrival = useArrival(list, plugins, detail);
   const context = plugins.data && list.data
     ? skillContext(pluginName, name, { plugin, skill, detail: detail.data, text, ...arrival })
-    : pendingContext({ view: 'skill', title: name, address: base, scope: `one skill of the ${pluginName} plugin, all time` }, failed);
+    : pendingContext({ view: 'skill', title: name, address: base, scope: `your active team's runs of one skill of the ${pluginName} plugin` }, failed);
 
   return (
     <ConsolePage
       title={name}
       crumbs={[{ label: 'Plugins', href: '/plugins' }, { label: pluginName, href: `/plugins/${pluginName}` }]}
       // A sentence first, always — see teams/[slug]/page.tsx. The skill's own words follow it.
-      description={<span className="inline-flex flex-wrap items-center gap-2">One skill a plugin ships: what it costs to run, the text itself, and what ships beside it.{text?.description ? ` ${sentence(text.description)}` : null}</span>}
+      description={<span className="inline-flex flex-wrap items-center gap-2">One skill a plugin ships: how your team&rsquo;s runs of it went, the text itself, and what ships beside it.{text?.description ? ` ${sentence(text.description)}` : null}</span>}
       showPeriod={false}
       updatedAt={freshnessOf(list, plugins, detail)}
       context={context}
-      toolbar={known ? <LinkTabs label="Skill views" active={view} tabs={[{ key: 'cost', label: 'Cost to run', href: base }, { key: 'read', label: 'The skill', href: `${base}?view=read` }, ...(refs || asked === 'references' ? [{ key: 'references', label: 'Reference', href: `${base}?view=references`, ...(refs ? { count: refs } : {}) }] : [])]} /> : undefined}
+      toolbar={known ? <LinkTabs label="Skill views" active={view} tabs={[{ key: 'cost', label: 'Its runs', href: base }, { key: 'read', label: 'The skill', href: `${base}?view=read` }, ...(refs || asked === 'references' ? [{ key: 'references', label: 'Reference', href: `${base}?view=references`, ...(refs ? { count: refs } : {}) }] : [])]} /> : undefined}
     >
       {failed ? (
         <EmptyState kind="error" title="This skill could not be read" className="py-16"
@@ -129,7 +130,7 @@ export function SkillView({ params }: { params: Promise<{ plugin: string; skill:
         <EmptyState kind="filtered" title={`'${name}' is not shipped by ${pluginName}`} className="py-16">It may have been renamed, or it belongs to another plugin. The plugin&apos;s page lists everything it ships.</EmptyState>
       ) : (
         <>
-          {/* The tiles are the cost summary, and `Cost to run` is the tab they belong to. They were rendered for every
+          {/* The tiles are the runs' summary, and `Its runs` is the tab they belong to. They were rendered for every
               tab, under the tab strip, so a reader who picked `The skill` met four cost figures and a colophon before a
               line of the text — the strip appeared to govern them, and on two of its three tabs it did not. */}
           {view === 'cost' && (skill || list.isPending) ? (
@@ -158,7 +159,7 @@ export function SkillView({ params }: { params: Promise<{ plugin: string; skill:
               ]}
             />
           </Panel>
-          {view === 'cost' ? <Query query={detail} what="The cost record" skeleton={<Skeleton className="h-72 rounded-lg" />}>{(d) => <Cost skill={skill} detail={d} />}</Query> : null}
+          {view === 'cost' ? <Query query={detail} what="The runs' record" skeleton={<Skeleton className="h-72 rounded-lg" />}>{(d) => <Cost skill={skill} detail={d} />}</Query> : null}
           {/* The room, held while the read is in flight — and the second half of a fix whose first half was wrong.
               **This placeholder was written to fix `?view=references`'s CLS 0.228 on the theory that the whole stack of
               panels appeared at once, and it changed nothing: 0.228 stayed 0.228.** A probe with a layout-shift observer

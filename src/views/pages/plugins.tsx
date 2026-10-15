@@ -5,6 +5,7 @@ import { Row } from '@/components/base/shell';
 import { AskAbout } from '@/components/patterns/ask-about';
 import { DataTable, type Column } from '@/components/patterns/data-table';
 import { MetricTile } from '@/components/patterns/metric-tile';
+import { Badge } from '@/components/ui/badge';
 import { aligned } from '@/console/columns';
 import { EvalCell, EvalVerdict, EvalWhen } from '@/console/eval-score';
 import { ConsolePage, useArrival } from '@/console/page';
@@ -29,12 +30,14 @@ const COLUMNS: Column<PluginRow>[] = aligned([
     ),
     mobileCell: (p) => p.plugin,
   },
+  { key: 'required', header: 'Install', hideBelow: 'md', cell: (p) => (p.required ? <Badge tone="accent">Required</Badge> : <Badge tone="neutral">Optional</Badge>) },
   { key: 'reaches', header: 'Reaches', hideBelow: 'xl', cell: (p) => (p.servers.length ? <span className="font-mono text-xs">{p.servers.join(' · ')}</span> : <span className="text-ink-3">Skills only</span>) },
-  { key: 'calls', header: 'Calls', numeric: true, mobile: 'fact', sortValue: (p) => p.calls, cell: (p) => formatCount(p.calls), mobileCell: (p) => `${formatCount(p.calls)} ${plural(p.calls, 'call')}` },
-  { key: 'last', header: 'Last run', hideBelow: 'md', sortValue: (p) => p.lastRun ?? '', cell: (p) => (p.lastRun ? <When at={p.lastRun} /> : <span className="text-ink-3">Never run</span>) },
-  { key: 'score', header: 'Eval score', hideBelow: 'lg', sortValue: (p) => p.latestEval?.overallScore ?? -1, cell: (p) => <EvalCell of={p.latestEval} /> },
-  { key: 'status', header: 'Status', hideBelow: 'xl', mobile: 'status', cell: (p) => <EvalVerdict of={p.latestEval} /> },
-  { key: 'evaluated', header: 'Evaluated', hideBelow: 'lg', cell: (p) => <EvalWhen of={p.latestEval} /> },
+  // The team's own use, labelled so: the catalog and the scores beside it are the platform's.
+  { key: 'calls', header: 'Your team\'s calls', numeric: true, mobile: 'fact', sortValue: (p) => p.yourTeam.calls, cell: (p) => formatCount(p.yourTeam.calls), mobileCell: (p) => `${formatCount(p.yourTeam.calls)} ${plural(p.yourTeam.calls, 'call')} by your team` },
+  { key: 'last', header: 'Last run', hideBelow: 'md', sortValue: (p) => p.yourTeam.lastRun ?? '', cell: (p) => (p.yourTeam.lastRun ? <When at={p.yourTeam.lastRun} /> : <span className="text-ink-3">Never run</span>) },
+  { key: 'score', header: 'Score', hideBelow: 'lg', sortValue: (p) => p.score?.value ?? -1, cell: (p) => <EvalCell of={p.score} /> },
+  { key: 'status', header: 'Standing', hideBelow: 'xl', mobile: 'status', cell: (p) => <EvalVerdict of={p.score} /> },
+  { key: 'evaluated', header: 'Scored', hideBelow: 'lg', cell: (p) => <EvalWhen of={p.score} /> },
 ]);
 
 /** What a person installs: a package's skills plus the MCP servers those skills call, under one declared version. */
@@ -44,7 +47,7 @@ export function PluginsView() {
   const arrival = useArrival(q);
   const context = q.data
     ? pluginsContext(q.data.plugins, arrival)
-    : pendingContext({ view: 'plugins', title: 'Plugins', address: '/plugins', scope: 'every plugin in the catalog, all time' }, failureOf(q));
+    : pendingContext({ view: 'plugins', title: 'Plugins', address: '/plugins', scope: 'every plugin in the catalog, and your active team\'s use of each' }, failureOf(q));
   const plugins = q.data?.plugins ?? [];
   const neverRun = plugins.reduce((a, p) => a + p.skills.filter((s) => !s.everRun).length, 0);
 
@@ -59,8 +62,8 @@ export function PluginsView() {
       <Row split="tiles">
         <MetricTile label="Plugins" icon={<Box />} value={q.data ? plugins.length : q.isPending ? '…' : '—'} note="In the catalog" />
         <MetricTile label="Skills" icon={<Puzzle />} value={q.data ? plugins.reduce((a, p) => a + p.skills.length, 0) : q.isPending ? '…' : '—'} note="Across every plugin" />
-        <MetricTile label="Released" icon={<PackageCheck />} value={q.data ? plugins.filter((p) => p.release).length : q.isPending ? '…' : '—'} note={`Of ${plugins.filter((p) => p.version).length} declaring a version`} />
-        <MetricTile label="Never run" icon={<CircleOff />} value={q.data ? neverRun : q.isPending ? '…' : '—'} emphasis={neverRun > 0} note="Skills shipped, never called" />
+        <MetricTile label="Required" icon={<PackageCheck />} value={q.data ? plugins.filter((p) => p.required).length : q.isPending ? '…' : '—'} note="Every client installs these" />
+        <MetricTile label="Never run" icon={<CircleOff />} value={q.data ? neverRun : q.isPending ? '…' : '—'} emphasis={neverRun > 0} note="Skills your team never called" />
       </Row>
       <DataTable
         caption="Plugins"
@@ -77,9 +80,9 @@ export function PluginsView() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
               <h2 className="t-card">Every plugin</h2>
-              <p className="t-caption mt-1">Most recently used first</p>
+              <p className="t-caption mt-1">Your team&rsquo;s most recently used first</p>
             </div>
-            <AskAbout question="Which plugins are used most, and which ship skills nobody has run?" />
+            <AskAbout question="What are the plugins in view for, and which should we install?" />
           </div>
         }
       />

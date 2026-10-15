@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { Archive, BookOpen, CheckCircle2, History } from 'lucide-react';
+import { Archive, BookOpen, Search, SearchX } from 'lucide-react';
 import { Row } from '@/components/base/shell';
 import { DataTable, useQueryState, useSearchDraft, type Column } from '@/components/patterns/data-table';
 import { AskAbout } from '@/components/patterns/ask-about';
@@ -13,91 +13,84 @@ import { KnowledgeTabs } from '@/console/knowledge-tabs';
 import { ConsolePage, useArrival } from '@/console/page';
 import { failureOf } from '@/console/query';
 import { When } from '@/console/when';
-import { freshnessOf, useConsole, useConsoleMode, useDataClock } from '@/lib/api';
-import type { KnowledgeNode } from '@/lib/api-shapes';
-import { formatDate, formatRelative } from '@/lib/format-date';
-import { filterKnowledgeNodes, knowledgeNodeHref, tagFacetCounts, teamFacetOptions } from '@/lib/knowledge-filters';
+import { freshnessOf, useConsole } from '@/lib/api';
+import type { KnowledgeList, KnowledgeRow, KnowledgeSummary } from '@/lib/destination-shapes';
+import { plural } from '@/lib/format';
+import { knowledgeNodeHref } from '@/lib/knowledge-filters';
 import { useLive } from '@/lib/live';
-import { pendingContext, whose } from '@/views/context';
-import { knowledgeContext } from '@/views/knowledge-context';
+import { pendingContext } from '@/views/context';
+import { KNOWLEDGE_KINDS, PAGE_SIZE, knowledgeContext, knowledgePath, narrowed } from '@/views/knowledge-context';
 
-/**
- * The shelf. The team leads the number when more than one shelf is in view: every team numbers its own nodes from
- * 0001, so a mixed list read "1, 1, 2, 2" and looked duplicated.
- */
-function columns(multiTeam: boolean): Column<KnowledgeNode>[] {
-  return aligned([
-    { key: 'num', header: 'Node', width: multiTeam ? 'w-36' : 'w-24', sortValue: (n) => `${n.team}/${n.num}`, cell: (n) => <span className="font-mono text-xs text-ink-3">{multiTeam ? `${n.team} · ${n.num}` : n.num}</span> },
-    { key: 'title', header: 'Title', align: 'left', grow: true, mobile: 'title', sortValue: (n) => n.title, cell: (n) => <span className="block py-1 leading-snug font-medium whitespace-normal text-ink">{n.title}</span> },
-    { key: 'tags', header: 'Tags', hideBelow: 'xl', cell: (n) => <span className="font-mono text-xs text-ink-3">{(n.tags ?? []).slice(0, 3).join(' · ') || '—'}</span> },
-    // Colour only where it means something: superseded is still readable, so neutral; adopted is the current lesson.
-    { key: 'status', header: 'Status', hideBelow: 'md', mobile: 'status', sortValue: (n) => n.status, cell: (n) => <Badge tone={n.status === 'adopted' ? 'positive' : 'neutral'} dot>{n.status}</Badge> },
-    { key: 'updated', header: 'Recorded', numeric: true, mobile: 'fact', sortValue: (n) => n.updated, cell: (n) => <When at={n.updated} />, mobileCell: (n) => <>Recorded <When at={n.updated} /></> },
-  ]);
-}
+/** The shelf, in the server's order: newest first, paged where it is read. */
+const COLUMNS: Column<KnowledgeRow>[] = aligned([
+  { key: 'num', header: 'Lesson', width: 'w-24', cell: (n) => <span className="font-mono text-xs text-ink-3">{n.num}</span> },
+  { key: 'title', header: 'Title', align: 'left', grow: true, mobile: 'title', cell: (n) => <span className="block py-1 leading-snug font-medium whitespace-normal text-ink">{n.title}</span> },
+  { key: 'kind', header: 'Kind', hideBelow: 'lg', cell: (n) => <span className="font-mono text-xs text-ink-3">{n.type}</span> },
+  // Colour only where it means something: superseded is still readable, so neutral; adopted is the current lesson.
+  { key: 'status', header: 'Status', hideBelow: 'md', mobile: 'status', cell: (n) => <Badge tone={n.status === 'adopted' ? 'positive' : 'neutral'} dot>{n.status}</Badge> },
+  { key: 'updated', header: 'Recorded', numeric: true, mobile: 'fact', cell: (n) => <When at={n.updated} />, mobileCell: (n) => <>Recorded <When at={n.updated} /></> },
+]);
 
-/** What the platform has learned, kept as nodes. Each one comes out of a real initiative. */
+const KIND_OPTIONS = [{ value: 'all', label: 'All' }, ...KNOWLEDGE_KINDS.map((k) => ({ value: k, label: k }))];
+
+/** What the active team has learned, kept as lessons, and how its searches went. Filtered and paged by the server. */
 export function KnowledgeView() {
   useLive(['knowledge']);
-  const { mode } = useConsoleMode();
-  // The data's clock for the relative stamp below: never `new Date()` at render.
-  const clock = useDataClock();
-  const list = useConsole<{ nodes: KnowledgeNode[] }>('/knowledge');
-  const [f, set] = useQueryState({ q: '', team: 'all', tag: 'all', sort: 'updated', dir: 'desc', page: '1' });
+  const [f, set] = useQueryState({ q: '', kind: 'all', page: '1' });
   const [draft, setDraft] = useSearchDraft(f.q, (q) => set({ q, page: '1' }));
-  const nodes = useMemo(() => list.data?.nodes ?? [], [list.data]);
-  const multiTeam = new Set(nodes.map((n) => n.team)).size > 1;
-  const rows = useMemo(() => filterKnowledgeNodes(nodes, { team: f.team, tags: f.tag === 'all' ? [] : [f.tag], search: f.q }), [nodes, f.team, f.tag, f.q]);
-  const cols = useMemo(() => columns(multiTeam), [multiTeam]);
-  const adopted = nodes.filter((n) => n.status === 'adopted').length;
-  const latest = nodes.reduce<string | null>((a, n) => (!a || n.updated > a ? n.updated : a), null);
-  const filtered = f.q !== '' || f.team !== 'all' || f.tag !== 'all';
-  const clear = () => set({ q: '', team: 'all', tag: 'all', page: '1' });
-  const arrival = useArrival(list);
+  const filters = useMemo(() => ({ q: f.q, kind: f.kind }), [f.q, f.kind]);
+  const page = Math.max(1, Number(f.page) || 1);
+  const summary = useConsole<KnowledgeSummary>('/knowledge/summary');
+  const list = useConsole<KnowledgeList>(knowledgePath(filters, { offset: (page - 1) * PAGE_SIZE }));
+  const tiles = summary.data?.tiles;
+  const filtered = narrowed(filters);
+  const clear = () => set({ q: '', kind: 'all', page: '1' });
+  const arrival = useArrival(list, summary);
   const context = list.data
-    ? knowledgeContext(nodes, { filters: { q: f.q, team: f.team, tag: f.tag }, mode, ...arrival })
-    : pendingContext({ view: 'knowledge', title: 'Knowledge', address: '/knowledge', scope: `the knowledge shelf of ${whose(mode)}` }, failureOf(list));
+    ? knowledgeContext({ summary: summary.data, list: list.data, filters, page, ...arrival })
+    : pendingContext({ view: 'knowledge', title: 'Knowledge', address: '/knowledge', scope: 'your active team\'s knowledge shelf' }, failureOf(list));
+  const mark = summary.isPending ? '…' : '—';
 
   return (
     <ConsolePage
       title="Knowledge"
-      description="What the platform has learned, kept as nodes. Each one comes out of a real initiative."
+      description="What your team has learned, kept as lessons. Each one comes out of a real initiative."
       showPeriod={false}
-      updatedAt={freshnessOf(list)}
+      updatedAt={freshnessOf(list, summary)}
       context={context}
       toolbar={<KnowledgeTabs active="nodes" />}
     >
       <Row split="tiles">
-        <MetricTile label="Nodes" icon={<BookOpen />} value={list.data ? nodes.length : list.isPending ? '…' : '—'} note="On this shelf" />
-        <MetricTile label="Adopted" icon={<CheckCircle2 />} value={list.data ? adopted : list.isPending ? '…' : '—'} note="Current lessons" />
-        <MetricTile label="Superseded" icon={<Archive />} value={list.data ? nodes.filter((n) => n.status === 'superseded').length : list.isPending ? '…' : '—'} note="Replaced, still readable" />
-        <MetricTile label="Last recorded" icon={<History />} value={latest ? formatRelative(latest, clock) : 'Never'} note={latest ? formatDate(latest) : 'Nothing on the shelf'} />
+        <MetricTile label="Standing" icon={<BookOpen />} value={tiles?.standing.value ?? mark} note={tiles ? `${tiles.standing.imported} imported` : 'On the shelf now'} />
+        <MetricTile label="Superseded" icon={<Archive />} value={tiles?.superseded.value ?? mark} note="Replaced, still readable" />
+        <MetricTile label="Searches last week" icon={<Search />} value={tiles?.searches.figure.value ?? mark} note="From the page, the assistant and MCP" />
+        <MetricTile label="Found nothing" icon={<SearchX />} value={tiles?.noResult.figure.value ?? mark} note={tiles ? `Of ${tiles.noResult.denominator ?? 0} last week` : 'Searches with no result'} />
       </Row>
       <DataTable
-        caption="Knowledge nodes"
-        noun="nodes"
-        rows={rows}
-        columns={cols}
+        caption="Lessons"
+        noun="lessons"
+        rows={list.data?.rows ?? []}
+        columns={COLUMNS}
         rowKey={(n) => n.key}
         rowHref={(n) => knowledgeNodeHref(n.team, n.path)}
+        manual
+        total={list.data?.total ?? 0}
+        pageSize={PAGE_SIZE}
+        pageSizes={[PAGE_SIZE]}
         loading={list.isPending}
         error={failureOf(list)}
         onRetry={() => void list.refetch()}
-        state={{ sort: f.sort, dir: f.dir, page: f.page }}
-        onStateChange={set}
+        state={{ sort: '', dir: 'desc', page: String(page) }}
+        onStateChange={(p) => { if (p.page) set({ page: p.page }); }}
         filtered={filtered}
         onClearFilters={clear}
-        empty={{ title: 'Nothing to read yet', body: 'A node arrives when an initiative closes and something in it was worth keeping.' }}
+        empty={{ title: 'Nothing to read yet', body: 'A lesson arrives when an initiative closes and something in it was worth keeping.' }}
         toolbar={
           <FilterBar
-            search={{ value: draft, onChange: setDraft, placeholder: 'Search nodes' }}
-            filters={[
-              // Platform mode only: in team mode the shelf loaded is the acting team's, so another team empties it.
-              ...(mode === 'platform' && multiTeam ? [{ key: 'team', label: 'Team', value: f.team, onChange: (v: string) => set({ team: v, page: '1' }), options: [{ value: 'all', label: 'All' }, ...teamFacetOptions(nodes).map((o) => ({ value: o.slug, label: `${o.slug} · ${o.count}` }))] }] : []),
-              { key: 'tag', label: 'Tag', value: f.tag, onChange: (v) => set({ tag: v, page: '1' }), options: [{ value: 'all', label: 'All' }, ...tagFacetCounts(nodes).map((t) => ({ value: t.tag, label: `${t.tag} · ${t.count}` }))] },
-            ]}
-            result={<>{rows.length} of {nodes.length}</>}
-            ask={<AskAbout question={filtered ? 'What do the nodes in this list say, taken together?' : 'What has the platform learned most about, and what was recorded most recently?'} />}
+            search={{ value: draft, onChange: setDraft, placeholder: 'Search lessons' }}
+            filters={[{ key: 'kind', label: 'Kind', value: f.kind, onChange: (v) => set({ kind: v, page: '1' }), options: KIND_OPTIONS }]}
+            result={<>{list.data ? `${list.data.total} ${plural(list.data.total, 'lesson')}` : '…'}</>}
+            ask={<AskAbout question={filtered ? 'What do the lessons in this list say, taken together?' : 'What has the team learned most about, and which questions found nothing?'} />}
             onClear={clear}
           />
         }

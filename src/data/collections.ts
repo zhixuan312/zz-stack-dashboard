@@ -13,12 +13,13 @@
 import { z } from 'zod';
 import { gatewayCollection, routeCollection } from '@/data/gateway-collection';
 import { gatewayGet } from '@/data/gateway';
-import type {
-  ActivityEvent, KnowledgeLogEntry, KnowledgeNode, MyAccessToken, Person, PluginRow, Skill, Team,
-} from '@/lib/api-shapes';
+import type { KnowledgeLogEntry, MyAccessToken, Person, PluginRow, Skill, Team } from '@/lib/api-shapes';
 import type { AnyCollection } from '@/lib/collection';
+import type { ActivityLog, KnowledgeList, KnowledgeRow, RefusalOwner } from '@/lib/destination-shapes';
 import type { InitiativeList } from '@/lib/work-shapes';
+import { NO_FILTER, activityPath } from '@/views/activity-context';
 import { LIST_STATES, listPath } from '@/views/initiatives-filter';
+import { knowledgePath } from '@/views/knowledge-context';
 
 /** The data's clock. The console reads a live deployment, so it is the wall clock. */
 export const clock = (): Date => new Date();
@@ -93,23 +94,29 @@ const initiatives = routeCollection<InitiativeRow, 'slug'>({
   },
 });
 
-type KnowledgeRow = Omit<KnowledgeNode, 'tags' | 'evidence'> & { tags: string | null; evidence: string | null };
+type KnowledgeCollectionRow = Omit<KnowledgeRow, 'tags' | 'evidence'> & { tags: string | null; evidence: string | null };
 
-const knowledge = gatewayCollection<KnowledgeRow, 'key'>({
+/* The active team's shelf, read a page at a time from the route that filters it: text in a lesson's title, tags or text
+ * and its kind are the route's parameters, and its total is the route's, so a count is never of one page. */
+const knowledge = routeCollection<KnowledgeCollectionRow, 'key'>({
   name: 'knowledge',
   label: 'Knowledge',
-  description: 'The knowledge nodes on the shelf the person may read: what earlier initiatives settled. The key is "<team>/<path>", and /knowledge/<team>/<path> opens a node with its full text. Search the title, the excerpt and the tags.',
+  description: 'The lessons on the active team\'s shelf: what its earlier initiatives settled. The key is "<team>/<path>", and /knowledge/<team>/<path> opens a lesson with its full text. The gateway filters and pages it: title contains finds the text in a lesson\'s title, tags or text, type eq narrows to one kind (decision, design, process, knowledge, behavior or style); page with limit, and read total for how many match. The platform\'s shared shelf is not here: view_search reads it beside the team\'s.',
   key: 'key',
   title: (n) => n.title,
   fields: z.object({
-    num: text.describe('The node\'s number within its own team; two teams both have a node 1.'), team: text, path: text,
-    type: text, status: text.describe('adopted, or superseded once a later node replaced it.'), title: text,
-    tags: maybeText.describe('The node\'s subjects, comma-separated.'), updated: when('When the node last changed'),
-    bytes: count, excerpt: text.describe('The opening of the node\'s text.'),
+    num: text.describe('The lesson\'s number within its own team; two teams both have a lesson 1.'), team: text, path: text,
+    type: text.describe('Its kind.'), status: text.describe('adopted, or superseded once a later lesson replaced it.'), title: text,
+    tags: maybeText.describe('The lesson\'s subjects, comma-separated.'), updated: when('When the lesson last changed'),
+    bytes: count, excerpt: text.describe('The opening of the lesson\'s text.'),
     evidence: maybeText.describe('The initiatives the lesson came out of, comma-separated.'),
-    superseded_by: maybeText.describe('The node that replaced this one.'),
+    superseded_by: maybeText.describe('The lesson that replaced this one.'),
   }),
-  load: async () => (await gatewayGet<{ nodes: KnowledgeNode[] }>('/knowledge')).nodes.map((n) => ({ ...n, tags: joined(n.tags), evidence: joined(n.evidence) })),
+  conditions: { title: { op: 'contains', param: 'q' }, type: { op: 'eq', param: 'kind' } },
+  read: async ({ q = '', kind = 'all' }, page) => {
+    const list = await gatewayGet<KnowledgeList>(knowledgePath({ q, kind }, page));
+    return { total: list.total, rows: list.rows.map((n) => ({ ...n, tags: joined(n.tags), evidence: joined(n.evidence) })) };
+  },
 });
 
 type KnowledgeLogRow = Flat<KnowledgeLogEntry> & { id: string };
@@ -147,71 +154,95 @@ const people = gatewayCollection<PersonRow, 'email'>({
 
 type PluginCollectionRow = {
   plugin: string; owner: string | null; description: string | null; version: string | null; servers: string | null; stages: string | null;
-  gates: number; skills: number; calls: number; failed: number; lastRun: string | null; releasedVersion: string | null;
-  evalVersion: string | null; evalScore: number | null; evalScoreStatus: string | null; evalGuardrails: string | null; openDefects: number | null; evalAt: string | null;
+  gates: number; skills: number; releasedVersion: string | null; required: boolean; install: string;
+  score: number | null; scoreLower: number | null; scoreUpper: number | null; standing: string | null; protocolKey: string | null; protocolVersion: number | null;
+  scoredAt: string | null; comparability: string; teamCalls: number; teamFailed: number; teamLastRun: string | null;
 };
 
 const plugins = gatewayCollection<PluginCollectionRow, 'plugin'>({
   name: 'plugins',
   label: 'Plugins',
-  description: 'Every plugin on the platform: a package\'s skills and the MCP servers they call, under one declared version, with its newest evaluation. /plugins/<plugin> opens one.',
+  description: 'Every plugin in the catalog: a package\'s skills and the MCP servers they call, under one declared version, whether every client installs it, the command that does, and its latest public score. The calls are the active team\'s own; the catalog and the scores are the platform\'s. /plugins/<plugin> opens one. Nobody starts an evaluation from the console.',
   key: 'plugin',
   title: (p) => p.plugin,
   fields: z.object({
     owner: maybeText, description: maybeText, version: maybeText.describe('The version the plugin declares.'),
     servers: maybeText.describe('The MCP servers its skills reach, comma-separated.'), stages: maybeText.describe('Its method\'s stages in running order, comma-separated; nothing for a toolbox.'),
-    gates: count.describe('Documents a person must approve.'), skills: count, calls: count.describe('Tool calls across its skills, all time.'), failed: count.describe('Of those, refused.'),
-    lastRun: maybeWhen('Its most recent call'), releasedVersion: maybeText.describe('The version a release vouched for; nothing when none has.'),
-    evalVersion: maybeText.describe('The version its newest evaluation measured.'), evalScore: maybeCount.describe('That evaluation\'s overall score, 0 to 10; nothing when not established.'),
-    evalScoreStatus: maybeText.describe('established, provisional or not_established.'), evalGuardrails: maybeText.describe('pass, fail or not_established.'),
-    openDefects: maybeCount.describe('Defect findings of that evaluation still deferred.'), evalAt: maybeWhen('When that evaluation ran'),
+    gates: count.describe('Documents a person must approve.'), skills: count, releasedVersion: maybeText.describe('The version a release vouched for; nothing when none has.'),
+    required: z.boolean().describe('Every client installs it: zz-core and the shelved catalog entries.'), install: text.describe('The command that installs it.'),
+    score: maybeCount.describe('Its latest public score, 0 to 10; nothing when it was never scored or the score is not established.'),
+    scoreLower: maybeCount, scoreUpper: maybeCount, standing: maybeText.describe('established, provisional or not_established.'),
+    protocolKey: maybeText.describe('The protocol it was scored against; nothing unless the person is a superadmin.'), protocolVersion: maybeCount.describe('That protocol\'s version.'),
+    scoredAt: maybeWhen('When it was scored'), comparability: text.describe('Whether its scores compare: one protocol version and one population, or not.'),
+    teamCalls: count.describe('The active team\'s tool calls across its skills, all time.'), teamFailed: count.describe('Of those, refused.'),
+    teamLastRun: maybeWhen('The active team\'s most recent call of it'),
   }),
   load: async () => (await gatewayGet<{ plugins: PluginRow[] }>('/plugins')).plugins.map((p) => ({
     plugin: p.plugin, owner: p.owner, description: p.description, version: p.version, servers: joined(p.servers), stages: joined(p.stages),
-    gates: p.gates, skills: p.skills.length, calls: p.calls, failed: p.failed, lastRun: p.lastRun, releasedVersion: p.release?.version ?? null,
-    evalVersion: p.latestEval?.version ?? null,
-    evalScore: p.latestEval && p.latestEval.scoreStatus !== 'not_established' ? p.latestEval.overallScore : null,
-    evalScoreStatus: p.latestEval?.scoreStatus ?? null, evalGuardrails: p.latestEval?.guardrailStatus ?? null,
-    openDefects: p.latestEval?.openDefects ?? null, evalAt: p.latestEval?.at ?? null,
+    gates: p.gates, skills: p.skills.length, releasedVersion: p.release?.version ?? null, required: p.required, install: p.install,
+    score: p.score && p.score.standing !== 'not_established' ? p.score.value : null, scoreLower: p.score?.lower ?? null, scoreUpper: p.score?.upper ?? null,
+    standing: p.score?.standing ?? null, protocolKey: p.score?.protocol.key ?? null, protocolVersion: p.score?.protocol.version ?? null,
+    scoredAt: p.score?.scoredAt ?? null, comparability: p.comparability,
+    teamCalls: p.yourTeam.calls, teamFailed: p.yourTeam.failed, teamLastRun: p.yourTeam.lastRun,
   })),
 });
 
-type SkillRow = Omit<Skill, 'logged'>;
+type SkillRow = Omit<Skill, 'logged'> & { plugin: string | null };
 
-const skills = gatewayCollection<SkillRow, 'name'>({
+/* The active team's runs of each skill, from the route that narrows them to one plugin's. The route answers every skill
+ * the team ran, unpaged, so its total is the count of what it answered and a page is taken from that. */
+const skills = routeCollection<SkillRow, 'name'>({
   name: 'skills',
   label: 'Skills',
-  description: 'Every skill that has driven a run, all time: how many runs, the calls and refusals in them, how long they took and how much tool output they moved.',
+  description: 'Every skill the active team has run, all time: how many runs, the calls and refusals in them, how long they took and their observed output, the response bytes of their calls. The gateway narrows it to one plugin\'s skills with plugin eq; page with limit, and read total for how many there are.',
   key: 'name',
   title: (s) => s.name,
   fields: z.object({
+    plugin: maybeText.describe('The plugin that ships it; nothing for a skill no plugin in the catalog ships now.'),
     version: text, kind: text, flow: maybeText, retired: z.boolean().describe('No longer served; kept because it owns these runs.'),
     runs: count, calls: count.describe('Tool calls inside its runs.'), callsAvg: count.describe('Calls per run, mean.'), callsMax: count, refusals: count,
     timedRuns: count.describe('Runs with more than one call, so a duration could be measured.'),
     durationAvg: maybeCount.describe('Seconds, mean over timed runs.'), durationMedian: maybeCount.describe('Seconds.'), durationMax: maybeCount.describe('Seconds.'),
     durationTotal: maybeCount.describe('Seconds, summed over timed runs.'),
-    kbPerRun: maybeCount.describe('KB of tool output per run; nothing when no run was measured.'), mbTotal: maybeCount.describe('MB of tool output across its runs.'),
+    kbPerRun: maybeCount.describe('KB of observed output per run; nothing when no run was measured.'), mbTotal: maybeCount.describe('MB of observed output across its runs.'),
   }),
-  load: async () => (await gatewayGet<{ skills: Skill[] }>('/skills')).skills.map(({ logged, ...s }) => { void logged; return s; }),
+  conditions: { plugin: { op: 'eq', param: 'plugin' } },
+  read: async ({ plugin }, { limit, offset }) => {
+    const [answer, catalog] = await Promise.all([
+      gatewayGet<{ skills: Skill[] }>(plugin ? `/skills?plugin=${encodeURIComponent(plugin)}` : '/skills'),
+      gatewayGet<{ plugins: PluginRow[] }>('/plugins'),
+    ]);
+    const shipper = (name: string) => catalog.plugins.find((p) => p.skills.some((k) => k.name === name))?.plugin ?? null;
+    const rows = answer.skills.map(({ logged, ...s }) => { void logged; return { ...s, plugin: shipper(s.name) }; });
+    return { total: rows.length, rows: rows.slice(offset, offset + limit) };
+  },
 });
 
-/** How many events the gateway answers at most; the page asks for the same number. */
-const ACTIVITY_LIMIT = 200;
+type ActivityCollectionRow = Flat<ActivityLog['rows'][number]> & { refused: boolean };
 
-type ActivityRow = Flat<ActivityEvent> & { id: string };
-
-const activity = gatewayCollection<ActivityRow, 'id'>({
+/* The active team's real-work events, read a page at a time from the route that filters them: a kind, a tool, an
+ * initiative and refused calls alone are the route's parameters, applied before its latest 500 are taken, and its total
+ * is the route's, so a count is never of one page. */
+const activity = routeCollection<ActivityCollectionRow, 'id'>({
   name: 'activity',
   label: 'Activity',
-  description: `The latest ${ACTIVITY_LIMIT} events the person may read, newest first: every tool call, gate and admin act. Older events are not here, so a count over this list is a count of the latest ${ACTIVITY_LIMIT}, never of all time.`,
+  description: 'The active team\'s real-work events, newest first: every tool call, gate and lesson, page views and the platform\'s own maintenance left out. A refused call carries its owner (guardrail: a guardrail held; ours: a malformed call; theirs: a tool failure; other) and the message the platform stored. The gateway filters and pages it: kind eq, tool eq, initiative eq (a slug of the active team) and refused eq true; page with limit, and read total for how many match, up to the latest 500.',
   key: 'id',
-  title: (e) => `${e.kind}${e.subject ? ` ${e.subject}` : ''}`,
+  title: (e) => `${e.kind}${e.tool ? ` ${e.tool}` : ''}`,
   fields: z.object({
-    ts: when('When it happened'), actor: maybeText.describe('Who did it, by email.'), team: maybeText.describe('Nothing when no team was involved.'),
-    kind: text, subject: maybeText.describe('What it was done to, such as the tool called.'), initiative: maybeText, step: maybeText,
-    ok: z.boolean().nullable().describe('false when the call was refused.'), refusal: maybeText.describe('The refusal\'s own sentence.'),
+    ts: when('When it happened'), kind: text, tool: maybeText.describe('The tool called, as door:tool; nothing for an event that is not a call.'),
+    initiative: maybeText.describe('The initiative it was for, by its slug.'), step: maybeText.describe('The skill the caller was following.'),
+    ok: z.boolean().nullable().describe('false when the call was refused; nothing for an event that is not a call.'),
+    refused: z.boolean().describe('Whether it was a refused call.'),
+    owner: z.enum(['guardrail', 'ours', 'theirs', 'other'] satisfies RefusalOwner[]).nullable().describe('Who a refusal is put down to.'),
+    message: maybeText.describe('A refusal\'s message, as the platform stored it; nothing when none was recorded.'),
+    actor: maybeText.describe('Who did it, by email; nothing for a tool call.'),
   }),
-  load: async () => (await gatewayGet<{ events: ActivityEvent[] }>(`/activity?limit=${ACTIVITY_LIMIT}`)).events.map((e, i) => ({ ...e, id: `${e.ts}#${i}` })),
+  conditions: { kind: { op: 'eq', param: 'kind' }, tool: { op: 'eq', param: 'tool' }, initiative: { op: 'eq', param: 'initiative' }, refused: { op: 'eq', param: 'refused' } },
+  read: async (params, page) => {
+    const log = await gatewayGet<ActivityLog>(activityPath({ ...NO_FILTER, ...params }, page));
+    return { total: log.total, rows: log.rows.map((e) => ({ ...e, refused: e.ok === false })) };
+  },
 });
 
 const tokens = gatewayCollection<Flat<MyAccessToken>, 'id'>({

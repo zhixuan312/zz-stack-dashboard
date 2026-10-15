@@ -27,6 +27,7 @@ import { formatCount } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
 import { pendingContext } from '@/views/context';
 import { pluginContext } from '@/views/plugin-context';
+import { scoreSaid } from '@/views/plugins-context';
 
 type PluginSkill = PluginRow['skills'][number];
 
@@ -47,7 +48,7 @@ function skillColumns(plugin: string): Column<PluginSkill>[] {
     // A skill's origin comes from a `source:` line in its own SKILL.md, so it varies the day a vendored skill ships.
     { key: 'whose', header: 'Whose', hideBelow: 'md', mobile: 'status', cell: (s) => (s.origin === 'theirs' ? <Badge tone="accent">The {plugin} team&rsquo;s</Badge> : <Badge tone="neutral">Ours</Badge>) },
     { key: 'versions', header: 'Versions', numeric: true, hideBelow: 'lg', cell: (s) => count(s.versions) },
-    { key: 'calls', header: 'Calls', numeric: true, mobile: 'fact', cell: (s) => (s.everRun ? formatCount(s.calls) : '—'), mobileCell: (s) => (s.everRun ? `${formatCount(s.calls)} ${plural(s.calls, 'call')}` : 'Never run') },
+    { key: 'calls', header: 'Your team\'s calls', numeric: true, mobile: 'fact', cell: (s) => (s.everRun ? formatCount(s.calls) : '—'), mobileCell: (s) => (s.everRun ? `${formatCount(s.calls)} ${plural(s.calls, 'call')} by your team` : 'Never run by your team') },
     { key: 'last', header: 'Last run', numeric: true, hideBelow: 'md', cell: (s) => (s.lastRun ? <When at={s.lastRun} /> : <span className="text-ink-3">Never run</span>) },
   ]);
 }
@@ -92,8 +93,8 @@ export function PluginView({ params }: { params: Promise<{ plugin: string }> }) 
         <Row split="tiles">
           <MetricTile label="Skills" icon={<Puzzle />} value={p ? p.skills.length : q.isPending ? '…' : '—'} note={!p ? 'Shipped by this plugin' : p.stages.length ? `${p.stages.length} of them stages, in order` : 'No declared method'} />
           <MetricTile label="Gates" icon={<Lock />} value={p ? p.gates : q.isPending ? '…' : '—'} note={!p || p.gates ? 'A person must approve' : 'An assistant, not a method'} />
-          <MetricTile label="Calls" icon={<Activity />} value={p ? p.calls : q.isPending ? '…' : '—'} note={!p ? 'Across its skills' : p.failed ? `${formatCount(p.failed)} refused` : 'None refused'} />
-          <MetricTile label="Never run" icon={<CircleOff />} value={p ? p.skills.filter((s) => !s.everRun).length : q.isPending ? '…' : '—'} emphasis={!!p?.skills.some((s) => !s.everRun)} note={p ? `Of ${p.skills.length} ${plural(p.skills.length, 'skill')}` : 'Skills nobody called'} />
+          <MetricTile label="Your team's calls" icon={<Activity />} value={p ? p.yourTeam.calls : q.isPending ? '…' : '—'} note={!p ? 'Across its skills' : p.yourTeam.failed ? `${formatCount(p.yourTeam.failed)} refused` : 'None refused'} />
+          <MetricTile label="Never run" icon={<CircleOff />} value={p ? p.skills.filter((s) => !s.everRun).length : q.isPending ? '…' : '—'} emphasis={!!p?.skills.some((s) => !s.everRun)} note={p ? `Of ${p.skills.length} ${plural(p.skills.length, 'skill')}, by your team` : 'Skills your team never called'} />
         </Row>
       ) : null}
       <Query query={qEval} what="The evaluation" skeleton={<Skeleton className="h-40 rounded-lg" />}>
@@ -122,6 +123,8 @@ export function PluginView({ params }: { params: Promise<{ plugin: string }> }) 
                       { label: 'Version', wrap: true, value: p.version ? <span className="font-mono text-xs">{p.version} <span className="text-ink-3">{p.release ? `+${p.release.digest}` : 'not released'}</span></span> : <span className="text-ink-3">Declares none</span> },
                       { label: 'Reaches', wrap: true, value: p.servers.length ? <span className="font-mono text-xs">{p.servers.join(' · ')}</span> : <span className="text-ink-3">No server, skills only</span> },
                       { label: 'Entry', value: p.entry ?? '—', mono: true },
+                      { label: 'Install', wrap: true, value: <span className="font-mono text-xs">{p.install} <span className="text-ink-3">{p.required ? 'required' : 'optional'}</span></span> },
+                      { label: 'Score', wrap: true, value: <span className="text-xs">{scoreSaid(p.score)}. {p.comparability}.</span> },
                     ]}
                   />
                 </Panel>

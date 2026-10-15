@@ -47,6 +47,13 @@
  * prepared `/work/query`, one fixture each, the approvals in them the caller's own. `?waiting=1` still answers the
  * bell's projection. `POST /api/console/initiatives/:team/:slug/close` is answered as the platform decides a close and
  * refuses one, and forgotten like every other write.
+ *
+ * The rest of Work is the active team's too, one fixture per read: `GET /api/console/knowledge/summary` and the paged
+ * `/knowledge?q&kind&limit&offset`, `/activity/summary` and the paged `/activity?kind&tool&initiative&refused&limit&offset`,
+ * `/runs?skill&limit&offset`, and the team's use of the catalog in `/plugins`, `/skills?plugin` and `/skills/:name`, whose
+ * public scores are everybody's. `GET /api/console/access` is the caller's alone, and so are its two revokes,
+ * `DELETE /api/console/settings/me/applications/:client` and `/settings/me/browsers/:id`, answered as the platform
+ * decides them and forgotten. A superadmin who acts for no team is refused Work's reads, as the gateway refuses them.
  */
 import http from 'node:http';
 import type { Me, Overview } from '../../src/lib/api-shapes.ts';
@@ -61,15 +68,20 @@ import { releaseDetail, releases } from './platform-releases.ts';
 import { MEMBER_STATUS, PLATFORM_STATUS } from './platform-status.ts';
 import { TEAMS, team, teams } from './platform-teams.ts';
 import { usage } from './platform-usage.ts';
-import { ACTIVITY, PLUGINS, SKILLS, overview, pluginEval, runs, skillDetail, skillText } from './platform.ts';
+import { overview, pluginEval, skillText } from './platform.ts';
 import { search } from './search.ts';
 import { empty, extreme } from './states.ts';
-import { KNOWLEDGE, KNOWLEDGE_LOG, WAITING, documentDetail, documentRevision, initiativeDetail, knowledgeBody, refusesRecord, revisionInStore } from './work.ts';
+import { KNOWLEDGE_LOG, WAITING, documentDetail, documentRevision, initiativeDetail, refusesRecord, revisionInStore } from './work.ts';
+import { access, revokeApplication, revokeBrowser } from './work-access.ts';
+import { activityLog, activitySummary } from './work-activity.ts';
 import { approvals } from './work-approvals.ts';
 import { home } from './work-home.ts';
 import { close, initiativeList } from './work-initiatives.ts';
+import { knowledgeList, knowledgeSummary, lesson } from './work-knowledge.ts';
+import { plugins, skillDetail, skills } from './work-plugins.ts';
 import { workQuery } from './work-query.ts';
 import { record } from './work-record.ts';
+import { runs } from './work-runs.ts';
 
 const args = process.argv.slice(2);
 const port = Number(args[args.indexOf('--port') + 1] ?? 0) || 0;
@@ -141,9 +153,11 @@ function read(who: Me, seg: string[], q: URLSearchParams): Answer {
       return or404(documentDetail(a, b, rest.join('/')), `document ${seg.slice(1).join('/')}`);
     }
     case 'knowledge':
+      // The summary answers before the node route, because `summary` names no team of its own.
+      if (a === 'summary' && !b) return knowledgeSummary(who);
       if (a === 'log') return ok({ entries: mine(KNOWLEDGE_LOG) });
-      if (a) return foreign(a) ? missing(`knowledge ${seg.slice(1).join('/')}`) : or404(knowledgeBody(a, [b, ...rest].join('/'), own), `knowledge ${seg.slice(1).join('/')}`);
-      return ok({ nodes: mine(KNOWLEDGE) });
+      if (a) return foreign(a) ? missing(`knowledge ${seg.slice(1).join('/')}`) : or404(lesson(a, [b, ...rest].join('/'), own), `knowledge ${seg.slice(1).join('/')}`);
+      return knowledgeList(who, q);
     case 'search': {
       // As the gateway answers it: one team's search and never the fleet's, a question required, a limit from 1 to 50.
       if (platform) return [400, { error: "search runs as one team and the platform's shared shelf — it has no fleet-wide reading, so not ?scope=platform" }];
@@ -160,15 +174,14 @@ function read(who: Me, seg: string[], q: URLSearchParams): Answer {
         return who.superadmin || (evaluation.found && evaluation.ownerTeam === who.activeTeam) ? ok(evaluation) : [403, { error: 'not permitted' }];
       }
       if (a && b === 'skills' && rest[0]) return or404(skillText(a, rest[0]), `skill ${a}/${rest[0]}`);
-      return ok({ plugins: PLUGINS });
-    case 'skills': return a ? or404(skillDetail(a), `skill ${a}`) : ok({ skills: SKILLS });
+      return a ? missing(seg.join('/')) : plugins(who);
+    case 'skills': return b ? missing(seg.join('/')) : a ? skillDetail(who, a) : skills(who, q);
     case 'people': return people(who, q, page(q)) ?? BAD_PAGE;
-    case 'runs': return ok(runs(period));
-    case 'activity': {
-      const limit = Number(q.get('limit') ?? 200);
-      const events = mine(ACTIVITY).filter((e) => q.get('failed') !== '1' || e.ok === false).slice(0, limit);
-      return ok({ events, limit });
-    }
+    case 'runs': return a ? missing(seg.join('/')) : runs(who, q);
+    case 'activity':
+      if (a === 'summary' && !b) return activitySummary(who);
+      return a ? missing(seg.join('/')) : activityLog(who, q);
+    case 'access': return a ? missing(seg.join('/')) : access(who);
     case 'settings':
       if (a === 'me' && b === 'tokens') return ok(tokensOf(who));
       if (a === 'me' && b === 'client-setup') return ok(clientSetupOf(who));
@@ -285,6 +298,8 @@ const PAGE_FEATURES = [
 /** One write under `/api/console`, as `who`. Accepted, answered in the route's own shape, and not kept. */
 function write(who: Me, seg: string[], q: URLSearchParams, method: string, body: Record<string, unknown>): Answer {
   const path = seg.join('/');
+  // Reads with no write of their own: nothing starts an evaluation, and nothing here changes a team's record.
+  if (['knowledge', 'activity', 'runs', 'plugins', 'skills', 'access'].includes(seg[0])) return missing(path);
   // `POST /api/console/platform/bugs/:id/resolve`: the superadmin's alone, refused before the report is looked for.
   const resolving = /^platform\/bugs\/([^/]+)\/resolve$/.exec(path);
   if (resolving && method === 'POST') {
@@ -300,6 +315,14 @@ function write(who: Me, seg: string[], q: URLSearchParams, method: string, body:
     if (typeof body.feature !== 'string' || !body.feature) return [400, { error: 'feature required — the destination that was opened' }];
     if (!PAGE_FEATURES.includes(body.feature)) return [400, { error: `${body.feature} is not one of the console's destinations` }];
     return [204, null];
+  }
+  // `DELETE /api/console/settings/me/applications/:client` and `/browsers/:id`: the caller's own, from a browser alone.
+  const revoking = /^settings\/me\/(applications|browsers)\/([^/]+)$/.exec(path);
+  if (revoking && method === 'DELETE') {
+    if (who.via !== 'session') return [400, { error: 'revoke this from the console, signed in: a token cannot revoke what signs you in' }];
+    const answer = revoking[1] === 'applications' ? revokeApplication(who, revoking[2]) : revokeBrowser(who, revoking[2]);
+    if (answer[0] === 200) hint('settings');
+    return answer;
   }
   if (path === 'settings/me/tokens' && method === 'POST') {
     hint('settings');

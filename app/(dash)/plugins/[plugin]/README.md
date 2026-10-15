@@ -5,9 +5,9 @@ One plugin: what it is, what it reaches, its skills, and its whole evaluation st
 ## Structure
 
 - Gate first: the page asks for `plugins` before it renders, so a person who does not hold it is shown NoAccess and nothing on the page is read.
-- Tiles: skills, gates, calls, never run.
+- Tiles: skills, gates, your team's calls, never run by your team.
 - Overall fit for purpose: score, status, protocol, guardrails.
-- About and the documents it governs.
+- About (owner, version, reaches, entry, the install command and whether it is required, the public score with whether its scores compare) and the documents it governs.
 - Health, usage, quality, learning, evolution, automation and trust.
 - Its skills, stages first and in order.
 
@@ -23,7 +23,7 @@ The assistant reads this page and changes nothing: every change in this console 
 
 ### What the agent reads
 
-The plugin's skills, gates, calls and refusals, and the skills never run. What code found: its declared version and whether a release vouched for it, the servers it reaches, its method's stages and front door, the documents it governs, then its evaluation: the score with the protocol and version measured, the score by dimension, the failing guardrails, the runs it was scored on, its findings and its candidates for change. It says when a plugin was never evaluated, or is registered for evaluation only.
+The plugin's skills, gates, your team's calls and refusals, the skills your team never ran, and its public score with its protocol, date and whether its scores compare. What code found: its declared version and whether a release vouched for it, the servers it reaches, its method's stages and front door, the documents it governs, whether it is required and its install command, then its evaluation: the score with the protocol and version measured, the score by dimension, the failing guardrails, the runs it was scored on, its findings and its candidates for change. It says when a plugin was never evaluated, or is registered for evaluation only.
 
 ```text
 - Evaluated on 11 Oct 2026 against protocol sdlc-protocol v3, measuring version 0.92.10; guardrails pass.

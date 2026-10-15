@@ -1,33 +1,35 @@
 # Activity
 
-Every tool call, gate and admin act the platform recorded, newest first.
+Your active team's real work, newest first, with last week's calls and refusals above it.
 
 ## Structure
 
 - Gate first: the page asks for `activity` before it renders, so a person who does not hold it is shown NoAccess and nothing on the page is read.
+- Tiles: calls last week; refused last week, with its four owners (a guardrail held, a malformed call, a tool failure, other); the tool refused most, of how many.
 - Show everything or refusals only.
-- A data table: when, kind, subject, actor, team, result, refusal; a refusal is the one row in colour.
+- A data table of ten events a page, paged by the server: when, kind, tool, initiative, actor, result, why it was refused and its message; a refusal is the one row in colour, and one recorded with no message says so. Filters for kind and tool, sent to the route.
 
 ## States
 
-- Loading: skeleton rows.
+- Loading: skeleton rows; the tiles read `…`.
 - Empty: nothing recorded yet.
-- Refusals only, none: Clear filters.
+- Filtered to nothing: Clear filters.
+- A read that failed: the tiles read `—` and the table says why.
 
 ## Agents
 
-The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `activityContext` in `src/views/activity-context.ts`, the same function `view_activity` calls, so the assistant quotes the figures the screen shows. Ask is in the head of the Events table: what stands out in the latest events and whether anything is being refused, or, with Refusals only, which of the latest refusals matter most and what would stop them.
+The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `activityContext` in `src/views/activity-context.ts`, the same function `view_activity` calls with the summary alone, so the assistant quotes the figures the screen shows. Ask is in the filter bar: what went wrong last week and which group of refusals to fix first, or, with Refusals only, which of them matter most.
 
 ### What the agent reads
 
-Whose events these are, whether only refusals are shown, the span the list covers, and how many events and refusals are in it. What code found: the count by kind and by actor, how many were refused and on what, the commonest refusal messages, and the newest events. It says that only the latest 200 are here, so every count is of those and never of all time, and that an event with no team is not missing data.
+Whose work it is, last whole week's dates and the filters in force, then last week's calls, its refusals by owner (the four summing to the total), the tool refused most, and how many events match. What code found: the team's refusals grouped by owner, tool and message, most first; the refusals by week with their owners; the platform's maintenance, counted and left out; and the events in view. It says that page views and maintenance are left out, and that a refusal's message is the team's own as the platform stored it.
 
 ```text
-- 6 of these 120 events were refused (5%), most on core:document_read 2, core:document_edit 1, core:knowledge_search 1, core:document_approve 1, eval:finding_record 1. Evidence: /activity?show=failed
+- The team's refusals grouped by owner, tool and message, most first (7 groups): A guardrail held on core:document_approve, "ERROR: approval needs a stakeholder" 5×, last 13 Oct 2026; …
 ```
 
-- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `query_activity` looks up what the page lists.
+- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `view_activity` reads the summary; `query_activity` pages the route with its kind, tool, initiative and refused filters and answers the route's total, up to the latest 500.
 
 ## Surfaces
 
-Console, desktop and phone. Reads `GET /activity?limit=200`.
+Console, desktop and phone. Reads `GET /activity/summary` and `GET /activity?kind&tool&initiative&refused&limit&offset`. Live: follows `activity`, so a change made anywhere — another tab, another person — reads this page again.

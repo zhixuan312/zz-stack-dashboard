@@ -1,11 +1,17 @@
 // @vitest-environment node
 import { spawn, type ChildProcess } from 'node:child_process';
 import { afterEach, describe, expect, it } from 'vitest';
+import type { ActivityLog, ActivitySummary, KnowledgeList, KnowledgeSummary, Runs } from '../src/lib/destination-shapes.ts';
 import type { InitiativeList } from '../src/lib/work-shapes.ts';
 import { ME } from '../scripts/fake-gateway/people.ts';
 import { PLATFORM_STATUS } from '../scripts/fake-gateway/platform-status.ts';
 import { empty, extreme } from '../scripts/fake-gateway/states.ts';
+import { access } from '../scripts/fake-gateway/work-access.ts';
+import { activityLog, activitySummary } from '../scripts/fake-gateway/work-activity.ts';
 import { initiativeList } from '../scripts/fake-gateway/work-initiatives.ts';
+import { knowledgeList, knowledgeSummary } from '../scripts/fake-gateway/work-knowledge.ts';
+import { plugins } from '../scripts/fake-gateway/work-plugins.ts';
+import { runs } from '../scripts/fake-gateway/work-runs.ts';
 import config from '../scripts/verify.config.ts';
 
 /**
@@ -22,6 +28,13 @@ import config from '../scripts/verify.config.ts';
 const LIST = (query = ''): InitiativeList => initiativeList(ME, new URLSearchParams(query))[1] as InitiativeList;
 /** A list a team with no work is answered. */
 const NONE = (): InitiativeList => ({ ...LIST(), rows: [], total: 0 });
+/** Each of Work's other answers, as the fixture gives the superadmin. */
+const body = <T,>(answer: [number, unknown]): T => answer[1] as T;
+const SHELF = () => body<KnowledgeList>(knowledgeList(ME, new URLSearchParams()));
+const LEARNED = () => body<KnowledgeSummary>(knowledgeSummary(ME));
+const SUMMARY = () => body<ActivitySummary>(activitySummary(ME));
+const LOG = () => body<ActivityLog>(activityLog(ME, new URLSearchParams()));
+const RUNS = () => body<Runs>(runs(ME, new URLSearchParams()));
 describe('the fixture can shape every answer its routes produce', () => {
   it('leaves an empty projection empty rather than inventing rows', () => {
     // Nothing waiting is a state the console draws ("Nothing needs a signature"); forty fabricated
@@ -37,7 +50,8 @@ describe('the fixture can shape every answer its routes produce', () => {
     const none = NONE();
     expect((extreme(['initiatives'], none) as InitiativeList)).toMatchObject({ rows: [], total: 0 });
     expect(extreme(['teams'], { teams: [] })).toEqual({ teams: [] });
-    expect(extreme(['knowledge'], { nodes: [] })).toEqual({ nodes: [] });
+    expect(extreme(['knowledge'], { ...SHELF(), rows: [], total: 0 })).toMatchObject({ rows: [], total: 0 });
+    expect(extreme(['activity'], { ...LOG(), rows: [], total: 0 })).toMatchObject({ rows: [], total: 0 });
   });
 
   it('makes a busy list a page of long names under large counts, never more rows than the page asked for', () => {
@@ -70,11 +84,16 @@ describe('the fixture can shape every answer its routes produce', () => {
       [['initiatives'], { waiting: [] }],
       [['initiatives'], LIST()],
       [['initiatives'], NONE()],
-      [['knowledge'], { nodes: [] }],
+      [['knowledge'], SHELF()],
+      [['knowledge', 'summary'], LEARNED()],
       [['knowledge', 'log'], { entries: [] }],
+      [['activity'], LOG()],
+      [['activity', 'summary'], SUMMARY()],
+      [['runs'], RUNS()],
+      [['plugins'], body(plugins(ME))],
+      [['access'], body(access(ME))],
       [['teams'], { teams: [] }],
       [['people'], { people: [] }],
-      [['runs'], { totals: { runs: 1, calls: 1, refusals: 0, mb: null } }],
       [['platform', 'status'], PLATFORM_STATUS],
       [['unknown-head'], { anything: true }],
       [[], {}],
@@ -92,6 +111,26 @@ describe('the fixture can shape every answer its routes produce', () => {
     const list = empty(['initiatives'], LIST()) as InitiativeList;
     expect(list).toMatchObject({ rows: [], total: 0, tiles: { open: 0, waiting: 0, closed: { accepted: 0, delivered: 0, abandoned: 0 } } });
     expect(list.summary.state === 'ok' && list.summary.data.total).toBe(0);
+  });
+
+  it('keeps Work\'s other pages to their page, and their counts to their sums, however busy', () => {
+    for (const [seg, answer, rows] of [
+      [['knowledge'], SHELF(), (b: KnowledgeList) => b.rows],
+      [['activity'], LOG(), (b: ActivityLog) => b.rows],
+      [['runs'], RUNS(), (b: Runs) => (b.recent.state === 'ok' ? b.recent.data.rows : [])],
+    ] as [string[], unknown, (b: never) => unknown[]][]) {
+      const got = extreme(seg, answer);
+      expect(rows(got as never), seg.join('/')).toHaveLength(rows(answer as never).length);
+      expect(Object.keys(got as object).sort(), seg.join('/')).toEqual(Object.keys(answer as object).sort());
+    }
+    const busy = extreme(['activity', 'summary'], SUMMARY()) as ActivitySummary;
+    for (const w of busy.weeks.state === 'ok' ? busy.weeks.data : []) expect(Object.values(w.owners).reduce((a, b) => a + b, 0)).toBe(w.refused);
+    // A fresh deployment's: nothing counted, nothing listed, every week read and holding none.
+    const fresh = empty(['activity', 'summary'], SUMMARY()) as ActivitySummary;
+    expect(fresh.tiles.refused.owners).toEqual({ guardrail: 0, ours: 0, theirs: 0, other: 0 });
+    expect(fresh.tiles.mostRefused).toBeNull();
+    expect(empty(['runs'], RUNS())).toMatchObject({ since: null, tiles: { largest: null, outputPerRun: { value: null } } });
+    expect(empty(['knowledge', 'summary'], LEARNED())).toMatchObject({ questions: { state: 'ok', data: { rows: [], total: 0 } } });
   });
 
   it('serves the platform\'s status as it is in both worlds', () => {
@@ -160,8 +199,8 @@ describe('every mode answers both people', () => {
   ];
   const ask = (base: string, cookie: string | null, path: string, ms = 10_000) =>
     fetch(`${base}/api/console/${path}`, { headers: cookie === null ? {} : { cookie: `zz_console=${cookie}` }, signal: AbortSignal.timeout(ms) });
-  const READS = ['overview', 'initiatives', 'initiatives?waiting=1', 'knowledge', 'knowledge/log', 'activity', 'runs',
-                 'plugins', 'skills', 'settings/me/tokens', 'settings/me/teams', 'platform/status',
+  const READS = ['overview', 'initiatives', 'initiatives?waiting=1', 'knowledge', 'knowledge/summary', 'knowledge/log', 'activity',
+                 'activity/summary', 'runs', 'plugins', 'skills', 'access', 'settings/me/tokens', 'settings/me/teams', 'platform/status',
                  'home', 'record', 'approvals', 'work/query?measure=closures&by=outcome'];
   /** The superadmin's alone: a member is refused them in every world. */
   const FLEET = ['teams', 'teams?scope=platform', 'teams/atlas', 'people', 'people?scope=platform'];
@@ -176,8 +215,7 @@ describe('every mode answers both people', () => {
       initiatives: (await get('initiatives?scope=platform&limit=100')).rows,
       byTeam: [
         ...(await get('initiatives?waiting=1&scope=platform')).waiting,
-        ...(await get('knowledge?scope=platform')).nodes, ...(await get('knowledge/log?scope=platform')).entries,
-        ...(await get('activity?scope=platform')).events,
+        ...(await get('knowledge?scope=platform&limit=100')).rows, ...(await get('knowledge/log?scope=platform')).entries,
       ],
     };
   }

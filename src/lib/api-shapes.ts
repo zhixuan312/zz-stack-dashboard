@@ -5,7 +5,7 @@
  * Each type here is the console's reading of one gateway route's response, and the gateway
  * is the author of the shape — when the two disagree it is this file that is wrong.
  */
-
+import type { PluginScore } from './destination-shapes';
 
 export interface Me {
   email: string; name: string; role: 'superadmin' | 'member';
@@ -335,7 +335,7 @@ export interface Skill {
   name: string; version: string; kind: string; flow: string | null;
   /** Still served, or kept only because it owns these runs. */
   retired: boolean;
-  /* No `teams`: /skills is a teamless route, because a skill is a platform-wide capability. */
+  /* The active team's runs of it, as `/skills` answers them for the team the caller acts for. */
   runs: number; calls: number; callsAvg: number; callsMax: number; refusals: number;
   /** Runs a duration could be computed for — those with more than one call. */
   timedRuns: number;
@@ -354,10 +354,6 @@ export interface SkillDetail {
   surfaces: { surface: string; calls: number; failed: number; tools: number }[];
   busiestTools: { tool: string; calls: number; failed: number }[];
 }
-export interface Runs {
-  /** `mb` is SQL-null for a window with no run, or none measured — never a confident 0. */
-  totals: { runs: number; calls: number; refusals: number; mb: number | null };
-}
 /** A skill a plugin ships. `theirs` = vendored from somebody else, carrying a `source:` line
  *  that says so; `ours` = everything we wrote — a plugin's own stages, the platform's, and what
  *  we worked out by calling somebody else's server. */
@@ -369,7 +365,9 @@ interface PluginSkill {
   isEntry: boolean;
   origin: 'theirs' | 'ours';
   version: string | null; description: string | null; source: string | null;
-  versions: number; calls: number; evals: number;
+  versions: number;
+  /** The active team's calls of it, whether the team ever ran it, and when it last did. */
+  calls: number; evals: number;
   everRun: boolean; lastRun: string | null;
 }
 
@@ -399,28 +397,21 @@ export interface PluginRow {
   documents: { name: string; role: string | null; gate: boolean; stage: string | null }[];
   gates: number;
   skills: PluginSkill[];
-  calls: number; failed: number;
-  /** The most recent call across every skill, or null when nothing has ever run it.
-   *  The list sorts on this. */
-  lastRun: string | null;
   /** What was released at the declared version, from zz.plugin_version — the digest is what
    *  makes the version true. Null when nothing has vouched for that number, which is not an
    *  error. */
   release: { version: string; digest: string; evals: number } | null;
-  /** The newest completed evaluation run, from zz.eval_run.
-   *
-   *  `overallScore` is 0-10. It is shown only when `scoreStatus` is not `not_established`, the
-   *  same rule the plugin's own page applies. `openDefects` counts the run's plugin-owned defect
-   *  findings still deferred. */
-  latestEval: {
-    /** The version that was measured, which is not necessarily the one on the shelf today. */
-    version: string;
-    overallScore: number | null;
-    scoreStatus: string | null;
-    guardrailStatus: string | null;
-    openDefects: number;
-    at: string;
-  } | null;
+  /** Installed by every client (`zz-core` and the shelved catalog entries), or the person's choice. */
+  required: boolean;
+  /** The command that installs it from the platform's marketplace. */
+  install: string;
+  /** Its latest public score, one selection with the platform's Evaluation read; null when nothing scored it. */
+  score: PluginScore | null;
+  /** Whether its scores can be compared, as the Evaluation read states it for this plugin. */
+  comparability: string;
+  /** The active team's own calls of its skills, the refused among them, and the latest; the rest of the row is the
+   *  catalog's, the same for every team. */
+  yourTeam: { calls: number; failed: number; lastRun: string | null };
 }
 
 /** One canonical scoring dimension of a run (spec v8 FR-19/FR-20), as the gateway rebuilds it
@@ -521,11 +512,6 @@ export interface SkillText {
   body: string;
   /** Everything shipped beside it — `references/…`, and `scripts/…` where one exists. */
   references: { path: string; content: string }[];
-}
-export interface ActivityEvent {
-  ts: string; actor: string | null; team: string | null; kind: string;
-  subject: string | null; initiative: string | null; step: string | null;
-  ok: boolean | null; refusal: string | null;
 }
 /** The team out of a `<slug> (<role>)` entry — see Person.teams. */
 export function teamSlug(entry: string): string {

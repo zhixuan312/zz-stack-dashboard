@@ -1,88 +1,105 @@
 'use client';
 
+import { useMemo } from 'react';
+import { Activity, Ban, Wrench } from 'lucide-react';
+import { Row } from '@/components/base/shell';
 import { AskAbout } from '@/components/patterns/ask-about';
 import { DataTable, useQueryState, type Column } from '@/components/patterns/data-table';
+import { FilterBar } from '@/components/patterns/filter-bar';
+import { MetricTile } from '@/components/patterns/metric-tile';
 import { Badge } from '@/components/ui/badge';
 import { Segmented } from '@/components/ui/segmented';
 import { aligned } from '@/console/columns';
 import { ConsolePage, useArrival } from '@/console/page';
 import { failureOf } from '@/console/query';
 import { When } from '@/console/when';
-import { freshnessOf, useConsole, useConsoleMode } from '@/lib/api';
+import { freshnessOf, useConsole } from '@/lib/api';
+import type { ActivityLog, ActivityRow, ActivitySummary } from '@/lib/destination-shapes';
+import { plural } from '@/lib/format';
 import { useLive } from '@/lib/live';
-import { activityContext } from '@/views/activity-context';
-import { addressOf, pendingContext, whose } from '@/views/context';
-import type { ActivityEvent } from '@/lib/api-shapes';
+import { OWNER_LABEL, PAGE_SIZE, activityContext, activityPath, narrowed } from '@/views/activity-context';
+import { pendingContext } from '@/views/context';
 
-/** A dash where nothing was involved: a token issued is a thing a person did, not a thing a team did. */
+/** A dash where nothing was involved: an event that is not a tool call names no tool. */
 const dash = <span className="text-ink-3">—</span>;
 
-/** Two events can share a second, a kind and a subject, so a row's identity is its place in the feed. */
-type Row = ActivityEvent & { id: string };
-
-const COLUMNS: Column<Row>[] = aligned([
+const COLUMNS: Column<ActivityRow>[] = aligned([
   { key: 'when', header: 'When', width: 'w-28', mobile: 'fact', cell: (e) => <When at={e.ts} /> },
-  // No `align` here, and the stand-in that used to be is gone. It existed because a card's title took the table's
-  // alignment, and `aligned` centres this column — `When` precedes it — so a phone card opened on a centred title with
-  // no left edge to come back to. **0.14.1 fixes that in the component**: `@max-[640px]:[&_td[data-mobile=title]]:!text-left`
-  // puts a card's title at the left edge whatever the column order. So the column takes the console's own rule again.
   { key: 'kind', header: 'Kind', mobile: 'title', cell: (e) => <span className="font-mono text-xs text-ink">{e.kind}</span> },
-  { key: 'subject', header: 'Subject', hideBelow: 'lg', truncate: true, cell: (e) => (e.subject ? <span title={e.subject} className="font-mono text-xs">{e.subject}</span> : dash) },
-  // On the phone card too: a feed of everything the platform recorded, with nobody named on it, cannot answer who
-  // did it. The local part alone — `jane.doe`, never the domain — and `title` carries the whole address on hover.
+  { key: 'tool', header: 'Tool', hideBelow: 'lg', truncate: true, cell: (e) => (e.tool ? <span title={e.tool} className="font-mono text-xs">{e.tool}</span> : dash) },
+  { key: 'initiative', header: 'Initiative', hideBelow: 'xl', truncate: true, cell: (e) => (e.initiative ? <span title={e.initiative} className="text-xs">{e.initiative}</span> : dash) },
+  // The local part alone — `jane.doe`, never the domain — and `title` carries the whole address on hover.
   { key: 'actor', header: 'Actor', hideBelow: 'md', mobile: 'fact', cell: (e) => (e.actor ? <span title={e.actor}>{e.actor.split('@')[0]}</span> : dash) },
-  { key: 'team', header: 'Team', hideBelow: 'xl', cell: (e) => e.team ?? dash },
   // A refusal is the row worth finding, so it alone carries colour; ok is the normal case and stays neutral.
   { key: 'result', header: 'Result', mobile: 'status', cell: (e) => (e.ok === false ? <Badge tone="critical" dot>Refused</Badge> : e.ok === true ? <Badge tone="neutral">OK</Badge> : dash) },
-  { key: 'refusal', header: 'Refusal', align: 'left', hideBelow: 'xl', truncate: true, cell: (e) => (e.refusal ? <span title={e.refusal} className="text-critical-ink">{e.refusal}</span> : '') },
+  { key: 'owner', header: 'Why', hideBelow: 'lg', cell: (e) => (e.ok === false ? OWNER_LABEL[e.owner ?? 'other'] : '') },
+  { key: 'message', header: 'Message', align: 'left', hideBelow: 'xl', truncate: true, cell: (e) => (e.ok !== false ? '' : e.message ? <span title={e.message} className="text-critical-ink">{e.message}</span> : <span className="text-ink-3">No message recorded</span>) },
 ]);
 
 /**
- * The audit view: every tool call, gate and admin act, newest first. A blank team is not missing data: the gateway
- * reads the team through its foreign key, so a blank means no team was involved.
+ * The active team's real work, newest first, with last week's calls and refusals above it. Each refusal is counted
+ * under one owner, and the log is filtered and paged by the server.
  */
 export function ActivityView() {
   useLive(['activity']);
-  const { mode } = useConsoleMode();
-  const [f, set] = useQueryState({ show: 'all', page: '1' });
-  const q = useConsole<{ events: ActivityEvent[]; limit: number }>(`/activity?limit=200${f.show === 'failed' ? '&failed=1' : ''}`);
-  const events: Row[] = (q.data?.events ?? []).map((e, i) => ({ ...e, id: String(i) }));
-  const arrival = useArrival(q);
-  const context = q.data
-    ? activityContext(q.data.events, { show: f.show, limit: q.data.limit, mode, ...arrival })
-    : pendingContext({ view: 'activity', title: 'Activity', address: addressOf('/activity', { show: f.show }, { show: 'all' }), scope: `the latest events recorded for ${whose(mode)}` }, failureOf(q));
+  const [f, set] = useQueryState({ kind: 'all', tool: 'all', initiative: 'all', refused: 'all', page: '1' });
+  const filters = useMemo(() => ({ kind: f.kind, tool: f.tool, initiative: f.initiative, refused: f.refused }), [f.kind, f.tool, f.initiative, f.refused]);
+  const page = Math.max(1, Number(f.page) || 1);
+  const summary = useConsole<ActivitySummary>('/activity/summary');
+  const log = useConsole<ActivityLog>(activityPath(filters, { offset: (page - 1) * PAGE_SIZE }));
+  const tiles = summary.data?.tiles;
+  const filtered = narrowed(filters);
+  const clear = () => set({ kind: 'all', tool: 'all', initiative: 'all', refused: 'all', page: '1' });
+  const arrival = useArrival(summary, log);
+  const context = summary.data
+    ? activityContext({ summary: summary.data, log: log.data, filters, page, ...arrival })
+    : pendingContext({ view: 'activity', title: 'Activity', address: '/activity', scope: 'your active team\'s real work' }, failureOf(summary));
+  const mark = summary.isPending ? '…' : '—';
+  const option = (v: string) => ({ value: v, label: v });
 
   return (
     <ConsolePage
       title="Activity"
-      description={mode === 'team' ? 'Everything recorded for your team, newest first.' : 'Everything the platform recorded, newest first.'}
+      description="Everything your team's real work recorded, newest first."
       showPeriod={false}
-      updatedAt={freshnessOf(q)}
+      updatedAt={freshnessOf(summary, log)}
       context={context}
-      actions={<Segmented label="Show" value={f.show} onChange={(v) => set({ show: v, page: '1' })} options={[{ value: 'all', label: 'Everything' }, { value: 'failed', label: 'Refusals only' }]} />}
+      actions={<Segmented label="Show" value={f.refused} onChange={(v) => set({ refused: v, page: '1' })} options={[{ value: 'all', label: 'Everything' }, { value: 'true', label: 'Refusals only' }]} />}
     >
+      <Row split="tiles">
+        <MetricTile label="Calls last week" icon={<Activity />} value={tiles?.calls.figure.value ?? mark} note="Real work, refused or not" />
+        <MetricTile label="Refused last week" icon={<Ban />} value={tiles?.refused.figure.value ?? mark}
+                    note={tiles ? `${tiles.refused.owners.guardrail} guardrail, ${tiles.refused.owners.ours} malformed, ${tiles.refused.owners.theirs} tool, ${tiles.refused.owners.other} other` : 'By who it is put down to'} />
+        <MetricTile label="Most refused" icon={<Wrench />} value={tiles ? (tiles.mostRefused?.count ?? 'None') : mark} note={tiles?.mostRefused ? `${tiles.mostRefused.tool}, of ${tiles.mostRefused.of}` : 'The tool refused most'} />
+      </Row>
       <DataTable
         caption="Activity"
         noun="events"
-        rows={events}
+        rows={log.data?.rows ?? []}
         columns={COLUMNS}
         rowKey={(e) => e.id}
-        loading={q.isPending}
-        error={failureOf(q)}
-        onRetry={() => void q.refetch()}
-        state={{ sort: '', dir: 'desc', page: f.page }}
-        onStateChange={(p) => set({ page: p.page ?? f.page })}
-        filtered={f.show === 'failed'}
-        onClearFilters={() => set({ show: 'all', page: '1' })}
+        manual
+        total={log.data?.total ?? 0}
+        pageSize={PAGE_SIZE}
+        pageSizes={[PAGE_SIZE]}
+        loading={log.isPending}
+        error={failureOf(log)}
+        onRetry={() => void log.refetch()}
+        state={{ sort: '', dir: 'desc', page: String(page) }}
+        onStateChange={(p) => { if (p.page) set({ page: p.page }); }}
+        filtered={filtered}
+        onClearFilters={clear}
         empty={{ title: 'Nothing recorded yet' }}
         toolbar={
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="min-w-0">
-              <h2 className="t-card">Events</h2>
-              <p className="t-caption mt-1">The latest {q.data?.limit ?? 200}{f.show === 'failed' ? ' refusals' : ''}</p>
-            </div>
-            <AskAbout question={f.show === 'failed' ? 'Which of the latest refusals matter most, and what would stop them?' : 'What stands out in the latest events, and is anything being refused?'} />
-          </div>
+          <FilterBar
+            filters={[
+              { key: 'kind', label: 'Kind', value: f.kind, onChange: (v) => set({ kind: v, page: '1' }), options: [{ value: 'all', label: 'All' }, ...(log.data?.kinds ?? []).map(option)] },
+              { key: 'tool', label: 'Tool', value: f.tool, onChange: (v) => set({ tool: v, page: '1' }), options: [{ value: 'all', label: 'All' }, ...(log.data?.tools ?? []).map(option)] },
+            ]}
+            result={<>{log.data ? `${log.data.total} ${plural(log.data.total, 'event')}` : '…'}</>}
+            ask={<AskAbout question={f.refused === 'true' ? 'Which of these refusals matter most, and what would stop them?' : 'What went wrong last week, and which group of refusals should we fix first?'} />}
+            onClear={clear}
+          />
         }
       />
     </ConsolePage>

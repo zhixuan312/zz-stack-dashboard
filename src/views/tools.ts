@@ -12,9 +12,10 @@ import { may, requireNeed } from '@/data/access';
 import { FEATURES, FLEET } from '@/data/features';
 import { gatewayGet } from '@/data/gateway';
 import type {
-  ActivityEvent, DocumentDetail, InitiativeDetail, KnowledgeBody, KnowledgeLogEntry, KnowledgeNode, Me,
-  MyAccessToken, MyTeams, Overview, Person, PluginEval, PluginRow, Runs, SearchAnswer, Skill, SkillDetail, SkillText, Team,
+  DocumentDetail, InitiativeDetail, KnowledgeBody, KnowledgeLogEntry, Me,
+  MyAccessToken, MyTeams, Overview, Person, PluginEval, PluginRow, SearchAnswer, Skill, SkillDetail, SkillText, Team,
 } from '@/lib/api-shapes';
+import type { ActivitySummary, KnowledgeList, KnowledgeSummary, Runs } from '@/lib/destination-shapes';
 import type { TeamDetail } from '@/lib/fleet-shapes';
 import type { PlatformStatus } from '@/lib/platform-shapes';
 import type { InitiativeList } from '@/lib/work-shapes';
@@ -26,7 +27,7 @@ import { documentContext } from './document-context';
 import { initiativeContext } from './initiative-context';
 import { initiativesContext } from './initiatives-context';
 import { LIST_STATES, listPath, offsetOf } from './initiatives-filter';
-import { knowledgeContext } from './knowledge-context';
+import { KNOWLEDGE_KINDS, PAGE_SIZE as KNOWLEDGE_PAGE, knowledgeContext, knowledgePath } from './knowledge-context';
 import { knowledgeLogContext } from './knowledge-log-context';
 import { knowledgeNodeContext } from './knowledge-node-context';
 import { overviewContext } from './overview-context';
@@ -35,14 +36,12 @@ import { platformStatusContext, statusRead } from './platform-status-context';
 import { pluginContext } from './plugin-context';
 import { pluginsContext } from './plugins-context';
 import { skillContext } from './skill-context';
-import { runsContext } from './runs-context';
+import { runsContext, runsPath } from './runs-context';
 import { searchContext } from './search-context';
 import { settingsContext } from './settings-context';
 import { teamContext } from './team-context';
 import { teamsContext } from './teams-context';
 
-/** How many events the Activity page asks for; its tool asks for the same. */
-const ACTIVITY_LIMIT = 200;
 /** The page Teams and People ask for, every row on one: the gateway answers 10 unless asked. */
 const EVERY_ROW = 'limit=100';
 
@@ -147,13 +146,19 @@ const documentTool = defineViewTool({
 const knowledgeTool = defineViewTool({
   name: 'knowledge',
   title: 'Knowledge',
-  description: 'The knowledge shelf, searched and filtered: how many lessons it holds, the commonest subjects, and the nodes that match.',
+  description: 'The active team\'s knowledge shelf, filtered and paged by the gateway, ten to a page: its standing and superseded lessons, the imported among them, last week\'s searches and those that found nothing, the team\'s own questions that found nothing, searches with results by week, the newest lessons, and the lessons that match.',
   needs: FEATURES.knowledge.needs,
-  input: z.object({ q: search.describe('Text in a node\'s title or opening excerpt.'), team: z.string().max(100).optional().describe('A team\'s slug.'), tag: z.string().max(100).optional().describe('One tag, exactly.') }),
-  async read({ q = '', team = 'all', tag = 'all' }) {
+  input: z.object({
+    q: search.describe('Text in a lesson\'s title, tags or text.'),
+    kind: z.enum(['all', ...KNOWLEDGE_KINDS]).optional().describe('One kind of lesson.'),
+    page: z.number().int().min(1).max(10_000).optional().describe('The page, from 1.'),
+  }),
+  async read({ q = '', kind = 'all', page = 1 }) {
     await requireNeed(FEATURES.knowledge.needs);
-    const data = await gatewayGet<{ nodes: KnowledgeNode[] }>('/knowledge');
-    return { context: knowledgeContext(data.nodes, { filters: { q, team, tag }, mode: await modeOf(), ...justRead() }), data };
+    const filters = { q, kind };
+    const [summary, list] = await Promise.all([gatewayGet<KnowledgeSummary>('/knowledge/summary'), gatewayGet<KnowledgeList>(knowledgePath(filters, { offset: (page - 1) * KNOWLEDGE_PAGE }))]);
+    const data = { summary, list };
+    return { context: knowledgeContext({ ...data, filters, page, ...justRead() }), data };
   },
 });
 
@@ -222,7 +227,7 @@ const peopleTool = defineViewTool({
 const pluginsTool = defineViewTool({
   name: 'plugins',
   title: 'Plugins',
-  description: 'Every plugin in the catalog: its version and whether it is released, its skills and calls, and its newest evaluation.',
+  description: 'Every plugin in the catalog: whether it is required, its version, its skills and gates, the command that installs it, its latest public score with its protocol, date and whether its scores compare, and the active team\'s calls of it. Nobody starts an evaluation from the console.',
   needs: FEATURES.plugins.needs,
   input: z.object({}),
   async read() {
@@ -235,7 +240,7 @@ const pluginsTool = defineViewTool({
 const pluginTool = defineViewTool({
   name: 'plugin',
   title: 'Plugin',
-  description: 'One plugin: what it ships and governs, how much it is used, and its evaluation with its score by dimension, guardrails, findings and candidates for change.',
+  description: 'One plugin: what it ships and governs, how to install it, how much the active team used it, its public score, and its evaluation with its score by dimension, guardrails, findings and candidates for change.',
   needs: FEATURES.plugins.needs,
   input: z.object({ plugin: segment('The plugin\'s name.') }),
   async read({ plugin }) {
@@ -249,14 +254,14 @@ const pluginTool = defineViewTool({
 const skillTool = defineViewTool({
   name: 'skill',
   title: 'Skill',
-  description: 'One skill a plugin ships: what it costs to run (runs, calls, duration, refusals, payload), where it sits in the plugin\'s method, and what it is for.',
+  description: 'One skill a plugin ships: how the active team\'s runs of it went (runs, calls, duration, refusals and observed output, the response bytes of its calls), where it sits in the plugin\'s method, and what it is for.',
   needs: FEATURES.plugins.needs,
   input: z.object({ plugin: segment('The plugin\'s name.'), skill: segment('The skill\'s name.') }),
   async read({ plugin, skill }) {
     await requireNeed(FEATURES.plugins.needs);
     const [plugins, skills, detail, text] = await Promise.all([
       gatewayGet<{ plugins: PluginRow[] }>('/plugins'),
-      gatewayGet<{ skills: Skill[] }>('/skills'),
+      gatewayGet<{ skills: Skill[] }>(`/skills?plugin=${plugin}`),
       gatewayGet<SkillDetail>(`/skills/${skill}`),
       gatewayGet<SkillText>(`/plugins/${plugin}/skills/${skill}`),
     ]);
@@ -268,27 +273,26 @@ const skillTool = defineViewTool({
 const runsTool = defineViewTool({
   name: 'runs',
   title: 'Runs',
-  description: 'Every recorded skill run over a period: how many, the calls and refusals in them, the payload they moved, and each skill\'s share.',
+  description: 'Every run the active team recorded since its first: how many, the observed output per run (the response bytes of its own calls, not what a model read and not a cost), the largest run, each skill\'s runs, calls, refusals, output and typical length, and the latest runs with their state.',
   needs: FEATURES.runs.needs,
-  input: z.object({ period }),
-  async read({ period: p = 'all' }) {
+  input: z.object({ skill: segment('Only this skill\'s runs, by its name.').optional() }),
+  async read({ skill = 'all' }) {
     await requireNeed(FEATURES.runs.needs);
-    const [runs, skills] = await Promise.all([gatewayGet<Runs>(withPeriod('/runs', p)), gatewayGet<{ skills: Skill[] }>(withPeriod('/skills', p))]);
-    const data = { totals: runs.totals, skills: skills.skills };
-    return { context: runsContext({ ...data, period: p, ...justRead() }), data };
+    const data = await gatewayGet<Runs>(runsPath(skill));
+    return { context: runsContext(data, { skill, ...justRead() }), data };
   },
 });
 
 const activityTool = defineViewTool({
   name: 'activity',
   title: 'Activity',
-  description: `The latest ${ACTIVITY_LIMIT} events the platform recorded, newest first, or only the refusals: by kind, by actor, and what was refused and why.`,
+  description: 'The active team\'s real work by week: last week\'s calls and refusals, each refusal under one of four owners (a guardrail held, a malformed call, a tool failure, other) that sum to the total, the tool refused most, and the team\'s refusals grouped by owner, tool and message. query_activity reads the events themselves.',
   needs: FEATURES.activity.needs,
-  input: z.object({ show: z.enum(['all', 'failed']).optional().describe('failed: only the refused calls.') }),
-  async read({ show = 'all' }) {
+  input: z.object({}),
+  async read() {
     await requireNeed(FEATURES.activity.needs);
-    const data = await gatewayGet<{ events: ActivityEvent[]; limit: number }>(`/activity?limit=${ACTIVITY_LIMIT}${show === 'failed' ? '&failed=1' : ''}`);
-    return { context: activityContext(data.events, { show, limit: data.limit, mode: await modeOf(), ...justRead() }), data };
+    const data = await gatewayGet<ActivitySummary>('/activity/summary');
+    return { context: activityContext({ summary: data, ...justRead() }), data };
   },
 });
 

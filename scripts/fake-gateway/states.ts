@@ -4,8 +4,10 @@
  * breaking a mode nobody updated.
  */
 import type {
-  ActivityEvent, KnowledgeLogEntry, KnowledgeNode, Overview, Person, PlatformPersonRow, Runs, Skill, Team, WaitingGate,
+  KnowledgeLogEntry, Overview, Person, PlatformPersonRow, PluginRow, Skill, Team, WaitingGate,
 } from '../../src/lib/api-shapes.ts';
+import type { ActivityLog, ActivitySummary, KnowledgeList, KnowledgeSummary, RefusalOwner, Runs } from '../../src/lib/destination-shapes.ts';
+import type { PeriodFigure } from '../../src/lib/platform-shapes.ts';
 import type { InitiativeList } from '../../src/lib/work-shapes.ts';
 
 /** Nothing recorded yet: every list empty, every figure absent rather than zero where the API says so. */
@@ -32,11 +34,18 @@ export function empty(seg: string[], body: unknown): unknown {
     case 'teams': return a ? body : list('teams');
     // Two answers come off this route, as in `extreme` below: the list, and the bell's projection of what waits.
     case 'initiatives': return a && b ? body : 'waiting' in (body as object) ? list('waiting') : nothingListed(body as InitiativeList);
-    case 'knowledge': return a === 'log' ? list('entries') : a ? body : list('nodes');
+    case 'knowledge': return a === 'summary' ? noKnowledge(body as KnowledgeSummary) : a === 'log' ? list('entries') : a ? body
+      : { ...(body as KnowledgeList), rows: [], total: 0, summary: { byKind: {}, standing: 0, superseded: 0 } } satisfies KnowledgeList;
     case 'skills': return a ? { ...(body as object), surfaces: [], busiestTools: [] } : list('skills');
     case 'people': return list('people');
-    case 'activity': return list('events');
-    case 'runs': return { totals: { runs: 0, calls: 0, refusals: 0, mb: null } } satisfies Runs;
+    case 'activity': return a === 'summary' ? noActivity(body as ActivitySummary)
+      : { ...(body as ActivityLog), rows: [], total: 0, kinds: [], tools: [] } satisfies ActivityLog;
+    case 'runs': return noRuns(body as Runs);
+    // The catalog is the platform's files, so a fresh deployment still has it: nothing scored, nothing run.
+    case 'plugins': return a ? body : { plugins: (body as { plugins: PluginRow[] }).plugins.map((p): PluginRow => ({
+      ...p, score: null, comparability: 'No score to compare', yourTeam: { calls: 0, failed: 0, lastRun: null },
+      skills: p.skills.map((k) => ({ ...k, calls: 0, everRun: false, lastRun: null })),
+    })) };
     case 'settings': return Array.isArray(body) ? (a === 'platform' ? (body as PlatformPersonRow[]).slice(0, 1) : []) : body;
     default: return body;
   }
@@ -58,6 +67,41 @@ function nothingListed(l: InitiativeList): InitiativeList {
     } } : l.summary,
   };
 }
+
+const NONE: Record<RefusalOwner, number> = { guardrail: 0, ours: 0, theirs: 0, other: 0 };
+/** A count of nothing in a week that was read and held none. */
+const none = (p: PeriodFigure): PeriodFigure => ({ ...p, figure: { value: 0, why: null }, numerator: 0, denominator: p.denominator === null ? null : 0 });
+
+/** A shelf with nothing on it, searched by nobody: every week read and holding no search. */
+function noKnowledge(k: KnowledgeSummary): KnowledgeSummary {
+  return {
+    ...k,
+    tiles: { standing: { value: 0, why: null, imported: 0 }, superseded: { value: 0, why: null }, searches: none(k.tiles.searches), noResult: none(k.tiles.noResult) },
+    questions: { state: 'ok', data: { rows: [], total: 0 } },
+    weeks: k.weeks.state === 'ok' ? { state: 'ok', data: k.weeks.data.map((w) => ({ ...w, figure: { value: null, why: 'no_data' }, numerator: 0, denominator: 0 })) } : k.weeks,
+    newest: { state: 'ok', data: [] },
+  };
+}
+
+/** A team that has made no call: every week read and holding none, nothing refused, nothing grouped. */
+function noActivity(a: ActivitySummary): ActivitySummary {
+  return {
+    ...a,
+    tiles: { calls: none(a.tiles.calls), refused: { ...none(a.tiles.refused), owners: NONE }, mostRefused: null },
+    weeks: a.weeks.state === 'ok' ? { state: 'ok', data: a.weeks.data.map((w) => ({ ...w, calls: 0, refused: 0, owners: NONE })) } : a.weeks,
+    groups: { state: 'ok', data: { rows: [], groups: 0, rest: null } },
+    maintenance: { calls: 0, refused: 0 },
+  };
+}
+
+/** A team that has run nothing: no first run to count from, and no output measured. */
+const noRuns = (r: Runs): Runs => ({
+  ...r, since: null,
+  tiles: { runs: { value: 0, why: null }, outputPerRun: { value: null, why: 'no_data', unmeasured: 0 }, largest: null },
+  coverage: { coverageMs: 0, summedMs: 0, peak: 0, oneCall: 0 },
+  bySkill: { state: 'ok', data: { rows: [] } },
+  recent: { state: 'ok', data: { rows: [], total: 0 } },
+});
 
 const LONG = 'with-a-name-nobody-planned-for-because-it-came-from-a-ticket-title';
 const big = (n: number) => n * 1_000 + (n % 7) * 137;
@@ -133,17 +177,58 @@ export function extreme(seg: string[], body: unknown, own: string | null = null)
         const entries = (body as { entries: KnowledgeLogEntry[] }).entries;
         return { entries: grown(entries, 300, (_, i): KnowledgeLogEntry => ({ ts: new Date(Date.now() - i * 3_600_000).toISOString(), actor: 'maximiliana.fitzgerald-oyelaran@example.com', team: own ?? 'atlas', kind: 'knowledge.add', node: String(1000 + i), recorded_title: `A lesson ${LONG.replace(/-/g, ' ')} number ${i}`, superseded_by: null, node_title: null, node_status: null })) };
       }
+      if (a === 'summary') {
+        const k = body as KnowledgeSummary;
+        return {
+          ...k,
+          tiles: { ...k.tiles, standing: { ...k.tiles.standing, value: big(k.tiles.standing.value ?? 0), imported: big(k.tiles.standing.imported) } },
+          questions: k.questions.state === 'ok' ? { state: 'ok', data: { total: k.questions.data.total + 4_000, rows: k.questions.data.rows.map((r) => ({ ...r, asked: big(r.asked), question: `${r.question} ${LONG.replace(/-/g, ' ')}` })) } } : k.questions,
+          newest: k.newest.state === 'ok' ? { state: 'ok', data: k.newest.data.map((n) => ({ ...n, title: `${n.title}, ${LONG.replace(/-/g, ' ')}` })) } : k.newest,
+        } satisfies KnowledgeSummary;
+      }
       if (a) return body;
-      const n = (body as { nodes: KnowledgeNode[] }).nodes;
-      return { nodes: grown(n, 300, (base, i): KnowledgeNode => ({ ...base, key: `extreme/${i}`, num: String(1000 + i).padStart(4, '0'), path: `nodes/${1000 + i}.md`, title: `When the gateway rejects an argument the client cached, reconnect before retrying, ${LONG.replace(/-/g, ' ')} (${i})`, tags: ['gateway', 'clients', 'schema-cache', 'reconnect', 'retries'] })) };
+      // The shelf is paged on the server, so a busy shelf is a page of titles longer than any layout planned for under a
+      // total in the thousands, never more rows than the page asked for.
+      const l = body as KnowledgeList;
+      return {
+        ...l,
+        rows: l.rows.map((n, i) => ({ ...n, title: `When the gateway rejects an argument the client cached, reconnect before retrying, ${LONG.replace(/-/g, ' ')} (${i})`, tags: ['gateway', 'clients', 'schema-cache', 'reconnect', 'retries'] })),
+        total: l.total ? l.total + 9_000 : 0,
+        summary: { ...l.summary, standing: l.total ? l.summary.standing + 9_000 : 0 },
+      } satisfies KnowledgeList;
     }
     case 'skills': return a ? body : { skills: (body as { skills: Skill[] }).skills.map((s) => ({ ...s, runs: big(s.runs), calls: big(s.calls), refusals: big(s.refusals), durationTotal: s.durationTotal === null ? null : s.durationTotal * 900 })) };
     case 'people': {
       const p = (body as { people: Person[] }).people;
       return { people: grown(p, 180, (base, i): Person => ({ ...base, email: `person.${i}.${LONG}@example.com`, name: `Person ${i} ${LONG.replace(/-/g, ' ')}`, teams: own ? [`${own} (member)`] : Array.from({ length: 6 }, (_, j) => `team-${j + 1} (member)`), tokens: 40 + i })) };
     }
-    case 'activity': return { ...(body as object), events: (body as { events: ActivityEvent[] }).events.map((e) => ({ ...e, subject: e.subject ? `${e.subject}_${LONG}` : e.subject })) };
-    case 'runs': { const r = (body as Runs).totals; return { totals: { runs: big(r.runs), calls: big(r.calls), refusals: big(r.refusals), mb: r.mb === null ? null : r.mb * 1_000 } } satisfies Runs; }
+    case 'activity': {
+      if (a === 'summary') {
+        const s = body as ActivitySummary;
+        return {
+          ...s,
+          // Each owner grown on its own and the refused total their sum, so the four still add up to it.
+          weeks: s.weeks.state === 'ok' ? { state: 'ok', data: s.weeks.data.map((w) => {
+            const owners = { guardrail: big(w.owners.guardrail), ours: big(w.owners.ours), theirs: big(w.owners.theirs), other: big(w.owners.other) };
+            const refused = owners.guardrail + owners.ours + owners.theirs + owners.other;
+            return { ...w, owners, refused, calls: big(w.calls) + refused };
+          }) } : s.weeks,
+          groups: s.groups.state === 'ok' ? { state: 'ok', data: { ...s.groups.data, groups: s.groups.data.groups + 640, rest: { groups: 640, count: 91_000 },
+            rows: s.groups.data.rows.map((g) => ({ ...g, count: big(g.count), tool: `${g.tool}_${LONG}`, message: g.message && `${g.message}. The argument was rejected before any write: the schema the client cached predates the release that renamed it, so every call from that client fails the same way until it reconnects.` })) } } : s.groups,
+        } satisfies ActivitySummary;
+      }
+      const l = body as ActivityLog;
+      return { ...l, rows: l.rows.map((e) => ({ ...e, tool: e.tool && `${e.tool}_${LONG}` })), total: l.total ? l.ceiling : 0 } satisfies ActivityLog;
+    }
+    case 'runs': {
+      const r = body as Runs;
+      return {
+        ...r,
+        tiles: { ...r.tiles, runs: { value: big(r.tiles.runs.value ?? 0), why: null } },
+        bySkill: r.bySkill.state === 'ok' ? { state: 'ok', data: { rows: r.bySkill.data.rows.map((k) => ({ ...k, skill: `${k.skill}-${LONG}`, runs: big(k.runs) })) } } : r.bySkill,
+        recent: r.recent.state === 'ok' ? { state: 'ok', data: { total: big(r.recent.data.total), rows: r.recent.data.rows.map((k) => ({ ...k, skill: `${k.skill}-${LONG}`, initiative: k.initiative && `${k.initiative}-${LONG}` })) } } : r.recent,
+      } satisfies Runs;
+    }
     default: return body;
   }
 }
