@@ -15,12 +15,15 @@ import { formatDate } from '@/lib/format-date';
 import { formatKb } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
 import { pendingContext } from '@/views/context';
-import { outputOf, runsContext, runsPath } from '@/views/runs-context';
+import { runsContext, runsPath } from '@/views/runs-context';
 
 /**
  * Every run the active team recorded since its first, by the skill that drove it. A run's bytes are its observed
  * output: the response bytes of its own calls, never what a model read and never a cost.
  */
+/** A byte count as the tiles show it. */
+const kb = (bytes: number): string => formatKb(bytes / 1024);
+
 export function RunsView() {
   useLive(['runs']);
   const q = useConsole<Runs>(runsPath('all'));
@@ -44,9 +47,11 @@ export function RunsView() {
       <Row split="tiles">
         <MetricTile label="Runs" icon={<Timer />} value={r?.tiles.runs.value ?? mark} note={r?.since ? `Since ${formatDate(r.since)}` : 'Skill runs recorded'} />
         {/* Null is not zero: a run nothing measured has answered nothing anyone counted. */}
-        <MetricTile label="Observed output per run" icon={<HardDrive />} value={!r ? mark : r.tiles.outputPerRun.value === null ? 'Not measured' : formatKb(r.tiles.outputPerRun.value / 1024)}
+        {/* Bytes go in as a number with their formatter, as every other tile's figure does: a formatted string is a word
+            value, which wraps on a phone and grew the tile when the read landed (CLS 0.138 on /runs). */}
+        <MetricTile label="Observed output per run" icon={<HardDrive />} value={!r ? mark : r.tiles.outputPerRun.value ?? 'Not measured'} format={kb}
                     note={r?.tiles.outputPerRun.unmeasured ? `${r.tiles.outputPerRun.unmeasured} not measured` : 'Response bytes of its own calls'} />
-        <MetricTile label="Largest run" icon={<Trophy />} value={!r ? mark : r.tiles.largest ? outputOf(r.tiles.largest.bytes) : 'None measured'} note={r?.tiles.largest ? r.tiles.largest.skill : 'Its skill'} />
+        <MetricTile label="Largest run" icon={<Trophy />} value={!r ? mark : r.tiles.largest?.bytes ?? 'None measured'} format={kb} note={r?.tiles.largest ? r.tiles.largest.skill : 'Its skill'} />
       </Row>
       {q.error && q.error.status !== 401 ? <EmptyState kind="error" title="The runs did not load" action={<Button size="sm" onClick={() => void q.refetch()}>Retry</Button>}>{q.error.message}</EmptyState> : null}
       <SkillWorkPanel

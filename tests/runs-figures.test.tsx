@@ -83,8 +83,9 @@ describe('the figures on the runs page', () => {
     // Waited on the FIGURE, not on the tile's note: the note is a fixed sentence and is on the page before the read
     // resolves, so waiting for it and then reading the figure meets the pending `…`.
     await waitFor(() => expect(figure('Runs')).toBe('42'));
-    expect(figure('Observed output per run')).toBe('512 KB');
-    expect(figure('Largest run')).toBe('2.0 MB');
+    // A figure's unit is its own span, as on every tile, so its text runs on.
+    expect(figure('Observed output per run')).toBe('512KB');
+    expect(figure('Largest run')).toBe('2.0MB');
     expect(text()).toContain('2 not measured');
     expect(text()).toContain('sdlc-execute');
   });

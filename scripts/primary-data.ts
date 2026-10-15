@@ -54,6 +54,8 @@ const TABLE = 'main table tbody tr';
 const BODY = 'main div.text-ink-2.break-words > *, main [data-split="2/3"] > .card:first-child pre';
 /** A skill's cost record: its figures. */
 const FIGURES = 'main .t-figure';
+/** A skill the active team never ran: the page's sentence saying so is its record, since the figures are the team's. */
+const NEVER_RUN = 'main [data-never-run]';
 
 /**
  * What counts as each detail route's primary data, read off the built app served against the fake gateway on
@@ -81,7 +83,7 @@ const DETAIL: Record<string, string> = {
   '/plugins/sdlc/sdlc-spec': FIGURES,
   '/plugins/sdlc/sdlc-spec?view=read': BODY,
   '/plugins/sdlc/sdlc-spec?view=references': TABLE,
-  '/plugins/research-kit/research-scan': FIGURES,
+  '/plugins/research-kit/research-scan': NEVER_RUN,
 };
 
 type Target = { path: string; ready: string; text: string; rail: boolean };

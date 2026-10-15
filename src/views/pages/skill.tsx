@@ -32,7 +32,8 @@ type View = 'cost' | 'read' | 'references';
 /** How the active team's runs of a skill went, from its recorded runs. A skill the team never called is absent from that record, so never run is a state, not a gap. */
 function Cost({ skill, detail }: { skill: Skill | undefined; detail: SkillDetail }) {
   if (!skill) {
-    return <Panel title="Its runs"><EmptyState title="Never run" className="py-10">Your team has recorded no call against this skill, so there is nothing to measure. Its text is under The skill.</EmptyState></Panel>;
+    // `data-never-run` is what scripts/primary-data.ts waits for on a skill the team never ran: this sentence is its record.
+    return <Panel title="Its runs"><div data-never-run=""><EmptyState title="Never run" className="py-10">Your team has recorded no call against this skill, so there is nothing to measure. Its text is under The skill.</EmptyState></div></Panel>;
   }
   const rate = skill.calls ? (skill.refusals / skill.calls) * 100 : 0;
   const heaviest = detail.surfaces[0];
