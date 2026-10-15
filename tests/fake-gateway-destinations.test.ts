@@ -283,7 +283,7 @@ describe('Runs', () => {
 });
 
 describe('Plugins and skills', () => {
-  const PLUGIN = ['agentName', 'comparability', 'description', 'documents', 'entry', 'gates', 'install', 'owner', 'plugin', 'release', 'required', 'score', 'servers', 'skills', 'stages', 'version', 'yourTeam'];
+  const PLUGIN = ['agentName', 'comparability', 'description', 'documents', 'entry', 'flow', 'gates', 'install', 'owner', 'plugin', 'release', 'required', 'score', 'servers', 'skills', 'stages', 'version', 'yourTeam'];
   const SCORE = ['lower', 'protocol', 'scoredAt', 'standing', 'upper', 'value'];
 
   it.each(BOTH)('answers %s the catalog with its public scores and the team\'s own use', async (_, who) => {
@@ -294,7 +294,7 @@ describe('Plugins and skills', () => {
       expect(keys(p.yourTeam)).toEqual(['calls', 'failed', 'lastRun']);
       expect(p.install).toBe(`claude plugin install ${p.plugin}@zz-stack`);
       if (p.score) { expect(keys(p.score)).toEqual(SCORE); expect(keys(p.score.protocol)).toEqual(['key', 'version']); }
-      for (const s of p.skills) expect(keys(s)).toEqual(['calls', 'description', 'evals', 'everRun', 'isEntry', 'lastRun', 'name', 'origin', 'position', 'source', 'version', 'versions']);
+      for (const s of p.skills) expect(keys(s)).toEqual(['calls', 'description', 'everRun', 'isEntry', 'lastRun', 'name', 'origin', 'position', 'source', 'version', 'versions']);
     }
     const by = (name: string) => plugins.find((p: Json) => p.plugin === name);
     expect(plugins.filter((p: Json) => p.required).map((p: Json) => p.plugin).sort()).toEqual(['zz-access', 'zz-core']);
@@ -319,7 +319,7 @@ describe('Plugins and skills', () => {
     expect(core.find((s: Json) => s.name === 'zz-handover')).toMatchObject({ timedRuns: 0, durationMedian: null });
     expect((await read(MEMBER, 'skills?plugin=no-such-plugin')).skills).toEqual([]);
     expect(keys(await read(MEMBER, 'skills/sdlc-spec'))).toEqual(['busiestTools', 'skill', 'surfaces']);
-    expect((await ask(MEMBER, 'skills/no-such-skill')).status).toBe(404);
+    expect(await read(MEMBER, 'skills/no-such-skill')).toEqual({ skill: 'no-such-skill', surfaces: [], busiestTools: [] });
   });
 
   it('accepts no write under the plugins or the skills', async () => {

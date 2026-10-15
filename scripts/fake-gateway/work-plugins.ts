@@ -55,11 +55,13 @@ export function plugins(who: Me): Answer {
     const used = mine.filter((r) => skills.some((s) => s.name === r.skill));
     return {
       ...p,
+      // A flow is a package that declares documents, as the catalog's one classifier decides.
+      flow: p.documents.length > 0,
       skills: skills.map((s) => {
         const runs = mine.filter((r) => r.skill === s.name);
         return {
           name: s.name, position: s.position, isEntry: s.name === p.entry, origin: s.origin, version: s.version, description: s.description, source: s.source,
-          versions: p.plugin === 'research-kit' ? 1 : 3 + (s.name.length % 5), calls: runs.reduce((n, r) => n + r.calls, 0), evals: p.release?.evals ?? 0,
+          versions: p.plugin === 'research-kit' ? 1 : 3 + (s.name.length % 5), calls: runs.reduce((n, r) => n + r.calls, 0),
           everRun: runs.length > 0, lastRun: latest(runs),
         };
       }),
@@ -104,11 +106,10 @@ export function skills(who: Me, q: URLSearchParams): Answer {
 }
 
 /** `GET /skills/:name`, as `who`: the active team's calls of one skill by door and its busiest tools; a skill the
- *  catalog does not ship is no skill. */
+ *  catalog does not ship has no figures, as the gateway answers it. */
 export function skillDetail(who: Me, name: string): Answer {
   const team = who.activeTeam;
   if (!team) return NO_TEAM;
-  if (!CATALOG_SKILLS.some((s) => s.name === name)) return [404, { error: `skill ${name} does not exist on this deployment` }];
   const runs = runsOf(team).filter((r) => r.skill === name);
   const calls = runs.reduce((n, r) => n + r.calls, 0);
   const refusals = runs.reduce((n, r) => n + r.refusals, 0);

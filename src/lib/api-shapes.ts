@@ -370,7 +370,7 @@ interface PluginSkill {
   version: string | null; description: string | null; source: string | null;
   versions: number;
   /** The active team's calls of it, whether the team ever ran it, and when it last did. */
-  calls: number; evals: number;
+  calls: number;
   everRun: boolean; lastRun: string | null;
 }
 
@@ -393,6 +393,8 @@ export interface PluginRow {
   version: string | null;
   /** Every MCP server this plugin's skills reach, from its manifest. */
   servers: string[];
+  /** Whether it is a flow: a package that declares documents, as the catalog's one classifier decides. */
+  flow: boolean;
   /** The method's running order, when it declares one. Empty for a package that is a
    *  toolbox rather than a method. */
   stages: string[];

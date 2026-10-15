@@ -28,12 +28,12 @@ const ME = {
 
 const skill = (name: string, everRun: boolean) => ({
   name, position: null, isEntry: false, origin: 'ours' as const, version: null, description: null, source: null,
-  versions: 1, calls: everRun ? 3 : 0, evals: 0, everRun, lastRun: everRun ? '2026-10-01T00:00:00Z' : null,
+  versions: 1, calls: everRun ? 3 : 0, everRun, lastRun: everRun ? '2026-10-01T00:00:00Z' : null,
 });
 
 const plugin = (name: string, over: Partial<PluginRow>): PluginRow => ({
   plugin: name, owner: 'zz', agentName: null, description: `${name} does a thing`, version: null,
-  servers: [], stages: [], entry: null, documents: [], gates: 0, skills: [], release: null,
+  servers: [], flow: false, stages: [], entry: null, documents: [], gates: 0, skills: [], release: null,
   required: false, install: `claude plugin install ${name}@zz-stack`, score: null, comparability: 'No score to compare',
   yourTeam: { calls: 0, failed: 0, lastRun: null }, ...over,
 });
