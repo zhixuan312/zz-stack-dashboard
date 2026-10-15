@@ -5,15 +5,15 @@ import { plural } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
 import { When } from '@/console/when';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import type { CandidateStatus, PluginEval } from '@/lib/api-shapes';
+import type { CandidateStatus, PluginEval, PluginEvalFound } from '@/lib/api-shapes';
 
 const STATUS_LABEL: Record<CandidateStatus, string> = {
   recorded: 'recorded', awaiting_build: 'awaiting build', valid: 'valid',
-  invalid: 'invalid', released: 'released', rolled_back: 'rolled back',
+  invalid: 'invalid',
 };
 const STATUS_TONE: Record<CandidateStatus, 'positive' | 'critical' | 'warning' | 'neutral'> = {
   recorded: 'neutral', awaiting_build: 'warning', valid: 'positive',
-  invalid: 'critical', released: 'positive', rolled_back: 'critical',
+  invalid: 'critical',
 };
 
 /** A quiet sub-panel state, plain text rather than a mascot — see PluginEvalOverview.tsx's own
@@ -34,7 +34,7 @@ function Quiet({ title, description }: { title: string; description: string }) {
  * proposed to (spec v8 FR-51), it can never be released, and the aside says so before the table
  * does.
  */
-export function EvalEvolution({ pluginEval }: { pluginEval: PluginEval }) {
+export function EvalEvolution({ pluginEval }: { pluginEval: PluginEvalFound }) {
   const { candidates, ownershipMode } = pluginEval;
   const aside = ownershipMode === 'evaluation_only' ? 'Evaluation only' : `${candidates.length} ${plural(candidates.length, 'candidate')}`;
   if (!candidates.length) {
@@ -106,7 +106,6 @@ export function EvalAutomationTrust({ pluginEval }: { pluginEval: PluginEval }) 
         <div className="flex flex-col gap-3 text-xs">
           <Field k="Origin" v={pluginEval.origin ?? '—'} />
           <Field k="Owner team" v={pluginEval.ownerTeam ?? 'none recorded'} />
-          <Field k="Evolvable" v={pluginEval.evolvable ? 'yes' : 'no'} />
           <Field k="Release owners" v={pluginEval.releaseOwners.length ? pluginEval.releaseOwners.join(', ') : 'none — cannot be released'} />
         </div>
         <div>

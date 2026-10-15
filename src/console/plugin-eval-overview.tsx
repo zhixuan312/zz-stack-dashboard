@@ -7,9 +7,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { formatPercent } from '@/lib/format';
 import { formatCount } from '@/lib/format-units';
 import { plural } from '@/lib/format';
-import type { DimensionScore, GuardrailScore, PluginEval } from '@/lib/api-shapes';
+import type { DimensionScore, PluginEval, PluginEvalFound } from '@/lib/api-shapes';
 
-type Run = NonNullable<PluginEval['run']>;
+type Run = NonNullable<PluginEvalFound['run']>;
 
 const STATUS_TONE: Record<string, 'positive' | 'warning' | 'neutral'> = {
   established: 'positive', provisional: 'warning', not_established: 'neutral',
@@ -35,10 +35,6 @@ function Quiet({ title, description }: { title: string; description: string }) {
  * number beside the status word — even where `overallScore` happens to be non-null, which
  * `scoreRun` (zz-stack) never actually produces, this reads the status rather than the number
  * so the console rule holds by construction, not by the scorer's own accident.
- *
- * `run.runStatus !== 'completed'` is a different quiet state from "not established": a
- * pending/running/failed/cancelled run has no result columns at all, and saying so is not the
- * same claim as a completed run whose evidence fell short.
  */
 export function EvalHeadline({ pluginEval }: { pluginEval: PluginEval }) {
   if (!pluginEval.found) {
@@ -66,9 +62,6 @@ export function EvalHeadline({ pluginEval }: { pluginEval: PluginEval }) {
       {!run ? (
         <Quiet title="Not evaluated yet"
           description="A subject version exists, but no EVALUATE run has scored it." />
-      ) : run.runStatus !== 'completed' ? (
-        <Quiet title={`Run ${run.runStatus}`}
-          description="This run has not finished, so it carries no score yet." />
       ) : (
         <div className="flex flex-wrap items-end gap-x-10 gap-y-4">
           <div>
@@ -107,33 +100,39 @@ export function EvalHeadline({ pluginEval }: { pluginEval: PluginEval }) {
 }
 
 /** Health: whether this run's non-compensatory guardrails held (FR-23) — the number stays for
- *  diagnosis, but a fail never disappears into the average above. */
+ *  diagnosis, but a fail never disappears into the average above. A guardrail is a measure the
+ *  protocol flags as one, read where it sits in its dimension; the run's `guardrailStatus` is the
+ *  one verdict over all of them, so no row claims a verdict of its own. */
 export function EvalHealth({ run }: { run: Run | null }) {
-  if (!run || run.runStatus !== 'completed') {
-    return <Panel title="Health"><Quiet title="Nothing to check" description="No completed run to read guardrails from." /></Panel>;
+  if (!run) {
+    return <Panel title="Health"><Quiet title="Nothing to check" description="No scored run to read guardrails from." /></Panel>;
   }
+  const guardrails = run.dimensions.flatMap((d) => d.measures.filter((m) => m.guardrail).map((m) => ({ ...m, dimension: d.key })));
+  const status = run.guardrailStatus ?? 'not_established';
   return (
-    <Panel title="Health" description={`${run.guardrails.length} ${plural(run.guardrails.length, 'guardrail')}`}>
-      {run.guardrails.length === 0 ? (
+    <Panel
+      title="Health"
+      description={`${guardrails.length} ${plural(guardrails.length, 'guardrail')}`}
+      actions={<Badge tone={status === 'pass' ? 'positive' : status === 'fail' ? 'critical' : 'neutral'}>{status}</Badge>}
+    >
+      {guardrails.length === 0 ? (
         <p className="py-2 text-sm text-ink-3">This protocol declares no critical guardrail.</p>
       ) : (
         <Table>
           <TableHead>
             <TableRow>
               <TableHeader>Guardrail</TableHeader>
-              <TableHeader hideBelow="sm" align="center">Value vs threshold</TableHeader>
-              <TableHeader align="right">Status</TableHeader>
+              <TableHeader hideBelow="sm" align="center">Dimension</TableHeader>
+              <TableHeader align="right">Value</TableHeader>
             </TableRow>
           </TableHead>
           <TableBody>
-            {run.guardrails.map((g: GuardrailScore) => (
-              <TableRow key={g.key}>
+            {guardrails.map((g) => (
+              <TableRow key={`${g.dimension}/${g.key}`}>
                 <TableCell className="font-mono text-xs">{g.key}</TableCell>
-                <TableCell hideBelow="sm" align="center" className="tabular-nums text-xs">
-                  {g.value === null ? '—' : g.value.toFixed(4)} / {g.threshold.toFixed(2)}
-                </TableCell>
-                <TableCell align="right">
-                  <Badge tone={g.status === 'pass' ? 'positive' : g.status === 'fail' ? 'critical' : 'neutral'}>{g.status}</Badge>
+                <TableCell hideBelow="sm" align="center" className="font-mono text-xs text-ink-2">{g.dimension}</TableCell>
+                <TableCell align="right" className="tabular-nums text-xs">
+                  {g.value === null ? <span className="text-ink-3">{g.excludedReason ?? 'no value'}</span> : g.value.toFixed(4)}
                 </TableCell>
               </TableRow>
             ))}
@@ -155,8 +154,8 @@ export function EvalHealth({ run }: { run: Run | null }) {
  * sideways): five columns fit, and `Kind` is the one that drops first on a narrow card.
  */
 export function EvalQuality({ run }: { run: Run | null }) {
-  if (!run || run.runStatus !== 'completed') {
-    return <Panel title="Quality"><Quiet title="Nothing to score" description="No completed run to read dimensions from." /></Panel>;
+  if (!run) {
+    return <Panel title="Quality"><Quiet title="Nothing to score" description="No scored run to read dimensions from." /></Panel>;
   }
   const applicable = run.dimensions.filter((d) => d.applicable);
   const notApplicable = run.dimensions.filter((d) => !d.applicable);

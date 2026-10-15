@@ -5,16 +5,17 @@ import { EvalLearning, EvalUsage } from '@/console/plugin-eval-evidence';
 import { Tooltip } from 'radix-ui';
 
 const TooltipProvider = Tooltip.Provider;
-import type { EvalFinding, PluginEval } from '@/lib/api-shapes';
+import type { EvalFinding, PluginEvalFound } from '@/lib/api-shapes';
 
 /** `EvalLearning`'s composition bar is a Radix tooltip — see plugin-eval-overview.test.tsx. */
 const render = (ui: ReactElement) => rtlRender(<TooltipProvider>{ui}</TooltipProvider>);
 
-type Run = NonNullable<PluginEval['run']>;
+type Run = NonNullable<PluginEvalFound['run']>;
 const run = (coverage: Run['coverage']): Run => ({
-  id: 'r1', runStatus: 'completed', scoreStatus: 'established', overallScore: 7,
-  scoreInterval: null, guardrailStatus: 'pass', guardrails: [],
-  protocol: { key: 'p', version: 1 }, createdAt: '2026-09-01T00:00:00Z', dimensions: [], coverage,
+  id: 'r1', scoreStatus: 'established', overallScore: 7,
+  scoreInterval: { lower: 6.5, upper: 7.5 }, measureCoverage: 1, establishmentBlockedBy: [],
+  guardrailStatus: 'pass', scorerVersion: '0.91.0',
+  protocol: { key: 'p', version: 1 }, createdAt: '2026-09-01T00:00:00Z', scoredAt: '2026-09-01T01:00:00Z', dimensions: [], coverage,
 });
 const finding = (over: Partial<EvalFinding>): EvalFinding => ({
   id: 'f1', pattern: 'a refusal leaks the request id', ownerKind: 'plugin', ownerRef: null,
@@ -53,10 +54,5 @@ describe('EvalLearning', () => {
   it('says plainly when a run produced no finding at all', () => {
     render(<EvalLearning findings={{ strengths: [], defects: [], unknowns: [] }} />);
     expect(screen.getByText('No finding recorded')).toBeInTheDocument();
-  });
-
-  it('reads as a quiet state, not a mascot, when there is no run to read from', () => {
-    render(<EvalLearning findings={null} />);
-    expect(screen.getByText('Nothing recorded')).toBeInTheDocument();
   });
 });

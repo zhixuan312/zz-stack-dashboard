@@ -7,9 +7,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { formatPercent } from '@/lib/format';
 import { formatCount } from '@/lib/format-units';
 import { plural } from '@/lib/format';
-import type { EvalFinding, PluginEval } from '@/lib/api-shapes';
+import type { EvalFinding, PluginEvalFound } from '@/lib/api-shapes';
 
-type Run = NonNullable<PluginEval['run']>;
+type Run = NonNullable<PluginEvalFound['run']>;
 
 /** A quiet sub-panel state, plain text rather than a mascot — see PluginEvalOverview.tsx's own
  *  `Quiet` for why the illustrated `EmptyState` is not reached for every waiting section. */
@@ -41,7 +41,7 @@ function Rate({ label, n, of }: { label: string; n: number | null; of: number | 
 /** Usage: the real production evidence this run's score was built from — every rate here
  *  carries the denominator it was measured against, per this task's own console rule. */
 export function EvalUsage({ run }: { run: Run | null }) {
-  if (!run || !run.coverage) {
+  if (!run) {
     return <Panel title="Usage"><Quiet title="No evidence yet" description="OBSERVE has not built a production snapshot for this subject." /></Panel>;
   }
   const { usableRunCount, totalRunCount, surfaceObserved, surfaceTotal } = run.coverage;
@@ -91,10 +91,7 @@ function FindingTable({ rows, emptyLabel }: { rows: EvalFinding[]; emptyLabel: s
 /** Learning: what this run found (FR-12) — every defect, strength and unknown, classified by
  *  who owns it. Only a `plugin`-owned defect can seed a candidate (FR-34), so ownership is the
  *  one column that decides what happens next, not decoration. */
-export function EvalLearning({ findings }: { findings: PluginEval['findings'] | null }) {
-  if (!findings) {
-    return <Panel title="Learning"><Quiet title="Nothing recorded" description="No completed run to read findings from." /></Panel>;
-  }
+export function EvalLearning({ findings }: { findings: PluginEvalFound['findings'] }) {
   const total = findings.strengths.length + findings.defects.length + findings.unknowns.length;
   if (total === 0) {
     return <Panel title="Learning"><Quiet title="No finding recorded" description="This run produced no strength, defect or unknown yet." /></Panel>;
@@ -127,7 +124,7 @@ export function EvalLearning({ findings }: { findings: PluginEval['findings'] | 
   );
 }
 
-/** The five evidence panels at once, for the state every plugin starts in: no completed run, so
+/** The five evidence panels at once, for the state every plugin starts in: no scored run, so
  *  no guardrail, dimension, snapshot, finding or candidate to show.
  *
  *  DELIBERATE: one panel, not five. Five full-width cards each saying "nothing yet" is a screen
@@ -136,8 +133,8 @@ export function EvalLearning({ findings }: { findings: PluginEval['findings'] | 
  *  to drawing them separately. */
 export function EvalNotYet({ evaluationOnly }: { evaluationOnly: boolean }) {
   const parts: [string, string][] = [
-    ['Health', 'No completed run to read guardrails from.'],
-    ['Quality', 'No completed run to read dimensions from.'],
+    ['Health', 'No scored run to read guardrails from.'],
+    ['Quality', 'No scored run to read dimensions from.'],
     ['Usage', 'OBSERVE has not built a production snapshot for this subject.'],
     ['Learning', 'No strength, defect or unknown recorded yet.'],
     ['Evolution', evaluationOnly
@@ -145,7 +142,7 @@ export function EvalNotYet({ evaluationOnly }: { evaluationOnly: boolean }) {
       : 'No finding has started an improvement run.'],
   ];
   return (
-    <Panel title="Evaluation evidence" description="no completed run yet" flush>
+    <Panel title="Evaluation evidence" description="no scored run yet" flush>
       <dl className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5">
         {parts.map(([k, v]) => (
           <div key={k} className="flex flex-col gap-1.5 border-line px-5 py-4 [&:not(:first-child)]:border-t sm:[&:not(:first-child)]:border-t-0 sm:[&:nth-child(n+3)]:border-t xl:[&:nth-child(n+3)]:border-t-0 xl:[&:not(:first-child)]:border-l">

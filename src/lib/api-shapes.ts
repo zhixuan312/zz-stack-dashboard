@@ -423,9 +423,9 @@ export interface PluginRow {
   } | null;
 }
 
-/** One canonical scoring dimension of a run, exactly as `zz.eval_run.dimension_scores`
- *  (spec v8 FR-19/FR-20) stores it — the gateway reads this jsonb straight back rather than
- *  re-deriving it, so this type is that column's own shape. `score` is null both when a
+/** One canonical scoring dimension of a run (spec v8 FR-19/FR-20), as the gateway rebuilds it
+ *  from `zz.eval_run_dimension`, `zz.eval_dimension` and the run's assessments (plugin-eval.ts
+ *  `loadDimensions`). `score` is null both when a
  *  dimension is not `applicable` (see `notApplicableReason`) and when a *required* measure of
  *  an applicable one has no value — the two read differently in `applicable`. */
 export interface DimensionScore {
@@ -439,7 +439,6 @@ interface MeasureScore {
   key: string; evaluatorType: string; weight: number; required: boolean;
   value: number | null; excluded: boolean; excludedReason: string | null; guardrail: boolean;
 }
-export interface GuardrailScore { key: string; threshold: number; value: number | null; status: 'pass' | 'fail' | 'not_established' }
 export interface EvalFinding {
   id: string; pattern: string; ownerKind: string | null; ownerRef: string | null;
   /** A count, not the refs themselves — evidence is read on the eval_run this page already
@@ -448,40 +447,48 @@ export interface EvalFinding {
   expectedEffect: unknown; decision: string; decisionNote: string | null;
 }
 /** `zz.candidate.status` — where a candidate's search stands. */
-export type CandidateStatus = 'recorded' | 'awaiting_build' | 'valid' | 'invalid' | 'released' | 'rolled_back';
+export type CandidateStatus = 'recorded' | 'awaiting_build' | 'valid' | 'invalid';
 
 /** `GET /plugins/:plugin/eval` (spec v8 FR-55) — the whole plugin-evaluation story for one
  *  plugin: the gateway's own reduction of Tasks I-1 to I-29's protocol/evaluation/candidate/
  *  release tables, since the dashboard holds no data layer of its own (see plugin-eval.ts's
- *  module header in zz-stack).
+ *  module header in zz-stack, which authors this shape).
  *
- *  `found: false` is a plugin name nothing has registered — a legitimate answer, not a
- *  refusal. `subjectVersion: null` is registered but never profiled (OBSERVE has not run).
- *  `run: null` is profiled but never scored (EVALUATE has not run). Each is its own quiet
- *  state; the page never guesses which from the others. */
-export interface PluginEval {
-  plugin: string; found: boolean;
-  origin: string | null; ownerTeam: string | null; evolvable: boolean; releaseOwners: string[];
+ *  `found: false` is a plugin name nothing has registered — a legitimate answer, not a refusal,
+ *  and it carries the name and nothing else. `subjectVersion: null` is registered but never
+ *  profiled (OBSERVE has not run). `run: null` is profiled but never scored: the gateway answers
+ *  only the newest SCORED run, so a run here always has a result. Each is its own quiet state;
+ *  the page never guesses which from the others. */
+export type PluginEval = { plugin: string; found: false } | PluginEvalFound;
+export interface PluginEvalFound {
+  plugin: string; found: true;
+  origin: string; ownerTeam: string | null; releaseOwners: string[];
   /** `evaluation_only` on a `plugin_register`ed third-party subject (spec v8 decision 12): it
    *  may be evaluated and diagnosed, and Evolution may still list proposals, but nothing here
    *  can ever be released. */
-  ownershipMode: 'owned' | 'evaluation_only' | null;
+  ownershipMode: 'owned' | 'evaluation_only';
   subjectVersion: { id: string; declaredVersion: string; contentDigest: string; capturedAt: string } | null;
   run: {
-    id: string; runStatus: string;
+    id: string;
     scoreStatus: 'established' | 'provisional' | 'not_established' | null;
     overallScore: number | null;
-    scoreInterval: unknown;
+    scoreInterval: { lower: number | null; upper: number | null };
+    /** The share of the protocol's measures that carried a value, 0 to 1. */
+    measureCoverage: number | null;
+    /** What kept the score from establishing; empty when nothing did. */
+    establishmentBlockedBy: string[];
+    /** The run's verdict over every guardrail measure together: a guardrail is a measure in
+     *  `dimensions` flagged `guardrail`, and no threshold or per-measure verdict is sent. */
     guardrailStatus: 'pass' | 'fail' | 'not_established' | null;
-    guardrails: GuardrailScore[];
+    scorerVersion: string | null;
     protocol: { key: string; version: number };
-    createdAt: string;
+    createdAt: string; scoredAt: string;
     dimensions: DimensionScore[];
     /** Usage's own evidence — every rate here carries this denominator (FR-9). */
     coverage: {
       usableRunCount: number | null; totalRunCount: number | null;
       surfaceObserved: number | null; surfaceTotal: number | null;
-    } | null;
+    };
   } | null;
   evaluatorTrust: { stableKey: string; state: string | null; qualifiedAt: string | null }[];
   findings: { strengths: EvalFinding[]; defects: EvalFinding[]; unknowns: EvalFinding[] };

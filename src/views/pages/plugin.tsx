@@ -22,7 +22,7 @@ import { EvalHeadline, EvalHealth, EvalQuality } from '@/console/plugin-eval-ove
 import { failureOf, Query } from '@/console/query';
 import { When } from '@/console/when';
 import { freshnessOf, useConsole } from '@/lib/api';
-import type { PluginEval, PluginRow } from '@/lib/api-shapes';
+import type { PluginEval, PluginEvalFound, PluginRow } from '@/lib/api-shapes';
 import { formatCount } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
 import { pendingContext } from '@/views/context';
@@ -52,10 +52,10 @@ function skillColumns(plugin: string): Column<PluginSkill>[] {
   ]);
 }
 
-/** Nothing any evidence panel could draw: no completed run, no finding, no candidate. */
-function notYet(e: PluginEval): boolean {
-  const f = e.found ? e.findings : null;
-  return !e.run && (f ? f.strengths.length + f.defects.length + f.unknowns.length : 0) === 0 && e.candidates.length === 0;
+/** Nothing any evidence panel could draw: no scored run, no finding, no candidate. */
+function notYet(e: PluginEvalFound): boolean {
+  const f = e.findings;
+  return !e.run && f.strengths.length + f.defects.length + f.unknowns.length === 0 && e.candidates.length === 0;
 }
 
 /**
@@ -136,14 +136,14 @@ export function PluginView({ params }: { params: Promise<{ plugin: string }> }) 
             ) : (
               <Panel title="About this plugin" actions={<AskAbout iconBelowSm question={`What does the evaluation of ${plugin} say, with no manifest of it to read?`} />}><p className="t-small text-ink-3">Registered through plugin_register as a third-party subject, with no manifest, skills or documents to show. Its evaluation is below.</p></Panel>
             )}
-            {notYet(e) ? <EvalNotYet evaluationOnly={e.ownershipMode === 'evaluation_only'} /> : (
+            {!e.found || notYet(e) ? <EvalNotYet evaluationOnly={e.found && e.ownershipMode === 'evaluation_only'} /> : (
               <>
                 <Row split="1/2">
                   <EvalHealth run={e.run} />
                   <EvalUsage run={e.run} />
                 </Row>
                 <EvalQuality run={e.run} />
-                <EvalLearning findings={e.found ? e.findings : null} />
+                <EvalLearning findings={e.findings} />
                 <EvalEvolution pluginEval={e} />
               </>
             )}

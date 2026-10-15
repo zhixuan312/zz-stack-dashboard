@@ -1,17 +1,17 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { EvalAutomationTrust, EvalEvolution } from '@/console/plugin-eval-evolution';
-import type { PluginEval } from '@/lib/api-shapes';
+import type { PluginEvalFound } from '@/lib/api-shapes';
 
-type Candidate = PluginEval['candidates'][number];
+type Candidate = PluginEvalFound['candidates'][number];
 const candidate = (over: Partial<Candidate>): Candidate => ({
   id: 'c1', hypothesis: 'tighten the refusal message', status: 'valid',
   complexityDelta: 12, touchedComponents: [], touchedOwners: ['zz'], createdAt: '2026-09-03T00:00:00Z',
   build: { ok: true, stage: null }, release: null, ...over,
 });
-function pluginEval(over: Partial<PluginEval> = {}): PluginEval {
+function pluginEval(over: Partial<PluginEvalFound> = {}): PluginEvalFound {
   return {
-    plugin: 'zz-core', found: true, origin: 'platform', ownerTeam: 'zz', evolvable: true,
+    plugin: 'zz-core', found: true, origin: 'platform', ownerTeam: 'zz',
     releaseOwners: ['zz'], ownershipMode: 'owned', subjectVersion: null, run: null,
     evaluatorTrust: [], findings: { strengths: [], defects: [], unknowns: [] }, candidates: [],
     ...over,
@@ -58,23 +58,23 @@ describe('EvalEvolution', () => {
 
   it('names a rollback, not the plain release status, once one has happened', () => {
     render(<EvalEvolution pluginEval={pluginEval({ candidates: [candidate({
-      status: 'rolled_back',
+      status: 'valid',
       release: { status: 'released', reason: null, releasedDeclaredVersion: '1.1.0',
         releaseRef: 'rel-1', verdict: 'rolled_back', verificationReason: 'regression on capability suite', rolledBack: true },
     })] })} />);
-    expect(screen.getAllByText('rolled back')).toHaveLength(2);
+    expect(screen.getAllByText('rolled back')).toHaveLength(1);
     expect(screen.queryByText('released')).not.toBeInTheDocument();
   });
 });
 
 describe('EvalAutomationTrust', () => {
-  it('shows ownership: origin, owner team, evolvable, and release owners', () => {
+  it('shows ownership: origin, owner team and release owners', () => {
     render(<EvalAutomationTrust pluginEval={pluginEval({
-      origin: 'third_party', ownerTeam: null, evolvable: false, releaseOwners: [],
+      origin: 'third_party', ownerTeam: null, releaseOwners: [],
     })} />);
     expect(screen.getByText('third_party')).toBeInTheDocument();
     expect(screen.getByText('none recorded')).toBeInTheDocument();
-    expect(screen.getByText('no')).toBeInTheDocument();
+    expect(screen.queryByText('Evolvable')).not.toBeInTheDocument();
     expect(screen.getByText('none — cannot be released')).toBeInTheDocument();
   });
 

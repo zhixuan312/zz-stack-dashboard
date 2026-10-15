@@ -8,7 +8,7 @@
  * no release and no evaluation.
  */
 import type {
-  ActivityEvent, Overview, PluginEval, PluginRow, Runs, Skill, SkillDetail, SkillText,
+  ActivityEvent, Overview, PluginEval, PluginEvalFound, PluginRow, Runs, Skill, SkillDetail, SkillText,
 } from '../../src/lib/api-shapes.ts';
 import { ago, now } from './clock.ts';
 
@@ -123,45 +123,58 @@ export function skillText(plugin: string, name: string): SkillText | null {
   };
 }
 
-const NO_EVAL = (plugin: string, found: boolean): PluginEval => ({
-  plugin, found, origin: found ? 'platform' : null, ownerTeam: found ? 'atlas' : null, evolvable: found, releaseOwners: found ? ['atlas'] : [],
-  ownershipMode: found ? 'owned' : null, subjectVersion: null, run: null, evaluatorTrust: [],
-  findings: { strengths: [], defects: [], unknowns: [] }, candidates: [],
+/** A registered plugin's evaluation before anything was scored: the gateway's `base` and its empty sections. */
+const NO_RUN = (plugin: string): PluginEvalFound => ({
+  plugin, found: true, origin: 'platform', ownerTeam: 'atlas', releaseOwners: ['atlas'], ownershipMode: 'owned',
+  subjectVersion: null, run: null, evaluatorTrust: [], findings: { strengths: [], defects: [], unknowns: [] }, candidates: [],
 });
 
+/** COUPLED: the gateway's `GET /api/console/plugins/:plugin/eval` (zz-stack, services/gateway/src/console/plugin-eval.ts)
+ *  and checks/console-plugin-eval-shape.ts there, which holds this answer's key sets to the gateway's for each branch:
+ *  `sdlc` scored, `zz-core` profiled and never scored, `zz-access` registered and never profiled, anything else not
+ *  registered. */
 export function pluginEval(plugin: string): PluginEval {
-  if (plugin === 'zz-core') return { ...NO_EVAL(plugin, true), subjectVersion: { id: 'sv_zzcore_1', declaredVersion: '0.92.10', contentDigest: '7c01aa94', capturedAt: ago(40) } };
-  if (plugin === 'zz-access') return NO_EVAL(plugin, true);
-  if (plugin !== 'sdlc') return NO_EVAL(plugin, false);
+  if (plugin === 'zz-core') return { ...NO_RUN(plugin), subjectVersion: { id: 'sv_zzcore_1', declaredVersion: '0.92.10', contentDigest: '7c01aa94', capturedAt: ago(40) } };
+  if (plugin === 'zz-access') return NO_RUN(plugin);
+  if (plugin !== 'sdlc') return { plugin, found: false };
   const dim = (key: string, kind: string, score: number | null, applicable = true) => ({
     key, canonicalKind: kind, score, applicable, notApplicableReason: applicable ? null : 'no run of this plugin reached the surface this measures',
-    weight: 0.25, required: true, measuresScored: applicable ? 3 : 0, measuresTotal: 3,
+    weight: 0.25, required: true, measuresScored: applicable ? 2 : 0, measuresTotal: 2,
     measures: [
-      { key: `${key}.rate`, evaluatorType: 'computed', weight: 0.5, required: true, value: score, excluded: false, excludedReason: null, guardrail: false },
-      { key: `${key}.judged`, evaluatorType: 'model', weight: 0.5, required: false, value: score === null ? null : score - 0.04, excluded: !applicable, excludedReason: applicable ? null : 'not applicable', guardrail: false },
+      { key: `${key}.rate`, evaluatorType: 'deterministic', weight: 0.5, required: true, value: score, excluded: !applicable, excludedReason: applicable ? null : 'not applicable', guardrail: false },
+      { key: `${key}.judged`, evaluatorType: 'bounded_semantic', weight: 0.5, required: false, value: score === null ? null : score - 0.04, excluded: !applicable, excludedReason: applicable ? null : 'not applicable', guardrail: false },
     ],
   });
+  const completion = dim('completion', 'effectiveness', 0.91);
+  // Two guardrails, one with a value and one no run reached; the run's `guardrailStatus` is the one verdict over both.
+  completion.measures.push(
+    { key: 'refusal-rate', evaluatorType: 'deterministic', weight: 0, required: true, value: 0.031, excluded: false, excludedReason: null, guardrail: true },
+    { key: 'abandoned-runs', evaluatorType: 'deterministic', weight: 0, required: false, value: null, excluded: true, excludedReason: 'no run reached the surface this measures', guardrail: true },
+  );
+  completion.measuresScored = 3;
+  completion.measuresTotal = 4;
   const finding = (id: string, pattern: string, decision: string) => ({ id, pattern, ownerKind: 'plugin', ownerRef: 'sdlc', evidenceRefs: 4, expectedEffect: null, decision, decisionNote: decision === 'deferred' ? null : 'Applied in 0.92.10.' });
   return {
-    plugin, found: true, origin: 'platform', ownerTeam: 'atlas', evolvable: true, releaseOwners: ['atlas'], ownershipMode: 'owned',
+    ...NO_RUN(plugin),
     subjectVersion: { id: 'sv_sdlc_7', declaredVersion: '0.92.10', contentDigest: '2f16e125', capturedAt: ago(26) },
     run: {
-      id: 'run_sdlc_12', runStatus: 'completed', scoreStatus: 'established', overallScore: 8.64, scoreInterval: null, guardrailStatus: 'pass',
-      guardrails: [{ key: 'refusal-rate', threshold: 0.1, value: 0.031, status: 'pass' }, { key: 'abandoned-runs', threshold: 0.2, value: null, status: 'not_established' }],
-      protocol: { key: 'sdlc-protocol', version: 3 }, createdAt: ago(20),
-      dimensions: [dim('completion', 'outcome', 0.91), dim('gate-discipline', 'process', 0.88), dim('evidence', 'quality', 0.79), dim('handover', 'outcome', null, false)],
+      id: 'run_sdlc_12', scoreStatus: 'established', overallScore: 8.64, scoreInterval: { lower: 8.1, upper: 9.1 },
+      measureCoverage: 0.88, establishmentBlockedBy: [], guardrailStatus: 'pass', scorerVersion: '0.92.10',
+      protocol: { key: 'sdlc-protocol', version: 3 }, createdAt: ago(20), scoredAt: ago(19),
+      dimensions: [completion, dim('gate-discipline', 'constraint_adherence', 0.88), dim('evidence', 'reliability', 0.79), dim('handover', 'generalization', null, false)],
       coverage: { usableRunCount: 61, totalRunCount: 68, surfaceObserved: 14, surfaceTotal: 16 },
     },
-    evaluatorTrust: [{ stableKey: 'judge.evidence.v2', state: 'qualified', qualifiedAt: ago(200) }, { stableKey: 'judge.handover.v1', state: null, qualifiedAt: null }],
+    evaluatorTrust: [{ stableKey: 'judge.evidence.v2', state: 'operationally_qualified', qualifiedAt: ago(200) }, { stableKey: 'judge.handover.v1', state: null, qualifiedAt: null }],
     findings: {
-      strengths: [finding('f_1', 'Every approved spec names a checker for each criterion', 'accepted')],
+      strengths: [finding('f_1', 'Every approved spec names a checker for each criterion', 'applied')],
       defects: [finding('f_2', 'Plan audit re-reads the whole plan on every round instead of the changed sections', 'deferred'), finding('f_3', 'A refused document_approve is retried without reading the refusal', 'deferred')],
       unknowns: [finding('f_4', 'Whether handover reaches the next initiative at all', 'deferred')],
     },
+    // Oldest first, as the gateway orders them.
     candidates: [
-      { id: 'cand_1', hypothesis: 'Audit only the sections a revision changed', status: 'valid', complexityDelta: -2, touchedComponents: null, touchedOwners: ['atlas'], createdAt: ago(18), build: { ok: true, stage: null }, release: null },
-      { id: 'cand_2', hypothesis: 'Read the refusal before retrying an approval', status: 'released', complexityDelta: 1, touchedComponents: null, touchedOwners: ['atlas'], createdAt: ago(90), build: { ok: true, stage: null }, release: { status: 'released', reason: null, releasedDeclaredVersion: '0.92.10', releaseRef: 'v0.92.10', verdict: 'better', verificationReason: 'Refused approvals fell from 41 to 9 over the next week.', rolledBack: false } },
-      { id: 'cand_3', hypothesis: 'Split sdlc-spec into decide and write', status: 'invalid', complexityDelta: 4, touchedComponents: null, touchedOwners: ['atlas'], createdAt: ago(130), build: { ok: false, stage: 'gate' }, release: null },
+      { id: 'cand_2', hypothesis: 'Read the refusal before retrying an approval', status: 'valid', complexityDelta: 1, touchedComponents: ['skills/sdlc-spec'], touchedOwners: ['atlas'], createdAt: ago(130), build: { ok: true, stage: null }, release: { status: 'released', reason: 'Refused approvals fell from 41 to 9 over the next week.', releasedDeclaredVersion: '0.92.10', releaseRef: '2f16e125a0c4b7d9e1f3a5c7b9d1e3f5a7c9b1d3', verdict: 'established', verificationReason: 'Refused approvals fell from 41 to 9 over the next week.', rolledBack: false } },
+      { id: 'cand_3', hypothesis: 'Split sdlc-spec into decide and write', status: 'invalid', complexityDelta: 4, touchedComponents: ['skills/sdlc-spec'], touchedOwners: ['atlas'], createdAt: ago(90), build: { ok: false, stage: 'gate' }, release: null },
+      { id: 'cand_1', hypothesis: 'Audit only the sections a revision changed', status: 'valid', complexityDelta: -2, touchedComponents: ['skills/sdlc-plan-audit'], touchedOwners: ['atlas'], createdAt: ago(18), build: { ok: true, stage: null }, release: null },
     ],
   };
 }

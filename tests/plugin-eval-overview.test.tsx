@@ -5,23 +5,24 @@ import { EvalHeadline, EvalHealth, EvalQuality } from '@/console/plugin-eval-ove
 import { Tooltip } from 'radix-ui';
 
 const TooltipProvider = Tooltip.Provider;
-import type { DimensionScore, PluginEval } from '@/lib/api-shapes';
+import type { DimensionScore, PluginEvalFound } from '@/lib/api-shapes';
 
 /** `EvalQuality`'s composition bar is a Radix tooltip, which throws outside a provider — the
  *  app mounts one once, in `Providers`; tests/charts.test.tsx carries the same wrapper. */
 const render = (ui: ReactElement) => rtlRender(<TooltipProvider>{ui}</TooltipProvider>);
 
-/** A minimal completed run, overridden per test. FR-55: overall score, status and protocol
+/** A minimal scored run, overridden per test. FR-55: overall score, status and protocol
  *  version come first, so most tests here are about `EvalHeadline`. */
-function pluginEval(over: Partial<PluginEval> = {}): PluginEval {
+function pluginEval(over: Partial<PluginEvalFound> = {}): PluginEvalFound {
   return {
-    plugin: 'zz-core', found: true, origin: 'platform', ownerTeam: 'zz', evolvable: true,
+    plugin: 'zz-core', found: true, origin: 'platform', ownerTeam: 'zz',
     releaseOwners: ['zz'], ownershipMode: 'owned',
     subjectVersion: { id: 's1', declaredVersion: '1.0.0', contentDigest: 'abc', capturedAt: '2026-09-01T00:00:00Z' },
     run: {
-      id: 'r1', runStatus: 'completed', scoreStatus: 'established', overallScore: 7.42,
-      scoreInterval: null, guardrailStatus: 'pass', guardrails: [],
-      protocol: { key: 'zz-core-protocol', version: 3 }, createdAt: '2026-09-02T00:00:00Z',
+      id: 'r1', scoreStatus: 'established', overallScore: 7.42,
+      scoreInterval: { lower: 7, upper: 7.8 }, measureCoverage: 1, establishmentBlockedBy: [],
+      guardrailStatus: 'pass', scorerVersion: '0.91.0',
+      protocol: { key: 'zz-core-protocol', version: 3 }, createdAt: '2026-09-02T00:00:00Z', scoredAt: '2026-09-02T01:00:00Z',
       dimensions: [], coverage: { usableRunCount: 40, totalRunCount: 50, surfaceObserved: 8, surfaceTotal: 10 },
     },
     evaluatorTrust: [], findings: { strengths: [], defects: [], unknowns: [] }, candidates: [],
@@ -44,12 +45,12 @@ describe('EvalHeadline', () => {
   });
 
   it('never shows a number when the score is not established — the status word stands alone', () => {
+    const base = pluginEval();
     const pe = pluginEval({
       run: {
-        id: 'r1', runStatus: 'completed', scoreStatus: 'not_established', overallScore: null,
-        scoreInterval: null, guardrailStatus: 'not_established', guardrails: [],
-        protocol: { key: 'zz-core-protocol', version: 1 }, createdAt: '2026-09-02T00:00:00Z',
-        dimensions: [], coverage: null,
+        ...base.run!, scoreStatus: 'not_established', overallScore: null,
+        scoreInterval: { lower: null, upper: null }, guardrailStatus: 'not_established',
+        establishmentBlockedBy: ['effectiveness'],
       },
     });
     render(<EvalHeadline pluginEval={pe} />);
@@ -59,44 +60,34 @@ describe('EvalHeadline', () => {
     expect(screen.getAllByText('not_established').length).toBeGreaterThan(0);
   });
 
-  it('reports run_status, not "not evaluated yet", for a run that has not finished', () => {
-    const pe = pluginEval({
-      run: {
-        id: 'r1', runStatus: 'running', scoreStatus: null, overallScore: null,
-        scoreInterval: null, guardrailStatus: null, guardrails: [],
-        protocol: { key: 'zz-core-protocol', version: 1 }, createdAt: '2026-09-02T00:00:00Z',
-        dimensions: [], coverage: null,
-      },
-    });
-    render(<EvalHeadline pluginEval={pe} />);
-    expect(screen.getByText('Run running')).toBeInTheDocument();
-    expect(screen.queryByText(/not evaluated yet/i)).not.toBeInTheDocument();
-  });
-
   it('says "not evaluated yet" only when there is truly no run', () => {
     render(<EvalHeadline pluginEval={pluginEval({ run: null })} />);
     expect(screen.getByText('Not evaluated yet')).toBeInTheDocument();
   });
 
   it('says a third-party subject is not registered without guessing a score', () => {
-    render(<EvalHeadline pluginEval={pluginEval({ found: false, run: null, subjectVersion: null })} />);
+    render(<EvalHeadline pluginEval={{ plugin: 'zz-core', found: false }} />);
     expect(screen.getByText(/is not registered/)).toBeInTheDocument();
   });
 });
 
 describe('EvalHealth', () => {
-  it('shows each guardrail with its value against its threshold, and pass/fail', () => {
+  it('shows each guardrail measure from its dimension with its value, and the run\'s one verdict over them', () => {
     const pe = pluginEval();
-    render(<EvalHealth run={{ ...pe.run!, guardrails: [
-      { key: 'refusal_rate', threshold: 0.5, value: 0.62, status: 'pass' },
-      { key: 'latency_p50', threshold: 0.9, value: 0.3, status: 'fail' },
-    ] }} />);
-    expect(screen.getByText('0.6200 / 0.50')).toBeInTheDocument();
-    expect(screen.getByText('pass')).toBeInTheDocument();
+    const measure = { evaluatorType: 'deterministic', weight: 0, required: true, excluded: false, excludedReason: null };
+    render(<EvalHealth run={{ ...pe.run!, guardrailStatus: 'fail', dimensions: [dim({ measures: [
+      { ...measure, key: 'refusal_rate', value: 0.62, guardrail: true },
+      { ...measure, key: 'latency_p50', value: 0.3, guardrail: true },
+      { ...measure, key: 'completion', value: 0.9, guardrail: false },
+    ] })] }} />);
+    expect(screen.getByText('0.6200')).toBeInTheDocument();
+    expect(screen.getByText('0.3000')).toBeInTheDocument();
+    expect(screen.queryByText('completion')).not.toBeInTheDocument();
     expect(screen.getByText('fail')).toBeInTheDocument();
+    expect(screen.getByText('2 guardrails')).toBeInTheDocument();
   });
 
-  it('reads as a quiet state rather than a table when nothing has completed', () => {
+  it('reads as a quiet state rather than a table when nothing has been scored', () => {
     render(<EvalHealth run={null} />);
     expect(screen.getByText('Nothing to check')).toBeInTheDocument();
   });

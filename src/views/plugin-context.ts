@@ -27,15 +27,17 @@ export function pluginContext(name: string, { plugin: p, evaluation: e, ...arriv
     if (neverRun.length) insights.push({ text: `Never run: ${listed(neverRun, (s) => s.name, `see /plugins/${name}`)}.` });
   } else unknowns.push(`${name} has no manifest, skills or documents to show: it is a third-party subject, registered for evaluation only.`);
 
-  if (e.run) {
-    facts.push({ label: 'Evaluation score', value: score(e.run), definition: 'The newest completed evaluation run, 0 to 10, against the protocol named below.' });
+  if (!e.found) unknowns.push('It has never been evaluated.');
+  else if (e.run) {
+    facts.push({ label: 'Evaluation score', value: score(e.run), definition: 'The newest scored evaluation run, 0 to 10, against the protocol named below.' });
     insights.push({ text: `Evaluated on ${formatDate(e.run.createdAt)} against protocol ${e.run.protocol.key} v${e.run.protocol.version}${e.subjectVersion ? `, measuring version ${e.subjectVersion.declaredVersion}` : ''}; guardrails ${e.run.guardrailStatus ?? 'not established'}.` });
     const scored = e.run.dimensions.filter((d) => d.applicable && d.score !== null);
     if (scored.length) insights.push({ text: `By dimension: ${scored.map((d) => `${d.key} ${d.score!.toFixed(1)}`).join(', ')}.` });
-    const failed = e.run.guardrails.filter((g) => g.status === 'fail');
-    if (failed.length) insights.push({ text: `Failing ${plural(failed.length, 'guardrail')}: ${failed.map((g) => `${g.key} (${g.value ?? 'no value'} against ${g.threshold})`).join(', ')}.` });
-    if (e.run.coverage?.usableRunCount != null) insights.push({ text: `It was scored on ${formatCount(e.run.coverage.usableRunCount)} usable ${plural(e.run.coverage.usableRunCount, 'run')}${e.run.coverage.totalRunCount != null ? ` of ${formatCount(e.run.coverage.totalRunCount)}` : ''}.` });
-  } else unknowns.push(e.subjectVersion ? 'It has been profiled and never scored: no evaluation run has completed.' : 'It has never been evaluated.');
+    // The run's guardrail status is one verdict over every guardrail measure; no measure carries a verdict of its own.
+    const guardrails = e.run.dimensions.flatMap((d) => d.measures.filter((m) => m.guardrail));
+    if (guardrails.length) insights.push({ text: `Guardrail ${plural(guardrails.length, 'measure')}, ${e.run.guardrailStatus ?? 'not established'} as one verdict over all of them: ${listed(guardrails, (g) => `${g.key} ${g.value ?? `no value (${g.excludedReason ?? 'none recorded'})`}`, 'see the plugin\'s page', 6)}.` });
+    if (e.run.coverage.usableRunCount != null) insights.push({ text: `It was scored on ${formatCount(e.run.coverage.usableRunCount)} usable ${plural(e.run.coverage.usableRunCount, 'run')}${e.run.coverage.totalRunCount != null ? ` of ${formatCount(e.run.coverage.totalRunCount)}` : ''}.` });
+  } else unknowns.push(e.subjectVersion ? 'It has been profiled and never scored: no evaluation run has a score.' : 'It has never been evaluated.');
 
   if (e.found) {
     const f = e.findings;
