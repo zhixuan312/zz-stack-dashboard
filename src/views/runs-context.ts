@@ -23,7 +23,7 @@ export function runsPath(skill: string, { limit = PAGE_SIZE, offset = 0 }: { lim
 }
 
 /** Observed output in words, from bytes; a run nothing measured has none to quote. */
-export const outputOf = (bytes: number | null): string => (bytes === null ? 'not measured' : formatKb(bytes / 1024));
+const outputOf = (bytes: number | null): string => (bytes === null ? 'not measured' : formatKb(bytes / 1024));
 
 /** How a run stands, in words: active while its last call is recent, never running beyond it. */
 const stateOf = (r: RunRow): string => (r.state === 'active' ? 'active' : r.state === 'one_call' ? 'one call' : `last call ${formatDateTime(r.lastCallAt)}`);
@@ -37,7 +37,7 @@ export function runsContext(runs: Runs, { skill, ...arrival }: { skill: string }
   if (bySkill.length) {
     insights.push({ text: `By skill, the most observed output per run first: ${listed(bySkill, (s) => `${s.skill} (${formatCount(s.runs)} ${plural(s.runs, 'run')}, ${s.outputPerRun === null ? 'output not measured' : `${formatKb(s.outputPerRun / 1024)} a run`}, ${s.typicalMs === null ? 'none longer than one call' : `typically ${formatSeconds(s.typicalMs / 1000)}`}${s.shareRefused ? `, ${(s.shareRefused * 100).toFixed(1)}% refused` : ''})`, 'see /runs', 5)}.` });
   }
-  if (recent?.rows.length) insights.push({ text: `The latest runs, of ${formatCount(recent.total)}: ${listed(recent.rows, (r) => `${r.skill} on ${clip(r.initiative ?? 'no initiative', 40)}, ${formatCount(r.calls)} ${plural(r.calls, 'call')}, ${outputOf(r.bytes)}, ${stateOf(r)}`, 'page on /runs', 5)}.` });
+  if (recent?.rows.length) insights.push({ text: `The latest runs, of ${formatCount(recent.total)}: ${listed(recent.rows, (r) => `${r.skill} on ${clip(r.initiative ?? 'no initiative', 40)}, ${formatCount(r.calls)} ${plural(r.calls, 'call')}, ${outputOf(r.bytes)}, ${stateOf(r)}`, 'the runs by skill on /runs', 5)}.` });
   return budgeted({
     view: 'runs',
     title: 'Runs',
