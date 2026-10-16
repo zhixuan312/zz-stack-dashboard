@@ -57,11 +57,13 @@ export function ActivityView() {
     ? activityContext({ summary: summary.data, log: log.data, filters, page, ...arrival })
     : pendingContext({ view: 'activity', title: 'Activity', address: '/activity', scope: 'your active team\'s real work' }, failureOf(summary));
   const mark = summary.isPending ? '…' : '—';
-  // The log read stops at its own ceiling, so past it the page holds the latest matching events alone and a count
-  // that printed the total by itself would read as the whole of them. `…` is coming and `—` is not: a failed read of
-  // the log must not keep saying "a moment".
+  // The log read stops at its own ceiling, and the gateway's `total` is the matches UP TO that ceiling — so at the
+  // ceiling the count is as far as the read reached and the console cannot tell "exactly that many" from "more". The
+  // clause therefore says what was read and not what was left: "of the latest 500" would report a truncation at
+  // exactly 500 that may not exist. `…` is coming and `—` is not: a failed read of the log must not keep saying
+  // "a moment".
   const counted = log.data
-    ? `${log.data.total} ${plural(log.data.total, 'event')}${log.data.total >= log.data.ceiling ? `, of the latest ${log.data.ceiling} read` : ''}`
+    ? `${log.data.total} ${plural(log.data.total, 'event')}${log.data.total >= log.data.ceiling ? `, the latest ${log.data.ceiling} read` : ''}`
     : log.isPending ? '…' : '—';
   const option = (v: string) => ({ value: v, label: v });
 

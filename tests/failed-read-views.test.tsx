@@ -314,13 +314,17 @@ describe('the activity log read stops at its own ceiling', () => {
     maintenance: { calls: 0, refused: 0 },
   };
 
-  const LOG: ActivityLog = { meta: META, rows: [], total: 700, ceiling: 500, kinds: ['tool_call'], tools: ['zz_search'] };
+  // The gateway's total is the matches UP TO the ceiling, so this is the boundary the wording has to survive: 500
+  // against a ceiling of 500 is as far as the read reached, and the clause must not report a truncation it cannot
+  // know about.
+  const LOG: ActivityLog = { meta: META, rows: [], total: 500, ceiling: 500, kinds: ['tool_call'], tools: ['zz_search'] };
 
-  it('the count says how far the read reached, not just what it held', async () => {
+  it('the count says how far the read reached, and claims no more than that', async () => {
     window.history.replaceState(null, '', '/activity');
     // The summary first: `/activity` is a prefix of both reads.
     onlyMe([['/activity/summary', SUMMARY], ['/activity', LOG]]);
     mount(<ActivityView />);
-    await waitFor(() => expect(text()).toContain('700 events, of the latest 500 read'));
+    await waitFor(() => expect(text()).toContain('500 events, the latest 500 read'));
+    expect(text()).not.toContain('of the latest');
   });
 });
