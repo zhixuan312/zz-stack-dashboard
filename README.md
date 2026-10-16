@@ -177,20 +177,22 @@ for every pair in both themes and every accent, then route types, lint, types an
 
 ```sh
 pnpm verify           # the gate, a build against the fake gateway, the route and size checks
-pnpm verify --full    # the whole standard: the audit, the presses, the keyboard path, Web Vitals
+pnpm verify --full    # the whole standard: the assistant walk-through, the audit, the presses, the keyboard path, Web Vitals
 ```
 
 **`--full` is the whole standard, and the two depths are not interchangeable.** The default
-stops after the static checks and a three-route navigation smoke — about 40 s. `--full` builds
+stops after the static checks and a three-route navigation smoke — about a minute. `--full` builds
 the console against `scripts/fake-gateway/` (synthetic records, writes accepted and forgotten)
-because its presses approve, revoke and archive whatever a page offers, then audits every page at
-five widths in both themes, presses every control, walks the whole keyboard path
-(`scripts/keyboard.ts`), and runs the product's own browser checks: the Approve banners a page load
-cannot reach (`scripts/approve-banners.ts`), that a change made anywhere reaches the page a person
-is looking at (`scripts/live-check.ts`), that a control showing a selection shows the one that
-was pressed (`scripts/selection-check.ts`), and that no page disagrees with its own server HTML
-when the main thread is slow enough for its reads to answer before it hydrates
-(`scripts/hydration-check.ts`). Then LCP, INP and CLS on a mid-range phone — about 22 minutes.
+because its presses approve, revoke and archive whatever a page offers, then walks the assistant
+through a page (`scripts/assistant.ts`), audits every page at five widths in both themes, presses
+every control, walks the whole keyboard path (`scripts/keyboard.ts`), and runs the product's own
+browser checks: the Approve banners a page load cannot reach (`scripts/approve-banners.ts`), that a
+change made anywhere reaches the page a person is looking at (`scripts/live-check.ts`), that a
+control showing a selection shows the one that was pressed (`scripts/selection-check.ts`), that no
+page disagrees with its own server HTML when the main thread is slow enough for its reads to answer
+before it hydrates (`scripts/hydration-check.ts`), that the workspace menu moves between Work and
+Platform (`scripts/workspace-switch.ts`), and that a page's own data lands beside its largest
+paint (`scripts/primary-data.ts`). Then LCP, INP and CLS on a mid-range phone — about 22 minutes.
 
 **Which depth CI runs is `.github/workflows/gate.yml`, and it runs `--full`.** It did not always: the
 workflow ran the shallow default for its whole life while its own comment described the deep one, so
@@ -209,10 +211,11 @@ A panel in the shell that reads the page a person is on, answers about it from t
 platform's own records, and changes nothing. It is Meridian's assistant, mounted the way
 Meridian's guide describes; `docs/brief.md` records what this console decided about it.
 
-It is off until the four `ASSISTANT_*` variables are set, read from the environment on every
-request, so one build serves both. With none set there is no launcher, no panel and no Ask,
-and `POST /api/assistant` answers 404. It also reads through `ZZ_GATEWAY`, which every page
-already needs. `.env.example` lists them.
+It is off until the provider, the key and the model are set, plus `ASSISTANT_BASE_URL` for
+`openai-compatible`; every one of them is read from the environment on every request, so one
+build serves both. With none set there is no launcher, no panel and no Ask, and
+`POST /api/assistant` answers 404. It also reads through `ZZ_GATEWAY`, which every page already
+needs. `.env.example` lists them.
 
 | Variable | Meaning |
 |---|---|
@@ -289,6 +292,8 @@ docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
 | **Runs** | Every run by the skill that drove it |
 | **Activity** | The audit log |
 | **People** | Everyone the platform knows, and what they can reach |
+| **Settings** | The person's own tokens, client setup and teams, plus team and platform administration where their role carries it |
+| **Status** | How often real work called a tool the wrong way in the last whole week |
 
 Statistics come before judgment on every analysis page, because a score with no idea what
 it cost to produce is a number nobody can act on.

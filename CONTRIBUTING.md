@@ -16,14 +16,14 @@ pnpm typecheck            # tsc --noEmit
 pnpm lint                 # eslint
 pnpm test                 # vitest
 pnpm gate                 # Meridian's gate: tokens, specifications, contrast, types, tests
-pnpm verify               # the gate, a build against the fake gateway, the browser audit, every control pressed
+pnpm verify --full        # the gate, a build against the fake gateway, the browser audit, every control pressed
 ```
 
-`pnpm verify` is the whole standard and what CI runs. The specification check
-(`scripts/check.ts`) holds Meridian's rules and the console's own, written as properties
-rather than test names: *"a timestamp is never printed raw"*, *"no map is keyed by the names
-of one flow or skill"*, *"markdown renders raw HTML inert"*. A red gate is never bypassed: if a
-check is wrong, fix the check and say in its comment what it was wrong about.
+`pnpm verify --full` is the whole standard and what CI runs. The specification checks
+(`scripts/check.ts` and `scripts/check.local.ts`) hold Meridian's rules and the console's own,
+written as properties rather than test names: *"a timestamp is never printed raw"*, *"no map is
+keyed by the names of one flow or skill"*, *"markdown renders raw HTML inert"*. A red gate is
+never bypassed: if a check is wrong, fix the check and say in its comment what it was wrong about.
 
 ## Where things are
 

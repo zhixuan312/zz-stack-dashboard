@@ -103,12 +103,11 @@ a time or `sources/2026-10-06-call.md` arrives as a single segment named after i
   presence may not depend on what `/me` says; the sentence says which of the two people has the choice, and the row holds
   the height it would have either way.
 - **Cache Components is on, and every route is partial.** `cacheComponents` and `partialPrefetching` are set in
-  `next.config.ts`, and `scripts/route-policy.ts` reads 2 static and 21 partial of 23 non-API routes. Every page asks
+  `next.config.ts`, and `scripts/route-policy.ts` reads 2 static and 22 partial of 24 non-API routes. Every page asks
   `gate` on the server first, inside the boundary its own `loading.tsx` gives it, so a page's static shell is the frame
   and its loading page, and the page streams in once the gate has passed. `app/(dash)/layout.tsx` is a Server Component
   rendering the shell, and the rail, the tools and the palette each resolve what they need behind their own
-  `<Suspense>` with a skeleton fallback. A route that fails with `CLIENT_HOOK_DYNAMIC` is asking for a boundary, and a page gets smaller
-  for it — `/initiatives` serves 38 KiB of HTML where it served 65.
+  `<Suspense>` with a skeleton fallback. A route that fails with `CLIENT_HOOK_DYNAMIC` is asking for a boundary.
 - **Live data: the release's `ConsoleLive`, with React Query where the release refreshes the router.** One stream per
   tab carries hints naming a collection and never data, and the tab reads that collection again. The release's
   `src/views/console-live.tsx` is adopted whole with its one product-specific part replaced: there `refresh` calls a
@@ -132,10 +131,11 @@ a time or `sources/2026-10-06-call.md` arrives as a single segment named after i
 - **The assistant is Meridian's, mounted the way Meridian's guide says, and it changes nothing.** The panel, the
   route (`app/api/assistant/route.ts`) and `src/lib/assistant/` are the release's own; `src/data/` and `src/views/` are
   this console's: the access policy, one read-only collection per list, and one shared context per page (decision
-  0011), built by a pure function the page and its `view_<name>` tool both call. It is off until the four `ASSISTANT_*`
-  variables are set, read per request. Every change in this console stays on its page, by the person: no collection
-  gives an agent a tool that writes, and what a page does is declared `pageOnly` so the assistant says where it is
-  done. Approval above all: a document is approved by a member who was shown that exact snapshot, never by an agent.
+  0011), built by a pure function the page and its `view_<name>` tool both call. It is off until the provider, the key
+  and the model are set, plus `ASSISTANT_BASE_URL` for `openai-compatible`, read per request. Every change in this
+  console stays on its page, by the person: no collection gives an agent a tool that writes, and what a page does is
+  declared `pageOnly` so the assistant says where it is done. Approval above all: a document is approved by a member
+  who was shown that exact snapshot, never by an agent.
 - **This app's server reads the gateway as the person, in one module.** Every page's gate and the chrome read `/me`
   once per request, and the assistant's route has to know who is asking before a model is reached while its tools look
   records up as a reply is written. `src/data/gateway.ts` sends the caller's own `zz_console` cookie, that cookie
@@ -191,15 +191,15 @@ a time or `sources/2026-10-06-call.md` arrives as a single segment named after i
 - **Platform mode / team mode.** The scope a superadmin is reading in. A member is always in team mode.
 - **Waiting.** A gate document written and not approved: on an initiative that is still open, or on a closed one whose
   closing document was corrected after the close. The bell's own word.
-- **Routable door.** An MCP endpoint a client can be pointed at; the console shows which are live and which are refused.
+- **Routable door.** An MCP endpoint a client can be pointed at. The console does not draw them yet.
 - **Fleet surface.** A page that reads across every team — Plugins, Runs, Teams and Activity. Dropped in team mode.
 
 ## How it is checked
 
 `pnpm verify` runs the gate (tokens, specifications, the console's own rules, contrast, lint, types, tests), builds the
-app against a fake gateway (`scripts/fake-gateway`), serves it, and audits the routes it is configured for. The fake
-gateway exists because the presses approve, revoke and archive whatever a page offers, so they must never reach the real
-deployment. Its records are synthetic; nobody in them is a real person.
+app against a fake gateway (`scripts/fake-gateway`), serves it, and runs the route policy, size and navigation checks it
+is configured for. The fake gateway exists because the presses approve, revoke and archive whatever a page offers, so
+they must never reach the real deployment. Its records are synthetic; nobody in them is a real person.
 
 `pnpm verify --full` adds every mapped rail route and the exhaustive suites; `pnpm verify --perf` takes 20 samples per
 route, device and condition. What a run did not exercise, its coverage line says.

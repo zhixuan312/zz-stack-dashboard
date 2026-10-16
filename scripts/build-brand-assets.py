@@ -6,7 +6,8 @@ its outputs are committed, so nothing else in the build needs Python.
 
 Every output is a pure function of a master and a size, so re-running produces the same pixels.
 
-DELIBERATE: `mascot-working.png` is not built. No surface in the console uses it.
+DELIBERATE: `mascot-working.png`, `mascot-celebrating.png` and `mascot-thinking.png` are not built. No
+surface in the console uses them.
 """
 import sys
 from pathlib import Path
@@ -68,6 +69,11 @@ def emit(master, stem, rendered):
 
 
 # --- the in-app mark -------------------------------------------------------
+#
+# COUPLED: `wordmark.png` has no reader in a browser — `app.logo` names the SVG beside it — but it is
+# not a leftover. zz-stack's gate reads this checkout's copy and asserts it is byte-identical to the
+# panel's own mark (checks/document-panel.ts). So `public/` is where that PNG has to live, and
+# deleting it here fails a check in the other repository.
 emit('wordmark-zz.png', 'wordmark', 60)
 
 

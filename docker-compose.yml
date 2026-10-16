@@ -23,9 +23,9 @@ services:
     # ZZ_GATEWAY on this host is the gateway's public address (the api. host in zz-stack's Caddyfile): the gateway is
     # published on the host's loopback, which a container on its own bridge network cannot reach.
     #
-    # The assistant is off unless the host sets the four ASSISTANT_* variables. Each passes through from the host's own
-    # .env beside this file and defaults to empty, which the app reads as unset. No value is written in this file, and
-    # the key is never in the image.
+    # The assistant is off unless the host sets the provider, the key and the model, plus ASSISTANT_BASE_URL for
+    # openai-compatible. Each passes through from the host's own .env beside this file and defaults to empty, which the
+    # app reads as unset. No value is written in this file, and the key is never in the image.
     environment:
       - ASSISTANT_PROVIDER=${ASSISTANT_PROVIDER:-}
       - ASSISTANT_API_KEY=${ASSISTANT_API_KEY:-}

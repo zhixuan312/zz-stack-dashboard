@@ -14,6 +14,7 @@ What your active team has learned, kept as lessons, each out of a real initiativ
 - Loading: skeleton rows; the tiles read `…`.
 - Empty: nothing to read yet.
 - Filtered to nothing: Clear filters.
+- A read that failed: the tiles read `—` and the shelf's figures say why, and the list says the lessons did not load. `…` means a read is still coming, and a read that has failed is not still coming.
 
 ## Agents
 

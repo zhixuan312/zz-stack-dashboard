@@ -11,7 +11,7 @@ One team: what it holds, how much of its work is open and waiting, and who is in
 ## States
 
 - Loading: tiles read an ellipsis, tables show skeleton rows.
-- No such team: the description says so and nothing else renders.
+- No such team: an empty state naming the slug, with the way back to the list. The read answered rather than failed, so it is the `filtered` empty and not the error one — but a blank body would be a dead end, and this page owes the reader a way on.
 
 ## Agents
 

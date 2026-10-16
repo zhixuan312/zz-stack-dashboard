@@ -19,7 +19,7 @@ type Persona = {
 export type VerifyConfig = {
   /**
    * Detail pages checked beside every static route, one per state worth seeing (a normal record, a failed one, a missing
-   * one). `pnpm verify --extra a,b` replaces them for one run.
+   * one).
    */
   detailRoutes: string[];
   /**
@@ -72,7 +72,8 @@ const config: VerifyConfig = {
   /**
    * Measured on 2026-10-12, served against the fake gateway: the list pages are the console's heaviest uncompressed
    * HTML, `/initiatives` at 90 KiB and `/people` at 88, against 61 on `/` and 75 on `/settings`. The caps hold roughly
-   * a fifth above what they measure, which is room for a column and not for a second table.
+   * a fifth above `/initiatives` and, since the 2026-10-15 run read `/people` at 99 KiB of its 108, under a tenth above
+   * `/people` — room for a column and not for a second table.
    *
    * They were 65 and 63 the day before, and the 25 KiB between is one thing: the layout now asks, on each request,
    * whether the console has an assistant (`connection()` in `app/(dash)/layout.tsx`, as Meridian's guide writes it), so

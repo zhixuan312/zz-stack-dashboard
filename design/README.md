@@ -12,8 +12,12 @@ unconditionally, and `.dockerignore` gets no second pass over that line. Source 
 ### `in-use/` — the build consumes these
 
 Twelve single-image renders at 1122×1402 or 1254×1254. `../scripts/build-brand-assets.py` reads from here
-and write small, derived runtime assets into `../public/assets/`. Add a file here only when
-something is going to build from it.
+and write small, derived runtime assets into `../public/assets/`.
+
+Nine of the twelve are built. Three — `mascot-working`, `mascot-celebrating` and `mascot-thinking` — are kept
+ahead of a surface that does not exist yet, and the script says so in its own `DELIBERATE` note rather than
+building them. So add a file here when something is going to build from it, and when the something is still
+ahead of you, say so there.
 
 The ten mascot renders carry real transparency. The two icon masters are opaque on purpose, and
 each needs one step before use: `favicon-flat.png` is a 980×980 purple square centred on an
@@ -34,13 +38,13 @@ Do not scale one of them into another's band.
 | `wordmark-zz.png` | 1254 × 1254 | yes | The in-app mark — sidebar and auth screens |
 | `mascot-bust.png` | 1254 × 1254 | yes | "Nothing here yet" empty states |
 | `mascot-waving.png` | 1122 × 1402 | yes | The login hero, and "add the first one" empty states |
-| `mascot-celebrating.png` | 1122 × 1402 | yes | "Nothing to do, and that is a good outcome" |
+| `mascot-celebrating.png` | 1122 × 1402 | yes | Nothing yet — no surface uses it, so it is not built |
 | `mascot-working.png` | 1122 × 1402 | yes | Nothing yet — no surface uses it, so it is not built |
 | `mascot-error.png` | 1122 × 1402 | yes | The error boundary, and the query-error fallback every page routes through |
 | `mascot-notfound.png` | 1122 × 1402 | yes | 404, and the unknown plugin / skill pages |
-| `mascot-approved.png` | 1122 × 1402 | yes | The approval success toast — this platform's signature act |
+| `mascot-approved.png` | 1122 × 1402 | yes | Nothing yet — no surface uses it, so it is not built. An approval is a text toast (`src/console/approve.tsx`), and `approved` is the one pose `src/console/brand.tsx` defines that no page passes |
 | `mascot-goodbye.png` | 1122 × 1402 | yes | The signed-out screen |
-| `mascot-thinking.png` | 1122 × 1402 | yes | Knowledge Ask, while a question is being answered |
+| `mascot-thinking.png` | 1122 × 1402 | yes | Nothing yet — no surface uses it, so it is not built |
 
 ### `reference/` — look at these, never build from them
 

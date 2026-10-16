@@ -9,7 +9,7 @@ The platform's census, or one team's: whether work is moving, and what waits on 
 - Three tiles beside it: initiatives progressing (median completeness, and what waits on a person), knowledge from work, context per run.
 - Open work by stage: one composition bar over the active initiatives.
 - Refusals: refused calls by tool or by message, each bar a share of the total; the gateway's refusal rate in the line under the title.
-- Event kinds: every event kind, each bar a share of all events.
+- Event kinds: the five busiest kinds and the rest summed, each bar a share of all events.
 
 ## States
 

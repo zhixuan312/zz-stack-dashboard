@@ -31,4 +31,4 @@ The filters in force, how many teams match and how many are active, and the init
 
 ## Surfaces
 
-Console, desktop and phone. Reads `GET /teams?limit=100`, every team on one page. Live: follows `teams`, so a change made anywhere — another tab, another person — reads this page again.
+Console, desktop and phone. Reads `GET /teams?limit=100`, the first page of every team on the platform — the gateway caps a read at 100, so the answer's `total` is the population and the page says how much of it it holds. Live: follows `teams`, so a change made anywhere — another tab, another person — reads this page again.

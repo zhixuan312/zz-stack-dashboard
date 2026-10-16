@@ -24,7 +24,7 @@ concurrency:
 jobs:
   gate:
     runs-on: ubuntu-latest
-    # Sized for the audit and the presses, which drive a browser for about 19 minutes on ten fast cores. A
+    # Sized for the audit and the presses, which drive a browser for about 22 minutes on ten fast cores. A
     # runner has fewer and slower ones, and a job killed at the ceiling reports nothing about the tree.
     timeout-minutes: 90
     steps:
@@ -45,12 +45,12 @@ jobs:
       # The WHOLE standard: the gate (tokens, specifications, contrast, types, tests), a production build
       # against the fake gateway, the route policy and the size checks, the audit of every page at five
       # widths in both themes, every control pressed and every link followed, the whole keyboard path, the
-      # product's own browser checks, and Web Vitals on a mid-range phone. About 19 minutes here; longer on
+      # product's own browser checks, and Web Vitals on a mid-range phone. About 22 minutes here; longer on
       # a runner, which is what the timeout above is for.
       #
       # DELIBERATE, and this is the part worth knowing: this job ran `pnpm verify` with NO FLAG for its whole
       # life, which is the shallow depth — the gate, one build, the route policy, the size checks and a
-      # three-route navigation smoke, about 40 s. Its own comment described the deep run, so nobody looked,
+      # three-route navigation smoke, about a minute. Its own comment described the deep run, so nobody looked,
       # and six document routes sat above the LCP bar for a day of work before anything said so. Only running
       # the real thing by hand ever did. The flag is `--full` from 0.26.1, which is the release that brought
       # those six under the bar. `out/verify.txt` names every suite that did not run; a check that did not run

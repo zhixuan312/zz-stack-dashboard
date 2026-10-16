@@ -30,4 +30,4 @@ Whose people these are and the filters in force, then how many match, how many a
 
 ## Surfaces
 
-Console, desktop and phone. Reads `GET /people?limit=100`, every person on one page. Live: follows `people`, so a change made anywhere — another tab, another person — reads this page again.
+Console, desktop and phone. Reads `GET /people?limit=100`, the first page of every person the platform knows — the gateway caps a read at 100, so the answer's `total` is the population and the page says how much of it it holds. Live: follows `people`, so a change made anywhere — another tab, another person — reads this page again.

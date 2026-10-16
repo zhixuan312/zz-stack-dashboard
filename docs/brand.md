@@ -48,6 +48,9 @@ The mascot is the product's face, so it shows up in the moments a person meets t
 | Something failed | error |
 | Signed out | goodbye |
 
+One pose is built and drawn nowhere: `approved`, for a gate being approved — its two files sit beside the others in
+`public/assets/brand/`, and no page shows it yet.
+
 Poses are chosen in one place, `src/console/brand.tsx`, and a state never borrows another's face. **The mascot
 never sits beside data**: on a page with figures, the figures are the protagonist. An inline empty state (a row
 inside a card) keeps Meridian's small disc, because the mascot at 36 px is a smudge.
