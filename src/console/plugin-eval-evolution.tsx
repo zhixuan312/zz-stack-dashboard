@@ -103,11 +103,15 @@ export function EvalAutomationTrust({ pluginEval }: { pluginEval: PluginEval }) 
   return (
     <Panel title="Automation & Trust" description={pluginEval.ownershipMode === 'evaluation_only' ? 'evaluation only' : 'owned'}>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="flex flex-col gap-3 text-xs">
+        {/* A `<dl>`, not a `<div>`: `Field` below renders a `<dt>` and a `<dd>`, and those are only valid inside a
+            description list — loose in a div they are invalid markup and nothing associates a label with its value
+            for a screen reader. HTML5 lets each pair keep its own `<div>` inside the list, which is why the grouping
+            below is unchanged. */}
+        <dl className="flex flex-col gap-3 text-xs">
           <Field k="Origin" v={pluginEval.origin ?? '—'} />
           <Field k="Owner team" v={pluginEval.ownerTeam ?? 'none recorded'} />
           <Field k="Release owners" v={pluginEval.releaseOwners.length ? pluginEval.releaseOwners.join(', ') : 'none — cannot be released'} />
-        </div>
+        </dl>
         <div>
           <p className="mb-1.5 t-eyebrow text-ink-3">Evaluator qualification</p>
           {!pluginEval.evaluatorTrust.length ? (
