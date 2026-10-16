@@ -1,7 +1,29 @@
 node_modules
 .next
 .git
-docs
 tests
 out
 design
+
+# DELIBERATE: `docs` is NOT here, and this is the whole of why. `next.config.ts` traces
+# `docs/brief.md` into `/api/assistant`, so the file has to be in the build context for the
+# standalone build to find it. Excluded here, the trace found nothing, the shipped image carried
+# no brief, and `readBrief` (`src/lib/assistant/brief.ts`) returns '' rather than throwing — so
+# every reply in production was written without the Product, Users and Glossary sections the
+# README says they carry, and nothing said so.
+#
+# The runtime stage copies only `.next/standalone`, `.next/static` and `public`, so the rest of
+# `docs/` still does not ship. Exactly one file does, and it is the one that was traced.
+#
+# Secrets, mirrored from `.gitignore`'s own secrets block. `COPY . .` puts the whole context in
+# the build stage, and `.env.local` is a live credential: it does not reach the runtime stage
+# either, for the same reason, but a credential in a build layer is still a credential in an
+# image sitting on a registry.
+.env
+.env*.local
+*.local
+
+# DELIBERATE: `**/`, not a bare `.DS_Store`. A .dockerignore pattern without a slash matches at the
+# context root only, and the runtime stage copies the whole of `public/` in, so the macOS metadata
+# file that reaches a deployment is the one sitting beside the brand assets.
+**/.DS_Store

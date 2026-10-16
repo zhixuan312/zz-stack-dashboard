@@ -13,6 +13,8 @@
  *   "## Agents", and names the context function it shares.
  * - Every page in the console's shell is a server page that asks the gate before anything else, for a feature the
  *   console has.
+ * - Every file `next.config.ts` traces into a route is inside the Docker build context, so the image does not ship
+ *   without a file the code reads with `node:fs`.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -278,6 +280,33 @@ for (const f of [...walk('app', /\.tsx?$/), ...walk('src/views/pages', /\.tsx?$/
   for (let m = TERNARY.exec(src); m; m = TERNARY.exec(src)) {
     if (!isPluralPair(m[2], m[4])) continue;
     problems.push(`${f}: decides a plural itself (${JSON.stringify(m[0])}) — use \`plural(n, '${m[2] || m[4]}')\` from \`src/console/words.ts\`, which is the one place it is decided`);
+  }
+}
+
+// ── What the image traces has to be in the build context ─────────────────────────────────────────────
+// The build's own two halves are each valid on their own and wrong together, which is why nothing
+// caught this. `next.config.ts` names the files the standalone build must carry beside the code —
+// `outputFileTracingIncludes` — and the Docker build gets its files through `.dockerignore`. A file
+// traced there and excluded here is absent at build time, so the trace includes nothing, the image
+// ships without it, and the reader of it fails silently rather than loudly.
+//
+// This bit `docs/brief.md`, which the assistant route traces: `.dockerignore` excluded `docs`, the
+// shipped console carried no brief, and `readBrief` returns '' instead of throwing — so every reply
+// in production was written without the Product, Users and Glossary sections the README says they
+// carry, and no test, check or reader could tell.
+//
+// Only the head segment is compared, and only against a plain pattern: that is the shape the two
+// files are written in, and a matcher with more of gitignore's semantics than that would report
+// cases a person would have to argue with.
+{
+  const tracing = /outputFileTracingIncludes\s*:\s*\{([\s\S]*?)\}/.exec(read('next.config.ts'))?.[1] ?? '';
+  const traced = [...tracing.matchAll(/['"]\.\/([^'"]+)['"]/g)].map((m) => m[1]);
+  const ignored = read('.dockerignore').split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('#'));
+  for (const t of traced) {
+    const head = t.split('/')[0];
+    if (ignored.includes(head) || ignored.includes(t)) {
+      problems.push(`.dockerignore: "${head}" is excluded from the build context, but next.config.ts traces "${t}" into a route — the image ships without it`);
+    }
   }
 }
 
