@@ -1,8 +1,8 @@
 # ZZ Stack — the console of the zz-stack platform.
 #
 # COUPLED: Node 24 is the floor, as `engines` in package.json says, and `pnpm install` reads
-# that field in this image. scripts/ is TypeScript run by Node directly, which strips types with
-# no flag and no build step.
+# that field in this image. scripts/ is TypeScript run by Node directly, and native type stripping
+# is stable from 24.12.
 #
 # A standalone Next build: `output: 'standalone'` traces the modules the server reaches and
 # copies just those, so the final stage has no node_modules.
