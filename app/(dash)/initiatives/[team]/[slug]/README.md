@@ -11,7 +11,7 @@ One initiative end to end: where it is in its flow, its documents, and the evide
 
 ## States
 
-- Loading: two skeleton cards.
+- Loading: skeletons for its progress, its documents and its sources.
 - No flow: the stepper is left out and the documents still list.
 - Closed: every node done and the outcome under the last.
 - Not found: the gateway's sentence.

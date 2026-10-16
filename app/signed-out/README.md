@@ -12,4 +12,4 @@ Where signing out lands: the session is over, the passkey untouched.
 
 ## Surfaces
 
-Console, desktop and phone. Reads Nothing..
+Console, desktop and phone. Reads nothing.

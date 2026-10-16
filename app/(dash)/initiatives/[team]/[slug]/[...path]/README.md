@@ -44,5 +44,4 @@ The document's path, its initiative and flow, then where it stands with its gate
 
 ## Surfaces
 
-Console, desktop and phone. Reads `GET /document/:team/:slug/:path`, `POST /documents/shown`, Live: follows `document`, so a change made anywhere — another tab, another person — reads this page again.
-`POST /documents/approve`.
+Console, desktop and phone. Reads `GET /document/:team/:slug/:path`, `POST /documents/shown` and `POST /documents/approve`. Live: follows `document`, so a change made anywhere — another tab, another person — reads this page again.
