@@ -92,8 +92,18 @@ describe('the settings frame, whose page is a stack of sections', () => {
     return literal ? literal[1].split(',').length : NaN;
   };
 
+  /**
+   * A component in the page's stack that renders more than one section, and how many. `PlatformSection` returns a
+   * fragment holding the People and the platform-teams panels for a superadmin, and a frame that counted components
+   * rather than sections was one short of the tallest page — which grows the page at the moment it arrives, the one
+   * thing the frame exists to prevent. Named here rather than derived, so a change to the page meets this list.
+   */
+  const EXPANDS: Record<string, number> = { PlatformSection: 2 };
+
   it('draws one placeholder section per section the page stacks', () => {
-    const stacked = (stack![2].match(/<[A-Z]\w+ \/>/g) ?? []).length;
+    // Sections, not components: a component that renders two says so above.
+    const stacked = [...(stack![2].matchAll(/<([A-Z]\w+) \/>/g))]
+      .reduce((n, m) => n + (EXPANDS[m[1]] ?? 1), 0);
     expect(stacked, 'the settings view stacks its sections one component per line').toBeGreaterThan(1);
     expect(drawnSections(loading), 'the frame draws no sections at all').toBe(stacked);
   });

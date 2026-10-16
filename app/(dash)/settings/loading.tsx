@@ -16,11 +16,15 @@ import { Skeleton } from '@/components/ui/skeleton';
 const width: PageWidth = 'form';
 
 /**
- * One placeholder section per section the page draws. The page drops the later ones for a person who administers
- * nothing and for a console with no assistant, so a member's own page is shorter than this frame. A card's height is
- * whatever its fields come to, which nothing here can know: one height, so nothing below the frame jumps twice.
+ * One placeholder section per section the page RENDERS. The page stacks seven components, but one of them —
+ * `PlatformSection` — renders two sections for a superadmin, so the tallest page has eight and this frame is that
+ * tallest case: a frame shorter than the page grows when the page arrives, which is what it exists to prevent.
+ *
+ * The page drops the later ones for a person who administers nothing and for a console with no assistant, so a
+ * member's own page is shorter than this frame. A card's height is whatever its fields come to, which nothing here
+ * can know: one height, so nothing below the frame jumps twice.
  */
-const SECTIONS = 7;
+const SECTIONS = 8;
 
 export default function SettingsLoading() {
   return (
