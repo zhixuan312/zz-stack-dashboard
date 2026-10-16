@@ -20,14 +20,14 @@
     // at runtime. Without this they are ambient to the runner but unknown to
     // tsc, and `pnpm typecheck` fails on every test file while `pnpm test`
     // passes — two checks disagreeing about the same code.
-    // `node` because scripts/ and checks/ are TypeScript run by Node directly, and they
+    // `node` because scripts/ is TypeScript run by Node directly, and those files
     // reach for `process`, `Buffer` and friends. `types` is a whitelist: naming only
     // vitest/globals here left every one of those globals unknown to tsc.
     "types": [
       "vitest/globals",
       "node"
     ],
-    // scripts/ and checks/ are executed by Node's native type stripping, which erases
+    // scripts/ is executed by Node's native type stripping, which erases
     // annotations and refuses to emit anything. Enums, namespaces and parameter properties
     // compile under tsc and then throw at runtime, so this used to refuse them here.
     //
@@ -36,7 +36,7 @@
     // guarantee the flag bought is one `pnpm verify` already covers by RUNNING the scripts. What
     // still matters is kept: Node opens these files by the name written in the import, so the
     // tsconfig below lets them name `./lib/bin.ts` with its extension.
-    // Those same files import each other by the name Node will open — `./lib/contrast.ts`.
+    // Those same files import each other by the name Node will open — `./lib/contrast-pairs.ts`.
     "allowImportingTsExtensions": true,
     "plugins": [
       {
