@@ -1,5 +1,6 @@
 // @vitest-environment node
-import { spawn, type ChildProcess } from 'node:child_process';
+import type { ChildProcess } from 'node:child_process';
+import { startFakeGateway } from './fake-gateway-start.ts';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { ActivityLog, ActivitySummary, KnowledgeList, KnowledgeSummary, Runs } from '../src/lib/destination-shapes.ts';
 import type { InitiativeList } from '../src/lib/work-shapes.ts';
@@ -175,20 +176,10 @@ describe('every mode answers both people', () => {
   afterEach(() => { for (const p of servers.splice(0)) p.kill(); });
 
   /** Start the fixture in one mode and wait for the address it prints. */
-  function start(mode: string): Promise<string> {
-    return new Promise<string>((resolve, reject) => {
-      const p = spawn('node', ['scripts/fake-gateway/server.ts', '--port', '0', '--mode', mode], { stdio: ['ignore', 'pipe', 'pipe'] });
-      servers.push(p);
-      let out = '';
-      const timer = setTimeout(() => reject(new Error(`no address printed: ${out}`)), 15_000);
-      p.stdout!.on('data', (d: Buffer) => {
-        out += String(d);
-        const m = /listening on (\S+)/.exec(out);
-        if (m) { clearTimeout(timer); resolve(m[1]); }
-      });
-      p.stderr!.on('data', (d: Buffer) => { out += String(d); });
-      p.on('close', (code) => { clearTimeout(timer); reject(new Error(`the fixture exited ${code}: ${out}`)); });
-    });
+  async function start(mode: string): Promise<string> {
+    const gateway = await startFakeGateway('--mode', mode);
+    servers.push(gateway.proc);
+    return gateway.base;
   }
 
   /** Each person by the cookie `pnpm verify --as` sends for them; the superadmin also as the default run asks, with none. */

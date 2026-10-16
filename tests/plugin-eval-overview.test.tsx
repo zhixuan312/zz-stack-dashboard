@@ -8,7 +8,7 @@ const TooltipProvider = Tooltip.Provider;
 import type { DimensionScore, PluginEvalFound } from '@/lib/api-shapes';
 
 /** `EvalQuality`'s composition bar is a Radix tooltip, which throws outside a provider — the
- *  app mounts one once, in `Providers`; tests/charts.test.tsx carries the same wrapper. */
+ *  app mounts one once, in `Providers`; tests/plugin-eval-evidence.test.tsx carries the same wrapper. */
 const render = (ui: ReactElement) => rtlRender(<TooltipProvider>{ui}</TooltipProvider>);
 
 /** A minimal scored run, overridden per test. FR-55: overall score, status and protocol

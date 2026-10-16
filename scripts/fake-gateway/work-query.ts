@@ -66,7 +66,7 @@ const WORDS: [initiative: string, path: string, added: number, back: number, hou
   ['2026-10-08-result-explanations', 'review.md', 2_100, 1, 70], ['2026-10-02-query-latency', 'spec.md', 1_700, 1, 110],
   ['2026-10-03-ranking-weights', 'spec.md', 2_100, 0, 0],
 ];
-const LESSONS: [kind: string, back: number, hours: number, words: number][] = [['decision', 4, 20, 140], ['gotcha', 2, 40, 95], ['convention', 1, 30, 120], ['decision', 1, 60, 80]];
+const LESSONS: [kind: string, back: number, hours: number, words: number][] = [['decision', 4, 20, 140], ['behavior', 2, 40, 95], ['process', 1, 30, 120], ['decision', 1, 60, 80]];
 const RUNS: [skill: string, initiative: string | null, back: number, hours: number, minutes: number][] = [
   ['sdlc-spec', '2026-10-02-query-latency', 1, 10, 42], ['sdlc-plan', '2026-09-28-search-relevance', 1, 34, 95],
   ['sdlc-plan-audit', '2026-09-28-search-relevance', 1, 58, 18], ['sdlc-review', '2026-10-08-result-explanations', 1, 80, 64],

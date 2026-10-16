@@ -24,8 +24,10 @@
  * What it does NOT prove: that a press did the RIGHT thing, only that it is shown. A control that selects the wrong
  * period and shows it passes here.
  *
- * Fails (exit 1) on a group whose pressed item is not the item showing after one press, on a press that landed
- * outside the group, and on an uncaught page error.
+ * Fails (exit 1) on a group whose pressed item is not the item showing after one press, and on an uncaught page error.
+ * Whether the press landed inside the group is not a failure of its own — it is the reason an item did not take, so it
+ * is named in that failure's line: a press that landed elsewhere and still showed the item has changed the selection,
+ * whichever element the pointer reached.
  */
 import { launch } from './lib/chrome.ts';
 

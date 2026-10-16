@@ -99,36 +99,6 @@ function stageOf(s: Seed) {
   return s.at === 0 ? 'open' : STAGES[s.at - 1][0];
 }
 
-export const INITIATIVES: Initiative[] = SEEDS.map((s) => ({
-  team: s.team, slug: s.slug, flow: s.flow === false ? null : FLOW,
-  documents: s.flow === false ? 3 : Math.max(1, s.at * 2 + s.written), approvals: s.passed,
-  updated: ago(s.updated), stakeholder: s.stakeholder,
-  at: s.at, of: s.flow === false ? 0 : 7, stage: stageOf(s), steps: steps(s), gates: gates(s),
-  accepted: s.outcome === 'accepted', complete: s.outcome === 'accepted' || s.outcome === 'delivered',
-  closed: s.outcome !== null, outcome: s.outcome,
-  correction: s.correction ? { path: 'review.md', version: s.correction } : null,
-}));
-
-/** What `/initiatives?waiting=1` answers: every gate written and unsigned on an open initiative,
- *  and a closed one's correction awaiting approval, newest first — the projection the console's alert bell and its Overview panel read instead of
- *  the whole list. */
-export const WAITING: WaitingGate[] = INITIATIVES
-  .flatMap((i) => {
-    const where = { team: i.team, slug: i.slug, updated: i.updated, stage: i.stage, at: i.at, of: i.of };
-    // A closed initiative waits on a person only for a correction, as the
-    // gateway's own projection answers.
-    if (i.closed) {
-      return i.correction
-        ? [{ id: `${i.team}/${i.slug}/${i.correction.path}`,
-             gate: `${i.correction.path.replace(/\.md$/, '')} correction v${i.correction.version}`, ...where }]
-        : [];
-    }
-    return i.gates.filter((g) => g.written && !g.passed).map((g) => ({
-      id: `${i.team}/${i.slug}/${g.name}`, gate: g.name.replace(/^approve /, ''), ...where,
-    }));
-  })
-  .sort((a, b) => b.updated.localeCompare(a.updated));
-
 type Doc = InitiativeDetail['documents'][number];
 const doc = (path: string, type: string, o: Partial<Doc> & { hours: number; bytes: number }): Doc => ({
   path, type, status: null, outcome: null, approved_by: null, title: null, supports: null, gated: null,
@@ -173,6 +143,39 @@ function documents(s: Seed): Doc[] {
   if (s.at >= 7) { add('review.md', 'verification', 'Review', 2, 1); add('handover.md', 'handover', 'Handover', 3, 0); }
   return out;
 }
+
+/* The list's own count of each initiative's documents, taken from the documents its detail serves rather than from a
+ * second rule: the gateway reads both from the same rows, so a list figure that disagreed with the detail would be a
+ * console contradiction no page could resolve. */
+export const INITIATIVES: Initiative[] = SEEDS.map((s) => ({
+  team: s.team, slug: s.slug, flow: s.flow === false ? null : FLOW,
+  documents: documents(s).length, approvals: s.passed,
+  updated: ago(s.updated), stakeholder: s.stakeholder,
+  at: s.at, of: s.flow === false ? 0 : 7, stage: stageOf(s), steps: steps(s), gates: gates(s),
+  accepted: s.outcome === 'accepted', complete: s.outcome === 'accepted' || s.outcome === 'delivered',
+  closed: s.outcome !== null, outcome: s.outcome,
+  correction: s.correction ? { path: 'review.md', version: s.correction } : null,
+}));
+
+/** What `/initiatives?waiting=1` answers: every gate written and unsigned on an open initiative,
+ *  and a closed one's correction awaiting approval, newest first — the projection the console's alert bell and its Overview panel read instead of
+ *  the whole list. */
+export const WAITING: WaitingGate[] = INITIATIVES
+  .flatMap((i) => {
+    const where = { team: i.team, slug: i.slug, updated: i.updated, stage: i.stage, at: i.at, of: i.of };
+    // A closed initiative waits on a person only for a correction, as the
+    // gateway's own projection answers.
+    if (i.closed) {
+      return i.correction
+        ? [{ id: `${i.team}/${i.slug}/${i.correction.path}`,
+             gate: `${i.correction.path.replace(/\.md$/, '')} correction v${i.correction.version}`, ...where }]
+        : [];
+    }
+    return i.gates.filter((g) => g.written && !g.passed).map((g) => ({
+      id: `${i.team}/${i.slug}/${g.name}`, gate: g.name.replace(/^approve /, ''), ...where,
+    }));
+  })
+  .sort((a, b) => b.updated.localeCompare(a.updated));
 
 const DECISIONS: InitiativeDetail['decisions'] = [
   { path: 'spec.md', role: 'agreement', key: 'AC-1.1', verdict: 'met', qualifier: null, detail: 'A result names the field that matched, in the row, without a hover.', checker: 'noah.okafor@example.com' },
@@ -372,15 +375,17 @@ export function documentRevision(team: string, initiative: string, path: string,
 }
 
 type NodeSeed = [team: string, num: string, type: string, status: string, title: string, tags: string[], evidence: string | null, hours: number];
+/* `type` is one of the six kinds the store allows, which is exactly what the shelf's filter offers: a lesson of any
+ * other kind would be served by a shelf that cannot be narrowed to it. */
 const NODE_SEEDS: NodeSeed[] = [
   ['atlas', '0001', 'process', 'adopted', 'Run it, do not read it: a claim about an artifact is evidence only once something executes it', ['flow:sdlc-flow'], '2026-09-12-onboarding-revamp', 500],
   ['atlas', '0002', 'decision', 'adopted', 'Match reasons come from the index, never from a model', ['search'], '2026-09-28-search-relevance', 50],
   ['atlas', '0003', 'process', 'adopted', 'Interview before you instrument', ['research'], '2026-09-12-onboarding-revamp', 480],
-  ['atlas', '0004', 'pattern', 'superseded', 'Rank by recency first', ['search'], null, 900],
-  ['atlas', '0005', 'pattern', 'adopted', 'Rank by recency only to break a tie', ['search'], '2026-09-28-search-relevance', 52],
-  ['atlas', '0006', 'gotcha', 'adopted', 'The query log drops queries longer than 256 characters, so the longest searches never reach an analysis', ['search', 'data'], '2026-09-28-search-relevance', 40],
+  ['atlas', '0004', 'design', 'superseded', 'Rank by recency first', ['search'], null, 900],
+  ['atlas', '0005', 'design', 'adopted', 'Rank by recency only to break a tie', ['search'], '2026-09-28-search-relevance', 52],
+  ['atlas', '0006', 'behavior', 'adopted', 'The query log drops queries longer than 256 characters, so the longest searches never reach an analysis', ['search', 'data'], '2026-09-28-search-relevance', 40],
   ['beacon', '0001', 'decision', 'adopted', 'Refunds are a ledger entry, never an edit', ['payments'], '2026-09-18-chargeback-alerts', 260],
-  ['beacon', '0002', 'gotcha', 'adopted', 'Card networks report a chargeback up to 120 days late', ['payments'], '2026-09-18-chargeback-alerts', 250],
+  ['beacon', '0002', 'behavior', 'adopted', 'Card networks report a chargeback up to 120 days late', ['payments'], '2026-09-18-chargeback-alerts', 250],
   ['beacon', '0003', 'process', 'draft', 'Alert on the trend, not the count', ['alerts'], null, 20],
   ['cinder', '0001', 'process', 'adopted', 'A runbook nobody rehearsed is a guess', ['ops'], '2026-08-20-incident-runbooks', 1000],
 ];

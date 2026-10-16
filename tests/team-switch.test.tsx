@@ -148,7 +148,6 @@ describe('a switch the gateway accepts', () => {
     const one = client.getQueryData(['console', '/overview', 'noah@example.com', 'team-one', 'Member']);
     expect(one).toEqual({ marker: 'team-one' });
     expect(screen.getByTestId('marker')).toHaveTextContent('team-two');
-    expect(drawn.filter((d) => d.startsWith('team-two:'))).not.toContain('team-two:team-one');
     expect(drawn).not.toContain('team-two:team-one');
   });
 });

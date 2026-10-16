@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process';
+import { startFakeGateway } from './fake-gateway-start.ts';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { documentDetail, revisionInStore } from '../scripts/fake-gateway/work.ts';
 
@@ -19,21 +20,10 @@ import { documentDetail, revisionInStore } from '../scripts/fake-gateway/work.ts
 const servers: ChildProcess[] = [];
 
 /** Start the fixture and wait for the address it prints. */
-function start(...args: string[]): Promise<string> {
-  return new Promise<string>((resolve, reject) => {
-    const p = spawn('node', ['scripts/fake-gateway/server.ts', '--port', '0', ...args],
-                    { stdio: ['ignore', 'pipe', 'pipe'] });
-    servers.push(p);
-    let out = '';
-    const timer = setTimeout(() => reject(new Error(`no address printed: ${out}`)), 15_000);
-    p.stdout!.on('data', (d: Buffer) => {
-      out += String(d);
-      const m = /listening on (\S+)/.exec(out);
-      if (m) { clearTimeout(timer); resolve(m[1]); }
-    });
-    p.stderr!.on('data', (d: Buffer) => { out += String(d); });
-    p.on('close', (code) => { clearTimeout(timer); reject(new Error(`the fixture exited ${code}: ${out}`)); });
-  });
+async function start(...args: string[]): Promise<string> {
+  const gateway = await startFakeGateway(...args);
+  servers.push(gateway.proc);
+  return gateway.base;
 }
 
 afterEach(() => { for (const p of servers.splice(0)) p.kill(); });

@@ -123,7 +123,7 @@ function recordOf(team: string | null, email: string, period: Period, page: { li
       ownReturned: counted(118), meanResults: counted(4.6), sharedResults: counted(37),
       searchesWithResults: windows.map((w, i) => ({ window: w, figure: { value: 80 + (i % 3) * 5, why: null }, numerator: 16 + (i % 3), denominator: 20 })),
       returnedByKind: [{ kind: 'document', results: 212 }, { kind: 'lesson', results: 118 }, { kind: 'source', results: 64 }],
-      byKind: [{ kind: 'decision', lessons: 3 }, { kind: 'gotcha', lessons: 2 }, { kind: 'convention', lessons: 1 }],
+      byKind: [{ kind: 'decision', lessons: 3 }, { kind: 'behavior', lessons: 2 }, { kind: 'process', lessons: 1 }],
     } },
     agents: { state: 'ok', data: {
       coverageMs: counted(212 * 3_600_000), summedMs: counted(301 * 3_600_000), peak: counted(6), runs: counted(418), zeroLength: 23, skillsUsed: counted(11),

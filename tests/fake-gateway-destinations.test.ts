@@ -1,5 +1,6 @@
 // @vitest-environment node
-import { spawn, type ChildProcess } from 'node:child_process';
+import type { ChildProcess } from 'node:child_process';
+import { startFakeGateway } from './fake-gateway-start.ts';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { nav } from '../src/app.config.ts';
 import { FEATURES } from '../src/data/features.ts';
@@ -26,18 +27,9 @@ let server: ChildProcess;
 let base = '';
 
 beforeAll(async () => {
-  base = await new Promise<string>((resolve, reject) => {
-    server = spawn('node', ['scripts/fake-gateway/server.ts', '--port', '0'], { stdio: ['ignore', 'pipe', 'pipe'] });
-    let out = '';
-    const timer = setTimeout(() => reject(new Error(`no address printed: ${out}`)), 15_000);
-    server.stdout!.on('data', (d: Buffer) => {
-      out += String(d);
-      const m = /listening on (\S+)/.exec(out);
-      if (m) { clearTimeout(timer); resolve(m[1]); }
-    });
-    server.stderr!.on('data', (d: Buffer) => { out += String(d); });
-    server.on('close', (code) => { clearTimeout(timer); reject(new Error(`the fixture exited ${code}: ${out}`)); });
-  });
+  const gateway = await startFakeGateway();
+  server = gateway.proc;
+  base = gateway.base;
 });
 afterAll(() => { server?.kill(); });
 
@@ -125,6 +117,17 @@ describe('Knowledge', () => {
     expect(q.rows.every((r: Json) => /recency/i.test(`${r.title} ${r.excerpt} ${(r.tags ?? []).join(' ')}`))).toBe(true);
     // Nor the shared shelf, which the search reads and the list never answers.
     expect(JSON.stringify(await read(who, 'knowledge?limit=100&scope=platform&team=beacon'))).not.toMatch(/zz-platform|beacon/);
+  });
+
+  // The store's own check allows these six kinds, and the shelf's filter offers exactly them: a lesson of any other
+  // kind would be drawn in the table under a kind no filter can select, so the row would be served and unreachable.
+  const STORE_KINDS = ['decision', 'design', 'process', 'knowledge', 'behavior', 'style'];
+
+  it.each(BOTH)('serves %s only kinds the shelf can be narrowed to', async (_, who) => {
+    const l = await read(who, 'knowledge?limit=100');
+    expect(l.rows.length).toBeGreaterThan(0);
+    for (const r of l.rows) expect(STORE_KINDS, `${r.team}/${r.path} is a ${r.type}`).toContain(r.type);
+    for (const kind of keys(l.summary.byKind)) expect(STORE_KINDS, kind).toContain(kind);
   });
 
   it('refuses a kind, a limit or an offset the route does not take', async () => {

@@ -115,7 +115,8 @@ export function serveLive(res: ServerResponse, names: string[]): void {
    *
    * COUPLED: `src/lib/live.ts`, ZZ Meridian's own file, takes the first resync on a stream as the read the page made
    * while it mounted and reads nothing for it, then reads again on every later one. A stream with no greeting would have
-   * its first real resync taken for the greeting and thrown away. `hint` above raises a later one, for the same two
-   * reasons the real gateway does: its `LISTEN` connection was down, or a burst overflowed the queue. */
+   * its first real resync taken for the greeting and thrown away. Nothing here raises a second one: `hint` writes
+   * `change` frames, and the real gateway's two reasons to resync again — its `LISTEN` connection was down, or a burst
+   * overflowed the queue — are unreachable in a fixture that revokes nobody and queues nothing. */
   s.write(frame('resync', { collections: names }));
 }

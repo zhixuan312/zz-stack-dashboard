@@ -1,4 +1,5 @@
-import { spawn, type ChildProcess } from 'node:child_process';
+import type { ChildProcess } from 'node:child_process';
+import { startFakeGateway } from './fake-gateway-start.ts';
 import fs from 'node:fs';
 import path from 'node:path';
 import { Suspense, cloneElement, createElement, isValidElement, type ComponentProps, type ReactNode } from 'react';
@@ -82,17 +83,9 @@ let base = '';
 const saved = { fetch: globalThis.fetch, env: { ...process.env } };
 
 beforeAll(async () => {
-  gateway = spawn('node', ['scripts/fake-gateway/server.ts', '--port', '0'], { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
-  base = await new Promise<string>((resolve, reject) => {
-    let out = '';
-    const timer = setTimeout(() => reject(new Error(`the fake gateway printed no address: ${out}`)), 15_000);
-    gateway!.stdout!.on('data', (d: Buffer) => {
-      out += String(d);
-      const m = /listening on (\S+)/.exec(out);
-      if (m) { clearTimeout(timer); resolve(m[1]); }
-    });
-    gateway!.on('close', (code) => { clearTimeout(timer); reject(new Error(`the fake gateway exited ${code}: ${out}`)); });
-  });
+  const started = await startFakeGateway();
+  gateway = started.proc;
+  base = started.base;
   // The server's reads go to the gateway by its address and with no credential, which the fake answers as the superadmin.
   process.env.ZZ_GATEWAY = base;
   delete process.env.ZZ_DEV_PAT;

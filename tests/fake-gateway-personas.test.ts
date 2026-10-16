@@ -1,5 +1,6 @@
 // @vitest-environment node
-import { execFileSync, spawn, type ChildProcess } from 'node:child_process';
+import { execFileSync, type ChildProcess } from 'node:child_process';
+import { startFakeGateway } from './fake-gateway-start.ts';
 import fs from 'node:fs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { NO_SESSION } from '../scripts/fake-gateway/people.ts';
@@ -31,18 +32,9 @@ let server: ChildProcess;
 let base = '';
 
 beforeAll(async () => {
-  base = await new Promise<string>((resolve, reject) => {
-    server = spawn('node', ['scripts/fake-gateway/server.ts', '--port', '0'], { stdio: ['ignore', 'pipe', 'pipe'] });
-    let out = '';
-    const timer = setTimeout(() => reject(new Error(`no address printed: ${out}`)), 15_000);
-    server.stdout!.on('data', (d: Buffer) => {
-      out += String(d);
-      const m = /listening on (\S+)/.exec(out);
-      if (m) { clearTimeout(timer); resolve(m[1]); }
-    });
-    server.stderr!.on('data', (d: Buffer) => { out += String(d); });
-    server.on('close', (code) => { clearTimeout(timer); reject(new Error(`the fixture exited ${code}: ${out}`)); });
-  });
+  const gateway = await startFakeGateway();
+  server = gateway.proc;
+  base = gateway.base;
 });
 afterAll(() => { server?.kill(); });
 

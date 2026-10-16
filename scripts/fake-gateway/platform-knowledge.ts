@@ -8,8 +8,8 @@
  * The figures cover the states the page draws: a cohort imported by maintenance before lessons named themselves, so it
  * is told by the day rule and labelled `imported, by day`, and one imported after, told exactly; a week with no
  * searches, one before the share widened was recorded, and the running week; lessons since superseded; and every kind
- * a lesson may have. The weeks and the searches are the status fixture's, and each team's lessons the work fixture's
- * adopted nodes; both imports landed on the shared shelf.
+ * a lesson may have. The weeks and the searches are the status fixture's, and each team's lessons are the shelf the Work
+ * fixtures serve it; both imports landed on the shared shelf.
  *
  * COUPLED: zz-stack's `checks/console-platform-knowledge.ts` imports this file with plain `node` and compares its key
  * sets with the real route's answer. So nothing here is imported through the console's path alias, and every part
@@ -52,9 +52,10 @@ const MEAN_RESULTS = [null, null, 4.1, 5.2, 5.6, 6];
 
 type Shelf = { shelf: string; standing: number; superseded: number; imported: number; madeLastWeek: number; searchesLastWeek: number; noResultLastWeek: number };
 /** Every shelf, its last complete week's figures; lessons made are those outside the import cohorts. Each team's standing
- *  lessons are the work fixture's adopted nodes. */
+ *  and superseded lessons are the shelf the Work fixtures serve it: atlas's shelf is the six lessons one of them declares
+ *  plus the six another adds, two of those imported. */
 const SHELVES: Shelf[] = [
-  { shelf: 'atlas', standing: 5, superseded: 1, imported: 0, madeLastWeek: 1, searchesLastWeek: 28, noResultLastWeek: 3 },
+  { shelf: 'atlas', standing: 11, superseded: 1, imported: 2, madeLastWeek: 1, searchesLastWeek: 28, noResultLastWeek: 3 },
   { shelf: 'beacon', standing: 2, superseded: 0, imported: 0, madeLastWeek: 0, searchesLastWeek: 12, noResultLastWeek: 1 },
   { shelf: 'cinder', standing: 1, superseded: 0, imported: 0, madeLastWeek: 0, searchesLastWeek: 0, noResultLastWeek: 0 },
   { shelf: SHARED, standing: 128, superseded: 14, imported: 120, madeLastWeek: 2, searchesLastWeek: 0, noResultLastWeek: 0 },
@@ -65,10 +66,11 @@ const ALL: Shelf = {
   madeLastWeek: total((s) => s.madeLastWeek), searchesLastWeek: total((s) => s.searchesLastWeek), noResultLastWeek: total((s) => s.noResultLastWeek),
 };
 
-/** Standing lessons by kind, every kind a lesson may have; they add up to every shelf's standing lessons. */
+/** Standing lessons by kind, every kind a lesson may have; they add up to every shelf's standing lessons, which includes
+ *  the six atlas's shelf gains from the Work fixtures — one of each kind. */
 const BY_KIND = [
-  { kind: 'decision', standing: 41 }, { kind: 'process', standing: 38 }, { kind: 'knowledge', standing: 29 },
-  { kind: 'design', standing: 12 }, { kind: 'behavior', standing: 9 }, { kind: 'style', standing: 7 },
+  { kind: 'decision', standing: 42 }, { kind: 'process', standing: 39 }, { kind: 'knowledge', standing: 30 },
+  { kind: 'design', standing: 13 }, { kind: 'behavior', standing: 10 }, { kind: 'style', standing: 8 },
 ];
 
 /** The questions that found nothing, over the weeks the charts show, the running one included: by question and the
