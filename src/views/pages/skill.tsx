@@ -106,6 +106,8 @@ export function SkillView({ params }: { params: Promise<{ plugin: string; skill:
   //
   // What the guard was for — not offering a tab that leads nowhere — is kept where it belongs, on the tab itself.
   const view: View = asked === 'read' ? 'read' : asked === 'references' ? 'references' : 'cost';
+  /** The team's runs were read and this skill is not among them: never run, which the tiles and the panel both say. */
+  const never = !skill && list.data !== undefined;
   const produces = plugin?.documents.filter((x) => x.stage === name).map((x) => x.name).join(', ');
   const gated = plugin?.documents.find((x) => x.stage === name && x.gate);
   const base = `/plugins/${pluginName}/${name}`;
@@ -137,15 +139,18 @@ export function SkillView({ params }: { params: Promise<{ plugin: string; skill:
           {/* The tiles are the runs' summary, and `Its runs` is the tab they belong to. They were rendered for every
               tab, under the tab strip, so a reader who picked `The skill` met four cost figures and a colophon before a
               line of the text — the strip appeared to govern them, and on two of its three tabs it did not. */}
-          {view === 'cost' && (skill || list.isPending) ? (
+          {/* The tiles stand from the first paint, as on every page: they say "never run" in words for a skill the team
+              never ran and `—` for a read that did not answer. The row vanishing when the read came back without the
+              skill moved everything under it up (CLS 0.218 at 390px). */}
+          {view === 'cost' ? (
             <Row split="tiles">
-              <MetricTile label="Runs" icon={<Repeat />} value={skill ? skill.runs : list.isPending ? '…' : '—'} note="Recorded" />
+              <MetricTile label="Runs" icon={<Repeat />} value={skill ? skill.runs : never ? 0 : list.isPending ? '…' : '—'} note={never ? 'Never run by your team' : 'Recorded'} />
               {/* The empty state in words, like the two beside it: "Not timed" for a median nobody measured, "No calls" for a share
                 of nothing. A skill that has never run has no average calls per run — an average of no runs is undefined, not
                 zero — and "0.0" claims a measurement that was never taken. */}
-              <MetricTile label="Calls per run" icon={<Activity />} value={!skill ? (list.isPending ? '…' : '—') : skill.runs ? skill.callsAvg : 'No runs'} format={(n) => n.toFixed(1)} note={!skill ? 'Average and peak' : skill.runs ? `${formatCount(skill.calls)} in total, peak ${skill.callsMax}` : 'Nothing has called it'} />
-              <MetricTile label="Median run" icon={<Timer />} value={!skill ? (list.isPending ? '…' : '—') : skill.durationMedian === null ? 'Not timed' : formatSeconds(skill.durationMedian)} note={skill ? `Longest ${formatSeconds(skill.durationMax)}` : 'And the longest'} />
-              <MetricTile label="Refused" icon={<Ban />} value={!skill ? (list.isPending ? '…' : '—') : skill.calls ? skill.refusals / skill.calls : 'No calls'} format={(n) => `${(n * 100).toFixed(1)}%`} note={skill ? `${skill.refusals} of ${formatCount(skill.calls)} calls` : 'Share of its calls'} />
+              <MetricTile label="Calls per run" icon={<Activity />} value={never ? 'No runs' : !skill ? (list.isPending ? '…' : '—') : skill.runs ? skill.callsAvg : 'No runs'} format={(n) => n.toFixed(1)} note={never ? 'Nothing has called it' : !skill ? 'Average and peak' : skill.runs ? `${formatCount(skill.calls)} in total, peak ${skill.callsMax}` : 'Nothing has called it'} />
+              <MetricTile label="Median run" icon={<Timer />} value={never ? 'Not timed' : !skill ? (list.isPending ? '…' : '—') : skill.durationMedian === null ? 'Not timed' : formatSeconds(skill.durationMedian)} note={skill ? `Longest ${formatSeconds(skill.durationMax)}` : 'And the longest'} />
+              <MetricTile label="Refused" icon={<Ban />} value={never ? 'No calls' : !skill ? (list.isPending ? '…' : '—') : skill.calls ? skill.refusals / skill.calls : 'No calls'} format={(n) => `${(n * 100).toFixed(1)}%`} note={skill ? `${skill.refusals} of ${formatCount(skill.calls)} calls` : 'Share of its calls'} />
             </Row>
           ) : null}
           {/* What the skill is: knowable whether or not anybody has run it, and a front door is exactly the skill with no runs. */}
