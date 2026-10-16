@@ -67,7 +67,9 @@ export function KnowledgeLogView() {
       toolbar={<KnowledgeTabs active="log" />}
     >
       <Row split="tiles">
-        <MetricTile label="Entries" icon={<History />} value={q.data ? entries.length : q.isPending ? '…' : '—'} note={entries[0] ? <>Latest <When at={entries[0].ts} /></> : 'Nothing yet'} />
+        {/* Gated exactly as the value beside it is: over a failed read this note said "Nothing yet", which is the
+            all-clear a failure must never wear. */}
+        <MetricTile label="Entries" icon={<History />} value={q.data ? entries.length : q.isPending ? '…' : '—'} note={!q.data ? undefined : entries[0] ? <>Latest <When at={entries[0].ts} /></> : 'Nothing yet'} />
         <MetricTile label="Recorded" icon={<PlusCircle />} value={q.data ? added : q.isPending ? '…' : '—'} note="Nodes minted" />
         <MetricTile label="Superseded" icon={<GitFork />} value={q.data ? entries.length - added : q.isPending ? '…' : '—'} note="Replaced by a newer node" />
       </Row>

@@ -147,8 +147,9 @@ export function EvalHealth({ run }: { run: Run | null }) {
  * Quality: the six canonical dimensions (FR-19), each dimension's share of the overall score as
  * a composition bar — the console's own "share-of-total bars" rule, made literal: a dimension's
  * slice IS its weighted contribution to `overall_score`, so the bar and the number agree by
- * construction rather than by a second computation. Every dimension not applicable says why
- * instead of drawing a silent zero-width slice.
+ * construction rather than by a second computation. Every dimension the bar leaves out — not
+ * applicable, or applicable with no measure scored — says why under the table instead of drawing
+ * a silent zero-width slice.
  *
  * No horizontal scroll on the table below (house rule — nothing in the console scrolls
  * sideways): five columns fit, and `Kind` is the one that drops first on a narrow card.
@@ -159,15 +160,23 @@ export function EvalQuality({ run }: { run: Run | null }) {
   }
   const applicable = run.dimensions.filter((d) => d.applicable);
   const notApplicable = run.dimensions.filter((d) => !d.applicable);
+  /* A dimension whose every measure was excluded has no score, and `scoreRun` leaves it OUT of the
+     overall mean rather than counting it as zero — so the bar leaves it out too. Drawn as a part it
+     would read "contributed nothing", beside a table row that says the truer "not scored". */
+  const parts = applicable.flatMap((d) => (d.score === null ? [] : [{ label: d.key, value: Math.round(d.weight * d.score * 1000) }]));
+  const leftOut = [
+    ...notApplicable.map((d) => `${d.key}: ${d.notApplicableReason ?? 'no reason recorded'}`),
+    ...applicable.flatMap((d) => (d.score === null ? [`${d.key}: no measure scored, ${formatCount(d.measuresScored)} of ${formatCount(d.measuresTotal)}`] : [])),
+  ];
   return (
     <Panel title="Quality" description={`${applicable.length} of ${run.dimensions.length} ${plural(run.dimensions.length, 'dimension')} applicable`}>
       {/* The bar reads in the same units as overall_score's own formula (`10 × Σ weight × score`): a part is its point
           contribution, not a raw fraction of 1, so the parts at their measured scores sum to the headline number. */}
-      <CompositionBar
+      {parts.length ? <CompositionBar
         label="Each dimension's contribution to the overall score"
-        parts={applicable.map((d) => ({ label: d.key, value: d.score === null ? 0 : Math.round(d.weight * d.score * 1000) }))}
+        parts={parts}
         format={(v) => (v / 100).toFixed(2)}
-      />
+      /> : <p className="py-2 text-sm text-ink-3">No dimension has a score, so there is no contribution to draw.</p>}
       <Table className="mt-4">
         <TableHead>
           <TableRow>
@@ -201,10 +210,8 @@ export function EvalQuality({ run }: { run: Run | null }) {
           )}
         </TableBody>
       </Table>
-      {notApplicable.length ? (
-        <p className="mt-3 text-2xs leading-relaxed text-ink-3">
-          {notApplicable.map((d) => `${d.key}: ${d.notApplicableReason ?? 'no reason recorded'}`).join(' · ')}
-        </p>
+      {leftOut.length ? (
+        <p className="mt-3 text-2xs leading-relaxed text-ink-3">{leftOut.join(' · ')}</p>
       ) : null}
     </Panel>
   );

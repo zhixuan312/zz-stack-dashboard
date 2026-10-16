@@ -40,8 +40,9 @@ const columns: Column<Team>[] = aligned([
 /** Every team on the platform: who is in it and what it holds. A platform page; a member's own team is the Overview. */
 export function TeamsView() {
   useLive(['teams']);
-  // Every team on one page: the gateway pages at 10 rows by default, and this table filters and sorts in the browser.
-  const q = useConsole<{ teams: Team[] }>('/teams?limit=100');
+  // Every team on one page: the gateway pages at 10 rows by default and caps the page it takes, so this asks for the
+  // cap. `total` is what counts every team, and the rows are the first page of them.
+  const q = useConsole<{ teams: Team[]; total: number }>('/teams?limit=100');
   const [f, set] = useQueryState({ q: '', status: 'all', sort: 'initiatives', dir: 'desc', page: '1' });
   const [draft, setDraft] = useSearchDraft(f.q, (q) => set({ q, page: '1' }));
   const teams = useMemo(() => q.data?.teams ?? [], [q.data]);
@@ -52,6 +53,10 @@ export function TeamsView() {
     : pendingContext({ view: 'teams', title: 'Teams', address: '/teams', scope: 'every team on the platform' }, failureOf(q));
   const filtered = f.q !== '' || f.status !== 'all';
   const clear = () => set({ q: '', status: 'all', page: '1' });
+  const everyone = q.data?.total ?? teams.length;
+  // Both the search and the status filter run in the browser over the teams read, so past the cap they narrow a part
+  // of the platform and say nothing about the rest.
+  const capped = teams.length < everyone;
 
   return (
     <ConsolePage title="Teams" description="Every team on the platform: who is in it and what it holds." showPeriod={false} updatedAt={freshnessOf(q)} context={context}>
@@ -74,7 +79,7 @@ export function TeamsView() {
           <FilterBar
             search={{ value: draft, onChange: setDraft, placeholder: 'Search teams' }}
             filters={[{ key: 'status', label: 'Status', value: f.status, onChange: (v) => set({ status: v, page: '1' }), options: [{ value: 'all', label: 'All' }, { value: 'active', label: 'Active' }, { value: 'archived', label: 'Archived' }] }]}
-            result={<>{rows.length} of {teams.length}</>}
+            result={q.data ? (capped ? `the first ${teams.length} of ${everyone}, ${rows.length} matching` : `${rows.length} of ${everyone}`) : undefined}
             ask={<AskAbout question={filtered ? 'What do the teams in this list have in common?' : 'Which teams are doing the most work, and which have gone quiet?'} />}
             onClear={clear}
           />

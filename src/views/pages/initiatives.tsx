@@ -57,6 +57,9 @@ export function InitiativesView() {
   const filtered = narrowed(filters);
   const clear = () => set({ q: '', state: 'all', flow: 'all', page: '1' });
   const team = me.data?.activeTeam;
+  // `…` means coming and `—` means it is not. They were the same mark here, so a read that had failed went on
+  // reading as one still on its way.
+  const mark = q.isPending ? '…' : '—';
 
   return (
     <ConsolePage
@@ -93,7 +96,7 @@ export function InitiativesView() {
                 { key: 'state', label: 'State', value: f.state, onChange: (v) => set({ state: v, page: '1' }), options: STATE_OPTIONS },
                 { key: 'flow', label: 'Flow', value: f.flow, onChange: (v) => set({ flow: v, page: '1' }), options: [{ value: 'all', label: 'All' }, ...flows.map((v) => ({ value: v, label: v }))] },
               ]}
-              result={<>{q.data ? `${q.data.total} ${plural(q.data.total, 'initiative')}` : '…'}</>}
+              result={<>{q.data ? `${q.data.total} ${plural(q.data.total, 'initiative')}` : mark}</>}
               ask={<AskAbout question={filtered ? 'What do the initiatives in this list have in common, and which needs me next?' : 'Which initiatives need me next, and what is each waiting on?'} />}
               onClear={clear}
             />

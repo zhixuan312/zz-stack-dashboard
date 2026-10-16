@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { FlowPosition } from '@/console/initiative';
@@ -25,8 +26,23 @@ export function WaitingPanel() {
       description={q.data ? (waiting.length ? `${waiting.length} ${plural(waiting.length, 'gate needs', 'gates need')} a person's approval` : 'Nothing needs a signature') : 'Gates that need a signature'}
       flush
     >
-      {q.isPending ? (
+      {q.isPending || q.error?.status === 401 ? (
         <div className="flex flex-col gap-3 p-(--card-pad)">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
+      ) : q.error ? (
+        // DELIBERATE: a read that failed is not an all-clear. Without this branch a failure — which leaves
+        // `q.data` undefined — falls through to the empty state below and tells the reader every written gate
+        // is signed, on the strength of a read that never answered, in the one panel whose whole job is to say
+        // a person is needed. The gateway's own sentence says why; Retry is the failure state every other failed
+        // read in the console draws.
+        <EmptyState
+          kind="error"
+          layout="inline"
+          title="The waiting gates did not load"
+          className="px-(--card-pad) py-4"
+          action={<Button size="sm" onClick={() => void q.refetch()}>Retry</Button>}
+        >
+          {q.error.message}
+        </EmptyState>
       ) : !waiting.length ? (
         <EmptyState layout="inline" title="Every written gate is signed" className="px-(--card-pad) py-4">The next one appears here the moment its document is written.</EmptyState>
       ) : (

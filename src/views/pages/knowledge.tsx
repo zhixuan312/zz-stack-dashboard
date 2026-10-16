@@ -8,6 +8,8 @@ import { AskAbout } from '@/components/patterns/ask-about';
 import { FilterBar } from '@/components/patterns/filter-bar';
 import { MetricTile } from '@/components/patterns/metric-tile';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
 import { aligned } from '@/console/columns';
 import { KnowledgeTabs } from '@/console/knowledge-tabs';
 import { ConsolePage, useArrival } from '@/console/page';
@@ -64,8 +66,12 @@ export function KnowledgeView() {
         <MetricTile label="Standing" icon={<BookOpen />} value={tiles?.standing.value ?? mark} note={tiles ? `${tiles.standing.imported} imported` : 'On the shelf now'} />
         <MetricTile label="Superseded" icon={<Archive />} value={tiles?.superseded.value ?? mark} note="Replaced, still readable" />
         <MetricTile label="Searches last week" icon={<Search />} value={tiles?.searches.figure.value ?? mark} note="From the page, the assistant and MCP" />
-        <MetricTile label="Found nothing" icon={<SearchX />} value={tiles?.noResult.figure.value ?? mark} note={tiles ? `Of ${tiles.noResult.denominator ?? 0} last week` : 'Searches with no result'} />
+        {/* The denominator is a searched count, and the shape says null never means zero: printing `?? 0` read "Of 0
+            last week" for a week whose searches were not counted at all. */}
+        <MetricTile label="Found nothing" icon={<SearchX />} value={tiles?.noResult.figure.value ?? mark} note={tiles ? (tiles.noResult.denominator === null ? 'Not measured last week' : `Of ${tiles.noResult.denominator} last week`) : 'Searches with no result'} />
       </Row>
+      {/* The tiles above are dashes whether the summary failed or the week held nothing, so the page says which. */}
+      {summary.error && summary.error.status !== 401 ? <EmptyState kind="error" title="The shelf's figures did not load" action={<Button size="sm" onClick={() => void summary.refetch()}>Retry</Button>}>{summary.error.message}</EmptyState> : null}
       <DataTable
         caption="Lessons"
         noun="lessons"
@@ -89,7 +95,7 @@ export function KnowledgeView() {
           <FilterBar
             search={{ value: draft, onChange: setDraft, placeholder: 'Search lessons' }}
             filters={[{ key: 'kind', label: 'Kind', value: f.kind, onChange: (v) => set({ kind: v, page: '1' }), options: KIND_OPTIONS }]}
-            result={<>{list.data ? `${list.data.total} ${plural(list.data.total, 'lesson')}` : '…'}</>}
+            result={<>{list.data ? `${list.data.total} ${plural(list.data.total, 'lesson')}` : list.isPending ? '…' : '—'}</>}
             ask={<AskAbout question={filtered ? 'What do the lessons in this list say, taken together?' : 'What has the team learned most about, and which questions found nothing?'} />}
             onClear={clear}
           />

@@ -53,8 +53,10 @@ const COLUMNS: Column<Person>[] = aligned([
 export function PeopleView() {
   useLive(['people']);
   const { mode } = useConsoleMode();
-  // The read pages at 10 by default; this page filters and pages the rows itself, so it asks for the most one read answers.
-  const q = useConsole<{ people: Person[] }>('/people?limit=100');
+  // The read pages at 10 by default; this page filters and pages the rows itself, so it asks for the most one read
+  // takes, which the gateway caps. `total` is what counts everybody, so it is what the page reports as the
+  // population — the rows alone are its first page, and every count taken over them is taken over that page.
+  const q = useConsole<{ people: Person[]; total: number }>('/people?limit=100');
   const people = useMemo(() => q.data?.people ?? [], [q.data]);
   const [f, set] = useQueryState({ q: '', team: 'all', sort: 'used', dir: 'desc', page: '1' });
   const [draft, setDraft] = useSearchDraft(f.q, (q) => set({ q, page: '1' }));
@@ -69,6 +71,12 @@ export function PeopleView() {
   // is the seventh and eighth place this round found a number followed by a noun that does not agree with it.
   const supers = people.filter((p) => p.role === 'superadmin').length;
   const holders = people.filter((p) => p.tokens > 0).length;
+  const everyone = q.data?.total ?? people.length;
+  // The page holds the first page of that population, so once it is shorter than `total` every figure here counts a
+  // part of it — and a part of it is not the whole.
+  const capped = people.length < everyone;
+  // What a figure counted when it counted less than everybody; nothing when it counted everybody.
+  const ofFirst = capped ? `, of the first ${people.length} read` : '';
 
   return (
     <ConsolePage
@@ -79,10 +87,12 @@ export function PeopleView() {
       context={context}
     >
       <Row split="tiles">
-        <MetricTile label="People" icon={<UserRound />} value={q.data ? people.length : q.isPending ? '…' : '—'} note={`${supers} ${plural(supers, 'superadmin')}`} />
-        <MetricTile label="Live tokens" icon={<KeyRound />} value={q.data ? tokens : q.isPending ? '…' : '—'} note={`Held by ${holders} ${plural(holders, 'person', 'people')}`} />
-        <MetricTile label="Never used a token" icon={<UserX />} value={q.data ? people.filter((p) => !p.last_used).length : q.isPending ? '…' : '—'} note="No platform call on record" />
-        <MetricTile label="Teams" icon={<Users />} value={q.data ? new Set(people.flatMap((p) => p.teams.map(teamSlug))).size : q.isPending ? '…' : '—'} note="Across everyone listed" />
+        {/* A note is gated exactly as its value is: left ungated it printed "0 superadmins" over a read that failed,
+            which is a measured nothing where there is no measurement at all. */}
+        <MetricTile label="People" icon={<UserRound />} value={q.data ? everyone : q.isPending ? '…' : '—'} note={q.data ? `${supers} ${plural(supers, 'superadmin')}${ofFirst}` : undefined} />
+        <MetricTile label="Live tokens" icon={<KeyRound />} value={q.data ? tokens : q.isPending ? '…' : '—'} note={q.data ? `Held by ${holders} ${plural(holders, 'person', 'people')}${ofFirst}` : undefined} />
+        <MetricTile label="Never used a token" icon={<UserX />} value={q.data ? people.filter((p) => !p.last_used).length : q.isPending ? '…' : '—'} note={q.data ? 'No platform call on record' : undefined} />
+        <MetricTile label="Teams" icon={<Users />} value={q.data ? new Set(people.flatMap((p) => p.teams.map(teamSlug))).size : q.isPending ? '…' : '—'} note={q.data ? (capped ? `Across the first ${people.length} people` : 'Across everyone listed') : undefined} />
       </Row>
       <DataTable
         caption="People"
@@ -102,7 +112,7 @@ export function PeopleView() {
           <FilterBar
             search={{ value: draft, onChange: setDraft, placeholder: 'Search people' }}
             filters={mode === 'platform' ? [{ key: 'team', label: 'Team', value: f.team, onChange: (v) => set({ team: v, page: '1' }), options: facet('All', people.flatMap((p) => p.teams.map(teamSlug))) }] : []}
-            result={<>{rows.length} of {people.length}</>}
+            result={q.data ? (capped ? `the first ${people.length} of ${everyone}, ${rows.length} matching` : `${rows.length} of ${everyone}`) : undefined}
             ask={<AskAbout question="Who has a live token they have never used, and who has no token at all?" />}
             onClear={clear}
           />

@@ -8,6 +8,8 @@ import { DataTable, useQueryState, type Column } from '@/components/patterns/dat
 import { FilterBar } from '@/components/patterns/filter-bar';
 import { MetricTile } from '@/components/patterns/metric-tile';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Segmented } from '@/components/ui/segmented';
 import { aligned } from '@/console/columns';
 import { ConsolePage, useArrival } from '@/console/page';
@@ -55,6 +57,12 @@ export function ActivityView() {
     ? activityContext({ summary: summary.data, log: log.data, filters, page, ...arrival })
     : pendingContext({ view: 'activity', title: 'Activity', address: '/activity', scope: 'your active team\'s real work' }, failureOf(summary));
   const mark = summary.isPending ? '…' : '—';
+  // The log read stops at its own ceiling, so past it the page holds the latest matching events alone and a count
+  // that printed the total by itself would read as the whole of them. `…` is coming and `—` is not: a failed read of
+  // the log must not keep saying "a moment".
+  const counted = log.data
+    ? `${log.data.total} ${plural(log.data.total, 'event')}${log.data.total >= log.data.ceiling ? `, of the latest ${log.data.ceiling} read` : ''}`
+    : log.isPending ? '…' : '—';
   const option = (v: string) => ({ value: v, label: v });
 
   return (
@@ -72,6 +80,9 @@ export function ActivityView() {
                     note={tiles ? `${tiles.refused.owners.guardrail} guardrail, ${tiles.refused.owners.ours} malformed, ${tiles.refused.owners.theirs} tool, ${tiles.refused.owners.other} other` : 'By who it is put down to'} />
         <MetricTile label="Most refused" icon={<Wrench />} value={tiles ? (tiles.mostRefused?.count ?? 'None') : mark} note={tiles?.mostRefused ? `${tiles.mostRefused.tool}, of ${tiles.mostRefused.of}` : 'The tool refused most'} />
       </Row>
+      {/* Every tile above is a dash on a failed summary read, which is the mark an empty week wears too, so the page
+          says which of the two it is. */}
+      {summary.error && summary.error.status !== 401 ? <EmptyState kind="error" title="The week's figures did not load" action={<Button size="sm" onClick={() => void summary.refetch()}>Retry</Button>}>{summary.error.message}</EmptyState> : null}
       <DataTable
         caption="Activity"
         noun="events"
@@ -96,7 +107,7 @@ export function ActivityView() {
               { key: 'kind', label: 'Kind', value: f.kind, onChange: (v) => set({ kind: v, page: '1' }), options: [{ value: 'all', label: 'All' }, ...(log.data?.kinds ?? []).map(option)] },
               { key: 'tool', label: 'Tool', value: f.tool, onChange: (v) => set({ tool: v, page: '1' }), options: [{ value: 'all', label: 'All' }, ...(log.data?.tools ?? []).map(option)] },
             ]}
-            result={<>{log.data ? `${log.data.total} ${plural(log.data.total, 'event')}` : '…'}</>}
+            result={counted}
             ask={<AskAbout question={f.refused === 'true' ? 'Which of these refusals matter most, and what would stop them?' : 'What went wrong last week, and which group of refusals should we fix first?'} />}
             onClear={clear}
           />

@@ -13,7 +13,7 @@ import type { Arrival } from '@/views/context';
 import { usePeriod } from '@/console/period';
 
 /** A step back up from a record: the list it belongs to, then the parent record. */
-export type Crumb = { label: string; href?: string };
+type Crumb = { label: string; href?: string };
 
 /**
  * Every console page: Meridian's `PageFrame` with the console's masthead conventions. The kicker says where the page

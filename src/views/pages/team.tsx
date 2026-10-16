@@ -1,12 +1,15 @@
 'use client';
 
 import { use } from 'react';
+import Link from 'next/link';
 import { BookOpen, ListTree, Signature, Users } from 'lucide-react';
 import { Row } from '@/components/base/shell';
 import { MetricTile } from '@/components/patterns/metric-tile';
 import { DataTable, type Column } from '@/components/patterns/data-table';
 import { AskAbout } from '@/components/patterns/ask-about';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
 import { aligned } from '@/console/columns';
 import { ConsolePage, useArrival } from '@/console/page';
 import { failureOf } from '@/console/query';
@@ -68,12 +71,21 @@ export function TeamView({ params }: { params: Promise<{ slug: string }> }) {
       updatedAt={freshnessOf(team)}
       context={context}
     >
-      {missing ? null : (
+      {missing ? (
+        // A slug no team has is the read answering, not failing, so it is the `filtered` empty rather than the error
+        // one — and it still owes the reader the way back, which a blank body did not offer.
+        <EmptyState kind="filtered" title={`No team called ${slug}`} className="py-16"
+                    action={<Button size="sm" asChild><Link href="/teams">All teams</Link></Button>}>
+          A team slug is the name a superadmin gave it; the Teams page lists every one that exists.
+        </EmptyState>
+      ) : (
         <>
           <Row split="tiles">
             <MetricTile label="Initiatives" icon={<ListTree />} value={held ? held.initiatives : pending} note={tiles ? `${tiles.openWork} still open` : undefined} />
-            <MetricTile label="Revisions waiting" icon={<Signature />} value={tiles ? tiles.waiting : pending} emphasis={(tiles?.waiting ?? 0) > 0} note={tiles?.waiting ? 'Presented and not yet approved' : 'Nothing waits on a decision'} />
-            <MetricTile label="Members" icon={<Users />} value={team.data ? members.length : pending} note={`${members.filter((m) => m.role === 'admin').length} ${plural(members.filter((m) => m.role === 'admin').length, 'admin')}`} />
+            {/* Both of these notes state something about the team's work, so a failed read owes the reader neither of
+                them: "Nothing waits on a decision" over a dash is the all-clear a failure must not wear. */}
+            <MetricTile label="Revisions waiting" icon={<Signature />} value={tiles ? tiles.waiting : pending} emphasis={(tiles?.waiting ?? 0) > 0} note={tiles ? (tiles.waiting ? 'Presented and not yet approved' : 'Nothing waits on a decision') : undefined} />
+            <MetricTile label="Members" icon={<Users />} value={team.data ? members.length : pending} note={team.data ? `${members.filter((m) => m.role === 'admin').length} ${plural(members.filter((m) => m.role === 'admin').length, 'admin')}` : undefined} />
             <MetricTile label="Knowledge nodes" icon={<BookOpen />} value={held ? held.knowledge : pending} note={held ? `${held.documents} ${plural(held.documents, 'document')}, ${held.sources} ${plural(held.sources, 'source')}` : undefined} />
           </Row>
           <DataTable

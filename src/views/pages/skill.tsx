@@ -40,7 +40,10 @@ function Cost({ skill, detail }: { skill: Skill | undefined; detail: SkillDetail
   return (
     <>
       <Row split="1/2">
-        <Panel title="Calls by door" description={`${formatCount(skill.calls)} ${plural(skill.calls, 'call')}, ${skill.logged?.tools ?? 0} distinct ${plural(skill.logged?.tools ?? 0, 'tool')}`}>
+        {/* `logged` is null when the platform's log of this skill's calls was not read, and `?? 0` on it printed
+            three measured zeros — no tools, no calls, no refusals. The KeyValue below already says "Not measured"
+            for the same kind of absence. */}
+        <Panel title="Calls by door" description={skill.logged ? `${formatCount(skill.calls)} ${plural(skill.calls, 'call')}, ${skill.logged.tools} distinct ${plural(skill.logged.tools, 'tool')}` : `${formatCount(skill.calls)} ${plural(skill.calls, 'call')}, tools not measured`}>
           <div className="flex flex-col gap-5">
             <CompositionBar label="Calls by door" parts={detail.surfaces.map((x) => ({ label: x.surface, value: x.calls }))} />
             <KeyValue
@@ -48,8 +51,8 @@ function Cost({ skill, detail }: { skill: Skill | undefined; detail: SkillDetail
               items={[
                 { label: 'Observed output per run', value: skill.kbPerRun === null ? 'Not measured' : formatKb(skill.kbPerRun) },
                 { label: 'Observed output in total', value: skill.mbTotal === null ? 'Not measured' : `${skill.mbTotal} MB` },
-                { label: 'Calls in the log', value: formatCount(skill.logged?.calls ?? 0) },
-                { label: 'Refused in the log', value: formatCount(skill.logged?.failed ?? 0) },
+                { label: 'Calls in the log', value: skill.logged ? formatCount(skill.logged.calls) : 'Not measured' },
+                { label: 'Refused in the log', value: skill.logged ? formatCount(skill.logged.failed) : 'Not measured' },
               ]}
             />
             {/* A call is filed under the last skill served to the caller, and the caller is a person plus a client, not a conversation. */}
