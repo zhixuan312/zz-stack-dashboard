@@ -31,8 +31,8 @@ const Prose = lazy(() => import('@/components/patterns/prose').then((m) => ({ de
  *
  * **And it is a trade rather than a free fix, which is why it is one line and measured rather than argued**: the plain
  * text's height is not the formatted height — headings are larger in prose and the marks go — so the swap can move the
- * page. Measured, it did not move: the same sweep that took LCP down about 0.35 s left the CLS as it was. Whichever
- * this measures, the other number is the cost.
+ * page. Measured, it went the right way: the sweep that took the LCP down about 0.35 s took this page's CLS from 0.035
+ * to 0.023, which is not the same as saying it cannot move. Whichever this measures, the other number is the cost.
  */
 export function ReadingBody({ children }: { children: string }) {
   return (

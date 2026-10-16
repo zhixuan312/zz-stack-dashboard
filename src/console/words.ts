@@ -20,7 +20,7 @@ import { formatCount } from '@/lib/format-units';
 
 /**
  * A count of nothing is a dash, not a zero: `0` reads as a measured result, and a team with no documents has not
- * measured anything. Written here rather than in the page that needed it first — it sat in the teams page while a
+ * measured anything. Written here rather than in the page that needed it first — it sat in `teams/page.tsx` while a
  * plugin's version count re-derived it as `s.versions || '—'`, which also lost the thousands separator that
  * `formatCount` puts in.
  *
