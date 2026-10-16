@@ -217,12 +217,14 @@ describe('the shell decides nothing in the browser', () => {
 });
 
 describe('a gate that throws', () => {
-  it('is answered by the error boundary: the console cannot reach the platform, with a retry and no page', () => {
+  it('is answered by the error boundary: what the server could not draw, with a retry and no page', () => {
     const retry = vi.fn();
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const error = Object.assign(new Error('An error occurred in the Server Components render.'), { digest: '2741139937' });
     render(<DashError error={error} retry={retry} />);
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('The console cannot reach the platform');
+    // The wording says what a digest proves — that the SERVER threw — and not which throw it was: any Server Component
+    // carries one, so blaming the platform for a page that threw on its own account would be a claim nobody made.
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('The server could not draw this page');
     expect(screen.getByText(/2741139937/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(retry).toHaveBeenCalledOnce();
