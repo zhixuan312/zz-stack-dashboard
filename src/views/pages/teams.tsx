@@ -49,7 +49,7 @@ export function TeamsView() {
   const rows = useMemo(() => filterTeams(teams, { q: f.q, status: f.status }), [teams, f.q, f.status]);
   const arrival = useArrival(q);
   const context = q.data
-    ? teamsContext(teams, { filters: { q: f.q, status: f.status }, ...arrival })
+    ? teamsContext(teams, q.data.total, { filters: { q: f.q, status: f.status }, ...arrival })
     : pendingContext({ view: 'teams', title: 'Teams', address: '/teams', scope: 'every team on the platform' }, failureOf(q));
   const filtered = f.q !== '' || f.status !== 'all';
   const clear = () => set({ q: '', status: 'all', page: '1' });

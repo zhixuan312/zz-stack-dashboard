@@ -32,7 +32,7 @@ const TEAMS: Team[] = [
 
 function mockFetch() {
   return async (input: RequestInfo | URL) => {
-    const body = String(input).includes('/me') ? ME : { teams: TEAMS };
+    const body = String(input).includes('/me') ? ME : { teams: TEAMS, total: TEAMS.length };
     return { ok: true, json: async () => body } as unknown as Response;
   };
 }

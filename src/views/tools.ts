@@ -79,8 +79,8 @@ const teamsTool = defineViewTool({
   input: z.object({ q: search.describe('Text in the slug or the name.'), status: z.enum(['all', 'active', 'archived']).optional() }),
   async read({ q = '', status = 'all' }) {
     await requireNeed(FEATURES.teams.needs);
-    const data = await gatewayGet<{ teams: Team[] }>(`/teams?${EVERY_ROW}`);
-    return { context: teamsContext(data.teams, { filters: { q, status }, ...justRead() }), data };
+    const data = await gatewayGet<{ teams: Team[]; total: number }>(`/teams?${EVERY_ROW}`);
+    return { context: teamsContext(data.teams, data.total, { filters: { q, status }, ...justRead() }), data };
   },
 });
 
@@ -219,8 +219,8 @@ const peopleTool = defineViewTool({
   input: z.object({ q: search.describe('Text in the name or the email.'), team: z.string().max(100).optional().describe('A team\'s slug.') }),
   async read({ q = '', team = 'all' }) {
     await requireNeed(FEATURES.people.needs);
-    const data = await gatewayGet<{ people: Person[] }>(`/people?${EVERY_ROW}`);
-    return { context: peopleContext(data.people, { filters: { q, team }, mode: await modeOf(), ...justRead() }), data };
+    const data = await gatewayGet<{ people: Person[]; total: number }>(`/people?${EVERY_ROW}`);
+    return { context: peopleContext(data.people, data.total, { filters: { q, team }, mode: await modeOf(), ...justRead() }), data };
   },
 });
 

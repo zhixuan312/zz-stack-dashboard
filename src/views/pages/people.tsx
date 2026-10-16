@@ -63,7 +63,7 @@ export function PeopleView() {
   const rows = useMemo(() => filterPeople(people, { q: f.q, team: f.team }), [people, f.q, f.team]);
   const arrival = useArrival(q);
   const context = q.data
-    ? peopleContext(people, { filters: { q: f.q, team: f.team }, mode, ...arrival })
+    ? peopleContext(people, q.data.total, { filters: { q: f.q, team: f.team }, mode, ...arrival })
     : pendingContext({ view: 'people', title: 'People', address: '/people', scope: mode === 'platform' ? 'everyone the platform knows' : 'everyone on your team' }, failureOf(q));
   const clear = () => set({ q: '', team: 'all', page: '1' });
   const tokens = people.reduce((a, p) => a + p.tokens, 0);
@@ -91,7 +91,7 @@ export function PeopleView() {
             which is a measured nothing where there is no measurement at all. */}
         <MetricTile label="People" icon={<UserRound />} value={q.data ? everyone : q.isPending ? '…' : '—'} note={q.data ? `${supers} ${plural(supers, 'superadmin')}${ofFirst}` : undefined} />
         <MetricTile label="Live tokens" icon={<KeyRound />} value={q.data ? tokens : q.isPending ? '…' : '—'} note={q.data ? `Held by ${holders} ${plural(holders, 'person', 'people')}${ofFirst}` : undefined} />
-        <MetricTile label="Never used a token" icon={<UserX />} value={q.data ? people.filter((p) => !p.last_used).length : q.isPending ? '…' : '—'} note={q.data ? 'No platform call on record' : undefined} />
+        <MetricTile label="Never used a token" icon={<UserX />} value={q.data ? people.filter((p) => !p.last_used).length : q.isPending ? '…' : '—'} note={q.data ? `No platform call on record${ofFirst}` : undefined} />
         <MetricTile label="Teams" icon={<Users />} value={q.data ? new Set(people.flatMap((p) => p.teams.map(teamSlug))).size : q.isPending ? '…' : '—'} note={q.data ? (capped ? `Across the first ${people.length} people` : 'Across everyone listed') : undefined} />
       </Row>
       <DataTable

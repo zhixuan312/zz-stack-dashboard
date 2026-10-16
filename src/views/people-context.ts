@@ -7,9 +7,13 @@ import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
 import { addressOf, arrived, budgeted, whose, type Arrival, type ViewMode } from './context';
 import { filterPeople, type PeopleFilters } from './people-filter';
 
-export function peopleContext(people: Person[], { filters, mode, ...arrival }: { filters: PeopleFilters; mode: ViewMode } & Arrival): SharedContext {
+export function peopleContext(people: Person[], total: number, { filters, mode, ...arrival }: { filters: PeopleFilters; mode: ViewMode } & Arrival): SharedContext {
   const rows = filterPeople(people, filters);
   const narrowed = filters.q !== '' || filters.team !== 'all';
+  // The read takes the most one page the gateway answers (`?limit=100`), so `people` is a page of `total` and not the
+  // population. Every count here is over that page, and the assistant is told which page it was told about — the
+  // console's whole contract with it is that it quotes the figures the screen shows, and the screen says so.
+  const capped = people.length < total;
   const supers = rows.filter((p) => p.role === 'superadmin');
   const tokens = rows.reduce((a, p) => a + p.tokens, 0);
   const holders = rows.filter((p) => p.tokens > 0).length;
@@ -27,12 +31,12 @@ export function peopleContext(people: Person[], { filters, mode, ...arrival }: {
     scope: `${mode === 'platform' ? 'everyone the platform knows' : 'everyone on your team'}${narrowed ? `; filtered to ${[filters.team !== 'all' ? `team ${filters.team}` : '', filters.q ? `matching "${filters.q}"` : ''].filter(Boolean).join(', ')}` : ''}`,
     freshness: arrived(arrival),
     facts: [
-      { label: 'People', value: `${formatCount(rows.length)}${narrowed ? ` of ${formatCount(people.length)}` : ''}`, change: `${supers.length} ${plural(supers.length, 'superadmin')}` },
+      { label: 'People', value: formatCount(total), change: `${supers.length} ${plural(supers.length, 'superadmin')}${capped ? ` among the first ${formatCount(people.length)} read` : ''}`, definition: capped ? `Everybody the platform knows. This read takes the first ${formatCount(people.length)}; every other count here is over those.` : 'Everybody the platform knows.' },
       { label: 'Live tokens', value: formatCount(tokens), change: `held by ${holders} ${plural(holders, 'person', 'people')}`, definition: 'Platform tokens not yet revoked. A token is what a client authenticates with.' },
       { label: 'Never used a token', value: formatCount(never.length), definition: 'People with no platform call on record.' },
       { label: 'Teams', value: formatCount(new Set(rows.flatMap((p) => p.teams.map(teamSlug))).size), definition: `Distinct teams across the people listed, for ${whose(mode)}.` },
     ],
     insights,
-    unknowns: ['A token\'s value is never shown: the store keeps a hash. Only its count and when it last worked are known.', ...(rows.length ? [] : [narrowed ? 'Nobody matches these filters.' : 'Nobody has been added yet.'])],
+    unknowns: [`A token's value is never shown: the store keeps a hash. Only its count and when it last worked are known.`, ...(capped ? [`The list is a page of ${formatCount(total)}: the first ${formatCount(people.length)} were read, so a fact about a person past them is not in this context.`] : []), ...(rows.length ? [] : [narrowed ? 'Nobody matches these filters.' : 'Nobody has been added yet.'])],
   });
 }

@@ -46,7 +46,7 @@ const PEOPLE: Person[] = [
 
 function mockFetch() {
   return async (input: RequestInfo | URL) => {
-    const body = String(input).includes('/me') ? ME : { people: PEOPLE };
+    const body = String(input).includes('/me') ? ME : { people: PEOPLE, total: PEOPLE.length };
     return { ok: true, json: async () => body } as unknown as Response;
   };
 }

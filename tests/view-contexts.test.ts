@@ -77,7 +77,7 @@ const longest = (a: SearchAnswer): SearchAnswer => ({
 
 const contexts: Record<string, () => SharedContext> = {
   overview: () => overviewContext(overview('30d'), { period: '30d', mode: 'platform', ...arrival }),
-  teams: () => teamsContext(TEAMS, { filters: { q: '', status: 'all' }, ...arrival }),
+  teams: () => teamsContext(TEAMS, TEAMS.length, { filters: { q: '', status: 'all' }, ...arrival }),
   team: () => teamContext('atlas', { team: teamDetail('atlas')!, ...arrival }),
   initiatives: () => initiativesContext(listOf(), { filters: ALL, page: 1, ...arrival }),
   initiative: () => initiativeContext(initiativeDetail('atlas', '2026-09-28-search-relevance')!, arrival),
@@ -86,7 +86,7 @@ const contexts: Record<string, () => SharedContext> = {
   knowledge_node: () => knowledgeNodeContext(knowledgeBody(KNOWLEDGE[0].team, KNOWLEDGE[0].path)!, arrival),
   knowledge_log: () => knowledgeLogContext(KNOWLEDGE_LOG, { mode: 'platform', ...arrival }),
   search: () => searchContext(search('latency budget', 5, null), { wide: true, ...arrival }),
-  people: () => peopleContext(PEOPLE, { filters: NO, mode: 'platform', ...arrival }),
+  people: () => peopleContext(PEOPLE, PEOPLE.length, { filters: NO, mode: 'platform', ...arrival }),
   plugins: () => pluginsContext(PLUGINS, arrival),
   plugin: () => pluginContext('sdlc', { plugin: PLUGINS.find((p) => p.plugin === 'sdlc'), evaluation: pluginEval('sdlc'), ...arrival }),
   skill: () => skillContext('sdlc', 'sdlc-spec', { plugin: PLUGINS.find((p) => p.plugin === 'sdlc'), skill: SKILLS.find((s) => s.name === 'sdlc-spec'), detail: as<SkillDetail>(skillDetail(ME, 'sdlc-spec')), text: skillText('sdlc', 'sdlc-spec') ?? undefined, ...arrival }),
@@ -97,12 +97,12 @@ const contexts: Record<string, () => SharedContext> = {
 
 const busy: Record<string, () => SharedContext> = {
   overview: () => overviewContext(big(['overview'], overview('all')), { period: 'all', mode: 'platform', ...arrival }),
-  teams: () => teamsContext(big(['teams'], { teams: TEAMS }).teams, { filters: { q: '', status: 'all' }, ...arrival }),
+  teams: () => teamsContext(big(['teams'], { teams: TEAMS }).teams, TEAMS.length, { filters: { q: '', status: 'all' }, ...arrival }),
   initiatives: () => initiativesContext(big(['initiatives'], listOf()), { filters: ALL, page: 1, ...arrival }),
   knowledge: () => knowledgeContext({ summary: big(['knowledge', 'summary'], LEARNED), list: big(['knowledge'], SHELF), filters: { q: '', kind: 'all' }, page: 1, ...arrival }),
   // The most the tool asks for, every excerpt at its 600 characters and every name as long as a name gets.
   search: () => searchContext(longest(search('review', 8, null)), { initiative: LONG_NAME, wide: true, ...arrival }),
-  people: () => peopleContext(big(['people'], { people: PEOPLE }).people, { filters: NO, mode: 'platform', ...arrival }),
+  people: () => peopleContext(big(['people'], { people: PEOPLE }).people, PEOPLE.length, { filters: NO, mode: 'platform', ...arrival }),
   plugins: () => pluginsContext(big(['plugins'], { plugins: PLUGINS }).plugins, arrival),
   activity: () => activityContext({ summary: big(['activity', 'summary'], SUMMARY), log: big(['activity'], LOG), filters: NO_FILTER, page: 1, ...arrival }),
   runs: () => runsContext(big(['runs'], RUNS), { skill: 'all', ...arrival }),
