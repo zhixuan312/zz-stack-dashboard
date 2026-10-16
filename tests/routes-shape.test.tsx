@@ -52,6 +52,15 @@ const skeletonTables = (src: string) => (src.match(/<(?:TableSkeleton|RecordsSke
 const drawsTiles = (src: string) => /<TilesSkeleton\b/.test(src) || /tiles=\{[1-9]\d*\}/.test(src);
 const hidesFilters = (src: string) => /filters=\{false\}/.test(src);
 const drawsFilterBar = (src: string) => /<FilterBar\b/.test(src);
+/** The tallest block a file draws, in pixels: `h-<n>` is n × 0.25 rem against a 16px root, so h-72 is 288. A
+ *  `min-h-` floor is deliberately not counted — it is not the height the block takes. */
+const tallestBlock = (src: string): number => {
+  const heights = [...src.matchAll(/(?<![-\w])h-(\d+(?:\.\d+)?)\b/g)].map((m) => Number(m[1]) * 4);
+  return heights.length ? Math.max(...heights) : 0;
+};
+/** The rooms a view reserves for itself while its own read is in flight, in pixels: its `skeleton={…}` props. */
+const declaredSkeletons = (src: string): number[] =>
+  [...src.matchAll(/skeleton=\{(<Skeleton[^}]*)\}/g)].map((m) => tallestBlock(m[1]));
 
 describe('a route, while the page it stands in for is on its way', () => {
   // A walk that found nothing passes every rule below for ever, which is the way a guard like this dies.
@@ -71,6 +80,21 @@ describe('a route, while the page it stands in for is on its way', () => {
   it.each(ROUTES.filter((r) => skeletonTables(code(read(r.loading))) > 0))('$route draws the filter bar exactly when its page draws one', ({ loading, view }) => {
     expect(hidesFilters(code(read(loading)))).toBe(!drawsFilterBar(code(read(view))));
   });
+
+  /**
+   * The page's own `skeleton={…}` is the room it means to take while a read is in flight, so a frame that reserves
+   * less than that grows at the moment the page arrives. It is checked one way on purpose: taller is a different
+   * defect and not one two files can settle, but shorter is the direction that pushes the rest of the page down.
+   *
+   * This rule comes from the one route it catches. `plugins/[plugin]/[skill]`'s frame drew two `h-48` charts where
+   * its cost view reserves an `h-72` region — 96px short — and a Web Vitals run on a quiet machine, the first
+   * citable one, read the result as CLS 0.106 against a bar of 0.1, largest mover `span.shimmer.block`.
+   */
+  it.each(ROUTES.filter((r) => declaredSkeletons(code(read(r.view))).length > 0))(
+    '$route reserves at least the room its page reserves', ({ loading, view }) => {
+      const owed = Math.max(...declaredSkeletons(code(read(view))));
+      expect(tallestBlock(code(read(loading)))).toBeGreaterThanOrEqual(owed);
+    });
 });
 
 describe('the settings frame, whose page is a stack of sections', () => {
