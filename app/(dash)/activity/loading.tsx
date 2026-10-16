@@ -1,11 +1,11 @@
 import { LoadingPage } from '@/components/patterns/page-loading';
 import { RecordsSkeleton } from '@/components/templates/records';
 
-/** Activity on its way: the table of events, which has no filter bar. */
+/** Activity on its way: last week's tiles over the table of events, with the bar that filters it by kind and tool. */
 export default function ActivityLoading() {
   return (
     <LoadingPage name="activity" title="Activity">
-      <RecordsSkeleton rows={10} filters={false} />
+      <RecordsSkeleton tiles={3} rows={10} />
     </LoadingPage>
   );
 }
