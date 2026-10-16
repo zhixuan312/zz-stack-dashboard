@@ -1,26 +1,25 @@
 'use client';
 
+import { STANDING_TONE } from '@/console/eval-score';
 import { Panel } from '@/console/panel';
 import { CompositionBar } from '@/components/charts/composition-bar';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { formatPercent } from '@/lib/format';
+import { formatPercent, plural } from '@/lib/format';
 import { formatCount } from '@/lib/format-units';
-import { plural } from '@/lib/format';
 import type { DimensionScore, PluginEval, PluginEvalFound } from '@/lib/api-shapes';
 
 type Run = NonNullable<PluginEvalFound['run']>;
 
-const STATUS_TONE: Record<string, 'positive' | 'warning' | 'neutral'> = {
-  established: 'positive', provisional: 'warning', not_established: 'neutral',
-};
-
 /** A quiet sub-panel state, plain text rather than a mascot — the design system reserves the
  *  illustrated `EmptyState` for a whole page or a whole feature having nothing at all (see
- *  `checks/mascot-assignment.ts`'s own closed budget); a section still waiting on an earlier
+ *  `docs/brand.md` for where a mascot appears); a section still waiting on an earlier
  *  stage of the same run is the same shape as "No round has reached a verdict for this plugin"
- *  already used to be, one paragraph, not a second mascot. */
-function Quiet({ title, description }: { title: string; description: string }) {
+ *  already used to be, one paragraph, not a second mascot.
+ *
+ *  Exported because the other two thirds of this page draw the same state, and one paragraph of
+ *  plain text is not worth three copies of it. */
+export function Quiet({ title, description }: { title: string; description: string }) {
   return (
     <div className="py-2">
       <p className="text-sm font-medium text-ink">{title}</p>
@@ -77,7 +76,7 @@ export function EvalHeadline({ pluginEval }: { pluginEval: PluginEval }) {
           </div>
           <div>
             <p className="t-eyebrow text-ink-3">Status</p>
-            <Badge tone={STATUS_TONE[run.scoreStatus ?? 'not_established']} dot>
+            <Badge tone={STANDING_TONE[run.scoreStatus ?? 'not_established']} dot>
               {run.scoreStatus ?? 'not_established'}
             </Badge>
           </div>

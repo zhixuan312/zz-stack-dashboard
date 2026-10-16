@@ -15,11 +15,9 @@ import { lazy, Suspense } from 'react';
  * pixels when the chunk landed and everything below it moved once, after first paint. Measured at 390px on
  * `/initiatives/…/spec.md`: **CLS 0.231** against a 0.1 bar, reported with `card` as the shifted element at 0.198.
  *
- * `React.lazy` with a `<Suspense>` of its own is what lets the fallback see `bytes`. **The estimate only has to be the
- * right order of magnitude** — a placeholder a little short moves things a little, where 256px for 1,475px moves them a
- * lot — so it is a rough constant rather than a calculation anyone has to keep true.
+ * `React.lazy` with a `<Suspense>` of its own is what lets the fallback be the body itself.
  */
-export const Prose = lazy(() => import('@/components/patterns/prose').then((m) => ({ default: m.Prose })));
+const Prose = lazy(() => import('@/components/patterns/prose').then((m) => ({ default: m.Prose })));
 
 
 /**
@@ -33,8 +31,8 @@ export const Prose = lazy(() => import('@/components/patterns/prose').then((m) =
  *
  * **And it is a trade rather than a free fix, which is why it is one line and measured rather than argued**: the plain
  * text's height is not the formatted height — headings are larger in prose and the marks go — so the swap can move the
- * page. `BodyRoom` reserves room instead, and that is what took this page's CLS from 0.116 to 0.035. Whichever this
- * measures, the other number is the cost.
+ * page. Measured, it did not move: the same sweep that took LCP down about 0.35 s left the CLS as it was. Whichever
+ * this measures, the other number is the cost.
  */
 export function ReadingBody({ children }: { children: string }) {
   return (

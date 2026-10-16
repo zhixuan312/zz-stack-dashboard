@@ -1,26 +1,15 @@
 'use client';
 
 import { Panel } from '@/console/panel';
+import { Quiet } from '@/console/plugin-eval-overview';
 import { CompositionBar } from '@/components/charts/composition-bar';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { formatPercent } from '@/lib/format';
+import { formatPercent, plural } from '@/lib/format';
 import { formatCount } from '@/lib/format-units';
-import { plural } from '@/lib/format';
 import type { EvalFinding, PluginEvalFound } from '@/lib/api-shapes';
 
 type Run = NonNullable<PluginEvalFound['run']>;
-
-/** A quiet sub-panel state, plain text rather than a mascot — see PluginEvalOverview.tsx's own
- *  `Quiet` for why the illustrated `EmptyState` is not reached for every waiting section. */
-function Quiet({ title, description }: { title: string; description: string }) {
-  return (
-    <div className="py-2">
-      <p className="text-sm font-medium text-ink">{title}</p>
-      <p className="mt-0.5 text-xs text-ink-3">{description}</p>
-    </div>
-  );
-}
 
 /** A rate with its own denominator beside it (FR-9) — never a bare percentage, because a
  *  coverage figure with no count behind it cannot be told apart from one measured on three

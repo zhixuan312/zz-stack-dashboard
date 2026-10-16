@@ -27,6 +27,8 @@ export function hitAddress(hit: SearchHit, wide: boolean): string | undefined {
   // A row on the shared shelf lives in the platform team's store, which a console opens only for someone who reads the fleet.
   if (hit.shelf === 'platform' && !wide) return undefined;
   if (hit.kind === 'node') return knowledgeNodeHref(hit.team, hit.path);
+  // DELIBERATE: `src/lib/address.ts`'s `encodePath`, copied rather than imported — that module is a `'use client'` one
+  // and this context is built on the server, where the agent's `search` tool asks for it.
   const file = hit.path.split('/').filter(Boolean).map(encodeURIComponent).join('/');
   return `/initiatives/${encodeURIComponent(hit.team)}/${encodeURIComponent(hit.initiative ?? '')}/${file}`;
 }

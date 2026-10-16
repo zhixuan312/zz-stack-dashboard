@@ -94,9 +94,9 @@ export function ConsolePage({
  * the reader has been looking at it. So this page marks its own stack, and the cost it removes is the page's largest
  * paint — measured on `/initiatives/atlas/2026-09-28-search-relevance/plan.md` at 390px under `scripts/vitals.ts`'s
  * phone profile: the document's text entered the DOM at 2,227 ms and the paint the LCP is taken from landed at
- * 2,652 ms, 425 ms later. That is `--dur-enter` (320 ms) plus the second step of the stagger (45 ms), because the rise
- * starts at `opacity: 0` and the text is not presented until it lifts. With the arrival suppressed the same paint is at
- * 2,236 ms. The bar is 2,500 ms.
+ * 2,652 ms, 425 ms later. The wait is the rise that text sits in — `arrive`'s `m-rise` starts at `opacity: 0`, runs for
+ * `--dur-enter` (320 ms), and begins only after this child's own step of the stagger — so none of the text is presented
+ * until it lifts. With the arrival suppressed the same paint is at 2,236 ms. The bar is 2,500 ms.
  *
  * DELIBERATE: the mark lifts after the longest arrival would have ended, on the shell's own arithmetic and read from
  * the same tokens, so everything that arrives afterwards — a new period, a filter, a hint — still rises exactly as

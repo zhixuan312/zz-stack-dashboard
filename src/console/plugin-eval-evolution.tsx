@@ -1,10 +1,11 @@
 'use client';
 
+import { Quiet } from '@/console/plugin-eval-overview';
 import { Panel } from '@/console/panel';
-import { plural } from '@/lib/format';
-import { Badge } from '@/components/ui/badge';
 import { When } from '@/console/when';
+import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { plural } from '@/lib/format';
 import type { CandidateStatus, PluginEval, PluginEvalFound } from '@/lib/api-shapes';
 
 const STATUS_LABEL: Record<CandidateStatus, string> = {
@@ -15,17 +16,6 @@ const STATUS_TONE: Record<CandidateStatus, 'positive' | 'critical' | 'warning' |
   recorded: 'neutral', awaiting_build: 'warning', valid: 'positive',
   invalid: 'critical',
 };
-
-/** A quiet sub-panel state, plain text rather than a mascot — see PluginEvalOverview.tsx's own
- *  `Quiet` for why the illustrated `EmptyState` is not reached for every waiting section. */
-function Quiet({ title, description }: { title: string; description: string }) {
-  return (
-    <div className="py-2">
-      <p className="text-sm font-medium text-ink">{title}</p>
-      <p className="mt-0.5 text-xs text-ink-3">{description}</p>
-    </div>
-  );
-}
 
 /**
  * Evolution: every candidate the run's findings seeded, its hypothesis and status, how its local

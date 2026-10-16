@@ -52,7 +52,6 @@ function useRevisionText(doc: DocumentDetail, revision: number | undefined): Rev
  * both halves. The diff answers "what changed"; the sources beside it answer
  * "why" — every source declares the document it supports.
  */
-/** A path as an address: each segment encoded, the slashes kept. */
 export function VersionChain({ doc }: { doc: DocumentDetail }) {
   const sources = doc.sources ?? [];
 

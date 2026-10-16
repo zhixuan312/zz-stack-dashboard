@@ -2,8 +2,7 @@
  * The rule for an initiative's state, apart from the components that draw it (`src/console/initiative.tsx`), so the
  * server can ask the same question the State column answers: the assistant's `initiatives` collection and the views'
  * shared contexts both do.
- */
-/**
+ *
  * What is happening to an initiative, in one closed vocabulary, on every page that shows one. Not a stage name: the
  * flow position answers where it is.
  *

@@ -217,8 +217,8 @@ export function FlowStepper({ gates, outcome, steps, complete, correction }: {
         <Legend className="border-positive bg-positive-tint">done</Legend>
         <Legend className="border-accent bg-accent">where it is now</Legend>
         <Legend className="border-warning bg-warning-tint">written, waiting on a person</Legend>
-        {/* COUPLED: the nodes above draw six states; this legend lists all six. Four of them leave the same mark — an
-            empty stage — and the node says beside itself which of the four it is: nothing was written, the branch ruled
+        {/* COUPLED: the nodes above draw six states; this legend lists all six. Three of them leave the same mark — an
+            empty stage — and the node says beside itself which of the three it is: nothing was written, the branch ruled
             the step out (FR-58, Task I-27), or the branch has not decided yet. **One swatch naming all three is the
             truth.** They used to be three entries with identical swatches and identical dashes, which told a reader that
             three different marks existed and that this legend would explain them; at 3× they were one hollow grey ring,

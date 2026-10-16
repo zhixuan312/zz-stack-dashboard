@@ -6,9 +6,9 @@
  * `src/app.config.ts` points each item at its feature's need **by reference** (`needs: FEATURES.teams.needs`), so an
  * item and the table never restate one another.
  *
- * This is the table of the pages the console has today, at today's addresses, and of the Work and Fleet pages the
- * platform declares before they are mounted (Record, Approvals, Access and Fleet's), so a page can gate on its feature the day
- * it lands and the rail offers none of them until then. Everybody reads their own work,
+ * This is the table of the pages the console has today, at today's addresses, and of the pages the platform declares
+ * before they are mounted — Record, Approvals, Access, Usage, Knowledge health and Audit — so a page can gate on its
+ * feature the day it lands, whether or not the rail offers it yet. Everybody reads their own work,
  * the platform's Status, Usage and Knowledge health; Teams, People, Audit and the other fleet pages are a superadmin's.
  *
  * Pure data with type-only imports, so plain `node` can import it: `scripts/check.ts` reads `src/app.config.ts`, which

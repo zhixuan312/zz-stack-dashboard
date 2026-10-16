@@ -12,7 +12,11 @@ import type { PluginScore } from '@/lib/destination-shapes';
  * A `not_established` score shows its standing, never a number: a figure nobody established is not one to quote.
  */
 
-const STANDING_TONE: Record<PluginScore['standing'], 'positive' | 'warning' | 'neutral'> = {
+/**
+ * A score's standing as the console's tone for it — one map, because the list cells and the evaluation page's
+ * headline answer the same question about the same three words, and two copies of that answer would drift.
+ */
+export const STANDING_TONE: Record<PluginScore['standing'], 'positive' | 'warning' | 'neutral'> = {
   established: 'positive', provisional: 'warning', not_established: 'neutral',
 };
 
