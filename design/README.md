@@ -12,18 +12,19 @@ unconditionally, and `.dockerignore` gets no second pass over that line. Source 
 ### `in-use/` — the build consumes these
 
 Twelve single-image renders at 1122×1402 or 1254×1254. `../scripts/build-brand-assets.py` reads from here
-and write small, derived runtime assets into `../public/assets/`.
+and writes small, derived runtime assets — everything under `../public/assets/brand/`, and the two icons,
+which Next's file convention puts in `../app/`.
 
 Nine of the twelve are built. Three — `mascot-working`, `mascot-celebrating` and `mascot-thinking` — are kept
 ahead of a surface that does not exist yet, and the script says so in its own `DELIBERATE` note rather than
 building them. So add a file here when something is going to build from it, and when the something is still
 ahead of you, say so there.
 
-The ten mascot renders carry real transparency. The two icon masters are opaque on purpose, and
-each needs one step before use: `favicon-flat.png` is a 980×980 purple square centred on an
-off-white canvas with 137px of margin, so it is cropped to that square; `app-icon-squircle.png`
-is full-bleed with near-black corners where its squircle radius cuts in, so the build's existing
-corner-extrapolation step fills them with the squircle's own gradient.
+The nine mascot renders and `wordmark-zz.png` carry real transparency. The two icon masters are opaque on
+purpose, and only one needs a step before use: `favicon-flat.png` is a 980×980 purple square centred on an
+off-white canvas with 137px of margin, so it is cropped to that square and the canvas around it is cleared —
+left in, its four corners show as bright dots on a dark tab. `app-icon-squircle.png` is full-bleed and is used
+as drawn: the build resizes it to 180px, near-black corners its squircle radius cuts in and all.
 
 **Three marks, one per size band, and they are not interchangeable.** `favicon-flat.png` is the
 tab icon because two letters at 16px is mush and a favicon is a silhouette;
@@ -37,20 +38,21 @@ Do not scale one of them into another's band.
 | `app-icon-squircle.png` | 1254 × 1254 | opaque | The apple-touch (home-screen) icon, `app/apple-icon.png` — the mascot in a lavender squircle |
 | `wordmark-zz.png` | 1254 × 1254 | yes | The in-app mark — sidebar and auth screens |
 | `mascot-bust.png` | 1254 × 1254 | yes | "Nothing here yet" empty states |
-| `mascot-waving.png` | 1122 × 1402 | yes | The login hero, and "add the first one" empty states |
+| `mascot-waving.png` | 1122 × 1402 | yes | The login hero, and the one-time enrolment screen |
 | `mascot-celebrating.png` | 1122 × 1402 | yes | Nothing yet — no surface uses it, so it is not built |
 | `mascot-working.png` | 1122 × 1402 | yes | Nothing yet — no surface uses it, so it is not built |
 | `mascot-error.png` | 1122 × 1402 | yes | The error boundary, and the query-error fallback every page routes through |
 | `mascot-notfound.png` | 1122 × 1402 | yes | 404, and the unknown plugin / skill pages |
-| `mascot-approved.png` | 1122 × 1402 | yes | Nothing yet — no surface uses it, so it is not built. An approval is a text toast (`src/console/approve.tsx`), and `approved` is the one pose `src/console/brand.tsx` defines that no page passes |
+| `mascot-approved.png` | 1122 × 1402 | yes | Built, and drawn by no page: an approval is a text toast (`src/console/approve.tsx`), and `approved` is the one pose `src/console/brand.tsx` defines that nothing passes. It stays in the build because zz-stack's gate asserts `public/assets/brand/state-approved-2x.webp` is byte-identical to its own panel's copy (`checks/document-panel.ts`), as it does `wordmark.png` |
 | `mascot-goodbye.png` | 1122 × 1402 | yes | The signed-out screen |
 | `mascot-thinking.png` | 1122 × 1402 | yes | Nothing yet — no surface uses it, so it is not built |
 
 ### `reference/` — look at these, never build from them
 
-The ten delivered brand sheets. Every one is a **1448 × 1086 contact sheet**: a grid of small
-panels with captions drawn onto the artwork, not a single asset. Panels sit at roughly 180–300px,
-and several carry baked-in English text.
+The ten delivered brand sheets. Every one is a **1448 × 1086 contact sheet**: a grid of panels, not a single
+asset, at roughly 180–300px. Captions and labels are drawn onto the artwork where they exist, and they are not
+on every sheet — `brand-kit-sheet.png` is captioned throughout, while others carry a word or two at most, or
+none at all. Which is which is a thing to look at rather than to be told.
 
 They are kept because they are the brand's documentation — the palette swatches, the logo
 spacing rules, the expression range, the mood. Read them to answer "what does the brand say about
