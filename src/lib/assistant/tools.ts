@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { patchOf, writableFields, type AnyCollection } from '@/lib/collection';
 import { exploreSchema, runExplore, type ExploreIO, type ExploreRights } from '@/lib/explore';
 import { contextText, type ViewTool } from '@/lib/shared-context';
+import { toolFailure } from './tool-errors';
 
 type Row = Record<string, unknown>;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -78,7 +79,8 @@ function exploreTool({ view, rights, io, page }: HandedExplore) {
         return { success: false, error: new Error(theirs.success ? 'The call does not fit this prepared query.' : `The call does not fit: ${theirs.error.issues.map((i) => `${i.path.join('.') || 'call'} ${i.message}`).join('; ')}.`) };
       },
     }),
-    execute: (input) => runExplore(query, input, rights, io, page, own),
+    // A read the query runs through that throws is told as one fixed sentence too (`./tool-errors.ts`).
+    execute: (input) => runExplore(query, input, rights, io, page, own).catch((e: unknown) => { throw toolFailure(e); }),
   });
 }
 
@@ -110,8 +112,9 @@ export function assistantTools(collections: AnyCollection[], writer: UIMessageSt
     tools[`view_${v.name}`] = tool({
       description: `Open the ${v.title} view at an address and read what it shows: ${v.description} Returns its shared context: figures with units and definitions, what the product computed from them, what is unknown, and the console address that shows it to the person.`,
       inputSchema: v.input,
+      // A read that throws is told to the model as one fixed sentence, never the gateway's own (`./tool-errors.ts`).
       execute: async (input) => {
-        const { context } = await v.read(input);
+        const { context } = await v.read(input).catch((e: unknown) => { throw toolFailure(e); });
         return { address: context.address, context: contextText(context) };
       },
     });

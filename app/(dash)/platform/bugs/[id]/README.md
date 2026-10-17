@@ -48,6 +48,7 @@ Protagonist: Report.
 - "How many other reports on this surface were filed in the last 30 days?" — the reports filed over 30 complete days with this report's surface, down to each report
 - "How were the reports that block work resolved in the last 90 days?" — the reports resolved over 90 complete days with impact blocks_work, by outcome
 - "How many reports are still open from the last 90 days?" — the reports filed over 90 complete days with state open
+- "Resolve this report for me." — nothing is asked of the prepared query: the answer names this page and Resolve report under Resolve, where the person resolves it, and says the assistant resolved nothing
 
 ## Surfaces
 

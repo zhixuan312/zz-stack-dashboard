@@ -42,6 +42,7 @@ Protagonist: Documents.
 - "How many words has this initiative written in the last 30 days, and in which documents?" — the words written over 30 complete days, by document
 - "Which skills ran for it this quarter, and how often?" — the runs over 90 complete days, by skill
 - "How many of its calls were refused in the last 7 days?" — the calls over 7 complete days, by refused
+- "Close this initiative for me." — nothing is asked of the prepared query: the answer names this page and Close initiative, where the person closes it in the dialog, and says the assistant closed nothing
 
 ## Surfaces
 

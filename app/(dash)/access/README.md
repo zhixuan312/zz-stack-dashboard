@@ -57,6 +57,7 @@ Protagonist: Tokens.
 - "Which applications were my tokens minted for?" — the caller's tokens over all complete days, by application
 - "Which tokens did I issue in the last 90 days?" — the caller's tokens issued over 90 complete days, down to each by label and date
 - "How many tokens did I issue each month this year?" — the caller's tokens over all complete days, a month at a time
+- "Revoke my laptop token for me." — nothing is asked of the prepared query: the answer names /access and the token's Revoke under Tokens, where the person revokes it, and says the assistant revoked nothing
 
 ## Surfaces
 

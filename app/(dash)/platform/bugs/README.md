@@ -50,6 +50,7 @@ Protagonist: Queue.
 - "How have reports per 1,000 calls moved week by week this quarter?" — the reports filed per 1,000 calls over 90 complete days, a week at a time
 - "How were the reports filed in the last 90 days resolved?" — the reports resolved over 90 complete days, by outcome
 - "Which surfaces drew the most reports in the last 30 days?" — the reports filed over 30 complete days, by surface
+- "Resolve the newest open report for me." — nothing is asked of the prepared query: the answer names the report's own page and Resolve report where the person may open it, and otherwise says resolving a report is not a change they can make; it never says one was resolved
 
 ## Surfaces
 

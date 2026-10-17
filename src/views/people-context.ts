@@ -33,6 +33,9 @@ export const TILES = {
   signInsLastWeek: { label: 'Sign-ins last week', definition: 'Console sign-ins recorded in the last complete Monday week.' },
 } as const;
 
+/** What the assistant is told about a change to a person: the person asking makes it, on this page, never the assistant. */
+export const PEOPLE_CHANGES = 'The assistant changes nobody: a person adds someone with Add a person, and issues an enrolment link or deactivates someone with Enrolment link or Deactivate in that person\'s row, on this page, /platform/people.';
+
 /** What a person with no sign-in on record reads as: a fact about the record, never a guessed date. */
 export const NO_SIGN_IN = 'No sign-in recorded';
 
@@ -89,6 +92,7 @@ export function peopleContext(data: People, { filters, read, ...arrival }: { fil
     insights,
     unknowns: [
       'People are named here by name and state alone: their addresses, their tokens and any enrolment link are not part of this context.',
+      PEOPLE_CHANGES,
       `A person with no sign-in on record reads "${NO_SIGN_IN}": the record holds none, which is not a date and not a zero.`,
       ...(week.figure.why === 'unavailable' ? ['The sign-ins could not be counted, so last week\'s figure is not stated.'] : []),
       ...(week.figure.why === 'no_data' ? ['No sign-in was recorded before last week ended, so there is no figure for it.'] : []),

@@ -31,7 +31,7 @@ The assistant reads this page and changes nothing: every change in this console 
 
 ### What the agent reads
 
-The filters and the page in force, the four tiles with what each counts, how many teams match, then each team on the page (the first six, and how many more) with its people, open work, waiting, lessons, its calls the week before last and last week, and the day of its last real-work call. It says that each team is read against its own past and never ranked against another, that people counts memberships, that the running week is not complete, when the calls by week could not be read, and how many more teams match on later pages.
+The filters and the page in force, the four tiles with what each counts, how many teams match, then each team on the page (the first six, and how many more) with its people, open work, waiting, lessons, its calls the week before last and last week, and the day of its last real-work call. It says that each team is read against its own past and never ranked against another, that the assistant changes no team (a person creates one with Create a team here, and archives one or adds and removes its members with Archive, Add member and Remove on the team's own page, `/platform/teams/<slug>`), that people counts memberships, that the running week is not complete, when the calls by week could not be read, and how many more teams match on later pages.
 
 ```text
 - The teams on this page, latest real-work call first, each with its real-work calls in the weeks of 28 Sept and 5 Oct: atlas (Atlas Research): 4 people, 8 open, 3 waiting, 5 lessons, calls 120 then 80, active 14 Oct 2026; …

@@ -32,6 +32,9 @@ export const TILES = {
   lessons: { label: 'Lessons adopted', definition: 'Lessons standing on the teams\' shelves.' },
 } as const;
 
+/** What the assistant is told about a change to a team: the person makes it, on this page or the team's own, never the assistant. */
+export const TEAMS_CHANGES = 'The assistant changes no team: a person creates one with Create a team on this page, /platform/teams, and archives a team, adds a member or removes one with Archive, Add member and Remove on that team\'s own page, /platform/teams/<slug>.';
+
 /** What a week's figure reads as: its count, `Unavailable` when it could not be read, nothing before the record. */
 export function weekCount(w: PeriodFigure): string {
   if (w.figure.why === 'unavailable' || w.figure.value === null) return 'Unavailable';
@@ -91,6 +94,7 @@ export function teamsContext(data: Teams, { filters, read, ...arrival }: { filte
     insights,
     unknowns: [
       'A team is read against its own past only: nothing here ranks one team against another.',
+      TEAMS_CHANGES,
       'People counts memberships, so someone in two teams is counted in both.',
       `Calls and sessions are real-work tool calls by Monday week, as of ${formatDate(data.meta.asOf)}; the running week is not complete.`,
       ...(unavailable ? ['The calls by week could not be read, so no team\'s calls or sessions are stated.'] : []),

@@ -4,6 +4,7 @@ import type { ViewTool } from '@/lib/shared-context';
 import { ChangeRefused, assistantTools, type Guard, type HandedExplore } from './tools';
 import { readBrief } from './brief';
 import { briefExcerpt, systemPrompt, type Audience, type PageContext } from './prompt';
+import { ToolFailed } from './tool-errors';
 
 /**
  * What the assistant cannot do or see, said in its prompt so it can tell the person why rather than guess: the
@@ -69,11 +70,12 @@ export async function respond({ model, secret, messages, page, collections, read
 }
 
 /**
- * A refused change says why. Anything else is logged on the server and becomes one of three plain sentences, never
- * anything from the error itself.
+ * A refused change says why. A failed tool says its one fixed sentence (`./tool-errors.ts`), and what it threw is logged
+ * on the server. Anything else is logged and becomes one of three plain sentences, never anything from the error itself.
  */
 function plainError(error: unknown): string {
   if (error instanceof ChangeRefused) return error.message;
+  if (error instanceof ToolFailed) { console.error('assistant: a tool failed', error.cause); return error.message; }
   console.error('assistant: model call failed', error);
   const cause = RetryError.isInstance(error) ? error.lastError : error;
   const status = APICallError.isInstance(cause) ? cause.statusCode : undefined;

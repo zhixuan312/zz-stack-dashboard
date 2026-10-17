@@ -33,7 +33,7 @@ The assistant reads this page and changes nothing: every change in this console 
 
 ### What the agent reads
 
-The filters and the page in force, the four tiles with what each counts, how many people match, then each person on the page by name and state alone. It says that addresses, tokens and enrolment links are not part of the context, that a person with no sign-in on record is unknown rather than a date, when the sign-ins could not be counted, and how many more people match on later pages.
+The filters and the page in force, the four tiles with what each counts, how many people match, then each person on the page by name and state alone. It says that addresses, tokens and enrolment links are not part of the context, that the assistant changes nobody (a person adds someone with Add a person here, and issues an enrolment link or deactivates someone with Enrolment link or Deactivate in their row), that a person with no sign-in on record is unknown rather than a date, when the sign-ins could not be counted, and how many more people match on later pages.
 
 ```text
 - The people on this page, by the day they were added, each with their state: Ava Lindqvist (active); Leo Santos (deactivated); …
@@ -49,6 +49,7 @@ Protagonist: People.
 - "How many superadmins are there?" — the people held to the role superadmin
 - "How many sign-ins did superadmins and members make each week this month?" — the sign-ins over 30 complete days a week at a time, then by role
 - "Who signed in in the last week?" — the sign-ins over 7 complete days, down to the people who signed in
+- "Deactivate Mei Tanaka for me." — nothing is asked of the prepared query: the answer names /platform/people and Deactivate in that person's row, where the person deactivates them, and says the assistant deactivated nobody
 
 ## Surfaces
 

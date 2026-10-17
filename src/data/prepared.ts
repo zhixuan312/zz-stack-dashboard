@@ -14,6 +14,7 @@
 import { z } from 'zod';
 import { FEATURES, FLEET } from '@/data/features';
 import type { ConsoleNeed } from '@/data/roles';
+import type { AnyCollection } from '@/lib/collection';
 
 type Bucket = 'day' | 'week' | 'month' | 'weekday';
 type Row = Record<string, unknown>;
@@ -47,6 +48,17 @@ export type PreparedRow = {
   drill: { flat?: (row: Row) => Row; needs?: ConsoleNeed } | { none: string };
   /** What the page that shows the measure needs. */
   needs: ConsoleNeed;
+  /**
+   * The changes a page makes to it with a control of its own, which the assistant is told are the person's, made there:
+   * left out, its prompt says nobody can make them. A control that takes a record out of use (Revoke, Archive,
+   * Deactivate) is its `remove`. Never a write tool: no row has an operation the assistant could call.
+   */
+  pageOnly?: AnyCollection['pageOnly'];
+  /**
+   * Who has the control `pageOnly` names, when not everybody who reads the row does: the assistant route tells anybody
+   * else that nobody can make the change here, rather than sending them to a page that has no control for them.
+   */
+  pageOnlyNeeds?: ConsoleNeed;
 };
 
 const text = z.string();
@@ -79,7 +91,8 @@ export const PREPARED: PreparedRow[] = [
     description: 'The active team\'s initiatives closed in a window, by the outcome each closed with.',
     dimensions: ['outcome', 'flow', 'initiative'], buckets: DAYS, date: 'closed', key: 'slug',
     fields: z.object({ outcome: text, initiative: text, ...initiativeFields }),
-    drill: { flat: initiativeRow }, needs: FEATURES.record.needs,
+    // Close initiative, in the dialog on an initiative's own page.
+    drill: { flat: initiativeRow }, needs: FEATURES.record.needs, pageOnly: ['create'],
   },
   {
     name: 'opened', label: 'Initiatives opened', route: 'work', measure: 'opened',
@@ -102,7 +115,8 @@ export const PREPARED: PreparedRow[] = [
     fields: z.object({
       presentation: text, decision_basis: text, initiative: text, path: text, version: count, contentRevision: text, approvedAt: text, decisionBasis: text,
     }),
-    drill: {}, needs: FEATURES.approvals.needs,
+    // Approve, on the document's own page.
+    drill: {}, needs: FEATURES.approvals.needs, pageOnly: ['create'],
   },
   {
     name: 'lessons', label: 'Lessons made', route: 'work', measure: 'lessons',
@@ -210,7 +224,9 @@ export const PREPARED: PreparedRow[] = [
     description: 'The real bug reports resolved, dated by the day each was filed.',
     dimensions: ['outcome', 'impact'], buckets: DAYS, date: 'at', key: 'id',
     fields: z.object({ outcome: text, impact: text, id: text, title: text, surface: maybe, filedAt: text, status: text, resolvedAt: maybe, at: text, address: text }),
-    drill: {}, needs: FEATURES.bugs.needs,
+    // Resolve report, on an open report's own page, which only a superadmin opens though a member reads this too:
+    // told it was made on its page, a member was sent to Bugs to resolve one.
+    drill: {}, needs: FEATURES.bugs.needs, pageOnly: ['create'], pageOnlyNeeds: FEATURES.bug.needs,
   },
   {
     name: 'findings', label: 'Findings', route: 'platform', measure: 'findings',
@@ -255,14 +271,16 @@ export const PREPARED: PreparedRow[] = [
     description: 'Every team made by a window\'s end, by its status: a stock.',
     dimensions: ['status'], buckets: [], date: 'at', key: 'slug',
     fields: z.object({ status: text, slug: text, name: text, created: text, people: count, openWork: count, waiting: count, lessons: count, lastActive: maybe, at: text, address: text }),
-    drill: { flat: ({ sessions: _s, calls: _c, ...r }) => r }, needs: FEATURES.teams.needs,
+    // Create a team on Teams, and Archive on a team's own page.
+    drill: { flat: ({ sessions: _s, calls: _c, ...r }) => r }, needs: FEATURES.teams.needs, pageOnly: ['create', 'remove'],
   },
   {
     name: 'people', label: 'People', route: 'platform', measure: 'people',
     description: 'Every person added by a window\'s end, by role and state: a stock. A person\'s tokens and enrolment links are never shown.',
     dimensions: ['role', 'state'], buckets: [], date: 'at', key: 'email',
     fields: z.object({ role: text, state: text, email: text, name: text, created: text, passkeys: count, lastSignIn: maybe, at: text, address: text }),
-    drill: { flat: ({ teams: _t, ...r }) => r }, needs: FEATURES.people.needs,
+    // Add a person, and Deactivate in a person's row, on People.
+    drill: { flat: ({ teams: _t, ...r }) => r }, needs: FEATURES.people.needs, pageOnly: ['create', 'remove'],
   },
   {
     name: 'sign_ins', label: 'Sign-ins', route: 'platform', measure: 'sign_ins',
@@ -285,7 +303,8 @@ export const PREPARED: PreparedRow[] = [
     description: 'The caller\'s own platform tokens by label, state and the application each was minted for, with their dates. A token\'s value is shown once, when it is issued, and is stored nowhere it can be read again.',
     dimensions: ['state', 'application'], buckets: DAYS, date: 'createdAt', key: 'id',
     fields: z.object({ state: z.enum(['live', 'revoked']), application: maybe, label: text, createdAt: text, lastUsedAt: maybe, revokedAt: maybe }),
-    drill: {}, needs: FEATURES.access.needs,
+    // Issue token, and Revoke in a token's row, under Tokens on Access.
+    drill: {}, needs: FEATURES.access.needs, pageOnly: ['create', 'remove'],
   },
 ];
 

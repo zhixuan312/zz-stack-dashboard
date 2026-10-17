@@ -49,9 +49,13 @@ export async function POST(request: Request): Promise<Response> {
   // assistant reads none of them directly: it reads through the view tools and the page's prepared query, which ask the
   // grant again when they run. Listing a tool is not enforcement: the checks that stop a read are the ones that run at
   // execution.
+  // A change a page makes with a control only some readers have is said to be made there to them alone; anybody else is
+  // told nobody can make it here, never sent to a page with no control for them.
   const readable = (await Promise.all(collections.map(async (c) => {
     if (!(await can(scope, c.name, 'read'))) return null;
-    return await handedTo(scope, collectionFor(scope, c.name), c.name);
+    const handed = await handedTo(scope, collectionFor(scope, c.name), c.name);
+    const needs = PREPARED.find((r) => r.name === c.name)?.pageOnlyNeeds;
+    return needs && !(await may(needs)) ? { ...handed, pageOnly: undefined } : handed;
   }))).filter((c): c is AnyCollection => c !== null);
 
   // A view tool is registered only where the person satisfies its feature's need. A view's `read` asks the need again,

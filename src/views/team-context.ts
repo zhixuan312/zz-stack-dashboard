@@ -41,6 +41,16 @@ export function teamTrouble(slug: string, read: Exclude<TeamRead, { state: 'ok' 
     : { title: 'The team did not load', detail: read.reason };
 }
 
+/**
+ * What the assistant is told about a change to this team: the person makes it on this page, never the assistant. An
+ * archived team has no Archive; the page says creating its slug again restores it, which Teams does.
+ */
+export function teamChanges(slug: string, status: TeamDetail['team']['status']): string {
+  return status === 'active'
+    ? `The assistant changes nothing here: a person archives this team with Archive, adds a member with Add member and removes one with Remove, on this page, /platform/teams/${slug}.`
+    : `The assistant changes nothing here: a person adds a member with Add member and removes one with Remove, on this page, /platform/teams/${slug}, and restores the team by creating its slug again with Create a team on /platform/teams.`;
+}
+
 /** Whether the calls by week could not be read: the read keeps the team and its tiles, and says so of the weeks. */
 export const callsUnavailable = (t: TeamDetail): boolean => t.calls.some((w) => w.figure.why === 'unavailable');
 
@@ -73,6 +83,7 @@ export function teamContext(slug: string, { team, ...arrival }: { team: TeamDeta
     insights,
     unknowns: [
       'The team is read against its own past only: nothing here compares it with another team.',
+      teamChanges(slug, team.team.status),
       'Which initiatives these are is the team\'s own to read: the console lists a team\'s work only to whoever acts for it.',
       ...(unavailable ? ['The calls by week could not be read, so no week\'s calls are stated.'] : []),
       ...(team.calls.length ? [] : ['No week of calls is recorded yet.']),

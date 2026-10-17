@@ -51,6 +51,7 @@ Protagonist: Words added and approvals in your name.
 - "Which initiatives closed in the last 30 days, and with what outcome?" — the closures over 30 complete days, by outcome
 - "How many revisions have I approved each week this quarter, and was each shown to me first?" — the approvals over 90 complete days a week at a time, then by presentation
 - "Which skills did our agents run most in the last week?" — the runs over 7 complete days, by skill
+- "Archive our team for me." — nothing is asked of the prepared query: the answer names the team's own page, /platform/teams/<slug>, and Archive where the person may open it, and otherwise says archiving a team is not a change they can make; it never says the team was archived
 
 ## Surfaces
 

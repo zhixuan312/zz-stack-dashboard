@@ -186,6 +186,7 @@ export function preparedCollection(row: PreparedRow): AnyCollection {
   const base = {
     name: row.name, label: row.label, description: row.description, key: row.key, fields: row.fields,
     title: (r: Row) => String(r[row.key] ?? ''),
+    ...(row.pageOnly ? { pageOnly: row.pageOnly } : {}),
   };
   if (row.route === 'access') {
     const c: AnyCollection = {
