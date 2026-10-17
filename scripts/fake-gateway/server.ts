@@ -35,6 +35,9 @@
  * `GET /api/console/platform/evaluation`. A report, `GET /api/console/platform/bugs/:id`, its duplicate targets,
  * `/platform/bugs/:id/duplicates`, and its resolution, `POST /api/console/platform/bugs/:id/resolve`, are the
  * superadmin's alone: anyone else is refused 403 before anything is read, with nothing in the body that says who may.
+ * The Platform prepared query, `GET /api/console/platform/query`, is public by its route and answered as each measure's
+ * page answers the caller, a member refused the superadmin's measures, a team and the questions searches asked
+ * (platform-query.ts).
  *
  * Fleet's reads are answered the same way. `GET /api/console/platform/usage` and `/platform/knowledge` are public, the
  * superadmin's answer naming the teams and the questions a member's leaves out; `GET /api/console/platform/audit` is
@@ -70,6 +73,7 @@ import { badFilter, bugReport, bugs, duplicates, resolve } from './platform-bugs
 import { evaluation } from './platform-evaluation.ts';
 import { knowledge } from './platform-knowledge.ts';
 import { PLATFORM_PEOPLE, people, rosterOf, teamMembers } from './platform-people.ts';
+import { platformQuery } from './platform-query.ts';
 import { releaseDetail, releases } from './platform-releases.ts';
 import { MEMBER_STATUS, PLATFORM_STATUS } from './platform-status.ts';
 import { TEAMS, team, teams } from './platform-teams.ts';
@@ -293,6 +297,7 @@ function platformRead(who: Me, seg: string[], q: URLSearchParams): Answer {
       if (id !== undefined) return missing(seg.join('/'));
       if (!who.superadmin) return REFUSED;
       return audit(q, p) ?? BAD_PAGE;
+    case 'query': return id === undefined ? platformQuery(who, q) : missing(seg.join('/'));
     default: return missing(seg.join('/'));
   }
 }

@@ -71,6 +71,7 @@ async function memberReads(): Promise<string[]> {
     'plugins', 'plugins/sdlc/eval', 'plugins/sdlc/skills/sdlc-spec', 'skills', 'skills?plugin=sdlc', 'skills/sdlc-spec', 'access',
     'search?q=recency', 'search?q=review%20rounds&limit=50',
     'settings/me/tokens', 'settings/me/client-setup', 'settings/me/teams', `settings/team/members?team=${own}`, 'platform/status',
+    'platform/query?measure=calls&by=week', 'platform/query?measure=bugs_filed&by=impact',
   ];
   // The list's rows name no team: each is the active team's, and its page opens under that team.
   const { rows } = await read<{ rows: { slug: string }[] }>(MEMBER, 'initiatives?limit=100');

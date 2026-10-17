@@ -192,7 +192,8 @@ describe('every mode answers both people', () => {
     fetch(`${base}/api/console/${path}`, { headers: cookie === null ? {} : { cookie: `zz_console=${cookie}` }, signal: AbortSignal.timeout(ms) });
   const READS = ['overview', 'initiatives', 'initiatives?waiting=1', 'knowledge', 'knowledge/summary', 'knowledge/log', 'activity',
                  'activity/summary', 'runs', 'plugins', 'skills', 'access', 'settings/me/tokens', 'settings/me/teams', 'platform/status',
-                 'home', 'record', 'approvals', 'work/query?measure=closures&by=outcome'];
+                 'home', 'record', 'approvals', 'work/query?measure=closures&by=outcome',
+                 'platform/query?measure=calls&by=week'];
   /** The superadmin's alone: a member is refused them in every world. */
   const FLEET = ['teams', 'teams?scope=platform', 'teams/atlas', 'people', 'people?scope=platform'];
   const REFUSAL = { error: 'not permitted' };

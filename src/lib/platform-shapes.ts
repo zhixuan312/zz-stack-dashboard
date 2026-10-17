@@ -182,3 +182,23 @@ export type Evaluation = {
   byOwner: Part<Record<string, number>>;
   waiting: Part<{ rows: SafeFinding[]; total: number }>;
 };
+
+/* /platform/query */
+
+/** One group: its key along the dimension or bucket asked, null for the rows with none, its label, its value, its share
+ *  of the total, and its value in the window before when that was asked. */
+export type PlatformQueryGroup = { key: string | null; label: string; value: Figure; share: number | null; previous: Figure | null };
+/** One drilled row: the row the measure's page draws, the instant it is ordered by, and its console address. */
+export type PlatformQueryRow = Record<string, unknown> & { at: string; address: string };
+/** `GET /platform/query?measure&by&from&to&compare&where&group&rows&top&limit&offset`: one measure of the platform over a
+ *  window of whole days, grouped by one of its dimensions or by a bucket, against the window before when asked, and down
+ *  to the rows its page draws. COUPLED: `PlatformQuery` in zz-stack's packages/contracts/src/platform-query.ts. */
+export type PlatformQuery = {
+  meta: ReadMeta;
+  measure: string; by: string | null; window: Window;
+  groups: PlatformQueryGroup[];
+  /** The groups past `top`, or for a bucket the earlier buckets, folded into one count. */
+  rest: { groups: number; value: number; previous: number | null } | null;
+  total: Figure;
+  rows: Part<{ rows: PlatformQueryRow[]; total: number }> | null;
+};

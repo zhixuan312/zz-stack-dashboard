@@ -187,12 +187,13 @@ export type WorkQueryRow =
   | KnowledgeRow;                                                                   // shelf; skill_calls is not drilled
 /** A figure; for output, beside it the runs that measured none, and for the shelf its standing lessons an import made. */
 type Counted = Figure & { unmeasured?: number; imported?: number };
-/** `GET /work/query?measure&by&from&to&compare&state&flow&q&group&limit&offset`: one prepared question, answered. The
- *  shelf is a stock as of the window's end, so its `previous` is always null. */
+/** `GET /work/query?measure&by&from&to&compare&where&state&flow&q&group&rows&top&limit&offset`: one prepared question,
+ *  answered. `from` and `to` are two instants or two dates; `grain` is the grain `period` was drawn at, or the bucket
+ *  asked. The shelf is a stock as of the window's end, so its `previous` is always null. */
 export type WorkQuery = {
   meta: ReadMeta;
   measure: string; by: string; window: Window;
-  grain: 'week' | 'month' | 'quarter' | null;
+  grain: 'week' | 'month' | 'quarter' | 'day' | 'weekday' | null;
   groups: { key: string; label: string; value: Counted; share: number | null; previous: Counted | null }[];
   rest: { groups: number; value: number } | null;
   total: Counted;
