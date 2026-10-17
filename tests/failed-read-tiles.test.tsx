@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Tooltip } from 'radix-ui';
 
@@ -7,6 +7,12 @@ import { PeriodProvider } from '@/console/period';
 import { RunsView } from '@/views/pages/runs';
 
 const TooltipProvider = Tooltip.Provider;
+
+vi.mock('next/navigation', () => ({
+  usePathname: () => window.location.pathname,
+  useSearchParams: () => new URLSearchParams(window.location.search),
+  useRouter: () => ({ push() {}, replace() {}, refresh() {}, back() {}, forward() {}, prefetch() {} }),
+}));
 
 /**
  * A read that failed must not look like one still on its way.
@@ -29,14 +35,13 @@ describe('every read on a page failing', () => {
     render(
       <QueryClientProvider client={client}>
         <PeriodProvider>
-          <TooltipProvider><RunsView /></TooltipProvider>
+          <TooltipProvider><RunsView served={{ state: 'failed', path: '/runs?limit=10&offset=0', reason: 'the gateway could not reach its database' }} /></TooltipProvider>
         </PeriodProvider>
       </QueryClientProvider>,
     );
-    // Both reads on this page report themselves: the totals, and the skill panel.
-    await waitFor(() => expect(screen.getAllByText(/did not load/).length).toBeGreaterThan(1));
-    // The tiles have settled, and none of them says "coming".
-    expect(screen.getAllByText('—').length).toBeGreaterThan(0);
+    // The server's one read failed, so the page says so once, with the gateway's sentence, and nothing says "coming".
+    expect(screen.getByText('The runs did not load')).toBeInTheDocument();
+    expect(screen.getByText('the gateway could not reach its database')).toBeInTheDocument();
     expect(screen.queryByText('…')).toBeNull();
   });
 });

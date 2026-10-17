@@ -31,7 +31,7 @@ export const FLEET = 'fleet:read' satisfies HeldRead;
 /** Every page the console offers, by the id the rail, the palette and a page's gate name it. */
 export type FeatureId =
   | 'home' | 'record' | 'initiatives' | 'approvals' | 'knowledge' | 'people' | 'settings' | 'access' | 'teams' | 'plugins' | 'runs' | 'activity'
-  | 'platform-status' | 'releases' | 'bugs' | 'evaluation' | 'usage' | 'knowledge-health' | 'audit';
+  | 'platform-status' | 'releases' | 'bugs' | 'bug' | 'evaluation' | 'usage' | 'knowledge-health' | 'audit';
 
 /** Each feature: its name as a person reads it, and the need a person must satisfy to reach it. Never `public`. */
 export const FEATURES: Record<FeatureId, { title: string; needs: HeldRead }> = {
@@ -50,6 +50,7 @@ export const FEATURES: Record<FeatureId, { title: string; needs: HeldRead }> = {
   'platform-status': { title: 'Status', needs: PLATFORM },
   releases: { title: 'Releases', needs: PLATFORM },
   bugs: { title: 'Bugs', needs: PLATFORM },
+  bug: { title: 'Bug report', needs: FLEET },
   evaluation: { title: 'Evaluation', needs: PLATFORM },
   usage: { title: 'Usage', needs: PLATFORM },
   'knowledge-health': { title: 'Knowledge health', needs: PLATFORM },

@@ -15,17 +15,19 @@ import { knowledgeContext } from '@/views/knowledge-context';
 import { knowledgeLogContext } from '@/views/knowledge-log-context';
 import { knowledgeNodeContext } from '@/views/knowledge-node-context';
 import { peopleContext } from '@/views/people-context';
+import { BUGS_DEFAULTS, bugContext, bugsContext } from '@/views/platform-bugs-context';
 import { releaseContext, releasesContext } from '@/views/platform-releases-context';
 import { platformStatusContext, statusRead } from '@/views/platform-status-context';
 import { pluginContext } from '@/views/plugin-context';
 import { pluginsContext } from '@/views/plugins-context';
 import { skillContext } from '@/views/skill-context';
-import { runsContext } from '@/views/runs-context';
+import { RUNS_DEFAULTS, runsContext } from '@/views/runs-context';
 import { hitAddress, searchContext } from '@/views/search-context';
 import { settingsContext } from '@/views/settings-context';
 import { teamContext } from '@/views/team-context';
 import { teamsContext } from '@/views/teams-context';
 import { ME, MY_TEAMS, MY_TOKENS } from '../scripts/fake-gateway/people.ts';
+import { bugReport, bugs, duplicates } from '../scripts/fake-gateway/platform-bugs.ts';
 import { people } from '../scripts/fake-gateway/platform-people.ts';
 import { releaseDetail, releases } from '../scripts/fake-gateway/platform-releases.ts';
 import { PLATFORM_STATUS } from '../scripts/fake-gateway/platform-status.ts';
@@ -87,6 +89,8 @@ const contexts: Record<string, () => SharedContext> = {
   team: () => teamContext('atlas', { team: teamDetail('atlas')!, ...arrival }),
   releases: () => releasesContext(releases(10, 0), { filters: { page: '1' }, ...arrival }),
   release: () => releaseContext(releaseDetail('0.97.0')!, { asOf: arrival.now, ...arrival }),
+  bugs: () => bugsContext(bugs(true, { state: null, impact: null, surface: null }, 10, 0), { filters: BUGS_DEFAULTS, ...arrival }),
+  bug: () => bugContext(bugReport('0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d01')!, duplicates('0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d01'), arrival),
   initiatives: () => initiativesContext(listOf(), { filters: ALL, page: 1, ...arrival }),
   initiative: () => initiativeContext(initiativeDetail('atlas', '2026-09-28-search-relevance')!, arrival),
   document: () => documentContext(documentDetail('atlas', '2026-09-28-search-relevance', 'spec.md')!, arrival),
@@ -98,7 +102,7 @@ const contexts: Record<string, () => SharedContext> = {
   plugins: () => pluginsContext(PLUGINS, arrival),
   plugin: () => pluginContext('sdlc', { plugin: PLUGINS.find((p) => p.plugin === 'sdlc'), evaluation: pluginEval('sdlc'), ...arrival }),
   skill: () => skillContext('sdlc', 'sdlc-spec', { plugin: PLUGINS.find((p) => p.plugin === 'sdlc'), skill: SKILLS.find((s) => s.name === 'sdlc-spec'), detail: as<SkillDetail>(skillDetail(ME, 'sdlc-spec')), text: skillText('sdlc', 'sdlc-spec') ?? undefined, ...arrival }),
-  runs: () => runsContext(RUNS, { skill: 'all', ...arrival }),
+  runs: () => runsContext(RUNS, { filters: RUNS_DEFAULTS, ...arrival }),
   activity: () => activityContext({ summary: SUMMARY, log: LOG, filters: NO_FILTER, page: 1, ...arrival }),
   settings: () => settingsContext({ me: ME, teams: MY_TEAMS, tokens: MY_TOKENS, mode: 'platform', ...arrival }),
 };
@@ -112,7 +116,7 @@ const busy: Record<string, () => SharedContext> = {
   people: () => peopleContext(big(['people'], PEOPLE_PAGE), { filters: { q: '', state: 'all', page: '1' }, ...arrival }),
   plugins: () => pluginsContext(big(['plugins'], { plugins: PLUGINS }).plugins, arrival),
   activity: () => activityContext({ summary: big(['activity', 'summary'], SUMMARY), log: big(['activity'], LOG), filters: NO_FILTER, page: 1, ...arrival }),
-  runs: () => runsContext(big(['runs'], RUNS), { skill: 'all', ...arrival }),
+  runs: () => runsContext(big(['runs'], RUNS), { filters: RUNS_DEFAULTS, ...arrival }),
 };
 
 describe('every view shares a context', () => {

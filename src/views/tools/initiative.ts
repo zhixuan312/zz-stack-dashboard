@@ -6,13 +6,13 @@ import { gatewayGet } from '@/data/gateway';
 import type { InitiativeDetail } from '@/lib/api-shapes';
 import { defineViewTool } from '@/lib/shared-context';
 import { initiativeContext } from '../initiative-context';
+import { initiativeExplore } from '../initiatives-explore';
 import { justRead, segment } from './shared';
-import { approvals, calls, runs, words } from './sources';
 
 export const initiativeTool = defineViewTool({
   name: 'initiative',
   title: 'Initiative',
-  description: 'One initiative: its state, where it is in its flow, its gates, its documents and their approval, and what waits on a person.',
+  description: 'One initiative: its state, where it is in its flow, its gates, its documents and their approval, what waits on a person, and how it closed when it has. A person closes it in the page\'s dialog; the assistant never does.',
   needs: FEATURES.initiatives.needs,
   page: '/initiatives/[team]/[slug]',
   input: z.object({ team: segment('The team\'s slug.'), slug: segment('The initiative\'s slug.') }),
@@ -21,12 +21,5 @@ export const initiativeTool = defineViewTool({
     const data = await gatewayGet<InitiativeDetail>(`/initiatives/${team}/${slug}`);
     return { context: initiativeContext(data, justRead()), data };
   },
-  explore: {
-    sources: { words, approvals, runs, calls },
-    // Work is the active team's, so the initiative is named by its slug alone.
-    fixed: async ({ slug }) => {
-      const one = [{ field: 'initiative', op: 'eq' as const, value: slug }];
-      return { words: one, approvals: one, runs: one, calls: one };
-    },
-  },
+  explore: initiativeExplore,
 });

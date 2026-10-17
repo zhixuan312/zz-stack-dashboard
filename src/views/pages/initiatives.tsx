@@ -1,23 +1,34 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useMemo } from 'react';
-import { DataTable, useQueryState, useSearchDraft, type Column } from '@/components/patterns/data-table';
+import { CircleCheck, ListTree, Signature } from 'lucide-react';
+import { useShareView } from '@/components/base/use-share-view';
 import { AskAbout } from '@/components/patterns/ask-about';
+import { DataTable, useQueryState, useSearchDraft, type Column } from '@/components/patterns/data-table';
 import { FilterBar } from '@/components/patterns/filter-bar';
+import { MetricTile } from '@/components/patterns/metric-tile';
 import { Records } from '@/components/templates/records';
 import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Skeleton } from '@/components/ui/skeleton';
 import { aligned } from '@/console/columns';
-import { ConsolePage, useArrival } from '@/console/page';
+import { Panel } from '@/console/panel';
 import { failureOf } from '@/console/query';
 import { When } from '@/console/when';
-import { freshnessOf, useConsole } from '@/lib/api';
+import { useDataClock } from '@/lib/api';
 import { plural } from '@/lib/format';
-import type { Me } from '@/lib/api-shapes';
+import { formatDateTime, formatShortDate } from '@/lib/format-date';
+import { formatCount } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
 import type { InitiativeList, InitiativeRow } from '@/lib/work-shapes';
 import { pendingContext } from '@/views/context';
-import { initiativesContext, nextOf } from '@/views/initiatives-context';
-import { LIST_STATES, PAGE_SIZE, STATE_LABEL, listPath, narrowed, offsetOf } from '@/views/initiatives-filter';
+import { OUTCOMES, TILES, closedLine, initiativesContext, initiativesTrouble, nextOf, type InitiativesRead } from '@/views/initiatives-context';
+import { INITIATIVES_DEFAULTS, LIST_STATES, PAGE_SIZE, STATE_LABEL, listPath, narrowed, pageOf, type InitiativesFilters } from '@/views/initiatives-filter';
+import { useServed } from '@/views/use-served';
+
+// The chart is the page's heaviest module and draws below the tiles, so it arrives after the first paint.
+const ColumnChart = dynamic(() => import('@/components/charts/column-chart').then((m) => m.ColumnChart), { loading: () => <Skeleton className="h-56 rounded-md" /> });
 
 /** One rule per colour, as every state badge: warning means a person must act, positive closed with what was asked. */
 const TONE: Record<InitiativeRow['state'], 'warning' | 'positive' | 'neutral'> = {
@@ -28,65 +39,90 @@ const TONE: Record<InitiativeRow['state'], 'warning' | 'positive' | 'neutral'> =
 const COLUMNS: Column<InitiativeRow>[] = aligned([
   // Wrap rather than truncate: a slug's tail tells two pieces of work of one project apart.
   { key: 'slug', header: 'Initiative', grow: true, mobile: 'title', cell: (r) => <span title={r.slug} className="font-medium whitespace-normal text-ink [overflow-wrap:anywhere]">{r.slug}</span> },
-  { key: 'next', header: 'Flow position', hideBelow: 'lg', mobile: 'fact', cell: (r) => <span className="text-xs text-ink-2" title={r.nextMove?.why}>{r.flow ? nextOf(r) : 'No flow'}</span> },
+  { key: 'next', header: 'Flow position', hideBelow: 'lg', mobile: 'fact', cell: (r) => <span className="text-xs whitespace-normal text-ink-2 [overflow-wrap:anywhere]" title={r.nextMove?.why}>{r.flow ? nextOf(r) : 'No flow'}</span> },
   { key: 'state', header: 'State', mobile: 'status', cell: (r) => <Badge tone={TONE[r.state]} dot>{STATE_LABEL[r.state]}</Badge> },
   { key: 'gates', header: 'Gates', numeric: true, hideBelow: 'xl', cell: (r) => (r.gates.of ? `${r.gates.passed} of ${r.gates.of}` : '—') },
   { key: 'touched', header: 'Last touched', numeric: true, mobile: 'fact', cell: (r) => <When at={r.lastTouched} />, mobileCell: (r) => <>Touched <When at={r.lastTouched} /></> },
 ]);
 
 const STATE_OPTIONS = [{ value: 'all', label: 'All' }, ...LIST_STATES.map((s) => ({ value: s, label: STATE_LABEL[s] }))];
+const PARTS = OUTCOMES.map((o) => ({ key: o, label: STATE_LABEL[o] }));
 
-/** The active team's work, open or closed, and where each goes next. Filtered, searched and paged by the server. */
-export function InitiativesView() {
+/**
+ * The page's read: the one the console's server made for this address, so the first paint carries the rows and the
+ * browser asks for nothing more, then the browser's own once a change, a close or a Retry asks for it. A filter or a
+ * page moves the address, and the server reads it again; the browser waits for that answer rather than asking beside it.
+ */
+function useInitiatives(served: InitiativesRead | null, filters: InitiativesFilters) {
+  const path = listPath(filters);
+  const mine = served?.path === path ? served : null;
+  const { q, follow } = useServed<InitiativeList>(path, mine !== null, mine === null && served !== null);
+  const data = q.data ?? (mine?.state === 'ok' ? mine.data : undefined);
+  const failed = failureOf(q);
+  const trouble = data ? null : failed ?? (mine && mine.state !== 'ok' && !q.isFetching ? initiativesTrouble(mine) : null);
+  const retry = () => (q.data !== undefined || q.error ? void q.refetch() : follow());
+  return { data, trouble, retry, updatedAt: q.data ? new Date(q.dataUpdatedAt) : data ? data.meta.asOf : null };
+}
+
+/**
+ * The active team's work, drawn from the release's Records template: three tiles over the whole team's, its closures by
+ * week and outcome, then every initiative with where it goes next, as zz-core's `next_move` answered it. The gateway
+ * filters, searches and pages the list, ten to a page; the first page the address names is read on the console's server
+ * and handed here, with the team a row opens its initiative under.
+ */
+export function InitiativesView({ served }: { served: InitiativesRead }) {
   useLive(['initiatives']);
-  const [f, set] = useQueryState({ q: '', state: 'all', flow: 'all', page: '1' });
+  const [f, set] = useQueryState(INITIATIVES_DEFAULTS);
   const [draft, setDraft] = useSearchDraft(f.q, (q) => set({ q, page: '1' }));
-  const filters = useMemo(() => ({ q: f.q, state: f.state, flow: f.flow }), [f.q, f.state, f.flow]);
-  const page = Math.max(1, Number(f.page) || 1);
-  const me = useConsole<Me>('/me');
-  const q = useConsole<InitiativeList>(listPath(filters, { offset: offsetOf(page) }));
-  const arrival = useArrival(q);
-  const context = q.data
-    ? initiativesContext(q.data, { filters, page, ...arrival })
-    : pendingContext({ view: 'initiatives', title: 'Initiatives', address: '/initiatives', scope: 'your active team\'s work' }, failureOf(q));
+  const filters = useMemo(() => ({ q: f.q, state: f.state, flow: f.flow, page: f.page }), [f.q, f.state, f.flow, f.page]);
+  const { data, trouble, retry, updatedAt } = useInitiatives(served, filters);
+  const now = useDataClock();
+  const page = pageOf(filters);
+  useShareView(data
+    ? initiativesContext(data, { filters: { q: filters.q, state: filters.state, flow: filters.flow }, page, updatedAt, now })
+    : pendingContext({ view: 'initiatives', title: 'Initiatives', address: '/initiatives', scope: 'your active team\'s work' }, trouble));
   // The flows the filtered population holds, and the one chosen, which a narrower filter could otherwise drop.
   const flows = useMemo(() => {
-    const named = q.data?.summary.state === 'ok' ? q.data.summary.data.byFlow.flatMap((b) => (b.flow ? [b.flow] : [])) : [];
+    const named = data?.summary.state === 'ok' ? data.summary.data.byFlow.flatMap((b) => (b.flow ? [b.flow] : [])) : [];
     return [...new Set([...named, ...(f.flow === 'all' ? [] : [f.flow])])];
-  }, [q.data, f.flow]);
-  const filtered = narrowed(filters);
+  }, [data, f.flow]);
+  const narrow = narrowed(filters);
   const clear = () => set({ q: '', state: 'all', flow: 'all', page: '1' });
-  const team = me.data?.activeTeam;
-  // `…` means coming and `—` means it is not. They were the same mark here, so a read that had failed went on
-  // reading as one still on its way.
-  const mark = q.isPending ? '…' : '—';
+  const team = served.state === 'ok' ? served.team : null;
+  // `…` is coming and `—` is not: a read that failed never reads as one still on its way.
+  const mark = trouble ? '—' : '…';
+  const tiles = data?.tiles;
+  const closed = tiles ? tiles.closed.accepted + tiles.closed.delivered + tiles.closed.abandoned : null;
 
   return (
-    <ConsolePage
-      title="Initiatives"
-      description="Every piece of work your active team has open or closed, and where each goes next."
-      showPeriod={false}
-      updatedAt={freshnessOf(q)}
-      context={context}
+    <Records
+      summary={
+        <>
+          <MetricTile label={TILES.open.label} hint={TILES.open.definition} icon={<ListTree />} value={tiles ? tiles.open : mark} />
+          <MetricTile label={TILES.waiting.label} hint={TILES.waiting.definition} icon={<Signature />} value={tiles ? tiles.waiting : mark} emphasis={(tiles?.waiting ?? 0) > 0} />
+          <MetricTile label={TILES.closed.label} hint={TILES.closed.definition} icon={<CircleCheck />} value={closed ?? mark} note={tiles ? closedLine(tiles.closed) : undefined} />
+        </>
+      }
     >
-      <Records>
+      <Closures list={data} mark={mark} />
+      <div data-protagonist="Initiatives" className="contents">
         <DataTable
           caption="Initiatives"
           noun="initiatives"
-          rows={q.data?.rows ?? []}
+          rows={data?.rows ?? []}
           columns={COLUMNS}
           rowKey={(r) => r.slug}
           rowHref={team ? (r) => `/initiatives/${team}/${r.slug}` : undefined}
           manual
-          total={q.data?.total ?? 0}
+          total={data?.total ?? 0}
           pageSize={PAGE_SIZE}
           pageSizes={[PAGE_SIZE]}
-          loading={q.isPending}
-          error={failureOf(q)}
-          onRetry={() => void q.refetch()}
+          loading={!data && !trouble}
+          error={trouble ?? undefined}
+          onRetry={retry}
           state={{ sort: '', dir: 'desc', page: String(page) }}
           onStateChange={(p) => { if (p.page) set({ page: p.page }); }}
-          filtered={filtered}
+          filtered={narrow}
           onClearFilters={clear}
           empty={{ title: 'No initiative yet', body: 'An initiative starts with initiative_open, and every document written afterwards lands under it.' }}
           toolbar={
@@ -96,13 +132,48 @@ export function InitiativesView() {
                 { key: 'state', label: 'State', value: f.state, onChange: (v) => set({ state: v, page: '1' }), options: STATE_OPTIONS },
                 { key: 'flow', label: 'Flow', value: f.flow, onChange: (v) => set({ flow: v, page: '1' }), options: [{ value: 'all', label: 'All' }, ...flows.map((v) => ({ value: v, label: v }))] },
               ]}
-              result={<>{q.data ? `${q.data.total} ${plural(q.data.total, 'initiative')}` : mark}</>}
-              ask={<AskAbout question={filtered ? 'What do the initiatives in this list have in common, and which needs me next?' : 'Which initiatives need me next, and what is each waiting on?'} />}
+              result={data ? `${formatCount(data.total)} ${plural(data.total, 'initiative')}` : mark}
+              ask={<AskAbout question={narrow ? 'What do the initiatives in this list have in common, and which needs me next?' : 'Which initiatives need me next, and what is each waiting on?'} />}
               onClear={clear}
             />
           }
         />
-      </Records>
-    </ConsolePage>
+      </div>
+    </Records>
   );
+}
+
+/** The team's closures, a column a Monday week split by the outcome the platform recorded, the running week drawn unfinished. */
+function Closures({ list, mark }: { list: InitiativeList | undefined; mark: string }) {
+  const title = 'Closures by week and outcome';
+  if (!list) {
+    // A read that failed is said once, by the table's Retry; the chart only says it has nothing to draw.
+    return <Panel title={title}>{mark === '—' ? <EmptyState kind="error" title="Not read" className="py-10">The weeks come with the initiatives, which did not load.</EmptyState> : <Skeleton className="h-56 rounded-md" />}</Panel>;
+  }
+  if (list.closures.state !== 'ok') {
+    return <Panel title={title}><EmptyState kind="error" title="The closures by week could not be read" className="py-10">The tiles and the initiatives are read; the weeks are not.</EmptyState></Panel>;
+  }
+  const weeks = list.closures.data;
+  if (!weeks.length) {
+    return <Panel title={title}><EmptyState kind="first-run" title="No week recorded yet" className="py-10">A week is drawn once the team&apos;s first initiative closes.</EmptyState></Panel>;
+  }
+  return (
+    <Panel title={title} description={`The team's closures, ${formatCount(weeks.length)} ${plural(weeks.length, 'week')}, whatever the filters`}>
+      <ColumnChart
+        label="Closures by week and outcome"
+        dates={weeks.map((w) => w.window.from)}
+        running={!weeks.at(-1)!.window.complete}
+        noData="None recorded"
+        parts={PARTS}
+        columns={weeks.map((w) => ({ key: w.window.from, label: formatShortDate(w.window.from), values: [w.accepted.value, w.delivered.value, w.abandoned.value] }))}
+      />
+    </Panel>
+  );
+}
+
+/** The masthead's as-of line: the cutoff of the read the page draws, nothing while there is none. */
+export function InitiativesAsOf({ served }: { served: InitiativesRead }) {
+  const [f] = useQueryState(INITIATIVES_DEFAULTS);
+  const { data } = useInitiatives(served, { q: f.q, state: f.state, flow: f.flow, page: f.page });
+  return data ? <span className="t-small text-ink-3">As of {formatDateTime(data.meta.asOf)}</span> : null;
 }

@@ -1,0 +1,61 @@
+import { redirect } from 'next/navigation';
+import { chromeAccess } from '@/data/access';
+import { GatewayError, gatewayGet } from '@/data/gateway';
+import type { InitiativeDetail } from '@/lib/api-shapes';
+import type { InitiativeList } from '@/lib/work-shapes';
+import type { InitiativeRead } from '@/views/initiative-context';
+import { INITIATIVES_BOUND_MS, type InitiativesRead } from '@/views/initiatives-context';
+import { listPath, type InitiativesFilters } from '@/views/initiatives-filter';
+
+/** `read`, or `slow` once `INITIATIVES_BOUND_MS` has passed without an answer. Neither this nor `read` rejects. */
+async function bounded<R>(read: Promise<R>, slow: R): Promise<R> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const bound = new Promise<R>((resolve) => { timer = setTimeout(() => resolve(slow), INITIATIVES_BOUND_MS); });
+  try {
+    return await Promise.race([read, bound]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+const reasonOf = (err: unknown) => (err instanceof Error ? err.message : 'The gateway did not answer.');
+
+/** A session that ended since the gate let the person in goes to sign-in, back to `next`; any other failure is the read's. */
+function signedOut(err: unknown, next: string): void {
+  if (err instanceof GatewayError && err.status === 401) redirect(`/login?next=${encodeURIComponent(next)}`);
+}
+
+/**
+ * One page of `GET /initiatives` for the address's filters, on the console's server, as the person, given
+ * `INITIATIVES_BOUND_MS`, with the team the person acts for, which a row opens its initiative under. It never rejects
+ * but for a session that ended, so the page's boundary never waits on it longer or falls to the error page.
+ */
+export function readInitiatives(filters: InitiativesFilters): Promise<InitiativesRead> {
+  const path = listPath(filters);
+  return bounded(
+    Promise.all([gatewayGet<InitiativeList>(path), chromeAccess()]).then(
+      ([data, { team }]): InitiativesRead => ({ state: 'ok', path, data, team: team ?? null }),
+      (err: unknown): InitiativesRead => { signedOut(err, '/initiatives'); return { state: 'failed', path, reason: reasonOf(err) }; },
+    ),
+    { state: 'slow', path },
+  );
+}
+
+/**
+ * `GET /initiatives/:team/:slug`, the same way, with the team the person acts for, which a close is made under, and the
+ * moment it answered, which the page's freshness is told from. An address no initiative has is `missing`, which the
+ * gateway answers with a 404.
+ */
+export function readInitiative(team: string, slug: string): Promise<InitiativeRead> {
+  const at = `/initiatives/${encodeURIComponent(team)}/${encodeURIComponent(slug)}`;
+  return bounded(
+    Promise.all([gatewayGet<InitiativeDetail>(at), chromeAccess()]).then(
+      ([data, access]): InitiativeRead => ({ state: 'ok', data, team: access.team ?? null, at: new Date().toISOString() }),
+      (err: unknown): InitiativeRead => {
+        signedOut(err, at);
+        return err instanceof GatewayError && err.status === 404 ? { state: 'missing' } : { state: 'failed', reason: reasonOf(err) };
+      },
+    ),
+    { state: 'slow' },
+  );
+}

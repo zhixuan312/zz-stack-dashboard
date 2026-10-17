@@ -1,7 +1,7 @@
 /**
  * The Initiatives list's filters and page, and the one gateway address they are read at. The server filters and pages
- * the list, so the page, its shared context, the `view_initiatives` tool and the `initiatives` collection all ask this
- * function for the address and none of them filters a page of rows itself.
+ * the list, so the page's first read on the console's server, the page's later reads in the browser, its shared context
+ * and `view_initiatives` all ask this module for the address, and none of them filters a page of rows itself.
  */
 import type { InitiativeRow } from '@/lib/work-shapes';
 
@@ -16,22 +16,43 @@ export const STATE_LABEL: Record<InitiativeRow['state'], string> = {
 /** The rows one page of the list holds, as the Records template pages. */
 export const PAGE_SIZE = 10;
 
-/** The filters the Initiatives list keeps in its address; `all` is no filter. */
-export type InitiativesFilters = { q: string; state: string; flow: string };
+/** The filters and the page the Initiatives list keeps in its address; `all` is no filter, `1` the first page. */
+export type InitiativesFilters = { q: string; state: string; flow: string; page: string };
 
-/** The gateway address of the list for `f`, `limit` rows from `offset`: one page of 10 from the first unless asked. */
-export function listPath(f: InitiativesFilters, { limit = PAGE_SIZE, offset = 0 }: { limit?: number; offset?: number } = {}): string {
+/** The address with nothing in it: every initiative, the first page. */
+export const INITIATIVES_DEFAULTS: InitiativesFilters = { q: '', state: 'all', flow: 'all', page: '1' };
+
+/** The page asked for, from 1, whatever the address holds. */
+export const pageOf = (f: Pick<InitiativesFilters, 'page'>): number => Math.max(1, Math.floor(Number(f.page)) || 1);
+
+/** Rows of the list by the route's own arguments: `limit` of them from `offset`. */
+export type InitiativesRows = { limit: number; offset: number };
+
+/**
+ * The gateway address of the list for `f`: the ten rows of its page unless `rows` names others, as `view_initiatives`
+ * may by the route's own `limit` and `offset`.
+ */
+export function listPath(f: InitiativesFilters, rows: InitiativesRows = { limit: PAGE_SIZE, offset: (pageOf(f) - 1) * PAGE_SIZE }): string {
   const p = new URLSearchParams();
   if (f.state !== 'all') p.set('state', f.state);
   if (f.flow !== 'all') p.set('flow', f.flow);
   if (f.q.trim()) p.set('q', f.q.trim());
-  p.set('limit', String(limit));
-  p.set('offset', String(offset));
+  p.set('limit', String(rows.limit));
+  p.set('offset', String(rows.offset));
   return `/initiatives?${p}`;
 }
 
-/** Where `page` (from 1) of the list starts. */
-export const offsetOf = (page: number) => (Math.max(1, page) - 1) * PAGE_SIZE;
+/** The page of ten `offset` falls in, from 1. */
+export const pageAt = (offset: number): string => String(Math.floor(offset / PAGE_SIZE) + 1);
 
 /** Whether any filter narrows the list. */
-export const narrowed = (f: InitiativesFilters) => f.q.trim() !== '' || f.state !== 'all' || f.flow !== 'all';
+export const narrowed = (f: Pick<InitiativesFilters, 'q' | 'state' | 'flow'>) => f.q.trim() !== '' || f.state !== 'all' || f.flow !== 'all';
+
+/** The filters a page's address names, as Next hands a server page its search parameters: one value each, the first. */
+export function filtersOf(params: Record<string, string | string[] | undefined>): InitiativesFilters {
+  const one = (k: keyof InitiativesFilters) => {
+    const v = params[k];
+    return (Array.isArray(v) ? v[0] : v) ?? INITIATIVES_DEFAULTS[k];
+  };
+  return { q: one('q'), state: one('state'), flow: one('flow'), page: one('page') };
+}

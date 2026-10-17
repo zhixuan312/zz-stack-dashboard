@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { INITIATIVE_STATES, initiativeState, type StateOf } from '@/console/initiative-state';
-import { listPath, narrowed, offsetOf } from '@/views/initiatives-filter';
+import { filtersOf, listPath, narrowed, pageAt } from '@/views/initiatives-filter';
 
 /**
  * The state vocabulary the badge renders and the facet filters by — one definition, tested
@@ -70,22 +70,29 @@ describe('what an initiative is doing', () => {
 });
 
 describe('the address an initiative list is read at', () => {
-  const NONE = { q: '', state: 'all', flow: 'all' };
+  const NONE = { q: '', state: 'all', flow: 'all', page: '1' };
   const params = (path: string) => Object.fromEntries(new URL(path, 'http://gateway.test').searchParams);
 
   it('asks for the first page of ten with no filter, and names only the filters in force', () => {
     expect(listPath(NONE)).toBe('/initiatives?limit=10&offset=0');
-    expect(params(listPath({ q: '  search ', state: 'quiet', flow: 'sdlc-flow' }))).toEqual({ q: 'search', state: 'quiet', flow: 'sdlc-flow', limit: '10', offset: '0' });
+    expect(params(listPath({ q: '  search ', state: 'quiet', flow: 'sdlc-flow', page: '1' }))).toEqual({ q: 'search', state: 'quiet', flow: 'sdlc-flow', limit: '10', offset: '0' });
     expect(narrowed(NONE)).toBe(false);
     expect(narrowed({ ...NONE, q: ' ' })).toBe(false);
     expect(narrowed({ ...NONE, flow: 'sdlc-flow' })).toBe(true);
   });
 
   it('pages on the server: page n starts ten rows after page n - 1', () => {
-    expect(offsetOf(1)).toBe(0);
-    expect(offsetOf(3)).toBe(20);
-    // A page before the first is the first, never a negative offset the route refuses.
-    expect(offsetOf(0)).toBe(0);
+    expect(params(listPath({ ...NONE, page: '3' }))).toEqual({ limit: '10', offset: '20' });
+    // A page before the first, or none a number, is the first, never a negative offset the route refuses.
+    expect(params(listPath({ ...NONE, page: '0' }))).toEqual({ limit: '10', offset: '0' });
+    expect(params(listPath({ ...NONE, page: 'x' }))).toEqual({ limit: '10', offset: '0' });
     expect(params(listPath(NONE, { limit: 50, offset: 100 }))).toEqual({ limit: '50', offset: '100' });
+    expect(pageAt(0)).toBe('1');
+    expect(pageAt(25)).toBe('3');
+  });
+
+  it('reads the address a server page is handed, one value each', () => {
+    expect(filtersOf({})).toEqual(NONE);
+    expect(filtersOf({ state: ['quiet', 'open'], q: 'search', page: '2' })).toEqual({ q: 'search', state: 'quiet', flow: 'all', page: '2' });
   });
 });

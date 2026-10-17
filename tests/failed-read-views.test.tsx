@@ -116,7 +116,7 @@ describe('the Initiatives page, its read failing', () => {
   });
 
   it('draws a dash in the bar, never the mark of a read still coming', async () => {
-    mount(<InitiativesView />);
+    mount(<InitiativesView served={{ state: 'failed', path: '/initiatives?limit=10&offset=0', reason: REASON }} />);
     await waitFor(() => expect(text()).toContain('The initiatives did not load'));
     expect(text()).toContain(REASON);
     expect(screen.getAllByText('—').length).toBeGreaterThan(0);

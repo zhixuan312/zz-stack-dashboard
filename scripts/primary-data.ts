@@ -64,6 +64,8 @@ const NEVER_RUN = 'main [data-never-run]';
 const DETAIL: Record<string, string> = {
   '/platform/releases/0.97.0': BODY,
   '/platform/releases/0.31.1': BODY,
+  '/platform/bugs/0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d01': 'main [data-report-detail]',
+  '/platform/bugs/0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d02': 'main [data-report-detail]',
   '/platform/teams/atlas': TABLE,
   '/platform/teams/dune': TABLE,
   '/teams/atlas': TABLE,

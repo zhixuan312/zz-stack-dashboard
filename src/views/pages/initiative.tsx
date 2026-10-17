@@ -1,24 +1,31 @@
 'use client';
 
-import { use } from 'react';
+import Link from 'next/link';
+import { RotateCw } from 'lucide-react';
+import { useShareView } from '@/components/base/use-share-view';
 import { AskAbout } from '@/components/patterns/ask-about';
 import { DataTable, type Column } from '@/components/patterns/data-table';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Busy, ChartSkeleton, TableSkeleton } from '@/components/patterns/page-loading';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/empty-state';
 import { aligned } from '@/console/columns';
+import { CloseInitiative } from '@/console/close';
 import { DocStatus } from '@/console/doc-status';
 import { FlowStepper } from '@/console/flow';
 import { StateBadge } from '@/console/initiative';
-import { ConsolePage, useArrival } from '@/console/page';
 import { Panel } from '@/console/panel';
-import { Query, failureOf } from '@/console/query';
+import { failureOf } from '@/console/query';
 import { When } from '@/console/when';
 import { encodePath } from '@/lib/address';
-import { freshnessOf, useConsole } from '@/lib/api';
+import { useDataClock } from '@/lib/api';
 import type { InitiativeDetail } from '@/lib/api-shapes';
+import { formatDateTime } from '@/lib/format-date';
 import { formatKb } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
 import { pendingContext } from '@/views/context';
-import { initiativeContext } from '@/views/initiative-context';
+import { initiativeContext, initiativeTrouble, type InitiativeRead } from '@/views/initiative-context';
+import { useServed } from '@/views/use-served';
 
 type Doc = InitiativeDetail['documents'][number];
 
@@ -70,82 +77,132 @@ const SOURCES: Column<Doc>[] = aligned([
   { key: 'added', header: 'Added', numeric: true, mobile: 'fact', cell: (d) => <When at={d.updated_at} /> },
 ]);
 
-/** One initiative, end to end: where it is in its flow, the documents the flow produced, and the evidence behind them. */
-export function InitiativeView({ params }: { params: Promise<{ team: string; slug: string }> }) {
-  useLive(['initiatives']);
-  const { team, slug } = use(params);
-  const q = useConsole<InitiativeDetail>(`/initiatives/${team}/${slug}`);
-  const arrival = useArrival(q);
-  const context = q.data
-    ? initiativeContext(q.data, arrival)
-    : pendingContext({ view: 'initiative', title: slug, address: `/initiatives/${team}/${slug}`, scope: `one initiative of team ${team}` }, failureOf(q));
-  const base = `/initiatives/${team}/${slug}`;
+/**
+ * The page's read: the one the console's server made, so the first paint carries the initiative and the browser asks
+ * for nothing more, then the browser's own once a close, a change anywhere to initiatives or a Retry asks for it. An
+ * address no initiative has is the read answering, not failing.
+ */
+function useInitiative(team: string, slug: string, served: InitiativeRead) {
+  const { q, follow } = useServed<InitiativeDetail>(`/initiatives/${team}/${slug}`, true);
+  const data = q.data ?? (served.state === 'ok' ? served.data : undefined);
+  const failed = failureOf(q);
+  // With nothing to draw there is always a reason: the browser's answer when it has one, the server's until then.
+  const trouble: Exclude<InitiativeRead, { state: 'ok' }> | null = data ? null
+    : q.error?.status === 404 ? { state: 'missing' }
+      : failed ? { state: 'failed', reason: failed }
+        : served.state === 'ok' || q.isFetching ? null : served;
+  const retry = () => (q.data !== undefined || q.error ? void q.refetch() : follow());
+  return { data, trouble, retry, updatedAt: q.data ? new Date(q.dataUpdatedAt) : served.state === 'ok' ? served.at : null };
+}
 
+/**
+ * One initiative, end to end: where it is in its flow, the documents the flow produced, and the evidence behind them.
+ * Read on the console's server and handed here; its later reads, after a close or a change anywhere to initiatives,
+ * are the browser's.
+ */
+export function InitiativeView({ team, slug, served }: { team: string; slug: string; served: InitiativeRead }) {
+  useLive(['initiatives']);
+  const { data: d, trouble, retry, updatedAt } = useInitiative(team, slug, served);
+  const now = useDataClock();
+  const base = `/initiatives/${team}/${slug}`;
+  useShareView(d
+    ? initiativeContext(d, { updatedAt, now })
+    : pendingContext({ view: 'initiative', title: slug, address: base, scope: `one initiative of team ${team}` }, trouble ? initiativeTrouble(slug, trouble).detail : null));
+
+  if (!d) {
+    return trouble ? <InitiativeTrouble slug={slug} trouble={trouble} onRetry={retry} /> : (
+      <Busy name="initiative"><ChartSkeleton height="h-24" /><TableSkeleton rows={5} filters={false} /></Busy>
+    );
+  }
+  const stepOf = (doc: Doc) => d.steps.findIndex((s) => s.produces === doc.path);
+  const live = d.documents.filter((x) => !x.path.startsWith('sources/')).sort((a, b) => {
+    const sa = stepOf(a), sb = stepOf(b);
+    if (sa !== sb) return (sa < 0 ? 99 : sa) - (sb < 0 ? 99 : sb);
+    const ia = ORDER.indexOf(a.type), ib = ORDER.indexOf(b.type);
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.path.localeCompare(b.path);
+  });
+  // By the title a reader scans, in natural order: sources are numbered ("R2", "R10").
+  const sources = d.documents.filter((x) => x.path.startsWith('sources/'))
+    .sort((a, b) => (a.title || a.path).localeCompare(b.title || b.path, 'en', { numeric: true }));
   return (
-    <ConsolePage
-      title={slug}
-      crumbs={[{ label: 'Initiatives', href: '/initiatives' }, { label: team, href: `/teams/${team}` }]}
-      description={<span className="inline-flex flex-wrap items-center gap-2">Read from the document store; the platform stamped every gate. {q.data ? <StateBadge of={q.data} /> : <Skeleton className="inline-block h-5 w-28 rounded-full" />}</span>}
-      showPeriod={false}
-      updatedAt={freshnessOf(q)}
-      context={context}
-    >
-      <Query query={q} what="This initiative" skeleton={<div className="flex flex-col gap-(--stack-gap)"><Skeleton className="h-40 rounded-lg" /><Skeleton className="h-72 rounded-lg" /></div>}>
-        {(d) => {
-          const stepOf = (doc: Doc) => d.steps.findIndex((s) => s.produces === doc.path);
-          const live = d.documents.filter((x) => !x.path.startsWith('sources/')).sort((a, b) => {
-            const sa = stepOf(a), sb = stepOf(b);
-            if (sa !== sb) return (sa < 0 ? 99 : sa) - (sb < 0 ? 99 : sb);
-            const ia = ORDER.indexOf(a.type), ib = ORDER.indexOf(b.type);
-            return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.path.localeCompare(b.path);
-          });
-          // By the title a reader scans, in natural order: sources are numbered ("R2", "R10").
-          const sources = d.documents.filter((x) => x.path.startsWith('sources/'))
-            .sort((a, b) => (a.title || a.path).localeCompare(b.title || b.path, 'en', { numeric: true }));
-          return (
-            <>
-              {d.steps.length ? (
-                <Panel title="Progress" description={`Stage ${d.at} of ${d.of}${d.stage ? `, ${d.stage}` : ''}`}>
-                  <FlowStepper gates={d.gates} outcome={d.outcome} steps={d.steps} complete={d.complete} correction={d.correction} />
-                </Panel>
-              ) : null}
-              <DataTable
-                caption="Documents"
-                noun="documents"
-                rows={live}
-                columns={DOCUMENTS}
-                rowKey={(x) => x.path}
-                rowHref={(x) => `${base}/${encodePath(x.path)}`}
-                pageSize={10}
-                pageSizes={[10, 20, 50]}
-                toolbar={
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <h2 className="t-card">Documents</h2>
-                      <p className="t-caption mt-1">{d.of ? 'In the order the flow produces them' : 'Everything written in this initiative'}</p>
-                    </div>
-                    <AskAbout question={`Where does ${slug} stand, and which of its documents needs me next?`} />
-                  </div>
-                }
-                empty={{ title: 'Nothing written yet', body: 'The first stage of the flow writes the first document.' }}
-              />
-              {sources.length ? (
-                <DataTable
-                  caption="Sources"
-                  noun="sources"
-                  rows={sources}
-                  columns={SOURCES}
-                  rowKey={(x) => x.path}
-                  rowHref={(x) => `${base}/${encodePath(x.path)}`}
-                  pageSize={10}
-                  pageSizes={[10, 20, 50]}
-                  toolbar={<div><h2 className="t-card">Sources</h2><p className="t-caption mt-1">What someone said or found, attached as evidence</p></div>}
-                />
-              ) : null}
-            </>
-          );
-        }}
-      </Query>
-    </ConsolePage>
+    <>
+      {d.steps.length ? (
+        <Panel title="Progress" description={`Stage ${d.at} of ${d.of}${d.stage ? `, ${d.stage}` : ''}`}>
+          <FlowStepper gates={d.gates} outcome={d.outcome} steps={d.steps} complete={d.complete} correction={d.correction} />
+        </Panel>
+      ) : null}
+      <div data-protagonist="Documents" className="contents">
+        <DataTable
+          caption="Documents"
+          noun="documents"
+          rows={live}
+          columns={DOCUMENTS}
+          rowKey={(x) => x.path}
+          rowHref={(x) => `${base}/${encodePath(x.path)}`}
+          pageSize={10}
+          pageSizes={[10, 20, 50]}
+          toolbar={
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="t-card">Documents</h2>
+                <p className="t-caption mt-1">{d.of ? 'In the order the flow produces them' : 'Everything written in this initiative'}</p>
+              </div>
+              <AskAbout question={`Where does ${slug} stand, and which of its documents needs me next?`} />
+            </div>
+          }
+          empty={{ title: 'Nothing written yet', body: 'The first stage of the flow writes the first document.' }}
+        />
+      </div>
+      {sources.length ? (
+        <DataTable
+          caption="Sources"
+          noun="sources"
+          rows={sources}
+          columns={SOURCES}
+          rowKey={(x) => x.path}
+          rowHref={(x) => `${base}/${encodePath(x.path)}`}
+          pageSize={10}
+          pageSizes={[10, 20, 50]}
+          toolbar={<div><h2 className="t-card">Sources</h2><p className="t-caption mt-1">What someone said or found, attached as evidence</p></div>}
+        />
+      ) : null}
+    </>
   );
+}
+
+function InitiativeTrouble({ slug, trouble, onRetry }: { slug: string; trouble: Exclude<InitiativeRead, { state: 'ok' }>; onRetry: () => void }) {
+  const { title, detail } = initiativeTrouble(slug, trouble);
+  return (
+    <Card>
+      {trouble.state === 'missing' ? (
+        <EmptyState kind="filtered" title={title} className="py-16" action={<Button size="sm" asChild><Link href="/initiatives">All initiatives</Link></Button>}>{detail}</EmptyState>
+      ) : (
+        <EmptyState kind="error" title={title} className="py-16" action={<Button variant="primary" icon={<RotateCw />} onClick={onRetry}>Retry</Button>}>{detail}</EmptyState>
+      )}
+    </Card>
+  );
+}
+
+/** The masthead's status: the initiative's state and the cutoff of the read the page draws, nothing while there is none. */
+export function InitiativeMeta({ team, slug, served }: { team: string; slug: string; served: InitiativeRead }) {
+  const { data, updatedAt } = useInitiative(team, slug, served);
+  if (!data) return null;
+  return (
+    <span className="inline-flex flex-wrap items-center gap-2">
+      <StateBadge of={data} />
+      {updatedAt ? <span className="t-small text-ink-3">Read {formatDateTime(updatedAt)}</span> : null}
+    </span>
+  );
+}
+
+/**
+ * The masthead's one action: Close, while the initiative is open and of the team the person acts for, the only team a
+ * close is made under. A close with no flow names the document it lands on, of the documents a close may land on.
+ */
+export function InitiativeClose({ team, slug, served }: { team: string; slug: string; served: InitiativeRead }) {
+  const { data } = useInitiative(team, slug, served);
+  const acting = served.state === 'ok' ? served.team : null;
+  if (!data || acting !== data.team) return null;
+  const landings = data.documents.filter((x) => !x.path.startsWith('sources/') && x.type !== 'handover').map((x) => x.path);
+  return <CloseInitiative team={data.team} slug={data.slug} closed={data.closed} freeform={data.steps.length === 0} documents={landings} />;
 }

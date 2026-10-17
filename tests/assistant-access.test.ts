@@ -25,6 +25,7 @@ import { viewAt } from '@/lib/shared-context';
 import { platformStatusContext, statusRead } from '@/views/platform-status-context';
 import { viewTools } from '@/views/tools';
 import { ME } from '../scripts/fake-gateway/people.ts';
+import { bugReport, bugs, duplicates } from '../scripts/fake-gateway/platform-bugs.ts';
 import { people } from '../scripts/fake-gateway/platform-people.ts';
 import { MEMBER_STATUS, PLATFORM_STATUS } from '../scripts/fake-gateway/platform-status.ts';
 import { teamDetail, teams } from '../scripts/fake-gateway/platform-teams.ts';
@@ -70,7 +71,10 @@ function gateway(who: Me | null | (() => Me | null), { shared = false } = {}) {
                         : path === '/platform/status' ? (me.superadmin ? PLATFORM_STATUS : MEMBER_STATUS)
                           : path === '/platform/releases' ? releases(Number(query.get('limit') ?? 10), Number(query.get('offset') ?? 0))
                             : path.startsWith('/platform/releases/') ? releaseDetail(decodeURIComponent(path.slice('/platform/releases/'.length)))
-                              : {};
+                              : path === '/platform/bugs' ? bugs(me.superadmin, { state: query.get('state'), impact: query.get('impact'), surface: query.get('surface') }, Number(query.get('limit') ?? 10), Number(query.get('offset') ?? 0))
+                                : path.startsWith('/platform/bugs/') && path.endsWith('/duplicates') ? duplicates(path.split('/')[3])
+                                  : path.startsWith('/platform/bugs/') ? bugReport(path.split('/')[3])
+                                    : {};
     return { ok: true, status: 200, json: async () => body } as Response;
   }) as typeof fetch;
 }
@@ -181,7 +185,7 @@ describe('what an agent is offered', () => {
     // The views the route registers for them: the ones whose need they satisfy (`app/api/assistant/route.ts`).
     const views = [];
     for (const v of viewTools) if (await may(v.needs)) views.push(v.name);
-    expect(views).toEqual(['home', 'record', 'initiatives', 'initiative', 'document', 'knowledge', 'knowledge_node', 'knowledge_log', 'search', 'settings', 'platform_status', 'releases', 'release']);
+    expect(views).toEqual(['home', 'record', 'initiatives', 'initiative', 'document', 'knowledge', 'knowledge_node', 'knowledge_log', 'search', 'settings', 'platform_status', 'releases', 'release', 'bugs', 'usage']);
   });
 
   it('a superadmin is offered every collection', async () => {
@@ -247,6 +251,7 @@ describe('what the route hands the model', () => {
     for (const [who, path, view] of [
       [MEMBER, '/initiatives', 'initiatives'], [MEMBER, '/settings', 'settings'], [MEMBER, '/platform', 'platform_status'], [ME, '/platform/teams/atlas', 'team'],
       [MEMBER, '/platform/releases', 'releases'], [MEMBER, '/platform/releases/0.97.0', 'release'],
+      [MEMBER, '/platform/bugs', 'bugs'], [ME, '/platform/bugs/0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d01', 'bug'], [MEMBER, '/platform/usage', 'usage'],
       [ME, '/runs', 'runs'], [MEMBER, '/knowledge', 'knowledge'], [MEMBER, '/initiatives/atlas/2026-09-28-search-relevance/sources/notes.md', 'document'],
     ] as const) {
       const tools = await handed(who, path);
@@ -305,7 +310,8 @@ describe('a view tool\'s address', () => {
       document: '/initiatives/[team]/[slug]/[...path]', knowledge: '/knowledge', knowledge_node: '/knowledge/[team]/[...path]',
       knowledge_log: '/knowledge/log', search: '/knowledge', people: '/platform/people', plugins: '/plugins', plugin: '/plugins/[plugin]',
       skill: '/plugins/[plugin]/[skill]', runs: '/runs', activity: '/activity', settings: '/settings', platform_status: '/platform',
-      releases: '/platform/releases', release: '/platform/releases/[version]',
+      releases: '/platform/releases', release: '/platform/releases/[version]', bugs: '/platform/bugs', bug: '/platform/bugs/[id]',
+      usage: '/platform/usage',
     });
     // Search shares Knowledge's page and comes after it, so the prepared query Knowledge offers is its own.
     expect(viewAt(viewTools, '/knowledge')?.name).toBe('knowledge');
@@ -316,7 +322,7 @@ describe('a view tool\'s address', () => {
   it('every tool has its own name and a need', () => {
     expect(new Set(viewTools.map((v) => v.name)).size).toBe(viewTools.length);
     for (const v of viewTools) expect(['work:read', 'platform:read', FLEET]).toContain(v.needs);
-    expect(viewTools.filter((v) => v.needs === FLEET).map((v) => v.name)).toEqual(['teams', 'team', 'people', 'plugins', 'plugin', 'skill', 'runs', 'activity']);
+    expect(viewTools.filter((v) => v.needs === FLEET).map((v) => v.name)).toEqual(['teams', 'team', 'people', 'plugins', 'plugin', 'skill', 'runs', 'activity', 'bug']);
   });
 
   it('refuses a segment that would leave the path it is placed in', () => {

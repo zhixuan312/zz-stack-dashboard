@@ -72,6 +72,7 @@ async function memberReads(): Promise<string[]> {
     'search?q=recency', 'search?q=review%20rounds&limit=50',
     'settings/me/tokens', 'settings/me/client-setup', 'settings/me/teams', `settings/team/members?team=${own}`, 'platform/status',
     'platform/query?measure=calls&by=week', 'platform/query?measure=bugs_filed&by=impact',
+    'platform/bugs', 'platform/bugs?limit=100', 'platform/bugs?state=resolved&limit=100',
   ];
   // The list's rows name no team: each is the active team's, and its page opens under that team.
   const { rows } = await read<{ rows: { slug: string }[] }>(MEMBER, 'initiatives?limit=100');
@@ -480,13 +481,15 @@ describe('the personas pnpm verify --as signs in as', () => {
 
   it('probe each page the member is refused for a string its read holds and no read of the member\'s does', async () => {
     const probes = Object.entries(personas.member.deniedProbe ?? {});
-    expect(probes.map(([route]) => route).sort()).toEqual(['/people', '/platform/people', '/platform/teams', '/teams']);
+    expect(probes.map(([route]) => route).sort()).toEqual(['/people', '/platform/bugs/0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d01', '/platform/people', '/platform/teams', '/teams']);
     const theirs = JSON.stringify(await Promise.all((await memberReads()).map((path) => read(MEMBER, path))));
     for (const [route, probe] of probes) {
       // `/platform/teams` and `/platform/people` are Teams and People under Platform, reading the same `/teams` and
-      // `/people` the rail's `/teams` and `/people` read until Phase 7.
-      const collection = route.replace(/^\/platform\//, '/').slice(1);
-      expect(RAIL, route).toContain(`/${collection}`);
+      // `/people` the rail's `/teams` and `/people` read until Phase 7. A bug report reads its own address: the member
+      // reads the list it sits in, by a title generated from its surface, and never the report's own words.
+      const fleet = /^\/(platform\/)?(teams|people)$/.exec(route);
+      const collection = fleet ? fleet[2] : route.slice(1);
+      if (fleet) expect(RAIL, route).toContain(`/${collection}`);
       expect(personas.member.expectedRoutes, route).not.toContain(route);
       // The page's own read holds it for the superadmin; the member is refused that read, and reads it nowhere else.
       expect(JSON.stringify(await read(null, `${collection}?limit=100`))).toContain(probe);

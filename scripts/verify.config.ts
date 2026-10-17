@@ -94,10 +94,12 @@ const config: VerifyConfig = {
    * `/people` moved again on 2026-10-17, to 135 KiB (17.8 KiB gzipped), for one reason: its first page of people is now
    * read on the console's server (reconciliation 65), so its rows are in the HTML twice, once drawn (the table and the
    * phone's cards) and once in the flight payload that hands the read to the page, where before both held a skeleton.
-   * Teams under Platform, built the same way, reads 137 KiB. The cap holds a tenth above it, as before.
+   * Teams under Platform, built the same way, reads 137 KiB. The caps stay where they were: the size lines are
+   * non-functional, so during the functional build a wave records the measured value rather than moving a cap to go
+   * green, and the plan's non-functional pass brings each page back under its cap (plan.md, `## Full-suite gate`).
    */
   budgets: {
-    htmlKb: { '/initiatives': 108, '/people': 148 },
+    htmlKb: { '/initiatives': 108, '/people': 108 },
     /**
      * PROVISIONAL, 2026-10-16: the recommendation put in place so the next feature is not blocked by a
      * stale rail. The measurement is real; the bar is the owner's, and the question is open in
@@ -120,7 +122,9 @@ const config: VerifyConfig = {
    * One for every route in the rail, which is what `--full` and `--perf` require. Each selector was read off the built
    * app served against the fake gateway on 2026-10-11, not guessed: `/` draws 26 table rows and one
    * `aria-haspopup="dialog"` control, `/teams` 4 rows beside a search field, `/initiatives` 11, `/knowledge` 10,
-   * `/people` 7, `/plugins` 4 with no search field, `/runs` 16, `/activity` 20, `/settings` 13.
+   * `/people` 7, `/plugins` 4 with no search field, `/runs` 16, `/activity` 20, `/settings` 13. The pages read on the
+   * console's server since (Home, Knowledge, Activity, Runs) are read by the figures their comments name, and
+   * Initiatives by its list's own table.
    *
    * The probe is the one that changes something unambiguous. On `/teams` and `/initiatives` a search field filters the
    * rows it is beside; on `/` there is no search field, and its radios are two segmented groups whose checked item
@@ -131,17 +135,18 @@ const config: VerifyConfig = {
     // button, whose tooltip says what the tile counts.
     { path: '/', title: 'Home', readySelector: 'main [data-figures] [data-value]', probe: 'toggle', controlSelector: 'main button[aria-label^="About "]', resultSelector: '[role="tooltip"]' },
     { path: '/teams', title: 'Teams', readySelector: 'main table tbody tr', probe: 'filter', controlSelector: 'main input[type="search"]', resultSelector: 'main table tbody tr' },
-    { path: '/initiatives', title: 'Initiatives', readySelector: 'main table tbody tr', probe: 'filter', controlSelector: 'main input[type="search"]', resultSelector: 'main table tbody tr' },
+    // Initiatives draws a second table in `main`, its chart's data for a screen reader, so both selectors name the list.
+    { path: '/initiatives', title: 'Initiatives', readySelector: 'main [data-protagonist="Initiatives"] table tbody tr', probe: 'filter', controlSelector: 'main input[type="search"]', resultSelector: 'main [data-protagonist="Initiatives"] table tbody tr' },
     // Knowledge's search runs on submit, so typing changes nothing; its data is the tiles, read on the server.
     { path: '/knowledge', title: 'Knowledge', readySelector: 'main [data-figures="read"] .t-figure', probe: 'toggle', controlSelector: 'main button[aria-label^="About "]', resultSelector: '[role="tooltip"]' },
     { path: '/people', title: 'People', readySelector: 'main table tbody tr', probe: 'filter', controlSelector: 'main input[type="search"]', resultSelector: 'main table tbody tr' },
-    // Activity's primary data is its three tiles, read on the server; the one control the check presses is a tile's info
-    // button, whose tooltip says what the tile counts.
+    // Activity's and Runs' primary data is their three tiles, read on the server; the one control the check presses is a
+    // tile's info button, whose tooltip says what the tile counts.
+    { path: '/runs', title: 'Runs', readySelector: 'main [data-figures="read"] [data-value]', probe: 'toggle', controlSelector: 'main button[aria-label^="About "]', resultSelector: '[role="tooltip"]' },
     { path: '/activity', title: 'Activity', readySelector: 'main [data-figures="read"] [data-value]', probe: 'toggle', controlSelector: 'main button[aria-label^="About "]', resultSelector: '[role="tooltip"]' },
-    // No search field on these three, so the dialog is the change the check can read. Every one of them draws a table,
+    // No search field on these two, so the dialog is the change the check can read. Every one of them draws a table,
     // so `main table tbody tr` is what says the data arrived.
     { path: '/plugins', title: 'Plugins', readySelector: 'main table tbody tr', probe: 'dialog', controlSelector: 'main button[aria-haspopup="dialog"]', resultSelector: '[role="dialog"]' },
-    { path: '/runs', title: 'Runs', readySelector: 'main table tbody tr', probe: 'dialog', controlSelector: 'main button[aria-haspopup="dialog"]', resultSelector: '[role="dialog"]' },
     { path: '/settings', title: 'Settings', readySelector: 'main table tbody tr', probe: 'dialog', controlSelector: 'main button[aria-haspopup="dialog"]', resultSelector: '[role="dialog"]' },
     // Status leads with what needs attention and the paired figures, read on the server: its data is the Featured
     // metric's first figure, the last whole week's malformed calls per 1,000 (`.t-figure` is the team's tiles now). The
@@ -159,6 +164,9 @@ const config: VerifyConfig = {
   detailRoutes: [
     '/platform/releases/0.97.0',
     '/platform/releases/0.31.1',
+    // An open report, which draws the resolve form, and a closed duplicate, the one report that links its original.
+    '/platform/bugs/0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d01',
+    '/platform/bugs/0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d02',
     '/platform/teams/atlas',
     '/platform/teams/dune',
     '/teams/atlas',
@@ -212,7 +220,7 @@ const config: VerifyConfig = {
     member: {
       cookie: { name: 'zz_console', value: 'member' },
       expectedRoutes: ['/', '/initiatives', '/knowledge', '/settings', '/platform'],
-      deniedProbe: { '/teams': 'Beacon Payments', '/platform/teams': 'Beacon Payments', '/people': 'Jonas Weber', '/platform/people': 'Jonas Weber' },
+      deniedProbe: { '/teams': 'Beacon Payments', '/platform/teams': 'Beacon Payments', '/people': 'Jonas Weber', '/platform/people': 'Jonas Weber', '/platform/bugs/0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d01': 'document_approve refuses a stakeholder the frontmatter names' },
     },
   },
   refusal,

@@ -1,7 +1,13 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { render } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Tooltip } from 'radix-ui';
+
+vi.mock('next/navigation', () => ({
+  usePathname: () => window.location.pathname,
+  useSearchParams: () => new URLSearchParams(window.location.search),
+  useRouter: () => ({ push() {}, replace() {}, refresh() {}, back() {}, forward() {}, prefetch() {} }),
+}));
 
 /**
  * The figures the runs page leads with are the data's — the third page of `standard.md`'s floor, "the numbers the pages
@@ -10,22 +16,15 @@ import { Tooltip } from 'radix-ui';
  * What it pins: the three tiles — the team's runs since its first, the observed output per run with the runs nothing
  * measured beside it, and the largest run with its skill — each scoped from its heading, because a bare number matches
  * a column and a row on the same page as well as the tile. And what a run's bytes are called: observed output, never
- * a payload moved, the context a model read, or a cost.
+ * a payload moved, the context a model read, tokens or a cost.
  *
  * DELIBERATE: small, round numbers. A large one would be abbreviated by the tile's own `fitFigure` — 1024 becomes "1K" —
  * and the test would then be asserting the formatter rather than the data. The output is the one figure the gateway may
  * answer as null, and a page that showed a null as a confident 0 would be wrong in the direction that matters.
  */
-import { PeriodProvider } from '@/console/period';
 import type { RunRow, Runs } from '@/lib/destination-shapes';
 import { RunsView } from '@/views/pages/runs';
-
-const TooltipProvider = Tooltip.Provider;
-
-const ME = {
-  email: 'a@b.example.com', name: 'A', role: 'superadmin', mayRead: true, superadmin: true,
-  via: 'session', teams: [{ slug: 'atlas', role: 'admin' }], activeTeam: 'atlas',
-};
+import { RUNS_DEFAULTS, runsPath } from '@/views/runs-context';
 
 const META = { asOf: '2026-10-15T00:00:00Z', timezone: 'UTC', period: { from: '2026-09-07T00:00:00Z', to: '2026-10-15T00:00:00Z' }, scope: 'active-team' as const, population: 'atlas', coverageFrom: null };
 const LARGEST: RunRow = {
@@ -42,47 +41,36 @@ const RUNS = (output: number | null): Runs => ({
   recent: { state: 'ok', data: { rows: [LARGEST], total: 42 } },
 });
 
-let answer = RUNS(524_288);
-function mockFetch() {
-  return async (input: RequestInfo | URL) => {
-    const body = String(input).includes('/me') ? ME : answer;
-    return { ok: true, json: async () => body } as unknown as Response;
-  };
-}
-
-/** The figure of the tile whose label is `label`: the first `<p>` inside its card, beside the heading. */
+/** The figure of the tile whose label is `label`: its value as drawn, a unit its own span. */
 function figure(label: string): string {
-  const mine = [...document.querySelectorAll('h2')].find((h) => h.textContent?.trim() === label);
-  return mine?.closest('div')?.parentElement?.querySelector('p')?.textContent?.trim() ?? '';
+  const mine = [...document.querySelectorAll('[data-figures="read"] h2')].find((h) => h.textContent?.trim() === label);
+  return mine?.closest('.card')?.querySelector('[data-value]')?.textContent?.trim() ?? '';
 }
 
 const text = () => document.body.textContent ?? '';
 
 beforeEach(() => {
-  answer = RUNS(524_288);
   window.history.replaceState(null, '', '/runs');
-  global.fetch = mockFetch() as unknown as typeof fetch;
+  // The page's read is the server's: the browser is never asked, and a read it made would hang here.
+  vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})));
 });
+afterEach(() => vi.unstubAllGlobals());
 
-function mount() {
+function mount(data: Runs) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <PeriodProvider>
-        <TooltipProvider>
-          <RunsView />
-        </TooltipProvider>
-      </PeriodProvider>
+      <Tooltip.Provider>
+        <RunsView served={{ state: 'ok', path: runsPath(RUNS_DEFAULTS), data }} />
+      </Tooltip.Provider>
     </QueryClientProvider>,
   );
 }
 
 describe('the figures on the runs page', () => {
-  it('counts the runs, their observed output and the largest run the data holds', async () => {
-    mount();
-    // Waited on the FIGURE, not on the tile's note: the note is a fixed sentence and is on the page before the read
-    // resolves, so waiting for it and then reading the figure meets the pending `…`.
-    await waitFor(() => expect(figure('Runs')).toBe('42'));
+  it('counts the runs, their observed output and the largest run the data holds', () => {
+    mount(RUNS(524_288));
+    expect(figure('Runs')).toBe('42');
     // A figure's unit is its own span, as on every tile, so its text runs on.
     expect(figure('Observed output per run')).toBe('512KB');
     expect(figure('Largest run')).toBe('2.0MB');
@@ -90,17 +78,16 @@ describe('the figures on the runs page', () => {
     expect(text()).toContain('sdlc-execute');
   });
 
-  it('says output nothing measured is not measured, never a zero', async () => {
-    answer = RUNS(null);
-    mount();
-    await waitFor(() => expect(figure('Runs')).toBe('42'));
+  it('says output nothing measured is not measured, never a zero', () => {
+    mount(RUNS(null));
+    expect(figure('Runs')).toBe('42');
     expect(figure('Observed output per run')).toBe('Not measured');
     expect(figure('Largest run')).toBe('None measured');
   });
 
-  it('calls a run\'s bytes observed output, and never a payload, a context or a cost', async () => {
-    mount();
-    await waitFor(() => expect(figure('Runs')).toBe('42'));
-    expect(text()).not.toMatch(/payload|context|cost/i);
+  it('calls a run\'s bytes observed output, and never a payload, a context, tokens or a cost', () => {
+    mount(RUNS(524_288));
+    expect(figure('Runs')).toBe('42');
+    expect(text()).not.toMatch(/payload|context|token|cost/i);
   });
 });

@@ -1,5 +1,7 @@
 /**
- * One initiative's shared context (decision 0011): its state, where it is in its flow, its gates and its documents.
+ * One initiative's shared context (decision 0011): its state, where it is in its flow, its gates and its documents, and
+ * how it closed when it has. The assistant is told that a person closes an initiative, in the page's dialog, and that it
+ * never does.
  */
 import { initiativeState, ownGates, waitingGates } from '@/console/initiative-state';
 import type { InitiativeDetail } from '@/lib/api-shapes';
@@ -7,6 +9,25 @@ import { plural } from '@/lib/format';
 import { formatCount } from '@/lib/format-units';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
 import { arrived, budgeted, type Arrival } from './context';
+import { CLOSE_IS_THE_PERSON_S, INITIATIVES_BOUND_MS } from './initiatives-context';
+
+/**
+ * The page's own read, on the console's server: the answer with the team the person acts for, which a close is made
+ * under, and when it was read; no initiative by that address, a failure, or no answer in time.
+ */
+export type InitiativeRead =
+  | { state: 'ok'; data: InitiativeDetail; team: string | null; at: string }
+  | { state: 'missing' }
+  | { state: 'failed'; reason: string }
+  | { state: 'slow' };
+
+/** The words a read's trouble is told in, on the page and to the assistant. */
+export function initiativeTrouble(slug: string, read: Exclude<InitiativeRead, { state: 'ok' }>): { title: string; detail: string } {
+  if (read.state === 'missing') return { title: `No initiative called ${slug}`, detail: 'It is not one of this team\'s initiatives; Initiatives lists every one your active team has.' };
+  return read.state === 'slow'
+    ? { title: 'The initiative is unavailable', detail: `The read did not answer within ${INITIATIVES_BOUND_MS / 1000} seconds.` }
+    : { title: 'The initiative did not load', detail: read.reason };
+}
 
 export function initiativeContext(d: InitiativeDetail, arrival: Arrival): SharedContext {
   const base = `/initiatives/${d.team}/${d.slug}`;
@@ -38,6 +59,7 @@ export function initiativeContext(d: InitiativeDetail, arrival: Arrival): Shared
     ],
     insights,
     unknowns: [
+      CLOSE_IS_THE_PERSON_S,
       ...(d.closed ? [`It is closed as ${d.outcome}${d.complete ? '' : ', and stopped short of everything its flow asks for'}.`] : []),
       ...(live.length ? [] : ['Nothing has been written in it yet.']),
     ],

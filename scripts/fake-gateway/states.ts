@@ -8,7 +8,7 @@ import type {
 } from '../../src/lib/api-shapes.ts';
 import type { ActivityLog, ActivitySummary, KnowledgeList, KnowledgeSummary, RefusalOwner, Runs } from '../../src/lib/destination-shapes.ts';
 import type { People, Teams } from '../../src/lib/fleet-shapes.ts';
-import type { PeriodFigure, PlatformStatus } from '../../src/lib/platform-shapes.ts';
+import type { Bugs, PeriodFigure, PlatformStatus } from '../../src/lib/platform-shapes.ts';
 import type { Home, InitiativeList } from '../../src/lib/work-shapes.ts';
 
 /** Nothing recorded yet: every list empty, every figure absent rather than zero where the API says so. */
@@ -32,9 +32,22 @@ export function empty(seg: string[], body: unknown): unknown {
       skills: p.skills.map((k) => ({ ...k, calls: 0, everRun: false, lastRun: null })),
     })) };
     case 'settings': return Array.isArray(body) ? (a === 'platform' ? (body as PlatformPersonRow[]).slice(0, 1) : []) : body;
-    case 'platform': return a === 'status' ? freshStatus(body as PlatformStatus) : body;
+    case 'platform': return a === 'status' ? freshStatus(body as PlatformStatus) : a === 'bugs' && !b ? noBugs(body as Bugs) : body;
     default: return body;
   }
+}
+
+/** Bugs on a fresh deployment: no report, every week's count zero with no median, and an empty queue. */
+function noBugs(x: Bugs): Bugs {
+  const zero = { value: 0, why: null } as const;
+  const none = { value: null, why: 'no_data' } as const;
+  return {
+    ...x,
+    counts: { state: 'ok', data: { open: 0, resolved: 0, byImpact: { blocks_work: 0, wrong_result: 0, confusing: 0, cosmetic: 0 }, byStatus: { open: 0, fixed: 0, not_a_bug: 0, duplicate: 0 } } },
+    oldestOpenAt: null, medianResolveHours: none,
+    cohorts: x.cohorts.map((c) => ({ ...c, filed: zero, resolved: zero, stillOpen: zero, filedPer1000: c.filedPer1000.value === null ? c.filedPer1000 : zero, medianResolveHours: none })),
+    queue: { state: 'ok', data: { rows: [], total: 0 } },
+  };
 }
 
 /** People on a fresh deployment: nobody added, and the week before the record of sign-ins began, as the gateway says it. */
