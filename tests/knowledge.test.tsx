@@ -237,14 +237,14 @@ describe('the page\'s log', () => {
   const entry = { ts: '2026-10-11T00:00:00Z', actor: 'noah.okafor@example.com', team: 'atlas', kind: 'knowledge.add' as const, node: '0003', recorded_title: 'Alert on the trend', superseded_by: null, node_title: 'Alert on the trend, not the count', node_status: 'adopted' };
 
   it('says whose log the server read, never the browser\'s scope switch', () => {
-    mount(<KnowledgeLogView read={{ state: 'ok', data: { entries: [entry] }, at: '2026-10-15T00:00:00Z' }} mode="team" />);
+    mount(<KnowledgeLogView read={{ state: 'ok', data: { entries: [entry] }, at: '2026-10-15T00:00:00Z' }} />);
     expect(text()).toContain('Every lesson this team recorded or superseded, newest first.');
     expect(text()).toContain('Alert on the trend, not the count');
     expect(text()).toContain('11 Oct 2026');
   });
 
   it('says the entries did not load over a failed read, and never that nothing was recorded', () => {
-    mount(<KnowledgeLogView read={{ state: 'failed', reason: 'the gateway could not reach its database' }} mode="platform" />);
+    mount(<KnowledgeLogView read={{ state: 'failed', reason: 'the gateway could not reach its database' }} />);
     expect(text()).toContain('The entries did not load');
     expect(text()).toContain('the gateway could not reach its database');
     expect(text()).not.toContain('Nothing yet');

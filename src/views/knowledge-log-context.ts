@@ -4,17 +4,17 @@ import { plural } from '@/lib/format';
 import { formatCount } from '@/lib/format-units';
 import { formatDate } from '@/lib/format-date';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
-import { arrived, budgeted, whose, type Arrival, type ViewMode } from './context';
+import { arrived, budgeted, whose, type Arrival } from './context';
 
-export function knowledgeLogContext(entries: KnowledgeLogEntry[], { mode, ...arrival }: { mode: ViewMode } & Arrival): SharedContext {
+export function knowledgeLogContext(entries: KnowledgeLogEntry[], arrival: Arrival): SharedContext {
   const added = entries.filter((e) => e.kind === 'knowledge.add').length;
   const insights: Insight[] = [];
-  if (entries.length) insights.push({ text: `The latest entries, newest first: ${listed(entries, (e) => `${formatDate(e.ts)} ${e.kind === 'knowledge.add' ? 'recorded' : 'superseded'} node ${e.node}${e.team ? ` (${e.team})` : ''}, "${e.node_title ?? e.recorded_title ?? 'no longer on the shelf'}"${e.superseded_by ? `, replaced by ${e.superseded_by}` : ''} by ${e.actor.split('@')[0]}`, 'see /knowledge/log', 12)}.` });
+  if (entries.length) insights.push({ text: `The latest entries, newest first: ${listed(entries, (e) => `${formatDate(e.ts)} ${e.kind === 'knowledge.add' ? 'recorded' : 'superseded'} node ${e.node}, "${e.node_title ?? e.recorded_title ?? 'no longer on the shelf'}"${e.superseded_by ? `, replaced by ${e.superseded_by}` : ''} by ${e.actor.split('@')[0]}`, 'see /knowledge/log', 12)}.` });
   return budgeted({
     view: 'knowledge_log',
     title: 'Knowledge log',
     address: '/knowledge/log',
-    scope: `every node recorded or retired, for ${whose(mode)}, newest first`,
+    scope: `every node recorded or retired, for ${whose('team')}, newest first`,
     freshness: arrived(arrival),
     facts: [
       { label: 'Entries', value: formatCount(entries.length), change: entries[0] ? `the latest on ${formatDate(entries[0].ts)}` : undefined },

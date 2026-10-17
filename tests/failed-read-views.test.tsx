@@ -183,7 +183,7 @@ describe('the Knowledge log page, its read failing', () => {
   });
 
   it('does not say nothing was recorded over a read that failed', async () => {
-    mount(<KnowledgeLogView read={{ state: 'failed', reason: REASON }} mode="platform" />);
+    mount(<KnowledgeLogView read={{ state: 'failed', reason: REASON }} />);
     await waitFor(() => expect(text()).toContain('The entries did not load'));
     expect(text()).toContain(REASON);
     // "Nothing yet" over a failed read is the all-clear a failure must never wear.

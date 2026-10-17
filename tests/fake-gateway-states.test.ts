@@ -275,13 +275,12 @@ describe('every mode answers both people', () => {
 
       const { teams, people, initiatives, byTeam } = await lists(base, cookie, role === 'superadmin');
       if (mode === 'empty') expect([teams, people, initiatives, byTeam], name).toEqual([[], [], [], []]);
-      else if (role === 'member') {
-        expect(byTeam.length).toBeGreaterThan(10);
+      else {
+        // Knowledge and its log are Work's, the active team's for the superadmin too, whatever scope is asked for.
+        expect(byTeam.length, name).toBeGreaterThan(role === 'member' ? 10 : 0);
         for (const row of byTeam) expect(row.team, JSON.stringify(row).slice(0, 120)).toBe(me.activeTeam);
-      } else {
         // Teams is paged by the gateway, so a busy platform is still a page of the teams asked for.
-        expect(teams.length, name).toBeGreaterThan(3);
-        expect(new Set(byTeam.map((r) => r.team)).size, name).toBeGreaterThan(2);
+        if (role === 'superadmin') expect(teams.length, name).toBeGreaterThan(3);
       }
     }
     // The status is one public answer in every world, but for what needs attention, which a member reads in their projection.

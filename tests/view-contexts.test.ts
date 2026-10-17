@@ -100,7 +100,7 @@ const contexts: Record<string, () => SharedContext> = {
   approvals: () => approvalsContext(as<Approvals>(approvals(ME, q('tab=history'))), { tab: 'history', page: 1, ...arrival }),
   knowledge: () => knowledgeContext({ summary: LEARNED, list: SHELF, filters: { q: '', kind: 'all' }, page: 1, ...arrival }),
   knowledge_node: () => knowledgeNodeContext(knowledgeBody(KNOWLEDGE[0].team, KNOWLEDGE[0].path)!, arrival),
-  knowledge_log: () => knowledgeLogContext(KNOWLEDGE_LOG, { mode: 'platform', ...arrival }),
+  knowledge_log: () => knowledgeLogContext(KNOWLEDGE_LOG, arrival),
   search: () => searchContext(search('latency budget', 5, null), { ...arrival }),
   people: () => peopleContext(PEOPLE_PAGE, { filters: { q: '', state: 'all', page: '1' }, ...arrival }),
   plugins: () => pluginsContext(PLUGINS, arrival),

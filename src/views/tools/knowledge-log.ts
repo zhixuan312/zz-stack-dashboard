@@ -11,7 +11,7 @@ import type { KnowledgeLogEntry } from '@/lib/api-shapes';
 import { defineViewTool } from '@/lib/shared-context';
 import { KNOWLEDGE_EXPLORE } from '../knowledge-explore';
 import { knowledgeLogContext } from '../knowledge-log-context';
-import { justRead, modeOf } from './shared';
+import { justRead } from './shared';
 
 export const knowledgeLogTool = defineViewTool({
   name: 'knowledge_log',
@@ -23,7 +23,7 @@ export const knowledgeLogTool = defineViewTool({
   async read() {
     await requireNeed(FEATURES.knowledge.needs);
     const data = await gatewayGet<{ entries: KnowledgeLogEntry[] }>('/knowledge/log');
-    return { context: knowledgeLogContext(data.entries, { mode: await modeOf(), ...justRead() }), data };
+    return { context: knowledgeLogContext(data.entries, justRead()), data };
   },
   explore: KNOWLEDGE_EXPLORE,
 });

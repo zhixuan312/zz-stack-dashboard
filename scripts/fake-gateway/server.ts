@@ -163,7 +163,6 @@ function read(who: Me, seg: string[], q: URLSearchParams): Answer {
   const platform = q.get('scope') === 'platform' && who.superadmin;
   const own = heldTo(who);
   const foreign = (team: string | undefined) => own !== null && team !== own;
-  const mine = <T extends { team: string | null }>(rows: T[]) => (platform ? rows : rows.filter((r) => r.team === who.activeTeam));
   const [head, a, b, ...rest] = seg;
   switch (head) {
     case 'me': return ok(who);
@@ -188,7 +187,7 @@ function read(who: Me, seg: string[], q: URLSearchParams): Answer {
     case 'knowledge':
       // The summary answers before the node route, because `summary` names no team of its own.
       if (a === 'summary' && !b) return knowledgeSummary(who);
-      if (a === 'log') return ok({ entries: mine(KNOWLEDGE_LOG) });
+      if (a === 'log') return ok({ entries: KNOWLEDGE_LOG.filter((r) => r.team === who.activeTeam) });
       // A lesson is the active team's, for the superadmin too, as the gateway answers it; the shared shelf is nobody's
       // own, so any signed-in person opens its lessons, read-only. A team or a scope the request names widens nothing.
       if (a) {
