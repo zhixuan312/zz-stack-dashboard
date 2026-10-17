@@ -37,7 +37,7 @@ const FEATURE_OF: [prefix: string, feature: string][] = [
   ['/platform/audit', 'audit'], ['/platform/knowledge', 'knowledge-health'], ['/platform', 'platform-status'],
   ['/record', 'record'], ['/initiatives', 'initiatives'], ['/approvals', 'approvals'], ['/knowledge', 'knowledge'],
   ['/activity', 'activity'], ['/runs', 'runs'], ['/plugins', 'plugins'], ['/access', 'access'],
-  ['/people', 'people'], ['/settings', 'settings'], ['/teams', 'teams'], ['/', 'home'],
+  ['/', 'home'],
 ];
 
 type Sent = { url: string; init: RequestInit };
@@ -95,7 +95,7 @@ afterEach(() => {
 
 describe('a page view', () => {
   it('is posted once when a destination renders, as the feature alone, through the console transport', async () => {
-    await open('/teams', page('Teams'));
+    await open('/platform/teams', page('Teams'));
     expect(sent).toHaveLength(1);
     expect(sent[0].url).toBe('/api/console/page-view');
     expect(sent[0].init.method).toBe('POST');
@@ -134,7 +134,7 @@ describe('a page view', () => {
       // eslint-disable-next-line @next/next/no-html-link-for-pages
       return <a href="/runs" onMouseEnter={() => router.prefetch('/runs')}>Runs</a>;
     };
-    await open('/teams', <><h1>Teams</h1><Hover /></>);
+    await open('/platform/teams', <><h1>Teams</h1><Hover /></>);
     fireEvent.mouseEnter(screen.getByText('Runs'));
     await arrive(<><h1>Teams</h1><Hover /></>);
     expect(prefetched).toEqual(['/runs']);
@@ -142,9 +142,9 @@ describe('a page view', () => {
   });
 
   it('is posted again for a navigation to another destination, and for a later return', async () => {
-    await open('/teams', page('Teams'));
+    await open('/platform/teams', page('Teams'));
     await open('/runs', page('Runs'));
-    await open('/teams', page('Teams'));
+    await open('/platform/teams', page('Teams'));
     expect(features()).toEqual(['teams', 'runs', 'teams']);
   });
 
@@ -156,7 +156,7 @@ describe('a page view', () => {
       useEffect(effects, []);
       return null;
     };
-    at.path = '/people';
+    at.path = '/platform/people';
     await act(async () => {
       view = render(<><Probe /><Shell>{page('People')}</Shell></>, { reactStrictMode: true });
     });
@@ -167,7 +167,7 @@ describe('a page view', () => {
 
 describe('a page that has not arrived, or was refused', () => {
   it('is not posted for the missing page a refused address answers under absent', async () => {
-    await open('/teams', <div data-missing-page="">No such page</div>);
+    await open('/platform/teams', <div data-missing-page="">No such page</div>);
     expect(sent).toHaveLength(0);
   });
 
@@ -179,7 +179,7 @@ describe('a page that has not arrived, or was refused', () => {
   });
 
   it('is not posted for a refused page, served whole', async () => {
-    await open('/teams', refused('Teams'));
+    await open('/platform/teams', refused('Teams'));
     expect(sent).toHaveLength(0);
   });
 
@@ -191,7 +191,7 @@ describe('a page that has not arrived, or was refused', () => {
   });
 
   it('is posted for the next destination a person may open after a refusal', async () => {
-    await open('/teams', refused('Teams'));
+    await open('/platform/teams', refused('Teams'));
     await open('/', page('Home'));
     expect(features()).toEqual(['home']);
   });
@@ -210,7 +210,7 @@ describe('a page that has not arrived, or was refused', () => {
         {shown}
       </>
     );
-    await open('/teams', refused('Teams'));
+    await open('/platform/teams', refused('Teams'));
     await open('/', behind(page('Home')));
     await open('/runs', behind(loading('runs')));
     await arrive(behind(page('Runs')));
@@ -251,6 +251,12 @@ describe('the destinations the rail offers', () => {
     await open(href, page(href));
     expect(features()).toEqual([expected(href)]);
     expect(Object.keys(FEATURES)).toContain(features()[0]);
+  });
+
+  // An old address keeps its page until Phase 7 removes it, and no rail entry owns it, so it records no view.
+  it.each(['/teams', '/people', '/settings'])('%s, an old address no rail offers, records nothing', async (href) => {
+    await open(href, page(href));
+    expect(sent).toHaveLength(0);
   });
 });
 

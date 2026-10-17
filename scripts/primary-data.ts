@@ -2,7 +2,7 @@
  * The time until a page's own data can be read, beside its largest paint, per route and per person, on a mid-range
  * phone: one of verify's `browserChecks`.
  *
- *   node scripts/primary-data.ts [--base http://localhost:3100] [--routes /,/teams] [--as superadmin,member]
+ *   node scripts/primary-data.ts [--base http://localhost:3100] [--routes /,/record] [--as superadmin,member]
  *
  * The phone is scripts/vitals.ts's: CPU slowed four times, Slow 4G (150 ms round trip, 1.6 Mbps down, 750 kbps up), the
  * cache off, a 390px touch screen in the dark theme, motion not reduced, each page given seven seconds and its load
@@ -20,11 +20,14 @@
  * A route the person may not open is recorded as refused, not as a time: the gate's refusal (`[data-no-access]` under
  * `refusal: 'explain'`, the missing page's `[data-missing-page]` under `absent`), or a record the gateway answers as
  * not existing, which is how it refuses another team's record without confirming it is there (`Query` in
- * src/console/query.tsx). A rail route's refusal must match the persona's hand-written `expectedRoutes`.
+ * src/console/query.tsx). A rail route's refusal must match the persona's hand-written `expectedRoutes`, and a detail
+ * route the persona's `deniedProbe` names, a bug's own report for the member, must be refused.
  *
- * No budget is enforced on the time: the stakeholder sets it from this table (spec AC-8.7). Each row carries its place
- * in the run, `#n`, because a measurement carries its history: one browser opens every page in the order printed, with
- * no warm-up load, so row #n is the n-th page that browser opened, against a server that has served every row before it.
+ * The budget is 1.0 s, the stakeholder's of 17 October 2026 (spec AC-8.7): a route whose own data is readable later
+ * than that is a failing row, whether it is the first, cold row or a later one, and it is never measured again to
+ * get under it. Each row carries its place in the run, `#n`, because a measurement carries its history: one browser
+ * opens every page in the order printed, with no warm-up load, so row #n is the n-th page that browser opened, against
+ * a server that has served every row before it.
  *
  * Then a delayed read, for each rail route as the first persona: every read the page makes from the browser under
  * `/api/console` (the live stream aside) is held for eight seconds inside this browser alone, never in the fake gateway,
@@ -35,9 +38,10 @@
  * navigation; a page that sends no read from the browser is held to five seconds from navigation. A read the
  * console's server makes for itself (the gate's `/me`, Status's figure) is not held here.
  *
- * One line per route and persona, then one per delayed read. Exits 1 when a delayed read shows no loading at once or no
- * explicit state within five seconds, when a route shows neither its content nor a refusal within twenty seconds, when a
- * rail route's refusal disagrees with the persona's expected routes, or when a detail route has no selector declared.
+ * One line per route and persona, then one per delayed read. Exits 1 when a route's own data is readable later than
+ * 1.0 s, when a delayed read shows no loading at once or no explicit state within five seconds, when a route shows
+ * neither its content nor a refusal within twenty seconds, when a rail route's refusal disagrees with the persona's
+ * expected routes, when a detail route the persona is denied opens, or when a detail route has no selector declared.
  */
 import { launch, type Page } from './lib/chrome.ts';
 import config from './verify.config.ts';
@@ -68,6 +72,8 @@ const DETAIL: Record<string, string> = {
   '/platform/bugs/0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d02': 'main [data-report-detail]',
   '/platform/teams/atlas': TABLE,
   '/platform/teams/dune': TABLE,
+  '/teams': TABLE,
+  '/people': TABLE,
   '/teams/atlas': TABLE,
   // No initiative yet, which the page says; its members are the table.
   '/teams/dune': TABLE,
@@ -99,6 +105,8 @@ const detail: Target[] = config.detailRoutes.filter((r) => DETAIL[r]).map((r) =>
 const targets = [...rail, ...detail].filter((t) => !only || only.has(t.path));
 const personas = Object.entries(config.personas ?? {}).filter(([name]) => !args.includes('--as') || opt('--as', '').split(',').includes(name));
 
+/** The time a route's own data has to be readable in, from navigation start: the stakeholder's budget (spec AC-8.7). */
+const BUDGET_MS = 1_000;
 /** How long a route has to show its content or a refusal, and how long a delayed read is held. */
 const CAP_MS = 20_000;
 const HOLD_MS = 8_000;
@@ -199,16 +207,19 @@ for (const [who, persona] of personas) {
     }
     // Both in milliseconds, so the two can be read against each other and against the 2,500 ms bar without rounding.
     const head = `#${String(n).padEnd(3)} ${who.padEnd(10)} ${t.path.padEnd(64)} LCP ${Math.round(seen.lcp)} ms ·`;
-    // A rail route's refusal is checked against the persona's own hand-written list; a detail route's is recorded.
-    const expected = !t.rail || persona.expectedRoutes.includes(t.path);
+    // A rail route's refusal is checked against the persona's own hand-written list. A detail route's is recorded, since
+    // another team's record is answered as not existing, except that one the persona is denied must not open.
+    const expected = t.rail ? persona.expectedRoutes.includes(t.path) : !Object.hasOwn(persona.deniedProbe ?? {}, t.path);
     if (seen.refused !== null) {
       const wrong = t.rail && expected;
       if (wrong) failures.push(`${t.path} as ${who}: refused (${seen.why}), and ${who} is expected to open it`);
       console.log(`${wrong ? 'FAIL' : 'ok  '} ${head} refused (${seen.why})`);
     } else if (seen.data !== null) {
       const wrong = !expected;
+      const slow = seen.data > BUDGET_MS;
       if (wrong) failures.push(`${t.path} as ${who}: opened, and ${who} is expected to be refused it`);
-      console.log(`${wrong ? 'FAIL' : 'ok  '} ${head} primary data ${Math.round(seen.data)} ms`);
+      if (slow) failures.push(`${t.path} as ${who}: primary data at ${Math.round(seen.data)} ms, over the ${BUDGET_MS} ms budget (row #${n})`);
+      console.log(`${wrong || slow ? 'FAIL' : 'ok  '} ${head} primary data ${Math.round(seen.data)} ms${slow ? ` · over ${BUDGET_MS} ms` : ''}`);
     } else {
       failures.push(`${t.path} as ${who}: neither its content (${t.ready}) nor a refusal within ${s(CAP_MS)}`);
       console.log(`FAIL ${head} neither its content (${t.ready}) nor a refusal within ${s(CAP_MS)}`);

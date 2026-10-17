@@ -46,6 +46,18 @@ describe('every page under the console shell', () => {
     expect(all.length).toBeGreaterThanOrEqual(16);
   });
 
+  it('answers every destination of both rails, and the old addresses Phase 7 removes (AC-1.12)', () => {
+    // The eighteen destinations' addresses, and `/teams`, `/teams/<slug>`, `/people`, `/settings` and `/knowledge/log`,
+    // which stay reachable, each gated as its feature, until they are removed. Written out here.
+    const addresses = [
+      '(home)', 'record', 'initiatives', 'approvals', 'knowledge', 'activity', 'runs', 'plugins', 'access',
+      'platform', 'platform/releases', 'platform/bugs', 'platform/evaluation', 'platform/teams', 'platform/people',
+      'platform/usage', 'platform/audit', 'platform/knowledge',
+      'teams', 'teams/[slug]', 'people', 'settings', 'knowledge/log',
+    ];
+    for (const dir of addresses) expect(all, dir).toContain(path.join(dir, 'page.tsx'));
+  });
+
   it.each(all)('%s is a server page', (page) => {
     const src = code(fs.readFileSync(path.join(DASH, page), 'utf8'));
     expect(src).not.toMatch(/['"]use client['"]/);

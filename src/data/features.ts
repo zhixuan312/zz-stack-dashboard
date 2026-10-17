@@ -6,11 +6,10 @@
  * `src/app.config.ts` points each item at its feature's need **by reference** (`needs: FEATURES.teams.needs`), so an
  * item and the table never restate one another.
  *
- * This is the table of the pages the console has today, at today's addresses, and of the pages the platform declares
- * before they are mounted — Record, Approvals, Access, Releases, Bugs, Evaluation, Usage, Knowledge health and Audit —
- * so a page can gate on its feature the day it lands, whether or not the rail offers it yet. Everybody reads their own
- * work and the platform's Status, Releases, Bugs, Evaluation, Usage and Knowledge health; Teams, People, Audit and the
- * other fleet pages are a superadmin's.
+ * This is the table of the eighteen destinations of the spec's destinations table, a bug's own page, and Settings, which
+ * keeps its old address until Phase 7. Everybody reads their own work, Knowledge, Activity, Runs, Plugins and Access
+ * among it, and the platform's Status, Releases, Bugs, Evaluation, Usage and Knowledge health; Teams, People, Audit and
+ * a bug's own page are a superadmin's (reconciliation 67).
  *
  * Pure data with type-only imports, so plain `node` can import it: `scripts/check.ts` reads `src/app.config.ts`, which
  * reaches this file.
@@ -44,9 +43,9 @@ export const FEATURES: Record<FeatureId, { title: string; needs: HeldRead }> = {
   settings: { title: 'Settings', needs: WORK },
   access: { title: 'Access', needs: WORK },
   teams: { title: 'Teams', needs: FLEET },
-  plugins: { title: 'Plugins', needs: FLEET },
-  runs: { title: 'Runs', needs: FLEET },
-  activity: { title: 'Activity', needs: FLEET },
+  plugins: { title: 'Plugins', needs: WORK },
+  runs: { title: 'Runs', needs: WORK },
+  activity: { title: 'Activity', needs: WORK },
   'platform-status': { title: 'Status', needs: PLATFORM },
   releases: { title: 'Releases', needs: PLATFORM },
   bugs: { title: 'Bugs', needs: PLATFORM },

@@ -6,6 +6,13 @@ import { ConsoleModeProvider, useConsole } from '@/lib/api';
 import type { ChromeAccess } from '@/lib/collection';
 import { WorkspaceRail } from '@/views/workspace-chrome';
 
+/** The address the rail is drawn at: Platform's, whose Fleet group holds the destinations a member is not shown. */
+vi.mock('next/navigation', () => ({
+  usePathname: () => '/platform',
+  useSearchParams: () => new URLSearchParams(),
+  useRouter: () => ({ push() {}, replace() {}, refresh() {}, back() {}, forward() {}, prefetch() {} }),
+}));
+
 // Rendering is not enforcement — the server decides scope — but the render rule is asserted
 // on its own so a control never shows to someone who cannot use it. `Segmented` renders
 // role="radiogroup", not "group". DELIBERATE: no provider is mounted. `useConsoleMode` falls
@@ -51,8 +58,9 @@ describe('ModeSwitch', () => {
  * what a member is shown, over what the server answered (`src/nav.ts`; `tests/nav-scope.test.tsx` holds the rule).
  */
 describe('the scope in the rail\'s workspace menu', () => {
-  const EVERY = ['/', '/teams', '/initiatives', '/knowledge', '/people', '/plugins', '/runs', '/activity', '/settings'];
-  const MEMBER = ['/', '/initiatives', '/knowledge', '/settings'];
+  /** Platform's rail as the server answers a superadmin, and the six public destinations of it a member is shown. */
+  const EVERY = ['/platform', '/platform/releases', '/platform/bugs', '/platform/evaluation', '/platform/teams', '/platform/people', '/platform/usage', '/platform/audit', '/platform/knowledge'];
+  const MEMBER = ['/platform', '/platform/releases', '/platform/bugs', '/platform/evaluation', '/platform/usage', '/platform/knowledge'];
   let calls: string[];
 
   /** A page's read beside the rail, so the scope it sends can be read off the request. */

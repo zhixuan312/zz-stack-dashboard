@@ -27,7 +27,7 @@ import { consoleMutate, useConsoleMutation } from '@/lib/mutate';
 import { DIRECT, applicationOf, stateOf } from '@/views/access-context';
 
 /** The protagonist's title: the section the page's Ask sits on. COUPLED: the README's `Protagonist:`. */
-export const TOKENS_TITLE = 'Tokens';
+const TOKENS_TITLE = 'Tokens';
 
 /**
  * A just-issued token, shown exactly once. DELIBERATE: `TokensPanel` holds it in a plain `useState`, never

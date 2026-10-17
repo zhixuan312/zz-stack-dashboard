@@ -255,6 +255,9 @@ What stays the console's own, and why:
 - `scripts/fake-gateway/`, `scripts/approve-banners.ts` and `scripts/live-check.ts`: the fixture and the product's own
   checks that `verify` runs. The live check drives a change through the fake gateway's own hooks, which wear the path
   the app proxies (`/api/console/__hint`) so a check never has to know the gateway's address.
+- `scripts/explore-probe.ts`: every view tool and the page's prepared query asked as one person through ZZ Meridian's
+  runner on a real gateway, none of another team's words in any answer; zz-stack's walking skeleton runs it, `verify`
+  does not.
 
 What `verify` cannot say is how the pages look against production data. The fixtures cover the states a page draws,
 and real data has more.

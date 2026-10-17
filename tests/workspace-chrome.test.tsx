@@ -39,9 +39,14 @@ type Body = Record<string, unknown>;
 const SUPERADMIN: Body = { email: 'owner@example.com', name: 'Owner', role: 'superadmin', mayRead: true, superadmin: true, via: 'session', teams: [{ slug: 'atlas', role: 'admin' }], activeTeam: 'atlas' };
 const MEMBER: Body = { email: 'mei@example.com', name: 'Mei', role: 'member', mayRead: true, superadmin: false, via: 'session', teams: [{ slug: 'beacon', role: 'admin' }], activeTeam: 'beacon' };
 
-const EVERYTHING = ['Home', 'Teams', 'Initiatives', 'Knowledge', 'People', 'Plugins', 'Runs', 'Activity', 'Settings'];
-const WORKING_SET = ['Home', 'Initiatives', 'Knowledge', 'Settings'];
-const FLEET = ['Teams', 'People', 'Plugins', 'Runs', 'Activity'];
+/** The two rails, from the spec's destinations table, written out here and not read from `nav`. */
+const WORK = ['Home', 'Record', 'Initiatives', 'Approvals', 'Knowledge', 'Activity', 'Runs', 'Plugins', 'Access'];
+const PLATFORM = ['Status', 'Releases', 'Bugs', 'Evaluation', 'Teams', 'People', 'Usage', 'Audit', 'Knowledge health'];
+/** Platform's six public destinations, a member's. */
+const PUBLIC = ['Status', 'Releases', 'Bugs', 'Evaluation', 'Usage', 'Knowledge health'];
+/** The superadmin's alone. */
+const FLEET = ['Teams', 'People', 'Audit'];
+const EVERYTHING = [...WORK, ...PLATFORM];
 
 let calls: string[];
 /** The gateway answers `/me` with a body, with a bare status, or not at all. */
@@ -58,18 +63,28 @@ function gateway(answer: Body | number | 'down') {
 const layoutAccess = (): Promise<ChromeAccess | null> => chromeAccess().catch(() => null);
 const links = () => within(screen.getByRole('navigation', { name: 'Main' })).queryAllByRole('link').map((l) => l.textContent);
 
-async function chrome(access = layoutAccess()) {
+async function chromeFor(access = layoutAccess()) {
+  let view!: ReturnType<typeof render>;
   await act(async () => {
-    render(<><WorkspaceRail access={access} /><WorkspacePalette access={access} /></>);
+    view = render(<><WorkspaceRail access={access} /><WorkspacePalette access={access} /></>);
   });
+  return view;
+}
+async function chrome(access = layoutAccess()) {
+  await chromeFor(access);
 }
 
-/** The palette's destinations, opened after the rail is read: what is behind a modal is hidden from every reader. */
+/**
+ * The palette's destinations, opened after the rail is read: what is behind a modal is hidden from every reader. An
+ * option is its label and then its group, so the label is read on its own: `Knowledge` is not `Knowledge health`.
+ */
 async function paletteOffers(): Promise<string[]> {
   act(() => openCommand());
-  const options = within(await screen.findByRole('dialog')).getAllByRole('option').map((o) => o.textContent ?? '');
-  return EVERYTHING.filter((label) => options.some((o) => o.startsWith(label)));
+  const options = within(await screen.findByRole('dialog')).getAllByRole('option').map((o) => o.querySelector('span')?.textContent ?? '');
+  return options.filter((label) => EVERYTHING.includes(label));
 }
+/** The rail's group headings, in order. */
+const headings = () => [...screen.getByRole('navigation', { name: 'Main' }).querySelectorAll('.t-eyebrow')].map((h) => h.textContent);
 
 const saved = { ...process.env };
 beforeEach(() => {
@@ -88,23 +103,58 @@ afterEach(() => {
 });
 
 describe('the rail and the palette draw what the server answered for the person signed in', () => {
-  it('gives a member their working set and no fleet destination', async () => {
+  it('gives a member every Work destination, in the destinations table\'s groups and order', async () => {
     gateway(MEMBER);
     await chrome();
     await screen.findByText('Mei');
     expect(screen.getByText('Member')).toBeInTheDocument();
-    expect(links()).toEqual(WORKING_SET);
-    for (const label of FLEET) expect(links()).not.toContain(label);
-    expect(await paletteOffers()).toEqual(WORKING_SET);
+    expect(links()).toEqual(WORK);
+    expect(headings()).toEqual(['Work', 'Agents', 'Catalog', 'Account']);
+    expect(await paletteOffers()).toEqual(WORK);
   });
 
-  it('gives a superadmin every destination there is today', async () => {
+  it('gives a member Platform\'s six public destinations and none of the superadmin\'s', async () => {
+    gateway(MEMBER);
+    at.path = '/platform';
+    await chrome();
+    await screen.findByText('Mei');
+    expect(links()).toEqual(PUBLIC);
+    for (const label of FLEET) expect(links()).not.toContain(label);
+    expect(headings()).toEqual(['Health', 'Fleet']);
+    expect(await paletteOffers()).toEqual(PUBLIC);
+  });
+
+  it('gives a superadmin Work\'s nine', async () => {
     gateway(SUPERADMIN);
     await chrome();
     await screen.findByText('Owner');
     expect(screen.getByText('Superadmin')).toBeInTheDocument();
-    expect(links()).toEqual(EVERYTHING);
-    expect(await paletteOffers()).toEqual(EVERYTHING);
+    expect(links()).toEqual(WORK);
+    expect(await paletteOffers()).toEqual(WORK);
+  });
+
+  it('gives a superadmin Platform\'s nine at its address, Fleet with Teams, People, Usage, Audit and Knowledge health', async () => {
+    gateway(SUPERADMIN);
+    at.path = '/platform/teams/atlas';
+    await chrome();
+    await screen.findByText('Owner');
+    expect(links()).toEqual(PLATFORM);
+    expect(headings()).toEqual(['Health', 'Fleet']);
+    expect(screen.getByRole('link', { name: 'Teams' }).getAttribute('aria-current')).toBe('page');
+    expect(await paletteOffers()).toEqual(PLATFORM);
+  });
+
+  it('puts Settings on no rail, in either workspace, for either person', async () => {
+    for (const [who, body, name] of [['member', MEMBER, 'Mei'], ['superadmin', SUPERADMIN, 'Owner']] as const) {
+      for (const where of ['/', '/platform', '/settings']) {
+        gateway(body);
+        at.path = where;
+        const view = await chromeFor();
+        await screen.findByText(name);
+        expect(links(), `${who} at ${where}`).not.toContain('Settings');
+        view.unmount();
+      }
+    }
   });
 
   it('asks the gateway as the caller, and the browser asks nothing', async () => {
@@ -149,7 +199,7 @@ describe('the workspace menu', () => {
     await chrome();
     await screen.findByText('Mei');
     expect(screen.getByRole('button', { name: 'ZZ Stack, Platform: workspace menu' })).toBeInTheDocument();
-    expect(links()).toEqual(['Status']);
+    expect(links()).toEqual(PUBLIC);
     await menu();
     await choose('Work');
     expect(at.push).toHaveBeenCalledWith('/');

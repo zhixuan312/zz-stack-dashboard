@@ -51,9 +51,9 @@ const BOTH = [['the superadmin', SUPERADMIN], ['the member', MEMBER]] as const;
 const sum = (o: Record<string, number>) => Object.values(o).reduce((a, b) => a + b, 0);
 
 describe('the feature Access declares', () => {
-  it('declares Access on work:read, with no rail entry yet', () => {
+  it('declares Access on work:read, on Work\'s rail', () => {
     expect(FEATURES.access).toEqual({ title: 'Access', needs: 'work:read' });
-    expect(nav.flatMap((g) => g.items.map((i) => i.href))).not.toContain('/access');
+    expect(nav.flatMap((g) => g.items.map((i) => i.href))).toContain('/access');
   });
 });
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FEATURES } from '@/data/features';
+import { PREPARED } from '@/data/prepared';
 import { GRANTS, MAIN_ROLES, effective } from '@/data/roles';
 
 /** The spec's grants table, written out here and not read from the code under test. */
@@ -33,5 +34,25 @@ describe('the feature table', () => {
     for (const [id, feature] of Object.entries(FEATURES as Record<string, { needs: unknown }>)) {
       expect(feature.needs, id).not.toBe('public');
     }
+  });
+});
+
+describe('the collections the assistant reads', () => {
+  /**
+   * What reading each needs: the grant of the page that shows its figures (reconciliation 67), so a member reads what
+   * Knowledge, Activity, Runs, Plugins and Access show and never what Teams, People and Audit show. Written out here.
+   */
+  const NEEDS: Record<string, string> = {
+    closures: 'work:read', opened: 'work:read', words: 'work:read', approvals: 'work:read', lessons: 'work:read',
+    runs: 'work:read', searches: 'work:read', calls: 'work:read', refusals: 'work:read', output: 'work:read',
+    skill_calls: 'work:read', shelf: 'work:read', tokens: 'work:read',
+    platform_calls: 'platform:read', platform_refusals: 'platform:read', malformed: 'platform:read', releases: 'platform:read',
+    migrations: 'platform:read', bugs_filed: 'platform:read', bugs_resolved: 'platform:read', findings: 'platform:read',
+    scores: 'platform:read', platform_lessons: 'platform:read', platform_searches: 'platform:read', model_calls: 'platform:read',
+    teams: 'fleet:read', people: 'fleet:read', sign_ins: 'fleet:read', audit: 'fleet:read',
+  };
+
+  it('asks of each what the page that shows it asks', () => {
+    expect(Object.fromEntries(PREPARED.map((r) => [r.name, r.needs]))).toEqual(NEEDS);
   });
 });

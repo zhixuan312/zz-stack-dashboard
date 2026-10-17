@@ -70,20 +70,31 @@ afterEach(() => {
   process.env = { ...saved };
 });
 
+/**
+ * Who each page opens for, from the spec's grants table and reconciliation 67, written out here and not read from the
+ * code under test: Teams, People, Audit and a bug's own page are the superadmin's, and every other page, the old
+ * addresses that keep their pages until Phase 7 among them, everybody's.
+ */
+const SUPERADMIN_ONLY = ['teams', 'people', 'audit', 'bug'];
+const EVERYBODY = [
+  'home', 'record', 'initiatives', 'approvals', 'knowledge', 'activity', 'runs', 'plugins', 'access', 'settings',
+  'platform-status', 'releases', 'bugs', 'evaluation', 'usage', 'knowledge-health',
+];
+
 describe('a page\'s gate', () => {
-  it('opens a page for a person who holds its grant', async () => {
-    gateway(MEMBER);
-    expect(await ask('home')).toEqual({ kind: 'open' });
-    expect(await ask('initiatives')).toEqual({ kind: 'open' });
+  it('opens every page for a superadmin', async () => {
     gateway(SUPERADMIN);
-    expect(await ask('home')).toEqual({ kind: 'open' });
-    expect(await ask('teams')).toEqual({ kind: 'open' });
-    expect(await ask('activity')).toEqual({ kind: 'open' });
+    for (const feature of [...EVERYBODY, ...SUPERADMIN_ONLY]) expect(await ask(feature), feature).toEqual({ kind: 'open' });
   });
 
-  it('answers a member with the refused view on a fleet page, and never opens it', async () => {
+  it('opens a member every Work page, Knowledge, Activity, Runs, Plugins and Access among them, and the public Platform pages', async () => {
     gateway(MEMBER);
-    for (const feature of ['teams', 'plugins', 'runs', 'activity']) {
+    for (const feature of EVERYBODY) expect(await ask(feature), feature).toEqual({ kind: 'open' });
+  });
+
+  it('answers a member with the refused view on Teams, People, Audit and a bug\'s own page, and never opens one', async () => {
+    gateway(MEMBER);
+    for (const feature of SUPERADMIN_ONLY) {
       expect(await ask(feature), feature).toEqual({ kind: 'refused', view: { refused: feature } });
     }
   });

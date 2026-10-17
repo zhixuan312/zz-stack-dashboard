@@ -374,8 +374,10 @@ export function platformStatusContext(read: StatusRead): SharedContext {
   else unavailable('Your team\'s own counts', own.reason);
   if (s.records.state === 'unavailable') unavailable('The days in a row with work', s.records.reason);
 
-  // What needs attention, then the gateway's findings: the first to go when the context is over its budget.
-  for (const r of s.needs.rows) insights.push({ text: `${r.title}.`, ...(r.href ? { evidence: r.href } : {}) });
+  // What needs attention, then the gateway's findings: the first to go when the context is over its budget. A need's
+  // page is its evidence only where it names a record (a team's page); Bugs, Usage and Evaluation are the Platform page
+  // of the need's kind, which view_bugs, view_usage and view_evaluation read, and their addresses cost every need its room.
+  for (const r of s.needs.rows) insights.push({ text: `${r.title}.`, ...(r.href && r.kind === 'approvals' ? { evidence: r.href } : {}) });
   for (const k of [...DIRECTIONAL, ...ACTIVITY]) {
     const m = measureOf(s, k);
     if (m?.finding) insights.push({ text: `${MEASURES[k].label}: ${m.finding.text}.` });

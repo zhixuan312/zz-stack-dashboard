@@ -355,8 +355,8 @@ describe('GET /api/console/platform/status', () => {
     const order = ['bugs', 'door', 'evaluation', 'approvals', 'drift'];
     const rank = (r: Need) => (r.tone === 'critical' ? 0 : 10) + order.indexOf(r.kind);
     expect(needs.rows.map(rank)).toEqual([...needs.rows.map(rank)].sort((a, b) => a - b));
-    // Only a team's page is released: every other row links nowhere.
-    for (const r of needs.rows) expect(r.href === null || /^\/teams\/[a-z0-9_-]+$/.test(r.href), JSON.stringify(r)).toBe(true);
+    // Each row links to its released page: Bugs, Usage, Evaluation, or a team's own page under Platform.
+    for (const r of needs.rows) expect(r.href === null || /^\/platform\/(bugs|usage|evaluation|teams\/[a-z0-9_-]+)$/.test(r.href), JSON.stringify(r)).toBe(true);
     // A fault day today is one door's need, and the door's own days say so.
     const { doors } = await read<Status>(null, 'platform/status');
     for (const r of needs.rows.filter((x) => x.kind === 'door')) {
@@ -464,8 +464,13 @@ describe('POST /api/console/page-view', () => {
 });
 
 describe('the personas pnpm verify --as signs in as', () => {
-  /** The rail today across both workspaces, in its own order (Work's, then Platform's); written out here and not read from `nav`. */
-  const RAIL = ['/', '/teams', '/initiatives', '/knowledge', '/people', '/plugins', '/runs', '/activity', '/settings', '/platform'];
+  /** Both rails, in the destinations table's order (Work's, then Platform's); written out here and not read from `nav`. */
+  const RAIL = [
+    '/', '/record', '/initiatives', '/approvals', '/knowledge', '/activity', '/runs', '/plugins', '/access',
+    '/platform', '/platform/releases', '/platform/bugs', '/platform/evaluation', '/platform/teams', '/platform/people', '/platform/usage', '/platform/audit', '/platform/knowledge',
+  ];
+  /** A member's: every Work destination and Platform's six public ones. */
+  const MEMBER_RAIL = RAIL.filter((r) => !['/platform/teams', '/platform/people', '/platform/audit'].includes(r));
 
   it('are the superadmin and the member, each by the cookie the fixture reads', async () => {
     expect(Object.keys(personas).sort()).toEqual(['member', 'superadmin']);
@@ -475,9 +480,9 @@ describe('the personas pnpm verify --as signs in as', () => {
     expect([SUPERADMIN, MEMBER]).not.toContain(NO_SESSION);
   });
 
-  it('expect the rail each is shown today', () => {
+  it('expect the rail each is shown', () => {
     expect([...personas.superadmin.expectedRoutes]).toEqual(RAIL);
-    expect([...personas.member.expectedRoutes]).toEqual(['/', '/initiatives', '/knowledge', '/settings', '/platform']);
+    expect([...personas.member.expectedRoutes]).toEqual(MEMBER_RAIL);
     expect(personas.superadmin.deniedProbe).toBeUndefined();
   });
 
@@ -487,11 +492,11 @@ describe('the personas pnpm verify --as signs in as', () => {
     const theirs = JSON.stringify(await Promise.all((await memberReads()).map((path) => read(MEMBER, path))));
     for (const [route, probe] of probes) {
       // `/platform/teams` and `/platform/people` are Teams and People under Platform, reading the same `/teams` and
-      // `/people` the rail's `/teams` and `/people` read until Phase 7. A bug report reads its own address: the member
-      // reads the list it sits in, by a title generated from its surface, and never the report's own words.
+      // `/people` their old addresses read until Phase 7. A bug report reads its own address: the member reads the list
+      // it sits in, by a title generated from its surface, and never the report's own words.
       const fleet = /^\/(platform\/)?(teams|people)$/.exec(route);
       const collection = fleet ? fleet[2] : route.slice(1);
-      if (fleet) expect(RAIL, route).toContain(`/${collection}`);
+      if (fleet) expect(RAIL, route).toContain(`/platform/${collection}`);
       expect(personas.member.expectedRoutes, route).not.toContain(route);
       // The page's own read holds it for the superadmin; the member is refused that read, and reads it nowhere else.
       expect(JSON.stringify(await read(null, `${collection}?limit=100`))).toContain(probe);

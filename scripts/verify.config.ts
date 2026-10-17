@@ -119,39 +119,48 @@ const config: VerifyConfig = {
     firstLoadKb: 850,
   },
   /**
-   * One for every route in the rail, which is what `--full` and `--perf` require. Each selector was read off the built
-   * app served against the fake gateway on 2026-10-11, not guessed: `/` draws 26 table rows and one
-   * `aria-haspopup="dialog"` control, `/teams` 4 rows beside a search field, `/initiatives` 11, `/knowledge` 10,
-   * `/people` 7, `/plugins` 4 with no search field (5 beside one now), `/runs` 16, `/activity` 20, `/settings` 13. The pages read on the
-   * console's server since (Home, Knowledge, Activity, Runs) are read by the figures their comments name, and
-   * Initiatives by its list's own table.
+   * One for every route of both rails, in the rails' order (the destinations table's), which is what `--full` and
+   * `--perf` require and the order scripts/primary-data.ts measures them in. Each page reads its primary data on the
+   * console's server (reconciliation 65), and its selector is the one its page task read off the built app served
+   * against the fake gateway: Home's paired figures, Record's lead figure, a list's own table, a page of figures its
+   * tiles once their read answered (`data-figures="read"`), Access's tokens.
    *
-   * The probe is the one that changes something unambiguous. On `/teams` and `/initiatives` a search field filters the
-   * rows it is beside; on `/` there is no search field, and its radios are two segmented groups whose checked item
-   * simply moves, so the dialog is the change this can read.
+   * The probe is the one that changes something unambiguous. A search field filters the rows it is beside (Initiatives,
+   * Teams, People); where there is none, or a search runs on submit, a tile's info button opens the tooltip that says
+   * what the tile counts. `/teams`, `/people`, `/settings` and `/knowledge/log` are on no rail, so they have no entry
+   * here: they keep their pages, gated as their features, until Phase 7 removes them (AC-1.12).
    */
   navigationChecks: [
-    // Home's primary data is its paired figures, read on the server; the one control the check presses is a tile's info
-    // button, whose tooltip says what the tile counts.
+    // Home's primary data is its paired figures; the one control the check presses is a tile's info button, whose
+    // tooltip says what the tile counts.
     { path: '/', title: 'Home', readySelector: 'main [data-figures] [data-value]', probe: 'toggle', controlSelector: 'main button[aria-label^="About "]', resultSelector: '[role="tooltip"]' },
-    { path: '/teams', title: 'Teams', readySelector: 'main table tbody tr', probe: 'filter', controlSelector: 'main input[type="search"]', resultSelector: 'main table tbody tr' },
+    // Record leads with one figure, the retained text's estimate, in its Featured metric.
+    { path: '/record', title: 'Record', readySelector: 'main [data-figure] [data-value]', probe: 'toggle', controlSelector: 'main button[aria-label^="About "]', resultSelector: '[role="tooltip"]' },
     // Initiatives draws a second table in `main`, its chart's data for a screen reader, so both selectors name the list.
     { path: '/initiatives', title: 'Initiatives', readySelector: 'main [data-protagonist="Initiatives"] table tbody tr', probe: 'filter', controlSelector: 'main input[type="search"]', resultSelector: 'main [data-protagonist="Initiatives"] table tbody tr' },
-    // Knowledge's search runs on submit, so typing changes nothing; its data is the tiles, read on the server.
+    { path: '/approvals', title: 'Approvals', readySelector: 'main [data-protagonist="Approvals"] table tbody tr', probe: 'toggle', controlSelector: 'main button[aria-label^="About "]', resultSelector: '[role="tooltip"]' },
+    // Knowledge's search runs on submit, so typing changes nothing; its data is the tiles.
     { path: '/knowledge', title: 'Knowledge', readySelector: 'main [data-figures="read"] .t-figure', probe: 'toggle', controlSelector: 'main button[aria-label^="About "]', resultSelector: '[role="tooltip"]' },
-    { path: '/people', title: 'People', readySelector: 'main table tbody tr', probe: 'filter', controlSelector: 'main input[type="search"]', resultSelector: 'main table tbody tr' },
-    { path: '/plugins', title: 'Plugins', readySelector: 'main table tbody tr', probe: 'filter', controlSelector: 'main input[type="search"]', resultSelector: 'main table tbody tr' },
-    // Activity's and Runs' primary data is their three tiles, read on the server; the one control the check presses is a
-    // tile's info button, whose tooltip says what the tile counts.
-    { path: '/runs', title: 'Runs', readySelector: 'main [data-figures="read"] [data-value]', probe: 'toggle', controlSelector: 'main button[aria-label^="About "]', resultSelector: '[role="tooltip"]' },
+    // Activity's and Runs' primary data is their three tiles.
     { path: '/activity', title: 'Activity', readySelector: 'main [data-figures="read"] [data-value]', probe: 'toggle', controlSelector: 'main button[aria-label^="About "]', resultSelector: '[role="tooltip"]' },
-    // Settings says in one sentence that its contents moved, with the link to Access (Task I-112), until Task I-114 takes
-    // it out of the rail: its data is that sentence, and its one control the link, whose press puts Access's heading up.
-    { path: '/settings', title: 'Settings', readySelector: 'main [data-moved]', probe: 'link', controlSelector: 'main [data-moved] a[href="/access"]', resultSelector: 'main h1' },
-    // Status leads with what needs attention and the paired figures, read on the server: its data is the Featured
-    // metric's first figure, the last whole week's malformed calls per 1,000 (`.t-figure` is the team's tiles now). The
-    // one control is a team tile's info button, whose tooltip says what the figure counts. Read off the source on 2026-10-17.
+    { path: '/runs', title: 'Runs', readySelector: 'main [data-figures="read"] [data-value]', probe: 'toggle', controlSelector: 'main button[aria-label^="About "]', resultSelector: '[role="tooltip"]' },
+    { path: '/plugins', title: 'Plugins', readySelector: 'main table tbody tr', probe: 'filter', controlSelector: 'main input[type="search"]', resultSelector: 'main table tbody tr' },
+    // Access's primary data is its tokens; the probe is a live token's Revoke, whose first press only asks in place, so
+    // it writes nothing.
+    { path: '/access', title: 'Access', readySelector: 'main [data-protagonist="Tokens"] table tbody tr', probe: 'toggle', controlSelector: 'main [data-protagonist="Tokens"] tbody tr button', resultSelector: 'main [data-protagonist="Tokens"] tbody tr' },
+    // Status leads with what needs attention and the paired figures: its data is the Featured metric's first figure, the
+    // last whole week's malformed calls per 1,000 (`.t-figure` is the team's tiles now). The one control is a team
+    // tile's info button, whose tooltip says what the figure counts. Read off the source on 2026-10-17.
     { path: '/platform', title: 'Status', readySelector: 'main [data-figures] [data-value]', readyText: STATUS_FIGURE, probe: 'toggle', controlSelector: 'main button[aria-label^="About "]', resultSelector: '[role="tooltip"]' },
+    { path: '/platform/releases', title: 'Releases', readySelector: 'main [data-protagonist="Releases"] table tbody tr', probe: 'toggle', controlSelector: 'main button[aria-label^="About "]', resultSelector: '[role="tooltip"]' },
+    { path: '/platform/bugs', title: 'Bugs', readySelector: 'main table tbody tr', probe: 'toggle', controlSelector: 'main button[aria-label^="About "]', resultSelector: '[role="tooltip"]' },
+    { path: '/platform/evaluation', title: 'Evaluation', readySelector: 'main [data-figures="read"] [data-value]', probe: 'toggle', controlSelector: 'main button[aria-label^="About "]', resultSelector: '[role="tooltip"]' },
+    { path: '/platform/teams', title: 'Teams', readySelector: 'main table tbody tr', probe: 'filter', controlSelector: 'main input[type="search"]', resultSelector: 'main table tbody tr' },
+    { path: '/platform/people', title: 'People', readySelector: 'main table tbody tr', probe: 'filter', controlSelector: 'main input[type="search"]', resultSelector: 'main table tbody tr' },
+    { path: '/platform/usage', title: 'Usage', readySelector: 'main [data-figures="read"] [data-value]', probe: 'toggle', controlSelector: 'main button[aria-label^="About "]', resultSelector: '[role="tooltip"]' },
+    // Audit's toggle crosses a server re-read: an unselected tab of the feed reads the events table.
+    { path: '/platform/audit', title: 'Audit', readySelector: 'main [data-feed="read"] ol > li', probe: 'toggle', controlSelector: 'main [role="tab"][aria-selected="false"]', resultSelector: 'main [data-events="read"] table tbody tr' },
+    { path: '/platform/knowledge', title: 'Knowledge health', readySelector: 'main [data-figures="read"] [data-value]', probe: 'toggle', controlSelector: 'main button[aria-label^="About "]', resultSelector: '[role="tooltip"]' },
   ],
 
   // One per state worth seeing, taken from the fake gateway's own records (scripts/fake-gateway): a team with
@@ -162,6 +171,10 @@ const config: VerifyConfig = {
   // node, a plugin with an evaluation, one never profiled, one vendored and never run, and a skill in each of its
   // views.
   detailRoutes: [
+    // The old addresses no rail offers until Phase 7 removes them (AC-1.12): the superadmin reads them, and the member's
+    // deniedProbe holds that they are refused, walked in the browser as every other page is.
+    '/teams',
+    '/people',
     '/platform/releases/0.97.0',
     '/platform/releases/0.31.1',
     // An open report, which draws the resolve form, and a closed duplicate, the one report that links its original.
@@ -207,19 +220,26 @@ const config: VerifyConfig = {
    * The fake gateway's two people (scripts/fake-gateway/people.ts), each by the value of the `zz_console` cookie it
    * reads. A run without `--as` sends no cookie, and the fake gateway answers that as the superadmin.
    *
-   * The routes are the rail each is shown today, written out, across both workspaces: Work's, then Platform's Status,
-   * which both read. The member is one person in one team, `atlas`, and is refused the fleet's five pages, People among
-   * them. The name of a team they are not in is on Teams for a superadmin, and the name of a person in no team of theirs
-   * on People; neither may reach the page a member is refused.
+   * The routes are the rail each is shown, written out, across both workspaces in the rails' order: Work's nine, then
+   * Platform's. The superadmin is shown all eighteen; the member, one person in one team, `atlas`, every Work
+   * destination and Platform's six public ones, and is refused Teams, People and Audit, at their old addresses too, and
+   * a bug's own report. The name of a team they are not in is on Teams for a superadmin, and the name of a person in no
+   * team of theirs on People; neither may reach the page a member is refused.
    */
   personas: {
     superadmin: {
       cookie: { name: 'zz_console', value: 'superadmin' },
-      expectedRoutes: ['/', '/teams', '/initiatives', '/knowledge', '/people', '/plugins', '/runs', '/activity', '/settings', '/platform'],
+      expectedRoutes: [
+        '/', '/record', '/initiatives', '/approvals', '/knowledge', '/activity', '/runs', '/plugins', '/access',
+        '/platform', '/platform/releases', '/platform/bugs', '/platform/evaluation', '/platform/teams', '/platform/people', '/platform/usage', '/platform/audit', '/platform/knowledge',
+      ],
     },
     member: {
       cookie: { name: 'zz_console', value: 'member' },
-      expectedRoutes: ['/', '/initiatives', '/knowledge', '/settings', '/platform'],
+      expectedRoutes: [
+        '/', '/record', '/initiatives', '/approvals', '/knowledge', '/activity', '/runs', '/plugins', '/access',
+        '/platform', '/platform/releases', '/platform/bugs', '/platform/evaluation', '/platform/usage', '/platform/knowledge',
+      ],
       deniedProbe: { '/teams': 'Beacon Payments', '/platform/teams': 'Beacon Payments', '/people': 'Jonas Weber', '/platform/people': 'Jonas Weber', '/platform/audit': 'archived team cinder', '/platform/bugs/0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d01': 'document_approve refuses a stakeholder the frontmatter names' },
     },
   },

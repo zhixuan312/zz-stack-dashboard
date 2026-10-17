@@ -131,7 +131,10 @@ describe('who is asking, within one request', () => {
       home: null,
       teams: { refused: 'teams' },
       initiatives: null,
-      only: ['/', '/initiatives', '/knowledge', '/settings', '/platform'],
+      only: [
+        '/', '/record', '/initiatives', '/approvals', '/knowledge', '/activity', '/runs', '/plugins', '/access',
+        '/platform', '/platform/releases', '/platform/bugs', '/platform/evaluation', '/platform/usage', '/platform/knowledge',
+      ],
       again: { name: 'Mei', role: 'Member' },
       work: true,
       fleet: false,

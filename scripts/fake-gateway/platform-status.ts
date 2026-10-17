@@ -174,21 +174,21 @@ DOORS.push(door('eval', EVAL_CALLS, null,
 
 /* What needs attention, as the superadmin reads it: an open report blocking work (the Bugs fixture's), the two doors
  * with a fault day so far today, a finding waiting since 410 hours ago (the Evaluation fixture's), and atlas's and
- * beacon's revisions waiting 14 days or more. Six instances: five rows and beacon's approvals in the overflow. Only a
- * team's page is a released destination, so every other row links nowhere. */
+ * beacon's revisions waiting 14 days or more. Six instances: five rows and beacon's approvals in the overflow. Each row links to its
+ * released page, as the gateway's `RELEASED` does: Bugs, Usage for a door, Evaluation, and a team's page under Platform. */
 const HOUR = 3_600_000;
 const NEEDS: PlatformStatus['needs'] = {
   state: 'complete', total: 6, knownCount: 6, unavailableKinds: [], overflowByKind: { approvals: 1 }, headline: '6 things need you',
   rows: [
-    { kind: 'bugs', tone: 'critical', instanceCount: 1, oldestAt: iso(RUNNING - 5 * WEEK + 60 * HOUR), href: null,
+    { kind: 'bugs', tone: 'critical', instanceCount: 1, oldestAt: iso(RUNNING - 5 * WEEK + 60 * HOUR), href: '/platform/bugs',
       title: 'Bug reports are open', detail: '4 open reports, 1 blocking work' },
-    { kind: 'door', tone: 'critical', instanceCount: 1, oldestAt: iso(Date.parse(`${TODAY}T00:00:00Z`)), href: null,
+    { kind: 'door', tone: 'critical', instanceCount: 1, oldestAt: iso(Date.parse(`${TODAY}T00:00:00Z`)), href: '/platform/usage',
       title: 'The core door has a fault day today, so far', detail: '1 tool failure in 80 calls so far today' },
-    { kind: 'door', tone: 'critical', instanceCount: 1, oldestAt: iso(Date.parse(`${TODAY}T00:00:00Z`) + 60_000), href: null,
+    { kind: 'door', tone: 'critical', instanceCount: 1, oldestAt: iso(Date.parse(`${TODAY}T00:00:00Z`) + 60_000), href: '/platform/usage',
       title: 'The manage door has a fault day today, so far', detail: '1 tool failure in 20 calls so far today' },
-    { kind: 'evaluation', tone: 'warning', instanceCount: 1, oldestAt: iso(now() - 410 * HOUR), href: null,
+    { kind: 'evaluation', tone: 'warning', instanceCount: 1, oldestAt: iso(now() - 410 * HOUR), href: '/platform/evaluation',
       title: 'Evaluation findings are waiting for a decision', detail: '1 finding has waited 14 days or more for a decision' },
-    { kind: 'approvals', tone: 'warning', instanceCount: 1, oldestAt: iso(now() - 20 * DAY), href: '/teams/atlas',
+    { kind: 'approvals', tone: 'warning', instanceCount: 1, oldestAt: iso(now() - 20 * DAY), href: '/platform/teams/atlas',
       title: 'Approvals are waiting in atlas', detail: '2 revisions were presented 14 days ago or more and not approved' },
   ],
 };

@@ -56,12 +56,12 @@ const EVIDENCE = ['approvedAt', 'contentRevision', 'decisionBasis', 'initiative'
 const BOTH = [['the superadmin', SUPERADMIN], ['the member', MEMBER]] as const;
 
 describe('the features Work declares', () => {
-  it('declares Record and Approvals on work:read, with no rail entry yet', () => {
+  it('declares Record and Approvals on work:read, on Work\'s rail', () => {
     expect(FEATURES.record).toEqual({ title: 'Record', needs: 'work:read' });
     expect(FEATURES.approvals).toEqual({ title: 'Approvals', needs: 'work:read' });
     const hrefs = nav.flatMap((g) => g.items.map((i) => i.href));
-    expect(hrefs).not.toContain('/record');
-    expect(hrefs).not.toContain('/approvals');
+    expect(hrefs).toContain('/record');
+    expect(hrefs).toContain('/approvals');
   });
 });
 

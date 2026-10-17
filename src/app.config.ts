@@ -1,6 +1,6 @@
 import {
-  Activity, BookOpen, HeartPulse, LayoutGrid, ListTree, Package, Settings, Timer, UserSquare, Users,
-  type LucideIcon,
+  Activity, BookOpen, Bug, ClipboardCheck, FlaskConical, Gauge, HeartPulse, KeyRound, LayoutGrid, LibraryBig, ListTree,
+  Package, ScrollText, ShieldCheck, Tag, Timer, UserSquare, Users, type LucideIcon,
 } from 'lucide-react';
 // Relative with its extension, and a type-only need below: `scripts/check.ts` imports this file under plain node.
 import { FEATURES, type FeatureId } from './data/features.ts';
@@ -52,61 +52,73 @@ type NavItem = { href: string; label: string; icon: LucideIcon; badge?: string; 
 export type NavGroup = { label?: string; items: NavItem[] };
 
 /**
- * The whole primary navigation, in one place: every destination, in the order the rail shows them.
+ * The whole primary navigation, in one place: every destination of both workspaces, in the groups and the order of the
+ * spec's destinations table (FR-1). Work's rail is Work (Home, Record, Initiatives, Approvals, Knowledge), Agents
+ * (Activity, Runs), Catalog (Plugins) and Account (Access); Platform's is Health (Status, Releases, Bugs, Evaluation)
+ * and Fleet (Teams, People, Usage, Audit, Knowledge health).
  *
- * Three groups, split by who reads the thing. The first is the work and what it is read against: the teams, the
- * initiatives they run, the knowledge that came out of them and the people who did them. A member's rail is this group
- * and Settings. The second is the platform's own machinery, the plugins, the runs and the audit feed, which a
- * superadmin reads across the fleet: every destination in it needs `fleet:read`, so the group is there or not as a
- * whole, and its name is true whenever it is shown. The third is Settings, which belongs to the person. These three are
- * Work's; the fourth, Health, is the Platform workspace's, and holds Status.
+ * Each item asks its feature's need, so the grants decide who is shown it (`chromeAccess().only` in
+ * `src/data/access.ts`), and the page's own gate decides who may open it. Everybody is shown Work's nine and Health's
+ * four; Fleet is the one group that holds both kinds of need: Usage and Knowledge health are the platform's public
+ * pages, read by a member as much as a superadmin, and Teams, People and Audit need `fleet:read`. Meridian's chrome
+ * narrows a group's items by what the person may see and keeps its label, so a member reads Fleet over Usage and
+ * Knowledge health alone, each drawn for them without another team's split (reconciliation 64).
  *
- * DELIBERATE: a group's name never depends on who is reading. Meridian's chrome narrows a group's items by what the
- * person may see and keeps its label, so a group that mixed a member's pages with the fleet's read "Platform" over one
- * team's shelf. Grouping by reader is what makes the release's chrome say the right thing with nothing of our own.
+ * Settings is on no rail: Access holds what it held. `/settings`, `/teams`, `/people` and `/knowledge/log` keep their
+ * pages at their old addresses, each asking its own feature, until Phase 7 removes them (AC-1.12).
  *
  * A tool reads this to know which routes exist: `scripts/lib/routes.ts` walks it for verify's navigation smoke and
  * `--full`'s mapping. `src/nav.ts` says which of these the view in force shows.
  */
 export const nav: NavGroup[] = [
   {
+    label: 'Work',
     items: [
       { href: '/', label: 'Home', icon: LayoutGrid, workspace: 'main', feature: 'home', needs: FEATURES.home.needs },
-      // Teams is a platform page. A member acts as exactly one team at a time, so this renders
-      // "All teams · 1 total" over a single row. What that row would have told them — their people,
-      // their initiatives, their documents — is the Overview.
-      { href: '/teams', label: 'Teams', icon: Users, workspace: 'main', feature: 'teams', needs: FEATURES.teams.needs },
+      { href: '/record', label: 'Record', icon: ScrollText, workspace: 'main', feature: 'record', needs: FEATURES.record.needs },
       { href: '/initiatives', label: 'Initiatives', icon: ListTree, workspace: 'main', feature: 'initiatives', needs: FEATURES.initiatives.needs },
+      { href: '/approvals', label: 'Approvals', icon: ClipboardCheck, workspace: 'main', feature: 'approvals', needs: FEATURES.approvals.needs },
       { href: '/knowledge', label: 'Knowledge', icon: BookOpen, workspace: 'main', feature: 'knowledge', needs: FEATURES.knowledge.needs },
-      { href: '/people', label: 'People', icon: UserSquare, workspace: 'main', feature: 'people', needs: FEATURES.people.needs },
     ],
   },
   {
-    label: 'Platform',
+    label: 'Agents',
     items: [
-      // Plugins, one page. A plugin is a package's skills plus the MCP servers those skills call,
-      // shipped together under one declared version — `claude plugin install sdlc@zz-stack`
-      // fetches both halves at once — and an evaluation asks its questions of the whole.
-      //
-      // Platform machinery: a plugin is read here to evaluate or change it, which is not a
-      // member's job. Runs and Activity are served by routes that answer with the whole fleet.
-      { href: '/plugins', label: 'Plugins', icon: Package, workspace: 'main', feature: 'plugins', needs: FEATURES.plugins.needs },
-      { href: '/runs', label: 'Runs', icon: Timer, workspace: 'main', feature: 'runs', needs: FEATURES.runs.needs },
       { href: '/activity', label: 'Activity', icon: Activity, workspace: 'main', feature: 'activity', needs: FEATURES.activity.needs },
+      { href: '/runs', label: 'Runs', icon: Timer, workspace: 'main', feature: 'runs', needs: FEATURES.runs.needs },
     ],
   },
   {
-    // No eyebrow. "You" over a single item called Settings says nothing Settings does not, and a
-    // one-item group under a heading reads as though the rest of the group failed to load.
+    label: 'Catalog',
     items: [
-      { href: '/settings', label: 'Settings', icon: Settings, workspace: 'main', feature: 'settings', needs: FEATURES.settings.needs },
+      // A plugin is a package's skills plus the MCP servers those skills call, shipped together under one declared
+      // version, and an evaluation asks its questions of the whole.
+      { href: '/plugins', label: 'Plugins', icon: Package, workspace: 'main', feature: 'plugins', needs: FEATURES.plugins.needs },
     ],
   },
   {
-    // The Platform workspace: how the platform itself is doing, which every role reads.
+    label: 'Account',
+    items: [
+      { href: '/access', label: 'Access', icon: KeyRound, workspace: 'main', feature: 'access', needs: FEATURES.access.needs },
+    ],
+  },
+  {
     label: 'Health',
     items: [
       { href: '/platform', label: 'Status', icon: HeartPulse, workspace: 'platform', feature: 'platform-status', needs: FEATURES['platform-status'].needs },
+      { href: '/platform/releases', label: 'Releases', icon: Tag, workspace: 'platform', feature: 'releases', needs: FEATURES.releases.needs },
+      { href: '/platform/bugs', label: 'Bugs', icon: Bug, workspace: 'platform', feature: 'bugs', needs: FEATURES.bugs.needs },
+      { href: '/platform/evaluation', label: 'Evaluation', icon: FlaskConical, workspace: 'platform', feature: 'evaluation', needs: FEATURES.evaluation.needs },
+    ],
+  },
+  {
+    label: 'Fleet',
+    items: [
+      { href: '/platform/teams', label: 'Teams', icon: Users, workspace: 'platform', feature: 'teams', needs: FEATURES.teams.needs },
+      { href: '/platform/people', label: 'People', icon: UserSquare, workspace: 'platform', feature: 'people', needs: FEATURES.people.needs },
+      { href: '/platform/usage', label: 'Usage', icon: Gauge, workspace: 'platform', feature: 'usage', needs: FEATURES.usage.needs },
+      { href: '/platform/audit', label: 'Audit', icon: ShieldCheck, workspace: 'platform', feature: 'audit', needs: FEATURES.audit.needs },
+      { href: '/platform/knowledge', label: 'Knowledge health', icon: LibraryBig, workspace: 'platform', feature: 'knowledge-health', needs: FEATURES['knowledge-health'].needs },
     ],
   },
 ];

@@ -28,7 +28,7 @@ import { skillContext, skillDetailPath, skillTextPath, skillsPath, type SkillRea
 import { useServed } from '@/views/use-served';
 
 /** The page's three views, in the address (`?view=`): the runs are the default, because they are the reason to open a skill here. */
-export type SkillViewName = 'cost' | 'read' | 'references';
+type SkillViewName = 'cost' | 'read' | 'references';
 
 /** The view an address names, as the console's server hands it to the page: anything else is the runs. */
 export const viewOf = (asked: string | string[] | undefined): SkillViewName => {

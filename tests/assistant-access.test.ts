@@ -182,7 +182,8 @@ describe('what an agent is offered', () => {
     const offered = [];
     for (const c of collections) if (await can(scope, c.name, 'read')) offered.push(c.name);
     expect(offered).toEqual(PREPARED.filter((r) => r.needs !== FLEET).map((r) => r.name));
-    for (const name of ['teams', 'people', 'sign_ins', 'audit', 'runs', 'output', 'calls', 'refusals', 'skill_calls']) expect(offered).not.toContain(name);
+    for (const name of ['teams', 'people', 'sign_ins', 'audit']) expect(offered).not.toContain(name);
+    for (const name of ['runs', 'output', 'calls', 'refusals', 'skill_calls']) expect(offered).toContain(name);
     expect(await may(FLEET)).toBe(false);
     await expect(requireNeed(FLEET)).rejects.toBeInstanceOf(AccessDenied);
   });
@@ -193,7 +194,7 @@ describe('what an agent is offered', () => {
     // The views the route registers for them: the ones whose need they satisfy (`app/api/assistant/route.ts`).
     const views = [];
     for (const v of viewTools) if (await may(v.needs)) views.push(v.name);
-    expect(views).toEqual(['home', 'record', 'initiatives', 'initiative', 'document', 'approvals', 'knowledge', 'knowledge_node', 'knowledge_log', 'search', 'access', 'platform_status', 'releases', 'release', 'bugs', 'evaluation', 'usage', 'knowledge_health']);
+    expect(views).toEqual(['home', 'record', 'initiatives', 'initiative', 'document', 'approvals', 'knowledge', 'knowledge_node', 'knowledge_log', 'search', 'plugins', 'plugin', 'skill', 'runs', 'activity', 'access', 'platform_status', 'releases', 'release', 'bugs', 'evaluation', 'usage', 'knowledge_health']);
   });
 
   it('a superadmin is offered every collection', async () => {
@@ -262,7 +263,7 @@ describe('what the route hands the model', () => {
       [MEMBER, '/platform/bugs', 'bugs'], [ME, '/platform/bugs/0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d01', 'bug'], [MEMBER, '/platform/usage', 'usage'],
       [MEMBER, '/approvals', 'approvals'], [MEMBER, '/platform/evaluation', 'evaluation'], [ME, '/platform/audit', 'audit'],
       [MEMBER, '/platform/knowledge', 'knowledge_health'],
-      [ME, '/runs', 'runs'], [MEMBER, '/knowledge', 'knowledge'], [MEMBER, '/initiatives/atlas/2026-09-28-search-relevance/sources/notes.md', 'document'],
+      [ME, '/runs', 'runs'], [MEMBER, '/runs', 'runs'], [MEMBER, '/activity', 'activity'], [MEMBER, '/knowledge', 'knowledge'], [MEMBER, '/initiatives/atlas/2026-09-28-search-relevance/sources/notes.md', 'document'],
     ] as const) {
       const tools = await handed(who, path);
       expect(tools.filter((t) => t.startsWith('query_')), path).toEqual([]);
@@ -271,9 +272,9 @@ describe('what the route hands the model', () => {
   });
 
   it('hands a member no prepared query on a page whose view they may not use', async () => {
-    const tools = await handed(MEMBER, '/runs');
+    const tools = await handed(MEMBER, '/platform/teams');
     expect(tools.filter((t) => t.startsWith('explore_'))).toEqual([]);
-    expect(tools).not.toContain('view_runs');
+    expect(tools).not.toContain('view_teams');
   });
 });
 
@@ -333,7 +334,7 @@ describe('a view tool\'s address', () => {
   it('every tool has its own name and a need', () => {
     expect(new Set(viewTools.map((v) => v.name)).size).toBe(viewTools.length);
     for (const v of viewTools) expect(['work:read', 'platform:read', FLEET]).toContain(v.needs);
-    expect(viewTools.filter((v) => v.needs === FLEET).map((v) => v.name)).toEqual(['teams', 'team', 'people', 'plugins', 'plugin', 'skill', 'runs', 'activity', 'bug', 'audit']);
+    expect(viewTools.filter((v) => v.needs === FLEET).map((v) => v.name)).toEqual(['teams', 'team', 'people', 'bug', 'audit']);
   });
 
   it('refuses a segment that would leave the path it is placed in', () => {
@@ -374,7 +375,7 @@ describe('a view tool\'s address', () => {
 
   it('a member cannot read a fleet view by naming its tool', async () => {
     gateway(MEMBER);
-    for (const name of ['teams', 'team', 'people', 'plugins', 'plugin', 'skill', 'runs', 'activity', 'audit']) {
+    for (const name of ['teams', 'team', 'people', 'audit']) {
       await expect(tool(name).read({ slug: 'atlas', plugin: 'sdlc', skill: 'sdlc-spec', filter: 'administration' }), name).rejects.toBeInstanceOf(AccessDenied);
     }
     // Refused on who they are, before a row is asked for: nothing but `/me` was read.

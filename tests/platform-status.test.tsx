@@ -76,8 +76,8 @@ describe('what needs attention', () => {
     expect(PLATFORM_STATUS.needs.rows.length).toBeLessThanOrEqual(5);
     for (const r of PLATFORM_STATUS.needs.rows) expect(within(list).getByText(r.detail)).toBeInTheDocument();
     expect(document.querySelector('[data-needs-foot]')!.textContent).toBe('5 shown. 1 more not shown: approvals 1.');
-    // Only a row with a released destination links anywhere.
-    expect(within(list).getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(['/teams/atlas']);
+    // Each row with a released destination links to its page.
+    expect(within(list).getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(['/platform/bugs', '/platform/usage', '/platform/usage', '/platform/evaluation', '/platform/teams/atlas']);
   });
 
   it('is worded for a member: what is known and open, the teams\' approvals one row that links nowhere', () => {
@@ -85,7 +85,7 @@ describe('what needs attention', () => {
     expect(screen.getByRole('heading', { name: '6 things are known and open' })).toBeInTheDocument();
     const list = screen.getByRole('list', { name: 'What needs attention' });
     expect(within(list).getByText('Approvals are waiting in 2 teams')).toBeInTheDocument();
-    expect(within(list).queryAllByRole('link')).toEqual([]);
+    expect(within(list).queryAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(['/platform/bugs', '/platform/usage', '/platform/usage', '/platform/evaluation']);
     expect(document.querySelector('[data-needs-foot]')!.textContent).toBe('6 shown.');
   });
 
