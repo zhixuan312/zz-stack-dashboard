@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Copy, RotateCw } from 'lucide-react';
 import { Row, Stack } from '@/components/base/shell';
 import { useShareView } from '@/components/base/use-share-view';
@@ -10,7 +10,7 @@ import { Heatmap } from '@/components/charts/heatmap';
 import { Meridian } from '@/components/charts/meridian';
 import { TrendChart } from '@/components/charts/trend-chart';
 import { AskAbout } from '@/components/patterns/ask-about';
-import { DataTable, useQueryState, type Column } from '@/components/patterns/data-table';
+import { DataTable, type Column } from '@/components/patterns/data-table';
 import { FeaturedMetric } from '@/components/patterns/featured-metric';
 import { MetricTile } from '@/components/patterns/metric-tile';
 import { Busy, ChartSkeleton, TableSkeleton, TilesSkeleton } from '@/components/patterns/page-loading';
@@ -32,11 +32,11 @@ import { formatCount } from '@/lib/format-units';
 import type { Window } from '@/lib/platform-shapes';
 import type { RecordRead } from '@/lib/work-shapes';
 import {
-  FIRST, LEAD, PAGE_SIZE, PERIOD_OPTIONS, RECORD_DEFAULTS, SLICES, asOfLine, coverageLine, footOf, formatHours, formatShare,
+  FIRST, LEAD, PAGE_SIZE, PERIOD_OPTIONS, RECORD_DEFAULTS, SLICES, asOfLine, coverageLine, filtersOfPath, footOf, formatHours, formatShare,
   grainWords, leadOf, periodLine, periodOf, recordContext, recordPath, recordTrouble, summaryLine, tickOf, tilesOf,
   type RecordFilters, type RecordPeriod, type RecordServed, type SliceKey, type Tile,
 } from '@/views/record-context';
-import { useServed } from '@/views/use-served';
+import { useServed, useServedAddress } from '@/views/use-served';
 
 /**
  * The page's read: the one the console's server made for this address, so the first paint carries the record and the
@@ -45,8 +45,7 @@ import { useServed } from '@/views/use-served';
  * back. A failure is stated only when there is nothing to draw.
  */
 function useRecord(served: RecordServed | null) {
-  const [f, set] = useQueryState(RECORD_DEFAULTS);
-  const filters = useMemo((): RecordFilters => ({ period: f.period, page: f.page }), [f.period, f.page]);
+  const [filters, set] = useServedAddress(RECORD_DEFAULTS, served, filtersOfPath);
   const path = recordPath(filters);
   const mine = served?.path === path ? served : null;
   const { q, follow } = useServed<RecordRead>(path, mine !== null, mine === null && served !== null);
@@ -86,17 +85,17 @@ export function RecordAsOf({ served }: { served: RecordServed | null }) {
  * nothing to copy and nothing is read here: the read is the server's, and a browser read beside it would be a second.
  */
 export function RecordActions({ served }: { served: RecordServed | null }) {
-  return served ? <ServedActions served={served} /> : <Controls />;
+  return served ? <ServedActions served={served} /> : <Controls served={null} />;
 }
 
 function ServedActions({ served }: { served: RecordServed }) {
   const { data, stale } = useRecord(served);
-  return <Controls record={stale ? undefined : data} />;
+  return <Controls served={served} record={stale ? undefined : data} />;
 }
 
 /** The period control and `Copy as text`; only a write the clipboard resolved says it was copied. */
-function Controls({ record }: { record?: RecordRead }) {
-  const [f, set] = useQueryState(RECORD_DEFAULTS);
+function Controls({ served, record }: { served: RecordServed | null; record?: RecordRead }) {
+  const [f, set] = useServedAddress(RECORD_DEFAULTS, served, filtersOfPath);
   const copy = async () => {
     if (!record) return;
     try {

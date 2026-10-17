@@ -41,6 +41,9 @@ export const releasesPath = (f: ReleasesFilters, rows: ReleasesRows = { limit: P
 /** The page's address for rows read from `offset`: the page of ten the offset falls in. */
 export const pageAt = (offset: number): ReleasesFilters => ({ page: String(Math.floor(offset / PAGE_SIZE) + 1) });
 
+/** The page's address read back from a gateway path `releasesPath` wrote: the page of ten the offset falls in. */
+export const filtersOfPath = (path: string): ReleasesFilters => pageAt(Math.max(0, Number(new URLSearchParams(path.split('?')[1] ?? '').get('offset')) || 0));
+
 /** The page the address names, as Next hands a server page its search parameters: one value, the first. */
 export function filtersOf(params: Record<string, string | string[] | undefined>): ReleasesFilters {
   const v = params.page;

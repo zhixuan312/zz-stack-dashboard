@@ -1,109 +1,52 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { AccessProvider } from '@/console/settings/access-read';
 import { TeamAdminPanel } from '@/console/settings/team-admin-panel';
-import type { Me } from '@/lib/api-shapes';
+import type { Access } from '@/lib/destination-shapes';
+import { access } from '../scripts/fake-gateway/work-access.ts';
+import { ME } from '../scripts/fake-gateway/people.ts';
 
 /**
- * The team tier of Settings shows its controls only when `me.teams` names the caller `admin`
- * for a team, or `me.superadmin` is true, and hides them for a plain member — whom the gateway
- * would refuse 403 anyway. This is courtesy, not the authorisation itself.
- *
- * Every case answers `GET /api/console/me` with a fixture and lets `TeamAdminPanel` run its own
- * visibility rule for real, rather than asserting on a copy of that rule.
+ * A team's members on Access are drawn for the admin of the team the person acts for, and for nobody else: not for a
+ * member of it, not for an admin of another team they do not act for, and not for a superadmin as such, who administers
+ * any team's members on that team's page under Platform. Each case hands `TeamAdminPanel` an Access read and lets it run
+ * its own rule, rather than asserting on a copy of that rule. Hiding is courtesy: the gateway's `teamAuthority` refuses
+ * anybody else's change anyway.
  */
-const base: Omit<Me, 'teams' | 'superadmin'> = {
-  email: 'a@b.example.com', name: 'A', role: 'member', mayRead: true, via: 'session', activeTeam: 'team_one',
-};
+const BASE = access(ME)[1] as Access;
+const withTeams = (teams: Access['teams']['teams']): Access => ({ ...BASE, teams: { actingFor: teams.find((t) => t.active)?.team ?? null, teams } });
 
-function mockFetch(me: Me) {
-  return vi.fn((url: string) => {
-    // The members GET route this panel fires the moment a team is in view —
-    // checked before `/me`, because "team/members" contains the substring "/me" and
-    // would otherwise hand this panel a `Me` object where it expects an array.
-    if (url.includes('/settings/team/members')) {
-      return Promise.resolve({ ok: true, json: async () => [] } as Response);
-    }
-    if (url.endsWith('/console/me')) {
-      return Promise.resolve({ ok: true, json: async () => me } as Response);
-    }
-    return Promise.resolve({ ok: true, json: async () => ({}) } as Response);
-  }) as unknown as typeof fetch;
+function drawn(read: Access, superadmin = false) {
+  const reads: string[] = [];
+  vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
+    reads.push(String(input));
+    return Promise.resolve({ ok: true, status: 200, json: async () => [{ email: 'one@example.com', role: 'admin' }] } as unknown as Response);
+  }));
+  render(<QueryClientProvider client={new QueryClient()}><AccessProvider value={{ access: read, superadmin }}><TeamAdminPanel /></AccessProvider></QueryClientProvider>);
+  return reads;
 }
 
-function renderPanel(me: Me) {
-  const originalFetch = global.fetch;
-  global.fetch = mockFetch(me);
-  const client = new QueryClient();
-  const result = render(
-    <QueryClientProvider client={client}>
-      <TeamAdminPanel />
-    </QueryClientProvider>,
-  );
-  return { ...result, restore: () => { global.fetch = originalFetch; } };
-}
+afterEach(() => { vi.unstubAllGlobals(); });
 
-describe('TeamAdminPanel — who sees the team controls', () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
+describe('the team\'s members on Access', () => {
+  it('are drawn for the admin of the team acted for, and read for that team alone', async () => {
+    const reads = drawn(withTeams([{ team: 'atlas', role: 'admin', active: true }, { team: 'beacon', role: 'admin', active: false }]));
+    expect(screen.getByRole('heading', { name: 'atlas\'s members' })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('one@example.com')).toBeInTheDocument());
+    expect(reads.map((u) => new URL(u, 'http://console.test').searchParams.get('team'))).toEqual(['atlas']);
   });
 
-  it('hides the team tier from a plain member of a team they do not administer', async () => {
-    const me: Me = { ...base, superadmin: false, teams: [{ slug: 'team_one', role: 'member' }] };
-    const { restore } = renderPanel(me);
-    try {
-      await waitFor(() => expect(global.fetch).toHaveBeenCalled());
-      expect(screen.queryByText('Team administration')).not.toBeInTheDocument();
-    } finally {
-      restore();
-    }
+  it('are not drawn, or read, for a member of the team acted for, though they administer another', () => {
+    const reads = drawn(withTeams([{ team: 'atlas', role: 'member', active: true }, { team: 'beacon', role: 'admin', active: false }]));
+    expect(screen.queryByRole('heading', { name: /members$/ })).toBeNull();
+    expect(reads).toEqual([]);
   });
 
-  it('shows the team tier to an admin of one team, defaulted to that team', async () => {
-    const me: Me = { ...base, superadmin: false, teams: [{ slug: 'team_one', role: 'admin' }] };
-    const { restore } = renderPanel(me);
-    try {
-      await waitFor(() => expect(screen.getByText('Team administration')).toBeInTheDocument());
-      // The Select is defaulted to the caller's own (only) admin team, not left empty —
-      // its value renders as the trigger's visible text.
-      expect(await screen.findByText('team_one')).toBeInTheDocument();
-      // And that team's roster is mounted underneath it, with its add form.
-      await waitFor(() => expect(screen.getByRole('form', { name: 'Add a member to team_one' })).toBeInTheDocument());
-    } finally {
-      restore();
-    }
-  });
-
-  it('does not show the team tier to an admin of one team when asked about a DIFFERENT team', async () => {
-    // Regression guard for the console's own hiding rule: `me.teams.some(t => t.slug
-    // === team && t.role === 'admin')` must be checked against the team in view, not
-    // merely "is admin of something" — a caller administering product_group_2 gets no
-    // free pass into team_one just because they administer some team.
-    const me: Me = { ...base, superadmin: false, teams: [{ slug: 'product_group_2', role: 'admin' }] };
-    const { restore } = renderPanel(me);
-    try {
-      await waitFor(() => expect(screen.getByText('Team administration')).toBeInTheDocument());
-      // Defaults to their own admin team (product_group_2), never team_one.
-      expect(await screen.findByText('product_group_2')).toBeInTheDocument();
-      expect(screen.queryByText('team_one')).not.toBeInTheDocument();
-    } finally {
-      restore();
-    }
-  });
-
-  it('shows the team tier to a superadmin, as a free-text field rather than a fixed list', async () => {
-    const me: Me = {
-      ...base, superadmin: true, role: 'superadmin',
-      teams: [{ slug: 'zz-platform', role: 'admin' }],
-    };
-    const { restore } = renderPanel(me);
-    try {
-      await waitFor(() => expect(screen.getByText('Team administration')).toBeInTheDocument());
-      // A superadmin administers every team, not only the ones `me.teams` happens to
-      // list — so this is a text field they can type any slug into, not a Select
-      // limited to their own memberships.
-      expect(screen.getByPlaceholderText('team slug')).toBeInTheDocument();
-    } finally {
-      restore();
-    }
+  it('are not drawn for a superadmin who is a member of the team acted for, nor for a person in no team', () => {
+    drawn(withTeams([{ team: 'atlas', role: 'member', active: true }]), true);
+    expect(screen.queryByRole('heading', { name: /members$/ })).toBeNull();
+    drawn(withTeams([]));
+    expect(screen.queryByRole('heading', { name: /members$/ })).toBeNull();
   });
 });

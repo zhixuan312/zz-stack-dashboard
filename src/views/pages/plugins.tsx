@@ -1,9 +1,8 @@
 'use client';
 
-import { useMemo } from 'react';
 import { useShareView } from '@/components/base/use-share-view';
 import { AskAbout } from '@/components/patterns/ask-about';
-import { DataTable, useQueryState, useSearchDraft, type Column } from '@/components/patterns/data-table';
+import { DataTable, useSearchDraft, type Column } from '@/components/patterns/data-table';
 import { FilterBar } from '@/components/patterns/filter-bar';
 import { Records } from '@/components/templates/records';
 import { Badge } from '@/components/ui/badge';
@@ -18,9 +17,9 @@ import { formatCount } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
 import { pendingContext } from '@/views/context';
 import {
-  PLUGINS_DEFAULTS, PLUGINS_PATH, inView, pluginsContext, readTrouble, type Catalog, type PluginsRead,
+  PLUGINS_DEFAULTS, PLUGINS_PATH, inView, pluginsContext, readTrouble, type Catalog, type PluginsFilters, type PluginsRead,
 } from '@/views/plugins-context';
-import { useServed } from '@/views/use-served';
+import { useAddress, useServed } from '@/views/use-served';
 
 /** The card the list's Ask sits on, and the name `Protagonist:` gives it in the page's README. */
 const PLUGINS_TITLE = 'Every plugin';
@@ -75,14 +74,14 @@ function usePlugins(served: PluginsRead) {
 
 /**
  * Every plugin in the catalog, drawn from the release's Records template: no tiles, the table the spec names, its
- * search and its Ask in the filter bar. The catalog is read on the console's server and handed here; the plugins
- * collection's live updates and a Retry are the browser's. No control on it starts an evaluation.
+ * search and its Ask in the filter bar. The catalog is read on the console's server and handed here with the search
+ * the address held, which the first paint narrows by; the plugins collection's live updates and a Retry are the
+ * browser's. No control on it starts an evaluation.
  */
-export function PluginsView({ served }: { served: PluginsRead }) {
+export function PluginsView({ served, addressed = null }: { served: PluginsRead; addressed?: PluginsFilters | null }) {
   useLive(['plugins']);
-  const [f, set] = useQueryState(PLUGINS_DEFAULTS);
-  const [draft, setDraft] = useSearchDraft(f.plugin, (plugin) => set({ plugin }));
-  const filters = useMemo(() => ({ plugin: f.plugin }), [f.plugin]);
+  const [filters, set] = useAddress(PLUGINS_DEFAULTS, addressed);
+  const [draft, setDraft] = useSearchDraft(filters.plugin, (plugin) => set({ plugin }));
   const { data, trouble, retry, updatedAt } = usePlugins(served);
   const now = useDataClock();
   useShareView(data

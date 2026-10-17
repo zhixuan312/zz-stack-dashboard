@@ -44,6 +44,12 @@ export function recordPath(f: RecordFilters): string {
   return `/record?${p}`;
 }
 
+/** The page's address read back from a gateway path `recordPath` wrote: its period, and the page of ten the offset falls in. */
+export function filtersOfPath(path: string): RecordFilters {
+  const q = new URLSearchParams(path.split('?')[1] ?? '');
+  return { period: periodOf({ period: q.get('period') ?? 'all', page: '1' }), page: String(Math.floor(Math.max(0, Number(q.get('offset')) || 0) / PAGE_SIZE) + 1) };
+}
+
 /** The filters a page's address names, as Next hands a server page its search parameters: one value each, the first. */
 export function filtersOf(params: Record<string, string | string[] | undefined>): RecordFilters {
   const one = (k: keyof RecordFilters) => {

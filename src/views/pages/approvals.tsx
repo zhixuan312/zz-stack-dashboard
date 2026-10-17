@@ -6,7 +6,7 @@ import { EyeOff, Hourglass, Inbox, Signature } from 'lucide-react';
 import { useShareView } from '@/components/base/use-share-view';
 import { ColumnChart } from '@/components/charts/column-chart';
 import { AskAbout } from '@/components/patterns/ask-about';
-import { DataTable, useQueryState, type Column } from '@/components/patterns/data-table';
+import { DataTable, type Column } from '@/components/patterns/data-table';
 import { FilterBar } from '@/components/patterns/filter-bar';
 import { MetricTile } from '@/components/patterns/metric-tile';
 import { ChartSkeleton, TableSkeleton, TilesSkeleton } from '@/components/patterns/page-loading';
@@ -25,10 +25,10 @@ import { useLive } from '@/lib/live';
 import type { ApprovalRow, Approvals, WaitingRow } from '@/lib/work-shapes';
 import {
   APPROVALS_DEFAULTS, DECISION_BASIS, IN_YOUR_NAME, PAGE_SIZE, PRESENTATION, TEAM_APPROVALS, TILES, approvalsAddress, approvalsContext,
-  approvalsPath, approvalsTrouble, approvedWhen, dayOnly, noPresentationLine, pageOf, tabOf, waited, type ApprovalsRead, type ApprovalsTab,
+  approvalsPath, approvalsTrouble, approvedWhen, dayOnly, filtersOfPath, noPresentationLine, pageOf, tabOf, waited, type ApprovalsRead, type ApprovalsTab,
 } from '@/views/approvals-context';
 import { pendingContext } from '@/views/context';
-import { useServed } from '@/views/use-served';
+import { useServed, useServedAddress } from '@/views/use-served';
 
 /**
  * The page's read: the one the console's server made for this address, so the first paint carries the rows and the
@@ -38,8 +38,7 @@ import { useServed } from '@/views/use-served';
  * and its rows stay, quieter, when they are of the same tab.
  */
 function useApprovals(served: ApprovalsRead | null) {
-  const [f, set] = useQueryState(APPROVALS_DEFAULTS);
-  const filters = useMemo(() => ({ tab: f.tab, page: f.page }), [f.tab, f.page]);
+  const [filters, set] = useServedAddress(APPROVALS_DEFAULTS, served, filtersOfPath);
   const tab = tabOf(filters);
   const path = approvalsPath(filters);
   const mine = served?.path === path ? served : null;

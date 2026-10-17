@@ -2,6 +2,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { Tooltip } from 'radix-ui';
 import { cloneElement, createElement, isValidElement, Suspense, type ReactNode } from 'react';
+import { hydrateRoot } from 'react-dom/client';
+import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /** The router as the address writer sees it: a replace lands in the address and tells its readers, as a navigation does. */
@@ -35,7 +37,7 @@ import { GatewayError } from '@/data/gateway';
 import { dayOf } from '@/lib/format-date';
 import type { RecordRead } from '@/lib/work-shapes';
 import { RecordActions, RecordView } from '@/views/pages/record';
-import { RECORD_BOUND_MS, RECORD_DEFAULTS, footOf, periodLine, recordPath, type RecordServed } from '@/views/record-context';
+import { RECORD_BOUND_MS, RECORD_DEFAULTS, filtersOfPath, footOf, periodLine, recordPath, type RecordServed } from '@/views/record-context';
 import RecordLoading from '../app/(dash)/record/loading';
 import RecordPage from '../app/(dash)/record/page';
 import { readRecord } from '../app/(dash)/record/read-record';
@@ -185,6 +187,38 @@ describe('the period control', () => {
     expect(foot('Work closed')).toBe(footOf(QUARTER)[0].value);
     expect(document.querySelector('[data-figure] .t-kicker')!.textContent).toBe(kicker);
     expect(window.location.search).toBe('?period=quarter');
+  });
+});
+
+describe('the first paint of another period', () => {
+  it('draws the period the server read, and the control at it, then hydrates onto the same markup', async () => {
+    window.history.replaceState(null, '', '/record?period=quarter');
+    browser(null);
+    const path = recordPath({ period: 'quarter', page: '1' });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const view = <QueryClientProvider client={client}><Tooltip.Provider><RecordActions served={ok(QUARTER, path)} /><RecordView served={ok(QUARTER, path)} /></Tooltip.Provider></QueryClientProvider>;
+    const container = document.body.appendChild(document.createElement('div'));
+    try {
+      container.innerHTML = renderToString(view);
+      const chosen = () => container.querySelector('[role="radio"][aria-checked="true"]')?.textContent;
+      expect(container.querySelector('[aria-busy="true"]')).toBeNull();
+      expect(container.querySelector('[data-slice]')?.textContent).toContain(periodLine(QUARTER));
+      expect(chosen()).toBe('Quarter');
+      // The browser takes the server's markup over as it stands: no mismatch, the record stays drawn, and nothing is read.
+      const mismatches: unknown[] = [];
+      await act(async () => { hydrateRoot(container, view, { onRecoverableError: (e) => mismatches.push(e) }); });
+      expect(mismatches).toEqual([]);
+      expect(container.querySelector('[data-slice]')?.textContent).toContain(periodLine(QUARTER));
+      expect(chosen()).toBe('Quarter');
+      await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+      expect(reads()).toEqual([]);
+    } finally {
+      container.remove();
+    }
+  });
+
+  it('reads the address back from the server\'s path, its period and its page', () => {
+    for (const f of [RECORD_DEFAULTS, { period: 'year', page: '1' }, { period: 'quarter', page: '3' }]) expect(filtersOfPath(recordPath(f))).toEqual(f);
   });
 });
 

@@ -45,6 +45,12 @@ export function listPath(f: InitiativesFilters, rows: InitiativesRows = { limit:
 /** The page of ten `offset` falls in, from 1. */
 export const pageAt = (offset: number): string => String(Math.floor(offset / PAGE_SIZE) + 1);
 
+/** The list's address read back from a gateway path `listPath` wrote: its filters, and the page of ten the offset falls in. */
+export function filtersOfPath(path: string): InitiativesFilters {
+  const q = new URLSearchParams(path.split('?')[1] ?? '');
+  return { q: q.get('q') ?? '', state: q.get('state') ?? 'all', flow: q.get('flow') ?? 'all', page: pageAt(Math.max(0, Number(q.get('offset')) || 0)) };
+}
+
 /** Whether any filter narrows the list. */
 export const narrowed = (f: Pick<InitiativesFilters, 'q' | 'state' | 'flow'>) => f.q.trim() !== '' || f.state !== 'all' || f.flow !== 'all';
 

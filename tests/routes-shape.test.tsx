@@ -102,9 +102,9 @@ describe('a route, while the page it stands in for is on its way', () => {
     });
 });
 
-describe('the settings frame, whose page is a stack of sections', () => {
-  const view = code(read('src/views/pages/settings.tsx'));
-  const loading = code(read('app/(dash)/settings/loading.tsx'));
+describe('the Access frame, whose page is a stack of sections', () => {
+  const view = code(read('src/views/pages/access.tsx'));
+  const loading = code(read('app/(dash)/access/loading.tsx'));
   /** The page's own sections: the self-closing components it stacks, one per line, inside its section wrapper. */
   const stack = /<div className="([^"]*flex flex-col gap-\d+[^"]*)">([\s\S]*?)<\/div>/.exec(view);
 
@@ -121,19 +121,10 @@ describe('the settings frame, whose page is a stack of sections', () => {
     return literal ? literal[1].split(',').length : NaN;
   };
 
-  /**
-   * A component in the page's stack that renders more than one section, and how many. `PlatformSection` returns a
-   * fragment holding the People and the platform-teams panels for a superadmin, and a frame that counted components
-   * rather than sections was one short of the tallest page — which grows the page at the moment it arrives, the one
-   * thing the frame exists to prevent. Named here rather than derived, so a change to the page meets this list.
-   */
-  const EXPANDS: Record<string, number> = { PlatformSection: 2 };
-
   it('draws one placeholder section per section the page stacks', () => {
-    // Sections, not components: a component that renders two says so above.
-    const stacked = [...(stack![2].matchAll(/<([A-Z]\w+) \/>/g))]
-      .reduce((n, m) => n + (EXPANDS[m[1]] ?? 1), 0);
-    expect(stacked, 'the settings view stacks its sections one component per line').toBeGreaterThan(1);
+    // One section a component: each of Access's draws one section or, where the caller has none of it, nothing.
+    const stacked = [...(stack![2].matchAll(/<([A-Z]\w+) \/>/g))].length;
+    expect(stacked, 'the Access view stacks its sections one component per line').toBeGreaterThan(1);
     expect(drawnSections(loading), 'the frame draws no sections at all').toBe(stacked);
   });
 });

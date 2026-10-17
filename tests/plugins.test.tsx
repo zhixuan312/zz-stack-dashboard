@@ -1,6 +1,9 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { Tooltip } from 'radix-ui';
 import { cloneElement, isValidElement, type ReactElement, type ReactNode } from 'react';
+import { hydrateRoot } from 'react-dom/client';
+import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const nav = vi.hoisted(() => ({ subs: new Set<() => void>() }));
@@ -32,7 +35,7 @@ import { PluginView } from '@/views/pages/plugin';
 import { PluginsView } from '@/views/pages/plugins';
 import { SkillView } from '@/views/pages/skill';
 import type { EvalRead, PluginRead } from '@/views/plugin-context';
-import type { Catalog, PluginsRead } from '@/views/plugins-context';
+import { filtersOf, type Catalog, type PluginsRead } from '@/views/plugins-context';
 import type { SkillRead } from '@/views/skill-context';
 import { ME, MEMBER } from '../scripts/fake-gateway/people.ts';
 import { pluginEval, skillText } from '../scripts/fake-gateway/platform.ts';
@@ -171,7 +174,7 @@ describe('Plugins, the list', () => {
 
   it('reads the catalog once, on the server, as the person, and draws it under the masthead', async () => {
     gateway.get.mockResolvedValue(catalogOf(ME));
-    mount(<>{await settled(await PluginsPage())}</>);
+    mount(<>{await settled(await PluginsPage({ searchParams: Promise.resolve({}) }))}</>);
     expect(document.querySelectorAll('tbody tr').length).toBe(catalogOf(ME).plugins.length);
     expect(gateway.get).toHaveBeenCalledTimes(1);
     expect(gateway.get).toHaveBeenCalledWith('/plugins');
@@ -180,10 +183,55 @@ describe('Plugins, the list', () => {
 
   it('reads nothing for a person the gate refuses', async () => {
     access.denied = <div data-missing-page="">No such page</div>;
-    const tree = await PluginsPage();
+    const tree = await PluginsPage({ searchParams: Promise.resolve({ plugin: 'zz-' }) });
     mount(<>{tree}</>);
     expect(document.querySelector('[data-missing-page]')).not.toBeNull();
     expect(gateway.get).not.toHaveBeenCalled();
+  });
+});
+
+describe('the first paint of a searched address', () => {
+  it('draws only the plugins the search holds, and the search holding it, then hydrates onto the same markup', async () => {
+    window.history.replaceState(null, '', '/plugins?plugin=zz-');
+    const zz = catalogOf(ME).plugins.filter((p) => p.plugin.includes('zz-'));
+    expect(zz.length).toBeGreaterThan(0);
+    expect(zz.length).toBeLessThan(catalogOf(ME).plugins.length);
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const view = <QueryClientProvider client={client}><Tooltip.Provider><PluginsView served={listOf(ME)} addressed={{ plugin: 'zz-' }} /></Tooltip.Provider></QueryClientProvider>;
+    const container = document.body.appendChild(document.createElement('div'));
+    try {
+      container.innerHTML = renderToString(view);
+      const drawn = () => container.querySelectorAll('section[aria-label="Plugins"] tbody tr');
+      expect(drawn()).toHaveLength(zz.length);
+      expect(container.querySelector<HTMLInputElement>('input[placeholder="Search plugins"]')?.value).toBe('zz-');
+      // The browser takes the server's markup over as it stands: no mismatch, the rows stay drawn, and nothing is read.
+      const mismatches: unknown[] = [];
+      await act(async () => { hydrateRoot(container, view, { onRecoverableError: (e) => mismatches.push(e) }); });
+      expect(mismatches).toEqual([]);
+      expect(drawn()).toHaveLength(zz.length);
+      await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+      expect(asked).toEqual([]);
+    } finally {
+      container.remove();
+    }
+  });
+
+  it('is read from the address on the console\'s server and handed to the list with the catalog', async () => {
+    gateway.get.mockResolvedValue(catalogOf(ME));
+    const tree = await settled(await PluginsPage({ searchParams: Promise.resolve({ plugin: 'zz-' }) }));
+    const views: { addressed?: unknown }[] = [];
+    const walk = (node: ReactNode): void => {
+      if (Array.isArray(node)) return node.forEach(walk);
+      if (!isValidElement(node)) return;
+      const props = node.props as Record<string, unknown>;
+      if (node.type === PluginsView) views.push(props);
+      for (const v of Object.values(props)) if (isValidElement(v) || Array.isArray(v)) walk(v as ReactNode);
+    };
+    walk(tree);
+    expect(views.map((v) => v.addressed)).toEqual([{ plugin: 'zz-' }]);
+    expect(gateway.get).toHaveBeenCalledTimes(1);
+    expect(filtersOf({ plugin: ['sdlc', 'zz-core'] })).toEqual({ plugin: 'sdlc' });
+    expect(filtersOf({})).toEqual({ plugin: '' });
   });
 });
 

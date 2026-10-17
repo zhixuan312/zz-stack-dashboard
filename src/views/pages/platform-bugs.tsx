@@ -9,7 +9,7 @@ import { ColumnChart } from '@/components/charts/column-chart';
 import { CompositionBar } from '@/components/charts/composition-bar';
 import { Meridian } from '@/components/charts/meridian';
 import { AskAbout } from '@/components/patterns/ask-about';
-import { DataTable, useQueryState, type Column } from '@/components/patterns/data-table';
+import { DataTable, type Column } from '@/components/patterns/data-table';
 import { FilterBar } from '@/components/patterns/filter-bar';
 import { MetricTile } from '@/components/patterns/metric-tile';
 import { ChartSkeleton } from '@/components/patterns/page-loading';
@@ -25,10 +25,10 @@ import { formatCount } from '@/lib/format-units';
 import type { Bugs, PublicBugRow } from '@/lib/platform-shapes';
 import { pendingContext } from '@/views/context';
 import {
-  BUGS_DEFAULTS, BUG_IMPACTS, BUG_STATUSES, IMPACT, STATUS, TILES, bugPath, bugsContext, bugsPath, bugsTrouble, cohortsRunning, formatHours,
+  BUGS_DEFAULTS, BUG_IMPACTS, BUG_STATUSES, IMPACT, STATUS, TILES, bugPath, bugsContext, bugsPath, bugsTrouble, cohortsRunning, filtersOfPath, formatHours,
   impactOf, isAdminRow, lastWhole, narrowed, rateIn, statusOf, surfacesOf, valueOf, waited, type BugsFilters, type BugsRead, type Cohort,
 } from '@/views/platform-bugs-context';
-import { useServed } from '@/views/use-served';
+import { useServed, useServedAddress } from '@/views/use-served';
 
 /**
  * The page's read: the one the console's server made for this address, so the first paint carries the queue and the
@@ -92,8 +92,7 @@ const IMPACT_OPTIONS = [{ value: 'all', label: 'All' }, ...BUG_IMPACTS.map((i) =
  * superadmin's rows open a report's page.
  */
 export function PlatformBugsView({ served }: { served: BugsRead }) {
-  const [f, set] = useQueryState(BUGS_DEFAULTS);
-  const filters = useMemo(() => ({ state: f.state, impact: f.impact, surface: f.surface, page: f.page }), [f.state, f.impact, f.surface, f.page]);
+  const [filters, set] = useServedAddress(BUGS_DEFAULTS, served, filtersOfPath);
   const { data, trouble, retry, updatedAt } = useBugs(served, filters);
   const now = useDataClock();
   useShareView(data
@@ -107,7 +106,7 @@ export function PlatformBugsView({ served }: { served: BugsRead }) {
   const admin = data?.meta.scope === 'platform-admin';
   const narrow = narrowed(filters);
   const clear = () => set({ state: 'all', impact: 'all', surface: 'all', page: '1' });
-  const surfaces = [{ value: 'all', label: 'All' }, ...surfacesOf(rows, f.surface).map((s) => ({ value: s, label: s }))];
+  const surfaces = [{ value: 'all', label: 'All' }, ...surfacesOf(rows, filters.surface).map((s) => ({ value: s, label: s }))];
   const tableError = trouble ?? (queue?.state === 'unavailable' ? `The queue could not be listed: ${queue.reason}. The figures stand.` : undefined);
 
   return (
@@ -144,7 +143,7 @@ export function PlatformBugsView({ served }: { served: BugsRead }) {
           loading={!data && !trouble}
           error={tableError}
           onRetry={retry}
-          state={{ sort: '', dir: 'desc', page: f.page }}
+          state={{ sort: '', dir: 'desc', page: filters.page }}
           onStateChange={(p) => { if (p.page) set({ page: p.page }); }}
           filtered={narrow}
           onClearFilters={clear}
@@ -152,9 +151,9 @@ export function PlatformBugsView({ served }: { served: BugsRead }) {
           toolbar={
             <FilterBar
               filters={[
-                { key: 'state', label: 'State', value: f.state, onChange: (v) => set({ state: v, page: '1' }), options: STATE_OPTIONS },
-                { key: 'impact', label: 'Impact', value: f.impact, onChange: (v) => set({ impact: v, page: '1' }), options: IMPACT_OPTIONS },
-                { key: 'surface', label: 'Surface', value: f.surface, onChange: (v) => set({ surface: v, page: '1' }), options: surfaces },
+                { key: 'state', label: 'State', value: filters.state, onChange: (v) => set({ state: v, page: '1' }), options: STATE_OPTIONS },
+                { key: 'impact', label: 'Impact', value: filters.impact, onChange: (v) => set({ impact: v, page: '1' }), options: IMPACT_OPTIONS },
+                { key: 'surface', label: 'Surface', value: filters.surface, onChange: (v) => set({ surface: v, page: '1' }), options: surfaces },
               ]}
               result={queue?.state === 'ok' ? `${formatCount(queue.data.total)} ${plural(queue.data.total, 'report')}` : mark}
               ask={<AskAbout question={narrow ? 'What do the reports in this queue have in common, and which have waited longest?' : 'What is open in the queue, what blocks work, and how long have the open reports waited?'} />}
@@ -241,7 +240,7 @@ function Median({ data }: { data: Bugs }) {
 
 /** The masthead's as-of line: the cutoff of the read the page draws, nothing while there is none. */
 export function BugsAsOf({ served }: { served: BugsRead }) {
-  const [f] = useQueryState(BUGS_DEFAULTS);
-  const { data } = useBugs(served, { state: f.state, impact: f.impact, surface: f.surface, page: f.page });
+  const [filters] = useServedAddress(BUGS_DEFAULTS, served, filtersOfPath);
+  const { data } = useBugs(served, filters);
   return data ? <span className="t-small text-ink-3">As of {formatDateTime(data.meta.asOf)}</span> : null;
 }

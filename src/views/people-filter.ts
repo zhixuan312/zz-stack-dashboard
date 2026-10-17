@@ -38,6 +38,12 @@ export function peoplePath(f: PeopleFilters, rows: PeopleRows = { limit: PAGE_SI
 /** The page's address for rows read from `offset`: everybody, on the page of ten the offset falls in. */
 export const pageAt = (offset: number): PeopleFilters => ({ ...PEOPLE_DEFAULTS, page: String(Math.floor(offset / PAGE_SIZE) + 1) });
 
+/** The list's address read back from a gateway path `peoplePath` wrote: its filters, and the page of ten the offset falls in. */
+export function filtersOfPath(path: string): PeopleFilters {
+  const q = new URLSearchParams(path.split('?')[1] ?? '');
+  return { ...pageAt(Math.max(0, Number(q.get('offset')) || 0)), q: q.get('q') ?? '', state: q.get('state') ?? 'all' };
+}
+
 /** Whether any filter narrows the list. */
 export const narrowed = (f: PeopleFilters): boolean => f.q.trim() !== '' || f.state !== 'all';
 

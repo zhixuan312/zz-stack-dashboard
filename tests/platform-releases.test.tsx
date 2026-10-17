@@ -2,6 +2,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { Tooltip } from 'radix-ui';
 import { isValidElement, type ReactElement, type ReactNode } from 'react';
+import { hydrateRoot } from 'react-dom/client';
+import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const gateway = vi.hoisted(() => ({ get: vi.fn() }));
@@ -19,7 +21,7 @@ import { CONTEXT_BUDGET } from '@/views/context';
 import { PlatformReleaseView } from '@/views/pages/platform-release';
 import { PlatformReleasesView } from '@/views/pages/platform-releases';
 import {
-  RELEASES_BOUND_MS, RELEASES_DEFAULTS, releaseContext, releasesContext, releasesPath, type ReleasesRead,
+  RELEASES_BOUND_MS, RELEASES_DEFAULTS, filtersOfPath, releaseContext, releasesContext, releasesPath, type ReleasesRead,
 } from '@/views/platform-releases-context';
 import { releaseTool, releasesTool } from '@/views/tools/releases';
 import { RELEASES, releaseDetail, releases } from '../scripts/fake-gateway/platform-releases.ts';
@@ -280,6 +282,39 @@ describe('the first read is the server\'s, and so is another page\'s', () => {
     mount(<PlatformReleaseView version={PAIRED} served={{ state: 'ok', data: releaseDetail(PAIRED)! }} />);
     await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
     expect(reads()).toEqual([]);
+  });
+});
+
+describe('the first paint of a later page', () => {
+  it('draws the page and the rows the server read, then hydrates onto the same markup', async () => {
+    window.history.replaceState(null, '', '/platform/releases?page=2');
+    browser(null);
+    // The fixture's releases fit one page, so the second is the first's rows under a total that reaches a second page.
+    const drawnRows = rows();
+    const second: Releases = { ...LIST, rows: { state: 'ok', data: { rows: drawnRows, total: 10 + drawnRows.length } } };
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const view = <QueryClientProvider client={client}><Tooltip.Provider><PlatformReleasesView served={{ state: 'ok', path: releasesPath({ page: '2' }), data: second }} /></Tooltip.Provider></QueryClientProvider>;
+    const container = document.body.appendChild(document.createElement('div'));
+    try {
+      container.innerHTML = renderToString(view);
+      const drawn = () => container.querySelectorAll('section[aria-label="Releases with what was observed either side of each"] tbody tr');
+      expect(container.querySelector('[aria-busy="true"]')).toBeNull();
+      expect(drawn()).toHaveLength(drawnRows.length);
+      expect(container.querySelector('button[aria-current="page"]')?.textContent).toBe('2');
+      // The browser takes the server's markup over as it stands: no mismatch, the rows stay drawn, and nothing is read.
+      const mismatches: unknown[] = [];
+      await act(async () => { hydrateRoot(container, view, { onRecoverableError: (e) => mismatches.push(e) }); });
+      expect(mismatches).toEqual([]);
+      expect(drawn()).toHaveLength(drawnRows.length);
+      await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+      expect(reads()).toEqual([]);
+    } finally {
+      container.remove();
+    }
+  });
+
+  it('reads the address back from the server\'s path', () => {
+    for (const f of [RELEASES_DEFAULTS, { page: '2' }, { page: '7' }]) expect(filtersOfPath(releasesPath(f))).toEqual(f);
   });
 });
 

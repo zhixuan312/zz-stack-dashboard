@@ -1,47 +1,13 @@
-import type { PageWidth } from '@/components/base/shell';
+import { app, workspaces } from '@/app.config';
 import { LoadingPage } from '@/components/patterns/page-loading';
 import { Skeleton } from '@/components/ui/skeleton';
+import { gatedLoading } from '@/data/refusal';
 
-/**
- * Settings on its way: each section's head column beside its card, at the page's own width and in the page's own stack.
- *
- * Settings is the one page whose width is not the canvas's. It is read at `form`, the measure its own head column and
- * field-width card add up to. A skeleton at `data` filled 2560px and the page then arrived at 1253px centred: the whole
- * layout jumped sideways at the moment the content appeared, which is the one thing a loading state exists to prevent.
- * `--form-width` is `calc()` over those parts, so this stands exactly where the page will.
- *
- * The page spaces its sections by `gap-14`, wider than the frame's own stack gap, so this holds that same wrapper:
- * spaced like the frame instead, every section below the first moves down when the page arrives.
- */
-const width: PageWidth = 'form';
-
-/**
- * One placeholder section per section the page RENDERS. The page stacks seven components, but one of them —
- * `PlatformSection` — renders two sections for a superadmin, so the tallest page has eight and this frame is that
- * tallest case: a frame shorter than the page grows when the page arrives, which is what it exists to prevent.
- *
- * The page drops the later ones for a person who administers nothing and for a console with no assistant, so a
- * member's own page is shorter than this frame. A card's height is whatever its fields come to, which nothing here
- * can know: one height, so nothing below the frame jumps twice.
- */
-const SECTIONS = 8;
-
+/** Settings on its way: the one line that says where its contents went, at the page's own reading width. */
 export default function SettingsLoading() {
   return (
-    <LoadingPage name="settings" title="Settings" width={width}>
-      <div className="flex flex-col gap-14">
-        {Array.from({ length: SECTIONS }, (_, i) => (
-          <div key={i} className="@container">
-            <div className="grid gap-x-10 gap-y-5 @3xl:grid-cols-[15rem_minmax(0,var(--field-width))]">
-              <div className="flex flex-col gap-2">
-                <Skeleton className="h-5 w-32" />
-                <Skeleton className="h-4 w-full" />
-              </div>
-              <Skeleton className="h-40 rounded-lg" />
-            </div>
-          </div>
-        ))}
-      </div>
+    <LoadingPage {...gatedLoading({ name: 'settings', title: 'Settings', kicker: <>{app.name} · {workspaces.main.label}</> })} width="reading">
+      <Skeleton className="h-5 w-full max-w-lg" />
     </LoadingPage>
   );
 }

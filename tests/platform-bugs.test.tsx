@@ -2,6 +2,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { Tooltip } from 'radix-ui';
 import { isValidElement, type ReactElement, type ReactNode } from 'react';
+import { hydrateRoot } from 'react-dom/client';
+import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /** The router as the address writer sees it: a replace lands in the address, as a navigation does. */
@@ -28,7 +30,7 @@ import { CONTEXT_BUDGET } from '@/views/context';
 import { PlatformBugView } from '@/views/pages/platform-bug';
 import { PlatformBugsView } from '@/views/pages/platform-bugs';
 import {
-  BUGS_BOUND_MS, BUGS_DEFAULTS, bugContext, bugPath, bugsContext, bugsPath, duplicatesPath, formatHours, lastWhole, rateIn, waited,
+  BUGS_BOUND_MS, BUGS_DEFAULTS, bugContext, bugPath, bugsContext, bugsPath, duplicatesPath, filtersOfPath, formatHours, lastWhole, rateIn, waited,
   type BugsFilters, type BugsRead, type DuplicatesRead,
 } from '@/views/platform-bugs-context';
 import { bugTool, bugsTool } from '@/views/tools/bugs';
@@ -188,6 +190,40 @@ describe('the queue', () => {
     expect(reads()).toEqual([]);
     // The figures are over every report: the open tile is the same narrowed or not.
     expect(tile('Open').textContent).toContain(String(counts.open));
+  });
+});
+
+describe('the first paint of a filtered address', () => {
+  it('draws the rows of the address the server read, then hydrates onto the same markup', async () => {
+    window.history.replaceState(null, '', '/platform/bugs?state=open');
+    browser(null);
+    const open = bugs(true, { ...NO_FILTER, state: 'open' }, 10, 0);
+    const view = <PlatformBugsView served={ok(open, bugsPath({ ...BUGS_DEFAULTS, state: 'open' }))} />;
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const container = document.body.appendChild(document.createElement('div'));
+    try {
+      container.innerHTML = renderToString(<QueryClientProvider client={client}>{tree(view)}</QueryClientProvider>);
+      const rows = () => container.querySelectorAll('section[aria-label="Bug reports, newest filed first"] tbody tr');
+      expect(container.querySelector('[aria-busy="true"]')).toBeNull();
+      expect(rows()).toHaveLength(counts.open);
+      // The browser takes the server's markup over as it stands: no mismatch, the rows stay drawn, and nothing is read.
+      const mismatches: unknown[] = [];
+      await act(async () => {
+        hydrateRoot(container, <QueryClientProvider client={client}>{tree(view)}</QueryClientProvider>, { onRecoverableError: (e) => mismatches.push(e) });
+      });
+      expect(mismatches).toEqual([]);
+      expect(rows()).toHaveLength(counts.open);
+      await waitFor(() => expect(within(container).getByRole('combobox', { name: 'State' }).textContent).toContain('Open'));
+      expect(reads()).toEqual([]);
+    } finally {
+      container.remove();
+    }
+  });
+
+  it('reads the address back from the server\'s path, for every filter the path carries', () => {
+    for (const f of [BUGS_DEFAULTS, { ...BUGS_DEFAULTS, page: '3' }, { state: 'resolved', impact: 'blocks_work', surface: 'document_write', page: '2' }]) {
+      expect(filtersOfPath(bugsPath(f))).toEqual(f);
+    }
   });
 });
 

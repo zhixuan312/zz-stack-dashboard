@@ -38,6 +38,12 @@ export type TeamsRows = { limit: number; offset: number };
 /** The page's address for rows read from `offset`: every team, on the page of ten the offset falls in. */
 export const pageAt = (offset: number): TeamsFilters => ({ ...TEAMS_DEFAULTS, page: String(Math.floor(offset / PAGE_SIZE) + 1) });
 
+/** The list's address read back from a gateway path `teamsPath` wrote: its filters, and the page of ten the offset falls in. */
+export function filtersOfPath(path: string): TeamsFilters {
+  const q = new URLSearchParams(path.split('?')[1] ?? '');
+  return { ...pageAt(Math.max(0, Number(q.get('offset')) || 0)), q: q.get('q') ?? '', status: q.get('status') ?? 'all' };
+}
+
 /** Whether any filter narrows the list. */
 export const narrowed = (f: TeamsFilters): boolean => f.q.trim() !== '' || f.status !== 'all';
 

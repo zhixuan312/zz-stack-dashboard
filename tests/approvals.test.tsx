@@ -2,6 +2,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { Tooltip } from 'radix-ui';
 import { cloneElement, isValidElement, Suspense, type ReactNode } from 'react';
+import { hydrateRoot } from 'react-dom/client';
+import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /** The router as the address writer sees it: a replace lands in the address and tells its readers, as a navigation does. */
@@ -30,7 +32,7 @@ import { GatewayError } from '@/data/gateway';
 import type { Me } from '@/lib/api-shapes';
 import type { ApprovalRow, Approvals, WaitingRow } from '@/lib/work-shapes';
 import {
-  APPROVALS_BOUND_MS, APPROVALS_DEFAULTS, DECISION_BASIS, PRESENTATION, approvalsPath, approvedWhen, noPresentationLine, waited, type ApprovalsRead,
+  APPROVALS_BOUND_MS, APPROVALS_DEFAULTS, DECISION_BASIS, PRESENTATION, approvalsPath, approvedWhen, filtersOfPath, noPresentationLine, waited, type ApprovalsRead,
 } from '@/views/approvals-context';
 import { ApprovalsView } from '@/views/pages/approvals';
 import ApprovalsLoading from '../app/(dash)/approvals/loading';
@@ -292,6 +294,40 @@ describe('a tab is the server\'s parameter', () => {
     await waitFor(() => expect(rows('Approved in your name')).toHaveLength(10));
     expect(screen.getByRole('link', { name: /^History/ })).toHaveAttribute('aria-current', 'page');
     expect(reads()).toEqual([]);
+  });
+});
+
+describe('the first paint of another tab or page', () => {
+  it('draws the tab, the page and the rows the server read, then hydrates onto the same markup', async () => {
+    window.history.replaceState(null, '', '/approvals?tab=history&page=2');
+    browser(null);
+    const path = approvalsPath({ tab: 'history', page: '2' });
+    const second = answer(ME, path);
+    expect(historyOf(second).rows.length).toBeGreaterThan(0);
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const view = <QueryClientProvider client={client}><Tooltip.Provider><ApprovalsView served={ok(second, path)} /></Tooltip.Provider></QueryClientProvider>;
+    const container = document.body.appendChild(document.createElement('div'));
+    try {
+      container.innerHTML = renderToString(view);
+      const drawn = () => container.querySelectorAll('section[aria-label="Approved in your name"] tbody tr');
+      expect(container.querySelector('[aria-busy="true"]')).toBeNull();
+      expect(drawn()).toHaveLength(historyOf(second).rows.length);
+      expect(container.querySelector('nav[aria-label="Approvals views"] [aria-current="page"]')?.textContent).toMatch(/^History/);
+      expect(container.querySelector('button[aria-current="page"]')?.textContent).toBe('2');
+      // The browser takes the server's markup over as it stands: no mismatch, the rows stay drawn, and nothing is read.
+      const mismatches: unknown[] = [];
+      await act(async () => { hydrateRoot(container, view, { onRecoverableError: (e) => mismatches.push(e) }); });
+      expect(mismatches).toEqual([]);
+      expect(drawn()).toHaveLength(historyOf(second).rows.length);
+      await settle();
+      expect(reads()).toEqual([]);
+    } finally {
+      container.remove();
+    }
+  });
+
+  it('reads the address back from the server\'s path', () => {
+    for (const f of [APPROVALS_DEFAULTS, { tab: 'waiting', page: '3' }, { tab: 'history', page: '2' }]) expect(filtersOfPath(approvalsPath(f))).toEqual(f);
   });
 });
 

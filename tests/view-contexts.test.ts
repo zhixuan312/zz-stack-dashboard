@@ -1,10 +1,11 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import type { PluginRow, SearchAnswer, Skill, SkillDetail } from '@/lib/api-shapes';
-import type { ActivityLog, ActivitySummary, KnowledgeList, KnowledgeSummary, Runs } from '@/lib/destination-shapes';
+import type { Access, ActivityLog, ActivitySummary, KnowledgeList, KnowledgeSummary, Runs } from '@/lib/destination-shapes';
 import type { People, Teams } from '@/lib/fleet-shapes';
 import type { Approvals, InitiativeList } from '@/lib/work-shapes';
 import { contextText, type SharedContext } from '@/lib/shared-context';
+import { accessContext } from '@/views/access-context';
 import { activityContext } from '@/views/activity-context';
 import { approvalsContext } from '@/views/approvals-context';
 import { addressOf, pendingContext } from '@/views/context';
@@ -24,10 +25,9 @@ import { pluginsContext } from '@/views/plugins-context';
 import { skillContext } from '@/views/skill-context';
 import { RUNS_DEFAULTS, runsContext } from '@/views/runs-context';
 import { hitAddress, searchContext } from '@/views/search-context';
-import { settingsContext } from '@/views/settings-context';
 import { teamContext } from '@/views/team-context';
 import { teamsContext } from '@/views/teams-context';
-import { ME, MY_TEAMS, MY_TOKENS } from '../scripts/fake-gateway/people.ts';
+import { ME } from '../scripts/fake-gateway/people.ts';
 import { bugReport, bugs, duplicates } from '../scripts/fake-gateway/platform-bugs.ts';
 import { people } from '../scripts/fake-gateway/platform-people.ts';
 import { releaseDetail, releases } from '../scripts/fake-gateway/platform-releases.ts';
@@ -37,6 +37,7 @@ import { pluginEval, skillText } from '../scripts/fake-gateway/platform.ts';
 import { search } from '../scripts/fake-gateway/search.ts';
 import { extreme } from '../scripts/fake-gateway/states.ts';
 import { INITIATIVES, KNOWLEDGE, KNOWLEDGE_LOG, documentDetail, initiativeDetail, knowledgeBody } from '../scripts/fake-gateway/work.ts';
+import { access } from '../scripts/fake-gateway/work-access.ts';
 import { activityLog, activitySummary } from '../scripts/fake-gateway/work-activity.ts';
 import { approvals } from '../scripts/fake-gateway/work-approvals.ts';
 import { homeOf } from '../scripts/fake-gateway/work-home.ts';
@@ -107,7 +108,7 @@ const contexts: Record<string, () => SharedContext> = {
   skill: () => skillContext('sdlc', 'sdlc-spec', { plugin: PLUGINS.find((p) => p.plugin === 'sdlc'), skill: SKILLS.find((s) => s.name === 'sdlc-spec'), detail: as<SkillDetail>(skillDetail(ME, 'sdlc-spec')), text: skillText('sdlc', 'sdlc-spec') ?? undefined, ...arrival }),
   runs: () => runsContext(RUNS, { filters: RUNS_DEFAULTS, ...arrival }),
   activity: () => activityContext({ summary: SUMMARY, log: LOG, filters: NO_FILTER, page: 1, ...arrival }),
-  settings: () => settingsContext({ me: ME, teams: MY_TEAMS, tokens: MY_TOKENS, mode: 'platform', ...arrival }),
+  access: () => accessContext(access(ME)[1] as Access, { superadmin: true, mode: 'platform', ...arrival }),
 };
 
 const busy: Record<string, () => SharedContext> = {
@@ -288,11 +289,11 @@ describe('the figures a context quotes are the data\'s', () => {
     expect(fact(contexts.plugin(), 'Your team\'s calls')).toBe(String(sdlc.yourTeam.calls));
   });
 
-  it('settings names the person and never a token\'s value', () => {
-    const text = contextText(contexts.settings());
-    expect(text).toContain(ME.email);
-    // The live ones by label; a revoked token is not one the person can still use.
-    for (const t of MY_TOKENS.filter((x) => !x.revoked_at)) expect(text).toContain(t.label);
+  it('access names the person\'s own tokens by label, and never a token\'s value or a session\'s id', () => {
+    const answer = access(ME)[1] as Access;
+    const text = contextText(contexts.access());
+    for (const t of answer.issued) expect(text).toContain(t.label);
+    for (const b of answer.browsers) expect(text).not.toContain(b.id);
     expect(text).not.toMatch(/zz_pat_|zzp_/);
   });
 });

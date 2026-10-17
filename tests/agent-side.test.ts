@@ -8,6 +8,7 @@ import { Tooltip } from 'radix-ui';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { SurfaceOverride, type Surface } from '@/components/base/surface';
 import { AskAbout } from '@/components/patterns/ask-about';
+import { FormSection } from '@/components/patterns/form-section';
 import { Panel } from '@/console/panel';
 import { PeriodProvider } from '@/console/period';
 import { FEATURES, type FeatureId } from '@/data/features';
@@ -26,8 +27,8 @@ import config from '../scripts/verify.config.ts';
  * - that context's view has an assistant read: a `view_<name>` tool needing what the page's gate needs, whose `page`
  *   is the page's own route, so the page offers its prepared query, `explore_<view>`;
  * - it renders an Ask (ZZ Meridian's `AskAbout`) in the head of the card it sits on when the console offers an
- *   assistant, and none when it does not. Only the pages `MASTHEAD_UNTIL` names may carry it in the masthead instead,
- *   each until the reason it gives is gone.
+ *   assistant, and none when it does not: a card's head, a table's, a Featured metric's head row, a list's filter bar or
+ *   a `FormSection`'s head, never the page's masthead.
  *
  * Each page is rendered as Next renders it: its own default export, with the gate let through (`tests/page-gate.test.ts`
  * holds the gate), its async parts awaited, and every read answered by the fake gateway `pnpm verify` serves, spawned
@@ -62,8 +63,11 @@ function pageOf(file: string): Page {
 }
 
 // The address no page answers (`[...missing]`) is no destination: it shares nothing and has no view tool, as an address
-// that names nothing must not (`tests/no-access.test.tsx` holds it to the refused answer).
-const PAGES: Page[] = (fs.readdirSync(DASH, { recursive: true }) as string[]).filter((f) => path.basename(f) === 'page.tsx' && path.dirname(f) !== '[...missing]').sort().map(pageOf);
+// that names nothing must not (`tests/no-access.test.tsx` holds it to the refused answer). Nor is an address whose
+// contents moved (`/settings`, until Phase 7 removes it, AC-1.12): it says so in one sentence with the link and nothing
+// else, and its view tool went with its contents. The last case below holds both to that.
+const NO_DESTINATION = ['[...missing]', 'settings'];
+const PAGES: Page[] = (fs.readdirSync(DASH, { recursive: true }) as string[]).filter((f) => path.basename(f) === 'page.tsx' && !NO_DESTINATION.includes(path.dirname(f))).sort().map(pageOf);
 
 /**
  * A server page's tree, as Next would hand it to the browser: every async component it places is awaited where it
@@ -131,23 +135,17 @@ const ASK = /^Ask: /;
 const RENDERS_UNTIL_PHASE_7: Record<string, string> = { '/teams': '/platform/teams', '/teams/[slug]': '/platform/teams/[slug]', '/people': '/platform/people' };
 
 /**
- * The pages whose protagonist card has no head that can hold an action yet, each with what will give it one. Every other
- * page is held to the card's head; delete an entry the day its reason is gone.
- */
-const MASTHEAD_UNTIL: Record<string, string> = {
-  '/settings': 'every section is a ZZ Meridian FormSection, which has no actions (zz-meridian issue #37)',
-};
-
-/**
  * Whether an Ask sits in the head of the card it is on (a Panel's or a table's head, a Featured metric's head row, a
- * list's filter bar), or, where `masthead` allows it, in the page's masthead: never inside a card's body, where it
- * would read as asking about one row.
+ * list's filter bar, a `FormSection`'s head beside its card): never inside a card's body, where it would read as asking
+ * about one row, and never in the page's masthead, which is a `header` in no `section`.
  */
-function inAHead(ask: HTMLElement, masthead = false): boolean {
+function inAHead(ask: HTMLElement): boolean {
   const frame = ask.closest('.card, section, header');
   if (!frame) return false;
-  if (frame.tagName === 'HEADER') return masthead;
-  return !!frame.firstElementChild?.contains(ask);
+  // A FormSection's head is the `header` of its `section`; the page's masthead is the one header outside every section.
+  if (frame.tagName === 'HEADER') return frame.closest('section') !== null;
+  const head = frame.tagName === 'SECTION' ? frame.querySelector(':scope header') : null;
+  return !!(head ?? frame.firstElementChild)?.contains(ask);
 }
 
 describe('every page of the console carries its agent side', () => {
@@ -157,8 +155,18 @@ describe('every page of the console carries its agent side', () => {
     const { unmount } = render(onSurface({ ask: () => {} }, panel({ title: 'Head', actions: ask }, 'body')));
     expect(inAHead(screen.getByRole('button', { name: ASK }))).toBe(true);
     unmount();
-    render(onSurface({ ask: () => {} }, panel({ title: 'Body' }, ask)));
+    const body = render(onSurface({ ask: () => {} }, panel({ title: 'Body' }, ask)));
     expect(inAHead(screen.getByRole('button', { name: ASK }))).toBe(false);
+    body.unmount();
+    const section = (actions: ReactNode, children: ReactNode) => createElement(FormSection, { title: 'Section', as: 'div', actions } as ComponentProps<typeof FormSection>, children);
+    const head = render(onSurface({ ask: () => {} }, section(ask, 'fields')));
+    expect(inAHead(screen.getByRole('button', { name: ASK }))).toBe(true);
+    head.unmount();
+    const fields = render(onSurface({ ask: () => {} }, section(null, ask)));
+    expect(inAHead(screen.getByRole('button', { name: ASK }))).toBe(false);
+    fields.unmount();
+    render(onSurface({ ask: () => {} }, createElement('header', null, ask)));
+    expect(inAHead(screen.getByRole('button', { name: ASK })), 'the masthead is no card\'s head').toBe(false);
   });
 
   it('finds every page, each gated on a feature the console has', () => {
@@ -178,7 +186,7 @@ describe('every page of the console carries its agent side', () => {
     expect(viewAt(viewTools, address), `${address} offers explore_${tool!.name}`).toBe(tool);
 
     const [first] = await screen.findAllByRole('button', { name: ASK }, { timeout: 10_000 });
-    expect(inAHead(first, page.route in MASTHEAD_UNTIL), `${page.route}'s Ask is in no card's head`).toBe(true);
+    expect(inAHead(first), `${page.route}'s Ask is in no card's head`).toBe(true);
     const question = first.getAttribute('aria-label')!.replace(ASK, '');
     expect(question.length).toBeGreaterThan(10);
     fireEvent.click(first);
@@ -188,5 +196,20 @@ describe('every page of the console carries its agent side', () => {
   it.each(PAGES.map((p) => [p.route, p] as const))('%s renders no Ask when the console offers no assistant', async (_route, page) => {
     await open(page);
     expect(screen.queryAllByRole('button', { name: ASK })).toEqual([]);
+  });
+
+  it('holds the addresses that are no destination to that: no view tool names them, and the moved one shares nothing and asks nothing', async () => {
+    for (const dir of NO_DESTINATION) {
+      const route = routeOf(path.join(dir, 'page.tsx'));
+      expect(viewTools.some((t) => t.page === route), `a view tool names ${route}`).toBe(false);
+    }
+    expect(viewAt(viewTools, '/settings')).toBeUndefined();
+    const shared: unknown[] = [];
+    const mod = (await import(/* @vite-ignore */ path.join(DASH, 'settings/page.tsx'))) as { default: () => Promise<ReactNode> };
+    const tree = await settled(await mod.default());
+    await act(async () => { render(onSurface({ ask: () => {}, share: (_t: string, c?: object) => { shared.push(c); } }, createElement(ConsoleModeProvider, null, tree))); });
+    expect(screen.getByRole('link', { name: 'Access' })).toHaveAttribute('href', '/access');
+    expect(screen.queryAllByRole('button', { name: ASK })).toEqual([]);
+    expect(shared.filter(Boolean)).toEqual([]);
   });
 });

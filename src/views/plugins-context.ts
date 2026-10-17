@@ -48,6 +48,12 @@ export type PluginsFilters = { plugin: string };
 /** The address with nothing in it: every plugin. */
 export const PLUGINS_DEFAULTS: PluginsFilters = { plugin: '' };
 
+/** The search a page's address names, as Next hands a server page its search parameters: one value, the first. */
+export function filtersOf(params: Record<string, string | string[] | undefined>): PluginsFilters {
+  const v = params.plugin;
+  return { plugin: (Array.isArray(v) ? v[0] : v) ?? PLUGINS_DEFAULTS.plugin };
+}
+
 /** The plugins in view: every one, or those whose name holds what the search says, in the gateway's order. */
 export function inView(plugins: PluginRow[], f: PluginsFilters): PluginRow[] {
   const q = f.plugin.trim().toLowerCase();

@@ -81,6 +81,13 @@ export function filtersOf(params: Record<string, string | string[] | undefined>)
   return { state: one('state'), impact: one('impact'), surface: one('surface'), page: one('page') };
 }
 
+/** The page's address read back from a gateway path `bugsPath` wrote: its filters, and the page of ten the offset falls in. */
+export function filtersOfPath(path: string): BugsFilters {
+  const q = new URLSearchParams(path.split('?')[1] ?? '');
+  const offset = Math.max(0, Number(q.get('offset')) || 0);
+  return { state: q.get('state') ?? 'all', impact: q.get('impact') ?? 'all', surface: q.get('surface') ?? 'all', page: String(Math.floor(offset / PAGE_SIZE) + 1) };
+}
+
 /** One report's gateway address, and its page's; its duplicate targets' gateway address. */
 export const bugPath = (id: string): string => `/platform/bugs/${encodeURIComponent(id)}`;
 export const duplicatesPath = (id: string): string => `${bugPath(id)}/duplicates`;

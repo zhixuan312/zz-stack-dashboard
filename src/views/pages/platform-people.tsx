@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { Check, Copy, KeyRound, LogIn, UserRound, UserX } from 'lucide-react';
 import { useShareView } from '@/components/base/use-share-view';
 import { AskAbout } from '@/components/patterns/ask-about';
-import { DataTable, useQueryState, useSearchDraft, type Column } from '@/components/patterns/data-table';
+import { DataTable, useSearchDraft, type Column } from '@/components/patterns/data-table';
 import { FilterBar } from '@/components/patterns/filter-bar';
 import { MetricTile } from '@/components/patterns/metric-tile';
 import { Records } from '@/components/templates/records';
@@ -24,10 +24,10 @@ import { formatDateTime, formatRelative } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
 import { useConsoleMutation } from '@/lib/mutate';
-import { useServed } from '@/views/use-served';
+import { useServed, useServedAddress } from '@/views/use-served';
 import { pendingContext } from '@/views/context';
 import { NO_SIGN_IN, TILES, peopleContext, peopleTrouble, signInsValue, type PeopleRead } from '@/views/people-context';
-import { PEOPLE_DEFAULTS, PERSON_STATES, narrowed, peoplePath, type PeopleFilters } from '@/views/people-filter';
+import { PEOPLE_DEFAULTS, PERSON_STATES, filtersOfPath, narrowed, peoplePath, type PeopleFilters } from '@/views/people-filter';
 
 type Done = { ok: true; result: string };
 const reasonOf = (err: unknown, fallback: string) => (err instanceof ApiError ? err.message : fallback);
@@ -180,9 +180,8 @@ function usePeople(served: PeopleRead | null, filters: PeopleFilters) {
  */
 export function PlatformPeopleView({ served }: { served: PeopleRead }) {
   useLive(['people']);
-  const [f, set] = useQueryState(PEOPLE_DEFAULTS);
-  const [draft, setDraft] = useSearchDraft(f.q, (q) => set({ q, page: '1' }));
-  const filters = useMemo(() => ({ q: f.q, state: f.state, page: f.page }), [f.q, f.state, f.page]);
+  const [filters, set] = useServedAddress(PEOPLE_DEFAULTS, served, filtersOfPath);
+  const [draft, setDraft] = useSearchDraft(filters.q, (q) => set({ q, page: '1' }));
   const { data, trouble, retry, updatedAt } = usePeople(served, filters);
   const now = useDataClock();
   const asOf = data?.meta.asOf;
@@ -221,7 +220,7 @@ export function PlatformPeopleView({ served }: { served: PeopleRead }) {
           loading={!data && !trouble}
           error={trouble ?? undefined}
           onRetry={retry}
-          state={{ sort: '', dir: 'desc', page: f.page }}
+          state={{ sort: '', dir: 'desc', page: filters.page }}
           onStateChange={(p) => { if (p.page) set({ page: p.page }); }}
           filtered={narrow}
           onClearFilters={clear}
@@ -229,7 +228,7 @@ export function PlatformPeopleView({ served }: { served: PeopleRead }) {
           toolbar={
             <FilterBar
               search={{ value: draft, onChange: setDraft, placeholder: 'Search people' }}
-              filters={[{ key: 'state', label: 'State', value: f.state, onChange: (v) => set({ state: v, page: '1' }), options: STATE_OPTIONS }]}
+              filters={[{ key: 'state', label: 'State', value: filters.state, onChange: (v) => set({ state: v, page: '1' }), options: STATE_OPTIONS }]}
               result={data ? `${formatCount(data.total)} ${plural(data.total, 'person', 'people')}` : mark}
               ask={<AskAbout question={narrow ? 'Who are the people in this list, and what state is each in?' : 'Who has never signed in, and how many people signed in last week?'} />}
               onClear={clear}
@@ -243,8 +242,8 @@ export function PlatformPeopleView({ served }: { served: PeopleRead }) {
 
 /** The masthead's as-of line: the cutoff of the read the table draws, nothing while there is none. */
 export function PeopleAsOf({ served }: { served: PeopleRead }) {
-  const [f] = useQueryState(PEOPLE_DEFAULTS);
-  const { data } = usePeople(served, { q: f.q, state: f.state, page: f.page });
+  const [filters] = useServedAddress(PEOPLE_DEFAULTS, served, filtersOfPath);
+  const { data } = usePeople(served, filters);
   return data ? <span className="t-small text-ink-3">As of {formatDateTime(data.meta.asOf)}</span> : null;
 }
 

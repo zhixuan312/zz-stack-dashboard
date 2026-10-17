@@ -12,9 +12,9 @@ const ENDPOINT = '/api/console/live';
 /**
  * The reads whose collection is another's: what changes them is a change the gateway names by that other collection.
  * Approvals is read from the documents' revisions, and an approval or a presentation is a change to a document, which
- * the gateway names `initiatives`.
+ * the gateway names `initiatives`. Access is the caller's own tokens and browsers, which the gateway names `settings`.
  */
-const KEPT_UNDER: Record<string, string> = { approvals: 'initiatives' };
+const KEPT_UNDER: Record<string, string> = { approvals: 'initiatives', access: 'settings' };
 
 /**
  * The collection a console read belongs to: its first path segment, past the leading slash and any query, or the one

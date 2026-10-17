@@ -21,9 +21,10 @@ import { useConsoleMutation } from '@/lib/mutate';
  * `member_add` / `member_remove` (admin.ts), reached through
  * `/api/console/settings/team/members` rather than `/manage/mcp` directly.
  *
- * `team` is chosen by the parent (`TeamAdminPanel`) and trusted here, because the gateway route
- * re-checks `teamAuthority` regardless. Hiding the controls is courtesy; the refusal is the
- * gateway's.
+ * `team` is the team the person acts for, which the parent (`TeamAdminPanel`) draws this for only
+ * when they administer it, and trusted here, because the gateway route re-checks `teamAuthority`
+ * regardless. Hiding the controls is courtesy; the refusal is the gateway's, and a refused add keeps
+ * the address typed and says the gateway's sentence.
  */
 export function TeamMembersPanel({ team }: { team: string }) {
   const list = useConsole<TeamMemberRow[]>(`/settings/team/members?team=${encodeURIComponent(team)}`);
@@ -75,7 +76,7 @@ export function TeamMembersPanel({ team }: { team: string }) {
   }
 
   return (
-    <div className="border-t border-line">
+    <>
       <Query query={list}>
         {(rows) =>
           rows.length === 0 ? (
@@ -110,7 +111,7 @@ export function TeamMembersPanel({ team }: { team: string }) {
           )}
         </Field>
       </InlineForm>
-    </div>
+    </>
   );
 }
 

@@ -2,6 +2,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { Tooltip } from 'radix-ui';
 import type { ReactElement, ReactNode } from 'react';
+import { hydrateRoot } from 'react-dom/client';
+import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const gateway = vi.hoisted(() => ({ get: vi.fn() }));
@@ -19,7 +21,7 @@ import { PlatformTeamView } from '@/views/pages/platform-team';
 import { CreateTeam, PlatformTeamsView } from '@/views/pages/platform-teams';
 import { teamContext } from '@/views/team-context';
 import { TEAMS_BOUND_MS, teamsContext, type TeamsRead } from '@/views/teams-context';
-import { TEAMS_DEFAULTS, teamsPath } from '@/views/teams-filter';
+import { TEAMS_DEFAULTS, filtersOfPath, teamsPath } from '@/views/teams-filter';
 import { teamTool } from '@/views/tools/team';
 import { teamsTool } from '@/views/tools/teams';
 import { teamDetail, teams } from '../scripts/fake-gateway/platform-teams.ts';
@@ -131,6 +133,38 @@ describe('each page draws loading, empty, error and partial', () => {
     mount(<PlatformTeamView slug="dune" served={{ state: 'ok', data: empty }} />);
     expect(screen.getByText('Nobody is in this team')).toBeInTheDocument();
     expect(screen.getByText('No week recorded yet')).toBeInTheDocument();
+  });
+});
+
+describe('the first paint of a filtered address', () => {
+  it('draws the status and the rows the server read, then hydrates onto the same markup', async () => {
+    window.history.replaceState(null, '', '/platform/teams?status=archived');
+    browser(null);
+    const path = teamsPath({ ...TEAMS_DEFAULTS, status: 'archived' });
+    const found = teams(SUPERADMIN, new URLSearchParams(path.split('?')[1]), { limit: 10, offset: 0 })![1] as Teams;
+    expect(found.teams.length).toBeGreaterThan(0);
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const view = <QueryClientProvider client={client}><Tooltip.Provider><PlatformTeamsView served={{ state: 'ok', path, data: found }} /></Tooltip.Provider></QueryClientProvider>;
+    const container = document.body.appendChild(document.createElement('div'));
+    try {
+      container.innerHTML = renderToString(view);
+      const drawn = () => container.querySelectorAll('section[aria-label="Teams"] tbody tr');
+      expect(container.querySelector('[aria-busy="true"]')).toBeNull();
+      expect(drawn()).toHaveLength(found.teams.length);
+      // The browser takes the server's markup over as it stands: no mismatch, the rows stay drawn, and nothing is read.
+      const mismatches: unknown[] = [];
+      await act(async () => { hydrateRoot(container, view, { onRecoverableError: (e) => mismatches.push(e) }); });
+      expect(mismatches).toEqual([]);
+      expect(drawn()).toHaveLength(found.teams.length);
+      await waitFor(() => expect(within(container).getByRole('combobox', { name: 'Status' }).textContent).toContain('Archived'));
+      expect((fetch as unknown as { mock: { calls: [RequestInfo | URL][] } }).mock.calls.map(([u]) => String(u)).filter((u) => !u.endsWith('/me'))).toEqual([]);
+    } finally {
+      container.remove();
+    }
+  });
+
+  it('reads the address back from the server\'s path', () => {
+    for (const f of [TEAMS_DEFAULTS, { ...TEAMS_DEFAULTS, page: '2' }, { q: 'atlas', status: 'active', page: '3' }]) expect(filtersOfPath(teamsPath(f))).toEqual(f);
   });
 });
 

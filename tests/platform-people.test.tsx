@@ -2,6 +2,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { Tooltip } from 'radix-ui';
 import type { ReactElement, ReactNode } from 'react';
+import { hydrateRoot } from 'react-dom/client';
+import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const gateway = vi.hoisted(() => ({ get: vi.fn() }));
@@ -18,7 +20,7 @@ import { contextText } from '@/lib/shared-context';
 import { CONTEXT_BUDGET } from '@/views/context';
 import { AddPerson, PlatformPeopleView } from '@/views/pages/platform-people';
 import { NO_SIGN_IN, PEOPLE_BOUND_MS, peopleContext, type PeopleRead } from '@/views/people-context';
-import { PEOPLE_DEFAULTS, peoplePath } from '@/views/people-filter';
+import { PEOPLE_DEFAULTS, filtersOfPath, peoplePath } from '@/views/people-filter';
 import { peopleTool } from '@/views/tools/people';
 import { ME } from '../scripts/fake-gateway/people.ts';
 import { people } from '../scripts/fake-gateway/platform-people.ts';
@@ -153,6 +155,38 @@ describe('each state the page draws', () => {
     browser(null);
     mount(<PlatformPeopleView served={{ state: 'ok', path: PATH, data: { ...LIST, tiles: { ...LIST.tiles, signInsLastWeek: before } } }} />);
     expect(screen.getByText('No data')).toBeInTheDocument();
+  });
+});
+
+describe('the first paint of a filtered address', () => {
+  it('draws the state and the rows the server read, then hydrates onto the same markup', async () => {
+    window.history.replaceState(null, '', '/platform/people?state=deactivated');
+    browser(null);
+    const path = peoplePath({ ...PEOPLE_DEFAULTS, state: 'deactivated' });
+    const found = answer(path);
+    expect(found.people.length).toBeGreaterThan(0);
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const view = <QueryClientProvider client={client}><Tooltip.Provider><PlatformPeopleView served={{ state: 'ok', path, data: found }} /></Tooltip.Provider></QueryClientProvider>;
+    const container = document.body.appendChild(document.createElement('div'));
+    try {
+      container.innerHTML = renderToString(view);
+      const drawn = () => container.querySelectorAll('section[aria-label="People"] tbody tr');
+      expect(container.querySelector('[aria-busy="true"]')).toBeNull();
+      expect(drawn()).toHaveLength(found.people.length);
+      // The browser takes the server's markup over as it stands: no mismatch, the rows stay drawn, and nothing is read.
+      const mismatches: unknown[] = [];
+      await act(async () => { hydrateRoot(container, view, { onRecoverableError: (e) => mismatches.push(e) }); });
+      expect(mismatches).toEqual([]);
+      expect(drawn()).toHaveLength(found.people.length);
+      await waitFor(() => expect(within(container).getByRole('combobox', { name: 'State' }).textContent).toContain('Deactivated'));
+      expect((fetch as unknown as { mock: { calls: [RequestInfo | URL][] } }).mock.calls.map(([u]) => String(u)).filter((u) => !u.endsWith('/me'))).toEqual([]);
+    } finally {
+      container.remove();
+    }
+  });
+
+  it('reads the address back from the server\'s path', () => {
+    for (const f of [PEOPLE_DEFAULTS, { ...PEOPLE_DEFAULTS, page: '2' }, { q: 'mei', state: 'active', page: '3' }]) expect(filtersOfPath(peoplePath(f))).toEqual(f);
   });
 });
 

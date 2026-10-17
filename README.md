@@ -248,7 +248,7 @@ page, as before.
 
 Each question is sent to the model provider with the page's text, its context and the
 Product, Users and Glossary sections of `docs/brief.md`, so none of those may hold a
-secret. The thread stays in the browser's local storage; Settings has the person's own
+secret. The thread stays in the browser's local storage; Access has the person's own
 switch for the panel. Every reply is stamped with the person and the team it answered, so a
 thread from another person or team is cleared before the panel opens and never reaches the
 model.
@@ -295,12 +295,13 @@ docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
 | **Runs** | The active team's runs: three tiles, each skill by output per run with its calls per run, share refused and typical length, and the recent runs, narrowed by skill |
 | **Activity** | Your team's real work by week: what was refused and why, by owner, the refusals grouped by owner, tool and message, and the event log |
 | **People** | Under Platform, the superadmin's alone: everyone the platform knows, with their role, teams, passkey, last sign-in and state; add a person, give them an enrolment link, or deactivate them |
-| **Settings** | The person's own tokens, client setup and teams, plus team and platform administration where their role carries it |
+| **Access** | What lets you and your agents in, and nobody else's: your tokens (issue one, shown once; revoke one), the setup to connect a client, the applications and browsers signed in as you (revoke one, sign another out), your passkeys and the team you act for; the members of that team for its admin, and the console scope for a superadmin. `/settings` says in one sentence that its contents moved here |
 | **Status** | How often real work called a tool the wrong way in the last whole week |
 | **Releases** | Under Platform, for everybody: every recorded release, releases and malformed calls per 1,000 by week, and each release's malformed calls, tool failures and p95 in the 72 hours either side of it, partial where the record saw only part of a window; open one for its published changelog, upgrade notes and what clients must do |
 | **Bugs** | Under Platform, for everybody: open reports, the oldest open, reports per 1,000 calls and the median hours to resolve; reports filed and resolved by the week filed, the outcomes and the impacts; and the queue, filtered by state, impact and surface. A member reads each report by a title generated from its surface; the superadmin opens a report to read it and resolve it |
 | **Evaluation** | Under Platform, for everybody: findings waiting, scores established, the last day a plugin was scored and the days scored; each plugin's latest score out of 10 with its range, standing, guardrails, protocol and date; every score in the series it compares within, with the gateway's comparability statement; and the findings by decision and by owner. A member reads the form everybody may read, the superadmin each waiting finding's own words |
 | **Usage** | Under Platform, for everybody: last week's calls, share refused, slowest 5% of calls and sessions; calls by week (by team for the superadmin alone); the platform's own traffic and all refusals by population; refusals put right; each tool's median; weekday by hour; the tools called most; calls per recorded approval; and the platform's model calls, whose cost is not recorded |
+| **Knowledge health** | Under Platform, for everybody: the lessons adopted on every shelf, last week's lessons made outside the import cohorts, searches and share with no result; each shelf (every team's by slug for the superadmin alone, a member's own, the shared shelf and the totals); lessons made by week with what imports left out, exactly or by the day rule; the share of searches with no result by week with the share widened and the mean results; lessons by the week made with the import cohort labelled `imported, by day` and how many were superseded since; lessons by kind; and, for the superadmin alone, the questions with no result |
 | **Audit** | Under Platform, the superadmin's alone: every recorded act of administration as one sentence, on an Activity feed, with the acts that leave no event named under it; and every recorded event as metadata, the latest 500 within the filters (kind, team, a day they came before), which reach older events. A member is answered as at an address no page answers |
 
 Statistics come before judgment on every analysis page, because a score with no idea what

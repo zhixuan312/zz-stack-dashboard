@@ -1,53 +1,29 @@
 # Settings
 
-A person's own tokens, client setup and teams, plus team and platform administration where their role carries it.
+Settings' contents moved. Its address stays, gated as before, until Phase 7 removes it (AC-1.12), and draws one sentence saying so, with a link to Access, and nothing else.
 
 ## Structure
 
-Sections 56px apart, each with its title and purpose on the left and its cards on the right (one column on a phone),
-at the data width like every other page.
-
-- Gate first: the page asks for `settings` before it renders, so a person who does not hold it is shown NoAccess and nothing on the page is read.
-- Console scope: one setting row, the switch on the right; applies at once. The section is drawn for
-  everyone and says which of the two scopes a superadmin has the choice of — only the switch is theirs, and
-  its place is held either way, so nothing below moves when `/me` lands.
-- Your teams: the teams this person belongs to, and which one this browser acts for. Acting for another team clears
-  the assistant's thread and reloads the page at the same address, in every tab of this browser, so nothing of the
-  old team stays on screen or in the assistant; a refused switch changes nothing.
-- Access tokens: the table, and issuing a new one on its last line (shown once).
-- Client setup: the setup to copy, Copy on the code itself.
-- Team administration (team admins): the team, its roster, and adding a member on the roster's last line.
-- People (superadmins): every principal, and adding a person on the table's last line.
-- Platform teams (superadmins): creating a team and archiving one, in one card.
+- Gate first: the page asks for `settings` before it renders, so a person who does not hold it is answered by the refused page and nothing is drawn. Its title comes from `gatedMetadata` and its loading state from `gatedLoading`.
+- One sentence under the title, at the reading width: everything that was here is on Access now, with the link to `/access`. Nothing else: no section, no read, no control.
+- Where each part went (reconciliation 53): the tokens, client setup, connected applications, signed-in browsers, passkeys, the team acted for with its switch, a team admin's members, the superadmin's console scope and the assistant's switch are on Access; People and Platform teams are Platform's People and Teams.
 
 ## States
 
-- Each list: loading rows, the gateway's sentence on error, and its own empty state.
-- Destructive acts confirm in place, never in a modal.
-- A new token is shown once, with Copy.
+| State | What shows |
+|---|---|
+| Loading | `loading.tsx`: the masthead and one line's placeholder |
+| Default | The title and the one sentence with its link |
+| Refused | The refused page, as an address that names nothing |
 
 ## Agents
 
-The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `settingsContext` in `src/views/settings-context.ts`, the same function `view_settings` calls, so the assistant quotes the figures the screen shows. Ask is in the masthead, because every section is a form section and a form section's head takes no actions: which team the person is acting for, and which of their tokens are live. Its last section, Assistant, holds the person's own switch for the panel ("Show the assistant"), drawn only where the console has an assistant.
+The page reads nothing and shares nothing with the assistant, and has no view tool: `view_settings` went with its contents. What it held is shared on Access, through `accessContext` in `src/views/access-context.ts`, and the assistant's answers about tokens, applications, browsers, passkeys and teams are `view_access`'s and `explore_access`'s.
 
 ### What the agent reads
 
-Who is signed in, their platform role, the team this browser acts for, the console's scope and how many live tokens they hold. What code found: which sections their role carries, their teams with their role in each, their live tokens by label and date, and the tokens never used. It says that every change here is made on this page by the person, and that a token's value is shown once and can never be read again, by anyone.
-
-```text
-- Their teams: atlas (admin, the one this browser acts for), beacon (member).
-```
-
-- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `explore_settings`, offered on this page alone, counts the caller's own tokens by state and application over any window, and lists them by label and date; no answer holds a token's value.
-
-### What the agent does here
-
-Protagonist: Tokens.
-
-- "How many of my tokens are live, and how many are revoked?" — the caller's tokens, by state
-- "Which applications were my tokens minted for?" — the caller's tokens, by application
-- "Which tokens did I issue in the last 90 days?" — the caller's tokens issued over 90 complete days, down to each by label and date
+Nothing of the page's own: the page text, one sentence saying the contents moved to Access.
 
 ## Surfaces
 
-Console, desktop and phone. Reads `/settings/me/*`, `/settings/team/*`, `/settings/platform/*`. Live: follows `settings`, so a change made anywhere — another tab, another person — reads this page again.
+Console, desktop and phone. Reads nothing.

@@ -134,15 +134,6 @@ export const skillCalls: Source = {
   cannot: `Calls of a skill are counted, never listed: Plugins (/plugins) shows each plugin's skills with their calls. ${ACTIVE} ${WINDOW}`,
 };
 
-export const tokens: Source = {
-  collection: 'tokens', date: 'createdAt',
-  filters: { state: { ...eq, values: ['live', 'revoked'] }, application: eq }, facets: ['state', 'application'], buckets: ['month'],
-  measures: { tokens: count('Tokens', 'tokens', 'The caller\'s own platform tokens issued in the window, live or revoked.') },
-  drill: { columns: ['id', 'label', 'state', 'application', 'createdAt', 'lastUsedAt'], address: () => '/settings' },
-  none: { application: 'issued on the console or by an agent' },
-  cannot: 'Only the caller\'s own tokens, by label and date: a token\'s value is shown once, when it is issued, and is read nowhere again.',
-};
-
 const PLATFORM = 'As the platform\'s pages answer the caller: a member reads no team\'s name but their own.';
 
 export const platformCalls = (team: boolean): Source => ({

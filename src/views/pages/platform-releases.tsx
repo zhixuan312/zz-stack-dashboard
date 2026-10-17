@@ -7,7 +7,7 @@ import { useShareView } from '@/components/base/use-share-view';
 import { ColumnChart } from '@/components/charts/column-chart';
 import { Meridian } from '@/components/charts/meridian';
 import { AskAbout } from '@/components/patterns/ask-about';
-import { DataTable, useQueryState, type Column } from '@/components/patterns/data-table';
+import { DataTable, type Column } from '@/components/patterns/data-table';
 import { MetricTile } from '@/components/patterns/metric-tile';
 import { ChartSkeleton } from '@/components/patterns/page-loading';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -21,10 +21,10 @@ import { formatCount } from '@/lib/format-units';
 import type { ReleaseRow, Releases } from '@/lib/platform-shapes';
 import { pendingContext } from '@/views/context';
 import {
-  OBSERVED, RELEASES_DEFAULTS, TILES, clientActionOf, failuresIn, observedOf, observedText, overlapText, p95In, rateIn, releasePath,
+  OBSERVED, RELEASES_DEFAULTS, TILES, clientActionOf, failuresIn, filtersOfPath, observedOf, observedText, overlapText, p95In, rateIn, releasePath,
   releasesContext, releasesPath, releasesTrouble, weekRate, weeksRunning, type ReleasesFilters, type ReleasesRead, type Week,
 } from '@/views/platform-releases-context';
-import { useServed } from '@/views/use-served';
+import { useServed, useServedAddress } from '@/views/use-served';
 
 type Side = ReleaseRow['before'];
 const RATE = new Intl.NumberFormat('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -94,8 +94,7 @@ const columnsAt = (asOf: string): Column<ReleaseRow>[] => aligned([
  * first page the address names is read on the console's server and handed here; every other page is the browser's.
  */
 export function PlatformReleasesView({ served }: { served: ReleasesRead }) {
-  const [f, set] = useQueryState(RELEASES_DEFAULTS);
-  const filters = useMemo(() => ({ page: f.page }), [f.page]);
+  const [filters, set] = useServedAddress(RELEASES_DEFAULTS, served, filtersOfPath);
   const { data, trouble, retry, updatedAt } = useReleases(served, filters);
   const now = useDataClock();
   const asOf = data?.meta.asOf ?? '';
@@ -145,7 +144,7 @@ export function PlatformReleasesView({ served }: { served: ReleasesRead }) {
           loading={!data && !trouble}
           error={tableError}
           onRetry={retry}
-          state={{ sort: '', dir: 'desc', page: f.page }}
+          state={{ sort: '', dir: 'desc', page: filters.page }}
           onStateChange={(p) => { if (p.page) set({ page: p.page }); }}
           empty={{ title: 'No release recorded yet', body: 'A release is recorded when its tag is made.' }}
         />
@@ -188,7 +187,7 @@ function Weeks({ weeks }: { weeks: Week[] }) {
 
 /** The masthead's as-of line: the cutoff of the read the page draws, nothing while there is none. */
 export function ReleasesAsOf({ served }: { served: ReleasesRead }) {
-  const [f] = useQueryState(RELEASES_DEFAULTS);
-  const { data } = useReleases(served, { page: f.page });
+  const [filters] = useServedAddress(RELEASES_DEFAULTS, served, filtersOfPath);
+  const { data } = useReleases(served, filters);
   return data ? <span className="t-small text-ink-3">As of {formatDateTime(data.meta.asOf)}</span> : null;
 }

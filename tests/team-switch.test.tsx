@@ -23,7 +23,8 @@ const ONE = settled({ caller: 'noah@example.com', team: 'team-one', user: { role
 const TWO = settled({ caller: 'noah@example.com', team: 'team-two', user: { role: 'Member' } });
 
 const me = { email: 'noah@example.com', name: 'Noah', role: 'member', mayRead: true, superadmin: false, via: 'session', teams: [{ slug: 'team-one', role: 'admin' }, { slug: 'team-two', role: 'member' }], activeTeam: 'team-one' };
-const myTeams = { actingFor: 'team-one', teams: [{ team: 'team-one', role: 'admin', active: true }, { team: 'team-two', role: 'member', active: false }], note: null };
+/** The teams Access's read answers, handed to the section as the page hands it. */
+const myTeams = { actingFor: 'team-one', teams: [{ team: 'team-one', role: 'admin', active: true }, { team: 'team-two', role: 'member', active: false }] };
 /** The assistant's thread as ZZ Meridian keeps it: for one person and the team they act for (`AssistantScope`). */
 const SCOPE = 'team-one/noah@example.com';
 const THREAD: UIMessage[] = [
@@ -39,7 +40,7 @@ let held: Map<string, () => void>;
 let switchAnswer: { status: number; body: unknown };
 let replaced: { href: string; thread: string | null; switchKey: string | null }[];
 /** The address the page is on. */
-const HERE = 'http://localhost:3000/settings';
+const HERE = 'http://localhost:3000/access';
 
 function Probe({ team }: { team: string }) {
   const q = useConsole<{ marker: string }>('/overview');
@@ -68,7 +69,7 @@ beforeEach(() => {
   switchAnswer = { status: 200, body: { ok: true, actingFor: 'team-two', from: 'team-one' } };
   let team = 'team-one';
   vi.stubGlobal('location', {
-    href: HERE, origin: 'http://localhost:3000', pathname: '/settings', search: '', hash: '',
+    href: HERE, origin: 'http://localhost:3000', pathname: '/access', search: '', hash: '',
     replace: (href: string) => { replaced.push({ href, thread: window.localStorage.getItem(THREAD_KEY), switchKey: window.localStorage.getItem('zz-stack-team-switch') }); },
   });
   vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -80,7 +81,6 @@ beforeEach(() => {
       if (switchAnswer.status === 200) team = 'team-two';
       return json(switchAnswer.status, switchAnswer.body);
     }
-    if (url.includes('/settings/me/teams')) return json(200, myTeams);
     if (url.endsWith('/console/me')) return json(200, me);
     // The read answers for the team the session acts for when the gateway reads it, as the gateway does.
     const answeredFor = team;
@@ -116,7 +116,7 @@ describe('the read key', () => {
 describe('a switch the gateway accepts', () => {
   it('clears the assistant\'s thread, tells the other tabs, and only then replaces the document with the same address', async () => {
     saveThread(window.localStorage, SCOPE, THREAD);
-    render(<Tree client={new QueryClient()} access={ONE} team="team-one"><TeamsPanel /></Tree>);
+    render(<Tree client={new QueryClient()} access={ONE} team="team-one"><TeamsPanel teams={myTeams} /></Tree>);
     const press = await screen.findByRole('button', { name: 'Act as this team' });
     const readsBefore = calls.filter((c) => c.method === 'GET').length;
     await act(async () => { fireEvent.click(press); });
@@ -136,7 +136,7 @@ describe('a switch the gateway accepts', () => {
   it('draws a response for the old team held back past the switch under the old team\'s key, never for the new one', async () => {
     held.set('hold:team-one', () => {});
     const client = new QueryClient();
-    const view = render(<Tree client={client} access={ONE} team="team-one"><TeamsPanel /></Tree>);
+    const view = render(<Tree client={client} access={ONE} team="team-one"><TeamsPanel teams={myTeams} /></Tree>);
     await waitFor(() => expect(held.has('team-one')).toBe(true));
     await act(async () => { fireEvent.click(await screen.findByRole('button', { name: 'Act as this team' })); });
     await waitFor(() => expect(replaced).toHaveLength(1));
@@ -159,7 +159,7 @@ describe('a switch the gateway refuses', () => {
     switchAnswer = { status: 400, body: { error: 'not a member of team-two' } };
     saveThread(window.localStorage, SCOPE, THREAD);
     const client = new QueryClient();
-    render(<Tree client={client} access={ONE} team="team-one"><TeamsPanel /></Tree>);
+    render(<Tree client={client} access={ONE} team="team-one"><TeamsPanel teams={myTeams} /></Tree>);
     await waitFor(() => expect(screen.getByTestId('marker')).toHaveTextContent('team-one'));
     await act(async () => { fireEvent.click(await screen.findByRole('button', { name: 'Act as this team' })); });
     await waitFor(() => expect(calls.some((c) => c.method === 'POST')).toBe(true));

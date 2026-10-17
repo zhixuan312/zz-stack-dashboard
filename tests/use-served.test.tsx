@@ -1,8 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, renderHook, waitFor } from '@testing-library/react';
+import { act, render, renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
+import { hydrateRoot } from 'react-dom/client';
+import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useServed } from '@/views/use-served';
+import { useServed, useServedAddress } from '@/views/use-served';
 
 /**
  * A page whose first read the console's server made follows it with `useServed`. A filter or a page of rows moves the
@@ -60,5 +62,43 @@ describe('useServed', () => {
     expect(urls).toEqual([]);
     act(() => result.current.follow());
     await waitFor(() => expect(urls).toHaveLength(1));
+  });
+});
+
+describe('useServedAddress', () => {
+  const DEFAULTS = { status: 'all', page: '1' };
+  const filtersOfPath = (path: string) => {
+    const q = new URLSearchParams(path.split('?')[1]);
+    return { status: q.get('status') ?? 'all', page: String(Number(q.get('offset')) / 10 + 1) };
+  };
+  /** The address a page draws, as text. */
+  function Drawn({ served }: { served: { path: string } | null }) {
+    const [f] = useServedAddress(DEFAULTS, served, filtersOfPath);
+    return <p>{`${f.status} ${f.page}`}</p>;
+  }
+
+  beforeEach(() => window.history.replaceState(null, '', '/teams?status=archived&page=2'));
+  afterEach(() => window.history.replaceState(null, '', '/'));
+
+  it('draws the address the server read on the console\'s server, where the address reader answers its defaults', () => {
+    expect(renderToString(<Drawn served={{ path: '/teams?status=archived&limit=10&offset=10' }} />)).toBe('<p>archived 2</p>');
+    expect(renderToString(<Drawn served={null} />)).toBe('<p>all 1</p>');
+  });
+
+  it('hydrates onto the same address, then draws the address itself', async () => {
+    const container = document.body.appendChild(document.createElement('div'));
+    // The server read another address than the one the browser now holds, so the hand-over is seen.
+    const served = { path: '/teams?status=active&limit=10&offset=0' };
+    container.innerHTML = renderToString(<Drawn served={served} />);
+    const mismatches: unknown[] = [];
+    await act(async () => { hydrateRoot(container, <Drawn served={served} />, { onRecoverableError: (e) => mismatches.push(e) }); });
+    expect(mismatches).toEqual([]);
+    expect(container.textContent).toBe('archived 2');
+    container.remove();
+  });
+
+  it('draws the address itself from the first render once the browser knows it', () => {
+    const { container } = render(<Drawn served={{ path: '/teams?status=active&limit=10&offset=0' }} />);
+    expect(container.textContent).toBe('archived 2');
   });
 });

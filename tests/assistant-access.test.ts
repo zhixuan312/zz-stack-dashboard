@@ -28,6 +28,7 @@ import { ME } from '../scripts/fake-gateway/people.ts';
 import { audit } from '../scripts/fake-gateway/platform-audit.ts';
 import { bugReport, bugs, duplicates } from '../scripts/fake-gateway/platform-bugs.ts';
 import { evaluation } from '../scripts/fake-gateway/platform-evaluation.ts';
+import { knowledge } from '../scripts/fake-gateway/platform-knowledge.ts';
 import { people } from '../scripts/fake-gateway/platform-people.ts';
 import { MEMBER_STATUS, PLATFORM_STATUS } from '../scripts/fake-gateway/platform-status.ts';
 import { teamDetail, teams } from '../scripts/fake-gateway/platform-teams.ts';
@@ -79,6 +80,7 @@ function gateway(who: Me | null | (() => Me | null), { shared = false } = {}) {
                                 : path.startsWith('/platform/bugs/') && path.endsWith('/duplicates') ? duplicates(path.split('/')[3])
                                   : path.startsWith('/platform/bugs/') ? bugReport(path.split('/')[3])
                                     : path === '/platform/evaluation' ? evaluation(me.superadmin)
+                                      : path === '/platform/knowledge' ? knowledge(me.superadmin, me.activeTeam)
                                       : path === '/platform/audit' ? audit(query, { limit: Number(query.get('limit') ?? 10), offset: Number(query.get('offset') ?? 0) })![1]
                                         : {};
     return { ok: true, status: 200, json: async () => body } as Response;
@@ -191,7 +193,7 @@ describe('what an agent is offered', () => {
     // The views the route registers for them: the ones whose need they satisfy (`app/api/assistant/route.ts`).
     const views = [];
     for (const v of viewTools) if (await may(v.needs)) views.push(v.name);
-    expect(views).toEqual(['home', 'record', 'initiatives', 'initiative', 'document', 'approvals', 'knowledge', 'knowledge_node', 'knowledge_log', 'search', 'settings', 'platform_status', 'releases', 'release', 'bugs', 'evaluation', 'usage']);
+    expect(views).toEqual(['home', 'record', 'initiatives', 'initiative', 'document', 'approvals', 'knowledge', 'knowledge_node', 'knowledge_log', 'search', 'access', 'platform_status', 'releases', 'release', 'bugs', 'evaluation', 'usage', 'knowledge_health']);
   });
 
   it('a superadmin is offered every collection', async () => {
@@ -255,10 +257,11 @@ describe('what the route hands the model', () => {
 
   it('offers no query_<name> tool, and the explore_<view> of the page the person is on and no other', async () => {
     for (const [who, path, view] of [
-      [MEMBER, '/initiatives', 'initiatives'], [MEMBER, '/settings', 'settings'], [MEMBER, '/platform', 'platform_status'], [ME, '/platform/teams/atlas', 'team'],
+      [MEMBER, '/initiatives', 'initiatives'], [MEMBER, '/access', 'access'], [MEMBER, '/platform', 'platform_status'], [ME, '/platform/teams/atlas', 'team'],
       [MEMBER, '/platform/releases', 'releases'], [MEMBER, '/platform/releases/0.97.0', 'release'],
       [MEMBER, '/platform/bugs', 'bugs'], [ME, '/platform/bugs/0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d01', 'bug'], [MEMBER, '/platform/usage', 'usage'],
       [MEMBER, '/approvals', 'approvals'], [MEMBER, '/platform/evaluation', 'evaluation'], [ME, '/platform/audit', 'audit'],
+      [MEMBER, '/platform/knowledge', 'knowledge_health'],
       [ME, '/runs', 'runs'], [MEMBER, '/knowledge', 'knowledge'], [MEMBER, '/initiatives/atlas/2026-09-28-search-relevance/sources/notes.md', 'document'],
     ] as const) {
       const tools = await handed(who, path);
@@ -316,9 +319,10 @@ describe('a view tool\'s address', () => {
       home: '/', record: '/record', teams: '/platform/teams', team: '/platform/teams/[slug]', initiatives: '/initiatives', initiative: '/initiatives/[team]/[slug]',
       document: '/initiatives/[team]/[slug]/[...path]', knowledge: '/knowledge', knowledge_node: '/knowledge/[team]/[...path]',
       knowledge_log: '/knowledge/log', search: '/knowledge', people: '/platform/people', plugins: '/plugins', plugin: '/plugins/[plugin]',
-      skill: '/plugins/[plugin]/[skill]', runs: '/runs', activity: '/activity', settings: '/settings', platform_status: '/platform',
+      skill: '/plugins/[plugin]/[skill]', runs: '/runs', activity: '/activity', access: '/access', platform_status: '/platform',
       releases: '/platform/releases', release: '/platform/releases/[version]', bugs: '/platform/bugs', bug: '/platform/bugs/[id]',
       usage: '/platform/usage', approvals: '/approvals', evaluation: '/platform/evaluation', audit: '/platform/audit',
+      knowledge_health: '/platform/knowledge',
     });
     // Search shares Knowledge's page and comes after it, so the prepared query Knowledge offers is its own.
     expect(viewAt(viewTools, '/knowledge')?.name).toBe('knowledge');

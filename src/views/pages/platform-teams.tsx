@@ -5,7 +5,7 @@ import { BookOpen, ListTree, Signature, Users } from 'lucide-react';
 import { useShareView } from '@/components/base/use-share-view';
 import { Sparkline } from '@/components/charts/sparkline';
 import { AskAbout } from '@/components/patterns/ask-about';
-import { DataTable, useQueryState, useSearchDraft, type Column } from '@/components/patterns/data-table';
+import { DataTable, useSearchDraft, type Column } from '@/components/patterns/data-table';
 import { FilterBar } from '@/components/patterns/filter-bar';
 import { MetricTile } from '@/components/patterns/metric-tile';
 import { Records } from '@/components/templates/records';
@@ -24,10 +24,10 @@ import { formatDateTime, formatRelative } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
 import { useConsoleMutation } from '@/lib/mutate';
-import { useServed } from '@/views/use-served';
+import { useServed, useServedAddress } from '@/views/use-served';
 import { pendingContext } from '@/views/context';
 import { TILES, sessionPoints, teamsContext, teamsTrouble, weekCount, type TeamsRead } from '@/views/teams-context';
-import { TEAMS_DEFAULTS, TEAM_STATUSES, narrowed, teamsPath, type TeamsFilters } from '@/views/teams-filter';
+import { TEAMS_DEFAULTS, TEAM_STATUSES, filtersOfPath, narrowed, teamsPath, type TeamsFilters } from '@/views/teams-filter';
 
 /** A team's sessions by week, as a line beside its row: its own past, never set against another team's. */
 function Sessions({ t }: { t: TeamRow }) {
@@ -103,9 +103,8 @@ function useTeams(served: TeamsRead | null, filters: TeamsFilters) {
  */
 export function PlatformTeamsView({ served }: { served: TeamsRead }) {
   useLive(['teams']);
-  const [f, set] = useQueryState(TEAMS_DEFAULTS);
-  const [draft, setDraft] = useSearchDraft(f.q, (q) => set({ q, page: '1' }));
-  const filters = useMemo(() => ({ q: f.q, status: f.status, page: f.page }), [f.q, f.status, f.page]);
+  const [filters, set] = useServedAddress(TEAMS_DEFAULTS, served, filtersOfPath);
+  const [draft, setDraft] = useSearchDraft(filters.q, (q) => set({ q, page: '1' }));
   const { data, trouble, retry, updatedAt } = useTeams(served, filters);
   const now = useDataClock();
   const asOf = data?.meta.asOf;
@@ -145,7 +144,7 @@ export function PlatformTeamsView({ served }: { served: TeamsRead }) {
           loading={!data && !trouble}
           error={trouble ?? undefined}
           onRetry={retry}
-          state={{ sort: '', dir: 'desc', page: f.page }}
+          state={{ sort: '', dir: 'desc', page: filters.page }}
           onStateChange={(p) => { if (p.page) set({ page: p.page }); }}
           filtered={narrow}
           onClearFilters={clear}
@@ -153,7 +152,7 @@ export function PlatformTeamsView({ served }: { served: TeamsRead }) {
           toolbar={
             <FilterBar
               search={{ value: draft, onChange: setDraft, placeholder: 'Search teams' }}
-              filters={[{ key: 'status', label: 'Status', value: f.status, onChange: (v) => set({ status: v, page: '1' }), options: STATUS_OPTIONS }]}
+              filters={[{ key: 'status', label: 'Status', value: filters.status, onChange: (v) => set({ status: v, page: '1' }), options: STATUS_OPTIONS }]}
               result={data ? `${formatCount(data.total)} ${plural(data.total, 'team')}` : mark}
               ask={<AskAbout question={narrow ? 'What do the teams in this list show about their own last weeks?' : 'How has each team\'s real-work use moved against its own past weeks?'} />}
               onClear={clear}
@@ -167,8 +166,8 @@ export function PlatformTeamsView({ served }: { served: TeamsRead }) {
 
 /** The masthead's as-of line: the cutoff of the read the table draws, nothing while there is none. */
 export function TeamsAsOf({ served }: { served: TeamsRead }) {
-  const [f] = useQueryState(TEAMS_DEFAULTS);
-  const { data } = useTeams(served, { q: f.q, status: f.status, page: f.page });
+  const [filters] = useServedAddress(TEAMS_DEFAULTS, served, filtersOfPath);
+  const { data } = useTeams(served, filters);
   return data ? <span className="t-small text-ink-3">As of {formatDateTime(data.meta.asOf)}</span> : null;
 }
 

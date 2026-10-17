@@ -39,6 +39,12 @@ export function runsPath(f: RunsFilters, rows: RunsRows = { limit: PAGE_SIZE, of
   return `/runs?${p}`;
 }
 
+/** The page's address read back from a gateway path `runsPath` wrote: its skill, and the page of ten the offset falls in. */
+export function filtersOfPath(path: string): RunsFilters {
+  const q = new URLSearchParams(path.split('?')[1] ?? '');
+  return { skill: q.get('skill') ?? 'all', page: String(Math.floor(Math.max(0, Number(q.get('offset')) || 0) / PAGE_SIZE) + 1) };
+}
+
 /** The filters a page's address names, as Next hands a server page its search parameters: one value each, the first. */
 export function filtersOf(params: Record<string, string | string[] | undefined>): RunsFilters {
   const one = (k: keyof RunsFilters) => {

@@ -1,11 +1,10 @@
 'use client';
 
-import { useMemo, useSyncExternalStore } from 'react';
 import { RotateCw } from 'lucide-react';
 import { useShareView } from '@/components/base/use-share-view';
 import { ActivityFeed } from '@/components/patterns/activity-feed';
 import { AskAbout } from '@/components/patterns/ask-about';
-import { DataTable, useQueryState, type Column } from '@/components/patterns/data-table';
+import { DataTable, type Column } from '@/components/patterns/data-table';
 import { FilterBar } from '@/components/patterns/filter-bar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -25,7 +24,7 @@ import {
   filtersOfPath, kindsOf, narrowed, notRecordedWords, originOf, resultOf, tabOf, teamsOf, type AuditFilter, type AuditFilters, type AuditRead,
 } from '@/views/platform-audit-context';
 import { OWNER_LABEL } from '@/views/activity-context';
-import { useServed } from '@/views/use-served';
+import { useServed, useServedAddress } from '@/views/use-served';
 
 /** The protagonist's title: the card the page's first Ask sits on. COUPLED: the README's `Protagonist:`. */
 const FEED_TITLE = 'Administration';
@@ -44,23 +43,6 @@ function useAudit(served: AuditRead, filters: AuditFilters) {
   const trouble = data ? null : failed ?? (mine && mine.state !== 'ok' && !q.isFetching ? auditTrouble(mine) : null);
   const retry = () => (q.data !== undefined || q.error ? void q.refetch() : follow());
   return { data, trouble, retry, updatedAt: q.data ? new Date(q.dataUpdatedAt) : data ? data.meta.asOf : null };
-}
-
-const never = () => () => {};
-
-/**
- * The address the page draws. The address reader's server snapshot is its defaults, so on the console's server and while
- * the page hydrates it would say Administration's first page whatever the address was, and the first paint of
- * `?filter=all` would be the feed's skeleton under the wrong tab. Until the browser knows its own address, the address
- * is the one the server read, worked out from the read's path; from then on it is the address itself, which on a first
- * load is the same one.
- */
-function useAuditFilters(served: AuditRead): [AuditFilters, (patch: Partial<AuditFilters>) => void] {
-  const [f, set] = useQueryState(AUDIT_DEFAULTS);
-  const hydrated = useSyncExternalStore(never, () => true, () => false);
-  const addressed = useMemo(() => ({ filter: f.filter, kind: f.kind, team: f.team, before: f.before, page: f.page }), [f.filter, f.kind, f.team, f.before, f.page]);
-  const read = useMemo(() => filtersOfPath(served.path), [served.path]);
-  return [hydrated ? addressed : read, set];
 }
 
 const dash = <span className="text-ink-3">—</span>;
@@ -96,7 +78,7 @@ const COLUMNS: Column<AuditRow>[] = aligned([
  * filters and the page are in the address, and each is read on the console's server.
  */
 export function PlatformAuditView({ served }: { served: AuditRead }) {
-  const [filters, set] = useAuditFilters(served);
+  const [filters, set] = useServedAddress(AUDIT_DEFAULTS, served, filtersOfPath);
   const tab = tabOf(filters);
   const { data, trouble, retry, updatedAt } = useAudit(served, filters);
   const now = useDataClock();
@@ -218,7 +200,7 @@ function Events({ data, trouble, retry, filters, set }: {
 
 /** The masthead's as-of line: the cutoff of the read the page draws, nothing while there is none. */
 export function AuditAsOf({ served }: { served: AuditRead }) {
-  const [filters] = useAuditFilters(served);
+  const [filters] = useServedAddress(AUDIT_DEFAULTS, served, filtersOfPath);
   const { data } = useAudit(served, filters);
   return data ? <span className="t-small text-ink-3">As of {formatDateTime(data.meta.asOf)}</span> : null;
 }

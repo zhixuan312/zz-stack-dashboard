@@ -2,6 +2,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import { Tooltip } from 'radix-ui';
 import type { ReactElement, ReactNode } from 'react';
+import { hydrateRoot } from 'react-dom/client';
+import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const gateway = vi.hoisted(() => ({ get: vi.fn() }));
@@ -11,7 +13,7 @@ import { GatewayError } from '@/data/gateway';
 import type { Me } from '@/lib/api-shapes';
 import type { InitiativeList } from '@/lib/work-shapes';
 import { INITIATIVES_BOUND_MS, type InitiativesRead } from '@/views/initiatives-context';
-import { INITIATIVES_DEFAULTS, filtersOf, listPath } from '@/views/initiatives-filter';
+import { INITIATIVES_DEFAULTS, filtersOf, filtersOfPath, listPath } from '@/views/initiatives-filter';
 import { InitiativeView } from '@/views/pages/initiative';
 import { InitiativesView } from '@/views/pages/initiatives';
 import { initiativeList } from '../scripts/fake-gateway/work-initiatives.ts';
@@ -158,6 +160,42 @@ describe('a filter, a search and a page are the server\'s parameters', () => {
     mount(<InitiativesView served={ok(none)} />);
     expect(text()).toContain('No initiative yet');
     expect(text()).toContain('The closures by week could not be read');
+  });
+});
+
+describe('the first paint of a searched address', () => {
+  it('draws the search and the rows the server read, then hydrates onto the same markup', async () => {
+    const q = LIST.rows[0]!.slug;
+    window.history.replaceState(null, '', `/initiatives?q=${q}`);
+    browser(null);
+    const path = listPath({ ...INITIATIVES_DEFAULTS, q });
+    const found = listOf(path);
+    expect(found.rows.length).toBeGreaterThan(0);
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const view = <QueryClientProvider client={client}><Tooltip.Provider><InitiativesView served={ok(found, path)} /></Tooltip.Provider></QueryClientProvider>;
+    const container = document.body.appendChild(document.createElement('div'));
+    try {
+      container.innerHTML = renderToString(view);
+      const drawn = () => container.querySelectorAll('section[aria-label="Initiatives"] tbody tr');
+      expect(container.querySelector('[aria-busy="true"]')).toBeNull();
+      expect(drawn()).toHaveLength(found.rows.length);
+      expect(container.querySelector<HTMLInputElement>('input[placeholder="Search initiatives"]')?.value).toBe(q);
+      // The browser takes the server's markup over as it stands: no mismatch, the rows stay drawn, and nothing is read.
+      const mismatches: unknown[] = [];
+      await act(async () => { hydrateRoot(container, view, { onRecoverableError: (e) => mismatches.push(e) }); });
+      expect(mismatches).toEqual([]);
+      expect(drawn()).toHaveLength(found.rows.length);
+      await settle();
+      expect(reads()).toEqual([]);
+    } finally {
+      container.remove();
+    }
+  });
+
+  it('reads the address back from the server\'s path', () => {
+    for (const f of [INITIATIVES_DEFAULTS, { ...INITIATIVES_DEFAULTS, page: '2' }, { q: 'search', state: 'waiting', flow: 'sdlc', page: '3' }]) {
+      expect(filtersOfPath(listPath(f))).toEqual(f);
+    }
   });
 });
 

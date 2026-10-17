@@ -1,11 +1,11 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { HardDrive, RotateCw, Timer, Trophy } from 'lucide-react';
 import { Row, Stack } from '@/components/base/shell';
 import { useShareView } from '@/components/base/use-share-view';
 import { AskAbout } from '@/components/patterns/ask-about';
-import { DataTable, useQueryState, type Column } from '@/components/patterns/data-table';
+import { DataTable, type Column } from '@/components/patterns/data-table';
 import { MetricTile } from '@/components/patterns/metric-tile';
 import { Busy, TableSkeleton, TilesSkeleton } from '@/components/patterns/page-loading';
 import { Badge } from '@/components/ui/badge';
@@ -25,9 +25,9 @@ import { formatCount, formatKb, formatSeconds } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
 import { pendingContext } from '@/views/context';
 import {
-  PAGE_SIZE, RUNS_DEFAULTS, TILES, outputOf, pageOf, runsContext, runsPath, runsTrouble, stateOf, type RunsFilters, type RunsRead,
+  PAGE_SIZE, RUNS_DEFAULTS, TILES, filtersOfPath, outputOf, pageOf, runsContext, runsPath, runsTrouble, stateOf, type RunsFilters, type RunsRead,
 } from '@/views/runs-context';
-import { useServed } from '@/views/use-served';
+import { useServed, useServedAddress } from '@/views/use-served';
 
 /** A byte count as the tiles show it. */
 const kb = (bytes: number): string => formatKb(bytes / 1024);
@@ -39,8 +39,7 @@ const kb = (bytes: number): string => formatKb(bytes / 1024);
  * runs drawn stay, marked busy. A failure is stated only when there is nothing to draw.
  */
 function useRuns(served: RunsRead | null) {
-  const [f, set] = useQueryState(RUNS_DEFAULTS);
-  const filters = useMemo((): RunsFilters => ({ skill: f.skill, page: f.page }), [f.skill, f.page]);
+  const [filters, set] = useServedAddress(RUNS_DEFAULTS, served, filtersOfPath);
   const path = runsPath(filters);
   const mine = served?.path === path ? served : null;
   const { q, follow } = useServed<Runs>(path, mine !== null, mine === null && served !== null);
@@ -79,16 +78,16 @@ export function RunsAsOf({ served }: { served: RunsRead | null }) {
  * they have, it offers every skill they hold. Nothing is read here: the read is the server's.
  */
 export function RunsActions({ served }: { served: RunsRead | null }) {
-  return served ? <ServedActions served={served} /> : <SkillControl />;
+  return served ? <ServedActions served={served} /> : <SkillControl served={null} />;
 }
 
 function ServedActions({ served }: { served: RunsRead }) {
   const { data } = useRuns(served);
-  return <SkillControl skills={data?.bySkill.state === 'ok' ? data.bySkill.data.rows.map((k) => k.skill) : []} />;
+  return <SkillControl served={served} skills={data?.bySkill.state === 'ok' ? data.bySkill.data.rows.map((k) => k.skill) : []} />;
 }
 
-function SkillControl({ skills = [] }: { skills?: string[] }) {
-  const [f, set] = useQueryState(RUNS_DEFAULTS);
+function SkillControl({ served, skills = [] }: { served: RunsRead | null; skills?: string[] }) {
+  const [f, set] = useServedAddress(RUNS_DEFAULTS, served, filtersOfPath);
   const names = f.skill !== 'all' && !skills.includes(f.skill) ? [f.skill, ...skills] : skills;
   return (
     <Select

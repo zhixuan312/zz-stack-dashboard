@@ -74,6 +74,7 @@ async function memberReads(): Promise<string[]> {
     'platform/query?measure=calls&by=week', 'platform/query?measure=bugs_filed&by=impact',
     'platform/bugs', 'platform/bugs?limit=100', 'platform/bugs?state=resolved&limit=100',
     'platform/evaluation', 'platform/query?measure=findings&by=owner',
+    'platform/knowledge', 'platform/query?measure=lessons&by=shelf', 'platform/query?measure=searches&by=found',
   ];
   // The list's rows name no team: each is the active team's, and its page opens under that team.
   const { rows } = await read<{ rows: { slug: string }[] }>(MEMBER, 'initiatives?limit=100');

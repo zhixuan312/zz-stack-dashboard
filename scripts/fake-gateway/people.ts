@@ -57,7 +57,7 @@ export function signedIn(header: string | undefined): Me | null {
   return SESSIONS[session.slice(SESSION_COOKIE.length + 1)] ?? null;
 }
 
-export const MY_TOKENS: MyAccessToken[] = [
+const MY_TOKENS: MyAccessToken[] = [
   { id: 'tok_1f2e3d4c', label: 'mcp oauth — /core/mcp — ava.lindqvist@example.com', created_at: ago(96), last_used_at: ago(0.2), revoked_at: null },
   { id: 'tok_5a6b7c8d', label: 'laptop — release scripts', created_at: ago(400), last_used_at: ago(30), revoked_at: null },
   { id: 'tok_9e0f1a2b', label: 'mcp oauth — /manage/mcp — ava.lindqvist@example.com', created_at: ago(700), last_used_at: null, revoked_at: null },
@@ -101,5 +101,3 @@ export const teamsOf = (who: Me): MyTeams => ({
   teams: who.teams.map((t) => ({ team: t.slug, role: t.role, active: t.slug === who.activeTeam })),
   note: 'team_switch moves you to another one. You act for exactly one team at a time, so switching changes what every client shows you.',
 });
-
-export const MY_TEAMS: MyTeams = teamsOf(ME);

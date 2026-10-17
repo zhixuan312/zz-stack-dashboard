@@ -48,6 +48,12 @@ export function approvalsPath(f: ApprovalsFilters, rows: ApprovalsRows = { limit
   return `/approvals?${new URLSearchParams({ tab: tabOf(f), limit: String(rows.limit), offset: String(rows.offset) })}`;
 }
 
+/** The page's address read back from a gateway path `approvalsPath` wrote: its tab, and the page of ten the offset falls in. */
+export function filtersOfPath(path: string): ApprovalsFilters {
+  const q = new URLSearchParams(path.split('?')[1] ?? '');
+  return { tab: tabOf({ tab: q.get('tab') ?? '' }), page: pageAt(Math.max(0, Number(q.get('offset')) || 0)) };
+}
+
 /** The console address of a tab's page, the defaults left out: `/approvals`, `/approvals?tab=history&page=2`. */
 export const approvalsAddress = (tab: ApprovalsTab, page = 1): string => addressOf('/approvals', { tab, page: String(page) }, APPROVALS_DEFAULTS);
 

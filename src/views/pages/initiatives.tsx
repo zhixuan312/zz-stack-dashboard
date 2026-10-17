@@ -5,7 +5,7 @@ import { useMemo } from 'react';
 import { CircleCheck, ListTree, Signature } from 'lucide-react';
 import { useShareView } from '@/components/base/use-share-view';
 import { AskAbout } from '@/components/patterns/ask-about';
-import { DataTable, useQueryState, useSearchDraft, type Column } from '@/components/patterns/data-table';
+import { DataTable, useSearchDraft, type Column } from '@/components/patterns/data-table';
 import { FilterBar } from '@/components/patterns/filter-bar';
 import { MetricTile } from '@/components/patterns/metric-tile';
 import { Records } from '@/components/templates/records';
@@ -24,8 +24,8 @@ import { useLive } from '@/lib/live';
 import type { InitiativeList, InitiativeRow } from '@/lib/work-shapes';
 import { pendingContext } from '@/views/context';
 import { OUTCOMES, TILES, closedLine, initiativesContext, initiativesTrouble, nextOf, type InitiativesRead } from '@/views/initiatives-context';
-import { INITIATIVES_DEFAULTS, LIST_STATES, PAGE_SIZE, STATE_LABEL, listPath, narrowed, pageOf, type InitiativesFilters } from '@/views/initiatives-filter';
-import { useServed } from '@/views/use-served';
+import { INITIATIVES_DEFAULTS, LIST_STATES, PAGE_SIZE, STATE_LABEL, filtersOfPath, listPath, narrowed, pageOf, type InitiativesFilters } from '@/views/initiatives-filter';
+import { useServed, useServedAddress } from '@/views/use-served';
 
 // The chart is the page's heaviest module and draws below the tiles, so it arrives after the first paint.
 const ColumnChart = dynamic(() => import('@/components/charts/column-chart').then((m) => m.ColumnChart), { loading: () => <Skeleton className="h-56 rounded-md" /> });
@@ -72,9 +72,8 @@ function useInitiatives(served: InitiativesRead | null, filters: InitiativesFilt
  */
 export function InitiativesView({ served }: { served: InitiativesRead }) {
   useLive(['initiatives']);
-  const [f, set] = useQueryState(INITIATIVES_DEFAULTS);
-  const [draft, setDraft] = useSearchDraft(f.q, (q) => set({ q, page: '1' }));
-  const filters = useMemo(() => ({ q: f.q, state: f.state, flow: f.flow, page: f.page }), [f.q, f.state, f.flow, f.page]);
+  const [filters, set] = useServedAddress(INITIATIVES_DEFAULTS, served, filtersOfPath);
+  const [draft, setDraft] = useSearchDraft(filters.q, (q) => set({ q, page: '1' }));
   const { data, trouble, retry, updatedAt } = useInitiatives(served, filters);
   const now = useDataClock();
   const page = pageOf(filters);
@@ -84,8 +83,8 @@ export function InitiativesView({ served }: { served: InitiativesRead }) {
   // The flows the filtered population holds, and the one chosen, which a narrower filter could otherwise drop.
   const flows = useMemo(() => {
     const named = data?.summary.state === 'ok' ? data.summary.data.byFlow.flatMap((b) => (b.flow ? [b.flow] : [])) : [];
-    return [...new Set([...named, ...(f.flow === 'all' ? [] : [f.flow])])];
-  }, [data, f.flow]);
+    return [...new Set([...named, ...(filters.flow === 'all' ? [] : [filters.flow])])];
+  }, [data, filters.flow]);
   const narrow = narrowed(filters);
   const clear = () => set({ q: '', state: 'all', flow: 'all', page: '1' });
   const team = served.state === 'ok' ? served.team : null;
@@ -129,8 +128,8 @@ export function InitiativesView({ served }: { served: InitiativesRead }) {
             <FilterBar
               search={{ value: draft, onChange: setDraft, placeholder: 'Search initiatives' }}
               filters={[
-                { key: 'state', label: 'State', value: f.state, onChange: (v) => set({ state: v, page: '1' }), options: STATE_OPTIONS },
-                { key: 'flow', label: 'Flow', value: f.flow, onChange: (v) => set({ flow: v, page: '1' }), options: [{ value: 'all', label: 'All' }, ...flows.map((v) => ({ value: v, label: v }))] },
+                { key: 'state', label: 'State', value: filters.state, onChange: (v) => set({ state: v, page: '1' }), options: STATE_OPTIONS },
+                { key: 'flow', label: 'Flow', value: filters.flow, onChange: (v) => set({ flow: v, page: '1' }), options: [{ value: 'all', label: 'All' }, ...flows.map((v) => ({ value: v, label: v }))] },
               ]}
               result={data ? `${formatCount(data.total)} ${plural(data.total, 'initiative')}` : mark}
               ask={<AskAbout question={narrow ? 'What do the initiatives in this list have in common, and which needs me next?' : 'Which initiatives need me next, and what is each waiting on?'} />}
@@ -173,7 +172,7 @@ function Closures({ list, mark }: { list: InitiativeList | undefined; mark: stri
 
 /** The masthead's as-of line: the cutoff of the read the page draws, nothing while there is none. */
 export function InitiativesAsOf({ served }: { served: InitiativesRead }) {
-  const [f] = useQueryState(INITIATIVES_DEFAULTS);
-  const { data } = useInitiatives(served, { q: f.q, state: f.state, flow: f.flow, page: f.page });
+  const [filters] = useServedAddress(INITIATIVES_DEFAULTS, served, filtersOfPath);
+  const { data } = useInitiatives(served, filters);
   return data ? <span className="t-small text-ink-3">As of {formatDateTime(data.meta.asOf)}</span> : null;
 }

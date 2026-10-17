@@ -145,9 +145,9 @@ const config: VerifyConfig = {
     // tile's info button, whose tooltip says what the tile counts.
     { path: '/runs', title: 'Runs', readySelector: 'main [data-figures="read"] [data-value]', probe: 'toggle', controlSelector: 'main button[aria-label^="About "]', resultSelector: '[role="tooltip"]' },
     { path: '/activity', title: 'Activity', readySelector: 'main [data-figures="read"] [data-value]', probe: 'toggle', controlSelector: 'main button[aria-label^="About "]', resultSelector: '[role="tooltip"]' },
-    // No search field on Settings, so the dialog is the change the check can read. It draws a table,
-    // so `main table tbody tr` is what says the data arrived.
-    { path: '/settings', title: 'Settings', readySelector: 'main table tbody tr', probe: 'dialog', controlSelector: 'main button[aria-haspopup="dialog"]', resultSelector: '[role="dialog"]' },
+    // Settings says in one sentence that its contents moved, with the link to Access (Task I-112), until Task I-114 takes
+    // it out of the rail: its data is that sentence, and its one control the link, whose press puts Access's heading up.
+    { path: '/settings', title: 'Settings', readySelector: 'main [data-moved]', probe: 'link', controlSelector: 'main [data-moved] a[href="/access"]', resultSelector: 'main h1' },
     // Status leads with what needs attention and the paired figures, read on the server: its data is the Featured
     // metric's first figure, the last whole week's malformed calls per 1,000 (`.t-figure` is the team's tiles now). The
     // one control is a team tile's info button, whose tooltip says what the figure counts. Read off the source on 2026-10-17.

@@ -3,6 +3,8 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import userEvent from '@testing-library/user-event';
 import { Tooltip } from 'radix-ui';
 import { cloneElement, isValidElement, Suspense, type ReactNode } from 'react';
+import { hydrateRoot } from 'react-dom/client';
+import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /** The router as the address writer sees it: a replace lands in the address and tells its readers, as a navigation does. */
@@ -30,7 +32,7 @@ import type { Runs } from '@/lib/destination-shapes';
 import { formatDate } from '@/lib/format-date';
 import { formatKb } from '@/lib/format-units';
 import { RunsActions, RunsView } from '@/views/pages/runs';
-import { RUNS_BOUND_MS, RUNS_DEFAULTS, runsPath, stateOf, type RunsRead } from '@/views/runs-context';
+import { RUNS_BOUND_MS, RUNS_DEFAULTS, filtersOfPath, runsPath, stateOf, type RunsRead } from '@/views/runs-context';
 import RunsLoading from '../app/(dash)/runs/loading';
 import RunsPage from '../app/(dash)/runs/page';
 import { readRuns } from '../app/(dash)/runs/read-runs';
@@ -255,6 +257,37 @@ describe('the skill control', () => {
     expect(firstCells(table('By skill'))).toEqual(['sdlc-plan']);
     expect(new Set(firstCells(table('Recent runs')))).toEqual(new Set(['sdlc-plan']));
     expect(reads()).toEqual([]);
+  });
+});
+
+describe('the first paint of a skill\'s address', () => {
+  it('draws the runs of the skill the server read, then hydrates onto the same markup', async () => {
+    window.history.replaceState(null, '', '/runs?skill=sdlc-plan');
+    browser(null);
+    const plan = answer(PLAN);
+    expect(recent(plan).rows.length).toBeGreaterThan(0);
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const view = <QueryClientProvider client={client}><Tooltip.Provider><RunsActions served={ok(plan, PLAN)} /><RunsView served={ok(plan, PLAN)} /></Tooltip.Provider></QueryClientProvider>;
+    const container = document.body.appendChild(document.createElement('div'));
+    try {
+      container.innerHTML = renderToString(view);
+      const drawn = () => container.querySelectorAll('section[aria-label="Recent runs"] tbody tr');
+      expect(container.querySelector('[aria-busy="true"]')).toBeNull();
+      expect(drawn()).toHaveLength(recent(plan).rows.length);
+      // The browser takes the server's markup over as it stands: no mismatch, the runs stay drawn, and nothing is read.
+      const mismatches: unknown[] = [];
+      await act(async () => { hydrateRoot(container, view, { onRecoverableError: (e) => mismatches.push(e) }); });
+      expect(mismatches).toEqual([]);
+      expect(drawn()).toHaveLength(recent(plan).rows.length);
+      await waitFor(() => expect(within(container).getByRole('combobox', { name: 'Skill' }).textContent).toContain('sdlc-plan'));
+      expect(reads()).toEqual([]);
+    } finally {
+      container.remove();
+    }
+  });
+
+  it('reads the address back from the server\'s path', () => {
+    for (const f of [RUNS_DEFAULTS, { skill: 'all', page: '2' }, { skill: 'sdlc-plan', page: '3' }]) expect(filtersOfPath(runsPath(f))).toEqual(f);
   });
 });
 

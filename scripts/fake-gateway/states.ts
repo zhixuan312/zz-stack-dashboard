@@ -6,9 +6,9 @@
 import type {
   KnowledgeLogEntry, PlatformPersonRow, PluginRow, Skill,
 } from '../../src/lib/api-shapes.ts';
-import type { ActivityLog, ActivitySummary, KnowledgeList, KnowledgeSummary, RefusalOwner, Runs } from '../../src/lib/destination-shapes.ts';
-import type { Audit, People, Teams } from '../../src/lib/fleet-shapes.ts';
-import type { Bugs, Evaluation, PeriodFigure, PlatformStatus } from '../../src/lib/platform-shapes.ts';
+import type { Access, ActivityLog, ActivitySummary, KnowledgeList, KnowledgeSummary, RefusalOwner, Runs } from '../../src/lib/destination-shapes.ts';
+import type { Audit, KnowledgeHealth, People, Teams } from '../../src/lib/fleet-shapes.ts';
+import type { Bugs, Evaluation, Part, PeriodFigure, PlatformStatus } from '../../src/lib/platform-shapes.ts';
 import type { Approvals, Home, InitiativeList } from '../../src/lib/work-shapes.ts';
 
 /** Nothing recorded yet: every list empty, every figure absent rather than zero where the API says so. */
@@ -32,11 +32,19 @@ export function empty(seg: string[], body: unknown): unknown {
       ...p, score: null, comparability: 'No score to compare', yourTeam: { calls: 0, failed: 0, lastRun: null },
       skills: p.skills.map((k) => ({ ...k, calls: 0, everRun: false, lastRun: null })),
     })) };
+    case 'access': return a ? body : noAccess(body as Access);
     case 'settings': return Array.isArray(body) ? (a === 'platform' ? (body as PlatformPersonRow[]).slice(0, 1) : []) : body;
     case 'platform': return a === 'status' ? freshStatus(body as PlatformStatus) : a === 'bugs' && !b ? noBugs(body as Bugs)
-      : a === 'evaluation' ? noEvaluation(body as Evaluation) : a === 'audit' ? noAudit(body as Audit) : body;
+      : a === 'evaluation' ? noEvaluation(body as Evaluation) : a === 'knowledge' && !b ? noKnowledgeHealth(body as KnowledgeHealth)
+        : a === 'audit' ? noAudit(body as Audit) : body;
     default: return body;
   }
+}
+
+/** Access on a fresh deployment: no token issued, no application authorised and no passkey recorded; signed in on this
+ *  browser alone, which a person is to read the page at all. */
+function noAccess(x: Access): Access {
+  return { ...x, issued: [], applications: [], authenticators: [], browsers: x.browsers.filter((b) => b.current) };
 }
 
 /** Bugs on a fresh deployment: no report, every week's count zero with no median, and an empty queue. */
@@ -63,6 +71,32 @@ function noEvaluation(x: Evaluation): Evaluation {
     byDecision: { state: 'ok', data: { applied: 0, rejected: 0, deferred: 0 } },
     byOwner: { state: 'ok', data: {} },
     waiting: { state: 'ok', data: { rows: [], total: 0 } },
+  };
+}
+
+/** Knowledge health on a fresh deployment: no lesson on any shelf, nothing made or imported, no search recorded and no
+ *  question asked; the shelves, the weeks and the kinds keep their places, each at zero or with no share. */
+function noKnowledgeHealth(x: KnowledgeHealth): KnowledgeHealth {
+  const ok = <T,>(p: Part<T>): T | null => (p.state === 'ok' ? p.data : null);
+  const none = { value: null, why: 'no_data' } as const;
+  const zero = { value: 0, why: null } as const;
+  const count = (p: PeriodFigure): PeriodFigure => ({ ...p, figure: zero, numerator: 0, denominator: null });
+  const share = (p: PeriodFigure): PeriodFigure => ({ ...p, figure: none, numerator: 0, denominator: 0 });
+  const tiles = ok(x.tiles), shelves = ok(x.shelves), made = ok(x.made), searches = ok(x.searches), cohorts = ok(x.cohorts), byKind = ok(x.byKind);
+  return {
+    ...x,
+    tiles: tiles ? { state: 'ok', data: {
+      standing: 0,
+      madeLastWeek: { last: count(tiles.madeLastWeek.last), previous: count(tiles.madeLastWeek.previous) },
+      searches: { last: count(tiles.searches.last), previous: count(tiles.searches.previous) },
+      noResult: { last: share(tiles.noResult.last), previous: share(tiles.noResult.previous) },
+    } } : x.tiles,
+    shelves: shelves ? { state: 'ok', data: { rows: shelves.rows.map((r) => ({ ...r, standing: 0, superseded: 0, imported: 0, madeLastWeek: 0, searchesLastWeek: 0, noResult: share(r.noResult) })) } } : x.shelves,
+    made: made ? { state: 'ok', data: { exactFrom: null, weeks: made.weeks.map((w) => ({ ...w, made: zero, importedExact: 0, importedByDay: 0 })) } } : x.made,
+    searches: searches ? { state: 'ok', data: { weeks: searches.weeks.map((w) => ({ ...w, noResult: share(w.noResult), widened: share(w.widened), meanResults: none })) } } : x.searches,
+    cohorts: cohorts ? { state: 'ok', data: { rows: cohorts.rows.map((c) => ({ ...c, made: 0, supersededSince: 0, imported: 0, basis: null })) } } : x.cohorts,
+    byKind: byKind ? { state: 'ok', data: byKind.map((k) => ({ ...k, standing: 0 })) } : x.byKind,
+    questions: x.questions?.state === 'ok' ? { state: 'ok', data: { ...x.questions.data, rows: [], total: 0 } } : x.questions,
   };
 }
 

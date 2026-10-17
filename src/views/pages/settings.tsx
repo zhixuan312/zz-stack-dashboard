@@ -1,77 +1,19 @@
-'use client';
-
-import type { ReactNode } from 'react';
-import { AskAbout } from '@/components/patterns/ask-about';
-import { ConsolePage, useArrival } from '@/console/page';
-import { failureOf } from '@/console/query';
-import { AssistantPanel } from '@/console/settings/assistant-panel';
-import { ClientSetupPanel } from '@/console/settings/client-setup-panel';
-import { ConsoleScopePanel } from '@/console/settings/console-scope-panel';
-import { PlatformSection } from '@/console/settings/platform-section';
-import { TeamAdminPanel } from '@/console/settings/team-admin-panel';
-import { TeamsPanel } from '@/console/settings/teams-panel';
-import { TokensPanel } from '@/console/settings/tokens-panel';
-import { useConsole, useConsoleMode } from '@/lib/api';
-import type { Me, MyAccessToken, MyTeams } from '@/lib/api-shapes';
-import { useLive } from '@/lib/live';
-import { pendingContext } from '@/views/context';
-import { settingsContext } from '@/views/settings-context';
+import Link from 'next/link';
+import { app, workspaces } from '@/app.config';
+import { PageFrame } from '@/components/base/shell';
 
 /**
- * A person's own settings, a team tier for anyone who administers one, and a platform tier for a superadmin.
- *
- * Every `/me/*` section takes the caller's identity alone: there is no field here, or in the gateway routes behind
- * it, by which a person could name somebody else. The team and platform tiers name what is acted on, so their routes
- * are validated by `teamAuthority` and `superOnly`; hiding either here is courtesy, not enforcement. Appearance
- * (theme, accent, density) is in the rail's menu and the command palette, Meridian's own place for it; the assistant's
- * own switch is the last section here, where the console has an assistant.
+ * Settings, until Phase 7 removes its address (AC-1.12): one sentence saying where its contents went, with the link, and
+ * nothing else. What it held is on Access (tokens, client setup, applications, browsers, passkeys, the team acted for,
+ * its members for an admin, the console scope and the assistant's switch) and under Platform (People and Teams), as
+ * reconciliation 53 places it. It reads nothing and shares nothing with the assistant: there is nothing here to ask about.
  */
 export function SettingsView() {
-  useLive(['settings']);
   return (
-    <SettingsFrame>
-      {/* Sections 56px apart, as Meridian's settings stack them: yours, then your team's, then the platform's. */}
-      <div className="flex flex-col gap-14">
-        <ConsoleScopePanel />
-        <TeamsPanel />
-        <TokensPanel />
-        <ClientSetupPanel />
-        <TeamAdminPanel />
-        <PlatformSection />
-        <AssistantPanel />
-      </div>
-    </SettingsFrame>
-  );
-}
-
-/**
- * The page's frame, with the reads its shared context is built from.
- *
- * DELIBERATE: apart from the page, which hands it the sections as `children`. These three reads are the ones the
- * sections below already make, under the same keys, so they cost no request; but a component re-renders when its read
- * lands, and held in the page that would re-render every section with it. An element a parent created is the same
- * object when this frame re-renders, so React leaves the sections alone, and the page's largest text is painted once.
- */
-function SettingsFrame({ children }: { children: ReactNode }) {
-  const { mode } = useConsoleMode();
-  const me = useConsole<Me>('/me');
-  const teams = useConsole<MyTeams>('/settings/me/teams');
-  const tokens = useConsole<MyAccessToken[]>('/settings/me/tokens');
-  const arrival = useArrival(me);
-  const context = me.data
-    ? settingsContext({ me: me.data, teams: teams.data, tokens: tokens.data, mode, ...arrival })
-    : pendingContext({ view: 'settings', title: 'Settings', address: '/settings', scope: 'your own settings' }, failureOf(me));
-  return (
-    <ConsolePage
-      title="Settings"
-      description="What this console shows you, plus your tokens, client setup and teams."
-      showPeriod={false}
-      width="form"
-      context={context}
-      // In the masthead: every section is a form section, whose head takes no actions.
-      actions={<AskAbout question="Which team am I acting for, and which of my tokens are live?" />}
-    >
-      {children}
-    </ConsolePage>
+    <PageFrame kicker={<>{app.name} · {workspaces.main.label}</>} title="Settings" width="reading">
+      <p data-moved className="t-body text-ink-2">
+        Everything that was here is on <Link href="/access" className="hit rounded-xs font-medium text-accent-ink underline underline-offset-4 hover:text-ink">Access</Link> now: your tokens, client setup, applications, browsers, passkeys and the team you act for.
+      </p>
+    </PageFrame>
   );
 }

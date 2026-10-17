@@ -3,36 +3,41 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Check, Copy } from 'lucide-react';
-import { Query } from '@/console/query';
-import { InlineForm } from '@/console/inline-form';
+import { AskAbout } from '@/components/patterns/ask-about';
 import { FormSection } from '@/components/patterns/form-section';
-import { InlineDestructive } from '@/console/settings/inline-destructive';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { When } from '@/console/when';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { usePaged } from '@/components/ui/pagination';
-import { PageControl } from '@/console/paged';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/components/ui/toast';
-import { ApiError, useConsole } from '@/lib/api';
-import { type IssuedToken, type MyAccessToken } from '@/lib/api-shapes';
+import { InlineForm } from '@/console/inline-form';
+import { PageControl } from '@/console/paged';
+import { useAccess } from '@/console/settings/access-read';
+import { InlineDestructive } from '@/console/settings/inline-destructive';
+import { Since } from '@/console/settings/since';
+import { ApiError } from '@/lib/api';
+import type { IssuedToken } from '@/lib/api-shapes';
+import type { AccessToken } from '@/lib/destination-shapes';
+import { formatDate } from '@/lib/format-date';
 import { consoleMutate, useConsoleMutation } from '@/lib/mutate';
+import { DIRECT, applicationOf, stateOf } from '@/views/access-context';
+
+/** The protagonist's title: the section the page's Ask sits on. COUPLED: the README's `Protagonist:`. */
+export const TOKENS_TITLE = 'Tokens';
 
 /**
- * A just-issued token, shown exactly once. DELIBERATE: `TokensPanel` holds it
- * in a plain `useState`, never `useConsoleMutation` — that hook's cache holds
- * `data` for as long as `gcTime`, and a plaintext token must not be retrievable
- * a second time from anywhere. Dismissing, or navigating away, sets `issued`
- * back to `null` in the parent, so the value is dropped rather than hidden.
+ * A just-issued token, shown exactly once. DELIBERATE: `TokensPanel` holds it in a plain `useState`, never
+ * `useConsoleMutation`, whose cache keeps `data` for as long as `gcTime`: a plaintext token must not be retrievable a
+ * second time from anywhere. Dismissing sets it back to `null` in the parent, so the value is dropped rather than hidden.
  *
- * In a dialog, never in the page: the assistant sends the text of the page's
- * scroll region with every message, and the dialog is portalled outside it, so
- * the value never enters the assistant's context (bug ee35a0d7). It closes only
- * when the person says so, never on a stray click or Escape.
+ * In a dialog, never in the page: the assistant sends the text of the page's scroll region with every message, and the
+ * dialog is portalled outside it, so the value never enters the assistant's context (bug ee35a0d7). The value is marked
+ * `data-assistant="omit"` besides, so even a dialog drawn inside the region is never read. It closes only when the
+ * person says so, never on a stray click or Escape.
  */
 function IssuedTokenDialog({ issued, onDismiss }: { issued: IssuedToken | null; onDismiss: () => void }) {
   const [copied, setCopied] = useState(false);
@@ -44,7 +49,7 @@ function IssuedTokenDialog({ issued, onDismiss }: { issued: IssuedToken | null; 
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast({ tone: 'critical', title: 'Could not copy — select and copy the token by hand.' });
+      toast({ tone: 'critical', title: 'Could not copy: select the token and copy it by hand.' });
     }
   }
 
@@ -52,23 +57,21 @@ function IssuedTokenDialog({ issued, onDismiss }: { issued: IssuedToken | null; 
     <Dialog open={issued !== null} onOpenChange={(open) => { if (!open) onDismiss(); }}>
       {issued ? (
         <DialogContent
-          title={`Your token${issued.label ? ` (${issued.label})` : ''}`}
+          title={`Your token${issued.label ? `, ${issued.label}` : ''}`}
           description="Shown once. Store it now."
           onInteractOutside={(e) => e.preventDefault()}
           onEscapeKeyDown={(e) => e.preventDefault()}
-          footer={<Button type="button" onClick={onDismiss}>I&rsquo;ve stored it</Button>}
+          footer={<Button type="button" variant="primary" onClick={onDismiss}>I&apos;ve stored it</Button>}
         >
           <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-2">
-              <code className="min-w-0 flex-1 break-all rounded-sm bg-surface px-3 py-2 font-mono text-xs">
-                {issued.token}
-              </code>
+            <div data-assistant="omit" className="flex items-center gap-2">
+              <code className="min-w-0 flex-1 rounded-sm bg-surface-sunk px-3 py-2 font-mono text-xs [overflow-wrap:anywhere]">{issued.token}</code>
               <Button type="button" size="sm" variant="secondary" icon={copied ? <Check /> : <Copy />} onClick={() => void copy()}>
                 {copied ? 'Copied' : 'Copy'}
               </Button>
             </div>
-            <p className="text-xs text-warning-ink">
-              It will not be shown again — not on this page, not by asking again. If it leaks, revoke it and issue a new one.
+            <p className="t-small text-warning-ink">
+              It will not be shown again, here or anywhere else. If it leaks, revoke it and issue a new one.
             </p>
           </div>
         </DialogContent>
@@ -78,21 +81,19 @@ function IssuedTokenDialog({ issued, onDismiss }: { issued: IssuedToken | null; 
 }
 
 /**
- * Your own personal access tokens — the browser counterpart of
- * `pat_list` / `pat_issue` / `pat_revoke`
- * (admin.ts). See `IssuedTokenDialog` above for why issuing one bypasses
- * `useConsoleMutation`'s cache entirely.
+ * The caller's own platform tokens, from the Access read: label, the application each was minted through, when it was
+ * issued and last used, and its state, with Revoke on a live one; issuing one is the section's last line. The browser
+ * counterpart of `pat_list`, `pat_issue` and `pat_revoke` on the /manage door. A refused issue keeps the label typed and
+ * says the gateway's sentence; a refused revoke says it and changes nothing.
  */
 export function TokensPanel() {
-  const list = useConsole<MyAccessToken[]>('/settings/me/tokens');
+  const { access } = useAccess();
   const queryClient = useQueryClient();
   const [label, setLabel] = useState('');
   const [issuing, setIssuing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [issued, setIssued] = useState<IssuedToken | null>(null);
-  const revokeMutation = useConsoleMutation<{ ok: true; revoked: string }, string>(
-    (id) => ({ path: `/settings/me/tokens/${encodeURIComponent(id)}`, method: 'DELETE' }),
-  );
+  const revoke = useConsoleMutation<{ ok: true; revoked: string }, string>((id) => ({ path: `/settings/me/tokens/${encodeURIComponent(id)}`, method: 'DELETE' }));
 
   async function issue() {
     setError(null);
@@ -101,94 +102,91 @@ export function TokensPanel() {
       const result = await consoleMutate<IssuedToken>('/settings/me/tokens', { label: label.trim() || undefined });
       setIssued(result);
       setLabel('');
-      // `useConsoleMutation` does this invalidation itself on success; this call
-      // skips that hook on purpose (see `IssuedTokenDialog`), so the tokens list
-      // has to be told to refetch by hand.
+      // `useConsoleMutation` invalidates on its own; this write skips that hook on purpose (see `IssuedTokenDialog`), so
+      // the page's read is told to come again by hand.
       await queryClient.invalidateQueries({ queryKey: ['console'] });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not issue a token — try again.');
+      setError(err instanceof ApiError ? err.message : 'The token was not issued; try again.');
     } finally {
       setIssuing(false);
     }
   }
 
-  async function revoke(id: string) {
+  async function revokeOne(t: AccessToken) {
     try {
-      await revokeMutation.mutateAsync(id);
-      toast({ tone: 'positive', title: 'Token revoked.' });
+      await revoke.mutateAsync(t.id);
+      toast({ tone: 'positive', title: `Revoked ${t.label}` });
     } catch (err) {
-      toast({ tone: 'critical', title: err instanceof ApiError ? err.message : 'Could not revoke token — try again.' });
+      toast({ tone: 'critical', title: err instanceof ApiError ? err.message : 'The token was not revoked; try again.' });
     }
   }
 
   return (
-    <FormSection as="div" flush title="Access tokens" description="For Claude Code or any MCP client, acting as you. A new token is shown once, when it is issued.">
-      <IssuedTokenDialog issued={issued} onDismiss={() => setIssued(null)} />
-          <Query query={list}>
-            {(rows) =>
-              rows.length === 0 ? (
-                <div className="px-5 py-8">
-                  <EmptyState title="No token issued yet">Issue one below to connect a client to this platform as yourself.</EmptyState>
-                </div>
-              ) : (
-                <TokensTable rows={rows} pending={revokeMutation.isPending} onRevoke={(id) => void revoke(id)} />
-              )
-            }
-          </Query>
-          <InlineForm ariaLabel="Issue a new access token" onSubmit={issue} busy={issuing} saveLabel="Issue token" error={error}>
-            <Field label="New token" optional>
-              {(p) => <Input {...p} placeholder="What it is for, e.g. laptop — Claude Code" value={label} onChange={(e) => setLabel(e.target.value)} />}
-            </Field>
-          </InlineForm>
-    </FormSection>
+    <div data-protagonist={TOKENS_TITLE} className="contents">
+      <FormSection
+        as="div"
+        flush
+        title={TOKENS_TITLE}
+        description="For Claude Code or any MCP client, acting as you. A new token is shown once, when it is issued."
+        actions={<AskAbout question="Which of my tokens are live, which application is each for, and which have never been used?" />}
+      >
+        <IssuedTokenDialog issued={issued} onDismiss={() => setIssued(null)} />
+        {access.issued.length === 0 ? (
+          <div className="px-(--card-pad) py-8">
+            <EmptyState title="No token issued yet">Issue one below to connect a client to this platform as yourself.</EmptyState>
+          </div>
+        ) : (
+          <TokensTable rows={access.issued} pending={revoke.isPending} onRevoke={(t) => void revokeOne(t)} />
+        )}
+        <InlineForm ariaLabel="Issue a new token" onSubmit={issue} busy={issuing} saveLabel="Issue token" error={error}>
+          <Field label="New token" optional>
+            {(p) => <Input {...p} placeholder="What it is for, e.g. laptop, Claude Code" value={label} onChange={(e) => setLabel(e.target.value)} />}
+          </Field>
+        </InlineForm>
+      </FormSection>
+    </div>
   );
 }
 
-/** Its own component so it can hold the page state — the rows come from a `Query` render prop. */
-function TokensTable({ rows, pending, onRevoke }: {
-  rows: MyAccessToken[]; pending: boolean; onRevoke: (id: string) => void;
-}) {
+/** Its own component so it can hold the page of rows it shows. */
+function TokensTable({ rows, pending, onRevoke }: { rows: AccessToken[]; pending: boolean; onRevoke: (t: AccessToken) => void }) {
+  const { access } = useAccess();
   const { rows: page, ...pager } = usePaged(rows);
   return (
     <>
-      <Table>
+      <Table caption="Your tokens, newest first">
         <TableHead>
           <TableRow>
-            <TableHeader>Label</TableHeader>
+            <TableHeader grow>Label</TableHeader>
+            <TableHeader hideBelow="md">Application</TableHeader>
             <TableHeader hideBelow="md">Issued</TableHeader>
-            <TableHeader hideBelow="md">Last used</TableHeader>
-            <TableHeader>Status</TableHeader>
-            <TableHeader>Revoke</TableHeader>
+            <TableHeader hideBelow="sm">Last used</TableHeader>
+            <TableHeader>State</TableHeader>
+            <TableHeader><span className="sr-only">Revoke</span></TableHeader>
           </TableRow>
         </TableHead>
         <TableBody>
-          {page.map((t) => (
-            <TableRow key={t.id}>
-              <TableCell className="text-xs [overflow-wrap:anywhere]">{t.label || <span className="text-ink-3">—</span>}</TableCell>
-              <TableCell hideBelow="md" className="whitespace-nowrap font-mono text-xs"><When at={t.created_at} /></TableCell>
-              <TableCell hideBelow="md" className="whitespace-nowrap font-mono text-xs">
-                {t.last_used_at ? <When at={t.last_used_at} /> : <span className="text-ink-3">never</span>}
-              </TableCell>
-              <TableCell>
-                {t.revoked_at ? (
-                  <Badge tone="critical" dot>revoked</Badge>
-                ) : (
-                  <Badge tone="positive" dot>active</Badge>
-                )}
-              </TableCell>
-              <TableCell>
-                {t.revoked_at ? null : (
-                  <InlineDestructive
-                    label="Revoke"
-                    question="Revoke this token?"
-                    confirmLabel="Revoke"
-                    pending={pending}
-                    onConfirm={() => onRevoke(t.id)}
-                  />
-                )}
-              </TableCell>
-            </TableRow>
-          ))}
+          {page.map((t) => {
+            const app = applicationOf(access, t);
+            return (
+              <TableRow key={t.id} data-token={t.id}>
+                <TableCell>
+                  <span className="block text-sm font-medium text-ink [overflow-wrap:anywhere]">{t.label || <span className="text-ink-3">No label</span>}</span>
+                  {/* What the hidden columns say, under the label, where a phone has no room for them. */}
+                  <span className="t-caption block @min-[672px]:hidden [overflow-wrap:anywhere]">{app}, issued {formatDate(t.createdAt)}</span>
+                </TableCell>
+                <TableCell hideBelow="md" className={app === DIRECT ? 'text-xs text-ink-3' : 'text-xs [overflow-wrap:anywhere]'}>{app}</TableCell>
+                <TableCell hideBelow="md" className="whitespace-nowrap text-xs">{formatDate(t.createdAt)}</TableCell>
+                <TableCell hideBelow="sm" className="whitespace-nowrap text-xs"><Since at={t.lastUsedAt} asOf={access.meta.asOf} /></TableCell>
+                <TableCell>{stateOf(t) === 'live' ? <Badge tone="positive" dot>Live</Badge> : <Badge tone="neutral" dot>Revoked</Badge>}</TableCell>
+                <TableCell align="right">
+                  {stateOf(t) === 'live' ? (
+                    <InlineDestructive label="Revoke" question={`Revoke ${t.label || 'this token'}?`} confirmLabel="Revoke" pending={pending} onConfirm={() => onRevoke(t)} />
+                  ) : null}
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
       <PageControl {...pager} />

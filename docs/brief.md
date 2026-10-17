@@ -99,9 +99,9 @@ a time or `sources/2026-10-06-call.md` arrives as a single segment named after i
 - **A view is its address, and the address is read from the window.** Reading Next's search params costs a prerendered
   route its prerender — `useSearchParams` client-renders every Client Component up to the nearest Suspense boundary, and
   a console page has none — which measured 2212ms of LCP on `/teams` against 632ms once the address was read directly.
-- **The console-scope section is drawn for everyone; only its switch is earned.** `/settings` opens with it, so its
-  presence may not depend on what `/me` says; the sentence says which of the two people has the choice, and the row holds
-  the height it would have either way.
+- **The console-scope section is the superadmin's alone, decided on the server.** Access draws it for a superadmin
+  only, from the console's server's own answer of who is asking, so it is in the first paint or nowhere and never appears
+  at hydration; its switch's slot holds its height until `/me` lands.
 - **Cache Components is on, and every route is partial.** `cacheComponents` and `partialPrefetching` are set in
   `next.config.ts`, and `scripts/route-policy.ts` reads 2 static and 22 partial of 24 non-API routes. Every page asks
   `gate` on the server first, inside the boundary its own `loading.tsx` gives it, so a page's static shell is the frame
@@ -243,10 +243,10 @@ What stays the console's own, and why:
   seventeen places while the idiom sat in others, the dash was written once and re-derived once, and a rule written
   twice is a rule that drifts. `scripts/check.local.ts` refuses the two shapes of a hand-rolled plural that cannot be
   anything else.
-- Settings sections are Meridian's `FormSection` with `as="div"`: the same head column and card with no form around
-  them, `flush` where the card holds a table. The console's own `SettingsSection` stood in for it until the release
-  had that variant (zz-meridian#5) and is gone; a one-time token or enrolment link is shown at the top of the card it
-  belongs to.
+- Access's sections are Meridian's `FormSection` with `as="div"`: the same head column and card with no form around
+  them, `flush` where the card holds a table, and the page's Ask in the first section's `actions` (zz-meridian#37). A
+  token issued is shown once, in a dialog outside the page's text and marked `data-assistant="omit"`, as Platform's
+  People shows an enrolment link.
 - `proxy.ts`: the address every page request asked for, which the gate sends a signed-out person back to after sign-in,
   and the laptop's dev-only PAT passthrough, plus one addition this product made — a preload hint for a document
   route's read. A route with an unknown dynamic param cannot render its page on the server, so nothing writes
