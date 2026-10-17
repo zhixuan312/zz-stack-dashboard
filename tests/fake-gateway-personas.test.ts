@@ -73,6 +73,7 @@ async function memberReads(): Promise<string[]> {
     'settings/me/tokens', 'settings/me/client-setup', 'settings/me/teams', `settings/team/members?team=${own}`, 'platform/status',
     'platform/query?measure=calls&by=week', 'platform/query?measure=bugs_filed&by=impact',
     'platform/bugs', 'platform/bugs?limit=100', 'platform/bugs?state=resolved&limit=100',
+    'platform/evaluation', 'platform/query?measure=findings&by=owner',
   ];
   // The list's rows name no team: each is the active team's, and its page opens under that team.
   const { rows } = await read<{ rows: { slug: string }[] }>(MEMBER, 'initiatives?limit=100');
@@ -481,7 +482,7 @@ describe('the personas pnpm verify --as signs in as', () => {
 
   it('probe each page the member is refused for a string its read holds and no read of the member\'s does', async () => {
     const probes = Object.entries(personas.member.deniedProbe ?? {});
-    expect(probes.map(([route]) => route).sort()).toEqual(['/people', '/platform/bugs/0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d01', '/platform/people', '/platform/teams', '/teams']);
+    expect(probes.map(([route]) => route).sort()).toEqual(['/people', '/platform/audit', '/platform/bugs/0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d01', '/platform/people', '/platform/teams', '/teams']);
     const theirs = JSON.stringify(await Promise.all((await memberReads()).map((path) => read(MEMBER, path))));
     for (const [route, probe] of probes) {
       // `/platform/teams` and `/platform/people` are Teams and People under Platform, reading the same `/teams` and

@@ -63,6 +63,6 @@ describe('a plugin evaluation in the gateway\'s shape', () => {
 
   it('builds the context for a name nothing registered, which carries nothing but the name', () => {
     const context = pluginContext('nobody', { evaluation: { plugin: 'nobody', found: false }, updatedAt: null, now: '2026-10-12T09:01:00Z' });
-    expect(context.unknowns.join(' ')).toContain('never been evaluated');
+    expect(context.unknowns.join(' ')).toContain('never been registered for evaluation');
   });
 });

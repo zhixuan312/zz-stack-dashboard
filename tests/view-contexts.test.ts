@@ -3,9 +3,10 @@ import { describe, expect, it } from 'vitest';
 import type { PluginRow, SearchAnswer, Skill, SkillDetail } from '@/lib/api-shapes';
 import type { ActivityLog, ActivitySummary, KnowledgeList, KnowledgeSummary, Runs } from '@/lib/destination-shapes';
 import type { People, Teams } from '@/lib/fleet-shapes';
-import type { InitiativeList } from '@/lib/work-shapes';
+import type { Approvals, InitiativeList } from '@/lib/work-shapes';
 import { contextText, type SharedContext } from '@/lib/shared-context';
 import { activityContext } from '@/views/activity-context';
+import { approvalsContext } from '@/views/approvals-context';
 import { addressOf, pendingContext } from '@/views/context';
 import { documentContext } from '@/views/document-context';
 import { homeContext } from '@/views/home-context';
@@ -37,6 +38,7 @@ import { search } from '../scripts/fake-gateway/search.ts';
 import { extreme } from '../scripts/fake-gateway/states.ts';
 import { INITIATIVES, KNOWLEDGE, KNOWLEDGE_LOG, documentDetail, initiativeDetail, knowledgeBody } from '../scripts/fake-gateway/work.ts';
 import { activityLog, activitySummary } from '../scripts/fake-gateway/work-activity.ts';
+import { approvals } from '../scripts/fake-gateway/work-approvals.ts';
 import { homeOf } from '../scripts/fake-gateway/work-home.ts';
 import { initiativeList } from '../scripts/fake-gateway/work-initiatives.ts';
 import { knowledgeList, knowledgeSummary } from '../scripts/fake-gateway/work-knowledge.ts';
@@ -94,6 +96,7 @@ const contexts: Record<string, () => SharedContext> = {
   initiatives: () => initiativesContext(listOf(), { filters: ALL, page: 1, ...arrival }),
   initiative: () => initiativeContext(initiativeDetail('atlas', '2026-09-28-search-relevance')!, arrival),
   document: () => documentContext(documentDetail('atlas', '2026-09-28-search-relevance', 'spec.md')!, arrival),
+  approvals: () => approvalsContext(as<Approvals>(approvals(ME, q('tab=history'))), { tab: 'history', page: 1, ...arrival }),
   knowledge: () => knowledgeContext({ summary: LEARNED, list: SHELF, filters: { q: '', kind: 'all' }, page: 1, ...arrival }),
   knowledge_node: () => knowledgeNodeContext(knowledgeBody(KNOWLEDGE[0].team, KNOWLEDGE[0].path)!, arrival),
   knowledge_log: () => knowledgeLogContext(KNOWLEDGE_LOG, { mode: 'platform', ...arrival }),

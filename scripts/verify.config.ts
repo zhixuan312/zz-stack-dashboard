@@ -122,7 +122,7 @@ const config: VerifyConfig = {
    * One for every route in the rail, which is what `--full` and `--perf` require. Each selector was read off the built
    * app served against the fake gateway on 2026-10-11, not guessed: `/` draws 26 table rows and one
    * `aria-haspopup="dialog"` control, `/teams` 4 rows beside a search field, `/initiatives` 11, `/knowledge` 10,
-   * `/people` 7, `/plugins` 4 with no search field, `/runs` 16, `/activity` 20, `/settings` 13. The pages read on the
+   * `/people` 7, `/plugins` 4 with no search field (5 beside one now), `/runs` 16, `/activity` 20, `/settings` 13. The pages read on the
    * console's server since (Home, Knowledge, Activity, Runs) are read by the figures their comments name, and
    * Initiatives by its list's own table.
    *
@@ -140,13 +140,13 @@ const config: VerifyConfig = {
     // Knowledge's search runs on submit, so typing changes nothing; its data is the tiles, read on the server.
     { path: '/knowledge', title: 'Knowledge', readySelector: 'main [data-figures="read"] .t-figure', probe: 'toggle', controlSelector: 'main button[aria-label^="About "]', resultSelector: '[role="tooltip"]' },
     { path: '/people', title: 'People', readySelector: 'main table tbody tr', probe: 'filter', controlSelector: 'main input[type="search"]', resultSelector: 'main table tbody tr' },
+    { path: '/plugins', title: 'Plugins', readySelector: 'main table tbody tr', probe: 'filter', controlSelector: 'main input[type="search"]', resultSelector: 'main table tbody tr' },
     // Activity's and Runs' primary data is their three tiles, read on the server; the one control the check presses is a
     // tile's info button, whose tooltip says what the tile counts.
     { path: '/runs', title: 'Runs', readySelector: 'main [data-figures="read"] [data-value]', probe: 'toggle', controlSelector: 'main button[aria-label^="About "]', resultSelector: '[role="tooltip"]' },
     { path: '/activity', title: 'Activity', readySelector: 'main [data-figures="read"] [data-value]', probe: 'toggle', controlSelector: 'main button[aria-label^="About "]', resultSelector: '[role="tooltip"]' },
-    // No search field on these two, so the dialog is the change the check can read. Every one of them draws a table,
+    // No search field on Settings, so the dialog is the change the check can read. It draws a table,
     // so `main table tbody tr` is what says the data arrived.
-    { path: '/plugins', title: 'Plugins', readySelector: 'main table tbody tr', probe: 'dialog', controlSelector: 'main button[aria-haspopup="dialog"]', resultSelector: '[role="dialog"]' },
     { path: '/settings', title: 'Settings', readySelector: 'main table tbody tr', probe: 'dialog', controlSelector: 'main button[aria-haspopup="dialog"]', resultSelector: '[role="dialog"]' },
     // Status leads with what needs attention and the paired figures, read on the server: its data is the Featured
     // metric's first figure, the last whole week's malformed calls per 1,000 (`.t-figure` is the team's tiles now). The
@@ -220,7 +220,7 @@ const config: VerifyConfig = {
     member: {
       cookie: { name: 'zz_console', value: 'member' },
       expectedRoutes: ['/', '/initiatives', '/knowledge', '/settings', '/platform'],
-      deniedProbe: { '/teams': 'Beacon Payments', '/platform/teams': 'Beacon Payments', '/people': 'Jonas Weber', '/platform/people': 'Jonas Weber', '/platform/bugs/0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d01': 'document_approve refuses a stakeholder the frontmatter names' },
+      deniedProbe: { '/teams': 'Beacon Payments', '/platform/teams': 'Beacon Payments', '/people': 'Jonas Weber', '/platform/people': 'Jonas Weber', '/platform/audit': 'archived team cinder', '/platform/bugs/0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d01': 'document_approve refuses a stakeholder the frontmatter names' },
     },
   },
   refusal,

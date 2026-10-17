@@ -25,7 +25,9 @@ import { viewAt } from '@/lib/shared-context';
 import { platformStatusContext, statusRead } from '@/views/platform-status-context';
 import { viewTools } from '@/views/tools';
 import { ME } from '../scripts/fake-gateway/people.ts';
+import { audit } from '../scripts/fake-gateway/platform-audit.ts';
 import { bugReport, bugs, duplicates } from '../scripts/fake-gateway/platform-bugs.ts';
+import { evaluation } from '../scripts/fake-gateway/platform-evaluation.ts';
 import { people } from '../scripts/fake-gateway/platform-people.ts';
 import { MEMBER_STATUS, PLATFORM_STATUS } from '../scripts/fake-gateway/platform-status.ts';
 import { teamDetail, teams } from '../scripts/fake-gateway/platform-teams.ts';
@@ -33,6 +35,7 @@ import { releaseDetail, releases } from '../scripts/fake-gateway/platform-releas
 import { startFakeLlm } from '../scripts/fake-llm.ts';
 import { search } from '../scripts/fake-gateway/search.ts';
 import { activityLog } from '../scripts/fake-gateway/work-activity.ts';
+import { approvals } from '../scripts/fake-gateway/work-approvals.ts';
 import { initiativeList } from '../scripts/fake-gateway/work-initiatives.ts';
 import { knowledgeList } from '../scripts/fake-gateway/work-knowledge.ts';
 import { plugins, skills } from '../scripts/fake-gateway/work-plugins.ts';
@@ -56,12 +59,13 @@ function gateway(who: Me | null | (() => Me | null), { shared = false } = {}) {
     const me = typeof who === 'function' ? who() : who;
     if (!me) return { ok: false, status: 401, json: async () => ({ error: 'not signed in' }) } as Response;
     const path = new URL(url).pathname.replace('/api/console', '');
-    if (/^\/(teams|people)(\/|$)/.test(path) && !me.superadmin) return { ok: false, status: 403, json: async () => ({ error: 'not permitted' }) } as Response;
+    if (/^\/(teams|people|platform\/audit)(\/|$)/.test(path) && !me.superadmin) return { ok: false, status: 403, json: async () => ({ error: 'not permitted' }) } as Response;
     const query = new URL(url).searchParams;
     const body = path === '/me' ? me
       : path === '/teams' ? teams(me, query, { limit: Number(query.get('limit') ?? 10), offset: Number(query.get('offset') ?? 0) })![1]
         : path.startsWith('/teams/') ? teamDetail(path.slice('/teams/'.length))
           : path === '/initiatives' ? initiativeList(me, query)[1]
+          : path === '/approvals' ? approvals(me, query)[1]
             : path === '/knowledge' ? knowledgeList(me, query)[1]
               : path === '/activity' ? activityLog(me, query)[1]
                 : path === '/skills' ? skills(me, query)[1]
@@ -74,7 +78,9 @@ function gateway(who: Me | null | (() => Me | null), { shared = false } = {}) {
                               : path === '/platform/bugs' ? bugs(me.superadmin, { state: query.get('state'), impact: query.get('impact'), surface: query.get('surface') }, Number(query.get('limit') ?? 10), Number(query.get('offset') ?? 0))
                                 : path.startsWith('/platform/bugs/') && path.endsWith('/duplicates') ? duplicates(path.split('/')[3])
                                   : path.startsWith('/platform/bugs/') ? bugReport(path.split('/')[3])
-                                    : {};
+                                    : path === '/platform/evaluation' ? evaluation(me.superadmin)
+                                      : path === '/platform/audit' ? audit(query, { limit: Number(query.get('limit') ?? 10), offset: Number(query.get('offset') ?? 0) })![1]
+                                        : {};
     return { ok: true, status: 200, json: async () => body } as Response;
   }) as typeof fetch;
 }
@@ -185,7 +191,7 @@ describe('what an agent is offered', () => {
     // The views the route registers for them: the ones whose need they satisfy (`app/api/assistant/route.ts`).
     const views = [];
     for (const v of viewTools) if (await may(v.needs)) views.push(v.name);
-    expect(views).toEqual(['home', 'record', 'initiatives', 'initiative', 'document', 'knowledge', 'knowledge_node', 'knowledge_log', 'search', 'settings', 'platform_status', 'releases', 'release', 'bugs', 'usage']);
+    expect(views).toEqual(['home', 'record', 'initiatives', 'initiative', 'document', 'approvals', 'knowledge', 'knowledge_node', 'knowledge_log', 'search', 'settings', 'platform_status', 'releases', 'release', 'bugs', 'evaluation', 'usage']);
   });
 
   it('a superadmin is offered every collection', async () => {
@@ -252,6 +258,7 @@ describe('what the route hands the model', () => {
       [MEMBER, '/initiatives', 'initiatives'], [MEMBER, '/settings', 'settings'], [MEMBER, '/platform', 'platform_status'], [ME, '/platform/teams/atlas', 'team'],
       [MEMBER, '/platform/releases', 'releases'], [MEMBER, '/platform/releases/0.97.0', 'release'],
       [MEMBER, '/platform/bugs', 'bugs'], [ME, '/platform/bugs/0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d01', 'bug'], [MEMBER, '/platform/usage', 'usage'],
+      [MEMBER, '/approvals', 'approvals'], [MEMBER, '/platform/evaluation', 'evaluation'], [ME, '/platform/audit', 'audit'],
       [ME, '/runs', 'runs'], [MEMBER, '/knowledge', 'knowledge'], [MEMBER, '/initiatives/atlas/2026-09-28-search-relevance/sources/notes.md', 'document'],
     ] as const) {
       const tools = await handed(who, path);
@@ -311,7 +318,7 @@ describe('a view tool\'s address', () => {
       knowledge_log: '/knowledge/log', search: '/knowledge', people: '/platform/people', plugins: '/plugins', plugin: '/plugins/[plugin]',
       skill: '/plugins/[plugin]/[skill]', runs: '/runs', activity: '/activity', settings: '/settings', platform_status: '/platform',
       releases: '/platform/releases', release: '/platform/releases/[version]', bugs: '/platform/bugs', bug: '/platform/bugs/[id]',
-      usage: '/platform/usage',
+      usage: '/platform/usage', approvals: '/approvals', evaluation: '/platform/evaluation', audit: '/platform/audit',
     });
     // Search shares Knowledge's page and comes after it, so the prepared query Knowledge offers is its own.
     expect(viewAt(viewTools, '/knowledge')?.name).toBe('knowledge');
@@ -322,7 +329,7 @@ describe('a view tool\'s address', () => {
   it('every tool has its own name and a need', () => {
     expect(new Set(viewTools.map((v) => v.name)).size).toBe(viewTools.length);
     for (const v of viewTools) expect(['work:read', 'platform:read', FLEET]).toContain(v.needs);
-    expect(viewTools.filter((v) => v.needs === FLEET).map((v) => v.name)).toEqual(['teams', 'team', 'people', 'plugins', 'plugin', 'skill', 'runs', 'activity', 'bug']);
+    expect(viewTools.filter((v) => v.needs === FLEET).map((v) => v.name)).toEqual(['teams', 'team', 'people', 'plugins', 'plugin', 'skill', 'runs', 'activity', 'bug', 'audit']);
   });
 
   it('refuses a segment that would leave the path it is placed in', () => {
@@ -363,13 +370,14 @@ describe('a view tool\'s address', () => {
 
   it('a member cannot read a fleet view by naming its tool', async () => {
     gateway(MEMBER);
-    for (const name of ['teams', 'team', 'people', 'plugins', 'plugin', 'skill', 'runs', 'activity']) {
-      await expect(tool(name).read({ slug: 'atlas', plugin: 'sdlc', skill: 'sdlc-spec' }), name).rejects.toBeInstanceOf(AccessDenied);
+    for (const name of ['teams', 'team', 'people', 'plugins', 'plugin', 'skill', 'runs', 'activity', 'audit']) {
+      await expect(tool(name).read({ slug: 'atlas', plugin: 'sdlc', skill: 'sdlc-spec', filter: 'administration' }), name).rejects.toBeInstanceOf(AccessDenied);
     }
     // Refused on who they are, before a row is asked for: nothing but `/me` was read.
     expect(calls.length).toBeGreaterThan(0);
     expect(calls.every((c) => new URL(c.url).pathname === '/api/console/me')).toBe(true);
     expect((await tool('initiatives').read({})).context.view).toBe('initiatives');
+    expect((await tool('approvals').read({})).context.view).toBe('approvals');
   });
 
   it('a member and a superadmin search as the team they act for, and a lesson on the shared shelf opens for both', async () => {

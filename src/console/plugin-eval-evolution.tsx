@@ -2,7 +2,7 @@
 
 import { Quiet } from '@/console/plugin-eval-overview';
 import { Panel } from '@/console/panel';
-import { When } from '@/console/when';
+import { Day } from '@/console/eval-score';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { plural } from '@/lib/format';
@@ -53,7 +53,7 @@ export function EvalEvolution({ pluginEval }: { pluginEval: PluginEvalFound }) {
             <TableRow key={c.id}>
               <TableCell className="max-w-[280px]">
                 <span className="block text-sm text-ink">{c.hypothesis}</span>
-                <span className="text-2xs text-ink-3"><When at={c.createdAt} /></span>
+                <span className="text-2xs text-ink-3"><Day at={c.createdAt} /></span>
               </TableCell>
               <TableCell align="center"><Badge tone={STATUS_TONE[c.status]}>{STATUS_LABEL[c.status]}</Badge></TableCell>
               <TableCell hideBelow="sm" align="center" className="text-xs">
@@ -117,7 +117,7 @@ export function EvalAutomationTrust({ pluginEval }: { pluginEval: PluginEval }) 
                     <Badge tone={t.state === 'human_calibrated' || t.state === 'operationally_qualified' ? 'positive' : t.state === 'mechanically_qualified' ? 'warning' : 'neutral'}>
                       {t.state ?? 'never qualified'}
                     </Badge>
-                    {t.qualifiedAt ? <span className="ml-2 text-2xs text-ink-3"><When at={t.qualifiedAt} /></span> : null}
+                    {t.qualifiedAt ? <span className="ml-2 text-2xs text-ink-3"><Day at={t.qualifiedAt} /></span> : null}
                   </span>
                 </li>
               ))}

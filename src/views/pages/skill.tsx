@@ -1,33 +1,62 @@
 'use client';
 
-import { use } from 'react';
-import { Activity, Ban, Repeat, Timer } from 'lucide-react';
-import { Row } from '@/components/base/shell';
+import { Activity, Ban, Repeat, RotateCw, Timer } from 'lucide-react';
+import { Row, Stack } from '@/components/base/shell';
+import { useShareView } from '@/components/base/use-share-view';
 import { BarList } from '@/components/charts/bar-list';
 import { CompositionBar } from '@/components/charts/composition-bar';
 import { AskAbout } from '@/components/patterns/ask-about';
 import { MetricTile } from '@/components/patterns/metric-tile';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { KeyValue } from '@/components/ui/key-value';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LinkTabs } from '@/components/ui/tabs';
-import { sentence } from '@/console/words';
-import { plural } from '@/lib/format';
-import { ReadingBody } from '@/console/reading';
-import { ConsolePage, useArrival } from '@/console/page';
 import { Panel } from '@/console/panel';
-import { failureOf, Query } from '@/console/query';
-import { useAddressParam } from '@/lib/address';
-import { freshnessOf, useConsole } from '@/lib/api';
+import { failureOf } from '@/console/query';
+import { ReadingBody } from '@/console/reading';
+import { useDataClock } from '@/lib/api';
 import type { PluginRow, Skill, SkillDetail, SkillText } from '@/lib/api-shapes';
+import { plural } from '@/lib/format';
 import { formatCount, formatKb, formatSeconds } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
 import { pendingContext } from '@/views/context';
-import { skillContext } from '@/views/skill-context';
+import { PLUGINS_PATH, readTrouble, type Catalog, type Served } from '@/views/plugins-context';
+import { skillContext, skillDetailPath, skillTextPath, skillsPath, type SkillRead } from '@/views/skill-context';
+import { useServed } from '@/views/use-served';
 
-type View = 'cost' | 'read' | 'references';
+/** The page's three views, in the address (`?view=`): the runs are the default, because they are the reason to open a skill here. */
+export type SkillViewName = 'cost' | 'read' | 'references';
+
+/** The view an address names, as the console's server hands it to the page: anything else is the runs. */
+export const viewOf = (asked: string | string[] | undefined): SkillViewName => {
+  const v = Array.isArray(asked) ? asked[0] : asked;
+  return v === 'read' || v === 'references' ? v : 'cost';
+};
+
+/**
+ * One read the console's server made for the page, followed in the browser: its answer until the plugins or skills
+ * collection changes or a Retry asks, then the browser's own.
+ */
+function useFollowed<T>(path: string, served: Served<T> | { state: 'missing'; path: string }) {
+  const { q, follow } = useServed<T>(path, true);
+  const data = q.data ?? (served.state === 'ok' ? served.data : undefined);
+  const failed = failureOf(q);
+  const trouble = data ? null : failed ?? ((served.state === 'failed' || served.state === 'slow') && !q.isFetching ? readTrouble(served) : null);
+  const retry = () => (q.data !== undefined || q.error ? void q.refetch() : follow());
+  return { data, trouble, retry, at: q.data ? new Date(q.dataUpdatedAt) : served.state === 'ok' ? served.at : null };
+}
+
+/** The four reads, as the page and its tabs both hold them. */
+function useSkill(pluginName: string, name: string, served: SkillRead) {
+  const catalog = useFollowed<Catalog>(PLUGINS_PATH, served.catalog);
+  const list = useFollowed<{ skills: Skill[] }>(skillsPath(pluginName), served.skills);
+  const detail = useFollowed<SkillDetail>(skillDetailPath(name), served.detail);
+  const text = useFollowed<SkillText>(skillTextPath(pluginName, name), served.text);
+  return { catalog, list, detail, text };
+}
 
 /** How the active team's runs of a skill went, from its recorded runs. A skill the team never called is absent from that record, so never run is a state, not a gap. */
 function Cost({ skill, detail }: { skill: Skill | undefined; detail: SkillDetail }) {
@@ -43,7 +72,7 @@ function Cost({ skill, detail }: { skill: Skill | undefined; detail: SkillDetail
         {/* `logged` is null when the platform's log of this skill's calls was not read, and `?? 0` on it printed
             three measured zeros — no tools, no calls, no refusals. The KeyValue below already says "Not measured"
             for the same kind of absence. */}
-        <Panel title="Calls by door" description={skill.logged ? `${formatCount(skill.calls)} ${plural(skill.calls, 'call')}, ${skill.logged.tools} distinct ${plural(skill.logged.tools, 'tool')}` : `${formatCount(skill.calls)} ${plural(skill.calls, 'call')}, tools not measured`}>
+        <Panel title="Calls by door" description={skill.logged ? `${formatCount(skill.calls)} ${plural(skill.calls, 'call')} by your team, ${skill.logged.tools} distinct ${plural(skill.logged.tools, 'tool')}` : `${formatCount(skill.calls)} ${plural(skill.calls, 'call')} by your team, tools not measured`}>
           <div className="flex flex-col gap-5">
             <CompositionBar label="Calls by door" parts={detail.surfaces.map((x) => ({ label: x.surface, value: x.calls }))} />
             <KeyValue
@@ -59,7 +88,7 @@ function Cost({ skill, detail }: { skill: Skill | undefined; detail: SkillDetail
             <p className="t-caption">Attributed by the last skill served to the caller, not by what the skill declares: one person running two conversations at once has their calls filed under whichever skill loaded last.</p>
           </div>
         </Panel>
-        <Panel title="Busiest tools" description="Calls, with the refused ones beside them">
+        <Panel title="Busiest tools" description="Your team's calls, with the refused ones beside them">
           {/* A share of all calls, not of these rows: the gateway sends the eight busiest tools, and the doors sum to the whole. */}
           <BarList label="Busiest tools" limit={8} format={formatCount} total={detail.surfaces.reduce((n, s) => n + s.calls, 0)} items={detail.busiestTools.map((t) => ({ key: t.tool, label: <span className="font-mono text-xs">{t.tool}</span>, value: t.calls, meta: t.failed ? `${t.failed} refused` : undefined }))} />
         </Panel>
@@ -75,132 +104,129 @@ function Cost({ skill, detail }: { skill: Skill | undefined; detail: SkillDetail
 }
 
 /**
- * One skill a plugin ships: how the active team's runs of it went, the text itself and what ships beside it. The view
- * is in the address (`?view=`), so each one is linkable; the runs are the default, because they are the reason to open
- * a skill here.
+ * The page's views, as tabs in the address. Reference is offered only when the skill ships one, or when the address
+ * asks for it, so a tab never leads to a view that the address did not name and that holds nothing.
  */
-export function SkillView({ params }: { params: Promise<{ plugin: string; skill: string }> }) {
+export function SkillTabs({ plugin, skill, view, served }: { plugin: string; skill: string; view: SkillViewName; served: SkillRead }) {
+  const { text } = useSkill(plugin, skill, served);
+  const refs = text.data?.references.length ?? 0;
+  const base = `/plugins/${plugin}/${skill}`;
+  return (
+    <LinkTabs
+      label="Skill views"
+      active={view}
+      tabs={[
+        { key: 'cost', label: 'Its runs', href: base },
+        { key: 'read', label: 'The skill', href: `${base}?view=read` },
+        ...(refs || view === 'references' ? [{ key: 'references', label: 'Reference', href: `${base}?view=references`, ...(refs ? { count: refs } : {}) }] : []),
+      ]}
+    />
+  );
+}
+
+/**
+ * One skill a plugin ships: how the active team's runs of it went, the text itself and what ships beside it, read on
+ * the console's server and handed here. The view is the address's (`?view=`), as the server read it, so the page's
+ * first paint is the view it was asked for, and each one is linkable.
+ */
+export function SkillView({ plugin: pluginName, skill: name, view, served }: { plugin: string; skill: string; view: SkillViewName; served: SkillRead }) {
   useLive(['plugins', 'skills']);
-  const { plugin: pluginName, skill: name } = use(params);
-  const list = useConsole<{ skills: Skill[] }>(`/skills?plugin=${encodeURIComponent(pluginName)}`);
-  const plugins = useConsole<{ plugins: PluginRow[] }>('/plugins');
-  const plugin = plugins.data?.plugins.find((p) => p.plugin === pluginName);
+  const { catalog, list, detail, text } = useSkill(pluginName, name, served);
+  const now = useDataClock();
+  const plugin: PluginRow | undefined = catalog.data?.plugins.find((p) => p.plugin === pluginName);
   const shipped = plugin?.skills.find((x) => x.name === name);
-  // COUPLED: only a SUCCESSFUL read may say a skill is not shipped, and only one that arrived may
-  // draw its figures. `known = !plugins.data || !!shipped` treated a FAILED read as one that
-  // shipped the skill: the page drew `…` tiles for ever, never said the read had failed, and said
-  // nothing that would send a reader to look again. The sibling page made the mirror-image
-  // mistake, reporting a failed read as "not a plugin the console lists".
-  const failed = failureOf(plugins) ?? failureOf(list);
-  const known = !plugins.data || !!shipped;
+  // COUPLED: only a SUCCESSFUL read may say a skill is not shipped, and only one that arrived may draw its figures. A
+  // failed read is said to have failed, with Retry, never treated as one that shipped the skill or one that did not.
+  const failed = catalog.trouble ?? list.trouble;
   const skill = list.data?.skills.find((s) => s.name === name);
-  const detail = useConsole<SkillDetail>(known ? `/skills/${name}` : null);
-  const text = useConsole<SkillText>(known ? `/plugins/${pluginName}/skills/${name}` : null).data;
-  const refs = text?.references.length ?? 0;
-  const asked = useAddressParam('view');
-  // DECIDED BY THE ADDRESS ALONE, and the `&& refs` that used to be here was a layout defect rather than a guard.
-  // `refs` comes from `text`, which is a read — so while it was in flight `view` resolved to `cost`, the page drew the
-  // COST view, and when the read landed it swapped wholesale to the references view. Measured at 390px on the phone
-  // profile: **CLS 0.228**, with the page shrinking 365px, the card moving 291px and the tab strip 330px, all at
-  // ~2.45s. A view whose identity depends on a read is a view that changes under the reader.
-  //
-  // What the guard was for — not offering a tab that leads nowhere — is kept where it belongs, on the tab itself.
-  const view: View = asked === 'read' ? 'read' : asked === 'references' ? 'references' : 'cost';
   /** The team's runs were read and this skill is not among them: never run, which the tiles and the panel both say. */
   const never = !skill && list.data !== undefined;
   const produces = plugin?.documents.filter((x) => x.stage === name).map((x) => x.name).join(', ');
   const gated = plugin?.documents.find((x) => x.stage === name && x.gate);
-  const base = `/plugins/${pluginName}/${name}`;
-  const arrival = useArrival(list, plugins, detail);
-  const context = plugins.data && list.data
-    ? skillContext(pluginName, name, { plugin, skill, detail: detail.data, text, ...arrival })
-    : pendingContext({ view: 'skill', title: name, address: base, scope: `your active team's runs of one skill of the ${pluginName} plugin` }, failed);
+  const updatedAt = [catalog.at, list.at, detail.at].filter((x): x is Date | string => x !== null).map((x) => new Date(x)).sort((a, b) => a.getTime() - b.getTime())[0] ?? null;
+  useShareView(catalog.data && list.data
+    ? skillContext(pluginName, name, { plugin, skill, detail: detail.data, text: text.data, updatedAt, now })
+    : pendingContext({ view: 'skill', title: name, address: `/plugins/${pluginName}/${name}`, scope: `your active team's runs of one skill of the ${pluginName} plugin` }, failed));
 
-  return (
-    <ConsolePage
-      title={name}
-      crumbs={[{ label: 'Plugins', href: '/plugins' }, { label: pluginName, href: `/plugins/${pluginName}` }]}
-      // A sentence first, always — see teams/[slug]/page.tsx. The skill's own words follow it.
-      description={<span className="inline-flex flex-wrap items-center gap-2">One skill a plugin ships: how your team&rsquo;s runs of it went, the text itself, and what ships beside it.{text?.description ? ` ${sentence(text.description)}` : null}</span>}
-      showPeriod={false}
-      updatedAt={freshnessOf(list, plugins, detail)}
-      context={context}
-      toolbar={known ? <LinkTabs label="Skill views" active={view} tabs={[{ key: 'cost', label: 'Its runs', href: base }, { key: 'read', label: 'The skill', href: `${base}?view=read` }, ...(refs || asked === 'references' ? [{ key: 'references', label: 'Reference', href: `${base}?view=references`, ...(refs ? { count: refs } : {}) }] : [])]} /> : undefined}
-    >
-      {failed ? (
-        <EmptyState kind="error" title="This skill could not be read" className="py-16"
-                    action={<Button size="sm" onClick={() => { void plugins.refetch(); void list.refetch(); }}>Retry</Button>}>
+  if (failed) {
+    return (
+      <Card>
+        <EmptyState kind="error" title="This skill could not be read" className="py-16" action={<Button variant="primary" icon={<RotateCw />} onClick={() => { catalog.retry(); list.retry(); }}>Retry</Button>}>
           {failed}
         </EmptyState>
-      ) : !known ? (
+      </Card>
+    );
+  }
+  if (catalog.data && !shipped) {
+    return (
+      <Card>
         <EmptyState kind="filtered" title={`'${name}' is not shipped by ${pluginName}`} className="py-16">It may have been renamed, or it belongs to another plugin. The plugin&apos;s page lists everything it ships.</EmptyState>
-      ) : (
-        <>
-          {/* The tiles are the runs' summary, and `Its runs` is the tab they belong to. They were rendered for every
-              tab, under the tab strip, so a reader who picked `The skill` met four cost figures and a colophon before a
-              line of the text — the strip appeared to govern them, and on two of its three tabs it did not. */}
-          {/* The tiles stand from the first paint, as on every page: they say "never run" in words for a skill the team
-              never ran and `—` for a read that did not answer. The row vanishing when the read came back without the
-              skill moved everything under it up (CLS 0.218 at 390px). */}
-          {view === 'cost' ? (
-            <Row split="tiles">
-              <MetricTile label="Runs" icon={<Repeat />} value={skill ? skill.runs : never ? 0 : list.isPending ? '…' : '—'} note={never ? 'Never run by your team' : 'Recorded'} />
-              {/* The empty state in words, like the two beside it: "Not timed" for a median nobody measured, "No calls" for a share
-                of nothing. A skill that has never run has no average calls per run — an average of no runs is undefined, not
-                zero — and "0.0" claims a measurement that was never taken. */}
-              <MetricTile label="Calls per run" icon={<Activity />} value={never ? 'No runs' : !skill ? (list.isPending ? '…' : '—') : skill.runs ? skill.callsAvg : 'No runs'} format={(n) => n.toFixed(1)} note={never ? 'Nothing has called it' : !skill ? 'Average and peak' : skill.runs ? `${formatCount(skill.calls)} in total, peak ${skill.callsMax}` : 'Nothing has called it'} />
-              <MetricTile label="Median run" icon={<Timer />} value={never ? 'Not timed' : !skill ? (list.isPending ? '…' : '—') : skill.durationMedian === null ? 'Not timed' : formatSeconds(skill.durationMedian)} note={skill ? `Longest ${formatSeconds(skill.durationMax)}` : 'And the longest'} />
-              <MetricTile label="Refused" icon={<Ban />} value={never ? 'No calls' : !skill ? (list.isPending ? '…' : '—') : skill.calls ? skill.refusals / skill.calls : 'No calls'} format={(n) => `${(n * 100).toFixed(1)}%`} note={skill ? `${skill.refusals} of ${formatCount(skill.calls)} calls` : 'Share of its calls'} />
-            </Row>
-          ) : null}
-          {/* What the skill is: knowable whether or not anybody has run it, and a front door is exactly the skill with no runs. */}
-          <Panel title="About this skill" actions={<AskAbout question={`What is ${name} for, and where does it sit in ${pluginName}'s method?`} />}>
-            <KeyValue
-              columns={2}
-              items={[
-                { label: 'Whose', value: text?.origin === 'theirs' ? <Badge tone="accent">The {pluginName} team&rsquo;s</Badge> : <Badge tone="neutral">Ours</Badge> },
-                { label: 'Position', wrap: true, value: shipped?.isEntry ? `The front door of ${pluginName}` : shipped?.position && plugin ? `${shipped.position} of ${plugin.stages.length} in ${pluginName}` : `Shipped by ${pluginName}, not a stage of its method` },
-                { label: 'Produces', wrap: true, value: produces ? <span className="font-mono text-xs">{produces}</span> : <span className="text-ink-3">Work, not a document</span> },
-                { label: 'Closed by', wrap: true, value: gated ? <Badge tone="accent" dot>approve {gated.name.replace(/\.md$/, '')}</Badge> : <span className="text-ink-3">No gate; the next step follows</span> },
-                { label: 'Version', mono: true, value: skill?.version ?? text?.version ?? '—' },
-                // The provenance line verbatim: a paraphrase would be a second claim about ownership.
-                ...(text?.source ? [{ label: 'Source', wrap: true, value: text.source }] : []),
-              ]}
-            />
+      </Card>
+    );
+  }
+  return (
+    <Stack>
+      {/* The tiles are the runs' summary, and `Its runs` is the tab they belong to. They stand from the first paint:
+          they say "never run" in words for a skill the team never ran and `—` for a read that did not answer. */}
+      {view === 'cost' ? (
+        <Row split="tiles">
+          <MetricTile label="Runs" icon={<Repeat />} value={skill ? skill.runs : never ? 0 : '—'} note={never ? 'Never run by your team' : 'By your team'} />
+          {/* A skill that has never run has no average calls per run — an average of no runs is undefined, not zero —
+              and "0.0" claims a measurement that was never taken. */}
+          <MetricTile label="Calls per run" icon={<Activity />} value={never ? 'No runs' : !skill ? '—' : skill.runs ? skill.callsAvg : 'No runs'} format={(n) => n.toFixed(1)} note={never ? 'Nothing has called it' : !skill ? 'Average and peak' : skill.runs ? `${formatCount(skill.calls)} in total, peak ${skill.callsMax}` : 'Nothing has called it'} />
+          <MetricTile label="Median run" icon={<Timer />} value={never ? 'Not timed' : !skill ? '—' : skill.durationMedian === null ? 'Not timed' : formatSeconds(skill.durationMedian)} note={skill ? `Longest ${formatSeconds(skill.durationMax)}` : 'And the longest'} />
+          <MetricTile label="Refused" icon={<Ban />} value={never ? 'No calls' : !skill ? '—' : skill.calls ? skill.refusals / skill.calls : 'No calls'} format={(n) => `${(n * 100).toFixed(1)}%`} note={skill ? `${skill.refusals} of ${formatCount(skill.calls)} calls` : 'Share of its calls'} />
+        </Row>
+      ) : null}
+      {/* What the skill is: knowable whether or not anybody has run it, and a front door is exactly the skill with no runs. */}
+      <div data-protagonist="About this skill" className="contents">
+        <Panel title="About this skill" actions={<AskAbout question={`What is ${name} for, and where does it sit in ${pluginName}'s method?`} />}>
+          <KeyValue
+            columns={2}
+            items={[
+              { label: 'Whose', value: (text.data?.origin ?? shipped?.origin) === 'theirs' ? <Badge tone="accent">The {pluginName} team&rsquo;s</Badge> : <Badge tone="neutral">Ours</Badge> },
+              { label: 'Position', wrap: true, value: shipped?.isEntry ? `The front door of ${pluginName}` : shipped?.position && plugin ? `${shipped.position} of ${plugin.stages.length} in ${pluginName}` : `Shipped by ${pluginName}, not a stage of its method` },
+              { label: 'Produces', wrap: true, value: produces ? <span className="font-mono text-xs">{produces}</span> : <span className="text-ink-3">Work, not a document</span> },
+              { label: 'Closed by', wrap: true, value: gated ? <Badge tone="accent" dot>approve {gated.name.replace(/\.md$/, '')}</Badge> : <span className="text-ink-3">No gate; the next step follows</span> },
+              { label: 'Version', mono: true, value: skill?.version ?? text.data?.version ?? shipped?.version ?? '—' },
+              // The provenance line verbatim: a paraphrase would be a second claim about ownership.
+              ...(text.data?.source ? [{ label: 'Source', wrap: true, value: text.data.source }] : []),
+            ]}
+          />
+        </Panel>
+      </div>
+      {view === 'cost' ? (
+        detail.data ? <Cost skill={skill} detail={detail.data} />
+          : detail.trouble ? (
+            <Panel title="Its runs">
+              <EmptyState kind="error" title="The runs' record did not load" className="py-10" action={<Button size="sm" icon={<RotateCw />} onClick={detail.retry}>Retry</Button>}>{detail.trouble}</EmptyState>
+            </Panel>
+          ) : <Skeleton className="h-72 rounded-lg" />
+      ) : null}
+      {view !== 'cost' && !text.data ? (
+        text.trouble ? (
+          <Panel title={view === 'read' ? 'The skill' : 'Reference'}>
+            <EmptyState kind="error" title="The skill's text did not load" className="py-10" action={<Button size="sm" icon={<RotateCw />} onClick={text.retry}>Retry</Button>}>{text.trouble}</EmptyState>
           </Panel>
-          {view === 'cost' ? <Query query={detail} what="The runs' record" skeleton={<Skeleton className="h-72 rounded-lg" />}>{(d) => <Cost skill={skill} detail={d} />}</Query> : null}
-          {/* The room, held while the read is in flight — and the second half of a fix whose first half was wrong.
-              **This placeholder was written to fix `?view=references`'s CLS 0.228 on the theory that the whole stack of
-              panels appeared at once, and it changed nothing: 0.228 stayed 0.228.** A probe with a layout-shift observer
-              under the phone profile showed why — `reading=false` for the whole load, because this condition could
-              never be true. `view` resolved to `cost` until `refs` was known, so the page drew the COST view and then
-              swapped wholesale to the references view when the read landed. **The cause was the view's identity, not
-              the panels' arrival**; `view` now follows the address and this holds the room while the read is in flight.
-              Kept because it is now reachable and doing its job — the second measurement reads 0.040. */}
-          {!text && (view === 'read' || view === 'references') ? (
-            <Panel title={view === 'read' ? 'The skill' : 'Reference'} description="Reading…">
-              <div className="flex flex-col gap-(--stack-gap)">
-                <Skeleton className="h-72 rounded-lg" />
-                {view === 'references' ? <Skeleton className="h-72 rounded-lg" /> : null}
-              </div>
-            </Panel>
-          ) : null}
-          {view === 'read' && text ? <Panel title="The skill" description={`${text.body.length.toLocaleString('en-US')} ${plural(text.body.length, 'character')}`}><ReadingBody>{text.body}</ReadingBody></Panel> : null}
-          {/* The address asks for this view, so it is drawn whether or not anything is in it — a tab that leads to a
-              blank page is worse than a sentence saying why. Before `view` followed the address this could not
-              happen; now it can, so it says so. */}
-          {view === 'references' && text && !text.references.length ? (
-            <Panel title="Reference">
-              <EmptyState title="No reference ships with this skill">A reference is the text a skill reads beside its own instructions — a checklist, a schema, a policy. This one ships none.</EmptyState>
-            </Panel>
-          ) : null}
-          {view === 'references' && text ? text.references.map((r) => (
-            <Panel key={r.path} title={r.path} description={`${r.content.length.toLocaleString('en-US')} ${plural(r.content.length, 'character')}`}>
-              {r.path.endsWith('.md') ? <ReadingBody>{r.content}</ReadingBody> : <pre className="font-mono text-xs leading-[1.7] whitespace-pre-wrap text-ink-2 [overflow-wrap:anywhere]">{r.content}</pre>}
-            </Panel>
-          )) : null}
-        </>
-      )}
-    </ConsolePage>
+        ) : (
+          <Panel title={view === 'read' ? 'The skill' : 'Reference'} description="Reading…">
+            <Skeleton className="h-72 rounded-lg" />
+          </Panel>
+        )
+      ) : null}
+      {view === 'read' && text.data ? <Panel title="The skill" description={`${text.data.body.length.toLocaleString('en-US')} ${plural(text.data.body.length, 'character')}`}><ReadingBody>{text.data.body}</ReadingBody></Panel> : null}
+      {/* The address asks for this view, so it is drawn whether or not anything is in it: a tab that leads to a blank
+          page is worse than a sentence saying why. */}
+      {view === 'references' && text.data && !text.data.references.length ? (
+        <Panel title="Reference">
+          <EmptyState title="No reference ships with this skill">A reference is the text a skill reads beside its own instructions — a checklist, a schema, a policy. This one ships none.</EmptyState>
+        </Panel>
+      ) : null}
+      {view === 'references' && text.data ? text.data.references.map((r) => (
+        <Panel key={r.path} title={r.path} description={`${r.content.length.toLocaleString('en-US')} ${plural(r.content.length, 'character')}`}>
+          {r.path.endsWith('.md') ? <ReadingBody>{r.content}</ReadingBody> : <pre className="font-mono text-xs leading-[1.7] whitespace-pre-wrap text-ink-2 [overflow-wrap:anywhere]">{r.content}</pre>}
+        </Panel>
+      )) : null}
+    </Stack>
   );
 }

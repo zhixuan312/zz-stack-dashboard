@@ -1,33 +1,42 @@
 # Skill
 
-One skill a plugin ships: how your team's runs of it went, its text, and what ships beside it.
+One skill a plugin ships: how your team's runs of it went, its text, and what ships beside it, read on the console's server.
 
 ## Structure
 
-- Gate first: the page asks for `plugins` before it renders, so a person who does not hold it is shown NoAccess and nothing on the page is read.
-- Tabs (in the address): Its runs, The skill, Reference.
-- Tiles: runs, calls per run, median run, refused.
-- About this skill: whose, position, produces, closed by, version, source.
-- Its runs: calls by door, busiest tools, and a two-line conclusion.
+- Gate first: the page asks for `plugins` before it renders, so a person who does not hold it is answered by the refused page and nothing on the page is read. Its title comes from `gatedMetadata` and its loading state from `gatedLoading`, so under `refusal: 'absent'` neither names the page.
+- Its four reads, the catalog, your team's runs of the plugin's skills, the skill's calls by door and its text, are made together on the console's server before the masthead. A skill its plugin does not ship (its text answered 404) is answered by the missing page, exactly as an address that names nothing is.
+- Masthead: the kicker `ZZ Stack · Work / Plugins / <plugin>`, the skill's name, one static sentence, and the tabs (in the address, read on the server): Its runs, The skill, and Reference when it ships one.
+- Its runs: four tiles (runs, calls per run, median run, refused), all your team's, then calls by door, busiest tools and a two-line conclusion.
+- About this skill, on every tab, the page's protagonist: whose it is, its position in the method, what it produces, what gate closes it, its version and its source.
+- The skill and Reference: its text, and each reference shipped beside it.
 
 ## States
 
-- Never run: the runs tab says so and the text still reads.
-- Not shipped by this plugin: an empty state pointing back to the plugin.
+| State | What shows |
+|---|---|
+| Loading | `loading.tsx` while the gate asks `/me` and the four reads answer |
+| Never run | The tiles say so in words, the runs tab says your team recorded no call, and the text still reads |
+| No reference | The Reference tab says none ships |
+| Not shipped | The missing page |
+| Runs record failed | Its own error state with Retry; About and the tiles stand |
+| Text failed | The text's own error state with Retry |
+| Read failed, or slower than 4.5 seconds | "This skill could not be read" with the gateway's sentence, or that it did not answer within 4.5 seconds, and Retry |
+| Signed out since the gate | Sign-in |
 
 ## Agents
 
-The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `skillContext` in `src/views/skill-context.ts`, the same function `view_skill` calls, so the assistant quotes the figures the screen shows. Ask is on About this skill, the card every view of the page draws: what the skill is for and where it sits in its plugin's method.
+The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `skillContext` in `src/views/skill-context.ts`, and `view_skill` builds the same context from the same four reads, so the assistant quotes the figures the screen shows. Ask is on About this skill, the card every view of the page draws: what the skill is for and where it sits in its plugin's method.
 
 ### What the agent reads
 
-Your team's runs of the skill, calls per run, median run, refusal rate and observed output per run (the response bytes of its calls, not what a model read and not a cost), each with what it is measured over. What code found: where it sits in its plugin's method and who wrote it, what it produces and what gate closes it, what it is for and when to use it, its calls by door, its busiest tools, and the size of its text with where to read it. It says that calls are attributed by the last skill served to the caller, and when a skill has never run.
+Your team's runs of the skill, calls per run, median run, refusal rate and observed output per run (the response bytes of its calls, not what a model read and not anything paid for), each with what it is measured over. What code found: where it sits in its plugin's method and who wrote it, what it produces and what gate closes it, what it is for and when to use it, its calls by door, its busiest tools, and the size of its text with where to read it. It says that calls are attributed by the last skill served to the caller, that runs and calls are your team's alone, and when a skill has never run.
 
 ```text
 - Its calls by door: core 2,480 (73 refused), eval 216 (8 refused).
 ```
 
-- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `explore_skill`, offered on this page alone, counts this skill's calls, runs and observed output over any window, every call held to this skill.
+- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address, and the page text after it for anything the context does not cover. `explore_skill` (`src/views/plugins-explore.ts`), offered on this page alone, counts this skill's calls, runs and observed output over any window, every call held to this skill.
 
 ### What the agent does here
 
@@ -39,4 +48,4 @@ Protagonist: About this skill.
 
 ## Surfaces
 
-Console, desktop and phone. Reads `GET /skills?plugin`, `GET /plugins`, `GET /skills/:name`, `GET /plugins/:plugin/skills/:skill`. Live: follows `plugins and skills`, so a change made anywhere — another tab, another person — reads this page again.
+Console, desktop and phone. Reads `GET /plugins`, `GET /skills?plugin`, `GET /skills/:name` and `GET /plugins/:plugin/skills/:skill` on the console's server, as the person, once per request and bounded at 4.5 seconds; a tab is read there again as the navigation renders the page, and a Retry and a change anywhere to the plugins or skills collections are read in the browser. Live: follows `plugins` and `skills`.

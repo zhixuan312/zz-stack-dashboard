@@ -36,13 +36,11 @@ vi.mock('next/navigation', () => ({
 
 import { PeriodProvider, usePeriod } from '@/console/period';
 import { useQueryState } from '@/components/patterns/data-table';
-import { useAddressParam } from '@/lib/address';
 
 /** The two writers a page has: the period picker in the chrome, and the page's own filters. */
 function View() {
   const { period, setPeriod } = usePeriod();
   const [filters, setFilters] = useQueryState({ show: 'all' });
-  const view = useAddressParam('view');
   const search = useSyncExternalStore(nav.subscribe, () => window.location.search, () => '');
   return (
     <QueryClientProvider client={useMemo(() => new QueryClient(), [])}>
@@ -51,7 +49,6 @@ function View() {
       <button onClick={() => setFilters({ show: 'all' })}>All</button>
       <span data-testid="period">{period}</span>
       <span data-testid="show">{filters.show}</span>
-      <span data-testid="view">{view ?? 'none'}</span>
       <span data-testid="search">{search}</span>
     </QueryClientProvider>
   );
@@ -80,7 +77,6 @@ describe('a view is its address', () => {
     window.history.replaceState(null, '', '/initiatives?period=7d&view=read&show=waiting');
     mount();
     expect(at('period')).toBe('7d');
-    expect(at('view')).toBe('read');
     expect(at('show')).toBe('waiting');
 
     fireEvent.click(screen.getByText('Waiting on you'));
@@ -101,6 +97,6 @@ describe('a view is its address', () => {
   it('a page reads no search params from Next, which is what costs it its prerender', () => {
     // Every render above went through `useSearchParams` throwing. Reaching this line is the proof.
     mount();
-    expect(at('view')).toBe('none');
+    expect(at('show')).toBe('all');
   });
 });

@@ -7,9 +7,9 @@ import type {
   KnowledgeLogEntry, PlatformPersonRow, PluginRow, Skill,
 } from '../../src/lib/api-shapes.ts';
 import type { ActivityLog, ActivitySummary, KnowledgeList, KnowledgeSummary, RefusalOwner, Runs } from '../../src/lib/destination-shapes.ts';
-import type { People, Teams } from '../../src/lib/fleet-shapes.ts';
-import type { Bugs, PeriodFigure, PlatformStatus } from '../../src/lib/platform-shapes.ts';
-import type { Home, InitiativeList } from '../../src/lib/work-shapes.ts';
+import type { Audit, People, Teams } from '../../src/lib/fleet-shapes.ts';
+import type { Bugs, Evaluation, PeriodFigure, PlatformStatus } from '../../src/lib/platform-shapes.ts';
+import type { Approvals, Home, InitiativeList } from '../../src/lib/work-shapes.ts';
 
 /** Nothing recorded yet: every list empty, every figure absent rather than zero where the API says so. */
 export function empty(seg: string[], body: unknown): unknown {
@@ -19,6 +19,7 @@ export function empty(seg: string[], body: unknown): unknown {
     case 'teams': return a ? body : { ...(body as Teams), tiles: { teams: 0, openWork: 0, pending: 0, lessons: 0 }, teams: [], total: 0 } satisfies Teams;
     case 'initiatives': return a && b ? body : nothingListed(body as InitiativeList);
     case 'home': return noHome(body as Home);
+    case 'approvals': return noApprovals(body as Approvals);
     case 'knowledge': return a === 'summary' ? noKnowledge(body as KnowledgeSummary) : a === 'log' ? list('entries') : a ? body
       : { ...(body as KnowledgeList), rows: [], total: 0, summary: { byKind: {}, standing: 0, superseded: 0 } } satisfies KnowledgeList;
     case 'skills': return a ? { ...(body as object), surfaces: [], busiestTools: [] } : list('skills');
@@ -32,7 +33,8 @@ export function empty(seg: string[], body: unknown): unknown {
       skills: p.skills.map((k) => ({ ...k, calls: 0, everRun: false, lastRun: null })),
     })) };
     case 'settings': return Array.isArray(body) ? (a === 'platform' ? (body as PlatformPersonRow[]).slice(0, 1) : []) : body;
-    case 'platform': return a === 'status' ? freshStatus(body as PlatformStatus) : a === 'bugs' && !b ? noBugs(body as Bugs) : body;
+    case 'platform': return a === 'status' ? freshStatus(body as PlatformStatus) : a === 'bugs' && !b ? noBugs(body as Bugs)
+      : a === 'evaluation' ? noEvaluation(body as Evaluation) : a === 'audit' ? noAudit(body as Audit) : body;
     default: return body;
   }
 }
@@ -48,6 +50,25 @@ function noBugs(x: Bugs): Bugs {
     cohorts: x.cohorts.map((c) => ({ ...c, filed: zero, resolved: zero, stillOpen: zero, filedPer1000: c.filedPer1000.value === null ? c.filedPer1000 : zero, medianResolveHours: none })),
     queue: { state: 'ok', data: { rows: [], total: 0 } },
   };
+}
+
+/** Evaluation on a fresh deployment: nothing scored, no finding recorded, nothing waiting, as the gateway answers it. */
+function noEvaluation(x: Evaluation): Evaluation {
+  return {
+    ...x,
+    meta: { ...x.meta, period: { from: x.meta.asOf, to: x.meta.asOf }, coverageFrom: null },
+    tiles: { waiting: 0, established: 0, lastScored: null, daysScored: 0 },
+    plugins: { state: 'ok', data: [] },
+    history: { state: 'ok', data: [] },
+    byDecision: { state: 'ok', data: { applied: 0, rejected: 0, deferred: 0 } },
+    byOwner: { state: 'ok', data: {} },
+    waiting: { state: 'ok', data: { rows: [], total: 0 } },
+  };
+}
+
+/** Audit on a fresh deployment: nothing recorded, so no act, no event, and no day the record begins on. */
+function noAudit(x: Audit): Audit {
+  return { ...x, meta: { ...x.meta, period: { from: x.meta.asOf, to: x.meta.asOf }, coverageFrom: null }, rows: [], total: 0 };
 }
 
 /** People on a fresh deployment: nobody added, and the week before the record of sign-ins began, as the gateway says it. */
@@ -116,6 +137,22 @@ function noActivity(a: ActivitySummary): ActivitySummary {
     weeks: a.weeks.state === 'ok' ? { state: 'ok', data: a.weeks.data.map((w) => ({ ...w, calls: 0, refused: 0, owners: NONE })) } : a.weeks,
     groups: { state: 'ok', data: { rows: [], groups: 0, rest: null } },
     maintenance: { calls: 0, refused: 0 },
+  };
+}
+
+/** Approvals on a fresh deployment, as Home's is: nothing waits, nothing is approved in anybody's name, and no week is drawn. */
+function noApprovals(a: Approvals): Approvals {
+  const none = { rows: [], total: 0 };
+  return {
+    ...a,
+    tiles: { waiting: 0, oldestWaitingSince: null, inYourName: 0, noPresentation: { count: 0, of: 0 } },
+    weeks: [],
+    waiting: a.waiting.state === 'ok' ? { state: 'ok', data: { ...a.waiting.data, ...none, summary: { byInitiative: [], olderThan14Days: 0 } } } : a.waiting,
+    history: a.history.state === 'ok' ? { state: 'ok', data: { ...a.history.data, ...none, summary: {
+      byPresentation: { console_revision_shown: 0, agent_context_covered: 0, not_recorded: 0, unknown: 0 },
+      byDecisionBasis: { explicit_recorded: 0, standing_delegation_recorded: 0, unknown: 0 },
+      byInitiative: [],
+    } } } : a.history,
   };
 }
 

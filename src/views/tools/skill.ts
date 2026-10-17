@@ -1,13 +1,18 @@
-/** One skill's view tool, at `/plugins/[plugin]/[skill]`, and its prepared query held to that skill. */
+/**
+ * One skill's view tool, at `/plugins/[plugin]/[skill]`: the four reads its page makes, the skill's text
+ * (`GET /plugins/:plugin/skills/:skill`, spec version 8's route for it) with the catalog, the team's runs and the
+ * skill's calls by door beside it, told through the page's context.
+ */
 import { z } from 'zod';
 import { requireNeed } from '@/data/access';
 import { FEATURES } from '@/data/features';
 import { gatewayGet } from '@/data/gateway';
-import type { PluginRow, Skill, SkillDetail, SkillText } from '@/lib/api-shapes';
+import type { Skill, SkillDetail, SkillText } from '@/lib/api-shapes';
 import { defineViewTool } from '@/lib/shared-context';
-import { skillContext } from '../skill-context';
+import { PLUGINS_PATH, type Catalog } from '../plugins-context';
+import { SKILL_EXPLORE } from '../plugins-explore';
+import { skillContext, skillDetailPath, skillTextPath, skillsPath } from '../skill-context';
 import { justRead, segment } from './shared';
-import { output, runs, skillCalls } from './sources';
 
 export const skillTool = defineViewTool({
   name: 'skill',
@@ -18,20 +23,14 @@ export const skillTool = defineViewTool({
   input: z.object({ plugin: segment('The plugin\'s name.'), skill: segment('The skill\'s name.') }),
   async read({ plugin, skill }) {
     await requireNeed(FEATURES.plugins.needs);
-    const [plugins, skills, detail, text] = await Promise.all([
-      gatewayGet<{ plugins: PluginRow[] }>('/plugins'),
-      gatewayGet<{ skills: Skill[] }>(`/skills?plugin=${plugin}`),
-      gatewayGet<SkillDetail>(`/skills/${skill}`),
-      gatewayGet<SkillText>(`/plugins/${plugin}/skills/${skill}`),
+    const [catalog, skills, detail, text] = await Promise.all([
+      gatewayGet<Catalog>(PLUGINS_PATH),
+      gatewayGet<{ skills: Skill[] }>(skillsPath(plugin)),
+      gatewayGet<SkillDetail>(skillDetailPath(skill)),
+      gatewayGet<SkillText>(skillTextPath(plugin, skill)),
     ]);
-    const data = { plugin: plugins.plugins.find((p) => p.plugin === plugin), skill: skills.skills.find((s) => s.name === skill), detail, text };
+    const data = { plugin: catalog.plugins.find((p) => p.plugin === plugin), skill: skills.skills.find((s) => s.name === skill), detail, text };
     return { context: skillContext(plugin, skill, { ...data, ...justRead() }), data };
   },
-  explore: {
-    sources: { skillCalls, runs, output },
-    fixed: async ({ plugin, skill }) => {
-      const one = [{ field: 'skill', op: 'eq' as const, value: skill }];
-      return { skillCalls: [...one, { field: 'plugin', op: 'eq', value: plugin }], runs: one, output: one };
-    },
-  },
+  explore: SKILL_EXPLORE,
 });

@@ -1,6 +1,11 @@
 /**
- * One plugin's shared context (decision 0011): what it ships and governs, how to install it, how much the active team
- * used it, its public score, and its evaluation.
+ * One plugin's shared context (decision 0011) and the reads its page makes on the console's server: what it ships and
+ * governs, how to install it, its public score with the protocol, the date and the comparability statement the gateway
+ * answered, how much the active team used it, and, where the gateway answered it, the owning team's evaluation.
+ *
+ * The evaluation (`GET /plugins/:plugin/eval`) is answered to the superadmin and to the plugin's owning team alone, and
+ * refused to everybody else before anything of it is read. That refusal is not a failure but the evaluation's absence
+ * for this reader, so it is `withheld`, which says nothing; the public score on the catalog's row stands for everybody.
  */
 import type { PluginEval, PluginRow } from '@/lib/api-shapes';
 import { plural } from '@/lib/format';
@@ -9,9 +14,22 @@ import { formatDate } from '@/lib/format-date';
 import { listed, type Fact, type Insight, type SharedContext } from '@/lib/shared-context';
 import { arrived, budgeted, type Arrival } from './context';
 import { scoreOf as score } from './eval-score';
-import { scoreSaid } from './plugins-context';
+import { NO_EVALUATION, scoreSaid, versionSaid, type PluginsRead, type Served } from './plugins-context';
 
-export function pluginContext(name: string, { plugin: p, evaluation: e, ...arrival }: { plugin?: PluginRow; evaluation: PluginEval } & Arrival): SharedContext {
+/** The gateway address of one plugin's evaluation. */
+export const evalPath = (plugin: string): string => `/plugins/${encodeURIComponent(plugin)}/eval`;
+
+/** The evaluation as the console's server read it: answered, withheld from this reader, failed or not answered in time. */
+export type EvalRead = Served<PluginEval> | { state: 'withheld'; path: string };
+
+/** A plugin's page's two reads, made together: the catalog its row is in, and the owning team's evaluation. */
+export type PluginRead = { catalog: PluginsRead; evaluation: EvalRead };
+
+/**
+ * What the page and `view_plugin` say about `name`. `evaluation` is the gateway's answer, or null when it gave none to
+ * this reader: withheld, which is said as nothing, or unread, whose reason `unread` gives.
+ */
+export function pluginContext(name: string, { plugin: p, evaluation: e, unread, ...arrival }: { plugin?: PluginRow; evaluation: PluginEval | null; unread?: string } & Arrival): SharedContext {
   const facts: Fact[] = [];
   const insights: Insight[] = [];
   const unknowns: string[] = [];
@@ -20,20 +38,23 @@ export function pluginContext(name: string, { plugin: p, evaluation: e, ...arriv
     facts.push(
       { label: 'Skills', value: formatCount(p.skills.length), change: p.stages.length ? `${p.stages.length} of them stages, in order` : undefined },
       { label: 'Gates', value: formatCount(p.gates), definition: 'Documents this plugin\'s method requires a person to approve.' },
-      { label: 'Your team\'s calls', value: formatCount(p.yourTeam.calls), change: p.yourTeam.failed ? `${formatCount(p.yourTeam.failed)} refused` : 'none refused', definition: 'Your active team\'s tool calls across its skills, all time.' },
+      {
+        label: 'Public score', value: scoreSaid(p.score),
+        change: `${p.score && p.score.lower !== null && p.score.upper !== null ? `between ${p.score.lower.toFixed(1)} and ${p.score.upper.toFixed(1)}; ` : ''}${p.comparability}`,
+        definition: 'Its latest score out of 10, and whether its scores compare, as the gateway states both.',
+      },
+      { label: 'Your team\'s calls', value: formatCount(p.yourTeam.calls), change: p.yourTeam.failed ? `${formatCount(p.yourTeam.failed)} refused` : 'none refused', definition: 'Your active team\'s calls of its skills, all time.' },
       { label: 'Never run by your team', value: `${formatCount(neverRun.length)} of ${formatCount(p.skills.length)} skills` },
-      { label: 'Public score', value: scoreSaid(p.score), change: p.comparability, definition: 'Its latest score out of 10, as the platform\'s Evaluation read selects it, and whether its scores compare.' },
     );
     insights.push({ text: `It is ${p.required ? 'required: every client installs it' : 'optional'}; install it with ${p.install}.` });
     insights.push({ text: `It declares ${p.version ? `version ${p.version}, ${p.release ? `released with digest ${p.release.digest}` : 'which no release has vouched for'}` : 'no version'}${p.owner ? `, owned by ${p.owner}` : ''}, and ${p.servers.length ? `reaches the MCP ${plural(p.servers.length, 'server')} ${p.servers.join(', ')}` : 'reaches no server, skills only'}.` });
     if (p.stages.length) insights.push({ text: `Its method runs ${p.stages.join(', then ')}${p.entry ? `; ${p.entry} is the front door` : ''}.` });
     if (p.documents.length) insights.push({ text: `The documents it governs: ${p.documents.map((d) => `${d.name} (${d.gate ? 'a person approves' : 'no approval'})`).join(', ')}.` });
-    if (neverRun.length) insights.push({ text: `Never run: ${listed(neverRun, (s) => s.name, `see /plugins/${name}`)}.` });
-  } else unknowns.push(`${name} has no manifest, skills or documents to show: it is a third-party subject, registered for evaluation only.`);
+    if (neverRun.length) insights.push({ text: `Never run by your team: ${listed(neverRun, (s) => s.name, `see /plugins/${name}`)}.` });
+  } else unknowns.push(`${name} is not in the catalog: it has no manifest, skills or install command to show, and is registered for evaluation only.`);
 
-  if (!e.found) unknowns.push('It has never been evaluated.');
-  else if (e.run) {
-    facts.push({ label: 'Evaluation score', value: score(e.run), definition: 'The newest scored evaluation run, 0 to 10, against the protocol named below.' });
+  if (e?.found) facts.push({ label: 'Evaluation score', value: e.run ? score(e.run) : 'never scored', definition: 'The owning team\'s newest scored run, against the protocol below.' });
+  if (e?.found && e.run) {
     insights.push({ text: `Evaluated on ${formatDate(e.run.createdAt)} against protocol ${e.run.protocol.key} v${e.run.protocol.version}${e.subjectVersion ? `, measuring version ${e.subjectVersion.declaredVersion}` : ''}; guardrails ${e.run.guardrailStatus ?? 'not established'}.` });
     const scored = e.run.dimensions.filter((d) => d.applicable && d.score !== null);
     if (scored.length) insights.push({ text: `By dimension: ${scored.map((d) => `${d.key} ${d.score!.toFixed(1)}`).join(', ')}.` });
@@ -41,19 +62,22 @@ export function pluginContext(name: string, { plugin: p, evaluation: e, ...arriv
     const guardrails = e.run.dimensions.flatMap((d) => d.measures.filter((m) => m.guardrail));
     if (guardrails.length) insights.push({ text: `Guardrail ${plural(guardrails.length, 'measure')}, ${e.run.guardrailStatus ?? 'not established'} as one verdict over all of them: ${listed(guardrails, (g) => `${g.key} ${g.value ?? `no value (${g.excludedReason ?? 'none recorded'})`}`, 'see the plugin\'s page', 6)}.` });
     if (e.run.coverage.usableRunCount != null) insights.push({ text: `It was scored on ${formatCount(e.run.coverage.usableRunCount)} usable ${plural(e.run.coverage.usableRunCount, 'run')}${e.run.coverage.totalRunCount != null ? ` of ${formatCount(e.run.coverage.totalRunCount)}` : ''}.` });
-  } else unknowns.push(e.subjectVersion ? 'It has been profiled and never scored: no evaluation run has a score.' : 'It has never been evaluated.');
+  } else if (e?.found) unknowns.push(e.subjectVersion ? 'Its owning team has profiled it and never scored it: no evaluation run has a score.' : 'Its owning team registered it and has never profiled it.');
+  else if (e) unknowns.push('It has never been registered for evaluation.');
+  else if (unread) unknowns.push(`Its owning team's evaluation could not be read: ${unread}`);
 
-  if (e.found) {
+  if (e?.found) {
     const f = e.findings;
     if (f.strengths.length + f.defects.length + f.unknowns.length) insights.push({ text: `Findings: ${f.strengths.length} ${plural(f.strengths.length, 'strength')}, ${f.defects.length} ${plural(f.defects.length, 'defect')}, ${f.unknowns.length} ${plural(f.unknowns.length, 'unknown')}.${f.defects.length ? ` The defects: ${listed(f.defects, (d) => `${d.pattern} (${d.decision})`, 'see the plugin\'s page', 6)}.` : ''}` });
     if (e.candidates.length) insights.push({ text: `Candidates for change: ${listed(e.candidates, (c) => `"${c.hypothesis}" (${c.status}${c.release?.releasedDeclaredVersion ? `, released as ${c.release.releasedDeclaredVersion}` : ''}${c.release?.rolledBack ? ', rolled back' : ''})`, 'see the plugin\'s page', 6)}.` });
     if (e.ownershipMode === 'evaluation_only') unknowns.push('It is registered for evaluation only: it may be evaluated and diagnosed, and nothing here can release it.');
   }
+  unknowns.push('Calls and runs are your team\'s alone; the catalog and the public score are the platform\'s.', NO_EVALUATION);
   return budgeted({
     view: 'plugin',
     title: name,
     address: `/plugins/${name}`,
-    scope: `one plugin${p?.description ? `: ${p.description}` : ''}`,
+    scope: `one plugin${p ? `, ${p.required ? 'required' : 'optional'}, ${versionSaid(p)}` : ''}${p?.description ? `: ${p.description}` : ''}`,
     freshness: arrived(arrival),
     facts,
     insights,

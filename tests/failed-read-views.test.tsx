@@ -12,6 +12,7 @@ import { InitiativesView } from '@/views/pages/initiatives';
 import { KnowledgeView } from '@/views/pages/knowledge';
 import { KnowledgeLogView } from '@/views/pages/knowledge-log';
 import { SkillView } from '@/views/pages/skill';
+import type { SkillRead } from '@/views/skill-context';
 
 const TooltipProvider = Tooltip.Provider;
 
@@ -155,18 +156,19 @@ const PLUGIN: PluginRow = {
 describe('a skill whose log of calls was not read', () => {
   beforeEach(() => {
     window.history.replaceState(null, '', '/plugins/sdlc/spec');
-    // The longest prefix first: `/plugins/sdlc/skills/spec` is a different read from `/plugins`, and the text read
-    // answers the shape the page destructures rather than the catalog's.
-    onlyMe([
-      ['/plugins/sdlc/skills/spec', TEXT],
-      ['/skills?plugin=', { skills: [SKILL] }],
-      ['/skills/spec', DETAIL],
-      ['/plugins', { plugins: [PLUGIN] }],
-    ]);
+    onlyMe();
   });
 
   it('says the figures were not measured instead of printing three measured zeros', async () => {
-    await mountRecord(<SkillView params={Promise.resolve({ plugin: 'sdlc', skill: 'spec' })} />);
+    // The four reads as the console's server made them for the page, the skill's log of calls among them unread.
+    const at = '2026-10-01T00:00:00Z';
+    const served: SkillRead = {
+      catalog: { state: 'ok', path: '/plugins', at, data: { plugins: [PLUGIN] } },
+      skills: { state: 'ok', path: '/skills?plugin=sdlc', at, data: { skills: [SKILL] } },
+      detail: { state: 'ok', path: '/skills/spec', at, data: DETAIL },
+      text: { state: 'ok', path: '/plugins/sdlc/skills/spec', at, data: TEXT },
+    };
+    await mountRecord(<SkillView plugin="sdlc" skill="spec" view="cost" served={served} />);
     await waitFor(() => expect(text()).toContain('tools not measured'));
     // Both counts in the log are the same absence, and both say so: `?? 0` printed "0" for each of them.
     expect(screen.getAllByText('Not measured').length).toBe(2);

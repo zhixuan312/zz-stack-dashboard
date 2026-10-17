@@ -4,7 +4,7 @@ import { startFakeGateway } from './fake-gateway-start.ts';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { ActivityLog, ActivitySummary, KnowledgeList, KnowledgeSummary, Runs } from '../src/lib/destination-shapes.ts';
 import type { People, Teams } from '../src/lib/fleet-shapes.ts';
-import type { Home, InitiativeList } from '../src/lib/work-shapes.ts';
+import type { Approvals, Home, InitiativeList } from '../src/lib/work-shapes.ts';
 import { ME } from '../scripts/fake-gateway/people.ts';
 import { people as peopleAnswer } from '../scripts/fake-gateway/platform-people.ts';
 import { PLATFORM_STATUS } from '../scripts/fake-gateway/platform-status.ts';
@@ -12,6 +12,7 @@ import { teamDetail, teams } from '../scripts/fake-gateway/platform-teams.ts';
 import { empty, extreme } from '../scripts/fake-gateway/states.ts';
 import { access } from '../scripts/fake-gateway/work-access.ts';
 import { activityLog, activitySummary } from '../scripts/fake-gateway/work-activity.ts';
+import { approvals } from '../scripts/fake-gateway/work-approvals.ts';
 import { homeOf } from '../scripts/fake-gateway/work-home.ts';
 import { initiativeList } from '../scripts/fake-gateway/work-initiatives.ts';
 import { knowledgeList, knowledgeSummary } from '../scripts/fake-gateway/work-knowledge.ts';
@@ -79,6 +80,7 @@ describe('the fixture can shape every answer its routes produce', () => {
     // that is a backstop, not the contract.
     const answers: [string[], unknown][] = [
       [['home'], homeOf('atlas', ME.email)],
+      [['approvals'], body(approvals(ME, new URLSearchParams()))],
       [['initiatives'], LIST()],
       [['initiatives'], NONE()],
       [['knowledge'], SHELF()],
@@ -131,6 +133,11 @@ describe('the fixture can shape every answer its routes produce', () => {
     const list = empty(['initiatives'], LIST()) as InitiativeList;
     expect(list).toMatchObject({ rows: [], total: 0, tiles: { open: 0, waiting: 0, closed: { accepted: 0, delivered: 0, abandoned: 0 } } });
     expect(list.summary.state === 'ok' && list.summary.data.total).toBe(0);
+    const queue = empty(['approvals'], body(approvals(ME, new URLSearchParams()))) as Approvals;
+    expect(queue.tiles).toEqual({ waiting: 0, oldestWaitingSince: null, inYourName: 0, noPresentation: { count: 0, of: 0 } });
+    expect(queue.weeks).toEqual([]);
+    expect(queue.waiting).toMatchObject({ state: 'ok', data: { rows: [], total: 0, summary: { olderThan14Days: 0 } } });
+    expect(queue.history).toMatchObject({ state: 'ok', data: { rows: [], total: 0, summary: { byInitiative: [] } } });
   });
 
   it('keeps Work\'s other pages to their page, and their counts to their sums, however busy', () => {
@@ -238,7 +245,7 @@ describe('every mode answers both people', () => {
                  'home', 'record', 'approvals', 'work/query?measure=closures&by=outcome',
                  'platform/query?measure=calls&by=week'];
   /** The superadmin's alone: a member is refused them in every world. */
-  const FLEET = ['teams', 'teams?scope=platform', 'teams/atlas', 'people', 'people?scope=platform'];
+  const FLEET = ['teams', 'teams?scope=platform', 'teams/atlas', 'people', 'people?scope=platform', 'platform/audit'];
   const REFUSAL = { error: 'not permitted' };
 
   /** Every list a rail page reads, as the rows it answers; Teams and People only to the superadmin, who may read them. */

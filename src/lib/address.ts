@@ -1,7 +1,5 @@
 'use client';
 
-import { useMemo, useSyncExternalStore } from 'react';
-
 /**
  * The address, as the source of truth for a view's state.
  *
@@ -91,11 +89,4 @@ export function announceAddress(): void {
  *  showing it until this changes: from then on the address is what every reader has, and the write is in it. */
 export function addressAnnouncements(): number {
   return announcements;
-}
-
-/** One parameter of the address, or null. Null is also the server's answer: the view with no parameters is the
- *  default view, and that is what both the server render and the first client render are entitled to see. */
-export function useAddressParam(name: string): string | null {
-  const search = useSyncExternalStore(subscribeAddress, addressSearch, () => '');
-  return useMemo(() => new URLSearchParams(search).get(name), [search, name]);
 }
