@@ -30,14 +30,14 @@ export function Proposal({
   className,
 }: {
   agent?: string;
-  /** What will happen, as a sentence: "Raise Parallax AI's rate limit". */
+  /** What will happen, as a sentence: "Raise Example Co's rate limit". */
   title: string;
   /** Critical for a removal: the approve button turns danger and reads "Approve and remove". */
   tone?: 'neutral' | 'critical';
   /** Why the agent proposes it, in one or two sentences, with the evidence it used. */
   reason?: ReactNode;
   changes: ProposalChange[];
-  /** Who or what else this touches: "Applies to all 14 API keys of Parallax AI". */
+  /** Who or what else this touches: "Applies to all 14 API keys of Example Co". */
   impact?: ReactNode;
   /** Said under the changes once the proposal is closed, for example why it expired. */
   note?: ReactNode;

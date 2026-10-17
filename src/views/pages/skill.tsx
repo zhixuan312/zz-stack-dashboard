@@ -154,7 +154,7 @@ export function SkillView({ params }: { params: Promise<{ plugin: string; skill:
             </Row>
           ) : null}
           {/* What the skill is: knowable whether or not anybody has run it, and a front door is exactly the skill with no runs. */}
-          <Panel title="About this skill" actions={<AskAbout iconBelowSm question={`What is ${name} for, and where does it sit in ${pluginName}'s method?`} />}>
+          <Panel title="About this skill" actions={<AskAbout question={`What is ${name} for, and where does it sit in ${pluginName}'s method?`} />}>
             <KeyValue
               columns={2}
               items={[

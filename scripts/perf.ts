@@ -2,13 +2,15 @@
  * The navigation protocol, twenty times over: every rail route, on a desktop and through the real phone drawer, warm, cold
  * and right after a live refresh, with the nearest-rank p95 of each metric held to the budget.
  *
- *   node scripts/perf.ts --base http://127.0.0.1:3000 [--config scripts/verify.config.ts] [--rail /,/a,/b]
+ *   node scripts/perf.ts --base http://127.0.0.1:3000 [--config scripts/verify.config.ts] [--rail /,/a,/b] [--homes /b=Name]
  *
  * It is the journey of scripts/navigate.ts (the press time and the frame clock are the page's own) taken `--samples` times,
  * 20 by default, with no retake: every sample counts, and what is reported is the p95 of the lot, never the best of them.
  * - warm: the destination's prefetch and the chunks it brought in finished first, as a visitor who waited would have. A
  *   journey starts from the rail route before its destination (the one after it for the first) whose rail links to it, so
- *   the order a person browses in is the one measured; a destination no other route's rail links to is a problem.
+ *   the order a person browses in is the one measured. A workspace's home that no other route's rail links to is reached
+ *   through the workspace menu, as scripts/navigate.ts reaches it (`journeyStart` in scripts/lib/journey.ts); any other destination no rail links
+ *   to is a problem.
  * - cold: a fresh browser (no cache, no storage, no router state) for every sample, and the page refuses every prefetch of
  *   the destination before it leaves the page. The sample is void, and fails, if the browser's own record shows a request
  *   for the destination made before the press. Other routes are still prefetched and awaited, as in the warm sample, so
@@ -36,7 +38,8 @@ import { launch, type Page } from './lib/chrome.ts';
 import { resolveCoverage } from './lib/coverage.ts';
 import { railRoutes } from './lib/routes.ts';
 import { summary } from './lib/timing.ts';
-import { BUDGET_KEY, DEVICES, Fail, drawerRoutes, journey, liveRefresh, METRICS, prepare, startFor, type Condition, type Device, type Metric, type NavConfig } from './navigate.ts';
+import { BUDGET_KEY, DEVICES, Fail, drawerRoutes, journey, journeyStart, liveRefresh, METRICS, prepare, type Condition, type Device, type Metric, type NavConfig } from './lib/journey.ts';
+import { workspaceHomes } from './navigate.ts';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const args = process.argv.slice(2);
@@ -132,6 +135,15 @@ async function main(): Promise<number> {
     out({ status: 'FAIL', errors: [reason] });
     return 1;
   }
+  // A workspace's home that no rail links to is reached through the workspace menu, as navigate reaches it.
+  let homes: Map<string, string>;
+  try {
+    homes = await workspaceHomes();
+  } catch (e) {
+    console.log(`FAIL    perf: ${(e as Error).message}`);
+    out({ status: 'FAIL', errors: [(e as Error).message] });
+    return 1;
+  }
 
   // The protocol covers the whole rail; a missing or broken mapping is named before a browser starts.
   const coverage = resolveCoverage('perf', rail.routes, checks, rail.routes);
@@ -175,7 +187,9 @@ async function main(): Promise<number> {
         const limits = Object.fromEntries(METRICS.map((m) => [m, budgets.navigation[condition][BUDGET_KEY[m]][device]])) as Record<Metric, number>;
         for (const route of routes) {
           const check = checks.find((c) => c.path === route);
-          const start = startFor(rail.routes, route, condition === 'afterLive' ? live.filter((r) => starts.includes(r)) : starts, drawn);
+          const way = journeyStart(rail.routes, route, condition === 'afterLive' ? live.filter((r) => starts.includes(r)) : starts, drawn, [...homes.keys()]);
+          const start = way?.from;
+          const menu = way?.via === 'menu' ? homes.get(route) : undefined;
           console.error(`… ${condition} ${device} ${route}`);
           const series: Record<Metric, number[]> = { shell: [], data: [], interactive: [] };
           const drawer: number[] = [];
@@ -187,7 +201,7 @@ async function main(): Promise<number> {
             let page: Page | null = null;
             try {
               page = condition === 'cold' ? await openTab(route) : await tab(device);
-              const sample = await journey(page, device, start!, route, check, { origin: base, condition });
+              const sample = await journey(page, device, start!, route, check, { origin: base, condition, menu });
               taken++;
               refused += sample.refused ?? 0;
               if (sample.drawerMs !== undefined) drawer.push(sample.drawerMs);

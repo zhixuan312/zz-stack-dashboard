@@ -5,7 +5,26 @@ type Op = 'create' | 'update' | 'remove';
 type Scalar = string | number | boolean | null;
 type Value = Scalar | Scalar[];
 type Condition = { field: string; op: 'eq' | 'ne' | 'gt' | 'lt' | 'contains' | 'in'; value: Value };
+export type { Condition };
 export type Query = { where?: Condition[]; sort?: { field: string; dir: 'asc' | 'desc' }; limit?: number; offset?: number };
+
+/**
+ * A question answered over every row a collection holds, not a page of them: a count, a sum or a percentile, grouped
+ * by a field or a time bucket. A collection answers it itself, so nothing reads a collection page by page to group it.
+ */
+export type AggregateQuery = {
+  where?: Condition[];                       // the operators a prepared query may use: eq, ne, in, lt, gt
+  window?: { field: string; from: string; to: string }; // inclusive dates YYYY-MM-DD, compared with the field's first ten characters
+  group?: { field: string } | { field: string; bucket: 'day' | 'week' | 'month' | 'weekday' };
+  measures: { name: string; agg: 'count' | 'sum' | 'avg' | 'min' | 'max' | 'p95'; field?: string; where?: Condition[] }[]; // `field` may be a dotted path; a count's `where` counts the rows that meet it
+  top?: number;                              // groups returned: largest first by the first measure, or for a bucket the latest `top` buckets in date order (weekday: Monday to Sunday), the earlier ones in `others`; 8 when not given, at most 50
+};
+export type AggregateValues = { rows: number; values: Record<string, number | null> };
+export type AggregateResult = {
+  total: AggregateValues;                    // over every row the conditions keep
+  groups: (AggregateValues & { key: string | null })[]; // null is the group of the rows with no value in the field
+  others: (AggregateValues & { groups: number }) | null; // the groups past `top`, their measures over their own rows
+};
 
 /** What a grant permits: an object and one of the four operations, e.g. `keys:create`. */
 export type Grant = `${string}:${'read' | 'create' | 'update' | 'remove'}`;
@@ -43,13 +62,18 @@ export type Collection<T extends Record<string, unknown>, K extends keyof T & st
   fields: z.ZodObject;
   /**
    * Fields the data layer works out and no write ever takes: a score, a band, a stage, a value joined in from another
-   * table. They live on the record, so a page reads them and the assistant may filter on them, and they are never in
+   * table. They live on the record, so a page reads them and a prepared query may filter on them, and they are never in
    * `fields` — a change cannot set one, because `patchOf` builds its shape from `fields` alone.
    */
   derived?: (keyof T & string)[];
   key: K;
   title: (row: T) => string;
   query: (q: Query) => Promise<{ rows: T[]; total: number }>;
+  /**
+   * The answer to an aggregate query over every row the collection holds. A collection that holds its rows answers
+   * through `aggregateRows`; one over a database answers as one grouped query, never by reading every page.
+   */
+  aggregate: (q: AggregateQuery) => Promise<AggregateResult>;
   /** Present on a collection already bound to an authorized scope: calls `listener` after each committed write. */
   subscribe?: (listener: (event: LiveEvent) => void) => () => void;
   /**
@@ -130,10 +154,13 @@ function compare(a: unknown, b: unknown): number {
   return x.length - y.length;
 }
 
-/** A null field matches only `ne`; `gt`/`lt` need the field and the value to be the same kind. */
+/**
+ * A field with no value (null, or not there) matches `ne` of any value but null, and is named by `eq null` or an `in`
+ * list holding null; `gt`/`lt` need the field and the value to be the same kind.
+ */
 function matches(row: Record<string, unknown>, { field, op, value }: Condition): boolean {
   const v = row[field];
-  if (v === null || v === undefined) return op === 'ne';
+  if (v === null || v === undefined) return op === 'ne' ? value !== null : op === 'eq' ? value === null : op === 'in' && Array.isArray(value) && value.includes(null);
   switch (op) {
     case 'eq': return v === value;
     case 'ne': return v !== value;
@@ -164,6 +191,155 @@ export function queryRows<T extends Record<string, unknown>>(rows: T[], key: key
     });
   }
   return { rows: limit === undefined ? hits.slice(offset) : hits.slice(offset, offset + limit), total: hits.length };
+}
+
+const AGGS = ['count', 'sum', 'avg', 'min', 'max', 'p95'];
+const BUCKETS = ['day', 'week', 'month', 'weekday'];
+const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const DEFAULT_TOP = 8;
+const MAX_TOP = 50;
+
+/**
+ * An aggregate query with its `top` applied (8 when not given, at most 50) and every name checked as `normalizeQuery`
+ * checks a query's: only the collection's `fields`, its key and its `derived` fields may be named (for a dotted path,
+ * its first part), and only the six operators, the six measures and the four buckets; anything else throws an Error
+ * naming it.
+ */
+export function normalizeAggregate(c: AnyCollection, q: AggregateQuery): AggregateQuery & { top: number } {
+  const allowed = new Set<string>([c.key, ...Object.keys(c.fields.shape), ...((c.derived ?? []) as string[])]);
+  const field = (f: string) => {
+    if (!allowed.has(f.split('.')[0])) throw new Error(`${c.name} has no field ${JSON.stringify(f)}`);
+    return f;
+  };
+  // A condition names a field of the row itself, as a query's does: `matches` reads no path.
+  const where = (ws: Condition[]) => ws.map((w) => {
+    if (!OPS.includes(w.op)) throw new Error(`Unsupported operator ${JSON.stringify(w.op)}`);
+    if (!allowed.has(w.field)) throw new Error(`${c.name} has no field ${JSON.stringify(w.field)}`);
+    return { field: w.field, op: w.op, value: w.value };
+  });
+  const top = q.top ?? DEFAULT_TOP;
+  if (!Number.isInteger(top) || top < 1) throw new Error('top must be a whole number of at least 1');
+  const out: AggregateQuery & { top: number } = {
+    measures: q.measures.map((m) => {
+      if (!AGGS.includes(m.agg)) throw new Error(`Unsupported measure ${JSON.stringify(m.agg)}`);
+      return { name: m.name, agg: m.agg, ...(m.field === undefined ? {} : { field: field(m.field) }), ...(m.where ? { where: where(m.where) } : {}) };
+    }),
+    top: Math.min(top, MAX_TOP),
+  };
+  if (q.where) out.where = where(q.where);
+  if (q.window) out.window = { field: field(q.window.field), from: q.window.from, to: q.window.to };
+  if (q.group) {
+    if ('bucket' in q.group && !BUCKETS.includes(q.group.bucket)) throw new Error(`Unsupported bucket ${JSON.stringify(q.group.bucket)}`);
+    out.group = 'bucket' in q.group ? { field: field(q.group.field), bucket: q.group.bucket } : { field: field(q.group.field) };
+  }
+  return out;
+}
+
+/** The value at a field or a dotted path into an object field (`revenueByPlan.Enterprise`); undefined where there is none. */
+function valueAt(row: Record<string, unknown>, path: string): unknown {
+  return path.split('.').reduce<unknown>((v, k) => (v !== null && typeof v === 'object' ? (v as Record<string, unknown>)[k] : undefined), row);
+}
+
+/** The date a value starts with, as YYYY-MM-DD: its first ten characters, or null when they are not a date. */
+function dayOf(v: unknown): string | null {
+  const d = typeof v === 'string' ? v.slice(0, 10) : '';
+  return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : null;
+}
+
+/** A date's bucket key: the day, the week's Monday, `YYYY-MM`, or the weekday's English name. Worked out in UTC, as the data's days are. */
+function bucketOf(v: unknown, bucket: string): string | null {
+  const d = dayOf(v);
+  if (d === null) return null;
+  if (bucket === 'day') return d;
+  if (bucket === 'month') return d.slice(0, 7);
+  const t = Date.parse(`${d}T00:00:00Z`);
+  const weekday = (new Date(t).getUTCDay() + 6) % 7;
+  if (bucket === 'weekday') return WEEKDAYS[weekday];
+  if (bucket === 'week') return new Date(t - weekday * 86_400_000).toISOString().slice(0, 10);
+  throw new Error(`Unsupported bucket ${JSON.stringify(bucket)}`);
+}
+
+/** One measure over `rows`: a count of those that meet its own conditions, or a figure over the numbers of its field, null when there is none. */
+function measure(rows: Record<string, unknown>[], m: AggregateQuery['measures'][number]): number | null {
+  const own = m.where?.length ? rows.filter((r) => m.where!.every((w) => matches(r, w))) : rows;
+  if (m.agg === 'count') return own.length;
+  if (!AGGS.includes(m.agg)) throw new Error(`Unsupported measure ${JSON.stringify(m.agg)}`);
+  const xs = m.field === undefined ? [] : own.map((r) => valueAt(r, m.field!)).filter((v): v is number => typeof v === 'number' && Number.isFinite(v));
+  if (!xs.length) return null;
+  let sum = 0, min = Infinity, max = -Infinity;
+  for (const x of xs) { sum += x; if (x < min) min = x; if (x > max) max = x; }
+  switch (m.agg) {
+    case 'sum': return sum;
+    case 'avg': return sum / xs.length;
+    case 'min': return min;
+    case 'max': return max;
+    // Nearest rank: the value at ceil(0.95 × n) of the values in order.
+    case 'p95': return xs.sort((a, b) => a - b)[Math.ceil(0.95 * xs.length) - 1];
+  }
+}
+
+const valuesOf = (rows: Record<string, unknown>[], measures: AggregateQuery['measures']): AggregateValues => ({
+  rows: rows.length,
+  values: Object.fromEntries(measures.map((m) => [m.name, measure(rows, m)])),
+});
+
+/**
+ * An aggregate query answered over a list of rows, as `queryRows` answers a query: every condition and the window must
+ * hold; a group's key is `String` of its field, null for the rows with no value in it, or its bucket's key (a row whose
+ * field is no date is in no bucket), and only a group a row falls in appears. Groups by a
+ * field come largest first by the first measure (ties by key), buckets the latest `top` in date order, Monday to Sunday
+ * for a weekday; the rest are `others`, their measures over their own rows. A collection that holds its rows answers
+ * `aggregate` with this; it checks no names, which `normalizeAggregate` does.
+ */
+export function aggregateRows<T extends Record<string, unknown>>(rows: T[], q: AggregateQuery): AggregateResult {
+  const { where = [], window, group, measures } = q;
+  const top = Math.min(q.top ?? DEFAULT_TOP, MAX_TOP);
+  const kept = rows.filter((r) => {
+    if (!where.every((w) => matches(r, w))) return false;
+    if (!window) return true;
+    const d = dayOf(valueAt(r, window.field));
+    return d !== null && d >= window.from && d <= window.to;
+  });
+  const total = valuesOf(kept, measures);
+  if (!group) return { total, groups: [], others: null };
+
+  const bucket = 'bucket' in group ? group.bucket : undefined;
+  // undefined is no group: a bucket of a field that holds no date. A field with no value is the group keyed null, never
+  // "null", which a field may really hold.
+  const keyOf = (r: T): string | null | undefined => {
+    const v = valueAt(r, group.field);
+    if (bucket) return bucketOf(v, bucket) ?? undefined;
+    return v === null || v === undefined ? null : String(v);
+  };
+  const keyed = kept.map((r) => [keyOf(r), r] as const);
+  const members = new Map<string | null, T[]>();
+  for (const [key, r] of keyed) {
+    if (key === undefined) continue;
+    const list = members.get(key);
+    if (list) list.push(r);
+    else members.set(key, [r]);
+  }
+  const all = [...members].map(([key, rs]) => ({ key, ...valuesOf(rs, measures) }));
+
+  let shown: typeof all, past: typeof all;
+  if (bucket) {
+    all.sort(bucket === 'weekday' ? (a, b) => WEEKDAYS.indexOf(a.key!) - WEEKDAYS.indexOf(b.key!) : (a, b) => compare(a.key, b.key));
+    const cut = Math.max(0, all.length - top);
+    [past, shown] = [all.slice(0, cut), all.slice(cut)];
+  } else {
+    const first = measures[0]?.name;
+    const size = (g: (typeof all)[number]) => (first === undefined ? g.rows : g.values[first]);
+    all.sort((a, b) => {
+      const x = size(a), y = size(b);
+      if (x !== y) return x === null ? 1 : y === null ? -1 : y - x;
+      return compare(a.key, b.key);
+    });
+    [shown, past] = [all.slice(0, top), all.slice(top)];
+  }
+  if (!past.length) return { total, groups: shown, others: null };
+  const pastKeys = new Set(past.map((g) => g.key));
+  const theirs = keyed.filter(([key]) => key !== undefined && pastKeys.has(key)).map(([, r]) => r);
+  return { total, groups: shown, others: { groups: past.length, ...valuesOf(theirs, measures) } };
 }
 
 export function arrayCollection<T extends Record<string, unknown>, K extends keyof T & string>(def: {
@@ -224,6 +400,9 @@ export function arrayCollection<T extends Record<string, unknown>, K extends key
     async query(q) {
       const { rows: hits, total } = queryRows(rows(), key, q);
       return { rows: copy(hits), total };
+    },
+    async aggregate(q) {
+      return aggregateRows(rows(), normalizeAggregate(c, q));
     },
     subscribe(listener) {
       const set = listeners().get(sk) ?? new Set();
@@ -296,28 +475,11 @@ export function visibleFields(c: AnyCollection): z.ZodObject {
  * (`pageOnlyFields`). The create tool is built from this and the update tool's `set` from `patchOf` of it, so a field
  * a page owns is absent from the schema and, because the schema is strict, refused at execution if sent anyway.
  *
- * It says nothing about reading: `queryInput` still names every visible field, so an agent filters on a role or an
- * add-on the same as on any other field. Reading a field and changing it are different rules, and this is the second.
+ * It says nothing about reading: a page's prepared query may still filter, group or drill on a role or an add-on the
+ * same as on any other visible field. Reading a field and changing it are different rules, and this is the second.
  */
 export function writableFields(c: AnyCollection): z.ZodObject {
   const base = visibleFields(c);
   const pageOnly = (c.pageOnlyFields ?? []) as string[];
   return pageOnly.length ? base.omit(Object.fromEntries(pageOnly.map((f) => [f, true])) as Record<string, true>).strict() : base;
-}
-
-/** The input schema of the query tool: field names come from the collection, so an unknown or hidden field is rejected.
- *
- * `derived` fields are named here and nowhere else: they are readable and queryable, and no write can set one, because
- * `fields` is what a write takes. `visibleFields` has already dropped the hidden ones from `fields`, so only a hidden
- * derived field needs dropping here. */
-export function queryInput(c: AnyCollection) {
-  const hidden = new Set((c.hidden ?? []) as string[]);
-  const derived = ((c.derived ?? []) as string[]).filter((f) => !hidden.has(f));
-  const field = z.enum([c.key, ...Object.keys(visibleFields(c).shape), ...derived] as [string, ...string[]]);
-  const scalar = z.union([z.string(), z.number(), z.boolean(), z.null()]);
-  return z.object({
-    where: z.array(z.object({ field, op: z.enum(['eq', 'ne', 'gt', 'lt', 'contains', 'in']), value: z.union([scalar, z.array(scalar)]) })).optional(),
-    sort: z.object({ field, dir: z.enum(['asc', 'desc']) }).optional(),
-    limit: z.number().int().min(1).max(100).default(50),
-  });
 }

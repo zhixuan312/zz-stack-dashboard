@@ -1,6 +1,7 @@
 import { connection } from 'next/server';
 import { Suspense, type ReactNode } from 'react';
 import { AppShell } from '@/components/base/shell';
+import { AssistantScope } from '@/components/patterns/assistant/scope';
 import { ConsoleTools, ShellPending } from '@/console/frame';
 import { PageViews } from '@/console/page-view';
 import { chromeAccess } from '@/data/access';
@@ -37,26 +38,32 @@ export default function DashLayout({ children }: { children: ReactNode }) {
   // nobody can resolve, or a gateway that cannot be reached, settles on null, which the chrome draws as the placeholder
   // person and no destination; the page's own gate is what answers it.
   const access = chromeAccess().catch(() => null);
+  // The assistant keeps its thread for the person and the team they act for, the scope its route answers for
+  // (`<tenant>/<subject>`, as `resolveAccess` names them), from the same read: a switch of team or of person starts an
+  // empty thread, and the route refuses a thread of another scope with 409. Nobody resolved keeps the thread of no one.
+  const scope = access.then((a) => (a?.caller ? `${a.team ?? ''}/${a.caller}` : ''));
   return (
     <Suspense fallback={<ShellPending />}>
-      <ConsoleCaller access={access}>
-        <AppShell
-          assistant={assistant}
-          rail={<WorkspaceRail access={access} />}
-          tools={<ConsoleTools />}
-        >
-          <ConsoleLive>
-            {/* No boundary of its own around the page: `loading.tsx` beside each page already gives the segment its
-                streamed fallback, and a second one with `fallback={null}` put the page in a boundary whose server HTML and
-                client hydration disagreed — React threw its hydration-mismatch error on /settings at every width and in
-                both themes. */}
-            {children}
-          </ConsoleLive>
-          <WorkspacePalette access={access} />
-          {/* One page view per committed navigation, inside this boundary because it reads the pathname too. */}
-          <PageViews />
-        </AppShell>
-      </ConsoleCaller>
+      <AssistantScope scope={scope}>
+        <ConsoleCaller access={access}>
+          <AppShell
+            assistant={assistant}
+            rail={<WorkspaceRail access={access} />}
+            tools={<ConsoleTools />}
+          >
+            <ConsoleLive>
+              {/* No boundary of its own around the page: `loading.tsx` beside each page already gives the segment its
+                  streamed fallback, and a second one with `fallback={null}` put the page in a boundary whose server HTML and
+                  client hydration disagreed — React threw its hydration-mismatch error on /settings at every width and in
+                  both themes. */}
+              {children}
+            </ConsoleLive>
+            <WorkspacePalette access={access} />
+            {/* One page view per committed navigation, inside this boundary because it reads the pathname too. */}
+            <PageViews />
+          </AppShell>
+        </ConsoleCaller>
+      </AssistantScope>
     </Suspense>
   );
 }

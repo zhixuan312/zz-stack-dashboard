@@ -51,3 +51,13 @@ export const PAIRS: Pair[] = [
   ['series-4', 'surface', UI, 'chart slot 4'],
   ['series-6', 'surface', UI, 'chart slot 6'],
 ];
+
+/**
+ * A mark the specifications mix rather than name: `fg` mixed into `bg` in OKLab, as `color-mix(in oklab, ...)` mixes,
+ * by the share the number token `share` holds, and measured on that same background.
+ */
+export type Mix = [fg: string, share: string, bg: string, min: number, what: string];
+
+export const MIXES: Mix[] = [
+  ['accent', 'chart-stack-hi', 'surface', UI, 'the deepest part of a stack'],
+];

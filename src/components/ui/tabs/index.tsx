@@ -86,9 +86,10 @@ export function TabPanel({ className, ...rest }: ComponentProps<typeof T.Content
 export type LinkTab = { key: string; label: ReactNode; href: string; count?: ReactNode };
 
 /**
- * The same strip for views that are routes of their own (/knowledge, /knowledge/ask, or ?view=log): each tab is a link,
- * so every view has an address and the back button works. A navigation landmark, not a tablist: the current one carries
- * aria-current="page", and Tab moves between them as between any links.
+ * The same strip for views that are routes of their own, each with an address of its own: every tab is a link, so the back
+ * button works and a view can be linked to. A component names no route — the product passes `href` and `active`. A
+ * navigation landmark, not a tablist: the current one carries aria-current="page", and Tab moves between them as
+ * between any links.
  */
 export function LinkTabs({ tabs, active, label, className }: { tabs: readonly LinkTab[]; active: string; label: string; className?: string }) {
   return (

@@ -115,7 +115,7 @@ export function PluginView({ params }: { params: Promise<{ plugin: string }> }) 
             <EvalHeadline pluginEval={e} />
             {p ? (
               <Row split="1/2">
-                <Panel title="About this plugin" actions={<AskAbout iconBelowSm question={`What does ${plugin} ship and reach, and is the version it declares released?`} />}>
+                <Panel title="About this plugin" actions={<AskAbout question={`What does ${plugin} ship and reach, and is the version it declares released?`} />}>
                   <KeyValue
                     items={[
                       ...(p.owner ? [{ label: 'Owner', value: p.owner, mono: true }] : []),
@@ -137,7 +137,7 @@ export function PluginView({ params }: { params: Promise<{ plugin: string }> }) 
                 </Panel>
               </Row>
             ) : (
-              <Panel title="About this plugin" actions={<AskAbout iconBelowSm question={`What does the evaluation of ${plugin} say, with no manifest of it to read?`} />}><p className="t-small text-ink-3">Registered through plugin_register as a third-party subject, with no manifest, skills or documents to show. Its evaluation is below.</p></Panel>
+              <Panel title="About this plugin" actions={<AskAbout question={`What does the evaluation of ${plugin} say, with no manifest of it to read?`} />}><p className="t-small text-ink-3">Registered through plugin_register as a third-party subject, with no manifest, skills or documents to show. Its evaluation is below.</p></Panel>
             )}
             {!e.found || notYet(e) ? <EvalNotYet evaluationOnly={e.found && e.ownershipMode === 'evaluation_only'} /> : (
               <>

@@ -27,7 +27,15 @@ Your team's runs of the skill, calls per run, median run, refusal rate and obser
 - Its calls by door: core 2,480 (73 refused), eval 216 (8 refused).
 ```
 
-- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `query_skills` looks up what the page lists.
+- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `explore_skill`, offered on this page alone, counts this skill's calls, runs and observed output over any window, every call held to this skill.
+
+### What the agent does here
+
+Protagonist: About this skill.
+
+- "How many runs of this skill did we make each week this month?" — the runs over 30 complete days, a week at a time
+- "How much output did its runs answer in the last 90 days, and for which initiatives?" — the observed output over 90 complete days, by initiative
+- "How many calls of it did we make in the last 7 days?" — the calls of the skill over 7 complete days
 
 ## Surfaces
 

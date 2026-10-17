@@ -19,17 +19,26 @@ export function plural(n: number, one: string, other?: string): string {
   return n === 1 ? one : (other ?? `${one}s`);
 }
 
+/** A place in a row, with its ending: 1st, 2nd, 3rd, 4th, 11th, 12th, 13th, 21st. One function, so a rule's line and a page's title spell the same run the same way. */
+export function ordinal(n: number): string {
+  const teens = n % 100 >= 11 && n % 100 <= 13;
+  return `${n}${teens ? 'th' : (['th', 'st', 'nd', 'rd'][n % 10] ?? 'th')}`;
+}
+
 /** Built once: an Intl formatter costs far more to construct than to use, and a table formats a figure per cell. */
 const INT = new Intl.NumberFormat('en-US');
 const CENTS = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-/** Money in `app.currency`, symbol first: $298.43, €1,204. */
+/** Money in `app.currency`, symbol first: $298.43, €1,204. An amount under a cent keeps four decimals, and one too small for those keeps its first two digits ($0.0000018), so a cost that is not zero never reads as zero. A credit is negative, and its minus stands before the mark at every size — `$-0.0050` reads as a typo and hides the sign a column is sorted by. */
 export function formatCost(amount: number | null): string {
   if (amount === null) return '—';
   if (amount === 0) return `${CURRENCY}0`;
-  if (Math.abs(amount) < 0.01) return `${CURRENCY}${amount.toFixed(4)}`;
+  const sign = amount < 0 ? '-' : '';
+  const a = Math.abs(amount);
+  if (a < 0.00005) return `${sign}${CURRENCY}${a.toFixed(Math.min(20, 1 - Math.floor(Math.log10(a))))}`;
+  if (a < 0.01) return `${sign}${CURRENCY}${a.toFixed(4)}`;
   // Two decimals at every size, so a column of amounts keeps one precision and its decimals line up.
-  return `${CURRENCY}${CENTS.format(amount)}`;
+  return `${sign}${CURRENCY}${CENTS.format(a)}`;
 }
 
 /** Money at a glance, for dense tables and tiles: $1.2M, $340K, $912. The exact amount belongs in the tooltip. */
@@ -71,21 +80,26 @@ export function fitFigure(text: string, value: number): string {
   return pre ? formatCostCompact(value) : `${formatCompact(value)}${unit ? (/\s[%a-zA-Z]+$/.test(text) ? ' ' : '') + unit : ''}`;
 }
 
-/** 1.2M, 846K, 912: a count at a glance. The exact number belongs in the tooltip and the table. */
+/** The steps of a count at a glance from a million up, smallest first. */
+const STEPS = [{ size: 1_000_000, unit: 'M' }, { size: 1_000_000_000, unit: 'B' }, { size: 1_000_000_000_000, unit: 'T' }] as const;
+
+/** 2.2T, 1.2M, 846K, 912: a count at a glance. The exact number belongs in the tooltip and the table. */
 export function formatCompact(n: number | null): string {
   if (n === null) return '—';
   // Every branch turns on the MAGNITUDE, so a negative reads like the positive it mirrors — "-1.5M", which is what an
   // axis already renders through `formatAxisCount`. Branching on the signed value dropped a negative all the way to
   // "-1,500,000", which is not a count at a glance.
   const abs = Math.abs(n);
-  if (abs >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(1)}B`;
-  if (abs >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (abs >= 1_000) {
-    // Rounding to whole thousands can reach 1000K (999_999 does); that reads as 1.0M.
-    const thousands = Math.round(n / 1_000);
-    return Math.abs(thousands) >= 1_000 ? `${(n / 1_000_000).toFixed(1)}M` : `${thousands}K`;
-  }
-  return INT.format(n);
+  const sign = n < 0 ? '-' : '';
+  if (abs < 1_000) return INT.format(n);
+  const thousands = Math.round(abs / 1_000);
+  if (thousands < 1_000) return `${sign}${thousands}K`;
+  // The smallest step whose one decimal reads under a thousand, written as that one decimal: 999,999 rounds to 1000K
+  // and reads 1.0M, 950,000,000 reads 950.0M as its axis tick does, and 999,960,000,000 would read 1000.0B, so it reads
+  // 1.0T. The step is decided and the digits written by one rounding: toFixed alone prints 0.95 as 0.9.
+  const tenths = (size: number) => Math.round((abs / size) * 10);
+  const step = STEPS.find((s) => tenths(s.size) < 10_000) ?? STEPS[STEPS.length - 1];
+  return `${sign}${(tenths(step.size) / 10).toFixed(1)}${step.unit}`;
 }
 
 export function formatDuration(ms: number | null): string {
@@ -154,25 +168,40 @@ export const AXIS_FORMATTERS: Record<NumberFormat, (n: number | null) => string>
   // Not formatCompact: it rounds to whole thousands, so a 0–2,000 scale in steps of 500 read "1K · 2K · 2K".
   count: (n) => (n === null ? '—' : formatAxisCount(n)),
   compact: (n) => (n === null ? '—' : formatAxisCount(n)),
-  'cost-compact': formatCostCompact,
-  cost: (n) => {
-    if (n === null) return '—';
-    if (n === 0) return `${CURRENCY}0`;
-    if (Math.abs(n) < 1) return `${CURRENCY}${n.toFixed(2)}`;
-    // Past ten thousand a money tick reads at a glance ($25K, $1.2B), as a count does: the exact amount is in the readout.
-    if (Math.abs(n) >= 10_000) return formatCostCompact(n);
-    return `${CURRENCY}${INT.format(Math.round(n))}`;
-  },
+  // Both money entries read a tick the same way, so whichever a chart names, a tick at 2,500 reads $2.5K and never $3K.
+  'cost-compact': formatAxisCost,
+  cost: formatAxisCost,
   duration: formatDuration,
   percent: (n) => formatPercent(n, 0),
 };
 
+/** A tick's number within its step: whole where it is, else to two decimals at most, so 1,250,000 reads 1.25M, never 1.3M. */
+const tick = (v: number): string => String(Math.round(v * 100) / 100);
+
 /** A count on an axis tick: 0, 250, 1.5K, 2M; as short as the scale allows, never two ticks reading the same. */
 function formatAxisCount(n: number): string {
   if (n === 0) return '0';
-  const trim = (v: number): string => (Number.isInteger(v) ? String(v) : v.toFixed(1));
   const abs = Math.abs(n);
-  if (abs >= 1_000_000) return `${trim(n / 1_000_000)}M`;
-  if (abs >= 1_000) return `${trim(n / 1_000)}K`;
+  // The steps the figure at rest takes (formatCompact), so a 1.5B tick never reads 1500M beside a column that reads 1.1B.
+  if (abs >= 1_000_000_000_000) return `${tick(n / 1_000_000_000_000)}T`;
+  if (abs >= 1_000_000_000) return `${tick(n / 1_000_000_000)}B`;
+  if (abs >= 1_000_000) return `${tick(n / 1_000_000)}M`;
+  if (abs >= 1_000) return `${tick(n / 1_000)}K`;
   return INT.format(n);
+}
+
+/** Built once, as `CENTS` is: a money tick under a thousand that is not whole keeps its cents, and a smaller step its digits ($0.025). */
+const TICK_CENTS = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+
+/**
+ * Money on an axis tick: $0, $0.50, $250, $2.5K, $1.25M; the count axis's steps with the currency's symbol, so every
+ * tick reads the value it stands at. The cents and the exact amount are in the tooltip and the readout.
+ */
+function formatAxisCost(n: number | null): string {
+  if (n === null) return '—';
+  if (n === 0) return `${CURRENCY}0`;
+  const sign = n < 0 ? '-' : '';
+  const abs = Math.abs(n);
+  if (abs >= 1_000) return `${sign}${CURRENCY}${formatAxisCount(abs)}`;
+  return `${sign}${CURRENCY}${Number.isInteger(abs) ? INT.format(abs) : TICK_CENTS.format(abs)}`;
 }

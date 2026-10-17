@@ -38,7 +38,15 @@ Who is signed in, their platform role, the team this browser acts for, the conso
 - Their teams: atlas (admin, the one this browser acts for), beacon (member).
 ```
 
-- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `query_tokens` looks up what the page lists.
+- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `explore_settings`, offered on this page alone, counts the caller's own tokens by state and application over any window, and lists them by label and date; no answer holds a token's value.
+
+### What the agent does here
+
+Protagonist: Tokens.
+
+- "How many of my tokens are live, and how many are revoked?" — the caller's tokens, by state
+- "Which applications were my tokens minted for?" — the caller's tokens, by application
+- "Which tokens did I issue in the last 90 days?" — the caller's tokens issued over 90 complete days, down to each by label and date
 
 ## Surfaces
 

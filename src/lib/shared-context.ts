@@ -10,6 +10,7 @@ import { app } from '../app.config';
 import type { z } from 'zod';
 import { formatDateTime, formatRelative } from './format-date';
 import type { Need } from './collection';
+import type { PreparedQuery } from './explore';
 
 /** One figure as the screen shows it, with what it counts. */
 export type Fact = {
@@ -31,9 +32,9 @@ export type Insight = {
 };
 
 export type SharedContext = {
-  /** A stable name for the view: "overview". */
+  /** A stable name for the view: "home". */
   view: string;
-  /** The view's title: "Overview". */
+  /** The view's title: "Home". */
   title: string;
   /** The console address that opens this exact view, with its query: "/?period=30d". */
   address: string;
@@ -86,11 +87,13 @@ export function contextText(c: SharedContext): string {
 }
 
 /**
- * A view's tool: its name, the feature table entry that permits it, the question it answers, its address as input, and
- * one read that returns what the view renders (`data`) and what both agents are told (`context`). The console's
- * assistant offers it as `view_<name>`; an MCP server registers the same contract under its own prefix, with
- * `resourceUri` when the view has an embed (decision 0011). The embed route renders from the same read, so the model's
- * figures and the screen's are one.
+ * A view's tool: its name, the feature table entry that permits it, the question it answers, the page it renders, its
+ * address as input, one read that returns what the view renders (`data`) and what both agents are told (`context`), and
+ * the prepared query an agent counts, groups and compares the page's own collections with (`src/lib/explore.ts`), which
+ * every view tool declares. The console's assistant offers it as `view_<name>`, and on the page itself the prepared
+ * query as `explore_<name>`; an MCP server registers the same contract under its own prefix, with `resourceUri` when the
+ * view has an embed (decision 0011). The embed route renders from the same read, so the model's figures and the
+ * screen's are one.
  */
 export type ViewTool<I extends z.ZodObject = z.ZodObject, D extends object = object> = {
   name: string;
@@ -99,12 +102,62 @@ export type ViewTool<I extends z.ZodObject = z.ZodObject, D extends object = obj
   description: string;
   /** What a person must be able to do to use the view, taken from its feature entry by reference (`FEATURES.<id>.needs`). */
   needs: Need;
+  /**
+   * The console route of the page the view renders: a rail destination's `href` in `nav`, or a detail page's route with
+   * its segment (`/customers/[id]`, or a catch-all such as `/docs/[...path]`). The assistant finds the view of the page a
+   * person is on by it, matched as Next.js matches the route (`viewAt`).
+   */
+  page: string;
   /** The view's address parameters: the same names as its query string. */
   input: I;
   /** The MCP App to render beside the result, when the view has one: `ui://<slug>/<view>`. */
   resourceUri?: string;
   read: (input: z.infer<I>) => Promise<{ context: SharedContext; data: D }>;
+  /**
+   * What an agent may count, group and compare over the page's own collections, declared by the page's author beside the
+   * view. Every view has one: a question its context does not answer alone is asked of it, and the page's specification
+   * lists those questions under "What the agent does here". A detail page's `fixed` is handed the view's own input, so it
+   * reads the record the page shows.
+   */
+  explore: PreparedQuery<z.infer<I>>;
 };
 
 /** A view tool, typed from its input schema: `read` receives what `input` parses to. */
 export const defineViewTool = <I extends z.ZodObject, D extends object>(tool: ViewTool<I, D>) => tool;
+
+/**
+ * How specific each segment of `route` is, as Next.js ranks a route segment: 0 static, 1 `[name]`, 2 `[...name]`, 3
+ * `[[...name]]`.
+ */
+const ranks = (route: string) => segments(route).map((s) => (/^\[\[\.\.\.[^\]/]+\]\]$/.test(s) ? 3 : /^\[\.\.\.[^\]/]+\]$/.test(s) ? 2 : /^\[[^\]/]+\]$/.test(s) ? 1 : 0));
+
+/** An address's segments after the root: `/` has none. */
+const segments = (address: string) => (address === '/' ? [''] : address.split('/'));
+
+/**
+ * Whether `path`, an address without its query and trailing slash, is one `route` renders, matched the way Next.js
+ * matches it: a static segment is itself, `[name]` is any one segment, `[...name]` one or more and `[[...name]]` zero or
+ * more of the segments left. A catch-all is the last segment of a route, as Next.js requires.
+ */
+function rendersAt(route: string, path: string): boolean {
+  const want = segments(route), got = segments(path), rank = ranks(route);
+  const last = want.length - 1;
+  // The segments before a catch-all are matched one for one; the catch-all takes every segment left.
+  const fixed = rank[last] >= 2 ? last : want.length;
+  const fewest = rank[last] === 3 ? last : want.length;
+  if (got.length < fewest || (fixed === want.length && got.length !== want.length)) return false;
+  return got.every((s, i) => (i >= fixed || rank[i] ? s !== '' : s === want[i]));
+}
+
+/**
+ * The view whose `page` renders `path`. Where several do, the one Next.js would render: at the first segment where two
+ * routes differ, a static segment wins over `[name]`, `[name]` over `[...name]` and that over `[[...name]]`; two views
+ * on one route are the first declared.
+ */
+export function viewAt<V extends { page: string }>(views: readonly V[], path: string): V | undefined {
+  const order = (a: number[], b: number[]) => {
+    for (let i = 0; i < Math.min(a.length, b.length); i++) if (a[i] !== b[i]) return a[i] - b[i];
+    return a.length - b.length;
+  };
+  return views.filter((v) => rendersAt(v.page, path)).sort((a, b) => order(ranks(a.page), ranks(b.page)))[0];
+}

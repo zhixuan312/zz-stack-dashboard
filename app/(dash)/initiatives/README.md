@@ -27,7 +27,15 @@ Whose work it is, every filter in force and the page, then how many initiatives 
 - Rows 1 to 10 of 12, waiting first: 2026-09-28-search-relevance (waiting, 1 of 3 gates, touched 15 Oct 2026; next: Approve plan.md, waiting on a person); …
 ```
 
-- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `query_initiatives` pages the route with its filters and answers the route's total.
+- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `explore_initiatives`, offered on this page alone, counts the team's closures and openings over any window, by outcome or flow, down to the initiatives themselves.
+
+### What the agent does here
+
+Protagonist: Initiatives.
+
+- "How many initiatives did we open and close in the last 90 days?" — the initiatives opened and the closures over 90 complete days
+- "Which flow do our closed initiatives come from, and with what outcome?" — the closures over every complete day kept, by flow, then by outcome
+- "How many were opened each month this quarter?" — the initiatives opened over 90 complete days, a month at a time
 
 ## Surfaces
 

@@ -202,7 +202,7 @@ for (const route of ROUTES) {
   for (const g of gone) problems.push(`could not be found again: ${g}`);
   const unique = [...new Set(problems)];
   if (unique.length) { failures += unique.length; console.log(`FAIL ${route} (${reached.size} of ${total} stops)\n  ${unique.slice(0, 12).join('\n  ')}`); }
-  else console.log(`ok   ${route} (${reached.size} stops, every one ringed and on top, and the same in reverse)`);
+  else console.log(`ok   ${route} (${reached.size} stops, every one ringed and on top, ${wrapped && order.length ? 'and the same in reverse' : 'the reverse walk not run: Tab did not come back round'})`);
 }
 page.close();
 console.log(`\nkeyboard: ${failures} issues across ${ROUTES.length} routes`);

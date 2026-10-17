@@ -27,7 +27,7 @@ const call = (id: string, toolName: string, input: unknown) => () => stream([{ t
 const say = () => stream([{ type: 'text-start', id: 't' }, { type: 'text-delta', id: 't', delta: 'ok' }, { type: 'text-end', id: 't' }, { type: 'finish', finishReason: { unified: 'stop', raw: undefined }, usage }]);
 const model = (first: () => ReturnType<typeof stream>) => { let i = 0; return new MockLanguageModelV4({ doStream: async () => (i++ === 0 ? first() : say()) }); };
 const SECRET = 's'.repeat(43);
-const STAMP = { caller: 'a@example.com', team: 'atlas' };
+const SCOPE = 'atlas/a@example.com';
 const NOW = new Date('2026-10-03T09:00:00Z');
 const page = { path: '/items', title: 'Items', text: '' };
 const ask: UIMessage[] = [{ id: 'u1', role: 'user', parts: [{ type: 'text', text: 'go' }] }];
@@ -41,10 +41,10 @@ async function message(evs: any[]): Promise<UIMessage> {
 }
 /** Asks for `toolName(input)`, approves it, and returns the approved history and the second response's events. */
 async function approved(c: ReturnType<typeof items>, id: string, toolName: string, input: unknown) {
-  const first = await message(await events(await respond({ model: model(call(id, toolName, input)), secret: SECRET, now: NOW, messages: ask, page, collections: [c], guard, stamp: STAMP })));
+  const first = await message(await events(await respond({ model: model(call(id, toolName, input)), secret: SECRET, now: NOW, messages: ask, page, collections: [c], guard })));
   for (const p of first.parts as any[]) if (p.toolCallId === id) { p.state = 'approval-responded'; p.approval = { ...p.approval, approved: true }; }
   const history = [...ask, first];
-  const run = async () => events(await respond({ model: model(say), secret: SECRET, now: NOW, messages: structuredClone(history), page, collections: [c], guard, stamp: STAMP }));
+  const run = async () => events(await respond({ model: model(say), secret: SECRET, now: NOW, messages: structuredClone(history), page, collections: [c], guard }));
   return { run };
 }
 
@@ -69,7 +69,7 @@ describe('an approved change', () => {
 
   test('an update that changes nothing is refused before it is proposed', async () => {
     const c = items();
-    const evs = await events(await respond({ model: model(call('e1', `update_${c.name}`, { ids: ['i_1'], set: {} })), secret: SECRET, now: NOW, messages: ask, page, collections: [c], guard, stamp: STAMP }));
+    const evs = await events(await respond({ model: model(call('e1', `update_${c.name}`, { ids: ['i_1'], set: {} })), secret: SECRET, now: NOW, messages: ask, page, collections: [c], guard }));
     expect(evs.some((e) => e.type === 'data-proposal')).toBe(false);
     expect(evs.some((e) => e.type === 'tool-approval-request')).toBe(false);
     expect(evs.some((e) => e.type === 'tool-input-error' || e.type === 'tool-output-denied' || (e.type === 'tool-output-error' && e.toolCallId === 'e1'))).toBe(true);
@@ -78,7 +78,7 @@ describe('an approved change', () => {
 
   test('duplicate ids count once in the preview', async () => {
     const c = items();
-    const evs = await events(await respond({ model: model(call('d1', `remove_${c.name}`, { ids: ['i_1', 'i_1'] })), secret: SECRET, now: NOW, messages: ask, page, collections: [c], guard, stamp: STAMP }));
+    const evs = await events(await respond({ model: model(call('d1', `remove_${c.name}`, { ids: ['i_1', 'i_1'] })), secret: SECRET, now: NOW, messages: ask, page, collections: [c], guard }));
     expect(evs.find((e) => e.type === 'data-proposal').data.title).toBe('Remove One');
   });
 });
@@ -124,8 +124,8 @@ describe('the stored thread', () => {
   test('an approved change whose result never arrived comes back closed, so it cannot run again', () => {
     const store = new Map<string, string>();
     const storage = { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v), removeItem: (k: string) => void store.delete(k) } as unknown as Storage;
-    saveThread(storage, [...ask, { id: 'a1', role: 'assistant', parts: [{ type: 'tool-remove_members', toolCallId: 'c1', state: 'approval-responded', input: { ids: ['members_1'] }, approval: { id: 'ap1', approved: true } }] } as UIMessage]);
-    const part = loadThread(storage)[1].parts[0] as any;
+    saveThread(storage, SCOPE, [...ask, { id: 'a1', role: 'assistant', parts: [{ type: 'tool-remove_members', toolCallId: 'c1', state: 'approval-responded', input: { ids: ['members_1'] }, approval: { id: 'ap1', approved: true } }] } as UIMessage]);
+    const part = loadThread(storage, SCOPE)[1].parts[0] as any;
     expect(part.state).toBe('output-denied');
     expect(part.approval).toMatchObject({ approved: false, reason: REASONS.interrupted });
   });

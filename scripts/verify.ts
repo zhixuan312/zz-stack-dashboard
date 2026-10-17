@@ -40,6 +40,7 @@ import { bin } from './lib/bin.ts';
 import { launch } from './lib/chrome.ts';
 import type { BudgetsConfig, NavigationCheck } from './lib/budgets.ts';
 import { finalOutcome, resolveCoverage, selectSmokeRoutes, suiteCoverage, suiteOutcome } from './lib/coverage.ts';
+import { unsafeDataUrls } from './lib/data-url.ts';
 import { APP_DIR, railRoutes } from './lib/routes.ts';
 import { sampleSurfaces } from './lib/sample.ts';
 import verifyConfig from './verify.config.ts';
@@ -55,6 +56,7 @@ type VerifyConfig = BudgetsConfig & {
   navigationChecks?: NavigationCheck[];
   smokeRoutes?: string[];
   personas?: Record<string, { cookie: { name: string; value: string }; expectedRoutes: readonly string[]; deniedProbe?: Record<string, string> }>;
+  refusal?: 'explain' | 'absent';
 };
 const config = verifyConfig as VerifyConfig;
 
@@ -82,7 +84,7 @@ const depth = full && perf ? 'full+perf' : full ? 'full' : perf ? 'perf' : 'defa
 const flags = argv.join(' ');
 
 // The personas a run may sign the browser in as, from the team's config. `--as` is validated HERE, at argv parsing:
-// the gate is the first thing this script runs and takes around forty seconds, so a refusal after it is one a test that
+// the gate is the first thing this script runs and takes the better part of a minute, so a refusal after it is one a test that
 // spawns this script and reads its output never sees. An unknown persona, or `--as` beside `--perf`, stops the run
 // before the gate, the build or any server.
 const personaConfig = config.personas ?? {};
@@ -189,15 +191,6 @@ const FIX = 'fix the issues above and run pnpm verify again';
 
 // ---- what is safe to run against ----
 
-/** Can this hostname only be this machine — or a name that can only resolve inside it? */
-function isLocalHost(host: string): boolean {
-  const h = host.toLowerCase().replace(/^\[|\]$/g, '');
-  if (h === 'localhost' || h === '::1' || h === '0.0.0.0') return true;
-  if (/^127\./.test(h)) return true;
-  // A name with no dot cannot be a public address: a compose service (`postgres`), a container name, a bare hostname.
-  return !h.includes('.');
-}
-
 /** The `.env` files Next loads into the build and the server, in its own order: a later file wins over an earlier one. */
 function envFiles(): Record<string, string> {
   const out: Record<string, string> = {};
@@ -231,14 +224,8 @@ function unsafeBackend(): { reason: string; fix: string } | null {
     };
   }
   const fromFiles = envFiles();
-  const offenders = ['DATABASE_URL', ...(config.dataUrls ?? [])].flatMap((name) => {
-    const value = process.env[name] ?? fromFiles[name];
-    if (!value) return [];
-    let host: string;
-    // Not a URL is not something this can judge; the app will fail on it long before a press.
-    try { host = new URL(value).hostname; } catch { return []; }
-    return isLocalHost(host) ? [] : [`${name} → ${host}`];
-  });
+  const named = ['DATABASE_URL', ...(config.dataUrls ?? [])];
+  const offenders = unsafeDataUrls(Object.fromEntries(named.map((name) => [name, process.env[name] ?? fromFiles[name] ?? ''])));
   if (offenders.length && !config.allowRemoteData) {
     return {
       reason: `data URL not on this machine: ${offenders.join(', ')}`,
@@ -411,7 +398,9 @@ if (config.fakeApi && serve) {
 
 // 2. The build, once, and 3. the route policy on it: every non-API route static or partial, unless verify.config.ts says why not.
 builds++;
-step('build', bin('next'), ['build'], app);
+// The gate above type-checked this tree with the same tsconfig, generated route types included, so the build does not
+// check it again (`typescript.ignoreBuildErrors` in next.config.ts reads this; a project whose config does not checks twice).
+step('build', bin('next'), ['build'], { ...app, MERIDIAN_TYPES_CHECKED: '1' });
 step('route policy', 'node', ['scripts/route-policy.ts'], app, true);
 
 // The built app, for the page sizes and the browser. The assistant is off in this start.
@@ -463,6 +452,10 @@ if (asPersonas.length) {
     phase('FAIL', 'the personas', null, `(--as needs the browser: ${browser.reason ?? 'the browser did not run'})`);
   } else {
     const personaPage = await launch();
+    // What a route this persona may not open draws: the product's `refusal`, which the config reads from src/app.config.ts.
+    const refused = config.refusal === 'absent'
+      ? { absent: true, selector: '[data-missing-page]', page: 'the missing page' }
+      : { absent: false, selector: '[data-no-access]', page: 'NoAccess' };
     try {
       for (const name of asPersonas) {
         const persona = config.personas![name];
@@ -487,18 +480,20 @@ if (asPersonas.length) {
             const presses = await run('scripts/interactions.ts', ['--base', here, '--as', name, '--width', '1440', '--routes', roleRoutes.join(',')], app);
             if (presses.status !== 0) problems.push(`${name}: the presses failed on ${roleRoutes.join(', ')} — ${presses.out.split('\n').filter(Boolean).slice(-1)[0] ?? 'no output'}`);
           }
-          // (c) Follow every expected route, and open every other rail route expecting NoAccess and no protected record.
+          // (c) Follow every expected route, and open every other rail route expecting the product's refusal and no
+          // protected record: the no-access page under `explain`, the missing page and no no-access page under `absent`.
           for (const route of persona.expectedRoutes) {
             await personaPage.open(here + route, { width: 1440, height: 900, theme: 'dark', cookie: persona.cookie });
-            const denied = await personaPage.eval<boolean>('(async () => { await new Promise((r) => setTimeout(r, 400)); return !!document.querySelector("[data-no-access]"); })()');
-            if (denied) problems.push(`${name}: ${route} is expected of this persona, but the page shows NoAccess`);
+            const denied = await personaPage.eval<boolean>(`(async () => { await new Promise((r) => setTimeout(r, 400)); return !!document.querySelector(${JSON.stringify(refused.selector)}); })()`);
+            if (denied) problems.push(`${name}: ${route} is expected of this persona, but the page shows ${refused.page}`);
           }
           const deniedProbe = persona.deniedProbe ?? {};
           const others = rail!.routes.filter((r) => !persona.expectedRoutes.includes(r));
           for (const route of others) {
             await personaPage.open(here + route, { width: 1440, height: 900, theme: 'dark', cookie: persona.cookie });
-            const denied = await personaPage.eval<boolean>('(async () => { const end = Date.now() + 5000; while (Date.now() < end) { if (document.querySelector("[data-no-access]")) return true; await new Promise((r) => setTimeout(r, 100)); } return false; })()');
-            if (!denied) problems.push(`${name}: ${route} should show NoAccess for this persona, and does not`);
+            const denied = await personaPage.eval<boolean>(`(async () => { const end = Date.now() + 5000; while (Date.now() < end) { if (document.querySelector(${JSON.stringify(refused.selector)})) return true; await new Promise((r) => setTimeout(r, 100)); } return false; })()`);
+            if (!denied) problems.push(`${name}: ${route} should show ${refused.page} for this persona, and does not`);
+            if (refused.absent && (await personaPage.eval<boolean>('!!document.querySelector("[data-no-access]")'))) problems.push(`${name}: ${route} shows NoAccess, and the product's refusal is absent`);
             const probe = deniedProbe[route];
             if (probe) {
               const text = await personaPage.eval<string>('document.body.innerText');
@@ -530,7 +525,9 @@ if (perf && !browser.ran) {
   const status: Status = timed.status !== 0 || !result || result.status === 'FAIL' ? 'FAIL' : result.status;
   phase(status, 'performance: 20 samples per route, device and condition, p95 reported against the budgets', timed.took);
   beneath(timed.out.split('\n').filter((l) => !l.startsWith('perf: ') && !l.startsWith('… ')));
-  if (status === 'FAIL') ok = false;
+  // A perf run that failed is recorded as failed, not only in `ok`: the coverage line is what a reader takes the run's
+  // summary from, and a suite that failed has to appear in it as one — `suiteCoverage` builds `failed:` from this set.
+  if (status === 'FAIL') { ok = false; failedSuites.add('perf'); }
 }
 
 // 7. --full: every exhaustive suite.
@@ -606,7 +603,7 @@ if (full && browser.ran && baseUrl) {
   current = 'web vitals';
   announce('Web Vitals on a mid-range phone, alone');
   const vitals = await run('scripts/vitals.ts', ['--base', here]);
-  reportSuite('vitals', 'LCP, INP and CLS on a mid-range phone', vitals);
+  reportSuite('vitals', 'LCP, INP, CLS and dropped frames on a mid-range phone', vitals);
   if (suiteOutcome(vitals.status) === 'FAIL') ok = false;
 }
 

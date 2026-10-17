@@ -181,7 +181,7 @@ if (has('--no-atlas') || has('--product')) {
   for (const f of atlasOnly) fs.rmSync(file(`src/system/${f}`), { force: true });
   // The shipped tests of those modules go with them: a test of a module the project no longer has would fail there.
   // tests/cli-atlas-prune.test.ts holds this list and the modules above together.
-  for (const t of ['tests/atlas-layers.test.ts', 'tests/card-stage-hydration.test.tsx']) fs.rmSync(file(t), { force: true });
+  for (const t of ['tests/atlas-layers.test.ts', 'tests/atlas-shell-early-press.test.tsx', 'tests/card-stage-hydration.test.tsx']) fs.rmSync(file(t), { force: true });
   // Nav entries for /system and /system/... exactly (never /systemic), then any group they leave empty.
   let cfg = read('src/app.config.ts').replace(/\n\s*\{ href: '\/system(?:\/[^']*)?'[^}]*\},/g, '');
   cfg = cfg.replace(/\n {2}\{\n(?: {4}label: '[^']*',\n)? {4}items: \[\s*\],\n {2}\},/g, '');
@@ -194,8 +194,9 @@ if (has('--no-atlas') || has('--product')) {
   write('src/app.config.ts', cfg);
   // The standalone screens' footer link to the Atlas (the sample's footer, src/views/sample-footer.tsx).
   write('src/views/sample-footer.tsx', read('src/views/sample-footer.tsx').replace(/\n\s*<Link href="\/system"[^\n]*<\/Link>/, ''));
-  // The verification config's mappings and smoke routes for the Atlas, which verify --full would report as no route.
-  write('scripts/verify.config.ts', read('scripts/verify.config.ts').replace(/\n\s*\{ path: '\/system(?:\/[^']*)?'[^\n]*\},/g, '').replace(/,\s*'\/system(?:\/[^']*)?'/g, ''));
+  // The verification config's mappings and smoke routes for the Atlas, with the comments over them, which verify --full
+  // would report as no route.
+  write('scripts/verify.config.ts', read('scripts/verify.config.ts').replace(/(?:\n\s*\/\/[^\n]*)*\n\s*\{ path: '\/system(?:\/[^']*)?'[^\n]*\},/g, '').replace(/,\s*'\/system(?:\/[^']*)?'/g, ''));
   // Build tracing: only the Atlas's `/system/**` entry goes; the tab icon's and the assistant's brief stay.
   write('next.config.ts', read('next.config.ts').replace(/\/\/ Card specifications[^\n]*/, '// The tab icon reads the tokens, and the assistant reads the brief, at build time.').replace(/'\/system\/\*\*':\s*\[[^\]]*\],\s*/, ''));
   // Route types generated for the removed pages would fail the type check until regenerated.

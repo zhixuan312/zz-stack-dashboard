@@ -120,7 +120,7 @@ evidence.
 | Typography | Sizes from the scale, with as many sizes per page and weights as the register sets; figures with their unit and fraction stepped down; nothing set smaller to make it fit |
 | Whitespace | The 4px scale; cards in a row share a height; gaps even between cards and inside them; one left edge down the page |
 | Colour | Every colour has a job, as the register sets them; nothing coloured for decoration |
-| Motion and response | Every press answers at once (a state, a toast, a sheet); motion from the tokens, quick and interruptible; data arrives once, nothing loops but a live dot or a skeleton |
+| Motion and response | Every press answers at once (a state, a toast, a sheet); motion from the tokens, quick and interruptible; data arrives once, nothing loops but a spinner, a skeleton and a live dot |
 | Responsive | Designed at each width, not shrunk: at 390px the protagonist leads, tables become card lists, actions stay reachable, dialogs become sheets |
 | Navigation | The next step is obvious: rows open their record, a link's arrow says where it goes, the rail shows where you are, a dead end offers the way back |
 | Copy | `voice.md`: sentence case, verbs on buttons, a unit and a period on every number; realistic data in the person's domain, never lorem ipsum or "Item 1" |

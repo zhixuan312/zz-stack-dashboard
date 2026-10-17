@@ -165,7 +165,7 @@ export function DocumentView({ params }: { params: Promise<{ team: string; slug:
               <Panel
                 title="Document"
                 description={formatKb(doc.bytes / 1024)}
-                actions={<><AskAbout iconBelowSm question={doc.gated === true && !doc.approved_by ? 'What does this document commit us to, and what should I check before approving it?' : 'What does this document say, in a few lines?'} /><Segmented size="sm" label="Document view" value={view} onChange={setView} options={[{ value: 'read', label: 'Read' }, { value: 'source', label: 'Source' }]} /></>}
+                actions={<><AskAbout question={doc.gated === true && !doc.approved_by ? 'What does this document commit us to, and what should I check before approving it?' : 'What does this document say, in a few lines?'} /><Segmented size="sm" label="Document view" value={view} onChange={setView} options={[{ value: 'read', label: 'Read' }, { value: 'source', label: 'Source' }]} /></>}
               >
                 {/* The reader's measure is this cell, not Meridian's 72-character cap. These are long documents on a
                     wide screen, and a 533px strip in a 1,400px canvas makes one longer than it is: the cap is worth

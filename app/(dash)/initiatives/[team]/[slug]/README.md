@@ -28,7 +28,15 @@ The initiative's state with what each state means, its position in its flow, how
 - It is at the plan step: Turn an approved spec into a contract-first plan. That step produces plan.md.
 ```
 
-- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `query_initiatives` looks up what the page lists.
+- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `explore_initiative`, offered on this page alone, counts this initiative's words, approvals, runs and calls over any window, every call held to this initiative.
+
+### What the agent does here
+
+Protagonist: Documents.
+
+- "How many words has this initiative written in the last 30 days, and in which documents?" — the words written over 30 complete days, by document
+- "Which skills ran for it this quarter, and how often?" — the runs over 90 complete days, by skill
+- "How many of its calls were refused in the last 7 days?" — the calls over 7 complete days, by refused
 
 ## Surfaces
 

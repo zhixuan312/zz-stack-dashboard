@@ -1,6 +1,7 @@
-import { tool, type SingleToolApprovalFunction, type ToolSet, type UIMessageStreamWriter } from 'ai';
+import { jsonSchema, tool, type JSONSchema7, type SingleToolApprovalFunction, type ToolSet, type UIMessageStreamWriter } from 'ai';
 import { z } from 'zod';
-import { patchOf, queryInput, writableFields, type AnyCollection } from '@/lib/collection';
+import { patchOf, writableFields, type AnyCollection } from '@/lib/collection';
+import { exploreSchema, runExplore, type ExploreIO, type ExploreRights } from '@/lib/explore';
 import { contextText, type ViewTool } from '@/lib/shared-context';
 
 type Row = Record<string, unknown>;
@@ -40,26 +41,70 @@ export type Guard = {
 };
 
 /** A change an agent made, as a record of it needs: which collection, what kind, the records by title, and what was set. */
-export type AgentChange = { name: string; label: string; op: 'create' | 'update' | 'remove'; titles: string[]; set?: Record<string, unknown> };
+type AgentChange = { name: string; label: string; op: 'create' | 'update' | 'remove'; titles: string[]; set?: Record<string, unknown> };
 
 /** A change the collection or the run-once rule refused. Its reason is the person's to read, so it is shown as it is. */
 export class ChangeRefused extends Error {}
+
+/**
+ * The prepared query of the page the person is on, as the route hands it: the page's view, the person's rights, the
+ * authorized reads the call runs through, and the page's address, which an answer names when the query names none.
+ */
+export type HandedExplore = { view: ViewTool; rights: ExploreRights; io: ExploreIO; page: string };
+
+/**
+ * `explore_<view>`: the view's prepared query as a read-only tool. The schema the model is offered is the person's (only
+ * the sources and names they may read), while a call is validated against the whole declaration, so a name that is
+ * declared but withheld from them reaches the runner and is answered "You do not have access to that." rather than
+ * refused as malformed. A call the whole declaration refuses is told why by the person's schema, whose every option is
+ * theirs: the whole one's error would list the withheld sources and measures among the names it expected. A detail
+ * page's own input (One customer's `{ id }`) is offered beside the query and handed to its `fixed`, which holds every
+ * call to the page's record, and the description says so: offered an `id` and no condition naming the record, a model
+ * concluded the query could not narrow to it. A rail page's input is not offered, as the query has its own period and
+ * conditions.
+ */
+function exploreTool({ view, rights, io, page }: HandedExplore) {
+  const query = view.explore;
+  const own = view.page.includes('[') ? view.input : undefined;
+  const whole = exploreSchema(query, null, own);
+  const offered = exploreSchema(query, rights, own);
+  return tool({
+    description: `Count, sum, group and compare what the ${view.title} page reads, over every row and never a page of them: one source a call, one to three of its measures, its conditions, a facet or a time bucket, a period of complete days and the window before, and up to 20 rows. Answers in text: the window, each measure with its unit, at most eight groups and the rest, what the source cannot say, and each row's console address. Prefer it to counting rows yourself.${own ? " On this page every call is held to the record this page shows, the one its id names: there is no condition to add for it, and every figure, group and row is that record's alone." : ''}`,
+    inputSchema: jsonSchema<Record<string, unknown>>(z.toJSONSchema(offered) as JSONSchema7, {
+      validate: (value) => {
+        const parsed = whole.safeParse(value);
+        if (parsed.success) return { success: true, value: parsed.data };
+        const theirs = offered.safeParse(value);
+        return { success: false, error: new Error(theirs.success ? 'The call does not fit this prepared query.' : `The call does not fit: ${theirs.error.issues.map((i) => `${i.path.join('.') || 'call'} ${i.message}`).join('; ')}.`) };
+      },
+    }),
+    execute: (input) => runExplore(query, input, rights, io, page, own),
+  });
+}
+
 /** "API keys" stays, "Members" becomes "members". */
 const lower = (label: string) => (/^.[A-Z]/.test(label) ? label : label.charAt(0).toLowerCase() + label.slice(1));
 
 /**
- * The assistant's tools for `collections`, and the rule that holds every change for the person's approval.
- * A rule writes the server's preview of the change to `writer` before the approval request goes out. An approval is
+ * The assistant's write tools for `collections` (`create_`, `update_` and `remove_<name>`, for what each allows and
+ * does not keep for a page), and the rule that holds every change for the person's approval. Nothing here reads a
+ * collection for the model: an agent reads through the view tools and the page's prepared query, and the route hands
+ * this the collections that query reads, so a page offers the writes of what it shows. A rule writes the server's preview of the change to `writer` before the approval request goes out. An approval is
  * only the person's consent: each execution asks `guard` again before it mutates, so a permission revoked since the
  * approval refuses the change, and invalidates the collection after it commits.
  *
  * `views` adds one read-only `view_<name>` tool per view (decision 0011): it opens the view at an address and returns
  * its shared context, the same text the page tells the assistant, so the assistant can look at another period, filter
  * or record without the person navigating. A view tool changes nothing and needs no approval.
+ *
+ * `explore` adds the page's own prepared query as `explore_<view>`, read-only too. Only the page the person is on hands
+ * one: fourteen schemas would crowd every request.
  */
-export function assistantTools(collections: AnyCollection[], writer: UIMessageStreamWriter, guard: Guard, views: ViewTool[] = []): { tools: ToolSet; toolApproval: Record<string, Rule> } {
+export function assistantTools(collections: AnyCollection[], writer: UIMessageStreamWriter, guard: Guard, views: ViewTool[] = [], explore?: HandedExplore): { tools: ToolSet; toolApproval: Record<string, Rule> } {
   const tools: ToolSet = {};
   const toolApproval: Record<string, Rule> = {};
+
+  if (explore) tools[`explore_${explore.view.name}`] = exploreTool(explore);
 
   for (const v of views) {
     tools[`view_${v.name}`] = tool({
@@ -80,15 +125,6 @@ export function assistantTools(collections: AnyCollection[], writer: UIMessageSt
     // create schema and the update tool's `set` come from this, so a page-only field is absent from the schema and —
     // because the schema is strict — refused at execution if a call names it anyway.
     const fields = writableFields(c);
-
-    tools[`query_${c.name}`] = tool({
-      description: `Look up ${c.label.toLowerCase()}: ${c.description} A field with no value matches only ne.`,
-      inputSchema: queryInput(c),
-      execute: async (input) => {
-        const { rows, total } = await c.query(input);
-        return { rows: rows.map(strip), total };
-      },
-    });
 
     /** The rows for `ids` in the order asked, or the ids the collection does not have. */
     const find = async (asked: string[]): Promise<{ rows: Row[] } | { missing: string[] }> => {

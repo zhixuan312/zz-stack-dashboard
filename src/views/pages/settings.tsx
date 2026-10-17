@@ -69,7 +69,7 @@ function SettingsFrame({ children }: { children: ReactNode }) {
       width="form"
       context={context}
       // In the masthead: every section is a form section, whose head takes no actions.
-      actions={<AskAbout iconBelowSm question="Which team am I acting for, and which of my tokens are live?" />}
+      actions={<AskAbout question="Which team am I acting for, and which of my tokens are live?" />}
     >
       {children}
     </ConsolePage>

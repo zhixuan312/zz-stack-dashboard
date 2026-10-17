@@ -10,7 +10,8 @@
  *   real font rather than the browser's initial one.
  * - No source file over 700 lines: past that a file holds two things, and the split is agreed before it grows.
  * - Every page in the console's shell says what it tells the assistant: its spec has "### What the agent reads" under
- *   "## Agents", and names the context function it shares.
+ *   "## Agents", and names the context function it shares; and every page a view tool module names says what the agent
+ *   does there, "### What the agent does here".
  * - Every page in the console's shell is a server page that asks the gate before anything else, for a feature the
  *   console has.
  * - Every file `next.config.ts` traces into a route is inside the Docker build context, so the image does not ship
@@ -20,6 +21,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { nav } from '../src/app.config.ts';
 import { FEATURES } from '../src/data/features.ts';
+import { agentSection, pageSpecs, viewToolPages } from './lib/routes.ts';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const read = (p: string) => fs.readFileSync(path.join(ROOT, p), 'utf8');
@@ -111,6 +113,23 @@ for (const f of walk('app/(dash)', /^README\.md$/)) {
   const named = /`(\w+Context)` in `(src\/views\/[\w-]+\.ts)`/.exec(md);
   if (!named) problems.push(`${f}: its Agents section does not name the context function the page shares`);
   else if (!fs.existsSync(path.join(ROOT, named[2])) || !new RegExp(`export function ${named[1]}\\b`).test(read(named[2]))) problems.push(`${f}: names ${named[1]} in ${named[2]}, which does not export it`);
+}
+
+// ── Every page a view tool renders says what the agent does there ─────────────────────────────────────
+// Meridian's check.ts reads the view tools' `page`s from `src/views/tools.ts` alone, where this console's tools are
+// imported from a module each under `src/views/tools/`, so the release's rule finds no page here. This reads every
+// module with the release's own reader and holds each page's spec to the release's own section.
+{
+  const pages = new Set(walk('src/views/tools', /\.ts$/).flatMap((f) => viewToolPages(read(f)) ?? []).map((v) => v.page));
+  if (!pages.size) problems.push('src/views/tools/: no view tool names its page');
+  for (const { file, route } of pageSpecs().filter((p) => pages.has(p.route))) {
+    const section = agentSection(read(file));
+    if (!section) problems.push(`${file}: no "### What the agent does here" under ## Agents`);
+    else if (!section.protagonist) problems.push(`${file}: "### What the agent does here" has no "Protagonist: <the card's name>." line`);
+    else if (section.questions.length < 3) problems.push(`${file}: "### What the agent does here" has ${section.questions.length} of the three questions it needs`);
+    pages.delete(route);
+  }
+  for (const page of pages) problems.push(`${page}: a view tool names it, and no page specification describes it`);
 }
 
 // ── Raw HTML stays inert ─────────────────────────────────────────────────────────────────────────────

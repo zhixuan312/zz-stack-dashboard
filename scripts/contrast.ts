@@ -1,6 +1,7 @@
 /**
  * Contrast gate: every foreground the specifications put on a background, computed in every theme x accent
- * (WCAG 2.2 AA), and the categorical chart palette held to the dataviz checks in both themes.
+ * (WCAG 2.2 AA), the marks they mix from two colours, and the categorical chart palette held to the dataviz checks in
+ * both themes.
  *
  *   node scripts/contrast.ts [--all]   prints failures (every pair with --all); exit 1 on any failure
  *
@@ -8,8 +9,8 @@
  * are composited over the background they sit on, which is itself composited over the ground.
  */
 import { load, resolver, tokensOf, cssValue, NS } from './tokens.ts';
-import { parse, over, ratio, simulate, deltaE, oklchOf, hex } from '../src/lib/color.ts';
-import { PAIRS } from './lib/contrast-pairs.ts';
+import { parse, over, ratio, simulate, deltaE, oklchOf, hex, rgbToOklab, oklchToRgb } from '../src/lib/color.ts';
+import { PAIRS, MIXES } from './lib/contrast-pairs.ts';
 
 /** Every custom property of one context, as raw CSS strings. */
 function context(theme: string, accent: string): Record<string, string> {
@@ -37,6 +38,15 @@ function measure(env: Record<string, string>, fg: string, bg: string | string[])
   let back = colorOf(env, 'ground');
   for (const layer of Array.isArray(bg) ? bg : [bg]) back = over(colorOf(env, layer), back);
   return ratio(over(colorOf(env, fg), back), back);
+}
+
+/** A mixed mark on its background: both as they render over the ground, interpolated in OKLab as `color-mix(in oklab, ...)` does. */
+function measureMix(env: Record<string, string>, fg: string, share: string, bg: string) {
+  const back = over(colorOf(env, bg), colorOf(env, 'ground'));
+  const p = Number(resolve(env, share));
+  const [from, to] = [rgbToOklab(over(colorOf(env, fg), back)), rgbToOklab(back)];
+  const [L, a, b] = from.map((x, i) => x * p + to[i] * (1 - p));
+  return ratio([...oklchToRgb(L, Math.hypot(a, b), (Math.atan2(b, a) * 180) / Math.PI), 1], back);
 }
 
 /** The dataviz checks on the categorical slots: lightness band, chroma floor, adjacent CVD and normal-vision separation. */
@@ -68,13 +78,14 @@ function main() {
   for (const theme of Object.keys(mods.theme.contexts)) {
     for (const accent of Object.keys(mods.accent.contexts)) {
       const env = context(theme, accent);
-      for (const [fg, bg, min, what] of PAIRS) {
-        const r = measure(env, fg, bg);
+      const report = (r: number, min: number, what: string) => {
         count++;
         const ok = r >= min;
         if (!ok) fails++;
-        if (all || !ok) console.log(`${ok ? 'ok  ' : 'FAIL'} ${theme.padEnd(5)} ${accent.padEnd(8)} ${r.toFixed(2).padStart(5)}:1 (needs ${min})  ${fg} on ${[bg].flat().join('+')}: ${what}`);
-      }
+        if (all || !ok) console.log(`${ok ? 'ok  ' : 'FAIL'} ${theme.padEnd(5)} ${accent.padEnd(8)} ${r.toFixed(2).padStart(5)}:1 (needs ${min})  ${what}`);
+      };
+      for (const [fg, bg, min, what] of PAIRS) report(measure(env, fg, bg), min, `${fg} on ${[bg].flat().join('+')}: ${what}`);
+      for (const [fg, share, bg, min, what] of MIXES) report(measureMix(env, fg, share, bg), min, `${fg} at ${share} on ${bg}: ${what}`);
     }
     const p = palette(theme);
     fails += p.fails.length;

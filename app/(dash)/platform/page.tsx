@@ -2,12 +2,12 @@ import { Suspense } from 'react';
 import { app, workspaces } from '@/app.config';
 import { PageFrame } from '@/components/base/shell';
 import { Busy, TilesSkeleton } from '@/components/patterns/page-loading';
-import { gate } from '@/data/access';
+import { gate, gatedMetadata } from '@/data/access';
 import { PlatformStatusAsOf, PlatformStatusView } from '@/views/pages/platform-status';
 import type { StatusRead } from '@/views/platform-status-context';
 import { readStatus } from './read-status';
 
-export const metadata = { title: 'Status' };
+export function generateMetadata() { return gatedMetadata('platform-status', { title: 'Status' }); }
 
 /**
  * The page asks `platform-status` before it renders; the rail hiding a destination is presentation, never this gate.

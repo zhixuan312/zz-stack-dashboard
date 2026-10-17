@@ -230,11 +230,12 @@ What it reads:
 - **The page.** Every console page shares a context (`src/views/*-context.ts`): its scope,
   how fresh the data is, each figure with its definition, what code computed from them,
   and what the data cannot say. Each page's `README.md` says what its context holds.
-- **The records.** One read-only collection per list (`src/data/collections.ts`), each the
-  same gateway route its page reads, as the person asking: `query_teams`,
-  `query_initiatives`, `query_knowledge` and the rest.
-- **Another view.** One `view_<name>` tool per page (`src/views/tools.ts`), which opens
-  that view at an address and returns the same context the page would share.
+- **The records.** One prepared collection per measure of the gateway's prepared queries
+  (`src/data/prepared.ts`), read as the person asking; the page the person is on offers its
+  prepared query, `explore_<view>`, which counts, groups and compares them.
+- **Another view.** One `view_<name>` tool per page, each a module under `src/views/tools/`
+  listed in `src/views/tools.ts`, which opens that view at an address and returns the same
+  context the page would share, and declares the page and the prepared query it offers.
 - **What documents say.** `view_search` is the platform's own ranked search, run as the
   person: the text of every document and knowledge node they may read, each result a
   matched excerpt with the address of its page. Every other tool reads titles, states and

@@ -39,10 +39,13 @@ export function CardHeader({
    *  name — rather than a label in a list, where one line and an ellipsis is the right answer. */
   wrap?: boolean;
 }) {
+  // A title that may be cut keeps its whole text where a pointer reads it (issue #33). Only plain text can be repeated
+  // as an attribute; a title built of elements is the caller's to keep short or to wrap.
+  const whole = !wrap && typeof title === 'string' ? title : undefined;
   return (
     <div className={cn('flex items-start gap-4 px-(--card-pad) pt-[calc(var(--card-pad)-4px)]', divided ? 'border-b border-line pb-3.5' : 'pb-1', className)}>
       <div className="min-w-0 flex-1">
-        <h2 className={cn('t-card', wrap ? 'text-pretty' : 'truncate')}>{title}</h2>
+        <h2 title={whole} className={cn('t-card', wrap ? 'text-pretty' : 'truncate')}>{title}</h2>
         {description ? <p className="t-caption mt-1 text-pretty">{description}</p> : null}
       </div>
       {actions ? <div className="-my-1 flex shrink-0 items-center gap-1.5">{actions}</div> : null}

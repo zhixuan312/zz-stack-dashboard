@@ -1,20 +1,21 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'vitest';
-import { createElement, useEffect, useState } from 'react';
+import { Suspense, createElement, useEffect, useState, type ComponentProps } from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import type { UIMessage } from 'ai';
 import { POST } from '../app/api/assistant/route';
+import { AssistantScope } from '@/components/patterns/assistant/scope';
 import { THREAD_KEY, loadThread, saveThread } from '@/components/patterns/assistant/thread';
-import { ConsoleCaller } from '@/lib/api';
 import { MEMBER, ME } from '../scripts/fake-gateway/people.ts';
 import { startFakeLlm } from '../scripts/fake-llm.ts';
 
 /**
- * The model never reads another team's or another person's conversation (reconciliation 54). The assistant's route
- * stamps every reply, on its first part, with the caller and the team it was answered for, and a request whose thread
- * holds a reply stamped for anyone else reaches the model with the messages after that reply alone. And the person never
- * sees it: a stored thread whose last stamped reply names another caller or team is cleared before the panel renders.
+ * The model never reads another team's or another person's conversation (reconciliation 54), held against ZZ
+ * Meridian's scoped thread (reconciliation 61). The thread is kept for one person and the team they act for, the scope
+ * the layout hands `AssistantScope` and the panel names with every request (`<team>/<email>`). The route answers a
+ * thread of its caller's scope, or one that names none, and refuses one of any other scope with 409 before the model
+ * is reached; and the person never sees one: a stored thread of another scope is removed as soon as the scope resolves.
  */
-const NOAH = { caller: MEMBER.email, team: 'atlas' };
+const NOAH = `atlas/${MEMBER.email}`;
 const saved = { ...process.env };
 let llm: Awaited<ReturnType<typeof startFakeLlm>>;
 const real = globalThis.fetch;
@@ -32,95 +33,78 @@ beforeEach(() => {
 afterEach(() => { globalThis.fetch = real; process.env = { ...saved }; window.localStorage.clear(); });
 
 const ask = (id: string, text: string): UIMessage => ({ id, role: 'user', parts: [{ type: 'text', text }] });
-const reply = (id: string, text: string, metadata?: object, state: 'done' | 'streaming' = 'done'): UIMessage =>
-  ({ id, role: 'assistant', metadata, parts: [{ type: 'step-start' }, { type: 'text', text, state }] });
-const post = (messages: UIMessage[]) => POST(new Request('http://localhost/api/assistant', { method: 'POST', body: JSON.stringify({ messages, page: { path: '/', title: 'Home', text: '' } }) }));
+const reply = (id: string, text: string, state: 'done' | 'streaming' = 'done'): UIMessage =>
+  ({ id, role: 'assistant', parts: [{ type: 'step-start' }, { type: 'text', text, state }] });
+const post = (messages: UIMessage[], scope?: string) =>
+  POST(new Request('http://localhost/api/assistant', { method: 'POST', body: JSON.stringify({ messages, page: { path: '/', title: 'Overview', text: '' }, ...(scope === undefined ? {} : { scope }) }) }));
 const events = async (res: Response) => (await res.text()).split('\n').filter((l) => l.startsWith('data: ') && l !== 'data: [DONE]').map((l) => JSON.parse(l.slice(6)));
 /** What the model was sent, the system prompt left out: each message's role and text. */
 const sent = () => (llm.requests.at(-1) as { messages: { role: string; content: unknown }[] }).messages
   .filter((m) => m.role !== 'system')
   .map((m) => `${m.role}:${typeof m.content === 'string' ? m.content : (m.content as { text?: string }[]).map((p) => p.text ?? '').join('')}`);
 
-describe('every reply the route answers', () => {
-  test('carries the caller and the team on its first part', async () => {
-    const evs = await events(await post([ask('u1', 'what waits?')]));
-    expect(evs[0]).toMatchObject({ type: 'start', messageMetadata: NOAH });
-  });
-
-  test('is stamped before the model says anything, so a reply cut off by the switch is stamped too', async () => {
-    const res = await post([ask('u1', 'what waits?')]);
-    const reader = res.body!.getReader();
-    const first = new TextDecoder().decode((await reader.read()).value);
-    await reader.cancel();
-    expect(JSON.parse(first.split('\n')[0].slice(6))).toMatchObject({ type: 'start', messageMetadata: NOAH });
-  });
-});
-
-describe('a thread holding a reply answered for someone else', () => {
-  const other = { caller: MEMBER.email, team: 'beacon' };
-  const otherPerson = { caller: ME.email, team: 'atlas' };
-
-  test.each([
-    ['a reply of another team that finished after the switch', reply('a1', 'old team answer', other)],
-    ['a reply of another team cut off mid-stream', reply('a1', 'old team ans', other, 'streaming')],
-    ['a reply answered for another person on this browser', reply('a1', 'old team answer', otherPerson)],
-  ])('reaches the model with the messages after it alone: %s', async (_, old) => {
-    await events(await post([ask('u1', 'old question'), old, ask('u2', 'new question')]));
-    expect(sent()).toEqual(['user:new question']);
-  });
-
-  test('keeps what came after it, a second tab or a thread saved before the switch writing the old part', async () => {
-    await events(await post([ask('u1', 'old question'), reply('a1', 'old team answer', other), ask('u2', 'mine'), reply('a2', 'my answer', NOAH), ask('u3', 'and then?')]));
+describe('a thread the route answers', () => {
+  test('is one of its caller and the team they act for, and reaches the model whole', async () => {
+    const res = await post([ask('u1', 'mine'), reply('a1', 'my answer'), ask('u2', 'and then?')], NOAH);
+    expect(res.status).toBe(200);
+    await events(res);
     expect(sent()).toEqual(['user:mine', 'assistant:my answer', 'user:and then?']);
   });
 
-  test('answers a request with nothing after that reply as a first question', async () => {
-    const evs = await events(await post([ask('u1', 'what waits?'), reply('a1', 'old team answer', other)]));
-    expect(sent()).toEqual(['user:what waits?']);
-    expect(evs[0]).toMatchObject({ type: 'start', messageMetadata: NOAH });
-  });
-
-  test.each([
-    ['of this caller and team', NOAH],
-    ['with no stamp, stored before replies carried one', undefined],
-  ])('leaves a thread %s whole', async (_, stamp) => {
-    await events(await post([ask('u1', 'q'), reply('a1', 'a', stamp), ask('u2', 'q2')]));
+  test('names no scope, as a panel with no layout scope sends it, and is answered as the caller\'s', async () => {
+    await events(await post([ask('u1', 'q'), reply('a1', 'a'), ask('u2', 'q2')]));
     expect(sent()).toEqual(['user:q', 'assistant:a', 'user:q2']);
   });
 });
 
-describe('a stored thread of another caller or team', () => {
-  const thread = (metadata?: object) => [ask('u1', 'what waits?'), reply('a1', 'two documents', metadata)];
-  const value = { caller: MEMBER.email, team: 'atlas', user: { role: 'Member' } };
-  /** The server's answer as it arrives in the browser, already settled, so `use` reads it without suspending. */
-  const access = Object.assign(Promise.resolve(value), { status: 'fulfilled', value });
+describe('a thread of another scope', () => {
+  test.each([
+    ['another team, after the switch', `beacon/${MEMBER.email}`, reply('a1', 'old team answer')],
+    ['another team, a reply cut off mid-stream by the switch', `beacon/${MEMBER.email}`, reply('a1', 'old team ans', 'streaming')],
+    ['another person on this browser', `atlas/${ME.email}`, reply('a1', 'old person answer')],
+    ['no team, from before the person acted for one', `/${MEMBER.email}`, reply('a1', 'old answer')],
+  ])('is refused with 409 and nothing of it reaches the model: %s', async (_, scope, old) => {
+    const res = await post([ask('u1', 'old question'), old, ask('u2', 'new question')], scope);
+    expect(res.status).toBe(409);
+    expect(await res.text()).toMatch(/earlier conversation was cleared\. Ask again\./);
+    expect(llm.requests).toEqual([]);
+  });
+});
 
-  /** The panel reads its thread in a passive effect on mount, as `AssistantColumn` does. */
+describe('a stored thread of another scope', () => {
+  const thread = [ask('u1', 'what waits?'), reply('a1', 'two documents')];
+  /** The layout's scope, as `AssistantScope` is handed it; its children are the element's own. */
+  const scoped = () => ({ scope: Promise.resolve(NOAH) }) as ComponentProps<typeof AssistantScope>;
+
+  /** The panel reads its thread in a passive effect on mount, as `AssistantColumn` does, for the layout's scope. */
   function Panel() {
     const [seen, setSeen] = useState<number | null>(null);
-    useEffect(() => setSeen(loadThread(window.localStorage).length), []);
+    useEffect(() => setSeen(loadThread(window.localStorage, NOAH).length), []);
     return createElement('span', { 'data-testid': 'seen' }, seen === null ? '' : String(seen));
   }
-  const load = async (stored: UIMessage[]) => {
-    saveThread(window.localStorage, stored);
-    render(createElement(ConsoleCaller, { access }, createElement(Panel)));
+  const load = async (storedFor: string) => {
+    saveThread(window.localStorage, storedFor, thread);
+    render(createElement(AssistantScope, scoped(), createElement(Suspense, { fallback: null }, createElement(Panel))));
     await waitFor(() => expect(screen.getByTestId('seen')).not.toBeEmptyDOMElement());
     return Number(screen.getByTestId('seen').textContent);
   };
 
   test.each([
-    ['a team switch', { caller: MEMBER.email, team: 'beacon' }],
-    ['a second person signing in on the same browser', { caller: ME.email, team: 'atlas' }],
-  ])('is cleared before the panel first renders, after %s', async (_, metadata) => {
-    expect(await load(thread(metadata))).toBe(0);
-    expect(window.localStorage.getItem(THREAD_KEY)).toBeNull();
+    ['a team switch', `beacon/${MEMBER.email}`],
+    ['a second person signing in on the same browser', `atlas/${ME.email}`],
+  ])('is removed, never shown, after %s', async (_, storedFor) => {
+    expect(await load(storedFor)).toBe(0);
+    await waitFor(() => expect(window.localStorage.getItem(THREAD_KEY)).toBeNull());
   });
 
-  test('is read by its last stamped reply: a thread whose last reply is this caller\'s and team\'s is kept', async () => {
-    expect(await load([...thread({ caller: MEMBER.email, team: 'beacon' }), ask('u2', 'and?'), reply('a2', 'one', { caller: MEMBER.email, team: 'atlas' })])).toBe(4);
+  test('of this caller and team is kept', async () => {
+    expect(await load(NOAH)).toBe(2);
+    expect(window.localStorage.getItem(THREAD_KEY)).not.toBeNull();
   });
 
-  test('keeps a thread with no stamped reply', async () => {
-    expect(await load(thread())).toBe(2);
+  test('stored before threads were kept for a scope is shown to nobody', async () => {
+    window.localStorage.setItem(THREAD_KEY, JSON.stringify(thread));
+    render(createElement(AssistantScope, scoped(), createElement(Panel)));
+    await waitFor(() => expect(screen.getByTestId('seen')).toHaveTextContent('0'));
   });
 });

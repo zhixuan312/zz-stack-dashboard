@@ -14,7 +14,7 @@ import type { Grant } from '@/lib/collection';
  * What a grant permits here: one of Meridian's four operations on an object, or one of the platform's own actions on
  * it. Meridian's `Grant` has no word for the second, and its file is not this console's to edit.
  */
-export type ConsoleGrant = Grant | `${string}:${'approve' | 'close' | 'manage' | 'resolve'}`;
+type ConsoleGrant = Grant | `${string}:${'approve' | 'close' | 'manage' | 'resolve'}`;
 /** A need one grant satisfies on its own, or several that must all hold. */
 type ConsoleProtectedNeed = ConsoleGrant | { readonly allOf: readonly [ConsoleGrant, ...ConsoleGrant[]] };
 /** A need with no grant behind it: anyone the console lets in satisfies it. */

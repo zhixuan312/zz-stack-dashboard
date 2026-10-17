@@ -3,7 +3,7 @@
 `pnpm verify` has three modes. Each ends with one coverage line before its outcome, which says what ran and what did not:
 
 ```text
-coverage: <default|full|perf|full+perf>; browser <ran|not run (<reason>)>; <n> routes; data configured <a>/<n>; interaction configured <b>/<n>; not run: <suites>[; failed: <suites>]
+coverage: <default|full|perf|full+perf>; browser <ran|not run (<reason>)>; <n> routes; data configured <a>/<n>; interaction configured <b>/<n>[; personas <names>]; not run: <suites>[; failed: <suites>]
 ```
 
 - **`pnpm verify`** is bounded: steps 1 and 2 below once each, the route policy, the first-load and HTML size checks, and
@@ -23,10 +23,13 @@ second server for the live-data restart case) prints `not run`, never `ok`, and 
 passed; not run: <suites>`; only a run with nothing left unrun ends with `the project meets the Meridian standard`.
 Steps in order:
 
-0. **Rail navigation** (`--full` only): every rail route is navigated, with its data and interaction mappings from
+0. **Rail navigation** (`--full` only, after the build and the size checks of step 2): every rail route is navigated, with its data and interaction mappings from
    `navigationChecks`. A journey starts from the nearest rail route, in rail order, whose rail draws a link to the
-   destination, so a rail that shows only part of the navigation on a page is followed; a destination no other route's
-   rail links to is reported as a problem, never as a pass.
+   destination, so a rail that shows only part of the navigation on a page is followed. A workspace's home that no other
+   route's rail links to (the only destination of its workspace) is reached through the workspace menu: from the nearest
+   rail route before it, by the menu's item for its workspace, timed from that press, and its line says
+   `through the workspace menu (<workspace>)`. Any other destination no rail links to is reported as a problem, never as
+   a pass.
 1. **The gate** (`node scripts/gate.ts`): tokens regenerate to the same CSS; the card registry is fresh; every card and
    page specification follows the anatomy; the product's own rules in `optional:scripts/check.local.ts`, when the file exists;
    contrast holds for every pair in every theme and accent, and the chart palette passes the colour-vision checks;
@@ -40,7 +43,7 @@ Steps in order:
 3. **The assistant walk-through**, only when the project has `optional:app/api/assistant/route.ts`: off, then on against a fake
    model. What every product shares runs on its own rail (no agent control while off, the panel, a reply, the page the
    model was told, markdown, the thread across navigation, Clear, the layout, a refused key, the key never reaching the
-   browser); the steps that drive the template's sample Overview, Members, API keys and Settings run while those pages
+   browser); the steps that drive the template's sample Home, Now, Members, API keys and Settings, and those that ask its Usage and Tests through their prepared queries (`explore_usage`, `explore_tests`), run while those pages
    exist and print `n/a` with the reason once the product has replaced them. It follows only rail links that are on screen
    and opens an address when the rail on screen does not link to it. It finds the launcher, the panel's controls,
    rows and menus inside open shadow roots too, so a design system built from web components is walked the same way.
@@ -76,11 +79,15 @@ Steps in order:
    data`, which does not count against the outcome, and proves its own live pages through `browserChecks`. It presses
    the sheet, the row menu and the Remove dialog inside open shadow roots too.
 8. **Web Vitals on a mid-range phone** (`scripts/vitals.ts`): Lighthouse's mobile profile (CPU slowed four times, Slow 4G,
-   390px touch). Every page must hold LCP under 2.5 s, INP under 200 ms and CLS under 0.1, the template's Design Atlas
-   included (its front page and one card page; `node scripts/vitals.ts --atlas` measures every entry); INP is the slowest
-   tap on a control that changes the screen, found inside open shadow roots too, and each line ends with `taps: N`, the
-   controls it tapped (`taps: 0` means the page's INP rests on no tap). It runs alone, after the others, since throttling measures the machine
-   too: on a busy machine, run it again before believing a near miss.
+   390px touch). Every page must hold LCP under 2.5 s, INP under 200 ms and CLS under 0.1, and drop no frame, the
+   template's Design Atlas included (its front page and one card page; `node scripts/vitals.ts --atlas` measures every
+   entry); INP is the slowest tap on a control that changes the screen, found inside open shadow roots too, and each
+   line carries `taps: N`, the controls it tapped (`taps: 0` means the page's INP rests on no tap). A dropped frame is a
+   gap over 50 ms between animation frames, read in the tap's own window and no other, so one page's line is a count as
+   well as a verdict: the floor is met when it reads `0 of N`. A page that drops one frame is measured a second time
+   before it is failed — one frame in two hundred is inside the noise of a host the four-times throttle is measuring
+   too — and a page that drops one twice is a page that stutters. It runs alone, after the others, since throttling
+   measures the machine too: on a busy machine, run it again before believing a near miss.
 
 The report is in `out/verify.txt`. Fix the cause; never weaken a check to make it pass. pnpm may first print a lockfile
 and supply-chain check before a script runs; that is pnpm, not an install, and not a failure.
@@ -104,7 +111,7 @@ and supply-chain check before a script runs; that is pnpm, not an install, and n
 |---|---|---|
 | `sideways: scroll region 1042 > 768` | Something wider than the window | A table with too many columns: `hideBelow` on low-value ones; a long id: `truncate` with a `title`; a fixed width: use `min-w-0` and fractions |
 | `clipped: … "text"` | Text cut without an ellipsis | Give the element `truncate`, or let it wrap; never shrink the type |
-| `truncated: … "text" is cut with an ellipsis and no title holds the whole of it` | Text is cut on purpose and the whole value is kept nowhere a pointer can reach | A `title` with the whole text on the element or what holds it (a `DataTable` column's `title`, a `TableCell` whose cell is a value sets its own); or let it wrap |
+| `truncated: … "text" is cut with an ellipsis and no title holds the whole of it` | Text is cut on purpose and the whole value is kept nowhere a pointer can reach | A `title` with the whole text on the element or what holds it (a `DataTable` column's `title`, a `TableCell` whose cell is a value sets its own, a `CardHeader` without `wrap` whose title is plain text sets its own); or let it wrap |
 | `overlap: … and … are drawn in the same place` | Two pieces of text share a third of a line or more: a negative margin, an absolute label, a row that did not wrap | Give each its own place: a gap, a wrap, or a narrower label at that width |
 | `overlap: a line (…) is drawn through … "text"` | A stroked shape (a sparkline, a rule, an axis) crosses the middle of a line of text | Move the caption out of the plot, or end the line before it; a filled shape under text is a ground and is read by the contrast check instead |
 | `unnamed: button…` | An icon-only control (a web component's button counts the text slotted into its host as its name) | `aria-label` on it (Icon button requires one) |
@@ -141,6 +148,36 @@ Two lines say something about what the suites could see, not about a defect in a
   selector and is information, never a failure: the first visible match was pressed, as before. If that is not the
   control you meant, write a more specific selector. A descendant combinator does not cross a shadow boundary, so name an
   element inside a root with a selector written for that root.
+
+## Asking the agent's questions: `scripts/ask.ts`
+
+verify proves the assistant works with a stand-in model; it cannot say whether the real model answers a page's own
+questions from its tools. Each page specification lists those questions under `### What the agent does here`, and
+`node scripts/ask.ts` asks them of a served product, so a reader can judge each answer against what the tools returned.
+
+```bash
+pnpm build                                     # the assistant's ASSISTANT_* variables in .env.local, as the app reads them
+node_modules/.bin/next start --port 3100       # served, and stopped by its own id when the questions are answered
+node scripts/ask.ts --base http://127.0.0.1:3100 [--view usage] [--as viewer] [--out <folder>]
+```
+
+- **What it asks.** Every view whose specification lists questions, or the one `--view` names, by its view tool's name.
+  Each question is asked once, in a thread of its own, on the page's address; a detail page's on its first record, the
+  first link of its form on its listing page. Each carries the page as the console's panel sends it, as near as a
+  script can: its title and its visible text as the persona is served the page. The view's shared context is published
+  in the browser, so it is not sent.
+- **Who asks.** A persona of `personas` in `scripts/verify.config.ts`: the one `--as` names, else `owner`, else the first
+  declared. Its cookie signs every request in, so the assistant answers with exactly that person's rights.
+- **What it writes.** `<folder>/<view>.md`, in `out/asks/` unless `--out` names another folder: each question, every
+  tool the assistant called with its input and what the tool returned, every Proposal a write raised with its approval
+  request or denial, and the answer's text. It prints one line for each file it writes, and exits 1 when a question
+  went unanswered; a question answered by a Proposal alone is answered.
+- **When it does not run.** It reads no environment and prints none of it: whether the assistant is on is the served
+  product's to say. When `POST /api/assistant` answers 404 (no `ASSISTANT_*` variables), or the configuration declares
+  no personas, it prints one line saying it did not run and why, and exits 0. An unknown `--view` or `--as` exits 1
+  naming the ones that exist.
+- **Not part of verify.** Neither `pnpm verify` nor `pnpm verify --full` runs it: a real model costs money and is not
+  deterministic, so its answers are read by a person or a reviewing agent, never passed or failed by a script.
 
 ## After it passes
 

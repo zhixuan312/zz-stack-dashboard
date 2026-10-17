@@ -111,4 +111,12 @@ export const nav: NavGroup[] = [
   },
 ];
 
+/**
+ * What an address a person may not open draws, the product's choice and declared only here (`gate` in
+ * `src/data/access.ts` and `gatedMetadata` beside it read it, and `gatedLoading` in `src/data/refusal.ts`). `explain`
+ * draws the no-access page: the page's title, who can open it, who to ask and one way out. `absent` draws exactly what
+ * an address that names nothing draws, so nothing on it names the page, a role or who to ask.
+ */
+export const refusal: 'explain' | 'absent' = 'explain';
+
 export const slug = 'zz-stack';

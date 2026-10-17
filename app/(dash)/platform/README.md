@@ -35,7 +35,15 @@ The figure, its value to one decimal place, the counts and the week behind it, a
 - Malformed calls per 1,000: 64.0, 8 of 125 real-work calls, week of 5 Oct. (Tool calls refused as malformed ...)
 ```
 
-- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address, and the page text after it for anything the context does not cover; `view_platform_status` answers the same text from anywhere in the console.
+- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address, and the page text after it for anything the context does not cover; `view_platform_status` answers the same text from anywhere in the console, and `explore_platform_status`, offered on this page alone, counts the platform's calls, refusals and malformed calls over any window, with the malformed calls per 1,000.
+
+### What the agent does here
+
+Protagonist: Malformed calls per 1,000.
+
+- "How many malformed calls per 1,000 calls did real work make in the last 30 days?" — the malformed calls per 1,000 calls over 30 complete days
+- "Which tool is called the wrong way most?" — the malformed calls over 30 complete days, by tool
+- "Who are this week's refusals put down to?" — the refusals over 7 complete days, by owner
 
 ## Surfaces
 

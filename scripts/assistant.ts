@@ -9,12 +9,20 @@
  *      reply renders as markdown, the thread survives following the rail, Clear empties it, the layout holds at 1440px
  *      and 390px, a provider that refuses the key says so, and the key itself never reaches the browser.
  *
- * Beyond the panel, the walk-through drives the template's own sample where it is still there: the Overview's view
- * context, Ask and view tool; on /members, a query with no Proposal, an approved change shown without a reload, a
- * dismissed removal, a row-menu change the next query finds, and a waiting Proposal expiring on reload and on moving
- * on (from /keys); and the Settings switch. A product that removed one of those pages has no such flow to walk: each
- * step says `n/a` with the reason, and the rest still runs. Whether a sample surface is there is decided from its files,
- * so Meridian's own repository, which has every one, always walks all of them.
+ * Beyond the panel, the walk-through drives the template's own sample where it is still there. On Home: its facts of a
+ * year ("A year, counted") with the assistant off and again once it is switched off; the view context it hands the
+ * model, three of whose lines are matched by their shape, so a sample whose figures move still passes; the Ask on its
+ * revenue card; and `view_home` for the last 90 days, whose answer is the fake model quoting the first insight of the
+ * result it received (scripts/fake-llm.ts), recognised by its address and by being a line of that context, never by a
+ * sentence written here. On /members, a lookup through its prepared query (`explore_members`) with no Proposal, an
+ * approved change by the ids it drilled shown without a reload and its Activity line arriving on Now's "Changes" open in
+ * a second tab, a dismissed removal, a row-menu change the next lookup finds, and a waiting removal expiring on a reload
+ * into /keys; there, a key's revocation, a change /keys makes, expiring on moving on; on /usage and /tests, the first
+ * question each page's specification lists, asked through that page's prepared query (`explore_usage`, `explore_tests`),
+ * handed there and no other page's, whose answer is the fake model quoting the first group line of the result it
+ * received; and the Settings switch. A product that removed one of those pages has no such flow to walk: each step says
+ * `n/a` with the reason, and the rest still runs. Whether a sample surface is there is decided from its files
+ * (scripts/lib/sample.ts), so Meridian's own repository, which has every one, always walks all of them.
  *
  * Controls are found through open shadow roots (scripts/lib/deep.ts), so a design system whose buttons, rows and menus are
  * web components is walked the same way: a control is searched for under the light-DOM container that holds it (the panel,
@@ -29,9 +37,10 @@ import { slug } from '../src/app.config.ts';
 import { launch } from './lib/chrome.ts';
 import { DEEP_SOURCE } from './lib/deep.ts';
 import { APP_DIR, discover, railRoutes } from './lib/routes.ts';
-import { sampleSurfaces } from './lib/sample.ts';
+import { exploreSurfaces, sampleSurfaces } from './lib/sample.ts';
 
 const SAMPLE = sampleSurfaces(path.resolve(import.meta.dirname, '..'), APP_DIR);
+const EXPLORE = exploreSurfaces(path.resolve(import.meta.dirname, '..'), APP_DIR);
 
 const args = process.argv.slice(2);
 const opt = (k: string) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : undefined; };
@@ -65,6 +74,14 @@ const CONTENT = `deepQuery('[data-scroll-region]')`;
 const MESSAGE = `deepQuery('textarea[aria-label="Message"]', ${PANEL})`;
 const SEND = `deepQuery('button[aria-label="Send"]', ${PANEL})`;
 const PROPOSALS = `deepQueryAll('article[aria-label^="Proposal from Assistant"]', ${PANEL})`;
+/** The card a page heads `title`: the outermost element around that heading that holds no other heading. */
+const card = (title: string) => `(() => { const h = deepQueryAll('h2', ${CONTENT}).find((x) => deepText(x).trim() === ${JSON.stringify(title)}); let c = h; while (c && c.parentElement && deepQueryAll('h2', c.parentElement).length === 1) c = c.parentElement; return c ?? null; })()`;
+/** Home's facts of a year: a part the page draws whatever an agent does, so it is what the walk waits on with the assistant off. */
+const YEAR = 'A year, counted';
+const yearFacts = () => page.eval<number>(`deepQueryAll('li', ${card(YEAR)}).length`);
+/** A message's text, as the fake model reads it: a string, or the text of its parts. */
+const textOf = (content: unknown): string =>
+  typeof content === 'string' ? content : Array.isArray(content) ? content.map((p) => (typeof p?.text === 'string' ? p.text : '')).join('') : '';
 
 /** Type `text` into the panel and press Send. */
 async function ask(text: string) {
@@ -113,12 +130,12 @@ try {
       if (found) fail(`${route} has ${found} agent control(s) with no assistant and no host`);
     }
     ok(`${ROUTES.length} pages and views have no panel, no launcher and no Ask`);
-    // The person's own findings do not depend on any agent.
-    if (SAMPLE.overview) {
+    // What the page found for the person does not depend on any agent.
+    if (SAMPLE.home) {
       await page.open(`${base}/`, { width: 1440 });
-      await until('the Overview finding', () => page.eval<boolean>(`deepQueryAll('button', ${CONTENT}).some((b) => /usual on/.test(deepText(b)))`), Boolean);
-      ok('the Overview shows its finding with no assistant');
-    } else na('the Overview shows its finding with no assistant', 'the sample Overview is not in this product');
+      const facts = await until(`the facts of "${YEAR}" on Home`, yearFacts, (n) => n > 0);
+      ok(`Home's "${YEAR}" states ${facts} facts with no assistant`);
+    } else na(`Home's "${YEAR}" with no assistant`, 'the sample Home is not in this product');
     const status = (await fetch(`${base}/api/assistant`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"messages":[]}' })).status;
     if (status !== 404) fail(`POST /api/assistant answered ${status}, expected 404`);
     ok('POST /api/assistant answers 404');
@@ -135,7 +152,21 @@ try {
     const follow = async (href: string) => { await press(linkTo(href)); await until(`the address to be ${href}`, here, (p) => p === href); };
     // The rail may draw only the part of the navigation the address belongs to: follow the link when it is on screen, open the address when it is not.
     const reach = async (href: string) => { if (await page.eval<boolean>(`!!${linkTo(href)}`)) await follow(href); else await page.open(`${base}${href}`, { width: 1440 }); };
-    const recorded = async () => (await (await fetch(`${llm}/requests`)).json()) as { messages?: { role: string; content: unknown }[] }[];
+    type Recorded = { messages?: { role: string; content: unknown; tool_call_id?: string; tool_calls?: { id: string; function: { name: string } }[] }[]; tools?: { function?: { name?: string } }[] };
+    const recorded = async () => (await (await fetch(`${llm}/requests`)).json()) as Recorded[];
+    /**
+     * That the requests since `since`, all from `route`, were each handed `name` and no other page's prepared query, and
+     * that the model called it: a lookup made through the page's prepared query, read from the fake model's record.
+     */
+    const lookedUp = async (route: string, name: string, since: number, reply: string) => {
+      const requests = (await recorded()).slice(since);
+      if (!requests.length) fail(`the lookup on ${route} reached no model`);
+      for (const r of requests) {
+        const prepared = (r.tools ?? []).map((t) => t.function?.name ?? '').filter((n) => n.startsWith('explore_'));
+        if (prepared.join() !== name) fail(`a request from ${route} handed ${prepared.join(', ') || 'no prepared query'}, not ${name} alone; the reply read "${reply}"`);
+      }
+      if (!requests.at(-1)!.messages?.some((m) => m.tool_calls?.some((c) => c.function.name === name))) fail(`the lookup on ${route} did not call ${name}; the reply read "${reply}"`);
+    };
     const LOCAL = `${slug}.assistant`;
     const ABOUT_PAGE = /^This is the .+ page\.$/;
 
@@ -162,39 +193,58 @@ try {
     if (!JSON.stringify(await recorded()).includes(told)) fail(`no request to the model carried "${told}"`);
     ok(`the model request carried "${told}"`);
 
-    if (SAMPLE.overview) {
+    if (SAMPLE.home) {
       if (landing !== '/') {
         await page.open(`${base}/`, { width: 1440 });
         await openPanel();
         await ask('What is this page?');
-        await until('the reply', said, (t) => t === 'This is the Overview page.');
+        await until('the reply', said, (t) => t === 'This is the Home page.');
       }
       const requests = await recorded();
-      // The view's shared context (decision 0011): the Overview's own account, with its definitions and what code found.
-      const overviewSystem = String(requests.filter((r) => JSON.stringify(r.messages?.[0]).includes('Page: Overview (/)')).at(-1)?.messages?.find((m) => m.role === 'system')?.content ?? '');
-      const viewContext = /<view-context>\n([\s\S]*?)\n<\/view-context>/.exec(overviewSystem)?.[1] ?? '';
-      for (const line of ['(Share of requests answered with a 5xx or a 429.)', "the period's median of", 'Nothing is recorded between']) if (!viewContext.includes(line)) fail(`the Overview's view context does not carry "${line}"`);
-      ok(`the model was given the Overview's view context: ${viewContext.length} characters, with the error rate's definition, the spike against its median and what nothing recorded explains`);
+      // The view's shared context (decision 0011): Home's own account of the company, as an Owner reads it. Each line
+      // is matched by its shape, the definition word for word and the figures as figures, so the sample may move.
+      const homeSystem = String(requests.filter((r) => JSON.stringify(r.messages?.[0]).includes('Page: Home (/)')).at(-1)?.messages?.find((m) => m.role === 'system')?.content ?? '');
+      const viewContext = /<view-context>\n([\s\S]*?)\n<\/view-context>/.exec(homeSystem)?.[1] ?? '';
+      const CHANGE = String.raw`(, ((up|down) [\d.]+%|unchanged) vs the previous \d+ days)?`;
+      const POINTS = String.raw`(, ((up|down) [\d.]+ points|unchanged) vs the previous \d+ days)?`;
+      const lines: [string, RegExp][] = [
+        ['revenue with its definition', new RegExp(String.raw`^- Revenue: [^\d\s]*[\d,]+\.\d{2}${CHANGE}\. \(Billed for metered usage, before credits\.\)$`, 'm')],
+        ['the gross margin an Owner reads', new RegExp(String.raw`^- Gross margin: [\d.]+%${POINTS}\. \(Revenue less compute cost, over revenue\.\)$`, 'm')],
+        ['the day in progress, counted in no total', /^- \d{1,2} [A-Z][a-z]{2} is in progress and counted in no total\.$/m],
+      ];
+      for (const [what, shape] of lines) if (!shape.test(viewContext)) fail(`Home's view context does not state ${what} (${shape})`);
+      // It leads with the sentence the page is headed by.
+      const lead = viewContext.split('\n').find((_, i, all) => all[i - 1]?.startsWith('Insights'))?.replace(/^- /, '') ?? '';
+      if (!lead || !(await page.eval<string>(`deepQuery('h1', ${CONTENT})?.textContent ?? ''`)).includes(lead)) fail(`Home's view context does not lead its insights with the page's title: "${lead}"`);
+      ok(`the model was given Home's view context: ${viewContext.length} characters, led by the page's title, with ${lines.map(([what]) => what).join(', ')}`);
 
       // Handoff: Ask on a card posts its question into the panel as the person's, with the page's view context.
       const ASK = `deepQuery('button[aria-label^="Ask: "]', ${CONTENT})`;
       const askLabel = await page.eval<string>(`${ASK}?.getAttribute('aria-label') ?? ''`);
-      if (!askLabel) fail('the Overview has no Ask on its featured card while the assistant is on');
+      if (!askLabel) fail('Home has no Ask on its revenue card while the assistant is on');
       const question = askLabel.replace(/^Ask: /, '');
       const beforeAsk = (await recorded()).length;
       await press(ASK);
       await until('the asked question in the thread', () => page.eval<string[]>(`deepQueryAll('[data-role="user"]', ${PANEL}).map((m) => m.textContent)`), (ms) => ms.some((m) => m.includes(question)));
       const asked = await until('the request carrying the question', async () => (await recorded()).slice(beforeAsk), (rs) => rs.some((r) => JSON.stringify(r.messages?.at(-1)).includes(question.slice(0, 40))));
       const askedSystem = String(asked.find((r) => JSON.stringify(r.messages?.at(-1)).includes(question.slice(0, 40)))?.messages?.find((m) => m.role === 'system')?.content ?? '');
-      if (!askedSystem.includes('<view-context>')) fail('the question Ask posted reached the model without the view context');
-      ok(`Ask on the featured card posted "${question}" into the panel, and the model received it with the Overview's view context`);
+      if (!askedSystem.includes('<view-context>')) fail('the question the Ask on Home\'s revenue card posted reached the model without the view context');
+      ok(`the Ask on Home's revenue card posted "${question}" into the panel, and the model received it with Home's view context`);
 
-      // A view tool: another period, read without navigating, quoted from that view's own context.
-      await ask('Open the overview for the last 90 days');
-      const viewReply = await until('the view tool\'s reply', said, (t) => t.startsWith('From /?period=90d'));
-      if (!viewReply.includes('Upload failures for files over 50 MB')) fail(`the 90-day Overview's finding did not name the incident beside its spike: "${viewReply}"`);
-      ok(`view_overview read the last 90 days without leaving the page: "${viewReply.slice(0, 120)}…"`);
-    } else na('the Overview\'s view context, Ask and view tool', 'the sample Overview is not in this product');
+      // A view tool: another period, read without navigating. The fake model quotes the first insight of the result it
+      // received, so the answer is recognised by that result's address and by being a line of the context it carried.
+      const ADDRESS = '/?period=90d';
+      await ask('Open the home for the last 90 days');
+      const viewReply = await until('the view tool\'s reply', said, (t) => t.startsWith(`From ${ADDRESS}: `));
+      const results = (await recorded()).flatMap((r) => r.messages ?? []).filter((m) => m.role === 'tool').map((m) => {
+        try { return JSON.parse(textOf(m.content)) as { address?: string; context?: unknown }; } catch { return null; }
+      });
+      const result = results.findLast((o) => o?.address === ADDRESS);
+      if (typeof result?.context !== 'string') fail(`no result of view_home for ${ADDRESS} reached the model`);
+      const quoted = viewReply.slice(`From ${ADDRESS}: `.length);
+      if (!(result!.context as string).split('\n').includes(`- ${quoted}`)) fail(`the answer about ${ADDRESS} is not a line of the context view_home returned: "${quoted}"`);
+      ok(`view_home read the last 90 days without leaving the page, and the answer quotes a line of its context: "${viewReply.slice(0, 120)}"`);
+    } else na('Home\'s view context, the Ask on its revenue card and view_home', 'the sample Home is not in this product');
 
     // A reply is rendered as markdown, never as the model's own markup: the list, the bold and the table are
     // ELEMENTS, and the characters that made them are gone from the panel's text.
@@ -219,17 +269,19 @@ try {
       await press(`deepQueryAll('[role="menuitem"]').find((i) => deepText(i).includes('50 per page'))`);
       await until('every member to show', () => row('Alice Moreno'), Boolean);
 
+      const beforeLookup = (await recorded()).length;
       await ask('Which Support viewers have been inactive for more than 60 days?');
-      const listed = await until('the query result', said, (t) => t.includes('Alice Moreno') && t.includes('Ravi Patel'));
-      if ((await proposals()).length) fail(`the query raised a Proposal: ${JSON.stringify(await proposals())}`);
-      if (/Amara|Noah|Grace/.test(listed)) fail(`the query listed more than two members: "${listed}"`);
-      ok(`the query listed Alice Moreno and Ravi Patel with no Proposal ("${listed}")`);
+      const listed = await until('the lookup\'s result', said, (t) => t.includes('Alice Moreno') && t.includes('Ravi Patel'));
+      if ((await proposals()).length) fail(`the lookup raised a Proposal: ${JSON.stringify(await proposals())}`);
+      if (/Amara|Noah|Grace/.test(listed)) fail(`the lookup listed more than two members: "${listed}"`);
+      await lookedUp('/members', 'explore_members', beforeLookup, listed);
+      ok(`explore_members, handed on /members, listed Alice Moreno and Ravi Patel with no Proposal ("${listed}")`);
 
       await ask('Suspend them');
       await until('a Proposal to change two members', proposals, (t) => t.some((l) => l?.startsWith('Proposal from Assistant: Change 2 members')));
-      // A second tab holds the Overview open, as a teammate would: the Activity line must reach it without a reload.
-      const watcher = SAMPLE.overview ? await browser() : null;
-      await watcher?.open(`${base}/`, { width: 1440 });
+      // A second tab holds Now open, as a teammate would: the Activity line must reach its Changes without a reload.
+      const watcher = SAMPLE.now ? await browser() : null;
+      await watcher?.open(`${base}/engineering`, { width: 1440 });
       await decide('Approve');
       const suspended = await until('both rows to read Suspended', async () => [await row('Alice Moreno'), await row('Ravi Patel')], (r) => r.every((t) => t?.includes('Suspended')));
       if (!(await page.eval<boolean>(`window.__walk === true`))) fail('the page reloaded instead of refreshing');
@@ -238,11 +290,11 @@ try {
       if (watcher) {
         // Provenance: the approved change left an Activity line naming the agent and the person it acted for.
         const object = 'status to Suspended for Alice Moreno and Ravi Patel';
-        const line = await until('the Activity line on the open Overview', () => watcher.eval<string>(`deepQueryAll('li', ${CONTENT}).map((l) => l.textContent).find((t) => t.includes(${JSON.stringify(object)})) ?? ''`), Boolean);
+        const line = await until('the Activity line on Now\'s "Changes"', () => watcher.eval<string>(`deepQueryAll('li', ${card('Changes')}).map((l) => l.textContent).find((t) => t.includes(${JSON.stringify(object)})) ?? ''`), Boolean);
         watcher.close();
-        if (!/^Assistant ?changed/.test(line.trim()) || !line.includes('for Maya Chen')) fail(`the Activity line does not name the Assistant and the person it acted for: "${line}"`);
-        ok(`the open Overview's Activity showed "${line.replace(/\s+/g, ' ').trim()}" without a reload`);
-      } else na('the Activity line on an open Overview', 'the sample Overview is not in this product');
+        if (!/^Assistant ?changed/.test(line.trim()) || !line.includes('for Maya Chen')) fail(`the Activity line on Now's "Changes" does not name the Assistant and the person it acted for: "${line}"`);
+        ok(`Now's "Changes", open in a second tab, showed "${line.replace(/\s+/g, ' ').trim()}" without a reload`);
+      } else na('the Activity line on Now\'s "Changes"', 'the sample Now is not in this product');
 
       await ask('Remove Alice Moreno');
       await until('a removal Proposal', proposals, (t) => t.some((l) => l?.startsWith('Proposal from Assistant: Remove')));
@@ -267,9 +319,11 @@ try {
       await until('the row menu', () => page.eval<boolean>(`!!deepQuery('[role="menu"]')`), Boolean);
       await press(`deepQueryAll('[role="menuitem"]').find((i) => deepText(i).trim() === 'Suspend')`);
       await until(`${who} to read Suspended`, () => row(who as string), (t) => !!t?.includes('Suspended'));
+      const beforeFound = (await recorded()).length;
       await ask('Who is suspended?');
       const found = await until(`the answer to name ${who}`, said, (t) => t.includes(who as string));
-      ok(`a member suspended from the row menu is found by the assistant's next query ("${found}")`);
+      await lookedUp('/members', 'explore_members', beforeFound, found);
+      ok(`a member suspended from the row menu is found by the assistant's next lookup through explore_members ("${found}")`);
 
       // The page context: the title and path, and the page's text, capped.
       const onMembers = (await recorded()).filter((r) => JSON.stringify(r.messages?.[0]).includes('Page: Members (/members)')).at(-1);
@@ -283,7 +337,7 @@ try {
 
     // Navigation: the rail keeps the panel open with the thread, each message labelled with the page it was asked on.
     const from = await here();
-    const fromTitle = SAMPLE.members ? 'Members' : from === landing ? landingTitle : 'Overview';
+    const fromTitle = SAMPLE.members ? 'Members' : from === landing ? landingTitle : 'Home';
     let to: string | undefined;
     for (const r of rail) if (!to && r !== from && !r.startsWith('/system') && (await page.eval<boolean>(`!!${linkTo(r)}`))) to = r;
     if (to) {
@@ -297,7 +351,10 @@ try {
     } else na('the thread across navigation', 'the rail has one route');
 
     if (SAMPLE.members && SAMPLE.keys) {
-      // Reload: a removal that waited is Expired with the reload reason and cannot be approved.
+      // Reload: a removal that waited is Expired with the reload reason and cannot be approved. The members' writes are
+      // handed on /members alone, so the removal is asked there.
+      await page.open(`${base}/members`, { width: 1440 });
+      if (!(await panelOpen())) await openPanel();
       await ask('Remove Ravi Patel');
       await until('a waiting removal', cards, (c) => c.length > 0 && c.at(-1)!.buttons.some((b) => b.startsWith('Approve')));
       await sleep(500);
@@ -309,15 +366,21 @@ try {
       if (afterReload.some((c) => c.buttons.some((b) => b.startsWith('Approve')))) fail('after a reload a card still offers Approve');
       ok('after a reload the thread is back and the waiting removal reads Expired with the reload reason and no Approve');
 
-      // Moved on: a new message closes whatever still waits.
+      // Moved on: a new message closes whatever still waits. On /keys the change asked for is one /keys makes, revoking a
+      // key, by the id its prepared query drills; the key is one the page offers this person to revoke.
       const before = afterReload.length;
-      await ask('Remove Ravi Patel');
-      await until('a new waiting removal', cards, (c) => c.length === before + 1 && c.at(-1)!.buttons.some((b) => b.startsWith('Approve')));
+      const key = (await until('a key the page offers to revoke', () => page.eval<string>(`deepQuery('button[aria-label^="Revoke "]', ${CONTENT})?.getAttribute('aria-label') ?? ''`), Boolean)).slice('Revoke '.length);
+      const beforeKeys = (await recorded()).length;
+      await ask('Which keys are there?');
+      const keys = await until('the keys\' lookup', said, (t) => t.includes(key));
+      await lookedUp('/keys', 'explore_keys', beforeKeys, keys);
+      await ask(`Revoke ${key}`);
+      await until('a new waiting revocation', cards, (c) => c.length === before + 1 && c.at(-1)!.buttons.some((b) => b.startsWith('Approve')));
       await ask('What is this page?');
       await until('the reply', said, (t) => t === 'This is the API keys page.');
       const closed = (await cards()).at(-1)!;
       if (!closed.text.includes('Expired') || !closed.text.includes('You moved on before approving it.') || closed.buttons.length) fail(`after moving on the waiting card reads "${closed.text}" with buttons ${JSON.stringify(closed.buttons)}`);
-      ok('asking something else closes the waiting removal as Expired with the moved-on reason');
+      ok(`asking something else closes the waiting revocation of ${key}, found through explore_keys on /keys, as Expired with the moved-on reason`);
     } else na('a waiting Proposal expiring on reload and on moving on', 'the sample Members and API keys pages are not both in this product');
 
     // Clear: the panel and the stored thread are both emptied.
@@ -325,6 +388,59 @@ try {
     await until('the panel to empty', () => page.eval<number>(`deepQueryAll('[data-role]', ${PANEL}).length`), (n) => n === 0);
     await until('the stored thread to go', stored, (v) => v === null);
     ok(`Clear conversation empties the panel and removes ${LOCAL} from local storage`);
+
+    /**
+     * A page's prepared query: ask the page's first question on it, and read from the fake model's record which tools
+     * each request handed and what `explore_<view>` returned. The answer is the fake model quoting the result's first
+     * group line, so the step holds that the reply carries that line's figure, whatever the sample's figures are.
+     * Returns the answer's lines for the step's own line.
+     */
+    const explore = async (route: string, view: string, question: string) => {
+      const name = `explore_${view}`;
+      await page.open(`${base}${route}`, { width: 1440 });
+      if (!(await panelOpen())) await openPanel();
+      const before = (await recorded()).length;
+      const earlier = await said();
+      await ask(question);
+      const reply = await until(`the reply on ${route}`, said, (t) => t !== '' && t !== earlier);
+      const requests = (await recorded()).slice(before);
+      if (!requests.length) fail(`asking "${question}" on ${route} reached no model`);
+      for (const r of requests) {
+        const prepared = (r.tools ?? []).map((t) => t.function?.name ?? '').filter((n) => n.startsWith('explore_'));
+        if (!prepared.includes(name)) fail(`a request from ${route} was not handed ${name} (it handed ${prepared.join(', ') || 'no prepared query'}); the reply read "${reply}"`);
+        if (prepared.length > 1) fail(`a request from ${route} was handed another page's prepared query beside ${name}: ${prepared.filter((n) => n !== name).join(', ')}`);
+      }
+      const messages = requests.at(-1)!.messages ?? [];
+      const calls = new Set(messages.flatMap((m) => m.tool_calls ?? []).filter((c) => c.function.name === name).map((c) => c.id));
+      const returned = messages.findLast((m) => m.role === 'tool' && calls.has(m.tool_call_id ?? ''));
+      if (!returned) fail(`no result of ${name} reached the model from ${route}; the reply read "${reply}"`);
+      let result: { address?: unknown; answer?: unknown } | null = null;
+      try { result = JSON.parse(textOf(returned!.content)); } catch { /* an error the tool returned is plain text */ }
+      if (typeof result?.answer !== 'string') fail(`${name} returned no answer on ${route}: "${textOf(returned!.content).slice(0, 200)}"`);
+      const lines = (result!.answer as string).split('\n');
+      const groups = lines.filter((l) => l.startsWith('- ')).map((l) => l.slice(2));
+      const figure = /: (-?[\d,]+(?:\.\d+)?)/.exec(groups[0] ?? '')?.[1];
+      if (!figure) fail(`${name}'s answer on ${route} has no group line with a figure: "${(result!.answer as string).slice(0, 200)}"`);
+      // The figure as a whole number, so 8 is not found inside 18 or 2,800.
+      const quotes = new RegExp(`(^|[^\\d.,])${figure!.replace(/[.]/g, '\\.')}(?![\\d]|[.,]\\d)`).test(reply);
+      if (!quotes) fail(`the reply on ${route} does not carry ${figure}, the figure of ${name}'s first group line "${groups[0]}": "${reply}"`);
+      return { name, address: String(result!.address), head: lines[0].replace(/\.$/, ''), groups, figure: figure!, reply };
+    };
+
+    if (EXPLORE.usage) {
+      // Usage's first question (W10): the hours at 22:00, a weekday at a time, which is how one Sunday hour is found.
+      const a = await explore('/usage', 'usage', 'How many requests came at 22:00 UTC on each weekday?');
+      if (a.groups.length < 2) fail(`${a.name}'s answer on /usage has ${a.groups.length} group line(s), not a weekday against the next`);
+      ok(`${a.name} was handed on /usage and no other page's; it answered at ${a.address} "${a.groups[0]}" against "${a.groups[1]}" (${a.head}), and the reply quotes ${a.figure}`);
+    } else na('explore_usage on /usage', 'the sample Usage page or its prepared query, src/views/usage-explore.ts, is not in this product');
+
+    if (EXPLORE.tests) {
+      // Tests' first question (W11): the runs of the last seven complete days, by how they ended.
+      const a = await explore('/tests', 'tests', 'How many runs passed in the last seven days?');
+      const passed = a.groups.find((g) => g.startsWith('passed: '));
+      if (!passed) fail(`${a.name}'s answer on /tests has no group of passed runs: ${JSON.stringify(a.groups)}`);
+      ok(`${a.name} was handed on /tests and no other page's; it answered at ${a.address} "${passed}" (${a.head}), and the reply quotes ${a.figure}`);
+    } else na('explore_tests on /tests', 'the sample Tests page or its prepared query, src/views/tests-explore.ts, is not in this product');
 
     if (SAMPLE.settings) {
       // The switch: off hides the launcher and the panel and keeps the thread; on brings both back.
@@ -341,10 +457,10 @@ try {
       if (!(await absent())) fail(`${elsewhere} still shows the assistant with the switch off`);
       if (!(await stored())?.includes('What is this page?')) fail('switching the assistant off removed the stored thread');
       // Switched off, the pages work as they would without any agent: no Ask anywhere, and the person's findings still there.
-      if (SAMPLE.overview) {
+      if (SAMPLE.home) {
         await page.open(`${base}/`, { width: 1440 });
-        await until('the Overview to render its finding', () => page.eval<boolean>(`deepQueryAll('button', ${CONTENT}).some((b) => /usual on/.test(deepText(b)))`), Boolean);
-        if (await page.eval<boolean>(`!!deepQuery('button[aria-label^="Ask: "]')`)) fail('the Overview shows Ask with the assistant switched off');
+        await until(`the facts of "${YEAR}" on Home with the assistant switched off`, yearFacts, (n) => n > 0);
+        if (await page.eval<boolean>(`!!deepQuery('button[aria-label^="Ask: "]')`)) fail('Home shows the Ask on its revenue card with the assistant switched off');
         if (!(await absent())) fail('/ still shows the assistant with the switch off');
       }
       await page.open(`${base}/settings`, { width: 1440 });
@@ -353,7 +469,7 @@ try {
       await until('the launcher to return', () => page.eval<boolean>(`!!${LAUNCHER}`), Boolean);
       await openPanel();
       await until('the thread to return', () => page.eval<boolean>(`${PANEL}.textContent.includes('What is this page?')`), Boolean);
-      ok(`Show the assistant off hides the launcher on /settings and ${elsewhere}${SAMPLE.overview ? ' and / and every Ask, keeps the Overview\'s finding' : ''} and the thread; on brings the launcher and the thread back`);
+      ok(`Show the assistant off hides the launcher on /settings and ${elsewhere}${SAMPLE.home ? ` and / and every Ask, keeps Home's "${YEAR}"` : ''} and the thread; on brings the launcher and the thread back`);
     } else {
       na('the Settings switch', 'the sample Settings page, which holds "Show the assistant", is not in this product');
     }
@@ -387,7 +503,7 @@ try {
     // The key never reaches the browser: console pages, their RSC payloads, their scripts and the route's answers.
     const bodies: [string, string][] = seen.map((t, i) => [`the panel's /api/assistant response ${i + 1}`, t]);
     const post = async (said: string) => {
-      const res = await fetch(`${base}/api/assistant`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ messages: [{ id: 'u1', role: 'user', parts: [{ type: 'text', text: said }] }], page: { path: '/', title: 'Overview', text: '' } }) });
+      const res = await fetch(`${base}/api/assistant`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ messages: [{ id: 'u1', role: 'user', parts: [{ type: 'text', text: said }] }], page: { path: '/', title: 'Home', text: '' } }) });
       return await res.text();
     };
     bodies.push(['POST /api/assistant (an answer)', await post('Hello')], ['POST /api/assistant (a refused key)', await post('Please fail')]);

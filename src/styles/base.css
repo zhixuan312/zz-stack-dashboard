@@ -150,6 +150,7 @@
   }
 
 
+
   /* A table ignores width and overflow and grows to its content, so a wide hidden table (a heatmap's) would widen the
      page. As a block it is clipped like anything else, and screen readers still read it as a table. */
   table.sr-only { display: block; }
@@ -179,6 +180,12 @@
     .scroll-fade-y { animation: m-scroll-edges linear both; animation-timeline: scroll(self block); }
   }
 }
+
+/* A hint for a key the reader does not have: the shortcut printed inside a search field, the keys that move through a
+   list, the legend under one. Under a coarse pointer they are removed, not left to be read and then not found on the
+   device in the hand. This rule is outside every layer on purpose: it has to beat the `flex` or `block` a utility puts
+   on the same element, and a rule inside `@layer components` loses to `@layer utilities` however specific it is. */
+@media (pointer: coarse) { .keyboard-only { display: none; } }
 
 @property --fade-a { syntax: "<length>"; inherits: false; initial-value: 0px; }
 @property --fade-b { syntax: "<length>"; inherits: false; initial-value: 0px; }

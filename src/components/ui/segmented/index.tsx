@@ -47,7 +47,7 @@ export function Segmented<V extends string>({
       onValueChange={(v) => v && onChange(v as V)}
       aria-label={label}
       className={cn(
-        'scroll-fade-x relative inline-flex min-w-0 max-w-full items-center overflow-x-auto rounded-md bg-surface-sunk p-0.5 ring-1 ring-line ring-inset [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+        'scroll-fade-x relative inline-flex w-fit min-w-0 max-w-full items-center overflow-x-auto rounded-md bg-surface-sunk p-0.5 ring-1 ring-line ring-inset [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
         className,
       )}
     >
@@ -64,7 +64,7 @@ export function Segmented<V extends string>({
           value={o.value}
           title={o.title}
           className={cn(
-            'hit relative z-10 inline-flex items-center justify-center gap-1.5 rounded-sm px-2.5 font-medium whitespace-nowrap text-ink-2 transition-colors duration-(--dur-hover)',
+            'hit relative z-10 inline-flex items-center justify-center gap-1.5 rounded-sm px-2.5 font-medium whitespace-nowrap pointer-coarse:min-w-[44px] text-ink-2 transition-colors duration-(--dur-hover)',
             'hover:text-ink data-[state=on]:text-ink focus-visible:outline-offset-0',
             size === 'sm' ? 'h-[calc(var(--control-sm)-4px)] text-xs' : 'h-[calc(var(--control-md)-4px)] text-sm',
           )}

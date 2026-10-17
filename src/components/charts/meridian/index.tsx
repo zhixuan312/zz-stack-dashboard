@@ -4,8 +4,8 @@ import { createContext, useContext, useMemo, useState, type ReactNode } from 're
 
 /**
  * The Meridian: one time cursor shared by every chart and tile on a page. Point at a day in any time chart (or move
- * through it with the arrow keys) and every chart draws the same vertical line, and every tile reads that day.
- * Charts on one Meridian share one list of dates; a chart outside a provider keeps its own cursor.
+ * through it with the arrow keys) and every chart draws the same vertical line, and every tile whose points are the
+ * page's reads that day. Charts on one Meridian share one list of dates; a chart outside a provider keeps its own cursor.
  */
 type Ctx = { dates: string[]; index: number | null; setIndex: (i: number | null) => void; shared: boolean };
 const MeridianCtx = createContext<Ctx | null>(null);
@@ -37,4 +37,10 @@ export function useMeridianIndex(): { index: number | null; dates: string[] } {
 export function usePointMeridian(): (date: string) => void {
   const c = useContext(MeridianCtx);
   return (date) => { const i = c?.dates.indexOf(date) ?? -1; if (c && i >= 0) c.setIndex(i); };
+}
+
+/** Lets go of the page's Meridian from outside a chart, as leaving a chart does: a calendar of days does, for a day the Meridian does not hold. No-op without a Meridian. */
+export function useClearMeridian(): () => void {
+  const c = useContext(MeridianCtx);
+  return () => c?.setIndex(null);
 }

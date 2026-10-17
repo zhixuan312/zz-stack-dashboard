@@ -32,7 +32,7 @@ export function ShellTools({ alerts = [], now }: { alerts?: Alert[]; /** The dat
       >
         <Search className="size-4" strokeWidth={1.75} />
         <span className="w-36 text-left @max-[48rem]:w-20 @max-[40rem]:hidden">Search</span>
-        <Kbd className="@max-[40rem]:hidden">⌘K</Kbd>
+        <Kbd className="keyboard-only @max-[40rem]:hidden">⌘K</Kbd>
       </button>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>

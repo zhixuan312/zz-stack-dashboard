@@ -230,13 +230,20 @@ import { LiveProvider } from '@/lib/live';
 
 type Ready = { scopeKey: string; pollMs?: number };
 
+/**
+ * `?livePollMs=` is a test hook: the live check shortens the safety poll with it. Any visitor can type it, and each poll
+ * refreshes the tenant's collections, so it never goes under a second.
+ */
+export function pollFromAddress(search: string): number | undefined {
+  const ms = Number(new URLSearchParams(search).get('livePollMs'));
+  return ms > 0 ? Math.max(1000, ms) : undefined;
+}
+
 /** Waits for the caller's scope in its own boundary and reports it, so the page never waits and its children never remount. */
 function ResolveScope({ scope, onReady }: { scope: Promise<string>; onReady: (ready: Ready) => void }) {
   const scopeKey = use(scope);
   useEffect(() => {
-    // `?livePollMs=` is a test hook: the live check shortens the safety poll with it.
-    const ms = Number(new URLSearchParams(window.location.search).get('livePollMs'));
-    onReady({ scopeKey, pollMs: ms > 0 ? ms : undefined });
+    onReady({ scopeKey, pollMs: pollFromAddress(window.location.search) });
   }, [scopeKey, onReady]);
   return null;
 }
@@ -415,7 +422,7 @@ Bind it where the policy binds the collection, so the subscription is the tenant
 ```ts
 const subscribeTo = postgresLive(process.env.DATABASE_URL!);
 // in policy.bind: the collection with its predicate applied, and its tenant's subscription
-return { ...membersFor(scope.tenantId), subscribe: subscribeTo(scope.tenantId, 'members') };
+return { ...membersFor(scope), subscribe: subscribeTo(scope.tenantId, 'members') };
 ```
 
 If what a subject may see differs inside a tenant, put a visibility group in the payload and filter on it in `fanOut`;

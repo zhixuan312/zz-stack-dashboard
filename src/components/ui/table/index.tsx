@@ -24,7 +24,7 @@ export function Table({ className, caption, children, ...rest }: HTMLAttributes<
         className={cn(
           'w-full border-separate border-spacing-0 text-sm',
           '[&_tr>*:first-child]:pl-(--card-pad) [&_tr>*:last-child]:pr-(--card-pad)',
-          /* A text column after a right-aligned number gets room to breathe, so "234ms" and "Parallax AI" read as two facts. */
+          /* A text column after a right-aligned number gets room to breathe, so "234ms" and "Example Co" read as two facts. */
           '[&_[data-num]+:not([data-num])]:pl-8',
           className,
         )}
@@ -69,6 +69,7 @@ export function TableHeader({
   sort,
   onSort,
   grow,
+  flexible,
   children,
   ...rest
 }: ThHTMLAttributes<HTMLTableCellElement> & {
@@ -78,6 +79,8 @@ export function TableHeader({
   onSort?: () => void;
   /** The one column that takes the remaining width: the record's name. Its truncating cells shrink last. */
   grow?: boolean;
+  /** The column's text can be cut rather than wrapped, so it can use width the other columns cannot. */
+  flexible?: boolean;
 }) {
   const sortable = onSort !== undefined;
   const Icon = sort === 'asc' ? ArrowUp : sort === 'desc' ? ArrowDown : ChevronsUpDown;
@@ -90,9 +93,18 @@ export function TableHeader({
         'h-9 border-y border-line bg-surface-sunk px-4 text-xs font-medium whitespace-nowrap text-ink-3 first:border-l-0',
         ALIGN[align],
         hideBelow && HIDE[hideBelow],
-        /* The lead column takes about a third; auto layout spreads the rest across the others by their content. Under
-           512px of table, where most columns have dropped, it takes the slack, so its text is not cut beside empty space. */
-        grow && 'w-[30%] min-w-40 @max-[512px]:w-full @min-[672px]:min-w-64',
+        /* A column that can be cut asks for all the width there is, and the ones that must show their whole value —
+           a count, a date, a badge — size to that value. It asked for a third before (`w-[30%]`), on the reading that
+           auto layout spreads the remainder by content: it spreads it across every column, so the lead column was
+           pinned at a third of the table, cutting titles while "Assigned to" sat in twice the room its longest name
+           needed, and a second cut column beside it was left "1 of 2 pass…" on every row. Asking for all of it leaves
+           the browser nothing to spread; two or more such columns share it between them, which is what the tables with
+           three long columns (Tests: the verification, the release, the reason) need. */
+        (grow || flexible) && 'w-full',
+        // The floor belongs to the lead column alone. A second column that can be cut asks for the slack but must be
+        // able to give it up: with the same floor on two columns the Releases table held 837px inside a 713px frame
+        // at 1024 and 768, and no column could shrink because both had a minimum.
+        grow && 'min-w-40 @min-[672px]:min-w-64',
         className,
       )}
       {...rest}

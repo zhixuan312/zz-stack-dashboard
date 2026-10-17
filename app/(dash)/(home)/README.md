@@ -31,7 +31,15 @@ The period and whose data it is, the bucket the chart's pointer rests on with it
 - core:document_read refused most often: 30 of the 73 refused calls (41%). Evidence: /activity?show=failed
 ```
 
-- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `query_initiatives` looks up what the page lists.
+- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `explore_overview`, offered on this page alone, counts the team's closures and openings and the caller's approvals over any window, grouped or a bucket at a time, down to the rows behind them.
+
+### What the agent does here
+
+Protagonist: Tool calls.
+
+- "How many initiatives did we close in the last 30 days, and with what outcome?" — the closures over 30 complete days, by outcome
+- "Which flows opened the most initiatives this quarter?" — the initiatives opened over 90 complete days, by flow
+- "How many revisions have I approved each week this month, and was each shown to me first?" — the approvals over 30 complete days a week at a time, then by presentation
 
 ## Surfaces
 

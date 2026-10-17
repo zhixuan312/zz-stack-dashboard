@@ -31,7 +31,7 @@ export function PlatformStatusView({ read }: { read: StatusRead }) {
         value={tile.value}
         format={formatRate}
         note={tile.note}
-        finding={tile.finding ? { text: tile.finding } : undefined}
+        finding={tile.finding ? { text: tile.finding, tone: 'warning' } : undefined}
       />
     </Row>
   );
@@ -49,7 +49,7 @@ export function PlatformStatusAsOf({ read }: { read: StatusRead }) {
   return (
     <span className="inline-flex items-center gap-2.5">
       <span className="t-small text-ink-3">{asOfLine(read.meta)}</span>
-      <AskAbout iconBelowSm question={question} />
+      <AskAbout question={question} />
     </span>
   );
 }

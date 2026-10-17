@@ -21,6 +21,9 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   devIndicators: false,
+  // `pnpm verify` sets MERIDIAN_TYPES_CHECKED for its one build, only after its own gate has type-checked this tree with
+  // the same tsconfig, so the build does not check it twice. Every other `next build` checks the types itself.
+  typescript: { ignoreBuildErrors: process.env.MERIDIAN_TYPES_CHECKED === '1' },
   // The assistant reads the product brief on every reply (`src/lib/assistant/brief.ts`), with `node:fs`, so the
   // standalone build has to be told the file belongs to that route or the image ships without it.
   outputFileTracingIncludes: { '/api/assistant': ['./docs/brief.md'] },

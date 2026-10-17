@@ -27,7 +27,15 @@ The filters in force, how many teams match and how many are active, and the init
 - atlas runs the most work: 4 of the 8 initiatives listed (50%). Evidence: /teams/atlas
 ```
 
-- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `query_teams` looks up what the page lists.
+- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `explore_teams`, offered on this page alone, counts the teams by status and the platform's calls by team over any window.
+
+### What the agent does here
+
+Protagonist: Teams.
+
+- "How many teams are active, and how many archived?" — the teams, by status
+- "Which team made the most real-work calls in the last 30 days?" — the platform's calls over 30 complete days, by team
+- "Which teams were made in the last 90 days?" — the teams made by the end of 90 complete days, down to each team
 
 ## Surfaces
 

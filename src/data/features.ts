@@ -7,9 +7,10 @@
  * item and the table never restate one another.
  *
  * This is the table of the pages the console has today, at today's addresses, and of the pages the platform declares
- * before they are mounted — Record, Approvals, Access, Usage, Knowledge health and Audit — so a page can gate on its
- * feature the day it lands, whether or not the rail offers it yet. Everybody reads their own work,
- * the platform's Status, Usage and Knowledge health; Teams, People, Audit and the other fleet pages are a superadmin's.
+ * before they are mounted — Record, Approvals, Access, Releases, Bugs, Evaluation, Usage, Knowledge health and Audit —
+ * so a page can gate on its feature the day it lands, whether or not the rail offers it yet. Everybody reads their own
+ * work and the platform's Status, Releases, Bugs, Evaluation, Usage and Knowledge health; Teams, People, Audit and the
+ * other fleet pages are a superadmin's.
  *
  * Pure data with type-only imports, so plain `node` can import it: `scripts/check.ts` reads `src/app.config.ts`, which
  * reaches this file.
@@ -30,7 +31,7 @@ export const FLEET = 'fleet:read' satisfies HeldRead;
 /** Every page the console offers, by the id the rail, the palette and a page's gate name it. */
 export type FeatureId =
   | 'home' | 'record' | 'initiatives' | 'approvals' | 'knowledge' | 'people' | 'settings' | 'access' | 'teams' | 'plugins' | 'runs' | 'activity'
-  | 'platform-status' | 'usage' | 'knowledge-health' | 'audit';
+  | 'platform-status' | 'releases' | 'bugs' | 'evaluation' | 'usage' | 'knowledge-health' | 'audit';
 
 /** Each feature: its name as a person reads it, and the need a person must satisfy to reach it. Never `public`. */
 export const FEATURES: Record<FeatureId, { title: string; needs: HeldRead }> = {
@@ -47,6 +48,9 @@ export const FEATURES: Record<FeatureId, { title: string; needs: HeldRead }> = {
   runs: { title: 'Runs', needs: FLEET },
   activity: { title: 'Activity', needs: FLEET },
   'platform-status': { title: 'Status', needs: PLATFORM },
+  releases: { title: 'Releases', needs: PLATFORM },
+  bugs: { title: 'Bugs', needs: PLATFORM },
+  evaluation: { title: 'Evaluation', needs: PLATFORM },
   usage: { title: 'Usage', needs: PLATFORM },
   'knowledge-health': { title: 'Knowledge health', needs: PLATFORM },
   audit: { title: 'Audit', needs: FLEET },

@@ -25,7 +25,15 @@ Whose log it is, how many entries it holds, and how many of them record a node a
 - The latest entries, newest first: 11 Oct 2026 recorded node 0003 (beacon), "Alert on the trend, not the count" by noah.okafor; …
 ```
 
-- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `query_knowledge_log` looks up what the page lists.
+- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `explore_knowledge_log`, offered on this page alone, counts the lessons made and the shelf over any window, by kind.
+
+### What the agent does here
+
+Protagonist: Recorded and superseded.
+
+- "How many lessons did we record each week this month?" — the lessons made over 30 complete days, a week at a time
+- "Which kind of lesson did we record most in the last 90 days?" — the lessons made over 90 complete days, by kind
+- "How many lessons on our shelf have been superseded?" — the shelf, by standing
 
 ## Surfaces
 

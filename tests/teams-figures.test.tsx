@@ -43,10 +43,12 @@ function cell(team: string, header: string): string {
   const column = headers.indexOf(header);
   const row = [...document.querySelectorAll('tr')].find((r) => r.textContent?.includes(team));
   if (column < 0 || !row) return `no ${header} column or no ${team} row`;
-  // The cell's FIRST child, not its text: a `DataTable` renders the desktop value and the words a phone card uses for
-  // the same cell ("7" and "7 documents"), one hidden by the stylesheet, and `textContent` reads both.
+  // The cell's first child after its separator, not its text: a `DataTable` draws the desktop value and the words a
+  // phone card uses for the same cell, one hidden by the stylesheet, and `textContent` reads both; and a fact after the
+  // first leads with the dot that separates it on a phone (`data-sep`), inside the fact's own cell.
   const td = [...row.querySelectorAll('td')][column];
-  return (td?.firstElementChild ?? td)?.textContent?.trim() ?? '';
+  const value = td ? [...td.children].find((e) => !e.hasAttribute('data-sep')) : undefined;
+  return (value ?? td)?.textContent?.trim() ?? '';
 }
 
 beforeEach(() => {

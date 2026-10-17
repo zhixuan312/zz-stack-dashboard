@@ -6,7 +6,7 @@ team's. This list is the rule the classifier itself uses; edit it in `cli/src/ow
 <!-- BEGIN:ownership -->
 - Managed: the payload files under `tokens/`, `src/styles/` and `src/components/`, except each component's `README.md` and `preview.tsx`.
 - Managed: the distributed scripts under `scripts/`, except `scripts/verify.config.ts`, the first-load baseline `optional:scripts/verify.baseline.json` and a team-local `optional:scripts/check.local.ts`.
-- Managed: the library helpers `src/lib/cn.ts`, `src/lib/format.ts`, `src/lib/format-date.ts`, `src/lib/period.ts`, `src/lib/color.ts`, `src/lib/host.ts`, `src/lib/preferences.ts`, `src/lib/csv.ts`, `src/lib/safe-markdown.ts`, `src/lib/logo.ts`, `src/lib/collection.ts`, `src/lib/live.ts`, `src/lib/shared-context.ts`, `src/lib/agent-guidance.ts` and `src/lib/insight.ts`, and the assistant prompt `src/lib/assistant/prompt.ts`.
+- Managed: the library helpers `src/lib/cn.ts`, `src/lib/format.ts`, `src/lib/format-date.ts`, `src/lib/period.ts`, `src/lib/color.ts`, `src/lib/host.ts`, `src/lib/preferences.ts`, `src/lib/csv.ts`, `src/lib/safe-markdown.ts`, `src/lib/logo.ts`, `src/lib/collection.ts`, `src/lib/explore.ts`, `src/lib/live.ts`, `src/lib/shared-context.ts`, `src/lib/agent-guidance.ts`, `src/lib/insight.ts` and `src/lib/facts.ts`, and the assistant prompt `src/lib/assistant/prompt.ts`.
 - Managed: `src/views/console-chrome.tsx` and `tests/setup.ts`.
 - Managed: `optional:scripts/package.json`, only when the adopt or create that set the project up generated it for this project shape.
 - Managed: both installed skill trees, `optional:.agents/skills/zz-meridian/` and `optional:.claude/skills/zz-meridian/`, taken from the release's skill payload.

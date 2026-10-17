@@ -28,7 +28,15 @@ Whose work it is, last whole week's dates and the filters in force, then last we
 - The team's refusals grouped by owner, tool and message, most first (7 groups): A guardrail held on core:document_approve, "ERROR: approval needs a stakeholder" 5×, last 13 Oct 2026; …
 ```
 
-- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `view_activity` reads the summary; `query_activity` pages the route with its kind, tool, initiative and refused filters and answers the route's total, up to the latest 500.
+- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `view_activity` reads the summary; `explore_activity`, offered on this page alone, counts the team's calls and refusals over any window, by tool, initiative or owner, down to the events themselves.
+
+### What the agent does here
+
+Protagonist: Refusals.
+
+- "Which tool was refused most in the last 30 days, and who is it put down to?" — the refusals over 30 complete days, by tool, then by owner
+- "How many calls did we make each day this week, and how many were refused?" — the calls over 7 complete days a day at a time, then by refused
+- "Which initiative made the most calls in the last 90 days?" — the calls over 90 complete days, by initiative
 
 ## Surfaces
 

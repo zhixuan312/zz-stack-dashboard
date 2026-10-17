@@ -1,0 +1,71 @@
+[
+  {
+    "id": "migration:dependency:jsdom",
+    "status": "resolved",
+    "reason": "The console keeps jsdom ^30.1.2, a patch release newer than the tested ^30.1.1: the project's gate, its whole test suite among it, and the build pass with it.",
+    "files": {
+      "package.json": "sha256-ae724d13f64a9296964f54a392286307b5721f9e3ce1d63d1cc804011640211d"
+    }
+  },
+  {
+    "id": "migration:refusal-declared",
+    "status": "resolved",
+    "reason": "src/app.config.ts declares refusal: 'explain', which keeps the no-access page a refused address draws today; src/data/access.ts carries gatedMetadata and src/data/refusal.ts gatedLoading, written from the release's own over the console's gate, and Task I-94 sets the refusal to absent.",
+    "files": {
+      "src/app.config.ts": "sha256-d9026f2db1123c311de367baaaef0229fce7db8bbd3ec62bb42df81e887be5c5"
+    }
+  },
+  {
+    "id": "migration:managed-exports-removed",
+    "status": "resolved",
+    "reason": "src/lib/assistant/tools.ts is the release's own, which reads through view_<name> and explore_<view> and has no query_<name> tool or queryInput; src/views/teams-context.ts writes largest itself, from its 0.15.0 source.",
+    "files": {
+      "src/lib/assistant/tools.ts": "sha256-2ae5b7158d528af3f21175de251f9eed5682767f157b5d7c9f4a36ebb1ce8b10",
+      "src/views/teams-context.ts": "sha256-0d9889c7adde98b600f48b67ef0d8075814cb50591af36d56b9c82bb343ed568"
+    }
+  },
+  {
+    "id": "migration:view-tool-page-explore",
+    "status": "resolved",
+    "reason": "src/views/tools.ts is a list of one module a view under src/views/tools/, each defineViewTool naming its page and its prepared query over the console's prepared collections (src/data/prepared.ts), which answer aggregate through the gateway's prepared queries.",
+    "files": {
+      "src/views/tools.ts": "sha256-7c0f439a92f24d5e61d03dcac5e37c66253aa6087b3a016e1e4da6ad49ea6d20"
+    }
+  },
+  {
+    "id": "migration:agent-does-here-section",
+    "status": "resolved",
+    "reason": "Every page a view tool names has \"### What the agent does here\" under ## Agents, with its protagonist and three questions, each with what its prepared query is asked; scripts/check.local.ts holds the tool modules' pages to it, since check.ts reads src/views/tools.ts alone.",
+    "files": {
+      "app/(dash)/(home)/README.md": "sha256-17c24688519441a9b235aa827b3102b15072f430791cf192356b7716705ec00e",
+      "app/(dash)/activity/README.md": "sha256-6aba73242b23855aa609b318c498cbb82ec3fab11ae667112ac01b29f9d544ea",
+      "app/(dash)/initiatives/README.md": "sha256-ff9df6fa9d6ad962e4ef3b62b3e166c73a419b80e869ee944fb8648ea374e547",
+      "app/(dash)/initiatives/[team]/[slug]/README.md": "sha256-14ea271ad7b58cb83e352bd5224b27e6368687afe7a4d3a21879e0f057109484",
+      "app/(dash)/initiatives/[team]/[slug]/[...path]/README.md": "sha256-cc65bf107a661fea80b5e6804a621b70e83eca1c248410f01f7aa36160161506",
+      "app/(dash)/knowledge/README.md": "sha256-168026a3fad2fe38f723242e66627acaab3cc37dc87e2c7b2002277bb1cc1c9a",
+      "app/(dash)/knowledge/[team]/[...path]/README.md": "sha256-7d4d76cb9920c4fa7ee4fe7a0d20d2deebc1fe114a0939705014a05f0b6b975f",
+      "app/(dash)/knowledge/log/README.md": "sha256-b7a8b7c6b3cbb9c4184a3c255d93206ebf6ec8c9b68236566d8242dbf349a0be",
+      "app/(dash)/people/README.md": "sha256-097e2f5010669604e4e350d0994b48853e9d8c14ae76e547d6dcebb305c1e896",
+      "app/(dash)/platform/README.md": "sha256-2462ca732354b19da25ec8240f7313e7d4a881174f3f7edb9672ecd843f4bf69",
+      "app/(dash)/plugins/README.md": "sha256-3437c9760e50d5b1dc1cbf6756f177c922c2f2c53a03b7c03fcd5ad9b96ea9f3",
+      "app/(dash)/plugins/[plugin]/README.md": "sha256-99ca4380357d93971862e5c14d47aecfa9b8227ada4e88385f858a963b405d9f",
+      "app/(dash)/plugins/[plugin]/[skill]/README.md": "sha256-e74c0aeda0d42f8c04a2bf5742f19914c01b6093c31674832910c3476d37b046",
+      "app/(dash)/runs/README.md": "sha256-8f66988adcea9d3327cfdbe5d70d7a02d63668ce2869d0a5f56eb5ce06d53c01",
+      "app/(dash)/settings/README.md": "sha256-55c43ac549982906c029bb906b6d3c90c1b7c30e65acbf906e5bffc890e1be15",
+      "app/(dash)/teams/README.md": "sha256-fdf3a62c7a263782138e954736dcbb166e79054c1d981277343431c510b9cf12",
+      "app/(dash)/teams/[slug]/README.md": "sha256-35537797d766d18502bddb496b7a1d6be803e3fd81a3b60d2cffca86f9f9c7aa"
+    }
+  },
+  {
+    "id": "migration:sample-pages-renamed",
+    "status": "not-applicable",
+    "reason": "The console made the sample's pages its own: its Overview, src/views/overview-context.ts and the files naming them keep their own names, as the release's rule for such a project says, and the release's other changes are made in them (points on Overview's Featured metric); Task I-104 replaces Overview with Home.",
+    "files": {
+      "src/views/overview-context.ts": "sha256-80cf76a6b3ff23e9481674710c240551466a294af8785e79cc495e487a82c888",
+      "src/views/pages/overview.tsx": "sha256-5b0e2237fde3e2c03d93a09327025a19e304a5e55eb954cd6220d5a58d4bc2e2",
+      "src/views/tools.ts": "sha256-7c0f439a92f24d5e61d03dcac5e37c66253aa6087b3a016e1e4da6ad49ea6d20",
+      "tests/view-contexts.test.ts": "sha256-db8cf73bee4916ca35bd3e13a734422a22500c780ebde0a03d1974e5d3c67fb8",
+      "scripts/verify.config.ts": "sha256-7efe7d3ba3763f7e339b24aa180731ec4b7a623e2b2afead7e181d63fb8e58ba"
+    }
+  }
+]

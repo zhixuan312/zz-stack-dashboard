@@ -14,8 +14,7 @@ import { Tooltip } from '../../ui/tooltip/index';
  * known in the browser, and a part of the page that hydrates late must match the HTML the server sent without it.
  */
 const subscribe = () => () => {};
-/** `iconBelowSm` keeps only the mark on a phone, for a card whose head has no room beside a long kicker. */
-export function AskAbout({ question, iconBelowSm, className }: { question: string; iconBelowSm?: boolean; className?: string }) {
+export function AskAbout({ question, className }: { question: string; className?: string }) {
   const { ask } = useSurface();
   const hydrated = useSyncExternalStore(subscribe, () => true, () => false);
   if (!ask || !hydrated) return null;
@@ -27,7 +26,7 @@ export function AskAbout({ question, iconBelowSm, className }: { question: strin
         aria-label={`Ask: ${question}`}
         className={cn('press hit inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-xs font-medium text-accent-ink hover:bg-accent-tint', className)}
       >
-        <Sparkles className="size-3.5" /> <span className={cn(iconBelowSm && 'max-sm:sr-only')}>Ask</span>
+        <Sparkles className="size-3.5" /> <span>Ask</span>
       </button>
     </Tooltip>
   );

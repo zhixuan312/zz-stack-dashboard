@@ -4,7 +4,8 @@
  *   Arrive  data landing: rows rise in reading order, bars grow from their baseline, a line draws, a figure counts
  *   Answer  a control acknowledging the pointer: press, the sliding marker, an underline drawing
  *   Float   things above the page: menus, dialogs, toasts entering and leaving
- * Nothing loops but a skeleton's shimmer and a live dot's pulse. Reduced motion collapses every duration and delay. */
+ * Three things loop and no more: a spinner's ring, a skeleton's shimmer and a live dot's pulse (decision 0006, as
+ * amended 2026-10-16). Reduced motion collapses every duration and delay. */
 
 @keyframes m-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @keyframes m-fade { from { opacity: 0; } to { opacity: 1; } }

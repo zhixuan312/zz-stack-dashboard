@@ -2,8 +2,8 @@
 
 This is the route a product takes from a console that renders every request to one whose shell prerenders, whose pages
 read through an authorized and cached `read()`, and whose writes drop exactly their tenant's collection. Every
-migration `update` reports for 0.5.0 names a section below. `live.md` carries the live stream and its
-refresh.
+migration `update` reports for 0.5.0 names a section below, but `verify-modes`, which names `validation.md`, and
+`live-provider`: `live.md` carries the live stream and its refresh.
 
 The starters are the template's own files. A product keeps their shape and replaces the policy, the session and the
 database predicates with its own. Copy a starter whole, then change only what the section says is yours to change.
@@ -77,6 +77,9 @@ browser's clock, so a prerendered page and its hydration agree. Pass `now={new D
 A page calls `read(name, query)` and never `collection.query()`. `read()` resolves the caller itself, so no caller can
 choose a tenant. It refuses a collection the caller may not read before any cached code runs, and the cached function
 it calls sees only the whole `AccessScope`, the collection's name and the normalized query, never a mutable collection.
+A figure over every row (a count, a sum, a p95, a group by a field or a time bucket) is `aggregate(name, query)` beside
+it: the same grant asked the same way, the same tag and profile, and the collection's own `aggregate` answering it in
+one call, so nothing reads a collection page by page to count it.
 
 The profile is `{ stale: 30, revalidate: 60, expire: 3600 }`. The tag is `collection:<sha256 of canonical [tenantId,
 collectionName]>`: bounded, deterministic and free of any raw identifier. The real cache key still includes the subject
@@ -107,17 +110,20 @@ A production adapter binds the predicate and the subscription filter; prepending
  * each collection. `authorizationKey` must change whenever what the scope may see changes, because the cached read
  * keys on it.
  */
+import type { Metadata } from 'next';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import type { JSX } from 'react';
-import { nav } from '@/app.config';
-import { activity, customers, days, endpoints, hours, incidents, keys, members, regions, releases, requests, responses, services, tests, tickets, workspace } from '@/data/collections';
+import { createElement, type JSX } from 'react';
+import { nav, refusal } from '@/app.config';
+import { activity, compute, costs, customers, days, endpoints, hours, incidents, keys, members, models, regions, releases, requests, responses, services, tests, tickets, usage, workspace } from '@/data/collections';
 import { FEATURES, type FeatureId } from '@/data/features';
 import { effective, roleLabel, type AddOn, type MainRole } from '@/data/roles';
 import { membersFor } from '@/data/member-mutations';
 import { ticketsFor } from '@/data/ticket-mutations';
 import { chooseViewAs } from '@/data/view-as';
+import { MissingPage } from '@/views/missing-page';
 import { NoAccess } from '@/views/no-access';
+import { NOT_FOUND } from '@/views/not-found';
 import type { Member } from '@/data/sample';
 import type { AnyCollection, ChromeAccess, Grant, Need } from '@/lib/collection';
 
@@ -210,6 +216,10 @@ const DEMO_COLLECTIONS: Record<string, { collection: AnyCollection; ops: readonl
   keys: { collection: keys, ops: ['read', 'create', 'remove'] },
   requests: { collection: requests, ops: ['read', 'create'] },
   days: { collection: days, ops: ['read'] },
+  models: { collection: models, ops: ['read'] },
+  usage: { collection: usage, ops: ['read'] },
+  compute: { collection: compute, ops: ['read'] },
+  costs: { collection: costs, ops: ['read'] },
   endpoints: { collection: endpoints, ops: ['read'] },
   responses: { collection: responses, ops: ['read'] },
   hours: { collection: hours, ops: ['read'] },
@@ -273,7 +283,7 @@ function satisfies(member: Member, need: Need): boolean {
  * any signed-in Active person, a grant by the role table, and an `allOf` by every grant of it.
  *
  * Rejects `Unauthenticated` when there is no session, which is the caller's to catch: this answers about a person, not
- * for one. A page does not catch it — it opens with `gate`, which sends the request to sign-in or renders NoAccess
+ * for one. A page does not catch it — it opens with `gate`, which sends the request to sign-in or refuses the person
  * before the page's own read.
  */
 export async function may(need: Need): Promise<boolean> {
@@ -289,24 +299,59 @@ export async function requireNeed(need: Need): Promise<void> {
 }
 
 /**
+ * The navigation entries a missing page's walk-back steps past, so it names no page the person may not open: under
+ * `refusal: 'absent'` every entry whose need the current person does not satisfy, and every entry when there is no
+ * session; under `explain` none, as the no-access page names the page anyway. `gate` hands them to the missing page it
+ * draws, and the standalone missing page (`app/not-found.tsx`) asks for them itself.
+ */
+export async function withheldEntries(): Promise<string[]> {
+  if (refusal !== 'absent') return [];
+  const scope = await resolveAccess().catch((error: unknown) => {
+    if (error instanceof Unauthenticated) return null;
+    throw error;
+  });
+  const member = scope ? await memberById(scope.subjectId) : null;
+  return nav.flatMap((g) => g.items).filter((i) => !member || !satisfies(member, i.needs)).map((i) => i.href);
+}
+
+/**
  * The one page gate, called as every dashboard page's first statement so the check is what stops the read, never the
  * rail: `chromeAccess().only` hides a destination but forbids nothing, so a page that leaned on it would show a person
  * the records the rail merely left unlinked.
  *
  * It asks the same `requireNeed` a view tool asks, so a page and a tool refuse alike. A request with no session is sent
- * to sign-in. A person who may not use the feature gets the NoAccess view as a normal 200 answer — awaited, because the
- * view is an async server component and a page hands a renderer an element, not a promise. `null` means the feature is
- * held and the page may render and read.
+ * to sign-in. A person who may not use the feature gets the product's `refusal` as a normal 200 answer, read here on
+ * every call: under `explain` the NoAccess view (awaited, because it is an async server component and a page hands a
+ * renderer an element, not a promise); under `absent` the console's missing page, walked back past every entry the
+ * person may not open, so it reads exactly as an address that names nothing. Neither throws `notFound()`, which inside
+ * the dashboard's loading boundary renders only once the JavaScript arrives (see MissingPage). `null` means the feature
+ * is held and the page may render and read.
  */
 export async function gate(feature: FeatureId): Promise<JSX.Element | null> {
   try {
     await requireNeed(FEATURES[feature].needs);
   } catch (error) {
     if (error instanceof Unauthenticated) redirect('/sign-in');
-    if (error instanceof AccessDenied) return await NoAccess({ feature });
+    if (error instanceof AccessDenied) return refusal === 'absent' ? createElement(MissingPage, { withheld: await withheldEntries() }) : await NoAccess({ feature });
     throw error;
   }
   return null;
+}
+
+/**
+ * The title a gated page carries, called from its `generateMetadata` so the tab agrees with what `gate` draws: under
+ * `refusal: 'absent'`, a person who may not use the feature gets the missing page's title, kept out of search, and
+ * anyone else the page's own `metadata`. Under `explain` the page's own title is the answer for everyone, as the
+ * NoAccess view names the page anyway, and the person is not read. With no session the page's own title stands: `gate`
+ * sends that request to sign-in.
+ */
+export async function gatedMetadata(feature: FeatureId, metadata: Metadata): Promise<Metadata> {
+  if (refusal !== 'absent') return metadata;
+  const allowed = await may(FEATURES[feature].needs).catch((error: unknown) => {
+    if (error instanceof Unauthenticated) return true;
+    throw error;
+  });
+  return allowed ? metadata : { title: NOT_FOUND.title, robots: { index: false } };
 }
 
 /** The console's chrome reads `ChromeAccess` from `@/lib/collection`, where the access vocabulary lives. */
@@ -342,18 +387,18 @@ export async function chromeAccess(): Promise<ChromeAccess> {
 }
 ```
 
-`optional:src/data/read.ts` is the cached read and the tag helper:
+`optional:src/data/read.ts` is the cached read, the cached aggregate and the tag helper:
 
 ```ts
 /**
- * The pages' read: authorized, scoped and cached. A page calls `read()`; it cannot choose a tenant, and the cached
- * helper below sees only the whole scope, the collection's name and the normalized query. A write calls
- * `updateTag(collectionTag(tenantId, name))` after it commits, which drops every user's cached variants of that
- * collection and nobody else's.
+ * The pages' read: authorized, scoped and cached. A page calls `read()`, or `aggregate()` for a figure over every row;
+ * it cannot choose a tenant, and the cached helpers below see only the whole scope, the collection's name and the
+ * normalized query. A write calls `updateTag(collectionTag(tenantId, name))` after it commits, which drops every user's
+ * cached variants of that collection, rows and aggregates alike, and nobody else's.
  */
 import { createHash } from 'node:crypto';
 import { cacheLife, cacheTag } from 'next/cache';
-import { normalizeQuery, type Query } from '@/lib/collection';
+import { normalizeAggregate, normalizeQuery, type AggregateQuery, type AggregateResult, type Query } from '@/lib/collection';
 import { AccessDenied, collectionFor, can, resolveAccess, type AccessScope } from '@/data/access';
 import { clock } from '@/data/collections';
 
@@ -376,18 +421,38 @@ export async function read(name: string, q: Query = {}): Promise<{ rows: Record<
   return cachedRead(scope, name, normalizeQuery(collectionFor(scope, name), q));
 }
 
+async function cachedAggregate(scope: AccessScope, name: string, query: AggregateQuery) {
+  'use cache';
+  cacheTag(collectionTag(scope.tenantId, name));
+  cacheLife({ stale: 30, revalidate: 60, expire: 3600 });
+  const result = await collectionFor(scope, name).aggregate(query);
+  return { ...result, observedAt: clock().toISOString() };
+}
+
+/**
+ * An aggregate query over every row of a collection the caller may read, answered by the collection itself, with the
+ * time it actually ran. It asks the grant `read()` asks and throws before any cached code runs when it may not.
+ */
+export async function aggregate(name: string, q: AggregateQuery): Promise<AggregateResult & { observedAt: string }> {
+  const scope = await resolveAccess();
+  if (!(await can(scope, name, 'read'))) throw new AccessDenied();
+  return cachedAggregate(scope, name, normalizeAggregate(collectionFor(scope, name), q));
+}
+
 /** The most rows one read returns (`normalizeQuery`'s own ceiling). */
 const PAGE = 500;
 
 /**
- * Every row of a collection the caller may read. A read returns a page, so this keeps asking until the total is in
- * hand: a count, a join or a summary over a collection starts here, never from a first page.
+ * Every row a question keeps, of a collection the caller may read. A read returns a page, so this keeps asking the *same*
+ * question until the total is in hand: a count, a join or a summary over a collection starts here, never from a first
+ * page. The order and the conditions are re-asked of every page, so a table claiming "each" is not the first page of
+ * something else. Any `limit` the caller passes is ignored: asking here means every row.
  */
-export async function readAll(name: string): Promise<{ rows: Record<string, unknown>[]; observedAt: string }> {
-  const first = await read(name, { limit: PAGE });
+export async function readAll(name: string, q: Query = {}): Promise<{ rows: Record<string, unknown>[]; observedAt: string }> {
+  const first = await read(name, { ...q, limit: PAGE });
   const rows = [...first.rows];
   while (rows.length < first.total) {
-    const next = await read(name, { limit: PAGE, offset: rows.length });
+    const next = await read(name, { ...q, limit: PAGE, offset: rows.length });
     if (next.rows.length === 0) throw new Error(`${name} could not be read in full.`);
     rows.push(...next.rows);
   }
@@ -397,7 +462,8 @@ export async function readAll(name: string): Promise<{ rows: Record<string, unkn
 
 `normalizeQuery` (in `optional:src/lib/collection.ts`, Meridian's) defaults and caps the limit and offset, rejects an
 unknown field or operator, and sorts by the collection's key last. A caller cannot supply or remove an authorization
-predicate through `where`: the predicate belongs to the bound collection.
+predicate through `where`: the predicate belongs to the bound collection. `normalizeAggregate` does the same for an
+aggregate query, and holds its `top` at 8 groups when none is asked and 50 at most.
 
 A page moves like this:
 

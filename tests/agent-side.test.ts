@@ -10,10 +10,9 @@ import { SurfaceOverride, type Surface } from '@/components/base/surface';
 import { AskAbout } from '@/components/patterns/ask-about';
 import { Panel } from '@/console/panel';
 import { PeriodProvider } from '@/console/period';
-import { collections } from '@/data/collections';
 import { FEATURES, type FeatureId } from '@/data/features';
 import { ConsoleModeProvider } from '@/lib/api';
-import type { SharedContext } from '@/lib/shared-context';
+import { viewAt, type SharedContext } from '@/lib/shared-context';
 import { viewTools } from '@/views/tools';
 import config from '../scripts/verify.config.ts';
 
@@ -24,8 +23,8 @@ import config from '../scripts/verify.config.ts';
  *
  * For each page this asserts three things:
  * - it shares a context with data in it, once its reads have answered;
- * - that context's view has an assistant read: a `view_<name>` tool needing what the page's gate needs, or a
- *   `query_<name>` collection;
+ * - that context's view has an assistant read: a `view_<name>` tool needing what the page's gate needs, whose `page`
+ *   is the page's own route, so the page offers its prepared query, `explore_<view>`;
  * - it renders an Ask (ZZ Meridian's `AskAbout`) in the head of the card it sits on when the console offers an
  *   assistant, and none when it does not. Only the pages `MASTHEAD_UNTIL` names may carry it in the masthead instead,
  *   each until the reason it gives is gone.
@@ -167,9 +166,10 @@ describe('every page of the console carries its agent side', () => {
     const ask = vi.fn();
     const context = await open(page, ask);
     const tool = viewTools.find((t) => t.name === context.view);
-    const collection = collections.find((c) => c.name === context.view);
-    expect(tool ?? collection, `no view_${context.view} tool and no query_${context.view} collection`).toBeTruthy();
-    if (tool) expect(tool.needs, `view_${tool.name} needs what the page's gate needs`).toBe(FEATURES[page.feature].needs);
+    expect(tool, `no view_${context.view} tool`).toBeTruthy();
+    expect(tool!.needs, `view_${tool!.name} needs what the page's gate needs`).toBe(FEATURES[page.feature].needs);
+    expect(tool!.page, `view_${tool!.name} names the page it renders`).toBe(page.route);
+    expect(viewAt(viewTools, page.address), `${page.address} offers explore_${tool!.name}`).toBe(tool);
 
     const [first] = await screen.findAllByRole('button', { name: ASK }, { timeout: 10_000 });
     expect(inAHead(first, page.route in MASTHEAD_UNTIL), `${page.route}'s Ask is in no card's head`).toBe(true);

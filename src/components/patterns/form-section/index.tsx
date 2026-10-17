@@ -14,7 +14,7 @@ const GRID = 'grid gap-x-10 gap-y-5 @3xl:grid-cols-[15rem_minmax(0,var(--field-w
  * A titled group of settings that saves on its own. Its title and one sentence sit on the left, the fields in a card on
  * the right (stacked on narrow widths). With `onSave`, editing shows a save bar that stays in view until the change is
  * saved or discarded; without it, every control applies at once and the section says so. `tone="critical"` is the
- * danger zone.
+ * danger zone. `actions` stand beside the title, on its row at every width: an Ask about, as on a card's head.
  *
  * `as="div"` is the same layout with no `<form>` around it, for a section that cannot have one: a card holding a table
  * that runs edge to edge (access tokens, people, members), or a form of its own, since forms cannot nest. It has no
@@ -23,11 +23,12 @@ const GRID = 'grid gap-x-10 gap-y-5 @3xl:grid-cols-[15rem_minmax(0,var(--field-w
 export function FormSection({
   title,
   description,
+  actions,
   children,
   dirty = false,
   saving = false,
   error,
-  readOnly,
+  readOnly = false,
   onSave,
   onDiscard,
   saveLabel = 'Save changes',
@@ -40,14 +41,19 @@ export function FormSection({
   title: ReactNode;
   /** What these settings change, for whom, in one or two sentences. */
   description?: ReactNode;
+  /** Beside the title, on its row on a phone too: the same contract as `CardHeader`'s `actions`. */
+  actions?: ReactNode;
   children: ReactNode;
   /** The values differ from what is saved: show the save bar, and ask before the person leaves the page. */
   dirty?: boolean;
   saving?: boolean;
   /** Why the last save failed, and what to do. Shown above the fields. */
   error?: ReactNode;
-  /** The reader may see but not change these: say who can, instead of disabling silently. */
-  readOnly?: ReactNode;
+  /**
+   * The reader may see but not change these: the fields are disabled and the section reads "Read-only" beside a lock, so
+   * it is not disabled silently. It never says who could change them.
+   */
+  readOnly?: boolean;
   onSave?: () => void | Promise<void>;
   onDiscard?: () => void;
   saveLabel?: string;
@@ -79,7 +85,7 @@ export function FormSection({
     <>
       {error ? <Banner tone="critical" title="Not saved">{error}</Banner> : null}
       {readOnly ? (
-        <p className="flex items-center gap-2 rounded-md bg-surface-sunk px-3 py-2 text-xs text-ink-2"><Lock className="size-3.5 shrink-0 text-ink-3" />{readOnly}</p>
+        <p className="flex items-center gap-2 rounded-md bg-surface-sunk px-3 py-2 text-xs text-ink-2"><Lock className="size-3.5 shrink-0 text-ink-3" />Read-only</p>
       ) : null}
       {children}
     </>
@@ -90,14 +96,17 @@ export function FormSection({
   const cols = (
     <>
     <header className="min-w-0 @3xl:pt-1">
-      <h2 className={cn('t-card', tone === 'critical' && 'text-critical-ink')}>{title}</h2>
+      <div className="flex items-start gap-4">
+        <h2 className={cn('t-card min-w-0 flex-1', tone === 'critical' && 'text-critical-ink')}>{title}</h2>
+        {actions ? <div className="-my-1 flex shrink-0 items-center gap-1.5">{actions}</div> : null}
+      </div>
       {description ? <p className="t-small mt-2 text-pretty text-ink-2">{description}</p> : null}
     </header>
     <div className="min-w-0">
       <div className={cn('relative rounded-lg border bg-surface shadow-card', tone === 'critical' ? 'border-critical/30' : 'border-line', flush && 'has-[>[data-flush]:first-child]:overflow-hidden')}>
         {as === 'form' ? (
           // Read-only is not unavailable: its values are what the reader came for, so they stay legible in ink-2.
-          <fieldset data-flush={flush ? '' : undefined} disabled={Boolean(readOnly) || saving} className={cn(body, readOnly && '[&_button:disabled]:text-ink-2 [&_input:disabled]:text-ink-2 [&_textarea:disabled]:text-ink-2')}>{inner}</fieldset>
+          <fieldset data-flush={flush ? '' : undefined} disabled={readOnly || saving} className={cn(body, readOnly && '[&_button:disabled]:text-ink-2 [&_input:disabled]:text-ink-2 [&_textarea:disabled]:text-ink-2')}>{inner}</fieldset>
         ) : (
           <div data-flush={flush ? '' : undefined} className={body}>{inner}</div>
         )}

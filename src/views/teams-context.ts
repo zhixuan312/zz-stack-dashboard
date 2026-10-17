@@ -2,10 +2,18 @@
 import type { Team } from '@/lib/api-shapes';
 import { plural } from '@/lib/format';
 import { formatCount } from '@/lib/format-units';
-import { largest } from '@/lib/insight';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
 import { addressOf, arrived, budgeted, shareOf, type Arrival } from './context';
 import { filterTeams, type TeamsFilters } from './teams-filter';
+
+/** The part that contributes most to a total, and its share of it. `null` for an empty or zero total. Meridian's own
+ *  until 0.16.0 removed it from `src/lib/insight.ts`; written here from its 0.15.0 source. */
+function largest<T>(items: T[], value: (t: T) => number): { item: T; share: number } | null {
+  const total = items.reduce((s, t) => s + value(t), 0);
+  if (!items.length || !(total > 0)) return null;
+  const item = items.reduce((m, t) => (value(t) > value(m) ? t : m));
+  return { item, share: value(item) / total };
+}
 
 export function teamsContext(teams: Team[], total: number, { filters, ...arrival }: { filters: TeamsFilters } & Arrival): SharedContext {
   const rows = filterTeams(teams, filters);

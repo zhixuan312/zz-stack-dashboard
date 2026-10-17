@@ -47,7 +47,19 @@ export function CopyField({
       ) : null}
       <button
         type="button"
-        onClick={() => { void navigator.clipboard?.writeText(value); setCopied(true); }}
+        onClick={async () => {
+          // Only a write that resolved turns the button into a check. `navigator.clipboard` is absent outside a secure
+          // context, and `writeText` rejects with NotAllowedError when the frame is sandboxed or the document is not
+          // focused; claiming the copy either way told a person their new key was on the clipboard when it was not, on
+          // the one value the product says it shows only once.
+          try {
+            if (!navigator.clipboard) throw new Error('no clipboard');
+            await navigator.clipboard.writeText(value);
+            setCopied(true);
+          } catch {
+            // The button keeps saying "Copy": nothing was copied, so nothing says it was.
+          }
+        }}
         aria-label={copied ? 'Copied' : `Copy ${label}`}
         className={cn(
           'press hit mr-0.5 grid size-8 shrink-0 place-items-center rounded-sm transition-[color,background-color,border-color,transform] duration-(--dur-hover)',

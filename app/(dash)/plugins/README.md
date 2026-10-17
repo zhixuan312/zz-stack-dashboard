@@ -26,7 +26,15 @@ How many plugins the catalog holds and how many are required, their skills, how 
 - sdlc is the one your team used most: 540 of its 555 calls (97%). Evidence: /plugins/sdlc
 ```
 
-- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `query_plugins` looks up what the page lists.
+- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `explore_plugins`, offered on this page alone, counts the team's calls of each shipped skill over any window, by plugin or skill; it lists none.
+
+### What the agent does here
+
+Protagonist: Every plugin.
+
+- "Which plugin did we call most in the last 30 days?" — the calls of a shipped skill over 30 complete days, by plugin
+- "Which skills did we call most this quarter?" — the calls of a shipped skill over 90 complete days, by skill
+- "How did our calls of plugins move week by week this month?" — the calls of a shipped skill over 30 complete days, a week at a time
 
 ## Surfaces
 

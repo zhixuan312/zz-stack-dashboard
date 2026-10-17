@@ -37,12 +37,37 @@ function parts(d: Date): Record<string, string> {
   return Object.fromEntries(FMT.formatToParts(d).map((p) => [p.type, p.value]));
 }
 
+/** One formatter per timezone, built once for the reason `FMT` is. */
+const DAY_OF = new Map<string, Intl.DateTimeFormat>();
+
+/**
+ * The calendar day an instant falls on in the reporting timezone, `2026-06-09`: the day a daily row of it is kept under,
+ * and the today a period of days ends before. Never `toISOString().slice(0, 10)`, which is the day in UTC. Empty for an
+ * input that is not a date.
+ */
+export function dayOf(input: DateInput, timeZone: string = DISPLAY_TIMEZONE): string {
+  const d = toDate(input);
+  if (!d) return '';
+  let fmt = DAY_OF.get(timeZone);
+  if (!fmt) DAY_OF.set(timeZone, (fmt = new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' })));
+  return fmt.format(d);
+}
+
 /** `09 Jun 2026` */
 export function formatDate(input: DateInput): string {
   const d = toDate(input);
   if (!d) return String(input);
   const p = parts(d);
   return `${p.day} ${p.month} ${p.year}`;
+}
+
+/** `01 Oct`: a chart's axis or a badge, where the year is noise and the padded day keeps a column of cells aligned. A day
+ * inside a sentence is `formatDay`. */
+export function formatShortDate(input: DateInput): string {
+  const d = toDate(input);
+  if (!d) return String(input);
+  const p = parts(d);
+  return `${p.day} ${p.month}`;
 }
 
 /** `1 Oct`: a day inside a sentence, where a padded "01 Oct" reads like a table cell. Tables and axes keep formatDate. */
@@ -59,6 +84,32 @@ export function formatDateTime(input: DateInput): string {
   if (!d) return String(input);
   const p = parts(d);
   return `${p.day} ${p.month} ${p.year}, ${p.hour}:${p.minute}`;
+}
+
+/**
+ * A calendar date, `2026-10-01` with no time, names a day and not an instant: a cell of a calendar is that day
+ * wherever the product reports from. `formatDate` reads such a string as midnight UTC and prints it in
+ * DISPLAY_TIMEZONE, which is the day before west of UTC: right for an instant, wrong for a day. The two formatters
+ * below read the date's own year, month and day.
+ */
+let DAY_FMT: Intl.DateTimeFormat | null = null;
+
+function calendarParts(date: string): Record<string, string> | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  if (!m) return null;
+  DAY_FMT ??= new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+  return Object.fromEntries(DAY_FMT.formatToParts(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]))).map((p) => [p.type, p.value]));
+}
+
+/** `Thu 1 Oct 2026`: a calendar date as the day it names, with its weekday. */
+export function formatCalendarDate(date: string): string {
+  const p = calendarParts(date);
+  return p ? `${p.weekday} ${p.day} ${p.month} ${p.year}` : date;
+}
+
+/** `Oct`: the month a calendar date is in, for the name above a calendar's column. */
+export function formatCalendarMonth(date: string): string {
+  return calendarParts(date)?.month ?? date;
 }
 
 /** `just now` · `5 min ago` · `3 h ago` · `7 d ago` · then an absolute date. */

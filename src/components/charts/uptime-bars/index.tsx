@@ -7,7 +7,7 @@ import { plural } from '../../../lib/format';
 
 export type DayState = 'operational' | 'degraded' | 'outage' | 'none';
 /* Healthy days are the baseline, one quiet rect across the period, so the eye lands on the days something happened.
-   A day with no data is opaque, so it never shows the operational fill beneath it. */
+   A day with no data is left out of the baseline, so its mark never shows the operational fill beneath it. */
 const MARK: Record<Exclude<DayState, 'operational'>, string> = { degraded: 'fill-warning', outage: 'fill-critical', none: 'fill-line-strong' };
 /** 99.994%, 99.81%, 100%: as many decimals as the number needs, never trailing zeros. */
 const pct = (u: number) => `${Number((u * 100).toFixed(u >= 0.9999 ? 3 : 2))}%`;
@@ -24,21 +24,24 @@ export function UptimeBars({
   days,
   uptime,
   end,
+  endLabel = 'Today',
   label,
   measure = 'uptime',
   size = 'md',
   className,
 }: {
-  /** One state per day, oldest first, ending today. */
+  /** One state per day, oldest first, ending on `end`. */
   days: DayState[];
   /** The uptime over the days shown, as a fraction. */
   uptime: number;
-  /** The last day's date (today). */
+  /** The last day's date: today, or the latest complete day. */
   end: Date;
+  /** The caption's right end: "Today" by default; a strip of complete days names the day it ends on ("02 Oct 2026"). */
+  endLabel?: string;
   label: string;
   /** The word after the percentage: "uptime" for services, "on time" for a warehouse's days. */
   measure?: string;
-  /** `lg` (56px) when the strip is a card's protagonist, as on the Operations page's featured card. */
+  /** `lg` (56px) when the strip is a card's protagonist, as Now's days inside the band. */
   size?: 'md' | 'lg';
   className?: string;
 }) {
@@ -48,6 +51,14 @@ export function UptimeBars({
   const shown = days;
   const dateOf = (i: number) => new Date(end.getTime() - (shown.length - 1 - i) * 86_400_000);
   const marked = shown.flatMap((d, i) => (d === 'operational' ? [] : [{ d, i }]));
+  // The baseline's runs: every day between two days with no data, so a period with data on every day is one rect.
+  const runs = shown.reduce<{ x: number; width: number }[]>((all, d, i) => {
+    if (d === 'none') return all;
+    const last = all.at(-1);
+    if (last && last.x + last.width === i) last.width++;
+    else all.push({ x: i, width: 1 });
+    return all;
+  }, []);
   return (
     <figure aria-label={label} className={cn('relative min-w-0', className)} onPointerLeave={() => setHover(null)}>
       <div
@@ -76,7 +87,7 @@ export function UptimeBars({
             if (r.width > 0) setHover(Math.min(shown.length - 1, Math.max(0, Math.floor(((e.clientX - r.left) / r.width) * shown.length))));
           }}
         >
-          <rect x={0} y={0} width={shown.length} height={H} className="fill-positive/22" />
+          {runs.map((r) => <rect key={`run-${r.x}`} x={r.x} y={0} width={r.width} height={H} className="fill-positive/22" />)}
           {marked.map(({ d, i }) => (
             <rect key={i} data-day={i} data-state={d} x={i} width={1} height={H} className={MARK[d as Exclude<DayState, 'operational'>]} />
           ))}
@@ -88,7 +99,7 @@ export function UptimeBars({
         <span aria-hidden className="h-px flex-1 bg-line" />
         <span className="t-num font-medium text-ink-2">{pct(uptime)} {measure}</span>
         <span aria-hidden className="h-px flex-1 bg-line" />
-        <span>Today</span>
+        <span>{endLabel}</span>
       </figcaption>
       {hover !== null ? (
         <div

@@ -1,9 +1,9 @@
 'use client';
 
 import { useQuery, useQueryClient, type Query, type UseQueryResult } from '@tanstack/react-query';
-import { Suspense, createContext, createElement, use, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { createContext, createElement, use, useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { preload } from 'react-dom';
-import { clearThread, loadThread } from '@/components/patterns/assistant/thread';
+import { clearThread } from '@/components/patterns/assistant/thread';
 
 // The one shape the transport itself needs: `useConsoleMode` reads the caller's role off
 // `/me` to decide whether the platform view is even offered. Shapes never import back.
@@ -251,39 +251,11 @@ function callerOf(access: Awaited<ServerAccess>): PageCaller | null {
  * a read awaits it (`useConsole`), and the server resolved it before any page's content, so in the browser it has
  * settled before anything reads it and nothing waits.
  *
- * Its one act: before the assistant's panel first renders, a stored thread whose last stamped reply was answered for
- * another caller or team is cleared (`clearThreadOfAnother`). The panel loads its thread in a passive effect once it is
- * opened; a layout effect runs before that, whatever order the two are drawn in.
+ * The assistant's thread is not kept here: ZZ Meridian's `AssistantScope`, which the layout mounts with the same
+ * person and team, keeps it for that scope alone and removes one stored for another as soon as it resolves.
  */
 export function ConsoleCaller({ access, children }: { access: ServerAccess; children?: ReactNode }) {
-  return createElement(
-    CallerContext.Provider,
-    { value: access },
-    createElement(Suspense, { fallback: null }, createElement(ThreadOwner, { access })),
-    children,
-  );
-}
-
-function ThreadOwner({ access }: { access: ServerAccess }) {
-  const who = callerOf(use(access));
-  const [caller, team, role] = [who?.caller, who?.team ?? null, who?.role ?? ''];
-  useLayoutEffect(() => {
-    if (caller) clearThreadOfAnother(window.localStorage, { caller, team, role });
-  }, [caller, team, role]);
-  return null;
-}
-
-/** The stamp the assistant's route writes on the first part of every reply. COUPLED: `Stamp` in `src/lib/assistant/respond.ts`. */
-type Stamp = { caller?: unknown; team?: unknown };
-
-/**
- * Clears the assistant's stored thread when its last stamped reply names another caller or team: one left by a person
- * who signed out, or saved back by a stream or a tab after a switch. A thread with no stamped reply is left as it is.
- */
-function clearThreadOfAnother(storage: Storage, who: PageCaller): void {
-  const last = loadThread(storage).findLast((m) => m.role === 'assistant' && typeof (m.metadata as Stamp | undefined)?.caller === 'string');
-  const stamp = last?.metadata as Stamp | undefined;
-  if (stamp && (stamp.caller !== who.caller || (stamp.team ?? null) !== who.team)) clearThread(storage);
+  return createElement(CallerContext.Provider, { value: access }, children);
 }
 
 /** The key a team switch is announced on to every other tab of this browser. */

@@ -69,7 +69,7 @@ export function KnowledgeNodeView({ params }: { params: Promise<{ team: string; 
           <>
             {b.superseded_by ? <Banner tone="warning" title={`Superseded by node ${b.superseded_by}`}>Kept readable; it is no longer the current lesson.</Banner> : null}
             <Row split="2/3">
-              <Panel title="The lesson" actions={<AskAbout iconBelowSm question="What does this lesson mean for work we are doing now?" />}>
+              <Panel title="The lesson" actions={<AskAbout question="What does this lesson mean for work we are doing now?" />}>
                 <Prose>{b.body.trim()}</Prose>
               </Panel>
               <Panel title="About this node">

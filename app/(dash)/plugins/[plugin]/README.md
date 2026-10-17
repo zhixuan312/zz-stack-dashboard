@@ -29,7 +29,15 @@ The plugin's skills, gates, your team's calls and refusals, the skills your team
 - Evaluated on 11 Oct 2026 against protocol sdlc-protocol v3, measuring version 0.92.10; guardrails pass.
 ```
 
-- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `query_plugins` looks up what the page lists.
+- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `explore_plugin`, offered on this page alone, counts this plugin's skill calls, its findings and its established scores over any window, every call held to this plugin.
+
+### What the agent does here
+
+Protagonist: About this plugin.
+
+- "Which of its skills did we call most in the last 30 days?" — the calls of its skills over 30 complete days, by skill
+- "How many findings were made about it, and what was decided?" — the findings over every complete day kept, by decision
+- "Has its score been established in the last 90 days?" — the scores established over 90 complete days
 
 ## Surfaces
 

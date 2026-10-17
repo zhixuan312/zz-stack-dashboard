@@ -1,12 +1,14 @@
 'use client';
 
-import { Children, Suspense, createContext, use, useCallback, useContext, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type HTMLAttributes, type ReactNode, type Ref, type RefObject } from 'react';
+import { Children, Suspense, createContext, use, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type HTMLAttributes, type ReactNode, type Ref, type RefObject } from 'react';
 import { Dialog } from 'radix-ui';
 import { Menu, X } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '../../../lib/cn';
 import { usePreferences } from '../providers';
+import { useNavDrawer } from '../use-nav-drawer';
 import { ConsoleSurface } from '../surface/index';
+import { Skeleton } from '../../ui/skeleton/index';
 import dynamic from 'next/dynamic';
 
 // The assistant loads only where it is shown: a product without it, or a person who switched it off, never downloads it.
@@ -29,7 +31,9 @@ const LeaveQuestion = dynamic(loadLeaveQuestion);
  *   ├─ main
  *      └─ PageFrame      the one scroller on the page, vertical only
  *         ├─ top bar     sticky glass: the drawer trigger, the compact title once the masthead leaves, global tools
- *         ├─ masthead    kicker, title, one sentence, meta and actions; scrolls away with the content
+ *         ├─ masthead    kicker, title (a name, or a sentence that states the page's figures), one sentence, meta and
+ *         │              actions; scrolls away with the content. A name shares its row with the meta and actions; a
+ *         │              sentence has a row to itself, and they stand beside the one sentence under it
  *         └─ Stack       rows, one gap apart
  *            └─ Row      one card, or cards split 1/2, 2/3, 1/3, or a row of tiles
  *   └─ assistant         optional, and the person can switch it off: a third column from 1024px, a sheet below; not in the page while closed
@@ -185,16 +189,19 @@ function StillOnNavigation({ main }: { main: RefObject<HTMLElement | null> }) {
 }
 
 /**
- * The navigation drawer below 1024px. It remembers the page it opened on, so navigating closes it without an effect;
- * that is a read of the address, so the drawer is a part of its own behind its own boundary (see `AppShell`), and the
- * shell opens it through the handle.
+ * The navigation drawer below 1024px: the rail, in a dialog that the top bar's button opens. Whether it is open is
+ * `useNavDrawer`'s, and that is a read of the address, so the drawer is a part of its own behind its own boundary (see
+ * `AppShell`).
+ *
+ * That boundary can arrive after the page, and the page holds the trigger: on a phone a press could land while there was
+ * no drawer to take it, and it was dropped (issue #32). So the shell counts the presses in its own state and passes the
+ * count down, and the drawer opens whenever the count it has answered is behind it. A press made before the drawer was
+ * there is answered when it arrives, and each press is answered once.
  */
-function Drawer({ rail, ref }: { rail: ReactNode; ref: Ref<{ open: () => void }> }) {
-  const path = usePathname();
-  const [openOn, setOpenOn] = useState<string | null>(null);
-  useImperativeHandle(ref, () => ({ open: () => setOpenOn(path) }), [path]);
+function Drawer({ rail, asked }: { rail: ReactNode; asked: number }) {
+  const nav = useNavDrawer(asked);
   return (
-    <Dialog.Root open={openOn === path} onOpenChange={(o) => setOpenOn(o ? path : null)}>
+    <Dialog.Root open={nav.open} onOpenChange={nav.setOpen}>
       <Dialog.Portal>
         <Dialog.Overlay className="scrim-in fixed inset-0 z-(--layer-rail) bg-scrim lg:hidden" />
         <Dialog.Content
@@ -237,7 +244,8 @@ export function AppShell({
   assistant: Promise<boolean>;
   children: ReactNode;
 }) {
-  const drawer = useRef<{ open: () => void }>(null);
+  // How many times the page has asked for the drawer; the drawer answers each one (see `Drawer`).
+  const [navAsked, setNavAsked] = useState(0);
   const guard = useLeaveGuard();
   const main = useRef<HTMLElement>(null);
   const [assistantOpen, setAssistantOpen] = useState(false);
@@ -274,7 +282,7 @@ export function AppShell({
   );
   return (
     <LeaveCtx.Provider value={guard.value}>
-    <ShellCtx.Provider value={{ openNav: () => drawer.current?.open(), tools: allTools, assistant }}>
+    <ShellCtx.Provider value={{ openNav: () => setNavAsked((n) => n + 1), tools: allTools, assistant }}>
       <div className="fixed inset-0 isolate flex overflow-hidden">
         {/* The first stop for a keyboard: past the rail and the top bar, straight to the page's masthead (PageFrame). */}
         <a
@@ -287,7 +295,7 @@ export function AppShell({
           <Suspense fallback={null}>{rail}</Suspense>
         </aside>
         <Suspense fallback={null}>
-          <Drawer ref={drawer} rail={rail} />
+          <Drawer asked={navAsked} rail={rail} />
         </Suspense>
         <main ref={main} className="relative flex min-w-0 flex-1 flex-col"><ConsoleSurface ask={ask}>{children}</ConsoleSurface></main>
         {/* After the main area, so the main area is there to mark when this first runs. */}
@@ -323,12 +331,67 @@ export const WIDTH = { data: 'max-w-(--data-width)', reading: 'max-w-(--reading-
 export type PageWidth = keyof typeof WIDTH;
 
 /**
+ * The block a title that is a sentence takes: the section role, balanced, with room for the lines a sentence of some
+ * eighty characters wraps to in its column, the sentence standing on the block's last line. The room is kept whether
+ * the sentence fills it or not, so the placeholder and the sentence are one block, nothing under the heading moves
+ * when one takes the other's place, and the body starts at the same height on every page headed by a sentence.
+ *
+ * The steps are in ems of the role's own size, which the heading carries for them to be read against: the lines a
+ * sentence takes follow its width in characters, not in pixels, and the role's size moves with the viewport while the
+ * heading's width moves with the rail and the assistant too. Four lines under 14.5em, three from there (a 390px phone
+ * is 14.9em), two from 21.5em (1440px with the rail is 35em, and 22em with the assistant open) and one from 42em
+ * (1920px is 49em). The heading must be as wide while its page loads as when it has arrived, or the block keeps
+ * different room in the two: `PageFrame` gives it the masthead's whole width, with nothing beside it.
+ */
+const SENTENCE = 't-section flex min-h-[4lh] flex-col justify-end text-balance @min-[14.5em]:min-h-[3lh] @min-[21.5em]:min-h-[2lh] @min-[42em]:min-h-[1lh]';
+
+/** The sentence on its way: two bars in the block it will take, one where the block is one line. Each bar and its margins are one line of the role. */
+function SentencePending() {
+  return (
+    <span aria-hidden data-title-pending className={SENTENCE}>
+      <Skeleton className="my-[0.2em] h-[0.7em] w-11/12 max-w-[24em] rounded-md" />
+      <Skeleton className="my-[0.2em] h-[0.7em] w-3/5 max-w-[15em] rounded-md @min-[42em]:hidden" />
+    </span>
+  );
+}
+
+/**
+ * A page's heading, the one `h1`. With no `name` it is the title at the page-title size, a name such as "Members".
+ *
+ * A page whose title is a sentence about its figures passes its `name` beside it. The heading is then the name, read
+ * out and not drawn, and the sentence, drawn in the section role; a screen reader's list of headings and whatever
+ * finds a page by its heading still have the name. The sentence may be a part that reads data: the heading is in the
+ * first HTML with the name and a placeholder the size of the sentence's block, and the sentence takes the
+ * placeholder's place. A title that comes to nothing (the page could not work it out) leaves the name to head the
+ * page, drawn as a page that passes no name draws its title. A loading state passes the name alone and draws the
+ * placeholder.
+ */
+export function PageTitle({ name, title, ref }: { name?: string; title?: ReactNode; ref?: Ref<HTMLHeadingElement> }) {
+  if (name === undefined) return <h1 ref={ref} className="t-page">{title}</h1>;
+  return (
+    <h1 ref={ref} className="@container text-xl">
+      {/* The name stays out of sight while a sentence or its placeholder follows it, and heads the page when the sentence came to nothing. */}
+      <span className="t-page sr-only has-[~[data-title]:empty]:not-sr-only">{name}</span>
+      <span className="sr-only">: </span>
+      {title === undefined ? <SentencePending /> : (
+        <Suspense fallback={<SentencePending />}>
+          <span data-title className={cn(SENTENCE, 'empty:hidden')}>{title}</span>
+        </Suspense>
+      )}
+    </h1>
+  );
+}
+
+/**
  * A page: one scroll region holding a glass top bar, the masthead and the rows. The masthead (kicker, title, one
  * sentence, actions) scrolls away with the content; once the title leaves view, a compact title fades into the top
  * bar, which also carries the global tools. Every band shares the gutter and the width, so the title starts exactly
- * where the first card does.
+ * where the first card does. A page headed by a sentence passes its `name` too (`PageTitle`), and the top bar shows
+ * the name; its kicker and heading take a row of the masthead's whole width, above the description, the meta and the
+ * actions. A page headed by its name keeps them all on one row.
  */
 export function PageFrame({
+  name,
   title,
   description,
   kicker,
@@ -338,7 +401,10 @@ export function PageFrame({
   width = 'data',
   children,
 }: {
-  title: ReactNode;
+  /** The page's name, for a page whose `title` is a sentence: kept in the heading for assistive technology and shown in the top bar. */
+  name?: string;
+  /** The page's title: its name, or with `name` the sentence that heads it. Left out with `name`, the sentence is still to come. */
+  title?: ReactNode;
   /** One sentence under the title: what this page answers. */
   description?: ReactNode;
   /** Mono caps above the title: where this page sits ("ZZ Meridian · Production", or the parent record). */
@@ -361,6 +427,16 @@ export function PageFrame({
     io.observe(el);
     return () => io.disconnect();
   }, []);
+  // The freshness stamp and the page's controls are one cluster, and a phone is where it has to be arranged rather than
+  // merely allowed to fit: with the stamp inline, the period select ends the line and the export button is left stranded
+  // on a line of its own, which reads as a layout that ran out. The stamp takes the line on its own there, so the two
+  // controls stay together.
+  const beside = meta || actions ? (
+    <div className="flex flex-wrap items-center gap-2.5">
+      {meta ? <div className="mr-1.5 max-lg:w-full">{meta}</div> : null}
+      {actions}
+    </div>
+  ) : null;
   return (
     <div data-scroll-region className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain [scrollbar-gutter:stable] scroll-pt-16">
       {/* `scroll-pt-16` (64px) is for the keyboard: a control focused far down the page scrolls into view, and without
@@ -375,25 +451,41 @@ export function PageFrame({
         <div className={cn('@container mx-auto flex h-14 w-full items-center gap-3 px-(--gutter)', WIDTH.data)}>
           <NavTrigger />
           <p aria-hidden className={cn('min-w-0 truncate text-sm font-semibold transition-[opacity,transform] duration-(--dur-enter) ease-out', stuck ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0')}>
-            {title}
+            {name ?? title}
           </p>
           <div className="ml-auto flex items-center gap-1.5">{tools}</div>
         </div>
       </div>
       <header id="content" tabIndex={-1} className={cn('mx-auto w-full px-(--gutter) pt-4 pb-8 outline-none lg:pt-6 lg:pb-10', WIDTH[width])}>
-        <div className="flex flex-wrap items-end gap-x-8 gap-y-5">
-          <div className="min-w-0 flex-1 basis-[28rem]">
-            {kicker ? <p className="t-kicker mb-4">{kicker}</p> : null}
-            <h1 ref={head} className="t-page">{title}</h1>
-            {description ? <p className="t-lead mt-3 max-w-[60ch]">{description}</p> : null}
-          </div>
-          {meta || actions ? (
-            <div className="flex flex-wrap items-center gap-2.5">
-              {meta ? <div className="mr-1.5">{meta}</div> : null}
-              {actions}
+        {name === undefined ? (
+          <div className="flex flex-wrap items-end gap-x-8 gap-y-5">
+            <div className="min-w-0 flex-1 basis-[28rem]">
+              {kicker ? <p className="t-kicker mb-4">{kicker}</p> : null}
+              <PageTitle ref={head} title={title} />
+              {description ? <p className="t-lead mt-3 max-w-[60ch]">{description}</p> : null}
             </div>
-          ) : null}
-        </div>
+            {beside}
+          </div>
+        ) : (
+          <>
+            {/* A sentence's heading has a row to itself, the masthead's whole width. The room its block keeps is read
+                from its width, and beside the meta and the actions that width changed when they arrived: a loading
+                state has none, so the block kept two lines while the page loaded and three once it had, and
+                everything under it dropped. Now its width follows the viewport, the rail and the assistant alone. */}
+            <div>
+              {kicker ? <p className="t-kicker mb-4">{kicker}</p> : null}
+              <PageTitle ref={head} name={name} title={title} />
+            </div>
+            {/* The description grows, so the meta and the actions end the row on its last line; with no description
+                nothing is left to grow in its place, and they stand at the row's start. */}
+            {description || beside ? (
+              <div className={cn('flex flex-wrap items-end gap-x-8 gap-y-5', description ? 'mt-3' : 'mt-5')}>
+                {description ? <div className="min-w-0 flex-1 basis-[28rem]"><p className="t-lead max-w-[60ch]">{description}</p></div> : null}
+                {beside}
+              </div>
+            ) : null}
+          </>
+        )}
         {toolbar ? <div className="mt-8">{toolbar}</div> : null}
       </header>
       <div data-page-width={width} className={cn('mx-auto w-full px-(--gutter) pb-16', WIDTH[width])}>{children}</div>

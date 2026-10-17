@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { cn } from '../../../lib/cn';
 import { formatDuration } from '../../../lib/format';
 import { formatDate, formatDateTime, formatRelative } from '../../../lib/format-date';
@@ -17,13 +18,27 @@ const SEVERITY: Record<Incident['severity'], { tone: Tone; word: string }> = {
 };
 
 
-/** An incident: what broke, where, how bad, its state and its updates, newest last. */
-
-export type Incident = { id: string; title: string; service: string; severity: 'minor' | 'major'; state: 'investigating' | 'monitoring' | 'resolved'; started: string; resolved?: string; updates: { at: string; text: string }[] };
 /**
- * An incident, told the way a reader needs it: what is affected, how bad, where it stands, and every update since it
- * started, newest first. A live incident leads with its state; a resolved one with how long it lasted. `row` is the
- * compact form for a list of past incidents: the title wraps rather than losing its end.
+ * An incident: what broke, where, how bad, its state and its updates, in any order. `owner` is who has it and `ticket`
+ * where the work is tracked, an address inside the product: both are the team's, so a card customers read passes neither.
+ */
+export type Incident = { id: string; title: string; service: string; severity: 'minor' | 'major'; state: 'investigating' | 'monitoring' | 'resolved'; started: string; resolved?: string; updates: { at: string; text: string }[]; owner?: string; ticket?: { title: string; href: string } };
+
+/**
+ * When an update came, counted from the incident's start in the product's durations: "after 42m", "after 2.6h". The
+ * question a reader has of a timeline is how long each step took, and time ago answers a different one. An update
+ * inside the first minute, or timed before the start, came at the start.
+ */
+export function afterStart(started: string, at: string) {
+  const ms = new Date(at).getTime() - new Date(started).getTime();
+  return ms < 60_000 ? 'at the start' : `after ${formatDuration(ms)}`;
+}
+
+/**
+ * An incident, told the way a reader needs it: what is affected, how bad, where it stands, who has it and where it is
+ * tracked, and every update since it started, newest first, each timed from the start. A live incident leads with its
+ * state; a resolved one with how long it lasted. `row` is the compact form for a list of past incidents: the title
+ * wraps rather than losing its end.
  */
 export function IncidentCard({ incident, now, variant = 'card', className }: { incident: Incident; now: Date; variant?: 'card' | 'row'; className?: string }) {
   const st = STATE[incident.state];
@@ -60,6 +75,13 @@ export function IncidentCard({ incident, now, variant = 'card', className }: { i
           {incident.service} · started <time dateTime={incident.started} title={formatDateTime(incident.started)}>{formatRelative(incident.started, now)}</time>
           {lasted !== null ? <> · lasted {formatDuration(lasted)}</> : null}
         </p>
+        {incident.owner || incident.ticket ? (
+          <p className="t-caption mt-1 text-pretty">
+            {incident.owner ? <>Owner <span data-owner className="text-ink-2">{incident.owner}</span></> : null}
+            {incident.owner && incident.ticket ? ' · ' : null}
+            {incident.ticket ? <>Ticket <Link href={incident.ticket.href} className="link">{keepHyphenated(incident.ticket.title)}</Link></> : null}
+          </p>
+        ) : null}
       </div>
       <ol aria-label="Updates" className="relative mx-(--card-pad) mt-5 mb-(--card-pad) flex flex-col gap-5 border-t border-line pt-5">
         {updates.map((u, i) => (
@@ -69,8 +91,8 @@ export function IncidentCard({ incident, now, variant = 'card', className }: { i
               {i === 0 && live ? <StatusDot tone={st.tone} live /> : <span className="size-1.5 rounded-full bg-ink-3" />}
             </span>
             <div className="min-w-0">
-              <time dateTime={u.at} title={formatDateTime(u.at)} className="t-caption t-num font-medium">{formatRelative(u.at, now)}</time>
-              <p className="t-small mt-1 text-ink-2">{u.text}</p>
+              <time dateTime={u.at} title={formatDateTime(u.at)} className="t-caption t-num font-medium">{afterStart(incident.started, u.at)}</time>
+              <p className="t-small mt-1 text-ink-2">{keepHyphenated(u.text)}</p>
             </div>
           </li>
         ))}

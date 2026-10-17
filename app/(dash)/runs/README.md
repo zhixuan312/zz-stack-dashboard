@@ -27,7 +27,15 @@ Whose runs these are and since when, then how many, the observed output per run 
 - The runs cover 10.4 h, overlapping time counted once, against 10.8 h summed; at most 2 ran at once, and 3 were one call.
 ```
 
-- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `query_skills` looks up the team's runs of each skill, narrowed to one plugin's on the route.
+- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `explore_runs`, offered on this page alone, counts the team's runs and their observed output over any window, by skill, initiative, weekday or hour, down to the runs themselves.
+
+### What the agent does here
+
+Protagonist: Where the work happens.
+
+- "Which skill ran most in the last 30 days?" — the runs over 30 complete days, by skill
+- "Which skill answered the most output this quarter?" — the observed output over 90 complete days, by skill
+- "On which weekday do our runs start most?" — the runs over 90 complete days, by weekday
 
 ## Surfaces
 

@@ -40,7 +40,15 @@ The document's path, its initiative and flow, then where it stands with its gate
 - Approval is given on this page, by a member of the document's team who has been shown this exact snapshot. An agent cannot approve it.
 ```
 
-- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `query_initiatives` looks up what the page lists.
+- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `explore_document`, offered on this page at any depth of its path, counts the words this document gained and its initiative's approvals, every call held to this document.
+
+### What the agent does here
+
+Protagonist: Document.
+
+- "How many words has this document gained in the last 30 days?" — the words written over 30 complete days, held to this document
+- "How was it written week by week this quarter?" — the words written over 90 complete days, a week at a time
+- "Were the approvals of its initiative shown to me before I gave them?" — the approvals of the document's initiative over every complete day kept, by presentation
 
 ## Surfaces
 

@@ -9,7 +9,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 <!-- END:nextjs-agent-rules -->
 
 <!-- BEGIN:zz-meridian-agent-rules -->
-# Built on ZZ Meridian 0.15.0
+# Built on ZZ Meridian 0.16.3
 
 Follow the zz-meridian skill in `.agents/skills/zz-meridian/SKILL.md`.
 Read `optional:docs/brief.md` for this team's product, users, data and decisions.

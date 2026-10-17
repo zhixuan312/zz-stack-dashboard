@@ -23,9 +23,9 @@ export function Panel({
   actions?: ReactNode;
   children: ReactNode;
   flush?: boolean;
-  /** Let the title wrap rather than truncate: for a card in a narrow column whose head also holds controls, where one
-   *  line would cut a short label. Meridian's `CardHeader` puts no `title` on a truncated heading, so a cut one loses
-   *  its words. */
+  /** Let the title wrap rather than truncate: for a card in a narrow column whose head also holds controls, where the
+   *  heading must be read whole. A cut plain-text heading keeps its words in Meridian's `CardHeader` `title`, which a
+   *  pointer reads and a phone never shows, so this is for reading, not for the audit. */
   wrap?: boolean;
   className?: string;
 } & Omit<HTMLAttributes<HTMLDivElement>, 'title' | 'children'>) {

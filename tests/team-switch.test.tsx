@@ -24,9 +24,11 @@ const TWO = settled({ caller: 'noah@example.com', team: 'team-two', user: { role
 
 const me = { email: 'noah@example.com', name: 'Noah', role: 'member', mayRead: true, superadmin: false, via: 'session', teams: [{ slug: 'team-one', role: 'admin' }, { slug: 'team-two', role: 'member' }], activeTeam: 'team-one' };
 const myTeams = { actingFor: 'team-one', teams: [{ team: 'team-one', role: 'admin', active: true }, { team: 'team-two', role: 'member', active: false }], note: null };
-const stamped = (team: string): UIMessage[] => [
+/** The assistant's thread as ZZ Meridian keeps it: for one person and the team they act for (`AssistantScope`). */
+const SCOPE = 'team-one/noah@example.com';
+const THREAD: UIMessage[] = [
   { id: 'u1', role: 'user', parts: [{ type: 'text', text: 'what waits?' }] },
-  { id: 'a1', role: 'assistant', metadata: { caller: 'noah@example.com', team }, parts: [{ type: 'text', text: 'two documents' }] },
+  { id: 'a1', role: 'assistant', parts: [{ type: 'text', text: 'two documents' }] },
 ];
 
 /** The marker each team's read answers, and every one the probe drew with the team it drew it for. */
@@ -113,7 +115,7 @@ describe('the read key', () => {
 
 describe('a switch the gateway accepts', () => {
   it('clears the assistant\'s thread, tells the other tabs, and only then replaces the document with the same address', async () => {
-    saveThread(window.localStorage, stamped('team-one'));
+    saveThread(window.localStorage, SCOPE, THREAD);
     render(<Tree client={new QueryClient()} access={ONE} team="team-one"><TeamsPanel /></Tree>);
     const press = await screen.findByRole('button', { name: 'Act as this team' });
     const readsBefore = calls.filter((c) => c.method === 'GET').length;
@@ -124,7 +126,7 @@ describe('a switch the gateway accepts', () => {
     expect(replaced[0].thread).toBeNull();
     expect(replaced[0].switchKey).not.toBeNull();
     // The next load reads an empty thread.
-    expect(loadThread(window.localStorage)).toEqual([]);
+    expect(loadThread(window.localStorage, SCOPE)).toEqual([]);
     // Nothing was read again under the old team's keys before the document went: the switch invalidates nothing.
     expect(calls.filter((c) => c.method === 'GET')).toHaveLength(readsBefore);
     // And a second press cannot switch again while the document is on its way out.
@@ -155,7 +157,7 @@ describe('a switch the gateway accepts', () => {
 describe('a switch the gateway refuses', () => {
   it('clears nothing and navigates nowhere', async () => {
     switchAnswer = { status: 400, body: { error: 'not a member of team-two' } };
-    saveThread(window.localStorage, stamped('team-one'));
+    saveThread(window.localStorage, SCOPE, THREAD);
     const client = new QueryClient();
     render(<Tree client={client} access={ONE} team="team-one"><TeamsPanel /></Tree>);
     await waitFor(() => expect(screen.getByTestId('marker')).toHaveTextContent('team-one'));
@@ -164,7 +166,7 @@ describe('a switch the gateway refuses', () => {
     await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
     expect(replaced).toEqual([]);
     expect(window.localStorage.getItem('zz-stack-team-switch')).toBeNull();
-    expect(loadThread(window.localStorage)).toHaveLength(2);
+    expect(loadThread(window.localStorage, SCOPE)).toHaveLength(2);
     expect(client.getQueryData(['console', '/overview', 'noah@example.com', 'team-one', 'Member'])).toEqual({ marker: 'team-one' });
     expect(screen.getByRole('button', { name: 'Act as this team' })).toBeEnabled();
   });
@@ -172,7 +174,7 @@ describe('a switch the gateway refuses', () => {
 
 describe('another tab of the same browser', () => {
   it('hears the switch and replaces its document too, its thread cleared first', async () => {
-    saveThread(window.localStorage, stamped('team-one'));
+    saveThread(window.localStorage, SCOPE, THREAD);
     render(<Tree client={new QueryClient()} access={ONE} team="team-one" />);
     await waitFor(() => expect(screen.getByTestId('marker')).toHaveTextContent('team-one'));
     // What the browser fires in every OTHER tab when one of them writes the key; jsdom has no other tab.

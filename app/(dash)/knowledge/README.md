@@ -28,7 +28,15 @@ Whose shelf it is, the filters in force and the page, then how many lessons matc
 - The team's own questions that found nothing, most asked first (13 in all): "how do we rotate the signing key" 3×, last 13 Oct 2026; …
 ```
 
-- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `query_knowledge` pages the route with its text and kind filters and answers the route's total. `view_search` is how it reads what a lesson says beyond the title and opening excerpt listed here, and what any document says: the platform's ranked search over the team's shelf and the shared one, as the person, each result a matched excerpt with its address.
+- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `explore_knowledge`, offered on this page alone, counts the shelf, the lessons made and the searches over any window, by kind, standing or whether a search found anything. `view_search` is how it reads what a lesson says beyond the title and opening excerpt listed here, and what any document says: the platform's ranked search over the team's shelf and the shared one, as the person, each result a matched excerpt with its address.
+
+### What the agent does here
+
+Protagonist: Lessons.
+
+- "How many of our searches found nothing in the last 30 days, and what did they ask?" — the searches that found nothing over 30 complete days, down to their questions
+- "Which kind of lesson did we make most this quarter?" — the lessons made over 90 complete days, by kind
+- "How many lessons stand on our shelf, by kind?" — the shelf of standing lessons, by kind
 
 ## Surfaces
 

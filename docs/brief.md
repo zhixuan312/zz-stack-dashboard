@@ -130,12 +130,11 @@ a time or `sources/2026-10-06-call.md` arrives as a single segment named after i
   `mobileCell` renders it; the two extras are still read on the same page, in the table and in the flow stepper above.
 - **The assistant is Meridian's, mounted the way Meridian's guide says, and it changes nothing.** The panel, the
   route (`app/api/assistant/route.ts`) and `src/lib/assistant/` are the release's own; `src/data/` and `src/views/` are
-  this console's: the access policy, one read-only collection per list, and one shared context per page (decision
-  0011), built by a pure function the page and its `view_<name>` tool both call. It is off until the provider, the key
-  and the model are set, plus `ASSISTANT_BASE_URL` for `openai-compatible`, read per request. Every change in this
-  console stays on its page, by the person: no collection gives an agent a tool that writes, and what a page does is
-  declared `pageOnly` so the assistant says where it is done. Approval above all: a document is approved by a member
-  who was shown that exact snapshot, never by an agent.
+  this console's: the access policy, one prepared collection per measure of the gateway's prepared queries, and one
+  shared context per page (decision 0011), built by a pure function the page and its `view_<name>` tool both call. It is
+  off until the provider, the key and the model are set, plus `ASSISTANT_BASE_URL` for `openai-compatible`, read per
+  request. Every change in this console stays on its page, by the person: no collection gives an agent a tool that
+  writes. Approval above all: a document is approved by a member who was shown that exact snapshot, never by an agent.
 - **This app's server reads the gateway as the person, in one module.** Every page's gate and the chrome read `/me`
   once per request, and the assistant's route has to know who is asking before a model is reached while its tools look
   records up as a reply is written. `src/data/gateway.ts` sends the caller's own `zz_console` cookie, that cookie
@@ -146,7 +145,7 @@ a time or `sources/2026-10-06-call.md` arrives as a single segment named after i
 - **The assistant reads what documents say through the platform's own search.** `view_search` asks `GET /search`,
   which is zz-core's `knowledge_search` run as the person: the text of every document and knowledge node of the team
   they act for, and of the platform's shared shelf, ranked, each result a matched excerpt with the address of the page
-  that shows it. It is the one tool that reads content; every list the assistant can query holds titles, states and
+  that shows it. It is the one tool that reads content; every view and prepared query states titles, states and
   counts, and the Knowledge page's own field filters titles and opening excerpts. It has no page of its own, its
   context is held to a view's 2,400 characters by sharing the room between results, and it takes no platform scope:
   the gateway refuses one team's search asked for as the fleet's. Set on 2026-10-12, when the Ask tab went: the
@@ -164,16 +163,22 @@ a time or `sources/2026-10-06-call.md` arrives as a single segment named after i
 - **The rule for anything Meridian has an answer to**, set on 2026-10-12: use the release; where it lacks something or
   gets it wrong, read the issue list and file it; write the console's own only as the interim, and say so where it is
   written.
-- **A collection's conditions, sort and page are the release's.** `src/data/gateway-collection.ts` reads the gateway
-  and hands the rows to the release's `queryRows`, so there is no second copy of the query rules here. zz-meridian#24
-  asked for a row query exported on its own, and 0.15.0 ships it.
+- **The assistant counts through the gateway's prepared queries, never over rows loaded for it.** Since ZZ Meridian
+  0.16 an agent asks the page it is on `explore_<view>`, which every view tool declares beside its page in its own module
+  under `src/views/tools/`. Each source is a prepared collection: one row of `src/data/prepared.ts` per measure of Work's
+  `/work/query`, Platform's `/platform/query`, or the caller's own Access answer for their tokens, made a `Collection`
+  by one factory, `src/data/prepared-aggregate.ts`, that asks the route once for each base measure and drills to the
+  route's own rows on the same days. What the route cannot answer is refused before anything is read. The reads in
+  `src/data/read.ts` are uncached, where the release's use `'use cache'`: every read is made with the caller's own cookie,
+  and spec version 8 lets no such read be kept for another caller. Set on 2026-10-17 with the move to 0.16.3.
 - **The assistant reads and does not write, by the release's own switch.** A collection gives an agent a tool only for
-  an operation it allows, and this console's allow none: what a page does is declared `pageOnly`. Letting it propose a
+  an operation it allows, and this console's implement none. Letting it propose a
   change (revoke a token, add a member, archive a team) is a feature to decide, not a gap in the adoption, and it needs
   the gateway to record that a change was made through the assistant.
 - **Knowledge has no Ask tab.** The page that answered a question from one team's shelf, through the gateway's own
-  model call, is gone: the assistant is the one place a question is asked. It finds nodes with `query_knowledge` and
-  reads one with `view_knowledge_node`, whose context carries the lesson itself. What that drops is the gateway's
+  model call, is gone: the assistant is the one place a question is asked. It finds nodes with `view_knowledge` and
+  `view_search`, counts the shelf with `explore_knowledge`, and reads one node with `view_knowledge_node`, whose context
+  carries the lesson itself. What that drops is the gateway's
   ranked retrieval over document bodies; the assistant searches titles, excerpts and tags.
 - **A document is read at the canvas width, with its running text capped at 92ch — not at `--reading-width`.** The
   person's own complaint, in their words: the documents are already long, and squeezing one into a centred strip makes

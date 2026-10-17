@@ -1,6 +1,7 @@
 'use client';
 
 import { cn } from '../../../lib/cn';
+import { runOf } from '../../../lib/facts';
 import { formatDuration } from '../../../lib/format';
 import { StatusDot } from '../../ui/status-dot/index';
 import type { Tone } from '../../ui/badge/index';
@@ -13,8 +14,10 @@ export { summarise };
 const STATE: Record<ServiceStatus, { tone: Tone; word: string; ink: string }> = {
   operational: { tone: 'positive', word: 'Operational', ink: 'text-positive-ink' },
   degraded: { tone: 'warning', word: 'Degraded', ink: 'text-warning-ink' },
-  outage: { tone: 'critical', word: 'Outage', ink: 'text-critical-ink' },
+  outage: { tone: 'critical', word: 'Down', ink: 'text-critical-ink' },
 };
+/** What a row says of its run when its last day is not an operational one: there is no run to count. */
+const TODAY: Record<Exclude<ServiceStatus, 'operational'>, string> = { degraded: 'Degraded today', outage: 'Down today' };
 
 
 export type ServiceStatus = 'operational' | 'degraded' | 'outage';
@@ -31,9 +34,29 @@ const ROWS = [
 ].join(' ');
 
 /**
+ * How long a service has run: the operational days that end today, counted from the days its strip draws, so the
+ * figure and the marks above it are the same days. Today is the strip's last day, whatever `status` says of this
+ * minute. A run that goes back to the earliest day kept is at least that long and is never called the longest; a
+ * service with no days says nothing.
+ */
+function Run({ days }: { days: ServiceStatus[] }) {
+  const today = days.at(-1);
+  if (today === undefined) return null;
+  if (today !== 'operational') return <p data-run className="t-caption mt-2"><span className="font-medium text-ink-2">{TODAY[today]}</span></p>;
+  const { length, reachesStart, longest } = runOf(days, 'operational');
+  return (
+    <p data-run className="t-caption mt-2 text-pretty">
+      Operational for <span className="t-num font-medium text-ink-2">{reachesStart ? 'at least ' : null}{length} {plural(length, 'day')}</span>
+      {longest && !reachesStart ? <> · its longest in {days.length}</> : null}
+    </p>
+  );
+}
+
+/**
  * Every service and how it is right now: a dot and a word for its state, its latency, and ninety days of history as
  * uptime bars. The summary line on top says the worst state in words. On a wide card the bars sit beside each service;
- * on a narrow one (a phone, an embed) they drop underneath, every day still shown.
+ * on a narrow one (a phone, an embed) they drop underneath, every day still shown. With `run`, each row says under its
+ * bars how long the service has been operational.
  */
 export function StatusList({
   services,
@@ -43,6 +66,7 @@ export function StatusList({
   noun = SERVICE_NOUN,
   measure,
   metric = (svc) => `p95 ${formatDuration(svc.latency)}`,
+  run = false,
   className,
 }: {
   services: Service[];
@@ -58,6 +82,8 @@ export function StatusList({
   measure?: string;
   /** The figure under each row's state word; p95 latency by default. */
   metric?: (svc: Service) => string;
+  /** Say under each row's bars how long the service has run: "Operational for 69 days · its longest in 90". */
+  run?: boolean;
   className?: string;
 }) {
   const s = summarise(services, noun);
@@ -85,6 +111,7 @@ export function StatusList({
               </div>
               <div>
                 <UptimeBars days={svc.days} uptime={svc.uptime} end={end} label={`${svc.name}, last 90 days`} measure={measure} />
+                {run ? <Run days={svc.days} /> : null}
               </div>
               <div>
                 <p className={cn('text-xs font-medium', st.ink)}>{st.word}</p>

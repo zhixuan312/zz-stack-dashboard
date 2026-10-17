@@ -27,7 +27,15 @@ The node's team and number, its status, type, date and tags. What code found: th
 - It was learned in 2026-09-12-onboarding-revamp (/initiatives/atlas/2026-09-12-onboarding-revamp).
 ```
 
-- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `query_knowledge` looks up what the page lists.
+- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `explore_knowledge_node`, offered on this page at any depth of its path, counts the shelf and the lessons made of this lesson's kind, every call held to that kind: the prepared query keys no lesson by itself.
+
+### What the agent does here
+
+Protagonist: The lesson.
+
+- "How many lessons of this kind stand on our shelf, and how many were superseded?" — the shelf of this lesson's kind, by standing
+- "How many lessons of this kind did we make in the last 90 days?" — the lessons made of this lesson's kind over 90 complete days
+- "When were lessons of this kind made, month by month?" — the lessons made of this lesson's kind over every complete day kept, a month at a time
 
 ## Surfaces
 

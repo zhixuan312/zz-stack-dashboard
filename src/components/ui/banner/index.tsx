@@ -30,7 +30,7 @@ export function Banner({
   className,
 }: {
   tone?: BannerTone;
-  /** What is happening, in one line: "Elevated latency in eu-west-1". */
+  /** What is happening, in one line: "Elevated latency in ap-south-2". */
   title: ReactNode;
   /** What it means for the reader, and what to do; one or two sentences. */
   children?: ReactNode;

@@ -25,7 +25,15 @@ The team's name, status and creation date, then how many initiatives it has and 
 - Its people: Ava Lindqvist (admin, joined 3 Mar 2026); Noah Okafor (member, joined 9 Jun 2026).
 ```
 
-- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover.
+- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `explore_team`, offered on this page alone, counts the team's real-work calls over any window, every call held to this team.
+
+### What the agent does here
+
+Protagonist: Members.
+
+- "How many real-work calls did this team make in the last 30 days?" — the platform's calls over 30 complete days, held to this team
+- "Which tools does this team call most?" — the platform's calls over 30 complete days, by tool
+- "How did its calls move week by week this quarter?" — the platform's calls over 90 complete days, a week at a time
 
 ## Surfaces
 

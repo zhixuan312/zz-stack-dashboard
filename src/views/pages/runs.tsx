@@ -59,7 +59,7 @@ export function RunsView() {
         loading={q.isPending}
         error={failureOf(q) ?? (r?.bySkill.state === 'unavailable' ? r.bySkill.reason : undefined)}
         onRetry={() => void q.refetch()}
-        ask={<AskAbout iconBelowSm question="Which skill's runs answer the most output, and why does it matter?" />}
+        ask={<AskAbout question="Which skill's runs answer the most output, and why does it matter?" />}
       />
     </ConsolePage>
   );

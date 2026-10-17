@@ -13,7 +13,7 @@ import { LIST_STATES, PAGE_SIZE, STATE_LABEL, narrowed, type InitiativesFilters 
 
 /**
  * What comes next, in words. zz-core's `next_move` answers a token (`await_approval`) that an agent reads as it is, in
- * `query_initiatives`; a person, and the context that quotes the page, read the sentence. A token not named here is
+ * `explore_initiatives`' drilled rows; a person, and the context that quotes the page, read the sentence. A token not named here is
  * shown with its underscores as spaces rather than hidden.
  */
 const ACTION: Record<string, (doc: string | null, stage: string | null) => string> = {

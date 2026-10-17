@@ -15,7 +15,7 @@ const apiError = (statusCode: number) => new APICallError({ message: `Provider s
 /** What the SDK raises after retrying a retryable error until it gives up. */
 const gaveUp = (statusCode: number) => new RetryError({ message: `Failed after 3 attempts: ${KEY}`, reason: 'maxRetriesExceeded', errors: [apiError(statusCode)] });
 async function errorText(error: unknown): Promise<string> {
-  const res = await respond({ model: failing(error), secret: 's'.repeat(43), messages: ask, page: { path: '/', title: 'Overview', text: '' }, collections: [], guard, now: new Date('2026-10-03T09:00:00Z'), stamp: { caller: 'a@example.com', team: 'atlas' } });
+  const res = await respond({ model: failing(error), secret: 's'.repeat(43), messages: ask, page: { path: '/', title: 'Overview', text: '' }, collections: [], guard, now: new Date('2026-10-03T09:00:00Z') });
   const body = await res.text();
   expect(body).not.toContain(KEY);
   const events = body.split('\n').filter((l) => l.startsWith('data: ') && l !== 'data: [DONE]').map((l) => JSON.parse(l.slice(6)));

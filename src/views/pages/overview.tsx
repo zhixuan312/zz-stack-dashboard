@@ -89,7 +89,7 @@ function Refusals({ r, rate, doors, period }: { r: Overview['refusals']; rate: n
       description={r.total ? `${formatCount(r.total)} calls refused${rate === null ? '' : `, ${formatPercent(rate / 100)} of all calls`}` : 'Nothing refused a call in this period'}
       actions={r.total ? (
         <>
-          <AskAbout iconBelowSm question={`Which refusals over ${period} matter most, and what would stop them?`} />
+          <AskAbout question={`Which refusals over ${period} matter most, and what would stop them?`} />
           <Segmented label="Group refusals by" value={axis} onChange={setAxis} options={[{ value: 'tool', label: 'Tool' }, { value: 'message', label: 'Message' }]} />
         </>
       ) : undefined}
@@ -126,7 +126,7 @@ function Pointed({ onChange }: { onChange: (index: number | null) => void }) {
 function AskOverview({ span, grain, timezone }: { span: string; grain: Overview['grain']; timezone: string }) {
   const { index, dates } = useMeridianIndex();
   const at = index !== null ? dates[index] : null;
-  return <AskAbout iconBelowSm question={at ? `Why do tool calls on ${bucketLabel(at, grain, timezone)} look the way they do?` : `What stands out in tool calls over ${span}, and why?`} />;
+  return <AskAbout question={at ? `Why do tool calls on ${bucketLabel(at, grain, timezone)} look the way they do?` : `What stands out in tool calls over ${span}, and why?`} />;
 }
 
 function OverviewSkeleton() {
@@ -177,7 +177,7 @@ export function OverviewView() {
                   kicker={<>Tool calls · {PERIOD_LABEL[period]}</>}
                   actions={calls ? <AskOverview span={span} grain={d.grain} timezone={d.timezone} /> : undefined}
                   value={calls}
-                  daily={totals}
+                  points={totals}
                   format={formatCompact}
                   caption={calls
                     ? <>One point per {d.grain}. The busiest {d.grain === 'week' ? 'was the week of' : 'was'} {bucketLabel(dates[busiest], d.grain, d.timezone)}, with {formatCount(totals[busiest])} calls.</>

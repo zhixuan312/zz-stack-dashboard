@@ -14,24 +14,26 @@
  *   it is called in, and nowhere else, so two requests never share an answer.
  * - The assistant's policy asks afresh on every call, because its tools run long after the route answered: a role
  *   change, a team switch or a sign-out takes effect at the next operation.
- * - `bind` returns the collection as it is. A collection's rows are a gateway read made with the caller's own
- *   credential, so the gateway has already applied the predicate: a member's read comes back as their team's rows and
- *   a superadmin's as every team's, and a read only the superadmin may make, as Teams and People are, refuses anyone
- *   else. There is no second, wider copy for a scope to be bound away from.
+ * - `bind` returns the collection as it is. A collection's figures are a gateway read made with the caller's own
+ *   credential, so the gateway has already applied the predicate: a member's read comes back as their team's and the
+ *   platform's public figures, a superadmin's as every team's, and a read only the superadmin may make, as Teams and
+ *   People are, refuses anyone else. There is no second, wider copy for a scope to be bound away from.
  *
  * None of this widens a read: the gateway refuses what the person may not read whatever this says.
  *
  * `authorizationKey` changes whenever what the scope may see changes: the person, their role, the team they act for
  * and their memberships.
  */
+import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { cache, type JSX } from 'react';
-import { nav } from '@/app.config';
+import { nav, refusal } from '@/app.config';
 import { collections } from '@/data/collections';
 import { FEATURES, type FeatureId } from '@/data/features';
 import { GatewayError, gatewayGet } from '@/data/gateway';
-import { MAIN_ROLES, effective, type ConsoleGrant, type ConsoleNeed, type MainRole } from '@/data/roles';
+import { PREPARED } from '@/data/prepared';
+import { MAIN_ROLES, effective, type ConsoleNeed, type MainRole } from '@/data/roles';
 import type { Me } from '@/lib/api-shapes';
 import type { AnyCollection, ChromeAccess } from '@/lib/collection';
 import { ownPath } from '@/lib/own-path';
@@ -124,28 +126,8 @@ function satisfies(role: MainRole, need: ConsoleNeed): boolean {
   return typeof need === 'string' ? grants.has(need) : need.allOf.every((grant) => grants.has(grant));
 }
 
-/** The destination each collection is the list of: an agent is offered the list where the rail offers the page. */
-const COLLECTION_NEEDS: Record<string, ConsoleNeed> = {
-  teams: FEATURES.teams.needs,
-  initiatives: FEATURES.initiatives.needs,
-  knowledge: FEATURES.knowledge.needs,
-  knowledge_log: FEATURES.knowledge.needs,
-  people: FEATURES.people.needs,
-  plugins: FEATURES.plugins.needs,
-  skills: FEATURES.runs.needs,
-  activity: FEATURES.activity.needs,
-  tokens: FEATURES.settings.needs,
-};
-
-/**
- * What a page lets a person change, by the grant that permits it, so the assistant can say where it is done (`onPage`
- * in `src/data/gateway-collection.ts`). Courtesy, like the Settings tiers it mirrors: the gateway validates each write.
- */
-const PAGE_CHANGES: Record<string, ConsoleGrant> = {
-  teams: 'teams:manage',
-  people: 'people:manage',
-  tokens: 'tokens:manage',
-};
+/** What reading each collection needs: the grant of the page that shows its figures (`src/data/prepared.ts`). */
+const COLLECTION_NEEDS: Record<string, ConsoleNeed> = Object.fromEntries(PREPARED.map((r) => [r.name, r.needs]));
 
 function accessFrom(policy: Policy) {
   async function resolveAccess(): Promise<AccessScope> {
@@ -180,10 +162,8 @@ export const { resolveAccess, collectionFor, can, nameOf } = accessFrom({
     // is allowed nothing.
     if (who.is !== 'person' || scopeOf(who).authorizationKey !== scope.authorizationKey) return false;
     const need = COLLECTION_NEEDS[name];
-    if (!need || !satisfies(who.role, need)) return false;
-    if (op === 'read') return true;
-    const change = PAGE_CHANGES[name];
-    return change !== undefined && satisfies(who.role, change);
+    // Read, and nothing else: no collection takes a change from an agent, so no grant permits one here.
+    return op === 'read' && need !== undefined && satisfies(who.role, need);
   },
   name: async () => {
     const who = await ask();
@@ -232,6 +212,23 @@ export async function gate(feature: FeatureId): Promise<JSX.Element | null> {
   if (who.is === 'refused') redirect(`/login?denied=1&reason=${encodeURIComponent(who.reason)}`);
   if (!satisfies(who.role, FEATURES[feature].needs)) return await NoAccess({ feature });
   return null;
+}
+
+/** What the tab reads on an address that names nothing. */
+const NOT_FOUND_TITLE = 'Not found';
+
+/**
+ * The title a gated page carries, called from its `generateMetadata` so the tab agrees with what `gate` answers: under
+ * `refusal: 'absent'` a person the role table places who lacks the feature's grant gets the missing page's title, kept
+ * out of search, and anyone else the page's own. Under `explain` the page's own title is the answer for everyone, as the
+ * no-access view names the page anyway, and nobody is read. Nobody, or a session the console refuses, keeps the page's
+ * own title: `gate` sends either to sign in.
+ */
+export async function gatedMetadata(feature: FeatureId, metadata: Metadata): Promise<Metadata> {
+  if (refusal !== 'absent') return metadata;
+  const who = await identity();
+  if (who.is !== 'person' || satisfies(who.role, FEATURES[feature].needs)) return metadata;
+  return { title: NOT_FOUND_TITLE, robots: { index: false } };
 }
 
 /**

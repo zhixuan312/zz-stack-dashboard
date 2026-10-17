@@ -1,9 +1,9 @@
 // @vitest-environment node
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
  * Who the assistant acts for, and what it is handed (`src/data/gateway.ts`, `src/data/access.ts`,
- * `src/data/collections.ts`).
+ * `src/data/collections.ts`, `app/api/assistant/route.ts`).
  *
  * The gateway is the authority on all of it, so these stand a gateway up as `fetch` and assert two things about every
  * call this app's server makes to it: that the caller's credential went upstream and nothing else of theirs did, and
@@ -13,24 +13,30 @@ const jar: Record<string, string> = {};
 vi.mock('next/headers', () => ({ cookies: async () => ({ get: (name: string) => (name in jar ? { value: jar[name] } : undefined) }) }));
 
 import { AccessDenied, Unauthenticated, can, collectionFor, may, requireNeed, resolveAccess } from '@/data/access';
+import { POST } from '../app/api/assistant/route';
 import { collections } from '@/data/collections';
 import { FLEET } from '@/data/features';
 import { GatewayError, gatewayGet } from '@/data/gateway';
+import { PREPARED } from '@/data/prepared';
 import { handedTo } from '@/lib/assistant/scoped';
 import { assistantTools } from '@/lib/assistant/tools';
 import type { Me } from '@/lib/api-shapes';
-import type { InitiativeList } from '@/lib/work-shapes';
+import { viewAt } from '@/lib/shared-context';
 import { platformStatusContext, statusRead } from '@/views/platform-status-context';
 import { viewTools } from '@/views/tools';
 import { ME } from '../scripts/fake-gateway/people.ts';
 import { PEOPLE } from '../scripts/fake-gateway/platform-people.ts';
 import { MEMBER_STATUS, PLATFORM_STATUS } from '../scripts/fake-gateway/platform-status.ts';
 import { TEAMS, teamDetail } from '../scripts/fake-gateway/platform-teams.ts';
+import { startFakeLlm } from '../scripts/fake-llm.ts';
 import { search } from '../scripts/fake-gateway/search.ts';
 import { activityLog } from '../scripts/fake-gateway/work-activity.ts';
 import { initiativeList } from '../scripts/fake-gateway/work-initiatives.ts';
 import { knowledgeList } from '../scripts/fake-gateway/work-knowledge.ts';
 import { plugins, skills } from '../scripts/fake-gateway/work-plugins.ts';
+
+/** The fetch the model is reached with: the real one, kept before any test replaces it. */
+const fetch$ = global.fetch;
 
 const MEMBER: Me = { email: 'mei.tanaka@example.com', name: 'Mei Tanaka', role: 'member', mayRead: true, superadmin: false, via: 'session', teams: [{ slug: 'beacon', role: 'member' }], activeTeam: 'beacon' };
 
@@ -155,12 +161,13 @@ describe('who the request is', () => {
 });
 
 describe('what an agent is offered', () => {
-  it('a member is offered the lists the rail shows a member, and none of the fleet\'s', async () => {
+  it('a member is offered the prepared collections of the pages a member opens, and none of the fleet\'s', async () => {
     gateway(MEMBER);
     const scope = await resolveAccess();
     const offered = [];
     for (const c of collections) if (await can(scope, c.name, 'read')) offered.push(c.name);
-    expect(offered).toEqual(['initiatives', 'knowledge', 'knowledge_log', 'tokens']);
+    expect(offered).toEqual(PREPARED.filter((r) => r.needs !== FLEET).map((r) => r.name));
+    for (const name of ['teams', 'people', 'sign_ins', 'audit', 'runs', 'output', 'calls', 'refusals', 'skill_calls']) expect(offered).not.toContain(name);
     expect(await may(FLEET)).toBe(false);
     await expect(requireNeed(FLEET)).rejects.toBeInstanceOf(AccessDenied);
   });
@@ -174,7 +181,7 @@ describe('what an agent is offered', () => {
     expect(views).toEqual(['overview', 'initiatives', 'initiative', 'document', 'knowledge', 'knowledge_node', 'knowledge_log', 'search', 'settings', 'platform_status']);
   });
 
-  it('a superadmin is offered every list', async () => {
+  it('a superadmin is offered every collection', async () => {
     gateway(ME);
     const scope = await resolveAccess();
     for (const c of collections) expect(await can(scope, c.name, 'read')).toBe(true);
@@ -185,14 +192,14 @@ describe('what an agent is offered', () => {
     gateway(() => who);
     const scope = await resolveAccess();
     who = MEMBER;
-    expect(await can(scope, 'initiatives', 'read')).toBe(false);
+    expect(await can(scope, 'closures', 'read')).toBe(false);
     // The same person under another name is the same scope; acting for another team, or in other teams, is not.
     who = { ...ME, name: 'Ava L.' };
-    expect(await can(scope, 'initiatives', 'read')).toBe(true);
+    expect(await can(scope, 'closures', 'read')).toBe(true);
     who = { ...ME, activeTeam: 'beacon' };
-    expect(await can(scope, 'initiatives', 'read')).toBe(false);
+    expect(await can(scope, 'closures', 'read')).toBe(false);
     who = { ...ME, teams: [] };
-    expect(await can(scope, 'initiatives', 'read')).toBe(false);
+    expect(await can(scope, 'closures', 'read')).toBe(false);
   });
 
   it('a name that is no collection is refused as one the caller may not use', async () => {
@@ -202,198 +209,92 @@ describe('what an agent is offered', () => {
     expect(() => collectionFor(scope, 'secrets')).toThrow(AccessDenied);
   });
 
-  it('no collection gives the assistant a tool that changes anything', async () => {
+  it('no collection gives the assistant a tool that changes anything, or one that lists it', async () => {
     gateway(ME);
     const scope = await resolveAccess();
     const handed = await Promise.all(collections.map((c) => handedTo(scope, collectionFor(scope, c.name), c.name)));
+    for (const op of ['create', 'update', 'remove'] as const) expect(await can(scope, 'tokens', op)).toBe(false);
     const writer = { write() {}, merge() {}, onError: undefined } as never;
     const { tools, toolApproval } = assistantTools(handed, writer, { authorize: async () => true, invalidate: () => {} }, viewTools);
     const names = Object.keys(tools);
-    expect(names.filter((n) => /^(create|update|remove)_/.test(n))).toEqual([]);
+    expect(names.filter((n) => /^(create|update|remove|query)_/.test(n))).toEqual([]);
     expect(Object.keys(toolApproval)).toEqual([]);
-    expect(names.filter((n) => n.startsWith('query_')).sort()).toEqual(collections.map((c) => `query_${c.name}`).sort());
     expect(names.filter((n) => n.startsWith('view_'))).toHaveLength(viewTools.length);
   });
-
-  it('what a page does is declared as the page\'s, to whoever may do it there', async () => {
-    gateway(ME);
-    const admin = await resolveAccess();
-    const teams = await handedTo(admin, collectionFor(admin, 'teams'), 'teams');
-    expect(teams.pageOnly).toEqual(['create', 'remove']);
-    expect(typeof teams.create).toBe('function');
-    await expect(teams.create!({ name: 'x' })).rejects.toThrow('That is done on the Settings page, by the person.');
-
-    gateway(MEMBER);
-    const member = await resolveAccess();
-    expect(await can(member, 'people', 'create')).toBe(false);
-    expect(await can(member, 'tokens', 'create')).toBe(true);
-    const people = await handedTo(member, collectionFor(member, 'people'), 'people');
-    expect(people.create).toBeUndefined();
-    // People is the superadmin's: a member's query is refused on who they are, before the gateway is asked for a row.
-    await expect(people.query({})).rejects.toBeInstanceOf(AccessDenied);
-    expect(calls.some((c) => new URL(c.url).pathname === '/api/console/people')).toBe(false);
-  });
 });
 
-describe('a collection read from the gateway', () => {
-  it('reads initiatives a page at a time from the route that filters them, and answers the route\'s total', async () => {
-    gateway(ME);
-    const initiatives = collectionFor(await resolveAccess(), 'initiatives');
-    // What the list was asked, less the scope every server read carries (`gatewayGet`), which Work's list ignores.
-    const asked = () => calls.map((c) => new URL(c.url)).filter((u) => u.pathname === '/api/console/initiatives')
-      .map((u) => Object.fromEntries([...u.searchParams].filter(([k]) => k !== 'scope')));
-    const first = await initiatives.query({});
-    expect(asked()).toEqual([{ limit: '10', offset: '0' }]);
-    expect(first.rows).toHaveLength(10);
-    // The route's total, so a count is of every initiative that matches, never of the page that came back.
-    expect(first.total).toBe((initiativeList(ME, new URLSearchParams())[1] as { total: number }).total);
-    expect(first.total).toBeGreaterThan(first.rows.length);
-    gateway(ME);
-    const found = await initiatives.query({ where: [{ field: 'state', op: 'eq', value: 'waiting' }, { field: 'slug', op: 'contains', value: 'search' }], limit: 5, offset: 0 });
-    expect(asked()).toEqual([{ state: 'waiting', q: 'search', limit: '5', offset: '0' }]);
-    expect(found.total).toBe(1);
-    // The next move in `initiative_status`'s own words, as the fake answers them: the row carries the action as it came.
-    const next = (initiativeList(ME, new URLSearchParams('state=waiting&q=search'))[1] as InitiativeList).rows[0].nextMove?.action ?? null;
-    expect(found.rows[0]).toMatchObject({ slug: '2026-09-28-search-relevance', state: 'waiting', next, nextDocument: 'plan.md', gatesPassed: 1, gates: 3 });
-  });
+describe('what the route hands the model', () => {
+  let llm: Awaited<ReturnType<typeof startFakeLlm>>;
+  beforeAll(async () => { llm = await startFakeLlm({ port: 0 }); });
+  afterAll(async () => { await llm.close(); });
 
-  it('refuses a condition or an order the route does not take, before anything is read', async () => {
-    gateway(ME);
-    const initiatives = collectionFor(await resolveAccess(), 'initiatives');
-    await expect(initiatives.query({ where: [{ field: 'gates', op: 'gt', value: 1 }] })).rejects.toThrow(/state eq, flow eq, slug contains/);
-    await expect(initiatives.query({ where: [{ field: 'state', op: 'eq', value: 'open' }, { field: 'state', op: 'eq', value: 'quiet' }] })).rejects.toThrow(/each once/);
-    await expect(initiatives.query({ sort: { field: 'lastTouched', dir: 'asc' } })).rejects.toThrow(/ordered by the gateway/);
-    expect(calls.some((c) => new URL(c.url).pathname === '/api/console/initiatives')).toBe(false);
-  });
+  /** The tools the model was handed for a question asked on `path`, as `who`. */
+  async function handed(who: Me, path: string): Promise<string[]> {
+    gateway(who);
+    const real = global.fetch;
+    global.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => (String(input).startsWith(llm.url) ? fetch$(input, init) : real(input, init))) as typeof fetch;
+    Object.assign(process.env, { ASSISTANT_PROVIDER: 'openai-compatible', ASSISTANT_API_KEY: 'k', ASSISTANT_MODEL: 'm', ASSISTANT_BASE_URL: llm.url });
+    llm.requests.length = 0;
+    const res = await POST(new Request('http://localhost/api/assistant', { method: 'POST', body: JSON.stringify({ messages: [{ id: 'u1', role: 'user', parts: [{ type: 'text', text: 'what stands out?' }] }], page: { path, title: 'Page', text: '' } }) }));
+    await res.text();
+    return ((llm.requests.at(-1) as { tools?: { function: { name: string } }[] }).tools ?? []).map((t) => t.function.name);
+  }
 
-  it('filters, sorts and pages with the meaning an array collection gives them', async () => {
-    gateway(ME);
-    const teams = collectionFor(await resolveAccess(), 'teams');
-    const active = await teams.query({ where: [{ field: 'status', op: 'eq', value: 'active' }], sort: { field: 'initiatives', dir: 'desc' }, limit: 2 });
-    expect(active.total).toBe(TEAMS.filter((t) => t.status === 'active').length);
-    expect(active.rows.map((t) => t.slug)).toEqual([...TEAMS].filter((t) => t.status === 'active').sort((a, b) => b.initiatives - a.initiatives).slice(0, 2).map((t) => t.slug));
-    expect((await teams.query({ where: [{ field: 'name', op: 'contains', value: 'RESEARCH' }] })).rows.map((t) => t.slug)).toEqual(['atlas']);
-    expect((await teams.query({ where: [{ field: 'initiatives', op: 'gt', value: 100 }] })).total).toBe(0);
-  });
-
-  /** What `route` was asked, less the scope every server read carries (`gatewayGet`), which Work's reads ignore. */
-  const askedOf = (route: string) => calls.map((c) => new URL(c.url)).filter((u) => u.pathname === `/api/console${route}`)
-    .map((u) => Object.fromEntries([...u.searchParams].filter(([k]) => k !== 'scope')));
-
-  it('reads the knowledge shelf a page at a time from the route that filters it, and answers the route\'s total', async () => {
-    gateway(ME);
-    const knowledge = collectionFor(await resolveAccess(), 'knowledge');
-    const first = await knowledge.query({});
-    expect(askedOf('/knowledge')).toEqual([{ limit: '10', offset: '0' }]);
-    expect(first.rows).toHaveLength(10);
-    expect(first.total).toBe((knowledgeList(ME, new URLSearchParams())[1] as { total: number }).total);
-    expect(first.total).toBeGreaterThan(first.rows.length);
-    // A lesson's tags arrive as a list and are read as text.
-    expect(first.rows.every((r) => r.tags === null || typeof r.tags === 'string')).toBe(true);
-    gateway(ME);
-    const found = await knowledge.query({ where: [{ field: 'title', op: 'contains', value: 'index' }, { field: 'type', op: 'eq', value: 'decision' }], limit: 100 });
-    expect(askedOf('/knowledge')).toEqual([{ q: 'index', kind: 'decision', limit: '100', offset: '0' }]);
-    expect(found.total).toBe((knowledgeList(ME, new URLSearchParams('q=index&kind=decision'))[1] as { total: number }).total);
-    expect(found.rows.length).toBeGreaterThan(0);
-    expect(found.rows.every((r) => r.type === 'decision')).toBe(true);
-    await expect(knowledge.query({ where: [{ field: 'tags', op: 'contains', value: 'search' }] })).rejects.toThrow(/title contains, type eq/);
-  });
-
-  it('reads the activity log from the route that filters it, refused calls by a yes, and never more than 100 a page', async () => {
-    gateway(ME);
-    const activity = collectionFor(await resolveAccess(), 'activity');
-    const refused = await activity.query({ where: [{ field: 'refused', op: 'eq', value: true }, { field: 'tool', op: 'eq', value: 'core:document_approve' }], limit: 500, offset: 0 });
-    expect(askedOf('/activity')).toEqual([{ refused: 'true', tool: 'core:document_approve', limit: '100', offset: '0' }]);
-    expect(refused.rows.length).toBeGreaterThan(0);
-    expect(refused.rows.every((r) => r.refused === true && r.ok === false && r.tool === 'core:document_approve')).toBe(true);
-    expect(refused.total).toBe((activityLog(ME, new URLSearchParams('refused=true&tool=core:document_approve'))[1] as { total: number }).total);
-    await expect(activity.query({ where: [{ field: 'owner', op: 'eq', value: 'ours' }] })).rejects.toThrow(/kind eq, tool eq, initiative eq, refused eq/);
-  });
-
-  it('narrows the skills to one plugin\'s on the route, and names the plugin that ships each', async () => {
-    gateway(ME);
-    const team = await collectionFor(await resolveAccess(), 'skills').query({ where: [{ field: 'plugin', op: 'eq', value: 'zz-core' }] });
-    expect(askedOf('/skills')).toEqual([{ plugin: 'zz-core' }]);
-    expect(team.rows.map((r) => r.name).sort()).toEqual(['zz-handover', 'zz-platform']);
-    expect(team.rows.every((r) => r.plugin === 'zz-core')).toBe(true);
-    expect(team.total).toBe(2);
-    const paged = await collectionFor(await resolveAccess(), 'skills').query({ limit: 2 });
-    expect(paged.rows).toHaveLength(2);
-    expect(paged.total).toBeGreaterThan(2);
-  });
-
-  it('two questions asked at once each get their own rows', async () => {
-    gateway(ME);
-    const scope = await resolveAccess();
-    // Each query is its own gateway read and nothing is kept between two: asked together, neither list may answer
-    // with the other's rows, and a second ask reads the gateway again rather than a kept copy.
-    const [teams, people, again] = await Promise.all([
-      collectionFor(scope, 'teams').query({}),
-      collectionFor(scope, 'people').query({ sort: { field: 'name', dir: 'asc' } }),
-      collectionFor(scope, 'teams').query({ limit: 1 }),
-    ]);
-    expect(teams.rows.map((t) => t.slug).sort()).toEqual(TEAMS.map((t) => t.slug).sort());
-    expect(people.total).toBe(PEOPLE.length);
-    expect(people.rows.every((p) => 'email' in p)).toBe(true);
-    expect(again.total).toBe(TEAMS.length);
-    expect(again.rows).toHaveLength(1);
-    const reads = calls.filter((c) => c.url.includes('/teams')).length;
-    await collectionFor(scope, 'teams').query({});
-    expect(calls.filter((c) => c.url.includes('/teams')).length).toBe(reads + 1);
-  });
-
-  it('re-asks who is calling at the moment a handed query runs', async () => {
-    let who: Me | null = ME;
-    gateway(() => who);
-    const scope = await resolveAccess();
-    const teams = await handedTo(scope, collectionFor(scope, 'teams'), 'teams');
-    expect((await teams.query({})).total).toBe(TEAMS.length);
-    who = null;
-    await expect(teams.query({})).rejects.toBeInstanceOf(AccessDenied);
-  });
-});
-
-describe('the fleet\'s lists, read whole', () => {
-  // The gateway pages Teams and People at 10 rows unless asked; the assistant counts over every row, so it asks for them all.
-  it('asks for every team and every person on one page, from a collection and from a view', async () => {
-    gateway(ME);
-    const scope = await resolveAccess();
-    await collectionFor(scope, 'teams').query({});
-    await collectionFor(scope, 'people').query({});
-    await viewTools.find((v) => v.name === 'teams')!.read({});
-    await viewTools.find((v) => v.name === 'people')!.read({});
-    const lists = calls.map((c) => c.url).filter((u) => /\/(teams|people)\?/.test(u));
-    expect(lists).toEqual([
-      'http://gateway.test/api/console/teams?limit=100&scope=platform',
-      'http://gateway.test/api/console/people?limit=100&scope=platform',
-      'http://gateway.test/api/console/teams?limit=100&scope=platform',
-      'http://gateway.test/api/console/people?limit=100&scope=platform',
-    ]);
-  });
-
-  it('hands the assistant a team as the scalars its list declares, never the figures by week beside them', async () => {
-    gateway(ME);
-    const { rows } = await collectionFor(await resolveAccess(), 'teams').query({});
-    expect(rows).toHaveLength(TEAMS.length);
-    for (const row of rows) {
-      expect(Object.keys(row).sort()).toEqual(['created', 'documents', 'initiatives', 'knowledge', 'members', 'name', 'slug', 'sources', 'status']);
+  it('offers no query_<name> tool, and the explore_<view> of the page the person is on and no other', async () => {
+    for (const [who, path, view] of [
+      [MEMBER, '/initiatives', 'initiatives'], [MEMBER, '/settings', 'settings'], [MEMBER, '/platform', 'platform_status'], [ME, '/teams/atlas', 'team'],
+      [ME, '/runs', 'runs'], [MEMBER, '/knowledge', 'knowledge'], [MEMBER, '/initiatives/atlas/2026-09-28-search-relevance/sources/notes.md', 'document'],
+    ] as const) {
+      const tools = await handed(who, path);
+      expect(tools.filter((t) => t.startsWith('query_')), path).toEqual([]);
+      expect(tools.filter((t) => t.startsWith('explore_')), path).toEqual([`explore_${view}`]);
     }
+  });
+
+  it('hands a member no prepared query on a page whose view they may not use', async () => {
+    const tools = await handed(MEMBER, '/runs');
+    expect(tools.filter((t) => t.startsWith('explore_'))).toEqual([]);
+    expect(tools).not.toContain('view_runs');
+  });
+});
+
+describe('a view tool\'s address', () => {
+  const tool = (name: string) => viewTools.find((v) => v.name === name)!;
+
+  // The gateway pages Teams and People at 10 rows unless asked; their views count over every row, so they ask for all.
+  it('asks for every team and every person on one page', async () => {
+    gateway(ME);
+    await tool('teams').read({});
+    await tool('people').read({});
+    expect(calls.map((c) => c.url).filter((u) => /\/(teams|people)\?/.test(u))).toEqual([
+      'http://gateway.test/api/console/teams?limit=100&scope=platform',
+      'http://gateway.test/api/console/people?limit=100&scope=platform',
+    ]);
   });
 
   it('reads one team from its own read, and never looks for it in the list', async () => {
     gateway(ME);
     const own = teamDetail('atlas')!;
-    const { context, data } = await viewTools.find((v) => v.name === 'team')!.read({ slug: 'atlas' });
+    const { context, data } = await tool('team').read({ slug: 'atlas' });
     expect(calls.map((c) => new URL(c.url).pathname)).not.toContain('/api/console/teams');
     // Nor the team's initiatives: Work answers the active team's work alone.
     expect(calls.map((c) => new URL(c.url).pathname)).not.toContain('/api/console/initiatives');
     expect(data).toEqual(own);
     expect(context.facts.find((f) => f.label === 'Knowledge nodes')?.value).toBe(String(own.counts.knowledge));
   });
-});
 
-describe('a view tool\'s address', () => {
-  const tool = (name: string) => viewTools.find((v) => v.name === name)!;
+  it('declares the page each view renders, matched as Next.js matches it', () => {
+    expect(Object.fromEntries(viewTools.map((v) => [v.name, v.page]))).toEqual({
+      overview: '/', teams: '/teams', team: '/teams/[slug]', initiatives: '/initiatives', initiative: '/initiatives/[team]/[slug]',
+      document: '/initiatives/[team]/[slug]/[...path]', knowledge: '/knowledge', knowledge_node: '/knowledge/[team]/[...path]',
+      knowledge_log: '/knowledge/log', search: '/knowledge', people: '/people', plugins: '/plugins', plugin: '/plugins/[plugin]',
+      skill: '/plugins/[plugin]/[skill]', runs: '/runs', activity: '/activity', settings: '/settings', platform_status: '/platform',
+    });
+    // Search shares Knowledge's page and comes after it, so the prepared query Knowledge offers is its own.
+    expect(viewAt(viewTools, '/knowledge')?.name).toBe('knowledge');
+    expect(viewAt(viewTools, '/knowledge/atlas/nodes/0002-a-title.md')?.name).toBe('knowledge_node');
+    expect(viewAt(viewTools, '/initiatives/atlas/s/sources/deep/notes.md')?.name).toBe('document');
+  });
 
   it('every tool has its own name and a need', () => {
     expect(new Set(viewTools.map((v) => v.name)).size).toBe(viewTools.length);

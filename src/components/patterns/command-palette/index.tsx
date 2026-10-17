@@ -150,7 +150,7 @@ export function CommandPanel({
           aria-activedescendant={commands[at] ? `cmd-${commands[at].id}` : undefined}
           className="h-14 min-w-0 flex-1 bg-transparent text-md outline-none placeholder:text-ink-3"
         />
-        <Kbd>Esc</Kbd>
+        <Kbd className="keyboard-only">Esc</Kbd>
       </div>
       <div ref={listRef} id="cmd-list" role="listbox" className="max-h-[min(420px,52vh)] overflow-y-auto p-2">
         {commands.length === 0 ? (
@@ -183,10 +183,12 @@ export function CommandPanel({
           })
         )}
       </div>
-      <div className="flex items-center gap-4 border-t border-line bg-surface-sunk/60 px-4 py-2.5 text-xs text-ink-3">
+      {/* Every line here names a key. A finger has none of them, so the whole bar goes rather than sitting under the
+          list as a legend for hardware the reader is not holding. */}
+      <div className="keyboard-only flex items-center gap-4 border-t border-line bg-surface-sunk/60 px-4 py-2.5 text-xs text-ink-3">
         <span className="flex items-center gap-1.5"><Kbd>↑</Kbd><Kbd>↓</Kbd> move</span>
         <span className="flex items-center gap-1.5"><Kbd>↵</Kbd> open</span>
-        <span className="ml-auto flex items-center gap-1.5 max-sm:hidden"><Kbd>⌘K</Kbd> toggle</span>
+        <span className="keyboard-only ml-auto flex items-center gap-1.5 max-sm:hidden"><Kbd>⌘K</Kbd> toggle</span>
       </div>
     </>
   );

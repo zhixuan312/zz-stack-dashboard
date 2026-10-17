@@ -32,10 +32,12 @@ export const Select = forwardRef<HTMLButtonElement, {
   'aria-required'?: boolean;
   required?: boolean;
 }>(function Select({ value, defaultValue, onValueChange, options, placeholder = 'Choose…', size = 'md', invalid, disabled, leading, className, required, name, 'aria-required': ariaRequired, ...aria }, ref) {
-  // aria-required is dropped: Radix's trigger takes `required` instead.
-  void ariaRequired;
+  // Radix's trigger reads `required` on the Root, and that is what sets `aria-required` on it (index.mjs:193). A
+  // control inside a Field is handed `aria-required` and no `required` — Field's contract — so the attribute is the
+  // only thing that can carry it there, and dropping it left the trigger unannounced as required.
+  const mustFill = required ?? ariaRequired;
   return (
-    <S.Root value={value} defaultValue={defaultValue} onValueChange={onValueChange} disabled={disabled} required={required} name={name}>
+    <S.Root value={value} defaultValue={defaultValue} onValueChange={onValueChange} disabled={disabled} required={mustFill} name={name}>
       <S.Trigger
         ref={ref}
         aria-invalid={invalid || aria['aria-invalid'] || undefined}

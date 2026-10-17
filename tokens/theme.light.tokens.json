@@ -647,7 +647,7 @@
     },
     "chart-stack-hi": {
       "$type": "number",
-      "$value": 0.72,
+      "$value": 0.78,
       "$description": "How much accent the bottom band of a stacked chart carries, mixed into the surface."
     },
     "chart-stack-lo": {

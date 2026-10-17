@@ -4,9 +4,11 @@
  *   node scripts/check.ts
  *
  * - Every card folder has its README.md and preview.tsx, and every README follows the card anatomy.
- * - Every page specification exists and follows the page anatomy.
+ * - Every page specification exists and follows the page anatomy, and a page with a view tool says what the agent does
+ *   there: its protagonist and at least three questions its prepared query answers.
  * - Every token a specification names in backticks, and every var(--x) or (--x) a component uses, exists.
- * - No literal colour (hex, rgb, hsl) and no Tailwind default palette in the layers: colours come from roles.
+ * - No literal colour (hex of 3, 4, 6 or 8 digits; rgb, hsl, oklch, oklab, lab, lch, color) and no Tailwind default
+ *   palette in the layers: colours come from roles.
  * - One implementation: the fixtures a collection serves are read through src/data/collections.ts, not imported again.
  * - In the template, `connection()` is called only where the request is meant to be read: the console layout and the
  *   not-found page; pages and views reach the sample through src/data, never src/system/fixtures; and a writer path
@@ -26,7 +28,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { importTarget, projectAliases } from './lib/aliases.ts';
 import { checkBrief, scanReferences } from './lib/context-check.ts';
-import { APP_DIR, agentPageSpec } from './lib/routes.ts';
+import { APP_DIR, agentPageSpec, agentSection, specRoute, viewToolPages } from './lib/routes.ts';
 import { keepProblems, unresolved, parseJournal, parseKeep, parseResolutions, verifiedRetirements, type Hash, type Retirement } from './lib/update-session.ts';
 import { cards } from './registry.ts';
 import { app, nav } from '../src/app.config.ts';
@@ -77,6 +79,29 @@ for (const p of PAGE_SPECS) {
   if (agentPageSpec(p) && !/^## Agents\n[\s\S]*?^### What the agent reads$/m.test(md)) problems.push(`${p}: no "### What the agent reads" under ## Agents`);
 }
 
+// ── What the agent does on a page with a view tool ────────────────────────────────────────────────────
+// A page an agent can view has a prepared query, and its specification names the card worth asking about and the
+// questions a person asks there that the context does not answer alone (FR-42): the line `Protagonist: <name>.` and at
+// least three items `- "<question>" — <what the prepared query is asked>`. The page marks that card with
+// `data-protagonist="<name>"`, and `scripts/ask.ts` asks the questions. Settings, the Atlas, Docs and the embed views are
+// no view tool's page, so they are asked nothing; a project without `src/views/tools.ts` has no view tools to read.
+{
+  const pages = new Set((viewToolPages() ?? []).map((v) => v.page));
+  for (const p of PAGE_SPECS.filter((f) => agentPageSpec(f) && pages.has(specRoute(f)))) {
+    const md = read(p);
+    const section = agentSection(md);
+    if (!section || !/^## Agents$(?:\n(?!## ).*)*\n### What the agent does here$/m.test(md)) {
+      problems.push(`${p}: no "### What the agent does here" under ## Agents`);
+      continue;
+    }
+    if (!section.protagonist) problems.push(`${p}: "### What the agent does here" has no "Protagonist: <the card's name>." line`);
+    if (section.questions.length < 3) {
+      const stray = section.stray.length ? `; not in that form: ${section.stray.map((s) => s.slice(0, 60)).join(' | ')}` : '';
+      problems.push(`${p}: "### What the agent does here" has ${section.questions.length} of the three questions it needs, each - "<question>" — <what the prepared query is asked>${stray}`);
+    }
+  }
+}
+
 // ── Token names in specifications ────────────────────────────────────────────────────────────────────
 const TOKEN_LIKE = /`((?:ground|frame|surface|line|fill|ink|accent|on-accent|on-critical|positive|warning|critical|series|chart|shadow|highlight|glow|edge|text|weight|leading|tracking|space|radius|control|row-height|card-pad|stack-gap|rail|assistant-width|data-width|stage-width|reading-width|form-width|field-width|gutter|layer|dur|stagger|ease|stretch)(?:-[a-z0-9-]+)?)`/g;
 const NOT_TOKENS = new Set(['leading', 'trailing', 'fill', 'text-wrap', 'text-pretty', 'text-balance', 'line-clamp', 'ease-out', 'ease-in-out', 'ease-spring', 'layer-1', 'text-left', 'text-right', 'text-center', 'surface-sunk/60', 'fill-hover', 'glow', 'edge', 'chart', 'series', 'shadow', 'surface', 'line', 'ink', 'accent', 'frame', 'ground']);
@@ -119,7 +144,7 @@ for (const f of SPECS) {
 //
 //   - the literal route, in prose: `/embed/orders`. A name followed by a dot is a FILE in that folder
 //     (`app/embed/layout.tsx`), not a route, so it is left alone.
-//   - the surfaces inventory's own column (`docs/surfaces.md`, Layer 4), which names the view: `` `overview` ``. It
+//   - the surfaces inventory's own column (`docs/surfaces.md`, Layer 4), which names the view: `` `home` ``. It
 //     offered a `request` and a `customer` view that had never been built and left out the `proposal` one that had, and
 //     nothing noticed: a reader following the guide went looking for a view that is not there.
 const isEmbed = (name: string) => fs.existsSync(path.join(ROOT, APP_DIR, 'embed', name, 'page.tsx'));
@@ -168,7 +193,10 @@ for (const f of LAYERS) {
     if (/allow-literal-colour/.test(line)) return;
     if (f === 'src/system/page-stage.tsx' && /HOST_STYLES|--color-|--border-radius|#2A2A30|#EDEDF0/.test(line)) return; // a simulated foreign host's own colours
     const at = `${f}:${i + 1}`;
-    const lit = line.match(/#[0-9a-fA-F]{6}\b|#[0-9a-fA-F]{3}\b(?![0-9a-fA-F])|\brgba?\(\s*\d|\bhsla?\(/);
+    // Literal colour, in every form a browser takes: hex of 3, 4, 6 or 8 digits, and the colour functions. A function
+    // is matched by its own name and its parenthesis, and not after a dot — so `color-mix(in oklch, var(--ink) 40%,
+    // transparent)`, which is how the layers compose a tint out of tokens, is not a literal and is not reported.
+    const lit = line.match(/#[0-9a-fA-F]{8}\b|#[0-9a-fA-F]{4}\b|#[0-9a-fA-F]{6}\b|#[0-9a-fA-F]{3}\b(?![0-9a-fA-F])|\brgba?\(\s*\d|\bhsla?\(|(?<![\w.$])(?:oklch|oklab|lab|lch|color)\(/);
     if (lit && !/^\s*(\*|\/\/|\/\*)/.test(line)) problems.push(`${at}: literal colour ${lit[0]} (use a role)`);
     // Meridian resets Tailwind's scales; a utility outside them emits no CSS and fails silently.
     const dead = line.match(/\b(?:font-(?:normal|light|bold|extrabold|black|thin)|rounded-(?:2xl|3xl)|shadow-(?:sm|md|lg|xl|2xl)|text-(?:3xl|4xl|5xl))\b/);
@@ -400,7 +428,7 @@ const SWEPT = /^src\/(lib|data)\//;
  * Meridian gave it. Naming them here is the fix: "this module is a library a product may use in part" is a decision
  * about the module, so it is declared rather than inferred, and the list is short on purpose.
  */
-const TOOLKIT = /^src\/lib\/(format|color|collection|live)\.ts$/;
+const TOOLKIT = /^src\/lib\/(format|color|collection|explore|live)\.ts$/;
 // In a project built on Meridian (adopted or created), Meridian's own modules are a library it uses in part: a newer
 // release may add an export the team's code does not use yet. Only the project's own src/lib and src/data are swept.
 // The template, with no manifest, is swept whole.

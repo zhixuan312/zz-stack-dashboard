@@ -14,9 +14,14 @@ import { Spinner } from '../../ui/spinner/index';
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuRadioGroup, MenuRadioItem, MenuSeparator, MenuTrigger } from '../../ui/menu/index';
 import { toast } from '../../ui/toast/index';
 import { AppearanceMenu } from '../appearance-menu/index';
+import { clearThread } from '../assistant/thread';
 
 /** One scope the workspace menu offers: the console reads the whole platform or one team. */
-export type Scope = { id: string; label: string; active: boolean; onSelect: () => void };
+/**
+ * A row of the workspace menu. `href` is where choosing it goes, when it goes to a page: the rail prefetches it as the
+ * menu opens, since a row is a press and nothing prefetches it before.
+ */
+export type Scope = { id: string; label: string; active: boolean; onSelect: () => void; href?: string };
 
 /** Who the console is being read as: the persona in view, the ones it may be switched to, and the action that does it. */
 export type ViewAs = {
@@ -92,9 +97,12 @@ export function Rail({
     void viewAs.choose(id).catch((e) => toast({ tone: 'critical', title: 'Person not changed', description: e instanceof Error ? e.message : undefined }));
   };
 
-  // Measured after paint, not before it: a rail mounts inside the tap that opens the phone drawer, and a measurement
-  // there forces a layout of the whole page and a second render before the drawer can show. Until the marker has a
-  // position the current link draws the same pill itself, so nothing moves when the marker takes over.
+  // The observer IS the measurement, the first one included. A rail mounts inside the tap that opens the phone
+  // drawer, and reading offsets there makes the browser lay the whole page out inside that tap: measured at a 50 ms
+  // frame on a throttled phone against 33 ms for the mount alone. An observation reports the same two numbers after
+  // the browser has laid out for itself, and `observe` delivers one for the element it is handed. Until a position
+  // exists the current link draws the same pill itself, so nothing moves when the marker takes over — which is what
+  // makes it safe for the marker to arrive a frame late.
   // The link also moves without a navigation (the rail is resized, a font arrives late, a group above it changes
   // height), so the list is observed and the marker measured again whenever its size changes.
   useEffect(() => {
@@ -107,7 +115,6 @@ export function Rail({
         return was?.y === now?.y && was?.h === now?.h ? was : now;
       });
     };
-    measure();
     const ro = new ResizeObserver(measure);
     ro.observe(nav);
     return () => ro.disconnect();
@@ -116,7 +123,13 @@ export function Rail({
   return (
     <div className="flex h-full w-full flex-col">
       <div className="flex h-16 items-center px-4">
-        <Menu>
+        <Menu
+          onOpenChange={(open) => {
+            // Opening the menu is the person's intent: each other workspace's page is fetched now, so the press that
+            // follows finds it ready, as a link the drawer shows is prefetched when the drawer opens.
+            if (open) for (const s of scopes) if (!s.active && s.href) router.prefetch(s.href);
+          }}
+        >
           <MenuTrigger asChild>
             <button type="button" aria-label={`${app.name}, ${workspace}: ${switcher ? 'workspace menu' : 'account menu'}`} className="group -mx-1.5 flex min-w-0 flex-1 items-center gap-2.5 rounded-md px-1.5 py-1.5 text-left hover:bg-fill-hover data-[state=open]:bg-fill-hover">
               <AppMark size={28} />
@@ -142,7 +155,8 @@ export function Rail({
             ) : null}
             {hasSettings || signOut ? <MenuSeparator /> : null}
             {hasSettings ? <MenuItem onSelect={() => leave(() => router.push('/settings'))}><Settings />Workspace settings</MenuItem> : null}
-            {signOut ? <MenuItem onSelect={() => leave(() => (typeof signOut === 'function' ? signOut() : router.push(signOut)))}><LogOut />Sign out</MenuItem> : null}
+            {/* The assistant's conversation is the signed-in person's: it leaves the browser with them. */}
+            {signOut ? <MenuItem onSelect={() => leave(() => { clearThread(localStorage); if (typeof signOut === 'function') signOut(); else router.push(signOut); })}><LogOut />Sign out</MenuItem> : null}
             {viewAs ? (
               <>
                 <MenuSeparator />

@@ -26,7 +26,15 @@ Whose people these are and the filters in force, then how many match, how many a
 - No platform call is on record for Maximiliana Fitzgerald-Oyelaran Kowalczyk.
 ```
 
-- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `query_people` looks up what the page lists.
+- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `explore_people`, offered on this page alone, counts the people by role and state and the console sign-ins over any window.
+
+### What the agent does here
+
+Protagonist: People.
+
+- "How many people are on the platform, and how many are deactivated?" — the people, by state
+- "How many sign-ins did superadmins and members make each week this month?" — the sign-ins over 30 complete days a week at a time, then by role
+- "Who signed in most recently?" — the sign-ins over 7 complete days, down to the people who signed in
 
 ## Surfaces
 
