@@ -1,45 +1,32 @@
 import { describe, expect, it } from 'vitest';
-import type { Person } from '@/lib/api-shapes';
-import { filterPeople } from '@/views/people-filter';
+import { PEOPLE_DEFAULTS, filtersOf, narrowed, pageAt, peoplePath } from '@/views/people-filter';
 
 /**
- * The filter the People page draws its rows with and the assistant's `people` context describes them with.
- *
- * The case is the whole subject: an address is written with the capitals its holder chose, and a person types a search
- * in lower case, so folding the name and not the address made a lower-case search miss the very person it named.
+ * The People list's filters and the one gateway address they are read at: the page's server read, its browser reads,
+ * its context and `view_people` all ask this module, so the gateway filters and pages the list and nothing else does.
  */
-const person = (over: Partial<Person> & { email: string; name: string }): Person => ({
-  role: 'member', status: 'active', created: '2026-08-01', activeTeam: 'atlas',
-  teams: ['atlas (member)'], tokens: 0, last_used: null, ...over,
-});
-
-const ADA = person({ email: 'Ada.Lovelace@Example.com', name: 'Ada Lovelace' });
-const GRACE = person({ email: 'grace@example.com', name: 'Grace Hopper', activeTeam: 'beacon', teams: ['beacon (admin)'] });
-const ALL = [ADA, GRACE];
-
-/** The addresses the filter keeps, so a case can say which people it found and not only how many. */
-const found = (q: string, team = 'all') => filterPeople(ALL, { q, team }).map((p) => p.email);
-
 describe('the People list filter', () => {
-  it('finds an address whatever case the search is typed in', () => {
-    expect(found('ada.lovelace@example.com')).toEqual([ADA.email]);
-    expect(found('ADA.LOVELACE@EXAMPLE.COM')).toEqual([ADA.email]);
+  it('reads every person, ten to a page, by default', () => {
+    expect(peoplePath(PEOPLE_DEFAULTS)).toBe('/people?limit=10&offset=0');
+    expect(narrowed(PEOPLE_DEFAULTS)).toBe(false);
   });
 
-  it('finds part of an address, not only the whole of it', () => {
-    expect(found('lovelace@')).toEqual([ADA.email]);
+  it('sends the search trimmed and a state the route takes, and pages by ten', () => {
+    expect(peoplePath({ q: '  Ada.Lovelace@Example.com ', state: 'deactivated', page: '3' })).toBe('/people?q=Ada.Lovelace%40Example.com&state=deactivated&limit=10&offset=20');
+    expect(narrowed({ q: ' ', state: 'active', page: '1' })).toBe(true);
   });
 
-  it('finds a name whatever case the search is typed in', () => {
-    expect(found('GRACE')).toEqual([GRACE.email]);
+  it('sends no state the route does not take, and no search of spaces', () => {
+    expect(peoplePath({ q: '   ', state: 'gone', page: 'nonsense' })).toBe('/people?limit=10&offset=0');
   });
 
-  it('keeps the team filter beside the search', () => {
-    // Both rows carry an `a`; only one of them is on beacon.
-    expect(found('a', 'beacon')).toEqual([GRACE.email]);
+  it('reads the route\'s own limit and offset for view_people, at the page of ten the offset falls in', () => {
+    expect(peoplePath(PEOPLE_DEFAULTS, { limit: 3, offset: 12 })).toBe('/people?limit=3&offset=12');
+    expect(pageAt(12)).toEqual({ ...PEOPLE_DEFAULTS, page: '2' });
   });
 
-  it('keeps everyone when the search is empty, spaces included', () => {
-    expect(found('   ')).toEqual(ALL.map((p) => p.email));
+  it('takes the first value of each parameter a page\'s address names', () => {
+    expect(filtersOf({ q: ['ada', 'grace'], state: 'active' })).toEqual({ q: 'ada', state: 'active', page: '1' });
+    expect(filtersOf({})).toEqual(PEOPLE_DEFAULTS);
   });
 });

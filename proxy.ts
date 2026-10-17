@@ -91,8 +91,11 @@ function page(req: NextRequest): NextResponse {
   return hint(NextResponse.next({ request: { headers } }), pathname);
 }
 
-/** A last segment that is a file's name: `favicon.ico`, `b.webp`, `teams.json`. */
-const FILE_NAME = /\.[a-z0-9]{1,8}$/i;
+/**
+ * A last segment that is a file's name: `favicon.ico`, `b.webp`, `teams.json`, `backup.7z`. An extension holds a letter,
+ * so a release's version (`0.97.0`, `0.98.0-rc.1`), whose last dot is followed by digits alone, is not one.
+ */
+const FILE_NAME = /\.(?=[a-z0-9]{1,8}$)[0-9]*[a-z][a-z0-9]*$/i;
 
 /** The two routes whose address ends in a file's name: a document, and a knowledge node (`spec.md`, `nodes/0002-….md`). */
 const NAMES_A_FILE = /^\/(initiatives\/[^/]+\/[^/]+|knowledge\/[^/]+)\/.+$/;

@@ -405,17 +405,6 @@ export interface SkillText {
   /** Everything shipped beside it — `references/…`, and `scripts/…` where one exists. */
   references: { path: string; content: string }[];
 }
-/** The team out of a `<slug> (<role>)` entry — see Person.teams. */
-export function teamSlug(entry: string): string {
-  return entry.replace(/\s*\(.*\)\s*$/, '').trim();
-}
-export interface Person {
-  email: string; name: string; role: string; status: string; created: string;
-  /** Each entry is `<slug> (<role>)`, not a bare slug — the gateway formats it for display.
-   *  Counting distinct entries therefore counts memberships, not teams. `teamSlug()` gets
-   *  the team out of one. */
-  activeTeam: string | null; teams: string[]; tokens: number; last_used: string | null;
-}
 
 /* /search */
 
@@ -462,7 +451,7 @@ export interface TeamMemberRow { email: string; role: 'admin' | 'member' }
 /* /settings/platform/* */
 
 /** A row from `GET /settings/platform/people` — every principal, superadmin only. Not
- *  `Person` above, which is `/people`'s analytics read and scoped differently. */
+ *  People's `PersonRow` in fleet-shapes.ts, which is `/people`'s read. */
 export interface PlatformPersonRow {
   email: string; display_name: string; role: 'superadmin' | 'member'; status: string; created_at: string;
   teams: { team: string; role: 'admin' | 'member'; added_by: string | null; added_at: string }[];

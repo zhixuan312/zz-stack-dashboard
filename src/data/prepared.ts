@@ -259,9 +259,9 @@ export const PREPARED: PreparedRow[] = [
   },
   {
     name: 'people', label: 'People', route: 'platform', measure: 'people',
-    description: 'Every person added by a window\'s end, by role and state: a stock. Tokens are counted, never shown.',
+    description: 'Every person added by a window\'s end, by role and state: a stock. A person\'s tokens and enrolment links are never shown.',
     dimensions: ['role', 'state'], buckets: [], date: 'at', key: 'email',
-    fields: z.object({ role: text, state: text, email: text, name: text, status: text, created: text, tokens: count, last_used: maybe, at: text, address: text }),
+    fields: z.object({ role: text, state: text, email: text, name: text, created: text, passkeys: count, lastSignIn: maybe, at: text, address: text }),
     drill: { flat: ({ teams: _t, ...r }) => r }, needs: FEATURES.people.needs,
   },
   {

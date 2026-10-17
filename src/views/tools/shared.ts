@@ -11,9 +11,6 @@ import { FLEET } from '@/data/features';
 import { PERIODS } from '@/lib/period';
 import type { Arrival, ViewMode } from '../context';
 
-/** The page People asks for, every row on one: the gateway answers 10 unless asked. */
-export const EVERY_ROW = 'limit=100';
-
 export const period = z.enum(PERIODS).optional().describe('The reporting period; all time when not given.');
 export const search = z.string().max(100).optional();
 /** One segment of a path: a team, an initiative, a plugin, a skill. */

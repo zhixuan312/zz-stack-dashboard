@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PluginRow, SearchAnswer, Skill, SkillDetail } from '@/lib/api-shapes';
 import type { ActivityLog, ActivitySummary, KnowledgeList, KnowledgeSummary, Runs } from '@/lib/destination-shapes';
-import type { Teams } from '@/lib/fleet-shapes';
+import type { People, Teams } from '@/lib/fleet-shapes';
 import type { InitiativeList } from '@/lib/work-shapes';
 import { contextText, type SharedContext } from '@/lib/shared-context';
 import { activityContext } from '@/views/activity-context';
@@ -15,6 +15,7 @@ import { knowledgeContext } from '@/views/knowledge-context';
 import { knowledgeLogContext } from '@/views/knowledge-log-context';
 import { knowledgeNodeContext } from '@/views/knowledge-node-context';
 import { peopleContext } from '@/views/people-context';
+import { releaseContext, releasesContext } from '@/views/platform-releases-context';
 import { platformStatusContext, statusRead } from '@/views/platform-status-context';
 import { pluginContext } from '@/views/plugin-context';
 import { pluginsContext } from '@/views/plugins-context';
@@ -25,7 +26,8 @@ import { settingsContext } from '@/views/settings-context';
 import { teamContext } from '@/views/team-context';
 import { teamsContext } from '@/views/teams-context';
 import { ME, MY_TEAMS, MY_TOKENS } from '../scripts/fake-gateway/people.ts';
-import { PEOPLE } from '../scripts/fake-gateway/platform-people.ts';
+import { people } from '../scripts/fake-gateway/platform-people.ts';
+import { releaseDetail, releases } from '../scripts/fake-gateway/platform-releases.ts';
 import { PLATFORM_STATUS } from '../scripts/fake-gateway/platform-status.ts';
 import { teamDetail, teams } from '../scripts/fake-gateway/platform-teams.ts';
 import { pluginEval, skillText } from '../scripts/fake-gateway/platform.ts';
@@ -52,9 +54,10 @@ import { runs } from '../scripts/fake-gateway/work-runs.ts';
 const BUDGET = 2400;
 const arrival = { updatedAt: '2026-10-12T09:00:00Z', now: '2026-10-12T09:01:00Z' };
 const fact = (c: SharedContext, label: string) => c.facts.find((f) => f.label === label)?.value;
-const NO = { q: '', team: 'all' } as const;
 
 const big = <T,>(seg: string[], body: T): T => extreme(seg, body) as T;
+/** People as the fixture answers the superadmin: one page of ten, the tiles over everybody. */
+const PEOPLE_PAGE = people(ME, new URLSearchParams(), { limit: 10, offset: 0 })![1] as People;
 /** Teams as the fixture answers the superadmin: one page of ten, the tiles over every team. */
 const TEAMS_PAGE = teams(ME, new URLSearchParams(), { limit: 10, offset: 0 })![1] as Teams;
 /** The initiatives list the fake answers the superadmin for `query`. */
@@ -82,6 +85,8 @@ const longest = (a: SearchAnswer): SearchAnswer => ({
 const contexts: Record<string, () => SharedContext> = {
   teams: () => teamsContext(TEAMS_PAGE, { filters: { q: '', status: 'all', page: '1' }, ...arrival }),
   team: () => teamContext('atlas', { team: teamDetail('atlas')!, ...arrival }),
+  releases: () => releasesContext(releases(10, 0), { filters: { page: '1' }, ...arrival }),
+  release: () => releaseContext(releaseDetail('0.97.0')!, { asOf: arrival.now, ...arrival }),
   initiatives: () => initiativesContext(listOf(), { filters: ALL, page: 1, ...arrival }),
   initiative: () => initiativeContext(initiativeDetail('atlas', '2026-09-28-search-relevance')!, arrival),
   document: () => documentContext(documentDetail('atlas', '2026-09-28-search-relevance', 'spec.md')!, arrival),
@@ -89,7 +94,7 @@ const contexts: Record<string, () => SharedContext> = {
   knowledge_node: () => knowledgeNodeContext(knowledgeBody(KNOWLEDGE[0].team, KNOWLEDGE[0].path)!, arrival),
   knowledge_log: () => knowledgeLogContext(KNOWLEDGE_LOG, { mode: 'platform', ...arrival }),
   search: () => searchContext(search('latency budget', 5, null), { ...arrival }),
-  people: () => peopleContext(PEOPLE, PEOPLE.length, { filters: NO, mode: 'platform', ...arrival }),
+  people: () => peopleContext(PEOPLE_PAGE, { filters: { q: '', state: 'all', page: '1' }, ...arrival }),
   plugins: () => pluginsContext(PLUGINS, arrival),
   plugin: () => pluginContext('sdlc', { plugin: PLUGINS.find((p) => p.plugin === 'sdlc'), evaluation: pluginEval('sdlc'), ...arrival }),
   skill: () => skillContext('sdlc', 'sdlc-spec', { plugin: PLUGINS.find((p) => p.plugin === 'sdlc'), skill: SKILLS.find((s) => s.name === 'sdlc-spec'), detail: as<SkillDetail>(skillDetail(ME, 'sdlc-spec')), text: skillText('sdlc', 'sdlc-spec') ?? undefined, ...arrival }),
@@ -104,7 +109,7 @@ const busy: Record<string, () => SharedContext> = {
   knowledge: () => knowledgeContext({ summary: big(['knowledge', 'summary'], LEARNED), list: big(['knowledge'], SHELF), filters: { q: '', kind: 'all' }, page: 1, ...arrival }),
   // The most the tool asks for, every excerpt at its 600 characters and every name as long as a name gets.
   search: () => searchContext(longest(search('review', 8, null)), { initiative: LONG_NAME, ...arrival }),
-  people: () => peopleContext(big(['people'], { people: PEOPLE }).people, PEOPLE.length, { filters: NO, mode: 'platform', ...arrival }),
+  people: () => peopleContext(big(['people'], PEOPLE_PAGE), { filters: { q: '', state: 'all', page: '1' }, ...arrival }),
   plugins: () => pluginsContext(big(['plugins'], { plugins: PLUGINS }).plugins, arrival),
   activity: () => activityContext({ summary: big(['activity', 'summary'], SUMMARY), log: big(['activity'], LOG), filters: NO_FILTER, page: 1, ...arrival }),
   runs: () => runsContext(big(['runs'], RUNS), { skill: 'all', ...arrival }),
@@ -176,10 +181,16 @@ describe('Home shares a context', () => {
 });
 
 describe('the figures a context quotes are the data\'s', () => {
+  it('releases count what the read counted', () => {
+    expect(fact(contexts.releases(), 'Releases')).toBe(String(releases(10, 0).tiles.releases));
+    expect(fact(contexts.releases(), 'Migrations applied')).toBe(String(releases(10, 0).tiles.migrations.applied));
+    expect(fact(contexts.release(), 'Console')).toBe(releaseDetail('0.97.0')!.consoleVersion);
+  });
+
   it('teams and people count their rows', () => {
     expect(fact(contexts.teams(), 'Teams')).toBe(String(TEAMS_PAGE.tiles.teams));
-    expect(fact(contexts.people(), 'People')).toBe(String(PEOPLE.length));
-    expect(fact(contexts.people(), 'Live tokens')).toBe(String(PEOPLE.reduce((a, p) => a + p.tokens, 0)));
+    expect(fact(contexts.people(), 'People')).toBe(String(PEOPLE_PAGE.tiles.people));
+    expect(fact(contexts.people(), 'With a passkey')).toBe(String(PEOPLE_PAGE.tiles.withPasskey));
   });
 
   it('initiatives count the whole list the gateway summarised, and say each row in view with its next move', () => {

@@ -46,8 +46,7 @@ const WINDOW = ['complete', 'from', 'observedFrom', 'observedThrough', 'to'];
 const PERIOD = ['denominator', 'figure', 'numerator', 'window'];
 const TODAY_TEAM = ['created', 'name', 'slug', 'status'];
 const TEAM_ROW = sorted(...TODAY_TEAM, 'calls', 'lastActive', 'lessons', 'openWork', 'people', 'sessions', 'waiting');
-const TODAY_PERSON = ['activeTeam', 'active_team', 'created', 'email', 'last_used', 'name', 'role', 'status', 'teams', 'tokens'];
-const PERSON_ROW = sorted(...TODAY_PERSON, 'lastSignIn', 'passkeys', 'state');
+const PERSON_ROW = sorted('created', 'email', 'lastSignIn', 'name', 'passkeys', 'role', 'state', 'teams');
 const AUDIT_ROW = ['actor', 'at', 'id', 'inConsole', 'kind', 'ok', 'origin', 'refusalOwner', 'sentence', 'subject', 'team'];
 
 const isPeriod = (p: Json) => { expect(keys(p)).toEqual(PERIOD); expect(keys(p.window)).toEqual(WINDOW); expect(keys(p.figure)).toEqual(FIGURE); };
@@ -119,7 +118,7 @@ describe('GET /api/console/teams, the superadmin\'s', () => {
 });
 
 describe('GET /api/console/people, the superadmin\'s', () => {
-  it('answers the tiles and every person in the declared shape, today\'s fields kept', async () => {
+  it('answers the tiles and every person in the declared shape, what People draws and nothing else', async () => {
     const ava = await read(SUPERADMIN, 'people');
     expect(await read(null, 'people?scope=platform')).toEqual(ava);
     expect(keys(ava)).toEqual(['meta', 'people', 'tiles', 'total']);
@@ -138,7 +137,6 @@ describe('GET /api/console/people, the superadmin\'s', () => {
   it('holds a deactivated person, and a person never signed in whose sign-in is null rather than a date', async () => {
     const { people } = await read(SUPERADMIN, 'people');
     const gone = people.find((p: Json) => p.state === 'deactivated');
-    expect(gone.status).toBe('deactivated');
     expect(gone.lastSignIn).not.toBeNull();
     const never = people.find((p: Json) => p.state === 'active' && p.lastSignIn === null);
     expect(never.passkeys).toBe(0);

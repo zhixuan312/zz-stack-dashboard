@@ -1,27 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { freshnessOf } from '@/lib/api';
-import { teamSlug } from '@/lib/api-shapes';
 
 /**
- * The two pure functions in `@/lib/api`.
+ * The pure function in `@/lib/api`.
  *
  * COUPLED: this file lives in `tests/` because vitest.config.ts scans only `tests/**` — a
  * test anywhere else is skipped in silence while the suite still reports success.
  */
-describe('teamSlug', () => {
-  it('takes the team out of a `<slug> (<role>)` entry', () => {
-    // `/people` formats each membership for display, so one person holding two roles on a
-    // team arrives as two entries that must fold to one team.
-    expect(teamSlug('xuan (admin)')).toBe('xuan');
-    expect(teamSlug('xuan (member)')).toBe('xuan');
-    expect(new Set(['xuan (admin)', 'xuan (member)', 'quan (admin)'].map(teamSlug)).size).toBe(2);
-  });
-
-  it('leaves a bare slug alone', () => {
-    expect(teamSlug('zz-platform')).toBe('zz-platform');
-  });
-});
-
 describe('freshnessOf', () => {
   it('reports the OLDEST query, because a page is as fresh as its stalest panel', () => {
     const older = Date.parse('2026-09-18T10:00:00Z');

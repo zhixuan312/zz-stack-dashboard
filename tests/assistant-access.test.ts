@@ -25,9 +25,10 @@ import { viewAt } from '@/lib/shared-context';
 import { platformStatusContext, statusRead } from '@/views/platform-status-context';
 import { viewTools } from '@/views/tools';
 import { ME } from '../scripts/fake-gateway/people.ts';
-import { PEOPLE } from '../scripts/fake-gateway/platform-people.ts';
+import { people } from '../scripts/fake-gateway/platform-people.ts';
 import { MEMBER_STATUS, PLATFORM_STATUS } from '../scripts/fake-gateway/platform-status.ts';
 import { teamDetail, teams } from '../scripts/fake-gateway/platform-teams.ts';
+import { releaseDetail, releases } from '../scripts/fake-gateway/platform-releases.ts';
 import { startFakeLlm } from '../scripts/fake-llm.ts';
 import { search } from '../scripts/fake-gateway/search.ts';
 import { activityLog } from '../scripts/fake-gateway/work-activity.ts';
@@ -64,10 +65,12 @@ function gateway(who: Me | null | (() => Me | null), { shared = false } = {}) {
               : path === '/activity' ? activityLog(me, query)[1]
                 : path === '/skills' ? skills(me, query)[1]
                   : path === '/plugins' ? plugins(me)[1]
-                    : path === '/people' ? { people: PEOPLE }
+                    : path === '/people' ? people(me, query, { limit: Number(query.get('limit') ?? 10), offset: Number(query.get('offset') ?? 0) })![1]
                       : path === '/search' ? found(query, shared)
                         : path === '/platform/status' ? (me.superadmin ? PLATFORM_STATUS : MEMBER_STATUS)
-                          : {};
+                          : path === '/platform/releases' ? releases(Number(query.get('limit') ?? 10), Number(query.get('offset') ?? 0))
+                            : path.startsWith('/platform/releases/') ? releaseDetail(decodeURIComponent(path.slice('/platform/releases/'.length)))
+                              : {};
     return { ok: true, status: 200, json: async () => body } as Response;
   }) as typeof fetch;
 }
@@ -178,7 +181,7 @@ describe('what an agent is offered', () => {
     // The views the route registers for them: the ones whose need they satisfy (`app/api/assistant/route.ts`).
     const views = [];
     for (const v of viewTools) if (await may(v.needs)) views.push(v.name);
-    expect(views).toEqual(['home', 'initiatives', 'initiative', 'document', 'knowledge', 'knowledge_node', 'knowledge_log', 'search', 'settings', 'platform_status']);
+    expect(views).toEqual(['home', 'record', 'initiatives', 'initiative', 'document', 'knowledge', 'knowledge_node', 'knowledge_log', 'search', 'settings', 'platform_status', 'releases', 'release']);
   });
 
   it('a superadmin is offered every collection', async () => {
@@ -243,6 +246,7 @@ describe('what the route hands the model', () => {
   it('offers no query_<name> tool, and the explore_<view> of the page the person is on and no other', async () => {
     for (const [who, path, view] of [
       [MEMBER, '/initiatives', 'initiatives'], [MEMBER, '/settings', 'settings'], [MEMBER, '/platform', 'platform_status'], [ME, '/platform/teams/atlas', 'team'],
+      [MEMBER, '/platform/releases', 'releases'], [MEMBER, '/platform/releases/0.97.0', 'release'],
       [ME, '/runs', 'runs'], [MEMBER, '/knowledge', 'knowledge'], [MEMBER, '/initiatives/atlas/2026-09-28-search-relevance/sources/notes.md', 'document'],
     ] as const) {
       const tools = await handed(who, path);
@@ -261,15 +265,27 @@ describe('what the route hands the model', () => {
 describe('a view tool\'s address', () => {
   const tool = (name: string) => viewTools.find((v) => v.name === name)!;
 
-  // The gateway pages Teams and People at 10 rows unless asked: Teams reads the page it draws, People counts over every row.
-  it('asks for the page of teams its page draws, and every person on one page', async () => {
+  // The gateway pages Teams and People at 10 rows unless asked, and each reads the page it draws.
+  it('asks for the page of teams and the page of people their pages draw', async () => {
     gateway(ME);
     await tool('teams').read({});
     await tool('people').read({});
     expect(calls.map((c) => c.url).filter((u) => /\/(teams|people)\?/.test(u))).toEqual([
       'http://gateway.test/api/console/teams?limit=10&offset=0&scope=platform',
-      'http://gateway.test/api/console/people?limit=100&scope=platform',
+      'http://gateway.test/api/console/people?limit=10&offset=0&scope=platform',
     ]);
+  });
+
+  it('asks for the page of releases its page draws, and one release from its own read', async () => {
+    gateway(MEMBER);
+    const list = await tool('releases').read({});
+    const one = await tool('release').read({ version: '0.97.0' });
+    expect(calls.map((c) => c.url).filter((u) => u.includes('/platform/releases'))).toEqual([
+      'http://gateway.test/api/console/platform/releases?limit=10&offset=0&scope=platform',
+      'http://gateway.test/api/console/platform/releases/0.97.0?scope=platform',
+    ]);
+    expect(list.context.facts.find((f) => f.label === 'Releases')?.value).toBe(String(releases(10, 0).tiles.releases));
+    expect(one.data).toEqual(releaseDetail('0.97.0'));
   });
 
   it('reads one team from its own read, and never looks for it in the list', async () => {
@@ -285,10 +301,11 @@ describe('a view tool\'s address', () => {
 
   it('declares the page each view renders, matched as Next.js matches it', () => {
     expect(Object.fromEntries(viewTools.map((v) => [v.name, v.page]))).toEqual({
-      home: '/', teams: '/platform/teams', team: '/platform/teams/[slug]', initiatives: '/initiatives', initiative: '/initiatives/[team]/[slug]',
+      home: '/', record: '/record', teams: '/platform/teams', team: '/platform/teams/[slug]', initiatives: '/initiatives', initiative: '/initiatives/[team]/[slug]',
       document: '/initiatives/[team]/[slug]/[...path]', knowledge: '/knowledge', knowledge_node: '/knowledge/[team]/[...path]',
-      knowledge_log: '/knowledge/log', search: '/knowledge', people: '/people', plugins: '/plugins', plugin: '/plugins/[plugin]',
+      knowledge_log: '/knowledge/log', search: '/knowledge', people: '/platform/people', plugins: '/plugins', plugin: '/plugins/[plugin]',
       skill: '/plugins/[plugin]/[skill]', runs: '/runs', activity: '/activity', settings: '/settings', platform_status: '/platform',
+      releases: '/platform/releases', release: '/platform/releases/[version]',
     });
     // Search shares Knowledge's page and comes after it, so the prepared query Knowledge offers is its own.
     expect(viewAt(viewTools, '/knowledge')?.name).toBe('knowledge');

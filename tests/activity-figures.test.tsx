@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, waitFor } from '@testing-library/react';
+import { Tooltip } from 'radix-ui';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 /**
@@ -52,16 +53,19 @@ const LOG: ActivityLog = {
 function mockFetch() {
   return async (input: RequestInfo | URL) => {
     const url = String(input);
-    const body = url.includes('/me') ? ME : url.includes('/activity/summary') ? SUMMARY : LOG;
+    // The summary is the console's server's read, handed to the page: the browser reads the log alone.
+    const body = url.includes('/me') ? ME : LOG;
     return { ok: true, json: async () => body } as unknown as Response;
   };
 }
 
-/** The text of the row carrying `needle`, in the column whose header is `header`. */
+/** The text of the log's row carrying `needle`, in the column whose header is `header`. */
 function cell(needle: string, header: string): string {
-  const headers = [...document.querySelectorAll('th')].map((h) => h.textContent?.trim() ?? '');
+  // The log's own table: the page draws the refusal groups and the chart's table of weeks beside it.
+  const log = document.querySelector('section[aria-label="Activity"]');
+  const headers = [...(log?.querySelectorAll('th') ?? [])].map((h) => h.textContent?.trim() ?? '');
   const column = headers.indexOf(header);
-  const row = [...document.querySelectorAll('tr')].find((r) => r.textContent?.includes(needle));
+  const row = [...(log?.querySelectorAll('tr') ?? [])].find((r) => r.textContent?.includes(needle));
   if (column < 0 || !row) return `no ${header} column or no ${needle} row`;
   // The cell's first child after its separator, not its text: a `DataTable` draws the desktop value and the words a
   // phone card uses for the same cell, one hidden by the stylesheet, and `textContent` reads both; and a fact after the
@@ -84,7 +88,7 @@ beforeEach(() => {
 
 function mount() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={client}><ActivityView /></QueryClientProvider>);
+  return render(<QueryClientProvider client={client}><Tooltip.Provider><ActivityView read={{ state: 'ok', data: SUMMARY, at: META.asOf }} /></Tooltip.Provider></QueryClientProvider>);
 }
 
 describe('the figures on the activity page', () => {
@@ -93,7 +97,7 @@ describe('the figures on the activity page', () => {
     await waitFor(() => expect(figure('Calls last week')).toBe('38'));
     expect(figure('Refused last week')).toBe('9');
     expect(figure('Most refused')).toBe('4');
-    expect(document.body.textContent).toContain('4 guardrail, 2 malformed, 2 tool, 1 other');
+    expect(document.body.textContent).toContain('4 guardrail, 2 malformed, 2 tool failure, 1 other');
     expect(document.body.textContent).toContain('core:document_edit, of 9');
   });
 

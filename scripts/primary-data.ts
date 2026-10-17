@@ -62,6 +62,8 @@ const NEVER_RUN = 'main [data-never-run]';
  * 2026-10-14. COUPLED: `detailRoutes` in scripts/verify.config.ts; an address there with no entry here fails the run.
  */
 const DETAIL: Record<string, string> = {
+  '/platform/releases/0.97.0': BODY,
+  '/platform/releases/0.31.1': BODY,
   '/platform/teams/atlas': TABLE,
   '/platform/teams/dune': TABLE,
   '/teams/atlas': TABLE,

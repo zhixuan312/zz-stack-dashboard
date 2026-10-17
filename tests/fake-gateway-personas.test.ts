@@ -480,10 +480,11 @@ describe('the personas pnpm verify --as signs in as', () => {
 
   it('probe each page the member is refused for a string its read holds and no read of the member\'s does', async () => {
     const probes = Object.entries(personas.member.deniedProbe ?? {});
-    expect(probes.map(([route]) => route).sort()).toEqual(['/people', '/platform/teams', '/teams']);
+    expect(probes.map(([route]) => route).sort()).toEqual(['/people', '/platform/people', '/platform/teams', '/teams']);
     const theirs = JSON.stringify(await Promise.all((await memberReads()).map((path) => read(MEMBER, path))));
     for (const [route, probe] of probes) {
-      // `/platform/teams` is Teams under Platform, reading the same `/teams` the rail's `/teams` reads until Phase 7.
+      // `/platform/teams` and `/platform/people` are Teams and People under Platform, reading the same `/teams` and
+      // `/people` the rail's `/teams` and `/people` read until Phase 7.
       const collection = route.replace(/^\/platform\//, '/').slice(1);
       expect(RAIL, route).toContain(`/${collection}`);
       expect(personas.member.expectedRoutes, route).not.toContain(route);

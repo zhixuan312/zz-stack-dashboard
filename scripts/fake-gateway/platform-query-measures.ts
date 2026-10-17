@@ -245,7 +245,7 @@ export const MEASURES: Record<string, Measure> = {
     facts: (_w, s) => personRows().filter((p) => p.created <= s.to)
       .map((p) => ({ day: p.created, keys: { role: p.role, state: p.state }, n: 1, lastMs: midnight(p.created), ref: p })),
     rows(_w, kept) {
-      const rows = newest(refs<ReturnType<typeof personRows>[number]>(kept), (p) => midnight(p.created), (p) => p.email, () => '/people');
+      const rows = newest(refs<ReturnType<typeof personRows>[number]>(kept), (p) => midnight(p.created), (p) => p.email, () => '/platform/people');
       return { rows, total: rows.length };
     },
   },
@@ -257,7 +257,7 @@ export const MEASURES: Record<string, Measure> = {
     rows(_w, kept) {
       const latest = new Map<string, number>();
       for (const f of kept) latest.set(String(f.ref), Math.max(latest.get(String(f.ref)) ?? 0, f.lastMs));
-      const rows = newest(personRows().filter((p) => latest.has(p.email)), (p) => latest.get(p.email)!, (p) => p.email, () => '/people');
+      const rows = newest(personRows().filter((p) => latest.has(p.email)), (p) => latest.get(p.email)!, (p) => p.email, () => '/platform/people');
       return { rows, total: rows.length };
     },
   },

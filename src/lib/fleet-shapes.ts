@@ -36,17 +36,16 @@ export type TeamDetail = {
 
 /* /people, the superadmin's */
 
-/** A person as the list reads it: the fields today's page reads, and their passkeys and recorded sign-ins. */
+/** A person as People draws them, and the day they were added, which the rows sort by. */
 export type PersonRow = {
-  email: string; name: string; role: string; status: string; created: string;
-  active_team: string;            // the slug they act for, or '' for none; `activeTeam` is the same as null for none
-  activeTeam: string | null;
+  email: string; name: string; role: string;
+  created: string;                // the local day they were added
   teams: string[];                // `<slug> (<role>)`, one entry per membership
-  tokens: number; last_used: string | null;
   passkeys: number;
   lastSignIn: string | null;      // the latest recorded sign-in; null when none was recorded, never a guessed date
   state: 'active' | 'deactivated';
 };
+/** `GET /people`: the tiles over everybody, and one page of the rows the filters match, `total` of them. */
 export type People = {
   meta: ReadMeta;
   tiles: { people: number; withPasskey: number; neverSignedIn: number; signInsLastWeek: PeriodFigure };

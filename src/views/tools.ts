@@ -21,6 +21,8 @@ import { peopleTool } from './tools/people';
 import { platformStatusTool } from './tools/platform-status';
 import { pluginTool } from './tools/plugin';
 import { pluginsTool } from './tools/plugins';
+import { recordTool } from './tools/record';
+import { releaseTool, releasesTool } from './tools/releases';
 import { runsTool } from './tools/runs';
 import { searchTool } from './tools/search';
 import { settingsTool } from './tools/settings';
@@ -29,6 +31,7 @@ import { teamTool } from './tools/team';
 import { teamsTool } from './tools/teams';
 
 export const viewTools: ViewTool[] = [
-  homeTool, teamsTool, teamTool, initiativesTool, initiativeTool, documentTool, knowledgeTool, knowledgeNodeTool, knowledgeLogTool,
-  searchTool, peopleTool, pluginsTool, pluginTool, skillTool, runsTool, activityTool, settingsTool, platformStatusTool,
+  homeTool, recordTool, teamsTool, teamTool, initiativesTool, initiativeTool, documentTool, knowledgeTool, knowledgeNodeTool,
+  knowledgeLogTool, searchTool, peopleTool, pluginsTool, pluginTool, skillTool, runsTool, activityTool, settingsTool,
+  platformStatusTool, releasesTool, releaseTool,
 ] as ViewTool[];

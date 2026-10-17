@@ -190,19 +190,3 @@ export const scores: Source = {
   drill: { columns: ['plugin', 'score', 'standing', 'scoredAt'], address: (r: Row) => String(r.address) },
   cannot: `A score below established is not counted, and scores of two protocol versions do not compare. ${PLATFORM} ${WINDOW}`,
 };
-
-export const people: Source = {
-  collection: 'people', date: 'at',
-  filters: { role: { ...eq, values: ['superadmin', 'member'] }, state: { ...eq, values: ['active', 'deactivated'] } }, facets: ['role', 'state'],
-  measures: { people: count('People', 'people', 'Every person added by the window\'s last day, as they stand now.') },
-  drill: { columns: ['email', 'name', 'role', 'state', 'created'], address: (r: Row) => String(r.address) },
-  cannot: `People are a stock: a window's start changes nothing. Tokens are counted, never shown. ${WINDOW}`,
-};
-
-export const signIns: Source = {
-  collection: 'sign_ins', date: 'at',
-  filters: { role: { ...eq, values: ['superadmin', 'member'] } }, facets: ['role'], buckets: ['day', 'week', 'month', 'weekday'],
-  measures: { signIns: count('Sign-ins', 'sign-ins', 'Console sign-ins recorded in the window.') },
-  drill: { columns: ['email', 'name', 'role', 'at'], address: (r: Row) => String(r.address) },
-  cannot: `A drilled row is a person who signed in, the latest first, not each sign-in. ${WINDOW}`,
-};

@@ -3,9 +3,10 @@ import type { ChildProcess } from 'node:child_process';
 import { startFakeGateway } from './fake-gateway-start.ts';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { ActivityLog, ActivitySummary, KnowledgeList, KnowledgeSummary, Runs } from '../src/lib/destination-shapes.ts';
-import type { Teams } from '../src/lib/fleet-shapes.ts';
+import type { People, Teams } from '../src/lib/fleet-shapes.ts';
 import type { Home, InitiativeList } from '../src/lib/work-shapes.ts';
 import { ME } from '../scripts/fake-gateway/people.ts';
+import { people as peopleAnswer } from '../scripts/fake-gateway/platform-people.ts';
 import { PLATFORM_STATUS } from '../scripts/fake-gateway/platform-status.ts';
 import { teamDetail, teams } from '../scripts/fake-gateway/platform-teams.ts';
 import { empty, extreme } from '../scripts/fake-gateway/states.ts';
@@ -41,6 +42,9 @@ const RUNS = () => body<Runs>(runs(ME, new URLSearchParams()));
 /** Teams as the fixture answers the superadmin, one page of ten, and the same list with no team in it. */
 const TEAMS = () => body<Teams>(teams(ME, new URLSearchParams(), { limit: 10, offset: 0 })!);
 const NO_TEAMS = (): Teams => ({ ...TEAMS(), teams: [], total: 0 });
+/** People as the fixture answers the superadmin, one page of ten, and the same list with nobody matching. */
+const PEOPLE_LIST = () => body<People>(peopleAnswer(ME, new URLSearchParams(), { limit: 10, offset: 0 })!);
+const NOBODY = (): People => ({ ...PEOPLE_LIST(), people: [], total: 0 });
 describe('the fixture can shape every answer its routes produce', () => {
   it('leaves an empty list empty rather than inventing rows it cannot shape', () => {
     // `/initiatives?team=<a team with no work>` is empty, and it is a state the console draws. A
@@ -50,6 +54,7 @@ describe('the fixture can shape every answer its routes produce', () => {
     const none = NONE();
     expect((extreme(['initiatives'], none) as InitiativeList)).toMatchObject({ rows: [], total: 0 });
     expect(extreme(['teams'], NO_TEAMS())).toMatchObject({ teams: [], total: 0 });
+    expect(extreme(['people'], NOBODY())).toMatchObject({ people: [], total: 0 });
     expect(extreme(['knowledge'], { ...SHELF(), rows: [], total: 0 })).toMatchObject({ rows: [], total: 0 });
     expect(extreme(['activity'], { ...LOG(), rows: [], total: 0 })).toMatchObject({ rows: [], total: 0 });
   });
@@ -87,7 +92,8 @@ describe('the fixture can shape every answer its routes produce', () => {
       [['teams'], TEAMS()],
       [['teams'], NO_TEAMS()],
       [['teams', 'atlas'], teamDetail('atlas')],
-      [['people'], { people: [] }],
+      [['people'], PEOPLE_LIST()],
+      [['people'], NOBODY()],
       [['platform', 'status'], PLATFORM_STATUS],
       [['unknown-head'], { anything: true }],
       [[], {}],
@@ -163,8 +169,29 @@ describe('the fixture can shape every answer its routes produce', () => {
   });
 });
 
+describe('People in the other worlds', () => {
+  it('is nobody on a fresh deployment: every tile zero and the week before the record of sign-ins', () => {
+    const got = empty(['people'], PEOPLE_LIST()) as People;
+    expect(got).toMatchObject({ people: [], total: 0, tiles: { people: 0, withPasskey: 0, neverSignedIn: 0 } });
+    expect(got.tiles.signInsLastWeek.figure).toEqual({ value: null, why: 'no_data' });
+    expect(got.tiles.signInsLastWeek.window).toEqual({ ...PEOPLE_LIST().tiles.signInsLastWeek.window, observedFrom: null, observedThrough: null, complete: false });
+  });
+
+  it('is a page of long names under large counts on a busy platform, never more rows than the page asked for', () => {
+    const list = PEOPLE_LIST();
+    const got = extreme(['people'], list) as People;
+    expect(got.people).toHaveLength(list.people.length);
+    expect(got.total).toBeGreaterThan(100);
+    expect(got.tiles.people).toBe(got.total);
+    for (const [i, row] of got.people.entries()) {
+      expect(Object.keys(row).sort(), `a row lost a field: ${JSON.stringify(row)}`).toEqual(Object.keys(list.people[i]).sort());
+      expect(row.name.length).toBeGreaterThan(60);
+      expect(row.teams.length).toBeGreaterThan(1);
+    }
+  });
+});
+
 describe('a busy platform is still one team to a member', () => {
-  const person = { email: 'a@example.com', name: 'A', role: 'member', status: 'active', created: '2026-10-01', activeTeam: 'atlas', teams: ['atlas (admin)'], tokens: 1, last_used: null };
   const entry = { ts: '2026-10-05T00:00:00Z', actor: 'a@example.com', team: 'beacon', kind: 'knowledge.add', node: '0001', recorded_title: 't', superseded_by: null, node_title: 't', node_status: 'adopted' };
 
   it('grows no team beside their own', () => {
@@ -172,13 +199,9 @@ describe('a busy platform is still one team to a member', () => {
     expect(extreme(['teams'], TEAMS(), 'atlas')).toEqual(TEAMS());
   });
 
-  it('grows people and log entries that name their team and no other', () => {
-    const people = (extreme(['people'], { people: [person] }, 'atlas') as { people: { teams: string[] }[] }).people;
-    expect(people.length).toBeGreaterThan(100);
-    for (const p of people) for (const t of p.teams) expect(t.startsWith('atlas (')).toBe(true);
-    // Held to nobody, the same rows name the platform's other teams, which is what the superadmin is shown.
-    const fleet = (extreme(['people'], { people: [person] }) as { people: { teams: string[] }[] }).people;
-    expect(fleet.at(-1)!.teams.length).toBeGreaterThan(1);
+  it('grows no person, and log entries that name their team and no other', () => {
+    // The gateway refuses a member People, so this answer is never theirs; held to a team, it is left as it is.
+    expect(extreme(['people'], PEOPLE_LIST(), 'atlas')).toEqual(PEOPLE_LIST());
 
     const log = (extreme(['knowledge', 'log'], { entries: [entry] }, 'beacon') as { entries: { team: string }[] }).entries;
     expect(log.length).toBeGreaterThan(100);

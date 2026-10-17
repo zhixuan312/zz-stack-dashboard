@@ -88,7 +88,7 @@ const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...TEAM_STATUSES.map((s)
 function useTeams(served: TeamsRead | null, filters: TeamsFilters) {
   const path = teamsPath(filters);
   const mine = served?.path === path ? served : null;
-  const { q, follow } = useServed<Teams>(path, mine !== null);
+  const { q, follow } = useServed<Teams>(path, mine !== null, mine === null && served !== null);
   const data = q.data ?? (mine?.state === 'ok' ? mine.data : undefined);
   const failed = failureOf(q);
   const trouble = data ? null : failed ?? (mine && mine.state !== 'ok' && !q.isFetching ? teamsTrouble(mine) : null);

@@ -28,8 +28,8 @@ function list(query: URLSearchParams): Teams {
   return teams(SUPERADMIN, query, page)![1] as Teams;
 }
 
-const served = (): TeamsRead => {
-  const path = teamsPath(TEAMS_DEFAULTS);
+const served = (filters: Partial<typeof TEAMS_DEFAULTS> = {}): TeamsRead => {
+  const path = teamsPath({ ...TEAMS_DEFAULTS, ...filters });
   return { state: 'ok', path, data: list(new URLSearchParams(path.split('?')[1])) };
 };
 
@@ -116,18 +116,23 @@ describe('the figures on Teams', () => {
     expect(cell('atlas', 'People')).toBe(formatCount(team('atlas').people));
   });
 
-  it('reads a filtered address in the browser, filtered and paged by the gateway', async () => {
+  it('draws a filtered address from the server\'s read of it, filtered and paged by the gateway, and reads it nowhere else', async () => {
     window.history.replaceState(null, '', '/platform/teams?status=archived');
-    mount();
+    const read = served({ status: 'archived' });
+    expect(read.path).toContain('status=archived');
+    mount(read);
     await waitFor(() => expect(document.querySelectorAll('tbody tr')).toHaveLength(1));
     expect(cell('cinder', 'People')).toBe(formatCount(team('cinder').people));
-    expect(asked.some((a) => a.startsWith('/api/console/teams?') && a.includes('status=archived') && a.includes('limit=10') && a.includes('offset=0'))).toBe(true);
     expect(screen.getByText('1 team')).toBeInTheDocument();
+    expect(asked.filter((a) => a.startsWith('/api/console/teams'))).toEqual([]);
   });
 
-  it('asks the gateway for the second page as its own read', async () => {
+  it('reads the second page as the gateway\'s offset of ten, on the server and not again in the browser', async () => {
     window.history.replaceState(null, '', '/platform/teams?page=2');
-    mount();
-    await waitFor(() => expect(asked.some((a) => a.includes('offset=10'))).toBe(true));
+    const read = served({ page: '2' });
+    expect(read.path).toContain('offset=10');
+    mount(read);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(asked.filter((a) => a.startsWith('/api/console/teams'))).toEqual([]);
   });
 });

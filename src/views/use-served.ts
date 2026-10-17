@@ -13,9 +13,15 @@ import { useConsole } from '@/lib/api';
  * Teams and a team's page both follow their server read with it, so it lives here rather than in either page: a
  * page importing the other for it carried the other's whole first load.
  *
- * Off the served address (`served` false) the mark is idle and `path` is the browser's from the first render.
+ * Off the served address (`served` false) the mark is idle and `path` is the browser's from the first render, unless
+ * `waiting` says a navigation to it is on its way. A filter or a page of rows moves the address through the router, and
+ * the console's server renders the page again with its own read of the new address, so the browser waits for that
+ * answer rather than asking the gateway the same thing beside it. A page passes `waiting` when the server read it holds
+ * is of another address than the one it draws: the address has moved and the server's answer has not arrived, or the
+ * answer has arrived and the address this part of the page reads has not caught up with it yet. Both settle on their
+ * own, and neither is a reason to read.
  */
-export function useServed<T>(path: string, served: boolean) {
+export function useServed<T>(path: string, served: boolean, waiting = false) {
   const mark = useQuery({
     queryKey: ['console', path, 'served'],
     queryFn: () => Date.now(),
@@ -25,6 +31,6 @@ export function useServed<T>(path: string, served: boolean) {
     retry: false,
     enabled: served,
   });
-  const q = useConsole<T>(!served || mark.data > 0 ? path : null);
+  const q = useConsole<T>((served ? mark.data > 0 : !waiting) ? path : null);
   return { q, follow: () => void mark.refetch() };
 }

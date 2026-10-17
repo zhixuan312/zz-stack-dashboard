@@ -4,10 +4,10 @@
  * breaking a mode nobody updated.
  */
 import type {
-  KnowledgeLogEntry, Person, PlatformPersonRow, PluginRow, Skill,
+  KnowledgeLogEntry, PlatformPersonRow, PluginRow, Skill,
 } from '../../src/lib/api-shapes.ts';
 import type { ActivityLog, ActivitySummary, KnowledgeList, KnowledgeSummary, RefusalOwner, Runs } from '../../src/lib/destination-shapes.ts';
-import type { Teams } from '../../src/lib/fleet-shapes.ts';
+import type { People, Teams } from '../../src/lib/fleet-shapes.ts';
 import type { PeriodFigure, PlatformStatus } from '../../src/lib/platform-shapes.ts';
 import type { Home, InitiativeList } from '../../src/lib/work-shapes.ts';
 
@@ -22,7 +22,7 @@ export function empty(seg: string[], body: unknown): unknown {
     case 'knowledge': return a === 'summary' ? noKnowledge(body as KnowledgeSummary) : a === 'log' ? list('entries') : a ? body
       : { ...(body as KnowledgeList), rows: [], total: 0, summary: { byKind: {}, standing: 0, superseded: 0 } } satisfies KnowledgeList;
     case 'skills': return a ? { ...(body as object), surfaces: [], busiestTools: [] } : list('skills');
-    case 'people': return list('people');
+    case 'people': return noPeople(body as People);
     case 'activity': return a === 'summary' ? noActivity(body as ActivitySummary)
       : { ...(body as ActivityLog), rows: [], total: 0, kinds: [], tools: [] } satisfies ActivityLog;
     case 'runs': return noRuns(body as Runs);
@@ -35,6 +35,19 @@ export function empty(seg: string[], body: unknown): unknown {
     case 'platform': return a === 'status' ? freshStatus(body as PlatformStatus) : body;
     default: return body;
   }
+}
+
+/** People on a fresh deployment: nobody added, and the week before the record of sign-ins began, as the gateway says it. */
+function noPeople(p: People): People {
+  const week = p.tiles.signInsLastWeek;
+  return {
+    ...p,
+    tiles: {
+      people: 0, withPasskey: 0, neverSignedIn: 0,
+      signInsLastWeek: { window: { ...week.window, observedFrom: null, observedThrough: null, complete: false }, figure: { value: null, why: 'no_data' }, numerator: null, denominator: null },
+    },
+    people: [], total: 0,
+  };
 }
 
 /** Status on a fresh deployment: every check answered and found nothing, every week read and holding no data, no door's day, nothing of the team's own. */
@@ -202,8 +215,17 @@ export function extreme(seg: string[], body: unknown, own: string | null = null)
     }
     case 'skills': return a ? body : { skills: (body as { skills: Skill[] }).skills.map((s) => ({ ...s, runs: big(s.runs), calls: big(s.calls), refusals: big(s.refusals), durationTotal: s.durationTotal === null ? null : s.durationTotal * 900 })) };
     case 'people': {
-      const p = (body as { people: Person[] }).people;
-      return { people: grown(p, 180, (base, i): Person => ({ ...base, email: `person.${i}.${LONG}@example.com`, name: `Person ${i} ${LONG.replace(/-/g, ' ')}`, teams: own ? [`${own} (member)`] : Array.from({ length: 6 }, (_, j) => `team-${j + 1} (member)`), tokens: 40 + i })) };
+      if (own) return body;
+      // The list is paged and counted on the server: a busy platform is a page of names longer than any layout planned
+      // for, each person in more teams than a column holds, under counts in the hundreds, never more rows than asked for.
+      const p = body as People;
+      const more = 480;
+      return {
+        ...p,
+        tiles: { ...p.tiles, people: p.tiles.people + more, withPasskey: p.tiles.withPasskey + 410, neverSignedIn: p.tiles.neverSignedIn + 37 },
+        people: p.people.map((r, i) => ({ ...r, email: `person.${i}.${LONG}@example.com`, name: `Person ${i} ${LONG.replace(/-/g, ' ')}`, teams: Array.from({ length: 6 }, (_, j) => `team-${j + 1}-${LONG}`.slice(0, 63) + ' (member)'), passkeys: r.passkeys + 3 })),
+        total: p.total ? p.total + more : 0,
+      } satisfies People;
     }
     case 'activity': {
       if (a === 'summary') {

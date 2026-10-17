@@ -90,9 +90,14 @@ const config: VerifyConfig = {
    * every page has a request-time part and Next sends the page's flight payload a second time beside the prerendered
    * one. It is the same text twice, so it compresses away: `/initiatives` is 11,229 bytes gzipped without it and 11,966
    * with it. The cap measures uncompressed bytes, which is why it moved and the page a person downloads barely did.
+   *
+   * `/people` moved again on 2026-10-17, to 135 KiB (17.8 KiB gzipped), for one reason: its first page of people is now
+   * read on the console's server (reconciliation 65), so its rows are in the HTML twice, once drawn (the table and the
+   * phone's cards) and once in the flight payload that hands the read to the page, where before both held a skeleton.
+   * Teams under Platform, built the same way, reads 137 KiB. The cap holds a tenth above it, as before.
    */
   budgets: {
-    htmlKb: { '/initiatives': 108, '/people': 108 },
+    htmlKb: { '/initiatives': 108, '/people': 148 },
     /**
      * PROVISIONAL, 2026-10-16: the recommendation put in place so the next feature is not blocked by a
      * stale rail. The measurement is real; the bar is the owner's, and the question is open in
@@ -130,11 +135,13 @@ const config: VerifyConfig = {
     // Knowledge's search runs on submit, so typing changes nothing; its data is the tiles, read on the server.
     { path: '/knowledge', title: 'Knowledge', readySelector: 'main [data-figures="read"] .t-figure', probe: 'toggle', controlSelector: 'main button[aria-label^="About "]', resultSelector: '[role="tooltip"]' },
     { path: '/people', title: 'People', readySelector: 'main table tbody tr', probe: 'filter', controlSelector: 'main input[type="search"]', resultSelector: 'main table tbody tr' },
-    // No search field on these four, so the dialog is the change the check can read. Every one of them draws a table,
+    // Activity's primary data is its three tiles, read on the server; the one control the check presses is a tile's info
+    // button, whose tooltip says what the tile counts.
+    { path: '/activity', title: 'Activity', readySelector: 'main [data-figures="read"] [data-value]', probe: 'toggle', controlSelector: 'main button[aria-label^="About "]', resultSelector: '[role="tooltip"]' },
+    // No search field on these three, so the dialog is the change the check can read. Every one of them draws a table,
     // so `main table tbody tr` is what says the data arrived.
     { path: '/plugins', title: 'Plugins', readySelector: 'main table tbody tr', probe: 'dialog', controlSelector: 'main button[aria-haspopup="dialog"]', resultSelector: '[role="dialog"]' },
     { path: '/runs', title: 'Runs', readySelector: 'main table tbody tr', probe: 'dialog', controlSelector: 'main button[aria-haspopup="dialog"]', resultSelector: '[role="dialog"]' },
-    { path: '/activity', title: 'Activity', readySelector: 'main table tbody tr', probe: 'dialog', controlSelector: 'main button[aria-haspopup="dialog"]', resultSelector: '[role="dialog"]' },
     { path: '/settings', title: 'Settings', readySelector: 'main table tbody tr', probe: 'dialog', controlSelector: 'main button[aria-haspopup="dialog"]', resultSelector: '[role="dialog"]' },
     // Status leads with what needs attention and the paired figures, read on the server: its data is the Featured
     // metric's first figure, the last whole week's malformed calls per 1,000 (`.t-figure` is the team's tiles now). The
@@ -150,6 +157,8 @@ const config: VerifyConfig = {
   // node, a plugin with an evaluation, one never profiled, one vendored and never run, and a skill in each of its
   // views.
   detailRoutes: [
+    '/platform/releases/0.97.0',
+    '/platform/releases/0.31.1',
     '/platform/teams/atlas',
     '/platform/teams/dune',
     '/teams/atlas',
@@ -203,7 +212,7 @@ const config: VerifyConfig = {
     member: {
       cookie: { name: 'zz_console', value: 'member' },
       expectedRoutes: ['/', '/initiatives', '/knowledge', '/settings', '/platform'],
-      deniedProbe: { '/teams': 'Beacon Payments', '/platform/teams': 'Beacon Payments', '/people': 'Jonas Weber' },
+      deniedProbe: { '/teams': 'Beacon Payments', '/platform/teams': 'Beacon Payments', '/people': 'Jonas Weber', '/platform/people': 'Jonas Weber' },
     },
   },
   refusal,

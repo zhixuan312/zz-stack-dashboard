@@ -1,9 +1,11 @@
-import { gate } from '@/data/access';
-import { PeopleView } from '@/views/pages/people';
+import { gate, gatedMetadata } from '@/data/access';
+import PlatformPeoplePage from '../platform/people/page';
 
-/** The page asks `people` before it renders; the rail hiding a destination is presentation, never this gate. */
-export default async function PeoplePage() {
+export function generateMetadata() { return gatedMetadata('people', { title: 'People' }); }
+
+/** Today's address, which renders Platform's People until Phase 7 removes it. It asks `people` first, as that page does. */
+export default async function PeoplePage(props: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const denied = await gate('people');
   if (denied) return denied;
-  return <PeopleView />;
+  return <PlatformPeoplePage {...props} />;
 }

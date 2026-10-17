@@ -5,13 +5,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Tooltip } from 'radix-ui';
 
 import { PeriodProvider } from '@/console/period';
-import type { Me, Person, PluginRow, Skill, SkillDetail, SkillText } from '@/lib/api-shapes';
+import type { Me, PluginRow, Skill, SkillDetail, SkillText } from '@/lib/api-shapes';
 import type { ActivityLog, ActivitySummary } from '@/lib/destination-shapes';
 import { ActivityView } from '@/views/pages/activity';
 import { InitiativesView } from '@/views/pages/initiatives';
 import { KnowledgeView } from '@/views/pages/knowledge';
 import { KnowledgeLogView } from '@/views/pages/knowledge-log';
-import { PeopleView } from '@/views/pages/people';
 import { SkillView } from '@/views/pages/skill';
 
 const TooltipProvider = Tooltip.Provider;
@@ -83,10 +82,10 @@ describe('the Activity page, every read failing', () => {
   });
 
   it('draws a dash in the bar and says the figures failed, as the page\'s own spec says it must', async () => {
-    mount(<ActivityView />);
-    await waitFor(() => expect(text()).toContain('The week\'s figures did not load'));
-    // The tiles are the summary read and the table is the log read: both failed, and both say so.
-    expect(text()).toContain('The events did not load');
+    mount(<ActivityView read={{ state: 'failed', reason: REASON }} />);
+    // The figures are the server's read, failed before the page drew; the events are the browser's, still to fail.
+    await waitFor(() => expect(text()).toContain('The events did not load'));
+    expect(text()).toContain('The week\'s figures did not load');
     expect(screen.getAllByText(REASON).length).toBeGreaterThan(1);
     expect(screen.getAllByText('—').length).toBeGreaterThan(0);
     expectNoEllipsis();
@@ -121,26 +120,6 @@ describe('the Initiatives page, its read failing', () => {
     await waitFor(() => expect(text()).toContain('The initiatives did not load'));
     expect(text()).toContain(REASON);
     expect(screen.getAllByText('—').length).toBeGreaterThan(0);
-    expectNoEllipsis();
-  });
-});
-
-describe('the People page, its read failing', () => {
-  beforeEach(() => {
-    window.history.replaceState(null, '', '/people');
-    onlyMe();
-  });
-
-  it('reports no counts at all: a note that counted nobody would be a zero nobody measured', async () => {
-    mount(<PeopleView />);
-    await waitFor(() => expect(text()).toContain('The people did not load'));
-    expect(text()).toContain(REASON);
-    // The values are dashes and the notes that used to count over an unread page are gone with them.
-    expect(screen.getAllByText('—').length).toBeGreaterThan(0);
-    expect(text()).not.toContain('0 superadmin');
-    expect(text()).not.toContain('Held by 0');
-    // The bar counted a population of nothing beside the error that explained it.
-    expect(text()).not.toContain('0 of 0');
     expectNoEllipsis();
   });
 });
@@ -214,9 +193,8 @@ describe('the Knowledge log page, its read failing', () => {
 
 /**
  * The other shape of the same lie: a read that SUCCEEDED and took one page of a longer list. The answer carries the
- * population its page was cut from, and the two lists below ask for the largest page the gateway takes — so a bar that
- * printed only the rows it holds would state a truncated population as a measured whole, and a search would look like
- * it had covered everybody.
+ * population its page was cut from, and the list below asks for the largest page the gateway takes — so a bar that
+ * printed only the rows it holds would state a truncated population as a measured whole.
  */
 const WINDOW = { from: '2026-10-05T00:00:00Z', to: '2026-10-12T00:00:00Z', observedFrom: '2026-10-05T00:00:00Z', observedThrough: '2026-10-12T00:00:00Z', complete: true };
 const META = {
@@ -224,33 +202,6 @@ const META = {
   period: { from: '2026-09-07T00:00:00Z', to: '2026-10-15T00:00:00Z' },
   scope: 'active-team' as const, population: 'atlas', coverageFrom: null,
 };
-
-const PEOPLE: Person[] = [
-  { email: 'one@example.com', name: 'One', role: 'superadmin', status: 'active', created: '2026-08-01',
-    activeTeam: 'atlas', teams: ['atlas (admin)'], tokens: 2, last_used: '2026-10-01T00:00:00Z' },
-  { email: 'two@example.com', name: 'Two', role: 'member', status: 'active', created: '2026-08-02',
-    activeTeam: 'beacon', teams: ['beacon (member)'], tokens: 0, last_used: null },
-  { email: 'three@example.com', name: 'Three', role: 'member', status: 'active', created: '2026-08-03',
-    activeTeam: 'beacon', teams: ['beacon (admin)'], tokens: 4, last_used: '2026-10-02T00:00:00Z' },
-];
-
-/** The figure of the tile whose label is `label`: the first `<p>` inside its card, beside the heading. */
-function figure(label: string): string {
-  const mine = [...document.querySelectorAll('h2')].find((h) => h.textContent?.trim() === label);
-  return mine?.closest('div')?.parentElement?.querySelector('p')?.textContent?.trim() ?? '';
-}
-
-describe('a page of a longer list says it is a page', () => {
-  it('people: the population is the answer\'s total, and the bar says how much of it was read', async () => {
-    window.history.replaceState(null, '', '/people');
-    onlyMe([['/people', { people: PEOPLE, total: 250 }]]);
-    mount(<PeopleView />);
-    await waitFor(() => expect(figure('People')).toBe('250'));
-    expect(text()).toContain('the first 3 of 250, 3 matching');
-    // The notes count the rows read, so they say which rows they counted.
-    expect(text()).toContain('of the first 3 read');
-  });
-});
 
 describe('the activity log read stops at its own ceiling', () => {
   const SUMMARY: ActivitySummary = {
@@ -272,9 +223,9 @@ describe('the activity log read stops at its own ceiling', () => {
 
   it('the count says how far the read reached, and claims no more than that', async () => {
     window.history.replaceState(null, '', '/activity');
-    // The summary first: `/activity` is a prefix of both reads.
-    onlyMe([['/activity/summary', SUMMARY], ['/activity', LOG]]);
-    mount(<ActivityView />);
+    // The summary is the console's server's read, handed to the page; the browser reads the log alone.
+    onlyMe([['/activity', LOG]]);
+    mount(<ActivityView read={{ state: 'ok', data: SUMMARY, at: META.asOf }} />);
     await waitFor(() => expect(text()).toContain('500 events, the latest 500 read'));
     expect(text()).not.toContain('of the latest');
   });

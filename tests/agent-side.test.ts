@@ -128,7 +128,7 @@ async function open(page: Page, ask?: (question: string) => void): Promise<Share
 const ASK = /^Ask: /;
 
 /** Today's addresses that render another route's page until Phase 7 removes them; their view tool names that route. */
-const RENDERS_UNTIL_PHASE_7: Record<string, string> = { '/teams': '/platform/teams', '/teams/[slug]': '/platform/teams/[slug]' };
+const RENDERS_UNTIL_PHASE_7: Record<string, string> = { '/teams': '/platform/teams', '/teams/[slug]': '/platform/teams/[slug]', '/people': '/platform/people' };
 
 /**
  * The pages whose protagonist card has no head that can hold an action yet, each with what will give it one. Every other
@@ -174,7 +174,7 @@ describe('every page of the console carries its agent side', () => {
     expect(tool!.needs, `view_${tool!.name} needs what the page's gate needs`).toBe(FEATURES[page.feature].needs);
     const route = RENDERS_UNTIL_PHASE_7[page.route] ?? page.route;
     expect(tool!.page, `view_${tool!.name} names the page it renders`).toBe(route);
-    const address = route === page.route ? page.address : page.address.replace(/^\/teams/, '/platform/teams');
+    const address = route === page.route ? page.address : page.address.replace(/^\/(teams|people)/, '/platform/$1');
     expect(viewAt(viewTools, address), `${address} offers explore_${tool!.name}`).toBe(tool);
 
     const [first] = await screen.findAllByRole('button', { name: ASK }, { timeout: 10_000 });

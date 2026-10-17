@@ -99,7 +99,8 @@ function recordOf(team: string | null, email: string, period: Period, page: { li
     },
     work: { state: 'ok', data: {
       closedByOutcome: { accepted: outcome('accepted'), delivered: outcome('delivered'), abandoned: outcome('abandoned') },
-      mostOpenAtOnce: { value: counted(8), at: all.find((r) => r.state === 'waiting')?.opened ?? null },
+      // The day the record's `most_open` best below was set: the one figure, so the two are one day.
+      mostOpenAtOnce: { value: counted(8), at: WEEKS[1].from },
       medianHoursToClose: median(whole, closed.length ? 312 : null, closed.length),
       medianHoursToAbandon: median(whole, closed.some((r) => r.state === 'abandoned') ? 96 : null, closed.filter((r) => r.state === 'abandoned').length),
       closuresInAll: windows.map((w) => count(w, all.filter((r) => r.closed !== null && r.closed < w.to).length)),

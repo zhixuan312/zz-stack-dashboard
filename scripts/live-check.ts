@@ -8,8 +8,8 @@
  *
  * What it proves, and what it does not. It proves the console's half of the contract in `references/live.md`: a page
  * opens one stream and follows its own collection, a hint for that collection is read again and what arrived is on
- * screen (on Teams and on a team's page, whose first reads are the console's server's), a hint for a collection the page does not show changes nothing, and the bell's own read follows a hint for
- * the collection it watches. It does NOT prove the multi-tab and offline behaviour Meridian's own check does — one
+ * screen (on Teams and on a team's page, whose first reads are the console's server's), a hint for a collection the page does not show changes nothing, People reads its
+ * collection again on a hint for it, and the bell's own read follows a hint for the collection it watches. It does NOT prove the multi-tab and offline behaviour Meridian's own check does — one
  * `launch()` here owns one page, and a second tab is not something this harness can open. The stream is shared per
  * origin, so a hint reaching this tab is the same frame a second tab would get; the reader should know that is an
  * argument, not a measurement.
@@ -105,9 +105,27 @@ await follows('/platform/teams', 'Dune Renamed By The Live Check', 'Dune Renamed
 await follows(`/platform/teams/${RENAMED_SLUG}`, 'Dune Renamed On Its Own Page', 'Dune Renamed Unsolicited On Its Page');
 
 /**
+ * People, at its address under Platform: its first read is the console's server's, so a read of `people` the gateway
+ * counts after a hint is the tab's own. Nothing in the fixture can rename a person, so this asserts on the gateway's
+ * read count, as the bell case below does, and carries the same caveat under `verify --full`. A hint for a collection
+ * People does not show is not asserted here: on a shared gateway another suite's read of `people` would fail it.
+ */
+await page.open(base + '/platform/people', { width: 1440, theme: 'dark' });
+if (page.errors.length) failures.push(`/platform/people: ${page.errors[0]}`);
+if (!(await until((t) => t.includes('Sign-ins last week'), SHOW_MS))) failures.push('/platform/people: the page never drew its tiles');
+const peopleBefore = (await counts()).people ?? 0;
+await hint('collection=people');
+let peopleRead = false;
+for (let i = 0; i < 24 && !peopleRead; i++) {
+  await sleep(250);
+  peopleRead = ((await counts()).people ?? 0) > peopleBefore;
+}
+if (!peopleRead) failures.push('/platform/people: a hint for people was never read again, so the tab does not follow people');
+
+/**
  * The chrome's own read, on a page that does not show it.
  *
- * `/people` reads `people` and nothing else, so any read of `approvals` there is the BELL's — the one place the console
+ * `/platform/people` reads `people` and nothing else, so any read of `approvals` there is the BELL's — the one place the console
  * says "this needs you" without being asked. It registers `initiatives` itself (`src/console/frame.tsx`), and without
  * that registration a gate approved in another tab leaves its count stale on every page whose own read is not also
  * `initiatives`, which is all of them but two.
@@ -116,8 +134,6 @@ await follows(`/platform/teams/${RENAMED_SLUG}`, 'Dune Renamed On Its Own Page',
  * returns the same rows and the bell looks identical either way. The count says the request arrived, which is what "the
  * tab read it again" means.
  */
-await page.open(base + '/people', { width: 1440, theme: 'dark' });
-if (page.errors.length) failures.push(`/people: ${page.errors[0]}`);
 const bellBefore = (await counts()).approvals ?? 0;
 await hint('collection=initiatives');
 let bellRead = false;
@@ -125,11 +141,11 @@ for (let i = 0; i < 24 && !bellRead; i++) {
   await sleep(250);
   bellRead = ((await counts()).approvals ?? 0) > bellBefore;
 }
-if (!bellRead) failures.push('/people: a hint for initiatives never read the bell\'s Approvals again, though the bell beside that page shows it');
+if (!bellRead) failures.push('/platform/people: a hint for initiatives never read the bell\'s Approvals again, though the bell beside that page shows it');
 
-if (page.errors.length) failures.push(`/people: ${page.errors[0]}`);
+if (page.errors.length) failures.push(`/platform/people: ${page.errors[0]}`);
 
 page.close();
 for (const f of failures) console.log('FAIL ' + f);
-console.log(`\nlive: teams followed at two addresses, each change read again and each unsolicited one ignored; ${failures.length} issues`);
+console.log(`\nlive: teams followed at two addresses, each change read again and each unsolicited one ignored, and people read again on a hint; ${failures.length} issues`);
 process.exit(failures.length ? 1 : 0);

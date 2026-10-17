@@ -286,15 +286,17 @@ docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
 | | |
 |---|---|
 | **Home** | What waits on you, then last whole week's work beside the week before (words added, closures, approvals in your name), four tiles, the work that is open, the runs active now, the milestones and what closed last week, with a line to Record. The bell lists the approvals waiting on the team |
+| **Record** | One person's record of writing with agents: words added with the estimated hours behind them and the pace that estimate assumes, the period's closures, approvals, lessons and runs, the year of days and the record table; copy it as text |
 | **Teams** | Under Platform, the superadmin's alone: every team with its people, open work, waiting and lessons, paged and filtered on the server; create one here. Open one for its calls by week and its members, and archive it or add and remove people there |
 | **Initiatives** | Every piece of work and how far through its flow it got |
 | **Knowledge** | The team's search, ranked as the assistant and MCP rank it, then lessons adopted and superseded, the searches that found nothing (most asked first), searches with results by week and the newest lessons, with the store's log behind its tab. A lesson on the shared shelf opens read-only for anybody |
 | **Plugins** | What a person installs; open one and it leads with its overall evaluation score, then the evidence behind it — health, quality by dimension, usage, findings, candidates and releases (one compact panel until a run has completed), and who may change it |
 | **Runs** | Every run by the skill that drove it |
-| **Activity** | The audit log |
-| **People** | Everyone the platform knows, and what they can reach |
+| **Activity** | Your team's real work by week: what was refused and why, by owner, the refusals grouped by owner, tool and message, and the event log |
+| **People** | Under Platform, the superadmin's alone: everyone the platform knows, with their role, teams, passkey, last sign-in and state; add a person, give them an enrolment link, or deactivate them |
 | **Settings** | The person's own tokens, client setup and teams, plus team and platform administration where their role carries it |
 | **Status** | How often real work called a tool the wrong way in the last whole week |
+| **Releases** | Under Platform, for everybody: every recorded release, releases and malformed calls per 1,000 by week, and each release's malformed calls, tool failures and p95 in the 72 hours either side of it, partial where the record saw only part of a window; open one for its published changelog, upgrade notes and what clients must do |
 
 Statistics come before judgment on every analysis page, because a score with no idea what
 it cost to produce is a number nobody can act on.

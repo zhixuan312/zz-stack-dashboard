@@ -74,7 +74,7 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 describe('each page draws loading, empty, error and partial', () => {
-  it('Teams: loading while a filtered address is read in the browser', () => {
+  it('Teams: loading while the server\'s read of a filtered address is on its way', () => {
     window.history.replaceState(null, '', '/platform/teams?q=at');
     browser(null);
     mount(<PlatformTeamsView served={ok} />);

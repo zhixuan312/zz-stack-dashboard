@@ -37,7 +37,7 @@ async function outcome(address: string): Promise<{ status: number; body: string;
 }
 
 describe('an address ending in a file name', () => {
-  it.each(['/favicon.ico', '/a/b.webp', '/teams.json', '/platform/teams/atlas.csv'])('%s is a bare 404', async (address) => {
+  it.each(['/favicon.ico', '/a/b.webp', '/teams.json', '/platform/teams/atlas.csv', '/a/backup.7z'])('%s is a bare 404', async (address) => {
     expect(await outcome(address)).toEqual({ status: 404, body: '', passed: false });
   });
 
@@ -47,6 +47,9 @@ describe('an address ending in a file name', () => {
     '/knowledge/atlas/nodes/0004-rank-by-recency-first.md',
     '/api/console/document/atlas/2026-09-28-search-relevance/spec.md',
     '/auth/passkey.json',
+    // A release's version ends in digits after a dot, which no file extension is.
+    '/platform/releases/0.97.0',
+    '/platform/releases/0.98.0-rc.1',
   ])('%s passes through', async (address) => {
     expect((await outcome(address)).passed).toBe(true);
   });
