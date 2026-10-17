@@ -4,36 +4,21 @@
  * breaking a mode nobody updated.
  */
 import type {
-  KnowledgeLogEntry, Overview, Person, PlatformPersonRow, PluginRow, Skill, Team, WaitingGate,
+  KnowledgeLogEntry, Person, PlatformPersonRow, PluginRow, Skill,
 } from '../../src/lib/api-shapes.ts';
 import type { ActivityLog, ActivitySummary, KnowledgeList, KnowledgeSummary, RefusalOwner, Runs } from '../../src/lib/destination-shapes.ts';
-import type { PeriodFigure } from '../../src/lib/platform-shapes.ts';
-import type { InitiativeList } from '../../src/lib/work-shapes.ts';
+import type { Teams } from '../../src/lib/fleet-shapes.ts';
+import type { PeriodFigure, PlatformStatus } from '../../src/lib/platform-shapes.ts';
+import type { Home, InitiativeList } from '../../src/lib/work-shapes.ts';
 
 /** Nothing recorded yet: every list empty, every figure absent rather than zero where the API says so. */
 export function empty(seg: string[], body: unknown): unknown {
   const [head, a, b] = seg;
   const list = (key: string) => ({ ...(body as object), [key]: [] });
   switch (head) {
-    case 'overview': {
-      const o = body as Overview;
-      return {
-        ...o,
-        metrics: {
-          progressing: { value: null, active: 0, scoreable: 0, stages: { noflow: 0, notstarted: 0, drafting: 0, agreed: 0, gated: 0, closed: 0 }, waiting: 0, waitingOldestDays: null, noDeltaBecause: o.metrics.progressing.noDeltaBecause },
-          knowledge: { value: null, prev: null, fromWork: 0, imported: 0, searches: 0, importThresholdPerHour: o.metrics.knowledge.importThresholdPerHour },
-          refusals: { value: null, prev: null, refused: 0, calls: 0, byDoor: [] },
-          context: { value: null, prev: null, p90: null, runs: [], unmeasured: 0, capped: false, contextWindowKb: o.metrics.context.contextWindowKb },
-        },
-        counts: { teams: 0, activeTeams: 0, people: 1, superadmins: 1, documents: 0, initiatives: 0, events: 0, failures: 0, unattributedEvents: 0 },
-        toolTrend: o.toolTrend.map((t) => ({ ...t, inside: 0, outside: 0, refused: 0 })),
-        eventKinds: [],
-        refusals: { total: 0, byTool: [], byMessage: [] },
-      } satisfies Overview;
-    }
-    case 'teams': return a ? body : list('teams');
-    // Two answers come off this route, as in `extreme` below: the list, and the bell's projection of what waits.
-    case 'initiatives': return a && b ? body : 'waiting' in (body as object) ? list('waiting') : nothingListed(body as InitiativeList);
+    case 'teams': return a ? body : { ...(body as Teams), tiles: { teams: 0, openWork: 0, pending: 0, lessons: 0 }, teams: [], total: 0 } satisfies Teams;
+    case 'initiatives': return a && b ? body : nothingListed(body as InitiativeList);
+    case 'home': return noHome(body as Home);
     case 'knowledge': return a === 'summary' ? noKnowledge(body as KnowledgeSummary) : a === 'log' ? list('entries') : a ? body
       : { ...(body as KnowledgeList), rows: [], total: 0, summary: { byKind: {}, standing: 0, superseded: 0 } } satisfies KnowledgeList;
     case 'skills': return a ? { ...(body as object), surfaces: [], busiestTools: [] } : list('skills');
@@ -47,8 +32,22 @@ export function empty(seg: string[], body: unknown): unknown {
       skills: p.skills.map((k) => ({ ...k, calls: 0, everRun: false, lastRun: null })),
     })) };
     case 'settings': return Array.isArray(body) ? (a === 'platform' ? (body as PlatformPersonRow[]).slice(0, 1) : []) : body;
+    case 'platform': return a === 'status' ? freshStatus(body as PlatformStatus) : body;
     default: return body;
   }
+}
+
+/** Status on a fresh deployment: every check answered and found nothing, every week read and holding no data, no door's day, nothing of the team's own. */
+function freshStatus(s: PlatformStatus): PlatformStatus {
+  const none = (w: PeriodFigure): PeriodFigure => ({ ...w, figure: { value: null, why: 'no_data' }, numerator: null, denominator: null });
+  return {
+    ...s,
+    needs: { state: 'complete', rows: [], total: 0, knownCount: 0, unavailableKinds: [], overflowByKind: {}, headline: /need you$/.test(s.needs.headline) ? 'Nothing needs you' : 'No known open issues' },
+    measures: s.measures.map((m) => ({ ...m, weeks: m.weeks.map(none), first: null, best: null, highest: null, lowest: null, last: m.last && none(m.last), previous: m.previous && none(m.previous), judgement: m.better === 'neutral' ? 'neutral' : 'not_comparable', finding: null })),
+    records: { state: 'ok', data: { daysWithWork: 0, daysUnderOnePercent: 0, longestUnderOnePercent: null } },
+    doors: { state: 'ok', data: [] },
+    own: s.own.state === 'ok' ? { state: 'ok', data: { malformed: s.own.data.malformed.map(none), followup: s.own.data.followup.map(none), sessions: s.own.data.sessions.map(none), bugs: { filed: 0, fixed: 0, notABug: 0, duplicate: 0, open: 0 } } } : s.own,
+  };
 }
 
 /** The initiatives list of a team with no work: no row, every count zero, every week read and holding none. */
@@ -94,6 +93,23 @@ function noActivity(a: ActivitySummary): ActivitySummary {
   };
 }
 
+/** A team with no week recorded: no words, no approval, nothing waiting, open, closed or running, and the fallback title. */
+function noHome(h: Home): Home {
+  const unrecorded = (weeks: PeriodFigure[]) => weeks.map((w) => ({ ...w, figure: { value: null, why: 'no_data' as const }, numerator: null }));
+  return {
+    ...h,
+    title: { sentence: 'Your work at a glance', rule: 'fallback' },
+    waiting: { state: 'ok', data: { count: 0, oldestSince: null, one: null } },
+    words: h.words.state === 'ok' ? { state: 'ok', data: { ...h.words.data, weeks: unrecorded(h.words.data.weeks), finding: null } } : h.words,
+    approvals: h.approvals.state === 'ok' ? { state: 'ok', data: { weeks: unrecorded(h.approvals.data.weeks), finding: null } } : h.approvals,
+    foot: { estimate: null, coverageMs: { value: null, why: 'no_data' }, peak: { value: null, why: 'no_data' } },
+    tiles: { closed: none(h.tiles.closed), medianHoursToClose: { ...h.tiles.medianHoursToClose, figure: { value: null, why: 'no_data' }, denominator: 0 }, searchesWithResults: { ...none(h.tiles.searchesWithResults), figure: { value: null, why: 'no_data' } }, agentDays: none(h.tiles.agentDays) },
+    runs: { state: 'ok', data: { active: [], more: 0, lastRunAt: null } },
+    openWork: { state: 'ok', data: { rows: [], quiet: 0, total: 0 } },
+    closedLastWeek: { state: 'ok', data: [] },
+  };
+}
+
 /** A team that has run nothing: no first run to count from, and no output measured. */
 const noRuns = (r: Runs): Runs => ({
   ...r, since: null,
@@ -132,34 +148,21 @@ function grown<T>(rows: T[], n: number, more: (base: T, i: number) => T): T[] {
 export function extreme(seg: string[], body: unknown, own: string | null = null): unknown {
   const [head, a, b] = seg;
   switch (head) {
-    case 'overview': {
-      const o = body as Overview;
-      return {
-        ...o,
-        toolTrend: o.toolTrend.map((t) => ({ ...t, inside: big(t.inside), outside: big(t.outside), refused: big(t.refused) })),
-        eventKinds: [...o.eventKinds.map((k) => ({ ...k, n: big(k.n) })), ...Array.from({ length: 14 }, (_, i) => ({ kind: `custom.integration_event_with_a_long_name_${i + 1}`, n: 900 - i * 40 }))],
-        counts: { ...o.counts, events: big(o.counts.events), failures: big(o.counts.failures), documents: 48_211, initiatives: 3_904, people: 1_250, teams: 214 },
-        refusals: {
-          total: big(o.refusals.total),
-          byTool: o.refusals.byTool.map((r) => ({ ...r, n: big(r.n) })),
-          byMessage: o.refusals.byMessage.map((r) => ({ ...r, n: big(r.n), message: `${r.message}. The argument was rejected before any write: the schema the client cached predates the release that renamed it, so every call from that client fails the same way until it reconnects.` })),
-        },
-      } satisfies Overview;
-    }
     case 'teams': {
       if (a || own) return body;
-      const t = (body as { teams: Team[] }).teams;
-      return { teams: grown(t, 60, (base, i): Team => ({ ...base, slug: `team-${i + 1}-${LONG}`.slice(0, 63), name: `Regional delivery group ${i + 1}, ${LONG.replace(/-/g, ' ')}`, members: 300 + i, initiatives: 1_000 + i * 17, documents: 48_000 + i, sources: 120_000 + i, knowledge: 9_000 + i })) };
+      // The list is paged and counted on the server: a busy platform is a page of names longer than any layout planned
+      // for, under counts in the thousands, never more rows than the page asked for.
+      const t = body as Teams;
+      const more = 214;
+      return {
+        ...t,
+        tiles: { teams: t.tiles.teams + more, openWork: big(t.tiles.openWork), pending: t.tiles.pending + 140, lessons: big(t.tiles.lessons) },
+        teams: t.teams.map((r, i) => ({ ...r, slug: `team-${i + 1}-${LONG}`.slice(0, 63), name: `Regional delivery group ${i + 1}, ${LONG.replace(/-/g, ' ')}`, people: 300 + i, openWork: 1_000 + i * 17, waiting: 40 + i, lessons: 9_000 + i })),
+        total: t.total ? t.total + more : 0,
+      } satisfies Teams;
     }
-    /* Two answers come off this route: the list, and the projection the alert bell asks for with
-     * `?waiting=1`. Both are shaped here — a reader that recognises only one of them is a reader
-     * that fails on the other, which is how this transform used to take the whole gateway down. */
     case 'initiatives': {
       if (a && b) return body;
-      if (a === 'waiting' || 'waiting' in (body as object)) {
-        const w = (body as { waiting: WaitingGate[] }).waiting ?? [];
-        return { waiting: grown(w, 40, (base, i): WaitingGate => ({ ...base, id: `extreme/${i}`, gate: `approve spec ${LONG.replace(/-/g, ' ')}` })) };
-      }
       // The list is paged on the server, so a busy team is a page of names longer than any layout planned for under
       // counts in the thousands, never more rows than the page asked for.
       const l = body as InitiativeList;

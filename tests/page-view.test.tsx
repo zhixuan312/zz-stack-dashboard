@@ -106,7 +106,7 @@ describe('a page view', () => {
   it('names the feature that owns a nested address, and `/` owns only itself', async () => {
     await open('/initiatives/atlas/billing/spec', page('Spec'));
     await open('/knowledge/log', page('Log'));
-    await open('/', page('Overview'));
+    await open('/', page('Home'));
     await open('/plugins/sdlc/', page('sdlc'));
     expect(features()).toEqual(['initiatives', 'knowledge', 'home', 'plugins']);
   });
@@ -129,6 +129,9 @@ describe('a page view', () => {
     // What `<Link>` does on hover: asks the router to prefetch, and commits nothing.
     const Hover = () => {
       const router = useRouter();
+      // A bare anchor on purpose: the hover's prefetch is the one thing under test. The rule reads `[...missing]` as a page
+      // at every address, so it flags this anchor too.
+      // eslint-disable-next-line @next/next/no-html-link-for-pages
       return <a href="/runs" onMouseEnter={() => router.prefetch('/runs')}>Runs</a>;
     };
     await open('/teams', <><h1>Teams</h1><Hover /></>);
@@ -163,6 +166,11 @@ describe('a page view', () => {
 });
 
 describe('a page that has not arrived, or was refused', () => {
+  it('is not posted for the missing page a refused address answers under absent', async () => {
+    await open('/teams', <div data-missing-page="">No such page</div>);
+    expect(sent).toHaveLength(0);
+  });
+
   it('waits out the loading state, then posts once the page has arrived', async () => {
     await open('/runs', loading('runs'));
     expect(sent).toHaveLength(0);
@@ -184,7 +192,7 @@ describe('a page that has not arrived, or was refused', () => {
 
   it('is posted for the next destination a person may open after a refusal', async () => {
     await open('/teams', refused('Teams'));
-    await open('/', page('Overview'));
+    await open('/', page('Home'));
     expect(features()).toEqual(['home']);
   });
 
@@ -203,7 +211,7 @@ describe('a page that has not arrived, or was refused', () => {
       </>
     );
     await open('/teams', refused('Teams'));
-    await open('/', behind(page('Overview')));
+    await open('/', behind(page('Home')));
     await open('/runs', behind(loading('runs')));
     await arrive(behind(page('Runs')));
     expect(features()).toEqual(['home', 'runs']);

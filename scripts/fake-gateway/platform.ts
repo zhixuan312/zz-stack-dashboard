@@ -1,14 +1,14 @@
 /**
- * The fake gateway's platform: the catalog's plugins and the skills each ships, one plugin evaluation, a skill's text,
- * and the overview's figures. What a team made of the catalog (its calls, its runs) is `work-plugins.ts`'s.
+ * The fake gateway's platform: the catalog's plugins and the skills each ships, one plugin evaluation and a skill's text.
+ * What a team made of the catalog (its calls, its runs) is `work-plugins.ts`'s.
  *
  * Five plugins, one per state the plugin pages draw: `sdlc` is a method (stages, gates) with an established evaluation;
  * `zz-core` is the platform, profiled and never scored; `zz-access` is registered and never profiled; `zz-plugin-eval`
  * is scored in public and was never registered here; `research-kit` is vendored from another team, never run, with no
  * release and no evaluation.
  */
-import type { Overview, PluginEval, PluginEvalFound, PluginRow, SkillText } from '../../src/lib/api-shapes.ts';
-import { ago, now } from './clock.ts';
+import type { PluginEval, PluginEvalFound, PluginRow, SkillText } from '../../src/lib/api-shapes.ts';
+import { ago } from './clock.ts';
 
 type SkillSeed = [name: string, plugin: string, position: number | null, calls: number, refusals: number, runs: number];
 const SKILL_SEEDS: SkillSeed[] = [
@@ -145,77 +145,5 @@ export function pluginEval(plugin: string): PluginEval {
       { id: 'cand_3', hypothesis: 'Split sdlc-spec into decide and write', status: 'invalid', complexityDelta: 4, touchedComponents: ['skills/sdlc-spec'], touchedOwners: ['atlas'], createdAt: ago(90), build: { ok: false, stage: 'gate' }, release: null },
       { id: 'cand_1', hypothesis: 'Audit only the sections a revision changed', status: 'valid', complexityDelta: -2, touchedComponents: ['skills/sdlc-plan-audit'], touchedOwners: ['atlas'], createdAt: ago(18), build: { ok: true, stage: null }, release: null },
     ],
-  };
-}
-
-/** A repeatable 0..1 from an integer, so the same hour always draws the same noise. */
-const hash = (n: number) => { let x = Math.imul(n ^ 0x9e3779b9, 0x85ebca6b); x ^= x >>> 13; x = Math.imul(x, 0xc2b2ae35); x ^= x >>> 16; return (x >>> 0) / 4294967296; };
-
-/**
- * Tool calls in one hour, as a working team makes them: busy in the deployment's working day (UTC+8), quiet at night,
- * a third as much at the weekend, growing about 40% over half a year, with noise. Refusals run near 3%, with two bad
- * days when a release shipped a tool whose arguments every client still had cached.
- */
-function hourly(h: number): { calls: number; refused: number } {
-  const t = new Date(h * 3_600_000);
-  const local = (t.getUTCHours() + 8) % 24, dow = new Date(h * 3_600_000 + 8 * 3_600_000).getUTCDay();
-  const day = local >= 9 && local < 19 ? 1 : local >= 7 && local < 23 ? 0.35 : 0.06;
-  const week = dow === 0 || dow === 6 ? 0.3 : 1;
-  const age = (now() / 3_600_000 - h) / (24 * 182);
-  const growth = 1.4 - 0.4 * Math.min(1, Math.max(0, age));
-  const calls = Math.round(9 * day * week * growth * (0.6 + 0.8 * hash(h)));
-  const daysAgo = Math.floor((now() / 3_600_000 - h) / 24);
-  const spike = daysAgo === 12 || daysAgo === 47 ? 0.22 : 0.03;
-  return { calls, refused: Math.round(calls * spike * (0.5 + hash(h + 7))) };
-}
-
-/** Buckets for one reporting period, in the deployment's zone: hours for a day, days to a month, weeks beyond. */
-function trend(period: string): Pick<Overview, 'grain' | 'toolTrend'> {
-  const spec: Record<string, [Overview['grain'], number, number]> = { '1d': ['hour', 24, 1], '7d': ['day', 7, 24], '30d': ['day', 30, 24], '90d': ['week', 13, 168], all: ['week', 26, 168] };
-  const [grain, n, hours] = spec[period] ?? spec.all;
-  const nowH = Math.floor(now() / 3_600_000);
-  // Buckets end on the current hour; the reconciler attributes calls to runs every few minutes, so the newest bucket
-  // is mostly not yet attributed, as it is on the real platform.
-  const end = hours === 1 ? nowH : Math.floor((nowH + 8) / 24) * 24 - 8 + 24;
-  return {
-    grain,
-    toolTrend: Array.from({ length: n }, (_, i) => {
-      const from = end - (n - i) * hours;
-      let calls = 0, refused = 0;
-      for (let h = from; h < from + hours && h <= nowH; h++) { const x = hourly(h); calls += x.calls; refused += x.refused; }
-      const ok = calls - refused;
-      const share = i === n - 1 && hours === 1 ? 0.25 : 0.7 + 0.1 * hash(from);
-      return { bucket: new Date(from * 3_600_000).toISOString().replace(/\.\d{3}Z$/, 'Z'), inside: Math.round(ok * share), outside: ok - Math.round(ok * share), refused };
-    }),
-  };
-}
-
-export function overview(period: string): Overview {
-  const t = trend(period);
-  const calls = t.toolTrend.reduce((n, b) => n + b.inside + b.outside + b.refused, 0);
-  const refused = t.toolTrend.reduce((n, b) => n + b.refused, 0);
-  return {
-    metrics: {
-      progressing: { value: 57, active: 5, scoreable: 4, stages: { noflow: 1, notstarted: 1, drafting: 2, agreed: 0, gated: 1, closed: 3 }, waiting: 2, waitingOldestDays: 3, noDeltaBecause: 'approved_at is stored as a date, so how complete an initiative was earlier cannot be reconstructed' },
-      knowledge: { value: 82, prev: 76, fromWork: 9, imported: 1, searches: 441, importThresholdPerHour: 50 },
-      refusals: { value: calls ? (refused / calls) * 100 : null, prev: 4.8, refused, calls, byDoor: [{ door: 'core', n: Math.ceil(refused * 0.7) }, { door: 'eval', n: Math.floor(refused * 0.3) }] },
-      context: { value: 15.7, prev: 18.2, p90: 438.4, runs: SKILL_SEEDS.filter(([, , , c]) => c).map(([skill, , , c]) => ({ skill, kb: 2 + (c % 400) })), unmeasured: 3, capped: false, contextWindowKb: 800 },
-    },
-    counts: { teams: 6, activeTeams: 5, people: 9, superadmins: 2, documents: 38, initiatives: 8, events: calls + 1_910, failures: refused, unattributedEvents: 12 },
-    ...t,
-    timezone: 'UTC',
-    eventKinds: [
-      { kind: 'tool_call', n: calls }, { kind: 'knowledge.search', n: 441 }, { kind: 'document.patch', n: 206 }, { kind: 'document.shown_part', n: 197 },
-      { kind: 'skill_read', n: 147 }, { kind: 'document.source_add', n: 117 }, { kind: 'knowledge.add', n: 115 }, { kind: 'document.shown', n: 78 },
-      { kind: 'initiative_status', n: 64 }, { kind: 'document.document_approve', n: 60 }, { kind: 'initiative_close', n: 9 },
-    ],
-    refusals: {
-      total: refused,
-      byTool: [{ tool: 'core:document_read', n: Math.ceil(refused * 0.4) }, { tool: 'core:document_approve', n: Math.ceil(refused * 0.3) }, { tool: 'eval:finding_record', n: refused - Math.ceil(refused * 0.4) - Math.ceil(refused * 0.3) }],
-      byMessage: [
-        { message: 'ERROR: document not found: plan.md does not exist in this initiative yet; write it with document_write before reading it', tool: 'core:document_read', tools: 2, n: Math.ceil(refused * 0.4) },
-        { message: 'ERROR: approval needs a stakeholder', tool: 'core:document_approve', tools: 1, n: Math.ceil(refused * 0.3) },
-      ],
-    },
   };
 }

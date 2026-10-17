@@ -2,11 +2,12 @@ import { Row } from '@/components/base/shell';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LoadingPage, TableSkeleton } from '@/components/patterns/page-loading';
+import { gatedLoading } from '@/data/refusal';
 
 /** A knowledge node on its way: the lesson beside its facts, then the nodes that share a tag. The title is the record's. */
 export default function KnowledgeNodeLoading() {
   return (
-    <LoadingPage name="knowledge node">
+    <LoadingPage {...gatedLoading({ name: 'knowledge node' })}>
       <Row split="2/3">
         <Card className="gap-3 p-(--card-pad)">
           {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => <Skeleton key={i} className="h-3" />)}

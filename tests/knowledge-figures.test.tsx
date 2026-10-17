@@ -1,16 +1,19 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, waitFor } from '@testing-library/react';
+import { Tooltip } from 'radix-ui';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 /**
  * The figures the knowledge page leads with are the data's — the second page of `standard.md`'s floor, "the numbers the
  * pages show are the data's", whose first page is `tests/people-figures.test.tsx`.
  *
- * What it pins: the four tiles are the summary's own figures, each a different number so one shown in another's place
- * fails, and the lessons the table lists are the page the gateway answered, superseded ones included, read from the
- * route at the page's own filters rather than filtered in the browser.
+ * What it pins: the four tiles are the summary's own figures, as the console's server read it and handed it to the page,
+ * each a different number so one shown in another's place fails; a figure nobody read is a dash and never a zero; and
+ * the lessons the shelf lists are the page the gateway answered, superseded ones included, read from the route at the
+ * page's own kind rather than filtered in the browser.
  */
 import type { KnowledgeList, KnowledgeRow, KnowledgeSummary } from '@/lib/destination-shapes';
+import type { ServerRead } from '@/views/knowledge-context';
 import { KnowledgeView } from '@/views/pages/knowledge';
 
 const ME = {
@@ -40,7 +43,7 @@ const row = (num: string, title: string, status: string): KnowledgeRow => ({
 });
 const LIST: KnowledgeList = {
   meta: META, total: 44,
-  rows: [row('0003', 'Newest lesson', 'adopted'), row('0001', 'Oldest lesson', 'adopted'), row('0002', 'Superseded lesson', 'superseded')],
+  rows: [row('0003', 'Most recent lesson', 'adopted'), row('0001', 'Oldest lesson', 'adopted'), row('0002', 'Superseded lesson', 'superseded')],
   summary: { byKind: { decision: 44 }, standing: 41, superseded: 3 },
 };
 
@@ -49,7 +52,8 @@ function mockFetch() {
   return async (input: RequestInfo | URL) => {
     const url = String(input);
     asked.push(url);
-    const body = url.includes('/me') ? ME : url.includes('/knowledge/summary') ? SUMMARY : LIST;
+    // The summary is the server's read, handed to the page: the browser never asks for it.
+    const body = url.includes('/me') ? ME : LIST;
     return { ok: true, json: async () => body } as unknown as Response;
   };
 }
@@ -67,29 +71,41 @@ beforeEach(() => {
   global.fetch = mockFetch() as unknown as typeof fetch;
 });
 
-function mount() {
+const READ: ServerRead<KnowledgeSummary> = { state: 'ok', data: SUMMARY, at: '2026-10-15T00:00:00Z' };
+
+function mount(read: ServerRead<KnowledgeSummary> = READ) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  render(<QueryClientProvider client={client}><KnowledgeView /></QueryClientProvider>);
+  render(<QueryClientProvider client={client}><Tooltip.Provider><KnowledgeView read={read} /></Tooltip.Provider></QueryClientProvider>);
 }
 
 describe('the figures on the knowledge page', () => {
-  it('draws each tile from its own figure in the summary', async () => {
+  it('draws each tile from its own figure in the summary the server read', async () => {
     mount();
-    await waitFor(() => expect(figure('Standing')).toBe('41'));
+    expect(figure('Lessons adopted')).toBe('41');
     expect(figure('Superseded')).toBe('3');
     expect(figure('Searches last week')).toBe('27');
-    expect(figure('Found nothing')).toBe('5');
+    expect(figure('Searches with no result')).toBe('5');
     expect(text()).toContain('6 imported');
     expect(text()).toContain('Of 27 last week');
+    expect(asked.some((u) => u.includes('/knowledge/summary'))).toBe(false);
   });
 
-  it('lists the page the route answered, superseded lessons included, and asks the route for its filters', async () => {
+  it('draws a figure nobody read as a dash, and says a week whose searches were not counted was not measured', () => {
+    const unread = { ...SUMMARY, tiles: { ...SUMMARY.tiles, superseded: { value: null, why: 'unavailable' as const }, noResult: { ...SUMMARY.tiles.noResult, figure: { value: null, why: 'no_data' as const }, denominator: null } } };
+    mount({ state: 'ok', data: unread, at: READ.state === 'ok' ? READ.at : '' });
+    expect(figure('Superseded')).toBe('—');
+    expect(figure('Searches with no result')).toBe('—');
+    expect(text()).toContain('Not measured last week');
+    expect(text()).not.toContain('Of 0 last week');
+  });
+
+  it('lists the page the route answered, superseded lessons included, and asks the route for its kind', async () => {
     mount();
-    await waitFor(() => expect(text()).toContain('Newest lesson'));
+    await waitFor(() => expect(text()).toContain('Most recent lesson'));
     expect(text()).toContain('Oldest lesson');
     // Superseded is a status, not a deletion: the store keeps it readable.
     expect(text()).toContain('Superseded lesson');
-    expect(text()).toContain('44 lessons');
+    expect(text()).toContain('44 lessons on the shelf');
     expect(asked.some((u) => u.includes('/knowledge?kind=decision&limit=10&offset=0'))).toBe(true);
   });
 });

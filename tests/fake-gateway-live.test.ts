@@ -54,7 +54,7 @@ describe('the names a tab may follow', () => {
   });
 
   it('names the console\'s reads, which is what the pages register', () => {
-    for (const name of ['me', 'teams', 'initiatives', 'document', 'knowledge', 'plugins', 'skills', 'people', 'runs', 'activity', 'settings', 'overview']) {
+    for (const name of ['me', 'teams', 'initiatives', 'document', 'knowledge', 'plugins', 'skills', 'people', 'runs', 'activity', 'settings']) {
       expect(COLLECTIONS, name).toContain(name);
     }
   });

@@ -1,9 +1,15 @@
-import { gate } from '@/data/access';
-import { TeamView } from '@/views/pages/team';
+import { gate, gatedMetadata } from '@/data/access';
+import PlatformTeamPage from '../../platform/teams/[slug]/page';
 
-/** The page asks `teams` before it renders, and before its address is read: the view unwraps `params` itself. */
-export default async function TeamPage({ params }: { params: Promise<{ slug: string }> }) {
+type Params = { params: Promise<{ slug: string }> };
+
+export async function generateMetadata({ params }: Params) {
+  return gatedMetadata('teams', { title: (await params).slug });
+}
+
+/** Today's address, which renders Platform's team page until Phase 7 removes it. It asks `teams` first, as that page does. */
+export default async function TeamPage(props: Params) {
   const denied = await gate('teams');
   if (denied) return denied;
-  return <TeamView params={params} />;
+  return <PlatformTeamPage {...props} />;
 }

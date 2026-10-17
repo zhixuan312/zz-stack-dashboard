@@ -1,87 +1,169 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, render, waitFor } from '@testing-library/react';
-import { Suspense } from 'react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { Tooltip } from 'radix-ui';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import type { Me } from '@/lib/api-shapes';
+import type { TeamDetail } from '@/lib/fleet-shapes';
+import { formatDate } from '@/lib/format-date';
+import { formatCount } from '@/lib/format-units';
+import { PlatformTeamView } from '@/views/pages/platform-team';
+import type { TeamRead } from '@/views/team-context';
+import { teamDetail } from '../scripts/fake-gateway/platform-teams.ts';
 
 /**
- * A team's page reads its counts from the team's own read, `/teams/:slug`, and never from the list. The list is
- * paged, so a team past its first page would read no counts at all if the page went looking for its row there. Nor does
- * it read the team's initiatives: Work answers the active team's work alone, so the page draws the team's counts of
- * open and waiting work and lists none of it.
- *
- * The fixture's counts are each distinct, so a tile reading another count's value cannot pass, and every request
- * is recorded so a read of the list is caught whatever the page does with the answer.
+ * A team's page draws the team's own read: the fake gateway's answer for atlas, the one `pnpm verify` serves, as the
+ * console's server hands it. Its tiles, its calls by week and its members are that read's, and each write it makes is
+ * the console's existing settings route, called as Settings called it, with the gateway's refusal said beside the
+ * control that made it.
  */
-import type { TeamDetail } from '@/lib/fleet-shapes';
-import { TeamView } from '@/views/pages/team';
-
-const ME = {
-  email: 'a@b.example.com', name: 'A', role: 'superadmin', mayRead: true, superadmin: true,
+const SUPERADMIN: Me = {
+  email: 'ava.lindqvist@example.com', name: 'Ava Lindqvist', role: 'superadmin', mayRead: true, superadmin: true,
   via: 'session', teams: [{ slug: 'atlas', role: 'admin' }], activeTeam: 'atlas',
 };
+const ATLAS = teamDetail('atlas')!;
 
-const WEEK = { from: '2026-10-05T00:00:00+08:00', to: '2026-10-12T00:00:00+08:00' };
-
-const DETAIL: TeamDetail = {
-  team: { slug: 'atlas', name: 'Atlas Research', status: 'active', created: '2026-08-01' },
-  members: [{ email: 'a@b.example.com', name: 'A', role: 'admin', joined: '2026-08-01' }],
-  meta: {
-    asOf: '2026-10-15T00:00:00Z', timezone: 'Asia/Singapore', scope: 'platform-admin',
-    population: 'teams', coverageFrom: '2026-09-07T00:00:00+08:00', period: { from: '2026-09-07T00:00:00+08:00', to: '2026-10-15T00:00:00Z' },
-  } as unknown as TeamDetail['meta'],
-  counts: { members: 3, initiatives: 5, documents: 7, sources: 11, knowledge: 13 },
-  tiles: { people: 3, openWork: 2, waiting: 1, lessons: 13 },
-  calls: [{ window: WEEK } as unknown as TeamDetail['calls'][number]],
-};
-
-let asked: string[] = [];
-
-function mockFetch() {
-  return async (input: RequestInfo | URL) => {
-    const url = String(input);
-    asked.push(url);
-    const body = url.includes('/me') ? ME
-      : url.includes('/teams/atlas') ? DETAIL
-      : {};
-    return { ok: true, json: async () => body } as unknown as Response;
-  };
-}
+type Sent = { method: string; path: string; body: Record<string, unknown> };
+const sent: Sent[] = [];
+/** What a write answers: the gateway's acceptance, or its refusal with its own sentence. */
+let refusal: string | null = null;
 
 beforeEach(() => {
-  asked = [];
-  window.history.replaceState(null, '', '/teams/atlas');
-  global.fetch = mockFetch() as unknown as typeof fetch;
+  sent.length = 0;
+  refusal = null;
+  window.history.replaceState(null, '', '/platform/teams/atlas');
+  vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = new URL(String(input), 'http://console.test');
+    const method = init?.method ?? 'GET';
+    if (method !== 'GET') {
+      sent.push({ method, path: url.pathname.replace('/api/console', ''), body: JSON.parse(String(init?.body ?? '{}')) });
+      return refusal
+        ? ({ ok: false, status: 400, json: async () => ({ error: refusal }) } as unknown as Response)
+        : ({ ok: true, status: 200, json: async () => ({ ok: true, result: 'done' }) } as unknown as Response);
+    }
+    const body = url.pathname.endsWith('/me') ? SUPERADMIN : teamDetail(url.pathname.split('/').at(-1)!);
+    return { ok: true, status: 200, json: async () => body } as unknown as Response;
+  }));
 });
+afterEach(() => vi.unstubAllGlobals());
 
-/** Rendered inside an awaited `act`: the page suspends on its params until they resolve. */
-async function mount() {
+function mount(served: TeamRead = { state: 'ok', data: ATLAS }, slug = 'atlas') {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const params = Promise.resolve({ slug: 'atlas' });
-  await act(async () => { render(
-    <QueryClientProvider client={client}>
-      <Suspense fallback={null}><TeamView params={params} /></Suspense>
-    </QueryClientProvider>,
-  ); });
+  return render(<QueryClientProvider client={client}><Tooltip.Provider><PlatformTeamView slug={slug} served={served} /></Tooltip.Provider></QueryClientProvider>);
 }
 
-describe('the figures on a team page', () => {
-  it('draws the knowledge, documents and sources the team\'s own read counts', async () => {
-    await mount();
-    await waitFor(() => expect(document.body.textContent).toContain('7 documents, 11 sources'));
-    expect(document.body.textContent).toContain('13');
+/** The figure of the tile labelled `label`. */
+function tile(label: string): string {
+  const mine = [...document.querySelectorAll('h2')].find((h) => h.textContent?.trim() === label);
+  return mine?.closest('div')?.parentElement?.querySelector('p[data-value]')?.textContent?.trim() ?? '';
+}
+
+const card = (title: string) => screen.getByText(title, { selector: 'h2, h3, [data-title]' }).closest('.card') as HTMLElement;
+
+describe('the figures on a team\'s page', () => {
+  it('draws the four tiles from the team\'s own read', () => {
+    mount();
+    expect(tile('People')).toBe(formatCount(ATLAS.tiles.people));
+    expect(tile('Open work')).toBe(formatCount(ATLAS.tiles.openWork));
+    expect(tile('Waiting')).toBe(formatCount(ATLAS.tiles.waiting));
+    expect(tile('Lessons adopted')).toBe(formatCount(ATLAS.tiles.lessons));
+    const admins = ATLAS.members.filter((m) => m.role === 'admin').length;
+    expect(screen.getByText(`${admins} admins`)).toBeInTheDocument();
   });
 
-  it('draws the team\'s work from its counts: initiatives, open work and revisions waiting', async () => {
-    await mount();
-    await waitFor(() => expect(document.body.textContent).toContain('2 still open'));
-    expect(document.body.textContent).toContain('Revisions waiting');
-    expect(asked.filter((u) => u.includes('/initiatives'))).toEqual([]);
+  it('draws its calls by week, a column a week, the running week last', () => {
+    mount();
+    const figure = screen.getByRole('figure', { name: 'atlas\'s real-work calls by week' });
+    const rows = [...figure.querySelectorAll('table tbody tr')].map((tr) => [tr.querySelector('th')?.textContent, tr.querySelector('td')?.textContent]);
+    expect(rows.map(([, v]) => v)).toEqual(ATLAS.calls.map((w) => formatCount(w.figure.value)));
+    expect(rows.at(-1)![0]).toContain('so far');
+    expect(rows.slice(0, -1).some(([week]) => week?.includes('so far'))).toBe(false);
   });
 
-  it('never asks for the list of teams', async () => {
-    await mount();
-    await waitFor(() => expect(document.body.textContent).toContain('7 documents, 11 sources'));
-    const list = asked.filter((u) => /\/teams(\?|$)/.test(new URL(u, 'http://x').pathname + new URL(u, 'http://x').search));
-    expect(list).toEqual([]);
+  it('names the team, its status and when it was made', () => {
+    mount();
+    const team = card('This team');
+    expect(within(team).getByText(ATLAS.team.name)).toBeInTheDocument();
+    expect(within(team).getByText('Active')).toBeInTheDocument();
+    expect(within(team).getByText(formatDate(ATLAS.team.created))).toBeInTheDocument();
+  });
+
+  it('lists its members, admins first, with when each joined', () => {
+    mount();
+    const rows = [...document.querySelectorAll('section[aria-label="atlas\'s members"] tbody tr')];
+    expect(rows).toHaveLength(ATLAS.members.length);
+    expect(rows[0].textContent).toContain(ATLAS.members[0].name);
+    expect(rows[0].textContent).toContain('Admin');
+    expect(rows[0].textContent).toContain(formatDate(ATLAS.members[0].joined));
+  });
+});
+
+describe('the writes, through the routes Settings called', () => {
+  const press = (name: string, within_: HTMLElement = document.body) => fireEvent.click(within(within_).getByRole('button', { name }));
+
+  it('adds a member with their role', async () => {
+    mount();
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'new.person@example.com' } });
+    press('Add member');
+    await waitFor(() => expect(sent).toEqual([{ method: 'POST', path: '/settings/team/members', body: { team: 'atlas', email: 'new.person@example.com', role: 'member' } }]));
+  });
+
+  it('says a refused add beside the form, and keeps what was typed', async () => {
+    refusal = 'dana@example.com is deactivated';
+    mount();
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'dana@example.com' } });
+    press('Add member');
+    const form = screen.getByRole('form', { name: 'Add a member to atlas' });
+    await waitFor(() => expect(within(form).getByRole('alert')).toHaveTextContent('dana@example.com is deactivated'));
+    expect(screen.getByLabelText('Email')).toHaveValue('dana@example.com');
+  });
+
+  it('removes a member once the row asks again, and says a refusal in that row', async () => {
+    refusal = 'nothing was removed';
+    mount();
+    const row = [...document.querySelectorAll('tbody tr')].find((r) => r.textContent?.includes(ATLAS.members[2].email)) as HTMLElement;
+    press('Remove', row);
+    expect(sent).toEqual([]);
+    press('Remove', row);
+    await waitFor(() => expect(sent).toEqual([{ method: 'DELETE', path: '/settings/team/members', body: { team: 'atlas', email: ATLAS.members[2].email, confirm: 'atlas' } }]));
+    await waitFor(() => expect(within(row).getByRole('alert')).toHaveTextContent('nothing was removed'));
+  });
+
+  it('archives the team once it asks again, and says a refusal under the control', async () => {
+    refusal = 'archive needs the team to exist';
+    mount();
+    const team = card('This team');
+    press('Archive', team);
+    press('Archive', team);
+    await waitFor(() => expect(sent).toEqual([{ method: 'DELETE', path: '/settings/platform/teams', body: { team: 'atlas', confirm: 'atlas' } }]));
+    await waitFor(() => expect(within(team).getByRole('alert')).toHaveTextContent('archive needs the team to exist'));
+  });
+
+  it('offers no Archive on an archived team, and says how one is restored', () => {
+    const cinder = teamDetail('cinder')!;
+    mount({ state: 'ok', data: cinder }, 'cinder');
+    const team = card('This team');
+    expect(within(team).queryByRole('button', { name: 'Archive' })).toBeNull();
+    expect(team.textContent).toContain('Creating the same slug again restores it.');
+  });
+});
+
+describe('a team the read cannot draw', () => {
+  it('is the way back to Teams for a slug no team has', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 404, json: async () => null }) as unknown as Response));
+    mount({ state: 'missing' }, 'nonesuch');
+    expect(screen.getByText('No team called nonesuch')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'All teams' })).toHaveAttribute('href', '/platform/teams');
+    expect(screen.queryByText('People')).toBeNull();
+  });
+
+  it('keeps the team, its tiles and its members when its calls by week could not be read', () => {
+    const partial: TeamDetail = { ...ATLAS, calls: ATLAS.calls.map((w) => ({ ...w, figure: { value: null, why: 'unavailable' }, numerator: null })) };
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})));
+    mount({ state: 'ok', data: partial });
+    expect(screen.getByText('The calls by week could not be read')).toBeInTheDocument();
+    expect(tile('People')).toBe(formatCount(ATLAS.tiles.people));
+    expect(document.querySelectorAll('tbody tr')).toHaveLength(ATLAS.members.length);
+    expect(screen.queryByRole('figure')).toBeNull();
   });
 });

@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Tooltip } from 'radix-ui';
 
 import { PeriodProvider } from '@/console/period';
-import type { Me, Person, PluginRow, Skill, SkillDetail, SkillText, Team } from '@/lib/api-shapes';
+import type { Me, Person, PluginRow, Skill, SkillDetail, SkillText } from '@/lib/api-shapes';
 import type { ActivityLog, ActivitySummary } from '@/lib/destination-shapes';
 import { ActivityView } from '@/views/pages/activity';
 import { InitiativesView } from '@/views/pages/initiatives';
@@ -13,8 +13,6 @@ import { KnowledgeView } from '@/views/pages/knowledge';
 import { KnowledgeLogView } from '@/views/pages/knowledge-log';
 import { PeopleView } from '@/views/pages/people';
 import { SkillView } from '@/views/pages/skill';
-import { TeamView } from '@/views/pages/team';
-import { TeamsView } from '@/views/pages/teams';
 
 const TooltipProvider = Tooltip.Provider;
 
@@ -102,9 +100,10 @@ describe('the Knowledge page, every read failing', () => {
   });
 
   it('draws a dash in the bar and says the shelf\'s figures failed', async () => {
-    mount(<KnowledgeView />);
-    await waitFor(() => expect(text()).toContain('The shelf\'s figures did not load'));
-    expect(text()).toContain('The lessons did not load');
+    mount(<KnowledgeView read={{ state: 'failed', reason: REASON }} />);
+    // The figures are the server's read, failed before the page drew; the lessons are the browser's, still to fail.
+    await waitFor(() => expect(text()).toContain('The lessons did not load'));
+    expect(text()).toContain('The shelf\'s figures did not load');
     expect(screen.getAllByText(REASON).length).toBeGreaterThan(1);
     expect(screen.getAllByText('—').length).toBeGreaterThan(0);
     expectNoEllipsis();
@@ -142,42 +141,6 @@ describe('the People page, its read failing', () => {
     expect(text()).not.toContain('Held by 0');
     // The bar counted a population of nothing beside the error that explained it.
     expect(text()).not.toContain('0 of 0');
-    expectNoEllipsis();
-  });
-});
-
-describe('the Teams page, its read failing', () => {
-  beforeEach(() => {
-    window.history.replaceState(null, '', '/teams');
-    onlyMe();
-  });
-
-  it('does not count zero teams beside the error that says the read failed', async () => {
-    mount(<TeamsView />);
-    await waitFor(() => expect(text()).toContain('The teams did not load'));
-    expect(text()).toContain(REASON);
-    expect(text()).not.toContain('0 of 0');
-    expectNoEllipsis();
-  });
-});
-
-describe('a team page for a team that is not there', () => {
-  beforeEach(() => {
-    window.history.replaceState(null, '', '/teams/nonesuch');
-    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
-      const url = String(input);
-      if (url.includes('/me')) return { ok: true, status: 200, json: async () => ME } as unknown as Response;
-      return { ok: false, status: 404, json: async () => ({ error: 'no team by this name' }) } as unknown as Response;
-    }));
-  });
-
-  it('offers the way back to the list rather than rendering a dead end', async () => {
-    await mountRecord(<TeamView params={Promise.resolve({ slug: 'nonesuch' })} />);
-    await waitFor(() => expect(text()).toContain('No team called nonesuch'));
-    expect(text()).toContain('No team by this name exists on the platform.');
-    expect(screen.getByRole('link', { name: 'All teams' })).toHaveAttribute('href', '/teams');
-    // The page owes the reader nothing it cannot read: no tile, and no dash standing in for one.
-    expect(screen.queryByText('Initiatives')).toBeNull();
     expectNoEllipsis();
   });
 });
@@ -239,7 +202,7 @@ describe('the Knowledge log page, its read failing', () => {
   });
 
   it('does not say nothing was recorded over a read that failed', async () => {
-    mount(<KnowledgeLogView />);
+    mount(<KnowledgeLogView read={{ state: 'failed', reason: REASON }} mode="platform" />);
     await waitFor(() => expect(text()).toContain('The entries did not load'));
     expect(text()).toContain(REASON);
     // "Nothing yet" over a failed read is the all-clear a failure must never wear.
@@ -271,11 +234,6 @@ const PEOPLE: Person[] = [
     activeTeam: 'beacon', teams: ['beacon (admin)'], tokens: 4, last_used: '2026-10-02T00:00:00Z' },
 ];
 
-const TEAMS: Team[] = [
-  { slug: 'atlas', name: 'Atlas', status: 'active', created: '2026-08-01', members: 3, initiatives: 5, documents: 7, sources: 11, knowledge: 13 },
-  { slug: 'beacon', name: 'Beacon', status: 'active', created: '2026-08-02', members: 2, initiatives: 1, documents: 2, sources: 3, knowledge: 4 },
-];
-
 /** The figure of the tile whose label is `label`: the first `<p>` inside its card, beside the heading. */
 function figure(label: string): string {
   const mine = [...document.querySelectorAll('h2')].find((h) => h.textContent?.trim() === label);
@@ -291,13 +249,6 @@ describe('a page of a longer list says it is a page', () => {
     expect(text()).toContain('the first 3 of 250, 3 matching');
     // The notes count the rows read, so they say which rows they counted.
     expect(text()).toContain('of the first 3 read');
-  });
-
-  it('teams: the same, for the list whose total the page used to discard', async () => {
-    window.history.replaceState(null, '', '/teams');
-    onlyMe([['/teams', { teams: TEAMS, total: 140 }]]);
-    mount(<TeamsView />);
-    await waitFor(() => expect(text()).toContain('the first 2 of 140, 2 matching'));
   });
 });
 

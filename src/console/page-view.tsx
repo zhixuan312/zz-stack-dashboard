@@ -19,8 +19,9 @@ function shown(el: Element): boolean {
  *
  * DELIBERATE: it watches the canvas rather than posting when the pathname changes. The pathname commits with the route's
  * `loading.tsx` while the page's gate is still asking, so the view is decided only once the loading state that was in
- * view has gone: the gate's refused view (`[data-no-access]`, drawn by `EmptyState` for `NoAccess`) records nothing,
- * anything else records the view. A busy panel the page draws after it arrived does not hold the decision.
+ * view has gone: the gate's refused view records nothing (`[data-no-access]` under `refusal: 'explain'`, the missing
+ * page's `[data-missing-page]` under `absent`, which an address no page answers draws too), and anything else records
+ * the view. A busy panel the page draws after it arrived does not hold the decision.
  *
  * A failed post is swallowed and never retried: telemetry never stands between a person and the page.
  */
@@ -42,7 +43,7 @@ export function PageViews() {
     const canvas = document.querySelector('main') ?? document.body;
     const loading = [...canvas.querySelectorAll('[aria-busy="true"]')].filter(shown);
     const decide = (): boolean => {
-      const refused = [...canvas.querySelectorAll('[data-no-access]')].some(shown);
+      const refused = [...canvas.querySelectorAll('[data-no-access], [data-missing-page]')].some(shown);
       if (!refused && loading.some((el) => el.isConnected && el.getAttribute('aria-busy') === 'true' && shown(el))) return false;
       current.decided = true;
       if (!refused) consoleMutate('/page-view', { feature }).catch(() => {});

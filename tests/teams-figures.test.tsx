@@ -1,81 +1,133 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import { Tooltip } from 'radix-ui';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import type { Me } from '@/lib/api-shapes';
+import type { TeamRow, Teams } from '@/lib/fleet-shapes';
+import { formatCount } from '@/lib/format-units';
+import { PlatformTeamsView } from '@/views/pages/platform-teams';
+import type { TeamsRead } from '@/views/teams-context';
+import { TEAMS_DEFAULTS, teamsPath } from '@/views/teams-filter';
+import { TEAMS, teams } from '../scripts/fake-gateway/platform-teams.ts';
 
 /**
- * The figures the teams page shows are the data's — the fifth page of `standard.md`'s floor, "the numbers the pages show
- * are the data's", and the FIRST of the table-led kind: this page has no tiles at all, so its figures are cell values
- * and the only honest way to pin one is by the column it sits under.
- *
- * That is what `cell()` below does: it reads the header row for a column's position and then takes that cell of the
- * named team's row. Asserting "the row for Atlas contains 7" would be satisfied by 7 landing in any column.
- *
- * The fixture gives every count a different value, so a page that mapped one column onto another's data would render
- * perfectly and fail here. Nothing pins how many rows the table draws — that is the page's business, and `people-figures`
- * learned that the hard way by pinning a row count and meeting a different one.
+ * The figures Teams draws are the read's, each in its own column for the team the row names: the fake gateway's own
+ * answer, the one `pnpm verify` serves the page, is what is drawn, and a cell is read by the header it stands under,
+ * so a column mapped onto another's data cannot pass. The first page the address names arrives from the console's
+ * server; a filter or a later page is the browser's own read of the gateway's filtered, paged list.
  */
-import type { Team } from '@/lib/api-shapes';
-import { TeamsView } from '@/views/pages/teams';
-
-const ME = {
-  email: 'a@b.example.com', name: 'A', role: 'superadmin', mayRead: true, superadmin: true,
+const SUPERADMIN: Me = {
+  email: 'ava.lindqvist@example.com', name: 'Ava Lindqvist', role: 'superadmin', mayRead: true, superadmin: true,
   via: 'session', teams: [{ slug: 'atlas', role: 'admin' }], activeTeam: 'atlas',
 };
 
-/* Each figure distinct, within its row and across the two: a column mapped onto another column's data cannot pass. */
-const TEAMS: Team[] = [
-  { slug: 'atlas', name: 'Atlas Research', status: 'active', created: '2026-08-01',
-    members: 3, initiatives: 5, documents: 7, sources: 11, knowledge: 13 },
-  { slug: 'beacon', name: 'Beacon Payments', status: 'archived', created: '2026-08-09',
-    members: 17, initiatives: 19, documents: 23, sources: 29, knowledge: 31 },
-];
-
-function mockFetch() {
-  return async (input: RequestInfo | URL) => {
-    const body = String(input).includes('/me') ? ME : { teams: TEAMS, total: TEAMS.length };
-    return { ok: true, json: async () => body } as unknown as Response;
-  };
+/** The fake's answer to `GET /teams` for a query string, paged as its server pages it. */
+function list(query: URLSearchParams): Teams {
+  const page = { limit: Number(query.get('limit') ?? 10), offset: Number(query.get('offset') ?? 0) };
+  return teams(SUPERADMIN, query, page)![1] as Teams;
 }
 
-/** The text of `team`'s row, in the column whose header is `header`. */
-function cell(team: string, header: string): string {
+const served = (): TeamsRead => {
+  const path = teamsPath(TEAMS_DEFAULTS);
+  return { state: 'ok', path, data: list(new URLSearchParams(path.split('?')[1])) };
+};
+
+const asked: string[] = [];
+beforeEach(() => {
+  asked.length = 0;
+  window.history.replaceState(null, '', '/platform/teams');
+  vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+    const url = new URL(String(input), 'http://console.test');
+    asked.push(url.pathname + url.search);
+    const body = url.pathname.endsWith('/me') ? SUPERADMIN : list(url.searchParams);
+    return { ok: true, status: 200, json: async () => body } as unknown as Response;
+  }));
+});
+afterEach(() => vi.unstubAllGlobals());
+
+function mount(read: TeamsRead = served()) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(<QueryClientProvider client={client}><Tooltip.Provider><PlatformTeamsView served={read} /></Tooltip.Provider></QueryClientProvider>);
+}
+
+/** The text of `slug`'s row in the column whose header is `header`: its value, not the words a phone card adds. */
+function cell(slug: string, header: string): string {
   const headers = [...document.querySelectorAll('th')].map((h) => h.textContent?.trim() ?? '');
   const column = headers.indexOf(header);
-  const row = [...document.querySelectorAll('tr')].find((r) => r.textContent?.includes(team));
-  if (column < 0 || !row) return `no ${header} column or no ${team} row`;
-  // The cell's first child after its separator, not its text: a `DataTable` draws the desktop value and the words a
-  // phone card uses for the same cell, one hidden by the stylesheet, and `textContent` reads both; and a fact after the
-  // first leads with the dot that separates it on a phone (`data-sep`), inside the fact's own cell.
+  const row = [...document.querySelectorAll('tbody tr')].find((r) => r.querySelector('td')?.textContent?.includes(slug));
+  if (column < 0 || !row) return `no ${header} column or no ${slug} row`;
   const td = [...row.querySelectorAll('td')][column];
   const value = td ? [...td.children].find((e) => !e.hasAttribute('data-sep')) : undefined;
-  return (value ?? td)?.textContent?.trim() ?? '';
+  return ((value ?? td)?.textContent ?? '').trim();
 }
 
-beforeEach(() => {
-  window.history.replaceState(null, '', '/teams');
-  global.fetch = mockFetch() as unknown as typeof fetch;
-});
-
-function mount() {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={client}><TeamsView /></QueryClientProvider>);
+/** The figure of the tile labelled `label`. */
+function tile(label: string): string {
+  const mine = [...document.querySelectorAll('h2')].find((h) => h.textContent?.trim() === label);
+  return mine?.closest('div')?.parentElement?.querySelector('p[data-value]')?.textContent?.trim() ?? '';
 }
 
-describe('the figures on the teams page', () => {
-  it('shows each count in its own column, for the team the data names', async () => {
+const team = (slug: string): TeamRow => TEAMS.find((t) => t.slug === slug)!;
+
+describe('the figures on Teams', () => {
+  it('draws the four tiles over every team, as the read counts them', () => {
     mount();
-    await waitFor(() => expect(document.body.textContent).toContain('Atlas Research'));
-    expect(cell('Atlas Research', 'Documents')).toBe('7');
-    expect(cell('Atlas Research', 'Knowledge')).toBe('13');
-    // The other team, to show the columns are read per row and not once for the page.
-    expect(cell('Beacon Payments', 'Documents')).toBe('23');
-    expect(cell('Beacon Payments', 'Knowledge')).toBe('31');
+    const { tiles } = (served() as Extract<TeamsRead, { state: 'ok' }>).data;
+    expect(tile('Teams')).toBe(formatCount(tiles.teams));
+    expect(tile('Open work')).toBe(formatCount(tiles.openWork));
+    expect(tile('Pending revisions')).toBe(formatCount(tiles.pending));
+    expect(tile('Lessons adopted')).toBe(formatCount(tiles.lessons));
   });
 
-  it('counts the people a team has, not the memberships of everyone in it', async () => {
+  it('draws the spec\'s columns, in its order, and no comparison between teams', () => {
     mount();
-    await waitFor(() => expect(document.body.textContent).toContain('Atlas Research'));
-    expect(cell('Atlas Research', 'People')).toBe('3');
-    expect(cell('Beacon Payments', 'People')).toBe('17');
+    expect([...document.querySelectorAll('th')].map((h) => h.textContent?.trim())).toEqual([
+      'Team', 'People', 'Open work', 'Waiting', 'Lessons', 'Sessions by week', 'Calls last week', 'Week before', 'Last active',
+    ]);
+    expect(document.body.textContent).not.toMatch(/busiest|most work|share of|rank|% of/i);
+  });
+
+  it('shows each team\'s figures in their own columns, read per row', () => {
+    mount();
+    for (const slug of ['atlas', 'beacon', 'cinder']) {
+      const t = team(slug);
+      expect(cell(slug, 'People'), slug).toBe(formatCount(t.people));
+      expect(cell(slug, 'Open work'), slug).toBe(formatCount(t.openWork));
+      expect(cell(slug, 'Waiting'), slug).toBe(formatCount(t.waiting));
+      expect(cell(slug, 'Lessons'), slug).toBe(formatCount(t.lessons));
+      expect(cell(slug, 'Calls last week'), slug).toBe(formatCount(t.calls.last.figure.value));
+      expect(cell(slug, 'Week before'), slug).toBe(formatCount(t.calls.previous.figure.value));
+    }
+    expect(cell('atlas', 'Sessions by week')).toContain(`oldest first: ${team('atlas').sessions.map((w) => w.figure.value).join(', ')}`);
+    expect(cell('dune', 'Last active')).toBe('Never');
+  });
+
+  it('names an archived team, and opens each team at its Platform address', () => {
+    mount();
+    const cinder = [...document.querySelectorAll('tbody tr')].find((r) => r.textContent?.includes('cinder'))!;
+    expect(cinder.textContent).toContain('Archived');
+    expect(screen.getByRole('link', { name: /^atlas/ })).toHaveAttribute('href', '/platform/teams/atlas');
+  });
+
+  it('draws the server\'s page before the browser has answered', () => {
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})));
+    mount();
+    expect(cell('atlas', 'People')).toBe(formatCount(team('atlas').people));
+  });
+
+  it('reads a filtered address in the browser, filtered and paged by the gateway', async () => {
+    window.history.replaceState(null, '', '/platform/teams?status=archived');
+    mount();
+    await waitFor(() => expect(document.querySelectorAll('tbody tr')).toHaveLength(1));
+    expect(cell('cinder', 'People')).toBe(formatCount(team('cinder').people));
+    expect(asked.some((a) => a.startsWith('/api/console/teams?') && a.includes('status=archived') && a.includes('limit=10') && a.includes('offset=0'))).toBe(true);
+    expect(screen.getByText('1 team')).toBeInTheDocument();
+  });
+
+  it('asks the gateway for the second page as its own read', async () => {
+    window.history.replaceState(null, '', '/platform/teams?page=2');
+    mount();
+    await waitFor(() => expect(asked.some((a) => a.includes('offset=10'))).toBe(true));
   });
 });

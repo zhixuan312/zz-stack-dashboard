@@ -61,7 +61,9 @@ function pageOf(file: string): Page {
   return { file, route, feature, address, params };
 }
 
-const PAGES: Page[] = (fs.readdirSync(DASH, { recursive: true }) as string[]).filter((f) => path.basename(f) === 'page.tsx').sort().map(pageOf);
+// The address no page answers (`[...missing]`) is no destination: it shares nothing and has no view tool, as an address
+// that names nothing must not (`tests/no-access.test.tsx` holds it to the refused answer).
+const PAGES: Page[] = (fs.readdirSync(DASH, { recursive: true }) as string[]).filter((f) => path.basename(f) === 'page.tsx' && path.dirname(f) !== '[...missing]').sort().map(pageOf);
 
 /**
  * A server page's tree, as Next would hand it to the browser: every async component it places is awaited where it
@@ -125,12 +127,14 @@ async function open(page: Page, ask?: (question: string) => void): Promise<Share
 
 const ASK = /^Ask: /;
 
+/** Today's addresses that render another route's page until Phase 7 removes them; their view tool names that route. */
+const RENDERS_UNTIL_PHASE_7: Record<string, string> = { '/teams': '/platform/teams', '/teams/[slug]': '/platform/teams/[slug]' };
+
 /**
  * The pages whose protagonist card has no head that can hold an action yet, each with what will give it one. Every other
  * page is held to the card's head; delete an entry the day its reason is gone.
  */
 const MASTHEAD_UNTIL: Record<string, string> = {
-  '/platform': 'Status is one ZZ Meridian MetricTile, which has no actions; Task I-28 rebuilds it on the Featured metric',
   '/settings': 'every section is a ZZ Meridian FormSection, which has no actions (zz-meridian issue #37)',
 };
 
@@ -168,8 +172,10 @@ describe('every page of the console carries its agent side', () => {
     const tool = viewTools.find((t) => t.name === context.view);
     expect(tool, `no view_${context.view} tool`).toBeTruthy();
     expect(tool!.needs, `view_${tool!.name} needs what the page's gate needs`).toBe(FEATURES[page.feature].needs);
-    expect(tool!.page, `view_${tool!.name} names the page it renders`).toBe(page.route);
-    expect(viewAt(viewTools, page.address), `${page.address} offers explore_${tool!.name}`).toBe(tool);
+    const route = RENDERS_UNTIL_PHASE_7[page.route] ?? page.route;
+    expect(tool!.page, `view_${tool!.name} names the page it renders`).toBe(route);
+    const address = route === page.route ? page.address : page.address.replace(/^\/teams/, '/platform/teams');
+    expect(viewAt(viewTools, address), `${address} offers explore_${tool!.name}`).toBe(tool);
 
     const [first] = await screen.findAllByRole('button', { name: ASK }, { timeout: 10_000 });
     expect(inAHead(first, page.route in MASTHEAD_UNTIL), `${page.route}'s Ask is in no card's head`).toBe(true);

@@ -1,6 +1,7 @@
 /**
  * What `pnpm verify` needs to know about this project that it cannot discover from `app/`. Edit it; verify reads it.
  */
+import { refusal } from '../src/app.config.ts';
 import { PLATFORM_STATUS } from './fake-gateway/platform-status.ts';
 
 /** The figure `/platform` draws from the fake gateway's last whole week, as the page writes it: one decimal place. */
@@ -12,7 +13,7 @@ type Persona = {
   cookie: { name: string; value: string };
   /** The rail routes this person may open, written by hand and never derived from the rail or the policy under test. */
   expectedRoutes: readonly string[];
-  /** For each route this person may NOT open: one protected string that must not appear on the NoAccess answer. */
+  /** For each route this person may NOT open: one protected string that must not appear on the refused answer. */
   deniedProbe?: Record<string, string>;
 };
 
@@ -69,6 +70,12 @@ export type VerifyConfig = {
    * person may not open, one protected string that must not appear on the page.
    */
   personas?: Record<string, Persona>;
+  /**
+   * What a route a persona may not open is expected to draw: the product's `refusal`, read from src/app.config.ts where it
+   * is declared, never written here. `explain` expects the no-access page (`[data-no-access]`), `absent` the missing page
+   * (`[data-missing-page]`) and no no-access page; the `deniedProbe` strings must be absent under both.
+   */
+  refusal?: 'explain' | 'absent';
 };
 
 const config: VerifyConfig = {
@@ -115,10 +122,13 @@ const config: VerifyConfig = {
    * simply moves, so the dialog is the change this can read.
    */
   navigationChecks: [
-    { path: '/', title: 'Overview', readySelector: 'main table tbody tr', probe: 'dialog', controlSelector: 'main button[aria-haspopup="dialog"]', resultSelector: '[role="dialog"]' },
+    // Home's primary data is its paired figures, read on the server; the one control the check presses is a tile's info
+    // button, whose tooltip says what the tile counts.
+    { path: '/', title: 'Home', readySelector: 'main [data-figures] [data-value]', probe: 'toggle', controlSelector: 'main button[aria-label^="About "]', resultSelector: '[role="tooltip"]' },
     { path: '/teams', title: 'Teams', readySelector: 'main table tbody tr', probe: 'filter', controlSelector: 'main input[type="search"]', resultSelector: 'main table tbody tr' },
     { path: '/initiatives', title: 'Initiatives', readySelector: 'main table tbody tr', probe: 'filter', controlSelector: 'main input[type="search"]', resultSelector: 'main table tbody tr' },
-    { path: '/knowledge', title: 'Knowledge', readySelector: 'main table tbody tr', probe: 'filter', controlSelector: 'main input[type="search"]', resultSelector: 'main table tbody tr' },
+    // Knowledge's search runs on submit, so typing changes nothing; its data is the tiles, read on the server.
+    { path: '/knowledge', title: 'Knowledge', readySelector: 'main [data-figures="read"] .t-figure', probe: 'toggle', controlSelector: 'main button[aria-label^="About "]', resultSelector: '[role="tooltip"]' },
     { path: '/people', title: 'People', readySelector: 'main table tbody tr', probe: 'filter', controlSelector: 'main input[type="search"]', resultSelector: 'main table tbody tr' },
     // No search field on these four, so the dialog is the change the check can read. Every one of them draws a table,
     // so `main table tbody tr` is what says the data arrived.
@@ -126,9 +136,10 @@ const config: VerifyConfig = {
     { path: '/runs', title: 'Runs', readySelector: 'main table tbody tr', probe: 'dialog', controlSelector: 'main button[aria-haspopup="dialog"]', resultSelector: '[role="dialog"]' },
     { path: '/activity', title: 'Activity', readySelector: 'main table tbody tr', probe: 'dialog', controlSelector: 'main button[aria-haspopup="dialog"]', resultSelector: '[role="dialog"]' },
     { path: '/settings', title: 'Settings', readySelector: 'main table tbody tr', probe: 'dialog', controlSelector: 'main button[aria-haspopup="dialog"]', resultSelector: '[role="dialog"]' },
-    // Status draws one tile and no table: the data is its figure, read on the server, and the one control is the tile's
-    // info button, whose tooltip says what the figure counts. Read off the source on 2026-10-14, not yet off a build.
-    { path: '/platform', title: 'Status', readySelector: 'main .t-figure', readyText: STATUS_FIGURE, probe: 'toggle', controlSelector: 'main button[aria-label^="About "]', resultSelector: '[role="tooltip"]' },
+    // Status leads with what needs attention and the paired figures, read on the server: its data is the Featured
+    // metric's first figure, the last whole week's malformed calls per 1,000 (`.t-figure` is the team's tiles now). The
+    // one control is a team tile's info button, whose tooltip says what the figure counts. Read off the source on 2026-10-17.
+    { path: '/platform', title: 'Status', readySelector: 'main [data-figures] [data-value]', readyText: STATUS_FIGURE, probe: 'toggle', controlSelector: 'main button[aria-label^="About "]', resultSelector: '[role="tooltip"]' },
   ],
 
   // One per state worth seeing, taken from the fake gateway's own records (scripts/fake-gateway): a team with
@@ -139,6 +150,8 @@ const config: VerifyConfig = {
   // node, a plugin with an evaluation, one never profiled, one vendored and never run, and a skill in each of its
   // views.
   detailRoutes: [
+    '/platform/teams/atlas',
+    '/platform/teams/dune',
     '/teams/atlas',
     '/teams/dune',
     '/initiatives/atlas/2026-09-28-search-relevance',
@@ -190,9 +203,10 @@ const config: VerifyConfig = {
     member: {
       cookie: { name: 'zz_console', value: 'member' },
       expectedRoutes: ['/', '/initiatives', '/knowledge', '/settings', '/platform'],
-      deniedProbe: { '/teams': 'Beacon Payments', '/people': 'Jonas Weber' },
+      deniedProbe: { '/teams': 'Beacon Payments', '/platform/teams': 'Beacon Payments', '/people': 'Jonas Weber' },
     },
   },
+  refusal,
 };
 
 export default config;

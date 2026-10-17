@@ -8,7 +8,7 @@
  *
  * What it proves, and what it does not. It proves the console's half of the contract in `references/live.md`: a page
  * opens one stream and follows its own collection, a hint for that collection is read again and what arrived is on
- * screen, a hint for a collection the page does not show changes nothing, and the bell's own read follows a hint for
+ * screen (on Teams and on a team's page, whose first reads are the console's server's), a hint for a collection the page does not show changes nothing, and the bell's own read follows a hint for
  * the collection it watches. It does NOT prove the multi-tab and offline behaviour Meridian's own check does — one
  * `launch()` here owns one page, and a second tab is not something this harness can open. The stream is shared per
  * origin, so a hint reaching this tab is the same frame a second tab would get; the reader should know that is an
@@ -31,12 +31,9 @@ const args = process.argv.slice(2);
 const opt = (k: string, d: string) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
 const base = opt('--base', process.env.BASE ?? 'http://localhost:3100');
 
-/** The fixture team this check renames, and what it renames it to: no row is added, so nothing else in `verify` sees a
- * link it cannot follow. See the hook's own comment in `scripts/fake-gateway/server.ts`. */
+/** The fixture team this check renames: no row is added, so nothing else in `verify` sees a link it cannot follow. See
+ * the hook's own comment in `scripts/fake-gateway/server.ts`. */
 const RENAMED_SLUG = 'dune';
-const RENAMED_TO = 'Dune Renamed By The Live Check';
-/** The second rename, hinted at a collection the page does not follow. */
-const UNSOLICITED_TO = 'Dune Renamed Unsolicited';
 /** How long a tab is given to show what it read again, well inside the 30 s safety poll: a pass here is a hint's doing. */
 const SHOW_MS = 8000;
 /** How long the "nothing should happen" case watches for, for the same reason. */
@@ -68,42 +65,49 @@ async function until(seen: (t: string) => boolean, ms: number): Promise<boolean>
   return false;
 }
 
-await page.open(base + '/teams', { width: 1440, theme: 'dark' });
-if (page.errors.length) failures.push(`/teams: ${page.errors[0]}`);
+/**
+ * One page that follows `teams`, at `address`: its stream is open, a change to teams is read again in the browser and
+ * shows, though the page's first read was the console's server's, and a change to a collection it does not show is
+ * left alone. Each address renames the team to names of its own, so what one case shows another cannot have made.
+ */
+async function follows(address: string, renamedTo: string, unsolicitedTo: string): Promise<void> {
+  await page.open(base + address, { width: 1440, theme: 'dark' });
+  if (page.errors.length) failures.push(`${address}: ${page.errors[0]}`);
 
-// The stream is open, and it is following something: a page that registered nothing subscribes to nothing. The provider
-// opens it once `/me` answers, which is a round trip after the page itself.
-let open = 0;
-for (let i = 0; i < 24; i++) {
-  open = await streams().then((s) => s.streams).catch(() => -1);
-  if (open >= 1) break;
-  await sleep(250);
+  // The stream is open, and it is following something: a page that registered nothing subscribes to nothing. The
+  // provider opens it once `/me` answers, which is a round trip after the page itself.
+  let open = 0;
+  for (let i = 0; i < 24; i++) {
+    open = await streams().then((s) => s.streams).catch(() => -1);
+    if (open >= 1) break;
+    await sleep(250);
+  }
+  if (open < 0) failures.push(`${address}: the app did not proxy the fake gateway's \`__streams\` hook, so nothing here could be checked`);
+  else if (open < 1) failures.push(`${address}: no stream is open, though the page shows teams (following ${open})`);
+
+  if ((await text()).includes(renamedTo)) failures.push(`${address}: ${renamedTo} is on the page before this check made it`);
+
+  // A change to a collection the page follows is read again and what arrived is on screen.
+  const reached = await hint(`collection=teams&rename=${RENAMED_SLUG}:${encodeURIComponent(renamedTo)}`);
+  if (reached.reached < 1) failures.push(`${address}: the hint reached no tab — the page is not following teams`);
+  if (!reached.renamed) failures.push(`${address}: the fixture has no team ${RENAMED_SLUG} to rename`);
+  if (!(await until((t) => t.includes(renamedTo), SHOW_MS))) failures.push(`${address}: a change to teams never showed, so the tab did not read the collection again`);
+
+  // A change to a collection the page does not show is left alone. The second rename really is made and `runs` is what
+  // gets hinted, so a tab that read teams again for any reason would show it — which is what gives this case its meaning.
+  await hint(`collection=runs&rename=${RENAMED_SLUG}:${encodeURIComponent(unsolicitedTo)}`);
+  if (await until((t) => t.includes(unsolicitedTo), QUIET_MS)) failures.push(`${address}: a change to runs reached the page, so the tab reads collections it does not show`);
+
+  if (page.errors.length) failures.push(`${address}: ${page.errors[0]}`);
 }
-if (open < 0) failures.push('/teams: the app did not proxy the fake gateway\'s `__streams` hook, so nothing here could be checked');
-else if (open < 1) failures.push(`/teams: no stream is open, though the page shows teams (following ${open})`);
 
-const before = await text();
-if (before.includes(RENAMED_TO)) failures.push(`/teams: ${RENAMED_TO} is on the page before this check made it`);
-
-// A change to a collection the page follows is read again and what arrived is on screen.
-const reached = await hint(`collection=teams&rename=${RENAMED_SLUG}:${encodeURIComponent(RENAMED_TO)}`);
-if (reached.reached < 1) failures.push('/teams: the hint reached no tab — the page is not following teams');
-if (!reached.renamed) failures.push(`/teams: the fixture has no team ${RENAMED_SLUG} to rename`);
-const arrived = await until((t) => t.includes(RENAMED_TO), SHOW_MS);
-if (!arrived) failures.push('/teams: a change to teams never showed, so the tab did not read the collection again');
-
-// A change to a collection the page does not show is left alone. The second rename really is made and `runs` is what
-// gets hinted, so a tab that read teams again for any reason would show it — which is what gives this case its meaning.
-await hint(`collection=runs&rename=${RENAMED_SLUG}:${encodeURIComponent(UNSOLICITED_TO)}`);
-const leaked = await until((t) => t.includes(UNSOLICITED_TO), QUIET_MS);
-if (leaked) failures.push('/teams: a change to runs reached the teams page, so the tab reads collections it does not show');
-
-if (page.errors.length) failures.push(`/teams: ${page.errors[0]}`);
+await follows('/platform/teams', 'Dune Renamed By The Live Check', 'Dune Renamed Unsolicited');
+await follows(`/platform/teams/${RENAMED_SLUG}`, 'Dune Renamed On Its Own Page', 'Dune Renamed Unsolicited On Its Page');
 
 /**
  * The chrome's own read, on a page that does not show it.
  *
- * `/people` reads `people` and nothing else, so any read of `initiatives` there is the BELL's — the one place the console
+ * `/people` reads `people` and nothing else, so any read of `approvals` there is the BELL's — the one place the console
  * says "this needs you" without being asked. It registers `initiatives` itself (`src/console/frame.tsx`), and without
  * that registration a gate approved in another tab leaves its count stale on every page whose own read is not also
  * `initiatives`, which is all of them but two.
@@ -114,18 +118,18 @@ if (page.errors.length) failures.push(`/teams: ${page.errors[0]}`);
  */
 await page.open(base + '/people', { width: 1440, theme: 'dark' });
 if (page.errors.length) failures.push(`/people: ${page.errors[0]}`);
-const bellBefore = (await counts()).initiatives ?? 0;
+const bellBefore = (await counts()).approvals ?? 0;
 await hint('collection=initiatives');
 let bellRead = false;
 for (let i = 0; i < 24 && !bellRead; i++) {
   await sleep(250);
-  bellRead = ((await counts()).initiatives ?? 0) > bellBefore;
+  bellRead = ((await counts()).approvals ?? 0) > bellBefore;
 }
-if (!bellRead) failures.push('/people: a hint for initiatives was never read again, though the bell beside that page shows it');
+if (!bellRead) failures.push('/people: a hint for initiatives never read the bell\'s Approvals again, though the bell beside that page shows it');
 
 if (page.errors.length) failures.push(`/people: ${page.errors[0]}`);
 
 page.close();
 for (const f of failures) console.log('FAIL ' + f);
-console.log(`\nlive: one collection followed, one change read again, one ignored; ${failures.length} issues`);
+console.log(`\nlive: teams followed at two addresses, each change read again and each unsolicited one ignored; ${failures.length} issues`);
 process.exit(failures.length ? 1 : 0);

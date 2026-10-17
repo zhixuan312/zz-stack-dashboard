@@ -82,7 +82,7 @@ describe('the fake gateway as the sweep uses it', () => {
   });
 
   it('counts the reads of each collection, which is how a check sees a tab read one again', async () => {
-    // `scripts/live-check.ts` uses this to prove the bell's own subscription: the waiting list is a fixed fixture, so a
+    // `scripts/live-check.ts` uses this to prove the bell's own subscription: Approvals' Waiting is a fixed fixture, so a
     // refetch returns the same rows and the bell looks identical — the count is what says the request arrived.
     const base = await start();
     const counts = () => fetch(`${base}/api/console/__streams`).then((r) => r.json() as Promise<{ reads: Record<string, number> }>);
@@ -90,10 +90,10 @@ describe('the fake gateway as the sweep uses it', () => {
 
     await fetch(`${base}/api/console/teams`);
     await fetch(`${base}/api/console/teams`);
-    await fetch(`${base}/api/console/initiatives?waiting=1`);
+    await fetch(`${base}/api/console/approvals?tab=waiting&limit=100`);
     const seen = (await counts()).reads;
     expect(seen.teams).toBe(2);
-    expect(seen.initiatives).toBe(1);
+    expect(seen.approvals).toBe(1);
   });
 
   it('holds an answer four seconds in slow mode', async () => {

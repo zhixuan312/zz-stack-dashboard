@@ -17,10 +17,10 @@
  * script installed before any of the page's own: the largest paint from its PerformanceObserver, the data from a frame
  * loop, so neither waits on a round trip to this process.
  *
- * A route the person may not open is recorded as refused, not as a time: the gate's NoAccess answer
- * (`[data-no-access]`), or a record the gateway answers as not existing, which is how it refuses another team's record
- * without confirming it is there (`Query` in src/console/query.tsx). A rail route's refusal must match the persona's
- * hand-written `expectedRoutes`.
+ * A route the person may not open is recorded as refused, not as a time: the gate's refusal (`[data-no-access]` under
+ * `refusal: 'explain'`, the missing page's `[data-missing-page]` under `absent`), or a record the gateway answers as
+ * not existing, which is how it refuses another team's record without confirming it is there (`Query` in
+ * src/console/query.tsx). A rail route's refusal must match the persona's hand-written `expectedRoutes`.
  *
  * No budget is enforced on the time: the stakeholder sets it from this table (spec AC-8.7). Each row carries its place
  * in the run, `#n`, because a measurement carries its history: one browser opens every page in the order printed, with
@@ -62,6 +62,8 @@ const NEVER_RUN = 'main [data-never-run]';
  * 2026-10-14. COUPLED: `detailRoutes` in scripts/verify.config.ts; an address there with no entry here fails the run.
  */
 const DETAIL: Record<string, string> = {
+  '/platform/teams/atlas': TABLE,
+  '/platform/teams/dune': TABLE,
   '/teams/atlas': TABLE,
   // No initiative yet, which the page says; its members are the table.
   '/teams/dune': TABLE,
@@ -119,8 +121,8 @@ const observe = (t: Target, hold: number) => `(() => {
   const readable = (el) => shown(el) && !el.closest('.shimmer, [aria-busy="true"]') && !el.querySelector('.shimmer') && (el.textContent || '').trim() !== '';
   const some = (sel, test) => [...document.querySelectorAll(sel)].some(test);
   const content = () => some(spec.ready, (el) => readable(el) && (!spec.text || el.textContent.toLowerCase().includes(spec.text)));
-  // The gate's NoAccess answer, or a record answered as not existing: Query's 404 title, "<what> does not exist".
-  const refusal = () => some('main [data-no-access]', shown) ? 'no access'
+  // The gate's refusal under either setting, or a record answered as not existing: Query's 404 title, "<what> does not exist".
+  const refusal = () => some('main [data-no-access], main [data-missing-page]', shown) ? 'no access'
     : some('main p.t-card', (el) => shown(el) && / does not exist$/.test(el.textContent.trim())) ? 'answered as not existing' : '';
   const tick = () => {
     const now = performance.now();
@@ -134,7 +136,7 @@ const observe = (t: Target, hold: number) => `(() => {
       if (content()) p.data = now;
       else { const why = refusal(); if (why) { p.refused = now; p.why = why; } }
     }
-    if (p.explicit === null && (p.data !== null || p.refused !== null || some('main [role="alert"], main [data-no-access]', shown))) p.explicit = now;
+    if (p.explicit === null && (p.data !== null || p.refused !== null || some('main [role="alert"], main [data-no-access], main [data-missing-page]', shown))) p.explicit = now;
     if (now < spec.cap) requestAnimationFrame(tick);
   };
   requestAnimationFrame(tick);

@@ -16,107 +16,6 @@ export interface Me {
   why?: string;
   teams: { slug: string; role: 'admin' | 'member' }[]; activeTeam: string | null;
 }
-/** How far one initiative has got, judged against its own flow's declared documents.
- *
- * `gated` and `closed` are two rungs: an initiative can have every gate approved and still be
- * open. Closure is an `outcome` on the flow's closing document and nothing else. */
-type InitiativeStage = 'noflow' | 'notstarted' | 'drafting' | 'agreed' | 'gated' | 'closed';
-
-/**
- * The four the overview leads with — initiative, knowledge, tools, system.
- *
- * Figures only: every word on a tile is a fixed label in the component or a template with
- * these numbers substituted in. The API composes no prose.
- */
-export interface OverviewMetrics {
-  progressing: {
-    /** Median completeness, 0–100. Null when nothing scoreable was active. */
-    value: number | null;
-    active: number; scoreable: number;
-    /** Every active initiative in exactly one stage — the mark under the tile. */
-    stages: Record<InitiativeStage, number>;
-    /** Gate documents written and unapproved, across the open initiatives — work sitting on
-     *  a human. Gates only: a flow's own manifest says which documents gate. */
-    waiting: number;
-    /** Days the oldest of those has waited. Null when nothing is waiting. */
-    waitingOldestDays: number | null;
-    /** Why this one carries no delta. The API states it; the browser does not guess. */
-    noDeltaBecause: string;
-  };
-  knowledge: {
-    value: number | null; prev: number | null;
-    fromWork: number; imported: number; searches: number;
-    importThresholdPerHour: number;
-  };
-  refusals: {
-    value: number | null; prev: number | null; refused: number; calls: number;
-    /** Which door refused, largest first — `core` / `eval` / `manage`, off `subject`.
-     *  Sums exactly to `refused`: same predicate, grouped. Not `Overview.refusals[]`,
-     *  which is a top-12 across every event kind. */
-    byDoor: { door: string; n: number }[];
-  };
-  context: {
-    /** KB. */
-    value: number | null; prev: number | null; p90: number | null;
-    runs: { kb: number; skill: string }[];
-    /** Runs whose bytes were never measured — excluded from the figures above, never
-     *  folded in as zero. */
-    unmeasured: number;
-    /** True when the gateway's run query hit its 400-row cap, so the previous-window
-     *  comparison is a median over a truncated tail rather than the whole window. */
-    capped: boolean;
-    /** Rule of thumb at ~4 bytes per token, not a measurement. Nothing counts tokens. */
-    contextWindowKb: number;
-  };
-}
-
-export interface Overview {
-  metrics: OverviewMetrics;
-  counts: { teams: number; activeTeams: number; people: number; superadmins: number;
-            documents: number; initiatives: number; events: number; failures: number;
-            /** Events belonging to no team, so the per-team rows cannot sum to `events`. */
-            unattributedEvents: number };
-  /** How wide one bucket is — `hour` for the 24-hour window, `day` otherwise. A day
-   *  bucket over a one-day window is a single point, and a trend through one point is
-   *  not a trend. */
-  grain: 'hour' | 'day' | 'week' | 'month';
-  /**
-   * Tool calls per bucket, split three disjoint ways that sum to the total, so the chart
-   * can stack them and the column height is a real number of calls.
-   *
-   * `bucket` is an instant (ISO 8601, UTC, with the Z), not a pre-formatted local string;
-   * the browser formats it. Every bucket in the window is present, including empty ones —
-   * a quiet hour is a zero, not an absent row.
-   */
-  toolTrend: { bucket: string; inside: number; outside: number; refused: number }[];
-  /**
-   * The zone the buckets were cut in — this deployment's own, not the viewer's. Format the
-   * labels on this calendar, so the label agrees with the bar it sits under.
-   */
-  timezone: string;
-  eventKinds: { kind: string; n: number }[];
-  /**
-   * Refused tool calls on two axes — the same population `metrics.refusals` counts, so the
-   * panel's total and the tile's are the same number. Which tool and which message answer
-   * different questions: one tool refusing for nine reasons is a surface problem; nine tools
-   * refusing with one message is one bug.
-   */
-  refusals: {
-    total: number;
-    byTool: { tool: string; n: number }[];
-    /** `tools` is how many distinct tools emit this exact message. */
-    byMessage: { message: string; tool: string; tools: number; n: number }[];
-  };
-}
-export interface Team {
-  slug: string; name: string; status: string; created: string;
-  members: number; initiatives: number;
-  /** Written documents — sources are counted apart, though both live in one table. */
-  documents: number;
-  sources: number;
-  /** Knowledge nodes on the team's shelf. */
-  knowledge: number;
-}
 export interface Gate {
   name: string;
   /** `handover` is the platform's own closing step, appended to every gating flow. It gates,
@@ -129,18 +28,6 @@ export interface Gate {
    *  the second on a person. */
   written: boolean;
   after: number;
-}
-/** One gate document a person can sign today: written, not approved, on an open initiative — or a closed
- *  initiative's correction awaiting approval.
- *
- *  Its own read — `/initiatives?waiting=1` — because the console's alert bell sits in the frame
- *  every page renders. Asking for the whole initiative list instead made every page carry a
- *  stepper and a gate list per initiative, for every initiative the caller may read, to draw a
- *  badge that is usually empty. */
-export interface WaitingGate {
-  id: string; gate: string; team: string; slug: string; updated: string;
-  /** Where the initiative sits in its flow, for the position line under the row. */
-  stage: string; at: number; of: number;
 }
 /** One node of the diagram, as the API derived it — including the `open` and `closed`
  *  bookends every initiative has and no manifest declares.

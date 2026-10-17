@@ -1,17 +1,19 @@
 # Knowledge log
 
-Every node recorded or retired, newest first, and who wrote it down.
+Knowledge's log: every node recorded or retired, newest first, and who wrote it down. The address stands until Phase 7 removes it.
 
 ## Structure
 
-- Gate first: the page asks for `knowledge` before it renders, so a person who does not hold it is shown NoAccess and nothing on the page is read.
+- Gate first: the page asks for `knowledge` before it renders, so a person who does not hold it is shown nothing of the page and nothing on it is read.
+- Tabs: Overview, Log, as Knowledge draws them.
 - Tiles: entries, recorded, superseded.
-- A data table headed Recorded and superseded, newest first: when, act, node (title now, or as typed), team, who.
+- A data table headed Recorded and superseded, newest first: when, act, node (title now, or as typed), team, who. Dates are absolute: the log is read on the server.
 
 ## States
 
-- Loading: skeleton rows.
+- Loading: skeleton rows while the gate asks `/me` and the server reads the log.
 - Empty: the log starts at the next node minted or superseded.
+- Read failed, or slower than 5 seconds: the tiles read `—`, and `The entries did not load` says why with Retry, which reads again on the server.
 
 ## Agents
 
@@ -25,7 +27,7 @@ Whose log it is, how many entries it holds, and how many of them record a node a
 - The latest entries, newest first: 11 Oct 2026 recorded node 0003 (beacon), "Alert on the trend, not the count" by noah.okafor; …
 ```
 
-- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `explore_knowledge_log`, offered on this page alone, counts the lessons made and the shelf over any window, by kind.
+- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `explore_knowledge_log`, offered on this page, is Knowledge's own prepared query: it counts the shelf, the lessons made and the searches over any window, by kind, standing or whether a search found anything.
 
 ### What the agent does here
 
@@ -37,4 +39,4 @@ Protagonist: Recorded and superseded.
 
 ## Surfaces
 
-Console, desktop and phone. Reads `GET /knowledge/log`. Live: follows `knowledge`, so a change made anywhere — another tab, another person — reads this page again.
+Console, desktop and phone. Reads `GET /knowledge/log` on the console's server, as the person, once per request and bounded at 5 seconds. Live: follows `knowledge`, so a change made anywhere — another tab, another person — asks the server for this page again.

@@ -285,10 +285,10 @@ docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
 
 | | |
 |---|---|
-| **Overview** | Tool calls over the period, stacked by whether they ran inside a run, outside one or were refused, beside three tiles: initiatives progressing, knowledge from work, context per run. Then the gates waiting on a person and open work by stage, then where refusals come from and event kinds |
-| **Teams** | Every team and what it holds — documents, sources, knowledge nodes; open one for its initiatives and members. Switching here moves **this browser's session only**: your agents keep acting for the team `team_switch` on `/manage` set |
+| **Home** | What waits on you, then last whole week's work beside the week before (words added, closures, approvals in your name), four tiles, the work that is open, the runs active now, the milestones and what closed last week, with a line to Record. The bell lists the approvals waiting on the team |
+| **Teams** | Under Platform, the superadmin's alone: every team with its people, open work, waiting and lessons, paged and filtered on the server; create one here. Open one for its calls by week and its members, and archive it or add and remove people there |
 | **Initiatives** | Every piece of work and how far through its flow it got |
-| **Knowledge** | The nodes, with the whole body open beside the list, and the store's log of every node recorded or retired |
+| **Knowledge** | The team's search, ranked as the assistant and MCP rank it, then lessons adopted and superseded, the searches that found nothing (most asked first), searches with results by week and the newest lessons, with the store's log behind its tab. A lesson on the shared shelf opens read-only for anybody |
 | **Plugins** | What a person installs; open one and it leads with its overall evaluation score, then the evidence behind it — health, quality by dimension, usage, findings, candidates and releases (one compact panel until a run has completed), and who may change it |
 | **Runs** | Every run by the skill that drove it |
 | **Activity** | The audit log |

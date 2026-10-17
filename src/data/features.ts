@@ -35,7 +35,7 @@ export type FeatureId =
 
 /** Each feature: its name as a person reads it, and the need a person must satisfy to reach it. Never `public`. */
 export const FEATURES: Record<FeatureId, { title: string; needs: HeldRead }> = {
-  home: { title: 'Overview', needs: WORK },
+  home: { title: 'Home', needs: WORK },
   record: { title: 'Record', needs: WORK },
   initiatives: { title: 'Initiatives', needs: WORK },
   approvals: { title: 'Approvals', needs: WORK },

@@ -134,8 +134,8 @@ describe('the initiatives list', () => {
     expect(JSON.stringify(own)).not.toContain('refund-flow');
   });
 
-  it('keeps answering the bell\'s projection at ?waiting=1', async () => {
-    expect(keys(await read(MEMBER, 'initiatives?waiting=1'))).toEqual(['waiting']);
+  it('no longer answers the bell\'s old projection: ?waiting=1 is the list', async () => {
+    expect(keys(await read(MEMBER, 'initiatives?waiting=1'))).not.toContain('waiting');
   });
 });
 

@@ -10,8 +10,8 @@ import { KnowledgeTabs } from '@/console/knowledge-tabs';
  * into a search parameter has to break this test to do it.
  */
 describe('the knowledge tab strip', () => {
-  it('renders one real link per view, to its own route', () => {
-    render(<KnowledgeTabs active="nodes" />);
+  it('renders one real link per view, to its own route: the page, and its log', () => {
+    render(<KnowledgeTabs active="knowledge" />);
     const hrefs = screen.getAllByRole('link').map((a) => a.getAttribute('href'));
     expect(hrefs).toEqual(['/knowledge', '/knowledge/log']);
   });
@@ -26,12 +26,12 @@ describe('the knowledge tab strip', () => {
     // This platform records no node-to-node edge, so a graph here could only be drawn from
     // shared tags and would assert relationships nobody wrote down. Its absence is a decision,
     // so it is asserted rather than left to be noticed.
-    render(<KnowledgeTabs active="nodes" />);
+    render(<KnowledgeTabs active="knowledge" />);
     expect(screen.queryByRole('link', { name: /graph/i })).toBeNull();
   });
 
-  it('keeps Nodes on the bare /knowledge path, so the default view needs no parameter', () => {
-    render(<KnowledgeTabs active="nodes" />);
-    expect(screen.getByRole('link', { name: /nodes/i })).toHaveAttribute('href', '/knowledge');
+  it('keeps the page on the bare /knowledge path, so the default view needs no parameter', () => {
+    render(<KnowledgeTabs active="knowledge" />);
+    expect(screen.getByRole('link', { name: /overview/i })).toHaveAttribute('href', '/knowledge');
   });
 });

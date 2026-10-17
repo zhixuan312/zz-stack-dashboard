@@ -34,9 +34,14 @@ function routes(): Route[] {
       if (entry.name !== 'loading.tsx') continue;
       const page = `${dir}/page.tsx`;
       if (!fs.existsSync(path.join(ROOT, page))) continue;
-      const named = /from '@\/views\/pages\/([\w-]+)'/.exec(read(page));
-      if (!named) throw new Error(`${page} renders no view under src/views/pages, so its loading state has no page to match`);
-      out.push({ route: page.replace('app/(dash)/', '').replace('/page.tsx', ''), loading: at, view: `src/views/pages/${named[1]}.tsx` });
+      // A route that renders another route's page (today's `/teams`, until Phase 7) streams that page's loading state too,
+      // so both of its files are the other route's.
+      const other = /^export \{ default \} from '([^']+)\/loading';/m.exec(read(at));
+      const shown = other ? path.posix.join(dir, other[1], 'page.tsx') : page;
+      const loading = other ? path.posix.join(dir, other[1], 'loading.tsx') : at;
+      const named = /from '@\/views\/pages\/([\w-]+)'/.exec(read(shown));
+      if (!named) throw new Error(`${shown} renders no view under src/views/pages, so its loading state has no page to match`);
+      out.push({ route: page.replace('app/(dash)/', '').replace('/page.tsx', ''), loading, view: `src/views/pages/${named[1]}.tsx` });
     }
   };
   walk('app/(dash)');

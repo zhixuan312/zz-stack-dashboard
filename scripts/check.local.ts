@@ -180,9 +180,9 @@ for (const f of SOURCE) {
  * nothing corrects it when the data moves, and nothing says so — the page simply shows what it read on arrival, for as
  * long as it is open.
  *
- * This is a rule rather than a review because it is exactly how the bell was missed: `src/console/frame.tsx` reads
- * `/initiatives?waiting=1` and declared nothing, so on fourteen of sixteen pages a gate approved in another tab left
- * the count stale. The sweep that found it was by hand; this is what stops the next one.
+ * This is a rule rather than a review because it is exactly how the bell was missed: `src/console/frame.tsx` read what
+ * waits on a person and declared nothing, so on fourteen of sixteen pages a gate approved in another tab left the count
+ * stale. The sweep that found it was by hand; this is what stops the next one.
  *
  * Only the console's own pages, and only when they read: `/login`, `/enrol` and `/signed-out` are outside the group
  * whose layout mounts the provider, so declaring there would register into nothing. A page that composes panels reading

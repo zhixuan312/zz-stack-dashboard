@@ -15,7 +15,7 @@
 import { createHash } from 'node:crypto';
 import type {
   DocumentDetail, DocumentRevision, Gate, Initiative, InitiativeDetail, KnowledgeBody,
-  KnowledgeLogEntry, KnowledgeNode, Step, WaitingGate,
+  KnowledgeLogEntry, KnowledgeNode, Step,
 } from '../../src/lib/api-shapes.ts';
 import { ago, now } from './clock.ts';
 
@@ -68,7 +68,9 @@ const SEEDS: Seed[] = [
   { team: 'atlas', slug: '2026-08-02-ingest-pipeline', at: 2, updated: 160, stakeholder: null, passed: 0, written: 1, outcome: 'abandoned' },
   { team: 'beacon', slug: '2026-09-30-refund-flow', at: 2, updated: 9, stakeholder: 'jonas.weber@example.com', passed: 0, written: 1, outcome: null },
   { team: 'beacon', slug: '2026-10-01-ledger-migration-to-double-entry-bookkeeping-with-nightly-reconciliation', at: 0, updated: 30, stakeholder: null, passed: 0, written: 0, outcome: null },
-  { team: 'beacon', slug: '2026-09-18-chargeback-alerts', at: 7, updated: 300, stakeholder: 'mei.tanaka@example.com', passed: 4, written: 4, outcome: 'delivered' },
+  // Closed 400 hours ago, before the last whole week on every day of the week and at every hour, so beacon's last week
+  // holds no closure whenever the fake starts: 300 hours crossed that week's Monday as the hours of a Saturday passed.
+  { team: 'beacon', slug: '2026-09-18-chargeback-alerts', at: 7, updated: 400, stakeholder: 'mei.tanaka@example.com', passed: 4, written: 4, outcome: 'delivered' },
   // A metadata-only correction: it stays in v1, so v1 reads as the correction and names the approval it superseded.
   { team: 'beacon', slug: '2026-09-22-payout-schedule', at: 7, updated: 26, stakeholder: 'jonas.weber@example.com', passed: 4, written: 4, outcome: 'accepted', correction: 1 },
   { team: 'cinder', slug: '2026-08-20-incident-runbooks', at: 3, updated: 900, stakeholder: 'leo.santos@example.com', passed: 1, written: 1, outcome: 'abandoned' },
@@ -156,26 +158,6 @@ export const INITIATIVES: Initiative[] = SEEDS.map((s) => ({
   closed: s.outcome !== null, outcome: s.outcome,
   correction: s.correction ? { path: 'review.md', version: s.correction } : null,
 }));
-
-/** What `/initiatives?waiting=1` answers: every gate written and unsigned on an open initiative,
- *  and a closed one's correction awaiting approval, newest first — the projection the console's alert bell and its Overview panel read instead of
- *  the whole list. */
-export const WAITING: WaitingGate[] = INITIATIVES
-  .flatMap((i) => {
-    const where = { team: i.team, slug: i.slug, updated: i.updated, stage: i.stage, at: i.at, of: i.of };
-    // A closed initiative waits on a person only for a correction, as the
-    // gateway's own projection answers.
-    if (i.closed) {
-      return i.correction
-        ? [{ id: `${i.team}/${i.slug}/${i.correction.path}`,
-             gate: `${i.correction.path.replace(/\.md$/, '')} correction v${i.correction.version}`, ...where }]
-        : [];
-    }
-    return i.gates.filter((g) => g.written && !g.passed).map((g) => ({
-      id: `${i.team}/${i.slug}/${g.name}`, gate: g.name.replace(/^approve /, ''), ...where,
-    }));
-  })
-  .sort((a, b) => b.updated.localeCompare(a.updated));
 
 const DECISIONS: InitiativeDetail['decisions'] = [
   { path: 'spec.md', role: 'agreement', key: 'AC-1.1', verdict: 'met', qualifier: null, detail: 'A result names the field that matched, in the row, without a hover.', checker: 'noah.okafor@example.com' },

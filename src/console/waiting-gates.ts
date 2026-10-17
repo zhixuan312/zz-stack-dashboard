@@ -1,16 +1,17 @@
 import { useConsole } from '@/lib/api';
-import type { WaitingGate } from '@/lib/api-shapes';
+import type { Approvals } from '@/lib/work-shapes';
 
-/** Every gate waiting on a person, newest first. The bell and the Overview read the same list.
+/** The most of the queue the bell lists: the route's own page ceiling. */
+const BELL_ROWS = 100;
+
+/** Approvals' Waiting as the bell reads it: the active team's revisions presented and not yet approved, oldest first.
  *
- *  DELIBERATE: its own read rather than the whole initiative list. The alert bell is inside the
- *  console frame, which wraps every route, so asking for the list made every page download a
- *  stepper and a gate list for every initiative the caller may read — kilobytes — to draw a badge
- *  that is usually empty. The gateway answers this projection in a row per open gate.
+ *  DELIBERATE: Approvals' own answer, the one pending rule, rather than a projection of the bell's own. The bell is
+ *  inside the console frame, which wraps every route, so it asks for one page of the waiting list and nothing of the
+ *  history it does not draw.
  *
- *  In a module of its own for the same reason: the frame imports this hook, and a bundle carries a module whole, so
- *  living beside the initiative table's columns and badges it put all of them in the first load of every page,
- *  2.8 kB on pages that draw no initiative (attributed from source maps, 2026-10-12). */
-export function useWaitingGates(enabled = true) {
-  return useConsole<{ waiting: WaitingGate[] }>(enabled ? '/initiatives?waiting=1' : null);
+ *  In a module of its own: the frame imports this hook, and a bundle carries a module whole, so it carries no table,
+ *  badge or column of the pages that list approvals. */
+export function useWaitingApprovals(enabled = true) {
+  return useConsole<Approvals>(enabled ? `/approvals?tab=waiting&limit=${BELL_ROWS}` : null);
 }

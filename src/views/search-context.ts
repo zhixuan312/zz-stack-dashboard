@@ -4,9 +4,8 @@
  * reads the text of every document and knowledge node of the team they act for, and of the platform's shared shelf,
  * and ranks them. This turns its answer into the one account a view gives of itself.
  *
- * No page draws this list. The Knowledge page's own field filters the shelf's titles and excerpts, which is a
- * different and narrower thing, so the context says so and gives each result the address of the page that does show
- * it: the document's, or the node's.
+ * The Knowledge page leads with the same search and lists its results, so the search's own address is that page with
+ * the question in it; each result carries the address of the page that shows it whole: the document's, or the node's.
  *
  * **It is held to a view's budget by construction, not by cutting from the end.** An excerpt is up to 600 characters
  * and a context is 2,400, so the room is shared out: each result gets an equal part of what the fixed lines leave,
@@ -17,16 +16,20 @@ import type { SearchAnswer, SearchHit } from '@/lib/api-shapes';
 import { knowledgeNodeHref } from '@/lib/knowledge-filters';
 import { plural } from '@/lib/format';
 import { contextText, type Insight, type SharedContext } from '@/lib/shared-context';
-import { CONTEXT_BUDGET, arrived, clip, type Arrival } from './context';
+import { CONTEXT_BUDGET, addressOf, arrived, clip, type Arrival } from './context';
 
 /** The shortest excerpt worth sending: under this a fragment says less than the title beside it. */
 const SHORTEST = 140;
 
-/** The page that shows a result, or nothing when this person's console does not open the team that holds it. */
-export function hitAddress(hit: SearchHit, wide: boolean): string | undefined {
-  // A row on the shared shelf lives in the platform team's store, which a console opens only for someone who reads the fleet.
-  if (hit.shelf === 'platform' && !wide) return undefined;
+/**
+ * The page that shows a result, or nothing when no page of the console opens it. A lesson opens on its node page
+ * whichever shelf holds it: the node route answers the active team's lessons and the shared shelf's to everybody, the
+ * shared one read-only (reconciliation 45). A document on the shared shelf lives in the platform team's store, whose
+ * initiatives no Work page opens for a team that is not the one acted for, so it has no address.
+ */
+export function hitAddress(hit: SearchHit): string | undefined {
   if (hit.kind === 'node') return knowledgeNodeHref(hit.team, hit.path);
+  if (hit.shelf === 'platform') return undefined;
   // DELIBERATE: `src/lib/address.ts`'s `encodePath`, copied rather than imported — that module is a `'use client'` one
   // and this context is built on the server, where the agent's `search` tool asks for it.
   const file = hit.path.split('/').filter(Boolean).map(encodeURIComponent).join('/');
@@ -67,15 +70,12 @@ function label(hit: SearchHit, n: number, addressed: boolean): string {
   return `${n}. ${hit.kind === 'node' ? 'Node' : 'Document'} "${clip(hit.title, 72)}"${standing ? ` (${standing})` : ''}${where}${shared}`;
 }
 
-/**
- * The search's context for `answer`. `wide` is whether the person reads the fleet, which decides whether a result on
- * the shared shelf has a page they can open.
- */
-export function searchContext(answer: SearchAnswer, { initiative, wide, ...arrival }: { initiative?: string; wide: boolean } & Arrival): SharedContext {
+/** The search's context for `answer`, as the person who asked it reads it. */
+export function searchContext(answer: SearchAnswer, { initiative, ...arrival }: { initiative?: string } & Arrival): SharedContext {
   const build = (hits: SearchHit[], room: number): SharedContext => {
     const left = answer.results.length - hits.length;
     const insights: Insight[] = hits.map((hit, i) => {
-      const address = hitAddress(hit, wide);
+      const address = hitAddress(hit);
       return { text: `${label(hit, i + 1, address !== undefined)}: "${fragment(hit, room)}"`, evidence: address };
     });
     const unknowns = [
@@ -85,13 +85,13 @@ export function searchContext(answer: SearchAnswer, { initiative, wide, ...arriv
       ] : []),
       ...(answer.note ? [answer.note] : []),
       ...(left ? [`${left} more ${plural(left, 'result')} came back and ${left === 1 ? 'is' : 'are'} left out here so each excerpt stays readable. Ask a narrower question, or for fewer results, to read ${left === 1 ? 'it' : 'them'}.`] : []),
-      ...(hits.some((h) => h.shelf === 'platform') && !wide ? ['A result on the platform\'s shared shelf has no page this person\'s console opens, so it has no address here.'] : []),
-      'No page lists these results. /knowledge filters the shelf by a node\'s title and opening excerpt only; this search reads the text of documents and nodes alike.',
+      ...(hits.some((h) => h.shelf === 'platform' && h.kind === 'document') ? ['A document on the platform\'s shared shelf has no page this console opens, so it has no address here; a lesson there opens read-only.'] : []),
+      'Each result is retrieval coverage, text that matched: it does not settle the question on its own.',
     ];
     return {
       view: 'search',
       title: 'Search',
-      address: '/knowledge',
+      address: addressOf('/knowledge', { q: answer.query }),
       scope: `the platform's ranked search for "${clip(answer.query, 120)}"${initiative ? `, within ${clip(initiative, 60)}` : ''}: ${answer.team}'s documents and knowledge shelf, and the platform's shared shelf`,
       freshness: arrived(arrival),
       facts: [{

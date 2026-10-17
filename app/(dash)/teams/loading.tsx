@@ -1,11 +1,2 @@
-import { LoadingPage } from '@/components/patterns/page-loading';
-import { RecordsSkeleton } from '@/components/templates/records';
-
-/** Teams on its way: the filter bar over the table. */
-export default function TeamsLoading() {
-  return (
-    <LoadingPage name="teams" title="Teams">
-      <RecordsSkeleton rows={6} />
-    </LoadingPage>
-  );
-}
+/** Today's address renders Platform's Teams until Phase 7 removes it, so it streams that page's own loading state. */
+export { default } from '../platform/teams/loading';

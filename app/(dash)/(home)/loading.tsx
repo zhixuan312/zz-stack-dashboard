@@ -1,25 +1,20 @@
 import { Row } from '@/components/base/shell';
-import { Card } from '@/components/ui/card';
+import { ChartSkeleton, LoadingPage, TilesSkeleton } from '@/components/patterns/page-loading';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ChartSkeleton, LoadingPage } from '@/components/patterns/page-loading';
+import { gatedLoading } from '@/data/refusal';
 
-/** The Overview on its way: the featured chart beside its three tiles, then the two rows of panels. */
-export default function OverviewLoading() {
+/**
+ * Home on its way: a page headed by a sentence, so the frame keeps the sentence's block, over the paired figure, the four
+ * tiles and the two rows of lists. COUPLED: `home-skeleton.tsx`, the same rows under the masthead once the gate answered;
+ * they are written here too because a route's own loading state is held to the page it stands in for by what it draws.
+ */
+export default function HomeLoading() {
   return (
-    <LoadingPage name="overview" title="Overview">
-      <Row split="2/3">
-        <ChartSkeleton height="h-72" />
-        <div className="flex flex-col gap-(--stack-gap)">
-          {[0, 1, 2].map((i) => (
-            <Card key={i} className="gap-3 p-(--card-pad)">
-              <Skeleton className="h-3 w-24" />
-              <Skeleton className="h-9 w-32 rounded-md" />
-            </Card>
-          ))}
-        </div>
-      </Row>
+    <LoadingPage {...gatedLoading({ name: 'home', title: 'Home' })} sentence>
+      <Skeleton className="h-96 rounded-xl" />
+      <TilesSkeleton count={4} />
       <Row split="2/3"><ChartSkeleton height="h-48" /><ChartSkeleton height="h-48" /></Row>
-      <Row split="1/2"><ChartSkeleton height="h-56" /><ChartSkeleton height="h-56" /></Row>
+      <Row split="1/2"><ChartSkeleton height="h-40" /><ChartSkeleton height="h-40" /></Row>
     </LoadingPage>
   );
 }

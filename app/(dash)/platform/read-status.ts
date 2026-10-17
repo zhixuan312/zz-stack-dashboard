@@ -5,7 +5,7 @@ import { STATUS_BOUND_MS, statusRead, type StatusRead } from '@/views/platform-s
 /**
  * `GET /platform/status` on the console's server, as the person, given `STATUS_BOUND_MS`: a read that fails or does not
  * answer by then is said to be so. It never rejects, so neither of the page's boundaries waits on it longer or falls to
- * the error page.
+ * the error page. Nothing is cached: the next request reads again, for its own caller.
  */
 export async function readStatus(): Promise<StatusRead> {
   let timer: ReturnType<typeof setTimeout> | undefined;

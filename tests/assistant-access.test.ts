@@ -20,14 +20,14 @@ import { GatewayError, gatewayGet } from '@/data/gateway';
 import { PREPARED } from '@/data/prepared';
 import { handedTo } from '@/lib/assistant/scoped';
 import { assistantTools } from '@/lib/assistant/tools';
-import type { Me } from '@/lib/api-shapes';
+import type { Me, SearchAnswer } from '@/lib/api-shapes';
 import { viewAt } from '@/lib/shared-context';
 import { platformStatusContext, statusRead } from '@/views/platform-status-context';
 import { viewTools } from '@/views/tools';
 import { ME } from '../scripts/fake-gateway/people.ts';
 import { PEOPLE } from '../scripts/fake-gateway/platform-people.ts';
 import { MEMBER_STATUS, PLATFORM_STATUS } from '../scripts/fake-gateway/platform-status.ts';
-import { TEAMS, teamDetail } from '../scripts/fake-gateway/platform-teams.ts';
+import { teamDetail, teams } from '../scripts/fake-gateway/platform-teams.ts';
 import { startFakeLlm } from '../scripts/fake-llm.ts';
 import { search } from '../scripts/fake-gateway/search.ts';
 import { activityLog } from '../scripts/fake-gateway/work-activity.ts';
@@ -57,7 +57,7 @@ function gateway(who: Me | null | (() => Me | null), { shared = false } = {}) {
     if (/^\/(teams|people)(\/|$)/.test(path) && !me.superadmin) return { ok: false, status: 403, json: async () => ({ error: 'not permitted' }) } as Response;
     const query = new URL(url).searchParams;
     const body = path === '/me' ? me
-      : path === '/teams' ? { teams: TEAMS }
+      : path === '/teams' ? teams(me, query, { limit: Number(query.get('limit') ?? 10), offset: Number(query.get('offset') ?? 0) })![1]
         : path.startsWith('/teams/') ? teamDetail(path.slice('/teams/'.length))
           : path === '/initiatives' ? initiativeList(me, query)[1]
             : path === '/knowledge' ? knowledgeList(me, query)[1]
@@ -178,7 +178,7 @@ describe('what an agent is offered', () => {
     // The views the route registers for them: the ones whose need they satisfy (`app/api/assistant/route.ts`).
     const views = [];
     for (const v of viewTools) if (await may(v.needs)) views.push(v.name);
-    expect(views).toEqual(['overview', 'initiatives', 'initiative', 'document', 'knowledge', 'knowledge_node', 'knowledge_log', 'search', 'settings', 'platform_status']);
+    expect(views).toEqual(['home', 'initiatives', 'initiative', 'document', 'knowledge', 'knowledge_node', 'knowledge_log', 'search', 'settings', 'platform_status']);
   });
 
   it('a superadmin is offered every collection', async () => {
@@ -242,7 +242,7 @@ describe('what the route hands the model', () => {
 
   it('offers no query_<name> tool, and the explore_<view> of the page the person is on and no other', async () => {
     for (const [who, path, view] of [
-      [MEMBER, '/initiatives', 'initiatives'], [MEMBER, '/settings', 'settings'], [MEMBER, '/platform', 'platform_status'], [ME, '/teams/atlas', 'team'],
+      [MEMBER, '/initiatives', 'initiatives'], [MEMBER, '/settings', 'settings'], [MEMBER, '/platform', 'platform_status'], [ME, '/platform/teams/atlas', 'team'],
       [ME, '/runs', 'runs'], [MEMBER, '/knowledge', 'knowledge'], [MEMBER, '/initiatives/atlas/2026-09-28-search-relevance/sources/notes.md', 'document'],
     ] as const) {
       const tools = await handed(who, path);
@@ -261,13 +261,13 @@ describe('what the route hands the model', () => {
 describe('a view tool\'s address', () => {
   const tool = (name: string) => viewTools.find((v) => v.name === name)!;
 
-  // The gateway pages Teams and People at 10 rows unless asked; their views count over every row, so they ask for all.
-  it('asks for every team and every person on one page', async () => {
+  // The gateway pages Teams and People at 10 rows unless asked: Teams reads the page it draws, People counts over every row.
+  it('asks for the page of teams its page draws, and every person on one page', async () => {
     gateway(ME);
     await tool('teams').read({});
     await tool('people').read({});
     expect(calls.map((c) => c.url).filter((u) => /\/(teams|people)\?/.test(u))).toEqual([
-      'http://gateway.test/api/console/teams?limit=100&scope=platform',
+      'http://gateway.test/api/console/teams?limit=10&offset=0&scope=platform',
       'http://gateway.test/api/console/people?limit=100&scope=platform',
     ]);
   });
@@ -280,12 +280,12 @@ describe('a view tool\'s address', () => {
     // Nor the team's initiatives: Work answers the active team's work alone.
     expect(calls.map((c) => new URL(c.url).pathname)).not.toContain('/api/console/initiatives');
     expect(data).toEqual(own);
-    expect(context.facts.find((f) => f.label === 'Knowledge nodes')?.value).toBe(String(own.counts.knowledge));
+    expect(context.facts.find((f) => f.label === 'Lessons adopted')?.value).toBe(String(own.tiles.lessons));
   });
 
   it('declares the page each view renders, matched as Next.js matches it', () => {
     expect(Object.fromEntries(viewTools.map((v) => [v.name, v.page]))).toEqual({
-      overview: '/', teams: '/teams', team: '/teams/[slug]', initiatives: '/initiatives', initiative: '/initiatives/[team]/[slug]',
+      home: '/', teams: '/platform/teams', team: '/platform/teams/[slug]', initiatives: '/initiatives', initiative: '/initiatives/[team]/[slug]',
       document: '/initiatives/[team]/[slug]/[...path]', knowledge: '/knowledge', knowledge_node: '/knowledge/[team]/[...path]',
       knowledge_log: '/knowledge/log', search: '/knowledge', people: '/people', plugins: '/plugins', plugin: '/plugins/[plugin]',
       skill: '/plugins/[plugin]/[skill]', runs: '/runs', activity: '/activity', settings: '/settings', platform_status: '/platform',
@@ -349,17 +349,16 @@ describe('a view tool\'s address', () => {
     expect((await tool('initiatives').read({})).context.view).toBe('initiatives');
   });
 
-  it('a member searches as their own team, and a superadmin as somebody who reads the fleet', async () => {
-    gateway(MEMBER, { shared: true });
-    const own = await tool('search').read({ q: 'recency', limit: 3 });
-    // No scope is asked for, so the gateway searches as the team the member acts for; and a result on the shared
-    // shelf is given no address, because no page of theirs opens it.
-    expect(calls.map((c) => c.url).find((u) => u.includes('/search'))).toBe('http://gateway.test/api/console/search?q=recency&limit=3');
-    expect(own.context.insights.length).toBeGreaterThan(0);
-    expect(own.context.insights.every((i) => i.evidence === undefined)).toBe(true);
-    gateway(ME, { shared: true });
-    const wide = await tool('search').read({ q: 'recency', limit: 3 });
-    expect(wide.context.insights.length).toBeGreaterThan(0);
-    expect(wide.context.insights.every((i) => i.evidence?.includes('/zz-platform/'))).toBe(true);
+  it('a member and a superadmin search as the team they act for, and a lesson on the shared shelf opens for both', async () => {
+    for (const who of [MEMBER, ME]) {
+      gateway(who, { shared: true });
+      const { context, data } = await tool('search').read({ q: 'recency', limit: 3 });
+      const { results } = data as SearchAnswer;
+      // No scope is asked for, so the gateway searches as the team they act for; a lesson on the shared shelf opens on
+      // its node page for anybody, read-only, and a document there has no page this console opens.
+      expect(calls.map((c) => c.url).find((u) => u.includes('/search'))).toBe('http://gateway.test/api/console/search?q=recency&limit=3');
+      expect(context.insights.length).toBeGreaterThan(0);
+      context.insights.forEach((i, n) => expect(i.evidence).toBe(results[n].kind === 'node' ? `/knowledge/zz-platform/${results[n].path}` : undefined));
+    }
   });
 });

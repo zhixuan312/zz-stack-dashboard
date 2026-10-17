@@ -1,4 +1,5 @@
 import { ChartSkeleton, LoadingPage, TilesSkeleton } from '@/components/patterns/page-loading';
+import { gatedLoading } from '@/data/refusal';
 
 /**
  * A skill on its way: four tiles, then the region its own record fills. The title is the record's, so it stays a skeleton.
@@ -14,7 +15,7 @@ import { ChartSkeleton, LoadingPage, TilesSkeleton } from '@/components/patterns
  */
 export default function SkillLoading() {
   return (
-    <LoadingPage name="skill">
+    <LoadingPage {...gatedLoading({ name: 'skill' })}>
       <TilesSkeleton count={4} />
       <ChartSkeleton height="h-72" />
     </LoadingPage>

@@ -24,7 +24,7 @@ export function Query<T>({
   skeletonRows?: number;
   /** The shape of what is coming, when it is a page rather than a list, so the swap moves as little as possible. */
   skeleton?: ReactNode;
-  /** What is loading, for the failure's title: "The overview" reads "The overview did not load". */
+  /** What is loading, for the failure's title: "The record" reads "The record did not load". */
   what?: string;
 }) {
   // A refused read (no session) draws as loading: the gate is already sending the person to sign in.

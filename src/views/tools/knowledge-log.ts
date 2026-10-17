@@ -1,18 +1,22 @@
-/** The knowledge log's view tool, at `/knowledge/log`, and its prepared query over the lessons made and the shelf. */
+/**
+ * The knowledge log's view tool, at `/knowledge/log`: the page's log, every node recorded or superseded, for as long as
+ * the address stands (Phase 7 removes it, and this tool with it). It offers Knowledge's own prepared query, so the log
+ * asks the shelf, the lessons made and the searches what Knowledge asks them.
+ */
 import { z } from 'zod';
 import { requireNeed } from '@/data/access';
 import { FEATURES } from '@/data/features';
 import { gatewayGet } from '@/data/gateway';
 import type { KnowledgeLogEntry } from '@/lib/api-shapes';
 import { defineViewTool } from '@/lib/shared-context';
+import { KNOWLEDGE_EXPLORE } from '../knowledge-explore';
 import { knowledgeLogContext } from '../knowledge-log-context';
 import { justRead, modeOf } from './shared';
-import { lessons, shelf } from './sources';
 
 export const knowledgeLogTool = defineViewTool({
   name: 'knowledge_log',
   title: 'Knowledge log',
-  description: 'Every node recorded on the shelf and every node superseded, newest first.',
+  description: 'Every node recorded on the shelf and every node superseded, newest first, with who did it: Knowledge\'s log.',
   needs: FEATURES.knowledge.needs,
   page: '/knowledge/log',
   input: z.object({}),
@@ -21,5 +25,5 @@ export const knowledgeLogTool = defineViewTool({
     const data = await gatewayGet<{ entries: KnowledgeLogEntry[] }>('/knowledge/log');
     return { context: knowledgeLogContext(data.entries, { mode: await modeOf(), ...justRead() }), data };
   },
-  explore: { sources: { lessons, shelf } },
+  explore: KNOWLEDGE_EXPLORE,
 });

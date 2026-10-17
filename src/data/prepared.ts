@@ -254,7 +254,7 @@ export const PREPARED: PreparedRow[] = [
     name: 'teams', label: 'Teams', route: 'platform', measure: 'teams',
     description: 'Every team made by a window\'s end, by its status: a stock.',
     dimensions: ['status'], buckets: [], date: 'at', key: 'slug',
-    fields: z.object({ status: text, slug: text, name: text, created: text, members: count, initiatives: count, documents: count, knowledge: count, at: text, address: text }),
+    fields: z.object({ status: text, slug: text, name: text, created: text, people: count, openWork: count, waiting: count, lessons: count, lastActive: maybe, at: text, address: text }),
     drill: { flat: ({ sessions: _s, calls: _c, ...r }) => r }, needs: FEATURES.teams.needs,
   },
   {

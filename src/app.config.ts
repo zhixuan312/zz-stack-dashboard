@@ -71,7 +71,7 @@ export type NavGroup = { label?: string; items: NavItem[] };
 export const nav: NavGroup[] = [
   {
     items: [
-      { href: '/', label: 'Overview', icon: LayoutGrid, workspace: 'main', feature: 'home', needs: FEATURES.home.needs },
+      { href: '/', label: 'Home', icon: LayoutGrid, workspace: 'main', feature: 'home', needs: FEATURES.home.needs },
       // Teams is a platform page. A member acts as exactly one team at a time, so this renders
       // "All teams · 1 total" over a single row. What that row would have told them — their people,
       // their initiatives, their documents — is the Overview.
@@ -116,7 +116,10 @@ export const nav: NavGroup[] = [
  * `src/data/access.ts` and `gatedMetadata` beside it read it, and `gatedLoading` in `src/data/refusal.ts`). `explain`
  * draws the no-access page: the page's title, who can open it, who to ask and one way out. `absent` draws exactly what
  * an address that names nothing draws, so nothing on it names the page, a role or who to ask.
+ *
+ * The console's choice is `absent` (spec FR-5): a person cannot tell a page they may not open from one that does not
+ * exist, so a refused address says nothing about who holds what.
  */
-export const refusal: 'explain' | 'absent' = 'explain';
+export const refusal: 'explain' | 'absent' = 'absent';
 
 export const slug = 'zz-stack';

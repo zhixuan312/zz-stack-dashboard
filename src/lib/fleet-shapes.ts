@@ -8,28 +8,28 @@ import type { Figure, Part, PeriodFigure, ReadMeta, Window } from './platform-sh
 
 /* /teams and /teams/:slug, the superadmin's */
 
-/** A team as the list reads it: the fields today's pages read, and beside them its figures against its own past. */
+/** A team as Teams draws it: the team, and beside it its figures against its own past. */
 export type TeamRow = {
   slug: string; name: string; status: string; created: string;
-  members: number; initiatives: number; documents: number; sources: number; knowledge: number;
-  people: number; openWork: number;
+  people: number;                 // its memberships
+  openWork: number;               // its initiatives not closed
   waiting: number;                // its revisions presented and not approved, as the platform's pending query counts them
   lessons: number;                // its shelf's lessons whose lifecycle is adopted
   sessions: PeriodFigure[];       // by Monday week, the running one not complete
   calls: { last: PeriodFigure; previous: PeriodFigure };
   lastActive: string | null;      // its latest real-work call; null when it has none
 };
+/** `GET /teams`: the tiles over every team, and one page of the rows the filters match, `total` of them. */
 export type Teams = {
   meta: ReadMeta;
   tiles: { teams: number; openWork: number; pending: number; lessons: number };
   teams: TeamRow[]; total: number;
 };
-/** One team's page: today's `{ team, members }`, and its own values of the list's fields, its tiles and calls by week. */
+/** `GET /teams/:slug`: the team, its members, its row's tiles and its calls by week. */
 export type TeamDetail = {
   team: { slug: string; name: string; status: string; created: string };
   members: { email: string; name: string; role: string; joined: string }[];
   meta: ReadMeta;
-  counts: { members: number; initiatives: number; documents: number; sources: number; knowledge: number };
   tiles: { people: number; openWork: number; waiting: number; lessons: number };
   calls: PeriodFigure[];
 };

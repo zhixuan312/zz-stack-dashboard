@@ -91,9 +91,28 @@ function page(req: NextRequest): NextResponse {
   return hint(NextResponse.next({ request: { headers } }), pathname);
 }
 
+/** A last segment that is a file's name: `favicon.ico`, `b.webp`, `teams.json`. */
+const FILE_NAME = /\.[a-z0-9]{1,8}$/i;
+
+/** The two routes whose address ends in a file's name: a document, and a knowledge node (`spec.md`, `nodes/0002-….md`). */
+const NAMES_A_FILE = /^\/(initiatives\/[^/]+\/[^/]+|knowledge\/[^/]+)\/.+$/;
+
+/**
+ * An address ending in a file's name that neither of those routes takes is never a console page: a bare 404, answered
+ * here because this is the one place before the app renders. With Cache Components a page streams its shell as a 200
+ * before it can call `notFound()`, so without this a missing `/favicon.ico` was a 200 page in the shell, with a `/me`
+ * read, from the catch-all (`app/(dash)/[...missing]/page.tsx`). It says nothing about which pages exist: no page has
+ * an address like it. The files under `public/` are outside the matcher, so a real one never reaches this.
+ */
+function notAPage(pathname: string): boolean {
+  return FILE_NAME.test(pathname.slice(pathname.lastIndexOf('/') + 1)) && !NAMES_A_FILE.test(pathname);
+}
+
 export function proxy(req: NextRequest) {
   // A page first, in every build, and never past this line: what follows sends a request to the gateway.
-  if (!GATEWAY_PATH.test(req.nextUrl.pathname)) return page(req);
+  if (!GATEWAY_PATH.test(req.nextUrl.pathname)) {
+    return notAPage(req.nextUrl.pathname) ? new NextResponse(null, { status: 404 }) : page(req);
+  }
 
   // The production guard comes before anything a laptop does and is not a matcher condition, because
   // a matcher is configuration and this is a rule. Anything below it is a laptop's business only.

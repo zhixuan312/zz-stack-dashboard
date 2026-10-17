@@ -26,10 +26,11 @@ export function knowledgeNodeContext(b: KnowledgeBody, arrival: Arrival): Shared
     view: 'knowledge_node',
     title: b.title,
     address: knowledgeNodeHref(b.team, b.path),
-    scope: `one knowledge node, ${b.team} node ${b.num}`,
+    scope: b.shelf === 'shared' ? `one knowledge node on the platform's shared shelf, ${b.team} node ${b.num}, read-only` : `one knowledge node, ${b.team} node ${b.num}`,
     freshness: arrived(arrival),
     facts: [
       { label: 'Status', value: b.status, definition: 'adopted is a current lesson; superseded was replaced by a later node.' },
+      { label: 'Shelf', value: b.shelf === 'shared' ? 'shared' : 'your team\'s', definition: 'The shared shelf is the platform\'s, which every team\'s search reads beside its own and nobody here changes.' },
       { label: 'Type', value: b.type },
       { label: 'Recorded', value: formatDate(b.updated) },
       { label: 'Tags', value: b.tags?.length ? b.tags.join(', ') : 'none' },

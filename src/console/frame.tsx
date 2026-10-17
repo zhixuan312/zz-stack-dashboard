@@ -6,7 +6,7 @@ import { useConsole, useDataClock } from '@/lib/api';
 import type { Me } from '@/lib/api-shapes';
 import { RailPending } from '@/views/console-chrome';
 import { useLive } from '@/lib/live';
-import { useWaitingGates } from '@/console/waiting-gates';
+import { useWaitingApprovals } from '@/console/waiting-gates';
 
 /*
  * The console's own pieces of the shell: its frame while the shell is on its way, and the bell. The rail and the
@@ -14,27 +14,33 @@ import { useWaitingGates } from '@/console/waiting-gates';
  */
 
 /**
- * Work sitting on a person: every gate document that is written and not yet approved, on an open initiative, and a
- * closed initiative's correction awaiting approval. The bell is the one place the console says "this
+ * Work waiting on a person: Approvals' Waiting, the active team's revisions presented and not yet approved, each opening
+ * its document. The bell counts what Waiting counts, one alert a revision, up to the page of them it reads; past that
+ * page one more alert says how many are left and opens Approvals. The bell is the one place the console says "this
  * needs you" without being asked.
  */
-function useWaitingAlerts(enabled: boolean): Alert[] {
-  /* The chrome reads too, so the chrome registers too: without this the bell keeps a count nothing ever corrects. It is
-   * the ONE place the console says "this needs you", and a gate approved in another tab left it stale on every page
-   * whose own read is not also `initiatives` — which is all of them but two. Registered here, beside the read, rather
-   * than by the pages: what a component shows is the component's to declare. Nothing registers while the bell is
-   * disabled and reading nothing. */
+function useWaitingAlerts(enabled: boolean, team: string | null): Alert[] {
+  /* The chrome reads too, so the chrome registers too: without this the bell keeps a count nothing ever corrects. An
+   * approval or a presentation changes a document, which the platform names `initiatives`, and the Approvals read is
+   * kept under that collection (`src/views/console-live.tsx`). Registered here, beside the read, rather than by the
+   * pages: what a component shows is the component's to declare. Nothing registers while the bell is disabled and
+   * reading nothing. */
   useLive(enabled ? ['initiatives'] : []);
-  const q = useWaitingGates(enabled);
-  return (q.data?.waiting ?? []).map((w) => ({
-    id: w.id,
-    title: `${w.gate[0].toUpperCase()}${w.gate.slice(1)} waits for approval`,
-    detail: `${w.team} · ${w.slug}`,
-    at: w.updated,
-    href: `/initiatives/${w.team}/${w.slug}`,
-    tone: 'warning' as const,
+  const q = useWaitingApprovals(enabled);
+  const waiting = q.data?.waiting.state === 'ok' ? q.data.waiting.data : null;
+  if (!waiting) return [];
+  const alerts = waiting.rows.map((w): Alert => ({
+    id: `${w.initiative}/${w.path}@${w.contentRevision}`,
+    title: `${w.path}, version ${w.version}, waits for approval`,
+    detail: w.initiative,
+    at: w.waitingSince,
+    href: team ? `/initiatives/${team}/${w.initiative}/${w.path}` : '/approvals',
+    tone: 'warning',
     unread: true,
   }));
+  const rest = waiting.total - waiting.rows.length;
+  if (rest > 0) alerts.push({ id: 'approvals/more', title: `${rest} more ${rest === 1 ? 'revision waits' : 'revisions wait'} for approval`, detail: 'Approvals lists every one', at: waiting.rows.at(-1)?.waitingSince ?? '', href: '/approvals', tone: 'warning', unread: true });
+  return alerts;
 }
 
 /**
@@ -78,5 +84,5 @@ function ResolvedTools() {
   const clock = useDataClock();
   // Deferred: the page commits what it has to show first, and the bell's list follows when the main thread is free.
   const mayRead = useDeferredValue(!!me.data?.mayRead);
-  return <ShellTools alerts={useWaitingAlerts(mayRead)} now={clock} />;
+  return <ShellTools alerts={useWaitingAlerts(mayRead, me.data?.activeTeam ?? null)} now={clock} />;
 }

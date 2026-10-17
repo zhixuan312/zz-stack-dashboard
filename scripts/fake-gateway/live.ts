@@ -27,7 +27,7 @@ import type { ServerResponse } from 'node:http';
 
 /** The collections a tab may follow: the console's reads, by their first path segment. `document` is singular because the read is (`/document/<team>/<initiative>/<path>`), not because it is one record. */
 export const COLLECTIONS = [
-  'me', 'overview', 'teams', 'initiatives', 'document', 'knowledge', 'plugins', 'skills',
+  'me', 'teams', 'initiatives', 'document', 'knowledge', 'plugins', 'skills',
   'people', 'runs', 'activity', 'settings',
 ] as const;
 

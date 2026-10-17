@@ -29,7 +29,7 @@ let calls: string[];
 
 /** A probe that reads like a page does, and a button that switches scope like the rail does. */
 function Probe() {
-  const q = useConsole<{ marker: string }>('/overview');
+  const q = useConsole<{ marker: string }>('/teams');
   const { mode, setMode } = useConsoleMode();
   return (
     <div>
@@ -71,9 +71,9 @@ describe('a scope that settles from /me', () => {
     await waitFor(() => expect(screen.getByTestId('marker')).toHaveTextContent(/platform|team/));
     await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
     expect(screen.getByTestId('mode')).toHaveTextContent('team');
-    // One read of `/overview`, whatever scope the first one went out under. Before this held, a
+    // One read of `/teams`, whatever scope the first one went out under. Before this held, a
     // member read every endpoint twice — once scoped `platform` and once `team`.
-    expect(calls.filter((u) => u.includes('/overview'))).toHaveLength(1);
+    expect(calls.filter((u) => u.includes('/teams'))).toHaveLength(1);
   });
 });
 
@@ -82,7 +82,7 @@ describe('a scope that arrives from another tab', () => {
     process.env.ZZ_TEST_SUPER = '1';
     mount();
     await waitFor(() => expect(screen.getByTestId('marker')).toHaveTextContent('platform'));
-    const before = calls.filter((u) => u.includes('/overview')).length;
+    const before = calls.filter((u) => u.includes('/teams')).length;
 
     // What the browser fires in every OTHER tab when one of them writes the key. jsdom has no
     // other tab, so it is dispatched by hand — which is the whole of what the listener sees.
@@ -94,7 +94,7 @@ describe('a scope that arrives from another tab', () => {
     // The choice alone relabels the rail; without dropping the cache the page keeps reading
     // `platform` while its own label says `team` — two tabs disagreeing about one deployment.
     await waitFor(() => expect(screen.getByTestId('mode')).toHaveTextContent('team'));
-    await waitFor(() => expect(calls.filter((u) => u.includes('/overview')).length).toBeGreaterThan(before));
+    await waitFor(() => expect(calls.filter((u) => u.includes('/teams')).length).toBeGreaterThan(before));
     await waitFor(() => expect(screen.getByTestId('marker')).toHaveTextContent('team'));
   });
 });
@@ -104,12 +104,12 @@ describe('a scope somebody chooses', () => {
     process.env.ZZ_TEST_SUPER = '1';
     mount();
     await waitFor(() => expect(screen.getByTestId('marker')).toHaveTextContent('platform'));
-    const before = calls.filter((u) => u.includes('/overview')).length;
+    const before = calls.filter((u) => u.includes('/teams')).length;
 
     await act(async () => { screen.getByRole('button', { name: 'switch' }).click(); });
 
     await waitFor(() => expect(screen.getByTestId("mode")).toHaveTextContent("team"));
-    await waitFor(() => expect(calls.filter((u) => u.includes('/overview')).length).toBeGreaterThan(before));
+    await waitFor(() => expect(calls.filter((u) => u.includes('/teams')).length).toBeGreaterThan(before));
     // The new read carries the chosen scope, and the rows it brings are the new scope's — not the
     // ones the shared cache entry already held.
     await waitFor(() => expect(screen.getByTestId('marker')).toHaveTextContent('team'));

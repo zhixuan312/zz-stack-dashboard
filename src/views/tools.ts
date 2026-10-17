@@ -11,12 +11,12 @@
 import type { ViewTool } from '@/lib/shared-context';
 import { activityTool } from './tools/activity';
 import { documentTool } from './tools/document';
+import { homeTool } from './tools/home';
 import { initiativeTool } from './tools/initiative';
 import { initiativesTool } from './tools/initiatives';
 import { knowledgeTool } from './tools/knowledge';
 import { knowledgeLogTool } from './tools/knowledge-log';
 import { knowledgeNodeTool } from './tools/knowledge-node';
-import { overviewTool } from './tools/overview';
 import { peopleTool } from './tools/people';
 import { platformStatusTool } from './tools/platform-status';
 import { pluginTool } from './tools/plugin';
@@ -29,6 +29,6 @@ import { teamTool } from './tools/team';
 import { teamsTool } from './tools/teams';
 
 export const viewTools: ViewTool[] = [
-  overviewTool, teamsTool, teamTool, initiativesTool, initiativeTool, documentTool, knowledgeTool, knowledgeNodeTool, knowledgeLogTool,
+  homeTool, teamsTool, teamTool, initiativesTool, initiativeTool, documentTool, knowledgeTool, knowledgeNodeTool, knowledgeLogTool,
   searchTool, peopleTool, pluginsTool, pluginTool, skillTool, runsTool, activityTool, settingsTool, platformStatusTool,
 ] as ViewTool[];

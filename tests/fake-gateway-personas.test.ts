@@ -63,8 +63,8 @@ async function teams(): Promise<{ own: string; others: Team[]; named: RegExp }> 
 async function memberReads(): Promise<string[]> {
   const own = (await read<Me>(MEMBER, 'me')).activeTeam!;
   const paths = [
-    'me', 'overview', 'overview?period=7d', 'initiatives', 'initiatives?offset=10', 'initiatives?state=quiet', 'initiatives?waiting=1',
-    'home', 'record', 'record?period=quarter', 'approvals', 'approvals?tab=history', 'work/query?measure=closures&by=outcome',
+    'me', 'initiatives', 'initiatives?offset=10', 'initiatives?state=quiet',
+    'home', 'approvals?tab=waiting&limit=100', 'record', 'record?period=quarter', 'approvals', 'approvals?tab=history', 'work/query?measure=closures&by=outcome',
     'work/query?measure=runs&by=initiative&group=2026-09-28-search-relevance',
     'knowledge/summary', 'knowledge', 'knowledge?offset=10', 'knowledge?kind=decision', 'knowledge/log',
     'activity/summary', 'activity', 'activity?refused=true', 'activity?offset=10', 'runs', 'runs?skill=sdlc-plan', 'runs?offset=10',
@@ -141,17 +141,17 @@ describe('what a member is answered', () => {
       expect(new Set(list.rows.map((r) => r.slug))).toEqual(new Set(INITIATIVES.filter((i) => i.team === own).map((i) => i.slug)));
       for (const r of list.rows) expect(r.team).toBeUndefined();
       const rows = [
-        ...(await read<{ waiting: { team: string }[] }>(MEMBER, `initiatives${scope ? `${scope}&` : '?'}waiting=1`)).waiting,
         ...(await read<{ rows: { team: string }[] }>(MEMBER, `knowledge${scope ? `${scope}&` : '?'}limit=100`)).rows,
         ...(await read<{ entries: { team: string }[] }>(MEMBER, `knowledge/log${scope}`)).entries,
       ];
-      expect(rows.length).toBeGreaterThan(20);
+      expect(rows.length).toBeGreaterThan(10);
       for (const row of rows) expect(row.team, JSON.stringify(row).slice(0, 120)).toBe(own);
     }
-    // The census is the team's: one team, and no more people than are in it.
-    const overview = await read<{ counts: { teams: number; activeTeams: number; people: number; unattributedEvents: number } }>(MEMBER, 'overview');
-    const roster = (await read<unknown[]>(MEMBER, `settings/team/members?team=${own}`)).length;
-    expect(overview.counts).toMatchObject({ teams: 1, activeTeams: 1, people: roster, unattributedEvents: 0 });
+    // Home is the team's: its population names it, and what waits is the team's own queue, as Approvals counts it.
+    const home = await read<{ meta: { population: string }; waiting: { state: string; data: { count: number } } }>(MEMBER, 'home');
+    const queue = await read<{ tiles: { waiting: number } }>(MEMBER, 'approvals?tab=waiting');
+    expect(home.meta.population.startsWith(`${own}'s `)).toBe(true);
+    expect(home.waiting.data.count).toBe(queue.tiles.waiting);
   });
 
   it('carries nothing that names another team', async () => {
@@ -451,7 +451,7 @@ describe('POST /api/console/page-view', () => {
   });
 
   it('refuses a feature it does not know, and a body with none', async () => {
-    for (const body of [{ feature: 'overview' }, { feature: '/initiatives/atlas/2026-09-28-search-relevance' }, { feature: '' },
+    for (const body of [{ feature: 'dashboard' }, { feature: '/initiatives/atlas/2026-09-28-search-relevance' }, { feature: '' },
                         { feature: 7 }, {}, [], 'not json', { workspace: 'main' }]) {
       const res = await post(MEMBER, 'page-view', body);
       expect(res.status, JSON.stringify(body)).toBe(400);
@@ -480,13 +480,14 @@ describe('the personas pnpm verify --as signs in as', () => {
 
   it('probe each page the member is refused for a string its read holds and no read of the member\'s does', async () => {
     const probes = Object.entries(personas.member.deniedProbe ?? {});
-    expect(probes.map(([route]) => route).sort()).toEqual(['/people', '/teams']);
+    expect(probes.map(([route]) => route).sort()).toEqual(['/people', '/platform/teams', '/teams']);
     const theirs = JSON.stringify(await Promise.all((await memberReads()).map((path) => read(MEMBER, path))));
     for (const [route, probe] of probes) {
-      expect(RAIL, route).toContain(route);
+      // `/platform/teams` is Teams under Platform, reading the same `/teams` the rail's `/teams` reads until Phase 7.
+      const collection = route.replace(/^\/platform\//, '/').slice(1);
+      expect(RAIL, route).toContain(`/${collection}`);
       expect(personas.member.expectedRoutes, route).not.toContain(route);
       // The page's own read holds it for the superadmin; the member is refused that read, and reads it nowhere else.
-      const collection = route.slice(1);
       expect(JSON.stringify(await read(null, `${collection}?limit=100`))).toContain(probe);
       expect((await ask(MEMBER, `${collection}?limit=100`)).status, route).toBe(403);
       expect(theirs, route).not.toContain(probe);

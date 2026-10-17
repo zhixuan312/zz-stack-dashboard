@@ -37,6 +37,7 @@ import { MAIN_ROLES, effective, type ConsoleNeed, type MainRole } from '@/data/r
 import type { Me } from '@/lib/api-shapes';
 import type { AnyCollection, ChromeAccess } from '@/lib/collection';
 import { ownPath } from '@/lib/own-path';
+import { MISSING_METADATA } from '@/views/missing';
 import { NoAccess } from '@/views/no-access';
 
 export type AccessScope = Readonly<{
@@ -202,9 +203,11 @@ async function signIn(): Promise<string> {
  *
  * A request with no session is sent to sign in, with the address it asked for. A session the console is refused, or
  * one the role table cannot place, is sent to the sign-in page's denied state with the sentence that says why. A person
- * who lacks the feature's grant gets the NoAccess view as a normal 200 answer, awaited because the view is an async
- * server component and a page hands a renderer an element, not a promise. `null` means the feature is held and the
- * page may render. An outage is thrown: nothing is opened on an answer the gateway did not give.
+ * who lacks the feature's grant gets the product's `refusal` as a normal 200 answer (`NoAccess`): under `absent` the
+ * missing page, exactly what an address that names nothing draws, and under `explain` the page's title and who can open
+ * it. It is awaited because the view is an async server component and a page hands a renderer an element, not a
+ * promise. Neither throws `notFound()`. `null` means the feature is held and the page may render. An outage is thrown:
+ * nothing is opened on an answer the gateway did not give.
  */
 export async function gate(feature: FeatureId): Promise<JSX.Element | null> {
   const who = await identity();
@@ -213,9 +216,6 @@ export async function gate(feature: FeatureId): Promise<JSX.Element | null> {
   if (!satisfies(who.role, FEATURES[feature].needs)) return await NoAccess({ feature });
   return null;
 }
-
-/** What the tab reads on an address that names nothing. */
-const NOT_FOUND_TITLE = 'Not found';
 
 /**
  * The title a gated page carries, called from its `generateMetadata` so the tab agrees with what `gate` answers: under
@@ -228,7 +228,7 @@ export async function gatedMetadata(feature: FeatureId, metadata: Metadata): Pro
   if (refusal !== 'absent') return metadata;
   const who = await identity();
   if (who.is !== 'person' || satisfies(who.role, FEATURES[feature].needs)) return metadata;
-  return { title: NOT_FOUND_TITLE, robots: { index: false } };
+  return MISSING_METADATA;
 }
 
 /**

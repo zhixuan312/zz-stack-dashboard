@@ -235,7 +235,7 @@ export const MEASURES: Record<string, Measure> = {
     facts: (_w, s) => teamRows().filter((t) => t.created <= s.to)
       .map((t) => ({ day: t.created, keys: { status: t.status }, n: 1, lastMs: midnight(t.created), ref: t })),
     rows(_w, kept) {
-      const rows = newest(refs<ReturnType<typeof teamRows>[number]>(kept).map((t) => ({ ...t })), (t) => midnight(t.created), (t) => t.slug, (t) => `/teams/${t.slug}`);
+      const rows = newest(refs<ReturnType<typeof teamRows>[number]>(kept).map((t) => ({ ...t })), (t) => midnight(t.created), (t) => t.slug, (t) => `/platform/teams/${t.slug}`);
       return { rows, total: rows.length };
     },
   },

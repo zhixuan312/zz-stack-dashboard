@@ -191,14 +191,6 @@ export const scores: Source = {
   cannot: `A score below established is not counted, and scores of two protocol versions do not compare. ${PLATFORM} ${WINDOW}`,
 };
 
-export const teams: Source = {
-  collection: 'teams', date: 'at',
-  filters: { status: { ...eq, values: ['active', 'archived'] } }, facets: ['status'],
-  measures: { teams: count('Teams', 'teams', 'Every team made by the window\'s last day, as it stands now.') },
-  drill: { columns: ['slug', 'name', 'status', 'created', 'members'], address: (r: Row) => String(r.address) },
-  cannot: `Teams are a stock: a window's start changes nothing. ${WINDOW}`,
-};
-
 export const people: Source = {
   collection: 'people', date: 'at',
   filters: { role: { ...eq, values: ['superadmin', 'member'] }, state: { ...eq, values: ['active', 'deactivated'] } }, facets: ['role', 'state'],

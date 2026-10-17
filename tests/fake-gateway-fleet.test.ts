@@ -44,7 +44,7 @@ const META = ['asOf', 'coverageFrom', 'period', 'population', 'scope', 'timezone
 const FIGURE = ['value', 'why'];
 const WINDOW = ['complete', 'from', 'observedFrom', 'observedThrough', 'to'];
 const PERIOD = ['denominator', 'figure', 'numerator', 'window'];
-const TODAY_TEAM = ['created', 'documents', 'initiatives', 'knowledge', 'members', 'name', 'slug', 'sources', 'status'];
+const TODAY_TEAM = ['created', 'name', 'slug', 'status'];
 const TEAM_ROW = sorted(...TODAY_TEAM, 'calls', 'lastActive', 'lessons', 'openWork', 'people', 'sessions', 'waiting');
 const TODAY_PERSON = ['activeTeam', 'active_team', 'created', 'email', 'last_used', 'name', 'role', 'status', 'teams', 'tokens'];
 const PERSON_ROW = sorted(...TODAY_PERSON, 'lastSignIn', 'passkeys', 'state');
@@ -99,16 +99,15 @@ describe('GET /api/console/teams, the superadmin\'s', () => {
     for (const bad of ['teams?status=gone', 'teams?limit=0', 'teams?limit=101', 'teams?offset=-1']) expect((await ask(SUPERADMIN, bad)).status, bad).toBe(400);
   });
 
-  it('answers a team\'s page with its own values of the list\'s fields, and a slug no team has as 404 with nothing in it', async () => {
+  it('answers a team\'s page with its row\'s tiles, and a slug no team has as 404 with nothing in it', async () => {
     const { teams } = await read(SUPERADMIN, 'teams');
     for (const row of teams) {
       const t = await read(SUPERADMIN, `teams/${row.slug}`);
-      expect(keys(t)).toEqual(['calls', 'counts', 'members', 'meta', 'team', 'tiles']);
+      expect(keys(t)).toEqual(['calls', 'members', 'meta', 'team', 'tiles']);
       expect(keys(t.meta)).toEqual(META);
       expect(t.team).toEqual({ slug: row.slug, name: row.name, status: row.status, created: row.created });
-      expect(t.counts).toEqual({ members: row.members, initiatives: row.initiatives, documents: row.documents, sources: row.sources, knowledge: row.knowledge });
       expect(t.tiles).toEqual({ people: row.people, openWork: row.openWork, waiting: row.waiting, lessons: row.lessons });
-      expect(t.members).toHaveLength(row.members);
+      expect(t.members).toHaveLength(row.people);
       for (const m of t.members) expect(keys(m)).toEqual(['email', 'joined', 'name', 'role']);
       for (const w of t.calls) isPeriod(w);
       expect(t.calls.at(-2)).toEqual(row.calls.last);

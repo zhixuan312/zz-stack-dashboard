@@ -1,8 +1,8 @@
 /**
  * The fake gateway's teams: what `GET /api/console/teams` and `/teams/:slug` answer.
  *
- * One fixture, the teams as the superadmin reads them: the fields today's pages read and, beside them, each team's
- * figures against its own past, the list filtered and paged on the server. Anybody else is refused both reads, as the
+ * One fixture, the teams as the superadmin reads them: each team and its figures against its own past, the list
+ * filtered and paged on the server. Anybody else is refused both reads, as the
  * gateway refuses them.
  *
  * The teams cover the states the pages draw: a team with work and revisions waiting, one with no work at all, an
@@ -30,7 +30,6 @@ const inWeek = (back: number, hours: number) => (back === 0 ? RUNNING + (now() -
 
 type Seed = {
   slug: string; name: string; status: 'active' | 'archived'; created: number;
-  initiatives: number; documents: number; sources: number; knowledge: number;
   /** Revisions presented and not approved, as `pendingRevisions` counts them. */
   waiting: number;
   /** Real-work calls and distinct sessions by week, oldest first, the running week last. */
@@ -41,17 +40,17 @@ type Seed = {
 /* Every week's calls add up to the status fixture's real-work calls (100, 0, 12, 200, 125, 5), atlas's are its own
  * malformed-call denominators, and the sessions add up to its sessions (14, 0, 3, 22, 25, 2). */
 const SEEDS: Seed[] = [
-  { slug: 'atlas', name: 'Atlas Research', status: 'active', created: 64, initiatives: 4, documents: 23, sources: 41, knowledge: 6, waiting: 3,
+  { slug: 'atlas', name: 'Atlas Research', status: 'active', created: 64, waiting: 3,
     calls: [60, 0, 12, 120, 80, 3], sessions: [6, 0, 3, 9, 11, 1], lastActive: [0, 0] },
-  { slug: 'beacon', name: 'Beacon Payments', status: 'active', created: 51, initiatives: 3, documents: 11, sources: 17, knowledge: 3, waiting: 1,
+  { slug: 'beacon', name: 'Beacon Payments', status: 'active', created: 51, waiting: 1,
     calls: [25, 0, 0, 40, 25, 2], sessions: [4, 0, 0, 7, 8, 1], lastActive: [0, 0] },
-  { slug: 'cinder', name: 'Cinder Field Operations', status: 'archived', created: 88, initiatives: 1, documents: 4, sources: 2, knowledge: 1, waiting: 0,
+  { slug: 'cinder', name: 'Cinder Field Operations', status: 'archived', created: 88, waiting: 0,
     calls: [15, 0, 0, 0, 0, 0], sessions: [4, 0, 0, 0, 0, 0], lastActive: [5, 40] },
-  { slug: 'dune', name: 'Dune', status: 'active', created: 2, initiatives: 0, documents: 0, sources: 0, knowledge: 0, waiting: 0,
+  { slug: 'dune', name: 'Dune', status: 'active', created: 2, waiting: 0,
     calls: [0, 0, 0, 0, 0, 0], sessions: [0, 0, 0, 0, 0, 0], lastActive: null },
-  { slug: 'ember', name: 'Ember Logistics', status: 'active', created: 40, initiatives: 0, documents: 0, sources: 0, knowledge: 0, waiting: 0,
+  { slug: 'ember', name: 'Ember Logistics', status: 'active', created: 40, waiting: 0,
     calls: [0, 0, 0, 25, 12, 0], sessions: [0, 0, 0, 4, 4, 0], lastActive: [1, 30] },
-  { slug: 'fjord', name: 'Fjord Analytics', status: 'active', created: 35, initiatives: 0, documents: 0, sources: 0, knowledge: 0, waiting: 0,
+  { slug: 'fjord', name: 'Fjord Analytics', status: 'active', created: 35, waiting: 0,
     calls: [0, 0, 0, 15, 8, 0], sessions: [0, 0, 0, 2, 2, 0], lastActive: [1, 70] },
 ];
 
@@ -68,7 +67,6 @@ export const CALLS_BY_TEAM: { team: string; calls: number[] }[] = SEEDS.map((s) 
  */
 export const TEAMS: TeamRow[] = SEEDS.map((s) => ({
   slug: s.slug, name: s.name, status: s.status, created: day(s.created),
-  members: membersOf(s.slug).length, initiatives: s.initiatives, documents: s.documents, sources: s.sources, knowledge: s.knowledge,
   people: membersOf(s.slug).length,
   openWork: INITIATIVES.filter((i) => i.team === s.slug && !i.closed).length,
   waiting: s.waiting,
@@ -114,8 +112,8 @@ export function teams(who: Me, q: URLSearchParams, page: { limit: number; offset
   return [200, answer];
 }
 
-/** One team as the superadmin's page reads it: today's team and members, its own values of the list's fields, its
- *  tiles and its calls by week. Null for a slug no team has. */
+/** One team as the superadmin's page reads it: the team, its members, its row's tiles and its calls by week. Null for a
+ *  slug no team has. */
 export function teamDetail(slug: string): TeamDetail | null {
   const t = TEAMS.find((x) => x.slug === slug);
   if (!t) return null;
@@ -124,7 +122,6 @@ export function teamDetail(slug: string): TeamDetail | null {
     team: { slug: t.slug, name: t.name, status: t.status, created: t.created },
     members: membersOf(slug),
     meta: meta(`${t.slug}'s members, open work, revisions waiting, standing lessons and real-work tool calls`),
-    counts: { members: t.members, initiatives: t.initiatives, documents: t.documents, sources: t.sources, knowledge: t.knowledge },
     tiles: { people: t.people, openWork: t.openWork, waiting: t.waiting, lessons: t.lessons },
     calls: seed.calls.map((n, i) => tally(i, n)),
   };

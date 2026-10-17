@@ -47,8 +47,7 @@
  *
  * Work's reads are the caller's active team's, for the superadmin too, and `?team=` or `?scope=platform` widen nothing:
  * `GET /api/console/home`, `/record?period`, `/approvals?tab`, the paged `/initiatives?state&flow&q&limit&offset` and the
- * prepared `/work/query`, one fixture each, the approvals in them the caller's own. `?waiting=1` still answers the
- * bell's projection. `POST /api/console/initiatives/:team/:slug/close` is answered as the platform decides a close and
+ * prepared `/work/query`, one fixture each, the approvals in them the caller's own. `POST /api/console/initiatives/:team/:slug/close` is answered as the platform decides a close and
  * refuses one, and forgotten like every other write.
  *
  * The rest of Work is the active team's too, one fixture per read: `GET /api/console/knowledge/summary` and the paged
@@ -65,23 +64,23 @@
  * not a signed-in browser. A third cookie value, `member-two-teams`, signs in the member as a member of two teams.
  */
 import http from 'node:http';
-import type { Me, Overview } from '../../src/lib/api-shapes.ts';
+import type { Me } from '../../src/lib/api-shapes.ts';
 import { COLLECTIONS, hint, liveStreams, parseNames, serveLive } from './live.ts';
 import { MEMBER, clientSetupOf, signedIn, teamsOf, tokensOf } from './people.ts';
 import { audit } from './platform-audit.ts';
 import { badFilter, bugReport, bugs, duplicates, resolve } from './platform-bugs.ts';
 import { evaluation } from './platform-evaluation.ts';
 import { knowledge } from './platform-knowledge.ts';
-import { PLATFORM_PEOPLE, people, rosterOf, teamMembers } from './platform-people.ts';
+import { PLATFORM_PEOPLE, people, teamMembers } from './platform-people.ts';
 import { platformQuery } from './platform-query.ts';
 import { releaseDetail, releases } from './platform-releases.ts';
 import { MEMBER_STATUS, PLATFORM_STATUS } from './platform-status.ts';
 import { TEAMS, team, teams } from './platform-teams.ts';
 import { usage } from './platform-usage.ts';
-import { overview, pluginEval, skillText } from './platform.ts';
+import { pluginEval, skillText } from './platform.ts';
 import { search } from './search.ts';
 import { empty, extreme } from './states.ts';
-import { KNOWLEDGE_LOG, WAITING, documentDetail, documentRevision, initiativeDetail, refusesRecord, revisionInStore } from './work.ts';
+import { KNOWLEDGE_LOG, documentDetail, documentRevision, initiativeDetail, refusesRecord, revisionInStore } from './work.ts';
 import { access, revokeApplication, revokeBrowser } from './work-access.ts';
 import { activityLog, activitySummary, NO_TEAM } from './work-activity.ts';
 import { approvals } from './work-approvals.ts';
@@ -152,17 +151,6 @@ function switchTeam(who: Me, cookie: string | null, body: Record<string, unknown
 /** The one team a member is held to; nothing for a superadmin, who may open any team's records. */
 const heldTo = (who: Me): string | null => (who.superadmin ? null : who.activeTeam);
 
-/** The census as one team's, the way the gateway counts it in team scope: one team, its own people and work, and no
- *  event without a team. */
-function teamCensus(o: Overview, team: string): Overview {
-  const t = TEAMS.find((x) => x.slug === team);
-  const people = rosterOf(team);
-  return { ...o, counts: {
-    ...o.counts, teams: 1, activeTeams: t?.status === 'active' ? 1 : 0, people: people.length, superadmins: people.filter((p) => p.role === 'superadmin').length,
-    documents: t?.documents ?? 0, initiatives: t?.initiatives ?? 0, unattributedEvents: 0,
-  } };
-}
-
 /**
  * One GET under `/api/console`, by path segments and query, as `who`.
  *
@@ -176,11 +164,9 @@ function read(who: Me, seg: string[], q: URLSearchParams): Answer {
   const own = heldTo(who);
   const foreign = (team: string | undefined) => own !== null && team !== own;
   const mine = <T extends { team: string | null }>(rows: T[]) => (platform ? rows : rows.filter((r) => r.team === who.activeTeam));
-  const period = q.get('period') ?? 'all';
   const [head, a, b, ...rest] = seg;
   switch (head) {
     case 'me': return ok(who);
-    case 'overview': return ok(own ? teamCensus(overview(period), own) : overview(period));
     case 'home': return a ? missing(seg.join('/')) : ok(home(who));
     case 'record': return a ? missing(seg.join('/')) : record(who, q);
     case 'approvals': return a ? missing(seg.join('/')) : approvals(who, q);
@@ -189,9 +175,6 @@ function read(who: Me, seg: string[], q: URLSearchParams): Answer {
     // and paged, and the gateway's refusal to anybody else.
     case 'teams': return a ? team(who, a) : teams(who, q, page(q)) ?? BAD_PAGE;
     case 'initiatives': {
-      // The bell's own projection — see WAITING in work.ts. It answers before the detail route,
-      // because `?waiting=1` names no initiative of its own.
-      if (q.get('waiting') === '1') return ok({ waiting: mine(WAITING) });
       if (a && b) return foreign(a) ? missing(`initiative ${a}/${b}`) : or404(initiativeDetail(a, b), `initiative ${a}/${b}`);
       // Work is the active team's: the list answers it alone, whatever `?team=` or `?scope=` asked.
       return a ? missing(seg.join('/')) : initiativeList(who, q);
@@ -493,8 +476,7 @@ const server = http.createServer((req, res) => {
       if (seg[2]) countRead(seg[2]);
       answer = read(who, seg.slice(2), url.searchParams);
       // A transform reads the answer by its own idea of the route's shape, so a route that grows a
-      // second answer shape — `/initiatives?waiting=1` returns `{ waiting }` where the list returns
-      // `{ initiatives }` — reaches it as something it does not recognise. That threw OUT of this
+      // second answer shape reaches it as something it does not recognise. That threw OUT of this
       // handler and killed the process: every page after it reported "cannot reach the platform",
       // and the shape that caused it was the only thing NOT visible in the report. A mode that
       // cannot shape an answer serves it unshaped and says so.

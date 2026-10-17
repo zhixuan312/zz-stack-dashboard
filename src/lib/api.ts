@@ -321,11 +321,12 @@ export function useConsoleMode(): ConsoleModeState {
 /**
  * Appends `scope=platform` for platform mode, respecting a path that already
  * has its own query string (`/activity?period=90d`) versus one that doesn't
- * (`/overview`). Team mode adds nothing: that is "no opinion", not
- * "team", and the caller's `activeTeam` on the server applies.
+ * (`/home`). Team mode adds nothing: that is "no opinion", not
+ * "team", and the caller's `activeTeam` on the server applies. The search takes no scope in either mode, as
+ * `gatewayGet` asks it: the platform runs it as the team the caller acts for and refuses it a platform scope.
  */
 function withScope(path: string, mode: ConsoleMode): string {
-  if (mode !== 'platform') return path;
+  if (mode !== 'platform' || path === '/search' || path.startsWith('/search?')) return path;
   return path.includes('?') ? `${path}&scope=platform` : `${path}?scope=platform`;
 }
 

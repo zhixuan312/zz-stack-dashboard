@@ -1,25 +1,29 @@
 'use client';
 
-import { GitFork, History, PlusCircle } from 'lucide-react';
+import { useTransition } from 'react';
+import { useRouter } from 'next/navigation';
+import { GitFork, History, PlusCircle, RotateCw } from 'lucide-react';
 import { Row } from '@/components/base/shell';
 import { AskAbout } from '@/components/patterns/ask-about';
 import { DataTable, type Column } from '@/components/patterns/data-table';
 import { MetricTile } from '@/components/patterns/metric-tile';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
 import { aligned } from '@/console/columns';
-import { KnowledgeTabs } from '@/console/knowledge-tabs';
-import { ConsolePage, useArrival } from '@/console/page';
-import { failureOf } from '@/console/query';
-import { When } from '@/console/when';
-import { freshnessOf, useConsole, useConsoleMode } from '@/lib/api';
+import { KnowledgeTabs, useServerReadLive } from '@/console/knowledge-tabs';
+import { ConsolePage } from '@/console/page';
+import { useDataClock } from '@/lib/api';
 import type { KnowledgeLogEntry } from '@/lib/api-shapes';
+import { formatDate } from '@/lib/format-date';
 import { useLive } from '@/lib/live';
-import { pendingContext, whose } from '@/views/context';
+import { pendingContext, whose, type ViewMode } from '@/views/context';
+import { troubleOf, type ServerRead } from '@/views/knowledge-context';
 import { knowledgeLogContext } from '@/views/knowledge-log-context';
 
 function columns(multiTeam: boolean): Column<KnowledgeLogEntry>[] {
   return aligned([
-    { key: 'when', header: 'When', width: 'w-32', mobile: 'fact', cell: (e) => <When at={e.ts} /> },
+    { key: 'when', header: 'When', width: 'w-32', mobile: 'fact', cell: (e) => <time dateTime={e.ts}>{formatDate(e.ts)}</time> },
     {
       // The title as it stands now, falling back to the one typed at the time: "node 3" is a number nobody recognises.
       key: 'node', header: 'Node', align: 'left', grow: true, mobile: 'title',
@@ -42,57 +46,63 @@ function columns(multiTeam: boolean): Column<KnowledgeLogEntry>[] {
 }
 
 /**
- * What was recorded, what replaced what, and who wrote it down. Read from the log zz-core writes when it mints or
- * retires a node, not derived from the nodes: a node's date is when it last changed, and no node says who wrote it.
+ * Knowledge's log: what was recorded, what replaced what, and who wrote it down, drawn at `/knowledge/log` until Phase 7
+ * removes the address. Read from the log zz-core writes when it mints or retires a node, not derived from the nodes: a
+ * node's date is when it last changed, and no node says who wrote it. The console's server reads it and hands it here,
+ * with whose log the read was (`mode`); its dates are absolute, because they came from the server.
  */
-export function KnowledgeLogView() {
+export function KnowledgeLogView({ read, mode }: { read: ServerRead<{ entries: KnowledgeLogEntry[] }>; mode: ViewMode }) {
   useLive(['knowledge']);
-  const { mode } = useConsoleMode();
-  const q = useConsole<{ entries: KnowledgeLogEntry[] }>('/knowledge/log');
-  const entries = q.data?.entries ?? [];
+  useServerReadLive('/knowledge/log');
+  const router = useRouter();
+  const [retrying, startRetry] = useTransition();
+  const now = useDataClock();
+  const entries = read.state === 'ok' ? read.data.entries : [];
   const added = entries.filter((e) => e.kind === 'knowledge.add').length;
   const multiTeam = new Set(entries.map((e) => e.team).filter(Boolean)).size > 1;
-  const arrival = useArrival(q);
-  const context = q.data
-    ? knowledgeLogContext(entries, { mode, ...arrival })
-    : pendingContext({ view: 'knowledge_log', title: 'Knowledge log', address: '/knowledge/log', scope: `every node recorded or retired, for ${whose(mode)}` }, failureOf(q));
+  const updatedAt = read.state === 'ok' ? new Date(read.at) : null;
+  const context = read.state === 'ok'
+    ? knowledgeLogContext(entries, { mode, updatedAt, now })
+    : pendingContext({ view: 'knowledge_log', title: 'Knowledge log', address: '/knowledge/log', scope: `every node recorded or retired, for ${whose(mode)}` }, troubleOf(read));
+  const failed = read.state !== 'ok';
 
   return (
     <ConsolePage
       title="Knowledge"
-      description={mode === 'team' ? 'Every node this team recorded or retired, newest first.' : 'Every node recorded or retired across the platform, newest first.'}
+      description={mode === 'team' ? 'Every lesson this team recorded or superseded, newest first.' : 'Every lesson recorded or superseded across the platform, newest first.'}
       showPeriod={false}
-      updatedAt={freshnessOf(q)}
+      updatedAt={updatedAt}
       context={context}
       toolbar={<KnowledgeTabs active="log" />}
     >
       <Row split="tiles">
         {/* Gated exactly as the value beside it is: over a failed read this note said "Nothing yet", which is the
             all-clear a failure must never wear. */}
-        <MetricTile label="Entries" icon={<History />} value={q.data ? entries.length : q.isPending ? '…' : '—'} note={!q.data ? undefined : entries[0] ? <>Latest <When at={entries[0].ts} /></> : 'Nothing yet'} />
-        <MetricTile label="Recorded" icon={<PlusCircle />} value={q.data ? added : q.isPending ? '…' : '—'} note="Nodes minted" />
-        <MetricTile label="Superseded" icon={<GitFork />} value={q.data ? entries.length - added : q.isPending ? '…' : '—'} note="Replaced by a newer node" />
+        <MetricTile label="Entries" icon={<History />} value={failed ? '—' : entries.length} note={failed ? undefined : entries[0] ? `Latest ${formatDate(entries[0].ts)}` : 'Nothing yet'} />
+        <MetricTile label="Recorded" icon={<PlusCircle />} value={failed ? '—' : added} note="Nodes minted" />
+        <MetricTile label="Superseded" icon={<GitFork />} value={failed ? '—' : entries.length - added} note="Replaced by a newer node" />
       </Row>
-      <DataTable
-        caption="Knowledge log"
-        noun="entries"
-        rows={entries}
-        columns={columns(multiTeam)}
-        rowKey={(e) => `${e.ts}-${e.team}-${e.node}-${e.kind}`}
-        loading={q.isPending}
-        error={failureOf(q)}
-        onRetry={() => void q.refetch()}
-        empty={{ title: 'Nothing recorded yet', body: 'The log starts the next time a node is minted or superseded. Older nodes are on the Nodes tab.' }}
-        toolbar={
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="min-w-0">
-              <h2 className="t-card">Recorded and superseded</h2>
-              <p className="t-caption mt-1">Newest first</p>
+      {read.state !== 'ok' ? (
+        <EmptyState kind="error" title="The entries did not load" action={<Button size="sm" icon={<RotateCw />} busy={retrying} onClick={() => startRetry(() => router.refresh())}>Retry</Button>}>{troubleOf(read)}</EmptyState>
+      ) : (
+        <DataTable
+          caption="Knowledge log"
+          noun="entries"
+          rows={entries}
+          columns={columns(multiTeam)}
+          rowKey={(e) => `${e.ts}-${e.team}-${e.node}-${e.kind}`}
+          empty={{ title: 'Nothing recorded yet', body: 'The log starts the next time a node is minted or superseded. Older nodes are on the shelf, under Overview.' }}
+          toolbar={
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="t-card">Recorded and superseded</h2>
+                <p className="t-caption mt-1">Newest first</p>
+              </div>
+              <AskAbout question="What was recorded and superseded most recently, by whom, and what replaced what?" />
             </div>
-            <AskAbout question="What was recorded and superseded most recently, by whom, and what replaced what?" />
-          </div>
-        }
-      />
+          }
+        />
+      )}
     </ConsolePage>
   );
 }

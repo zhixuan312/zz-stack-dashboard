@@ -39,8 +39,8 @@ type Body = Record<string, unknown>;
 const SUPERADMIN: Body = { email: 'owner@example.com', name: 'Owner', role: 'superadmin', mayRead: true, superadmin: true, via: 'session', teams: [{ slug: 'atlas', role: 'admin' }], activeTeam: 'atlas' };
 const MEMBER: Body = { email: 'mei@example.com', name: 'Mei', role: 'member', mayRead: true, superadmin: false, via: 'session', teams: [{ slug: 'beacon', role: 'admin' }], activeTeam: 'beacon' };
 
-const EVERYTHING = ['Overview', 'Teams', 'Initiatives', 'Knowledge', 'People', 'Plugins', 'Runs', 'Activity', 'Settings'];
-const WORKING_SET = ['Overview', 'Initiatives', 'Knowledge', 'Settings'];
+const EVERYTHING = ['Home', 'Teams', 'Initiatives', 'Knowledge', 'People', 'Plugins', 'Runs', 'Activity', 'Settings'];
+const WORKING_SET = ['Home', 'Initiatives', 'Knowledge', 'Settings'];
 const FLEET = ['Teams', 'People', 'Plugins', 'Runs', 'Activity'];
 
 let calls: string[];

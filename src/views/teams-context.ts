@@ -1,52 +1,102 @@
-/** The Teams list's shared context (decision 0011): what the page and the assistant are both told about every team and what it holds. */
-import type { Team } from '@/lib/api-shapes';
+/**
+ * The Teams list's shared context (decision 0011), and the words its tiles and its week figures are drawn with: what
+ * the page and the assistant are both told about every team on the platform. The page draws these words and
+ * `view_teams` builds the same context from the same response, so the assistant quotes the figures the screen shows.
+ *
+ * Every figure is the read's. A team is set beside its own past (its sessions by week, its calls last week and the week
+ * before) and never beside another team: nothing here ranks, compares or totals one team against the rest.
+ */
+import type { TeamRow, Teams } from '@/lib/fleet-shapes';
+import type { PeriodFigure } from '@/lib/platform-shapes';
 import { plural } from '@/lib/format';
+import { formatDate, formatDay } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
-import { addressOf, arrived, budgeted, shareOf, type Arrival } from './context';
-import { filterTeams, type TeamsFilters } from './teams-filter';
+import { addressOf, arrived, budgeted, clip, type Arrival } from './context';
+import { PAGE_SIZE, TEAMS_DEFAULTS, narrowed, pageOf, type TeamsFilters, type TeamsRows } from './teams-filter';
 
-/** The part that contributes most to a total, and its share of it. `null` for an empty or zero total. Meridian's own
- *  until 0.16.0 removed it from `src/lib/insight.ts`; written here from its 0.15.0 source. */
-function largest<T>(items: T[], value: (t: T) => number): { item: T; share: number } | null {
-  const total = items.reduce((s, t) => s + value(t), 0);
-  if (!items.length || !(total > 0)) return null;
-  const item = items.reduce((m, t) => (value(t) > value(m) ? t : m));
-  return { item, share: value(item) / total };
+/** The page's own read, as the console's server or the browser made it: the answer, a failure, or no answer in time. */
+export type TeamsRead =
+  | { state: 'ok'; path: string; data: Teams }
+  | { state: 'failed'; path: string; reason: string }
+  | { state: 'slow'; path: string };
+
+/** How long the console's server waits for a Teams read: half a second under five, for a phone to draw what it says. */
+export const TEAMS_BOUND_MS = 4_500;
+
+/** The four tiles, as the page labels them and the assistant is told what each counts. */
+export const TILES = {
+  teams: { label: 'Teams', definition: 'Every team, active or archived.' },
+  openWork: { label: 'Open work', definition: 'Initiatives not yet closed.' },
+  pending: { label: 'Pending revisions', definition: 'Revisions presented and not yet approved, each once.' },
+  lessons: { label: 'Lessons adopted', definition: 'Lessons standing on the teams\' shelves.' },
+} as const;
+
+/** What a week's figure reads as: its count, `Unavailable` when it could not be read, nothing before the record. */
+export function weekCount(w: PeriodFigure): string {
+  if (w.figure.why === 'unavailable' || w.figure.value === null) return 'Unavailable';
+  return formatCount(w.figure.value);
 }
 
-export function teamsContext(teams: Team[], total: number, { filters, ...arrival }: { filters: TeamsFilters } & Arrival): SharedContext {
-  const rows = filterTeams(teams, filters);
-  const active = teams.filter((t) => t.status === 'active').length;
-  const sum = (pick: (t: Team) => number) => rows.reduce((a, t) => a + pick(t), 0);
-  const narrowed = filters.q !== '' || filters.status !== 'all';
-  // The read takes the most one page the gateway answers (`?limit=100`), so `teams` is a page of `total`. The search
-  // and the status filter run in the browser over that page, so past the cap they narrow a part of the platform and
-  // say nothing about the rest — which is what the page says too, and what the assistant has to be told to say.
-  const capped = teams.length < total;
-  const insights: Insight[] = [];
-  const busiest = largest(rows, (t) => t.initiatives);
-  if (busiest && busiest.item.initiatives) insights.push({ text: `${busiest.item.slug} runs the most work: ${formatCount(busiest.item.initiatives)} of the ${formatCount(sum((t) => t.initiatives))} initiatives listed (${shareOf(busiest.item.initiatives, sum((t) => t.initiatives))}).`, evidence: `/teams/${busiest.item.slug}` });
-  const idle = rows.filter((t) => t.status === 'active' && !t.initiatives);
-  if (idle.length) insights.push({ text: `${idle.length} active ${plural(idle.length, 'team')} ${idle.length === 1 ? 'has' : 'have'} started no initiative: ${listed(idle, (t) => t.slug, 'see /teams')}.` });
-  if (rows.length) insights.push({ text: `The teams listed: ${listed(rows, (t) => `${t.slug} (${t.status}, ${t.members} ${plural(t.members, 'person', 'people')}, ${t.initiatives} ${plural(t.initiatives, 'initiative')}, ${t.knowledge} knowledge ${plural(t.knowledge, 'node')})`, 'filter or search on /teams')}.` });
+/** A team's sessions by week as a Sparkline draws them: a week that could not be read is a gap, never a zero. */
+export const sessionPoints = (t: TeamRow): (number | null)[] => t.sessions.map((w) => (w.figure.why === null ? w.figure.value : null));
+
+/** The sentence a read's trouble is told in, under the table's "The teams did not load" and to the assistant. */
+export function teamsTrouble(read: Exclude<TeamsRead, { state: 'ok' }>): string {
+  return read.state === 'slow' ? `The read did not answer within ${TEAMS_BOUND_MS / 1000} seconds.` : read.reason;
+}
+
+/** How many teams of a page the context names, and says how many more: six hold the budget at any length of slug and name. */
+const NAMED = 6;
+
+/** One team as the assistant is told it: its people, its work and lessons, its own two last weeks of calls, and when it last made one. */
+function teamLine(t: TeamRow): string {
+  const calls = t.calls.last.figure.why === 'unavailable' ? 'calls unavailable' : `calls ${weekCount(t.calls.previous)} then ${weekCount(t.calls.last)}`;
+  return `${t.slug}${t.name !== t.slug ? ` (${clip(t.name, 24)})` : ''}${t.status === 'archived' ? ', archived' : ''}: ${formatCount(t.people)} ${plural(t.people, 'person', 'people')}, `
+    + `${formatCount(t.openWork)} open, ${formatCount(t.waiting)} waiting, ${formatCount(t.lessons)} ${plural(t.lessons, 'lesson')}, ${calls}, ${t.lastActive ? `active ${formatDate(t.lastActive)}` : 'never active'}`;
+}
+
+/**
+ * `filters` is the page's address. `read` is how `view_teams` read the rows, by the route's `limit` and `offset`, when it
+ * did: the address is then the page of ten the offset falls in, and rows off the page's grid are said to be so.
+ */
+export function teamsContext(data: Teams, { filters, read, ...arrival }: { filters: TeamsFilters; read?: TeamsRows } & Arrival): SharedContext {
+  const page = pageOf(filters);
+  const rows = data.teams;
+  const first = read ? read.offset : (page - 1) * PAGE_SIZE;
+  const onGrid = !read || (read.limit === PAGE_SIZE && read.offset % PAGE_SIZE === 0);
+  const address = addressOf('/platform/teams', filters, TEAMS_DEFAULTS);
+  const narrow = narrowed(filters);
+  const conditions = [filters.status !== 'all' ? `status ${filters.status}` : '', filters.q.trim() ? `matching "${filters.q.trim()}"` : ''].filter(Boolean).join(', ');
+  const scope = `${narrow ? `${formatCount(data.total)} of ${formatCount(data.tiles.teams)} teams, ${conditions}` : 'every team on the platform'}`
+    + (rows.length ? `; rows ${first + 1} to ${first + rows.length} of ${formatCount(data.total)}` : '');
+  const unavailable = rows.some((t) => t.calls.last.figure.why === 'unavailable');
+  const weeks = rows.length ? `the weeks of ${formatDay(rows[0].calls.previous.window.from)} and ${formatDay(rows[0].calls.last.window.from)}` : '';
+  const insights: Insight[] = rows.length
+    ? [{ text: `The teams on this page, latest real-work call first, each with its real-work calls in ${weeks}: ${listed(rows, teamLine, 'see the page', NAMED)}.`, evidence: address }]
+    : [];
   return budgeted({
     view: 'teams',
     title: 'Teams',
-    address: addressOf('/teams', { q: filters.q, status: filters.status }, { status: 'all' }),
-    scope: narrowed ? `${rows.length} of ${teams.length} teams, ${[filters.status !== 'all' ? `status ${filters.status}` : '', filters.q ? `matching "${filters.q}"` : ''].filter(Boolean).join(', ')}` : capped ? `the first ${formatCount(teams.length)} of ${formatCount(total)} teams on the platform` : 'every team on the platform',
+    address,
+    scope,
     freshness: arrived(arrival),
     facts: [
-      { label: 'Teams', value: formatCount(total), definition: `${active} of the ${formatCount(teams.length)} read are active; the rest are archived and kept readable.${capped ? ` This read takes the first ${formatCount(teams.length)} of ${formatCount(total)}, and every other count here is over those.` : ''}` },
-      { label: 'Initiatives', value: formatCount(sum((t) => t.initiatives)), definition: 'Pieces of work the listed teams have opened, open or closed.' },
-      { label: 'Documents', value: formatCount(sum((t) => t.documents)), definition: 'Written documents in the listed teams. Sources are counted apart.' },
-      { label: 'Knowledge', value: `${formatCount(sum((t) => t.knowledge))} ${plural(sum((t) => t.knowledge), 'node')}`, definition: 'Knowledge nodes on the listed teams\' shelves.' },
+      { label: TILES.teams.label, value: formatCount(data.tiles.teams), definition: TILES.teams.definition },
+      { label: TILES.openWork.label, value: formatCount(data.tiles.openWork), definition: TILES.openWork.definition },
+      { label: TILES.pending.label, value: formatCount(data.tiles.pending), definition: TILES.pending.definition },
+      { label: TILES.lessons.label, value: formatCount(data.tiles.lessons), definition: TILES.lessons.definition },
+      ...(narrow ? [{ label: 'Matching', value: formatCount(data.total), definition: 'The teams the filters let through; the tiles count every team.' }] : []),
     ],
     insights,
     unknowns: [
-      'People is counted per team, so someone in two teams is counted in both and the column does not sum to the number of people.',
-      ...(capped ? [`The list is a page of ${formatCount(total)} teams: the first ${formatCount(teams.length)} were read, so a fact about a team past them is not in this context.`] : []),
-      ...(rows.length ? [] : [narrowed ? 'No team matches these filters.' : 'No team exists yet; a superadmin creates the first one on the Settings page.']),
+      'A team is read against its own past only: nothing here ranks one team against another.',
+      'People counts memberships, so someone in two teams is counted in both.',
+      `Calls and sessions are real-work tool calls by Monday week, as of ${formatDate(data.meta.asOf)}; the running week is not complete.`,
+      ...(unavailable ? ['The calls by week could not be read, so no team\'s calls or sessions are stated.'] : []),
+      ...(onGrid ? [] : [`The page lists the teams ten a page, so ${address} does not show exactly these ${formatCount(rows.length)} rows.`]),
+      ...(data.total > first + rows.length ? [`${formatCount(data.total - first - rows.length)} more ${plural(data.total - first - rows.length, 'team')} match on later pages.`] : []),
+      ...(rows.length ? [] : [narrow ? 'No team matches these filters.' : 'No team exists yet; a superadmin creates the first one on this page.']),
     ],
   });
 }

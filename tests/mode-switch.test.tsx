@@ -57,7 +57,7 @@ describe('the scope in the rail\'s workspace menu', () => {
 
   /** A page's read beside the rail, so the scope it sends can be read off the request. */
   function Probe() {
-    useConsole('/overview');
+    useConsole('/activity');
     return null;
   }
 
@@ -84,7 +84,7 @@ describe('the scope in the rail\'s workspace menu', () => {
     const menu = await screen.findByRole('menu');
     await act(async () => { fireEvent.click(within(menu).getByRole('menuitemradio', { name: label })); });
   };
-  const overviews = () => calls.filter((u) => u.startsWith('/api/console/overview'));
+  const reads = () => calls.filter((u) => u.startsWith('/api/console/activity'));
 
   beforeEach(() => {
     window.localStorage.clear();
@@ -104,10 +104,10 @@ describe('the scope in the rail\'s workspace menu', () => {
   it('sends the scope it sends today: `scope=platform` for the whole platform, nothing for the team', async () => {
     await mount({ only: EVERY, user: { name: 'Owner', role: 'Superadmin' } }, true);
     await choose('Your team');
-    await waitFor(() => expect(overviews().at(-1)).toBe('/api/console/overview'));
+    await waitFor(() => expect(reads().at(-1)).toBe('/api/console/activity'));
     expect(window.localStorage.getItem('zz-stack-mode')).toBe('team');
     await choose('The whole platform');
-    await waitFor(() => expect(overviews().at(-1)).toBe('/api/console/overview?scope=platform'));
+    await waitFor(() => expect(reads().at(-1)).toBe('/api/console/activity?scope=platform'));
     expect(window.localStorage.getItem('zz-stack-mode')).toBe('platform');
   });
 

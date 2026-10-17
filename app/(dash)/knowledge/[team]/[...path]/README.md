@@ -1,19 +1,20 @@
 # Knowledge node
 
-One knowledge node, read, with where it was learned and what shares its subject.
+One knowledge node, read, with where it was learned and what shares its subject: a lesson of the active team's, or one on the platform's shared shelf, which a search finds and anybody signed in opens, read-only.
 
 ## Structure
 
-- Gate first: the page asks for `knowledge` before it renders, so a person who does not hold it is shown NoAccess and nothing on the page is read.
-- A warning banner when the node is superseded.
-- The lesson, rendered; facts beside it: status, type, team, recorded, learned in, tags, path.
+- Gate first: the page asks for `knowledge` before it renders, so a person who does not hold it is shown nothing of the page and nothing on it is read.
+- A warning banner when the node is superseded, and a banner when it is on the shared shelf.
+- The lesson, rendered; facts beside it: status, shelf (`Your team` or `Shared shelf`), type, team, recorded, learned in, tags, path. Nothing on the page changes a lesson.
 - Nodes that share a tag.
 
 ## States
 
-- Loading: two skeleton cards.
+- Loading: two skeleton cards while the gate asks `/me` and the server reads the node.
 - Superseded: the banner names the node that replaced it.
-- Not found: the gateway's sentence.
+- Shared: the banner says it is on the platform's shared shelf and read-only.
+- Not found, failed, or slower than 5 seconds: `This node did not load`, the gateway's sentence and Retry, which reads again on the server.
 
 ## Agents
 
@@ -21,7 +22,7 @@ The assistant reads this page and changes nothing: every change in this console 
 
 ### What the agent reads
 
-The node's team and number, its status, type, date and tags. What code found: the lesson itself (its first 1,400 characters; the page text carries the rest), the node that superseded it, the initiatives it was learned in with their addresses, and the nodes that share a tag with it (10 at most). The lesson is in the context on purpose: `view_knowledge_node` is how the assistant reads what an earlier initiative settled without the person opening the node.
+The node's team and number, its status, its shelf, type, date and tags; a shared one's scope says it is read-only. What code found: the lesson itself (its first 1,400 characters; the page text carries the rest), the node that superseded it, the initiatives it was learned in with their addresses, and the nodes that share a tag with it (10 at most). The lesson is in the context on purpose: `view_knowledge_node` is how the assistant reads what an earlier initiative settled without the person opening the node.
 
 ```text
 - It was learned in 2026-09-12-onboarding-revamp (/initiatives/atlas/2026-09-12-onboarding-revamp).
@@ -39,4 +40,4 @@ Protagonist: The lesson.
 
 ## Surfaces
 
-Console, desktop and phone. Reads `GET /knowledge/:team/:path`, `GET /knowledge`. Live: follows `knowledge`, so a change made anywhere — another tab, another person — reads this page again.
+Console, desktop and phone. Reads `GET /knowledge/:team/:path` on the console's server, as the person, once per request and bounded at 5 seconds. Live: follows `knowledge`, so a change made anywhere — another tab, another person — asks the server for this page again.

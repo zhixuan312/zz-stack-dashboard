@@ -1,25 +1,34 @@
-/** Teams' view tool, at `/teams`, and its prepared query over the teams and the platform's calls by team. */
+/**
+ * Teams' view tool, at `/platform/teams`. Its arguments are spec version 8's: `limit` and `offset`, the route's own, so
+ * it reads `GET /teams` as the route pages it, every team, latest real-work call first. Its context is the page's, at
+ * the page of ten the offset falls in. The page's own filters (`q`, `status`) are its address's, not this tool's.
+ */
 import { z } from 'zod';
 import { requireNeed } from '@/data/access';
 import { FEATURES } from '@/data/features';
 import { gatewayGet } from '@/data/gateway';
-import type { Team } from '@/lib/api-shapes';
+import type { Teams } from '@/lib/fleet-shapes';
 import { defineViewTool } from '@/lib/shared-context';
 import { teamsContext } from '../teams-context';
-import { EVERY_ROW, justRead, search } from './shared';
-import { platformCalls, teams } from './sources';
+import { teamsExplore } from '../teams-explore';
+import { PAGE_SIZE, TEAMS_DEFAULTS, pageAt, teamsPath } from '../teams-filter';
+import { justRead } from './shared';
 
 export const teamsTool = defineViewTool({
   name: 'teams',
   title: 'Teams',
-  description: 'Every team on the platform, filtered: who is in each and what it holds.',
+  description: 'Every team on the platform, latest real-work call first: its people, open work, revisions waiting and lessons, its sessions by week and its calls last week and the week before, each against its own past.',
   needs: FEATURES.teams.needs,
-  page: '/teams',
-  input: z.object({ q: search.describe('Text in the slug or the name.'), status: z.enum(['all', 'active', 'archived']).optional() }),
-  async read({ q = '', status = 'all' }) {
+  page: '/platform/teams',
+  input: z.object({
+    limit: z.number().int().min(1).max(100).optional().describe('How many teams, 1 to 100; 10 when not given, as the page lists them.'),
+    offset: z.number().int().min(0).max(1_000_000).optional().describe('How many teams to skip, latest real-work call first; 0 when not given.'),
+  }),
+  async read({ limit = PAGE_SIZE, offset = 0 }) {
     await requireNeed(FEATURES.teams.needs);
-    const data = await gatewayGet<{ teams: Team[]; total: number }>(`/teams?${EVERY_ROW}`);
-    return { context: teamsContext(data.teams, data.total, { filters: { q, status }, ...justRead() }), data };
+    const read = { limit, offset };
+    const data = await gatewayGet<Teams>(teamsPath(TEAMS_DEFAULTS, read));
+    return { context: teamsContext(data, { filters: pageAt(offset), read, ...justRead() }), data };
   },
-  explore: { sources: { teams, calls: platformCalls(true) } },
+  explore: teamsExplore,
 });

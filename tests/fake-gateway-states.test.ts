@@ -3,12 +3,15 @@ import type { ChildProcess } from 'node:child_process';
 import { startFakeGateway } from './fake-gateway-start.ts';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { ActivityLog, ActivitySummary, KnowledgeList, KnowledgeSummary, Runs } from '../src/lib/destination-shapes.ts';
-import type { InitiativeList } from '../src/lib/work-shapes.ts';
+import type { Teams } from '../src/lib/fleet-shapes.ts';
+import type { Home, InitiativeList } from '../src/lib/work-shapes.ts';
 import { ME } from '../scripts/fake-gateway/people.ts';
 import { PLATFORM_STATUS } from '../scripts/fake-gateway/platform-status.ts';
+import { teamDetail, teams } from '../scripts/fake-gateway/platform-teams.ts';
 import { empty, extreme } from '../scripts/fake-gateway/states.ts';
 import { access } from '../scripts/fake-gateway/work-access.ts';
 import { activityLog, activitySummary } from '../scripts/fake-gateway/work-activity.ts';
+import { homeOf } from '../scripts/fake-gateway/work-home.ts';
 import { initiativeList } from '../scripts/fake-gateway/work-initiatives.ts';
 import { knowledgeList, knowledgeSummary } from '../scripts/fake-gateway/work-knowledge.ts';
 import { plugins } from '../scripts/fake-gateway/work-plugins.ts';
@@ -22,8 +25,7 @@ import config from '../scripts/verify.config.ts';
  * threw out of the request handler and killed the gateway process: every page after it reported
  * "cannot reach the platform", and the shape that caused it was the only thing the report did not
  * show. A transform reads an answer by its own idea of that route's shape, so a route that grows a
- * second answer — `/initiatives?waiting=1` returns `{ waiting }`, the list returns `{ rows, total, … }`
- * — is where it will break next.
+ * second answer is where it will break next.
  */
 /** The initiatives list as the fixture answers the superadmin for `query`. */
 const LIST = (query = ''): InitiativeList => initiativeList(ME, new URLSearchParams(query))[1] as InitiativeList;
@@ -36,13 +38,10 @@ const LEARNED = () => body<KnowledgeSummary>(knowledgeSummary(ME));
 const SUMMARY = () => body<ActivitySummary>(activitySummary(ME));
 const LOG = () => body<ActivityLog>(activityLog(ME, new URLSearchParams()));
 const RUNS = () => body<Runs>(runs(ME, new URLSearchParams()));
+/** Teams as the fixture answers the superadmin, one page of ten, and the same list with no team in it. */
+const TEAMS = () => body<Teams>(teams(ME, new URLSearchParams(), { limit: 10, offset: 0 })!);
+const NO_TEAMS = (): Teams => ({ ...TEAMS(), teams: [], total: 0 });
 describe('the fixture can shape every answer its routes produce', () => {
-  it('leaves an empty projection empty rather than inventing rows', () => {
-    // Nothing waiting is a state the console draws ("Nothing needs a signature"); forty fabricated
-    // gates would be a state it could never reach.
-    expect(extreme(['initiatives'], { waiting: [] })).toEqual({ waiting: [] });
-  });
-
   it('leaves an empty list empty rather than inventing rows it cannot shape', () => {
     // `/initiatives?team=<a team with no work>` is empty, and it is a state the console draws. A
     // mode that filled it in grew its rows from `rows[i % 0]` — `undefined` — so every fabricated
@@ -50,7 +49,7 @@ describe('the fixture can shape every answer its routes produce', () => {
     // dereference `stages`, and /teams/dune died in its error boundary on the whole page.
     const none = NONE();
     expect((extreme(['initiatives'], none) as InitiativeList)).toMatchObject({ rows: [], total: 0 });
-    expect(extreme(['teams'], { teams: [] })).toEqual({ teams: [] });
+    expect(extreme(['teams'], NO_TEAMS())).toMatchObject({ teams: [], total: 0 });
     expect(extreme(['knowledge'], { ...SHELF(), rows: [], total: 0 })).toMatchObject({ rows: [], total: 0 });
     expect(extreme(['activity'], { ...LOG(), rows: [], total: 0 })).toMatchObject({ rows: [], total: 0 });
   });
@@ -68,21 +67,13 @@ describe('the fixture can shape every answer its routes produce', () => {
     }
   });
 
-  it('shapes a projection that has rows', () => {
-    const one = { id: 'a/b/approve spec', gate: 'spec', team: 'a', slug: 'b', updated: '2026-10-05', stage: 'spec', at: 2, of: 7 };
-    const got = extreme(['initiatives'], { waiting: [one] }) as { waiting: unknown[] };
-    expect(got.waiting.length).toBeGreaterThan(1);
-    expect(got.waiting[0]).toEqual(one);
-  });
-
   it('shapes every answer the routes actually produce, empty lists included', () => {
     // Each route paired with the answers `read()` gives it — the property that matters: a shape a
     // route really produces must not be a shape this mode does not know. The server catches what is
     // left out, so an unrecognised answer is served as it is rather than taking the gateway down;
     // that is a backstop, not the contract.
     const answers: [string[], unknown][] = [
-      [['initiatives'], { waiting: [{ id: 'x', gate: 'g', team: 'a', slug: 'b', updated: 'u', stage: 's', at: 1, of: 2 }] }],
-      [['initiatives'], { waiting: [] }],
+      [['home'], homeOf('atlas', ME.email)],
       [['initiatives'], LIST()],
       [['initiatives'], NONE()],
       [['knowledge'], SHELF()],
@@ -93,7 +84,9 @@ describe('the fixture can shape every answer its routes produce', () => {
       [['runs'], RUNS()],
       [['plugins'], body(plugins(ME))],
       [['access'], body(access(ME))],
-      [['teams'], { teams: [] }],
+      [['teams'], TEAMS()],
+      [['teams'], NO_TEAMS()],
+      [['teams', 'atlas'], teamDetail('atlas')],
       [['people'], { people: [] }],
       [['platform', 'status'], PLATFORM_STATUS],
       [['unknown-head'], { anything: true }],
@@ -105,10 +98,30 @@ describe('the fixture can shape every answer its routes produce', () => {
     }
   });
 
-  it('empties the projection of what waits, as it empties the list', () => {
-    // A fresh deployment has no gate waiting on anybody: the bell read the same seven it reads on a busy one.
-    const one = { id: 'a/b/approve spec', gate: 'spec', team: 'a', slug: 'b', updated: '2026-10-05', stage: 'spec', at: 2, of: 7 };
-    expect(empty(['initiatives'], { waiting: [one] })).toEqual({ waiting: [] });
+  it('makes busy teams a page of long names under large counts, and a fresh platform none at all', () => {
+    // Teams is paged and counted on the server, as Initiatives is: a page holds what it asked for, and the tiles and
+    // the total are every team's, never the page's.
+    const list = TEAMS();
+    const busy = extreme(['teams'], list) as Teams;
+    expect(busy.teams).toHaveLength(list.teams.length);
+    expect(busy.total).toBeGreaterThan(100);
+    expect(busy.tiles.teams).toBe(busy.total);
+    for (const [i, row] of busy.teams.entries()) {
+      expect(Object.keys(row).sort(), `a row lost a field: ${JSON.stringify(row)}`).toEqual(Object.keys(list.teams[i]).sort());
+      expect(row.name.length).toBeGreaterThan(60);
+    }
+    expect(empty(['teams'], list)).toMatchObject({ teams: [], total: 0, tiles: { teams: 0, openWork: 0, pending: 0, lessons: 0 } });
+    // One team's page is its own record, in either mode.
+    expect(extreme(['teams', 'atlas'], teamDetail('atlas'))).toEqual(teamDetail('atlas'));
+    expect(empty(['teams', 'atlas'], teamDetail('atlas'))).toEqual(teamDetail('atlas'));
+  });
+
+  it('empties Home as it empties the list: nothing waits, nothing is open, and no week holds a recorded value', () => {
+    const home = empty(['home'], homeOf('atlas', ME.email)) as Home;
+    expect(home.title).toEqual({ sentence: 'Your work at a glance', rule: 'fallback' });
+    expect(home.waiting).toEqual({ state: 'ok', data: { count: 0, oldestSince: null, one: null } });
+    expect(home.openWork).toEqual({ state: 'ok', data: { rows: [], quiet: 0, total: 0 } });
+    expect(home.words.state === 'ok' && home.words.data.weeks.every((w) => w.figure.value === null)).toBe(true);
     const list = empty(['initiatives'], LIST()) as InitiativeList;
     expect(list).toMatchObject({ rows: [], total: 0, tiles: { open: 0, waiting: 0, closed: { accepted: 0, delivered: 0, abandoned: 0 } } });
     expect(list.summary.state === 'ok' && list.summary.data.total).toBe(0);
@@ -134,11 +147,19 @@ describe('the fixture can shape every answer its routes produce', () => {
     expect(empty(['knowledge', 'summary'], LEARNED())).toMatchObject({ questions: { state: 'ok', data: { rows: [], total: 0 } } });
   });
 
-  it('serves the platform\'s status as it is in both worlds', () => {
-    // Neither mode knows the status read, so both leave it alone: its weeks, and the four it picks from them, stay
-    // whole. A mode that emptied them would hand a page a shape the fixture is held never to have.
+  it('serves the platform\'s status whole to a busy platform, and as a fresh deployment answers it to an empty one', () => {
     expect(extreme(['platform', 'status'], PLATFORM_STATUS)).toBe(PLATFORM_STATUS);
-    expect(empty(['platform', 'status'], PLATFORM_STATUS)).toBe(PLATFORM_STATUS);
+    // A fresh deployment: every check answered and nothing found, every week read and holding no data, no door's day.
+    // The shape stays the fixture's, week for week, so a page meets nothing the gateway never sends.
+    const fresh = empty(['platform', 'status'], PLATFORM_STATUS) as typeof PLATFORM_STATUS;
+    expect(fresh.needs).toMatchObject({ state: 'complete', rows: [], total: 0 });
+    expect(fresh.measures.map((m) => m.key)).toEqual(PLATFORM_STATUS.measures.map((m) => m.key));
+    for (const [i, m] of fresh.measures.entries()) {
+      expect(m.weeks).toHaveLength(PLATFORM_STATUS.measures[i].weeks.length);
+      expect(m.weeks.every((w) => w.figure.value === null && w.figure.why === 'no_data')).toBe(true);
+    }
+    expect(fresh.doors).toEqual({ state: 'ok', data: [] });
+    expect(PLATFORM_STATUS.needs.rows.length).toBeGreaterThan(0);
   });
 });
 
@@ -147,9 +168,8 @@ describe('a busy platform is still one team to a member', () => {
   const entry = { ts: '2026-10-05T00:00:00Z', actor: 'a@example.com', team: 'beacon', kind: 'knowledge.add', node: '0001', recorded_title: 't', superseded_by: null, node_title: 't', node_status: 'adopted' };
 
   it('grows no team beside their own', () => {
-    const one = { slug: 'atlas', name: 'Atlas Research' };
-    expect(extreme(['teams'], { teams: [one] }, 'atlas')).toEqual({ teams: [one] });
-    expect((extreme(['teams'], { teams: [one] }) as { teams: unknown[] }).teams.length).toBeGreaterThan(1);
+    // The gateway refuses a member Teams, so this answer is never theirs; held to a team, it is left as it is.
+    expect(extreme(['teams'], TEAMS(), 'atlas')).toEqual(TEAMS());
   });
 
   it('grows people and log entries that name their team and no other', () => {
@@ -190,7 +210,7 @@ describe('every mode answers both people', () => {
   ];
   const ask = (base: string, cookie: string | null, path: string, ms = 10_000) =>
     fetch(`${base}/api/console/${path}`, { headers: cookie === null ? {} : { cookie: `zz_console=${cookie}` }, signal: AbortSignal.timeout(ms) });
-  const READS = ['overview', 'initiatives', 'initiatives?waiting=1', 'knowledge', 'knowledge/summary', 'knowledge/log', 'activity',
+  const READS = ['initiatives', 'knowledge', 'knowledge/summary', 'knowledge/log', 'activity',
                  'activity/summary', 'runs', 'plugins', 'skills', 'access', 'settings/me/tokens', 'settings/me/teams', 'platform/status',
                  'home', 'record', 'approvals', 'work/query?measure=closures&by=outcome',
                  'platform/query?measure=calls&by=week'];
@@ -206,7 +226,6 @@ describe('every mode answers both people', () => {
       people: superadmin ? (await get('people?scope=platform&limit=100')).people : [],
       initiatives: (await get('initiatives?scope=platform&limit=100')).rows,
       byTeam: [
-        ...(await get('initiatives?waiting=1&scope=platform')).waiting,
         ...(await get('knowledge?scope=platform&limit=100')).rows, ...(await get('knowledge/log?scope=platform')).entries,
       ],
     };
@@ -227,10 +246,11 @@ describe('every mode answers both people', () => {
       const { teams, people, initiatives, byTeam } = await lists(base, cookie, role === 'superadmin');
       if (mode === 'empty') expect([teams, people, initiatives, byTeam], name).toEqual([[], [], [], []]);
       else if (role === 'member') {
-        expect(byTeam.length).toBeGreaterThan(20);
+        expect(byTeam.length).toBeGreaterThan(10);
         for (const row of byTeam) expect(row.team, JSON.stringify(row).slice(0, 120)).toBe(me.activeTeam);
       } else {
-        expect(teams.length, name).toBeGreaterThan(mode === 'extreme' ? 60 : 3);
+        // Teams is paged by the gateway, so a busy platform is still a page of the teams asked for.
+        expect(teams.length, name).toBeGreaterThan(3);
         expect(new Set(byTeam.map((r) => r.team)).size, name).toBeGreaterThan(2);
       }
     }

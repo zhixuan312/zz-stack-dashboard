@@ -11,7 +11,7 @@ import { FLEET } from '@/data/features';
 import { PERIODS } from '@/lib/period';
 import type { Arrival, ViewMode } from '../context';
 
-/** The page Teams and People ask for, every row on one: the gateway answers 10 unless asked. */
+/** The page People asks for, every row on one: the gateway answers 10 unless asked. */
 export const EVERY_ROW = 'limit=100';
 
 export const period = z.enum(PERIODS).optional().describe('The reporting period; all time when not given.');
@@ -25,4 +25,3 @@ export const file = (what: string) => z.string().regex(/^[A-Za-z0-9_][A-Za-z0-9.
 export const justRead = (): Arrival => { const now = new Date(); return { updatedAt: now, now }; };
 /** Whose rows the gateway returned: every team's to a superadmin, the caller's own team's otherwise. */
 export const modeOf = async (): Promise<ViewMode> => ((await may(FLEET)) ? 'platform' : 'team');
-export const withPeriod = (path: string, p?: string) => (p && p !== 'all' ? `${path}?period=${p}` : path);
