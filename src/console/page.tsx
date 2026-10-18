@@ -7,9 +7,8 @@ import { PageFrame, Stack, type PageWidth } from '@/components/base/shell';
 import { useShareView } from '@/components/base/use-share-view';
 import { Freshness } from '@/components/patterns/freshness';
 import { PeriodSelect } from '@/components/patterns/period-select';
-import { freshnessOf, useDataClock } from '@/lib/api';
+import { useDataClock } from '@/lib/api';
 import type { SharedContext } from '@/lib/shared-context';
-import type { Arrival } from '@/views/context';
 import { workspaceOf } from '@/views/workspaces';
 import { usePeriod } from '@/console/period';
 
@@ -46,7 +45,7 @@ export function ConsolePage({
   context: SharedContext;
   /** The trail back up from a record; a top-level page leaves it out and the kicker names the scope. */
   crumbs?: Crumb[];
-  /** When the page's data arrived (`freshnessOf`); `null` reads "never updated"; left out, no stamp. */
+  /** When the page's data arrived; `null` reads "never updated"; left out, no stamp. */
   updatedAt?: Date | null;
   /** Pages with no time dimension hide the picker. */
   showPeriod?: boolean;
@@ -123,11 +122,3 @@ function PagePeriod() {
   return <PeriodSelect value={period} onChange={setPeriod} />;
 }
 
-/**
- * When the page's reads arrived and the clock that is measured against, for its shared context: the same two values
- * the freshness stamp is drawn from, so the page and the assistant say one thing about how fresh the data is.
- */
-export function useArrival(...queries: { dataUpdatedAt?: number }[]): Arrival {
-  const now = useDataClock();
-  return { updatedAt: freshnessOf(...queries), now };
-}

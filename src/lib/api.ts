@@ -179,22 +179,8 @@ function withScope(path: string): string {
 }
 
 /**
- * When the data on the page actually arrived, for the freshness stamp.
- *
- * `new Date()` evaluated at render reads "Updated just now" over cached data, over a background
- * refetch and over the error state itself.
- *
- * The oldest of the queries given, because a page is only as fresh as its stalest panel, and
- * `null` while nothing has loaded — which Freshness renders as "never" rather than as now.
- */
-export function freshnessOf(...queries: { dataUpdatedAt?: number }[]): Date | null {
-  const stamps = queries.map((q) => q.dataUpdatedAt ?? 0).filter((n) => n > 0);
-  return stamps.length ? new Date(Math.min(...stamps)) : null;
-}
-
-/**
  * The data's clock for a component that holds no query of its own: the oldest arrival time among the queries that have
- * data, read the same way `freshnessOf` reads a page's own. `Freshness`, `ShellTools`, `AlertsPanel` and
+ * data. `Freshness`, `ShellTools`, `AlertsPanel` and
  * `formatRelative` all take `now` because the clock is the data's, not the browser's — this is where a component that
  * cannot ask its page for one gets it.
  *
