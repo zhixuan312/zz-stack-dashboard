@@ -105,6 +105,8 @@ export function PluginsView({ served, addressed = null }: { served: PluginsRead;
           columns={COLUMNS}
           rowKey={(p) => p.plugin}
           rowHref={(p) => `/plugins/${p.plugin}`}
+          pageSize={10}
+          pageSizes={[10]}
           loading={!data && !trouble}
           error={trouble ?? undefined}
           onRetry={retry}

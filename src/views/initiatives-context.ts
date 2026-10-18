@@ -8,6 +8,7 @@
 import { plural } from '@/lib/format';
 import { formatCount } from '@/lib/format-units';
 import { formatDate, formatDay } from '@/lib/format-date';
+import { grainOf, type Grain } from '@/lib/grain';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
 import type { InitiativeList, InitiativeRow } from '@/lib/work-shapes';
 import { addressOf, arrived, budgeted, clip, type Arrival } from './context';
@@ -73,19 +74,33 @@ export const nextOf = (r: InitiativeRow): string => {
   return waiter ? `${said}, waiting on ${waiter}` : said;
 };
 
-/** How many whole weeks of closures the context states, latest last: what the chart's last columns say. */
-const WEEKS_SAID = 4;
+/** How many whole periods of closures the context states, latest last: what the chart's last columns say. */
+const PERIODS_SAID = 4;
 
-/** The last whole weeks' closures by outcome, as the chart draws them: a week not read is said to be so, never zero. */
+/** A period by its name: `week of 5 Oct`, `Oct 2026`, `Jul to Sep 2026`. */
+function periodName(grain: Grain, { from, to }: { from: string; to: string }): string {
+  if (grain === 'week') return `week of ${formatDay(from)}`;
+  const [, first, year] = formatDate(from).split(' ');
+  if (grain === 'month') return `${first} ${year}`;
+  // A quarter ends where the next begins, so its last month is the one holding the day before, whatever timezone it
+  // was cut in.
+  return `${first} to ${formatDate(Date.parse(to) - 86_400_000).split(' ').slice(1).join(' ')}`;
+}
+
+/**
+ * The last whole periods' closures by outcome, as the chart draws them, named by the grain they arrive in: a period not
+ * read is said to be so, never zero.
+ */
 function closuresLine(list: InitiativeList): string | null {
   if (list.closures.state !== 'ok') return null;
-  const whole = list.closures.data.filter((w) => w.window.complete).slice(-WEEKS_SAID);
+  const grain = grainOf(list.closures.data.map((w) => w.window));
+  const whole = list.closures.data.filter((w) => w.window.complete).slice(-PERIODS_SAID);
   if (!whole.length) return null;
-  const week = (w: (typeof whole)[number]) => {
+  const period = (w: (typeof whole)[number]) => {
     const parts = OUTCOMES.map((o) => (w[o].value === null ? `${o} not read` : `${formatCount(w[o].value)} ${o}`));
-    return `week of ${formatDay(w.window.from)}: ${parts.join(', ')}`;
+    return `${periodName(grain, w.window)}: ${parts.join(', ')}`;
   };
-  return `Closures by week and outcome, the last ${whole.length} whole ${plural(whole.length, 'week')}: ${whole.map(week).join('; ')}.`;
+  return `Closures by ${grain} and outcome, the last ${whole.length} whole ${plural(whole.length, grain)}: ${whole.map(period).join('; ')}.`;
 }
 
 /**
@@ -131,7 +146,7 @@ export function initiativesContext(list: InitiativeList, { filters, page, read, 
       'Work is your active team\'s alone; another team\'s initiatives are not in this list.',
       CLOSE_IS_THE_PERSON_S,
       ...(summary ? [] : ['The counts by state and flow could not be read; the rows and the total stand.']),
-      ...(list.closures.state === 'ok' ? [] : ['The closures by week could not be read; the tiles and the rows stand.']),
+      ...(list.closures.state === 'ok' ? [] : ['The closures could not be read; the tiles and the rows stand.']),
       ...(list.nextMoveState === 'ok' ? [] : [list.nextMoveState === 'partial' ? 'zz-core did not answer for some rows, so their next move is unknown.' : 'zz-core did not answer, so no row\'s next move is known.']),
       ...(onGrid ? [] : [`The page lists the initiatives ten a page, so ${address} does not show exactly these ${formatCount(list.rows.length)} rows.`]),
       ...(list.rows.length ? [] : [narrowed(filters) ? 'No initiative matches these filters.' : page > 1 ? 'This page is past the last initiative.' : 'No initiative has been opened yet.']),

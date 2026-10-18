@@ -157,9 +157,50 @@ describe('the context', () => {
   it('says what it could not read, never counting it as nothing', () => {
     const lost: InitiativeList = { ...LIST, closures: { state: 'unavailable', reason: 'down' }, summary: { state: 'unavailable', reason: 'down' }, nextMoveState: 'unavailable' };
     const said = text(lost);
-    expect(said).toContain('The closures by week could not be read');
+    expect(said).toContain('The closures could not be read');
+    expect(said).not.toMatch(/by week/);
     expect(said).toContain('The counts by state and flow could not be read');
     expect(said).toContain('no row\'s next move is known');
     expect(said).not.toContain('Closures by week and outcome, the last');
+  });
+});
+
+describe('the closures named by the grain they arrive in (Task I-139)', () => {
+  /** The list's closures cut as the gateway cuts a longer record: four whole periods of `months` months each, then the running one. */
+  const cutBy = (months: number): InitiativeList => {
+    const start = (i: number) => new Date(Date.UTC(2025, 0 + i * months, 1)).toISOString().replace(/\.\d{3}Z$/, 'Z');
+    const data = Array.from({ length: 5 }, (_, i) => ({
+      window: { from: start(i), to: start(i + 1), observedFrom: start(i), observedThrough: i < 4 ? start(i + 1) : start(i).replace(/-01T/, '-05T'), complete: i < 4 },
+      accepted: { value: 3 + i, why: null }, delivered: { value: 2, why: null }, abandoned: { value: i ? 1 : null, why: i ? null : 'query_failed' },
+    }));
+    return { ...LIST, closures: { state: 'ok', data } } as InitiativeList;
+  };
+  const said = (list: InitiativeList) => contextText(initiativesContext(list, { filters: ALL, page: 1, ...arrival }));
+
+  it('says the closures by week when they arrive by week, each by its week', () => {
+    expect(said(LIST)).toMatch(/Closures by week and outcome, the last \d+ whole weeks?: week of /);
+  });
+
+  it('says the closures by month or by quarter when they arrive so, each period by its own name, and never by week', () => {
+    const months = said(cutBy(1));
+    expect(months).toContain('Closures by month and outcome, the last 4 whole months: Jan 2025: 3 accepted, 2 delivered, abandoned not read; Feb 2025: 4 accepted');
+    expect(months).not.toMatch(/by week|week of/);
+    const quarters = said(cutBy(3));
+    expect(quarters).toContain('Closures by quarter and outcome, the last 4 whole quarters: Jan to Mar 2025: 3 accepted');
+    expect(quarters).toContain('Oct to Dec 2025: 6 accepted');
+    expect(quarters).not.toMatch(/by week|week of/);
+  });
+
+  it('titles the chart, its columns and its count by the grain, on the page as in the context', () => {
+    mount({ state: 'ok', path: PATH, data: cutBy(3), team: 'atlas' });
+    expect(screen.getAllByText('Closures by quarter and outcome').length).toBeGreaterThan(0);
+    expect(screen.getByText('The team\'s closures, 5 quarters, whatever the filters')).toBeInTheDocument();
+    expect(document.body.textContent).not.toContain('Closures by week');
+  });
+
+  it('says the closures could not be read with no grain, which an unread series has none of', () => {
+    mount({ state: 'ok', path: PATH, data: { ...LIST, closures: { state: 'unavailable', reason: 'down' } }, team: 'atlas' });
+    expect(screen.getByText('The closures could not be read')).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/closures by week|the weeks/i);
   });
 });

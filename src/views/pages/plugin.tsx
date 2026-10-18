@@ -162,6 +162,8 @@ export function PluginView({ name, served }: { name: string; served: PluginRead 
           columns={skillColumns(name)}
           rowKey={(s) => s.name}
           rowHref={(s) => `/plugins/${name}/${s.name}`}
+          pageSize={10}
+          pageSizes={[10]}
           empty={{ title: 'This plugin ships no skill', body: 'It grants an MCP surface and nothing else.' }}
         />
       ) : null}

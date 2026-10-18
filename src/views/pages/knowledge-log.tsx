@@ -89,6 +89,8 @@ export function KnowledgeLogView({ read }: { read: ServerRead<{ entries: Knowled
           rows={entries}
           columns={columns()}
           rowKey={(e) => `${e.ts}-${e.team}-${e.node}-${e.kind}`}
+          pageSize={10}
+          pageSizes={[10]}
           empty={{ title: 'Nothing recorded yet', body: 'The log starts the next time a node is minted or superseded. Older nodes are on the shelf, under Overview.' }}
           toolbar={
             <div className="flex flex-wrap items-center justify-between gap-3">

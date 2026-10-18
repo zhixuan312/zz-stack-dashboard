@@ -24,7 +24,8 @@
  * `--mode` draws the states a page has to design for, from the same routes and for either person: `empty` (a fresh
  * deployment, nothing recorded), `error` (every read but /me fails with the gateway's own sentence), `slow` (every
  * answer but /me waits four seconds, so the loading state can be looked at), `extreme` (a busy platform: six-figure
- * counts, hundreds of rows, names longer than any layout planned for), `partial` (one part of each answer unavailable,
+ * counts, hundreds of rows, names longer than any layout planned for, and every answer past its ceiling,
+ * states-extreme.ts), `partial` (one part of each answer unavailable,
  * the others answered). `GET /__mode?set=<mode>` switches it while running, for every request at once.
  *
  * A state per request: the session value `<person>+<state>`, `zz_console=member+empty`, signs in that person and draws
@@ -543,7 +544,7 @@ const server = http.createServer((req, res) => {
         const fresh = shape('empty', (s, body) => empty(s, body, url.searchParams));
         answer = fresh === NOT_RECORDED ? UNKNOWN : [200, fresh];
       }
-      if (answer[0] === 200 && state === 'extreme') answer = [200, shape('extreme', (s, body) => extreme(s, body, heldTo(who), url.searchParams))];
+      if (answer[0] === 200 && state === 'extreme') answer = [200, shape('extreme', (s, body) => extreme(s, body, heldTo(who), url.searchParams, who.activeTeam))];
       if (answer[0] === 200 && state === 'partial') answer = [200, shape('partial', partial)];
       if (answer[0] === 200 && cookie !== null && standingIn.has(cookie)) answer = [200, nullsFilled(answer[1])];
     }

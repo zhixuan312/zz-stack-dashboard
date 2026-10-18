@@ -1,16 +1,17 @@
 // @vitest-environment node
 import type { ChildProcess } from 'node:child_process';
 import { startFakeGateway } from './fake-gateway-start.ts';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { DocumentDetail, InitiativeDetail, KnowledgeBody, PluginEval } from '../src/lib/api-shapes.ts';
 import type { ActivityLog, ActivitySummary, KnowledgeList, KnowledgeSummary, Runs } from '../src/lib/destination-shapes.ts';
-import type { People, TeamDetail, Teams, Usage } from '../src/lib/fleet-shapes.ts';
-import type { PlatformStatus, Releases } from '../src/lib/platform-shapes.ts';
+import type { Audit, KnowledgeHealth, People, TeamDetail, Teams, Usage } from '../src/lib/fleet-shapes.ts';
+import type { Bugs, Evaluation, PlatformStatus, Releases, Window } from '../src/lib/platform-shapes.ts';
 import type { Approvals, Home, InitiativeList, RecordRead } from '../src/lib/work-shapes.ts';
 import { ME } from '../scripts/fake-gateway/people.ts';
 import { people as peopleAnswer } from '../scripts/fake-gateway/platform-people.ts';
 import { PLATFORM_STATUS } from '../scripts/fake-gateway/platform-status.ts';
 import { teamDetail, teams } from '../scripts/fake-gateway/platform-teams.ts';
+import { usage } from '../scripts/fake-gateway/platform-usage.ts';
 import { empty, extreme } from '../scripts/fake-gateway/states.ts';
 import { NULL_STANDIN } from '../scripts/fake-gateway/states-partial.ts';
 import { access } from '../scripts/fake-gateway/work-access.ts';
@@ -114,16 +115,17 @@ describe('the fixture can shape every answer its routes produce', () => {
     }
   });
 
-  it('makes busy teams a page of long names under large counts, and a fresh platform none at all', () => {
+  it('makes busy teams a full page of long names under large counts, and a fresh platform none at all', () => {
     // Teams is paged and counted on the server, as Initiatives is: a page holds what it asked for, and the tiles and
     // the total are every team's, never the page's.
     const list = TEAMS();
     const busy = extreme(['teams'], list) as Teams;
-    expect(busy.teams).toHaveLength(list.teams.length);
+    // The page asked for ten, and a busy platform has them all, though the fixture holds fewer.
+    expect(busy.teams).toHaveLength(10);
     expect(busy.total).toBeGreaterThan(100);
     expect(busy.tiles.teams).toBe(busy.total);
     for (const [i, row] of busy.teams.entries()) {
-      expect(Object.keys(row).sort(), `a row lost a field: ${JSON.stringify(row)}`).toEqual(Object.keys(list.teams[i]).sort());
+      expect(Object.keys(row).sort(), `a row lost a field: ${JSON.stringify(row)}`).toEqual(Object.keys(list.teams[i % list.teams.length]).sort());
       expect(row.name.length).toBeGreaterThan(60);
     }
     expect(empty(['teams'], list)).toMatchObject({ teams: [], total: 0, tiles: { teams: 0, openWork: 0, pending: 0, lessons: 0 } });
@@ -168,8 +170,10 @@ describe('the fixture can shape every answer its routes produce', () => {
     expect(empty(['knowledge', 'summary'], LEARNED())).toMatchObject({ questions: { state: 'ok', data: { rows: [], total: 0 } } });
   });
 
-  it('serves the platform\'s status whole to a busy platform, and as a fresh deployment answers it to an empty one', () => {
-    expect(extreme(['platform', 'status'], PLATFORM_STATUS)).toBe(PLATFORM_STATUS);
+  it('keeps the platform\'s status week for week on a busy platform, and as a fresh deployment answers it to an empty one', () => {
+    // A busy platform needs more of somebody (below); its weeks and its doors are the fixture's.
+    const busy = extreme(['platform', 'status'], PLATFORM_STATUS) as typeof PLATFORM_STATUS;
+    expect({ ...busy, needs: null }).toEqual({ ...PLATFORM_STATUS, needs: null });
     // A fresh deployment: every check answered and nothing found, every week read and holding no data, no door's day.
     // The shape stays the fixture's, week for week, so a page meets nothing the gateway never sends.
     const fresh = empty(['platform', 'status'], PLATFORM_STATUS) as typeof PLATFORM_STATUS;
@@ -192,14 +196,14 @@ describe('People in the other worlds', () => {
     expect(got.tiles.signInsLastWeek.window).toEqual({ ...PEOPLE_LIST().tiles.signInsLastWeek.window, observedFrom: null, observedThrough: null, complete: false });
   });
 
-  it('is a page of long names under large counts on a busy platform, never more rows than the page asked for', () => {
+  it('is a page of long names under large counts on a busy platform, as many rows as the page asked for', () => {
     const list = PEOPLE_LIST();
     const got = extreme(['people'], list) as People;
-    expect(got.people).toHaveLength(list.people.length);
+    expect(got.people).toHaveLength(10);
     expect(got.total).toBeGreaterThan(100);
     expect(got.tiles.people).toBe(got.total);
     for (const [i, row] of got.people.entries()) {
-      expect(Object.keys(row).sort(), `a row lost a field: ${JSON.stringify(row)}`).toEqual(Object.keys(list.people[i]).sort());
+      expect(Object.keys(row).sort(), `a row lost a field: ${JSON.stringify(row)}`).toEqual(Object.keys(list.people[i % list.people.length]).sort());
       expect(row.name.length).toBeGreaterThan(60);
       expect(row.teams.length).toBeGreaterThan(1);
     }
@@ -448,13 +452,21 @@ describe('a state asked for by the session value', () => {
     }
   });
 
-  it('extreme: hands the request\'s query to the state, so a second page holds other names than the first', async () => {
+  it('extreme: hands the request\'s query to the state, so a second page of ten holds other rows than the first', async () => {
+    // Every list a page reads at ten, the fixture holding fewer than a busy platform: a later page is grown too.
     const base = await start();
-    const page = async (offset: number) => ((await read(base, 'superadmin+extreme', `initiatives?limit=2&offset=${offset}`))[1] as InitiativeList).rows.map((r) => r.slug);
-    const [first, second] = [await page(0), await page(2)];
-    expect(first).toHaveLength(2);
-    expect(second).toHaveLength(2);
-    for (const slug of second) expect(first).not.toContain(slug);
+    const LISTS = [['initiatives', 'rows', 'slug'], ['teams', 'teams', 'slug'], ['people', 'people', 'email'], ['knowledge', 'rows', 'key'], ['activity', 'rows', 'id'], ['runs', 'recent', 'id']] as const;
+    for (const [path, key, name] of LISTS) {
+      const page = async (offset: number) => {
+        const got = (await read(base, 'superadmin+extreme', `${path}?limit=10&offset=${offset}`))[1] as Record<string, unknown>;
+        const rows = (key === 'recent' ? (got.recent as { data: { rows: unknown[] } }).data.rows : got[key]) as Record<string, string>[];
+        return rows.map((r) => r[name]);
+      };
+      const [first, second, far] = [await page(0), await page(10), await page(200)];
+      expect([first.length, second.length, far.length], path).toEqual([10, 10, 10]);
+      for (const row of second) expect(first, path).not.toContain(row);
+      expect(await page(10), `${path}: the same page twice`).toEqual(second);
+    }
   });
 
   it('stands a number in for every unread figure of one session value while a check asks, and for nobody else', async () => {
@@ -490,5 +502,150 @@ describe('a state asked for by the session value', () => {
     // Nothing written is an estimate of nothing; a null estimate is a store that could not be read.
     expect(record.lead.estimate).toMatchObject({ words: 0, hours: 0, coverage: { documents: 0 } });
     expect(record.record.state === 'ok' && record.record.data.rows).toEqual([]);
+  });
+});
+
+/**
+ * A busy platform above every ceiling (Task I-127, AC-2.7): `extreme` answers past each ceiling the spec and the gateway
+ * set, in the gateway's shapes, a list paged by the request's offset so a second page holds other rows. A list the gateway
+ * cuts to a count of its own (five newest, five most rewritten, ten tools, five needs) is answered full, with more beyond.
+ */
+describe('a busy platform is above every ceiling', () => {
+  let base = '';
+  let stop = () => {};
+  beforeAll(async () => { const gateway = await startFakeGateway(); base = gateway.base; stop = () => gateway.proc.kill(); });
+  afterAll(() => stop());
+  const busy = async <T,>(path: string, person = 'superadmin'): Promise<T> => {
+    const res = await fetch(`${base}/api/console/${path}${path.includes('?') ? '&' : '?'}scope=platform`, { headers: { cookie: `zz_console=${person}+extreme` } });
+    expect(res.status, `${person}: GET ${path}`).toBe(200);
+    return await res.json() as T;
+  };
+  const DAY = 86_400_000;
+  /** A series' grain, by its first whole period's length. */
+  const grainOf = (windows: Window[]) => {
+    const days = (Date.parse(windows[1].to) - Date.parse(windows[1].from)) / DAY;
+    return days <= 7 ? 'week' : days <= 31 ? 'month' : 'quarter';
+  };
+  const spanYears = (windows: Window[]) => (Date.parse(windows.at(-1)!.to) - Date.parse(windows[0].from)) / (365 * DAY);
+
+  it('Audit: the latest 500 events, as its ceiling says, ten a page to the last', async () => {
+    const page = (offset: number) => busy<Audit>(`platform/audit?filter=all&limit=10&offset=${offset}`);
+    const [first, second, last, past] = [await page(0), await page(10), await page(490), await page(500)];
+    expect([first.total, first.ceiling, first.rows.length, last.rows.length, past.rows.length]).toEqual([500, 500, 10, 10, 0]);
+    for (const r of second.rows) expect(first.rows.map((x) => x.id)).not.toContain(r.id);
+  });
+
+  it('Record: months past 26 weeks, quarters past three years, days across years, and the most rewritten at its five', async () => {
+    const year = await busy<RecordRead>('record?period=year');
+    const all = await busy<RecordRead>('record?period=all&limit=10&offset=10');
+    expect(grainOf(year.cumulative.map((p) => p.window))).toBe('month');
+    const windows = all.cumulative.map((p) => p.window);
+    expect(grainOf(windows)).toBe('quarter');
+    expect(spanYears(windows)).toBeGreaterThan(3);
+    // Every series of the period is cut at the one grain, so the page's one cursor reads each at the same period.
+    const work = all.work.state === 'ok' ? all.work.data : null;
+    const docs = all.documents.state === 'ok' ? all.documents.data : null;
+    const know = all.knowledge.state === 'ok' ? all.knowledge.data : null;
+    for (const series of [work!.closuresInAll, work!.closuresByWeek, work!.medianHoursByWeek, docs!.wordsByWeek, know!.adoptedInAll, know!.searchesWithResults]) {
+      expect(series.map((p) => p.window.from)).toEqual(windows.map((w) => w.from));
+    }
+    const days = all.agents.state === 'ok' ? all.agents.data.days : [];
+    expect(new Set(days.map((d) => d.day.slice(0, 4))).size).toBeGreaterThan(1);
+    expect(docs!.mostRewritten).toHaveLength(5);
+    expect(docs!.versions.value).toBeGreaterThan(5);
+    const rec = all.record.state === 'ok' ? all.record.data : null;
+    expect(rec!.total).toBeGreaterThan(10);
+    expect(rec!.rows).toHaveLength(10);
+  });
+
+  it('Initiatives: the closures regrouped by month once the record is past 26 weeks', async () => {
+    const list = await busy<InitiativeList>('initiatives');
+    const windows = list.closures.state === 'ok' ? list.closures.data.map((c) => c.window) : [];
+    expect(grainOf(windows)).toBe('month');
+    expect(windows.length).toBeGreaterThan(6);
+  });
+
+  it('Usage: every called tool up to ten in the normal state, as the gateway answers it', () => {
+    const normal = usage(true);
+    const tools = normal.tools.state === 'ok' ? normal.tools.data : null;
+    const most = normal.mostUsed.state === 'ok' ? normal.mostUsed.data : null;
+    expect(tools!.rows).toHaveLength(Math.min(10, tools!.total));
+    expect(tools!.total).toBe(most!.total);
+    expect(tools!.rows.map((r) => r.tool)).toEqual(most!.rows.filter((r) => r.tool !== 'Unregistered tools').map((r) => r.tool));
+  });
+
+  it('Usage: the tools past ten, and the fourth part Other for every team past the three with the most calls', async () => {
+    const u = await busy<Usage>('platform/usage');
+    const tools = u.tools.state === 'ok' ? u.tools.data : null;
+    const most = u.mostUsed.state === 'ok' ? u.mostUsed.data : null;
+    expect([tools!.rows.length, most!.rows.length]).toEqual([10, 10]);
+    expect(Math.min(tools!.total, most!.total)).toBeGreaterThan(10);
+    const weeks = u.callsByWeek.state === 'ok' ? u.callsByWeek.data.weeks : [];
+    const teamsBusy = await busy<Teams>('teams');
+    expect(teamsBusy.total).toBeGreaterThanOrEqual(5);
+    for (const w of weeks.filter((x) => x.calls.value)) {
+      expect(w.parts!.map((p) => p.label).at(-1)).toBe('Other');
+      expect(w.parts).toHaveLength(4);
+      expect(w.parts!.reduce((n, p) => n + p.calls, 0)).toBe(w.calls.value);
+    }
+  });
+
+  it('Approvals waiting, Releases, Bugs and Evaluation past ten, each second page other rows', async () => {
+    const waiting = async (offset: number) => (await busy<Approvals>(`approvals?tab=waiting&limit=10&offset=${offset}`)).waiting;
+    const rel = async (offset: number) => (await busy<Releases>(`platform/releases?limit=10&offset=${offset}`)).rows;
+    const bug = async (offset: number) => (await busy<Bugs>(`platform/bugs?limit=10&offset=${offset}`)).queue;
+    for (const [what, page, key] of [['approvals', waiting, 'contentRevision'], ['releases', rel, 'version'], ['bugs', bug, 'id']] as const) {
+      const [a, b] = [await page(0), await page(10)] as { state: string; data: { rows: Record<string, string>[]; total: number } }[];
+      expect(a.data.total, what).toBeGreaterThan(10);
+      expect([a.data.rows.length, b.data.rows.length], what).toEqual([10, 10]);
+      for (const r of b.data.rows) expect(a.data.rows.map((x) => x[key]), what).not.toContain(r[key]);
+    }
+    const e = await busy<Evaluation>('platform/evaluation');
+    for (const part of [e.plugins, e.history]) expect(part.state === 'ok' && part.data.length).toBeGreaterThan(10);
+    expect(e.waiting.state === 'ok' && e.waiting.data.total).toBeGreaterThan(10);
+    expect(e.tiles.waiting).toBe(e.waiting.state === 'ok' ? e.waiting.data.total : null);
+  });
+
+  it('Knowledge: the newest at its five, the most asked at ten, and the shelves and the catalog past ten', async () => {
+    const k = await busy<KnowledgeSummary>('knowledge/summary');
+    expect(k.newest.state === 'ok' && k.newest.data).toHaveLength(5);
+    expect(k.tiles.standing.value).toBeGreaterThan(5);
+    const health = await busy<KnowledgeHealth>('platform/knowledge');
+    expect(health.shelves.state === 'ok' && health.shelves.data.rows.length).toBeGreaterThan(10);
+    const questions = health.questions?.state === 'ok' ? health.questions.data : null;
+    expect([questions!.rows.length, questions!.total > 10]).toEqual([10, true]);
+    expect((await busy<{ plugins: unknown[] }>('plugins')).plugins.length).toBeGreaterThan(10);
+  });
+
+  it('Status: more than five needs, a drift need among them, and more than five instances of one kind', async () => {
+    for (const person of ['superadmin', 'member']) {
+      const { needs } = await busy<PlatformStatus>('platform/status', person);
+      expect(needs.rows, person).toHaveLength(5);
+      expect(needs.total, person).toBeGreaterThan(5);
+      // Every instance is in a row or counted in the overflow by its kind, so the two add up to the total.
+      const overflow = Object.values(needs.overflowByKind).reduce((n, c) => n + (c ?? 0), 0);
+      expect(needs.rows.reduce((n, r) => n + r.instanceCount, 0) + overflow, person).toBe(needs.total);
+      expect(needs.rows.some((r) => r.kind === 'drift') || (needs.overflowByKind.drift ?? 0) > 0, person).toBe(true);
+      const approvals = needs.rows.filter((r) => r.kind === 'approvals').reduce((n, r) => n + r.instanceCount, 0) + (needs.overflowByKind.approvals ?? 0);
+      expect(approvals, person).toBeGreaterThan(5);
+    }
+    // The member reads every team's approvals as one row, which counts them.
+    const member = (await busy<PlatformStatus>('platform/status', 'member')).needs;
+    expect(member.rows.find((r) => r.kind === 'approvals')!.instanceCount).toBeGreaterThan(5);
+    expect(member.rows.some((r) => r.kind === 'drift')).toBe(true);
+  });
+
+  it('Home: runs in more than four initiatives, open work past five, and one document waiting', async () => {
+    for (const person of ['superadmin', 'member']) {
+      const h = await busy<Home>('home', person);
+      const runs = h.runs.state === 'ok' ? h.runs.data : null;
+      expect(runs!.active, person).toHaveLength(4);
+      expect(runs!.more, person).toBeGreaterThan(0);
+      expect(runs!.active.reduce((n, g) => n + g.runs.length, 0), person).toBeGreaterThan(4);
+      const open = h.openWork.state === 'ok' ? h.openWork.data : null;
+      expect(open!.rows.length + (open!.quiet ? 1 : 0), person).toBe(5);
+      expect(open!.total, person).toBeGreaterThan(5);
+      expect(h.waiting.state === 'ok' && h.waiting.data, person).toMatchObject({ count: 1, one: { path: expect.any(String) } });
+    }
   });
 });

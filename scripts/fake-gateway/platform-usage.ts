@@ -69,13 +69,18 @@ const FOLLOWUP_WEEKS = FOLLOWUP.weeks.map((putRight, i) => {
   };
 });
 
-/* Each registered tool's median call in its first comparable week (the first complete week with thirty calls that have
- * a duration; failing that, the first with any) and in the last complete week, whose median is insufficient under
+/* Each registered tool called in the last complete week, most calls first and every one of them up to ten, as the
+ * gateway names them: its median call in its first comparable week (the first complete week with thirty calls that
+ * have a duration; failing that, the first with any) and in the last complete week, whose median is insufficient under
  * thirty; `calls` are the calls the median is over. */
 const TOOLS: [tool: string, first: number, firstMs: number, firstCalls: number, lastMs: number, lastCalls: number][] = [
   ['core:document_read', 0, 610, 48, 540, 52],
   ['core:knowledge_search', 3, 880, 31, 910, 40],
   ['core:skill_read', 0, 120, 35, 140, 12],
+  ['core:document_write', 0, 450, 30, 470, 8],
+  ['core:initiative_status', 2, 300, 6, 280, 5],
+  ['core:bug_report', 3, 210, 4, 190, 3],
+  ['manage:whoami', 0, 40, 31, 35, 2],
 ];
 const median = (ms: number, calls: number): Figure => ({ value: ms, why: calls < 30 ? 'insufficient' : null });
 

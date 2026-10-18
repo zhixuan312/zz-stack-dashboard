@@ -159,7 +159,7 @@ describe('a filter, a search and a page are the server\'s parameters', () => {
     const none: InitiativeList = { ...LIST, rows: [], total: 0, closures: { state: 'unavailable', reason: 'zz-core did not answer' } };
     mount(<InitiativesView served={ok(none)} />);
     expect(text()).toContain('No initiative yet');
-    expect(text()).toContain('The closures by week could not be read');
+    expect(text()).toContain('The closures could not be read');
   });
 });
 

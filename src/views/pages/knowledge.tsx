@@ -286,7 +286,8 @@ function Weeks({ summary }: { summary?: KnowledgeSummary }) {
   const title = 'Searches with results, by week';
   if (!summary) return <Panel title={title}><p className="t-small text-ink-3">Not read: the shelf&rsquo;s figures did not load.</p></Panel>;
   if (summary.weeks.state !== 'ok') return <Unread title={title} reason={summary.weeks.reason} />;
-  const weeks: PeriodFigure[] = summary.weeks.data.slice(-26);
+  // Every week the answer holds, which is never past 26: the gateway draws its 24 newest whole weeks and the running one.
+  const weeks: PeriodFigure[] = summary.weeks.data;
   // A week with no search has no share: it keeps its slot and reads "No searches", never 0%.
   const columns = weeks.map((w) => ({ key: w.window.from, label: formatShortDate(w.window.from), value: w.denominator === 0 ? null : w.figure.value }));
   const last = [...weeks].reverse().find((w) => w.window.complete && w.denominator);
@@ -318,8 +319,9 @@ function Newest({ summary }: { summary?: KnowledgeSummary }) {
   if (!summary) return <Panel title={title}><p className="t-small text-ink-3">Not read: the shelf&rsquo;s figures did not load.</p>{foot}</Panel>;
   if (summary.newest.state !== 'ok') return <Unread title={title} reason={summary.newest.reason} />;
   const newest = summary.newest.data;
+  // The gateway answers the five newest and no count of the rest, so the card says how many it shows.
   return (
-    <Panel title={title} description="The latest your team recorded">
+    <Panel title={title} description={newest.length ? `The ${formatCount(newest.length)} ${plural(newest.length, 'lesson')} your team recorded most recently` : 'The latest your team recorded'}>
       {newest.length ? (
         <ul className="flex flex-col divide-y divide-line">
           {newest.map((n) => (

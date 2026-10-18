@@ -162,9 +162,10 @@ function Shelves({ part, fleet }: { part: KnowledgeHealth['shelves']; fleet: boo
       rows={rows}
       columns={shelfColumns(fleet)}
       rowKey={(r) => `${r.kind}:${r.shelf}`}
-      // Every shelf on one page, so the totals, which come last, are never paged away from the shelves they add up.
-      pageSize={100}
-      pageSizes={[100]}
+      // Ten a page, as every table pages (reconciliation 78): with more shelves than a page, the totals, which come last,
+      // are on the last page, and the pager says how many shelves there are.
+      pageSize={10}
+      pageSizes={[10]}
       empty={{ title: 'No shelf yet', body: 'A shelf is listed once a team has one.' }}
     />
   );
@@ -316,6 +317,8 @@ function Questions({ part }: { part: NonNullable<KnowledgeHealth['questions']> }
       rows={rows}
       columns={QUESTION_COLUMNS}
       rowKey={(r) => `${r.shelf}\0${r.question}`}
+      pageSize={10}
+      pageSizes={[10]}
       empty={{ title: 'Every search found something', body: 'No real-work search in these weeks came back empty.' }}
     />
   );

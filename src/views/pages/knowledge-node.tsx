@@ -120,7 +120,7 @@ export function KnowledgeNodeView({ read, team, rel }: { read: ServerRead<Knowle
               rowKey={(n) => n.key}
               rowHref={(n) => knowledgeNodeHref(n.team, n.path)}
               pageSize={10}
-              pageSizes={[10, 20, 50]}
+              pageSizes={[10]}
               toolbar={<div><h2 className="t-card">Shares a tag with</h2><p className="t-caption mt-1">{related.length} nodes</p></div>}
             />
           ) : null}

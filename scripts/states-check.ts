@@ -1,6 +1,6 @@
 /**
- * Every rail route and every detail route drawn in a browser in each of the spec's five states, as each person: one of
- * verify's `browserChecks` (Task I-126; spec AC-2.9 and AC-1.8).
+ * Every rail route and every detail route drawn in a browser in each of the spec's five states and above every ceiling,
+ * as each person: one of verify's `browserChecks` (Tasks I-126 and I-127; spec AC-2.9, AC-2.7 and AC-1.8).
  *
  *   node scripts/states-check.ts [--base http://localhost:3100] [--as superadmin,member] [--states normal,empty]
  *                                [--routes /,/record] [--workers 4]
@@ -28,6 +28,11 @@
  *            screen by five seconds from navigation: the content, a refusal or an error.
  *   partial  every part that answered still drawn: the normal page's headings the page lost are one run, the part that
  *            failed, and not all of them; and, where the page changed at all, words saying what is unavailable.
+ *   extreme  a busy platform, every answer past its ceiling (scripts/fake-gateway/states-extreme.ts): the route's own
+ *            content as in `normal`; no table drawing more than ten rows a page, and none drawing ten with no total, a
+ *            pager's or its own words' "of N", which is a total clipped to the page; a year stepper on Record, whose
+ *            record holds days in five years; and Other among the parts of Usage's calls by team, which more than four
+ *            teams made (`EXTREME_EXPECTS`).
  *
  * In every state no page is still loading once read, none is the console's error page, and none raised an uncaught
  * exception. In `normal`, `empty` and `partial` no figure the answer sent as null is drawn as a zero: each page is opened
@@ -49,7 +54,7 @@ const list = (k: string) => (opt(k, '') ? new Set(opt(k, '').split(',')) : null)
 const base = opt('--base', process.env.BASE ?? 'http://localhost:3100').replace(/\/$/, '');
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-const STATES = ['normal', 'empty', 'error', 'slow', 'partial'] as const;
+const STATES = ['normal', 'empty', 'error', 'slow', 'partial', 'extreme'] as const;
 type State = (typeof STATES)[number];
 const states = STATES.filter((s) => !list('--states') || list('--states')!.has(s));
 const people = Object.entries(config.personas ?? {}).filter(([name]) => !list('--as') || list('--as')!.has(name));
@@ -77,7 +82,7 @@ const SETTLE_MS = 12_000;
 const BOUND_MS = 5_000;
 
 /** The page's own words for its states, read in the page. COUPLED: the console's views' sentences. */
-const LIB = String.raw`
+export const LIB = String.raw`
 // The page's main region: never the shell's own placeholder (ShellPending in src/console/frame.tsx), which a route with
 // an unknown address paints, hidden, before its own loading state streams in.
 const main = () => [...document.querySelectorAll('main')].find((m) => !m.closest('[aria-hidden="true"]')) ?? null;
@@ -90,6 +95,18 @@ const content = (spec) => some(spec.ready, (el) => readable(el) && (!spec.text |
 const refusal = () => some('main [data-no-access], main [data-missing-page]')
   || some('main p.t-card', (el) => shown(el) && / does not exist$|^No initiative called |^No (release of this version|report of this id) is recorded$/.test(el.textContent.trim()));
 const alert = () => some('main [role="alert"]');
+// Each table the page draws, by its caption: its rows on the page, its pager's words and the rest of its card's words.
+// A chart's own table is for a screen reader alone and is not one.
+const tables = () => [...document.querySelectorAll('main section.card[aria-label]')].filter(shown).flatMap((s) => {
+  const t = s.querySelector('table:not(.sr-only)');
+  const body = t?.querySelector('tbody');
+  if (!t || !body) return [];
+  const pager = s.querySelector('nav[aria-label="Pagination"]')?.textContent ?? '';
+  return [{ caption: s.getAttribute('aria-label'), rows: body.querySelectorAll(':scope > tr').length, pager, words: (s.textContent || '').replace(body.textContent || '', '') }];
+});
+const years = () => document.querySelector('main [aria-label="Year"]')?.querySelectorAll('[role="radio"]').length ?? 0;
+// Each item is its own label: a legend's text read whole runs a long label flush into the next one's.
+const legend = () => [...document.querySelectorAll('main [data-legend] li')].map((l) => (l.textContent || '').trim());
 const errorPage = () => /^(The server could not draw this page|This page failed to render)$/.test((document.querySelector('main h1')?.textContent || '').trim());
 `;
 
@@ -109,8 +126,10 @@ const observe = (t: Target) => `(() => {
   requestAnimationFrame(tick);
 })()`;
 
+type Table = { caption: string; rows: number; pager: string; words: string };
 type Seen = {
   text: string; body: string; headings: string[]; loading: boolean; busy: string; content: boolean; refusal: boolean; alert: boolean; errorPage: boolean;
+  tables: Table[]; years: number; legend: string[];
   frames: { placeholder: number | null; main: number | null; loadingAtMain: boolean; contentAtMain: boolean; refusedAtMain: boolean; explicit: number | null };
   exceptions: string[];
 };
@@ -128,6 +147,7 @@ async function visit(page: Page, t: Target, value: string): Promise<Seen> {
     const read = () => page.eval<Omit<Seen, 'exceptions'> & { now: number }>(`(() => { ${LIB}
       const spec = ${JSON.stringify({ ready: t.ready, text: t.text })};
       return { now: performance.now(), text: main()?.innerText ?? '', body: document.body.innerText, loading: loading(), busy: busy(), content: content(spec), refusal: refusal(), alert: alert(), errorPage: errorPage(),
+        tables: tables(), years: years(), legend: legend(),
         headings: [...document.querySelectorAll('main h2, main h3')].filter(shown).map((h) => h.textContent.trim()).filter(Boolean), frames: window.__states };
     })()`);
     let seen = await read();
@@ -235,6 +255,36 @@ export function emptyRule(t: Pick<Target, 'path' | 'rail'>, x: Drawn, normal: Dr
   return { problems, said };
 }
 
+/**
+ * What a busy platform draws past a ceiling that only one route has, by route: Record's days stepped a year at a time,
+ * and Usage's calls by team with Other as the fourth part, for the person whose answer splits them (the superadmin's;
+ * a member's names no team). COUPLED: scripts/fake-gateway/states-extreme.ts, which answers both.
+ */
+export const EXTREME_EXPECTS: Record<string, { stepper?: true; other?: string }> = {
+  '/record': { stepper: true },
+  '/platform/usage': { other: 'superadmin' },
+};
+
+/** A table's total as its pager or its own words say it, `of 1,240`; NaN when it says none. */
+const totalOf = (words: string) => Number(/\bof ([\d,]+)\b/.exec(words)?.[1].replace(/,/g, '') ?? Number.NaN);
+
+/**
+ * The `extreme` state of one route as one person: every table at ten rows a page or fewer, none of ten without its total,
+ * and the route's own ceiling drawn where `EXTREME_EXPECTS` names one.
+ */
+export function extremeRule(t: Pick<Target, 'path'>, who: string, x: Pick<Seen, 'tables' | 'years' | 'legend'>): { problems: string[]; said: string[] } {
+  const problems: string[] = [];
+  for (const table of x.tables) {
+    if (table.rows > 10) problems.push(`"${table.caption}" draws ${table.rows} rows on one page, past ten`);
+    else if (table.rows === 10 && Number.isNaN(totalOf(table.pager)) && Number.isNaN(totalOf(table.words))) problems.push(`"${table.caption}" draws ten rows and no total, so the total is clipped to the page`);
+  }
+  const expects = EXTREME_EXPECTS[t.path];
+  if (expects?.stepper && x.years < 2) problems.push('no year stepper, though the record holds days in more than one year');
+  if (expects?.other === who && !x.legend.includes('Other')) problems.push('no Other among the parts of the calls by team, though more than four teams called');
+  const paged = x.tables.filter((table) => !Number.isNaN(totalOf(table.pager)));
+  return { problems, said: problems.length ? [] : [`${x.tables.length} ${x.tables.length === 1 ? 'table' : 'tables'}, ${paged.length} paged${expects?.stepper ? ', a year stepper' : ''}${expects?.other === who ? ', Other' : ''}`] };
+}
+
 type Row = { who: string; state: State; t: Target; problems: string[]; said: string };
 const rows: Row[] = [];
 const normals = new Map<string, Seen>();
@@ -263,9 +313,14 @@ function judge(who: string, state: State, t: Target, x: Seen, standing: Seen | n
   if (denied && state !== 'error' && state !== 'slow') {
     if (!x.refusal) problems.push('is refused this person, and draws no refusal or not-found');
     else said.push('refused');
-  } else if (state === 'normal') {
+  } else if (state === 'normal' || state === 'extreme') {
     if (!x.content && !(x.refusal && !t.rail)) problems.push(`no content (${t.ready}${t.text ? ` holding "${t.text}"` : ''})`);
     else said.push(x.content ? 'content' : 'refused');
+    if (state === 'extreme') {
+      const r = extremeRule(t, who, x);
+      problems.push(...r.problems);
+      said.push(...r.said);
+    }
   } else if (state === 'empty') {
     const r = emptyRule(t, x, normal);
     problems.push(...r.problems);

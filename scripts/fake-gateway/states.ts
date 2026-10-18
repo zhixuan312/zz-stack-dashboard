@@ -11,6 +11,7 @@ import type { Audit, KnowledgeHealth, People, Teams } from '../../src/lib/fleet-
 import type { Bugs, Evaluation, Part, PeriodFigure, PlatformStatus } from '../../src/lib/platform-shapes.ts';
 import type { Approvals, Home, InitiativeList } from '../../src/lib/work-shapes.ts';
 import { now } from './clock.ts';
+import { LONG, aboveCeilings, big } from './states-extreme.ts';
 import { freshDetail, noWriting } from './states-partial.ts';
 
 /**
@@ -223,9 +224,6 @@ const noRuns = (r: Runs): Runs => ({
   recent: { state: 'ok', data: { rows: [], total: 0 } },
 });
 
-const LONG = 'with-a-name-nobody-planned-for-because-it-came-from-a-ticket-title';
-const big = (n: number) => n * 1_000 + (n % 7) * 137;
-
 /**
  * `n` more rows, grown from the ones already there.
  *
@@ -244,43 +242,18 @@ function grown<T>(rows: T[], n: number, more: (base: T, i: number) => T): T[] {
 }
 
 /**
- * A busy platform: six-figure counts, hundreds of rows, and names longer than any layout planned for.
+ * A busy platform: six-figure counts, hundreds of rows, and names longer than any layout planned for. A route with a
+ * ceiling is states-extreme.ts's, past it; the rest are reshaped here.
  *
  * `own` is the one team a member is held to. However busy the platform, a member is still answered their own team,
  * so no row grown for them names another. `q` is the request's own query: a row is named by its place in the whole
- * list, `offset` included, so a second page holds other names than the first.
+ * list, `offset` included, so a second page holds other names than the first. `team` is the team the caller acts for.
  */
-export function extreme(seg: string[], body: unknown, own: string | null = null, q: URLSearchParams = new URLSearchParams()): unknown {
-  const [head, a, b] = seg;
-  const from = Math.max(0, Number(q.get('offset') ?? 0) || 0);
+export function extreme(seg: string[], body: unknown, own: string | null = null, q: URLSearchParams = new URLSearchParams(), team: string | null = own ?? 'atlas'): unknown {
+  const busier = aboveCeilings(seg, body, own, q, team);
+  if (busier !== undefined) return busier;
+  const [head, a] = seg;
   switch (head) {
-    case 'teams': {
-      if (a || own) return body;
-      // The list is paged and counted on the server: a busy platform is a page of names longer than any layout planned
-      // for, under counts in the thousands, never more rows than the page asked for.
-      const t = body as Teams;
-      const more = 214;
-      return {
-        ...t,
-        tiles: { teams: t.tiles.teams + more, openWork: big(t.tiles.openWork), pending: t.tiles.pending + 140, lessons: big(t.tiles.lessons) },
-        teams: t.teams.map((r, at) => { const i = from + at; return { ...r, slug: `team-${i + 1}-${LONG}`.slice(0, 63), name: `Regional delivery group ${i + 1}, ${LONG.replace(/-/g, ' ')}`, people: 300 + i, openWork: 1_000 + i * 17, waiting: 40 + i, lessons: 9_000 + i }; }),
-        total: t.total ? t.total + more : 0,
-      } satisfies Teams;
-    }
-    case 'initiatives': {
-      if (a && b) return body;
-      // The list is paged on the server, so a busy team is a page of names longer than any layout planned for under
-      // counts in the thousands, never more rows than the page asked for.
-      const l = body as InitiativeList;
-      const more = 3_904;
-      return {
-        ...l,
-        tiles: { open: l.tiles.open + 812, waiting: l.tiles.waiting + 140, closed: { accepted: big(l.tiles.closed.accepted), delivered: big(l.tiles.closed.delivered), abandoned: big(l.tiles.closed.abandoned) } },
-        rows: l.rows.map((r, at) => { const i = from + at; return { ...r, slug: `2026-0${(i % 9) + 1}-${String((i % 27) + 1).padStart(2, '0')}-${LONG}-${i}`, flow: r.flow && `${r.flow}-${LONG}` }; }),
-        total: l.total ? l.total + more : 0,
-        summary: l.summary.state === 'ok' && l.total ? { state: 'ok', data: { ...l.summary.data, total: l.summary.data.total + more } } : l.summary,
-      } satisfies InitiativeList;
-    }
     case 'knowledge': {
       if (a === 'log') {
         const entries = (body as { entries: KnowledgeLogEntry[] }).entries;
@@ -295,31 +268,9 @@ export function extreme(seg: string[], body: unknown, own: string | null = null,
           newest: k.newest.state === 'ok' ? { state: 'ok', data: k.newest.data.map((n) => ({ ...n, title: `${n.title}, ${LONG.replace(/-/g, ' ')}` })) } : k.newest,
         } satisfies KnowledgeSummary;
       }
-      if (a) return body;
-      // The shelf is paged on the server, so a busy shelf is a page of titles longer than any layout planned for under a
-      // total in the thousands, never more rows than the page asked for.
-      const l = body as KnowledgeList;
-      return {
-        ...l,
-        rows: l.rows.map((n, at) => ({ ...n, title: `When the gateway rejects an argument the client cached, reconnect before retrying, ${LONG.replace(/-/g, ' ')} (${from + at})`, tags: ['gateway', 'clients', 'schema-cache', 'reconnect', 'retries'] })),
-        total: l.total ? l.total + 9_000 : 0,
-        summary: { ...l.summary, standing: l.total ? l.summary.standing + 9_000 : 0 },
-      } satisfies KnowledgeList;
+      return body;
     }
     case 'skills': return a ? body : { skills: (body as { skills: Skill[] }).skills.map((s) => ({ ...s, runs: big(s.runs), calls: big(s.calls), refusals: big(s.refusals), durationTotal: s.durationTotal === null ? null : s.durationTotal * 900 })) };
-    case 'people': {
-      if (own) return body;
-      // The list is paged and counted on the server: a busy platform is a page of names longer than any layout planned
-      // for, each person in more teams than a column holds, under counts in the hundreds, never more rows than asked for.
-      const p = body as People;
-      const more = 480;
-      return {
-        ...p,
-        tiles: { ...p.tiles, people: p.tiles.people + more, withPasskey: p.tiles.withPasskey + 410, neverSignedIn: p.tiles.neverSignedIn + 37 },
-        people: p.people.map((r, at) => { const i = from + at; return { ...r, email: `person.${i}.${LONG}@example.com`, name: `Person ${i} ${LONG.replace(/-/g, ' ')}`, teams: Array.from({ length: 6 }, (_, j) => `team-${j + 1}-${LONG}`.slice(0, 63) + ' (member)'), passkeys: r.passkeys + 3 }; }),
-        total: p.total ? p.total + more : 0,
-      } satisfies People;
-    }
     case 'activity': {
       if (a === 'summary') {
         const s = body as ActivitySummary;
@@ -335,17 +286,7 @@ export function extreme(seg: string[], body: unknown, own: string | null = null,
             rows: s.groups.data.rows.map((g) => ({ ...g, count: big(g.count), tool: `${g.tool}_${LONG}`, message: g.message && `${g.message}. The argument was rejected before any write: the schema the client cached predates the release that renamed it, so every call from that client fails the same way until it reconnects.` })) } } : s.groups,
         } satisfies ActivitySummary;
       }
-      const l = body as ActivityLog;
-      return { ...l, rows: l.rows.map((e) => ({ ...e, tool: e.tool && `${e.tool}_${LONG}` })), total: l.total ? l.ceiling : 0 } satisfies ActivityLog;
-    }
-    case 'runs': {
-      const r = body as Runs;
-      return {
-        ...r,
-        tiles: { ...r.tiles, runs: { value: big(r.tiles.runs.value ?? 0), why: null } },
-        bySkill: r.bySkill.state === 'ok' ? { state: 'ok', data: { rows: r.bySkill.data.rows.map((k) => ({ ...k, skill: `${k.skill}-${LONG}`, runs: big(k.runs) })) } } : r.bySkill,
-        recent: r.recent.state === 'ok' ? { state: 'ok', data: { total: big(r.recent.data.total), rows: r.recent.data.rows.map((k) => ({ ...k, skill: `${k.skill}-${LONG}`, initiative: k.initiative && `${k.initiative}-${LONG}` })) } } : r.recent,
-      } satisfies Runs;
+      return body;
     }
     default: return body;
   }

@@ -17,7 +17,7 @@ import { justRead, search } from './shared';
 export const initiativesTool = defineViewTool({
   name: 'initiatives',
   title: 'Initiatives',
-  description: 'The active team\'s work, filtered and paged by the gateway, ten to a page when not told otherwise: how many match by state and flow over all of them, the open, waiting and closed counts, closures by week and outcome, and each initiative in the page with where it goes next.',
+  description: 'The active team\'s work, filtered and paged by the gateway, ten to a page when not told otherwise: how many match by state and flow over all of them, the open, waiting and closed counts, closures by outcome, by week, month or quarter as the length of the team\'s record cuts them, and each initiative in the page with where it goes next.',
   needs: FEATURES.initiatives.needs,
   page: '/initiatives',
   input: z.object({

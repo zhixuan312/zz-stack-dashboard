@@ -16,6 +16,7 @@
 import { formatPercent, plural } from '@/lib/format';
 import { formatDate, formatDateTime, formatDay } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
+import { grainOf } from '@/lib/grain';
 import type { Fact, Insight, SharedContext } from '@/lib/shared-context';
 import type { Figure, PeriodFigure, Window } from '@/lib/platform-shapes';
 import type { RecordRead, WritingCoverage } from '@/lib/work-shapes';
@@ -95,15 +96,13 @@ function absent(why: Figure['why']): string {
 }
 const said = (f: Figure, format: (n: number) => string = formatCount): string => (f.value === null ? absent(f.why) : format(f.value));
 
-/** Whether a series of periods is weeks or months, as the gateway's grain cut them. */
-const weekly = (windows: Window[]): boolean => !windows.length || Date.parse(windows[0].to) - Date.parse(windows[0].from) <= 8 * 86_400_000;
-/** The words for one period of a series: `Week of 5 Oct` or `Oct 2026`. */
+/** The words for one period of a series: `Week of 5 Oct`, or `Oct 2026` for a month and for a quarter, its first month. */
 export function tickOf(windows: Window[]): (date: string) => string {
-  if (weekly(windows)) return (d) => `Week of ${formatDay(d)}`;
+  if (grainOf(windows) === 'week') return (d) => `Week of ${formatDay(d)}`;
   return (d) => { const s = formatDate(d); return s.slice(s.indexOf(' ') + 1); };
 }
-/** `by week` or `by month`, as a chart of the period's series is named. */
-export const grainWords = (windows: Window[]): string => (weekly(windows) ? 'by week' : 'by month');
+/** `by week`, `by month` or `by quarter`, as a chart of the period's series is named: the grain the gateway cut it at. */
+export const grainWords = (windows: Window[]): string => `by ${grainOf(windows)}`;
 
 /* The lead */
 
@@ -252,7 +251,7 @@ export function recordContext(r: RecordRead | null, { filters, trouble = null }:
   const lead = leadOf(r);
   const tiles = tilesOf(r);
   const facts: Fact[] = [
-    { label: 'Period', value: periodLine(r), definition: 'Every figure below the lead is the period\'s' },
+    { label: 'Period', value: periodLine(r), definition: `Every figure below the lead is the period's; its series are drawn ${grainWords(r.cumulative.map((p) => p.window))}` },
     { label: LEAD.kicker, value: lead.pace ? `${lead.text}, ${lead.pace}` : lead.text, change: `as of ${formatDateTime(r.lead.asOf)}`, definition: lead.words ? `Over ${lead.words}: ${LEAD.note}` : LEAD.unread },
     ...footOf(r).map((f): Fact => ({ label: f.label, value: f.value })),
     ...(Object.keys(SLICES) as SliceKey[]).flatMap((k): Fact[] => {

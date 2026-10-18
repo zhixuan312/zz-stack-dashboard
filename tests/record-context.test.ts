@@ -28,9 +28,10 @@ import { contextText, type SharedContext } from '@/lib/shared-context';
 import type { RecordRead } from '@/lib/work-shapes';
 import { CONTEXT_BUDGET } from '@/views/context';
 import { RecordActions, RecordView } from '@/views/pages/record';
-import { RECORD_DEFAULTS, footOf, leadOf, periodLine, recordContext, recordPath, tileText, tilesOf } from '@/views/record-context';
+import { RECORD_DEFAULTS, footOf, grainWords, leadOf, periodLine, recordContext, recordPath, tickOf, tileText, tilesOf } from '@/views/record-context';
 import { recordTool } from '@/views/tools/record';
 import { ME } from '../scripts/fake-gateway/people.ts';
+import { extreme } from '../scripts/fake-gateway/states.ts';
 import { record } from '../scripts/fake-gateway/work-record.ts';
 
 /**
@@ -154,5 +155,33 @@ describe('the shared context', () => {
     await waitFor(() => expect(shared.at(-1)?.address).toBe('/record?period=year'));
     await waitFor(() => expect(fact(shared.at(-1)!, 'Period')?.value).toBe(periodLine(YEAR)));
     expect(fact(shared.at(-1)!, 'Work closed')!.value).toBe(footOf(YEAR)[0].value);
+  });
+});
+
+describe('the grain the series arrive in (Task I-139)', () => {
+  /** The busy team's record, whose whole record the gateway cuts by quarter and whose year by month. */
+  const busy = (period: string) => extreme(['record'], answer(`period=${period}`), null, new URLSearchParams(`period=${period}`), 'atlas') as RecordRead;
+  const windowsOf = (r: RecordRead) => r.cumulative.map((p) => p.window);
+
+  it('names a series by the grain it arrives in: a quarter\'s by week, a year\'s by month, the whole busy record\'s by quarter', () => {
+    expect(grainWords(windowsOf(QUARTER))).toBe('by week');
+    expect(grainWords(windowsOf(busy('year')))).toBe('by month');
+    expect(grainWords(windowsOf(busy('all')))).toBe('by quarter');
+    // A quarter's column is its first month's, as a month's is.
+    const quarters = windowsOf(busy('all'));
+    expect(tickOf(quarters)(quarters[0].from)).toMatch(/^[A-Z][a-z]{2} \d{4}$/);
+    expect(tickOf(windowsOf(QUARTER))(windowsOf(QUARTER)[0].from)).toMatch(/^Week of /);
+  });
+
+  it('tells the assistant the grain the page draws the series in, never by week for months or quarters', () => {
+    const said = (r: RecordRead, period: 'quarter' | 'year' | 'all') => contextText(recordContext(r, { filters: { ...RECORD_DEFAULTS, period } }));
+    expect(said(QUARTER, 'quarter')).toContain('drawn by week');
+    const year = said(busy('year'), 'year');
+    expect(year).toContain('drawn by month');
+    expect(year).not.toMatch(/by (week|quarter)\b/);
+    const all = said(busy('all'), 'all');
+    expect(all).toContain('drawn by quarter');
+    expect(all).not.toMatch(/by (week|month)\b/);
+    expect(all.length).toBeLessThanOrEqual(CONTEXT_BUDGET);
   });
 });

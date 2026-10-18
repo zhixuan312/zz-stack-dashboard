@@ -157,6 +157,8 @@ function Plugins({ part }: { part: Evaluation['plugins'] }) {
       rows={part.state === 'ok' ? part.data : []}
       columns={PLUGIN_COLUMNS}
       rowKey={(r) => r.plugin}
+      pageSize={10}
+      pageSizes={[10]}
       error={part.state === 'ok' ? undefined : `Each plugin's latest score could not be read (${part.reason}). The rest of the page stands.`}
       onRetry={() => router.refresh()}
       empty={{ title: 'No plugin scored yet', body: 'A plugin is listed here once an evaluation of it has been scored.' }}
@@ -219,6 +221,8 @@ function History({ part }: { part: Evaluation['history'] }) {
       rows={part.state === 'ok' ? seriesRows(part.data) : []}
       columns={SERIES_COLUMNS}
       rowKey={(r) => r.key}
+      pageSize={10}
+      pageSizes={[10]}
       error={part.state === 'ok' ? undefined : `Every score by series could not be read (${part.reason}). The rest of the page stands.`}
       onRetry={() => router.refresh()}
       empty={{ title: 'No score recorded yet', body: 'A series starts with a plugin\'s first scoring.' }}

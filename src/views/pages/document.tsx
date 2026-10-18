@@ -254,7 +254,8 @@ function DocumentBody({ doc, view, onView }: { doc: DocumentDetail; view: 'read'
           rows={doc.decisions}
           columns={decisionColumns(doc.decisions[0]?.role ?? '')}
           rowKey={(x) => x.key}
-          pageSize={20}
+          pageSize={10}
+          pageSizes={[10]}
           toolbar={
             <div>
               <h2 className="t-card">{doc.decisions[0]?.role === 'plan' ? 'Which criteria each task covers' : 'The claims this document makes'}</h2>

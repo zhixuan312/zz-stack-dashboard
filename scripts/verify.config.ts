@@ -269,8 +269,10 @@ const config: VerifyConfig = {
   // `workspace-switch` walks the workspace menu as each persona: Work to Platform, the figure, and back.
   // `primary-data` times each route's own data beside its largest paint, as each persona, and holds a delayed read to a
   // bounded state. It runs beside the audit, the presses and the keyboard walk, so its times are taken under their load.
-  // `states-check` draws every rail and detail route as each persona in each of the spec's five states, asked for per
-  // request by the session value, so the suites beside it read the normal state throughout (reconciliation 79).
+  // `states-check` draws every rail and detail route as each persona in each of the spec's five states and in `extreme`,
+  // a busy platform past every ceiling, where no table draws more than ten rows a page or ten with no total. Each state
+  // is asked for per request by the session value, so the suites beside it read the normal state throughout
+  // (reconciliation 79).
   browserChecks: ['scripts/approve-banners.ts', 'scripts/live-check.ts', 'scripts/selection-check.ts', 'scripts/hydration-check.ts', 'scripts/workspace-switch.ts', 'scripts/primary-data.ts', 'scripts/states-check.ts'],
   /**
    * The fake gateway's two people (scripts/fake-gateway/people.ts), each by the value of the `zz_console` cookie it

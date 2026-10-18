@@ -140,7 +140,7 @@ export function InitiativeView({ team, slug, served }: { team: string; slug: str
           rowKey={(x) => x.path}
           rowHref={(x) => `${base}/${encodePath(x.path)}`}
           pageSize={10}
-          pageSizes={[10, 20, 50]}
+          pageSizes={[10]}
           toolbar={
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="min-w-0">
@@ -162,7 +162,7 @@ export function InitiativeView({ team, slug, served }: { team: string; slug: str
           rowKey={(x) => x.path}
           rowHref={(x) => `${base}/${encodePath(x.path)}`}
           pageSize={10}
-          pageSizes={[10, 20, 50]}
+          pageSizes={[10]}
           toolbar={<div><h2 className="t-card">Sources</h2><p className="t-caption mt-1">What someone said or found, attached as evidence</p></div>}
         />
       ) : null}

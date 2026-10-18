@@ -18,8 +18,9 @@ import { failureOf } from '@/console/query';
 import { When } from '@/console/when';
 import { useDataClock } from '@/lib/api';
 import { plural } from '@/lib/format';
-import { formatDateTime, formatShortDate } from '@/lib/format-date';
+import { formatDate, formatDateTime, formatShortDate } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
+import { grainOf, type Grain } from '@/lib/grain';
 import { useLive } from '@/lib/live';
 import type { InitiativeList, InitiativeRow } from '@/lib/work-shapes';
 import { pendingContext } from '@/views/context';
@@ -142,29 +143,36 @@ export function InitiativesView({ served }: { served: InitiativesRead }) {
   );
 }
 
-/** The team's closures, a column a Monday week split by the outcome the platform recorded, the running week drawn unfinished. */
+/** A period's column: `05 Oct` for a week, its first month, `Oct 2026`, for a month or a quarter. */
+const tickOf = (grain: Grain) => (from: string) => (grain === 'week' ? formatShortDate(from) : formatDate(from).split(' ').slice(1).join(' '));
+
+/**
+ * The team's closures, a column a period split by the outcome the platform recorded, the running period drawn
+ * unfinished, each named by the grain they arrive in. Closures not read have no grain, so they are said with none.
+ */
 function Closures({ list, mark }: { list: InitiativeList | undefined; mark: string }) {
-  const title = 'Closures by week and outcome';
+  const weeks = list?.closures.state === 'ok' ? list.closures.data : [];
+  const grain = grainOf(weeks.map((w) => w.window));
+  const title = `Closures by ${grain} and outcome`;
   if (!list) {
     // A read that failed is said once, by the table's Retry; the chart only says it has nothing to draw.
-    return <Panel title={title}>{mark === '—' ? <EmptyState kind="error" title="Not read" className="py-10">The weeks come with the initiatives, which did not load.</EmptyState> : <Skeleton className="h-56 rounded-md" />}</Panel>;
+    return <Panel title="Closures by outcome">{mark === '—' ? <EmptyState kind="error" title="Not read" className="py-10">The closures come with the initiatives, which did not load.</EmptyState> : <Skeleton className="h-56 rounded-md" />}</Panel>;
   }
   if (list.closures.state !== 'ok') {
-    return <Panel title={title}><EmptyState kind="error" title="The closures by week could not be read" className="py-10">The tiles and the initiatives are read; the weeks are not.</EmptyState></Panel>;
+    return <Panel title="Closures by outcome"><EmptyState kind="error" title="The closures could not be read" className="py-10">The tiles and the initiatives are read; the closures are not.</EmptyState></Panel>;
   }
-  const weeks = list.closures.data;
   if (!weeks.length) {
     return <Panel title={title}><EmptyState kind="first-run" title="No week recorded yet" className="py-10">A week is drawn once the team&apos;s first initiative closes.</EmptyState></Panel>;
   }
   return (
-    <Panel title={title} description={`The team's closures, ${formatCount(weeks.length)} ${plural(weeks.length, 'week')}, whatever the filters`}>
+    <Panel title={title} description={`The team's closures, ${formatCount(weeks.length)} ${plural(weeks.length, grain)}, whatever the filters`}>
       <ColumnChart
-        label="Closures by week and outcome"
+        label={title}
         dates={weeks.map((w) => w.window.from)}
         running={!weeks.at(-1)!.window.complete}
         noData="None recorded"
         parts={PARTS}
-        columns={weeks.map((w) => ({ key: w.window.from, label: formatShortDate(w.window.from), values: [w.accepted.value, w.delivered.value, w.abandoned.value] }))}
+        columns={weeks.map((w) => ({ key: w.window.from, label: tickOf(grain)(w.window.from), values: [w.accepted.value, w.delivered.value, w.abandoned.value] }))}
       />
     </Panel>
   );

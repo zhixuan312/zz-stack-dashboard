@@ -143,6 +143,8 @@ function Windows({ release, asOf }: { release: ReleaseDetail; asOf: string }) {
       rows={rows}
       columns={columns}
       rowKey={(r) => r.key}
+      pageSize={10}
+      pageSizes={[10]}
     />
   );
 }

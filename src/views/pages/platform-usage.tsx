@@ -264,18 +264,24 @@ const TOOL_COLUMNS: Column<ToolRow>[] = aligned([
   { key: 'change', header: 'Change', mobile: 'status', cell: (r) => <ChangeCell row={r} /> },
 ]);
 
+/** How many of the registered tools called the gateway names, when it names fewer than were called: the ten called most. */
+const toolsShown = (shown: number, total: number) => (total > shown ? `; ${formatCount(shown)} of ${formatCount(total)} tools called, the most called first` : '');
+
 function Tools({ part }: { part: Usage['tools'] }) {
   const title = 'Each tool\'s median call';
   if (part.state !== 'ok') return <Unavailable title={title} reason={part.reason} />;
+  const { rows, total } = part.data;
   return (
     <DataTable
       title={title}
-      description="Each registered tool's median call in its first comparable week against the last whole week; under 30 calls a median is too few to compare"
+      description={`Each registered tool's median call in its first comparable week against the last whole week; under 30 calls a median is too few to compare${toolsShown(rows.length, total)}`}
       caption="Each tool's median call, first week against last"
       noun="tools"
-      rows={part.data.rows}
+      rows={rows}
       columns={TOOL_COLUMNS}
       rowKey={(r) => r.tool}
+      pageSize={10}
+      pageSizes={[10]}
       empty={{ title: 'No tool has a median yet', body: 'A tool appears here once real work has called it in a whole week.' }}
     />
   );
@@ -305,12 +311,15 @@ function Rhythm({ part, coverageFrom }: { part: Usage['rhythm']; coverageFrom: s
   );
 }
 
+/** The one name every call to a tool no door registers is counted under, which the gateway never counts as a tool. */
+const UNREGISTERED = 'Unregistered tools';
+
 function MostUsed({ part }: { part: Usage['mostUsed'] }) {
   const title = 'Tools called most';
   if (part.state !== 'ok') return <Unavailable title={title} reason={part.reason} />;
-  const { rows } = part.data;
+  const { rows, total } = part.data;
   return (
-    <Panel title={title} description="Real-work calls by tool in the last whole week; a tool no door registers is counted under one name">
+    <Panel title={title} description={`Real-work calls by tool in the last whole week; a tool no door registers is counted under one name${toolsShown(rows.filter((t) => t.tool !== UNREGISTERED).length, total)}`}>
       {rows.length
         ? <BarList label="Tools called most" limit={8} items={rows.map((t) => ({ key: t.tool, label: <span title={t.tool} className="font-mono text-xs">{t.tool}</span>, value: t.calls }))} />
         : <EmptyState layout="inline" title="No tool was called">Nothing called a tool in the last whole week.</EmptyState>}

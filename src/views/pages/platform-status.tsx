@@ -214,6 +214,8 @@ function Scoreboard({ status }: { status: PlatformStatus }) {
         rows={score.directional}
         columns={DIRECTIONAL_COLUMNS}
         rowKey={(r) => r.key}
+        pageSize={10}
+        pageSizes={[10]}
       />
       <DataTable
         title="Activity"
@@ -223,6 +225,8 @@ function Scoreboard({ status }: { status: PlatformStatus }) {
         rows={score.activity}
         columns={ACTIVITY_COLUMNS}
         rowKey={(r) => r.key}
+        pageSize={10}
+        pageSizes={[10]}
       />
     </>
   );
@@ -250,6 +254,8 @@ function Doors({ doors }: { doors: PlatformStatus['doors'] }) {
       rows={doors.data.map(doorRow)}
       columns={DOOR_COLUMNS}
       rowKey={(r) => r.door}
+      pageSize={10}
+      pageSizes={[10]}
       empty={{ title: 'No door has recorded a call', body: 'A door\'s days appear here once real work calls it.' }}
     />
   );

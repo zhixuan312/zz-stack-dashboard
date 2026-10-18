@@ -1,6 +1,7 @@
-import { act, renderHook } from '@testing-library/react';
+import { act, fireEvent, render, renderHook, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { usePaged } from '@/components/ui/pagination';
+import { PageControl } from '@/console/paged';
 
 const rows = Array.from({ length: 23 }, (_, i) => i + 1);
 
@@ -36,5 +37,26 @@ describe('usePaged', () => {
     act(() => result.current.pagination.onPageSizeChange(20));
     expect(result.current.pagination.page).toBe(1);
     expect(result.current.rows).toHaveLength(20);
+  });
+});
+
+/** Access's tokens, teams and members panels page through this one control (Task I-139). */
+function Roster({ list }: { list: number[] }) {
+  const { rows: page, ...pager } = usePaged(list);
+  return <><ul>{page.map((r) => <li key={r}>{r}</li>)}</ul><PageControl {...pager} noun="people" /></>;
+}
+
+describe('PageControl', () => {
+  it('pages at ten under the total and offers no larger page', () => {
+    const { container } = render(<Roster list={rows} />);
+    expect(container.querySelectorAll('ul > li')).toHaveLength(10);
+    expect(screen.getByRole('navigation', { name: 'Pagination' })).toHaveTextContent('1–10 of 23 people');
+    fireEvent.keyDown(screen.getByRole('button', { name: /per page/ }), { key: 'Enter' });
+    expect(screen.getAllByRole('menuitem').map((m) => m.textContent)).toEqual(['10 per page']);
+  });
+
+  it('draws nothing for a list that fits on one page', () => {
+    render(<Roster list={rows.slice(0, 10)} />);
+    expect(screen.queryByRole('navigation', { name: 'Pagination' })).toBeNull();
   });
 });

@@ -27,6 +27,7 @@ import { aligned } from '@/console/columns';
 import { failureOf } from '@/console/query';
 import { Panel } from '@/console/panel';
 import { recordText } from '@/console/record-text';
+import { plural } from '@/lib/format';
 import { dayOf, formatCalendarDate, formatDate, formatDay } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import type { Window } from '@/lib/platform-shapes';
@@ -292,7 +293,11 @@ function Documents({ r, windows }: Slice) {
               />
             ) : <NoPeriods />}
           </Panel>
-          <Panel title="Most rewritten documents" description="The versions each was given in the period">
+          <Panel
+            title="Most rewritten documents"
+            // The gateway answers the five given the most versions and no count of the rest, so the card says how many it shows.
+            description={d.mostRewritten.length ? `The ${formatCount(d.mostRewritten.length)} ${plural(d.mostRewritten.length, 'document')} given the most versions in the period, with the versions each was given` : 'The versions each was given in the period'}
+          >
             {d.mostRewritten.length ? (
               <BarList
                 label="Most rewritten documents"
