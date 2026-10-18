@@ -9,7 +9,7 @@
 import { contextText, freshnessOf, type SharedContext } from '@/lib/shared-context';
 
 /** Whose data a view shows: every team's for a superadmin in the platform view, one team's otherwise. */
-export type ViewMode = 'platform' | 'team';
+type ViewMode = 'platform' | 'team';
 
 /** When a view's data arrived, and the clock that is measured against: the data's, never the browser's at render. */
 export type Arrival = { updatedAt: Date | string | null; now: Date | string };

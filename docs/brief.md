@@ -85,10 +85,10 @@ a time or `sources/2026-10-06-call.md` arrives as a single segment named after i
   Meridian's hue-and-chroma path calls it, which is what makes the brand reproducible from a release.
 - **Two workspaces, one menu.** Work (`/`) and Platform (`/platform`, the platform's Status) are chosen in the rail's
   workspace menu; a workspace is offered when the person may open one of its destinations, and the line under the
-  product name names the workspace in view. A superadmin also switches between the whole platform and their own team
-  (`Your team · <slug>`), in the same menu under the workspaces and in Settings. In team mode the rail and the
-  palette drop the platform-only pages: `src/nav.ts` narrows the destinations the server answered, in the browser,
-  so the choice can hide a destination and never add one.
+  product name names the workspace in view. The menu holds the workspaces alone: a superadmin's console is the whole
+  platform, always, and acting for a team is Access's team switch, as it is for everybody. The rail and the palette
+  draw the destinations the server answered, eighteen for a superadmin and fifteen for a member, and nothing in the
+  browser narrows them.
 - **The bell lists waiting gates.** Every gate document written and not approved, on an open initiative, or a closed
   initiative's correction awaiting approval, with a link to the initiative.
 - **The console's own rules, kept inside Meridian.** Tables read left in the first column, right in the last and centred
@@ -98,10 +98,7 @@ a time or `sources/2026-10-06-call.md` arrives as a single segment named after i
   a heading that does not say so. A 24-hour period is the shortest offered.
 - **A view is its address, and the address is read from the window.** Reading Next's search params costs a prerendered
   route its prerender — `useSearchParams` client-renders every Client Component up to the nearest Suspense boundary, and
-  a console page has none — which measured 2212ms of LCP on `/teams` against 632ms once the address was read directly.
-- **The console-scope section is the superadmin's alone, decided on the server.** Access draws it for a superadmin
-  only, from the console's server's own answer of who is asking, so it is in the first paint or nowhere and never appears
-  at hydration; its switch's slot holds its height until `/me` lands.
+  a console page has none — which measured 2212ms of LCP on Teams against 632ms once the address was read directly.
 - **Cache Components is on, and every route is partial.** `cacheComponents` and `partialPrefetching` are set in
   `next.config.ts`, and `scripts/route-policy.ts` reads 2 static and 22 partial of 24 non-API routes. Every page asks
   `gate` on the server first, inside the boundary its own `loading.tsx` gives it, so a page's static shell is the frame
@@ -114,7 +111,7 @@ a time or `sources/2026-10-06-call.md` arrives as a single segment named after i
   Server Action that drops the tenant's cached reads and refreshes the router, and here there is nothing on the server
   to drop, because `src/lib/api.ts` reads from the browser and says why — so the cache is React Query's and dropping it
   is `invalidateQueries` over the console queries whose collection the hint names. A read's collection is its own first
-  path segment (`/teams` reads `teams`), so no new vocabulary crosses the wire, and each page says what it shows in one
+  path segment (`/initiatives/<team>/<slug>` reads `initiatives`), so no new vocabulary crosses the wire, and each page says what it shows in one
   `useLive([...])` line. The stream opens only once `/me` answers, so a signed-out tab opens none.
 - **The shell's `<Suspense>` carries a fallback that draws the frame, not `null`.** That boundary is load-bearing —
   `AppShell` calls `usePathname`, and Cache Components will not prerender a client hook in a route it can prerender
@@ -154,12 +151,10 @@ a time or `sources/2026-10-06-call.md` arrives as a single segment named after i
   `ConsoleRail` and `ConsolePalette` (`src/views/console-chrome.tsx`), unchanged, given the workspace the address is in
   by `src/views/workspace-chrome.tsx`, the release's adapter. The layout hands both one promise, `chromeAccess()`, made
   on the server and not awaited: the destinations the person may open and who they are, from the same request's read of
-  `/me`. An identity nobody can resolve settles on `null`, and the chrome names nobody. The browser adds one thing: the
-  superadmin's team view narrows that answer, and can only take away.
-- **The rail is grouped by who reads a page, so a group's name is true for everybody.** The work, its knowledge and its
-  people first; then "Platform", the plugins, runs and audit feed only a superadmin reads; then Settings. Meridian's
-  chrome narrows a group's items and keeps its label, so a group that mixed a member's pages with the fleet's would
-  read "Platform" over one team's shelf. Set on 2026-10-12, replacing a group that renamed itself per view.
+  `/me`. An identity nobody can resolve settles on `null`, and the chrome names nobody. The browser adds nothing.
+- **The rails are the destinations table's, in its groups and order.** Work's rail is Work, Agents, Catalog and
+  Account; Platform's is Health and Fleet. Meridian's chrome narrows a group's items by what the person may open and
+  keeps its label, so a member reads Fleet over Usage and Knowledge health alone (reconciliation 64).
 - **The rule for anything Meridian has an answer to**, set on 2026-10-12: use the release; where it lacks something or
   gets it wrong, read the issue list and file it; write the console's own only as the interim, and say so where it is
   written.
@@ -193,11 +188,10 @@ a time or `sources/2026-10-06-call.md` arrives as a single segment named after i
 
 - **Gate.** A document that must be approved before anything downstream of it may be written.
 - **Initiative.** The unit of work: an open piece of work with its own documents, sources and outcome.
-- **Platform mode / team mode.** The scope a superadmin is reading in. A member is always in team mode.
 - **Waiting.** A gate document written and not approved: on an initiative that is still open, or on a closed one whose
   closing document was corrected after the close. The bell's own word.
 - **Routable door.** An MCP endpoint a client can be pointed at. The console does not draw them yet.
-- **Fleet surface.** A page that reads across every team — Plugins, Runs, Teams and Activity. Dropped in team mode.
+- **Fleet surface.** A page that reads across every team — Plugins, Runs, Teams and Activity.
 
 ## How it is checked
 
@@ -227,7 +221,7 @@ release's pristine template reports 39 conflicts here where the true number is 1
 
 What stays the console's own, and why:
 
-- `src/app.config.ts`, `src/nav.ts`, `src/console/`, `app/`, `src/lib/{api,mutate,api-shapes,platform-shapes,address,format,color,knowledge-filters}.ts`
+- `src/app.config.ts`, `src/console/`, `app/`, `src/lib/{api,mutate,api-shapes,platform-shapes,address,format,color,knowledge-filters}.ts`
   and the rest of the data layer: the console's product, its routes and the shape the gateway answers in.
 - `src/lib/period.ts`: the 24-hour period, all time by default, and `PERIOD_SHORT`'s `24H`.
 - `src/views/console-live.tsx`: the release's team-owned live glue, adopted whole with its one product-specific part

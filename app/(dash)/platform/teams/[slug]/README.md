@@ -49,4 +49,4 @@ Protagonist: Calls by week.
 
 ## Surfaces
 
-Console, desktop and phone. Reads `GET /teams/:slug` on the console's server, as the person, once per request and bounded at 4.5 seconds; after a write, and after a change anywhere to the teams collection, the browser reads it again. Live: follows `teams`. Writes `POST` and `DELETE /settings/team/members` and `DELETE /settings/platform/teams`, as Settings did. Today's `/teams/<slug>` renders this page until Phase 7 removes it.
+Console, desktop and phone. Reads `GET /teams/:slug` on the console's server, as the person, once per request and bounded at 4.5 seconds; after a write, and after a change anywhere to the teams collection, the browser reads it again. Live: follows `teams`. Writes `POST` and `DELETE /settings/team/members` and `DELETE /settings/platform/teams`, as Settings did. Its old address, `/teams/<slug>`, is gone and draws the missing page (AC-1.12).

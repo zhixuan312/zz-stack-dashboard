@@ -6,9 +6,8 @@
  * `src/app.config.ts` points each item at its feature's need **by reference** (`needs: FEATURES.teams.needs`), so an
  * item and the table never restate one another.
  *
- * This is the table of the eighteen destinations of the spec's destinations table, a bug's own page, and Settings, which
- * keeps its old address until Phase 7. Everybody reads their own work, Knowledge, Activity, Runs, Plugins and Access
- * among it, and the platform's Status, Releases, Bugs, Evaluation, Usage and Knowledge health; Teams, People, Audit and
+ * This is the table of the eighteen destinations of the spec's destinations table and a bug's own page. Everybody reads
+ * their own work, Knowledge, Activity, Runs, Plugins and Access among it, and the platform's Status, Releases, Bugs, Evaluation, Usage and Knowledge health; Teams, People, Audit and
  * a bug's own page are a superadmin's (reconciliation 67).
  *
  * Pure data with type-only imports, so plain `node` can import it: `scripts/check.ts` reads `src/app.config.ts`, which
@@ -29,7 +28,7 @@ export const FLEET = 'fleet:read' satisfies HeldRead;
 
 /** Every page the console offers, by the id the rail, the palette and a page's gate name it. */
 export type FeatureId =
-  | 'home' | 'record' | 'initiatives' | 'approvals' | 'knowledge' | 'people' | 'settings' | 'access' | 'teams' | 'plugins' | 'runs' | 'activity'
+  | 'home' | 'record' | 'initiatives' | 'approvals' | 'knowledge' | 'people' | 'access' | 'teams' | 'plugins' | 'runs' | 'activity'
   | 'platform-status' | 'releases' | 'bugs' | 'bug' | 'evaluation' | 'usage' | 'knowledge-health' | 'audit';
 
 /** Each feature: its name as a person reads it, and the need a person must satisfy to reach it. Never `public`. */
@@ -40,7 +39,6 @@ export const FEATURES: Record<FeatureId, { title: string; needs: HeldRead }> = {
   approvals: { title: 'Approvals', needs: WORK },
   knowledge: { title: 'Knowledge', needs: WORK },
   people: { title: 'People', needs: FLEET },
-  settings: { title: 'Settings', needs: WORK },
   access: { title: 'Access', needs: WORK },
   teams: { title: 'Teams', needs: FLEET },
   plugins: { title: 'Plugins', needs: WORK },

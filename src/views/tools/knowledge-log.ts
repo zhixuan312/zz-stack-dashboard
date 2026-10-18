@@ -1,7 +1,7 @@
 /**
- * The knowledge log's view tool, at `/knowledge/log`: the page's log, every node recorded or superseded, for as long as
- * the address stands (Phase 7 removes it, and this tool with it). It offers Knowledge's own prepared query, so the log
- * asks the shelf, the lessons made and the searches what Knowledge asks them.
+ * The knowledge log's view tool, at `/knowledge/log`: the page's log, every node recorded or superseded, which the
+ * destinations table keeps as a tab of Knowledge (FR-18). It offers Knowledge's own prepared query, so the log asks the
+ * shelf, the lessons made and the searches what Knowledge asks them.
  */
 import { z } from 'zod';
 import { requireNeed } from '@/data/access';

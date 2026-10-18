@@ -45,8 +45,8 @@ function columns(): Column<KnowledgeLogEntry>[] {
 }
 
 /**
- * Knowledge's log: what was recorded, what replaced what, and who wrote it down, drawn at `/knowledge/log` until Phase 7
- * removes the address. Read from the log zz-core writes when it mints or retires a node, not derived from the nodes: a
+ * Knowledge's log: what was recorded, what replaced what, and who wrote it down, drawn at `/knowledge/log`, a tab of
+ * Knowledge (FR-18). Read from the log zz-core writes when it mints or retires a node, not derived from the nodes: a
  * node's date is when it last changed, and no node says who wrote it. The console's server reads the active team's log
  * and hands it here; its dates are absolute, because they came from the server.
  */

@@ -1,18 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import { nav } from '@/app.config';
+import fs from 'node:fs';
+import path from 'node:path';
 import { FEATURES } from '@/data/features';
-import { shownIn } from '@/nav';
 import { visible } from '@/views/console-chrome';
 import { navOf } from '@/views/workspaces';
 
 /**
- * The two rails, and the superadmin's team view as a rule over what the server answered — not the pixels.
+ * The two rails, as a rule over what the server answered — not the pixels.
  *
  * The rails are the spec's destinations table, written out here in its groups and order and never read from `nav`.
- * The server says which destinations a person may open (`chromeAccess().only`); in `Your team` the browser narrows that
- * to what a member is shown, and it can only take away. Asserted through the functions the rail is drawn from:
- * `navOf` is one workspace's navigation, `shownIn` narrows the server's answer, and Meridian's own `visible` narrows a
- * navigation to it, which is what the release's `ConsoleRail` and `ConsolePalette` render.
+ * The server says which destinations a person may open (`chromeAccess().only`), and the rail draws exactly that: the
+ * superadmin's eighteen and a member's fifteen, with no console scope in the browser to narrow either (reconciliation
+ * 76). Asserted through the functions the rail is drawn from: `navOf` is one workspace's navigation, and Meridian's own
+ * `visible` narrows a navigation to the server's answer, which is what the release's `ConsoleRail` and `ConsolePalette`
+ * render.
  */
 const WORK_RAIL = [
   { label: 'Work', items: ['/', '/record', '/initiatives', '/approvals', '/knowledge'] },
@@ -36,7 +38,7 @@ const DESTINATIONS: Record<string, [label: string, feature: string]> = {
 /** What each page asks for (reconciliation 67), written out from the spec's tables and not read from the code. */
 const NEEDS: Record<string, string> = {
   home: 'work:read', record: 'work:read', initiatives: 'work:read', approvals: 'work:read', knowledge: 'work:read',
-  activity: 'work:read', runs: 'work:read', plugins: 'work:read', access: 'work:read', settings: 'work:read',
+  activity: 'work:read', runs: 'work:read', plugins: 'work:read', access: 'work:read',
   'platform-status': 'platform:read', releases: 'platform:read', bugs: 'platform:read', evaluation: 'platform:read',
   usage: 'platform:read', 'knowledge-health': 'platform:read',
   teams: 'fleet:read', people: 'fleet:read', audit: 'fleet:read', bug: 'fleet:read',
@@ -52,8 +54,8 @@ const MEMBER = [
 const FLEET_PAGES = ['/platform/teams', '/platform/people', '/platform/audit'];
 
 const shape = (groups: { label?: string; items: { href: string }[] }[]) => groups.map((g) => ({ label: g.label, items: g.items.map((i) => i.href) }));
-const groups = (mode: 'platform' | 'team', only = EVERY, rail = nav) => visible(shownIn(only, mode), rail);
-const hrefs = (mode: 'platform' | 'team', only = EVERY) => groups(mode, only).flatMap((s) => s.items.map((i) => i.href));
+const groups = (only: string[], rail = nav) => visible(only, rail);
+const hrefs = (only: string[]) => groups(only).flatMap((s) => s.items.map((i) => i.href));
 
 describe('the two rails', () => {
   it("draw Work's destinations in the destinations table's groups and order", () => {
@@ -76,7 +78,7 @@ describe('the two rails', () => {
     }
   });
 
-  it('put Settings on no rail, nor the old addresses Phase 7 removes', () => {
+  it('put Settings on no rail, nor the old addresses, nor Knowledge\'s log, which is a tab of Knowledge', () => {
     const all = nav.flatMap((g) => g.items);
     expect(all.map((i) => i.feature)).not.toContain('settings');
     for (const old of ['/settings', '/teams', '/people', '/knowledge/log']) expect(all.map((i) => i.href)).not.toContain(old);
@@ -98,56 +100,47 @@ describe('who each destination is shown to', () => {
   });
 });
 
-describe('the rail in team mode', () => {
-  it('hides every superadmin destination the server answered a superadmin', () => {
-    const team = hrefs('team');
-    for (const href of FLEET_PAGES) expect(team).not.toContain(href);
+describe('the rail each person is drawn', () => {
+  it('holds the superadmin\'s eighteen in the destinations table\'s groups and order', () => {
+    expect(shape(groups(EVERY))).toEqual([...WORK_RAIL, ...PLATFORM_RAIL]);
+    expect(hrefs(EVERY)).toHaveLength(18);
   });
 
-  it("keeps the member's own set", () => {
-    expect(hrefs('team')).toEqual(MEMBER);
+  it("holds a member's fifteen, and none of the superadmin's destinations", () => {
+    expect(hrefs(MEMBER)).toEqual(MEMBER);
+    expect(hrefs(MEMBER)).toHaveLength(15);
+    for (const href of FLEET_PAGES) expect(hrefs(MEMBER)).not.toContain(href);
   });
 
-  it('keeps Fleet\'s label over the public figures it still holds, and drops no other group', () => {
-    // Meridian's chrome keeps a group's label and narrows its items: a member, and a superadmin reading as their team,
-    // read Fleet over Usage and Knowledge health.
-    const platform = groups('team', EVERY, navOf('platform'));
-    expect(shape(platform)).toEqual([PLATFORM_RAIL[0], { label: 'Fleet', items: ['/platform/usage', '/platform/knowledge'] }]);
-    expect(shape(groups('team', EVERY, navOf('main')))).toEqual(WORK_RAIL);
+  it('keeps Fleet\'s label over the public figures a member still holds, and drops no other group', () => {
+    // Meridian's chrome keeps a group's label and narrows its items: a member reads Fleet over Usage and Knowledge health.
+    expect(shape(groups(MEMBER, navOf('platform')))).toEqual([PLATFORM_RAIL[0], { label: 'Fleet', items: ['/platform/usage', '/platform/knowledge'] }]);
+    expect(shape(groups(MEMBER, navOf('main')))).toEqual(WORK_RAIL);
   });
 
   it('drops a group whose every destination is hidden, so nothing is left headless', () => {
     // A group filtered down to zero items would render as a bare eyebrow with nothing under it.
     const fewer = ['/', '/platform'];
     for (const rail of [navOf('main'), navOf('platform')]) {
-      for (const group of groups('team', fewer, rail)) expect(group.items.length).toBeGreaterThan(0);
+      for (const group of groups(fewer, rail)) expect(group.items.length).toBeGreaterThan(0);
     }
-    expect(shape(groups('team', fewer, navOf('main')))).toEqual([{ label: 'Work', items: ['/'] }]);
-    expect(shape(groups('team', fewer, navOf('platform')))).toEqual([{ label: 'Health', items: ['/platform'] }]);
+    expect(shape(groups(fewer, navOf('main')))).toEqual([{ label: 'Work', items: ['/'] }]);
+    expect(shape(groups(fewer, navOf('platform')))).toEqual([{ label: 'Health', items: ['/platform'] }]);
+  });
+
+  it('never adds a destination the server did not answer', () => {
+    expect(hrefs(['/', '/access'])).toEqual(['/', '/access']);
+    expect(hrefs([])).toEqual([]);
+  });
+
+  it('is narrowed by nothing in the browser: there is no console scope (reconciliation 76)', () => {
+    // The browser's narrowing lived in `src/nav.ts`; with the scope gone the rail is the server's answer as it stands.
+    expect(fs.existsSync(path.resolve(import.meta.dirname, '../src/nav.ts'))).toBe(false);
   });
 });
 
 describe('the feature table', () => {
   it('asks of every page what the grants table says: Knowledge, Activity, Runs, Plugins and Access a member\'s grant', () => {
     expect(Object.fromEntries(Object.entries(FEATURES).map(([id, f]) => [id, f.needs]))).toEqual(NEEDS);
-  });
-});
-
-describe('the narrowing only takes away', () => {
-  it('returns the server\'s answer as it is in platform mode', () => {
-    expect(shownIn(EVERY, 'platform')).toEqual(EVERY);
-    expect(shownIn(MEMBER, 'platform')).toEqual(MEMBER);
-  });
-
-  it('never adds a destination the server did not answer, in either mode', () => {
-    // A member who chose `platform` on a shared machine, or a stored choice that outlived a superadmin's session: the
-    // view may say platform, but what is drawn is still only what the server answered.
-    for (const mode of ['platform', 'team'] as const) {
-      expect(hrefs(mode, MEMBER)).toEqual(MEMBER);
-      const fewer = ['/', '/access'];
-      expect(hrefs(mode, fewer)).toEqual(fewer);
-      expect(hrefs(mode, [])).toEqual([]);
-      for (const href of shownIn(MEMBER, mode)) expect(MEMBER).toContain(href);
-    }
   });
 });

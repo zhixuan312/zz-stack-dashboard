@@ -50,4 +50,4 @@ Protagonist: Teams.
 
 ## Surfaces
 
-Console, desktop and phone; at 390px the table is a card list of the team, its people, its open work and when it was last active. Reads `GET /teams?limit=10&offset=…` with the address's filters on the console's server, as the person, once per request and bounded at 4.5 seconds; a later page, a filter and a change anywhere to the teams collection are read in the browser. Live: follows `teams`. Writes `POST /settings/platform/teams`, as Settings did. Today's `/teams` renders this page until Phase 7 removes it.
+Console, desktop and phone; at 390px the table is a card list of the team, its people, its open work and when it was last active. Reads `GET /teams?limit=10&offset=…` with the address's filters on the console's server, as the person, once per request and bounded at 4.5 seconds; a later page, a filter and a change anywhere to the teams collection are read in the browser. Live: follows `teams`. Writes `POST /settings/platform/teams`, as Settings did. Its old address, `/teams`, is gone and draws the missing page (AC-1.12).

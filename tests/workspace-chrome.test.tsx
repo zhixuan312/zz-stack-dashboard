@@ -205,11 +205,30 @@ describe('the workspace menu', () => {
     expect(at.push).toHaveBeenCalledWith('/');
   });
 
-  it('gives a superadmin the workspaces and, under them, the scope with the team they act for', async () => {
-    gateway(SUPERADMIN);
+  // No console scope (reconciliation 76): a superadmin's console is the whole platform, always, and acting for a team is
+  // Access's team switch, as it is for everybody.
+  it.each([['a superadmin', SUPERADMIN, 'Owner'], ['a member', MEMBER, 'Mei']] as const)('offers %s the two workspaces and no console scope', async (_who, body, name) => {
+    gateway(body);
     await chrome();
-    await screen.findByText('Owner');
-    expect(await menu()).toEqual(['Work', 'Platform', 'The whole platform', 'Your team · atlas']);
+    await screen.findByText(name);
+    expect(await menu()).toEqual(['Work', 'Platform']);
+    expect(screen.queryByRole('menuitemradio', { name: /whole platform|your team/i })).toBeNull();
+  });
+
+  it.each([['a superadmin', SUPERADMIN, 'Owner', 18], ['a member', MEMBER, 'Mei', 15]] as const)('draws %s the same destinations in the rail and the palette across both workspaces', async (_who, body, name, count) => {
+    const drawn: string[] = [];
+    for (const where of ['/', '/platform']) {
+      gateway(body);
+      at.path = where;
+      const view = await chromeFor();
+      await screen.findByText(name);
+      const rail = links();
+      expect(await paletteOffers()).toEqual(rail);
+      drawn.push(...(rail as string[]));
+      view.unmount();
+    }
+    expect(drawn).toHaveLength(count);
+    expect(drawn).toEqual(count === 18 ? EVERYTHING : [...WORK, ...PUBLIC]);
   });
 
   it('does nothing when the workspace in view is chosen', async () => {

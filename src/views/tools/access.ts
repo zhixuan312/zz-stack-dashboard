@@ -13,7 +13,7 @@ import type { Access } from '@/lib/destination-shapes';
 import { defineViewTool } from '@/lib/shared-context';
 import { accessAnswer, accessContext } from '../access-context';
 import { accessExplore } from '../access-explore';
-import { justRead, modeOf } from './shared';
+import { justRead } from './shared';
 
 export const accessTool = defineViewTool({
   name: 'access',
@@ -24,9 +24,8 @@ export const accessTool = defineViewTool({
   input: z.object({}),
   async read() {
     await requireNeed(FEATURES.access.needs);
-    const [access, mode] = await Promise.all([gatewayGet<Access>('/access'), modeOf()]);
-    // A superadmin is the one caller `modeOf` answers the platform for.
-    return { context: accessContext(access, { superadmin: mode === 'platform', mode, ...justRead() }), data: accessAnswer(access) };
+    const access = await gatewayGet<Access>('/access');
+    return { context: accessContext(access, justRead()), data: accessAnswer(access) };
   },
   explore: accessExplore,
 });

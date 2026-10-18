@@ -34,8 +34,8 @@ const SESSION_IDS = [...ADMIN.browsers, ...NOAH.browsers].map((b) => b.id);
 /** Values the platform never puts in an Access answer, planted where a careless field would carry them. */
 const SECRETS = ['zz_pat_SECRET0123456789abcdef', 'sha256:0f1e2d3c4b5a69788796a5b4c3d2e1f0', 'https://console.example.com/enrol#t=SECRETLINK'];
 /** Every way the assistant could be told something on Access, as text. */
-const told = (a: Access, superadmin = true) => [
-  contextText(accessContext(a, { superadmin, mode: 'platform', ...at })),
+const told = (a: Access) => [
+  contextText(accessContext(a, at)),
   JSON.stringify(accessAnswer(a)),
 ];
 const noSecretIn = (texts: string[]) => {
@@ -53,7 +53,7 @@ beforeEach(() => {
 
 describe('the context Access shares', () => {
   it('states the labels, dates, states and applications of the read, and the team acted for', () => {
-    const c = accessContext(ADMIN, { superadmin: true, mode: 'platform', ...at });
+    const c = accessContext(ADMIN, at);
     expect(c.view).toBe('access');
     expect(c.address).toBe('/access');
     const facts = Object.fromEntries(c.facts.map((f) => [f.label, f.value]));
@@ -65,7 +65,8 @@ describe('the context Access shares', () => {
       Passkeys: String(ADMIN.authenticators.length),
       'Acting for': 'atlas (admin)',
     });
-    expect(facts['Console scope']).toMatch(/^Platform/);
+    // No console scope (reconciliation 76): a superadmin's console is the whole platform, always.
+    expect(facts['Console scope']).toBeUndefined();
     const text = contextText(c);
     for (const t of ADMIN.issued) expect(text).toContain(`"${t.label}"`);
     expect(text).toContain('Claude Code, 2 tokens');
@@ -76,24 +77,27 @@ describe('the context Access shares', () => {
   });
 
   it('drops nothing for either person the fake signs in', () => {
-    for (const [a, superadmin] of [[ADMIN, true], [NOAH, false]] as const) {
-      const c = accessContext(a, { superadmin, mode: superadmin ? 'platform' : 'team', ...at });
+    for (const a of [ADMIN, NOAH]) {
+      const c = accessContext(a, at);
       expect(contextText(c).length).toBeLessThanOrEqual(CONTEXT_BUDGET);
       expect(c.unknowns.join(' ')).not.toContain('More is on the page');
     }
-    expect(contextText(accessContext(ADMIN, { superadmin: true, mode: 'platform', ...at }))).toContain('live, through Claude Code, issued');
+    expect(contextText(accessContext(ADMIN, at))).toContain('live, through Claude Code, issued');
   });
 
-  it('gives a member no console scope and no other person\'s tokens', () => {
-    const c = accessContext(NOAH, { superadmin: false, mode: 'team', ...at });
-    expect(c.facts.map((f) => f.label)).not.toContain('Console scope');
+  it('gives nobody a console scope, and a member no other person\'s tokens', () => {
+    for (const a of [ADMIN, NOAH]) {
+      expect(accessContext(a, at).facts.map((f) => f.label)).not.toContain('Console scope');
+      expect(contextText(accessContext(a, at))).not.toContain('Console scope');
+    }
+    const c = accessContext(NOAH, at);
     const text = contextText(c);
     for (const t of ADMIN.issued) expect(text).not.toContain(t.label);
     expect(text).toContain('ChatGPT');
   });
 
   it('holds no token value, hash, session id or enrolment link, from the fixture or planted in it', () => {
-    noSecretIn([...told(ADMIN), ...told(NOAH, false)]);
+    noSecretIn([...told(ADMIN), ...told(NOAH)]);
     // A label is the person's own words: one that looks like a secret is still never a session id or a hash of anything.
     const planted: Access = {
       ...ADMIN,
@@ -109,7 +113,7 @@ describe('the context Access shares', () => {
       ...ADMIN,
       issued: Array.from({ length: 200 }, (_, i) => ({ ...ADMIN.issued[0], id: `tok_${i}`, label: `a token with a long label of its own, number ${i}` })),
     };
-    const c = accessContext(many, { superadmin: true, mode: 'platform', ...at });
+    const c = accessContext(many, at);
     expect(contextText(c).length).toBeLessThanOrEqual(CONTEXT_BUDGET);
     expect(c.facts.find((f) => f.label === 'Live tokens')!.value).toBe('200');
     expect(contextText(c)).toContain('Every change here is the person\'s, made on this page');
@@ -122,8 +126,8 @@ describe('view_access', () => {
   it('answers the same response its page reads, with the page\'s context and no session id in its data', async () => {
     const { context, data } = await accessTool.read({});
     expect(gateway.get).toHaveBeenCalledWith('/access');
-    expect(context.facts).toEqual(accessContext(ADMIN, { superadmin: true, mode: 'platform', ...at }).facts);
-    expect(context.insights).toEqual(accessContext(ADMIN, { superadmin: true, mode: 'platform', ...at }).insights);
+    expect(context.facts).toEqual(accessContext(ADMIN, at).facts);
+    expect(context.insights).toEqual(accessContext(ADMIN, at).insights);
     expect(data).toEqual(accessAnswer(ADMIN));
     expect(Object.keys(data.tokens[0]).sort()).toEqual(['application', 'createdAt', 'label', 'lastUsedAt', 'revokedAt', 'state']);
     expect(Object.keys(data.browsers[0]).sort()).toEqual(['browser', 'current', 'expiresAt', 'lastSeenAt', 'signedInAt']);

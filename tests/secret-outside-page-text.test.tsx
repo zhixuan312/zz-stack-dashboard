@@ -92,7 +92,7 @@ afterEach(() => { vi.unstubAllGlobals(); });
 
 describe('a secret shown once stays out of the page text the assistant reads', () => {
   it('draws a token issued on Access in a dialog outside the scroll region, marked omit', async () => {
-    const region = mount(<AccessView served={{ state: 'ok', access: ACCESS }} superadmin />);
+    const region = mount(<AccessView served={{ state: 'ok', access: ACCESS }} />);
     const tokens = screen.getByRole('heading', { level: 2, name: 'Tokens' }).closest('section')!;
     await act(async () => { fireEvent.click(within(tokens).getByRole('button', { name: 'Issue token' })); });
     await waitFor(() => expect(document.body.textContent).toContain(TOKEN));

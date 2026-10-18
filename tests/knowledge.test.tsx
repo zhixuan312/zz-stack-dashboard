@@ -70,13 +70,13 @@ const READ: ServerRead<KnowledgeSummary> = { state: 'ok', data: SUMMARY, at: '20
 
 const shelfRow: KnowledgeRow = {
   key: 'atlas/nodes/0011-re-index-nightly.md', num: '0011', team: 'atlas', path: 'nodes/0011-re-index-nightly.md', type: 'decision', status: 'adopted',
-  title: 'Re-index nightly, never on write', tags: null, updated: '2026-10-10T00:00:00Z', bytes: 900, excerpt: 'Re-index nightly.', evidence: null, superseded_by: null,
+  title: 'Re-index nightly, never on write', tags: null, updated: '2026-10-10T00:00:00Z', bytes: 900, excerpt: 'Re-index nightly.', evidence: null, cited_elsewhere: 0, superseded_by: null,
 };
 const LIST: KnowledgeList = { meta: META, total: 1, rows: [shelfRow], summary: { byKind: { decision: 1 }, standing: 1, superseded: 0 } };
 
 const hit = (over: Partial<SearchHit>): SearchHit => ({
   kind: 'node', team: 'atlas', shelf: 'team', initiative: null, path: 'nodes/0004-rank-by-recency-first.md', title: 'Rank by recency first',
-  type: 'decision', status: 'superseded', superseded_by: '0005', tags: [], evidence: [], flow: null, outcome: null,
+  type: 'decision', status: 'superseded', superseded_by: '0005', tags: [], evidence: [], cited_elsewhere: 0, flow: null, outcome: null,
   approved_by: null, approved_at: null, updated: null, excerpt: 'We **rank** by recency first.', score: 0.02, via: ['lexical'], ...over,
 });
 /** Three results, in the gateway's rank order: a team lesson, a shared lesson, a team document. */
@@ -254,7 +254,7 @@ describe('the page\'s log', () => {
 describe('a lesson on the shared shelf', () => {
   const body: KnowledgeBody = {
     team: 'zz-platform', path: 'nodes/0001-search-the-shelf-first.md', type: 'process', status: 'adopted', title: 'Search the shelf before you write a lesson',
-    tags: ['knowledge'], updated: '2026-09-01T00:00:00Z', body: 'Search the shelf first.', num: '1', evidence: null, superseded_by: null, evidence_in: null,
+    tags: ['knowledge'], updated: '2026-09-01T00:00:00Z', body: 'Search the shelf first.', num: '1', evidence: null, cited_elsewhere: 2, superseded_by: null, evidence_in: null,
     related: [], multi_team: false, shelf: 'shared',
   };
 

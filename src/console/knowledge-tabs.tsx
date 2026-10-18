@@ -3,8 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { LinkTabs } from '@/components/ui/tabs';
 
 /**
- * Knowledge's two views, as routes: the page itself, and its log, which `/knowledge/log` draws until Phase 7 removes
- * the address. No Graph view: the platform records no edge between nodes, so a graph would be drawn from shared tags and
+ * Knowledge's two views, as routes: the page itself, and its log, which `/knowledge/log` draws (FR-18). No Graph view: the platform records no edge between nodes, so a graph would be drawn from shared tags and
  * assert relationships nobody wrote down.
  */
 const TABS = [

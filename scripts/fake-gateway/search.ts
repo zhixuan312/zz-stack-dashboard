@@ -9,12 +9,14 @@
  * found, with the search's own verdict.
  *
  * Whose search: the team the signed-in person acts for, as the platform runs it, and the superadmin's when no team is
- * named, with the platform's shared shelf beside it, whose lessons come back as `shelf: "platform"` among the team's.
+ * named, with the platform's shared shelf beside it, whose lessons come back as `shelf: "platform"` among the team's. A
+ * lesson's citations are that team's alone, the rest counted, as the platform answers them; a document's are its own
+ * team's.
  */
 import type { SearchAnswer, SearchHit } from '../../src/lib/api-shapes.ts';
 import { ME } from './people.ts';
 import { INITIATIVES, documentDetail, initiativeDetail } from './work.ts';
-import { SHARED_TEAM, SHELF, lesson } from './work-knowledge.ts';
+import { SHARED_TEAM, lesson, searchedShelf } from './work-knowledge.ts';
 
 type Candidate = Omit<SearchHit, 'excerpt' | 'score' | 'via'> & { text: string };
 
@@ -26,14 +28,14 @@ function corpus(team: string, initiative: string | null): Candidate[] {
       if (!d) return [];
       return [{
         kind: 'document', team, shelf: 'team', initiative: i.slug, path: row.path, title: d.title ?? row.path, type: d.type || null,
-        status: d.status || null, superseded_by: null, tags: d.tags ?? [], evidence: [], flow: d.flow, outcome: d.outcome,
+        status: d.status || null, superseded_by: null, tags: d.tags ?? [], evidence: [], cited_elsewhere: 0, flow: d.flow, outcome: d.outcome,
         approved_by: d.approved_by, approved_at: d.approved_at, updated: d.updated_at, text: d.body ?? '',
       }];
     }));
   // A node belongs to no initiative, so a search narrowed to one finds none.
-  const nodes = initiative ? [] : SHELF.filter((n) => n.team === team || n.team === SHARED_TEAM).map((n): Candidate => ({
+  const nodes = initiative ? [] : searchedShelf(team).map((n): Candidate => ({
     kind: 'node', team: n.team, shelf: n.team === SHARED_TEAM ? 'platform' : 'team', initiative: null, path: n.path, title: n.title, type: n.type,
-    status: n.status, superseded_by: n.superseded_by, tags: n.tags ?? [], evidence: n.evidence ?? [], flow: null, outcome: null,
+    status: n.status, superseded_by: n.superseded_by, tags: n.tags ?? [], evidence: n.evidence ?? [], cited_elsewhere: n.cited_elsewhere, flow: null, outcome: null,
     approved_by: null, approved_at: null, updated: n.updated, text: lesson(n.team, n.path)?.body ?? n.excerpt,
   }));
   return [...documents, ...nodes];

@@ -13,7 +13,7 @@ import type { Need } from './lib/collection.ts';
 export const app = {
   /** The product name: the rail, the document title, the sign-in screen. */
   name: 'ZZ Stack',
-  /** One line under the name in the rail until the session says which scope is in view. */
+  /** One line under the name in the rail until the address says which workspace is in view. */
   workspace: 'Platform',
   /**
    * ZZ's mark, which Meridian's `AppMark` draws in the rail: the Zz wordmark with its sparkle, from the brand kit and
@@ -64,11 +64,12 @@ export type NavGroup = { label?: string; items: NavItem[] };
  * narrows a group's items by what the person may see and keeps its label, so a member reads Fleet over Usage and
  * Knowledge health alone, each drawn for them without another team's split (reconciliation 64).
  *
- * Settings is on no rail: Access holds what it held. `/settings`, `/teams`, `/people` and `/knowledge/log` keep their
- * pages at their old addresses, each asking its own feature, until Phase 7 removes them (AC-1.12).
+ * Knowledge's log, `/knowledge/log`, is a tab of Knowledge and on no rail. Access holds what Settings held; the old
+ * addresses are gone and draw the missing page (AC-1.12). The rail draws exactly the destinations the server answered,
+ * with nothing in the browser to narrow them.
  *
  * A tool reads this to know which routes exist: `scripts/lib/routes.ts` walks it for verify's navigation smoke and
- * `--full`'s mapping. `src/nav.ts` says which of these the view in force shows.
+ * `--full`'s mapping.
  */
 export const nav: NavGroup[] = [
   {

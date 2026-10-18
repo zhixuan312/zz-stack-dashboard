@@ -27,7 +27,6 @@ const FEATURE_OF: [prefix: string, feature: string][] = [
   ['platform', 'platform-status'],
   ['record', 'record'], ['initiatives', 'initiatives'], ['approvals', 'approvals'], ['knowledge', 'knowledge'],
   ['activity', 'activity'], ['runs', 'runs'], ['plugins', 'plugins'], ['access', 'access'],
-  ['people', 'people'], ['settings', 'settings'], ['teams', 'teams'],
 ];
 const LONGEST_FIRST = [...FEATURE_OF].sort((a, b) => b[0].length - a[0].length);
 const expected = (page: string): string => {
@@ -46,16 +45,29 @@ describe('every page under the console shell', () => {
     expect(all.length).toBeGreaterThanOrEqual(16);
   });
 
-  it('answers every destination of both rails, and the old addresses Phase 7 removes (AC-1.12)', () => {
-    // The eighteen destinations' addresses, and `/teams`, `/teams/<slug>`, `/people`, `/settings` and `/knowledge/log`,
-    // which stay reachable, each gated as its feature, until they are removed. Written out here.
+  it('answers every destination of both rails, and Knowledge\'s log', () => {
+    // The eighteen destinations' addresses, and `/knowledge/log`, which the destinations table keeps. Written out here.
     const addresses = [
       '(home)', 'record', 'initiatives', 'approvals', 'knowledge', 'activity', 'runs', 'plugins', 'access',
       'platform', 'platform/releases', 'platform/bugs', 'platform/evaluation', 'platform/teams', 'platform/people',
       'platform/usage', 'platform/audit', 'platform/knowledge',
-      'teams', 'teams/[slug]', 'people', 'settings', 'knowledge/log',
+      'knowledge/log',
     ];
     for (const dir of addresses) expect(all, dir).toContain(path.join(dir, 'page.tsx'));
+  });
+
+  // The old addresses are gone (AC-1.12): no folder, so no page, no loading state and no page spec answers them, and an
+  // address nobody answers falls to the missing page.
+  it.each(['teams', 'people', 'settings'])('has no route folder at /%s', (dir) => {
+    expect(fs.existsSync(path.join(DASH, dir))).toBe(false);
+    expect(all.filter((page) => page.split(path.sep)[0] === dir)).toEqual([]);
+  });
+
+  it('asks no `settings` feature, and keeps `teams` and `people` for the pages under Platform', async () => {
+    const { FEATURES } = await import('@/data/features');
+    expect(Object.keys(FEATURES)).not.toContain('settings');
+    expect(FEATURES.teams.title).toBe('Teams');
+    expect(FEATURES.people.title).toBe('People');
   });
 
   it.each(all)('%s is a server page', (page) => {

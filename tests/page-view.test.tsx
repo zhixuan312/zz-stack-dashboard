@@ -252,12 +252,6 @@ describe('the destinations the rail offers', () => {
     expect(features()).toEqual([expected(href)]);
     expect(Object.keys(FEATURES)).toContain(features()[0]);
   });
-
-  // An old address keeps its page until Phase 7 removes it, and no rail entry owns it, so it records no view.
-  it.each(['/teams', '/people', '/settings'])('%s, an old address no rail offers, records nothing', async (href) => {
-    await open(href, page(href));
-    expect(sent).toHaveLength(0);
-  });
 });
 
 describe('the shell', () => {

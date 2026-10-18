@@ -12,7 +12,7 @@ import { plural } from '@/lib/format';
 import { formatDate, formatDateTime } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { listed, type Fact, type Insight, type SharedContext } from '@/lib/shared-context';
-import { arrived, budgeted, type Arrival, type ViewMode } from './context';
+import { arrived, budgeted, type Arrival } from './context';
 
 /** How long the console's server waits for the read: half a second under five, for a phone to draw what it says. */
 export const ACCESS_BOUND_MS = 4_500;
@@ -65,12 +65,11 @@ export function actingOf(access: Access): { team: string; role: string } | null 
 }
 
 /** The sections the page draws for this caller, in its order. COUPLED: `src/views/pages/access.tsx`. */
-function sectionsOf(access: Access, superadmin: boolean): string[] {
+function sectionsOf(access: Access): string[] {
   const acting = actingOf(access);
   return [
     'Tokens', 'Client setup', 'Connected applications', 'Signed-in browsers', 'Passkeys', 'The team you act for',
     ...(acting && acting.role === 'admin' ? [`${acting.team}'s members`] : []),
-    ...(superadmin ? ['Console scope'] : []),
   ];
 }
 
@@ -92,14 +91,8 @@ export function accessAnswer(access: Access) {
   };
 }
 
-/** The caller's console scope, said only to a superadmin, the one role with the choice. */
-const SCOPE_WORDS: Record<ViewMode, string> = { platform: 'Platform: every team\'s work and the fleet pages', team: 'Team: what a member of the team acted for sees' };
-
-/**
- * The context of one read. `superadmin` is the server's answer of who is asking, as the page draws the console scope
- * for the superadmin alone; `mode` is that superadmin's scope in this browser.
- */
-export function accessContext(access: Access, { superadmin, mode, ...arrival }: { superadmin: boolean; mode: ViewMode } & Arrival): SharedContext {
+/** The context of one read: the caller's own, the same for everybody. */
+export function accessContext(access: Access, arrival: Arrival): SharedContext {
   const live = access.issued.filter((t) => stateOf(t) === 'live');
   const revoked = access.issued.length - live.length;
   const unused = live.filter((t) => !t.lastUsedAt);
@@ -111,7 +104,6 @@ export function accessContext(access: Access, { superadmin, mode, ...arrival }: 
     { label: 'Signed-in browsers', value: formatCount(access.browsers.length), definition: 'The caller\'s live console sessions, this browser\'s included.' },
     { label: 'Passkeys', value: formatCount(access.authenticators.length) },
     { label: 'Acting for', value: acting ? `${acting.team} (${acting.role})` : 'no team', definition: 'This browser\'s team; the caller\'s agents keep their own, which team_switch moves.' },
-    ...(superadmin ? [{ label: 'Console scope', value: SCOPE_WORDS[mode], definition: 'Only a superadmin has the choice.' }] : []),
   ];
   // Most important first, as the budget drops from the end: what the assistant may not do, then the protagonist's rows,
   // then the rest of what lets the person in, and the page's own sections last.
@@ -124,7 +116,7 @@ export function accessContext(access: Access, { superadmin, mode, ...arrival }: 
   if (access.teams.teams.length) insights.push({ text: `Their teams: ${access.teams.teams.map((t) => `${t.team} (${t.role}${t.active ? ', the one this browser acts for' : ''})`).join(', ')}.` });
   if (access.browsers.length) insights.push({ text: `Their browsers: ${listed(access.browsers, (b) => `${browserOf(b)}${b.current ? ' (this one)' : ''}, signed in ${formatDate(b.issuedAt)}, last seen ${when(b.lastSeenAt)}`, 'see Signed-in browsers on /access', 6)}.` });
   if (access.authenticators.length) insights.push({ text: `Their passkeys: ${listed(access.authenticators, (k) => `${passkeyOf(k.label)} (${transportsOf(k.transports)}), added ${formatDate(k.createdAt)}, last used ${when(k.lastUsedAt)}`, 'see Passkeys on /access', 6)}.` });
-  insights.push({ text: `This page has ${sectionsOf(access, superadmin).join(', ')}, and the assistant's own switch where the console has an assistant.` });
+  insights.push({ text: `This page has ${sectionsOf(access).join(', ')}, and the assistant's own switch where the console has an assistant.` });
   return budgeted({
     view: 'access',
     title: 'Access',

@@ -13,7 +13,6 @@
     "/knowledge/[team]/[...path]": 811865,
     "/knowledge/log": 819335,
     "/login": 662655,
-    "/people": 847460,
     "/platform": 832215,
     "/platform/teams": 845318,
     "/platform/teams/[slug]": 851028,
@@ -21,9 +20,6 @@
     "/plugins/[plugin]": 839233,
     "/plugins/[plugin]/[skill]": 803059,
     "/runs": 813083,
-    "/settings": 845143,
-    "/signed-out": 623155,
-    "/teams": 845318,
-    "/teams/[slug]": 851028
+    "/signed-out": 623155
   }
 }

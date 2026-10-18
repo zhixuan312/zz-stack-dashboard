@@ -325,12 +325,12 @@ function present(who: Me, signing: boolean, q: URLSearchParams, body: Record<str
 }
 
 /**
- * The features a page view may name: the destinations the console's feature table will hold when every phase has
- * landed, and the ones today's pages have. A closed list, as the gateway's is, so an address or a record's name can
- * never be recorded as one. COUPLED: the gateway's console/page-view.ts keeps the list this one copies.
+ * The features a page view may name: the console's feature table's. A closed list, as the gateway's is, so an address
+ * or a record's name can never be recorded as one. COUPLED: the gateway's console/page-view.ts keeps the list this one
+ * copies.
  */
 const PAGE_FEATURES = [
-  'home', 'record', 'initiatives', 'approvals', 'knowledge', 'activity', 'runs', 'plugins', 'access', 'settings',
+  'home', 'record', 'initiatives', 'approvals', 'knowledge', 'activity', 'runs', 'plugins', 'access',
   'platform-status', 'releases', 'bugs', 'bug', 'evaluation', 'teams', 'people', 'usage', 'audit', 'knowledge-health',
 ];
 

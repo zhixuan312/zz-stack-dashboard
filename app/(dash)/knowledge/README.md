@@ -5,7 +5,7 @@ What your active team has learned, kept as lessons, each out of a real initiativ
 ## Structure
 
 - Gate first: the page asks for `knowledge` before it renders, so a person who does not hold it is shown nothing of the page and nothing on it is read. Every role holds `work:read`, so a member and a superadmin both open it, each for the team they act for.
-- Tabs: Overview, Log. Log is `/knowledge/log`, the page's log, until Phase 7 removes the address.
+- Tabs: Overview, Log. Log is `/knowledge/log`, the page's log, which the destinations table keeps (FR-18).
 - Search what your team has learned: one field and a Search button. The search runs when the person submits the question, never as they type, because every search is counted. It is the platform's own ranked search (`GET /search`), the one the assistant and MCP use, over the team's documents and lessons and the platform's shared shelf. The results come back in the gateway's order, best first, at most ten: each its title, whether it is a lesson or a document, its shelf (`Your team` or `Shared shelf`), what superseded it, and its matched excerpt with the matched terms strong. A lesson opens its node page, a shared one read-only; a document opens its own page. No line calls a result an answer: a result is text that matched.
 - Tiles: lessons adopted with the imported among them, superseded, searches last week and searches with no result, each from the summary. The tiles' row carries `data-figures="read"` once the summary answered.
 - The team's own questions that found nothing, most asked first, as the gateway orders them, with how often each was asked and when last.

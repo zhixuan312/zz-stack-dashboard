@@ -47,9 +47,9 @@ const DEV_PAT = process.env.ZZ_DEV_PAT;
  * before the app renders. Nothing here reads, writes or authorizes anything; it says what the page is about to ask
  * for so the browser can start asking while it parses the HTML.
  *
- * The URL has to match what `withScope` will build exactly, or the browser fetches twice and the hint buys nothing.
- * The console's mode starts at `platform` while `/me` is in flight and is never part of a query key, so the first read
- * a page makes is the scoped one; that is the URL written here.
+ * The URL has to match what `withScope` in `src/lib/api.ts` will build exactly, or the browser fetches twice and the
+ * hint buys nothing. Every read but `/me` and the search asks for the platform's scope, whoever asks, and the gateway
+ * answers each caller what they may read, so the document's read is the scoped one; that is the URL written here.
  *
  * DELIBERATE: written in every build, production included, as a page's own address is (`page` below) — unlike the
  * rewrite at the foot of this file, which is a laptop's.

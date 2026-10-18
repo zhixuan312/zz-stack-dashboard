@@ -39,7 +39,7 @@ const SUMMARY: KnowledgeSummary = {
 
 const row = (num: string, title: string, status: string): KnowledgeRow => ({
   key: `atlas/nodes/${num}`, num, team: 'atlas', path: `nodes/${num}.md`, type: 'decision', status, title, tags: null,
-  updated: '2026-10-01T00:00:00Z', bytes: 900, excerpt: `${title}.`, evidence: null, superseded_by: null,
+  updated: '2026-10-01T00:00:00Z', bytes: 900, excerpt: `${title}.`, evidence: null, cited_elsewhere: 0, superseded_by: null,
 });
 const LIST: KnowledgeList = {
   meta: META, total: 44,

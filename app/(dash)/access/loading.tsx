@@ -14,11 +14,11 @@ import { gatedLoading } from '@/data/refusal';
 const width: PageWidth = 'form';
 
 /**
- * One placeholder section per section the page can stack, for the tallest page: a superadmin who administers the team
- * they act for, on a console with an assistant. A member's own page is shorter, and nothing below its last section
+ * One placeholder section per section the page can stack, for the tallest page: a person who administers the team
+ * they act for, on a console with an assistant. Anybody else's page is shorter, and nothing below its last section
  * moves. COUPLED: `AccessSkeleton` in `src/views/pages/access.tsx`, the same frame once the gate has answered.
  */
-const SECTIONS = 9;
+const SECTIONS = 8;
 
 /** The page's own line under its title. COUPLED: `app/(dash)/access/page.tsx`. */
 const DESCRIPTION = 'What lets you and your agents in: your tokens, the applications and browsers signed in as you, your passkeys and the team you act for.';

@@ -3,8 +3,8 @@
 import { createContext, useContext, type ReactNode } from 'react';
 import type { Access } from '@/lib/destination-shapes';
 
-/** The read every Access section draws from: the caller's own answer, and whether they are a superadmin. */
-type Served = { access: Access; superadmin: boolean };
+/** The read every Access section draws from: the caller's own answer. */
+type Served = { access: Access };
 
 const AccessContext = createContext<Served | null>(null);
 

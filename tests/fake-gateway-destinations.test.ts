@@ -58,7 +58,7 @@ describe('the feature Access declares', () => {
 });
 
 describe('Knowledge', () => {
-  const KNOWLEDGE_ROW = ['bytes', 'evidence', 'excerpt', 'key', 'num', 'path', 'status', 'superseded_by', 'tags', 'team', 'title', 'type', 'updated'];
+  const KNOWLEDGE_ROW = ['bytes', 'cited_elsewhere', 'evidence', 'excerpt', 'key', 'num', 'path', 'status', 'superseded_by', 'tags', 'team', 'title', 'type', 'updated'];
 
   it.each(BOTH)('answers %s the active team\'s summary in the gateway\'s shape', async (_, who) => {
     const k = await read(who, 'knowledge/summary');
@@ -450,5 +450,22 @@ describe('the shared shelf', () => {
     for (const scope of ['', '?scope=platform', '?team=beacon']) {
       expect((await ask(SUPERADMIN, `knowledge/beacon/nodes/0001-refunds-are-a-ledger-entry-never-an-edit.md${scope}`)).status, scope).toBe(404);
     }
+  });
+
+  // A shared lesson cites initiatives of several teams, as the platform's do: every answer carrying its citations names
+  // the reader's active team's and counts the rest, the node's neighbours included.
+  it.each(BOTH)('names %s only Atlas\'s initiatives a shared lesson cites, and counts the other teams\'', async (_, who) => {
+    const found = await read(who, 'search?q=recency');
+    const hit = found.results.find((r: Json) => r.team === 'zz-platform' && r.kind === 'node');
+    expect(hit.evidence).toEqual(['2026-10-02-query-latency']);
+    expect(hit.cited_elsewhere).toBe(1);
+    const lesson = await read(who, `knowledge/zz-platform/${hit.path}`);
+    expect(lesson.evidence).toEqual(['2026-10-02-query-latency']);
+    expect(lesson.evidence_in).toEqual([{ name: '2026-10-02-query-latency', team: 'atlas' }]);
+    expect(lesson.cited_elsewhere).toBe(1);
+    expect(lesson.related.length).toBeGreaterThan(0);
+    for (const r of lesson.related) expect(r.cited_elsewhere, r.key).toBe(0);
+    // Beacon's initiative is in no answer, by name.
+    expect(JSON.stringify([found, lesson])).not.toContain('2026-09-18-chargeback-alerts');
   });
 });

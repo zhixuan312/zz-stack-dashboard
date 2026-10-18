@@ -270,7 +270,7 @@ describe('the proxy, which tells a page its own address', () => {
     expect(forwarded(read, 'authorization')).toBe('Bearer zzp_laptop');
     expect(forwarded(read, 'x-zz-path')).toBeNull();
     // And a page, a document's among them, stays here and is given no token.
-    for (const path of ['/platform?a=1', '/teams', '/initiatives/atlas/2026-09-28-search-relevance/spec.md', '/api/assistant']) {
+    for (const path of ['/platform?a=1', '/platform/teams', '/initiatives/atlas/2026-09-28-search-relevance/spec.md', '/api/assistant']) {
       const res = proxy(new NextRequest(`http://console.test${path}`, { headers: { cookie: 'zz_console=session-1' } }));
       expect(isRewrite(res), path).toBe(false);
       expect(forwarded(res, 'x-zz-path'), path).toBe(path);
@@ -282,7 +282,7 @@ describe('the proxy, which tells a page its own address', () => {
   it('runs on every page and on the gateway\'s paths, and not on Next\'s own files or the public ones', async () => {
     const { config } = await load({});
     const reached = (path: string) => unstable_doesMiddlewareMatch({ config, url: path });
-    for (const path of ['/', '/platform', '/platform/teams/atlas', '/teams', '/settings', '/initiatives/atlas/2026-09-28-search-relevance/sources/notes.md', '/login', '/api/console/me', '/auth/status']) {
+    for (const path of ['/', '/platform', '/platform/teams/atlas', '/platform/people', '/access', '/initiatives/atlas/2026-09-28-search-relevance/sources/notes.md', '/login', '/api/console/me', '/auth/status']) {
       expect(reached(path), path).toBe(true);
     }
     for (const path of ['/_next/static/chunks/main.js', '/_next/image?url=%2Fassets%2Fbrand%2Fmascot-hero.png&w=256&q=75', '/assets/brand/wordmark.svg', '/icon.png', '/apple-icon.png']) {

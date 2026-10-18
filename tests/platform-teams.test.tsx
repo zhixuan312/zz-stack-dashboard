@@ -30,8 +30,6 @@ import PlatformTeamsPage, { generateMetadata as teamsMetadata } from '../app/(da
 import { readTeam, readTeams } from '../app/(dash)/platform/teams/read-teams';
 import PlatformTeamLoading from '../app/(dash)/platform/teams/[slug]/loading';
 import PlatformTeamPage, { generateMetadata as teamMetadata } from '../app/(dash)/platform/teams/[slug]/page';
-import TodaysTeamsPage from '../app/(dash)/teams/page';
-import TodaysTeamPage from '../app/(dash)/teams/[slug]/page';
 
 /**
  * Teams under Platform, and the superadmin's management of teams there (Task I-99, AC-4.1): the list and a team's page
@@ -353,7 +351,7 @@ async function markupOf(answer: ReactNode | Promise<ReactNode>): Promise<string>
   return text;
 }
 
-describe('a member asking either address', () => {
+describe('a member asking either page', () => {
   beforeEach(() => {
     gateway.get.mockImplementation(async (path: string) => {
       if (path === '/me') return MEMBER;
@@ -366,12 +364,10 @@ describe('a member asking either address', () => {
     expect(await teamMetadata({ params: Promise.resolve({ slug: 'atlas' }) })).toEqual({ title: 'Not found', robots: { index: false } });
   });
 
-  it('is answered, at the new addresses and at today\'s, by a page that names nothing and reads nothing', async () => {
+  it('is answered by a page that names nothing and reads nothing', async () => {
     const answers = [
       PlatformTeamsPage({ searchParams: Promise.resolve({}) }),
       PlatformTeamPage({ params: Promise.resolve({ slug: 'atlas' }) }),
-      TodaysTeamsPage({ searchParams: Promise.resolve({}) }),
-      TodaysTeamPage({ params: Promise.resolve({ slug: 'atlas' }) }),
     ];
     for (const answer of answers) {
       const text = await markupOf(answer);

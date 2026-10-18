@@ -100,8 +100,13 @@ function Colophon({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-/** One document, read: the text itself, how it changed and on what evidence, and the claims it makes. */
-export function DocumentView({ params }: { params: Promise<{ team: string; slug: string; path: string[] }> }) {
+/**
+ * One document, read: the text itself, how it changed and on what evidence, and the claims it makes.
+ *
+ * `teamPage` is whether the reader may open the team's page under Platform, the console's server's answer from their
+ * `/me`: the breadcrumb's team links there for them and is plain text for anybody else, who would be refused it.
+ */
+export function DocumentView({ params, teamPage }: { params: Promise<{ team: string; slug: string; path: string[] }>; teamPage: boolean }) {
   useLive(['document']);
   const { team, slug, path } = use(params);
   const rel = decodePath(path);
@@ -133,7 +138,7 @@ export function DocumentView({ params }: { params: Promise<{ team: string; slug:
   return (
     <ConsolePage
       title={d?.title || rel.replace(/^sources\//, '')}
-      crumbs={[{ label: 'Initiatives', href: '/initiatives' }, { label: team, href: `/teams/${team}` }, { label: slug, href: `/initiatives/${team}/${slug}` }]}
+      crumbs={[{ label: 'Initiatives', href: '/initiatives' }, { label: team, href: teamPage ? `/platform/teams/${team}` : undefined }, { label: slug, href: `/initiatives/${team}/${slug}` }]}
       description={
         // TWO ROWS ALWAYS, and the second one is the status's own. It used to be a single wrapping line with the status
         // appended, so whether that line took one row or two depended on **the width of a badge that arrives with the

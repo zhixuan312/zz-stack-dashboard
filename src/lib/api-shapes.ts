@@ -180,8 +180,11 @@ export interface KnowledgeNode {
   num: string;
   team: string; path: string; type: string; status: string;
   title: string; tags: string[] | null; updated: string; bytes: number; excerpt: string;
-  /** The initiative this lesson came out of — the only linkage the store records. */
+  /** The initiatives of the reader's active team this lesson came out of — the only linkage the store records. */
   evidence: string[] | null;
+  /** How many initiatives of other teams it came out of, counted and never named: a shared lesson is published,
+   *  the work behind it is its team's own. */
+  cited_elsewhere: number;
   superseded_by: string | null;
 }
 /** One entry in the knowledge base's own log — `/knowledge/log`.
@@ -203,9 +206,11 @@ export interface KnowledgeBody {
   tags: string[] | null; updated: string; body: string;
   /** The number the LIST shows for this node — per team, without leading zeros. */
   num: string;
+  /** The cited initiatives of the reader's active team; `cited_elsewhere` counts every other team's. */
   evidence: string[] | null; superseded_by: string | null;
-  /** Each piece of evidence with the team its initiative lives in, resolved by the gateway —
-   *  not the node's own team, since a node may cite an initiative in another. `team` is null
+  cited_elsewhere: number;
+  /** Each piece of that evidence with the team its initiative lives in, resolved by the gateway —
+   *  the reader's active team, which is not the node's own team for a shared lesson. `team` is null
    *  when nothing on this deployment has an initiative by that name, and the name is then
    *  text rather than a link. */
   evidence_in: { name: string; team: string | null }[] | null;
@@ -417,7 +422,8 @@ export interface SearchHit {
   /** A document's initiative; nothing for a node. */
   initiative: string | null; path: string; title: string;
   type: string | null; status: string | null; superseded_by: string | null;
-  tags: string[]; evidence: string[]; flow: string | null; outcome: string | null;
+  /** The cited initiatives of the team the search ran as; `cited_elsewhere` counts every other team's. */
+  tags: string[]; evidence: string[]; cited_elsewhere: number; flow: string | null; outcome: string | null;
   approved_by: string | null; approved_at: string | null; updated: string | null;
   /** The matched fragment of the text, at most 600 characters, each matched term between `**`. */
   excerpt: string; score: number; via: string[];

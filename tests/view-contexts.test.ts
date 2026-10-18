@@ -108,7 +108,7 @@ const contexts: Record<string, () => SharedContext> = {
   skill: () => skillContext('sdlc', 'sdlc-spec', { plugin: PLUGINS.find((p) => p.plugin === 'sdlc'), skill: SKILLS.find((s) => s.name === 'sdlc-spec'), detail: as<SkillDetail>(skillDetail(ME, 'sdlc-spec')), text: skillText('sdlc', 'sdlc-spec') ?? undefined, ...arrival }),
   runs: () => runsContext(RUNS, { filters: RUNS_DEFAULTS, ...arrival }),
   activity: () => activityContext({ summary: SUMMARY, log: LOG, filters: NO_FILTER, page: 1, ...arrival }),
-  access: () => accessContext(access(ME)[1] as Access, { superadmin: true, mode: 'platform', ...arrival }),
+  access: () => accessContext(access(ME)[1] as Access, arrival),
 };
 
 const busy: Record<string, () => SharedContext> = {

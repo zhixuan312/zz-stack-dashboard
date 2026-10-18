@@ -12,7 +12,6 @@ import { FormSection } from '@/components/patterns/form-section';
 import { Panel } from '@/console/panel';
 import { PeriodProvider } from '@/console/period';
 import { FEATURES, type FeatureId } from '@/data/features';
-import { ConsoleModeProvider } from '@/lib/api';
 import { viewAt, type SharedContext } from '@/lib/shared-context';
 import { viewTools } from '@/views/tools';
 import config from '../scripts/verify.config.ts';
@@ -63,10 +62,9 @@ function pageOf(file: string): Page {
 }
 
 // The address no page answers (`[...missing]`) is no destination: it shares nothing and has no view tool, as an address
-// that names nothing must not (`tests/no-access.test.tsx` holds it to the refused answer). Nor is an address whose
-// contents moved (`/settings`, until Phase 7 removes it, AC-1.12): it says so in one sentence with the link and nothing
-// else, and its view tool went with its contents. The last case below holds both to that.
-const NO_DESTINATION = ['[...missing]', 'settings'];
+// that names nothing must not (`tests/no-access.test.tsx` holds it to the refused answer). The last case below holds it
+// to that.
+const NO_DESTINATION = ['[...missing]'];
 const PAGES: Page[] = (fs.readdirSync(DASH, { recursive: true }) as string[]).filter((f) => path.basename(f) === 'page.tsx' && !NO_DESTINATION.includes(path.dirname(f))).sort().map(pageOf);
 
 /**
@@ -122,7 +120,7 @@ async function open(page: Page, ask?: (question: string) => void): Promise<Share
   const mod = (await import(/* @vite-ignore */ path.join(DASH, page.file))) as { default: (props: object) => Promise<ReactNode> };
   const tree = await settled(await mod.default({ params: Promise.resolve(page.params), searchParams: Promise.resolve({}) }));
   // The console's providers a page stands in, as `src/console/providers.tsx` and Meridian's `Providers` mount them.
-  const frame = createElement(ConsoleModeProvider, null, createElement(PeriodProvider, null, createElement(Suspense, { fallback: null }, tree)));
+  const frame = createElement(PeriodProvider, null, createElement(Suspense, { fallback: null }, tree));
   // Inside an awaited `act`: a detail page suspends on its params until they resolve.
   await act(async () => { render(onSurface(ask ? { ask, share } : { share }, frame)); });
   await waitFor(() => expect(shared.at(-1)?.facts.length ?? 0, `${page.route} shared no context with data`).toBeGreaterThan(0), { timeout: 10_000 });
@@ -130,9 +128,6 @@ async function open(page: Page, ask?: (question: string) => void): Promise<Share
 }
 
 const ASK = /^Ask: /;
-
-/** Today's addresses that render another route's page until Phase 7 removes them; their view tool names that route. */
-const RENDERS_UNTIL_PHASE_7: Record<string, string> = { '/teams': '/platform/teams', '/teams/[slug]': '/platform/teams/[slug]', '/people': '/platform/people' };
 
 /**
  * Whether an Ask sits in the head of the card it is on (a Panel's or a table's head, a Featured metric's head row, a
@@ -180,10 +175,8 @@ describe('every page of the console carries its agent side', () => {
     const tool = viewTools.find((t) => t.name === context.view);
     expect(tool, `no view_${context.view} tool`).toBeTruthy();
     expect(tool!.needs, `view_${tool!.name} needs what the page's gate needs`).toBe(FEATURES[page.feature].needs);
-    const route = RENDERS_UNTIL_PHASE_7[page.route] ?? page.route;
-    expect(tool!.page, `view_${tool!.name} names the page it renders`).toBe(route);
-    const address = route === page.route ? page.address : page.address.replace(/^\/(teams|people)/, '/platform/$1');
-    expect(viewAt(viewTools, address), `${address} offers explore_${tool!.name}`).toBe(tool);
+    expect(tool!.page, `view_${tool!.name} names the page it renders`).toBe(page.route);
+    expect(viewAt(viewTools, page.address), `${page.address} offers explore_${tool!.name}`).toBe(tool);
 
     const [first] = await screen.findAllByRole('button', { name: ASK }, { timeout: 10_000 });
     expect(inAHead(first), `${page.route}'s Ask is in no card's head`).toBe(true);
@@ -198,18 +191,10 @@ describe('every page of the console carries its agent side', () => {
     expect(screen.queryAllByRole('button', { name: ASK })).toEqual([]);
   });
 
-  it('holds the addresses that are no destination to that: no view tool names them, and the moved one shares nothing and asks nothing', async () => {
+  it('holds the address that is no destination to that: no view tool names it', () => {
     for (const dir of NO_DESTINATION) {
       const route = routeOf(path.join(dir, 'page.tsx'));
       expect(viewTools.some((t) => t.page === route), `a view tool names ${route}`).toBe(false);
     }
-    expect(viewAt(viewTools, '/settings')).toBeUndefined();
-    const shared: unknown[] = [];
-    const mod = (await import(/* @vite-ignore */ path.join(DASH, 'settings/page.tsx'))) as { default: () => Promise<ReactNode> };
-    const tree = await settled(await mod.default());
-    await act(async () => { render(onSurface({ ask: () => {}, share: (_t: string, c?: object) => { shared.push(c); } }, createElement(ConsoleModeProvider, null, tree))); });
-    expect(screen.getByRole('link', { name: 'Access' })).toHaveAttribute('href', '/access');
-    expect(screen.queryAllByRole('button', { name: ASK })).toEqual([]);
-    expect(shared.filter(Boolean)).toEqual([]);
   });
 });

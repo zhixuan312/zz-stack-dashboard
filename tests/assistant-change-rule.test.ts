@@ -155,7 +155,7 @@ describe('every context of a page with a change says what the person changes the
   const said = (c: SharedContext) => contextText(c);
 
   it('Access: every change is the person\'s, made on the page', () => {
-    const text = said(accessContext(access(ME)[1] as Access, { superadmin: true, mode: 'platform', ...arrival }));
+    const text = said(accessContext(access(ME)[1] as Access, arrival));
     expect(text).toContain('Every change here is the person\'s, made on this page');
     expect(text).toContain('The assistant does none of them');
   });

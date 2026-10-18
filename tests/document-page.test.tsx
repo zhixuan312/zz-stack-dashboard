@@ -5,9 +5,19 @@ import { Suspense } from 'react';
 import { Tooltip } from 'radix-ui';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+/** The server page's two asks of `/me`: its gate, let through here, and whether the reader may open a team's page. */
+const grants = vi.hoisted(() => ({ teams: false, asked: [] as string[] }));
+vi.mock('@/data/access', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/data/access')>()),
+  gate: async () => null,
+  may: async (need: string) => { grants.asked.push(need); return need === 'fleet:read' ? grants.teams : true; },
+}));
+
 import { PeriodProvider } from '@/console/period';
+import { FEATURES } from '@/data/features';
 import type { DocumentDetail, Me } from '@/lib/api-shapes';
 import { DocumentView } from '@/views/pages/document';
+import DocumentPage from '../app/(dash)/initiatives/[team]/[slug]/[...path]/page';
 
 /**
  * The document page and the presentation it records, wired together.
@@ -62,18 +72,51 @@ beforeEach(() => {
 afterEach(() => { vi.unstubAllGlobals(); });
 
 /** Rendered inside an awaited `act`: the page suspends on its params until they resolve. */
-async function renderPage(client: QueryClient) {
+async function renderPage(client: QueryClient, teamPage = false) {
   const params = Promise.resolve({ team: 'team-one', slug: 'init-1', path: ['spec.md'] });
   await act(async () => { render(
     <QueryClientProvider client={client}>
       <PeriodProvider>
         <Tooltip.Provider>
-          <Suspense fallback={null}><DocumentView params={params} /></Suspense>
+          <Suspense fallback={null}><DocumentView params={params} teamPage={teamPage} /></Suspense>
         </Tooltip.Provider>
       </PeriodProvider>
     </QueryClientProvider>,
   ); });
 }
+
+/**
+ * The breadcrumb's team (AC-1.12): a link to the team's page under Platform for a reader who may open it, and plain text
+ * for anybody else, so nothing links to an address that is gone or to a page the reader is refused. Whether they may is
+ * the reader's `/me` answer, read by the server page and handed to the view.
+ */
+describe('the breadcrumb\'s team', () => {
+  const crumb = () => screen.getAllByText('team-one').find((el) => el.closest('header'))!;
+
+  it('links to /platform/teams/<team> for a reader whose /me grants Teams', async () => {
+    await renderPage(new QueryClient({ defaultOptions: { queries: { retry: false } } }), true);
+    await screen.findByText('What the reader read.');
+    expect(crumb().closest('a')).toHaveAttribute('href', '/platform/teams/team-one');
+    expect(document.querySelector('a[href="/teams/team-one"]')).toBeNull();
+  });
+
+  it('is plain text for anybody else', async () => {
+    await renderPage(new QueryClient({ defaultOptions: { queries: { retry: false } } }), false);
+    await screen.findByText('What the reader read.');
+    expect(crumb().closest('a')).toBeNull();
+    expect(document.querySelector('a[href*="/teams/"]')).toBeNull();
+  });
+
+  it.each([true, false])('is decided by the server page from the reader\'s grant (Teams granted: %s)', async (granted) => {
+    grants.teams = granted;
+    grants.asked = [];
+    const params = Promise.resolve({ team: 'team-one', slug: 'init-1', path: ['spec.md'] });
+    const element = (await DocumentPage({ params })) as { props: { teamPage: boolean; params: unknown } };
+    expect(grants.asked).toEqual([FEATURES.teams.needs]);
+    expect(element.props.teamPage).toBe(granted);
+    expect(element.props.params).toBe(params);
+  });
+});
 
 describe('the document page under a refetch', () => {
   it('never lets Confirm sign a snapshot that arrived after Approve was pressed', async () => {

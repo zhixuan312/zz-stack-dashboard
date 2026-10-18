@@ -373,10 +373,11 @@ const NODE_SEEDS: NodeSeed[] = [
 ];
 const nodePath = (num: string, title: string) => `nodes/${num}-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 60).replace(/-$/, '')}.md`;
 
+/** Each team's lessons. Every one cites an initiative of its own team's, so none counts another's. */
 export const KNOWLEDGE: KnowledgeNode[] = NODE_SEEDS.map(([team, num, type, status, title, tags, evidence, hours]) => ({
   key: `${team}/${nodePath(num, title)}`, num, team, path: nodePath(num, title), type, status, title, tags, updated: ago(hours),
   bytes: 1_400 + Number(num) * 230, excerpt: `${title}. The evidence and the reasoning, as the initiative that learned it wrote them down.`,
-  evidence: evidence ? [evidence] : null,
+  evidence: evidence ? [evidence] : null, cited_elsewhere: 0,
   superseded_by: status === 'superseded' ? '0005' : null,
 }));
 
@@ -390,7 +391,7 @@ export function knowledgeBody(team: string, path: string, own: string | null = n
   return {
     team, path, type: n.type, status: n.status, title: n.title, tags: n.tags, updated: n.updated,
     body: `\n${n.title}.\n\n- **What happened.** The initiative found it the slow way, and wrote down how.\n- **What to do.** Check it before you build on it; it takes one command.\n\n\`\`\`sh\npnpm verify\n\`\`\`\n`,
-    evidence: n.evidence, superseded_by: n.superseded_by, num: n.num,
+    evidence: n.evidence, cited_elsewhere: n.cited_elsewhere, superseded_by: n.superseded_by, num: n.num,
     evidence_in: n.evidence?.map((name) => ({ name, team: work.find((i) => i.slug === name)?.team ?? null })) ?? null,
     // The neighbours and the shelf's span, served with the node rather than found on the client —
     // see `KnowledgeBody.related`.

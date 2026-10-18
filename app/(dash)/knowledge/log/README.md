@@ -1,6 +1,6 @@
 # Knowledge log
 
-Knowledge's log: every node recorded or retired, newest first, and who wrote it down. The address stands until Phase 7 removes it.
+Knowledge's log: every node recorded or retired, newest first, and who wrote it down. A tab of Knowledge, which the destinations table keeps (FR-18).
 
 ## Structure
 

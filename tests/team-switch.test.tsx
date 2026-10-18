@@ -4,7 +4,7 @@ import { Suspense, type ReactNode } from 'react';
 import type { UIMessage } from 'ai';
 import { THREAD_KEY, loadThread, saveThread } from '@/components/patterns/assistant/thread';
 import { TeamsPanel } from '@/console/settings/teams-panel';
-import { ConsoleCaller, ConsoleModeProvider, useConsole } from '@/lib/api';
+import { ConsoleCaller, useConsole } from '@/lib/api';
 
 /**
  * A team switch keeps nothing of the old team (reconciliation 54): every read's key carries the caller, the team and
@@ -48,17 +48,21 @@ function Probe({ team }: { team: string }) {
   return <span data-testid="marker">{q.data?.marker ?? 'pending'}</span>;
 }
 
+/** A read of who is calling, as the shell's own pieces make it. */
+function WhoAmI() {
+  useConsole('/me');
+  return null;
+}
+
 function Tree({ client, access, team, children }: { client: QueryClient; access: Promise<Access>; team: string; children?: ReactNode }) {
   return (
     <QueryClientProvider client={client}>
-      <ConsoleModeProvider>
-        <ConsoleCaller access={access}>
-          <Suspense fallback={null}>
-            <Probe team={team} />
-            {children}
-          </Suspense>
-        </ConsoleCaller>
-      </ConsoleModeProvider>
+      <ConsoleCaller access={access}>
+        <Suspense fallback={null}>
+          <Probe team={team} />
+          {children}
+        </Suspense>
+      </ConsoleCaller>
     </QueryClientProvider>
   );
 }
@@ -97,14 +101,14 @@ const keyOf = (client: QueryClient, path: string) => client.getQueryCache().getA
 describe('the read key', () => {
   it('carries the caller, the active team and the role the server resolved for the page, after the path', async () => {
     const client = new QueryClient();
-    render(<Tree client={client} access={ONE} team="team-one" />);
+    render(<Tree client={client} access={ONE} team="team-one"><WhoAmI /></Tree>);
     await waitFor(() => expect(screen.getByTestId('marker')).toHaveTextContent('team-one'));
     expect(keyOf(client, '/overview')).toEqual(['console', '/overview', 'noah@example.com', 'team-one', 'Member']);
     // `/me` answers who is calling, read above the layout that resolves the caller, so its key is the path alone.
     expect(client.getQueryCache().getAll().map((q) => q.queryKey)).toContainEqual(['console', '/me']);
   });
 
-  it('keeps every key the same across the two scopes, so the one read a member makes is the one kept', async () => {
+  it('is read once: the answer the first read brings is the one kept', async () => {
     const client = new QueryClient();
     render(<Tree client={client} access={ONE} team="team-one" />);
     await waitFor(() => expect(screen.getByTestId('marker')).toHaveTextContent('team-one'));

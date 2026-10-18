@@ -13,12 +13,11 @@ import { ApplicationsPanel } from '@/console/settings/applications-panel';
 import { AssistantPanel } from '@/console/settings/assistant-panel';
 import { BrowsersPanel } from '@/console/settings/browsers-panel';
 import { ClientSetupPanel } from '@/console/settings/client-setup-panel';
-import { ConsoleScopePanel } from '@/console/settings/console-scope-panel';
 import { PasskeysPanel } from '@/console/settings/passkeys-panel';
 import { TeamAdminPanel } from '@/console/settings/team-admin-panel';
 import { TeamSection } from '@/console/settings/teams-panel';
 import { TokensPanel } from '@/console/settings/tokens-panel';
-import { useConsoleMode, useDataClock } from '@/lib/api';
+import { useDataClock } from '@/lib/api';
 import type { Access } from '@/lib/destination-shapes';
 import { useLive } from '@/lib/live';
 import { accessContext, accessTrouble, asOfLine, type AccessRead } from '@/views/access-context';
@@ -44,23 +43,21 @@ function useAccessRead(served: AccessRead) {
 /**
  * What lets the caller in, and nothing of anybody else's, read on the console's server and handed here whole: their
  * tokens, the setup to connect a client, the applications and browsers signed in as them, their passkeys and the team
- * they act for; the members of that team for its admin, the console scope for a superadmin, and the assistant's switch
- * where the console has one. Every change is the person's, on this page, through the gateway's own routes: the
+ * they act for; the members of that team for its admin, and the assistant's switch where the console has one. Every change is the person's, on this page, through the gateway's own routes: the
  * assistant reads the page and changes nothing.
  *
  * Its own changes and any other tab's (the gateway tells every tab `settings`) read it again in the browser.
  */
-export function AccessView({ served, superadmin }: { served: AccessRead; superadmin: boolean }) {
+export function AccessView({ served }: { served: AccessRead }) {
   useLive(['settings']);
-  const { mode } = useConsoleMode();
   const now = useDataClock();
   const { access, trouble, retry, updatedAt } = useAccessRead(served);
   useShareView(access
-    ? accessContext(access, { superadmin, mode, updatedAt, now })
+    ? accessContext(access, { updatedAt, now })
     : pendingContext({ view: 'access', title: 'Access', address: '/access', scope: 'the caller\'s own access' }, trouble ? accessTrouble(trouble).detail : null));
   if (!access) return trouble ? <AccessTrouble trouble={trouble} onRetry={retry} /> : <Busy name="access"><AccessSkeleton /></Busy>;
   return (
-    <AccessProvider value={{ access, superadmin }}>
+    <AccessProvider value={{ access }}>
       {/* Sections 56px apart, as Meridian's settings stack them: what lets you in, then your team, then this console. */}
       <div className="flex flex-col gap-14">
         <TokensPanel />
@@ -70,7 +67,6 @@ export function AccessView({ served, superadmin }: { served: AccessRead; superad
         <PasskeysPanel />
         <TeamSection />
         <TeamAdminPanel />
-        <ConsoleScopePanel />
         <AssistantPanel />
       </div>
     </AccessProvider>
@@ -84,12 +80,12 @@ export function AccessAsOf({ read }: { read: AccessRead }) {
 }
 
 /**
- * One placeholder section per section the page can stack, for the tallest page: a superadmin who administers the team
+ * One placeholder section per section the page can stack, for the tallest page: a person who administers the team
  * they act for, on a console with an assistant. A frame shorter than the page grows when the page arrives, which is
- * what it exists to prevent; a member's page is shorter, and nothing below its last section moves.
+ * what it exists to prevent; anybody else's page is shorter, and nothing below its last section moves.
  * COUPLED: `app/(dash)/access/loading.tsx`, the same frame before the gate has answered.
  */
-const SECTIONS = 9;
+const SECTIONS = 8;
 
 export function AccessSkeleton() {
   return (

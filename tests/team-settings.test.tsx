@@ -17,13 +17,13 @@ import { ME } from '../scripts/fake-gateway/people.ts';
 const BASE = access(ME)[1] as Access;
 const withTeams = (teams: Access['teams']['teams']): Access => ({ ...BASE, teams: { actingFor: teams.find((t) => t.active)?.team ?? null, teams } });
 
-function drawn(read: Access, superadmin = false) {
+function drawn(read: Access) {
   const reads: string[] = [];
   vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
     reads.push(String(input));
     return Promise.resolve({ ok: true, status: 200, json: async () => [{ email: 'one@example.com', role: 'admin' }] } as unknown as Response);
   }));
-  render(<QueryClientProvider client={new QueryClient()}><AccessProvider value={{ access: read, superadmin }}><TeamAdminPanel /></AccessProvider></QueryClientProvider>);
+  render(<QueryClientProvider client={new QueryClient()}><AccessProvider value={{ access: read }}><TeamAdminPanel /></AccessProvider></QueryClientProvider>);
   return reads;
 }
 
@@ -43,8 +43,8 @@ describe('the team\'s members on Access', () => {
     expect(reads).toEqual([]);
   });
 
-  it('are not drawn for a superadmin who is a member of the team acted for, nor for a person in no team', () => {
-    drawn(withTeams([{ team: 'atlas', role: 'member', active: true }]), true);
+  it('are not drawn for a member of the team acted for, a superadmin among them, nor for a person in no team', () => {
+    drawn(withTeams([{ team: 'atlas', role: 'member', active: true }]));
     expect(screen.queryByRole('heading', { name: /members$/ })).toBeNull();
     drawn(withTeams([]));
     expect(screen.queryByRole('heading', { name: /members$/ })).toBeNull();

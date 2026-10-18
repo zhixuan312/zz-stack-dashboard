@@ -3,7 +3,7 @@
 import { useCallback, type ReactNode } from 'react';
 import { useQueryClient, type Query } from '@tanstack/react-query';
 import { LiveProvider } from '@/lib/live';
-import { useConsole, useConsoleMode } from '@/lib/api';
+import { useConsole } from '@/lib/api';
 import type { Me } from '@/lib/api-shapes';
 
 /** The endpoint the gateway serves the stream at: the console's own read surface, behind Caddy, as every other read is. */
@@ -37,14 +37,13 @@ function collectionOf(path: string): string {
  * collection a read belongs to is its own first path segment — `/teams` reads `teams` — so no new vocabulary appears on
  * either side of the wire, but for the reads `KEPT_UNDER` names.
  *
- * `scopeKey` is a reset key for the browser and never proof of access, which is why it is the person and the scope in
- * view rather than anything the stream is trusted with: a new one disposes the old stream and its state, and an empty
- * one opens nothing. It stays empty until `/me` answers, so a signed-out tab opens no stream at all, and it changes
- * when someone else signs in on the same machine or the superadmin switches between the platform and one team.
+ * `scopeKey` is a reset key for the browser and never proof of access, which is why it is the person rather than
+ * anything the stream is trusted with: a new one disposes the old stream and its state, and an empty one opens
+ * nothing. It stays empty until `/me` answers, so a signed-out tab opens no stream at all, and it changes when someone
+ * else signs in on the same machine. A team switch replaces the document, so it needs no key of its own.
  */
 export function ConsoleLive({ children }: { children: ReactNode }) {
   const client = useQueryClient();
-  const { mode } = useConsoleMode();
   const me = useConsole<Me>('/me');
 
   /**
@@ -65,7 +64,7 @@ export function ConsoleLive({ children }: { children: ReactNode }) {
   // No test hook for the safety poll: a check drives a change through a hint at a moment it chose, which is the
   // behaviour that matters, rather than waiting out the provider's own poll.
   return (
-    <LiveProvider refresh={refresh} endpoint={ENDPOINT} scopeKey={me.data ? `${mode}:${me.data.email}` : ''}>
+    <LiveProvider refresh={refresh} endpoint={ENDPOINT} scopeKey={me.data ? me.data.email : ''}>
       {children}
     </LiveProvider>
   );

@@ -27,8 +27,6 @@ import { people } from '../scripts/fake-gateway/platform-people.ts';
 import PlatformPeopleLoading from '../app/(dash)/platform/people/loading';
 import PlatformPeoplePage, { generateMetadata as peopleMetadata } from '../app/(dash)/platform/people/page';
 import { readPeople } from '../app/(dash)/platform/people/read-people';
-import TodaysPeopleLoading from '../app/(dash)/people/loading';
-import TodaysPeoplePage, { generateMetadata as todaysMetadata } from '../app/(dash)/people/page';
 
 /**
  * People under Platform, and the superadmin's management of people there (Task I-100, AC-4.2): the list drawn from the
@@ -346,7 +344,7 @@ async function markupOf(page: ReactNode | Promise<ReactNode>): Promise<string> {
   return text;
 }
 
-describe('a member asking either address', () => {
+describe('a member asking for People', () => {
   beforeEach(() => {
     gateway.get.mockImplementation(async (path: string) => {
       if (path === '/me') return MEMBER;
@@ -356,23 +354,18 @@ describe('a member asking either address', () => {
 
   it('is titled as an address that names nothing', async () => {
     expect(await peopleMetadata()).toEqual({ title: 'Not found', robots: { index: false } });
-    expect(await todaysMetadata()).toEqual({ title: 'Not found', robots: { index: false } });
   });
 
-  it('is answered, at the new address and at today\'s, by a page that names nothing and reads nothing', async () => {
-    for (const page of [PlatformPeoplePage({ searchParams: Promise.resolve({}) }), TodaysPeoplePage({ searchParams: Promise.resolve({}) })]) {
-      expect(await markupOf(page)).not.toMatch(/people|person|passkey|sign-in/i);
-      document.body.innerHTML = '';
-    }
+  it('is answered by a page that names nothing and reads nothing', async () => {
+    expect(await markupOf(PlatformPeoplePage({ searchParams: Promise.resolve({}) }))).not.toMatch(/people|person|passkey|sign-in/i);
+    document.body.innerHTML = '';
     expect(gateway.get.mock.calls.map(([p]) => p)).not.toContainEqual(expect.stringMatching(/^\/people/));
   });
 
   it('waits on loading states that name nothing', () => {
-    for (const Loading of [PlatformPeopleLoading, TodaysPeopleLoading]) {
-      const { container, unmount } = render(<Loading />);
-      expect(container.textContent).not.toMatch(/people|person/i);
-      unmount();
-    }
+    const { container, unmount } = render(<PlatformPeopleLoading />);
+    expect(container.textContent).not.toMatch(/people|person/i);
+    unmount();
   });
 });
 

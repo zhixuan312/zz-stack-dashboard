@@ -1,13 +1,9 @@
 'use client';
 
-import { useQuery, useQueryClient, type Query, type UseQueryResult } from '@tanstack/react-query';
-import { createContext, createElement, use, useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
+import { createContext, createElement, use, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { preload } from 'react-dom';
 import { clearThread } from '@/components/patterns/assistant/thread';
-
-// The one shape the transport itself needs: `useConsoleMode` reads the caller's role off
-// `/me` to decide whether the platform view is even offered. Shapes never import back.
-import type { Me } from './api-shapes';
 
 /**
  * Every read a page does for its own content.
@@ -86,151 +82,6 @@ async function read<T>(path: string, signal: AbortSignal): Promise<T> {
 }
 
 /**
- * The superadmin's platform/team choice — see `ConsoleModeProvider`.
- *
- * Client state only: no cookie, no server round trip to set it. The gateway decides scope on
- * every request, so this value only changes which parameter `useConsole` attaches and is never
- * itself an authorization check.
- */
-export type ConsoleMode = 'platform' | 'team';
-
-interface ConsoleModeState {
-  mode: ConsoleMode;
-  setMode: (mode: ConsoleMode) => void;
-}
-
-const ConsoleModeContext = createContext<ConsoleModeState | null>(null);
-
-const MODE_STORAGE_KEY = 'zz-stack-mode';
-
-function readStoredMode(): ConsoleMode | null {
-  try {
-    const v = window.localStorage.getItem(MODE_STORAGE_KEY);
-    return v === 'platform' || v === 'team' ? v : null;
-  } catch {
-    // Some browsers throw on any localStorage access — private browsing, storage disabled by
-    // policy — not just on a missing key. Losing the remembered choice is fine; failing every
-    // page load because of it is not.
-    return null;
-  }
-}
-
-function writeStoredMode(mode: ConsoleMode) {
-  try {
-    window.localStorage.setItem(MODE_STORAGE_KEY, mode);
-  } catch {
-    // See readStoredMode — persistence is a nicety, not a requirement.
-  }
-  for (const l of modeListeners) l();
-}
-
-/**
- * The stored choice as an external store. DELIBERATE: not a `useState` initializer. The server
- * cannot read localStorage, so an initializer that does renders "team" in the browser over a
- * server render of "platform", and React refuses the hydration (#418) on every page a superadmin
- * opens after choosing their team. `useSyncExternalStore` renders the server's answer while
- * hydrating and the stored one straight after.
- */
-const modeListeners = new Set<() => void>();
-function subscribeMode(onChange: () => void) {
-  modeListeners.add(onChange);
-  window.addEventListener('storage', onChange);
-  return () => {
-    modeListeners.delete(onChange);
-    window.removeEventListener('storage', onChange);
-  };
-}
-
-/**
- * Mounted once in `Providers`, above every page, so the platform/team choice survives
- * navigation without a cookie or a server round trip.
- *
- * The default depends on who is signed in — platform for a superadmin, team otherwise — which
- * this provider cannot know until `/me` resolves. It fetches `/me` itself under the same query
- * key `useConsole('/me')` uses, so this is a shared cache hit rather than a second request.
- * Once a choice is explicit — restored from localStorage, or made through `ModeSwitch` — it
- * wins over the me-derived default.
- */
-export function ConsoleModeProvider({ children }: { children: ReactNode }) {
-  const client = useQueryClient();
-  const explicitMode = useSyncExternalStore(subscribeMode, readStoredMode, () => null);
-  // Not `useConsole('/me')`: that hook reads this context to build its query, and this
-  // component is still producing it, so the hook would read whatever is above this provider
-  // rather than the value this render is about to supply. A plain `useQuery` keyed identically
-  // sidesteps the self-reference and still shares the one cached `/me` result.
-  preload(`${BASE}/me`, { as: 'fetch', crossOrigin: 'anonymous' });
-  const me = useQuery<Me, ApiError>({
-    queryKey: ['console', '/me'],
-    queryFn: () => consoleFetch<Me>('/me'),
-    retry: false,
-    staleTime: 30_000,
-  });
-
-  // A stored `platform` is only honoured for a superadmin. localStorage is per browser, not
-  // per account, so a superadmin signing out of a shared machine leaves `platform` behind and
-  // the next member to sign in would get the platform rail. The gateway still refuses them the
-  // data — `resolveScope` grants `scope=platform` only to `isSuper` — so this is about what
-  // the console shows, not disclosure. Discarding the stored value rather than rewriting it
-  // keeps the superadmin's own choice for when they sign back in.
-  const honoured = explicitMode === 'platform' && me.data && !me.data.superadmin
-    ? null
-    : explicitMode;
-
-  // Nobody has chosen yet: platform for a superadmin, team for everyone else once `/me` says
-  // which, and platform while it is still loading. Derived at render time rather than synced
-  // through an effect, so there is never a render where `mode` disagrees with the `me` data
-  // that determines it.
-  const mode: ConsoleMode = honoured
-    ?? (me.data ? (me.data.superadmin ? 'platform' : 'team') : 'platform');
-
-  /* Switching scope by hand is the one act that makes the cached rows the wrong ones: the reads
-   * share one entry across the two scopes (see `useConsole`), so nothing in the key would move
-   * without this. Dropping them leaves the mounted page with no data, which is the skeleton it
-   * shows today, and the next render reads under the scope that was chosen.
-   *
-   * DELIBERATE: `/me` is kept. It answers who is calling, not what they may read, and dropping
-   * it would re-ask a question whose answer is what this switch just acted on. */
-  const setMode = useCallback((next: ConsoleMode) => {
-    client.removeQueries({
-      predicate: (q: Query) => q.queryKey[0] === 'console' && q.queryKey[1] !== '/me',
-    });
-    writeStoredMode(next);
-  }, [client]);
-
-  /* A scope chosen in ANOTHER tab arrives as a `storage` event, and drops the rows the same way.
-   *
-   * `mode` is deliberately not in the query key (see `useConsole`), so the choice alone relabels
-   * every page and leaves every panel holding the other scope's rows under the new name — two
-   * tabs, two answers, one of them labelled with the scope it is not showing. The event is the
-   * only signal that the change was not this tab's, and `storage` never fires in the tab that
-   * wrote it, so this cannot loop with `setMode` above.
-   *
-   * A team switched in another tab arrives the same way, and this tab follows it as the switching tab did
-   * (`afterTeamSwitch`): the session is the browser's, so every tab now reads the new team. */
-  useEffect(() => {
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === SWITCH_KEY) {
-        if (e.newValue !== null) leaveForTheNewTeam();
-        return;
-      }
-      if (e.key !== null && e.key !== MODE_STORAGE_KEY) return;
-      client.removeQueries({
-        predicate: (q: Query) => q.queryKey[0] === 'console' && q.queryKey[1] !== '/me',
-      });
-    };
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
-  }, [client]);
-
-  // `createElement`, not JSX: this module is `.ts`, not `.tsx`.
-  // One value for as long as the choice stands. A fresh object re-renders every consumer of this
-  // context on every render of the provider — and its consumers are every component that reads a
-  // console read, so one `/me` refetch re-rendered the whole page.
-  const value = useMemo(() => ({ mode, setMode }), [mode, setMode]);
-  return createElement(ConsoleModeContext.Provider, { value }, children);
-}
-
-/**
  * Who a page is read by, as the console's server resolved it for the page: the caller's address, the team they act for
  * and their role, from `chromeAccess()` (`src/data/access.ts`), the one promise the layout makes and hands down. Every
  * read's key carries the three, so an answer is drawn only for the caller, team and role it was asked as.
@@ -246,20 +97,31 @@ function callerOf(access: Awaited<ServerAccess>): PageCaller | null {
   return access?.caller ? { caller: access.caller, team: access.team ?? null, role: access.user.role } : null;
 }
 
+/** The key a team switch is announced on to every other tab of this browser. */
+const SWITCH_KEY = 'zz-stack-team-switch';
+
 /**
  * Mounted by the layout around the shell, with the promise the rail is given. It holds the promise, never awaits it:
  * a read awaits it (`useConsole`), and the server resolved it before any page's content, so in the browser it has
  * settled before anything reads it and nothing waits.
  *
+ * It also follows a team switched in another tab of this browser, which arrives as a `storage` event on `SWITCH_KEY`:
+ * this tab leaves for the new team as the switching tab did (`afterTeamSwitch`), since the session is the browser's and
+ * every tab now reads the new team. `storage` never fires in the tab that wrote it, so this cannot loop with the switch.
+ *
  * The assistant's thread is not kept here: ZZ Meridian's `AssistantScope`, which the layout mounts with the same
  * person and team, keeps it for that scope alone and removes one stored for another as soon as it resolves.
  */
 export function ConsoleCaller({ access, children }: { access: ServerAccess; children?: ReactNode }) {
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === SWITCH_KEY && e.newValue !== null) leaveForTheNewTeam();
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
   return createElement(CallerContext.Provider, { value: access }, children);
 }
-
-/** The key a team switch is announced on to every other tab of this browser. */
-const SWITCH_KEY = 'zz-stack-team-switch';
 
 /** Clears the thread, then replaces the document with the same address: every query, the mounted assistant and any answer or stream in flight go with it. */
 function leaveForTheNewTeam(tellTheOtherTabs = false) {
@@ -303,30 +165,16 @@ function useHydrated(): boolean {
   return useSyncExternalStore(neverChanges, () => true, () => false);
 }
 
-const DEFAULT_MODE_STATE: ConsoleModeState = { mode: 'platform', setMode: () => {} };
-
 /**
- * Reads the platform/team choice. Every real page is inside `ConsoleModeProvider`
- * via the root `Providers`, so the fallback below never runs in the app — it
- * exists so `ModeSwitch` (and anything else that reads this) can still render,
- * inertly, in a test or story that mounts it on its own.
+ * Every read asks for the platform's scope (reconciliation 76), respecting a path that already has its own query string
+ * (`/activity?period=90d`) versus one that doesn't (`/home`), exactly as the console's server asks (`gatewayGet` in
+ * `src/data/gateway.ts`). The gateway answers each caller what they may read: `resolveScope` honours the parameter for
+ * a superadmin, whose console is the whole platform, and answers anybody else exactly what the parameterless request
+ * would have, the team they act for. Two reads take none: `/me`, which is who the caller is, and the search, which the
+ * platform runs as the team the caller acts for and refuses a platform scope.
  */
-export function useConsoleMode(): ConsoleModeState {
-  const state = useContext(ConsoleModeContext) ?? DEFAULT_MODE_STATE;
-  // The server renders every page in the platform view, since it knows neither who is signed in nor what they chose.
-  // A component hydrating after `/me` has answered would otherwise draw "Your team" over the server's "The platform".
-  return useHydrated() || state.mode === 'platform' ? state : { mode: 'platform', setMode: state.setMode };
-}
-
-/**
- * Appends `scope=platform` for platform mode, respecting a path that already
- * has its own query string (`/activity?period=90d`) versus one that doesn't
- * (`/home`). Team mode adds nothing: that is "no opinion", not
- * "team", and the caller's `activeTeam` on the server applies. The search takes no scope in either mode, as
- * `gatewayGet` asks it: the platform runs it as the team the caller acts for and refuses it a platform scope.
- */
-function withScope(path: string, mode: ConsoleMode): string {
-  if (mode !== 'platform' || path === '/search' || path.startsWith('/search?')) return path;
+function withScope(path: string): string {
+  if (path === '/me' || path === '/search' || path.startsWith('/search?')) return path;
   return path.includes('?') ? `${path}&scope=platform` : `${path}?scope=platform`;
 }
 
@@ -392,22 +240,9 @@ export function useDataClock(): Date {
  * `retry: false` because the two failures that matter — 401 (not signed in) and 403 (signed in,
  * wrong door) — are answers, not outages.
  *
- * DELIBERATE: the mode is NOT part of the query key, though it decides the URL. It used to be,
- * and that cost every member a second read of everything: the mode starts at `platform` while
- * `/me` is in flight, so a page's first read goes out scoped `platform`; when `/me` answers
- * "member" the mode becomes `team`, the key changed with it, and the same rows were fetched
- * again — a wasted round trip and a second full read on every page, for everybody who is not a
- * superadmin. Keyed on the path alone, that first response is the one the page keeps.
- *
- * Sharing one entry across the two scopes is sound because the gateway decides a scope from the
- * CALLER, not from the parameter: `resolveScope` reads `?scope=platform` only when the caller is
- * a superadmin, and otherwise answers exactly what the parameterless request would have got
- * (`scope.ts`). So the response under this key is the caller's own data either way — never
- * another team's, and never a scope they do not hold.
- *
- * The one case where the URL's meaning really does change is a person switching scope by hand,
- * and `ConsoleModeProvider.setMode` is what answers for it: it drops the console cache, so the
- * next render re-reads under the scope they chose.
+ * The URL is the path with the platform's scope (`withScope`), the same for every caller, so the key is the path: the
+ * gateway decides what a scope holds from the CALLER, never from the parameter (`scope.ts`), and the response under the
+ * key is the caller's own data, never another team's and never a scope they do not hold.
  *
  * The key does carry who the page is read by: the caller, the team they act for and their role, as the console's
  * server resolved them for the page (`ConsoleCaller`), after the path. A team switch replaces the document, so the
@@ -416,21 +251,16 @@ export function useDataClock(): Date {
  * `ConsoleCaller` the three are null.
  *
  * `/me` is the exception to all of this: it answers "who is this", not "which team's data", so it
- * carries neither the parameter, a mode segment nor the caller — `ConsoleModeProvider` depends on that to
- * avoid refetching `/me` when its own default computation changes the mode, and reads it above the layout that
- * resolves the caller.
+ * carries neither the parameter nor the caller, and the shell reads it above the layout that resolves the caller.
  */
 export function useConsole<T>(path: string | null): UseQueryResult<T, ApiError> {
-  // The choice itself, not what `useConsoleMode` shows while hydrating: this decides the URL of a read, and a read sent
-  // under the wrong scope would fill the cache with the other scope's rows.
-  const { mode } = useContext(ConsoleModeContext) ?? DEFAULT_MODE_STATE;
   const access = useContext(CallerContext);
   const hydrated = useHydrated();
   const scoped = path !== null && path !== '/me';
-  const url = scoped ? withScope(path as string, mode) : path;
+  const url = path === null ? null : withScope(path);
   const who = scoped && access ? callerOf(use(access)) : null;
   const query = useQuery<T, ApiError>({
-    // COUPLED: the path stays second, where `ConsoleLive` and `ConsoleModeProvider` read it.
+    // COUPLED: the path stays second, where `ConsoleLive` reads it.
     queryKey: scoped ? ['console', path, who?.caller ?? null, who?.team ?? null, who?.role ?? null] : ['console', path],
     queryFn: () => consoleFetch<T>(url as string),
     enabled: path !== null,
@@ -442,12 +272,10 @@ export function useConsole<T>(path: string | null): UseQueryResult<T, ApiError> 
    * hydrated, and the fetch above picks the response up. Still the browser's own request with its
    * own cookie; the page's server never holds it.
    *
-   * DELIBERATE: only while this read has neither an answer nor a request in flight. The mode
-   * starts at `platform` and settles on `team` for everybody who is not a superadmin, so the
-   * render that follows `/me` names a second URL for the same read — and hinting that one fetches
-   * in full a payload the page is already waiting for or holding, and will not look at. The hint
-   * that matters is the undecided one, which is what the server rendered and what the browser
-   * starts while it parses. */
+   * DELIBERATE: only while this read has neither an answer nor a request in flight. A hint for a
+   * read already answered or on its way fetches in full a payload the page is holding or waiting
+   * for, and will not look at. The hint that matters is the first, which is what the server
+   * rendered and what the browser starts while it parses. */
   if (url !== null && !query.dataUpdatedAt && !query.isFetching) {
     preload(`${BASE}${url}`, { as: 'fetch', crossOrigin: 'anonymous' });
   }

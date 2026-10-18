@@ -81,9 +81,10 @@ export type VerifyConfig = {
 const config: VerifyConfig = {
   /**
    * Measured on 2026-10-12, served against the fake gateway: the list pages are the console's heaviest uncompressed
-   * HTML, `/initiatives` at 90 KiB and `/people` at 88, against 61 on `/` and 75 on `/settings`. The caps hold roughly
-   * a fifth above `/initiatives` and, since the 2026-10-15 run read `/people` at 99 KiB of its 108, under a tenth above
-   * `/people` — room for a column and not for a second table.
+   * HTML, `/initiatives` at 90 KiB and People at 88, against 61 on `/` and 75 on the page Access replaced. The caps hold
+   * roughly a fifth above `/initiatives` and, since the 2026-10-15 run read People at 99 KiB of its 108, under a tenth
+   * above People — room for a column and not for a second table. People's cap is measured at `/platform/people`, its
+   * address since its old one was removed (AC-1.12); it is the same page, read the same way.
    *
    * They were 65 and 63 the day before, and the 25 KiB between is one thing: the layout now asks, on each request,
    * whether the console has an assistant (`connection()` in `app/(dash)/layout.tsx`, as Meridian's guide writes it), so
@@ -91,7 +92,7 @@ const config: VerifyConfig = {
    * one. It is the same text twice, so it compresses away: `/initiatives` is 11,229 bytes gzipped without it and 11,966
    * with it. The cap measures uncompressed bytes, which is why it moved and the page a person downloads barely did.
    *
-   * `/people` moved again on 2026-10-17, to 135 KiB (17.8 KiB gzipped), for one reason: its first page of people is now
+   * People moved again on 2026-10-17, to 135 KiB (17.8 KiB gzipped), for one reason: its first page of people is now
    * read on the console's server (reconciliation 65), so its rows are in the HTML twice, once drawn (the table and the
    * phone's cards) and once in the flight payload that hands the read to the page, where before both held a skeleton.
    * Teams under Platform, built the same way, reads 137 KiB. The caps stay where they were: the size lines are
@@ -99,7 +100,7 @@ const config: VerifyConfig = {
    * green, and the plan's non-functional pass brings each page back under its cap (plan.md, `## Full-suite gate`).
    */
   budgets: {
-    htmlKb: { '/initiatives': 108, '/people': 108 },
+    htmlKb: { '/initiatives': 108, '/platform/people': 108 },
     /**
      * PROVISIONAL, 2026-10-16: the recommendation put in place so the next feature is not blocked by a
      * stale rail. The measurement is real; the bar is the owner's, and the question is open in
@@ -127,8 +128,8 @@ const config: VerifyConfig = {
    *
    * The probe is the one that changes something unambiguous. A search field filters the rows it is beside (Initiatives,
    * Teams, People); where there is none, or a search runs on submit, a tile's info button opens the tooltip that says
-   * what the tile counts. `/teams`, `/people`, `/settings` and `/knowledge/log` are on no rail, so they have no entry
-   * here: they keep their pages, gated as their features, until Phase 7 removes them (AC-1.12).
+   * what the tile counts. Knowledge's log, `/knowledge/log`, is a tab of Knowledge and on no rail, so it has no entry
+   * here.
    */
   navigationChecks: [
     // Home's primary data is its paired figures; the one control the check presses is a tile's info button, whose
@@ -171,10 +172,6 @@ const config: VerifyConfig = {
   // node, a plugin with an evaluation, one never profiled, one vendored and never run, and a skill in each of its
   // views.
   detailRoutes: [
-    // The old addresses no rail offers until Phase 7 removes them (AC-1.12): the superadmin reads them, and the member's
-    // deniedProbe holds that they are refused, walked in the browser as every other page is.
-    '/teams',
-    '/people',
     '/platform/releases/0.97.0',
     '/platform/releases/0.31.1',
     // An open report, which draws the resolve form, and a closed duplicate, the one report that links its original.
@@ -182,8 +179,6 @@ const config: VerifyConfig = {
     '/platform/bugs/0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d02',
     '/platform/teams/atlas',
     '/platform/teams/dune',
-    '/teams/atlas',
-    '/teams/dune',
     '/initiatives/atlas/2026-09-28-search-relevance',
     '/initiatives/cinder/2026-08-20-incident-runbooks',
     '/initiatives/beacon/2026-09-22-payout-schedule',
@@ -222,8 +217,7 @@ const config: VerifyConfig = {
    *
    * The routes are the rail each is shown, written out, across both workspaces in the rails' order: Work's nine, then
    * Platform's. The superadmin is shown all eighteen; the member, one person in one team, `atlas`, every Work
-   * destination and Platform's six public ones, and is refused Teams, People and Audit, at their old addresses too, and
-   * a bug's own report. The name of a team they are not in is on Teams for a superadmin, and the name of a person in no
+   * destination and Platform's six public ones, and is refused Teams, People and Audit, and a bug's own report. The name of a team they are not in is on Teams for a superadmin, and the name of a person in no
    * team of theirs on People; neither may reach the page a member is refused.
    */
   personas: {
@@ -240,7 +234,7 @@ const config: VerifyConfig = {
         '/', '/record', '/initiatives', '/approvals', '/knowledge', '/activity', '/runs', '/plugins', '/access',
         '/platform', '/platform/releases', '/platform/bugs', '/platform/evaluation', '/platform/usage', '/platform/knowledge',
       ],
-      deniedProbe: { '/teams': 'Beacon Payments', '/platform/teams': 'Beacon Payments', '/people': 'Jonas Weber', '/platform/people': 'Jonas Weber', '/platform/audit': 'archived team cinder', '/platform/bugs/0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d01': 'document_approve refuses a stakeholder the frontmatter names' },
+      deniedProbe: { '/platform/teams': 'Beacon Payments', '/platform/people': 'Jonas Weber', '/platform/audit': 'archived team cinder', '/platform/bugs/0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d01': 'document_approve refuses a stakeholder the frontmatter names' },
     },
   },
   refusal,

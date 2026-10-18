@@ -2,14 +2,15 @@
 
 import Link from 'next/link';
 import { Fragment, useEffect, useState, type ReactNode } from 'react';
-import { app } from '@/app.config';
+import { app, workspaces } from '@/app.config';
 import { PageFrame, Stack, type PageWidth } from '@/components/base/shell';
 import { useShareView } from '@/components/base/use-share-view';
 import { Freshness } from '@/components/patterns/freshness';
 import { PeriodSelect } from '@/components/patterns/period-select';
-import { freshnessOf, useConsoleMode, useDataClock } from '@/lib/api';
+import { freshnessOf, useDataClock } from '@/lib/api';
 import type { SharedContext } from '@/lib/shared-context';
 import type { Arrival } from '@/views/context';
+import { workspaceOf } from '@/views/workspaces';
 import { usePeriod } from '@/console/period';
 
 /** A step back up from a record: the list it belongs to, then the parent record. */
@@ -17,8 +18,10 @@ type Crumb = { label: string; href?: string };
 
 /**
  * Every console page: Meridian's `PageFrame` with the console's masthead conventions. The kicker says where the page
- * sits (the scope in view, or the trail back up from a record), the freshness stamp says when its data arrived, and
- * the period picker governs every figure on a page that has a time dimension.
+ * sits (the workspace its address is in, as its loading state says it, or the trail back up from a record), the
+ * freshness stamp says when its data arrived, and the period picker governs every figure on a page that has a time
+ * dimension. The workspace is read off the address the page's context names, never the window's, so the kicker is
+ * the same on the server and in the browser.
  *
  * `context` is the page's shared context (decision 0011), and it is not optional: every console page tells the
  * assistant what it shows, its scope, its figures with their definitions and what the data cannot say, built by the
@@ -55,7 +58,6 @@ export function ConsolePage({
   width?: PageWidth;
   children: ReactNode;
 }) {
-  const { mode } = useConsoleMode();
   useShareView(context);
   // The data's clock, for the freshness stamp: never `new Date()` at render.
   const clock = useDataClock();
@@ -69,7 +71,7 @@ export function ConsolePage({
         </Fragment>
       ))}
     </span>
-  ) : `${app.name} · ${mode === 'platform' ? 'The platform' : 'Your team'}`;
+  ) : `${app.name} · ${workspaces[workspaceOf(context.address.split(/[?#]/)[0]) ?? 'main'].label}`;
   return (
     <PageFrame
       title={title}

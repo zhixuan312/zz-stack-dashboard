@@ -72,12 +72,11 @@ afterEach(() => {
 
 /**
  * Who each page opens for, from the spec's grants table and reconciliation 67, written out here and not read from the
- * code under test: Teams, People, Audit and a bug's own page are the superadmin's, and every other page, the old
- * addresses that keep their pages until Phase 7 among them, everybody's.
+ * code under test: Teams, People, Audit and a bug's own page are the superadmin's, and every other page everybody's.
  */
 const SUPERADMIN_ONLY = ['teams', 'people', 'audit', 'bug'];
 const EVERYBODY = [
-  'home', 'record', 'initiatives', 'approvals', 'knowledge', 'activity', 'runs', 'plugins', 'access', 'settings',
+  'home', 'record', 'initiatives', 'approvals', 'knowledge', 'activity', 'runs', 'plugins', 'access',
   'platform-status', 'releases', 'bugs', 'evaluation', 'usage', 'knowledge-health',
 ];
 

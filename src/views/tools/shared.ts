@@ -6,10 +6,8 @@
  * Each segment is held to the characters a slug or a file name has, because it is placed in a gateway path.
  */
 import { z } from 'zod';
-import { may } from '@/data/access';
-import { FLEET } from '@/data/features';
 import { PERIODS } from '@/lib/period';
-import type { Arrival, ViewMode } from '../context';
+import type { Arrival } from '../context';
 
 export const period = z.enum(PERIODS).optional().describe('The reporting period; all time when not given.');
 export const search = z.string().max(100).optional();
@@ -20,5 +18,3 @@ export const file = (what: string) => z.string().regex(/^[A-Za-z0-9_][A-Za-z0-9.
 
 /** A read made now: the data's clock is the moment the gateway answered. */
 export const justRead = (): Arrival => { const now = new Date(); return { updatedAt: now, now }; };
-/** Whose rows the gateway returned: every team's to a superadmin, the caller's own team's otherwise. */
-export const modeOf = async (): Promise<ViewMode> => ((await may(FLEET)) ? 'platform' : 'team');

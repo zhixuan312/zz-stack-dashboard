@@ -445,7 +445,7 @@ describe('GET /api/console/platform/status', () => {
 describe('POST /api/console/page-view', () => {
   it('accepts a known feature with nothing to say back', async () => {
     for (const who of [null, SUPERADMIN, MEMBER]) {
-      for (const feature of ['home', 'initiatives', 'knowledge', 'people', 'settings', 'teams', 'plugins', 'runs', 'activity', 'platform-status']) {
+      for (const feature of ['home', 'initiatives', 'knowledge', 'people', 'teams', 'plugins', 'runs', 'activity', 'platform-status']) {
         const res = await post(who, 'page-view', { feature });
         expect(res.status, `${who ?? 'no cookie'}: ${feature}`).toBe(204);
         expect(await res.text()).toBe('');
@@ -454,7 +454,8 @@ describe('POST /api/console/page-view', () => {
   });
 
   it('refuses a feature it does not know, and a body with none', async () => {
-    for (const body of [{ feature: 'dashboard' }, { feature: '/initiatives/atlas/2026-09-28-search-relevance' }, { feature: '' },
+    // `settings` was a page's feature until its address was removed, and is no destination now.
+    for (const body of [{ feature: 'dashboard' }, { feature: 'settings' }, { feature: '/initiatives/atlas/2026-09-28-search-relevance' }, { feature: '' },
                         { feature: 7 }, {}, [], 'not json', { workspace: 'main' }]) {
       const res = await post(MEMBER, 'page-view', body);
       expect(res.status, JSON.stringify(body)).toBe(400);
@@ -488,14 +489,14 @@ describe('the personas pnpm verify --as signs in as', () => {
 
   it('probe each page the member is refused for a string its read holds and no read of the member\'s does', async () => {
     const probes = Object.entries(personas.member.deniedProbe ?? {});
-    expect(probes.map(([route]) => route).sort()).toEqual(['/people', '/platform/audit', '/platform/bugs/0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d01', '/platform/people', '/platform/teams', '/teams']);
+    expect(probes.map(([route]) => route).sort()).toEqual(['/platform/audit', '/platform/bugs/0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d01', '/platform/people', '/platform/teams']);
     const theirs = JSON.stringify(await Promise.all((await memberReads()).map((path) => read(MEMBER, path))));
     for (const [route, probe] of probes) {
-      // `/platform/teams` and `/platform/people` are Teams and People under Platform, reading the same `/teams` and
-      // `/people` their old addresses read until Phase 7. A bug report reads its own address: the member reads the list
-      // it sits in, by a title generated from its surface, and never the report's own words.
-      const fleet = /^\/(platform\/)?(teams|people)$/.exec(route);
-      const collection = fleet ? fleet[2] : route.slice(1);
+      // `/platform/teams` and `/platform/people` are Teams and People under Platform, reading the gateway's `/teams` and
+      // `/people`. A bug report reads its own address: the member reads the list it sits in, by a title generated from
+      // its surface, and never the report's own words.
+      const fleet = /^\/platform\/(teams|people)$/.exec(route);
+      const collection = fleet ? fleet[1] : route.slice(1);
       if (fleet) expect(RAIL, route).toContain(`/platform/${collection}`);
       expect(personas.member.expectedRoutes, route).not.toContain(route);
       // The page's own read holds it for the superadmin; the member is refused that read, and reads it nowhere else.

@@ -71,12 +71,8 @@ const DETAIL: Record<string, string> = {
   '/platform/bugs/0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d01': 'main [data-report-detail]',
   '/platform/bugs/0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d02': 'main [data-report-detail]',
   '/platform/teams/atlas': TABLE,
-  '/platform/teams/dune': TABLE,
-  '/teams': TABLE,
-  '/people': TABLE,
-  '/teams/atlas': TABLE,
   // No initiative yet, which the page says; its members are the table.
-  '/teams/dune': TABLE,
+  '/platform/teams/dune': TABLE,
   '/initiatives/atlas/2026-09-28-search-relevance': TABLE,
   '/initiatives/cinder/2026-08-20-incident-runbooks': TABLE,
   '/initiatives/beacon/2026-09-22-payout-schedule': TABLE,

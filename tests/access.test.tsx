@@ -1,8 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { Tooltip } from 'radix-ui';
-import fs from 'node:fs';
-import path from 'node:path';
 import { isValidElement, type ReactElement } from 'react';
 import { hydrateRoot } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
@@ -39,22 +37,20 @@ import type { Me } from '@/lib/api-shapes';
 import type { Access } from '@/lib/destination-shapes';
 import { ACCESS_BOUND_MS, browserOf, type AccessRead } from '@/views/access-context';
 import { AccessView } from '@/views/pages/access';
-import { SettingsView } from '@/views/pages/settings';
 import { access as accessOf } from '../scripts/fake-gateway/work-access.ts';
 import { ME, MEMBER } from '../scripts/fake-gateway/people.ts';
 import { teamMembers } from '../scripts/fake-gateway/platform-people.ts';
 import AccessLoading from '../app/(dash)/access/loading';
 import AccessPage, { generateMetadata as accessMetadata } from '../app/(dash)/access/page';
 import { readAccess } from '../app/(dash)/access/read-access';
-import SettingsPage, { generateMetadata as settingsMetadata } from '../app/(dash)/settings/page';
 
 /**
  * Access (Task I-112), which replaces Settings: the page drawn from the fake gateway's own answer as the superadmin and
  * as a member, read first on the console's server; its sections (tokens with Issue and Revoke, setup, the connected
  * applications with Revoke, the signed-in browsers with the current one marked and Sign out on the others, passkeys,
- * the team acted for with its switch, the team's members for its admin, the console scope for the superadmin alone);
- * every state; each write and its refusal, which keeps what was typed and says the gateway's sentence; the first paint;
- * and `/settings`, which says in one sentence that its contents moved.
+ * the team acted for with its switch, and the team's members for its admin); every state; each write and its refusal,
+ * which keeps what was typed and says the gateway's sentence; and the first paint. No section offers a console scope
+ * (reconciliation 76).
  */
 const answer = (who: Me): Access => accessOf(who)[1] as Access;
 const ADMIN = answer(ME);
@@ -87,8 +83,8 @@ function mount(ui: ReactElement, ask?: (q: string) => void) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(<QueryClientProvider client={client}>{tree(ui, ask)}</QueryClientProvider>);
 }
-const draw = (access: Access | AccessRead, { superadmin = true, ask }: { superadmin?: boolean; ask?: (q: string) => void } = {}) =>
-  mount(<AccessView served={'state' in access ? access : ok(access)} superadmin={superadmin} />, ask);
+const draw = (access: Access | AccessRead, { ask }: { ask?: (q: string) => void } = {}) =>
+  mount(<AccessView served={'state' in access ? access : ok(access)} />, ask);
 /** A section by its title: the FormSection's `section`, found while a dialog hides the page from assistive technology too. */
 const section = (title: string) => screen.getByRole('heading', { level: 2, name: title, hidden: true }).closest('section') as HTMLElement;
 const rowsOf = (title: string) => within(section(title)).queryAllByRole('row', { hidden: true }).slice(1);
@@ -111,11 +107,11 @@ describe('who opens Access', () => {
 });
 
 describe('Access, as the fake gateway answers the superadmin', () => {
-  it('stacks its sections in order, each a ZZ Meridian FormSection, the console scope included', () => {
+  it('stacks its sections in order, each a ZZ Meridian FormSection, and no console scope', () => {
     browser();
     draw(ADMIN);
     const titles = [...document.querySelectorAll('section h2')].map((h) => h.textContent);
-    expect(titles).toEqual(['Tokens', 'Client setup', 'Connected applications', 'Signed-in browsers', 'Passkeys', 'The team you act for', 'atlas\'s members', 'Console scope']);
+    expect(titles).toEqual(['Tokens', 'Client setup', 'Connected applications', 'Signed-in browsers', 'Passkeys', 'The team you act for', 'atlas\'s members']);
   });
 
   it('lists every token with its label, application, dates and state, and Revoke on the live ones alone', () => {
@@ -192,14 +188,14 @@ describe('Access, as the fake gateway answers the superadmin', () => {
 });
 
 describe('Access, as a member', () => {
-  it('draws no console scope, and the members only for the admin of the team acted for', async () => {
+  it('draws the members only for the admin of the team acted for', async () => {
     browser(undefined, MEMBER);
-    const { unmount } = draw(NOAH, { superadmin: false });
+    const { unmount } = draw(NOAH);
     expect(screen.queryByRole('heading', { name: 'Console scope' })).toBeNull();
     expect(screen.getByRole('heading', { name: 'atlas\'s members' })).toBeInTheDocument();
     unmount();
     browser(undefined, PLAIN);
-    draw(PLAIN_ACCESS, { superadmin: false });
+    draw(PLAIN_ACCESS);
     expect(screen.queryByRole('heading', { name: /members$/ })).toBeNull();
     await settle();
     expect(reads('/settings/team/members')).toEqual([]);
@@ -207,7 +203,7 @@ describe('Access, as a member', () => {
 
   it('lists the member\'s own tokens and application, and nothing of the superadmin\'s', () => {
     browser(undefined, MEMBER);
-    const { container } = draw(NOAH, { superadmin: false });
+    const { container } = draw(NOAH);
     expect(rowsOf('Tokens')).toHaveLength(NOAH.issued.length);
     expect(rowsOf('Connected applications')[0].textContent).toContain('ChatGPT');
     for (const t of ADMIN.issued) expect(container.textContent).not.toContain(t.label);
@@ -217,7 +213,7 @@ describe('Access, as a member', () => {
 describe('every state Access draws', () => {
   it('says what each section has none of, and every other section stands', () => {
     browser();
-    draw(NOTHING, { superadmin: false });
+    draw(NOTHING);
     expect(section('Tokens').textContent).toContain('No token issued yet');
     expect(section('Connected applications').textContent).toContain('No application connected');
     expect(section('Passkeys').textContent).toContain('No passkey recorded');
@@ -229,7 +225,7 @@ describe('every state Access draws', () => {
 
   it('says no browser is signed in for a page opened with a token', () => {
     browser();
-    draw({ ...NOTHING, browsers: [] }, { superadmin: false });
+    draw({ ...NOTHING, browsers: [] });
     expect(section('Signed-in browsers').textContent).toContain('No browser signed in');
   });
 
@@ -253,7 +249,7 @@ describe('every state Access draws', () => {
   it('loads as the tallest page, naming nothing under the absent refusal', () => {
     const { container } = render(<AccessLoading />);
     expect(container.textContent).not.toContain('Access');
-    expect(container.querySelectorAll('.flex.flex-col.gap-14 > .\\@container')).toHaveLength(9);
+    expect(container.querySelectorAll('.flex.flex-col.gap-14 > .\\@container')).toHaveLength(8);
   });
 });
 
@@ -378,10 +374,10 @@ describe('the first paint', () => {
   it('carries every section the server read, and hydrates onto the same markup with no browser read', async () => {
     browser();
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    const view = <AccessView served={ok(ADMIN)} superadmin />;
+    const view = <AccessView served={ok(ADMIN)} />;
     const html = renderToString(<QueryClientProvider client={client}>{tree(view)}</QueryClientProvider>);
     for (const t of ADMIN.issued) expect(html).toContain(t.label);
-    expect(html).toContain('Console scope');
+    expect(html).not.toContain('Console scope');
     for (const b of ADMIN.browsers) expect(html).not.toContain(b.id);
     const container = document.createElement('div');
     container.innerHTML = html;
@@ -402,42 +398,24 @@ describe('the page on the console\'s server', () => {
     gateway.get.mockImplementation(async (p: string) => (p === '/me' ? ME : p === '/access' ? ADMIN : Promise.reject(new GatewayError(404, 'HTTP 404'))));
   });
 
-  it('is titled Access, and Settings Settings', async () => {
+  it('is titled Access', async () => {
     expect(await accessMetadata()).toEqual({ title: 'Access' });
-    expect(await settingsMetadata()).toEqual({ title: 'Settings' });
   });
 
   it('reads Access once, as the person, and hands the one read to the as-of line and the sections', async () => {
     const found: unknown[] = [];
-    let superadmin: unknown;
     const walk = (node: unknown): void => {
       if (Array.isArray(node)) return node.forEach(walk);
       if (!isValidElement(node)) return;
       const props = node.props as Record<string, unknown>;
       if (props.read) found.push(props.read);
-      if ('superadmin' in props) superadmin = props.superadmin;
       Object.values(props).forEach(walk);
     };
     walk(await AccessPage());
     expect(found).toHaveLength(2);
     expect(found[0]).toBe(found[1]);
     expect(await found[0]).toEqual(ok(ADMIN));
-    expect(superadmin).toBe(true);
     expect(gateway.get.mock.calls.filter(([p]) => p === '/access')).toHaveLength(1);
-  });
-
-  it('decides on the server that a member has no console scope', async () => {
-    gateway.get.mockImplementation(async (p: string) => (p === '/me' ? MEMBER : NOAH));
-    let superadmin: unknown;
-    const walk = (node: unknown): void => {
-      if (Array.isArray(node)) return node.forEach(walk);
-      if (!isValidElement(node)) return;
-      const props = node.props as Record<string, unknown>;
-      if ('superadmin' in props) superadmin = props.superadmin;
-      Object.values(props).forEach(walk);
-    };
-    walk(await AccessPage());
-    expect(superadmin).toBe(false);
   });
 
   it('says the gateway\'s sentence, or that the read was slow, and never rejects', async () => {
@@ -448,30 +426,5 @@ describe('the page on the console\'s server', () => {
     const slow = readAccess();
     await vi.advanceTimersByTimeAsync(ACCESS_BOUND_MS);
     expect(await slow).toEqual({ state: 'slow' });
-  });
-});
-
-describe('/settings, whose contents moved', () => {
-  it('draws one sentence saying so, with a link to Access, and nothing else', async () => {
-    gateway.get.mockImplementation(async () => ME);
-    const page = await SettingsPage();
-    const { container } = render(<>{page}</>);
-    const main = container;
-    const moved = main.querySelector('[data-moved]')!;
-    expect(moved.textContent).toMatch(/^Everything that was here is on Access now: .+\.$/);
-    expect(within(moved as HTMLElement).getByRole('link', { name: 'Access' })).toHaveAttribute('href', '/access');
-    // The page's body is the sentence alone, and nothing in the page but the shell's own controls is a control.
-    expect([...moved.parentElement!.children]).toEqual([moved]);
-    expect([...main.querySelectorAll('p')].filter((p) => !p.closest('header') && p.getAttribute('aria-hidden') !== 'true')).toEqual([moved]);
-    expect(main.querySelectorAll('table, form, section, input, textarea')).toHaveLength(0);
-    expect(screen.getAllByRole('link')).toEqual([within(moved as HTMLElement).getByRole('link')]);
-  });
-
-  it('is still gated, and its README says its contents moved', async () => {
-    expect(SettingsView).toBeTypeOf('function');
-    const readme = fs.readFileSync(path.resolve(import.meta.dirname, '../app/(dash)/settings/README.md'), 'utf8');
-    expect(readme).toMatch(/Settings' contents moved/);
-    expect(readme).toContain('/access');
-    expect(fs.readFileSync(path.resolve(import.meta.dirname, '../app/(dash)/settings/page.tsx'), 'utf8')).toContain('gate(\'settings\')');
   });
 });

@@ -6,8 +6,7 @@ import { addressSearch, announceAddress } from '@/lib/address';
 import { DEFAULT_PERIOD, parsePeriod, type Period } from '@/lib/period';
 
 /**
- * The reporting period, held in context — the same shape `ConsoleModeProvider` uses for the
- * platform/team choice.
+ * The reporting period, held in context.
  *
  * DELIBERATE: context, not the URL. The claim this used to make — that on a prerendered route a
  * `router.push` of `?period=30d` "is not seen by `useSearchParams()`" — is NOT what happens now,
@@ -104,8 +103,7 @@ export function PeriodProvider({ children }: { children: ReactNode }) {
 
 /**
  * Reads the period. Outside a provider it reports the default and ignores writes, so a control
- * that only consumes this can be rendered standalone — the same inert fallback
- * `useConsoleMode` offers.
+ * that only consumes this can be rendered standalone.
  */
 export function usePeriod(): PeriodState {
   return useContext(PeriodContext) ?? { period: DEFAULT_PERIOD, setPeriod: () => {} };

@@ -271,4 +271,28 @@ describe('the catch-all, in the route table', () => {
   it.each(['/nothing-lives-here', '/teams/atlas/no-such-tab', '/login/extra', '/platform/teams/atlas/extra'])('answers %s, which no page does', (address) => {
     expect(answering(address)).toBe('/[...missing]');
   });
+
+  /**
+   * The old addresses, removed (AC-1.12, reconciliation 75): the catch-all answers each of them, so each draws the
+   * console's missing page with its title and its status, for the superadmin and for a member alike, the same body an
+   * address that never named anything draws, since the catch-all reads nothing of the address. No redirect: the page
+   * is the answer.
+   */
+  describe.each(['/teams', '/teams/atlas', '/people', '/settings'])('%s', (address) => {
+    it('is answered by the catch-all and nothing else', () => {
+      expect(statics).not.toContain(address);
+      expect(answering(address)).toBe('/[...missing]');
+    });
+
+    it.each([['the superadmin', SUPERADMIN], ['a member', MEMBER]] as const)('draws the missing page for %s, as an unknown address does', async (_who, person) => {
+      gateway(person);
+      const unknown = render((await MissingAddressPage()) as ReactElement).container.innerHTML;
+      cleanup();
+      const old = render((await MissingAddressPage()) as ReactElement).container;
+      expect(old.querySelector('[data-missing-page]')).not.toBeNull();
+      expect(old.querySelector('[data-no-access]')).toBeNull();
+      expect(old.innerHTML).toBe(unknown);
+      expect(missingAddress.metadata).toEqual({ title: NOT_FOUND.title, robots: { index: false } });
+    });
+  });
 });
