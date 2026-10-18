@@ -46,9 +46,9 @@ These hold in every project, however it started, and nothing below overrides the
 - **Agents read freely and write only through a Proposal.** Mark agent work with the Agent mark and "via"
   (`references/agents.md`).
 - **Done is when the scoreboard says so.** `pnpm verify` is the loop while you work; the work is finished only when
-  `pnpm verify --full` ends with `the project meets the Meridian standard` and every view is rendered, scored and none
-  is Weak (`references/standard.md`). Never against a live backend: `--full` presses every control, Delete included, so
-  a project whose pages call a live API or read a database names a `fakeApi` (or says `noLiveApi`) in
+  `pnpm verify --full --timed` ends with `the project meets the Meridian standard` and every view is rendered, scored
+  and none is Weak (`references/standard.md`). Never against a live backend: `--full` presses every control, Delete
+  included, so a project whose pages call a live API or read a database names a `fakeApi` (or says `noLiveApi`) in
   `scripts/verify.config.ts` first (`references/existing-project.md`, step 5).
 - **Commit locally, never publish.** Commit each verified change on its own with the paths named. Pushing, a release, a
   deploy, production data and the feedback issue wait for the person's yes.
@@ -174,14 +174,14 @@ lightness so contrast holds), registered everywhere, and checked by the contrast
 the hue; when it warns that the hue is near a status hue, step 4 says what to run next. To
 change the brand later, run `npx zz-meridian@<the manifest's version> brand` with the new flags; never `node scripts/brand.ts`, which the manifest does not record.
 
-Requirements: Node 22.18 or newer. A new project uses pnpm when it is installed or corepack can run it, npm otherwise; an existing one keeps the
-package manager its lockfile names, and one with no lockfile gets npm, as `adopt` chooses. The commands here say `pnpm`: in an npm project `pnpm verify` is `npm run verify`, and a flag goes after `--`
-(`npm run verify -- --full`). The browser checks use Google Chrome
-(`CHROME=/path/to/chrome` if it is not where the platform keeps it; a Chromium build works too). When one is missing,
-install it or point at what is there; in a sandbox without network or a browser, ask for the access these steps need
-(the package install, starting Chrome and a local server for verify). What still cannot run here does not stop the
-build: the floors it measures are `not run` with the reason, and the hand-over says the standard is not yet proven and
-what would prove it.
+Requirements: Node 22.18 or newer. A new project uses pnpm when it is installed or corepack can run it, npm otherwise;
+an existing one keeps the package manager its lockfile names, and one with no lockfile gets npm, as `adopt` chooses. The
+commands here say `pnpm`: in an npm project `pnpm verify` is `npm run verify`, and a flag goes after `--`
+(`npm run verify -- --full --timed`). The browser checks use Google Chrome (`CHROME=/path/to/chrome` if it is not where
+the platform keeps it; a Chromium build works too). When one is missing, install it or point at what is there; in a
+sandbox without network or a browser, ask for the access these steps need (the package install, starting Chrome and a
+local server for verify). What still cannot run here does not stop the build: the floors it measures are `not run` with
+the reason, and the hand-over says the standard is not yet proven and what would prove it.
 
 Now fill the brief, so the decisions survive the conversation.
 
@@ -270,27 +270,32 @@ the floors, render and score the craft, fix every Weak and every failure, commit
 
 ```sh
 pnpm verify            # the gate once, one build, the size checks and a smoke of up to three routes: the inner loop
-pnpm verify --full     # every view at five widths in both themes, every control pressed, the keyboard walk, live data, vitals
+pnpm verify --full     # every view at five widths in both themes, every control pressed, the keyboard walk, the assistant; judges no time
+pnpm verify --timed    # the navigation budgets, live data, vitals; alone and last, on a quiet machine
+pnpm verify --full --timed   # the whole standard: the only run that can end "the project meets the Meridian standard"
 node_modules/.bin/next dev --port 3100 & # then, for the renders (stop it with kill $!; with a fake API, set its address first: API_URL=<fake> node_modules/.bin/next dev …):
 node scripts/shot.ts / <every other view> --width 1440,390 --theme dark,light --full
 ```
 
 Stop the dev server before verify, which builds and serves the app from the same folder: stop the process you started,
 by its id, never by a name or a pattern, since other servers on the machine may be someone else's. Start Next itself,
-not through `pnpm dev`, whose id is the package manager's and leaves the server running when it is stopped. The default takes about two
-minutes; `--full` takes about a quarter of an hour for a dozen routes. Every run ends with a coverage line, which says
-the depth that ran, whether the browser ran (and why not), how many routes have a readiness and a control mapping
-(`navigationChecks` in `scripts/verify.config.ts`), and which suites did not run:
+not through `pnpm dev`, whose id is the package manager's and leaves the server running when it is stopped. The default
+takes about two minutes; `--full` takes about a quarter of an hour for a dozen routes, and `--timed` several minutes
+more. `--timed` judges time, so run it alone on a quiet machine: nothing else building, testing or rendering beside it.
+Every run ends with a coverage line, which says the depth that ran, whether the browser ran (and why not), how many
+routes have a readiness and a control mapping (`navigationChecks` in `scripts/verify.config.ts`), and which suites did
+not run:
 
 ```text
-coverage: full; browser ran; 9 routes; data configured 9/9; interaction configured 9/9; not run: none
+coverage: full+timed; browser ran; 9 routes; data configured 9/9; interaction configured 9/9; not run: none
 ```
 
-Nothing that did not run is reported as passed, and only a `--full` run with nothing left unrun ends with `the project
-meets the Meridian standard`. `--full` refuses, listing every gap, until `scripts/verify.config.ts` describes the product
-you built (`references/standard.md`, "The floors"). When something fails, read `references/validation.md`, fix the
-cause, never the check, and run it again. A passing run is half the evidence: the other half is the renders, judged and
-scored, because the audit measures what can be measured and the eye judges the rest.
+Nothing that did not run is reported as passed, and only a `--full --timed` run with nothing left unrun ends with
+`the project meets the Meridian standard`. `--full` and `--timed` refuse, listing every gap, until
+`scripts/verify.config.ts` describes the product you built (`references/standard.md`, "The floors"). When something
+fails, read `references/validation.md`, fix the cause, never the check, and run it again. A passing run is half the
+evidence: the other half is the renders, judged and scored, because the audit measures what can be measured and the eye
+judges the rest.
 
 ## 7. Hand over
 
@@ -300,7 +305,7 @@ describing it. Draft step 8's feedback first, since the hand-over carries it. Wr
 ```
 Built <Product> on Meridian at <path>. <One sentence on what it lets them do.>
 Open it: <the commands, the fake API's included when there is one, and the address>.
-Standard: <"met", or "not yet proven: needs <what only the person can provide>">. verify --full: <its last line, verbatim>.
+Standard: <"met", or "not yet proven: needs <what only the person can provide>">. verify --full --timed: <its last line, verbatim>.
 Coverage: <the coverage line, verbatim>. Scoreboard: <n> views, <s> Strong, <g> Good, 0 Weak, after <r> rounds (out/standard/scoreboard.md).
 Pages: <one line each: the page and the question it answers>.
 Decided for you: <each decision from the brief's Decisions, one line each, with how to change it>.

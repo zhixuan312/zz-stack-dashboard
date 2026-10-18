@@ -10,6 +10,10 @@
  * The walk enters open shadow roots and follows slots (scripts/lib/deep.ts, injected into every page), so a control inside a
  * custom element is listed, hit-tested and observed like any other, and named with its host: `Save (in x-card)`.
  *
+ * "Does nothing" means nothing answered within the hang bound (HANG_BOUND_MS): no counted change, no new address, no file
+ * chooser. The walk looks once after 600 ms, then every 100 ms until the bound; a control that answers sooner is decided at
+ * that first look. How fast a control answers is the navigation's interactive time, judged in the timed tier, not here.
+ *
  * Skipped: controls already in their chosen state (a selected tab, the current segment) and the Atlas's component
  * pages, whose buttons are specimens of states, not actions.
  */
@@ -33,6 +37,9 @@ const cookie = as ? personas[as]?.cookie : undefined;
 if (as && !cookie) { console.error(`interactions: --as ${as} is not a declared persona. Declared personas: ${Object.keys(personas).join(', ')}.`); process.exit(1); }
 const WIDTHS = opt('--width', '1440,390').split(',').map(Number);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+// A hang bound, not a budget: how long a press may go unanswered before the walk calls the control dead. How fast a control
+// answers is the navigation's interactive time, judged in the timed tier; this only keeps a slow answer from reading as none.
+const HANG_BOUND_MS = 5000;
 
 /** Tag every visible, enabled, not-yet-chosen control with its index; return their names (with the hosts they sit in) and the page's links. */
 const LIST = `(() => {
@@ -124,11 +131,20 @@ for (const width of WIDTHS) {
       await press(page, armed.x, armed.y, touch);
       await sleep(600);
       pressed++;
-      // A file picker answers by opening the system's file chooser, which changes nothing on the page (issue #16).
-      if (page.fileChoosers() > choosers) continue;
       const tip = touch || /^About /.test(controls[i]);
       // A press that loads a new document leaves the helper and the counters behind: that page has moved, which is its answer.
-      const r = await page.eval<{ changes: number; moved: boolean }>(`({ changes: window.__changes + (${tip} && typeof deepAll === 'function' ? deepAll(document.body).filter((n) => n.matches('[role=tooltip]')).length : 0), moved: location.href !== window.__href })`);
+      const look = () => page.eval<{ changes: number; moved: boolean }>(`({ changes: window.__changes + (${tip} && typeof deepAll === 'function' ? deepAll(document.body).filter((n) => n.matches('[role=tooltip]')).length : 0), moved: location.href !== window.__href })`);
+      // A file picker answers by opening the system's file chooser, which changes nothing on the page (issue #16).
+      let chosen = page.fileChoosers() > choosers;
+      let r = chosen ? { changes: 1, moved: false } : await look();
+      // Nothing yet: look again, never press again, until something answers or the hang bound passes. A look that lands
+      // while a new document replaces the page cannot evaluate: that page has moved too.
+      for (let waited = 600; !chosen && !r.changes && !r.moved && waited < HANG_BOUND_MS; waited += 100) {
+        await sleep(100);
+        chosen = page.fileChoosers() > choosers;
+        if (!chosen) r = await look().catch(() => ({ changes: 0, moved: true }));
+      }
+      if (chosen) continue;
       if (!r.changes && !r.moved) failures.push(`${route} @${width}: "${controls[i]}" does nothing when ${touch ? 'tapped' : 'pressed'}`);
       if (r.moved) await fresh();
       else {

@@ -1,6 +1,13 @@
 /** Smoke route selection and coverage resolution: what is configured is checked, what is not is reported, never passed. */
 import type { NavigationCheck } from './budgets.ts';
 
+/** The suites `--full` adds: what is exhaustive and does not depend on the clock. */
+export const COMPLETE_SUITES = ['audit', 'presses', 'keyboard', 'assistant', 'browserChecks'] as const;
+/** The suites `--timed` adds: what judges a time, the navigation's budgets, the live stream and Web Vitals. */
+export const TIMED_SUITES = ['timing', 'live', 'vitals'] as const;
+/** Every suite verify can list, in the order the coverage line prints them; verify keeps those the project has and the run asked for. */
+export const SUITE_NAMES = [...COMPLETE_SUITES, ...TIMED_SUITES, 'perf'] as const;
+
 const PROBES = ['dialog', 'filter', 'sort', 'toggle', 'link'];
 
 /** The exit code of a suite that failed nothing but left a case unrun: neither a pass nor a failure. */
@@ -19,11 +26,20 @@ export function suiteCoverage(suites: string[], passed: ReadonlySet<string>, fai
   return { notRun: suites.filter((s) => !passed.has(s) && !failed.has(s)), failed: suites.filter((s) => failed.has(s)) };
 }
 
-/** The last line of a passing verify: the full standard is met only when every suite of the depth ran. */
-export function finalOutcome(full: boolean, notRun: string[]): string {
-  if (!full) return 'every check that ran passed; pnpm verify --full runs the rest';
-  return notRun.length ? `every check that ran passed; not run: ${notRun.join(', ')}` : 'the project meets the Meridian standard';
+/**
+ * The last line of a passing verify. The standard is met only when nothing was left unrun, which takes both tiers. A list of
+ * unrun suites that is wholly one tier the run did not ask for names the command that runs it; any other list names none.
+ */
+export function finalOutcome({ full, timed }: { full: boolean; timed: boolean }, notRun: string[]): string {
+  if (!full && !timed) return 'every check that ran passed; pnpm verify --full --timed runs the rest';
+  if (!notRun.length) return full && timed ? 'the project meets the Meridian standard' : 'every check that ran passed';
+  const list = `every check that ran passed; not run: ${notRun.join(', ')}`;
+  const only = (tier: readonly string[]) => notRun.every((s) => tier.includes(s));
+  if (full && !timed && only(TIMED_SUITES)) return `${list}; pnpm verify --timed runs them`;
+  if (timed && !full && only(COMPLETE_SUITES)) return `${list}; pnpm verify --full runs them`;
+  return list;
 }
+
 const MAX_SMOKE = 3;
 
 /** The explicit list when given, else the landing route and the first two other unique rail paths. */
@@ -49,8 +65,9 @@ function mappingErrors(check: NavigationCheck, routes: string[]): string[] {
 }
 
 /**
- * Each route's coverage in `mode`. Every mapping is validated against `known`, the project's rail routes, which default to
- * `routes`: the default smoke resolves three routes while the config maps the whole rail.
+ * Each route's coverage in `mode`; a `--timed` run passes `full`, so it holds every rail route mapped. Every mapping is
+ * validated against `known`, the project's rail routes, which default to `routes`: the default smoke resolves three routes
+ * while the config maps the whole rail.
  */
 export function resolveCoverage(
   mode: 'default' | 'full' | 'perf',

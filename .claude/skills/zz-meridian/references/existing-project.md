@@ -99,21 +99,21 @@ Migrate in place, page by page, keeping their data layer.
    `@meridian/components/…`), keeping their data fetching and business logic untouched. Their old Tailwind utilities
    render nothing under Meridian's scales, and the gate names each one. Do the busiest page first, and render and score it
    (`standard.md`) before the rest: what it teaches you about their data carries to every other page.
-5. **Before `pnpm verify --full`, give it a fake API.** The default `pnpm verify` reads and never presses: the gate,
-   one build, the size checks and a navigation smoke of at most three routes, with only the harmless probes your
+5. **Before `pnpm verify --full`, give it a fake API.** The default `pnpm verify` reads and never presses: the gate, one
+   build, the size checks and a navigation smoke of at most three routes, with only the harmless probes your
    `navigationChecks` declare. In an adopted project it reports the browser as `not run` until `verify.config.ts` names
    a `fakeApi`, or says `noLiveApi: true` because the pages read and write nothing outside the repository.
    `pnpm verify --full` presses every control it finds on the built app, Approve, Revoke, Archive and Delete included,
    and refuses without one of the two. If their pages call a live backend, those presses change it. Write
-   `example:scripts/fake-api.ts`: a server on `--port 0` that answers every route the pages call with typed fixtures (writes
-   answer success and are forgotten), prints `listening on <url>`, and logs each request it answers (method, path and
-   body), which is how the scoreboard shows every action still sends what it sent. Name it and the environment variable their app
-   reads its API address from in `scripts/verify.config.ts` (`fakeApi: { script, env }`): verify starts it first and
-   builds and serves the app against it. Point the build at it, not only the server: an address read in
-   `next.config` rewrites is baked in at build time.
-   If their pages use web components, every browser suite (the audit, the presses, the keyboard walk, the assistant and
-   live-data walk-throughs and the vitals' taps) looks inside open shadow roots, and an element the audit cannot look
-   inside is reported as `unmeasured:`; `validation.md` says what to do about it.
+   `example:scripts/fake-api.ts`: a server on `--port 0` that answers every route the pages call with typed fixtures
+   (writes answer success and are forgotten), prints `listening on <url>`, and logs each request it answers (method,
+   path and body), which is how the scoreboard shows every action still sends what it sent. Name it and the environment
+   variable their app reads its API address from in `scripts/verify.config.ts` (`fakeApi: { script, env }`): verify
+   starts it first and builds and serves the app against it. Point the build at it, not only the server: an address read
+   in `next.config` rewrites is baked in at build time. If their pages use web components, every browser suite (the
+   audit, the presses, the keyboard walk, the assistant walk-through, and under `--timed` the live-data walk-through and
+   the vitals' taps) looks inside open shadow roots, and an element the audit cannot look inside is reported as
+   `unmeasured:`; `validation.md` says what to do about it.
    **A direct database connection is the same hazard through another door.** If their pages read `DATABASE_URL` from
    `.env` (or any other data URL: name it in `dataUrls`), a `next build` and `next start` in their folder carry it, so
    Approve and Delete land on whatever it names. verify reports the browser as `not run` in the default, and `--full`
@@ -122,9 +122,9 @@ Migrate in place, page by page, keeping their data layer.
    flags rows and a press can delete, even on a run where every check passes.
 6. List their detail pages worth seeing (a normal record, a failed one, a missing one) in `detailRoutes` in
    `scripts/verify.config.ts`, with ids from the fake API's fixtures. Map their main routes in `navigationChecks` (a
-   ready selector and one harmless probe each) so the default smoke covers data and interaction, not only the shell.
-   Run `pnpm verify` until it passes, and `pnpm verify --full` before a release; the line before the last of each says
-   what it covered (`coverage: …`).
+   ready selector and one harmless probe each) so the default smoke covers data and interaction, not only the shell. Run
+   `pnpm verify` until it passes, and `pnpm verify --full --timed` before a release (the timed suites want a quiet
+   machine); the line before the last of each says what it covered (`coverage: …`).
 
 Without the assistant, `verify --full` skips its walk-through on its own (it runs only when `optional:app/api/assistant/route.ts`
 exists).

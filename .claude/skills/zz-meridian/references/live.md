@@ -278,7 +278,9 @@ const scope = resolveAccess().then((s) => `${s.tenantId}/${s.subjectId}`);
 
 A view calls `useLive(['members'])` to register what it shows and gets one of `'connecting'`, `'live'`, `'polling'`,
 `'paused'` or `'stale'`. The provider owns the one `EventSource` for the union of the names, the visibility listener,
-the timeouts and the safety poll. How it behaves:
+the timeouts and the safety poll. Home and Revenue are among the live pages: each body registers exactly the collections
+its feature needs (`FEATURES.home.needs`, `FEATURES.revenue.needs`), never more, because the route answers 403 for a
+name the caller may not read. How it behaves:
 
 - A transport open is not `live`: the first resynchronization must succeed. A failed read keeps the previous observation
   and shows the data as stale; it never advances the data's observation time.

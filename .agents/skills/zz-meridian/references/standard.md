@@ -78,21 +78,23 @@ Each floor is measured by a command, and its evidence is the line the command pr
 | Every view at 2560, 1440, 1024, 768 and 390px in both themes: no sideways scroll, clipped text, table wider than its card, unnamed control, text under 4.5:1, control without a focus ring, touch target under 44px, runtime error; inside open shadow roots too, and a custom element it cannot look inside is `unmeasured:` (`validation.md`) | `pnpm verify --full` (the audit) |
 | Every control pressed and every link followed, mouse at 1440px and taps at 390px, controls inside open shadow roots included; nothing does nothing | `pnpm verify --full` (the presses) |
 | The whole keyboard path, a visible focus ring (a change on focus) at every stop, and the same stops in reverse with Shift+Tab | `pnpm verify --full` (the keyboard walk) |
-| The assistant off and on, when the project has it; live data across tabs, restarts and offline, while the sample Members page it drives is there (a product's own live pages add a `browserChecks` script) | `pnpm verify --full`; a step it prints as `n/a`, with its reason, is not applicable and does not count against the outcome |
-| LCP under 2.5 s, INP under 200 ms, CLS under 0.1 on a mid-range phone | `pnpm verify --full` (the vitals) |
+| The assistant off and on, when the project has it | `pnpm verify --full`; a step it prints as `n/a`, with its reason, is not applicable and does not count against the outcome |
+| Each rail route's shell, data and first interaction arrive within their budgets, on desktop and through the phone drawer | `pnpm verify --timed` (the navigation budgets; needs a quiet machine) |
+| Live data across tabs, restarts and offline, while the sample Members page it drives is there (a product's own live pages add a `browserChecks` script) | `pnpm verify --timed` (the live data); a step it prints as `n/a`, with its reason, is not applicable and does not count against the outcome |
+| LCP under 2.5 s, INP under 200 ms, CLS under 0.1 on a mid-range phone | `pnpm verify --timed` (the vitals) |
 | Reduced motion shows the final state at once | motion only through `src/styles/motion.css`, whose reduced-motion rule covers it; nothing animates outside it |
-| All of the above together | `pnpm verify --full` ending with the line `the project meets the Meridian standard` |
+| All of the above together | `pnpm verify --full --timed` ending with the line `the project meets the Meridian standard` |
 | In an existing product, what it did still works: every route at its URL, every action sending the request it sent, its own tests and scripts (a project with no tests of its own has its `lint` and `build`) | the list from `existing-project.md` ("Before you change anything"), each item checked against the fake API's log and the project's own commands |
 
-`--full` checks what the project tells it about, so keep `scripts/verify.config.ts` true to the product as you change it
-(its comments describe every field, and the template's own entries show the shape): a `navigationChecks` entry for every
-rail route (a ready selector and one harmless probe that works at 390px too, where a table is a card list with no
-column headers to sort: a filter, a link or a dialog), `detailRoutes` with ids from your data for each state worth
-seeing, `smokeRoutes` among the rail routes, `budgets.htmlKb` naming only routes that exist, a `fakeApi` as soon as a
-page calls an API, and in an adopted project a `fakeApi` or `noLiveApi` (a created project whose pages read only its own
-sample needs neither). After the pages change, look at the sizes `pnpm
-verify` prints and record them with `node scripts/sizes.ts --write-baseline` once you have judged them. `--full`
-refuses, listing every gap, until these hold.
+`--full` and `--timed` check what the project tells it about, so keep `scripts/verify.config.ts` true to the product as
+you change it (its comments describe every field, and the template's own entries show the shape): a `navigationChecks`
+entry for every rail route (a ready selector and one harmless probe that works at 390px too, where a table is a card
+list with no column headers to sort: a filter, a link or a dialog), `detailRoutes` with ids from your data for each
+state worth seeing, `smokeRoutes` among the rail routes, `budgets.htmlKb` naming only routes that exist, a `fakeApi` as
+soon as a page calls an API, and in an adopted project a `fakeApi` or `noLiveApi` (a created project whose pages read
+only its own sample needs neither). After the pages change, look at the sizes `pnpm verify` prints and record them with
+`node scripts/sizes.ts --write-baseline` once you have judged them. `--full` and `--timed` refuse, listing every gap,
+until these hold.
 
 ### The craft: judged on the renders, with evidence
 
@@ -139,23 +141,23 @@ Run rounds until the stop condition holds. Order matters here, because each step
    and components. When a defect is one a test can catch (a wrong total, a missing state, a formatter), write the failing
    test at the lowest layer first, then fix it. Update the page's `README.md` and any doc that describes what you changed.
 3. **Measure what changed.** `pnpm verify` while you iterate. A round that touched only some views checks only those:
-   build once (`pnpm build`), serve it (`node_modules/.bin/next start --port 3100`, stopped by its own id), and run `node scripts/audit.ts`,
-   `node scripts/interactions.ts` and `node scripts/keyboard.ts`, each with `--routes <the views you changed>`; a change
-   to the shell, a shared component, the tokens or the data touches every view. `pnpm verify --full` runs once more at
-   the end, over everything, because only it can show the stop condition. Fix the cause of every failure, never the
-   check (`validation.md`).
+   build once (`pnpm build`), serve it (`node_modules/.bin/next start --port 3100`, stopped by its own id), and run
+   `node scripts/audit.ts`, `node scripts/interactions.ts` and `node scripts/keyboard.ts`, each with
+   `--routes <the views you changed>`; a change to the shell, a shared component, the tokens or the data touches every
+   view. `pnpm verify --full --timed` runs once more at the end, over everything, alone on a quiet machine, because only
+   it can show the stop condition. Fix the cause of every failure, never the check (`validation.md`).
 4. **Look and score.** Render, open every PNG, and score every view with its evidence, looks judged against the register in force.
 5. **Commit** each verified change on its own, staging the paths you changed by name, with a message that says what a
    person will notice. Commit locally only; pushing, releasing and deploying are the person's call.
 6. **Next round** on every Weak and every failed floor. An approach that has failed three times is the wrong approach:
    change it rather than repeat it.
 
-**The stop condition**: a round, run after your last change, in which `pnpm verify --full` ends with `the project meets
-the Meridian standard`, every view has been rendered and scored, nothing is Weak, and the round found nothing new: no
-failure, no Weak and no default that the round before it had not already fixed. That round is the last one; it needs no
-round after it to confirm it. Then hand over (SKILL.md, step 7). If a floor cannot run here (no Chrome, no network, a
-missing credential only the person has), install or substitute what you can first; what is left is `not run` with its
-reason, and the hand-over says plainly that the standard is not yet proven and what would prove it.
+**The stop condition**: a round, run after your last change, in which `pnpm verify --full --timed` ends with
+`the project meets the Meridian standard`, every view has been rendered and scored, nothing is Weak, and the round found
+nothing new: no failure, no Weak and no default that the round before it had not already fixed. That round is the last
+one; it needs no round after it to confirm it. Then hand over (SKILL.md, step 7). If a floor cannot run here (no Chrome,
+no network, a missing credential only the person has), install or substitute what you can first; what is left is
+`not run` with its reason, and the hand-over says plainly that the standard is not yet proven and what would prove it.
 
 ## Deciding without stopping
 

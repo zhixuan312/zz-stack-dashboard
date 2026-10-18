@@ -65,8 +65,11 @@ describe('the system prompt', () => {
     for (const line of AGENT_GUIDANCE) expect(prompt).toContain(line);
   });
 
-  it('asked for a change another page makes, names that page when the person may open it, or says it is not theirs to make', () => {
-    expect(prompt).toContain('Asked for a change another page makes, give that page\'s address when it is one this person may open');
+  it('says it has no write tool here, and asked for any change names the page that makes it when the person may open it, or says it is not theirs to make', () => {
+    expect(prompt).toContain('You change nothing in this product: you have no write tool here');
+    expect(prompt).toContain('Asked for any change, give the address of the page that makes it when it is one this person may open');
+    expect(prompt).not.toContain('Your write tools');
+    expect(prompt).not.toContain('approves or dismisses each Proposal');
     expect(prompt).toContain('A page they may not open is never where they can make a change: say it is not a change they can make');
     expect(prompt).toContain('Give only these addresses and name no other');
   });

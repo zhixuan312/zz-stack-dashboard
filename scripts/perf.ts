@@ -33,12 +33,12 @@
  */
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { budgetsOf } from './lib/budgets.ts';
+import { budgetsOf, limitsFor } from './lib/budgets.ts';
 import { launch, type Page } from './lib/chrome.ts';
 import { resolveCoverage } from './lib/coverage.ts';
 import { railRoutes } from './lib/routes.ts';
 import { summary } from './lib/timing.ts';
-import { BUDGET_KEY, DEVICES, Fail, drawerRoutes, journey, journeyStart, liveRefresh, METRICS, prepare, type Condition, type Device, type Metric, type NavConfig } from './lib/journey.ts';
+import { DEVICES, Fail, drawerRoutes, journey, journeyStart, liveRefresh, METRICS, prepare, type Condition, type Device, type Metric, type NavConfig } from './lib/journey.ts';
 import { workspaceHomes } from './navigate.ts';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
@@ -184,9 +184,9 @@ async function main(): Promise<number> {
 
     for (const device of DEVICES) {
       for (const condition of CONDITIONS) {
-        const limits = Object.fromEntries(METRICS.map((m) => [m, budgets.navigation[condition][BUDGET_KEY[m]][device]])) as Record<Metric, number>;
         for (const route of routes) {
           const check = checks.find((c) => c.path === route);
+          const limits = limitsFor(budgets, condition, device, check);
           const way = journeyStart(rail.routes, route, condition === 'afterLive' ? live.filter((r) => starts.includes(r)) : starts, drawn, [...homes.keys()]);
           const start = way?.from;
           const menu = way?.via === 'menu' ? homes.get(route) : undefined;

@@ -6,11 +6,15 @@
  *   pnpm verify --full    the navigation of every rail route, then every exhaustive suite: the browser audit of every page
  *                         and embed view (scripts/audit.ts), every control pressed and every link followed
  *                         (scripts/interactions.ts), the whole keyboard path (scripts/keyboard.ts), the product's own
- *                         browser checks (`browserChecks` in scripts/verify.config.ts), the assistant walk-through
- *                         (scripts/assistant.ts), the live-data checks (scripts/live.ts) and Web Vitals (scripts/vitals.ts)
+ *                         browser checks (`browserChecks` in scripts/verify.config.ts) and the assistant walk-through
+ *                         (scripts/assistant.ts). Nothing in it judges a time
+ *   pnpm verify --timed   the navigation of every rail route with its budgets judged, then the live-data checks
+ *                         (scripts/live.ts) and Web Vitals (scripts/vitals.ts), alone and last: what judges a time runs
+ *                         on a machine nothing else is using
+ *   pnpm verify --full --timed   both tiers, the whole standard; the complete suites run first, the timed ones after them
  *   pnpm verify --perf    the default, then the 20-sample navigation protocol (scripts/perf.ts): every rail route, on a desktop
  *                         and through the phone drawer, warm, cold and right after a live refresh, the p95 reported
- *   pnpm verify --full --perf   both deep suites; the gate and the build are shared, so each runs once
+ *   pnpm verify --full --perf   the deep suites together; the gate and the build are shared, so each runs once
  *
  * It prints one line per phase (`ok`, `warn`, `FAIL` or `not run`, and the seconds), then one coverage line saying what
  * ran and what did not, then the outcome. Nothing that did not run is reported as passed. The trace, with the commit, the
@@ -23,8 +27,8 @@
  * - A data URL (`DATABASE_URL`, or any `dataUrls` names) that resolves to a host that is not this machine is not safe
  *   either: the walk-throughs change data, and an adopted app's `.env` usually points at production.
  * Without either, the default runs the static checks and reports the browser as `not run`, with the reason, and exits 0
- * when they pass. `--full` and `--perf` fail on the same lack, listing every missing piece before they build anything. Restore the
- * data after a `--full` run: the walk-through flags rows and a press can delete.
+ * when they pass. `--full`, `--timed` and `--perf` fail on the same lack, listing every missing piece before they build
+ * anything. Restore the data after a `--full` run: the walk-through flags rows and a press can delete.
  *
  * The routes, the readiness mappings and the budgets come from scripts/verify.config.ts, which the team owns: it is read
  * through the types below, so a project set up by an earlier release, whose config lacks a field, still runs.
@@ -39,7 +43,7 @@ import path from 'node:path';
 import { bin } from './lib/bin.ts';
 import { launch } from './lib/chrome.ts';
 import type { BudgetsConfig, NavigationCheck } from './lib/budgets.ts';
-import { finalOutcome, resolveCoverage, selectSmokeRoutes, suiteCoverage, suiteOutcome } from './lib/coverage.ts';
+import { finalOutcome, resolveCoverage, SUITE_NAMES, selectSmokeRoutes, suiteCoverage, suiteOutcome } from './lib/coverage.ts';
 import { unsafeDataUrls } from './lib/data-url.ts';
 import { APP_DIR, railRoutes } from './lib/routes.ts';
 import { sampleSurfaces } from './lib/sample.ts';
@@ -61,7 +65,7 @@ type VerifyConfig = BudgetsConfig & {
 const config = verifyConfig as VerifyConfig;
 
 const ROOT = path.resolve(import.meta.dirname, '..');
-const OPTIONS = ['--full', '--perf', '--as'];
+const OPTIONS = ['--full', '--timed', '--perf', '--as'];
 
 // `--as` is the one option that consumes the argument after it: a comma-separated persona list is its value, not a stray
 // argument. Every other argument must be a known option. An unknown option is refused here, before anything runs.
@@ -78,25 +82,28 @@ if (unknown.length) {
   process.exit(1);
 }
 const full = argv.includes('--full');
+const timed = argv.includes('--timed');
 const perf = argv.includes('--perf');
-const depth = full && perf ? 'full+perf' : full ? 'full' : perf ? 'perf' : 'default';
+/** `--full` and `--timed` both run every rail route, so both hold the mappings to the full strictness. */
+const wide = full || timed;
+const depth = [full && 'full', timed && 'timed', perf && 'perf'].filter(Boolean).join('+') || 'default';
 /** The flags of the deep modes that were given, for the messages that name them. */
 const flags = argv.join(' ');
 
 // The personas a run may sign the browser in as, from the team's config. `--as` is validated HERE, at argv parsing:
 // the gate is the first thing this script runs and takes the better part of a minute, so a refusal after it is one a test that
-// spawns this script and reads its output never sees. An unknown persona, or `--as` beside `--perf`, stops the run
-// before the gate, the build or any server.
+// spawns this script and reads its output never sees. An unknown persona, or `--as` beside `--perf` or `--timed`, stops
+// the run before the gate, the build or any server.
 const personaConfig = config.personas ?? {};
 const declaredPersonas = Object.keys(personaConfig);
 const asPersonas = asList ? asList.split(',').map((s) => s.trim()).filter(Boolean) : [];
 const undeclared = asPersonas.filter((n) => !declaredPersonas.includes(n));
-if (undeclared.length) {
-  console.error(`verify: --as names ${undeclared.join(', ')}, which ${undeclared.length === 1 ? 'is not a declared persona' : 'are not declared personas'}. Declared personas: ${declaredPersonas.join(', ')}.`);
+if (asPersonas.length && (perf || timed)) {
+  console.error('verify: --as cannot be combined with --perf or --timed. Run pnpm verify --as <persona> on its own.');
   process.exit(1);
 }
-if (asPersonas.length && perf) {
-  console.error('verify: --as cannot be combined with --perf. Run pnpm verify --as <persona> on its own.');
+if (undeclared.length) {
+  console.error(`verify: --as names ${undeclared.join(', ')}, which ${undeclared.length === 1 ? 'is not a declared persona' : 'are not declared personas'}. Declared personas: ${declaredPersonas.join(', ')}.`);
   process.exit(1);
 }
 
@@ -110,7 +117,8 @@ const hasAssistant = fs.existsSync(path.join(ROOT, APP_DIR, 'api/assistant/route
 // themselves through `browserChecks`.
 const hasLiveSample = sampleSurfaces(ROOT, APP_DIR).members;
 const own = config.browserChecks ?? [];
-const SUITES = ['audit', 'presses', 'keyboard', ...(hasAssistant ? ['assistant'] : []), ...(hasLiveSample ? ['live'] : []), 'vitals', ...(own.length ? ['browserChecks'] : []), ...(perf ? ['perf'] : [])];
+const absent = new Set<string>([...(hasAssistant ? [] : ['assistant']), ...(hasLiveSample ? [] : ['live']), ...(own.length ? [] : ['browserChecks']), ...(perf ? [] : ['perf'])]);
+const SUITES = SUITE_NAMES.filter((name) => !absent.has(name));
 const ranSuites = new Set<string>();
 const failedSuites = new Set<string>();
 
@@ -244,12 +252,12 @@ try { rail = await railRoutes(); } catch (e) { railReason = (e as Error).message
 const invalid: string[] = [];
 if (rail) {
   try {
-    smoke = full ? rail.routes : selectSmokeRoutes({ smokeRoutes: config.smokeRoutes, nav: rail.routes, landing: rail.landing });
-    selected = full || perf ? rail.routes : smoke;
+    smoke = wide ? rail.routes : selectSmokeRoutes({ smokeRoutes: config.smokeRoutes, nav: rail.routes, landing: rail.landing });
+    selected = wide || perf ? rail.routes : smoke;
   } catch (e) { invalid.push((e as Error).message); }
 }
 const checks = Array.isArray(config.navigationChecks) ? config.navigationChecks : [];
-const coverage = rail ? resolveCoverage(full ? 'full' : perf ? 'perf' : 'default', selected, checks, rail.routes) : { routes: [], errors: [], warnings: [] };
+const coverage = rail ? resolveCoverage(wide ? 'full' : perf ? 'perf' : 'default', selected, checks, rail.routes) : { routes: [], errors: [], warnings: [] };
 invalid.push(...coverage.errors);
 covered = { data: coverage.routes.filter((r) => r.data === 'configured').length, interaction: coverage.routes.filter((r) => r.interaction === 'configured').length };
 
@@ -257,7 +265,7 @@ const unsafe = unsafeBackend();
 const chromeMissing = fs.existsSync(chromePath) ? null : `Chrome not found at ${chromePath} (set CHROME)`;
 const baselinePath = 'scripts/verify.baseline.json';
 
-if (full || perf) {
+if (wide || perf) {
   // A deep mode needs all of it, and says every piece that is missing at once, before it spends a build.
   const missing = [
     ...invalid,
@@ -424,18 +432,21 @@ const sizes = await run('scripts/sizes.ts', baseUrl ? ['--base', baseUrl] : [], 
   htmlMissing = Object.keys(config.budgets?.htmlKb ?? {}).length > 0 && html !== 'ok' && html !== 'FAIL';
 }
 
-// 5. The navigation smoke of the selected routes; every rail route in --full.
+// 5. The navigation smoke of the selected routes; every rail route in --full and --timed.
 if (browserReason) {
   phase('not run', 'browser', null, `(${browserReason})`);
 } else {
   current = 'navigation';
   announce('navigation');
-  const nav = await run('scripts/navigate.ts', ['--base', baseUrl!, '--mode', full ? 'full' : 'default', '--routes', smoke.join(',')], app);
+  const nav = await run('scripts/navigate.ts', ['--base', baseUrl!, '--mode', wide ? 'full' : 'default', '--timing', timed ? 'on' : 'off', '--routes', smoke.join(',')], app);
   const result = summaryOf<{ status: 'ok' | 'warn' | 'FAIL' | 'not-run'; reason?: string }>(nav.out, 'navigate');
   const status: Status = nav.status !== 0 || !result || result.status === 'FAIL' ? 'FAIL' : result.status === 'not-run' ? 'not run' : result.status;
   phase(status, 'navigation', nav.took, status === 'not run' ? `(${result?.reason ?? 'no reason given'})` : '');
   beneath(nav.out.split('\n').filter((l) => !l.startsWith('navigate: ')).slice(-60));
   if (status === 'FAIL') ok = false;
+  // The navigation is the timing suite when it judged its budgets: it ran and passed, or it ran and failed.
+  if (timed && status === 'FAIL') failedSuites.add('timing');
+  else if (timed && status !== 'not run') ranSuites.add('timing');
   if (status === 'not run') browser = { ran: false, reason: result?.reason ?? 'navigation did not run' };
   else browser = { ran: true, reason: null };
   if (!result) beneath(nav.out.split('\n').slice(-20));
@@ -530,9 +541,8 @@ if (perf && !browser.ran) {
   if (status === 'FAIL') { ok = false; failedSuites.add('perf'); }
 }
 
-// 7. --full: every exhaustive suite.
+// 7. --full: every exhaustive suite that does not judge a time.
 if (full && browser.ran && baseUrl) {
-  let port = server!.port;
   let on: { status: number | null; out: string; took: number } = { status: 0, out: '', took: 0 };
   let llmUrl = '';
   let key = '';
@@ -557,13 +567,12 @@ if (full && browser.ran && baseUrl) {
     // A distinctive key per run: the walk-through searches everything the browser can get for it.
     key = `verify-${randomBytes(16).toString('hex')}`;
     server = await start({ ...app, ASSISTANT_PROVIDER: 'openai-compatible', ASSISTANT_BASE_URL: llmUrl, ASSISTANT_API_KEY: key, ASSISTANT_MODEL: 'fake' });
-    port = server.port;
 
     // The walk-through changes the sample's data (it suspends members), so it runs first and alone; the audit and the
     // presses then run on what it left, and their presses never change what it reads.
     current = 'assistant';
     announce('the assistant walk-through');
-    on = await run('scripts/assistant.ts', ['--base', `http://127.0.0.1:${port}`, '--expect', 'on', '--llm', llmUrl, '--key', key]);
+    on = await run('scripts/assistant.ts', ['--base', `http://127.0.0.1:${server.port}`, '--expect', 'on', '--llm', llmUrl, '--key', key]);
     reportSuite('assistant', 'assistant walk-through', on);
     if (suiteOutcome(on.status) === 'FAIL') ok = false;
   }
@@ -571,7 +580,7 @@ if (full && browser.ran && baseUrl) {
   // The audit, the presses and the keyboard walk each run their own browser, so they run side by side against the one built app.
   current = 'the browser suites';
   announce('the audit, every control and link, the keyboard path' + (own.length ? ', and the product\'s own checks' : ''));
-  const here = `http://127.0.0.1:${port}`;
+  const here = `http://127.0.0.1:${server!.port}`;
   const [audit, presses, keys, ...extras] = await Promise.all([
     run('scripts/audit.ts', ['--base', here]),
     run('scripts/interactions.ts', ['--base', here]),
@@ -583,6 +592,12 @@ if (full && browser.ran && baseUrl) {
   reportSuite('keyboard', 'the whole keyboard path', keys);
   extras.forEach((r, i) => reportSuite('browserChecks', own[i], r));
   if ([audit, presses, keys, ...extras].some((r) => suiteOutcome(r.status) === 'FAIL')) ok = false;
+}
+
+// 8. --timed: what judges a time, after everything else, alone, against the server the last suite left (the assistant's,
+// in --full --timed).
+if (timed && browser.ran && baseUrl) {
+  const here = `http://127.0.0.1:${server!.port}`;
 
   // Live data: two tabs, a quiet or restarted stream, a hidden or offline tab and a burst (scripts/live.ts). It times what a
   // second tab sees, so it runs alone and after the presses, which change members. The server with LIVE_DROP_HINTS=1 is the
@@ -610,4 +625,4 @@ if (full && browser.ran && baseUrl) {
 stopAll();
 current = 'the end';
 if (!ok) finish(1, FIX);
-finish(0, finalOutcome(full, SUITES.filter((s) => !ranSuites.has(s))));
+finish(0, finalOutcome({ full, timed }, SUITES.filter((s) => !ranSuites.has(s))));

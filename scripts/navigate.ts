@@ -2,7 +2,7 @@
  * Navigation readiness against the built app: for each route, how long until the shell is there, until the data is, and
  * until a control works, on a desktop and through the real phone drawer.
  *
- *   node scripts/navigate.ts --base http://127.0.0.1:3000 [--routes /,/requests,/settings] [--mode default|full] [--samples 1]
+ *   node scripts/navigate.ts --base http://127.0.0.1:3000 [--routes /,/requests,/settings] [--mode default|full] [--samples 1] [--timing on|off]
  *
  * Each journey starts from the rail route before the destination (the one after it for the first) whose rail draws a link to
  * it, because a rail may show only the part of the navigation its page belongs to. A workspace's home that no other route's
@@ -15,9 +15,11 @@
  * frame that shows the condition, never round trips over the debugging protocol. The phone is 390 wide, 4x CPU throttled, 150 ms and 1.6 Mbps,
  * and the drawer-open-to-navigation time is reported apart.
  *
- * A timing over its budget is retaken twice and gated on the median of three (scripts/lib/timing.ts). A wrong result, a
- * page that never gets ready and a control that does nothing are failures and are never retaken. A route with no mapping
- * is measured for its shell only; its data and interaction are `not-configured`, never passed. A mapping's selectors resolve inside
+ * `--timing on` (the default) judges the clock as well: a timing over its budget is retaken twice and gated on the median
+ * of three (scripts/lib/timing.ts). A wrong result, a page that never gets ready and a control that does nothing are
+ * failures and are never retaken. `--timing off` judges only those, a journey with no start and the prefetch caps: every
+ * time is still measured and printed, none is compared with its limit and none is retaken. Any other value is refused
+ * before the config is read or Chrome starts. A route with no mapping is measured for its shell only; its data and interaction are `not-configured`, never passed. A mapping's selectors resolve inside
  * open shadow roots (scripts/lib/deep.ts); when the control's selector matches several elements the first visible one is pressed and
  * `note: <selector> matches <n> elements; the first visible one was used` is printed once, never a failure. Nothing here writes:
  * probes only open, sort, filter, toggle or follow.
@@ -43,11 +45,11 @@
  */
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { budgetsOf, type NavigationCheck } from './lib/budgets.ts';
+import { budgetsOf, limitsFor, type NavigationCheck } from './lib/budgets.ts';
 import { launch, type Page } from './lib/chrome.ts';
 import { resolveCoverage, selectSmokeRoutes } from './lib/coverage.ts';
 import { railRoutes } from './lib/routes.ts';
-import { BUDGET_KEY, DEVICES, Fail, METRICS, PREFETCH_WAIT, drawerRoutes, journey, journeyStart, openStart, prepare, sleep, type Device, type Measured, type Metric, type NavConfig } from './lib/journey.ts';
+import { DEVICES, Fail, METRICS, PREFETCH_WAIT, drawerRoutes, journey, journeyStart, openStart, prepare, sleep, type Device, type Measured, type Metric, type NavConfig } from './lib/journey.ts';
 import { isPrefetch, prefetchProblems } from './lib/sizes.ts';
 import { judge } from './lib/timing.ts';
 
@@ -56,6 +58,7 @@ const args = process.argv.slice(2);
 const opt = (k: string) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : undefined; };
 const base = (opt('--base') ?? process.env.BASE ?? 'http://localhost:3000').replace(/\/$/, '');
 const mode = (opt('--mode') ?? 'default') as 'default' | 'full';
+const timing = opt('--timing') ?? 'on';
 const KIB = 1024;
 
 
@@ -102,7 +105,7 @@ async function measure(page: Page, device: Device, start: From, route: string, c
   line.prefetched = first.prefetched;
   for (const name of METRICS) fill(name, first[name]);
   // A wrong result, a never-ready page or a dead control is the answer: no retake can replace it.
-  if (line.problems.length) return finish(line);
+  if (line.problems.length || timing === 'off') return finish(line);
   const over = METRICS.filter((name) => { const v = value(first[name]); return v !== null && judge([v], limits[name]).verdict === 'retake'; });
   if (over.length) {
     const retakes = [await journey(page, device, start.from, route, check, run), await journey(page, device, start.from, route, check, run)];
@@ -160,7 +163,7 @@ async function prefetchKiB(page: Page, device: Device, landing: string): Promise
 
 // ---- main ----
 
-const summary = (o: Record<string, unknown>) => console.log(`navigate: ${JSON.stringify(o)}`);
+const summary = (o: Record<string, unknown>) => console.log(`navigate: ${JSON.stringify({ ...o, timing })}`);
 
 /**
  * Each workspace's home, with the name of the workspace menu's item that opens it: `--homes <home>=<workspace>,...` beside
@@ -183,6 +186,7 @@ export async function workspaceHomes(): Promise<Map<string, string>> {
 }
 
 async function main(): Promise<number> {
+  if (timing !== 'on' && timing !== 'off') { console.error(`--timing must be on or off, got ${timing}`); return 1; }
   if (mode !== 'default' && mode !== 'full') { console.error(`--mode must be default or full, got ${mode}`); return 1; }
   if ((opt('--samples') ?? '1') !== '1') { console.error('--samples: one sample and two retakes is the only protocol here; scripts/perf.ts takes the 20-sample one'); return 1; }
 
@@ -267,11 +271,7 @@ async function main(): Promise<number> {
       const way = journeyStart(rail.routes, route, starts, drawn, [...homes.keys()]);
       const start: From | undefined = way && { from: way.from, menu: way.via === 'menu' ? homes.get(route) : undefined };
       for (const device of DEVICES) {
-        const limits = Object.fromEntries(METRICS.map((m) => {
-          // A route's own figure, where the config gives one, stands in for the shared one on that metric and device.
-          const shared = budgets.navigation.warm[BUDGET_KEY[m]][device];
-          return [m, check?.budget?.[BUDGET_KEY[m]]?.[device] ?? shared];
-        })) as Record<Metric, number>;
+        const limits = limitsFor(budgets, 'warm', device, check);
         let line: Line;
         try {
           // A route with no other route to start from has no navigation to time: it is a problem, never a 0 ms pass.

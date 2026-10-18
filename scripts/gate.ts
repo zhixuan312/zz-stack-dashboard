@@ -3,11 +3,13 @@
  * the tests read the same tree and write nothing the others read, so they run side by side once the checks before them
  * pass: each runs to its end, and their lines print in the order below.
  *
+ * The gate never runs tests/deep-*, the browser-fixture tests of the checks: they drive real browsers and take minutes.
+ * They run on their own: pnpm exec vitest run tests/deep- --no-file-parallelism
+ *
  *   pnpm gate   (or npm run gate: the tools run from node_modules/.bin, under any package manager)
- *   node scripts/gate.ts --without-cli-tests   leaves out the tests only this repository has, neither shipped:
- *                                              tests/cli-* (the package's own) and tests/deep-* (the browser-fixture
- *                                              tests of the checks). The default verify runs it this way, and the
- *                                              release runs those tests in a step of their own
+ *   node scripts/gate.ts --without-cli-tests   also leaves out tests/cli-*, the package's own tests that only this
+ *                                              repository has. The default verify runs it this way, and the release
+ *                                              runs those tests in a step of their own
  */
 import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -30,7 +32,7 @@ const STEPS: [string, string[]][] = [
   // eslint-config-next is what every Next project runs; a template that fails it hands its users errors on day one.
   // The staged copies of an update session are for reading, never linted as source.
   ['lint passes', [bin('eslint'), '.', '--ignore-pattern', '.meridian/']],
-  ['tests pass', [bin('vitest'), 'run', ...(withoutCliTests ? ['--exclude', 'tests/cli-*', '--exclude', 'tests/deep-*', '--exclude', '**/node_modules/**'] : [])]],
+  ['tests pass', [bin('vitest'), 'run', '--exclude', 'tests/deep-*', '--exclude', '**/node_modules/**', ...(withoutCliTests ? ['--exclude', 'tests/cli-*'] : [])]],
 ];
 
 /** The steps that run side by side, from the first of them to the end. */
@@ -61,4 +63,9 @@ const together = await Promise.all(STEPS.slice(TOGETHER).map(([name, [cmd, ...ar
 })));
 // Each line is reported, the failed ones with their output: none is cut short by another's failure.
 if (!together.map((r) => report(r.name, r.t, r, r.cmd)).every(Boolean)) process.exit(1);
-console.log(`gate: every check passed${withoutCliTests ? " (the tests only this repository has left out: tests/cli-*, tests/deep-*)" : ''}`);
+// An adopted project has no tests/deep-*, so it has nothing to say about them.
+const hasDeepTests = fs.existsSync(path.join(ROOT, 'tests')) && fs.readdirSync(path.join(ROOT, 'tests')).some((f) => f.startsWith('deep-'));
+const left = withoutCliTests
+  ? ' (the tests only this repository has left out: tests/cli-*, tests/deep-*)'
+  : hasDeepTests ? ' (tests/deep-* left out: pnpm exec vitest run tests/deep- --no-file-parallelism runs them)' : '';
+console.log(`gate: every check passed${left}`);

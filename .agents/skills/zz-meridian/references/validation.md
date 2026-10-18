@@ -1,9 +1,9 @@
 # Validation: what `pnpm verify` checks, and how to fix what it finds
 
-`pnpm verify` has three modes. Each ends with one coverage line before its outcome, which says what ran and what did not:
+`pnpm verify` has four modes, and `--perf` combines with the others. Each ends with one coverage line before its outcome, which says what ran and what did not:
 
 ```text
-coverage: <default|full|perf|full+perf>; browser <ran|not run (<reason>)>; <n> routes; data configured <a>/<n>; interaction configured <b>/<n>[; personas <names>]; not run: <suites>[; failed: <suites>]
+coverage: <default|full|timed|perf, or their combination such as full+timed+perf>; browser <ran|not run (<reason>)>; <n> routes; data configured <a>/<n>; interaction configured <b>/<n>[; personas <names>]; not run: <suites>[; failed: <suites>]
 ```
 
 - **`pnpm verify`** is bounded: steps 1 and 2 below once each, the route policy, the first-load and HTML size checks, and
@@ -11,35 +11,46 @@ coverage: <default|full|perf|full+perf>; browser <ran|not run (<reason>)>; <n> r
   through the phone drawer. It never refuses for a missing Chrome or safe backend: it runs the static checks and reports
   the browser as `not run (<reason>)`. A route without a mapping in `navigationChecks` counts as `not configured` for
   data and interaction, which is a warning, not a failure.
-- **`pnpm verify --full`** adds the navigation of every rail route and steps 3 to 8. It needs a mapping for every rail
-  route, Chrome, a safe backend and `optional:scripts/verify.baseline.json`, and fails with every missing piece listed before it
-  builds anything.
-- **`pnpm verify --perf`** runs the 20-sample navigation protocol. It does not imply that the `--full` checks ran;
-  `--full --perf` unions the two and runs the gate and the build once.
+- **`pnpm verify --full`** adds the navigation of every rail route and steps 3 to 6: the assistant, the audit, the
+  presses, the keyboard walk and the product's own browser checks. Nothing in it judges a time. It needs a mapping for
+  every rail route, Chrome, a safe backend and `optional:scripts/verify.baseline.json`, and fails with every missing
+  piece listed before it builds anything.
+- **`pnpm verify --timed`** navigates every rail route with its budgets judged, then runs steps 7 and 8, the live data
+  and the Web Vitals, alone and last. It judges time, so it needs a quiet machine. It needs the same mappings, Chrome
+  and safe backend as `--full`, and does not imply that the `--full` checks ran.
+- **`pnpm verify --perf`** runs the 20-sample navigation protocol. It does not imply that the `--full` or `--timed`
+  checks ran; `--full --timed --perf` unions the three and runs the gate and the build once. `--full --timed` is the
+  whole standard.
+
+The testing standard, `optional:docs/testing.md`, says when to run each mode (`## When each runs`) and the rules a
+red, a limit and a release follow (`## Rules`): follow it rather than deciding per change.
 
 A failing gate, build or start stops the run there, and so does a failing assistant-absent check (step 3); from the
-audit on, every check runs and the report lists each failure. In `--full`, a suite that left a case unrun (no Chrome, no
-second server for the live-data restart case) prints `not run`, never `ok`, and the run ends with `every check that ran
-passed; not run: <suites>`; only a run with nothing left unrun ends with `the project meets the Meridian standard`.
-Steps in order:
+audit on, every check runs and the report lists each failure. In `--full` and `--timed`, a suite that left a case unrun
+(no Chrome, no second server for the live-data restart case) prints `not run`, never `ok`, and the run ends with
+`every check that ran passed; not run: <suites>`; only a `--full --timed` run with nothing left unrun ends with
+`the project meets the Meridian standard`. A run of one of the two that leaves only the other's suites unrun ends with a
+line naming the command that runs them. Steps in order:
 
-0. **Rail navigation** (`--full` only, after the build and the size checks of step 2): every rail route is navigated, with its data and interaction mappings from
-   `navigationChecks`. A journey starts from the nearest rail route, in rail order, whose rail draws a link to the
-   destination, so a rail that shows only part of the navigation on a page is followed. A workspace's home that no other
-   route's rail links to (the only destination of its workspace) is reached through the workspace menu: from the nearest
-   rail route before it, by the menu's item for its workspace, timed from that press, and its line says
-   `through the workspace menu (<workspace>)`. Any other destination no rail links to is reported as a problem, never as
-   a pass.
+0. **Rail navigation** (`--full` and `--timed` only, after the build and the size checks of step 2): every rail route is
+   navigated, with its data and interaction mappings from `navigationChecks`. A journey starts from the nearest rail
+   route, in rail order, whose rail draws a link to the destination, so a rail that shows only part of the navigation on
+   a page is followed. A workspace's home that no other route's rail links to (the only destination of its workspace) is
+   reached through the workspace menu: from the nearest rail route before it, by the menu's item for its workspace, from
+   that press, and its line says `through the workspace menu (<workspace>)`. Any other destination no rail links to is
+   reported as a problem, never as a pass.
 1. **The gate** (`node scripts/gate.ts`): tokens regenerate to the same CSS; the card registry is fresh; every card and
    page specification follows the anatomy; the product's own rules in `optional:scripts/check.local.ts`, when the file exists;
    contrast holds for every pair in every theme and accent, and the chart palette passes the colour-vision checks;
    eslint-config-next; TypeScript; the tests.
-2. **A production build** (`next build`), against the fake API when `scripts/verify.config.ts` names one.
-   Then the route policy and the size checks: first-load JS per route, and the HTML caps in `budgets.htmlKb`. Navigation
-   readiness (`scripts/navigate.ts`) times each rail route's shell, data and interaction from a press — on a desktop and
-   through the phone drawer, against `budgets.navigation`. One entry in `navigationChecks` may carry its own `budget` for
-   one of those figures on one device, which is how a route whose own page is heavy is held to what it measures instead
-   of lowering the bar for every other route.
+2. **A production build** (`next build`), against the fake API when `scripts/verify.config.ts` names one. Then the route
+   policy and the size checks: first-load JS per route, and the HTML caps in `budgets.htmlKb`. Navigation readiness
+   (`scripts/navigate.ts`) follows each rail route's shell, data and interaction from a press — on a desktop and through
+   the phone drawer — and judges them on function only. Data and interaction are measured side by side, except that a
+   `link` probe is pressed once the data is measured or has failed, since its press leaves the route;
+   `--timed` judges the same times against `budgets.navigation`.
+   One entry in `navigationChecks` may carry its own `budget` for one of those figures on one device, which is how a
+   route whose own page is heavy is held to what it measures instead of lowering the bar for every other route.
 3. **The assistant walk-through**, only when the project has `optional:app/api/assistant/route.ts`: off, then on against a fake
    model. What every product shares runs on its own rail (no agent control while off, the panel, a reply, the page the
    model was told, markdown, the thread across navigation, Clear, the layout, a refused key, the key never reaching the
@@ -73,21 +84,21 @@ Steps in order:
    that is always there does not count. With them run the
    product's own browser checks (`browserChecks` in `scripts/verify.config.ts`), each given `--base` and the served
    app's address.
-7. **Live data** (`scripts/live.ts`), alone after the presses, which change members: two tabs, a quiet or restarted
-   stream, a hidden or offline tab and a burst, against a second server that drops its change hints. A case that cannot
-   run is `not run` and the suite exits 2. It drives the sample Members page; a product without it prints `n/a live
-   data`, which does not count against the outcome, and proves its own live pages through `browserChecks`. It presses
-   the sheet, the row menu and the Remove dialog inside open shadow roots too.
-8. **Web Vitals on a mid-range phone** (`scripts/vitals.ts`): Lighthouse's mobile profile (CPU slowed four times, Slow 4G,
-   390px touch). Every page must hold LCP under 2.5 s, INP under 200 ms and CLS under 0.1, and drop no frame, the
-   template's Design Atlas included (its front page and one card page; `node scripts/vitals.ts --atlas` measures every
-   entry); INP is the slowest tap on a control that changes the screen, found inside open shadow roots too, and each
-   line carries `taps: N`, the controls it tapped (`taps: 0` means the page's INP rests on no tap). A dropped frame is a
-   gap over 50 ms between animation frames, read in the tap's own window and no other, so one page's line is a count as
-   well as a verdict: the floor is met when it reads `0 of N`. A page that drops one frame is measured a second time
-   before it is failed — one frame in two hundred is inside the noise of a host the four-times throttle is measuring
-   too — and a page that drops one twice is a page that stutters. It runs alone, after the others, since throttling
-   measures the machine too: on a busy machine, run it again before believing a near miss.
+7. **Live data** (`--timed` only; `scripts/live.ts`), alone after the presses, which change members: two tabs, a quiet
+   or restarted stream, a hidden or offline tab and a burst, against a second server that drops its change hints. A case
+   that cannot run is `not run` and the suite exits 2. It drives the sample Members page; a product without it prints
+   `n/a live data`, which does not count against the outcome, and proves its own live pages through `browserChecks`. It
+   presses the sheet, the row menu and the Remove dialog inside open shadow roots too.
+8. **Web Vitals on a mid-range phone** (`--timed` only; `scripts/vitals.ts`): Lighthouse's mobile profile (CPU slowed
+   four times, Slow 4G, 390px touch). Every page must hold LCP under 2.5 s, INP under 200 ms and CLS under 0.1, and drop
+   no frame, the template's Design Atlas included (its front page and one card page; `node scripts/vitals.ts --atlas`
+   measures every entry); INP is the slowest tap on a control that changes the screen, found inside open shadow roots
+   too, and each line carries `taps: N`, the controls it tapped (`taps: 0` means the page's INP rests on no tap). A
+   dropped frame is a gap over 50 ms between animation frames, read in the tap's own window and no other, so one page's
+   line is a count as well as a verdict: the floor is met when it reads `0 of N`. A page that drops one frame is
+   measured a second time before it is failed — one frame in two hundred is inside the noise of a host the four-times
+   throttle is measuring too — and a page that drops one twice is a page that stutters. It runs alone, after the others,
+   since throttling measures the machine too: on a busy machine, run it again before believing a near miss.
 
 The report is in `out/verify.txt`. Fix the cause; never weaken a check to make it pass. pnpm may first print a lockfile
 and supply-chain check before a script runs; that is pnpm, not an install, and not a failure.
@@ -176,8 +187,8 @@ node scripts/ask.ts --base http://127.0.0.1:3100 [--view usage] [--as viewer] [-
   product's to say. When `POST /api/assistant` answers 404 (no `ASSISTANT_*` variables), or the configuration declares
   no personas, it prints one line saying it did not run and why, and exits 0. An unknown `--view` or `--as` exits 1
   naming the ones that exist.
-- **Not part of verify.** Neither `pnpm verify` nor `pnpm verify --full` runs it: a real model costs money and is not
-  deterministic, so its answers are read by a person or a reviewing agent, never passed or failed by a script.
+- **Not part of verify.** None of `pnpm verify`, `--full`, `--timed` or `--perf` runs it: a real model costs money and
+  is not deterministic, so its answers are read by a person or a reviewing agent, never passed or failed by a script.
 
 ## After it passes
 

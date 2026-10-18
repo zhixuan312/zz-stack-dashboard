@@ -12,9 +12,18 @@ import { useMeridianIndex } from '../../charts/meridian/index';
 export type FeaturedFigure = {
   /** Mono caps: what the number is and over which period: "Requests · last 30 days". */
   kicker: ReactNode;
-  value: number;
-  /** One value a point of the page's Meridian. The figure reads the pointed point only when it has one for each of the Meridian's dates. */
-  points?: number[];
+  /** The period's figure; `null` when the period has no number: nothing was recorded, or the read was unavailable. */
+  value: number | null;
+  /**
+   * The words in the figure's place when it has no number: "No words recorded", "Unavailable". Set at the figure's own
+   * height, so a period with no number and one with a number draw the same card. "Not recorded" by default.
+   */
+  missing?: string;
+  /**
+   * One value a point of the page's Meridian, `null` where that point has no number. The figure reads the pointed point
+   * only when it has one for each of the Meridian's dates.
+   */
+  points?: (number | null)[];
   format: (n: number) => string;
   delta?: number | null;
   intent?: 'up' | 'down' | 'neutral';
@@ -70,6 +79,7 @@ const FOOT = [
 function Figure({
   kicker,
   value,
+  missing = 'Not recorded',
   points,
   format,
   delta,
@@ -90,7 +100,7 @@ function Figure({
   const shown = point ? point.value : value;
   // One parser, shared with the Metric tile: it never fails to match, so no formatter a product passes can
   // crash the figure — and the symbol may be any currency's, not a list of three.
-  const parts = splitFigure(fitFigure(format(shown), shown));
+  const parts = shown === null ? null : splitFigure(fitFigure(format(shown), shown));
   // The words after the change are the caller's and a point's name may be long: a pill grows a line rather than cutting one.
   const pill = 'inline-flex min-h-7 max-w-full items-center rounded-full px-3 py-1 text-xs';
   return (
@@ -100,20 +110,33 @@ function Figure({
         {actions ? <div className="-mt-1.5 flex shrink-0 items-center gap-1.5">{actions}</div> : null}
       </div>
       <div className={cn('flex flex-wrap items-end gap-x-5 gap-y-2 pt-4', half && '@2xl:contents')}>
+        {/* With no number the words stand in the figure's line, a size down: the line keeps the figure's height, so the
+            card is the same size for a period with a number and one without. */}
         <p data-value className={cn('t-hero t-num', half && '@2xl:row-start-2 @2xl:pt-4 @2xl:text-page @5xl:text-hero')}>
-          {parts.pre ? <span className="unit pre">{parts.pre}</span> : null}
-          {parts.int}
-          {parts.frac ? <span className="frac">{parts.frac}</span> : null}
-          {parts.unit ? <span className="unit">{parts.unit}</span> : null}
+          {parts ? (
+            <>
+              {parts.pre ? <span className="unit pre">{parts.pre}</span> : null}
+              {parts.int}
+              {parts.frac ? <span className="frac">{parts.frac}</span> : null}
+              {parts.unit ? <span className="unit">{parts.unit}</span> : null}
+            </>
+          ) : (
+            <span data-missing className="text-2xl font-semibold tracking-[-0.02em] text-ink-2">{missing}</span>
+          )}
         </p>
-        {point || delta !== undefined ? (
-          <div className={cn('pb-2.5', half && '@2xl:row-start-3 @2xl:pt-3 @2xl:pb-0')}>
+        {/* A figure that can read a point keeps the pill's row whether or not one is pointed at, so pointing changes what
+            the figure says and never where anything below it is. With no change pill to stand in for, the row is a line of
+            its own: an empty place beside the figure could fit where the named point does not, and wrap when it arrives. */}
+        {point || delta !== undefined || points ? (
+          <div className={cn('pb-2.5', delta === undefined && 'w-full', half && '@2xl:row-start-3 @2xl:pt-3 @2xl:pb-0')}>
             {point ? (
               <span data-point className={cn(pill, 't-num bg-surface-inverse font-medium text-ink-inverse')}>{pointLabel(point.date)}</span>
-            ) : (
+            ) : delta !== undefined ? (
               <span data-change className={cn(pill, 'gap-1.5 border border-line-strong bg-surface/60 text-ink-2 backdrop-blur-md')}>
                 <Delta value={delta ?? null} intent={intent} /> {compare}
               </span>
+            ) : (
+              <span aria-hidden className={cn(pill, 'invisible')}>{'\u00a0'}</span>
             )}
           </div>
         ) : null}

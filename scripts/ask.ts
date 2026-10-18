@@ -1,13 +1,15 @@
 /**
  * Ask a served product's assistant the questions its page specifications list.
  *
- *   node scripts/ask.ts --base <url> [--view <name>] [--as <persona>] [--out <folder>]
+ *   node scripts/ask.ts --base <url> [--view <name>] [--path <address>] [--as <persona>] [--out <folder>]
  *
  * Each page specification lists, under `### What the agent does here`, the questions a person on that page asks that
  * its context does not answer alone (FR-42). This asks each of them, one thread a question, of `POST /api/assistant` on
  * the page's own address, signed in as a persona of `scripts/verify.config.ts`: the one `--as` names, else the one keyed
  * `owner`, else the first declared. A detail page's questions are asked on its first record: the first link of its
- * form on its listing page. Every view with questions is asked, or the one `--view` names.
+ * form on its listing page, unless `--path` names the record (`--path /customers/c_42`), which asks the page that
+ * renders that address. Every view with questions is asked, or the one `--view` names, by its name or as its tool
+ * (`usage` or `view_usage`).
  *
  * Each question carries the page as the console's panel sends it, as near as a script can: the page's title and its
  * visible text, read from the page as it is served to that persona, without any node marked `data-assistant="omit"`,
@@ -15,7 +17,9 @@
  * publishes it in the browser, so a script that fetches the page cannot read it, and the assistant answers from the
  * page's text and its tools.
  *
- * For each view it writes `<folder>/<view>.md` (`out/asks/` unless `--out` names another): each question, every tool
+ * For each view it writes `<folder>/<view>.md` (`out/asks/` unless `--out` names another), one file a page: a view is
+ * named by its tool, wherever in the registry the tool is defined, else by its route (`/things/[id]` is `things-id`),
+ * and two views that would share a name are told apart by their routes. It holds each question, every tool
  * the assistant called with its input and what the tool returned, every Proposal it raised with its approval or denial,
  * and the answer's text, for a reader to judge whether the answer is the tools' and no change is claimed without a
  * Proposal (AC-14.8). A question the assistant answered with a Proposal alone is answered.
@@ -55,21 +59,50 @@ export function personaFor(config: { personas?: Personas }, as?: string): { run:
 type View = { name: string; page: string; title: string; questions: string[] };
 
 /**
- * Every view whose specification lists questions. A view is named as its tool in `src/views/tools.ts` names it, and
- * without a tool by its page's folder: `(home)` is `home`, a detail page's `[id]` the folder before it.
+ * A page's name without a view tool, from its route: `/things` is `things`, `/things/[id]` is `things-id`, a catch-all's
+ * dots and every bracket dropped. The root page takes its own folder's name, `(home)` being `home`.
  */
-function views(): View[] {
-  const tools = viewToolPages() ?? [];
-  return pageSpecs().flatMap(({ file, route }) => {
-    const md = fs.readFileSync(path.join(ROOT, file), 'utf8');
-    const questions = questionsOf(md);
-    if (!questions.length) return [];
-    const folders = path.posix.dirname(file).split('/');
-    const folder = folders.at(-1)!.startsWith('[') ? folders.at(-2)! : folders.at(-1)!;
-    const name = tools.find((t) => t.page === route)?.name ?? folder.replace(/[()]/g, '');
-    const title = /^# (.+)$/m.exec(md)?.[1] ?? name;
-    return [{ name, page: route, title, questions }];
+const routeName = (route: string, folder: string) => (route === '/' ? folder.replace(/[()]/g, '') : route.split('/').filter(Boolean).map((s) => s.replace(/[[\].]/g, '')).join('-'));
+
+/**
+ * Every view with questions, each with a name of its own: the name its view tool gives it, wherever in the registry the
+ * tool is defined, else its route's (`routeName`). One name is one transcript, so two views never share one: a name two
+ * views would share is followed by the route's, and a name still shared then is refused.
+ */
+export function viewsOf(specs: readonly { route: string; folder: string; title?: string; questions: string[] }[], tools: readonly { name: string; page: string }[]): View[] {
+  const named = specs.filter((s) => s.questions.length).map((s) => {
+    const name = tools.find((t) => t.page === s.route)?.name ?? routeName(s.route, s.folder);
+    return { name, page: s.route, title: s.title ?? name, questions: s.questions };
   });
+  const count = (vs: View[], n: string) => vs.filter((v) => v.name === n).length;
+  const apart = named.map((v) => (count(named, v.name) > 1 ? { ...v, name: `${v.name}-${routeName(v.page, '') || 'root'}` } : v));
+  const shared = [...new Set(apart.filter((v) => count(apart, v.name) > 1).map((v) => v.name))];
+  if (shared.length) throw new Error(`two views would write one transcript: ${shared.join(', ')}; give each view tool a name of its own`);
+  return apart;
+}
+
+/** The views of this project: its page specifications that list questions, named by `viewsOf`. */
+function views(): View[] {
+  return viewsOf(pageSpecs().map(({ file, route }) => {
+    const md = fs.readFileSync(path.join(ROOT, file), 'utf8');
+    return { route, folder: path.posix.basename(path.posix.dirname(file)), title: /^# (.+)$/m.exec(md)?.[1], questions: questionsOf(md) };
+  }), viewToolPages() ?? []);
+}
+
+/**
+ * The views asked: every one, the one `--view` names (by its name or as the assistant's tool, `view_<name>`), or the
+ * one whose page renders the address `--path` names. Where several pages render it, the most specific one, as Next.js
+ * picks: fewer dynamic segments first.
+ */
+export function chosenOf(all: readonly View[], want?: string, at?: string): { views: View[]; error?: string } {
+  const named = want === undefined ? [...all] : all.filter((v) => v.name === want || `view_${v.name}` === want);
+  if (want !== undefined && !named.length) return { views: [], error: `no view named ${want} lists questions; these do: ${all.map((v) => v.name).join(', ')}` };
+  if (at === undefined) return { views: named };
+  const bare = at.split(/[?#]/)[0].replace(/(.)\/+$/, '$1');
+  const dynamic = (page: string) => (page.match(/\[/g) ?? []).length;
+  const rendering = named.filter((v) => new RegExp(`^${formOf(v.page)}$`).test(bare)).sort((a, b) => dynamic(a.page) - dynamic(b.page));
+  if (!rendering.length) return { views: [], error: `no page${want === undefined ? '' : ` of ${want}`} with questions renders ${at}; these do: ${named.map((v) => v.page).join(', ')}` };
+  return { views: [rendering[0]] };
 }
 
 /** HTML's void elements: they have no closing tag. */
@@ -318,25 +351,38 @@ function report(view: View, address: string, persona: string, base: string, page
 }
 
 /**
- * The address a page's questions are asked on: the page itself, or for a detail page the first record its listing page
- * links. An optional catch-all (`/docs/[[...path]]`) renders with none of its segments too, so it is asked there; a
- * catch-all takes a link of any depth.
+ * The pattern of the addresses a page renders, matched as Next.js matches its route: `[name]` is one segment,
+ * `[...name]` one or more, `[[...name]]` zero or more.
+ */
+export function formOf(page: string): string {
+  const seg = `[^/"'?#\\s<>]+`;
+  const optional = /\/\[\[\.\.\.[^\]/]+\]\]$/.exec(page);
+  const fixed = optional ? page.slice(0, optional.index) : page;
+  const form = fixed.split('/').map((s) => (/^\[\.\.\.[^\]/]+\]$/.test(s) ? `${seg}(?:/${seg})*` : /^\[[^\]/]+\]$/.test(s) ? seg : s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))).join('/');
+  // A root optional catch-all renders `/` itself as well as every address under it.
+  return optional ? (form ? `${form}(?:/${seg})*` : `(?:/|(?:/${seg})+)`) : form;
+}
+
+/**
+ * The address a page's questions are asked on: the one `--path` names, the page itself, or for a detail page the first
+ * record its listing page links. An optional catch-all (`/docs/[[...path]]`) renders with none of its segments too, so
+ * it is asked there.
  */
 async function addressOf(base: string, cookie: string, page: string): Promise<string | null> {
   if (!/\[[^\]/]+\]/.test(page)) return page;
   if (/\/\[\[\.\.\.[^\]/]+\]\]$/.test(page)) return addressOf(base, cookie, page.replace(/\/\[\[\.\.\.[^\]/]+\]\]$/, '') || '/');
   const listing = page.split('/[')[0] || '/';
-  const form = page.split('/').map((s) => (/^\[\.\.\.[^\]/]+\]$/.test(s) ? `[^"'?#\\s<>]+` : /^\[[^\]/]+\]$/.test(s) ? `[^/"'?#\\s<>]+` : s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))).join('/');
   const html = await (await fetch(`${base}${listing}`, { headers: { cookie }, signal: AbortSignal.timeout(60_000) })).text();
-  return new RegExp(`href="(${form})(?:[?#][^"]*)?"`).exec(html)?.[1] ?? null;
+  return new RegExp(`href="(${formOf(page)})(?:[?#][^"]*)?"`).exec(html)?.[1] ?? null;
 }
 
 async function main(): Promise<number> {
   const argv = process.argv.slice(2);
   const arg = (flag: string) => { const i = argv.indexOf(flag); return i >= 0 ? argv[i + 1] : undefined; };
   const base = arg('--base')?.replace(/\/+$/, '');
-  if (!base || !/^https?:\/\//.test(base)) { console.error('usage: node scripts/ask.ts --base <url> [--view <name>] [--as <persona>] [--out <folder>]'); return 1; }
-  const want = arg('--view'), as = arg('--as');
+  if (!base || !/^https?:\/\//.test(base)) { console.error('usage: node scripts/ask.ts --base <url> [--view <name>] [--path <address>] [--as <persona>] [--out <folder>]'); return 1; }
+  const want = arg('--view'), at = arg('--path'), as = arg('--as');
+  if (at !== undefined && !at.startsWith('/')) { console.error(`ask: --path takes an address on the product, starting with /: ${at}`); return 1; }
   const folder = path.resolve(arg('--out') ?? path.join(ROOT, 'out/asks'));
 
   const config = ((await import(pathToFileURL(path.join(ROOT, 'scripts/verify.config.ts')).href)) as { default: { personas?: Personas } }).default;
@@ -348,12 +394,16 @@ async function main(): Promise<number> {
     console.log(`ask: did not run: ${who.why}`);
     return declared.length ? 1 : 0;
   }
-  const all = views();
-  const chosen = want === undefined ? all : all.filter((v) => v.name === want);
-  if (!chosen.length) {
-    console.error(want === undefined ? 'ask: no page specification lists a question under "### What the agent does here"' : `ask: no view named ${want} lists questions; these do: ${all.map((v) => v.name).join(', ')}`);
+  let all: View[];
+  try {
+    all = views();
+  } catch (e) {
+    console.error(`ask: ${(e as Error).message}`);
     return 1;
   }
+  if (!all.length) { console.error('ask: no page specification lists a question under "### What the agent does here"'); return 1; }
+  const { views: chosen, error } = chosenOf(all, want, at);
+  if (error) { console.error(`ask: ${error}`); return 1; }
 
   // Whether the assistant is on, asked with no message: 404 is off; 400, the route refusing the empty thread, or an
   // answer is on. The persona's cookie goes with it, because the route answers 401 to nobody before it says whether it is on.
@@ -370,7 +420,7 @@ async function main(): Promise<number> {
   let failed = false;
   fs.mkdirSync(folder, { recursive: true });
   for (const view of chosen) {
-    const address = await addressOf(base, who.cookie, view.page);
+    const address = at ?? (await addressOf(base, who.cookie, view.page));
     if (!address) {
       console.error(`ask: ${view.name}: no link of the form ${view.page} on ${view.page.split('/[')[0] || '/'}, so its questions were not asked`);
       failed = true;

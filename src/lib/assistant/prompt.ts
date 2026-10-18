@@ -85,7 +85,15 @@ export type Audience = {
     derived?: readonly string[];
   }[];
   explore?: string;
+  /**
+   * Whether the assistant is handed a write tool on this page. Without one it changes nothing, so the prompt says so and
+   * names no write tool and no Proposal; the default.
+   */
+  writes?: boolean;
 };
+
+/** Where a change the assistant does not make is made: a page this person may open, or the truth that it is not theirs to make. */
+const WHERE_TO_CHANGE = 'give the address of the page that makes it when it is one this person may open, where they can ask for it or make it. A page they may not open is never where they can make a change: say it is not a change they can make, and who can make it where that is named, not merely the roles that read it.';
 
 /** Roles as one choice, in table order: "Owner", "Owner or Admin", "Owner, Admin or Member". */
 const either = (roles: readonly string[]) => (roles.length < 2 ? roles.join('') : `${roles.slice(0, -1).join(', ')} or ${roles.at(-1)}`);
@@ -112,12 +120,16 @@ export function systemPrompt(page: PageContext, now: Date, brief = '', limits: s
     'Be concise: facts and figures with their units and period, no filler. Say so when the page does not show the answer.',
     'Open another period, filter or record with the view tools (view_*), which return that view\'s context and the address that shows it; run several at once when they are independent. Give the person the address when you cite another view.',
     ...(audience?.explore
-      ? [`To count, group, compare or find records, ask ${audience.explore}, this page's prepared query, and quote the figures it returns with their window and unit rather than working them out from records. A change to a record takes the id its rows give.`]
+      ? [`To count, group, compare or find records, ask ${audience.explore}, this page's prepared query, and quote the figures it returns with their window and unit rather than working them out from records.${audience.writes ? ' A change to a record takes the id its rows give.' : ''}`]
       : []),
     // A page the person may not open is never where they make a change: told /keys "tells this person who can open it",
     // the model joined the two lines and sent a Viewer there to make a key.
-    'Your write tools change what this page shows and nothing else. Asked for a change another page makes, give that page\'s address when it is one this person may open, where they can ask for it or make it. A page they may not open is never where they can make a change: say it is not a change they can make, and who can make it where that is named, not merely the roles that read it.',
-    'The person approves or dismisses each Proposal in its preview. Do not retry a change they did not approve.',
+    ...(audience?.writes
+      ? [
+          `Your write tools change what this page shows and nothing else. Asked for a change another page makes, ${WHERE_TO_CHANGE}`,
+          'The person approves or dismisses each Proposal in its preview. Do not retry a change they did not approve.',
+        ]
+      : [`You change nothing in this product: you have no write tool here. Asked for any change, ${WHERE_TO_CHANGE}`]),
     ...AGENT_GUIDANCE,
     'Some records exist that this person may not read. Never say that something is not in the product; say it is not something they may read here.',
     ...(audience?.addresses

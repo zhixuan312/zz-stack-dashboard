@@ -16,7 +16,6 @@ export type Metric = 'shell' | 'data' | 'interactive';
 export type Condition = 'warm' | 'cold' | 'afterLive';
 export const DEVICES: Device[] = ['desktop', 'phone'];
 export const METRICS: Metric[] = ['shell', 'data', 'interactive'];
-export const BUDGET_KEY = { shell: 'shellMs', data: 'dataMs', interactive: 'interactiveMs' } as const;
 /** The phone is slow by design: its waits are longer, never its budgets. */
 const PATIENCE: Record<Device, number> = { desktop: 10_000, phone: 30_000 };
 /** How long a press may take to show its result before the control is called dead: past every cold interactive budget. */
@@ -425,8 +424,15 @@ export async function journey(page: Page, device: Device, start: string, route: 
   const shell = { ms: shellMs };
   if (!check) return { shell, data: null, interactive: null, drawerMs, prefetchCapped, refused, prefetched };
 
-  // Data and interaction run side by side: a control that is there at once does not wait for a body that is not.
-  const [data, interactive] = await Promise.all([measureData(page, route, check, t0, cap), measureInteraction(page, route, check, t0, cap, RESULT_WAIT[device])]);
+  // Data and interaction run side by side: a control that is there at once does not wait for a body that is not. A link probe
+  // is the exception: its press leaves the route, and the data counts only on the route, so it is pressed once the data is
+  // measured or has failed (a dead link is still reported then).
+  let data: Measured;
+  let interactive: Measured;
+  if (check.probe === 'link') {
+    data = await measureData(page, route, check, t0, cap);
+    interactive = await measureInteraction(page, route, check, t0, cap, RESULT_WAIT[device]);
+  } else [data, interactive] = await Promise.all([measureData(page, route, check, t0, cap), measureInteraction(page, route, check, t0, cap, RESULT_WAIT[device])]);
   if (check.probe === 'dialog') await page.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
   return { shell, data, interactive, drawerMs, prefetchCapped, refused, prefetched };
 }

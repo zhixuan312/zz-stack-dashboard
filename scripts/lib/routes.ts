@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { importTarget, projectAliases } from './aliases.ts';
 
 const ROOT = path.resolve(import.meta.dirname, '../..');
 
@@ -67,19 +68,45 @@ export function agentSection(md: string): { protagonist: string | null; question
   return { protagonist, questions, stray };
 }
 
+/** The registry of the view tools, which the assistant and the MCP server read them from. */
+const REGISTRY = 'src/views/tools.ts';
+
 /**
- * Each view tool's `name` and `page` as a source declares them (`src/views/tools.ts` when none is given): the keys of
- * each `defineViewTool({ ... })` object itself, never a `name` or `page` inside its code, such as the `page` of
- * Customers' filter. Read as text, because a script runs under plain node and cannot load the product's views. Null
- * when the file does not exist.
+ * The project modules `from` imports, each resolved the way TypeScript resolves it: a relative path or a tsconfig
+ * alias, with `.ts`, `.tsx` or an `index` beside it. A package import is none of them.
  */
-export function viewToolPages(source?: string): { name: string; page: string }[] | null {
-  if (source === undefined) {
-    const file = path.join(ROOT, 'src/views/tools.ts');
-    if (!fs.existsSync(file)) return null;
-    source = fs.readFileSync(file, 'utf8');
+function importsOf(root: string, from: string, src: string, aliases: [string, string][]): string[] {
+  const out: string[] = [];
+  for (const m of src.matchAll(/(?:\bfrom|\bimport\s*\(?)\s*['"]([^'"]+)['"]/g)) {
+    const base = importTarget(from, m[1].replace(/\.[mc]?[jt]sx?$/, ''), aliases);
+    const file = base && [`${base}.ts`, `${base}.tsx`, `${base}/index.ts`, `${base}/index.tsx`].find((c) => fs.statSync(path.join(root, c), { throwIfNoEntry: false })?.isFile());
+    if (file) out.push(file);
   }
-  const src = source;
+  return out;
+}
+
+/**
+ * Each view tool's `name` and `page` as a source declares them: the keys of each `defineViewTool({ ... })` object
+ * itself, never a `name` or `page` inside its code, such as the `page` of Customers' filter. With no source given, every
+ * module the registry reaches is read — `src/views/tools.ts` and what it imports, and so on — so a project that keeps
+ * each tool in a module of its own is read whole. Read as text, because a script runs under plain node and cannot load
+ * the product's views. Null when the registry does not exist. `root` is the project's folder, this one when not given.
+ */
+export function viewToolPages(source?: string, root = ROOT): { name: string; page: string }[] | null {
+  if (source !== undefined) return toolsIn(source);
+  if (!fs.existsSync(path.join(root, REGISTRY))) return null;
+  const aliases = projectAliases(root);
+  const seen = new Set([REGISTRY]);
+  const out: { name: string; page: string }[] = [];
+  for (const file of seen) {
+    const src = fs.readFileSync(path.join(root, file), 'utf8');
+    out.push(...toolsIn(src));
+    for (const next of importsOf(root, file, src, aliases)) seen.add(next);
+  }
+  return out;
+}
+
+function toolsIn(src: string): { name: string; page: string }[] {
   const out: { name: string; page: string }[] = [];
   for (let i = 0; i < src.length;) {
     const past = skipLiteral(src, i);

@@ -17,7 +17,8 @@ export type NavigationCheck = {
   /**
    * A route whose own reading is over the shared budget may carry its own, beside the measurement that earned it in the
    * config: one heavy reading page is not the rail, and lowering every route's bar to hold one of them is not the trade.
-   * Omitted, the route is held to the shared `budgets.navigation` figure like every other.
+   * It stands in for the warm figure only. Omitted, the route is held to the shared `budgets.navigation` figure like every
+   * other.
    */
   budget?: Partial<{ [K in keyof ReadinessBudget]: Partial<DeviceBudget> }>;
 };
@@ -60,6 +61,26 @@ export const DEFAULT_BUDGETS: Budgets = {
   htmlKb: {},
   prefetchKb: { desktop: 80, phoneClosed: 0 },
 };
+
+/**
+ * A route's limits in ms for a condition and device. Warm, the check's own figure stands in for the shared one on the
+ * metric and device it names; cold and after-live keep the shared figure, since a route's own figure is earned by its
+ * warm reading.
+ */
+export function limitsFor(
+  budgets: Budgets,
+  condition: keyof Budgets['navigation'],
+  device: keyof DeviceBudget,
+  check: NavigationCheck | undefined,
+): { shell: number; data: number; interactive: number } {
+  const shared = budgets.navigation[condition];
+  const own = condition === 'warm' ? check?.budget : undefined;
+  return {
+    shell: own?.shellMs?.[device] ?? shared.shellMs[device],
+    data: own?.dataMs?.[device] ?? shared.dataMs[device],
+    interactive: own?.interactiveMs?.[device] ?? shared.interactiveMs[device],
+  };
+}
 
 /** A config's partial budgets over the defaults; after-live follows cold unless it is set. */
 export function budgetsOf(config: BudgetsConfig): Budgets {

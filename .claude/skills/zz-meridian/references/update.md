@@ -6,12 +6,12 @@ the recorded release from the registry, and works in a temporary folder). A plai
 `npx zz-meridian@latest update` then applies the safe changes and stages the rest. Do not copy files by hand to make up
 for either.
 
-When the project is already on the running version, `update` (and its dry run) prints `already at <version>; nothing
-to update` and exits 0: say so in the hand-over and stop there; the standard is not re-proven for a change that did
-not happen. After an update that changed files, run the
-loop in `standard.md` on what it changed, and close with `pnpm verify --full`. A release can make a suite look further
-than the last one did (the browser checks now look inside open shadow roots), so a finding that is new after an update may be
-a page that was never measured before; `validation.md` says what each line means.
+When the project is already on the running version, `update` (and its dry run) prints
+`already at <version>; nothing to update` and exits 0: say so in the hand-over and stop there; the standard is not
+re-proven for a change that did not happen. After an update that changed files, run the loop in `standard.md` on what it
+changed, and close with `pnpm verify --full --timed`. A release can make a suite look further than the last one did (the
+browser checks now look inside open shadow roots), so a finding that is new after an update may be a page that was never
+measured before; `validation.md` says what each line means.
 
 An update is tested from the last three releases. When the manifest's version is older than that (`npm view
 zz-meridian versions` lists them), update in steps: first with the release three after it,
@@ -146,11 +146,11 @@ conflict. A protected file a check rewrites, such as a `tsconfig.json` that Next
 commit the change, then finalize again.
 
 **What "complete" means.** The gate and one production build passed on the live project, the files are the target
-release's (plus the team's resolutions), and `optional:.meridian/manifest.json` now records the target as the baseline for the
-next update. Without `--verify` it does not mean the browser checks ran: the output says `browser: not run`, and `<pm> run verify`
-runs the bounded smoke (`<pm> run verify -- --full` the exhaustive suites). With `--verify` the output, `MERGE.md` and
-the archived evidence carry verify's coverage line, which says what ran and what did not. A failing verify fails the
-session as a failing gate does.
+release's (plus the team's resolutions), and `optional:.meridian/manifest.json` now records the target as the baseline
+for the next update. Without `--verify` it does not mean the browser checks ran: the output says `browser: not run`, and
+`<pm> run verify` runs the bounded smoke (`<pm> run verify -- --full` the exhaustive suites, `-- --timed` the timed
+ones). With `--verify` the output, `MERGE.md` and the archived evidence carry verify's coverage line, which says what
+ran and what did not. A failing verify fails the session as a failing gate does.
 
 A zero-conflict update finalizes in the same command: `update` prints the conflict summary and then the finalize
 output, exit `0`.
@@ -169,7 +169,7 @@ update (`2` pending, `0` finalized, `1` failure). `--abort`: `0` aborted, `1` re
 
 ## Resolving 0.9.0's migrations
 
-Moving a project to 0.9.0 can report two more `migration:<id>` items, to 0.10.0 a third for an assistant kept from before, to 0.13.0 a fourth for a navigation item without a `needs`, to 0.15.0 a fifth for a page under the project's own route group, and to 0.16.0 five more, for a configuration that does not declare `refusal`, an export gone from a managed module, a view tool without its page or its prepared query, a view tool's page whose specification does not say what the agent does there, and the sample's pages under their old names; to 0.16.2 one more, for a test of the rail standing over a `ResizeObserver` that answers `observe` with nothing. Each is resolved the same way as those below:
+Moving a project to 0.9.0 can report two more `migration:<id>` items, to 0.10.0 a third for an assistant kept from before, to 0.13.0 a fourth for a navigation item without a `needs`, to 0.15.0 a fifth for a page under the project's own route group, and to 0.16.0 five more, for a configuration that does not declare `refusal`, an export gone from a managed module, a view tool without its page or its prepared query, a view tool's page whose specification does not say what the agent does there, and the sample's pages under their old names; to 0.16.2 one more, for a test of the rail standing over a `ResizeObserver` that answers `observe` with nothing, to 0.16.3 three more, for the assistant route's local `onPage`, a file importing the journey from `scripts/navigate.ts` and a route or a read that cuts today at the UTC date, and to 0.16.4 one more, for a file calling `finalOutcome` with a boolean. Each is resolved the same way as those below:
 
 | Id | The old shape it found | The change |
 |----|------------------------|------------|
@@ -184,6 +184,10 @@ Moving a project to 0.9.0 can report two more `migration:<id>` items, to 0.10.0 
 | `agent-does-here-section` (0.16.0) | the README of a page a view tool's `page` names, with no `### What the agent does here`; while a tool names no page, every console page README without it | add the part under `## Agents`: `Protagonist: <name>.` and at least three `- "<question>" — <what the prepared query is asked>`, the card marked `data-protagonist`: `agents.md`, "Prepared queries"; checked by the gate |
 | `sample-pages-renamed` (0.16.0) | the sample's Overview, Analytics and Operations pages and views under their 0.15.0 folders and files, and every file that names them: the view tools, the nav's feature ids, the verify config's routes, a shipped test | a project that kept them as they were brings the release's Home, Usage and Services over with the rest of the sample and its tests, keeping its own `app` in `src/app.config.ts`, and deletes a listed file the release no longer has; a project that made them its own keeps its names and makes the other 0.16.0 changes in them; checked by the gate and a build |
 | `marker-measured-on-observe` (0.16.2) | a test that mounts the rail over a `ResizeObserver` whose `observe` answers nothing, such as `optional:tests/rail-marker.test.tsx` as the template wrote it | the rail reads no offset of its own since 0.16.2 — a rail mounts inside the tap that opens the phone drawer, and a read there lays the page out inside that tap — so the marker's first position is the one `observe` delivers, as the platform delivers it, after the effect that called it: bring `optional:tests/rail-marker.test.tsx` over from the release as it has it, whose fake answers `observe` with the callback (`observe() { for (const cb of observers) queueMicrotask(cb); }`), and answer a fake of your own the same way, reading the marker after that delivery; checked by the gate |
+| `view-page-matched-as-next` (0.16.3) | `optional:app/api/assistant/route.ts` with a local `function onPage(` | delete `onPage` and find the view with `viewAt` from `@/lib/shared-context`, which matches a catch-all `page` as Next.js does: `const at = viewAt(viewTools, path); const view = at && views.includes(at) ? at : undefined;`; checked by the gate |
+| `journey-moved` (0.16.3) | a file of the team's importing anything but `workspaceHomes` from `scripts/navigate.ts`, such as a copy of `optional:tests/navigate-start.test.ts` | the journey moved to `scripts/lib/journey.ts`: bring `optional:tests/navigate-start.test.ts` and `optional:tests/navigate-menu-start.test.ts` over from the release as it has them, and import the journey from `scripts/lib/journey.ts` in a file of your own; checked by the gate |
+| `today-in-timezone` (0.16.3) | `optional:app/api/assistant/route.ts` or `optional:src/data/metrics.ts` cutting today with `clock().toISOString().slice(0, 10)` | `dayOf(clock())` from `src/lib/format-date.ts`, so today is the day in `app.timezone`; a file of your own comparing an instant's day with a day row asks `dayOf` too; checked by the gate |
+| `verify-tiers` (0.16.4) | a file of the team's importing `finalOutcome` from `scripts/lib/coverage.ts` and calling it with a boolean, such as a copy of `optional:tests/verify-suite-outcome.test.ts` from before the tiers | `finalOutcome` takes `{ full, timed }` since verify has a timed tier: bring `optional:tests/verify-suite-outcome.test.ts` over from the release as it has it, and call `finalOutcome({ full, timed }, notRun)` in a file of your own, as `validation.md` describes; checked by the gate |
 
 A created project that never changed the template's pages brings the release's version of each affected file over, with
 the files that arrived with them: the view contexts `optional:src/views/home-context.ts` and its siblings, the view
@@ -202,7 +206,7 @@ each one in the project, then record it as above, with the hashes of the files a
 
 | Id | The old shape it found | The change |
 |----|------------------------|------------|
-| `verify-modes` | a `package.json` script, workflow or shell file passing `--quick`, `--no-vitals` or `--extra` to verify | use `pnpm verify`, `--full` or `--perf` instead: `validation.md`; only the gate runs after it |
+| `verify-modes` | a `package.json` script, workflow or shell file passing `--quick`, `--no-vitals` or `--extra` to verify | use `pnpm verify`, `--full`, `--timed` or `--perf` instead: `validation.md`; only the gate runs after it |
 | `shell-assistant-promise` | `<AppShell assistant=...>` with a boolean | pass a `Promise<boolean>`: `cache.md`, "The shell's assistant promise" |
 | `assistant-available-promise` | `useAssistantAvailable()` read as a boolean | `use(useAssistantAvailable())` inside a `Suspense` boundary: same section |
 | `clock-now-required` | `Freshness`, `ShellTools` or `AlertsPanel` without `now`, `formatRelative` with one argument | pass the data's clock: "The clock is the data's" |
@@ -213,7 +217,7 @@ each one in the project, then record it as above, with the hashes of the files a
 | `live-provider` | collections without `optional:src/data/live-actions.ts`, or a console layout without the provider | add the live files: `live.md`, "The live starters" and "Refreshing" |
 | `authorized-endpoints` | the assistant route or an actions file that never calls `resolveAccess` | resolve the caller first, and bring `optional:src/lib/assistant/tools.ts` and `optional:src/lib/assistant/respond.ts` over, which take the guard: "The assistant route" |
 
-Every migration but `verify-modes` is checked by the gate and a build; `verify-modes` by the gate alone.
+Every migration but `verify-modes` is checked by the gate and a build; `verify-modes` by the gate alone. After 0.5.0 the gate alone checks `agent-reads-section`, `nav-needs`, `agent-reads-own-group`, `agent-does-here-section`, `marker-measured-on-observe`, `view-page-matched-as-next`, `journey-moved`, `today-in-timezone` and `verify-tiers`.
 
 How to make the change depends on whose file it is:
 

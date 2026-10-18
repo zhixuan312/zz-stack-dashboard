@@ -29,7 +29,7 @@ sample, ZZ Meridian's own dashboard, lives in `optional:src/system/fixtures/`; y
   JavaScript has loaded and run, about 2.5 s on a mid-range phone, which puts LCP past the limit. Call
   `preload(url, { as: 'fetch', crossOrigin: 'anonymous' })` from `react-dom` inside the read hook: the server render
   writes a preload into the HTML, and the read starts with the page (ZZ Console measured about 170 ms instead).
-  `pnpm verify --full` measures LCP on that phone profile (`scripts/vitals.ts`).
+  `pnpm verify --timed` measures LCP on that phone profile (`scripts/vitals.ts`).
 - **The access seam**: who may do what lives in `optional:src/data/`, and a page never answers it on its own. Three files
   hold the rules and one holds the member boundary.
   - `optional:src/data/roles.ts` is the role table. `MAIN_ROLES`, `ADD_ONS` and `GRANTS`; `effective(role, addOns)` unions a
@@ -436,21 +436,21 @@ orders is the sample's, not the product's.
   a part whose read failed says so in its place, one the reader may not read is absent, and the missing-record page for
   an id that names nobody. Write your own record's page.
 - **Now's parts and their words**: the line under its title, the Featured metric that leads it (the days inside the
-  band, the steady fact as its finding, each complete day's p95 as its chart), the services, the open incidents, the days inside the
-  band with their four facts, the models over the last 30 complete days, compute in use a region on the latest complete
-  day, what ships, the work, the slowest endpoints, the four figures of the last 30 complete days, the runs a day and
-  the latest changes: what `nowData` in `optional:src/views/now-parts.ts` works out for them from what `nowTool` in
-  `optional:src/views/tools.ts` reads, each collection apart, how `optional:src/views/now.tsx` draws them, in thirteen
-  parts, and how `nowContext` says it. The parts, their titles and words, the models, the regions, the tickets'
-  priorities, the tiles, the eight services a list holds whole and the three longest runs it keeps past that are the
-  sample company's. Keep the standard they show: each figure names its window, a tile's line fits in 32 characters,
-  the day in progress is counted in nothing but the runs a day, the facts Home also states are written by Home's own
-  functions, and a part whose read failed is null, says so in its own place and is named in the context's unknowns; a
-  list that never folds is handed what the page's rule keeps (`servicesShown` in `optional:src/views/now-context.ts`)
-  beside a link that counts every one; an incident names its owner and opens its ticket; the reader's own record is
-  marked "Yours", worked out on the server from who is reading; a part that changes while it is read registers its
-  collection with `useLive`; nothing arrived is one card and the page headed by its name. Write your own engineering
-  home.
+  band, the steady fact as its finding, each complete day's p95 as its chart), the services, the open incidents, the
+  days inside the band with their four facts, the models over the last 30 complete days, compute in use a region on the
+  latest complete day, what ships, the work, the slowest endpoints, the four figures of the last 30 complete days, the
+  runs a day and the latest changes: what `nowData` in `optional:src/views/now-parts.ts` works out for them from what
+  `nowTool` in `optional:src/views/tools.ts` reads, each collection apart, how `optional:src/views/now.tsx` draws them,
+  in thirteen parts, and how `nowContext` says it. The parts, their titles and words, the models, the regions, the
+  tickets' priorities, the tiles, the eight services a list holds whole and the three longest runs it keeps past that
+  are the sample company's. Keep the standard they show: each figure names its window, a tile's line fits in 32
+  characters, the day in progress is counted in nothing but the runs a day, the facts Home also states are written by
+  Home's own functions, and a part whose read failed is null, says so in its own place and is named in the context's
+  unknowns; a list that never folds is handed what the page's rule keeps (`servicesShown` in
+  `optional:src/views/now-context.ts`) beside a link that counts every one; an incident names its owner and opens its
+  ticket; the reader's own record is marked "Yours", worked out on the server from who is reading; a part that changes
+  while it is read registers its collection with `useLive` (Home and Revenue register every collection their feature
+  needs, and no other); nothing arrived is one card and the page headed by its name. Write your own engineering home.
 - **Services' parts and their words**: the Featured metric that leads it (uptime over 90 days, the run fact as its
   finding, the share of services operational a day as its chart), "Each service, 90 days" and "Incidents", the page's
   one sentence, the services,
@@ -579,8 +579,8 @@ grep -rn "/services\|/requests\|/customers\|/keys\|/settings\|/members\|/usage\|
   app src/views src/components --include=*.tsx --include=*.ts | grep -v preview.tsx
 ```
 
-Then `pnpm verify --full`, after `node scripts/registry.ts` in a clone that keeps the Atlas (a created project has no
-cards' previews, and there it writes a registry of none).
+Then `pnpm verify --full --timed`, after `node scripts/registry.ts` in a clone that keeps the Atlas (a created project
+has no cards' previews, and there it writes a registry of none).
 
 ## Renaming a thing
 

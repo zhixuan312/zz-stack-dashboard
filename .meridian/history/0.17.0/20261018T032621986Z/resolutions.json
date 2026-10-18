@@ -1,0 +1,8 @@
+[
+  {
+    "id": "migration:dependency:jsdom",
+    "status": "resolved",
+    "reason": "The console has run its gate, its full test suite and its build on jsdom 30.1.2 since before this update (pnpm verify job 3286 on commit 24e1602: tests pass, build ok), and no jsdom 30.1.2 change touches what its tests use.",
+    "files": { "package.json": "sha256-ae724d13f64a9296964f54a392286307b5721f9e3ce1d63d1cc804011640211d" }
+  }
+]

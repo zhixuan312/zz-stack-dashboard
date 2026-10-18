@@ -9,7 +9,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 <!-- END:nextjs-agent-rules -->
 
 <!-- BEGIN:zz-meridian-agent-rules -->
-# Built on ZZ Meridian 0.16.3
+# Built on ZZ Meridian 0.17.0
 
 Follow the zz-meridian skill in `.agents/skills/zz-meridian/SKILL.md`.
 Read `optional:docs/brief.md` for this team's product, users, data and decisions.
@@ -23,6 +23,7 @@ When it is absent, use the skill's brief template with the person's answers; do 
   upgrade: resolve the report and run the pinned finalization command.
 - Before finishing: safely configured `pnpm verify` for the default gate/build/smoke path; report any partial coverage.
   Use `pnpm gate` alone for static feedback. Do not automatically chain it before verify, which already runs it.
-  Use `pnpm verify --full` or `pnpm verify --perf` when deep checks are requested; release CI runs both.
+  Use `pnpm verify --full` for the exhaustive checks and `pnpm verify --timed` for the timed ones (it needs a quiet
+  machine); `--full --timed` is the whole standard. Weekly CI runs `--full --timed --perf`.
 - Agents in the product read through authorized collections and write only through an approved Proposal.
 <!-- END:zz-meridian-agent-rules -->
