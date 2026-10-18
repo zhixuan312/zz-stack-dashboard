@@ -8,14 +8,16 @@
  * or address is in any of it, and nothing is named after a token or a key, so the gateway's redaction leaves it be.
  *
  * The superadmin authorised one application twice (two tokens), is signed in on this browser and another, and has a
- * passkey; the member has one of each. A revoke is answered as the platform decides it and forgotten, like every write.
+ * passkey; the member has one of each. A revoke is answered as the platform decides it and forgotten, like every write;
+ * a token a journey session issued is kept for that session (journey.ts).
  *
  * COUPLED: zz-stack's `checks/console-access.ts` imports this file with plain `node` and compares its key sets with the
  * real routes' answers. So nothing here is imported through the console's path alias.
  */
-import type { Me } from '../../src/lib/api-shapes.ts';
+import type { Me, MyAccessToken } from '../../src/lib/api-shapes.ts';
 import type { Access, AccessApplication, AccessBrowser, AccessPasskey, AccessToken, Revoked } from '../../src/lib/destination-shapes.ts';
 import { ago } from './clock.ts';
+import { kept } from './journey.ts';
 import { MEMBER, clientSetupOf, teamsOf, tokensOf } from './people.ts';
 import { workMeta } from './work-initiatives.ts';
 
@@ -43,8 +45,18 @@ const PASSKEYS: Record<string, AccessPasskey[]> = {
   [MEMBER.email]: [{ label: null, transports: ['usb'], createdAt: ago(900), lastUsedAt: ago(5) }],
 };
 
+/**
+ * `GET /settings/me/tokens`: the caller's own tokens, newest first, a journey session's issued ones before the
+ * fixture's. By label and date alone: a token's value is shown once, in the answer to the write that issued it.
+ */
+export const tokensNow = (who: Me): MyAccessToken[] => [
+  ...(kept()?.issued ?? []).filter((t) => t.email === who.email).reverse()
+    .map((t) => ({ id: t.id, label: t.label, created_at: t.at, last_used_at: null, revoked_at: null })),
+  ...tokensOf(who),
+];
+
 /** The caller's tokens, newest first, each with the application it was minted for. */
-const issuedOf = (who: Me): AccessToken[] => tokensOf(who).map((t) => ({
+const issuedOf = (who: Me): AccessToken[] => tokensNow(who).map((t) => ({
   id: t.id, label: t.label, createdAt: t.created_at, lastUsedAt: t.last_used_at, revokedAt: t.revoked_at, application: MINTED[t.id] ?? null,
 }));
 

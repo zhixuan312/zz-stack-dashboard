@@ -1,0 +1,137 @@
+{
+  "about": "The two guides' tasks to try, as each guide words them (the Work guide and the Platform guide, version 7, each kept as a source of initiative 2026-10-12-console-by-persona and in neither repository). Each becomes one browser journey in scripts/journeys.ts. Where the spec defines a page differently from the guide's example, `definition` says how the journey carries the task out instead.",
+  "tasks": [
+    {
+      "id": "work-1",
+      "guide": "work",
+      "source": "sources/2026-10-14-the-work-guide-version-7-as-text-every-word-of-the-page-and.md",
+      "task": "See how the week went.",
+      "words": "Open Home. The title states the week's finding, and each figure says how it moved against the week before.",
+      "definition": "Home's two figures are the halves of its Featured metric, words added and approvals in the caller's name, each drawn week by week with the week before beside last week and the finding the gateway names for last week where one holds; its four tiles are the last whole week's, with what each counted, and carry no change against the week before."
+    },
+    {
+      "id": "work-2",
+      "guide": "work",
+      "source": "sources/2026-10-14-the-work-guide-version-7-as-text-every-word-of-the-page-and.md",
+      "task": "Approve what waits.",
+      "words": "Press Review on Home's strip, read the document and approve it. The strip goes, the rail's count drops, and Approvals › History gains a row.",
+      "definition": "The count is the top bar's bell, not the rail: the rail has no count. Home's strip opens the document when one revision waits and Approvals when more do, where Review opens it; the strip goes only with the last revision waiting."
+    },
+    {
+      "id": "work-3",
+      "guide": "work",
+      "source": "sources/2026-10-14-the-work-guide-version-7-as-text-every-word-of-the-page-and.md",
+      "task": "Take your record to a review.",
+      "words": "Open Record, pick This quarter, press Copy as text. Every sentence is a figure the page draws."
+    },
+    {
+      "id": "work-4",
+      "guide": "work",
+      "source": "sources/2026-10-14-the-work-guide-version-7-as-text-every-word-of-the-page-and.md",
+      "task": "Find a decision.",
+      "words": "In Knowledge, search for a phrase from an old plan. Ask the assistant the same thing: it cites the same document.",
+      "phrase": "suggestions come from the query log"
+    },
+    {
+      "id": "work-5",
+      "guide": "work",
+      "source": "sources/2026-10-14-the-work-guide-version-7-as-text-every-word-of-the-page-and.md",
+      "task": "See why an agent was refused.",
+      "words": "Open Activity. The first group of refusals says what was said, how often and whose it was."
+    },
+    {
+      "id": "work-6",
+      "guide": "work",
+      "source": "sources/2026-10-14-the-work-guide-version-7-as-text-every-word-of-the-page-and.md",
+      "task": "Find the heaviest skill.",
+      "words": "Open Runs. By skill is sorted by context per run.",
+      "definition": "By skill is sorted by observed output per run (FR-20): the bytes a run's calls answered, not the model's whole context."
+    },
+    {
+      "id": "work-7",
+      "guide": "work",
+      "source": "sources/2026-10-14-the-work-guide-version-7-as-text-every-word-of-the-page-and.md",
+      "task": "Close a piece of work.",
+      "words": "Open an initiative, press Close initiative, choose how it ended. Record's total moves by one."
+    },
+    {
+      "id": "work-8",
+      "guide": "work",
+      "source": "sources/2026-10-14-the-work-guide-version-7-as-text-every-word-of-the-page-and.md",
+      "task": "Connect a new client.",
+      "words": "In Access, issue a token: its value is shown once. The commands under Client setup are the ones to run."
+    },
+    {
+      "id": "platform-1",
+      "guide": "platform",
+      "source": "sources/2026-10-14-the-platform-guide-version-7-as-text-every-word-of-the-page.md",
+      "task": "See whether anything is wrong.",
+      "words": "Open Platform. The title says how many things need you, and each line opens the page where it is handled."
+    },
+    {
+      "id": "platform-2",
+      "guide": "platform",
+      "source": "sources/2026-10-14-the-platform-guide-version-7-as-text-every-word-of-the-page.md",
+      "task": "See whether the platform is getting better.",
+      "words": "On Status, read the one rate and the eight measures: each says where it began, its best week, and which way it moved last week."
+    },
+    {
+      "id": "platform-3",
+      "guide": "platform",
+      "source": "sources/2026-10-14-the-platform-guide-version-7-as-text-every-word-of-the-page.md",
+      "task": "See what a refusal costs.",
+      "words": "Open Usage. Read how many refusals were put right within two minutes, and which tools got slower."
+    },
+    {
+      "id": "platform-4",
+      "guide": "platform",
+      "source": "sources/2026-10-14-the-platform-guide-version-7-as-text-every-word-of-the-page.md",
+      "task": "Learn whether to update a plugin.",
+      "words": "As a member, open Releases and read `For your clients` on the latest rows."
+    },
+    {
+      "id": "platform-5",
+      "guide": "platform",
+      "source": "sources/2026-10-14-the-platform-guide-version-7-as-text-every-word-of-the-page.md",
+      "task": "See what a release did.",
+      "words": "In Releases, read the platform's faults in the three days before and after. Open the row for its upgrade notes."
+    },
+    {
+      "id": "platform-6",
+      "guide": "platform",
+      "source": "sources/2026-10-14-the-platform-guide-version-7-as-text-every-word-of-the-page.md",
+      "task": "Resolve a bug.",
+      "words": "As the superadmin, open a bug, choose how it ended, write what was decided. The queue's count drops and Status loses a line.",
+      "definition": "Status holds one bugs line while any report is open (FR-23), so resolving one of several open reports drops the open count that line and the team's bug counts state by one; the line itself goes with the last open report."
+    },
+    {
+      "id": "platform-7",
+      "guide": "platform",
+      "source": "sources/2026-10-14-the-platform-guide-version-7-as-text-every-word-of-the-page.md",
+      "task": "Find the team that is stuck.",
+      "words": "Open Teams. The row with the oldest waiting approval is first.",
+      "definition": "No team is ranked against another (FR-9): Teams lists the latest real-work call first, and each row says how many revisions wait in that team."
+    },
+    {
+      "id": "platform-8",
+      "guide": "platform",
+      "source": "sources/2026-10-14-the-platform-guide-version-7-as-text-every-word-of-the-page.md",
+      "task": "Bring a person in.",
+      "words": "In People, add a person and issue a link. The link is shown once."
+    },
+    {
+      "id": "platform-9",
+      "guide": "platform",
+      "source": "sources/2026-10-14-the-platform-guide-version-7-as-text-every-word-of-the-page.md",
+      "task": "Find what the shelves cannot answer.",
+      "words": "Open Knowledge health. The questions are listed, most asked first."
+    },
+    {
+      "id": "platform-10",
+      "guide": "platform",
+      "source": "sources/2026-10-14-the-platform-guide-version-7-as-text-every-word-of-the-page.md",
+      "task": "Check it as a member.",
+      "words": "Sign in as a member. The rail lists six destinations, no page offers a control, and nothing says so."
+    }
+  ]
+}

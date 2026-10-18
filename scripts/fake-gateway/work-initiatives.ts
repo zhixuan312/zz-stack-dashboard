@@ -14,16 +14,17 @@
  *
  * The close is answered as the platform's `initiative_close` decides it, and forgotten, so every run starts from the
  * same data: the outcome is derived from the facts the body submits, never taken from it, and what the route refuses is
- * refused here with the same status.
+ * refused here with the same status. A journey session keeps its close, and reads that initiative closed (journey.ts).
  *
  * COUPLED: zz-stack's `checks/console-work-initiatives.ts` and `checks/console-close.ts` import this file with plain
  * `node` and compare its key sets with the real routes' answers. So nothing here is imported through the console's
  * path alias.
  */
-import type { Initiative, Me } from '../../src/lib/api-shapes.ts';
+import type { Initiative, InitiativeDetail, Me } from '../../src/lib/api-shapes.ts';
 import type { Figure, PeriodFigure, ReadMeta, Window } from '../../src/lib/platform-shapes.ts';
 import type { CloseInput, CloseResult, InitiativeList, InitiativeRow, NextMove } from '../../src/lib/work-shapes.ts';
 import { now } from './clock.ts';
+import { kept } from './journey.ts';
 import { PLATFORM_STATUS } from './platform-status.ts';
 import { INITIATIVES, initiativeDetail } from './work.ts';
 
@@ -102,11 +103,26 @@ function nextMoveOf(i: Initiative): NextMove {
     : { action: 'run_stage', stage: step?.name ?? (i.stage || null), document: null, waitingOn: 'agent', why: `${step?.name ?? i.stage} is not finished` };
 }
 
+/**
+ * An initiative as a journey session left it: closed with the outcome the platform derived, when that session closed
+ * it, and as the fixture holds it otherwise (journey.ts).
+ */
+function asKept(i: Initiative): Initiative & { closedAt?: number } {
+  const closed = kept()?.closed.find((c) => c.team === i.team && c.slug === i.slug);
+  return closed ? { ...i, closed: true, outcome: closed.outcome, accepted: closed.outcome === 'accepted', complete: closed.outcome !== 'abandoned', closedAt: Date.parse(closed.at) } : i;
+}
+
+/** One initiative's page as a journey session left it: closed, when that session closed it (`asKept`). */
+export function detailAsKept(d: InitiativeDetail | null): InitiativeDetail | null {
+  const closed = d && kept()?.closed.find((c) => c.team === d.team && c.slug === d.slug);
+  return d && closed ? { ...d, closed: true, outcome: closed.outcome, accepted: closed.outcome === 'accepted', complete: closed.outcome !== 'abandoned' } : d;
+}
+
 /** One initiative as the list reads it. */
-function rowOf(i: Initiative): InitiativeRow {
+function rowOf(i: Initiative & { closedAt?: number }): InitiativeRow {
   const when = WHEN[i.slug];
   const touched = Date.parse(i.updated);
-  const closedAt = !i.closed ? null : when?.closed ? inWeek(...when.closed) : touched;
+  const closedAt = !i.closed ? null : i.closedAt ?? (when?.closed ? inWeek(...when.closed) : touched);
   const lastTouched = Math.max(touched, closedAt ?? 0);
   const own = i.gates.filter((g) => g.role !== 'handover');
   const waiting = own.some((g) => g.written && !g.passed);
@@ -126,7 +142,7 @@ const ORDER = (a: InitiativeRow, b: InitiativeRow) =>
   Number(b.state === 'waiting') - Number(a.state === 'waiting') || b.lastTouched.localeCompare(a.lastTouched) || a.slug.localeCompare(b.slug);
 
 /** Every initiative of `team`, as the list reads it, in the list's order. */
-export const rowsOf = (team: string | null): InitiativeRow[] => INITIATIVES.filter((i) => i.team === team).map(rowOf).sort(ORDER);
+export const rowsOf = (team: string | null): InitiativeRow[] => INITIATIVES.filter((i) => i.team === team).map((i) => rowOf(asKept(i))).sort(ORDER);
 
 const STATES: InitiativeRow['state'][] = ['open', 'waiting', 'quiet', 'accepted', 'delivered', 'abandoned'];
 const OUTCOMES = ['accepted', 'delivered', 'abandoned'] as const;
@@ -198,7 +214,8 @@ const RECORDED = ['outcome', 'closed_by'];
  * sign-off is delivered, and abandoned is abandoned.
  */
 export function close(who: Me, team: string, slug: string, body: Record<string, unknown>): Answer {
-  const i = team === who.activeTeam ? INITIATIVES.find((x) => x.team === team && x.slug === slug) : undefined;
+  const found = team === who.activeTeam ? INITIATIVES.find((x) => x.team === team && x.slug === slug) : undefined;
+  const i = found && asKept(found);
   if (!i) return [404, { error: `initiative ${team}/${slug} does not exist on this deployment` }];
   const named = RECORDED.filter((k) => k in body);
   if (named.length) return [400, { error: `${named.join(' and ')} ${named.length === 1 ? 'is' : 'are'} the platform's to record: send the disposition and the sign-off, and it derives the outcome` }];

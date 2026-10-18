@@ -182,8 +182,8 @@ pnpm verify --full    # the whole standard: the assistant walk-through, the audi
 
 **`--full` is the whole standard, and the two depths are not interchangeable.** The default
 stops after the static checks and a three-route navigation smoke — about a minute. `--full` builds
-the console against `scripts/fake-gateway/` (synthetic records, writes accepted and forgotten)
-because its presses approve, revoke and archive whatever a page offers, then walks the assistant
+the console against `scripts/fake-gateway/` (synthetic records, writes accepted and forgotten but a
+journey session's own) because its presses approve, revoke and archive whatever a page offers, then walks the assistant
 through a page (`scripts/assistant.ts`), audits every page at five widths in both themes, presses
 every control, walks the whole keyboard path (`scripts/keyboard.ts`), and runs the product's own
 browser checks: the Approve banners a page load cannot reach (`scripts/approve-banners.ts`), that a
@@ -191,8 +191,12 @@ change made anywhere reaches the page a person is looking at (`scripts/live-chec
 control showing a selection shows the one that was pressed (`scripts/selection-check.ts`), that no
 page disagrees with its own server HTML when the main thread is slow enough for its reads to answer
 before it hydrates (`scripts/hydration-check.ts`), that the workspace menu moves between Work and
-Platform (`scripts/workspace-switch.ts`), and that a page's own data lands beside its largest
-paint (`scripts/primary-data.ts`). Then LCP, INP and CLS on a mid-range phone — about 22 minutes.
+Platform (`scripts/workspace-switch.ts`), that a page's own data lands beside its largest
+paint (`scripts/primary-data.ts`), that every rail and detail route reaches an explicit state as each person in
+loading, empty, error, partial and above every ceiling (`scripts/states-check.ts`, the state asked per request as
+`zz_console=<person>+<state>`), and that the guides' eighteen tasks to try can be carried out, each as its person,
+in a `<person>+journey` session whose writes the fake keeps for that session alone (`scripts/journeys.ts`). Then
+LCP, INP and CLS on a mid-range phone — about half an hour.
 
 **Which depth CI runs is `.github/workflows/gate.yml`, and it runs `--full`.** It did not always: the
 workflow ran the shallow default for its whole life while its own comment described the deep one, so

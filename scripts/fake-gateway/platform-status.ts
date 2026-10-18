@@ -172,26 +172,74 @@ const EVAL_TOTAL = Array.from({ length: COMPLETE + 1 }, (_, k) => EVAL_CALLS(k)[
 DOORS.push(door('eval', EVAL_CALLS, null,
   { kind: 'no_failure', text: `No tool failure recorded in ${EVAL_TOTAL} calls since ${said(FIRST_DAY)}`, dates: [FIRST_DAY], tie: false }, 1));
 
-/* What needs attention, as the superadmin reads it: an open report blocking work (the Bugs fixture's), the two doors
- * with a fault day so far today, a finding waiting since 410 hours ago (the Evaluation fixture's), and atlas's and
- * beacon's revisions waiting 14 days or more. Six instances: five rows and beacon's approvals in the overflow. Each row links to its
- * released page, as the gateway's `RELEASED` does: Bugs, Usage for a door, Evaluation, and a team's page under Platform. */
+/* What needs attention: every instance the checks found, then projected for the reader and cut to five rows, as the
+ * gateway's `needsOf` does (console/platform-needs.ts). Each row links to its released page, as the gateway's
+ * `RELEASED` does: Bugs, Usage for a door, Evaluation, and a team's page under Platform. */
+type Need = PlatformStatus['needs']['rows'][number];
+/** One instance a check found, with the key that orders it among its kind and is never answered: a door, a team. */
+export type NeedInstance = Need & { key: string };
+
 const HOUR = 3_600_000;
-const NEEDS: PlatformStatus['needs'] = {
-  state: 'complete', total: 6, knownCount: 6, unavailableKinds: [], overflowByKind: { approvals: 1 }, headline: '6 things need you',
-  rows: [
-    { kind: 'bugs', tone: 'critical', instanceCount: 1, oldestAt: iso(RUNNING - 5 * WEEK + 60 * HOUR), href: '/platform/bugs',
-      title: 'Bug reports are open', detail: '4 open reports, 1 blocking work' },
-    { kind: 'door', tone: 'critical', instanceCount: 1, oldestAt: iso(Date.parse(`${TODAY}T00:00:00Z`)), href: '/platform/usage',
-      title: 'The core door has a fault day today, so far', detail: '1 tool failure in 80 calls so far today' },
-    { kind: 'door', tone: 'critical', instanceCount: 1, oldestAt: iso(Date.parse(`${TODAY}T00:00:00Z`) + 60_000), href: '/platform/usage',
-      title: 'The manage door has a fault day today, so far', detail: '1 tool failure in 20 calls so far today' },
-    { kind: 'evaluation', tone: 'warning', instanceCount: 1, oldestAt: iso(now() - 410 * HOUR), href: '/platform/evaluation',
-      title: 'Evaluation findings are waiting for a decision', detail: '1 finding has waited 14 days or more for a decision' },
-    { kind: 'approvals', tone: 'warning', instanceCount: 1, oldestAt: iso(now() - 20 * DAY), href: '/platform/teams/atlas',
-      title: 'Approvals are waiting in atlas', detail: '2 revisions were presented 14 days ago or more and not approved' },
-  ],
-};
+const KINDS: Need['kind'][] = ['bugs', 'door', 'evaluation', 'approvals', 'drift'];
+const ROWS = 5;
+const counted = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+/** Critical first, then the kinds in their order, the oldest first, then the internal key. */
+const byAttention = (a: NeedInstance, b: NeedInstance) => (a.tone === b.tone ? 0 : a.tone === 'critical' ? -1 : 1)
+  || KINDS.indexOf(a.kind) - KINDS.indexOf(b.kind) || (a.oldestAt ?? '￿').localeCompare(b.oldestAt ?? '￿') || a.key.localeCompare(b.key);
+
+/** The approvals need of one team, from the instants its revisions waiting 14 days or more were presented at. */
+export function approvalsNeed(team: string, presented: string[]): NeedInstance {
+  return {
+    kind: 'approvals', key: team, tone: 'warning', instanceCount: 1, oldestAt: [...presented].sort()[0], href: `/platform/teams/${team}`,
+    title: `Approvals are waiting in ${team}`,
+    detail: `${counted(presented.length, 'revision was', 'revisions were')} presented 14 days ago or more and not approved`,
+  };
+}
+
+/**
+ * What needs attention as the gateway answers the reader, every check complete: the instances ranked, a member's
+ * approvals folded into one row in the place the first held, which names no team and links nowhere, then five rows,
+ * what the cut left out counted by kind, and the reader's headline.
+ */
+export function needsOf(found: NeedInstance[], superadmin: boolean): PlatformStatus['needs'] {
+  const ranked = [...found].sort(byAttention);
+  const waiting = ranked.filter((n) => n.kind === 'approvals');
+  const [longest] = waiting;
+  const shown = superadmin || !longest ? ranked : ranked.flatMap((n) => (n.kind !== 'approvals' ? [n] : n === longest ? [{
+    kind: 'approvals' as const, key: 'approvals', tone: 'warning' as const, instanceCount: waiting.length, oldestAt: longest.oldestAt, href: null,
+    title: `Approvals are waiting in ${counted(waiting.length, 'team', 'teams')}`,
+    detail: `${counted(waiting.length, 'team has', 'teams have')} a revision presented 14 days ago or more and not approved`,
+  }] : []));
+  const overflowByKind: PlatformStatus['needs']['overflowByKind'] = {};
+  for (const n of shown.slice(ROWS)) overflowByKind[n.kind] = (overflowByKind[n.kind] ?? 0) + n.instanceCount;
+  const total = found.length;
+  return {
+    state: 'complete', rows: shown.slice(0, ROWS).map(({ key: _key, ...need }) => need), total, knownCount: total,
+    unavailableKinds: [], overflowByKind,
+    headline: total === 0 ? (superadmin ? 'Nothing needs you' : 'No known open issues')
+      : superadmin ? `${counted(total, 'thing needs', 'things need')} you` : `${counted(total, 'thing is', 'things are')} known and open`,
+  };
+}
+
+/** What every check but the approvals' found: an open report blocking work (the Bugs fixture's), the two doors with a
+ *  fault day so far today, and a finding waiting since 410 hours ago (the Evaluation fixture's). */
+export const CHECKED: NeedInstance[] = [
+  { kind: 'bugs', key: 'bugs', tone: 'critical', instanceCount: 1, oldestAt: iso(RUNNING - 5 * WEEK + 60 * HOUR), href: '/platform/bugs',
+    title: 'Bug reports are open', detail: '4 open reports, 1 blocking work' },
+  { kind: 'door', key: 'core', tone: 'critical', instanceCount: 1, oldestAt: iso(Date.parse(`${TODAY}T00:00:00Z`)), href: '/platform/usage',
+    title: 'The core door has a fault day today, so far', detail: '1 tool failure in 80 calls so far today' },
+  { kind: 'door', key: 'manage', tone: 'critical', instanceCount: 1, oldestAt: iso(Date.parse(`${TODAY}T00:00:00Z`) + 60_000), href: '/platform/usage',
+    title: 'The manage door has a fault day today, so far', detail: '1 tool failure in 20 calls so far today' },
+  { kind: 'evaluation', key: 'evaluation', tone: 'warning', instanceCount: 1, oldestAt: iso(now() - 410 * HOUR), href: '/platform/evaluation',
+    title: 'Evaluation findings are waiting for a decision', detail: '1 finding has waited 14 days or more for a decision' },
+];
+
+/* The approvals queue's revisions presented 14 days or more ago: atlas's one, 17 days ago, and none of beacon's.
+ * COUPLED: `QUEUE` in work-approvals.ts, which this file cannot import (it imports this one); the server derives this
+ * part from the queue on every read (`statusFor` in platform-bugs.ts), and tests/fake-gateway-status-waiting.test.ts
+ * holds the two equal. Five instances, so five rows and nothing in the overflow. */
+const FOUND = [...CHECKED, approvalsNeed('atlas', [iso(now() - 17 * DAY)])];
+const NEEDS = needsOf(FOUND, true);
 
 /* Over every door's calls, the first week's Monday through yesterday: every day had work, and only core's fault day four
  * days ago was at 1% or more, which splits the run of days under it in two. */
@@ -221,24 +269,4 @@ export const PLATFORM_STATUS: PlatformStatus = {
   } },
 };
 
-/** A member's `needs`, derived from the superadmin's by the gateway's rule (console/platform-needs.ts `needsOf`): the
- *  approvals rows and the approvals overflow become one row in the place the first held, and the headline is the one a
- *  member reads. Nothing else moves, so the instances still add up to the total. */
-function memberNeeds(needs: PlatformStatus['needs']): PlatformStatus['needs'] {
-  const waiting = needs.rows.filter((r) => r.kind === 'approvals');
-  const teams = waiting.reduce((n, r) => n + r.instanceCount, 0) + (needs.overflowByKind.approvals ?? 0);
-  const { approvals: _folded, ...overflowByKind } = needs.overflowByKind;
-  const folded = teams === 0 ? [] : [{
-    kind: 'approvals' as const, tone: 'warning' as const, instanceCount: teams, oldestAt: waiting[0]?.oldestAt ?? null, href: null,
-    title: `Approvals are waiting in ${teams} ${teams === 1 ? 'team' : 'teams'}`,
-    detail: `${teams} ${teams === 1 ? 'team has' : 'teams have'} a revision presented 14 days ago or more and not approved`,
-  }];
-  const first = needs.rows.findIndex((r) => r.kind === 'approvals');
-  const rows = needs.rows.flatMap((r, i) => (r.kind !== 'approvals' ? [r] : i === first ? folded : []));
-  const total = needs.total;
-  const headline = total === null ? needs.headline
-    : total === 0 ? 'No known open issues' : `${total} ${total === 1 ? 'thing is' : 'things are'} known and open`;
-  return { ...needs, rows, overflowByKind, headline };
-}
-
-export const MEMBER_STATUS: PlatformStatus = { ...PLATFORM_STATUS, needs: memberNeeds(NEEDS) };
+export const MEMBER_STATUS: PlatformStatus = { ...PLATFORM_STATUS, needs: needsOf(FOUND, false) };

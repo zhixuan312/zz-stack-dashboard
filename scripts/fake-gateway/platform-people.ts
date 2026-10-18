@@ -7,7 +7,8 @@
  * state, filtered and paged on the server; anybody else is refused the read, as the gateway refuses it.
  *
  * The cast covers the states the page draws: a person who never signed in, a deactivated one with sign-ins before,
- * a superadmin in no team of the others, a person in two teams, and a name long enough to wrap.
+ * a superadmin in no team of the others, a person in two teams, and a name long enough to wrap. A journey session
+ * reads the people it added, and nobody else does (journey.ts).
  *
  * COUPLED: zz-stack's `checks/console-platform-people.ts` imports this file with plain `node` and compares its key sets
  * with the real route's answer. So nothing here is imported through the console's path alias.
@@ -16,6 +17,7 @@ import type { Me, PlatformPersonRow, TeamMemberRow } from '../../src/lib/api-sha
 import type { People, PersonRow } from '../../src/lib/fleet-shapes.ts';
 import type { PeriodFigure } from '../../src/lib/platform-shapes.ts';
 import { ago, day, now } from './clock.ts';
+import { kept } from './journey.ts';
 import { ME, MEMBER } from './people.ts';
 import { PLATFORM_STATUS } from './platform-status.ts';
 
@@ -89,7 +91,11 @@ export function people(who: Me, q: URLSearchParams, page: { limit: number; offse
   const state = q.get('state');
   if (state !== null && !STATES.includes(state)) return [400, { error: `state must be one of ${STATES.join(', ')}` }];
   const text = (q.get('q') ?? '').trim().toLowerCase();
-  const rows = PEOPLE
+  // A journey session reads the people it added, last: each was added today, in no team, and has not signed in.
+  const everyone = [...PEOPLE, ...(kept()?.added ?? []).map((a): PersonRow => ({
+    email: a.email, name: a.name, role: 'member', created: a.at.slice(0, 10), teams: [], passkeys: 0, lastSignIn: null, state: 'active',
+  }))];
+  const rows = everyone
     .filter((p) => !text || p.email.toLowerCase().includes(text) || p.name.toLowerCase().includes(text))
     .filter((p) => state === null || p.state === state);
   const asOf = iso(now());
@@ -97,8 +103,8 @@ export function people(who: Me, q: URLSearchParams, page: { limit: number; offse
     meta: { ...PLATFORM_STATUS.meta, asOf, period: { from: FIRST_SIGN_IN, to: asOf }, scope: 'platform-admin',
       population: 'people, their passkeys and their recorded console sign-ins', coverageFrom: FIRST_SIGN_IN },
     tiles: {
-      people: PEOPLE.length, withPasskey: PEOPLE.filter((p) => p.passkeys > 0).length,
-      neverSignedIn: PEOPLE.filter((p) => p.state === 'active' && p.lastSignIn === null).length,
+      people: everyone.length, withPasskey: everyone.filter((p) => p.passkeys > 0).length,
+      neverSignedIn: everyone.filter((p) => p.state === 'active' && p.lastSignIn === null).length,
       signInsLastWeek: SIGN_INS_LAST_WEEK,
     },
     people: rows.slice(page.offset, page.offset + page.limit), total: rows.length,

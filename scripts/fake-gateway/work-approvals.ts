@@ -10,16 +10,19 @@
  * The rows cover the states the page draws: a revision waiting longer than 14 days, every class of presentation
  * (shown in the console, covered in an agent's context, a context that covered nothing of it, and an approval sealed
  * before the events began, dated by its day alone), both recorded decision bases and the unknown one, and more than ten
- * approvals in the superadmin's name so History pages.
+ * approvals in the superadmin's name so History pages. A journey session's approval leaves its queue and joins its
+ * history, for that session alone (journey.ts).
  *
  * COUPLED: zz-stack's `checks/console-work-approvals.ts` imports this file with plain `node` and compares its key sets
  * with the real route's answer. So nothing here is imported through the console's path alias.
  */
-import type { Me } from '../../src/lib/api-shapes.ts';
+import type { DocumentDetail, Me } from '../../src/lib/api-shapes.ts';
 import type { PeriodFigure } from '../../src/lib/platform-shapes.ts';
 import type { ApprovalEvidence, ApprovalRow, Approvals, WaitingRow } from '../../src/lib/work-shapes.ts';
 import { ago } from './clock.ts';
+import { kept } from './journey.ts';
 import { WEEKS, inWeek, iso, tally, workMeta } from './work-initiatives.ts';
+import { documentDetail } from './work.ts';
 
 type Answer = [status: number, body: unknown];
 
@@ -65,12 +68,36 @@ const SIGNED: Signed[] = [
   signed('beacon', AVA, '2026-09-22-payout-schedule', 'spec.md', 1, 44, week(2, 15), 'console_revision_shown', 'explicit_recorded'),
 ];
 
-/** The queue of `team`, oldest wait first. */
-export const waitingOf = (team: string | null): WaitingRow[] => QUEUE.filter((w) => w.team === team).map(({ team: _, ...w }) => w);
+/** The approvals a journey session made in `team`, newest first: none outside a journey (journey.ts). */
+const approvedIn = (team: string | null) => (kept()?.approved ?? []).filter((a) => a.team === team).reverse();
+
+/** The queue of `team`, oldest wait first, less what a journey session approved of it. */
+export const waitingOf = (team: string | null): WaitingRow[] => QUEUE
+  .filter((w) => w.team === team && !approvedIn(team).some((a) => a.initiative === w.initiative && a.path === w.path))
+  .map(({ team: _, ...w }) => w);
+
+/** A journey's approval as History reads it: shown in the console and approved there, the revision the queue held. */
+function keptRow(a: { team: string; initiative: string; path: string; at: string }): ApprovalRow {
+  const queued = QUEUE.find((w) => w.team === a.team && w.initiative === a.initiative && w.path === a.path);
+  const doc = documentDetail(a.team, a.initiative, a.path);
+  return {
+    initiative: a.initiative, path: a.path, version: queued?.version ?? doc?.current_version ?? 1,
+    contentRevision: queued?.contentRevision ?? doc?.content_revision ?? cr(0), approvedAt: a.at,
+    presentation: 'console_revision_shown', decisionBasis: 'explicit_recorded',
+  };
+}
+
+/** One document as a journey session left it: approved in the signer's name, when that session approved it. */
+export function documentAsKept(d: DocumentDetail | null): DocumentDetail | null {
+  const approved = d && approvedIn(d.team).find((a) => a.initiative === d.initiative && a.path === d.path);
+  return d && approved ? { ...d, status: 'approved', approved_by: approved.signer, approved_at: approved.at } : d;
+}
 
 /** The approvals signed in `email`'s name in `team`, newest first: what History, Home and Record count. */
-export const callerApprovalRows = (team: string | null, email: string): ApprovalRow[] =>
-  SIGNED.filter((a) => a.team === team && a.signer === email).map(({ team: _, signer: __, ...a }) => a);
+export const callerApprovalRows = (team: string | null, email: string): ApprovalRow[] => [
+  ...approvedIn(team).filter((a) => a.signer === email).map(keptRow),
+  ...SIGNED.filter((a) => a.team === team && a.signer === email).map(({ team: _, signer: __, ...a }) => a),
+];
 
 /** Those approvals by week, the running one not complete; one dated by its day alone falls in the week of that day. */
 export const callerWeeks = (rows: ApprovalRow[]): PeriodFigure[] =>

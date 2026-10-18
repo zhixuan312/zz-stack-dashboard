@@ -8,16 +8,21 @@
  *
  * The reports cover the states the page draws: an open report that blocks work, cohorts with reports still open, a
  * surface outside the vocabulary (titled `Platform issue reported`), one with no surface, a report with no team, and
- * one of each resolution, including a duplicate of another report of its team.
+ * one of each resolution, including a duplicate of another report of its team. A journey session's resolution is kept
+ * for that session, in its queue, its report and its Status (journey.ts). Status is answered from here because it
+ * counts both the reports and the approvals queue, which imports the status fixture.
  *
  * COUPLED: zz-stack's `checks/console-platform-bugs.ts` imports this file with plain `node` and compares its key sets
  * with the real routes' answers, and `canonicalSurface` copies the rule `services/gateway/src/console/platform-bugs.ts`
  * holds behind one function. So nothing here is imported through the console's path alias, and every part is `ok`.
  */
-import type { AdminBugRow, BugReport, BugResolveInput, Bugs, Figure, PublicBugRow } from '../../src/lib/platform-shapes.ts';
-import { ago } from './clock.ts';
+import type { AdminBugRow, BugReport, BugResolveInput, Bugs, Figure, PlatformStatus, PublicBugRow } from '../../src/lib/platform-shapes.ts';
+import { ago, now } from './clock.ts';
+import { kept } from './journey.ts';
 import { ME } from './people.ts';
-import { PLATFORM_STATUS } from './platform-status.ts';
+import { CHECKED, MEMBER_STATUS, type NeedInstance, PLATFORM_STATUS, approvalsNeed, needsOf } from './platform-status.ts';
+import { TEAMS } from './platform-teams.ts';
+import { waitingOf } from './work-approvals.ts';
 
 /** The vocabulary a surface is canonical in: tool names the three doors register, the door names, and `console`. */
 const VOCABULARY = new Set([
@@ -67,6 +72,16 @@ export const REPORTS: BugReport[] = SEEDS.map(({ week, at, resolvedAfter, ...r }
   return { ...r, reportedAt: iso(filed), resolvedAt: resolvedAfter === null ? null : iso(filed + resolvedAfter * HOUR) };
 });
 
+/** Every report as the request's session reads it: a journey's resolutions applied, the fixture's own otherwise. */
+function reports(): BugReport[] {
+  const done = kept()?.resolved ?? [];
+  if (!done.length) return REPORTS;
+  return REPORTS.map((r) => {
+    const d = done.find((x) => x.id === r.id);
+    return d ? { ...r, status: d.status, resolution: d.resolution, duplicateOf: d.duplicateOf, resolvedAt: d.at } : r;
+  });
+}
+
 /** The safe row, the same for everybody: a title from the canonical surface alone, and typed metadata. */
 function publicRow(r: BugReport): PublicBugRow {
   const surface = canonicalSurface(r.surface);
@@ -105,11 +120,12 @@ const count = (value: number): Figure => ({ value, why: null });
  *  add the internal title and the team; a member's are the safe row alone. */
 export function bugs(admin: boolean, filter: BugFilter, limit: number, offset: number): Bugs {
   const asOf = ago(0);
-  const open = REPORTS.filter((r) => r.status === 'open');
-  const resolved = REPORTS.filter((r) => r.status !== 'open');
+  const all = reports();
+  const open = all.filter((r) => r.status === 'open');
+  const resolved = all.filter((r) => r.status !== 'open');
   const tally = <K extends string>(keys: readonly K[], of: (r: BugReport) => string) =>
-    Object.fromEntries(keys.map((k) => [k, REPORTS.filter((r) => of(r) === k).length])) as Record<K, number>;
-  const queue = REPORTS
+    Object.fromEntries(keys.map((k) => [k, all.filter((r) => of(r) === k).length])) as Record<K, number>;
+  const queue = all
     .filter((r) => filter.state === null || (filter.state === 'open') === (r.status === 'open'))
     .filter((r) => filter.impact === null || r.impact === filter.impact)
     .filter((r) => filter.surface === null || canonicalSurface(r.surface) === filter.surface)
@@ -126,7 +142,7 @@ export function bugs(admin: boolean, filter: BugFilter, limit: number, offset: n
     medianResolveHours: median(resolved.map(hours)),
     // A cohort is the reports filed in one week, and its calls are that week's real-work calls, as Status counts them.
     cohorts: calls.weeks.map(({ window, denominator }) => {
-      const filed = REPORTS.filter((r) => r.reportedAt >= window.from && r.reportedAt < window.to);
+      const filed = all.filter((r) => r.reportedAt >= window.from && r.reportedAt < window.to);
       const done = filed.filter((r) => r.status !== 'open');
       return {
         week: window.from, filed: count(filed.length), resolved: count(done.length), stillOpen: count(filed.length - done.length),
@@ -139,14 +155,14 @@ export function bugs(admin: boolean, filter: BugFilter, limit: number, offset: n
 }
 
 /** `GET /platform/bugs/:id`, the superadmin's alone; null for an id that names no report. */
-export const bugReport = (id: string): BugReport | null => REPORTS.find((r) => r.id === id) ?? null;
+export const bugReport = (id: string): BugReport | null => reports().find((r) => r.id === id) ?? null;
 
 /** `GET /platform/bugs/:id/duplicates`: the reports `bug_resolve` would accept as this one's target, which are the other
  *  reports of its team, a report with no team matching another with none. */
 export function duplicates(id: string): { rows: { id: string; title: string; status: string; reportedAt: string }[] } | null {
   const self = bugReport(id);
   if (!self) return null;
-  return { rows: REPORTS.filter((r) => r.id !== id && r.team === self.team)
+  return { rows: reports().filter((r) => r.id !== id && r.team === self.team)
     .sort((a, b) => b.reportedAt.localeCompare(a.reportedAt) || a.id.localeCompare(b.id))
     .map((r) => ({ id: r.id, title: r.title, status: r.status, reportedAt: r.reportedAt })) };
 }
@@ -176,4 +192,43 @@ export function resolve(report: BugReport, body: { [K in keyof BugResolveInput]?
     return [409, { error: `ERROR: that report was already closed as \`${report.status}\` by ${ME.email} — "${report.resolution}". If that decision was wrong, file what you now know as a new report naming this id, rather than overwriting somebody's reasoning.` }];
   }
   return [204, null];
+}
+
+const said = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+const BUCKET = { fixed: 'fixed', not_a_bug: 'notABug', duplicate: 'duplicate' } as const;
+/** How long a revision may wait before it needs somebody. */
+const WAIT_MS = 14 * 24 * HOUR;
+
+/**
+ * `GET /platform/status` as the superadmin or a member reads it, acting for `team`: the status fixture's, with what
+ * needs attention counted from the request's own reads as the gateway counts it (console/platform-needs.ts). One bugs
+ * line while a report is open, critical while one blocks work and saying how many are open, gone when none is; one
+ * approvals line per team whose queue (`waitingOf`, the rows Approvals answers) holds a revision presented 14 days or
+ * more before the fake's clock, as the gateway reads `pendingRevisions`; the doors' and evaluation's as the fixture
+ * found them. A journey session's resolutions and approvals are in those reads, so they move its Status alone, and the
+ * reader's team's bug counts move a report from open to how it ended. Outside a journey it equals the fixture's object.
+ */
+export function statusFor(superadmin: boolean, team: string | null): PlatformStatus {
+  const status = superadmin ? PLATFORM_STATUS : MEMBER_STATUS;
+  const open = reports().filter((r) => r.status === 'open');
+  const blocking = open.filter((r) => r.impact === 'blocks_work').length;
+  const line: NeedInstance[] = open.length ? [{
+    kind: 'bugs', key: 'bugs', tone: blocking ? 'critical' : 'warning', instanceCount: 1, oldestAt: open.map((r) => r.reportedAt).sort()[0], href: '/platform/bugs',
+    title: 'Bug reports are open', detail: `${said(open.length, 'open report', 'open reports')}, ${blocking} blocking work`,
+  }] : [];
+  const cutoff = now() - WAIT_MS;
+  const waiting = TEAMS.flatMap((t) => {
+    const late = waitingOf(t.slug).filter((w) => Date.parse(w.waitingSince) <= cutoff);
+    return late.length ? [approvalsNeed(t.slug, late.map((w) => w.waitingSince))] : [];
+  });
+  const needs = needsOf([...line, ...CHECKED.filter((n) => n.kind !== 'bugs'), ...waiting], superadmin);
+  const own = status.own.state === 'ok' ? { ...status.own.data.bugs } : null;
+  for (const d of kept()?.resolved ?? []) {
+    const was = REPORTS.find((r) => r.id === d.id);
+    if (own && was?.status === 'open' && was.team === team) { own.open -= 1; own[BUCKET[d.status]] += 1; }
+  }
+  return {
+    ...status, needs,
+    own: status.own.state === 'ok' && own ? { state: 'ok', data: { ...status.own.data, bugs: own } } : status.own,
+  };
 }

@@ -68,25 +68,34 @@ describe('who opens Status', () => {
 });
 
 describe('what needs attention', () => {
-  it('leads with the superadmin\'s headline, five rows at most, and a foot counting what is shown and what overflowed by kind', () => {
+  it('leads with the superadmin\'s headline, five rows at most, and a foot counting what is shown', () => {
     draw(ok(PLATFORM_STATUS));
     const list = screen.getByRole('list', { name: 'What needs attention' });
-    expect(screen.getByRole('heading', { name: '6 things need you' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '5 things need you' })).toBeInTheDocument();
     expect(within(list).getAllByRole('listitem')).toHaveLength(PLATFORM_STATUS.needs.rows.length);
     expect(PLATFORM_STATUS.needs.rows.length).toBeLessThanOrEqual(5);
     for (const r of PLATFORM_STATUS.needs.rows) expect(within(list).getByText(r.detail)).toBeInTheDocument();
-    expect(document.querySelector('[data-needs-foot]')!.textContent).toBe('5 shown. 1 more not shown: approvals 1.');
+    expect(document.querySelector('[data-needs-foot]')!.textContent).toBe('5 shown.');
     // Each row with a released destination links to its page.
     expect(within(list).getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(['/platform/bugs', '/platform/usage', '/platform/usage', '/platform/evaluation', '/platform/teams/atlas']);
+    expect(within(list).getByText('Approvals are waiting in atlas')).toBeInTheDocument();
+    expect(within(list).getByText('1 revision was presented 14 days ago or more and not approved')).toBeInTheDocument();
+  });
+
+  it('counts what the five rows left out, by kind, in the foot', () => {
+    draw(ok({ ...PLATFORM_STATUS, needs: { ...PLATFORM_STATUS.needs, total: 6, knownCount: 6, overflowByKind: { approvals: 1 }, headline: '6 things need you' } }));
+    expect(screen.getByRole('heading', { name: '6 things need you' })).toBeInTheDocument();
+    expect(document.querySelector('[data-needs-foot]')!.textContent).toBe('5 shown. 1 more not shown: approvals 1.');
   });
 
   it('is worded for a member: what is known and open, the teams\' approvals one row that links nowhere', () => {
     draw(ok(MEMBER_STATUS));
-    expect(screen.getByRole('heading', { name: '6 things are known and open' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '5 things are known and open' })).toBeInTheDocument();
     const list = screen.getByRole('list', { name: 'What needs attention' });
-    expect(within(list).getByText('Approvals are waiting in 2 teams')).toBeInTheDocument();
+    expect(within(list).getByText('Approvals are waiting in 1 team')).toBeInTheDocument();
+    expect(within(list).getByText('1 team has a revision presented 14 days ago or more and not approved')).toBeInTheDocument();
     expect(within(list).queryAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(['/platform/bugs', '/platform/usage', '/platform/usage', '/platform/evaluation']);
-    expect(document.querySelector('[data-needs-foot]')!.textContent).toBe('6 shown.');
+    expect(document.querySelector('[data-needs-foot]')!.textContent).toBe('5 shown.');
   });
 
   it('never reads as nothing open when a check did not answer, and names the check', () => {
@@ -280,7 +289,7 @@ describe('the page\'s states', () => {
     draw(ok({ ...PLATFORM_STATUS, doors: { state: 'unavailable', reason: 'the doors\' days did not answer' }, own: { state: 'unavailable', reason: 'the team\'s counts did not answer' } }));
     expect(screen.getByText('The doors: unavailable')).toBeInTheDocument();
     expect(screen.getByText('Your team\'s own counts: unavailable')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: '6 things need you' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '5 things need you' })).toBeInTheDocument();
     expect(card('The scoreboard')).toBeTruthy();
     expect(document.querySelector('[data-foot]')!.textContent).toContain('Tool failures, every doorUnavailable');
   });
@@ -319,7 +328,9 @@ describe('what the assistant is told', () => {
     expect(t).toContain(`last whole week: the week of ${formatDay(last.window.from)}`);
     for (const r of PLATFORM_STATUS.needs.rows) expect(t).toContain(r.title);
     expect(t).toContain(`- Malformed calls per 1,000: ${(1000 * last.numerator! / last.denominator!).toFixed(1)}, ${last.numerator} of ${last.denominator} calls; up `);
-    expect(t).toContain('- What needs attention: 6 things need you, 5 shown. 1 more not shown: approvals 1.');
+    expect(t).toContain('- What needs attention: 5 things need you, 5 shown.');
+    expect(text({ ...PLATFORM_STATUS, needs: { ...PLATFORM_STATUS.needs, total: 6, knownCount: 6, overflowByKind: { approvals: 1 }, headline: '6 things need you' } }))
+      .toContain('- What needs attention: 6 things need you, 5 shown. 1 more not shown: approvals 1.');
     expect(t).toContain('of 5 measures are better than the week before');
     for (const d of DOORS) expect(t).toContain(d.finding.text);
     expect(t).toContain('0.97.0');
@@ -337,7 +348,7 @@ describe('what the assistant is told', () => {
   });
 
   it('says a member\'s headline to a member, and that nothing was read when nothing was', () => {
-    expect(text(MEMBER_STATUS)).toContain('6 things are known and open');
+    expect(text(MEMBER_STATUS)).toContain('5 things are known and open');
     expect(text(MEMBER_STATUS).length).toBeLessThanOrEqual(CONTEXT_BUDGET);
     const failed = contextText(platformStatusContext({ state: 'slow' }));
     expect(failed).toContain("The platform's status is unavailable");

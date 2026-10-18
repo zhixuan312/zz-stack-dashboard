@@ -273,7 +273,10 @@ const config: VerifyConfig = {
   // a busy platform past every ceiling, where no table draws more than ten rows a page or ten with no total. Each state
   // is asked for per request by the session value, so the suites beside it read the normal state throughout
   // (reconciliation 79).
-  browserChecks: ['scripts/approve-banners.ts', 'scripts/live-check.ts', 'scripts/selection-check.ts', 'scripts/hydration-check.ts', 'scripts/workspace-switch.ts', 'scripts/primary-data.ts', 'scripts/states-check.ts'],
+  // `journeys` carries out the guides' eighteen tasks to try as the person each names, in journey sessions whose writes
+  // the fake gateway keeps for that session alone, so the suites beside it read the same data throughout
+  // (reconciliation 80).
+  browserChecks: ['scripts/approve-banners.ts', 'scripts/live-check.ts', 'scripts/selection-check.ts', 'scripts/hydration-check.ts', 'scripts/workspace-switch.ts', 'scripts/primary-data.ts', 'scripts/states-check.ts', 'scripts/journeys.ts'],
   /**
    * The fake gateway's two people (scripts/fake-gateway/people.ts), each by the value of the `zz_console` cookie it
    * reads. A run without `--as` sends no cookie, and the fake gateway answers that as the superadmin.

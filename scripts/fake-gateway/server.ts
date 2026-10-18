@@ -34,6 +34,10 @@
  * does not draw is answered 400, naming it. A fourth value, `superadmin-in-no-team`, signs in a superadmin who acts for
  * no team, whom Work's reads refuse.
  *
+ * A journey keeps its writes: the session value `<person>+journey` is a kind of session, not a state. It reads the
+ * normal state, and the approvals, closes, resolutions, people added and tokens issued it writes stay that session's for
+ * the life of the process, shown on its own reads and on nobody else's (journey.ts, reconciliation 80).
+ *
  * The status read, `GET /api/console/platform/status`, is the one a page makes on the console's server and gives
  * five seconds: `error` answers it 500 with its own route's sentence, and `slow` holds it six seconds, past that bound.
  *
@@ -76,16 +80,17 @@
  */
 import http from 'node:http';
 import type { Me } from '../../src/lib/api-shapes.ts';
+import type { CloseResult } from '../../src/lib/work-shapes.ts';
+import { isJourney, kept, keptAt, within, writtenBy } from './journey.ts';
 import { COLLECTIONS, hint, liveStreams, parseNames, serveLive } from './live.ts';
-import { ME, MEMBER, clientSetupOf, signedIn, teamsOf, tokensOf } from './people.ts';
+import { ME, MEMBER, clientSetupOf, signedIn, teamsOf } from './people.ts';
 import { audit } from './platform-audit.ts';
-import { badFilter, bugReport, bugs, duplicates, resolve } from './platform-bugs.ts';
+import { badFilter, bugReport, bugs, duplicates, resolve, statusFor } from './platform-bugs.ts';
 import { evaluation } from './platform-evaluation.ts';
 import { knowledge } from './platform-knowledge.ts';
 import { PLATFORM_PEOPLE, people, teamMembers } from './platform-people.ts';
 import { platformQuery } from './platform-query.ts';
 import { releaseDetail, releases } from './platform-releases.ts';
-import { MEMBER_STATUS, PLATFORM_STATUS } from './platform-status.ts';
 import { TEAMS, team, teams } from './platform-teams.ts';
 import { usage } from './platform-usage.ts';
 import { pluginEval, skillText } from './platform.ts';
@@ -93,11 +98,11 @@ import { search } from './search.ts';
 import { empty, extreme } from './states.ts';
 import { NOT_RECORDED, STATES, isState, nullsFilled, partial, sessionOf, unknownState, type State } from './states-partial.ts';
 import { KNOWLEDGE_LOG, documentDetail, documentRevision, initiativeDetail, refusesRecord, revisionInStore } from './work.ts';
-import { access, revokeApplication, revokeBrowser } from './work-access.ts';
+import { access, revokeApplication, revokeBrowser, tokensNow } from './work-access.ts';
 import { activityLog, activitySummary, NO_TEAM } from './work-activity.ts';
-import { approvals } from './work-approvals.ts';
+import { approvals, documentAsKept } from './work-approvals.ts';
 import { home } from './work-home.ts';
-import { close, initiativeList } from './work-initiatives.ts';
+import { close, detailAsKept, initiativeList } from './work-initiatives.ts';
 import { knowledgeList, knowledgeSummary, lesson, SHARED_TEAM } from './work-knowledge.ts';
 import { plugins, skillDetail, skills } from './work-plugins.ts';
 import { workQuery } from './work-query.ts';
@@ -196,7 +201,7 @@ function read(who: Me, seg: string[], q: URLSearchParams): Answer {
       // and 39: another team's is the route's not-found, and a caller who acts for no team is told so.
       if (a && b) {
         if (!who.activeTeam) return NO_TEAM;
-        return a !== who.activeTeam ? missing(`initiative ${a}/${b}`) : or404(initiativeDetail(a, b), `initiative ${a}/${b}`);
+        return a !== who.activeTeam ? missing(`initiative ${a}/${b}`) : or404(detailAsKept(initiativeDetail(a, b)), `initiative ${a}/${b}`);
       }
       // Work is the active team's: the list answers it alone, whatever `?team=` or `?scope=` asked.
       return a ? missing(seg.join('/')) : initiativeList(who, q);
@@ -207,7 +212,7 @@ function read(who: Me, seg: string[], q: URLSearchParams): Answer {
       if (!who.activeTeam) return NO_TEAM;
       if (a !== who.activeTeam) return missing(rev === null ? `document ${seg.slice(1).join('/')}` : `revision ${rev} of ${seg.slice(1).join('/')}`);
       if (rev !== null) return or404(documentRevision(a, b, rest.join('/'), Number(rev)), `revision ${rev} of ${seg.slice(1).join('/')}`);
-      return or404(documentDetail(a, b, rest.join('/')), `document ${seg.slice(1).join('/')}`);
+      return or404(documentAsKept(documentDetail(a, b, rest.join('/'))), `document ${seg.slice(1).join('/')}`);
     }
     case 'knowledge':
       // The summary answers before the node route, because `summary` names no team of its own.
@@ -246,7 +251,7 @@ function read(who: Me, seg: string[], q: URLSearchParams): Answer {
       return a ? missing(seg.join('/')) : activityLog(who, q);
     case 'access': return a ? missing(seg.join('/')) : access(who);
     case 'settings':
-      if (a === 'me' && b === 'tokens') return ok(tokensOf(who));
+      if (a === 'me' && b === 'tokens') return ok(tokensNow(who));
       if (a === 'me' && b === 'client-setup') return ok(clientSetupOf(who));
       if (a === 'me' && b === 'teams') return ok(teamsOf(who));
       if (a === 'team' && b === 'members') {
@@ -280,7 +285,7 @@ function platformRead(who: Me, seg: string[], q: URLSearchParams): Answer {
   const p = page(q);
   if (more.length) return missing(seg.join('/'));
   switch (what) {
-    case 'status': return id === undefined ? ok(who.superadmin ? PLATFORM_STATUS : MEMBER_STATUS) : missing(seg.join('/'));
+    case 'status': return id === undefined ? ok(statusFor(who.superadmin, who.activeTeam)) : missing(seg.join('/'));
     case 'releases':
       if (sub !== undefined) return missing(seg.join('/'));
       if (id !== undefined) { const release = releaseDetail(id); return release ? ok(release) : UNKNOWN; }
@@ -359,7 +364,10 @@ const PAGE_FEATURES = [
   'platform-status', 'releases', 'bugs', 'bug', 'evaluation', 'teams', 'people', 'usage', 'audit', 'knowledge-health',
 ];
 
-/** One write under `/api/console`, as `who`. Accepted, answered in the route's own shape, and not kept but for a team switch. */
+/**
+ * One write under `/api/console`, as `who`. Accepted, answered in the route's own shape, and not kept but for a team
+ * switch and, in a journey session, the five writes a guide's task makes (journey.ts), each kept once it succeeded.
+ */
 function write(who: Me, cookie: string | null, seg: string[], q: URLSearchParams, method: string, body: Record<string, unknown>): Answer {
   const path = seg.join('/');
   // Reads with no write of their own: nothing starts an evaluation, and nothing here changes a team's record.
@@ -369,11 +377,19 @@ function write(who: Me, cookie: string | null, seg: string[], q: URLSearchParams
   if (resolving && method === 'POST') {
     if (!who.superadmin) return REFUSED;
     const report = bugReport(resolving[1]);
-    return report ? resolve(report, body) : UNKNOWN;
+    const answer = report ? resolve(report, body) : UNKNOWN;
+    if (answer[0] === 204) {
+      kept()?.resolved.push({ id: report!.id, status: body.status as 'fixed', resolution: String(body.resolution), duplicateOf: typeof body.duplicate_of === 'string' ? body.duplicate_of : null, at: keptAt() });
+    }
+    return answer;
   }
   // `POST /api/console/initiatives/:team/:slug/close`: the facts of a close, the outcome the platform's to derive.
   const closing = /^initiatives\/([^/]+)\/([^/]+)\/close$/.exec(path);
-  if (closing && method === 'POST') return close(who, closing[1], closing[2], body);
+  if (closing && method === 'POST') {
+    const answer = close(who, closing[1], closing[2], body);
+    if (answer[0] === 200) kept()?.closed.push({ team: closing[1], slug: closing[2], outcome: (answer[1] as CloseResult).outcome, at: keptAt() });
+    return answer;
+  }
   // `POST /api/console/page-view`: one committed navigation, by its feature. Nothing to say back, so no body.
   if (path === 'page-view' && method === 'POST') {
     if (typeof body.feature !== 'string' || !body.feature) return [400, { error: 'feature required — the destination that was opened' }];
@@ -390,16 +406,26 @@ function write(who: Me, cookie: string | null, seg: string[], q: URLSearchParams
   }
   if (path === 'settings/me/tokens' && method === 'POST') {
     hint('settings');
-    return ok({ token: 'zz_pat_example_0123456789abcdef', label: String(body.label ?? 'console'), email: who.email });
+    const label = String(body.label ?? 'console');
+    const issued = kept()?.issued;
+    issued?.push({ id: `tok_${String(issued.length + 1).padStart(8, '0')}`, label, email: who.email, at: keptAt() });
+    return ok({ token: 'zz_pat_example_0123456789abcdef', label, email: who.email });
   }
   if (path === 'documents/shown' || path === 'documents/approve') {
     const answer = present(who, path === 'documents/approve', q, body);
     // An approval changes what the initiative's own page shows (the document's approval state) and the bell's
     // projection of what waits on a person, so both are told. A refused approval changed nothing and says nothing.
-    if (answer[0] === 200 && path === 'documents/approve') hint('initiatives');
+    if (answer[0] === 200 && path === 'documents/approve') {
+      hint('initiatives');
+      kept()?.approved.push({ team: q.get('team')!, initiative: String(body.initiative), path: String(body.path), signer: who.email, at: keptAt() });
+    }
     return answer;
   }
   if (path === 'settings/me/active-team' && method === 'POST') return switchTeam(who, cookie, body);
+  // Adding a person is the superadmin's, as the gateway's guard has it; a journey keeps the person it added.
+  if (path === 'settings/platform/people' && method === 'POST' && who.superadmin) {
+    kept()?.added.push({ email: String(body.email), name: String(body.display_name ?? ''), at: keptAt() });
+  }
   if (path === 'settings/platform/enrolments') return ok({ ok: true, url: 'https://console.example.com/enrol#t=example-enrolment', result: `An enrolment link for ${String(body.email)}` });
   return ok({ ok: true, result: `${method} ${path}: done`, revoked: seg.at(-1) });
 }
@@ -432,9 +458,11 @@ const server = http.createServer((req, res) => {
     const seg = url.pathname.split('/').filter(Boolean).map(decodeURIComponent);
     const cookie = cookieOf(req.headers.cookie);
     const who = callerOf(cookie);
-    // The state this request is drawn in: the one its session value names, or the process-wide mode.
-    const asked = sessionOf(cookie).state;
-    const state: string = asked ?? mode;
+    // The state this request is drawn in: the one its session value names, or the process-wide mode. A journey is a
+    // kind of session, not a state: it reads the normal one, with its own writes kept (journey.ts).
+    const journey = isJourney(cookie);
+    const asked = journey ? null : sessionOf(cookie).state;
+    const state: string = journey ? 'normal' : asked ?? mode;
     const status = req.method === 'GET' && url.pathname === '/api/console/platform/status';
     let answer: Answer;
     /* The test hooks wear the proxied prefix — `/api/console/__hint` — so a browser check reaches them through the app's
@@ -494,6 +522,14 @@ const server = http.createServer((req, res) => {
       res.end(JSON.stringify({ session: value, standingIn: standingIn.has(value) }));
       return;
     }
+    // `/api/console/__journey?session=<value>` says how many writes of each kind a journey session has kept, so
+    // scripts/journeys.ts can refuse to start on a process whose journeys have written already.
+    if (hook === '__journey') {
+      const value = url.searchParams.get('session') ?? '';
+      res.writeHead(isJourney(value) ? 200 : 400, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ session: value, written: writtenBy(value) }));
+      return;
+    }
     if (hook === '__streams') {
       res.writeHead(200, { 'content-type': 'application/json' });
       res.end(JSON.stringify({ streams: liveStreams(), collections: COLLECTIONS, reads: Object.fromEntries(reads) }));
@@ -526,7 +562,7 @@ const server = http.createServer((req, res) => {
     else if (state === 'error' && seg[2] !== 'me') answer = [503, { error: 'The gateway could not reach its database: connection to 10.0.0.12:5432 refused. Nothing was changed.' }];
     else if (req.method === 'GET') {
       if (seg[2]) countRead(seg[2]);
-      answer = read(who, seg.slice(2), url.searchParams);
+      answer = within(cookie, () => read(who, seg.slice(2), url.searchParams));
       // A transform reads the answer by its own idea of the route's shape, so a route that grows a
       // second answer shape reaches it as something it does not recognise. That threw OUT of this
       // handler and killed the process: every page after it reported "cannot reach the platform",
@@ -548,7 +584,10 @@ const server = http.createServer((req, res) => {
       if (answer[0] === 200 && state === 'partial') answer = [200, shape('partial', partial)];
       if (answer[0] === 200 && cookie !== null && standingIn.has(cookie)) answer = [200, nullsFilled(answer[1])];
     }
-    else answer = write(who, cookie, seg.slice(2), url.searchParams, req.method ?? 'POST', (() => { try { return JSON.parse(raw || '{}') ?? {}; } catch { return {}; } })());
+    else {
+      const body = (() => { try { return JSON.parse(raw || '{}') ?? {}; } catch { return {}; } })();
+      answer = within(cookie, () => write(who, cookie, seg.slice(2), url.searchParams, req.method ?? 'POST', body));
+    }
     // `slow` holds a page's reads and spares `/me`, as `error` does: who is asking is answered at once, so the page's own
     // loading state is what shows. The status read is held past the five seconds its page gives it.
     setTimeout(() => {

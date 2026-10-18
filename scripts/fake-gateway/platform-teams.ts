@@ -7,8 +7,10 @@
  *
  * The teams cover the states the pages draw: a team with work and revisions waiting, one with no work at all, an
  * archived one whose calls stopped weeks ago, and more than four with calls, so Usage's split by team has a fourth
- * part. Each team's calls and sessions by week add up to the status fixture's weeks, and its open work and lessons are
- * counted from the work fixture's initiatives and nodes, so every page reads the same platform.
+ * part. Each team's calls and sessions by week add up to the status fixture's weeks, its open work and lessons are
+ * counted from the work fixture's initiatives and nodes, and its revisions waiting from the queue Approvals answers
+ * (`waitingOf`), as the gateway counts both from `pendingRevisions`, so every page reads the same platform. A journey
+ * session's approval leaves that queue, so that session's Teams counts the team one fewer (journey.ts).
  *
  * COUPLED: zz-stack's `checks/console-platform-teams.ts` imports this file with plain `node` and compares its key sets
  * with the real routes' answers. So nothing here is imported through the console's path alias.
@@ -19,6 +21,7 @@ import type { PeriodFigure } from '../../src/lib/platform-shapes.ts';
 import { day, now } from './clock.ts';
 import { membersOf } from './platform-people.ts';
 import { PLATFORM_STATUS } from './platform-status.ts';
+import { waitingOf } from './work-approvals.ts';
 import { INITIATIVES, KNOWLEDGE } from './work.ts';
 
 const HOUR = 3_600_000;
@@ -30,8 +33,6 @@ const inWeek = (back: number, hours: number) => (back === 0 ? RUNNING + (now() -
 
 type Seed = {
   slug: string; name: string; status: 'active' | 'archived'; created: number;
-  /** Revisions presented and not approved, as `pendingRevisions` counts them. */
-  waiting: number;
   /** Real-work calls and distinct sessions by week, oldest first, the running week last. */
   calls: number[]; sessions: number[];
   lastActive: [back: number, hours: number] | null;
@@ -40,17 +41,17 @@ type Seed = {
 /* Every week's calls add up to the status fixture's real-work calls (100, 0, 12, 200, 125, 5), atlas's are its own
  * malformed-call denominators, and the sessions add up to its sessions (14, 0, 3, 22, 25, 2). */
 const SEEDS: Seed[] = [
-  { slug: 'atlas', name: 'Atlas Research', status: 'active', created: 64, waiting: 3,
+  { slug: 'atlas', name: 'Atlas Research', status: 'active', created: 64,
     calls: [60, 0, 12, 120, 80, 3], sessions: [6, 0, 3, 9, 11, 1], lastActive: [0, 0] },
-  { slug: 'beacon', name: 'Beacon Payments', status: 'active', created: 51, waiting: 1,
+  { slug: 'beacon', name: 'Beacon Payments', status: 'active', created: 51,
     calls: [25, 0, 0, 40, 25, 2], sessions: [4, 0, 0, 7, 8, 1], lastActive: [0, 0] },
-  { slug: 'cinder', name: 'Cinder Field Operations', status: 'archived', created: 88, waiting: 0,
+  { slug: 'cinder', name: 'Cinder Field Operations', status: 'archived', created: 88,
     calls: [15, 0, 0, 0, 0, 0], sessions: [4, 0, 0, 0, 0, 0], lastActive: [5, 40] },
-  { slug: 'dune', name: 'Dune', status: 'active', created: 2, waiting: 0,
+  { slug: 'dune', name: 'Dune', status: 'active', created: 2,
     calls: [0, 0, 0, 0, 0, 0], sessions: [0, 0, 0, 0, 0, 0], lastActive: null },
-  { slug: 'ember', name: 'Ember Logistics', status: 'active', created: 40, waiting: 0,
+  { slug: 'ember', name: 'Ember Logistics', status: 'active', created: 40,
     calls: [0, 0, 0, 25, 12, 0], sessions: [0, 0, 0, 4, 4, 0], lastActive: [1, 30] },
-  { slug: 'fjord', name: 'Fjord Analytics', status: 'active', created: 35, waiting: 0,
+  { slug: 'fjord', name: 'Fjord Analytics', status: 'active', created: 35,
     calls: [0, 0, 0, 15, 8, 0], sessions: [0, 0, 0, 2, 2, 0], lastActive: [1, 70] },
 ];
 
@@ -63,13 +64,14 @@ export const CALLS_BY_TEAM: { team: string; calls: number[] }[] = SEEDS.map((s) 
 
 /**
  * Every team as the superadmin's list reads it, in the gateway's order: the latest real-work call first, a team with
- * none last, the slug breaking a tie. Mutable, as today: the live check's `__hint` renames a team in place.
+ * none last, the slug breaking a tie. Mutable, as today: the live check's `__hint` renames a team in place. A row's
+ * waiting is read from the queue each time it is read, so it is the request's own: a journey's approval moves it.
  */
 export const TEAMS: TeamRow[] = SEEDS.map((s) => ({
   slug: s.slug, name: s.name, status: s.status, created: day(s.created),
   people: membersOf(s.slug).length,
   openWork: INITIATIVES.filter((i) => i.team === s.slug && !i.closed).length,
-  waiting: s.waiting,
+  get waiting() { return waitingOf(s.slug).length; },
   lessons: KNOWLEDGE.filter((n) => n.team === s.slug && n.status === 'adopted').length,
   sessions: s.sessions.map((n, i) => tally(i, n)),
   calls: { last: tally(LAST, s.calls[LAST]), previous: tally(LAST - 1, s.calls[LAST - 1]) },
