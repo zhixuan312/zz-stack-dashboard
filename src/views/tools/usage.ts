@@ -15,7 +15,7 @@ import { usageExplore } from '../usage-explore';
 export const usageTool = defineViewTool({
   name: 'usage',
   title: 'Usage',
-  description: 'How real work called the platform: last week\'s calls, share refused, slowest 5% of calls and sessions; calls by week (by team for a superadmin alone); the platform\'s own traffic and all refusals by population; refusals put right by week with median seconds, sessions continued and those that could not be judged; each tool\'s median call, first week against last; weekday by hour; the tools called most; calls per recorded approval; and the platform\'s model calls, whose cost is not recorded.',
+  description: 'How real work called the platform: last week\'s calls, share refused, slowest 5% of calls and sessions; calls by week (by team where the read names teams); the platform\'s own traffic and all refusals by population; refusals put right by week with median seconds, sessions continued and those that could not be judged; each tool\'s median call, first week against last; weekday by hour; the tools called most; calls per recorded approval; and the platform\'s model calls, whose cost is not recorded.',
   needs: FEATURES.usage.needs,
   page: '/platform/usage',
   input: z.object({}),

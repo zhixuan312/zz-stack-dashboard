@@ -25,16 +25,20 @@ import { useAddress, useServed } from '@/views/use-served';
 const PLUGINS_TITLE = 'Every plugin';
 
 /** The command that installs a plugin, to take elsewhere: a person copies it into their own client. */
-const Install = ({ p }: { p: PluginRow }) => <CopyField value={p.install} label={`the command that installs ${p.plugin}`} className="w-full max-w-72" />;
+const Install = ({ p }: { p: PluginRow }) => <CopyField value={p.install} label={`the command that installs ${p.plugin}`} className="w-full max-w-56" />;
 
 /**
  * The spec's columns, in its order: plugin, required or optional, version, skills, gates, the score out of 10 with its
  * protocol and date, and the install command with its Copy control. Nothing here is the team's: the catalog and the
  * scores are the platform's, and the team's use is on each plugin's page, labelled as the team's.
+ *
+ * The plugin and its blurb are cut to the width there is, whole in the cell's title, and under 896px the version and the
+ * counts give way, each on the plugin's own page the row opens: the table was 1629px in a 1109px frame at 1440, its Copy
+ * buttons off screen and out of the keyboard's reach. The score and Install, which a person acts on, stay at every width.
  */
 const COLUMNS: Column<PluginRow>[] = aligned([
   {
-    key: 'plugin', header: 'Plugin', grow: true, mobile: 'title', title: (p) => (p.description ? `${p.plugin}: ${p.description}` : p.plugin),
+    key: 'plugin', header: 'Plugin', grow: true, truncate: true, mobile: 'title', title: (p) => (p.description ? `${p.plugin}: ${p.description}` : p.plugin),
     cell: (p) => (
       <span className="block min-w-0">
         <span className="block truncate font-medium text-ink" title={p.plugin}>{p.plugin}</span>
@@ -46,15 +50,15 @@ const COLUMNS: Column<PluginRow>[] = aligned([
   { key: 'required', header: 'Required', mobile: 'status', cell: (p) => (p.required ? <Badge tone="accent">Required</Badge> : <Badge tone="neutral">Optional</Badge>) },
   {
     // The version and whether a release vouched for it together: the number is a claim and the release makes it true.
-    key: 'version', header: 'Version', hideBelow: 'md',
+    key: 'version', header: 'Version', hideBelow: 'lg',
     cell: (p) => (p.version
       ? <span className="inline-flex flex-col items-center"><span className="font-mono text-xs text-ink">{p.version}</span><span className="text-2xs text-ink-3">{p.release ? 'released' : 'not released'}</span></span>
       : <span className="text-ink-3">None declared</span>),
   },
-  { key: 'skills', header: 'Skills', numeric: true, hideBelow: 'sm', cell: (p) => formatCount(p.skills.length) },
+  { key: 'skills', header: 'Skills', numeric: true, hideBelow: 'lg', cell: (p) => formatCount(p.skills.length) },
   { key: 'gates', header: 'Gates', numeric: true, hideBelow: 'lg', cell: (p) => formatCount(p.gates) },
   { key: 'score', header: 'Score', mobile: 'fact', cell: (p) => <ScoreCell of={p.score} />, mobileCell: (p) => scoreFact(p.score) },
-  { key: 'install', header: 'Install', width: 'w-72', mobile: 'fact', cell: (p) => <Install p={p} />, mobileCell: (p) => <Install p={p} /> },
+  { key: 'install', header: 'Install', width: 'w-56', mobile: 'fact', cell: (p) => <Install p={p} />, mobileCell: (p) => <Install p={p} /> },
 ]);
 
 /**

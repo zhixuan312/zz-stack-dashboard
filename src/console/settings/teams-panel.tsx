@@ -76,7 +76,7 @@ function TeamsTable({ teams, pending, onSwitch }: { teams: MyTeams; pending: boo
               difference between "you have no teams" and a screen that looks broken. */}
           {teams.teams.length === 0 ? (
             <TableRow>
-              <TableCell className="text-sm text-ink-3" colSpan={3}>You are not a member of any team yet. A team admin adds you.</TableCell>
+              <TableCell className="text-sm text-ink-3" colSpan={3}>You are not a member of any team yet.</TableCell>
             </TableRow>
           ) : null}
           {page.map((row) => (

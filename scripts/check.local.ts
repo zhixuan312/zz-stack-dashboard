@@ -8,6 +8,8 @@
  * - No `__html` from anything but a literal or the pre-paint script: the second way raw HTML could get in.
  * - Every webfont face states a `display` and a `fallback` that ends in a generic family, so a failed face leaves a
  *   real font rather than the browser's initial one.
+ * - Every chart is a mapped ZZ Meridian card: no chart of the console's own, no chart package, and neither the Status
+ *   list nor Uptime bars on any page. `--charts <root>` runs this rule alone over another tree.
  * - No source file over 700 lines: past that a file holds two things, and the split is agreed before it grows.
  * - Every page in the console's shell says what it tells the assistant: its spec has "### What the agent reads" under
  *   "## Agents", and names the context function it shares; and every page a view tool module names says what the agent
@@ -41,6 +43,78 @@ function walk(dir: string, ext: RegExp, out: string[] = []) {
 const SOURCE = [...walk('src', /\.tsx?$/), ...walk('app', /\.tsx?$/)];
 /** Code only: a comment that names a pattern to explain why it is absent is not a use. */
 const code = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1 ');
+
+// ── Every chart is a mapped ZZ Meridian card ─────────────────────────────────────────────────────────
+/* The spec's chart table names a ZZ Meridian card for every figure, and the console draws no chart of its own (FR-12,
+ * AC-2.8). A card is mapped when its import resolves to a managed path, one `.meridian/manifest.json` records (or
+ * `.meridian/keep.json` keeps). So three things fail: a file under `src/components/charts/` no managed path holds,
+ * which is a chart of the console's own; an import, static or through `dynamic()`, that resolves into a `charts/`
+ * folder at a path no managed file holds, or names a chart package; and the two managed cards the chart table refuses,
+ * the Status list and Uptime bars, which both print `Operational` where the platform measures no such thing (CS-11).
+ *
+ * Imports are read from code with comments blanked, so a sentence naming a refused import is not one. Managed files are
+ * Meridian's and checked by check.ts. `--charts <root>` runs this rule alone over another tree, which is how
+ * `tests/chart-rule.test.ts` holds it to each case. The timeline chart this rule found was imported nowhere and is gone. */
+const REFUSED_CARDS: [RegExp, string][] = [
+  [/^src\/components\/charts\/uptime-bars\//, 'Uptime bars'],
+  [/^src\/components\/patterns\/status-list\//, 'the Status list'],
+];
+const CHART_PACKAGE = /^(recharts|chart\.js|react-chartjs-2|d3|d3-[a-z-]+|echarts|echarts-for-react|victory|victory-[a-z-]+|@nivo\/[a-z-]+|@visx\/[a-z-]+|plotly\.js|react-plotly\.js|highcharts|highcharts-react-official|apexcharts|react-apexcharts|uplot|@tremor\/react|vega|vega-lite|react-vega|@observablehq\/plot)(\/|$)/;
+const IMPORTED = /\b(?:from|import)\s*\(?\s*(['"])([^'"\n]+)\1/g;
+
+function chartProblems(root: string): string[] {
+  const out: string[] = [];
+  const json = (p: string, empty: unknown) => (fs.existsSync(path.join(root, p)) ? JSON.parse(fs.readFileSync(path.join(root, p), 'utf8')) : empty);
+  const managed = new Set<string>([
+    ...Object.keys((json('.meridian/manifest.json', { files: {} }) as { files: Record<string, string> }).files),
+    ...(json('.meridian/keep.json', []) as { path: string }[]).map((k) => k.path),
+  ]);
+  const files = (dir: string, acc: string[] = []): string[] => {
+    const abs = path.join(root, dir);
+    if (!fs.existsSync(abs)) return acc;
+    for (const n of fs.readdirSync(abs)) {
+      const p = path.posix.join(dir, n);
+      if (fs.statSync(path.join(root, p)).isDirectory()) files(p, acc);
+      else acc.push(p);
+    }
+    return acc;
+  };
+  /** The source file an import names, from the importing file: `@/` is `src/`; the spelling itself when no file is found. */
+  const resolve = (from: string, spec: string): string => {
+    const base = spec.startsWith('@/') ? path.posix.join('src', spec.slice(2)) : path.posix.join(path.posix.dirname(from), spec);
+    const tried = [base, `${base}.ts`, `${base}.tsx`, `${base}/index.ts`, `${base}/index.tsx`];
+    return tried.find((p) => fs.existsSync(path.join(root, p)) && fs.statSync(path.join(root, p)).isFile()) ?? base;
+  };
+  const cardOf = (p: string) => /(?:^|\/)charts?\/([^/.]+)/.exec(p)?.[1] ?? p;
+
+  for (const f of files('src/components/charts').filter((p) => !managed.has(p))) {
+    out.push(`${f}: the chart ${cardOf(f)} is outside .meridian/manifest.json, so it is the console's own chart; draw the mapped ZZ Meridian card instead`);
+  }
+  for (const f of [...files('src'), ...files('app')].filter((p) => /\.tsx?$/.test(p) && !managed.has(p))) {
+    for (const m of code(fs.readFileSync(path.join(root, f), 'utf8')).matchAll(IMPORTED)) {
+      const spec = m[2];
+      if (!spec.startsWith('.') && !spec.startsWith('@/')) {
+        if (CHART_PACKAGE.test(spec)) out.push(`${f}: imports the chart package ${spec}; every chart is a mapped ZZ Meridian card`);
+        continue;
+      }
+      const target = resolve(f, spec);
+      const refused = REFUSED_CARDS.find(([at]) => at.test(target));
+      if (refused) out.push(`${f}: draws ${refused[1]} ('${spec}'), which prints Operational where the platform measures no such thing (FR-12)`);
+      else if (/(?:^|\/)charts?\//.test(target) && !managed.has(target)) out.push(`${f}: imports the chart ${cardOf(target)} from '${spec}', which is not a managed ZZ Meridian card`);
+    }
+  }
+  return out;
+}
+
+{
+  const at = process.argv.indexOf('--charts');
+  if (at > 0) {
+    const found = chartProblems(path.resolve(process.argv[at + 1] ?? '.'));
+    console.log([...found, `${found.length} chart problems`].join('\n'));
+    process.exit(found.length ? 1 : 0);
+  }
+}
+problems.push(...chartProblems(ROOT));
 
 // ── The console's pages ──────────────────────────────────────────────────────────────────────────────
 // Product code only: Meridian's own layers are checked by check.ts. A page's content is the client view it renders,

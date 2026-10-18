@@ -82,12 +82,16 @@ function Revision({ version, contentRevision }: { version: number; contentRevisi
 const documentCell = (r: { path: string }) => <span title={r.path} className="font-medium whitespace-normal text-ink [overflow-wrap:anywhere]">{r.path}</span>;
 const initiativeCell = (r: { initiative: string }) => <span title={r.initiative} className="text-sm whitespace-normal text-ink-2 [overflow-wrap:anywhere]">{r.initiative}</span>;
 
-/** Waiting's columns, in the gateway's order, the longest wait first; Review opens the revision on the document's page. */
+/**
+ * Waiting's columns, in the gateway's order, the longest wait first; Review opens the revision on the document's page.
+ * Under 896px the version gives way: its content revision is as wide as two columns, and the row and its Review open
+ * that exact revision, which names it.
+ */
 function waitingColumns(hrefOf: ((r: WaitingRow) => string) | undefined, asOf: string): Column<WaitingRow>[] {
   return aligned<WaitingRow>([
     { key: 'document', header: 'Document', grow: true, mobile: 'title', cell: documentCell },
     { key: 'initiative', header: 'Initiative', align: 'left', mobile: 'fact', cell: initiativeCell },
-    { key: 'version', header: 'Version', hideBelow: 'md', cell: (r) => <Revision version={r.version} contentRevision={r.contentRevision} />, title: (r) => `v${r.version}, ${r.contentRevision}` },
+    { key: 'version', header: 'Version', hideBelow: 'lg', cell: (r) => <Revision version={r.version} contentRevision={r.contentRevision} />, title: (r) => `v${r.version}, ${r.contentRevision}` },
     {
       key: 'since', header: 'Waiting since', mobile: 'fact', title: (r) => formatDateTime(r.waitingSince),
       cell: (r) => (
@@ -107,11 +111,14 @@ function waitingColumns(hrefOf: ((r: WaitingRow) => string) | undefined, asOf: s
   ]);
 }
 
-/** History's columns, newest first: the revision approved, when, and what the record holds of how, as the gateway classified it. */
+/**
+ * History's columns, newest first: the revision approved, when, and what the record holds of how, as the gateway
+ * classified it. Under 896px the version and the decision basis give way, both on the revision's page the row opens.
+ */
 const HISTORY_COLUMNS: Column<ApprovalRow>[] = aligned<ApprovalRow>([
   { key: 'document', header: 'Document', grow: true, mobile: 'title', cell: documentCell },
   { key: 'initiative', header: 'Initiative', align: 'left', mobile: 'fact', cell: initiativeCell },
-  { key: 'version', header: 'Version', hideBelow: 'md', cell: (r) => <Revision version={r.version} contentRevision={r.contentRevision} />, title: (r) => `v${r.version}, ${r.contentRevision}` },
+  { key: 'version', header: 'Version', hideBelow: 'lg', cell: (r) => <Revision version={r.version} contentRevision={r.contentRevision} />, title: (r) => `v${r.version}, ${r.contentRevision}` },
   {
     key: 'approved', header: 'Approved at', mobile: 'fact', title: (r) => approvedWhen(r.approvedAt),
     cell: (r) => (

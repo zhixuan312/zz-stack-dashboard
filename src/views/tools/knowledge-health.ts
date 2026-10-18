@@ -16,7 +16,7 @@ import { knowledgeHealthContext } from '../platform-knowledge-context';
 export const knowledgeHealthTool = defineViewTool({
   name: 'knowledge_health',
   title: 'Knowledge health',
-  description: 'The knowledge store\'s health: the lessons adopted on every shelf, those made last week outside the import cohorts, last week\'s searches and the share with no result; each shelf\'s standing, superseded and imported lessons with its week (every team\'s by slug for a superadmin alone, a member\'s own shelf, the shared shelf and the totals); lessons made by week with what the import cohorts left out, exactly or by the day rule; the share of searches with no result by week with the share widened and the mean results; lessons by the week made with how many were superseded since; lessons by kind; and, for a superadmin alone, the questions the searches that found nothing asked.',
+  description: 'The knowledge store\'s health: the lessons adopted on every shelf, those made last week outside the import cohorts, last week\'s searches and the share with no result; each shelf\'s standing, superseded and imported lessons with its week (every team\'s by slug where the read names them, otherwise the caller\'s own team\'s shelf, the shared shelf and the totals); lessons made by week with what the import cohorts left out, exactly or by the day rule; the share of searches with no result by week with the share widened and the mean results; lessons by the week made with how many were superseded since; lessons by kind; and, where the read holds them, the questions the searches that found nothing asked.',
   needs: FEATURES['knowledge-health'].needs,
   page: '/platform/knowledge',
   input: z.object({}),

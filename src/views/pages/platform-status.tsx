@@ -109,12 +109,20 @@ function NeedsPanel({ needs }: { needs: PlatformStatus['needs'] }) {
   );
 }
 
-/** One half of the Featured metric, its weeks a Column chart: a week with no data keeps its place and is drawn as none. */
+/** What the paired figures read where a half has no number: the dash Status writes for a figure it does not have. */
+const NO_FIGURE = '—';
+
+/**
+ * One half of the Featured metric, its weeks a Column chart: a week with no data keeps its place and is drawn as none.
+ * A half with no figure hands the card no number, so nothing is drawn or pointed at as 0: the card sets the page's dash
+ * in the figure's place, and the caption says why.
+ */
 function figureOf(h: Half): FeaturedFigure {
   return {
     kicker: <>{h.label} · by week</>,
-    value: h.value ?? 0,
-    format: h.value === null ? () => '—' : (n) => valueIn(h.kind, n),
+    value: h.value,
+    missing: NO_FIGURE,
+    format: (n) => valueIn(h.kind, n),
     caption: h.caption,
     finding: h.finding ? { text: h.finding } : undefined,
     children: h.columns.length ? (
@@ -170,6 +178,9 @@ const shapeOf = (r: ScoreRow) => (r.points.filter((p) => p !== null).length > 1
   ? <Sparkline values={r.points} color="neutral" height={28} className="w-28" />
   : <span className="text-xs text-ink-3">Not enough weeks</span>);
 
+/** A dated figure in words, for a title: `low 41, week of 6 Oct`. */
+const datedSaid = (label: string, d: Dated | null) => (d ? `${label} ${d.value}${d.week ? `, ${d.week}` : ''}` : `${label} none`);
+
 const MEASURE: Column<ScoreRow> = { key: 'measure', header: 'Measure', cell: (r) => r.label, title: (r) => `${r.label}: ${r.hint}`, grow: true, mobile: 'title' };
 const SHARED: Column<ScoreRow>[] = [
   { key: 'last', header: 'Last week', cell: (r) => <DatedCell d={r.last} />, align: 'right', mobile: 'fact' },
@@ -182,11 +193,12 @@ const DIRECTIONAL_COLUMNS: Column<ScoreRow>[] = [
   { key: 'best', header: 'Best week', cell: (r) => <DatedCell d={r.best} />, align: 'right', mobile: 'fact' },
   ...SHARED,
 ];
+/** Under 896px the low gives way, and the high's title names both. */
 const ACTIVITY_COLUMNS: Column<ScoreRow>[] = [
   MEASURE,
   { key: 'first', header: 'First week', cell: (r) => <DatedCell d={r.first} />, align: 'right', hideBelow: 'lg' },
-  { key: 'high', header: 'High', cell: (r) => <DatedCell d={r.high} />, align: 'right', mobile: 'fact' },
-  { key: 'low', header: 'Low', cell: (r) => <DatedCell d={r.low} />, align: 'right', hideBelow: 'md' },
+  { key: 'high', header: 'High', cell: (r) => <DatedCell d={r.high} />, title: (r) => `${datedSaid('High', r.high)}; ${datedSaid('low', r.low)}`, align: 'right', mobile: 'fact' },
+  { key: 'low', header: 'Low', cell: (r) => <DatedCell d={r.low} />, align: 'right', hideBelow: 'lg' },
   ...SHARED,
 ];
 
@@ -216,11 +228,12 @@ function Scoreboard({ status }: { status: PlatformStatus }) {
   );
 }
 
+/** Under 896px the days with calls give way, and the fault days' title says what they are out of. */
 const DOOR_COLUMNS: Column<DoorRow>[] = [
   { key: 'door', header: 'Door', cell: (r) => <span className="font-mono text-xs">{r.door}</span>, title: (r) => `The ${r.door} door`, mobile: 'title' },
   { key: 'rate', header: 'Daily tool failures', cell: (r) => (r.rates.length > 1 ? <Sparkline values={r.rates} color="neutral" height={28} className="w-28" /> : <span className="text-xs text-ink-3">Not enough days</span>), hideBelow: 'md' },
-  { key: 'days', header: 'Days with calls', cell: (r) => r.daysWithCalls, numeric: true, mobile: 'fact', mobileCell: (r) => `${r.daysWithCalls} days with calls` },
-  { key: 'faults', header: 'Fault days', cell: (r) => r.faultDays, numeric: true, mobile: 'fact', mobileCell: (r) => `${r.faultDays} fault days` },
+  { key: 'days', header: 'Days with calls', cell: (r) => r.daysWithCalls, numeric: true, hideBelow: 'lg', mobile: 'fact', mobileCell: (r) => `${r.daysWithCalls} days with calls` },
+  { key: 'faults', header: 'Fault days', cell: (r) => r.faultDays, title: (r) => `${r.faultDays} fault days of ${r.daysWithCalls} days with calls`, numeric: true, mobile: 'fact', mobileCell: (r) => `${r.faultDays} fault days` },
   { key: 'last', header: 'Last fault day', cell: (r) => r.lastFaultDay, mobile: 'fact', mobileCell: (r) => `Last fault day: ${r.lastFaultDay}` },
   { key: 'run', header: 'Run', cell: (r) => r.run, grow: true, truncate: true },
   { key: 'today', header: 'Today', cell: (r) => r.today ?? '', muted: true, hideBelow: 'lg' },

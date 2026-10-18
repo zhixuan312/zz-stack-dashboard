@@ -2,13 +2,14 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { startFakeGateway } from './fake-gateway-start.ts';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { documentDetail, revisionInStore } from '../scripts/fake-gateway/work.ts';
+import config from '../scripts/verify.config.ts';
 
 /**
  * The fixture as a SERVER, which is how a sweep uses it.
  *
  * `fake-gateway-states.test.ts` covers the two modes that reshape an answer, because those are pure
  * functions. The other two are behaviours of the running server and had no check at all: `error`,
- * which makes every route except `/me` answer 503, and `slow`, which holds every answer four seconds.
+ * which makes every route except `/me` answer 503, and `slow`, which holds every answer but `/me` four seconds.
  * The status read is the exception to both, and its own two cases are below.
  * This file's own note says why that matters — "a mode that throws is a mode nothing notices" — and
  * both of these are modes a person is told to sweep by hand, so a broken one misleads exactly the
@@ -240,12 +241,63 @@ describe('the fake gateway as the sweep uses it', () => {
   // superseded is named by the token zz-core reads it by, as the gateway names it.
   it('names the approval a metadata-only correction superseded inside its version', async () => {
     const base = await start();
-    const doc = await (await fetch(`${base}/api/console/document/beacon/2026-09-22-payout-schedule/review.md`)).json() as
+    // Beacon's record, so read by a session acting for beacon: Work's detail routes are the active team's alone.
+    const headers = { cookie: 'zz_console=superadmin' };
+    await fetch(`${base}/api/console/settings/me/active-team`, { method: 'POST', headers: { ...headers, 'content-type': 'application/json' }, body: JSON.stringify({ team: 'beacon' }) });
+    const doc = await (await fetch(`${base}/api/console/document/beacon/2026-09-22-payout-schedule/review.md`, { headers })).json() as
       { correction: number | null; versions: { version: number; revision: number; superseded_approved: { revision: number; content_revision: string | null } | null }[] };
     expect(doc.correction).toBe(1);
     expect(doc.versions).toHaveLength(1);
     expect(doc.versions[0]).toMatchObject({ version: 1, revision: 2, superseded_approved: { revision: 1 } });
     expect(doc.versions[0].superseded_approved?.content_revision).toMatch(/^cr_[a-z2-7]{26}$/);
+  });
+
+  // As the gateway answers them since Task I-121 (services/gateway/src/console/initiatives.ts): the team in the address
+  // must be the one the caller acts for, for the superadmin too, and nothing the request names widens it.
+  it('answers an initiative and a document of the active team alone, for the superadmin too', async () => {
+    const base = await start();
+    const own = ['initiatives/atlas/2026-09-28-search-relevance', 'document/atlas/2026-09-28-search-relevance/spec.md'];
+    const other = ['initiatives/beacon/2026-09-22-payout-schedule', 'document/beacon/2026-09-22-payout-schedule/review.md',
+                   'initiatives/cinder/2026-08-20-incident-runbooks', 'document/beacon/2026-09-22-payout-schedule/review.md?revision=1'];
+    for (const headers of [{}, { cookie: 'zz_console=superadmin' }, { cookie: 'zz_console=member' }] as Record<string, string>[]) {
+      for (const path of own) expect((await fetch(`${base}/api/console/${path}`, { headers })).status, `${JSON.stringify(headers)} ${path}`).toBe(200);
+      for (const path of other) {
+        for (const widen of ['', `${path.includes('?') ? '&' : '?'}scope=platform`, `${path.includes('?') ? '&' : '?'}team=beacon`]) {
+          const res = await fetch(`${base}/api/console/${path}${widen}`, { headers });
+          expect(res.status, `${JSON.stringify(headers)} ${path}${widen}`).toBe(404);
+          // The not-found echoes the address asked for and nothing of the record behind it.
+          expect(JSON.stringify(await res.json())).not.toMatch(/jonas|stakeholder|documents/i);
+        }
+      }
+    }
+    // A caller who acts for no team is answered the no-team refusal, never another team's record.
+    const none = { cookie: 'zz_console=superadmin-in-no-team' };
+    expect((await (await fetch(`${base}/api/console/me`, { headers: none })).json() as { activeTeam: string | null }).activeTeam).toBeNull();
+    for (const path of [...own, ...other.slice(0, 2)]) {
+      const res = await fetch(`${base}/api/console/${path}`, { headers: none });
+      expect([res.status, (await res.json() as { error: string }).error], path).toEqual([400, expect.stringMatching(/no team/)]);
+    }
+  });
+
+  // What `pnpm verify` walks: each person's own team's initiatives as detail routes, and another team's as a probe both
+  // are refused, so a browser suite never reads a record the gateway would not answer.
+  it('is walked through the active team\'s initiatives, and another team\'s as a denied probe for both people', async () => {
+    const base = await start();
+    const work = config.detailRoutes.filter((r) => r.startsWith('/initiatives/'));
+    const personas = Object.values(config.personas!);
+    for (const persona of personas) {
+      const me = await (await fetch(`${base}/api/console/me`, { headers: { cookie: `zz_console=${persona.cookie.value}` } })).json() as { activeTeam: string };
+      const denied = work.filter((r) => r.split('/')[2] !== me.activeTeam);
+      expect(work.length - denied.length, persona.cookie.value).toBeGreaterThan(3);
+      expect(denied.length, persona.cookie.value).toBeGreaterThan(0);
+      for (const route of work) {
+        const [, , team, slug, ...doc] = route.split('/');
+        const api = doc.length ? `document/${team}/${slug}/${doc.join('/')}` : `initiatives/${team}/${slug}`;
+        const res = await fetch(`${base}/api/console/${api}?scope=platform`, { headers: { cookie: `zz_console=${persona.cookie.value}` } });
+        expect(res.status, `${persona.cookie.value}: ${route}`).toBe(denied.includes(route) ? 404 : 200);
+      }
+      for (const route of denied) expect(Object.keys(persona.deniedProbe ?? {}), `${persona.cookie.value}: ${route}`).toContain(route);
+    }
   });
 
   // The two Approve banners no other record reaches. "Approve is unavailable" is a refusal of the record that is not a

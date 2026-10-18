@@ -5,6 +5,7 @@ One document, read: the text, how it changed and on what evidence, and the claim
 ## Structure
 
 - Gate first: the page asks for `initiatives` before it renders, so a person who does not hold it is shown NoAccess and nothing on the page is read.
+- First read on the console's server: the document is read as the person, bounded at 4.5 seconds, and handed to the masthead and the body, so its title, status and text are in the first paint. Later reads, after an approval, a Retry, a Reload or a hint that documents changed, are the browser's.
 - Masthead: the title, the path and version, and Approve when the reader may sign the gate; a member whose session
   acts for another of their teams is told which team to switch to.
 - When Approve is on offer, the page records that it showed the reader the first snapshot it rendered, and any later
@@ -16,7 +17,7 @@ One document, read: the text, how it changed and on what evidence, and the claim
 
 ## States
 
-- Loading: skeleton cards.
+- Loading: skeleton cards, while the console's server reads.
 - Approve is held, busy, until the snapshot on screen is recorded as shown.
 - Approve swaps for an inline confirmation (Confirm, then Cancel on the edge Approve sat on); success and refusal each
   say so in a toast. The confirmation closes when the record it opened on is replaced.
@@ -26,7 +27,8 @@ One document, read: the text, how it changed and on what evidence, and the claim
   now. A banner says so in the gateway's words, Approve is held, and Reload records the snapshot it brings.
 - Approve is unavailable: the record of showing it failed. The banner says so, then the gateway's words, with Reload.
 - A document with no body says so.
-- Not found: the gateway's sentence.
+- Not found: "This document does not exist", with the gateway's sentence.
+- Error: "This document did not load", with the gateway's sentence and Retry; a read that did not answer in 4.5 seconds says so.
 
 ## Agents
 
@@ -52,4 +54,4 @@ Protagonist: Document.
 
 ## Surfaces
 
-Console, desktop and phone. Reads `GET /document/:team/:slug/:path`, `POST /documents/shown` and `POST /documents/approve`. Live: follows `document`, so a change made anywhere — another tab, another person — reads this page again.
+Console, desktop and phone. Reads `GET /document/:team/:slug/:path`, first on the console's server, `POST /documents/shown` and `POST /documents/approve`. Live: follows `document`, so a change made anywhere — another tab, another person — reads this page again.

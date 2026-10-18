@@ -31,6 +31,8 @@ import { useServed, useServedAddress } from '@/views/use-served';
 
 /** A byte count as the tiles show it. */
 const kb = (bytes: number): string => formatKb(bytes / 1024);
+/** The runs counted so far, in the empty state's words: a count nobody read is the Runs tile's own word, never 0 runs. */
+const soFar = (runs: number | null): string => (runs === null ? 'Runs so far: Unavailable.' : `${formatCount(runs)} ${plural(runs, 'run')} so far.`);
 
 /**
  * The page's read: the one the console's server made for this address, so the first paint carries the runs and the
@@ -168,8 +170,10 @@ const State = ({ r }: { r: RunRow }) => (r.state === 'active' ? <Badge tone="acc
 const RECENT: Column<RunRow>[] = aligned([
   { key: 'skill', header: 'Skill', grow: true, mobile: 'title', title: (r) => r.skill, cell: (r) => <span className="block truncate font-medium text-ink" title={r.skill}>{r.skill}</span>, mobileCell: (r) => <span className="[overflow-wrap:anywhere]">{r.skill}</span> },
   {
+    // Under 896px the slug is cut at 128px and whole in its title: held whole, it set the table wider than its frame at
+    // 1024. A `truncate` column would share the slack with Skill, which takes all of it, and cut the slug at every width.
     key: 'initiative', header: 'Initiative', hideBelow: 'md', mobile: 'fact', title: (r) => r.initiative ?? 'No initiative',
-    cell: (r) => (r.initiative ? <span className="block truncate" title={r.initiative}>{r.initiative}</span> : muted('No initiative')),
+    cell: (r) => (r.initiative ? <span className="block truncate @max-[896px]:max-w-32" title={r.initiative}>{r.initiative}</span> : muted('No initiative')),
     mobileCell: (r) => <span className="[overflow-wrap:anywhere]">{r.initiative ?? 'No initiative'}</span>,
   },
   { key: 'started', header: 'Started', numeric: true, hideBelow: 'lg', cell: (r) => formatDateTime(r.startedAt) },
@@ -201,7 +205,7 @@ function Recent({ r, filters, onPage, retry }: { r: Runs; filters: RunsFilters; 
       onRetry={retry}
       state={{ sort: '', dir: 'desc', page: filters.page }}
       onStateChange={(p) => { if (p.page) onPage(p.page); }}
-      empty={{ title: filters.skill === 'all' ? 'No run recorded yet' : `No run of ${filters.skill} recorded`, body: `A run appears here once your team's agents follow a skill. ${formatCount(r.tiles.runs.value ?? 0)} ${plural(r.tiles.runs.value ?? 0, 'run')} so far.` }}
+      empty={{ title: filters.skill === 'all' ? 'No run recorded yet' : `No run of ${filters.skill} recorded`, body: `A run appears here once your team's agents follow a skill. ${soFar(r.tiles.runs.value)}` }}
     />
   );
 }

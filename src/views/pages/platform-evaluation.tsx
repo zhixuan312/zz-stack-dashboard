@@ -135,11 +135,12 @@ function ScoreCell({ r }: { r: PluginScoreRow }) {
 }
 
 const PLUGIN_COLUMNS: Column<PluginScoreRow>[] = aligned([
-  { key: 'plugin', header: 'Plugin', grow: true, mobile: 'title', title: (r) => r.plugin, cell: (r) => <span className={`${mono} font-medium text-ink`}>{r.plugin}</span> },
+  // Under 896px the protocol gives way, and the plugin's title names it, as the series below do.
+  { key: 'plugin', header: 'Plugin', grow: true, mobile: 'title', title: (r) => `${r.plugin}, ${protocolOf(r.protocol)}`, cell: (r) => <span className={`${mono} font-medium text-ink`}>{r.plugin}</span> },
   { key: 'score', header: 'Score', mobile: 'fact', cell: (r) => <ScoreCell r={r} />, mobileCell: (r) => (r.score.value === null ? 'No score' : `${scoreIn(r.score.value)} / 10`) },
   { key: 'standing', header: 'Standing', align: 'left', mobile: 'status', cell: (r) => <Badge tone={STANDING_TONE[r.standing]}>{standingOf(r.standing)}</Badge> },
   { key: 'guardrails', header: 'Guardrails', align: 'left', mobile: 'fact', cell: (r) => <Badge tone={GUARDRAIL_TONE[r.guardrails]}>{GUARDRAILS[r.guardrails]}</Badge>, mobileCell: (r) => `Guardrails ${GUARDRAILS[r.guardrails].toLowerCase()}` },
-  { key: 'protocol', header: 'Protocol', align: 'left', hideBelow: 'md', title: (r) => protocolOf(r.protocol), cell: (r) => <span className={mono}>{protocolOf(r.protocol)}</span> },
+  { key: 'protocol', header: 'Protocol', align: 'left', hideBelow: 'lg', title: (r) => protocolOf(r.protocol), cell: (r) => <span className={mono}>{protocolOf(r.protocol)}</span> },
   { key: 'scored', header: 'Scored', numeric: true, mobile: 'fact', cell: (r) => <time dateTime={r.scoredAt} title={formatDateTime(r.scoredAt)}>{formatDate(r.scoredAt)}</time>, mobileCell: (r) => `Scored ${formatDate(r.scoredAt)}` },
 ]);
 

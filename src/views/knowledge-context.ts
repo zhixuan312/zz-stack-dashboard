@@ -27,8 +27,9 @@ export const PAGE_SIZE = 10;
 /** The ranked results the page's search asks for: one table's ceiling, so the list needs no paging. */
 const SEARCH_LIMIT = 10;
 
-/** How long the console's server waits for a Knowledge page's first read before the page says it did not answer. */
-export const KNOWLEDGE_BOUND_MS = 5_000;
+/** How long the console's server waits for a Knowledge page's first read before the page says it did not answer: half
+ *  a second under five, for a phone to draw what it says, the bound the browser's own reads keep (`src/lib/api.ts`). */
+export const KNOWLEDGE_BOUND_MS = 4_500;
 
 /**
  * What the page keeps in its address: the question it searched, and the shelf's kind and page. `all` is no kind. The

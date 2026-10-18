@@ -290,7 +290,7 @@ describe('the page\'s states', () => {
     it(`error: a ${read.state} read is the error state naming the platform's status, with Retry`, () => {
       const { container } = draw(read);
       expect(screen.getByRole('alert')).toHaveTextContent(title);
-      expect(container.textContent).not.toMatch(/Malformed calls per 1,000|\d+\.\d/);
+      expect(container.textContent).not.toMatch(/Malformed calls per 1,000|\d+\.\d(?! seconds)/);
       fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
       expect(router.refresh).toHaveBeenCalledOnce();
     });
@@ -298,7 +298,7 @@ describe('the page\'s states', () => {
 
   it('says the slow read was bounded, never an endless wait', () => {
     draw({ state: 'slow' });
-    expect(screen.getByRole('alert')).toHaveTextContent(`It did not answer within ${STATUS_BOUND_MS / 1000} seconds`);
+    expect(screen.getByRole('alert')).toHaveTextContent('It did not answer within 4.5 seconds');
   });
 
   it('dates the masthead with the read\'s own cutoff, and nothing when there is no read', () => {

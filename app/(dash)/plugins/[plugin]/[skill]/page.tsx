@@ -3,7 +3,8 @@ import { app, workspaces } from '@/app.config';
 import { PageFrame } from '@/components/base/shell';
 import { gate, gatedMetadata } from '@/data/access';
 import { MissingPage } from '@/views/no-access';
-import { SkillTabs, SkillView, viewOf } from '@/views/pages/skill';
+import { SkillTabs, SkillView } from '@/views/pages/skill';
+import { viewOf } from '@/views/skill-view';
 import { readSkill } from '../../read-plugins';
 
 type Params = { params: Promise<{ plugin: string; skill: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> };

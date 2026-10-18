@@ -6,7 +6,9 @@
  * Caller-projected as the page is: a superadmin groups the lessons by every team's shelf, by slug, and a member by their
  * own team's shelf and the shared one, every other shelf unnamed. The searches that found nothing are drilled to the
  * questions they asked for a superadmin alone (`drill.needs` in `src/data/prepared.ts`); a member is told the counts and
- * refused the rows. Lessons are counted and never listed. Its README lists the questions it answers.
+ * refused the rows. Lessons are counted and never listed. Its README lists the questions it answers. What the model is
+ * handed says what the caller's read holds and never who else reads more (reconciliation 77): the same words go to
+ * both people.
  */
 import type { Measure, PreparedQuery, Source } from '@/lib/explore';
 import { KNOWLEDGE_KINDS } from './knowledge-context';
@@ -33,7 +35,7 @@ const lessons: Source = {
   none: { shelf: 'other teams\' shelves' },
   cannot: 'Lessons are counted, never listed: Knowledge health (/platform/knowledge) counts them and lists none. A lesson superseded since '
     + 'still counts as made, and nothing records when it was superseded. Before lessons named themselves an import is told by the day rule. '
-    + `A member reads their own team's shelf and the shared one by name, and every other shelf unnamed. ${WINDOW}`,
+    + `A shelf is named as the caller's read names it, their own team's and the shared one always; a shelf it leaves unnamed reads as other teams' shelves. ${WINDOW}`,
 };
 
 /** The real-work searches that recorded their results, by whether each found something and was widened. */
@@ -50,9 +52,9 @@ const searches: Source = {
   drill: { columns: ['question', 'shelf', 'asked', 'lastAskedAt'], address: (r) => String(r.address) },
   labels: { found: { found: 'found something', nothing: 'found nothing' }, widened: { widened: 'widened', not_widened: 'not widened' } },
   none: { widened: 'widening not recorded' },
-  cannot: 'A search that found something is retrieval, not an answer. Only a superadmin may drill the searches that found nothing, to the '
-    + 'questions they asked and the slug of the team that asked each; a member is told the counts alone. A share over fewer than thirty '
-    + `searches is too few to compare. ${WINDOW}`,
+  cannot: 'A search that found something is retrieval, not an answer. The searches that found nothing drill to the questions they asked and '
+    + 'the slug of the team that asked each where the caller\'s read holds the questions, and are counts alone where it does not. A share '
+    + `over fewer than thirty searches is too few to compare. ${WINDOW}`,
 };
 
 export const knowledgeHealthExplore: PreparedQuery = { sources: { lessons, searches } };

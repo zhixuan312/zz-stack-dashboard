@@ -53,7 +53,10 @@ function LastActive({ at, asOf }: { at: string | null; asOf: string }) {
   return <time dateTime={at} title={formatDateTime(at)}>{formatRelative(at, new Date(asOf))}</time>;
 }
 
-/** The table's columns, in the gateway's order: latest real-work call first, sorted and paged where it is read. */
+/**
+ * The table's columns, in the gateway's order: latest real-work call first, sorted and paged where it is read. Under
+ * 896px the lessons, the sessions and both weeks' calls give way, each on the team's page the row opens.
+ */
 const columnsAt = (asOf: string): Column<TeamRow>[] => aligned([
   {
     key: 'team', header: 'Team', grow: true, mobile: 'title', title: (t) => (t.name !== t.slug ? `${t.slug}, ${t.name}` : t.slug),
@@ -73,7 +76,7 @@ const columnsAt = (asOf: string): Column<TeamRow>[] => aligned([
   { key: 'waiting', header: 'Waiting', numeric: true, hideBelow: 'md', cell: (t) => formatCount(t.waiting) },
   { key: 'lessons', header: 'Lessons', numeric: true, hideBelow: 'lg', cell: (t) => formatCount(t.lessons) },
   { key: 'sessions', header: 'Sessions by week', hideBelow: 'lg', width: 'w-32', cell: (t) => <Sessions t={t} /> },
-  { key: 'last', header: 'Calls last week', numeric: true, hideBelow: 'md', cell: (t) => weekCount(t.calls.last) },
+  { key: 'last', header: 'Calls last week', numeric: true, hideBelow: 'lg', cell: (t) => weekCount(t.calls.last) },
   { key: 'previous', header: 'Week before', numeric: true, hideBelow: 'xl', cell: (t) => weekCount(t.calls.previous) },
   { key: 'active', header: 'Last active', numeric: true, mobile: 'fact', cell: (t) => <LastActive at={t.lastActive} asOf={asOf} />, mobileCell: (t) => <>Active <LastActive at={t.lastActive} asOf={asOf} /></> },
 ]);

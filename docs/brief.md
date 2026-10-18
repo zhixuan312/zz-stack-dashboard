@@ -14,18 +14,16 @@ somewhere else; none of them asks a person to enter it again.
 
 ## Users
 
-A superadmin reads the whole platform: every team's initiatives, the plugin estate, the fleet's runs and activity, and
-the people and tokens behind them.
+A person acts for one team at a time, chosen in Access. In Work they follow that team's initiatives and the gates
+waiting on them, its knowledge and the shared shelf, its agents' runs and the plugins it can install; in Platform, the
+platform's health. The people who run the platform also keep its teams, people and audit trail there.
 
-A member reads their own team. The gateway narrows every read to the caller's own team, so the console's job is to show
-the right pages rather than to enforce what may be read.
+Each arrives with a question in mind and wants an answer in one glance. The gateway answers each person what they may
+read, so the console shows the right pages and does not decide what may be read. Nobody is shown another team's
+documents, another person's API key, or a key's value once issued, and the console must not become a second place
+those could leak from.
 
-Both arrive with a question already in mind and want an answer in one glance, not a dashboard to explore. Neither may
-ever be shown another team's documents, another person's API key, or a key's value after it was issued — the last of
-those is a rule the gateway keeps, and the console must not become a second place it could leak from.
-
-The console is read on a laptop, at a desk, between other work; the phone layout exists so a gate can be approved away
-from the desk, not so the product can be browsed on a train.
+It is read on a laptop, at a desk; the phone layout exists so a gate can be approved away from the desk.
 
 ## A person and their agent, both first-class
 
@@ -85,10 +83,10 @@ a time or `sources/2026-10-06-call.md` arrives as a single segment named after i
   Meridian's hue-and-chroma path calls it, which is what makes the brand reproducible from a release.
 - **Two workspaces, one menu.** Work (`/`) and Platform (`/platform`, the platform's Status) are chosen in the rail's
   workspace menu; a workspace is offered when the person may open one of its destinations, and the line under the
-  product name names the workspace in view. The menu holds the workspaces alone: a superadmin's console is the whole
-  platform, always, and acting for a team is Access's team switch, as it is for everybody. The rail and the palette
-  draw the destinations the server answered, eighteen for a superadmin and fifteen for a member, and nothing in the
-  browser narrows them.
+  product name names the workspace in view. The menu holds the workspaces alone: the console of a person who runs the
+  platform is the whole platform, always, and acting for a team is Access's team switch, as it is for everybody. The
+  rail and the palette draw the destinations the server answered, eighteen for a person who runs the platform and
+  fifteen for everybody else, and nothing in the browser narrows them.
 - **The bell lists waiting gates.** Every gate document written and not approved, on an open initiative, or a closed
   initiative's correction awaiting approval, with a link to the initiative.
 - **The console's own rules, kept inside Meridian.** Tables read left in the first column, right in the last and centred
@@ -135,10 +133,10 @@ a time or `sources/2026-10-06-call.md` arrives as a single segment named after i
 - **This app's server reads the gateway as the person, in one module.** Every page's gate and the chrome read `/me`
   once per request, and the assistant's route has to know who is asking before a model is reached while its tools look
   records up as a reply is written. `src/data/gateway.ts` sends the caller's own `zz_console` cookie, that cookie
-  alone, to the gateway that issued it, and asks for the platform scope on every read but `/me` and `/search`, which
-  the gateway grants only to a superadmin. A page's own content is still read from the browser. This is the "server
-  replays the caller's cookie" shape the console avoided while it was only a renderer; it was taken on for the
-  assistant on 2026-10-12 and for every page's gate on 2026-10-14, bounded to that module, and it stores nothing.
+  alone, to the gateway that issued it, and asks for the platform scope on every read but `/me` and `/search`; the
+  gateway answers each caller what they may read of it. A page's own content is still read from the browser. This is
+  the "server replays the caller's cookie" shape the console avoided while it was only a renderer; it was taken on for
+  the assistant on 2026-10-12 and for every page's gate on 2026-10-14, bounded to that module, and it stores nothing.
 - **The assistant reads what documents say through the platform's own search.** `view_search` asks `GET /search`,
   which is zz-core's `knowledge_search` run as the person: the text of every document and knowledge node of the team
   they act for, and of the platform's shared shelf, ranked, each result a matched excerpt with the address of the page

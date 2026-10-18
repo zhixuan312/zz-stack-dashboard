@@ -244,6 +244,24 @@ const NOTES_TOLD = 300;
 /** Published Markdown as one line of text: its marks and its line breaks out, its words as written. */
 const plain = (md: string): string => md.replace(/^#{1,6}\s+/gm, '').replace(/\*\*|__|`/g, '').replace(/\s+/g, ' ').trim();
 
+/**
+ * Published Markdown with its headings lifted so the shallowest is a `##`, which the renderer draws as an h3 under its
+ * card's h2: a published section is cut from under its release's own `##`, so it starts at `###` and its first heading
+ * skipped a level. Fenced code is left as written, and a text whose headings start at `#` or `##` is left as it is.
+ */
+export function lifted(md: string): string {
+  let fenced = false;
+  const levels = md.split('\n').map((line) => {
+    if (/^ {0,3}(```|~~~)/.test(line)) fenced = !fenced;
+    const heading = fenced ? null : /^ {0,3}(#{1,6})\s/.exec(line);
+    return heading ? heading[1].length : 0;
+  });
+  const found = levels.filter(Boolean);
+  const by = found.length ? Math.min(...found) - 2 : 0;
+  if (by <= 0) return md;
+  return md.split('\n').map((line, i) => (levels[i] ? line.replace(/^( {0,3})#+/, (_, indent: string) => indent + '#'.repeat(levels[i] - by)) : line)).join('\n');
+}
+
 /** One window as a fact: its rate, its counts and what of it was observed. */
 function windowFact(label: string, s: Side, asOf: string): Fact {
   return {

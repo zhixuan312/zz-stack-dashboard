@@ -15,6 +15,7 @@
 import type { SearchAnswer, SearchHit } from '@/lib/api-shapes';
 import { knowledgeNodeHref } from '@/lib/knowledge-filters';
 import { plural } from '@/lib/format';
+import { encodePath } from '@/lib/store-path';
 import { contextText, type Insight, type SharedContext } from '@/lib/shared-context';
 import { CONTEXT_BUDGET, addressOf, arrived, clip, type Arrival } from './context';
 
@@ -24,16 +25,13 @@ const SHORTEST = 140;
 /**
  * The page that shows a result, or nothing when no page of the console opens it. A lesson opens on its node page
  * whichever shelf holds it: the node route answers the active team's lessons and the shared shelf's to everybody, the
- * shared one read-only (reconciliation 45). A document on the shared shelf lives in the platform team's store, whose
+ * shared one marked Shared (reconciliations 45 and 77). A document on the shared shelf lives in the platform team's store, whose
  * initiatives no Work page opens for a team that is not the one acted for, so it has no address.
  */
 export function hitAddress(hit: SearchHit): string | undefined {
   if (hit.kind === 'node') return knowledgeNodeHref(hit.team, hit.path);
   if (hit.shelf === 'platform') return undefined;
-  // DELIBERATE: `src/lib/address.ts`'s `encodePath`, copied rather than imported — that module is a `'use client'` one
-  // and this context is built on the server, where the agent's `search` tool asks for it.
-  const file = hit.path.split('/').filter(Boolean).map(encodeURIComponent).join('/');
-  return `/initiatives/${encodeURIComponent(hit.team)}/${encodeURIComponent(hit.initiative ?? '')}/${file}`;
+  return `/initiatives/${encodeURIComponent(hit.team)}/${encodeURIComponent(hit.initiative ?? '')}/${encodePath(hit.path)}`;
 }
 
 /**
@@ -85,7 +83,7 @@ export function searchContext(answer: SearchAnswer, { initiative, ...arrival }: 
       ] : []),
       ...(answer.note ? [answer.note] : []),
       ...(left ? [`${left} more ${plural(left, 'result')} came back and ${left === 1 ? 'is' : 'are'} left out here so each excerpt stays readable. Ask a narrower question, or for fewer results, to read ${left === 1 ? 'it' : 'them'}.`] : []),
-      ...(hits.some((h) => h.shelf === 'platform' && h.kind === 'document') ? ['A document on the platform\'s shared shelf has no page this console opens, so it has no address here; a lesson there opens read-only.'] : []),
+      ...(hits.some((h) => h.shelf === 'platform' && h.kind === 'document') ? ['A document on the platform\'s shared shelf has no page this console opens, so it has no address here; a lesson there opens on its node page.'] : []),
       'Each result is retrieval coverage, text that matched: it does not settle the question on its own.',
     ];
     return {

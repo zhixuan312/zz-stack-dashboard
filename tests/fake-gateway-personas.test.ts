@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { NO_SESSION } from '../scripts/fake-gateway/people.ts';
 import { PLATFORM_STATUS } from '../scripts/fake-gateway/platform-status.ts';
-import { INITIATIVES, KNOWLEDGE } from '../scripts/fake-gateway/work.ts';
+import { INITIATIVES, KNOWLEDGE, documentDetail, initiativeDetail } from '../scripts/fake-gateway/work.ts';
 import config from '../scripts/verify.config.ts';
 
 /**
@@ -189,11 +189,12 @@ describe('what a member is answered', () => {
     const theirs = INITIATIVES.find((i) => i.team === other)!;
     // The shelf's list is the active team's, so another team's lesson is found in the fixture itself.
     const node = KNOWLEDGE.find((n) => n.team === other)!;
-    const doc = (await read<{ documents: { path: string }[] }>(null, `initiatives/${other}/${theirs.slug}`)).documents[0].path;
+    const doc = initiativeDetail(other, theirs.slug)!.documents[0].path;
     for (const path of [`initiatives/${other}/${theirs.slug}`, `document/${other}/${theirs.slug}/${doc}`,
                         `document/${other}/${theirs.slug}/${doc}?revision=1`, `knowledge/${other}/${node.path}`]) {
-      // A lesson is Work's, the active team's for the superadmin too; an initiative and a document still open to them.
-      expect((await ask(null, path)).status, `superadmin GET ${path}`).toBe(path.startsWith('knowledge/') ? 404 : 200);
+      // Work is the active team's, for the superadmin too (reconciliations 31 and 39): another team's initiative, document
+      // and lesson are each the route's not-found.
+      expect((await ask(null, path)).status, `superadmin GET ${path}`).toBe(404);
       for (const scope of ['', `${path.includes('?') ? '&' : '?'}scope=platform`]) {
         const res = await ask(MEMBER, path + scope);
         expect(res.status, `member GET ${path}${scope}`).toBe(404);
@@ -472,6 +473,8 @@ describe('the personas pnpm verify --as signs in as', () => {
   ];
   /** A member's: every Work destination and Platform's six public ones. */
   const MEMBER_RAIL = RAIL.filter((r) => !['/platform/teams', '/platform/people', '/platform/audit'].includes(r));
+  /** Another team's initiative and document: both people act for atlas, so both are refused them. */
+  const OTHER_TEAMS = ['/initiatives/beacon/2026-09-22-payout-schedule', '/initiatives/beacon/2026-09-22-payout-schedule/review.md'];
 
   it('are the superadmin and the member, each by the cookie the fixture reads', async () => {
     expect(Object.keys(personas).sort()).toEqual(['member', 'superadmin']);
@@ -484,11 +487,11 @@ describe('the personas pnpm verify --as signs in as', () => {
   it('expect the rail each is shown', () => {
     expect([...personas.superadmin.expectedRoutes]).toEqual(RAIL);
     expect([...personas.member.expectedRoutes]).toEqual(MEMBER_RAIL);
-    expect(personas.superadmin.deniedProbe).toBeUndefined();
+    expect(Object.keys(personas.superadmin.deniedProbe ?? {})).toEqual(OTHER_TEAMS);
   });
 
   it('probe each page the member is refused for a string its read holds and no read of the member\'s does', async () => {
-    const probes = Object.entries(personas.member.deniedProbe ?? {});
+    const probes = Object.entries(personas.member.deniedProbe ?? {}).filter(([route]) => !OTHER_TEAMS.includes(route));
     expect(probes.map(([route]) => route).sort()).toEqual(['/platform/audit', '/platform/bugs/0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d01', '/platform/people', '/platform/teams']);
     const theirs = JSON.stringify(await Promise.all((await memberReads()).map((path) => read(MEMBER, path))));
     for (const [route, probe] of probes) {
@@ -503,6 +506,20 @@ describe('the personas pnpm verify --as signs in as', () => {
       expect(JSON.stringify(await read(null, `${collection}?limit=100`))).toContain(probe);
       expect((await ask(MEMBER, `${collection}?limit=100`)).status, route).toBe(403);
       expect(theirs, route).not.toContain(probe);
+    }
+  });
+
+  it('probe another team\'s initiative and document, refused to both, for a name the record itself holds', async () => {
+    for (const persona of [personas.superadmin, personas.member]) {
+      for (const route of OTHER_TEAMS) {
+        const probe = persona.deniedProbe?.[route];
+        const [, , team, slug, ...doc] = route.split('/');
+        const record = doc.length ? documentDetail(team, slug, doc.join('/')) : initiativeDetail(team, slug);
+        expect(probe, route).toBeTruthy();
+        expect(JSON.stringify(record), route).toContain(probe);
+        const api = doc.length ? `document/${team}/${slug}/${doc.join('/')}` : `initiatives/${team}/${slug}`;
+        expect((await ask(persona.cookie.value, api)).status, `${persona.cookie.value}: ${route}`).toBe(404);
+      }
     }
   });
 });

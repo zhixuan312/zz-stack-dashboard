@@ -26,7 +26,7 @@ The active team's last whole week, what waits on it, and what is open, read on t
 | Empty | Nothing open, nothing closed, no run recorded: each list says so in its own words, and a week with no recorded value reads as none, never as zero |
 | Partial | A part the gateway could not read draws its own unavailable state in its card; the rest stands |
 | Read failed | The template's error state, "Home did not load", with Retry, which reads again on the server |
-| Slower than 5 seconds | The bounded unavailable state, "Home is unavailable", with Retry; never an endless skeleton |
+| Slower than 4.5 seconds | The bounded unavailable state, "Home is unavailable", with Retry; never an endless skeleton |
 | Signed out since the gate | Sign-in |
 
 ## Agents
@@ -55,4 +55,4 @@ Protagonist: Words added and approvals in your name.
 
 ## Surfaces
 
-Console, desktop and phone. Reads `GET /home` on the console's server, as the person, once per request and bounded at 5 seconds. It declares no live collection: the week is a whole week's, and the next visit reads it again. The bell beside every page reads Approvals' Waiting (`GET /approvals?tab=waiting`) and follows `initiatives`, the collection an approval changes.
+Console, desktop and phone. Reads `GET /home` on the console's server, as the person, once per request and bounded at 4.5 seconds. It declares no live collection: the week is a whole week's, and the next visit reads it again. The bell beside every page reads Approvals' Waiting (`GET /approvals?tab=waiting`) and follows `initiatives`, the collection an approval changes.

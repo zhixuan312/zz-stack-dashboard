@@ -21,8 +21,9 @@ import type { Figure, PeriodFigure, Window } from '@/lib/platform-shapes';
 import type { RecordRead, WritingCoverage } from '@/lib/work-shapes';
 import { addressOf, budgeted, clip, pendingContext } from './context';
 
-/** How long the console's server waits for Record's read before it says the read is unavailable. */
-export const RECORD_BOUND_MS = 5_000;
+/** How long the console's server waits for Record's read before it says the read is unavailable: half a second under
+ *  five, for a phone to draw what it says, the bound the browser's own reads keep (`src/lib/api.ts`). */
+export const RECORD_BOUND_MS = 4_500;
 
 /** The periods the route takes, in the order the control offers them; all of the record when none is named. */
 export const RECORD_PERIODS = ['quarter', 'year', 'all'] as const;

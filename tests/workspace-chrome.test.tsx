@@ -107,7 +107,6 @@ describe('the rail and the palette draw what the server answered for the person 
     gateway(MEMBER);
     await chrome();
     await screen.findByText('Mei');
-    expect(screen.getByText('Member')).toBeInTheDocument();
     expect(links()).toEqual(WORK);
     expect(headings()).toEqual(['Work', 'Agents', 'Catalog', 'Account']);
     expect(await paletteOffers()).toEqual(WORK);
@@ -128,7 +127,6 @@ describe('the rail and the palette draw what the server answered for the person 
     gateway(SUPERADMIN);
     await chrome();
     await screen.findByText('Owner');
-    expect(screen.getByText('Superadmin')).toBeInTheDocument();
     expect(links()).toEqual(WORK);
     expect(await paletteOffers()).toEqual(WORK);
   });
@@ -155,6 +153,23 @@ describe('the rail and the palette draw what the server answered for the person 
         view.unmount();
       }
     }
+  });
+
+  // Reconciliation 77: the card names the team the person acts for, for everybody, and no role.
+  it.each([['a member', MEMBER, 'Mei', 'beacon'], ['a superadmin', SUPERADMIN, 'Owner', 'atlas']] as const)('draws the person card\'s second line for %s as the team they act for, and no role', async (_who, body, name, team) => {
+    gateway(body);
+    await chrome();
+    const line = await screen.findByText(name);
+    expect(line.nextElementSibling?.textContent).toBe(team);
+    for (const role of ['Member', 'Superadmin', 'Admin']) expect(screen.queryByText(role)).not.toBeInTheDocument();
+  });
+
+  it('leaves the second line empty for a person who acts for no team', async () => {
+    gateway({ ...SUPERADMIN, teams: [], activeTeam: null });
+    await chrome();
+    const line = await screen.findByText('Owner');
+    expect(line.nextElementSibling?.textContent).toBe('');
+    expect(screen.queryByText('Superadmin')).not.toBeInTheDocument();
   });
 
   it('asks the gateway as the caller, and the browser asks nothing', async () => {
@@ -247,7 +262,7 @@ describe('an identity that cannot be resolved names nobody', () => {
       gateway(answer);
       await chrome();
       expect(screen.queryAllByRole('link')).toEqual([]);
-      for (const name of ['Mei', 'Owner', 'Member', 'Superadmin', 'Signing in']) expect(screen.queryByText(name)).not.toBeInTheDocument();
+      for (const name of ['Mei', 'Owner', 'Member', 'Superadmin', 'beacon', 'atlas', 'Signing in']) expect(screen.queryByText(name)).not.toBeInTheDocument();
       act(() => openCommand());
       const dialog = await screen.findByRole('dialog');
       for (const label of EVERYTHING) expect(within(dialog).queryByRole('option', { name: new RegExp(`^${label}`) })).toBeNull();

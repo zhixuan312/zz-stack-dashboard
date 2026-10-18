@@ -1,8 +1,10 @@
 'use client';
 
-import { Suspense, lazy, useState, use, type ReactNode } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState, type ReactNode } from 'react';
 import { DataTable, type Column } from '@/components/patterns/data-table';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Segmented } from '@/components/ui/segmented';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ApproveAction, canApprove, switchToApprove, useRecordShown } from '@/console/approve';
@@ -10,12 +12,11 @@ import { aligned } from '@/console/columns';
 import { DocStatus } from '@/console/doc-status';
 import { Row } from '@/components/base/shell';
 import { AskAbout } from '@/components/patterns/ask-about';
-import { ConsolePage, useArrival } from '@/console/page';
+import { ConsolePage } from '@/console/page';
 import { Panel } from '@/console/panel';
-import { Query, failureOf } from '@/console/query';
+import { failureOf } from '@/console/query';
 import { When } from '@/console/when';
-import { decodePath } from '@/lib/address';
-import { freshnessOf, useConsole } from '@/lib/api';
+import { useConsole, useDataClock } from '@/lib/api';
 import type { DocumentDetail, Me } from '@/lib/api-shapes';
 import { readableDocument } from '@/lib/document-markdown';
 import { ReadingBody } from '@/console/reading';
@@ -24,8 +25,12 @@ import { formatKb } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
 import { pendingContext } from '@/views/context';
 import { documentContext } from '@/views/document-context';
+import type { DocumentRead } from '@/views/document-read';
+import { INITIATIVES_BOUND_MS } from '@/views/initiatives-context';
+import { useServed } from '@/views/use-served';
 
 type Decision = DocumentDetail['decisions'][number];
+type Trouble = Exclude<DocumentRead, { state: 'ok' }>;
 
 /**
  * The version chain, behind a chunk of its own.
@@ -101,39 +106,81 @@ function Colophon({ label, children }: { label: string; children: ReactNode }) {
 }
 
 /**
- * One document, read: the text itself, how it changed and on what evidence, and the claims it makes.
+ * The words a read's trouble is told in, on the page and to the assistant: the gateway's sentence, or the bound the
+ * read missed. COUPLED: the titles are what scripts/primary-data.ts and scripts/states-check.ts read a document answered
+ * as not existing, or failed, by.
+ */
+function troubleOf(trouble: Trouble): { title: string; detail: string } {
+  if (trouble.state === 'missing') return { title: 'This document does not exist', detail: trouble.reason };
+  return { title: 'This document did not load', detail: trouble.state === 'slow' ? `The read did not answer within ${INITIATIVES_BOUND_MS / 1000} seconds.` : trouble.reason };
+}
+
+/**
+ * The page's read: the one the console's server made, so the first paint carries the document and the browser asks for
+ * nothing more, then the browser's own once an approval, a change anywhere to documents, a Retry or a Reload asks for
+ * it. A failed read in the browser is drawn in place of the body it would replace, as it always was: the body on
+ * screen is what Approve vouches for, and a read that failed cannot say it is still current.
+ */
+function useDocument(path: string, served: DocumentRead) {
+  const { q, follow } = useServed<DocumentDetail>(path, true);
+  const failed = failureOf(q);
+  const data = failed ? undefined : q.data ?? (served.state === 'ok' ? served.data : undefined);
+  // With nothing to draw there is always a reason: the browser's answer when it has one, the server's until then.
+  const trouble: Trouble | null = data ? null
+    : q.error?.status === 404 ? { state: 'missing', reason: q.error.message }
+      : failed ? { state: 'failed', reason: failed }
+        : served.state === 'ok' || q.isFetching ? null : served;
+  const updatedAt = !data ? null : q.data ? new Date(q.dataUpdatedAt) : served.state === 'ok' ? new Date(served.at) : null;
+  return { q, data, trouble, follow, updatedAt };
+}
+
+/**
+ * One document, read: the text itself, how it changed and on what evidence, and the claims it makes. Read on the
+ * console's server and handed here as `served`; its later reads are the browser's.
  *
  * `teamPage` is whether the reader may open the team's page under Platform, the console's server's answer from their
  * `/me`: the breadcrumb's team links there for them and is plain text for anybody else, who would be refused it.
  */
-export function DocumentView({ params, teamPage }: { params: Promise<{ team: string; slug: string; path: string[] }>; teamPage: boolean }) {
+export function DocumentView({ team, slug, rel, served, teamPage }: { team: string; slug: string; rel: string; served: DocumentRead; teamPage: boolean }) {
   useLive(['document']);
-  const { team, slug, path } = use(params);
-  const rel = decodePath(path);
-  const q = useConsole<DocumentDetail>(`/document/${team}/${slug}/${rel}`);
+  const { q, data: d, trouble, follow, updatedAt } = useDocument(`/document/${team}/${slug}/${rel}`, served);
   const me = useConsole<Me>('/me');
   // Rendered by default, because a person came to read it; the stored markdown is one press away.
   const [view, setView] = useState<'read' | 'source'>('read');
-  const arrival = useArrival(q);
-  const context = q.data
-    ? documentContext(q.data, arrival)
-    : pendingContext({ view: 'document', title: rel, address: `/initiatives/${team}/${slug}/${rel}`, scope: `one document of initiative ${team}/${slug}` }, failureOf(q));
-  const d = q.data;
+  const now = useDataClock();
+  const context = d
+    ? documentContext(d, { updatedAt, now })
+    : pendingContext({ view: 'document', title: rel, address: `/initiatives/${team}/${slug}/${rel}`, scope: `one document of initiative ${team}/${slug}` }, trouble ? troubleOf(trouble).detail : null);
   // The document's own public version. Not the highest of `versions`: those name the snapshot each version is read
   // as, and several snapshots can share one version.
   const version = d?.current_version ?? null;
   // Approve is on offer, so what this page displays is recorded as shown to the reader — the first snapshot of the
   // visit after the render that put its body on screen, any later one when the reader reloads — and Approve signs
-  // exactly that snapshot under the context it answers. Not while a refetch failed: the panel then shows the failure,
+  // exactly that snapshot under the context it answers. Not while a refetch failed: the page then shows the failure,
   // not the body this would vouch for.
   const offered = !!(d && !q.error && me.data && canApprove(d, me.data));
   const { shown, again, outdated } = useRecordShown(d, offered);
+  // A Reload over the server's read is the browser's first read of the document, so the snapshot it brings is recorded
+  // once that read lands rather than when the reload is asked for.
+  const reloading = useRef(false);
+  useEffect(() => {
+    if (!reloading.current || q.isFetching || (q.data === undefined && !q.error)) return;
+    reloading.current = false;
+    if (q.data) again(q.data.content_revision);
+  }, [q.data, q.error, q.isFetching, again]);
   async function reload() {
     // `/me` as well: a record refused because the session now acts for another team clears only once the page knows.
+    if (q.data === undefined && !q.error) {
+      reloading.current = true;
+      follow();
+      void me.refetch();
+      return;
+    }
     const [next] = await Promise.all([q.refetch(), me.refetch()]);
     // The snapshot the reload brought is the one the reader now asks to approve, the same one again included.
     if (next.data) again(next.data.content_revision);
   }
+  const retry = () => (q.data !== undefined || q.error ? void q.refetch() : follow());
 
   return (
     <ConsolePage
@@ -151,63 +198,85 @@ export function DocumentView({ params, teamPage }: { params: Promise<{ team: str
         // for an hour. Removing the shift is the only answer that does not depend on which of those runs you are in.
         <span className="flex flex-col items-start gap-1.5">
           <span className="font-mono text-sm">{rel}{version ? ` · v${version}` : ''}</span>
-          {d ? <DocStatus status={d.status} outcome={d.outcome} gated={d.gated} requiredForClose={d.requiredForClose} correction={d.correction} /> : <Skeleton className="h-5 w-40 rounded-full" />}
+          {/* The status's placeholder stands only while a read is on its way, as the body's skeleton does: beside a
+              failed or not-found read it would say a status is still coming. */}
+          {d ? <DocStatus status={d.status} outcome={d.outcome} gated={d.gated} requiredForClose={d.requiredForClose} correction={d.correction} />
+            : trouble ? null : <Skeleton className="h-5 w-40 rounded-full" />}
         </span>
       }
       showPeriod={false}
-      updatedAt={freshnessOf(q)}
+      updatedAt={updatedAt}
       context={context}
       actions={d && me.data && (offered || switchToApprove(d, me.data)) ? <ApproveAction doc={d} me={me.data} shown={shown} onStale={outdated} onReload={() => void reload()} /> : undefined}
       width="data"
     >
-      <Query query={q} what="This document" skeleton={<div className="flex flex-col gap-(--stack-gap)"><Skeleton className="h-24 rounded-lg" /><Skeleton className="h-[28rem] rounded-lg" /></div>}>
-        {(doc) => (
-          <>
-            {/* `items-start`: the document is as long as it is, and a card stretched to a taller neighbour's height
-                is a page of empty card under the last line of text. Cards in a row share a height when they are cards in
-                a row; one side here is a column of the document's own facts and the other is the text. */}
-            <Row split="2/3" className="items-start">
-              <Panel
-                title="Document"
-                description={formatKb(doc.bytes / 1024)}
-                actions={<><AskAbout question={doc.gated === true && !doc.approved_by ? 'What does this document commit us to, and what should I check before approving it?' : 'What does this document say, in a few lines?'} /><Segmented size="sm" label="Document view" value={view} onChange={setView} options={[{ value: 'read', label: 'Read' }, { value: 'source', label: 'Source' }]} /></>}
-              >
-                {/* The reader's measure is this cell, not Meridian's 72-character cap. These are long documents on a
-                    wide screen, and a 533px strip in a 1,400px canvas makes one longer than it is: the cap is worth
-                    2,200px of scroll on a 60,000-character document. Tables and code already fill the cell; this lets
-                    the running text join them. */}
-                <div className="[&_li]:max-w-[92ch] [&_ol]:max-w-[92ch] [&_p]:max-w-[92ch] [&_ul]:max-w-[92ch]">
-                  {doc.body?.trim()
-                    ? view === 'read'
-                      ? <ReadingBody>{readableDocument(doc.body, doc.title)}</ReadingBody>
-                      : <pre className="rounded-lg border border-line bg-surface-sunk p-4 font-mono text-xs leading-[1.7] whitespace-pre-wrap text-ink-2 [overflow-wrap:anywhere]">{doc.body}</pre>
-                    : <p className="t-small text-ink-3">This document has no body in the store.</p>}
-                </div>
-              </Panel>
-              <div className="flex min-w-0 flex-col gap-(--stack-gap)">
-                <DocColophon doc={doc} />
-                <Suspense fallback={<Skeleton className="h-40 rounded-lg" />}><VersionChain doc={doc} /></Suspense>
-              </div>
-            </Row>
-            {doc.decisions.length ? (
-              <DataTable
-                caption="Claims"
-                noun="claims"
-                rows={doc.decisions}
-                columns={decisionColumns(doc.decisions[0]?.role ?? '')}
-                rowKey={(x) => x.key}
-                pageSize={20}
-                toolbar={
-                  <div>
-                    <h2 className="t-card">{doc.decisions[0]?.role === 'plan' ? 'Which criteria each task covers' : 'The claims this document makes'}</h2>
-                    <p className="t-caption mt-1">{doc.decisionCounts.rows} rows{doc.decisionCounts.rows && !doc.decisionCounts.withVerdict ? ', none stating a verdict' : ''}</p>
-                  </div>
-                }
-              />
-            ) : null}
-          </>
-        )}
-      </Query>
+      {d ? <DocumentBody doc={d} view={view} onView={setView} />
+        : trouble ? <DocumentTrouble trouble={trouble} busy={q.isFetching} onRetry={retry} />
+          : <div className="flex flex-col gap-(--stack-gap)" aria-busy="true" aria-label="Loading"><Skeleton className="h-24 rounded-lg" /><Skeleton className="h-[28rem] rounded-lg" /></div>}
     </ConsolePage>
+  );
+}
+
+/** The document's body beside its facts and its history, then the claims it makes. */
+function DocumentBody({ doc, view, onView }: { doc: DocumentDetail; view: 'read' | 'source'; onView: (view: 'read' | 'source') => void }) {
+  return (
+    <>
+      {/* `items-start`: the document is as long as it is, and a card stretched to a taller neighbour's height
+          is a page of empty card under the last line of text. Cards in a row share a height when they are cards in
+          a row; one side here is a column of the document's own facts and the other is the text. */}
+      <Row split="2/3" className="items-start">
+        <Panel
+          title="Document"
+          description={formatKb(doc.bytes / 1024)}
+          actions={<><AskAbout question={doc.gated === true && !doc.approved_by ? 'What does this document commit us to, and what should I check before approving it?' : 'What does this document say, in a few lines?'} /><Segmented size="sm" label="Document view" value={view} onChange={onView} options={[{ value: 'read', label: 'Read' }, { value: 'source', label: 'Source' }]} /></>}
+        >
+          {/* The reader's measure is this cell, not Meridian's 72-character cap. These are long documents on a
+              wide screen, and a 533px strip in a 1,400px canvas makes one longer than it is: the cap is worth
+              2,200px of scroll on a 60,000-character document. Tables and code already fill the cell; this lets
+              the running text join them. */}
+          <div className="[&_li]:max-w-[92ch] [&_ol]:max-w-[92ch] [&_p]:max-w-[92ch] [&_ul]:max-w-[92ch]">
+            {doc.body?.trim()
+              ? view === 'read'
+                ? <ReadingBody>{readableDocument(doc.body, doc.title)}</ReadingBody>
+                : <pre className="rounded-lg border border-line bg-surface-sunk p-4 font-mono text-xs leading-[1.7] whitespace-pre-wrap text-ink-2 [overflow-wrap:anywhere]">{doc.body}</pre>
+              : <p className="t-small text-ink-3">This document has no body in the store.</p>}
+          </div>
+        </Panel>
+        <div className="flex min-w-0 flex-col gap-(--stack-gap)">
+          <DocColophon doc={doc} />
+          <Suspense fallback={<Skeleton className="h-40 rounded-lg" />}><VersionChain doc={doc} /></Suspense>
+        </div>
+      </Row>
+      {doc.decisions.length ? (
+        <DataTable
+          caption="Claims"
+          noun="claims"
+          rows={doc.decisions}
+          columns={decisionColumns(doc.decisions[0]?.role ?? '')}
+          rowKey={(x) => x.key}
+          pageSize={20}
+          toolbar={
+            <div>
+              <h2 className="t-card">{doc.decisions[0]?.role === 'plan' ? 'Which criteria each task covers' : 'The claims this document makes'}</h2>
+              <p className="t-caption mt-1">{doc.decisionCounts.rows} rows{doc.decisionCounts.rows && !doc.decisionCounts.withVerdict ? ', none stating a verdict' : ''}</p>
+            </div>
+          }
+        />
+      ) : null}
+    </>
+  );
+}
+
+/** Why the page has no document to draw, alone: no document by that address, or a read that failed or did not answer. */
+function DocumentTrouble({ trouble, busy, onRetry }: { trouble: Trouble; busy: boolean; onRetry: () => void }) {
+  const { title, detail } = troubleOf(trouble);
+  return (
+    <EmptyState
+      kind={trouble.state === 'missing' ? 'filtered' : 'error'}
+      title={title}
+      action={<Button size="sm" variant="secondary" busy={busy} onClick={onRetry}>Retry</Button>}
+    >
+      {detail}
+    </EmptyState>
   );
 }

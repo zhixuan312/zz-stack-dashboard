@@ -49,7 +49,8 @@ export function ScoreCell({ of }: { of: PluginScore | null }) {
           <span className="text-xs font-regular text-ink-3"> / 10</span>
         </span>
       )}
-      <span className="block whitespace-nowrap text-2xs text-ink-3">{protocolSaid(of)} · <Day at={of.scoredAt} /></span>
+      {/* The protocol and the day may take two lines: held to one, they set the Plugins table's narrowest width. */}
+      <span className="block text-2xs text-ink-3">{protocolSaid(of)} · <Day at={of.scoredAt} /></span>
     </span>
   );
 }

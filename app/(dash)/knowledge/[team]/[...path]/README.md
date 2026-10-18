@@ -1,20 +1,22 @@
 # Knowledge node
 
-One knowledge node, read, with where it was learned and what shares its subject: a lesson of the active team's, or one on the platform's shared shelf, which a search finds and anybody signed in opens, read-only.
+One knowledge node, read, with where it was learned and what shares its subject: a lesson of the active team's, or one on the platform's shared shelf, which a search finds and anybody signed in opens, marked Shared.
 
 ## Structure
 
 - Gate first: the page asks for `knowledge` before it renders, so a person who does not hold it is shown nothing of the page and nothing on it is read.
 - A warning banner when the node is superseded, and a banner when it is on the shared shelf.
-- The lesson, rendered; facts beside it: status, shelf (`Your team` or `Shared shelf`), type, team, recorded, learned in, tags, path. Nothing on the page changes a lesson.
+- The lesson, rendered; facts beside it: status, shelf (`Your team` or `Shared`), type, team, recorded, learned in, tags, path. Nothing on the page changes a lesson.
+- Learned in: the initiatives of the team the reader acts for, each linked to its page, and how many initiatives of other teams the lesson was learned in, a count with no name and no link (`cited_elsewhere`). A shared lesson cites other teams' work, which is theirs: the node's answer names only the reader's team's.
 - Nodes that share a tag.
 
 ## States
 
 - Loading: two skeleton cards while the gate asks `/me` and the server reads the node.
 - Superseded: the banner names the node that replaced it.
-- Shared: the banner says it is on the platform's shared shelf and read-only.
-- Not found, failed, or slower than 5 seconds: `This node did not load`, the gateway's sentence and Retry, which reads again on the server.
+- Shared: the banner says it is on the platform's shared shelf, which every team's search reads beside its own lessons, and the shelf reads `Shared`.
+- No text: the lesson panel says "This lesson has no text in the store."
+- Not found, failed, or slower than 4.5 seconds: `This node did not load`, the gateway's sentence and Retry, which reads again on the server.
 
 ## Agents
 
@@ -22,10 +24,10 @@ The assistant reads this page and changes nothing: every change in this console 
 
 ### What the agent reads
 
-The node's team and number, its status, its shelf, type, date and tags; a shared one's scope says it is read-only. What code found: the lesson itself (its first 1,400 characters; the page text carries the rest), the node that superseded it, the initiatives it was learned in with their addresses, and the nodes that share a tag with it (10 at most). The lesson is in the context on purpose: `view_knowledge_node` is how the assistant reads what an earlier initiative settled without the person opening the node.
+The node's team and number, its status, its shelf, type, date and tags; a shared one's scope says it is on the platform's shared shelf. What code found: the lesson itself (its first 1,400 characters; the page text carries the rest), the node that superseded it, the initiatives of the reader's team it was learned in with their addresses and how many of other teams' with no name, and the nodes that share a tag with it (10 at most). The lesson is in the context on purpose: `view_knowledge_node` is how the assistant reads what an earlier initiative settled without the person opening the node.
 
 ```text
-- It was learned in 2026-09-12-onboarding-revamp (/initiatives/atlas/2026-09-12-onboarding-revamp).
+- It was learned in 2026-10-02-query-latency (/initiatives/atlas/2026-10-02-query-latency), and in 1 initiative of another team, which is not named here.
 ```
 
 - **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `explore_knowledge_node`, offered on this page at any depth of its path, counts the shelf and the lessons made of this lesson's kind, every call held to that kind: the prepared query keys no lesson by itself.
@@ -40,4 +42,4 @@ Protagonist: The lesson.
 
 ## Surfaces
 
-Console, desktop and phone. Reads `GET /knowledge/:team/:path` on the console's server, as the person, once per request and bounded at 5 seconds. Live: follows `knowledge`, so a change made anywhere — another tab, another person — asks the server for this page again.
+Console, desktop and phone. Reads `GET /knowledge/:team/:path` on the console's server, as the person, once per request and bounded at 4.5 seconds. Live: follows `knowledge`, so a change made anywhere — another tab, another person — asks the server for this page again.

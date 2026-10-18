@@ -64,7 +64,7 @@ const sides = (r: ReleaseRow, asOf: string, of: (s: Side) => string) => (
 /** A side as a phone card says it in one line: `4.2 then 3.3, partial`. */
 const phoneSides = (r: ReleaseRow, of: (s: Side) => string) => `${of(r.before)} then ${of(r.after)}${observedOf(r.after) === 'partial' ? ', partial' : ''}`;
 
-/** The table's columns, in the gateway's order: newest first, paged where it is read. */
+/** The table's columns, in the gateway's order: newest first, paged where it is read. The summary is cut to the width there is, whole in its title. */
 const columnsAt = (asOf: string): Column<ReleaseRow>[] => aligned([
   {
     key: 'version', header: 'Version', mobile: 'title', title: (r) => [r.version, r.consoleVersion ? `console ${r.consoleVersion}` : '', overlapText(r) ?? ''].filter(Boolean).join(', '),
@@ -81,7 +81,7 @@ const columnsAt = (asOf: string): Column<ReleaseRow>[] => aligned([
     mobileCell: (r) => r.version,
   },
   { key: 'released', header: 'Released', numeric: true, mobile: 'fact', cell: (r) => <time dateTime={r.releasedAt} title={`Tagged ${formatDateTime(r.releasedAt)}`}>{formatDate(r.releasedAt)}</time>, mobileCell: (r) => `Tagged ${formatDate(r.releasedAt)}` },
-  { key: 'summary', header: 'Summary', grow: true, align: 'left', hideBelow: 'md', cell: (r) => <span className="block truncate" title={r.summary}>{r.summary}</span>, title: (r) => r.summary },
+  { key: 'summary', header: 'Summary', grow: true, truncate: true, align: 'left', hideBelow: 'md', cell: (r) => <span className="block truncate" title={r.summary}>{r.summary}</span>, title: (r) => r.summary },
   { key: 'action', header: 'Client action', align: 'left', hideBelow: 'lg', width: 'w-40', cell: (r) => <span className="block whitespace-normal [overflow-wrap:anywhere]">{clientActionOf(r)}</span> },
   { key: 'malformed', header: 'Malformed per 1,000', mobile: 'fact', cell: (r) => sides(r, asOf, rateIn), mobileCell: (r) => `Malformed per 1,000: ${phoneSides(r, rateIn)}` },
   { key: 'failures', header: 'Tool failures', hideBelow: 'xl', cell: (r) => sides(r, asOf, failuresIn) },

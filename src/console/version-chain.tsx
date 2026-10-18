@@ -10,7 +10,7 @@ import { When } from '@/console/when';
 import { cn } from '@/lib/cn';
 import { plural } from '@/lib/format';
 import { collapse, diffLines, diffStat } from '@/lib/diff';
-import { encodePath } from '@/lib/address';
+import { encodePath } from '@/lib/store-path';
 import { useConsole } from '@/lib/api';
 import type { DocumentDetail, DocumentRevision } from '@/lib/api-shapes';
 

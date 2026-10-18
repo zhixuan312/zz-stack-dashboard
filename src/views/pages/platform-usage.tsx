@@ -57,7 +57,7 @@ export function PlatformUsageView({ read }: { read: UsageRead }) {
       </Row>
       <Tools part={u.tools} />
       <Row split="1/2">
-        <Rhythm part={u.rhythm} />
+        <Rhythm part={u.rhythm} coverageFrom={u.meta.coverageFrom} />
         <MostUsed part={u.mostUsed} />
       </Row>
       <Row split="1/2">
@@ -281,13 +281,26 @@ function Tools({ part }: { part: Usage['tools'] }) {
   );
 }
 
-function Rhythm({ part }: { part: Usage['rhythm'] }) {
+const WEEK_MS = 7 * 86_400_000;
+
+/**
+ * The calls by weekday and hour from where the record begins. A Heatmap draws no gap, so the weeks are named from the
+ * later of their own start and the record's, and the grid is drawn only once a whole week of it was observed: before
+ * that, a weekday nobody saw would be a row of 0 cells.
+ */
+function Rhythm({ part, coverageFrom }: { part: Usage['rhythm']; coverageFrom: string | null }) {
   const title = 'Weekday by hour';
   if (part.state !== 'ok') return <Unavailable title={title} reason={part.reason} />;
   const { timezone, window, values } = part.data;
+  const fromMs = Math.max(...[window.from, window.observedFrom, coverageFrom].flatMap((t) => (t ? [Date.parse(t)] : [])));
+  const begins = fromMs > Date.parse(window.from);
+  const seen = coverageFrom !== null && Date.parse(window.to) - fromMs >= WEEK_MS;
+  const [start, end] = [formatDay(new Date(fromMs)), formatDay(new Date(Date.parse(window.to) - 1))];
   return (
-    <Panel title={title} description={`Real-work calls by weekday and hour in ${timezone}, the weeks of ${formatDay(window.from)} to ${formatDay(new Date(Date.parse(window.to) - 1))}`}>
-      <Heatmap label="Real-work calls by weekday and hour" values={values} timezone={timezone} unit="calls" scale="quantile" />
+    <Panel title={title} description={`Real-work calls by weekday and hour in ${timezone}, ${begins ? `from ${start}, when the record begins, to ${end}` : `the weeks of ${start} to ${end}`}`}>
+      {seen ? (
+        <Heatmap label="Real-work calls by weekday and hour" values={values} timezone={timezone} unit="calls" scale="quantile" />
+      ) : <EmptyState layout="inline" title="Not a whole week observed yet" className="py-6">Every hour of the week is drawn once the record holds a whole week of calls.</EmptyState>}
     </Panel>
   );
 }

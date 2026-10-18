@@ -17,7 +17,7 @@ import { StateBadge } from '@/console/initiative';
 import { Panel } from '@/console/panel';
 import { failureOf } from '@/console/query';
 import { When } from '@/console/when';
-import { encodePath } from '@/lib/address';
+import { encodePath } from '@/lib/store-path';
 import { useDataClock } from '@/lib/api';
 import type { InitiativeDetail } from '@/lib/api-shapes';
 import { formatDateTime } from '@/lib/format-date';

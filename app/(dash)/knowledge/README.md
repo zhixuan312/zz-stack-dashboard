@@ -22,7 +22,7 @@ What your active team has learned, kept as lessons, each out of a real initiativ
 | Results | The ranked results, with the count of the ranked total shown |
 | Nothing found | `Nothing found for "<question>"`, with the search's own sentence about the empty answer |
 | Search failed | `The search did not run`, the gateway's sentence and Retry |
-| Summary failed, or slower than 5 seconds | The tiles read `—`, `The shelf's figures did not load` says why with Retry, which reads again on the server, and each card from the summary says it was not read; the search and the shelf still work |
+| Summary failed, or slower than 4.5 seconds | The tiles read `—`, `The shelf's figures did not load` says why with Retry, which reads again on the server, and each card from the summary says it was not read; the search and the shelf still work |
 | A part of the summary unavailable | That card alone says it did not load, with the gateway's reason |
 | Shelf empty / of no lesson of a kind | `Nothing on the shelf yet`, or Clear filters |
 
@@ -51,4 +51,4 @@ Protagonist: Search what your team has learned.
 
 ## Surfaces
 
-Console, desktop and phone. Reads `GET /knowledge/summary` on the console's server, as the person, once per request and bounded at 5 seconds; then `GET /search?q&limit` and `GET /knowledge?kind&limit&offset` from the browser. Live: follows `knowledge`, so a change made anywhere — another tab, another person — reads the shelf again in the browser and asks the server for the summary again.
+Console, desktop and phone. Reads `GET /knowledge/summary` on the console's server, as the person, once per request and bounded at 4.5 seconds; then `GET /search?q&limit` and `GET /knowledge?kind&limit&offset` from the browser. Live: follows `knowledge`, so a change made anywhere — another tab, another person — reads the shelf again in the browser and asks the server for the summary again.

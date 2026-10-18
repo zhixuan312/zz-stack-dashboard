@@ -294,7 +294,7 @@ describe('every state draws', () => {
   it('slow: the bounded error, saying how long the platform was given', () => {
     browser(null);
     mount({ state: 'slow', path: PATH });
-    expect(screen.getByText(`The platform did not answer within ${RECORD_BOUND_MS / 1000} seconds.`)).toBeInTheDocument();
+    expect(screen.getByText('The platform did not answer within 4.5 seconds.')).toBeInTheDocument();
     expect(screen.queryByRole('status', { name: 'Loading record' })).toBeNull();
   });
 

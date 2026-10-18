@@ -17,8 +17,9 @@ import { formatCalendarDate, formatDateTime, formatDay } from '@/lib/format-date
 import type { Fact, Insight, SharedContext } from '@/lib/shared-context';
 import { budgeted, pendingContext } from './context';
 
-/** How long the page waits for the status read before it says the read is unavailable. */
-export const STATUS_BOUND_MS = 5_000;
+/** How long the page waits for the status read before it says the read is unavailable: half a second under five, for a
+ *  phone to draw what it says, the bound the browser's own reads keep (`src/lib/api.ts`). */
+export const STATUS_BOUND_MS = 4_500;
 
 /** What the page's one read came back as: the whole response, a read that failed, or one that did not answer within `STATUS_BOUND_MS`. */
 export type StatusRead = { state: 'ok'; status: PlatformStatus } | { state: 'failed' } | { state: 'slow' };

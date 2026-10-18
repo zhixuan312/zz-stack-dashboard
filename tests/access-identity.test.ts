@@ -135,7 +135,7 @@ describe('who is asking, within one request', () => {
         '/', '/record', '/initiatives', '/approvals', '/knowledge', '/activity', '/runs', '/plugins', '/access',
         '/platform', '/platform/releases', '/platform/bugs', '/platform/evaluation', '/platform/usage', '/platform/knowledge',
       ],
-      again: { name: 'Mei', role: 'Member' },
+      again: { name: 'Mei', role: 'beacon' },
       work: true,
       fleet: false,
     });
@@ -164,14 +164,14 @@ describe('who is asking, within one request', () => {
 
     who = MEMBER;
     const second = await request(async () => ({ teams: await gate('teams'), user: (await chromeAccess()).user, fleet: await may(FLEET) }));
-    expect(second).toEqual({ teams: { refused: 'teams' }, user: { name: 'Mei', role: 'Member' }, fleet: false });
+    expect(second).toEqual({ teams: { refused: 'teams' }, user: { name: 'Mei', role: 'beacon' }, fleet: false });
 
     who = 401;
     expect(await request(() => redirectOf(() => gate('teams')))).toBe('/login');
     await expect(request(() => chromeAccess())).rejects.toBeInstanceOf(Unauthenticated);
 
     resume();
-    expect(await first).toEqual({ before: null, after: null, user: { name: 'Owner', role: 'Superadmin' }, fleet: true });
+    expect(await first).toEqual({ before: null, after: null, user: { name: 'Owner', role: 'atlas' }, fleet: true });
     // One read for each of the four requests, and none for a second question inside one.
     expect(asked).toHaveLength(4);
   });

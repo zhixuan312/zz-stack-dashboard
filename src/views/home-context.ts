@@ -16,8 +16,9 @@ import type { Home, InitiativeRow, WritingCoverage } from '@/lib/work-shapes';
 import { budgeted, clip, pendingContext } from './context';
 import { nextOf } from './initiatives-context';
 
-/** How long the page waits for Home's read before it says the read is unavailable. */
-export const HOME_BOUND_MS = 5_000;
+/** How long the page waits for Home's read before it says the read is unavailable: half a second under five, for a
+ *  phone to draw what it says, the bound the browser's own reads keep (`src/lib/api.ts`). */
+export const HOME_BOUND_MS = 4_500;
 
 /** What the page's one read came back as: Home with the team it is for, a read that failed, or one slower than its bound. */
 export type HomeRead =

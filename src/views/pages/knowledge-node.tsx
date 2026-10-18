@@ -21,6 +21,7 @@ import { ConsolePage } from '@/console/page';
 import { Panel } from '@/console/panel';
 import { useDataClock } from '@/lib/api';
 import type { KnowledgeBody, KnowledgeNode } from '@/lib/api-shapes';
+import { plural } from '@/lib/format';
 import { formatDate } from '@/lib/format-date';
 import { knowledgeNodeHref } from '@/lib/knowledge-filters';
 import { useLive } from '@/lib/live';
@@ -36,8 +37,10 @@ const Prose = dynamic(() => import('@/components/patterns/prose').then((m) => m.
 /**
  * One knowledge node, read: reached from a row on the shelf, a search result or an Ask citation. The console's server
  * reads the node and hands it here: its body carries everything but its number and its neighbours. A lesson on the
- * platform's shared shelf opens the same way, marked shared and read-only, because a search finds it; nothing on this
- * page changes a lesson either way. Dates are absolute, because they came from the server.
+ * platform's shared shelf opens the same way, marked Shared, because a search finds it; nothing on this page changes a
+ * lesson either way. Where it was learned is the initiatives of the team the reader acts for, each linked, and a count
+ * of every other team's, which the answer counts and never names (reconciliation 81). Dates are absolute, because
+ * they came from the server.
  */
 export function KnowledgeNodeView({ read, team, rel }: { read: ServerRead<KnowledgeBody>; team: string; rel: string }) {
   const address = `/knowledge/${team}/${rel}`;
@@ -72,30 +75,33 @@ export function KnowledgeNodeView({ read, team, rel }: { read: ServerRead<Knowle
       {!self ? <NodeTrouble reason={read.state === 'ok' ? '' : troubleOf(read)} /> : (
         <>
           {self.superseded_by ? <Banner tone="warning" title={`Superseded by node ${self.superseded_by}`}>Kept readable; it is no longer the current lesson.</Banner> : null}
-          {shared ? <Banner tone="accent" title="On the platform's shared shelf">Every team&rsquo;s search reads it beside the team&rsquo;s own lessons. It is read-only here, as every lesson is.</Banner> : null}
+          {shared ? <Banner tone="accent" title="On the platform's shared shelf">Every team&rsquo;s search reads it beside the team&rsquo;s own lessons.</Banner> : null}
           <Row split="2/3">
             <Panel title="The lesson" actions={<AskAbout question="What does this lesson mean for work we are doing now?" />}>
-              <Prose>{self.body.trim()}</Prose>
+              {/* A lesson recorded with no text says so: an empty panel reads as a body still on its way. */}
+              {self.body.trim() ? <Prose>{self.body.trim()}</Prose> : <p className="t-small text-ink-3">This lesson has no text in the store.</p>}
             </Panel>
             <Panel title="About this node">
               <KeyValue
                 items={[
                   { label: 'Status', value: <Badge tone={self.status === 'adopted' ? 'positive' : 'neutral'} dot>{self.status}</Badge> },
-                  { label: 'Shelf', value: shared ? <Badge tone="accent">Shared shelf</Badge> : <Badge tone="neutral">Your team</Badge> },
+                  { label: 'Shelf', value: shared ? <Badge tone="accent">Shared</Badge> : <Badge tone="neutral">Your team</Badge> },
                   { label: 'Type', value: self.type },
                   // The team as words: no page this person may open is that team's own.
                   { label: 'Team', value: self.team },
                   { label: 'Recorded', value: formatDate(self.updated) },
                   // Where it came from, so a reader can open the work that produced the lesson. The team comes from
-                  // the gateway's entry, not the node's: a node may cite an initiative in another team.
-                  ...(self.evidence_in?.length ? [{
+                  // the gateway's entry, not the node's: a shared lesson's are the reader's own team's. Other teams'
+                  // initiatives are a count, with no name and no link.
+                  ...(self.evidence_in?.length || self.cited_elsewhere ? [{
                     label: 'Learned in',
                     wrap: true,
                     value: (
                       <span className="flex flex-col gap-1">
-                        {self.evidence_in.map((e) => (e.team
+                        {(self.evidence_in ?? []).map((e) => (e.team
                           ? <Link key={e.name} href={`/initiatives/${e.team}/${e.name}`} className="link hit [overflow-wrap:anywhere]">{e.name}</Link>
                           : <span key={e.name} className="[overflow-wrap:anywhere]" title="No initiative by this name on the platform">{e.name}</span>))}
+                        {self.cited_elsewhere ? <span className="text-ink-2">{elsewhere(self.cited_elsewhere)}</span> : null}
                       </span>
                     ),
                   }] : []),
@@ -123,6 +129,9 @@ export function KnowledgeNodeView({ read, team, rel }: { read: ServerRead<Knowle
     </ConsolePage>
   );
 }
+
+/** How many initiatives of other teams a lesson was learned in, said as a count alone. */
+const elsewhere = (n: number) => `${n} ${plural(n, 'initiative of another team', 'initiatives of other teams')}`;
 
 /** The node's read failed or did not answer: the reason, and Retry, which asks the server again. */
 function NodeTrouble({ reason }: { reason: string }) {

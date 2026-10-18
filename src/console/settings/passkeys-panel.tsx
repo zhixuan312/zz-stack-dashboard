@@ -20,11 +20,11 @@ export function PasskeysPanel() {
       as="div"
       flush
       title="Passkeys"
-      description="What signs you in to this console. A superadmin issues an enrolment link to add another."
+      description="What signs you in to this console. Another is added from an enrolment link."
     >
       {access.authenticators.length === 0 ? (
         <div className="px-(--card-pad) py-8">
-          <EmptyState title="No passkey recorded">This session signed in some other way. Ask a superadmin for an enrolment link to register one.</EmptyState>
+          <EmptyState title="No passkey recorded">This session signed in some other way. An enrolment link registers one.</EmptyState>
         </div>
       ) : (
         <Table caption="Your passkeys, newest first">

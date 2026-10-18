@@ -92,8 +92,9 @@ function AskWeek({ home }: { home: Home }) {
 }
 
 /**
- * A half's figure. A week with no value has no number: `NaN` is what the card is handed for it, and the half's own format
- * says so in the figure's place, so a missing week is never drawn as zero (the card takes a number and nothing else).
+ * A half's figure. A week with no value has no number: the card is handed none, and sets in the figure's place, at the
+ * figure's height, why it has none, as the context says it: nothing recorded, too few, or unavailable. A missing week is
+ * never drawn as zero.
  *
  * DELIBERATE: no `points`. A figure handed them reads the week the cursor points at, and with no change beside it the
  * card adds the pill's row only while a week is pointed at: every card below it moved by that row (96px on a phone, two
@@ -103,13 +104,14 @@ function AskWeek({ home }: { home: Home }) {
 function half(home: Home, key: keyof typeof HALVES, weeks: PeriodFigure[] | null, dates: string[]): FeaturedFigure {
   const words = HALVES[key];
   const last = lastWeekOf(home);
-  if (!weeks) return { kicker: words.kicker, value: Number.NaN, format: () => absent('unavailable', words.what), caption: words.unread };
+  if (!weeks) return { kicker: words.kicker, value: null, missing: absent('unavailable', words.what), format: formatCount, caption: words.unread };
   const p = weekIn(weeks, last);
   const finding = key === 'words' ? (home.words.state === 'ok' ? home.words.data.finding : null) : (home.approvals.state === 'ok' ? home.approvals.data.finding : null);
   return {
     kicker: words.kicker,
-    value: p?.figure.value ?? Number.NaN,
-    format: (n) => (Number.isNaN(n) ? words.none : formatCount(n)),
+    value: p?.figure.value ?? null,
+    missing: !p || p.figure.why === 'no_data' ? words.none : absent(p.figure.why, words.what),
+    format: formatCount,
     caption: key === 'words' && home.words.state === 'ok' ? coverageLine(home.words.data.coverage) : APPROVALS_LINE,
     finding: finding ? { text: finding.text } : undefined,
     children: (

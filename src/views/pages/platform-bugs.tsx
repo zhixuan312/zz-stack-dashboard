@@ -60,11 +60,14 @@ function Title({ r }: { r: PublicBugRow }) {
   );
 }
 
+/** What a row's report is and where it was filed, as its title says it: the surface gives way under 896px. */
+const reportSaid = (r: PublicBugRow) => `${isAdminRow(r) ? r.internalTitle : r.title}, on ${r.surface ?? 'no surface named'}`;
+
 /** The queue's columns, in the gateway's order: newest filed first, filtered and paged where it is read. */
 const COLUMNS: Column<PublicBugRow>[] = aligned([
-  { key: 'report', header: 'Report', grow: true, mobile: 'title', title: (r) => (isAdminRow(r) ? r.internalTitle : r.title), cell: (r) => <Title r={r} />, mobileCell: (r) => (isAdminRow(r) ? r.internalTitle : r.title) },
+  { key: 'report', header: 'Report', grow: true, mobile: 'title', title: reportSaid, cell: (r) => <Title r={r} />, mobileCell: (r) => (isAdminRow(r) ? r.internalTitle : r.title) },
   { key: 'impact', header: 'Impact', align: 'left', mobile: 'fact', cell: (r) => <Badge tone={impactTone(r.impact)}>{impactOf(r.impact)}</Badge>, mobileCell: (r) => impactOf(r.impact) },
-  { key: 'surface', header: 'Surface', align: 'left', hideBelow: 'md', cell: (r) => (r.surface ? <span className="block truncate font-mono text-xs" title={r.surface}>{r.surface}</span> : <span className="text-ink-3">None named</span>) },
+  { key: 'surface', header: 'Surface', align: 'left', hideBelow: 'lg', cell: (r) => (r.surface ? <span className="block truncate font-mono text-xs" title={r.surface}>{r.surface}</span> : <span className="text-ink-3">None named</span>) },
   { key: 'filed', header: 'Filed', numeric: true, mobile: 'fact', cell: (r) => <time dateTime={r.filedAt} title={formatDateTime(r.filedAt)}>{formatDate(r.filedAt)}</time>, mobileCell: (r) => `Filed ${formatDate(r.filedAt)}` },
   { key: 'version', header: 'Version', align: 'left', hideBelow: 'lg', cell: (r) => (r.platformVersion ? <span className="font-mono text-xs">{r.platformVersion}</span> : <span className="text-ink-3">Not recorded</span>) },
   {

@@ -338,12 +338,12 @@ describe('what the assistant is told', () => {
     expect(t.length).toBeLessThanOrEqual(CONTEXT_BUDGET);
   });
 
-  it('names no other team to a member, asks no question, and says why', () => {
+  it('names no other team to a member, asks no question, and says neither is in the read', () => {
     const t = text(MEMBER_READ);
     expect(NAMED.exec(t)?.[0]).toBeUndefined();
     for (const q of QUESTIONS) expect(t).not.toContain(q.question);
     expect(t).toContain('Your team\'s shelf 11/1/2, 1/28/10.7%, too few; The shared shelf 128/14/120');
-    expect(t).toContain('the questions searches found nothing for are the superadmin\'s alone');
+    expect(t).toContain('no question a search that found nothing asked is in this read');
     expect(t).toContain(`${day(1)} 96 made · 96 imported, by day · 9 superseded since`);
     expect(t).toContain('Standing lessons by kind: decision 42');
     expect(t.length).toBeLessThanOrEqual(CONTEXT_BUDGET);

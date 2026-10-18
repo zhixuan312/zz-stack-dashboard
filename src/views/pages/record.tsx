@@ -27,7 +27,7 @@ import { aligned } from '@/console/columns';
 import { failureOf } from '@/console/query';
 import { Panel } from '@/console/panel';
 import { recordText } from '@/console/record-text';
-import { dayOf, formatDate, formatDay } from '@/lib/format-date';
+import { dayOf, formatCalendarDate, formatDate, formatDay } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import type { Window } from '@/lib/platform-shapes';
 import type { RecordRead } from '@/lib/work-shapes';
@@ -163,8 +163,9 @@ function Lead({ r, windows }: Slice) {
   return (
     <FeaturedMetric
       kicker={lead.kicker}
-      value={lead.hours}
-      format={(n) => (Number.isNaN(n) ? lead.text : formatHours(n))}
+      value={Number.isNaN(lead.hours) ? null : lead.hours}
+      missing={lead.text}
+      format={formatHours}
       caption={lead.pace ? (
         <>
           <span className="block">{`${lead.pace[0].toUpperCase()}${lead.pace.slice(1)}, over ${lead.basis}: ${LEAD.note}.`}</span>
@@ -345,16 +346,31 @@ function Knowledge({ r, windows }: Slice) {
   );
 }
 
-/** The period's days, a year at a time: the latest year first, and every year the period reaches offered beside it. */
+/**
+ * The record's first day, in its timezone, when the period begins before it: `null` when the period lies inside the
+ * record. A Heatmap draws no gap, so a day before it would be a 0 cell for a day nothing observed.
+ */
+const recordBegins = (r: RecordRead): string | null => {
+  if (!r.meta.coverageFrom || Date.parse(r.meta.coverageFrom) <= Date.parse(r.meta.period.from)) return null;
+  return dayOf(r.meta.coverageFrom, r.meta.timezone);
+};
+/** A week of hours is drawn once every hour of it was observed: before that a 0 cell is an hour nobody saw. */
+const WEEK_MS = 7 * 86_400_000;
+const sawAWeek = (r: RecordRead) =>
+  r.meta.coverageFrom !== null && Date.parse(r.meta.asOf) - Math.max(Date.parse(r.meta.period.from), Date.parse(r.meta.coverageFrom)) >= WEEK_MS;
+
+/** The period's days from the record's first, a year at a time: the latest year first, and every year the period reaches offered beside it. */
 function Days({ r, days }: { r: RecordRead; days: { day: string; runs: number }[] }) {
-  const years = [...new Set(days.map((d) => d.day.slice(0, 4)))];
+  const begins = recordBegins(r);
+  const observed = r.meta.coverageFrom === null ? [] : days.filter((d) => !begins || d.day >= begins);
+  const years = [...new Set(observed.map((d) => d.day.slice(0, 4)))];
   const [year, setYear] = useState<string | null>(null);
   const shown = year && years.includes(year) ? year : years.at(-1);
-  const cells = days.filter((d) => d.day.startsWith(shown ?? '')).map((d) => ({ date: d.day, value: d.runs }));
+  const cells = observed.filter((d) => d.day.startsWith(shown ?? '')).map((d) => ({ date: d.day, value: d.runs }));
   return (
     <Panel
       title="Every day"
-      description={`Runs started each day, in ${r.meta.timezone}`}
+      description={begins ? `Runs started each day from ${formatCalendarDate(begins)}, when the record begins, in ${r.meta.timezone}` : `Runs started each day, in ${r.meta.timezone}`}
       actions={years.length > 1 ? <Segmented size="sm" label="Year" value={shown!} onChange={setYear} options={years.map((y) => ({ value: y, label: y }))} /> : null}
     >
       {cells.length ? (
@@ -366,12 +382,15 @@ function Days({ r, days }: { r: RecordRead; days: { day: string; runs: number }[
 
 function Agents({ r }: { r: RecordRead }) {
   const a = r.agents.state === 'ok' ? r.agents.data : null;
+  const begins = recordBegins(r);
   return (
     <SliceOf k="agents" r={r} tiles={tilesOf(r).agents}>
       {a ? (
         <>
-          <Panel title="Weekday by hour" description={`Runs started in the period, in ${r.meta.timezone}`}>
-            <Heatmap label="Runs started by weekday and hour" values={a.weekdayHour} timezone={r.meta.timezone} unit="runs" />
+          <Panel title="Weekday by hour" description={begins ? `Runs started from ${formatCalendarDate(begins)}, when the record begins, in ${r.meta.timezone}` : `Runs started in the period, in ${r.meta.timezone}`}>
+            {sawAWeek(r) ? (
+              <Heatmap label="Runs started by weekday and hour" values={a.weekdayHour} timezone={r.meta.timezone} unit="runs" />
+            ) : <EmptyState layout="inline" title="Not a whole week observed yet" className="py-6">Every hour of the week is drawn once the record holds seven days.</EmptyState>}
           </Panel>
           <Row split="2/3">
             <Days r={r} days={a.days} />

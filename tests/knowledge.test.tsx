@@ -16,7 +16,7 @@ vi.mock('next/navigation', () => ({
 /**
  * What the Knowledge page draws, and in which order (Task I-108, spec version 8's Knowledge row): it leads with the
  * platform's ranked search, which runs when the person submits a question and never as they type; the results come in
- * the gateway's order with their shelf, and a lesson on the shared shelf opens its node page, read-only. Then the four
+ * the gateway's order with their shelf, and a lesson on the shared shelf opens its node page, marked shared. Then the four
  * tiles, the team's own questions that found nothing in the gateway's order, searches with results by week with a week
  * of no search drawn as no data, and the newest lessons with the shelf beside them. No line calls a result an answer.
  *
@@ -229,7 +229,7 @@ describe('the rest of the Knowledge page', () => {
 
   it('says a read slower than its bound did not answer in time', () => {
     mount(<KnowledgeView read={{ state: 'slow' }} />);
-    expect(text()).toContain('It did not answer within 5 seconds.');
+    expect(text()).toContain('It did not answer within 4.5 seconds.');
   });
 });
 
@@ -258,11 +258,14 @@ describe('a lesson on the shared shelf', () => {
     related: [], multi_team: false, shelf: 'shared',
   };
 
-  it('opens read-only, marked shared, with nothing on the page that changes it', async () => {
+  it('opens marked shared, with nothing that says read-only and nothing on the page that changes it', async () => {
     await act(async () => { mount(<KnowledgeNodeView read={{ state: 'ok', data: body, at: '2026-10-15T00:00:00Z' }} team="zz-platform" rel={body.path} />); });
     expect(text()).toContain('On the platform\'s shared shelf');
-    expect(text()).toContain('read-only');
-    expect(screen.getAllByText('Shared shelf').length).toBeGreaterThan(0);
+    expect(text()).not.toMatch(/read[- ]only/i);
+    expect(screen.getAllByText('Shared').length).toBeGreaterThan(0);
+    // Learned in two other teams' initiatives: counted, with no name and no link (reconciliation 81).
+    expect(text()).toContain('2 initiatives of other teams');
+    expect(document.querySelectorAll('a[href^="/initiatives/"]')).toHaveLength(0);
     // No assistant here, so no Ask; and no control of the page's own: a lesson is read, never edited, on this page. The
     // one button is the shell's, which opens the navigation.
     expect(screen.queryAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual(['Open navigation']);

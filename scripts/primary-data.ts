@@ -11,7 +11,7 @@
  *
  * Time to primary data is navigation start to the first animation frame in which the route's own content is on screen.
  * A rail route's content is its navigation check's `readySelector` (holding `readyText` when it names one); a detail
- * route's is the selector declared beside it in `DETAIL` below: the record's own table, figures or document body, never
+ * route's is the selector declared for it in `DETAIL` (scripts/verify.config.ts): the record's own table, figures or document body, never
  * its heading. An element counts when it has a box, holds text and is neither a skeleton nor inside one (`.shimmer`,
  * `[aria-busy="true"]`), the rule scripts/navigate.ts reads data by. Both numbers are taken inside the page, from one
  * script installed before any of the page's own: the largest paint from its PerformanceObserver, the data from a frame
@@ -21,7 +21,8 @@
  * `refusal: 'explain'`, the missing page's `[data-missing-page]` under `absent`), or a record the gateway answers as
  * not existing, which is how it refuses another team's record without confirming it is there (`Query` in
  * src/console/query.tsx). A rail route's refusal must match the persona's hand-written `expectedRoutes`, and a detail
- * route the persona's `deniedProbe` names, a bug's own report for the member, must be refused.
+ * route the persona's `deniedProbe` names must be refused: a bug's own report for the member, and another team's
+ * initiative and document for both people.
  *
  * The budget is 1.0 s, the stakeholder's of 17 October 2026 (spec AC-8.7): a route whose own data is readable later
  * than that is a failing row, whether it is the first, cold row or a later one, and it is never measured again to
@@ -44,55 +45,13 @@
  * expected routes, when a detail route the persona is denied opens, or when a detail route has no selector declared.
  */
 import { launch, type Page } from './lib/chrome.ts';
-import config from './verify.config.ts';
+import config, { DETAIL } from './verify.config.ts';
 
 const args = process.argv.slice(2);
 const opt = (k: string, d: string) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
 const base = opt('--base', process.env.BASE ?? 'http://localhost:3100').replace(/\/$/, '');
 const only = opt('--routes', '') ? new Set(opt('--routes', '').split(',')) : null;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-/** A table's rows: the record's own list. */
-const TABLE = 'main table tbody tr';
-/** A document's text: the renderer's blocks, or the same words as plain text while the renderer's chunk is on its way (src/console/reading.tsx). */
-const BODY = 'main div.text-ink-2.break-words > *, main [data-split="2/3"] > .card:first-child pre';
-/** A skill's cost record: its figures. */
-const FIGURES = 'main .t-figure';
-/** A skill the active team never ran: the page's sentence saying so is its record, since the figures are the team's. */
-const NEVER_RUN = 'main [data-never-run]';
-
-/**
- * What counts as each detail route's primary data, read off the built app served against the fake gateway on
- * 2026-10-14. COUPLED: `detailRoutes` in scripts/verify.config.ts; an address there with no entry here fails the run.
- */
-const DETAIL: Record<string, string> = {
-  '/platform/releases/0.97.0': BODY,
-  '/platform/releases/0.31.1': BODY,
-  '/platform/bugs/0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d01': 'main [data-report-detail]',
-  '/platform/bugs/0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d02': 'main [data-report-detail]',
-  '/platform/teams/atlas': TABLE,
-  // No initiative yet, which the page says; its members are the table.
-  '/platform/teams/dune': TABLE,
-  '/initiatives/atlas/2026-09-28-search-relevance': TABLE,
-  '/initiatives/cinder/2026-08-20-incident-runbooks': TABLE,
-  '/initiatives/beacon/2026-09-22-payout-schedule': TABLE,
-  '/initiatives/atlas/2026-09-05-research-notes': TABLE,
-  '/initiatives/atlas/2026-09-28-search-relevance/spec.md': BODY,
-  '/initiatives/atlas/2026-09-28-search-relevance/plan.md': BODY,
-  '/initiatives/atlas/2026-09-12-onboarding-revamp/review.md': BODY,
-  '/initiatives/beacon/2026-09-22-payout-schedule/review.md': BODY,
-  '/initiatives/atlas/2026-10-02-query-latency/spec.md': BODY,
-  '/initiatives/atlas/2026-10-04-index-rebuild/spec.md': BODY,
-  '/knowledge/atlas/nodes/0002-match-reasons-come-from-the-index-never-from-a-model.md': BODY,
-  '/knowledge/atlas/nodes/0004-rank-by-recency-first.md': BODY,
-  '/plugins/sdlc': TABLE,
-  '/plugins/zz-access': TABLE,
-  '/plugins/research-kit': TABLE,
-  '/plugins/sdlc/sdlc-spec': FIGURES,
-  '/plugins/sdlc/sdlc-spec?view=read': BODY,
-  '/plugins/sdlc/sdlc-spec?view=references': TABLE,
-  '/plugins/research-kit/research-scan': NEVER_RUN,
-};
 
 type Target = { path: string; ready: string; text: string; rail: boolean };
 const rail: Target[] = (config.navigationChecks ?? []).map((c) => ({ path: c.path, ready: c.readySelector, text: (c.readyText ?? '').toLowerCase(), rail: true }));
@@ -129,9 +88,10 @@ const observe = (t: Target, hold: number) => `(() => {
   const readable = (el) => shown(el) && !el.closest('.shimmer, [aria-busy="true"]') && !el.querySelector('.shimmer') && (el.textContent || '').trim() !== '';
   const some = (sel, test) => [...document.querySelectorAll(sel)].some(test);
   const content = () => some(spec.ready, (el) => readable(el) && (!spec.text || el.textContent.toLowerCase().includes(spec.text)));
-  // The gate's refusal under either setting, or a record answered as not existing: Query's 404 title, "<what> does not exist".
+  // The gate's refusal under either setting, or a record answered as not existing: Query's 404 title, "<what> does not
+  // exist", or the initiative's own, "No initiative called <slug>" (src/views/initiative-context.ts).
   const refusal = () => some('main [data-no-access], main [data-missing-page]', shown) ? 'no access'
-    : some('main p.t-card', (el) => shown(el) && / does not exist$/.test(el.textContent.trim())) ? 'answered as not existing' : '';
+    : some('main p.t-card', (el) => shown(el) && / does not exist$|^No initiative called /.test(el.textContent.trim())) ? 'answered as not existing' : '';
   const tick = () => {
     const now = performance.now();
     const main = document.querySelector('main');

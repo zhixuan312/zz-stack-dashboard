@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { Tooltip } from 'radix-ui';
 import { beforeEach, describe, expect, it } from 'vitest';
 
@@ -97,6 +97,19 @@ describe('the figures on the knowledge page', () => {
     expect(figure('Searches with no result')).toBe('—');
     expect(text()).toContain('Not measured last week');
     expect(text()).not.toContain('Of 0 last week');
+  });
+
+  it('says a whole week whose share was not worked out is unavailable in the chart\'s caption, never "0 of N"', () => {
+    const before = { from: '2026-09-28T00:00:00Z', to: '2026-10-05T00:00:00Z', observedFrom: '2026-09-28T00:00:00Z', observedThrough: '2026-10-05T00:00:00Z', complete: true };
+    const weeks = [
+      { window: before, figure: { value: 75, why: null }, numerator: 18, denominator: 24 },
+      { window: WINDOW, figure: { value: null, why: 'unavailable' as const }, numerator: null, denominator: 24 },
+    ];
+    mount({ state: 'ok', data: { ...SUMMARY, weeks: { state: 'ok', data: weeks } }, at: '2026-10-15T00:00:00Z' });
+    const caption = screen.getByRole('heading', { name: 'Searches with results, by week' }).parentElement!.textContent ?? '';
+    expect(caption).toContain('Unavailable: the searches that found something in the week of 5 Oct were not counted');
+    expect(text()).not.toMatch(/\b0 of 24\b/);
+    expect(text()).not.toContain('18 of 24 searches found something');
   });
 
   it('lists the page the route answered, superseded lessons included, and asks the route for its kind', async () => {

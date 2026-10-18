@@ -10,17 +10,24 @@ import type { Access, ActivityLog, ActivitySummary, KnowledgeList, KnowledgeSumm
 import type { Audit, KnowledgeHealth, People, Teams } from '../../src/lib/fleet-shapes.ts';
 import type { Bugs, Evaluation, Part, PeriodFigure, PlatformStatus } from '../../src/lib/platform-shapes.ts';
 import type { Approvals, Home, InitiativeList } from '../../src/lib/work-shapes.ts';
+import { now } from './clock.ts';
+import { freshDetail, noWriting } from './states-partial.ts';
 
-/** Nothing recorded yet: every list empty, every figure absent rather than zero where the API says so. */
-export function empty(seg: string[], body: unknown): unknown {
+/**
+ * Nothing recorded yet: every list empty, every figure absent rather than zero where the API says so. Record, Releases,
+ * Usage and every detail route are states-partial.ts's `freshDetail`, each record there with nothing in it.
+ */
+export function empty(seg: string[], body: unknown, q: URLSearchParams = new URLSearchParams()): unknown {
+  const fresh = freshDetail(seg, body, q);
+  if (fresh !== undefined) return fresh;
   const [head, a, b] = seg;
   const list = (key: string) => ({ ...(body as object), [key]: [] });
   switch (head) {
-    case 'teams': return a ? body : { ...(body as Teams), tiles: { teams: 0, openWork: 0, pending: 0, lessons: 0 }, teams: [], total: 0 } satisfies Teams;
-    case 'initiatives': return a && b ? body : nothingListed(body as InitiativeList);
+    case 'teams': return { ...(body as Teams), tiles: { teams: 0, openWork: 0, pending: 0, lessons: 0 }, teams: [], total: 0 } satisfies Teams;
+    case 'initiatives': return nothingListed(body as InitiativeList);
     case 'home': return noHome(body as Home);
     case 'approvals': return noApprovals(body as Approvals);
-    case 'knowledge': return a === 'summary' ? noKnowledge(body as KnowledgeSummary) : a === 'log' ? list('entries') : a ? body
+    case 'knowledge': return a === 'summary' ? noKnowledge(body as KnowledgeSummary) : a === 'log' ? list('entries')
       : { ...(body as KnowledgeList), rows: [], total: 0, summary: { byKind: {}, standing: 0, superseded: 0 } } satisfies KnowledgeList;
     case 'skills': return a ? { ...(body as object), surfaces: [], busiestTools: [] } : list('skills');
     case 'people': return noPeople(body as People);
@@ -199,7 +206,7 @@ function noHome(h: Home): Home {
     waiting: { state: 'ok', data: { count: 0, oldestSince: null, one: null } },
     words: h.words.state === 'ok' ? { state: 'ok', data: { ...h.words.data, weeks: unrecorded(h.words.data.weeks), finding: null } } : h.words,
     approvals: h.approvals.state === 'ok' ? { state: 'ok', data: { weeks: unrecorded(h.approvals.data.weeks), finding: null } } : h.approvals,
-    foot: { estimate: null, coverageMs: { value: null, why: 'no_data' }, peak: { value: null, why: 'no_data' } },
+    foot: { estimate: noWriting(h.foot.estimate), coverageMs: { value: null, why: 'no_data' }, peak: { value: null, why: 'no_data' } },
     tiles: { closed: none(h.tiles.closed), medianHoursToClose: { ...h.tiles.medianHoursToClose, figure: { value: null, why: 'no_data' }, denominator: 0 }, searchesWithResults: { ...none(h.tiles.searchesWithResults), figure: { value: null, why: 'no_data' } }, agentDays: none(h.tiles.agentDays) },
     runs: { state: 'ok', data: { active: [], more: 0, lastRunAt: null } },
     openWork: { state: 'ok', data: { rows: [], quiet: 0, total: 0 } },
@@ -240,10 +247,12 @@ function grown<T>(rows: T[], n: number, more: (base: T, i: number) => T): T[] {
  * A busy platform: six-figure counts, hundreds of rows, and names longer than any layout planned for.
  *
  * `own` is the one team a member is held to. However busy the platform, a member is still answered their own team,
- * so no row grown for them names another.
+ * so no row grown for them names another. `q` is the request's own query: a row is named by its place in the whole
+ * list, `offset` included, so a second page holds other names than the first.
  */
-export function extreme(seg: string[], body: unknown, own: string | null = null): unknown {
+export function extreme(seg: string[], body: unknown, own: string | null = null, q: URLSearchParams = new URLSearchParams()): unknown {
   const [head, a, b] = seg;
+  const from = Math.max(0, Number(q.get('offset') ?? 0) || 0);
   switch (head) {
     case 'teams': {
       if (a || own) return body;
@@ -254,7 +263,7 @@ export function extreme(seg: string[], body: unknown, own: string | null = null)
       return {
         ...t,
         tiles: { teams: t.tiles.teams + more, openWork: big(t.tiles.openWork), pending: t.tiles.pending + 140, lessons: big(t.tiles.lessons) },
-        teams: t.teams.map((r, i) => ({ ...r, slug: `team-${i + 1}-${LONG}`.slice(0, 63), name: `Regional delivery group ${i + 1}, ${LONG.replace(/-/g, ' ')}`, people: 300 + i, openWork: 1_000 + i * 17, waiting: 40 + i, lessons: 9_000 + i })),
+        teams: t.teams.map((r, at) => { const i = from + at; return { ...r, slug: `team-${i + 1}-${LONG}`.slice(0, 63), name: `Regional delivery group ${i + 1}, ${LONG.replace(/-/g, ' ')}`, people: 300 + i, openWork: 1_000 + i * 17, waiting: 40 + i, lessons: 9_000 + i }; }),
         total: t.total ? t.total + more : 0,
       } satisfies Teams;
     }
@@ -267,7 +276,7 @@ export function extreme(seg: string[], body: unknown, own: string | null = null)
       return {
         ...l,
         tiles: { open: l.tiles.open + 812, waiting: l.tiles.waiting + 140, closed: { accepted: big(l.tiles.closed.accepted), delivered: big(l.tiles.closed.delivered), abandoned: big(l.tiles.closed.abandoned) } },
-        rows: l.rows.map((r, i) => ({ ...r, slug: `2026-0${(i % 9) + 1}-${String((i % 27) + 1).padStart(2, '0')}-${LONG}-${i}`, flow: r.flow && `${r.flow}-${LONG}` })),
+        rows: l.rows.map((r, at) => { const i = from + at; return { ...r, slug: `2026-0${(i % 9) + 1}-${String((i % 27) + 1).padStart(2, '0')}-${LONG}-${i}`, flow: r.flow && `${r.flow}-${LONG}` }; }),
         total: l.total ? l.total + more : 0,
         summary: l.summary.state === 'ok' && l.total ? { state: 'ok', data: { ...l.summary.data, total: l.summary.data.total + more } } : l.summary,
       } satisfies InitiativeList;
@@ -275,7 +284,7 @@ export function extreme(seg: string[], body: unknown, own: string | null = null)
     case 'knowledge': {
       if (a === 'log') {
         const entries = (body as { entries: KnowledgeLogEntry[] }).entries;
-        return { entries: grown(entries, 300, (_, i): KnowledgeLogEntry => ({ ts: new Date(Date.now() - i * 3_600_000).toISOString(), actor: 'maximiliana.fitzgerald-oyelaran@example.com', team: own ?? 'atlas', kind: 'knowledge.add', node: String(1000 + i), recorded_title: `A lesson ${LONG.replace(/-/g, ' ')} number ${i}`, superseded_by: null, node_title: null, node_status: null })) };
+        return { entries: grown(entries, 300, (_, i): KnowledgeLogEntry => ({ ts: new Date(now() - i * 3_600_000).toISOString(), actor: 'maximiliana.fitzgerald-oyelaran@example.com', team: own ?? 'atlas', kind: 'knowledge.add', node: String(1000 + i), recorded_title: `A lesson ${LONG.replace(/-/g, ' ')} number ${i}`, superseded_by: null, node_title: null, node_status: null })) };
       }
       if (a === 'summary') {
         const k = body as KnowledgeSummary;
@@ -292,7 +301,7 @@ export function extreme(seg: string[], body: unknown, own: string | null = null)
       const l = body as KnowledgeList;
       return {
         ...l,
-        rows: l.rows.map((n, i) => ({ ...n, title: `When the gateway rejects an argument the client cached, reconnect before retrying, ${LONG.replace(/-/g, ' ')} (${i})`, tags: ['gateway', 'clients', 'schema-cache', 'reconnect', 'retries'] })),
+        rows: l.rows.map((n, at) => ({ ...n, title: `When the gateway rejects an argument the client cached, reconnect before retrying, ${LONG.replace(/-/g, ' ')} (${from + at})`, tags: ['gateway', 'clients', 'schema-cache', 'reconnect', 'retries'] })),
         total: l.total ? l.total + 9_000 : 0,
         summary: { ...l.summary, standing: l.total ? l.summary.standing + 9_000 : 0 },
       } satisfies KnowledgeList;
@@ -307,7 +316,7 @@ export function extreme(seg: string[], body: unknown, own: string | null = null)
       return {
         ...p,
         tiles: { ...p.tiles, people: p.tiles.people + more, withPasskey: p.tiles.withPasskey + 410, neverSignedIn: p.tiles.neverSignedIn + 37 },
-        people: p.people.map((r, i) => ({ ...r, email: `person.${i}.${LONG}@example.com`, name: `Person ${i} ${LONG.replace(/-/g, ' ')}`, teams: Array.from({ length: 6 }, (_, j) => `team-${j + 1}-${LONG}`.slice(0, 63) + ' (member)'), passkeys: r.passkeys + 3 })),
+        people: p.people.map((r, at) => { const i = from + at; return { ...r, email: `person.${i}.${LONG}@example.com`, name: `Person ${i} ${LONG.replace(/-/g, ' ')}`, teams: Array.from({ length: 6 }, (_, j) => `team-${j + 1}-${LONG}`.slice(0, 63) + ' (member)'), passkeys: r.passkeys + 3 }; }),
         total: p.total ? p.total + more : 0,
       } satisfies People;
     }

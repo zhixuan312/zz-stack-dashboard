@@ -1,7 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { Suspense } from 'react';
 import { Tooltip } from 'radix-ui';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -71,14 +70,13 @@ beforeEach(() => {
 });
 afterEach(() => { vi.unstubAllGlobals(); });
 
-/** Rendered inside an awaited `act`: the page suspends on its params until they resolve. */
+/** Rendered from the console's server's read of what the store holds, which the browser then follows. */
 async function renderPage(client: QueryClient, teamPage = false) {
-  const params = Promise.resolve({ team: 'team-one', slug: 'init-1', path: ['spec.md'] });
   await act(async () => { render(
     <QueryClientProvider client={client}>
       <PeriodProvider>
         <Tooltip.Provider>
-          <Suspense fallback={null}><DocumentView params={params} teamPage={teamPage} /></Suspense>
+          <DocumentView team="team-one" slug="init-1" rel="spec.md" served={{ state: 'ok', data: stored, at: '2026-09-01T00:00:00.000Z' }} teamPage={teamPage} />
         </Tooltip.Provider>
       </PeriodProvider>
     </QueryClientProvider>,
@@ -111,10 +109,10 @@ describe('the breadcrumb\'s team', () => {
     grants.teams = granted;
     grants.asked = [];
     const params = Promise.resolve({ team: 'team-one', slug: 'init-1', path: ['spec.md'] });
-    const element = (await DocumentPage({ params })) as { props: { teamPage: boolean; params: unknown } };
+    const element = (await DocumentPage({ params })) as { props: { teamPage: boolean; team: string; slug: string; rel: string } };
     expect(grants.asked).toEqual([FEATURES.teams.needs]);
     expect(element.props.teamPage).toBe(granted);
-    expect(element.props.params).toBe(params);
+    expect(element.props).toMatchObject({ team: 'team-one', slug: 'init-1', rel: 'spec.md' });
   });
 });
 

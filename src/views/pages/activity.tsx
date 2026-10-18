@@ -221,7 +221,9 @@ function Refusals({ summary }: { summary?: ActivitySummary }) {
   return (
     <Panel
       title={REFUSALS_TITLE}
-      description={last.figure.value === null ? 'By week and by who each refusal is put down to' : `${formatCount(last.figure.value)} of ${formatCount(last.denominator ?? 0)} calls refused in the ${weekOf(last.window)}, by week and owner`}
+      description={last.figure.value === null ? 'By week and by who each refusal is put down to'
+        : last.denominator === null ? `${formatCount(last.figure.value)} ${plural(last.figure.value, 'call')} refused in the ${weekOf(last.window)}, by week and owner`
+        : `${formatCount(last.figure.value)} of ${formatCount(last.denominator)} calls refused in the ${weekOf(last.window)}, by week and owner`}
       actions={<AskWeek />}
     >
       {weeks.length ? (

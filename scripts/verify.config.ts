@@ -3,9 +3,21 @@
  */
 import { refusal } from '../src/app.config.ts';
 import { PLATFORM_STATUS } from './fake-gateway/platform-status.ts';
+import { documentDetail, initiativeDetail } from './fake-gateway/work.ts';
 
 /** The figure `/platform` draws from the fake gateway's last whole week, as the page writes it: one decimal place. */
 const STATUS_FIGURE = PLATFORM_STATUS.measures.find((m) => m.key === 'malformed_per_1000')!.last!.figure.value!.toFixed(1);
+
+/**
+ * Another team's initiative and one of its documents, which both people are refused: Work's detail routes are the active
+ * team's, the superadmin's too (reconciliations 31 and 39), and both act for atlas. Each probe is a name the record
+ * itself carries, read off the fake gateway's fixture: the person who approved its documents, and the document's
+ * stakeholder, neither of whom is in atlas.
+ */
+const OTHER_TEAMS = {
+  '/initiatives/beacon/2026-09-22-payout-schedule': initiativeDetail('beacon', '2026-09-22-payout-schedule')!.documents.find((d) => d.approved_by)!.approved_by!,
+  '/initiatives/beacon/2026-09-22-payout-schedule/review.md': documentDetail('beacon', '2026-09-22-payout-schedule', 'review.md')!.stakeholder!,
+};
 
 /** One way `pnpm verify --as` signs the browser in: the cookie that names the person, and what that person is expected to see. */
 type Persona = {
@@ -78,6 +90,51 @@ export type VerifyConfig = {
   refusal?: 'explain' | 'absent';
 };
 
+/** A table's rows: the record's own list. */
+const TABLE = 'main table tbody tr';
+/** A document's text: the renderer's blocks, or the same words as plain text while the renderer's chunk is on its way (src/console/reading.tsx). */
+const BODY = 'main div.text-ink-2.break-words > *, main [data-split="2/3"] > .card:first-child pre';
+/** A skill's cost record: its figures. */
+const FIGURES = 'main .t-figure';
+/** A skill the active team never ran: the page's sentence saying so is its record, since the figures are the team's. */
+const NEVER_RUN = 'main [data-never-run]';
+
+/**
+ * What counts as each detail route's primary data, read off the built app served against the fake gateway on
+ * 2026-10-14: what scripts/primary-data.ts times and scripts/states-check.ts reads as the page's content. COUPLED:
+ * `detailRoutes` below; an address there with no entry here fails both.
+ */
+export const DETAIL: Record<string, string> = {
+  '/platform/releases/0.97.0': BODY,
+  '/platform/releases/0.31.1': BODY,
+  '/platform/bugs/0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d01': 'main [data-report-detail]',
+  '/platform/bugs/0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d02': 'main [data-report-detail]',
+  '/platform/teams/atlas': TABLE,
+  // No initiative yet, which the page says; its members are the table.
+  '/platform/teams/dune': TABLE,
+  '/initiatives/atlas/2026-09-28-search-relevance': TABLE,
+  '/initiatives/atlas/2026-08-02-ingest-pipeline': TABLE,
+  '/initiatives/atlas/2026-09-12-onboarding-revamp': TABLE,
+  '/initiatives/atlas/2026-09-05-research-notes': TABLE,
+  '/initiatives/atlas/2026-09-28-search-relevance/spec.md': BODY,
+  '/initiatives/atlas/2026-09-28-search-relevance/plan.md': BODY,
+  '/initiatives/atlas/2026-09-12-onboarding-revamp/review.md': BODY,
+  // Another team's, which both people are refused (`deniedProbe`): what it would draw if it opened.
+  '/initiatives/beacon/2026-09-22-payout-schedule': TABLE,
+  '/initiatives/beacon/2026-09-22-payout-schedule/review.md': BODY,
+  '/initiatives/atlas/2026-10-02-query-latency/spec.md': BODY,
+  '/initiatives/atlas/2026-10-04-index-rebuild/spec.md': BODY,
+  '/knowledge/atlas/nodes/0002-match-reasons-come-from-the-index-never-from-a-model.md': BODY,
+  '/knowledge/atlas/nodes/0004-rank-by-recency-first.md': BODY,
+  '/plugins/sdlc': TABLE,
+  '/plugins/zz-access': TABLE,
+  '/plugins/research-kit': TABLE,
+  '/plugins/sdlc/sdlc-spec': FIGURES,
+  '/plugins/sdlc/sdlc-spec?view=read': BODY,
+  '/plugins/sdlc/sdlc-spec?view=references': TABLE,
+  '/plugins/research-kit/research-scan': NEVER_RUN,
+};
+
 const config: VerifyConfig = {
   /**
    * Measured on 2026-10-12, served against the fake gateway: the list pages are the console's heaviest uncompressed
@@ -147,8 +204,9 @@ const config: VerifyConfig = {
     { path: '/runs', title: 'Runs', readySelector: 'main [data-figures="read"] [data-value]', probe: 'toggle', controlSelector: 'main button[aria-label^="About "]', resultSelector: '[role="tooltip"]' },
     { path: '/plugins', title: 'Plugins', readySelector: 'main table tbody tr', probe: 'filter', controlSelector: 'main input[type="search"]', resultSelector: 'main table tbody tr' },
     // Access's primary data is its tokens; the probe is a live token's Revoke, whose first press only asks in place, so
-    // it writes nothing.
-    { path: '/access', title: 'Access', readySelector: 'main [data-protagonist="Tokens"] table tbody tr', probe: 'toggle', controlSelector: 'main [data-protagonist="Tokens"] tbody tr button', resultSelector: 'main [data-protagonist="Tokens"] tbody tr' },
+    // it writes nothing. The press is read in the row's last cell, where the confirm appears: the probe compares only the
+    // first 80 characters of each matched element (scripts/lib/journey.ts), and in a whole row the confirm comes later.
+    { path: '/access', title: 'Access', readySelector: 'main [data-protagonist="Tokens"] table tbody tr', probe: 'toggle', controlSelector: 'main [data-protagonist="Tokens"] tbody tr button', resultSelector: 'main [data-protagonist="Tokens"] tbody tr td:last-child' },
     // Status leads with what needs attention and the paired figures: its data is the Featured metric's first figure, the
     // last whole week's malformed calls per 1,000 (`.t-figure` is the team's tiles now). The one control is a team
     // tile's info button, whose tooltip says what the figure counts. Read off the source on 2026-10-17.
@@ -166,11 +224,12 @@ const config: VerifyConfig = {
 
   // One per state worth seeing, taken from the fake gateway's own records (scripts/fake-gateway): a team with
   // work and one with none, an initiative waiting on a person, a closed one, one closed with a correction awaiting
-  // approval, one with no flow, a document approved, one awaiting approval, a correction the signed-in user may approve
-  // and one in another of their teams (which tells them to switch), a document that moves after every read (out of
-  // date), one whose record of being shown is refused (Approve unavailable), a current and a superseded knowledge
-  // node, a plugin with an evaluation, one never profiled, one vendored and never run, and a skill in each of its
-  // views.
+  // approval, one with no flow, a document approved, one awaiting approval, a correction the signed-in user may approve,
+  // a document that moves after every read (out of date), one whose record of being shown is refused (Approve
+  // unavailable), a current and a superseded knowledge node, a plugin with an evaluation, one never profiled, one
+  // vendored and never run, and a skill in each of its views. Work's are atlas's, the team both people act for; another
+  // team's initiative and document are walked as the not-found both are answered (`OTHER_TEAMS`, in each persona's
+  // `deniedProbe`).
   detailRoutes: [
     '/platform/releases/0.97.0',
     '/platform/releases/0.31.1',
@@ -180,15 +239,15 @@ const config: VerifyConfig = {
     '/platform/teams/atlas',
     '/platform/teams/dune',
     '/initiatives/atlas/2026-09-28-search-relevance',
-    '/initiatives/cinder/2026-08-20-incident-runbooks',
-    '/initiatives/beacon/2026-09-22-payout-schedule',
+    '/initiatives/atlas/2026-08-02-ingest-pipeline',
+    '/initiatives/atlas/2026-09-12-onboarding-revamp',
     '/initiatives/atlas/2026-09-05-research-notes',
     '/initiatives/atlas/2026-09-28-search-relevance/spec.md',
     '/initiatives/atlas/2026-09-28-search-relevance/plan.md',
     '/initiatives/atlas/2026-09-12-onboarding-revamp/review.md',
-    '/initiatives/beacon/2026-09-22-payout-schedule/review.md',
     '/initiatives/atlas/2026-10-02-query-latency/spec.md',
     '/initiatives/atlas/2026-10-04-index-rebuild/spec.md',
+    ...Object.keys(OTHER_TEAMS),
     '/knowledge/atlas/nodes/0002-match-reasons-come-from-the-index-never-from-a-model.md',
     '/knowledge/atlas/nodes/0004-rank-by-recency-first.md',
     '/plugins/sdlc',
@@ -210,7 +269,9 @@ const config: VerifyConfig = {
   // `workspace-switch` walks the workspace menu as each persona: Work to Platform, the figure, and back.
   // `primary-data` times each route's own data beside its largest paint, as each persona, and holds a delayed read to a
   // bounded state. It runs beside the audit, the presses and the keyboard walk, so its times are taken under their load.
-  browserChecks: ['scripts/approve-banners.ts', 'scripts/live-check.ts', 'scripts/selection-check.ts', 'scripts/hydration-check.ts', 'scripts/workspace-switch.ts', 'scripts/primary-data.ts'],
+  // `states-check` draws every rail and detail route as each persona in each of the spec's five states, asked for per
+  // request by the session value, so the suites beside it read the normal state throughout (reconciliation 79).
+  browserChecks: ['scripts/approve-banners.ts', 'scripts/live-check.ts', 'scripts/selection-check.ts', 'scripts/hydration-check.ts', 'scripts/workspace-switch.ts', 'scripts/primary-data.ts', 'scripts/states-check.ts'],
   /**
    * The fake gateway's two people (scripts/fake-gateway/people.ts), each by the value of the `zz_console` cookie it
    * reads. A run without `--as` sends no cookie, and the fake gateway answers that as the superadmin.
@@ -227,6 +288,7 @@ const config: VerifyConfig = {
         '/', '/record', '/initiatives', '/approvals', '/knowledge', '/activity', '/runs', '/plugins', '/access',
         '/platform', '/platform/releases', '/platform/bugs', '/platform/evaluation', '/platform/teams', '/platform/people', '/platform/usage', '/platform/audit', '/platform/knowledge',
       ],
+      deniedProbe: OTHER_TEAMS,
     },
     member: {
       cookie: { name: 'zz_console', value: 'member' },
@@ -234,7 +296,7 @@ const config: VerifyConfig = {
         '/', '/record', '/initiatives', '/approvals', '/knowledge', '/activity', '/runs', '/plugins', '/access',
         '/platform', '/platform/releases', '/platform/bugs', '/platform/evaluation', '/platform/usage', '/platform/knowledge',
       ],
-      deniedProbe: { '/platform/teams': 'Beacon Payments', '/platform/people': 'Jonas Weber', '/platform/audit': 'archived team cinder', '/platform/bugs/0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d01': 'document_approve refuses a stakeholder the frontmatter names' },
+      deniedProbe: { '/platform/teams': 'Beacon Payments', '/platform/people': 'Jonas Weber', '/platform/audit': 'archived team cinder', '/platform/bugs/0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d01': 'document_approve refuses a stakeholder the frontmatter names', ...OTHER_TEAMS },
     },
   },
   refusal,

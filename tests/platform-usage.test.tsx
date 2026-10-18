@@ -260,10 +260,10 @@ describe('what the assistant is told', () => {
     expect(t.length).toBeLessThanOrEqual(CONTEXT_BUDGET);
   });
 
-  it('names no team to a member, and says why', () => {
+  it('names no team to a member, and says the read carries no split by team', () => {
     const t = text(MEMBER);
     for (const team of TEAMS) expect(t).not.toContain(team);
-    expect(t).toContain('the split by team is the superadmin\'s alone');
+    expect(t).toContain('No team is named here: these weeks carry no split by team.');
     expect(t.length).toBeLessThanOrEqual(CONTEXT_BUDGET);
   });
 

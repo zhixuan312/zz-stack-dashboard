@@ -157,7 +157,8 @@ function TokensTable({ rows, pending, onRevoke }: { rows: AccessToken[]; pending
       <Table caption="Your tokens, newest first">
         <TableHead>
           <TableRow>
-            <TableHeader grow>Label</TableHeader>
+            {/* A lower floor than the lead column's own, so the label, its state and Revoke fit a phone's 356px. */}
+            <TableHeader grow className="min-w-32">Label</TableHeader>
             <TableHeader hideBelow="md">Application</TableHeader>
             <TableHeader hideBelow="md">Issued</TableHeader>
             <TableHeader hideBelow="sm">Last used</TableHeader>
@@ -173,7 +174,10 @@ function TokensTable({ rows, pending, onRevoke }: { rows: AccessToken[]; pending
                 <TableCell>
                   <span className="block text-sm font-medium text-ink [overflow-wrap:anywhere]">{t.label || <span className="text-ink-3">No label</span>}</span>
                   {/* What the hidden columns say, under the label, where a phone has no room for them. */}
-                  <span className="t-caption block @min-[672px]:hidden [overflow-wrap:anywhere]">{app}, issued {formatDate(t.createdAt)}</span>
+                  <span className="t-caption block @min-[672px]:hidden [overflow-wrap:anywhere]">
+                    {app}, issued {formatDate(t.createdAt)}
+                    <span className="@min-[512px]:hidden">{t.lastUsedAt ? <>, last used <Since at={t.lastUsedAt} asOf={access.meta.asOf} /></> : ', never used'}</span>
+                  </span>
                 </TableCell>
                 <TableCell hideBelow="md" className={app === DIRECT ? 'text-xs text-ink-3' : 'text-xs [overflow-wrap:anywhere]'}>{app}</TableCell>
                 <TableCell hideBelow="md" className="whitespace-nowrap text-xs">{formatDate(t.createdAt)}</TableCell>

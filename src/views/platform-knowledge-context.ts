@@ -215,7 +215,7 @@ export function knowledgeHealthContext(read: KnowledgeHealthRead): SharedContext
     'These are observations: more lessons or fewer searches are not better or worse, and a week with no figure is missing, not zero.',
     'An import stays in every inventory and its cohort, and in no week\'s lessons made; nothing records when a lesson was superseded.',
   );
-  if (!fleet) unknowns.push('No other team\'s shelf is named here, and the questions searches found nothing for are the superadmin\'s alone.');
+  if (!fleet) unknowns.push('No other team\'s shelf is named here, and no question a search that found nothing asked is in this read.');
   return budgeted({
     ...VIEW,
     scope: `${fleet ? 'every shelf on the platform, each team\'s by slug' : 'your team\'s shelf, the shared shelf and every shelf\'s totals'}${week ? `; last whole week: the ${weekOf(week)}` : ''}`,

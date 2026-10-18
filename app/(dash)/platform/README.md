@@ -22,7 +22,7 @@ What needs attention on the platform, how real work called its tools week by wee
 | Empty | A fresh platform: `Nothing needs you`, the paired figures with no whole week yet and every week drawn as none, the tables' rows with no data, and `No door has recorded a call` |
 | Partial | A part the gateway answered `unavailable` draws its own unavailable state (the doors, the team's own counts, what is running) and the rest stands; a foot figure it fed reads `Unavailable`; a check that did not answer is named in the list's foot, and the headline never says nothing is open |
 | Read failed | The template's error state: "The platform's status did not load", with Retry, which reads again on the server |
-| Slower than 5 seconds | The bounded unavailable state: "The platform's status is unavailable" and that it did not answer within 5 seconds, with Retry; never an endless skeleton |
+| Slower than 4.5 seconds | The bounded unavailable state: "The platform's status is unavailable" and that it did not answer within 4.5 seconds, with Retry; never an endless skeleton |
 
 No figure claims a door could be reached: a fault day counts recorded tool failures, and the page prints no state word for a door. Days with work and sessions are agents' activity, never a person's hours.
 
@@ -51,4 +51,4 @@ Protagonist: The paired figures, malformed calls per 1,000 and refusals put righ
 
 ## Surfaces
 
-Console, desktop and phone. Reads `GET /platform/status` on the console's server, as the person, once per request and bounded at 5 seconds; nothing is cached across callers. It declares no live collection: its figures are whole weeks and whole days, and the next visit reads them again.
+Console, desktop and phone. Reads `GET /platform/status` on the console's server, as the person, once per request and bounded at 4.5 seconds; nothing is cached across callers. It declares no live collection: its figures are whole weeks and whole days, and the next visit reads them again.

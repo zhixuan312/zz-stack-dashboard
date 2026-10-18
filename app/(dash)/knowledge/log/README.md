@@ -13,7 +13,7 @@ Knowledge's log: every node recorded or retired, newest first, and who wrote it 
 
 - Loading: skeleton rows while the gate asks `/me` and the server reads the log.
 - Empty: the log starts at the next node minted or superseded.
-- Read failed, or slower than 5 seconds: the tiles read `—`, and `The entries did not load` says why with Retry, which reads again on the server.
+- Read failed, or slower than 4.5 seconds: the tiles read `—`, and `The entries did not load` says why with Retry, which reads again on the server.
 
 ## Agents
 
@@ -39,4 +39,4 @@ Protagonist: Recorded and superseded.
 
 ## Surfaces
 
-Console, desktop and phone. Reads `GET /knowledge/log` on the console's server, as the person, once per request and bounded at 5 seconds. Live: follows `knowledge`, so a change made anywhere — another tab, another person — asks the server for this page again.
+Console, desktop and phone. Reads `GET /knowledge/log` on the console's server, as the person, once per request and bounded at 4.5 seconds. Live: follows `knowledge`, so a change made anywhere — another tab, another person — asks the server for this page again.

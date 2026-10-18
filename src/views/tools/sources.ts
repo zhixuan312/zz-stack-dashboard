@@ -23,7 +23,7 @@ const at = (path: string, params: Record<string, unknown> = {}) => {
 };
 const eq = { ops: ['eq' as const] };
 const WINDOW = 'A window holds complete days of the reporting time zone, so today is in none.';
-const ACTIVE = 'It is the active team\'s alone, a superadmin\'s as a member\'s.';
+const ACTIVE = 'It is the active team\'s alone, whoever asks.';
 
 export const closures: Source = {
   collection: 'closures', date: 'closed',

@@ -176,7 +176,7 @@ export const PREPARED: PreparedRow[] = [
   // Platform, over /platform/query: as the page that draws each figure answers the caller.
   {
     name: 'platform_calls', label: 'Platform calls', route: 'platform', measure: 'calls',
-    description: 'The platform\'s real-work tool calls, by tool and whether each was refused; by team for a superadmin alone.',
+    description: 'The platform\'s real-work tool calls, by tool and whether each was refused, and by team where the caller\'s read names teams.',
     dimensions: ['tool', 'refused', 'team'], fleet: ['team'], buckets: DAYS, date: 'at', key: 'tool',
     fields: z.object({ tool: maybe, refused: text, team: maybe, calls: count, at: text, address: text }),
     drill: {}, needs: FEATURES.usage.needs,
@@ -245,7 +245,7 @@ export const PREPARED: PreparedRow[] = [
   },
   {
     name: 'platform_lessons', label: 'Lessons made, every shelf', route: 'platform', measure: 'lessons',
-    description: 'The lessons made on every shelf, imports told apart; a member reads their own team\'s shelf and the shared one by name, and the rest unnamed.',
+    description: 'The lessons made on every shelf, imports told apart, by shelf as the caller\'s read names it.',
     dimensions: ['shelf', 'kind', 'imported'], buckets: DAYS, date: 'at', key: 'kind',
     fields: z.object({ shelf: maybe, kind: text, imported: text, lessons: count, at: text }),
     drill: { none: 'Lessons are counted here, never listed: Knowledge health (/platform/knowledge) counts them and lists none.' },
@@ -253,7 +253,7 @@ export const PREPARED: PreparedRow[] = [
   },
   {
     name: 'platform_searches', label: 'Searches, every shelf', route: 'platform', measure: 'searches',
-    description: 'The platform\'s real-work searches that recorded their results, by whether each found something and was widened; the questions those that found nothing asked are a superadmin\'s alone.',
+    description: 'The platform\'s real-work searches that recorded their results, by whether each found something and was widened; a drilled row is a question one that found nothing asked, where the caller\'s read holds the questions.',
     dimensions: ['found', 'widened'], buckets: DAYS, date: 'at', key: 'question',
     fields: z.object({ found: text, widened: maybe, question: text, shelf: text, asked: count, lastAskedAt: text, at: text, address: text }),
     drill: { needs: FLEET }, needs: FEATURES['knowledge-health'].needs,

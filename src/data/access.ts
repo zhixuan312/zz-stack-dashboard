@@ -236,17 +236,18 @@ export async function gatedMetadata(feature: FeatureId, metadata: Metadata): Pro
  *
  * `only` is the nav's own destinations whose `needs` this person satisfies. It is what the rail and the palette draw,
  * and it is presentation only: hiding a destination is not the gate, which every page carries itself. There is nobody
- * to view the console as, so `viewAs` is left out. `team` is the team the person acts for, which the superadmin's
- * scope names. `caller` is their address, which every browser read's key carries with the team and the role
- * (`ConsoleCaller` in `src/lib/api.ts`). With nobody the role table can place this rejects `Unauthenticated`, and the
- * chrome keeps its placeholder rather than naming anyone.
+ * to view the console as, so `viewAs` is left out. The person card's second line, the release's `user.role` slot, is
+ * the team the person acts for, for everybody, and empty when they act for none: the chrome names no role
+ * (reconciliation 77). `team` is that team again, as the chrome's own field. `caller` is their address, which every
+ * browser read's key carries with the team and the role (`ConsoleCaller` in `src/lib/api.ts`). With nobody the role
+ * table can place this rejects `Unauthenticated`, and the chrome keeps its placeholder rather than naming anyone.
  */
 export async function chromeAccess(): Promise<ConsoleChromeAccess> {
   const who = await identity();
   if (who.is !== 'person') throw new Unauthenticated();
   return {
     only: nav.flatMap((g) => g.items).filter((i) => satisfies(who.role, i.needs)).map((i) => i.href),
-    user: { name: who.me.name || who.me.email, role: who.role },
+    user: { name: who.me.name || who.me.email, role: who.me.activeTeam ?? '' },
     team: who.me.activeTeam,
     caller: who.me.email,
   };

@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { RotateCw } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { Row } from '@/components/base/shell';
 import { useShareView } from '@/components/base/use-share-view';
 import { AskAbout } from '@/components/patterns/ask-about';
@@ -21,8 +22,8 @@ import { formatDateTime } from '@/lib/format-date';
 import type { ReleaseDetail, ReleaseRow } from '@/lib/platform-shapes';
 import { pendingContext } from '@/views/context';
 import {
-  NOT_A_VERDICT, OBSERVED, callsIn, clientActionOf, failuresIn, malformedIn, observedOf, observedText, overlapsOf, p95In,
-  rateIn, releaseContext, releasePath, releasesTrouble, type ReleaseRead,
+  NOT_A_VERDICT, OBSERVED, callsIn, clientActionOf, failuresIn, lifted, malformedIn, observedOf, observedText, overlapsOf,
+  p95In, rateIn, releaseContext, releasePath, releasesTrouble, type ReleaseRead,
 } from '@/views/platform-releases-context';
 import { useServed } from '@/views/use-served';
 
@@ -46,13 +47,27 @@ function useRelease(version: string, served: ReleaseRead, now: Date) {
   return { data, trouble, retry, updatedAt: q.data ? new Date(q.dataUpdatedAt) : data ? now : null };
 }
 
+/** The notes the console's server drew as prose for its own read of the release, so no renderer is sent for them. */
+type ReleaseNotes = { changelog: ReactNode; upgradeNotes: ReactNode | null };
+
+/**
+ * A text as the page draws it: the server's prose when the text is the one it drew, the browser's renderer only for one
+ * it did not, a release read again in the browser after the server's read failed. Measured, a renderer behind
+ * `React.lazy` in a boundary the server filled went from prose to plain text and back: the boundary is first drawn in
+ * the browser late, when the assistant's arrival changes a context above it, and a lazy component suspends on its
+ * first draw. Drawn on the server it is part of the page, with nothing left to suspend on.
+ */
+function Notes({ md, served, node }: { md: string; served: string | null | undefined; node: ReactNode | undefined }) {
+  return node !== undefined && md === served ? node : <ReadingBody>{lifted(md)}</ReadingBody>;
+}
+
 /**
  * One release: its published changelog, the page's protagonist, beside what it is (when its tag was made, the console
  * it shipped with, what clients must do and the releases inside its windows), its upgrade notes, and what was observed
  * in the 72 hours either side of it. The changelog and the notes are the published Markdown, drawn through the
  * console's safe renderer, so raw HTML in them is text.
  */
-export function PlatformReleaseView({ version, served }: { version: string; served: ReleaseRead }) {
+export function PlatformReleaseView({ version, served, notes = null }: { version: string; served: ReleaseRead; notes?: ReleaseNotes | null }) {
   const now = useDataClock();
   const { data, trouble, retry, updatedAt } = useRelease(version, served, now);
   const asOf = now.toISOString();
@@ -62,6 +77,7 @@ export function PlatformReleaseView({ version, served }: { version: string; serv
 
   if (!data) return trouble ? <ReleaseTrouble trouble={trouble} onRetry={retry} /> : <Busy name="release"><Skeleton className="h-72 rounded-lg" /><TableSkeleton rows={2} filters={false} /></Busy>;
   const others = overlapsOf(data);
+  const drew = served.state === 'ok' ? served.data : null;
   return (
     <>
       <Row split="2/3">
@@ -71,7 +87,7 @@ export function PlatformReleaseView({ version, served }: { version: string; serv
           description="The section published for this release, as written"
           actions={<AskAbout question={`What does the changelog of ${data.version} say changed, and what must clients do about it?`} />}
         >
-          <ReadingBody>{data.changelog}</ReadingBody>
+          <Notes md={data.changelog} served={drew?.changelog} node={notes?.changelog} />
         </Panel>
         <Panel title="This release" description={`Tagged ${formatDateTime(data.releasedAt)}`}>
           <KeyValue items={[
@@ -84,13 +100,16 @@ export function PlatformReleaseView({ version, served }: { version: string; serv
       </Row>
       <Panel title="Upgrade notes" description="What the release's published notes ask of clients">
         {data.upgradeNotes
-          ? <ReadingBody>{data.upgradeNotes}</ReadingBody>
+          ? <Notes md={data.upgradeNotes} served={drew?.upgradeNotes} node={notes?.upgradeNotes ?? undefined} />
           : <EmptyState layout="inline" title="No upgrade notes recorded">{data.clientAction ? `The client action recorded is: ${data.clientAction}` : 'None are needed: nothing is asked of clients.'}</EmptyState>}
       </Panel>
       <Windows release={data} asOf={asOf} />
     </>
   );
 }
+
+/** A window's figure, or the words for one that was not observed, which wrap where a number never does. */
+const figure = (s: string) => (/\d/.test(s) ? s : <span className="whitespace-normal">{s}</span>);
 
 type WindowRow = { key: 'before' | 'after'; label: string; side: Side };
 
@@ -109,11 +128,11 @@ function Windows({ release, asOf }: { release: ReleaseDetail; asOf: string }) {
       ),
       mobileCell: (r) => OBSERVED[observedOf(r.side)],
     },
-    { key: 'calls', header: 'Calls', numeric: true, hideBelow: 'md', cell: (r) => callsIn(r.side) },
-    { key: 'malformed', header: 'Malformed', numeric: true, hideBelow: 'lg', cell: (r) => malformedIn(r.side) },
-    { key: 'rate', header: 'Per 1,000', numeric: true, mobile: 'fact', cell: (r) => rateIn(r.side), mobileCell: (r) => `${rateIn(r.side)} per 1,000` },
-    { key: 'failures', header: 'Tool failures', numeric: true, hideBelow: 'md', cell: (r) => failuresIn(r.side) },
-    { key: 'p95', header: 'p95', numeric: true, hideBelow: 'md', cell: (r) => p95In(r.side) },
+    { key: 'calls', header: 'Calls', numeric: true, hideBelow: 'md', cell: (r) => figure(callsIn(r.side)) },
+    { key: 'malformed', header: 'Malformed', numeric: true, hideBelow: 'lg', cell: (r) => figure(malformedIn(r.side)) },
+    { key: 'rate', header: 'Per 1,000', numeric: true, mobile: 'fact', cell: (r) => figure(rateIn(r.side)), mobileCell: (r) => `${rateIn(r.side)} per 1,000` },
+    { key: 'failures', header: 'Tool failures', numeric: true, hideBelow: 'md', cell: (r) => figure(failuresIn(r.side)) },
+    { key: 'p95', header: 'p95', numeric: true, hideBelow: 'md', cell: (r) => figure(p95In(r.side)) },
   ]);
   return (
     <DataTable

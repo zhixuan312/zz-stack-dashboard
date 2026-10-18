@@ -25,16 +25,8 @@ import { useLive } from '@/lib/live';
 import { pendingContext } from '@/views/context';
 import { PLUGINS_PATH, readTrouble, type Catalog, type Served } from '@/views/plugins-context';
 import { skillContext, skillDetailPath, skillTextPath, skillsPath, type SkillRead } from '@/views/skill-context';
+import type { SkillViewName } from '@/views/skill-view';
 import { useServed } from '@/views/use-served';
-
-/** The page's three views, in the address (`?view=`): the runs are the default, because they are the reason to open a skill here. */
-type SkillViewName = 'cost' | 'read' | 'references';
-
-/** The view an address names, as the console's server hands it to the page: anything else is the runs. */
-export const viewOf = (asked: string | string[] | undefined): SkillViewName => {
-  const v = Array.isArray(asked) ? asked[0] : asked;
-  return v === 'read' || v === 'references' ? v : 'cost';
-};
 
 /**
  * One read the console's server made for the page, followed in the browser: its answer until the plugins or skills

@@ -1,9 +1,11 @@
 import Link from 'next/link';
 import { app, workspaces } from '@/app.config';
 import { PageFrame } from '@/components/base/shell';
+import { Prose } from '@/components/patterns/prose';
 import { gate, gatedMetadata } from '@/data/access';
 import { MissingPage } from '@/views/no-access';
 import { PlatformReleaseView } from '@/views/pages/platform-release';
+import { lifted } from '@/views/platform-releases-context';
 import { readRelease } from '../read-releases';
 
 type Params = { params: Promise<{ version: string }> };
@@ -23,6 +25,12 @@ export default async function PlatformReleasePage({ params }: Params) {
   const { version } = await params;
   const read = await readRelease(version);
   if (read.state === 'missing') return <MissingPage />;
+  // The notes are drawn here, as prose: the browser is sent what they make, never the renderer, so they read the same
+  // from the first paint through hydration.
+  const notes = read.state === 'ok' ? {
+    changelog: <Prose>{lifted(read.data.changelog)}</Prose>,
+    upgradeNotes: read.data.upgradeNotes ? <Prose>{lifted(read.data.upgradeNotes)}</Prose> : null,
+  } : null;
   return (
     <PageFrame
       kicker={
@@ -35,7 +43,7 @@ export default async function PlatformReleasePage({ params }: Params) {
       title={`Release ${version}`}
       description="What changed, what clients must do, and what was observed in the 72 hours either side of it."
     >
-      <PlatformReleaseView version={version} served={read} />
+      <PlatformReleaseView version={version} served={read} notes={notes} />
     </PageFrame>
   );
 }

@@ -10,7 +10,7 @@ The active team's record, read on the console's server: what its retained text w
 - Work: closed by outcome, most open at once, median hours to close, median hours until abandoned work stopped; closures in all (Trend chart), closures by outcome (Column chart with parts), median hours to close (Column chart) and a typical piece of work (Key value).
 - Documents: flow documents, versions written, median sources under a gated document, citations; words added (Column chart) and the most rewritten documents (Bar list).
 - Knowledge: lessons adopted, times your lessons were returned, mean results a search returns, results from the shared shelf; searches with results (Column chart), what searches returned (Bar list), lessons adopted in all (Trend chart) and lessons by kind as of the cutoff (Bar list).
-- Your agents: observed run coverage, peak concurrency, runs, skills used; weekday by hour (Heatmap of values) and every day (Heatmap of days, on a quantile scale, a year at a time), both in the reporting time zone, and runs by skill (Bar list).
+- Your agents: observed run coverage, peak concurrency, runs, skills used; weekday by hour (Heatmap of values, drawn once seven days are observed from the later of the period's start and the record's first day, and until then a line saying a whole week is not observed yet) and every day (Heatmap of days from the record's first day, on a quantile scale, a year at a time), both in the reporting time zone and naming the record's first day when the period begins before it, so no hour or day before the record is drawn as 0, and neither is drawn while the record has no first day; and runs by skill (Bar list).
 - Firsts and bests: the most versions of one document, the most sources under one document, the most words added in a week and the most open at once, each with when it was set; the dated firsts over the whole record.
 - The record: every initiative opened before the cutoff, newest first, ten to a page and paged by the gateway (initiative, outcome, opened, closed, took, documents, lessons), with the count by outcome over all of them; a row opens the initiative.
 - Every slice is labelled with its period, `This quarter, 1 Oct to 17 Oct`; a chart's periods are weeks up to 26 of them and months beyond, as the gateway cuts them, the running one drawn as so far.
@@ -26,7 +26,7 @@ The active team's record, read on the console's server: what its retained text w
 | Empty | A team with nothing recorded: each chart says nothing is recorded in the period, each list says so in its own words, and a figure with no value reads `None recorded`, never zero |
 | Partial | A slice the gateway could not read draws its own unavailable state; the lead with no estimate reads `Unavailable`; the rest stands |
 | Read failed | "Record did not load" with the gateway's sentence and Retry, which reads again in the browser |
-| Slower than 5 seconds | The same, saying the platform did not answer within 5 seconds; never an endless skeleton |
+| Slower than 4.5 seconds | The same, saying the platform did not answer within 4.5 seconds; never an endless skeleton |
 | Signed out since the gate | Sign-in |
 
 ## Agents
@@ -55,4 +55,4 @@ Protagonist: One person, writing this.
 
 ## Surfaces
 
-Console, desktop and phone; at 390px the record's table is a card list of the initiative, its outcome, when it opened and how long it took. Reads `GET /record?period=…&limit=10&offset=…` for the address's period and page on the console's server, as the person, once per request and bounded at 5 seconds; another period, another page of the record and a Retry are read in the browser. It declares no live collection: the record is as of its cutoff, and the next visit reads it again.
+Console, desktop and phone; at 390px the record's table is a card list of the initiative, its outcome, when it opened and how long it took. Reads `GET /record?period=…&limit=10&offset=…` for the address's period and page on the console's server, as the person, once per request and bounded at 4.5 seconds; another period, another page of the record and a Retry are read in the browser. It declares no live collection: the record is as of its cutoff, and the next visit reads it again.

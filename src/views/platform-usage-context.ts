@@ -178,7 +178,7 @@ export function usageContext(read: UsageRead): SharedContext {
     'These are observations: more calls, sessions or refusals are not better or worse, and a week with no figure is missing, not zero.',
     `Refusals that could not be judged (no session, or still inside the 120 seconds) are counted apart. Weekday and hour are in ${u.meta.timezone}.`,
   );
-  if (!teamParts(u).length) unknowns.push('No team is named here: the split by team is the superadmin\'s alone.');
+  if (!teamParts(u).length) unknowns.push('No team is named here: these weeks carry no split by team.');
   return budgeted({
     ...VIEW,
     scope: `real-work tool calls across the platform${week ? `; last whole week: the ${weekOf(week)}` : ''}`,

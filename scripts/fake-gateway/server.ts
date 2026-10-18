@@ -2,7 +2,7 @@
  * A fake ZZ gateway: answers every `/api/console/*` and `/auth/*` route the console calls, from
  * the synthetic fixtures beside this file, and changes nothing anywhere.
  *
- *   node scripts/fake-gateway/server.ts [--port 0] [--mode normal|empty|error|slow|extreme]
+ *   node scripts/fake-gateway/server.ts [--port 0] [--mode normal|empty|error|slow|extreme|partial]
  *
  * Why it exists: `pnpm verify` presses every control on every page. Against the real deployment
  * that would approve documents, revoke tokens and archive teams, so the browser checks run against
@@ -23,8 +23,15 @@
  *
  * `--mode` draws the states a page has to design for, from the same routes and for either person: `empty` (a fresh
  * deployment, nothing recorded), `error` (every read but /me fails with the gateway's own sentence), `slow` (every
- * answer waits four seconds, so the loading state can be looked at), `extreme` (a busy platform: six-figure counts,
- * hundreds of rows, names longer than any layout planned for). `GET /__mode?set=<mode>` switches it while running.
+ * answer but /me waits four seconds, so the loading state can be looked at), `extreme` (a busy platform: six-figure
+ * counts, hundreds of rows, names longer than any layout planned for), `partial` (one part of each answer unavailable,
+ * the others answered). `GET /__mode?set=<mode>` switches it while running, for every request at once.
+ *
+ * A state per request: the session value `<person>+<state>`, `zz_console=member+empty`, signs in that person and draws
+ * that state for that request alone, so a sweep of every state runs beside suites reading the normal one against the
+ * same process (states-partial.ts). A value without `+` is the person in the process-wide mode, and a state this fake
+ * does not draw is answered 400, naming it. A fourth value, `superadmin-in-no-team`, signs in a superadmin who acts for
+ * no team, whom Work's reads refuse.
  *
  * The status read, `GET /api/console/platform/status`, is the one a page makes on the console's server and gives
  * five seconds: `error` answers it 500 with its own route's sentence, and `slow` holds it six seconds, past that bound.
@@ -47,8 +54,11 @@
  *
  * Work's reads are the caller's active team's, for the superadmin too, and `?team=` or `?scope=platform` widen nothing:
  * `GET /api/console/home`, `/record?period`, `/approvals?tab`, the paged `/initiatives?state&flow&q&limit&offset` and the
- * prepared `/work/query`, one fixture each, the approvals in them the caller's own. `POST /api/console/initiatives/:team/:slug/close` is answered as the platform decides a close and
- * refuses one, and forgotten like every other write.
+ * prepared `/work/query`, one fixture each, the approvals in them the caller's own. One initiative,
+ * `/initiatives/:team/:slug`, and one document, `/document/:team/:initiative/*`, are the active team's alone, as the
+ * gateway answers them since reconciliations 31 and 39: another team's is the route's not-found. `POST
+ * /api/console/initiatives/:team/:slug/close` is answered as the platform decides a close and refuses one, and forgotten
+ * like every other write.
  *
  * The rest of Work is the active team's too, one fixture per read: `GET /api/console/knowledge/summary` and the paged
  * `/knowledge?q&kind&limit&offset`, `/activity/summary` and the paged `/activity?kind&tool&initiative&refused&limit&offset`,
@@ -66,7 +76,7 @@
 import http from 'node:http';
 import type { Me } from '../../src/lib/api-shapes.ts';
 import { COLLECTIONS, hint, liveStreams, parseNames, serveLive } from './live.ts';
-import { MEMBER, clientSetupOf, signedIn, teamsOf, tokensOf } from './people.ts';
+import { ME, MEMBER, clientSetupOf, signedIn, teamsOf, tokensOf } from './people.ts';
 import { audit } from './platform-audit.ts';
 import { badFilter, bugReport, bugs, duplicates, resolve } from './platform-bugs.ts';
 import { evaluation } from './platform-evaluation.ts';
@@ -80,6 +90,7 @@ import { usage } from './platform-usage.ts';
 import { pluginEval, skillText } from './platform.ts';
 import { search } from './search.ts';
 import { empty, extreme } from './states.ts';
+import { NOT_RECORDED, STATES, isState, nullsFilled, partial, sessionOf, unknownState, type State } from './states-partial.ts';
 import { KNOWLEDGE_LOG, documentDetail, documentRevision, initiativeDetail, refusesRecord, revisionInStore } from './work.ts';
 import { access, revokeApplication, revokeBrowser } from './work-access.ts';
 import { activityLog, activitySummary, NO_TEAM } from './work-activity.ts';
@@ -94,9 +105,10 @@ import { runs } from './work-runs.ts';
 
 const args = process.argv.slice(2);
 const port = Number(args[args.indexOf('--port') + 1] ?? 0) || 0;
-const MODES = ['normal', 'empty', 'error', 'slow', 'extreme'];
-let mode = args.includes('--mode') ? args[args.indexOf('--mode') + 1] : 'normal';
-if (!MODES.includes(mode)) throw new Error(`--mode ${mode}: ${MODES.join(', ')}`);
+const MODES: readonly string[] = STATES;
+const started = args.includes('--mode') ? args[args.indexOf('--mode') + 1] : 'normal';
+if (!isState(started)) throw new Error(`--mode ${started}: ${MODES.join(', ')}`);
+let mode: State = started;
 
 const SIGNED_OUT = /^\/(login|enrol|signed-out)(\/|$)/;
 
@@ -114,6 +126,9 @@ const UNKNOWN: Answer = [404, null];
  */
 const TWO_TEAMS = 'member-two-teams';
 const MEMBER_OF_TWO: Me = { ...MEMBER, teams: [...MEMBER.teams, { slug: 'beacon', role: 'member' }] };
+/** The superadmin as the platform answers one in no team, who acts for none: what a Work read refuses by saying so. */
+const IN_NO_TEAM = 'superadmin-in-no-team';
+const SUPERADMIN_OF_NONE: Me = { ...ME, teams: [], activeTeam: null };
 
 /** The `zz_console` cookie's value, or null when the request carries none. */
 function cookieOf(header: string | undefined): string | null {
@@ -124,10 +139,14 @@ function cookieOf(header: string | undefined): string | null {
 /** The team each cookie's session was switched to: the gateway's `console_session.team_id`. */
 const switched = new Map<string, string>();
 
-/** Who a request is from, acting for the team its session was last switched to. */
-function callerOf(header: string | undefined): Me | null {
-  const cookie = cookieOf(header);
-  const who = cookie === TWO_TEAMS ? MEMBER_OF_TWO : signedIn(header);
+/**
+ * Who a request is from, acting for the team its session was last switched to. The person is the session value before
+ * any `+`; the switch is kept for the whole value, so a session asking for a state is a session of its own, and a press
+ * of "Act as this team" in a suite reading the normal state never moves it.
+ */
+function callerOf(cookie: string | null): Me | null {
+  const { person } = sessionOf(cookie);
+  const who = person === TWO_TEAMS ? MEMBER_OF_TWO : person === IN_NO_TEAM ? SUPERADMIN_OF_NONE : signedIn(person === null ? undefined : `zz_console=${person}`);
   const team = cookie === null ? undefined : switched.get(cookie);
   return who && team ? { ...who, activeTeam: team } : who;
 }
@@ -161,8 +180,6 @@ const heldTo = (who: Me): string | null => (who.superadmin ? null : who.activeTe
  */
 function read(who: Me, seg: string[], q: URLSearchParams): Answer {
   const platform = q.get('scope') === 'platform' && who.superadmin;
-  const own = heldTo(who);
-  const foreign = (team: string | undefined) => own !== null && team !== own;
   const [head, a, b, ...rest] = seg;
   switch (head) {
     case 'me': return ok(who);
@@ -174,13 +191,20 @@ function read(who: Me, seg: string[], q: URLSearchParams): Answer {
     // and paged, and the gateway's refusal to anybody else.
     case 'teams': return a ? team(who, a) : teams(who, q, page(q)) ?? BAD_PAGE;
     case 'initiatives': {
-      if (a && b) return foreign(a) ? missing(`initiative ${a}/${b}`) : or404(initiativeDetail(a, b), `initiative ${a}/${b}`);
+      // One initiative is the active team's, for the superadmin too, as the gateway answers it since reconciliations 31
+      // and 39: another team's is the route's not-found, and a caller who acts for no team is told so.
+      if (a && b) {
+        if (!who.activeTeam) return NO_TEAM;
+        return a !== who.activeTeam ? missing(`initiative ${a}/${b}`) : or404(initiativeDetail(a, b), `initiative ${a}/${b}`);
+      }
       // Work is the active team's: the list answers it alone, whatever `?team=` or `?scope=` asked.
       return a ? missing(seg.join('/')) : initiativeList(who, q);
     }
     case 'document': {
+      // A document the same way: the active team's alone, whatever the address or the request names.
       const rev = q.get('revision');
-      if (foreign(a)) return missing(rev === null ? `document ${seg.slice(1).join('/')}` : `revision ${rev} of ${seg.slice(1).join('/')}`);
+      if (!who.activeTeam) return NO_TEAM;
+      if (a !== who.activeTeam) return missing(rev === null ? `document ${seg.slice(1).join('/')}` : `revision ${rev} of ${seg.slice(1).join('/')}`);
       if (rev !== null) return or404(documentRevision(a, b, rest.join('/'), Number(rev)), `revision ${rev} of ${seg.slice(1).join('/')}`);
       return or404(documentDetail(a, b, rest.join('/')), `document ${seg.slice(1).join('/')}`);
     }
@@ -395,6 +419,9 @@ function auth(seg: string[]): Answer {
 const reads = new Map<string, number>();
 const countRead = (resource: string) => { reads.set(resource, (reads.get(resource) ?? 0) + 1); };
 
+/** The session values whose unread figures are answered as a stand-in (`__nulls`). */
+const standingIn = new Set<string>();
+
 const server = http.createServer((req, res) => {
   const url = new URL(req.url ?? '/', 'http://fake');
   let raw = '';
@@ -402,7 +429,11 @@ const server = http.createServer((req, res) => {
   req.on('end', () => {
     const referer = (() => { try { return new URL(req.headers.referer ?? '').pathname; } catch { return ''; } })();
     const seg = url.pathname.split('/').filter(Boolean).map(decodeURIComponent);
-    const who = callerOf(req.headers.cookie);
+    const cookie = cookieOf(req.headers.cookie);
+    const who = callerOf(cookie);
+    // The state this request is drawn in: the one its session value names, or the process-wide mode.
+    const asked = sessionOf(cookie).state;
+    const state: string = asked ?? mode;
     const status = req.method === 'GET' && url.pathname === '/api/console/platform/status';
     let answer: Answer;
     /* The test hooks wear the proxied prefix — `/api/console/__hint` — so a browser check reaches them through the app's
@@ -412,7 +443,7 @@ const server = http.createServer((req, res) => {
     // `/api/console/__mode?set=empty` switches the world without a rebuild: the build bakes in one gateway address.
     if (hook === '__mode') {
       const next = url.searchParams.get('set') ?? '';
-      if (MODES.includes(next)) mode = next;
+      if (isState(next)) mode = next;
       res.writeHead(MODES.includes(next) || !next ? 200 : 400, { 'content-type': 'application/json' });
       res.end(JSON.stringify({ mode }));
       return;
@@ -448,6 +479,20 @@ const server = http.createServer((req, res) => {
       res.end(JSON.stringify({ collection, reached, renamed, reads: Object.fromEntries(reads) }));
       return;
     }
+    /*
+     * `/api/console/__nulls?session=<value>&on=1` answers every figure that session value is sent as null as a number
+     * no fixture holds, until `on=0`, so scripts/states-check.ts can see whether a page drew a zero for one. Only a
+     * session that names a state can be asked for, which no suite but that check sends: nothing the others read moves.
+     */
+    if (hook === '__nulls') {
+      const value = url.searchParams.get('session') ?? '';
+      const fine = sessionOf(value).state !== null && isState(sessionOf(value).state!);
+      if (fine && url.searchParams.get('on') === '1') standingIn.add(value);
+      else standingIn.delete(value);
+      res.writeHead(fine ? 200 : 400, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ session: value, standingIn: standingIn.has(value) }));
+      return;
+    }
     if (hook === '__streams') {
       res.writeHead(200, { 'content-type': 'application/json' });
       res.end(JSON.stringify({ streams: liveStreams(), collections: COLLECTIONS, reads: Object.fromEntries(reads) }));
@@ -455,9 +500,16 @@ const server = http.createServer((req, res) => {
     }
     // The live stream is not an answer to be serialised: it is a response held open, so it is served before the
     // JSON path below, which would otherwise write a head and end it.
+    // A session value asking for a state this fake does not draw is told so, before anything is read or answered.
+    if (asked !== null && !isState(asked)) {
+      const [code, body] = unknownState(cookie!, asked);
+      res.writeHead(code, { 'content-type': 'application/json' });
+      res.end(JSON.stringify(body));
+      return;
+    }
     if (seg[0] === 'api' && seg[1] === 'console' && seg[2] === 'live') {
       if (req.method !== 'GET') { res.writeHead(405, { 'content-type': 'application/json' }); res.end(JSON.stringify({ error: 'GET only' })); return; }
-      if (mode === 'error') { res.writeHead(503, { 'content-type': 'application/json' }); res.end(JSON.stringify({ error: 'The gateway could not reach its database.' })); return; }
+      if (state === 'error') { res.writeHead(503, { 'content-type': 'application/json' }); res.end(JSON.stringify({ error: 'The gateway could not reach its database.' })); return; }
       const parsed = parseNames(url.searchParams.get('collections'));
       if ('status' in parsed) { res.writeHead(parsed.status, { 'content-type': 'text/plain; charset=utf-8' }); res.end(parsed.error); return; }
       // A visitor on the screens before sign-in has no session, and neither has a cookie this fixture does not know.
@@ -469,8 +521,8 @@ const server = http.createServer((req, res) => {
     else if (seg[0] !== 'api' || seg[1] !== 'console') answer = missing(url.pathname);
     else if (!who || (seg[2] === 'me' && SIGNED_OUT.test(referer))) answer = [401, { error: 'not signed in' }];
     // The status read fails as its own route does when a query fails; every other route, as a gateway with no database.
-    else if (mode === 'error' && status) answer = [500, { error: "could not read the platform's status" }];
-    else if (mode === 'error' && seg[2] !== 'me') answer = [503, { error: 'The gateway could not reach its database: connection to 10.0.0.12:5432 refused. Nothing was changed.' }];
+    else if (state === 'error' && status) answer = [500, { error: "could not read the platform's status" }];
+    else if (state === 'error' && seg[2] !== 'me') answer = [503, { error: 'The gateway could not reach its database: connection to 10.0.0.12:5432 refused. Nothing was changed.' }];
     else if (req.method === 'GET') {
       if (seg[2]) countRead(seg[2]);
       answer = read(who, seg.slice(2), url.searchParams);
@@ -486,16 +538,24 @@ const server = http.createServer((req, res) => {
           return answer[1];
         }
       };
-      if (answer[0] === 200 && mode === 'empty') answer = [200, shape('empty', empty)];
-      if (answer[0] === 200 && mode === 'extreme') answer = [200, shape('extreme', (s, body) => extreme(s, body, heldTo(who)))];
+      // Every state is handed the request's own query, so a second page is drawn as a second page.
+      if (answer[0] === 200 && state === 'empty') {
+        const fresh = shape('empty', (s, body) => empty(s, body, url.searchParams));
+        answer = fresh === NOT_RECORDED ? UNKNOWN : [200, fresh];
+      }
+      if (answer[0] === 200 && state === 'extreme') answer = [200, shape('extreme', (s, body) => extreme(s, body, heldTo(who), url.searchParams))];
+      if (answer[0] === 200 && state === 'partial') answer = [200, shape('partial', partial)];
+      if (answer[0] === 200 && cookie !== null && standingIn.has(cookie)) answer = [200, nullsFilled(answer[1])];
     }
-    else answer = write(who, cookieOf(req.headers.cookie), seg.slice(2), url.searchParams, req.method ?? 'POST', (() => { try { return JSON.parse(raw || '{}') ?? {}; } catch { return {}; } })());
+    else answer = write(who, cookie, seg.slice(2), url.searchParams, req.method ?? 'POST', (() => { try { return JSON.parse(raw || '{}') ?? {}; } catch { return {}; } })());
+    // `slow` holds a page's reads and spares `/me`, as `error` does: who is asking is answered at once, so the page's own
+    // loading state is what shows. The status read is held past the five seconds its page gives it.
     setTimeout(() => {
       // A 204, or a 404 that says nothing, has no body to serialise, and a client that is sent one reads it wrong.
       if (answer[1] === null) { res.writeHead(answer[0], { 'cache-control': 'no-store' }); res.end(); return; }
       res.writeHead(answer[0], { 'content-type': 'application/json', 'cache-control': 'no-store' });
       res.end(JSON.stringify(answer[1]));
-    }, mode !== 'slow' ? 0 : status ? 6000 : 4000);
+    }, state !== 'slow' || (seg[2] === 'me' && !seg[3]) ? 0 : status ? 6000 : 4000);
   });
 });
 

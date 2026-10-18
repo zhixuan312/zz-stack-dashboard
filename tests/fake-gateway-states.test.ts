@@ -1,15 +1,18 @@
 // @vitest-environment node
 import type { ChildProcess } from 'node:child_process';
 import { startFakeGateway } from './fake-gateway-start.ts';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { DocumentDetail, InitiativeDetail, KnowledgeBody, PluginEval } from '../src/lib/api-shapes.ts';
 import type { ActivityLog, ActivitySummary, KnowledgeList, KnowledgeSummary, Runs } from '../src/lib/destination-shapes.ts';
-import type { People, Teams } from '../src/lib/fleet-shapes.ts';
-import type { Approvals, Home, InitiativeList } from '../src/lib/work-shapes.ts';
+import type { People, TeamDetail, Teams, Usage } from '../src/lib/fleet-shapes.ts';
+import type { PlatformStatus, Releases } from '../src/lib/platform-shapes.ts';
+import type { Approvals, Home, InitiativeList, RecordRead } from '../src/lib/work-shapes.ts';
 import { ME } from '../scripts/fake-gateway/people.ts';
 import { people as peopleAnswer } from '../scripts/fake-gateway/platform-people.ts';
 import { PLATFORM_STATUS } from '../scripts/fake-gateway/platform-status.ts';
 import { teamDetail, teams } from '../scripts/fake-gateway/platform-teams.ts';
 import { empty, extreme } from '../scripts/fake-gateway/states.ts';
+import { NULL_STANDIN } from '../scripts/fake-gateway/states-partial.ts';
 import { access } from '../scripts/fake-gateway/work-access.ts';
 import { activityLog, activitySummary } from '../scripts/fake-gateway/work-activity.ts';
 import { approvals } from '../scripts/fake-gateway/work-approvals.ts';
@@ -19,6 +22,11 @@ import { knowledgeList, knowledgeSummary } from '../scripts/fake-gateway/work-kn
 import { plugins } from '../scripts/fake-gateway/work-plugins.ts';
 import { runs } from '../scripts/fake-gateway/work-runs.ts';
 import config from '../scripts/verify.config.ts';
+
+/** The console server's cookie jar, for its own read of the gateway (`gatewayGet`): the session value a test names. */
+const jar = vi.hoisted(() => ({ value: '' }));
+vi.mock('next/headers', () => ({ cookies: async () => ({ get: (name: string) => (name === 'zz_console' && jar.value ? { value: jar.value } : undefined) }) }));
+const { gatewayGet } = await import('../src/data/gateway.ts');
 
 /**
  * The fixture's own modes, which are what every state the console draws is checked against.
@@ -119,9 +127,9 @@ describe('the fixture can shape every answer its routes produce', () => {
       expect(row.name.length).toBeGreaterThan(60);
     }
     expect(empty(['teams'], list)).toMatchObject({ teams: [], total: 0, tiles: { teams: 0, openWork: 0, pending: 0, lessons: 0 } });
-    // One team's page is its own record, in either mode.
+    // One team's page is its own record however busy the platform, and on a fresh deployment a team with nobody in it.
     expect(extreme(['teams', 'atlas'], teamDetail('atlas'))).toEqual(teamDetail('atlas'));
-    expect(empty(['teams', 'atlas'], teamDetail('atlas'))).toEqual(teamDetail('atlas'));
+    expect(empty(['teams', 'atlas'], teamDetail('atlas'))).toEqual({ ...teamDetail('atlas'), members: [], tiles: { people: 0, openWork: 0, waiting: 0, lessons: 0 }, calls: [] });
   });
 
   it('empties Home as it empties the list: nothing waits, nothing is open, and no week holds a recorded value', () => {
@@ -299,13 +307,188 @@ describe('every mode answers both people', () => {
     }
   });
 
-  it('slow: an answer is held four seconds for both', async () => {
+  it('slow: a page read is held four seconds for both, and who is asking is answered at once', async () => {
     const base = await start('slow');
     await Promise.all(PEOPLE.map(async ([name, role, cookie]) => {
-      const quickly = await ask(base, cookie, 'me', 1000).then(() => 'answered', (e: Error) => e.name);
+      expect((await (await ask(base, cookie, 'me', 1000)).json() as Me).role, name).toBe(role);
+      const quickly = await ask(base, cookie, 'home', 1000).then(() => 'answered', (e: Error) => e.name);
       expect(quickly, name).toBe('TimeoutError');
-      const later = await ask(base, cookie, 'me', 8000);
-      expect((await later.json() as Me).role, name).toBe(role);
+      expect((await ask(base, cookie, 'home', 8000)).status, name).toBe(200);
     }));
   }, 20_000);
+});
+
+/**
+ * A state per request (reconciliation 79): the session value `<person>+<state>` draws that state for that request alone,
+ * so a sweep of every state runs beside the suites reading the normal one against one process. Every console read
+ * forwards the value: the browser's through the app's rewrite, with its other cookies and the page as the Referer, and
+ * the server's through `src/data/gateway.ts`, which copies the one cookie and asks `scope=platform`.
+ */
+describe('a state asked for by the session value', () => {
+  const servers: ChildProcess[] = [];
+  afterEach(() => { for (const p of servers.splice(0)) p.kill(); delete process.env.ZZ_GATEWAY; jar.value = ''; });
+  async function start(): Promise<string> {
+    const gateway = await startFakeGateway();
+    servers.push(gateway.proc);
+    return gateway.base;
+  }
+
+  const NODE = 'knowledge/atlas/nodes/0002-match-reasons-come-from-the-index-never-from-a-model.md';
+  /** Every route a page reads, the detail routes among them, as both people; the fleet's to the superadmin alone. */
+  const ROUTES = [
+    'me', 'home', 'record', 'approvals', 'initiatives', 'initiatives/atlas/2026-09-28-search-relevance',
+    'document/atlas/2026-09-28-search-relevance/spec.md', 'knowledge', 'knowledge/summary', 'knowledge/log', NODE,
+    'activity', 'activity/summary', 'runs', 'plugins', 'skills?plugin=sdlc', 'skills/sdlc-spec', 'plugins/sdlc/skills/sdlc-spec',
+    'access', 'settings/me/teams', 'platform/status', 'platform/releases', 'platform/releases/0.97.0', 'platform/bugs',
+    'platform/evaluation', 'platform/usage', 'platform/knowledge', 'work/query?measure=closures&by=outcome',
+  ];
+  const FLEET = ['teams', 'teams/atlas', 'people', 'platform/audit', 'plugins/sdlc/eval', 'platform/bugs/0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d01'];
+  const routesOf = (person: string) => (person === 'superadmin' ? [...ROUTES, ...FLEET] : ROUTES);
+  const own = (path: string) => path === 'me' || path.startsWith('search');
+  const scoped = (path: string) => (own(path) ? path : `${path}${path.includes('?') ? '&' : '?'}scope=platform`);
+
+  /** One read as the console's server makes it, or as the browser does through the app's rewrite. */
+  async function read(base: string, value: string, path: string, from: 'server' | 'browser' = 'server'): Promise<[number, unknown]> {
+    const headers: Record<string, string> = from === 'server'
+      ? { accept: 'application/json', cookie: `zz_console=${value}` }
+      : { accept: 'application/json', cookie: `theme=dark; zz_console=${value}; zz-stack-tab=work`, referer: 'http://127.0.0.1:3100/initiatives' };
+    const res = await fetch(`${base}/api/console/${scoped(path)}`, { headers, signal: AbortSignal.timeout(10_000) });
+    const text = await res.text();
+    return [res.status, text ? JSON.parse(text) : null];
+  }
+  const all = (base: string, value: string, paths: string[], from: 'server' | 'browser' = 'server') => Promise.all(paths.map((p) => read(base, value, p, from)));
+
+  it.each(['empty', 'error', 'extreme', 'partial'])('%s: answers that state on every route to both people, and leaves the process-wide mode as it was', async (state) => {
+    const base = await start();
+    for (const person of ['superadmin', 'member']) {
+      const paths = routesOf(person);
+      const normal = await all(base, person, paths);
+      const asked = await all(base, `${person}+${state}`, paths);
+      expect(await all(base, `${person}+${state}`, paths, 'browser'), `${state}, ${person}: the browser's read`).toEqual(asked);
+      // Nothing about the process moved: a value with no state still reads the normal world.
+      expect(await (await fetch(`${base}/api/console/__mode`)).json()).toEqual({ mode: 'normal' });
+      expect(await all(base, person, paths), `${state}, ${person}: the normal state after it`).toEqual(normal);
+      // And what it answered is what the process answers once that state is its mode.
+      await fetch(`${base}/api/console/__mode?set=${state}`);
+      const whole = await all(base, person, paths);
+      await fetch(`${base}/api/console/__mode?set=normal`);
+      for (const [i, path] of paths.entries()) expect(asked[i], `${state}, ${person}: GET ${path}`).toEqual(whole[i]);
+      // And it is a state a page would see: somewhere its answer is not the normal one.
+      expect(asked.some((a, i) => JSON.stringify(a) !== JSON.stringify(normal[i])), `${state}, ${person}`).toBe(true);
+    }
+  }, 60_000);
+
+  it('answers the console server\'s own read in the state its cookie names', async () => {
+    const base = await start();
+    process.env.ZZ_GATEWAY = base;
+    delete process.env.ZZ_DEV_PAT;
+    jar.value = 'member+empty';
+    expect(await gatewayGet<InitiativeList>('/initiatives')).toMatchObject({ rows: [], total: 0 });
+    expect(await gatewayGet<{ role: string }>('/me')).toMatchObject({ role: 'member' });
+    jar.value = 'member';
+    expect((await gatewayGet<InitiativeList>('/initiatives')).rows.length).toBeGreaterThan(0);
+  });
+
+  it('slow: holds every page read four seconds and answers who is asking at once, for that session alone', async () => {
+    const base = await start();
+    for (const person of ['superadmin', 'member']) {
+      const at = Date.now();
+      expect((await read(base, `${person}+slow`, 'me'))[0]).toBe(200);
+      expect(Date.now() - at, person).toBeLessThan(1_000);
+      const quickly = await fetch(`${base}/api/console/home`, { headers: { cookie: `zz_console=${person}+slow` }, signal: AbortSignal.timeout(1_000) })
+        .then(() => 'answered', (e: Error) => e.name);
+      expect(quickly, person).toBe('TimeoutError');
+      // The same person in the normal state is not held.
+      expect((await fetch(`${base}/api/console/home`, { headers: { cookie: `zz_console=${person}` }, signal: AbortSignal.timeout(1_000) })).status).toBe(200);
+    }
+  }, 20_000);
+
+  it('partial: one part of every answer that has parts is unavailable, the rest answered, and Status\'s needs partial', async () => {
+    const base = await start();
+    type Counted = { ok: number; failed: number };
+    const parts = (v: unknown, n: Counted = { ok: 0, failed: 0 }): Counted => {
+      if (Array.isArray(v)) v.forEach((x) => parts(x, n));
+      else if (v && typeof v === 'object') {
+        const o = v as Record<string, unknown>;
+        if (o.state === 'ok' && 'data' in o && Object.keys(o).length === 2) n.ok++;
+        if (o.state === 'unavailable' && o.reason === 'query_failed') n.failed++;
+        Object.values(o).forEach((x) => parts(x, n));
+      }
+      return n;
+    };
+    let withParts = 0;
+    for (const person of ['superadmin', 'member']) {
+      for (const path of routesOf(person)) {
+        const [, normal] = await read(base, person, path);
+        const [code, got] = await read(base, `${person}+partial`, path);
+        expect(code, `${person}: GET ${path}`).toBe(200);
+        const before = parts(normal);
+        if (!before.ok) { expect(got, `${person}: GET ${path} has no part, and is answered as it is`).toEqual(normal); continue; }
+        withParts++;
+        // One failed and the others still answered; a part nested inside the one that failed goes with it.
+        const after = parts(got);
+        expect(after.failed, `${person}: GET ${path}`).toBe(1);
+        expect(after.ok, `${person}: GET ${path}`).toBeLessThan(before.ok);
+        if (before.ok > 1) expect(after.ok, `${person}: GET ${path}`).toBeGreaterThan(0);
+      }
+      const status = (await read(base, `${person}+partial`, 'platform/status'))[1] as PlatformStatus;
+      expect(status.needs, person).toMatchObject({ state: 'partial', total: null, headline: expect.stringMatching(/; some checks unavailable$/) });
+      expect(status.needs.unavailableKinds, person).toHaveLength(1);
+      expect(status.needs.rows.some((r) => status.needs.unavailableKinds.includes(r.kind)), person).toBe(false);
+    }
+    expect(withParts).toBeGreaterThan(10);
+  }, 30_000);
+
+  it('refuses a state it does not draw with a 400 naming it, before anything is answered', async () => {
+    const base = await start();
+    for (const path of ['me', 'home', 'platform/status']) {
+      const [code, body] = await read(base, 'member+sideways', path);
+      expect(code, path).toBe(400);
+      expect((body as { error: string }).error, path).toMatch(/"sideways".*normal, empty, error, slow, extreme, partial/);
+    }
+  });
+
+  it('extreme: hands the request\'s query to the state, so a second page holds other names than the first', async () => {
+    const base = await start();
+    const page = async (offset: number) => ((await read(base, 'superadmin+extreme', `initiatives?limit=2&offset=${offset}`))[1] as InitiativeList).rows.map((r) => r.slug);
+    const [first, second] = [await page(0), await page(2)];
+    expect(first).toHaveLength(2);
+    expect(second).toHaveLength(2);
+    for (const slug of second) expect(first).not.toContain(slug);
+  });
+
+  it('stands a number in for every unread figure of one session value while a check asks, and for nobody else', async () => {
+    // What scripts/states-check.ts reads a page twice by: a zero drawn where the answer sent null turns into this number.
+    const base = await start();
+    const figure = async (value: string) => ((await read(base, value, 'platform/usage'))[1] as Usage).tiles;
+    const hook = (value: string, on: number) => fetch(`${base}/api/console/__nulls?session=${encodeURIComponent(value)}&on=${on}`);
+    expect((await hook('member+empty', 1)).status).toBe(200);
+    expect(await figure('member+empty')).toMatchObject({ state: 'ok', data: { calls: { last: { figure: { value: NULL_STANDIN, why: 'no_data' }, numerator: NULL_STANDIN } } } });
+    // Another session value, the same person in the normal world among them, reads the nulls as they are.
+    expect(await figure('superadmin+empty')).toMatchObject({ state: 'ok', data: { calls: { last: { figure: { value: null } } } } });
+    expect((await read(base, 'member', 'platform/usage'))[1]).toEqual((await read(base, 'member+normal', 'platform/usage'))[1]);
+    await hook('member+empty', 0);
+    expect(await figure('member+empty')).toMatchObject({ state: 'ok', data: { calls: { last: { figure: { value: null } } } } });
+    // Only a session value that names a state can be asked for, so no suite reading the process-wide mode is moved.
+    expect((await hook('member', 1)).status).toBe(400);
+  });
+
+  it('empty: draws every detail route as the record there with nothing in it', async () => {
+    const base = await start();
+    const get = async <T,>(path: string) => (await read(base, 'superadmin+empty', path))[1] as T;
+    expect(await get<InitiativeDetail>('initiatives/atlas/2026-09-28-search-relevance')).toMatchObject({ slug: '2026-09-28-search-relevance', documents: [], steps: [] });
+    expect(await get<DocumentDetail>('document/atlas/2026-09-28-search-relevance/spec.md')).toMatchObject({ path: 'spec.md', body: null, versions: [], sources: [] });
+    expect(await get<KnowledgeBody>(NODE)).toMatchObject({ body: '', related: [], evidence: null });
+    expect(await get<TeamDetail>('teams/atlas')).toMatchObject({ members: [], calls: [] });
+    // A release and a report are what a fresh deployment holds none of: their routes answer as for an id nobody holds.
+    for (const path of ['platform/releases/0.97.0', 'platform/bugs/0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d01']) expect(await read(base, 'superadmin+empty', path), path).toEqual([404, null]);
+    expect(await get<Releases>('platform/releases')).toMatchObject({ rows: { state: 'ok', data: { rows: [], total: 0 } }, tiles: { releases: 0, latest: null } });
+    expect(await get<PluginEval>('plugins/sdlc/eval')).toEqual({ plugin: 'sdlc', found: false });
+    const usage = await get<Usage>('platform/usage');
+    expect(usage.tiles.state === 'ok' && usage.tiles.data.calls.last.figure).toEqual({ value: null, why: 'no_data' });
+    const record = await get<RecordRead>('record');
+    // Nothing written is an estimate of nothing; a null estimate is a store that could not be read.
+    expect(record.lead.estimate).toMatchObject({ words: 0, hours: 0, coverage: { documents: 0 } });
+    expect(record.record.state === 'ok' && record.record.data.rows).toEqual([]);
+  });
 });

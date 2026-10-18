@@ -24,7 +24,7 @@ const evaluationOf = (plugin: string): Promise<PluginEval | null> =>
 export const pluginTool = defineViewTool({
   name: 'plugin',
   title: 'Plugin',
-  description: 'One plugin: what it ships and governs, whether it is required and the command that installs it, its public score out of 10 with its protocol, date and whether its scores compare, the active team\'s calls of its skills, and, for the superadmin and the plugin\'s owning team, its evaluation with its score by dimension, guardrails, findings and candidates for change. Nobody starts an evaluation from the console.',
+  description: 'One plugin: what it ships and governs, whether it is required and the command that installs it, its public score out of 10 with its protocol, date and whether its scores compare, the active team\'s calls of its skills, and, where the caller\'s read holds it, its evaluation with its score by dimension, guardrails, findings and candidates for change. Nobody starts an evaluation from the console.',
   needs: FEATURES.plugins.needs,
   page: '/plugins/[plugin]',
   input: z.object({ plugin: segment('The plugin\'s name.') }),

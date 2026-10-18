@@ -22,29 +22,6 @@
  */
 const listeners = new Set<() => void>();
 
-/**
- * A store path, carried through an address segment by segment — never as one string.
- *
- * `encodeURIComponent` on the whole path escapes its separators, so `sources/2026-10-06-call.md` becomes one segment
- * named `sources%2F2026-10-06-call.md` and the route's `[...path]` never splits it: the page then looks for a document
- * called `sources/2026-10-06-call.md` in the store's root and reports one that is not there. Encoding each segment and
- * rejoining keeps the slashes as slashes, which is what a path is.
- *
- * **This pair was written four times** — twice as `encodePath` and twice as `path.map(decodeURIComponent).join('/')`,
- * in four files, none of them saying why the segments are handled one at a time. That is the same mechanism this
- * console keeps meeting: a rule written where it is first needed, and the second use copies it without its reason, so
- * the day someone "simplifies" it to one `encodeURIComponent` the only place that would notice is a document whose
- * path has a directory in it.
- */
-export function encodePath(path: string): string {
-  return path.split('/').map(encodeURIComponent).join('/');
-}
-
-/** The other half: an address's path segments back into the store path they name. */
-export function decodePath(segments: string[]): string {
-  return segments.map(decodeURIComponent).join('/');
-}
-
 /** The query string, or empty where there is no `window` to ask. */
 export function addressSearch(): string {
   try {

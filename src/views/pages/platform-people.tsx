@@ -37,11 +37,13 @@ const shownName = (p: PersonRow) => p.name || p.email;
 
 /** When a person last signed in, against the read's own cutoff, or that the record holds none: never a guessed date. */
 function LastSignIn({ at, asOf }: { at: string | null; asOf: string }) {
-  if (!at) return <span className="text-ink-3">{NO_SIGN_IN}</span>;
+  // The words wrap where a date never does: held to one line, they set the table's narrowest width.
+  if (!at) return <span className="whitespace-normal text-ink-3">{NO_SIGN_IN}</span>;
   return <time dateTime={at} title={formatDateTime(at)}>{formatRelative(at, new Date(asOf))}</time>;
 }
 
-const roleBadge = (p: PersonRow) => (p.role === 'superadmin' ? <Badge tone="accent">Superadmin</Badge> : <Badge tone="neutral">Member</Badge>);
+const roleWord = (p: PersonRow) => (p.role === 'superadmin' ? 'Superadmin' : 'Member');
+const roleBadge = (p: PersonRow) => <Badge tone={p.role === 'superadmin' ? 'accent' : 'neutral'}>{roleWord(p)}</Badge>;
 const stateBadge = (p: PersonRow) => (p.state === 'active' ? <Badge tone="positive" dot>Active</Badge> : <Badge tone="warning" dot>Deactivated</Badge>);
 const passkeys = (n: number) => (n ? `${formatCount(n)} ${plural(n, 'passkey')}` : 'No passkey');
 
@@ -131,24 +133,30 @@ function Acts({ p }: { p: PersonRow }) {
   );
 }
 
-/** The table's columns, in the gateway's order: by the day a person was added, filtered and paged where it is read. */
+/**
+ * The table's columns, in the gateway's order: by the day a person was added, filtered and paged where it is read. Under
+ * 896px the role, the teams and the passkeys give way: the role and the passkeys go under the person, where the two acts
+ * that need them are still in the row, and the cell's title holds all three.
+ */
 const columnsAt = (asOf: string): Column<PersonRow>[] => aligned([
   {
-    key: 'person', header: 'Person', grow: true, mobile: 'title', title: (p) => (p.name ? `${p.name}, ${p.email}` : p.email),
+    key: 'person', header: 'Person', grow: true, truncate: true, mobile: 'title',
+    title: (p) => [p.name ? `${p.name}, ${p.email}` : p.email, roleWord(p), p.teams.length ? `in ${p.teams.join(', ')}` : 'in no team', passkeys(p.passkeys)].join('; '),
     cell: (p) => (
       <span className="block min-w-0">
         <span className="block truncate font-medium text-ink" title={shownName(p)}>{shownName(p)}</span>
         {p.name ? <span className="t-caption block truncate" title={p.email}>{p.email}</span> : null}
+        <span className="t-caption block truncate @min-[896px]:hidden" title={`${roleWord(p)} · ${passkeys(p.passkeys)}`}>{roleWord(p)} · {passkeys(p.passkeys)}</span>
       </span>
     ),
     mobileCell: (p) => <span className="inline-flex min-w-0 items-center gap-2"><span className="truncate" title={shownName(p)}>{shownName(p)}</span>{p.role === 'superadmin' ? roleBadge(p) : null}</span>,
   },
-  { key: 'role', header: 'Role', hideBelow: 'md', cell: roleBadge },
+  { key: 'role', header: 'Role', hideBelow: 'lg', cell: roleBadge },
   {
     key: 'teams', header: 'Teams', hideBelow: 'lg',
     cell: (p) => (p.teams.length ? <span className="whitespace-normal [overflow-wrap:anywhere]">{p.teams.join(', ')}</span> : <span className="text-ink-3">None</span>),
   },
-  { key: 'passkeys', header: 'Passkey', numeric: true, mobile: 'fact', cell: (p) => (p.passkeys ? formatCount(p.passkeys) : <span className="text-ink-3">None</span>), mobileCell: (p) => passkeys(p.passkeys) },
+  { key: 'passkeys', header: 'Passkey', numeric: true, hideBelow: 'lg', mobile: 'fact', cell: (p) => (p.passkeys ? formatCount(p.passkeys) : <span className="text-ink-3">None</span>), mobileCell: (p) => passkeys(p.passkeys) },
   { key: 'signIn', header: 'Last sign-in', numeric: true, mobile: 'fact', cell: (p) => <LastSignIn at={p.lastSignIn} asOf={asOf} />, mobileCell: (p) => (p.lastSignIn ? <>Signed in <LastSignIn at={p.lastSignIn} asOf={asOf} /></> : NO_SIGN_IN) },
   { key: 'state', header: 'State', mobile: 'fact', cell: stateBadge, mobileCell: (p) => (p.state === 'active' ? 'Active' : 'Deactivated') },
   // The row's acts keep their place on a phone, at the end of the card's first line.

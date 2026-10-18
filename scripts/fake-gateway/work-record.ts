@@ -6,7 +6,10 @@
  * period starts on the quarter's first day, on 1 January, or on the team's first record, and runs to the cutoff; a
  * period of up to 26 weeks answers weeks and a longer one months, as the gateway's `grainFor` chooses, and every figure by
  * period, the closures and the median hours to close among them, is cut at that grain. Approvals are the caller's own,
- * the rest the active team's, labelled team history: the fake's people joined after the team's first record.
+ * the rest the active team's, labelled team history: the fake's people joined after the team's first record. Nothing is
+ * counted before that first record, in any period: a quarter or a year that begins earlier answers no run, no day and
+ * no search before it, its periods still the period's own, as the gateway's slices answer; nor a lesson, which the
+ * fake's team adopts from its first record on.
  *
  * Its closures, initiatives and approvals are read off the initiatives list and the approvals fixture, and its words
  * off Home's, so every Work page reads the same team. The coverage carries the import-made documents and the gaps
@@ -72,9 +75,13 @@ const spread = (m: number, largest: number): { median: Figure; largest: Figure }
 /** The record of `team` over `period`, the caller's approvals those signed in `email`'s name; its table paged. */
 function recordOf(team: string | null, email: string, period: Period, page: { limit: number; offset: number }): RecordRead {
   const start = startOf(period);
+  // Runs and searches are counted from here: the later of the period's start and the team's first record.
+  const begins = Math.max(start, FIRST_RECORD);
   const asOf = iso(now());
   const { windows } = periodsFrom(start);
-  const whole: Window = { from: iso(start), to: asOf, observedFrom: iso(Math.max(start, FIRST_RECORD)), observedThrough: asOf, complete: false };
+  // The periods that end by the first record count nothing; the rest count from the one that holds it.
+  const firstCounted = windows.findIndex((w) => w.to > iso(begins));
+  const whole: Window = { from: iso(start), to: asOf, observedFrom: iso(begins), observedThrough: asOf, complete: false };
   const inPeriod = (at: string | null) => at !== null && at >= whole.from && at < asOf;
   const all = rowsOf(team);
   const closed = all.filter((r) => inPeriod(r.closed));
@@ -120,16 +127,18 @@ function recordOf(team: string | null, email: string, period: Period, page: { li
     } },
     knowledge: { state: 'ok', data: {
       adopted: counted(period === 'quarter' ? 2 : 6),
-      adoptedInAll: windows.map((w, i) => count(w, Math.min(6, Math.floor((i + 1) / 2)))),
+      adoptedInAll: windows.map((w, i) => count(w, i < firstCounted ? 0 : Math.min(6, Math.floor((i - firstCounted + 1) / 2)))),
       ownReturned: counted(118), meanResults: counted(4.6), sharedResults: counted(37),
-      searchesWithResults: windows.map((w, i) => ({ window: w, figure: { value: 80 + (i % 3) * 5, why: null }, numerator: 16 + (i % 3), denominator: 20 })),
+      searchesWithResults: windows.map((w, i) => (i < firstCounted
+        ? { window: w, figure: { value: null, why: 'no_data' }, numerator: 0, denominator: 0 }
+        : { window: w, figure: { value: 80 + (i % 3) * 5, why: null }, numerator: 16 + (i % 3), denominator: 20 })),
       returnedByKind: [{ kind: 'document', results: 212 }, { kind: 'lesson', results: 118 }, { kind: 'source', results: 64 }],
       byKind: [{ kind: 'decision', lessons: 3 }, { kind: 'behavior', lessons: 2 }, { kind: 'process', lessons: 1 }],
     } },
     agents: { state: 'ok', data: {
       coverageMs: counted(212 * 3_600_000), summedMs: counted(301 * 3_600_000), peak: counted(6), runs: counted(418), zeroLength: 23, skillsUsed: counted(11),
       weekdayHour: Array.from({ length: 7 }, (_, d) => Array.from({ length: 24 }, (_, h) => (d < 5 && h >= 8 && h < 19 ? ((d + h) % 5) + 1 : 0))),
-      days: Array.from({ length: Math.ceil((now() - start) / DAY) }, (_, i) => ({ day: iso(start + i * DAY).slice(0, 10), runs: (i * 7) % 6 })),
+      days: Array.from({ length: Math.ceil((now() - begins) / DAY) }, (_, i) => ({ day: iso(begins + i * DAY).slice(0, 10), runs: (i * 7) % 6 })),
       bySkill: [{ skill: 'sdlc-plan', runs: 96 }, { skill: 'sdlc-spec', runs: 88 }, { skill: 'sdlc-review', runs: 71 }, { skill: 'sdlc-execute', runs: 64 }],
     } },
     firsts: { state: 'ok', data: {

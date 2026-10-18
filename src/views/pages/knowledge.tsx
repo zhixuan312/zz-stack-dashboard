@@ -274,6 +274,14 @@ function Questions({ summary }: { summary?: KnowledgeSummary }) {
 /** The week's share as the chart writes it. */
 const share = (n: number) => `${Math.round(n)}%`;
 
+/** The last whole week with searches, in one line: a week whose figure was not worked out says so, never "0 of N". */
+function lastWeekLine(last: PeriodFigure | undefined): string {
+  if (!last) return 'No whole week of searches yet';
+  const week = `the week of ${formatDay(last.window.from)}`;
+  if (last.numerator === null || last.denominator === null || last.figure.why === 'unavailable') return `Unavailable: the searches that found something in ${week} were not counted`;
+  return `${formatCount(last.numerator)} of ${formatCount(last.denominator)} searches found something in ${week}`;
+}
+
 function Weeks({ summary }: { summary?: KnowledgeSummary }) {
   const title = 'Searches with results, by week';
   if (!summary) return <Panel title={title}><p className="t-small text-ink-3">Not read: the shelf&rsquo;s figures did not load.</p></Panel>;
@@ -285,7 +293,7 @@ function Weeks({ summary }: { summary?: KnowledgeSummary }) {
   return (
     <Panel
       title={title}
-      description={last ? `${formatCount(last.numerator ?? 0)} of ${formatCount(last.denominator ?? 0)} searches found something in the week of ${formatDay(last.window.from)}` : 'No whole week of searches yet'}
+      description={lastWeekLine(last)}
     >
       {weeks.length ? (
         <ColumnChart
