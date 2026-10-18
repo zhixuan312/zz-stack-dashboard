@@ -25,6 +25,14 @@ data: {"collection":"members"}
 : beat 1791181947919
 ```
 
+`GET /api/live?collections=members,keys&since=members:<revision>,keys:<revision>` is a page's first open: `since` is
+the revision of each collection the page's server read (`revision` on the answer of `read`, `readAll` and `aggregate`
+in `optional:src/data/read.ts`). The first frame then names only what moved since: `event: synced` with `data: {}` when nothing
+did, otherwise `event: resync` naming each collection that moved, has no pair, was read in another process (a revision
+is `<boot>:<n>`) or has no `revision`. The stream subscribes before it compares, so a write between the server's read
+and the open is named by the greeting and a later one arrives as a hint. A `since` pair with no `:`, an empty revision
+or a name not in `collections` is 400.
+
 The stream carries no `id:` because it does not replay. A `Last-Event-ID` the browser sends back never suppresses the
 first `resync` and never implies that anything was recovered. A heartbeat carries transport time, not proof that data
 was fetched. An adapter may observe richer events internally, but it authorizes and reduces them to the `LiveEvent`
@@ -48,7 +56,21 @@ const NAME = /^[A-Za-z0-9_-]{1,64}$/;
 
 const text = (status: number, body: string) => new Response(body, { status, headers: { 'content-type': 'text/plain; charset=utf-8' } });
 
-/** `GET /api/live?collections=members,keys`: change hints for the collections the caller may read. 400 malformed, 401 without a session, 403 for any name they may not read. */
+/** `name:revision,...` into a map; `undefined` when absent, `null` when a pair has no `:`, an empty part or an unnamed collection. */
+function parseSince(raw: string | null, names: string[]): Record<string, string> | undefined | null {
+  if (raw === null) return undefined;
+  const served: Record<string, string> = {};
+  for (const pair of raw.split(',')) {
+    const at = pair.indexOf(':');
+    const name = pair.slice(0, at);
+    const revision = pair.slice(at + 1);
+    if (at < 1 || !revision || !names.includes(name)) return null;
+    served[name] = revision;
+  }
+  return served;
+}
+
+/** `GET /api/live?collections=members,keys`: change hints for the collections the caller may read; `since=members:<revision>` makes the first frame name only what moved. 400 malformed, 401 without a session, 403 for any name they may not read. */
 export async function GET(request: Request): Promise<Response> {
   const scope = await resolveAccess().catch((e: unknown) => { if (e instanceof Unauthenticated) return null; throw e; });
   if (!scope) return text(401, 'Sign in to continue.');
@@ -59,12 +81,16 @@ export async function GET(request: Request): Promise<Response> {
   const names = [...new Set(parts)];
   if (names.length > MAX_NAMES) return text(400, 'Name the collections to follow.');
 
+  const served = parseSince(new URL(request.url).searchParams.get('since'), names);
+  if (served === null) return text(400, 'Name the revisions as name:revision.');
+
   // An unknown name and a forbidden one answer alike, so neither is disclosed.
   if (!(await Promise.all(names.map((n) => can(scope, n, 'read')))).every(Boolean)) return text(403, 'You do not have access to that.');
 
   return liveStream({
     names,
     collections: names.map((n) => collectionFor(scope, n)),
+    since: served,
     signal: request.signal,
     authorize: async (name) => {
       const now = await resolveAccess().catch(() => null);
@@ -90,7 +116,7 @@ const MAX_QUEUED = 100;
 let noted = false;
 
 type LiveStreamOptions = {
-  /** The requested names, already authorized once; the first frame is a resync of them. */
+  /** The requested names, already authorized once; the first frame greets with what moved. */
   names: string[];
   /** One scope-bound collection per name, in the same order. */
   collections: AnyCollection[];
@@ -98,9 +124,11 @@ type LiveStreamOptions = {
   heartbeatMs?: number;
   /** Whether the current scope may still read a collection; asked before every hint is sent. */
   authorize: (name: string) => Promise<boolean>;
+  /** The revision of each collection the page was served, by name; the greeting names only what moved since. */
+  since?: Record<string, string>;
 };
 
-export function liveStream({ names, collections, signal, heartbeatMs = 15000, authorize }: LiveStreamOptions): Response {
+export function liveStream({ names, collections, signal, heartbeatMs = 15000, authorize, since }: LiveStreamOptions): Response {
   const encoder = new TextEncoder();
   const unsubscribe: Array<() => void> = [];
   let timer: ReturnType<typeof setInterval> | undefined;
@@ -108,7 +136,7 @@ export function liveStream({ names, collections, signal, heartbeatMs = 15000, au
   let controller!: ReadableStreamDefaultController<Uint8Array>;
 
   const send = (frame: string) => controller.enqueue(encoder.encode(frame));
-  const resync = () => `event: resync\ndata: ${JSON.stringify({ collections: names })}\n\n`;
+  const resync = (moved: string[] = names) => `event: resync\ndata: ${JSON.stringify({ collections: moved })}\n\n`;
 
   function close() {
     if (closed) return;
@@ -167,11 +195,17 @@ export function liveStream({ names, collections, signal, heartbeatMs = 15000, au
       controller = c;
       if (signal.aborted) return close();
       signal.addEventListener('abort', close);
-      send(`retry: 3000\n\n${resync()}`);
+      // Subscribe first, then compare: a write after the page's read either moves a revision the greeting names or
+      // arrives as a hint.
       collections.forEach((collection, i) => {
         const off = collection.subscribe?.(() => hint(names[i]!));
         if (off) unsubscribe.push(off);
       });
+      const moved = names.filter((n, i) => {
+        const was = since?.[n];
+        return was === undefined || was !== collections[i]!.revision?.();
+      });
+      send(`retry: 3000\n\n${moved.length ? resync(moved) : 'event: synced\ndata: {}\n\n'}`);
       timer = setInterval(() => { if (!closed) send(`: beat ${Date.now()}\n\n`); }, heartbeatMs);
     },
     cancel: close,
@@ -284,9 +318,14 @@ name the caller may not read. How it behaves:
 
 - A transport open is not `live`: the first resynchronization must succeed. A failed read keeps the previous observation
   and shows the data as stale; it never advances the data's observation time.
-- An open is one read. The client reads every name when the stream opens, and the stream's first frame, which is always
-  a `resync`, asks for the read the open has already begun; the client does not answer it a second time. A `resync`
-  that arrives later is the server reporting lost hints, and is read.
+- An open is one read, and a page's first open is none. A view passes the revisions its server read to
+  `useLive(names, revisions)`; the tab's first open sends them as `since` and reads nothing itself: a `synced` greeting
+  makes the tab `live` with no read, and a `resync` greeting reads the names it carries. Per name the client sends the
+  oldest revision among the views that show it, and leaves out a name two views were served by different processes
+  (the server then resyncs it). Every later open (a reconnect, a tab shown again, the safety poll) sends no `since` and
+  reads every name when the stream opens; the stream's first frame, a `resync` of every name, asks for the read the
+  open has already begun, and the client does not answer it a second time. A `resync` that arrives later is the server
+  reporting lost hints, and is read.
 - Hints wait at most 500 ms and coalesce. One refresh runs at a time, and what arrives meanwhile runs next. A refresh
   slower than 10 s counts as failed.
 - A safety refresh runs every `pollMs` (30 s) even on a healthy stream. A failed connection is retried after a second;
@@ -317,6 +356,11 @@ A production collection is bound to the authorized scope: its database predicate
   name between servers, and never a row);
 - on any gap, such as a lost connection, a restarted server or a full queue, emits a hint for every subscribed
   collection, which is a resync: a notification sent while the listener was away is gone, and a hint is cheap;
+- gives its collection a `revision()` when the store can: `<boot>:<n>`, where `<boot>` names the process or store
+  generation (no `:` in it) and `<n>` grows on every committed create, update and remove, shared by every process that
+  serves the collection. Without it, every first open resyncs that collection; with a per-process counter and several
+  processes, a stream would call a page current that another process has moved, so share the counter wherever the
+  store is;
 - cleans up when the last subscriber leaves, and when a reconnect fails retries with a bounded backoff.
 
 The two adapters below need packages the template does not install (`pg`, `ioredis`). They are working shapes to adapt,

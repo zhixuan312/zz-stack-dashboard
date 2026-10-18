@@ -3,6 +3,7 @@
  * and right after a live refresh, with the nearest-rank p95 of each metric held to the budget.
  *
  *   node scripts/perf.ts --base http://127.0.0.1:3000 [--config scripts/verify.config.ts] [--rail /,/a,/b] [--homes /b=Name]
+ *                        [--shard <i>/<n>]
  *
  * It is the journey of scripts/navigate.ts (the press time and the frame clock are the page's own) taken `--samples` times,
  * 20 by default, with no retake: every sample counts, and what is reported is the p95 of the lot, never the best of them.
@@ -28,7 +29,9 @@
  * A p95 over its budget is a `warn`, a report and never a failure: the protocol is statistical evidence, run weekly, not
  * a release gate. A sample that never got ready or whose control did nothing is a FAIL. Exit non-zero on a FAIL, on a
  * missing mapping (named before anything is sampled) and on a missing Chrome: this is an explicit mode, so a lack of
- * Chrome is never a pass. `--samples` and `--routes` narrow a run for working on the protocol;
+ * Chrome is never a pass. The whole protocol runs only where `CI` is `true`, split by route with `--shard <i>/<n>`: shard i
+ * of n measures the rail routes at positions k with k % n === i - 1, its journeys starting from every rail route.
+ * `--samples` and `--routes` narrow a run for working on the protocol;
  * a narrowed run reports `warn`, never `ok`. The mappings and budgets come from scripts/verify.config.ts.
  */
 import path from 'node:path';
@@ -37,6 +40,7 @@ import { budgetsOf, limitsFor } from './lib/budgets.ts';
 import { launch, type Page } from './lib/chrome.ts';
 import { resolveCoverage } from './lib/coverage.ts';
 import { railRoutes } from './lib/routes.ts';
+import { parseShard, shardOf, WHOLE_PROTOCOL_REFUSAL } from './lib/shard.ts';
 import { summary } from './lib/timing.ts';
 import { DEVICES, Fail, drawerRoutes, journey, journeyStart, liveRefresh, METRICS, prepare, type Condition, type Device, type Metric, type NavConfig } from './lib/journey.ts';
 import { workspaceHomes } from './navigate.ts';
@@ -120,6 +124,12 @@ async function startRoutes(routes: string[]): Promise<{ live: string[]; starts: 
 async function main(): Promise<number> {
   const samples = Number(opt('--samples') ?? PROTOCOL_SAMPLES);
   if (!Number.isInteger(samples) || samples < 2) { console.error('--samples must be a whole number of at least 2'); return 1; }
+  const shardText = opt('--shard');
+  if (shardText !== undefined && opt('--routes') !== undefined) { console.error('perf: --shard divides the whole protocol; it cannot be combined with --routes'); return 1; }
+  let shard: ReturnType<typeof parseShard> | undefined;
+  try { if (shardText !== undefined) shard = parseShard(shardText); } catch (e) { console.error(`perf: ${(e as Error).message}`); return 1; }
+  // The whole protocol is hours of a machine's time: it runs split by route, in CI, never on a person's machine.
+  if (opt('--routes') === undefined && process.env.CI !== 'true') { console.error(`perf: ${WHOLE_PROTOCOL_REFUSAL}`); return 1; }
 
   const config = ((await import(pathToFileURL(path.resolve(ROOT, opt('--config') ?? 'scripts/verify.config.ts')).href)) as { default?: NavConfig }).default ?? {};
   const budgets = budgetsOf(config);
@@ -160,7 +170,8 @@ async function main(): Promise<number> {
     out({ status: 'FAIL', errors });
     return 1;
   }
-  const routes = narrowed ?? rail.routes;
+  const routes = narrowed ?? (shard ? shardOf(rail.routes, shard) : rail.routes);
+  // A shard is a share of the protocol, not a narrowed run; fewer samples than the protocol's, or named routes, are.
   const partial = narrowed !== undefined || samples !== PROTOCOL_SAMPLES;
 
   let live: string[];
@@ -246,8 +257,8 @@ async function main(): Promise<number> {
   const over = results.filter((r) => r.status === 'warn').length;
   const status = failed ? 'FAIL' : partial || over ? 'warn' : 'ok';
   if (partial) console.log(`warn    a narrowed run (${samples} samples, ${routes.length} of ${rail.routes.length} routes) is not the protocol`);
-  console.log(`${failed ? 'FAIL   ' : over ? 'warn   ' : 'ok     '} perf ${results.length} combinations · ${results.filter((r) => r.status === 'FAIL').length} failed · ${over} over a p95 budget (reported) · ${took.toFixed(0)} s`);
-  out({ status, samples, routes, live, took, partial, results });
+  console.log(`${failed ? 'FAIL   ' : over ? 'warn   ' : 'ok     '} perf ${results.length} combinations · ${results.filter((r) => r.status === 'FAIL').length} failed · ${over} over a p95 budget (reported) · ${took.toFixed(0)} s${shard ? ` · shard ${shard.index}/${shard.count}` : ''}`);
+  out({ status, samples, routes, live, took, partial, shard: shardText, results });
   return failed ? 1 : 0;
 }
 

@@ -19,6 +19,7 @@
  */
 import { launch, type Page } from './lib/chrome.ts';
 import { DEEP_SOURCE } from './lib/deep.ts';
+import { linkPath } from './lib/links.ts';
 import { discover } from './lib/routes.ts';
 import { settle } from './lib/settle.ts';
 import config from './verify.config.ts';
@@ -113,11 +114,15 @@ for (const width of WIDTHS) {
     // The page's late chrome first (scripts/lib/settle.ts): a control that arrives after the list is taken is never pressed, and the count reads as if it had been.
     const fresh = async () => { await page.open(base + route, { width, theme: 'dark', cookie }); await inject(route); await settle(page); return page.eval<{ controls: string[]; links: string[] }>(LIST); };
     const { controls, links } = await fresh();
+    // A link is followed as a browser follows it: its href as the page writes it, resolved against the page. Skipping every
+    // href that did not start with "/" let a relative link that answered 404 pass (/system/system/contributing).
     for (const href of new Set(links)) {
-      if (!href.startsWith('/') || checkedLinks.has(href)) continue;
-      const status = (await fetch(base + href.split('#')[0], { redirect: 'manual' })).status;
-      checkedLinks.set(href, status);
-      if (status >= 400) failures.push(`${route}: link ${href} answers ${status}`);
+      let path: string | null;
+      try { path = linkPath(href, base + route); } catch { failures.push(`${route}: link ${href} is not a URL`); continue; }
+      if (path === null || checkedLinks.has(path)) continue;
+      const status = (await fetch(base + path, { redirect: 'manual' })).status;
+      checkedLinks.set(path, status);
+      if (status >= 400) failures.push(`${route}: link ${href}${path === href ? '' : ` (${path})`} answers ${status}`);
     }
     for (let i = 0; i < controls.length; i++) {
       let armed = await page.eval<{ x: number; y: number; covered?: string } | null>(ARM(i));

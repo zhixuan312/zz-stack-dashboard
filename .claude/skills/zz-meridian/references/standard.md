@@ -80,7 +80,7 @@ Each floor is measured by a command, and its evidence is the line the command pr
 | The whole keyboard path, a visible focus ring (a change on focus) at every stop, and the same stops in reverse with Shift+Tab | `pnpm verify --full` (the keyboard walk) |
 | The assistant off and on, when the project has it | `pnpm verify --full`; a step it prints as `n/a`, with its reason, is not applicable and does not count against the outcome |
 | Each rail route's shell, data and first interaction arrive within their budgets, on desktop and through the phone drawer | `pnpm verify --timed` (the navigation budgets; needs a quiet machine) |
-| Live data across tabs, restarts and offline, while the sample Members page it drives is there (a product's own live pages add a `browserChecks` script) | `pnpm verify --timed` (the live data); a step it prints as `n/a`, with its reason, is not applicable and does not count against the outcome |
+| Live data across tabs, restarts and offline, while the sample Members page it drives is there (a product's own live pages add a `browserChecks` script, or a `timedChecks` script where it judges a time) | `pnpm verify --timed` (the live data); a step it prints as `n/a`, with its reason, is not applicable and does not count against the outcome |
 | LCP under 2.5 s, INP under 200 ms, CLS under 0.1 on a mid-range phone | `pnpm verify --timed` (the vitals) |
 | Reduced motion shows the final state at once | motion only through `src/styles/motion.css`, whose reduced-motion rule covers it; nothing animates outside it |
 | All of the above together | `pnpm verify --full --timed` ending with the line `the project meets the Meridian standard` |

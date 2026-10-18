@@ -2,9 +2,9 @@
 /**
  * An OpenAI-compatible fake LLM for tests and local runs. It never touches the network.
  *
- *   node scripts/fake-llm.ts --port <n>     (--port 0 picks a free port)
+ *   node scripts/fake-llm.ts --port <n> [--steps <json>]     (--port 0 picks a free port)
  *
- * or, from a test: `const llm = await startFakeLlm({ port: 0 })` -> { url, requests, close }.
+ * or, from a test: `const llm = await startFakeLlm({ port: 0, steps })` -> { url, requests, close }.
  *
  * POST <url>/chat/completions answers in the chat-completions format (streamed as server-sent events when the body has
  * `stream: true`). GET <url>/requests returns every recorded request body as JSON.
@@ -21,11 +21,17 @@
  * request hands it: a request without it is answered in words, so the walk-through, which reads the tools each request
  * handed from GET <url>/requests, names what was missing rather than the client failing on a tool it does not know.
  *
- * A request whose last message is the user's and contains "fail" is answered 401, with an error body that repeats the
- * bearer token it was sent: the way a provider that refuses a key can leak it.
+ * A project's own steps (`fakeModel` in scripts/verify.config.ts, which verify hands over as `--steps`) are matched
+ * against a user message before any branch above: the step's tool is called with its input where the request hands it,
+ * and `I was not handed <tool> here.` answers where it does not.
+ *
+ * A request whose last message is the user's and contains the word "fail" is answered 401, with an error body that
+ * repeats the bearer token it was sent: the way a provider that refuses a key can leak it.
  */
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
+
+import type { FakeModelStep } from './lib/config-hooks.ts';
 
 type Message = { role?: string; content?: unknown };
 type Tool = { function?: { name?: string } };
@@ -84,7 +90,7 @@ const EXPLORES: { asked: RegExp; call: Call }[] = [
 const daysBefore = (day: string, days: number) => new Date(Date.parse(day) - days * 86_400_000).toISOString().slice(0, 10);
 
 /** The scripted reply for a request, chosen by the last message. Without a scripted case it answers about the page. */
-function script(body: { messages?: Message[]; tools?: Tool[] }): Reply {
+function script(body: { messages?: Message[]; tools?: Tool[] }, steps: readonly FakeModelStep[] = []): Reply {
   const messages = body.messages ?? [];
   const system = textOf(messages.find((m) => m.role === 'system')?.content);
   const last = messages.at(-1);
@@ -115,6 +121,11 @@ function script(body: { messages?: Message[]; tools?: Tool[] }): Reply {
 
   if (last?.role === 'user') {
     const said = textOf(last.content).trim();
+    /** The call, where the request hands its tool; otherwise the words that say it was not handed here. */
+    const handed = (c: Call): Reply => ((body.tools ?? []).some((t) => t.function?.name === c.name) ? { calls: [c] } : { text: `I was not handed ${c.name} here.` });
+    // A project's own steps come before this file's branches: its question wins over a sample question it resembles.
+    const step = steps.find((s) => new RegExp(s.when, 'i').test(said));
+    if (step) return handed({ name: step.tool, args: step.input });
     // One reply in markdown, for the walk-through that proves the panel RENDERS it rather than printing the model's
     // own `**`, `- ` and `|---|`. Every model this template has been pointed at answers this way, and a fake model
     // that only ever answers one plain sentence cannot tell the two apart.
@@ -130,8 +141,6 @@ function script(body: { messages?: Message[]; tools?: Tool[] }): Reply {
         '| Requests | `1204` |',
       ].join('\n') };
     }
-    /** The call, where the request hands its tool; otherwise the words that say it was not handed here. */
-    const handed = (c: Call): Reply => ((body.tools ?? []).some((t) => t.function?.name === c.name) ? { calls: [c] } : { text: `I was not handed ${c.name} here.` });
     /** The drilled row a person names, newest first. */
     const named = (name: string) => rowsIn(messages).flat().find((r) => r.name.toLowerCase() === name.toLowerCase());
     const today = /Today: (\d{4}-\d{2}-\d{2})/.exec(system)?.[1];
@@ -175,7 +184,7 @@ function send(res: http.ServerResponse, status: number, json: unknown) {
   res.end(JSON.stringify(json));
 }
 
-export async function startFakeLlm({ port }: { port: number }) {
+export async function startFakeLlm({ port, steps = [] }: { port: number; steps?: readonly FakeModelStep[] }) {
   const requests: any[] = [];
 
   const server = http.createServer((req, res) => {
@@ -197,12 +206,12 @@ export async function startFakeLlm({ port }: { port: number }) {
       requests.push(body);
 
       const last = (body.messages as Message[] | undefined)?.at(-1);
-      if (last?.role === 'user' && /fail/i.test(textOf(last.content))) {
+      if (last?.role === 'user' && /\bfail\b/i.test(textOf(last.content))) {
         const token = String(req.headers.authorization ?? '').replace(/^Bearer /i, '');
         return send(res, 401, { error: { message: `Incorrect API key provided: ${token}`, type: 'invalid_request_error' } });
       }
 
-      const { base, usage, reply } = completion(body, script(body));
+      const { base, usage, reply } = completion(body, script(body, steps));
       if (body.stream !== true) {
         return send(res, 200, {
           ...base,
@@ -245,6 +254,8 @@ if (import.meta.main) {
   const i = process.argv.indexOf('--port');
   const port = i >= 0 ? Number(process.argv[i + 1]) : 0;
   if (!Number.isInteger(port) || port < 0) { console.error('usage: node scripts/fake-llm.ts --port <n>'); process.exit(1); }
-  const llm = await startFakeLlm({ port });
+  const at = process.argv.indexOf('--steps');
+  const steps: FakeModelStep[] = at >= 0 ? JSON.parse(process.argv[at + 1] ?? '[]') : [];
+  const llm = await startFakeLlm({ port, steps });
   console.log(`fake-llm listening on ${llm.url}`);
 }

@@ -84,6 +84,11 @@ export async function launch(): Promise<Page> {
   // Port 0 lets Chrome pick a free port and write it into its own profile, so this never attaches to another
   // session's browser that happens to hold a guessed port.
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'meridian-chrome-'));
+  // A check presses every control, and an Export is a real download. With no directory of its own, Chrome saved each
+  // file in the person's Downloads folder, outside this profile, so every run left CSVs there. Downloads go inside the
+  // profile and are removed with it.
+  fs.mkdirSync(path.join(dir, 'Default'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'Default', 'Preferences'), JSON.stringify({ download: { default_directory: path.join(dir, 'Downloads'), prompt_for_download: false } }));
   const proc = spawn(CHROME, [...SANDBOX, '--headless=new', '--disable-gpu', '--hide-scrollbars', '--force-color-profile=srgb', '--remote-debugging-port=0', `--user-data-dir=${dir}`, 'about:blank'], { stdio: 'ignore' });
   const handle: Launched = { proc, dir, guard: guard(proc, dir) };
   launched.add(handle);

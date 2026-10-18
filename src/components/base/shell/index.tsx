@@ -198,14 +198,15 @@ function StillOnNavigation({ main }: { main: RefObject<HTMLElement | null> }) {
  * count down, and the drawer opens whenever the count it has answered is behind it. A press made before the drawer was
  * there is answered when it arrives, and each press is answered once.
  */
-function Drawer({ rail, asked }: { rail: ReactNode; asked: number }) {
-  const nav = useNavDrawer(asked);
+function Drawer({ rail, asked, root }: { rail: ReactNode; asked: number; root: RefObject<HTMLElement | null> }) {
+  const nav = useNavDrawer(asked, root);
   return (
     <Dialog.Root open={nav.open} onOpenChange={nav.setOpen}>
       <Dialog.Portal>
         <Dialog.Overlay className="scrim-in fixed inset-0 z-(--layer-rail) bg-scrim lg:hidden" />
         <Dialog.Content
           aria-describedby={undefined}
+          {...nav.content}
           className="sheet-in fixed inset-y-0 left-0 z-(--layer-rail) flex w-(--rail-width) max-w-[86vw] border-r border-line bg-ground shadow-overlay lg:hidden"
         >
           <Dialog.Title className="sr-only">Navigation</Dialog.Title>
@@ -248,6 +249,7 @@ export function AppShell({
   const [navAsked, setNavAsked] = useState(0);
   const guard = useLeaveGuard();
   const main = useRef<HTMLElement>(null);
+  const frame = useRef<HTMLDivElement>(null);
   const [assistantOpen, setAssistantOpen] = useState(false);
   // The panel's chunk is a third of a megabyte, so it is NOT in a page's first load: the column mounts the first time
   // somebody opens it, and stays mounted from then on, so closing it and reopening keeps the thread. Before this, a
@@ -272,18 +274,29 @@ export function AppShell({
     () => (available && prefs.assistant ? (text: string) => { setAssistantUsed(true); setAssistantOpen(true); setPendingAsk({ id: Date.now(), text }); } : undefined),
     [available, prefs.assistant],
   );
-  const allTools = (
-    <>
-      {tools}
-      <Suspense fallback={<AssistantSlot />}>
-        <ResolvedLauncher assistant={assistant} open={assistantOpen} onClick={() => { setAssistantUsed(true); setAssistantOpen((o) => !o); }} />
-      </Suspense>
-    </>
+  // The context's value only changes when something it holds does: a press on the drawer's trigger changes `navAsked` and
+  // nothing else, and a new value each time re-rendered every consumer of the context (the top bar, the page's masthead)
+  // inside the tap.
+  const openNav = useCallback(() => setNavAsked((n) => n + 1), []);
+  const shellValue = useMemo(
+    () => ({
+      openNav,
+      assistant,
+      tools: (
+        <>
+          {tools}
+          <Suspense fallback={<AssistantSlot />}>
+            <ResolvedLauncher assistant={assistant} open={assistantOpen} onClick={() => { setAssistantUsed(true); setAssistantOpen((o) => !o); }} />
+          </Suspense>
+        </>
+      ),
+    }),
+    [openNav, tools, assistant, assistantOpen],
   );
   return (
     <LeaveCtx.Provider value={guard.value}>
-    <ShellCtx.Provider value={{ openNav: () => setNavAsked((n) => n + 1), tools: allTools, assistant }}>
-      <div className="fixed inset-0 isolate flex overflow-hidden">
+    <ShellCtx.Provider value={shellValue}>
+      <div ref={frame} data-drawer-frame className="fixed inset-0 isolate flex overflow-hidden">
         {/* The first stop for a keyboard: past the rail and the top bar, straight to the page's masthead (PageFrame). */}
         <a
           href="#content"
@@ -295,7 +308,7 @@ export function AppShell({
           <Suspense fallback={null}>{rail}</Suspense>
         </aside>
         <Suspense fallback={null}>
-          <Drawer asked={navAsked} rail={rail} />
+          <Drawer asked={navAsked} rail={rail} root={frame} />
         </Suspense>
         <main ref={main} className="relative flex min-w-0 flex-1 flex-col"><ConsoleSurface ask={ask}>{children}</ConsoleSurface></main>
         {/* After the main area, so the main area is there to mark when this first runs. */}

@@ -3,8 +3,8 @@ import type { NavigationCheck } from './budgets.ts';
 
 /** The suites `--full` adds: what is exhaustive and does not depend on the clock. */
 export const COMPLETE_SUITES = ['audit', 'presses', 'keyboard', 'assistant', 'browserChecks'] as const;
-/** The suites `--timed` adds: what judges a time, the navigation's budgets, the live stream and Web Vitals. */
-export const TIMED_SUITES = ['timing', 'live', 'vitals'] as const;
+/** The suites `--timed` adds: what judges a time, the navigation's budgets, the live stream, the product's own timed checks and Web Vitals. */
+export const TIMED_SUITES = ['timing', 'live', 'timedChecks', 'vitals'] as const;
 /** Every suite verify can list, in the order the coverage line prints them; verify keeps those the project has and the run asked for. */
 export const SUITE_NAMES = [...COMPLETE_SUITES, ...TIMED_SUITES, 'perf'] as const;
 

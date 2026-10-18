@@ -3,18 +3,20 @@
  *
  *   node scripts/vitals.ts [--base http://localhost:3100] [--routes /,/requests] [--atlas] [--list]
  *
- * The phone is Lighthouse's mobile profile: CPU slowed four times, Slow 4G (150 ms round trip, 1.6 Mbps down,
- * 750 kbps up), a 390px touch screen, motion not reduced. LCP and CLS come from PerformanceObservers installed before
- * the page loads (CLS as web-vitals defines it: the largest session window of shifts no input caused). INP is the
- * slowest of real taps on controls that change the screen (a period, the alerts, the workspace menu, the drawer), from
- * Event Timing, counting only the tap's own pointer, touch and click events: the Escape that closes what a tap opened
- * is not a person's interaction, and a headless browser can hold a no-op key event open until something else paints.
- * A dropped frame is a gap over 50 ms between animation frames, and it is read in the same window as the tap that
- * caused it and no other, for the same reason INP is: counting frames from the moment the page opened charged a page
- * for the Escape and the settle between taps, which are the check's own work and not the person's. Each line says how
- * many controls it tapped, found through open shadow roots (scripts/lib/deep.ts), so a page whose INP rests on no tap
- * says so, and a page that dropped a frame names the control it dropped it on. A page that drops one is measured a
- * second time before it is failed, and a page that drops one twice is a page that stutters.
+ * The phone is Lighthouse's mobile profile: the device of benchmark index 800, the CPU slowed by the host's own index
+ * over 800 (scripts/lib/phone.ts), Slow 4G (150 ms round trip, 1.6 Mbps down, 750 kbps up), a 390px touch screen,
+ * motion not reduced. LCP and CLS come from PerformanceObservers installed before the page loads (CLS as web-vitals
+ * defines it: the largest session window of shifts no input caused). INP is the slowest of real taps on controls that
+ * change the screen (a period, the alerts, the workspace menu, the drawer), from Event Timing, counting only the tap's
+ * own pointer, touch and click events: the Escape that closes what a tap opened is not a person's interaction, and a
+ * headless browser can hold a no-op key event open until something else paints. A dropped frame is a gap over 50 ms
+ * between animation frames, and it is read in the same window as the tap that caused it and no other, for the same
+ * reason INP is: counting frames from the moment the page opened charged a page for the Escape and the settle between
+ * taps, which are the check's own work and not the person's. Each line says how many controls it tapped, found through
+ * open shadow roots (scripts/lib/deep.ts), so a page whose INP rests on no tap says so, and a page that dropped a frame
+ * names the control it dropped it on. A page that drops one is measured a second time before it is failed, and a page
+ * that drops one twice is a page that stutters. The line also says where the longest gap went, from the Long Animation
+ * Frames API (scripts/lib/frame-cause.ts): script, style and layout, and render, or that no long frame covered it.
  *
  * Every static page and the detail pages in scripts/verify.config.ts are measured, the Atlas's among them: its front
  * page and one card page, the sample every other suite takes. `--atlas` measures every Atlas entry instead (the guides,
@@ -30,6 +32,8 @@
 import { atlasCoverage, atlasEntries } from './lib/atlas.ts';
 import { launch } from './lib/chrome.ts';
 import { DEEP_SOURCE } from './lib/deep.ts';
+import { frameCause, loafOf, type LoafEntry } from './lib/frame-cause.ts';
+import { measurePhone } from './lib/phone.ts';
 import { discover } from './lib/routes.ts';
 import config from './verify.config.ts';
 
@@ -51,7 +55,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** Installed before any page script: every vital the page produces lands on window.__v. */
 const OBSERVE = `(() => {
-  const v = window.__v = { lcp: 0, cls: 0, session: 0, last: 0, taps: [], frames: [], recording: false, since: 0, moved: {} };
+  const v = window.__v = { lcp: 0, cls: 0, session: 0, last: 0, taps: [], frames: [], loafs: [], recording: false, since: 0, moved: {} };
   const named = (n) => !n || n.nodeType !== 1 ? 'an element since removed' : n.tagName.toLowerCase() + (n.id ? '#' + n.id : '') + (typeof n.className === 'string' && n.className.trim() ? '.' + n.className.trim().split(/\\s+/).slice(0, 2).join('.') : '');
   new PerformanceObserver((l) => { for (const e of l.getEntries()) v.lcp = e.startTime; }).observe({ type: 'largest-contentful-paint', buffered: true });
   new PerformanceObserver((l) => { for (const e of l.getEntries()) {
@@ -65,6 +69,8 @@ const OBSERVE = `(() => {
   let prev = 0;
   const tick = (t) => { if (v.recording && prev) v.frames.push(t - prev); prev = t; requestAnimationFrame(tick); };
   requestAnimationFrame(tick);
+  // The long animation frames of the same window, raw: scripts/lib/frame-cause.ts splits them. A browser without the entry type leaves none.
+  try { new PerformanceObserver((l) => { for (const e of l.getEntries()) if (v.recording && e.duration > 50) v.loafs.push({ startTime: e.startTime, duration: e.duration, renderStart: e.renderStart, styleAndLayoutStart: e.styleAndLayoutStart, scripts: (e.scripts || []).map((s) => ({ invoker: s.invoker || '', duration: s.duration, forcedStyleAndLayoutDuration: s.forcedStyleAndLayoutDuration || 0 })) }); }).observe({ type: 'long-animation-frame', buffered: false }); } catch {}
 })()`;
 
 /** Controls that change the screen when tapped; whichever a page has are used, in this order. */
@@ -82,31 +88,36 @@ await page.send('Page.addScriptToEvaluateOnNewDocument', { source: DEEP_SOURCE }
 await page.send('Network.enable');
 
 /** One page measured once: what LCP, CLS and INP were, how many controls answered, and the frames that dropped on them. */
-type Measured = { lcp: number; cls: number; moved: string; inp: number; slowest: string; tapped: number; frames: number; dropped: number; droppedBy: string };
+type Measured = { lcp: number; cls: number; moved: string; inp: number; slowest: string; tapped: number; frames: number; dropped: number; droppedBy: string; cause: string };
 
 async function measure(route: string): Promise<Measured> {
   await page.send('Network.emulateNetworkConditions', { offline: false, latency: 150, downloadThroughput: (1.6 * 1024 * 1024) / 8, uploadThroughput: (750 * 1024) / 8 });
   await page.send('Network.setCacheDisabled', { cacheDisabled: true });
-  await page.send('Emulation.setCPUThrottlingRate', { rate: 4 });
+  await page.send('Emulation.setCPUThrottlingRate', { rate: (await measurePhone(page)).rate });
   await page.open(base + route, { width: 390, height: 844, theme: 'dark', reduced: false, wait: 7000 });
   await page.eval('window.__v.recording = true');
-  let inp = 0, slowest = '', tapped = 0, frames = 0, dropped = 0, droppedBy = '';
+  let inp = 0, slowest = '', tapped = 0, frames = 0, dropped = 0, droppedBy = '', cause = '', worst = 0;
   for (const sel of TAPS) {
     const at = await page.eval<{ x: number; y: number } | null>(`(() => { const el = deepQuery(${JSON.stringify(sel)}); if (!el) return null; const r = el.getBoundingClientRect(); if (!r.width || !r.height) return null; return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
     if (!at) continue;
     tapped++;
-    await page.eval('(window.__v.taps = [], window.__v.frames = [], window.__v.since = performance.now(), true)');
+    await page.eval('(window.__v.taps = [], window.__v.frames = [], window.__v.loafs = [], window.__v.since = performance.now(), true)');
     await page.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [at] });
     await page.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
     await sleep(1200);
     const ms = await page.eval<number>('Math.max(0, ...window.__v.taps)');
     const gaps = await page.eval<number[]>('window.__v.frames');
+    const loafs = await page.eval<LoafEntry[]>('window.__v.loafs');
     const name = sel.replace(/\[aria-label[$^]?="?([^"\]]*)"?\]/, '$1').slice(0, 40);
     if (ms > inp) { inp = ms; slowest = name; }
     const here = gaps.filter((f) => f > 50).length;
     frames += gaps.length;
     dropped += here;
-    if (here) droppedBy = name;
+    if (here) {
+      droppedBy = name;
+      const gap = Math.max(...gaps);
+      if (gap > worst) { worst = gap; cause = frameCause(Math.round(gap), loafs.map(loafOf)); }
+    }
     // Close whatever the tap opened; its own events and its own frames are not counted.
     await page.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
     await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
@@ -115,21 +126,21 @@ async function measure(route: string): Promise<Measured> {
   const v = await page.eval<{ lcp: number; cls: number; moved: Record<string, number> }>('window.__v');
   // A page over the CLS floor says what moved: the three elements whose shifts sum highest (a shift counts for each element it moved).
   const moved = v.cls >= 0.1 ? Object.entries(v.moved).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, n]) => `${k} ${n.toFixed(3)}`).join(', ') : '';
-  return { lcp: v.lcp, cls: v.cls, moved, inp, slowest, tapped, frames, dropped, droppedBy };
+  return { lcp: v.lcp, cls: v.cls, moved, inp, slowest, tapped, frames, dropped, droppedBy, cause };
 }
 
 let failures = 0;
 for (const route of ROUTES) {
   let m = await measure(route);
   // One dropped frame among two hundred is inside the noise of the machine this measures on, and the frame is not always
-  // the page's: the same route, measured again on the same build, reads zero (a throttled CPU four times over measures
+  // the page's: the same route, measured again on the same build, reads zero (a throttled CPU measures
   // the host too, which is why this suite runs alone last). The floor is still no frames over 50 ms — so a page that
   // drops one is measured a second time before it is failed, and a page that drops one twice is a page that stutters.
   const again = m.dropped > 0;
   if (again) m = await measure(route);
   const bad = m.lcp >= 2500 || m.inp >= 200 || m.cls >= 0.1 || m.dropped > 0;
   if (bad) failures++;
-  console.log(`${bad ? 'FAIL' : 'ok  '} ${route.padEnd(36)} LCP ${(m.lcp / 1000).toFixed(2)} s · INP ${Math.round(m.inp)} ms · CLS ${m.cls.toFixed(3)} · frames over 50 ms: ${m.dropped} of ${m.frames}${again ? ' (second measure)' : ''} · taps: ${m.tapped}${m.dropped ? ` · dropped by: ${m.droppedBy}` : ''}${m.inp >= 100 ? ` · slowest tap: ${m.slowest}` : ''}${m.moved ? ` · moved most: ${m.moved}` : ''}`);
+  console.log(`${bad ? 'FAIL' : 'ok  '} ${route.padEnd(36)} LCP ${(m.lcp / 1000).toFixed(2)} s · INP ${Math.round(m.inp)} ms · CLS ${m.cls.toFixed(3)} · frames over 50 ms: ${m.dropped} of ${m.frames}${again ? ' (second measure)' : ''} · taps: ${m.tapped}${m.dropped ? ` · dropped by: ${m.droppedBy} · ${m.cause}` : ''}${m.inp >= 100 ? ` · slowest tap: ${m.slowest}` : ''}${m.moved ? ` · moved most: ${m.moved}` : ''}`);
 }
 await page.send('Emulation.setCPUThrottlingRate', { rate: 1 });
 page.close();

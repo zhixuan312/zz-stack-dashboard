@@ -1,7 +1,9 @@
 /**
  * Live data in the browser: one stream per tab that hints which collections changed, and a scheduler that reads them
  * again. A hint is never data: it only says a collection is worth reading, so a missed hint costs freshness, never
- * correctness, and the safety poll and the resync on every open bound that cost.
+ * correctness, and the safety poll and the resync on every open bound that cost. The one open that does not resync is a
+ * page's first: its server read the collections at a revision, the stream is asked whether any moved since, and the
+ * greeting says `synced` (nothing to read) or `resync` naming what moved.
  *
  * `createLiveClient` is the whole scheduler and needs no framework; `LiveProvider` and `useLive` put it in a React tree.
  * The page's `refresh` is injected, so this file imports nothing from a product's data layer.
@@ -11,12 +13,17 @@ import { createContext, createElement, useContext, useEffect, useMemo, useState,
 /** `connecting` until the first resync succeeds, `live` while hints and resyncs both work, `polling` after the stream gave up, `paused` when access was refused, `stale` when the last read failed. */
 export type LiveState = 'connecting' | 'live' | 'polling' | 'paused' | 'stale';
 
+/** The revision of each collection a page was served, by name: `<boot>:<n>`, as the server's reads return it. */
+export type Revisions = Record<string, string>;
+
 export type LiveClientOptions = {
   /** Reads the named collections again; a rejection becomes a state, it never escapes. */
   refresh: (names: string[]) => Promise<void>;
   endpoint?: string;
   pollMs?: number;
   EventSource?: typeof EventSource;
+  /** The revisions the page was served, asked for when the first stream opens; none, or an empty answer, opens as every later stream does. */
+  since?: () => Revisions | undefined;
   onState?: (state: LiveState) => void;
 };
 
@@ -43,7 +50,7 @@ const isAuthError = (e: unknown): boolean => {
 
 const pageVisible = (): boolean => typeof document === 'undefined' || document.visibilityState !== 'hidden';
 
-export function createLiveClient({ refresh, endpoint = '/api/live', pollMs = 30000, EventSource: Source = globalThis.EventSource, onState }: LiveClientOptions): LiveClient {
+export function createLiveClient({ refresh, endpoint = '/api/live', pollMs = 30000, EventSource: Source = globalThis.EventSource, since, onState }: LiveClientOptions): LiveClient {
   let names: string[] = [];
   let visible = pageVisible();
   let disposed = false;
@@ -60,6 +67,10 @@ export function createLiveClient({ refresh, endpoint = '/api/live', pollMs = 300
   let polls = 0;
   let inFlight = false;
   let wantAll = false;
+  /** Set by a `resync` greeting: the names it carries are read, and the read counts as the full one the open skipped. */
+  let greeted = false;
+  /** Whether no stream has opened yet: only the first open may carry the revisions the page was served. */
+  let firstOpen = true;
   const dirty = new Set<string>();
   let dirtyTimer: ReturnType<typeof setTimeout> | undefined;
   let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
@@ -90,9 +101,10 @@ export function createLiveClient({ refresh, endpoint = '/api/live', pollMs = 300
     if (inFlight || !active() || (!wantAll && dirty.size === 0)) return;
     clearTimeout(dirtyTimer);
     dirtyTimer = undefined;
-    const full = wantAll;
-    const batch = full ? names : names.filter((n) => dirty.has(n));
+    const full = wantAll || greeted;
+    const batch = wantAll ? names : names.filter((n) => dirty.has(n));
     wantAll = false;
+    greeted = false;
     dirty.clear();
     if (batch.length > 0) void run(batch, full);
   }
@@ -133,6 +145,18 @@ export function createLiveClient({ refresh, endpoint = '/api/live', pollMs = 300
     wantAll = true;
     pump();
   };
+  /** The first greeting named what moved since the page's read: read just those, and a read of them is a full one. */
+  const resyncMoved = (moved: string[]) => {
+    const some = moved.filter((n) => names.includes(n));
+    if (some.length === 0) {
+      synced = true;
+      if (opened) emit('live');
+      return;
+    }
+    for (const n of some) dirty.add(n);
+    greeted = true;
+    pump();
+  };
   const hint = (name: string) => {
     if (!names.includes(name)) return;
     dirty.add(name);
@@ -146,7 +170,11 @@ export function createLiveClient({ refresh, endpoint = '/api/live', pollMs = 300
     if (!active()) return;
     if (!polling) emit('connecting');
     if (!Source) return failed();
-    const mine = new Source(`${endpoint}?collections=${encodeURIComponent(names.join(','))}`);
+    const served = firstOpen ? since?.() : undefined;
+    const pairs = Object.entries(served ?? {}).filter(([n, r]) => names.includes(n) && r);
+    const sent = pairs.length > 0;
+    const asked = sent ? `&since=${encodeURIComponent(pairs.map(([n, r]) => `${n}:${r}`).join(','))}` : '';
+    const mine = new Source(`${endpoint}?collections=${encodeURIComponent(names.join(','))}${asked}`);
     source = mine;
     const current = () => source === mine && !disposed;
     mine.addEventListener('open', () => {
@@ -154,20 +182,44 @@ export function createLiveClient({ refresh, endpoint = '/api/live', pollMs = 300
       opened = true;
       attempts = 0;
       polling = false;
-      resync();
+      firstOpen = false;
+      // With revisions sent, the greeting answers whether anything moved, and the read waits for it.
+      if (!sent) resync();
     });
-    // The stream's first frame is always a resync of every name (src/data/live-stream.ts), written before the server
-    // subscribes to anything. The open above has just asked for that read, and it began after the frame was written, so
-    // the frame says nothing the open did not: answering both read every collection twice on every open, and on a page
-    // load the second router read sent every prefetch out again. Any later resync is the server reporting lost hints.
+    // A stream opened without revisions is greeted with a resync of every name (src/data/live-stream.ts). The open above
+    // has just asked for that read, and it began after the frame was written, so the frame says nothing the open did
+    // not: answering both read every collection twice on every open, and on a page load the second router read sent
+    // every prefetch out again. Any later resync is the server reporting lost hints. A stream opened with the revisions
+    // the page was served is greeted with what moved since, and that greeting is the only answer: `synced` is live
+    // with no read, `resync` reads the names it carries.
     let greeting = true;
-    mine.addEventListener('resync', () => {
+    mine.addEventListener('synced', () => {
+      if (!current() || !greeting) return;
+      greeting = false;
+      if (!sent) return;
+      synced = true;
+      if (opened) emit('live');
+    });
+    mine.addEventListener('resync', (e) => {
       if (!current()) return;
-      if (greeting) { greeting = false; return; }
+      if (greeting) {
+        greeting = false;
+        if (!sent) return;
+        let moved = names;
+        try {
+          const { collections } = JSON.parse((e as MessageEvent<string>).data) as { collections?: unknown };
+          if (Array.isArray(collections)) moved = collections.filter((n): n is string => typeof n === 'string');
+        } catch {
+          // A greeting that is not one reads everything, as a resync does.
+        }
+        return resyncMoved(moved);
+      }
       resync();
     });
     mine.addEventListener('change', (e) => {
       if (!current()) return;
+      // A hint before any greeting means the greeting was lost: read everything, as an open without revisions does.
+      if (greeting && sent) resync();
       greeting = false;
       try {
         const { collection } = JSON.parse((e as MessageEvent<string>).data) as { collection?: unknown };
@@ -248,7 +300,7 @@ export function createLiveClient({ refresh, endpoint = '/api/live', pollMs = 300
   };
 }
 
-type LiveContextValue = { state: LiveState; register: (names: string[]) => () => void };
+type LiveContextValue = { state: LiveState; register: (names: string[], since?: Revisions) => () => void };
 const LiveContext = createContext<LiveContextValue | null>(null);
 
 export type LiveProviderProps = {
@@ -264,20 +316,31 @@ export type LiveProviderProps = {
 export function LiveProvider({ children, refresh, endpoint, pollMs, scopeKey }: LiveProviderProps): ReactNode {
   const [reported, setReported] = useState<{ scopeKey: string; state: LiveState }>({ scopeKey, state: 'connecting' });
   const [hub] = useState(() => {
-    const names = new Map<symbol, string[]>();
+    const hooks = new Map<symbol, { names: string[]; since?: Revisions }>();
     const h = {
       client: null as LiveClient | null,
       latest: refresh,
       attach(c: LiveClient | null) { h.client = c; },
       follow(r: LiveProviderProps['refresh']) { h.latest = r; },
-      union: () => [...names.values()].flat(),
+      union: () => [...hooks.values()].flatMap((hook) => hook.names),
+      // Per name, the oldest revision any hook was served: a hook without one, or served by another process, leaves the name out, and the server then resyncs it.
+      since(): Revisions | undefined {
+        const out: Revisions = {};
+        for (const name of new Set(h.union())) {
+          const held = [...hooks.values()].filter((hook) => hook.names.includes(name)).map((hook) => hook.since?.[name]);
+          const at = held.map((r) => (r ? /^([^:]+):(\d+)$/.exec(r) : null));
+          if (at.some((m) => !m) || new Set(at.map((m) => m![1])).size !== 1) continue;
+          out[name] = `${at[0]![1]}:${Math.min(...at.map((m) => Number(m![2])))}`;
+        }
+        return Object.keys(out).length > 0 ? out : undefined;
+      },
       // A hook that changes its names unregisters and registers in one commit; applying the union a microtask later keeps the stream from closing in between.
-      register(wanted: string[]) {
+      register(wanted: string[], since?: Revisions) {
         const id = Symbol('live');
-        names.set(id, wanted);
+        hooks.set(id, { names: wanted, since });
         void Promise.resolve().then(() => h.client?.setNames(h.union()));
         return () => {
-          names.delete(id);
+          hooks.delete(id);
           void Promise.resolve().then(() => h.client?.setNames(h.union()));
         };
       },
@@ -288,7 +351,7 @@ export function LiveProvider({ children, refresh, endpoint, pollMs, scopeKey }: 
 
   useEffect(() => {
     if (!scopeKey) return;
-    const c = createLiveClient({ refresh: (names) => hub.latest(names), endpoint, pollMs, onState: (state) => setReported({ scopeKey, state }) });
+    const c = createLiveClient({ refresh: (names) => hub.latest(names), endpoint, pollMs, since: () => hub.since(), onState: (state) => setReported({ scopeKey, state }) });
     hub.attach(c);
     c.setNames(hub.union());
     const onVisibility = () => c.setVisible(document.visibilityState !== 'hidden');
@@ -307,11 +370,16 @@ export function LiveProvider({ children, refresh, endpoint, pollMs, scopeKey }: 
   return createElement(LiveContext.Provider, { value }, children);
 }
 
-/** Registers the collections a view shows and returns how fresh the tab's data is. Outside a provider it registers nothing and reports `paused`. */
-export function useLive(collections: string[]): LiveState {
+/**
+ * Registers the collections a view shows and returns how fresh the tab's data is. `since` is the revisions the page's
+ * server read them at: the tab's first stream asks whether any moved instead of reading them all again. Outside a
+ * provider it registers nothing and reports `paused`.
+ */
+export function useLive(collections: string[], since?: Revisions): LiveState {
   const live = useContext(LiveContext);
   const register = live?.register;
   const key = [...new Set(collections)].sort().join(',');
-  useEffect(() => register?.(key ? key.split(',') : []), [register, key]);
+  const served = since ? JSON.stringify(since) : '';
+  useEffect(() => register?.(key ? key.split(',') : [], served ? (JSON.parse(served) as Revisions) : undefined), [register, key, served]);
   return live?.state ?? 'paused';
 }

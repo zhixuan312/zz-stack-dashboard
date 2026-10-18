@@ -14,6 +14,7 @@
  *   pnpm verify --full --timed   both tiers, the whole standard; the complete suites run first, the timed ones after them
  *   pnpm verify --perf    the default, then the 20-sample navigation protocol (scripts/perf.ts): every rail route, on a desktop
  *                         and through the phone drawer, warm, cold and right after a live refresh, the p95 reported
+ *                         The whole protocol runs only where CI is `true`, a share of it with `--shard <i>/<n>` (with --perf alone)
  *   pnpm verify --full --perf   the deep suites together; the gate and the build are shared, so each runs once
  *
  * It prints one line per phase (`ok`, `warn`, `FAIL` or `not run`, and the seconds), then one coverage line saying what
@@ -43,10 +44,12 @@ import path from 'node:path';
 import { bin } from './lib/bin.ts';
 import { launch } from './lib/chrome.ts';
 import type { BudgetsConfig, NavigationCheck } from './lib/budgets.ts';
+import { fakeModelArgs, fakeModelProblems, type FakeModelStep } from './lib/config-hooks.ts';
 import { finalOutcome, resolveCoverage, SUITE_NAMES, selectSmokeRoutes, suiteCoverage, suiteOutcome } from './lib/coverage.ts';
 import { unsafeDataUrls } from './lib/data-url.ts';
 import { APP_DIR, railRoutes } from './lib/routes.ts';
 import { sampleSurfaces } from './lib/sample.ts';
+import { parseShard, WHOLE_PROTOCOL_REFUSAL } from './lib/shard.ts';
 import verifyConfig from './verify.config.ts';
 
 /** The fields of the team's config that verify reads, each optional: an older product's config has only some of them. */
@@ -57,6 +60,8 @@ type VerifyConfig = BudgetsConfig & {
   dataUrls?: string[];
   allowRemoteData?: true;
   browserChecks?: string[];
+  timedChecks?: string[];
+  fakeModel?: FakeModelStep[];
   navigationChecks?: NavigationCheck[];
   smokeRoutes?: string[];
   personas?: Record<string, { cookie: { name: string; value: string }; expectedRoutes: readonly string[]; deniedProbe?: Record<string, string> }>;
@@ -72,9 +77,11 @@ const OPTIONS = ['--full', '--timed', '--perf', '--as'];
 const argv = process.argv.slice(2);
 const unknown: string[] = [];
 let asList = '';
+let shardText: string | undefined;
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
   if (a === '--as') { asList = argv[++i] ?? ''; continue; }
+  if (a === '--shard') { shardText = argv[++i] ?? ''; continue; }
   if (!OPTIONS.includes(a)) unknown.push(a);
 }
 if (unknown.length) {
@@ -107,6 +114,28 @@ if (undeclared.length) {
   process.exit(1);
 }
 
+// `--shard <i>/<n>` is a share of the --perf report, never part of a run that can meet the standard. Then `--perf` alone is
+// the whole protocol, which runs only in CI. Both refusals come before the gate.
+if (shardText !== undefined) {
+  if (!perf || full || timed) {
+    console.error('verify: --shard divides the --perf protocol; pass it with --perf alone');
+    process.exit(1);
+  }
+  try { parseShard(shardText); } catch (e) { console.error(`verify: ${(e as Error).message}`); process.exit(1); }
+}
+if (perf && process.env.CI !== 'true') {
+  console.error(`verify: --perf: ${WHOLE_PROTOCOL_REFUSAL}`);
+  process.exit(1);
+}
+
+// The fake model's steps are the project's own patterns: one that does not compile stops the run before the gate.
+const fakeSteps = config.fakeModel ?? [];
+const stepProblems = fakeModelProblems(fakeSteps);
+if (stepProblems.length) {
+  console.error(`verify: ${stepProblems.join('; ')}`);
+  process.exit(1);
+}
+
 // A project that has not adopted the assistant has no walk-through to run, only the pages. Through APP_DIR, like the
 // route discovery and check.ts: a project that keeps its routes under `src/app` has the assistant there, and asking for
 // `app/api/...` alone would skip the walk-through without saying so.
@@ -117,7 +146,8 @@ const hasAssistant = fs.existsSync(path.join(ROOT, APP_DIR, 'api/assistant/route
 // themselves through `browserChecks`.
 const hasLiveSample = sampleSurfaces(ROOT, APP_DIR).members;
 const own = config.browserChecks ?? [];
-const absent = new Set<string>([...(hasAssistant ? [] : ['assistant']), ...(hasLiveSample ? [] : ['live']), ...(own.length ? [] : ['browserChecks']), ...(perf ? [] : ['perf'])]);
+const ownTimed = config.timedChecks ?? [];
+const absent = new Set<string>([...(hasAssistant ? [] : ['assistant']), ...(hasLiveSample ? [] : ['live']), ...(own.length ? [] : ['browserChecks']), ...(ownTimed.length ? [] : ['timedChecks']), ...(perf ? [] : ['perf'])]);
 const SUITES = SUITE_NAMES.filter((name) => !absent.has(name));
 const ranSuites = new Set<string>();
 const failedSuites = new Set<string>();
@@ -131,6 +161,11 @@ const log = (s: string) => { console.log(s); lines.push(s); };
 const secs = (since: number) => (Date.now() - since) / 1000;
 const phase = (status: Status, name: string, took: number | null, detail = '') =>
   log(`${status.padEnd(7)} ${name}${took === null ? '' : ` (${took.toFixed(1)}s)`}${detail ? ` ${detail}` : ''}`);
+/** The `phone:` lines of a timed suite's output (scripts/lib/phone.ts): the rate it ran at, kept first in what is printed. */
+function phoneLines(out: string | string[]) {
+  return (Array.isArray(out) ? out : out.split('\n')).filter((l) => l.startsWith('phone:'));
+}
+
 /** What a phase printed beneath its line, indented. */
 const beneath = (text: string | string[]) => (Array.isArray(text) ? text : text.split('\n')).filter((l) => l.trim()).forEach((l) => log(`        ${l}`));
 // Announced before it runs, not only after: a run people wait on should say which phase it is in. It is not a phase line.
@@ -372,9 +407,10 @@ function reportSuite(name: string, label: string, r: { status: number | null; ou
   if (outcome === 'FAIL') failedSuites.add(name);
   phase(outcome, label, r.took);
   const out = r.out.trim().split('\n');
-  if (outcome === 'FAIL') beneath(out.slice(-60));
-  else if (outcome === 'not run') beneath([...out.filter((l) => l.startsWith('not run')), out.at(-1) ?? '']);
-  else beneath([...out.filter((l) => l.startsWith('n/a')), out.at(-1) ?? '']);
+  const phone = phoneLines(out);
+  if (outcome === 'FAIL') beneath([...phone, ...out.filter((l) => !phone.includes(l)).slice(-60)]);
+  else if (outcome === 'not run') beneath([...phone, ...out.filter((l) => l.startsWith('not run')), out.at(-1) ?? '']);
+  else beneath([...phone, ...out.filter((l) => l.startsWith('n/a')), out.at(-1) ?? '']);
   return outcome !== 'FAIL';
 }
 
@@ -442,7 +478,7 @@ if (browserReason) {
   const result = summaryOf<{ status: 'ok' | 'warn' | 'FAIL' | 'not-run'; reason?: string }>(nav.out, 'navigate');
   const status: Status = nav.status !== 0 || !result || result.status === 'FAIL' ? 'FAIL' : result.status === 'not-run' ? 'not run' : result.status;
   phase(status, 'navigation', nav.took, status === 'not run' ? `(${result?.reason ?? 'no reason given'})` : '');
-  beneath(nav.out.split('\n').filter((l) => !l.startsWith('navigate: ')).slice(-60));
+  beneath([...phoneLines(nav.out), ...nav.out.split('\n').filter((l) => !l.startsWith('navigate: ') && !l.startsWith('phone:')).slice(-60)]);
   if (status === 'FAIL') ok = false;
   // The navigation is the timing suite when it judged its budgets: it ran and passed, or it ran and failed.
   if (timed && status === 'FAIL') failedSuites.add('timing');
@@ -530,7 +566,7 @@ if (perf && !browser.ran) {
 } else if (perf && baseUrl) {
   current = 'performance';
   announce('performance: 20 samples per route, device and condition (many minutes)');
-  const timed = await run('scripts/perf.ts', ['--base', baseUrl], app, true);
+  const timed = await run('scripts/perf.ts', ['--base', baseUrl, ...(shardText === undefined ? [] : ['--shard', shardText])], app, true);
   const result = summaryOf<{ status: 'ok' | 'warn' | 'FAIL' }>(timed.out, 'perf');
   ranSuites.add('perf');
   const status: Status = timed.status !== 0 || !result || result.status === 'FAIL' ? 'FAIL' : result.status;
@@ -556,7 +592,7 @@ if (full && browser.ran && baseUrl) {
     if (suiteOutcome(off.status) === 'FAIL') { ok = false; finish(1, FIX); }
 
     // Pointed at the fake LLM, the audit and the presses then see the launcher.
-    const fake = spawn('node', ['scripts/fake-llm.ts', '--port', '0'], { cwd: ROOT, stdio: ['ignore', 'pipe', 'inherit'], detached: true });
+    const fake = spawn('node', ['scripts/fake-llm.ts', '--port', '0', ...fakeModelArgs(fakeSteps)], { cwd: ROOT, stdio: ['ignore', 'pipe', 'inherit'], detached: true });
     children.push(fake);
     llmUrl = await new Promise<string>((resolve) => {
       let buf = '';
@@ -612,6 +648,15 @@ if (timed && browser.ran && baseUrl) {
     if (suiteOutcome(live.status) === 'FAIL') { ok = false; beneath(live.out.split('\n').slice(-40)); }
   } else {
     phase('n/a', 'live data', null, '(the sample Members page the live checks drive is not in this product; its own live pages prove themselves through browserChecks)');
+  }
+
+  // The product's own checks that judge a time (`timedChecks`), one at a time and alone, as the live data is.
+  for (const script of ownTimed) {
+    current = script;
+    announce(`${script}, alone`);
+    const r = await run(script, ['--base', here]);
+    reportSuite('timedChecks', script, r);
+    if (suiteOutcome(r.status) === 'FAIL') ok = false;
   }
 
   // Web Vitals on a mid-range phone, alone: CPU throttling measures the machine too, so nothing else runs beside it.

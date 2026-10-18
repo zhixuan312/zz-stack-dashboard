@@ -41,9 +41,15 @@ export function htmlProblems(sizes: Record<string, number>, capsKiB: Record<stri
     .map(([route, cap]) => `${route}: HTML ${kib(sizes[route])} KiB over its ${cap} KiB cap`);
 }
 
-/** A router prefetch is a page request carrying `next-router-prefetch: 1`. */
+/**
+ * A router prefetch is a page request carrying `next-router-prefetch` with a positive integer. Next 16's segment cache
+ * sends `1` for a segment or loading-boundary prefetch, `3` for a route's runtime shell (every link's default prefetch
+ * under partialPrefetching asks for one) and `2` for the URL data a full prefetch (`prefetch={true}`) resolves. Counting
+ * only `1` left the desktop cap blind to the other two: on Meridian's Home it read 8.8 KiB where the router fetched
+ * 45.3 KiB.
+ */
 export function isPrefetch(request: { headers: Record<string, string> }): boolean {
-  return request.headers['next-router-prefetch'] === '1';
+  return /^[1-9]\d*$/.test(request.headers['next-router-prefetch'] ?? '');
 }
 
 export function prefetchProblems(

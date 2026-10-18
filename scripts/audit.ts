@@ -313,6 +313,13 @@ const run = async (route: string, width: number, theme: string, embed: boolean) 
   }
   // The page's late chrome first (scripts/lib/settle.ts): what arrives after the measurement is taken is never measured.
   await settle(page);
+  // A subtree with content-visibility: auto that is off screen is not laid out: the browser skips it, and checkVisibility()
+  // does not count it as off (it is not hidden, only not laid out yet), so the walk measured boxes that were never laid
+  // out. Render every such subtree first and let two frames draw it. (The probe found 180 issues across 9 routes as
+  // shipped and 0 with every auto element rendered first.) content-visibility: hidden is left alone: it is not drawn,
+  // and checkVisibility() already answers for it.
+  await page.eval(`(() => { for (const n of deepAll(document.body)) if (n instanceof HTMLElement && getComputedStyle(n).contentVisibility === 'auto') n.style.contentVisibility = 'visible'; return true; })()`);
+  await page.eval(`new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => done(true))))`);
   const r = await page.eval<Report>(MEASURE);
   // Focus: press Tab through the page as a person would; every stop must show a ring (outline or box-shadow ring) on the
   // focused element or the frame around it.

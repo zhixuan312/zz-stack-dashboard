@@ -146,7 +146,11 @@ Now, Members (its lookups through `explore_members`, each request handing it), A
 through `explore_keys`, expiring on moving on) and Settings, asks the sample's Usage and Tests through their prepared
 queries, and reports those steps as not applicable in a product that replaced them; what the product's own
 Home hands the assistant is checked by a journey the product writes, a script named in `browserChecks` in
-`scripts/verify.config.ts`, as `optional:journeys/workspaces.ts` is. And a test setup of the product's own (a provider
+`scripts/verify.config.ts`, as `optional:journeys/workspaces.ts` is. To have the assistant call a view tool of the
+product's own for a question, name it in `fakeModel` in the same file (`{ when: 'which runs failed', tool: 'view_tests',
+input: { period: '7d' } }`): the fake model matches `when` (a case-insensitive pattern) before its own branches and
+answers with the tool's result, so the journey can compare what the assistant cites with what the page shows. A check
+of the product's own that judges a time goes in `timedChecks`, which `pnpm verify --timed` runs alone. And a test setup of the product's own (a provider
 around every render, a polyfill) goes in a second file listed after `./tests/setup.ts` in `setupFiles` in
 `vitest.config.ts`: `tests/setup.ts` is Meridian's, and an update replaces it.
 

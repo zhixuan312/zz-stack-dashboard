@@ -77,6 +77,12 @@ export type Collection<T extends Record<string, unknown>, K extends keyof T & st
   /** Present on a collection already bound to an authorized scope: calls `listener` after each committed write. */
   subscribe?: (listener: (event: LiveEvent) => void) => () => void;
   /**
+   * `<boot>:<n>`: `<boot>` names this process (it holds no `:`) and `<n>` grows on every committed write. A live page
+   * compares the revision it was served with the one the stream sees, so a write in between is never lost. An adapter
+   * without it is resynced on every open.
+   */
+  revision?: () => string;
+  /**
    * A plain record, validated by `fields`, and never `Omit<T, K>`.
    *
    * A record type carries fields a write does not take — the worked-out ones above, and data joined in from elsewhere —
@@ -103,9 +109,16 @@ export type AnyCollection = Collection<any, any>;
 
 /**
  * One store per tenant and name per process, on globalThis, so a route handler, a server action and a page share it.
- * `next` is the next id's number: it only grows, so a removed record's id is never given to a new one.
+ * `next` is the next id's number: it only grows, so a removed record's id is never given to a new one. `rev` counts
+ * the writes the collection has emitted.
  */
-type Store = { rows: Record<string, unknown>[]; next: number };
+type Store = { rows: Record<string, unknown>[]; next: number; rev: number };
+/**
+ * This process's id in a revision; a new process gets a new one, so a revision from another boot never matches. On
+ * globalThis like the stores: a page and a route handler are separate bundles with their own copy of this module, and
+ * an id of the module's own differed between them, so no first open ever matched what its page was served.
+ */
+const BOOT = ((globalThis as Record<symbol, unknown>)[Symbol.for('zz-meridian.boot')] ??= `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`) as string;
 const STORES = Symbol.for('zz-meridian.collections');
 const stores = () => ((globalThis as Record<symbol, unknown>)[STORES] ??= new Map<string, Store>()) as Map<string, Store>;
 const storeKey = (tenantId: string, name: string) => JSON.stringify([tenantId, name]);
@@ -366,10 +379,11 @@ export function arrayCollection<T extends Record<string, unknown>, K extends key
   if (key in def.fields.shape) throw new Error(`${name}: fields describe the record without its key, so they cannot name ${key}`);
   if (!stores().has(sk)) {
     const top = def.rows.reduce((m, r) => Math.max(m, Number(/_(\d+)$/.exec(String(r[key]))?.[1] ?? 0)), 0);
-    stores().set(sk, { rows: structuredClone(def.rows), next: top + 1 });
+    stores().set(sk, { rows: structuredClone(def.rows), next: top + 1, rev: 0 });
   }
   const store = () => stores().get(sk)!;
   const emit = () => {
+    store().rev++;
     for (const l of [...(listeners().get(sk) ?? [])]) {
       try { l({ collection: name }); } catch { /* a listener's failure is never the write's */ }
     }
@@ -404,6 +418,7 @@ export function arrayCollection<T extends Record<string, unknown>, K extends key
     async aggregate(q) {
       return aggregateRows(rows(), normalizeAggregate(c, q));
     },
+    revision: () => `${BOOT}:${store().rev}`,
     subscribe(listener) {
       const set = listeners().get(sk) ?? new Set();
       listeners().set(sk, set);

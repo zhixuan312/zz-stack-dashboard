@@ -410,12 +410,15 @@ async function cachedRead(scope: AccessScope, name: string, query: Query) {
   'use cache';
   cacheTag(collectionTag(scope.tenantId, name));
   cacheLife({ stale: 30, revalidate: 60, expire: 3600 });
-  const { rows, total } = await collectionFor(scope, name).query(query);
-  return { rows, total, observedAt: clock().toISOString() };
+  const collection = collectionFor(scope, name);
+  // The stamp is taken before the query: a write in between makes the stamp older than the rows, never newer.
+  const revision = collection.revision?.();
+  const { rows, total } = await collection.query(query);
+  return { rows, total, revision, observedAt: clock().toISOString() };
 }
 
 /** The rows of a collection the caller may read, with the time the read actually ran. Throws before any cached code runs when it may not. */
-export async function read(name: string, q: Query = {}): Promise<{ rows: Record<string, unknown>[]; total: number; observedAt: string }> {
+export async function read(name: string, q: Query = {}): Promise<{ rows: Record<string, unknown>[]; total: number; revision?: string; observedAt: string }> {
   const scope = await resolveAccess();
   if (!(await can(scope, name, 'read'))) throw new AccessDenied();
   return cachedRead(scope, name, normalizeQuery(collectionFor(scope, name), q));
@@ -425,15 +428,17 @@ async function cachedAggregate(scope: AccessScope, name: string, query: Aggregat
   'use cache';
   cacheTag(collectionTag(scope.tenantId, name));
   cacheLife({ stale: 30, revalidate: 60, expire: 3600 });
-  const result = await collectionFor(scope, name).aggregate(query);
-  return { ...result, observedAt: clock().toISOString() };
+  const collection = collectionFor(scope, name);
+  const revision = collection.revision?.();
+  const result = await collection.aggregate(query);
+  return { ...result, revision, observedAt: clock().toISOString() };
 }
 
 /**
  * An aggregate query over every row of a collection the caller may read, answered by the collection itself, with the
  * time it actually ran. It asks the grant `read()` asks and throws before any cached code runs when it may not.
  */
-export async function aggregate(name: string, q: AggregateQuery): Promise<AggregateResult & { observedAt: string }> {
+export async function aggregate(name: string, q: AggregateQuery): Promise<AggregateResult & { revision?: string; observedAt: string }> {
   const scope = await resolveAccess();
   if (!(await can(scope, name, 'read'))) throw new AccessDenied();
   return cachedAggregate(scope, name, normalizeAggregate(collectionFor(scope, name), q));
@@ -448,7 +453,7 @@ const PAGE = 500;
  * page. The order and the conditions are re-asked of every page, so a table claiming "each" is not the first page of
  * something else. Any `limit` the caller passes is ignored: asking here means every row.
  */
-export async function readAll(name: string, q: Query = {}): Promise<{ rows: Record<string, unknown>[]; observedAt: string }> {
+export async function readAll(name: string, q: Query = {}): Promise<{ rows: Record<string, unknown>[]; revision?: string; observedAt: string }> {
   const first = await read(name, { ...q, limit: PAGE });
   const rows = [...first.rows];
   while (rows.length < first.total) {
@@ -456,7 +461,7 @@ export async function readAll(name: string, q: Query = {}): Promise<{ rows: Reco
     if (next.rows.length === 0) throw new Error(`${name} could not be read in full.`);
     rows.push(...next.rows);
   }
-  return { rows, observedAt: first.observedAt };
+  return { rows, revision: first.revision, observedAt: first.observedAt };
 }
 ```
 

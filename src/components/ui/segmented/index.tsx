@@ -1,7 +1,7 @@
 'use client';
 
 import { ToggleGroup } from 'radix-ui';
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { cn } from '../../../lib/cn';
 
 export type SegmentedOption<V extends string> = { value: V; label: React.ReactNode; title?: string };
@@ -28,14 +28,15 @@ export function Segmented<V extends string>({
 }) {
   const track = useRef<HTMLDivElement>(null);
   const [thumb, setThumb] = useState<{ x: number; w: number } | null>(null);
-  useLayoutEffect(() => {
-    const measure = () => {
+  // The thumb is read only in a ResizeObserver callback, which the browser runs after layout. A read in the commit, in an
+  // effect or in a frame callback runs before that layout is clean, so it forced a whole-page layout inside the tap's
+  // task. A fresh observer on every change delivers a first observation of each option after the next layout; that one
+  // carries the measurement, and later resizes (a font arriving, a density switch, a label changing) re-measure.
+  useEffect(() => {
+    const ro = new ResizeObserver(() => {
       const el = track.current?.querySelector<HTMLElement>('[data-state="on"]');
       if (el) setThumb({ x: el.offsetLeft, w: el.offsetWidth });
-    };
-    measure();
-    // Re-measure when the options change size: a font arriving, a density switch, a label changing.
-    const ro = new ResizeObserver(measure);
+    });
     track.current?.querySelectorAll('button').forEach((b) => ro.observe(b));
     return () => ro.disconnect();
   }, [value, options.length]);

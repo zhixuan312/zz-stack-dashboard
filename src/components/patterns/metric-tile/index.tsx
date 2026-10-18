@@ -153,7 +153,8 @@ export function MetricTile({
     <Card className={cn('gap-0 overflow-hidden px-(--card-pad) pt-[calc(var(--card-pad)-2px)] pb-0', row && 'max-sm:grid max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:items-center max-sm:gap-x-4 max-sm:py-3.5', className)}>
       <div className={cn('flex items-center gap-2', row && 'max-sm:col-start-1 max-sm:row-start-1')}>
         {icon ? <span className="text-ink-3 [&_svg]:size-3.5">{icon}</span> : null}
-        <h2 className="t-small min-w-0 flex-1 truncate font-medium text-ink-2">{label}</h2>
+        {/* A long label is cut, and keeps the whole of itself in its title, as the compact tile's does. */}
+        <h2 className="t-small min-w-0 flex-1 truncate font-medium text-ink-2" title={label}>{label}</h2>
         {hint ? (
           <Tooltip content={hint} toggle>
             <button type="button" aria-label={`About ${label}`} className="hit grid size-5 place-items-center rounded-full text-ink-3 hover:bg-fill-hover hover:text-ink-2">

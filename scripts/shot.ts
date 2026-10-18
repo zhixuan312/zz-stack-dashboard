@@ -2,10 +2,14 @@
  * Screenshot routes of the running app at exact widths, in either theme.
  *
  *   node scripts/shot.ts <path ...> [--width 1440,390] [--theme light,dark] [--full] [--base http://localhost:3100] [--out out/shots]
- *                                   [--press "<name>" ...]
+ *                                   [--as <persona>] [--press "<name>" ...]
  *                                   [--point "<chart label>" --at 0.6]
  *
  * Motion is reduced, so every page shows its final state. Files land in out/shots/<route>-<width>-<theme>.png.
+ *
+ * `--as` signs every page in as one persona declared in scripts/verify.config.ts, through the cookie scripts/lib/chrome.ts
+ * sets before the first request, and puts the persona in the name: <route>-<persona>-<width>-<theme>.png. Without it no
+ * cookie is sent and every request is signed in as whoever the API answers a request with no cookie as.
  *
  * `--press` opens what only a press shows (a dialog, a sheet, a menu, a popover) before the shot: the control whose
  * accessible name or text is `<name>` is pressed with the mouse, as a person presses it, and repeated `--press` flags
@@ -16,12 +20,19 @@
  */
 import path from 'node:path';
 import { launch, type Page } from './lib/chrome.ts';
+import config from './verify.config.ts';
 
 // A picture is for the eye, on a screen that is usually 2x: the checks measure at 1x (scripts/lib/chrome.ts), this draws at 2x.
 process.env.DPR ??= '2';
 
 const args = process.argv.slice(2);
-const opt = (k: string, d: string) => { const i = args.indexOf(k); return i >= 0 ? args.splice(i, 2)[1] : d; };
+const opt = (k: string, d: string) => {
+  const i = args.indexOf(k);
+  if (i < 0) return d;
+  const v = args.splice(i, 2)[1];
+  if (v === undefined || v.startsWith('--')) { console.error(`shot: ${k} needs a value`); process.exit(1); }
+  return v;
+};
 const flag = (k: string) => { const i = args.indexOf(k); return i >= 0 ? (args.splice(i, 1), true) : false; };
 const presses: string[] = [];
 for (let i = args.indexOf('--press'); i >= 0; i = args.indexOf('--press')) presses.push(args.splice(i, 2)[1]);
@@ -33,6 +44,13 @@ const full = flag('--full');
 const point = opt('--point', '');
 const at = Number(opt('--at', '0.6'));
 if (!Number.isFinite(at) || at < 0 || at > 1) throw new Error('--at must be a number from 0 to 1');
+const as = opt('--as', '');
+const personas = (config as { personas?: Record<string, { cookie: { name: string; value: string } }> }).personas ?? {};
+const cookie = as ? personas[as]?.cookie : undefined;
+if (as && !cookie) {
+  console.error(`shot: --as names ${as}, which is not a declared persona. Declared personas: ${Object.keys(personas).join(', ')}.`);
+  process.exit(1);
+}
 const routes = args.length ? args : ['/'];
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -76,7 +94,7 @@ try {
         // alone and light after a blank page drew it right, pixel for pixel.
         await page.send('Page.navigate', { url: 'about:blank' });
         await sleep(300);
-        await page.open(base + r, { width: w, height: w < 600 ? 844 : 900, theme: t });
+        await page.open(base + r, { width: w, height: w < 600 ? 844 : 900, theme: t, cookie });
         const missing = [];
         for (const p of presses) if (!(await press(page, p))) { missing.push(p); break; }
         if (missing.length) { console.log(`FAIL ${r} at ${w}px ${t}: nothing to press named "${missing[0]}"`); failed = true; continue; }
@@ -102,7 +120,7 @@ try {
           })()`);
           if (!readout.fits) { console.log(`FAIL ${r} at ${w}px ${t}: readout missing or outside its chart: ${readout.detail}`); failed = true; }
         }
-        const name = (r.replace(/^\//, '').replace(/[/?=&#]+/g, '-') || 'home') + (presses.length ? `-${slug(presses.at(-1)!)}` : '') + (point ? `-${slug(point)}-point-${at}` : '') + `-${w}-${t}.png`;
+        const name = (r.replace(/^\//, '').replace(/[/?=&#]+/g, '-') || 'home') + (as ? `-${slug(as)}` : '') + (presses.length ? `-${slug(presses.at(-1)!)}` : '') + (point ? `-${slug(point)}-point-${at}` : '') + `-${w}-${t}.png`;
         const h = await page.shot(path.join(out, name), { full });
         console.log(`${path.join(out, name)} ${w}x${h}`);
         if (point && w < 600) await page.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });

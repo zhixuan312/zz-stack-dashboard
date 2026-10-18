@@ -25,6 +25,18 @@
     font-synthesis-weight: none;
   }
   body { margin: 0; min-height: 100dvh; background: transparent; }
+  /* A frame that holds a phone drawer (the console's shell, the Atlas's). A modal dialog makes two changes to <body> that
+     every element below inherits, and each made the browser recalculate the style of the whole page (about 1,500
+     elements, 40.6 ms at an 8x CPU slowdown, measured as UpdateLayoutTree in a trace of the drawer's open; 7.3 ms over
+     134 elements with these rules):
+       - an inline `pointer-events: none` (20 ms alone). While the drawer is open the frame holds its own `auto`, so the
+         change stops at the frame; the scrim covers the page, so a press outside is still blocked. It is scoped to the
+         drawer's open state, so a menu, select or popover over the page keeps Radix's own blocking untouched.
+       - `--removed-body-scroll-bar-size`, which the scroll lock sets on <body> to the width of the scrollbar it removed.
+         The lock reads it only on elements carrying its `right-scroll-bar-position` and `width-before-scroll-bar`
+         classes, and nothing in a frame does, so the frame states 0, once, for good. */
+  [data-drawer-frame] { --removed-body-scroll-bar-size: 0px; }
+  [data-drawer-frame][data-drawer-open] { pointer-events: auto; }
   /* A guest in a host: no light; the host's ground shows through. */
   [data-surface='embed'] { background-image: none; }
 

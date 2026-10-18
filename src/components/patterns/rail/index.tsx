@@ -193,6 +193,12 @@ export function Rail({
                   <li key={it.href}>
                     <Link
                       href={it.href}
+                      // Under partialPrefetching a link prefetches its route's App Shell only. An item that asks (the Docs
+                      // item, whose article is its page's URL data) is prefetched in full: from /settings, the start guide's
+                      // desktop warm shell went from 77-146 ms to 26-27 ms with no request after the press, at the cost of
+                      // one prefetch of about 15 KiB on each main-workspace page on the desktop; the phone's closed drawer
+                      // shows no link and prefetches nothing. The `in` test keeps this compiling in a project whose NavItem has no field.
+                      prefetch={'prefetch' in it && it.prefetch === true ? true : undefined}
                       aria-current={on ? 'page' : undefined}
                     >
                       <LinkIcon icon={<Icon strokeWidth={1.75} />} label={it.label} />

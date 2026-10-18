@@ -1,0 +1,8 @@
+[
+  {
+    "id": "migration:dependency:jsdom",
+    "status": "resolved",
+    "reason": "The console's jsdom ^30.1.2 is a patch above the tested ^30.1.1; it is kept, and finalize's gate and build run the whole test suite with it.",
+    "files": { "package.json": "sha256-ae724d13f64a9296964f54a392286307b5721f9e3ce1d63d1cc804011640211d" }
+  }
+]
