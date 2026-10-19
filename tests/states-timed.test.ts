@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { slowRule } from '../scripts/states-check.ts';
+import { SETTLE_MS, slowRule } from '../scripts/states-check.ts';
 import { BOUND_MS, boundRule } from '../scripts/states-timed.ts';
 import config from '../scripts/verify.config.ts';
 
@@ -33,7 +33,7 @@ describe("the slow state's bound", () => {
   });
 
   it('fails a row with no explicit state at all, as states-check does', () => {
-    expect(boundRule(frames(null)).problems.join(' ')).toMatch(/no explicit state within the 12 s a page is given, past the 5000 ms bound/);
+    expect(boundRule(frames(null)).problems.join(' ')).toContain(`no explicit state within the ${SETTLE_MS / 1000} s a page is given, past the ${BOUND_MS} ms bound`);
     expect(slowRule({ ...seen(null), content: false }).problems.length).toBeGreaterThan(0);
   });
 

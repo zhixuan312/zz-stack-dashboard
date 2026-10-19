@@ -98,6 +98,13 @@ describe('GET /api/console/platform/releases', () => {
     expect(weeks.reduce((n: number, w: Json) => n + w.releases, 0)).toBeGreaterThan(0);
   });
 
+  it('leads with the latest tag Status names beside the version it runs', async () => {
+    const { tiles } = await read(MEMBER, 'platform/releases');
+    const { running } = await read(MEMBER, 'platform/status');
+    expect(running.data.latest).toBe(tiles.latest.version);
+    expect(running.data.platform).not.toBe(tiles.latest.version);
+  });
+
   it('holds every state the page draws', async () => {
     const { meta, rows: { data: { rows } } } = await read(MEMBER, 'platform/releases');
     const at = (v: string) => rows.find((r: Json) => r.version === v);

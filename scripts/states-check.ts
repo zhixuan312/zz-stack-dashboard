@@ -44,7 +44,7 @@
  *
  * One line per route, person and state, then the failures. Exits 1 when any failed or nothing was opened.
  */
-import { NULL_STANDIN } from './fake-gateway/states-partial.ts';
+import { NULL_STANDIN, SLOW_STATUS_MS } from './fake-gateway/states-partial.ts';
 import { TEAMS } from './fake-gateway/platform-teams.ts';
 import { INITIATIVES, initiativeDetail } from './fake-gateway/work.ts';
 import type { Page } from './lib/chrome.ts';
@@ -79,8 +79,13 @@ const LEAKS = [
   ...theirs.flatMap((i) => initiativeDetail(i.team, i.slug)?.documents.map((d) => d.title) ?? []).filter((t): t is string => !!t && !ownTitles.has(t)),
 ];
 
-/** How long a page has to settle once opened: the window it is read in, which is no bound on any state. */
-export const SETTLE_MS = 12_000;
+/**
+ * How long a page has to settle once opened: the window it is read in, which is no bound on any state. It holds a page
+ * whose server read and then a browser read of its own each take the fake's slowest `slow` delay, and one such delay
+ * more for a loaded machine: a document's Approve is busy for its browser read after the page drew (Harbormaster #3909
+ * read one still busy at 12 s, 8 s by construction, under a full verify's load).
+ */
+export const SETTLE_MS = 3 * SLOW_STATUS_MS;
 
 /** The page's own words for its states, read in the page. COUPLED: the console's views' sentences. */
 export const LIB = String.raw`

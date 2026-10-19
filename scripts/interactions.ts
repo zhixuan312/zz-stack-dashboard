@@ -43,24 +43,32 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const HANG_BOUND_MS = 5000;
 
 /** Tag every visible, enabled, not-yet-chosen control with its index; return their names (with the hosts they sit in) and the page's links. */
-const LIST = `(() => {
+/**
+ * The page's controls and how each is named: its accessible name and the roots it sits in. A control is found again by
+ * that name (and which of the controls with it), never by its place in the walk: a later load can draw the controls in
+ * another order or fewer of them for a while, a table still loading or rows a concurrent write changed (#65).
+ */
+const CONTROLS = `
   const deepClosest = (el, sel) => { for (let n = el; n; n = deepParent(n)) if (n.matches(sel)) return n; return null; };
   const vis = (el) => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && !deepClosest(el, '[aria-hidden="true"],[inert],.sr-only'); };
-  const chosen = (el) => ['aria-pressed', 'aria-checked', 'aria-selected'].some((a) => el.getAttribute(a) === 'true') || el.getAttribute('aria-current') === 'page' || ['on', 'active', 'checked'].includes(el.getAttribute('data-state'));
   const hosts = (el) => { const out = []; for (let r = el.getRootNode(); r instanceof ShadowRoot; r = r.host.getRootNode()) out.unshift(r.host.localName); return out; };
-  const every = deepAll(document.body);
-  every.forEach((n) => n.removeAttribute('data-press'));
-  const all = every.filter((b) => b.matches('button, [role="button"], [role="tab"], [role="switch"], [role="checkbox"], [role="radio"], [role="menuitem"]'))
+  const nameOf = (b) => { const h = hosts(b); return (b.getAttribute('aria-label') || deepText(b) || b.title || '').trim().replace(/\\s+/g, ' ').slice(0, 60) + (h.length ? ' (in ' + h.join(' > ') + ')' : ''); };
+  // A control already chosen is not pressed: choosing it again changes nothing, which is not a dead control.
+  const chosen = (el) => ['aria-pressed', 'aria-checked', 'aria-selected'].some((a) => el.getAttribute(a) === 'true') || el.getAttribute('aria-current') === 'page' || ['on', 'active', 'checked'].includes(el.getAttribute('data-state'));
+  const pressable = (every) => every.filter((b) => b.matches('button, [role="button"], [role="tab"], [role="switch"], [role="checkbox"], [role="radio"], [role="menuitem"]'))
     .filter((b) => !b.disabled && b.getAttribute('aria-disabled') !== 'true' && vis(b) && !chosen(b));
+`;
+const LIST = `(() => {${CONTROLS}
+  const every = deepAll(document.body);
   return {
-    controls: all.map((b, i) => { b.setAttribute('data-press', i); const h = hosts(b); return (b.getAttribute('aria-label') || deepText(b) || b.title || '').trim().replace(/\\s+/g, ' ').slice(0, 60) + (h.length ? ' (in ' + h.join(' > ') + ')' : ''); }),
+    controls: pressable(every).map(nameOf),
     links: every.filter((a) => a.matches('a[href]') && vis(a)).map((a) => a.getAttribute('href')),
   };
 })()`;
 
 /** Scroll the control into view, check nothing covers it, and start counting what changes. */
-const ARM = (i: number) => `(() => {
-  const el = deepAll(document.body).find((n) => n.getAttribute('data-press') === '${i}'); if (!el) return null;
+const ARM = (name: string, nth: number) => `(() => {${CONTROLS}
+  const el = pressable(deepAll(document.body)).filter((b) => nameOf(b) === ${JSON.stringify(name)})[${nth}]; if (!el) return null;
   el.scrollIntoView({ block: 'center', inline: 'nearest' });
   const r = el.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
   const hit = document.elementFromPoint(x, y);
@@ -76,7 +84,7 @@ const ARM = (i: number) => `(() => {
   window.__mo = new MutationObserver((ms) => { for (const m of ms) {
     if (tipOnly(m.target)) continue;
     if (m.type === 'childList' && [...m.addedNodes, ...m.removedNodes].every(tipOnly)) continue;
-    if (m.type === 'attributes' && m.target === el && ['data-state', 'class', 'style', 'data-press', 'aria-describedby'].includes(m.attributeName)) continue;
+    if (m.type === 'attributes' && m.target === el && ['data-state', 'class', 'style', 'aria-describedby'].includes(m.attributeName)) continue;
     window.__changes++;
   } });
   setTimeout(() => roots().forEach((r) => window.__mo.observe(r, { subtree: true, childList: true, attributes: true, characterData: true })), 40);
@@ -125,9 +133,19 @@ for (const width of WIDTHS) {
       if (status >= 400) failures.push(`${route}: link ${href}${path === href ? '' : ` (${path})`} answers ${status}`);
     }
     for (let i = 0; i < controls.length; i++) {
-      let armed = await page.eval<{ x: number; y: number; covered?: string } | null>(ARM(i));
-      // Something left open or a toast in the way: start the page again and try once more.
-      if (!armed || armed.covered) { await fresh(); armed = await page.eval(ARM(i)); }
+      // Which of the controls named alike this is, in the order the first load listed them.
+      const nth = controls.slice(0, i).filter((c) => c === controls[i]).length;
+      type Armed = { x: number; y: number; covered?: string } | null;
+      // A document replaced since the last read has no helper: that is a page to open again, never a crash (#64).
+      const arm = () => page.eval<Armed>(ARM(controls[i], nth)).catch((): Armed => null);
+      let armed = await arm();
+      // Something left open or a toast in the way: start the page again and try once more. A control not drawn yet on the
+      // new load (a list still loading) is waited for up to the hang bound before it is called gone.
+      if (!armed || armed.covered) {
+        await fresh();
+        armed = await arm();
+        for (let waited = 0; !armed && waited < HANG_BOUND_MS; waited += 200) { await sleep(200); armed = await arm(); }
+      }
       // Tagged by this suite a moment ago and gone after a fresh load: say so, never skip it.
       if (!armed) { failures.push(`${route} @${width}: "${controls[i]}" was listed but could not be found again`); continue; }
       if (armed.covered) { failures.push(`${route} @${width}: "${controls[i]}" is covered by ${armed.covered}`); continue; }
@@ -150,14 +168,15 @@ for (const width of WIDTHS) {
         if (!chosen) r = await look().catch(() => ({ changes: 0, moved: true }));
       }
       if (chosen) continue;
-      if (!r.changes && !r.moved) failures.push(`${route} @${width}: "${controls[i]}" does nothing when ${touch ? 'tapped' : 'pressed'}`);
-      if (r.moved) await fresh();
-      else {
-        await page.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
-        await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
-        await sleep(200);
-        if (await page.eval<boolean>(`!!deepQuery('[role="dialog"],[role="alertdialog"],[role="menu"],[role="listbox"]', document.body)`)) await fresh();
-      }
+      if (r.moved) { await fresh(); continue; }
+      await page.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+      await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+      await sleep(200);
+      // A document replaced after the look closed (a team switch that reloads once its request is accepted) has lost the
+      // helper and the counters: the press moved the page, late, and the route is opened again (#64).
+      const after = await page.eval<{ replaced: boolean; open: boolean }>(`typeof deepQuery !== 'function' ? { replaced: true, open: false } : { replaced: location.href !== window.__href, open: !!deepQuery('[role="dialog"],[role="alertdialog"],[role="menu"],[role="listbox"]', document.body) }`).catch(() => ({ replaced: true, open: false }));
+      if (!r.changes && !after.replaced) failures.push(`${route} @${width}: "${controls[i]}" does nothing when ${touch ? 'tapped' : 'pressed'}`);
+      if (after.replaced || after.open) await fresh();
     }
     if (page.errors.length) failures.push(`${route} @${width}: ${page.errors[0]}`);
   }

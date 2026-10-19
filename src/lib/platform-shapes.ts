@@ -87,8 +87,9 @@ export type PlatformStatus = {
   records: Part<{ daysWithWork: number; daysUnderOnePercent: number;
     longestUnderOnePercent: { days: number; from: string; to: string } | null }>;
   doors: Part<DoorObservation[]>;
+  // `latest` is the newest tag recorded, as Releases leads with it: the running version's own until a newer one is tagged.
   running: Part<{ platform: string; console: string | null; releasedAt: string;
-    previous: string | null; migrations: number | null }>;
+    previous: string | null; latest: string; migrations: number | null }>;
   own: Part<{ malformed: PeriodFigure[]; followup: PeriodFigure[]; sessions: PeriodFigure[];
     bugs: { filed: number; fixed: number; notABug: number; duplicate: number; open: number } }>;
 };

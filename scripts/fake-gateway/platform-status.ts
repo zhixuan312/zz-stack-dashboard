@@ -56,9 +56,12 @@ const undefinedYet = (back: number): PeriodFigure => ({ window: span(back), figu
 
 /** The local date a week begins on, which a finding names. */
 const date = (w: PeriodFigure) => w.window.from.slice(0, 10);
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-/** That date as a finding's sentence prints it: `28 Sep`. */
-const day = (w: PeriodFigure) => `${Number(date(w).slice(8))} ${MONTHS[Number(date(w).slice(5, 7)) - 1]}`;
+/** A date as a sentence prints it, the console's `formatDay` of that day: `28 Sept`, `1 Oct`. COUPLED: `day` in the
+ *  gateway's console/findings.ts. */
+const SENTENCE_DAY = new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', day: 'numeric', month: 'short' });
+const said = (d: string) => SENTENCE_DAY.format(Date.UTC(Number(d.slice(0, 4)), Number(d.slice(5, 7)) - 1, Number(d.slice(8, 10))));
+/** That week's date as a finding's sentence prints it. */
+const day = (w: PeriodFigure) => said(date(w));
 
 /** Weeks oldest first, back 5 to the running week; `pick` names a week by its index. */
 type Weeks = PeriodFigure[];
@@ -143,7 +146,6 @@ const TODAY = iso(now()).slice(0, 10);
 const daysAgo = (k: number) => iso(Date.parse(`${TODAY}T00:00:00Z`) - k * DAY).slice(0, 10);
 /** How many complete days there are, the first week's Monday through yesterday. */
 const COMPLETE = (Date.parse(`${TODAY}T00:00:00Z`) - Date.parse(`${FIRST_DAY}T00:00:00Z`)) / DAY;
-const said = (d: string) => `${Number(d.slice(8))} ${MONTHS[Number(d.slice(5, 7)) - 1]}`;
 function door(name: Door['door'], counts: (k: number) => [number, number], run: Door['run'], finding: Door['finding'], others: number): Door {
   const days = Array.from({ length: COMPLETE + 1 }, (_, i) => {
     const k = COMPLETE - i;
@@ -174,12 +176,14 @@ DOORS.push(door('eval', EVAL_CALLS, null,
 
 /* What needs attention: every instance the checks found, then projected for the reader and cut to five rows, as the
  * gateway's `needsOf` does (console/platform-needs.ts). Each row links to its released page, as the gateway's
- * `RELEASED` does: Bugs, Usage for a door, Evaluation, and a team's page under Platform. */
+ * `RELEASED` does: Bugs filtered to open, Usage for a door, Evaluation, and a team's page under Platform. */
 type Need = PlatformStatus['needs']['rows'][number];
 /** One instance a check found, with the key that orders it among its kind and is never answered: a door, a team. */
 export type NeedInstance = Need & { key: string };
 
 const HOUR = 3_600_000;
+/** Bugs filtered to open, where the open reports' row leads: the queue's own `state` filter. */
+export const BUGS_OPEN = '/platform/bugs?state=open';
 const KINDS: Need['kind'][] = ['bugs', 'door', 'evaluation', 'approvals', 'drift'];
 const ROWS = 5;
 const counted = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -224,7 +228,7 @@ export function needsOf(found: NeedInstance[], superadmin: boolean): PlatformSta
 /** What every check but the approvals' found: an open report blocking work (the Bugs fixture's), the two doors with a
  *  fault day so far today, and a finding waiting since 410 hours ago (the Evaluation fixture's). */
 export const CHECKED: NeedInstance[] = [
-  { kind: 'bugs', key: 'bugs', tone: 'critical', instanceCount: 1, oldestAt: iso(RUNNING - 5 * WEEK + 60 * HOUR), href: '/platform/bugs',
+  { kind: 'bugs', key: 'bugs', tone: 'critical', instanceCount: 1, oldestAt: iso(RUNNING - 5 * WEEK + 60 * HOUR), href: BUGS_OPEN,
     title: 'Bug reports are open', detail: '4 open reports, 1 blocking work' },
   { kind: 'door', key: 'core', tone: 'critical', instanceCount: 1, oldestAt: iso(Date.parse(`${TODAY}T00:00:00Z`)), href: '/platform/usage',
     title: 'The core door has a fault day today, so far', detail: '1 tool failure in 80 calls so far today' },
@@ -259,7 +263,8 @@ export const PLATFORM_STATUS: PlatformStatus = {
   measures: [MALFORMED, FOLLOWUP, P50, P95, SEARCHES, BUGS, SESSIONS, FINISHED],
   records: { state: 'ok', data: RECORDS },
   doors: { state: 'ok', data: DOORS },
-  running: { state: 'ok', data: { platform: '0.97.0', console: '0.28.0', releasedAt: iso(now() - 2 * DAY), previous: '0.96.0', migrations: 103 } },
+  // 0.97.1 is tagged and not yet deployed: the newest of the releases fixture, which reads this part and so cannot be read here.
+  running: { state: 'ok', data: { platform: '0.97.0', console: '0.28.0', releasedAt: iso(now() - 2 * DAY), previous: '0.96.0', latest: '0.97.1', migrations: 103 } },
   // atlas, with no sample minimum: every week with calls stands, its counts beside it.
   own: { state: 'ok', data: {
     malformed: [rate(5, 6, 60, 1000, 0), rate(4, 0, 0, 1000, 0), rate(3, 3, 12, 1000, 0), rate(2, 2, 120, 1000, 0), rate(1, 5, 80, 1000, 0), rate(0, 1, 3, 1000, 0)],

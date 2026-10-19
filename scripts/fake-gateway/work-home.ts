@@ -67,9 +67,10 @@ function milestone(count: 'closed' | 'documents' | 'lessons' | 'words', value: n
   return { count, next, last, value };
 }
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-/** A date as a finding's sentence prints it: `28 Sep`. */
-const sayDay = (date: string) => `${Number(date.slice(8, 10))} ${MONTHS[Number(date.slice(5, 7)) - 1]}`;
+/** A date as a finding's sentence prints it, the console's `formatDay` of that day: `28 Sept`, `1 Oct`. COUPLED: `day` in
+ *  the gateway's console/findings.ts. */
+const SENTENCE_DAY = new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', day: 'numeric', month: 'short' });
+const sayDay = (date: string) => SENTENCE_DAY.format(Date.UTC(Number(date.slice(0, 4)), Number(date.slice(5, 7)) - 1, Number(date.slice(8, 10))));
 
 /**
  * What the gateway says of a neutral measure's last whole week: its high or its low since the first comparable week,

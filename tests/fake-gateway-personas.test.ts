@@ -356,8 +356,8 @@ describe('GET /api/console/platform/status', () => {
     const order = ['bugs', 'door', 'evaluation', 'approvals', 'drift'];
     const rank = (r: Need) => (r.tone === 'critical' ? 0 : 10) + order.indexOf(r.kind);
     expect(needs.rows.map(rank)).toEqual([...needs.rows.map(rank)].sort((a, b) => a - b));
-    // Each row links to its released page: Bugs, Usage, Evaluation, or a team's own page under Platform.
-    for (const r of needs.rows) expect(r.href === null || /^\/platform\/(bugs|usage|evaluation|teams\/[a-z0-9_-]+)$/.test(r.href), JSON.stringify(r)).toBe(true);
+    // Each row links to its released page: Bugs filtered to open, Usage, Evaluation, or a team's own page under Platform.
+    for (const r of needs.rows) expect(r.href === null || /^\/platform\/(bugs\?state=open|usage|evaluation|teams\/[a-z0-9_-]+)$/.test(r.href), JSON.stringify(r)).toBe(true);
     // A fault day today is one door's need, and the door's own days say so.
     const { doors } = await read<Status>(null, 'platform/status');
     for (const r of needs.rows.filter((x) => x.kind === 'door')) {

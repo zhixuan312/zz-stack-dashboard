@@ -233,13 +233,18 @@ export function doorRow(d: Door): DoorRow {
 
 /* What is running */
 
-type Running = { state: 'ok'; items: { label: string; value: string }[] } | { state: 'unrecorded' } | { state: 'unavailable'; reason: string };
+/** What is running, and `tagged`: the newest tag beside the running version where a newer one is recorded and not yet
+ *  deployed, null where the running version is the newest. */
+type Running =
+  | { state: 'ok'; items: { label: string; value: string }[]; tagged: string | null }
+  | { state: 'unrecorded' } | { state: 'unavailable'; reason: string };
 export function runningOf(s: PlatformStatus): Running {
   const r = s.running;
   if (r.state === 'unavailable') return r.reason === 'unrecorded' ? { state: 'unrecorded' } : { state: 'unavailable', reason: r.reason };
   const d = r.data;
   return {
     state: 'ok',
+    tagged: d.latest === d.platform ? null : `${d.latest} is tagged; the platform runs ${d.platform}`,
     items: [
       { label: 'Platform', value: d.platform },
       { label: 'Console', value: d.console ?? 'Not recorded' },
@@ -306,7 +311,7 @@ export function askOf(s: PlatformStatus): string {
 
 const VIEW = { view: 'platform_status', title: 'Status', address: '/platform' } as const;
 
-/** A dated figure as the context says it, its week by the day it began: `20.0 (21 Sep)`. */
+/** A dated figure as the context says it, its week by the day it began: `20.0 (21 Sept)`. */
 const said = (d: Dated | null, word: string, day = true) => (d ? `${word} ${d.value}${day && d.week ? ` (${d.week.slice(8)})` : ''}` : null);
 
 /** One measure's line: its last whole week (its day only when it is not the read's last week), the change, and its first and best, or its high and low. */
@@ -360,7 +365,7 @@ export function platformStatusContext(read: StatusRead): SharedContext {
   const running = runningOf(s);
   if (running.state === 'ok') {
     const [platform, consoleVersion, tagged, before, migrations] = running.items.map((i) => i.value);
-    facts.push({ label: 'Running', value: `platform ${platform}, console ${consoleVersion}`, change: `tagged ${tagged}, ${before === 'None recorded' ? 'no release before it recorded' : `after ${before}`}; ${migrations} migrations` });
+    facts.push({ label: 'Running', value: `platform ${platform}, console ${consoleVersion}`, change: `tagged ${tagged}, ${before === 'None recorded' ? 'no release before it recorded' : `after ${before}`}; ${migrations} migrations${running.tagged ? `; ${running.tagged}` : ''}` });
   }
   else if (running.state === 'unrecorded') unknowns.push(UNRECORDED);
   else unavailable('What is running', running.reason);

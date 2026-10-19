@@ -300,10 +300,13 @@ function RunningPanel({ status }: { status: PlatformStatus }) {
   const running = runningOf(status);
   if (running.state === 'unavailable') return <Unavailable title="What is running">It could not be read ({running.reason}).</Unavailable>;
   return (
-    <Panel title="What is running" description="The version the gateway runs, and when its tag was made. A newer tag may be recorded on Releases before it is deployed.">
+    <Panel title="What is running" description="The version the gateway runs, and when its tag was made.">
       {running.state === 'unrecorded'
         ? <EmptyState layout="inline" title="Unrecorded">{UNRECORDED}</EmptyState>
-        : <KeyValue columns={2} items={running.items.map((i) => ({ label: i.label, value: i.value }))} />}
+        : <>
+          {running.tagged ? <p data-tagged className="t-small mb-4 text-ink-2">{running.tagged}.</p> : null}
+          <KeyValue columns={2} items={running.items.map((i) => ({ label: i.label, value: i.value }))} />
+        </>}
     </Panel>
   );
 }

@@ -251,7 +251,7 @@ function instances(): PlatformStatus['needs']['rows'] {
   const drift = (label: string, from: number, to: number) => ({ kind: 'drift' as const, tone: 'warning' as const, instanceCount: 1, oldestAt: at(7 * 24), href: '/platform/usage',
     title: `${label} has at least doubled`, detail: `${to.toLocaleString('en-US')} ms in the last whole week, against ${from.toLocaleString('en-US')} ms in the first` });
   return [
-    { kind: 'bugs', tone: 'critical', instanceCount: 1, oldestAt: at(900), href: '/platform/bugs', title: 'Bug reports are open', detail: '1,240 open reports, 212 blocking work' },
+    { kind: 'bugs', tone: 'critical', instanceCount: 1, oldestAt: at(900), href: '/platform/bugs?state=open', title: 'Bug reports are open', detail: '1,240 open reports, 212 blocking work' },
     { kind: 'door', tone: 'critical', instanceCount: 1, oldestAt: at(2), href: '/platform/usage', title: 'The core door has a fault day today, so far', detail: '1,904 tool failures in 81,200 calls so far today' },
     { kind: 'evaluation', tone: 'warning', instanceCount: 1, oldestAt: at(800), href: '/platform/evaluation', title: 'Evaluation findings are waiting for a decision', detail: '41 findings have waited 14 days or more for a decision' },
     ...Array.from({ length: 9 }, (_, t) => ({ kind: 'approvals' as const, tone: 'warning' as const, instanceCount: 1, oldestAt: at(700 - t * 20), href: '/platform/teams',

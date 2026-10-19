@@ -100,7 +100,7 @@ import { usage } from './platform-usage.ts';
 import { pluginEval, skillText } from './platform.ts';
 import { search } from './search.ts';
 import { empty, extreme } from './states.ts';
-import { NOT_RECORDED, STATES, isState, nullsFilled, partial, sessionOf, unknownState, type State } from './states-partial.ts';
+import { NOT_RECORDED, SLOW_MS, SLOW_STATUS_MS, STATES, isState, nullsFilled, partial, sessionOf, unknownState, type State } from './states-partial.ts';
 import { documentDetail, documentRevision, initiativeDetail, onDrift, refusesRecord, revisionInStore } from './work.ts';
 import { access, revokeApplication, revokeBrowser, tokensNow } from './work-access.ts';
 import { activityLog, activitySummary, NO_TEAM } from './work-activity.ts';
@@ -628,7 +628,7 @@ const server = http.createServer((req, res) => {
       if (answer[1] === null) { res.writeHead(answer[0], { 'cache-control': 'no-store' }); res.end(); return; }
       res.writeHead(answer[0], { 'content-type': 'application/json', 'cache-control': 'no-store', ...(revised ? { [revised[0]]: revised[1] } : {}) });
       res.end(JSON.stringify(answer[1]));
-    }, state !== 'slow' || (seg[2] === 'me' && !seg[3]) ? 0 : status ? 6000 : 4000);
+    }, state !== 'slow' || (seg[2] === 'me' && !seg[3]) ? 0 : status ? SLOW_STATUS_MS : SLOW_MS);
   });
 });
 

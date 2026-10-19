@@ -77,7 +77,7 @@ describe('what needs attention', () => {
     for (const r of PLATFORM_STATUS.needs.rows) expect(within(list).getByText(r.detail)).toBeInTheDocument();
     expect(document.querySelector('[data-needs-foot]')).toBeNull();
     // Each row with a released destination links to its page, the whole row, with the arrow that says so.
-    expect(within(list).getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(['/platform/bugs', '/platform/usage', '/platform/usage', '/platform/evaluation', '/platform/teams/atlas']);
+    expect(within(list).getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(['/platform/bugs?state=open', '/platform/usage', '/platform/usage', '/platform/evaluation', '/platform/teams/atlas']);
     expect(within(list).getByText('Approvals are waiting in atlas')).toBeInTheDocument();
     expect(within(list).getByText('1 revision was presented 14 days ago or more and not approved')).toBeInTheDocument();
   });
@@ -94,7 +94,7 @@ describe('what needs attention', () => {
     const list = screen.getByRole('list', { name: 'What needs attention' });
     expect(within(list).getByText('Approvals are waiting in 1 team')).toBeInTheDocument();
     expect(within(list).getByText('1 team has a revision presented 14 days ago or more and not approved')).toBeInTheDocument();
-    expect(within(list).queryAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(['/platform/bugs', '/platform/usage', '/platform/usage', '/platform/evaluation']);
+    expect(within(list).queryAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(['/platform/bugs?state=open', '/platform/usage', '/platform/usage', '/platform/evaluation']);
     expect(within(list).getByText('Approvals are waiting in 1 team').closest('a')).toBeNull();
     expect(list.querySelectorAll('[data-goes]')).toHaveLength(4);
     expect(document.querySelector('[data-needs-foot]')).toBeNull();

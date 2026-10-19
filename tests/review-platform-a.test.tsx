@@ -15,9 +15,9 @@ const gateway = vi.hoisted(() => ({ get: vi.fn() }));
 vi.mock('@/data/gateway', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/data/gateway')>()), gatewayGet: gateway.get }));
 vi.mock('@/app.config', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/app.config')>()), refusal: 'absent' }));
 
-import { app } from '@/app.config';
 import { SurfaceOverride } from '@/components/base/surface';
 import type { Me } from '@/lib/api-shapes';
+import { formatDate } from '@/lib/format-date';
 import type { AdminBugRow, PlatformStatus } from '@/lib/platform-shapes';
 import { PlatformBugView } from '@/views/pages/platform-bug';
 import { PlatformBugsView } from '@/views/pages/platform-bugs';
@@ -232,9 +232,8 @@ describe('Bugs and a report', () => {
 
   it('titles a member\'s withheld reports by surface, impact and filed date, each told apart, with no reporter\'s word (F-14)', () => {
     const rows = PUBLIC.queue.state === 'ok' ? PUBLIC.queue.data.rows : [];
-    const day = (iso: string) => new Intl.DateTimeFormat('en-GB', { timeZone: app.timezone, day: 'numeric', month: 'short', year: 'numeric' }).format(Date.parse(iso));
     for (const r of rows) {
-      expect(r.title).toContain(day(r.filedAt));
+      expect(r.title).toContain(formatDate(r.filedAt));
       expect(r.title).toContain(r.surface ?? 'no surface named');
       expect(r.title.toLowerCase()).toContain({ blocks_work: 'blocks work', wrong_result: 'wrong result', confusing: 'confusing', cosmetic: 'cosmetic' }[r.impact]);
     }

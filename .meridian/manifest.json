@@ -1,5 +1,5 @@
 {
-  "version": "0.19.0",
+  "version": "0.19.2",
   "route": "adopt",
   "brand": {
     "name": "ZZ Stack",
@@ -44,7 +44,7 @@
     "scripts/contrast.ts": "sha256-cf375e2b4a6ac1a9600b6d771adb0d29c73a99e9414b1e4f713a7872b0096a6a",
     "scripts/fake-llm.ts": "sha256-a74047fcb467ac54be3049947614168ecd5e0f6ddfa04742b596a61d8ce19ad2",
     "scripts/gate.ts": "sha256-26b4c8ef2838043266364906130a587325f8278c419f3867b3b45d6249cb41c5",
-    "scripts/interactions.ts": "sha256-d0bc035f43d06a7d9cee01d5396902d547e5e1464a0aa458ffb5251aa8eb935d",
+    "scripts/interactions.ts": "sha256-a574bfc04ccfbbe4b1a9590f14743093d87cbb98b8a1b322e3d76defb871aec3",
     "scripts/keyboard.ts": "sha256-25ff9e8ffdb1b701ec961832aa36126283ae0bc8dd8084b32f9fa0d0c2f945f8",
     "scripts/lib/aliases.ts": "sha256-9f1d1c525a4e88a134b519eeb56c3c81f113d645a5e7019f28a4a2c9b2f6d703",
     "scripts/lib/atlas.ts": "sha256-1fb9038cdd64498de90be2dbf794bc9a77369b87cda9029f8b1518e07687a350",

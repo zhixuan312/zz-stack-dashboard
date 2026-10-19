@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { skillText } from '../scripts/fake-gateway/platform.ts';
 import { empty } from '../scripts/fake-gateway/states.ts';
 import * as STATES_CHECK from '../scripts/states-check.ts';
-import { EMPTY_IS_NORMAL, emptyRule, slowRule } from '../scripts/states-check.ts';
+import { EMPTY_IS_NORMAL, SETTLE_MS, emptyRule, slowRule } from '../scripts/states-check.ts';
+import { SLOW_MS, SLOW_STATUS_MS } from '../scripts/fake-gateway/states-partial.ts';
 import config from '../scripts/verify.config.ts';
 
 /**
@@ -109,7 +110,12 @@ describe('the slow rule, which judges whether and never when', () => {
 
   it('fails a row with no explicit state in the window a page is given, naming the window', () => {
     const r = slowRule({ ...slow(null), content: false });
-    expect(r.problems.join(' ')).toMatch(/no explicit state within the 12 s a page is given to settle/);
+    expect(r.problems.join(' ')).toContain(`no explicit state within the ${SETTLE_MS / 1000} s a page is given to settle`);
+  });
+
+  it('gives a page the window for its server read and a browser read at the slowest delay, and one more', () => {
+    expect(SLOW_STATUS_MS).toBeGreaterThanOrEqual(SLOW_MS);
+    expect(SETTLE_MS).toBeGreaterThanOrEqual(3 * SLOW_STATUS_MS);
   });
 
   it('fails a row that showed no loading in its first frame, whatever its time', () => {

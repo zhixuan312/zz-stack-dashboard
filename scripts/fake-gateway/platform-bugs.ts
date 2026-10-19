@@ -20,7 +20,7 @@ import type { AdminBugRow, BugReport, BugResolveInput, Bugs, Figure, PlatformSta
 import { ago, now } from './clock.ts';
 import { kept } from './journey.ts';
 import { ME } from './people.ts';
-import { CHECKED, MEMBER_STATUS, type NeedInstance, PLATFORM_STATUS, approvalsNeed, needsOf } from './platform-status.ts';
+import { BUGS_OPEN, CHECKED, MEMBER_STATUS, type NeedInstance, PLATFORM_STATUS, approvalsNeed, needsOf } from './platform-status.ts';
 import { TEAMS } from './platform-teams.ts';
 import { waitingOf } from './work-approvals.ts';
 
@@ -84,9 +84,10 @@ function reports(): BugReport[] {
 
 /** The impacts as a withheld report's title says them. */
 const IMPACT_WORDS: Record<string, string> = { blocks_work: 'Blocks work', wrong_result: 'Wrong result', confusing: 'Confusing', cosmetic: 'Cosmetic' };
-/** A day as a withheld report's title says it, `16 Sept 2026`, in the gateway's default reporting timezone, which is the
- *  console's own (`app.timezone`), so the title's day is the day the queue's Filed column draws. */
-const DAY = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Singapore', day: 'numeric', month: 'short', year: 'numeric' });
+/** A day as a withheld report's title says it, `16 Sept 2026` or `03 Oct 2026`, in the gateway's default reporting timezone,
+ *  which is the console's own (`app.timezone`), and in the form of its `formatDate`, so the title's day is the day the
+ *  queue's Filed column draws, written as it draws it. */
+const DAY = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Singapore', day: '2-digit', month: 'short', year: 'numeric' });
 
 /** The title of a report its reader may not read in full, from what they may see of it: its impact, its canonical
  *  surface and the day it was filed, `Blocks work: document_approve, filed 16 Sept 2026`. COUPLED: the gateway's `publicTitle`. */
@@ -228,7 +229,7 @@ export function statusFor(superadmin: boolean, team: string | null): PlatformSta
   const open = reports().filter((r) => r.status === 'open');
   const blocking = open.filter((r) => r.impact === 'blocks_work').length;
   const line: NeedInstance[] = open.length ? [{
-    kind: 'bugs', key: 'bugs', tone: blocking ? 'critical' : 'warning', instanceCount: 1, oldestAt: open.map((r) => r.reportedAt).sort()[0], href: '/platform/bugs',
+    kind: 'bugs', key: 'bugs', tone: blocking ? 'critical' : 'warning', instanceCount: 1, oldestAt: open.map((r) => r.reportedAt).sort()[0], href: BUGS_OPEN,
     title: 'Bug reports are open', detail: `${said(open.length, 'open report', 'open reports')}, ${blocking} blocking work`,
   }] : [];
   const cutoff = now() - WAIT_MS;
