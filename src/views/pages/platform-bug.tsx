@@ -39,18 +39,19 @@ type Outcome = BugResolveInput['status'];
  * the missing page.
  */
 function useBug(id: string, served: BugRead, servedTargets: DuplicatesRead, now: Date) {
-  const { q, follow } = useServed<BugReport>(bugPath(id), true);
+  const { q, error, retry, busy } = useServed<BugReport>(bugPath(id), true);
   const targets = useServed<BugDuplicates>(duplicatesPath(id), true);
   const data = q.data ?? (served.state === 'ok' ? served.data : undefined);
-  const failed = failureOf(q);
+  const failed = failureOf({ error });
+  // A read in flight keeps the state the last one ended in on screen, and its Retry, so a press or a change answers
+  // there rather than swapping it for a skeleton and taking a keyboard user's place with it.
   const trouble: Trouble | null = data ? null
-    : q.error?.status === 404 ? { state: 'missing' }
+    : error?.status === 404 ? { state: 'missing' }
       : failed ? { state: 'failed', reason: failed }
-        : served.state === 'ok' || q.isFetching ? null : served;
+        : served.state === 'ok' ? null : served;
   const duplicates: DuplicatesRead = targets.q.data ? { state: 'ok', data: targets.q.data }
-    : failureOf(targets.q) ? { state: 'failed', reason: failureOf(targets.q)! } : servedTargets;
-  const retry = () => (q.data !== undefined || q.error ? void q.refetch() : follow());
-  return { data, duplicates, trouble, retry, updatedAt: q.data ? new Date(q.dataUpdatedAt) : data ? now : null };
+    : failureOf(targets) ? { state: 'failed', reason: failureOf(targets)! } : servedTargets;
+  return { data, duplicates, trouble, retry, busy, updatedAt: q.data ? new Date(q.dataUpdatedAt) : data ? now : null };
 }
 
 /**
@@ -61,12 +62,12 @@ function useBug(id: string, served: BugRead, servedTargets: DuplicatesRead, now:
  */
 export function PlatformBugView({ id, served, duplicates: servedTargets }: { id: string; served: BugRead; duplicates: DuplicatesRead }) {
   const now = useDataClock();
-  const { data, duplicates, trouble, retry, updatedAt } = useBug(id, served, servedTargets, now);
+  const { data, duplicates, trouble, retry, busy, updatedAt } = useBug(id, served, servedTargets, now);
   useShareView(data
     ? bugContext(data, duplicates.state === 'ok' ? duplicates.data : null, { updatedAt, now })
     : pendingContext({ view: 'bug', title: 'Bug report', address: bugPath(id), scope: 'one bug report' }, trouble && trouble.state !== 'missing' ? bugsTrouble(trouble) : null));
 
-  if (!data) return trouble ? <BugTrouble trouble={trouble} onRetry={retry} /> : <Busy name="bug"><Row split="2/3"><Skeleton className="h-72 rounded-lg" /><Skeleton className="h-72 rounded-lg" /></Row></Busy>;
+  if (!data) return trouble ? <BugTrouble trouble={trouble} busy={busy} onRetry={retry} /> : <Busy name="bug"><Row split="2/3"><Skeleton className="h-72 rounded-lg" /><Skeleton className="h-72 rounded-lg" /></Row></Busy>;
   return (
     <>
       <Row split="2/3">
@@ -183,13 +184,13 @@ function Resolve({ report, duplicates }: { report: BugReport; duplicates: Duplic
   );
 }
 
-function BugTrouble({ trouble, onRetry }: { trouble: Trouble; onRetry: () => void }) {
+function BugTrouble({ trouble, busy, onRetry }: { trouble: Trouble; busy: boolean; onRetry: () => void }) {
   return (
     <Card>
       {trouble.state === 'missing' ? (
         <EmptyState kind="filtered" title="No report of this id is recorded" className="py-16" action={<Button size="sm" asChild><Link href="/platform/bugs">All reports</Link></Button>}>Bugs lists every report the platform has recorded.</EmptyState>
       ) : (
-        <EmptyState kind="error" title={trouble.state === 'slow' ? 'The report is unavailable' : 'The report did not load'} className="py-16" action={<Button variant="primary" icon={<RotateCw />} onClick={onRetry}>Retry</Button>}>{bugsTrouble(trouble)}</EmptyState>
+        <EmptyState kind="error" title={trouble.state === 'slow' ? 'The report is unavailable' : 'The report did not load'} className="py-16" action={<Button variant="primary" icon={<RotateCw />} busy={busy} onClick={onRetry}>Retry</Button>}>{bugsTrouble(trouble)}</EmptyState>
       )}
     </Card>
   );

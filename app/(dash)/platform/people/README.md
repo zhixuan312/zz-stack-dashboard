@@ -4,7 +4,7 @@ Everybody the platform knows: the superadmin's list of each person's role, teams
 
 ## Structure
 
-- Gate first: the page asks for `people`, which needs `fleet:read`, before it renders, so a person who does not hold it is answered by the refused page and nothing on the page is read. Its title comes from `gatedMetadata` and its loading state from `gatedLoading`, so under `refusal: 'absent'` neither names the page.
+- Gate first: the page asks for `people`, which needs `fleet:read`, before it renders, so a person who does not hold it is answered by the refused page and nothing on the page is read. Its title comes from `gatedMetadata`, so under `refusal: 'absent'` it names nothing; its loading state (`OfferedLoading`) is headed People for a person whose own rail offers it, at `/platform/people` alone, and keeps `gatedLoading`'s words, which name nothing, for anyone else and in the prerendered shell.
 - Masthead: the kicker `ZZ Stack · Platform`, the title, one sentence, the as-of line (the read's own `meta.asOf`) and Add a person, the page's one action. The masthead is drawn before the read answers.
 - The release's Records template. Four tiles over everybody, whatever the filters: People, With a passkey, Never signed in (active people with no sign-in recorded) and Sign-ins last week (the last complete Monday week, `Unavailable` when it could not be counted and `No data` before the record began, never zero).
 - The table, the page's protagonist: person (name and email), role, teams (`<slug> (<role>)`, every membership), passkey, last sign-in and state, and each active person's two acts. Ten rows a page, by the day a person was added, filtered and paged by the gateway. A person with no sign-in on record reads `No sign-in recorded`, never a date.
@@ -18,13 +18,14 @@ Everybody the platform knows: the superadmin's list of each person's role, teams
 
 | State | What shows |
 |---|---|
-| Loading | `loading.tsx` while the gate asks `/me`, then the masthead over four tile skeletons and the table's skeleton while the read is under way |
+| Loading | `loading.tsx` while the gate asks `/me`, headed People for a person whose rail offers it (`OfferedLoading`), then the masthead over four tile skeletons and the table's skeleton while the read is under way |
 | Default | The tiles, then a page of people |
 | Nobody yet | The tiles at zero and "Nobody yet", pointing at Add a person |
 | Filtered to nothing | "No people match these filters" with Clear filters; the tiles still count everybody |
 | Sign-ins unavailable | The rows and the other tiles stand; Sign-ins last week reads `Unavailable` |
 | Read failed | Each tile a dash, and the table's error state with the gateway's sentence and Retry |
 | Slower than 4.5 seconds | The same error state, saying the read did not answer within 4.5 seconds, with Retry; never an endless skeleton |
+| Read again | The table's Retry reads again in the browser; a read a change starts leaves the error state and its Retry where they are, so a keyboard user keeps their place. The managed table's Retry is never busy |
 | A write refused | Add's refusal under its fields; an enrolment link's or a deactivation's beside the buttons in its row |
 
 ## Agents

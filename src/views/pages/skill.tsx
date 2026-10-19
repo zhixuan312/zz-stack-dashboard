@@ -34,12 +34,11 @@ import { useServed } from '@/views/use-served';
  * collection changes or a Retry asks, then the browser's own.
  */
 function useFollowed<T>(path: string, served: Served<T> | { state: 'missing'; path: string }) {
-  const { q, follow } = useServed<T>(path, true);
+  const { q, error, retry, busy } = useServed<T>(path, true);
   const data = q.data ?? (served.state === 'ok' ? served.data : undefined);
-  const failed = failureOf(q);
-  const trouble = data ? null : failed ?? ((served.state === 'failed' || served.state === 'slow') && !q.isFetching ? readTrouble(served) : null);
-  const retry = () => (q.data !== undefined || q.error ? void q.refetch() : follow());
-  return { data, trouble, retry, at: q.data ? new Date(q.dataUpdatedAt) : served.state === 'ok' ? served.at : null };
+  const failed = failureOf({ error });
+  const trouble = data ? null : failed ?? (served.state === 'failed' || served.state === 'slow' ? readTrouble(served) : null);
+  return { data, trouble, retry, busy, at: q.data ? new Date(q.dataUpdatedAt) : served.state === 'ok' ? served.at : null };
 }
 
 /** The four reads, as the page and its tabs both hold them. */
@@ -144,7 +143,7 @@ export function SkillView({ plugin: pluginName, skill: name, view, served }: { p
   if (failed) {
     return (
       <Card>
-        <EmptyState kind="error" title="This skill could not be read" className="py-16" action={<Button variant="primary" icon={<RotateCw />} onClick={() => { catalog.retry(); list.retry(); }}>Retry</Button>}>
+        <EmptyState kind="error" title="This skill could not be read" className="py-16" action={<Button variant="primary" icon={<RotateCw />} busy={catalog.busy || list.busy} onClick={() => { catalog.retry(); list.retry(); }}>Retry</Button>}>
           {failed}
         </EmptyState>
       </Card>
@@ -192,14 +191,14 @@ export function SkillView({ plugin: pluginName, skill: name, view, served }: { p
         detail.data ? <Cost skill={skill} detail={detail.data} />
           : detail.trouble ? (
             <Panel title="Its runs">
-              <EmptyState kind="error" title="The runs' record did not load" className="py-10" action={<Button size="sm" icon={<RotateCw />} onClick={detail.retry}>Retry</Button>}>{detail.trouble}</EmptyState>
+              <EmptyState kind="error" title="The runs' record did not load" className="py-10" action={<Button size="sm" icon={<RotateCw />} busy={detail.busy} onClick={detail.retry}>Retry</Button>}>{detail.trouble}</EmptyState>
             </Panel>
           ) : <Skeleton className="h-72 rounded-lg" />
       ) : null}
       {view !== 'cost' && !text.data ? (
         text.trouble ? (
           <Panel title={view === 'read' ? 'The skill' : 'Reference'}>
-            <EmptyState kind="error" title="The skill's text did not load" className="py-10" action={<Button size="sm" icon={<RotateCw />} onClick={text.retry}>Retry</Button>}>{text.trouble}</EmptyState>
+            <EmptyState kind="error" title="The skill's text did not load" className="py-10" action={<Button size="sm" icon={<RotateCw />} busy={text.busy} onClick={text.retry}>Retry</Button>}>{text.trouble}</EmptyState>
           </Panel>
         ) : (
           <Panel title={view === 'read' ? 'The skill' : 'Reference'} description="Reading…">

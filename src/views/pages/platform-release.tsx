@@ -36,15 +36,16 @@ type Trouble = Exclude<ReleaseRead, { state: 'ok' }>;
  * only from the browser's read, since the server's answers it with the missing page.
  */
 function useRelease(version: string, served: ReleaseRead, now: Date) {
-  const { q, follow } = useServed<ReleaseDetail>(releasePath(version), true);
+  const { q, error, retry, busy } = useServed<ReleaseDetail>(releasePath(version), true);
   const data = q.data ?? (served.state === 'ok' ? served.data : undefined);
-  const failed = failureOf(q);
+  const failed = failureOf({ error });
+  // A read in flight keeps the state the last one ended in on screen, and its Retry, so a press or a change answers
+  // there rather than swapping it for a skeleton and taking a keyboard user's place with it.
   const trouble: Trouble | null = data ? null
-    : q.error?.status === 404 ? { state: 'missing' }
+    : error?.status === 404 ? { state: 'missing' }
       : failed ? { state: 'failed', reason: failed }
-        : served.state === 'ok' || q.isFetching ? null : served;
-  const retry = () => (q.data !== undefined || q.error ? void q.refetch() : follow());
-  return { data, trouble, retry, updatedAt: q.data ? new Date(q.dataUpdatedAt) : data ? now : null };
+        : served.state === 'ok' ? null : served;
+  return { data, trouble, retry, busy, updatedAt: q.data ? new Date(q.dataUpdatedAt) : data ? now : null };
 }
 
 /** The notes the console's server drew as prose for its own read of the release, so no renderer is sent for them. */
@@ -69,13 +70,13 @@ function Notes({ md, served, node }: { md: string; served: string | null | undef
  */
 export function PlatformReleaseView({ version, served, notes = null }: { version: string; served: ReleaseRead; notes?: ReleaseNotes | null }) {
   const now = useDataClock();
-  const { data, trouble, retry, updatedAt } = useRelease(version, served, now);
+  const { data, trouble, retry, busy, updatedAt } = useRelease(version, served, now);
   const asOf = now.toISOString();
   useShareView(data
     ? releaseContext(data, { asOf, updatedAt, now })
     : pendingContext({ view: 'release', title: `Release ${version}`, address: releasePath(version), scope: 'one release' }, trouble && trouble.state !== 'missing' ? releasesTrouble(trouble) : null));
 
-  if (!data) return trouble ? <ReleaseTrouble trouble={trouble} onRetry={retry} /> : <Busy name="release"><Skeleton className="h-72 rounded-lg" /><TableSkeleton rows={2} filters={false} /></Busy>;
+  if (!data) return trouble ? <ReleaseTrouble trouble={trouble} busy={busy} onRetry={retry} /> : <Busy name="release"><Skeleton className="h-72 rounded-lg" /><TableSkeleton rows={2} filters={false} /></Busy>;
   const others = overlapsOf(data);
   const drew = served.state === 'ok' ? served.data : null;
   return (
@@ -149,13 +150,13 @@ function Windows({ release, asOf }: { release: ReleaseDetail; asOf: string }) {
   );
 }
 
-function ReleaseTrouble({ trouble, onRetry }: { trouble: Trouble; onRetry: () => void }) {
+function ReleaseTrouble({ trouble, busy, onRetry }: { trouble: Trouble; busy: boolean; onRetry: () => void }) {
   return (
     <Card>
       {trouble.state === 'missing' ? (
         <EmptyState kind="filtered" title="No release of this version is recorded" className="py-16" action={<Button size="sm" asChild><Link href="/platform/releases">All releases</Link></Button>}>Releases lists every release the platform has recorded.</EmptyState>
       ) : (
-        <EmptyState kind="error" title={trouble.state === 'slow' ? 'The release is unavailable' : 'The release did not load'} className="py-16" action={<Button variant="primary" icon={<RotateCw />} onClick={onRetry}>Retry</Button>}>{releasesTrouble(trouble)}</EmptyState>
+        <EmptyState kind="error" title={trouble.state === 'slow' ? 'The release is unavailable' : 'The release did not load'} className="py-16" action={<Button variant="primary" icon={<RotateCw />} busy={busy} onClick={onRetry}>Retry</Button>}>{releasesTrouble(trouble)}</EmptyState>
       )}
     </Card>
   );

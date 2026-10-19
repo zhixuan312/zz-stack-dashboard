@@ -73,12 +73,11 @@ const RESULT_OPTIONS = [{ value: 'all', label: 'All' }, { value: 'true', label: 
  * browser asks for nothing more, then the browser's own once the activity collection changes or a Retry asks for it.
  */
 function useSummary(read: ActivityRead) {
-  const { q, follow } = useServed<ActivitySummary>('/activity/summary', true);
+  const { q, error, retry, busy } = useServed<ActivitySummary>('/activity/summary', true);
   const data = q.data ?? (read.state === 'ok' ? read.data : undefined);
-  const trouble = data ? null : failureOf(q) ?? (read.state !== 'ok' && !q.isFetching ? activityTrouble(read) : null);
-  const retry = () => (q.data !== undefined || q.error ? void q.refetch() : follow());
+  const trouble = data ? null : failureOf({ error }) ?? (read.state !== 'ok' ? activityTrouble(read) : null);
   const at = q.data ? q.dataUpdatedAt : read.state === 'ok' ? Date.parse(read.at) : 0;
-  return { data, trouble, retry, at };
+  return { data, trouble, retry, busy, at };
 }
 
 /** How long the cursor has to rest on a week before the page takes it as what the person is pointing at. */
@@ -138,7 +137,7 @@ export function ActivityView({ read }: { read: Revised<ActivityRead> }) {
         <Pointed onChange={setPointed} />
         <Tiles summary={summary.data} trouble={summary.trouble} />
         {summary.trouble ? (
-          <EmptyState kind="error" title={'The week\'s figures did not load'} action={<Button size="sm" icon={<RotateCw />} onClick={summary.retry}>Retry</Button>}>{summary.trouble}</EmptyState>
+          <EmptyState kind="error" title={'The week\'s figures did not load'} action={<Button size="sm" icon={<RotateCw />} busy={summary.busy} onClick={summary.retry}>Retry</Button>}>{summary.trouble}</EmptyState>
         ) : null}
         <Refusals summary={summary.data} />
       </Meridian>

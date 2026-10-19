@@ -196,6 +196,31 @@ describe('the browser, following the server\'s read', () => {
     expect(documentReads()).toHaveLength(1);
   });
 
+  it('keeps a state the server\'s read ended in on screen, and its Retry neither busy nor disabled, while a change makes the browser read it again', async () => {
+    // A change anywhere to documents reads a missing or failed document again. Until that read answers, the page says
+    // what it said, so a keyboard user on Retry keeps their place (`pnpm verify`'s keyboard path lost it, #3763). Retry
+    // is not busy for a read the person did not ask for: the managed Button disables a busy button, and a focused
+    // control that becomes disabled loses focus.
+    for (const read of [{ state: 'missing', reason: 'No document spec.md in this initiative.' }, { state: 'failed', reason: 'The gateway did not answer.' }] as const) {
+      const c = client();
+      const { unmount } = render(tree(c, view(read)));
+      await settle();
+      const retry = screen.getByRole('button', { name: 'Retry' });
+      retry.focus();
+      expect(documentReads()).toEqual([]);
+
+      await act(() => { void c.invalidateQueries({ queryKey: ['console'] }); });
+      await waitFor(() => expect(documentReads()).toHaveLength(1));
+      expect(screen.getByRole('button', { name: 'Retry' })).toBe(retry);
+      expect(retry).not.toHaveAttribute('aria-busy');
+      expect(retry).not.toBeDisabled();
+      expect(document.activeElement).toBe(retry);
+      expect(document.querySelectorAll('.shimmer')).toHaveLength(0);
+      unmount();
+      reads = [];
+    }
+  });
+
   it('records what a Reload brought as shown, when an Approve conflict raised it over the server\'s read', async () => {
     const plan = documentDetail('atlas', SLUG, 'plan.md')!;
     const planAt = `/document/atlas/${SLUG}/plan.md`;

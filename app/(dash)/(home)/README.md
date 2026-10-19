@@ -17,7 +17,7 @@ The active team's last whole week, what waits on it, and what is open, read on t
 
 | State | What shows |
 |---|---|
-| Loading | `loading.tsx` while the gate asks `/me`, then the masthead over the body's skeleton while the read is under way |
+| Loading | `loading.tsx` while the gate asks `/me`, headed by the page's name beside the sentence's block for a person whose rail offers Home (`OfferedLoading`), then the masthead over the body's skeleton while the read is under way |
 | Default | Everything above |
 | Nothing waits | No strip at all |
 | One revision waits | The strip names it, with Review opening the document |

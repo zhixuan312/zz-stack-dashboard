@@ -24,6 +24,7 @@ One release: its published changelog and upgrade notes, what clients must do, an
 | A window with no calls | `No calls`, with no rate and no p95 |
 | Read failed | The error state with the gateway's sentence and Retry |
 | Slower than 4.5 seconds | The same error state, saying the read did not answer within 4.5 seconds, with Retry |
+| Read again | Retry reads again in the browser, busy only after the person presses it and until that read answers; a read a change starts leaves the state and its Retry where they are, never busy, so a keyboard user keeps their place |
 
 ## Agents
 

@@ -39,11 +39,10 @@ import { useServed, useServedAddress } from '@/views/use-served';
 function useBugs(served: BugsRead, filters: BugsFilters) {
   const path = bugsPath(filters);
   const mine = served.path === path ? served : null;
-  const { q, follow } = useServed<Bugs>(path, mine !== null, mine === null);
+  const { q, error, retry } = useServed<Bugs>(path, mine !== null, mine === null);
   const data = q.data ?? (mine?.state === 'ok' ? mine.data : undefined);
-  const failed = failureOf(q);
-  const trouble = data ? null : failed ?? (mine && mine.state !== 'ok' && !q.isFetching ? bugsTrouble(mine) : null);
-  const retry = () => (q.data !== undefined || q.error ? void q.refetch() : follow());
+  const failed = failureOf({ error });
+  const trouble = data ? null : failed ?? (mine && mine.state !== 'ok' ? bugsTrouble(mine) : null);
   return { data, trouble, retry, updatedAt: q.data ? new Date(q.dataUpdatedAt) : data ? data.meta.asOf : null };
 }
 

@@ -24,6 +24,7 @@ The superadmin's Audit: every recorded act of administration said in one sentenc
 | No event matches the filters | The table's filtered empty state with Clear filters |
 | Read failed | The feed's error state with the gateway's sentence and Retry, or the table's on Everything |
 | Slower than 4.5 seconds | The same error state, saying the read did not answer within 4.5 seconds, with Retry; never an endless skeleton |
+| Read again | The feed's Retry reads again in the browser, busy only after the person presses it and until that read answers; the table's Retry on Everything is never busy. A read a change starts leaves either state and its Retry where they are, so a keyboard user keeps their place |
 | A member | The refused page, which names nothing, under a title and a loading state that name nothing |
 
 ## Agents

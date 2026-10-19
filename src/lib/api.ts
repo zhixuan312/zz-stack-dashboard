@@ -308,11 +308,12 @@ export function useConsole<T>(path: string | null): UseQueryResult<T, ApiError> 
    * hydrated, and the fetch above picks the response up. Still the browser's own request with its
    * own cookie; the page's server never holds it.
    *
-   * DELIBERATE: only while this read has neither an answer nor a request in flight. A hint for a
+   * DELIBERATE: only while this read has neither an answer, data or a failure, nor a request in
+   * flight. A failure counts: a hint after one fetched the read a second time (#3763). A hint for a
    * read already answered or on its way fetches in full a payload the page is holding or waiting
    * for, and will not look at. The hint that matters is the first, which is what the server
    * rendered and what the browser starts while it parses. */
-  if (url !== null && !query.dataUpdatedAt && !query.isFetching) {
+  if (url !== null && !query.dataUpdatedAt && !query.errorUpdatedAt && !query.isFetching) {
     preload(`${BASE}${url}`, { as: 'fetch', crossOrigin: 'anonymous' });
   }
   // While this component hydrates it is told what the server was told: nothing has arrived (`useHydrated`). The read

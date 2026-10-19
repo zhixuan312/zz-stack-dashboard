@@ -4,7 +4,7 @@ Every real bug report: what is open, how long the oldest has waited, how often r
 
 ## Structure
 
-- Gate first: the page asks for `bugs` before it renders, so a person who does not hold it is answered by the refused page and nothing on the page is read. Every role holds `platform:read`, so a member and a superadmin both open it. Its title comes from `gatedMetadata` and its loading state from `gatedLoading`, so under `refusal: 'absent'` neither names the page.
+- Gate first: the page asks for `bugs` before it renders, so a person who does not hold it is answered by the refused page and nothing on the page is read. Every role holds `platform:read`, so a member and a superadmin both open it. Its title comes from `gatedMetadata`, so under `refusal: 'absent'` it names nothing; its loading state (`OfferedLoading`) is headed Bugs for a person whose own rail offers it, at `/platform/bugs` alone, and keeps `gatedLoading`'s words, which name nothing, for anyone else and in the prerendered shell.
 - Masthead: the kicker `ZZ Stack · Platform`, the title, one static sentence and the as-of line, the read's own `meta.asOf`. The masthead is drawn before the read answers.
 - Tiles: Open (every report not yet resolved), Oldest open (how long it has waited at the cutoff, and when it was filed; `None open` when none is), Reports per 1,000 calls (the last whole week's, labelled with its week; `under 30 calls` beside a rate too few to compare, `no calls` when the week had none) and Median hours to resolve (over every resolved report, with how many are resolved and how many still open; `None resolved` when none is).
 - The weeks: Filed by week and Resolved by week filed, two Column charts side by side on one Meridian, so pointing at a week in one points the other at it. A report resolved is counted in the week it was filed, and both charts say so. The running week is drawn unfinished.
@@ -17,7 +17,7 @@ Every real bug report: what is open, how long the oldest has waited, how often r
 
 | State | What shows |
 |---|---|
-| Loading | `loading.tsx` while the gate asks `/me`, then the masthead over four tile skeletons, the two charts' and the queue's while the read is under way |
+| Loading | `loading.tsx` while the gate asks `/me`, headed Bugs for a person whose rail offers it (`OfferedLoading`), then the masthead over four tile skeletons, the two charts' and the queue's while the read is under way |
 | Default | The tiles, the weeks, the outcomes, the impacts, the median by week and a page of the queue |
 | A filter set | The figures as before, and the queue the gateway filtered, read on the console's server for the new address |
 | No report yet | `None open` and `None resolved`, the weeks as the record has them, and "No bug report yet" |
@@ -27,6 +27,7 @@ Every real bug report: what is open, how long the oldest has waited, how often r
 | Queue unavailable | The figures stand; the queue's error state says it could not be listed |
 | Read failed | Each tile a dash, and the queue's error state with the gateway's sentence and Retry |
 | Slower than 4.5 seconds | The same error state, saying the read did not answer within 4.5 seconds, with Retry; never an endless skeleton |
+| Read again | The table's Retry reads again in the browser; a read a change starts leaves the error state and its Retry where they are, so a keyboard user keeps their place. The managed table's Retry is never busy |
 
 ## Agents
 

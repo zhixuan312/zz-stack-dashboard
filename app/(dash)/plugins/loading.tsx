@@ -1,13 +1,17 @@
 import { app, workspaces } from '@/app.config';
-import { LoadingPage } from '@/components/patterns/page-loading';
 import { RecordsSkeleton } from '@/components/templates/records';
-import { gatedLoading } from '@/data/refusal';
+import { OfferedLoading } from '@/console/offered-loading';
 
-/** Plugins on its way: the table with its filter bar, and no tiles, as the page draws none. */
+/**
+ * Plugins on its way: the table with its filter bar, and no tiles, as the page draws none.
+ *
+ * Its heading is drawn here for a person whose rail offers Plugins (`OfferedLoading`), so a press in the rail lands on
+ * it at once rather than with the page's own masthead.
+ */
 export default function PluginsLoading() {
   return (
-    <LoadingPage {...gatedLoading({ name: 'plugins', title: 'Plugins', kicker: <>{app.name} · {workspaces.main.label}</> })}>
+    <OfferedLoading href="/plugins" kicker={<>{app.name} · {workspaces.main.label}</>}>
       <RecordsSkeleton rows={6} />
-    </LoadingPage>
+    </OfferedLoading>
   );
 }

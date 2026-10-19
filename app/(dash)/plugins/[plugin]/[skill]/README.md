@@ -22,6 +22,7 @@ One skill a plugin ships: how your team's runs of it went, its text, and what sh
 | Runs record failed | Its own error state with Retry; About and the tiles stand |
 | Text failed | The text's own error state with Retry |
 | Read failed, or slower than 4.5 seconds | "This skill could not be read" with the gateway's sentence, or that it did not answer within 4.5 seconds, and Retry |
+| Read again | Retry reads again in the browser, busy only after the person presses it and until that read answers; a read a change starts leaves the state and its Retry where they are, never busy, so a keyboard user keeps their place |
 | Signed out since the gate | Sign-in |
 
 ## Agents

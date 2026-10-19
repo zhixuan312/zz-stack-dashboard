@@ -4,7 +4,7 @@ Your active team's real work by week: what was refused and why, the groups the r
 
 ## Structure
 
-- Gate first: the page asks for `activity` before it renders, so a person who does not hold it is answered by the refused page and nothing on the page is read. Its title comes from `gatedMetadata` and its loading state from `gatedLoading`, so under `refusal: 'absent'` neither names the page.
+- Gate first: the page asks for `activity` before it renders, so a person who does not hold it is answered by the refused page and nothing on the page is read. Its title comes from `gatedMetadata`, so under `refusal: 'absent'` it names nothing; its loading state (`OfferedLoading`) is headed Activity for a person whose own rail offers it, at `/activity` alone, and keeps `gatedLoading`'s words, which name nothing, for anyone else and in the prerendered shell.
 - Tiles, the last whole week: calls, with their weeks as the tile's shape; refused, with its four owners (a guardrail held, a malformed call, a tool failure, other), which sum to it; the tool refused most, of how many. Each tile says what it counts behind its info button.
 - Refusals, the page's protagonist: refusals by week and owner, ZZ Meridian's Column chart with parts. Tool failures are critical, malformed calls a warning, a guardrail that held and other neutral, each named in the legend and the readout. The last whole week is the one the card is about; the running week is drawn unfinished. The chart and the calls tile share one cursor, so pointing at a week shows that week's calls on the tile. Ask is in the card's head.
 - Refusals by owner, tool and message: the team's refusals as the gateway grouped them, most first, ten a page. A refusal recorded with no message says `No message recorded`. When the gateway folded the smallest groups, the table says how many and how many refusals they hold.
@@ -15,7 +15,7 @@ Your active team's real work by week: what was refused and why, the groups the r
 
 | State | What shows |
 |---|---|
-| Loading | `loading.tsx` while the gate asks `/me` and the server reads the summary: three tile skeletons, the chart's, and both tables' |
+| Loading | `loading.tsx` while the gate asks `/me` and the server reads the summary: headed Activity for a person whose rail offers it (`OfferedLoading`), over three tile skeletons, the chart's, and both tables' |
 | Default | The tiles, the refusals by week, the groups, then a page of the log |
 | Nothing recorded | The tiles at zero with nothing refused, `Nothing refused` in the groups, and `Nothing recorded yet` in the log |
 | Filtered to nothing | The log says so with Clear filters; the tiles, the chart and the groups stand |
@@ -23,6 +23,7 @@ Your active team's real work by week: what was refused and why, the groups the r
 | Figures unavailable | A tile the gateway could not work out reads `Unavailable`, never zero |
 | Summary failed | Each tile a dash, the gateway's sentence and Retry, which reads the summary in the browser; the log stands |
 | Slower than 4.5 seconds | The same, saying the read did not answer within 4.5 seconds; never an endless skeleton |
+| Read again | The figures' Retry reads again in the browser, busy only after the person presses it and until that read answers; a read a change starts leaves the state and its Retry where they are, never busy, so a keyboard user keeps their place |
 | Log failed | The log's error state with the gateway's sentence and Retry; the summary stands |
 
 ## Agents

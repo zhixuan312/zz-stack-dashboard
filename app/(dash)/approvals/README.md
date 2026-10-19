@@ -4,7 +4,7 @@ What waits on the active team for a decision, and every approval recorded in you
 
 ## Structure
 
-- Gate first: the page asks for `approvals` before it renders, so a person who does not hold it is answered by the refused page and nothing on the page is read. It needs `work:read`, which a member and a superadmin both hold. Its title comes from `gatedMetadata` and its loading state from `gatedLoading`, so under `refusal: 'absent'` neither names the page.
+- Gate first: the page asks for `approvals` before it renders, so a person who does not hold it is answered by the refused page and nothing on the page is read. It needs `work:read`, which a member and a superadmin both hold. Its title comes from `gatedMetadata`, so under `refusal: 'absent'` it names nothing; its loading state (`OfferedLoading`) is headed Approvals for a person whose own rail offers it, at `/approvals` alone, and keeps `gatedLoading`'s words, which name nothing, for anyone else and in the prerendered shell.
 - First read on the console's server: the address's tab and page are read as the person, bounded at 4.5 seconds, and handed to the page with the team the person acts for. A tab or a page moves the address and the server reads it again; the browser waits for that answer rather than asking beside it, and keeps the tiles and the weeks drawn meanwhile. Later reads, after an approval or a hint, are the browser's.
 - Masthead: the kicker `ZZ Stack · Work`, the title, one static sentence and the as-of line, the read's own `meta.asOf`.
 - The Records template. Four tiles over both lists, whatever the tab: Waiting now (the team's revisions presented and not yet approved, each once, with how many have waited longer than 14 days), Oldest wait (how long the revision presented longest ago has waited, and when it was presented; `None waiting` when nothing is), Approvals in your name (every approval recorded in your name in this team; a teammate's are never counted) and No presentation recorded (`N of M approved with no presentation recorded`, M being the approvals whose review context is recorded). A tile whose list could not be read reads `Unavailable`, never zero.
@@ -18,7 +18,7 @@ What waits on the active team for a decision, and every approval recorded in you
 
 | State | What shows |
 |---|---|
-| Loading | `loading.tsx` while the gate asks `/me`, then the masthead over four tile skeletons, the chart's and the table's while the read is under way |
+| Loading | `loading.tsx` while the gate asks `/me`, headed Approvals for a person whose rail offers it (`OfferedLoading`), then the masthead over four tile skeletons, the chart's and the table's while the read is under way |
 | Default | The tiles, the weeks, the tabs with their totals and a page of Waiting |
 | History | The same tiles and weeks, and a page of the approvals in your name, read on the console's server for the new address |
 | A new tab or page on its way | The tiles and the weeks as drawn; the rows of the same tab quieter, or the table's skeleton for the other tab |
@@ -28,6 +28,7 @@ What waits on the active team for a decision, and every approval recorded in you
 | History unavailable | Approvals in your name and No presentation recorded read `Unavailable`, the chart says it could not be read, History's table says so; Waiting stands |
 | Read failed | Each tile a dash, and the table's error state with the gateway's sentence and Retry |
 | Slower than 4.5 seconds | The same error state, saying the read did not answer within 4.5 seconds, with Retry; never an endless skeleton |
+| Read again | The table's Retry reads again in the browser; a read a change starts leaves the error state and its Retry where they are, so a keyboard user keeps their place. The managed table's Retry is never busy |
 | Refused | The refused page, under the same title and loading state as an address that names nothing |
 
 ## Agents

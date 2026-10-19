@@ -19,6 +19,7 @@ One initiative end to end: where it is in its flow, its documents, and the evide
 - Closed: every node done and the outcome under the last.
 - Not found: no initiative by that address, with the way back to Initiatives.
 - Error: the gateway's sentence and Retry; a read that did not answer in 4.5 seconds says so.
+- Read again: Retry reads in the browser, busy only after the person presses it and until that read answers. A read a change starts leaves the state and its Retry, or the way back to Initiatives, where they are, so a keyboard user keeps their place.
 - Close refused: the gateway's sentence in the dialog, what the person typed kept. Closed first by somebody else (409): "Somebody closed it first." with the gateway's sentence; the first decision stands.
 
 ## Agents

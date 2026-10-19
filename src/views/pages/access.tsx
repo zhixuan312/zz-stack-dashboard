@@ -30,15 +30,14 @@ type Trouble = Exclude<AccessRead, { state: 'ok' }>;
 /**
  * The page's read: the one the console's server made, so the first paint carries every section and the browser asks for
  * nothing more, then the browser's own once a write, a change in another tab or a Retry says it is stale. A failure is
- * stated only when there is nothing to draw: the browser's, or the server's while the browser has not read.
+ * stated only when there is nothing to draw: the browser's, or the server's until the browser's read answers.
  */
 function useAccessRead(served: AccessRead) {
-  const { q, follow } = useServed<Access>('/access', true);
+  const { q, error, retry, busy } = useServed<Access>('/access', true);
   const access = q.data ?? (served.state === 'ok' ? served.access : undefined);
-  const failed = failureOf(q);
-  const trouble: Trouble | null = access ? null : failed ? { state: 'failed', reason: failed } : served.state !== 'ok' && !q.isFetching ? served : null;
-  const retry = () => (q.data !== undefined || q.error ? void q.refetch() : follow());
-  return { access, trouble, retry, updatedAt: q.data ? new Date(q.dataUpdatedAt) : access ? access.meta.asOf : null };
+  const failed = failureOf({ error });
+  const trouble: Trouble | null = access ? null : failed ? { state: 'failed', reason: failed } : served.state !== 'ok' ? served : null;
+  return { access, trouble, retry, busy, updatedAt: q.data ? new Date(q.dataUpdatedAt) : access ? access.meta.asOf : null };
 }
 
 /**
@@ -52,11 +51,11 @@ function useAccessRead(served: AccessRead) {
 export function AccessView({ served }: { served: Revised<AccessRead> }) {
   useLive(['settings'], served.revisions);
   const now = useDataClock();
-  const { access, trouble, retry, updatedAt } = useAccessRead(served);
+  const { access, trouble, retry, busy, updatedAt } = useAccessRead(served);
   useShareView(access
     ? accessContext(access, { updatedAt, now })
     : pendingContext({ view: 'access', title: 'Access', address: '/access', scope: 'the caller\'s own access' }, trouble ? accessTrouble(trouble).detail : null));
-  if (!access) return trouble ? <AccessTrouble trouble={trouble} onRetry={retry} /> : <Busy name="access"><AccessSkeleton /></Busy>;
+  if (!access) return trouble ? <AccessTrouble trouble={trouble} busy={busy} onRetry={retry} /> : <Busy name="access"><AccessSkeleton /></Busy>;
   return (
     <AccessProvider value={{ access }}>
       {/* Sections 56px apart, as Meridian's settings stack them: what lets you in, then your team, then this console. */}
@@ -106,11 +105,11 @@ export function AccessSkeleton() {
   );
 }
 
-function AccessTrouble({ trouble, onRetry }: { trouble: Trouble; onRetry: () => void }) {
+function AccessTrouble({ trouble, busy, onRetry }: { trouble: Trouble; busy: boolean; onRetry: () => void }) {
   const { title, detail } = accessTrouble(trouble);
   return (
     <Card>
-      <EmptyState kind="error" title={title} className="py-16" action={<Button variant="primary" icon={<RotateCw />} onClick={onRetry}>Retry</Button>}>
+      <EmptyState kind="error" title={title} className="py-16" action={<Button variant="primary" icon={<RotateCw />} busy={busy} onClick={onRetry}>Retry</Button>}>
         {detail}
       </EmptyState>
     </Card>

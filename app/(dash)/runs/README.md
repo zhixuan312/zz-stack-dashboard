@@ -4,7 +4,7 @@ Every run your active team recorded since its first, by the skill that drove it,
 
 ## Structure
 
-- Gate first: the page asks for `runs` before it renders, so a person who does not hold it is answered by the refused page and nothing on the page is read. Its title comes from `gatedMetadata` and its loading state from `gatedLoading`, so under `refusal: 'absent'` neither names the page.
+- Gate first: the page asks for `runs` before it renders, so a person who does not hold it is answered by the refused page and nothing on the page is read. Its title comes from `gatedMetadata`, so under `refusal: 'absent'` it names nothing; its loading state (`OfferedLoading`) is headed Runs for a person whose own rail offers it, at `/runs` alone, and keeps `gatedLoading`'s words, which name nothing, for anyone else and in the prerendered shell.
 - Masthead: the kicker `ZZ Stack · Work`, the title, one sentence, the as-of line (the read's own cutoff) and the skill control (`Every skill`, then each skill the runs hold). The control is drawn before the read answers and narrows the whole page: the tiles, the runs by skill and the recent runs are all the gateway's for that skill.
 - Tiles: `Runs` since the first, with the date of the first; `Observed output per run`, with how many runs measured none; `Largest run`, with its skill. Each tile's `About` button says what it counts.
 - By skill: each skill's runs, calls per run, share refused, observed output per run and typical length, with how many runs the length rests on when that is not all of them, sorted by observed output per run as the gateway sorted them, a skill nothing measured last. Ask is in its head. A line under it says how many runs were one call and so have no length.
@@ -15,7 +15,7 @@ Every run your active team recorded since its first, by the skill that drove it,
 
 | State | What shows |
 |---|---|
-| Loading | `loading.tsx` while the gate asks `/me`, then the masthead over the tiles', the by-skill card's and the table's skeletons while the read is under way |
+| Loading | `loading.tsx` while the gate asks `/me`, headed Runs for a person whose rail offers it (`OfferedLoading`), then the masthead over the tiles', the by-skill card's and the table's skeletons while the read is under way |
 | Default | Everything above |
 | Another skill or page on its way | The runs drawn stay, dimmed and marked busy, until the console's server has read the address's |
 | Empty | A team with no run: the tiles read `0`, `Not measured` and `None measured`; the by-skill card and the recent runs each say no run is recorded |
@@ -23,6 +23,7 @@ Every run your active team recorded since its first, by the skill that drove it,
 | Partial | The by-skill card or the recent runs the gateway could not read draws its own unavailable state with Retry; the rest stands |
 | Read failed | "The runs did not load" with the gateway's sentence and Retry, which reads again in the browser |
 | Slower than 4.5 seconds | The same, saying the read did not answer within 4.5 seconds; never an endless skeleton |
+| Read again | Retry reads again in the browser, busy only after the person presses it and until that read answers; a read a change starts leaves the state and its Retry where they are, never busy, so a keyboard user keeps their place |
 | Signed out since the gate | Sign-in |
 
 ## Agents

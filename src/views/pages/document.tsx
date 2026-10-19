@@ -122,16 +122,17 @@ function troubleOf(trouble: Trouble): { title: string; detail: string } {
  * screen is what Approve vouches for, and a read that failed cannot say it is still current.
  */
 function useDocument(path: string, served: DocumentRead) {
-  const { q, follow } = useServed<DocumentDetail>(path, true);
-  const failed = failureOf(q);
+  const { q, error, follow, retry, busy } = useServed<DocumentDetail>(path, true);
+  const failed = failureOf({ error });
   const data = failed ? undefined : q.data ?? (served.state === 'ok' ? served.data : undefined);
-  // With nothing to draw there is always a reason: the browser's answer when it has one, the server's until then.
+  // With nothing to draw there is always a reason: the browser's answer when it has one, the server's until then, a
+  // read in flight included, so the state and its Retry stay where they are rather than leaving for a skeleton.
   const trouble: Trouble | null = data ? null
-    : q.error?.status === 404 ? { state: 'missing', reason: q.error.message }
+    : error?.status === 404 ? { state: 'missing', reason: error.message }
       : failed ? { state: 'failed', reason: failed }
-        : served.state === 'ok' || q.isFetching ? null : served;
+        : served.state === 'ok' ? null : served;
   const updatedAt = !data ? null : q.data ? new Date(q.dataUpdatedAt) : served.state === 'ok' ? new Date(served.at) : null;
-  return { q, data, trouble, follow, updatedAt };
+  return { q, data, trouble, follow, retry, busy, updatedAt };
 }
 
 /**
@@ -143,7 +144,7 @@ function useDocument(path: string, served: DocumentRead) {
  */
 export function DocumentView({ team, slug, rel, served, teamPage }: { team: string; slug: string; rel: string; served: DocumentRead; teamPage: boolean }) {
   useLive(['document'], served.state === 'ok' || served.state === 'missing' ? served.revisions : undefined);
-  const { q, data: d, trouble, follow, updatedAt } = useDocument(`/document/${team}/${slug}/${rel}`, served);
+  const { q, data: d, trouble, follow, retry, busy, updatedAt } = useDocument(`/document/${team}/${slug}/${rel}`, served);
   const me = useConsole<Me>('/me');
   // Rendered by default, because a person came to read it; the stored markdown is one press away.
   const [view, setView] = useState<'read' | 'source'>('read');
@@ -180,8 +181,6 @@ export function DocumentView({ team, slug, rel, served, teamPage }: { team: stri
     // The snapshot the reload brought is the one the reader now asks to approve, the same one again included.
     if (next.data) again(next.data.content_revision);
   }
-  const retry = () => (q.data !== undefined || q.error ? void q.refetch() : follow());
-
   return (
     <ConsolePage
       title={d?.title || rel.replace(/^sources\//, '')}
@@ -211,7 +210,7 @@ export function DocumentView({ team, slug, rel, served, teamPage }: { team: stri
       width="data"
     >
       {d ? <DocumentBody doc={d} view={view} onView={setView} />
-        : trouble ? <DocumentTrouble trouble={trouble} busy={q.isFetching} onRetry={retry} />
+        : trouble ? <DocumentTrouble trouble={trouble} busy={busy} onRetry={retry} />
           : <div className="flex flex-col gap-(--stack-gap)" aria-busy="true" aria-label="Loading"><Skeleton className="h-24 rounded-lg" /><Skeleton className="h-[28rem] rounded-lg" /></div>}
     </ConsolePage>
   );

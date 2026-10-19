@@ -37,12 +37,11 @@ const FEED_TITLE = 'Administration';
 function useAudit(served: AuditRead, filters: AuditFilters) {
   const path = auditPath(filters);
   const mine = served.path === path ? served : null;
-  const { q, follow } = useServed<Audit>(path, mine !== null, mine === null);
+  const { q, error, retry, busy } = useServed<Audit>(path, mine !== null, mine === null);
   const data = q.data ?? (mine?.state === 'ok' ? mine.data : undefined);
-  const failed = failureOf(q);
-  const trouble = data ? null : failed ?? (mine && mine.state !== 'ok' && !q.isFetching ? auditTrouble(mine) : null);
-  const retry = () => (q.data !== undefined || q.error ? void q.refetch() : follow());
-  return { data, trouble, retry, updatedAt: q.data ? new Date(q.dataUpdatedAt) : data ? data.meta.asOf : null };
+  const failed = failureOf({ error });
+  const trouble = data ? null : failed ?? (mine && mine.state !== 'ok' ? auditTrouble(mine) : null);
+  return { data, trouble, retry, busy, updatedAt: q.data ? new Date(q.dataUpdatedAt) : data ? data.meta.asOf : null };
 }
 
 const dash = <span className="text-ink-3">—</span>;
@@ -80,7 +79,7 @@ const COLUMNS: Column<AuditRow>[] = aligned([
 export function PlatformAuditView({ served }: { served: AuditRead }) {
   const [filters, set] = useServedAddress(AUDIT_DEFAULTS, served, filtersOfPath);
   const tab = tabOf(filters);
-  const { data, trouble, retry, updatedAt } = useAudit(served, filters);
+  const { data, trouble, retry, busy, updatedAt } = useAudit(served, filters);
   const now = useDataClock();
   useShareView(data
     ? auditContext(data, { filters, updatedAt, now })
@@ -95,7 +94,7 @@ export function PlatformAuditView({ served }: { served: AuditRead }) {
         <Tab value="all">{TAB_LABEL.all}</Tab>
       </TabList>
       <TabPanel value="administration">
-        <Feed data={tab === 'administration' ? data : undefined} trouble={tab === 'administration' ? trouble : null} retry={retry} page={filters.page} onPage={(page) => set({ page })} />
+        <Feed data={tab === 'administration' ? data : undefined} trouble={tab === 'administration' ? trouble : null} retry={retry} busy={busy} page={filters.page} onPage={(page) => set({ page })} />
       </TabPanel>
       <TabPanel value="all">
         <Events data={tab === 'all' ? data : undefined} trouble={tab === 'all' ? trouble : null} retry={retry} filters={filters} set={set} />
@@ -118,7 +117,7 @@ const FeedSkeleton = () => (
  * not recorded` when nobody was), marked as the platform's own only when it is maintenance. The clock its times are told
  * against is the read's own cutoff, so the server and the browser say the same words.
  */
-function Feed({ data, trouble, retry, page, onPage }: { data?: Audit; trouble: string | null; retry: () => void; page: string; onPage: (page: string) => void }) {
+function Feed({ data, trouble, retry, busy, page, onPage }: { data?: Audit; trouble: string | null; retry: () => void; busy: boolean; page: string; onPage: (page: string) => void }) {
   const unrecorded = data ? notRecordedWords(data) : null;
   const ask = <AskAbout question="Who changed who may do what most recently, and which of these acts were platform maintenance?" />;
   return (
@@ -139,7 +138,7 @@ function Feed({ data, trouble, retry, page, onPage }: { data?: Audit; trouble: s
           </>
         ) : <EmptyState kind="first-run" title="No act of administration recorded yet" className="py-10">An act lands here when somebody adds a person, changes a team, issues or revokes a token, or closes a report.</EmptyState>
       ) : trouble ? (
-        <EmptyState kind="error" title="The acts of administration did not load" action={<Button size="sm" icon={<RotateCw />} onClick={retry}>Retry</Button>} className="py-10">{trouble}</EmptyState>
+        <EmptyState kind="error" title="The acts of administration did not load" action={<Button size="sm" icon={<RotateCw />} busy={busy} onClick={retry}>Retry</Button>} className="py-10">{trouble}</EmptyState>
       ) : <FeedSkeleton />}
       {unrecorded ? <p className="t-caption mt-5 border-t border-line pt-4" data-not-recorded="">{unrecorded}</p> : null}
     </Panel>

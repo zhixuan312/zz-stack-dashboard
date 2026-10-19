@@ -4,7 +4,7 @@ Each plugin's evaluation as the platform recorded it: what waits for a decision,
 
 ## Structure
 
-- Gate first: the page asks for `evaluation`, which needs `platform:read`, before it renders, so a person who does not hold it is answered by the refused page and nothing on the page is read. Every role holds `platform:read`, so a member and a superadmin both open it. Its title comes from `gatedMetadata` and its loading state from `gatedLoading`, so under `refusal: 'absent'` neither names the page.
+- Gate first: the page asks for `evaluation`, which needs `platform:read`, before it renders, so a person who does not hold it is answered by the refused page and nothing on the page is read. Every role holds `platform:read`, so a member and a superadmin both open it. Its title comes from `gatedMetadata`, so under `refusal: 'absent'` it names nothing; its loading state (`OfferedLoading`) is headed Evaluation for a person whose own rail offers it, at `/platform/evaluation` alone, and keeps `gatedLoading`'s words, which name nothing, for anyone else and in the prerendered shell.
 - Masthead: the kicker `ZZ Stack · Platform`, the title, one static sentence and the as-of line (the read's own `meta.asOf`), drawn before the read answers.
 - Tiles: Findings waiting (defects and unknowns with no decision yet, with how long the oldest has waited; `Nothing waits for a decision` when none does), Scores established (plugins whose latest scoring is established, of how many were scored), Last scored (the day, `Never` when no plugin has been scored) and Days on which a plugin was scored (distinct days in the reporting time zone, since the first scoring). No tile is ever a zero standing in for a figure the read does not have.
 - Each plugin's latest score, the page's protagonist: one row a plugin, its score out of 10 with its range under it (a scoring with no score reads `No score`, never 0), its standing (established, provisional or not established), whether the guardrails held, the protocol it was scored against (its key and version for the superadmin, `Protocol v<n>` for a member) and the day. Ask is in the table's head.
@@ -18,7 +18,7 @@ Each plugin's evaluation as the platform recorded it: what waits for a decision,
 
 | State | What shows |
 |---|---|
-| Loading | `loading.tsx` while the gate asks `/me`, then the masthead over four tile skeletons, the three tables' and the two compositions' while the read is under way |
+| Loading | `loading.tsx` while the gate asks `/me`, headed Evaluation for a person whose rail offers it (`OfferedLoading`), then the masthead over four tile skeletons, the three tables' and the two compositions' while the read is under way |
 | Default | Every card above |
 | A member | The same cards; protocols read `Protocol v<n>`, the waiting findings carry no pattern and no measure column |
 | No plugin scored yet | `Never`, no score established, "No plugin scored yet", "No score recorded yet", and the compositions' and the waiting findings' empty states |

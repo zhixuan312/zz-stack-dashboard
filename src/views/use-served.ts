@@ -1,10 +1,10 @@
 'use client';
 
-import { useMemo, useSyncExternalStore } from 'react';
+import { useMemo, useState, useSyncExternalStore } from 'react';
 import { useQuery } from '@tanstack/react-query';
 // The address reader alone, not the table's module: the pages that only follow a read would carry the whole table.
 import { useQueryState } from '@/components/patterns/data-table/use-query-state';
-import { useConsole } from '@/lib/api';
+import { useConsole, type ApiError } from '@/lib/api';
 
 /**
  * A read the console's server made, followed in the browser: no browser read of `path` while the server's answer is
@@ -23,6 +23,17 @@ import { useConsole } from '@/lib/api';
  * is of another address than the one it draws: the address has moved and the server's answer has not arrived, or the
  * answer has arrived and the address this part of the page reads has not caught up with it yet. Both settle on their
  * own, and neither is a reason to read.
+ *
+ * A page decides what it draws without regard to a read in flight, so a read a change starts leaves the state on screen,
+ * and its Retry, where they are (#3763: the keyboard path lost its place on a Retry a hint replaced). `error` is the
+ * read's failure as it last answered: React Query drops the error of a read with no data the moment it reads again, so
+ * a page drawing from `q.error` would fall back, mid-read, to the server's state, or to a skeleton.
+ *
+ * `retry` is every page's Retry: the browser's read again once it has answered, or its first read while the server's is
+ * the only one. `busy` says the person's own press is waiting on its answer, and nothing else does: were a read a change
+ * started to make Retry busy, the managed `Button` would disable it, and a focused control that becomes disabled loses
+ * focus, which is a keyboard user's place. The press is told by the moment the read last answered, as it stood when the
+ * person pressed: it is waiting until the read answers again.
  */
 export function useServed<T>(path: string, served: boolean, waiting = false) {
   const mark = useQuery({
@@ -35,7 +46,19 @@ export function useServed<T>(path: string, served: boolean, waiting = false) {
     enabled: served,
   });
   const q = useConsole<T>((served ? mark.data > 0 : !waiting) ? path : null);
-  return { q, follow: () => void mark.refetch() };
+  const follow = () => void mark.refetch();
+  // Kept as React keeps a value derived from the previous render: set while rendering, once the read has answered.
+  const [kept, keep] = useState<{ path: string; error: ApiError | null }>({ path, error: null });
+  if (!q.isFetching && (kept.path !== path || kept.error !== q.error)) keep({ path, error: q.error });
+  const error = q.error ?? (q.isFetching && kept.path === path ? kept.error : null);
+  const answered = Math.max(q.dataUpdatedAt, q.errorUpdatedAt);
+  const [pressed, setPressed] = useState<{ path: string; answered: number } | null>(null);
+  const retry = () => {
+    setPressed({ path, answered });
+    if (q.data !== undefined || error) void q.refetch();
+    else follow();
+  };
+  return { q, error, follow, retry, busy: pressed?.path === path && pressed.answered === answered };
 }
 
 const never = () => () => {};

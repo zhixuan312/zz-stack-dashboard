@@ -4,7 +4,7 @@ What a person installs: each plugin's skills and the servers they call, under on
 
 ## Structure
 
-- Gate first: the page asks for `plugins` before it renders, so a person who does not hold it is answered by the refused page and nothing on the page is read. Its title comes from `gatedMetadata` and its loading state from `gatedLoading`, so under `refusal: 'absent'` neither names the page.
+- Gate first: the page asks for `plugins` before it renders, so a person who does not hold it is answered by the refused page and nothing on the page is read. Its title comes from `gatedMetadata`, so under `refusal: 'absent'` it names nothing; its loading state (`OfferedLoading`) is headed Plugins for a person whose own rail offers it, at `/plugins` alone, and keeps `gatedLoading`'s words, which name nothing, for anyone else and in the prerendered shell.
 - Masthead: the kicker `ZZ Stack · Work`, the title and one static sentence, drawn before the read answers. The catalog carries no cutoff of its own, so there is no as-of line.
 - The release's Records template, with no tiles: the spec's Plugins row names none.
 - The table, the page's protagonist (`Every plugin`): plugin (its name and its own description), required or optional, version (with whether a release vouched for it), skills, gates, the score out of 10 with the protocol and the date it was scored against, and the command that installs it in a Copy field. The gateway's order, the team's most recently used first; a row opens the plugin.
@@ -16,7 +16,7 @@ What a person installs: each plugin's skills and the servers they call, under on
 
 | State | What shows |
 |---|---|
-| Loading | `loading.tsx` while the gate asks `/me`, then the masthead over the table's skeleton with its filter bar while the read is under way |
+| Loading | `loading.tsx` while the gate asks `/me`, headed Plugins for a person whose rail offers it (`OfferedLoading`), then the masthead over the table's skeleton with its filter bar while the read is under way |
 | Default | The table of every plugin |
 | Searched | The rows whose name holds the search, the count of them, and Clear |
 | Searched to nothing | "No plugins match these filters" with Clear filters |
@@ -24,6 +24,7 @@ What a person installs: each plugin's skills and the servers they call, under on
 | Never scored, or not established | `Never scored`, or `Not established` with its protocol and date, never a number |
 | Read failed | The table's error state with the gateway's sentence and Retry, which reads again in the browser |
 | Slower than 4.5 seconds | The same, saying the read did not answer within 4.5 seconds; never an endless skeleton |
+| Read again | The table's Retry reads again in the browser; a read a change starts leaves the error state and its Retry where they are, so a keyboard user keeps their place. The managed table's Retry is never busy |
 | In no team | The gateway's sentence that Work is the active team's, as the error state |
 | Signed out since the gate | Sign-in |
 

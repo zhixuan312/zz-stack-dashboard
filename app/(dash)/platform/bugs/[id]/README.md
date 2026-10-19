@@ -26,6 +26,7 @@ One bug report, the superadmin's alone: what the reporter wrote, what it is abou
 | No such report | The missing page, from the server's read; from a later read in the browser, "No report of this id is recorded" with All reports |
 | Read failed | The error state with the gateway's sentence and Retry |
 | Slower than 4.5 seconds | The same error state, saying the read did not answer within 4.5 seconds, with Retry |
+| Read again | Retry reads again in the browser, busy only after the person presses it and until that read answers; a read a change starts leaves the state and its Retry where they are, never busy, so a keyboard user keeps their place |
 
 ## Agents
 

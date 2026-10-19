@@ -184,16 +184,15 @@ const STATE_OPTIONS = [{ value: 'all', label: 'All' }, ...PERSON_STATES.map((s) 
 /**
  * The page's read: the one the console's server made for this address, so the first paint carries the rows and the
  * browser asks for nothing more, then the browser's own once a change, a write or a Retry asks for it. A failure is
- * stated only when there is nothing to draw: the browser's, or the server's while the browser has not read.
+ * stated only when there is nothing to draw: the browser's, or the server's until the browser's read answers.
  */
 function usePeople(served: PeopleRead | null, filters: PeopleFilters) {
   const path = peoplePath(filters);
   const mine = served?.path === path ? served : null;
-  const { q, follow } = useServed<People>(path, mine !== null, mine === null && served !== null);
+  const { q, error, retry } = useServed<People>(path, mine !== null, mine === null && served !== null);
   const data: PeopleShown | undefined = q.data ?? (mine?.state === 'ok' ? mine.data : undefined);
-  const failed = failureOf(q);
-  const trouble = data ? null : failed ?? (mine && mine.state !== 'ok' && !q.isFetching ? peopleTrouble(mine) : null);
-  const retry = () => (q.data !== undefined || q.error ? void q.refetch() : follow());
+  const failed = failureOf({ error });
+  const trouble = data ? null : failed ?? (mine && mine.state !== 'ok' ? peopleTrouble(mine) : null);
   return { data, trouble, retry, updatedAt: q.data ? new Date(q.dataUpdatedAt) : data ? data.meta.asOf : null };
 }
 

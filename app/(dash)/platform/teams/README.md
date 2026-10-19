@@ -4,7 +4,7 @@ Every team on the platform, each against its own past weeks: the superadmin's li
 
 ## Structure
 
-- Gate first: the page asks for `teams`, which needs `fleet:read`, before it renders, so a person who does not hold it is answered by the refused page and nothing on the page is read. Its title comes from `gatedMetadata` and its loading state from `gatedLoading`, so under `refusal: 'absent'` neither names the page.
+- Gate first: the page asks for `teams`, which needs `fleet:read`, before it renders, so a person who does not hold it is answered by the refused page and nothing on the page is read. Its title comes from `gatedMetadata`, so under `refusal: 'absent'` it names nothing; its loading state (`OfferedLoading`) is headed Teams for a person whose own rail offers it, at `/platform/teams` alone, and keeps `gatedLoading`'s words, which name nothing, for anyone else and in the prerendered shell.
 - Masthead: the kicker `ZZ Stack · Platform`, the title, one sentence, the as-of line (the read's own `meta.asOf`) and Create a team, the page's one action. The masthead is drawn before the read answers.
 - The release's Records template. Four tiles over every team, whatever the filters: Teams, Open work, Pending revisions (revisions presented and not yet approved, each once) and Lessons adopted.
 - The table, the page's protagonist: team (slug, its name, Archived when it is), people, open work, waiting, lessons, sessions by week as a Sparkline, calls last week and the week before, and last active. Ten rows a page, latest real-work call first, filtered and paged by the gateway; a row opens the team's page.
@@ -16,13 +16,14 @@ Every team on the platform, each against its own past weeks: the superadmin's li
 
 | State | What shows |
 |---|---|
-| Loading | `loading.tsx` while the gate asks `/me`, then the masthead over four tile skeletons and the table's skeleton while the read is under way |
+| Loading | `loading.tsx` while the gate asks `/me`, headed Teams for a person whose rail offers it (`OfferedLoading`), then the masthead over four tile skeletons and the table's skeleton while the read is under way |
 | Default | The tiles, then a page of teams |
 | No team yet | The tiles at zero and "No team yet", pointing at Create a team |
 | Filtered to nothing | "No teams match these filters" with Clear filters; the tiles still count every team |
 | Calls by week unavailable | The rows and tiles stand; each team's sessions and calls read `Unavailable`, never zero |
 | Read failed | Each tile a dash, and the table's error state with the gateway's sentence and Retry |
 | Slower than 4.5 seconds | The same error state, saying the read did not answer within 4.5 seconds, with Retry; never an endless skeleton |
+| Read again | The table's Retry reads again in the browser; a read a change starts leaves the error state and its Retry where they are, so a keyboard user keeps their place. The managed table's Retry is never busy |
 | Create refused | The gateway's sentence under the dialog's fields |
 
 ## Agents

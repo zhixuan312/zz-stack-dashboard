@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import { nav } from '@/app.config';
+import type { PageWidth } from '@/components/base/shell';
 import { LoadingPage } from '@/components/patterns/page-loading';
 import { gatedLoading } from '@/data/refusal';
 import { useOffered } from '@/lib/api';
@@ -17,12 +18,24 @@ const NAMES = new Map(nav.flatMap((g) => g.items).map((i) => [i.href, i.label]))
  * Anyone else, any other address this boundary stands in for, the prerendered shell and a page still hydrating get
  * `gatedLoading`'s words, so under `refusal: 'absent'` a refused address names nothing. The name is looked up here, in
  * the browser, and never handed down, so no response carries it for a person who may not open the page.
+ *
+ * The rest is the route's own: `kicker` and `description` are words, drawn with the name and kept back with it, while
+ * `sentence` and `width` are the masthead's shape and the page's measure, the same for everyone, so the state stands
+ * exactly where it does when it names nothing.
  */
-export function OfferedLoading({ href, kicker, children }: { href: string; kicker?: ReactNode; children: ReactNode }) {
+export function OfferedLoading({ href, kicker, description, sentence, width, children }: {
+  href: string;
+  kicker?: ReactNode;
+  description?: ReactNode;
+  sentence?: boolean;
+  width?: PageWidth;
+  children: ReactNode;
+}) {
   const here = usePathname() === href;
   const offered = useOffered(href);
   const title = NAMES.get(href);
-  if (title === undefined) return <LoadingPage name="page">{children}</LoadingPage>;
-  const page = { name: title.toLowerCase(), title, kicker };
-  return <LoadingPage {...(here && offered ? page : gatedLoading(page))}>{children}</LoadingPage>;
+  const shape = { sentence, width };
+  if (title === undefined) return <LoadingPage name="page" {...shape}>{children}</LoadingPage>;
+  const page = { name: title.toLowerCase(), title, kicker, description };
+  return <LoadingPage {...(here && offered ? page : gatedLoading(page))} {...shape}>{children}</LoadingPage>;
 }

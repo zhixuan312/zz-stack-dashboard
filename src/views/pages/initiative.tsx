@@ -84,16 +84,16 @@ const SOURCES: Column<Doc>[] = aligned([
  * address no initiative has is the read answering, not failing.
  */
 function useInitiative(team: string, slug: string, served: InitiativeRead) {
-  const { q, follow } = useServed<InitiativeDetail>(`/initiatives/${team}/${slug}`, true);
+  const { q, error, retry, busy } = useServed<InitiativeDetail>(`/initiatives/${team}/${slug}`, true);
   const data = q.data ?? (served.state === 'ok' ? served.data : undefined);
-  const failed = failureOf(q);
-  // With nothing to draw there is always a reason: the browser's answer when it has one, the server's until then.
+  const failed = failureOf({ error });
+  // With nothing to draw there is always a reason: the browser's answer when it has one, the server's until then, a
+  // read in flight included, so the state and its Retry stay where they are rather than leaving for a skeleton.
   const trouble: Exclude<InitiativeRead, { state: 'ok' }> | null = data ? null
-    : q.error?.status === 404 ? { state: 'missing' }
+    : error?.status === 404 ? { state: 'missing' }
       : failed ? { state: 'failed', reason: failed }
-        : served.state === 'ok' || q.isFetching ? null : served;
-  const retry = () => (q.data !== undefined || q.error ? void q.refetch() : follow());
-  return { data, trouble, retry, updatedAt: q.data ? new Date(q.dataUpdatedAt) : served.state === 'ok' ? served.at : null };
+        : served.state === 'ok' ? null : served;
+  return { data, trouble, retry, busy, updatedAt: q.data ? new Date(q.dataUpdatedAt) : served.state === 'ok' ? served.at : null };
 }
 
 /**
@@ -103,7 +103,7 @@ function useInitiative(team: string, slug: string, served: InitiativeRead) {
  */
 export function InitiativeView({ team, slug, served }: { team: string; slug: string; served: Revised<InitiativeRead> }) {
   useLive(['initiatives'], served.revisions);
-  const { data: d, trouble, retry, updatedAt } = useInitiative(team, slug, served);
+  const { data: d, trouble, retry, busy, updatedAt } = useInitiative(team, slug, served);
   const now = useDataClock();
   const base = `/initiatives/${team}/${slug}`;
   useShareView(d
@@ -111,7 +111,7 @@ export function InitiativeView({ team, slug, served }: { team: string; slug: str
     : pendingContext({ view: 'initiative', title: slug, address: base, scope: `one initiative of team ${team}` }, trouble ? initiativeTrouble(slug, trouble).detail : null));
 
   if (!d) {
-    return trouble ? <InitiativeTrouble slug={slug} trouble={trouble} onRetry={retry} /> : (
+    return trouble ? <InitiativeTrouble slug={slug} trouble={trouble} busy={busy} onRetry={retry} /> : (
       <Busy name="initiative"><ChartSkeleton height="h-24" /><TableSkeleton rows={5} filters={false} /></Busy>
     );
   }
@@ -171,14 +171,14 @@ export function InitiativeView({ team, slug, served }: { team: string; slug: str
   );
 }
 
-function InitiativeTrouble({ slug, trouble, onRetry }: { slug: string; trouble: Exclude<InitiativeRead, { state: 'ok' }>; onRetry: () => void }) {
+function InitiativeTrouble({ slug, trouble, busy, onRetry }: { slug: string; trouble: Exclude<InitiativeRead, { state: 'ok' }>; busy: boolean; onRetry: () => void }) {
   const { title, detail } = initiativeTrouble(slug, trouble);
   return (
     <Card>
       {trouble.state === 'missing' ? (
         <EmptyState kind="filtered" title={title} className="py-16" action={<Button size="sm" asChild><Link href="/initiatives">All initiatives</Link></Button>}>{detail}</EmptyState>
       ) : (
-        <EmptyState kind="error" title={title} className="py-16" action={<Button variant="primary" icon={<RotateCw />} onClick={onRetry}>Retry</Button>}>{detail}</EmptyState>
+        <EmptyState kind="error" title={title} className="py-16" action={<Button variant="primary" icon={<RotateCw />} busy={busy} onClick={onRetry}>Retry</Button>}>{detail}</EmptyState>
       )}
     </Card>
   );

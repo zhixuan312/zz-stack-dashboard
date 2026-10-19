@@ -4,7 +4,7 @@ The knowledge store's health: what stands on each shelf, what was made week by w
 
 ## Structure
 
-- Gate first: the page asks for `knowledge-health`, which needs `platform:read`, before it renders, so a person who does not hold it is answered by the refused page and nothing on the page is read. Its title comes from `gatedMetadata` and its loading state from `gatedLoading`, so under `refusal: 'absent'` neither names the page.
+- Gate first: the page asks for `knowledge-health`, which needs `platform:read`, before it renders, so a person who does not hold it is answered by the refused page and nothing on the page is read. Its title comes from `gatedMetadata`, so under `refusal: 'absent'` it names nothing; its loading state (`OfferedLoading`) is headed Knowledge health for a person whose own rail offers it, at `/platform/knowledge` alone, and keeps `gatedLoading`'s words, which name nothing, for anyone else and in the prerendered shell.
 - Masthead: the kicker `ZZ Stack · Platform`, the title, one sentence and the as-of line (the read's own `meta.asOf`), drawn before the read answers.
 - Tiles: Lessons adopted (standing on every shelf now, imports included); and for the last whole week, Made last week (outside the import cohorts), Searches last week and Share with no result, each with its change on the week before in ink, never green or red: a movement is an observation, not a judgement. A week whose change cannot stand beside the week before says what the week before was. A week with no figure reads `No data`, and one the gateway could not count `Unavailable`, never zero.
 - Each shelf (table), the page's protagonist: each shelf's standing, superseded and imported lessons, and the last whole week's lessons made outside the import cohorts, searches and share with no result. A superadmin's rows are every team by slug, their own marked `(your team)`, the shared shelf marked `(shared)`, and `All shelves`; a member's are `Your team's shelf`, `The shared shelf` and `All shelves`, and name no team. Ten a page, as every table; with more shelves than a page, `All shelves` is on the last. Ask is in the table's head.
@@ -20,7 +20,7 @@ The knowledge store's health: what stands on each shelf, what was made week by w
 
 | State | What shows |
 |---|---|
-| Loading | `loading.tsx` while the gate asks `/me`, then the masthead over four tile skeletons, the table's, and the four charts' while the read is under way |
+| Loading | `loading.tsx` while the gate asks `/me`, headed Knowledge health for a person whose rail offers it (`OfferedLoading`), then the masthead over four tile skeletons, the table's, and the four charts' while the read is under way |
 | Default | Every card above |
 | A member | The tiles, the shelves as their own, the shared one and the totals, the four charts; no team is named and there is no questions card |
 | A part unavailable | That card says it could not be read and why; every other card stands, and the Ask stays on the shelves' card |

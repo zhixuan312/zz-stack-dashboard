@@ -27,6 +27,7 @@ One plugin: how to install it, its public score with whether its scores compare,
 | Not a plugin | The missing page |
 | Evaluation failed | Its own error state with the gateway's sentence and Retry; the rest stands |
 | Catalog failed, or slower than 4.5 seconds | "The plugin did not load" with the gateway's sentence, or that it did not answer within 4.5 seconds, and Retry |
+| Read again | Retry reads again in the browser, busy only after the person presses it and until that read answers; a read a change starts leaves the state and its Retry where they are, never busy, so a keyboard user keeps their place |
 | Signed out since the gate | Sign-in |
 
 ## Agents

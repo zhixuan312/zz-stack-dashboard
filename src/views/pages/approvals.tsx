@@ -43,15 +43,14 @@ function useApprovals(served: ApprovalsRead | null) {
   const tab = tabOf(filters);
   const path = approvalsPath(filters);
   const mine = served?.path === path ? served : null;
-  const { q, follow } = useServed<Approvals>(path, mine !== null, mine === null && served !== null);
+  const { q, error, retry } = useServed<Approvals>(path, mine !== null, mine === null && served !== null);
   const fresh = q.data ?? (mine?.state === 'ok' ? mine.data : undefined);
   // The answer last drawn, with its tab, kept as React keeps a value derived from the previous render: set while rendering, once.
   const [last, setLast] = useState<{ data: Approvals; tab: ApprovalsTab } | undefined>(fresh && { data: fresh, tab });
   if (fresh && fresh !== last?.data) setLast({ data: fresh, tab });
-  const failed = failureOf(q);
-  const trouble = fresh ? null : failed ?? (mine && mine.state !== 'ok' && !q.isFetching ? approvalsTrouble(mine) : null);
+  const failed = failureOf({ error });
+  const trouble = fresh ? null : failed ?? (mine && mine.state !== 'ok' ? approvalsTrouble(mine) : null);
   const shown = fresh ?? (trouble ? undefined : last?.data);
-  const retry = () => (q.data !== undefined || q.error ? void q.refetch() : follow());
   const team = served?.state === 'ok' ? served.team : null;
   return {
     fresh, shown, rowsOf: fresh ?? (last?.tab === tab && !trouble ? last.data : undefined), trouble, retry, tab, page: pageOf(filters), set, team,

@@ -69,11 +69,10 @@ const COLUMNS: Column<PluginRow>[] = aligned([
  * to draw.
  */
 function usePlugins(served: PluginsRead) {
-  const { q, follow } = useServed<Catalog>(PLUGINS_PATH, true);
+  const { q, error, retry } = useServed<Catalog>(PLUGINS_PATH, true);
   const data = q.data ?? (served.state === 'ok' ? served.data : undefined);
-  const failed = failureOf(q);
-  const trouble = data ? null : failed ?? (served.state !== 'ok' && !q.isFetching ? readTrouble(served) : null);
-  const retry = () => (q.data !== undefined || q.error ? void q.refetch() : follow());
+  const failed = failureOf({ error });
+  const trouble = data ? null : failed ?? (served.state !== 'ok' ? readTrouble(served) : null);
   return { data, trouble, retry, updatedAt: q.data ? new Date(q.dataUpdatedAt) : served.state === 'ok' ? served.at : null };
 }
 

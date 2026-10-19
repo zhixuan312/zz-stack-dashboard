@@ -49,17 +49,16 @@ function useRecord(served: RecordServed | null) {
   const [filters, set] = useServedAddress(RECORD_DEFAULTS, served, filtersOfPath);
   const path = recordPath(filters);
   const mine = served?.path === path ? served : null;
-  const { q, follow } = useServed<RecordRead>(path, mine !== null, mine === null && served !== null);
+  const { q, error, retry, busy } = useServed<RecordRead>(path, mine !== null, mine === null && served !== null);
   const fresh = q.data ?? (mine?.state === 'ok' ? mine.data : undefined);
   // The record last drawn, kept as React keeps a value derived from the previous render: set while rendering, once.
   const [last, setLast] = useState<RecordRead | undefined>(fresh);
   if (fresh && fresh !== last) setLast(fresh);
-  const failed = failureOf(q);
-  const trouble = fresh ? null : failed ?? (mine && mine.state !== 'ok' && !q.isFetching ? recordTrouble(mine) : null);
+  const failed = failureOf({ error });
+  const trouble = fresh ? null : failed ?? (mine && mine.state !== 'ok' ? recordTrouble(mine) : null);
   const data = fresh ?? (trouble ? undefined : last);
-  const retry = () => (q.data !== undefined || q.error ? void q.refetch() : follow());
   const team = served?.state === 'ok' ? served.team : null;
-  return { data, stale: !fresh && data !== undefined, trouble, retry, filters, set, team };
+  return { data, stale: !fresh && data !== undefined, trouble, retry, busy, filters, set, team };
 }
 
 /** Record's body on its way: the lead, a slice's tiles and charts, and the record. COUPLED: `app/(dash)/record/loading.tsx` draws the same rows. */
@@ -122,7 +121,7 @@ function Controls({ served, record }: { served: RecordServed | null; record?: Re
  * Retry, which reads again in the browser.
  */
 export function RecordView({ served }: { served: RecordServed }) {
-  const { data, stale, trouble, retry, filters, set, team } = useRecord(served);
+  const { data, stale, trouble, retry, busy, filters, set, team } = useRecord(served);
   /* DELIBERATE: the record drawn trails the record read by a render of its own. A period's record arrives in the render
    * the address readers are told the address moved in (`useQueryState` announces it once the navigation has committed),
    * and a store's change is rendered synchronously: drawing the whole record there, every chart of it, was one task of
@@ -137,7 +136,7 @@ export function RecordView({ served }: { served: RecordServed }) {
     if (!trouble) return <Busy name="record"><RecordSkeleton /></Busy>;
     return (
       <Card>
-        <EmptyState kind="error" title="Record did not load" className="py-16" action={<Button variant="primary" icon={<RotateCw />} onClick={retry}>Retry</Button>}>
+        <EmptyState kind="error" title="Record did not load" className="py-16" action={<Button variant="primary" icon={<RotateCw />} busy={busy} onClick={retry}>Retry</Button>}>
           {trouble}
         </EmptyState>
       </Card>

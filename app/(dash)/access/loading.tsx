@@ -1,8 +1,7 @@
 import { app, workspaces } from '@/app.config';
 import type { PageWidth } from '@/components/base/shell';
-import { LoadingPage } from '@/components/patterns/page-loading';
 import { Skeleton } from '@/components/ui/skeleton';
-import { gatedLoading } from '@/data/refusal';
+import { OfferedLoading } from '@/console/offered-loading';
 
 /**
  * Access on its way: each section's head column beside its card, at the page's own width and in the page's own stack.
@@ -10,6 +9,9 @@ import { gatedLoading } from '@/data/refusal';
  * Access is read at `form`, the measure its head column and field-width card add up to, so this stands exactly where
  * the page will: a skeleton at `data` would fill the canvas and the page then arrive narrower and centred. The page
  * spaces its sections by `gap-14`, wider than the frame's own stack gap, so this holds that same wrapper.
+ *
+ * Its heading is drawn here for a person whose rail offers Access (`OfferedLoading`), so a press in the rail lands on
+ * it at once rather than with the page's own masthead.
  */
 const width: PageWidth = 'form';
 
@@ -25,7 +27,7 @@ const DESCRIPTION = 'What lets you and your agents in: your tokens, the applicat
 
 export default function AccessLoading() {
   return (
-    <LoadingPage {...gatedLoading({ name: 'access', title: 'Access', kicker: <>{app.name} · {workspaces.main.label}</>, description: DESCRIPTION })} width={width}>
+    <OfferedLoading href="/access" kicker={<>{app.name} · {workspaces.main.label}</>} description={DESCRIPTION} width={width}>
       <div className="flex flex-col gap-14">
         {Array.from({ length: SECTIONS }, (_, i) => (
           <div key={i} className="@container">
@@ -39,6 +41,6 @@ export default function AccessLoading() {
           </div>
         ))}
       </div>
-    </LoadingPage>
+    </OfferedLoading>
   );
 }

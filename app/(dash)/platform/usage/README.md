@@ -4,7 +4,7 @@ How real work called the platform's tools, week by week: how much, how fast, wha
 
 ## Structure
 
-- Gate first: the page asks for `usage`, which needs `platform:read`, before it renders, so a person who does not hold it is answered by the refused page and nothing on the page is read. Its title comes from `gatedMetadata` and its loading state from `gatedLoading`, so under `refusal: 'absent'` neither names the page.
+- Gate first: the page asks for `usage`, which needs `platform:read`, before it renders, so a person who does not hold it is answered by the refused page and nothing on the page is read. Its title comes from `gatedMetadata`, so under `refusal: 'absent'` it names nothing; its loading state (`OfferedLoading`) is headed Usage for a person whose own rail offers it, at `/platform/usage` alone, and keeps `gatedLoading`'s words, which name nothing, for anyone else and in the prerendered shell.
 - Masthead: the kicker `ZZ Stack · Platform`, the title, one sentence and the as-of line (the read's own `meta.asOf`), drawn before the read answers.
 - Tiles, the last whole week: Calls, Share refused, Slowest 5% of calls and Sessions, each with its weeks as its shape and its change on the week before in ink, never green or red: a movement is an observation, not a judgement. A week with no figure reads `No data`, and one the gateway could not count `Unavailable`, never zero.
 - Calls by week, the page's protagonist: ZZ Meridian's Column chart of real-work calls by Monday week, the running week drawn unfinished. For a superadmin each column is split into the three teams with the most calls and `Other`, in one hue; a member's weeks carry no split and name no team. Ask is in the card's head. The tiles, this chart and the refusals put right share one cursor.
@@ -22,7 +22,7 @@ How real work called the platform's tools, week by week: how much, how fast, wha
 
 | State | What shows |
 |---|---|
-| Loading | `loading.tsx` while the gate asks `/me`, then the masthead over four tile skeletons, the two charts', the compositions' and the table's while the read is under way |
+| Loading | `loading.tsx` while the gate asks `/me`, headed Usage for a person whose rail offers it (`OfferedLoading`), then the masthead over four tile skeletons, the two charts', the compositions' and the table's while the read is under way |
 | Default | Every card above |
 | A member | The same cards; the calls by week have no split and no team is named anywhere |
 | A part unavailable | That card says it could not be read and why; every other card stands |

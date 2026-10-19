@@ -32,16 +32,15 @@ const RATE = new Intl.NumberFormat('en-US', { minimumFractionDigits: 1, maximumF
 /**
  * The page's read: the one the console's server made for this address, so the first paint carries the rows and the
  * browser asks for nothing more, then the browser's own once another page of rows or a Retry asks for it. A failure is
- * stated only when there is nothing to draw: the browser's, or the server's while the browser has not read.
+ * stated only when there is nothing to draw: the browser's, or the server's until the browser's read answers.
  */
 function useReleases(served: ReleasesRead, filters: ReleasesFilters) {
   const path = releasesPath(filters);
   const mine = served.path === path ? served : null;
-  const { q, follow } = useServed<Releases>(path, mine !== null, mine === null);
+  const { q, error, retry } = useServed<Releases>(path, mine !== null, mine === null);
   const data = q.data ?? (mine?.state === 'ok' ? mine.data : undefined);
-  const failed = failureOf(q);
-  const trouble = data ? null : failed ?? (mine && mine.state !== 'ok' && !q.isFetching ? releasesTrouble(mine) : null);
-  const retry = () => (q.data !== undefined || q.error ? void q.refetch() : follow());
+  const failed = failureOf({ error });
+  const trouble = data ? null : failed ?? (mine && mine.state !== 'ok' ? releasesTrouble(mine) : null);
   return { data, trouble, retry, updatedAt: q.data ? new Date(q.dataUpdatedAt) : data ? data.meta.asOf : null };
 }
 

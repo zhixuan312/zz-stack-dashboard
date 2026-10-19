@@ -65,26 +65,25 @@ function notYet(e: PluginEvalFound): boolean {
  * is the latest, one once the plugins collection changes or a Retry asks.
  */
 function useFollowed<T>(path: string, served: PluginsRead | EvalRead) {
-  const { q, follow } = useServed<T>(path, true);
-  const retry = () => (q.data !== undefined || q.error ? void q.refetch() : follow());
-  return { q, retry, at: q.data ? new Date(q.dataUpdatedAt) : served.state === 'ok' ? served.at : null };
+  const { q, error, retry, busy } = useServed<T>(path, true);
+  return { q, error, retry, busy, at: q.data ? new Date(q.dataUpdatedAt) : served.state === 'ok' ? served.at : null };
 }
 
 /** The owning team's evaluation as the page holds it: answered, withheld from this reader, in trouble, or on its way. */
 type Evaluation = { state: 'ok'; data: PluginEval } | { state: 'withheld' } | { state: 'trouble'; reason: string } | { state: 'pending' };
 
 function useEvaluation(name: string, served: EvalRead) {
-  const { q, retry, at } = useFollowed<PluginEval>(evalPath(name), served);
+  const { q, error, retry, busy, at } = useFollowed<PluginEval>(evalPath(name), served);
   // A 403 is the gateway withholding the owning team's evaluation from this reader: its absence, never a failure.
-  const withheld = q.error?.status === 403 || (!q.data && !q.error && served.state === 'withheld');
+  const withheld = error?.status === 403 || (!q.data && !error && served.state === 'withheld');
   const data = q.data ?? (served.state === 'ok' ? served.data : undefined);
-  const failed = failureOf(q);
+  const failed = failureOf({ error });
   const evaluation: Evaluation = withheld ? { state: 'withheld' }
     : data ? { state: 'ok', data }
       : failed ? { state: 'trouble', reason: failed }
-        : (served.state === 'failed' || served.state === 'slow') && !q.isFetching ? { state: 'trouble', reason: readTrouble(served) }
+        : served.state === 'failed' || served.state === 'slow' ? { state: 'trouble', reason: readTrouble(served) }
           : { state: 'pending' };
-  return { evaluation, retry, at };
+  return { evaluation, retry, busy, at };
 }
 
 /**
@@ -96,11 +95,11 @@ function useEvaluation(name: string, served: EvalRead) {
 export function PluginView({ name, served }: { name: string; served: Revised<PluginRead> }) {
   useLive(['plugins'], served.revisions);
   const catalog = useFollowed<Catalog>(PLUGINS_PATH, served.catalog);
-  const { evaluation, retry: retryEvaluation, at: evaluatedAt } = useEvaluation(name, served.evaluation);
+  const { evaluation, retry: retryEvaluation, busy: evaluationBusy, at: evaluatedAt } = useEvaluation(name, served.evaluation);
   const now = useDataClock();
   const listed = catalog.q.data ?? (served.catalog.state === 'ok' ? served.catalog.data : undefined);
-  const failed = failureOf(catalog.q);
-  const trouble = listed ? null : failed ?? (served.catalog.state !== 'ok' && !catalog.q.isFetching ? readTrouble(served.catalog) : null);
+  const failed = failureOf(catalog);
+  const trouble = listed ? null : failed ?? (served.catalog.state !== 'ok' ? readTrouble(served.catalog) : null);
   const p = listed?.plugins.find((x) => x.plugin === name);
   const settled = evaluation.state !== 'pending';
   const updatedAt = [catalog.at, evaluatedAt].filter((x): x is Date | string => x !== null).map((x) => new Date(x)).sort((a, b) => a.getTime() - b.getTime())[0] ?? null;
@@ -117,7 +116,7 @@ export function PluginView({ name, served }: { name: string; served: Revised<Plu
   if (!listed && trouble) {
     return (
       <Card>
-        <EmptyState kind="error" title="The plugin did not load" className="py-16" action={<Button variant="primary" icon={<RotateCw />} onClick={catalog.retry}>Retry</Button>}>
+        <EmptyState kind="error" title="The plugin did not load" className="py-16" action={<Button variant="primary" icon={<RotateCw />} busy={catalog.busy} onClick={catalog.retry}>Retry</Button>}>
           {trouble}
         </EmptyState>
       </Card>
@@ -128,7 +127,7 @@ export function PluginView({ name, served }: { name: string; served: Revised<Plu
   if (!p && evaluation.state === 'trouble') {
     return (
       <Card>
-        <EmptyState kind="error" title="The plugin did not load" className="py-16" action={<Button variant="primary" icon={<RotateCw />} onClick={retryEvaluation}>Retry</Button>}>
+        <EmptyState kind="error" title="The plugin did not load" className="py-16" action={<Button variant="primary" icon={<RotateCw />} busy={evaluationBusy} onClick={retryEvaluation}>Retry</Button>}>
           {evaluation.reason}
         </EmptyState>
       </Card>
@@ -152,7 +151,7 @@ export function PluginView({ name, served }: { name: string; served: Revised<Plu
           </Panel>
         </div>
       )}
-      <OwnersEvaluation evaluation={evaluation} onRetry={retryEvaluation} />
+      <OwnersEvaluation evaluation={evaluation} busy={evaluationBusy} onRetry={retryEvaluation} />
       {p ? (
         <DataTable
           caption={`${name}'s skills`}
@@ -201,12 +200,12 @@ function About({ p }: { p: PluginRow }) {
  * The owning team's evaluation, drawn only where the gateway answered it. Withheld from this reader, it is not there at
  * all: no heading, no empty state and no sentence about who may read it.
  */
-function OwnersEvaluation({ evaluation, onRetry }: { evaluation: Evaluation; onRetry: () => void }) {
+function OwnersEvaluation({ evaluation, busy, onRetry }: { evaluation: Evaluation; busy: boolean; onRetry: () => void }) {
   if (evaluation.state === 'withheld' || evaluation.state === 'pending') return null;
   if (evaluation.state === 'trouble') {
     return (
       <Panel title="Its evaluation">
-        <EmptyState kind="error" title="The evaluation did not load" className="py-10" action={<Button size="sm" icon={<RotateCw />} onClick={onRetry}>Retry</Button>}>
+        <EmptyState kind="error" title="The evaluation did not load" className="py-10" action={<Button size="sm" icon={<RotateCw />} busy={busy} onClick={onRetry}>Retry</Button>}>
           {evaluation.reason}
         </EmptyState>
       </Panel>

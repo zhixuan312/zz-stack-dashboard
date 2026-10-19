@@ -45,17 +45,16 @@ function useRuns(served: RunsRead | null) {
   const [filters, set] = useServedAddress(RUNS_DEFAULTS, served, filtersOfPath);
   const path = runsPath(filters);
   const mine = served?.path === path ? served : null;
-  const { q, follow } = useServed<Runs>(path, mine !== null, mine === null && served !== null);
+  const { q, error, retry, busy } = useServed<Runs>(path, mine !== null, mine === null && served !== null);
   const fresh = q.data ?? (mine?.state === 'ok' ? mine.data : undefined);
   // The runs last drawn, kept as React keeps a value derived from the previous render: set while rendering, once.
   const [last, setLast] = useState<Runs | undefined>(fresh);
   if (fresh && fresh !== last) setLast(fresh);
-  const failed = failureOf(q);
-  const trouble = fresh ? null : failed ?? (mine && mine.state !== 'ok' && !q.isFetching ? runsTrouble(mine) : null);
+  const failed = failureOf({ error });
+  const trouble = fresh ? null : failed ?? (mine && mine.state !== 'ok' ? runsTrouble(mine) : null);
   const data = fresh ?? (trouble ? undefined : last);
-  const retry = () => (q.data !== undefined || q.error ? void q.refetch() : follow());
   const updatedAt = q.data ? new Date(q.dataUpdatedAt) : data ? data.meta.asOf : null;
-  return { data, stale: !fresh && data !== undefined, trouble, retry, filters, set, updatedAt };
+  return { data, stale: !fresh && data !== undefined, trouble, retry, busy, filters, set, updatedAt };
 }
 
 /** Runs' body on its way: the three tiles, the runs by skill, and the recent runs. COUPLED: `app/(dash)/runs/loading.tsx` draws the same rows. */
@@ -111,7 +110,7 @@ function SkillControl({ served, skills = [] }: { served: RunsRead | null; skills
  */
 export function RunsView({ served }: { served: Revised<RunsRead> }) {
   useLive(['runs'], served.revisions);
-  const { data, stale, trouble, retry, filters, set, updatedAt } = useRuns(served);
+  const { data, stale, trouble, retry, busy, filters, set, updatedAt } = useRuns(served);
   const now = useDataClock();
   useShareView(data && !stale
     ? runsContext(data, { filters, updatedAt, now })
@@ -120,7 +119,7 @@ export function RunsView({ served }: { served: Revised<RunsRead> }) {
     if (!trouble) return <Busy name="runs"><RunsSkeleton /></Busy>;
     return (
       <Card>
-        <EmptyState kind="error" title="The runs did not load" className="py-16" action={<Button variant="primary" icon={<RotateCw />} onClick={retry}>Retry</Button>}>
+        <EmptyState kind="error" title="The runs did not load" className="py-16" action={<Button variant="primary" icon={<RotateCw />} busy={busy} onClick={retry}>Retry</Button>}>
           {trouble}
         </EmptyState>
       </Card>

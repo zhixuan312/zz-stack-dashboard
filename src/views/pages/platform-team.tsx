@@ -45,16 +45,16 @@ const reasonOf = (err: unknown, fallback: string) => (err instanceof ApiError ? 
  * has is the read answering, not failing.
  */
 function useTeam(slug: string, served: TeamRead) {
-  const { q, follow } = useServed<TeamDetail>(`/teams/${slug}`, true);
+  const { q, error, retry, busy } = useServed<TeamDetail>(`/teams/${slug}`, true);
   const data = q.data ?? (served.state === 'ok' ? served.data : undefined);
-  const failed = failureOf(q);
-  // With no team to draw there is always a reason: the browser's answer when it has one, the server's until then.
+  const failed = failureOf({ error });
+  // With no team to draw there is always a reason: the browser's answer when it has one, the server's until then, a
+  // read in flight included, so the state and its Retry stay where they are rather than leaving for a skeleton.
   const trouble: Exclude<TeamRead, { state: 'ok' }> | null = data ? null
-    : q.error?.status === 404 ? { state: 'missing' }
+    : error?.status === 404 ? { state: 'missing' }
       : failed ? { state: 'failed', reason: failed }
-        : served.state === 'ok' || q.isFetching ? null : served;
-  const retry = () => (q.data !== undefined || q.error ? void q.refetch() : follow());
-  return { data, trouble, retry, updatedAt: q.data ? new Date(q.dataUpdatedAt) : data ? data.meta.asOf : null };
+        : served.state === 'ok' ? null : served;
+  return { data, trouble, retry, busy, updatedAt: q.data ? new Date(q.dataUpdatedAt) : data ? data.meta.asOf : null };
 }
 
 /**
@@ -65,13 +65,13 @@ function useTeam(slug: string, served: TeamRead) {
  */
 export function PlatformTeamView({ slug, served }: { slug: string; served: Revised<TeamRead> }) {
   useLive(['teams'], served.revisions);
-  const { data, trouble, retry, updatedAt } = useTeam(slug, served);
+  const { data, trouble, retry, busy, updatedAt } = useTeam(slug, served);
   const now = useDataClock();
   useShareView(data
     ? teamContext(slug, { team: data, updatedAt, now })
     : pendingContext({ view: 'team', title: `Team ${slug}`, address: `/platform/teams/${slug}`, scope: 'one team' }, trouble ? teamTrouble(slug, trouble).detail : null));
 
-  if (!data) return trouble ? <TeamTrouble slug={slug} trouble={trouble} onRetry={retry} /> : <Busy name="team"><TilesSkeleton count={4} /></Busy>;
+  if (!data) return trouble ? <TeamTrouble slug={slug} trouble={trouble} busy={busy} onRetry={retry} /> : <Busy name="team"><TilesSkeleton count={4} /></Busy>;
   const { tiles } = data;
   const admins = data.members.filter((m) => m.role === 'admin').length;
   return (
@@ -93,14 +93,14 @@ export function PlatformTeamView({ slug, served }: { slug: string; served: Revis
   );
 }
 
-function TeamTrouble({ slug, trouble, onRetry }: { slug: string; trouble: Exclude<TeamRead, { state: 'ok' }>; onRetry: () => void }) {
+function TeamTrouble({ slug, trouble, busy, onRetry }: { slug: string; trouble: Exclude<TeamRead, { state: 'ok' }>; busy: boolean; onRetry: () => void }) {
   const { title, detail } = teamTrouble(slug, trouble);
   return (
     <Card>
       {trouble.state === 'missing' ? (
         <EmptyState kind="filtered" title={title} className="py-16" action={<Button size="sm" asChild><Link href="/platform/teams">All teams</Link></Button>}>{detail}</EmptyState>
       ) : (
-        <EmptyState kind="error" title={title} className="py-16" action={<Button variant="primary" icon={<RotateCw />} onClick={onRetry}>Retry</Button>}>{detail}</EmptyState>
+        <EmptyState kind="error" title={title} className="py-16" action={<Button variant="primary" icon={<RotateCw />} busy={busy} onClick={onRetry}>Retry</Button>}>{detail}</EmptyState>
       )}
     </Card>
   );

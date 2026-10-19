@@ -29,6 +29,7 @@ One document, read: the text, how it changed and on what evidence, and the claim
 - A document with no body says so.
 - Not found: "This document does not exist", with the gateway's sentence.
 - Error: "This document did not load", with the gateway's sentence and Retry; a read that did not answer in 4.5 seconds says so.
+- Read again: Retry, on the error and on not found, reads in the browser, busy only after the person presses it and until that read answers. A read a hint starts leaves the state and its Retry where they are, never busy, so a keyboard user keeps their place.
 
 ## Agents
 

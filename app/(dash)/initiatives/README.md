@@ -12,8 +12,9 @@ The active team's work, open or closed, and where each goes next, filtered and p
 
 ## States
 
-- Loading: three tiles, the chart and skeleton rows.
+- Loading: headed Initiatives for a person whose rail offers it (`OfferedLoading`), over three tiles, the chart and skeleton rows.
 - Error: the gateway's sentence and Retry; the tiles read `—`. A read that did not answer in 4.5 seconds says so.
+- Read again: the table's Retry reads again in the browser; a read a change starts leaves the error state and its Retry where they are, so a keyboard user keeps their place. The managed table's Retry is never busy.
 - Partial: closures that could not be read say so, with no grain named; the tiles and the rows stand.
 - Empty: no initiative yet.
 - Filtered to nothing: Clear filters.

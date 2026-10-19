@@ -23,6 +23,7 @@ One team, for the superadmin: its people, its open work and lessons, its real-wo
 | Calls by week unavailable | The calls card says they could not be read; the tiles, the team and its members stand |
 | Read failed | The error state with the gateway's sentence and Retry |
 | Slower than 4.5 seconds | The same error state, saying the read did not answer within 4.5 seconds, with Retry |
+| Read again | Retry reads again in the browser, busy only after the person presses it and until that read answers; a read a change starts leaves the state and its Retry where they are, never busy, so a keyboard user keeps their place |
 | A write refused | The gateway's sentence beside Add member, beside the row's Remove, or under Archive |
 
 ## Agents

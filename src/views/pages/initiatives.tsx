@@ -59,11 +59,10 @@ const PARTS = OUTCOMES.map((o) => ({ key: o, label: STATE_LABEL[o] }));
 function useInitiatives(served: InitiativesRead | null, filters: InitiativesFilters) {
   const path = listPath(filters);
   const mine = served?.path === path ? served : null;
-  const { q, follow } = useServed<InitiativeList>(path, mine !== null, mine === null && served !== null);
+  const { q, error, retry } = useServed<InitiativeList>(path, mine !== null, mine === null && served !== null);
   const data: InitiativesShown | undefined = q.data ?? (mine?.state === 'ok' ? mine.data : undefined);
-  const failed = failureOf(q);
-  const trouble = data ? null : failed ?? (mine && mine.state !== 'ok' && !q.isFetching ? initiativesTrouble(mine) : null);
-  const retry = () => (q.data !== undefined || q.error ? void q.refetch() : follow());
+  const failed = failureOf({ error });
+  const trouble = data ? null : failed ?? (mine && mine.state !== 'ok' ? initiativesTrouble(mine) : null);
   return { data, trouble, retry, updatedAt: q.data ? new Date(q.dataUpdatedAt) : data ? data.meta.asOf : null };
 }
 

@@ -4,7 +4,7 @@ What lets a person and their agents in, and nothing of anybody else's: their own
 
 ## Structure
 
-- Gate first: the page asks for `access`, which needs `work:read`, before it renders, so a person who does not hold it is answered by the refused page and nothing on the page is read. Its title comes from `gatedMetadata` and its loading state from `gatedLoading`, so under `refusal: 'absent'` neither names the page.
+- Gate first: the page asks for `access`, which needs `work:read`, before it renders, so a person who does not hold it is answered by the refused page and nothing on the page is read. Its title comes from `gatedMetadata`, so under `refusal: 'absent'` it names nothing; its loading state (`OfferedLoading`) is headed Access for a person whose own rail offers it, at `/access` alone, and keeps `gatedLoading`'s words, which name nothing, for anyone else and in the prerendered shell.
 - Masthead: the kicker `ZZ Stack · Work`, the title, one static sentence and the as-of line (the read's own `meta.asOf`), drawn before the read answers. The page is at the form width.
 - Sections 56px apart, each a ZZ Meridian `FormSection`, its title and purpose on the left and its card on the right (one column on a phone), all from the one `GET /access`:
   - **Tokens**, the page's protagonist: one row a token, newest first, ten to a page: its label, the application it was minted through (`Issued directly` for one issued here or by `pat_issue`), when it was issued, when it was last used (`Never` when it has made no call) and its state, Live or Revoked; Revoke on a live one, confirmed in place. Issuing one is the card's last line, with an optional label. Ask is in the section's head.
@@ -22,7 +22,7 @@ What lets a person and their agents in, and nothing of anybody else's: their own
 
 | State | What shows |
 |---|---|
-| Loading | `loading.tsx` while the gate asks `/me`, then the masthead over nine section placeholders, the tallest page's, while the read is under way |
+| Loading | `loading.tsx` while the gate asks `/me`, headed Access for a person whose rail offers it (`OfferedLoading`), then the masthead over nine section placeholders, the tallest page's, while the read is under way |
 | Default | Every section above |
 | A member | The same sections but the console scope; the members only for the admin of the team acted for |
 | A new token | A dialog, outside the page's text, with the value and Copy, shown once and never again; the table reads the new token at once |
@@ -31,6 +31,7 @@ What lets a person and their agents in, and nothing of anybody else's: their own
 | A write refused | The gateway's sentence: under the issue line or the member line, which keep what was typed, or in a toast for a revoke, a sign-out or a switch; nothing changes |
 | Read failed | The error state with the gateway's sentence and Retry, which reads again |
 | Slower than 4.5 seconds | The same error state, saying the read did not answer within 4.5 seconds, with Retry; never an endless skeleton |
+| Read again | Retry reads again in the browser, busy only after the person presses it and until that read answers; a read a change starts leaves the state and its Retry where they are, never busy, so a keyboard user keeps their place |
 | Refused | The refused page, as an address that names nothing |
 
 ## Agents

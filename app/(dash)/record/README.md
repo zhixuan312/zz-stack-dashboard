@@ -4,7 +4,7 @@ The active team's record, read on the console's server: what its retained text w
 
 ## Structure
 
-- Gate first: the page asks for `record` before it renders, so a person who does not hold it is answered by the refused page and nothing on the page is read. `record` needs `work:read`, which a member and a superadmin both hold; Record is the active team's for the superadmin too. Its title comes from `gatedMetadata` and its loading state from `gatedLoading`, so under `refusal: 'absent'` neither names the page.
+- Gate first: the page asks for `record` before it renders, so a person who does not hold it is answered by the refused page and nothing on the page is read. `record` needs `work:read`, which a member and a superadmin both hold; Record is the active team's for the superadmin too. Its title comes from `gatedMetadata`, so under `refusal: 'absent'` it names nothing; its loading state (`OfferedLoading`) is headed Record for a person whose own rail offers it, at `/record` alone, and keeps `gatedLoading`'s words, which name nothing, for anyone else and in the prerendered shell.
 - Masthead: the kicker `ZZ Stack · Work`, the title, one sentence, the as-of line (the read's own cutoff), the period control (Quarter, Year, All; All when the address names none) and `Copy as text`. The control is drawn before the read answers and stays usable while another period is read; `Copy as text` waits for the record it copies.
 - The lead, one Featured metric: `One person, writing this · as of <cutoff>`, the hours the retained text would take at the gateway's stated pace, `estimated at <pace> words an hour`, what the words are counted over and what they leave out. It is a stock as of the cutoff, the same in every period, and is labelled so. Under it the words added in the period, a running total (Trend chart). Ask is in its head. The foot: work closed of opened, documents created, versions written and approvals in your name, for the period.
 - Work: closed by outcome, most open at once, median hours to close, median hours until abandoned work stopped; closures in all (Trend chart), closures by outcome (Column chart with parts), median hours to close (Column chart) and a typical piece of work (Key value).
@@ -20,13 +20,14 @@ The active team's record, read on the console's server: what its retained text w
 
 | State | What shows |
 |---|---|
-| Loading | `loading.tsx` while the gate asks `/me`, then the masthead over the lead, a slice's skeleton and the table's while the read is under way |
+| Loading | `loading.tsx` while the gate asks `/me`, headed Record for a person whose rail offers it (`OfferedLoading`), then the masthead over the lead, a slice's skeleton and the table's while the read is under way |
 | Default | Everything above |
 | Another period on its way | The record drawn stays, dimmed and marked busy, until the period's arrives; `Copy as text` waits for it |
 | Empty | A team with nothing recorded: each chart says nothing is recorded in the period, each list says so in its own words, and a figure with no value reads `None recorded`, never zero |
 | Partial | A slice the gateway could not read draws its own unavailable state; the lead with no estimate reads `Unavailable`; the rest stands |
 | Read failed | "Record did not load" with the gateway's sentence and Retry, which reads again in the browser |
 | Slower than 4.5 seconds | The same, saying the platform did not answer within 4.5 seconds; never an endless skeleton |
+| Read again | Retry reads again in the browser, busy only after the person presses it and until that read answers; a read a change starts leaves the state and its Retry where they are, never busy, so a keyboard user keeps their place |
 | Signed out since the gate | Sign-in |
 
 ## Agents
