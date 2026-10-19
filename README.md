@@ -51,9 +51,10 @@ what crosses the wire is a team and a collection name, never a row, a record or 
 A page says in one line which collections it shows (`useLive([...])`); the per-page READMEs
 say which, and why. Every console read answers with its collection's revision
 (`x-zz-revision: <collection>:<boot>:<n>`, counted as the caller's own stream would be hinted), and a
-page read on the console's server hands those revisions to `useLive`, so a tab's first stream asks
-whether anything moved since: it is greeted `synced` and reads nothing again, or `resync` naming only
-what moved. A reopen after a client navigation still resyncs everything (ZZ Meridian issue #54).
+page read on the console's server hands those revisions to `useLive`, so a stream opened for a page,
+on a first load or after a press in the rail, asks whether anything moved since: it is greeted `synced`
+and reads nothing again, or `resync` naming only what moved. Only a reopen after a gap (an error, a tab
+shown again, the poll's retry) resyncs every name.
 
 The stream is the gateway's (`services/gateway/src/console/live.ts` in zz-stack, with a database
 trigger raising each hint inside the writer's own transaction). Against a gateway older than
