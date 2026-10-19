@@ -10,13 +10,50 @@ import { formatCount } from '@/lib/format-units';
 import { formatDate, formatDay } from '@/lib/format-date';
 import { grainOf, type Grain } from '@/lib/grain';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
+import type { Figure, Part, ReadMeta, Window } from '@/lib/platform-shapes';
 import type { InitiativeList, InitiativeRow } from '@/lib/work-shapes';
 import { addressOf, arrived, budgeted, clip, type Arrival } from './context';
 import { INITIATIVES_DEFAULTS, LIST_STATES, PAGE_SIZE, STATE_LABEL, narrowed, type InitiativesFilters, type InitiativesRows } from './initiatives-filter';
 
+type Summary = Extract<InitiativeList['summary'], { state: 'ok' }>['data'];
+
+/**
+ * What the page draws of the gateway's list, and its context reads: the as-of line, the tiles, the closures by period,
+ * the rows with where each goes next, the counts by state and flow. The gateway's answer is one of these, and the
+ * console's server hands its view no more (`shownList`), since what it hands is written into the page's HTML.
+ */
+export type InitiativesShown = {
+  meta: Pick<ReadMeta, 'asOf'>;
+  tiles: InitiativeList['tiles'];
+  closures: Part<{ window: Pick<Window, 'from' | 'to' | 'complete'>; accepted: Pick<Figure, 'value'>; delivered: Pick<Figure, 'value'>; abandoned: Pick<Figure, 'value'> }[]>;
+  rows: Pick<InitiativeRow, 'slug' | 'flow' | 'nextMove' | 'state' | 'gates' | 'lastTouched'>[];
+  total: number;
+  summary: Part<Pick<Summary, 'byState' | 'byFlow'>>;
+  nextMoveState: InitiativeList['nextMoveState'];
+};
+
+export type ShownRow = InitiativesShown['rows'][number];
+
+/** The list as the page draws it, from the gateway's whole answer: each row's dates of opening and closing, the summary's
+ *  weeks of activity and every window's observed bounds stay on the server. */
+export function shownList(list: InitiativesShown): InitiativesShown {
+  const figure = ({ value }: Pick<Figure, 'value'>) => ({ value });
+  return {
+    meta: { asOf: list.meta.asOf },
+    tiles: list.tiles,
+    closures: list.closures.state === 'ok'
+      ? { state: 'ok', data: list.closures.data.map((w) => ({ window: { from: w.window.from, to: w.window.to, complete: w.window.complete }, accepted: figure(w.accepted), delivered: figure(w.delivered), abandoned: figure(w.abandoned) })) }
+      : list.closures,
+    rows: list.rows.map(({ slug, flow, nextMove, state, gates, lastTouched }) => ({ slug, flow, nextMove, state, gates, lastTouched })),
+    total: list.total,
+    summary: list.summary.state === 'ok' ? { state: 'ok', data: { byState: list.summary.data.byState, byFlow: list.summary.data.byFlow } } : list.summary,
+    nextMoveState: list.nextMoveState,
+  };
+}
+
 /** The page's own read, as the console's server or the browser made it: the answer, a failure, or no answer in time. */
 export type InitiativesRead =
-  | { state: 'ok'; path: string; data: InitiativeList; team: string | null }
+  | { state: 'ok'; path: string; data: InitiativesShown; team: string | null }
   | { state: 'failed'; path: string; reason: string }
   | { state: 'slow'; path: string };
 
@@ -66,7 +103,7 @@ const ACTION: Record<string, (doc: string | null, stage: string | null) => strin
 const WAITER: Record<string, string> = { stakeholder: 'a person', agent: 'the agent' };
 
 /** Where a row goes next and who it waits on, as its flow position reads on the page and in the context. */
-export const nextOf = (r: InitiativeRow): string => {
+export const nextOf = (r: Pick<InitiativeRow, 'nextMove'>): string => {
   const m = r.nextMove;
   if (!m) return 'Next move unavailable';
   const said = ACTION[m.action]?.(m.document, m.stage) ?? `${m.action.replaceAll('_', ' ')}${m.document ? ` ${m.document}` : ''}`;
@@ -91,7 +128,7 @@ function periodName(grain: Grain, { from, to }: { from: string; to: string }): s
  * The last whole periods' closures by outcome, as the chart draws them, named by the grain they arrive in: a period not
  * read is said to be so, never zero.
  */
-function closuresLine(list: InitiativeList): string | null {
+function closuresLine(list: InitiativesShown): string | null {
   if (list.closures.state !== 'ok') return null;
   const grain = grainOf(list.closures.data.map((w) => w.window));
   const whole = list.closures.data.filter((w) => w.window.complete).slice(-PERIODS_SAID);
@@ -108,7 +145,7 @@ function closuresLine(list: InitiativeList): string | null {
  * and `offset`, when it did: the address is then the page of ten the offset falls in, and rows off the page's grid are
  * said to be so.
  */
-export function initiativesContext(list: InitiativeList, { filters, page, read, ...arrival }: { filters: Omit<InitiativesFilters, 'page'>; page: number; read?: InitiativesRows } & Arrival): SharedContext {
+export function initiativesContext(list: InitiativesShown, { filters, page, read, ...arrival }: { filters: Omit<InitiativesFilters, 'page'>; page: number; read?: InitiativesRows } & Arrival): SharedContext {
   const summary = list.summary.state === 'ok' ? list.summary.data : null;
   const first = read ? read.offset : (page - 1) * PAGE_SIZE;
   const onGrid = !read || (read.limit === PAGE_SIZE && read.offset % PAGE_SIZE === 0);

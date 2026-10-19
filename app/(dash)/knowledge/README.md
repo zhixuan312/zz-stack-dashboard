@@ -16,7 +16,7 @@ What your active team has learned, kept as lessons, each out of a real initiativ
 
 | State | What shows |
 |---|---|
-| Loading | `loading.tsx` while the gate asks `/me` and the server reads the summary: the search card, four tiles and the shelf, in skeleton |
+| Loading | `loading.tsx` while the gate asks `/me` and the server reads the summary: headed Knowledge for a person whose rail offers it (`OfferedLoading`), over the search card, four tiles and the shelf, in skeleton |
 | No question yet | The field, and a line saying what the search reads |
 | Searching | Three skeleton rows under the field |
 | Results | The ranked results, with the count of the ranked total shown |

@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
-import { createContext, createElement, use, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { createContext, createElement, use, useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { preload } from 'react-dom';
 import { clearThread } from '@/components/patterns/assistant/thread';
 import type { Revisions } from '@/lib/live';
@@ -113,21 +113,44 @@ export function revisionsRead(path: string): Revisions | undefined {
 type PageCaller = { caller: string; team: string | null; role: string };
 
 /** What the layout hands down: `chromeAccess()`'s promise, settled on null when nobody could be resolved. */
-type ServerAccess = Promise<{ caller?: string; team?: string | null; user: { role: string } } | null>;
+type ServerAccess = Promise<{ caller?: string; team?: string | null; user: { role: string }; only?: string[] } | null>;
 
 const CallerContext = createContext<ServerAccess | null>(null);
 
+/** What each layout's read of the person settled on in this browser, kept so `useOffered` reads it without suspending. */
+const settledAccess = new WeakMap<ServerAccess, Awaited<ServerAccess>>();
+
 function callerOf(access: Awaited<ServerAccess>): PageCaller | null {
   return access?.caller ? { caller: access.caller, team: access.team ?? null, role: access.user.role } : null;
+}
+
+/**
+ * Whether the person's own rail offers `href`: one of the destinations `chromeAccess()` answered for them, the list the
+ * rail and the palette draw. It never suspends, and it is false until the layout's read has settled in this browser: on
+ * the server, while a page hydrates, outside `ConsoleCaller` and with nobody resolved. A prerendered shell that asks it
+ * is therefore the same for everyone, and holds nothing that waits for the person.
+ */
+export function useOffered(href: string): boolean {
+  const access = useContext(CallerContext);
+  const subscribe = useCallback((changed: () => void) => {
+    let live = true;
+    void access?.then((settled) => {
+      settledAccess.set(access, settled);
+      if (live) changed();
+    });
+    return () => { live = false; };
+  }, [access]);
+  return useSyncExternalStore(subscribe, () => (access ? settledAccess.get(access)?.only?.includes(href) ?? false : false), () => false);
 }
 
 /** The key a team switch is announced on to every other tab of this browser. */
 const SWITCH_KEY = 'zz-stack-team-switch';
 
 /**
- * Mounted by the layout around the shell, with the promise the rail is given. It holds the promise, never awaits it:
- * a read awaits it (`useConsole`), and the server resolved it before any page's content, so in the browser it has
- * settled before anything reads it and nothing waits.
+ * Mounted by the layout around the shell, with the promise the rail is given. It holds the promise and never waits on
+ * it: a read awaits it (`useConsole`), and the server resolved it before any page's content, so in the browser it has
+ * settled before anything reads it and nothing waits. What it settles on is kept for `useOffered`, which reads it
+ * without suspending.
  *
  * It also follows a team switched in another tab of this browser, which arrives as a `storage` event on `SWITCH_KEY`:
  * this tab leaves for the new team as the switching tab did (`afterTeamSwitch`), since the session is the browser's and
@@ -137,6 +160,9 @@ const SWITCH_KEY = 'zz-stack-team-switch';
  * person and team, keeps it for that scope alone and removes one stored for another as soon as it resolves.
  */
 export function ConsoleCaller({ access, children }: { access: ServerAccess; children?: ReactNode }) {
+  useEffect(() => {
+    void access.then((settled) => { settledAccess.set(access, settled); });
+  }, [access]);
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
       if (e.key === SWITCH_KEY && e.newValue !== null) leaveForTheNewTeam();

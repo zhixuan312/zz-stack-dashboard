@@ -247,10 +247,9 @@ What stays the console's own, and why:
   token issued is shown once, in a dialog outside the page's text and marked `data-assistant="omit"`, as Platform's
   People shows an enrolment link.
 - `proxy.ts`: the address every page request asked for, which the gate sends a signed-out person back to after sign-in,
-  and the laptop's dev-only PAT passthrough, plus one addition this product made — a preload hint for a document
-  route's read. A route with an unknown dynamic param cannot render its page on the server, so nothing writes
-  the hint `useConsole` was designed to write from the HTML, and the read then waits for the route's own JS. Measured:
-  2,180 ms to 164 ms.
+  and the laptop's dev-only PAT passthrough. It once also hinted a document route's read; that hint was removed once the
+  page's first read became the console's server's, because the preload then answered the first browser read a change
+  hint asked for with the snapshot the page already held.
 - `scripts/fake-gateway/`, `scripts/approve-banners.ts` and `scripts/live-check.ts`: the fixture and two of the product's own
   `browserChecks`, which `verify --full` runs. The live check drives a change through the fake gateway's own hooks, which wear the path
   the app proxies (`/api/console/__hint`) so a check never has to know the gateway's address.

@@ -255,11 +255,13 @@ describe('the proxy, which tells a page its own address', () => {
     expect(forwarded(res, 'x-zz-path')).toBe('/platform?a=1');
   });
 
-  it('keeps the preload hint on a document route, beside the address', async () => {
+  // A document's first read is the console's server's, and the browser reads it only once a hint says it changed: a
+  // preload made with the page would answer that read with the snapshot the page already holds.
+  it('answers a document route with its address and no preload of the document read', async () => {
     const { proxy } = await load({});
     const res = proxy(new NextRequest('http://console.test/initiatives/atlas/2026-09-28-search-relevance/sources/notes.md'));
     expect(forwarded(res, 'x-zz-path')).toBe('/initiatives/atlas/2026-09-28-search-relevance/sources/notes.md');
-    expect(res.headers.get('Link')).toBe('</api/console/document/atlas/2026-09-28-search-relevance/sources/notes.md?scope=platform>; rel=preload; as=fetch; crossorigin=anonymous');
+    expect(res.headers.get('Link')).toBeNull();
   });
 
   it('never sends a page to the gateway, on a laptop that sends the gateway\'s own paths there', async () => {

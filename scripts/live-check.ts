@@ -8,7 +8,8 @@
  *
  * What it proves, and what it does not. It proves the console's half of the contract in `references/live.md`: a page
  * loaded directly opens its first stream with the revisions its server read was answered at and reads nothing again
- * for it, a page opens one stream and follows its own collection, a hint for that collection is read again and what
+ * for it, so does the stream a press in the rail opens for a page that follows another collection, a page opens one
+ * stream and follows its own collection, a hint for that collection is read again and what
  * arrived is on
  * screen (on Teams and on a team's page, whose first reads are the console's server's), a hint for a collection the page does not show changes nothing, People reads its
  * collection again on a hint for it, and the bell's own read follows a hint for the collection it watches. It does NOT prove the multi-tab and offline behaviour Meridian's own check does — one
@@ -25,7 +26,9 @@
  *
  * The change is driven through the fake gateway's own hooks, which live under the path the app proxies
  * (`/api/console/__hint`) so this check never has to know the gateway's address. Against a real gateway there are no
- * such routes and this file is not run.
+ * such routes and this file is not run. It signs in as a session of its own, `superadmin+live`, which the fake answers
+ * as the superadmin in the normal state and keeps the check's renames for: every other suite, signed in or not, reads
+ * the fixture's names throughout.
  */
 import { launch } from './lib/chrome.ts';
 
@@ -36,6 +39,8 @@ const base = opt('--base', process.env.BASE ?? 'http://localhost:3100');
 /** The fixture team this check renames: no row is added, so nothing else in `verify` sees a link it cannot follow. See
  * the hook's own comment in `scripts/fake-gateway/server.ts`. */
 const RENAMED_SLUG = 'dune';
+/** This check's own session value (scripts/fake-gateway/server.ts): the renames it asks for are seen by it alone. */
+const SESSION = { name: 'zz_console', value: 'superadmin+live' };
 /** How long a tab is given to show what it read again, well inside the 30 s safety poll: a pass here is a hint's doing. */
 const SHOW_MS = 8000;
 /** How long the "nothing should happen" case watches for, for the same reason. */
@@ -55,6 +60,7 @@ await page.send('Page.addScriptToEvaluateOnNewDocument', {
   source: `(() => {
     const Native = window.EventSource;
     window.__liveStreams = [];
+    window.__liveChanges = [];
     window.EventSource = class extends Native {
       constructor(url, init) {
         super(url, init);
@@ -63,6 +69,10 @@ await page.send('Page.addScriptToEvaluateOnNewDocument', {
         const greet = (event) => (e) => { if (opened.greeting === null) { opened.greeting = { event, data: e.data }; opened.at = performance.now(); } };
         this.addEventListener('synced', greet('synced'));
         this.addEventListener('resync', greet('resync'));
+        // Every hint the stream carried, with when: under verify --full the other suites' writes are hinted too.
+        this.addEventListener('change', (e) => {
+          try { window.__liveChanges.push({ collection: JSON.parse(e.data).collection, at: performance.now() }); } catch {}
+        });
       }
     };
   })();`,
@@ -95,7 +105,7 @@ async function until(seen: (t: string) => boolean, ms: number): Promise<boolean>
  * left alone. Each address renames the team to names of its own, so what one case shows another cannot have made.
  */
 async function follows(address: string, renamedTo: string, unsolicitedTo: string): Promise<void> {
-  await page.open(base + address, { width: 1440, theme: 'dark' });
+  await page.open(base + address, { width: 1440, theme: 'dark', cookie: SESSION });
   if (page.errors.length) failures.push(`${address}: ${page.errors[0]}`);
 
   // The stream is open, and it is following something: a page that registered nothing subscribes to nothing. The
@@ -142,8 +152,27 @@ const collectionOf = (path: string) => {
 };
 type Opened = { url: string; greeting: { event: string; data: string } | null; at: number | null };
 
+/**
+ * The tab's reads of a followed collection begun after `greetedAt` that no hint explains: a read that starts after a
+ * `change` for its own collection is that hint's doing, which under `verify --full` the presses' writes raise (an
+ * approval hints `initiatives`, a revoked token `settings`), so only a read with no hint before it is one the greeting
+ * caused. Harbormaster #3751 failed /platform/people and /access on reads the presses' hints made.
+ */
+async function readsTheGreetingCaused(greetedAt: number, followed: string[]): Promise<string[]> {
+  const reads = await page.eval<{ name: string; start: number }[]>(
+    "performance.getEntriesByType('resource').filter((e) => new URL(e.name).pathname.startsWith('/api/console/')).map((e) => ({ name: e.name, start: e.startTime }))",
+  );
+  const hinted = await page.eval<{ collection: string; at: number }[]>('window.__liveChanges ?? []');
+  return reads
+    .map((r) => ({ path: new URL(r.name).pathname, start: r.start }))
+    .filter((r) => r.start > greetedAt)
+    .filter((r) => followed.includes(collectionOf(r.path.replace('/api/console', ''))))
+    .filter((r) => !hinted.some((h) => h.collection === collectionOf(r.path.replace('/api/console', '')) && h.at > greetedAt && h.at <= r.start))
+    .map((r) => r.path);
+}
+
 async function asksSince(address: string): Promise<void> {
-  await page.open(base + address, { width: 1440, theme: 'dark', wait: 600 });
+  await page.open(base + address, { width: 1440, theme: 'dark', wait: 600, cookie: SESSION });
   if (page.errors.length) failures.push(`${address}: ${page.errors[0]}`);
   let first: Opened | undefined;
   for (let i = 0; i < 32 && !first?.greeting; i++) {
@@ -159,16 +188,65 @@ async function asksSince(address: string): Promise<void> {
   if (without.length) failures.push(`${address}: the first stream follows ${followed.join(', ')} and asked with no revision for ${without.join(', ')}`);
   if (first.greeting.event !== 'synced') failures.push(`${address}: the first stream was greeted ${first.greeting.event} ${first.greeting.data}, not synced`);
   await sleep(AFTER_GREETING_MS);
-  // The tab's own reads, from the browser's record of them: any of a followed collection begun after the greeting is
-  // one the greeting caused.
-  const reads = await page.eval<{ name: string; start: number }[]>(
-    "performance.getEntriesByType('resource').filter((e) => new URL(e.name).pathname.startsWith('/api/console/')).map((e) => ({ name: e.name, start: e.startTime }))",
-  );
-  const again = reads.filter((r) => r.start > first!.at! && followed.includes(collectionOf(new URL(r.name).pathname.replace('/api/console', ''))));
-  if (again.length) failures.push(`${address}: read ${again.map((r) => new URL(r.name).pathname).join(', ')} again after its stream's greeting`);
+  const again = await readsTheGreetingCaused(first.at!, followed);
+  if (again.length) failures.push(`${address}: read ${again.join(', ')} again after its stream's greeting`);
 }
 
 for (const address of DIRECT) await asksSince(address);
+
+/** A page's live streams so far, in the order they opened. */
+const opened = () => page.eval<Opened[]>('window.__liveStreams ?? []');
+
+/**
+ * A press in the rail to a page that follows another collection (ZZ Meridian 0.18.1, its issue #54): the stream the new
+ * names open asks with the revisions the new page's server read was answered at, is greeted `synced`, and the tab reads
+ * none of what it follows again for it. A client navigation keeps the page's script, so `window.__liveStreams` holds the
+ * first page's streams and then every one the press opened.
+ */
+async function pressed(from: string, to: string, collection: string): Promise<void> {
+  const where = `a press in the rail from ${from} to ${to}`;
+  await page.open(base + from, { width: 1440, theme: 'dark', wait: 600, cookie: SESSION });
+  if (page.errors.length) failures.push(`${from}: ${page.errors[0]}`);
+  let before: Opened[] = [];
+  for (let i = 0; i < 32 && !before[0]?.greeting; i++) {
+    before = await opened();
+    if (!before[0]?.greeting) await sleep(250);
+  }
+  if (!before[0]?.greeting) { failures.push(`${where}: ${from}'s own stream was never greeted, so there was nothing to navigate from`); return; }
+  const link = `nav[aria-label="Main"] a[href="${to}"]`;
+  if (!(await page.eval<boolean>(`(() => { const a = document.querySelector(${JSON.stringify(link)}); if (!a) return false; a.click(); return true; })()`))) {
+    failures.push(`${where}: the rail has no link to ${to}`);
+    return;
+  }
+  let after: Opened[] = [];
+  let at = '';
+  for (let i = 0; i < 40; i++) {
+    at = await page.eval<string>('location.pathname');
+    after = (await opened()).slice(before.length);
+    if (at === to && after.some((s) => new URL(s.url, base).searchParams.get('collections')?.split(',').includes(collection)) && after.every((s) => s.greeting)) break;
+    await sleep(250);
+  }
+  if (at !== to) { failures.push(`${where}: the page is at ${at}, so the press did not navigate`); return; }
+  const target = after.findLast((s) => new URL(s.url, base).searchParams.get('collections')?.split(',').includes(collection));
+  if (!target) { failures.push(`${where}: no stream following ${collection} opened after the press (${after.length} opened)`); return; }
+  for (const s of after) {
+    if (!s.greeting) { failures.push(`${where}: a stream it opened was never greeted (${s.url})`); continue; }
+    const asked = new URL(s.url, base).searchParams;
+    const followed = (asked.get('collections') ?? '').split(',').filter(Boolean);
+    const since = new Set((asked.get('since') ?? '').split(',').filter(Boolean).map((p) => p.slice(0, p.indexOf(':'))));
+    const without = followed.filter((n) => !since.has(n));
+    if (without.length) failures.push(`${where}: its stream follows ${followed.join(', ')} and asked with no revision for ${without.join(', ')}`);
+    if (s.greeting.event !== 'synced') failures.push(`${where}: its stream was greeted ${s.greeting.event} ${s.greeting.data}, not synced`);
+  }
+  if (!target.greeting) return;
+  await sleep(AFTER_GREETING_MS);
+  const followed = (new URL(target.url, base).searchParams.get('collections') ?? '').split(',').filter(Boolean);
+  const again = await readsTheGreetingCaused(target.at!, followed);
+  if (again.length) failures.push(`${where}: read ${again.join(', ')} again after its stream's greeting`);
+  if (page.errors.length) failures.push(`${to}: ${page.errors[0]}`);
+}
+
+await pressed('/platform/teams', '/platform/people', 'people');
 
 await follows('/platform/teams', 'Dune Renamed By The Live Check', 'Dune Renamed Unsolicited');
 await follows(`/platform/teams/${RENAMED_SLUG}`, 'Dune Renamed On Its Own Page', 'Dune Renamed Unsolicited On Its Page');
@@ -179,7 +257,7 @@ await follows(`/platform/teams/${RENAMED_SLUG}`, 'Dune Renamed On Its Own Page',
  * read count, as the bell case below does, and carries the same caveat under `verify --full`. A hint for a collection
  * People does not show is not asserted here: on a shared gateway another suite's read of `people` would fail it.
  */
-await page.open(base + '/platform/people', { width: 1440, theme: 'dark' });
+await page.open(base + '/platform/people', { width: 1440, theme: 'dark', cookie: SESSION });
 if (page.errors.length) failures.push(`/platform/people: ${page.errors[0]}`);
 if (!(await until((t) => t.includes('Sign-ins last week'), SHOW_MS))) failures.push('/platform/people: the page never drew its tiles');
 const peopleBefore = (await counts()).people ?? 0;
@@ -216,5 +294,5 @@ if (page.errors.length) failures.push(`/platform/people: ${page.errors[0]}`);
 
 page.close();
 for (const f of failures) console.log('FAIL ' + f);
-console.log(`\nlive: ${DIRECT.length} pages loaded directly each asked their first stream with the revisions they were served and were greeted synced with no second read, teams followed at two addresses, each change read again and each unsolicited one ignored, and people read again on a hint; ${failures.length} issues`);
+console.log(`\nlive: ${DIRECT.length} pages loaded directly each asked their first stream with the revisions they were served and were greeted synced with no second read, a press in the rail to a page following another collection opened its stream with that page's revisions and was greeted synced with no second read, teams followed at two addresses, each change read again and each unsolicited one ignored, and people read again on a hint; ${failures.length} issues`);
 process.exit(failures.length ? 1 : 0);

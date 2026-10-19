@@ -31,48 +31,6 @@ import { NextResponse, type NextRequest } from 'next/server';
 const GATEWAY = process.env.ZZ_GATEWAY;
 const DEV_PAT = process.env.ZZ_DEV_PAT;
 
-/**
- * What a document route will read, hinted from the response headers before a line of script runs.
- *
- * `useConsole` writes this same hint into the HTML when it renders on the server (`src/lib/api.ts`, `preload`), and
- * that is what makes `GET /api/console/me` answer in 345 ms on a mid-range phone on Slow 4G while a document read
- * answers at 2,361 ms. A route with an unknown dynamic param cannot render its page on the server at all — `AppShell`
- * calls `usePathname` at its top, so the boundary above it is postponed and the prerendered HTML holds only
- * `ShellPending` — and a hint can only be written by something that renders. So the read waits for the route's own JS,
- * and the reader waits behind it: measured on `/initiatives/<team>/<slug>/<document>` at 390px, FCP 2,140 ms, the read
- * answered 2,361 ms, and the document's first line — the largest contentful paint — painted at 3,060 ms against a
- * floor of 2,500 ms.
- *
- * A proxy runs on the request itself and its path is in the request line: this is the one place the route is known
- * before the app renders. Nothing here reads, writes or authorizes anything; it says what the page is about to ask
- * for so the browser can start asking while it parses the HTML.
- *
- * The URL has to match what `withScope` in `src/lib/api.ts` will build exactly, or the browser fetches twice and the
- * hint buys nothing. Every read but `/me` and the search asks for the platform's scope, whoever asks, and the gateway
- * answers each caller what they may read, so the document's read is the scoped one; that is the URL written here.
- *
- * DELIBERATE: written in every build, production included, as a page's own address is (`page` below) — unlike the
- * rewrite at the foot of this file, which is a laptop's.
- */
-const DOCUMENT = /^\/initiatives\/([^/]+)\/([^/]+)\/(.+)$/;
-
-/** The hint for this path, or null when the route is not one a document is read on. */
-function documentHint(pathname: string): string | null {
-  const found = DOCUMENT.exec(pathname);
-  if (!found) return null;
-  const [, team, slug, path] = found;
-  // `crossorigin=anonymous` as `preload` sets it: on a same-origin URL the credentials mode stays `same-origin`, so the
-  // session cookie goes with the hint exactly as it goes with the fetch that will reuse the response.
-  return `</api/console/document/${team}/${slug}/${path}?scope=platform>; rel=preload; as=fetch; crossorigin=anonymous`;
-}
-
-/** Adds the hint to a response that is going to be a page. */
-function hint(res: NextResponse, pathname: string): NextResponse {
-  const value = documentHint(pathname);
-  if (value) res.headers.append('Link', value);
-  return res;
-}
-
 /** The gateway's own paths, which a laptop routes to it. Everything else this file matches is a page. */
 const GATEWAY_PATH = /^\/(api\/console|auth)(\/|$)/;
 
@@ -88,7 +46,7 @@ function page(req: NextRequest): NextResponse {
   const { pathname, search } = req.nextUrl;
   const headers = new Headers(req.headers);
   headers.set(PATH_HEADER, pathname + search);
-  return hint(NextResponse.next({ request: { headers } }), pathname);
+  return NextResponse.next({ request: { headers } });
 }
 
 /**

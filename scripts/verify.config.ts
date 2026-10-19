@@ -201,21 +201,58 @@ const config: VerifyConfig = {
    * above People — room for a column and not for a second table. People's cap is measured at `/platform/people`, its
    * address since its old one was removed (AC-1.12); it is the same page, read the same way.
    *
-   * They were 65 and 63 the day before, and the 25 KiB between is one thing: the layout now asks, on each request,
-   * whether the console has an assistant (`connection()` in `app/(dash)/layout.tsx`, as Meridian's guide writes it), so
-   * every page has a request-time part and Next sends the page's flight payload a second time beside the prerendered
-   * one. It is the same text twice, so it compresses away: `/initiatives` is 11,229 bytes gzipped without it and 11,966
-   * with it. The cap measures uncompressed bytes, which is why it moved and the page a person downloads barely did.
+   * They were 65 and 63 the day before, and the 25 KiB between was put down to the layout's request-time read
+   * (`connection()` in `app/(dash)/layout.tsx`). It is not that. With `partialPrefetching` on (`next.config.ts`, which
+   * Meridian's adopter contract requires), Next renders a runtime prefetch of every route and embeds it in the page's
+   * own flight payload, the root payload's `p` (`runtimePrefetchStream` in Next's `app-render.js`), so the client
+   * caches the route's shell while it hydrates. That copy is the router tree, the script lists and every loading
+   * skeleton above the page a second time, about 20 KB of flight text on every page. It is the same text twice, so it
+   * compresses away: the cap measures uncompressed bytes, which is why it moved and the page a person downloads barely
+   * did.
    *
-   * People moved again on 2026-10-17, to 135 KiB (17.8 KiB gzipped), for one reason: its first page of people is now
-   * read on the console's server (reconciliation 65), so its rows are in the HTML twice, once drawn (the table and the
-   * phone's cards) and once in the flight payload that hands the read to the page, where before both held a skeleton.
-   * Teams under Platform, built the same way, reads 137 KiB. The caps stay where they were: the size lines are
-   * non-functional, so during the functional build a wave records the measured value rather than moving a cap to go
-   * green, and the plan's non-functional pass brings each page back under its cap (plan.md, `## Full-suite gate`).
+   * People moved again on 2026-10-17, to 135 KiB (17.8 KiB gzipped), when its first page of people came to be read on
+   * the console's server (reconciliation 65): the rows are drawn in the first paint where a skeleton was. Teams under
+   * Platform, built the same way, reads 137 KiB.
+   *
+   * What the bytes are, measured on 2026-10-19 (Task I-146) on Next.js 16.4.2 and ZZ Meridian 0.18.1, the build served
+   * against the fake gateway as verify serves it: `/initiatives` 128,239 bytes and People 138,053. The same pages in
+   * the fake's `empty` state, drawing no row at all, are 102,343 and 100,775; the console's missing page 64,126. Of
+   * what every page carries, the flight payload is half: the shell's tree written out twice as above, and in it, four
+   * times each, the root not-found screen (every segment's `notFound` slot, about 9.5 KB a page) and each segment's
+   * loading skeleton (`page-loading`'s blocks, expanded element by element, 3 to 8 KB a segment). Above the empty page,
+   * what the two pages carry is what they draw:
+   *   - the drawn rows: Initiatives' ten 13.7 KB with its pager 3.1 and its chart 7.3; People's nine 31.8 KB, of which
+   *     the two acts in every row are 12.1 (two managed `Button`s' class lists and the key icon's path, nine times);
+   *   - the phone's cards: no second copy of a row, only the few words a `mobileCell` puts beside its cell, 1.4 KB on
+   *     Initiatives' Last touched and 4.2 KB over People's five columns;
+   *   - the flight payload of the server's read: 8.2 KB on Initiatives and 2.5 KB on People, handed once to the as-of
+   *     line and the records together.
+   * The pages now hand their view only what it draws (`handed` beside each page's read, held by
+   * tests/html-weight.test.tsx), draw People's key icon once and its phone words from the one cell, and name their own
+   * loading fallback rather than writing it out: 121,685 bytes (118.8 KiB) and 131,196 (128.1 KiB), each a little
+   * smaller gzipped than before. Both stay over the cap.
+   *
+   * What is left above it is not the pages' to cut without drawing less. It is held by four things: the runtime
+   * prefetch copy `partialPrefetching` embeds; Meridian's `page-loading` skeletons, written out element by element in
+   * every loading slot, in both copies; the not-found screen, written into every segment's `notFound` slot, in both
+   * copies; and Meridian's `Button` class list, written in full by each of the 18 buttons in People's rows. Writing the
+   * loading states and the not-found screen as client components was measured on 2026-10-19 (Task I-146): it takes 10
+   * to 25 KB off every page's uncompressed HTML, but each becomes a first-load chunk carrying its own copy of
+   * `page-loading`, `card`, `Button` and its spinner. Gzipped HTML plus gzipped first-load JS then grew on every route
+   * measured, in every combination tried: by 1.3 to 3.3 KB with all of them (`/` +1,387 bytes, `/initiatives` +1,341,
+   * People +3,323, `/record` +1,533), by 0.04 to 2.4 KB with the cheapest (`/` +37, `/initiatives` +710, People
+   * +2,409), and `/initiatives/[team]/[slug]` went past its 5% first-load allowance. A person would download more, so
+   * none of it was done.
+   *
+   * The owner's decision, 2026-10-19: a cap may move, and a hand-written figure per page is the wrong ruler, since every
+   * page is different; each page is to be held to its own measured weight, as first-load JS is held to
+   * `verify.baseline.json`. That ratchet is ZZ Meridian's to ship in `scripts/sizes.ts` (managed), asked as its issue
+   * #57, beside #56 for what its shell carries twice. Until it is released and adopted, these two caps are the measured
+   * figures above plus the same five percent the first-load ratchet allows (118.8 x 1.05 and 128.1 x 1.05, rounded
+   * up); once it is, `htmlKb` goes and every route is held to its baseline.
    */
   budgets: {
-    htmlKb: { '/initiatives': 108, '/platform/people': 108 },
+    htmlKb: { '/initiatives': 125, '/platform/people': 135 },
     /**
      * PROVISIONAL, 2026-10-16: the recommendation put in place so the next feature is not blocked by a
      * stale rail. The measurement is real; the bar is the owner's, and the question is open in

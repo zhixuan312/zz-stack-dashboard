@@ -36,7 +36,11 @@
  *
  * A journey keeps its writes: the session value `<person>+journey` is a kind of session, not a state. It reads the
  * normal state, and the approvals, closes, resolutions, people added and tokens issued it writes stay that session's for
- * the life of the process, shown on its own reads and on nobody else's (journey.ts, reconciliation 80).
+ * the life of the process, shown on its own reads and on nobody else's (journey.ts, reconciliation 80). The live check's
+ * session, `<person>+live`, is another kind: it reads the normal state, and the renames it asks `__hint` for are its own.
+ *
+ * Another session keeps revising one document (work.ts's `drifting`), and every time it gains a revision the fake hints
+ * `document`, as the gateway's trigger notifies on every revision a writer makes.
  *
  * The status read, `GET /api/console/platform/status`, is the one a page makes on the console's server and gives
  * five seconds: `error` answers it 500 with its own route's sentence, and `slow` holds it six seconds, past that bound.
@@ -97,7 +101,7 @@ import { pluginEval, skillText } from './platform.ts';
 import { search } from './search.ts';
 import { empty, extreme } from './states.ts';
 import { NOT_RECORDED, STATES, isState, nullsFilled, partial, sessionOf, unknownState, type State } from './states-partial.ts';
-import { KNOWLEDGE_LOG, documentDetail, documentRevision, initiativeDetail, refusesRecord, revisionInStore } from './work.ts';
+import { KNOWLEDGE_LOG, documentDetail, documentRevision, initiativeDetail, onDrift, refusesRecord, revisionInStore } from './work.ts';
 import { access, revokeApplication, revokeBrowser, tokensNow } from './work-access.ts';
 import { activityLog, activitySummary, NO_TEAM } from './work-activity.ts';
 import { approvals, documentAsKept } from './work-approvals.ts';
@@ -449,6 +453,30 @@ const countRead = (resource: string) => { reads.set(resource, (reads.get(resourc
 /** The session values whose unread figures are answered as a stand-in (`__nulls`). */
 const standingIn = new Set<string>();
 
+/** The live check's own kind of session, `<person>+live`: the normal state, with the renames it asked for. */
+const LIVE_CHECK = 'live';
+
+/** The team names each session value renamed through `__hint`, by slug; no cookie is a value of its own. */
+const renames = new Map<string | null, Map<string, string>>();
+
+/**
+ * `answer()`, with the fixture's teams under the names `cookie`'s session gave them while it runs, and its body copied
+ * before the names are put back, since the answer is serialised after this returns. The server is synchronous from a
+ * request's arrival to its answer, as journey.ts's `within` relies on too, so no other session's read sees them.
+ */
+function renamedFor(cookie: string | null, answer: () => Answer): Answer {
+  const names = renames.get(cookie);
+  if (!names) return answer();
+  const own = TEAMS.map((t) => t.name);
+  for (const t of TEAMS) t.name = names.get(t.slug) ?? t.name;
+  try {
+    const [code, body] = answer();
+    return [code, structuredClone(body)];
+  } finally {
+    TEAMS.forEach((t, i) => { t.name = own[i]; });
+  }
+}
+
 const server = http.createServer((req, res) => {
   const url = new URL(req.url ?? '/', 'http://fake');
   let raw = '';
@@ -459,10 +487,12 @@ const server = http.createServer((req, res) => {
     const cookie = cookieOf(req.headers.cookie);
     const who = callerOf(cookie);
     // The state this request is drawn in: the one its session value names, or the process-wide mode. A journey is a
-    // kind of session, not a state: it reads the normal one, with its own writes kept (journey.ts).
+    // kind of session, not a state: it reads the normal one, with its own writes kept (journey.ts). So is the live
+    // check's, with its own renames.
     const journey = isJourney(cookie);
-    const asked = journey ? null : sessionOf(cookie).state;
-    const state: string = journey ? 'normal' : asked ?? mode;
+    const ownKind = journey || sessionOf(cookie).state === LIVE_CHECK;
+    const asked = ownKind ? null : sessionOf(cookie).state;
+    const state: string = ownKind ? 'normal' : asked ?? mode;
     const status = req.method === 'GET' && url.pathname === '/api/console/platform/status';
     // The revision a read is answered with, taken as it arrives, before it is answered: live.ts's `revisionHeader`.
     const revised = req.method === 'GET' && who && seg[0] === 'api' && seg[1] === 'console' ? revisionHeader(seg.slice(2)) : null;
@@ -485,7 +515,8 @@ const server = http.createServer((req, res) => {
      * `/api/console/__hint?collection=teams` tells every open tab that the collection changed, which is the only way a
      * check can fire a change at a moment it chose. `&rename=<slug>:<name>` first renames one of the fixture's own
      * teams, so a check has something to see arrive: a hint alone proves a tab was told, the new name proves the tab
-     * went and read again.
+     * went and read again. The new name is the asking session value's alone (`renamedFor`), so the suites beside the
+     * check, the states sweep's captures among them, read the fixture's names throughout.
      *
      * DELIBERATE, and it is why this renames rather than adds: `verify` runs the checks and the presses suite against
      * ONE gateway at the same time, so anything this records is also something the presses see. A row this added would
@@ -503,7 +534,7 @@ const server = http.createServer((req, res) => {
       if (rename) {
         const [slug, ...rest] = rename.split(':');
         const team = TEAMS.find((t) => t.slug === slug);
-        if (team && rest.length) { team.name = rest.join(':'); renamed = team.slug; }
+        if (team && rest.length) { renames.set(cookie, new Map(renames.get(cookie)).set(team.slug, rest.join(':'))); renamed = team.slug; }
       }
       const reached = (COLLECTIONS as readonly string[]).includes(collection) ? hint(collection) : 0;
       res.writeHead(reached ? 200 : 404, { 'content-type': 'application/json' });
@@ -564,7 +595,7 @@ const server = http.createServer((req, res) => {
     else if (state === 'error' && seg[2] !== 'me') answer = [503, { error: 'The gateway could not reach its database: connection to 10.0.0.12:5432 refused. Nothing was changed.' }];
     else if (req.method === 'GET') {
       if (seg[2]) countRead(seg[2]);
-      answer = within(cookie, () => read(who, seg.slice(2), url.searchParams));
+      answer = renamedFor(cookie, () => within(cookie, () => read(who, seg.slice(2), url.searchParams)));
       // A transform reads the answer by its own idea of the route's shape, so a route that grows a
       // second answer shape reaches it as something it does not recognise. That threw OUT of this
       // handler and killed the process: every page after it reported "cannot reach the platform",
@@ -603,6 +634,7 @@ const server = http.createServer((req, res) => {
 
 server.listen(port, '127.0.0.1', () => {
   const { port: p } = server.address() as { port: number };
+  onDrift(() => hint('document'));
   // verify.ts reads this line to learn the address.
   console.log(`fake-gateway listening on http://127.0.0.1:${p}${mode === 'normal' ? '' : ` (${mode})`}`);
 });

@@ -1,6 +1,6 @@
 import { answeredAt, gatewayGet, type Revised } from '@/data/gateway';
 import type { People } from '@/lib/fleet-shapes';
-import { PEOPLE_BOUND_MS, type PeopleRead } from '@/views/people-context';
+import { PEOPLE_BOUND_MS, type PeopleRead, type PeopleShown } from '@/views/people-context';
 import { peoplePath, type PeopleFilters } from '@/views/people-filter';
 
 const reasonOf = (err: unknown) => (err instanceof Error ? err.message : 'The gateway did not answer.');
@@ -21,3 +21,21 @@ export async function readPeople(filters: PeopleFilters): Promise<Revised<People
     clearTimeout(timer);
   }
 }
+
+/** The answer as the page draws it, from the gateway's whole answer: the day each person was added, which the rows are
+ *  sorted by where they are read, and the week's sign-ins beyond its count and its start stay on the server. */
+function shownPeople({ meta, tiles, people, total }: PeopleShown): PeopleShown {
+  const { window, figure } = tiles.signInsLastWeek;
+  return {
+    meta: { asOf: meta.asOf },
+    tiles: { people: tiles.people, withPasskey: tiles.withPasskey, neverSignedIn: tiles.neverSignedIn, signInsLastWeek: { window: { from: window.from }, figure } },
+    people: people.map(({ email, name, role, teams, passkeys, lastSignIn, state }) => ({ email, name, role, teams, passkeys, lastSignIn, state })),
+    total,
+  };
+}
+
+/**
+ * A read as the page hands it to its view: the people as the page draws them, since what the page hands is written into
+ * its HTML beside the rows it draws, and the rest of the gateway's answer would travel in every first load for nothing.
+ */
+export const handed = (read: Revised<PeopleRead>): Revised<PeopleRead> => (read.state === 'ok' ? { ...read, data: shownPeople(read.data) } : read);

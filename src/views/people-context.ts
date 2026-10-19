@@ -8,7 +8,7 @@
  * with another. A sign-in nobody recorded stays unknown: it is never a date and never a zero.
  */
 import type { People, PersonRow } from '@/lib/fleet-shapes';
-import type { PeriodFigure } from '@/lib/platform-shapes';
+import type { Figure, PeriodFigure, ReadMeta, Window } from '@/lib/platform-shapes';
 import { plural } from '@/lib/format';
 import { formatDate } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
@@ -16,9 +16,21 @@ import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
 import { addressOf, arrived, budgeted, clip, type Arrival } from './context';
 import { PAGE_SIZE, PEOPLE_DEFAULTS, narrowed, pageOf, type PeopleFilters, type PeopleRows } from './people-filter';
 
+/**
+ * What the page draws of the gateway's answer, and its context reads: the as-of line, the tiles, the people and how many
+ * match. The gateway's answer is one of these, and the console's server hands its view no more, since what it hands is
+ * written into the page's HTML.
+ */
+export type PeopleShown = {
+  meta: Pick<ReadMeta, 'asOf'>;
+  tiles: Omit<People['tiles'], 'signInsLastWeek'> & { signInsLastWeek: { window: Pick<Window, 'from'>; figure: Figure } };
+  people: Omit<PersonRow, 'created'>[];
+  total: number;
+};
+
 /** The page's own read, as the console's server or the browser made it: the answer, a failure, or no answer in time. */
 export type PeopleRead =
-  | { state: 'ok'; path: string; data: People }
+  | { state: 'ok'; path: string; data: PeopleShown }
   | { state: 'failed'; path: string; reason: string }
   | { state: 'slow'; path: string };
 
@@ -40,7 +52,7 @@ export const PEOPLE_CHANGES = 'The assistant changes nobody: a person adds someo
 export const NO_SIGN_IN = 'No sign-in recorded';
 
 /** What the week's sign-ins read as: the count, `Unavailable` when it could not be counted, `No data` before the record began. */
-export function signInsValue(f: PeriodFigure): string | number {
+export function signInsValue(f: Pick<PeriodFigure, 'figure'>): string | number {
   if (f.figure.why === 'unavailable') return 'Unavailable';
   if (f.figure.value === null) return 'No data';
   return f.figure.value;
@@ -61,7 +73,7 @@ const NAMED = 10;
  * `filters` is the page's address. `read` is how `view_people` read the rows, by the route's `limit` and `offset`, when
  * it did: the address is then the page of ten the offset falls in, and rows off the page's grid are said to be so.
  */
-export function peopleContext(data: People, { filters, read, ...arrival }: { filters: PeopleFilters; read?: PeopleRows } & Arrival): SharedContext {
+export function peopleContext(data: PeopleShown, { filters, read, ...arrival }: { filters: PeopleFilters; read?: PeopleRows } & Arrival): SharedContext {
   const page = pageOf(filters);
   const rows = data.people;
   const first = read ? read.offset : (page - 1) * PAGE_SIZE;

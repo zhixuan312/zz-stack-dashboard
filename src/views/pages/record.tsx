@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { memo, useDeferredValue, useState, type ReactNode } from 'react';
 import { Copy, RotateCw } from 'lucide-react';
 import { Row, Stack } from '@/components/base/shell';
 import { useShareView } from '@/components/base/use-share-view';
@@ -123,8 +123,17 @@ function Controls({ served, record }: { served: RecordServed | null; record?: Re
  */
 export function RecordView({ served }: { served: RecordServed }) {
   const { data, stale, trouble, retry, filters, set, team } = useRecord(served);
-  useShareView(recordContext(data && !stale ? data : null, { filters, trouble }));
-  if (!data) {
+  /* DELIBERATE: the record drawn trails the record read by a render of its own. A period's record arrives in the render
+   * the address readers are told the address moved in (`useQueryState` announces it once the navigation has committed),
+   * and a store's change is rendered synchronously: drawing the whole record there, every chart of it, was one task of
+   * 54 ms of script and 33 ms of style and layout on the phone, a dropped frame on every press (Wave 5's timed run,
+   * #3676). Deferred, that render only marks the record busy, and the new one is drawn in a render React may interrupt.
+   * COUPLED: `Slices` is memoised on the read, so the render that marks the record busy draws no chart again; the
+   * table stands outside it, since its page answers a press of its own at once. */
+  const shown = useDeferredValue(data);
+  const behind = stale || shown !== data;
+  useShareView(recordContext(shown && !behind ? shown : null, { filters, trouble }));
+  if (!data || !shown) {
     if (!trouble) return <Busy name="record"><RecordSkeleton /></Busy>;
     return (
       <Card>
@@ -134,21 +143,28 @@ export function RecordView({ served }: { served: RecordServed }) {
       </Card>
     );
   }
-  const windows = data.cumulative.map((p) => p.window);
   return (
-    <Meridian dates={windows.map((w) => w.from)}>
-      <Stack aria-busy={stale || undefined} className={stale ? 'opacity-60 transition-opacity' : undefined}>
-        <Lead r={data} windows={windows} />
-        <Work r={data} windows={windows} />
-        <Documents r={data} windows={windows} />
-        <Knowledge r={data} windows={windows} />
-        <Agents r={data} />
-        <Firsts r={data} />
-        <Initiatives r={data} team={team} filters={filters} onPage={(page) => set({ page })} retry={retry} />
-      </Stack>
-    </Meridian>
+    <Stack aria-busy={behind || undefined} className={behind ? 'opacity-60 transition-opacity' : undefined}>
+      <Slices r={shown} />
+      <Initiatives r={shown} team={team} filters={filters} onPage={(page) => set({ page })} retry={retry} />
+    </Stack>
   );
 }
+
+/** The slices of one read, the lead first: drawn again only when the read changes. */
+const Slices = memo(function Slices({ r }: { r: RecordRead }) {
+  const windows = r.cumulative.map((p) => p.window);
+  return (
+    <Meridian dates={windows.map((w) => w.from)}>
+      <Lead r={r} windows={windows} />
+      <Work r={r} windows={windows} />
+      <Documents r={r} windows={windows} />
+      <Knowledge r={r} windows={windows} />
+      <Agents r={r} />
+      <Firsts r={r} />
+    </Meridian>
+  );
+});
 
 type Slice = { r: RecordRead; windows: Window[] };
 

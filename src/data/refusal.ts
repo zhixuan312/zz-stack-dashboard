@@ -10,10 +10,12 @@ import { refusal } from '@/app.config';
 type LoadingNames = { name: string; title?: string; kicker?: ReactNode; description?: ReactNode };
 
 /**
- * The loading state is drawn before `gate` has answered and is prerendered into the route's shell, so it cannot know who
- * is reading: under `refusal: 'absent'` it names nothing for anyone (the busy region is "Loading page", and the heading,
- * the kicker and the line under it are placeholders), so a refused address never shows the page's name while it
- * streams. Under `explain` the page's own words stand. The choice is the configuration's, never the request's.
+ * The loading state is drawn before `gate` has answered and is prerendered into the route's shell, so these words cannot
+ * know who is reading: under `refusal: 'absent'` they name nothing for anyone (the busy region is "Loading page", and the
+ * heading, the kicker and the line under it are placeholders), so a refused address never shows the page's name while
+ * it streams. Under `explain` the page's own words stand. Once the browser knows the person, `OfferedLoading`
+ * (`src/console/offered-loading.tsx`) names the page for someone whose own rail offers it, at its own address, and keeps
+ * these words for everyone else.
  */
 export function gatedLoading(named: LoadingNames): LoadingNames {
   return refusal === 'absent' ? { name: 'page' } : named;

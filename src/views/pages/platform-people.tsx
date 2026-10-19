@@ -7,7 +7,8 @@ import { AskAbout } from '@/components/patterns/ask-about';
 import { DataTable, useSearchDraft, type Column } from '@/components/patterns/data-table';
 import { FilterBar } from '@/components/patterns/filter-bar';
 import { MetricTile } from '@/components/patterns/metric-tile';
-import { Records } from '@/components/templates/records';
+import { Busy } from '@/components/patterns/page-loading';
+import { Records, RecordsSkeleton } from '@/components/templates/records';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
@@ -19,7 +20,7 @@ import { failureOf } from '@/console/query';
 import { InlineDestructive } from '@/console/settings/inline-destructive';
 import type { Revised } from '@/data/gateway';
 import { ApiError, useDataClock } from '@/lib/api';
-import type { People, PersonRow } from '@/lib/fleet-shapes';
+import type { People } from '@/lib/fleet-shapes';
 import { plural } from '@/lib/format';
 import { formatDateTime, formatRelative } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
@@ -27,25 +28,39 @@ import { useLive } from '@/lib/live';
 import { useConsoleMutation } from '@/lib/mutate';
 import { useServed, useServedAddress } from '@/views/use-served';
 import { pendingContext } from '@/views/context';
-import { NO_SIGN_IN, TILES, peopleContext, peopleTrouble, signInsValue, type PeopleRead } from '@/views/people-context';
+import { NO_SIGN_IN, TILES, peopleContext, peopleTrouble, signInsValue, type PeopleRead, type PeopleShown } from '@/views/people-context';
 import { PEOPLE_DEFAULTS, PERSON_STATES, filtersOfPath, narrowed, peoplePath, type PeopleFilters } from '@/views/people-filter';
 
 type Done = { ok: true; result: string };
+/** A person as the page draws them. */
+type Person = PeopleShown['people'][number];
 const reasonOf = (err: unknown, fallback: string) => (err instanceof ApiError ? err.message : fallback);
 
 /** A person's name, or their address when they have none: the page names a person as Settings did. */
-const shownName = (p: PersonRow) => p.name || p.email;
+const shownName = (p: Person) => p.name || p.email;
 
-/** When a person last signed in, against the read's own cutoff, or that the record holds none: never a guessed date. */
+/**
+ * When a person last signed in, against the read's own cutoff, or that the record holds none: never a guessed date. A
+ * phone's card says "Signed in" before the date, from this one cell rather than a second copy of it beside the first.
+ */
 function LastSignIn({ at, asOf }: { at: string | null; asOf: string }) {
-  // The words wrap where a date never does: held to one line, they set the table's narrowest width.
-  if (!at) return <span className="whitespace-normal text-ink-3">{NO_SIGN_IN}</span>;
-  return <time dateTime={at} title={formatDateTime(at)}>{formatRelative(at, new Date(asOf))}</time>;
+  // The words wrap where a date never does: held to one line, they set the table's narrowest width. A card's facts
+  // hold to one line each.
+  if (!at) return <span className="whitespace-normal text-ink-3 @max-[640px]:whitespace-nowrap">{NO_SIGN_IN}</span>;
+  return <><span className="hidden @max-[640px]:inline">Signed in</span><time dateTime={at} title={formatDateTime(at)}>{formatRelative(at, new Date(asOf))}</time></>;
 }
 
-const roleWord = (p: PersonRow) => (p.role === 'superadmin' ? 'Superadmin' : 'Member');
-const roleBadge = (p: PersonRow) => <Badge tone={p.role === 'superadmin' ? 'accent' : 'neutral'}>{roleWord(p)}</Badge>;
-const stateBadge = (p: PersonRow) => (p.state === 'active' ? <Badge tone="positive" dot>Active</Badge> : <Badge tone="warning" dot>Deactivated</Badge>);
+/**
+ * The key a row's Enrolment link draws, written once on the page and drawn by reference in every row, so the first
+ * paint's HTML carries its paths once rather than once a row.
+ */
+const KEY = 'people-enrolment-key';
+const KeySymbol = () => <svg aria-hidden width="0" height="0" className="absolute"><symbol id={KEY} viewBox="0 0 24 24"><KeyRound /></symbol></svg>;
+const RowKey = () => <svg aria-hidden width="24" height="24" viewBox="0 0 24 24"><use href={`#${KEY}`} /></svg>;
+
+const roleWord = (p: Person) => (p.role === 'superadmin' ? 'Superadmin' : 'Member');
+const roleBadge = (p: Person) => <Badge tone={p.role === 'superadmin' ? 'accent' : 'neutral'}>{roleWord(p)}</Badge>;
+const stateBadge = (p: Person) => (p.state === 'active' ? <Badge tone="positive" dot>Active</Badge> : <Badge tone="warning" dot>Deactivated</Badge>);
 const passkeys = (n: number) => (n ? `${formatCount(n)} ${plural(n, 'passkey')}` : 'No passkey');
 
 /**
@@ -98,7 +113,7 @@ function IssuedLink({ issued, onDismiss }: { issued: { email: string; url: strin
  * console's existing platform routes, as Settings called them; a refusal is said beside the buttons, in the row it was
  * pressed in, and the gateway's sentence is the toast, because what deactivating does not undo matters.
  */
-function Acts({ p }: { p: PersonRow }) {
+function Acts({ p }: { p: Person }) {
   const [error, setError] = useState<string | null>(null);
   const [issued, setIssued] = useState<{ email: string; url: string } | null>(null);
   const enrol = useConsoleMutation<Done & { url: string }, string>((email) => ({ path: '/settings/platform/enrolments', method: 'POST', body: { email } }));
@@ -127,7 +142,7 @@ function Acts({ p }: { p: PersonRow }) {
   return (
     <span className="inline-flex flex-wrap items-center justify-end gap-1">
       {error ? <span role="alert" className="t-small text-critical-ink">{error}</span> : null}
-      <Button type="button" size="sm" variant="ghost" icon={<KeyRound />} busy={enrol.isPending} onClick={() => void link()}>Enrolment link</Button>
+      <Button type="button" size="sm" variant="ghost" icon={<RowKey />} busy={enrol.isPending} onClick={() => void link()}>Enrolment link</Button>
       <InlineDestructive label="Deactivate" question={`Deactivate ${shownName(p)}? Their live tokens are revoked.`} confirmLabel="Deactivate" pending={deactivate.isPending} onConfirm={() => void confirm()} />
       <IssuedLink issued={issued} onDismiss={() => setIssued(null)} />
     </span>
@@ -139,7 +154,7 @@ function Acts({ p }: { p: PersonRow }) {
  * 896px the role, the teams and the passkeys give way: the role and the passkeys go under the person, where the two acts
  * that need them are still in the row, and the cell's title holds all three.
  */
-const columnsAt = (asOf: string): Column<PersonRow>[] => aligned([
+const columnsAt = (asOf: string): Column<Person>[] => aligned([
   {
     key: 'person', header: 'Person', grow: true, truncate: true, mobile: 'title',
     title: (p) => [p.name ? `${p.name}, ${p.email}` : p.email, roleWord(p), p.teams.length ? `in ${p.teams.join(', ')}` : 'in no team', passkeys(p.passkeys)].join('; '),
@@ -158,7 +173,7 @@ const columnsAt = (asOf: string): Column<PersonRow>[] => aligned([
     cell: (p) => (p.teams.length ? <span className="whitespace-normal [overflow-wrap:anywhere]">{p.teams.join(', ')}</span> : <span className="text-ink-3">None</span>),
   },
   { key: 'passkeys', header: 'Passkey', numeric: true, hideBelow: 'lg', mobile: 'fact', cell: (p) => (p.passkeys ? formatCount(p.passkeys) : <span className="text-ink-3">None</span>), mobileCell: (p) => passkeys(p.passkeys) },
-  { key: 'signIn', header: 'Last sign-in', numeric: true, mobile: 'fact', cell: (p) => <LastSignIn at={p.lastSignIn} asOf={asOf} />, mobileCell: (p) => (p.lastSignIn ? <>Signed in <LastSignIn at={p.lastSignIn} asOf={asOf} /></> : NO_SIGN_IN) },
+  { key: 'signIn', header: 'Last sign-in', numeric: true, mobile: 'fact', cell: (p) => <LastSignIn at={p.lastSignIn} asOf={asOf} /> },
   { key: 'state', header: 'State', mobile: 'fact', cell: stateBadge, mobileCell: (p) => (p.state === 'active' ? 'Active' : 'Deactivated') },
   // The row's acts keep their place on a phone, at the end of the card's first line.
   { key: 'acts', header: <span className="sr-only">Actions</span>, mobile: 'status', cell: (p) => <Acts p={p} /> },
@@ -175,7 +190,7 @@ function usePeople(served: PeopleRead | null, filters: PeopleFilters) {
   const path = peoplePath(filters);
   const mine = served?.path === path ? served : null;
   const { q, follow } = useServed<People>(path, mine !== null, mine === null && served !== null);
-  const data = q.data ?? (mine?.state === 'ok' ? mine.data : undefined);
+  const data: PeopleShown | undefined = q.data ?? (mine?.state === 'ok' ? mine.data : undefined);
   const failed = failureOf(q);
   const trouble = data ? null : failed ?? (mine && mine.state !== 'ok' && !q.isFetching ? peopleTrouble(mine) : null);
   const retry = () => (q.data !== undefined || q.error ? void q.refetch() : follow());
@@ -215,6 +230,7 @@ export function PlatformPeopleView({ served }: { served: Revised<PeopleRead> }) 
         </>
       }
     >
+      <KeySymbol />
       <div data-protagonist="People" className="contents">
         <DataTable
           caption="People"
@@ -309,3 +325,9 @@ export function AddPerson() {
     </Dialog>
   );
 }
+
+/**
+ * The records on their way, the page's fallback while its read is out. A client view, so the page's flight payload
+ * names it rather than writing out every skeleton block it draws.
+ */
+export function PeopleBusy() { return <Busy name="people"><RecordsSkeleton tiles={4} rows={6} /></Busy>; }

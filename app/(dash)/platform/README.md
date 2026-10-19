@@ -4,7 +4,7 @@ What needs attention on the platform, how real work called its tools week by wee
 
 ## Structure
 
-- Gate first: the page asks for `platform-status` before it renders, so a person who does not hold it is shown NoAccess and nothing on the page is read. Every role holds `platform:read`, so a member and a superadmin both open it. Its title is `gatedMetadata`'s and its loading state `gatedLoading`'s.
+- Gate first: the page asks for `platform-status` before it renders, so a person who does not hold it is shown NoAccess and nothing on the page is read. Every role holds `platform:read`, so a member and a superadmin both open it. Its title is `gatedMetadata`'s; its loading state (`OfferedLoading`) is headed Status for a person whose rail offers it, at `/platform` alone, and keeps `gatedLoading`'s words for anyone else.
 - Masthead: the kicker `ZZ Stack · Platform`, the title, one static sentence, and the as-of line, the read's own `meta.asOf` through the console's date formatter. The masthead is drawn before the read answers; the as-of line and the page wait for it inside their own boundaries.
 - What needs attention: a Panel titled with the gateway's headline for the reader (`6 things need you` for the superadmin, `6 things are known and open` for a member, `Nothing needs you` or `No known open issues` when every check found nothing, `N known issues; some checks unavailable` or `Status checks unavailable` otherwise). At most five rows, each with its tone's dot, its title, its detail and since when; a row links only where the gateway gives it a destination. The foot counts the instances shown, what overflowed by kind and which checks did not answer: `5 shown. 1 more not shown: approvals 1.`
 - The paired figures: one Featured metric of two halves, `Malformed calls per 1,000` and `Refusals put right`, each its last whole week, by week as a Column chart (a week with no data keeps its place and is drawn as none, the running week unfinished), with its counts as the caption and the gateway's finding. Ask is in the card's head. The foot: the best week for malformed calls, the days in a row with work (`records.daysWithWork`) and every door's tool failures summed with their calls.
@@ -17,7 +17,7 @@ What needs attention on the platform, how real work called its tools week by wee
 
 | State | What shows |
 |---|---|
-| Loading | `loading.tsx` while the gate asks `/me`, then the masthead over the page's shape (the list, the paired figures, three tiles, a table) while the read is under way |
+| Loading | `loading.tsx` while the gate asks `/me`, headed Status for a person whose rail offers it, then the masthead over the page's shape (the list, the paired figures, three tiles, a table) while the read is under way |
 | Default | Every part, from the read |
 | Empty | A fresh platform: `Nothing needs you`, the paired figures with no whole week yet and every week drawn as none, the tables' rows with no data, and `No door has recorded a call` |
 | Partial | A part the gateway answered `unavailable` draws its own unavailable state (the doors, the team's own counts, what is running) and the rest stands; a foot figure it fed reads `Unavailable`; a check that did not answer is named in the list's foot, and the headline never says nothing is open |

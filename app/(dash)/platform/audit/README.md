@@ -4,7 +4,7 @@ The superadmin's Audit: every recorded act of administration said in one sentenc
 
 ## Structure
 
-- Gate first: the page asks for `audit` before it renders, so a person who does not hold it is answered by the refused page and nothing on the page is read. `audit` needs `fleet:read`, which only a superadmin holds: a member is answered at this address exactly as at an address no page answers. Its title comes from `gatedMetadata` and its loading state from `gatedLoading`, so under `refusal: 'absent'` neither names the page.
+- Gate first: the page asks for `audit` before it renders, so a person who does not hold it is answered by the refused page and nothing on the page is read. `audit` needs `fleet:read`, which only a superadmin holds: a member is answered at this address exactly as at an address no page answers. Its title comes from `gatedMetadata`, so under `refusal: 'absent'` it names nothing for a member; its loading state (`OfferedLoading`) names the page only for a person whose own rail offers Audit, at this address, and keeps `gatedLoading`'s words, which name nothing, for anyone else and in the prerendered shell.
 - Masthead: the kicker `ZZ Stack · Platform`, the title, one static sentence and the as-of line, the read's own `meta.asOf`. The masthead is drawn before the read answers.
 - Two tabs, Administration and Everything, each its own address (`?filter=all` is Everything) and its own read. Moving to a tab starts it afresh: its filters cleared, its first page.
 - Administration, the page's protagonist: ZZ Meridian's Activity feed, one act a line, newest first, ten a page. Each line is the gateway's own sentence, filled from one fixed template per kind; the console writes none. The actor is the sentence's first words, `Someone not recorded` when nobody was, and the line's mark is the person's initials, or the platform's dot for an act whose origin is `platform` alone. The feed's agent mark (`via`) is never set: no event records an agent acting for a person. An act made in the console says so, because the gateway says so; no other channel is recorded, so none is named. The times are told against the read's cutoff. Ask is in the card's head.
@@ -16,7 +16,7 @@ The superadmin's Audit: every recorded act of administration said in one sentenc
 
 | State | What shows |
 |---|---|
-| Loading | `loading.tsx` while the gate asks `/me`, then the masthead over the tab strip and the feed's skeleton while the read is under way |
+| Loading | `loading.tsx` while the gate asks `/me`, headed Audit for a person whose rail offers it (so a press in the rail lands on the heading at once), then the masthead over the tab strip and the feed's skeleton while the read is under way |
 | Administration | The acts of the page, newest first, with the pager past ten, and the acts Audit cannot show |
 | Everything | The page of events, the filters and their count, `the latest 500` beside it at the ceiling |
 | A tab, a filter or a page moved | The table's or the feed's loading state, until the console's server has read the new address |

@@ -11,6 +11,7 @@ import { MetricTile } from '@/components/patterns/metric-tile';
 import { Records } from '@/components/templates/records';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Busy, ChartSkeleton, TableSkeleton, TilesSkeleton } from '@/components/patterns/page-loading';
 import { Skeleton } from '@/components/ui/skeleton';
 import { aligned } from '@/console/columns';
 import { Panel } from '@/console/panel';
@@ -25,7 +26,7 @@ import { grainOf, type Grain } from '@/lib/grain';
 import { useLive } from '@/lib/live';
 import type { InitiativeList, InitiativeRow } from '@/lib/work-shapes';
 import { pendingContext } from '@/views/context';
-import { OUTCOMES, TILES, closedLine, initiativesContext, initiativesTrouble, nextOf, type InitiativesRead } from '@/views/initiatives-context';
+import { OUTCOMES, TILES, closedLine, initiativesContext, initiativesTrouble, nextOf, type InitiativesRead, type InitiativesShown, type ShownRow } from '@/views/initiatives-context';
 import { INITIATIVES_DEFAULTS, LIST_STATES, PAGE_SIZE, STATE_LABEL, filtersOfPath, listPath, narrowed, pageOf, type InitiativesFilters } from '@/views/initiatives-filter';
 import { useServed, useServedAddress } from '@/views/use-served';
 
@@ -38,7 +39,7 @@ const TONE: Record<InitiativeRow['state'], 'warning' | 'positive' | 'neutral'> =
 };
 
 /** The table's columns, in the server's order: the list is sorted and paged where it is read. */
-const COLUMNS: Column<InitiativeRow>[] = aligned([
+const COLUMNS: Column<ShownRow>[] = aligned([
   // Wrap rather than truncate: a slug's tail tells two pieces of work of one project apart.
   { key: 'slug', header: 'Initiative', grow: true, mobile: 'title', cell: (r) => <span title={r.slug} className="font-medium whitespace-normal text-ink [overflow-wrap:anywhere]">{r.slug}</span> },
   { key: 'next', header: 'Flow position', hideBelow: 'lg', mobile: 'fact', cell: (r) => <span className="text-xs whitespace-normal text-ink-2 [overflow-wrap:anywhere]" title={r.nextMove?.why}>{r.flow ? nextOf(r) : 'No flow'}</span> },
@@ -59,7 +60,7 @@ function useInitiatives(served: InitiativesRead | null, filters: InitiativesFilt
   const path = listPath(filters);
   const mine = served?.path === path ? served : null;
   const { q, follow } = useServed<InitiativeList>(path, mine !== null, mine === null && served !== null);
-  const data = q.data ?? (mine?.state === 'ok' ? mine.data : undefined);
+  const data: InitiativesShown | undefined = q.data ?? (mine?.state === 'ok' ? mine.data : undefined);
   const failed = failureOf(q);
   const trouble = data ? null : failed ?? (mine && mine.state !== 'ok' && !q.isFetching ? initiativesTrouble(mine) : null);
   const retry = () => (q.data !== undefined || q.error ? void q.refetch() : follow());
@@ -151,7 +152,7 @@ const tickOf = (grain: Grain) => (from: string) => (grain === 'week' ? formatSho
  * The team's closures, a column a period split by the outcome the platform recorded, the running period drawn
  * unfinished, each named by the grain they arrive in. Closures not read have no grain, so they are said with none.
  */
-function Closures({ list, mark }: { list: InitiativeList | undefined; mark: string }) {
+function Closures({ list, mark }: { list: InitiativesShown | undefined; mark: string }) {
   const weeks = list?.closures.state === 'ok' ? list.closures.data : [];
   const grain = grainOf(weeks.map((w) => w.window));
   const title = `Closures by ${grain} and outcome`;
@@ -185,3 +186,9 @@ export function InitiativesAsOf({ served }: { served: InitiativesRead }) {
   const { data } = useInitiatives(served, filters);
   return data ? <span className="t-small text-ink-3">As of {formatDateTime(data.meta.asOf)}</span> : null;
 }
+
+/**
+ * The records on their way, the page's fallback while its read is out. A client view, so the page's flight payload
+ * names it rather than writing out every skeleton block it draws.
+ */
+export function InitiativesBusy() { return <Busy name="initiatives"><TilesSkeleton count={3} /><ChartSkeleton height="h-56" /><TableSkeleton rows={10} /></Busy>; }

@@ -1,25 +1,24 @@
 import { Suspense } from 'react';
 import { app, workspaces } from '@/app.config';
 import { PageFrame } from '@/components/base/shell';
-import { Busy } from '@/components/patterns/page-loading';
-import { RecordsSkeleton } from '@/components/templates/records';
 import { gate, gatedMetadata } from '@/data/access';
-import { AddPerson, PeopleAsOf, PlatformPeopleView } from '@/views/pages/platform-people';
+import { AddPerson, PeopleAsOf, PeopleBusy, PlatformPeopleView } from '@/views/pages/platform-people';
 import type { PeopleRead } from '@/views/people-context';
 import { filtersOf } from '@/views/people-filter';
-import { readPeople } from './read-people';
+import { handed, readPeople } from './read-people';
 
 export function generateMetadata() { return gatedMetadata('people', { title: 'People' }); }
 
 /**
  * The page asks `people` before it renders; the rail hiding a destination is presentation, never this gate. The
  * masthead then stands outside the boundaries that wait for the read, and the one read of the address's page of people,
- * made on the console's server as the person, is shared by the as-of line and the records.
+ * made on the console's server as the person, is shared by the as-of line and the records, handed to them as the page
+ * draws it.
  */
 export default async function PlatformPeoplePage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const denied = await gate('people');
   if (denied) return denied;
-  const read = searchParams.then((params) => readPeople(filtersOf(params)));
+  const read = searchParams.then((params) => readPeople(filtersOf(params))).then(handed);
   return (
     <PageFrame
       kicker={<>{app.name} · {workspaces.platform.label}</>}
@@ -28,7 +27,7 @@ export default async function PlatformPeoplePage({ searchParams }: { searchParam
       meta={<Suspense fallback={null}><AsOf read={read} /></Suspense>}
       actions={<AddPerson />}
     >
-      <Suspense fallback={<Busy name="people"><RecordsSkeleton tiles={4} rows={6} /></Busy>}>
+      <Suspense fallback={<PeopleBusy />}>
         <PeopleList read={read} />
       </Suspense>
     </PageFrame>

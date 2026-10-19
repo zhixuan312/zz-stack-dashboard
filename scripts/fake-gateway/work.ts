@@ -279,14 +279,34 @@ function contentRevisionOf(team: string, initiative: string, path: string, revis
   return `cr_${out}`;
 }
 
-/** How often another session revises a `drifting` document: under the console's thirty-second staleTime, so the
- *  refetch a returning reader's focus triggers always lands on a later snapshot than the one the page loaded. */
-const DRIFT_MS = 15_000;
+/** How often another session revises a `drifting` document, and so how often the fake hints `document` (`onDrift`). */
+export const DRIFT_MS = 15_000;
+
+/** The revisions another session has made to every `drifting` document since the server started. */
+const drifted = () => Math.floor((Date.now() - now()) / DRIFT_MS);
 
 /** Snapshots a `drifting` document has gained since the server started; zero for every other document. */
 function drift(team: string, initiative: string, path: string): number {
   const drifting = SEEDS.find((x) => x.team === team && x.slug === initiative)?.drifting === path;
-  return drifting ? Math.floor((Date.now() - now()) / DRIFT_MS) : 0;
+  return drifting ? drifted() : 0;
+}
+
+/**
+ * Call `revised` each time the drifting documents gain a revision, as the gateway's trigger notifies on every revision
+ * a writer makes (zz-stack's services/gateway/migrations/003_console_live.sql). Started by a serving fake alone, never
+ * on import, and unref'd, so it holds no process open.
+ *
+ * Never before the snapshot: a timer can fire a moment short of the boundary it was set for, and a hint that arrived
+ * first would send a tab to read the snapshot it already holds. Each firing reads the count again, tells only of one
+ * that moved, and sets itself for the next boundary.
+ */
+export function onDrift(revised: () => void): void {
+  let told = drifted();
+  const tick = () => {
+    if (drifted() > told) { told = drifted(); revised(); }
+    setTimeout(tick, DRIFT_MS - ((Date.now() - now()) % DRIFT_MS)).unref();
+  };
+  setTimeout(tick, DRIFT_MS - ((Date.now() - now()) % DRIFT_MS)).unref();
 }
 
 /** Whether zz-core refuses to record a presentation of this document (`unrecordable`). */

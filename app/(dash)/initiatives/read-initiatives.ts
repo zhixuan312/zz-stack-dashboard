@@ -4,7 +4,7 @@ import { GatewayError, answeredAt, gatewayGet, type Revised } from '@/data/gatew
 import type { InitiativeDetail } from '@/lib/api-shapes';
 import type { InitiativeList } from '@/lib/work-shapes';
 import type { InitiativeRead } from '@/views/initiative-context';
-import { INITIATIVES_BOUND_MS, type InitiativesRead } from '@/views/initiatives-context';
+import { INITIATIVES_BOUND_MS, shownList, type InitiativesRead } from '@/views/initiatives-context';
 import { listPath, type InitiativesFilters } from '@/views/initiatives-filter';
 
 /** `read`, or `slow` once `INITIATIVES_BOUND_MS` has passed without an answer. Neither this nor `read` rejects. */
@@ -41,6 +41,12 @@ export function readInitiatives(filters: InitiativesFilters): Promise<Revised<In
     { state: 'slow', path },
   );
 }
+
+/**
+ * A read as the page hands it to its view: the list as the page draws it, since what the page hands is written into
+ * its HTML beside the rows it draws, and the rest of the gateway's answer would travel in every first load for nothing.
+ */
+export const handed = (read: Revised<InitiativesRead>): Revised<InitiativesRead> => (read.state === 'ok' ? { ...read, data: shownList(read.data) } : read);
 
 /**
  * `GET /initiatives/:team/:slug`, the same way, with the team the person acts for, which a close is made under, and the
