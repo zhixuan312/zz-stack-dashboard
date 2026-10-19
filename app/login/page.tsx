@@ -14,6 +14,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useConsole } from '@/lib/api';
 import { type Me } from '@/lib/api-shapes';
 import { ownPath } from '@/lib/own-path';
+import { refusalSentence } from './refusals';
 
 /**
  * The sign-in screen: a route, not a state of the dashboard.
@@ -54,7 +55,8 @@ function Login() {
   const asked = params.get('next');
   const next = asked !== null && ownPath(asked) ? asked : '/';
   const denied = params.get('denied') === '1';
-  const reason = params.get('reason');
+  // A code, said as the page's own fixed sentence: the address's words are never shown (`./refusals.ts`).
+  const reason = refusalSentence(params.get('reason'));
 
   const me = useConsole<Me>('/me');
   // Not through useConsole: /auth/status is public and sits outside /api/console, so it
@@ -86,7 +88,7 @@ function Login() {
           <div className="flex flex-col gap-6">
             {denied ? (
               <Banner tone="warning" title="This view is not open to you" icon={<ShieldAlert />}>
-                {reason ?? 'You are signed in, but not through a door the console accepts.'}
+                {reason}
               </Banner>
             ) : null}
             <div>

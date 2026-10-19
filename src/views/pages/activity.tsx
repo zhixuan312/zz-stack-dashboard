@@ -230,12 +230,18 @@ export function ActivityView({ read }: { read: Revised<ActivityRead> }) {
   );
 }
 
-/** The three tiles of the last whole week; the calls carry their weeks, which the refusals chart's cursor reads. */
+/**
+ * The three tiles of the last whole week; the calls carry their weeks, which the refusals chart's cursor reads. A figure
+ * whose read failed is `Unavailable`, never a zero or `None`: the tool refused most is its own read, so it can fail while
+ * the refused beside it stands, and `None` is said only of a week read with nothing refused.
+ */
 function Tiles({ summary, trouble }: { summary?: ActivitySummary; trouble: string | null }) {
   const mark = trouble ? '—' : '…';
   const tiles = summary?.tiles;
   const weeks = summary?.weeks.state === 'ok' ? summary.weeks.data : null;
   const value = (v: number | null | undefined) => (v === undefined ? mark : v === null ? 'Unavailable' : v);
+  const owners = tiles?.refused.owners.state === 'ok' ? tiles.refused.owners.data : null;
+  const most = tiles?.mostRefused;
   return (
     <Row split="tiles" data-figures={tiles ? 'read' : undefined}>
       {/* The note is one short line: a tile with points reads the pointed week in the note's place, and a note that wrapped
@@ -244,9 +250,10 @@ function Tiles({ summary, trouble }: { summary?: ActivitySummary; trouble: strin
                   points={weeks && weeks.length > 1 ? weeks.map((w) => w.calls) : undefined}
                   note={tiles ? `The ${weekOf(tiles.calls.window)}` : undefined} />
       <MetricTile label={TILES.refused.label} hint={TILES.refused.definition} icon={<Ban />} value={value(tiles?.refused.figure.value)}
-                  note={tiles && tiles.refused.figure.value !== null ? fourOwners(tiles.refused.owners) : undefined} />
-      <MetricTile label={TILES.mostRefused.label} hint={TILES.mostRefused.definition} icon={<Wrench />} value={tiles ? (tiles.mostRefused?.count ?? 'None') : mark}
-                  note={tiles?.mostRefused ? `${tiles.mostRefused.tool}, of ${formatCount(tiles.mostRefused.of)}` : tiles ? 'Nothing refused last week' : undefined} />
+                  note={owners && tiles?.refused.figure.value !== null ? fourOwners(owners) : undefined} />
+      <MetricTile label={TILES.mostRefused.label} hint={TILES.mostRefused.definition} icon={<Wrench />}
+                  value={!most ? mark : most.state !== 'ok' ? 'Unavailable' : most.data ? most.data.count : 'None'}
+                  note={most?.state !== 'ok' ? undefined : most.data ? `${most.data.tool}, of ${formatCount(most.data.of)}` : 'Nothing refused last week'} />
     </Row>
   );
 }

@@ -278,9 +278,10 @@ type Status = {
 describe('GET /api/console/platform/status', () => {
   it('answers both people the same public figure, and only the member\'s needs in their own projection', async () => {
     const [ava, noah] = [await read<Status>(null, 'platform/status'), await read<Status>(MEMBER, 'platform/status')];
-    expect({ ...noah, needs: null }).toEqual({ ...ava, needs: null });
+    expect({ ...noah, meta: { ...noah.meta, scope: null }, needs: null }).toEqual({ ...ava, meta: { ...ava.meta, scope: null }, needs: null });
     expect(await read<Status>(SUPERADMIN, 'platform/status?scope=platform&team=beacon')).toEqual(ava);
-    expect(ava.meta.scope).toBe('platform-public');
+    expect(ava.meta.scope).toBe('platform-admin');
+    expect(noah.meta.scope).toBe('platform-public');
     expect(ava.meta.population).toMatch(/real-work/);
     expect(Number.isNaN(Date.parse(ava.meta.asOf))).toBe(false);
   });
@@ -446,11 +447,20 @@ describe('GET /api/console/platform/status', () => {
 describe('POST /api/console/page-view', () => {
   it('accepts a known feature with nothing to say back', async () => {
     for (const who of [null, SUPERADMIN, MEMBER]) {
-      for (const feature of ['home', 'initiatives', 'knowledge', 'people', 'teams', 'plugins', 'runs', 'activity', 'platform-status']) {
+      for (const feature of ['home', 'initiatives', 'knowledge', 'plugins', 'runs', 'activity', 'platform-status']) {
         const res = await post(who, 'page-view', { feature });
         expect(res.status, `${who ?? 'no cookie'}: ${feature}`).toBe(204);
         expect(await res.text()).toBe('');
       }
+    }
+  });
+
+  it('refuses a member\'s view of a superadmin-only feature and keeps the superadmin\'s', async () => {
+    for (const feature of ['teams', 'people', 'audit', 'bug']) {
+      for (const who of [null, SUPERADMIN]) expect((await post(who, 'page-view', { feature })).status, `${who}: ${feature}`).toBe(204);
+      const res = await post(MEMBER, 'page-view', { feature });
+      expect(res.status, feature).toBe(403);
+      expect(await res.json()).toEqual({ error: 'not permitted' });
     }
   });
 

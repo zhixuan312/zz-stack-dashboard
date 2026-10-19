@@ -31,6 +31,8 @@ const logOf = (query: URLSearchParams) => activityLog(ME, query)[1] as ActivityL
 const WEEKS = SUMMARY.weeks.state === 'ok' ? SUMMARY.weeks.data : [];
 type RefusalWeek = Extract<ActivitySummary['weeks'], { state: 'ok' }>['data'][number];
 const GROUPS = SUMMARY.groups.state === 'ok' ? SUMMARY.groups.data : { rows: [], groups: 0, rest: null };
+const OWNERS = SUMMARY.tiles.refused.owners.state === 'ok' ? SUMMARY.tiles.refused.owners.data : null;
+const MOST = SUMMARY.tiles.mostRefused.state === 'ok' ? SUMMARY.tiles.mostRefused.data : null;
 
 let asked: string[] = [];
 let answerLog: (query: URLSearchParams) => unknown = logOf;
@@ -74,11 +76,11 @@ describe('the tiles', () => {
     draw(ok(SUMMARY));
     expect(figureOf('Calls last week')).toBe(formatCount(SUMMARY.tiles.calls.figure.value!));
     expect(figureOf('Refused last week')).toBe(formatCount(SUMMARY.tiles.refused.figure.value!));
-    expect(tile('Refused last week')).toHaveTextContent(fourOwners(SUMMARY.tiles.refused.owners));
+    expect(tile('Refused last week')).toHaveTextContent(fourOwners(OWNERS!));
     expect(tile('Refused last week')).toHaveTextContent('guardrail');
     expect(tile('Refused last week')).toHaveTextContent('tool failure');
-    expect(figureOf('Most refused')).toBe(String(SUMMARY.tiles.mostRefused!.count));
-    expect(tile('Most refused')).toHaveTextContent(`${SUMMARY.tiles.mostRefused!.tool}, of ${SUMMARY.tiles.mostRefused!.of}`);
+    expect(figureOf('Most refused')).toBe(String(MOST!.count));
+    expect(tile('Most refused')).toHaveTextContent(`${MOST!.tool}, of ${MOST!.of}`);
     // The calls carry their shape, a week a point, and the page says its figures were read.
     expect(tile('Calls last week').querySelector('svg')).not.toBeNull();
     expect(document.querySelector('[data-figures="read"]')).not.toBeNull();
@@ -228,7 +230,8 @@ describe('every state', () => {
 
   it('figures the gateway could not read are unavailable, never zero', () => {
     const gone = { ...SUMMARY.tiles.calls, figure: { value: null, why: 'unavailable' as const } };
-    draw(ok({ ...SUMMARY, tiles: { calls: gone, refused: { ...SUMMARY.tiles.refused, ...gone }, mostRefused: null } }));
+    const unread = { state: 'unavailable', reason: 'query_failed' } as const;
+    draw(ok({ ...SUMMARY, tiles: { calls: gone, refused: { ...SUMMARY.tiles.refused, ...gone, owners: unread }, mostRefused: unread } }));
     expect(figureOf('Calls last week')).toBe('Unavailable');
     expect(figureOf('Refused last week')).toBe('Unavailable');
   });

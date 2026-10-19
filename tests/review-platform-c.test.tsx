@@ -21,8 +21,8 @@ import { platformStatusContext, statusRead } from '@/views/platform-status-conte
 /**
  * The three findings of "Phase 7, I-129: a non-builder's review of the Platform destinations" whose words the gateway
  * writes (F-1, F-5, F-6), held against the fake, which writes them as the gateway does: every day a platform sentence
- * carries is the day the console's own formatter writes (`formatDay` in a sentence, `formatDate` in a withheld report's
- * title, as the queue's Filed column draws it); what needs attention about open reports opens Bugs filtered to open; and
+ * carries is the day the console's own formatter writes (`formatDay` in a sentence), and a withheld report's title
+ * carries none, its filed day left to the queue's Filed column (R1-C14); what needs attention about open reports opens Bugs filtered to open; and
  * Status says the latest tag beside the version it runs where the two differ, and nothing more where they agree.
  *
  * DELIBERATE: the fake's clock is the moment its modules load. It is pinned at 19 October 2026 before the fake is
@@ -93,11 +93,11 @@ describe('the days the platform\'s sentences carry (F-6)', () => {
     }
   });
 
-  it('writes a withheld report\'s filed day as the queue\'s Filed column draws it', () => {
+  it('leaves a withheld report\'s filed day to the queue\'s Filed column, never its title (R1-C14)', () => {
     const queue = bugs(false, { state: null, impact: null, surface: null }, 100, 0).queue;
     const rows = queue.state === 'ok' ? queue.data.rows : [];
     expect(rows.length).toBeGreaterThan(0);
-    for (const r of rows) expect(r.title.endsWith(`, filed ${formatDate(r.filedAt)}`), r.title).toBe(true);
+    for (const r of rows) expect(r.title, r.title).not.toContain(formatDate(r.filedAt));
   });
 
   it('never writes September as "Sep" anywhere the fake speaks', () => {

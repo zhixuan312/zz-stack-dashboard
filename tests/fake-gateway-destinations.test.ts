@@ -158,13 +158,13 @@ describe('Activity', () => {
     expect(keys(a.tiles)).toEqual(['calls', 'mostRefused', 'refused']);
     expect(keys(a.tiles.calls)).toEqual(PERIOD);
     expect(keys(a.tiles.refused)).toEqual(['owners', ...PERIOD].sort());
-    expect(keys(a.tiles.refused.owners)).toEqual(OWNERS);
-    expect(keys(a.tiles.mostRefused)).toEqual(['count', 'of', 'tool']);
+    expect(keys(ok(a.tiles.refused.owners))).toEqual(OWNERS);
+    expect(keys(ok(a.tiles.mostRefused))).toEqual(['count', 'of', 'tool']);
     for (const w of ok(a.weeks)) { expect(keys(w)).toEqual(WEEK); expect(keys(w.owners)).toEqual(OWNERS); }
     const groups = ok(a.groups);
     expect(keys(groups)).toEqual(['groups', 'rest', 'rows']);
     for (const g of groups.rows) expect(keys(g)).toEqual(GROUP);
-    expect(keys(a.maintenance)).toEqual(['calls', 'refused']);
+    expect(keys(ok(a.maintenance))).toEqual(['calls', 'refused']);
   });
 
   it('counts every refusal once under one owner, the four summing to the total each week', async () => {
@@ -174,16 +174,16 @@ describe('Activity', () => {
     // The last whole week: all four owners, and the tiles are that week.
     const last = weeks.at(-2);
     expect(Object.values(last.owners).every((n) => (n as number) > 0)).toBe(true);
-    expect(a.tiles.refused.owners).toEqual(last.owners);
+    expect(ok(a.tiles.refused.owners)).toEqual(last.owners);
     expect(a.tiles.refused.figure.value).toBe(last.refused);
     expect(a.tiles.calls.figure.value).toBe(last.calls);
-    expect(a.tiles.mostRefused.of).toBe(last.refused);
+    expect(ok(a.tiles.mostRefused).of).toBe(last.refused);
     // The week before it refused under `theirs` alone, which the chart keeps.
     expect(weeks.at(-3).owners).toEqual({ guardrail: 0, ours: 0, theirs: weeks.at(-3).refused, other: 0 });
     expect(weeks.at(-3).refused).toBeGreaterThan(0);
     // The maintenance the platform did is counted apart and changes nothing above.
-    expect(a.maintenance.calls).toBeGreaterThan(0);
-    expect(a.maintenance.refused).toBeGreaterThan(0);
+    expect(ok(a.maintenance).calls).toBeGreaterThan(0);
+    expect(ok(a.maintenance).refused).toBeGreaterThan(0);
   });
 
   it('groups the team\'s own messages by owner, tool and normalised text, and keeps a refusal with no text', async () => {

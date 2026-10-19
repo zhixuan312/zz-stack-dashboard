@@ -47,8 +47,8 @@ function useBugs(served: BugsRead, filters: BugsFilters) {
 
 const impactTone = (i: string) => (i === 'blocks_work' ? 'critical' : i === 'wrong_result' ? 'warning' : 'neutral');
 
-/** A row's title: the reporter's own and the team for the superadmin; for a member, the one the gateway built from the
- *  report's impact, surface and filed date. */
+/** A row's title: the reporter's own and the team for the superadmin; for a member, the spec's public title, which names
+ *  the surface alone, beside the row's own impact, filed date and status. */
 function Title({ r }: { r: PublicBugRow }) {
   const own = isAdminRow(r) ? r.internalTitle : r.title;
   return (

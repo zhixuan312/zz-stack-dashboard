@@ -149,8 +149,8 @@ export function activitySummary(who: Me): Answer {
     meta: workMeta('active-team', `${team}'s real-work events, page views and the platform's maintenance left out`),
     tiles: {
       calls: { window: WEEKS[LAST_WEEK], figure: { value: last.length, why: null }, numerator: last.length, denominator: null },
-      refused: { window: WEEKS[LAST_WEEK], figure: { value: lastRefused.length, why: null }, numerator: lastRefused.length, denominator: last.length, owners: ownersOf(lastRefused) },
-      mostRefused: byTool[0] ? { ...byTool[0], of: lastRefused.length } : null,
+      refused: { window: WEEKS[LAST_WEEK], figure: { value: lastRefused.length, why: null }, numerator: lastRefused.length, denominator: last.length, owners: { state: 'ok', data: ownersOf(lastRefused) } },
+      mostRefused: { state: 'ok', data: byTool[0] ? { ...byTool[0], of: lastRefused.length } : null },
     },
     weeks: { state: 'ok', data: WEEKS.map((window, i) => {
       const here = calls.filter((e) => within(e.ts, i));
@@ -160,7 +160,7 @@ export function activitySummary(who: Me): Answer {
       rows: groups.slice(0, GROUPS), groups: groups.length,
       rest: folded.length ? { groups: folded.length, count: folded.reduce((n, g) => n + g.count, 0) } : null,
     } },
-    maintenance: { calls: maintenance.length, refused: maintenance.filter((e) => e.ok === false).length },
+    maintenance: { state: 'ok', data: { calls: maintenance.length, refused: maintenance.filter((e) => e.ok === false).length } },
   };
   return [200, answer];
 }

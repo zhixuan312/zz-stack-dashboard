@@ -107,18 +107,19 @@ describe('a page\'s gate', () => {
     expect(to).not.toContain('denied');
   });
 
-  it('sends a session the console is refused to the denied state, with the gateway\'s own reason', async () => {
+  it('sends a session the console is refused to the denied state, with a code the sign-in page says its own sentence for', async () => {
     gateway(403);
     const refused = await ask('home');
     expect(refused.kind).toBe('redirect');
     expect((refused as { to: string }).to).toMatch(/^\/login\?denied=1/);
+    expect(new URLSearchParams((refused as { to: string }).to.split('?')[1]).get('reason')).toBe('refused');
 
     gateway({ ...MEMBER, mayRead: false, why: WHY });
     const told = await ask('home');
     expect(told.kind).toBe('redirect');
     const to = (told as { to: string }).to;
     expect(to).toMatch(/^\/login\?denied=1/);
-    expect(new URLSearchParams(to.split('?')[1]).get('reason')).toBe(WHY);
+    expect(new URLSearchParams(to.split('?')[1]).get('reason')).toBe('door');
   });
 
   it('opens nothing for an identity it cannot place', async () => {

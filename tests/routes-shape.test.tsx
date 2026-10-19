@@ -44,6 +44,14 @@ function routes(): Route[] {
 }
 
 const ROUTES = routes();
+/** The superadmin's own pages. Each one's loading state streams before the gate has answered, to a member as to the
+ *  superadmin, so it draws the shell's own body, the one an address no page answers draws, and never its page's shape:
+ *  a page-shaped skeleton would tell a member a page stands there (R1-C21). The page's shape is drawn under its masthead
+ *  once the gate has answered. */
+const GATED = ['platform/audit', 'platform/teams', 'platform/teams/[slug]', 'platform/people', 'platform/bugs/[id]'];
+const SHAPED = ROUTES.filter((r) => !GATED.includes(r.route));
+/** The shell's own body, `app/(dash)/loading.tsx`'s. */
+const SHELL_BODY = '<TableSkeleton rows={8} filters={false} />';
 /** The tables a page's view draws. A route whose table lives in a panel under `src/console` counts none here: this
  *  reads the route's own two files, and a frame that draws more tables than they name is the defect it holds. */
 const viewTables = (src: string) => (src.match(/<DataTable\b/g) ?? []).length;
@@ -79,15 +87,22 @@ describe('a route, while the page it stands in for is on its way', () => {
     expect(fs.existsSync(path.join(ROOT, 'src/views/pages/settings.tsx'))).toBe(false);
   });
 
-  it.each(ROUTES)('$route draws no more tables than its page draws', ({ loading, view }) => {
+  it.each(GATED)('%s draws the shell\'s own body and nothing of its page', (route) => {
+    const loading = code(read(`app/(dash)/${route}/loading.tsx`));
+    expect(code(read('app/(dash)/loading.tsx'))).toContain(SHELL_BODY);
+    expect(loading).toContain(SHELL_BODY);
+    expect(loading.match(/<(?:TableSkeleton|RecordsSkeleton|TilesSkeleton|Skeleton)\b/g)).toEqual(['<TableSkeleton']);
+  });
+
+  it.each(SHAPED)('$route draws no more tables than its page draws', ({ loading, view }) => {
     expect(skeletonTables(code(read(loading)))).toBeLessThanOrEqual(viewTables(code(read(view))));
   });
 
-  it.each(ROUTES.filter((r) => /split="tiles"/.test(code(read(r.view)))))('$route draws the tiles its page draws', ({ loading }) => {
+  it.each(SHAPED.filter((r) => /split="tiles"/.test(code(read(r.view)))))('$route draws the tiles its page draws', ({ loading }) => {
     expect(drawsTiles(code(read(loading)))).toBe(true);
   });
 
-  it.each(ROUTES.filter((r) => skeletonTables(code(read(r.loading))) > 0))('$route draws the filter bar exactly when its page draws one', ({ loading, view }) => {
+  it.each(SHAPED.filter((r) => skeletonTables(code(read(r.loading))) > 0))('$route draws the filter bar exactly when its page draws one', ({ loading, view }) => {
     expect(hidesFilters(code(read(loading)))).toBe(!drawsFilterBar(code(read(view))));
   });
 
@@ -100,7 +115,7 @@ describe('a route, while the page it stands in for is on its way', () => {
    * its cost view reserves an `h-72` region — 96px short — and a Web Vitals run on a quiet machine, the first
    * citable one, read the result as CLS 0.106 against a bar of 0.1, largest mover `span.shimmer.block`.
    */
-  it.each(ROUTES.filter((r) => declaredSkeletons(code(read(r.view))).length > 0))(
+  it.each(SHAPED.filter((r) => declaredSkeletons(code(read(r.view))).length > 0))(
     '$route reserves at least the room its page reserves', ({ loading, view }) => {
       const owed = Math.max(...declaredSkeletons(code(read(view))));
       expect(tallestBlock(code(read(loading)))).toBeGreaterThanOrEqual(owed);

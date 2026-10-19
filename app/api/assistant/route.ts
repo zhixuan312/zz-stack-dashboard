@@ -3,7 +3,7 @@ import { revalidateTag } from 'next/cache';
 import { nav, refusal } from '@/app.config';
 import { assistantConfig } from '@/lib/assistant/config';
 import { clock, collections } from '@/data/collections';
-import { Unauthenticated, can, collectionFor, may, resolveAccess } from '@/data/access';
+import { Unauthenticated, askedOnce, can, collectionFor, may, resolveAccess } from '@/data/access';
 import { FLEET } from '@/data/features';
 import { FLEET_FIELDS, PREPARED } from '@/data/prepared';
 import { aggregate, collectionTag, read } from '@/data/read';
@@ -24,8 +24,15 @@ const MAX_BODY = 2_000_000;
 /**
  * `POST /api/assistant`: answers about the page the person is on. 401 without a session, 404 until the `ASSISTANT_*`
  * variables are set, 409 when the thread was started for another person or for the team they acted for before.
+ *
+ * One request reads who is asking once (`askedOnce`): the grant of every collection, view and destination below and
+ * every check the answer's tools make while it streams are asked of that one read, and the next message reads afresh.
  */
-export async function POST(request: Request): Promise<Response> {
+export function POST(request: Request): Promise<Response> {
+  return askedOnce(() => answer(request));
+}
+
+async function answer(request: Request): Promise<Response> {
   const scope = await resolveAccess().catch((e: unknown) => { if (e instanceof Unauthenticated) return null; throw e; });
   if (!scope) return new Response(null, { status: 401 });
   const config = assistantConfig(process.env);

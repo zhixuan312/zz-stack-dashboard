@@ -9,8 +9,9 @@
  * queue alone. A week's resolved count and its median are of the reports filed that week, so a report filed one week
  * and resolved the next is counted in the week it was filed. A missing figure is said as missing, never as zero.
  *
- * What a member reads is the gateway's safe row: a title it builds from the report's impact, canonical surface and filed
- * day, and its typed metadata. The superadmin's rows add the reporter's own title and the team, and only theirs open the report's page.
+ * What a member reads is the gateway's safe row: the spec's public title, `Report concerning <canonical surface>` or
+ * `Platform issue reported`, and its typed metadata, the impact, the state and the dates each a field of its own. The
+ * superadmin's rows add the reporter's own title and the team, and only theirs open the report's page.
  *
  * The queue's filters and page are in its address (`?state=&impact=&surface=&page=`), and the gateway filters and pages
  * the rows: the page's first read on the console's server, its later reads in the browser, its context and
@@ -206,11 +207,11 @@ const NAMED = 4;
 const WEEKS_TOLD = 5;
 
 /** One queue row as the assistant is told it: the reporter's own title and team, its impact, surface and filing for the
- *  superadmin; for a member the gateway's title, which already says its impact, surface and filing; then its state. */
+ *  superadmin; for a member the public title, which names the surface alone, then its impact and filing; then its state. */
 function rowLine(r: PublicBugRow): string {
   const resolved = r.resolvedAt ? ` on ${formatDay(r.resolvedAt)}` : '';
   const state = `${statusOf(r.status).toLowerCase()}${resolved}`;
-  if (!isAdminRow(r)) return `${r.title}, ${state}`;
+  if (!isAdminRow(r)) return `${r.title}: ${impactOf(r.impact).toLowerCase()}, filed ${formatDay(r.filedAt)}, ${state}`;
   return `${r.internalTitle} (${r.team ?? 'no team'}): ${impactOf(r.impact).toLowerCase()}, ${r.surface ?? 'no surface named'}, filed ${formatDay(r.filedAt)}, ${state}`;
 }
 
@@ -290,7 +291,7 @@ export function bugsContext(data: Bugs, { filters, read }: { filters: BugsFilter
     unknowns: [
       ...UNKNOWNS,
       ...(narrow ? ['The filters narrow the queue alone: every figure is over every real report.'] : []),
-      ...(data.meta.scope === 'platform-admin' ? [] : ['A member reads each report by a title built from its impact, surface and filed day, and its typed metadata alone: never its own words, its team or its resolution.']),
+      ...(data.meta.scope === 'platform-admin' ? [] : ['Each report is read by its public title, which names only the surface it concerns, and its typed metadata alone: never its own words, its team or its resolution.']),
       ...(counts ? [] : [`The counts could not be read (${data.counts.state === 'unavailable' ? data.counts.reason : 'unknown'}); the weeks and the queue stand.`]),
       ...(queue.state === 'unavailable' ? [`The queue could not be listed (${queue.reason}); the figures stand.`] : []),
       ...(weeks ? [] : ['No whole week has ended since the record began, so no week is stated.']),

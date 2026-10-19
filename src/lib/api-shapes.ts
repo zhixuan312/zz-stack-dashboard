@@ -10,10 +10,6 @@ import type { PluginScore } from './destination-shapes';
 export interface Me {
   email: string; name: string; role: 'superadmin' | 'member';
   mayRead: boolean; superadmin: boolean; via: string;
-  /** The gateway's own sentence for why it will not answer, present only when `mayRead` is
-   *  false. DELIBERATE: this route answers 200 either way, so the refusal travels in the
-   *  body. */
-  why?: string;
   teams: { slug: string; role: 'admin' | 'member' }[]; activeTeam: string | null;
 }
 export interface Gate {

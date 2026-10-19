@@ -20,7 +20,7 @@ Your active team's real work by week: what was refused and why, the groups the r
 | Nothing recorded | The tiles at zero with nothing refused, `Nothing refused` in the groups, and `Nothing recorded yet` in the log |
 | Filtered to nothing | The log says so with Clear filters; the tiles, the chart and the groups stand |
 | Weeks or groups unavailable | That card says it did not load and why; the rest stands |
-| Figures unavailable | A tile the gateway could not work out reads `Unavailable`, never zero |
+| Figures unavailable | A tile the gateway could not work out reads `Unavailable`, never zero or `None`: the calls, the refused and its owners when the weekly refusals were not read, and Most refused alone when last week's refusals by tool were not, beside a refused count that stands. `None` is said only of a week read with nothing refused |
 | Summary failed | Each tile a dash, the gateway's sentence and Retry, which reads the summary in the browser; the log stands |
 | Slower than 4.5 seconds | The same, saying the read did not answer within 4.5 seconds; never an endless skeleton |
 | Read again | The figures' Retry reads again in the browser, busy only after the person presses it and until that read answers; a read a change starts leaves the state and its Retry where they are, never busy, so a keyboard user keeps their place |
@@ -32,7 +32,7 @@ The assistant reads this page and changes nothing: every change in this console 
 
 ### What the agent reads
 
-Whose work it is, last whole week's dates and the filters in force, the week the cursor rests on with its calls, its refusals and all four owners, then last week's calls, its refusals by owner (the four summing to the total), the tool refused most, and how many events match. What code found: the groups on the table's page in view, by owner, tool and message, with how many more and how many were folded; the refusals by week with their owners; the platform's maintenance, counted and left out; and the events in view. It says that page views and maintenance are left out, and that a refusal's message is the team's own as the platform stored it.
+Whose work it is, last whole week's dates and the filters in force, the week the cursor rests on with its calls, its refusals and all four owners, then last week's calls, its refusals by owner (the four summing to the total), the tool refused most, and how many events match. What code found: the groups on the table's page in view, by owner, tool and message, with how many more and how many were folded; the refusals by week with their owners; the platform's maintenance, counted and left out, or said to be unavailable when it could not be read; and the events in view. A figure whose read failed is said to be unavailable, never zero or nothing refused. It says that page views and maintenance are left out, and that a refusal's message is the team's own as the platform stored it.
 
 ```text
 - The team's refusals grouped by owner, tool and message, most first, groups 1 to 7 of 7 in view: A guardrail held on core:document_approve, "ERROR: approval needs a stakeholder" 5×, last 13 Oct 2026; …

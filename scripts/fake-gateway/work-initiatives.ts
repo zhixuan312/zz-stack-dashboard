@@ -210,7 +210,7 @@ const RECORDED = ['outcome', 'closed_by'];
 /**
  * `POST /initiatives/:team/:slug/close`, as `who`, with the facts in `body`.
  *
- * As the route answers it: 404 for any team but the active one, before anything is read; 400 for a body naming what
+ * As the route answers it: 404 for any team but the active one, before anything is read, in the route's fixed sentence; 400 for a body naming what
  * the platform records, for a disposition outside the two, and for zz-core's own refusals (both sign-off fields, a gate
  * not approved, a freeform close with no document); 409 for an initiative already closed. Otherwise the outcome
  * `initiative_close` derives: finished with no sign-off field is accepted by the closer, finished with a reason for no
@@ -219,7 +219,8 @@ const RECORDED = ['outcome', 'closed_by'];
 export function close(who: Me, team: string, slug: string, body: Record<string, unknown>): Answer {
   const found = team === who.activeTeam ? INITIATIVES.find((x) => x.team === team && x.slug === slug) : undefined;
   const i = found && asKept(found);
-  if (!i) return [404, { error: `initiative ${team}/${slug} does not exist on this deployment` }];
+  // One fixed sentence, as the route answers it: naming the team or slug asked for would hand back what the caller may not read.
+  if (!i) return [404, { error: 'No initiative of the team you act for has that name.' }];
   const named = RECORDED.filter((k) => k in body);
   if (named.length) return [400, { error: `${named.join(' and ')} ${named.length === 1 ? 'is' : 'are'} the platform's to record: send the disposition and the sign-off, and it derives the outcome` }];
   // The facts `CloseInput` names, each still to be checked: a body is whatever the client sent.

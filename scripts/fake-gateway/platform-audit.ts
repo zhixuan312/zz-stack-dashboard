@@ -9,7 +9,7 @@
  *
  * The events cover the states the page draws: acts of administration made in the console, one by an actor nobody
  * recorded, one made by maintenance, a token issued by a person to themselves, one of a retired kind no template names,
- * a deleted report named by its filing (whose event records its title alone, as zz-core's `bug_report` does),
+ * a deleted report named by the day it was filed (whose event records its title alone, as zz-core's `bug_report` does),
  * events of every other kind under Everything (a refused call, a search, an approval, a sign-in, a maintenance call),
  * and a page view, which neither filter answers. Sentences, refusals and the meta are the gateway's own.
  *
@@ -74,12 +74,11 @@ const subjectOf = (e: Event) => (e.kind.startsWith('admin.') || SAFE_SUBJECT.inc
 
 const counted = (n: unknown, one: string) => `${String(n)} ${one}${String(n) === '1' ? '' : 's'}`;
 
-/** The day a report was filed, as a withheld report's title says it. COUPLED: the gateway's `FILED_DAY`. */
+/** The day a deleted report was filed, as its act names it. COUPLED: the gateway's `FILED_DAY`. */
 const FILED_DAY = new Intl.DateTimeFormat('en-GB', { timeZone: PLATFORM_STATUS.meta.timezone, day: '2-digit', month: 'short', year: 'numeric' });
 
-/** A deleted report as an act names it, from its filing alone: the day it was filed, or none where nothing filed it. The
- *  gateway names it by Bugs' public title where the filing also records an impact and a surface, which zz-core's
- *  `bug_report` does not, so no event here does. COUPLED: the gateway's `deletedReport`. */
+/** A deleted report as an act names it, from what the record holds of it: the day it was filed, or none where nothing
+ *  filed it. COUPLED: the gateway's `deletedReport`. */
 function deletedReport(id: string): string {
   const filing = EVENTS.find((e) => e.kind === 'bug_report' && e.detail.bug === id);
   return filing ? `a report filed ${FILED_DAY.format(new Date(ago(filing.hoursAgo)))}` : 'a report the record does not name';

@@ -164,8 +164,8 @@ describe('the fixture can shape every answer its routes produce', () => {
     for (const w of busy.weeks.state === 'ok' ? busy.weeks.data : []) expect(Object.values(w.owners).reduce((a, b) => a + b, 0)).toBe(w.refused);
     // A fresh deployment's: nothing counted, nothing listed, every week read and holding none.
     const fresh = empty(['activity', 'summary'], SUMMARY()) as ActivitySummary;
-    expect(fresh.tiles.refused.owners).toEqual({ guardrail: 0, ours: 0, theirs: 0, other: 0 });
-    expect(fresh.tiles.mostRefused).toBeNull();
+    expect(fresh.tiles.refused.owners).toEqual({ state: 'ok', data: { guardrail: 0, ours: 0, theirs: 0, other: 0 } });
+    expect(fresh.tiles.mostRefused).toEqual({ state: 'ok', data: null });
     expect(empty(['runs'], RUNS())).toMatchObject({ since: null, tiles: { largest: null, outputPerRun: { value: null } } });
     expect(empty(['knowledge', 'summary'], LEARNED())).toMatchObject({ questions: { state: 'ok', data: { rows: [], total: 0 } } });
   });
@@ -295,10 +295,13 @@ describe('every mode answers both people', () => {
         if (role === 'superadmin') expect(teams.length, name).toBeGreaterThan(3);
       }
     }
-    // The status is one public answer in every world, but for what needs attention, which a member reads in their projection.
-    const status = await Promise.all(PEOPLE.map(async ([, , cookie]) => ({ ...(await (await ask(base, cookie, 'platform/status')).json()), needs: null })));
-    expect(status[1]).toEqual(status[0]);
-    expect(status[2]).toEqual(status[0]);
+    // The status is one public answer in every world, but for what needs attention, which a member reads in their
+    // projection, and the scope it is labelled with: the superadmin's platform-admin, a member's platform-public (R1-C16).
+    const status = await Promise.all(PEOPLE.map(async ([, , cookie]) => (await (await ask(base, cookie, 'platform/status')).json()) as { meta: { scope: string } }));
+    expect(status.map((s) => s.meta.scope)).toEqual(['platform-admin', 'platform-admin', 'platform-public']);
+    const alike = status.map((s) => ({ ...s, meta: { ...s.meta, scope: null }, needs: null }));
+    expect(alike[1]).toEqual(alike[0]);
+    expect(alike[2]).toEqual(alike[0]);
   });
 
   it('error: every read but /me fails for both, and neither is sent to sign in', async () => {

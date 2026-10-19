@@ -115,7 +115,7 @@ export function releases(limit: number, offset: number): Releases {
   const weeks = malformed.weeks.map((w) => ({ window: w.window, releases: rows.filter((r) => holds(w.window, r)).length, malformedPer1000: w }));
   const whole = weeks.at(-1)?.window.complete ? weeks.at(-1) : weeks.at(-2);
   return {
-    meta: { ...PLATFORM_STATUS.meta, asOf, period: { from: iso(COVERAGE), to: asOf }, population: 'recorded releases, and real-work tool calls around them' },
+    meta: { ...PLATFORM_STATUS.meta, scope: 'platform-public', asOf, period: { from: iso(COVERAGE), to: asOf }, population: 'recorded releases, and real-work tool calls around them' },
     tiles: {
       releases: rows.length,
       lastWeek: whole?.releases ?? 0,

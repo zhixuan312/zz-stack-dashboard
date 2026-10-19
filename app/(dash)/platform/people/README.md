@@ -18,7 +18,7 @@ Everybody the platform knows: the superadmin's list of each person's role, teams
 
 | State | What shows |
 |---|---|
-| Loading | `loading.tsx` while the gate asks `/me`, headed People for a person whose rail offers it (`OfferedLoading`), then the masthead over four tile skeletons and the table's skeleton while the read is under way |
+| Loading | `loading.tsx` while the gate asks `/me`: the shell's own skeleton, the body an address no page answers draws, headed People for a person whose rail offers it (`OfferedLoading`); then the masthead over four tile skeletons and the table's skeleton while the read is under way |
 | Default | The tiles, then a page of people |
 | Nobody yet | The tiles at zero and "Nobody yet", pointing at Add a person |
 | Filtered to nothing | "No people match these filters" with Clear filters; the tiles still count everybody |

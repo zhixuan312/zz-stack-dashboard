@@ -67,7 +67,7 @@ vi.mock('next/navigation', () => ({
 /** The refused view is an async Server Component; here it only says which feature it was drawn for. */
 vi.mock('@/views/no-access', () => ({ NoAccess: async ({ feature }: { feature: string }) => ({ refused: feature }) }));
 
-import { Unauthenticated, chromeAccess, gate, may } from '@/data/access';
+import { Unauthenticated, askedOnce, can, chromeAccess, gate, may, nameOf, resolveAccess } from '@/data/access';
 import { FLEET } from '@/data/features';
 
 type Body = Record<string, unknown>;
@@ -186,6 +186,26 @@ describe('who is asking, within one request', () => {
     expect(asked).toHaveLength(3);
   });
 
+  it('in a route handler, where React keeps nothing, reads /me once for the work `askedOnce` runs, however late it asks', async () => {
+    let who: Body = SUPERADMIN;
+    gateway(() => who);
+    const later = Promise.withResolvers<void>();
+    const first = askedOnce(async () => {
+      const scope = await resolveAccess();
+      const before = await can(scope, 'closures', 'read');
+      // A tool of a streamed answer, run after the route has answered.
+      await later.promise;
+      return { before, after: await can(scope, 'closures', 'read'), fleet: await may(FLEET), name: await nameOf(scope) };
+    });
+    await vi.waitFor(() => expect(asked).toHaveLength(1));
+    who = MEMBER;
+    // Another request meanwhile reads for itself.
+    expect(await askedOnce(async () => (await resolveAccess()).subjectId)).toBe('mei@example.com');
+    later.resolve();
+    expect(await first).toEqual({ before: true, after: true, fleet: true, name: 'Owner' });
+    expect(asked).toHaveLength(2);
+  });
+
   it('a gateway that cannot answer fails the whole request, and is not asked a second time in it', async () => {
     gateway('down');
     const out = await request(async () => [await gate('home').catch((e: Error) => e.message), await chromeAccess().catch((e: Error) => e.message)]);
@@ -220,10 +240,11 @@ describe('where a request the gate turns away is sent', () => {
 
   it('sends an identity it cannot place to the denied state, and never back to the page', async () => {
     sent = new Headers({ 'x-zz-path': NESTED });
-    for (const body of [{ ...MEMBER, role: 'auditor' }, { ...MEMBER, role: undefined }, { ...MEMBER, superadmin: true }, { ...SUPERADMIN, superadmin: false }, { ...MEMBER, email: '' }, { ...MEMBER, teams: undefined }]) {
+    for (const body of [{ ...MEMBER, role: 'auditor' }, { ...MEMBER, role: undefined }, { ...MEMBER, superadmin: true }, { ...SUPERADMIN, superadmin: false }, { ...MEMBER, email: '' }, { ...MEMBER, teams: undefined }, { ...MEMBER, activeTeam: 'atlas' }, { ...MEMBER, activeTeam: 7 }]) {
       gateway(body);
       const to = await redirectOf(() => gate('home'));
-      expect(to, JSON.stringify(body)).toMatch(/^\/login\?denied=1&reason=./);
+      // A code, never a sentence: the sign-in page says its own words for it.
+      expect(to, JSON.stringify(body)).toBe('/login?denied=1&reason=unplaced');
       expect(to).not.toContain('next=');
       await expect(may('work:read')).rejects.toBeInstanceOf(Unauthenticated);
       await expect(chromeAccess()).rejects.toBeInstanceOf(Unauthenticated);

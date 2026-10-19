@@ -31,12 +31,12 @@ const SUMMARY: ActivitySummary = {
   meta: META,
   tiles: {
     calls: { window: WINDOW, figure: { value: 38, why: null }, numerator: 38, denominator: null },
-    refused: { window: WINDOW, figure: { value: 9, why: null }, numerator: 9, denominator: 38, owners: { guardrail: 4, ours: 2, theirs: 2, other: 1 } },
-    mostRefused: { tool: 'core:document_edit', count: 4, of: 9 },
+    refused: { window: WINDOW, figure: { value: 9, why: null }, numerator: 9, denominator: 38, owners: { state: 'ok', data: { guardrail: 4, ours: 2, theirs: 2, other: 1 } } },
+    mostRefused: { state: 'ok', data: { tool: 'core:document_edit', count: 4, of: 9 } },
   },
   weeks: { state: 'ok', data: [{ window: WINDOW, complete: true, calls: 38, refused: 9, owners: { guardrail: 4, ours: 2, theirs: 2, other: 1 } }] },
   groups: { state: 'ok', data: { rows: [], groups: 0, rest: null } },
-  maintenance: { calls: 0, refused: 0 },
+  maintenance: { state: 'ok', data: { calls: 0, refused: 0 } },
 };
 
 /* Three events that differ in every column worth reading: a call that answered, a refusal a guardrail held with its

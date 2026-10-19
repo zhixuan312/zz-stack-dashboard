@@ -5,7 +5,8 @@
  * and its message is the team's own as the platform stored it. The log, its filters and its page are read at one
  * address, built here, which the page and `view_activity` both ask for.
  *
- * Nothing here counts an owner or filters a row: the owners, the weeks, the groups and the log are the gateway's.
+ * Nothing here counts an owner or filters a row: the owners, the weeks, the groups and the log are the gateway's. A part
+ * the gateway could not read is said to be unavailable, never zero or none (FR-13).
  */
 import type { ColumnPart } from '@/components/charts/column-chart';
 import type { ActivityLog, ActivitySummary, RefusalGroup, RefusalOwner } from '@/lib/destination-shapes';
@@ -141,7 +142,8 @@ export function activityContext({ summary, log, filters = NO_FILTER, page = 1, i
     });
   }
   if (weeks?.length) insights.push({ text: `Refused by week, oldest first: ${weeks.map((w) => `${formatDate(w.window.from)} ${w.refused} of ${w.calls} calls${w.refused ? ` (${owners(w.owners)})` : ''}${w.complete ? '' : ', running'}`).join('; ')}.` });
-  if (summary.maintenance.calls) insights.push({ text: `The platform's own maintenance made ${formatCount(summary.maintenance.calls)} calls, ${formatCount(summary.maintenance.refused)} refused; they are left out of every figure here.` });
+  const maintenance = summary.maintenance.state === 'ok' ? summary.maintenance.data : null;
+  if (maintenance?.calls) insights.push({ text: `The platform's own maintenance made ${formatCount(maintenance.calls)} calls, ${formatCount(maintenance.refused)} refused; they are left out of every figure here.` });
   if (log?.rows.length) {
     const first = read ? read.offset : (page - 1) * PAGE_SIZE;
     insights.push({
@@ -154,8 +156,11 @@ export function activityContext({ summary, log, filters = NO_FILTER, page = 1, i
   const said = saidOf(filters);
   const facts: Fact[] = [
     { label: TILES.calls.label, value: figure(calls), definition: TILES.calls.definition },
-    { label: TILES.refused.label, value: figure(refused), change: owners(refused.owners), definition: TILES.refused.definition },
-    { label: TILES.mostRefused.label, value: mostRefused ? `${mostRefused.tool}, ${mostRefused.count} of ${mostRefused.of}` : 'nothing refused', definition: TILES.mostRefused.definition },
+    { label: TILES.refused.label, value: figure(refused), change: refused.owners.state === 'ok' ? owners(refused.owners.data) : undefined, definition: TILES.refused.definition },
+    {
+      label: TILES.mostRefused.label, definition: TILES.mostRefused.definition,
+      value: mostRefused.state !== 'ok' ? 'unavailable' : mostRefused.data ? `${mostRefused.data.tool}, ${mostRefused.data.count} of ${mostRefused.data.of}` : 'nothing refused',
+    },
     ...(log ? [{ label: 'Events', value: formatCount(log.total), definition: narrowed(filters) ? 'All that these filters match, up to the latest 500.' : 'The team\'s real-work events, up to the latest 500.' }] : []),
   ];
   return budgeted({
@@ -172,7 +177,9 @@ export function activityContext({ summary, log, filters = NO_FILTER, page = 1, i
       'A refusal\'s message is your team\'s own, as the platform stored it with quoted text, addresses and numbers taken out.',
       AGENT_CALL,
       ...(calls.figure.value === null ? ['Last week\'s calls and refusals could not be read; nothing is said about them.'] : []),
-      ...(weeks ? [] : ['The refusals by week could not be read; the tiles stand.']),
+      ...(mostRefused.state === 'ok' ? [] : ['Last week\'s refusals by tool could not be read, so the tool refused most is unavailable; it is not that nothing was refused.']),
+      ...(maintenance ? [] : ['The platform\'s own maintenance calls and refusals are unavailable: they could not be read, and nothing is said about them.']),
+      ...(weeks ? [] : [`The refusals by week could not be read${calls.figure.value === null ? '.' : '; the tiles stand.'}`]),
       ...(summary.groups.state === 'ok' ? [] : ['The refusals could not be grouped; the counts stand.']),
       ...unknowns,
       ...(log && log.total >= log.ceiling ? [`Only the latest ${log.ceiling} events that match are read, so an older one is not in the log.`] : []),

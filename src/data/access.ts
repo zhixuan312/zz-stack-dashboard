@@ -7,13 +7,16 @@
  * the person themselves, `GET /api/console/me` (`src/data/gateway.ts`), and what that person holds is read off the role
  * table (`src/data/roles.ts`):
  *
- * - `/me` is placed before it is believed (`ask`). No session is nobody. A session the console is refused, and a body
- *   whose role the table does not have or whose `role` and `superadmin` disagree, is somebody refused: never a member's
- *   access and never a superadmin's. A gateway that is down, or has no address, is an outage and is thrown.
- * - A page, the chrome and a view tool share one read: `identity` is `ask` cached by React for the length of the request
- *   it is called in, and nowhere else, so two requests never share an answer.
- * - The assistant's policy asks afresh on every call, because its tools run long after the route answered: a role
- *   change, a team switch or a sign-out takes effect at the next operation.
+ * - `/me` is placed before it is believed (`ask`). No session is nobody. A session the console is refused, a body whose
+ *   role the table does not have or whose `role` and `superadmin` disagree, and a member said to act for a team they
+ *   are not in, is somebody refused: never a member's access and never a superadmin's. Who is refused is told why by a
+ *   code (`app/login/refusals.ts`), never by a sentence the sign-in page would repeat. A gateway that is down, or has
+ *   no address, is an outage and is thrown.
+ * - Every check one request makes shares one read (`identity`): a page's, the chrome's and a view tool's through React's
+ *   `cache`, which keeps the answer for the render it is called in, and the assistant's route, its policy and the tools
+ *   its answer runs included, through `askedOnce`, which keeps it for the route's own work, however late that runs. Two
+ *   requests never share an answer, and a role change, a team switch or a sign-out takes effect at the next request,
+ *   the assistant's next message among them. Outside both, every check asks.
  * - `bind` returns the collection as it is. A collection's figures are a gateway read made with the caller's own
  *   credential, so the gateway has already applied the predicate: a member's read comes back as their team's and the
  *   platform's public figures, a superadmin's as every team's, and a read only the superadmin may make, as Teams and
@@ -24,6 +27,7 @@
  * `authorizationKey` changes whenever what the scope may see changes: the person, their role, the team they act for
  * and their memberships.
  */
+import { AsyncLocalStorage } from 'node:async_hooks';
 import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
@@ -39,6 +43,7 @@ import type { AnyCollection, ChromeAccess } from '@/lib/collection';
 import { ownPath } from '@/lib/own-path';
 import { MISSING_METADATA } from '@/views/missing';
 import { NoAccess } from '@/views/no-access';
+import type { RefusalCode } from '../../app/login/refusals';
 
 export type AccessScope = Readonly<{
   tenantId: string;
@@ -74,20 +79,18 @@ export class AccessDenied extends Error {
   }
 }
 
-/** Who `/me` named: nobody, somebody the console is refused (with the sentence they are shown), or a person on the role table. */
+/** Who `/me` named: nobody, somebody the console is refused (with the code that says why), or a person on the role table. */
 type Identity =
   | { is: 'nobody' }
-  | { is: 'refused'; reason: string }
+  | { is: 'refused'; reason: RefusalCode }
   | { is: 'person'; me: Me; role: MainRole };
 
-/** What a person is told when `/me` let them in and named them in a way the role table cannot place. */
-const UNPLACED = 'The platform did not name a role this console knows, so nothing here is open to you.';
-
 /**
- * One read of `/me`, placed. No session (401) is nobody. A session the console is refused (403, or a 200 that does not
- * say `mayRead: true`) is refused with the gateway's own sentence, and so is a body the role table cannot place.
- * Anything else, a gateway that is down among them, is an outage and is thrown: counted as "not signed in" it would
- * tell a signed-in person to sign in again.
+ * One read of `/me`, placed. No session (401) is nobody. A session the platform refuses (403) is `refused`, one it
+ * lets in that the console does not answer (a 200 that does not say `mayRead: true`) is `door`, and a body the role
+ * table cannot place, or a member said to act for a team they are not in, is `unplaced`. Anything else, a gateway that
+ * is down among them, is an outage and is thrown: counted as "not signed in" it would tell a signed-in person to sign
+ * in again.
  */
 async function ask(): Promise<Identity> {
   let me: Partial<Me>;
@@ -95,23 +98,46 @@ async function ask(): Promise<Identity> {
     me = (await gatewayGet<Partial<Me> | null>('/me')) ?? {};
   } catch (error) {
     if (error instanceof GatewayError && error.status === 401) return { is: 'nobody' };
-    if (error instanceof GatewayError && error.status === 403) return { is: 'refused', reason: error.message };
+    if (error instanceof GatewayError && error.status === 403) return { is: 'refused', reason: 'refused' };
     throw error;
   }
-  if (me.mayRead !== true) {
-    return { is: 'refused', reason: me.why ?? `You are signed in as ${me.email ?? 'someone'}, but the console needs a browser sign-in.` };
-  }
+  if (me.mayRead !== true) return { is: 'refused', reason: 'door' };
   // The platform names its two roles in lower case and says the same thing a second time in `superadmin`: both have to
   // agree, on a role the table has, before either is believed.
   const role = MAIN_ROLES.find((r) => r.toLowerCase() === me.role);
   if (!role || me.superadmin !== (role === 'Superadmin') || typeof me.email !== 'string' || !me.email || !Array.isArray(me.teams)) {
-    return { is: 'refused', reason: UNPLACED };
+    return { is: 'refused', reason: 'unplaced' };
+  }
+  // The team they act for, when they act for one, is one they are in; a superadmin may act for any team (FR-2).
+  const acting = me.activeTeam ?? null;
+  if (acting !== null && (typeof acting !== 'string' || (role !== 'Superadmin' && !me.teams.some((t) => t?.slug === acting)))) {
+    return { is: 'refused', reason: 'unplaced' };
   }
   return { is: 'person', me: me as Me, role };
 }
 
-/** `ask`, once for the request it is called in: React keeps the answer for that request's render and no longer. */
-const identity = cache(ask);
+/** The assistant route's one read, held for everything its work asks, however late (`askedOnce`). */
+const asked = new AsyncLocalStorage<{ who?: Promise<Identity> }>();
+
+/** `ask`, once for the page render it is called in: React keeps the answer for that render and no longer. */
+const rendered = cache(ask);
+
+/** `ask`, once for the request it is called in: the route's when `askedOnce` holds one, the render's otherwise. */
+function identity(): Promise<Identity> {
+  const held = asked.getStore();
+  if (!held) return rendered();
+  held.who ??= ask();
+  return held.who;
+}
+
+/**
+ * Runs a route handler's work as one request: every check inside it, the tools of a streamed answer included, shares
+ * one read of `/me`. React's `cache` keeps nothing in a route handler, where no page is rendered, so the route asks
+ * for this itself.
+ */
+export function askedOnce<T>(work: () => Promise<T>): Promise<T> {
+  return asked.run({}, work);
+}
 
 function scopeOf({ me, role }: { me: Me; role: MainRole }): AccessScope {
   // The team the person acts for. A superadmin in no team acts for none, and the empty string is no team's slug.
@@ -153,12 +179,12 @@ function accessFrom(policy: Policy) {
 
 export const { resolveAccess, collectionFor, can, nameOf } = accessFrom({
   current: async () => {
-    const who = await ask();
+    const who = await identity();
     return who.is === 'person' ? scopeOf(who) : null;
   },
   bind: (_scope, name) => collections.find((c) => c.name === name),
   allows: async (scope, name, op) => {
-    const who = await ask();
+    const who = await identity();
     // The same person, still acting for the same thing: a session that changed hands since the scope was resolved
     // is allowed nothing.
     if (who.is !== 'person' || scopeOf(who).authorizationKey !== scope.authorizationKey) return false;
@@ -167,7 +193,7 @@ export const { resolveAccess, collectionFor, can, nameOf } = accessFrom({
     return op === 'read' && need !== undefined && satisfies(who.role, need);
   },
   name: async () => {
-    const who = await ask();
+    const who = await identity();
     return who.is === 'person' ? who.me.name : null;
   },
 });
@@ -202,7 +228,8 @@ async function signIn(): Promise<string> {
  * `chromeAccess().only` hides a destination but forbids nothing.
  *
  * A request with no session is sent to sign in, with the address it asked for. A session the console is refused, or
- * one the role table cannot place, is sent to the sign-in page's denied state with the sentence that says why. A person
+ * one the role table cannot place, is sent to the sign-in page's denied state with the code that says why, which the
+ * page shows as its own fixed sentence: never words the address could carry. A person
  * who lacks the feature's grant gets the product's `refusal` as a normal 200 answer (`NoAccess`): under `absent` the
  * missing page, exactly what an address that names nothing draws, and under `explain` the page's title and who can open
  * it. It is awaited because the view is an async server component and a page hands a renderer an element, not a
@@ -212,7 +239,7 @@ async function signIn(): Promise<string> {
 export async function gate(feature: FeatureId): Promise<JSX.Element | null> {
   const who = await identity();
   if (who.is === 'nobody') redirect(await signIn());
-  if (who.is === 'refused') redirect(`/login?denied=1&reason=${encodeURIComponent(who.reason)}`);
+  if (who.is === 'refused') redirect(`/login?denied=1&reason=${who.reason}`);
   if (!satisfies(who.role, FEATURES[feature].needs)) return await NoAccess({ feature });
   return null;
 }

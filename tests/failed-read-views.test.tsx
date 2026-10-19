@@ -210,12 +210,12 @@ describe('the activity log read stops at its own ceiling', () => {
     meta: META,
     tiles: {
       calls: { window: WINDOW, figure: { value: 120, why: null }, numerator: 120, denominator: null },
-      refused: { window: WINDOW, figure: { value: 4, why: null }, numerator: 4, denominator: 120, owners: { guardrail: 1, ours: 1, theirs: 1, other: 1 } },
-      mostRefused: { tool: 'zz_search', count: 2, of: 4 },
+      refused: { window: WINDOW, figure: { value: 4, why: null }, numerator: 4, denominator: 120, owners: { state: 'ok', data: { guardrail: 1, ours: 1, theirs: 1, other: 1 } } },
+      mostRefused: { state: 'ok', data: { tool: 'zz_search', count: 2, of: 4 } },
     },
     weeks: { state: 'ok', data: [] },
     groups: { state: 'ok', data: { rows: [], groups: 0, rest: null } },
-    maintenance: { calls: 0, refused: 0 },
+    maintenance: { state: 'ok', data: { calls: 0, refused: 0 } },
   };
 
   // The gateway's total is the matches UP TO the ceiling, so this is the boundary the wording has to survive: 500

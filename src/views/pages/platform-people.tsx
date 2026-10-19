@@ -1,5 +1,6 @@
 'use client';
 
+import { useQueryClient } from '@tanstack/react-query';
 import { Fragment, useMemo, useState } from 'react';
 import { Check, Copy, KeyRound, LogIn, UserRound, UserX } from 'lucide-react';
 import { useShareView } from '@/components/base/use-share-view';
@@ -25,7 +26,7 @@ import { plural } from '@/lib/format';
 import { formatDateTime, formatRelative } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
-import { useConsoleMutation } from '@/lib/mutate';
+import { consoleMutate, useConsoleMutation } from '@/lib/mutate';
 import { useServed, useServedAddress } from '@/views/use-served';
 import { pendingContext } from '@/views/context';
 import { NO_SIGN_IN, TILES, peopleContext, peopleTrouble, signInsValue, type PeopleRead, type PeopleShown } from '@/views/people-context';
@@ -114,19 +115,27 @@ function IssuedLink({ issued, onDismiss }: { issued: { email: string; url: strin
  * pressed in, and the gateway's sentence is the toast, because what deactivating does not undo matters.
  */
 function Acts({ p }: { p: Person }) {
+  const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
+  const [enrolling, setEnrolling] = useState(false);
   const [issued, setIssued] = useState<{ email: string; url: string } | null>(null);
-  const enrol = useConsoleMutation<Done & { url: string }, string>((email) => ({ path: '/settings/platform/enrolments', method: 'POST', body: { email } }));
   // `confirm` is the address the row already shows: the inline Cancel and Deactivate swap is the confirmation.
   const deactivate = useConsoleMutation<Done, string>((email) => ({ path: '/settings/platform/people', method: 'DELETE', body: { email, confirm: email } }));
 
+  // DELIBERATE: the link is held in plain state, never `useConsoleMutation`, whose cache keeps `data` for as long as
+  // `gcTime`: a one-time secret must not be retrievable a second time from anywhere (as `tokens-panel.tsx` holds a token).
   async function link() {
     setError(null);
+    setEnrolling(true);
     try {
-      const done = await enrol.mutateAsync(p.email);
+      const done = await consoleMutate<Done & { url: string }>('/settings/platform/enrolments', { email: p.email });
       setIssued({ email: p.email, url: done.url });
+      // The write skips the hook that would invalidate on its own, so the page's reads are told to come again by hand.
+      await queryClient.invalidateQueries({ queryKey: ['console'] });
     } catch (err) {
       setError(reasonOf(err, 'No link was issued; try again.'));
+    } finally {
+      setEnrolling(false);
     }
   }
   async function confirm() {
@@ -142,7 +151,7 @@ function Acts({ p }: { p: Person }) {
   return (
     <span className="inline-flex flex-wrap items-center justify-end gap-1">
       {error ? <span role="alert" className="t-small text-critical-ink">{error}</span> : null}
-      <Button type="button" size="sm" variant="ghost" icon={<RowKey />} busy={enrol.isPending} onClick={() => void link()}>Enrolment link</Button>
+      <Button type="button" size="sm" variant="ghost" icon={<RowKey />} busy={enrolling} onClick={() => void link()}>Enrolment link</Button>
       <InlineDestructive label="Deactivate" question={`Deactivate ${shownName(p)}? Their live tokens are revoked.`} confirmLabel="Deactivate" pending={deactivate.isPending} onConfirm={() => void confirm()} />
       <IssuedLink issued={issued} onDismiss={() => setIssued(null)} />
     </span>

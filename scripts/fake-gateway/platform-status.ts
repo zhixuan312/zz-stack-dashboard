@@ -5,9 +5,10 @@
  * what is running, and `own`, the reader's active team's share of three of the measures and its bug reports. A week runs
  * Monday to Monday in the reporting timezone, which here is UTC, and the weeks end on the one the server started in, so
  * the page reads last week whenever verify runs; the doors' days run from the first week's Monday through today. Both
- * people the fixture signs in act for atlas, so `own` is the same for both. `needs` is the superadmin's; a member is
- * answered `MEMBER_STATUS`, the same object with `needs` in the gateway's member projection: every team's approvals
- * folded into one row that names no team and links nowhere, and the headline saying what is known and open.
+ * people the fixture signs in act for atlas, so `own` is the same for both. `needs` is the superadmin's, and so the
+ * answer is labelled `platform-admin`; a member is answered `MEMBER_STATUS`, the same object labelled `platform-public`
+ * with `needs` in the gateway's member projection: every team's approvals folded into one row that names no team and
+ * links nowhere, and the headline saying what is known and open.
  *
  * One week per state the page draws: a rate that stands, one from too few observations to judge (under thirty), a week
  * with nothing in it, a week before a measure was defined, and the running week, which has not ended. Each measure's
@@ -256,7 +257,8 @@ export const PLATFORM_STATUS: PlatformStatus = {
   meta: {
     asOf: iso(now()), timezone: 'UTC',
     period: { from: MALFORMED_WEEKS[0].window.from, to: iso(now()) },
-    scope: 'platform-public', population: 'real-work tool calls and searches, real bug reports, and closed initiatives',
+    // The superadmin's answer, whose needs name teams; a member's (`MEMBER_STATUS`) is `platform-public`.
+    scope: 'platform-admin', population: 'real-work tool calls and searches, real bug reports, and closed initiatives',
     coverageFrom: MALFORMED_WEEKS[0].window.from,
   },
   needs: NEEDS,
@@ -274,4 +276,4 @@ export const PLATFORM_STATUS: PlatformStatus = {
   } },
 };
 
-export const MEMBER_STATUS: PlatformStatus = { ...PLATFORM_STATUS, needs: needsOf(FOUND, false) };
+export const MEMBER_STATUS: PlatformStatus = { ...PLATFORM_STATUS, meta: { ...PLATFORM_STATUS.meta, scope: 'platform-public' }, needs: needsOf(FOUND, false) };

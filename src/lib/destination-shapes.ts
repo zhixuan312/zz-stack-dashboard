@@ -42,17 +42,19 @@ export type RefusalGroup = { owner: RefusalOwner; tool: string; message: string 
 /** One week of the team's real-work calls: the refused among them by owner, the owners summing to `refused`. */
 type RefusalWeek = { window: Window; complete: boolean; calls: number; refused: number; owners: Record<RefusalOwner, number> };
 /** `GET /activity/summary`: last whole week's calls and refusals, the four owners by week, the team's refusals grouped,
- *  and the maintenance left out of all of it. */
+ *  and the maintenance left out of all of it. The owners and the maintenance are read with the weeks, and the tool
+ *  refused most on its own: each is unavailable when its read failed, never zero, and `mostRefused`'s data is null only
+ *  when last week was read and nothing in it was refused. */
 export type ActivitySummary = {
   meta: ReadMeta;
   tiles: {
     calls: PeriodFigure;
-    refused: PeriodFigure & { owners: Record<RefusalOwner, number> };
-    mostRefused: { tool: string; count: number; of: number } | null;
+    refused: PeriodFigure & { owners: Part<Record<RefusalOwner, number>> };
+    mostRefused: Part<{ tool: string; count: number; of: number } | null>;
   };
   weeks: Part<RefusalWeek[]>;
   groups: Part<{ rows: RefusalGroup[]; groups: number; rest: { groups: number; count: number } | null }>;
-  maintenance: { calls: number; refused: number };
+  maintenance: Part<{ calls: number; refused: number }>;
 };
 /** One event of the team's real work; a refused call carries its owner and its stored message. */
 export type ActivityRow = {

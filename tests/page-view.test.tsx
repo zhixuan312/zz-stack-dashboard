@@ -111,6 +111,14 @@ describe('a page view', () => {
     expect(features()).toEqual(['initiatives', 'knowledge', 'home', 'plugins']);
   });
 
+  it('names a report\'s own page `bug`, the feature its gate asks, and the queue and anything deeper Bugs\'', async () => {
+    await open('/platform/bugs/0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d01', page('Bug report'));
+    await open('/platform/bugs', page('Bugs'));
+    await open('/platform/bugs/0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d01/', page('Bug report'));
+    await open('/platform/bugs/0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d01/elsewhere', page('Elsewhere'));
+    expect(features()).toEqual(['bug', 'bugs', 'bug', 'bugs']);
+  });
+
   it('is not posted for an address no feature owns, nor for one that only shares a prefix with it', async () => {
     await open('/nowhere', page('Nowhere'));
     await open('/initiatives-archive', page('Archive'));

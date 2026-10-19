@@ -17,7 +17,6 @@ vi.mock('@/app.config', async (importOriginal) => ({ ...(await importOriginal<ty
 
 import { SurfaceOverride } from '@/components/base/surface';
 import type { Me } from '@/lib/api-shapes';
-import { formatDate } from '@/lib/format-date';
 import type { AdminBugRow, PlatformStatus } from '@/lib/platform-shapes';
 import { PlatformBugView } from '@/views/pages/platform-bug';
 import { PlatformBugsView } from '@/views/pages/platform-bugs';
@@ -228,17 +227,9 @@ describe('Bugs and a report', () => {
     expect(queue.compareDocumentPosition(chart) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it('titles a member\'s withheld reports by surface, impact and filed date, each told apart, with no reporter\'s word (F-14)', () => {
+  it('titles a member\'s withheld reports by the surface they concern alone, with no reporter\'s word (F-14)', () => {
     const rows = PUBLIC.queue.state === 'ok' ? PUBLIC.queue.data.rows : [];
-    for (const r of rows) {
-      expect(r.title).toContain(formatDate(r.filedAt));
-      expect(r.title).toContain(r.surface ?? 'no surface named');
-      expect(r.title.toLowerCase()).toContain({ blocks_work: 'blocks work', wrong_result: 'wrong result', confusing: 'confusing', cosmetic: 'cosmetic' }[r.impact]);
-    }
-    const own = REPORTS.filter((r) => r.team === 'atlas').map((r) => rows.find((x) => x.id === r.id)!.title);
-    expect(new Set(own).size).toBe(own.length);
-    const unnamed = rows.filter((r) => r.surface === null).map((r) => r.title);
-    expect(new Set(unnamed).size).toBe(unnamed.length);
+    for (const r of rows) expect(r.title).toBe(r.surface === null ? 'Platform issue reported' : `Report concerning ${r.surface}`);
     const words = JSON.stringify(PUBLIC);
     for (const r of REPORTS) expect(words).not.toContain(r.title);
   });

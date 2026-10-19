@@ -5,7 +5,7 @@
  * `calls.calls`; a member's calls have no team split, as the page draws none.
  *
  * A drilled report is the address the gateway hands back, the queue for everyone: a member's row is the safe one, a
- * title built from its impact, surface and filed day, and only the superadmin opens a report's own page from the queue. A report's page
+ * public title, which names only the surface it concerns, and only the superadmin opens a report's own page from the queue. A report's page
  * asks the same questions as the queue and holds nothing to its own id: the route has no dimension of one.
  */
 import type { PreparedQuery, Source } from '@/lib/explore';
@@ -16,7 +16,7 @@ const DAYS = ['day', 'week', 'month', 'weekday'] as const;
 const eq = { ops: ['eq'] as ['eq'] };
 const WINDOW = 'A window holds complete days of the reporting time zone, so today is in none.';
 const CHOICE = 'A report is filed by choice: a count of reports is not a count of distinct defects, and fewer is not better.';
-const FORM = 'As the queue answers the caller: a member reads each report by a title built from its impact, surface and filed day, never its own words or its team.';
+const FORM = 'As the queue answers the caller: a member reads each report by its public title, which names only the surface it concerns, never its own words or its team.';
 
 const filed: Source = {
   collection: 'bugs_filed', date: 'at',

@@ -186,14 +186,14 @@ describe('GET /api/console/platform/bugs', () => {
     expect(await read(MEMBER, 'platform/bugs?limit=100&scope=platform&team=beacon')).toEqual(noah);
   });
 
-  it('titles a report from its impact, canonical surface and filed day alone, and never echoes free text', async () => {
+  it('titles a report from its canonical surface alone, and never echoes free text', async () => {
     const rows = await allBugs(null);
     for (const r of rows) {
-      expect(r.title).toBe(publicTitle(r.impact, r.surface, r.filedAt));
+      expect(r.title).toBe(publicTitle(r.surface));
       if (r.surface !== null) expect(r.surface).toMatch(/^[a-z_]+$/);
     }
     // A surface outside the vocabulary, and a report with a surface in a door's own spelling, both appear.
-    expect(rows.filter((r) => r.title.includes(': no surface named, ')).length).toBeGreaterThanOrEqual(2);
+    expect(rows.filter((r) => r.title === 'Platform issue reported').length).toBeGreaterThanOrEqual(2);
     expect(rows.some((r) => r.surface === 'document_approve')).toBe(true);
     // What the superadmin reads in a report is nowhere in what a member is answered.
     const text = JSON.stringify(await read(MEMBER, 'platform/bugs?limit=100'));

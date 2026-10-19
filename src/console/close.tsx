@@ -42,8 +42,10 @@ type Refusal = { conflict: boolean; message: string };
  * dialog with what the person typed kept, and a close somebody else made first says so, since the first decision stands.
  *
  * `closed` hides the trigger once the page reads the initiative closed, while an open dialog stays to show the answer.
- * `freeform` is an initiative with no flow, whose finished close names one of `documents` to land on. `variant` is the
- * trigger's weight: the page's filled action, or the secondary one beside a next step that is.
+ * `freeform` is an initiative with no flow, whose finished close names one of `documents` to land on. With no document
+ * a close may land on, nothing was written, and the close it may take is to abandon it: the platform records that on
+ * the initiative itself, and refuses a finished close of work with nothing in it. `variant` is the trigger's weight:
+ * the page's filled action, or the secondary one beside a next step that is.
  */
 export function CloseInitiative({ team, slug, closed, freeform, documents, variant = 'primary' }: { team: string; slug: string; closed: boolean; freeform: boolean; documents: string[]; variant?: 'primary' | 'secondary' }) {
   const [open, setOpen] = useState(false);
@@ -52,6 +54,7 @@ export function CloseInitiative({ team, slug, closed, freeform, documents, varia
   const [landsOn, setLandsOn] = useState<string | null>(null);
   const [refusal, setRefusal] = useState<Refusal | null>(null);
   const [done, setDone] = useState<CloseResult | null>(null);
+  const choices = documents.length ? CHOICES : CHOICES.filter((c) => c.value === 'abandoned');
   const close = useConsoleMutation<CloseResult, CloseInput>(`/initiatives/${encodeURIComponent(team)}/${encodeURIComponent(slug)}/close`);
   const landing = freeform && choice !== null && choice !== 'abandoned';
   const ready = choice !== null && (choice !== 'delivered' || reason.trim() !== '') && (!landing || landsOn !== null);
@@ -82,7 +85,9 @@ export function CloseInitiative({ team, slug, closed, freeform, documents, varia
       <DialogContent
         size="sm"
         title={done ? `${slug} is closed` : `Close ${slug}`}
-        description={done ? 'The platform recorded the close.' : 'Say what happened to the work. The platform records the outcome from it, and the first close stands.'}
+        description={done ? 'The platform recorded the close.'
+          : documents.length ? 'Say what happened to the work. The platform records the outcome from it, and the first close stands.'
+            : 'Nothing has been written in it, so it can only be abandoned. The platform records that on the initiative, and the first close stands.'}
         footer={done ? (
           <Button variant="primary" onClick={() => dismiss(false)}>Done</Button>
         ) : (
@@ -99,7 +104,7 @@ export function CloseInitiative({ team, slug, closed, freeform, documents, varia
           </p>
         ) : (
           <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
-            <RadioGroup aria-label="What happened" options={CHOICES} value={choice ?? ''} onValueChange={(v) => setChoice(v as Choice)} />
+            <RadioGroup aria-label="What happened" options={choices} value={choice ?? ''} onValueChange={(v) => setChoice(v as Choice)} />
             {choice === 'delivered' ? (
               <Field label="Why nobody signed it off" required hint="Kept with the close, for whoever reads it next.">
                 {(p) => <Textarea {...p} value={reason} onChange={(e) => setReason(e.target.value)} />}

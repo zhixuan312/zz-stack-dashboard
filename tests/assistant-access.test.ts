@@ -147,7 +147,7 @@ describe('who the request is', () => {
   it('no session is no scope, and so is a session the console refuses', async () => {
     gateway(null);
     await expect(resolveAccess()).rejects.toBeInstanceOf(Unauthenticated);
-    gateway({ ...ME, mayRead: false, why: 'authenticated by pat' });
+    gateway({ ...ME, mayRead: false });
     await expect(resolveAccess()).rejects.toBeInstanceOf(Unauthenticated);
   });
 

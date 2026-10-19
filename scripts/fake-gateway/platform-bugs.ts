@@ -3,11 +3,12 @@
  * `/platform/bugs/:id/duplicates` answer, and how `POST /platform/bugs/:id/resolve` is refused or accepted.
  *
  * One fixture, the reports as the superadmin reads them. A member's answer is derived from it by the gateway's
- * projection rules and never written by hand: the title is built from the impact, the canonical surface and the day
- * filed, an unknown surface is null, and no raw title, detail, team, resolution or duplicate target reaches them.
+ * projection rules and never written by hand: the title is the spec's, `Report concerning <canonical surface>` or
+ * `Platform issue reported`, with the impact, state and dates as their own fields, an unknown surface is null, and no
+ * raw title, detail, team, resolution or duplicate target reaches them.
  *
  * The reports cover the states the page draws: an open report that blocks work, cohorts with reports still open, a
- * surface outside the vocabulary (titled `…: no surface named, …`), one with no surface, a report with no team, and
+ * surface outside the vocabulary (titled `Platform issue reported`), one with no surface, a report with no team, and
  * one of each resolution, including a duplicate of another report of its team. A journey session's resolution is kept
  * for that session, in its queue, its report and its Status (journey.ts). Status is answered from here because it
  * counts both the reports and the approvals queue, which imports the status fixture.
@@ -82,23 +83,15 @@ function reports(): BugReport[] {
   });
 }
 
-/** The impacts as a withheld report's title says them. */
-const IMPACT_WORDS: Record<string, string> = { blocks_work: 'Blocks work', wrong_result: 'Wrong result', confusing: 'Confusing', cosmetic: 'Cosmetic' };
-/** A day as a withheld report's title says it, `16 Sept 2026` or `03 Oct 2026`, in the gateway's default reporting timezone,
- *  which is the console's own (`app.timezone`), and in the form of its `formatDate`, so the title's day is the day the
- *  queue's Filed column draws, written as it draws it. */
-const DAY = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Singapore', day: '2-digit', month: 'short', year: 'numeric' });
+/** The spec's public bug title: `Report concerning <canonical surface>`, or `Platform issue reported` for a surface
+ *  outside the vocabulary or none. COUPLED: the gateway's `publicTitle`. */
+export const publicTitle = (surface: string | null): string => (surface === null ? 'Platform issue reported' : `Report concerning ${surface}`);
 
-/** The title of a report its reader may not read in full, from what they may see of it: its impact, its canonical
- *  surface and the day it was filed, `Blocks work: document_approve, filed 16 Sept 2026`. COUPLED: the gateway's `publicTitle`. */
-export const publicTitle = (impact: string, surface: string | null, filedAt: string): string =>
-  `${IMPACT_WORDS[impact] ?? impact}: ${surface ?? 'no surface named'}, filed ${DAY.format(Date.parse(filedAt))}`;
-
-/** The safe row, the same for everybody: a title built from its impact, canonical surface and filed day, and typed metadata. */
+/** The safe row, the same for everybody: the public title of its canonical surface, and typed metadata. */
 function publicRow(r: BugReport): PublicBugRow {
   const surface = canonicalSurface(r.surface);
   return {
-    id: r.id, title: publicTitle(r.impact, surface, r.reportedAt),
+    id: r.id, title: publicTitle(surface),
     impact: r.impact as PublicBugRow['impact'], surface, filedAt: r.reportedAt, platformVersion: r.platformVersion,
     status: r.status as PublicBugRow['status'], resolvedAt: r.resolvedAt,
   };

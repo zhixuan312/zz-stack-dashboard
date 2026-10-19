@@ -156,12 +156,13 @@ describe('the queue', () => {
     for (const r of rowsOf(ADMIN)) expect(document.querySelector(`a[href="${bugPath(r.id)}"]`)).not.toBeNull();
   });
 
-  it('a member\'s rows carry the title built from impact, surface and filed day alone, and open nothing', () => {
+  it('a member\'s rows carry the spec\'s public title beside their impact, filed date and status, and open nothing', () => {
     browser(null, MEMBER);
     mount(<PlatformBugsView served={ok(PUBLIC)} />);
     expect(within(queue()).getAllByRole('row')).toHaveLength(rowsOf(PUBLIC).length + 1);
-    expect(queue().textContent).toMatch(/Blocks work: document_approve, filed \d+ \w+ \d{4}/);
-    expect(queue().textContent).toMatch(/Cosmetic: no surface named, filed \d+ \w+ \d{4}/);
+    expect(queue().textContent).toContain('Report concerning document_approve');
+    expect(queue().textContent).toContain('Platform issue reported');
+    expect(queue().textContent).not.toMatch(/Blocks work:|no surface named, filed/);
     for (const r of REPORTS) expect(document.body.textContent).not.toContain(r.title);
     expect(document.querySelector('a[href^="/platform/bugs/"]')).toBeNull();
   });
@@ -466,7 +467,7 @@ describe('the view tools answer the pages\' own responses', () => {
     for (const s of [sources.filed, sources.resolved]) {
       expect(s.drill.columns).toEqual(expect.arrayContaining(['id', 'title']));
       expect(s.drill.address({ id: OPEN, address: '/platform/bugs' })).toBe('/platform/bugs');
-      expect(s.cannot).toContain('built from its impact, surface and filed day');
+      expect(s.cannot).toContain('by its public title, which names only the surface it concerns');
     }
     expect(sources.calls.facets).not.toContain('team');
     expect(bugTool.explore).toBe(bugsTool.explore);
@@ -491,8 +492,8 @@ describe('the shared contexts carry what the pages draw, and what it cannot say'
   it('a member\'s context names no reporter\'s words, and says so', () => {
     const text = contextText(bugsContext(PUBLIC, { filters: BUGS_DEFAULTS }));
     for (const r of REPORTS) expect(text).not.toContain(r.title);
-    expect(text).toMatch(/Blocks work: document_approve, filed \d+ \w+ \d{4}, open/);
-    expect(text).toContain('built from its impact, surface and filed day');
+    expect(text).toMatch(/Report concerning document_approve: blocks work, filed \d+ \w+, open/);
+    expect(text).toContain('by its public title, which names only the surface it concerns');
   });
 
   it('a narrowed queue says its figures are over every report', () => {

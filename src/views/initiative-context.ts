@@ -61,7 +61,7 @@ export function initiativeContext(d: InitiativeDetail, arrival: Arrival): Shared
     unknowns: [
       CLOSE_IS_THE_PERSON_S,
       ...(d.closed ? [`It is closed as ${d.outcome}${d.complete ? '' : ', and stopped short of everything its flow asks for'}.`] : []),
-      ...(live.length ? [] : ['Nothing has been written in it yet.']),
+      ...(live.length ? [] : [d.closed ? 'Nothing was written in it.' : 'Nothing has been written in it yet, so the close a person may make is to abandon it.']),
     ],
   });
 }

@@ -16,7 +16,7 @@ The superadmin's Audit: every recorded act of administration said in one sentenc
 
 | State | What shows |
 |---|---|
-| Loading | `loading.tsx` while the gate asks `/me`, headed Audit for a person whose rail offers it (so a press in the rail lands on the heading at once), then the masthead over the tab strip and the feed's skeleton while the read is under way |
+| Loading | `loading.tsx` while the gate asks `/me`: the shell's own skeleton, the body an address no page answers draws, headed Audit for a person whose rail offers it (`OfferedLoading`); then the masthead over the tab strip and the feed's skeleton while the read is under way |
 | Administration | The acts of the page, newest first, with the pager past ten, and the acts Audit cannot show |
 | Everything | The page of events, the filters and their count, `the latest 500` beside it at the ceiling |
 | A tab, a filter or a page moved | The table's or the feed's loading state, until the console's server has read the new address |

@@ -175,10 +175,10 @@ function noKnowledge(k: KnowledgeSummary): KnowledgeSummary {
 function noActivity(a: ActivitySummary): ActivitySummary {
   return {
     ...a,
-    tiles: { calls: none(a.tiles.calls), refused: { ...none(a.tiles.refused), owners: NONE }, mostRefused: null },
+    tiles: { calls: none(a.tiles.calls), refused: { ...none(a.tiles.refused), owners: { state: 'ok', data: NONE } }, mostRefused: { state: 'ok', data: null } },
     weeks: a.weeks.state === 'ok' ? { state: 'ok', data: a.weeks.data.map((w) => ({ ...w, calls: 0, refused: 0, owners: NONE })) } : a.weeks,
     groups: { state: 'ok', data: { rows: [], groups: 0, rest: null } },
-    maintenance: { calls: 0, refused: 0 },
+    maintenance: { state: 'ok', data: { calls: 0, refused: 0 } },
   };
 }
 

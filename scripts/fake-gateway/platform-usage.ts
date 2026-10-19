@@ -109,11 +109,11 @@ const modelWeek = (i: number, calls: number, failed: number, inputTokens: number
   ({ window: WEEKS[i], calls, failed, inputTokens, outputTokens });
 
 /** `GET /platform/usage`, public by route: the superadmin's weeks carry their split by team, a member's none, and
- *  nothing else differs. */
+ *  nothing else differs but the label: the superadmin's answer is `platform-admin`, a member's `platform-public`. */
 export function usage(admin: boolean): Usage {
   const asOf = iso(now());
   return {
-    meta: { ...PLATFORM_STATUS.meta, asOf, period: { from: WEEKS[0].from, to: asOf }, scope: 'platform-public',
+    meta: { ...PLATFORM_STATUS.meta, asOf, period: { from: WEEKS[0].from, to: asOf }, scope: admin ? 'platform-admin' : 'platform-public',
       population: "real-work tool calls; the platform's own traffic and all refusals by population also count maintenance calls; calls per approval divide by the approvals zz-core recorded; model calls are the platform's own" },
     tiles: { state: 'ok', data: {
       calls: tile(CALLS.map((n, i) => tally(i, n))),

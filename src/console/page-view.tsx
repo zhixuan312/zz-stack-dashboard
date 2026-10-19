@@ -2,8 +2,22 @@
 
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef } from 'react';
+import type { FeatureId } from '@/data/features';
 import { consoleMutate } from '@/lib/mutate';
 import { entryOf } from '@/views/workspaces';
+
+/**
+ * The pages under a rail entry that record a feature of their own, as their gate asks it: a report's page is `bug`
+ * (`gate('bug')`), the superadmin's, never a view of the Bugs destination its address falls under. COUPLED: the
+ * gateway's closed list of features (`services/gateway/src/console/page-view.ts`) holds each.
+ */
+const OWN_FEATURE: { under: string; feature: FeatureId }[] = [{ under: '/platform/bugs/', feature: 'bug' }];
+
+/** The feature a page view at `pathname` records: its own page's, where one is listed, or the rail entry's that owns it. */
+function featureOf(pathname: string): FeatureId | undefined {
+  const own = OWN_FEATURE.find((o) => pathname.startsWith(o.under) && /^[^/]+\/?$/.test(pathname.slice(o.under.length)));
+  return own?.feature ?? entryOf(pathname)?.feature;
+}
 
 /** Drawn for a person: not inside a route Cache Components keeps hidden in the document (React's Activity). */
 function shown(el: Element): boolean {
@@ -34,8 +48,8 @@ export function PageViews() {
     if (visit.current?.pathname === pathname && visit.current.decided) return;
     const current = visit.current?.pathname === pathname ? visit.current : { pathname, decided: false };
     visit.current = current;
-    // The feature of the entry that owns the address, by the rule `workspaceOf` reads workspaces by.
-    const feature = entryOf(pathname)?.feature;
+    // The feature of the page's own gate where it has one, else the entry's that owns the address (`featureOf`).
+    const feature = featureOf(pathname);
     if (feature === undefined) {
       current.decided = true;
       return;

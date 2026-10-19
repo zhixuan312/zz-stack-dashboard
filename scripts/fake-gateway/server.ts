@@ -128,6 +128,11 @@ const missing = (what: string): Answer => [404, { error: `${what} does not exist
 const or404 = (body: unknown, what: string): Answer => (body ? ok(body) : missing(what));
 /** Platform's refusals: a fixed sentence that names no role, person or team, and a 404 that echoes nothing asked. */
 const REFUSED: Answer = [403, { error: 'not permitted' }];
+/** Work's not-found answers, the gateway's own fixed sentences (initiatives.ts, knowledge.ts): none names what was asked. */
+const NO_INITIATIVE: Answer = [404, { error: 'No initiative of the team you act for has that name.' }];
+const NO_DOCUMENT: Answer = [404, { error: 'No document of the team you act for is at that address.' }];
+const NO_REVISION: Answer = [404, { error: 'No snapshot of a document of the team you act for has that number.' }];
+const NO_NODE: Answer = [404, { error: "No lesson on the team's shelf or the shared one is at that address." }];
 const UNKNOWN: Answer = [404, null];
 
 /**
@@ -205,7 +210,9 @@ function read(who: Me, seg: string[], q: URLSearchParams): Answer {
       // and 39: another team's is the route's not-found, and a caller who acts for no team is told so.
       if (a && b) {
         if (!who.activeTeam) return NO_TEAM;
-        return a !== who.activeTeam ? missing(`initiative ${a}/${b}`) : or404(detailAsKept(initiativeDetail(a, b)), `initiative ${a}/${b}`);
+        if (a !== who.activeTeam) return NO_INITIATIVE;
+        const d = detailAsKept(initiativeDetail(a, b));
+        return d ? ok(d) : NO_INITIATIVE;
       }
       // Work is the active team's: the list answers it alone, whatever `?team=` or `?scope=` asked.
       return a ? missing(seg.join('/')) : initiativeList(who, q);
@@ -214,9 +221,13 @@ function read(who: Me, seg: string[], q: URLSearchParams): Answer {
       // A document the same way: the active team's alone, whatever the address or the request names.
       const rev = q.get('revision');
       if (!who.activeTeam) return NO_TEAM;
-      if (a !== who.activeTeam) return missing(rev === null ? `document ${seg.slice(1).join('/')}` : `revision ${rev} of ${seg.slice(1).join('/')}`);
-      if (rev !== null) return or404(documentRevision(a, b, rest.join('/'), Number(rev)), `revision ${rev} of ${seg.slice(1).join('/')}`);
-      return or404(documentAsKept(documentDetail(a, b, rest.join('/'))), `document ${seg.slice(1).join('/')}`);
+      if (a !== who.activeTeam) return NO_DOCUMENT;
+      if (rev !== null) {
+        const r = documentRevision(a, b, rest.join('/'), Number(rev));
+        return r ? ok(r) : NO_REVISION;
+      }
+      const d = documentAsKept(documentDetail(a, b, rest.join('/')));
+      return d ? ok(d) : NO_DOCUMENT;
     }
     case 'knowledge':
       // The summary answers before the node route, because `summary` names no team of its own.
@@ -226,8 +237,9 @@ function read(who: Me, seg: string[], q: URLSearchParams): Answer {
       // own, so any signed-in person opens its lessons, read-only. A team or a scope the request names widens nothing.
       if (a) {
         if (!who.activeTeam) return NO_TEAM;
-        if (a !== who.activeTeam && a !== SHARED_TEAM) return missing(`knowledge ${seg.slice(1).join('/')}`);
-        return or404(lesson(a, [b, ...rest].join('/'), who.activeTeam), `knowledge ${seg.slice(1).join('/')}`);
+        if (a !== who.activeTeam && a !== SHARED_TEAM) return NO_NODE;
+        const l = lesson(a, [b, ...rest].join('/'), who.activeTeam);
+        return l ? ok(l) : NO_NODE;
       }
       return knowledgeList(who, q);
     case 'search': {
@@ -367,6 +379,9 @@ const PAGE_FEATURES = [
   'home', 'record', 'initiatives', 'approvals', 'knowledge', 'activity', 'runs', 'plugins', 'access',
   'platform-status', 'releases', 'bugs', 'bug', 'evaluation', 'teams', 'people', 'usage', 'audit', 'knowledge-health',
 ];
+/** The features only the superadmin may open; anyone else's view of one is refused and not kept. COUPLED: the gateway's
+ *  console/page-view.ts SUPERADMIN_ONLY. */
+const SUPERADMIN_PAGES = ['teams', 'people', 'audit', 'bug'];
 
 /**
  * One write under `/api/console`, as `who`. Accepted, answered in the route's own shape, and not kept but for a team
@@ -398,6 +413,7 @@ function write(who: Me, cookie: string | null, seg: string[], q: URLSearchParams
   if (path === 'page-view' && method === 'POST') {
     if (typeof body.feature !== 'string' || !body.feature) return [400, { error: 'feature required — the destination that was opened' }];
     if (!PAGE_FEATURES.includes(body.feature)) return [400, { error: `${body.feature} is not one of the console's destinations` }];
+    if (SUPERADMIN_PAGES.includes(body.feature) && !who.superadmin) return [403, { error: 'not permitted' }];
     return [204, null];
   }
   // `DELETE /api/console/settings/me/applications/:client` and `/browsers/:id`: the caller's own, from a browser alone.

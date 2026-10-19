@@ -16,7 +16,7 @@ Every team on the platform, each against its own past weeks: the superadmin's li
 
 | State | What shows |
 |---|---|
-| Loading | `loading.tsx` while the gate asks `/me`, headed Teams for a person whose rail offers it (`OfferedLoading`), then the masthead over four tile skeletons and the table's skeleton while the read is under way |
+| Loading | `loading.tsx` while the gate asks `/me`: the shell's own skeleton, the body an address no page answers draws, headed Teams for a person whose rail offers it (`OfferedLoading`); then the masthead over four tile skeletons and the table's skeleton while the read is under way |
 | Default | The tiles, then a page of teams |
 | No team yet | The tiles at zero and "No team yet", pointing at Create a team |
 | Filtered to nothing | "No teams match these filters" with Clear filters; the tiles still count every team |
