@@ -5,7 +5,7 @@ import { cn } from '../../../lib/cn';
 import { formatDate } from '../../../lib/format-date';
 import { fitFigure, formatBy, splitFigure, type NumberFormat } from '../../../lib/format';
 import { Card } from '../../ui/card/index';
-import { Delta } from '../../ui/delta/index';
+import { Delta, type DeltaFormat } from '../../ui/delta/index';
 import { Tooltip } from '../../ui/tooltip/index';
 import { Sparkline } from '../../charts/sparkline/index';
 import { useMeridianIndex, usePointMeridian } from '../../charts/meridian/index';
@@ -47,6 +47,7 @@ export function MetricTile({
   hint,
   value,
   delta,
+  deltaFormat,
   note,
   compare = 'vs previous period',
   intent = 'up',
@@ -67,6 +68,8 @@ export function MetricTile({
   value: number | string;
   /** Change against the previous period, as a fraction. */
   delta?: number | null;
+  /** How the change reads: `percent` (of the earlier value, the default) or `points`, for a figure that is itself a share. */
+  deltaFormat?: DeltaFormat | ((n: number) => string);
   /**
    * A short line where the change would sit, for a figure no period comparison fits: who is past due, what is next.
    * On a compact tile it follows the figure on the tile's one line: "$41.2K · next plan".
@@ -126,7 +129,7 @@ export function MetricTile({
               // The figure alone is drawn. Down a wall the words it is against would stand once a tile, so the card that
               // holds the wall says them; here they follow the figure for a screen reader, which meets a tile on its own.
               <p className={cn('flex h-5 items-center justify-self-start', COMPACT_CHANGE)}>
-                <Delta value={delta} intent={intent} />
+                <Delta value={delta} intent={intent} format={deltaFormat} />
                 <span className="sr-only">{' '}{delta === null ? 'No earlier period to compare' : compare}</span>
               </p>
             ) : null}
@@ -185,7 +188,7 @@ export function MetricTile({
               <span className="truncate text-ink-3" title="No earlier period to compare">No earlier period to compare</span>
             ) : delta !== undefined ? (
               <>
-                <Delta value={delta} intent={intent} />
+                <Delta value={delta} intent={intent} format={deltaFormat} />
                 <span className="leading-5 whitespace-nowrap text-ink-3">{compare}</span>
               </>
             ) : note ? (

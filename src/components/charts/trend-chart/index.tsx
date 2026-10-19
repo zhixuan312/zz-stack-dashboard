@@ -97,6 +97,7 @@ export function TrendChart({
   legend,
   tick,
   stacked = false,
+  whole = false,
   baseline,
   band,
   floor,
@@ -118,6 +119,8 @@ export function TrendChart({
   tick?: (date: string) => string;
   /** The series are parts of one whole: bands stacked in order, the first at the bottom, each in its categorical slot. */
   stacked?: boolean;
+  /** The values are counts, a stack of counts too: every level is a whole number, so a top of 10 draws none at 2.5 or 7.5 (#73). */
+  whole?: boolean;
   /** What is usual, drawn as a quiet dashed line across the plot with its label at the end: `{ value: 296, label: 'Median 296ms' }`. */
   baseline?: { value: number; label: string };
   /**
@@ -177,7 +180,7 @@ export function TrendChart({
   const from = floor === undefined ? 0 : Math.min(floor, ...values);
   // The levels, and the floor the plot is drawn to: `ticks[0]` is 0 unless the chart was given a floor, and the two ends
   // of the scale are what every point, area, band and level line is measured against.
-  const ticks = ticksBetween(from, max, h < 200 ? 3 : 4);
+  const ticks = ticksBetween(from, max, h < 200 ? 3 : 4, whole);
   const low = ticks[0];
   const top = ticks[ticks.length - 1];
   const left = Math.max(...ticks.map((t) => axis(t).length)) * 6.4 + 12;

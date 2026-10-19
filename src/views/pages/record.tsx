@@ -203,6 +203,7 @@ function Lead({ r, windows }: Slice) {
       {windows.length ? (
         <TrendChart
           height="fill"
+          whole
           label={LEAD.chart}
           dates={dates}
           running={running}
@@ -249,7 +250,7 @@ function Work({ r, windows }: Slice) {
         <>
           <Row split="1/2">
             <Panel title="Closures in all" description={`A running total of the whole record, ${grain}`}>
-              {windows.length ? <TrendChart label="Closures in all" dates={dates} running={running} tick={tick} series={[{ key: 'closures', label: 'Closures in all', values: w.closuresInAll.map((p) => p.figure.value), kind: 'area' }]} /> : <NoPeriods />}
+              {windows.length ? <TrendChart whole label="Closures in all" dates={dates} running={running} tick={tick} series={[{ key: 'closures', label: 'Closures in all', values: w.closuresInAll.map((p) => p.figure.value), kind: 'area' }]} /> : <NoPeriods />}
             </Panel>
             <Panel title="Closures by outcome" description={`Initiatives closed, ${grain}`}>
               {windows.length ? (
@@ -366,7 +367,7 @@ function Knowledge({ r, windows }: Slice) {
           </Row>
           <Row split="1/2">
             <Panel title={`${LESSONS_MADE} in all`} description={`A running total of the whole record, an import's left out, ${grain}`}>
-              {windows.length ? <TrendChart label={`${LESSONS_MADE} in all`} dates={dates} running={running} tick={tick} series={[{ key: 'lessons', label: `${LESSONS_MADE} in all`, values: k.adoptedInAll.map((p) => p.figure.value), kind: 'area' }]} /> : <NoPeriods />}
+              {windows.length ? <TrendChart whole label={`${LESSONS_MADE} in all`} dates={dates} running={running} tick={tick} series={[{ key: 'lessons', label: `${LESSONS_MADE} in all`, values: k.adoptedInAll.map((p) => p.figure.value), kind: 'area' }]} /> : <NoPeriods />}
             </Panel>
             {/* Knowledge's measure, under Knowledge's name: the lessons standing on the shelf, not those made. */}
             <Panel title="Lessons adopted, by kind" description={`The lessons standing on your shelf ${asOfWords(r)}, an import's included`}>

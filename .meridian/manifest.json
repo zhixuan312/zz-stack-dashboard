@@ -1,5 +1,5 @@
 {
-  "version": "0.20.0",
+  "version": "0.22.0",
   "route": "adopt",
   "brand": {
     "name": "ZZ Stack",
@@ -96,7 +96,7 @@
     "src/components/charts/readout.tsx": "sha256-9c92a3a23889308ca5939c2ce730fd1fe31c7c484ed8ba3e53a9bc70badf2b3a",
     "src/components/charts/scale.ts": "sha256-2fe61514f5c875a7df8301a2d5537e87adf9af938893958c6aa8e88f71a3999a",
     "src/components/charts/sparkline/index.tsx": "sha256-f5783812b079f134d65ef7975c1e94136c2e227352f2bbd2e56ac3803c186678",
-    "src/components/charts/trend-chart/index.tsx": "sha256-50e4b0fec08d172eb63d28f391a58f8c3b1c65e40844e3c2c97597b9b955272f",
+    "src/components/charts/trend-chart/index.tsx": "sha256-b76076c1b52b309c2951d9f93bd81ba4ae0e597f816360bc3df755c7bf522419",
     "src/components/charts/uptime-bars/index.tsx": "sha256-06b3c3f1ef65aab05dbc1b95a104479dcf76e567eea5400039359706900bd1aa",
     "src/components/charts/use-size.ts": "sha256-e777893b9560fd9e63fc69c81393e682fac52a399e106209139bb4caede1a555",
     "src/components/patterns/activity-feed/index.tsx": "sha256-71a71669e0de411160ca02af94439f0b86ad67877efd132c0df222c3bf8e3c58",
@@ -120,7 +120,7 @@
     "src/components/patterns/form-section/index.tsx": "sha256-c1395e12e881ab70f59d00198598e98670a1e99cad1f366638d3dff32236313b",
     "src/components/patterns/freshness/index.tsx": "sha256-e300080e9955d1dc56663b7744e94f7f5c4fbef48e9877e3d41e43d13f00c9c4",
     "src/components/patterns/incident-card/index.tsx": "sha256-b498e8c9c4746ed3192b72fbe1a68bf3c1b1348338adce4926f140dad6a242f3",
-    "src/components/patterns/metric-tile/index.tsx": "sha256-fefcc2d178d1f76ca60d69bdf8b9af3124b36175453e25f57379757881ab4fe1",
+    "src/components/patterns/metric-tile/index.tsx": "sha256-19e610b79d3fb58746b1f585a722079e3b1dc07bc5ab21a9e5898af2e0c901b9",
     "src/components/patterns/page-loading/index.tsx": "sha256-5e682284077fe35b39e7e77d083fde04962f12ca97b52a4739e01273ec0f5681",
     "src/components/patterns/period-select/index.tsx": "sha256-61a760364c72819c610cfb9f9b4491fc739e9c92938ade756b6abc2bef192ffb",
     "src/components/patterns/proposal/index.tsx": "sha256-0d6e24ea55c254f5e6fbbd98cd6a70c30e91c65366fc6380e65905dc82d9102e",
@@ -139,7 +139,7 @@
     "src/components/ui/card/index.tsx": "sha256-a56b4d3966a4d25dff1b17b273b76f8792f9411d44662d299561ec0046298f6c",
     "src/components/ui/checkbox/index.tsx": "sha256-2f1f011041b5ff210c4cd453dfca9e0efc66d42dcc121bbcc001b3e0189b37da",
     "src/components/ui/copy-field/index.tsx": "sha256-79079e67cff3fdbb83cb4eb36ef79f9e4f606ee8a098c2025989751b3b3009ba",
-    "src/components/ui/delta/index.tsx": "sha256-bcf749e0d08a24cbafd14838deff39bc1d90a478331c1ad6e67a2d5f4dafe5c7",
+    "src/components/ui/delta/index.tsx": "sha256-9c3681afc4ba02adeb6f5e9d05873baa62bc7de4ff62a3b5ac02c3d4b8ae1b1d",
     "src/components/ui/dialog/index.tsx": "sha256-5831cdf857b5271a539029a436c42c419f0c26ceb20026927be1f959bad61811",
     "src/components/ui/empty-state/index.tsx": "sha256-bdbc12f273c34d34ef779ed6c54a34d701a8c09bb4dfe9d7b202c0157f3475be",
     "src/components/ui/field/index.tsx": "sha256-ace16c07c660888b1aef19c19724807684a7a8be0dcc9d8ca85e1bb2cd4e4673",

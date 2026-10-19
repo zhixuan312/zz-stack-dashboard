@@ -27,7 +27,7 @@ import { formatCount } from '@/lib/format-units';
 import type { Figure } from '@/lib/platform-shapes';
 import {
   NOT_RECORDED, REFUSAL_PARTS, TILES, TILE_KEYS, askOf, asOfLine, changeOf, figureText, followupLine, lastWhole,
-  perApprovalText, pointsIn, pointsOf, teamParts, usageContext, usageTrouble, valueIn, weekOf, type TileKey, type UsageRead,
+  perApprovalText, pointsOf, teamParts, usageContext, usageTrouble, valueIn, weekOf, type TileKey, type UsageRead,
 } from '@/views/platform-usage-context';
 
 /** The protagonist's title: the card the page's Ask sits on. COUPLED: the README's `Protagonist:`. */
@@ -132,23 +132,13 @@ function Tiles({ part }: { part: Usage['tiles'] }) {
           <MetricTile
             key={k} label={TILES[k].label} hint={TILES[k].definition} icon={ICONS[k]}
             value={tileValue(t.last.figure)} format={(n) => valueIn(kind, n)}
-            {...(share === null ? { delta: kind === 'share' ? null : changeOf(t), compare } : { note: <PointsChange points={share} compare={compare} /> })}
+            {...(share === null ? { delta: kind === 'share' ? null : changeOf(t), compare } : { delta: share / 100, deltaFormat: 'points' as const, compare })}
             intent="neutral" points={points.length > 1 ? points : undefined}
           />
         );
       })}
     </Row>
   );
-}
-
-/**
- * A share's change where a tile's change sits, in points: the managed tile prints its change only as a percentage of
- * itself, so a share's is handed to it as the line it draws in that place, the arrow and the words the tile's own.
- */
-function PointsChange({ points, compare }: { points: number; compare: string }) {
-  if (Math.abs(points) < 0.05) return <>Unchanged {compare}</>;
-  // One row laid out as the tile lays its own change, so the line sits where every other tile's does.
-  return <span className="inline-flex items-center gap-x-2 align-top"><Delta value={points / 100} format={() => pointsIn(points)} intent="neutral" /><span className="leading-5 whitespace-nowrap">{compare}</span></span>;
 }
 
 /** Ask on the calls by week: about the week the cursor points at, or about the weeks when it points at none. */
