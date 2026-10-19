@@ -27,7 +27,7 @@ import type { Evaluation } from '@/lib/platform-shapes';
 import { waited } from '@/views/platform-bugs-context';
 import {
   ASK, DECISIONS, GUARDRAILS, TILES, asOfLine, evaluationContext, evaluationTrouble, isAdmin, kindOf, nameOf, namesNoPlugin, ownerOf,
-  protocolOf, rangeOf, runText, scoreIn, seriesName, seriesRows, standingOf, waitingOf, type EvaluationRead, type PluginScoreRow,
+  protocolOf, rangeOf, runText, scoreIn, scoredAgo, seriesName, seriesRows, standingOf, waitingOf, type EvaluationRead, type PluginScoreRow,
   type SeriesRow, type WaitingFinding,
 } from '@/views/platform-evaluation-context';
 
@@ -109,7 +109,7 @@ function Tiles({ evaluation: e }: { evaluation: Evaluation }) {
       />
       <MetricTile
         label={TILES.lastScored.label} hint={TILES.lastScored.definition} icon={<Clock />}
-        value={tiles.lastScored ? formatDate(tiles.lastScored) : 'Never'} note={tiles.lastScored ? formatDateTime(tiles.lastScored) : 'No scoring recorded'}
+        value={tiles.lastScored ? scoredAgo(tiles.lastScored, e.meta.asOf) : 'Never'} note={tiles.lastScored ? formatDateTime(tiles.lastScored) : 'No scoring recorded'}
       />
       <MetricTile
         label={TILES.daysScored.label} hint={TILES.daysScored.definition.replace('the reporting time zone', e.meta.timezone)} icon={<CalendarDays />}

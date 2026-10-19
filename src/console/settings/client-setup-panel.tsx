@@ -78,11 +78,13 @@ export function ClientSetupPanel() {
           if (p.kind === 'steps') return <ReadingBody key={i}>{p.text}</ReadingBody>;
           return (
             // The Copy heads its block rather than standing over it, so the commands have the block's whole width.
-            <div key={i} className="rounded-md bg-surface-sunk">
+            // Each command is one line, as a terminal takes it, and a line longer than the block scrolls inside it: a
+            // command wrapped to a phone's width broke "zz-access@zz- / stack" and left "# required" on a line alone.
+            <div key={i} className="min-w-0 rounded-md bg-surface-sunk">
               <div className="flex justify-end px-2.5 pt-2.5">
                 <CopyButton text={p.text} label={blocks > 1 ? `Copy the commands of block ${p.n}` : 'Copy the commands'} />
               </div>
-              <pre className="px-4 pt-1 pb-4 font-mono text-xs leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]">{p.text}</pre>
+              <pre role="group" tabIndex={0} aria-label={blocks > 1 ? `Commands, block ${p.n}` : 'Commands'} className="overflow-x-auto px-4 pt-1 pb-4 font-mono text-xs leading-relaxed whitespace-pre">{p.text}</pre>
             </div>
           );
         })}

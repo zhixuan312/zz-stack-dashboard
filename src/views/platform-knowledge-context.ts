@@ -13,8 +13,8 @@ import { plural } from '@/lib/format';
 import { formatDateTime, formatDay } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import type { Figure, PeriodFigure, Window } from '@/lib/platform-shapes';
-import { listed, type Fact, type Insight, type SharedContext } from '@/lib/shared-context';
-import { budgeted, clip, pendingContext } from './context';
+import { listed, type Fact, type SharedContext } from '@/lib/shared-context';
+import { clip, pendingContext, sectioned, type Section } from './context';
 
 /** How long the console's server waits for the read: half a second under five, for a phone to draw what it says. */
 export const KNOWLEDGE_HEALTH_BOUND_MS = 4_500;
@@ -174,6 +174,8 @@ export const asOfLine = (h: KnowledgeHealth): string => `As of ${formatDateTime(
 
 /** How many of a series' latest weeks the context states; the page draws them all, and the prepared query counts any. */
 const RECENT = 8;
+/** How many shelves the context names, the totals first; the table pages at ten. */
+const SHELVES_NAMED = 8;
 
 /** A series' latest weeks, from the first of them, oldest first, the running week said to be so far. */
 function byWeek<T extends { window: Window }>(weeks: T[], say: (w: T) => string, between = ', '): string {
@@ -186,8 +188,8 @@ const VIEW = { view: 'knowledge_health', title: 'Knowledge health', address: '/p
 
 /**
  * The context the page shares and `view_knowledge_health` answers with, from the same read. The tiles are facts; the
- * shelves, the weeks, the questions, the cohorts and the kinds are insights in that order, so when the budget is tight
- * the kinds go first and the shelves last.
+ * shelves, the weeks, the cohorts, the kinds and a superadmin's questions are sections in that order, so when the
+ * budget is tight the questions go first and the shelves last, and a section it drops is named as on the page only.
  */
 export function knowledgeHealthContext(read: KnowledgeHealthRead): SharedContext {
   if (read.state !== 'ok') {
@@ -197,7 +199,6 @@ export function knowledgeHealthContext(read: KnowledgeHealthRead): SharedContext
   const h = read.health;
   const fleet = isFleet(h);
   const facts: Fact[] = [];
-  const insights: Insight[] = [];
   const unknowns: string[] = [];
   const unavailable = (part: string, reason: string) => unknowns.push(`${part} could not be read (${reason}).`);
   let week: Window | null = null;
@@ -212,54 +213,58 @@ export function knowledgeHealthContext(read: KnowledgeHealthRead): SharedContext
     }
   } else unavailable('The tiles', h.tiles.reason);
 
+  // Each chart, list and table after the tiles is a section, a superadmin's questions last: they are the read's alone,
+  // and took the room the lessons by the week made and by kind had in a member's context, which the budget dropped
+  // unsaid (Phase 7's third re-review, Platform P-1). A section that does not fit is named as on the page only.
+  const sections: Section[] = [];
   if (h.shelves.state === 'ok') {
     // The totals first, so a long list of shelves cut short keeps them.
     const rows = [...h.shelves.data.rows].sort((a, b) => Number(b.kind === 'all') - Number(a.kind === 'all'));
     const line = (r: ShelfRow) => `${shelfName(r, fleet)} ${formatCount(r.standing)}/${formatCount(r.superseded)}/${formatCount(r.imported)}, `
       + `${formatCount(r.madeLastWeek)}/${formatCount(r.searchesLastWeek)}/${noResultCell(r.noResult.figure)}`;
-    insights.push({ text: `Each shelf as its standing/superseded/imported lessons, then the last whole week's lessons made/searches/share with no result: ${listed(rows, line, 'the table on /platform/knowledge', 8)}.` });
+    sections.push({ name: 'Each shelf', insight: { text: `Each shelf as its standing/superseded/imported lessons, then the last whole week's lessons made/searches/share with no result: ${listed(rows, line, 'the table on /platform/knowledge', SHELVES_NAMED)}.` } });
   } else unavailable('The shelves', h.shelves.reason);
 
   if (h.made.state === 'ok') {
     const made = h.made.data;
     const outs = made.weeks.filter((w) => leftOut(w)).map((w) => `the ${weekOf(w.window)} ${leftOut(w)}`);
-    insights.push({ text: `Lessons made outside the import cohorts by week, ${byWeek(made.weeks, (w) => columnText('count', w.made))}. ${exactSince(made)}.${outs.length ? ` Left out as imported: ${listed(outs, (o) => o, 'the chart on /platform/knowledge', 4)}.` : ''}` });
+    sections.push({ name: 'Lessons made by week', insight: { text: `Lessons made by week, outside the import cohorts, ${byWeek(made.weeks, (w) => columnText('count', w.made))}. ${exactSince(made)}.${outs.length ? ` Left out as imported: ${listed(outs, (o) => o, 'the chart on /platform/knowledge', 4)}.` : ''}` } });
   } else unavailable('The lessons made by week', h.made.reason);
 
   if (h.searches.state === 'ok') {
     const weeks = h.searches.data.weeks;
     const at = lastWhole(weeks);
     const shown = at >= 0 ? ` In the ${weekOf(weeks[at].window)}: ${searchLine(weeks[at]).map((l) => `${l.label.toLowerCase()} ${l.value}`).join('; ')}.` : '';
-    insights.push({ text: `Share of searches with no result by week, ${byWeek(weeks, (w) => columnText('share', w.noResult.figure), '; ')}.${shown}` });
+    sections.push({ name: 'Searches with no result by week', insight: { text: `Share of searches with no result by week, ${byWeek(weeks, (w) => columnText('share', w.noResult.figure), '; ')}.${shown}` } });
   } else unavailable('The searches by week', h.searches.reason);
-
-  if (h.questions !== null) {
-    if (h.questions.state === 'ok') {
-      const q = h.questions.data;
-      const say = (r: Question) => `"${clip(r.question, 60)}" (${r.shelf}, ${formatCount(r.asked)} ${plural(r.asked, 'time')})`;
-      insights.push({ text: `Questions the searches that found nothing asked since ${formatDay(q.window.from)}, most asked first: ${q.rows.length ? listed(q.rows, say, `the list on /platform/knowledge, ${formatCount(q.total)} in all`, 5) : 'none'}.` });
-    } else unavailable('The questions with no result', h.questions.reason);
-  }
 
   if (h.cohorts.state === 'ok') {
     // Ranked as the page's Bar list ranks them: the weeks that made the most first.
     const rows = h.cohorts.data.rows.filter((c) => c.made > 0).sort((a, b) => b.made - a.made);
-    insights.push({ text: `Lessons by the week made, imports included, the most first: ${rows.length ? listed(rows, (c) => `${formatDay(c.window.from)} ${cohortText(c)}`, 'the list on /platform/knowledge', 4) : 'none made yet'}.` });
+    sections.push({ name: 'Lessons by the week made', insight: { text: `Lessons by the week made, imports included, the most first: ${rows.length ? listed(rows, (c) => `${formatDay(c.window.from)} ${cohortText(c)}`, 'the list on /platform/knowledge', 3) : 'none made yet'}.` } });
   } else unavailable('The lessons by the week made', h.cohorts.reason);
 
   if (h.byKind.state === 'ok') {
-    insights.push({ text: `Standing lessons by kind: ${h.byKind.data.map((k) => `${k.kind} ${formatCount(k.standing)}`).join(', ')}.` });
+    sections.push({ name: 'Lessons by kind', insight: { text: `Standing lessons by kind: ${h.byKind.data.length ? listed(h.byKind.data, (k) => `${k.kind} ${formatCount(k.standing)}`, 'the list on /platform/knowledge', 6) : 'none yet'}.` } });
   } else unavailable('The lessons by kind', h.byKind.reason);
+
+  if (h.questions !== null) {
+    if (h.questions.state === 'ok') {
+      const q = h.questions.data;
+      const say = (r: Question) => `"${clip(r.question, 48)}" (${r.shelf}, ${formatCount(r.asked)} ${plural(r.asked, 'time')})`;
+      sections.push({ name: 'Questions with no result', insight: { text: `Questions with no result since ${formatDay(q.window.from)}, most asked first: ${q.rows.length ? listed(q.rows, say, `the list on /platform/knowledge, ${formatCount(q.total)} in all`, 3) : 'none'}.` } });
+    } else unavailable('The questions with no result', h.questions.reason);
+  }
 
   unknowns.push(
     'These are observations: more lessons or fewer searches are not better or worse, and a week with no figure is missing, not zero.',
     'An import stays in every inventory and its cohort, and in no week\'s lessons made; nothing records when a lesson was superseded.',
   );
   if (!fleet) unknowns.push('No other team\'s shelf is named here, and no question a search that found nothing asked is in this read.');
-  return budgeted({
+  return sectioned({
     ...VIEW,
     scope: `${fleet ? 'every shelf on the platform, each team\'s by slug' : 'your team\'s shelf, the shared shelf and every shelf\'s totals'}${week ? `; last whole week: the ${weekOf(week)}` : ''}`,
     freshness: `${asOfLine(h)}.`,
-    facts, insights, unknowns,
-  });
+    facts, insights: [], unknowns,
+  }, sections);
 }

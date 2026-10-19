@@ -196,7 +196,10 @@ describe('the paired figures', () => {
     expect(words.querySelector('[data-finding]')!.textContent).toBe(ATLAS.words.state === 'ok' ? ATLAS.words.data.finding!.text : '');
     expect(mine.querySelector('[data-value]')!.textContent).toBe(value(MINE_LAST!));
     expect(mine.textContent).toContain('Approvals in your name · last week');
-    expect(mine.querySelector('[data-finding]')).toBeNull();
+    // The fixture's approvals are hours old, so which week holds them moves with the day the test runs: the finding
+    // drawn is the answer's, a plain week's none.
+    const finding = ATLAS.approvals.state === 'ok' ? ATLAS.approvals.data.finding : null;
+    expect(mine.querySelector('[data-finding]')?.textContent ?? null).toBe(finding?.text ?? null);
   });
 
   it('draws each by week, a week with no recorded words as none and the running week unfinished, never a zero', () => {

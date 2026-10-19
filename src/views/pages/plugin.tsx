@@ -262,15 +262,20 @@ function OwnersEvaluation({ evaluation, lead, busy, onRetry }: { evaluation: Eva
     );
   }
   const e = evaluation.data;
+  const scored = e.found && !notYet(e);
   return (
     <section aria-label="Its evaluation" className="flex flex-col gap-(--stack-gap)">
-      <EvalHeadline pluginEval={e} lead={lead} />
-      {!e.found ? null : notYet(e) ? <EvalNotYet evaluationOnly={e.ownershipMode === 'evaluation_only'} /> : (
+      {/* Usage says what the score's evidence covers, so it sits beside the score, two cards of one line of figures
+          each. Beside Health it was stretched to a table's height, half of it empty. */}
+      {scored ? (
+        <Row split="2/3">
+          <EvalHeadline pluginEval={e} lead={lead} />
+          <EvalUsage run={e.run} />
+        </Row>
+      ) : <EvalHeadline pluginEval={e} lead={lead} />}
+      {!e.found ? null : !scored ? <EvalNotYet evaluationOnly={e.ownershipMode === 'evaluation_only'} /> : (
         <>
-          <Row split="1/2">
-            <EvalHealth run={e.run} />
-            <EvalUsage run={e.run} />
-          </Row>
+          <EvalHealth run={e.run} />
           <EvalQuality run={e.run} />
           <EvalLearning findings={e.findings} />
           <EvalEvolution pluginEval={e} />

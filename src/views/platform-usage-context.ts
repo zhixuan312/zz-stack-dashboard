@@ -11,8 +11,8 @@ import { plural } from '@/lib/format';
 import { formatDateTime, formatDay } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import type { Figure, PeriodFigure, Window } from '@/lib/platform-shapes';
-import { listed, type Fact, type Insight, type SharedContext } from '@/lib/shared-context';
-import { budgeted, pendingContext } from './context';
+import { listed, type Fact, type SharedContext } from '@/lib/shared-context';
+import { pendingContext, sectioned, type Section } from './context';
 
 /** How long the console's server waits for the read: half a second under five, for a phone to draw what it says. */
 export const USAGE_BOUND_MS = 4_500;
@@ -133,7 +133,8 @@ const VIEW = { view: 'usage', title: 'Usage', address: '/platform/usage' } as co
 
 /**
  * The context the page shares and `view_usage` answers with, from the same read. The tiles and the composition of a
- * week are facts; the weeks, the tools and the follow-ups are insights, the first to go when the budget is tight.
+ * week are facts; the weeks, the tools, the follow-ups and the tools called most are sections, the last the first to
+ * go when the budget is tight, and a section it drops is named as on the page only.
  */
 export function usageContext(read: UsageRead): SharedContext {
   if (read.state !== 'ok') {
@@ -142,7 +143,6 @@ export function usageContext(read: UsageRead): SharedContext {
   }
   const u = read.usage;
   const facts: Fact[] = [];
-  const insights: Insight[] = [];
   const unknowns: string[] = [];
   const unavailable = (part: string, reason: string) => unknowns.push(`${part} could not be read (${reason}).`);
   let week: Window | null = null;
@@ -174,37 +174,43 @@ export function usageContext(read: UsageRead): SharedContext {
     });
   } else unavailable('The platform\'s model calls', u.modelCalls.reason);
 
+  // Each chart and list after the facts is a section, the most asked about first: a superadmin's split by team made
+  // their weeks the longest, and the budget dropped each tool's median call and the tools called most unsaid where a
+  // member's context kept them (Phase 7's third re-review, Platform P-1). A section that does not fit is named.
+  const sections: Section[] = [];
   if (u.callsByWeek.state === 'ok') {
     const parts = teamParts(u);
     // A part with no calls that week is left unsaid, so the split fits beside the rest.
     const split = (w: (typeof u.callsByWeek.data.weeks)[number]) => (w.parts ?? []).filter((p) => p.calls > 0).map((p) => `${p.label} ${formatCount(p.calls)}`).join(', ');
     const said = (w: (typeof u.callsByWeek.data.weeks)[number]) => `${formatDay(w.window.from)} ${figureText('count', w.calls)}${split(w) ? ` (${split(w)})` : ''}${w.window.complete ? '' : ', so far'}`;
-    insights.push({ text: `Calls by week, oldest first${parts.length ? ', by team, the three with the most calls and Other' : ''}: ${u.callsByWeek.data.weeks.map(said).join('; ')}.` });
+    sections.push({ name: 'Calls by week', insight: { text: `Calls by week, oldest first${parts.length ? ', by team, the three with the most calls and Other' : ''}: ${u.callsByWeek.data.weeks.map(said).join('; ')}.` } });
   } else unavailable('The calls by week', u.callsByWeek.reason);
+  if (u.tools.state === 'ok') {
+    const line = (r: (typeof u.tools.data.rows)[number]) => `${r.tool} ${figureText('ms', r.first.medianMs)} (${formatDay(r.first.window.from)}) to ${figureText('ms', r.last.medianMs)}`;
+    sections.push({ name: 'Each tool\'s median call', insight: { text: `Each tool's median call, first comparable week to last: ${u.tools.data.rows.length ? listed(u.tools.data.rows, line, 'the table on /platform/usage', 3) : 'none yet'}.` } });
+  } else unavailable('Each tool\'s median call', u.tools.reason);
   if (u.followup.state === 'ok') {
     const weeks = u.followup.data.weeks;
     const at = lastWhole(weeks);
-    if (at >= 0) insights.push({ text: `Refusals followed in the ${weekOf(weeks[at].window)}: ${followupLine(weeks[at]).map((l) => `${l.label.toLowerCase()} ${l.value}`).join('; ')}.` });
-    insights.push({ text: `Refusals put right by week: ${weeks.map((w) => `${formatDay(w.window.from)} ${figureText('share', w.putRight.figure)}`).join('; ')}.` });
+    const followed = at >= 0 ? ` Followed in the ${weekOf(weeks[at].window)}: ${followupLine(weeks[at]).map((l) => `${l.label.toLowerCase()} ${l.value}`).join('; ')}.` : '';
+    sections.push({ name: 'Refusals put right', insight: { text: `Refusals put right by week: ${weeks.length ? weeks.map((w) => `${formatDay(w.window.from)} ${figureText('share', w.putRight.figure)}`).join('; ') : 'no week yet'}.${followed}` } });
   } else unavailable('The refusals put right', u.followup.reason);
-  if (u.tools.state === 'ok') {
-    const line = (r: (typeof u.tools.data.rows)[number]) => `${r.tool} ${figureText('ms', r.first.medianMs)} (${formatDay(r.first.window.from)}) to ${figureText('ms', r.last.medianMs)}`;
-    insights.push({ text: `Each tool's median call, first comparable week to last: ${listed(u.tools.data.rows, line, 'the table on /platform/usage', 6)}.` });
-  } else unavailable('Each tool\'s median call', u.tools.reason);
   if (u.mostUsed.state === 'ok') {
-    insights.push({ text: `Tools called most last week: ${listed(u.mostUsed.data.rows, (t) => `${t.tool} ${formatCount(t.calls)}`, 'the list on /platform/usage', 8)}.` });
+    sections.push({ name: 'Tools called most', insight: { text: `Tools called most last week: ${u.mostUsed.data.rows.length ? listed(u.mostUsed.data.rows, (t) => `${t.tool} ${formatCount(t.calls)}`, 'the list on /platform/usage', 4) : 'none'}.` } });
   } else unavailable('The tools called most', u.mostUsed.reason);
-  if (u.rhythm.state !== 'ok') unavailable('The weekday by hour', u.rhythm.reason);
+  // A week of hours is no rows a sentence names: the page draws it, and the context says so, its zone below.
+  if (u.rhythm.state === 'ok') sections.push({ name: 'Weekday by hour', insight: null });
+  else unavailable('The weekday by hour', u.rhythm.reason);
 
   unknowns.push(
     'These are observations: more calls, sessions or refusals are not better or worse, and a week with no figure is missing, not zero.',
     `Refusals that could not be judged (no session, or still inside the 120 seconds) are counted apart. Weekday and hour are in ${u.meta.timezone}.`,
   );
   if (!teamParts(u).length) unknowns.push('No team is named here: these weeks carry no split by team.');
-  return budgeted({
+  return sectioned({
     ...VIEW,
     scope: `real-work tool calls across the platform${week ? `; last whole week: the ${weekOf(week)}` : ''}`,
     freshness: `${asOfLine(u)}.`,
-    facts, insights, unknowns,
-  });
+    facts, insights: [], unknowns,
+  }, sections);
 }

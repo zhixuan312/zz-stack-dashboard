@@ -125,7 +125,7 @@ describe('the paired figures', () => {
     expect(halves).toHaveLength(2);
     const last = MALFORMED.last!;
     expect(halves[0].querySelector('[data-value]')!.textContent).toBe((1000 * last.numerator! / last.denominator!).toFixed(1));
-    expect(halves[0].textContent).toContain(`${last.numerator} of ${last.denominator} real-work calls, week of ${formatDay(last.window.from)}`);
+    expect(halves[0].textContent).toContain(`Real-work calls, week of ${formatDay(last.window.from)}, up 44.0 on the week before`);
     expect(halves[0].querySelector('[data-finding]')!.textContent).toBe(MALFORMED.finding!.text);
     const f = FOLLOWUP.last!;
     expect(halves[1].querySelector('[data-value]')!.textContent).toBe(`${(100 * f.numerator! / f.denominator!).toFixed(1)}%`);

@@ -17,12 +17,12 @@ vi.mock('@/app.config', async (load) => ({ ...(await load<typeof import('@/app.c
 import { SurfaceOverride } from '@/components/base/surface';
 import { FEATURES } from '@/data/features';
 import { MAIN_ROLES, effective } from '@/data/roles';
-import { formatDate, formatDateTime } from '@/lib/format-date';
+import { formatDateTime } from '@/lib/format-date';
 import type { Evaluation, Part } from '@/lib/platform-shapes';
 import { contextText } from '@/lib/shared-context';
 import { CONTEXT_BUDGET } from '@/views/context';
 import { EvaluationAsOf, PlatformEvaluationView } from '@/views/pages/platform-evaluation';
-import { EVALUATION_BOUND_MS, evaluationContext, seriesRows, trendOf, type EvaluationRead } from '@/views/platform-evaluation-context';
+import { EVALUATION_BOUND_MS, evaluationContext, scoredAgo, seriesRows, trendOf, type EvaluationRead } from '@/views/platform-evaluation-context';
 import { evaluationTool } from '@/views/tools/evaluation';
 import { evaluation } from '../scripts/fake-gateway/platform-evaluation.ts';
 import { readEvaluation } from '../app/(dash)/platform/evaluation/read-evaluation';
@@ -80,7 +80,7 @@ describe('the page, as the fake gateway answers it', () => {
     const { container, unmount } = draw(ok(ADMIN));
     for (const label of ['Findings waiting', 'Scores established', 'Last scored', 'Days scored']) expect(screen.getByRole('heading', { name: label })).toBeInTheDocument();
     const values = [...container.querySelectorAll('[data-figures="read"] [data-value]')].map((v) => v.textContent);
-    expect(values).toEqual([String(ADMIN.tiles.waiting), String(ADMIN.tiles.established), formatDate(ADMIN.tiles.lastScored!), String(ADMIN.tiles.daysScored)]);
+    expect(values).toEqual([String(ADMIN.tiles.waiting), String(ADMIN.tiles.established), scoredAgo(ADMIN.tiles.lastScored!, ADMIN.meta.asOf), String(ADMIN.tiles.daysScored)]);
     expect(card('Scores established').textContent).toContain(`Of ${data(ADMIN.plugins).length} plugins scored`);
     unmount();
     const nothing = draw(ok(NOTHING));
@@ -265,7 +265,7 @@ describe('what the assistant is told', () => {
     const t = text(ADMIN);
     expect(t).toContain(`- Findings waiting: ${ADMIN.tiles.waiting}, the oldest waiting`);
     expect(t).toContain(`- Scores established: ${ADMIN.tiles.established}, of 3 plugins scored`);
-    expect(t).toContain(`- Last scored: ${formatDateTime(ADMIN.tiles.lastScored!)}`);
+    expect(t).toContain(`- Last scored: ${scoredAgo(ADMIN.tiles.lastScored!, ADMIN.meta.asOf)}, ${formatDateTime(ADMIN.tiles.lastScored!)}`);
     expect(t).toContain(`- Days scored: ${ADMIN.tiles.daysScored}`);
     expect(t).toContain('Applied 1; Rejected 1; Deferred, waiting 2');
     expect(t).toContain('sdlc: latest 7.1 of 10 (6.5 to 7.7), established, guardrails held; by series, not comparable: a different protocol version: sdlc-flow-quality v1');

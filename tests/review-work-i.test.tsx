@@ -115,7 +115,8 @@ describe('M-9: Record\'s context carries the lead\'s series, and the superadmin\
       expect(t, who.email).not.toContain('More is on the page');
       const lead = line(t, '- Words added, a running total, by week:');
       for (const p of r.cumulative.slice(-8)) expect(lead, `${who.email}: ${said(p)}`).toContain(said(p));
-      for (const part of ['Most rewritten', 'Runs by skill:', 'Lessons adopted by kind', 'Firsts on record']) expect(t, `${who.email}: ${part}`).toContain(part);
+      // Each list is told, or named in the Unknown as on the page only (Phase 7's third re-review, Work P-2).
+      for (const part of ['Most rewritten documents', 'Runs by skill', 'Lessons adopted, by kind', 'Dated firsts']) expect(t, `${who.email}: ${part}`).toContain(part);
       return t.split('\n').map((l) => l.split(':')[0]);
     });
     expect(told[0]).toEqual(told[1]);

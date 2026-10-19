@@ -44,6 +44,14 @@ export const TILES = {
   daysScored: { label: 'Days scored', definition: 'Distinct days, in the reporting time zone, on which a plugin was scored.' },
 } as const;
 
+/**
+ * How long before the read a plugin was last scored, as the Last scored tile's figure says it: `3 days ago`, `5 hours
+ * ago`. A tile sets a word figure at its figure's size, and a date there ("17 Oct 2026") broke over two lines above the
+ * same date again in the note; the date and time are said once, under it.
+ */
+export const scoredAgo = (at: string, asOf: string): string =>
+  Date.parse(asOf) - Date.parse(at) < 3_600_000 ? 'Under an hour ago' : `${waited(at, asOf)} ago`;
+
 /** A standing as a reader says it: `not_established` is an enum, not a word. */
 const STANDING: Record<string, string> = { established: 'Established', provisional: 'Provisional', not_established: 'Not established' };
 export const standingOf = (s: string): string => STANDING[s] ?? s.replace(/_/g, ' ');
@@ -164,7 +172,7 @@ export function evaluationContext(read: EvaluationRead): SharedContext {
   facts.push(
     { label: TILES.waiting.label, value: formatCount(tiles.waiting), change: waiting.length ? `the oldest waiting ${waited(waiting[0].waitingSince, e.meta.asOf)}` : undefined, definition: TILES.waiting.definition },
     { label: TILES.established.label, value: formatCount(tiles.established), change: e.plugins.state === 'ok' ? `of ${formatCount(e.plugins.data.length)} ${plural(e.plugins.data.length, 'plugin')} scored` : undefined, definition: TILES.established.definition },
-    { label: TILES.lastScored.label, value: tiles.lastScored ? formatDateTime(tiles.lastScored) : 'Never', definition: TILES.lastScored.definition },
+    { label: TILES.lastScored.label, value: tiles.lastScored ? `${scoredAgo(tiles.lastScored, e.meta.asOf)}, ${formatDateTime(tiles.lastScored)}` : 'Never', definition: TILES.lastScored.definition },
     { label: TILES.daysScored.label, value: formatCount(tiles.daysScored), definition: TILES.daysScored.definition.replace('the reporting time zone', e.meta.timezone) },
   );
   if (e.byDecision.state === 'ok') {

@@ -17,11 +17,11 @@ import { formatPercent, plural } from '@/lib/format';
 import { formatDate, formatDateTime, formatDay, formatShortDate } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { grainOf } from '@/lib/grain';
-import type { Fact, Insight, SharedContext } from '@/lib/shared-context';
+import { listed, type Fact, type SharedContext } from '@/lib/shared-context';
 import type { Figure, PeriodFigure, Window } from '@/lib/platform-shapes';
 import type { RecordRead, WritingCoverage } from '@/lib/work-shapes';
-import { addressOf, budgeted, clip, pendingContext } from './context';
-import { LESSONS_MADE, gapsOf } from './record-names';
+import { addressOf, clip, pendingContext, sectioned, type Section } from './context';
+import { LESSONS_MADE, NO_DATA, gapsOf } from './record-names';
 
 /** How long the console's server waits for Record's read before it says the read is unavailable: half a second under
  *  five, for a phone to draw what it says, the bound the browser's own reads keep (`src/lib/api.ts`). */
@@ -269,6 +269,47 @@ export const formatShare = (n: number): string => formatPercent(n / 100, 0);
 
 /** The periods of the lead's series the context says, the running one last: up to 26 weeks are drawn. */
 const SERIES_PERIODS = 8;
+/** The periods of every other series the context says: the lead's is the page's protagonist, these its slices'. */
+const SLICE_PERIODS = 3;
+
+/** A figure as its chart's column reads it: its value, `none` where nothing was recorded, or why else it has none. */
+const figureSaid = (f: Figure, format: (n: number) => string = formatCount): string => (f.value === null ? (f.why === 'no_data' ? NO_DATA : absent(f.why)).toLowerCase() : format(f.value));
+
+/** One chart of a slice: the name the page gives it, and each period's figure in the words its column reads. */
+type Chart = { name: string; values: string[] };
+
+/**
+ * The slices' charts as one section, the periods said once, as the page draws every chart over the lead's periods: the
+ * newest three, oldest first, each chart's figures in that order, and the older periods counted. Six lines each naming
+ * its weeks did not fit beside the tiles (Phase 7's third re-review, Work P-2); a chart of a slice that could not be
+ * read is not here, and its slice says so.
+ */
+function chartsOf(r: RecordRead, charts: Chart[]): Section[] {
+  const windows = r.cumulative.map((p) => p.window);
+  if (!windows.length || !charts.length) return [];
+  const name = grainOf(windows) === 'week' ? (d: string) => formatDay(d) : tickOf(windows);
+  const from = Math.max(0, windows.length - SLICE_PERIODS);
+  const last = windows.length - 1;
+  const dates = windows.slice(from).map((w, i) => `${name(w.from)}${from + i === last && !w.complete ? ' so far' : ''}`);
+  const older = from ? `the newest ${dates.length} of ${formatCount(windows.length)}` : 'every one';
+  return [{
+    name: charts.map((c) => c.name).join('; '),
+    insight: { text: `The charts ${grainWords(windows)}, ${older} (${dates.join('; ')}): ${charts.map((c) => `${c.name} ${c.values.slice(from).join(' / ')}`).join('; ')}.` },
+  }];
+}
+
+/** A period's closures by outcome, as its column reads: `1 accepted, 1 abandoned`, `none`, or why there is no figure. */
+function closuresSaid(c: { accepted: Figure; delivered: Figure; abandoned: Figure }): string {
+  const parts = [['accepted', c.accepted], ['delivered', c.delivered], ['abandoned', c.abandoned]] as const;
+  const missing = parts.find(([, f]) => f.value === null);
+  if (missing) return figureSaid(missing[1]);
+  const total = parts.reduce((n, [, f]) => n + f.value!, 0);
+  return total ? parts.filter(([, f]) => f.value).map(([k, f]) => `${formatCount(f.value!)} ${k}`).join(', ') : 'none';
+}
+
+/** A spread as the typical piece of work reads it: `3, the largest 5`. */
+const spreadSaid = (s: { median: Figure; largest: Figure }): string =>
+  (s.median.value === null ? 'none closed' : `${formatCount(s.median.value)}, the largest ${s.largest.value === null ? 'unknown' : formatCount(s.largest.value)}`);
 
 /**
  * The lead's running total as its chart draws it, oldest first, each period by its start: `14 Sept 29,400; …; 19 Oct
@@ -282,6 +323,76 @@ function leadSeries(r: RecordRead): string {
   const last = r.cumulative.length - 1;
   const shown = r.cumulative.map((p, i) => `${name(p.window.from)} ${p.figure.value === null ? absent(p.figure.why).toLowerCase() : formatCount(p.figure.value)}${i === last && !p.window.complete ? ' so far' : ''}`).slice(-SERIES_PERIODS);
   return `${r.cumulative.length > shown.length ? `the newest ${shown.length} of ${formatCount(r.cumulative.length)}: ` : ''}${shown.join('; ')}`;
+}
+
+/** One row of the record, as its table reads it: its slug, and the day it opened while open, or how it closed and how
+ *  long it took. */
+type RecordRow = Extract<RecordRead['record'], { state: 'ok' }>['data']['rows'][number];
+const rowSaid = (i: RecordRow): string =>
+  `${clip(i.slug, 48)} (${i.outcome === null ? `open since ${formatDay(i.opened)}` : `${i.outcome}${i.tookHours === null ? '' : `, took ${formatHours(i.tookHours)}`}`})`;
+/** How many of the record's rows the context names: the table pages at ten, newest first. */
+const ROWS_NAMED = 3;
+
+/**
+ * Each section of the page past the facts, the most important first, so the budget drops the least important: every
+ * slice's series by week, the record's first rows, then the lists. The two heatmaps are the page's alone: a week of
+ * hours and a year of days are no rows a sentence names (Phase 7's third re-review, Work P-2).
+ */
+function sectionsOf(r: RecordRead, filters: RecordFilters): Section[] {
+  const w = r.work.state === 'ok' ? r.work.data : null;
+  const d = r.documents.state === 'ok' ? r.documents.data : null;
+  const k = r.knowledge.state === 'ok' ? r.knowledge.data : null;
+  const a = r.agents.state === 'ok' ? r.agents.data : null;
+  const f = r.firsts.state === 'ok' ? r.firsts.data : null;
+  const rec = r.record.state === 'ok' ? r.record.data : null;
+  const sections: Section[] = chartsOf(r, [
+    ...(w ? [
+      { name: 'Closures by outcome', values: w.closuresByWeek.map(closuresSaid) },
+      { name: 'Median hours to close', values: w.medianHoursByWeek.map((p) => figureSaid(p.figure, formatHours)) },
+    ] : []),
+    ...(k ? [
+      { name: 'Searches with results', values: k.searchesWithResults.map((p) => figureSaid(p.figure, formatShare)) },
+      { name: `${LESSONS_MADE} in all`, values: k.adoptedInAll.map((p) => figureSaid(p.figure)) },
+    ] : []),
+    ...(w ? [{ name: 'Closures in all', values: w.closuresInAll.map((p) => figureSaid(p.figure)) }] : []),
+    ...(d ? [{ name: 'Words added', values: d.wordsByWeek.map((p) => figureSaid(p.figure)) }] : []),
+  ]);
+  // A record with no initiative yet is its summary's zero, and has no rows to name.
+  if (rec && rec.rows.length) {
+    const page = pageOf(filters);
+    const shown = rec.rows.slice(0, ROWS_NAMED);
+    sections.push({ name: 'The record\'s rows', insight: { text: `The record's rows, ${page > 1 ? `page ${page}'s newest` : 'the newest'} ${shown.length} of ${formatCount(rec.total)}: ${shown.map(rowSaid).join('; ')}.` } });
+  }
+  // A list with nothing in it is said as its card says it, so an empty card is told as one, never left out.
+  if (a) {
+    // The page's list names a few and counts the rest, and so does this.
+    const skills = a.bySkill;
+    const runs = skills.slice(4).reduce((n, s) => n + s.runs, 0);
+    const more = skills.length > 4 ? `; and ${skills.length - 4} more ${plural(skills.length - 4, 'skill')}, ${formatCount(runs)} ${plural(runs, 'run')}` : '';
+    sections.push({ name: 'Runs by skill', insight: { text: `Runs by skill: ${skills.length ? `${skills.slice(0, 4).map((s) => `${clip(s.skill, 40)} ${formatCount(s.runs)}`).join('; ')}${more}` : 'no run in the period'}.`, evidence: '/runs' } });
+  }
+  if (d) {
+    const m = d.mostRewritten;
+    sections.push({ name: 'Most rewritten documents', insight: { text: `Most rewritten documents (every write a revision, an approval's included): ${m.length ? `${m.slice(0, 3).map((x) => `${clip(`${x.initiative}/${x.path}`)} (${x.versions} ${plural(x.versions, 'revision')})`).join('; ')}${m.length > 3 ? `; and ${m.length - 3} more` : ''}` : 'nothing rewritten in the period'}.` } });
+  }
+  if (k) {
+    sections.push({ name: 'Lessons adopted, by kind', insight: { text: `Lessons adopted, by kind, imports included: ${k.byKind.length ? listed(k.byKind, (b) => `${b.kind} ${formatCount(b.lessons)}`, 'the list on /knowledge', 6) : 'no lesson on the shelf'}.`, evidence: '/knowledge' } });
+  }
+  if (f) {
+    // The year once where every first is in one, as a sentence writes a day; the dated card writes each in full.
+    const years = new Set(f.firsts.map((x) => formatDate(x.at).slice(-4)));
+    const one = years.size === 1 ? [...years][0] : null;
+    sections.push({ name: 'Dated firsts', insight: { text: `Dated firsts${one ? `, all in ${one}` : ''}: ${f.firsts.length ? f.firsts.map((x) => `${FIRST[x.key].replace(/^First /, '')} ${one ? formatDay(x.at) : formatDate(x.at)}`).join('; ') : 'none yet'}.` } });
+  }
+  if (w) {
+    const t = w.typical;
+    sections.push({ name: 'A typical piece of work', insight: { text: `A typical piece of work, the median over the period's closures: documents ${spreadSaid(t.documents)}; revisions ${spreadSaid(t.versions)}; sources ${spreadSaid(t.sources)}; words it retains ${spreadSaid(t.words)}.` } });
+  }
+  if (k) {
+    sections.push({ name: 'What searches returned', insight: { text: `What searches returned, by kind: ${k.returnedByKind.length ? listed(k.returnedByKind, (b) => `${b.kind} ${formatCount(b.results)}`, 'the list on /record', 4) : 'nothing in the period'}.` } });
+  }
+  if (a) sections.push({ name: `Weekday by hour (in ${r.meta.timezone})`, insight: null }, { name: 'Every day', insight: null });
+  return sections;
 }
 
 /** The context of the record the page draws for `filters`, or of the read that has not brought one. */
@@ -315,28 +426,7 @@ export function recordContext(r: RecordRead | null, { filters, trouble = null }:
   const summary = summaryLine(r);
   if (summary) facts.push({ label: 'The record', value: summary, definition: 'Whatever the period' });
 
-  const insights: Insight[] = [];
   const unknowns: string[] = [];
-  if (r.firsts.state === 'ok' && r.firsts.data.firsts.length) {
-    // The year once where every first is in one, as a sentence writes a day; the dated card writes each in full.
-    const firsts = r.firsts.data.firsts;
-    const years = new Set(firsts.map((f) => formatDate(f.at).slice(-4)));
-    const one = years.size === 1 ? [...years][0] : null;
-    insights.push({ text: `Firsts on record${one ? `, all in ${one}` : ''}: ${firsts.map((f) => `${FIRST[f.key].replace(/^First /, '')} ${one ? formatDay(f.at) : formatDate(f.at)}`).join('; ')}.` });
-  }
-  if (r.documents.state === 'ok' && r.documents.data.mostRewritten.length) {
-    insights.push({ text: `Most rewritten (every write a revision, an approval's included): ${r.documents.data.mostRewritten.slice(0, 3).map((m) => `${clip(`${m.initiative}/${m.path}`)} (${m.versions} ${plural(m.versions, 'revision')})`).join('; ')}.` });
-  }
-  if (r.agents.state === 'ok' && r.agents.data.bySkill.length) {
-    // The page's list names a few and counts the rest, and so does this.
-    const skills = r.agents.data.bySkill;
-    const runs = skills.slice(4).reduce((n, s) => n + s.runs, 0);
-    const more = skills.length > 4 ? `; and ${skills.length - 4} more ${plural(skills.length - 4, 'skill')}, ${formatCount(runs)} ${plural(runs, 'run')}` : '';
-    insights.push({ text: `Runs by skill: ${skills.slice(0, 4).map((s) => `${clip(s.skill, 40)} ${formatCount(s.runs)}`).join('; ')}${more}.`, evidence: '/runs' });
-  }
-  if (r.knowledge.state === 'ok' && r.knowledge.data.byKind.length) {
-    insights.push({ text: `Lessons adopted by kind, imports included: ${r.knowledge.data.byKind.map((b) => `${b.kind} ${formatCount(b.lessons)}`).join('; ')}.`, evidence: '/knowledge' });
-  }
   // What the estimate leaves out: the documents and revisions it is over are the facts above.
   const gaps = r.lead.estimate ? gapsOf(r.lead.estimate.coverage) : null;
   if (gaps) unknowns.push(gaps.length ? `The estimate: ${gaps.join(', ')}.` : 'The estimate leaves no document out.');
@@ -344,5 +434,5 @@ export function recordContext(r: RecordRead | null, { filters, trouble = null }:
   for (const k of Object.keys(SLICES) as SliceKey[]) if (!tiles[k]) unknowns.push(SLICES[k].unread);
   if (r.record.state !== 'ok') unknowns.push('The record of initiatives could not be read.');
 
-  return budgeted({ ...view, scope: `${r.meta.population}, ${periodLine(r)}`, freshness: `${asOfLine(r)}.`, facts, insights, unknowns });
+  return sectioned({ ...view, scope: `${r.meta.population}, ${periodLine(r)}`, freshness: `${asOfLine(r)}.`, facts, insights: [], unknowns }, sectionsOf(r, filters));
 }

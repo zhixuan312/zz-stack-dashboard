@@ -27,6 +27,7 @@ import type { PeriodFigure } from '../../src/lib/platform-shapes.ts';
 import type { ApprovalEvidence, ApprovalRow, Approvals, WaitingRow } from '../../src/lib/work-shapes.ts';
 import { ago } from './clock.ts';
 import { kept } from './journey.ts';
+import { printedDay } from './platform-releases.ts';
 import { WEEKS, tally, workMeta } from './work-initiatives.ts';
 import { INITIATIVES, contentRevisionOf, documentDetail, initiativeDetail } from './work.ts';
 
@@ -143,9 +144,21 @@ export const callerApprovalRows = (team: string | null, email: string): Approval
   ...approvalsOf(team).filter((a) => a.signer === email).map(({ team: _, signer: __, ...a }) => a),
 ];
 
-/** Those approvals by week, the running one not complete; one dated by its day alone falls in the week of that day. */
-export const callerWeeks = (rows: ApprovalRow[]): PeriodFigure[] =>
-  WEEKS.map((w, i) => tally(i, rows.filter((a) => a.approvedAt >= w.from.slice(0, a.approvedAt.length) && a.approvedAt < w.to.slice(0, a.approvedAt.length)).length));
+/** The calendar day an approval is dated on where the console prints it: its own day when only the day is recorded. */
+const dayOfApproval = (a: ApprovalRow): string => (a.approvedAt.length === 10 ? a.approvedAt : printedDay(a.approvedAt));
+
+/**
+ * Those approvals by week, the running one not complete. The status fixture's weeks are cut at midnight UTC, while the
+ * gateway cuts its weeks, and the console prints an approval's time, in the reporting timezone; so an approval is
+ * counted in the week whose days, where the console prints them, hold the day History dates it on: one at 06:00 on a
+ * Monday in Singapore is that Monday's week, though it is still Sunday in UTC (Phase 7's third re-review, Work P-1).
+ * Home's last-week count is this series' last whole week. COUPLED: `holds` in platform-releases.ts, which counts a
+ * release the same way.
+ */
+export const callerWeeks = (rows: ApprovalRow[]): PeriodFigure[] => WEEKS.map((w, i) => {
+  const [from, to] = [printedDay(w.from), printedDay(w.to)];
+  return tally(i, rows.map(dayOfApproval).filter((d) => d >= from && d < to).length);
+});
 
 const PRESENTATIONS: ApprovalEvidence['presentation'][] = ['console_revision_shown', 'agent_context_covered', 'not_recorded', 'unknown'];
 const BASES: ApprovalEvidence['decisionBasis'][] = ['explicit_recorded', 'standing_delegation_recorded', 'unknown'];

@@ -6,7 +6,7 @@
  * context function from the browser and the view's tool calls the same one on the server (`src/views/tools.ts`), so
  * the screen and the assistant are told one thing.
  */
-import { contextText, freshnessOf, type SharedContext } from '@/lib/shared-context';
+import { contextText, freshnessOf, type Insight, type SharedContext } from '@/lib/shared-context';
 
 /** Whose data a view shows: every team's for a superadmin in the platform view, one team's otherwise. */
 type ViewMode = 'platform' | 'team';
@@ -61,6 +61,29 @@ export function budgeted(context: SharedContext): SharedContext {
   const fit = () => ({ ...context, insights, unknowns: [...context.unknowns, more] });
   while (insights.length && contextText(fit()).length > CONTEXT_BUDGET) insights.pop();
   return fit();
+}
+
+/** A part of a page its context tells: the name the page gives it, and its rows as the assistant is told them; null for
+ *  a part the page draws and the context never tells, such as a heatmap, whose cells are no rows a sentence names. */
+export type Section = { name: string; insight: Insight | null };
+
+/**
+ * `context` with the sections of its page, the most important first: each section's rows where they fit the budget
+ * beside those before it, and every section left out, for the budget or because the page alone draws it, named in one
+ * line of the Unknown. `budgeted` alone drops what does not fit with one line saying only that the page has more, which
+ * left an agent not knowing which part it was not told (Phase 7's third re-review, Work P-2 and Platform P-1). A long
+ * section the budget cannot hold costs only itself: a shorter one after it is still told. Here, beside `budgeted`, so
+ * every view that sections its page loads it from the module every route already loads.
+ */
+export function sectioned(context: SharedContext, sections: Section[]): SharedContext {
+  const fit = (told: Section[]): SharedContext => {
+    const left = sections.filter((s) => !told.includes(s)).map((s) => s.name);
+    const only = left.length ? [`On the page only: ${left.join('; ')}; ${context.address} draws ${left.length === 1 ? 'it' : 'them'}.`] : [];
+    return { ...context, insights: [...context.insights, ...told.map((s) => s.insight!)], unknowns: [...context.unknowns, ...only] };
+  };
+  const told: Section[] = [];
+  for (const s of sections) if (s.insight && contextText(fit([...told, s])).length <= CONTEXT_BUDGET) told.push(s);
+  return budgeted(fit(told));
 }
 
 /** A share as a whole percent of a total, or nothing when there is no total. */

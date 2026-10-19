@@ -8,7 +8,8 @@ import type { InitiativeDetail } from '@/lib/api-shapes';
 import { plural } from '@/lib/format';
 import { formatCount } from '@/lib/format-units';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
-import { arrived, budgeted, type Arrival } from './context';
+import { arrived, clip, type Arrival, sectioned, type Section } from './context';
+import { sourceName } from './initiative-name';
 import { CLOSE_IS_THE_PERSON_S, INITIATIVES_BOUND_MS } from './initiatives-context';
 
 /**
@@ -29,6 +30,27 @@ export function initiativeTrouble(slug: string, read: Exclude<InitiativeRead, { 
     : { title: 'The initiative did not load', detail: read.reason };
 }
 
+type Doc = InitiativeDetail['documents'][number];
+
+/** The sources a context names; the page's table pages at ten, and the rest are counted. */
+const SOURCES_NAMED = 5;
+
+/** The sources by the name the page gives each, in its order: natural, so `R2` comes before `R10`. */
+const sourcesOf = (d: InitiativeDetail): Doc[] => d.documents.filter((x) => x.path.startsWith('sources/'))
+  .sort((a, b) => sourceName(a.title, a.path).name.localeCompare(sourceName(b.title, b.path).name, 'en', { numeric: true }));
+
+/**
+ * Where the decisions are read: a document's own page lists the claims its ledger records, or for a plan which criteria
+ * each task covers, so each is named with how many it holds: `3 claims on spec.md's page, 2 tasks on plan.md's page`. The
+ * context counted them and said nowhere where they were (Phase 7's third re-review, Work P-3).
+ */
+function decisionsWhere(d: InitiativeDetail): string | null {
+  const by = new Map<string, { n: number; plan: boolean }>();
+  for (const x of d.decisions) by.set(x.path, { n: (by.get(x.path)?.n ?? 0) + 1, plan: x.role === 'plan' });
+  if (!by.size) return null;
+  return [...by].map(([path, { n, plan }]) => `${formatCount(n)} ${plural(n, plan ? 'task' : 'claim')} on ${path}'s page`).join(', ');
+}
+
 export function initiativeContext(d: InitiativeDetail, arrival: Arrival): SharedContext {
   const base = `/initiatives/${d.team}/${d.slug}`;
   // An initiative with no flow has no steps, no gates and no position, whatever it was answered.
@@ -44,9 +66,15 @@ export function initiativeContext(d: InitiativeDetail, arrival: Arrival): Shared
   if (current && !d.closed) insights.push({ text: `It is at the ${current.name} step: ${current.what.replace(/\.$/, '')}.${current.produces ? ` That step produces ${current.produces}.` : ''}` });
   if (!freeform && d.steps.length) insights.push({ text: `The flow's steps: ${d.steps.map((s) => `${s.name} ${s.state}`).join(', ')}.` });
   if (live.length) insights.push({ text: `Its documents: ${listed(live, (x) => `${x.path} (${approval(x)})`, `see ${base}`)}.` });
+  // Each source by the name its row gives it, with the document it supports, as the page's Sources table lists them;
+  // a page whose documents fill the budget names the table as the page's alone rather than dropping it unsaid.
+  const named = sourcesOf(d);
+  const sections: Section[] = named.length
+    ? [{ name: 'Sources', insight: { text: `Sources, the evidence attached, with the document each supports: ${listed(named, (x) => `${clip(sourceName(x.title, x.path).name, 60)} (${x.supports ?? 'no document named'})`, `the Sources table on ${base}`, SOURCES_NAMED)}.` } }]
+    : [];
   if (d.correction) insights.push({ text: `${d.correction.path} changed after the close and its version ${d.correction.version} awaits approval again; the close stands meanwhile.`, evidence: `${base}/${d.correction.path}` });
   const c = d.decisionCounts;
-  return budgeted({
+  return sectioned({
     view: 'initiative',
     title: d.slug,
     address: base,
@@ -57,7 +85,7 @@ export function initiativeContext(d: InitiativeDetail, arrival: Arrival): Shared
       { label: 'Flow position', value: freeform ? 'no flow declared' : `stage ${d.at} of ${d.of}${d.stage ? `, ${d.stage}` : ''}` },
       { label: 'Gates', value: gates.length ? `${gates.filter((g) => g.passed).length} of ${gates.length} approved` : 'none', definition: 'Documents the flow requires a person to approve. The handover is written after the close and is not counted.' },
       { label: 'Documents', value: `${formatCount(live.length)} ${plural(live.length, 'document')}`, change: `${sources} ${plural(sources, 'source')} attached` },
-      ...(c.rows ? [{ label: 'Decisions', value: formatCount(c.rows), change: `${c.withVerdict} state a verdict`, definition: 'Claims its documents\' ledgers record.' }] : []),
+      ...(c.rows ? [{ label: 'Decisions', value: formatCount(c.rows), change: [`${c.withVerdict} state a verdict`, decisionsWhere(d)].filter(Boolean).join('; '), definition: 'Claims its documents\' ledgers record.' }] : []),
     ],
     insights,
     unknowns: [
@@ -65,5 +93,5 @@ export function initiativeContext(d: InitiativeDetail, arrival: Arrival): Shared
       ...(d.closed ? [`It is closed as ${d.outcome}${d.complete || freeform ? '' : ', and stopped short of everything its flow asks for'}.`] : []),
       ...(live.length ? [] : [d.closed ? 'Nothing was written in it.' : 'Nothing has been written in it yet, so the close a person may make is to abandon it.']),
     ],
-  });
+  }, sections);
 }

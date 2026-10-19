@@ -157,11 +157,21 @@ function half(m: Measure | undefined, key: 'malformed_per_1000' | 'same_tool_fol
   };
 }
 
+/**
+ * A half's caption: the week its figure is for and the counts behind it. Where the gateway's finding for the malformed
+ * calls is itself those counts (its `count` rung, "8 of 125 calls refused for their shape"), the caption says how the
+ * week moved on the one before instead, so the half says its counts once. The follow-up half's caption states its
+ * counts whatever the finding says: FR-23 fixes it.
+ */
 function captionOf(m: Measure, key: 'malformed_per_1000' | 'same_tool_followup_pct', last: PeriodFigure): string {
   const { numerator: n, denominator: d } = last;
   const few = last.figure.why === 'insufficient' ? `. Too few ${key === 'malformed_per_1000' ? 'calls' : 'refusals'} to compare` : '';
   if (n === null || d === null) return `Week of ${formatDay(last.window.from)}${few}`;
-  if (key === 'malformed_per_1000') return `${formatCount(n)} of ${formatCount(d)} real-work calls, ${weekOf(last)}${few}`;
+  if (key === 'malformed_per_1000') {
+    return m.finding?.kind === 'count'
+      ? `Real-work calls, ${weekOf(last)}, ${changeOf(m).words}${few}`
+      : `${formatCount(n)} of ${formatCount(d)} real-work calls, ${weekOf(last)}${few}`;
+  }
   const c = m.followupCounts?.[indexOf(m, last)];
   return `${formatCount(n)} of ${formatCount(d)} refusals that could be followed were put right, ${weekOf(last)}${c ? `; ${formatCount(c.refusals)} refused in all` : ''}${few}`;
 }

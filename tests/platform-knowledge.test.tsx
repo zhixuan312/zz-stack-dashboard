@@ -333,9 +333,11 @@ describe('what the assistant is told', () => {
     expect(t).toContain(`Left out as imported: the week of ${day(1)} 96 by the day rule; the week of ${day(4)} 24 told exactly.`);
     expect(t).toContain(`"${QUESTIONS[0].question}" (atlas, 4 times)`);
     expect(t).toContain(`As of ${formatDateTime(ADMIN.meta.asOf)}`);
-    // The superadmin's questions take the room the cohorts and the kinds would: those two go first, and the page has them.
-    expect(t).not.toContain('Standing lessons by kind');
-    expect(t).toContain('More is on the page than fits here');
+    // The superadmin's questions come last, and crowd out neither the cohorts nor the kinds (Phase 7's third re-review,
+    // Platform P-1): every section is told, and nothing is dropped unnamed.
+    expect(t).toContain('Standing lessons by kind: decision 42');
+    expect(t).toContain('Lessons by the week made, imports included');
+    expect(t).not.toContain('More is on the page than fits here');
     expect(t.length).toBeLessThanOrEqual(CONTEXT_BUDGET);
   });
 
@@ -350,7 +352,7 @@ describe('what the assistant is told', () => {
     expect(t.length).toBeLessThanOrEqual(CONTEXT_BUDGET);
   });
 
-  it('holds its budget on a busy platform, 26 weeks and forty shelves, dropping the kinds first and keeping the shelves', () => {
+  it('holds its budget on a busy platform, 26 weeks and forty shelves, keeping the shelves and naming each section it leaves out', () => {
     const week = (i: number): Window => {
       const from = Date.UTC(2026, 3, 13) + i * 7 * 86_400_000;
       return { from: new Date(from).toISOString(), to: new Date(from + 7 * 86_400_000).toISOString(), observedFrom: null, observedThrough: null, complete: i < 25 };
@@ -376,7 +378,10 @@ describe('what the assistant is told', () => {
       expect(t).toContain('All shelves');
       expect(t).toContain('the last 8 weeks from the');
       expect(t).toContain('- Searches last week:');
-      expect(t).not.toContain('Standing lessons by kind');
+      expect(t).not.toContain('More is on the page than fits here');
+      for (const [told, title] of [['Standing lessons by kind:', 'Lessons by kind'], ['Lessons by the week made,', 'Lessons by the week made']]) {
+        expect(t.includes(told) || (c.unknowns.at(-1)!.startsWith('On the page only') && c.unknowns.at(-1)!.includes(title)), title).toBe(true);
+      }
     }
   });
 

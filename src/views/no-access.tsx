@@ -22,7 +22,9 @@ import { navOf } from '@/views/workspaces';
 export function MissingPage() {
   return (
     <PageFrame kicker={NOT_FOUND.kicker} title={NOT_FOUND.sentence.replace(/\.$/, '')} description={NOT_FOUND.lead}>
-      <Card data-missing-page="" className="items-center gap-8 px-(--card-pad) py-14 text-center">
+      {/* The card is as wide as the mascot and its button, at the title's left edge: stretched across the canvas it was
+          a 1,540px card holding a 170px picture. */}
+      <Card data-missing-page="" className="w-fit max-w-full self-start items-center gap-8 px-16 py-14 text-center">
         <Mascot pose="notfound" />
         <Button asChild variant="primary" size="lg"><Link href={NOT_FOUND.way.href}>{NOT_FOUND.way.label}</Link></Button>
       </Card>

@@ -1,5 +1,3 @@
-import { Fragment } from 'react';
-
 /**
  * Access's tables as a phone reads them. Under 512px of table a row is a card: its lead cell (the one marked
  * `data-lead`) whole on its own line, and the cells after it on the next, the last at the far end. A table's columns at
@@ -15,17 +13,16 @@ export const PHONE_ROWS = [
 ].join(' ');
 
 /**
- * An email address that breaks only between its parts: after the `@` and before a dot, as a person would split it,
- * never "maximilia / na.fitzger / ald". A part longer than the whole line may still break, as a last resort. The parts
- * are text nodes of one element, so the address reads, selects and copies as one.
+ * An email address kept whole on a line, and broken only after its `@` where the line is shorter than the address: an
+ * inline block moves to the next line whole when it fits there, so "mcp oauth — /core/mcp — ava@example.com" never ends
+ * a line at "ava@example" and starts the next at ".com". A part longer than the whole line may still break, as a last
+ * resort. The parts are text nodes of one element, so the address reads, selects and copies as one.
  */
 export function Email({ address }: { address: string }) {
-  const parts = address.split(/(?=\.)|(?<=@)/);
+  const at = address.indexOf('@') + 1;
   return (
-    <span className="[overflow-wrap:break-word]">
-      {parts.map((p, i) => (
-        <Fragment key={i}>{i ? <wbr /> : null}{p}</Fragment>
-      ))}
+    <span className="inline-block max-w-full [overflow-wrap:break-word]">
+      {at > 0 ? <>{address.slice(0, at)}<wbr />{address.slice(at)}</> : address}
     </span>
   );
 }

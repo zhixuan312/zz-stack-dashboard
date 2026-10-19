@@ -39,7 +39,7 @@ const formatDay = (iso: string) => {
 const FIGURE = [
   'Malformed calls per 1,000',
   last.figure.value!.toFixed(1),
-  `${last.numerator} of ${last.denominator} real-work calls, week of ${formatDay(last.window.from)}`,
+  `Real-work calls, week of ${formatDay(last.window.from)}`,
 ];
 
 /** What a page is asked, sent with each question: find a control by role and accessible name, and say where it is. */
