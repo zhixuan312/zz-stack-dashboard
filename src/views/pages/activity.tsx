@@ -62,7 +62,7 @@ const phoneFact = (e: ActivityRow): ReactNode => {
  */
 const LOG_COLUMNS: Column<ActivityRow>[] = aligned([
   { key: 'when', header: 'When', width: 'w-28', mobile: 'fact', cell: (e) => <span className="whitespace-nowrap"><When at={e.ts} /></span> },
-  { key: 'kind', header: 'Kind', mobile: 'fact', cell: (e) => <span className="font-mono text-xs whitespace-nowrap text-ink">{e.kind}</span>, mobileCell: phoneFact },
+  { key: 'kind', header: 'Kind', mobile: 'fact', cell: (e) => <Dotted name={e.kind} />, mobileCell: phoneFact },
   {
     key: 'tool', header: 'Tool', align: 'left', grow: true, mobile: 'title', title: (e) => e.tool ?? e.kind,
     cell: (e) => (e.tool ? <ToolName name={e.tool} /> : dash),
@@ -78,6 +78,17 @@ const LOG_COLUMNS: Column<ActivityRow>[] = aligned([
   { key: 'owner', header: 'Why', hideBelow: 'lg', cell: (e) => <span className="whitespace-nowrap">{e.ok === false ? OWNER_LABEL[e.owner ?? 'other'] : ''}</span> },
   { key: 'message', header: 'Message', align: 'left', hideBelow: 'xl', truncate: true, cell: (e) => (e.ok !== false ? '' : e.message ? <span title={e.message} className="text-critical-ink">{e.message}</span> : <span className="text-ink-3">No message recorded</span>) },
 ]);
+
+/**
+ * A kind, `knowledge.supersede`, whole on one line where the table has the width. Under 896px of table it may break
+ * after a dot or an underscore and nowhere else: held whole, the longest kind and the Tool column's own floor (the
+ * managed table keeps a growing column at least 256px wide) ran the log 5px past its frame at 1024 (#4207).
+ */
+const Dotted = ({ name }: { name: string }) => (
+  <span className="font-mono text-xs whitespace-nowrap text-ink @max-[896px]:whitespace-normal">
+    {name.split(/(?<=[._])/).map((part, i) => <Fragment key={i}>{i ? <wbr /> : null}{part}</Fragment>)}
+  </span>
+);
 
 /**
  * A tool's name, `core:document_approve`, whole on one line where the table has the width. Under 896px of table the

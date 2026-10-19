@@ -238,7 +238,9 @@ describe('F-54, N-5: Access', () => {
     draw();
     const setup = screen.getByRole('heading', { level: 2, name: 'Client setup' }).closest('section') as HTMLElement;
     const step = await within(setup).findByRole('heading', { name: /Get a token/ });
-    expect(step.tagName).toBe('H5');
-    expect(step.className).not.toMatch(/text-lg|text-xl/);
+    // The next level of the outline, an h3 under the section's h2, never a skipped one (the audit's rule, #4207), set
+    // at a body's size by the setup's own wrapper rather than the larger size a page's h3 takes.
+    expect(step.tagName).toBe('H3');
+    expect(step.closest('[data-setup]')!.className).toContain('[&_h3]:text-base');
   });
 });

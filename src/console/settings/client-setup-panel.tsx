@@ -12,11 +12,13 @@ import { useAccess } from '@/console/settings/access-read';
 type Part = { kind: 'steps'; text: string } | { kind: 'commands'; text: string; n: number };
 
 /**
- * A step's heading two levels down, so the reading body draws `## 1. Install` at a body's size under the section's
- * own title (`t-card`) rather than larger than it: written for a chat, the setup's headings are a page's, and here they
- * sit inside one section of Access. Six is as deep as Markdown goes.
+ * The setup's step headings, set under the section's own title. The reading body draws the writer's `##` as an h3, the
+ * level right under the section's h2, so the outline skips none; the wrapper sets it at a body's size, not the larger
+ * size a page's own h3 takes: written for a chat, the setup's headings are a page's, and here they sit inside one
+ * section of Access. Moving the marks down instead drew `## 1. Install` as an h5 under an h2, a skipped level the
+ * audit refuses.
  */
-const underTheSection = (text: string): string => text.replace(/^(#{1,6}) /gm, (_, marks: string) => `${'#'.repeat(Math.min(6, marks.length + 2))} `);
+const STEP_HEADINGS = '[&_h3]:mt-5 [&_h3]:mb-2 [&_h3]:border-0 [&_h3]:pt-0 [&_h3]:text-base [&_h3]:tracking-normal [&_h4]:text-sm';
 
 /**
  * The setup as the person reads it. The gateway writes it as Markdown for an agent's chat (`renderClientSetup`), so
@@ -30,12 +32,12 @@ function partsOf(config: string): Part[] {
   let at = 0;
   for (const m of body.matchAll(/```[^\n]*\n([\s\S]*?)```/g)) {
     const before = body.slice(at, m.index).trim();
-    if (before) parts.push({ kind: 'steps', text: underTheSection(before) });
+    if (before) parts.push({ kind: 'steps', text: before });
     parts.push({ kind: 'commands', text: m[1].replace(/\n$/, ''), n: parts.filter((p) => p.kind === 'commands').length + 1 });
     at = m.index + m[0].length;
   }
   const after = body.slice(at).trim();
-  if (after) parts.push({ kind: 'steps', text: underTheSection(after) });
+  if (after) parts.push({ kind: 'steps', text: after });
   return parts;
 }
 
@@ -73,7 +75,7 @@ export function ClientSetupPanel() {
       title="Client setup"
       description="What to run in Claude Code to connect it to this platform as you. Put a token where it says to."
     >
-      <div data-setup className="flex flex-col gap-3">
+      <div data-setup className={`flex flex-col gap-3 ${STEP_HEADINGS}`}>
         {parts.map((p, i) => {
           if (p.kind === 'steps') return <ReadingBody key={i}>{p.text}</ReadingBody>;
           return (
