@@ -29,6 +29,7 @@ import { RunsView } from '@/views/pages/runs';
 import { statusRead } from '@/views/platform-status-context';
 import { recordPath } from '@/views/record-context';
 import { RUNS_DEFAULTS, runsPath } from '@/views/runs-context';
+import { localDay, midnight } from '../scripts/fake-gateway/clock.ts';
 import { ME } from '../scripts/fake-gateway/people.ts';
 import { PLATFORM_STATUS } from '../scripts/fake-gateway/platform-status.ts';
 import { usage } from '../scripts/fake-gateway/platform-usage.ts';
@@ -91,7 +92,7 @@ describe('a Heatmap handed days from before the record begins', () => {
   const ALL = record(ME, new URLSearchParams('period=all'))[1] as RecordRead;
   const days = ALL.agents.state === 'ok' ? ALL.agents.data.days : [];
   const begins = days[Math.floor(days.length / 2)].day;
-  const BEGUN: RecordRead = { ...ALL, meta: { ...ALL.meta, coverageFrom: `${begins}T00:00:00Z` } };
+  const BEGUN: RecordRead = { ...ALL, meta: { ...ALL.meta, coverageFrom: new Date(midnight(begins)).toISOString() } };
   const PATH = recordPath({ period: 'all', page: '1' });
   const drawRecord = (r: RecordRead) => {
     window.history.replaceState(null, '', '/record');
@@ -109,12 +110,12 @@ describe('a Heatmap handed days from before the record begins', () => {
     expect(cells[0].date).toBe(begins);
     expect(cells.every((c) => c.date >= begins)).toBe(true);
     expect(cells.at(-1)!.date).toBe(days.at(-1)!.day);
-    expect(panel('Every day').textContent).toContain(`Runs started each day from ${formatCalendarDate(begins)}, when the record begins, in UTC`);
+    expect(panel('Every day').textContent).toContain(`Runs started each day from ${formatCalendarDate(begins)}, when the record begins, in ${ALL.meta.timezone}`);
   });
 
   it('Record\'s weekday by hour names the record\'s first day, and draws the hours once a whole week of them was observed', () => {
     drawRecord(BEGUN);
-    expect(panel('Weekday by hour').textContent).toContain(`Runs started from ${formatCalendarDate(begins)}, when the record begins, in UTC`);
+    expect(panel('Weekday by hour').textContent).toContain(`Runs started from ${formatCalendarDate(begins)}, when the record begins, in ${ALL.meta.timezone}`);
     expect(hours()).toHaveLength(1);
 
     heat.props = [];
@@ -122,7 +123,7 @@ describe('a Heatmap handed days from before the record begins', () => {
     drawRecord({ ...BEGUN, meta: { ...BEGUN.meta, coverageFrom: late } });
     expect(hours()).toHaveLength(0);
     expect(text()).toContain('Not a whole week observed yet');
-    expect(calendar()!.days.every((c) => c.date >= late.slice(0, 10))).toBe(true);
+    expect(calendar()!.days.every((c) => c.date >= localDay(Date.parse(late)))).toBe(true);
   });
 
   it('Record draws no day and no hour of a team with no record at all', () => {

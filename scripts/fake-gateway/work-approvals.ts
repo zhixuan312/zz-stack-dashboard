@@ -25,9 +25,8 @@
 import type { DocumentDetail, Me } from '../../src/lib/api-shapes.ts';
 import type { PeriodFigure } from '../../src/lib/platform-shapes.ts';
 import type { ApprovalEvidence, ApprovalRow, Approvals, WaitingRow } from '../../src/lib/work-shapes.ts';
-import { ago } from './clock.ts';
+import { ago, localDay, midnight } from './clock.ts';
 import { kept } from './journey.ts';
-import { printedDay } from './platform-releases.ts';
 import { WEEKS, tally, workMeta } from './work-initiatives.ts';
 import { INITIATIVES, contentRevisionOf, documentDetail, initiativeDetail } from './work.ts';
 
@@ -73,6 +72,9 @@ const COVERAGE_FROM = WEEKS[0].from;
 
 type Signed = ApprovalRow & { team: string; signer: string };
 
+/** When an approval was made: one dated by its day alone at that day's midnight in the reporting timezone. */
+export const approvedMs = (a: ApprovalRow): number => (a.approvedAt.length === 10 ? midnight(a.approvedAt) : Date.parse(a.approvedAt));
+
 /**
  * Every approval the documents of `team` record, newest first: each version approved, and each approval a later row
  * of its version superseded, with the snapshot approved, its signer and when. One signed on somebody's behalf is theirs,
@@ -95,20 +97,19 @@ export function approvalsOf(team: string | null): Signed[] {
         out.push({
           team: i.team, signer, initiative: i.slug, path: row.path, version: v.version,
           contentRevision: sealed?.content_revision ?? contentRevisionOf(i.team, i.slug, row.path, revision),
-          approvedAt: before ? at.slice(0, 10) : at, presentation, decisionBasis,
+          approvedAt: before ? localDay(Date.parse(at)) : at, presentation, decisionBasis,
         });
       }
     }
   }
   // Newest first; one dated by its day alone is read at that day's midnight.
-  const ms = (a: Signed) => Date.parse(a.approvedAt.length === 10 ? `${a.approvedAt}T00:00:00Z` : a.approvedAt);
-  return out.sort((a, b) => ms(b) - ms(a) || a.initiative.localeCompare(b.initiative) || a.path.localeCompare(b.path));
+  return out.sort((a, b) => approvedMs(b) - approvedMs(a) || a.initiative.localeCompare(b.initiative) || a.path.localeCompare(b.path));
 }
 
-/** When `team` first had a document approved, by anyone: the earliest approval, one dated by its day alone at that
- *  day's midnight, as Record's firsts read it; null with none. */
+/** When `team` first had a document approved, by anyone: the earliest approval, as Record's firsts read it; null with
+ *  none. */
 export function firstApproval(team: string | null): number | null {
-  const at = approvalsOf(team).map((a) => Date.parse(a.approvedAt.length === 10 ? `${a.approvedAt}T00:00:00Z` : a.approvedAt));
+  const at = approvalsOf(team).map(approvedMs);
   return at.length ? Math.min(...at) : null;
 }
 
@@ -144,21 +145,11 @@ export const callerApprovalRows = (team: string | null, email: string): Approval
   ...approvalsOf(team).filter((a) => a.signer === email).map(({ team: _, signer: __, ...a }) => a),
 ];
 
-/** The calendar day an approval is dated on where the console prints it: its own day when only the day is recorded. */
-const dayOfApproval = (a: ApprovalRow): string => (a.approvedAt.length === 10 ? a.approvedAt : printedDay(a.approvedAt));
-
-/**
- * Those approvals by week, the running one not complete. The status fixture's weeks are cut at midnight UTC, while the
- * gateway cuts its weeks, and the console prints an approval's time, in the reporting timezone; so an approval is
- * counted in the week whose days, where the console prints them, hold the day History dates it on: one at 06:00 on a
- * Monday in Singapore is that Monday's week, though it is still Sunday in UTC (Phase 7's third re-review, Work P-1).
- * Home's last-week count is this series' last whole week. COUPLED: `holds` in platform-releases.ts, which counts a
- * release the same way.
- */
-export const callerWeeks = (rows: ApprovalRow[]): PeriodFigure[] => WEEKS.map((w, i) => {
-  const [from, to] = [printedDay(w.from), printedDay(w.to)];
-  return tally(i, rows.map(dayOfApproval).filter((d) => d >= from && d < to).length);
-});
+/** Those approvals by week, the running one not complete, each in the week that holds it: the weeks are cut in the
+ *  reporting timezone History dates them in, so one at 06:00 on a Monday there is that Monday's week, though it is still
+ *  Sunday in UTC. Home's last-week count is this series' last whole week. */
+export const callerWeeks = (rows: ApprovalRow[]): PeriodFigure[] => WEEKS.map((w, i) =>
+  tally(i, rows.map(approvedMs).filter((ms) => ms >= Date.parse(w.from) && ms < Date.parse(w.to)).length));
 
 const PRESENTATIONS: ApprovalEvidence['presentation'][] = ['console_revision_shown', 'agent_context_covered', 'not_recorded', 'unknown'];
 const BASES: ApprovalEvidence['decisionBasis'][] = ['explicit_recorded', 'standing_delegation_recorded', 'unknown'];

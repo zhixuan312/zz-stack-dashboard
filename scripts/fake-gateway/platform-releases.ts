@@ -10,12 +10,8 @@
  *
  * The record begins where the status fixture's does, and the weekly malformed-call rate is that fixture's own weeks,
  * so Releases and Status read the same figures; the release Status says is running was tagged when Status says it was,
- * and the migrations applied are Status's count. The versions are one line of releases, newest first.
- *
- * Those weeks are cut at midnight UTC, while the gateway cuts its weeks, and the console prints a release's day, in the
- * deployment's timezone. So a release is counted in the week whose days, where the console prints them, hold the day
- * its table prints: a tag at 02:21 on a Monday in Singapore is that Monday's week, though it is still Sunday in UTC. The
- * Last week tile is the last whole week counted the same way, the week the chart marks.
+ * and the migrations applied are Status's count. The versions are one line of releases, newest first. A release is
+ * counted in the week that holds its tag, and the Last week tile is the last whole week, the week the chart marks.
  *
  * COUPLED: zz-stack's `checks/console-platform-releases.ts` imports this file with plain `node` and compares its key
  * sets with the real route's answer. So nothing here is imported through the console's path alias, and every part is
@@ -64,14 +60,8 @@ const SEEDS: Seed[] = [
 
 const at = (s: Seed) => now() - s.hoursAgo * HOUR;
 
-/** The calendar day an instant falls on in the gateway's default reporting timezone, which is the console's own
- *  (`app.timezone`), so the day is the one the table's Tagged column prints: what a release is counted by, here and in
- *  the prepared query's `releases` (platform-query-measures.ts). */
-const DAY = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Singapore', year: 'numeric', month: '2-digit', day: '2-digit' });
-export const printedDay = (instant: string): string => DAY.format(Date.parse(instant));
-/** Whether a week's days hold the day a release was tagged on. */
-const holds = (w: { from: string; to: string }, r: ReleaseRow): boolean =>
-  printedDay(w.from) <= printedDay(r.releasedAt) && printedDay(r.releasedAt) < printedDay(w.to);
+/** Whether a week holds the instant a release was tagged at. */
+const holds = (w: { from: string; to: string }, r: ReleaseRow): boolean => r.releasedAt >= w.from && r.releasedAt < w.to;
 const stands = (value: number): Figure => ({ value, why: null });
 const UNAVAILABLE: Figure = { value: null, why: 'unavailable' };
 

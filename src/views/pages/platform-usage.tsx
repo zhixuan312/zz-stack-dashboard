@@ -172,7 +172,7 @@ function Calls({ usage }: { usage: Usage }) {
   return (
     <Panel
       title={CALLS_TITLE}
-      description={`${last ? `${figureText('count', last.calls)} real-work calls in the ${weekOf(last.window)}` : 'No whole week yet'}${split ? '; by team, the three with the most calls and Other' : ''}`}
+      description={`${last ? `${figureText('count', last.calls)} real-work calls in the ${weekOf(last.window)}` : 'No whole week yet'}${split ? '; by team, the top three and Other' : ''}`}
       actions={ask}
     >
       {!weeks.length ? <EmptyState title="No weeks yet" className="py-8">The first week is drawn once real work has called a tool.</EmptyState>

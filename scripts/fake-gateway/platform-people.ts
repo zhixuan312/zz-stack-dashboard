@@ -16,7 +16,7 @@
 import type { Me, PlatformPersonRow, TeamMemberRow } from '../../src/lib/api-shapes.ts';
 import type { People, PersonRow } from '../../src/lib/fleet-shapes.ts';
 import type { PeriodFigure } from '../../src/lib/platform-shapes.ts';
-import { ago, day, now } from './clock.ts';
+import { ago, day, localDay, nextStart, now } from './clock.ts';
 import { kept } from './journey.ts';
 import { ME, MEMBER } from './people.ts';
 import { PLATFORM_STATUS } from './platform-status.ts';
@@ -29,7 +29,7 @@ const RUNNING = Date.parse(WEEKS.at(-1)!.from);
 
 /** An instant `hours` into the week `back` weeks before the running one; in the running week, halfway to now, so it
  *  has always happened whatever day verify runs on. */
-const inWeek = (back: number, hours: number) => (back === 0 ? RUNNING + (now() - RUNNING) / 2 : RUNNING - back * 7 * 24 * HOUR + hours * HOUR);
+const inWeek = (back: number, hours: number) => (back === 0 ? RUNNING + (now() - RUNNING) / 2 : nextStart(RUNNING, 'week', -back) + hours * HOUR);
 
 type Seed = {
   email: string; name: string; role: 'superadmin' | 'member'; status: 'active' | 'deactivated'; created: number;
@@ -93,7 +93,7 @@ export function people(who: Me, q: URLSearchParams, page: { limit: number; offse
   const text = (q.get('q') ?? '').trim().toLowerCase();
   // A journey session reads the people it added, last: each was added today, in no team, and has not signed in.
   const everyone = [...PEOPLE, ...(kept()?.added ?? []).map((a): PersonRow => ({
-    email: a.email, name: a.name, role: 'member', created: a.at.slice(0, 10), teams: [], passkeys: 0, lastSignIn: null, state: 'active',
+    email: a.email, name: a.name, role: 'member', created: localDay(Date.parse(a.at)), teams: [], passkeys: 0, lastSignIn: null, state: 'active',
   }))];
   const rows = everyone
     .filter((p) => !text || p.email.toLowerCase().includes(text) || p.name.toLowerCase().includes(text))

@@ -183,7 +183,7 @@ export function usageContext(read: UsageRead): SharedContext {
     // A part with no calls that week is left unsaid, so the split fits beside the rest.
     const split = (w: (typeof u.callsByWeek.data.weeks)[number]) => (w.parts ?? []).filter((p) => p.calls > 0).map((p) => `${p.label} ${formatCount(p.calls)}`).join(', ');
     const said = (w: (typeof u.callsByWeek.data.weeks)[number]) => `${formatDay(w.window.from)} ${figureText('count', w.calls)}${split(w) ? ` (${split(w)})` : ''}${w.window.complete ? '' : ', so far'}`;
-    sections.push({ name: 'Calls by week', insight: { text: `Calls by week, oldest first${parts.length ? ', by team, the three with the most calls and Other' : ''}: ${u.callsByWeek.data.weeks.map(said).join('; ')}.` } });
+    sections.push({ name: 'Calls by week', insight: { text: `Calls by week, oldest first${parts.length ? ', by team, the top three and Other' : ''}: ${u.callsByWeek.data.weeks.map(said).join('; ')}.` } });
   } else unavailable('The calls by week', u.callsByWeek.reason);
   if (u.tools.state === 'ok') {
     const line = (r: (typeof u.tools.data.rows)[number]) => `${r.tool} ${figureText('ms', r.first.medianMs)} (${formatDay(r.first.window.from)}) to ${figureText('ms', r.last.medianMs)}`;

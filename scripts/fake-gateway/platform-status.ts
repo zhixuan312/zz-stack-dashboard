@@ -3,8 +3,8 @@
  *
  * Every part: what needs attention, the eight measures in the spec's order, week by week, each door's days, the records,
  * what is running, and `own`, the reader's active team's share of three of the measures and its bug reports. A week runs
- * Monday to Monday in the reporting timezone, which here is UTC, and the weeks end on the one the server started in, so
- * the page reads last week whenever verify runs; the doors' days run from the first week's Monday through today. Both
+ * Monday to Monday in the reporting timezone (clock.ts), and the weeks end on the one the server started in, so the page
+ * reads last week whenever verify runs; the doors' days are that timezone's, from the first week's Monday through today. Both
  * people the fixture signs in act for atlas, so `own` is the same for both. `needs` is the superadmin's, and so the
  * answer is labelled `platform-admin`; a member is answered `MEMBER_STATUS`, the same object labelled `platform-public`
  * with `needs` in the gateway's member projection: every team's approvals folded into one row that names no team and
@@ -21,20 +21,20 @@
  * null: a null has no shape to compare.
  */
 import type { Measure, PeriodFigure, PlatformStatus } from '../../src/lib/platform-shapes.ts';
-import { now } from './clock.ts';
+import { localDay, midnight, nextStart, now, startOf, TIMEZONE } from './clock.ts';
 
 const DAY = 24 * 3_600_000;
-const WEEK = 7 * DAY;
 const iso = (ms: number) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z');
 
-/** The Monday the running week began on, 00:00 UTC. The epoch was a Thursday, so Mondays fall four days after a whole week. */
-const RUNNING = Math.floor((now() - 4 * DAY) / WEEK) * WEEK + 4 * DAY;
+/** The Monday 00:00 the running week began at, in the reporting timezone. */
+const RUNNING = startOf(now(), 'week');
 
 /** The week `back` weeks before the running one; only the running week has not ended. */
 function span(back: number): PeriodFigure['window'] {
-  const from = RUNNING - back * WEEK;
+  const from = nextStart(RUNNING, 'week', -back);
+  const to = nextStart(from, 'week');
   const ended = back > 0;
-  return { from: iso(from), to: iso(from + WEEK), observedFrom: iso(from), observedThrough: iso(ended ? from + WEEK : now()), complete: ended };
+  return { from: iso(from), to: iso(to), observedFrom: iso(from), observedThrough: iso(ended ? to : now()), complete: ended };
 }
 
 /** A rate of `scale` per `denominator`, kept and marked `insufficient` under `min` observations. */
@@ -56,7 +56,7 @@ const tally = (back: number, n: number): PeriodFigure => ({ window: span(back), 
 const undefinedYet = (back: number): PeriodFigure => ({ window: span(back), figure: { value: null, why: 'unavailable' }, numerator: null, denominator: null });
 
 /** The local date a week begins on, which a finding names. */
-const date = (w: PeriodFigure) => w.window.from.slice(0, 10);
+const date = (w: PeriodFigure) => localDay(Date.parse(w.window.from));
 /** A date as a sentence prints it, the console's `formatDay` of that day: `28 Sept`, `1 Oct`. COUPLED: `day` in the
  *  gateway's console/findings.ts. */
 const SENTENCE_DAY = new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', day: 'numeric', month: 'short' });
@@ -141,12 +141,12 @@ const FINISHED = measure('work_finished', 'neutral', FINISHED_WEEKS, { first: 0,
  * 1 in 20, a red day so far; `eval` 10 calls every third day counting back from yesterday, one refused as `other`, and
  * 4 today, with no tool failure. */
 type Door = Extract<PlatformStatus['doors'], { state: 'ok' }>['data'][number];
-const FIRST_DAY = MALFORMED_WEEKS[0].window.from.slice(0, 10);
-const TODAY = iso(now()).slice(0, 10);
+const FIRST_DAY = date(MALFORMED_WEEKS[0]);
+const TODAY = localDay(now());
 /** The local date `k` days before today. */
-const daysAgo = (k: number) => iso(Date.parse(`${TODAY}T00:00:00Z`) - k * DAY).slice(0, 10);
+const daysAgo = (k: number) => localDay(nextStart(midnight(TODAY), 'day', -k));
 /** How many complete days there are, the first week's Monday through yesterday. */
-const COMPLETE = (Date.parse(`${TODAY}T00:00:00Z`) - Date.parse(`${FIRST_DAY}T00:00:00Z`)) / DAY;
+const COMPLETE = Math.round((Date.parse(`${TODAY}T00:00:00Z`) - Date.parse(`${FIRST_DAY}T00:00:00Z`)) / DAY);
 function door(name: Door['door'], counts: (k: number) => [number, number], run: Door['run'], finding: Door['finding'], others: number): Door {
   const days = Array.from({ length: COMPLETE + 1 }, (_, i) => {
     const k = COMPLETE - i;
@@ -229,11 +229,11 @@ export function needsOf(found: NeedInstance[], superadmin: boolean): PlatformSta
 /** What every check but the approvals' found: an open report blocking work (the Bugs fixture's), the two doors with a
  *  fault day so far today, and a finding waiting since 410 hours ago (the Evaluation fixture's). */
 export const CHECKED: NeedInstance[] = [
-  { kind: 'bugs', key: 'bugs', tone: 'critical', instanceCount: 1, oldestAt: iso(RUNNING - 5 * WEEK + 60 * HOUR), href: BUGS_OPEN,
+  { kind: 'bugs', key: 'bugs', tone: 'critical', instanceCount: 1, oldestAt: iso(nextStart(RUNNING, 'week', -5) + 60 * HOUR), href: BUGS_OPEN,
     title: 'Bug reports are open', detail: '4 open reports, 1 blocking work' },
-  { kind: 'door', key: 'core', tone: 'critical', instanceCount: 1, oldestAt: iso(Date.parse(`${TODAY}T00:00:00Z`)), href: '/platform/usage',
+  { kind: 'door', key: 'core', tone: 'critical', instanceCount: 1, oldestAt: iso(midnight(TODAY)), href: '/platform/usage',
     title: 'The core door has a fault day today, so far', detail: '1 tool failure in 80 calls so far today' },
-  { kind: 'door', key: 'manage', tone: 'critical', instanceCount: 1, oldestAt: iso(Date.parse(`${TODAY}T00:00:00Z`) + 60_000), href: '/platform/usage',
+  { kind: 'door', key: 'manage', tone: 'critical', instanceCount: 1, oldestAt: iso(midnight(TODAY) + 60_000), href: '/platform/usage',
     title: 'The manage door has a fault day today, so far', detail: '1 tool failure in 20 calls so far today' },
   { kind: 'evaluation', key: 'evaluation', tone: 'warning', instanceCount: 1, oldestAt: iso(now() - 410 * HOUR), href: '/platform/evaluation',
     title: 'Evaluation findings are waiting for a decision', detail: '1 finding has waited 14 days or more for a decision' },
@@ -255,7 +255,7 @@ const RECORDS = {
 
 export const PLATFORM_STATUS: PlatformStatus = {
   meta: {
-    asOf: iso(now()), timezone: 'UTC',
+    asOf: iso(now()), timezone: TIMEZONE,
     period: { from: MALFORMED_WEEKS[0].window.from, to: iso(now()) },
     // The superadmin's answer, whose needs name teams; a member's (`MEMBER_STATUS`) is `platform-public`.
     scope: 'platform-admin', population: 'real-work tool calls and searches, real bug reports, and closed initiatives',

@@ -11,12 +11,13 @@ import type { RecordRead } from '../src/lib/work-shapes.ts';
  * DELIBERATE: the fake's clock is the moment its modules load, and its first record when atlas's first initiative
  * opened, seven weeks before that week's Monday, so a year begins before the first record only from late February on.
  * The clock is pinned at 18 October 2026, before the fake is imported, so the year's case is real whatever day the test
- * runs.
+ * runs. Every period starts at midnight in the reporting timezone, Singapore's, eight hours before UTC's.
  */
 vi.useFakeTimers({ toFake: ['Date'] });
 vi.setSystemTime(new Date('2026-10-18T04:00:00Z'));
 const { record } = await import('../scripts/fake-gateway/work-record.ts');
 const { ME } = await import('../scripts/fake-gateway/people.ts');
+const { localDay } = await import('../scripts/fake-gateway/clock.ts');
 vi.useRealTimers();
 
 const PERIODS = ['quarter', 'year', 'all'] as const;
@@ -29,17 +30,17 @@ const ran = (r: RecordRead) => agentsOf(r).days.reduce((n, d) => n + d.runs, 0);
 
 describe("the fake's Record before its coverageFrom", () => {
   it('is a real case: the year begins before the first record, the period and coverageFrom as before', () => {
-    expect(R.year.meta.period).toEqual({ from: '2026-01-01T00:00:00Z', to: '2026-10-18T04:00:00Z' });
-    expect(R.quarter.meta.period.from).toBe('2026-10-01T00:00:00Z');
-    for (const p of PERIODS) expect(R[p].meta.coverageFrom).toBe('2026-08-24T20:00:00Z');
+    expect(R.year.meta.period).toEqual({ from: '2025-12-31T16:00:00Z', to: '2026-10-18T04:00:00Z' });
+    expect(R.quarter.meta.period.from).toBe('2026-09-30T16:00:00Z');
+    for (const p of PERIODS) expect(R[p].meta.coverageFrom).toBe('2026-08-24T12:00:00Z');
     expect(R.all.meta.period.from).toBe(R.all.meta.coverageFrom);
   });
 
   for (const p of PERIODS) {
     it(`answers no run and no day before it, the days from the later of the period's start and it (${p})`, () => {
       const { days } = agentsOf(R[p]);
-      const from = [R[p].meta.period.from, R[p].meta.coverageFrom!].sort().at(-1)!.slice(0, 10);
-      expect(days.filter((d) => d.day < R[p].meta.coverageFrom!.slice(0, 10))).toEqual([]);
+      const from = localDay(Date.parse([R[p].meta.period.from, R[p].meta.coverageFrom!].sort().at(-1)!));
+      expect(days.filter((d) => d.day < localDay(Date.parse(R[p].meta.coverageFrom!)))).toEqual([]);
       expect(days[0].day).toBe(from);
       expect(days.reduce((n, d) => n + d.runs, 0)).toBeGreaterThan(0);
     });

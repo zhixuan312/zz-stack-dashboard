@@ -16,7 +16,7 @@
  * `ok`.
  */
 import type { Evaluation, SafeFinding } from '../../src/lib/platform-shapes.ts';
-import { ago } from './clock.ts';
+import { ago, localDay } from './clock.ts';
 import { PLATFORM_STATUS } from './platform-status.ts';
 
 type Protocol = { key: string; version: number };
@@ -84,7 +84,7 @@ export function evaluation(admin: boolean): Evaluation {
   const waiting = FINDINGS.filter((f) => f.decision === 'deferred' && f.kind !== 'strength').sort((a, b) => b.hoursAgo - a.hoursAgo);
   const decided = FINDINGS.filter((f) => f.kind !== 'strength');
   const tally = (d: Finding['decision']) => decided.filter((f) => f.decision === d).length;
-  const days = new Set(RUNS.map((r) => ago(r.hoursAgo).slice(0, 10)));
+  const days = new Set(RUNS.map((r) => localDay(Date.parse(ago(r.hoursAgo)))));
   return {
     meta: { ...PLATFORM_STATUS.meta, asOf, period: { from: PLATFORM_STATUS.meta.coverageFrom!, to: asOf },
       scope: admin ? 'platform-admin' : 'platform-public', population: 'scored evaluation runs' },

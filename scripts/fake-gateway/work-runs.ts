@@ -17,7 +17,7 @@
  */
 import type { Me } from '../../src/lib/api-shapes.ts';
 import type { RunRow, Runs, SkillRunRow } from '../../src/lib/destination-shapes.ts';
-import { now } from './clock.ts';
+import { localDay, nextStart, now, startOf, weekdayHour } from './clock.ts';
 import { NO_TEAM, pageParams } from './work-activity.ts';
 import { iso, workMeta } from './work-initiatives.ts';
 
@@ -25,7 +25,6 @@ type Answer = [status: number, body: unknown];
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
-const DAY = 24 * HOUR;
 /** A run is active while its last call is this close to the cutoff. */
 const ACTIVE_MS = 5 * MINUTE;
 
@@ -112,20 +111,20 @@ export function observedRuns(team: string, fromMs: number, toMs: number) {
   const counted = touching.filter((r) => Date.parse(r.startedAt) >= fromMs).sort((a, b) => a.startedAt.localeCompare(b.startedAt));
   const skills = new Map<string, number>();
   for (const r of counted) skills.set(r.skill, (skills.get(r.skill) ?? 0) + 1);
-  const weekdayHour = Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => 0));
+  const byHour = Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => 0));
   for (const r of counted) {
-    const d = new Date(r.startedAt);
-    weekdayHour[(d.getUTCDay() + 6) % 7][d.getUTCHours()] += 1;
+    const [weekday, hour] = weekdayHour(Date.parse(r.startedAt));
+    byHour[weekday][hour] += 1;
   }
   const days: { day: string; runs: number }[] = [];
-  for (let at = Math.floor(fromMs / DAY) * DAY; at < end; at += DAY) {
-    const day = iso(at).slice(0, 10);
-    days.push({ day, runs: counted.filter((r) => r.startedAt.startsWith(day)).length });
+  for (let at = startOf(fromMs, 'day'); at < end; at = nextStart(at, 'day')) {
+    const day = localDay(at);
+    days.push({ day, runs: counted.filter((r) => localDay(Date.parse(r.startedAt)) === day).length });
   }
   return {
     runs: counted.length, zeroLength: counted.filter((r) => r.lengthMs === 0).length, coverageMs, summedMs, peak,
     bySkill: [...skills.entries()].map(([skill, runs]) => ({ skill, runs })).sort((a, b) => b.runs - a.runs || a.skill.localeCompare(b.skill)),
-    weekdayHour, days,
+    weekdayHour: byHour, days,
   };
 }
 

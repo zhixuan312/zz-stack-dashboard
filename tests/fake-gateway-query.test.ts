@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
+import { localDay, midnight } from '../scripts/fake-gateway/clock.ts';
 import { ME, MEMBER } from '../scripts/fake-gateway/people.ts';
 import { audit } from '../scripts/fake-gateway/platform-audit.ts';
 import { bugs } from '../scripts/fake-gateway/platform-bugs.ts';
@@ -14,7 +15,7 @@ import { usage } from '../scripts/fake-gateway/platform-usage.ts';
 import { empty, extreme } from '../scripts/fake-gateway/states.ts';
 import { LAST_WEEK, WEEKS } from '../scripts/fake-gateway/work-initiatives.ts';
 import { workQuery } from '../scripts/fake-gateway/work-query.ts';
-import { addDays, bucketsOf, midnight } from '../scripts/fake-gateway/work-query-buckets.ts';
+import { addDays, bucketsOf } from '../scripts/fake-gateway/work-query-buckets.ts';
 
 /**
  * The fake gateway's two prepared queries, `/platform/query` and `/work/query`, answered in the gateway's shape.
@@ -32,8 +33,9 @@ type Who = typeof ME;
 const BOTH = [['the superadmin', ME], ['the member', MEMBER]] as const;
 const ALL = '0001-01-01';
 const SECRET = 'SENTINEL-sent-by-the-caller';
-const day = (instant: string) => instant.slice(0, 10);
-const TODAY = day(new Date(Date.now()).toISOString());
+/** The day an instant falls on in the reporting timezone the fake's calendar is cut in. */
+const day = (instant: string) => localDay(Date.parse(instant));
+const TODAY = localDay(Date.now());
 /** Week `i` of the status fixture's weeks as inclusive dates, and every week of them through today. */
 const week = (i: number) => ({ from: day(WEEKS[i].from), to: addDays(day(WEEKS[i].to), -1) });
 const WEEKS_SHOWN = { from: day(WEEKS[0].from), to: TODAY };
@@ -369,7 +371,7 @@ describe('Work\'s prepared query takes ZZ Meridian\'s window and buckets', () =>
     expect(top.groups.reduce((n: number, g: Json) => n + g.value.value, 0) + (top.rest?.value ?? 0)).toBe(top.total.value);
     const first = work({ measure: 'runs', by: 'skill', from: ALL, to: TODAY });
     const runs = ok(work({ measure: 'runs', by: 'skill', rows: '20', from: ALL, to: TODAY }).rows).rows;
-    expect(first.window.from).toBe(`${day(runs.at(-1).startedAt)}T00:00:00Z`);
+    expect(first.window.from).toBe(new Date(midnight(day(runs.at(-1).startedAt))).toISOString().replace(/\.\d{3}Z$/, 'Z'));
   });
 
   it('refuses what Task I-91 refuses, with the gateway\'s sentences', () => {

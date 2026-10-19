@@ -22,7 +22,7 @@ import type { ActivityLog, KnowledgeList, Runs } from '../../src/lib/destination
 import type { Audit, KnowledgeHealth, People, Teams, Usage } from '../../src/lib/fleet-shapes.ts';
 import type { Bugs, Evaluation, PeriodFigure, PlatformStatus, Releases, Window } from '../../src/lib/platform-shapes.ts';
 import type { ActiveGroup, Approvals, Home, InitiativeList, RecordRead } from '../../src/lib/work-shapes.ts';
-import { now } from './clock.ts';
+import { localDay, nextStart, now, startOf } from './clock.ts';
 import { ME } from './people.ts';
 import { audit } from './platform-audit.ts';
 import { bugs } from './platform-bugs.ts';
@@ -70,20 +70,13 @@ function grainFor(fromMs: number, toMs: number): Grain {
   three.setUTCFullYear(three.getUTCFullYear() + 3);
   return toMs <= three.getTime() ? 'month' : 'quarter';
 }
-/** The first instant of the period of `grain` holding `ms`: a Monday, the first of a month or of a quarter. */
-function periodStart(ms: number, grain: Grain): number {
-  const d = new Date(ms);
-  if (grain === 'week') { const day = Math.floor(ms / DAY) * DAY; return day - ((new Date(day).getUTCDay() + 6) % 7) * DAY; }
-  return Date.UTC(d.getUTCFullYear(), grain === 'month' ? d.getUTCMonth() : Math.floor(d.getUTCMonth() / 3) * 3, 1);
-}
-const periodAfter = (ms: number, grain: Grain) => (grain === 'week' ? ms + WEEK
-  : Date.UTC(new Date(ms).getUTCFullYear(), new Date(ms).getUTCMonth() + (grain === 'month' ? 1 : 3), 1));
-/** The window's periods, oldest first, as the gateway's `periodsOf` cuts them: the first holds its start, the last the cutoff. */
+/** The window's periods, oldest first, as the gateway's `periodsOf` cuts them: the first holds its start, the last the
+ *  cutoff, each a Monday's week, a month or a quarter in the reporting timezone (clock.ts). */
 function periodsOf(fromMs: number, toMs: number): Window[] {
   const grain = grainFor(fromMs, toMs);
   const out: Window[] = [];
-  for (let p = periodStart(fromMs, grain); p < toMs; p = periodAfter(p, grain)) {
-    const end = periodAfter(p, grain);
+  for (let p = startOf(fromMs, grain); p < toMs; p = nextStart(p, grain)) {
+    const end = nextStart(p, grain);
     out.push({ from: iso(p), to: iso(end), observedFrom: iso(Math.max(p, fromMs)), observedThrough: iso(Math.min(end, toMs)), complete: p >= fromMs && end <= toMs });
   }
   return out;
@@ -97,8 +90,8 @@ const running = (windows: Window[], each: (i: number) => number): PeriodFigure[]
 
 /* Work */
 
-/** The busy team's first record: four and a half years before the server started. */
-const FIRST = Math.floor((now() - 1_650 * DAY) / DAY) * DAY;
+/** The busy team's first record: the midnight four and a half years before the server started. */
+const FIRST = startOf(now() - 1_650 * DAY, 'day');
 /** More initiatives than the fixture's, in every list that counts them. */
 const MORE_WORK = 3_904;
 const slugAt = (i: number) => `20${22 + (i % 5)}-0${(i % 9) + 1}-${String((i % 27) + 1).padStart(2, '0')}-${LONG}-${i}`;
@@ -109,7 +102,7 @@ function busyInitiatives(l: InitiativeList, q: URLSearchParams, team: string | n
   if (!l.total) return l;
   const all = (initiativeList(acting(team), fromTheTop(q))[1] as InitiativeList).rows;
   const total = l.total + MORE_WORK;
-  const windows = periodsOf(periodStart(now() - 730 * DAY, 'week'), now());
+  const windows = periodsOf(startOf(now() - 730 * DAY, 'week'), now());
   return {
     ...l,
     tiles: { open: l.tiles.open + 812, waiting: l.tiles.waiting + 140, closed: { accepted: big(l.tiles.closed.accepted), delivered: big(l.tiles.closed.delivered), abandoned: big(l.tiles.closed.abandoned) } },
@@ -122,9 +115,7 @@ function busyInitiatives(l: InitiativeList, q: URLSearchParams, team: string | n
 
 /** Record's period, from the period's start or the busy team's first record, at its grain; every series on one set of periods. */
 function busyRecord(r: RecordRead, q: URLSearchParams, team: string | null): RecordRead {
-  const d = new Date(now());
-  const start = r.period === 'quarter' ? Date.UTC(d.getUTCFullYear(), Math.floor(d.getUTCMonth() / 3) * 3, 1)
-    : r.period === 'year' ? Date.UTC(d.getUTCFullYear(), 0, 1) : FIRST;
+  const start = r.period === 'quarter' || r.period === 'year' ? startOf(now(), r.period) : FIRST;
   const windows = periodsOf(start, now());
   const added = (i: number) => 40_000 + (i * 17_300) % 90_000;
   const closes = (i: number) => [40 + (i * 7) % 30, 20 + (i * 5) % 20, (i * 3) % 9];
@@ -162,7 +153,7 @@ function busyRecord(r: RecordRead, q: URLSearchParams, team: string | null): Rec
     agents: agents ? { state: 'ok', data: {
       ...agents,
       runs: counted(big(418)),
-      days: Array.from({ length: Math.ceil((now() - Math.max(start, FIRST)) / DAY) }, (_, i) => ({ day: iso(Math.max(start, FIRST) + i * DAY).slice(0, 10), runs: (i * 13) % 40 })),
+      days: Array.from({ length: Math.ceil((now() - Math.max(start, FIRST)) / DAY) }, (_, i) => ({ day: localDay(nextStart(Math.max(start, FIRST), 'day', i)), runs: (i * 13) % 40 })),
     } } : r.agents,
     record: rec ? { state: 'ok', data: {
       ...rec, total,

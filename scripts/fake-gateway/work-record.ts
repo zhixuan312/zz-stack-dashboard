@@ -25,8 +25,8 @@
 import type { Me } from '../../src/lib/api-shapes.ts';
 import type { Figure, PeriodFigure, Window } from '../../src/lib/platform-shapes.ts';
 import type { RecordRead } from '../../src/lib/work-shapes.ts';
-import { now } from './clock.ts';
-import { callerApprovalRows, firstApproval } from './work-approvals.ts';
+import { nextStart, now, startOf } from './clock.ts';
+import { approvedMs, callerApprovalRows, firstApproval } from './work-approvals.ts';
 import { ADDITIONS, COVERAGE, estimateOf, wordsIn } from './work-home.ts';
 import { counted, iso, rowsOf, workMeta } from './work-initiatives.ts';
 import { lessonsCiting, lessonsMade, searchesOf, SHELF } from './work-knowledge.ts';
@@ -48,11 +48,6 @@ type FirstKey = Firsts['firsts'][number]['key'];
  *  ever added, since a later revision removes some of what an earlier one wrote. */
 const RETAINED = 49_800;
 
-/** The Monday 00:00 UTC on or before `ms`. The epoch was a Thursday, so Mondays fall four days after a whole week. */
-const mondayOf = (ms: number) => Math.floor((ms - 4 * DAY) / WEEK) * WEEK + 4 * DAY;
-const monthOf = (ms: number) => { const d = new Date(ms); return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1); };
-const nextMonth = (ms: number) => { const d = new Date(ms); return Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1); };
-
 /** When `team`'s first initiative opened, its first record; null with none. */
 function firstRecordOf(team: string | null): number | null {
   const opened = rowsOf(team).map((r) => Date.parse(r.opened));
@@ -60,10 +55,8 @@ function firstRecordOf(team: string | null): number | null {
 }
 
 /** Where `period` starts: the quarter's first day, 1 January, or the team's first record. */
-function startOf(period: Period, first: number | null): number {
-  const d = new Date(now());
-  if (period === 'quarter') return Date.UTC(d.getUTCFullYear(), Math.floor(d.getUTCMonth() / 3) * 3, 1);
-  if (period === 'year') return Date.UTC(d.getUTCFullYear(), 0, 1);
+function periodStart(period: Period, first: number | null): number {
+  if (period === 'quarter' || period === 'year') return startOf(now(), period);
   return first ?? now();
 }
 
@@ -78,8 +71,8 @@ const windowOf = (pFrom: number, pTo: number, from: number): Window => ({
  *  Monday to Monday. None when the window holds nothing. */
 function periodsOf(from: number, grain: 'week' | 'month'): { fromMs: number; toMs: number; window: Window }[] {
   const out: { fromMs: number; toMs: number; window: Window }[] = [];
-  for (let at = grain === 'week' ? mondayOf(from) : monthOf(from); at < now();) {
-    const to = grain === 'week' ? at + WEEK : nextMonth(at);
+  for (let at = startOf(from, grain); at < now();) {
+    const to = nextStart(at, grain);
     out.push({ fromMs: at, toMs: to, window: windowOf(at, to, from) });
     at = to;
   }
@@ -116,7 +109,7 @@ function mostOpen(rows: ReturnType<typeof rowsOf>, from: number, end: number): {
 /** The record of `team` over `period`, the caller's approvals those signed in `email`'s name; its table paged. */
 function recordOf(team: string | null, email: string, period: Period, page: { limit: number; offset: number }): RecordRead {
   const first = firstRecordOf(team);
-  const start = startOf(period, first);
+  const start = periodStart(period, first);
   const end = now();
   // Runs, searches and lessons are counted from here: the later of the period's start and the team's first record.
   const begins = first === null ? end : Math.max(start, first);
@@ -131,7 +124,7 @@ function recordOf(team: string | null, email: string, period: Period, page: { li
   const closedIn = (p: (typeof periods)[number]) => closed.filter((r) => Date.parse(r.closed!) >= p.fromMs && Date.parse(r.closed!) < p.toMs);
   const outcome = (o: string) => counted(closed.filter((r) => r.state === o).length);
   const outcomeIn = (p: (typeof periods)[number], o: string) => counted(closedIn(p).filter((r) => r.state === o).length);
-  const approvals = callerApprovalRows(team, email).filter((a) => a.approvedAt >= whole.from.slice(0, a.approvedAt.length));
+  const approvals = callerApprovalRows(team, email).filter((a) => approvedMs(a) >= start);
   const byOpened = [...all].sort((a, b) => b.opened.localeCompare(a.opened) || a.slug.localeCompare(b.slug));
   const flows = [...new Set(all.map((r) => r.flow))];
   const docsOf = (slug: string) => initiativeDetail(team ?? '', slug)?.documents.filter((d) => !d.path.startsWith('sources/')) ?? [];
@@ -159,10 +152,10 @@ function recordOf(team: string | null, email: string, period: Period, page: { li
   const firstWords = Math.min(...ADDITIONS.map((a) => a.atMs).filter((ms) => ms < end), ...made);
   const firstRun = team ? runsOf(team).reduce<string | null>((a, r) => (!a || r.startedAt < a ? r.startedAt : a), null) : null;
   const firstClosed = all.flatMap((r) => (r.closed ? [r.closed] : [])).sort()[0] ?? null;
-  const approvedMs = firstApproval(team);
+  const firstApproved = firstApproval(team);
   const firsts = ([
-    ['closed', firstClosed && Date.parse(firstClosed)], ['approved', approvedMs], ['lesson', made.length ? Math.min(...made) : null],
-    ['run', firstRun && Date.parse(firstRun)], ['words_week', Number.isFinite(firstWords) ? mondayOf(firstWords) : null],
+    ['closed', firstClosed && Date.parse(firstClosed)], ['approved', firstApproved], ['lesson', made.length ? Math.min(...made) : null],
+    ['run', firstRun && Date.parse(firstRun)], ['words_week', Number.isFinite(firstWords) ? startOf(firstWords, 'week') : null],
   ] as [FirstKey, number | null][])
     .filter((f): f is [FirstKey, number] => f[1] !== null).sort((a, b) => a[1] - b[1]).map(([key, ms]) => ({ key, at: iso(ms) }));
   // A best set before the window began is not the window's, and is left out.

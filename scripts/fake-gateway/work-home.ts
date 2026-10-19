@@ -18,7 +18,7 @@
 import type { Me } from '../../src/lib/api-shapes.ts';
 import type { Finding, PeriodFigure } from '../../src/lib/platform-shapes.ts';
 import type { ActiveGroup, Home, WritingCoverage, WritingEstimate } from '../../src/lib/work-shapes.ts';
-import { now } from './clock.ts';
+import { localDay, now } from './clock.ts';
 import { callerApprovalRows, callerWeeks, waitingOf } from './work-approvals.ts';
 import { LAST_WEEK, WEEKS, counted, inWeek, rowsOf, tally, workMeta } from './work-initiatives.ts';
 import { lessonsMade, searchesOf } from './work-knowledge.ts';
@@ -72,30 +72,35 @@ function milestone(count: 'closed' | 'documents' | 'lessons' | 'words', value: n
 const SENTENCE_DAY = new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', day: 'numeric', month: 'short' });
 const sayDay = (date: string) => SENTENCE_DAY.format(Date.UTC(Number(date.slice(0, 4)), Number(date.slice(5, 7)) - 1, Number(date.slice(8, 10))));
 
-/** Days as a sentence lists them: `14 Sept`, `14 Sept and 28 Sept`, `7 Sept, 14 Sept and 28 Sept`. */
-const sayDays = (dates: string[]) => { const d = dates.map(sayDay); return d.length > 1 ? `${d.slice(0, -1).join(', ')} and ${d.at(-1)}` : d[0]; };
+/** The local date a week begins on, which a finding names. */
+const weekOf = (w: PeriodFigure) => localDay(Date.parse(w.window.from));
 
 /**
  * What the gateway says of a neutral measure's last whole week: its high or its low since the first comparable week,
  * every week it ties with named, earliest first, or nothing. "Tied with 14 Sept" for a week that tied with 14 and 28
- * Sept read as a tie of two (Phase 7's second re-review, Work M-15). COUPLED: periodFinding's neutral branch in the
- * gateway's console/findings.ts, which Home calls with no count label, so a plain week has no finding.
+ * Sept read as a tie of two (Phase 7's second re-review, Work M-15); the week the record is counted from, when it is one
+ * of them, is "that first week", since the sentence has named it already ("since 14 Sept, tied with that first week").
+ * COUPLED: periodFinding's neutral branch in the gateway's console/findings.ts, which Home calls with no count label, so
+ * a plain week has no finding.
  */
 export function neutralFinding(weeks: PeriodFigure[], label: string): Finding | null {
   const whole = weeks.filter((w) => w.window.complete);
   const valued = whole.filter((w) => w.figure.value !== null);
   const last = whole.at(-1);
-  const at = last ? [last.window.from.slice(0, 10)] : [];
+  const at = last ? [weekOf(last)] : [];
   if (valued.length < 3 || !last) return { kind: 'incomplete', text: 'Not enough complete weeks to compare yet', dates: at, tie: false };
   const v = last.figure.value;
   if (v === null) return null;
   const others = valued.filter((w) => w !== last).map((w) => w.figure.value!);
   const kind = others.every((o) => o <= v) ? 'high_week' : others.every((o) => o >= v) ? 'low_week' : null;
   if (!kind) return null;
-  const from = valued[0].window.from.slice(0, 10);
+  const from = weekOf(valued[0]);
   const text = `${kind === 'high_week' ? 'Most' : 'Fewest'} recorded ${label} in a week since ${sayDay(from)}`;
-  const tied = valued.filter((w) => w !== last && w.figure.value === v).map((w) => w.window.from.slice(0, 10));
-  return tied.length ? { kind, text: `${text}, tied with ${sayDays(tied)}`, dates: [...at, from, ...tied], tie: true } : { kind, text, dates: [...at, from], tie: false };
+  const tied = valued.filter((w) => w !== last && w.figure.value === v).map(weekOf);
+  if (!tied.length) return { kind, text, dates: [...at, from], tie: false };
+  const said = tied.map((d) => (d === from ? 'that first week' : sayDay(d)));
+  const listed = said.length > 1 ? `${said.slice(0, -1).join(', ')} and ${said.at(-1)}` : said[0];
+  return { kind, text: `${text}, tied with ${listed}`, dates: [...new Set([...at, from, ...tied])], tie: true };
 }
 
 /** The team's runs active now, as Runs marks them: each its own group while four or fewer, grouped by initiative above

@@ -33,7 +33,7 @@
  */
 import type { Audit, AuditRow, People } from '../../src/lib/fleet-shapes.ts';
 import type { Evaluation, Part, PlatformQueryRow, ReleaseRow, SafeFinding } from '../../src/lib/platform-shapes.ts';
-import { now } from './clock.ts';
+import { localDay, midnight, now } from './clock.ts';
 import { ME } from './people.ts';
 import { audit } from './platform-audit.ts';
 import { bugs } from './platform-bugs.ts';
@@ -45,7 +45,6 @@ import { PLATFORM_STATUS } from './platform-status.ts';
 import { CALLS_BY_TEAM, TEAMS } from './platform-teams.ts';
 import { usage } from './platform-usage.ts';
 import { SHARED_TEAM } from './work-knowledge.ts';
-import { localDay, midnight } from './work-query-buckets.ts';
 
 /** A count on one day under one key along each dimension; `lastMs` the latest of them; `ref` what a drill reads its row
  *  from. */

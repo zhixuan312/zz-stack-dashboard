@@ -19,7 +19,7 @@ import { createHash } from 'node:crypto';
 import type {
   DocumentDetail, DocumentRevision, Gate, Initiative, InitiativeDetail, KnowledgeBody, KnowledgeNode, Step,
 } from '../../src/lib/api-shapes.ts';
-import { ago, now } from './clock.ts';
+import { ago, localDay, now } from './clock.ts';
 import { lessonBody, lessonExcerpt } from './lesson-text.ts';
 
 const FLOW = 'sdlc-flow';
@@ -366,7 +366,7 @@ export function documentDetail(team: string, initiative: string, path: string): 
                                              content_revision: contentRevisionOf(team, initiative, path, sealed.revision),
                                              approved_at: ago(sealed.hours) } : null };
   });
-  const sources = d.documents.filter((x) => x.supports === path).map((x) => ({ path: x.path, title: x.title, body: sourceBody(x.title ?? x.path), supports: path, added: x.updated_at.slice(0, 10), bytes: x.bytes }));
+  const sources = d.documents.filter((x) => x.supports === path).map((x) => ({ path: x.path, title: x.title, body: sourceBody(x.title ?? x.path), supports: path, added: localDay(Date.parse(x.updated_at)), bytes: x.bytes }));
   const decisions = d.decisions.filter((x) => x.path === path).map(({ path: _p, ...rest }) => rest);
   return {
     team, initiative, path, current_revision: current, current_version: snaps[current - 1].version, correction: row.correction,

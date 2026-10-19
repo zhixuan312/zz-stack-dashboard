@@ -34,13 +34,13 @@ import type { Me } from '../../src/lib/api-shapes.ts';
 import type { ActivityLog, ActivityRow } from '../../src/lib/destination-shapes.ts';
 import type { Figure, Window } from '../../src/lib/platform-shapes.ts';
 import type { WorkQuery, WorkQueryRow } from '../../src/lib/work-shapes.ts';
-import { now } from './clock.ts';
+import { localDay, midnight, now, nextStart, startOf, weekdayHour } from './clock.ts';
 import { CATALOG_SKILLS } from './platform.ts';
 import { activityLog } from './work-activity.ts';
 import { callerApprovalRows } from './work-approvals.ts';
 import { LAST_WEEK, WEEKS, filtered, inWeek, iso, listParams, workMeta } from './work-initiatives.ts';
 import { IMPORTED, SHELF } from './work-knowledge.ts';
-import { BUCKETS, WEEKDAYS, addDays, bucketLabel, bucketOf, bucketsOf, isDate, localDay, midnight, type Bucket } from './work-query-buckets.ts';
+import { BUCKETS, WEEKDAYS, addDays, bucketLabel, bucketOf, bucketsOf, isDate, type Bucket } from './work-query-buckets.ts';
 import { runsOf } from './work-runs.ts';
 
 type Answer = [status: number, body: unknown];
@@ -136,8 +136,8 @@ function factsOf(measure: Measure, who: Me, p: { state: string | null; flow: str
     case 'lessons': return team !== 'atlas' ? [] : LESSONS.map(([kind, back, hours]) => ({ at: at(back, hours), value: 1, keys: { kind }, row: { kind, at: at(back, hours) } }));
     case 'runs': return team !== 'atlas' ? [] : RUNS.map(([skill, initiative, back, hours, minutes]) => {
       const startedAt = at(back, hours);
-      const d = new Date(startedAt);
-      return { at: startedAt, value: 1, keys: { skill, initiative: initiative ?? 'none', weekday: WEEKDAYS[(d.getUTCDay() + 6) % 7], hour: String(d.getUTCHours()).padStart(2, '0') },
+      const [weekday, hour] = weekdayHour(Date.parse(startedAt));
+      return { at: startedAt, value: 1, keys: { skill, initiative: initiative ?? 'none', weekday: WEEKDAYS[weekday], hour: String(hour).padStart(2, '0') },
         row: { skill, initiative, startedAt, lengthMs: minutes * 60_000 } };
     });
     case 'searches': return team !== 'atlas' ? [] : SEARCHES.map(([found, back, hours, question]) =>
@@ -182,8 +182,7 @@ const grainFor = (ms: number): 'week' | 'month' | 'quarter' => (ms <= 26 * 7 * D
 function periods(from: number, to: number, grain: 'week' | 'month' | 'quarter'): Window[] {
   const out: Window[] = [];
   for (let s = from; s < to;) {
-    const d = new Date(s);
-    const e = grain === 'week' ? s + 7 * DAY : Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + (grain === 'month' ? 1 : 3), 1);
+    const e = grain === 'week' ? s + 7 * DAY : nextStart(startOf(s, 'month'), 'month', grain === 'month' ? 1 : 3);
     const end = Math.min(e, to);
     out.push({ from: iso(s), to: iso(end), observedFrom: iso(s), observedThrough: iso(Math.min(end, now())), complete: end <= now() });
     s = e;
@@ -193,7 +192,7 @@ function periods(from: number, to: number, grain: 'week' | 'month' | 'quarter'):
 
 const figure = (n: number): Figure => ({ value: n, why: null });
 /** When a fact happened; one dated by its day alone, at that day's start. */
-const msOf = (f: Fact) => Date.parse(f.at.length === 10 ? `${f.at}T00:00:00Z` : f.at);
+const msOf = (f: Fact) => (f.at.length === 10 ? midnight(f.at) : Date.parse(f.at));
 
 const PARAMS = ['measure', 'by', 'from', 'to', 'compare', 'state', 'flow', 'q', 'group', 'rows', 'top', 'limit', 'offset'];
 const MOST_TOP = 50, MOST_ROWS = 20, MOST_FILTERS = 4;
@@ -276,7 +275,7 @@ function parse(q: URLSearchParams): Asked | string {
 
 /** How a group is named where its key is not a sentence, as the gateway names it. */
 function labelOf(by: string, key: string, grain: 'week' | 'month' | 'quarter' | null): string {
-  if (grain) return `${grain === 'week' ? 'Week' : grain === 'month' ? 'Month' : 'Quarter'} from ${key.slice(0, 10)}`;
+  if (grain) return `${grain === 'week' ? 'Week' : grain === 'month' ? 'Month' : 'Quarter'} from ${localDay(Date.parse(key))}`;
   if (by === 'found') return key === 'none' ? 'Found nothing' : 'Found something';
   if (by === 'refused' || by === 'standing') return key[0].toUpperCase() + key.slice(1);
   if (key === 'none' && (by === 'flow' || by === 'initiative')) return by === 'flow' ? 'No flow' : 'No initiative';

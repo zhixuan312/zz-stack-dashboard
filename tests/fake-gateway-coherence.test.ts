@@ -7,6 +7,7 @@ import type { KnowledgeList, KnowledgeSummary, Runs } from '../src/lib/destinati
 import type { Evaluation, PeriodFigure, PlatformStatus, Releases } from '../src/lib/platform-shapes.ts';
 import type { Home, RecordRead } from '../src/lib/work-shapes.ts';
 import config from '../scripts/verify.config.ts';
+import { localDay } from '../scripts/fake-gateway/clock.ts';
 
 /**
  * The fake gateway tells one story (Task I-151, AC-8.4): every figure a page draws agrees with the pages that draw the
@@ -124,7 +125,7 @@ describe.each(BOTH)('the fixture read as %s', (_, who) => {
       const lesson = leaves(knowledge.adoptedInAll), closes = leaves(work.closuresInAll);
       expect(first('lesson')! >= lesson.from && first('lesson')! < lesson.to).toBe(true);
       expect(first('closed')! >= closes.from && first('closed')! < closes.to).toBe(true);
-      expect(first('run')!.slice(0, 10)).toBe(agents.days.find((d) => d.runs > 0)!.day);
+      expect(localDay(Date.parse(first('run')!))).toBe(agents.days.find((d) => d.runs > 0)!.day);
       expect(first('words_week')).toBe(docs.wordsByWeek.find((w) => (w.figure.value ?? 0) > 0)!.window.from);
     }
   });

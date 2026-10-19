@@ -7,6 +7,8 @@ import { NO_SESSION } from '../scripts/fake-gateway/people.ts';
 import { PLATFORM_STATUS } from '../scripts/fake-gateway/platform-status.ts';
 import { INITIATIVES, KNOWLEDGE, documentDetail, initiativeDetail } from '../scripts/fake-gateway/work.ts';
 import config from '../scripts/verify.config.ts';
+import { app } from '@/app.config';
+import { dayOf, formatDateTime } from '@/lib/format-date';
 
 /**
  * The fixture as two people, which is how `pnpm verify --as` uses it.
@@ -314,10 +316,10 @@ describe('GET /api/console/platform/status', () => {
     ]);
 
     // Monday to Monday in the reporting timezone, each week beginning where the one before ended.
-    expect(meta.timezone).toBe('UTC');
+    expect(meta.timezone).toBe(app.timezone);
     m.weeks.forEach((w, i) => {
-      expect(new Date(w.window.from).getUTCDay(), w.window.from).toBe(1);
-      expect(w.window.from).toMatch(/T00:00:00Z$/);
+      expect(new Date(`${dayOf(w.window.from)}T12:00:00Z`).getUTCDay(), w.window.from).toBe(1);
+      expect(formatDateTime(w.window.from), w.window.from).toMatch(/, 00:00$/);
       expect(Date.parse(w.window.to) - Date.parse(w.window.from)).toBe(7 * 24 * 3_600_000);
       if (i) expect(w.window.from).toBe(m.weeks[i - 1].window.to);
       // Every week but the running one has ended and is wholly observed.
@@ -387,8 +389,8 @@ describe('GET /api/console/platform/status', () => {
     expect(doors.state).toBe('ok');
     expect(doors.data.map((d) => d.door)).toEqual(['core', 'manage', 'eval']);
     for (const d of doors.data) {
-      expect(d.days[0].date, d.door).toBe(meta.coverageFrom!.slice(0, 10));
-      expect(d.days.at(-1)!.date, d.door).toBe(meta.asOf.slice(0, 10));
+      expect(d.days[0].date, d.door).toBe(dayOf(meta.coverageFrom!));
+      expect(d.days.at(-1)!.date, d.door).toBe(dayOf(meta.asOf));
       d.days.forEach((x, i) => expect(x.complete, `${d.door} ${x.date}`).toBe(i < d.days.length - 1));
       expect(d.totals.calls).toBe(d.days.reduce((n, x) => n + x.calls, 0));
       expect(d.totals.toolFailures).toBe(d.days.reduce((n, x) => n + x.toolFailures, 0));

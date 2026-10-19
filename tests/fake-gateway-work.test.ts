@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { nav } from '../src/app.config.ts';
 import { FEATURES } from '../src/data/features.ts';
 import config from '../scripts/verify.config.ts';
+import { localDay } from '../scripts/fake-gateway/clock.ts';
 import { homeOf } from '../scripts/fake-gateway/work-home.ts';
 
 /**
@@ -278,7 +279,7 @@ describe('Record', () => {
     for (const a of answers) expect(a.lead).toEqual(answers[0].lead);
     const year = answers[1];
     const long = Date.parse(year.meta.asOf) - Date.parse(year.meta.period.from) > 26 * 7 * 24 * 3_600_000;
-    expect(year.cumulative.every((p: Json) => p.window.from.slice(8, 10) === '01')).toBe(long);
+    expect(year.cumulative.every((p: Json) => localDay(Date.parse(p.window.from)).slice(8, 10) === '01')).toBe(long);
     expect(Date.parse(answers[0].meta.period.from)).toBeGreaterThanOrEqual(Date.parse(year.meta.period.from));
     expect((await ask(MEMBER, 'record?period=month')).status).toBe(400);
     const second = ok((await read(MEMBER, 'record?offset=10')).record);

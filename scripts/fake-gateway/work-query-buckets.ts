@@ -1,7 +1,7 @@
 /**
  * The calendar both of the fake gateway's prepared queries read a window's dates and buckets on, `/work/query`'s and
- * `/platform/query`'s, as the gateway's two read one module: the reporting time zone's days, which here is UTC, the zone
- * every fixture beside this file is dated in.
+ * `/platform/query`'s, as the gateway's two read one module: the reporting timezone's days (clock.ts), the one every
+ * fixture beside this file is cut in.
  *
  * A date names the whole of that day, so a window of dates runs from the first date's midnight up to the midnight after
  * the last. A bucket is a run of days: a day keyed by its date, a week by its Monday's date, a month by its year and
@@ -12,15 +12,14 @@
  * copies. zz-stack's checks import this file with plain `node` through the queries, so nothing here is imported through
  * the console's path alias.
  */
+import { localDay } from './clock.ts';
+
 export const BUCKETS = ['day', 'week', 'month', 'weekday'] as const;
 export type Bucket = (typeof BUCKETS)[number];
 export const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 const DAY = 86_400_000;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
-
-/** The date an instant falls on, `YYYY-MM-DD`. */
-export const localDay = (ms: number): string => new Date(ms).toISOString().slice(0, 10);
 
 /** Whether a text is a calendar date, `YYYY-MM-DD`, that the calendar has. */
 export function isDate(text: string): boolean {
@@ -31,9 +30,6 @@ export function isDate(text: string): boolean {
 
 /** The date a number of days after another. */
 export const addDays = (date: string, n: number): string => new Date(Date.parse(`${date}T00:00:00Z`) + n * DAY).toISOString().slice(0, 10);
-
-/** The instant a date begins. */
-export const midnight = (date: string): number => Date.parse(`${date}T00:00:00Z`);
 
 /** A date's weekday, Monday first. */
 const weekdayOf = (date: string): string => WEEKDAYS[(new Date(`${date}T00:00:00Z`).getUTCDay() + 6) % 7];

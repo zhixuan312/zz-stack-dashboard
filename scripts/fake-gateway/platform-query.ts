@@ -35,10 +35,10 @@
  * imported through the console's path alias.
  */
 import type { PlatformQuery, PlatformQueryGroup } from '../../src/lib/platform-shapes.ts';
-import { now } from './clock.ts';
+import { midnight, now } from './clock.ts';
 import { PLATFORM_STATUS } from './platform-status.ts';
 import { MEASURES, type Fact, type Measure, type Who } from './platform-query-measures.ts';
-import { BUCKETS, WEEKDAYS, addDays, bucketLabel, bucketOf, bucketsOf, isDate, midnight, type Bucket } from './work-query-buckets.ts';
+import { BUCKETS, WEEKDAYS, addDays, bucketLabel, bucketOf, bucketsOf, isDate, type Bucket } from './work-query-buckets.ts';
 
 type Answer = [status: number, body: unknown];
 

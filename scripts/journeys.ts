@@ -33,6 +33,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import { localDay } from './fake-gateway/clock.ts';
 import type { Page } from './lib/chrome.ts';
 import config from './verify.config.ts';
 
@@ -227,7 +228,7 @@ export const JOURNEYS: Journey[] = [
         return !page.includes(bare(label)) || !page.includes(bare(rest.join(': ').replace(/ \(.*\)$/, '')));
       });
       w.check('compare the text with the page', figures.length > 0 && !missing.length, `${missing.length} of ${figures.length} copied figures are not drawn: ${missing.slice(0, 3).join(' | ')}`);
-      const period = (await w.read('/record?period=quarter')).meta.period.from.slice(0, 10);
+      const period = localDay(Date.parse((await w.read('/record?period=quarter')).meta.period.from));
       return `This quarter, from ${period}, copied as ${copied.split('\n').length} lines: each of its ${figures.length} figures is one the page draws`;
     } finally {
       await w.page.send('Page.removeScriptToEvaluateOnNewDocument', { identifier });

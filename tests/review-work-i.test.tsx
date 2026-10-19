@@ -123,17 +123,22 @@ describe('M-9: Record\'s context carries the lead\'s series, and the superadmin\
   });
 });
 
-describe('M-15: a tie names every week it ties with', () => {
-  const wk = (from: string, value: number | null, complete = true): PeriodFigure => ({
-    window: { from: `${from}T00:00:00Z`, to: `${from}T00:00:00Z`, observedFrom: `${from}T00:00:00Z`, observedThrough: null, complete },
-    figure: value === null ? { value: null, why: 'no_data' } : { value, why: null }, numerator: null, denominator: null,
-  });
-  const weeks = (values: number[]) => [...values.map((v, i) => wk(`2026-09-${String(7 + i * 7).padStart(2, '0')}`, v)), wk('2026-10-05', 0, false)];
+describe('M-15: a tie names every week it ties with, the one its record is counted from as that first week', () => {
+  // Weeks from Monday 7 Sept, each starting at midnight in Singapore, the running week last.
+  const wk = (i: number, value: number | null, complete = true): PeriodFigure => {
+    const from = new Date(Date.UTC(2026, 8, 7 + i * 7) - 8 * 3_600_000).toISOString();
+    return {
+      window: { from, to: from, observedFrom: from, observedThrough: null, complete },
+      figure: value === null ? { value: null, why: 'no_data' } : { value, why: null }, numerator: null, denominator: null,
+    };
+  };
+  const weeks = (values: number[]) => [...values.map((v, i) => wk(i, v)), wk(values.length, 0, false)];
 
   it.each([
-    [[2, 1, 2], ', tied with 7 Sept'],
-    [[1, 0, 1, 1], ', tied with 7 Sept and 21 Sept'],
-    [[1, 1, 0, 1, 1], ', tied with 7 Sept, 14 Sept and 28 Sept'],
+    [[2, 1, 2], ' since 7 Sept, tied with that first week'],
+    [[1, 0, 1, 1], ' since 7 Sept, tied with that first week and 21 Sept'],
+    [[1, 1, 0, 1, 1], ' since 7 Sept, tied with that first week, 14 Sept and 28 Sept'],
+    [[3, 1, 2, 1], ' since 7 Sept, tied with 14 Sept'],
   ] as const)('names every tied week of %j, earliest first', (values, tail) => {
     const f = neutralFinding(weeks([...values]), 'approvals in your name')!;
     expect(f.text.endsWith(tail), f.text).toBe(true);
@@ -146,7 +151,9 @@ describe('M-15: a tie names every week it ties with', () => {
       if (h.approvals.state !== 'ok') throw new Error('the fixture reads the approvals');
       const whole = h.approvals.data.weeks.filter((w) => w.window.complete);
       const last = whole.at(-1)!;
-      const tied = whole.filter((w) => w !== last && w.figure.value !== null && w.figure.value === last.figure.value).map((w) => formatDay(w.window.from));
+      const first = whole.find((w) => w.figure.value !== null);
+      const tied = whole.filter((w) => w !== last && w.figure.value !== null && w.figure.value === last.figure.value)
+        .map((w) => (w === first ? 'that first week' : formatDay(w.window.from)));
       const text = h.approvals.data.finding?.text ?? '';
       if (!/^(Most|Fewest) recorded/.test(text) || !tied.length) continue;
       expect(text, who.email).toMatch(new RegExp(`, tied with ${tied.length > 1 ? `${tied.slice(0, -1).join(', ')} and ` : ''}${tied.at(-1)}$`));

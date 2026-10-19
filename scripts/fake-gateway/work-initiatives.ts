@@ -23,7 +23,7 @@
 import type { Initiative, InitiativeDetail, Me } from '../../src/lib/api-shapes.ts';
 import type { Figure, PeriodFigure, ReadMeta, Window } from '../../src/lib/platform-shapes.ts';
 import type { CloseInput, CloseResult, InitiativeList, InitiativeRow, NextMove } from '../../src/lib/work-shapes.ts';
-import { now } from './clock.ts';
+import { nextStart, now } from './clock.ts';
 import { kept } from './journey.ts';
 import { PLATFORM_STATUS } from './platform-status.ts';
 import { INITIATIVES, initiativeDetail } from './work.ts';
@@ -40,7 +40,7 @@ export const WEEKS: Window[] = PLATFORM_STATUS.measures.find((m) => m.key === 'm
 export const LAST_WEEK = WEEKS.length - 2;
 const RUNNING = Date.parse(WEEKS.at(-1)!.from);
 /** An instant `hours` into the week `back` weeks before the running one; in the running week, halfway to now. */
-export const inWeek = (back: number, hours: number) => (back === 0 ? RUNNING + (now() - RUNNING) / 2 : RUNNING - back * 7 * DAY + hours * HOUR);
+export const inWeek = (back: number, hours: number) => (back === 0 ? RUNNING + (now() - RUNNING) / 2 : nextStart(RUNNING, 'week', -back) + hours * HOUR);
 
 /** A count in one week, which stands at any size: a zero is a week that was read and held none. */
 export const tally = (i: number, n: number): PeriodFigure => ({ window: WEEKS[i], figure: { value: n, why: null }, numerator: n, denominator: null });
