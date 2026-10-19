@@ -191,6 +191,9 @@ denominator, an empty hand-built table says so, no source file over 700 lines), 
 for every pair in both themes and every accent, then route types, lint, types and tests.
 
 - **quick**: `pnpm gate`. The static checks and the tests, with no browser and no build. Before every commit.
+  `ZZ_TEST_REPORT=<file> pnpm gate` also writes every test file's result as JSON to that file (`vitest.config.ts`),
+  so a review quotes a file's result from the gate's own run instead of running the suite a second time; unset, no
+  run writes it, so a run of a few files never overwrites the record of a whole one.
 - **change**: `pnpm verify`. Adds one production build, the route policy, the first-load and HTML size checks, and
   the navigation of up to three routes on a desktop and through the phone drawer, judged on function; about a minute.
   Before finishing a change.

@@ -197,7 +197,7 @@ export function initiativeDetail(team: string, slug: string): InitiativeDetail |
   const rich = slug === '2026-09-28-search-relevance';
   const decisions = rich ? DECISIONS : [];
   return {
-    team, slug, documents: documents(s), decisions,
+    team, slug, flow: i.flow, documents: documents(s), decisions,
     decisionCounts: { rows: decisions.length, withVerdict: decisions.filter((d) => d.verdict).length, withQualifier: decisions.filter((d) => d.qualifier).length, withChecker: decisions.filter((d) => d.checker).length },
     at: i.at, of: i.of, stage: i.stage, steps: i.steps, gates: i.gates, accepted: i.accepted, complete: i.complete, closed: i.closed, outcome: i.outcome,
     correction: i.correction,

@@ -82,7 +82,12 @@ interface DocRow {
   correction: number | null;
 }
 export interface InitiativeDetail {
-  team: string; slug: string; documents: DocRow[];
+  team: string; slug: string;
+  /** The flow the initiative runs, null when it runs none. An initiative with no flow is answered no steps, no gates
+   *  and no position, and its finished close names the document it lands on. One whose flow the catalog cannot
+   *  resolve keeps the ops-flow fallback's steps. */
+  flow: string | null;
+  documents: DocRow[];
   /** A claim that states no verdict arrives as `null`, not `""`: `decisionRows` gives every
    *  field a string, and the route collapses the empty spelling before it answers so that a
    *  blank column reads as "nothing here states one" rather than as a derivation that stopped. */

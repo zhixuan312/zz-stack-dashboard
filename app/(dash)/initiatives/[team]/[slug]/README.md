@@ -16,7 +16,7 @@ One initiative end to end: where it is in its flow, its documents, and the evide
 ## States
 
 - Loading: skeletons for its progress, its documents and its sources.
-- No flow: the stepper is left out and the documents still list.
+- No flow: read from the detail's own `flow`, null when no flow governs the initiative, never from how many steps it was answered. The stepper is left out, the documents list as everything written in it, and a finished close names the document it lands on, of those a close may land on. The gateway answers such an initiative no steps, no gates and no position; one whose flow the catalog cannot resolve still has a flow, and keeps the ops-flow fallback's steps.
 - Nothing written: an initiative opened and never written in opens like any other; Documents says "Nothing written yet" and Close offers Abandoned alone.
 - Closed: every node done and the outcome under the last.
 - Not found: no initiative by that address, with the way back to Initiatives; the gateway's answer is one fixed sentence that names nothing asked for.

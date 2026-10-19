@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { Tooltip } from 'radix-ui';
 import type { ReactElement } from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 vi.mock('next/navigation', () => ({
   usePathname: () => window.location.pathname,
@@ -101,5 +101,63 @@ describe('an initiative with nothing written in it', () => {
   it('tells the assistant it has nothing written, and that the close a person may make is to abandon it', () => {
     const context = initiativeContext(cases[0][1], { updatedAt: AT, now: AT });
     expect(context.unknowns).toContain('Nothing has been written in it yet, so the close a person may make is to abandon it.');
+  });
+});
+
+/**
+ * An initiative with no flow against the real gateway (I-170's report, Task I-173): the page reads freeform from the
+ * detail's `flow`, never from how many steps it was answered. The gateway answered no flow with the ops-flow
+ * fallback's nine steps (`stageOf`, services/gateway/src/console/shared.ts) until it answered `flow`; both shapes are
+ * drawn here, and neither draws a stepper, and a finished close of either names the document it lands on.
+ */
+describe('an initiative with no flow', () => {
+  beforeAll(() => {
+    // Radix's Select scrolls its chosen option into view and asks for pointer capture, neither of which jsdom has.
+    Element.prototype.scrollIntoView ??= () => {};
+    Element.prototype.hasPointerCapture ??= () => false;
+    Element.prototype.releasePointerCapture ??= () => {};
+  });
+  const freeform = initiativeDetail('atlas', FREEFORM)!;
+  // The fallback's answer for no flow, as I-170 read it from the real route: its seven stages between the bookends,
+  // its four gates with no `written`, at the first stage of seven.
+  const STAGES = ['intent', 'spec', 'select', 'plan', 'build', 'verify', 'close'];
+  const fallback: InitiativeDetail = {
+    ...freeform, at: 1, of: 7, stage: 'intent', complete: false,
+    steps: ['open', ...STAGES, 'closed'].map((name, i) => ({ name, what: '', produces: '', state: i === 0 ? 'done' : 'empty', current: i === 1 })),
+    gates: [{ name: 'approve intent', passed: false, after: 2 }, { name: 'approve spec', passed: false, after: 3 },
+            { name: 'approve plan', passed: false, after: 5 }, { name: 'accept', passed: false, after: 7 }] as InitiativeDetail['gates'],
+  };
+  const cases: [string, InitiativeDetail][] = [['as the gateway answers it', freeform], ['answered the fallback\'s steps', fallback]];
+
+  it.each(cases)('%s: no stepper, and a finished close offers the documents it may land on', async (_, detail) => {
+    expect(detail.flow).toBeNull();
+    gateway(meOf(detail.team), detail);
+    await draw(detail);
+    expect(screen.queryByRole('heading', { name: 'Progress' })).toBeNull();
+    expect(screen.queryByText(/^Stage \d+ of \d+/)).toBeNull();
+    expect(screen.getByText('Everything written in this initiative')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Close initiative' }));
+    const dialog = await screen.findByRole('dialog');
+    await act(async () => { fireEvent.click(within(dialog).getByRole('radio', { name: /^Accepted/ })); });
+    expect(within(dialog).getByText('The document it closes on')).toBeInTheDocument();
+    await act(async () => { fireEvent.keyDown(within(dialog).getByRole('combobox'), { key: 'Enter' }); });
+    const offered = (await screen.findAllByRole('option')).map((o) => o.textContent);
+    expect(offered).toEqual(['notes.md', 'ideas.md']);
+  });
+
+  it('closes as accepted on the document the person chose, and the assistant is told it has no flow', async () => {
+    const sent = gateway(meOf(fallback.team), fallback);
+    await draw(fallback);
+    fireEvent.click(screen.getByRole('button', { name: 'Close initiative' }));
+    const dialog = await screen.findByRole('dialog');
+    await act(async () => { fireEvent.click(within(dialog).getByRole('radio', { name: /^Accepted/ })); });
+    await act(async () => { fireEvent.keyDown(within(dialog).getByRole('combobox'), { key: 'Enter' }); });
+    await act(async () => { fireEvent.click(await screen.findByRole('option', { name: 'notes.md' })); });
+    await act(async () => { fireEvent.click(within(dialog).getByRole('button', { name: 'Record the close' })); });
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0]).toEqual({ path: `/initiatives/atlas/${FREEFORM}/close`, body: { disposition: 'finished', document: 'notes.md' } });
+    const context = initiativeContext(fallback, { updatedAt: AT, now: AT });
+    expect(context.facts.find((f) => f.label === 'Flow position')?.value).toBe('no flow declared');
+    expect(context.insights.map((i) => i.text).join(' ')).not.toMatch(/steps|It is at the/);
   });
 });

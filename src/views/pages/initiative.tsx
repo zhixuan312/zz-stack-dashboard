@@ -141,6 +141,9 @@ export function InitiativeView({ team, slug, served }: { team: string; slug: str
     );
   }
   const live = inFlowOrder(d);
+  // No flow governs it: no stepper, its documents as everything written in it, and a finished close that names the
+  // document it lands on. Read from the initiative's own flow, never from how many steps it was answered.
+  const freeform = d.flow === null;
   // By the name a reader scans, in natural order: sources are numbered ("R2", "R10").
   const sources = d.documents.filter((x) => x.path.startsWith('sources/'))
     .sort((a, b) => sourceName(a.title, a.path).name.localeCompare(sourceName(b.title, b.path).name, 'en', { numeric: true }));
@@ -148,7 +151,7 @@ export function InitiativeView({ team, slug, served }: { team: string; slug: str
   // not Meridian's `Stack`, whose rise would hold the first paint's cards at no opacity while it runs.
   return (
     <div className="flex min-w-0 flex-col gap-(--stack-gap)">
-      {d.steps.length ? (
+      {!freeform && d.steps.length ? (
         <Panel title="Progress" description={`Stage ${d.at} of ${d.of}${d.stage ? `, ${d.stage}` : ''}`}>
           <FlowStepper gates={d.gates} outcome={d.outcome} steps={d.steps} complete={d.complete} correction={d.correction} />
         </Panel>
@@ -167,12 +170,12 @@ export function InitiativeView({ team, slug, served }: { team: string; slug: str
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="min-w-0">
                 <h2 className="t-card">Documents</h2>
-                <p className="t-caption mt-1">{d.of ? 'In the order the flow produces them' : 'Everything written in this initiative'}</p>
+                <p className="t-caption mt-1">{freeform ? 'Everything written in this initiative' : 'In the order the flow produces them'}</p>
               </div>
               <AskAbout question={`Where does ${slug} stand, and which of its documents needs me next?`} />
             </div>
           }
-          empty={{ title: 'Nothing written yet', body: 'The first stage of the flow writes the first document.' }}
+          empty={{ title: 'Nothing written yet', body: freeform ? 'A document written in it is listed here.' : 'The first stage of the flow writes the first document.' }}
         />
       </div>
       {sources.length ? (
@@ -294,5 +297,5 @@ export function InitiativeClose({ team, slug, served }: { team: string; slug: st
   const acting = served.state === 'ok' ? served.team : null;
   if (!data || acting !== data.team) return null;
   const landings = data.documents.filter((x) => !x.path.startsWith('sources/') && x.type !== 'handover').map((x) => x.path);
-  return <CloseInitiative team={data.team} slug={data.slug} closed={data.closed} freeform={data.steps.length === 0} documents={landings} variant={awaited(data) ? 'secondary' : 'primary'} />;
+  return <CloseInitiative team={data.team} slug={data.slug} closed={data.closed} freeform={data.flow === null} documents={landings} variant={awaited(data) ? 'secondary' : 'primary'} />;
 }
