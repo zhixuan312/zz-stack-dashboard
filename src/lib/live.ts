@@ -1,9 +1,9 @@
 /**
  * Live data in the browser: one stream per tab that hints which collections changed, and a scheduler that reads them
  * again. A hint is never data: it only says a collection is worth reading, so a missed hint costs freshness, never
- * correctness, and the safety poll and the resync on every open bound that cost. The one open that does not resync is a
- * page's first: its server read the collections at a revision, the stream is asked whether any moved since, and the
- * greeting says `synced` (nothing to read) or `resync` naming what moved.
+ * correctness, and the safety poll and the resync on every open bound that cost. The open that does not resync is one
+ * for new names, a page's first or a client navigation's: the views' servers read the collections at a revision, the
+ * stream is asked whether any moved since, and the greeting says `synced` (nothing to read) or `resync` naming what moved.
  *
  * `createLiveClient` is the whole scheduler and needs no framework; `LiveProvider` and `useLive` put it in a React tree.
  * The page's `refresh` is injected, so this file imports nothing from a product's data layer.
@@ -22,7 +22,7 @@ export type LiveClientOptions = {
   endpoint?: string;
   pollMs?: number;
   EventSource?: typeof EventSource;
-  /** The revisions the page was served, asked for when the first stream opens; none, or an empty answer, opens as every later stream does. */
+  /** The revisions the views were served, asked for when a stream opens for new names; none, or an empty answer, opens as a reopen after a gap does. */
   since?: () => Revisions | undefined;
   onState?: (state: LiveState) => void;
 };
@@ -69,8 +69,8 @@ export function createLiveClient({ refresh, endpoint = '/api/live', pollMs = 300
   let wantAll = false;
   /** Set by a `resync` greeting: the names it carries are read, and the read counts as the full one the open skipped. */
   let greeted = false;
-  /** Whether no stream has opened yet: only the first open may carry the revisions the page was served. */
-  let firstOpen = true;
+  /** Whether the names changed since a stream last opened: only such an open may carry the revisions the views were served, since a reopen after a gap (an error, a hidden tab, a poll's retry) follows lost hints. */
+  let newNames = true;
   const dirty = new Set<string>();
   let dirtyTimer: ReturnType<typeof setTimeout> | undefined;
   let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
@@ -170,7 +170,7 @@ export function createLiveClient({ refresh, endpoint = '/api/live', pollMs = 300
     if (!active()) return;
     if (!polling) emit('connecting');
     if (!Source) return failed();
-    const served = firstOpen ? since?.() : undefined;
+    const served = newNames ? since?.() : undefined;
     const pairs = Object.entries(served ?? {}).filter(([n, r]) => names.includes(n) && r);
     const sent = pairs.length > 0;
     const asked = sent ? `&since=${encodeURIComponent(pairs.map(([n, r]) => `${n}:${r}`).join(','))}` : '';
@@ -182,7 +182,7 @@ export function createLiveClient({ refresh, endpoint = '/api/live', pollMs = 300
       opened = true;
       attempts = 0;
       polling = false;
-      firstOpen = false;
+      newNames = false;
       // With revisions sent, the greeting answers whether anything moved, and the read waits for it.
       if (!sent) resync();
     });
@@ -268,6 +268,7 @@ export function createLiveClient({ refresh, endpoint = '/api/live', pollMs = 300
       const union = [...new Set(next)].sort();
       if (disposed || union.join(',') === names.join(',')) return;
       names = union;
+      newNames = true;
       closeSource();
       stopTimers();
       if (names.length === 0) return;
@@ -372,7 +373,7 @@ export function LiveProvider({ children, refresh, endpoint, pollMs, scopeKey }: 
 
 /**
  * Registers the collections a view shows and returns how fresh the tab's data is. `since` is the revisions the page's
- * server read them at: the tab's first stream asks whether any moved instead of reading them all again. Outside a
+ * server read them at: the stream that opens for them asks whether any moved instead of reading them all again. Outside a
  * provider it registers nothing and reports `paused`.
  */
 export function useLive(collections: string[], since?: Revisions): LiveState {

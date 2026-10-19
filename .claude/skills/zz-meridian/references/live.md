@@ -25,8 +25,8 @@ data: {"collection":"members"}
 : beat 1791181947919
 ```
 
-`GET /api/live?collections=members,keys&since=members:<revision>,keys:<revision>` is a page's first open: `since` is
-the revision of each collection the page's server read (`revision` on the answer of `read`, `readAll` and `aggregate`
+`GET /api/live?collections=members,keys&since=members:<revision>,keys:<revision>` is an open for new names, a page's
+first or a client navigation's: `since` is the revision of each collection the page's server read (`revision` on the answer of `read`, `readAll` and `aggregate`
 in `optional:src/data/read.ts`). The first frame then names only what moved since: `event: synced` with `data: {}` when nothing
 did, otherwise `event: resync` naming each collection that moved, has no pair, was read in another process (a revision
 is `<boot>:<n>`) or has no `revision`. The stream subscribes before it compares, so a write between the server's read
@@ -318,12 +318,13 @@ name the caller may not read. How it behaves:
 
 - A transport open is not `live`: the first resynchronization must succeed. A failed read keeps the previous observation
   and shows the data as stale; it never advances the data's observation time.
-- An open is one read, and a page's first open is none. A view passes the revisions its server read to
-  `useLive(names, revisions)`; the tab's first open sends them as `since` and reads nothing itself: a `synced` greeting
-  makes the tab `live` with no read, and a `resync` greeting reads the names it carries. Per name the client sends the
-  oldest revision among the views that show it, and leaves out a name two views were served by different processes
-  (the server then resyncs it). Every later open (a reconnect, a tab shown again, the safety poll) sends no `since` and
-  reads every name when the stream opens; the stream's first frame, a `resync` of every name, asks for the read the
+- An open is one read, and an open for new names is none. A view passes the revisions its server read to
+  `useLive(names, revisions)`; the open that follows a change of the names, the tab's first or the one a client
+  navigation makes, sends them as `since` and reads nothing itself: a `synced` greeting makes the tab `live` with no
+  read, and a `resync` greeting reads the names it carries. Per name the client sends the oldest revision among the
+  views that show it, and leaves out a name two views were served by different processes (the server then resyncs it).
+  A reopen after a gap (a reconnect, a tab shown again, the safety poll) sends no `since` and reads every name when
+  the stream opens; the stream's first frame, a `resync` of every name, asks for the read the
   open has already begun, and the client does not answer it a second time. A `resync` that arrives later is the server
   reporting lost hints, and is read.
 - Hints wait at most 500 ms and coalesce. One refresh runs at a time, and what arrives meanwhile runs next. A refresh

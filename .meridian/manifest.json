@@ -1,5 +1,5 @@
 {
-  "version": "0.18.0",
+  "version": "0.18.1",
   "route": "adopt",
   "brand": {
     "name": "ZZ Stack",
@@ -16,7 +16,7 @@
     ".agents/skills/zz-meridian/references/cache.md": "sha256-d2318f4db15e3e0b4ade89b483776eea92e586efc225dc10a54671e549bd2c50",
     ".agents/skills/zz-meridian/references/customize.md": "sha256-05a10575fa8ddf6bf1ed32423b8a4512d23c61ae1f3c9b4a91d12b6399c6f8fc",
     ".agents/skills/zz-meridian/references/existing-project.md": "sha256-43599b1a6d677e230bb6e23d799693a845c2da5fa97b973c9995d3c28d34e58f",
-    ".agents/skills/zz-meridian/references/live.md": "sha256-5ede674c7fc6fc4c56aab7490c5c2c9819f8e8b9c436eb31a6113f4adde72a29",
+    ".agents/skills/zz-meridian/references/live.md": "sha256-c80b341a789858091513b7bb7caf9a026869d5960c273f29589c6f59ada167b7",
     ".agents/skills/zz-meridian/references/ownership.md": "sha256-942664e8cf8ac1ddacb25a6b8a991281b7392356e3d63b37d6c6b6265db3df0f",
     ".agents/skills/zz-meridian/references/register.md": "sha256-449148c37d89f1e4e84d2c749a65deb1afe7d05ba51530fe18c61ba5ac3ab210",
     ".agents/skills/zz-meridian/references/standard.md": "sha256-0fba99ecb703656c77fa5b8d549c38138914f62486778ca34312484bd5f5f3ca",
@@ -28,7 +28,7 @@
     ".claude/skills/zz-meridian/references/cache.md": "sha256-d2318f4db15e3e0b4ade89b483776eea92e586efc225dc10a54671e549bd2c50",
     ".claude/skills/zz-meridian/references/customize.md": "sha256-05a10575fa8ddf6bf1ed32423b8a4512d23c61ae1f3c9b4a91d12b6399c6f8fc",
     ".claude/skills/zz-meridian/references/existing-project.md": "sha256-43599b1a6d677e230bb6e23d799693a845c2da5fa97b973c9995d3c28d34e58f",
-    ".claude/skills/zz-meridian/references/live.md": "sha256-5ede674c7fc6fc4c56aab7490c5c2c9819f8e8b9c436eb31a6113f4adde72a29",
+    ".claude/skills/zz-meridian/references/live.md": "sha256-c80b341a789858091513b7bb7caf9a026869d5960c273f29589c6f59ada167b7",
     ".claude/skills/zz-meridian/references/ownership.md": "sha256-942664e8cf8ac1ddacb25a6b8a991281b7392356e3d63b37d6c6b6265db3df0f",
     ".claude/skills/zz-meridian/references/register.md": "sha256-449148c37d89f1e4e84d2c749a65deb1afe7d05ba51530fe18c61ba5ac3ab210",
     ".claude/skills/zz-meridian/references/standard.md": "sha256-0fba99ecb703656c77fa5b8d549c38138914f62486778ca34312484bd5f5f3ca",
@@ -177,7 +177,7 @@
     "src/lib/format.ts": "sha256-25a49137a68d171be7d9fd40bfcf0c2f85cc414d3b6bc7e51177a4dc073907d1",
     "src/lib/host.ts": "sha256-3af2678f3d00b70e6b4890cba6640d1f598d1b2ef7421bbd83807c1b8182a681",
     "src/lib/insight.ts": "sha256-e1c0dddf4df555197e04397595c66f0c0f1db5e5ce0b050feb32c089ad5ffff9",
-    "src/lib/live.ts": "sha256-693f63a37502dcc300340c149463e8e928503e49585608849abb131163eba24d",
+    "src/lib/live.ts": "sha256-2467820e749d321f7b741e76fe30716bcc2d590caedeadfad881a6f61e7d0138",
     "src/lib/logo.ts": "sha256-0f68683402db037cdb33c281261e4bfce08ddaa77a421e3e235a364dda7fbdb4",
     "src/lib/period.ts": "sha256-81fbea5a5c11d3a51a627a2917c06f8b2f4b724a4327482a79668af5a5730290",
     "src/lib/preferences.ts": "sha256-8b49aa27aabd893057bb80ab323bcb7c6aa12d2b13730391f4ec95000a5667ce",
