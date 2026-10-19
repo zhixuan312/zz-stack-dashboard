@@ -74,7 +74,7 @@ describe('the shared context', () => {
     expect(fact(c, 'Words added')).toMatchObject({ value: '15,400 words added', change: `the week of ${LAST}` });
     expect(fact(c, 'Approvals in your name')!.value).toBe(approvalsAt(WEEKS.approvals.findIndex((w) => w.window.from === ATLAS.tiles.closed.window.from)));
     expect(fact(c, 'One person, writing this')!.value).toBe('31 h, estimated at 500 words an hour');
-    expect(fact(c, 'Searches with results')).toMatchObject({ value: '90%', change: '36 of 40 searches' });
+    expect(fact(c, 'Searches with results')).toMatchObject({ value: '75%', change: '12 of 16 searches' });
     expect(c.scope).toBe(`${ATLAS.meta.population}, the week of ${LAST}`);
   });
 

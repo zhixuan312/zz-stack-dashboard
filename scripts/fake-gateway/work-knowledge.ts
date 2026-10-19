@@ -2,11 +2,12 @@
  * The fake gateway's Knowledge: what `GET /api/console/knowledge/summary` and `GET /api/console/knowledge?q&kind&limit&
  * offset` answer, the lessons a node read opens, and the platform's shared shelf the search reads beside a team's.
  *
- * Two fixtures. The shelf is every team's lessons (`KNOWLEDGE` in work.ts, and the ones added here), each standing or
+ * Two fixtures, and the log of the first. The shelf is every team's lessons (`KNOWLEDGE` in work.ts, and the ones added here), each standing or
  * superseded, some of them imported rather than made by an initiative. The searches are every team's `knowledge.search`
  * questions, each with whether it found anything. Both are read for the caller's active team alone: its standing and
  * superseded lessons as of the cutoff, its own questions that found nothing, its searches by week, its newest lessons,
- * and its shelf filtered and paged. A question is answered only to the team that asked it.
+ * and its shelf filtered and paged. A question is answered only to the team that asked it. The knowledge log is the
+ * shelf's own adds, so it holds every lesson a shelf shows; Home and Record count lessons and searches from here too.
  *
  * Atlas, which both people act for, holds more than ten lessons so its shelf pages, one of them superseded and two
  * imported; it asked one question three times with no result (once in other capitals and spacing) and more than ten
@@ -20,10 +21,11 @@
  * COUPLED: zz-stack's `checks/console-work-knowledge.ts` imports this file with plain `node` and compares its key sets
  * with the real routes' answers. So nothing here is imported through the console's path alias.
  */
-import type { KnowledgeBody, KnowledgeNode, Me } from '../../src/lib/api-shapes.ts';
+import type { KnowledgeBody, KnowledgeLogEntry, KnowledgeNode, Me } from '../../src/lib/api-shapes.ts';
 import type { KnowledgeList, KnowledgeSummary } from '../../src/lib/destination-shapes.ts';
 import type { PeriodFigure } from '../../src/lib/platform-shapes.ts';
 import { ago } from './clock.ts';
+import { lessonBody, lessonExcerpt } from './lesson-text.ts';
 import { INITIATIVES, KNOWLEDGE, knowledgeBody } from './work.ts';
 import { NO_TEAM, pageParams } from './work-activity.ts';
 import { LAST_WEEK, WEEKS, counted, inWeek, iso, workMeta } from './work-initiatives.ts';
@@ -69,7 +71,7 @@ const readAs = (n: KnowledgeNode, reader: string): KnowledgeNode => ({ ...n, ...
 /** Each added lesson as its own shelf's team reads it, which names none of a shared lesson's. */
 const ADDED: KnowledgeNode[] = SEEDS.map(([team, num, type, title, tags, evidence, hours]) => ({
   key: `${team}/${nodePath(num, title)}`, num, team, path: nodePath(num, title), type, status: 'adopted', title, tags, updated: ago(hours),
-  bytes: 1_400 + Number(num) * 230, excerpt: `${title}. The evidence and the reasoning, as the initiative that learned it wrote them down.`,
+  bytes: 1_400 + Number(num) * 230, excerpt: lessonExcerpt(team, num, title),
   ...citedFor(evidence, team), superseded_by: null,
 }));
 /** Every lesson on every shelf, the shared one's among them, each as its own shelf's team reads it: a reader of another
@@ -78,24 +80,42 @@ export const SHELF: KnowledgeNode[] = [...KNOWLEDGE, ...ADDED];
 /** The lessons brought in by an import rather than made by an initiative. */
 export const IMPORTED = new Set(SEEDS.filter((s) => s[7]).map(([team, num, , title]) => `${team}/${nodePath(num, title)}`));
 
+/** The lessons on `team`'s shelf made by its work, an import's left out and the superseded kept: what Home and Record
+ *  count as adopted, each made when it was last written. */
+export const lessonsMade = (team: string): KnowledgeNode[] => SHELF.filter((n) => n.team === team && !IMPORTED.has(n.key));
+
+/** How many lessons, of any shelf, cite `slug` as evidence. */
+export const lessonsCiting = (slug: string): number => [...CITES.values()].filter((cites) => cites.includes(slug)).length;
+
+/** Every `knowledge.add` and `knowledge.supersede` of every team, newest first: each lesson on every shelf added when
+ *  it was made, so the log holds every lesson a shelf shows, one superseded, and one add whose lesson is gone. */
+export const KNOWLEDGE_LOG: KnowledgeLogEntry[] = ([
+  ...SHELF.map((n): KnowledgeLogEntry => ({ ts: n.updated, actor: 'noah.okafor@example.com', team: n.team, kind: 'knowledge.add', node: n.num, recorded_title: n.title, superseded_by: null, node_title: n.title, node_status: n.status })),
+  { ts: ago(52), actor: 'noah.okafor@example.com', team: 'atlas', kind: 'knowledge.supersede', node: '0004', recorded_title: 'Rank by recency first', superseded_by: '0005', node_title: 'Rank by recency first', node_status: 'superseded' },
+  { ts: ago(700), actor: 'leo.santos@example.com', team: 'cinder', kind: 'knowledge.add', node: '0002', recorded_title: 'Page the on-call, not the channel', superseded_by: null, node_title: null, node_status: null },
+] satisfies KnowledgeLogEntry[]).sort((a, b) => b.ts.localeCompare(a.ts));
+
 /** One lesson, whole: the work fixture's own, or one added here. `own` is the one team a member is held to, whose
  *  shelf is theirs to open beside the shared shelf, which is everybody's; the superadmin opens any. The citations, the
  *  neighbours' among them, are answered as `own` reads them, or as the lesson's own shelf's team does when no team is
  *  named. */
 export function lesson(team: string, path: string, own: string | null = null): KnowledgeBody | null {
-  const known = knowledgeBody(team, path, own);
-  if (known) return known;
-  const n = ADDED.find((x) => x.team === team && x.path === path);
-  if (!n || (own !== null && team !== own && team !== SHARED_TEAM)) return null;
   const reader = own ?? team;
   const shelf = own === null ? SHELF : SHELF.filter((x) => x.team === own);
+  const neighbours = (n: { key: string; tags: string[] | null }) => shelf
+    .filter((x) => x.key !== n.key && (x.tags ?? []).some((t) => (n.tags ?? []).includes(t))).map((x) => readAs(x, reader));
+  const known = knowledgeBody(team, path, own);
+  // Its neighbours are every lesson on the shelf that shares a tag with it, the ones added here among them.
+  if (known) return { ...known, related: neighbours({ key: `${team}/${path}`, tags: known.tags }) };
+  const n = ADDED.find((x) => x.team === team && x.path === path);
+  if (!n || (own !== null && team !== own && team !== SHARED_TEAM)) return null;
   const { evidence, cited_elsewhere } = readAs(n, reader);
   return {
     team, path, type: n.type, status: n.status, title: n.title, tags: n.tags, updated: n.updated, num: n.num,
-    body: `\n${n.title}.\n\n- **What happened.** The initiative found it the slow way, and wrote down how.\n- **What to do.** Check it before you build on it.\n`,
+    body: lessonBody(team, n.num, n.title),
     evidence, cited_elsewhere, superseded_by: null,
     evidence_in: evidence?.map((name) => ({ name, team: INITIATIVES.find((i) => i.slug === name)?.team ?? null })) ?? null,
-    related: shelf.filter((x) => x.key !== n.key && (x.tags ?? []).some((t) => (n.tags ?? []).includes(t))).map((x) => readAs(x, reader)),
+    related: neighbours(n),
     multi_team: new Set(shelf.map((x) => x.team)).size > 1,
     shelf: team === SHARED_TEAM ? 'shared' : 'team',
   };
@@ -121,8 +141,9 @@ const SEARCHES: Search[] = [
   ['beacon', 'refund ledger entries', 1, 41, true],
 ];
 
-/** The team's searches: when, the question normalised for case and spacing, and whether it found anything. */
-const searchesOf = (team: string) => SEARCHES.filter(([t]) => t === team)
+/** The team's searches: when, the question normalised for case and spacing, and whether it found anything. Home and
+ *  Record count theirs from these too. */
+export const searchesOf = (team: string) => SEARCHES.filter(([t]) => t === team)
   .map(([, question, back, hours, found]) => ({ at: iso(inWeek(back, hours)), question: question.trim().replace(/\s+/g, ' ').toLowerCase(), found }));
 const within = (at: string, i: number) => at >= WEEKS[i].from && at < WEEKS[i].to;
 

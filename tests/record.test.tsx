@@ -156,9 +156,9 @@ describe('the lead', () => {
     mount(ok(ALL));
     const card = document.querySelector('[data-figure]') as HTMLElement;
     expect(card.textContent).toContain('One person, writing this · as of');
-    // The figure's unit is its own span: `575` then `h`.
-    expect(card.querySelector('[data-value]')!.textContent).toBe('575h');
-    expect(card.textContent).toContain('Estimated at 500 words an hour, over 287,400 words your documents and lessons retain as of');
+    // The figure's unit is its own span: `100` then `h`.
+    expect(card.querySelector('[data-value]')!.textContent).toBe('100h');
+    expect(card.textContent).toContain('Estimated at 500 words an hour, over 49,800 words your documents and lessons retain as of');
     const chart = within(card).getByText('Words added, a running total, by week');
     expect(card.querySelector('[data-value]')!.compareDocumentPosition(chart) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(foot('Work closed')).toBe(footOf(ALL)[0].value);

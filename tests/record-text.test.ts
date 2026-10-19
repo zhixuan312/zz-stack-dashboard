@@ -43,7 +43,7 @@ describe('the text', () => {
     expect(text).toContain(`${periodLine(ALL)} (${ALL.meta.timezone})`);
     expect(text).toContain(asOfLine(ALL));
     expect(text).toContain(`One person, writing this: ${lead.text}, estimated at 500 words an hour.`);
-    expect(text).toContain(`Counted over 287,400 words your documents and lessons retain as of`);
+    expect(text).toContain(`Counted over 49,800 words your documents and lessons retain as of`);
     expect(text).toContain(`Coverage: ${lead.coverage}`);
   });
 

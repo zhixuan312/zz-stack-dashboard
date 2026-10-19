@@ -14,10 +14,10 @@
  */
 import { createHash } from 'node:crypto';
 import type {
-  DocumentDetail, DocumentRevision, Gate, Initiative, InitiativeDetail, KnowledgeBody,
-  KnowledgeLogEntry, KnowledgeNode, Step,
+  DocumentDetail, DocumentRevision, Gate, Initiative, InitiativeDetail, KnowledgeBody, KnowledgeNode, Step,
 } from '../../src/lib/api-shapes.ts';
 import { ago, now } from './clock.ts';
+import { lessonBody, lessonExcerpt } from './lesson-text.ts';
 
 const FLOW = 'sdlc-flow';
 const STAGES: [name: string, produces: string, what: string][] = [
@@ -396,7 +396,7 @@ const nodePath = (num: string, title: string) => `nodes/${num}-${title.toLowerCa
 /** Each team's lessons. Every one cites an initiative of its own team's, so none counts another's. */
 export const KNOWLEDGE: KnowledgeNode[] = NODE_SEEDS.map(([team, num, type, status, title, tags, evidence, hours]) => ({
   key: `${team}/${nodePath(num, title)}`, num, team, path: nodePath(num, title), type, status, title, tags, updated: ago(hours),
-  bytes: 1_400 + Number(num) * 230, excerpt: `${title}. The evidence and the reasoning, as the initiative that learned it wrote them down.`,
+  bytes: 1_400 + Number(num) * 230, excerpt: lessonExcerpt(team, num, title),
   evidence: evidence ? [evidence] : null, cited_elsewhere: 0,
   superseded_by: status === 'superseded' ? '0005' : null,
 }));
@@ -410,7 +410,7 @@ export function knowledgeBody(team: string, path: string, own: string | null = n
   if (!n) return null;
   return {
     team, path, type: n.type, status: n.status, title: n.title, tags: n.tags, updated: n.updated,
-    body: `\n${n.title}.\n\n- **What happened.** The initiative found it the slow way, and wrote down how.\n- **What to do.** Check it before you build on it; it takes one command.\n\n\`\`\`sh\npnpm verify\n\`\`\`\n`,
+    body: lessonBody(n.team, n.num, n.title),
     evidence: n.evidence, cited_elsewhere: n.cited_elsewhere, superseded_by: n.superseded_by, num: n.num,
     evidence_in: n.evidence?.map((name) => ({ name, team: work.find((i) => i.slug === name)?.team ?? null })) ?? null,
     // The neighbours and the shelf's span, served with the node rather than found on the client —
@@ -420,11 +420,3 @@ export function knowledgeBody(team: string, path: string, own: string | null = n
     shelf: 'team',
   };
 }
-
-const LOG: KnowledgeLogEntry[] = [
-  ...KNOWLEDGE.map((n): KnowledgeLogEntry => ({ ts: n.updated, actor: 'noah.okafor@example.com', team: n.team, kind: 'knowledge.add', node: n.num, recorded_title: n.title, superseded_by: null, node_title: n.title, node_status: n.status })),
-  { ts: ago(52), actor: 'noah.okafor@example.com', team: 'atlas', kind: 'knowledge.supersede', node: '0004', recorded_title: 'Rank by recency first', superseded_by: '0005', node_title: 'Rank by recency first', node_status: 'superseded' },
-  { ts: ago(700), actor: 'leo.santos@example.com', team: 'cinder', kind: 'knowledge.add', node: '0002', recorded_title: 'Page the on-call, not the channel', superseded_by: null, node_title: null, node_status: null },
-];
-export const KNOWLEDGE_LOG = LOG.sort((a, b) => b.ts.localeCompare(a.ts));
-

@@ -39,6 +39,11 @@ const RUNS: Run[] = [
   { plugin: 'zz-plugin-eval', protocol: EVAL, population: 'no door of its own', hoursAgo: 150, score: null, lower: null, upper: null, standing: 'not_established', guardrails: 'not_established' },
 ];
 
+/** The newest run of `plugin` with a score: the one its public score is, and its owner's page shows. */
+export function newestScored(plugin: string): Run | null {
+  return RUNS.filter((r) => r.plugin === plugin && r.score !== null).sort((a, b) => a.hoursAgo - b.hoursAgo)[0] ?? null;
+}
+
 /** A defect or an unknown awaiting a decision, with the owner category the finding blames and the measure it was found
  *  on. Decided findings and strengths are counted, not listed. */
 type Finding = { id: string; plugin: string; kind: 'defect' | 'unknown' | 'strength'; owner: string; measure: string;

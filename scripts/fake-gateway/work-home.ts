@@ -3,7 +3,8 @@
  *
  * One fixture, every team's last whole week and what waits, answered for the caller's active team, with the approvals
  * in it the caller's own. Its open work, closures and waiting count are read off the initiatives list and the
- * approvals queue, so Home, Initiatives and Approvals say the same things of the same work.
+ * approvals queue, its runs off Runs' (`work-runs.ts`), its lessons and searches off Knowledge's (`work-knowledge.ts`),
+ * and its words are the additions Record counts (`ADDITIONS` here), so Home says what the page it links to says.
  *
  * It exercises the states the page draws: a plain week for atlas, which both people act for, and a first observed
  * week for beacon, whose one revision waiting is named; a running week; a week with no recorded words, said rather
@@ -17,9 +18,11 @@
 import type { Me } from '../../src/lib/api-shapes.ts';
 import type { Finding, PeriodFigure } from '../../src/lib/platform-shapes.ts';
 import type { ActiveGroup, Home, WritingCoverage, WritingEstimate } from '../../src/lib/work-shapes.ts';
-import { ago } from './clock.ts';
+import { now } from './clock.ts';
 import { callerApprovalRows, callerWeeks, waitingOf } from './work-approvals.ts';
-import { LAST_WEEK, WEEKS, counted, rowsOf, tally, workMeta } from './work-initiatives.ts';
+import { LAST_WEEK, WEEKS, counted, inWeek, rowsOf, tally, workMeta } from './work-initiatives.ts';
+import { lessonsMade, searchesOf } from './work-knowledge.ts';
+import { median, observedRuns, runsOf } from './work-runs.ts';
 
 /** The pace every writing estimate is made at: words one person writes in an hour (`WORDS_PER_HOUR` in zz-stack). */
 const WORDS_PER_HOUR = 500;
@@ -32,13 +35,37 @@ export const COVERAGE: WritingCoverage = { documents: 41, revisions: 156, import
 export const estimateOf = (basis: WritingEstimate['basis'], words: number): WritingEstimate =>
   ({ basis, words, assumedWordsPerHour: WORDS_PER_HOUR, hours: words / WORDS_PER_HOUR, coverage: COVERAGE });
 
-/** Words added by week, oldest first, the running week last; null for the week with no recorded words. */
-const WORDS: (number | null)[] = [12_400, null, 8_300, 9_100, 15_400, 2_100];
+/** Words added by week, by weeks before the running one (0 is the running week), back to the week the record began
+ *  in; null for the week with no recorded words. */
+const WORDS_BACK: (number | null)[] = [2_100, 15_400, 9_100, 8_300, null, 12_400, 6_100, 3_200];
+/** Every addition of words, one a week, at the week's middle, or halfway to the cutoff in the running week: what Home
+ *  and Record both count. */
+export const ADDITIONS: { atMs: number; words: number }[] = WORDS_BACK.flatMap((n, back) => (n === null ? [] : [{ atMs: inWeek(back, 84), words: n }]));
+/** The words added in `[fromMs, toMs)`, or null when none was recorded there. */
+export function wordsIn(fromMs: number, toMs: number): number | null {
+  const here = ADDITIONS.filter((a) => a.atMs >= fromMs && a.atMs < toMs);
+  return here.length ? here.reduce((n, a) => n + a.words, 0) : null;
+}
 
 /** The words' weeks: a week with no recorded revision has no value, never a zero. */
-const wordWeeks = (): PeriodFigure[] => WORDS.map((n, i) => (n === null
-  ? { window: WEEKS[i], figure: { value: null, why: 'no_data' }, numerator: null, denominator: null }
-  : tally(i, n)));
+const wordWeeks = (): PeriodFigure[] => WEEKS.map((w, i) => {
+  const n = wordsIn(Date.parse(w.from), Date.parse(w.to));
+  return n === null ? { window: w, figure: { value: null, why: 'no_data' }, numerator: null, denominator: null } : tally(i, n);
+});
+
+/** Each count's round numbers: the listed thresholds, then every further step (`LADDERS` in the gateway). */
+const LADDERS: Record<string, { steps: number[]; every: number }> = {
+  closed: { steps: [10, 25, 50, 100, 250, 500], every: 500 }, documents: { steps: [100, 500, 1_000], every: 1_000 },
+  lessons: { steps: [10, 25, 50, 100], every: 100 }, words: { steps: [1_000_000], every: 500_000 },
+};
+/** A count's next round number, the last one it reached (0 with none), and the count itself. */
+function milestone(count: 'closed' | 'documents' | 'lessons' | 'words', value: number) {
+  const { steps, every } = LADDERS[count];
+  const top = steps.at(-1)!;
+  const last = value >= top ? top + Math.floor((value - top) / every) * every : [...steps].reverse().find((t) => t <= value) ?? 0;
+  const next = steps.find((t) => t > value) ?? top + (Math.floor((value - top) / every) + 1) * every;
+  return { count, next, last, value };
+}
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 /** A date as a finding's sentence prints it: `28 Sep`. */
@@ -66,22 +93,20 @@ function neutralFinding(weeks: PeriodFigure[], label: string): Finding | null {
   return tied ? { kind, text: `${text}, tied with ${sayDay(tied)}`, dates: [...at, from, tied], tie: true } : { kind, text, dates: [...at, from], tie: false };
 }
 
-/** Each run active now: six, in five groups, so the page shows four and says one more. */
-const ACTIVE: [initiative: string | null, skill: string, startedHoursAgo: number][] = [
-  ['2026-09-28-search-relevance', 'sdlc-plan', 1.5], ['2026-09-28-search-relevance', 'sdlc-plan-audit', 0.4],
-  ['2026-10-08-result-explanations', 'sdlc-review', 0.8], ['2026-10-02-query-latency', 'sdlc-spec', 0.3],
-  ['2026-10-03-ranking-weights', 'sdlc-spec-audit', 0.2], [null, 'zz-tldr', 0.1],
-];
-const LAST_CALL = ago(0.02);
-
-/** Above four runs they are grouped by initiative, and at most four groups are answered; `more` counts the runs left. */
-function activeGroups(): { active: ActiveGroup[]; more: number } {
+/** The team's runs active now, as Runs marks them: each its own group while four or fewer, grouped by initiative above
+ *  that, the latest call first, at most four groups answered and `more` counting the runs left (`groupsOf` in the
+ *  gateway). Atlas has six, in five groups. */
+function activeGroups(team: string | null): { active: ActiveGroup[]; more: number } {
+  const runs = (team ? runsOf(team) : []).filter((r) => r.state === 'active')
+    .sort((a, b) => b.lastCallAt.localeCompare(a.lastCallAt) || b.startedAt.localeCompare(a.startedAt) || a.skill.localeCompare(b.skill));
+  const asRun = (r: (typeof runs)[number]) => ({ skill: r.skill, startedAt: r.startedAt, lastAt: r.lastCallAt });
+  if (runs.length <= 4) return { active: runs.map((r) => ({ initiative: r.initiative, runs: [asRun(r)] })), more: 0 };
   const groups: ActiveGroup[] = [];
-  for (const [initiative, skill, hours] of ACTIVE) {
-    const run = { skill, startedAt: ago(hours), lastAt: LAST_CALL };
-    const g = groups.find((x) => x.initiative === initiative);
-    if (g) g.runs.push(run); else groups.push({ initiative, runs: [run] });
+  for (const r of runs) {
+    const g = groups.find((x) => x.initiative === r.initiative);
+    if (g) g.runs.push(asRun(r)); else groups.push({ initiative: r.initiative, runs: [asRun(r)] });
   }
+  groups.sort((a, b) => b.runs[0].lastAt.localeCompare(a.runs[0].lastAt) || (a.initiative === null ? 1 : b.initiative === null ? -1 : a.initiative.localeCompare(b.initiative)));
   return { active: groups.slice(0, 4), more: groups.slice(4).reduce((n, g) => n + g.runs.length, 0) };
 }
 
@@ -102,7 +127,13 @@ export function homeOf(team: string | null, email: string): Home {
   const open = rows.filter((r) => r.closed === null);
   const quiet = open.filter((r) => r.state === 'quiet').length;
   const words = wordWeeks();
-  const lastWords = WORDS[LAST_WEEK]!;
+  const lastWords = words[LAST_WEEK].figure.value;
+  const lastFrom = Date.parse(last.from), lastTo = Date.parse(last.to);
+  const observed = team ? observedRuns(team, lastFrom, lastTo) : null;
+  const took = closedLast.map((r) => (Date.parse(r.closed!) - Date.parse(r.opened)) / 3_600_000);
+  const searched = team ? searchesOf(team).filter((x) => x.at >= last.from && x.at < last.to) : [];
+  const found = searched.filter((x) => x.found).length;
+  const mineRuns = team ? runsOf(team) : [];
   return {
     meta: workMeta('caller-in-active-team', `${team}'s work last week, and the approvals signed in the caller's name there`),
     title: titleOf(team, closedLast.length, mine[LAST_WEEK].numerator ?? 0),
@@ -119,22 +150,22 @@ export function homeOf(team: string | null, email: string): Home {
       finding: neutralFinding(mine, 'approvals in your name'),
     } },
     foot: {
-      estimate: estimateOf('period_net_additions', lastWords),
-      coverageMs: counted(31 * 3_600_000), peak: counted(5),
+      estimate: lastWords === null ? null : estimateOf('period_net_additions', lastWords),
+      coverageMs: counted(observed?.coverageMs ?? 0), peak: counted(observed?.peak ?? 0),
     },
     tiles: {
       closed: tally(LAST_WEEK, closedLast.length),
       // A team's own figure stands at any count, drawn beside it: the gateway never marks it insufficient.
-      medianHoursToClose: { window: last, figure: { value: 41.5, why: null }, numerator: null, denominator: closedLast.length },
-      searchesWithResults: { window: last, figure: { value: 90, why: null }, numerator: 36, denominator: 40 },
+      medianHoursToClose: { window: last, figure: took.length ? { value: median(took), why: null } : { value: null, why: 'no_data' }, numerator: null, denominator: took.length },
+      searchesWithResults: { window: last, figure: searched.length ? { value: (100 * found) / searched.length, why: null } : { value: null, why: 'no_data' }, numerator: found, denominator: searched.length },
       agentDays: { window: last, figure: { value: 6, why: null }, numerator: 6, denominator: 7 },
     },
-    runs: { state: 'ok', data: { ...activeGroups(), lastRunAt: LAST_CALL } },
+    runs: { state: 'ok', data: { ...activeGroups(team), lastRunAt: mineRuns.reduce<string | null>((a, r) => (!a || r.lastCallAt > a ? r.lastCallAt : a), null) } },
     milestones: { state: 'ok', data: [
-      { count: 'closed', next: 10, last: 0, value: rows.filter((r) => r.closed !== null).length },
-      { count: 'documents', next: 100, last: 0, value: COVERAGE.documents },
-      { count: 'lessons', next: 10, last: 0, value: 6 },
-      { count: 'words', next: 1_000_000, last: 0, value: 412_300 },
+      milestone('closed', rows.filter((r) => r.closed !== null).length),
+      milestone('documents', COVERAGE.documents),
+      milestone('lessons', team ? lessonsMade(team).length : 0),
+      milestone('words', ADDITIONS.filter((a) => a.atMs < now()).reduce((n, a) => n + a.words, 0)),
     ] },
     openWork: { state: 'ok', data: {
       rows: open.filter((r) => r.state !== 'quiet').slice(0, quiet ? 4 : 5).map((r) => ({ ...r })), quiet, total: open.length,

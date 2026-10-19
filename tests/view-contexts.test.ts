@@ -36,13 +36,13 @@ import { teamDetail, teams } from '../scripts/fake-gateway/platform-teams.ts';
 import { pluginEval, skillText } from '../scripts/fake-gateway/platform.ts';
 import { search } from '../scripts/fake-gateway/search.ts';
 import { extreme } from '../scripts/fake-gateway/states.ts';
-import { INITIATIVES, KNOWLEDGE, KNOWLEDGE_LOG, documentDetail, initiativeDetail, knowledgeBody } from '../scripts/fake-gateway/work.ts';
+import { INITIATIVES, KNOWLEDGE, documentDetail, initiativeDetail, knowledgeBody } from '../scripts/fake-gateway/work.ts';
 import { access } from '../scripts/fake-gateway/work-access.ts';
 import { activityLog, activitySummary } from '../scripts/fake-gateway/work-activity.ts';
 import { approvals } from '../scripts/fake-gateway/work-approvals.ts';
 import { homeOf } from '../scripts/fake-gateway/work-home.ts';
 import { initiativeList } from '../scripts/fake-gateway/work-initiatives.ts';
-import { knowledgeList, knowledgeSummary } from '../scripts/fake-gateway/work-knowledge.ts';
+import { KNOWLEDGE_LOG, knowledgeList, knowledgeSummary } from '../scripts/fake-gateway/work-knowledge.ts';
 import { plugins, skillDetail, skills } from '../scripts/fake-gateway/work-plugins.ts';
 import { runs } from '../scripts/fake-gateway/work-runs.ts';
 

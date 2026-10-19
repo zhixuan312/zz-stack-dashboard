@@ -211,8 +211,8 @@ describe('the paired figures', () => {
     draw(ok(ATLAS));
     const foot = document.querySelector('[data-foot]')!;
     expect(foot.textContent).toContain('One person, writing this31 hestimated at 500 words an hour');
-    expect(foot.textContent).toContain('Observed run coverage31 h');
-    expect(foot.textContent).toContain('Peak concurrency5 at once');
+    expect(foot.textContent).toContain('Observed run coverage3.5 h');
+    expect(foot.textContent).toContain('Peak concurrency1 at once');
     expect(within(foot as HTMLElement).getByRole('link', { name: 'How it is estimated' })).toHaveAttribute('href', '/record');
   });
 
@@ -263,11 +263,11 @@ describe('the tiles', () => {
   it('are the four of last week, each with its count', () => {
     draw(ok(ATLAS));
     expect(tile('Work closed').querySelector('.t-figure')!.textContent).toBe(value(ATLAS.tiles.closed));
-    // The unit is the figure's own span, set apart by the card: `42` and `h`.
-    expect(tile('Median hours to close').querySelector('.t-figure')!.textContent).toBe('42h');
+    // The unit is the figure's own span, set apart by the card: `484` and `h`.
+    expect(tile('Median hours to close').querySelector('.t-figure')!.textContent).toBe('484h');
     expect(tile('Median hours to close')).toHaveTextContent(`Over ${ATLAS.tiles.medianHoursToClose.denominator} piece`);
-    expect(tile('Searches with results').querySelector('.t-figure')!.textContent).toBe('90%');
-    expect(tile('Searches with results')).toHaveTextContent('36 of 40 searches');
+    expect(tile('Searches with results').querySelector('.t-figure')!.textContent).toBe('75%');
+    expect(tile('Searches with results')).toHaveTextContent('12 of 16 searches');
     expect(tile('Days your agents ran').querySelector('.t-figure')!.textContent).toBe('6');
     expect(tile('Days your agents ran')).toHaveTextContent(`Of 7 days, the week of ${LAST}`);
   });
@@ -288,7 +288,7 @@ describe('the lists', () => {
     draw(ok(ATLAS));
     const runs = screen.getByText('Runs active now').closest('.card') as HTMLElement;
     expect(within(runs).getByText('2026-09-28-search-relevance')).toBeInTheDocument();
-    expect(within(runs).getByText(/^sdlc-plan-audit, started /)).toBeInTheDocument();
+    expect(within(runs).getByText(/^sdlc-spec-audit, started /)).toBeInTheDocument();
     expect(within(runs).getByRole('link', { name: /1 more run on Runs/ })).toHaveAttribute('href', '/runs');
   });
 
@@ -303,13 +303,13 @@ describe('the lists', () => {
   it('draw the next milestones as a Bar list, each with how far there is to go', () => {
     draw(ok(ATLAS));
     const list = screen.getByRole('list', { name: 'Next milestones' });
-    // Most of the way there first, as the Bar list ranks them: 6 of 10 lessons, 412,300 of a million words, 41 of 100
-    // documents, 4 of 10 closures.
+    // Most of the way there first, as the Bar list ranks them: 41 of 100 documents, 4 of 10 closures, 56,600 of a
+    // million words, and the lessons just past their tenth, none of the way from 10 to 25.
     expect(within(list).getAllByRole('listitem').map((li) => li.textContent)).toEqual([
-      'Lessons adopted4 to go to 1060%',
-      'Words added587,700 to go to 1,000,00041%',
       'Documents created59 to go to 10041%',
       'Pieces of work closed6 to go to 1040%',
+      'Words added943,400 to go to 1,000,0006%',
+      'Lessons adopted15 to go to 250%',
     ]);
   });
 

@@ -41,8 +41,8 @@ import { knowledgeNodeTool } from '@/views/tools/knowledge-node';
 import { searchTool } from '@/views/tools/search';
 import { ME } from '../scripts/fake-gateway/people.ts';
 import { search } from '../scripts/fake-gateway/search.ts';
-import { KNOWLEDGE, KNOWLEDGE_LOG } from '../scripts/fake-gateway/work.ts';
-import { knowledgeList, knowledgeSummary, lesson } from '../scripts/fake-gateway/work-knowledge.ts';
+import { KNOWLEDGE } from '../scripts/fake-gateway/work.ts';
+import { KNOWLEDGE_LOG, knowledgeList, knowledgeSummary, lesson } from '../scripts/fake-gateway/work-knowledge.ts';
 
 const SUMMARY = knowledgeSummary(ME)[1] as KnowledgeSummary;
 const LIST = knowledgeList(ME, new URLSearchParams())[1] as KnowledgeList;

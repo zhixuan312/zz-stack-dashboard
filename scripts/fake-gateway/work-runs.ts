@@ -7,8 +7,9 @@
  * team over every run it recorded. Nothing is drawn as running: a run is `active` while its last call is within five
  * minutes of the cutoff, and a run of one call is said to be one.
  *
- * Atlas, which both people act for, holds an active run, two runs whose spans overlap, runs of one call, a run whose
- * output nothing measured, a skill with no run longer than one call, and more than ten runs, so its recent runs page.
+ * Atlas, which both people act for, holds six active runs (the ones Home names), two runs whose spans overlap, runs of
+ * one call, a run whose output nothing measured, a skill with no run longer than one call, and more than ten runs, so
+ * its recent runs page. Home's runs and Record's agents are read off these runs too (`observedRuns`).
  * Beacon's largest run is larger than any of atlas's, and is never in atlas's answer.
  *
  * COUPLED: zz-stack's `checks/console-work-runs.ts` imports this file with plain `node` and compares its key sets with
@@ -24,29 +25,32 @@ type Answer = [status: number, body: unknown];
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
+const DAY = 24 * HOUR;
 /** A run is active while its last call is this close to the cutoff. */
 const ACTIVE_MS = 5 * MINUTE;
 
 /** `[team, skill, initiative, began hours before the cutoff, minutes to its last call, calls, refused, bytes]`. */
 type Seed = [team: string, skill: string, initiative: string | null, began: number, minutes: number, calls: number, refusals: number, bytes: number | null];
 const SEEDS: Seed[] = [
-  // Its last call two minutes ago: active.
+  // Six with a last call in the last five minutes, active, across five initiatives and none, so Home groups them and
+  // names four groups and one run more. This one's last call was two minutes ago.
   ['atlas', 'sdlc-execute', '2026-09-28-search-relevance', 40 / 60, 38, 52, 2, 412_000],
   // These two overlap for half an hour.
   ['atlas', 'sdlc-plan', '2026-09-28-search-relevance', 3, 50, 40, 3, 240_000],
   ['atlas', 'sdlc-plan-audit', '2026-09-28-search-relevance', 2.6, 25, 18, 0, 96_000],
-  ['atlas', 'sdlc-spec', '2026-10-02-query-latency', 20, 70, 64, 5, 1_850_000],
-  ['atlas', 'sdlc-spec-audit', '2026-10-02-query-latency', 26, 30, 22, 1, 120_000],
-  ['atlas', 'zz-platform', null, 30, 0, 1, 0, 2_400],
+  ['atlas', 'sdlc-spec', '2026-10-02-query-latency', 0.5, 27, 64, 5, 1_850_000],
+  ['atlas', 'sdlc-spec-audit', '2026-10-02-query-latency', 0.4, 22, 22, 1, 120_000],
+  // Active, and one call: a run of no length is still the one running.
+  ['atlas', 'zz-platform', null, 0.02, 0, 1, 0, 2_400],
   // zz-handover has never run longer than one call, so it has no typical length.
   ['atlas', 'zz-handover', '2026-09-12-onboarding-revamp', 50, 0, 1, 0, 3_100],
   ['atlas', 'zz-handover', '2026-08-02-ingest-pipeline', 120, 0, 1, 0, 2_900],
   // Nothing measured its output.
-  ['atlas', 'sdlc-explore', '2026-10-06-snippet-quality', 70, 45, 30, 1, null],
+  ['atlas', 'sdlc-explore', '2026-10-06-snippet-quality', 0.75, 42, 30, 1, null],
   ['atlas', 'sdlc-execute', '2026-10-03-ranking-weights', 90, 160, 140, 9, 3_200_000],
   ['atlas', 'sdlc-review', '2026-09-12-onboarding-revamp', 140, 35, 26, 0, 150_000],
   ['atlas', 'zz-platform', null, 160, 12, 8, 1, 30_000],
-  ['atlas', 'sdlc-plan', '2026-10-03-ranking-weights', 200, 55, 44, 2, 260_000],
+  ['atlas', 'sdlc-plan', '2026-10-03-ranking-weights', 1, 56, 44, 2, 260_000],
   ['atlas', 'sdlc-flow', null, 260, 5, 6, 0, 18_000],
   ['atlas', 'sdlc-spec', '2026-08-25-eval-harness', 400, 80, 70, 6, 900_000],
   ['atlas', 'sdlc-explore', '2026-08-14-citation-graph', 600, 40, 28, 0, 140_000],
@@ -94,6 +98,35 @@ function coverageOf(runs: TeamRun[]): Runs['coverage'] {
   let open = 0, peak = 0;
   for (const [, d] of edges) { open += d; peak = Math.max(peak, open); }
   return { coverageMs: covered, summedMs: runs.reduce((n, r) => n + r.lengthMs, 0), peak, oneCall: runs.filter((r) => r.calls === 1).length };
+}
+
+/** What `team`'s runs did in `[fromMs, toMs)`, as Home and Record observe them: each run counted once, at its first
+ *  call, when that is inside; its span clipped to the window for the time covered, summed and most open at once; and
+ *  the counted runs by skill, by weekday and hour (Monday first) and by day, every day of the window named. */
+export function observedRuns(team: string, fromMs: number, toMs: number) {
+  const end = Math.min(toMs, now());
+  const touching = RUNS.filter((r) => r.team === team && Date.parse(r.startedAt) < end && Date.parse(r.lastCallAt) >= fromMs);
+  const clipped = touching.map((r) => ({ ...r, startedAt: iso(Math.max(Date.parse(r.startedAt), fromMs)), lastCallAt: iso(Math.min(Date.parse(r.lastCallAt), end)),
+    lengthMs: Math.min(Date.parse(r.lastCallAt), end) - Math.max(Date.parse(r.startedAt), fromMs) }));
+  const { coverageMs, summedMs, peak } = coverageOf(clipped);
+  const counted = touching.filter((r) => Date.parse(r.startedAt) >= fromMs).sort((a, b) => a.startedAt.localeCompare(b.startedAt));
+  const skills = new Map<string, number>();
+  for (const r of counted) skills.set(r.skill, (skills.get(r.skill) ?? 0) + 1);
+  const weekdayHour = Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => 0));
+  for (const r of counted) {
+    const d = new Date(r.startedAt);
+    weekdayHour[(d.getUTCDay() + 6) % 7][d.getUTCHours()] += 1;
+  }
+  const days: { day: string; runs: number }[] = [];
+  for (let at = Math.floor(fromMs / DAY) * DAY; at < end; at += DAY) {
+    const day = iso(at).slice(0, 10);
+    days.push({ day, runs: counted.filter((r) => r.startedAt.startsWith(day)).length });
+  }
+  return {
+    runs: counted.length, zeroLength: counted.filter((r) => r.lengthMs === 0).length, coverageMs, summedMs, peak,
+    bySkill: [...skills.entries()].map(([skill, runs]) => ({ skill, runs })).sort((a, b) => b.runs - a.runs || a.skill.localeCompare(b.skill)),
+    weekdayHour, days,
+  };
 }
 
 /** One skill's runs, as the by-skill table reads them. */

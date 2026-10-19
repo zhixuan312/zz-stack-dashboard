@@ -90,7 +90,7 @@ function skillRow(name: string, runs: TeamRun[]): Skill {
     timedRuns: timed.length, durationAvg: mean(timed), durationMedian: median(timed), durationMax: timed.length ? Math.max(...timed) : null,
     durationTotal: timed.length ? timed.reduce((a, b) => a + b, 0) : null,
     kbPerRun: kb === null ? null : +(kb / 1024).toFixed(1), mbTotal: measured.length ? +(measured.reduce((a, b) => a + b, 0) / 1_048_576).toFixed(1) : null,
-    logged: { calls, failed: refusals, tools: 3 + (name.length % 6) },
+    logged: { calls, failed: refusals, tools: toolsOf(calls, refusals).length },
   };
 }
 
@@ -105,8 +105,39 @@ export function skills(who: Me, q: URLSearchParams): Answer {
   return [200, { skills: names.map((n) => skillRow(n, mine.filter((r) => r.skill === n))) }];
 }
 
+/** The tools a skill's calls go to, each on its door, the busiest first: one partition of its calls and its refusals. */
+const TOOLS: [tool: string, calls: number, refusals: number][] = [
+  ['core:document_edit', 30, 4], ['core:document_read', 22, 1], ['core:skill_read', 16, 0], ['core:document_write', 12, 2],
+  ['core:document_approve', 9, 3], ['core:source_add', 6, 0], ['eval:protocol_read', 5, 1],
+];
+
+/** `total` shared out by `weights`, the largest remainders rounded up, no share above its `cap`: whole parts that sum to it. */
+function shares(total: number, weights: number[], cap: number[] = weights.map(() => Infinity)): number[] {
+  const whole = weights.reduce((a, b) => a + b, 0);
+  const raw = weights.map((w) => (whole ? (total * w) / whole : 0));
+  const out = raw.map((r, i) => Math.min(Math.floor(r), cap[i]));
+  const order = raw.map((r, i) => i).sort((a, b) => raw[b] - Math.floor(raw[b]) - (raw[a] - Math.floor(raw[a])) || a - b);
+  for (let left = total - out.reduce((a, b) => a + b, 0); left > 0;) {
+    const before = left;
+    for (const i of order) if (left > 0 && out[i] < cap[i]) { out[i] += 1; left -= 1; }
+    if (left === before) break;
+  }
+  return out;
+}
+
+/** A skill's calls and refusals by tool, as the gateway counts its tool-call events: a tool it never called is not one. */
+function toolsOf(calls: number, refusals: number): SkillDetail['busiestTools'] {
+  const called = shares(calls, TOOLS.map(([, w]) => w));
+  const used = TOOLS.filter((_, i) => called[i] > 0);
+  const counts = called.filter((n) => n > 0);
+  const failed = shares(refusals, used.map(([, , w]) => w || 0.01), counts);
+  return used.map(([tool], i) => ({ tool, calls: counts[i], failed: failed[i] }))
+    .sort((a, b) => b.calls - a.calls || a.tool.localeCompare(b.tool));
+}
+
 /** `GET /skills/:name`, as `who`: the active team's calls of one skill by door and its busiest tools; a skill the
- *  catalog does not ship has no figures, as the gateway answers it. */
+ *  catalog does not ship has no figures, as the gateway answers it. Every call is a run's, so the doors and the tools
+ *  are parts of the calls and refusals the skill's row counts. */
 export function skillDetail(who: Me, name: string): Answer {
   const team = who.activeTeam;
   if (!team) return NO_TEAM;
@@ -114,11 +145,10 @@ export function skillDetail(who: Me, name: string): Answer {
   const calls = runs.reduce((n, r) => n + r.calls, 0);
   const refusals = runs.reduce((n, r) => n + r.refusals, 0);
   if (!calls) return [200, { skill: name, surfaces: [], busiestTools: [] } satisfies SkillDetail];
-  const tools = ['document_edit', 'document_approve', 'document_read', 'skill_read', 'source_add', 'document_write', 'knowledge_search'];
-  const core = Math.round(calls * 0.92);
-  return [200, {
-    skill: name,
-    surfaces: [{ surface: 'core', calls: core, failed: Math.round(refusals * 0.9), tools: 6 }, { surface: 'eval', calls: calls - core, failed: refusals - Math.round(refusals * 0.9), tools: 2 }],
-    busiestTools: tools.map((t, i) => ({ tool: `core:${t}`, calls: Math.round(calls / (i + 1.4)), failed: Math.round(refusals / (i + 2)) })),
-  } satisfies SkillDetail];
+  const tools = toolsOf(calls, refusals);
+  const doors = [...new Set(tools.map((t) => t.tool.split(':')[0]))].map((surface) => {
+    const mine = tools.filter((t) => t.tool.startsWith(`${surface}:`));
+    return { surface, calls: mine.reduce((n, t) => n + t.calls, 0), failed: mine.reduce((n, t) => n + t.failed, 0), tools: mine.length };
+  }).sort((a, b) => b.calls - a.calls);
+  return [200, { skill: name, surfaces: doors, busiestTools: tools } satisfies SkillDetail];
 }

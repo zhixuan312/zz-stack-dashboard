@@ -100,7 +100,7 @@ describe('a Heatmap handed days from before the record begins', () => {
 
   it('the answer is the case: the period\'s days begin weeks before the record does', () => {
     expect(days[0].day < begins).toBe(true);
-    expect(days.filter((d) => d.day < begins).length).toBeGreaterThan(30);
+    expect(days.filter((d) => d.day < begins).length).toBeGreaterThan(20);
   });
 
   it('Record\'s calendar draws no cell before the record\'s first day, and names that day', () => {

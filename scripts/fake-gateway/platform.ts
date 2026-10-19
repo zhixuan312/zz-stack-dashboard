@@ -9,6 +9,7 @@
  */
 import type { PluginEval, PluginEvalFound, PluginRow, SkillText } from '../../src/lib/api-shapes.ts';
 import { ago } from './clock.ts';
+import { newestScored } from './platform-evaluation.ts';
 
 type SkillSeed = [name: string, plugin: string, position: number | null, calls: number, refusals: number, runs: number];
 const SKILL_SEEDS: SkillSeed[] = [
@@ -122,14 +123,16 @@ export function pluginEval(plugin: string): PluginEval {
   );
   completion.measuresScored = 3;
   completion.measuresTotal = 4;
+  // Its newest version's newest scored run: the one the Evaluation read and the catalog's public score are.
+  const scored = newestScored(plugin)!;
   const finding = (id: string, pattern: string, decision: string) => ({ id, pattern, ownerKind: 'plugin', ownerRef: 'sdlc', evidenceRefs: 4, expectedEffect: null, decision, decisionNote: decision === 'deferred' ? null : 'Applied in 0.92.10.' });
   return {
     ...NO_RUN(plugin),
-    subjectVersion: { id: 'sv_sdlc_7', declaredVersion: '0.92.10', contentDigest: '2f16e125', capturedAt: ago(26) },
+    subjectVersion: { id: 'sv_sdlc_7', declaredVersion: '0.92.10', contentDigest: '2f16e125', capturedAt: ago(scored.hoursAgo + 6) },
     run: {
-      id: 'run_sdlc_12', scoreStatus: 'established', overallScore: 8.64, scoreInterval: { lower: 8.1, upper: 9.1 },
+      id: 'run_sdlc_12', scoreStatus: scored.standing, overallScore: scored.score!, scoreInterval: { lower: scored.lower!, upper: scored.upper! },
       measureCoverage: 0.88, establishmentBlockedBy: [], guardrailStatus: 'pass', scorerVersion: '0.92.10',
-      protocol: { key: 'sdlc-protocol', version: 3 }, createdAt: ago(20), scoredAt: ago(19),
+      protocol: scored.protocol, createdAt: ago(scored.hoursAgo + 1), scoredAt: ago(scored.hoursAgo),
       dimensions: [completion, dim('gate-discipline', 'constraint_adherence', 0.88), dim('evidence', 'reliability', 0.79), dim('handover', 'generalization', null, false)],
       coverage: { usableRunCount: 61, totalRunCount: 68, surfaceObserved: 14, surfaceTotal: 16 },
     },

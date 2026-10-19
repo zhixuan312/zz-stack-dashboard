@@ -8,9 +8,10 @@ import type { RecordRead } from '../src/lib/work-shapes.ts';
  * slices answer: a period that begins before the team's first record answers no run, no day and no search before it,
  * its periods still the period's own, so a year never counts more than all.
  *
- * DELIBERATE: the fake's clock is the moment its modules load, and its first record 120 days before that, so a year
- * begins before the first record only from May on. The clock is pinned at 18 October 2026, before the fake is
- * imported, so the year's case is real whatever day the test runs.
+ * DELIBERATE: the fake's clock is the moment its modules load, and its first record when atlas's first initiative
+ * opened, seven weeks before that week's Monday, so a year begins before the first record only from late February on.
+ * The clock is pinned at 18 October 2026, before the fake is imported, so the year's case is real whatever day the test
+ * runs.
  */
 vi.useFakeTimers({ toFake: ['Date'] });
 vi.setSystemTime(new Date('2026-10-18T04:00:00Z'));
@@ -30,7 +31,7 @@ describe("the fake's Record before its coverageFrom", () => {
   it('is a real case: the year begins before the first record, the period and coverageFrom as before', () => {
     expect(R.year.meta.period).toEqual({ from: '2026-01-01T00:00:00Z', to: '2026-10-18T04:00:00Z' });
     expect(R.quarter.meta.period.from).toBe('2026-10-01T00:00:00Z');
-    for (const p of PERIODS) expect(R[p].meta.coverageFrom).toBe('2026-06-20T00:00:00Z');
+    for (const p of PERIODS) expect(R[p].meta.coverageFrom).toBe('2026-08-24T20:00:00Z');
     expect(R.all.meta.period.from).toBe(R.all.meta.coverageFrom);
   });
 

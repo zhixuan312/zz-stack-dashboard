@@ -63,10 +63,18 @@ const SIGNED: Signed[] = [
   signed('atlas', AVA, '2026-09-12-onboarding-revamp', 'spec.md', 1, 40, week(4, 30), 'console_revision_shown', 'explicit_recorded'),
   signed('atlas', NOAH, '2026-08-14-citation-graph', 'plan.md', 1, 41, week(5, 70), 'not_recorded', 'unknown'),
   signed('atlas', AVA, '2026-08-14-citation-graph', 'spec.md', 2, 42, week(5, 10), 'agent_context_covered', 'explicit_recorded'),
-  // Sealed before the events began: read from the revision, dated by its day, and nothing known of how.
-  signed('atlas', AVA, '2026-08-14-citation-graph', 'explore.md', 1, 43, ago(60 * 24).slice(0, 10), 'unknown', 'unknown'),
+  // Sealed before the events began, two days after its initiative opened: read from the revision, dated by its day,
+  // and nothing known of how.
+  signed('atlas', AVA, '2026-08-14-citation-graph', 'explore.md', 1, 43, week(7, 68).slice(0, 10), 'unknown', 'unknown'),
   signed('beacon', AVA, '2026-09-22-payout-schedule', 'spec.md', 1, 44, week(2, 15), 'console_revision_shown', 'explicit_recorded'),
 ];
+
+/** When `team` first had a document approved, by anyone: the earliest approval, one dated by its day alone at that
+ *  day's midnight, as Record's firsts read it; null with none. */
+export function firstApproval(team: string | null): number | null {
+  const at = SIGNED.filter((a) => a.team === team).map((a) => Date.parse(a.approvedAt.length === 10 ? `${a.approvedAt}T00:00:00Z` : a.approvedAt));
+  return at.length ? Math.min(...at) : null;
+}
 
 /** The approvals a journey session made in `team`, newest first: none outside a journey (journey.ts). */
 const approvedIn = (team: string | null) => (kept()?.approved ?? []).filter((a) => a.team === team).reverse();

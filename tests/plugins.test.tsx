@@ -256,7 +256,8 @@ describe('a plugin\'s page', () => {
     mount(<PluginView name="sdlc" served={read(ME, 'sdlc', evaluated('sdlc'))} />);
     expect(screen.getByRole('region', { name: 'Its evaluation' })).toBeInTheDocument();
     expect(text()).toContain('Overall fit for purpose');
-    expect(text()).toContain('sdlc-protocol');
+    // The newest scored run, the one the public score is, so the page names one protocol.
+    expect(text()).toContain('sdlc-flow-quality');
     noEvaluationStarts();
   });
 

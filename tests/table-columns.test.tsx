@@ -307,7 +307,7 @@ describe('Releases', () => {
   });
 
   it('a release\'s windows let the words for a figure not observed wrap, where a number never does', () => {
-    const version = '0.31.1';
+    const version = '0.95.0';
     mount(<PlatformReleaseView version={version} served={{ state: 'ok', data: releaseDetail(version)! }} />);
     const { t } = table(`What was observed in the 72 hours either side of ${version}`);
     const cells = [...t.querySelectorAll('td[data-num="num"]')].map(drawn);

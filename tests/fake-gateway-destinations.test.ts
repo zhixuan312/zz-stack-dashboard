@@ -259,14 +259,15 @@ describe('Runs', () => {
   it('says how each run stands, and counts overlapping time once', async () => {
     const r = await read(MEMBER, 'runs?limit=100');
     const rows = ok(r.recent).rows;
-    expect(rows.filter((x: Json) => x.state === 'active')).toHaveLength(1);
+    // Six active, the runs Home names.
+    expect(rows.filter((x: Json) => x.state === 'active')).toHaveLength(6);
     expect(rows.some((x: Json) => x.state === 'one_call' && x.calls === 1 && x.lengthMs === 0)).toBe(true);
     expect(rows.some((x: Json) => x.bytes === null)).toBe(true);
     expect(r.tiles.outputPerRun.unmeasured).toBe(rows.filter((x: Json) => x.bytes === null).length);
     const ends = rows.map((x: Json) => x.lastCallAt);
     expect(ends).toEqual([...ends].sort().reverse());
     expect(r.coverage.coverageMs).toBeLessThan(r.coverage.summedMs);
-    expect(r.coverage.peak).toBe(2);
+    expect(r.coverage.peak).toBe(5);
     expect(r.coverage.oneCall).toBe(rows.filter((x: Json) => x.calls === 1).length);
     expect(r.tiles.runs.value).toBe(rows.length);
     expect(r.tiles.largest.bytes).toBe(Math.max(...rows.flatMap((x: Json) => (x.bytes === null ? [] : [x.bytes]))));

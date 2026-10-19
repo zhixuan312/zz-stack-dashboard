@@ -9,7 +9,8 @@
  * record's coverage start and no later than the read's cutoff.
  *
  * The record begins where the status fixture's does, and the weekly malformed-call rate is that fixture's own weeks,
- * so Releases and Status read the same figures.
+ * so Releases and Status read the same figures; the release Status says is running was tagged when Status says it was,
+ * and the migrations applied are Status's count. The versions are one line of releases, newest first.
  *
  * COUPLED: zz-stack's `checks/console-platform-releases.ts` imports this file with plain `node` and compares its key
  * sets with the real route's answer. So nothing here is imported through the console's path alias, and every part is
@@ -31,13 +32,16 @@ type Seed = { version: string; hoursAgo: number; console: string | null; summary
   changelog: string; upgradeNotes: string | null; before: Counts; after: Counts };
 
 const NO_CHANGELOG = 'No changelog entry';
+/** What Status says is running: its release, tagged this long ago, and the migrations applied. */
+const RUNNING = PLATFORM_STATUS.running.state === 'ok' ? PLATFORM_STATUS.running.data : null;
+const RUNNING_HOURS = RUNNING ? (now() - Date.parse(RUNNING.releasedAt)) / HOUR : 50;
 
 /** Newest first. Every time is an offset from the fixture's start, so the newest after-window is always running. */
 const SEEDS: Seed[] = [
   { version: '0.97.1', hoursAgo: 20, console: null, summary: 'Search no longer drops a result whose title has a colon.', clientAction: null,
     changelog: '### Fixed\n\n- Search no longer drops a result whose title has a colon.\n', upgradeNotes: null,
     before: { calls: 2_140, malformed: 9, toolFailures: 3, p95Ms: 1_840 }, after: { calls: 610, malformed: 2, toolFailures: 0, p95Ms: 1_620 } },
-  { version: '0.97.0', hoursAgo: 50, console: '0.28.0', summary: 'A release records itself, with the windows around it.', clientAction: 'Re-pull the plugins.',
+  { version: '0.97.0', hoursAgo: RUNNING_HOURS, console: '0.28.0', summary: 'A release records itself, with the windows around it.', clientAction: 'Re-pull the plugins.',
     changelog: 'A release records itself, with the windows around it.\n\n### zz-stack 0.97.0\n\n- **Releases are recorded.** Each tag writes its own row.\n\n### Upgrade notes\n\n- **Re-pull the plugins.** Every client takes the new skill text on its next pull.\n',
     upgradeNotes: '- **Re-pull the plugins.** Every client takes the new skill text on its next pull.\n',
     before: { calls: 2_310, malformed: 12, toolFailures: 4, p95Ms: 1_910 }, after: { calls: 1_480, malformed: 5, toolFailures: 1, p95Ms: 1_700 } },
@@ -48,7 +52,7 @@ const SEEDS: Seed[] = [
   { version: '0.95.2', hoursAgo: 400, console: null, summary: 'The nightly reindex skips a node it has already read.', clientAction: null,
     changelog: '### Fixed\n\n- The nightly reindex skips a node it has already read.\n', upgradeNotes: null,
     before: { calls: 44, malformed: 1, toolFailures: 0, p95Ms: 1_390 }, after: { calls: 0, malformed: 0, toolFailures: 0, p95Ms: null } },
-  { version: '0.31.1', hoursAgo: (now() - COVERAGE) / HOUR + 24, console: null, summary: NO_CHANGELOG, clientAction: 'Unknown — no recorded upgrade notes',
+  { version: '0.95.0', hoursAgo: (now() - COVERAGE) / HOUR + 24, console: null, summary: NO_CHANGELOG, clientAction: 'Unknown — no recorded upgrade notes',
     changelog: NO_CHANGELOG, upgradeNotes: null,
     before: { calls: 0, malformed: 0, toolFailures: 0, p95Ms: null }, after: { calls: 380, malformed: 6, toolFailures: 1, p95Ms: 2_480 } },
 ];
@@ -100,7 +104,7 @@ export function releases(limit: number, offset: number): Releases {
       releases: rows.length,
       lastWeek: rows.filter((r) => now() - Date.parse(r.releasedAt) < 7 * 24 * HOUR).length,
       latest: { version: rows[0].version, releasedAt: rows[0].releasedAt },
-      migrations: { applied: 102, lastAt: ago(30) },
+      migrations: { applied: RUNNING?.migrations ?? 0, lastAt: ago(30) },
     },
     weeks: malformed.weeks.map((w) => ({
       window: w.window,

@@ -164,7 +164,7 @@ const NEVER_RUN = 'main [data-never-run]';
  */
 export const DETAIL: Record<string, string> = {
   '/platform/releases/0.97.0': BODY,
-  '/platform/releases/0.31.1': BODY,
+  '/platform/releases/0.95.0': BODY,
   '/platform/bugs/0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d01': 'main [data-report-detail]',
   '/platform/bugs/0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d02': 'main [data-report-detail]',
   '/platform/teams/atlas': TABLE,
@@ -327,7 +327,7 @@ const config: VerifyConfig = {
   // `deniedProbe`).
   detailRoutes: [
     '/platform/releases/0.97.0',
-    '/platform/releases/0.31.1',
+    '/platform/releases/0.95.0',
     // An open report, which draws the resolve form, and a closed duplicate, the one report that links its original.
     '/platform/bugs/0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d01',
     '/platform/bugs/0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d02',
