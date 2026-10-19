@@ -5,7 +5,7 @@ import { Copy, RotateCw } from 'lucide-react';
 import { Row, Stack } from '@/components/base/shell';
 import { useShareView } from '@/components/base/use-share-view';
 import { BarList } from '@/components/charts/bar-list';
-import { ColumnChart, type ColumnPart } from '@/components/charts/column-chart';
+import { ColumnChart } from '@/components/charts/column-chart';
 import { Heatmap } from '@/components/charts/heatmap';
 import { Meridian } from '@/components/charts/meridian';
 import { TrendChart } from '@/components/charts/trend-chart';
@@ -39,6 +39,7 @@ import {
 } from '@/views/record-context';
 import { LESSONS_MADE } from '@/views/record-names';
 import { useServed, useServedAddress } from '@/views/use-served';
+import { OUTCOME_PARTS } from '@/views/outcome-parts';
 
 /**
  * The page's read: the one the console's server made for this address, so the first paint carries the record and the
@@ -456,12 +457,6 @@ const COLUMNS: Column<InitiativeRecord>[] = aligned([
   { key: 'documents', header: 'Documents', numeric: true, hideBelow: 'lg', cell: (i) => formatCount(i.documents) },
   { key: 'lessons', header: 'Lessons', numeric: true, hideBelow: 'lg', cell: (i) => formatCount(i.lessons) },
 ]);
-
-/**
- * The three ways an initiative closes, each a usual outcome rather than one that needs somebody, so each takes a
- * categorical slot: one neutral would draw them as one part (ZZ Meridian 0.19.0, docs/data-display.md).
- */
-const OUTCOME_PARTS: ColumnPart[] = [{ key: 'accepted', label: 'Accepted', color: 1 }, { key: 'delivered', label: 'Delivered', color: 2 }, { key: 'abandoned', label: 'Abandoned', color: 3 }];
 
 /** The record: every initiative opened before the cutoff, newest first, ten to a page, paged by the gateway. */
 function Initiatives({ r, team, filters, onPage, retry, busy }: { r: RecordRead; team: string | null; filters: RecordFilters; onPage: (page: string) => void; retry: () => void; busy: boolean }) {

@@ -26,9 +26,10 @@ import { grainOf, type Grain } from '@/lib/grain';
 import { useLive } from '@/lib/live';
 import type { InitiativeList, InitiativeRow } from '@/lib/work-shapes';
 import { pendingContext } from '@/views/context';
-import { OUTCOMES, TILES, closedLine, initiativesContext, initiativesTrouble, nextOf, type InitiativesRead, type InitiativesShown, type ShownRow } from '@/views/initiatives-context';
+import { TILES, closedLine, initiativesContext, initiativesTrouble, nextOf, type InitiativesRead, type InitiativesShown, type ShownRow } from '@/views/initiatives-context';
 import { INITIATIVES_DEFAULTS, LIST_STATES, PAGE_SIZE, STATE_LABEL, filtersOfPath, listPath, narrowed, pageOf, type InitiativesFilters } from '@/views/initiatives-filter';
 import { useServed, useServedAddress } from '@/views/use-served';
+import { OUTCOME_PARTS } from '@/views/outcome-parts';
 
 // The chart is the page's heaviest module and draws below the tiles, so it arrives after the first paint.
 const ColumnChart = dynamic(() => import('@/components/charts/column-chart').then((m) => m.ColumnChart), { loading: () => <Skeleton className="h-56 rounded-md" /> });
@@ -68,7 +69,6 @@ const PHONE_CARD = [
 ].join(' ');
 
 const STATE_OPTIONS = [{ value: 'all', label: 'All' }, ...LIST_STATES.map((s) => ({ value: s, label: STATE_LABEL[s] }))];
-const PARTS = OUTCOMES.map((o) => ({ key: o, label: STATE_LABEL[o] }));
 
 /**
  * The page's read: the one the console's server made for this address, so the first paint carries the rows and the
@@ -193,7 +193,7 @@ function Closures({ list, mark }: { list: InitiativesShown | undefined; mark: st
         dates={weeks.map((w) => w.window.from)}
         running={!weeks.at(-1)!.window.complete}
         noData="None recorded"
-        parts={PARTS}
+        parts={OUTCOME_PARTS}
         columns={weeks.map((w) => ({ key: w.window.from, label: tickOf(grain)(w.window.from), values: [w.accepted.value, w.delivered.value, w.abandoned.value] }))}
       />
     </Panel>
