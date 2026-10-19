@@ -82,7 +82,7 @@ function TeamsTable({ teams, pending, onSwitch }: { teams: MyTeams; pending: boo
           {page.map((row) => (
             <TableRow key={row.team} data-team={row.team}>
               <TableCell className="font-mono text-xs [overflow-wrap:anywhere]">{row.team}</TableCell>
-              <TableCell hideBelow="sm"><Badge tone={row.role === 'admin' ? 'accent' : 'neutral'}>{row.role === 'admin' ? 'Admin' : 'Member'}</Badge></TableCell>
+              <TableCell hideBelow="sm"><Badge tone="neutral" dot={row.role === 'admin'}>{row.role === 'admin' ? 'Admin' : 'Member'}</Badge></TableCell>
               <TableCell align="right">
                 {/* No button on the row already acted for: an action whose effect is "stay where you are" does nothing. */}
                 {row.active ? (

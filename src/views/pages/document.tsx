@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense, lazy, useEffect, useRef, useState, type ReactNode } from 'react';
+import { app, workspaces } from '@/app.config';
 import { DataTable, type Column } from '@/components/patterns/data-table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -21,10 +22,12 @@ import type { DocumentDetail, Me } from '@/lib/api-shapes';
 import { readableDocument } from '@/lib/document-markdown';
 import { ReadingBody } from '@/console/reading';
 
-import { formatKb } from '@/lib/format-units';
+import { plural } from '@/lib/format';
+import { formatCount, formatKb } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
 import { pendingContext } from '@/views/context';
 import { documentContext } from '@/views/document-context';
+import { sourceName } from '@/views/initiative-name';
 import type { DocumentRead } from '@/views/document-read';
 import { INITIATIVES_BOUND_MS } from '@/views/initiatives-context';
 import { useServed } from '@/views/use-served';
@@ -95,7 +98,9 @@ function DocColophon({ doc }: { doc: DocumentDetail }) {
         {/* Three states, not two: a source is a file the flow says nothing about, so "not approved" would imply an
             approval was ever on the table. */}
         <Colophon label="Approved by">{doc.approved_by ?? (doc.gated === false ? 'No approval needed' : doc.gated === true ? 'Not yet' : '—')}</Colophon>
-        <Colophon label="Updated"><When at={doc.updated_at} /></Colophon>
+        {/* When the document itself last changed: "Last changed", since the masthead's stamp says when the page read
+            it, and one word for both read "Updated just now" beside "Updated 2 d ago". */}
+        <Colophon label="Last changed"><When at={doc.updated_at} /></Colophon>
         <Colophon label="Stakeholder">{doc.stakeholder || 'None named'}</Colophon>
         <Colophon label="Tags">
           {doc.tags?.length
@@ -198,8 +203,10 @@ export function DocumentView({ team, slug, rel, served, teamPage }: { team: stri
   }
   return (
     <ConsolePage
-      title={d?.title || rel.replace(/^sources\//, '')}
-      crumbs={[{ label: 'Initiatives', href: '/initiatives' }, { label: team, href: teamPage ? `/platform/teams/${team}` : undefined }, { label: slug, href: `/initiatives/${team}/${slug}` }]}
+      // A source filed under a web address is titled by the page it names, as its initiative lists it.
+      title={d ? sourceName(d.title, rel).name : rel.replace(/^sources\//, '')}
+      // The workspace first, as every other page's kicker starts, then the trail back up.
+      crumbs={[{ label: `${app.name} · ${workspaces.main.label}` }, { label: 'Initiatives', href: '/initiatives' }, { label: team, href: teamPage ? `/platform/teams/${team}` : undefined }, { label: slug, href: `/initiatives/${team}/${slug}` }]}
       description={
         // TWO ROWS ALWAYS, and the second one is the status's own. It used to be a single wrapping line with the status
         // appended, so whether that line took one row or two depended on **the width of a badge that arrives with the
@@ -229,6 +236,13 @@ export function DocumentView({ team, slug, rel, served, teamPage }: { team: stri
           : <div className="flex flex-col gap-(--stack-gap)" aria-busy="true" aria-label="Loading"><Skeleton className="h-24 rounded-lg" /><Skeleton className="h-[28rem] rounded-lg" /></div>}
     </ConsolePage>
   );
+}
+
+/** The claims table's count, in the word its rows are: a plan's are tasks, everything else's claims. */
+function claimsLine(doc: DocumentDetail): string {
+  const { rows, withVerdict } = doc.decisionCounts;
+  const noun = doc.decisions[0]?.role === 'plan' ? 'task' : 'claim';
+  return `${formatCount(rows)} ${plural(rows, noun)}${rows && !withVerdict && noun === 'claim' ? ', none stating a verdict' : ''}`;
 }
 
 /** The document's body beside its facts and its history, then the claims it makes. */
@@ -273,7 +287,7 @@ function DocumentBody({ doc, view, onView }: { doc: DocumentDetail; view: 'read'
           toolbar={
             <div>
               <h2 className="t-card">{doc.decisions[0]?.role === 'plan' ? 'Which criteria each task covers' : 'The claims this document makes'}</h2>
-              <p className="t-caption mt-1">{doc.decisionCounts.rows} rows{doc.decisionCounts.rows && !doc.decisionCounts.withVerdict ? ', none stating a verdict' : ''}</p>
+              <p className="t-caption mt-1">{claimsLine(doc)}</p>
             </div>
           }
         />

@@ -28,6 +28,8 @@ type Shared = {
   format?: (n: number) => string;
   /** How a period with no data reads, wherever its value would: "No data" unless the product names it otherwise. */
   noData?: string;
+  /** The values are counts: every tick is a whole number, so a top of 1 draws no level at 0.5 (#72). */
+  whole?: boolean;
   /** How a tick reads: an axis formatter, true at every tick (`AXIS_FORMATTERS` in `@/lib/format`). Without one the axis
    * reads as `format` does, which is right only while `format` is exact: one that rounds prints a tick it does not stand at. */
   axisFormat?: (n: number) => string;
@@ -52,6 +54,8 @@ export type ColumnChartProps = Shared & (
  * narrowest column that keeps its value at rest, and the most parts drawn.
  */
 const GAP = 2, THIN = 1, REST = 36, MOST = 4;
+/** About the width of one character of a value at rest (`text-2xs`), in px: enough to tell whether a label fits its column. */
+const CH = 6.5;
 /**
  * The plot widths past which `n` columns stand another pixel apart, up to `GAP`: each is the width at which every
  * column still has `THIN` of its own. A chart with more columns than room closes its gaps before it outgrows its box,
@@ -77,15 +81,18 @@ type Drawn = { key: string; label: string; tone: 'accent' | 'series' | keyof typ
  * drawn is "Other", the sum of the fourth and every later one. Parts with neither a slot nor a tone share the accent,
  * each by its place in the stack. Once any part names a slot or a tone the parts are identities or outcomes: a part
  * with a slot takes it, a part with a tone takes the tone, and one with neither (Other among them) is the neutral, so
- * the accent never stands beside a categorical or a status colour.
+ * the accent never stands beside a categorical or a status colour. Where a part already is the neutral (`tone:
+ * 'neutral'`, a usual outcome beside one that needs somebody), one with neither is the quieter neutral, so the two
+ * usual parts are told apart and Other stays the quietest (#67).
  */
 function stack(columns: StackedColumn[], parts: ColumnPart[]) {
   const fold = parts.length > MOST;
   const listed: ColumnPart[] = fold ? [...parts.slice(0, MOST - 1), { key: 'other', label: 'Other' }] : parts;
   const named = parts.some((p) => p.tone || p.color);
+  const neutralTaken = parts.some((p) => p.tone === 'neutral' && !p.color);
   const drawn: Drawn[] = listed.map((p, k) => (
     p.color ? { key: p.key, label: p.label, tone: 'series', color: SERIES_VAR(p.color) }
-      : named ? { key: p.key, label: p.label, tone: p.tone ?? 'neutral', color: TONES[p.tone ?? 'neutral'] }
+      : named ? { key: p.key, label: p.label, tone: p.tone ?? 'neutral', color: p.tone ? TONES[p.tone] : neutralTaken ? 'var(--chart-neutral)' : TONES.neutral }
         : { key: p.key, label: p.label, tone: 'accent', color: stackPart(k, listed.length) }
   ));
   const bars = columns.map((c): Bar => {
@@ -119,6 +126,7 @@ export function ColumnChart({
   running = false,
   format = count,
   noData = 'No data',
+  whole = false,
   axisFormat,
   height = 200,
   label,
@@ -142,7 +150,7 @@ export function ColumnChart({
   const soFar = running ? n - 1 : -1;
 
   // A period with no data has no height, so the scale is the periods that have one.
-  const ticks = niceTicks(Math.max(1, ...bars.filter((b) => !b.none).map((b) => b.total)), 3);
+  const ticks = niceTicks(Math.max(1, ...bars.filter((b) => !b.none).map((b) => b.total)), 3, whole);
   const top = ticks[ticks.length - 1];
   const af = axisFormat ?? format;
   const left = Math.max(...ticks.map((t) => af(t).length)) * 6.4 + 10;
@@ -217,10 +225,13 @@ export function ColumnChart({
               const pointed = active === i;
               const hot = pointed || (active === null && b.key === highlight);
               const shown = drawn ? drawn.map((p, k) => ({ p, v: b.values[k] ?? 0 })).filter(({ v }) => v > 0) : [];
-              const text = totalOf(b, i);
               const unfinished = i === soFar;
               // Plain, the pointed value is the chart's readout and takes the tooltip's plane; stacked, the panel is.
               const tip = pointed && !drawn;
+              // At rest a label is held to its column. A running period with no data whose words do not fit says "So far",
+              // never "No data…" cut mid-word; the tooltip, the readout, the announcement and the table say it whole (#71).
+              const full = totalOf(b, i);
+              const text = !tip && b.none && unfinished && full.length * CH > column ? 'So far' : full;
               return (
                 <div
                   key={b.key}

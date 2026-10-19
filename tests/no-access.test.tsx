@@ -227,10 +227,10 @@ describe('an address no page answers', () => {
     expect(denied).toEqual(unknown);
   });
 
-  it('opens with the gate and reads nothing of the address, as every page in the shell does', () => {
+  it('opens with the gate, and reads the address only to say where a retired one\'s page went (tests/review-work-f.test.tsx)', () => {
     const src = fs.readFileSync(path.join(CATCH_ALL, 'page.tsx'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, ' ');
-    expect(src).toMatch(/const denied = await gate\('home'\);\s*if \(denied\) return denied;/);
-    expect(src).not.toMatch(/\bparams\b|notFound\(/);
+    expect(src).toMatch(/const denied = await gate\('home'\);\s*if \(denied\) return denied;\s*const moved = await movedFor\(\(await props\?\.params\)\?\.missing\);/);
+    expect(src).not.toMatch(/notFound\(/);
   });
 });
 

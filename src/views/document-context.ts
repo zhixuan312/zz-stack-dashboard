@@ -21,6 +21,24 @@ function approvalOf(d: Pick<DocumentDetail, 'status' | 'gated' | 'correction' | 
   return 'not a flow document, so no approval applies';
 }
 
+/**
+ * What the page draws that this context does not carry, said every time, so an agent on the page never takes the
+ * context for the whole of it: the text past what it quotes, earlier versions' text and the change between two (read
+ * one version at a time), the claims' own words, the sources' own text, and the review metadata's tags and fields.
+ */
+function leftOut(d: DocumentDetail, text: string): string[] {
+  if (!text) return ['This document has no body in the store.'];
+  const out: string[] = [];
+  if (text.length > BODY_LIMIT) out.push(`Only the first ${formatCount(BODY_LIMIT)} characters of the text are here; the rest is on the page.`);
+  out.push(d.versions.length > 1
+    ? 'Earlier versions\' text, and what changed between two, are read one version at a time on the page; this carries the current text alone.'
+    : 'This carries the current text alone; the page reads any other version by its number.');
+  if (d.decisionCounts.rows) out.push('The claims\' own words are in the page\'s claims table; this counts them.');
+  if (d.sources.length) out.push('A source\'s own text is on its page; this names them.');
+  if (d.tags?.length || Object.keys(d.fields).length) out.push('Its tags and its flow\'s fields are on the page, not here.');
+  return out;
+}
+
 export function documentContext(d: DocumentDetail, arrival: Arrival): SharedContext {
   const base = `/initiatives/${d.team}/${d.initiative}`;
   const text = (d.body ?? '').trim().replace(/\s+/g, ' ');
@@ -48,6 +66,6 @@ export function documentContext(d: DocumentDetail, arrival: Arrival): SharedCont
       ...(d.outcome ? [{ label: 'Outcome', value: d.outcome, definition: 'The initiative\'s outcome is recorded on this document.' }] : []),
     ],
     insights,
-    unknowns: text ? [] : ['This document has no body in the store.'],
+    unknowns: leftOut(d, text),
   });
 }

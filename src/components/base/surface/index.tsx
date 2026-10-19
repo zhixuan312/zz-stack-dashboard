@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState, type R
 import { app } from '../../../app.config';
 import { HostBridge, type DisplayMode, type HostContext } from '../../../lib/host';
 import { toast } from '../../ui/toast/index';
+import type { SharedContext } from '../../../lib/shared-context';
 
 /**
  * Which surface a view is on, and what it may ask of its host. Components read `useSurface()` and never touch the
@@ -26,10 +27,14 @@ export type Surface = {
   openLink: (url: string) => void;
 };
 
-/** The context the console's view on screen last shared, and the path it was shared on (decision 0011). */
-let published: { path: string; text: string } | null = null;
+/** The context the console's view on screen last shared, the path it was shared on and its starter questions (decision 0011). */
+let published: { path: string; text: string; questions?: string[] } | null = null;
+const listeners = new Set<() => void>();
 /** What the console's assistant reads with a question: the shared context of the view on `path`, or `null` when that page shares none. */
 export const sharedContextOn = (path: string): string | null => (published?.path === path ? published.text : null);
+/** The questions the view on `path` offers to start a thread with, for `useSyncExternalStore`; none when it offers none. */
+export const questionsOn = (path: string): string[] | undefined => (published?.path === path ? published.questions : undefined);
+export const onShared = (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; };
 
 const CONSOLE: Surface = {
   kind: 'console',
@@ -37,7 +42,10 @@ const CONSOLE: Surface = {
   mode: 'fullscreen',
   host: {},
   expand: (p) => { window.location.href = p; },
-  share: (text) => { published = { path: window.location.pathname, text }; },
+  share: (text, structured) => {
+    published = { path: window.location.pathname, text, questions: (structured as SharedContext | undefined)?.questions };
+    for (const l of listeners) l();
+  },
   openLink: (u) => { window.open(u, '_blank', 'noopener'); },
 };
 

@@ -89,8 +89,12 @@ export const wordsOf = (key: string): string => {
 /** A standing as a person says it, capitalised as every badge in the console is. */
 export const standingSaid = (standing: string | null): string => wordsOf(standing ?? 'not_established');
 
-/** The protocol as a score's heading or a table cell names it, short: `sdlc-flow-quality v2`, or the version in words. */
-export const protocolNamed = (s: PluginScore): string => (s.protocol.key ? `${s.protocol.key} v${s.protocol.version}` : protocolSaid(s));
+/**
+ * The protocol as a score's heading or a table cell names it, short: `sdlc-flow-quality v2`, or for a member, whom the
+ * gateway sends no key, `v2 of its own protocol`: a key is the words of the team that owns the plugin, so the cell says
+ * the protocol is the plugin's own, which is why it has no name here, and nothing of who reads one (reconciliation 77).
+ */
+export const protocolNamed = (s: PluginScore): string => (s.protocol.key ? `${s.protocol.key} v${s.protocol.version}` : `v${s.protocol.version} of its own protocol`);
 
 /** A public score as every view words it, 0 to 10, with the protocol it was scored against and when. */
 export const scoreSaid = (s: PluginScore | null): string => (!s ? 'never scored'

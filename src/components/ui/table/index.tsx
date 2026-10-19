@@ -24,6 +24,11 @@ export function Table({ className, caption, children, ...rest }: HTMLAttributes<
         className={cn(
           'w-full border-separate border-spacing-0 text-sm',
           '[&_tr>*:first-child]:pl-(--card-pad) [&_tr>*:last-child]:pr-(--card-pad)',
+          /* The column drawn last takes the card's padding, whichever columns the table's width hides after it (#70). */
+          '@max-[1152px]:[&_tr>:nth-last-child(1_of_:not([data-hide-below=xl]))]:pr-(--card-pad)',
+          '@max-[896px]:[&_tr>:nth-last-child(1_of_:not([data-hide-below=xl]):not([data-hide-below=lg]))]:pr-(--card-pad)',
+          '@max-[672px]:[&_tr>:nth-last-child(1_of_:not([data-hide-below=xl]):not([data-hide-below=lg]):not([data-hide-below=md]))]:pr-(--card-pad)',
+          '@max-[512px]:[&_tr>:nth-last-child(1_of_:not([data-hide-below]))]:pr-(--card-pad)',
           /* A text column after a right-aligned number gets room to breathe, so "234ms" and "Example Co" read as two facts. */
           '[&_[data-num]+:not([data-num])]:pl-8',
           className,
@@ -88,6 +93,7 @@ export function TableHeader({
     <th
       scope="col"
       data-num={align === 'right' || undefined}
+      data-hide-below={hideBelow}
       aria-sort={sortable ? (sort === 'asc' ? 'ascending' : sort === 'desc' ? 'descending' : 'none') : undefined}
       className={cn(
         'h-9 border-y border-line bg-surface-sunk px-4 text-xs font-medium whitespace-nowrap text-ink-3 first:border-l-0',
@@ -144,6 +150,7 @@ export function TableCell({
   return (
     <td
       data-num={numeric || align === 'right' || undefined}
+      data-hide-below={hideBelow}
       // A cut value is cut everywhere on the page, and this README has always said the cell carries the whole one in its
       // title. The component does it now for a cell that is a value, rather than each page remembering; a cell that is a
       // node is its author's, and a `title` passed in wins over this one because the spread comes after.

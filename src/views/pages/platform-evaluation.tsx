@@ -20,13 +20,13 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { aligned } from '@/console/columns';
 import { STANDING_TONE } from '@/console/eval-score';
 import { Panel } from '@/console/panel';
-import { formatDate, formatDateTime } from '@/lib/format-date';
+import { formatDate, formatDateTime, formatDay } from '@/lib/format-date';
 import { plural } from '@/lib/format';
 import { formatCount } from '@/lib/format-units';
 import type { Evaluation } from '@/lib/platform-shapes';
 import { waited } from '@/views/platform-bugs-context';
 import {
-  ASK, DECISIONS, GUARDRAILS, TILES, asOfLine, evaluationContext, evaluationTrouble, isAdmin, kindOf, ownerOf,
+  ASK, DECISIONS, GUARDRAILS, TILES, asOfLine, evaluationContext, evaluationTrouble, isAdmin, kindOf, nameOf, ownerOf,
   protocolOf, rangeOf, runText, scoreIn, seriesName, seriesRows, standingOf, waitingOf, type EvaluationRead, type PluginScoreRow,
   type SeriesRow, type WaitingFinding,
 } from '@/views/platform-evaluation-context';
@@ -113,13 +113,15 @@ function Tiles({ evaluation: e }: { evaluation: Evaluation }) {
       />
       <MetricTile
         label={TILES.daysScored.label} hint={TILES.daysScored.definition.replace('the reporting time zone', e.meta.timezone)} icon={<CalendarDays />}
-        value={tiles.daysScored} format="count" note={e.meta.coverageFrom ? `Since ${formatDate(e.meta.coverageFrom)}` : undefined}
+        value={tiles.daysScored} format="count" note={e.meta.coverageFrom ? `Since ${formatDay(e.meta.coverageFrom)}` : undefined}
       />
     </Row>
   );
 }
 
 const GUARDRAIL_TONE = { pass: 'positive', fail: 'critical', not_established: 'neutral' } as const;
+/** The guardrails as the phone card's sentence says them. */
+const GUARDRAILS_SAID = { pass: 'guardrails held', fail: 'a guardrail failed', not_established: 'guardrails not established' } as const;
 /**
  * An identifier, kept whole on one line: a key broken mid-word ("reliab / ility") is not the key. Every column but the
  * lead holds its content whole, so it takes the width its longest value needs and the lead column keeps only the slack
@@ -151,10 +153,15 @@ const PLUGIN_COLUMNS: Column<PluginScoreRow>[] = aligned([
       </span>
     ),
   },
-  { key: 'score', header: 'Score', mobile: 'fact', cell: (r) => <ScoreCell r={r} />, mobileCell: (r) => (r.score.value === null ? 'No score' : `${scoreIn(r.score.value)} / 10`) },
+  // A phone card's one fact is a sentence that wraps as words: three facts wrapped whole, and the managed table's dot
+  // before the one that moved down opened a line of its own ("· Scored 13 Oct 2026").
+  {
+    key: 'score', header: 'Score', mobile: 'fact', cell: (r) => <ScoreCell r={r} />,
+    mobileCell: (r) => `${r.score.value === null ? 'No score' : `${scoreIn(r.score.value)} / 10`}, ${GUARDRAILS_SAID[r.guardrails]}, scored ${formatDay(r.scoredAt)}`,
+  },
   { key: 'standing', header: 'Standing', align: 'left', mobile: 'status', cell: (r) => <Badge tone={STANDING_TONE[r.standing]}>{standingOf(r.standing)}</Badge> },
-  { key: 'guardrails', header: 'Guardrails', align: 'left', hideBelow: 'lg', mobile: 'fact', cell: (r) => <Badge tone={GUARDRAIL_TONE[r.guardrails]}>{GUARDRAILS[r.guardrails]}</Badge>, mobileCell: (r) => `Guardrails ${GUARDRAILS[r.guardrails].toLowerCase()}` },
-  { key: 'scored', header: 'Scored', numeric: true, mobile: 'fact', cell: (r) => <time dateTime={r.scoredAt} title={formatDateTime(r.scoredAt)}>{formatDate(r.scoredAt)}</time>, mobileCell: (r) => `Scored ${formatDate(r.scoredAt)}` },
+  { key: 'guardrails', header: 'Guardrails', align: 'left', hideBelow: 'lg', cell: (r) => <Badge tone={GUARDRAIL_TONE[r.guardrails]}>{GUARDRAILS[r.guardrails]}</Badge> },
+  { key: 'scored', header: 'Scored', numeric: true, cell: (r) => <time dateTime={r.scoredAt} title={formatDateTime(r.scoredAt)}>{formatDate(r.scoredAt)}</time> },
 ]);
 
 /** Each plugin's latest scoring, the page's protagonist, with the Ask in its head. */
@@ -209,7 +216,8 @@ function TrendCell({ r }: { r: SeriesRow }) {
 
 /**
  * A row a series: the plugin leads, with the read's statement of whether its series compare said once, on its first
- * row; the series is named by its protocol and the population under it, which wraps at the protocol's width.
+ * row; the series is named by its protocol and the population under it, each on one line, so the column is as wide as
+ * the longer of the two and the lead keeps only the slack.
  */
 const SERIES_COLUMNS: Column<SeriesRow>[] = aligned([
   {
@@ -227,7 +235,7 @@ const SERIES_COLUMNS: Column<SeriesRow>[] = aligned([
     cell: (r) => (
       <span className="block">
         <span className={`${ident} block text-ink`}>{protocolOf(r.series.protocol)}</span>
-        <span data-population className="t-caption block">{r.series.population ?? 'Population not recorded'}</span>
+        <span data-population className="t-caption block whitespace-nowrap">{r.series.population ?? 'Population not recorded'}</span>
       </span>
     ),
     mobileCell: (r) => protocolOf(r.series.protocol),
@@ -286,24 +294,28 @@ function ByOwner({ part }: { part: Evaluation['byOwner'] }) {
 }
 
 /**
- * A waiting finding: its fixed summary, and for the superadmin the pattern the evaluation recorded under it and the
- * measure it was recorded on, whole, under the pattern rather than in a column of its own.
+ * A waiting finding, named by what it found as far as its reader may read it: for the superadmin the pattern the
+ * evaluation recorded, with the measure it was recorded on under it; for a member the gateway's fixed name, its kind,
+ * plugin and owner category, since the pattern and the measure are the owning team's words.
  */
 function FindingCell({ f }: { f: WaitingFinding }) {
   return (
     <span className="block min-w-0">
-      <span className="block whitespace-normal font-medium text-ink [overflow-wrap:anywhere]">{f.summary}</span>
-      {f.pattern ? <span data-pattern className="t-caption block whitespace-normal [overflow-wrap:anywhere]">{f.pattern}</span> : null}
+      <span data-finding-name className="block whitespace-normal font-medium text-ink [overflow-wrap:anywhere]">{nameOf(f)}</span>
       {f.measure ? <span data-measure className="t-caption block">Measure <span className={ident}>{f.measure}</span></span> : null}
     </span>
   );
 }
 
-const waitingColumns = (asOf: string): Column<WaitingFinding>[] => aligned([
-  { key: 'finding', header: 'Finding', grow: true, mobile: 'title', title: (f) => [f.summary, f.pattern, f.measure && `measure ${f.measure}`].filter(Boolean).join('; '), cell: (f) => <FindingCell f={f} />, mobileCell: (f) => f.summary },
-  { key: 'plugin', header: 'Plugin', align: 'left', mobile: 'fact', title: (f) => f.plugin, cell: (f) => <span className={ident}>{f.plugin}</span> },
+/**
+ * The superadmin's rows say the plugin, the kind and the owner category in columns of their own, beside the pattern; a
+ * member's name already says all three, so their row is the name, its kind's badge and how long it has waited.
+ */
+const waitingColumns = (asOf: string, admin: boolean): Column<WaitingFinding>[] => aligned([
+  { key: 'finding', header: 'Finding', grow: true, mobile: 'title', title: (f) => [nameOf(f), f.measure && `measure ${f.measure}`].filter(Boolean).join('; '), cell: (f) => <FindingCell f={f} />, mobileCell: nameOf },
+  ...(admin ? [{ key: 'plugin', header: 'Plugin', align: 'left', mobile: 'fact', title: (f) => f.plugin, cell: (f) => <span className={ident}>{f.plugin}</span> }] satisfies Column<WaitingFinding>[] : []),
   { key: 'kind', header: 'Kind', align: 'left', mobile: 'status', cell: (f) => <Badge tone={f.kind === 'defect' ? 'warning' : 'neutral'}>{kindOf(f.kind)}</Badge> },
-  { key: 'owner', header: 'Owner', align: 'left', hideBelow: 'lg', cell: (f) => <span className="whitespace-nowrap">{ownerOf(f.owner)}</span> },
+  ...(admin ? [{ key: 'owner', header: 'Owner', align: 'left', hideBelow: 'lg', cell: (f) => <span className="whitespace-nowrap">{ownerOf(f.owner)}</span> }] satisfies Column<WaitingFinding>[] : []),
   {
     key: 'since', header: 'Waiting', numeric: true, mobile: 'fact', title: (f) => formatDateTime(f.waitingSince),
     cell: (f) => (
@@ -324,11 +336,11 @@ function Waiting({ evaluation: e }: { evaluation: Evaluation }) {
   return (
     <DataTable
       title="Findings waiting for a decision"
-      description={admin ? 'Defects and unknowns with no decision yet, oldest first, each with the pattern its evaluation recorded and the measure it was recorded on' : 'Defects and unknowns with no decision yet, oldest first, each by its plugin and owner category; their own words are the owning team\'s'}
+      description={admin ? 'Defects and unknowns with no decision yet, oldest first, each by the pattern its evaluation recorded and the measure it was recorded on' : 'Defects and unknowns with no decision yet, oldest first, each by its kind, its plugin and its owner category; their own words are the owning team\'s'}
       caption="Findings waiting for a decision, oldest first"
       noun="findings"
       rows={waitingOf(e)}
-      columns={waitingColumns(e.meta.asOf)}
+      columns={waitingColumns(e.meta.asOf, admin)}
       rowKey={(f) => f.id}
       pageSize={10}
       pageSizes={[10]}

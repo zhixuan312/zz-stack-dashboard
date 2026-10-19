@@ -55,15 +55,18 @@ function Result({ r }: { r: AuditRow }) {
   return r.ok === true ? <Badge tone="neutral">OK</Badge> : dash;
 }
 
-/** The events in the gateway's order, newest first: the browser sorts, filters and pages none of them. */
+/**
+ * The events in the gateway's order, newest first: the browser sorts, filters and pages none of them. A phone card's one
+ * fact is the day and the actor in one line that wraps as words: as two facts, an address too long to share the line
+ * moved down behind the managed table's dot, which then opened a line of its own.
+ */
 const COLUMNS: Column<AuditRow>[] = aligned([
-  { key: 'when', header: 'When', width: 'w-40', mobile: 'fact', cell: (r) => <time dateTime={r.at} title={formatDateTime(r.at)}>{formatDateTime(r.at)}</time>, mobileCell: (r) => formatDate(r.at) },
+  { key: 'when', header: 'When', width: 'w-40', mobile: 'fact', cell: (r) => <time dateTime={r.at} title={formatDateTime(r.at)}>{formatDateTime(r.at)}</time>, mobileCell: (r) => `${formatDate(r.at)}, ${r.actor ?? 'actor not recorded'}` },
   { key: 'kind', header: 'Kind', mobile: 'title', title: (r) => r.kind, cell: (r) => <span className="block truncate font-mono text-xs text-ink" title={r.kind}>{r.kind}</span>, mobileCell: (r) => r.kind },
   { key: 'team', header: 'Team', hideBelow: 'md', cell: (r) => (r.team ? <span className="block truncate" title={r.team}>{r.team}</span> : <span className="text-ink-3">No team</span>) },
   {
-    key: 'actor', header: 'Actor', hideBelow: 'md', mobile: 'fact', title: (r) => r.actor ?? 'Not recorded',
+    key: 'actor', header: 'Actor', hideBelow: 'md', title: (r) => r.actor ?? 'Not recorded',
     cell: (r) => (r.actor ? <span className="block truncate" title={r.actor}>{r.actor}</span> : <span className="text-ink-3">Not recorded</span>),
-    mobileCell: (r) => r.actor ?? 'Actor not recorded',
   },
   { key: 'subject', header: 'Subject', grow: true, hideBelow: 'lg', cell: (r) => (r.subject ? <span className="block truncate font-mono text-xs" title={r.subject}>{r.subject}</span> : dash) },
   { key: 'result', header: 'Result', mobile: 'status', title: resultOf, cell: (r) => <Result r={r} />, mobileCell: (r) => <Result r={r} /> },

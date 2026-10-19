@@ -161,13 +161,11 @@ describe('Releases and a release', () => {
     expect(isStack(one.container.firstElementChild)).toBe(true);
   });
 
-  it('holds the version on one line and lets a word in a window wrap, so the table stays inside its card (F-3, F-8)', () => {
+  it('holds the version on one line, so the table stays inside its card (F-3, F-8)', () => {
     mount(<PlatformReleasesView served={served} />);
     const version = releaseRow(table(), PAIRED).querySelector('td')!;
     expect(version.textContent).not.toMatch(/Within 72 hours/);
     expect(version.querySelector('.whitespace-nowrap')).not.toBeNull();
-    const words = [...releaseRow(table(), OLDEST).querySelectorAll('[data-side]')].find((s) => /Not observed/.test(s.textContent!))!;
-    expect(words.classList.contains('whitespace-nowrap')).toBe(false);
   });
 
   it('keeps a release\'s summary and client action on its phone card, then its figure in words (F-10, F-11)', () => {

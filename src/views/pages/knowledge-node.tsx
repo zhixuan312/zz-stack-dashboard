@@ -5,7 +5,6 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { RotateCw } from 'lucide-react';
-import { Row } from '@/components/base/shell';
 import { AskAbout } from '@/components/patterns/ask-about';
 import { DataTable, type Column } from '@/components/patterns/data-table';
 import { Badge } from '@/components/ui/badge';
@@ -16,7 +15,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { KeyValue } from '@/components/ui/key-value';
 import { Skeleton } from '@/components/ui/skeleton';
 import { aligned } from '@/console/columns';
-import { KnowledgeTabs, useServerReadLive } from '@/console/knowledge-tabs';
+import { useServerReadLive } from '@/console/knowledge-tabs';
 import { ConsolePage } from '@/console/page';
 import { Panel } from '@/console/panel';
 import { useDataClock } from '@/lib/api';
@@ -41,6 +40,11 @@ const Prose = dynamic(() => import('@/components/patterns/prose').then((m) => m.
  * lesson either way. Where it was learned is the initiatives of the team the reader acts for, each linked, and a count
  * of every other team's, which the answer counts and never names (reconciliation 81). Dates are absolute, because
  * they came from the server.
+ *
+ * DELIBERATE: no Knowledge tabs, and the lesson at the page's width with its facts under it in two columns. A node is a
+ * detail page whose way back is its breadcrumb, and the tabs marked Overview as the page in view; beside its facts the
+ * lesson's card stretched about 300px empty to their height, and the facts' column broke the path over four lines and
+ * a cited initiative at a hyphen (Phase 7's re-review, Work F-48).
  */
 export function KnowledgeNodeView({ read, team, rel }: { read: ServerRead<KnowledgeBody>; team: string; rel: string }) {
   const address = `/knowledge/${team}/${rel}`;
@@ -78,48 +82,47 @@ export function KnowledgeNodeView({ read, team, rel }: { read: ServerRead<Knowle
       showPeriod={false}
       updatedAt={read.state === 'ok' ? new Date(read.at) : null}
       context={context}
-      toolbar={<KnowledgeTabs active="knowledge" />}
     >
       {!self ? <NodeTrouble reason={read.state === 'ok' ? '' : troubleOf(read)} /> : (
         <>
           {/* A supersession needs nobody, so the banner is neutral, as the log's act is; it names what replaced it. */}
           {self.superseded_by ? <Banner tone="neutral" title={`Superseded by node ${self.superseded_by}`}>Kept readable; it is no longer the current lesson. <Successor of={self} among={related} lead="Read " /></Banner> : null}
           {shared ? <Banner tone="accent" title="On the platform's shared shelf">Every team&rsquo;s search reads it beside the team&rsquo;s own lessons.</Banner> : null}
-          <Row split="2/3">
-            <Panel title="The lesson" actions={<AskAbout question="What does this lesson mean for work we are doing now?" />}>
-              {/* A lesson recorded with no text says so: an empty panel reads as a body still on its way. */}
-              {self.body.trim() ? <Prose>{self.body.trim()}</Prose> : <p className="t-small text-ink-3">This lesson has no text in the store.</p>}
-            </Panel>
-            <Panel title="About this node">
-              <KeyValue
-                items={[
-                  { label: 'Status', value: <Badge tone={self.status === 'adopted' ? 'positive' : 'neutral'} dot>{statusWord(self.status)}</Badge> },
-                  { label: 'Shelf', value: shared ? <Badge tone="accent">Shared</Badge> : <Badge tone="neutral">Your team</Badge> },
-                  { label: 'Type', value: self.type },
-                  // The team as words: no page this person may open is that team's own.
-                  { label: 'Team', value: self.team },
-                  { label: 'Recorded', value: formatDate(self.updated) },
-                  // Where it came from, so a reader can open the work that produced the lesson. The team comes from
-                  // the gateway's entry, not the node's: a shared lesson's are the reader's own team's. Other teams'
-                  // initiatives are a count, with no name and no link.
-                  ...(self.evidence_in?.length || self.cited_elsewhere ? [{
-                    label: 'Learned in',
-                    wrap: true,
-                    value: (
-                      <span className="flex flex-col gap-1">
-                        {(self.evidence_in ?? []).map((e) => (e.team
-                          ? <Link key={e.name} href={`/initiatives/${e.team}/${e.name}`} className="link hit [overflow-wrap:anywhere]">{e.name}</Link>
-                          : <span key={e.name} className="[overflow-wrap:anywhere]" title="No initiative by this name on the platform">{e.name}</span>))}
-                        {self.cited_elsewhere ? <span className="text-ink-2">{elsewhere(self.cited_elsewhere)}</span> : null}
-                      </span>
-                    ),
-                  }] : []),
-                  ...(self.tags?.length ? [{ label: 'Tags', wrap: true, value: <span className="font-mono text-xs">{self.tags.join(' · ')}</span> }] : []),
-                  { label: 'Path', mono: true, wrap: true, value: self.path },
-                ]}
-              />
-            </Panel>
-          </Row>
+          <Panel title="The lesson" actions={<AskAbout question="What does this lesson mean for work we are doing now?" />}>
+            {/* A lesson recorded with no text says so: an empty panel reads as a body still on its way. */}
+            {self.body.trim() ? <Prose>{self.body.trim()}</Prose> : <p className="t-small text-ink-3">This lesson has no text in the store.</p>}
+          </Panel>
+          <Panel title="About this node">
+            <KeyValue
+              columns={2}
+              items={[
+                { label: 'Status', value: <Badge tone={self.status === 'adopted' ? 'positive' : 'neutral'} dot>{statusWord(self.status)}</Badge> },
+                { label: 'Shelf', value: shared ? <Badge tone="accent">Shared</Badge> : <Badge tone="neutral">Your team</Badge> },
+                { label: 'Type', value: self.type },
+                // The team as words: no page this person may open is that team's own.
+                { label: 'Team', value: self.team },
+                { label: 'Recorded', value: formatDate(self.updated) },
+                // Where it came from, so a reader can open the work that produced the lesson. The team comes from
+                // the gateway's entry, not the node's: a shared lesson's are the reader's own team's. Other teams'
+                // initiatives are a count, with no name and no link.
+                ...(self.evidence_in?.length || self.cited_elsewhere ? [{
+                  label: 'Learned in',
+                  wrap: true,
+                  value: (
+                    <span className="flex flex-col gap-1">
+                      {(self.evidence_in ?? []).map((e) => (e.team
+                        // One line, never broken at a hyphen: a smaller size where the column is a phone's.
+                        ? <Link key={e.name} href={`/initiatives/${e.team}/${e.name}`} title={e.name} className="link hit block truncate text-xs @min-[40rem]:text-sm">{e.name}</Link>
+                        : <span key={e.name} className="[overflow-wrap:anywhere]" title="No initiative by this name on the platform">{e.name}</span>))}
+                      {self.cited_elsewhere ? <span className="text-ink-2">{elsewhere(self.cited_elsewhere)}</span> : null}
+                    </span>
+                  ),
+                }] : []),
+                ...(self.tags?.length ? [{ label: 'Tags', wrap: true, value: <span className="font-mono text-xs">{self.tags.join(' · ')}</span> }] : []),
+                { label: 'Path', mono: true, wrap: true, value: self.path },
+              ]}
+            />
+          </Panel>
           {related.length ? (
             <DataTable
               caption="Nodes that share a tag"

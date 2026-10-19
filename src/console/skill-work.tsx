@@ -7,6 +7,7 @@ import type { SkillRunRow } from '@/lib/destination-shapes';
 import { plural } from '@/lib/format';
 import { formatCount, formatKb, formatSeconds } from '@/lib/format-units';
 import { refusedOf, timedOf } from '@/views/runs-context';
+import { perRunOf } from '@/views/runs-figures';
 
 /** The card's title, and the page's protagonist: the card the page's Ask sits on. COUPLED: the Runs README's `Protagonist:`. */
 export const BY_SKILL_TITLE = 'By skill';
@@ -22,7 +23,7 @@ const muted = (text: string) => <span className="text-ink-3">{text}</span>;
 const COLUMNS: Column<SkillRunRow>[] = aligned([
   { key: 'skill', header: 'Skill', grow: true, mobile: 'title', title: (k) => k.skill, cell: (k) => <span className="block font-medium whitespace-normal text-ink [overflow-wrap:anywhere]">{k.skill}</span> },
   { key: 'runs', header: 'Runs', numeric: true, mobile: 'fact', cell: (k) => formatCount(k.runs), mobileCell: (k) => `${formatCount(k.runs)} ${plural(k.runs, 'run')}` },
-  { key: 'calls', header: 'Calls per run', numeric: true, hideBelow: 'lg', cell: (k) => k.callsPerRun.toFixed(1) },
+  { key: 'calls', header: 'Calls per run', numeric: true, hideBelow: 'lg', cell: (k) => perRunOf(k.callsPerRun) },
   // Ink, not a red pill: nearly every skill refuses something, and red on every row says nothing.
   { key: 'refused', header: 'Refused', numeric: true, hideBelow: 'lg', cell: (k) => refusedOf(k.shareRefused) ?? muted('—') },
   { key: 'output', header: 'Output per run', numeric: true, mobile: 'fact', cell: (k) => (k.outputPerRun === null ? muted('Not measured') : formatKb(k.outputPerRun / 1024)), mobileCell: (k) => (k.outputPerRun === null ? 'Output not measured' : `${formatKb(k.outputPerRun / 1024)} a run`) },

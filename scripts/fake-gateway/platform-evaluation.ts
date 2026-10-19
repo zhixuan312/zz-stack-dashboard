@@ -3,7 +3,8 @@
  *
  * One fixture, the scores and findings as the superadmin reads them. A member's answer is derived from it by the
  * gateway's projection rules and never written by hand: a protocol's key and a measure's key are the owning team's
- * words, so a member reads them as null, and a waiting finding reaches them as its fixed summary without its pattern.
+ * words, so a member reads them as null, and a waiting finding reaches them as its fixed name, by its kind,
+ * plugin and owner category, without its pattern.
  *
  * The scores cover the states the page draws: a plugin whose two latest scores share a protocol version and a
  * population (a trend) after an older one under another protocol version, a plugin scored under two populations, a
@@ -62,8 +63,13 @@ const FINDINGS: Finding[] = [
     pattern: 'Every executed plan traced each task to an acceptance criterion.' },
 ];
 
-/** The fixed summary a waiting finding is read by: its plugin and owner category, or nothing at all when it has none. */
-const summary = (f: Finding) => (f.owner === 'unknown' ? 'Evaluation finding awaiting a decision' : `A finding on ${f.plugin}, owned by ${f.owner}, awaiting a decision`);
+/** The owner categories as a finding's name says them. COUPLED: the gateway's `OWNED_BY`. */
+const OWNED_BY: Record<string, string> = {
+  plugin: 'owned by the plugin', dependency: 'owned by a dependency', platform: 'owned by the platform',
+  environment: 'owned by the environment', user_input: 'owned by user input', unknown: 'owner not known',
+};
+/** The fixed name a waiting finding is read by: its kind, its plugin and its owner category, as the gateway's `summaryOf`. */
+const summary = (f: Finding) => `${f.kind === 'defect' ? 'A defect' : 'An unknown'} in ${f.plugin}, ${OWNED_BY[f.owner]}`;
 
 /** `GET /platform/evaluation`. The superadmin's answer carries the protocol's and the measure's keys and each waiting
  *  finding's pattern; a member's carries none of them. */

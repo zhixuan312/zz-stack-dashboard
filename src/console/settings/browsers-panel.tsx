@@ -61,7 +61,7 @@ export function BrowsersPanel() {
                 <TableCell>
                   <span className="flex flex-wrap items-center gap-2">
                     <span className="text-sm font-medium text-ink" title={b.userAgent ?? undefined}>{browserOf(b)}</span>
-                    {b.current ? <Badge tone="accent" dot>This browser</Badge> : null}
+                    {b.current ? <Badge tone="neutral" dot>This browser</Badge> : null}
                   </span>
                   <span className="t-caption block @min-[672px]:hidden">Signed in {formatDate(b.issuedAt)}</span>
                 </TableCell>

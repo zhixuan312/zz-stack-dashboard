@@ -45,6 +45,22 @@ const wordFor = (f: Figure): string | null => (f.value !== null ? null : f.why =
 /** A figure as a cell prints it: its value, with `too few` beside a share or a mean under the thirty searches it needs. */
 export const figureText = (kind: Kind, f: Figure): string => wordFor(f) ?? `${valueIn(kind, f.value!)}${f.why === 'insufficient' ? ', too few' : ''}`;
 
+/** A shelf's share with no result in its table cell: as any share is, but a week with no search is `No searches`. */
+export const noResultCell = (f: Figure): string => (f.value === null && f.why === 'no_data' ? 'No searches' : figureText('share', f));
+
+/**
+ * A shelf's searches last week as a sentence says them, with the share that found nothing: `28 searches, 10.7% with no
+ * result, too few to judge`, or `no searches`.
+ */
+export function searchesSaid(r: ShelfRow): string {
+  if (!r.searchesLastWeek) return 'no searches';
+  const f = r.noResult.figure;
+  const share = f.value === null
+    ? (f.why === 'unavailable' ? 'the share with no result unavailable' : null)
+    : `${valueIn('share', f.value)} with no result${f.why === 'insufficient' ? ', too few to judge' : ''}`;
+  return `${formatCount(r.searchesLastWeek)} ${plural(r.searchesLastWeek, 'search', 'searches')}${share ? `, ${share}` : ''}`;
+}
+
 /** A week as a person reads it: `week of 5 Oct`. */
 export const weekOf = (w: Window): string => `week of ${formatDay(w.from)}`;
 

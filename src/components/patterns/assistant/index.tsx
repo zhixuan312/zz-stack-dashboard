@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useChat } from '@ai-sdk/react';
 import { APICallError, DefaultChatTransport, lastAssistantMessageIsCompleteWithApprovalResponses, type UIMessage } from 'ai';
@@ -10,12 +10,11 @@ import { app } from '../../../app.config';
 import { AgentMark } from '../../ui/agent-mark/index';
 import { Banner } from '../../ui/banner/index';
 import { Button } from '../../ui/button/index';
-import { IconButton } from '../../ui/icon-button/index';
 import { Proposal, type ProposalChange, type ProposalState } from '../proposal/index';
 import { Spinner } from '../../ui/spinner/index';
 import { Textarea } from '../../ui/textarea/index';
 import type { PageContext } from '../../../lib/assistant/prompt';
-import { sharedContextOn } from '../../base/surface/index';
+import { onShared, questionsOn, sharedContextOn } from '../../base/surface/index';
 import { pageText } from './page-text';
 import { useThreadScope } from './scope';
 import { AssistantText } from './text';
@@ -88,8 +87,9 @@ function ProposalOf({ message, part, onDecide }: { message: UIMessage; part: Too
 }
 
 /**
- * The panel, drawn from its messages alone: a third column of the shell from 1024px, a sheet over the page below it.
- * Both come from CSS; nothing here measures the window.
+ * The panel, drawn from its messages alone: a third column of the shell from 1024px, a sheet over the page below it,
+ * the whole width of a phone, so no strip of cut page words is left beside it. All of it comes from CSS; nothing here
+ * measures the window.
  */
 export function AssistantPanel({
   messages,
@@ -100,6 +100,7 @@ export function AssistantPanel({
   onClear,
   error,
   onRetry,
+  questions,
   inline,
   className,
 }: {
@@ -114,6 +115,8 @@ export function AssistantPanel({
   /** Said in an alert under the thread, with Retry. */
   error?: string;
   onRetry?: () => void;
+  /** Questions to start the thread with, offered while it is empty: the page in view's (`SharedContext.questions`). */
+  questions?: string[];
   /** Draw in the flow instead of fixed to the viewport edge: for previews. */
   inline?: boolean;
   className?: string;
@@ -152,19 +155,33 @@ export function AssistantPanel({
         'flex h-full min-h-0 flex-col border-l border-line bg-frame backdrop-blur-xl backdrop-saturate-150',
         inline
           ? 'w-(--assistant-width) max-w-full'
-          : 'fixed inset-y-0 right-0 z-(--layer-overlay) w-(--assistant-width) max-w-[calc(100vw-48px)] bg-ground shadow-overlay lg:relative lg:z-auto lg:shrink-0 lg:bg-frame lg:shadow-none',
+          : 'fixed inset-y-0 right-0 z-(--layer-overlay) w-full bg-ground shadow-overlay sm:w-(--assistant-width) sm:max-w-[calc(100vw-48px)] lg:relative lg:z-auto lg:shrink-0 lg:bg-frame lg:shadow-none',
         className,
       )}
     >
       <div className="flex h-14 shrink-0 items-center gap-3 border-b border-line px-4">
         <AgentMark size="md" />
         <h2 className="t-card min-w-0 flex-1 truncate">Assistant</h2>
-        <IconButton label="Clear conversation" icon={<Eraser />} tooltip disabled={messages.length === 0} onClick={onClear} />
-        <IconButton label="Close assistant" icon={<X />} onClick={onClose} className="-mr-2" />
+        {/* Named on screen, not only to a screen reader: the accessible names begin with the words shown. */}
+        <Button size="sm" variant="ghost" icon={<Eraser />} aria-label="Clear conversation" disabled={messages.length === 0} onClick={onClear}>Clear</Button>
+        <Button size="sm" variant="ghost" icon={<X />} aria-label="Close assistant" onClick={onClose} className="-mr-2">Close</Button>
       </div>
       <div ref={thread} className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain px-4 py-4">
         {messages.length === 0 ? (
-          <p className="t-small m-auto max-w-[32ch] text-center text-ink-3">Ask about this page: what a figure means, or why it moved.</p>
+          <div data-assistant-empty className="m-auto flex w-full flex-col items-center gap-4">
+            <p className="t-small max-w-[32ch] text-center text-ink-3">Ask about this page: what a figure means, or why it moved.</p>
+            {questions?.length ? (
+              <ul aria-label="Questions to start with" className="flex w-full flex-col gap-2">
+                {questions.map((q) => (
+                  <li key={q}>
+                    <button type="button" disabled={busy} onClick={() => onSend(q)} className="press hit t-small w-full rounded-lg border border-line bg-surface px-3 py-2 text-left text-ink hover:border-line-strong disabled:opacity-45">
+                      {q}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
         ) : (
           messages.map((m) => (
             <div key={m.id} data-role={m.role} className={cn('flex min-w-0 flex-col gap-1', m.role === 'user' && 'items-end')}>
@@ -247,6 +264,8 @@ export function AssistantColumn({ open, onClose, ask, onAsked }: { open: boolean
     [scope],
   );
   const router = useRouter();
+  // The page in view's starter questions, as its view shares them; a page that offers none keeps the plain empty state.
+  const questions = useSyncExternalStore(onShared, () => questionsOn(path), () => undefined);
   // The error that said the session changed hands since the thread began: the thread is gone, so it offers no Retry.
   const [changedHands, setChangedHands] = useState<Error | null>(null);
   const { messages, setMessages, sendMessage, regenerate, addToolApprovalResponse, status, error } = useChat({
@@ -313,6 +332,7 @@ export function AssistantColumn({ open, onClose, ask, onAsked }: { open: boolean
         setMessages([]);
         forgetThread(localStorage, scope);
       }}
+      questions={questions}
       error={error?.message}
       onRetry={error && error === changedHands ? undefined : () => regenerate()}
     />

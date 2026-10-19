@@ -121,7 +121,7 @@ describe('the context', () => {
     for (const r of (WAITING.waiting.state === 'ok' ? WAITING.waiting.data.rows : [])) expect(text).toContain(`${r.path} v${r.version} of ${r.initiative} (${r.contentRevision})`);
     expect(text).toContain(`Waiting now: ${WAITING.tiles.waiting}`);
     expect(text).toContain(`Approvals in your name: ${WAITING.tiles.inYourName}`);
-    expect(text).toContain(`No presentation recorded: ${noPresentationLine(WAITING.tiles.noPresentation!)}`);
+    expect(text).toContain(`No presentation recorded: ${noPresentationLine(WAITING.tiles.noPresentation!, null)}`);
     expect(text).toContain(`${TEAM_APPROVALS}: ${WAITING.tiles.waiting} revisions waiting`);
     expect(text.length).toBeLessThanOrEqual(CONTEXT_BUDGET);
   });

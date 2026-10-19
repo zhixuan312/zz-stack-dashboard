@@ -48,6 +48,11 @@ export type SharedContext = {
   insights: Insight[];
   /** What the data cannot say, stated so nobody fills the gap with a guess. */
   unknowns: string[];
+  /**
+   * Questions worth asking first about what the view shows, in the person's words: the console's assistant offers them
+   * while its thread is empty. They are for the person, so they are never in the text a model is told.
+   */
+  questions?: string[];
 };
 
 /** At most `max` items of a list, joined, and how many more there are: a context never grows with the data. */

@@ -357,13 +357,14 @@ describe('GET /api/console/platform/evaluation', () => {
     // A trend: two runs on different dates in one series.
     expect(e.history.data.some((h: Json) => h.series.some((s: Json) => new Set(s.runs.map((r: Json) => r.scoredAt.slice(0, 10))).size > 1))).toBe(true);
     expect(e.plugins.data.some((p: Json) => p.standing === 'not_established' && p.score.value === null)).toBe(true);
-    // Findings waiting, oldest first, each read by its fixed summary.
+    // Findings waiting, oldest first, each read by its fixed name: its kind, its plugin and its owner category (I-162, F-17).
     const waiting = e.waiting.data.rows as Json[];
     expect(waiting.length).toBeGreaterThan(0);
     expect(e.tiles.waiting).toBe(e.waiting.data.total);
     expect(waiting.map((r) => r.waitingSince)).toEqual([...waiting.map((r) => r.waitingSince)].sort());
     for (const r of waiting) {
-      expect(r.summary).toBe(r.owner === 'unknown' ? 'Evaluation finding awaiting a decision' : `A finding on ${r.plugin}, owned by ${r.owner}, awaiting a decision`);
+      expect(r.summary).toMatch(new RegExp(`^(A defect|An unknown) in ${r.plugin}, (owned by (the plugin|a dependency|the platform|the environment|user input)|owner not known)$`));
+      expect(r.summary).not.toMatch(/awaiting a decision/);
     }
     expect(waiting.some((r) => r.owner === 'unknown')).toBe(true);
     expect(e.byDecision.data.deferred).toBe(waiting.length);

@@ -155,7 +155,10 @@ describe('the Records template', () => {
     expect(tile('Oldest wait').textContent).toContain(waited(tiles.oldestWaitingSince!, meta.asOf));
     expect(tile('Approvals in your name').textContent).toContain(String(tiles.inYourName));
     expect(tiles.noPresentation!.count).toBeGreaterThan(0);
-    expect(tile('No presentation recorded').textContent).toContain(`${tiles.noPresentation!.count} of ${tiles.noPresentation!.of} approved with no presentation recorded`);
+    // The count over the approvals whose presentation is known, and the unknown rest, which add up to the tile beside it.
+    const unknown = tiles.inYourName! - tiles.noPresentation!.of;
+    expect(unknown).toBeGreaterThan(0);
+    expect(tile('No presentation recorded').textContent).toContain(`${tiles.noPresentation!.count}of ${tiles.noPresentation!.of} known, ${unknown} unknown`);
     expect(document.querySelectorAll('[data-template="records"] [data-split="tiles"] > *')).toHaveLength(4);
   });
 
@@ -246,7 +249,8 @@ describe('History', () => {
   it('says Approved in your name and N of M approved with no presentation recorded, and claims no reading or signing beyond it', () => {
     browser(null);
     mount(ok(HISTORY, HISTORY_PATH));
-    expect(text()).toContain(`Approved in your name · ${noPresentationLine(HISTORY.tiles.noPresentation!)}. Newest first.`);
+    expect(text()).toContain(`Approved in your name · ${noPresentationLine(HISTORY.tiles.noPresentation!, HISTORY.tiles.inYourName)}. Newest first.`);
+    expect(text()).toContain('2 of 10 approved with no presentation recorded, and 1 unknown. Newest first.');
     expect(text()).not.toMatch(/signed by|signed it|you read|read by you|at the keyboard|your agent/i);
   });
 
@@ -367,7 +371,7 @@ describe('every state draws', () => {
     };
     const { unmount } = mount(ok(none));
     expect(tile('Oldest wait').textContent).toContain('None waiting');
-    expect(text()).toContain('0 of 0 approved with no presentation recorded');
+    expect(tile('No presentation recorded').textContent).toContain('0of 0 known');
     expect(text()).toContain('Nothing waits for approval');
     expect(text()).toContain('No approval in your name yet');
     unmount();

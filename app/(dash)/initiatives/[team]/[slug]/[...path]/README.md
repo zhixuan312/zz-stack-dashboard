@@ -6,16 +6,18 @@ One document, read: the text, how it changed and on what evidence, and the claim
 
 - Gate first: the page asks for `initiatives` before it renders, so a person who does not hold it is shown NoAccess and nothing on the page is read.
 - First read on the console's server: the document is read as the person, bounded at 4.5 seconds, and handed to the masthead and the body, so its title, status and text are in the first paint. Later reads, after an approval, a Retry, a Reload or a hint that documents changed, are the browser's.
-- Masthead: the title, the path and version, and Approve when the reader may sign the gate; a member whose session
-  acts for another of their teams is told which team to switch to.
+- Masthead: the kicker opens at the workspace, "ZZ Stack · Work", as every page's does, then the trail back up
+  (Initiatives, the team, the initiative). The title (a source filed under a web address is titled by the page's own
+  name, as its initiative lists it), the path and version, and Approve when the reader may sign the gate; a member
+  whose session acts for another of their teams is told which team to switch to.
 - When Approve is on offer, the page records that it showed the reader the first snapshot it rendered, and any later
   one when the reader reloads, and Approve signs exactly that snapshot under the review context the record answered.
-- Document: type, status, approver and update facts, and the review metadata an approval signs with the body
+- Document: type, status, approver and when it last changed ("Last changed", apart from the masthead's Updated stamp, which says when the page read it), and the review metadata an approval signs with the body
   (stakeholder, tags, each of the flow's own fields), then the text rendered or as stored.
 - A table the text carries becomes cards where the text's column is under 480px, as on a phone: each row a card, its
   first cell the title and the rest beneath it, one to a line, under a key of the headings in the same order.
 - Changes and their reasons: the sources first, then the diff between content versions.
-- Content history and the claims table.
+- Content history and the claims table, counted in the word its rows are: claims, or a plan's tasks.
 
 ## States
 

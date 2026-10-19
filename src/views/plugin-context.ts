@@ -8,9 +8,11 @@
  * for this reader, so it is `withheld`, which says nothing; the public score on the catalog's row stands for everybody.
  */
 import type { PluginEval, PluginRow } from '@/lib/api-shapes';
+import type { PluginScore } from '@/lib/destination-shapes';
+import type { Evaluation } from '@/lib/platform-shapes';
 import { plural } from '@/lib/format';
 import { formatCount } from '@/lib/format-units';
-import { formatDate } from '@/lib/format-date';
+import { formatDate, formatDay } from '@/lib/format-date';
 import { listed, type Fact, type Insight, type SharedContext } from '@/lib/shared-context';
 import { arrived, budgeted, type Arrival } from './context';
 import { scoreOf as score } from './eval-score';
@@ -22,14 +24,60 @@ export const evalPath = (plugin: string): string => `/plugins/${encodeURICompone
 /** The evaluation as the console's server read it: answered, withheld from this reader, failed or not answered in time. */
 export type EvalRead = Served<PluginEval> | { state: 'withheld'; path: string };
 
-/** A plugin's page's two reads, made together: the catalog its row is in, and the owning team's evaluation. */
-export type PluginRead = { catalog: PluginsRead; evaluation: EvalRead };
+/**
+ * A plugin's scores in the series the platform's Evaluation read groups them into (`GET /platform/evaluation`'s
+ * `history`), one series per protocol version and population, so two scores compare exactly when they share one. The
+ * protocol's key is the superadmin's alone, as everywhere. `none` when the read did not answer, or answered no series
+ * for the plugin: the comparability line is then the gateway's statement alone.
+ */
+type ScoreSeries = { protocol: { key: string | null; version: number }; population: string | null; runs: { scoredAt: string; score: number | null }[] };
+export type HistoryRead = { state: 'ok'; series: ScoreSeries[] } | { state: 'none' };
+
+/** A plugin's page's three reads, made together: the catalog its row is in, the owning team's evaluation, and its scores' series. */
+export type PluginRead = { catalog: PluginsRead; evaluation: EvalRead; history?: HistoryRead };
+
+/** The gateway address of the platform's Evaluation read, whose `history` holds every plugin's scores by series. */
+export const SCORES_PATH = '/platform/evaluation';
+
+/** One plugin's series out of the Evaluation read, and nothing else of it; `none` for no read or no series of it. */
+export function historyOf(read: Evaluation | null, plugin: string): HistoryRead {
+  const history = read?.history?.state === 'ok' ? read.history.data.find((h) => h.plugin === plugin) : undefined;
+  return history ? { state: 'ok', series: history.series.map((s) => ({ protocol: s.protocol, population: s.population, runs: s.runs.map((r) => ({ scoredAt: r.scoredAt, score: r.score })) })) } : { state: 'none' };
+}
+
+/** A protocol as a sentence names it beside a score: its key and version, or for a member the version in words. */
+const protocolOf = (p: ScoreSeries['protocol']): string => (p.key ? `${p.key} v${p.version}` : `version ${p.version} of its protocol`);
+
+/**
+ * What the lead score compares with, by name: the newest other score in its own series, which it compares with, and the
+ * newest score of each other series, which it does not, each with its day and what differs. The series are the
+ * gateway's, so nothing is decided here that the platform did not group; null when the lead is not in the series read,
+ * and the page then quotes the gateway's statement as it is.
+ */
+export function comparedSaid(lead: PluginScore | null, history: HistoryRead | undefined): string | null {
+  if (!lead || history?.state !== 'ok') return null;
+  const own = history.series.find((s) => s.protocol.version === lead.protocol.version && s.runs.some((r) => r.scoredAt === lead.scoredAt));
+  if (!own) return null;
+  const newest = (s: ScoreSeries, but?: string) => s.runs.filter((r) => r.score !== null && r.scoredAt !== but).sort((a, b) => b.scoredAt.localeCompare(a.scoredAt))[0];
+  const before = newest(own, lead.scoredAt);
+  const others = history.series.filter((s) => s !== own).flatMap((s) => {
+    const r = newest(s);
+    if (!r) return [];
+    const why = s.protocol.version !== own.protocol.version ? `scored against ${protocolOf(s.protocol)}` : 'measured on another population';
+    return [{ at: r.scoredAt, said: `its ${r.score!.toFixed(1)} of ${formatDay(r.scoredAt)}, ${why}` }];
+  }).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 2);
+  const same = before ? `Comparable with its ${before.score!.toFixed(1)} of ${formatDay(before.scoredAt)}, the same protocol and population` : null;
+  const apart = others.length ? `not comparable with ${others.map((o) => o.said).join(', or ')}` : null;
+  if (same && apart) return `${same}; ${apart}`;
+  if (apart) return `N${apart.slice(1)}`;
+  return same ?? 'Its only score: nothing earlier to compare it with';
+}
 
 /**
  * What the page and `view_plugin` say about `name`. `evaluation` is the gateway's answer, or null when it gave none to
  * this reader: withheld, which is said as nothing, or unread, whose reason `unread` gives.
  */
-export function pluginContext(name: string, { plugin: p, evaluation: e, unread, ...arrival }: { plugin?: PluginRow; evaluation: PluginEval | null; unread?: string } & Arrival): SharedContext {
+export function pluginContext(name: string, { plugin: p, evaluation: e, unread, compared = null, ...arrival }: { plugin?: PluginRow; evaluation: PluginEval | null; unread?: string; compared?: string | null } & Arrival): SharedContext {
   const facts: Fact[] = [];
   const insights: Insight[] = [];
   const unknowns: string[] = [];
@@ -40,7 +88,7 @@ export function pluginContext(name: string, { plugin: p, evaluation: e, unread, 
       { label: 'Gates', value: formatCount(p.gates), definition: 'Documents this plugin\'s method requires a person to approve.' },
       {
         label: 'Public score', value: scoreSaid(p.score),
-        change: `${p.score && p.score.lower !== null && p.score.upper !== null ? `between ${p.score.lower.toFixed(1)} and ${p.score.upper.toFixed(1)}; ` : ''}${p.comparability}`,
+        change: `${p.score && p.score.lower !== null && p.score.upper !== null ? `between ${p.score.lower.toFixed(1)} and ${p.score.upper.toFixed(1)}; ` : ''}${compared ?? p.comparability}`,
         definition: 'Its latest score out of 10, and whether its scores compare, as the gateway states both.',
       },
       { label: 'Your team\'s calls', value: formatCount(p.yourTeam.calls), change: p.yourTeam.failed ? `${formatCount(p.yourTeam.failed)} refused` : 'none refused', definition: 'Your active team\'s calls of its skills, all time.' },

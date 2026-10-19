@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import { useMemo } from 'react';
-import { CircleCheck, ListTree, Signature } from 'lucide-react';
+import { ArrowRight, CircleCheck, ListTree, Signature } from 'lucide-react';
 import { useShareView } from '@/components/base/use-share-view';
 import { AskAbout } from '@/components/patterns/ask-about';
 import { DataTable, useSearchDraft, type Column } from '@/components/patterns/data-table';
@@ -49,8 +49,16 @@ const gatesOf = (r: ShownRow) => (r.gates.of ? `${r.gates.passed} of ${r.gates.o
  */
 const COLUMNS: Column<ShownRow>[] = aligned([
   // Whole on one line where the table is a table; a phone's card wraps it rather than cutting it, since a slug's tail
-  // tells two pieces of work of one project apart.
-  { key: 'slug', header: 'Initiative', mobile: 'title', cell: (r) => <span title={r.slug} className="font-medium whitespace-nowrap text-ink @max-[640px]:whitespace-normal @max-[640px]:[overflow-wrap:anywhere]">{r.slug}</span> },
+  // tells two pieces of work of one project apart. A quiet arrow after it says the row opens its initiative before the
+  // pointer finds it, as a row that opens a page does everywhere in the console (Status's needs, a plugin's rows).
+  {
+    key: 'slug', header: 'Initiative', mobile: 'title',
+    cell: (r) => (
+      <span title={r.slug} className="font-medium whitespace-nowrap text-ink @max-[640px]:whitespace-normal @max-[640px]:[overflow-wrap:anywhere]">
+        {r.slug} <ArrowRight data-goes aria-hidden className="inline size-3.5 shrink-0 align-[-0.15em] text-ink-3 group-hover/row:text-ink" />
+      </span>
+    ),
+  },
   { key: 'next', header: 'Flow position', align: 'left', grow: true, hideBelow: 'lg', mobile: 'fact', cell: (r) => <span className="text-xs whitespace-normal text-ink-2" title={r.nextMove?.why}>{r.flow ? nextOf(r) : 'No flow'}</span> },
   { key: 'state', header: 'State', mobile: 'status', cell: (r) => <Badge tone={TONE[r.state]} dot>{STATE_LABEL[r.state]}</Badge> },
   { key: 'gates', header: 'Gates passed', numeric: true, hideBelow: 'lg', mobile: 'fact', cell: (r) => gatesOf(r), mobileCell: (r) => (r.gates.of ? `${gatesOf(r)} gates` : 'No gates') },
@@ -86,8 +94,9 @@ function useInitiatives(served: InitiativesRead | null, filters: InitiativesFilt
 }
 
 /**
- * The active team's work, drawn from the release's Records template: three tiles over the whole team's, its closures by
- * week and outcome, then every initiative with where it goes next, as zz-core's `next_move` answered it. The gateway
+ * The active team's work, drawn from the release's Records template: three tiles over the whole team's, then every
+ * initiative with where it goes next, as zz-core's `next_move` answered it, the page's protagonist and so first under
+ * the tiles, then its closures by week and outcome. The gateway
  * filters, searches and pages the list, ten to a page; the first page the address names is read on the console's server
  * and handed here, with the team a row opens its initiative under.
  */
@@ -124,7 +133,6 @@ export function InitiativesView({ served }: { served: Revised<InitiativesRead> }
         </>
       }
     >
-      <Closures list={data} mark={mark} />
       <div data-protagonist="Initiatives" className="contents">
         <DataTable
           caption="Initiatives"
@@ -161,6 +169,7 @@ export function InitiativesView({ served }: { served: Revised<InitiativesRead> }
           }
         />
       </div>
+      <Closures list={data} mark={mark} />
     </Records>
   );
 }
@@ -188,7 +197,7 @@ function Closures({ list, mark }: { list: InitiativesShown | undefined; mark: st
   }
   return (
     <Panel title={title} description={`The team's closures, ${formatCount(weeks.length)} ${plural(weeks.length, grain)}, whatever the filters`}>
-      <ColumnChart
+      <ColumnChart whole
         label={title}
         dates={weeks.map((w) => w.window.from)}
         running={!weeks.at(-1)!.window.complete}
@@ -211,4 +220,4 @@ export function InitiativesAsOf({ served }: { served: InitiativesRead }) {
  * The records on their way, the page's fallback while its read is out. A client view, so the page's flight payload
  * names it rather than writing out every skeleton block it draws.
  */
-export function InitiativesBusy() { return <Busy name="initiatives"><TilesSkeleton count={3} /><ChartSkeleton height="h-56" /><TableSkeleton rows={10} /></Busy>; }
+export function InitiativesBusy() { return <Busy name="initiatives"><TilesSkeleton count={3} /><TableSkeleton rows={10} /><ChartSkeleton height="h-56" /></Busy>; }

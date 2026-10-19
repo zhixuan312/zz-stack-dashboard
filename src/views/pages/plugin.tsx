@@ -14,7 +14,7 @@ import { CopyField } from '@/components/ui/copy-field';
 import { EmptyState } from '@/components/ui/empty-state';
 import { KeyValue } from '@/components/ui/key-value';
 import { aligned } from '@/console/columns';
-import { Day, SCORE_OUT_OF } from '@/console/eval-score';
+import { Day, Goes, SCORE_OUT_OF } from '@/console/eval-score';
 import { Panel } from '@/console/panel';
 import { EvalLearning, EvalNotYet, EvalUsage } from '@/console/plugin-eval-evidence';
 import { EvalAutomationTrust, EvalEvolution } from '@/console/plugin-eval-evolution';
@@ -29,7 +29,7 @@ import { formatDate } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
 import { pendingContext } from '@/views/context';
-import { evalPath, pluginContext, type EvalRead, type PluginRead } from '@/views/plugin-context';
+import { comparedSaid, evalPath, pluginContext, type EvalRead, type PluginRead } from '@/views/plugin-context';
 import { FROM_THE_FRONT, PLUGINS_PATH, protocolNamed, readTrouble, standingSaid, type Catalog, type PluginsRead } from '@/views/plugins-context';
 import { useServed } from '@/views/use-served';
 
@@ -48,9 +48,10 @@ function skillColumns(plugin: string): Column<PluginSkill>[] {
           <span className="t-num w-4 shrink-0 text-right text-xs text-ink-3">{s.position ?? '—'}</span>
           <span className="truncate font-medium text-ink" title={s.name}>{s.name}</span>
           {s.isEntry ? <span className="t-caption shrink-0">the front door</span> : null}
+          <Goes className="self-center" />
         </span>
       ),
-      mobileCell: (s) => <span className="[overflow-wrap:anywhere]">{s.name}</span>,
+      mobileCell: (s) => <span className="[overflow-wrap:anywhere]">{s.name} <Goes /></span>,
     },
     // A skill's origin comes from a `source:` line in its own SKILL.md, so it varies the day a vendored skill ships. A
     // label down a column, so never the accent, which is kept for what a person presses.
@@ -111,12 +112,15 @@ export function PluginView({ name, served }: { name: string; served: Revised<Plu
   const trouble = listed ? null : failed ?? (served.catalog.state !== 'ok' ? readTrouble(served.catalog) : null);
   const p = listed?.plugins.find((x) => x.plugin === name);
   const settled = evaluation.state !== 'pending';
+  // What the lead score compares with, by name, from its scores' series; the gateway's statement where they were not read.
+  const compared = p ? comparedSaid(p.score, served.history) : null;
   const updatedAt = [catalog.at, evaluatedAt].filter((x): x is Date | string => x !== null).map((x) => new Date(x)).sort((a, b) => a.getTime() - b.getTime())[0] ?? null;
   useShareView(listed && settled
     ? pluginContext(name, {
       plugin: p,
       evaluation: evaluation.state === 'ok' ? evaluation.data : null,
       unread: evaluation.state === 'trouble' ? evaluation.reason : undefined,
+      compared,
       updatedAt,
       now,
     })
@@ -153,7 +157,7 @@ export function PluginView({ name, served }: { name: string; served: Revised<Plu
           <div data-protagonist={LEAD_TITLE} className="contents">
             <LeadScore
               of={p.score}
-              comparability={p.comparability}
+              comparability={compared ?? p.comparability}
               install={<CopyField value={p.install} label={`the command that installs ${p.plugin}`} className={`w-full ${FROM_THE_FRONT}`} />}
               ask={<AskAbout question={`How far can ${p.plugin}'s public score be trusted, should we install it, and is the version it declares released?`} />}
             />
@@ -184,7 +188,7 @@ export function PluginView({ name, served }: { name: string; served: Revised<Plu
         />
       ) : null}
       {p?.documents.length ? (
-        <Panel title="The documents it governs" description={p.gates ? `${formatCount(p.gates)} a person approves` : 'None needs an approval'}>
+        <Panel title="The documents it governs" description={p.gates ? `A person approves ${formatCount(p.gates)} of the ${formatCount(p.documents.length)}` : 'None needs an approval'}>
           {/* Labels, not actions: the accent is kept for what a person presses, so a gate reads in ink and no gate quieter. */}
           <KeyValue items={p.documents.map((d) => ({ label: <span className="font-mono text-xs text-ink">{d.name}</span>, value: d.gate ? <Badge tone="neutral" dot>A person approves</Badge> : <span className="text-xs text-ink-3">No approval needed</span> }))} />
         </Panel>
@@ -214,7 +218,8 @@ function LeadScore({ of, comparability, install, ask }: { of: PluginScore | null
           {'. The same for everybody; nobody starts an evaluation from the console.'}
         </>
       ) : 'The platform has scored no run of it. Nobody starts an evaluation from the console.'}
-      // The gateway's own sentence: whether its scores compare is decided where the protocols are, not here.
+      // Which of its scores this one compares with and which it does not, as the platform's series group them, or the
+      // gateway's own sentence where the series were not read: whether scores compare is decided where the protocols are.
       finding={{ text: comparability }}
       actions={ask}
       foot={install ? <dl className="w-full"><div className="w-full"><dt>Install</dt><dd>{install}</dd></div></dl> : undefined}

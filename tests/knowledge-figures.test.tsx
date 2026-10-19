@@ -118,7 +118,9 @@ describe('the figures on the knowledge page', () => {
     expect(text()).toContain('Oldest lesson');
     // Superseded is a status, not a deletion: the store keeps it readable.
     expect(text()).toContain('Superseded lesson');
-    expect(text()).toContain('44 lessons on the shelf');
+    // The table's title says whose shelf it is; its count says how many (Work F-46).
+    expect(screen.getByRole('heading', { name: 'Lessons on your shelf' })).toBeInTheDocument();
+    expect(text()).toContain('44 lessons');
     expect(asked.some((u) => u.includes('/knowledge?kind=decision&limit=10&offset=0'))).toBe(true);
   });
 });

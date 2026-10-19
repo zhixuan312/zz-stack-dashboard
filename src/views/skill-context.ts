@@ -12,6 +12,7 @@ import { formatCount, formatKb, formatSeconds } from '@/lib/format-units';
 import type { Fact, Insight, SharedContext } from '@/lib/shared-context';
 import { arrived, budgeted, type Arrival } from './context';
 import type { PluginsRead, Served } from './plugins-context';
+import { perRunOf } from './runs-figures';
 
 /** The gateway address of the team's runs of one plugin's skills. */
 export const skillsPath = (plugin: string): string => `/skills?plugin=${encodeURIComponent(plugin)}`;
@@ -42,7 +43,7 @@ export function skillContext(pluginName: string, name: string, { plugin, skill, 
     const rate = refused.of ? refused.n / refused.of : null;
     facts.push(
       { label: 'Runs', value: formatCount(skill.runs), definition: 'Your active team\'s runs of it, all time.' },
-      { label: 'Calls per run', value: skill.runs ? skill.callsAvg.toFixed(1) : 'no runs', change: skill.runs ? `at most ${formatCount(skill.callsMax)}` : undefined, definition: `Over the ${formatCount(skill.calls)} calls its runs made: a run counts the calls made inside an initiative's run.` },
+      { label: 'Calls per run', value: skill.runs ? perRunOf(skill.callsAvg) : 'no runs', change: skill.runs ? `at most ${formatCount(skill.callsMax)}` : undefined, definition: `Over the ${formatCount(skill.calls)} calls its runs made: a run counts the calls made inside an initiative's run.` },
       { label: 'Median run', value: skill.durationMedian === null ? 'not timed' : formatSeconds(skill.durationMedian), change: skill.durationMax === null ? undefined : `longest ${formatSeconds(skill.durationMax)}`, definition: `Over the ${formatCount(skill.timedRuns)} runs with more than one call; a single call has one timestamp and no span.` },
       { label: 'Refused', value: rate === null ? 'no calls' : `${(rate * 100).toFixed(1)}%`, change: `${formatCount(refused.n)} of ${formatCount(refused.of)} calls ${refused.where}`, definition: 'Of your team\'s calls the platform\'s log files under this skill, the whole its calls by door and busiest tools are parts of; a run counts only the calls made inside an initiative\'s run.' },
       { label: 'Observed output per run', value: skill.kbPerRun === null ? 'not measured' : formatKb(skill.kbPerRun), definition: 'The response bytes of a run\'s own calls: not what a model read, and not anything paid for.' },

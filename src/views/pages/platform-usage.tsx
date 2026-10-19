@@ -175,9 +175,9 @@ function Calls({ usage }: { usage: Usage }) {
     >
       {!weeks.length ? <EmptyState title="No weeks yet" className="py-8">The first week is drawn once real work has called a tool.</EmptyState>
         : split ? (
-          <ColumnChart {...shared} parts={parts} columns={weeks.map((w) => ({ key: w.window.from, label: formatShortDate(w.window.from), values: partsOf(w, labels) }))} />
+          <ColumnChart whole {...shared} parts={parts} columns={weeks.map((w) => ({ key: w.window.from, label: formatShortDate(w.window.from), values: partsOf(w, labels) }))} />
         ) : (
-          <ColumnChart {...shared} columns={weeks.map((w) => ({ key: w.window.from, label: formatShortDate(w.window.from), value: w.calls.value }))} />
+          <ColumnChart whole {...shared} columns={weeks.map((w) => ({ key: w.window.from, label: formatShortDate(w.window.from), value: w.calls.value }))} />
         )}
     </Panel>
   );
@@ -244,11 +244,12 @@ function Refusals({ part }: { part: Usage['refusals'] }) {
   );
 }
 
-/** A tool's median in one week, over the week and the calls it is over, each line whole. */
+/** A tool's median in one week, over the week and the calls it is over, each line whole; the week as a cell writes a day,
+ *  as the axes above it do. */
 const MedianCell = ({ side }: { side: ToolRow['first'] }) => (
   <span className="inline-flex flex-col whitespace-nowrap">
     <span>{figureText('ms', side.medianMs)}</span>
-    <span className="text-xs text-ink-3">{formatDay(side.window.from)} · {formatCount(side.calls)} calls</span>
+    <span className="text-xs text-ink-3">{formatShortDate(side.window.from)} · {formatCount(side.calls)} calls</span>
   </span>
 );
 

@@ -257,7 +257,7 @@ export function extreme(seg: string[], body: unknown, own: string | null = null,
     case 'knowledge': {
       if (a === 'log') {
         const entries = (body as { entries: KnowledgeLogEntry[] }).entries;
-        return { entries: grown(entries, 300, (_, i): KnowledgeLogEntry => ({ ts: new Date(now() - i * 3_600_000).toISOString(), actor: 'maximiliana.fitzgerald-oyelaran@example.com', team: own ?? 'atlas', kind: 'knowledge.add', node: String(1000 + i), recorded_title: `A lesson ${LONG.replace(/-/g, ' ')} number ${i}`, superseded_by: null, node_title: null, node_status: null })) };
+        return { entries: grown(entries, 300, (_, i): KnowledgeLogEntry => ({ ts: new Date(now() - i * 3_600_000).toISOString(), actor: 'maximiliana.fitzgerald-oyelaran@example.com', team: own ?? 'atlas', kind: 'knowledge.add', node: String(1000 + i), recorded_title: `A lesson ${LONG.replace(/-/g, ' ')} number ${i}`, superseded_by: null, node_title: null, node_status: null, path: null })) };
       }
       if (a === 'summary') {
         const k = body as KnowledgeSummary;

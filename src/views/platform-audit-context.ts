@@ -153,13 +153,14 @@ export function auditTrouble(read: { state: 'failed'; reason: string } | { state
 /** Who an event names when nobody was recorded: the gateway's own words, which every sentence begins with. */
 export const NOBODY = 'Someone not recorded';
 
-/** The act kinds whose subject is a report's id. */
-const REPORT_KINDS = ['bug.resolve', 'bug.console_resolve', 'bug.delete'];
+/** The act kinds whose subject is a report's id that a read can still answer. A deletion is not among them: the
+ *  gateway names a deleted report by what the record kept of its filing, and no read answers it. */
+const REPORT_KINDS = ['bug.resolve', 'bug.console_resolve'];
 
 /**
  * The title of every report Administration's acts name, each read once by `get` (`GET /platform/bugs/:id`, as the
  * caller), side by side: the page's server and `view_audit` read the same. Everything draws no sentence and reads none.
- * A report the read cannot answer (a deleted one, a failure) is left out, and its act keeps the id the gateway said.
+ * A report the read cannot answer (a failure) is left out, and its act keeps the id the gateway said.
  */
 export async function reportTitles(a: Audit, get: (path: string) => Promise<{ title: string }>): Promise<ReportTitles> {
   if (a.filter !== 'administration') return {};
@@ -170,7 +171,7 @@ export async function reportTitles(a: Audit, get: (path: string) => Promise<{ ti
 
 /**
  * An act as a person reads it: the gateway's sentence, with a report it names called by its title rather than its id
- * when the read could say it (a deleted report has none to say, and keeps its id). One resolution in the console is two
+ * when the read could say it (a deleted report is the gateway's own words, from its filing). One resolution in the console is two
  * acts, zz-core's `bug_resolve` and the console's own, so the one zz-core recorded says so and the pair reads apart.
  */
 export function actSentence(r: AuditRow, reports: ReportTitles = {}): string {
@@ -183,7 +184,8 @@ export function actSentence(r: AuditRow, reports: ReportTitles = {}): string {
 
 /** An act as the feed draws it: its actor, and the rest of its sentence (`actSentence`). A sentence that does not
  *  begin with its actor, which no template writes, is drawn whole after the actor's mark rather than cut. The `system`
- *  mark is the platform's own maintenance alone; `via`, the agent that acted for a person, is never recorded, so it is
+ *  mark is the platform's own maintenance alone; an act nobody was recorded for takes the feed's unknown mark (ZZ
+ *  Meridian 0.20.0), never a person's initials; `via`, the agent that acted for a person, is never recorded, so it is
  *  never set. */
 export function feedEvent(r: AuditRow, reports: ReportTitles = {}): ActivityEvent {
   const actor = r.actor ?? NOBODY;
@@ -192,7 +194,7 @@ export function feedEvent(r: AuditRow, reports: ReportTitles = {}): ActivityEven
   const at = recordOf(r, reports);
   const from = at ? verb.lastIndexOf(` ${at.words}`) : -1;
   const linked = at && from >= 0 ? { verb: verb.slice(0, from), object: verb.slice(from + 1), href: at.href } : { verb, object: '' };
-  return { id: r.id, at: r.at, actor, ...(r.origin === 'platform' ? { system: true } : {}), ...linked };
+  return { id: r.id, at: r.at, actor, ...(r.origin === 'platform' ? { system: true } : {}), ...(r.actor === null ? { unknown: true } : {}), ...linked };
 }
 
 /** The kinds whose subject is a team's slug, and those whose subject is `<team>:<email>`, the team whose members changed. */

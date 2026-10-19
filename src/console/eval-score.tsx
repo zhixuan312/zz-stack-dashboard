@@ -1,5 +1,6 @@
 'use client';
 
+import { ArrowRight } from 'lucide-react';
 import type { PluginScore } from '@/lib/destination-shapes';
 import { formatDate, formatDateTime, formatShortDate } from '@/lib/format-date';
 import { protocolNamed, protocolSaid, standingSaid } from '@/views/plugins-context';
@@ -27,6 +28,14 @@ export const STANDING_TONE: Record<PluginScore['standing'], 'positive' | 'warnin
  * paint and change under the reader once the browser's arrived; a date reads the same in both.
  */
 export const Day = ({ at }: { at: string | null }) => (at ? <time dateTime={at} title={formatDateTime(at)}>{formatDate(at)}</time> : <span className="text-ink-3">Never</span>);
+
+/**
+ * The arrow after a row's name that opens its own page, as Status's rows end with one: the row is the target, and a
+ * still picture of the table says so without a pointer over it. Quiet, and ink on the row's hover.
+ */
+export const Goes = ({ className = '' }: { className?: string }) => (
+  <ArrowRight data-goes aria-hidden className={`inline size-3.5 shrink-0 align-[-0.15em] text-ink-3 group-hover/row:text-ink ${className}`} />
+);
 
 /**
  * The list's score cell, on two lines that each stay whole: the score out of 10 (or its standing, when nobody

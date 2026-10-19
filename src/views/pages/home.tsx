@@ -24,10 +24,11 @@ import { formatCount } from '@/lib/format-units';
 import type { PeriodFigure } from '@/lib/platform-shapes';
 import type { Home } from '@/lib/work-shapes';
 import {
-  APPROVALS_LINE, FOOT, HALVES, MILESTONE, TILES, TILE_FORMAT, absent, asOfLine, covered, coverageLine, footOf, halvesOf,
-  homeContext, lastWeekOf, pointLabel, since, tileOf, troubleOf, waitingOf, weekIn, weekOf, type HomeRead, type TileKey,
+  APPROVALS_LINE, FOOT, HALVES, MILESTONE, MILESTONES_LINE, TILES, TILE_FORMAT, absent, asOfLine, covered, coverageLine, footOf,
+  halvesOf, homeContext, lastWeekOf, pointLabel, since, tileOf, troubleOf, waitingOf, weekIn, weekOf, type HomeRead, type TileKey,
 } from '@/views/home-context';
 import { nextOf } from '@/views/initiatives-context';
+import { NO_DATA } from '@/views/record-names';
 
 /**
  * Home: the active team's last whole week, what waits on it, and what is open, read on the console's server and handed
@@ -115,13 +116,13 @@ function half(home: Home, key: keyof typeof HALVES, weeks: PeriodFigure[] | null
     caption: key === 'words' && home.words.state === 'ok' ? coverageLine(home.words.data.coverage) : APPROVALS_LINE,
     finding: finding ? { text: finding.text } : undefined,
     children: (
-      <ColumnChart
+      <ColumnChart whole
         height="fill"
         label={words.chart}
         dates={dates}
         running={weeks.length > 0 && !weeks.at(-1)!.window.complete}
         highlight={last.from}
-        noData={words.none}
+        noData={NO_DATA}
         format={formatCount}
         columns={weeks.map((w) => ({ key: w.window.from, label: formatShortDate(w.window.from), value: w.figure.value }))}
       />
@@ -204,7 +205,7 @@ function Milestones({ home }: { home: Home }) {
   if (home.milestones.state !== 'ok') return <Panel title="Next milestones" flush><Unread what="The milestones" /></Panel>;
   const list = home.milestones.data;
   return (
-    <Panel title="Next milestones" description="The next round number in each count, and how far there is to go">
+    <Panel title="Next milestones" description={MILESTONES_LINE}>
       <BarList
         label="Next milestones"
         total={1}
@@ -292,7 +293,9 @@ function Week({ home, team, onPoint }: { home: Home; team: string | null; onPoin
           <OpenWork home={home} team={team} />
           <Runs home={home} />
         </Row>
-        <Row split="1/2">
+        {/* Each card its own height: two closures beside four milestones left Closed last week ~150px empty (Phase 7's
+            re-review, Work F-40), and the pair has no other reason to end level. */}
+        <Row split="1/2" className="lg:items-start">
           <Milestones home={home} />
           <ClosedLastWeek home={home} team={team} />
         </Row>

@@ -25,7 +25,7 @@ import { formatCount } from '@/lib/format-units';
 import type { Figure, PeriodFigure, Window } from '@/lib/platform-shapes';
 import {
   TILES, WEEKLY_TILES, askOf, asOfLine, changeOf, cohortNote, cohortText, exactSince, figureText, isFleet, knowledgeHealthContext, knowledgeHealthTrouble,
-  lastWhole, leftOut, madeLine, searchLine, shelfName, valueIn, weekOf, type KnowledgeHealthRead, type MadeWeek, type Question,
+  lastWhole, leftOut, madeLine, noResultCell, searchLine, searchesSaid, shelfName, valueIn, weekOf, type KnowledgeHealthRead, type MadeWeek, type Question,
   type SearchWeek, type ShelfRow, type WeeklyTile,
 } from '@/views/platform-knowledge-context';
 
@@ -129,21 +129,33 @@ const standingSaid = (r: ShelfRow) => `${formatCount(r.standing)} standing, ${fo
 const madeSaid = (r: ShelfRow) => `${formatCount(r.madeLastWeek)} made, ${formatCount(r.searchesLastWeek)} ${plural(r.searchesLastWeek, 'search', 'searches')} last week`;
 
 /**
- * A phone card holds a title, a status and three facts, so the three facts carry every figure: what stands with what was
- * superseded and imported, last week's lessons made with its searches, and the share with no result. Under 896px the
- * superseded and the searches give way, and the same two sentences are the titles of what stands and what was made.
+ * A shelf's phone card: its name, and one fact holding every figure in two sentences, what stands, then last week's
+ * lessons made and searches with the share that found nothing. Three facts wrapped whole, and the managed table's dot
+ * before the one that moved down opened a line of its own ("· 1 made, 28 searches last week").
+ */
+const ShelfCard = ({ r }: { r: ShelfRow }) => (
+  // The column is numeric, whose cells the managed table keeps on one line; the card's sentences wrap as words.
+  <span data-shelf-card className="block whitespace-normal">
+    <span className="block">{standingSaid(r)}</span>
+    <span className="block">Last week: {formatCount(r.madeLastWeek)} made, {searchesSaid(r)}</span>
+  </span>
+);
+
+/**
+ * The table's columns. Under 896px the superseded and the searches give way, and the two sentences of the phone card
+ * are the titles of what stands and what was made.
  */
 const shelfColumns = (fleet: boolean): Column<ShelfRow>[] => aligned([
   {
     key: 'shelf', header: 'Shelf', grow: true, mobile: 'title',
     cell: (r) => <span title={shelfName(r, fleet)} className={r.kind === 'all' ? 'font-medium text-ink' : undefined}>{shelfName(r, fleet)}</span>,
   },
-  { key: 'standing', header: 'Standing', numeric: true, mobile: 'fact', title: standingSaid, cell: (r) => num(r.standing), mobileCell: standingSaid },
+  { key: 'standing', header: 'Standing', numeric: true, mobile: 'fact', title: standingSaid, cell: (r) => num(r.standing), mobileCell: (r) => <ShelfCard r={r} /> },
   { key: 'superseded', header: 'Superseded', numeric: true, hideBelow: 'lg', mobile: 'hidden', cell: (r) => num(r.superseded) },
   { key: 'imported', header: 'Imported', numeric: true, mobile: 'hidden', cell: (r) => num(r.imported) },
-  { key: 'made', header: 'Made last week', numeric: true, mobile: 'fact', title: madeSaid, cell: (r) => num(r.madeLastWeek), mobileCell: madeSaid },
+  { key: 'made', header: 'Made last week', numeric: true, title: madeSaid, cell: (r) => num(r.madeLastWeek) },
   { key: 'searches', header: 'Searches last week', numeric: true, hideBelow: 'lg', mobile: 'hidden', cell: (r) => num(r.searchesLastWeek) },
-  { key: 'noResult', header: 'No result', numeric: true, mobile: 'fact', cell: (r) => figureText('share', r.noResult.figure), mobileCell: (r) => `${figureText('share', r.noResult.figure)} no result` },
+  { key: 'noResult', header: 'No result', numeric: true, cell: (r) => noResultCell(r.noResult.figure) },
 ]);
 
 /** Each shelf, the page's protagonist, with the Ask in its head. */

@@ -120,7 +120,7 @@ function CallsByWeek({ slug, team }: { slug: string; team: TeamDetail }) {
   else if (!weeks.length) body = <EmptyState kind="first-run" title="No week recorded yet" className="py-10">A week is drawn once the platform&apos;s record of calls reaches it.</EmptyState>;
   else {
     body = (
-      <ColumnChart
+      <ColumnChart whole
         label={`${slug}'s real-work calls by week`}
         columns={weeks.map((w) => ({ key: w.window.from, label: formatShortDate(w.window.from), value: w.figure.why === null ? w.figure.value : null }))}
         running={running}

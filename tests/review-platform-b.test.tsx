@@ -235,7 +235,9 @@ describe('Audit: each report named by its title (F-23)', () => {
     const resolved = lines.filter((l) => l.includes('resolved report'));
     expect(resolved.length).toBeGreaterThanOrEqual(2);
     for (const id of ids) expect(lines.join('\n')).not.toContain(id);
-    for (const title of Object.values(REPORTS)) expect(lines.join('\n')).toContain(`"${title}"`);
+    // A deleted report has no record left to read a title from: it is named from its filing (I-162, F-23 option B).
+    const standing = ids.filter((id) => !ADMIN.rows.some((r) => r.subject === id && r.kind === 'bug.delete'));
+    for (const id of standing) expect(lines.join('\n')).toContain(`"${REPORTS[id]}"`);
     expect(new Set(resolved).size).toBe(resolved.length);
     expect(resolved.some((l) => l.endsWith(' through bug_resolve'))).toBe(true);
     expect(resolved.some((l) => l.endsWith(' in the console'))).toBe(true);

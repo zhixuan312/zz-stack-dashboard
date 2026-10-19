@@ -302,7 +302,9 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
               <li key={st.first.version} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-2.5 text-sm">
                 <GitCompare className="mt-0.5 size-3.5 shrink-0 text-ink-3" aria-hidden />
                 <span className="w-24 font-mono text-xs text-ink">{stepLabel(st)}</span>
-                <span className="min-w-0 flex-1 break-all font-mono text-xs text-ink-3">{st.first.path}</span>
+                {/* The path only where this version had another one: every other row is the document above, and the
+                    repeated name, squeezed by the badge beside it, broke as "spec." over "md" (Work F-44). */}
+                <span className="min-w-0 flex-1 break-all font-mono text-xs text-ink-3">{st.first.path === doc.path ? null : st.first.path}</span>
                 {/* A version that changed no text is a real fact and worth
                     seeing — just not as a separate change. */}
                 {st.versions > 1 ? (

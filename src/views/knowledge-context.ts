@@ -84,6 +84,17 @@ export const narrowed = (f: Pick<KnowledgeFilters, 'kind'>) => f.kind !== 'all';
 /** A figure as the tiles write it: the count, or why there is none. A figure nobody read is never a zero. */
 export const figureText = (f: Figure): string => (f.value !== null ? formatCount(f.value) : f.why === 'no_data' ? 'no data' : 'not measured');
 
+/**
+ * The question the page's Ask starts from before any search: the four figures on screen, named, so the first answer is
+ * about what the person is looking at (Phase 7's re-review, Work F-56; the panel's own starter question is ZZ Meridian's,
+ * #69). A tile not read says so in the words its tile shows.
+ */
+export function starterOf(summary: KnowledgeSummary | undefined): string {
+  if (!summary) return 'Which of our questions found nothing, and where else could we look for them?';
+  const { standing, superseded, searches, noResult } = summary.tiles;
+  return `What do our ${figureText(standing)} lessons adopted and ${figureText(superseded)} superseded say, and why did ${figureText(noResult.figure)} of last week's ${figureText(searches.figure)} searches find nothing?`;
+}
+
 /** Which shelf a result is on, in the words the page uses beside it. */
 export const shelfOf = (hit: Pick<SearchHit, 'shelf'>): string => (hit.shelf === 'platform' ? 'the shared shelf' : 'your team\'s shelf');
 
@@ -164,5 +175,7 @@ export function knowledgeContext({ summary, list, filters, page, search, shelf, 
       ...(summary ? [] : [`The shelf's standing, its searches and its questions could not be read${failure ? `: ${failure}` : ''}.`]),
       ...(!list ? ['The shelf\'s lessons have not been read.'] : list.rows.length ? [] : [narrowed(filters) || words ? 'No lesson matches these filters.' : first > 0 ? 'These rows are past the last lesson.' : 'Nothing is on the shelf yet.']),
     ],
+    // The assistant's empty thread offers the page's own first question, about the figures on screen (Work F-56).
+    questions: [starterOf(summary)],
   });
 }

@@ -115,7 +115,7 @@ export function pluginEval(plugin: string): PluginEval {
       { key: `${key}.judged`, evaluatorType: 'bounded_semantic', weight: 0.5, required: false, value: score === null ? null : score - 0.04, excluded: !applicable, excludedReason: applicable ? null : 'not applicable', guardrail: false },
     ],
   });
-  const completion = dim('completion', 'effectiveness', 0.91);
+  const completion = dim('completion', 'effectiveness', 0.78);
   // Two guardrails, one with a value and one no run reached; the run's `guardrailStatus` is the one verdict over both.
   completion.measures.push(
     { key: 'refusal-rate', evaluatorType: 'deterministic', weight: 0, required: true, value: 0.031, excluded: false, excludedReason: null, guardrail: true },
@@ -133,7 +133,7 @@ export function pluginEval(plugin: string): PluginEval {
       id: 'run_sdlc_12', scoreStatus: scored.standing, overallScore: scored.score!, scoreInterval: { lower: scored.lower!, upper: scored.upper! },
       measureCoverage: 0.88, establishmentBlockedBy: [], guardrailStatus: 'pass', scorerVersion: '0.92.10',
       protocol: scored.protocol, createdAt: ago(scored.hoursAgo + 1), scoredAt: ago(scored.hoursAgo),
-      dimensions: [completion, dim('gate-discipline', 'constraint_adherence', 0.88), dim('evidence', 'reliability', 0.79), dim('handover', 'generalization', null, false)],
+      dimensions: [completion, dim('gate-discipline', 'constraint_adherence', 0.7), dim('evidence', 'reliability', 0.65), dim('handover', 'generalization', null, false)],
       coverage: { usableRunCount: 61, totalRunCount: 68, surfaceObserved: 14, surfaceTotal: 16 },
     },
     evaluatorTrust: [{ stableKey: 'judge.evidence.v2', state: 'operationally_qualified', qualifiedAt: ago(200) }, { stableKey: 'judge.handover.v1', state: null, qualifiedAt: null }],

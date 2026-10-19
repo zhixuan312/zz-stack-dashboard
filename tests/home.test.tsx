@@ -303,13 +303,13 @@ describe('the lists', () => {
   it('draw the next milestones as a Bar list, each with how far there is to go', () => {
     draw(ok(ATLAS));
     const list = screen.getByRole('list', { name: 'Next milestones' });
-    // Most of the way there first, as the Bar list ranks them: 41 of 100 documents, 4 of 10 closures, 56,600 of a
-    // million words, and the lessons just past their tenth, none of the way from 10 to 25.
+    // Most of the way there first, as the Bar list ranks them, each measured from zero (Work N-2): 41 of 100
+    // documents, 4 of 10 closures, 10 of 25 lessons, and 56,600 of a million words.
     expect(within(list).getAllByRole('listitem').map((li) => li.textContent)).toEqual([
       'Documents created59 to go to 10041%',
       'Pieces of work closed6 to go to 1040%',
+      'Lessons made15 to go to 2540%',
       'Words added943,400 to go to 1,000,0006%',
-      'Lessons made15 to go to 250%',
     ]);
   });
 

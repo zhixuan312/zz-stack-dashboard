@@ -25,7 +25,7 @@ import { useLive } from '@/lib/live';
 import type { ApprovalRow, Approvals, WaitingRow } from '@/lib/work-shapes';
 import {
   APPROVALS_DEFAULTS, DECISION_BASIS, IN_YOUR_NAME, PAGE_SIZE, PRESENTATION, TEAM_APPROVALS, TILES, approvalsAddress, approvalsContext,
-  approvalsPath, approvalsTrouble, approvedWhen, dayOnly, filtersOfPath, noPresentationLine, pageOf, tabOf, waited, type ApprovalsRead, type ApprovalsTab,
+  approvalsPath, approvalsTrouble, approvedWhen, dayOnly, filtersOfPath, noPresentationLine, noPresentationNote, pageOf, tabOf, waited, type ApprovalsRead, type ApprovalsTab,
 } from '@/views/approvals-context';
 import { pendingContext } from '@/views/context';
 import { useServed, useServedAddress } from '@/views/use-served';
@@ -57,13 +57,13 @@ function useApprovals(served: ApprovalsRead | null) {
   };
 }
 
-/** Approvals' body on its way: the four tiles, the weeks, and the tabbed table. COUPLED: `app/(dash)/approvals/loading.tsx` draws the same rows. */
+/** Approvals' body on its way: the four tiles, the tabbed table, and the weeks. COUPLED: `app/(dash)/approvals/loading.tsx` draws the same rows. */
 export function ApprovalsSkeleton() {
   return (
     <>
       <TilesSkeleton count={4} />
-      <ChartSkeleton height="h-56" />
       <TableSkeleton rows={10} />
+      <ChartSkeleton height="h-56" />
     </>
   );
 }
@@ -119,9 +119,13 @@ function waitingColumns(hrefOf: ((r: WaitingRow) => string) | undefined, asOf: s
   ]);
 }
 
+/** A class the gateway gave an approval, whole on one line where the table is a table, the unknown quieter. */
+const classCell = (label: string, unknown: boolean) => <span className={`whitespace-nowrap @max-[640px]:whitespace-normal ${unknown ? 'text-ink-3' : 'text-ink'}`}>{label}</span>;
+
 /**
  * History's columns, newest first: the revision approved, when, and what the record holds of how, as the gateway
- * classified it. Under 896px the version and the decision basis give way, both on the revision's page the row opens.
+ * classified it, each class on one line ("Covered in / an agent's / context" stacked three high beside a half-empty
+ * initiative column). Under 896px the version and the decision basis give way, both on the revision's page the row opens.
  */
 const HISTORY_COLUMNS: Column<ApprovalRow>[] = aligned<ApprovalRow>([
   { key: 'document', header: 'Document', mobile: 'title', cell: documentCell },
@@ -138,13 +142,23 @@ const HISTORY_COLUMNS: Column<ApprovalRow>[] = aligned<ApprovalRow>([
   },
   {
     key: 'presentation', header: 'Presentation', mobile: 'fact', title: (r) => PRESENTATION[r.presentation].definition,
-    cell: (r) => <span className={r.presentation === 'unknown' ? 'text-ink-3' : 'text-ink'}>{PRESENTATION[r.presentation].label}</span>,
+    cell: (r) => classCell(PRESENTATION[r.presentation].label, r.presentation === 'unknown'),
   },
   {
     key: 'basis', header: 'Decision basis', hideBelow: 'lg', title: (r) => DECISION_BASIS[r.decisionBasis].definition,
-    cell: (r) => <span className={r.decisionBasis === 'unknown' ? 'text-ink-3' : 'text-ink'}>{DECISION_BASIS[r.decisionBasis].label}</span>,
+    cell: (r) => classCell(DECISION_BASIS[r.decisionBasis].label, r.decisionBasis === 'unknown'),
   },
 ]);
+
+/**
+ * History's row on a phone: the initiative and when, then how it was shown on a line of its own, its dot gone, so no
+ * line of the card starts with a separator. Children by position, in `HISTORY_COLUMNS`' order: the presentation is the
+ * fifth cell.
+ */
+const HISTORY_PHONE_CARD = '@max-[640px]:[&_tbody_td:nth-child(5)]:!basis-full @max-[640px]:[&_tbody_td:nth-child(5)_[data-sep]]:!hidden';
+
+/** A count's tick, whole only: a scale of one approval steps by halves, and a count has no half, so that line goes unnamed. */
+const wholeTick = (n: number) => (Number.isInteger(n) ? AXIS_FORMATTERS.count(n) : '');
 
 /** What each tab's Ask asks: about the list the tab shows. */
 const ASK: Record<ApprovalsTab, string> = {
@@ -153,8 +167,9 @@ const ASK: Record<ApprovalsTab, string> = {
 };
 
 /**
- * Approvals, drawn from the release's Records template: four tiles over both lists, the approvals in the caller's name
- * by week, then two tabs, Waiting and History, as addresses of their own. Waiting is the team's queue, labelled `Team
+ * Approvals, drawn from the release's Records template: four tiles over both lists, then two tabs, Waiting and History,
+ * as addresses of their own, the page's protagonist and so first under the tiles, then the approvals in the caller's
+ * name by week. Waiting is the team's queue, labelled `Team
  * approvals` because nothing records who must decide a revision, each row opening its revision on the document's page
  * for review; History is every approval recorded in the caller's name in the team, with its exact version and content
  * revision, when it was approved, and where it was shown and on what basis it was decided, as the gateway classified
@@ -192,7 +207,7 @@ export function ApprovalsView({ served }: { served: Revised<ApprovalsRead> }) {
           {' · '}
           {tab === 'waiting'
             ? 'Presented and not yet approved, longest waiting first. Nothing records who must decide one, so the queue is your team\'s.'
-            : shown?.tiles.noPresentation ? `${noPresentationLine(shown.tiles.noPresentation)}. Newest first.` : 'Newest first.'}
+            : shown?.tiles.noPresentation ? `${noPresentationLine(shown.tiles.noPresentation, shown.tiles.inYourName)}. Newest first.` : 'Newest first.'}
         </p>
         <AskAbout question={ASK[tab]} className="shrink-0" />
       </div>
@@ -205,7 +220,6 @@ export function ApprovalsView({ served }: { served: Revised<ApprovalsRead> }) {
 
   return (
     <Records summary={tiles(shown, mark)}>
-      <Weeks data={shown} mark={mark} />
       <div data-protagonist="Approvals" className="contents">
         {tab === 'waiting' ? (
           <DataTable
@@ -222,6 +236,7 @@ export function ApprovalsView({ served }: { served: Revised<ApprovalsRead> }) {
           <DataTable
             {...shared}
             caption={IN_YOUR_NAME}
+            className={HISTORY_PHONE_CARD}
             noun="approvals"
             rows={list?.state === 'ok' ? (list.data.rows as ApprovalRow[]) : []}
             columns={HISTORY_COLUMNS}
@@ -231,6 +246,7 @@ export function ApprovalsView({ served }: { served: Revised<ApprovalsRead> }) {
           />
         )}
       </div>
+      <Weeks data={shown} mark={mark} />
     </Records>
   );
 }
@@ -255,7 +271,7 @@ function tiles(data: Approvals | undefined, mark: string) {
       <MetricTile label={TILES.inYourName.label} hint={TILES.inYourName.definition} icon={<Signature />} value={t ? unread(t.inYourName) : mark}
                   note={t && t.inYourName !== null ? 'A teammate\'s are never counted' : undefined} />
       <MetricTile label={TILES.noPresentation.label} hint={TILES.noPresentation.definition} icon={<EyeOff />} value={t ? (t.noPresentation ? t.noPresentation.count : 'Unavailable') : mark}
-                  note={t?.noPresentation ? noPresentationLine(t.noPresentation) : undefined} />
+                  note={t?.noPresentation ? noPresentationNote(t.noPresentation, t.inYourName) : undefined} />
     </>
   );
 }
@@ -279,13 +295,13 @@ function Weeks({ data, mark }: { data: Approvals | undefined; mark: string }) {
   }
   return (
     <Panel title={title} description={`Revisions approved in your name, ${formatCount(weeks.length)} ${plural(weeks.length, 'week')}; a teammate's are never counted.`}>
-      <ColumnChart
+      <ColumnChart whole
         label={title}
         dates={dates}
         running={!weeks.at(-1)!.window.complete}
         noData="None recorded"
         format={formatCount}
-        axisFormat={AXIS_FORMATTERS.count}
+        axisFormat={wholeTick}
         columns={weeks.map((w) => ({ key: w.window.from, label: formatShortDate(w.window.from), value: w.figure.value }))}
       />
     </Panel>

@@ -38,7 +38,7 @@ const dim = (over: Partial<DimensionScore>): DimensionScore => ({
 describe('EvalHeadline', () => {
   it('shows the number when the score is established', () => {
     render(<EvalHeadline pluginEval={pluginEval()} />);
-    expect(screen.getByText('7.42')).toBeInTheDocument();
+    expect(screen.getByText('7.4')).toBeInTheDocument();
     expect(screen.getByText('Established')).toBeInTheDocument();
     expect(screen.getByText('zz-core-protocol')).toBeInTheDocument();
     expect(screen.getByText('zz-core-protocol').parentElement?.textContent).toContain('v3');

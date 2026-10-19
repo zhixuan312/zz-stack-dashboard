@@ -217,14 +217,14 @@ export function FlowStepper({ gates, outcome, steps, complete, correction }: {
         <Legend className="border-positive bg-positive-tint">done</Legend>
         <Legend className="border-accent bg-accent">where it is now</Legend>
         <Legend className="border-warning bg-warning-tint">written, waiting on a person</Legend>
-        {/* COUPLED: the nodes above draw six states; this legend lists all six. Three of them leave the same mark — an
-            empty stage — and the node says beside itself which of the three it is: nothing was written, the branch ruled
-            the step out (FR-58, Task I-27), or the branch has not decided yet. **One swatch naming all three is the
-            truth.** They used to be three entries with identical swatches and identical dashes, which told a reader that
-            three different marks existed and that this legend would explain them; at 3× they were one hollow grey ring,
-            and no reader could tell which word went with which shape. The words were the only thing that ever
-            distinguished them, and the words are on the node. */}
-        <Legend className="border-line-strong bg-surface">nothing written · not on this branch · waiting on the branch</Legend>
+        {/* COUPLED: the nodes above draw six states; this legend lists all six, each by the mark its node carries. Three
+            of them are an empty stage told apart by the glyph on the node: none where nothing was written, a dash where
+            the branch ruled the step out (FR-58, Task I-27), a question mark where the branch has not decided yet. One
+            swatch naming all three read as one mark with three meanings (Work F-43); three identical swatches, before
+            that, said three marks existed and showed none. Each swatch now carries its node's glyph. */}
+        <Legend className="border-line-strong bg-surface">nothing written</Legend>
+        <Legend className="border-line-strong bg-surface" glyph={<Minus className="size-2.5 text-ink-3" strokeWidth={3.5} />}>not on this branch</Legend>
+        <Legend className="border-line-strong bg-surface" glyph={<CircleHelp className="size-2.5 text-ink-3" strokeWidth={2.6} />}>waiting on the branch</Legend>
         {/* A stage that produces a record or nothing cannot leave a document, so "nothing
             written" would be a claim about a stage that never could have written one. The one
             state that does draw a different mark, and so the one that earns its own entry. */}
@@ -234,10 +234,10 @@ export function FlowStepper({ gates, outcome, steps, complete, correction }: {
   );
 }
 
-function Legend({ className, children }: { className?: string; children: React.ReactNode }) {
+function Legend({ className, glyph, children }: { className?: string; glyph?: ReactNode; children: ReactNode }) {
   return (
     <span className="inline-flex items-center gap-1.5">
-      <span aria-hidden className={cn('inline-block size-3.5 shrink-0 rounded-full border', className)} />
+      <span aria-hidden className={cn('inline-grid size-3.5 shrink-0 place-items-center rounded-full border', className)}>{glyph}</span>
       {children}
     </span>
   );

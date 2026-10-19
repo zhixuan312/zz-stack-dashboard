@@ -9,7 +9,7 @@ import { arrived, budgeted, whose, type Arrival } from './context';
 export function knowledgeLogContext(entries: KnowledgeLogEntry[], arrival: Arrival): SharedContext {
   const added = entries.filter((e) => e.kind === 'knowledge.add').length;
   const insights: Insight[] = [];
-  if (entries.length) insights.push({ text: `The latest entries, newest first: ${listed(entries, (e) => `${formatDate(e.ts)} ${e.kind === 'knowledge.add' ? 'recorded' : 'superseded'} node ${e.node}, "${e.node_title ?? e.recorded_title ?? 'no longer on the shelf'}"${e.superseded_by ? `, replaced by ${e.superseded_by}` : ''} by ${e.actor.split('@')[0]}`, 'see /knowledge/log', 12)}.` });
+  if (entries.length) insights.push({ text: `The latest entries, newest first: ${listed(entries, (e) => `${formatDate(e.ts)} ${e.kind === 'knowledge.add' ? 'recorded' : 'superseded'} node ${e.node}, "${e.node_title ?? e.recorded_title ?? 'no longer on the shelf'}"${e.superseded_by ? `, replaced by ${e.superseded_by}` : ''} by ${e.actor ?? 'nobody the platform could name'}`, 'see /knowledge/log', 12)}.` });
   return budgeted({
     view: 'knowledge_log',
     title: 'Knowledge log',

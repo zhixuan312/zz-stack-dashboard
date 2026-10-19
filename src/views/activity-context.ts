@@ -21,13 +21,15 @@ const OWNERS: RefusalOwner[] = ['guardrail', 'ours', 'theirs', 'other'];
 
 /**
  * The four owners as the refusals chart stacks them, the first at the bottom: the platform's own failures critical, a
- * malformed call a warning, and a guardrail that held and the rest neutral, each named. Four parts, so none is folded.
+ * malformed call a warning, a guardrail that held the strong neutral, and the rest (Other) with no tone, which a toned
+ * chart draws as the quieter neutral (ZZ Meridian 0.20.0, its issue #67), so the two usual owners read apart. Four
+ * parts, so none is folded.
  */
 export const REFUSAL_PARTS: (ColumnPart & { key: RefusalOwner })[] = [
   { key: 'theirs', label: OWNER_LABEL.theirs, tone: 'critical' },
   { key: 'ours', label: OWNER_LABEL.ours, tone: 'warning' },
   { key: 'guardrail', label: OWNER_LABEL.guardrail, tone: 'neutral' },
-  { key: 'other', label: OWNER_LABEL.other, tone: 'neutral' },
+  { key: 'other', label: OWNER_LABEL.other },
 ];
 
 /** The rows one page of the log holds, and one page of the refusal groups. */
@@ -49,6 +51,13 @@ export const activityTrouble = (read: Exclude<ActivityRead, { state: 'ok' }>): s
 /** The filters the log keeps in its address; `all` is no filter, and `refused` is `true` or `false` when it is one. */
 export type ActivityFilters = { kind: string; tool: string; initiative: string; refused: string };
 export const NO_FILTER: ActivityFilters = { kind: 'all', tool: 'all', initiative: 'all', refused: 'all' };
+
+/**
+ * Who made a tool call, as the page and the assistant both say it: an agent, never a person. The platform records a
+ * call with no address by design (a measurement, not an act of administration), so the log's Actor column names a
+ * person only for the events that carry one.
+ */
+export const AGENT_CALL = 'A tool call is made by an agent, and the platform records no person for it, so only the other events name who acted.';
 
 /** The gateway address of the log for `f`, `limit` events from `offset`: one page of 10 from the first unless asked. */
 export function activityPath(f: ActivityFilters, { limit = PAGE_SIZE, offset = 0 }: { limit?: number; offset?: number } = {}): string {
@@ -161,6 +170,7 @@ export function activityContext({ summary, log, filters = NO_FILTER, page = 1, i
     unknowns: [
       'Activity is your active team\'s real work: page views and the platform\'s own maintenance are left out.',
       'A refusal\'s message is your team\'s own, as the platform stored it with quoted text, addresses and numbers taken out.',
+      AGENT_CALL,
       ...(calls.figure.value === null ? ['Last week\'s calls and refusals could not be read; nothing is said about them.'] : []),
       ...(weeks ? [] : ['The refusals by week could not be read; the tiles stand.']),
       ...(summary.groups.state === 'ok' ? [] : ['The refusals could not be grouped; the counts stand.']),

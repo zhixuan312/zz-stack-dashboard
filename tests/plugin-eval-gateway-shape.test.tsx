@@ -39,7 +39,7 @@ const evaluation = {
 describe('a plugin evaluation in the gateway\'s shape', () => {
   it('draws the scored run\'s score, never a run status the gateway does not send', () => {
     render(<EvalHeadline pluginEval={evaluation} />);
-    expect(screen.getByText('7.10')).toBeInTheDocument();
+    expect(screen.getByText('7.1')).toBeInTheDocument();
     expect(screen.queryByText(/Run undefined/)).not.toBeInTheDocument();
   });
 

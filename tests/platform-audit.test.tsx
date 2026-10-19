@@ -144,6 +144,10 @@ describe('Administration, the Activity feed', () => {
     expect(line.querySelector('p span')!.textContent).toBe(NOBODY);
     expect(line.textContent).toContain(`${NOBODY} issued a token for`);
     expect(feedEvent(nobody).actor).toBe(NOBODY);
+    // Its mark is the feed's unknown actor, a dashed empty disc with no initials, never a person's (ZZ Meridian #68).
+    expect(feedEvent(nobody).unknown).toBe(true);
+    expect(line.querySelector('[data-actor-unknown]')).not.toBeNull();
+    expect(ADMIN.rows.filter((r) => r.actor !== null).every((r) => feedEvent(r).unknown === undefined)).toBe(true);
   });
 
   it('marks an act as the platform\'s own only when its origin is platform, and never as an agent\'s', () => {
@@ -522,9 +526,10 @@ async function markupOf(page: ReactNode | Promise<ReactNode>): Promise<string> {
   return text;
 }
 
-/** A report's title as `GET /platform/bugs/:id` answers it, for every report the fake's acts name. */
+/** A report's title as `GET /platform/bugs/:id` answers it, for every report the fake's acts resolve: a deleted one is
+ *  named by the gateway from its filing, and no read is made for it. */
 const titleOf = (path: string) => ({ title: `The report ${path.split('/').at(-1)!.slice(-2)}` });
-const TITLES: ReportTitles = Object.fromEntries(ADMIN.rows.filter((r) => r.kind.startsWith('bug.')).map((r) => [r.subject!, titleOf(r.subject!).title]));
+const TITLES: ReportTitles = Object.fromEntries(ADMIN.rows.filter((r) => r.kind === 'bug.resolve' || r.kind === 'bug.console_resolve').map((r) => [r.subject!, titleOf(r.subject!).title]));
 
 describe('the page on the console\'s server', () => {
   beforeEach(() => {

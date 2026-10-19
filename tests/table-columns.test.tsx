@@ -146,7 +146,7 @@ describe('Plugins', () => {
     cutWithTitle('Plugins', 'Plugin');
     const { at } = table('Plugins');
     at('Plugin').cells.forEach((td, i) => expect(td.title).toContain(catalog.plugins[i].plugin));
-    expect(classes(at('Install').th)).toEqual(expect.arrayContaining(['w-48', '@min-[896px]:w-56', '@min-[1024px]:w-72']));
+    expect(classes(at('Install').th)).toEqual(expect.arrayContaining(['w-48', '@min-[896px]:w-56', '@min-[1024px]:w-[17rem]']));
     const scored = at('Score').cells.map((td) => td.querySelector('.text-2xs')).filter((x) => x !== null);
     expect(scored.length).toBeGreaterThan(0);
     for (const line of scored) expect(classes(line!)).toEqual(expect.arrayContaining(['whitespace-nowrap', '@max-[896px]:whitespace-normal']));

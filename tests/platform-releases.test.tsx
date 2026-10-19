@@ -120,9 +120,9 @@ describe('Releases draws its tiles, its weeks and its table', () => {
     // Two releases inside 72 hours of each other each name the other.
     expect(newest.textContent).toContain(`Within 72 hours of ${PAIRED}`);
     expect(row(PAIRED).textContent).toContain(`Within 72 hours of ${NEWEST}`);
-    expect(row(QUIET).textContent).toContain('No calls');
-    expect(row(OLDEST).textContent).toContain('Not observed');
-    expect(row(OLDEST).textContent).toContain('Unknown: no recorded upgrade notes');
+    expect(row(QUIET).textContent).toContain('After: no calls');
+    expect(row(OLDEST).textContent).toContain('Before: not observed');
+    expect(row(OLDEST).textContent).toContain('Not recorded');
     expect(newest.textContent).toContain('Nothing to do');
     expect(document.querySelector(`a[href="/platform/releases/${NEWEST}"]`)).not.toBeNull();
   });
@@ -170,7 +170,7 @@ describe('a release\'s page draws its changelog and its upgrade notes', () => {
     const old = releaseDetail(OLDEST)!;
     mount(<PlatformReleaseView version={OLDEST} served={{ state: 'ok', data: old }} />);
     expect(screen.queryByText('Upgrade notes')).toBeNull();
-    expect(screen.getAllByText(/Unknown: no recorded upgrade notes/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Not recorded').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Not observed', { exact: false }).length).toBeGreaterThan(0);
   });
 });

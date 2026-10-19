@@ -109,11 +109,11 @@ describe('the page, as the fake gateway answers the superadmin', () => {
     expect(rows).toHaveLength(5);
     // Each row as its phone card says it, which carries every figure the row's columns do.
     const said = [
-      ['atlas (your team)', '11 standing, 1 superseded, 2 imported', '1 made, 28 searches last week', '10.7%, too few no result'],
-      ['beacon', '2 standing, 0 superseded, 0 imported', '0 made, 12 searches last week', '8.3%, too few no result'],
-      ['cinder', '1 standing, 0 superseded, 0 imported', '0 made, 0 searches last week', 'No data no result'],
-      ['zz-platform (shared)', '128 standing, 14 superseded, 120 imported', '2 made, 0 searches last week', 'No data no result'],
-      ['All shelves', '142 standing, 15 superseded, 122 imported', '3 made, 40 searches last week', '10.0% no result'],
+      ['atlas (your team)', '11 standing, 1 superseded, 2 imported', 'Last week: 1 made, 28 searches, 10.7% with no result, too few to judge'],
+      ['beacon', '2 standing, 0 superseded, 0 imported', 'Last week: 0 made, 12 searches, 8.3% with no result, too few to judge'],
+      ['cinder', '1 standing, 0 superseded, 0 imported', 'Last week: 0 made, no searches', 'No searches'],
+      ['zz-platform (shared)', '128 standing, 14 superseded, 120 imported', 'Last week: 2 made, no searches', 'No searches'],
+      ['All shelves', '142 standing, 15 superseded, 122 imported', 'Last week: 3 made, 40 searches, 10.0% with no result'],
     ];
     said.forEach(([name, ...facts], i) => {
       expect(rows[i]!.startsWith(name), name).toBe(true);

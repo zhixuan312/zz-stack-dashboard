@@ -13,7 +13,7 @@
 import type { Figure, Measure, PeriodFigure, PlatformStatus } from '@/lib/platform-shapes';
 import { plural } from '@/lib/format';
 import { formatCount } from '@/lib/format-units';
-import { formatCalendarDate, formatDateTime, formatDay } from '@/lib/format-date';
+import { formatCalendarDate, formatDateTime, formatDay, formatShortDate } from '@/lib/format-date';
 import type { Fact, Insight, SharedContext } from '@/lib/shared-context';
 import { budgeted, pendingContext } from './context';
 
@@ -61,8 +61,10 @@ const printed = (kind: Kind, n: number) => (kind === 'rate' || kind === 'share' 
 
 /** The week a figure is for, in a sentence: `week of 5 Oct`. */
 const weekOf = (p: PeriodFigure): string => `week of ${formatDay(p.window.from)}`;
-/** A local date the gateway names (`2026-10-13`) as the day it is: `13 Oct 2026`. */
-const dayIs = (date: string): string => formatCalendarDate(date).replace(/^\S+ /, '');
+/** A local date the gateway names (`2026-10-05`) as the day it is, in a table cell: `05 Oct 2026`, padded as a cell's day. */
+export const dayCell = (date: string): string => { const [, d, m, y] = formatCalendarDate(date).split(' '); return `${d.padStart(2, '0')} ${m} ${y}`; };
+/** The same day inside a sentence, where the year is noise: `5 Oct`. */
+export const dayIn = (date: string): string => formatCalendarDate(date).split(' ').slice(1, 3).join(' ');
 
 /** A week's figure as its cell prints it: the value, or the word for why there is none. A missing week is never a zero. */
 function figureText(kind: Kind, p: PeriodFigure | null): string {
@@ -71,10 +73,15 @@ function figureText(kind: Kind, p: PeriodFigure | null): string {
 }
 const wordFor = (f: Figure): string | null => (f.why === 'unavailable' ? 'Unavailable' : f.why === 'no_data' || f.value === null ? 'No data' : null);
 
-/** A figure with the week it is for, as a table cell holds it: the value over its week. */
-export type Dated = { value: string; week: string | null };
+/** A figure with the week it is for, by the instant the week began: a cell writes it `Week of 05 Oct` under the value,
+ *  a sentence `week of 5 Oct` (`weekIn`). */
+export type Dated = { value: string; from: string | null };
 const dated = (kind: Kind, p: PeriodFigure | null, none = 'No comparable week yet'): Dated =>
-  (p ? { value: `${figureText(kind, p)}${p.figure.why === 'insufficient' ? ', too few' : ''}`, week: `Week of ${formatDay(p.window.from)}` } : { value: none, week: null });
+  (p ? { value: `${figureText(kind, p)}${p.figure.why === 'insufficient' ? ', too few' : ''}`, from: p.window.from } : { value: none, from: null });
+/** A dated figure's week as its table cell prints it, the day padded as a cell's is. */
+export const weekCell = (d: Dated): string | null => (d.from ? `Week of ${formatShortDate(d.from)}` : null);
+/** A dated figure's week inside a sentence. */
+export const weekIn = (d: Dated): string | null => (d.from ? `week of ${formatDay(d.from)}` : null);
 
 /**
  * The change from the week before to the last whole week, as the Delta draws it: `value` its signed size (a fraction
@@ -144,7 +151,7 @@ function half(m: Measure | undefined, key: 'malformed_per_1000' | 'same_tool_fol
     label, kind, value: none ? null : last!.figure.value!,
     caption: none ?? captionOf(m, key, last!),
     finding: m.finding?.text ?? null,
-    columns: m.weeks.map((w) => ({ key: w.window.from, label: formatDay(w.window.from), value: w.figure.value })),
+    columns: m.weeks.map((w) => ({ key: w.window.from, label: formatShortDate(w.window.from), value: w.figure.value })),
     dates: m.weeks.map((w) => w.window.from),
     running: m.weeks.length > 0 && !m.weeks[m.weeks.length - 1].window.complete,
   };
@@ -185,7 +192,7 @@ export type ScoreRow = {
 function scoreRow(s: PlatformStatus, key: Key): ScoreRow {
   const { label, kind, hint } = MEASURES[key];
   const m = measureOf(s, key);
-  const none: Dated = { value: 'Unavailable', week: null };
+  const none: Dated = { value: 'Unavailable', from: null };
   if (!m) return { key, label, hint, first: none, best: null, high: null, low: null, last: none, change: { value: null, format: String, words: 'not comparable with the week before' }, intent: 'neutral', points: [] };
   const directional = m.better !== 'neutral';
   return {
@@ -213,8 +220,8 @@ export function scoreOf(s: PlatformStatus): { caption: string; directional: Scor
 
 /* The doors */
 
-/** One door's row: its daily tool-failure rates over the whole days that had calls, its counts, its last fault day, the gateway's sentence for its run, and today apart. */
-export type DoorRow = { door: Door['door']; rates: number[]; daysWithCalls: number; faultDays: number; lastFaultDay: string; run: string; today: string | null };
+/** One door's row: its daily tool-failure rates over the whole days that had calls, its counts, its last fault day (a local date, null when none is recorded), the gateway's sentence for its run, and today apart. */
+export type DoorRow = { door: Door['door']; rates: number[]; daysWithCalls: number; faultDays: number; lastFaultDay: string | null; run: string; today: string | null };
 export function doorRow(d: Door): DoorRow {
   const whole = d.days.filter((x) => x.complete && x.calls !== null && x.calls > 0 && x.toolFailures !== null);
   const today = d.days.find((x) => !x.complete);
@@ -223,7 +230,7 @@ export function doorRow(d: Door): DoorRow {
     rates: whole.map((x) => (100 * x.toolFailures!) / x.calls!),
     daysWithCalls: whole.length,
     faultDays: d.totals.faultDays,
-    lastFaultDay: d.totals.lastFaultDay ? dayIs(d.totals.lastFaultDay) : 'None recorded',
+    lastFaultDay: d.totals.lastFaultDay,
     run: d.finding.text,
     today: !today ? null
       : today.calls === null || today.toolFailures === null ? 'Unavailable so far'
@@ -312,11 +319,11 @@ export function askOf(s: PlatformStatus): string {
 const VIEW = { view: 'platform_status', title: 'Status', address: '/platform' } as const;
 
 /** A dated figure as the context says it, its week by the day it began: `20.0 (21 Sept)`. */
-const said = (d: Dated | null, word: string, day = true) => (d ? `${word} ${d.value}${day && d.week ? ` (${d.week.slice(8)})` : ''}` : null);
+const said = (d: Dated | null, word: string, day = true) => (d ? `${word} ${d.value}${day && d.from ? ` (${formatDay(d.from)})` : ''}` : null);
 
 /** One measure's line: its last whole week (its day only when it is not the read's last week), the change, and its first and best, or its high and low. */
 function measureFact(row: ScoreRow, week: string | null, counts: string | null): Fact {
-  const value = row.last.week && row.last.week !== week ? `${row.last.value} (${row.last.week.slice(8)})` : row.last.value;
+  const value = row.last.from && row.last.from !== week ? `${row.last.value} (${formatDay(row.last.from)})` : row.last.value;
   const parts = [counts, row.change.words.replace(' on the week before', ''), row.best ? said(row.first, 'first', false) : null, said(row.best, 'best'), said(row.high, 'high'), said(row.low, 'low')];
   return { label: row.label, value, change: parts.filter(Boolean).join('; ') };
 }
@@ -338,7 +345,7 @@ export function platformStatusContext(read: StatusRead): SharedContext {
   const s = read.status;
   const score = scoreOf(s);
   const last = measureOf(s, 'malformed_per_1000')?.last ?? null;
-  const week = last ? `Week of ${formatDay(last.window.from)}` : null;
+  const week = last?.window.from ?? null;
   const facts: Fact[] = [];
   const unknowns: string[] = [];
   const insights: Insight[] = [];
@@ -357,7 +364,7 @@ export function platformStatusContext(read: StatusRead): SharedContext {
 
   if (s.doors.state === 'ok') {
     for (const d of s.doors.data.map(doorRow)) {
-      const lastFault = d.faultDays ? ` (last ${d.lastFaultDay.replace(/ \d{4}$/, '')})` : '';
+      const lastFault = d.faultDays && d.lastFaultDay ? ` (last ${dayIn(d.lastFaultDay)})` : '';
       facts.push({ label: `The ${d.door} door`, value: `${d.faultDays} ${plural(d.faultDays, 'fault day')}${lastFault} in ${d.daysWithCalls} ${plural(d.daysWithCalls, 'day')} with calls`, change: [d.today ? `today ${d.today.replace(' calls so far', ' so far')}` : null, d.run].filter(Boolean).join('; ') });
     }
   } else unavailable('The doors', s.doors.reason);

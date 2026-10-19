@@ -8,7 +8,7 @@ import { Records } from '@/components/templates/records';
 import { Badge } from '@/components/ui/badge';
 import { CopyField } from '@/components/ui/copy-field';
 import { aligned } from '@/console/columns';
-import { ScoreCell, scoreFact } from '@/console/eval-score';
+import { Goes, ScoreCell, scoreFact } from '@/console/eval-score';
 import { failureOf } from '@/console/query';
 import type { Revised } from '@/data/gateway';
 import { useDataClock } from '@/lib/api';
@@ -31,7 +31,7 @@ const PLUGINS_TITLE = 'Every plugin';
  * is cut at the front, never the end. A table's field is as wide as its column allows; a phone card's takes the card.
  */
 const Install = ({ p, phone = false }: { p: PluginRow; phone?: boolean }) => (
-  <CopyField value={p.install} label={`the command that installs ${p.plugin}`} className={`w-full ${phone ? '' : 'max-w-48 @min-[896px]:max-w-56 @min-[1024px]:max-w-72'} ${FROM_THE_FRONT}`} />
+  <CopyField value={p.install} label={`the command that installs ${p.plugin}`} className={`w-full ${phone ? '' : 'max-w-48 @min-[896px]:max-w-56 @min-[1024px]:max-w-[17rem]'} ${FROM_THE_FRONT}`} />
 );
 
 /**
@@ -49,11 +49,14 @@ const COLUMNS: Column<PluginRow>[] = aligned([
     key: 'plugin', header: 'Plugin', grow: true, truncate: true, mobile: 'title', title: (p) => (p.description ? `${p.plugin}: ${p.description}` : p.plugin),
     cell: (p) => (
       <span className="block min-w-0">
-        <span className="block truncate font-medium text-ink" title={p.plugin}>{p.plugin}</span>
+        <span className="flex min-w-0 items-center gap-1.5">
+          <span className="truncate font-medium text-ink" title={p.plugin}>{p.plugin}</span>
+          <Goes />
+        </span>
         {p.description ? <span className="t-caption block truncate" title={p.description}>{p.description}</span> : null}
       </span>
     ),
-    mobileCell: (p) => <span className="[overflow-wrap:anywhere]">{p.plugin}</span>,
+    mobileCell: (p) => <span className="[overflow-wrap:anywhere]">{p.plugin} <Goes /></span>,
   },
   // A label, not an action: the accent is kept for what a person presses, so required reads in ink and optional quieter.
   { key: 'required', header: 'Required', mobile: 'status', cell: (p) => (p.required ? <Badge tone="neutral" dot>Required</Badge> : <span className="text-xs text-ink-3">Optional</span>) },
@@ -61,8 +64,8 @@ const COLUMNS: Column<PluginRow>[] = aligned([
     // The version and whether a release vouched for it together: the number is a claim and the release makes it true.
     key: 'version', header: 'Version', hideBelow: 'lg',
     cell: (p) => (p.version
-      ? <span className="inline-flex flex-col items-center"><span className="font-mono text-xs text-ink">{p.version}</span><span className="text-2xs text-ink-3">{p.release ? 'released' : 'not released'}</span></span>
-      : <span className="text-ink-3">None declared</span>),
+      ? <span className="inline-flex flex-col items-center whitespace-nowrap"><span className="font-mono text-xs text-ink">{p.version}</span><span className="text-2xs text-ink-3">{p.release ? 'released' : 'not released'}</span></span>
+      : <span className="whitespace-nowrap text-ink-3">None declared</span>),
   },
   { key: 'skills', header: 'Skills', numeric: true, hideBelow: 'lg', cell: (p) => formatCount(p.skills.length) },
   { key: 'gates', header: 'Gates', numeric: true, hideBelow: 'lg', cell: (p) => formatCount(p.gates) },
@@ -71,7 +74,8 @@ const COLUMNS: Column<PluginRow>[] = aligned([
   {
     // A phone card's one fact, so no separator stands before the field when it wraps to a line of its own: the score
     // on its line, and the command whole on the next, as wide as the card.
-    key: 'install', header: 'Install', width: 'w-48 @min-[896px]:w-56 @min-[1024px]:w-72', mobile: 'fact', cell: (p) => <Install p={p} />,
+    // 17rem from 1024: the row's arrow took the last 3 px of 18rem (Harbormaster #3991, 1112 in a 1109 frame at 1440).
+    key: 'install', header: 'Install', width: 'w-48 @min-[896px]:w-56 @min-[1024px]:w-[17rem]', mobile: 'fact', cell: (p) => <Install p={p} />,
     // The card's inner width (the table's container less the card's padding), so every row's field is as wide.
     mobileCell: (p) => <span className="flex w-[calc(100cqw-2*var(--card-pad))] max-w-full min-w-0 flex-col gap-1.5"><span className="truncate" title={scoreFact(p.score)}>{scoreFact(p.score)}</span><Install p={p} phone /></span>,
   },

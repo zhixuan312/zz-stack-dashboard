@@ -27,6 +27,7 @@ import { pendingContext } from '@/views/context';
 import { PLUGINS_PATH, readTrouble, type Catalog, type Served } from '@/views/plugins-context';
 import { skillContext, skillDetailPath, skillTextPath, skillsPath, type SkillRead } from '@/views/skill-context';
 import type { SkillViewName } from '@/views/skill-view';
+import { perRunOf } from '@/views/runs-figures';
 import { useServed } from '@/views/use-served';
 
 /** The share of a skill's calls refused above which the Conclusion says it is the thing to look at, in percent. */
@@ -99,14 +100,15 @@ function Cost({ skill, detail }: { skill: Skill | undefined; detail: SkillDetail
             <KeyValue
               columns={2}
               items={[
-                { label: 'Observed output per run', value: skill.kbPerRun === null ? 'Not measured' : formatKb(skill.kbPerRun) },
-                { label: 'Observed output in total', value: skill.mbTotal === null ? 'Not measured' : `${skill.mbTotal} MB` },
+                // Short enough for the list's label column on one line: the caption below says the output is observed.
+                { label: 'Output per run', value: skill.kbPerRun === null ? 'Not measured' : formatKb(skill.kbPerRun) },
+                { label: 'Output in total', value: skill.mbTotal === null ? 'Not measured' : `${skill.mbTotal} MB` },
                 { label: 'Calls in the log', value: logged ? formatCount(logged.calls) : 'Not measured' },
                 { label: 'Refused in the log', value: logged ? formatCount(logged.failed) : 'Not measured' },
               ]}
             />
             {/* A call is filed under the last skill served to the caller, and the caller is a person plus a client, not a conversation. */}
-            <p className="t-caption">Attributed by the last skill served to the caller, not by what the skill declares: one person running two conversations at once has their calls filed under whichever skill loaded last.</p>
+            <p className="t-caption">Output is observed output: the bytes its runs&apos; calls answered, never what a model read. Calls are attributed by the last skill served to the caller, not by what the skill declares: one person running two conversations at once has their calls filed under whichever skill loaded last.</p>
           </div>
         </Panel>
         <Panel title="Busiest tools" description="Your team's calls, with the refused ones beside them">
@@ -117,7 +119,7 @@ function Cost({ skill, detail }: { skill: Skill | undefined; detail: SkillDetail
       </Row>
       <Panel title="Conclusion">
         <ul className="t-small flex flex-col gap-2 text-ink-2">
-          <li><b className="text-ink">Runs.</b> {skill.runs} {plural(skill.runs, 'run')} at {skill.callsAvg.toFixed(1)} calls each, median {formatSeconds(skill.durationMedian)}, {skill.kbPerRun === null ? 'output not measured' : `${formatKb(skill.kbPerRun)} of observed output`} per run.{heaviest ? <> Most of its calls in the log go to <b className="text-ink">{heaviest.surface}</b> ({formatCount(heaviest.calls)}).</> : null}</li>
+          <li><b className="text-ink">Runs.</b> {skill.runs} {plural(skill.runs, 'run')} at {perRunOf(skill.callsAvg)} calls each, median {formatSeconds(skill.durationMedian)}, {skill.kbPerRun === null ? 'output not measured' : `${formatKb(skill.kbPerRun)} of observed output`} per run.{heaviest ? <> Most of its calls in the log go to <b className="text-ink">{heaviest.surface}</b> ({formatCount(heaviest.calls)}).</> : null}</li>
           <li><b className="text-ink">Reliability.</b> {rate === null ? 'Not measured: the log of its calls was not read.' : rate > REFUSED_FLAG ? <>It refuses <b className="text-critical-ink">{rate.toFixed(1)}%</b> of its calls in the log, above the {REFUSED_FLAG}% this page flags.</> : rate > 0 ? <>A {rate.toFixed(1)}% refusal rate: {formatCount(logged!.failed)} refusals over {formatCount(logged!.calls)} calls in the log.</> : 'No refusal in the log.'}</li>
         </ul>
       </Panel>
@@ -166,6 +168,9 @@ export function SkillView({ plugin: pluginName, skill: name, view, served }: { p
   const produces = plugin?.documents.filter((x) => x.stage === name).map((x) => x.name).join(', ');
   const gated = plugin?.documents.find((x) => x.stage === name && x.gate);
   const refused = !skill ? null : skill.logged ? { n: skill.logged.failed, of: skill.logged.calls, where: 'in the log' } : { n: skill.refusals, of: skill.calls, where: 'in its runs' };
+  // The one tile the page leads with (`emphasis`): the refusals where they pass the line the Conclusion flags, which is
+  // the page's finding, and otherwise the runs, the figure a person opens a skill's runs for.
+  const flagged = refused !== null && refused.of > 0 && (refused.n / refused.of) * 100 > REFUSED_FLAG;
   const updatedAt = [catalog.at, list.at, detail.at].filter((x): x is Date | string => x !== null).map((x) => new Date(x)).sort((a, b) => a.getTime() - b.getTime())[0] ?? null;
   useShareView(catalog.data && list.data
     ? skillContext(pluginName, name, { plugin, skill, detail: detail.data, text: text.data, updatedAt, now })
@@ -193,27 +198,28 @@ export function SkillView({ plugin: pluginName, skill: name, view, served }: { p
           they say "never run" in words for a skill the team never ran and `—` for a read that did not answer. */}
       {view === 'cost' ? (
         <Row split="tiles">
-          <MetricTile label="Runs" icon={<Repeat />} value={skill ? skill.runs : never ? 0 : '—'} note={never ? 'Never run by your team' : 'By your team'} />
+          <MetricTile label="Runs" icon={<Repeat />} emphasis={!flagged} value={skill ? skill.runs : never ? 0 : '—'} note={never ? 'Never run by your team' : 'By your team'} />
           {/* A skill that has never run has no average calls per run — an average of no runs is undefined, not zero —
               and "0.0" claims a measurement that was never taken. */}
-          <MetricTile label="Calls per run" icon={<Activity />} value={never ? 'No runs' : !skill ? '—' : skill.runs ? skill.callsAvg : 'No runs'} format={(n) => n.toFixed(1)} note={never ? 'Nothing has called it' : !skill ? 'Average and peak' : skill.runs ? `${formatCount(skill.calls)} in its runs, peak ${skill.callsMax}` : 'Nothing has called it'} />
+          <MetricTile label="Calls per run" icon={<Activity />} value={never ? 'No runs' : !skill ? '—' : skill.runs ? skill.callsAvg : 'No runs'} format={perRunOf} note={never ? 'Nothing has called it' : !skill ? 'Average and peak' : skill.runs ? `${formatCount(skill.calls)} in its runs, peak ${skill.callsMax}` : 'Nothing has called it'} />
           <MetricTile label="Median run" icon={<Timer />} value={never ? 'Not timed' : !skill ? '—' : skill.durationMedian === null ? 'Not timed' : formatSeconds(skill.durationMedian)} note={skill ? `Longest ${formatSeconds(skill.durationMax)}` : 'And the longest'} />
           {/* The log's whole, as the door split and the busiest tools below are its parts: a run counts only the calls an
               initiative's run made, so the runs' refusals are not the refusals those parts add up to. With the log
               unread, the runs' own share stands in, and says it is theirs. */}
-          <MetricTile label="Refused" icon={<Ban />} value={never ? 'No calls' : !skill ? '—' : refused ? (refused.of ? refused.n / refused.of : 'No calls') : '—'} format={(n) => `${(n * 100).toFixed(1)}%`} note={refused ? `${formatCount(refused.n)} of ${formatCount(refused.of)} calls ${refused.where}` : 'Share of its calls'} />
+          <MetricTile label="Refused" icon={<Ban />} emphasis={flagged} finding={flagged ? { text: `Above the ${REFUSED_FLAG}% this page flags`, tone: 'warning' } : undefined} value={never ? 'No calls' : !skill ? '—' : refused ? (refused.of ? refused.n / refused.of : 'No calls') : '—'} format={(n) => `${(n * 100).toFixed(1)}%`} note={refused ? `${formatCount(refused.n)} of ${formatCount(refused.of)} calls ${refused.where}` : 'Share of its calls'} />
         </Row>
       ) : null}
-      {/* What the skill is: knowable whether or not anybody has run it, and a front door is exactly the skill with no runs. */}
+      {/* What the skill is: knowable whether or not anybody has run it, and a front door is exactly the skill with no runs.
+          Its labels are neutral, as every label is: the accent is kept for what a person presses. */}
       <div data-protagonist="About this skill" className="contents">
         <Panel title="About this skill" actions={<AskAbout question={`What is ${name} for, and where does it sit in ${pluginName}'s method?`} />}>
           <KeyValue
             columns={2}
             items={[
-              { label: 'Whose', value: (text.data?.origin ?? shipped?.origin) === 'theirs' ? <Badge tone="accent">The {pluginName} team&rsquo;s</Badge> : <Badge tone="neutral">Ours</Badge> },
+              { label: 'Whose', value: (text.data?.origin ?? shipped?.origin) === 'theirs' ? <Badge tone="neutral" dot>The {pluginName} team&rsquo;s</Badge> : <Badge tone="neutral">Ours</Badge> },
               { label: 'Position', wrap: true, value: shipped?.isEntry ? `The front door of ${pluginName}` : shipped?.position && plugin ? `${shipped.position} of ${plugin.stages.length} in ${pluginName}` : `Shipped by ${pluginName}, not a stage of its method` },
               { label: 'Produces', wrap: true, value: produces ? <span className="font-mono text-xs">{produces}</span> : <span className="text-ink-3">Work, not a document</span> },
-              { label: 'Closed by', wrap: true, value: gated ? <Badge tone="accent" dot>approve {gated.name.replace(/\.md$/, '')}</Badge> : <span className="text-ink-3">No gate; the next step follows</span> },
+              { label: 'Closed by', wrap: true, value: gated ? <Badge tone="neutral" dot>approve {gated.name.replace(/\.md$/, '')}</Badge> : <span className="text-ink-3">No gate; the next step follows</span> },
               { label: 'Version', mono: true, value: skill?.version ?? text.data?.version ?? shipped?.version ?? '—' },
               // The provenance line verbatim: a paraphrase would be a second claim about ownership.
               ...(text.data?.source ? [{ label: 'Source', wrap: true, value: text.data.source }] : []),

@@ -5,8 +5,12 @@ import { formatDateTime, formatRelative } from '../../../lib/format-date';
 import { Avatar } from '../../ui/avatar/index';
 import { AgentMark } from '../../ui/agent-mark/index';
 
-/** One event: who did what to what, and when. `via` names the agent when an assistant acted for `actor`; `system` marks the product acting on its own; `href` is the object's record, when it has one. */
-export type ActivityEvent = { id: string; at: string; actor: string; system?: boolean; via?: string; verb: string; object: string; href?: string; tone?: 'positive' | 'warning' | 'critical' };
+/**
+ * One event: who did what to what, and when. `via` names the agent when an assistant acted for `actor`; `system` marks the
+ * product acting on its own; `unknown` says the record does not hold who acted, and `actor` is then the words the product
+ * says for that ("Someone not recorded"); `href` is the object's record, when it has one.
+ */
+export type ActivityEvent = { id: string; at: string; actor: string; system?: boolean; unknown?: boolean; via?: string; verb: string; object: string; href?: string; tone?: 'positive' | 'warning' | 'critical' };
 
 const DOT = { positive: 'bg-positive', warning: 'bg-warning', critical: 'bg-critical' } as const;
 
@@ -21,7 +25,7 @@ export function ActivityFeed({ events, now, className }: { events: ActivityEvent
         <li key={e.id} className="relative flex gap-3 pb-4 last:pb-0">
           {i < events.length - 1 ? <span aria-hidden className="absolute top-7 bottom-0 left-3 w-px bg-line" /> : null}
           <span className="relative mt-0.5 shrink-0">
-            {e.via ? <AgentMark size="md" /> : e.system ? <span className="grid size-6 place-items-center rounded-full bg-fill-track"><span className={cn('size-2 rounded-full', e.tone ? DOT[e.tone] : 'bg-ink-3')} /></span> : <Avatar name={e.actor} size="sm" />}
+            {e.via ? <AgentMark size="md" /> : e.system ? <span className="grid size-6 place-items-center rounded-full bg-fill-track"><span className={cn('size-2 rounded-full', e.tone ? DOT[e.tone] : 'bg-ink-3')} /></span> : e.unknown ? <span data-actor-unknown className="block size-6 rounded-full border border-dashed border-line-strong" /> : <Avatar name={e.actor} size="sm" />}
           </span>
           <div className="min-w-0 flex-1 pt-0.5">
             <p className="text-sm text-ink-2">

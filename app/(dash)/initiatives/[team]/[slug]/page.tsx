@@ -1,30 +1,27 @@
 import Link from 'next/link';
-import { Suspense } from 'react';
 import { app, workspaces } from '@/app.config';
 import { PageFrame } from '@/components/base/shell';
-import { Busy, ChartSkeleton, TableSkeleton } from '@/components/patterns/page-loading';
 import { gate, gatedMetadata } from '@/data/access';
-import type { InitiativeRead } from '@/views/initiative-context';
-import { InitiativeClose, InitiativeMeta, InitiativeView, SlugTitle } from '@/views/pages/initiative';
+import { InitiativeClose, InitiativeLead, InitiativeMeta, InitiativeTitle, InitiativeView } from '@/views/pages/initiative';
 import { readInitiative } from '../../read-initiatives';
 
 type Params = { params: Promise<{ team: string; slug: string }> };
-type Read = { team: string; slug: string; read: Promise<InitiativeRead> };
 
 export async function generateMetadata({ params }: Params) {
   return gatedMetadata('initiatives', { title: (await params).slug });
 }
 
 /**
- * The page asks `initiatives` before it renders, and before its address is read. The masthead is the slug and a
- * sentence, so it stands outside the boundaries that wait for the initiative's one read, made on the console's server
- * as the person and shared by the state, Close and the body.
+ * The page asks `initiatives` before it renders, and before its address is read. The initiative is then read once, on
+ * the console's server as the person, before anything is drawn, as a document's page is: the title is the work's name,
+ * which its documents carry, so the masthead waits for the read with the body, and `loading.tsx` stands meanwhile. The
+ * one read is handed to the title, the lead, the state, Close and the body.
  */
 export default async function InitiativePage({ params }: Params) {
   const denied = await gate('initiatives');
   if (denied) return denied;
   const { team, slug } = await params;
-  const read = readInitiative(team, slug);
+  const served = await readInitiative(team, slug);
   return (
     <PageFrame
       kicker={
@@ -36,26 +33,12 @@ export default async function InitiativePage({ params }: Params) {
           <span>{team}</span>
         </span>
       }
-      title={<SlugTitle slug={slug} />}
-      description="Read from the document store; the platform stamped every gate."
-      meta={<Suspense fallback={null}><Meta team={team} slug={slug} read={read} /></Suspense>}
-      actions={<Suspense fallback={null}><Close team={team} slug={slug} read={read} /></Suspense>}
+      title={<InitiativeTitle team={team} slug={slug} served={served} />}
+      description={<InitiativeLead team={team} slug={slug} served={served} />}
+      meta={<InitiativeMeta team={team} slug={slug} served={served} />}
+      actions={<InitiativeClose team={team} slug={slug} served={served} />}
     >
-      <Suspense fallback={<Busy name="initiative"><ChartSkeleton height="h-24" /><TableSkeleton rows={5} filters={false} /><TableSkeleton rows={3} filters={false} /></Busy>}>
-        <Body team={team} slug={slug} read={read} />
-      </Suspense>
+      <InitiativeView team={team} slug={slug} served={served} />
     </PageFrame>
   );
-}
-
-async function Meta({ team, slug, read }: Read) {
-  return <InitiativeMeta team={team} slug={slug} served={await read} />;
-}
-
-async function Close({ team, slug, read }: Read) {
-  return <InitiativeClose team={team} slug={slug} served={await read} />;
-}
-
-async function Body({ team, slug, read }: Read) {
-  return <InitiativeView team={team} slug={slug} served={await read} />;
 }

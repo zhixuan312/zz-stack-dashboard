@@ -13,7 +13,9 @@
  *
  * Its closures, initiatives and approvals are read off the initiatives list and the approvals fixture, its words off
  * Home's additions, its runs off Runs', and its lessons and searches off Knowledge's, so every Work page reads the same
- * team; the firsts, the bests and the medians are read from the same series its charts draw, as the gateway's are. The
+ * team; the firsts, the bests and the medians are read from the same series its charts draw, as the gateway's are. A
+ * document's revisions, the most rewritten, the most a document was given and a typical piece of work's, are its
+ * snapshots in the work fixture, the ones its own page's content history lists, so Record and the document agree. The
  * team's first record is when its first initiative opened, and a weekly period is cut Monday to Monday, as Home's weeks
  * are. The coverage carries the import-made documents and the gaps Home's does.
  *
@@ -29,7 +31,7 @@ import { ADDITIONS, COVERAGE, estimateOf, wordsIn } from './work-home.ts';
 import { counted, iso, rowsOf, workMeta } from './work-initiatives.ts';
 import { lessonsCiting, lessonsMade, searchesOf, SHELF } from './work-knowledge.ts';
 import { median as middle, observedRuns, runsOf } from './work-runs.ts';
-import { initiativeDetail } from './work.ts';
+import { documentDetail, initiativeDetail } from './work.ts';
 
 type Answer = [status: number, body: unknown];
 
@@ -91,6 +93,8 @@ const median = (window: Window, hours: number[]): PeriodFigure =>
 const spread = (m: number, largest: number): { median: Figure; largest: Figure } => ({ median: counted(m), largest: counted(largest) });
 const spreadOf = (xs: number[]) => (xs.length ? spread(middle(xs)!, Math.max(...xs)) : { median: { value: null, why: 'no_data' } as Figure, largest: { value: null, why: 'no_data' } as Figure });
 /** The kinds and counts of `keys`, the most first, then by name. */
+/** Most rewritten documents the gateway answers: the five given the most revisions, each given two or more. */
+const MOST_REWRITTEN = 5;
 const tallyOf = (keys: string[]) => [...keys.reduce((m, k) => m.set(k, (m.get(k) ?? 0) + 1), new Map<string, number>())]
   .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
 
@@ -130,7 +134,13 @@ function recordOf(team: string | null, email: string, period: Period, page: { li
   const approvals = callerApprovalRows(team, email).filter((a) => a.approvedAt >= whole.from.slice(0, a.approvedAt.length));
   const byOpened = [...all].sort((a, b) => b.opened.localeCompare(a.opened) || a.slug.localeCompare(b.slug));
   const flows = [...new Set(all.map((r) => r.flow))];
-  const documentsOf = (slug: string) => initiativeDetail(team ?? '', slug)?.documents.filter((d) => !d.path.startsWith('sources/')).length ?? 0;
+  const docsOf = (slug: string) => initiativeDetail(team ?? '', slug)?.documents.filter((d) => !d.path.startsWith('sources/')) ?? [];
+  const documentsOf = (slug: string) => docsOf(slug).length;
+  // Each flow document's revisions, as its own page's content history counts them: every snapshot, an approval's included.
+  const revised = all.flatMap((r) => docsOf(r.slug).map((d) => ({ initiative: r.slug, path: d.path, versions: documentDetail(team ?? '', r.slug, d.path)?.current_revision ?? 0 })));
+  const revisionsOf = (slug: string) => revised.filter((d) => d.initiative === slug).reduce((n, d) => n + d.versions, 0);
+  const mostRewritten = revised.filter((d) => d.versions >= 2)
+    .sort((a, b) => b.versions - a.versions || a.initiative.localeCompare(b.initiative) || a.path.localeCompare(b.path)).slice(0, MOST_REWRITTEN);
 
   // The words: each period's additions, their running total, and the most in a whole week of the window.
   const words = periods.map((p) => wordsIn(Math.max(p.fromMs, start), Math.min(p.toMs, end)));
@@ -179,18 +189,14 @@ function recordOf(team: string | null, email: string, period: Period, page: { li
       closuresInAll: periods.map((p) => count(p.window, all.filter((r) => r.closed !== null && Date.parse(r.closed) < Math.min(p.toMs, end)).length)),
       closuresByWeek: periods.map((p) => ({ window: p.window, accepted: outcomeIn(p, 'accepted'), delivered: outcomeIn(p, 'delivered'), abandoned: outcomeIn(p, 'abandoned') })),
       medianHoursByWeek: periods.map((p) => median(p.window, tookOf(closedIn(p)))),
-      typical: { documents: spreadOf(closed.map((r) => documentsOf(r.slug))), versions: spread(9, 31), sources: spread(4, 13), words: spread(3_400, 7_900) },
+      typical: { documents: spreadOf(closed.map((r) => documentsOf(r.slug))), versions: spreadOf(closed.map((r) => revisionsOf(r.slug))), sources: spread(4, 13), words: spread(3_400, 7_900) },
     } },
     documents: { state: 'ok', data: {
       flowDocuments: counted(COVERAGE.documents), versions: counted(COVERAGE.revisions), sourcesUnderGated: spread(3, 13), citations: counted(57),
       wordsByWeek: periods.map((p, i) => (words[i] === null
         ? { window: p.window, figure: { value: null, why: 'no_data' }, numerator: null, denominator: null }
         : count(p.window, words[i]!))),
-      mostRewritten: [
-        { initiative: '2026-09-28-search-relevance', path: 'spec.md', versions: 7 },
-        { initiative: '2026-09-12-onboarding-revamp', path: 'review.md', versions: 5 },
-        { initiative: '2026-10-08-result-explanations', path: 'plan.md', versions: 4 },
-      ],
+      mostRewritten,
       coverage: COVERAGE,
     } },
     knowledge: { state: 'ok', data: {
@@ -214,7 +220,7 @@ function recordOf(team: string | null, email: string, period: Period, page: { li
     } },
     firsts: { state: 'ok', data: {
       bests: [
-        { key: 'most_versions', value: 7, at: lastTouched, subject: '2026-09-28-search-relevance/spec.md' } as Best,
+        mostRewritten[0] ? ({ key: 'most_versions', value: mostRewritten[0].versions, at: lastTouched, subject: `${mostRewritten[0].initiative}/${mostRewritten[0].path}` } as Best) : null,
         { key: 'most_sources', value: 13, at: iso(Date.parse(lastTouched) - 2 * DAY), subject: '2026-09-28-search-relevance/spec.md' } as Best,
         bestWeek && ({ key: 'most_words_week', value: bestWeek.words, at: bestWeek.at, subject: null } as Best),
         open.at !== null && open.value.value !== null ? ({ key: 'most_open', value: open.value.value, at: open.at, subject: null } as Best) : null,

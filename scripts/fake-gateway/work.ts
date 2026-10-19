@@ -118,7 +118,8 @@ function documents(s: Seed): Doc[] {
       doc('sources/R2-query-log-sample.md', 'source', { title: 'R2 query log sample', supports: 'spec.md', hours: 108, bytes: 8_400 }),
       doc('sources/R10-competitor-teardown.md', 'source', { title: 'R10 competitor teardown', supports: 'spec.md', hours: 70, bytes: 11_250 }),
       doc('sources/spec-audit-round-1.md', 'source', { title: 'Spec audit round 1: four medium findings, all fixed in v2', supports: 'spec.md', hours: 64, bytes: 16_579 }),
-      doc('sources/https-docs-example-com-search-ranking-signals-and-their-weights-explained.md', 'source', { title: null, supports: 'plan.md', hours: 3, bytes: 5_120 }),
+      // Filed under the web address it was read at, as an agent files a page it found: the title is the address.
+      doc('sources/https-docs-example-com-search-ranking-signals-and-their-weights-explained.md', 'source', { title: 'https://docs.example.com/search/ranking-signals-and-their-weights-explained', supports: 'plan.md', hours: 3, bytes: 5_120 }),
     ];
   }
   if (s.flow === false) {

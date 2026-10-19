@@ -9,6 +9,7 @@
  *
  * The events cover the states the page draws: acts of administration made in the console, one by an actor nobody
  * recorded, one made by maintenance, a token issued by a person to themselves, one of a retired kind no template names,
+ * a deleted report named by its filing (whose event records its title alone, as zz-core's `bug_report` does),
  * events of every other kind under Everything (a refused call, a search, an approval, a sign-in, a maintenance call),
  * and a page view, which neither filter answers. Sentences, refusals and the meta are the gateway's own.
  *
@@ -29,6 +30,7 @@ type Event = {
 const MEI = 'mei.tanaka@example.com';
 const JONAS = 'jonas.weber@example.com';
 const REPORT = '0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d05';
+const DELETED = '0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d09';
 const event = (e: Partial<Event> & Pick<Event, 'id' | 'hoursAgo' | 'kind'>): Event =>
   ({ actor: ME.email, team: null, subject: '', detail: {}, ok: null, refusalOwner: null, refusal: null, origin: 'work', ...e });
 
@@ -53,9 +55,10 @@ const EVENTS: Event[] = [
     detail: { path: 'spec.md', details: ['## Salary bands, as the private draft has them'] } }),
   event({ id: '40910', hoursAgo: 72, kind: 'credential.set', actor: JONAS, subject: 'oauth:/core/mcp', detail: { via: 'mcp-oauth', client_id: 'client_4b1e' } }),
   event({ id: '40905', hoursAgo: 75, kind: 'upload.start', actor: JONAS, team: 'beacon', subject: '', detail: { filename: 'beacon-salaries-2026.csv' } }),
-  event({ id: '40900', hoursAgo: 80, kind: 'bug.delete', subject: '0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d09', detail: { title: 'Beacon payroll export shows every salary' } }),
+  event({ id: '40900', hoursAgo: 80, kind: 'bug.delete', subject: DELETED, detail: { title: 'Beacon payroll export shows every salary' } }),
   event({ id: '40890', hoursAgo: 100, kind: 'pat.self_issue', subject: 'laptop — release scripts', detail: { via: 'web' } }),
   event({ id: '40880', hoursAgo: 200, kind: 'admin.archive_team', team: 'cinder', subject: 'cinder', detail: { via: 'web' } }),
+  event({ id: '40875', hoursAgo: 205, kind: 'bug_report', actor: MEI, team: 'beacon', detail: { bug: DELETED, title: 'Beacon payroll export shows every salary' } }),
   event({ id: '40870', hoursAgo: 210, kind: 'tool_call', actor: null, team: 'atlas', subject: 'core:knowledge_add', ok: true, origin: 'platform', detail: { client: 'zz-migrate' } }),
   event({ id: '40860', hoursAgo: 400, kind: 'admin.list_oauth_clients', subject: 'mcp_oauth_client', detail: { count: 3 } }),
   event({ id: '40855', hoursAgo: 600, kind: 'admin.install_flow', team: 'atlas', subject: 'sdlc' }),
@@ -70,6 +73,17 @@ const SAFE_SUBJECT = ['credential.set', 'team.switch', 'pat.self_revoke', 'bug.r
 const subjectOf = (e: Event) => (e.kind.startsWith('admin.') || SAFE_SUBJECT.includes(e.kind) ? e.subject : null);
 
 const counted = (n: unknown, one: string) => `${String(n)} ${one}${String(n) === '1' ? '' : 's'}`;
+
+/** The day a report was filed, as a withheld report's title says it. COUPLED: the gateway's `FILED_DAY`. */
+const FILED_DAY = new Intl.DateTimeFormat('en-GB', { timeZone: PLATFORM_STATUS.meta.timezone, day: '2-digit', month: 'short', year: 'numeric' });
+
+/** A deleted report as an act names it, from its filing alone: the day it was filed, or none where nothing filed it. The
+ *  gateway names it by Bugs' public title where the filing also records an impact and a surface, which zz-core's
+ *  `bug_report` does not, so no event here does. COUPLED: the gateway's `deletedReport`. */
+function deletedReport(id: string): string {
+  const filing = EVENTS.find((e) => e.kind === 'bug_report' && e.detail.bug === id);
+  return filing ? `a report filed ${FILED_DAY.format(new Date(ago(filing.hoursAgo)))}` : 'a report the record does not name';
+}
 
 /** One fixed template per kind, filled from the actor, the subject, the team and the detail keys a sentence may read; a
  *  kind no template names, as a retired writer's, is said by the fallback. COUPLED: the gateway's templates. */
@@ -100,7 +114,7 @@ function sentence(e: Event): string | null {
     'pat.self_revoke': () => `${who} revoked their own token ${s}`,
     'bug.resolve': () => `${who} resolved report ${s}${d.status ? ` as ${String(d.status).replace(/_/g, ' ')}` : ''}`,
     'bug.console_resolve': () => `${who} resolved report ${s}${d.status ? ` as ${String(d.status).replace(/_/g, ' ')}` : ''}`,
-    'bug.delete': () => `${who} deleted report ${s}`,
+    'bug.delete': () => `${who} deleted ${deletedReport(s)}`,
   };
   const base = said[e.kind]?.() ?? `${who} recorded ${e.kind}${s ? ` for ${s}` : ''}`;
   return `${base}${e.origin === 'platform' ? ', as platform maintenance' : ''}${d.via === 'web' ? ' in the console' : ''}`;

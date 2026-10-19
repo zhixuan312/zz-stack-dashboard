@@ -32,7 +32,7 @@ import { knowledgeNodeHref } from '@/lib/knowledge-filters';
 import { useLive } from '@/lib/live';
 import type { PeriodFigure } from '@/lib/platform-shapes';
 import {
-  KNOWLEDGE_KINDS, PAGE_SIZE, knowledgeContext, knowledgePath, narrowed, searchPath, statusWord, troubleOf, type ServerRead,
+  KNOWLEDGE_KINDS, PAGE_SIZE, knowledgeContext, knowledgePath, narrowed, searchPath, starterOf, statusWord, troubleOf, type ServerRead,
 } from '@/views/knowledge-context';
 import { hitAddress } from '@/views/search-context';
 
@@ -109,10 +109,12 @@ export function KnowledgeView({ read }: { read: ServerRead<KnowledgeSummary> }) 
       context={context}
       toolbar={<KnowledgeTabs active="knowledge" />}
     >
+      {/* The title wraps: beside Ask on a phone it was cut to "Search what your team has lea…" (Work F-46). */}
       <Panel
         title={SEARCH_TITLE}
+        wrap
         description="The platform's own ranked search, over your team's documents and lessons and the platform's shared shelf."
-        actions={<AskAbout question={question ? `What do the results for "${question}" say, and what do they leave open?` : 'Which of our questions found nothing, and where else could we look for them?'} />}
+        actions={<AskAbout question={question ? `What do the results for "${question}" say, and what do they leave open?` : starterOf(summary)} />}
       >
         <SearchForm applied={question} onSearch={(q) => set({ q })} />
         <SearchResults question={question} search={search} />
@@ -125,6 +127,8 @@ export function KnowledgeView({ read }: { read: ServerRead<KnowledgeSummary> }) 
       </Row>
       <DataTable
         caption="Lessons"
+        title="Lessons on your shelf"
+        description="Newest first; the search above reads the platform's shared shelf too."
         noun="lessons"
         rows={list.data?.rows ?? []}
         columns={SHELF_COLUMNS}
@@ -145,7 +149,7 @@ export function KnowledgeView({ read }: { read: ServerRead<KnowledgeSummary> }) 
         toolbar={
           <FilterBar
             filters={[{ key: 'kind', label: 'Kind', value: f.kind, onChange: (v) => set({ kind: v, page: '1' }), options: KIND_OPTIONS }]}
-            result={<>{list.data ? `${list.data.total} ${plural(list.data.total, 'lesson')} on the shelf` : list.isPending ? '…' : '—'}</>}
+            result={<>{list.data ? `${list.data.total} ${plural(list.data.total, 'lesson')}` : list.isPending ? '…' : '—'}</>}
             onClear={() => set({ kind: 'all', page: '1' })}
           />
         }
@@ -172,7 +176,8 @@ function SearchForm({ applied, onSearch }: { applied: string; onSearch: (q: stri
   };
   return (
     <form role="search" aria-label="Search your team's knowledge" onSubmit={submit} className="flex flex-wrap items-center gap-2">
-      <SearchInput value={draft} onValueChange={setDraft} placeholder="Ask in plain words, such as how we rotate the signing key" maxLength={200} className="min-w-0 flex-1" aria-label="Question" />
+      {/* A placeholder a phone shows whole (Work F-46); the example question is in the line under the form. */}
+      <SearchInput value={draft} onValueChange={setDraft} placeholder="Ask in plain words" maxLength={200} className="min-w-0 flex-1" aria-label="Question" />
       <Button type="submit" variant="primary" icon={<Search />}>Search</Button>
     </form>
   );
@@ -205,7 +210,7 @@ function Hit({ hit }: { hit: SearchHit }) {
 
 /** The ranked results, in the gateway's order, each with its shelf; or why there are none. */
 function SearchResults({ question, search }: { question: string; search: UseQueryResult<SearchAnswer, ApiError> }) {
-  if (!question) return <p className="t-small mt-3 text-ink-3">The search reads what each document and lesson says, not only its title, and ranks what matches. Each search is counted, on this page as from the assistant and MCP.</p>;
+  if (!question) return <p className="t-small mt-3 text-ink-3">Ask as you would a teammate, such as how we rotate the signing key. The search reads what each document and lesson says, not only its title, and ranks what matches. Each search is counted, on this page as from the assistant and MCP.</p>;
   if (search.isPending) {
     return <div className="mt-4 flex flex-col gap-3" aria-busy="true" aria-label="Searching">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-14 w-full" />)}</div>;
   }

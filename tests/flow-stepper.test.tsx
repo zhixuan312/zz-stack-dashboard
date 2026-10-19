@@ -51,10 +51,10 @@ describe('FlowStepper — skipped and waiting', () => {
     expect(screen.getByText('done')).toBeInTheDocument();
     expect(screen.getByText('where it is now')).toBeInTheDocument();
     expect(screen.getByText('written, waiting on a person')).toBeInTheDocument();
-    // Three of the six leave the same mark — an empty stage — and say so in one entry, because their swatches were
-    // identical pixels and three identical swatches told a reader that three different marks existed. The node writes
-    // which of the three it is beside itself; the legend names all three either way.
-    expect(screen.getByText(/^nothing written · not on this branch · waiting on the branch$/)).toBeInTheDocument();
+    // Three of the six are an empty stage told apart by the glyph on the node, so each has its own entry with that glyph.
+    expect(screen.getByText('nothing written')).toBeInTheDocument();
+    expect(screen.getByText('not on this branch')).toBeInTheDocument();
+    expect(screen.getByText('waiting on the branch')).toBeInTheDocument();
     expect(screen.getByText('no document to leave')).toBeInTheDocument();
   });
 });

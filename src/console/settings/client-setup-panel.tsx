@@ -12,10 +12,17 @@ import { useAccess } from '@/console/settings/access-read';
 type Part = { kind: 'steps'; text: string } | { kind: 'commands'; text: string; n: number };
 
 /**
+ * A step's heading two levels down, so the reading body draws `## 1. Install` at a body's size under the section's
+ * own title (`t-card`) rather than larger than it: written for a chat, the setup's headings are a page's, and here they
+ * sit inside one section of Access. Six is as deep as Markdown goes.
+ */
+const underTheSection = (text: string): string => text.replace(/^(#{1,6}) /gm, (_, marks: string) => `${'#'.repeat(Math.min(6, marks.length + 2))} `);
+
+/**
  * The setup as the person reads it. The gateway writes it as Markdown for an agent's chat (`renderClientSetup`), so
  * its steps are rendered here rather than printed with their marks, and each fenced block of commands is a block of
  * its own with its own Copy: the commands are what a person takes to a terminal. Its first heading names who it is for,
- * which the section's own title already says, so it is not drawn twice.
+ * which the section's own title already says, so it is not drawn twice; the rest step down under that title.
  */
 function partsOf(config: string): Part[] {
   const parts: Part[] = [];
@@ -23,12 +30,12 @@ function partsOf(config: string): Part[] {
   let at = 0;
   for (const m of body.matchAll(/```[^\n]*\n([\s\S]*?)```/g)) {
     const before = body.slice(at, m.index).trim();
-    if (before) parts.push({ kind: 'steps', text: before });
+    if (before) parts.push({ kind: 'steps', text: underTheSection(before) });
     parts.push({ kind: 'commands', text: m[1].replace(/\n$/, ''), n: parts.filter((p) => p.kind === 'commands').length + 1 });
     at = m.index + m[0].length;
   }
   const after = body.slice(at).trim();
-  if (after) parts.push({ kind: 'steps', text: after });
+  if (after) parts.push({ kind: 'steps', text: underTheSection(after) });
   return parts;
 }
 

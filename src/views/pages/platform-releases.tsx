@@ -15,15 +15,14 @@ import { aligned } from '@/console/columns';
 import { Panel } from '@/console/panel';
 import { failureOf } from '@/console/query';
 import { useDataClock } from '@/lib/api';
-import { cn } from '@/lib/cn';
 import { AXIS_FORMATTERS, plural } from '@/lib/format';
-import { formatDate, formatDateTime, formatShortDate } from '@/lib/format-date';
+import { formatDate, formatDateTime, formatDay, formatShortDate } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import type { ReleaseRow, Releases } from '@/lib/platform-shapes';
 import { pendingContext } from '@/views/context';
 import {
-  OBSERVED, RELEASES_DEFAULTS, TILES, clientActionOf, failuresIn, filtersOfPath, observedOf, observedText, overlapText, p95In, rateIn, releasePath,
-  releasesContext, releasesPath, releasesTrouble, weekRate, weeksRunning, type ReleasesFilters, type ReleasesRead, type Week,
+  OBSERVED, RELEASES_DEFAULTS, TILES, clientActionOf, failuresIn, filtersOfPath, lastWholeWeek, midSentence, observedOf, observedText, overlapText, p95In,
+  rateIn, releasePath, releasesContext, releasesPath, releasesTrouble, weekRate, weeksRunning, type ReleasesFilters, type ReleasesRead, type Week,
 } from '@/views/platform-releases-context';
 import { useServed, useServedAddress } from '@/views/use-served';
 
@@ -46,13 +45,15 @@ function useReleases(served: ReleasesRead, filters: ReleasesFilters) {
 }
 
 /**
- * One side of a release in a cell: its figure, and `partial` beside it when the record saw only part of the window. A
- * figure holds its line; a word in its place (`Not observed`, `No calls`) wraps, so the column never runs past its card.
+ * One side of a release in a cell, on one line: its figure, `Before 4.2`, and `partial` beside it when the record saw
+ * only part of the window; a word in its place after a colon, `Before: not observed`, as a label reads before a word.
  */
 function SideLine({ label, value, side, asOf }: { label: string; value: string; side: Side; asOf: string }) {
+  const figure = /^\d/.test(value);
   return (
-    <span data-side className={cn('block', /\d/.test(value) && 'whitespace-nowrap')} title={`${label}, ${OBSERVED[observedOf(side)]}: ${observedText(side, asOf)}`}>
-      <span className="text-ink-3">{label} </span>{value}{observedOf(side) === 'partial' ? <span className="text-ink-3"> · partial</span> : null}
+    <span data-side className="block whitespace-nowrap" title={`${label}, ${OBSERVED[observedOf(side)]}: ${observedText(side, asOf)}`}>
+      <span className="text-ink-3">{figure ? `${label} ` : `${label}: `}</span>{figure ? value : midSentence(value)}
+      {observedOf(side) === 'partial' ? <span className="text-ink-3"> · partial</span> : null}
     </span>
   );
 }
@@ -64,18 +65,20 @@ const sides = (r: ReleaseRow, asOf: string, of: (s: Side) => string) => (
   </span>
 );
 
-/** Both sides as a sentence: `4.2 before; 3.3 after (partial)`, `Not observed before; 15.8 after (partial)`. */
+/** Both sides as a sentence: `4.2 before; 3.3 after (partial)`, `Not observed before; 15.8 after (partial)`, `22.7 before; no calls after`. */
 const phoneSides = (r: ReleaseRow, of: (s: Side) => string) =>
-  `${of(r.before)} before; ${of(r.after)} after${observedOf(r.after) === 'partial' ? ' (partial)' : ''}`;
+  `${of(r.before)} before; ${midSentence(of(r.after))} after${observedOf(r.after) === 'partial' ? ' (partial)' : ''}`;
 
 /** What only a phone card shows under the version, each line free to wrap: what changed, what clients do, then the figure. */
 const PHONE_LINE = 'hidden t-small font-regular whitespace-normal text-ink-2 @max-[640px]:block';
 
 /**
- * The table's columns, in the gateway's order: newest first, paged where it is read. The version and the date hold
- * their line; the summary takes the slack, cut to the width there is and whole in its title, with the releases inside
- * its windows under it. A phone card is the version and its date, then the summary, the client action and the
- * malformed calls either side, each a line that may wrap.
+ * The table's columns, in the gateway's order: newest first, paged where it is read. The version, the date and every
+ * side of a window hold their line; the summary takes the slack, cut to the width there is and whole in its title, with
+ * the releases inside its windows under it. Malformed calls per 1,000 is the last column at every width, so the column
+ * a narrow table drops is never the last one and the column it shows takes the card's padding at its edge. A phone card
+ * is the version and its date, then the summary, the client action and the malformed calls either side, each a line
+ * that may wrap.
  */
 const columnsAt = (asOf: string): Column<ReleaseRow>[] => aligned([
   {
@@ -102,9 +105,9 @@ const columnsAt = (asOf: string): Column<ReleaseRow>[] => aligned([
   },
   // The summary takes every pixel of slack, so a width here is no floor: the cell's own minimum keeps an action whole.
   { key: 'action', header: 'Client action', align: 'left', hideBelow: 'lg', cell: (r) => <span className="block min-w-44 whitespace-normal">{clientActionOf(r)}</span> },
-  { key: 'malformed', header: 'Malformed per 1,000', cell: (r) => sides(r, asOf, rateIn) },
   { key: 'failures', header: 'Tool failures', hideBelow: 'xl', cell: (r) => sides(r, asOf, failuresIn) },
   { key: 'p95', header: 'p95', hideBelow: 'xl', cell: (r) => sides(r, asOf, p95In) },
+  { key: 'malformed', header: 'Malformed per 1,000', cell: (r) => sides(r, asOf, rateIn) },
 ]);
 
 /**
@@ -124,6 +127,7 @@ export function PlatformReleasesView({ served }: { served: ReleasesRead }) {
   // `…` is coming and `—` is not: a read that failed never reads as one still on its way.
   const mark = trouble ? '—' : '…';
   const tiles = data?.tiles;
+  const whole = data ? lastWholeWeek(data.weeks) : null;
   const part = data?.rows;
   const rows = part?.state === 'ok' ? part.data.rows : [];
   const tableError = trouble ?? (part?.state === 'unavailable' ? `The releases could not be listed: ${part.reason}. The tiles and the weeks stand.` : undefined);
@@ -132,7 +136,10 @@ export function PlatformReleasesView({ served }: { served: ReleasesRead }) {
     <Stack>
       <Row split="tiles">
         <MetricTile label={TILES.releases.label} hint={TILES.releases.definition} icon={<Tag />} value={tiles ? tiles.releases : mark} format={releasesIn} />
-        <MetricTile label={TILES.lastWeek.label} hint={TILES.lastWeek.definition} icon={<Rocket />} value={tiles ? tiles.lastWeek : mark} format={releasesIn} />
+        <MetricTile
+          label={TILES.lastWeek.label} hint={TILES.lastWeek.definition} icon={<Rocket />} value={tiles ? tiles.lastWeek : mark} format={releasesIn}
+          note={whole ? `Week of ${formatDay(whole.window.from)}` : undefined}
+        />
         <MetricTile
           label={TILES.latest.label} hint={TILES.latest.definition} icon={<PackageCheck />}
           value={tiles ? (tiles.latest?.version ?? 'None recorded') : mark}
@@ -180,14 +187,15 @@ const releasesIn = (n: number) => `${formatCount(n)} ${plural(n, 'release')}`;
 function Weeks({ weeks }: { weeks: Week[] }) {
   const dates = useMemo(() => weeks.map((w) => w.window.from), [weeks]);
   const isRunning = weeksRunning(weeks);
-  const last = weeks.filter((w) => w.window.complete).at(-1)?.window.from;
+  // The week the Last week tile counts, so the tile and the marked column are one week.
+  const last = lastWholeWeek(weeks)?.window.from;
   const none = <EmptyState kind="first-run" title="No week recorded yet" className="py-10">A week is drawn once the platform&apos;s record reaches it.</EmptyState>;
   return (
     <Meridian dates={dates}>
       <Row split="1/2">
         <Panel title="Releases by week" description="Releases recorded, a Monday week each; the last week is still running.">
           {weeks.length ? (
-            <ColumnChart
+            <ColumnChart whole
               label="Releases by week"
               columns={weeks.map((w) => ({ key: w.window.from, label: formatShortDate(w.window.from), value: w.releases }))}
               dates={dates} running={isRunning} highlight={last} format={formatCount} axisFormat={AXIS_FORMATTERS.count} height={200}

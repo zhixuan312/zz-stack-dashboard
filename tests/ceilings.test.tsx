@@ -240,7 +240,7 @@ describe('a series past 26 weeks is titled by the grain it arrives in', () => {
     expect(text()).not.toMatch(/by (week|month)\b/);
     const year = document.querySelector('[aria-label="Year"]')!;
     expect(year.querySelectorAll('[role="radio"]').length).toBeGreaterThan(1);
-    expect(text()).toMatch(/The 5 documents given the most versions/);
+    expect(text()).toMatch(/The 5 documents given the most revisions/);
   });
 
   it('Record: this year by month', async () => {

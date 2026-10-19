@@ -15,6 +15,7 @@ import { KnowledgeTabs, useServerReadLive } from '@/console/knowledge-tabs';
 import { ConsolePage } from '@/console/page';
 import { useDataClock } from '@/lib/api';
 import type { KnowledgeLogEntry } from '@/lib/api-shapes';
+import { knowledgeNodeHref } from '@/lib/knowledge-filters';
 import { formatDate } from '@/lib/format-date';
 import { useLive } from '@/lib/live';
 import { pendingContext, whose } from '@/views/context';
@@ -28,13 +29,13 @@ function columns(): Column<KnowledgeLogEntry>[] {
     {
       // The title as it stands now, falling back to the one typed at the time: "node 3" is a number nobody recognises.
       key: 'node', header: 'Node', align: 'left', grow: true, mobile: 'title',
+      // The same on a phone's card: its node and what replaced it under the title, which the card dropped (Work F-47).
       cell: (e) => (
         <span className="block py-1 whitespace-normal">
           <span className="block leading-snug text-ink">{e.node_title ?? e.recorded_title ?? <span className="text-ink-3">No longer on the shelf</span>}</span>
           <span className="t-caption block font-mono">node {e.node}{e.superseded_by ? ` → ${e.superseded_by}` : ''}</span>
         </span>
       ),
-      mobileCell: (e) => e.node_title ?? e.recorded_title ?? `node ${e.node}`,
     },
     // The row's name leads, then what happened to it: Meridian's phone rules give the title and the status the same
     // `order`, so the column order decides which of the two sits on the card's left edge, and a status ahead of the name
@@ -42,7 +43,9 @@ function columns(): Column<KnowledgeLogEntry>[] {
     // Both acts are a lesson's ordinary life, so both are neutral: the warning colour is for what needs somebody, and a
     // supersession needs nobody (Work F-18). The word says which act it was, and "node 0004 → 0005" what replaced what.
     { key: 'act', header: 'Act', hideBelow: 'md', mobile: 'status', cell: (e) => <Badge tone="neutral" dot>{e.kind === 'knowledge.add' ? 'Recorded' : 'Superseded'}</Badge> },
-    { key: 'who', header: 'Who', hideBelow: 'lg', cell: (e) => (e.actor ? e.actor.split('@')[0] : '—') },
+    // Who by their address, as every other page names a person, and a fact on the phone's card (Work F-47). The gateway
+    // answers none where no principal was resolved for the act.
+    { key: 'who', header: 'Who', hideBelow: 'lg', mobile: 'fact', cell: (e) => e.actor ?? '—' },
   ]);
 }
 
@@ -91,6 +94,8 @@ export function KnowledgeLogView({ read }: { read: ServerRead<{ entries: Knowled
           rows={entries}
           columns={columns()}
           rowKey={(e) => `${e.ts}-${e.team}-${e.node}-${e.kind}`}
+          // A row opens its node while the node is on the shelf; one deleted since has no page to open.
+          rowHref={(e) => (e.path && e.team ? knowledgeNodeHref(e.team, e.path) : '')}
           pageSize={10}
           pageSizes={[10]}
           empty={{ title: 'Nothing recorded yet', body: 'The log starts the next time a node is minted or superseded. Older nodes are on the shelf, under Overview.' }}

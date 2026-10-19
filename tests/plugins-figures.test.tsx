@@ -76,7 +76,7 @@ describe('the figures on Plugins', () => {
     mount(served(MEMBER));
     const sdlc = row(MEMBER, 'sdlc').score!;
     expect(sdlc.protocol.key).toBeNull();
-    expect(cell('sdlc', 'Score')).toBe(`${sdlc.value.toFixed(1)} / 10 · ${formatShortDate(sdlc.scoredAt)}version ${sdlc.protocol.version} of its protocol`);
+    expect(cell('sdlc', 'Score')).toBe(`${sdlc.value.toFixed(1)} / 10 · ${formatShortDate(sdlc.scoredAt)}v${sdlc.protocol.version} of its own protocol`);
     expect(document.body.textContent).not.toContain(row(ME, 'sdlc').score!.protocol.key!);
   });
 

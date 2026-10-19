@@ -3,6 +3,11 @@
  * the assistant reads what an earlier initiative settled without the person opening the node. Where it was learned is
  * said as the page says it: the initiatives of the team the reader acts for, by address, and a count of every other
  * team's, never their names (reconciliation 81).
+ *
+ * Its unknowns always say what the page holds or points at that the context does not: who recorded the lesson, what in
+ * an initiative a citation stands on, the text of the node that superseded it, of its neighbours and of the lesson past
+ * what is carried. With the lesson and its citations both present, a context that said nothing there read as complete
+ * (Phase 7, I-163's review of what an agent on the page is told).
  */
 import type { KnowledgeBody } from '@/lib/api-shapes';
 import { plural } from '@/lib/format';
@@ -19,7 +24,7 @@ const LESSON_LIMIT = 1400;
 export function knowledgeNodeContext(b: KnowledgeBody, arrival: Arrival): SharedContext {
   const lesson = b.body.trim().replace(/\s+/g, ' ');
   const insights: Insight[] = [
-    { text: `The lesson${lesson.length > LESSON_LIMIT ? ' opens' : ''}: ${lesson.slice(0, LESSON_LIMIT)}${lesson.length > LESSON_LIMIT ? ` … (${formatCount(lesson.length - LESSON_LIMIT)} more characters on the page)` : ''}` },
+    { text: `The lesson${lesson.length > LESSON_LIMIT ? ' opens' : ''}: ${lesson.slice(0, LESSON_LIMIT)}${lesson.length > LESSON_LIMIT ? ' …' : ''}` },
   ];
   if (b.superseded_by) insights.push({ text: `It was superseded by node ${b.superseded_by} and is no longer the current lesson.` });
   const learned = (b.evidence_in ?? []).map((e) => (e.team ? `${e.name} (/initiatives/${e.team}/${e.name})` : `${e.name} (no initiative by this name on the platform)`));
@@ -41,6 +46,19 @@ export function knowledgeNodeContext(b: KnowledgeBody, arrival: Arrival): Shared
       { label: 'Tags', value: b.tags?.length ? b.tags.join(', ') : 'none' },
     ],
     insights,
-    unknowns: learned.length || elsewhere ? [] : ['The node names no initiative it was learned in.'],
+    unknowns: unknownsOf(b, lesson, learned.length > 0 || elsewhere !== ''),
   });
+}
+
+/** What the page shows or links that this context does not carry, said briefly, most of it whatever the node holds. */
+function unknownsOf(b: KnowledgeBody, lesson: string, cited: boolean): string[] {
+  return [
+    ...(lesson.length > LESSON_LIMIT ? [`The lesson's last ${formatCount(lesson.length - LESSON_LIMIT)} characters are on the page, not here.`] : []),
+    cited
+      ? 'A citation names an initiative, not the document or decision in it the lesson stands on; the store records no more.'
+      : 'The node names no initiative it was learned in.',
+    ...(b.superseded_by ? [`The text of node ${b.superseded_by}, which replaced it, is on its own page, not here.`] : []),
+    ...(b.related.length ? ['A neighbour is named by its title alone; a shared tag is the only link the store records, and says nothing of agreement.'] : []),
+    'Who recorded the lesson is not on this page; the knowledge log names who.',
+  ];
 }

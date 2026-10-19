@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation';
 import { GatewayError, answeredAt, gatewayGet, revisionsOf, type Revised } from '@/data/gateway';
 import type { PluginEval, Skill, SkillDetail, SkillText } from '@/lib/api-shapes';
-import { evalPath, type EvalRead, type PluginRead } from '@/views/plugin-context';
+import type { Evaluation } from '@/lib/platform-shapes';
+import { SCORES_PATH, evalPath, historyOf, type EvalRead, type HistoryRead, type PluginRead } from '@/views/plugin-context';
 import { PLUGINS_BOUND_MS, PLUGINS_PATH, type Catalog, type PluginsRead, type Served } from '@/views/plugins-context';
 import { skillDetailPath, skillTextPath, skillsPath, type SkillRead } from '@/views/skill-context';
 
@@ -32,18 +33,30 @@ async function bounded<T, R extends { path: string }>(path: string, next: string
 export const readPlugins = (next = '/plugins'): Promise<Revised<PluginsRead>> => bounded<Catalog, never>(PLUGINS_PATH, next);
 
 /**
- * A plugin's two reads, together: the catalog its row is in, and the owning team's evaluation, which the gateway
- * refuses with a 403 to anybody but the superadmin and that team. That refusal is `withheld`, its absence for this
- * reader, and never a failure. The page's revisions are both reads' as one.
+ * The plugin's scores in their series, from the platform's Evaluation read, which everybody who reads the platform may
+ * make: only this plugin's, so the page is handed none of the others. A read that fails or is slow, or a plugin it
+ * has no score of, is `none`, and the page quotes the catalog's statement alone; it never fails the page.
+ */
+async function readHistory(plugin: string, next: string): Promise<HistoryRead> {
+  const read = await bounded<Evaluation, never>(SCORES_PATH, next);
+  return historyOf(read.state === 'ok' ? read.data : null, plugin);
+}
+
+/**
+ * A plugin's three reads, together: the catalog its row is in, the owning team's evaluation, which the gateway
+ * refuses with a 403 to anybody but the superadmin and that team, and its scores' series, which name what its public
+ * score compares with. The refusal is `withheld`, its absence for this reader, and never a failure. The page's
+ * revisions are the catalog's and the evaluation's: the series only words the comparability line.
  */
 export async function readPlugin(plugin: string): Promise<Revised<PluginRead>> {
   const next = `/plugins/${plugin}`;
   const path = evalPath(plugin);
-  const [catalog, evaluation] = await Promise.all([
+  const [catalog, evaluation, history] = await Promise.all([
     readPlugins(next),
     bounded<PluginEval, EvalRead>(path, next, (status) => (status === 403 ? { state: 'withheld', path } : null)),
+    readHistory(plugin, next),
   ]);
-  return { catalog, evaluation, revisions: revisionsOf(catalog.revisions, evaluation.revisions) };
+  return { catalog, evaluation, history, revisions: revisionsOf(catalog.revisions, evaluation.revisions) };
 }
 
 /** A skill's four reads, together. The text answering 404 is a skill its plugin does not ship: `missing`. */

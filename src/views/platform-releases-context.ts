@@ -81,7 +81,7 @@ export function releasesTrouble(read: { state: 'failed'; reason: string } | { st
 /** The four tiles, as the page labels them and the assistant is told what each counts. */
 export const TILES = {
   releases: { label: 'Releases', definition: 'Every release recorded, each once, at the time its tag was made.' },
-  lastWeek: { label: 'Last week', definition: 'Releases tagged in the 7 days before the read\'s cutoff.' },
+  lastWeek: { label: 'Last week', definition: 'Releases tagged in the last whole week, Monday to Sunday.' },
   latest: { label: 'Latest tag', definition: 'The newest tag recorded, and when: a tag, not a deployment.' },
   migrations: { label: 'Migrations applied', definition: 'Migrations the platform\'s database records as applied.' },
 } as const;
@@ -149,19 +149,28 @@ export const overlapText = (r: ReleaseRow): string | null => {
   return others.length ? `Within 72 hours of ${others.join(', ')}` : null;
 };
 
+/** What the record writes for a tag with no changelog section, the spec's words. COUPLED: `UNKNOWN_ACTION` in zz-stack's
+ *  scripts/release-record.ts. */
+const UNKNOWN_ACTION = 'Unknown — no recorded upgrade notes';
+
 /**
- * What clients must do: the recorded action, `Nothing to do` when it is positively known that none is needed. The
- * record writes a tag with no changelog section as `Unknown — no recorded upgrade notes`, the spec's words; the console
- * says it with a colon, as its voice says every such pair.
- * COUPLED: `UNKNOWN_ACTION` in zz-stack's scripts/release-record.ts.
+ * What clients must do: the recorded action, `Nothing to do` when it is positively known that none is needed, and `Not
+ * recorded` for a tag whose section recorded none, as the release's page says of a console it has no version of: after
+ * `Clients:` on a phone card the record's own words were a second colon.
  */
-export const clientActionOf = (r: ReleaseRow): string => r.clientAction?.replace(' — ', ': ') ?? 'Nothing to do';
+export const clientActionOf = (r: ReleaseRow): string =>
+  r.clientAction === null ? 'Nothing to do' : r.clientAction === UNKNOWN_ACTION ? 'Not recorded' : r.clientAction;
+
+/** A window's word as it reads after a label or mid-sentence, `no calls`; a figure as it is. */
+export const midSentence = (v: string): string => (/^\d/.test(v) ? v : v.charAt(0).toLowerCase() + v.slice(1));
 
 /* The weeks */
 
 export type Week = Releases['weeks'][number];
 /** Whether the last week is still running. */
 export const weeksRunning = (weeks: Week[]): boolean => weeks.length > 0 && !weeks[weeks.length - 1].window.complete;
+/** The last whole week, the one the Last week tile counts: the week before the running one, when the record reaches it. */
+export const lastWholeWeek = (weeks: Week[]): Week | null => (weeksRunning(weeks) ? weeks.at(-2) : weeks.at(-1)) ?? null;
 /** A week's malformed calls per 1,000 as a column draws it: a week with no figure is no data, never a zero. */
 export const weekRate = (w: Week): number | null => (w.malformedPer1000.figure.why === 'unavailable' ? null : w.malformedPer1000.figure.value);
 
@@ -221,7 +230,7 @@ export function releasesContext(data: Releases, { filters, read, ...arrival }: {
   const total = part.state === 'ok' ? part.data.total : null;
   const facts: Fact[] = [
     { label: TILES.releases.label, value: formatCount(tiles.releases), definition: TILES.releases.definition },
-    { label: TILES.lastWeek.label, value: formatCount(tiles.lastWeek), definition: TILES.lastWeek.definition },
+    { label: TILES.lastWeek.label, value: formatCount(tiles.lastWeek), ...(lastWholeWeek(data.weeks) ? { change: `the week of ${formatDay(lastWholeWeek(data.weeks)!.window.from)}` } : {}), definition: TILES.lastWeek.definition },
     { label: TILES.latest.label, value: tiles.latest?.version ?? 'None recorded', ...(tiles.latest ? { change: `tagged ${formatDateTime(tiles.latest.releasedAt)}` } : {}), definition: TILES.latest.definition },
     { label: TILES.migrations.label, value: formatCount(tiles.migrations.applied), change: tiles.migrations.lastAt ? `last ${formatDateTime(tiles.migrations.lastAt)}` : 'none recorded', definition: TILES.migrations.definition },
   ];
@@ -307,7 +316,8 @@ export function releaseContext(release: ReleaseDetail, { asOf, ...arrival }: { a
     unknowns: [
       ...UNKNOWNS,
       ...(overlap ? [`${overlap}, so its windows hold those releases' calls too.`] : []),
-      ...(notes ? [] : [release.clientAction ? 'No upgrade notes are recorded; the client action is all that is.' : 'No upgrade notes are recorded, and none are needed.']),
+      ...(notes ? [] : [release.clientAction === UNKNOWN_ACTION ? 'No upgrade notes are recorded, so what clients must do is not known.'
+        : release.clientAction ? 'No upgrade notes are recorded; the client action is all that is.' : 'No upgrade notes are recorded, and none are needed.']),
     ],
   });
 }

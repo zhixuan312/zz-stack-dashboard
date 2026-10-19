@@ -314,7 +314,7 @@ export function DataTable<R>({
                 <tr key={i} className="group/row">
                   {selectable ? <td data-mobile="check"><Skeleton className="size-4" /></td> : null}
                   {columns.map((c, j) => (
-                    <td key={c.key} data-mobile={roleOf(c)} data-num={c.numeric ? 'num' : undefined} className={cellClass({ numeric: c.numeric, hideBelow: c.hideBelow })}>
+                    <td key={c.key} data-mobile={roleOf(c)} data-num={c.numeric ? 'num' : undefined} data-hide-below={c.hideBelow} className={cellClass({ numeric: c.numeric, hideBelow: c.hideBelow })}>
                       <Skeleton className={cn('h-3', c.numeric ? 'ml-auto w-12' : c.grow ? ['w-48', 'w-40', 'w-56'][i % 3] : ['w-20', 'w-16', 'w-24'][(i + j) % 3])} />
                     </td>
                   ))}
@@ -340,7 +340,7 @@ export function DataTable<R>({
                       const value = c.cell(r);
                       const content = c === titleColumn && href ? <Link href={href}>{value}</Link> : value;
                       return (
-                        <td key={c.key} data-mobile={role} data-num={c.numeric ? 'num' : c.align === 'right' ? 'true' : undefined} title={c.title ? c.title(r) : c.truncate && (typeof value === 'string' || typeof value === 'number') ? String(value) : undefined} className={cellClass(c) || undefined}>
+                        <td key={c.key} data-mobile={role} data-num={c.numeric ? 'num' : c.align === 'right' ? 'true' : undefined} data-hide-below={c.hideBelow} title={c.title ? c.title(r) : c.truncate && (typeof value === 'string' || typeof value === 'number') ? String(value) : undefined} className={cellClass(c) || undefined}>
                           {/* The dot that separates two facts, on a phone only — the table has a column for each of
                               them, where a dot would be noise. It leads the fact it separates, in that fact's own
                               cell: each fact is a flex item, so a line that runs out of room wraps whole ones and a

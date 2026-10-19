@@ -154,8 +154,15 @@ export function waitingOf(home: Home, team: string | null): Waiting {
  */
 export const MILESTONE = { closed: 'Pieces of work closed', documents: 'Documents created', lessons: LESSONS_MADE, words: 'Words added' } as const;
 
-/** How far a milestone has come from the last round number passed to the next, as a fraction. */
-export const covered = (m: { last: number; next: number; value: number }): number => (m.next > m.last ? Math.min(1, Math.max(0, (m.value - m.last) / (m.next - m.last))) : 0);
+/**
+ * How far a milestone has come, as a fraction: what is made over the next round number, from zero, the same way for
+ * every count. Measured from the last round number passed, 10 lessons of 25 read 0% beside 41 documents of 100 at 41%,
+ * and a person read that no lesson was made (Phase 7's re-review, Work N-2).
+ */
+export const covered = (m: { next: number; value: number }): number => (m.next > 0 ? Math.min(1, Math.max(0, m.value / m.next)) : 0);
+
+/** What the milestones' card says it draws: how every bar is measured, said once. */
+export const MILESTONES_LINE = 'The next round number in each count, each bar what is made of it, from zero';
 
 /** An open initiative as its row reads in words: its state, its gates and where it goes next. */
 const openLine = (r: InitiativeRow): string =>

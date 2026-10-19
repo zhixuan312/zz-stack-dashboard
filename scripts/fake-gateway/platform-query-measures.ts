@@ -31,6 +31,7 @@ import type { Me } from '../../src/lib/api-shapes.ts';
 import { now } from './clock.ts';
 import { badFilter } from './platform-bugs.ts';
 import { CATALOG } from './platform.ts';
+import { printedDay } from './platform-releases.ts';
 import {
   KINDS, UNREGISTERED, auditFacts, auditRows, callFacts, findingFacts, lessonFacts, malformedFacts, migrationFacts, modelFacts,
   newest, personRows, pluginsScored, questionRows, registeredTools, releaseRows, reportRows, scoredBy, searchFacts, signInFacts,
@@ -140,7 +141,7 @@ export const MEASURES: Record<string, Measure> = {
   },
   releases: {
     dims: {}, buckets: true, population: 'recorded releases',
-    facts: (_w, s) => within(releaseRows().map((r) => ({ day: localDay(Date.parse(r.releasedAt)), keys: {}, n: 1, lastMs: Date.parse(r.releasedAt), ref: r })), s),
+    facts: (_w, s) => within(releaseRows().map((r) => ({ day: printedDay(r.releasedAt), keys: {}, n: 1, lastMs: Date.parse(r.releasedAt), ref: r })), s),
     rows(_w, kept, want) {
       const rows = newest(refs<ReturnType<typeof releaseRows>[number]>(kept), (r) => Date.parse(r.releasedAt), (r) => r.version, () => '/platform/releases');
       return { rows: rows.slice(0, want), total: rows.length };

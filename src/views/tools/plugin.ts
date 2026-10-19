@@ -8,8 +8,9 @@ import { requireNeed } from '@/data/access';
 import { FEATURES } from '@/data/features';
 import { GatewayError, gatewayGet } from '@/data/gateway';
 import type { PluginEval } from '@/lib/api-shapes';
+import type { Evaluation } from '@/lib/platform-shapes';
 import { defineViewTool } from '@/lib/shared-context';
-import { evalPath, pluginContext } from '../plugin-context';
+import { SCORES_PATH, comparedSaid, evalPath, historyOf, pluginContext } from '../plugin-context';
 import { PLUGINS_PATH, type Catalog } from '../plugins-context';
 import { PLUGIN_EXPLORE } from '../plugins-explore';
 import { justRead, segment } from './shared';
@@ -30,9 +31,11 @@ export const pluginTool = defineViewTool({
   input: z.object({ plugin: segment('The plugin\'s name.') }),
   async read({ plugin }) {
     await requireNeed(FEATURES.plugins.needs);
-    const [catalog, evaluation] = await Promise.all([gatewayGet<Catalog>(PLUGINS_PATH), evaluationOf(plugin)]);
+    // The page's three reads: the series only word what its public score compares with, so a failed one is none.
+    const [catalog, evaluation, scores] = await Promise.all([gatewayGet<Catalog>(PLUGINS_PATH), evaluationOf(plugin), gatewayGet<Evaluation>(SCORES_PATH).catch(() => null)]);
     const data = { plugin: catalog.plugins.find((p) => p.plugin === plugin), evaluation };
-    return { context: pluginContext(plugin, { ...data, ...justRead() }), data };
+    const compared = comparedSaid(data.plugin?.score ?? null, historyOf(scores, plugin));
+    return { context: pluginContext(plugin, { ...data, compared, ...justRead() }), data };
   },
   explore: PLUGIN_EXPLORE,
 });

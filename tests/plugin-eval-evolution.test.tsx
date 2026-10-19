@@ -85,9 +85,10 @@ describe('EvalAutomationTrust', () => {
         { stableKey: 'tone-check', state: null, qualifiedAt: null },
       ],
     })} />);
-    expect(screen.getByText('refusal-quality')).toBeInTheDocument();
+    // In words, the stable key kept whole on hover.
+    expect(screen.getByText('Refusal quality')).toHaveAttribute('title', 'refusal-quality');
     expect(screen.getByText('Qualified for use')).toBeInTheDocument();
-    expect(screen.getByText('tone-check')).toBeInTheDocument();
+    expect(screen.getByText('Tone check')).toHaveAttribute('title', 'tone-check');
     expect(screen.getByText('Never qualified')).toBeInTheDocument();
   });
 });

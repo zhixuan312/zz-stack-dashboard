@@ -90,9 +90,9 @@ export const lessonsCiting = (slug: string): number => [...CITES.values()].filte
 /** Every `knowledge.add` and `knowledge.supersede` of every team, newest first: each lesson on every shelf added when
  *  it was made, so the log holds every lesson a shelf shows, one superseded, and one add whose lesson is gone. */
 export const KNOWLEDGE_LOG: KnowledgeLogEntry[] = ([
-  ...SHELF.map((n): KnowledgeLogEntry => ({ ts: n.updated, actor: 'noah.okafor@example.com', team: n.team, kind: 'knowledge.add', node: n.num, recorded_title: n.title, superseded_by: null, node_title: n.title, node_status: n.status })),
-  { ts: ago(52), actor: 'noah.okafor@example.com', team: 'atlas', kind: 'knowledge.supersede', node: '0004', recorded_title: 'Rank by recency first', superseded_by: '0005', node_title: 'Rank by recency first', node_status: 'superseded' },
-  { ts: ago(700), actor: 'leo.santos@example.com', team: 'cinder', kind: 'knowledge.add', node: '0002', recorded_title: 'Page the on-call, not the channel', superseded_by: null, node_title: null, node_status: null },
+  ...SHELF.map((n): KnowledgeLogEntry => ({ ts: n.updated, actor: 'noah.okafor@example.com', team: n.team, kind: 'knowledge.add', node: n.num, recorded_title: n.title, superseded_by: null, node_title: n.title, node_status: n.status, path: n.path })),
+  { ts: ago(52), actor: 'noah.okafor@example.com', team: 'atlas', kind: 'knowledge.supersede', node: '0004', recorded_title: 'Rank by recency first', superseded_by: '0005', node_title: 'Rank by recency first', node_status: 'superseded', path: SHELF.find((n) => n.team === 'atlas' && n.num === '0004')!.path },
+  { ts: ago(700), actor: 'leo.santos@example.com', team: 'cinder', kind: 'knowledge.add', node: '0002', recorded_title: 'Page the on-call, not the channel', superseded_by: null, node_title: null, node_status: null, path: null },
 ] satisfies KnowledgeLogEntry[]).sort((a, b) => b.ts.localeCompare(a.ts));
 
 /** One lesson, whole: the work fixture's own, or one added here. `own` is the one team a member is held to, whose

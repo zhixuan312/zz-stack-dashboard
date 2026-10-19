@@ -8,7 +8,7 @@
  * finding's own words (the owning team's), and the page and the context say so rather than leave a gap unexplained.
  */
 import { plural } from '@/lib/format';
-import { formatDateTime, formatShortDate } from '@/lib/format-date';
+import { formatDateTime, formatDay, formatShortDate } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import type { Evaluation, SafeFinding } from '@/lib/platform-shapes';
 import { listed, type Fact, type Insight, type SharedContext } from '@/lib/shared-context';
@@ -79,6 +79,8 @@ const OWNERS: Record<string, string> = {
 };
 export const OWNER_KEYS = Object.keys(OWNERS);
 export const ownerOf = (o: string): string => OWNERS[o] ?? o.replace(/_/g, ' ');
+/** An owner category as a finding's name says it: `owned by the plugin`, or `owner not known`. */
+const ownedBy = (o: string): string => (o === 'unknown' ? 'owner not known' : `owned by ${ownerOf(o).toLowerCase()}`);
 
 /** A finding's kind as a reader says it. */
 export const kindOf = (k: string): string => (k === 'defect' ? 'Defect' : k === 'unknown' ? 'Unknown' : k);
@@ -113,6 +115,13 @@ export const seriesName = (s: Series): string => `${protocolOf(s.protocol)}, ${s
 
 /** One scoring as a cell or a line says it: its score with its range, or its standing alone, and the day. */
 export const runText = (r: Run): string => `${r.score === null ? `no score (${standingOf(r.standing).toLowerCase()})` : `${scoreIn(r.score)} ${standingOf(r.standing).toLowerCase()}`} ${formatShortDate(r.scoredAt)}`;
+
+/**
+ * A waiting finding as a row and a line name it, by what it found as far as the caller may read it: the pattern the
+ * evaluation recorded, which only the superadmin's read carries, or else the gateway's fixed name, its kind, plugin
+ * and owner category.
+ */
+export const nameOf = (f: WaitingFinding): string => f.pattern || f.summary;
 
 /** The waiting findings as the read lists them, oldest first, each in the caller's form. */
 export const waitingOf = (e: Evaluation): WaitingFinding[] => (e.waiting.state === 'ok' ? e.waiting.data.rows : []);
@@ -181,7 +190,9 @@ export function evaluationContext(read: EvaluationRead): SharedContext {
   if (e.plugins.state !== 'ok') unavailable('Each plugin\'s latest score', e.plugins.reason);
   if (e.history.state !== 'ok') unavailable('Every score by series', e.history.reason);
   if (e.waiting.state === 'ok') {
-    const line = (f: WaitingFinding) => `${f.summary} (${kindOf(f.kind).toLowerCase()}${f.measure ? ` on ${f.measure}` : ''}, since ${formatShortDate(f.waitingSince)})${f.pattern ? `: ${clip(f.pattern.replace(/\.$/, ''), 80)}` : ''}`;
+    const line = (f: WaitingFinding) => (f.pattern
+      ? `${clip(f.pattern.replace(/\.$/, ''), 80)} (a ${kindOf(f.kind).toLowerCase()} in ${f.plugin}${f.measure ? ` on ${f.measure}` : ''}, ${ownedBy(f.owner)}, since ${formatDay(f.waitingSince)})`
+      : `${f.summary} (since ${formatDay(f.waitingSince)})`);
     if (waiting.length) insights.push({ text: `Findings waiting, oldest first: ${listed(waiting, line, 'the list on /platform/evaluation', 5)}.` });
   } else unavailable('The findings waiting', e.waiting.reason);
 
@@ -189,7 +200,7 @@ export function evaluationContext(read: EvaluationRead): SharedContext {
     'Scores are out of 10. A change is stated within one series (one protocol version and one population), never across two; no score is combined into an overall one.',
     'A score not established is not a number to quote. Strengths are not counted.',
   );
-  if (!admin) unknowns.push('A protocol\'s key, a measure\'s key and a finding\'s own words are the owning team\'s: a member reads the version, the owner category and a fixed summary.');
+  if (!admin) unknowns.push('A protocol\'s key, a measure\'s key and a finding\'s own words are the owning team\'s: a member reads the version, and a finding by its kind, plugin and owner category.');
   return budgeted({
     ...VIEW,
     scope: `every plugin's evaluation on the platform, ${admin ? 'as the superadmin reads it' : 'in the form everybody may read'}`,

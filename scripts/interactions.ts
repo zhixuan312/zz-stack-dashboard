@@ -46,13 +46,19 @@ const HANG_BOUND_MS = 5000;
 /**
  * The page's controls and how each is named: its accessible name and the roots it sits in. A control is found again by
  * that name (and which of the controls with it), never by its place in the walk: a later load can draw the controls in
- * another order or fewer of them for a while, a table still loading or rows a concurrent write changed (#65).
+ * another order or fewer of them for a while, a table still loading or rows a concurrent write changed (#65). A name that
+ * carries a live part after a comma ("Alerts, 3 new") is found again by the part before it once the exact name is gone (#66).
  */
 const CONTROLS = `
   const deepClosest = (el, sel) => { for (let n = el; n; n = deepParent(n)) if (n.matches(sel)) return n; return null; };
   const vis = (el) => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && !deepClosest(el, '[aria-hidden="true"],[inert],.sr-only'); };
   const hosts = (el) => { const out = []; for (let r = el.getRootNode(); r instanceof ShadowRoot; r = r.host.getRootNode()) out.unshift(r.host.localName); return out; };
-  const nameOf = (b) => { const h = hosts(b); return (b.getAttribute('aria-label') || deepText(b) || b.title || '').trim().replace(/\\s+/g, ' ').slice(0, 60) + (h.length ? ' (in ' + h.join(' > ') + ')' : ''); };
+  const label = (b) => (b.getAttribute('aria-label') || deepText(b) || b.title || '').trim().replace(/\\s+/g, ' ').slice(0, 60);
+  const within = (b) => { const h = hosts(b); return h.length ? ' (in ' + h.join(' > ') + ')' : ''; };
+  const nameOf = (b) => label(b) + within(b);
+  // What the control is without what it says about now: the name before its first comma, so "Alerts, 3 new" is still the
+  // "Alerts" listed before the read answered (#66).
+  const keyOf = (b) => label(b).split(',')[0].trim() + within(b);
   // A control already chosen is not pressed: choosing it again changes nothing, which is not a dead control.
   const chosen = (el) => ['aria-pressed', 'aria-checked', 'aria-selected'].some((a) => el.getAttribute(a) === 'true') || el.getAttribute('aria-current') === 'page' || ['on', 'active', 'checked'].includes(el.getAttribute('data-state'));
   const pressable = (every) => every.filter((b) => b.matches('button, [role="button"], [role="tab"], [role="switch"], [role="checkbox"], [role="radio"], [role="menuitem"]'))
@@ -62,13 +68,15 @@ const LIST = `(() => {${CONTROLS}
   const every = deepAll(document.body);
   return {
     controls: pressable(every).map(nameOf),
+    keys: pressable(every).map(keyOf),
     links: every.filter((a) => a.matches('a[href]') && vis(a)).map((a) => a.getAttribute('href')),
   };
 })()`;
 
 /** Scroll the control into view, check nothing covers it, and start counting what changes. */
-const ARM = (name: string, nth: number) => `(() => {${CONTROLS}
-  const el = pressable(deepAll(document.body)).filter((b) => nameOf(b) === ${JSON.stringify(name)})[${nth}]; if (!el) return null;
+const ARM = (name: string, nth: number, key: string, keyNth: number) => `(() => {${CONTROLS}
+  const all = pressable(deepAll(document.body));
+  const el = all.filter((b) => nameOf(b) === ${JSON.stringify(name)})[${nth}] ?? all.filter((b) => keyOf(b) === ${JSON.stringify(key)})[${keyNth}]; if (!el) return null;
   el.scrollIntoView({ block: 'center', inline: 'nearest' });
   const r = el.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
   const hit = document.elementFromPoint(x, y);
@@ -120,8 +128,8 @@ for (const width of WIDTHS) {
   const touch = width < 600;
   for (const route of ROUTES) {
     // The page's late chrome first (scripts/lib/settle.ts): a control that arrives after the list is taken is never pressed, and the count reads as if it had been.
-    const fresh = async () => { await page.open(base + route, { width, theme: 'dark', cookie }); await inject(route); await settle(page); return page.eval<{ controls: string[]; links: string[] }>(LIST); };
-    const { controls, links } = await fresh();
+    const fresh = async () => { await page.open(base + route, { width, theme: 'dark', cookie }); await inject(route); await settle(page); return page.eval<{ controls: string[]; keys: string[]; links: string[] }>(LIST); };
+    const { controls, keys, links } = await fresh();
     // A link is followed as a browser follows it: its href as the page writes it, resolved against the page. Skipping every
     // href that did not start with "/" let a relative link that answered 404 pass (/system/system/contributing).
     for (const href of new Set(links)) {
@@ -133,11 +141,13 @@ for (const width of WIDTHS) {
       if (status >= 400) failures.push(`${route}: link ${href}${path === href ? '' : ` (${path})`} answers ${status}`);
     }
     for (let i = 0; i < controls.length; i++) {
-      // Which of the controls named alike this is, in the order the first load listed them.
+      // Which of the controls named alike this is, in the order the first load listed them; and, for a name that has
+      // changed since (a count that arrived), which of the controls that are the same thing.
       const nth = controls.slice(0, i).filter((c) => c === controls[i]).length;
+      const keyNth = keys.slice(0, i).filter((k) => k === keys[i]).length;
       type Armed = { x: number; y: number; covered?: string } | null;
       // A document replaced since the last read has no helper: that is a page to open again, never a crash (#64).
-      const arm = () => page.eval<Armed>(ARM(controls[i], nth)).catch((): Armed => null);
+      const arm = () => page.eval<Armed>(ARM(controls[i], nth, keys[i], keyNth)).catch((): Armed => null);
       let armed = await arm();
       // Something left open or a toast in the way: start the page again and try once more. A control not drawn yet on the
       // new load (a list still loading) is waited for up to the hang bound before it is called gone.

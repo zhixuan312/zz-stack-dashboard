@@ -14,6 +14,7 @@ import { formatCount, formatKb, formatSeconds } from '@/lib/format-units';
 import { dayOf, formatDate, formatDateTime, formatDay } from '@/lib/format-date';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
 import { addressOf, arrived, budgeted, clip, type Arrival } from './context';
+import { perRunOf } from './runs-figures';
 
 /** The recent runs one page holds, as every table pages. */
 export const PAGE_SIZE = 10;
@@ -113,7 +114,7 @@ export function runsContext(runs: Runs, { filters, read, ...arrival }: { filters
   const one = filters.skill !== 'all';
   insights.push({ text: `The runs cover ${formatSeconds(coverage.coverageMs / 1000)}, overlapping time counted once, against ${formatSeconds(coverage.summedMs / 1000)} summed; at most ${coverage.peak} ran at once, and ${formatCount(coverage.oneCall)} ${plural(coverage.oneCall, 'was', 'were')} one call.` });
   if (bySkill.length) {
-    insights.push({ text: `By skill, the most observed output per run first: ${listed(bySkill, (s) => `${clip(s.skill, 40)} (${formatCount(s.runs)} ${plural(s.runs, 'run')}, ${s.callsPerRun.toFixed(1)} calls a run, ${s.outputPerRun === null ? 'output not measured' : `${formatKb(s.outputPerRun / 1024)} a run`}, ${s.typicalMs === null ? 'none longer than one call' : `typically ${formatSeconds(s.typicalMs / 1000)}${timedOf(s) ? `, over ${timedOf(s)}` : ''}`}${s.shareRefused ? `, ${refusedOf(s.shareRefused)} refused` : ''})`, 'see /runs', 5)}.`, evidence: address });
+    insights.push({ text: `By skill, the most observed output per run first: ${listed(bySkill, (s) => `${clip(s.skill, 40)} (${formatCount(s.runs)} ${plural(s.runs, 'run')}, ${perRunOf(s.callsPerRun)} calls a run, ${s.outputPerRun === null ? 'output not measured' : `${formatKb(s.outputPerRun / 1024)} a run`}, ${s.typicalMs === null ? 'none longer than one call' : `typically ${formatSeconds(s.typicalMs / 1000)}${timedOf(s) ? `, over ${timedOf(s)}` : ''}`}${s.shareRefused ? `, ${refusedOf(s.shareRefused)} refused` : ''})`, 'see /runs', 5)}.`, evidence: address });
   }
   if (recent?.rows.length) {
     insights.push({ text: `The recent runs, newest last call first, rows ${first + 1} to ${first + recent.rows.length} of ${formatCount(recent.total)}: ${listed(recent.rows, (r) => `${clip(r.skill, 40)} on ${clip(r.initiative ?? 'no initiative', 40)}, ${formatCount(r.calls)} ${plural(r.calls, 'call')}, ${outputOf(r.bytes).toLowerCase()}, ${stateOf(r).toLowerCase()}`, 'the rest on /runs', 5)}.`, evidence: address });

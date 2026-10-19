@@ -1,7 +1,8 @@
 'use client';
 
 import { memo, useDeferredValue, useState, type ReactNode } from 'react';
-import { Copy, RotateCw } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowRight, Copy, RotateCw } from 'lucide-react';
 import { Row, Stack } from '@/components/base/shell';
 import { useShareView } from '@/components/base/use-share-view';
 import { BarList } from '@/components/charts/bar-list';
@@ -33,11 +34,11 @@ import { formatCount } from '@/lib/format-units';
 import type { Window } from '@/lib/platform-shapes';
 import type { RecordRead } from '@/lib/work-shapes';
 import {
-  FIRST, LEAD, PAGE_SIZE, PERIOD_OPTIONS, RECORD_DEFAULTS, SLICES, asOfLine, asOfWords, coverageLine, filtersOfPath, footOf,
-  formatHours, formatShare, grainWords, leadOf, periodLine, periodOf, recordContext, recordPath, recordTrouble, summaryLine, tickOf, tilesOf,
-  type RecordFilters, type RecordPeriod, type RecordServed, type SliceKey, type Tile,
+  FIRST, LEAD, PAGE_SIZE, PERIOD_OPTIONS, RECORD_DEFAULTS, REVISION, SLICES, asOfLine, asOfWords, coverageLine, filtersOfPath, footOf,
+  formatHours, formatShare, grainWords, hourTick, leadOf, periodLine, periodOf, recordContext, recordPath, recordTrouble, summaryLine, tickOf,
+  tilesOf, type RecordFilters, type RecordPeriod, type RecordServed, type SliceKey, type Tile,
 } from '@/views/record-context';
-import { LESSONS_MADE } from '@/views/record-names';
+import { LESSONS_MADE, NO_DATA } from '@/views/record-names';
 import { useServed, useServedAddress } from '@/views/use-served';
 import { OUTCOME_PARTS } from '@/views/outcome-parts';
 
@@ -146,20 +147,20 @@ export function RecordView({ served }: { served: RecordServed }) {
   }
   return (
     <Stack aria-busy={behind || undefined} className={behind ? 'opacity-60 transition-opacity' : undefined}>
-      <Slices r={shown} />
+      <Slices r={shown} team={team} />
       <Initiatives r={shown} team={team} filters={filters} onPage={(page) => set({ page })} retry={retry} busy={busy} />
     </Stack>
   );
 }
 
-/** The slices of one read, the lead first: drawn again only when the read changes. */
-const Slices = memo(function Slices({ r }: { r: RecordRead }) {
+/** The slices of one read, the lead first: drawn again only when the read changes. `team` addresses the documents they name. */
+const Slices = memo(function Slices({ r, team }: { r: RecordRead; team: string | null }) {
   const windows = r.cumulative.map((p) => p.window);
   return (
     <Meridian dates={windows.map((w) => w.from)}>
       <Lead r={r} windows={windows} />
       <Work r={r} windows={windows} />
-      <Documents r={r} windows={windows} />
+      <Documents r={r} windows={windows} team={team} />
       <Knowledge r={r} windows={windows} />
       <Agents r={r} />
       <Firsts r={r} />
@@ -252,11 +253,11 @@ function Work({ r, windows }: Slice) {
             </Panel>
             <Panel title="Closures by outcome" description={`Initiatives closed, ${grain}`}>
               {windows.length ? (
-                <ColumnChart
+                <ColumnChart whole
                   label="Closures by outcome"
                   dates={dates}
                   running={running}
-                  noData="None recorded"
+                  noData={NO_DATA}
                   parts={OUTCOME_PARTS}
                   columns={w.closuresByWeek.map((c) => ({ key: c.window.from, label: tick(c.window.from), values: [c.accepted.value, c.delivered.value, c.abandoned.value] }))}
                 />
@@ -270,8 +271,9 @@ function Work({ r, windows }: Slice) {
                   label="Median hours to close"
                   dates={dates}
                   running={running}
-                  noData="Nothing closed"
+                  noData={NO_DATA}
                   format={formatHours}
+                  axisFormat={hourTick}
                   columns={w.medianHoursByWeek.map((p) => ({ key: p.window.from, label: tick(p.window.from), value: p.figure.value }))}
                 />
               ) : <NoPeriods />}
@@ -279,7 +281,7 @@ function Work({ r, windows }: Slice) {
             <Panel title="A typical piece of work" description="The median and the largest, over the work closed in the period">
               <KeyValue items={[
                 { label: 'Documents', value: spread(w.typical.documents) },
-                { label: 'Versions', value: spread(w.typical.versions) },
+                { label: 'Revisions', value: spread(w.typical.versions) },
                 { label: 'Sources', value: spread(w.typical.sources) },
                 { label: 'Words it retains', value: spread(w.typical.words) },
               ]} />
@@ -291,34 +293,42 @@ function Work({ r, windows }: Slice) {
   );
 }
 
-function Documents({ r, windows }: Slice) {
+function Documents({ r, windows, team }: Slice & { team: string | null }) {
   const d = r.documents.state === 'ok' ? r.documents.data : null;
   const { dates, running } = series(windows);
   const tick = tickOf(windows);
   return (
     <SliceOf k="documents" r={r} tiles={tilesOf(r).documents}>
+      {/* Each card its own height: a list of two or three documents beside the chart stood ~150px empty (Phase 7's
+          re-review, Work F-41's Whitespace). */}
       {d ? (
-        <Row split="2/3">
+        <Row split="2/3" className="lg:items-start">
           <Panel title="Words added" description={`The words each revision added, ${grainWords(windows)}, nothing taken off for what a later one removed. ${coverageLine(d.coverage)}`}>
             {windows.length ? (
-              <ColumnChart
+              <ColumnChart whole
                 label="Words added"
                 dates={dates}
                 running={running}
-                noData="No words recorded"
+                noData={NO_DATA}
                 columns={d.wordsByWeek.map((p) => ({ key: p.window.from, label: tick(p.window.from), value: p.figure.value }))}
               />
             ) : <NoPeriods />}
           </Panel>
           <Panel
             title="Most rewritten documents"
-            // The gateway answers the five given the most versions and no count of the rest, so the card says how many it shows.
-            description={d.mostRewritten.length ? `The ${formatCount(d.mostRewritten.length)} ${plural(d.mostRewritten.length, 'document')} given the most versions in the period, with the versions each was given` : 'The versions each was given in the period'}
+            // The gateway answers the five given the most revisions and no count of the rest, so the card says how many it
+            // shows, and what a revision is against the versions the document's own page counts (Work N-4).
+            description={`${d.mostRewritten.length ? `The ${formatCount(d.mostRewritten.length)} ${plural(d.mostRewritten.length, 'document')} given the most revisions in the period` : 'The revisions each was given in the period'}: ${REVISION}`}
           >
             {d.mostRewritten.length ? (
               <BarList
                 label="Most rewritten documents"
-                items={d.mostRewritten.map((m) => ({ key: `${m.initiative}/${m.path}`, label: <span className="[overflow-wrap:anywhere]">{m.initiative}/{m.path}</span>, value: m.versions }))}
+                items={d.mostRewritten.map((m) => ({
+                  key: `${m.initiative}/${m.path}`,
+                  label: <span className="[overflow-wrap:anywhere]">{m.initiative}/{m.path}</span>,
+                  value: m.versions,
+                  href: team ? `/initiatives/${team}/${m.initiative}/${m.path}` : undefined,
+                }))}
               />
             ) : <EmptyState layout="inline" title="Nothing rewritten in the period" className="py-6">A document given a second version appears here.</EmptyState>}
           </Panel>
@@ -337,14 +347,14 @@ function Knowledge({ r, windows }: Slice) {
     <SliceOf k="knowledge" r={r} tiles={tilesOf(r).knowledge}>
       {k ? (
         <>
-          <Row split="1/2">
+          <Row split="1/2" className="lg:items-start">
             <Panel title="Searches with results" description={`The share of completed searches that returned something, ${grain}: retrieval, not a proven answer`}>
               {windows.length ? (
                 <ColumnChart
                   label="Searches with results"
                   dates={dates}
                   running={running}
-                  noData="No searches recorded"
+                  noData={NO_DATA}
                   format={formatShare}
                   columns={k.searchesWithResults.map((p) => ({ key: p.window.from, label: tick(p.window.from), value: p.figure.value }))}
                 />
@@ -418,7 +428,9 @@ function Agents({ r }: { r: RecordRead }) {
           <Row split="2/3">
             <Days r={r} days={a.days} />
             <Panel title="Runs by skill" description="The period's observed runs, by the skill each ran">
-              {a.bySkill.length ? <BarList label="Runs by skill" items={a.bySkill.map((s) => ({ key: s.skill, label: <span className="[overflow-wrap:anywhere]">{s.skill}</span>, value: s.runs }))} /> : <EmptyState layout="inline" title="No run in the period" className="py-6">A run of a skill appears here.</EmptyState>}
+              {a.bySkill.length ? <BarList label="Runs by skill" items={a.bySkill.map((s) => ({ key: s.skill, label: <span className="[overflow-wrap:anywhere]">{s.skill}</span>, value: s.runs, href: `/runs?skill=${encodeURIComponent(s.skill)}` }))} /> : <EmptyState layout="inline" title="No run in the period" className="py-6">A run of a skill appears here.</EmptyState>}
+              {/* A skill's name opens its runs; this says so where a still shows it (Work F-41's Navigation). */}
+              <Link href="/runs" className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-ink hover:text-accent-ink">Every run, and each skill&rsquo;s, is on Runs <ArrowRight className="size-3.5" /></Link>
             </Panel>
           </Row>
         </>
@@ -433,8 +445,20 @@ function Firsts({ r }: { r: RecordRead }) {
     <SliceOf k="firsts" r={r} tiles={tilesOf(r).firsts}>
       {f ? (
         <Panel title="Dated firsts" description="Over the whole record, the earliest first">
+          {/* Across the card, earliest first, the dates on one line and each label whole under its own: a key-value
+              list set five labels in its 128px label column and wrapped them beside ~900px of empty card (Phase 7's
+              re-review, Work F-41). A phone reads them as rows, the label beside its date. */}
           {f.firsts.length ? (
-            <KeyValue items={f.firsts.map((x) => ({ label: FIRST[x.key], value: <time dateTime={x.at}>{formatDate(x.at)}</time> }))} />
+            <div className="@container">
+              <ol className="grid grid-cols-1 @min-[48rem]:grid-cols-5 @min-[48rem]:gap-x-6">
+                {f.firsts.map((x) => (
+                  <li key={x.key} className="flex min-w-0 items-baseline justify-between gap-4 border-b border-line py-2.5 last:border-0 @min-[48rem]:flex-col-reverse @min-[48rem]:justify-end @min-[48rem]:gap-1 @min-[48rem]:border-b-0 @min-[48rem]:border-l @min-[48rem]:py-0 @min-[48rem]:pl-4">
+                    <span className="min-w-0 text-sm text-ink-3">{FIRST[x.key]}</span>
+                    <time dateTime={x.at} className="t-num text-sm font-medium whitespace-nowrap text-ink">{formatDate(x.at)}</time>
+                  </li>
+                ))}
+              </ol>
+            </div>
           ) : <EmptyState layout="inline" title="No first yet" className="py-6">The first closure, approval, lesson, run and week of words appear here.</EmptyState>}
         </Panel>
       ) : null}

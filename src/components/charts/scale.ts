@@ -1,9 +1,12 @@
 /** Small, dependency-free scale helpers shared by the charts. */
 
-/** A "nice" upper bound and 3 to 5 ticks from 0 to it. */
-export function niceTicks(max: number, count = 4): number[] {
+/**
+ * A "nice" upper bound and 3 to 5 ticks from 0 to it. `whole` keeps every tick a whole number, for a scale of counts:
+ * a top of 1 is ticked 0 and 1, never with a level at 0.5 that no count stands at (#72).
+ */
+export function niceTicks(max: number, count = 4, whole = false): number[] {
   if (max <= 0) return [0, 1];
-  return ticksBetween(0, max, count);
+  return ticksBetween(0, max, count, whole);
 }
 
 /**
@@ -12,12 +15,14 @@ export function niceTicks(max: number, count = 4): number[] {
  * the one thing the chart is about the smallest mark on it. Both ends land on a step, so the lowest level is the floor
  * the plot is drawn to and `ticks[0]` may be read as it. Returns `[0, 1]` like `niceTicks` when there is nothing to show.
  */
-export function ticksBetween(floor: number, max: number, count = 4): number[] {
+export function ticksBetween(floor: number, max: number, count = 4, whole = false): number[] {
   if (max <= 0) return [0, 1];
   const raw = (max - floor) / count;
-  if (!(raw > 0)) return niceTicks(max, count);
+  if (!(raw > 0)) return niceTicks(max, count, whole);
   const mag = 10 ** Math.floor(Math.log10(raw));
-  const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= raw) ?? raw;
+  const nice = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= raw) ?? raw;
+  // A whole scale steps by a whole number: at least 1, and 2.5 becomes 5 as the next nice step (2.5 × 10 stays 25).
+  const step = !whole || Number.isInteger(nice) ? nice : nice < 1 ? 1 : [1, 2, 5, 10].map((m) => m * mag).find((s) => s >= nice && Number.isInteger(s)) ?? Math.ceil(nice);
   // How many steps a level is from zero, rounded before it is floored or ceilinged: in binary, 0.7 / 0.1 is 6.999…,
   // and a floor of 70% on a 10% step would otherwise come out as 60% — a whole step of the plot spent on nothing.
   const steps = (n: number) => Math.round(n / step * 1e6) / 1e6;

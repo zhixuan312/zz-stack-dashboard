@@ -1,3 +1,4 @@
+
 /**
  * The name Record and Home both give the lessons the team's own work made, superseded ones included and an import's
  * left out; Knowledge's Lessons adopted are the lessons standing on the shelf, imports included, a different count under
@@ -5,3 +6,11 @@
  * Record's words with it.
  */
 export const LESSONS_MADE = 'Lessons made';
+
+/**
+ * What a chart's column with no data reads, on Home and Record: one short word, whole in the narrowest column that
+ * shows a value at rest. "No words recorded" and "Nothing closed" were cut to "No words rec…" and "Nothing close…" in
+ * their columns (Phase 7's re-review, Work N-8); the chart's title says what is counted, and the figure above it keeps
+ * the longer words.
+ */
+export const NO_DATA = 'None';

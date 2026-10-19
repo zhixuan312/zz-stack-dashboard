@@ -102,11 +102,20 @@ const ACTION: Record<string, (doc: string | null, stage: string | null) => strin
 };
 const WAITER: Record<string, string> = { stakeholder: 'a person', agent: 'the agent' };
 
-/** Where a row goes next and who it waits on, as its flow position reads on the page and in the context. */
-export const nextOf = (r: Pick<InitiativeRow, 'nextMove'>): string => {
+/** The states a close records: a row in one of them is closed, whatever its next move says. */
+const CLOSED_STATES: ReadonlySet<InitiativeRow['state']> = new Set(['accepted', 'delivered', 'abandoned']);
+
+/**
+ * Where a row goes next and who it waits on, as its flow position reads on the page and in the context. A closed row
+ * that still waits on an approval waits on its correction: the closing document changed after the close and its new
+ * version is presented again, so the sentence says so rather than reading as closed work that never finished.
+ */
+export const nextOf = (r: Pick<InitiativeRow, 'nextMove'> & { state?: InitiativeRow['state'] }): string => {
   const m = r.nextMove;
   if (!m) return 'Next move unavailable';
-  const said = ACTION[m.action]?.(m.document, m.stage) ?? `${m.action.replaceAll('_', ' ')}${m.document ? ` ${m.document}` : ''}`;
+  const correction = m.action === 'await_approval' && r.state !== undefined && CLOSED_STATES.has(r.state);
+  const said = correction ? (m.document ? `Approve the correction to ${m.document}` : 'Approve the correction')
+    : ACTION[m.action]?.(m.document, m.stage) ?? `${m.action.replaceAll('_', ' ')}${m.document ? ` ${m.document}` : ''}`;
   const waiter = m.waitingOn ? WAITER[m.waitingOn] : undefined;
   return waiter ? `${said}, waiting on ${waiter}` : said;
 };

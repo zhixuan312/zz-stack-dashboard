@@ -27,7 +27,7 @@ import { formatDay } from '@/lib/format-date';
 import type { PlatformStatus } from '@/lib/platform-shapes';
 import {
   NO_TEAM, UNRECORDED, askOf, asOfLine, doorRow, footOf, needsFoot, ownOf, pairOf, platformStatusContext, runningOf, scoreOf,
-  troubleOf, valueIn, type Dated, type DoorRow, type Half, type ScoreRow, type StatusRead,
+  dayCell, dayIn, troubleOf, valueIn, weekCell, weekIn, type Dated, type DoorRow, type Half, type ScoreRow, type StatusRead,
 } from '@/views/platform-status-context';
 
 /**
@@ -179,9 +179,9 @@ function OwnTeam({ status }: { status: PlatformStatus }) {
 /** A figure over the week it is for. */
 /** A figure over its week, each on one line where the table is wide; under 896px the week may wrap, so five columns fit a
  *  768px window. */
-const DatedCell = ({ d }: { d: Dated | null }) => (d ? <span className="flex flex-col whitespace-nowrap @max-[896px]:whitespace-normal"><span>{d.value}</span>{d.week ? <span className="text-xs text-ink-3">{d.week}</span> : null}</span> : null);
+const DatedCell = ({ d }: { d: Dated | null }) => (d ? <span className="flex flex-col whitespace-nowrap @max-[896px]:whitespace-normal"><span>{d.value}</span>{d.from ? <span className="text-xs text-ink-3">{weekCell(d)}</span> : null}</span> : null);
 /** A dated figure as a phone card says it, the pair's word first: `Best 84.0%, week of 12 Oct`, or `Last 84.0%`. */
-const datedFact = (word: string, d: Dated | null, week = true) => (d ? `${word} ${d.value}${week && d.week ? `, ${d.week.replace(/^Week/, 'week')}` : ''}` : `${word} none`);
+const datedFact = (word: string, d: Dated | null, week = true) => (d ? `${word} ${d.value}${week && d.from ? `, ${weekIn(d)}` : ''}` : `${word} none`);
 
 function ChangeCell({ row }: { row: ScoreRow }) {
   const { value, format } = row.change;
@@ -195,7 +195,7 @@ const shapeOf = (r: ScoreRow) => (r.points.filter((p) => p !== null).length > 1
   : <span className="text-xs text-ink-3">Not enough weeks</span>);
 
 /** A dated figure in words, for a title: `low 41, week of 6 Oct`. */
-const datedSaid = (label: string, d: Dated | null) => (d ? `${label} ${d.value}${d.week ? `, ${d.week}` : ''}` : `${label} none`);
+const datedSaid = (label: string, d: Dated | null) => (d ? `${label} ${d.value}${d.from ? `, ${weekIn(d)}` : ''}` : `${label} none`);
 
 const MEASURE: Column<ScoreRow> = { key: 'measure', header: 'Measure', cell: (r) => r.label, title: (r) => `${r.label}: ${r.hint}`, grow: true, mobile: 'title' };
 const SHARED: Column<ScoreRow>[] = [
@@ -268,9 +268,9 @@ const DOOR_COLUMNS: Column<DoorRow>[] = [
   { key: 'days', header: 'Days with calls', cell: (r) => r.daysWithCalls, numeric: true, hideBelow: 'lg' },
   {
     key: 'faults', header: 'Fault days', cell: (r) => r.faultDays, title: (r) => `${faultDays(r.faultDays)} of ${r.daysWithCalls} days with calls`, numeric: true, mobile: 'fact',
-    mobileCell: (r) => `${faultDays(r.faultDays)} in ${r.daysWithCalls} ${plural(r.daysWithCalls, 'day')}${r.faultDays ? `, last ${r.lastFaultDay.replace(/ \d{4}$/, '')}` : ''}`,
+    mobileCell: (r) => `${faultDays(r.faultDays)} in ${r.daysWithCalls} ${plural(r.daysWithCalls, 'day')}${r.faultDays && r.lastFaultDay ? `, last ${dayIn(r.lastFaultDay)}` : ''}`,
   },
-  { key: 'last', header: 'Last fault day', cell: (r) => <span className="whitespace-nowrap">{r.lastFaultDay}</span> },
+  { key: 'last', header: 'Last fault day', cell: (r) => <span className="whitespace-nowrap">{r.lastFaultDay ? dayCell(r.lastFaultDay) : 'None recorded'}</span> },
   { key: 'run', header: 'Run', cell: (r) => r.run, grow: true, truncate: true },
   { key: 'today', header: 'Today', cell: (r) => <span className="whitespace-nowrap">{r.today ?? ''}</span>, muted: true, hideBelow: 'lg' },
 ];

@@ -83,7 +83,8 @@ export function EvalHeadline({ pluginEval, lead = null }: { pluginEval: PluginEv
               <dd className="text-lg font-semibold text-ink-3">{standingSaid(run.scoreStatus)}</dd>
             ) : (
               <dd className="text-lg font-semibold tabular-nums text-ink">
-                {run.overallScore.toFixed(2)}
+                {/* One place, as the public score above and the parts below read: 7.10 beside 7.1 read as two figures. */}
+                {run.overallScore.toFixed(1)}
                 <span className="text-xs font-regular text-ink-3"> / {SCORE_OUT_OF}</span>
               </dd>
             )}
@@ -163,11 +164,34 @@ export function EvalHealth({ run }: { run: Run | null }) {
 }
 
 /**
+ * Each scored dimension's points of the overall score, in tenths, as `scoreRun` (zz-core's eval/score.ts) adds them:
+ * the overall is 10 × the weighted mean over the applicable dimensions that scored, re-normalised, so a dimension
+ * counts `weight / counted` of it, `counted` being the weight of those dimensions. A not-applicable or unscored one's
+ * weight is shared out, never a zero. Rounded so the parts sum to their whole rounded: largest remainders first.
+ */
+export function contributionsOf(dimensions: DimensionScore[]): { parts: { key: string; tenths: number }[]; counted: number; declared: number } {
+  const scored = dimensions.filter((d) => d.applicable && d.score !== null);
+  const counted = scored.reduce((n, d) => n + d.weight, 0);
+  const declared = dimensions.reduce((n, d) => n + d.weight, 0);
+  if (!(counted > 0)) return { parts: [], counted: 0, declared };
+  const raw = scored.map((d) => (100 * d.weight * d.score!) / counted);
+  const whole = Math.round(raw.reduce((a, b) => a + b, 0));
+  const tenths = raw.map(Math.floor);
+  const order = raw.map((_, i) => i).sort((a, b) => (raw[b] - tenths[b]) - (raw[a] - tenths[a]) || a - b);
+  for (let left = whole - tenths.reduce((a, b) => a + b, 0), k = 0; left > 0; left--, k++) tenths[order[k % order.length]] += 1;
+  return { parts: scored.map((d, i) => ({ key: d.key, tenths: tenths[i] })), counted, declared };
+}
+
+/** A weight as a share, to a whole percent where it is one: `25%`, `33.3%`. */
+const weightSaid = (w: number): string => `${Math.round(w * 1000) / 10}%`;
+
+/**
  * Quality: the six canonical dimensions (FR-19), each dimension's share of the overall score as
  * a composition bar — the console's own "share-of-total bars" rule, made literal: a dimension's
- * slice IS its weighted contribution to `overall_score`, so the bar and the number agree by
- * construction rather than by a second computation. Every dimension the bar leaves out — not
- * applicable, or applicable with no measure scored — says why under the table instead of drawing
+ * slice IS its contribution to `overall_score`, its weight re-normalised over the dimensions that
+ * count, so the parts add up to the overall and the sentence under the bar shows the sum. Every
+ * dimension the bar leaves out — not applicable, or applicable with no measure scored — says why
+ * under the table, and the bar's caption says how its weight was shared out, instead of drawing
  * a silent zero-width slice.
  *
  * No horizontal scroll on the table below (house rule — nothing in the console scrolls
@@ -182,7 +206,10 @@ export function EvalQuality({ run }: { run: Run | null }) {
   /* A dimension whose every measure was excluded has no score, and `scoreRun` leaves it OUT of the
      overall mean rather than counting it as zero — so the bar leaves it out too. Drawn as a part it
      would read "contributed nothing", beside a table row that says the truer "not scored". */
-  const parts = applicable.flatMap((d) => (d.score === null ? [] : [{ label: wordsOf(d.key), value: Math.round(d.weight * d.score * 1000) }]));
+  const { parts: points, counted, declared } = contributionsOf(run.dimensions);
+  const parts = points.map((p) => ({ label: wordsOf(p.key), value: p.tenths }));
+  const sum = points.reduce((n, p) => n + p.tenths, 0);
+  const left = run.dimensions.filter((d) => !d.applicable || d.score === null);
   const leftOut = [
     ...notApplicable.map((d) => `${wordsOf(d.key)}: ${d.notApplicableReason ?? 'no reason recorded'}`),
     ...applicable.flatMap((d) => (d.score === null ? [`${wordsOf(d.key)}: no measure scored, ${formatCount(d.measuresScored)} of ${formatCount(d.measuresTotal)}`] : [])),
@@ -190,13 +217,23 @@ export function EvalQuality({ run }: { run: Run | null }) {
   const required = run.dimensions.some((d) => d.required);
   return (
     <Panel title="Quality" description={`${applicable.length} of ${run.dimensions.length} ${plural(run.dimensions.length, 'dimension')} applicable${required ? '; Required marks the ones its protocol requires' : ''}`}>
-      {/* The bar reads in the same units as overall_score's own formula (`10 × Σ weight × score`): a part is its point
-          contribution, not a raw fraction of 1, so the parts at their measured scores sum to the headline number. */}
-      {parts.length ? <CompositionBar
-        label="Each dimension's contribution to the overall score"
-        parts={parts}
-        format={(v) => (v / 100).toFixed(2)}
-      /> : <p className="py-2 text-sm text-ink-3">No dimension has a score, so there is no contribution to draw.</p>}
+      {/* The bar reads in the overall score's own points, out of 10: a part is a dimension's score times its weight
+          over the weight that counts, so the parts sum to the headline number, and the sentence shows the sum. */}
+      {parts.length ? (
+        <>
+          <CompositionBar
+            label="Each dimension's contribution to the overall score"
+            parts={parts}
+            format={(v) => (v / 10).toFixed(1)}
+          />
+          <p className="t-caption mt-3">
+            {left.length && counted < declared
+              ? `${left.map((d) => wordsOf(d.key)).join(' and ')} ${left.length === 1 ? 'is' : 'are'} left out, as the table says, so ${left.length === 1 ? 'its' : 'their'} ${weightSaid(declared - counted)} is shared out over the ${parts.length} that count: each part is its score times its weight over ${weightSaid(counted)}. `
+              : 'Each part is its score times its weight. '}
+            {`${parts.map((p) => (p.value / 10).toFixed(1)).join(' + ')} = ${(sum / 10).toFixed(1)} out of ${SCORE_OUT_OF}.`}
+          </p>
+        </>
+      ) : <p className="py-2 text-sm text-ink-3">No dimension has a score, so there is no contribution to draw.</p>}
       <Table className="mt-4">
         <TableHead>
           <TableRow>

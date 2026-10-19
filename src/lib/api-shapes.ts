@@ -200,6 +200,8 @@ export interface KnowledgeLogEntry {
   superseded_by: string | null;
   node_title: string | null;
   node_status: string | null;
+  /** The node's address on the shelf while it is there, so a row opens it; null once it is gone. */
+  path: string | null;
 }
 export interface KnowledgeBody {
   team: string; path: string; type: string; status: string; title: string;

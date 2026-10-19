@@ -20,7 +20,7 @@ import { Panel } from '@/console/panel';
 import { failureOf } from '@/console/query';
 import { useDataClock } from '@/lib/api';
 import { AXIS_FORMATTERS, plural } from '@/lib/format';
-import { formatDate, formatDateTime, formatShortDate } from '@/lib/format-date';
+import { formatDate, formatDateTime, formatDay, formatShortDate } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import type { Bugs, PublicBugRow } from '@/lib/platform-shapes';
 import { pendingContext } from '@/views/context';
@@ -187,7 +187,7 @@ function Tiles({ data, mark }: { data: Bugs | undefined; mark: string }) {
       <MetricTile
         label={TILES.rate.label} hint={TILES.rate.definition} icon={<Bug />}
         value={data ? (week ? rateIn(week.filedPer1000) : 'No whole week') : mark}
-        note={week ? `Week of ${formatShortDate(week.week)}` : undefined}
+        note={week ? `Week of ${formatDay(week.week)}` : undefined}
       />
       <MetricTile
         label={TILES.median.label} hint={TILES.median.definition} icon={<Timer />}
@@ -212,12 +212,12 @@ function Weeks({ data }: { data: Bugs }) {
       <Row split="1/2">
         <Panel title="Filed by week" description="Real reports filed, a Monday week each; the last week is still running.">
           {cohorts.length ? (
-            <ColumnChart label="Filed by week" columns={weekColumns(cohorts, (c) => valueOf(c.filed))} dates={dates} running={running} highlight={last} format={formatCount} axisFormat={AXIS_FORMATTERS.count} height={200} />
+            <ColumnChart whole label="Filed by week" columns={weekColumns(cohorts, (c) => valueOf(c.filed))} dates={dates} running={running} highlight={last} format={formatCount} axisFormat={AXIS_FORMATTERS.count} height={200} />
           ) : none}
         </Panel>
         <Panel title="Resolved by week filed" description="Of each week's reports, those resolved since, whenever each was resolved.">
           {cohorts.length ? (
-            <ColumnChart label="Resolved by week filed" columns={weekColumns(cohorts, (c) => valueOf(c.resolved))} dates={dates} running={running} highlight={last} format={formatCount} axisFormat={AXIS_FORMATTERS.count} height={200} />
+            <ColumnChart whole label="Resolved by week filed" columns={weekColumns(cohorts, (c) => valueOf(c.resolved))} dates={dates} running={running} highlight={last} format={formatCount} axisFormat={AXIS_FORMATTERS.count} height={200} />
           ) : none}
         </Panel>
       </Row>
@@ -225,17 +225,21 @@ function Weeks({ data }: { data: Bugs }) {
   );
 }
 
-/** The median hours to resolve by the week filed: a week none of whose reports is resolved has no column, never a zero. */
+/**
+ * The median hours to resolve by the week filed, over whole weeks: a week none of whose reports is resolved has no
+ * column, never a zero. The running week is left out until it ends: its median is only the reports resolved within days
+ * of filing, so it would read faster than the week will.
+ */
 function Median({ data }: { data: Bugs }) {
-  const { cohorts } = data;
+  const cohorts = useMemo(() => (cohortsRunning(data.cohorts, data.meta.asOf) ? data.cohorts.slice(0, -1) : data.cohorts), [data]);
   const dates = useMemo(() => cohorts.map((c) => c.week), [cohorts]);
   return (
-    <Panel title="Median hours to resolve by week filed" description="Over each week's resolved reports; an open report is in no median.">
+    <Panel title="Median hours to resolve by week filed" description="Over each whole week's resolved reports; an open report is in no median, and the running week is drawn once it ends.">
       {cohorts.some((c) => valueOf(c.medianResolveHours) !== null) ? (
         <ColumnChart
           label="Median hours to resolve by week filed"
           columns={weekColumns(cohorts, (c) => valueOf(c.medianResolveHours))}
-          dates={dates} running={cohortsRunning(cohorts, data.meta.asOf)} format={formatHours} axisFormat={AXIS_FORMATTERS.count} height={200}
+          dates={dates} format={formatHours} axisFormat={AXIS_FORMATTERS.count} height={200}
         />
       ) : <EmptyState kind="first-run" title="No report resolved yet" className="py-10">A week&apos;s median is drawn once one of its reports is resolved.</EmptyState>}
     </Panel>

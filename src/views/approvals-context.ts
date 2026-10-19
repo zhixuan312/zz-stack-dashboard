@@ -128,8 +128,28 @@ export const dayOnly = (approvedAt: string): boolean => approvedAt.length === 10
 /** When an approval was made, as a cell or a line says it: its time, or the day alone where only the day is recorded. */
 export const approvedWhen = (approvedAt: string): string => (dayOnly(approvedAt) ? formatCalendarDate(approvedAt) : formatDateTime(approvedAt));
 
-/** The fourth tile's sentence, a count of the record and never an inference: `2 of 9 approved with no presentation recorded`. */
-export const noPresentationLine = (n: { count: number; of: number }): string => `${formatCount(n.count)} of ${formatCount(n.of)} approved with no presentation recorded`;
+/**
+ * How many approvals in the caller's name the record knows nothing of how they were shown: the ones the no-presentation
+ * count is not taken over, sealed before presentations were recorded or naming no review context. Null where either
+ * count could not be read.
+ */
+const unknownOf = (n: { of: number }, inYourName: number | null): number | null => (inYourName === null ? null : Math.max(0, inYourName - n.of));
+
+/**
+ * The fourth tile's sentence, a count of the record and never an inference: `2 of 10 approved with no presentation
+ * recorded, and 1 unknown`, the History tab's Unknown. The second half is what makes it add up to the approvals in
+ * your name beside it: the count is taken over the approvals whose presentation is known, never over all of them.
+ */
+export const noPresentationLine = (n: { count: number; of: number }, inYourName: number | null): string => {
+  const unknown = unknownOf(n, inYourName);
+  return `${formatCount(n.count)} of ${formatCount(n.of)} approved with no presentation recorded${unknown ? `, and ${formatCount(unknown)} unknown` : ''}`;
+};
+
+/** The same count in the fourth tile's one-line note: what it is taken over, `of 10 known, 1 unknown`. */
+export const noPresentationNote = (n: { of: number }, inYourName: number | null): string => {
+  const unknown = unknownOf(n, inYourName);
+  return `of ${formatCount(n.of)} known${unknown ? `, ${formatCount(unknown)} unknown` : ''}`;
+};
 
 /** A count of the tiles, or the word for one whose list could not be read. */
 const countOr = (n: number | null): string => (n === null ? 'unavailable' : formatCount(n));
@@ -155,7 +175,8 @@ function factsOf(a: Approvals): Fact[] {
       definition: TILES.oldest.definition,
     },
     { label: TILES.inYourName.label, value: countOr(inYourName), definition: TILES.inYourName.definition },
-    { label: TILES.noPresentation.label, value: noPresentation ? noPresentationLine(noPresentation) : 'unavailable', definition: TILES.noPresentation.definition },
+    // Over the known alone: the unknown are History's summary's own count, by presentation, which the context says too.
+    { label: TILES.noPresentation.label, value: noPresentation ? noPresentationLine(noPresentation, null) : 'unavailable', definition: TILES.noPresentation.definition },
   ];
 }
 

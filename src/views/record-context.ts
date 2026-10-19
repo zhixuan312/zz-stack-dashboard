@@ -90,6 +90,17 @@ export const asOfWords = (r: RecordRead): string => `as of ${formatDateTime(r.le
 
 /** Hours as the page says them: one decimal under ten, whole above. */
 export const formatHours = (h: number): string => `${h < 10 ? h.toFixed(1) : formatCount(Math.round(h))} h`;
+/** An hours axis's tick: whole where the tick is, as a count's is. `formatHours` read the baseline "0.0 h" under
+ *  "200 h" (Phase 7's re-review, Work F-41); a tick between whole hours keeps its fraction, never rounded to a neighbour. */
+export const hourTick = (h: number): string => `${Number.isInteger(h) ? formatCount(h) : String(Math.round(h * 100) / 100)} h`;
+
+/**
+ * What Record counts in a document's history, said against what the document's own page counts. The gateway counts
+ * every write of a document as a revision, an approval's included; the document's page numbers its versions, which a
+ * revision that only approves does not add to. Record said "versions" for revisions, and a document Record gave 7 read
+ * v1 to v3 on its own page (Phase 7's re-review, Work N-4).
+ */
+export const REVISION = 'every write is a revision, an approval\'s included, where a document\'s own page counts its versions';
 
 /** What a figure with no value is called, by why it has none. */
 function absent(why: Figure['why']): string {
@@ -158,7 +169,7 @@ export function footOf(r: RecordRead): { key: string; label: string; value: stri
   return [
     { key: 'closed', label: 'Work closed', value: closed.value !== null && opened.value !== null ? `${formatCount(closed.value)} of ${formatCount(opened.value)} opened` : said(closed) },
     { key: 'documents', label: 'Documents created', value: said(documents) },
-    { key: 'versions', label: 'Versions written', value: said(versions) },
+    { key: 'versions', label: 'Revisions written', value: said(versions) },
     { key: 'approvals', label: 'Approvals in your name', value: said(approvalsInYourName) },
   ];
 }
@@ -211,7 +222,7 @@ export function tilesOf(r: RecordRead): Record<SliceKey, Tile[] | null> {
     })(),
     documents: d && [
       tile('flowDocuments', 'Flow documents', 'Flow documents created in the period.', d.flowDocuments, 'Created in the period'),
-      tile('versions', 'Versions written', 'Revisions of the team\'s documents written in the period.', d.versions, 'Written in the period'),
+      tile('versions', 'Revisions written', `Revisions of the team's documents written in the period: ${REVISION}.`, d.versions, 'Written in the period'),
       tile('sources', 'Median sources', 'The median of the sources supporting each gated document created in the period.', d.sourcesUnderGated.median, `Under a gated document; the most under one: ${said(d.sourcesUnderGated.largest)}`),
       tile('citations', 'Citations', 'Links from one of the team\'s documents to another, first recorded in the period.', d.citations, 'First recorded in the period'),
     ],
@@ -236,7 +247,7 @@ export function tilesOf(r: RecordRead): Record<SliceKey, Tile[] | null> {
 }
 
 const BEST = {
-  most_versions: { label: 'Most versions', hint: 'The most revisions one flow document was given in the period.' },
+  most_versions: { label: 'Most revisions', hint: `The most revisions one flow document was given in the period: ${REVISION}.` },
   most_sources: { label: 'Most sources', hint: 'The most sources registered in the period supporting one flow document.' },
   most_words_week: { label: 'Most words in a week', hint: 'The most words added in one complete week of the period.' },
   most_open: { label: 'Most open at once', hint: 'The most initiatives open at one moment in the period.' },
@@ -286,7 +297,7 @@ export function recordContext(r: RecordRead | null, { filters, trouble = null }:
     insights.push({ text: `Firsts over the whole record: ${r.firsts.data.firsts.map((f) => `${FIRST[f.key].toLowerCase()} ${formatDate(f.at)}`).join('; ')}.` });
   }
   if (r.documents.state === 'ok' && r.documents.data.mostRewritten.length) {
-    insights.push({ text: `Most rewritten in the period: ${r.documents.data.mostRewritten.slice(0, 3).map((m) => `${clip(`${m.initiative}/${m.path}`)} (${m.versions} versions)`).join('; ')}.` });
+    insights.push({ text: `Most rewritten in the period, where ${REVISION}: ${r.documents.data.mostRewritten.slice(0, 3).map((m) => `${clip(`${m.initiative}/${m.path}`)} (${m.versions} ${plural(m.versions, 'revision')})`).join('; ')}.` });
   }
   if (r.agents.state === 'ok' && r.agents.data.bySkill.length) {
     // The page's list names a few and counts the rest, and so does this.

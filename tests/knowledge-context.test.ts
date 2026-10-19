@@ -32,7 +32,7 @@ import { preparedCollection } from '@/data/prepared-aggregate';
 import type { SearchAnswer } from '@/lib/api-shapes';
 import type { KnowledgeList, KnowledgeSummary } from '@/lib/destination-shapes';
 import { contextText } from '@/lib/shared-context';
-import { knowledgeContext, type ServerRead } from '@/views/knowledge-context';
+import { knowledgeContext, starterOf, type ServerRead } from '@/views/knowledge-context';
 import { KNOWLEDGE_EXPLORE } from '@/views/knowledge-explore';
 import { KnowledgeView, SEARCH_TITLE } from '@/views/pages/knowledge';
 import { knowledgeTool } from '@/views/tools/knowledge';
@@ -194,6 +194,13 @@ describe('what the assistant reads from Knowledge', () => {
     const c = knowledgeContext({ summary: SUMMARY, list: LIST, filters: { q: 'recency', kind: 'all' }, page: 1, search: search('recency', 10, null), ...arrival });
     expect(c.unknowns.some((u) => u.includes('retrieval coverage'))).toBe(true);
     expect(contextText(c)).toContain('(the shared shelf');
+  });
+
+  it('offers the page\'s first question about the figures on screen to an empty thread, and tells the model none of it (Work F-56)', () => {
+    const c = knowledgeContext({ summary: SUMMARY, list: LIST, filters: { q: '', kind: 'all' }, page: 1, ...arrival });
+    expect(c.questions).toEqual([starterOf(SUMMARY)]);
+    expect(c.questions![0]).toMatch(/lessons adopted/);
+    expect(contextText(c)).not.toContain(c.questions![0]);
   });
 });
 

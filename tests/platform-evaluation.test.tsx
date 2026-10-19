@@ -159,14 +159,13 @@ describe('the page, as the fake gateway answers it', () => {
     for (const label of ['The plugin', 'A dependency', 'The platform', 'Not known']) expect(owner.textContent).toContain(label);
   });
 
-  it('lists the findings waiting oldest first, with the superadmin\'s pattern and measure', () => {
+  it('lists the findings waiting oldest first, each named by the superadmin\'s pattern over its measure', () => {
     draw(ok(ADMIN));
     const waiting = table('Findings waiting for a decision, oldest first');
     const rows = within(waiting).getAllByRole('row').slice(1);
-    expect(rows.map((r) => r.querySelector('[data-pattern]')!.textContent)).toEqual(PATTERNS);
-    rows.forEach((r, i) => expect(r.textContent).toContain(data(ADMIN.waiting).rows[i].summary));
+    expect(rows.map((r) => r.querySelector('[data-finding-name]')!.textContent)).toEqual(PATTERNS);
     expect(rows.map((r) => r.querySelector('[data-measure]')!.textContent)).toEqual(MEASURES.map((m) => `Measure ${m}`));
-    expect(waiting.textContent).toContain('Evaluation finding awaiting a decision');
+    for (const header of ['Finding', 'Plugin', 'Kind', 'Owner', 'Waiting']) expect(within(waiting).getByRole('columnheader', { name: header })).toBeInTheDocument();
   });
 
   it('shows a member the form everybody may read: no protocol key, no measure, no finding\'s own words', () => {
@@ -175,8 +174,11 @@ describe('the page, as the fake gateway answers it', () => {
     expect(table('Each plugin\'s latest score').textContent).toContain('Protocol v2');
     const waiting = table('Findings waiting for a decision, oldest first');
     expect(waiting.querySelector('[data-measure]')).toBeNull();
-    expect(waiting.querySelector('[data-pattern]')).toBeNull();
-    expect(within(waiting).getAllByRole('row')).toHaveLength(data(MEMBER.waiting).rows.length + 1);
+    const rows = within(waiting).getAllByRole('row').slice(1);
+    expect(rows.map((r) => r.querySelector('[data-finding-name]')!.textContent)).toEqual(data(MEMBER.waiting).rows.map((f) => f.summary));
+    expect(data(MEMBER.waiting).rows.map((f) => f.summary)).toEqual(['A defect in sdlc, owned by the plugin', 'An unknown in zz-core, owner not known']);
+    // The name says the plugin and the owner category, so a member's row has no column for either.
+    expect(within(waiting).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Finding', 'Kind', 'Waiting']);
   });
 
   it('offers no write control: nothing starts an evaluation or decides a finding', () => {
@@ -287,7 +289,7 @@ describe('what the assistant is told', () => {
     const t = text(MEMBER);
     for (const key of [...KEYS, ...MEASURES, ...PATTERNS]) expect(t).not.toContain(key);
     expect(t).toContain('Protocol v2');
-    expect(t).toContain('a member reads the version, the owner category and a fixed summary');
+    expect(t).toContain('a member reads the version, and a finding by its kind, plugin and owner category');
     expect(t.length).toBeLessThanOrEqual(CONTEXT_BUDGET);
   });
 

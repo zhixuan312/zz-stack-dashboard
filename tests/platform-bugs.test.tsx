@@ -30,7 +30,8 @@ import { CONTEXT_BUDGET } from '@/views/context';
 import { PlatformBugView } from '@/views/pages/platform-bug';
 import { PlatformBugsView } from '@/views/pages/platform-bugs';
 import {
-  BUGS_BOUND_MS, BUGS_DEFAULTS, bugContext, bugPath, bugsContext, bugsPath, duplicatesPath, filtersOfPath, formatHours, lastWhole, rateIn, waited,
+  BUGS_BOUND_MS, BUGS_DEFAULTS, bugContext, bugPath, bugsContext, bugsPath, cohortsRunning, duplicatesPath, filtersOfPath, formatHours, lastWhole, rateIn,
+  waited,
   type BugsFilters, type BugsRead, type DuplicatesRead,
 } from '@/views/platform-bugs-context';
 import { bugTool, bugsTool } from '@/views/tools/bugs';
@@ -142,7 +143,8 @@ describe('Bugs draws its tiles, its weeks and its figures', () => {
     expect(within(impact).getAllByRole('listitem')).toHaveLength(4);
     expect(within(impact).getByText('Blocks work').closest('li')!.textContent).toContain(String(counts.byImpact.blocks_work));
     const median = screen.getByRole('figure', { name: 'Median hours to resolve by week filed' });
-    expect(median.querySelectorAll('[data-column]')).toHaveLength(ADMIN.cohorts.length);
+    // Whole weeks only: the running week is drawn once it ends.
+    expect(median.querySelectorAll('[data-column]')).toHaveLength(ADMIN.cohorts.length - (cohortsRunning(ADMIN.cohorts, ADMIN.meta.asOf) ? 1 : 0));
   });
 });
 
