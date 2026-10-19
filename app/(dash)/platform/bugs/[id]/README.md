@@ -34,7 +34,7 @@ The assistant reads this page and changes nothing: a report is resolved on its p
 
 ### What the agent reads
 
-The report's status, impact, surface, team, version and when it was filed and resolved, its title and the reporter's words, cut to what holds the budget, what was decided, and, while it is open, the reports of its team it may be closed as a duplicate of. It says that the assistant changes nothing, that a closed report is not reopened, and that a duplicate is read within one team's reports.
+The report's status, impact, surface, team, version and when it was filed and resolved, its title, whole, and the reporter's words, cut to what holds the budget, what was decided, and, while it is open, the reports of its team it may be closed as a duplicate of, each title whole and as many as fit. No time of the read is stated, since the page prints none. It says that the assistant changes nothing, that a closed report is not reopened, and that a duplicate is read within one team's reports.
 
 ```text
 - It may be closed as a duplicate of 2 reports of its team: Approve answers twice when the button is pressed twice (duplicate, 0b3f2a6e-…-1d02); …

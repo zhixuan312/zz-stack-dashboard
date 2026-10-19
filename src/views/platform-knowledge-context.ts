@@ -45,6 +45,9 @@ const wordFor = (f: Figure): string | null => (f.value !== null ? null : f.why =
 /** A figure as a cell prints it: its value, with `too few` beside a share or a mean under the thirty searches it needs. */
 export const figureText = (kind: Kind, f: Figure): string => wordFor(f) ?? `${valueIn(kind, f.value!)}${f.why === 'insufficient' ? ', too few' : ''}`;
 
+/** A week's figure as its column in a chart reads it: the chart has one word, `No data`, for any week with no figure. */
+const columnText = (kind: Kind, f: Figure): string => (f.value === null ? 'No data' : figureText(kind, f));
+
 /** A shelf's share with no result in its table cell: as any share is, but a week with no search is `No searches`. */
 export const noResultCell = (f: Figure): string => (f.value === null && f.why === 'no_data' ? 'No searches' : figureText('share', f));
 
@@ -77,10 +80,31 @@ export const TILES = {
 export type WeeklyTile = Exclude<keyof typeof TILES, 'standing'>;
 export const WEEKLY_TILES: WeeklyTile[] = ['madeLastWeek', 'searches', 'noResult'];
 
+type Pair = { last: PeriodFigure; previous: PeriodFigure };
+
 /** A week's change on the week before, as a fraction, or null when either has no figure that stands beside the other. */
-export function changeOf({ last, previous }: { last: PeriodFigure; previous: PeriodFigure }): number | null {
+export function changeOf({ last, previous }: Pair): number | null {
   const [a, b] = [last.figure, previous.figure];
   return a.value === null || b.value === null || b.value === 0 || a.why || b.why ? null : (a.value - b.value) / b.value;
+}
+
+/** A share's change on the week before in points, the difference of the two shares, as Status gives one; null where
+ *  `changeOf` is. A share's change is never a percentage of itself, which a reader takes for points. */
+export function pointsOf({ last, previous }: Pair): number | null {
+  const [a, b] = [last.figure, previous.figure];
+  return a.value === null || b.value === null || a.why || b.why ? null : a.value - b.value;
+}
+/** A change in points, its direction left to the arrow or the word before it: `5.0 pts`. */
+export const pointsIn = (n: number): string => `${ONE.format(Math.abs(n))} pts`;
+
+/** A tile's change as the context says it, beside the tile's own: a share's in points, a count's as a percentage. */
+function changeSaid(kind: Kind, t: Pair): string {
+  const before = `vs the ${weekOf(t.previous.window)} (${figureText(kind, t.previous.figure)})`;
+  const points = kind === 'share' ? pointsOf(t) : null;
+  const change = kind === 'share' ? (points === null ? null : points / 100) : changeOf(t);
+  if (change === null) return `the week before ${figureText(kind, t.previous.figure)}`;
+  if (Math.abs(change) < 0.0005) return `unchanged ${before}`;
+  return `${change > 0 ? 'up' : 'down'} ${kind === 'share' ? pointsIn(points!) : `${ONE.format(Math.abs(change * 100))}%`} ${before}`;
 }
 
 /** A shelf as a person reads it: a member's by what each is, never by a team's name; a superadmin's by slug. */
@@ -184,7 +208,7 @@ export function knowledgeHealthContext(read: KnowledgeHealthRead): SharedContext
     facts.push({ label: TILES.standing.label, value: formatCount(t.standing), definition: TILES.standing.definition });
     for (const k of WEEKLY_TILES) {
       const { kind, label, definition } = TILES[k];
-      facts.push({ label, value: figureText(kind, t[k].last.figure), change: `the week before ${figureText(kind, t[k].previous.figure)}`, definition });
+      facts.push({ label, value: figureText(kind, t[k].last.figure), change: changeSaid(kind, t[k]), definition });
     }
   } else unavailable('The tiles', h.tiles.reason);
 
@@ -192,21 +216,21 @@ export function knowledgeHealthContext(read: KnowledgeHealthRead): SharedContext
     // The totals first, so a long list of shelves cut short keeps them.
     const rows = [...h.shelves.data.rows].sort((a, b) => Number(b.kind === 'all') - Number(a.kind === 'all'));
     const line = (r: ShelfRow) => `${shelfName(r, fleet)} ${formatCount(r.standing)}/${formatCount(r.superseded)}/${formatCount(r.imported)}, `
-      + `${formatCount(r.madeLastWeek)}/${formatCount(r.searchesLastWeek)}/${figureText('share', r.noResult.figure)}`;
+      + `${formatCount(r.madeLastWeek)}/${formatCount(r.searchesLastWeek)}/${noResultCell(r.noResult.figure)}`;
     insights.push({ text: `Each shelf as its standing/superseded/imported lessons, then the last whole week's lessons made/searches/share with no result: ${listed(rows, line, 'the table on /platform/knowledge', 8)}.` });
   } else unavailable('The shelves', h.shelves.reason);
 
   if (h.made.state === 'ok') {
     const made = h.made.data;
     const outs = made.weeks.filter((w) => leftOut(w)).map((w) => `the ${weekOf(w.window)} ${leftOut(w)}`);
-    insights.push({ text: `Lessons made outside the import cohorts by week, ${byWeek(made.weeks, (w) => figureText('count', w.made))}. ${exactSince(made)}.${outs.length ? ` Left out as imported: ${listed(outs, (o) => o, 'the chart on /platform/knowledge', 4)}.` : ''}` });
+    insights.push({ text: `Lessons made outside the import cohorts by week, ${byWeek(made.weeks, (w) => columnText('count', w.made))}. ${exactSince(made)}.${outs.length ? ` Left out as imported: ${listed(outs, (o) => o, 'the chart on /platform/knowledge', 4)}.` : ''}` });
   } else unavailable('The lessons made by week', h.made.reason);
 
   if (h.searches.state === 'ok') {
     const weeks = h.searches.data.weeks;
     const at = lastWhole(weeks);
     const shown = at >= 0 ? ` In the ${weekOf(weeks[at].window)}: ${searchLine(weeks[at]).map((l) => `${l.label.toLowerCase()} ${l.value}`).join('; ')}.` : '';
-    insights.push({ text: `Share of searches with no result by week, ${byWeek(weeks, (w) => figureText('share', w.noResult.figure), '; ')}.${shown}` });
+    insights.push({ text: `Share of searches with no result by week, ${byWeek(weeks, (w) => columnText('share', w.noResult.figure), '; ')}.${shown}` });
   } else unavailable('The searches by week', h.searches.reason);
 
   if (h.questions !== null) {

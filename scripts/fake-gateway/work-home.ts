@@ -72,12 +72,16 @@ function milestone(count: 'closed' | 'documents' | 'lessons' | 'words', value: n
 const SENTENCE_DAY = new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', day: 'numeric', month: 'short' });
 const sayDay = (date: string) => SENTENCE_DAY.format(Date.UTC(Number(date.slice(0, 4)), Number(date.slice(5, 7)) - 1, Number(date.slice(8, 10))));
 
+/** Days as a sentence lists them: `14 Sept`, `14 Sept and 28 Sept`, `7 Sept, 14 Sept and 28 Sept`. */
+const sayDays = (dates: string[]) => { const d = dates.map(sayDay); return d.length > 1 ? `${d.slice(0, -1).join(', ')} and ${d.at(-1)}` : d[0]; };
+
 /**
  * What the gateway says of a neutral measure's last whole week: its high or its low since the first comparable week,
- * a tie with the earliest week it ties named, or nothing. COUPLED: periodFinding's neutral branch in the gateway's
- * console/findings.ts, which Home calls with no count label, so a plain week has no finding.
+ * every week it ties with named, earliest first, or nothing. "Tied with 14 Sept" for a week that tied with 14 and 28
+ * Sept read as a tie of two (Phase 7's second re-review, Work M-15). COUPLED: periodFinding's neutral branch in the
+ * gateway's console/findings.ts, which Home calls with no count label, so a plain week has no finding.
  */
-function neutralFinding(weeks: PeriodFigure[], label: string): Finding | null {
+export function neutralFinding(weeks: PeriodFigure[], label: string): Finding | null {
   const whole = weeks.filter((w) => w.window.complete);
   const valued = whole.filter((w) => w.figure.value !== null);
   const last = whole.at(-1);
@@ -90,8 +94,8 @@ function neutralFinding(weeks: PeriodFigure[], label: string): Finding | null {
   if (!kind) return null;
   const from = valued[0].window.from.slice(0, 10);
   const text = `${kind === 'high_week' ? 'Most' : 'Fewest'} recorded ${label} in a week since ${sayDay(from)}`;
-  const tied = valued.find((w) => w !== last && w.figure.value === v)?.window.from.slice(0, 10);
-  return tied ? { kind, text: `${text}, tied with ${sayDay(tied)}`, dates: [...at, from, tied], tie: true } : { kind, text, dates: [...at, from], tie: false };
+  const tied = valued.filter((w) => w !== last && w.figure.value === v).map((w) => w.window.from.slice(0, 10));
+  return tied.length ? { kind, text: `${text}, tied with ${sayDays(tied)}`, dates: [...at, from, ...tied], tie: true } : { kind, text, dates: [...at, from], tie: false };
 }
 
 /** The team's runs active now, as Runs marks them: each its own group while four or fewer, grouped by initiative above

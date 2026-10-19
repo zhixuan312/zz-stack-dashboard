@@ -276,7 +276,9 @@ function Questions({ summary }: { summary?: KnowledgeSummary }) {
       toolbar={
         <div className="min-w-0">
           <h2 className="t-card">Questions that found nothing</h2>
-          <p className="t-caption mt-1">{total > rows.length ? `Your team's own, most asked first: ${rows.length} of ${formatCount(total)}` : 'Your team\'s own, most asked first'}</p>
+          {/* Every question the gateway answers is in the table, ten a page; "10 of 13" with no pager left three out of
+              reach (Phase 7's second re-review, Work M-8). Past the gateway's fifty the line says how many it holds. */}
+          <p className="t-caption mt-1">{total > rows.length ? `Your team's own, most asked first: the first ${formatCount(rows.length)} of ${formatCount(total)}` : `Your team's own, ${formatCount(total)} in all, most asked first`}</p>
         </div>
       }
     />

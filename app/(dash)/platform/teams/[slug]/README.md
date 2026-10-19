@@ -33,7 +33,7 @@ The assistant reads this page and changes nothing: every change in this console 
 
 ### What the agent reads
 
-The team's name, status and created date, its four tiles with what each counts, its calls in the last complete week, then its calls in its last twelve complete weeks at most, oldest first, with the running week so far, and its first twelve members with their roles and when they joined, and how many more. It says that the team is read against its own past and never another team's, that its initiatives are its own to read, and when the calls by week could not be read.
+The team's name, status and created date, its four tiles with what each counts, its calls in the last complete week, then its calls in its last twelve complete weeks at most, oldest first, with the running week so far, and up to its first twelve members, each name whole and as many as fit, with their roles and when they joined, and how many more. It says that the team is read against its own past and never another team's, that its initiatives are its own to read, and when the calls by week could not be read. It is dated with the read's own cutoff, as the colophon prints it (`As of 20 Oct 2026, 03:15.`), never the moment the data arrived in the browser.
 
 ```text
 - Real-work calls in the last 5 complete weeks, oldest first: week of 7 Sept 60; week of 14 Sept 0; week of 21 Sept 12; week of 28 Sept 120; week of 5 Oct 80; the week of 12 Oct is still running, 3 so far.

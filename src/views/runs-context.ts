@@ -9,6 +9,7 @@
  * and none of them works a figure out itself.
  */
 import type { RunRow, Runs } from '@/lib/destination-shapes';
+import type { Catalog } from './plugins-context';
 import { plural } from '@/lib/format';
 import { formatCount, formatKb, formatSeconds } from '@/lib/format-units';
 import { dayOf, formatDate, formatDateTime, formatDay } from '@/lib/format-date';
@@ -79,6 +80,19 @@ export const TILES = {
 /** Observed output in words, from bytes; a run nothing measured has none to quote. */
 export const outputOf = (bytes: number | null): string => (bytes === null ? 'Not measured' : formatKb(bytes / 1024));
 
+/** Observed output inside a sentence: the unit as the page prints it, `454 KB`, and `not measured` in lower case. */
+const outputSaid = (bytes: number | null): string => (bytes === null ? 'not measured' : outputOf(bytes));
+
+/** A state inside a sentence: its first letter lowered, and a month's name left as the page prints it. */
+const lowerFirst = (s: string): string => s.charAt(0).toLowerCase() + s.slice(1);
+
+/** Each skill's own page by its name, `/plugins/<plugin>/<skill>`: where a row of the runs by skill goes. */
+export type SkillPages = Record<string, string>;
+
+/** Every skill the catalog ships, by name, with the address of its page under the plugin that ships it. */
+export const skillPagesOf = (catalog: Catalog): SkillPages =>
+  Object.fromEntries(catalog.plugins.flatMap((p) => p.skills.map((k) => [k.name, `/plugins/${encodeURIComponent(p.plugin)}/${encodeURIComponent(k.name)}`])));
+
 /** How a run stands, as the gateway states it: active while its last call is recent, and never running beyond it. */
 export const stateOf = (r: RunRow): string => (r.state === 'active' ? 'Active' : r.state === 'one_call' ? 'One call' : `Last call at ${formatDateTime(r.lastCallAt)}`);
 
@@ -117,7 +131,7 @@ export function runsContext(runs: Runs, { filters, read, ...arrival }: { filters
     insights.push({ text: `By skill, the most observed output per run first: ${listed(bySkill, (s) => `${clip(s.skill, 40)} (${formatCount(s.runs)} ${plural(s.runs, 'run')}, ${perRunOf(s.callsPerRun)} calls a run, ${s.outputPerRun === null ? 'output not measured' : `${formatKb(s.outputPerRun / 1024)} a run`}, ${s.typicalMs === null ? 'none longer than one call' : `typically ${formatSeconds(s.typicalMs / 1000)}${timedOf(s) ? `, over ${timedOf(s)}` : ''}`}${s.shareRefused ? `, ${refusedOf(s.shareRefused)} refused` : ''})`, 'see /runs', 5)}.`, evidence: address });
   }
   if (recent?.rows.length) {
-    insights.push({ text: `The recent runs, newest last call first, rows ${first + 1} to ${first + recent.rows.length} of ${formatCount(recent.total)}: ${listed(recent.rows, (r) => `${clip(r.skill, 40)} on ${clip(r.initiative ?? 'no initiative', 40)}, ${formatCount(r.calls)} ${plural(r.calls, 'call')}, ${outputOf(r.bytes).toLowerCase()}, ${stateOf(r).toLowerCase()}`, 'the rest on /runs', 5)}.`, evidence: address });
+    insights.push({ text: `The recent runs, newest last call first, rows ${first + 1} to ${first + recent.rows.length} of ${formatCount(recent.total)}: ${listed(recent.rows, (r) => `${clip(r.skill, 40)} on ${clip(r.initiative ?? 'no initiative', 40)}, ${formatCount(r.calls)} ${plural(r.calls, 'call')}, ${outputSaid(r.bytes)}, ${lowerFirst(stateOf(r))}`, 'the rest on /runs', 5)}.`, evidence: address });
   }
   return budgeted({
     view: 'runs',
@@ -127,7 +141,7 @@ export function runsContext(runs: Runs, { filters, read, ...arrival }: { filters
     freshness: arrived(arrival),
     facts: [
       { label: TILES.runs.label, value: formatCount(tiles.runs.value), definition: TILES.runs.definition },
-      { label: TILES.outputPerRun.label, value: outputOf(tiles.outputPerRun.value).toLowerCase(), change: tiles.outputPerRun.unmeasured ? `${formatCount(tiles.outputPerRun.unmeasured)} not measured` : undefined, definition: TILES.outputPerRun.definition },
+      { label: TILES.outputPerRun.label, value: outputSaid(tiles.outputPerRun.value), change: tiles.outputPerRun.unmeasured ? `${formatCount(tiles.outputPerRun.unmeasured)} not measured` : undefined, definition: TILES.outputPerRun.definition },
       { label: TILES.largest.label, value: tiles.largest ? `${outputOf(tiles.largest.bytes)}, ${tiles.largest.skill}` : 'none measured', definition: `${TILES.largest.definition}${tiles.largest?.initiative ? ` On ${tiles.largest.initiative}.` : ''}` },
     ],
     insights,

@@ -15,7 +15,7 @@ vi.mock('next/navigation', () => ({
 
 import type { DimensionScore, Me, PluginEvalFound, Skill, SkillDetail, SkillText } from '@/lib/api-shapes';
 import type { Access, ActivitySummary, Runs } from '@/lib/destination-shapes';
-import { contributionsOf } from '@/console/plugin-eval-overview';
+import { contributionsOf } from '@/views/eval-score';
 import type { ActivityRead } from '@/views/activity-context';
 import { AccessView } from '@/views/pages/access';
 import { ActivityView } from '@/views/pages/activity';
@@ -123,12 +123,11 @@ function skillRead(): SkillRead {
 }
 
 describe('F-53: a skill leads with one tile and keeps its labels whole', () => {
-  it('lights one tile, the refusals with the line they pass, and no figure reads "x.0"', () => {
+  it('leads with one figure, the refusals with the line they pass, and no figure reads "x.0"', () => {
     mount(<SkillView plugin="sdlc" skill="sdlc-spec" view="cost" served={skillRead()} />);
-    const lit = [...document.querySelectorAll('[data-value].text-accent-ink')];
-    expect(lit).toHaveLength(1);
-    expect(panel('Refused').querySelector('[data-value]')!.className).toContain('text-accent-ink');
-    expect(panel('Refused').querySelector('[data-finding]')!.textContent).toMatch(/Above the 5% this page flags/);
+    const lead = document.querySelectorAll('[data-figure]');
+    expect(lead).toHaveLength(1);
+    expect(lead[0].textContent).toMatch(/Above the 5% this page flags/);
     expect(panel('Calls per run').querySelector('[data-value]')!.textContent).not.toMatch(/\.0$/);
     expect(panel('Conclusion').textContent).not.toMatch(/\d\.0 calls/);
   });

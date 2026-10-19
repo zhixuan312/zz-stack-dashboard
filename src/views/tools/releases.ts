@@ -12,7 +12,7 @@ import type { ReleaseDetail, Releases } from '@/lib/platform-shapes';
 import { defineViewTool } from '@/lib/shared-context';
 import { PAGE_SIZE, RELEASES_DEFAULTS, pageAt, releaseContext, releasePath, releasesContext, releasesPath } from '../platform-releases-context';
 import { releasesExplore } from '../releases-explore';
-import { justRead, segment } from './shared';
+import { segment } from './shared';
 
 export const releasesTool = defineViewTool({
   name: 'releases',
@@ -28,7 +28,7 @@ export const releasesTool = defineViewTool({
     await requireNeed(FEATURES.releases.needs);
     const read = { limit, offset };
     const data = await gatewayGet<Releases>(releasesPath(RELEASES_DEFAULTS, read));
-    return { context: releasesContext(data, { filters: pageAt(offset), read, ...justRead() }), data };
+    return { context: releasesContext(data, { filters: pageAt(offset), read }), data };
   },
   explore: releasesExplore,
 });
@@ -43,8 +43,7 @@ export const releaseTool = defineViewTool({
   async read({ version }) {
     await requireNeed(FEATURES.releases.needs);
     const release = await gatewayGet<ReleaseDetail>(releasePath(version));
-    const arrival = justRead();
-    return { context: releaseContext(release, { asOf: new Date(arrival.now).toISOString(), ...arrival }), data: release };
+    return { context: releaseContext(release, { asOf: new Date().toISOString() }), data: release };
   },
   explore: releasesExplore,
 });

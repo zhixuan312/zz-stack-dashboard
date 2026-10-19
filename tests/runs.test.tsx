@@ -37,6 +37,7 @@ import RunsLoading from '../app/(dash)/runs/loading';
 import RunsPage from '../app/(dash)/runs/page';
 import { readRuns } from '../app/(dash)/runs/read-runs';
 import { ME } from '../scripts/fake-gateway/people.ts';
+import { plugins } from '../scripts/fake-gateway/work-plugins.ts';
 import { runs } from '../scripts/fake-gateway/work-runs.ts';
 
 /**
@@ -118,12 +119,15 @@ afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 describe('the page', () => {
   it('reads the runs on the console\'s server for the address, and draws them under its name with the read\'s cutoff', async () => {
-    gateway.get.mockResolvedValue(ALL);
+    gateway.get.mockImplementation(async (path: string) => (path === '/plugins' ? plugins(ME)[1] : ALL));
     browser(null);
     const tree = await settled(await RunsPage({ searchParams: Promise.resolve({}) }));
     render(<QueryClientProvider client={new QueryClient()}><Tooltip.Provider><Suspense fallback={null}>{tree}</Suspense></Tooltip.Provider></QueryClientProvider>);
     expect((await screen.findByRole('heading', { level: 1 })).textContent).toBe('Runs');
     expect(gateway.get).toHaveBeenCalledWith('/runs?limit=10&offset=0');
+    // The catalog beside it says where each skill's page is, so a skill's row opens it.
+    expect(gateway.get).toHaveBeenCalledWith('/plugins');
+    expect(screen.getByRole('link', { name: 'sdlc-spec' })).toHaveAttribute('href', '/plugins/sdlc/sdlc-spec');
     expect(screen.getByText(/^As of /)).toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: 'Skill' })).toBeInTheDocument();
     expect(reads()).toEqual([]);

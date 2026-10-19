@@ -185,7 +185,7 @@ describe('what the assistant reads from Knowledge', () => {
     expect(c.facts.find((f) => f.label === 'Superseded')?.value).toBe(String(SUMMARY.tiles.superseded.value));
     expect(c.facts.find((f) => f.label === 'Searches with no result')?.value).toBe(String(SUMMARY.tiles.noResult.figure.value));
     expect(text).toContain('"how do we rotate the signing key" 3×');
-    expect(text.length).toBeLessThanOrEqual(2400);
+    expect(text.length).toBeLessThanOrEqual(2600);
   });
 
   it('the context says a result is retrieval coverage, and a shared lesson is addressed for anybody', () => {
@@ -196,11 +196,12 @@ describe('what the assistant reads from Knowledge', () => {
     expect(contextText(c)).toContain('(the shared shelf');
   });
 
-  it('offers the page\'s first question about the figures on screen to an empty thread, and tells the model none of it (Work F-56)', () => {
+  it('offers the page\'s own questions about what is on screen to an empty thread, and tells the model none of them (Work F-56)', () => {
     const c = knowledgeContext({ summary: SUMMARY, list: LIST, filters: { q: '', kind: 'all' }, page: 1, ...arrival });
-    expect(c.questions).toEqual([starterOf(SUMMARY)]);
+    expect(c.questions![0]).toBe(starterOf(SUMMARY));
     expect(c.questions![0]).toMatch(/lessons adopted/);
-    expect(contextText(c)).not.toContain(c.questions![0]);
+    expect(c.questions!.length).toBeGreaterThan(1);
+    for (const q of c.questions!) expect(contextText(c)).not.toContain(q);
   });
 });
 

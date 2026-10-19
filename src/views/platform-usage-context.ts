@@ -60,6 +60,25 @@ export function changeOf(t: Tile): number | null {
   return last === null || previous === null || previous === 0 ? null : (last - previous) / previous;
 }
 
+/** A share's change on the week before in points, the difference of the two shares, as Status gives one; null when
+ *  either week has no share. A share's change is never a percentage of itself, which a reader takes for points. */
+export function pointsOf(t: Tile): number | null {
+  const [last, previous] = [t.last.figure.value, t.previous.figure.value];
+  return last === null || previous === null ? null : last - previous;
+}
+/** A change in points, its direction left to the arrow or the word before it: `13.4 pts`. */
+export const pointsIn = (n: number): string => `${ONE.format(Math.abs(n))} pts`;
+
+/** A tile's change as the context says it, beside the tile's own: a share's in points, any other's as a percentage. */
+function changeSaid(kind: Kind, t: Tile): string {
+  const before = `vs the ${weekOf(t.previous.window)} (${figureText(kind, t.previous.figure)})`;
+  const points = kind === 'share' ? pointsOf(t) : null;
+  const change = kind === 'share' ? (points === null ? null : points / 100) : changeOf(t);
+  if (change === null) return `the week before ${figureText(kind, t.previous.figure)}`;
+  if (Math.abs(change) < 0.0005) return `unchanged ${before}`;
+  return `${change > 0 ? 'up' : 'down'} ${kind === 'share' ? pointsIn(points!) : `${ONE.format(Math.abs(change * 100))}%`} ${before}`;
+}
+
 /** The owners of a refusal, and the platform's own maintenance, as the composition of all refusals names them. */
 export const REFUSAL_PARTS = [
   { key: 'theirs', label: 'Tool failures', color: 'critical' },
@@ -132,7 +151,7 @@ export function usageContext(read: UsageRead): SharedContext {
     week = u.tiles.data.calls.last.window;
     for (const k of TILE_KEYS) {
       const t = u.tiles.data[k];
-      facts.push({ label: TILES[k].label, value: figureText(TILES[k].kind, t.last.figure), change: `the week before ${figureText(TILES[k].kind, t.previous.figure)}`, definition: TILES[k].definition });
+      facts.push({ label: TILES[k].label, value: figureText(TILES[k].kind, t.last.figure), change: changeSaid(TILES[k].kind, t), definition: TILES[k].definition });
     }
   } else unavailable('The tiles', u.tiles.reason);
 

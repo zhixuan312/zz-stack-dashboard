@@ -114,15 +114,18 @@ describe('the shared context', () => {
   it('carries the period, the cutoff, the pace and the coverage, the foot and each slice\'s figures', () => {
     const c = recordContext(QUARTER, { filters: { ...RECORD_DEFAULTS, period: 'quarter' } });
     expect(c).toMatchObject({ view: 'record', title: 'Record', address: '/record?period=quarter' });
-    expect(fact(c, 'Period')!.value).toBe(periodLine(QUARTER));
-    expect(fact(c, 'One person, writing this')).toMatchObject({ value: `${leadOf(QUARTER).text}, estimated at 500 words an hour`, change: expect.stringContaining('as of ') });
-    for (const f of footOf(QUARTER)) expect(fact(c, f.label)!.value).toBe(f.value);
+    // The period is the scope's; the lead is a stock as of the cutoff, whatever the period; the foot is one fact.
+    expect(c.scope).toContain(periodLine(QUARTER));
+    expect(fact(c, 'One person, writing this')).toMatchObject({ value: `${leadOf(QUARTER).text}, estimated at 500 words an hour`, definition: expect.stringContaining('as of the cutoff') });
+    for (const f of footOf(QUARTER)) expect(fact(c, 'In the period')!.value).toContain(`${f.label.toLowerCase()} ${f.value}`);
     const tiles = tilesOf(QUARTER);
-    for (const [k, title] of [['work', 'Work'], ['documents', 'Documents'], ['knowledge', 'Knowledge'], ['agents', 'Your agents'], ['firsts', 'Firsts and bests']] as const) {
-      for (const t of tiles[k]!) expect(fact(c, title)!.value).toContain(tileText(t));
+    // A tile the page shows twice (the foot's revisions, a slice's most open at once among the bests) is said once.
+    const all = c.facts.map((f) => `${f.label}: ${f.value}`).join('\n');
+    for (const k of ['work', 'documents', 'knowledge', 'agents', 'firsts'] as const) {
+      for (const t of tiles[k]!) expect(all).toContain(`${t.label.toLowerCase()} ${tileText(t)}`);
     }
     const text = contextText(c);
-    expect(text).toContain(`The estimate: ${leadOf(QUARTER).coverage}`);
+    expect(text).toContain('The estimate: 2 made by an import left out, 1 with no recorded write, 1 missing an earlier revision.');
     expect(text).toContain(QUARTER.meta.population);
     expect(text.length).toBeLessThanOrEqual(CONTEXT_BUDGET);
   });
@@ -145,7 +148,7 @@ describe('the shared context', () => {
     const shared: SharedContext[] = [];
     const share = (_t: string, c?: object) => { shared.push(c as SharedContext); };
     const { rerender } = mount(ok(ALL), { share });
-    await waitFor(() => expect(shared.at(-1) && fact(shared.at(-1)!, 'Period')!.value).toBe(periodLine(ALL)));
+    await waitFor(() => expect(shared.at(-1)?.scope).toContain(periodLine(ALL)));
     await act(async () => { fireEvent.click(screen.getByRole('radio', { name: 'Year' })); });
     // The navigation commits with the console's server's read of the new period, as Next renders it.
     const year = { ...ok(YEAR), path: recordPath({ period: 'year', page: '1' }) };
@@ -153,8 +156,8 @@ describe('the shared context', () => {
     act(() => rerender(createElement(QueryClientProvider, { client }, createElement(SurfaceOverride, { surface: { share } } as ComponentProps<typeof SurfaceOverride>, createElement(Tooltip.Provider, null,
       createElement(Fragment, null, createElement(RecordActions, { served: year }), createElement(RecordView, { served: year })))))));
     await waitFor(() => expect(shared.at(-1)?.address).toBe('/record?period=year'));
-    await waitFor(() => expect(fact(shared.at(-1)!, 'Period')?.value).toBe(periodLine(YEAR)));
-    expect(fact(shared.at(-1)!, 'Work closed')!.value).toBe(footOf(YEAR)[0].value);
+    await waitFor(() => expect(shared.at(-1)?.scope).toContain(periodLine(YEAR)));
+    expect(fact(shared.at(-1)!, 'In the period')!.value).toContain(`work closed ${footOf(YEAR)[0].value}`);
   });
 });
 
@@ -176,12 +179,12 @@ describe('the grain the series arrive in (Task I-139)', () => {
 
   it('tells the assistant the grain the page draws the series in, never by week for months or quarters', () => {
     const said = (r: RecordRead, period: 'quarter' | 'year' | 'all') => contextText(recordContext(r, { filters: { ...RECORD_DEFAULTS, period } }));
-    expect(said(QUARTER, 'quarter')).toContain('drawn by week');
+    expect(said(QUARTER, 'quarter')).toContain('a running total, by week:');
     const year = said(busy('year'), 'year');
-    expect(year).toContain('drawn by month');
+    expect(year).toContain('a running total, by month:');
     expect(year).not.toMatch(/by (week|quarter)\b/);
     const all = said(busy('all'), 'all');
-    expect(all).toContain('drawn by quarter');
+    expect(all).toContain('a running total, by quarter:');
     expect(all).not.toMatch(/by (week|month)\b/);
     expect(all.length).toBeLessThanOrEqual(CONTEXT_BUDGET);
   });

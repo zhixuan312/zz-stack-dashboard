@@ -269,6 +269,9 @@ type OwnTile = { label: string; hint: string; kind: Kind; value: number | string
 type Own = { state: 'ok'; tiles: OwnTile[]; bugs: string } | { state: 'none' } | { state: 'unavailable'; reason: string };
 export const NO_TEAM = 'You act for no team, so nothing here is your team\'s own.';
 
+/** Why a member's approvals row names no team, in the words Usage says it of its weeks. */
+const NO_TEAM_NAMED = 'No team is named here.';
+
 function ownTile(label: string, hint: string, kind: Kind, weeks: PeriodFigure[], noun: string): OwnTile {
   const last = weeks.filter((w) => w.window.complete).at(-1) ?? null;
   const counts = last && last.numerator !== null && last.denominator !== null ? `${formatCount(last.numerator)} of ${formatCount(last.denominator)} ${noun}, ` : '';
@@ -360,7 +363,7 @@ export function platformStatusContext(read: StatusRead): SharedContext {
     facts.push(measureFact(row, week, row.key === 'malformed_per_1000' || row.key === 'same_tool_followup_pct' ? countsOf(measureOf(s, row.key)) : null));
   }
   const [, days, failures] = footOf(s);
-  facts.push({ label: days.label, value: days.value, change: `${failures.label.toLowerCase()} ${failures.value}` });
+  facts.push({ label: days.label, value: days.value }, { label: failures.label, value: failures.value });
 
   if (s.doors.state === 'ok') {
     for (const d of s.doors.data.map(doorRow)) {
@@ -392,7 +395,12 @@ export function platformStatusContext(read: StatusRead): SharedContext {
   // What needs attention, then the gateway's findings: the first to go when the context is over its budget. A need's
   // page is its evidence only where it names a record (a team's page); Bugs, Usage and Evaluation are the Platform page
   // of the need's kind, which view_bugs, view_usage and view_evaluation read, and their addresses cost every need its room.
-  for (const r of s.needs.rows) insights.push({ text: `${r.title}.`, ...(r.href && r.kind === 'approvals' ? { evidence: r.href } : {}) });
+  // A member's approvals are one row with no page, the teams counted and never named, and the row says so itself: a line
+  // of its own would cost the context the row it explains.
+  for (const r of s.needs.rows) {
+    const named = r.kind !== 'approvals' || r.href ? '' : ` ${NO_TEAM_NAMED}`;
+    insights.push({ text: `${r.title}.${named}`, ...(r.href && r.kind === 'approvals' ? { evidence: r.href } : {}) });
+  }
   for (const k of [...DIRECTIONAL, ...ACTIVITY]) {
     const m = measureOf(s, k);
     if (m?.finding) insights.push({ text: `${MEASURES[k].label}: ${m.finding.text}.` });

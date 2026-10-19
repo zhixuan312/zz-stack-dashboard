@@ -147,6 +147,11 @@ export const searchesOf = (team: string) => SEARCHES.filter(([t]) => t === team)
   .map(([, question, back, hours, found]) => ({ at: iso(inWeek(back, hours)), question: question.trim().replace(/\s+/g, ' ').toLowerCase(), found }));
 const within = (at: string, i: number) => at >= WEEKS[i].from && at < WEEKS[i].to;
 
+/** The questions that found nothing the summary answers at most, most asked first: five of the page's pages of ten. Ten
+ *  answered with a total of 13 left the page saying "10 of 13" with no way to the other three (Phase 7's second
+ *  re-review, Work M-8). COUPLED: `QUESTIONS` in the gateway's console/knowledge-summary.ts. */
+const QUESTIONS = 50;
+
 /** `GET /knowledge/summary`, as `who`: the active team's shelf and its own searches. */
 export function knowledgeSummary(who: Me): Answer {
   const team = who.activeTeam;
@@ -169,7 +174,7 @@ export function knowledgeSummary(who: Me): Answer {
       searches: { window: WEEKS[LAST_WEEK], figure: counted(last.length), numerator: last.length, denominator: null },
       noResult: { window: WEEKS[LAST_WEEK], figure: counted(lastEmpty), numerator: lastEmpty, denominator: last.length },
     },
-    questions: { state: 'ok', data: { rows: asked.slice(0, 10), total: asked.length } },
+    questions: { state: 'ok', data: { rows: asked.slice(0, QUESTIONS), total: asked.length } },
     weeks: { state: 'ok', data: WEEKS.map((window, i): PeriodFigure => {
       const here = searches.filter((s) => within(s.at, i));
       const found = here.filter((s) => s.found).length;

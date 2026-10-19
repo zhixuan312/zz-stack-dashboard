@@ -80,7 +80,7 @@ export const clientSetupOf = (who: Me): MyClientSetup => ({
     `# ZZ setup for ${who.email}`,
     '',
     '## 1. Get a token (once)',
-    'Ask the **ZZ Access** agent for a token. It is shown ONCE. Then `export ZZ_TOKEN=<it>` for the commands below.',
+    'Ask the **ZZ Access** agent for a token. It is shown once. Then `export ZZ_TOKEN=<it>` for the commands below.',
     '',
     '## 2. Install',
     '```bash',

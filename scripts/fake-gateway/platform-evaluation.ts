@@ -63,13 +63,16 @@ const FINDINGS: Finding[] = [
     pattern: 'Every executed plan traced each task to an acceptance criterion.' },
 ];
 
-/** The owner categories as a finding's name says them. COUPLED: the gateway's `OWNED_BY`. */
+/** The public owner categories as a finding's name says them; `unknown` is none. COUPLED: the gateway's `OWNED_BY`. */
 const OWNED_BY: Record<string, string> = {
   plugin: 'owned by the plugin', dependency: 'owned by a dependency', platform: 'owned by the platform',
-  environment: 'owned by the environment', user_input: 'owned by user input', unknown: 'owner not known',
+  environment: 'owned by the environment', user_input: 'owned by user input',
 };
-/** The fixed name a waiting finding is read by: its kind, its plugin and its owner category, as the gateway's `summaryOf`. */
-const summary = (f: Finding) => `${f.kind === 'defect' ? 'A defect' : 'An unknown'} in ${f.plugin}, ${OWNED_BY[f.owner]}`;
+/** The fixed name a waiting finding is read by, as the gateway's `summaryOf`: its kind, its plugin and its owner
+ *  category, or the spec's own sentence when no public category is known. */
+const summary = (f: Finding) => (Object.hasOwn(OWNED_BY, f.owner)
+  ? `${f.kind === 'defect' ? 'A defect' : 'An unknown'} in ${f.plugin}, ${OWNED_BY[f.owner]}`
+  : 'Evaluation finding awaiting a decision');
 
 /** `GET /platform/evaluation`. The superadmin's answer carries the protocol's and the measure's keys and each waiting
  *  finding's pattern; a member's carries none of them. */

@@ -176,7 +176,7 @@ describe('Releases and a release', () => {
       expect(title.textContent).toContain(r.summary);
       expect(title.textContent).toContain(clientActionOf(r));
     }
-    expect(cell(releaseRow(table(), OLDEST), 'title').textContent).toMatch(/Not observed before; [\d.]+ after \(partial\)/);
+    expect(cell(releaseRow(table(), OLDEST), 'title').textContent).toMatch(/not observed before; [\d.]+ after \(partial\)/);
     expect(table().textContent).not.toContain('—');
   });
 

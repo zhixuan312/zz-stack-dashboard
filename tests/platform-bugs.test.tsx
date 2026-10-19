@@ -70,7 +70,6 @@ const ok = (data: Bugs = ADMIN, path = PATH): BugsRead => ({ state: 'ok', path, 
 const counts = ADMIN.counts.state === 'ok' ? ADMIN.counts.data : (undefined as never);
 const rowsOf = (b: Bugs) => (b.queue.state === 'ok' ? b.queue.data.rows : []);
 const targets = (id: string): DuplicatesRead => ({ state: 'ok', data: duplicates(id)! });
-const at = { updatedAt: null, now: new Date() };
 
 /** The browser's reads and writes: answered by `answer`, or never when it is null. */
 function browser(answer: ((path: string, init?: RequestInit) => [number, unknown]) | null, me: Me = SUPERADMIN) {
@@ -274,7 +273,7 @@ describe('each page draws loading, empty, error and partial', () => {
     const { unmount } = mount(<PlatformBugsView served={ok(noQueue)} />);
     expect(screen.getByText(/the report store did not answer/)).toBeInTheDocument();
     expect(screen.getByRole('figure', { name: 'Filed by week' })).toBeInTheDocument();
-    expect(contextText(bugsContext(noQueue, { filters: BUGS_DEFAULTS, ...at }))).toContain('could not be listed');
+    expect(contextText(bugsContext(noQueue, { filters: BUGS_DEFAULTS }))).toContain('could not be listed');
     unmount();
     const noCounts: Bugs = { ...ADMIN, counts: { state: 'unavailable', reason: 'query_failed' } };
     mount(<PlatformBugsView served={ok(noCounts)} />);
@@ -431,7 +430,7 @@ describe('the view tools answer the pages\' own responses', () => {
     const { data, context } = await bugsTool.read({});
     expect(gateway.get).toHaveBeenCalledWith(PATH);
     expect(data).toEqual(ADMIN);
-    expect({ ...context, freshness: null }).toEqual({ ...bugsContext(ADMIN, { filters: BUGS_DEFAULTS, ...at }), freshness: null });
+    expect({ ...context, freshness: null }).toEqual({ ...bugsContext(ADMIN, { filters: BUGS_DEFAULTS }), freshness: null });
     expect(bugsTool.page).toBe('/platform/bugs');
     expect(bugsTool.needs).toBe(FEATURES.bugs.needs);
   });
@@ -451,7 +450,7 @@ describe('the view tools answer the pages\' own responses', () => {
     expect(gateway.get).toHaveBeenCalledWith(bugPath(OPEN));
     expect(gateway.get).toHaveBeenCalledWith(duplicatesPath(OPEN));
     expect(data).toEqual({ report: bugReport(OPEN), duplicates: duplicates(OPEN) });
-    expect({ ...context, freshness: null }).toEqual({ ...bugContext(bugReport(OPEN)!, duplicates(OPEN), at), freshness: null });
+    expect({ ...context, freshness: null }).toEqual({ ...bugContext(bugReport(OPEN)!, duplicates(OPEN)), freshness: null });
     expect(bugTool.page).toBe('/platform/bugs/[id]');
     expect(bugTool.needs).toBe(FEATURES.bug.needs);
     expect(Object.keys(bugTool.input.shape)).toEqual(['id']);
@@ -476,7 +475,7 @@ describe('the view tools answer the pages\' own responses', () => {
 
 describe('the shared contexts carry what the pages draw, and what it cannot say', () => {
   it('Bugs: the tiles, the queue, the outcomes, the impacts and the weeks, and that a report is filed by choice', () => {
-    const text = contextText(bugsContext(ADMIN, { filters: BUGS_DEFAULTS, ...at }));
+    const text = contextText(bugsContext(ADMIN, { filters: BUGS_DEFAULTS }));
     expect(text).toContain(`Open: ${counts.open}`);
     expect(text).toContain(waited(ADMIN.oldestOpenAt!, ADMIN.meta.asOf));
     expect(text).toContain(formatHours(ADMIN.medianResolveHours.value!));
@@ -490,7 +489,7 @@ describe('the shared contexts carry what the pages draw, and what it cannot say'
   });
 
   it('a member\'s context names no reporter\'s words, and says so', () => {
-    const text = contextText(bugsContext(PUBLIC, { filters: BUGS_DEFAULTS, ...at }));
+    const text = contextText(bugsContext(PUBLIC, { filters: BUGS_DEFAULTS }));
     for (const r of REPORTS) expect(text).not.toContain(r.title);
     expect(text).toMatch(/Blocks work: document_approve, filed \d+ \w+ \d{4}, open/);
     expect(text).toContain('built from its impact, surface and filed day');
@@ -498,19 +497,19 @@ describe('the shared contexts carry what the pages draw, and what it cannot say'
 
   it('a narrowed queue says its figures are over every report', () => {
     const filters = { ...BUGS_DEFAULTS, state: 'open', impact: 'blocks_work' };
-    const text = contextText(bugsContext(bugs(true, { ...NO_FILTER, state: 'open', impact: 'blocks_work' }, 10, 0), { filters, ...at }));
+    const text = contextText(bugsContext(bugs(true, { ...NO_FILTER, state: 'open', impact: 'blocks_work' }, 10, 0), { filters }));
     expect(text).toContain('the queue narrowed to open, blocks work');
     expect(text).toContain('The filters narrow the queue alone');
   });
 
   it('a report: its words, its facts, its targets and what the assistant cannot do', () => {
     const r = bugReport(OPEN)!;
-    const text = contextText(bugContext(r, duplicates(OPEN), at));
+    const text = contextText(bugContext(r, duplicates(OPEN)));
     expect(text).toContain(r.detail);
     expect(text).toContain('Blocks work');
     expect(text).toContain(bugReport(DUPLICATE)!.title.slice(0, 40));
     expect(text).toContain('changes nothing');
-    const closed = contextText(bugContext(bugReport(DUPLICATE)!, duplicates(DUPLICATE), at));
+    const closed = contextText(bugContext(bugReport(DUPLICATE)!, duplicates(DUPLICATE)));
     expect(closed).toContain(bugReport(DUPLICATE)!.resolution!);
     expect(closed).toContain(OPEN);
   });
@@ -519,10 +518,14 @@ describe('the shared contexts carry what the pages draw, and what it cannot say'
     const long = 'A title somebody wrote in full because the report keeps what it is given and never shortens it, '.repeat(3);
     const many = Array.from({ length: 10 }, (_, i) => ({ ...(rowsOf(ADMIN)[i % rowsOf(ADMIN).length] as AdminBugRow), id: ID(i), internalTitle: long, team: `team-with-a-long-name-${i}` }));
     const full: Bugs = { ...ADMIN, queue: { state: 'ok', data: { rows: many, total: 240 } } };
-    const text = contextText(bugsContext(full, { filters: { ...BUGS_DEFAULTS, page: '7' }, ...at }));
+    const text = contextText(bugsContext(full, { filters: { ...BUGS_DEFAULTS, page: '7' } }));
     expect(text.length).toBeLessThanOrEqual(CONTEXT_BUDGET);
-    expect(text).toContain('and 6 more (see the page)');
-    const told = contextText(bugContext({ ...bugReport(OPEN)!, title: long, detail: `${long}\n\n`.repeat(40), resolution: long }, { rows: Array.from({ length: 20 }, (_, i) => ({ id: ID(i), title: long, status: 'open', reportedAt: ADMIN.meta.asOf })) }, at));
+    // Each title whole or not at all, as many as fit, and the rest counted: nothing is cut mid-word (I-167, M-3).
+    const named = text.split(long).length - 1;
+    expect(named).toBeGreaterThan(0);
+    expect(text).toContain(`and ${many.length - named} more (see the page)`);
+    expect(text).not.toMatch(/\w…/);
+    const told = contextText(bugContext({ ...bugReport(OPEN)!, title: long, detail: `${long}\n\n`.repeat(40), resolution: long }, { rows: Array.from({ length: 20 }, (_, i) => ({ id: ID(i), title: long, status: 'open', reportedAt: ADMIN.meta.asOf })) }));
     expect(told.length).toBeLessThanOrEqual(CONTEXT_BUDGET);
   });
 });

@@ -33,7 +33,7 @@ The assistant reads this page and changes nothing. The page shares its context t
 
 ### What the agent reads
 
-The tab in force and its filters, how many acts or events it reached (up to the latest 500) and when the record begins, then the first five of the page: on Administration each act's sentence as the feed draws it, a report by its title, with when; on Everything each event's kind, subject, team, actor, result, origin and whether it was made in the console. It says that how an act arrived is not recorded, that an actor nobody recorded is not guessed, that events are metadata only, which acts leave no event, where the read stops at its ceiling, and how many more are on later pages.
+The tab in force and its filters, how many acts or events it reached (up to the latest 500) and when the record begins, then the page's ten, each sentence whole and as many as fit: on Administration each act's sentence as the feed draws it, a report by its title, with when; on Everything each event's kind, subject, team, actor, result, origin and whether it was made in the console. It says that how an act arrived is not recorded, that an actor nobody recorded is not guessed, that events are metadata only, which acts leave no event, where the read stops at its ceiling, and how many more are on later pages. It is dated with the read's own cutoff, as the masthead prints it (`As of 20 Oct 2026, 03:15.`), never the moment the data arrived in the browser.
 
 ```text
 - The acts on this page, newest first: ava.lindqvist@example.com added maximiliana.fitzgerald-oyelaran@example.com to atlas as member in the console (17 Oct 2026, 21:52); …

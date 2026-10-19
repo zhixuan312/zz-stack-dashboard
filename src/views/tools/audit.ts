@@ -15,7 +15,6 @@ import type { BugReport } from '@/lib/platform-shapes';
 import { defineViewTool } from '@/lib/shared-context';
 import { auditExplore } from '../audit-explore';
 import { AUDIT_FILTERS, PAGE_SIZE, auditContext, auditPath, pageAt, reportTitles } from '../platform-audit-context';
-import { justRead } from './shared';
 
 export const auditTool = defineViewTool({
   name: 'audit',
@@ -34,7 +33,7 @@ export const auditTool = defineViewTool({
     const filters = pageAt(filter, offset);
     const data = await gatewayGet<Audit>(auditPath(filters, read));
     const reports = await reportTitles(data, (p) => gatewayGet<BugReport>(p));
-    return { context: auditContext(data, { filters, read, reports, ...justRead() }), data };
+    return { context: auditContext(data, { filters, read, reports }), data };
   },
   explore: auditExplore,
 });

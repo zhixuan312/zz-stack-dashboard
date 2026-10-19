@@ -19,7 +19,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/components/ui/toast';
 import { Panel } from '@/console/panel';
 import { failureOf } from '@/console/query';
-import { ApiError, useDataClock } from '@/lib/api';
+import { ApiError } from '@/lib/api';
 import { formatDate, formatDateTime } from '@/lib/format-date';
 import { useConsoleMutation } from '@/lib/mutate';
 import type { BugReport, BugResolveInput } from '@/lib/platform-shapes';
@@ -38,7 +38,7 @@ type Outcome = BugResolveInput['status'];
  * them. An id that names no report reached the page only from the browser's read, since the server's answers it with
  * the missing page.
  */
-function useBug(id: string, served: BugRead, servedTargets: DuplicatesRead, now: Date) {
+function useBug(id: string, served: BugRead, servedTargets: DuplicatesRead) {
   const { q, error, retry, busy } = useServed<BugReport>(bugPath(id), true);
   const targets = useServed<BugDuplicates>(duplicatesPath(id), true);
   const data = q.data ?? (served.state === 'ok' ? served.data : undefined);
@@ -51,7 +51,7 @@ function useBug(id: string, served: BugRead, servedTargets: DuplicatesRead, now:
         : served.state === 'ok' ? null : served;
   const duplicates: DuplicatesRead = targets.q.data ? { state: 'ok', data: targets.q.data }
     : failureOf(targets) ? { state: 'failed', reason: failureOf(targets)! } : servedTargets;
-  return { data, duplicates, trouble, retry, busy, updatedAt: q.data ? new Date(q.dataUpdatedAt) : data ? now : null };
+  return { data, duplicates, trouble, retry, busy };
 }
 
 /**
@@ -61,10 +61,9 @@ function useBug(id: string, served: BugRead, servedTargets: DuplicatesRead, now:
  * typed and says the gateway's sentence. Nothing here deletes a report.
  */
 export function PlatformBugView({ id, served, duplicates: servedTargets }: { id: string; served: BugRead; duplicates: DuplicatesRead }) {
-  const now = useDataClock();
-  const { data, duplicates, trouble, retry, busy, updatedAt } = useBug(id, served, servedTargets, now);
+  const { data, duplicates, trouble, retry, busy } = useBug(id, served, servedTargets);
   useShareView(data
-    ? bugContext(data, duplicates.state === 'ok' ? duplicates.data : null, { updatedAt, now })
+    ? bugContext(data, duplicates.state === 'ok' ? duplicates.data : null)
     : pendingContext({ view: 'bug', title: 'Bug report', address: bugPath(id), scope: 'one bug report' }, trouble && trouble.state !== 'missing' ? bugsTrouble(trouble) : null));
 
   if (!data) return trouble ? <BugTrouble trouble={trouble} busy={busy} onRetry={retry} /> : <Busy name="bug"><Row split="2/3"><Skeleton className="h-72 rounded-lg" /><Skeleton className="h-72 rounded-lg" /></Row></Busy>;

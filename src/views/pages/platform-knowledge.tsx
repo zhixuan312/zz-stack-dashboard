@@ -14,6 +14,7 @@ import { MetricTile } from '@/components/patterns/metric-tile';
 import { ChartSkeleton, TableSkeleton, TilesSkeleton } from '@/components/patterns/page-loading';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Delta } from '@/components/ui/delta';
 import { EmptyState } from '@/components/ui/empty-state';
 import { KeyValue } from '@/components/ui/key-value';
 import { aligned } from '@/console/columns';
@@ -25,7 +26,7 @@ import { formatCount } from '@/lib/format-units';
 import type { Figure, PeriodFigure, Window } from '@/lib/platform-shapes';
 import {
   TILES, WEEKLY_TILES, askOf, asOfLine, changeOf, cohortNote, cohortText, exactSince, figureText, isFleet, knowledgeHealthContext, knowledgeHealthTrouble,
-  lastWhole, leftOut, madeLine, noResultCell, searchLine, searchesSaid, shelfName, valueIn, weekOf, type KnowledgeHealthRead, type MadeWeek, type Question,
+  lastWhole, leftOut, madeLine, noResultCell, pointsIn, pointsOf, searchLine, searchesSaid, shelfName, valueIn, weekOf, type KnowledgeHealthRead, type MadeWeek, type Question,
   type SearchWeek, type ShelfRow, type WeeklyTile,
 } from '@/views/platform-knowledge-context';
 
@@ -102,14 +103,15 @@ function Tiles({ part }: { part: KnowledgeHealth['tiles'] }) {
   const weekly = (k: WeeklyTile) => {
     const pair: { last: PeriodFigure; previous: PeriodFigure } = t[k];
     const { kind } = TILES[k];
-    const delta = changeOf(pair);
+    const delta = kind === 'share' ? pointsOf(pair) : changeOf(pair);
+    const compare = `vs the ${weekOf(pair.previous.window)}`;
     return (
       <MetricTile
         key={k} label={TILES[k].label} hint={TILES[k].definition} icon={ICONS[k]}
         value={tileValue(pair.last.figure)} format={(n) => valueIn(kind, n)} intent="neutral"
         {...(delta === null
           ? { note: `The ${weekOf(pair.previous.window)}: ${figureText(kind, pair.previous.figure)}${pair.last.figure.why === 'insufficient' ? '; last week too few' : ''}` }
-          : { delta, compare: `vs the ${weekOf(pair.previous.window)}` })}
+          : kind === 'share' ? { note: <PointsChange points={delta} compare={compare} /> } : { delta, compare })}
       />
     );
   };
@@ -119,6 +121,16 @@ function Tiles({ part }: { part: KnowledgeHealth['tiles'] }) {
       {WEEKLY_TILES.map(weekly)}
     </Row>
   );
+}
+
+/**
+ * A share's change where a tile's change sits, in points: the managed tile prints its change only as a percentage of
+ * itself, so a share's is handed to it as the line it draws in that place, the arrow and the words the tile's own.
+ */
+function PointsChange({ points, compare }: { points: number; compare: string }) {
+  if (Math.abs(points) < 0.05) return <>Unchanged {compare}</>;
+  // One row laid out as the tile lays its own change, so the line sits where every other tile's does.
+  return <span className="inline-flex items-center gap-x-2 align-top"><Delta value={points / 100} format={() => pointsIn(points)} intent="neutral" /><span className="leading-5 whitespace-nowrap">{compare}</span></span>;
 }
 
 /** A count in a cell, as a figure set in the table's numerals. */

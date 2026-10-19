@@ -23,7 +23,8 @@ import { formatCount } from '@/lib/format-units';
 import { listed, type Fact, type Insight, type SharedContext } from '@/lib/shared-context';
 import { app } from '@/app.config';
 import { OWNER_LABEL } from './activity-context';
-import { addressOf, arrived, budgeted, clip, type Arrival } from './context';
+import { addressOf } from './context';
+import { rostered } from './platform-roster';
 import { bugPath } from './platform-bugs-context';
 
 /* The tabs, the filters and the address */
@@ -280,18 +281,18 @@ export const notRecordedWords = (data: Audit): string | null => {
 
 /* What the assistant is told */
 
-/** How many rows of a page the context names. */
-const NAMED = 5;
+/** How many rows of a page the context names at most, each whole and as many as fit: the page's ten. */
+const NAMED = 10;
 
 /** One event of Everything as the assistant is told it: its kind, team, actor, subject, result and origin. */
 function eventLine(r: AuditRow): string {
-  const subject = r.subject ? ` on ${clip(r.subject, 48)}` : '';
+  const subject = r.subject ? ` on ${r.subject}` : '';
   return `${formatDateTime(r.at)} ${r.kind}${subject}, ${r.team ?? 'no team'}, by ${r.actor ?? 'nobody recorded'}, ${resultOf(r).toLowerCase()}`
     + `${r.origin === 'platform' ? ', platform maintenance' : ''}${r.inConsole ? ', in the console' : ''}`;
 }
 
 /** One act of Administration as the assistant is told it: the sentence the page draws, and when. */
-const actLine = (r: AuditRow, reports: ReportTitles): string => `${clip(actSentence(r, reports), 160)} (${formatDateTime(r.at)})`;
+const actLine = (r: AuditRow, reports: ReportTitles): string => `${actSentence(r, reports)} (${formatDateTime(r.at)})`;
 
 /** The filters as words: `kind team.switch, team beacon, before 1 Oct 2026`. */
 function filterWords(f: AuditFilters): string {
@@ -313,7 +314,7 @@ const UNKNOWNS = [
  * `filters` is the page's address. `read` is how `view_audit` read the rows, by the route's `limit` and `offset`, when it
  * did: the address is then the page of ten the offset falls in, and rows off the page's grid are said to be so.
  */
-export function auditContext(data: Audit, { filters, read, reports = {}, ...arrival }: { filters: AuditFilters; read?: AuditRows; reports?: ReportTitles } & Arrival): SharedContext {
+export function auditContext(data: Audit, { filters, read, reports = {} }: { filters: AuditFilters; read?: AuditRows; reports?: ReportTitles }): SharedContext {
   const tab = tabOf(filters);
   const first = read ? read.offset : (pageOf(filters) - 1) * PAGE_SIZE;
   const onGrid = !read || (read.limit === PAGE_SIZE && read.offset % PAGE_SIZE === 0);
@@ -330,19 +331,20 @@ export function auditContext(data: Audit, { filters, read, reports = {}, ...arri
     },
     { label: 'Record begins', value: data.meta.coverageFrom ? formatDate(data.meta.coverageFrom) : 'Nothing recorded yet' },
   ];
-  const insights: Insight[] = data.rows.length
-    ? [{ text: admin ? `The acts on this page, newest first: ${listed(data.rows, (r) => actLine(r, reports), 'see the page', NAMED)}.` : `The events on this page, newest first: ${listed(data.rows, eventLine, 'see the page', NAMED)}.`, evidence: address }]
-    : [];
+  const roster = (n: number) => (admin ? listed(data.rows, (r) => actLine(r, reports), 'see the page', n) : listed(data.rows, eventLine, 'see the page', n));
+  const insights = (n: number): Insight[] => (data.rows.length
+    ? [{ text: `${admin ? 'The acts' : 'The events'} on this page, newest first: ${roster(n)}.`, evidence: address }]
+    : []);
   const unrecorded = notRecordedWords(data);
-  return budgeted({
+  return rostered((n) => ({
     view: 'audit',
     title: 'Audit',
     address,
     scope: `${admin ? 'the recorded acts of administration' : `every recorded event, page views left out${narrow ? `, narrowed to ${filterWords(filters)}` : ''}`}, every team on the platform`
       + `${data.rows.length ? `; rows ${first + 1} to ${shown} of ${formatCount(data.total)}` : ''}`,
-    freshness: arrived(arrival),
+    freshness: `As of ${formatDateTime(data.meta.asOf)}.`,
     facts,
-    insights,
+    insights: insights(n),
     unknowns: [
       ...UNKNOWNS,
       ...(unrecorded ? [unrecorded] : []),
@@ -351,5 +353,5 @@ export function auditContext(data: Audit, { filters, read, reports = {}, ...arri
       ...(data.total > shown ? [`${formatCount(data.total - shown)} more on later pages.`] : []),
       ...(!data.rows.length ? [narrow ? 'No event matches these filters.' : admin ? 'No act of administration is recorded.' : 'No event is recorded.'] : []),
     ],
-  });
+  }), roster, NAMED);
 }

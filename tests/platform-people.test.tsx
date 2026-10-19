@@ -145,7 +145,7 @@ describe('each state the page draws', () => {
     mount(<PlatformPeopleView served={{ state: 'ok', path: PATH, data: partial }} />);
     expect(document.querySelectorAll('tbody tr')).toHaveLength(LIST.people.length);
     expect(screen.getByText('Unavailable')).toBeInTheDocument();
-    expect(contextText(peopleContext(partial, { filters: PEOPLE_DEFAULTS, updatedAt: null, now: new Date() }))).toContain('could not be counted');
+    expect(contextText(peopleContext(partial, { filters: PEOPLE_DEFAULTS }))).toContain('could not be counted');
   });
 
   it('a week before the record began is no data, never zero', () => {
@@ -292,7 +292,7 @@ describe('view_people answers the names and states of the read', () => {
     const { data, context } = await peopleTool.read({});
     expect(gateway.get).toHaveBeenCalledWith(PATH);
     expect(data).toEqual({ people: LIST.people.map((p) => ({ name: p.name, state: p.state })) });
-    const page = peopleContext(LIST, { filters: PEOPLE_DEFAULTS, updatedAt: null, now: new Date() });
+    const page = peopleContext(LIST, { filters: PEOPLE_DEFAULTS });
     expect({ ...context, freshness: null }).toEqual({ ...page, freshness: null });
     expect(peopleTool.page).toBe('/platform/people');
     for (const p of LIST.people) expect(contextText(context)).toContain(`${p.name} (${p.state})`);
@@ -330,7 +330,7 @@ describe('view_people answers the names and states of the read', () => {
   it('holds to the budget on a full page of long names', () => {
     const long = 'Maximiliana Fitzgerald-Oyelaran Kowalczyk with-a-name-nobody-planned-for';
     const full: People = { ...LIST, people: Array.from({ length: 10 }, (_, i) => ({ ...LIST.people[0], email: `p${i}@example.com`, name: `${long} ${i}` })), total: 480 };
-    const text = contextText(peopleContext(full, { filters: { q: 'with-a-name-nobody-planned-for', state: 'deactivated', page: '7' }, updatedAt: null, now: new Date() }));
+    const text = contextText(peopleContext(full, { filters: { q: 'with-a-name-nobody-planned-for', state: 'deactivated', page: '7' } }));
     expect(text.length).toBeLessThanOrEqual(CONTEXT_BUDGET);
     expect(text).toContain('more people match on later pages');
   });

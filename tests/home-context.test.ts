@@ -71,8 +71,11 @@ describe('the shared context', () => {
     const c = homeContext(ok(ATLAS));
     expect(c).toMatchObject({ view: 'home', title: 'Home', address: '/' });
     expect(fact(c, 'Title')!.value).toBe(ATLAS.title.sentence);
-    expect(fact(c, 'Words added')).toMatchObject({ value: '15,400 words added', change: `the week of ${LAST}` });
-    expect(fact(c, 'Approvals in your name')!.value).toBe(approvalsAt(WEEKS.approvals.findIndex((w) => w.window.from === ATLAS.tiles.closed.window.from)));
+    // Last week's figure, then the series its chart draws, oldest first (Work M-9); the scope names the week.
+    expect(fact(c, 'Words added')).toMatchObject({ value: '15,400 last week', change: expect.stringMatching(/^by week: .*12,400; .*none;.* 2,100 so far$/) });
+    const last = WEEKS.approvals.find((w) => w.window.from === ATLAS.tiles.closed.window.from)!.figure.value!;
+    expect(fact(c, 'Approvals in your name')!.value).toBe(`${last} last week`);
+    for (const w of WEEKS.approvals) expect(fact(c, 'Approvals in your name')!.change).toContain(`${formatDay(w.window.from)} ${w.figure.value}`);
     expect(fact(c, 'One person, writing this')!.value).toBe('31 h, estimated at 500 words an hour');
     expect(fact(c, 'Searches with results')).toMatchObject({ value: '75%', change: '12 of 16 searches' });
     expect(c.scope).toBe(`${ATLAS.meta.population}, the week of ${LAST}`);
@@ -80,10 +83,13 @@ describe('the shared context', () => {
 
   it('says what waits, each open initiative\'s next move, and what the words are counted over', () => {
     const text = contextText(homeContext(ok(ATLAS)));
-    expect(text).toContain('4 revisions wait for approval. Presented and not yet approved, the oldest since');
+    expect(text).toContain('4 revisions wait for approval, the oldest since');
+    // Neighbours with the same next move are one entry, every slug named (Work M-9).
     const rows = ATLAS.openWork.state === 'ok' ? ATLAS.openWork.data.rows : [];
-    for (const r of rows) expect(text).toContain(`next: Approve ${r.nextMove!.document}, waiting on a person`);
-    expect(text).toContain('Words added: The words each revision added over 41 documents, by week, nothing taken off for what a later one removed; 2 made by an import left out, 1 with no recorded write, 1 missing an earlier revision.');
+    for (const r of rows) expect(text).toContain(r.slug);
+    for (const r of rows) expect(text).toContain(`Approve ${r.nextMove!.document}, waiting on a person`);
+    expect(text).toContain('Words added count 41 documents, never less what a later revision removed; 2 made by an import left out, 1 with no recorded write, 1 missing an earlier revision.');
+    expect(text).not.toContain('More is on the page');
     expect(text).toContain(`${ATLAS.words.state === 'ok' ? ATLAS.words.data.finding!.text : ''}.`);
     expect(text.length).toBeLessThanOrEqual(CONTEXT_BUDGET);
   });
@@ -118,7 +124,7 @@ describe('the shared context', () => {
     const gone = { state: 'unavailable', reason: 'query_failed' } as const;
     const c = homeContext(ok({ ...ATLAS, waiting: gone, words: gone, foot: { ...ATLAS.foot, estimate: null } }));
     expect(c.unknowns).toContain('What waits for approval could not be read, so nothing can be said about it; it is not an all-clear.');
-    expect(fact(c, 'Words added')!.value).toBe('words added unavailable');
+    expect(fact(c, 'Words added')!.value).toBe('unavailable');
     expect(fact(c, 'One person, writing this')!.value).toBe('Unavailable');
     const failed = homeContext({ state: 'failed' });
     expect(failed.facts).toEqual([]);

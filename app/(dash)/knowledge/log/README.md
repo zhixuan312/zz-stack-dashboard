@@ -7,7 +7,7 @@ Knowledge's log: every node recorded or retired, newest first, and who wrote it 
 - Gate first: the page asks for `knowledge` before it renders, so a person who does not hold it is shown nothing of the page and nothing on it is read.
 - Tabs: Overview, Log, as Knowledge draws them.
 - Tiles: entries, recorded, superseded.
-- A row opens its node while the node is on the shelf: the log answers each entry's `path`, the node's address, and null for one deleted since, whose row opens nothing.
+- A row opens its node while the node is on the shelf: the log answers each entry's `path`, the node's address, and null for one deleted since, whose row opens nothing. A row that opens its node carries the quiet arrow after its title, as every row that opens a page does; one whose node is gone carries none.
 - A data table headed Recorded and superseded, newest first: when, act, node (title now, or as typed, over its number), who, by the address the platform holds for them, as every page names a person; `—` where the platform named nobody for the act. On a phone each entry is a card of the title with its number, the act, the date and who. Dates are absolute, each on one line: the log is read on the server. Both acts are neutral badges, `Recorded` and `Superseded`: a supersession is a lesson's ordinary life and needs nobody, so it wears no warning colour, and `node 0004 → 0005` says what replaced what.
 
 ## States

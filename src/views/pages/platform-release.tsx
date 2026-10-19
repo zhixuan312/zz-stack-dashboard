@@ -35,7 +35,7 @@ type Trouble = Exclude<ReleaseRead, { state: 'ok' }>;
  * nothing more, then the browser's own once a Retry asks for it. A version the record does not hold reached the page
  * only from the browser's read, since the server's answers it with the missing page.
  */
-function useRelease(version: string, served: ReleaseRead, now: Date) {
+function useRelease(version: string, served: ReleaseRead) {
   const { q, error, retry, busy } = useServed<ReleaseDetail>(releasePath(version), true);
   const data = q.data ?? (served.state === 'ok' ? served.data : undefined);
   const failed = failureOf({ error });
@@ -45,7 +45,7 @@ function useRelease(version: string, served: ReleaseRead, now: Date) {
     : error?.status === 404 ? { state: 'missing' }
       : failed ? { state: 'failed', reason: failed }
         : served.state === 'ok' ? null : served;
-  return { data, trouble, retry, busy, updatedAt: q.data ? new Date(q.dataUpdatedAt) : data ? now : null };
+  return { data, trouble, retry, busy };
 }
 
 /** The changelog the console's server drew as prose for its own read of the release, so no renderer is sent for it. */
@@ -71,10 +71,10 @@ function Notes({ md, served, node }: { md: string; served: string | null | undef
  */
 export function PlatformReleaseView({ version, served, notes = null }: { version: string; served: ReleaseRead; notes?: ReleaseNotes | null }) {
   const now = useDataClock();
-  const { data, trouble, retry, busy, updatedAt } = useRelease(version, served, now);
+  const { data, trouble, retry, busy } = useRelease(version, served);
   const asOf = now.toISOString();
   useShareView(data
-    ? releaseContext(data, { asOf, updatedAt, now })
+    ? releaseContext(data, { asOf })
     : pendingContext({ view: 'release', title: `Release ${version}`, address: releasePath(version), scope: 'one release' }, trouble && trouble.state !== 'missing' ? releasesTrouble(trouble) : null));
 
   if (!data) return trouble ? <ReleaseTrouble trouble={trouble} busy={busy} onRetry={retry} /> : <Busy name="release"><Skeleton className="h-72 rounded-lg" /><TableSkeleton rows={2} filters={false} /></Busy>;

@@ -79,6 +79,15 @@ export const OUTCOMES = ['accepted', 'delivered', 'abandoned'] as const;
 export const closedLine = (closed: InitiativeList['tiles']['closed']): string =>
   OUTCOMES.map((o) => `${formatCount(closed[o])} ${o}`).join(', ');
 
+/** The open tile's line: what it is a share of, every initiative the team has opened. */
+export const openLine = (tiles: InitiativeList['tiles']): string => {
+  const all = tiles.open + tiles.closed.accepted + tiles.closed.delivered + tiles.closed.abandoned;
+  return `of ${formatCount(all)} in the team`;
+};
+
+/** The waiting tile's line: the open work it is a share of. */
+export const waitingLine = (tiles: InitiativeList['tiles']): string => (tiles.open ? `of the ${formatCount(tiles.open)} open` : 'Nothing is open');
+
 /** What the assistant is told about who closes: the person, in the dialog, never the assistant. */
 export const CLOSE_IS_THE_PERSON_S = 'The assistant closes nothing: a person closes an initiative with Close initiative on its own page, in the dialog there.';
 
@@ -183,6 +192,7 @@ export function initiativesContext(list: InitiativesShown, { filters, page, read
     freshness: arrived(arrival),
     facts: [
       { label: 'Initiatives', value: formatCount(list.total), definition: narrowed(filters) ? 'All that these filters match, not this page.' : 'Every piece of work the team has opened.' },
+      // The open and waiting tiles' lines are shares of the facts beside them, which say both counts already.
       { label: TILES.open.label, value: formatCount(list.tiles.open), definition: TILES.open.definition },
       { label: TILES.waiting.label, value: formatCount(list.tiles.waiting), definition: TILES.waiting.definition },
       { label: TILES.closed.label, value: formatCount(closed.accepted + closed.delivered + closed.abandoned), change: closedLine(closed), definition: TILES.closed.definition },

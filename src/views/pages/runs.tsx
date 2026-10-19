@@ -26,7 +26,7 @@ import { formatCount, formatKb, formatSeconds } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
 import { pendingContext } from '@/views/context';
 import {
-  PAGE_SIZE, RUNS_DEFAULTS, TILES, filtersOfPath, outputOf, pageOf, runsContext, runsPath, runsTrouble, stateCellOf, stateOf, type RunsFilters, type RunsRead,
+  PAGE_SIZE, RUNS_DEFAULTS, TILES, filtersOfPath, outputOf, pageOf, runsContext, runsPath, runsTrouble, stateCellOf, stateOf, type RunsFilters, type RunsRead, type SkillPages,
 } from '@/views/runs-context';
 import { useServed, useServedAddress } from '@/views/use-served';
 
@@ -104,11 +104,11 @@ function SkillControl({ served, skills = [] }: { served: RunsRead | null; skills
 
 /**
  * Runs: every run the active team recorded since its first, or of the skill the address names, by the skill that drove
- * it and lately, read on the console's server and handed here. A part the gateway could not read draws its own
+ * it and lately, read on the console's server and handed here, with where each skill's own page is (`pages`). A part the gateway could not read draws its own
  * unavailable state and the rest stands; a read that failed or took longer than its bound is the error state with
  * Retry, which reads again in the browser.
  */
-export function RunsView({ served }: { served: Revised<RunsRead> }) {
+export function RunsView({ served, pages = {} }: { served: Revised<RunsRead>; pages?: SkillPages }) {
   useLive(['runs'], served.revisions);
   const { data, stale, trouble, retry, busy, filters, set, updatedAt } = useRuns(served);
   const now = useDataClock();
@@ -137,6 +137,7 @@ export function RunsView({ served }: { served: Revised<RunsRead> }) {
           onRetry={retry}
           retrying={busy}
           of={one ? filters.skill : undefined}
+          pages={pages}
           ask={<AskAbout question={one ? `What do the runs of ${filters.skill} show, and what is their observed output?` : 'Which skill\'s runs answer the most observed output, and how long does a typical run of it take?'} />}
         />
       </div>

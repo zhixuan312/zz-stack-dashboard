@@ -16,6 +16,7 @@ One document, read: the text, how it changed and on what evidence, and the claim
   (stakeholder, tags, each of the flow's own fields), then the text rendered or as stored.
 - A table the text carries becomes cards where the text's column is under 480px, as on a phone: each row a card, its
   first cell the title and the rest beneath it, one to a line, under a key of the headings in the same order.
+- An address with `?version=<n>`, which an Approvals history row opens: where that version's approved text is the current one the page is as always; where a later text replaced it, the Document card is titled `Document at v<n>` and draws that snapshot's own text, read by its revision, under a line naming who approved it and when with a link to the current text, the masthead reads `v<n>, current v<m>`, and Approve is not offered, since it vouches for the text on screen. The context then quotes that version's text and says which it is.
 - Changes and their reasons: the sources first, then the diff between content versions.
 - Content history and the claims table, counted in the word its rows are: claims, or a plan's tasks.
 

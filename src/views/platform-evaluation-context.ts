@@ -12,7 +12,7 @@ import { formatDateTime, formatDay, formatShortDate } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import type { Evaluation, SafeFinding } from '@/lib/platform-shapes';
 import { listed, type Fact, type Insight, type SharedContext } from '@/lib/shared-context';
-import { budgeted, clip, pendingContext } from './context';
+import { budgeted, pendingContext } from './context';
 import { waited } from './platform-bugs-context';
 
 /** How long the console's server waits for the read: half a second under five, for a phone to draw what it says. */
@@ -84,6 +84,8 @@ const ownedBy = (o: string): string => (o === 'unknown' ? 'owner not known' : `o
 
 /** A finding's kind as a reader says it. */
 export const kindOf = (k: string): string => (k === 'defect' ? 'Defect' : k === 'unknown' ? 'Unknown' : k);
+/** A finding's kind in a sentence, with its article: `a defect`, `an unknown`. */
+const aKind = (k: string): string => `${/^[aeiou]/i.test(kindOf(k)) ? 'an' : 'a'} ${kindOf(k).toLowerCase()}`;
 
 /** What a series' scores make of each other: from its first score to its last, when it holds two or more. */
 type Trend = { from: Run; to: Run; change: number; points: (number | null)[] };
@@ -122,6 +124,9 @@ export const runText = (r: Run): string => `${r.score === null ? `no score (${st
  * and owner category.
  */
 export const nameOf = (f: WaitingFinding): string => f.pattern || f.summary;
+
+/** Whether a finding's name leaves its plugin unsaid: the spec's own sentence for a finding with no public owner category. */
+export const namesNoPlugin = (f: WaitingFinding): boolean => !f.pattern && !f.summary.includes(f.plugin);
 
 /** The waiting findings as the read lists them, oldest first, each in the caller's form. */
 export const waitingOf = (e: Evaluation): WaitingFinding[] => (e.waiting.state === 'ok' ? e.waiting.data.rows : []);
@@ -164,7 +169,7 @@ export function evaluationContext(read: EvaluationRead): SharedContext {
   );
   if (e.byDecision.state === 'ok') {
     const d = e.byDecision.data;
-    facts.push({ label: 'Findings by decision', value: DECISIONS.map((p) => `${formatCount(d[p.key])} ${p.label.toLowerCase()}`).join(', '), definition: 'Every defect and unknown recorded, each counted once.' });
+    facts.push({ label: 'Findings by decision', value: DECISIONS.map((p) => `${p.label} ${formatCount(d[p.key])}`).join('; '), definition: 'Every defect and unknown recorded, each counted once.' });
   } else unavailable('The findings by decision', e.byDecision.reason);
   if (e.byOwner.state === 'ok') {
     const by = Object.entries(e.byOwner.data);
@@ -191,8 +196,8 @@ export function evaluationContext(read: EvaluationRead): SharedContext {
   if (e.history.state !== 'ok') unavailable('Every score by series', e.history.reason);
   if (e.waiting.state === 'ok') {
     const line = (f: WaitingFinding) => (f.pattern
-      ? `${clip(f.pattern.replace(/\.$/, ''), 80)} (a ${kindOf(f.kind).toLowerCase()} in ${f.plugin}${f.measure ? ` on ${f.measure}` : ''}, ${ownedBy(f.owner)}, since ${formatDay(f.waitingSince)})`
-      : `${f.summary} (since ${formatDay(f.waitingSince)})`);
+      ? `${f.pattern.replace(/\.$/, '')} (${aKind(f.kind)} in ${f.plugin}${f.measure ? ` on ${f.measure}` : ''}, ${ownedBy(f.owner)}, since ${formatDay(f.waitingSince)})`
+      : `${f.summary} (${namesNoPlugin(f) ? `${aKind(f.kind)} in ${f.plugin}, ` : ''}since ${formatDay(f.waitingSince)})`);
     if (waiting.length) insights.push({ text: `Findings waiting, oldest first: ${listed(waiting, line, 'the list on /platform/evaluation', 5)}.` });
   } else unavailable('The findings waiting', e.waiting.reason);
 
@@ -200,7 +205,7 @@ export function evaluationContext(read: EvaluationRead): SharedContext {
     'Scores are out of 10. A change is stated within one series (one protocol version and one population), never across two; no score is combined into an overall one.',
     'A score not established is not a number to quote. Strengths are not counted.',
   );
-  if (!admin) unknowns.push('A protocol\'s key, a measure\'s key and a finding\'s own words are the owning team\'s: a member reads the version, and a finding by its kind, plugin and owner category.');
+  if (!admin) unknowns.push('A protocol\'s key, a measure\'s key and a finding\'s own words are the owning team\'s: a member reads the version, and a finding by its kind, plugin and owner category, or as "Evaluation finding awaiting a decision" when its owner category is not known.');
   return budgeted({
     ...VIEW,
     scope: `every plugin's evaluation on the platform, ${admin ? 'as the superadmin reads it' : 'in the form everybody may read'}`,

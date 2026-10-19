@@ -57,8 +57,8 @@ describe('a plugin evaluation in the gateway\'s shape', () => {
   it('builds the assistant\'s context and states the guardrail status', () => {
     const context = pluginContext('alpha', { evaluation, updatedAt: '2026-10-12T09:00:00Z', now: '2026-10-12T09:01:00Z' });
     const text = context.insights.map((i) => i.text).join(' ');
-    expect(text).toContain('guardrails fail');
-    expect(text).toContain('refusal-rate');
+    expect(text).toContain('Guardrails fail');
+    expect(text).toContain('Refusal rate');
   });
 
   it('builds the context for a name nothing registered, which carries nothing but the name', () => {

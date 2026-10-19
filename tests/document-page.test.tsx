@@ -109,7 +109,7 @@ describe('the breadcrumb\'s team', () => {
     grants.teams = granted;
     grants.asked = [];
     const params = Promise.resolve({ team: 'team-one', slug: 'init-1', path: ['spec.md'] });
-    const element = (await DocumentPage({ params })) as { props: { teamPage: boolean; team: string; slug: string; rel: string } };
+    const element = (await DocumentPage({ params, searchParams: Promise.resolve({}) })) as { props: { teamPage: boolean; team: string; slug: string; rel: string } };
     expect(grants.asked).toEqual([FEATURES.teams.needs]);
     expect(element.props.teamPage).toBe(granted);
     expect(element.props).toMatchObject({ team: 'team-one', slug: 'init-1', rel: 'spec.md' });

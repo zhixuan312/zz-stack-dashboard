@@ -299,8 +299,10 @@ function Week({ home, team, onPoint }: { home: Home; team: string | null; onPoin
           <Milestones home={home} />
           <ClosedLastWeek home={home} team={team} />
         </Row>
-        <Go data-record-line href="/record" className="inline-flex items-center gap-1.5 self-start text-sm font-medium text-ink hover:text-accent-ink">
-          Everything your team has recorded, by quarter and year, is on Record <ArrowRight className="size-3.5" />
+        {/* Inline, the arrow held to the last word: as a flex row the sentence wrapped at 390 and left the arrow alone at
+            the right edge, a control with no words (Phase 7's second re-review, Work M-18). */}
+        <Go data-record-line href="/record" className="self-start text-sm font-medium text-ink hover:text-accent-ink">
+          Everything your team has recorded, by quarter and year, is on <span className="whitespace-nowrap">Record <ArrowRight aria-hidden className="inline size-3.5 align-[-0.15em]" /></span>
         </Go>
       </Stack>
     </Meridian>

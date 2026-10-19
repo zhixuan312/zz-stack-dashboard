@@ -430,7 +430,7 @@ function Agents({ r }: { r: RecordRead }) {
             <Panel title="Runs by skill" description="The period's observed runs, by the skill each ran">
               {a.bySkill.length ? <BarList label="Runs by skill" items={a.bySkill.map((s) => ({ key: s.skill, label: <span className="[overflow-wrap:anywhere]">{s.skill}</span>, value: s.runs, href: `/runs?skill=${encodeURIComponent(s.skill)}` }))} /> : <EmptyState layout="inline" title="No run in the period" className="py-6">A run of a skill appears here.</EmptyState>}
               {/* A skill's name opens its runs; this says so where a still shows it (Work F-41's Navigation). */}
-              <Link href="/runs" className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-ink hover:text-accent-ink">Every run, and each skill&rsquo;s, is on Runs <ArrowRight className="size-3.5" /></Link>
+              <Link href="/runs" className="mt-4 inline-block text-sm font-medium text-ink hover:text-accent-ink">Every run, and each skill&rsquo;s, is on <span className="whitespace-nowrap">Runs <ArrowRight aria-hidden className="inline size-3.5 align-[-0.15em]" /></span></Link>
             </Panel>
           </Row>
         </>
@@ -469,8 +469,17 @@ function Firsts({ r }: { r: RecordRead }) {
 const OUTCOME_TONE: Record<string, 'positive' | 'neutral'> = { accepted: 'positive', delivered: 'positive', abandoned: 'neutral' };
 type InitiativeRecord = Extract<RecordRead['record'], { state: 'ok' }>['data']['rows'][number];
 
+/** The quiet arrow that says a row opens its initiative before the pointer finds it, as Initiatives' rows carry it. */
+const Goes = () => <ArrowRight data-goes aria-hidden className="inline size-3.5 shrink-0 align-[-0.15em] text-ink-3 group-hover/row:text-ink" />;
+
+// A row opens its initiative: the arrow after the slug says so where a still shows it (Phase 7's second re-review, Work
+// F-41's Navigation). The slug is cut before the arrow is, so a long one never takes the arrow with it.
 const COLUMNS: Column<InitiativeRecord>[] = aligned([
-  { key: 'initiative', header: 'Initiative', grow: true, mobile: 'title', cell: (i) => <span className="block truncate font-medium text-ink" title={i.slug}>{i.slug}</span>, title: (i) => i.slug, mobileCell: (i) => <span className="[overflow-wrap:anywhere]">{i.slug}</span> },
+  {
+    key: 'initiative', header: 'Initiative', grow: true, mobile: 'title', title: (i) => i.slug,
+    cell: (i) => <span className="flex min-w-0 items-center gap-1.5 font-medium text-ink"><span className="truncate" title={i.slug}>{i.slug}</span><Goes /></span>,
+    mobileCell: (i) => <span className="[overflow-wrap:anywhere]">{i.slug} <Goes /></span>,
+  },
   {
     key: 'outcome', header: 'Outcome', mobile: 'status',
     cell: (i) => (i.outcome ? <Badge tone={OUTCOME_TONE[i.outcome] ?? 'neutral'} dot>{i.outcome[0].toUpperCase()}{i.outcome.slice(1)}</Badge> : <Badge tone="neutral">Open</Badge>),

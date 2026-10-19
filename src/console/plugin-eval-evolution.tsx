@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { plural } from '@/lib/format';
 import type { CandidateStatus, PluginEval, PluginEvalFound } from '@/lib/api-shapes';
+import { RELEASE_JUDGED, TRUST_SAID, evaluatorSaid } from '@/views/plugin-context';
 import { wordsOf } from '@/views/plugins-context';
 
 const STATUS_LABEL: Record<CandidateStatus, string> = {
@@ -14,10 +15,6 @@ const STATUS_LABEL: Record<CandidateStatus, string> = {
   invalid: 'Invalid',
 };
 
-/** An evaluator's qualification in a person's words, and its colour: earned, earned mechanically, or not yet. */
-const TRUST_SAID: Record<string, string> = {
-  human_calibrated: 'Calibrated by a person', operationally_qualified: 'Qualified for use', mechanically_qualified: 'Checked mechanically only',
-};
 const STATUS_TONE: Record<CandidateStatus, 'positive' | 'critical' | 'warning' | 'neutral'> = {
   recorded: 'neutral', awaiting_build: 'warning', valid: 'positive',
   invalid: 'critical',
@@ -25,15 +22,6 @@ const STATUS_TONE: Record<CandidateStatus, 'positive' | 'critical' | 'warning' |
 
 /** The card's edge padding on the Status column wherever the columns after it are hidden (`hideBelow` sm and md). */
 const EDGE = '@max-[672px]:pr-(--card-pad)';
-
-/**
- * An evaluator in a person's words, `judge.evidence.v2` reading "Evidence judge, version 2": its stable key is an
- * identifier, kept on hover. A key of any other shape reads as its words.
- */
-const evaluatorSaid = (key: string): string => {
-  const m = /^judge\.(.+)\.v(\d+)$/.exec(key);
-  return m ? `${wordsOf(m[1])} judge, version ${m[2]}` : wordsOf(key);
-};
 
 /**
  * Evolution: every candidate the run's findings seeded, its hypothesis and status, how its local
@@ -45,6 +33,8 @@ const evaluatorSaid = (key: string): string => {
 export function EvalEvolution({ pluginEval }: { pluginEval: PluginEvalFound }) {
   const { candidates, ownershipMode } = pluginEval;
   const aside = ownershipMode === 'evaluation_only' ? 'Evaluation only' : `${candidates.length} ${plural(candidates.length, 'candidate')}`;
+  // A judged release's reason names a change in refusals or runs; whose they are is said once, above the rows.
+  const judged = candidates.some((c) => c.release?.verdict) ? `${aside}. ${RELEASE_JUDGED}` : aside;
   if (!candidates.length) {
     return (
       <Panel title="Evolution" description={aside}>
@@ -56,7 +46,7 @@ export function EvalEvolution({ pluginEval }: { pluginEval: PluginEvalFound }) {
     );
   }
   return (
-    <Panel title="Evolution" description={aside} flush>
+    <Panel title="Evolution" description={judged} flush>
       <Table>
         <TableHead>
           <TableRow>

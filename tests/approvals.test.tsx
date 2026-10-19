@@ -250,7 +250,7 @@ describe('History', () => {
     browser(null);
     mount(ok(HISTORY, HISTORY_PATH));
     expect(text()).toContain(`Approved in your name · ${noPresentationLine(HISTORY.tiles.noPresentation!, HISTORY.tiles.inYourName)}. Newest first.`);
-    expect(text()).toContain('2 of 10 approved with no presentation recorded, and 1 unknown. Newest first.');
+    expect(text()).toContain('2 of 13 approved with no presentation recorded, and 1 unknown. Newest first.');
     expect(text()).not.toMatch(/signed by|signed it|you read|read by you|at the keyboard|your agent/i);
   });
 

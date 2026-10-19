@@ -2,7 +2,7 @@
 
 import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { GitFork, History, PlusCircle, RotateCw } from 'lucide-react';
+import { ArrowRight, GitFork, History, PlusCircle, RotateCw } from 'lucide-react';
 import { Row } from '@/components/base/shell';
 import { AskAbout } from '@/components/patterns/ask-about';
 import { DataTable, type Column } from '@/components/patterns/data-table';
@@ -30,9 +30,14 @@ function columns(): Column<KnowledgeLogEntry>[] {
       // The title as it stands now, falling back to the one typed at the time: "node 3" is a number nobody recognises.
       key: 'node', header: 'Node', align: 'left', grow: true, mobile: 'title',
       // The same on a phone's card: its node and what replaced it under the title, which the card dropped (Work F-47).
+      // A row that opens its node carries the quiet arrow every such row does; whether one opened was not visible (Phase
+      // 7's second re-review, the log's Navigation). One whose node is gone opens nothing and carries none.
       cell: (e) => (
         <span className="block py-1 whitespace-normal">
-          <span className="block leading-snug text-ink">{e.node_title ?? e.recorded_title ?? <span className="text-ink-3">No longer on the shelf</span>}</span>
+          <span className="block leading-snug text-ink">
+            {e.node_title ?? e.recorded_title ?? <span className="text-ink-3">No longer on the shelf</span>}
+            {e.path && e.team ? <> <ArrowRight data-goes aria-hidden className="inline size-3.5 align-[-0.15em] text-ink-3 group-hover/row:text-ink" /></> : null}
+          </span>
           <span className="t-caption block font-mono">node {e.node}{e.superseded_by ? ` → ${e.superseded_by}` : ''}</span>
         </span>
       ),

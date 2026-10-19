@@ -15,7 +15,8 @@ import { plural } from '@/lib/format';
 import { formatDateTime, formatDay } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { listed, type Fact, type Insight, type SharedContext } from '@/lib/shared-context';
-import { addressOf, arrived, budgeted, clip, type Arrival } from './context';
+import { addressOf, budgeted, clip } from './context';
+import { rostered } from './platform-roster';
 
 type Side = ReleaseRow['before'];
 
@@ -188,7 +189,7 @@ function weeksLine(weeks: Week[]): string | null {
 
 /* What the assistant is told */
 
-/** How many releases of a page the context names: five hold the budget at any length of version and client action. */
+/** How many releases of a page the context names at most, each whole and as many as fit, and says how many more. */
 const NAMED = 5;
 /** How many of a release's overlapping versions a line names before it counts the rest. */
 const OVERLAPS_TOLD = 2;
@@ -201,10 +202,10 @@ function releaseLine(r: ReleaseRow): string {
   const rate = (s: Side) => `${rateIn(s)}${observedOf(s) === 'partial' ? ' (partial)' : ''}`;
   const others = overlapsOf(r);
   const overlap = others.length
-    ? `; within 72 hours of ${others.slice(0, OVERLAPS_TOLD).map((v) => clip(v, 20)).join(', ')}${others.length > OVERLAPS_TOLD ? ` and ${others.length - OVERLAPS_TOLD} more` : ''}`
+    ? `; within 72 hours of ${others.slice(0, OVERLAPS_TOLD).join(', ')}${others.length > OVERLAPS_TOLD ? ` and ${others.length - OVERLAPS_TOLD} more` : ''}`
     : '';
-  return `${clip(r.version, 24)} (${formatDay(r.releasedAt)}): malformed per 1,000 ${rate(r.before)} then ${rate(r.after)}; tool failures ${failuresIn(r.before)} then ${failuresIn(r.after)}; `
-    + `p95 ${p95In(r.before)} then ${p95In(r.after)}; clients: ${clip(unstopped(clientActionOf(r)), 28)}${overlap}`;
+  return `${r.version} (${formatDay(r.releasedAt)}): malformed per 1,000 ${rate(r.before)} then ${rate(r.after)}; tool failures ${failuresIn(r.before)} then ${failuresIn(r.after)}; `
+    + `p95 ${p95In(r.before)} then ${p95In(r.after)}; clients: ${unstopped(clientActionOf(r))}${overlap}`;
 }
 
 /** What every view of releases says it cannot say. */
@@ -219,7 +220,7 @@ const UNKNOWNS = [
  * `filters` is the page's address. `read` is how `view_releases` read the rows, by the route's `limit` and `offset`, when
  * it did: the address is then the page of ten the offset falls in, and rows off the page's grid are said to be so.
  */
-export function releasesContext(data: Releases, { filters, read, ...arrival }: { filters: ReleasesFilters; read?: ReleasesRows } & Arrival): SharedContext {
+export function releasesContext(data: Releases, { filters, read }: { filters: ReleasesFilters; read?: ReleasesRows }): SharedContext {
   const page = pageOf(filters);
   const first = read ? read.offset : (page - 1) * PAGE_SIZE;
   const onGrid = !read || (read.limit === PAGE_SIZE && read.offset % PAGE_SIZE === 0);
@@ -235,19 +236,21 @@ export function releasesContext(data: Releases, { filters, read, ...arrival }: {
     { label: TILES.migrations.label, value: formatCount(tiles.migrations.applied), change: tiles.migrations.lastAt ? `last ${formatDateTime(tiles.migrations.lastAt)}` : 'none recorded', definition: TILES.migrations.definition },
   ];
   // The releases first, the table being the page's protagonist; the weeks are the first to go over the budget.
-  const insights: Insight[] = [];
   const weeks = weeksLine(data.weeks);
-  if (rows.length) insights.push({ text: `The releases on this page, newest first, each side before then after: ${listed(rows, releaseLine, 'see the page', NAMED)}.`, evidence: address });
-  if (weeks) insights.push({ text: weeks, evidence: '/platform/releases' });
+  const roster = (n: number) => listed(rows, releaseLine, 'see the page', n);
+  const insights = (n: number): Insight[] => [
+    ...(rows.length ? [{ text: `The releases on this page, newest first, each side before then after: ${roster(n)}.`, evidence: address }] : []),
+    ...(weeks ? [{ text: weeks, evidence: '/platform/releases' }] : []),
+  ];
   const shown = first + rows.length;
-  return budgeted({
+  return rostered((n) => ({
     view: 'releases',
     title: 'Releases',
     address,
     scope: `every recorded release${rows.length && total !== null ? `; rows ${first + 1} to ${shown} of ${formatCount(total)}` : ''}`,
-    freshness: arrived(arrival),
+    freshness: `As of ${formatDateTime(data.meta.asOf)}.`,
     facts,
-    insights,
+    insights: insights(n),
     unknowns: [
       ...UNKNOWNS,
       ...(part.state === 'unavailable' ? [`The releases could not be listed (${part.reason}); the tiles and the weeks stand.`] : []),
@@ -256,7 +259,7 @@ export function releasesContext(data: Releases, { filters, read, ...arrival }: {
       ...(total !== null && total > shown ? [`${formatCount(total - shown)} more ${plural(total - shown, 'release')} on later pages.`] : []),
       ...(part.state === 'ok' && !rows.length ? ['No release is recorded on this page.'] : []),
     ],
-  });
+  }), roster, NAMED);
 }
 
 /** How much of a changelog and of its upgrade notes the context quotes: what holds the budget beside the windows. */
@@ -291,7 +294,7 @@ function windowFact(label: string, s: Side, asOf: string): Fact {
   };
 }
 
-export function releaseContext(release: ReleaseDetail, { asOf, ...arrival }: { asOf: string } & Arrival): SharedContext {
+export function releaseContext(release: ReleaseDetail, { asOf }: { asOf: string }): SharedContext {
   const overlap = overlapText(release);
   const notes = release.upgradeNotes ? plain(release.upgradeNotes) : null;
   return budgeted({
@@ -299,7 +302,6 @@ export function releaseContext(release: ReleaseDetail, { asOf, ...arrival }: { a
     title: `Release ${release.version}`,
     address: releasePath(release.version),
     scope: `one release, tagged ${formatDateTime(release.releasedAt)}`,
-    freshness: arrived(arrival),
     facts: [
       { label: 'Tagged', value: formatDateTime(release.releasedAt) },
       { label: 'Console', value: release.consoleVersion ?? 'Not recorded' },

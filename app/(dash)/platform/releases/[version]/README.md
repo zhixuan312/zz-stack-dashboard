@@ -31,7 +31,7 @@ The assistant reads this page and changes nothing. The page shares its context t
 
 ### What the agent reads
 
-When the release's tag was made, the console it shipped with, its client action, each window's malformed calls per 1,000 with its calls, malformed calls, tool failures, p95 and what of it was observed, the releases within 72 hours of it, its summary, and its changelog and upgrade notes as published, cut to what holds the budget. It says that a window is what was observed and not what the release did, that a tag's time is historical timing, that under 30 calls a side is too few to compare, and that another release inside a window puts that release's calls in it too.
+When the release's tag was made, the console it shipped with, its client action, each window's malformed calls per 1,000 with its calls, malformed calls, tool failures, p95 and what of it was observed, the releases within 72 hours of it, its summary, and its changelog and upgrade notes as published, cut to what holds the budget. No time of the read is stated, since the page prints none. It says that a window is what was observed and not what the release did, that a tag's time is historical timing, that under 30 calls a side is too few to compare, and that another release inside a window puts that release's calls in it too.
 
 ```text
 - After: 3.3 malformed per 1,000 (610 calls, 2 malformed, 0 tool failures, p95 1,620 ms; partial, Observed 20 of 72 hours so far: 16 Oct 2026, 15:00 to 17 Oct 2026, 11:00)

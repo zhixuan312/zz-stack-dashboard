@@ -110,7 +110,7 @@ describe('F-1: a skill\'s parts sum to the whole they sit beside', () => {
     const served = apart();
     const logged = loggedOf(served);
     mount(<SkillView plugin="sdlc" skill="sdlc-spec" view="cost" served={served} />);
-    expect(panel('Refused').textContent).toContain(`${logged.failed} of ${logged.calls} calls in the log`);
+    expect(document.querySelector('[data-protagonist="Its runs"]')!.textContent).toContain(`${logged.failed} of ${logged.calls} calls in the log`);
     expect(panel('Calls per run').textContent).toContain('100 in its runs');
   });
 });

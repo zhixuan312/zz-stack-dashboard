@@ -7,7 +7,7 @@ import type { TeamDetail } from '@/lib/fleet-shapes';
 import { defineViewTool } from '@/lib/shared-context';
 import { teamContext } from '../team-context';
 import { teamExplore } from '../teams-explore';
-import { justRead, segment } from './shared';
+import { segment } from './shared';
 
 export const teamTool = defineViewTool({
   name: 'team',
@@ -19,7 +19,7 @@ export const teamTool = defineViewTool({
   async read({ slug }) {
     await requireNeed(FEATURES.teams.needs);
     const team = await gatewayGet<TeamDetail>(`/teams/${slug}`);
-    return { context: teamContext(slug, { team, ...justRead() }), data: team };
+    return { context: teamContext(slug, { team }), data: team };
   },
   explore: teamExplore,
 });

@@ -13,7 +13,7 @@ import type { SearchAnswer, SearchHit } from '@/lib/api-shapes';
 import type { Revisions } from '@/lib/live';
 import type { KnowledgeList, KnowledgeSummary } from '@/lib/destination-shapes';
 import { formatCount } from '@/lib/format-units';
-import { formatDate } from '@/lib/format-date';
+import { formatDate, formatDay } from '@/lib/format-date';
 import { knowledgeNodeHref } from '@/lib/knowledge-filters';
 import type { Figure } from '@/lib/platform-shapes';
 import { listed, type Fact, type Insight, type SharedContext } from '@/lib/shared-context';
@@ -84,10 +84,12 @@ export const narrowed = (f: Pick<KnowledgeFilters, 'kind'>) => f.kind !== 'all';
 /** A figure as the tiles write it: the count, or why there is none. A figure nobody read is never a zero. */
 export const figureText = (f: Figure): string => (f.value !== null ? formatCount(f.value) : f.why === 'no_data' ? 'no data' : 'not measured');
 
+const percent = (v: number | null) => (v === null ? 'no search' : `${Math.round(v)}%`);
+
 /**
  * The question the page's Ask starts from before any search: the four figures on screen, named, so the first answer is
- * about what the person is looking at (Phase 7's re-review, Work F-56; the panel's own starter question is ZZ Meridian's,
- * #69). A tile not read says so in the words its tile shows.
+ * about what the person is looking at (Phase 7's re-review, Work F-56). A tile not read says so in the words its tile
+ * shows.
  */
 export function starterOf(summary: KnowledgeSummary | undefined): string {
   if (!summary) return 'Which of our questions found nothing, and where else could we look for them?';
@@ -95,10 +97,26 @@ export function starterOf(summary: KnowledgeSummary | undefined): string {
   return `What do our ${figureText(standing)} lessons adopted and ${figureText(superseded)} superseded say, and why did ${figureText(noResult.figure)} of last week's ${figureText(searches.figure)} searches find nothing?`;
 }
 
+/**
+ * The questions the assistant's empty thread offers on this page, each built from what the page shows: the four
+ * figures, the questions that found nothing, the last two whole weeks of searches and the newest lesson. One question
+ * in an otherwise empty panel was the second re-review's remainder of Work F-56; a part not read offers none.
+ */
+function startersOf(summary: KnowledgeSummary | undefined): string[] {
+  const out = [starterOf(summary)];
+  if (!summary) return out;
+  const q = summary.questions.state === 'ok' ? summary.questions.data : null;
+  if (q?.total && q.rows[0]) out.push(`Which of our ${formatCount(q.total)} questions that found nothing should a lesson answer first, starting with "${clip(q.rows[0].question, 60)}"?`);
+  const whole = summary.weeks.state === 'ok' ? summary.weeks.data.filter((w) => w.window.complete && w.figure.value !== null) : [];
+  const [before, last] = whole.slice(-2);
+  if (before && last) out.push(`Why did ${percent(last.figure.value)} of our searches find something in the week of ${formatDay(last.window.from)}, against ${percent(before.figure.value)} the week before?`);
+  const newest = summary.newest.state === 'ok' ? summary.newest.data[0] : undefined;
+  if (newest) out.push(`What does our newest lesson, "${clip(newest.title, 60)}", tell us to do?`);
+  return out;
+}
+
 /** Which shelf a result is on, in the words the page uses beside it. */
 export const shelfOf = (hit: Pick<SearchHit, 'shelf'>): string => (hit.shelf === 'platform' ? 'the shared shelf' : 'your team\'s shelf');
-
-const percent = (v: number | null) => (v === null ? 'no search' : `${Math.round(v)}%`);
 
 /** The results in view, best first: what each is, where it stands and which shelf holds it, without its excerpt. */
 function resultsInsight(search: SearchAnswer, address: string): Insight {
@@ -132,7 +150,10 @@ export function knowledgeContext({ summary, list, filters, page, search, shelf, 
   if (search) insights.push(resultsInsight(search, address));
   const questions = summary?.questions.state === 'ok' ? summary.questions.data : null;
   if (questions?.rows.length) {
-    insights.push({ text: `The team's own questions that found nothing, most asked first (${formatCount(questions.total)} in all): ${listed(questions.rows, (x) => `"${clip(x.question, 80)}" ${x.asked}×, last ${formatDate(x.lastAsked)}`, 'see /knowledge', 4)}.` });
+    // The first four by name, and the rest counted against the total, not against the rows answered.
+    const named = questions.rows.slice(0, 4).map((x) => `"${clip(x.question, 80)}" ${x.asked}×, last ${formatDate(x.lastAsked)}`).join('; ');
+    const rest = questions.total - Math.min(4, questions.rows.length);
+    insights.push({ text: `The team's own questions that found nothing, most asked first (${formatCount(questions.total)} in all): ${named}${rest > 0 ? `; and ${formatCount(rest)} more (see /knowledge)` : ''}.` });
   }
   // The last four weeks: the running one, and three whole ones to read it against.
   const weeks = summary?.weeks.state === 'ok' ? summary.weeks.data.slice(-4) : [];
@@ -175,7 +196,7 @@ export function knowledgeContext({ summary, list, filters, page, search, shelf, 
       ...(summary ? [] : [`The shelf's standing, its searches and its questions could not be read${failure ? `: ${failure}` : ''}.`]),
       ...(!list ? ['The shelf\'s lessons have not been read.'] : list.rows.length ? [] : [narrowed(filters) || words ? 'No lesson matches these filters.' : first > 0 ? 'These rows are past the last lesson.' : 'Nothing is on the shelf yet.']),
     ],
-    // The assistant's empty thread offers the page's own first question, about the figures on screen (Work F-56).
-    questions: [starterOf(summary)],
+    // The assistant's empty thread offers the page's own questions, about what is on screen (Work F-56).
+    questions: startersOf(summary),
   });
 }

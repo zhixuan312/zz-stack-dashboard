@@ -34,7 +34,7 @@ The assistant reads this page and changes nothing: every change in this console 
 
 ### What the agent reads
 
-The filters and the page in force, the four tiles with what each counts, how many people match, then each person on the page by name and state alone. It says that addresses, tokens and enrolment links are not part of the context, that the assistant changes nobody (a person adds someone with Add a person here, and issues an enrolment link or deactivates someone with Enrolment link or Deactivate in their row), that a person with no sign-in on record is unknown rather than a date, when the sign-ins could not be counted, and how many more people match on later pages.
+The filters and the page in force, the four tiles with what each counts, how many people match, then each person on the page by name and state alone, each name whole and as many as fit. It says that each person's role, teams, passkeys and last sign-in are on the page and not in the context, and that `explore_people` counts and lists people by role and state; that addresses, tokens and enrolment links are not part of the context, that the assistant changes nobody (a person adds someone with Add a person here, and issues an enrolment link or deactivates someone with Enrolment link or Deactivate in their row), that a person with no sign-in on record is unknown rather than a date, when the sign-ins could not be counted, and how many more people match on later pages. It is dated with the read's own cutoff, as the masthead prints it (`As of 20 Oct 2026, 03:15.`), never the moment the data arrived in the browser.
 
 ```text
 - The people on this page, by the day they were added, each with their state: Ava Lindqvist (active); Leo Santos (deactivated); …

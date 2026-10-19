@@ -49,6 +49,9 @@ type Seed = {
   drifting?: string;
   /** A document whose presentation zz-core refuses outright — not a 409 — so Approve is unavailable. */
   unrecordable?: string;
+  /** Who approved a gate's document where it was not the stakeholder, and how many hours ago where it was not the
+   *  document's own place in the flow: an approval is the person who signed it, whoever the work was for. */
+  approvals?: Record<string, { by: string; hours?: number }>;
 };
 
 const SEEDS: Seed[] = [
@@ -56,15 +59,21 @@ const SEEDS: Seed[] = [
   { team: 'atlas', slug: '2026-10-02-query-latency', at: 2, updated: 5, stakeholder: null, passed: 0, written: 1, outcome: null, moving: 'spec.md' },
   { team: 'atlas', slug: '2026-10-03-ranking-weights', at: 2, updated: 3, stakeholder: null, passed: 0, written: 1, outcome: null, drifting: 'spec.md' },
   { team: 'atlas', slug: '2026-10-04-index-rebuild', at: 2, updated: 4, stakeholder: null, passed: 0, written: 1, outcome: null, unrecordable: 'spec.md' },
-  { team: 'atlas', slug: '2026-09-12-onboarding-revamp', at: 7, updated: 220, stakeholder: 'ava.lindqvist@example.com', passed: 4, written: 4, outcome: 'accepted', correction: 2 },
+  { team: 'atlas', slug: '2026-09-12-onboarding-revamp', at: 7, updated: 220, stakeholder: 'ava.lindqvist@example.com', passed: 4, written: 4, outcome: 'accepted', correction: 2,
+    approvals: { 'spec.md': { by: 'noah.okafor@example.com' } } },
   { team: 'atlas', slug: '2026-09-05-research-notes', at: 0, updated: 400, stakeholder: null, passed: 0, written: 0, outcome: null, flow: false },
   // Enough more of atlas's work that its list pages at ten: open work ready to close (every gate it is judged on
   // passed) and not started, work gone quiet, and closed work of every outcome.
-  { team: 'atlas', slug: '2026-10-08-result-explanations', at: 7, updated: 6, stakeholder: 'noah.okafor@example.com', passed: 3, written: 3, outcome: null },
+  { team: 'atlas', slug: '2026-10-08-result-explanations', at: 7, updated: 6, stakeholder: 'noah.okafor@example.com', passed: 3, written: 3, outcome: null,
+    approvals: { 'spec.md': { by: 'ava.lindqvist@example.com' }, 'plan.md': { by: 'ava.lindqvist@example.com' }, 'review.md': { by: 'ava.lindqvist@example.com' } } },
   { team: 'atlas', slug: '2026-10-06-snippet-quality', at: 1, updated: 30, stakeholder: null, passed: 0, written: 0, outcome: null },
-  { team: 'atlas', slug: '2026-09-15-tagging-model', at: 3, updated: 380, stakeholder: null, passed: 1, written: 1, outcome: null },
-  { team: 'atlas', slug: '2026-08-25-eval-harness', at: 7, updated: 500, stakeholder: 'noah.okafor@example.com', passed: 4, written: 4, outcome: 'delivered' },
-  { team: 'atlas', slug: '2026-08-14-citation-graph', at: 7, updated: 650, stakeholder: 'ava.lindqvist@example.com', passed: 4, written: 4, outcome: 'accepted' },
+  { team: 'atlas', slug: '2026-09-15-tagging-model', at: 3, updated: 380, stakeholder: null, passed: 1, written: 1, outcome: null,
+    approvals: { 'spec.md': { by: 'ava.lindqvist@example.com' } } },
+  { team: 'atlas', slug: '2026-08-25-eval-harness', at: 7, updated: 500, stakeholder: 'noah.okafor@example.com', passed: 4, written: 4, outcome: 'delivered',
+    approvals: { 'spec.md': { by: 'ava.lindqvist@example.com' }, 'plan.md': { by: 'ava.lindqvist@example.com' }, 'handover.md': { by: 'ava.lindqvist@example.com' } } },
+  // Its spec was approved before presentations were recorded, more than six weeks ago, so Approvals dates it by its day.
+  { team: 'atlas', slug: '2026-08-14-citation-graph', at: 7, updated: 650, stakeholder: 'ava.lindqvist@example.com', passed: 4, written: 4, outcome: 'accepted',
+    approvals: { 'spec.md': { by: 'ava.lindqvist@example.com', hours: 1_100 } } },
   { team: 'atlas', slug: '2026-08-02-ingest-pipeline', at: 2, updated: 160, stakeholder: null, passed: 0, written: 1, outcome: 'abandoned' },
   { team: 'beacon', slug: '2026-09-30-refund-flow', at: 2, updated: 9, stakeholder: 'jonas.weber@example.com', passed: 0, written: 1, outcome: null },
   { team: 'beacon', slug: '2026-10-01-ledger-migration-to-double-entry-bookkeeping-with-nightly-reconciliation', at: 0, updated: 30, stakeholder: null, passed: 0, written: 0, outcome: null },
@@ -102,6 +111,15 @@ function stageOf(s: Seed) {
 }
 
 type Doc = InitiativeDetail['documents'][number];
+
+/** Each flow document's place, counted back from the last: a document is written six hours after the one before it. */
+const STEP: Record<string, number> = { 'explore.md': 4, 'spec.md': 3, 'plan.md': 2, 'review.md': 1, 'handover.md': 0 };
+
+/** Who approved `path` of `s`: the person its approval names, the stakeholder where none is named. */
+const signerOf = (s: Seed, path: string): string | null => s.approvals?.[path]?.by ?? s.stakeholder;
+
+/** How many hours ago `path` of `s` was approved, or, for a document no gate approved, last written. */
+const approvedHours = (s: Seed, path: string): number => s.approvals?.[path]?.hours ?? s.updated + (STEP[path] ?? 0) * 6;
 const doc = (path: string, type: string, o: Partial<Doc> & { hours: number; bytes: number }): Doc => ({
   path, type, status: null, outcome: null, approved_by: null, title: null, supports: null, gated: null,
   closing: false, requiredForClose: false, correction: null, updated_at: ago(o.hours), ...o,
@@ -130,20 +148,21 @@ function documents(s: Seed): Doc[] {
     ];
   }
   const out: Doc[] = [];
-  const add = (path: string, type: string, title: string, gateIndex: number | null, n: number) => {
+  const add = (path: string, type: string, title: string, gateIndex: number | null) => {
+    const n = STEP[path];
     const corrected = type === 'verification' && !!s.correction;
     const passed = gateIndex !== null && gateIndex < s.passed && !corrected;
     out.push(doc(path, type, {
       title, gated: gateIndex !== null, status: gateIndex === null ? '' : passed ? 'approved' : 'draft',
-      approved_by: passed ? s.stakeholder : null, hours: s.updated + n * 6, bytes: 4_000 + n * 3_100,
+      approved_by: passed ? signerOf(s, path) : null, hours: approvedHours(s, path), bytes: 4_000 + n * 3_100,
       ...(type === 'verification' ? { closing: true, requiredForClose: true, outcome: s.outcome } : {}),
       ...(corrected ? { correction: s.correction, hours: s.updated - 20 } : {}),
     }));
   };
-  if (s.at >= 1) add('explore.md', 'ground', 'Exploration', null, 4);
-  if (s.at >= 2 || s.written >= 1) add('spec.md', 'agreement', 'Spec', 0, 3);
-  if (s.at >= 4) add('plan.md', 'plan', 'Plan', 1, 2);
-  if (s.at >= 7) { add('review.md', 'verification', 'Review', 2, 1); add('handover.md', 'handover', 'Handover', 3, 0); }
+  if (s.at >= 1) add('explore.md', 'ground', 'Exploration', null);
+  if (s.at >= 2 || s.written >= 1) add('spec.md', 'agreement', 'Spec', 0);
+  if (s.at >= 4) add('plan.md', 'plan', 'Plan', 1);
+  if (s.at >= 7) { add('review.md', 'verification', 'Review', 2); add('handover.md', 'handover', 'Handover', 3); }
   return out;
 }
 
@@ -247,17 +266,20 @@ function body(title: string, path: string): string {
   return `${head}## Summary\n\nWhat this document settles, in one paragraph a reader can act on, with the figure it\nleans on named so a later reader can check it. Settled after two rounds of review.\n\n## Details\n\n- The decision, the alternative it was chosen over, and what ruled that one out.\n- What would change it, and the measurement that would have to move first.\n`;
 }
 
-/** The snapshots of one document, oldest first: its public version, and whether it was approved.
- *  The rich spec has three versions over four snapshots — v3 was presented as r3 and approved as
- *  r4 — so a version and the snapshot it is read as differ; a corrected review.md was approved as
- *  v1 and is a draft of its correction's version — v1 itself for a metadata-only one, whose approval
- *  the draft supersedes. Every other document is one snapshot. */
-function snapshotsOf(initiative: string, path: string, row: Doc): { version: number; approved: boolean }[] {
-  if (initiative === '2026-09-28-search-relevance' && path === 'spec.md') {
-    return [{ version: 1, approved: false }, { version: 2, approved: false }, { version: 3, approved: false }, { version: 3, approved: true }];
+/** The snapshots of one document, oldest first: its public version, whether it was approved, and how many hours ago it
+ *  was written, an approval being the write of the snapshot it approves. The rich spec has three versions over four
+ *  snapshots — v3 was presented as r3 and approved as r4 — so a version and the snapshot it is read as differ; a
+ *  corrected review.md was approved as v1 when its seed approved it, and is a draft of its correction's version since —
+ *  v1 itself for a metadata-only one, whose approval the draft supersedes. Every other document is one snapshot, written
+ *  when the document last was, which for an approved one is its approval. Approvals (work-approvals.ts) reads its
+ *  history off exactly these, so an approval there is the one the document's page names. */
+function snapshotsOf(s: Seed, row: Doc): { version: number; approved: boolean; hours: number }[] {
+  if (s.slug === '2026-09-28-search-relevance' && row.path === 'spec.md') {
+    return [{ version: 1, approved: false, hours: 120 }, { version: 2, approved: false, hours: 100 }, { version: 3, approved: false, hours: 80 }, { version: 3, approved: true, hours: 60 }];
   }
-  if (row.correction) return [{ version: 1, approved: true }, { version: row.correction, approved: false }];
-  return [{ version: 1, approved: row.status === 'approved' }];
+  const written = (now() - Date.parse(row.updated_at)) / 3_600_000;
+  if (row.correction) return [{ version: 1, approved: true, hours: approvedHours(s, row.path) }, { version: row.correction, approved: false, hours: written }];
+  return [{ version: 1, approved: row.status === 'approved', hours: written }];
 }
 
 /** A snapshot's text: the live text for the last one, and an earlier wording for the rest. */
@@ -266,13 +288,13 @@ function textOf(live: string, revision: number, count: number): string {
   if (revision === count) return live;
   const n = Math.min(revision, ROUNDS.length);
   return live
-    .replace('after two rounds of review', `after ${ROUNDS[n - 1]} round${n === 2 ? '' : 's'} of review`)
+    .replace('after two rounds of review', `after ${ROUNDS[n - 1]} round${n === 1 ? '' : 's'} of review`)
     .replace('120 ms', `${200 - revision * 25} ms`);
 }
 
 /** A snapshot's `content_revision`, shaped as the gateway's: `cr_` and 26 lowercase base32 characters, here of
  *  sha256 of the document's address and its snapshot, so every run names a snapshot alike. */
-function contentRevisionOf(team: string, initiative: string, path: string, revision: number): string {
+export function contentRevisionOf(team: string, initiative: string, path: string, revision: number): string {
   const ALPHABET = 'abcdefghijklmnopqrstuvwxyz234567';
   const bytes = createHash('sha256').update(`${team}/${initiative}/${path}:${revision}`).digest();
   let out = '';
@@ -321,10 +343,11 @@ export function documentDetail(team: string, initiative: string, path: string): 
   if (!d || !row) return null;
   const isSpec = initiative === '2026-09-28-search-relevance' && path === 'spec.md';
   const text = isSpec ? SPEC_BODY : body(row.title ?? path, path);
-  const snaps = snapshotsOf(initiative, path, row);
+  const seed = SEEDS.find((x) => x.team === team && x.slug === initiative)!;
+  const snaps = snapshotsOf(seed, row);
   const current = snaps.length;
-  // Who approved an earlier snapshot of a document that is a draft now: the initiative's stakeholder.
-  const signer = INITIATIVES.find((x) => x.team === team && x.slug === initiative)?.stakeholder ?? null;
+  // Who approved an earlier snapshot of a document that is a draft now: the person its approval names.
+  const signer = signerOf(seed, path);
   // Metadata only, like the gateway, one entry per public version: its last retained state, the
   // version's last snapshot, naming the approved one it superseded when it is not approved itself.
   // A snapshot's text is read on its own, through `documentRevision` below.
@@ -335,10 +358,10 @@ export function documentDetail(team: string, initiative: string, path: string): 
     return { path, version: v, revision: pick.revision, hash: `${path}-${pick.revision}`,
              status: pick.approved ? 'approved' : pick.revision === current ? row.status : 'draft',
              approved_by: pick.approved ? (row.approved_by ?? signer) : null,
-             updated_at: ago(60 + (current - pick.revision) * 20),
+             updated_at: ago(pick.hours),
              superseded_approved: sealed ? { revision: sealed.revision, approved_by: row.approved_by ?? signer,
                                              content_revision: contentRevisionOf(team, initiative, path, sealed.revision),
-                                             approved_at: ago(60 + (current - sealed.revision) * 20) } : null };
+                                             approved_at: ago(sealed.hours) } : null };
   });
   const sources = d.documents.filter((x) => x.supports === path).map((x) => ({ path: x.path, title: x.title, body: sourceBody(x.title ?? x.path), supports: path, added: x.updated_at.slice(0, 10), bytes: x.bytes }));
   const decisions = d.decisions.filter((x) => x.path === path).map(({ path: _p, ...rest }) => rest);
@@ -348,7 +371,7 @@ export function documentDetail(team: string, initiative: string, path: string): 
     flow: row.type === 'note' ? null : FLOW, type: row.type, status: row.status, outcome: row.outcome,
     approved_by: row.approved_by, approved_at: row.approved_by ? row.updated_at : null, closed_by: null,
     title: row.title, tags: isSpec ? ['search', 'ranking', 'explainability'] : null, evidence: null, superseded_by: null,
-    stakeholder: row.gated ? signer : null, fields: isSpec ? { audience: 'research archive users', risk: 'medium' } : {},
+    stakeholder: row.gated ? seed.stakeholder : null, fields: isSpec ? { audience: 'research archive users', risk: 'medium' } : {},
     body: text, updated_at: row.updated_at, bytes: row.bytes, gated: row.gated, closing: row.closing, requiredForClose: row.requiredForClose,
     decisions, decisionCounts: { rows: decisions.length, withVerdict: decisions.filter((x) => x.verdict).length, withQualifier: decisions.filter((x) => x.qualifier).length, withChecker: decisions.filter((x) => x.checker).length },
     versions, sources,
@@ -372,7 +395,7 @@ export function documentRevision(team: string, initiative: string, path: string,
   if (!d || !row) return null;
   const isSpec = initiative === '2026-09-28-search-relevance' && path === 'spec.md';
   const text = isSpec ? SPEC_BODY : body(row.title ?? path, path);
-  const snaps = snapshotsOf(initiative, path, row);
+  const snaps = snapshotsOf(SEEDS.find((x) => x.team === team && x.slug === initiative)!, row);
   if (!Number.isInteger(revision) || revision < 1 || revision > snaps.length) return null;
   return { version: snaps[revision - 1].version, revision, body: textOf(text, revision, snaps.length) };
 }

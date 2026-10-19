@@ -18,7 +18,6 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { aligned } from '@/console/columns';
 import { Panel } from '@/console/panel';
 import { failureOf } from '@/console/query';
-import { useDataClock } from '@/lib/api';
 import { AXIS_FORMATTERS, plural } from '@/lib/format';
 import { formatDate, formatDateTime, formatDay, formatShortDate } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
@@ -43,7 +42,7 @@ function useBugs(served: BugsRead, filters: BugsFilters) {
   const data = q.data ?? (mine?.state === 'ok' ? mine.data : undefined);
   const failed = failureOf({ error });
   const trouble = data ? null : failed ?? (mine && mine.state !== 'ok' ? bugsTrouble(mine) : null);
-  return { data, trouble, retry, busy, updatedAt: q.data ? new Date(q.dataUpdatedAt) : data ? data.meta.asOf : null };
+  return { data, trouble, retry, busy };
 }
 
 const impactTone = (i: string) => (i === 'blocks_work' ? 'critical' : i === 'wrong_result' ? 'warning' : 'neutral');
@@ -96,10 +95,9 @@ const IMPACT_OPTIONS = [{ value: 'all', label: 'All' }, ...BUG_IMPACTS.map((i) =
  */
 export function PlatformBugsView({ served }: { served: BugsRead }) {
   const [filters, set] = useServedAddress(BUGS_DEFAULTS, served, filtersOfPath);
-  const { data, trouble, retry, busy, updatedAt } = useBugs(served, filters);
-  const now = useDataClock();
+  const { data, trouble, retry, busy } = useBugs(served, filters);
   useShareView(data
-    ? bugsContext(data, { filters, updatedAt, now })
+    ? bugsContext(data, { filters })
     : pendingContext({ view: 'bugs', title: 'Bugs', address: '/platform/bugs', scope: 'every real bug report' }, trouble));
   // `…` is coming and `—` is not: a read that failed never reads as one still on its way.
   const mark = trouble ? '—' : '…';

@@ -15,8 +15,31 @@ import { formatCount } from '@/lib/format-units';
 import { formatDate, formatDay } from '@/lib/format-date';
 import { listed, type Fact, type Insight, type SharedContext } from '@/lib/shared-context';
 import { arrived, budgeted, type Arrival } from './context';
-import { scoreOf as score } from './eval-score';
-import { NO_EVALUATION, scoreSaid, versionSaid, type PluginsRead, type Served } from './plugins-context';
+import { outOfTen, rebuiltSaid, scoreOf as score, shareSaid } from './eval-score';
+import { NO_EVALUATION, scoreSaid, versionSaid, wordsOf, type PluginsRead, type Served } from './plugins-context';
+
+/**
+ * Whose runs a released change is judged on: release_verify observes the released version's real runs with no team
+ * filter (zz-core's `unboundedRunsClause`), every team's runs of it, never one team's. Said only of a release the
+ * verification reached a verdict on: a refusal's reason judged nothing. `RELEASED_ON` is the assistant's few words of it
+ * beside a reason; `RELEASE_JUDGED` the Evolution card's.
+ */
+const RELEASED_ON = 'judged on every team\'s runs of it';
+export const RELEASE_JUDGED = 'A released change is judged on every team\'s runs of the released version, not one team\'s.';
+
+/** An evaluator's qualification in a person's words: earned, earned mechanically, or not yet. */
+export const TRUST_SAID: Record<string, string> = {
+  human_calibrated: 'Calibrated by a person', operationally_qualified: 'Qualified for use', mechanically_qualified: 'Checked mechanically only',
+};
+
+/**
+ * An evaluator in a person's words, `judge.evidence.v2` reading "Evidence judge, version 2": its stable key is an
+ * identifier, kept on hover. A key of any other shape reads as its words.
+ */
+export const evaluatorSaid = (key: string): string => {
+  const m = /^judge\.(.+)\.v(\d+)$/.exec(key);
+  return m ? `${wordsOf(m[1])} judge, version ${m[2]}` : wordsOf(key);
+};
 
 /** The gateway address of one plugin's evaluation. */
 export const evalPath = (plugin: string): string => `/plugins/${encodeURIComponent(plugin)}/eval`;
@@ -79,53 +102,68 @@ export function comparedSaid(lead: PluginScore | null, history: HistoryRead | un
  */
 export function pluginContext(name: string, { plugin: p, evaluation: e, unread, compared = null, ...arrival }: { plugin?: PluginRow; evaluation: PluginEval | null; unread?: string; compared?: string | null } & Arrival): SharedContext {
   const facts: Fact[] = [];
-  const insights: Insight[] = [];
+  // Most important first, as the budget drops from the end: how to install it, then the owning team's evaluation that
+  // explains its score, then who judges and releases it, then what the catalog declares, which its About card lists.
+  const lead: Insight[] = [];
+  const evaluated: Insight[] = [];
+  const declared: Insight[] = [];
+  const kept: Insight[] = [];
   const unknowns: string[] = [];
   if (p) {
     const neverRun = p.skills.filter((s) => !s.everRun);
     facts.push(
       { label: 'Skills', value: formatCount(p.skills.length), change: p.stages.length ? `${p.stages.length} of them stages, in order` : undefined },
-      { label: 'Gates', value: formatCount(p.gates), definition: 'Documents this plugin\'s method requires a person to approve.' },
+      { label: 'Gates', value: formatCount(p.gates), definition: 'Documents its method requires a person to approve.' },
       {
         label: 'Public score', value: scoreSaid(p.score),
         change: `${p.score && p.score.lower !== null && p.score.upper !== null ? `between ${p.score.lower.toFixed(1)} and ${p.score.upper.toFixed(1)}; ` : ''}${compared ?? p.comparability}`,
-        definition: 'Its latest score out of 10, and whether its scores compare, as the gateway states both.',
+        definition: 'Its latest, out of 10; whether its scores compare is the gateway\'s statement.',
       },
       { label: 'Your team\'s calls', value: formatCount(p.yourTeam.calls), change: p.yourTeam.failed ? `${formatCount(p.yourTeam.failed)} refused` : 'none refused', definition: 'Your active team\'s calls of its skills, all time.' },
-      { label: 'Never run by your team', value: `${formatCount(neverRun.length)} of ${formatCount(p.skills.length)} skills` },
+      { label: 'Never run by your team', value: `${formatCount(neverRun.length)} of ${formatCount(p.skills.length)} skills`, change: neverRun.length ? listed(neverRun, (s) => s.name, `see /plugins/${name}`, 6) : undefined },
     );
-    insights.push({ text: `It is ${p.required ? 'required: every client installs it' : 'optional'}; install it with ${p.install}.` });
-    insights.push({ text: `It declares ${p.version ? `version ${p.version}, ${p.release ? `released with digest ${p.release.digest}` : 'which no release has vouched for'}` : 'no version'}${p.owner ? `, owned by ${p.owner}` : ''}, and ${p.servers.length ? `reaches the MCP ${plural(p.servers.length, 'server')} ${p.servers.join(', ')}` : 'reaches no server, skills only'}.` });
-    if (p.stages.length) insights.push({ text: `Its method runs ${p.stages.join(', then ')}${p.entry ? `; ${p.entry} is the front door` : ''}.` });
-    if (p.documents.length) insights.push({ text: `The documents it governs: ${p.documents.map((d) => `${d.name} (${d.gate ? 'a person approves' : 'no approval'})`).join(', ')}.` });
-    if (neverRun.length) insights.push({ text: `Never run by your team: ${listed(neverRun, (s) => s.name, `see /plugins/${name}`)}.` });
+    lead.push({ text: `${p.required ? 'Required: every client installs it' : 'Optional'}; install it with ${p.install}.` });
+    if (p.description) declared.push({ text: `What it is: ${p.description}` });
+    declared.push({ text: `It declares ${p.version ? `version ${p.version}, ${p.release ? `released with digest ${p.release.digest}` : 'which no release has vouched for'}` : 'no version'}${p.owner ? `, owned by ${p.owner}` : ''}, and ${p.servers.length ? `reaches the MCP ${plural(p.servers.length, 'server')} ${p.servers.join(', ')}` : 'reaches no server, skills only'}.` });
+    if (p.stages.length) declared.push({ text: `Its method: ${p.stages.join(', ')}${p.entry ? `, entered through ${p.entry}` : ''}.` });
+    if (p.documents.length) declared.push({ text: `The documents it governs: ${p.documents.map((d) => `${d.name} (${d.gate ? 'a person approves' : 'no approval'})`).join(', ')}.` });
   } else unknowns.push(`${name} is not in the catalog: it has no manifest, skills or install command to show, and is registered for evaluation only.`);
 
-  if (e?.found) facts.push({ label: 'Evaluation score', value: e.run ? score(e.run) : 'never scored', definition: 'The owning team\'s newest scored run, against the protocol below.' });
+  if (e?.found) {
+    facts.push({
+      label: 'Evaluation score', value: e.run ? score(e.run) : 'never scored',
+      change: e.run ? `protocol ${e.run.protocol.key} v${e.run.protocol.version}, ${formatDate(e.run.createdAt)}${e.subjectVersion ? `, measuring version ${e.subjectVersion.declaredVersion}` : ''}${e.run.coverage.usableRunCount != null ? ` on ${formatCount(e.run.coverage.usableRunCount)} usable ${plural(e.run.coverage.usableRunCount, 'run')}${e.run.coverage.totalRunCount != null ? ` of ${formatCount(e.run.coverage.totalRunCount)}` : ''}` : ''}` : undefined,
+      definition: 'The owning team\'s newest scored run.',
+    });
+  }
   if (e?.found && e.run) {
-    insights.push({ text: `Evaluated on ${formatDate(e.run.createdAt)} against protocol ${e.run.protocol.key} v${e.run.protocol.version}${e.subjectVersion ? `, measuring version ${e.subjectVersion.declaredVersion}` : ''}; guardrails ${e.run.guardrailStatus ?? 'not established'}.` });
     const scored = e.run.dimensions.filter((d) => d.applicable && d.score !== null);
-    if (scored.length) insights.push({ text: `By dimension: ${scored.map((d) => `${d.key} ${d.score!.toFixed(1)}`).join(', ')}.` });
+    // On the page's own scale, out of 10, and in its words, with the sentence its Quality card rebuilds the overall with.
+    if (scored.length) evaluated.push({ text: `By dimension, out of 10: ${scored.map((d) => `${wordsOf(d.key)} ${outOfTen(d.score!)}`).join(', ')}. ${rebuiltSaid(e.run.dimensions)}` });
     // The run's guardrail status is one verdict over every guardrail measure; no measure carries a verdict of its own.
     const guardrails = e.run.dimensions.flatMap((d) => d.measures.filter((m) => m.guardrail));
-    if (guardrails.length) insights.push({ text: `Guardrail ${plural(guardrails.length, 'measure')}, ${e.run.guardrailStatus ?? 'not established'} as one verdict over all of them: ${listed(guardrails, (g) => `${g.key} ${g.value ?? `no value (${g.excludedReason ?? 'none recorded'})`}`, 'see the plugin\'s page', 6)}.` });
-    if (e.run.coverage.usableRunCount != null) insights.push({ text: `It was scored on ${formatCount(e.run.coverage.usableRunCount)} usable ${plural(e.run.coverage.usableRunCount, 'run')}${e.run.coverage.totalRunCount != null ? ` of ${formatCount(e.run.coverage.totalRunCount)}` : ''}.` });
+    if (guardrails.length) evaluated.push({ text: `Guardrails ${e.run.guardrailStatus ?? 'not established'}, one verdict over all: ${listed(guardrails, (g) => `${wordsOf(g.key)} ${g.value === null ? `no value (${g.excludedReason ?? 'none recorded'})` : shareSaid(g.value)}`, 'see the plugin\'s page', 6)}.` });
+    else evaluated.push({ text: `Guardrails ${e.run.guardrailStatus ?? 'not established'}: its protocol declares no guardrail measure.` });
   } else if (e?.found) unknowns.push(e.subjectVersion ? 'Its owning team has profiled it and never scored it: no evaluation run has a score.' : 'Its owning team registered it and has never profiled it.');
   else if (e) unknowns.push('It has never been registered for evaluation.');
   else if (unread) unknowns.push(`Its owning team's evaluation could not be read: ${unread}`);
 
   if (e?.found) {
     const f = e.findings;
-    if (f.strengths.length + f.defects.length + f.unknowns.length) insights.push({ text: `Findings: ${f.strengths.length} ${plural(f.strengths.length, 'strength')}, ${f.defects.length} ${plural(f.defects.length, 'defect')}, ${f.unknowns.length} ${plural(f.unknowns.length, 'unknown')}.${f.defects.length ? ` The defects: ${listed(f.defects, (d) => `${d.pattern} (${d.decision})`, 'see the plugin\'s page', 6)}.` : ''}` });
-    if (e.candidates.length) insights.push({ text: `Candidates for change: ${listed(e.candidates, (c) => `"${c.hypothesis}" (${c.status}${c.release?.releasedDeclaredVersion ? `, released as ${c.release.releasedDeclaredVersion}` : ''}${c.release?.rolledBack ? ', rolled back' : ''})`, 'see the plugin\'s page', 6)}.` });
+    if (f.strengths.length + f.defects.length + f.unknowns.length) evaluated.push({ text: `Findings: ${f.strengths.length} ${plural(f.strengths.length, 'strength')}, ${f.defects.length} ${plural(f.defects.length, 'defect')}, ${f.unknowns.length} ${plural(f.unknowns.length, 'unknown')}.${f.defects.length ? ` The defects: ${listed(f.defects, (d) => `${d.pattern} (${d.decision})`, 'see the plugin\'s page', 6)}.` : ''}` });
+    // A judged release's reason says how it did on real use, and whose use that was is said with it (RELEASED_ON).
+    if (e.candidates.length) evaluated.push({ text: `Candidates: ${listed(e.candidates, (c) => `"${c.hypothesis}" ${c.release?.rolledBack ? 'rolled back' : c.release?.releasedDeclaredVersion ? `released as ${c.release.releasedDeclaredVersion}` : wordsOf(c.status).toLowerCase()}${c.release?.reason ? ` (${c.release.verdict ? RELEASED_ON : 'recorded at release'}: "${c.release.reason}")` : ''}`, 'see the plugin\'s page', 6)}.` });
+    if (e.evaluatorTrust.length) kept.push({ text: `Its judges: ${listed(e.evaluatorTrust, (t) => `${evaluatorSaid(t.stableKey)}, ${t.state ? `${(TRUST_SAID[t.state] ?? wordsOf(t.state)).toLowerCase()}${t.qualifiedAt ? ` on ${formatDate(t.qualifiedAt)}` : ''}` : 'never qualified'}`, 'see the plugin\'s page', 6)}.` });
+    kept.push({ text: `Who may release it: ${e.releaseOwners.length ? e.releaseOwners.join(', ') : 'none, it cannot be released'}; owner team ${e.ownerTeam ?? 'none recorded'}.` });
     if (e.ownershipMode === 'evaluation_only') unknowns.push('It is registered for evaluation only: it may be evaluated and diagnosed, and nothing here can release it.');
   }
-  unknowns.push('Calls and runs are your team\'s alone; the catalog and the public score are the platform\'s.', NO_EVALUATION);
+  const insights = [...lead, ...evaluated, ...kept, ...declared];
+  unknowns.push('Calls are your team\'s alone; the catalog and the public score are the platform\'s.', NO_EVALUATION);
   return budgeted({
     view: 'plugin',
     title: name,
     address: `/plugins/${name}`,
-    scope: `one plugin${p ? `, ${p.required ? 'required' : 'optional'}, ${versionSaid(p)}` : ''}${p?.description ? `: ${p.description}` : ''}`,
+    scope: `one plugin${p ? `, ${p.required ? 'required' : 'optional'}, ${versionSaid(p)}` : ''}`,
     freshness: arrived(arrival),
     facts,
     insights,

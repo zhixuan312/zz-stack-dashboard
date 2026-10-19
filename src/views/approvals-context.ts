@@ -13,6 +13,7 @@
  * server, its later reads in the browser, its shared context and `view_approvals` all ask `approvalsPath` for it.
  */
 import { plural } from '@/lib/format';
+import { encodePath } from '@/lib/store-path';
 import { formatCalendarDate, formatDate, formatDateTime, formatDay } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { contextText, listed, type Fact, type Insight, type SharedContext } from '@/lib/shared-context';
@@ -65,6 +66,13 @@ export function filtersOf(params: Record<string, string | string[] | undefined>)
   };
   return { tab: one('tab'), page: one('page') };
 }
+
+/**
+ * The revision an approval names, as an address: its document's page at that version, which draws that version's text
+ * when a later one has replaced it (Work M-6).
+ */
+export const approvedHref = (team: string, r: Pick<ApprovalRow, 'initiative' | 'path' | 'version'>): string =>
+  `/initiatives/${team}/${r.initiative}/${encodePath(r.path)}?version=${r.version}`;
 
 /** The page's own read, as the console's server or the browser made it: the answer with the team it is for, a failure, or no answer in time. */
 export type ApprovalsRead =
@@ -159,9 +167,34 @@ const docOf = (r: { initiative: string; path: string; version: number; contentRe
 
 /** One waiting row, as the context lists it. */
 const waitingLine = (asOf: string) => (r: WaitingRow) => `${docOf(r)}, waiting ${waited(r.waitingSince, asOf)} since ${formatDate(r.waitingSince)}`;
-/** One approval, as the context lists it, with the evidence the record holds. */
+/** Where an approved revision was shown, in a history row of the context, where the summary has named each class. */
+const SHOWN_IN: Record<ApprovalEvidence['presentation'], string> = {
+  console_revision_shown: 'console', agent_context_covered: 'agent\'s context', not_recorded: 'none recorded', unknown: 'unknown',
+};
+
+/** When an approval was made, inside a sentence: `19 Oct, 16:09`, or the day alone where only the day is recorded. */
+const approvedSaid = (approvedAt: string): string =>
+  (dayOnly(approvedAt) ? `${formatDay(approvedAt)} (day only)` : `${formatDay(approvedAt)}, ${formatDateTime(approvedAt).split(', ').at(-1)}`);
+
+/** One approval, as the context lists it under its initiative: the version, when, where it was shown and the basis. */
 const historyLine = (r: ApprovalRow) =>
-  `${docOf(r)}, ${dayOnly(r.approvedAt) ? `on ${formatDate(r.approvedAt)}, day only` : formatDateTime(r.approvedAt)}: ${PRESENTATION[r.presentation].short}, ${DECISION_BASIS[r.decisionBasis].short}`;
+  `${clip(r.path, 48)} v${r.version}, ${approvedSaid(r.approvedAt)}, ${SHOWN_IN[r.presentation]}, ${DECISION_BASIS[r.decisionBasis].short}`;
+
+/**
+ * The first `n` rows of a history page, newest first, each run of one initiative's under its name once, so a page of
+ * ten fits the context beside its summary: `2026-10-08-result-explanations: review.md v1, 19 Oct 2026, 16:08, console,
+ * explicit; plan.md v1, …`. How many more the page shows is said.
+ */
+function historyRows(rows: ApprovalRow[], n: number, address: string): string {
+  const groups: { initiative: string; rows: ApprovalRow[] }[] = [];
+  for (const r of rows.slice(0, n)) {
+    const last = groups.at(-1);
+    if (last?.initiative === r.initiative) last.rows.push(r);
+    else groups.push({ initiative: r.initiative, rows: [r] });
+  }
+  const said = groups.map((g) => `${clip(g.initiative, 48)}: ${g.rows.map(historyLine).join('; ')}`).join(' | ');
+  return rows.length > n ? `${said} | and ${rows.length - n} more (on ${address})` : said;
+}
 
 /** The tiles as facts, in the order the page draws them. */
 function factsOf(a: Approvals): Fact[] {
@@ -199,8 +232,8 @@ function historySummary(a: Approvals): string | null {
   return `${IN_YOUR_NAME}: ${formatCount(total)}; by presentation: ${of(PRESENTATIONS, summary.byPresentation, PRESENTATION)}; by decision basis: ${of(BASES, summary.byDecisionBasis, DECISION_BASIS)}.`;
 }
 
-/** How many of the rows in view the context lists at most, each with its evidence; how many more are on the page is said. */
-const ROWS_SAID = 5;
+/** How many of the rows in view the context lists at most, each with its evidence: the whole page, as far as it fits. */
+const ROWS_SAID = PAGE_SIZE;
 /** The room `budgeted`'s own line takes, `More is on the page than fits here; <address> shows all of it.`, with its bullet. */
 const MORE_LINE = 120;
 
@@ -220,7 +253,7 @@ function weeksLine(a: Approvals): string | null {
  * `offset`, when it did: the address is then the page of ten the offset falls in, and rows off the page's grid are said
  * to be so. Most important first, as `budgeted` drops from the end: the tab's own summary, the rows in view with their
  * evidence, the other tab's summary, then the weeks. The rows are what the tab shows, so they are never dropped whole:
- * as many of the first five as fit beside the summary are listed, and how many more the page shows is said.
+ * as many of the page's ten as fit beside the summary are listed, and how many more the page shows is said.
  */
 export function approvalsContext(a: Approvals, { tab, page, read, ...arrival }: { tab: ApprovalsTab; page: number; read?: ApprovalsRows } & Arrival): SharedContext {
   const list = tab === 'waiting' ? a.waiting : a.history;
@@ -241,7 +274,7 @@ export function approvalsContext(a: Approvals, { tab, page, read, ...arrival }: 
     insights: summaries[tab] ? [{ text: summaries[tab]!, evidence: address }] : [],
     unknowns: [
       APPROVAL_IS_THE_PERSON_S,
-      `${TEAM_APPROVALS}: nothing records who must decide a waiting revision, so no row is assigned to anybody.`,
+      ...(tab === 'waiting' ? [`${TEAM_APPROVALS}: nothing records who must decide a waiting revision, so no row is assigned to anybody.`] : []),
       IN_YOUR_NAME_MEANS,
       ...(coverage ? [`Presentations are recorded from ${formatDate(coverage)}; an approval before then is unknown.`] : []),
       ...(a.waiting.state === 'ok' ? [] : ['The waiting queue could not be read; History and its figures stand.']),
@@ -257,7 +290,8 @@ export function approvalsContext(a: Approvals, { tab, page, read, ...arrival }: 
     }
     if (tab === 'history' && a.history.state === 'ok' && a.history.data.rows.length) {
       const rows = a.history.data.rows;
-      return { text: `Rows ${first + 1} to ${first + rows.length} of ${total}, newest first: ${listed(rows, historyLine, `on ${address}`, n)}.`, evidence: address };
+      // Where a row leads is said once, for every row, rather than an address a row.
+      return { text: `Rows ${first + 1} to ${first + rows.length} of ${total}, newest first, each opening its document at that version (?version=<n>); by initiative, as version, approved, shown in, basis: ${historyRows(rows, n, address)}.`, evidence: address };
     }
     return null;
   };

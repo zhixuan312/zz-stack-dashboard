@@ -46,11 +46,12 @@ const Message = ({ text }: { text: string | null }) => (text
 
 /**
  * A phone card's fact after its time: the kind, which its title already is for an event that called no tool, and who
- * acted, where somebody did, as `tool_call by jane.doe`.
+ * acted, where somebody did, as `tool_call by jane.doe@example.com`: a person by their email, as Approvals and the
+ * knowledge log name them.
  */
-const phoneFact = (e: ActivityRow): string => {
-  const said = [e.tool ? e.kind : null, e.actor ? `by ${e.actor.split('@')[0]}` : null].filter(Boolean).join(' ');
-  return said || e.kind;
+const phoneFact = (e: ActivityRow): ReactNode => {
+  if (!e.actor) return e.kind;
+  return <>{e.tool ? `${e.kind} ` : ''}by <span className="[overflow-wrap:anywhere]">{e.actor}</span></>;
 };
 
 /**
@@ -68,10 +69,10 @@ const LOG_COLUMNS: Column<ActivityRow>[] = aligned([
     mobileCell: (e) => <span className="font-mono text-xs [overflow-wrap:anywhere]">{e.tool ?? e.kind}</span>,
   },
   { key: 'initiative', header: 'Initiative', hideBelow: 'xl', truncate: true, cell: (e) => (e.initiative ? <span title={e.initiative} className="text-xs">{e.initiative}</span> : dash) },
-  // The local part alone — `jane.doe`, never the domain — and `title` carries the whole address on hover. A phone card
-  // says who acted beside the kind, and nothing where nobody did: a dash in a line of facts says nothing. A tool call
-  // is an agent's, and the platform records no person for one by design, so it says so rather than a dash on every row.
-  { key: 'actor', header: 'Actor', hideBelow: 'md', cell: (e) => (e.actor ? <span title={e.actor}>{e.actor.split('@')[0]}</span> : e.kind === 'tool_call' ? <span className="whitespace-nowrap text-ink-3" title={AGENT_CALL}>An agent</span> : dash) },
+  // A person by their whole email, as every other page names one (`Email`). A phone card says who acted beside the kind, and nothing where nobody
+  // did: a dash in a line of facts says nothing. A tool call is an agent's, and the platform records no person for one
+  // by design, so it says so rather than a dash on every row.
+  { key: 'actor', header: 'Actor', hideBelow: 'md', cell: (e) => (e.actor ? <Email address={e.actor} /> : e.kind === 'tool_call' ? <span className="whitespace-nowrap text-ink-3" title={AGENT_CALL}>An agent</span> : dash) },
   // A refusal is the row worth finding, so it alone carries colour; ok is the normal case and stays neutral.
   { key: 'result', header: 'Result', mobile: 'status', cell: (e) => (e.ok === false ? <Badge tone="critical" dot>Refused</Badge> : e.ok === true ? <Badge tone="neutral">OK</Badge> : dash) },
   { key: 'owner', header: 'Why', hideBelow: 'lg', cell: (e) => <span className="whitespace-nowrap">{e.ok === false ? OWNER_LABEL[e.owner ?? 'other'] : ''}</span> },
@@ -88,6 +89,20 @@ const ToolName = ({ name }: { name: string }) => (
     {name.split(/(?<=[:_])/).map((part, i) => <Fragment key={i}>{i ? <wbr /> : null}{part}</Fragment>)}
   </span>
 );
+
+/**
+ * A person's email, whole on one line where the table has the width. Under 896px of table it may break before its `@`
+ * and nowhere else, or it ran the Result column out of the frame: two atomic parts, which `nowrap` keeps together, where
+ * a `<wbr>` is a break Chrome takes even inside `nowrap` (it split the address at 1440).
+ */
+const Email = ({ address }: { address: string }) => {
+  const at = address.lastIndexOf('@');
+  return (
+    <span className="whitespace-nowrap @max-[896px]:whitespace-normal">
+      {at > 0 ? <><span className="inline-block">{address.slice(0, at)}</span><span className="inline-block">{address.slice(at)}</span></> : address}
+    </span>
+  );
+};
 
 /** The groups in the gateway's order, most first: the browser ranks and counts none of them. */
 const GROUP_COLUMNS: Column<RefusalGroup>[] = aligned([

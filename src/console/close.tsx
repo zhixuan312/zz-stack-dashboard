@@ -42,9 +42,10 @@ type Refusal = { conflict: boolean; message: string };
  * dialog with what the person typed kept, and a close somebody else made first says so, since the first decision stands.
  *
  * `closed` hides the trigger once the page reads the initiative closed, while an open dialog stays to show the answer.
- * `freeform` is an initiative with no flow, whose finished close names one of `documents` to land on.
+ * `freeform` is an initiative with no flow, whose finished close names one of `documents` to land on. `variant` is the
+ * trigger's weight: the page's filled action, or the secondary one beside a next step that is.
  */
-export function CloseInitiative({ team, slug, closed, freeform, documents }: { team: string; slug: string; closed: boolean; freeform: boolean; documents: string[] }) {
+export function CloseInitiative({ team, slug, closed, freeform, documents, variant = 'primary' }: { team: string; slug: string; closed: boolean; freeform: boolean; documents: string[]; variant?: 'primary' | 'secondary' }) {
   const [open, setOpen] = useState(false);
   const [choice, setChoice] = useState<Choice | null>(null);
   const [reason, setReason] = useState('');
@@ -77,7 +78,7 @@ export function CloseInitiative({ team, slug, closed, freeform, documents }: { t
   if (closed && !open) return null;
   return (
     <Dialog open={open} onOpenChange={dismiss}>
-      <Button variant="primary" aria-haspopup="dialog" onClick={() => setOpen(true)}>Close initiative</Button>
+      <Button variant={variant} aria-haspopup="dialog" onClick={() => setOpen(true)}>Close initiative</Button>
       <DialogContent
         size="sm"
         title={done ? `${slug} is closed` : `Close ${slug}`}

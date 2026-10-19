@@ -189,7 +189,7 @@ function TokensTable({ rows, pending, onRevoke }: { rows: AccessToken[]; pending
                     <span className="@min-[512px]:hidden">{t.lastUsedAt ? <>, last used <Since at={t.lastUsedAt} asOf={access.meta.asOf} /></> : ', never used'}</span>
                   </span>
                 </TableCell>
-                <TableCell hideBelow="md" className={app === DIRECT ? 'text-xs text-ink-3' : 'text-xs [overflow-wrap:break-word]'}>{app}</TableCell>
+                <TableCell hideBelow="md" title={app} className={app === DIRECT ? 'whitespace-nowrap text-xs text-ink-3' : 'max-w-44 truncate text-xs'}>{app}</TableCell>
                 <TableCell hideBelow="md" className="whitespace-nowrap text-xs">{formatDate(t.createdAt)}</TableCell>
                 <TableCell hideBelow="sm" className="whitespace-nowrap text-xs"><Since at={t.lastUsedAt} asOf={access.meta.asOf} /></TableCell>
                 <TableCell>{stateOf(t) === 'live' ? <Badge tone="positive" dot>Live</Badge> : <Badge tone="neutral" dot>Revoked</Badge>}</TableCell>

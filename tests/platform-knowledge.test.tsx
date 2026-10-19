@@ -248,7 +248,8 @@ describe('the page\'s states', () => {
     const columns = card('Lessons made by week').querySelectorAll('[data-column]');
     expect(columns[at].hasAttribute('data-no-data'), 'the gap').toBe(true);
     expect(columns[1].hasAttribute('data-no-data'), 'a week with nothing made is zero, not missing').toBe(false);
-    expect(contextText(knowledgeHealthContext(ok(gap)))).toContain('oldest first: 2, 0, Unavailable, 2, 3, 1 so far');
+    // The context says the gap in the chart's own word for it, so the agent and the column agree (I-167, M-6).
+    expect(contextText(knowledgeHealthContext(ok(gap)))).toContain('oldest first: 2, 0, No data, 2, 3, 1 so far');
   });
 
   it('says a tile with no figure in words, never a zero, and a change that cannot stand as the week before', () => {

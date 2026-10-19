@@ -3,10 +3,11 @@
 import type { ReactNode } from 'react';
 import { DataTable, type Column } from '@/components/patterns/data-table';
 import { aligned } from '@/console/columns';
+import { Goes } from '@/console/eval-score';
 import type { SkillRunRow } from '@/lib/destination-shapes';
 import { plural } from '@/lib/format';
 import { formatCount, formatKb, formatSeconds } from '@/lib/format-units';
-import { refusedOf, timedOf } from '@/views/runs-context';
+import { refusedOf, timedOf, type SkillPages } from '@/views/runs-context';
 import { perRunOf } from '@/views/runs-figures';
 
 /** The card's title, and the page's protagonist: the card the page's Ask sits on. COUPLED: the Runs README's `Protagonist:`. */
@@ -20,8 +21,12 @@ const muted = (text: string) => <span className="text-ink-3">{text}</span>;
  * skill's runs of more than one call, and the cell says how many runs it rests on whenever that is not all of them.
  * Output is the response bytes of a run's own calls, observed output, never what a model read.
  */
-const COLUMNS: Column<SkillRunRow>[] = aligned([
-  { key: 'skill', header: 'Skill', grow: true, mobile: 'title', title: (k) => k.skill, cell: (k) => <span className="block font-medium whitespace-normal text-ink [overflow-wrap:anywhere]">{k.skill}</span> },
+const columns = (pages: SkillPages): Column<SkillRunRow>[] => aligned([
+  {
+    // A skill the catalog ships ends with the arrow to its page, as a plugin's skills do; one it does not ship has none.
+    key: 'skill', header: 'Skill', grow: true, mobile: 'title', title: (k) => k.skill,
+    cell: (k) => <span className="block font-medium whitespace-normal text-ink [overflow-wrap:anywhere]">{k.skill}{pages[k.skill] ? <> <Goes /></> : null}</span>,
+  },
   { key: 'runs', header: 'Runs', numeric: true, mobile: 'fact', cell: (k) => formatCount(k.runs), mobileCell: (k) => `${formatCount(k.runs)} ${plural(k.runs, 'run')}` },
   { key: 'calls', header: 'Calls per run', numeric: true, hideBelow: 'lg', cell: (k) => perRunOf(k.callsPerRun) },
   // Ink, not a red pill: nearly every skill refuses something, and red on every row says nothing.
@@ -42,8 +47,9 @@ const COLUMNS: Column<SkillRunRow>[] = aligned([
  * The runs by skill, sorted by observed output per run as the gateway sorted them, ten a page. `oneCall` is the
  * gateway's count of the runs of one call, which have no span and so no length: said under the table when there are
  * any. `ask` is the page's Ask about, drawn in the card's head. `of` is the skill the page is narrowed to, if it is.
+ * `pages` is each skill's own page by its name, which its row opens.
  */
-export function SkillWorkPanel({ skills, oneCall, error, onRetry, retrying, ask, of }: { skills: SkillRunRow[]; oneCall: number; error?: string; onRetry?: () => void; retrying?: boolean; ask?: ReactNode; of?: string }) {
+export function SkillWorkPanel({ skills, oneCall, error, onRetry, retrying, ask, of, pages = {} }: { skills: SkillRunRow[]; oneCall: number; error?: string; onRetry?: () => void; retrying?: boolean; ask?: ReactNode; of?: string; pages?: SkillPages }) {
   return (
     <div className="flex flex-col gap-3">
       <DataTable
@@ -53,8 +59,9 @@ export function SkillWorkPanel({ skills, oneCall, error, onRetry, retrying, ask,
         description={`Most observed output per run first · ${formatCount(skills.length)} ${plural(skills.length, 'skill')}`}
         actions={ask}
         rows={skills}
-        columns={COLUMNS}
+        columns={columns(pages)}
         rowKey={(k) => k.skill}
+        rowHref={(k) => pages[k.skill]}
         pageSize={10}
         pageSizes={[10]}
         error={error}

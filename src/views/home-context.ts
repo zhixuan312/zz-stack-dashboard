@@ -15,7 +15,7 @@ import type { Figure, PeriodFigure, ReadMeta, Window } from '@/lib/platform-shap
 import type { Home, InitiativeRow, WritingCoverage } from '@/lib/work-shapes';
 import { budgeted, clip, pendingContext } from './context';
 import { nextOf } from './initiatives-context';
-import { LESSONS_MADE } from './record-names';
+import { LESSONS_MADE, gapsOf } from './record-names';
 
 /** How long the page waits for Home's read before it says the read is unavailable: half a second under five, for a
  *  phone to draw what it says, the bound the browser's own reads keep (`src/lib/api.ts`). */
@@ -68,11 +68,7 @@ export const HALVES = {
 
 /** What the words are counted over, and what they leave out, in one line under the figure. */
 export function coverageLine(c: WritingCoverage): string {
-  const gaps = [
-    c.importMade ? `${formatCount(c.importMade)} made by an import left out` : '',
-    c.unrecorded ? `${formatCount(c.unrecorded)} with no recorded write` : '',
-    c.missingLegacy ? `${formatCount(c.missingLegacy)} missing an earlier revision` : '',
-  ].filter(Boolean);
+  const gaps = gapsOf(c);
   return `The words each revision added over ${formatCount(c.documents)} ${plural(c.documents, 'document')}, by week, nothing taken off for what a later one removed${gaps.length ? `; ${gaps.join(', ')}` : ''}.`;
 }
 
@@ -98,10 +94,10 @@ export const FOOT = {
 
 /** The four tiles: each one's label and what it counts, which the tile's info button and the assistant both read. */
 export const TILES = {
-  closed: { label: 'Work closed', hint: 'Initiatives closed in the week, whatever their outcome.' },
-  medianHoursToClose: { label: 'Median hours to close', hint: 'The median time from opening to closing, over the week\'s closures.' },
-  searchesWithResults: { label: 'Searches with results', hint: 'The share of the team\'s searches in the week that returned something: retrieval, not a proven answer.' },
-  agentDays: { label: 'Days your agents ran', hint: 'The days of the week your agents made a real-work tool call; nothing about anybody\'s working hours.' },
+  closed: { label: 'Work closed', hint: 'Initiatives closed, whatever their outcome.' },
+  medianHoursToClose: { label: 'Median hours to close', hint: 'Opening to closing, over the week\'s closures.' },
+  searchesWithResults: { label: 'Searches with results', hint: 'Searches that returned something: retrieval, not a proven answer.' },
+  agentDays: { label: 'Days your agents ran', hint: 'A real-work tool call by your agents that day; not anybody\'s working hours.' },
 } as const;
 export type TileKey = keyof typeof TILES;
 
@@ -164,9 +160,44 @@ export const covered = (m: { next: number; value: number }): number => (m.next >
 /** What the milestones' card says it draws: how every bar is measured, said once. */
 export const MILESTONES_LINE = 'The next round number in each count, each bar what is made of it, from zero';
 
-/** An open initiative as its row reads in words: its state, its gates and where it goes next. */
-const openLine = (r: InitiativeRow): string =>
-  `${clip(r.slug)} (${r.state}, ${r.gates.of ? `${r.gates.passed} of ${r.gates.of} gates` : 'no gates'}; next: ${nextOf(r)})`;
+/**
+ * The open rows in words, in the page's order: each its gates and where it goes next, and its state where the next move
+ * does not already say it waits. Neighbours the same in both are one entry, so four rows waiting on a person to approve
+ * a spec are said once with their names, not four times (Work M-9: the context's budget went on the repeats).
+ */
+function openLines(rows: InitiativeRow[]): string {
+  const about = (r: InitiativeRow) => {
+    const next = nextOf(r);
+    const state = r.state === 'waiting' && !next.includes('waiting on') ? 'waiting, ' : '';
+    return `${state}${r.gates.of ? `${r.gates.passed} of ${r.gates.of} gates` : 'no gates'}: ${next}`;
+  };
+  const runs: { slugs: string[]; about: string }[] = [];
+  for (const r of rows) {
+    const a = about(r);
+    if (runs.at(-1)?.about === a) runs.at(-1)!.slugs.push(clip(r.slug));
+    else runs.push({ slugs: [clip(r.slug)], about: a });
+  }
+  return runs.map(({ slugs, about: a }) => (slugs.length === 1 ? `${slugs[0]} (${a})` : `${slugs.slice(0, -1).join(', ')} and ${slugs.at(-1)} (each ${a})`)).join('; ');
+}
+
+/** The newest weeks of a half's series the context says, the running one last. Home draws up to 25; eight say the
+ *  last two months a question is about, in the budget beside every other figure on the page. */
+const SERIES_WEEKS = 8;
+
+/**
+ * A half's series as the chart draws it, oldest first, each week by its Monday: `14 Sept none; 21 Sept 8,300; …; 19 Oct
+ * 2,100 so far`. A week with no value says why, never 0; weeks older than the newest eight are counted, not listed.
+ * The page leads with these two charts, and a context without them left "why did it drop?" with no referent (Phase 7's
+ * second re-review, Work M-9).
+ */
+function seriesOf(weeks: Weeks, half: keyof typeof HALVES): string {
+  const shown = weeks.slice(-SERIES_WEEKS).map((w) => {
+    const v = w.figure.value;
+    const said = v === null ? (w.figure.why === 'no_data' ? 'none' : absent(w.figure.why, HALVES[half].what).toLowerCase()) : formatCount(v);
+    return `${formatDay(w.window.from)} ${said}${w.window.complete ? '' : ' so far'}`;
+  });
+  return `${weeks.length > shown.length ? `the newest ${shown.length} of ${formatCount(weeks.length)}: ` : ''}${shown.join('; ')}`;
+}
 
 const VIEW = { view: 'home', title: 'Home', address: '/' } as const;
 
@@ -188,6 +219,14 @@ function said(weeks: Weeks | null, w: Window, half: keyof typeof HALVES): string
   return `${counted}${p.window.complete ? '' : ' so far'}`;
 }
 
+/** A half's last whole week, as its fact says it: `15,400 last week`, or why it has no figure. */
+function lastSaid(weeks: Weeks | null, w: Window, half: keyof typeof HALVES): string {
+  if (!weeks) return 'unavailable';
+  const p = weekIn(weeks, w);
+  if (!p) return 'not in the record';
+  return p.figure.value === null ? absent(p.figure.why, HALVES[half].what).toLowerCase() : `${formatCount(p.figure.value)} last week`;
+}
+
 /**
  * Home's context for `read`, with the person pointing at week `index` of the paired chart, or at none: the cursor is
  * part of what the page shows, so "why this week?" has a referent.
@@ -202,23 +241,30 @@ export function homeContext(read: HomeRead, { index = null }: { index?: number |
   const { words, approvals, dates } = halvesOf(home);
   const foot = footOf(home);
 
+  // The scope names the week every figure is for, so a tile's line that only repeats it is not said again.
+  const week = `the ${weekOf(last)}`;
   const facts: Fact[] = [
     { label: 'Title', value: home.title.sentence },
-    { label: 'Words added', value: said(words, last, 'words'), change: `the ${weekOf(last)}`, definition: 'The words each revision of the documents and lessons added, nothing taken off for what a later one removed; an import\'s left out' },
-    { label: 'Approvals in your name', value: said(approvals, last, 'approvals'), definition: 'Never a teammate\'s' },
-    { label: FOOT.estimate, value: foot.pace ? `${foot.estimate}, ${foot.pace}` : foot.estimate, definition: FOOT.estimateHint },
+    // Each half's last week, then the weeks its chart draws: what the words count is said once, under Unknown.
+    { label: 'Words added', value: lastSaid(words, last, 'words'), change: words ? `by week: ${seriesOf(words, 'words')}` : undefined },
+    { label: 'Approvals in your name', value: lastSaid(approvals, last, 'approvals'), change: approvals ? `by week: ${seriesOf(approvals, 'approvals')}` : undefined, definition: 'Never a teammate\'s' },
+    { label: FOOT.estimate, value: foot.pace ? `${foot.estimate}, ${foot.pace}` : foot.estimate, definition: 'Not a measurement of anybody\'s time' },
     { label: FOOT.coverage, value: foot.coverage, definition: 'Hours of the week with an observed run' },
-    { label: FOOT.peak, value: foot.peak, definition: 'The most observed runs at one moment' },
+    // `1 at once` says what it counts.
+    { label: FOOT.peak, value: foot.peak },
     ...(Object.keys(TILES) as TileKey[]).map((k): Fact => {
       const t = tileOf(k, home.tiles[k]);
-      return { label: TILES[k].label, value: typeof t.value === 'number' ? TILE_FORMAT[k](t.value) : t.value, change: t.note, definition: TILES[k].hint };
+      const note = t.note.replace(`, ${week}`, '');
+      return { label: TILES[k].label, value: typeof t.value === 'number' ? TILE_FORMAT[k](t.value) : t.value, change: note.toLowerCase() === week.toLowerCase() ? undefined : note, definition: TILES[k].hint };
     }),
   ];
 
   const insights: Insight[] = [];
   const unknowns: string[] = [];
   const waiting = waitingOf(home, team);
-  if (waiting.kind === 'one' || waiting.kind === 'many') insights.push({ text: `${waiting.title}. ${waiting.detail}`, evidence: waiting.href });
+  // Many waiting: the count and the oldest, without the banner's gloss of what waiting means, which the title says.
+  if (waiting.kind === 'one') insights.push({ text: `${waiting.title}. ${waiting.detail}`, evidence: waiting.href });
+  else if (waiting.kind === 'many') insights.push({ text: `${waiting.title}${home.waiting.state === 'ok' && home.waiting.data.oldestSince ? `, the oldest since ${formatDay(home.waiting.data.oldestSince)}` : ''}.`, evidence: waiting.href });
   else if (waiting.kind === 'none') insights.push({ text: 'Nothing waits for approval.' });
   else unknowns.push('What waits for approval could not be read, so nothing can be said about it; it is not an all-clear.');
 
@@ -226,7 +272,7 @@ export function homeContext(read: HomeRead, { index = null }: { index?: number |
     const { rows, quiet, total } = home.openWork.data;
     insights.push({
       text: total
-        ? `${formatCount(total)} open ${plural(total, 'initiative')}, waiting first: ${rows.map(openLine).join('; ')}${quiet ? `; and ${formatCount(quiet)} quiet, untouched for 14 days or more` : ''}.`
+        ? `${formatCount(total)} open ${plural(total, 'initiative')}, waiting first: ${openLines(rows)}${quiet ? `; and ${formatCount(quiet)} quiet, untouched 14 days or more` : ''}.`
         : 'No initiative is open.',
       evidence: '/initiatives',
     });
@@ -237,7 +283,7 @@ export function homeContext(read: HomeRead, { index = null }: { index?: number |
 
   if (home.closedLastWeek.state === 'ok') {
     const closed = home.closedLastWeek.data;
-    insights.push({ text: closed.length ? `Closed in the ${weekOf(last)}: ${closed.map((c) => `${clip(c.slug)} (${c.outcome})`).join('; ')}.` : `Nothing closed in the ${weekOf(last)}.` });
+    insights.push({ text: closed.length ? `Closed last week: ${closed.map((c) => `${clip(c.slug)} (${c.outcome})`).join('; ')}.` : `Nothing closed in the ${weekOf(last)}.` });
   } else unknowns.push('Last week\'s closures could not be read.');
 
   if (home.runs.state === 'ok') {
@@ -255,7 +301,11 @@ export function homeContext(read: HomeRead, { index = null }: { index?: number |
     insights.push({ text: `Next milestones: ${home.milestones.data.map((m) => `${MILESTONE[m.count].toLowerCase()} ${formatCount(m.value)} of ${formatCount(m.next)}`).join('; ')}.` });
   }
 
-  if (home.words.state === 'ok') unknowns.push(`Words added: ${coverageLine(home.words.data.coverage)}`);
+  if (home.words.state === 'ok') {
+    const c = home.words.data.coverage;
+    const gaps = gapsOf(c);
+    unknowns.push(`Words added count ${formatCount(c.documents)} ${plural(c.documents, 'document')}, never less what a later revision removed${gaps.length ? `; ${gaps.join(', ')}` : ''}.`);
+  }
   else unknowns.push('The words added could not be read, so there is no estimate of what they would take to write.');
   if (home.approvals.state !== 'ok') unknowns.push('The approvals in your name could not be read.');
 

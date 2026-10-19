@@ -14,7 +14,6 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { aligned } from '@/console/columns';
 import { Panel } from '@/console/panel';
 import { failureOf } from '@/console/query';
-import { useDataClock } from '@/lib/api';
 import { AXIS_FORMATTERS, plural } from '@/lib/format';
 import { formatDate, formatDateTime, formatDay, formatShortDate } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
@@ -41,18 +40,17 @@ function useReleases(served: ReleasesRead, filters: ReleasesFilters) {
   const data = q.data ?? (mine?.state === 'ok' ? mine.data : undefined);
   const failed = failureOf({ error });
   const trouble = data ? null : failed ?? (mine && mine.state !== 'ok' ? releasesTrouble(mine) : null);
-  return { data, trouble, retry, busy, updatedAt: q.data ? new Date(q.dataUpdatedAt) : data ? data.meta.asOf : null };
+  return { data, trouble, retry, busy };
 }
 
 /**
- * One side of a release in a cell, on one line: its figure, `Before 4.2`, and `partial` beside it when the record saw
- * only part of the window; a word in its place after a colon, `Before: not observed`, as a label reads before a word.
+ * One side of a release in a cell, on one line, a figure and a word alike after the label: `Before 4.2`, `Before not
+ * observed`, with `partial` beside it when the record saw only part of the window.
  */
 function SideLine({ label, value, side, asOf }: { label: string; value: string; side: Side; asOf: string }) {
-  const figure = /^\d/.test(value);
   return (
     <span data-side className="block whitespace-nowrap" title={`${label}, ${OBSERVED[observedOf(side)]}: ${observedText(side, asOf)}`}>
-      <span className="text-ink-3">{figure ? `${label} ` : `${label}: `}</span>{figure ? value : midSentence(value)}
+      <span className="text-ink-3">{label} </span>{midSentence(value)}
       {observedOf(side) === 'partial' ? <span className="text-ink-3"> · partial</span> : null}
     </span>
   );
@@ -65,9 +63,9 @@ const sides = (r: ReleaseRow, asOf: string, of: (s: Side) => string) => (
   </span>
 );
 
-/** Both sides as a sentence: `4.2 before; 3.3 after (partial)`, `Not observed before; 15.8 after (partial)`, `22.7 before; no calls after`. */
+/** Both sides as a sentence after its label: `4.2 before; 3.3 after (partial)`, `not observed before; 15.8 after (partial)`. */
 const phoneSides = (r: ReleaseRow, of: (s: Side) => string) =>
-  `${of(r.before)} before; ${midSentence(of(r.after))} after${observedOf(r.after) === 'partial' ? ' (partial)' : ''}`;
+  `${midSentence(of(r.before))} before; ${midSentence(of(r.after))} after${observedOf(r.after) === 'partial' ? ' (partial)' : ''}`;
 
 /** What only a phone card shows under the version, each line free to wrap: what changed, what clients do, then the figure. */
 const PHONE_LINE = 'hidden t-small font-regular whitespace-normal text-ink-2 @max-[640px]:block';
@@ -117,12 +115,11 @@ const columnsAt = (asOf: string): Column<ReleaseRow>[] => aligned([
  */
 export function PlatformReleasesView({ served }: { served: ReleasesRead }) {
   const [filters, set] = useServedAddress(RELEASES_DEFAULTS, served, filtersOfPath);
-  const { data, trouble, retry, busy, updatedAt } = useReleases(served, filters);
-  const now = useDataClock();
+  const { data, trouble, retry, busy } = useReleases(served, filters);
   const asOf = data?.meta.asOf ?? '';
   const columns = useMemo(() => columnsAt(asOf), [asOf]);
   useShareView(data
-    ? releasesContext(data, { filters, updatedAt, now })
+    ? releasesContext(data, { filters })
     : pendingContext({ view: 'releases', title: 'Releases', address: '/platform/releases', scope: 'every recorded release' }, trouble));
   // `…` is coming and `—` is not: a read that failed never reads as one still on its way.
   const mark = trouble ? '—' : '…';

@@ -4,8 +4,8 @@ import { PageFrame } from '@/components/base/shell';
 import { Busy } from '@/components/patterns/page-loading';
 import { gate, gatedMetadata } from '@/data/access';
 import { RunsActions, RunsAsOf, RunsSkeleton, RunsView } from '@/views/pages/runs';
-import { filtersOf, type RunsRead } from '@/views/runs-context';
-import { readRuns } from './read-runs';
+import { filtersOf, type RunsRead, type SkillPages } from '@/views/runs-context';
+import { readRuns, readSkillPages } from './read-runs';
 
 export function generateMetadata() { return gatedMetadata('runs', { title: 'Runs' }); }
 
@@ -13,12 +13,14 @@ export function generateMetadata() { return gatedMetadata('runs', { title: 'Runs
  * The page asks `runs` before it renders; the rail hiding a destination is presentation, never this gate. The masthead
  * then stands outside the boundaries that wait for the read, the skill control usable before it answers, and the one
  * read of the address's skill and page of recent runs, made on the console's server as the person, is shared by the
- * as-of line, the skill control and the body.
+ * as-of line, the skill control and the body. The body also waits for the catalog's skill addresses, read beside it,
+ * so a skill's row opens its page.
  */
 export default async function RunsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const denied = await gate('runs');
   if (denied) return denied;
   const read = searchParams.then((params) => readRuns(filtersOf(params)));
+  const pages = readSkillPages();
   return (
     <PageFrame
       kicker={<>{app.name} · {workspaces.main.label}</>}
@@ -28,7 +30,7 @@ export default async function RunsPage({ searchParams }: { searchParams: Promise
       actions={<Suspense fallback={<RunsActions served={null} />}><Actions read={read} /></Suspense>}
     >
       <Suspense fallback={<Busy name="runs"><RunsSkeleton /></Busy>}>
-        <Body read={read} />
+        <Body read={read} pages={pages} />
       </Suspense>
     </PageFrame>
   );
@@ -42,6 +44,7 @@ async function Actions({ read }: { read: Promise<RunsRead> }) {
   return <RunsActions served={await read} />;
 }
 
-async function Body({ read }: { read: Promise<RunsRead> }) {
-  return <RunsView served={await read} />;
+async function Body({ read, pages }: { read: Promise<RunsRead>; pages: Promise<SkillPages> }) {
+  const [served, skillPages] = await Promise.all([read, pages]);
+  return <RunsView served={served} pages={skillPages} />;
 }

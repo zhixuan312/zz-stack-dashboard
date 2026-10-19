@@ -13,7 +13,6 @@ import { defineViewTool } from '@/lib/shared-context';
 import { peopleContext } from '../people-context';
 import { peopleExplore } from '../people-explore';
 import { PAGE_SIZE, PEOPLE_DEFAULTS, pageAt, peoplePath } from '../people-filter';
-import { justRead } from './shared';
 
 export const peopleTool = defineViewTool({
   name: 'people',
@@ -30,7 +29,7 @@ export const peopleTool = defineViewTool({
     const read = { limit, offset };
     const answer = await gatewayGet<People>(peoplePath(PEOPLE_DEFAULTS, read));
     const data = { people: answer.people.map((p) => ({ name: p.name, state: p.state })) };
-    return { context: peopleContext(answer, { filters: pageAt(offset), read, ...justRead() }), data };
+    return { context: peopleContext(answer, { filters: pageAt(offset), read }), data };
   },
   explore: peopleExplore,
 });

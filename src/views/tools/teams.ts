@@ -12,7 +12,6 @@ import { defineViewTool } from '@/lib/shared-context';
 import { teamsContext } from '../teams-context';
 import { teamsExplore } from '../teams-explore';
 import { PAGE_SIZE, TEAMS_DEFAULTS, pageAt, teamsPath } from '../teams-filter';
-import { justRead } from './shared';
 
 export const teamsTool = defineViewTool({
   name: 'teams',
@@ -28,7 +27,7 @@ export const teamsTool = defineViewTool({
     await requireNeed(FEATURES.teams.needs);
     const read = { limit, offset };
     const data = await gatewayGet<Teams>(teamsPath(TEAMS_DEFAULTS, read));
-    return { context: teamsContext(data, { filters: pageAt(offset), read, ...justRead() }), data };
+    return { context: teamsContext(data, { filters: pageAt(offset), read }), data };
   },
   explore: teamsExplore,
 });

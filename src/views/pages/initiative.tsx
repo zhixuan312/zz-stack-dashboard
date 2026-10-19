@@ -267,7 +267,9 @@ function awaited(d: InitiativeDetail): string | null {
 
 /**
  * The masthead's status: the initiative's state, the document it waits on a person for, which opens that document's
- * page to read and approve it, and the cutoff of the read the page draws; nothing while there is none.
+ * page to read and approve it, and the cutoff of the read the page draws; nothing while there is none. Review is the
+ * next step, so it is the page's one filled button while something waits on the person, and Close steps down beside it
+ * (`InitiativeClose`, Work M-7).
  */
 export function InitiativeMeta({ team, slug, served }: { team: string; slug: string; served: InitiativeRead }) {
   const { data, updatedAt } = useInitiative(team, slug, served);
@@ -276,20 +278,21 @@ export function InitiativeMeta({ team, slug, served }: { team: string; slug: str
   return (
     <span className="inline-flex flex-wrap items-center gap-2">
       <StateBadge of={data} />
-      {review ? <Button asChild size="sm"><Link href={`/initiatives/${team}/${slug}/${encodePath(review)}`}>Review {review}</Link></Button> : null}
+      {review ? <Button asChild size="sm" variant="primary"><Link href={`/initiatives/${team}/${slug}/${encodePath(review)}`}>Review {review}</Link></Button> : null}
       {updatedAt ? <span className="t-small text-ink-3">Read {formatDateTime(updatedAt)}</span> : null}
     </span>
   );
 }
 
 /**
- * The masthead's one action: Close, while the initiative is open and of the team the person acts for, the only team a
- * close is made under. A close with no flow names the document it lands on, of the documents a close may land on.
+ * The masthead's action: Close, while the initiative is open and of the team the person acts for, the only team a close
+ * is made under. A close with no flow names the document it lands on, of the documents a close may land on. It is the
+ * filled button when nothing waits on a person, and the secondary one while Review, the next step, does (Work M-7).
  */
 export function InitiativeClose({ team, slug, served }: { team: string; slug: string; served: InitiativeRead }) {
   const { data } = useInitiative(team, slug, served);
   const acting = served.state === 'ok' ? served.team : null;
   if (!data || acting !== data.team) return null;
   const landings = data.documents.filter((x) => !x.path.startsWith('sources/') && x.type !== 'handover').map((x) => x.path);
-  return <CloseInitiative team={data.team} slug={data.slug} closed={data.closed} freeform={data.steps.length === 0} documents={landings} />;
+  return <CloseInitiative team={data.team} slug={data.slug} closed={data.closed} freeform={data.steps.length === 0} documents={landings} variant={awaited(data) ? 'secondary' : 'primary'} />;
 }

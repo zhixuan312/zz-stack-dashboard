@@ -29,6 +29,21 @@ export type SkillRead = {
   text: Served<SkillText> | { state: 'missing'; path: string };
 };
 
+/**
+ * Every busiest tool the gateway sent, as the page's bars draw them, and the tools past them as one remainder: the rows
+ * sum to the log's whole the calls by door add up to, so nothing the page draws is left out of the sentence.
+ */
+function toolsSaid(detail: SkillDetail, logged: Skill['logged']): string {
+  const said = detail.busiestTools.map((t) => `${t.tool} ${formatCount(t.calls)}${t.failed ? ` (${formatCount(t.failed)} refused)` : ''}`);
+  if (logged) {
+    const calls = logged.calls - detail.busiestTools.reduce((n, t) => n + t.calls, 0);
+    const failed = logged.failed - detail.busiestTools.reduce((n, t) => n + t.failed, 0);
+    const tools = logged.tools - detail.busiestTools.length;
+    if (calls > 0) said.push(`and ${tools > 0 ? `${formatCount(tools)} other ${plural(tools, 'tool')}` : 'other tools'} ${formatCount(calls)}${failed > 0 ? ` (${formatCount(failed)} refused)` : ''}`);
+  }
+  return said.join(', ');
+}
+
 export function skillContext(pluginName: string, name: string, { plugin, skill, detail, text, ...arrival }: { plugin?: PluginRow; skill?: Skill; detail?: SkillDetail; text?: SkillText } & Arrival): SharedContext {
   const shipped = plugin?.skills.find((s) => s.name === name);
   const produces = plugin?.documents.filter((d) => d.stage === name) ?? [];
@@ -54,10 +69,11 @@ export function skillContext(pluginName: string, name: string, { plugin, skill, 
     unknowns.push('Your team has recorded no call against this skill, so it has no runs to quote.');
   }
   if (shipped) insights.push({ text: `${shipped.isEntry ? `It is the front door of ${pluginName}` : shipped.position && plugin ? `It is step ${shipped.position} of ${plugin.stages.length} in ${pluginName}` : `${pluginName} ships it outside its method's stages`}; ${shipped.origin === 'theirs' ? `the ${pluginName} team wrote it` : 'we wrote it'}. ${produces.length ? `It produces ${produces.map((d) => d.name).join(', ')}` : 'It produces work, not a document'}${gated ? `, and is closed by a person approving ${gated.name}` : ', and no gate closes it'}.` });
-  if (text?.description) insights.push({ text: `What it is for: ${text.description}` });
+  if (text?.description) insights.push({ text: `What it is for, as its SKILL.md describes it: ${text.description}` });
+  else unknowns.push(text ? 'Its SKILL.md declares no description, so what it is for is not stated here; its text is at the read view.' : 'What it is for is not read here: the skill\'s text did not load.');
   if (text?.whenToUse) insights.push({ text: `When to use it: ${text.whenToUse}` });
   if (detail?.surfaces.length) insights.push({ text: `Its calls by door: ${detail.surfaces.map((s) => `${s.surface} ${formatCount(s.calls)}${s.failed ? ` (${formatCount(s.failed)} refused)` : ''}`).join(', ')}.` });
-  if (detail?.busiestTools.length) insights.push({ text: `Its busiest tools: ${detail.busiestTools.slice(0, 6).map((t) => `${t.tool} ${formatCount(t.calls)}${t.failed ? ` (${formatCount(t.failed)} refused)` : ''}`).join(', ')}.` });
+  if (detail?.busiestTools.length) insights.push({ text: `Its busiest tools: ${toolsSaid(detail, skill?.logged ?? null)}.` });
   if (text) insights.push({ text: `Its text is ${formatCount(text.body.length)} characters, with ${text.references.length} ${plural(text.references.length, 'reference')} shipped beside it; read it at /plugins/${pluginName}/${name}?view=read.` });
   if (skill) unknowns.push('Calls are attributed by the last skill served to the caller, not by what the skill declares: someone running two conversations at once has their calls filed under whichever skill loaded last.');
   unknowns.push('Runs and calls are your team\'s alone; the skill\'s text is the same for everybody.');

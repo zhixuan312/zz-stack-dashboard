@@ -181,7 +181,7 @@ describe('every context of a page with a change says what the person changes the
   });
 
   it('a bug report: a person closes it on its page, never the assistant', () => {
-    expect(said(bugContext(bugReport(OPEN_REPORT)!, duplicates(OPEN_REPORT), arrival))).toContain('A report is closed on its page by a person, never by the assistant');
+    expect(said(bugContext(bugReport(OPEN_REPORT)!, duplicates(OPEN_REPORT)))).toContain('A report is closed on its page by a person, never by the assistant');
   });
 
   it('Teams: Create a team on /platform/teams, and Archive, Add member and Remove on a team\'s own page', () => {

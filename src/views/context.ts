@@ -41,8 +41,9 @@ export function pendingContext(view: Pick<SharedContext, 'view' | 'title' | 'add
   };
 }
 
-/** The most a view's context may be, as the text a model reads: Meridian's budget for one view (decision 0011). */
-export const CONTEXT_BUDGET = 2400;
+/** The most a view's context may be, as the text a model reads: ZZ Meridian's budget for one view (2,600 characters
+ *  since its 0.15.0, the cap `src/lib/assistant/prompt.ts` enforces). */
+export const CONTEXT_BUDGET = 2600;
 
 /** A name or a sentence somebody else wrote, cut to `max` characters: one long slug may not crowd out a figure. */
 export const clip = (text: string, max = 64): string => (text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text);

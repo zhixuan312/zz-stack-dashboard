@@ -15,7 +15,6 @@ import { Tab, TabList, TabPanel, Tabs } from '@/components/ui/tabs';
 import { aligned } from '@/console/columns';
 import { Panel } from '@/console/panel';
 import { failureOf } from '@/console/query';
-import { useDataClock } from '@/lib/api';
 import type { Audit, AuditRow } from '@/lib/fleet-shapes';
 import { formatDate, formatDateTime } from '@/lib/format-date';
 import { pendingContext } from '@/views/context';
@@ -43,7 +42,7 @@ function useAudit(served: AuditRead, filters: AuditFilters) {
   const trouble = data ? null : failed ?? (mine && mine.state !== 'ok' ? auditTrouble(mine) : null);
   // The reports' titles are the server's read alone: a page the browser read again keeps the server's for its address.
   const reports = (mine?.state === 'ok' ? mine.reports : undefined) ?? {};
-  return { data, reports, trouble, retry, busy, updatedAt: q.data ? new Date(q.dataUpdatedAt) : data ? data.meta.asOf : null };
+  return { data, reports, trouble, retry, busy };
 }
 
 const dash = <span className="text-ink-3">—</span>;
@@ -84,10 +83,9 @@ const COLUMNS: Column<AuditRow>[] = aligned([
 export function PlatformAuditView({ served }: { served: AuditRead }) {
   const [filters, set] = useServedAddress(AUDIT_DEFAULTS, served, filtersOfPath);
   const tab = tabOf(filters);
-  const { data, reports, trouble, retry, busy, updatedAt } = useAudit(served, filters);
-  const now = useDataClock();
+  const { data, reports, trouble, retry, busy } = useAudit(served, filters);
   useShareView(data
-    ? auditContext(data, { filters, reports, updatedAt, now })
+    ? auditContext(data, { filters, reports })
     : pendingContext({ view: 'audit', title: 'Audit', address: '/platform/audit', scope: 'the platform\'s recorded administration' }, trouble));
   // A tab is a view of its own: moving to one starts it afresh, its filters cleared and its first page.
   const choose = (v: string) => set({ ...AUDIT_DEFAULTS, filter: v as AuditFilter });

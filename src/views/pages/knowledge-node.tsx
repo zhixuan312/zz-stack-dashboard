@@ -4,7 +4,8 @@ import { useTransition } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { RotateCw } from 'lucide-react';
+import { ArrowRight, RotateCw } from 'lucide-react';
+import { app, workspaces } from '@/app.config';
 import { AskAbout } from '@/components/patterns/ask-about';
 import { DataTable, type Column } from '@/components/patterns/data-table';
 import { Badge } from '@/components/ui/badge';
@@ -62,7 +63,12 @@ export function KnowledgeNodeView({ read, team, rel }: { read: ServerRead<Knowle
   const related = self?.related ?? [];
   const relatedColumns: Column<KnowledgeNode>[] = aligned([
     { key: 'num', header: 'Node', width: multiTeam ? 'w-36' : 'w-24', cell: (n) => <span className="font-mono text-xs text-ink-3">{multiTeam ? `${n.team} · ${n.num}` : n.num}</span> },
-    { key: 'title', header: 'Title', align: 'left', grow: true, mobile: 'title', cell: (n) => <span className="block py-1 leading-snug font-medium whitespace-normal text-ink">{n.title}</span> },
+    // A row opens its node: the quiet arrow says so before the pointer finds it, as every row that opens a page does
+    // (Phase 7's second re-review, Work M-11).
+    {
+      key: 'title', header: 'Title', align: 'left', grow: true, mobile: 'title',
+      cell: (n) => <span className="block py-1 leading-snug font-medium whitespace-normal text-ink">{n.title} <ArrowRight data-goes aria-hidden className="inline size-3.5 align-[-0.15em] text-ink-3 group-hover/row:text-ink" /></span>,
+    },
     // A neighbour a later lesson replaced says so, and names what replaced it, a link where the successor is listed too
     // (Work F-6): unmarked, a superseded lesson read as current beside the one that replaced it.
     {
@@ -78,7 +84,8 @@ export function KnowledgeNodeView({ read, team, rel }: { read: ServerRead<Knowle
   return (
     <ConsolePage
       title={self?.title ?? rel}
-      crumbs={[{ label: 'Knowledge', href: '/knowledge' }, { label: self ? `${shared ? 'Shared shelf' : team} · node ${self.num}` : team }]}
+      // From the workspace's root, as every other Work page's breadcrumb starts (Work M-11).
+      crumbs={[{ label: `${app.name} · ${workspaces.main.label}` }, { label: 'Knowledge', href: '/knowledge' }, { label: self ? `${shared ? 'Shared shelf' : team} · node ${self.num}` : team }]}
       showPeriod={false}
       updatedAt={read.state === 'ok' ? new Date(read.at) : null}
       context={context}

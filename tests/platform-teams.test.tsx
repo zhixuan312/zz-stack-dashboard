@@ -112,7 +112,7 @@ describe('each page draws loading, empty, error and partial', () => {
     mount(<PlatformTeamsView served={{ state: 'ok', path: PATH, data: partial }} />);
     expect(document.querySelectorAll('tbody tr')).toHaveLength(LIST.teams.length);
     expect(screen.getAllByText('Unavailable').length).toBeGreaterThanOrEqual(LIST.teams.length * 3);
-    expect(contextText(teamsContext(partial, { filters: TEAMS_DEFAULTS, updatedAt: null, now: new Date() }))).toContain('could not be read');
+    expect(contextText(teamsContext(partial, { filters: TEAMS_DEFAULTS }))).toContain('could not be read');
   });
 
   it('a team: the error with Retry, and the way back for no such team', () => {
@@ -268,7 +268,7 @@ describe('the view tools answer the pages\' own responses', () => {
     const { data, context } = await teamsTool.read({});
     expect(gateway.get).toHaveBeenCalledWith(PATH);
     expect(data).toEqual(LIST);
-    const page = teamsContext(LIST, { filters: TEAMS_DEFAULTS, updatedAt: null, now: new Date() });
+    const page = teamsContext(LIST, { filters: TEAMS_DEFAULTS });
     expect({ ...context, freshness: null }).toEqual({ ...page, freshness: null });
     expect(teamsTool.page).toBe('/platform/teams');
   });
@@ -289,7 +289,7 @@ describe('the view tools answer the pages\' own responses', () => {
     const { data, context } = await teamTool.read({ slug: 'atlas' });
     expect(gateway.get).toHaveBeenCalledWith('/teams/atlas');
     expect(data).toEqual(teamDetail('atlas'));
-    expect({ ...context, freshness: null }).toEqual({ ...teamContext('atlas', { team: teamDetail('atlas')!, updatedAt: null, now: new Date() }), freshness: null });
+    expect({ ...context, freshness: null }).toEqual({ ...teamContext('atlas', { team: teamDetail('atlas')! }), freshness: null });
     expect(teamTool.page).toBe('/platform/teams/[slug]');
   });
 
@@ -306,7 +306,7 @@ describe('the view tools answer the pages\' own responses', () => {
 
 describe('the shared contexts carry what the pages draw, and what it cannot say', () => {
   it('Teams: the four tiles, each listed team against its own past, and no ranking', () => {
-    const text = contextText(teamsContext(LIST, { filters: TEAMS_DEFAULTS, updatedAt: null, now: new Date() }));
+    const text = contextText(teamsContext(LIST, { filters: TEAMS_DEFAULTS }));
     for (const v of [LIST.tiles.teams, LIST.tiles.openWork, LIST.tiles.pending, LIST.tiles.lessons]) expect(text).toContain(String(v));
     for (const t of LIST.teams) expect(text).toContain(`${t.slug}${t.name !== t.slug ? ` (${t.name})` : ''}`);
     expect(text).toContain(`calls ${LIST.teams[0].calls.previous.figure.value} then ${LIST.teams[0].calls.last.figure.value}`);
@@ -314,19 +314,23 @@ describe('the shared contexts carry what the pages draw, and what it cannot say'
     expect(text).not.toMatch(/busiest team is|runs the most|share of the/i);
   });
 
-  it('hold to the budget on a full page of long names, naming the first six and counting the rest, and a team of forty', () => {
+  it('hold to the budget on a full page of long names, naming as many whole as fit and counting the rest, and a team of forty', () => {
     const long = 'Regional delivery group with-a-name-nobody-planned-for-because-it-came-from-a-ticket-title';
     const rows = Array.from({ length: 10 }, (_, i) => ({ ...LIST.teams[i % LIST.teams.length], slug: `team-${i + 1}-with-a-name-nobody-planned-for`, name: `${long} ${i + 1}`, people: 300 + i, openWork: 1_000 + i, waiting: 40 + i, lessons: 9_000 + i }));
     const full: Teams = { ...LIST, teams: rows, total: 214 };
     const narrow = { q: 'with-a-name-nobody-planned-for', status: 'archived', page: '12' };
-    const text = contextText(teamsContext(full, { filters: narrow, updatedAt: null, now: new Date() }));
+    const text = contextText(teamsContext(full, { filters: narrow }));
     expect(text.length).toBeLessThanOrEqual(CONTEXT_BUDGET);
-    for (const r of rows.slice(0, 6)) expect(text).toContain(`${r.slug} (`);
-    expect(text).toContain('and 4 more (see the page)');
+    // Each team whole or not at all, the first of the page first, and the rest counted (I-167, M-3).
+    const named = rows.filter((r) => text.includes(`${r.slug} (${r.name})`)).length;
+    expect(named).toBeGreaterThan(0);
+    for (const r of rows.slice(0, named)) expect(text).toContain(`${r.slug} (${r.name})`);
+    expect(text).toContain(`and ${rows.length - named} more (see the page)`);
+    expect(text).not.toMatch(/\w…/);
     const atlas = teamDetail('atlas')!;
     const weeks = Array.from({ length: 26 }, (_, i) => ({ ...atlas.calls[0], window: { ...atlas.calls[0].window, from: `2026-${String(4 + Math.floor(i / 4)).padStart(2, '0')}-0${(i % 4) + 1}T00:00:00Z` } }));
     const crowd = { ...atlas, calls: [...weeks, atlas.calls.at(-1)!], members: Array.from({ length: 40 }, (_, i) => ({ ...atlas.members[3], email: `person-${i}-${atlas.members[3].email}` })) };
-    const told = contextText(teamContext('atlas', { team: crowd, updatedAt: null, now: new Date() }));
+    const told = contextText(teamContext('atlas', { team: crowd }));
     expect(told.length).toBeLessThanOrEqual(CONTEXT_BUDGET);
     expect(told).toContain('in the last 12 complete weeks');
     expect(told).toContain('and 28 more');
@@ -334,7 +338,7 @@ describe('the shared contexts carry what the pages draw, and what it cannot say'
 
   it('a team: its tiles, its calls by week with the running week, and its members', () => {
     const atlas = teamDetail('atlas')!;
-    const text = contextText(teamContext('atlas', { team: atlas, updatedAt: null, now: new Date() }));
+    const text = contextText(teamContext('atlas', { team: atlas }));
     expect(text).toContain(`People: ${atlas.tiles.people}`);
     expect(text).toContain(`Waiting: ${atlas.tiles.waiting}`);
     expect(text).toContain('still running');

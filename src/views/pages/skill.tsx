@@ -6,6 +6,7 @@ import { useShareView } from '@/components/base/use-share-view';
 import { BarList, type BarItem } from '@/components/charts/bar-list';
 import { CompositionBar } from '@/components/charts/composition-bar';
 import { AskAbout } from '@/components/patterns/ask-about';
+import { FeaturedMetric } from '@/components/patterns/featured-metric';
 import { MetricTile } from '@/components/patterns/metric-tile';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,6 +14,7 @@ import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { KeyValue } from '@/components/ui/key-value';
 import { Skeleton } from '@/components/ui/skeleton';
+import { StatusDot } from '@/components/ui/status-dot';
 import { LinkTabs } from '@/components/ui/tabs';
 import { Panel } from '@/console/panel';
 import { failureOf } from '@/console/query';
@@ -120,10 +122,42 @@ function Cost({ skill, detail }: { skill: Skill | undefined; detail: SkillDetail
       <Panel title="Conclusion">
         <ul className="t-small flex flex-col gap-2 text-ink-2">
           <li><b className="text-ink">Runs.</b> {skill.runs} {plural(skill.runs, 'run')} at {perRunOf(skill.callsAvg)} calls each, median {formatSeconds(skill.durationMedian)}, {skill.kbPerRun === null ? 'output not measured' : `${formatKb(skill.kbPerRun)} of observed output`} per run.{heaviest ? <> Most of its calls in the log go to <b className="text-ink">{heaviest.surface}</b> ({formatCount(heaviest.calls)}).</> : null}</li>
-          <li><b className="text-ink">Reliability.</b> {rate === null ? 'Not measured: the log of its calls was not read.' : rate > REFUSED_FLAG ? <>It refuses <b className="text-critical-ink">{rate.toFixed(1)}%</b> of its calls in the log, above the {REFUSED_FLAG}% this page flags.</> : rate > 0 ? <>A {rate.toFixed(1)}% refusal rate: {formatCount(logged!.failed)} refusals over {formatCount(logged!.calls)} calls in the log.</> : 'No refusal in the log.'}</li>
+          <li><b className="text-ink">Reliability.</b> {rate === null ? 'Not measured: the log of its calls was not read.' : rate > REFUSED_FLAG ? <>It refuses <b className="text-ink">{rate.toFixed(1)}%</b> of its calls in the log, above the {REFUSED_FLAG}% this page flags.</> : rate > 0 ? <>A {rate.toFixed(1)}% refusal rate: {formatCount(logged!.failed)} refusals over {formatCount(logged!.calls)} calls in the log.</> : 'No refusal in the log.'}</li>
         </ul>
       </Panel>
     </>
+  );
+}
+
+/** The runs view's lead card: its name is the README's `Protagonist:`. COUPLED. */
+const LEAD_TITLE = 'Its runs';
+
+type Refused = { n: number; of: number; where: string } | null;
+
+/**
+ * What the runs view leads with, at the figure's size in the one lit card: the refused share where it passes the line
+ * the Conclusion flags, with that line beside the warning dot, and otherwise the runs. The figure is ink, as every
+ * figure is: the accent is kept for what a person presses, and the warning is the dot's, never the number's.
+ */
+function RunsLead({ name, skill, never, refused, flagged, heaviest }: { name: string; skill: Skill | undefined; never: boolean; refused: Refused; flagged: boolean; heaviest?: SkillDetail['surfaces'][number] }) {
+  // Where its calls go, from the doors the card below splits them by: a counted fact the figure does not say.
+  const finding = heaviest && refused?.of ? { text: `Most of its calls ${refused.where} go to ${heaviest.surface}: ${formatCount(heaviest.calls)} of ${formatCount(refused.of)}.` } : undefined;
+  const lead = flagged ? refused : null;
+  return (
+    <FeaturedMetric
+      kicker={lead ? `${LEAD_TITLE} · calls refused ${lead.where}` : `${LEAD_TITLE} · by your team, all time`}
+      value={lead ? lead.n / lead.of : skill ? skill.runs : never ? 0 : null}
+      missing="Not read"
+      format={lead ? (n) => `${(n * 100).toFixed(1)}%` : formatCount}
+      finding={finding}
+      caption={lead ? (
+        <span className="inline-flex items-baseline gap-2">
+          <StatusDot tone="warning" className="self-center" />
+          <span>{`Above the ${REFUSED_FLAG}% this page flags: ${formatCount(lead.n)} of ${formatCount(lead.of)} calls ${lead.where} were refused.`}</span>
+        </span>
+      ) : never ? 'Never run by your team: nothing has called it.' : skill ? `${formatCount(skill.calls)} ${plural(skill.calls, 'call')} in its runs${refused?.of ? `, ${(100 * refused.n / refused.of).toFixed(1)}% of its calls ${refused.where} refused, not above the ${REFUSED_FLAG}% this page flags` : ''}.` : undefined}
+      actions={<AskAbout question={lead ? `Why are ${(100 * lead.n / lead.of).toFixed(1)}% of ${name}'s calls refused, and which tools refuse them?` : `What do our runs of ${name} show, and where does it sit in its plugin's method?`} />}
+    />
   );
 }
 
@@ -168,8 +202,8 @@ export function SkillView({ plugin: pluginName, skill: name, view, served }: { p
   const produces = plugin?.documents.filter((x) => x.stage === name).map((x) => x.name).join(', ');
   const gated = plugin?.documents.find((x) => x.stage === name && x.gate);
   const refused = !skill ? null : skill.logged ? { n: skill.logged.failed, of: skill.logged.calls, where: 'in the log' } : { n: skill.refusals, of: skill.calls, where: 'in its runs' };
-  // The one tile the page leads with (`emphasis`): the refusals where they pass the line the Conclusion flags, which is
-  // the page's finding, and otherwise the runs, the figure a person opens a skill's runs for.
+  // The figure the runs view leads with: the refusals where they pass the line the Conclusion flags, which is the page's
+  // finding, and otherwise the runs, the figure a person opens a skill's runs for.
   const flagged = refused !== null && refused.of > 0 && (refused.n / refused.of) * 100 > REFUSED_FLAG;
   const updatedAt = [catalog.at, list.at, detail.at].filter((x): x is Date | string => x !== null).map((x) => new Date(x)).sort((a, b) => a.getTime() - b.getTime())[0] ?? null;
   useShareView(catalog.data && list.data
@@ -197,22 +231,28 @@ export function SkillView({ plugin: pluginName, skill: name, view, served }: { p
       {/* The tiles are the runs' summary, and `Its runs` is the tab they belong to. They stand from the first paint:
           they say "never run" in words for a skill the team never ran and `—` for a read that did not answer. */}
       {view === 'cost' ? (
-        <Row split="tiles">
-          <MetricTile label="Runs" icon={<Repeat />} emphasis={!flagged} value={skill ? skill.runs : never ? 0 : '—'} note={never ? 'Never run by your team' : 'By your team'} />
-          {/* A skill that has never run has no average calls per run — an average of no runs is undefined, not zero —
-              and "0.0" claims a measurement that was never taken. */}
-          <MetricTile label="Calls per run" icon={<Activity />} value={never ? 'No runs' : !skill ? '—' : skill.runs ? skill.callsAvg : 'No runs'} format={perRunOf} note={never ? 'Nothing has called it' : !skill ? 'Average and peak' : skill.runs ? `${formatCount(skill.calls)} in its runs, peak ${skill.callsMax}` : 'Nothing has called it'} />
-          <MetricTile label="Median run" icon={<Timer />} value={never ? 'Not timed' : !skill ? '—' : skill.durationMedian === null ? 'Not timed' : formatSeconds(skill.durationMedian)} note={skill ? `Longest ${formatSeconds(skill.durationMax)}` : 'And the longest'} />
-          {/* The log's whole, as the door split and the busiest tools below are its parts: a run counts only the calls an
-              initiative's run made, so the runs' refusals are not the refusals those parts add up to. With the log
-              unread, the runs' own share stands in, and says it is theirs. */}
-          <MetricTile label="Refused" icon={<Ban />} emphasis={flagged} finding={flagged ? { text: `Above the ${REFUSED_FLAG}% this page flags`, tone: 'warning' } : undefined} value={never ? 'No calls' : !skill ? '—' : refused ? (refused.of ? refused.n / refused.of : 'No calls') : '—'} format={(n) => `${(n * 100).toFixed(1)}%`} note={refused ? `${formatCount(refused.n)} of ${formatCount(refused.of)} calls ${refused.where}` : 'Share of its calls'} />
-        </Row>
+        <>
+          <div data-protagonist={LEAD_TITLE} className="contents">
+            <RunsLead name={name} skill={skill} never={never} refused={refused} flagged={flagged} heaviest={detail.data?.surfaces[0]} />
+          </div>
+          <Row split="tiles">
+            {flagged ? <MetricTile label="Runs" icon={<Repeat />} value={skill ? skill.runs : '—'} note="By your team" /> : null}
+            {/* A skill that has never run has no average calls per run — an average of no runs is undefined, not zero —
+                and "0.0" claims a measurement that was never taken. */}
+            <MetricTile label="Calls per run" icon={<Activity />} value={never ? 'No runs' : !skill ? '—' : skill.runs ? skill.callsAvg : 'No runs'} format={perRunOf} note={never ? 'Nothing has called it' : !skill ? 'Average and peak' : skill.runs ? `${formatCount(skill.calls)} in its runs, peak ${skill.callsMax}` : 'Nothing has called it'} />
+            <MetricTile label="Median run" icon={<Timer />} value={never ? 'Not timed' : !skill ? '—' : skill.durationMedian === null ? 'Not timed' : formatSeconds(skill.durationMedian)} note={skill ? `Longest ${formatSeconds(skill.durationMax)}` : 'And the longest'} />
+            {/* The log's whole, as the door split and the busiest tools below are its parts: a run counts only the calls an
+                initiative's run made, so the runs' refusals are not the refusals those parts add up to. With the log
+                unread, the runs' own share stands in, and says it is theirs. Led with above where it passes the line. */}
+            {flagged ? null : <MetricTile label="Refused" icon={<Ban />} value={never ? 'No calls' : !skill ? '—' : refused ? (refused.of ? refused.n / refused.of : 'No calls') : '—'} format={(n) => `${(n * 100).toFixed(1)}%`} note={refused ? `${formatCount(refused.n)} of ${formatCount(refused.of)} calls ${refused.where}` : 'Share of its calls'} />}
+          </Row>
+        </>
       ) : null}
       {/* What the skill is: knowable whether or not anybody has run it, and a front door is exactly the skill with no runs.
           Its labels are neutral, as every label is: the accent is kept for what a person presses. */}
-      <div data-protagonist="About this skill" className="contents">
-        <Panel title="About this skill" actions={<AskAbout question={`What is ${name} for, and where does it sit in ${pluginName}'s method?`} />}>
+      {/* The runs view leads with its figure, which carries the page's Ask; the text's views lead with this card. */}
+      <div data-protagonist={view === 'cost' ? undefined : 'About this skill'} className="contents">
+        <Panel title="About this skill" actions={view === 'cost' ? undefined : <AskAbout question={`What is ${name} for, and where does it sit in ${pluginName}'s method?`} />}>
           <KeyValue
             columns={2}
             items={[

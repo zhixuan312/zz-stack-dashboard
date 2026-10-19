@@ -52,11 +52,11 @@ import { runs } from '../scripts/fake-gateway/work-runs.ts';
  * number disagreed with its page would have the assistant quote a figure the person cannot find on the screen.
  *
  * Every context is also held to its budget. A view's context is the whole state every turn, so it may not grow with
- * the data: lists are cut and counted, and the text the model reads stays inside Meridian's 2,400 characters whatever
+ * the data: lists are cut and counted, and the text the model reads stays inside Meridian's 2,600 characters whatever
  * the platform holds. `extreme` is the fake gateway's busy platform: hundreds of rows and names longer than any layout
  * planned for.
  */
-const BUDGET = 2400;
+const BUDGET = 2600;
 const arrival = { updatedAt: '2026-10-12T09:00:00Z', now: '2026-10-12T09:01:00Z' };
 const fact = (c: SharedContext, label: string) => c.facts.find((f) => f.label === label)?.value;
 
@@ -93,7 +93,7 @@ const contexts: Record<string, () => SharedContext> = {
   releases: () => releasesContext(releases(10, 0), { filters: { page: '1' }, ...arrival }),
   release: () => releaseContext(releaseDetail('0.97.0')!, { asOf: arrival.now, ...arrival }),
   bugs: () => bugsContext(bugs(true, { state: null, impact: null, surface: null }, 10, 0), { filters: BUGS_DEFAULTS, ...arrival }),
-  bug: () => bugContext(bugReport('0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d01')!, duplicates('0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d01'), arrival),
+  bug: () => bugContext(bugReport('0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d01')!, duplicates('0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d01')),
   initiatives: () => initiativesContext(listOf(), { filters: ALL, page: 1, ...arrival }),
   initiative: () => initiativeContext(initiativeDetail('atlas', '2026-09-28-search-relevance')!, arrival),
   document: () => documentContext(documentDetail('atlas', '2026-09-28-search-relevance', 'spec.md')!, arrival),
@@ -129,7 +129,11 @@ describe('every view shares a context', () => {
     expect(c.view).toBe(name);
     expect(c.address.startsWith('/')).toBe(true);
     expect(c.scope).not.toBe('');
-    expect(c.freshness).toContain('fresh');
+    // A Platform page states its read's own cutoff, the time its masthead prints, and a release or a report, whose pages
+    // print none, no time at all (I-167, M-1); a Work page says how fresh its data is.
+    if (['teams', 'team', 'releases', 'bugs', 'people'].includes(name)) expect(c.freshness).toMatch(/^As of /);
+    else if (['release', 'bug'].includes(name)) expect(c.freshness).toBeUndefined();
+    else expect(c.freshness).toContain('fresh');
     expect(c.facts.length).toBeGreaterThan(0);
     // A figure with no unit or definition is a number the model has to guess the meaning of; every fact is a string
     // the screen could show, never `undefined` or a raw object.

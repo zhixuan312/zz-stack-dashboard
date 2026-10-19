@@ -142,7 +142,7 @@ a time or `sources/2026-10-06-call.md` arrives as a single segment named after i
   they act for, and of the platform's shared shelf, ranked, each result a matched excerpt with the address of the page
   that shows it. It is the one tool that reads content; every view and prepared query states titles, states and
   counts, and the Knowledge page's own field filters titles and opening excerpts. It has no page of its own, its
-  context is held to a view's 2,400 characters by sharing the room between results, and it takes no platform scope:
+  context is held to a view's 2,600 characters by sharing the room between results, and it takes no platform scope:
   the gateway refuses one team's search asked for as the fleet's. Set on 2026-10-12, when the Ask tab went: the
   answer the gateway used to write is the assistant's to write, over the same retrieval.
 - **The chrome is the release's, drawn from the server's answer.** The rail and the command palette are Meridian's

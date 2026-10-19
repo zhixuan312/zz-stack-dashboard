@@ -18,7 +18,7 @@ import { toast } from '@/components/ui/toast';
 import { aligned } from '@/console/columns';
 import { failureOf } from '@/console/query';
 import type { Revised } from '@/data/gateway';
-import { ApiError, useDataClock } from '@/lib/api';
+import { ApiError } from '@/lib/api';
 import type { TeamRow, Teams } from '@/lib/fleet-shapes';
 import { plural } from '@/lib/format';
 import { formatDateTime, formatRelative } from '@/lib/format-date';
@@ -99,7 +99,7 @@ function useTeams(served: TeamsRead | null, filters: TeamsFilters) {
   const data = q.data ?? (mine?.state === 'ok' ? mine.data : undefined);
   const failed = failureOf({ error });
   const trouble = data ? null : failed ?? (mine && mine.state !== 'ok' ? teamsTrouble(mine) : null);
-  return { data, trouble, retry, busy, updatedAt: q.data ? new Date(q.dataUpdatedAt) : data ? data.meta.asOf : null };
+  return { data, trouble, retry, busy };
 }
 
 /**
@@ -111,12 +111,11 @@ export function PlatformTeamsView({ served }: { served: Revised<TeamsRead> }) {
   useLive(['teams'], served.revisions);
   const [filters, set] = useServedAddress(TEAMS_DEFAULTS, served, filtersOfPath);
   const [draft, setDraft] = useSearchDraft(filters.q, (q) => set({ q, page: '1' }));
-  const { data, trouble, retry, busy, updatedAt } = useTeams(served, filters);
-  const now = useDataClock();
+  const { data, trouble, retry, busy } = useTeams(served, filters);
   const asOf = data?.meta.asOf;
   const columns = useMemo(() => columnsAt(asOf ?? ''), [asOf]);
   useShareView(data
-    ? teamsContext(data, { filters, updatedAt, now })
+    ? teamsContext(data, { filters })
     : pendingContext({ view: 'teams', title: 'Teams', address: '/platform/teams', scope: 'every team on the platform' }, trouble));
   const narrow = narrowed(filters);
   const clear = () => set({ q: '', status: 'all', page: '1' });

@@ -5,11 +5,11 @@ One knowledge node, read, with where it was learned and what shares its subject:
 ## Structure
 
 - Gate first: the page asks for `knowledge` before it renders, so a person who does not hold it is shown nothing of the page and nothing on it is read.
-- No Knowledge tabs: a node is a detail page, and its breadcrumb is the way back to Knowledge.
+- No Knowledge tabs: a node is a detail page, and its breadcrumb is the way back to Knowledge. The breadcrumb starts at the workspace, `ZZ Stack · Work / Knowledge / <team> · node <number>`, as every other Work page's does.
 - A neutral banner when the node is superseded, naming the node that replaced it and linking it when it is among the node's neighbours (a supersession needs nobody, so it wears no warning colour), and a banner when it is on the shared shelf.
 - The lesson, rendered, at the page's width; under it, About this node in two columns where there is room: status, shelf (`Your team` or `Shared`), type, team, recorded, learned in, tags, path. Nothing on the page changes a lesson.
 - Learned in: the initiatives of the team the reader acts for, each linked to its page on one line, never broken at a hyphen, and how many initiatives of other teams the lesson was learned in, a count with no name and no link (`cited_elsewhere`). A shared lesson cites other teams' work, which is theirs: the node's answer names only the reader's team's.
-- Nodes that share a tag: number, title, status, shared tags, recorded. A neighbour a later lesson replaced reads `Superseded` by the node that replaced it, a link where that node is listed too, so it is never read as current beside its successor; a current one reads `Adopted`.
+- Nodes that share a tag: number, title, status, shared tags, recorded. Every row opens its node, and a quiet arrow after its title says so where a still shows it. A neighbour a later lesson replaced reads `Superseded` by the node that replaced it, a link where that node is listed too, so it is never read as current beside its successor; a current one reads `Adopted`.
 
 ## States
 

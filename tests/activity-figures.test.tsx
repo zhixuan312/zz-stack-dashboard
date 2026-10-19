@@ -8,8 +8,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
  * floor, and the second of the table-led kind, after `teams-figures`.
  *
  * `cell()` is the same idea as the teams page's: read the header row for a column's position, then take that cell of the
- * row that carries `needle`. What this page adds is a derived value — the Actor column shows the local part of an
- * address, `jane.doe@example.com` becoming `jane.doe` — a refusal's owner in the words a person reads it in, and a
+ * row that carries `needle`. What this page adds is the Actor column's whole address, `jane.doe@example.com`, as every
+ * other page names a person, a refusal's owner in the words a person reads it in, and a
  * refusal recorded with no message said to have none rather than left blank. Above the log, last week's tiles are the
  * summary's own figures.
  *
@@ -101,12 +101,12 @@ describe('the figures on the activity page', () => {
     expect(document.body.textContent).toContain('core:document_edit, of 9');
   });
 
-  it('names the actor by the local part of the address the data carries', async () => {
+  it('names the actor by the whole address the data carries, as every other page names a person', async () => {
     mount();
     await waitFor(() => expect(document.body.textContent).toContain('document.patch'));
-    expect(cell('core:document_approve', 'Actor')).toBe('sam');
+    expect(cell('core:document_approve', 'Actor')).toBe('sam@example.com');
     // The other row, so the column is read per row rather than once for the page.
-    expect(cell('document.patch', 'Actor')).toBe('jane.doe');
+    expect(cell('document.patch', 'Actor')).toBe('jane.doe@example.com');
   });
 
   it('shows a result as its own word, and a refusal\'s owner in a person\'s words', async () => {

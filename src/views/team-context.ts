@@ -8,10 +8,10 @@
  */
 import type { TeamDetail } from '@/lib/fleet-shapes';
 import { plural } from '@/lib/format';
-import { formatDate, formatDay } from '@/lib/format-date';
+import { formatDate, formatDateTime, formatDay } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
-import { arrived, budgeted, clip, type Arrival } from './context';
+import { rostered } from './platform-roster';
 import { TEAMS_BOUND_MS, weekCount } from './teams-context';
 
 /** The team page's own read: the answer, no team by that slug, a failure, or no answer in time. */
@@ -21,7 +21,8 @@ export type TeamRead =
   | { state: 'failed'; reason: string }
   | { state: 'slow' };
 
-/** How many of its latest weeks and of its members the context states: what holds the budget for a team of forty. */
+/** How many of its latest weeks the context states, and of its members at most, each whole and as many as fit: what
+ *  holds the budget for a team of forty. */
 const WEEKS_TOLD = 12;
 const MEMBERS_TOLD = 12;
 
@@ -54,7 +55,7 @@ export function teamChanges(slug: string, status: TeamDetail['team']['status']):
 /** Whether the calls by week could not be read: the read keeps the team and its tiles, and says so of the weeks. */
 export const callsUnavailable = (t: TeamDetail): boolean => t.calls.some((w) => w.figure.why === 'unavailable');
 
-export function teamContext(slug: string, { team, ...arrival }: { team: TeamDetail } & Arrival): SharedContext {
+export function teamContext(slug: string, { team }: { team: TeamDetail }): SharedContext {
   const admins = team.members.filter((m) => m.role === 'admin');
   const complete = team.calls.filter((w) => w.window.complete);
   const running = team.calls.find((w) => !w.window.complete);
@@ -65,14 +66,15 @@ export function teamContext(slug: string, { team, ...arrival }: { team: TeamDeta
   if (recent.length && !unavailable) {
     insights.push({ text: `Real-work calls in the last ${recent.length} complete ${plural(recent.length, 'week')}, oldest first: ${recent.map((w) => `week of ${formatDay(w.window.from)} ${weekCount(w)}`).join('; ')}${running ? `; the week of ${formatDay(running.window.from)} is still running, ${weekCount(running)} so far` : ''}.` });
   }
-  if (team.members.length) insights.push({ text: `Its members, admins first: ${listed(team.members, (m) => `${clip(m.name || m.email, 40)} (${m.role}, joined ${formatDate(m.joined)})`, `see /platform/teams/${slug}`, MEMBERS_TOLD)}.` });
+  const roster = (n: number) => listed(team.members, (m) => `${m.name || m.email} (${m.role}, joined ${formatDate(m.joined)})`, `see /platform/teams/${slug}`, n);
+  const members = (n: number): Insight[] => (team.members.length ? [{ text: `Its members, admins first: ${roster(n)}.` }] : []);
   const last = complete.at(-1);
-  return budgeted({
+  return rostered((n) => ({
     view: 'team',
     title: `Team ${slug}`,
     address: `/platform/teams/${slug}`,
     scope: `${team.team.name !== slug ? `${team.team.name}, ` : ''}${team.team.status}, created ${formatDate(team.team.created)}`,
-    freshness: arrived(arrival),
+    freshness: `As of ${formatDateTime(team.meta.asOf)}.`,
     facts: [
       { label: TEAM_TILES.people.label, value: formatCount(team.tiles.people), change: `${admins.length} ${plural(admins.length, 'admin')}`, definition: TEAM_TILES.people.definition },
       { label: TEAM_TILES.openWork.label, value: formatCount(team.tiles.openWork), definition: TEAM_TILES.openWork.definition },
@@ -80,7 +82,7 @@ export function teamContext(slug: string, { team, ...arrival }: { team: TeamDeta
       { label: TEAM_TILES.lessons.label, value: formatCount(team.tiles.lessons), definition: TEAM_TILES.lessons.definition },
       ...(last ? [{ label: 'Calls last week', value: weekCount(last), change: `week of ${formatDay(last.window.from)}`, definition: 'Real-work tool calls the team made in the last complete Monday week.' }] : []),
     ],
-    insights,
+    insights: [...insights, ...members(n)],
     unknowns: [
       'The team is read against its own past only: nothing here compares it with another team.',
       teamChanges(slug, team.team.status),
@@ -89,5 +91,5 @@ export function teamContext(slug: string, { team, ...arrival }: { team: TeamDeta
       ...(team.calls.length ? [] : ['No week of calls is recorded yet.']),
       ...(team.members.length ? [] : ['Nobody is in this team.']),
     ],
-  });
+  }), roster, MEMBERS_TOLD);
 }

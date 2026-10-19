@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
-import { EyeOff, Hourglass, Inbox, Signature } from 'lucide-react';
+import { ArrowRight, EyeOff, Hourglass, Inbox, Signature } from 'lucide-react';
 import { useShareView } from '@/components/base/use-share-view';
 import { ColumnChart } from '@/components/charts/column-chart';
 import { AskAbout } from '@/components/patterns/ask-about';
@@ -24,7 +24,7 @@ import { formatCount } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
 import type { ApprovalRow, Approvals, WaitingRow } from '@/lib/work-shapes';
 import {
-  APPROVALS_DEFAULTS, DECISION_BASIS, IN_YOUR_NAME, PAGE_SIZE, PRESENTATION, TEAM_APPROVALS, TILES, approvalsAddress, approvalsContext,
+  APPROVALS_DEFAULTS, DECISION_BASIS, IN_YOUR_NAME, PAGE_SIZE, PRESENTATION, TEAM_APPROVALS, TILES, approvalsAddress, approvalsContext, approvedHref,
   approvalsPath, approvalsTrouble, approvedWhen, dayOnly, filtersOfPath, noPresentationLine, noPresentationNote, pageOf, tabOf, waited, type ApprovalsRead, type ApprovalsTab,
 } from '@/views/approvals-context';
 import { pendingContext } from '@/views/context';
@@ -119,16 +119,36 @@ function waitingColumns(hrefOf: ((r: WaitingRow) => string) | undefined, asOf: s
   ]);
 }
 
-/** A class the gateway gave an approval, whole on one line where the table is a table, the unknown quieter. */
-const classCell = (label: string, unknown: boolean) => <span className={`whitespace-nowrap @max-[640px]:whitespace-normal ${unknown ? 'text-ink-3' : 'text-ink'}`}>{label}</span>;
+/**
+ * A class the gateway gave an approval, whole on one line where the table is a table, the unknown quieter. `phone` is
+ * said after it on a phone's card alone, where its own column gives way.
+ */
+const classCell = (label: string, unknown: boolean, phone?: string) => (
+  <span className={`whitespace-nowrap @max-[640px]:whitespace-normal ${unknown ? 'text-ink-3' : 'text-ink'}`}>
+    {label}{phone ? <span className="hidden @max-[640px]:inline"> · {phone}</span> : null}
+  </span>
+);
+
+/**
+ * History's document: the file name, and a quiet arrow after it that says the row opens the version it names, as a row
+ * that opens a page does everywhere in the console. On a phone, where the version column gives way, the version follows
+ * the name, so the card still says which one was approved.
+ */
+const approvedDocumentCell = (r: ApprovalRow) => (
+  <span title={`${r.path} v${r.version}`} className="font-medium whitespace-nowrap text-ink @max-[640px]:whitespace-normal @max-[640px]:[overflow-wrap:anywhere]">
+    {r.path}<span className="hidden @max-[640px]:inline"> v{r.version}</span>{' '}
+    <ArrowRight data-goes aria-hidden className="inline size-3.5 shrink-0 align-[-0.15em] text-ink-3 group-hover/row:text-ink" />
+  </span>
+);
 
 /**
  * History's columns, newest first: the revision approved, when, and what the record holds of how, as the gateway
  * classified it, each class on one line ("Covered in / an agent's / context" stacked three high beside a half-empty
- * initiative column). Under 896px the version and the decision basis give way, both on the revision's page the row opens.
+ * initiative column). Under 896px the version and the decision basis give way as columns: the phone's card names the
+ * version after the file and the basis after the presentation.
  */
 const HISTORY_COLUMNS: Column<ApprovalRow>[] = aligned<ApprovalRow>([
-  { key: 'document', header: 'Document', mobile: 'title', cell: documentCell },
+  { key: 'document', header: 'Document', mobile: 'title', cell: approvedDocumentCell },
   { key: 'initiative', header: 'Initiative', align: 'left', grow: true, mobile: 'fact', cell: initiativeCell },
   { key: 'version', header: 'Version', hideBelow: 'lg', cell: (r) => <Revision version={r.version} contentRevision={r.contentRevision} />, title: (r) => `v${r.version}, ${r.contentRevision}` },
   {
@@ -139,10 +159,13 @@ const HISTORY_COLUMNS: Column<ApprovalRow>[] = aligned<ApprovalRow>([
         {dayOnly(r.approvedAt) ? <span className="t-caption block">Day only</span> : null}
       </span>
     ),
+    mobileCell: (r) => `Approved ${approvedWhen(r.approvedAt)}${dayOnly(r.approvedAt) ? ', day only' : ''}`,
   },
   {
     key: 'presentation', header: 'Presentation', mobile: 'fact', title: (r) => PRESENTATION[r.presentation].definition,
-    cell: (r) => classCell(PRESENTATION[r.presentation].label, r.presentation === 'unknown'),
+    // On a phone's card, where the basis column gives way, the basis follows the presentation on its line.
+    // "Unknown" alone after a presentation would read as the presentation's, so the basis names itself there.
+    cell: (r) => classCell(PRESENTATION[r.presentation].label, r.presentation === 'unknown', r.decisionBasis === 'unknown' ? 'Basis unknown' : DECISION_BASIS[r.decisionBasis].label),
   },
   {
     key: 'basis', header: 'Decision basis', hideBelow: 'lg', title: (r) => DECISION_BASIS[r.decisionBasis].definition,
@@ -151,11 +174,17 @@ const HISTORY_COLUMNS: Column<ApprovalRow>[] = aligned<ApprovalRow>([
 ]);
 
 /**
- * History's row on a phone: the initiative and when, then how it was shown on a line of its own, its dot gone, so no
- * line of the card starts with a separator. Children by position, in `HISTORY_COLUMNS`' order: the presentation is the
- * fifth cell.
+ * History's row on a phone: the file and its version, then three lines, each fact whole on its own: the initiative,
+ * when it was approved, and how it was shown with the basis it was decided on, wrapping where it is long. No line opens
+ * with a separator, and no date is left alone at the start of one ("· 25 Sept 2026, 02:00", Work M-5). Children by
+ * position, in `HISTORY_COLUMNS`' order: the initiative is the second cell, the approval the fourth, the presentation
+ * the fifth.
  */
-const HISTORY_PHONE_CARD = '@max-[640px]:[&_tbody_td:nth-child(5)]:!basis-full @max-[640px]:[&_tbody_td:nth-child(5)_[data-sep]]:!hidden';
+const HISTORY_PHONE_CARD = [
+  '@max-[640px]:[&_tbody_td:nth-child(2)]:!basis-full',
+  '@max-[640px]:[&_tbody_td:nth-child(4)]:!basis-full @max-[640px]:[&_tbody_td:nth-child(4)_[data-sep]]:!hidden',
+  '@max-[640px]:[&_tbody_td:nth-child(5)]:!basis-full @max-[640px]:[&_tbody_td:nth-child(5)]:!whitespace-normal @max-[640px]:[&_tbody_td:nth-child(5)_[data-sep]]:!hidden',
+].join(' ');
 
 /** A count's tick, whole only: a scale of one approval steps by halves, and a count has no half, so that line goes unnamed. */
 const wholeTick = (n: number) => (Number.isInteger(n) ? AXIS_FORMATTERS.count(n) : '');
@@ -241,7 +270,7 @@ export function ApprovalsView({ served }: { served: Revised<ApprovalsRead> }) {
             rows={list?.state === 'ok' ? (list.data.rows as ApprovalRow[]) : []}
             columns={HISTORY_COLUMNS}
             rowKey={(r) => `${r.contentRevision}:${r.approvedAt}`}
-            rowHref={team ? (r) => `/initiatives/${team}/${r.initiative}/${r.path}` : undefined}
+            rowHref={team ? (r) => approvedHref(team, r) : undefined}
             empty={{ title: 'No approval in your name yet', body: 'An approval appears here once a revision of this team is approved in your name; a teammate\'s never does.' }}
           />
         )}

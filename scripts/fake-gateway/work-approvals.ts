@@ -1,86 +1,113 @@
 /**
  * The fake gateway's approvals: what `GET /api/console/approvals?tab=waiting|history&limit&offset` answers.
  *
- * One fixture of two lists. Waiting is the team's queue, the revisions presented and not approved in its open work,
- * which nothing records as anybody's in particular; History is every approval with its signer, and a caller reads only
- * the ones signed in their own name, in their active team. Both people act for atlas, so both read one queue and two
- * different histories: neither reads the other's approvals, and an approval somebody signed in beacon is read by
- * nobody acting for atlas.
+ * One record, the documents' own. Waiting is the team's queue, the revisions presented and not approved in its open
+ * work, each read off its document as the store holds it now, which nothing records as anybody's in particular; History
+ * is every approval the documents' versions record (work.ts), with its signer, its snapshot and when it was made, and a
+ * caller reads only the ones signed in their own name, in their active team. So an approval on Approvals is the one its
+ * document's page names, by the same person, at the same time, of a version written before it (Work M-1). Both people
+ * act for atlas, so both read one queue and two different histories: neither reads the other's approvals, and an
+ * approval somebody signed in beacon is read by nobody acting for atlas.
  *
- * The rows cover the states the page draws: a revision waiting longer than 14 days, every class of presentation
- * (shown in the console, covered in an agent's context, a context that covered nothing of it, and an approval sealed
- * before the events began, dated by its day alone), both recorded decision bases and the unknown one, and more than ten
- * approvals in the superadmin's name so History pages. A journey session's approval leaves its queue and joins its
- * history, for that session alone (journey.ts).
+ * What the documents do not hold is the approval's evidence, where it was shown and on what basis it was decided, which
+ * the gateway classifies from the approval's review context; that is `EVIDENCE` below, one entry per approved version.
+ * An approval made before presentations were recorded (`coverageFrom`, the first week's start) is read from its
+ * revision, dated by its day alone, and nothing is known of how it was shown.
+ *
+ * The rows cover the states the page draws: a revision waiting longer than 14 days, every class of presentation, both
+ * recorded decision bases and the unknown one, and more than ten approvals in the superadmin's name so History pages,
+ * the one sealed before the events began on its second page. A journey session's approval leaves its queue and joins
+ * its history, for that session alone (journey.ts).
  *
  * COUPLED: zz-stack's `checks/console-work-approvals.ts` imports this file with plain `node` and compares its key sets
  * with the real route's answer. So nothing here is imported through the console's path alias.
  */
-import { createHash } from 'node:crypto';
 import type { DocumentDetail, Me } from '../../src/lib/api-shapes.ts';
 import type { PeriodFigure } from '../../src/lib/platform-shapes.ts';
 import type { ApprovalEvidence, ApprovalRow, Approvals, WaitingRow } from '../../src/lib/work-shapes.ts';
 import { ago } from './clock.ts';
 import { kept } from './journey.ts';
-import { WEEKS, inWeek, iso, tally, workMeta } from './work-initiatives.ts';
-import { documentDetail } from './work.ts';
+import { WEEKS, tally, workMeta } from './work-initiatives.ts';
+import { INITIATIVES, contentRevisionOf, documentDetail, initiativeDetail } from './work.ts';
 
 type Answer = [status: number, body: unknown];
 
-const AVA = 'ava.lindqvist@example.com';
-const NOAH = 'noah.okafor@example.com';
-
-/** A content revision as zz-core names one: `cr_` and 26 base32 characters, one per snapshot, here of sha256 of its
- *  number, as `contentRevisionOf` derives a document's (a padded number read "aaaaaaaa" under every version). */
-function cr(n: number): string {
-  const ALPHABET = 'abcdefghijklmnopqrstuvwxyz234567';
-  const bytes = createHash('sha256').update(`approval:${n}`).digest();
-  let out = '';
-  for (let i = 0; out.length < 26; i++) out += ALPHABET[bytes[i] % 32];
-  return `cr_${out}`;
-}
-
-/** The revisions presented and not approved in each team's open work, oldest wait first. */
-const QUEUE: (WaitingRow & { team: string })[] = [
-  { team: 'atlas', initiative: '2026-10-04-index-rebuild', path: 'spec.md', version: 1, contentRevision: cr(11), waitingSince: ago(17 * 24) },
-  { team: 'atlas', initiative: '2026-10-02-query-latency', path: 'spec.md', version: 1, contentRevision: cr(12), waitingSince: ago(70) },
-  { team: 'atlas', initiative: '2026-10-03-ranking-weights', path: 'spec.md', version: 2, contentRevision: cr(13), waitingSince: ago(30) },
-  { team: 'atlas', initiative: '2026-09-28-search-relevance', path: 'plan.md', version: 1, contentRevision: cr(14), waitingSince: ago(2) },
-  { team: 'beacon', initiative: '2026-09-30-refund-flow', path: 'spec.md', version: 1, contentRevision: cr(15), waitingSince: ago(9) },
+/** The revisions presented and not approved in each team's open work, oldest wait first: the document and when it was
+ *  presented. Its version and content revision are the document's own, as the store holds it when the queue is read. */
+const QUEUE: { team: string; initiative: string; path: string; waitingSince: string }[] = [
+  { team: 'atlas', initiative: '2026-10-04-index-rebuild', path: 'spec.md', waitingSince: ago(17 * 24) },
+  { team: 'atlas', initiative: '2026-10-02-query-latency', path: 'spec.md', waitingSince: ago(70) },
+  { team: 'atlas', initiative: '2026-10-03-ranking-weights', path: 'spec.md', waitingSince: ago(30) },
+  { team: 'atlas', initiative: '2026-09-28-search-relevance', path: 'plan.md', waitingSince: ago(2) },
+  { team: 'beacon', initiative: '2026-09-30-refund-flow', path: 'spec.md', waitingSince: ago(9) },
 ];
+
+type Evidence = [presentation: ApprovalEvidence['presentation'], decisionBasis: ApprovalEvidence['decisionBasis']];
+
+/**
+ * How each approved version was shown and decided, as the gateway classifies it, by `<initiative>/<path>@v<version>`.
+ * One sealed before presentations were recorded is unknown whatever it says here, so it has no entry.
+ */
+const EVIDENCE: Record<string, Evidence> = {
+  '2026-09-28-search-relevance/spec.md@v3': ['console_revision_shown', 'explicit_recorded'],
+  '2026-10-08-result-explanations/spec.md@v1': ['console_revision_shown', 'explicit_recorded'],
+  '2026-10-08-result-explanations/plan.md@v1': ['agent_context_covered', 'standing_delegation_recorded'],
+  '2026-10-08-result-explanations/review.md@v1': ['console_revision_shown', 'explicit_recorded'],
+  '2026-09-12-onboarding-revamp/spec.md@v1': ['agent_context_covered', 'explicit_recorded'],
+  '2026-09-12-onboarding-revamp/plan.md@v1': ['not_recorded', 'explicit_recorded'],
+  '2026-09-12-onboarding-revamp/review.md@v1': ['console_revision_shown', 'explicit_recorded'],
+  '2026-09-12-onboarding-revamp/handover.md@v1': ['agent_context_covered', 'explicit_recorded'],
+  '2026-09-15-tagging-model/spec.md@v1': ['agent_context_covered', 'explicit_recorded'],
+  '2026-08-25-eval-harness/spec.md@v1': ['agent_context_covered', 'explicit_recorded'],
+  '2026-08-25-eval-harness/plan.md@v1': ['agent_context_covered', 'standing_delegation_recorded'],
+  '2026-08-25-eval-harness/review.md@v1': ['agent_context_covered', 'standing_delegation_recorded'],
+  '2026-08-25-eval-harness/handover.md@v1': ['not_recorded', 'unknown'],
+  '2026-08-14-citation-graph/plan.md@v1': ['console_revision_shown', 'explicit_recorded'],
+  '2026-08-14-citation-graph/review.md@v1': ['agent_context_covered', 'explicit_recorded'],
+  '2026-08-14-citation-graph/handover.md@v1': ['agent_context_covered', 'unknown'],
+};
+
+/** When presentations began to be recorded: an approval before it is read from its revision, by its day alone. */
+const COVERAGE_FROM = WEEKS[0].from;
 
 type Signed = ApprovalRow & { team: string; signer: string };
-const signed = (team: string, signer: string, initiative: string, path: string, version: number, n: number, at: string,
-  presentation: ApprovalEvidence['presentation'], decisionBasis: ApprovalEvidence['decisionBasis']): Signed =>
-  ({ team, signer, initiative, path, version, contentRevision: cr(n), approvedAt: at, presentation, decisionBasis });
-const week = (back: number, hours: number) => iso(inWeek(back, hours));
 
-/** Every approval, newest first, with the person it was signed in the name of. One signed on somebody's behalf is
- *  theirs, so it carries their address and not the one of whoever pressed. */
-const SIGNED: Signed[] = [
-  signed('atlas', AVA, '2026-10-08-result-explanations', 'review.md', 1, 31, week(0, 0), 'console_revision_shown', 'explicit_recorded'),
-  signed('atlas', AVA, '2026-10-08-result-explanations', 'plan.md', 2, 32, week(1, 100), 'agent_context_covered', 'standing_delegation_recorded'),
-  signed('atlas', NOAH, '2026-10-08-result-explanations', 'spec.md', 1, 33, week(1, 60), 'console_revision_shown', 'explicit_recorded'),
-  signed('atlas', AVA, '2026-09-28-search-relevance', 'spec.md', 3, 34, week(1, 30), 'console_revision_shown', 'explicit_recorded'),
-  signed('atlas', AVA, '2026-08-02-ingest-pipeline', 'spec.md', 1, 35, week(2, 120), 'not_recorded', 'explicit_recorded'),
-  signed('atlas', AVA, '2026-09-28-search-relevance', 'spec.md', 2, 45, week(2, 80), 'agent_context_covered', 'explicit_recorded'),
-  signed('atlas', AVA, '2026-09-15-tagging-model', 'spec.md', 1, 36, week(2, 40), 'agent_context_covered', 'explicit_recorded'),
-  signed('atlas', NOAH, '2026-08-25-eval-harness', 'review.md', 2, 37, week(3, 50), 'agent_context_covered', 'standing_delegation_recorded'),
-  signed('atlas', AVA, '2026-08-25-eval-harness', 'plan.md', 1, 38, week(3, 20), 'not_recorded', 'standing_delegation_recorded'),
-  signed('atlas', AVA, '2026-09-12-onboarding-revamp', 'plan.md', 1, 39, week(4, 90), 'agent_context_covered', 'unknown'),
-  signed('atlas', AVA, '2026-09-12-onboarding-revamp', 'spec.md', 1, 40, week(4, 30), 'console_revision_shown', 'explicit_recorded'),
-  signed('atlas', NOAH, '2026-08-14-citation-graph', 'plan.md', 1, 41, week(5, 70), 'not_recorded', 'unknown'),
-  signed('atlas', AVA, '2026-08-14-citation-graph', 'spec.md', 2, 42, week(5, 10), 'agent_context_covered', 'explicit_recorded'),
-  // Sealed before the events began, two days after its initiative opened: read from the revision, dated by its day,
-  // and nothing known of how.
-  signed('atlas', AVA, '2026-08-14-citation-graph', 'explore.md', 1, 43, week(7, 68).slice(0, 10), 'unknown', 'unknown'),
-  signed('beacon', AVA, '2026-09-22-payout-schedule', 'spec.md', 1, 44, week(2, 15), 'console_revision_shown', 'explicit_recorded'),
-];
+/**
+ * Every approval the documents of `team` record, newest first: each version approved, and each approval a later row
+ * of its version superseded, with the snapshot approved, its signer and when. One signed on somebody's behalf is theirs,
+ * so it carries their address and not the one of whoever pressed; one the record names nobody for is nobody's history.
+ */
+export function approvalsOf(team: string | null): Signed[] {
+  const out: Signed[] = [];
+  for (const i of INITIATIVES.filter((x) => x.team === team)) {
+    for (const row of initiativeDetail(i.team, i.slug)!.documents.filter((x) => x.gated)) {
+      const d = documentDetail(i.team, i.slug, row.path)!;
+      for (const v of d.versions) {
+        const sealed = v.status === 'approved' ? null : v.superseded_approved;
+        if (v.status !== 'approved' && !sealed) continue;
+        const signer = sealed ? sealed.approved_by : v.approved_by;
+        const at = sealed ? sealed.approved_at : v.updated_at;
+        if (!signer || !at) continue;
+        const revision = sealed ? sealed.revision : v.revision;
+        const before = at < COVERAGE_FROM;
+        const [presentation, decisionBasis] = before ? ['unknown', 'unknown'] as Evidence : EVIDENCE[`${i.slug}/${row.path}@v${v.version}`] ?? ['unknown', 'unknown'];
+        out.push({
+          team: i.team, signer, initiative: i.slug, path: row.path, version: v.version,
+          contentRevision: sealed?.content_revision ?? contentRevisionOf(i.team, i.slug, row.path, revision),
+          approvedAt: before ? at.slice(0, 10) : at, presentation, decisionBasis,
+        });
+      }
+    }
+  }
+  // Newest first; one dated by its day alone is read at that day's midnight.
+  const ms = (a: Signed) => Date.parse(a.approvedAt.length === 10 ? `${a.approvedAt}T00:00:00Z` : a.approvedAt);
+  return out.sort((a, b) => ms(b) - ms(a) || a.initiative.localeCompare(b.initiative) || a.path.localeCompare(b.path));
+}
 
 /** When `team` first had a document approved, by anyone: the earliest approval, one dated by its day alone at that
  *  day's midnight, as Record's firsts read it; null with none. */
 export function firstApproval(team: string | null): number | null {
-  const at = SIGNED.filter((a) => a.team === team).map((a) => Date.parse(a.approvedAt.length === 10 ? `${a.approvedAt}T00:00:00Z` : a.approvedAt));
+  const at = approvalsOf(team).map((a) => Date.parse(a.approvedAt.length === 10 ? `${a.approvedAt}T00:00:00Z` : a.approvedAt));
   return at.length ? Math.min(...at) : null;
 }
 
@@ -90,15 +117,16 @@ const approvedIn = (team: string | null) => (kept()?.approved ?? []).filter((a) 
 /** The queue of `team`, oldest wait first, less what a journey session approved of it. */
 export const waitingOf = (team: string | null): WaitingRow[] => QUEUE
   .filter((w) => w.team === team && !approvedIn(team).some((a) => a.initiative === w.initiative && a.path === w.path))
-  .map(({ team: _, ...w }) => w);
+  .map(({ team: t, initiative, path, waitingSince }) => {
+    const d = documentDetail(t, initiative, path)!;
+    return { initiative, path, version: d.current_version, contentRevision: d.content_revision, waitingSince };
+  });
 
 /** A journey's approval as History reads it: shown in the console and approved there, the revision the queue held. */
 function keptRow(a: { team: string; initiative: string; path: string; at: string }): ApprovalRow {
-  const queued = QUEUE.find((w) => w.team === a.team && w.initiative === a.initiative && w.path === a.path);
-  const doc = documentDetail(a.team, a.initiative, a.path);
+  const doc = documentDetail(a.team, a.initiative, a.path)!;
   return {
-    initiative: a.initiative, path: a.path, version: queued?.version ?? doc?.current_version ?? 1,
-    contentRevision: queued?.contentRevision ?? doc?.content_revision ?? cr(0), approvedAt: a.at,
+    initiative: a.initiative, path: a.path, version: doc.current_version, contentRevision: doc.content_revision, approvedAt: a.at,
     presentation: 'console_revision_shown', decisionBasis: 'explicit_recorded',
   };
 }
@@ -112,7 +140,7 @@ export function documentAsKept(d: DocumentDetail | null): DocumentDetail | null 
 /** The approvals signed in `email`'s name in `team`, newest first: what History, Home and Record count. */
 export const callerApprovalRows = (team: string | null, email: string): ApprovalRow[] => [
   ...approvedIn(team).filter((a) => a.signer === email).map(keptRow),
-  ...SIGNED.filter((a) => a.team === team && a.signer === email).map(({ team: _, signer: __, ...a }) => a),
+  ...approvalsOf(team).filter((a) => a.signer === email).map(({ team: _, signer: __, ...a }) => a),
 ];
 
 /** Those approvals by week, the running one not complete; one dated by its day alone falls in the week of that day. */

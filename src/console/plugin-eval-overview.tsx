@@ -10,6 +10,7 @@ import { formatCount } from '@/lib/format-units';
 import type { DimensionScore, PluginEval, PluginEvalFound } from '@/lib/api-shapes';
 import type { PluginScore } from '@/lib/destination-shapes';
 import { formatDate } from '@/lib/format-date';
+import { contributionsOf, outOfTen, rebuiltSaid, shareSaid } from '@/views/eval-score';
 import { standingSaid, wordsOf } from '@/views/plugins-context';
 
 type Run = NonNullable<PluginEvalFound['run']>;
@@ -113,12 +114,6 @@ export function EvalHeadline({ pluginEval, lead = null }: { pluginEval: PluginEv
 const GUARDRAIL_SAID = { pass: 'All held', fail: 'A guardrail broke', not_established: 'Not established' } as const;
 const GUARDRAIL_TONE = { pass: 'positive', fail: 'critical', not_established: 'neutral' } as const;
 
-/**
- * A measure's value as a person reads it: every value the scorer keeps is in [0, 1] (`scoreRun` refuses anything else),
- * so it is a share, and a share is a percent: `0.0310` reads "3.1%".
- */
-const shareOf = (v: number): string => `${(v * 100).toFixed(1)}%`;
-
 /** Health: whether this run's non-compensatory guardrails held (FR-23) — the number stays for
  *  diagnosis, but a fail never disappears into the average above. A guardrail is a measure the
  *  protocol flags as one, read where it sits in its dimension; the run's `guardrailStatus` is the
@@ -152,7 +147,7 @@ export function EvalHealth({ run }: { run: Run | null }) {
                 <TableCell className="text-sm whitespace-nowrap" title={g.key}>{wordsOf(g.key)}</TableCell>
                 <TableCell hideBelow="sm" align="center" className="text-xs whitespace-nowrap text-ink-2" title={g.dimension}>{wordsOf(g.dimension)}</TableCell>
                 <TableCell align="right" className="tabular-nums text-xs">
-                  {g.value === null ? <span className="text-ink-3">{g.excludedReason ?? 'Not measured'}</span> : shareOf(g.value)}
+                  {g.value === null ? <span className="text-ink-3">{g.excludedReason ?? 'Not measured'}</span> : shareSaid(g.value)}
                 </TableCell>
               </TableRow>
             ))}
@@ -162,28 +157,6 @@ export function EvalHealth({ run }: { run: Run | null }) {
     </Panel>
   );
 }
-
-/**
- * Each scored dimension's points of the overall score, in tenths, as `scoreRun` (zz-core's eval/score.ts) adds them:
- * the overall is 10 × the weighted mean over the applicable dimensions that scored, re-normalised, so a dimension
- * counts `weight / counted` of it, `counted` being the weight of those dimensions. A not-applicable or unscored one's
- * weight is shared out, never a zero. Rounded so the parts sum to their whole rounded: largest remainders first.
- */
-export function contributionsOf(dimensions: DimensionScore[]): { parts: { key: string; tenths: number }[]; counted: number; declared: number } {
-  const scored = dimensions.filter((d) => d.applicable && d.score !== null);
-  const counted = scored.reduce((n, d) => n + d.weight, 0);
-  const declared = dimensions.reduce((n, d) => n + d.weight, 0);
-  if (!(counted > 0)) return { parts: [], counted: 0, declared };
-  const raw = scored.map((d) => (100 * d.weight * d.score!) / counted);
-  const whole = Math.round(raw.reduce((a, b) => a + b, 0));
-  const tenths = raw.map(Math.floor);
-  const order = raw.map((_, i) => i).sort((a, b) => (raw[b] - tenths[b]) - (raw[a] - tenths[a]) || a - b);
-  for (let left = whole - tenths.reduce((a, b) => a + b, 0), k = 0; left > 0; left--, k++) tenths[order[k % order.length]] += 1;
-  return { parts: scored.map((d, i) => ({ key: d.key, tenths: tenths[i] })), counted, declared };
-}
-
-/** A weight as a share, to a whole percent where it is one: `25%`, `33.3%`. */
-const weightSaid = (w: number): string => `${Math.round(w * 1000) / 10}%`;
 
 /**
  * Quality: the six canonical dimensions (FR-19), each dimension's share of the overall score as
@@ -206,10 +179,8 @@ export function EvalQuality({ run }: { run: Run | null }) {
   /* A dimension whose every measure was excluded has no score, and `scoreRun` leaves it OUT of the
      overall mean rather than counting it as zero — so the bar leaves it out too. Drawn as a part it
      would read "contributed nothing", beside a table row that says the truer "not scored". */
-  const { parts: points, counted, declared } = contributionsOf(run.dimensions);
+  const { parts: points } = contributionsOf(run.dimensions);
   const parts = points.map((p) => ({ label: wordsOf(p.key), value: p.tenths }));
-  const sum = points.reduce((n, p) => n + p.tenths, 0);
-  const left = run.dimensions.filter((d) => !d.applicable || d.score === null);
   const leftOut = [
     ...notApplicable.map((d) => `${wordsOf(d.key)}: ${d.notApplicableReason ?? 'no reason recorded'}`),
     ...applicable.flatMap((d) => (d.score === null ? [`${wordsOf(d.key)}: no measure scored, ${formatCount(d.measuresScored)} of ${formatCount(d.measuresTotal)}`] : [])),
@@ -226,12 +197,7 @@ export function EvalQuality({ run }: { run: Run | null }) {
             parts={parts}
             format={(v) => (v / 10).toFixed(1)}
           />
-          <p className="t-caption mt-3">
-            {left.length && counted < declared
-              ? `${left.map((d) => wordsOf(d.key)).join(' and ')} ${left.length === 1 ? 'is' : 'are'} left out, as the table says, so ${left.length === 1 ? 'its' : 'their'} ${weightSaid(declared - counted)} is shared out over the ${parts.length} that count: each part is its score times its weight over ${weightSaid(counted)}. `
-              : 'Each part is its score times its weight. '}
-            {`${parts.map((p) => (p.value / 10).toFixed(1)).join(' + ')} = ${(sum / 10).toFixed(1)} out of ${SCORE_OUT_OF}.`}
-          </p>
+          <p className="t-caption mt-3">{rebuiltSaid(run.dimensions)}</p>
         </>
       ) : <p className="py-2 text-sm text-ink-3">No dimension has a score, so there is no contribution to draw.</p>}
       <Table className="mt-4">
@@ -255,7 +221,7 @@ export function EvalQuality({ run }: { run: Run | null }) {
               <TableCell align="center" className="tabular-nums">
                 {/* A dimension's score is a share in [0, 1] and the overall is 10 × the weighted sum, so it reads out of 10. */}
                 {d.applicable
-                  ? (d.score === null ? <span className="text-ink-3">Not scored</span> : (d.score * 10).toFixed(1))
+                  ? (d.score === null ? <span className="text-ink-3">Not scored</span> : outOfTen(d.score))
                   : <span className="text-ink-3" title={d.notApplicableReason ?? undefined}>Not applicable</span>}
               </TableCell>
               <TableCell hideBelow="sm" align="center" className="tabular-nums text-xs">{formatPercent(d.weight)}</TableCell>

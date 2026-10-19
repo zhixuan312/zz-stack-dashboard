@@ -10,10 +10,11 @@
 import type { People, PersonRow } from '@/lib/fleet-shapes';
 import type { Figure, PeriodFigure, ReadMeta, Window } from '@/lib/platform-shapes';
 import { plural } from '@/lib/format';
-import { formatDate } from '@/lib/format-date';
+import { formatDate, formatDateTime } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
-import { addressOf, arrived, budgeted, clip, type Arrival } from './context';
+import { addressOf } from './context';
+import { rostered } from './platform-roster';
 import { PAGE_SIZE, PEOPLE_DEFAULTS, narrowed, pageOf, type PeopleFilters, type PeopleRows } from './people-filter';
 
 /**
@@ -64,16 +65,16 @@ export function peopleTrouble(read: Exclude<PeopleRead, { state: 'ok' }>): strin
 }
 
 /** How a person is named to the assistant: their name, never their address. */
-const nameOf = (p: Pick<PersonRow, 'name'>): string => (p.name.trim() ? clip(p.name.trim()) : 'a person with no name recorded');
+const nameOf = (p: Pick<PersonRow, 'name'>): string => (p.name.trim() ? p.name.trim() : 'a person with no name recorded');
 
-/** How many people of a page the context names, and says how many more: ten is a whole page at any length of name. */
+/** How many people of a page the context names at most, each whole, and says how many more: the page's ten, as many as fit. */
 const NAMED = 10;
 
 /**
  * `filters` is the page's address. `read` is how `view_people` read the rows, by the route's `limit` and `offset`, when
  * it did: the address is then the page of ten the offset falls in, and rows off the page's grid are said to be so.
  */
-export function peopleContext(data: PeopleShown, { filters, read, ...arrival }: { filters: PeopleFilters; read?: PeopleRows } & Arrival): SharedContext {
+export function peopleContext(data: PeopleShown, { filters, read }: { filters: PeopleFilters; read?: PeopleRows }): SharedContext {
   const page = pageOf(filters);
   const rows = data.people;
   const first = read ? read.offset : (page - 1) * PAGE_SIZE;
@@ -85,15 +86,16 @@ export function peopleContext(data: PeopleShown, { filters, read, ...arrival }: 
     + (rows.length ? `; rows ${first + 1} to ${first + rows.length} of ${formatCount(data.total)}` : '');
   const week = data.tiles.signInsLastWeek;
   const signIns = signInsValue(week);
-  const insights: Insight[] = rows.length
-    ? [{ text: `The people on this page, by the day they were added, each with their state: ${listed(rows, (p) => `${nameOf(p)} (${p.state})`, 'see the page', NAMED)}.`, evidence: address }]
-    : [];
-  return budgeted({
+  const roster = (n: number) => listed(rows, (p) => `${nameOf(p)} (${p.state})`, 'see the page', n);
+  const insights = (n: number): Insight[] => (rows.length
+    ? [{ text: `The people on this page, by the day they were added, each with their state: ${roster(n)}.`, evidence: address }]
+    : []);
+  return rostered((n) => ({
     view: 'people',
     title: 'People',
     address,
     scope,
-    freshness: arrived(arrival),
+    freshness: `As of ${formatDateTime(data.meta.asOf)}.`,
     facts: [
       { label: TILES.people.label, value: formatCount(data.tiles.people), definition: TILES.people.definition },
       { label: TILES.withPasskey.label, value: formatCount(data.tiles.withPasskey), definition: TILES.withPasskey.definition },
@@ -101,9 +103,9 @@ export function peopleContext(data: PeopleShown, { filters, read, ...arrival }: 
       { label: TILES.signInsLastWeek.label, value: typeof signIns === 'number' ? formatCount(signIns) : signIns, definition: `${TILES.signInsLastWeek.definition} The week of ${formatDate(week.window.from)}.` },
       ...(narrow ? [{ label: 'Matching', value: formatCount(data.total), definition: 'The people the filters let through; the tiles count everybody.' }] : []),
     ],
-    insights,
+    insights: insights(n),
     unknowns: [
-      'People are named here by name and state alone: their addresses, their tokens and any enrolment link are not part of this context.',
+      'People are named here by name and state alone: each person\'s role, teams, passkeys and last sign-in are on the page and not here, and explore_people counts and lists people by role and state; their addresses, their tokens and any enrolment link are not part of this context.',
       PEOPLE_CHANGES,
       `A person with no sign-in on record reads "${NO_SIGN_IN}": the record holds none, which is not a date and not a zero.`,
       ...(week.figure.why === 'unavailable' ? ['The sign-ins could not be counted, so last week\'s figure is not stated.'] : []),
@@ -112,5 +114,5 @@ export function peopleContext(data: PeopleShown, { filters, read, ...arrival }: 
       ...(data.total > first + rows.length ? [`${formatCount(data.total - first - rows.length)} more ${plural(data.total - first - rows.length, 'person', 'people')} match on later pages.`] : []),
       ...(rows.length ? [] : [narrow ? 'Nobody matches these filters.' : 'Nobody has been added yet; a superadmin adds the first person on this page.']),
     ],
-  });
+  }), roster, NAMED);
 }

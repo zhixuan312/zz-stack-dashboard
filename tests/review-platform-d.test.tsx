@@ -84,14 +84,14 @@ describe('Releases and a release', () => {
     for (const row of table().querySelectorAll('tbody tr')) expect(row.lastElementChild!.className).not.toMatch(/hidden/);
   });
 
-  it('holds every side of a window on one line, a word after a colon and in lower case (F-8, N-5)', () => {
+  it('holds every side of a window on one line, a word as a figure is, after its label and in lower case (F-8, N-5)', () => {
     mount(<PlatformReleasesView served={served} />);
     const sides = [...table().querySelectorAll<HTMLElement>('[data-side]')];
     expect(sides.length).toBeGreaterThan(0);
     for (const s of sides) expect(s.classList, s.textContent!).toContain('whitespace-nowrap');
     const text = (v: string) => [...releaseRow(table(), v).querySelectorAll('td:not([data-mobile="title"]) [data-side]')].map((s) => s.textContent);
-    expect(text(OLDEST)).toContain('Before: not observed');
-    expect(text(QUIET)).toContain('After: no calls');
+    expect(text(OLDEST)).toContain('Before not observed');
+    expect(text(QUIET)).toContain('After no calls');
     expect(text(NEWEST)[0]).toMatch(/^Before \d/);
   });
 
@@ -99,7 +99,7 @@ describe('Releases and a release', () => {
     mount(<PlatformReleasesView served={served} />);
     const title = (v: string) => releaseRow(table(), v).querySelector('td[data-mobile="title"]')!.textContent!;
     expect(title(QUIET)).toMatch(/[\d.]+ before; no calls after/);
-    expect(title(OLDEST)).toMatch(/Not observed before; [\d.]+ after \(partial\)/);
+    expect(title(OLDEST)).toMatch(/not observed before; [\d.]+ after \(partial\)/);
     expect(title(OLDEST)).toContain('Clients: Not recorded');
     const clients = [...table().querySelectorAll('td[data-mobile="title"] span')].map((l) => l.textContent!).filter((t) => t.startsWith('Clients:'));
     expect(clients).toHaveLength(ROWS.length);
@@ -112,7 +112,7 @@ describe('Releases and a release', () => {
     mount(<PlatformReleaseView version={OLDEST} served={{ state: 'ok', data: r }} />);
     expect(document.body.textContent).toContain('Not recorded');
     expect(document.body.textContent).not.toMatch(/Unknown/);
-    const told = JSON.stringify(releaseContext(r, { asOf: LIST.meta.asOf, updatedAt: null, now: new Date() }));
+    const told = JSON.stringify(releaseContext(r, { asOf: LIST.meta.asOf }));
     expect(told).not.toMatch(/Unknown/);
   });
 

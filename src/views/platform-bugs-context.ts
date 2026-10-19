@@ -21,7 +21,8 @@ import { plural } from '@/lib/format';
 import { formatDateTime, formatDay } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { listed, type Fact, type Insight, type SharedContext } from '@/lib/shared-context';
-import { addressOf, arrived, budgeted, clip, type Arrival } from './context';
+import { addressOf, clip } from './context';
+import { rostered } from './platform-roster';
 
 type Impact = PublicBugRow['impact'];
 type Status = PublicBugRow['status'];
@@ -210,7 +211,7 @@ function rowLine(r: PublicBugRow): string {
   const resolved = r.resolvedAt ? ` on ${formatDay(r.resolvedAt)}` : '';
   const state = `${statusOf(r.status).toLowerCase()}${resolved}`;
   if (!isAdminRow(r)) return `${r.title}, ${state}`;
-  return `${clip(r.internalTitle, 48)} (${clip(r.team ?? 'no team', 24)}): ${impactOf(r.impact).toLowerCase()}, ${r.surface ?? 'no surface named'}, filed ${formatDay(r.filedAt)}, ${state}`;
+  return `${r.internalTitle} (${r.team ?? 'no team'}): ${impactOf(r.impact).toLowerCase()}, ${r.surface ?? 'no surface named'}, filed ${formatDay(r.filedAt)}, ${state}`;
 }
 
 function weeksLine(cohorts: Cohort[], asOf: string): string | null {
@@ -257,7 +258,7 @@ function tileFacts(data: Bugs): Fact[] {
  * `filters` is the page's address. `read` is how `view_bugs` read the rows, by the route's `limit` and `offset`, when it
  * did: the address is then the page of ten the offset falls in, and rows off the page's grid are said to be so.
  */
-export function bugsContext(data: Bugs, { filters, read, ...arrival }: { filters: BugsFilters; read?: BugsRows } & Arrival): SharedContext {
+export function bugsContext(data: Bugs, { filters, read }: { filters: BugsFilters; read?: BugsRows }): SharedContext {
   const page = pageOf(filters);
   const first = read ? read.offset : (page - 1) * PAGE_SIZE;
   const onGrid = !read || (read.limit === PAGE_SIZE && read.offset % PAGE_SIZE === 0);
@@ -266,9 +267,10 @@ export function bugsContext(data: Bugs, { filters, read, ...arrival }: { filters
   const queue = data.queue;
   const rows = queue.state === 'ok' ? queue.data.rows : [];
   const total = queue.state === 'ok' ? queue.data.total : null;
-  const insights: Insight[] = [];
+  const roster = (n: number) => listed(rows, rowLine, 'see the page', n);
   // The queue first, the page's protagonist; then the splits; the weeks are the first to go over the budget.
-  if (rows.length) insights.push({ text: `The queue, newest first: ${listed(rows, rowLine, 'see the page', NAMED)}.`, evidence: address });
+  const queued = (n: number): Insight[] => (rows.length ? [{ text: `The queue, newest first: ${roster(n)}.`, evidence: address }] : []);
+  const insights: Insight[] = [];
   if (counts) {
     insights.push({ text: `Outcomes of every report: ${BUG_STATUSES.map((s) => `${formatCount(counts.byStatus[s])} ${STATUS[s].toLowerCase()}`).join(', ')}.`, evidence: '/platform/bugs' });
     insights.push({ text: `By impact, every report: ${BUG_IMPACTS.map((i) => `${formatCount(counts.byImpact[i])} ${IMPACT[i].toLowerCase()}`).join(', ')}.`, evidence: '/platform/bugs' });
@@ -277,14 +279,14 @@ export function bugsContext(data: Bugs, { filters, read, ...arrival }: { filters
   if (weeks) insights.push({ text: weeks, evidence: '/platform/bugs' });
   const shown = first + rows.length;
   const narrow = narrowed(filters);
-  return budgeted({
+  return rostered((n) => ({
     view: 'bugs',
     title: 'Bugs',
     address,
     scope: `every real bug report${narrow ? `; the queue narrowed to ${filterWords(filters)}` : ''}${rows.length && total !== null ? `; queue rows ${first + 1} to ${shown} of ${formatCount(total)}` : ''}`,
-    freshness: arrived(arrival),
+    freshness: `As of ${formatDateTime(data.meta.asOf)}.`,
     facts: tileFacts(data),
-    insights,
+    insights: [...queued(n), ...insights],
     unknowns: [
       ...UNKNOWNS,
       ...(narrow ? ['The filters narrow the queue alone: every figure is over every real report.'] : []),
@@ -296,7 +298,7 @@ export function bugsContext(data: Bugs, { filters, read, ...arrival }: { filters
       ...(total !== null && total > shown ? [`${formatCount(total - shown)} more ${plural(total - shown, 'report')} on later pages.`] : []),
       ...(queue.state === 'ok' && !rows.length ? [narrow ? 'No report matches these filters.' : 'No report is recorded.'] : []),
     ],
-  });
+  }), roster, NAMED);
 }
 
 /** The filters as words: `open, blocks work, surface core`. */
@@ -310,16 +312,18 @@ function filterWords(f: BugsFilters): string {
 
 /** How much of a report's own words the context quotes: what holds the budget beside its facts. */
 const DETAIL_TOLD = 900;
+/** How many reports a report may be a duplicate of the context names at most, each whole. */
+const TARGETS_TOLD = 3;
 
 /** A report's page, as the superadmin reads it: its words, its metadata and what was decided, or that it is open. */
-export function bugContext(report: BugReport, duplicates: BugDuplicates | null, arrival: Arrival): SharedContext {
+export function bugContext(report: BugReport, duplicates: BugDuplicates | null): SharedContext {
   const open = report.status === 'open';
-  return budgeted({
+  const roster = (n: number) => (duplicates ? listed(duplicates.rows, (d) => `${d.title} (${statusOf(d.status).toLowerCase()}, ${d.id})`, 'see the page', n) : '');
+  return rostered((n) => ({
     view: 'bug',
-    title: clip(report.title, 80),
+    title: report.title,
     address: bugPath(report.id),
     scope: `one bug report, filed ${formatDateTime(report.reportedAt)}${report.team ? ` in ${report.team}` : ' in no team'}`,
-    freshness: arrived(arrival),
     facts: [
       { label: 'Status', value: statusOf(report.status), ...(report.resolvedAt ? { change: `resolved ${formatDateTime(report.resolvedAt)}` } : {}) },
       { label: 'Impact', value: impactOf(report.impact) },
@@ -330,11 +334,10 @@ export function bugContext(report: BugReport, duplicates: BugDuplicates | null, 
       ...(report.duplicateOf ? [{ label: 'Duplicate of', value: report.duplicateOf }] : []),
     ],
     insights: [
-      { text: `Its title, as filed: ${clip(report.title, 200)}` },
       { text: `What the reporter wrote: ${clip(report.detail.replace(/\s+/g, ' ').trim(), DETAIL_TOLD)}` },
       ...(report.resolution ? [{ text: `What was decided: ${clip(report.resolution, 300)}` }] : []),
       ...(open && duplicates ? [{ text: duplicates.rows.length
-        ? `It may be closed as a duplicate of ${formatCount(duplicates.rows.length)} ${plural(duplicates.rows.length, 'report')} of its team: ${listed(duplicates.rows, (d) => `${clip(d.title, 48)} (${statusOf(d.status).toLowerCase()}, ${d.id})`, 'see the page', 3)}.`
+        ? `It may be closed as a duplicate of ${formatCount(duplicates.rows.length)} ${plural(duplicates.rows.length, 'report')} of its team: ${roster(n)}.`
         : 'No other report of its team exists, so it cannot be closed as a duplicate.' }] : []),
     ],
     unknowns: [
@@ -342,5 +345,5 @@ export function bugContext(report: BugReport, duplicates: BugDuplicates | null, 
       open ? 'It is open: nobody has decided it yet.' : 'A closed report is not reopened: a wrong decision is a new report naming this one.',
       'A duplicate is read within one team\'s reports, a report in no team with another in none.',
     ],
-  });
+  }), roster, TARGETS_TOLD);
 }

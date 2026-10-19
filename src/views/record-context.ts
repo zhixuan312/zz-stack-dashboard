@@ -21,7 +21,7 @@ import type { Fact, Insight, SharedContext } from '@/lib/shared-context';
 import type { Figure, PeriodFigure, Window } from '@/lib/platform-shapes';
 import type { RecordRead, WritingCoverage } from '@/lib/work-shapes';
 import { addressOf, budgeted, clip, pendingContext } from './context';
-import { LESSONS_MADE } from './record-names';
+import { LESSONS_MADE, gapsOf } from './record-names';
 
 /** How long the console's server waits for Record's read before it says the read is unavailable: half a second under
  *  five, for a phone to draw what it says, the bound the browser's own reads keep (`src/lib/api.ts`). */
@@ -138,11 +138,7 @@ const BASIS = { retained_stock: 'your documents and lessons retain', period_net_
 
 /** What the words are counted over, and what they leave out, in one line. */
 export function coverageLine(c: WritingCoverage): string {
-  const gaps = [
-    c.importMade ? `${formatCount(c.importMade)} made by an import left out` : '',
-    c.unrecorded ? `${formatCount(c.unrecorded)} with no recorded write` : '',
-    c.missingLegacy ? `${formatCount(c.missingLegacy)} missing an earlier revision` : '',
-  ].filter(Boolean);
+  const gaps = gapsOf(c);
   return `Counted over ${formatCount(c.documents)} ${plural(c.documents, 'document')} and ${formatCount(c.revisions)} ${plural(c.revisions, 'revision')}${gaps.length ? `; ${gaps.join(', ')}` : ''}.`;
 }
 
@@ -271,6 +267,23 @@ export const formatShare = (n: number): string => formatPercent(n / 100, 0);
 
 /* The shared context */
 
+/** The periods of the lead's series the context says, the running one last: up to 26 weeks are drawn. */
+const SERIES_PERIODS = 8;
+
+/**
+ * The lead's running total as its chart draws it, oldest first, each period by its start: `14 Sept 29,400; …; 19 Oct
+ * 56,600 so far`. A period with no figure says why; periods older than the newest eight are counted, not listed. The
+ * page leads with this chart, and the context said none of it (Work M-9).
+ */
+function leadSeries(r: RecordRead): string {
+  const windows = r.cumulative.map((p) => p.window);
+  const name = grainOf(windows) === 'week' ? (d: string) => formatDay(d) : tickOf(windows);
+  // Only the last period is still running: the first may be cut short by the period's start, and holds all it will.
+  const last = r.cumulative.length - 1;
+  const shown = r.cumulative.map((p, i) => `${name(p.window.from)} ${p.figure.value === null ? absent(p.figure.why).toLowerCase() : formatCount(p.figure.value)}${i === last && !p.window.complete ? ' so far' : ''}`).slice(-SERIES_PERIODS);
+  return `${r.cumulative.length > shown.length ? `the newest ${shown.length} of ${formatCount(r.cumulative.length)}: ` : ''}${shown.join('; ')}`;
+}
+
 /** The context of the record the page draws for `filters`, or of the read that has not brought one. */
 export function recordContext(r: RecordRead | null, { filters, trouble = null }: { filters: RecordFilters; trouble?: string | null }): SharedContext {
   const address = addressOf('/record', { period: filters.period, page: filters.page }, RECORD_DEFAULTS);
@@ -278,38 +291,55 @@ export function recordContext(r: RecordRead | null, { filters, trouble = null }:
   if (!r) return pendingContext({ ...view, scope: 'your team\'s record' }, trouble);
   const lead = leadOf(r);
   const tiles = tilesOf(r);
+  // A figure the page shows twice, as the foot's and a slice's, or as a slice's and a best, is said the first time:
+  // the budget went on the repeats and dropped what the page shows once (Phase 7's second re-review, Work M-9).
+  const told = new Set<string>();
+  const once = (label: string, value: string) => {
+    const key = `${label.toLowerCase()} ${value}`;
+    if (told.has(key)) return false;
+    told.add(key);
+    return true;
+  };
   const facts: Fact[] = [
-    { label: 'Period', value: periodLine(r), definition: `Every figure below the lead is the period's; its series are drawn ${grainWords(r.cumulative.map((p) => p.window))}` },
-    { label: LEAD.kicker, value: lead.pace ? `${lead.text}, ${lead.pace}` : lead.text, change: `as of ${formatDateTime(r.lead.asOf)}`, definition: lead.words ? `Over ${lead.words}: ${LEAD.note}` : LEAD.unread },
-    ...footOf(r).map((f): Fact => ({ label: f.label, value: f.value })),
+    // The value says it is an estimate at a pace; the definition what it is over.
+    { label: LEAD.kicker, value: lead.pace ? `${lead.text}, ${lead.pace}` : lead.text, definition: lead.words ? `Over ${lead.words}, as of the cutoff, whatever the period` : LEAD.unread },
+    ...(r.cumulative.length ? [{ label: `${LEAD.chart}, ${grainWords(r.cumulative.map((p) => p.window))}`, value: leadSeries(r), definition: 'Never less what a later revision removed, so it can pass the words retained' }] : []),
+    // The foot's four figures under the lead, one fact as one row of the card.
+    { label: 'In the period', value: footOf(r).filter((f) => once(f.label, f.value)).map((f) => `${f.label.toLowerCase()} ${f.value}`).join('; ') },
     ...(Object.keys(SLICES) as SliceKey[]).flatMap((k): Fact[] => {
-      const t = tiles[k];
-      // A note that only names the period is said once, by the Period fact; one that carries a figure or a date stays.
-      return t ? [{ label: SLICES[k].title, value: t.map((x) => `${x.label.toLowerCase()} ${tileText(x)}${/\d|import/.test(x.note) ? ` (${x.note})` : ''}`).join('; ') }] : [];
+      const t = tiles[k]?.filter((x) => once(x.label, tileText(x)));
+      // A note that only names the period is said once, by the scope; one that carries a figure or a date stays.
+      return t?.length ? [{ label: SLICES[k].title, value: t.map((x) => `${x.label.toLowerCase()} ${tileText(x)}${/\d|import/.test(x.note) ? ` (${x.note.replace(/^In the period, /, '')})` : ''}`).join('; ') }] : [];
     }),
   ];
   const summary = summaryLine(r);
-  if (summary) facts.push({ label: 'The record', value: summary, definition: 'Every initiative opened before the cutoff' });
+  if (summary) facts.push({ label: 'The record', value: summary, definition: 'Whatever the period' });
 
   const insights: Insight[] = [];
   const unknowns: string[] = [];
   if (r.firsts.state === 'ok' && r.firsts.data.firsts.length) {
-    insights.push({ text: `Firsts over the whole record: ${r.firsts.data.firsts.map((f) => `${FIRST[f.key].toLowerCase()} ${formatDate(f.at)}`).join('; ')}.` });
+    // The year once where every first is in one, as a sentence writes a day; the dated card writes each in full.
+    const firsts = r.firsts.data.firsts;
+    const years = new Set(firsts.map((f) => formatDate(f.at).slice(-4)));
+    const one = years.size === 1 ? [...years][0] : null;
+    insights.push({ text: `Firsts on record${one ? `, all in ${one}` : ''}: ${firsts.map((f) => `${FIRST[f.key].replace(/^First /, '')} ${one ? formatDay(f.at) : formatDate(f.at)}`).join('; ')}.` });
   }
   if (r.documents.state === 'ok' && r.documents.data.mostRewritten.length) {
-    insights.push({ text: `Most rewritten in the period, where ${REVISION}: ${r.documents.data.mostRewritten.slice(0, 3).map((m) => `${clip(`${m.initiative}/${m.path}`)} (${m.versions} ${plural(m.versions, 'revision')})`).join('; ')}.` });
+    insights.push({ text: `Most rewritten (every write a revision, an approval's included): ${r.documents.data.mostRewritten.slice(0, 3).map((m) => `${clip(`${m.initiative}/${m.path}`)} (${m.versions} ${plural(m.versions, 'revision')})`).join('; ')}.` });
   }
   if (r.agents.state === 'ok' && r.agents.data.bySkill.length) {
     // The page's list names a few and counts the rest, and so does this.
     const skills = r.agents.data.bySkill;
     const runs = skills.slice(4).reduce((n, s) => n + s.runs, 0);
     const more = skills.length > 4 ? `; and ${skills.length - 4} more ${plural(skills.length - 4, 'skill')}, ${formatCount(runs)} ${plural(runs, 'run')}` : '';
-    insights.push({ text: `Runs by skill in the period: ${skills.slice(0, 4).map((s) => `${clip(s.skill, 40)} ${formatCount(s.runs)}`).join('; ')}${more}.`, evidence: '/runs' });
+    insights.push({ text: `Runs by skill: ${skills.slice(0, 4).map((s) => `${clip(s.skill, 40)} ${formatCount(s.runs)}`).join('; ')}${more}.`, evidence: '/runs' });
   }
   if (r.knowledge.state === 'ok' && r.knowledge.data.byKind.length) {
-    insights.push({ text: `Lessons adopted by kind, those standing on the shelf as of the cutoff, imports included: ${r.knowledge.data.byKind.map((b) => `${b.kind} ${formatCount(b.lessons)}`).join('; ')}.`, evidence: '/knowledge' });
+    insights.push({ text: `Lessons adopted by kind, imports included: ${r.knowledge.data.byKind.map((b) => `${b.kind} ${formatCount(b.lessons)}`).join('; ')}.`, evidence: '/knowledge' });
   }
-  if (lead.coverage) unknowns.push(`The estimate: ${lead.coverage}`);
+  // What the estimate leaves out: the documents and revisions it is over are the facts above.
+  const gaps = r.lead.estimate ? gapsOf(r.lead.estimate.coverage) : null;
+  if (gaps) unknowns.push(gaps.length ? `The estimate: ${gaps.join(', ')}.` : 'The estimate leaves no document out.');
   else unknowns.push(LEAD.unread);
   for (const k of Object.keys(SLICES) as SliceKey[]) if (!tiles[k]) unknowns.push(SLICES[k].unread);
   if (r.record.state !== 'ok') unknowns.push('The record of initiatives could not be read.');

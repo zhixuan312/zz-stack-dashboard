@@ -15,7 +15,7 @@ import { bugsExplore } from '../bugs-explore';
 import {
   BUGS_DEFAULTS, BUG_IMPACTS, BUG_STATES, PAGE_SIZE, bugContext, bugPath, bugsContext, bugsPath, duplicatesPath, pageAt, type BugDuplicates,
 } from '../platform-bugs-context';
-import { justRead, segment } from './shared';
+import { segment } from './shared';
 
 export const bugsTool = defineViewTool({
   name: 'bugs',
@@ -35,7 +35,7 @@ export const bugsTool = defineViewTool({
     const read = { limit, offset };
     const filters = pageAt({ ...BUGS_DEFAULTS, state: state ?? 'all', impact: impact ?? 'all', surface: surface ?? 'all' }, offset);
     const data = await gatewayGet<Bugs>(bugsPath(filters, read));
-    return { context: bugsContext(data, { filters, read, ...justRead() }), data };
+    return { context: bugsContext(data, { filters, read }), data };
   },
   explore: bugsExplore,
 });
@@ -50,7 +50,7 @@ export const bugTool = defineViewTool({
   async read({ id }) {
     await requireNeed(FEATURES.bug.needs);
     const [report, duplicates] = await Promise.all([gatewayGet<BugReport>(bugPath(id)), gatewayGet<BugDuplicates>(duplicatesPath(id))]);
-    return { context: bugContext(report, duplicates, justRead()), data: { report, duplicates } };
+    return { context: bugContext(report, duplicates), data: { report, duplicates } };
   },
   explore: bugsExplore,
 });

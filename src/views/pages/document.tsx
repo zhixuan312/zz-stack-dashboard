@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { Suspense, lazy, useEffect, useRef, useState, type ReactNode } from 'react';
 import { app, workspaces } from '@/app.config';
 import { DataTable, type Column } from '@/components/patterns/data-table';
@@ -18,17 +19,19 @@ import { Panel } from '@/console/panel';
 import { failureOf } from '@/console/query';
 import { When } from '@/console/when';
 import { useConsole, useDataClock } from '@/lib/api';
-import type { DocumentDetail, Me } from '@/lib/api-shapes';
+import type { DocumentDetail, DocumentRevision, Me } from '@/lib/api-shapes';
 import { readableDocument } from '@/lib/document-markdown';
 import { ReadingBody } from '@/console/reading';
 
 import { plural } from '@/lib/format';
+import { formatDay } from '@/lib/format-date';
 import { formatCount, formatKb } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
 import { pendingContext } from '@/views/context';
 import { documentContext } from '@/views/document-context';
 import { sourceName } from '@/views/initiative-name';
 import type { DocumentRead } from '@/views/document-read';
+import { openedVersion, type OpenedVersion } from '@/views/document-version';
 import { INITIATIVES_BOUND_MS } from '@/views/initiatives-context';
 import { useServed } from '@/views/use-served';
 
@@ -162,15 +165,21 @@ function useDocument(path: string, served: DocumentRead) {
  * `teamPage` is whether the reader may open the team's page under Platform, the console's server's answer from their
  * `/me`: the breadcrumb's team links there for them and is plain text for anybody else, who would be refused it.
  */
-export function DocumentView({ team, slug, rel, served, teamPage }: { team: string; slug: string; rel: string; served: DocumentRead; teamPage: boolean }) {
+export function DocumentView({ team, slug, rel, served, teamPage, version: asked = null }: { team: string; slug: string; rel: string; served: DocumentRead; teamPage: boolean; version?: number | null }) {
   useLive(['document'], served.state === 'ok' || served.state === 'missing' ? served.revisions : undefined);
   const { q, data: d, trouble, follow, retry, busy, updatedAt } = useDocument(`/document/${team}/${slug}/${rel}`, served);
   const me = useConsole<Me>('/me');
   // Rendered by default, because a person came to read it; the stored markdown is one press away.
   const [view, setView] = useState<'read' | 'source'>('read');
   const now = useDataClock();
+  // The version the address names, an Approvals history row's: its approved snapshot, read on its own where a later
+  // text replaced it.
+  const opened = d ? openedVersion(d, asked) : null;
+  const earlier = opened?.earlier ? opened : null;
+  const older = useConsole<DocumentRevision>(earlier ? `/document/${team}/${slug}/${rel}?revision=${earlier.revision}` : null);
+  const shownText = earlier ? (older.data ? older.data.body ?? '' : undefined) : d?.body ?? '';
   const context = d
-    ? documentContext(d, { updatedAt, now })
+    ? documentContext(d, { updatedAt, now }, earlier ? { ...earlier, body: shownText } : undefined)
     : pendingContext({ view: 'document', title: rel, address: `/initiatives/${team}/${slug}/${rel}`, scope: `one document of initiative ${team}/${slug}` }, trouble ? troubleOf(trouble).detail : null);
   // The document's own public version. Not the highest of `versions`: those name the snapshot each version is read
   // as, and several snapshots can share one version.
@@ -179,7 +188,8 @@ export function DocumentView({ team, slug, rel, served, teamPage }: { team: stri
   // visit after the render that put its body on screen, any later one when the reader reloads — and Approve signs
   // exactly that snapshot under the context it answers. Not while a refetch failed: the page then shows the failure,
   // not the body this would vouch for.
-  const offered = !!(d && !q.error && me.data && canApprove(d, me.data));
+  // Never while an earlier version's text is drawn: Approve vouches for the text on screen, and that one is not current.
+  const offered = !!(d && !earlier && !q.error && me.data && canApprove(d, me.data));
   const { shown, again, outdated } = useRecordShown(d, offered);
   // A Reload over the server's read is the browser's first read of the document, so the snapshot it brings is recorded
   // once that read lands rather than when the reload is asked for.
@@ -218,7 +228,7 @@ export function DocumentView({ team, slug, rel, served, teamPage }: { team: stri
         // 0.149 against a 0.1 bar — which is why two hand measurements and a full suite disagreed about the same build
         // for an hour. Removing the shift is the only answer that does not depend on which of those runs you are in.
         <span className="flex flex-col items-start gap-1.5">
-          <span className="font-mono text-sm">{rel}{version ? ` · v${version}` : ''}</span>
+          <span className="font-mono text-sm">{rel}{earlier ? ` · v${earlier.version}, current v${version}` : version ? ` · v${version}` : ''}</span>
           {/* The status's placeholder stands only while a read is on its way, as the body's skeleton does: beside a
               failed or not-found read it would say a status is still coming. */}
           {d ? <DocStatus status={d.status} outcome={d.outcome} gated={d.gated} requiredForClose={d.requiredForClose} correction={d.correction} />
@@ -228,10 +238,10 @@ export function DocumentView({ team, slug, rel, served, teamPage }: { team: stri
       showPeriod={false}
       updatedAt={updatedAt}
       context={context}
-      actions={d && me.data && (offered || switchToApprove(d, me.data)) ? <ApproveAction doc={d} me={me.data} shown={shown} onStale={outdated} onReload={() => void reload()} /> : undefined}
+      actions={d && !earlier && me.data && (offered || switchToApprove(d, me.data)) ? <ApproveAction doc={d} me={me.data} shown={shown} onStale={outdated} onReload={() => void reload()} /> : undefined}
       width="data"
     >
-      {d ? <DocumentBody doc={d} view={view} onView={setView} />
+      {d ? <DocumentBody doc={d} view={view} onView={setView} earlier={earlier && { ...earlier, body: shownText, failed: older.isError, current: version ?? d.current_version, address: `/initiatives/${team}/${slug}/${rel}` }} />
         : trouble ? <DocumentTrouble trouble={trouble} busy={busy} onRetry={retry} />
           : <div className="flex flex-col gap-(--stack-gap)" aria-busy="true" aria-label="Loading"><Skeleton className="h-24 rounded-lg" /><Skeleton className="h-[28rem] rounded-lg" /></div>}
     </ConsolePage>
@@ -245,8 +255,31 @@ function claimsLine(doc: DocumentDetail): string {
   return `${formatCount(rows)} ${plural(rows, noun)}${rows && !withVerdict && noun === 'claim' ? ', none stating a verdict' : ''}`;
 }
 
+/** An earlier version the address opened, as the body draws it: its text once read, and where the current one is. */
+type Earlier = OpenedVersion & { body: string | undefined; failed: boolean; current: number; address: string };
+
+/**
+ * What the reader is reading when the address opened an earlier version: which one, who approved it and when, and the
+ * way to the current text, above the text it names.
+ */
+function EarlierNote({ earlier }: { earlier: Earlier }) {
+  const approved = earlier.approvedBy || earlier.approvedAt
+    ? `, approved${earlier.approvedBy ? ` by ${earlier.approvedBy}` : ''}${earlier.approvedAt ? ` on ${formatDay(earlier.approvedAt)}` : ''}`
+    : '';
+  return (
+    <div className="mb-4 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 rounded-md bg-surface-sunk px-3.5 py-2.5">
+      <p className="t-small min-w-0 text-ink-2">
+        <strong className="font-medium text-ink">v{earlier.version}</strong>{approved}. A later text replaced it: this document is at v{earlier.current} now.
+      </p>
+      <Link href={earlier.address} className="hit t-small whitespace-nowrap font-medium text-accent-ink hover:underline">Read v{earlier.current}, the current text →</Link>
+    </div>
+  );
+}
+
 /** The document's body beside its facts and its history, then the claims it makes. */
-function DocumentBody({ doc, view, onView }: { doc: DocumentDetail; view: 'read' | 'source'; onView: (view: 'read' | 'source') => void }) {
+function DocumentBody({ doc, view, onView, earlier }: { doc: DocumentDetail; view: 'read' | 'source'; onView: (view: 'read' | 'source') => void; earlier: Earlier | null }) {
+  // The text on screen: the version the address opened, or the document's own.
+  const body = earlier ? earlier.body : doc.body;
   return (
     <>
       {/* `items-start`: the document is as long as it is, and a card stretched to a taller neighbour's height
@@ -254,20 +287,25 @@ function DocumentBody({ doc, view, onView }: { doc: DocumentDetail; view: 'read'
           a row; one side here is a column of the document's own facts and the other is the text. */}
       <Row split="2/3" className="items-start">
         <Panel
-          title="Document"
-          description={formatKb(doc.bytes / 1024)}
+          title={earlier ? `Document at v${earlier.version}` : 'Document'}
+          description={earlier ? `The text approved as v${earlier.version}` : formatKb(doc.bytes / 1024)}
           actions={<><AskAbout question={doc.gated === true && !doc.approved_by ? 'What does this document commit us to, and what should I check before approving it?' : 'What does this document say, in a few lines?'} /><Segmented size="sm" label="Document view" value={view} onChange={onView} options={[{ value: 'read', label: 'Read' }, { value: 'source', label: 'Source' }]} /></>}
         >
           {/* The reader's measure is this cell, not Meridian's 72-character cap. These are long documents on a
               wide screen, and a 533px strip in a 1,400px canvas makes one longer than it is: the cap is worth
               2,200px of scroll on a 60,000-character document. Tables and code already fill the cell; this lets
               the running text join them. */}
+          {earlier ? <EarlierNote earlier={earlier} /> : null}
           <div className={`[&_li]:max-w-[92ch] [&_ol]:max-w-[92ch] [&_p]:max-w-[92ch] [&_ul]:max-w-[92ch] ${TABLE_CARDS}`}>
-            {doc.body?.trim()
-              ? view === 'read'
-                ? <ReadingBody>{readableDocument(doc.body, doc.title)}</ReadingBody>
-                : <pre className="rounded-lg border border-line bg-surface-sunk p-4 font-mono text-xs leading-[1.7] whitespace-pre-wrap text-ink-2 [overflow-wrap:anywhere]">{doc.body}</pre>
-              : <p className="t-small text-ink-3">This document has no body in the store.</p>}
+            {earlier?.failed
+              ? <p className="t-small text-ink-2">The text of v{earlier.version} could not be read. The current text is one press away, above.</p>
+              : body === undefined
+                ? <div aria-busy="true" aria-label="Loading"><Skeleton className="h-[28rem] rounded-lg" /></div>
+                : body?.trim()
+                  ? view === 'read'
+                    ? <ReadingBody>{readableDocument(body, doc.title)}</ReadingBody>
+                    : <pre className="rounded-lg border border-line bg-surface-sunk p-4 font-mono text-xs leading-[1.7] whitespace-pre-wrap text-ink-2 [overflow-wrap:anywhere]">{body}</pre>
+                  : <p className="t-small text-ink-3">This document has no body in the store.</p>}
           </div>
         </Panel>
         <div className="flex min-w-0 flex-col gap-(--stack-gap)">

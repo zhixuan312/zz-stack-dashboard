@@ -19,7 +19,7 @@ import { aligned } from '@/console/columns';
 import { failureOf } from '@/console/query';
 import { InlineDestructive } from '@/console/settings/inline-destructive';
 import type { Revised } from '@/data/gateway';
-import { ApiError, useDataClock } from '@/lib/api';
+import { ApiError } from '@/lib/api';
 import type { People } from '@/lib/fleet-shapes';
 import { plural } from '@/lib/format';
 import { formatDateTime, formatRelative } from '@/lib/format-date';
@@ -209,7 +209,7 @@ function usePeople(served: PeopleRead | null, filters: PeopleFilters) {
   const data: PeopleShown | undefined = q.data ?? (mine?.state === 'ok' ? mine.data : undefined);
   const failed = failureOf({ error });
   const trouble = data ? null : failed ?? (mine && mine.state !== 'ok' ? peopleTrouble(mine) : null);
-  return { data, trouble, retry, busy, updatedAt: q.data ? new Date(q.dataUpdatedAt) : data ? data.meta.asOf : null };
+  return { data, trouble, retry, busy };
 }
 
 /**
@@ -221,12 +221,11 @@ export function PlatformPeopleView({ served }: { served: Revised<PeopleRead> }) 
   useLive(['people'], served.revisions);
   const [filters, set] = useServedAddress(PEOPLE_DEFAULTS, served, filtersOfPath);
   const [draft, setDraft] = useSearchDraft(filters.q, (q) => set({ q, page: '1' }));
-  const { data, trouble, retry, busy, updatedAt } = usePeople(served, filters);
-  const now = useDataClock();
+  const { data, trouble, retry, busy } = usePeople(served, filters);
   const asOf = data?.meta.asOf;
   const columns = useMemo(() => columnsAt(asOf ?? ''), [asOf]);
   useShareView(data
-    ? peopleContext(data, { filters, updatedAt, now })
+    ? peopleContext(data, { filters })
     : pendingContext({ view: 'people', title: 'People', address: '/platform/people', scope: 'everybody the platform knows' }, trouble));
   const narrow = narrowed(filters);
   const clear = () => set({ q: '', state: 'all', page: '1' });

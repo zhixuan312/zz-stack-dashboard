@@ -32,7 +32,27 @@ const SKILL_SEEDS: SkillSeed[] = [
   ['research-cite', 'research-kit', null, 0, 0, 0],
 ];
 
-const describe = (name: string) => `What ${name} is for, in the words its own SKILL.md opens with.`;
+/** What each skill is for, as its SKILL.md's description says it: a purpose, never a sentence about one. */
+const PURPOSE: Record<string, string> = {
+  'sdlc-flow': 'Route a piece of delivery work to the stage it has reached, and load that stage.',
+  'sdlc-method': 'How every sdlc stage runs: what a worker is handed, and how what it returns is judged.',
+  'sdlc-explore': 'Ground a raw idea in this system, the outside world and the knowledge store before anyone designs it.',
+  'sdlc-spec': 'Agree with the person what ships, why it is worth building and what done means, and write it as spec.md.',
+  'sdlc-spec-audit': 'Audit spec.md for vague requirements, untraceable criteria and missing scope before it is planned.',
+  'sdlc-plan': 'Turn an approved spec into an ordered plan of tasks, each with its contract and its checks.',
+  'sdlc-plan-audit': 'Audit plan.md for traceability, dependency order and checks that cannot run before it is executed.',
+  'sdlc-execute': 'Build what the approved plan describes, one task at a time, each with its checks passing.',
+  'sdlc-review': 'Verify what was built against every accepted criterion before it ships.',
+  'sdlc-audit-criteria': 'The failure modes every sdlc audit applies, and the evidence a finding must carry.',
+  'zz-platform': 'The platform rules every flow stands on: documents, gates, sources and the knowledge store.',
+  'zz-handover': 'Read a closed initiative and keep what generalises beyond the team that learned it.',
+  'zz-access': 'Your own access to the platform: tokens, client setup and the team you act for.',
+  'zz-plugin-observe': 'Compute what a plugin\'s real runs did, before any protocol judges them.',
+  'zz-plugin-evaluate': 'Score a plugin\'s real runs against the protocol its owners agreed.',
+  'research-scan': 'Scan the sources a question names and list what each one says.',
+  'research-cite': 'Cite each claim of a write-up to the source that supports it.',
+};
+const describe = (name: string) => PURPOSE[name] ?? `Run ${name}.`;
 
 /** The skills the catalog ships, by plugin and their place in its method: the same for every team. */
 export const CATALOG_SKILLS = SKILL_SEEDS.map(([name, plugin, position]) => ({

@@ -1,7 +1,7 @@
 /**
  * The platform's own search, which is the one way the assistant reads what documents SAY: every view states titles,
  * states and counts, and `view_knowledge` names the results the page's search ranked without their excerpts. The limit
- * is small on purpose: a context is 2,400 characters, so the fewer results asked for, the more of each excerpt fits.
+ * is small on purpose: a context is 2,600 characters, so the fewer results asked for, the more of each excerpt fits.
  *
  * It has no page of its own and declares Knowledge's, after `view_knowledge`, so the prepared query Knowledge offers is
  * `explore_knowledge`; its own counts the searches.

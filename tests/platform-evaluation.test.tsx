@@ -176,8 +176,8 @@ describe('the page, as the fake gateway answers it', () => {
     expect(waiting.querySelector('[data-measure]')).toBeNull();
     const rows = within(waiting).getAllByRole('row').slice(1);
     expect(rows.map((r) => r.querySelector('[data-finding-name]')!.textContent)).toEqual(data(MEMBER.waiting).rows.map((f) => f.summary));
-    expect(data(MEMBER.waiting).rows.map((f) => f.summary)).toEqual(['A defect in sdlc, owned by the plugin', 'An unknown in zz-core, owner not known']);
-    // The name says the plugin and the owner category, so a member's row has no column for either.
+    expect(data(MEMBER.waiting).rows.map((f) => f.summary)).toEqual(['A defect in sdlc, owned by the plugin', 'Evaluation finding awaiting a decision']);
+    // The name says the plugin and the owner category, or the plugin is under it, so a member's row has no column for either.
     expect(within(waiting).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Finding', 'Kind', 'Waiting']);
   });
 
@@ -267,7 +267,7 @@ describe('what the assistant is told', () => {
     expect(t).toContain(`- Scores established: ${ADMIN.tiles.established}, of 3 plugins scored`);
     expect(t).toContain(`- Last scored: ${formatDateTime(ADMIN.tiles.lastScored!)}`);
     expect(t).toContain(`- Days scored: ${ADMIN.tiles.daysScored}`);
-    expect(t).toContain('1 applied, 1 rejected, 2 deferred, waiting');
+    expect(t).toContain('Applied 1; Rejected 1; Deferred, waiting 2');
     expect(t).toContain('sdlc: latest 7.1 of 10 (6.5 to 7.7), established, guardrails held; by series, not comparable: a different protocol version: sdlc-flow-quality v1');
     expect(t).toContain('zz-plugin-eval: latest no score, not established');
     expect(t).toContain('up 0.7 points within the series');

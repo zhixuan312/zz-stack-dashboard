@@ -8,7 +8,7 @@
  * the question in it; each result carries the address of the page that shows it whole: the document's, or the node's.
  *
  * **It is held to a view's budget by construction, not by cutting from the end.** An excerpt is up to 600 characters
- * and a context is 2,400, so the room is shared out: each result gets an equal part of what the fixed lines leave,
+ * and a context is 2,600, so the room is shared out: each result gets an equal part of what the fixed lines leave,
  * and when that part would be too short to read, the lowest-ranked result is left out and counted. Fewer results
  * asked for therefore means longer excerpts, which is why the tool takes a limit.
  */

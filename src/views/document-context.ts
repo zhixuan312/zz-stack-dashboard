@@ -5,9 +5,10 @@
 import type { DocumentDetail } from '@/lib/api-shapes';
 import { plural } from '@/lib/format';
 import { formatCount, formatKb } from '@/lib/format-units';
-import { formatDate, formatDateTime } from '@/lib/format-date';
+import { formatDate, formatDateTime, formatDay } from '@/lib/format-date';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
 import { arrived, budgeted, type Arrival } from './context';
+import { versionAddress, type OpenedVersion } from './document-version';
 
 /** How much of the document's own text a context carries: enough to answer from, inside a view's budget. */
 const BODY_LIMIT = 1200;
@@ -26,11 +27,13 @@ function approvalOf(d: Pick<DocumentDetail, 'status' | 'gated' | 'correction' | 
  * context for the whole of it: the text past what it quotes, earlier versions' text and the change between two (read
  * one version at a time), the claims' own words, the sources' own text, and the review metadata's tags and fields.
  */
-function leftOut(d: DocumentDetail, text: string): string[] {
+function leftOut(d: DocumentDetail, text: string, shown: number | null): string[] {
   if (!text) return ['This document has no body in the store.'];
   const out: string[] = [];
   if (text.length > BODY_LIMIT) out.push(`Only the first ${formatCount(BODY_LIMIT)} characters of the text are here; the rest is on the page.`);
-  out.push(d.versions.length > 1
+  out.push(shown !== null
+    ? `This carries v${shown}'s text alone, the version the page shows; the current text and what changed between two are on the page.`
+    : d.versions.length > 1
     ? 'Earlier versions\' text, and what changed between two, are read one version at a time on the page; this carries the current text alone.'
     : 'This carries the current text alone; the page reads any other version by its number.');
   if (d.decisionCounts.rows) out.push('The claims\' own words are in the page\'s claims table; this counts them.');
@@ -39,10 +42,18 @@ function leftOut(d: DocumentDetail, text: string): string[] {
   return out;
 }
 
-export function documentContext(d: DocumentDetail, arrival: Arrival): SharedContext {
+/**
+ * `earlier` is the version the page's address opened when a later text replaced it, an Approvals history row's: the
+ * context then quotes that version's text, as the page draws it, and says which it is.
+ */
+export function documentContext(d: DocumentDetail, arrival: Arrival, earlier?: OpenedVersion & { body: string | undefined }): SharedContext {
   const base = `/initiatives/${d.team}/${d.initiative}`;
-  const text = (d.body ?? '').trim().replace(/\s+/g, ' ');
+  const text = ((earlier ? earlier.body : d.body) ?? '').trim().replace(/\s+/g, ' ');
   const insights: Insight[] = [];
+  if (earlier) {
+    const approved = earlier.approvedBy || earlier.approvedAt ? `, approved${earlier.approvedBy ? ` by ${earlier.approvedBy}` : ''}${earlier.approvedAt ? ` on ${formatDay(earlier.approvedAt)}` : ''}` : '';
+    insights.push({ text: `The page shows v${earlier.version}${approved}, not the current text: the document is at v${d.current_version}${earlier.body === undefined ? '. Its text is still being read' : ''}. Approve is offered on the current text alone, at ${base}/${d.path}.` });
+  }
   if (text) insights.push({ text: `The document${text.length > BODY_LIMIT ? ' opens' : ' reads'}: ${text.slice(0, BODY_LIMIT)}${text.length > BODY_LIMIT ? ` … (${formatCount(text.length - BODY_LIMIT)} more characters on the page)` : ''}` });
   if (d.gated === true && !d.approved_by) insights.push({ text: 'Approval is given on this page, by a member of the document\'s team who has been shown this exact snapshot. An agent cannot approve it.' });
   if (d.versions.length > 1) insights.push({ text: `Its versions, oldest first: ${listed(d.versions, (v) => `v${v.version} ${formatDate(v.updated_at)}${v.status === 'approved' ? `, approved${v.approved_by ? ` by ${v.approved_by}` : ''}` : ''}`, 'see the version chain on the page', 10)}.` });
@@ -53,19 +64,19 @@ export function documentContext(d: DocumentDetail, arrival: Arrival): SharedCont
   return budgeted({
     view: 'document',
     title: d.title ?? d.path,
-    address: `${base}/${d.path}`,
+    address: earlier ? versionAddress(d, earlier.version) : `${base}/${d.path}`,
     scope: `one document, ${d.path}, of initiative ${d.team}/${d.initiative}${d.flow ? ` (flow ${d.flow})` : ''}`,
     freshness: arrived(arrival),
     facts: [
       { label: 'Approval', value: approvalOf(d), definition: 'Approved is the gate on the document. Accepted is the stakeholder\'s verdict on what was built, recorded as the initiative\'s outcome.' },
       { label: 'Type', value: d.type },
-      { label: 'Version', value: `v${d.current_version}`, change: `${d.versions.length} ${plural(d.versions.length, 'version')} in all` },
+      { label: 'Version', value: `v${d.current_version}`, change: `${d.versions.length} ${plural(d.versions.length, 'version')} in all${earlier ? `; the page shows v${earlier.version}` : ''}` },
       { label: 'Updated', value: formatDateTime(d.updated_at) },
       { label: 'Size', value: formatKb(d.bytes / 1024) },
       { label: 'Stakeholder', value: d.stakeholder || 'none named' },
       ...(d.outcome ? [{ label: 'Outcome', value: d.outcome, definition: 'The initiative\'s outcome is recorded on this document.' }] : []),
     ],
     insights,
-    unknowns: leftOut(d, text),
+    unknowns: leftOut(d, text, earlier ? earlier.version : null),
   });
 }

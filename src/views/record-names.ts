@@ -1,4 +1,7 @@
 
+import { formatCount } from '@/lib/format-units';
+import type { WritingCoverage } from '@/lib/work-shapes';
+
 /**
  * The name Record and Home both give the lessons the team's own work made, superseded ones included and an import's
  * left out; Knowledge's Lessons adopted are the lessons standing on the shelf, imports included, a different count under
@@ -14,3 +17,11 @@ export const LESSONS_MADE = 'Lessons made';
  * the longer words.
  */
 export const NO_DATA = 'None';
+
+/** What a writing estimate's words leave out, each gap in a few words, as Home and Record both say them: `2 made by an
+ *  import left out`. */
+export const gapsOf = (c: WritingCoverage): string[] => [
+  c.importMade ? `${formatCount(c.importMade)} made by an import left out` : '',
+  c.unrecorded ? `${formatCount(c.unrecorded)} with no recorded write` : '',
+  c.missingLegacy ? `${formatCount(c.missingLegacy)} missing an earlier revision` : '',
+].filter(Boolean);

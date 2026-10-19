@@ -43,7 +43,7 @@ export function PasskeysPanel() {
                   <span className={k.label ? 'text-sm font-medium text-ink [overflow-wrap:anywhere]' : 'text-sm text-ink-3'}>{passkeyOf(k.label)}</span>
                   <span className="t-caption block @min-[672px]:hidden">{transportsOf(k.transports)}</span>
                 </TableCell>
-                <TableCell hideBelow="md" className="text-xs">{transportsOf(k.transports)}</TableCell>
+                <TableCell hideBelow="md" className="whitespace-nowrap text-xs">{transportsOf(k.transports)}</TableCell>
                 <TableCell hideBelow="sm" className="whitespace-nowrap text-xs">{formatDate(k.createdAt)}</TableCell>
                 <TableCell className="whitespace-nowrap text-xs"><Since at={k.lastUsedAt} asOf={access.meta.asOf} /></TableCell>
               </TableRow>

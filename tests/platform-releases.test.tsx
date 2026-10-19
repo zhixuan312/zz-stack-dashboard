@@ -120,8 +120,8 @@ describe('Releases draws its tiles, its weeks and its table', () => {
     // Two releases inside 72 hours of each other each name the other.
     expect(newest.textContent).toContain(`Within 72 hours of ${PAIRED}`);
     expect(row(PAIRED).textContent).toContain(`Within 72 hours of ${NEWEST}`);
-    expect(row(QUIET).textContent).toContain('After: no calls');
-    expect(row(OLDEST).textContent).toContain('Before: not observed');
+    expect(row(QUIET).textContent).toContain('After no calls');
+    expect(row(OLDEST).textContent).toContain('Before not observed');
     expect(row(OLDEST).textContent).toContain('Not recorded');
     expect(newest.textContent).toContain('Nothing to do');
     expect(document.querySelector(`a[href="/platform/releases/${NEWEST}"]`)).not.toBeNull();
@@ -131,8 +131,8 @@ describe('Releases draws its tiles, its weeks and its table', () => {
     browser(null);
     const { container } = mount(<PlatformReleasesView served={ok} />);
     expect(container.textContent).not.toMatch(CAUSAL);
-    expect(contextText(releasesContext(LIST, { filters: RELEASES_DEFAULTS, updatedAt: null, now: new Date() }))).not.toMatch(CAUSAL);
-    for (const r of RELEASES) expect(contextText(releaseContext({ ...r, changelog: 'Words.', upgradeNotes: null }, { asOf: LIST.meta.asOf, updatedAt: null, now: new Date() }))).not.toMatch(CAUSAL);
+    expect(contextText(releasesContext(LIST, { filters: RELEASES_DEFAULTS }))).not.toMatch(CAUSAL);
+    for (const r of RELEASES) expect(contextText(releaseContext({ ...r, changelog: 'Words.', upgradeNotes: null }, { asOf: LIST.meta.asOf }))).not.toMatch(CAUSAL);
   });
 });
 
@@ -214,7 +214,7 @@ describe('each page draws loading, empty, error and partial', () => {
     expect(screen.getByText(/the release record did not answer/)).toBeInTheDocument();
     expect(screen.getByRole('figure', { name: 'Releases by week' })).toBeInTheDocument();
     expect(document.querySelector('[data-split="tiles"] > .card')!.textContent).toContain(String(LIST.tiles.releases));
-    expect(contextText(releasesContext(partial, { filters: RELEASES_DEFAULTS, updatedAt: null, now: new Date() }))).toContain('could not be listed');
+    expect(contextText(releasesContext(partial, { filters: RELEASES_DEFAULTS }))).toContain('could not be listed');
   });
 
   it('a release: failed and slow are the bounded error with Retry; a version the browser finds missing has the way back', async () => {
@@ -337,7 +337,7 @@ describe('the view tools answer the pages\' own responses', () => {
     const { data, context } = await releasesTool.read({});
     expect(gateway.get).toHaveBeenCalledWith(PATH);
     expect(data).toEqual(LIST);
-    const page = releasesContext(LIST, { filters: RELEASES_DEFAULTS, updatedAt: null, now: new Date() });
+    const page = releasesContext(LIST, { filters: RELEASES_DEFAULTS });
     expect({ ...context, freshness: null }).toEqual({ ...page, freshness: null });
     expect(releasesTool.page).toBe('/platform/releases');
   });
@@ -376,7 +376,7 @@ describe('the view tools answer the pages\' own responses', () => {
 
 describe('the shared contexts carry what the pages draw, and what it cannot say', () => {
   it('Releases: the four tiles, each release with both sides and its completeness, the overlap, and the windows\' limits', () => {
-    const text = contextText(releasesContext(LIST, { filters: RELEASES_DEFAULTS, updatedAt: null, now: new Date() }));
+    const text = contextText(releasesContext(LIST, { filters: RELEASES_DEFAULTS }));
     for (const v of [LIST.tiles.releases, LIST.tiles.lastWeek, LIST.tiles.migrations.applied]) expect(text).toContain(String(v));
     expect(text).toContain(LIST.tiles.latest!.version);
     for (const r of rows().slice(0, 5)) expect(text).toContain(`${r.version} (`);
@@ -388,7 +388,7 @@ describe('the shared contexts carry what the pages draw, and what it cannot say'
 
   it('a release: its windows, its client action, its changelog as published and what it cannot say', () => {
     const r = releaseDetail(PAIRED)!;
-    const text = contextText(releaseContext(r, { asOf: LIST.meta.asOf, updatedAt: null, now: new Date() }));
+    const text = contextText(releaseContext(r, { asOf: LIST.meta.asOf }));
     expect(text).toContain(r.clientAction!);
     expect(text).toContain('Releases are recorded.');
     expect(text).toContain('Re-pull the plugins.');
@@ -400,11 +400,15 @@ describe('the shared contexts carry what the pages draw, and what it cannot say'
     const long = 'A summary somebody wrote in full because the changelog keeps what it is given and never shortens it, '.repeat(3);
     const many = Array.from({ length: 10 }, (_, i) => ({ ...rows()[i % rows().length], version: `1.${i}.0-with-a-long-prerelease-tag`, summary: long, clientAction: long, before: { ...rows()[0].before, overlappingVersions: ['1.0.0', '1.1.0', '1.2.0'] } }));
     const full: Releases = { ...LIST, rows: { state: 'ok', data: { rows: many, total: 240 } } };
-    const text = contextText(releasesContext(full, { filters: { page: '7' }, updatedAt: null, now: new Date() }));
+    const text = contextText(releasesContext(full, { filters: { page: '7' } }));
     expect(text.length).toBeLessThanOrEqual(CONTEXT_BUDGET);
-    expect(text).toContain('and 5 more (see the page)');
+    // Each release whole or not at all, as many as fit, and the rest counted: nothing is cut mid-word (I-167, M-3).
+    const named = many.filter((r) => text.includes(`${r.version} (`)).length;
+    expect(named).toBeGreaterThan(0);
+    expect(text).toContain(`and ${many.length - named} more (see the page)`);
+    expect(text).not.toMatch(/\w…/);
     const r = releaseDetail(PAIRED)!;
-    const told = contextText(releaseContext({ ...r, summary: long, changelog: `${long}\n\n`.repeat(40), upgradeNotes: `${long}\n`.repeat(20) }, { asOf: LIST.meta.asOf, updatedAt: null, now: new Date() }));
+    const told = contextText(releaseContext({ ...r, summary: long, changelog: `${long}\n\n`.repeat(40), upgradeNotes: `${long}\n`.repeat(20) }, { asOf: LIST.meta.asOf }));
     expect(told.length).toBeLessThanOrEqual(CONTEXT_BUDGET);
   });
 });

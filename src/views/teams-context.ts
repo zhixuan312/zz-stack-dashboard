@@ -9,10 +9,11 @@
 import type { TeamRow, Teams } from '@/lib/fleet-shapes';
 import type { PeriodFigure } from '@/lib/platform-shapes';
 import { plural } from '@/lib/format';
-import { formatDate, formatDay } from '@/lib/format-date';
+import { formatDate, formatDateTime, formatDay } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
-import { addressOf, arrived, budgeted, clip, type Arrival } from './context';
+import { addressOf } from './context';
+import { rostered } from './platform-roster';
 import { PAGE_SIZE, TEAMS_DEFAULTS, narrowed, pageOf, type TeamsFilters, type TeamsRows } from './teams-filter';
 
 /** The page's own read, as the console's server or the browser made it: the answer, a failure, or no answer in time. */
@@ -52,13 +53,13 @@ export function teamsTrouble(read: Exclude<TeamsRead, { state: 'ok' }>): string 
   return read.state === 'slow' ? `The read did not answer within ${TEAMS_BOUND_MS / 1000} seconds.` : read.reason;
 }
 
-/** How many teams of a page the context names, and says how many more: six hold the budget at any length of slug and name. */
-const NAMED = 6;
+/** How many teams of a page the context names at most, each whole, and says how many more: the page's ten, as many as fit. */
+const NAMED = PAGE_SIZE;
 
 /** One team as the assistant is told it: its people, its work and lessons, its own two last weeks of calls, and when it last made one. */
 function teamLine(t: TeamRow): string {
   const calls = t.calls.last.figure.why === 'unavailable' ? 'calls unavailable' : `calls ${weekCount(t.calls.previous)} then ${weekCount(t.calls.last)}`;
-  return `${t.slug}${t.name !== t.slug ? ` (${clip(t.name, 24)})` : ''}${t.status === 'archived' ? ', archived' : ''}: ${formatCount(t.people)} ${plural(t.people, 'person', 'people')}, `
+  return `${t.slug}${t.name !== t.slug ? ` (${t.name})` : ''}${t.status === 'archived' ? ', archived' : ''}: ${formatCount(t.people)} ${plural(t.people, 'person', 'people')}, `
     + `${formatCount(t.openWork)} open, ${formatCount(t.waiting)} waiting, ${formatCount(t.lessons)} ${plural(t.lessons, 'lesson')}, ${calls}, ${t.lastActive ? `active ${formatDate(t.lastActive)}` : NO_ACTIVITY.toLowerCase()}`;
 }
 
@@ -66,7 +67,7 @@ function teamLine(t: TeamRow): string {
  * `filters` is the page's address. `read` is how `view_teams` read the rows, by the route's `limit` and `offset`, when it
  * did: the address is then the page of ten the offset falls in, and rows off the page's grid are said to be so.
  */
-export function teamsContext(data: Teams, { filters, read, ...arrival }: { filters: TeamsFilters; read?: TeamsRows } & Arrival): SharedContext {
+export function teamsContext(data: Teams, { filters, read }: { filters: TeamsFilters; read?: TeamsRows }): SharedContext {
   const page = pageOf(filters);
   const rows = data.teams;
   const first = read ? read.offset : (page - 1) * PAGE_SIZE;
@@ -78,15 +79,16 @@ export function teamsContext(data: Teams, { filters, read, ...arrival }: { filte
     + (rows.length ? `; rows ${first + 1} to ${first + rows.length} of ${formatCount(data.total)}` : '');
   const unavailable = rows.some((t) => t.calls.last.figure.why === 'unavailable');
   const weeks = rows.length ? `the weeks of ${formatDay(rows[0].calls.previous.window.from)} and ${formatDay(rows[0].calls.last.window.from)}` : '';
-  const insights: Insight[] = rows.length
-    ? [{ text: `The teams on this page, latest real-work call first, each with its real-work calls in ${weeks}: ${listed(rows, teamLine, 'see the page', NAMED)}.`, evidence: address }]
-    : [];
-  return budgeted({
+  const roster = (n: number) => listed(rows, teamLine, 'see the page', n);
+  const insights = (n: number): Insight[] => (rows.length
+    ? [{ text: `The teams on this page, latest real-work call first, each with its real-work calls in ${weeks}: ${roster(n)}.`, evidence: address }]
+    : []);
+  return rostered((n) => ({
     view: 'teams',
     title: 'Teams',
     address,
     scope,
-    freshness: arrived(arrival),
+    freshness: `As of ${formatDateTime(data.meta.asOf)}.`,
     facts: [
       { label: TILES.teams.label, value: formatCount(data.tiles.teams), definition: TILES.teams.definition },
       { label: TILES.openWork.label, value: formatCount(data.tiles.openWork), definition: TILES.openWork.definition },
@@ -94,7 +96,7 @@ export function teamsContext(data: Teams, { filters, read, ...arrival }: { filte
       { label: TILES.lessons.label, value: formatCount(data.tiles.lessons), definition: TILES.lessons.definition },
       ...(narrow ? [{ label: 'Matching', value: formatCount(data.total), definition: 'The teams the filters let through; the tiles count every team.' }] : []),
     ],
-    insights,
+    insights: insights(n),
     unknowns: [
       'A team is read against its own past only: nothing here ranks one team against another.',
       TEAMS_CHANGES,
@@ -105,5 +107,5 @@ export function teamsContext(data: Teams, { filters, read, ...arrival }: { filte
       ...(data.total > first + rows.length ? [`${formatCount(data.total - first - rows.length)} more ${plural(data.total - first - rows.length, 'team')} match on later pages.`] : []),
       ...(rows.length ? [] : [narrow ? 'No team matches these filters.' : 'No team exists yet; a superadmin creates the first one on this page.']),
     ],
-  });
+  }), roster, NAMED);
 }

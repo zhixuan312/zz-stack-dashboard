@@ -26,7 +26,7 @@ import { formatCount } from '@/lib/format-units';
 import type { Evaluation } from '@/lib/platform-shapes';
 import { waited } from '@/views/platform-bugs-context';
 import {
-  ASK, DECISIONS, GUARDRAILS, TILES, asOfLine, evaluationContext, evaluationTrouble, isAdmin, kindOf, nameOf, ownerOf,
+  ASK, DECISIONS, GUARDRAILS, TILES, asOfLine, evaluationContext, evaluationTrouble, isAdmin, kindOf, nameOf, namesNoPlugin, ownerOf,
   protocolOf, rangeOf, runText, scoreIn, seriesName, seriesRows, standingOf, waitingOf, type EvaluationRead, type PluginScoreRow,
   type SeriesRow, type WaitingFinding,
 } from '@/views/platform-evaluation-context';
@@ -296,23 +296,29 @@ function ByOwner({ part }: { part: Evaluation['byOwner'] }) {
 /**
  * A waiting finding, named by what it found as far as its reader may read it: for the superadmin the pattern the
  * evaluation recorded, with the measure it was recorded on under it; for a member the gateway's fixed name, its kind,
- * plugin and owner category, since the pattern and the measure are the owning team's words.
+ * plugin and owner category, since the pattern and the measure are the owning team's words. A finding whose owner
+ * category is not known is named by the spec's own sentence, which leaves its plugin unsaid, so the plugin goes under it.
  */
 function FindingCell({ f }: { f: WaitingFinding }) {
   return (
     <span className="block min-w-0">
       <span data-finding-name className="block whitespace-normal font-medium text-ink [overflow-wrap:anywhere]">{nameOf(f)}</span>
       {f.measure ? <span data-measure className="t-caption block">Measure <span className={ident}>{f.measure}</span></span> : null}
+      {namesNoPlugin(f) ? <span data-plugin className="t-caption block">Plugin <span className={ident}>{f.plugin}</span></span> : null}
     </span>
   );
 }
 
+/** A finding as a phone card's title and a cell's title say it: its name, and its plugin where the name leaves it out. */
+const findingText = (f: WaitingFinding): string => (namesNoPlugin(f) ? `${nameOf(f)}, in ${f.plugin}` : nameOf(f));
+
 /**
  * The superadmin's rows say the plugin, the kind and the owner category in columns of their own, beside the pattern; a
- * member's name already says all three, so their row is the name, its kind's badge and how long it has waited.
+ * member's name already says all three, or carries the plugin under it, so their row is the name, its kind's badge and
+ * how long it has waited.
  */
 const waitingColumns = (asOf: string, admin: boolean): Column<WaitingFinding>[] => aligned([
-  { key: 'finding', header: 'Finding', grow: true, mobile: 'title', title: (f) => [nameOf(f), f.measure && `measure ${f.measure}`].filter(Boolean).join('; '), cell: (f) => <FindingCell f={f} />, mobileCell: nameOf },
+  { key: 'finding', header: 'Finding', grow: true, mobile: 'title', title: (f) => [findingText(f), f.measure && `measure ${f.measure}`].filter(Boolean).join('; '), cell: (f) => <FindingCell f={f} />, mobileCell: findingText },
   ...(admin ? [{ key: 'plugin', header: 'Plugin', align: 'left', mobile: 'fact', title: (f) => f.plugin, cell: (f) => <span className={ident}>{f.plugin}</span> }] satisfies Column<WaitingFinding>[] : []),
   { key: 'kind', header: 'Kind', align: 'left', mobile: 'status', cell: (f) => <Badge tone={f.kind === 'defect' ? 'warning' : 'neutral'}>{kindOf(f.kind)}</Badge> },
   ...(admin ? [{ key: 'owner', header: 'Owner', align: 'left', hideBelow: 'lg', cell: (f) => <span className="whitespace-nowrap">{ownerOf(f.owner)}</span> }] satisfies Column<WaitingFinding>[] : []),

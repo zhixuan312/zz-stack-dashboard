@@ -76,8 +76,9 @@ describe('a waiting finding is named by what it found, as far as its reader may 
     expect(MEMBER_ROWS.length).toBeGreaterThan(1);
     expect(MEMBER_ROWS.some((r) => r.owner === 'unknown')).toBe(true);
     for (const r of MEMBER_ROWS) {
-      expect(r.summary).toMatch(/^(A defect|An unknown) in \S+, (owned by (the plugin|a dependency|the platform|the environment|user input)|owner not known)$/);
-      expect(r.summary).toContain(r.plugin);
+      // A finding with no public owner category reads as the spec's public projection names it (I-167).
+      if (r.owner === 'unknown') expect(r.summary).toBe('Evaluation finding awaiting a decision');
+      else expect(r.summary).toMatch(new RegExp(`^(A defect|An unknown) in ${r.plugin}, owned by (the plugin|a dependency|the platform|the environment|user input)$`));
     }
   });
 
@@ -85,7 +86,8 @@ describe('a waiting finding is named by what it found, as far as its reader may 
     mount(<PlatformEvaluationView read={{ state: 'ok', evaluation: MEMBER_EVAL }} />);
     const t = table('Findings waiting for a decision, oldest first');
     for (const r of MEMBER_ROWS) expect(t.textContent).toContain(r.summary);
-    expect(t.textContent).not.toMatch(/awaiting a decision/);
+    // The spec's sentence names no plugin, so its row carries the plugin under it (I-167).
+    for (const r of MEMBER_ROWS.filter((f) => f.owner === 'unknown')) expect(t.textContent).toContain(`Plugin ${r.plugin}`);
   });
 
   it('leads the superadmin\'s row with the words the evaluation recorded, and no fixed sentence', () => {

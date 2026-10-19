@@ -24,7 +24,7 @@ import { Panel } from '@/console/panel';
 import { failureOf } from '@/console/query';
 import { InlineDestructive } from '@/console/settings/inline-destructive';
 import type { Revised } from '@/data/gateway';
-import { ApiError, useDataClock } from '@/lib/api';
+import { ApiError } from '@/lib/api';
 import type { TeamDetail } from '@/lib/fleet-shapes';
 import { plural } from '@/lib/format';
 import { formatDate, formatDateTime, formatDay, formatShortDate } from '@/lib/format-date';
@@ -54,7 +54,7 @@ function useTeam(slug: string, served: TeamRead) {
     : error?.status === 404 ? { state: 'missing' }
       : failed ? { state: 'failed', reason: failed }
         : served.state === 'ok' ? null : served;
-  return { data, trouble, retry, busy, updatedAt: q.data ? new Date(q.dataUpdatedAt) : data ? data.meta.asOf : null };
+  return { data, trouble, retry, busy };
 }
 
 /**
@@ -65,10 +65,9 @@ function useTeam(slug: string, served: TeamRead) {
  */
 export function PlatformTeamView({ slug, served }: { slug: string; served: Revised<TeamRead> }) {
   useLive(['teams'], served.revisions);
-  const { data, trouble, retry, busy, updatedAt } = useTeam(slug, served);
-  const now = useDataClock();
+  const { data, trouble, retry, busy } = useTeam(slug, served);
   useShareView(data
-    ? teamContext(slug, { team: data, updatedAt, now })
+    ? teamContext(slug, { team: data })
     : pendingContext({ view: 'team', title: `Team ${slug}`, address: `/platform/teams/${slug}`, scope: 'one team' }, trouble ? teamTrouble(slug, trouble).detail : null));
 
   if (!data) return trouble ? <TeamTrouble slug={slug} trouble={trouble} busy={busy} onRetry={retry} /> : <Busy name="team"><TilesSkeleton count={4} /></Busy>;

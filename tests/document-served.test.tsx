@@ -94,7 +94,7 @@ describe('the document route, rendered on the console\'s server', () => {
       if (path === AT) return DOC;
       throw new GatewayError(404, 'HTTP 404');
     });
-    const page = await DocumentPage({ params: params() });
+    const page = await DocumentPage({ params: params(), searchParams: Promise.resolve({}) });
     expect(gateway.get).toHaveBeenCalledWith(AT);
 
     const container = document.body.appendChild(document.createElement('div'));
@@ -126,20 +126,20 @@ describe('the document route, rendered on the console\'s server', () => {
 
   it('reads the document whose path has a directory in it, segment by segment', async () => {
     gateway.get.mockImplementation(async () => { throw new GatewayError(404, 'HTTP 404'); });
-    await DocumentPage({ params: params(['sources', '2026-10-06%20call.md']) });
+    await DocumentPage({ params: params(['sources', '2026-10-06%20call.md']), searchParams: Promise.resolve({}) });
     expect(gateway.get).toHaveBeenCalledWith(`/document/atlas/${SLUG}/sources/2026-10-06 call.md`);
   });
 
   it('sends a session that ended to sign in, back to the document', async () => {
     gateway.get.mockRejectedValue(new GatewayError(401, 'Sign in again.'));
-    await expect(DocumentPage({ params: params() })).rejects.toThrow(`NEXT_REDIRECT /login?next=${encodeURIComponent(`/initiatives/atlas/${SLUG}/spec.md`)}`);
+    await expect(DocumentPage({ params: params(), searchParams: Promise.resolve({}) })).rejects.toThrow(`NEXT_REDIRECT /login?next=${encodeURIComponent(`/initiatives/atlas/${SLUG}/spec.md`)}`);
   });
 });
 
 describe('each state the server\'s read ends in, drawn alone', () => {
   async function drawn(failure: () => Promise<never>) {
     gateway.get.mockImplementation(failure);
-    const page = await DocumentPage({ params: params() });
+    const page = await DocumentPage({ params: params(), searchParams: Promise.resolve({}) });
     await act(async () => { render(tree(client(), page)); });
   }
 
@@ -169,7 +169,7 @@ describe('each state the server\'s read ends in, drawn alone', () => {
   it('unanswered within the bound: says so, with Retry, instead of waiting longer', async () => {
     vi.useFakeTimers();
     gateway.get.mockReturnValue(new Promise(() => {}));
-    const pending = DocumentPage({ params: params() });
+    const pending = DocumentPage({ params: params(), searchParams: Promise.resolve({}) });
     await vi.advanceTimersByTimeAsync(INITIATIVES_BOUND_MS);
     const page = await pending;
     vi.useRealTimers();

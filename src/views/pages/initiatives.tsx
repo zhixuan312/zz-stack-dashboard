@@ -26,7 +26,7 @@ import { grainOf, type Grain } from '@/lib/grain';
 import { useLive } from '@/lib/live';
 import type { InitiativeList, InitiativeRow } from '@/lib/work-shapes';
 import { pendingContext } from '@/views/context';
-import { TILES, closedLine, initiativesContext, initiativesTrouble, nextOf, type InitiativesRead, type InitiativesShown, type ShownRow } from '@/views/initiatives-context';
+import { TILES, closedLine, initiativesContext, openLine, waitingLine, initiativesTrouble, nextOf, type InitiativesRead, type InitiativesShown, type ShownRow } from '@/views/initiatives-context';
 import { INITIATIVES_DEFAULTS, LIST_STATES, PAGE_SIZE, STATE_LABEL, filtersOfPath, listPath, narrowed, pageOf, type InitiativesFilters } from '@/views/initiatives-filter';
 import { useServed, useServedAddress } from '@/views/use-served';
 import { OUTCOME_PARTS } from '@/views/outcome-parts';
@@ -127,8 +127,9 @@ export function InitiativesView({ served }: { served: Revised<InitiativesRead> }
     <Records
       summary={
         <>
-          <MetricTile label={TILES.open.label} hint={TILES.open.definition} icon={<ListTree />} value={tiles ? tiles.open : mark} />
-          <MetricTile label={TILES.waiting.label} hint={TILES.waiting.definition} icon={<Signature />} value={tiles ? tiles.waiting : mark} />
+          {/* Each tile with its line, so the three are one height of text and none is a third empty (Work M-16). */}
+          <MetricTile label={TILES.open.label} hint={TILES.open.definition} icon={<ListTree />} value={tiles ? tiles.open : mark} note={tiles ? openLine(tiles) : undefined} />
+          <MetricTile label={TILES.waiting.label} hint={TILES.waiting.definition} icon={<Signature />} value={tiles ? tiles.waiting : mark} note={tiles ? waitingLine(tiles) : undefined} />
           <MetricTile label={TILES.closed.label} hint={TILES.closed.definition} icon={<CircleCheck />} value={closed ?? mark} note={tiles ? closedLine(tiles.closed) : undefined} />
         </>
       }

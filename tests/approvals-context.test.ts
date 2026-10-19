@@ -16,6 +16,7 @@ vi.mock('@/data/access', async (importOriginal) => ({ ...(await importOriginal<t
 import { SurfaceOverride } from '@/components/base/surface';
 import { FEATURES } from '@/data/features';
 import { PREPARED } from '@/data/prepared';
+import { formatDay } from '@/lib/format-date';
 import { contextText } from '@/lib/shared-context';
 import type { Approvals } from '@/lib/work-shapes';
 import {
@@ -131,11 +132,11 @@ describe('the context', () => {
     expect(text).toContain('the History tab, page 1 of 2');
     const rows = HISTORY.history.state === 'ok' ? HISTORY.history.data.rows : [];
     expect(text).toContain(`Rows 1 to 10 of ${rows.length && HISTORY.history.state === 'ok' ? HISTORY.history.data.total : 0}, newest first`);
-    // The first five rows in view, each with its evidence, and how many more the page shows.
-    expect(text).toContain('and 5 more (on /approvals?tab=history)');
-    for (const r of rows.slice(0, 5)) {
-      expect(text).toContain(`${r.path} v${r.version} of ${r.initiative} (${r.contentRevision})`);
-      expect(text).toContain(`: ${PRESENTATION[r.presentation].short}, ${DECISION_BASIS[r.decisionBasis].short}`);
+    // Every row in view, under its initiative, each with when it was approved and its evidence; none left to the page.
+    expect(text).not.toMatch(/and \d+ more \(on \/approvals/);
+    for (const r of rows) {
+      expect(text).toContain(`${r.initiative}: `);
+      expect(text).toMatch(new RegExp(`${r.path.replace('.', '\\.')} v${r.version}, ${formatDay(r.approvedAt)}, [^;|]+, ${DECISION_BASIS[r.decisionBasis].short}`));
     }
     expect(text).toMatch(/Approved in your name: \d+; by presentation: /);
     expect(text.length).toBeLessThanOrEqual(CONTEXT_BUDGET);
@@ -170,8 +171,9 @@ describe('the context', () => {
     for (const text of [said(WAITING, 'waiting'), said(HISTORY, 'history')]) {
       expect(text).not.toMatch(/signed by|signed it|you read it|at the keyboard|your agent/i);
       expect(text).toContain('the record names you as the approval\'s signer, nothing more');
-      expect(text).toContain('no row is assigned to anybody');
     }
+    // Said where the queue is listed; History's room goes to its rows.
+    expect(said(WAITING, 'waiting')).toContain('no row is assigned to anybody');
   });
 
   it('says what it could not read, never counting it as nothing', () => {
