@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Activity, Ban, RotateCw, Wrench } from 'lucide-react';
 import { Row } from '@/components/base/shell';
 import { ColumnChart } from '@/components/charts/column-chart';
@@ -44,23 +44,55 @@ const Message = ({ text }: { text: string | null }) => (text
   ? <span className="block py-1 leading-snug whitespace-normal [overflow-wrap:anywhere] text-ink">{text}</span>
   : <span className="text-ink-3">No message recorded</span>);
 
+/**
+ * A phone card's fact after its time: the kind, which its title already is for an event that called no tool, and who
+ * acted, where somebody did, as `tool_call by jane.doe`.
+ */
+const phoneFact = (e: ActivityRow): string => {
+  const said = [e.tool ? e.kind : null, e.actor ? `by ${e.actor.split('@')[0]}` : null].filter(Boolean).join(' ');
+  return said || e.kind;
+};
+
+/**
+ * The log's columns. The tool is what an event is about, so it takes the slack and is a phone card's title, with the
+ * kind beside the time under it; an event that called no tool is titled by its kind. A time and an owner are each whole
+ * on one line: wrapped, "4 h / ago" and "A / guardrail / held" read as three things. A tool name breaks only between its
+ * parts, and only under 896px of table (`ToolName`): a long one held whole ran the log past its frame at 1024 (#3842).
+ */
 const LOG_COLUMNS: Column<ActivityRow>[] = aligned([
-  { key: 'when', header: 'When', width: 'w-28', mobile: 'fact', cell: (e) => <When at={e.ts} /> },
-  { key: 'kind', header: 'Kind', mobile: 'title', cell: (e) => <span className="font-mono text-xs text-ink">{e.kind}</span> },
-  { key: 'tool', header: 'Tool', hideBelow: 'lg', truncate: true, cell: (e) => (e.tool ? <span title={e.tool} className="font-mono text-xs">{e.tool}</span> : dash) },
+  { key: 'when', header: 'When', width: 'w-28', mobile: 'fact', cell: (e) => <span className="whitespace-nowrap"><When at={e.ts} /></span> },
+  { key: 'kind', header: 'Kind', mobile: 'fact', cell: (e) => <span className="font-mono text-xs whitespace-nowrap text-ink">{e.kind}</span>, mobileCell: phoneFact },
+  {
+    key: 'tool', header: 'Tool', align: 'left', grow: true, mobile: 'title', title: (e) => e.tool ?? e.kind,
+    cell: (e) => (e.tool ? <ToolName name={e.tool} /> : dash),
+    mobileCell: (e) => <span className="font-mono text-xs [overflow-wrap:anywhere]">{e.tool ?? e.kind}</span>,
+  },
   { key: 'initiative', header: 'Initiative', hideBelow: 'xl', truncate: true, cell: (e) => (e.initiative ? <span title={e.initiative} className="text-xs">{e.initiative}</span> : dash) },
-  // The local part alone — `jane.doe`, never the domain — and `title` carries the whole address on hover.
-  { key: 'actor', header: 'Actor', hideBelow: 'md', mobile: 'fact', cell: (e) => (e.actor ? <span title={e.actor}>{e.actor.split('@')[0]}</span> : dash) },
+  // The local part alone — `jane.doe`, never the domain — and `title` carries the whole address on hover. A phone card
+  // says who acted beside the kind, and nothing where nobody did: a dash in a line of facts says nothing.
+  { key: 'actor', header: 'Actor', hideBelow: 'md', cell: (e) => (e.actor ? <span title={e.actor}>{e.actor.split('@')[0]}</span> : dash) },
   // A refusal is the row worth finding, so it alone carries colour; ok is the normal case and stays neutral.
   { key: 'result', header: 'Result', mobile: 'status', cell: (e) => (e.ok === false ? <Badge tone="critical" dot>Refused</Badge> : e.ok === true ? <Badge tone="neutral">OK</Badge> : dash) },
-  { key: 'owner', header: 'Why', hideBelow: 'lg', cell: (e) => (e.ok === false ? OWNER_LABEL[e.owner ?? 'other'] : '') },
+  { key: 'owner', header: 'Why', hideBelow: 'lg', cell: (e) => <span className="whitespace-nowrap">{e.ok === false ? OWNER_LABEL[e.owner ?? 'other'] : ''}</span> },
   { key: 'message', header: 'Message', align: 'left', hideBelow: 'xl', truncate: true, cell: (e) => (e.ok !== false ? '' : e.message ? <span title={e.message} className="text-critical-ink">{e.message}</span> : <span className="text-ink-3">No message recorded</span>) },
 ]);
+
+/**
+ * A tool's name, `core:document_approve`, whole on one line where the table has the width. Under 896px of table the
+ * message has little left, so the name may break, but only between its parts: after the door and after an underscore,
+ * never "cor / e:d / ocu".
+ */
+const ToolName = ({ name }: { name: string }) => (
+  <span className="font-mono text-xs whitespace-nowrap @max-[896px]:whitespace-normal">
+    {name.split(/(?<=[:_])/).map((part, i) => <Fragment key={i}>{i ? <wbr /> : null}{part}</Fragment>)}
+  </span>
+);
 
 /** The groups in the gateway's order, most first: the browser ranks and counts none of them. */
 const GROUP_COLUMNS: Column<RefusalGroup>[] = aligned([
   { key: 'owner', header: 'Owner', width: 'w-40', mobile: 'status', cell: (g) => <Owner owner={g.owner} /> },
-  { key: 'tool', header: 'Tool', hideBelow: 'md', mobile: 'fact', cell: (g) => <span className="font-mono text-xs whitespace-normal [overflow-wrap:anywhere]">{g.tool}</span> },
+  // A tool's name whole on one line, and the message, which may run to a sentence, takes the slack and wraps.
+  { key: 'tool', header: 'Tool', hideBelow: 'md', mobile: 'fact', cell: (g) => <ToolName name={g.tool} /> },
   { key: 'message', header: 'Message', align: 'left', grow: true, mobile: 'title', cell: (g) => <Message text={g.message} /> },
   { key: 'count', header: 'Refused', numeric: true, mobile: 'fact', cell: (g) => `${formatCount(g.count)}×`, mobileCell: (g) => `${formatCount(g.count)}× refused` },
   { key: 'last', header: 'Last seen', numeric: true, hideBelow: 'md', cell: (g) => formatDate(g.lastSeen) },

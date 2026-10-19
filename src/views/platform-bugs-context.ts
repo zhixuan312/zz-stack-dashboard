@@ -9,8 +9,8 @@
  * queue alone. A week's resolved count and its median are of the reports filed that week, so a report filed one week
  * and resolved the next is counted in the week it was filed. A missing figure is said as missing, never as zero.
  *
- * What a member reads is the gateway's safe row: a title generated from the report's canonical surface, and its typed
- * metadata. The superadmin's rows add the reporter's own title and the team, and only theirs open the report's page.
+ * What a member reads is the gateway's safe row: a title it builds from the report's impact, canonical surface and filed
+ * day, and its typed metadata. The superadmin's rows add the reporter's own title and the team, and only theirs open the report's page.
  *
  * The queue's filters and page are in its address (`?state=&impact=&surface=&page=`), and the gateway filters and pages
  * the rows: the page's first read on the console's server, its later reads in the browser, its context and
@@ -204,11 +204,13 @@ export const isAdminRow = (r: PublicBugRow): r is AdminBugRow => 'internalTitle'
 const NAMED = 4;
 const WEEKS_TOLD = 5;
 
-/** One queue row as the assistant is told it: its title (the reporter's own for the superadmin), its impact, surface and state. */
+/** One queue row as the assistant is told it: the reporter's own title and team, its impact, surface and filing for the
+ *  superadmin; for a member the gateway's title, which already says its impact, surface and filing; then its state. */
 function rowLine(r: PublicBugRow): string {
-  const title = isAdminRow(r) ? `${clip(r.internalTitle, 48)} (${clip(r.team ?? 'no team', 24)})` : r.title;
   const resolved = r.resolvedAt ? ` on ${formatDay(r.resolvedAt)}` : '';
-  return `${title}: ${impactOf(r.impact).toLowerCase()}, ${r.surface ?? 'no surface named'}, filed ${formatDay(r.filedAt)}, ${statusOf(r.status).toLowerCase()}${resolved}`;
+  const state = `${statusOf(r.status).toLowerCase()}${resolved}`;
+  if (!isAdminRow(r)) return `${r.title}, ${state}`;
+  return `${clip(r.internalTitle, 48)} (${clip(r.team ?? 'no team', 24)}): ${impactOf(r.impact).toLowerCase()}, ${r.surface ?? 'no surface named'}, filed ${formatDay(r.filedAt)}, ${state}`;
 }
 
 function weeksLine(cohorts: Cohort[], asOf: string): string | null {
@@ -286,7 +288,7 @@ export function bugsContext(data: Bugs, { filters, read, ...arrival }: { filters
     unknowns: [
       ...UNKNOWNS,
       ...(narrow ? ['The filters narrow the queue alone: every figure is over every real report.'] : []),
-      ...(data.meta.scope === 'platform-admin' ? [] : ['A member reads each report by a title generated from its surface and its typed metadata alone: never its own words, its team or its resolution.']),
+      ...(data.meta.scope === 'platform-admin' ? [] : ['A member reads each report by a title built from its impact, surface and filed day, and its typed metadata alone: never its own words, its team or its resolution.']),
       ...(counts ? [] : [`The counts could not be read (${data.counts.state === 'unavailable' ? data.counts.reason : 'unknown'}); the weeks and the queue stand.`]),
       ...(queue.state === 'unavailable' ? [`The queue could not be listed (${queue.reason}); the figures stand.`] : []),
       ...(weeks ? [] : ['No whole week has ended since the record began, so no week is stated.']),

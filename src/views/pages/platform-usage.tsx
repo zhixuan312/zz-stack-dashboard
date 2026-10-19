@@ -165,7 +165,8 @@ function Calls({ usage }: { usage: Usage }) {
     format: formatCount,
     height: 220,
   };
-  const parts: ColumnPart[] = labels.map((l) => ({ key: l, label: l }));
+  // Teams are identities, so each takes a categorical slot in order; Other takes none and stays neutral.
+  const parts: ColumnPart[] = labels.map((l, i) => (l === 'Other' ? { key: l, label: l } : { key: l, label: l, color: i + 1 }));
   return (
     <Panel
       title={CALLS_TITLE}
@@ -206,7 +207,8 @@ function Followup({ part }: { part: Usage['followup'] }) {
           {shown ? (
             <div data-followup>
               <p className="t-caption mb-1">The {weekOf(shown.window)}{shown.window.complete ? '' : ', so far'}</p>
-              <KeyValue columns={2} items={followupLine(shown).map((l) => ({ label: l.label, value: l.value }))} />
+              {/* Each value wraps whole: a figure and the count it is of are one value, never cut at the card's edge. */}
+              <KeyValue columns={2} items={followupLine(shown).map((l) => ({ label: l.label, value: l.value, wrap: true }))} />
             </div>
           ) : null}
         </div>
@@ -242,9 +244,9 @@ function Refusals({ part }: { part: Usage['refusals'] }) {
   );
 }
 
-/** A tool's median in one week, over the week and the calls it is over. */
+/** A tool's median in one week, over the week and the calls it is over, each line whole. */
 const MedianCell = ({ side }: { side: ToolRow['first'] }) => (
-  <span className="inline-flex flex-col">
+  <span className="inline-flex flex-col whitespace-nowrap">
     <span>{figureText('ms', side.medianMs)}</span>
     <span className="text-xs text-ink-3">{formatDay(side.window.from)} · {formatCount(side.calls)} calls</span>
   </span>
@@ -253,12 +255,12 @@ const MedianCell = ({ side }: { side: ToolRow['first'] }) => (
 /** The change from the first week to the last, set down as a movement and never as better or worse. */
 function ChangeCell({ row }: { row: ToolRow }) {
   const [a, b] = [row.first.medianMs, row.last.medianMs];
-  if (a.value === null || b.value === null || a.value === 0 || a.why || b.why) return <span className="text-xs text-ink-3">Not comparable</span>;
+  if (a.value === null || b.value === null || a.value === 0 || a.why || b.why) return <span className="whitespace-nowrap text-xs text-ink-3">Not comparable</span>;
   return <Delta value={(b.value - a.value) / a.value} intent="neutral" />;
 }
 
 const TOOL_COLUMNS: Column<ToolRow>[] = aligned([
-  { key: 'tool', header: 'Tool', grow: true, mobile: 'title', cell: (r) => <span className="font-mono text-xs whitespace-normal [overflow-wrap:anywhere]" title={r.tool}>{r.tool}</span> },
+  { key: 'tool', header: 'Tool', grow: true, mobile: 'title', cell: (r) => <span className="font-mono text-xs whitespace-nowrap" title={r.tool}>{r.tool}</span> },
   { key: 'first', header: 'First week', mobile: 'fact', cell: (r) => <MedianCell side={r.first} />, mobileCell: (r) => `First ${figureText('ms', r.first.medianMs)}` },
   { key: 'last', header: 'Last week', mobile: 'fact', cell: (r) => <MedianCell side={r.last} />, mobileCell: (r) => `Last ${figureText('ms', r.last.medianMs)}` },
   { key: 'change', header: 'Change', mobile: 'status', cell: (r) => <ChangeCell row={r} /> },

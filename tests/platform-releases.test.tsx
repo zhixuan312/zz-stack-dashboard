@@ -86,10 +86,10 @@ describe('Releases draws its tiles, its weeks and its table', () => {
     browser(null);
     mount(<PlatformReleasesView served={ok} />);
     const tile = (label: string) => [...document.querySelectorAll<HTMLElement>('[data-split="tiles"] > .card')].find((c) => c.textContent!.startsWith(label))!;
-    expect(tile('Releases').textContent).toContain(String(LIST.tiles.releases));
-    expect(tile('Last week').textContent).toContain(String(LIST.tiles.lastWeek));
-    expect(tile('Latest release').textContent).toContain(LIST.tiles.latest!.version);
-    expect(tile('Latest release').textContent).toContain('Tagged');
+    expect(tile('Releases').textContent).toMatch(new RegExp(`${LIST.tiles.releases}\\s*releases`));
+    expect(tile('Last week').textContent).toMatch(new RegExp(`${LIST.tiles.lastWeek}\\s*releases?`));
+    expect(tile('Latest tag').textContent).toContain(LIST.tiles.latest!.version);
+    expect(tile('Latest tag').textContent).toContain('Tagged');
     expect(tile('Migrations applied').textContent).toContain(String(LIST.tiles.migrations.applied));
   });
 
@@ -112,7 +112,7 @@ describe('Releases draws its tiles, its weeks and its table', () => {
     const newest = row(NEWEST);
     const after = within(newest).getAllByText('After', { exact: false }).map((e) => e.closest('[title]')!).find((e) => e.getAttribute('title')!.startsWith('After'))!;
     expect(after.textContent).toContain('partial');
-    expect(after.getAttribute('title')).toMatch(/^After, partial: .*still running$/);
+    expect(after.getAttribute('title')).toMatch(/^After, partial: Observed \d+ of 72 hours so far: /);
     // Every side says how much of it was observed, a complete one too.
     const sides = [...table().querySelectorAll('tbody [title^="Before"], tbody [title^="After"]')].map((e) => e.getAttribute('title')!);
     expect(sides.length).toBe(rows().length * 2 * 3);
@@ -122,7 +122,7 @@ describe('Releases draws its tiles, its weeks and its table', () => {
     expect(row(PAIRED).textContent).toContain(`Within 72 hours of ${NEWEST}`);
     expect(row(QUIET).textContent).toContain('No calls');
     expect(row(OLDEST).textContent).toContain('Not observed');
-    expect(row(OLDEST).textContent).toContain('Unknown — no recorded upgrade notes');
+    expect(row(OLDEST).textContent).toContain('Unknown: no recorded upgrade notes');
     expect(newest.textContent).toContain('Nothing to do');
     expect(document.querySelector(`a[href="/platform/releases/${NEWEST}"]`)).not.toBeNull();
   });
@@ -139,13 +139,14 @@ describe('Releases draws its tiles, its weeks and its table', () => {
 describe('a release\'s page draws its changelog and its upgrade notes', () => {
   const detail = releaseDetail(PAIRED)!;
 
-  it('the published changelog and upgrade notes, what clients do, and both windows with what of each was observed', async () => {
+  it('the published changelog with its upgrade notes, what clients do, and both windows with what of each was observed', async () => {
     browser(null);
     mount(<PlatformReleaseView version={PAIRED} served={{ state: 'ok', data: detail }} />);
     const changelog = screen.getByText('Changelog').closest('.card') as HTMLElement;
     await waitFor(() => expect(within(changelog).getByText('Releases are recorded.')).toBeInTheDocument());
-    const notes = screen.getAllByText('Upgrade notes').map((e) => e.closest('.card') as HTMLElement).find((c) => c !== changelog)!;
-    await waitFor(() => expect(within(notes).getByText('Re-pull the plugins.')).toBeInTheDocument());
+    // The upgrade notes are the changelog's own heading, said there once.
+    await waitFor(() => expect(within(changelog).getByText('Re-pull the plugins.')).toBeInTheDocument());
+    expect(screen.getAllByText('Upgrade notes').map((e) => e.closest('.card'))).toEqual([changelog]);
     const release = screen.getByText('This release').closest('.card') as HTMLElement;
     expect(within(release).getByText(detail.clientAction!)).toBeInTheDocument();
     expect(within(release).getByText(NEWEST)).toBeInTheDocument();
@@ -168,8 +169,8 @@ describe('a release\'s page draws its changelog and its upgrade notes', () => {
     browser(null);
     const old = releaseDetail(OLDEST)!;
     mount(<PlatformReleaseView version={OLDEST} served={{ state: 'ok', data: old }} />);
-    expect(screen.getByText('No upgrade notes recorded')).toBeInTheDocument();
-    expect(screen.getAllByText(/Unknown — no recorded upgrade notes/).length).toBeGreaterThan(0);
+    expect(screen.queryByText('Upgrade notes')).toBeNull();
+    expect(screen.getAllByText(/Unknown: no recorded upgrade notes/).length).toBeGreaterThan(0);
     expect(screen.getAllByText('Not observed', { exact: false }).length).toBeGreaterThan(0);
   });
 });

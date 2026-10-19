@@ -168,6 +168,7 @@ export function DataTable<R>({
   busy,
   error,
   onRetry,
+  retrying,
   filtered,
   onClearFilters,
   empty,
@@ -214,6 +215,8 @@ export function DataTable<R>({
   /** What went wrong, in one sentence. Shows the error state with Retry. */
   error?: ReactNode;
   onRetry?: () => void;
+  /** The person's Retry is on its way: the button is busy until the read answers. Pass it for their press only, so a read something else started never moves their focus. */
+  retrying?: boolean;
   /** The rows are empty because of filters: the empty state offers Clear filters, not Create. */
   filtered?: boolean;
   onClearFilters?: () => void;
@@ -273,7 +276,7 @@ export function DataTable<R>({
   let body: ReactNode;
   if (error) {
     body = (
-      <EmptyState kind="error" title={`The ${noun} did not load`} action={onRetry ? <Button size="sm" icon={<RotateCw />} onClick={onRetry}>Retry</Button> : undefined} className="py-16">
+      <EmptyState kind="error" title={`The ${noun} did not load`} action={onRetry ? <Button size="sm" icon={<RotateCw />} busy={retrying} onClick={onRetry}>Retry</Button> : undefined} className="py-16">
         {error}
       </EmptyState>
     );

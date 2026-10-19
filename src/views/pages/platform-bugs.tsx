@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import { Bug, Hourglass, Inbox, Timer } from 'lucide-react';
-import { Row } from '@/components/base/shell';
+import { Row, Stack } from '@/components/base/shell';
 import { useShareView } from '@/components/base/use-share-view';
 import { BarList } from '@/components/charts/bar-list';
 import { ColumnChart } from '@/components/charts/column-chart';
@@ -39,16 +39,17 @@ import { useServed, useServedAddress } from '@/views/use-served';
 function useBugs(served: BugsRead, filters: BugsFilters) {
   const path = bugsPath(filters);
   const mine = served.path === path ? served : null;
-  const { q, error, retry } = useServed<Bugs>(path, mine !== null, mine === null);
+  const { q, error, retry, busy } = useServed<Bugs>(path, mine !== null, mine === null);
   const data = q.data ?? (mine?.state === 'ok' ? mine.data : undefined);
   const failed = failureOf({ error });
   const trouble = data ? null : failed ?? (mine && mine.state !== 'ok' ? bugsTrouble(mine) : null);
-  return { data, trouble, retry, updatedAt: q.data ? new Date(q.dataUpdatedAt) : data ? data.meta.asOf : null };
+  return { data, trouble, retry, busy, updatedAt: q.data ? new Date(q.dataUpdatedAt) : data ? data.meta.asOf : null };
 }
 
 const impactTone = (i: string) => (i === 'blocks_work' ? 'critical' : i === 'wrong_result' ? 'warning' : 'neutral');
 
-/** A row's title: the reporter's own and the team for the superadmin, the generated one for a member. */
+/** A row's title: the reporter's own and the team for the superadmin; for a member, the one the gateway built from the
+ *  report's impact, surface and filed date. */
 function Title({ r }: { r: PublicBugRow }) {
   const own = isAdminRow(r) ? r.internalTitle : r.title;
   return (
@@ -88,14 +89,14 @@ const STATE_OPTIONS = [{ value: 'all', label: 'All' }, { value: 'open', label: '
 const IMPACT_OPTIONS = [{ value: 'all', label: 'All' }, ...BUG_IMPACTS.map((i) => ({ value: i, label: IMPACT[i] }))];
 
 /**
- * Every real bug report: four tiles, reports filed and resolved by the week filed on one cursor, the outcomes, the
- * impacts and the median hours to resolve by the week filed, then the queue, ten to a page, newest first, filtered by
- * state, impact and surface. Every figure is over every report; the filters narrow the queue alone. Only the
+ * Every real bug report: four tiles, then the queue, the page's protagonist, ten to a page, newest first, filtered by
+ * state, impact and surface, then reports filed and resolved by the week filed on one cursor, the outcomes, the impacts
+ * and the median hours to resolve by the week filed. Every figure is over every report; the filters narrow the queue alone. Only the
  * superadmin's rows open a report's page.
  */
 export function PlatformBugsView({ served }: { served: BugsRead }) {
   const [filters, set] = useServedAddress(BUGS_DEFAULTS, served, filtersOfPath);
-  const { data, trouble, retry, updatedAt } = useBugs(served, filters);
+  const { data, trouble, retry, busy, updatedAt } = useBugs(served, filters);
   const now = useDataClock();
   useShareView(data
     ? bugsContext(data, { filters, updatedAt, now })
@@ -112,24 +113,8 @@ export function PlatformBugsView({ served }: { served: BugsRead }) {
   const tableError = trouble ?? (queue?.state === 'unavailable' ? `The queue could not be listed: ${queue.reason}. The figures stand.` : undefined);
 
   return (
-    <>
+    <Stack>
       <Tiles data={data} mark={mark} />
-      {data ? <Weeks data={data} /> : trouble ? null : <Row split="1/2"><ChartSkeleton height="h-72" /><ChartSkeleton height="h-72" /></Row>}
-      {data ? (
-        <Row split="1/3">
-          <Panel title="Outcomes" description="Every report by where it stands: still open, or how it was closed.">
-            {counts ? (
-              <CompositionBar label="Outcomes" format={formatCount} parts={BUG_STATUSES.map((s) => ({ label: STATUS[s], value: counts.byStatus[s], color: COLOR[s] }))} />
-            ) : <EmptyState kind="error" layout="inline" title="The outcomes could not be counted">{data.counts.state === 'unavailable' ? data.counts.reason : null}</EmptyState>}
-            {counts ? (
-              <div className="mt-6">
-                <BarList label="By impact" format={formatCount} total={counts.open + counts.resolved} items={BUG_IMPACTS.map((i) => ({ key: i, label: IMPACT[i], value: counts.byImpact[i] }))} />
-              </div>
-            ) : null}
-          </Panel>
-          <Median data={data} />
-        </Row>
-      ) : null}
       <div data-protagonist="Queue" className="contents">
         <DataTable
           caption="Bug reports, newest filed first"
@@ -145,6 +130,7 @@ export function PlatformBugsView({ served }: { served: BugsRead }) {
           loading={!data && !trouble}
           error={tableError}
           onRetry={retry}
+          retrying={busy}
           state={{ sort: '', dir: 'desc', page: filters.page }}
           onStateChange={(p) => { if (p.page) set({ page: p.page }); }}
           filtered={narrow}
@@ -164,7 +150,23 @@ export function PlatformBugsView({ served }: { served: BugsRead }) {
           }
         />
       </div>
-    </>
+      {data ? <Weeks data={data} /> : trouble ? null : <Row split="1/2"><ChartSkeleton height="h-72" /><ChartSkeleton height="h-72" /></Row>}
+      {data ? (
+        <Row split="1/3">
+          <Panel title="Outcomes" description="Every report by where it stands: still open, or how it was closed.">
+            {counts ? (
+              <CompositionBar label="Outcomes" format={formatCount} parts={BUG_STATUSES.map((s) => ({ label: STATUS[s], value: counts.byStatus[s], color: COLOR[s] }))} />
+            ) : <EmptyState kind="error" layout="inline" title="The outcomes could not be counted">{data.counts.state === 'unavailable' ? data.counts.reason : null}</EmptyState>}
+            {counts ? (
+              <div className="mt-6">
+                <BarList label="By impact" format={formatCount} total={counts.open + counts.resolved} items={BUG_IMPACTS.map((i) => ({ key: i, label: IMPACT[i], value: counts.byImpact[i] }))} />
+              </div>
+            ) : null}
+          </Panel>
+          <Median data={data} />
+        </Row>
+      ) : null}
+    </Stack>
   );
 }
 

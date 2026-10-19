@@ -18,6 +18,7 @@ import { InlineForm } from '@/console/inline-form';
 import { PageControl } from '@/console/paged';
 import { useAccess } from '@/console/settings/access-read';
 import { InlineDestructive } from '@/console/settings/inline-destructive';
+import { Email, PHONE_ROWS } from '@/console/settings/phone-rows';
 import { Since } from '@/console/settings/since';
 import { ApiError } from '@/lib/api';
 import type { IssuedToken } from '@/lib/api-shapes';
@@ -148,13 +149,22 @@ export function TokensPanel() {
   );
 }
 
-/** Its own component so it can hold the page of rows it shows. */
+/**
+ * A token's label, with any address in it broken only between its parts: an OAuth client's label names the person it
+ * acts as (`mcp oauth — /core/mcp — ava@example.com`), and the rest of it breaks between words.
+ */
+const Label = ({ text }: { text: string }) => (
+  <>{text.split(/(\S+@\S+)/).map((part, i) => (i % 2 ? <Email key={i} address={part} /> : part))}</>
+);
+
+/** Its own component so it can hold the page of rows it shows. On a phone each token is a card: the label and what it
+ *  was issued through on their own lines, its state and Revoke under them. */
 function TokensTable({ rows, pending, onRevoke }: { rows: AccessToken[]; pending: boolean; onRevoke: (t: AccessToken) => void }) {
   const { access } = useAccess();
   const { rows: page, ...pager } = usePaged(rows);
   return (
     <>
-      <Table caption="Your tokens, newest first">
+      <Table caption="Your tokens, newest first" className={PHONE_ROWS}>
         <TableHead>
           <TableRow>
             {/* A lower floor than the lead column's own, so the label, its state and Revoke fit a phone's 356px. */}
@@ -171,15 +181,15 @@ function TokensTable({ rows, pending, onRevoke }: { rows: AccessToken[]; pending
             const app = applicationOf(access, t);
             return (
               <TableRow key={t.id} data-token={t.id}>
-                <TableCell>
-                  <span className="block text-sm font-medium text-ink [overflow-wrap:anywhere]">{t.label || <span className="text-ink-3">No label</span>}</span>
+                <TableCell data-lead>
+                  <span className="block text-sm font-medium text-ink [overflow-wrap:break-word]">{t.label ? <Label text={t.label} /> : <span className="text-ink-3">No label</span>}</span>
                   {/* What the hidden columns say, under the label, where a phone has no room for them. */}
-                  <span className="t-caption block @min-[672px]:hidden [overflow-wrap:anywhere]">
+                  <span className="t-caption block @min-[672px]:hidden [overflow-wrap:break-word]">
                     {app}, issued {formatDate(t.createdAt)}
                     <span className="@min-[512px]:hidden">{t.lastUsedAt ? <>, last used <Since at={t.lastUsedAt} asOf={access.meta.asOf} /></> : ', never used'}</span>
                   </span>
                 </TableCell>
-                <TableCell hideBelow="md" className={app === DIRECT ? 'text-xs text-ink-3' : 'text-xs [overflow-wrap:anywhere]'}>{app}</TableCell>
+                <TableCell hideBelow="md" className={app === DIRECT ? 'text-xs text-ink-3' : 'text-xs [overflow-wrap:break-word]'}>{app}</TableCell>
                 <TableCell hideBelow="md" className="whitespace-nowrap text-xs">{formatDate(t.createdAt)}</TableCell>
                 <TableCell hideBelow="sm" className="whitespace-nowrap text-xs"><Since at={t.lastUsedAt} asOf={access.meta.asOf} /></TableCell>
                 <TableCell>{stateOf(t) === 'live' ? <Badge tone="positive" dot>Live</Badge> : <Badge tone="neutral" dot>Revoked</Badge>}</TableCell>

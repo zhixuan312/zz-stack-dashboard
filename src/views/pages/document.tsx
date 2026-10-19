@@ -61,6 +61,21 @@ function decisionColumns(role: string): Column<Decision>[] {
 }
 
 /**
+ * A table the document carries, as cards where the text's column is narrow: under 480px, a phone's column or the two
+ * thirds of a 1024px window, each row is a card, its first cell the card's title and the rest beneath it, one to a
+ * line, and the header row a key above them in the same shape, so the n-th line of every card is the n-th heading.
+ * Three columns of a decisions table at a phone's width set "the / index, / per / field" one word to a line. The
+ * text's column is the container, so the rule follows the column wherever the page puts it.
+ */
+const TABLE_CARDS = [
+  '@container',
+  '@max-[480px]:[&_table]:block @max-[480px]:[&_thead]:block @max-[480px]:[&_tbody]:block @max-[480px]:[&_tr]:block',
+  '@max-[480px]:[&_th]:block @max-[480px]:[&_th]:py-0.5 @max-[480px]:[&_th]:whitespace-normal @max-[480px]:[&_thead_tr]:py-2',
+  '@max-[480px]:[&_td]:block @max-[480px]:[&_td]:py-0.5 @max-[480px]:[&_tbody_tr]:py-2.5',
+  '@max-[480px]:[&_td:first-child]:font-medium @max-[480px]:[&_td:first-child]:text-ink',
+].join(' ');
+
+/**
  * What the document is and where it stands, beside the text rather than above it.
  *
  * This was Meridian's `KeyValue` — a two-column label/value grid — sitting between the masthead and the first line of
@@ -233,7 +248,7 @@ function DocumentBody({ doc, view, onView }: { doc: DocumentDetail; view: 'read'
               wide screen, and a 533px strip in a 1,400px canvas makes one longer than it is: the cap is worth
               2,200px of scroll on a 60,000-character document. Tables and code already fill the cell; this lets
               the running text join them. */}
-          <div className="[&_li]:max-w-[92ch] [&_ol]:max-w-[92ch] [&_p]:max-w-[92ch] [&_ul]:max-w-[92ch]">
+          <div className={`[&_li]:max-w-[92ch] [&_ol]:max-w-[92ch] [&_p]:max-w-[92ch] [&_ul]:max-w-[92ch] ${TABLE_CARDS}`}>
             {doc.body?.trim()
               ? view === 'read'
                 ? <ReadingBody>{readableDocument(doc.body, doc.title)}</ReadingBody>

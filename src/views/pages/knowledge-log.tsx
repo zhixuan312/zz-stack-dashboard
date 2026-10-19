@@ -23,7 +23,8 @@ import { knowledgeLogContext } from '@/views/knowledge-log-context';
 
 function columns(): Column<KnowledgeLogEntry>[] {
   return aligned([
-    { key: 'when', header: 'When', width: 'w-32', mobile: 'fact', cell: (e) => <time dateTime={e.ts}>{formatDate(e.ts)}</time> },
+    // A date is one line: in a column the grown Node column squeezed, "17 Oct 2026" stood on three (Work F-21).
+    { key: 'when', header: 'When', width: 'w-32', mobile: 'fact', cell: (e) => <time dateTime={e.ts} className="whitespace-nowrap">{formatDate(e.ts)}</time> },
     {
       // The title as it stands now, falling back to the one typed at the time: "node 3" is a number nobody recognises.
       key: 'node', header: 'Node', align: 'left', grow: true, mobile: 'title',
@@ -38,8 +39,9 @@ function columns(): Column<KnowledgeLogEntry>[] {
     // The row's name leads, then what happened to it: Meridian's phone rules give the title and the status the same
     // `order`, so the column order decides which of the two sits on the card's left edge, and a status ahead of the name
     // pushed the title into whatever width the badge left it. Every other list here leads with the name.
-    // Recorded is the ordinary act; superseded is the one a reader looks for, so it carries the colour.
-    { key: 'act', header: 'Act', hideBelow: 'md', mobile: 'status', cell: (e) => (e.kind === 'knowledge.add' ? <Badge tone="neutral" dot>Recorded</Badge> : <Badge tone="warning" dot>Superseded</Badge>) },
+    // Both acts are a lesson's ordinary life, so both are neutral: the warning colour is for what needs somebody, and a
+    // supersession needs nobody (Work F-18). The word says which act it was, and "node 0004 → 0005" what replaced what.
+    { key: 'act', header: 'Act', hideBelow: 'md', mobile: 'status', cell: (e) => <Badge tone="neutral" dot>{e.kind === 'knowledge.add' ? 'Recorded' : 'Superseded'}</Badge> },
     { key: 'who', header: 'Who', hideBelow: 'lg', cell: (e) => (e.actor ? e.actor.split('@')[0] : '—') },
   ]);
 }

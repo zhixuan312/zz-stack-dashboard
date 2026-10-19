@@ -195,7 +195,9 @@ describe('Waiting', () => {
     rows('Team approvals').forEach((tr, i) => {
       expect(tr.textContent).toContain(queue[i].path);
       expect(tr.textContent).toContain(`v${queue[i].version}`);
-      expect(tr.textContent).toContain(queue[i].contentRevision);
+      // The snapshot by its short hash, and whole in the version cell's title.
+      expect(tr.textContent).toContain(queue[i].contentRevision.slice(3, 11));
+      expect(tr.querySelector(`td[title="v${queue[i].version}, ${queue[i].contentRevision}"]`)).not.toBeNull();
       expect(tr.textContent).toContain(waited(queue[i].waitingSince, WAITING.meta.asOf));
     });
   });
@@ -230,7 +232,8 @@ describe('History', () => {
     rows('Approved in your name').forEach((tr, i) => {
       const r = mine[i];
       expect(tr.textContent).toContain(`v${r.version}`);
-      expect(tr.textContent).toContain(r.contentRevision);
+      expect(tr.textContent).toContain(r.contentRevision.slice(3, 11));
+      expect(tr.querySelector(`td[title="v${r.version}, ${r.contentRevision}"]`)).not.toBeNull();
       expect(tr.textContent).toContain(approvedWhen(r.approvedAt));
       expect(tr.textContent).toContain(PRESENTATION[r.presentation].label);
       expect(tr.textContent).toContain(DECISION_BASIS[r.decisionBasis].label);
@@ -273,7 +276,8 @@ describe('History', () => {
     expect(theirs.size).toBeGreaterThan(0);
     expect(rows('Approved in your name')).toHaveLength(theirs.size);
     for (const r of historyOf(HISTORY).rows) expect(theirs.has(r.contentRevision)).toBe(false);
-    for (const r of historyOf(HISTORY).rows) expect(text()).not.toContain(r.contentRevision);
+    // Whole tokens live in the cells' titles now, so the markup is read, not only the text.
+    for (const r of historyOf(HISTORY).rows) expect(document.body.innerHTML).not.toContain(r.contentRevision);
   });
 });
 

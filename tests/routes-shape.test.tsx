@@ -51,7 +51,9 @@ const viewTables = (src: string) => (src.match(/<DataTable\b/g) ?? []).length;
 const skeletonTables = (src: string) => (src.match(/<(?:TableSkeleton|RecordsSkeleton)\b/g) ?? []).length;
 const drawsTiles = (src: string) => /<TilesSkeleton\b/.test(src) || /tiles=\{[1-9]\d*\}/.test(src);
 const hidesFilters = (src: string) => /filters=\{false\}/.test(src);
-const drawsFilterBar = (src: string) => /<FilterBar\b/.test(src);
+/** A toolbar row above the table: a filter bar, or the tabs a page switches its table by (Approvals', since its count
+ *  moved to the tabs' pills). The skeleton's row of controls stands for either. */
+const drawsFilterBar = (src: string) => /<(?:FilterBar|LinkTabs)\b/.test(src);
 /** The tallest block a file draws, in pixels: `h-<n>` is n × 0.25 rem against a 16px root, so h-72 is 288. A
  *  `min-h-` floor is deliberately not counted — it is not the height the block takes. */
 const tallestBlock = (src: string): number => {

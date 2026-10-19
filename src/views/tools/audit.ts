@@ -2,7 +2,8 @@
  * Audit's view tool, at `/platform/audit`, the superadmin's alone. Its arguments are spec version 8's: `filter`, which
  * tab (`administration` or `all`, Everything), and the route's own `limit` and `offset`, so it reads
  * `GET /platform/audit` as the route pages it, newest first. It answers the same response its page reads, and its
- * context is the page's, from the same `auditContext`, at the page of ten the offset falls in. Its prepared query
+ * context is the page's, from the same `auditContext` with the titles of the reports its acts name read as the page reads
+ * them, at the page of ten the offset falls in. Its prepared query
  * (`src/views/audit-explore.ts`) counts the events by kind and team. It changes nothing.
  */
 import { z } from 'zod';
@@ -10,9 +11,10 @@ import { requireNeed } from '@/data/access';
 import { FEATURES } from '@/data/features';
 import { gatewayGet } from '@/data/gateway';
 import type { Audit } from '@/lib/fleet-shapes';
+import type { BugReport } from '@/lib/platform-shapes';
 import { defineViewTool } from '@/lib/shared-context';
 import { auditExplore } from '../audit-explore';
-import { AUDIT_FILTERS, PAGE_SIZE, auditContext, auditPath, pageAt } from '../platform-audit-context';
+import { AUDIT_FILTERS, PAGE_SIZE, auditContext, auditPath, pageAt, reportTitles } from '../platform-audit-context';
 import { justRead } from './shared';
 
 export const auditTool = defineViewTool({
@@ -31,7 +33,8 @@ export const auditTool = defineViewTool({
     const read = { limit, offset };
     const filters = pageAt(filter, offset);
     const data = await gatewayGet<Audit>(auditPath(filters, read));
-    return { context: auditContext(data, { filters, read, ...justRead() }), data };
+    const reports = await reportTitles(data, (p) => gatewayGet<BugReport>(p));
+    return { context: auditContext(data, { filters, read, reports, ...justRead() }), data };
   },
   explore: auditExplore,
 });

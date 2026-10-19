@@ -3,11 +3,11 @@
  * `/platform/bugs/:id/duplicates` answer, and how `POST /platform/bugs/:id/resolve` is refused or accepted.
  *
  * One fixture, the reports as the superadmin reads them. A member's answer is derived from it by the gateway's
- * projection rules and never written by hand: the title is generated from the canonical surface alone, an unknown
- * surface is null, and no raw title, detail, team, resolution or duplicate target reaches them.
+ * projection rules and never written by hand: the title is built from the impact, the canonical surface and the day
+ * filed, an unknown surface is null, and no raw title, detail, team, resolution or duplicate target reaches them.
  *
  * The reports cover the states the page draws: an open report that blocks work, cohorts with reports still open, a
- * surface outside the vocabulary (titled `Platform issue reported`), one with no surface, a report with no team, and
+ * surface outside the vocabulary (titled `…: no surface named, …`), one with no surface, a report with no team, and
  * one of each resolution, including a duplicate of another report of its team. A journey session's resolution is kept
  * for that session, in its queue, its report and its Status (journey.ts). Status is answered from here because it
  * counts both the reports and the approvals queue, which imports the status fixture.
@@ -82,11 +82,22 @@ function reports(): BugReport[] {
   });
 }
 
-/** The safe row, the same for everybody: a title from the canonical surface alone, and typed metadata. */
+/** The impacts as a withheld report's title says them. */
+const IMPACT_WORDS: Record<string, string> = { blocks_work: 'Blocks work', wrong_result: 'Wrong result', confusing: 'Confusing', cosmetic: 'Cosmetic' };
+/** A day as a withheld report's title says it, `16 Sept 2026`, in the gateway's default reporting timezone, which is the
+ *  console's own (`app.timezone`), so the title's day is the day the queue's Filed column draws. */
+const DAY = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Singapore', day: 'numeric', month: 'short', year: 'numeric' });
+
+/** The title of a report its reader may not read in full, from what they may see of it: its impact, its canonical
+ *  surface and the day it was filed, `Blocks work: document_approve, filed 16 Sept 2026`. COUPLED: the gateway's `publicTitle`. */
+export const publicTitle = (impact: string, surface: string | null, filedAt: string): string =>
+  `${IMPACT_WORDS[impact] ?? impact}: ${surface ?? 'no surface named'}, filed ${DAY.format(Date.parse(filedAt))}`;
+
+/** The safe row, the same for everybody: a title built from its impact, canonical surface and filed day, and typed metadata. */
 function publicRow(r: BugReport): PublicBugRow {
   const surface = canonicalSurface(r.surface);
   return {
-    id: r.id, title: surface === null ? 'Platform issue reported' : `Report concerning ${surface}`,
+    id: r.id, title: publicTitle(r.impact, surface, r.reportedAt),
     impact: r.impact as PublicBugRow['impact'], surface, filedAt: r.reportedAt, platformVersion: r.platformVersion,
     status: r.status as PublicBugRow['status'], resolvedAt: r.resolvedAt,
   };
@@ -154,8 +165,12 @@ export function bugs(admin: boolean, filter: BugFilter, limit: number, offset: n
   };
 }
 
-/** `GET /platform/bugs/:id`, the superadmin's alone; null for an id that names no report. */
-export const bugReport = (id: string): BugReport | null => reports().find((r) => r.id === id) ?? null;
+/** `GET /platform/bugs/:id`, the superadmin's alone, its surface spelt as the queue spells it when it is a word of the
+ *  vocabulary and as stored otherwise; null for an id that names no report. */
+export function bugReport(id: string): BugReport | null {
+  const r = reports().find((x) => x.id === id);
+  return r ? { ...r, surface: canonicalSurface(r.surface) ?? r.surface } : null;
+}
 
 /** `GET /platform/bugs/:id/duplicates`: the reports `bug_resolve` would accept as this one's target, which are the other
  *  reports of its team, a report with no team matching another with none. */

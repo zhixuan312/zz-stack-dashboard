@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Query } from '@/console/query';
 import { InlineForm } from '@/console/inline-form';
 import { InlineDestructive } from '@/console/settings/inline-destructive';
+import { Email, PHONE_ROWS } from '@/console/settings/phone-rows';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -116,7 +117,8 @@ export function TeamMembersPanel({ team }: { team: string }) {
 }
 
 /** Its own component so it can hold the page state — the rows come from a `Query` render prop.
- *  `team` is the reset key: switching team lands on the first page of the new roster. */
+ *  `team` is the reset key: switching team lands on the first page of the new roster. On a phone each member is a
+ *  card: the address whole on its line, the role and Remove under it. */
 function MembersTable({ rows, team, pending, onRole, onRemove }: {
   rows: TeamMemberRow[];
   team: string;
@@ -127,7 +129,7 @@ function MembersTable({ rows, team, pending, onRole, onRemove }: {
   const { rows: page, ...pager } = usePaged(rows, { resetKey: team });
   return (
     <>
-      <Table>
+      <Table className={PHONE_ROWS}>
         <TableHead>
           <TableRow>
             <TableHeader>Person</TableHeader>
@@ -138,7 +140,7 @@ function MembersTable({ rows, team, pending, onRole, onRemove }: {
         <TableBody>
           {page.map((m) => (
             <TableRow key={m.email}>
-              <TableCell className="break-all text-xs">{m.email}</TableCell>
+              <TableCell data-lead className="text-xs"><Email address={m.email} /></TableCell>
               <TableCell>
                 <Select size="sm" aria-label={`${m.email}'s role`} value={m.role} onValueChange={(v) => onRole(m.email, v as 'member' | 'admin')} options={[{ value: 'member', label: 'Member' }, { value: 'admin', label: 'Admin' }]} className="w-32" />
               </TableCell>

@@ -25,9 +25,9 @@ describe('EvalEvolution', () => {
       candidate({ id: 'c2', status: 'awaiting_build', build: null }),
       candidate({ id: 'c3', status: 'invalid', build: { ok: false, stage: 'gate' } }),
     ] })} />);
-    expect(screen.getByText('recorded')).toBeInTheDocument();
-    expect(screen.getByText('awaiting build')).toBeInTheDocument();
-    expect(screen.getByText('invalid')).toBeInTheDocument();
+    expect(screen.getByText('Recorded')).toBeInTheDocument();
+    expect(screen.getByText('Awaiting build')).toBeInTheDocument();
+    expect(screen.getByText('Invalid')).toBeInTheDocument();
   });
 
   it('shows the build result: passed, failed at its stage, or not built', () => {
@@ -36,10 +36,10 @@ describe('EvalEvolution', () => {
       candidate({ id: 'c2', status: 'invalid', build: { ok: false, stage: 'install' } }),
       candidate({ id: 'c3', status: 'recorded', build: null }),
     ] })} />);
-    expect(screen.getByText('passed')).toBeInTheDocument();
-    expect(screen.getByText('failed')).toBeInTheDocument();
+    expect(screen.getByText('Passed')).toBeInTheDocument();
+    expect(screen.getByText('Failed')).toBeInTheDocument();
     expect(screen.getByText('at install')).toBeInTheDocument();
-    expect(screen.getByText('not built')).toBeInTheDocument();
+    expect(screen.getByText('Not built')).toBeInTheDocument();
   });
 
   it('reads "Evaluation only" on a third-party plugin\'s Evolution', () => {
@@ -53,7 +53,7 @@ describe('EvalEvolution', () => {
       candidates: [candidate({ release: null })],
     })} />);
     expect(screen.getByText('tighten the refusal message')).toBeInTheDocument();
-    expect(screen.getByText('not released')).toBeInTheDocument();
+    expect(screen.getByText('Not released')).toBeInTheDocument();
   });
 
   it('names a rollback, not the plain release status, once one has happened', () => {
@@ -62,8 +62,8 @@ describe('EvalEvolution', () => {
       release: { status: 'released', reason: null, releasedDeclaredVersion: '1.1.0',
         releaseRef: 'rel-1', verdict: 'rolled_back', verificationReason: 'regression on capability suite', rolledBack: true },
     })] })} />);
-    expect(screen.getAllByText('rolled back')).toHaveLength(1);
-    expect(screen.queryByText('released')).not.toBeInTheDocument();
+    expect(screen.getAllByText('Rolled back')).toHaveLength(1);
+    expect(screen.queryByText('Released')).not.toBeInTheDocument();
   });
 });
 
@@ -72,7 +72,7 @@ describe('EvalAutomationTrust', () => {
     render(<EvalAutomationTrust pluginEval={pluginEval({
       origin: 'third_party', ownerTeam: null, releaseOwners: [],
     })} />);
-    expect(screen.getByText('third_party')).toBeInTheDocument();
+    expect(screen.getByText('Third party')).toBeInTheDocument();
     expect(screen.getByText('none recorded')).toBeInTheDocument();
     expect(screen.queryByText('Evolvable')).not.toBeInTheDocument();
     expect(screen.getByText('none — cannot be released')).toBeInTheDocument();
@@ -86,8 +86,8 @@ describe('EvalAutomationTrust', () => {
       ],
     })} />);
     expect(screen.getByText('refusal-quality')).toBeInTheDocument();
-    expect(screen.getByText('operationally_qualified')).toBeInTheDocument();
+    expect(screen.getByText('Qualified for use')).toBeInTheDocument();
     expect(screen.getByText('tone-check')).toBeInTheDocument();
-    expect(screen.getByText('never qualified')).toBeInTheDocument();
+    expect(screen.getByText('Never qualified')).toBeInTheDocument();
   });
 });

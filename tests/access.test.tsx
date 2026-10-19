@@ -133,7 +133,10 @@ describe('Access, as the fake gateway answers the superadmin', () => {
   it('draws the setup commands, the applications with their live tokens, and the passkeys', () => {
     browser();
     draw(ADMIN);
-    expect(section('Client setup').querySelector('[data-setup]')!.textContent!.trim()).toBe(ADMIN.setup.config.trim());
+    // The setup's blocks of commands as the gateway wrote them, each in its own block.
+    const blocks = [...ADMIN.setup.config.matchAll(/```[^\n]*\n([\s\S]*?)\n```/g)].map((m) => m[1]);
+    expect(blocks.length).toBeGreaterThan(0);
+    expect([...section('Client setup').querySelectorAll('[data-setup] pre')].map((p) => p.textContent).filter((t) => blocks.includes(t!))).toEqual(blocks);
     const [claude] = rowsOf('Connected applications');
     expect(claude.textContent).toContain('Claude Code');
     expect(claude.textContent).toContain('2 live');
@@ -376,7 +379,8 @@ describe('the first paint', () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const view = <AccessView served={ok(ADMIN)} />;
     const html = renderToString(<QueryClientProvider client={client}>{tree(view)}</QueryClientProvider>);
-    for (const t of ADMIN.issued) expect(html).toContain(t.label);
+    // A label's address breaks only between its parts, so its text is read past the marks that allow it.
+    for (const t of ADMIN.issued) expect(html.replace(/<[^>]+>/g, '')).toContain(t.label);
     expect(html).not.toContain('Console scope');
     for (const b of ADMIN.browsers) expect(html).not.toContain(b.id);
     const container = document.createElement('div');

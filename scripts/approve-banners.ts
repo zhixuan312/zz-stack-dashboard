@@ -67,10 +67,13 @@ if (!changed.text.includes('This document changed while you were reading it')) f
 if (changed.approve) failures.push(`${drifting}: Approve is still pressable on a snapshot the page did not record`);
 if (page.errors.length) failures.push(`${drifting}: ${page.errors[0]}`);
 
-// Failed: the record is refused outright, so Approve is unavailable from the first render.
+// Failed: the record is refused outright, so Approve is unavailable once the refusal lands. The record is a request of
+// its own after the render, so the banner is polled as Approve is in `offered`: under a full verify's load the one read
+// at the open's settle came before the refusal (Harbormaster #3834; three runs alone passed at the first read).
 const unrecordable = '/initiatives/atlas/2026-10-04-index-rebuild/spec.md';
 await page.open(base + unrecordable, { width: 1440, theme: 'dark' });
-const failed = await read();
+let failed = await read();
+for (let i = 0; i < 16 && !failed.text.includes('Approve is unavailable'); i++) { await sleep(500); failed = await read(); }
 if (!failed.text.includes('Approve is unavailable')) failures.push(`${unrecordable}: a refused record drew no "Approve is unavailable" banner`);
 if (failed.approve) failures.push(`${unrecordable}: Approve is pressable although nothing was recorded`);
 if (page.errors.length) failures.push(`${unrecordable}: ${page.errors[0]}`);

@@ -6,7 +6,8 @@ One initiative end to end: where it is in its flow, its documents, and the evide
 
 - Gate first: the page asks for `initiatives` before it renders, so a person who does not hold it is shown NoAccess and nothing on the page is read.
 - First read on the console's server: the initiative is read as the person, bounded at 4.5 seconds, with the team they act for, and handed to the masthead and the body. Later reads, after a close or a hint that initiatives changed, are the browser's.
-- Masthead: the state badge, and Close initiative while it is open and of the team the person acts for.
+- Masthead: the slug as the title, whole on one line: it is an identifier, so it steps down to the size at which it fits the masthead's width rather than breaking after a hyphen. Then the state badge, and Close initiative while it is open and of the team the person acts for.
+- The cards, Progress, Documents and Sources, stand one row gap apart, as on every page.
 - Close: a dialog of three choices. Accepted sends `{ disposition: 'finished' }`; Delivered sends `{ disposition: 'finished', no_signoff_reason }` with the person's reason nobody signed it off; Abandoned sends `{ disposition: 'abandoned' }`. An initiative with no flow names the document a finished close lands on. The dialog never sends an outcome or a closer: it shows the outcome and the closer the gateway answered.
 - Progress: the flow stepper, stages as circles and gates as diamonds, with the outcome on the closing node.
 - Documents: in the order the flow produces them, with approval and approver.

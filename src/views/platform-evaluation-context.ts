@@ -41,7 +41,7 @@ export const TILES = {
   waiting: { label: 'Findings waiting', definition: 'Defects and unknowns with no decision yet, each counted once.' },
   established: { label: 'Scores established', definition: 'Plugins whose latest scoring is recorded as established.' },
   lastScored: { label: 'Last scored', definition: 'When any plugin was last scored.' },
-  daysScored: { label: 'Days on which a plugin was scored', definition: 'Distinct days, in the reporting time zone, with any scoring.' },
+  daysScored: { label: 'Days scored', definition: 'Distinct days, in the reporting time zone, on which a plugin was scored.' },
 } as const;
 
 /** A standing as a reader says it: `not_established` is an enum, not a word. */
@@ -97,13 +97,19 @@ export function trendOf(series: Series): Trend | null {
 /** A change of score in points, as a person reads it: `up 0.7 points`. */
 const changeText = (n: number): string => (Math.abs(n) < 0.05 ? 'unchanged' : `${n > 0 ? 'up' : 'down'} ${scoreIn(Math.abs(n))} points`);
 
-/** One row of the scores by series: a plugin's series, with the statement the read makes of that plugin's series. */
-export type SeriesRow = { key: string; plugin: string; statement: string; series: Series; trend: Trend | null };
+/**
+ * One row of the scores by series: a plugin's series, with the statement the read makes of that plugin's series. The
+ * statement is the plugin's, not the series', so it is said once, on the plugin's first row (`first`).
+ */
+export type SeriesRow = { key: string; plugin: string; statement: string; first: boolean; series: Series; trend: Trend | null };
 
 /** Every plugin's series, one row each, in the read's order: a plugin's first series first. */
 export function seriesRows(history: History[]): SeriesRow[] {
-  return history.flatMap((h) => h.series.map((s, i) => ({ key: `${h.plugin}#${i}`, plugin: h.plugin, statement: h.statement, series: s, trend: trendOf(s) })));
+  return history.flatMap((h) => h.series.map((s, i) => ({ key: `${h.plugin}#${i}`, plugin: h.plugin, statement: h.statement, first: i === 0, series: s, trend: trendOf(s) })));
 }
+
+/** A series as a row names it: its protocol, and the population it was scored over. */
+export const seriesName = (s: Series): string => `${protocolOf(s.protocol)}, ${s.population ?? 'population not recorded'}`;
 
 /** One scoring as a cell or a line says it: its score with its range, or its standing alone, and the day. */
 export const runText = (r: Run): string => `${r.score === null ? `no score (${standingOf(r.standing).toLowerCase()})` : `${scoreIn(r.score)} ${standingOf(r.standing).toLowerCase()}`} ${formatShortDate(r.scoredAt)}`;
@@ -162,7 +168,7 @@ export function evaluationContext(read: EvaluationRead): SharedContext {
   const history = new Map(e.history.state === 'ok' ? e.history.data.map((h) => [h.plugin, h]) : []);
   const series = (s: Series) => {
     const t = trendOf(s);
-    return `${protocolOf(s.protocol)}, ${s.population ?? 'population not recorded'}: ${s.runs.map(runText).join(', ')}${t ? `; ${changeText(t.change)} within the series` : ''}`;
+    return `${seriesName(s)}: ${s.runs.map(runText).join(', ')}${t ? `; ${changeText(t.change)} within the series` : ''}`;
   };
   for (const plugin of new Set([...latest.keys(), ...history.keys()])) {
     const [p, h] = [latest.get(plugin), history.get(plugin)];

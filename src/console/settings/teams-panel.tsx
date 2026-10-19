@@ -46,7 +46,7 @@ export function TeamsPanel({ teams }: { teams: MyTeams }) {
       as="div"
       flush
       title="The team you act for"
-      description="The teams you belong to, and which one this browser acts for. Your agents keep their own, which team_switch on the /manage door moves."
+      description="The teams you belong to, and which one this browser acts for. Your agents keep their own team: ask the ZZ Access agent in your client to move them."
     >
       <TeamsTable
         teams={teams}

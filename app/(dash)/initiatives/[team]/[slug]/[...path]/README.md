@@ -12,6 +12,8 @@ One document, read: the text, how it changed and on what evidence, and the claim
   one when the reader reloads, and Approve signs exactly that snapshot under the review context the record answered.
 - Document: type, status, approver and update facts, and the review metadata an approval signs with the body
   (stakeholder, tags, each of the flow's own fields), then the text rendered or as stored.
+- A table the text carries becomes cards where the text's column is under 480px, as on a phone: each row a card, its
+  first cell the title and the rest beneath it, one to a line, under a key of the headings in the same order.
 - Changes and their reasons: the sources first, then the diff between content versions.
 - Content history and the claims table.
 

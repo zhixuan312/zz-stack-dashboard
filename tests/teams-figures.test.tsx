@@ -100,7 +100,7 @@ describe('the figures on Teams', () => {
       expect(cell(slug, 'Week before'), slug).toBe(formatCount(t.calls.previous.figure.value));
     }
     expect(cell('atlas', 'Sessions by week')).toContain(`oldest first: ${team('atlas').sessions.map((w) => w.figure.value).join(', ')}`);
-    expect(cell('dune', 'Last active')).toBe('Never');
+    expect(cell('dune', 'Last active')).toBe('No activity yet');
   });
 
   it('names an archived team, and opens each team at its Platform address', () => {

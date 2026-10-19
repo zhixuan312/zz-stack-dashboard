@@ -11,7 +11,7 @@
 import type { RunRow, Runs } from '@/lib/destination-shapes';
 import { plural } from '@/lib/format';
 import { formatCount, formatKb, formatSeconds } from '@/lib/format-units';
-import { formatDate, formatDateTime } from '@/lib/format-date';
+import { dayOf, formatDate, formatDateTime, formatDay } from '@/lib/format-date';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
 import { addressOf, arrived, budgeted, clip, type Arrival } from './context';
 
@@ -80,6 +80,17 @@ export const outputOf = (bytes: number | null): string => (bytes === null ? 'Not
 
 /** How a run stands, as the gateway states it: active while its last call is recent, and never running beyond it. */
 export const stateOf = (r: RunRow): string => (r.state === 'active' ? 'Active' : r.state === 'one_call' ? 'One call' : `Last call at ${formatDateTime(r.lastCallAt)}`);
+
+/**
+ * A run's state as its table cell says it, on one line: the last call's time alone when the run started that day, which
+ * the Started column beside it says, and its day and time when it did not, or where no Started column is drawn. The
+ * assistant reads `stateOf`'s whole date.
+ */
+export const stateCellOf = (r: RunRow, { started = true }: { started?: boolean } = {}): string => {
+  if (r.state !== 'last_call') return stateOf(r);
+  const time = formatDateTime(r.lastCallAt).slice(-5);
+  return started && dayOf(r.lastCallAt) === dayOf(r.startedAt) ? `Last call ${time}` : `Last call ${formatDay(r.lastCallAt)}, ${time}`;
+};
 
 /** A share refused, to a tenth of a percent, or nothing for a skill with no call to share out. */
 export const refusedOf = (share: number | null): string | null => (share === null ? null : `${(share * 100).toFixed(1)}%`);

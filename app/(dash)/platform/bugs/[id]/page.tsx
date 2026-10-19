@@ -31,7 +31,7 @@ export default async function PlatformBugPage({ params }: Params) {
           <Link href="/platform/bugs" className="hit rounded-xs hover:text-ink">Bugs</Link>
         </span>
       }
-      title="Bug report"
+      {...(read.state === 'ok' ? { name: 'Bug report', title: read.data.title } : { title: 'Bug report' })}
       description="What the reporter wrote, what it is about, and what was decided."
     >
       <PlatformBugView id={id} served={read} duplicates={duplicates} />

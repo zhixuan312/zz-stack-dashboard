@@ -47,8 +47,8 @@ describe('EvalLearning', () => {
     }} />);
     expect(screen.getByText('plugin defect')).toBeInTheDocument();
     expect(screen.getByText('dependency defect')).toBeInTheDocument();
-    expect(screen.getByText('plugin')).toBeInTheDocument();
-    expect(screen.getByText('dependency')).toBeInTheDocument();
+    expect(screen.getByText('The plugin')).toBeInTheDocument();
+    expect(screen.getByText('A dependency')).toBeInTheDocument();
   });
 
   it('says plainly when a run produced no finding at all', () => {

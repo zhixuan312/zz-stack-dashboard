@@ -21,7 +21,7 @@ import { formatDate, formatDateTime } from '@/lib/format-date';
 import { pendingContext } from '@/views/context';
 import {
   AUDIT_DEFAULTS, PAGE_SIZE, TAB_LABEL, auditContext, auditPath, auditTrouble, beforeDays, channelOf, countWords, dayWords, feedEvent,
-  filtersOfPath, kindsOf, narrowed, notRecordedWords, originOf, resultOf, tabOf, teamsOf, type AuditFilter, type AuditFilters, type AuditRead,
+  filtersOfPath, kindsOf, narrowed, notRecordedWords, originOf, resultOf, tabOf, teamsOf, type AuditFilter, type AuditFilters, type AuditRead, type ReportTitles,
 } from '@/views/platform-audit-context';
 import { OWNER_LABEL } from '@/views/activity-context';
 import { useServed, useServedAddress } from '@/views/use-served';
@@ -41,7 +41,9 @@ function useAudit(served: AuditRead, filters: AuditFilters) {
   const data = q.data ?? (mine?.state === 'ok' ? mine.data : undefined);
   const failed = failureOf({ error });
   const trouble = data ? null : failed ?? (mine && mine.state !== 'ok' ? auditTrouble(mine) : null);
-  return { data, trouble, retry, busy, updatedAt: q.data ? new Date(q.dataUpdatedAt) : data ? data.meta.asOf : null };
+  // The reports' titles are the server's read alone: a page the browser read again keeps the server's for its address.
+  const reports = (mine?.state === 'ok' ? mine.reports : undefined) ?? {};
+  return { data, reports, trouble, retry, busy, updatedAt: q.data ? new Date(q.dataUpdatedAt) : data ? data.meta.asOf : null };
 }
 
 const dash = <span className="text-ink-3">—</span>;
@@ -79,10 +81,10 @@ const COLUMNS: Column<AuditRow>[] = aligned([
 export function PlatformAuditView({ served }: { served: AuditRead }) {
   const [filters, set] = useServedAddress(AUDIT_DEFAULTS, served, filtersOfPath);
   const tab = tabOf(filters);
-  const { data, trouble, retry, busy, updatedAt } = useAudit(served, filters);
+  const { data, reports, trouble, retry, busy, updatedAt } = useAudit(served, filters);
   const now = useDataClock();
   useShareView(data
-    ? auditContext(data, { filters, updatedAt, now })
+    ? auditContext(data, { filters, reports, updatedAt, now })
     : pendingContext({ view: 'audit', title: 'Audit', address: '/platform/audit', scope: 'the platform\'s recorded administration' }, trouble));
   // A tab is a view of its own: moving to one starts it afresh, its filters cleared and its first page.
   const choose = (v: string) => set({ ...AUDIT_DEFAULTS, filter: v as AuditFilter });
@@ -94,10 +96,10 @@ export function PlatformAuditView({ served }: { served: AuditRead }) {
         <Tab value="all">{TAB_LABEL.all}</Tab>
       </TabList>
       <TabPanel value="administration">
-        <Feed data={tab === 'administration' ? data : undefined} trouble={tab === 'administration' ? trouble : null} retry={retry} busy={busy} page={filters.page} onPage={(page) => set({ page })} />
+        <Feed data={tab === 'administration' ? data : undefined} reports={reports} trouble={tab === 'administration' ? trouble : null} retry={retry} busy={busy} page={filters.page} onPage={(page) => set({ page })} />
       </TabPanel>
       <TabPanel value="all">
-        <Events data={tab === 'all' ? data : undefined} trouble={tab === 'all' ? trouble : null} retry={retry} filters={filters} set={set} />
+        <Events data={tab === 'all' ? data : undefined} trouble={tab === 'all' ? trouble : null} retry={retry} busy={busy} filters={filters} set={set} />
       </TabPanel>
     </Tabs>
   );
@@ -113,11 +115,14 @@ const FeedSkeleton = () => (
 );
 
 /**
- * Administration: one sentence an act, newest first, ten a page, each as the gateway said it, its actor first (`Someone
- * not recorded` when nobody was), marked as the platform's own only when it is maintenance. The clock its times are told
+ * Administration: one sentence an act, newest first, ten a page, each as the gateway said it with a report called by its
+ * title, its actor first (`Someone not recorded` when nobody was), marked as the platform's own only when it is
+ * maintenance. The clock its times are told
  * against is the read's own cutoff, so the server and the browser say the same words.
  */
-function Feed({ data, trouble, retry, busy, page, onPage }: { data?: Audit; trouble: string | null; retry: () => void; busy: boolean; page: string; onPage: (page: string) => void }) {
+function Feed({ data, reports, trouble, retry, busy, page, onPage }: {
+  data?: Audit; reports: ReportTitles; trouble: string | null; retry: () => void; busy: boolean; page: string; onPage: (page: string) => void;
+}) {
   const unrecorded = data ? notRecordedWords(data) : null;
   const ask = <AskAbout question="Who changed who may do what most recently, and which of these acts were platform maintenance?" />;
   return (
@@ -131,7 +136,7 @@ function Feed({ data, trouble, retry, busy, page, onPage }: { data?: Audit; trou
       {data ? (
         data.rows.length ? (
           <>
-            <ActivityFeed events={data.rows.map(feedEvent)} now={new Date(data.meta.asOf)} />
+            <ActivityFeed events={data.rows.map((r) => feedEvent(r, reports))} now={new Date(data.meta.asOf)} />
             {data.total > PAGE_SIZE ? (
               <Pagination className="mt-5 border-t border-line pt-4" page={Math.max(1, Number(page) || 1)} pageSize={PAGE_SIZE} total={data.total} noun="acts" onPageChange={(p) => onPage(String(p))} />
             ) : null}
@@ -149,8 +154,8 @@ function Feed({ data, trouble, retry, busy, page, onPage }: { data?: Audit; trou
  * Everything: every recorded event but page views, as metadata, the latest 500 the filters reach. The filters are applied
  * before the 500, so a kind, a team or an earlier day reaches events older than the latest 500.
  */
-function Events({ data, trouble, retry, filters, set }: {
-  data?: Audit; trouble: string | null; retry: () => void; filters: AuditFilters; set: (patch: Partial<AuditFilters>) => void;
+function Events({ data, trouble, retry, busy, filters, set }: {
+  data?: Audit; trouble: string | null; retry: () => void; busy: boolean; filters: AuditFilters; set: (patch: Partial<AuditFilters>) => void;
 }) {
   const rows = data?.rows ?? [];
   const narrow = narrowed(filters);
@@ -174,6 +179,7 @@ function Events({ data, trouble, retry, filters, set }: {
         loading={!data && !trouble}
         error={trouble ?? undefined}
         onRetry={retry}
+        retrying={busy}
         state={{ sort: '', dir: 'desc', page: filters.page }}
         onStateChange={(p) => { if (p.page) set({ page: p.page }); }}
         filtered={narrow}

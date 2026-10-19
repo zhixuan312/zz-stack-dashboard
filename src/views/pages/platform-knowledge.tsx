@@ -273,7 +273,9 @@ function Cohorts({ part }: { part: KnowledgeHealth['cohorts'] }) {
             const said = `Week of ${formatDay(c.window.from)}: ${cohortText(c)}`;
             return {
               key: c.window.from,
-              label: <span title={said}>Week of {formatDay(c.window.from)}<span className="text-ink-3"> · {cohortNote(c)}</span></span>,
+              // The week, and under it what the week holds: the list cuts its label at one line, so the note wraps
+              // as a block of its own rather than ending in an ellipsis on a phone.
+              label: <span data-cohort title={said} className="block whitespace-normal">Week of {formatDay(c.window.from)}<span className="t-caption block">{cohortNote(c)}</span></span>,
               value: c.made,
             };
           })}
@@ -298,9 +300,9 @@ function ByKind({ part }: { part: KnowledgeHealth['byKind'] }) {
 
 const QUESTION_COLUMNS: Column<Question>[] = aligned([
   { key: 'question', header: 'Question', grow: true, mobile: 'title', cell: (r) => <span className="whitespace-normal [overflow-wrap:anywhere]">{r.question}</span> },
-  { key: 'shelf', header: 'Team', mobile: 'fact', cell: (r) => <span className="font-mono text-xs" title={r.shelf}>{r.shelf}</span> },
+  { key: 'shelf', header: 'Team', mobile: 'fact', cell: (r) => <span className="font-mono text-xs whitespace-nowrap" title={r.shelf}>{r.shelf}</span> },
   { key: 'asked', header: 'Asked', numeric: true, mobile: 'fact', cell: (r) => num(r.asked), mobileCell: (r) => `Asked ${formatCount(r.asked)} ${plural(r.asked, 'time')}` },
-  { key: 'last', header: 'Last asked', mobile: 'status', cell: (r) => <span className="t-num">{formatDateTime(r.lastAskedAt)}</span> },
+  { key: 'last', header: 'Last asked', mobile: 'status', cell: (r) => <span className="t-num whitespace-nowrap">{formatDateTime(r.lastAskedAt)}</span> },
 ]);
 
 /** The superadmin's alone: what the searches that found nothing asked, most asked first. */

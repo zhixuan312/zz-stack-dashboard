@@ -5,10 +5,10 @@ One knowledge node, read, with where it was learned and what shares its subject:
 ## Structure
 
 - Gate first: the page asks for `knowledge` before it renders, so a person who does not hold it is shown nothing of the page and nothing on it is read.
-- A warning banner when the node is superseded, and a banner when it is on the shared shelf.
+- A neutral banner when the node is superseded, naming the node that replaced it and linking it when it is among the node's neighbours (a supersession needs nobody, so it wears no warning colour), and a banner when it is on the shared shelf.
 - The lesson, rendered; facts beside it: status, shelf (`Your team` or `Shared`), type, team, recorded, learned in, tags, path. Nothing on the page changes a lesson.
 - Learned in: the initiatives of the team the reader acts for, each linked to its page, and how many initiatives of other teams the lesson was learned in, a count with no name and no link (`cited_elsewhere`). A shared lesson cites other teams' work, which is theirs: the node's answer names only the reader's team's.
-- Nodes that share a tag.
+- Nodes that share a tag: number, title, status, shared tags, recorded. A neighbour a later lesson replaced reads `Superseded` by the node that replaced it, a link where that node is listed too, so it is never read as current beside its successor; a current one reads `Adopted`.
 
 ## States
 
@@ -24,7 +24,7 @@ The assistant reads this page and changes nothing: every change in this console 
 
 ### What the agent reads
 
-The node's team and number, its status, its shelf, type, date and tags; a shared one's scope says it is on the platform's shared shelf. What code found: the lesson itself (its first 1,400 characters; the page text carries the rest), the node that superseded it, the initiatives of the reader's team it was learned in with their addresses and how many of other teams' with no name, and the nodes that share a tag with it (10 at most). The lesson is in the context on purpose: `view_knowledge_node` is how the assistant reads what an earlier initiative settled without the person opening the node.
+The node's team and number, its status, its shelf, type, date and tags; a shared one's scope says it is on the platform's shared shelf. What code found: the lesson itself (its first 1,400 characters; the page text carries the rest), the node that superseded it, the initiatives of the reader's team it was learned in with their addresses and how many of other teams' with no name, and the nodes that share a tag with it, each superseded one said to be and by which node (10 at most). The lesson is in the context on purpose: `view_knowledge_node` is how the assistant reads what an earlier initiative settled without the person opening the node.
 
 ```text
 - It was learned in 2026-10-02-query-latency (/initiatives/atlas/2026-10-02-query-latency), and in 1 initiative of another team, which is not named here.

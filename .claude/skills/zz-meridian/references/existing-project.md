@@ -140,8 +140,8 @@ in `optional:src/views/settings.tsx`.
 
 Three things an adopter meets here. The layout's promise is a request-time part of every page, so each page's HTML
 carries that part's flight data beside the prerendered one: one adopter measured a page going from 65 to 90 KiB of
-HTML (11.2 to 12.0 KiB compressed), so a team with an `htmlKb` budget in `scripts/verify.config.ts` should expect the
-number to move and record it again. The assistant walk-through in `pnpm verify --full` drives the sample's own Home,
+HTML (11.2 to 12.0 KiB compressed), so a team should expect each page's HTML
+figure to move and record its baseline again (`node scripts/sizes.ts --write-baseline --base <url>`). The assistant walk-through in `pnpm verify --full` drives the sample's own Home,
 Now, Members (its lookups through `explore_members`, each request handing it), API keys (a key's revocation, found
 through `explore_keys`, expiring on moving on) and Settings, asks the sample's Usage and Tests through their prepared
 queries, and reports those steps as not applicable in a product that replaced them; what the product's own

@@ -197,14 +197,17 @@ describe('the rest of the Knowledge page', () => {
     expect(text()).toContain('18 of 24 searches found something in the week of 5 Oct');
   });
 
-  it('draws the newest lessons with the shelf beside them, and a link to the log', async () => {
+  it('draws the newest lessons beside searches by week, with a link to the log, and the shelf under them', async () => {
     mount(<KnowledgeView read={READ} />);
     await waitFor(() => expect(text()).toContain(shelfRow.title));
     const newest = screen.getByRole('link', { name: 'A person reads a snippet before it ships' });
-    const row = newest.closest('[data-split="1/3"]')!;
+    const row = newest.closest('[data-split="1/2"]')!;
     expect(row).not.toBeNull();
-    expect(within(row as HTMLElement).getByText(shelfRow.title)).toBeInTheDocument();
+    expect(within(row as HTMLElement).getByRole('heading', { name: 'Searches with results, by week' })).toBeInTheDocument();
     expect(within(row as HTMLElement).getByRole('link', { name: /in the log/ })).toHaveAttribute('href', '/knowledge/log');
+    const shelf = screen.getByText(shelfRow.title);
+    expect(row.compareDocumentPosition(shelf) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(row.contains(shelf)).toBe(false);
   });
 
   it('says the shelf\'s figures did not load over a failed server read, with no figure and no mark of a read still coming', async () => {

@@ -155,16 +155,15 @@ async function readsOfOneChange(from: number, follows: string[]): Promise<string
 /**
  * A page of the nineteen: its view drawn from its own server read, the addresses it follows in the browser, and the
  * troubles that read can end in that the view draws (a detail route whose server read answers 404 draws the missing
- * page at the route, never the view). `ownRetry` is false where the trouble is said by the managed DataTable's error
- * state: its Retry takes no busy (`src/components/patterns/data-table/index.tsx`), so a press there is told by its read
- * alone. `pressed` is how many reads a press sends: a page whose Retry reads two of its reads asks both.
+ * page at the route, never the view). Every Retry is busy for the person's own press, the managed DataTable's included
+ * (`retrying`, ZZ Meridian 0.19.0). `pressed` is how many reads a press sends: a page whose Retry reads two of its reads
+ * asks both.
  */
 type Page = {
   name: string;
   view: (trouble: Trouble) => Promise<ReactElement>;
   follows: string[];
   troubles: Trouble[];
-  ownRetry: boolean;
   pressed?: number;
   /** The control the missing state offers in place of Retry, where it offers one. */
   missing?: string;
@@ -172,48 +171,48 @@ type Page = {
 
 const PAGES: Page[] = [
   {
-    name: 'a document', follows: ['/document/atlas/s/spec.md'], troubles: ['missing', 'failed', 'slow'], ownRetry: true,
+    name: 'a document', follows: ['/document/atlas/s/spec.md'], troubles: ['missing', 'failed', 'slow'],
     view: async (t) => h(DocumentView, { team: 'atlas', slug: 's', rel: 'spec.md', served: await serverRead(t, () => readDocument('atlas', 's', 'spec.md')), teamPage: false }),
   },
   {
-    name: 'an initiative', follows: ['/initiatives/atlas/s'], troubles: ['missing', 'failed', 'slow'], ownRetry: true, missing: 'All initiatives',
+    name: 'an initiative', follows: ['/initiatives/atlas/s'], troubles: ['missing', 'failed', 'slow'], missing: 'All initiatives',
     view: async (t) => h(InitiativeView, { team: 'atlas', slug: 's', served: await serverRead(t, () => readInitiative('atlas', 's')) }),
   },
   {
-    name: 'a team', follows: ['/teams/atlas'], troubles: ['missing', 'failed', 'slow'], ownRetry: true, missing: 'All teams',
+    name: 'a team', follows: ['/teams/atlas'], troubles: ['missing', 'failed', 'slow'], missing: 'All teams',
     view: async (t) => h(PlatformTeamView, { slug: 'atlas', served: await serverRead(t, () => readTeam('atlas')) }),
   },
   {
-    name: 'a release', follows: ['/platform/releases/0.1.0'], troubles: ['failed', 'slow'], ownRetry: true,
+    name: 'a release', follows: ['/platform/releases/0.1.0'], troubles: ['failed', 'slow'],
     view: async (t) => h(PlatformReleaseView, { version: '0.1.0', served: await serverRead(t, () => readRelease('0.1.0')) }),
   },
   {
-    name: 'a bug report', follows: ['/platform/bugs/b1', '/platform/bugs/b1/duplicates'], troubles: ['failed', 'slow'], ownRetry: true,
+    name: 'a bug report', follows: ['/platform/bugs/b1', '/platform/bugs/b1/duplicates'], troubles: ['failed', 'slow'],
     view: async (t) => {
       const [served, duplicates] = await serverRead(t, () => Promise.all([readBug('b1'), readDuplicates('b1')]));
       return h(PlatformBugView, { id: 'b1', served, duplicates });
     },
   },
-  { name: 'Record', follows: ['/record'], troubles: ['failed', 'slow'], ownRetry: true, view: async (t) => h(RecordView, { served: await serverRead(t, () => readRecord(recordFilters({}))) }) },
-  { name: 'Audit', follows: ['/platform/audit'], troubles: ['failed', 'slow'], ownRetry: true, view: async (t) => h(PlatformAuditView, { served: await serverRead(t, () => readAudit(auditFilters({}))) }) },
-  { name: 'Access', follows: ['/access'], troubles: ['failed', 'slow'], ownRetry: true, view: async (t) => h(AccessView, { served: await serverRead(t, readAccess) }) },
-  { name: 'Plugins', follows: ['/plugins'], troubles: ['failed', 'slow'], ownRetry: false, view: async (t) => h(PluginsView, { served: await serverRead(t, readPlugins) }) },
+  { name: 'Record', follows: ['/record'], troubles: ['failed', 'slow'], view: async (t) => h(RecordView, { served: await serverRead(t, () => readRecord(recordFilters({}))) }) },
+  { name: 'Audit', follows: ['/platform/audit'], troubles: ['failed', 'slow'], view: async (t) => h(PlatformAuditView, { served: await serverRead(t, () => readAudit(auditFilters({}))) }) },
+  { name: 'Access', follows: ['/access'], troubles: ['failed', 'slow'], view: async (t) => h(AccessView, { served: await serverRead(t, readAccess) }) },
+  { name: 'Plugins', follows: ['/plugins'], troubles: ['failed', 'slow'], view: async (t) => h(PluginsView, { served: await serverRead(t, readPlugins) }) },
   {
-    name: 'a skill', follows: ['/plugins', '/skills', '/skills/zz-platform', '/plugins/zz-core/skills/zz-platform'], troubles: ['failed', 'slow'], ownRetry: true, pressed: 2,
+    name: 'a skill', follows: ['/plugins', '/skills', '/skills/zz-platform', '/plugins/zz-core/skills/zz-platform'], troubles: ['failed', 'slow'], pressed: 2,
     view: async (t) => h(SkillView, { plugin: 'zz-core', skill: 'zz-platform', view: 'read', served: await serverRead(t, () => readSkill('zz-core', 'zz-platform')) }),
   },
-  { name: 'Approvals', follows: ['/approvals'], troubles: ['failed', 'slow'], ownRetry: false, view: async (t) => h(ApprovalsView, { served: await serverRead(t, () => readApprovals(approvalsFilters({}))) }) },
+  { name: 'Approvals', follows: ['/approvals'], troubles: ['failed', 'slow'], view: async (t) => h(ApprovalsView, { served: await serverRead(t, () => readApprovals(approvalsFilters({}))) }) },
   {
-    name: 'a plugin', follows: ['/plugins', '/plugins/zz-core/eval'], troubles: ['failed', 'slow'], ownRetry: true,
+    name: 'a plugin', follows: ['/plugins', '/plugins/zz-core/eval'], troubles: ['failed', 'slow'],
     view: async (t) => h(PluginView, { name: 'zz-core', served: await serverRead(t, () => readPlugin('zz-core')) }),
   },
-  { name: 'Activity', follows: ['/activity/summary'], troubles: ['failed', 'slow'], ownRetry: true, view: async (t) => h(ActivityView, { read: await serverRead(t, readSummary) }) },
-  { name: 'Bugs', follows: ['/platform/bugs'], troubles: ['failed', 'slow'], ownRetry: false, view: async (t) => h(PlatformBugsView, { served: await serverRead(t, () => readBugs(bugsFilters({}))) }) },
-  { name: 'Teams', follows: ['/teams'], troubles: ['failed', 'slow'], ownRetry: false, view: async (t) => h(PlatformTeamsView, { served: await serverRead(t, () => readTeams(teamsFilters({}))) }) },
-  { name: 'People', follows: ['/people'], troubles: ['failed', 'slow'], ownRetry: false, view: async (t) => h(PlatformPeopleView, { served: await serverRead(t, () => readPeople(peopleFilters({}))) }) },
-  { name: 'Initiatives', follows: ['/initiatives'], troubles: ['failed', 'slow'], ownRetry: false, view: async (t) => h(InitiativesView, { served: await serverRead(t, () => readInitiatives(initiativesFilters({}))) }) },
-  { name: 'Releases', follows: ['/platform/releases'], troubles: ['failed', 'slow'], ownRetry: false, view: async (t) => h(PlatformReleasesView, { served: await serverRead(t, () => readReleases(releasesFilters({}))) }) },
-  { name: 'Runs', follows: ['/runs'], troubles: ['failed', 'slow'], ownRetry: true, view: async (t) => h(RunsView, { served: await serverRead(t, () => readRuns(runsFilters({}))) }) },
+  { name: 'Activity', follows: ['/activity/summary'], troubles: ['failed', 'slow'], view: async (t) => h(ActivityView, { read: await serverRead(t, readSummary) }) },
+  { name: 'Bugs', follows: ['/platform/bugs'], troubles: ['failed', 'slow'], view: async (t) => h(PlatformBugsView, { served: await serverRead(t, () => readBugs(bugsFilters({}))) }) },
+  { name: 'Teams', follows: ['/teams'], troubles: ['failed', 'slow'], view: async (t) => h(PlatformTeamsView, { served: await serverRead(t, () => readTeams(teamsFilters({}))) }) },
+  { name: 'People', follows: ['/people'], troubles: ['failed', 'slow'], view: async (t) => h(PlatformPeopleView, { served: await serverRead(t, () => readPeople(peopleFilters({}))) }) },
+  { name: 'Initiatives', follows: ['/initiatives'], troubles: ['failed', 'slow'], view: async (t) => h(InitiativesView, { served: await serverRead(t, () => readInitiatives(initiativesFilters({}))) }) },
+  { name: 'Releases', follows: ['/platform/releases'], troubles: ['failed', 'slow'], view: async (t) => h(PlatformReleasesView, { served: await serverRead(t, () => readReleases(releasesFilters({}))) }) },
+  { name: 'Runs', follows: ['/runs'], troubles: ['failed', 'slow'], view: async (t) => h(RunsView, { served: await serverRead(t, () => readRuns(runsFilters({}))) }) },
 ];
 
 function draw(ui: ReactElement) {
@@ -280,8 +279,7 @@ describe('a state a server read ended in stays on screen, and its Retry, while t
     await settle();
     expect(reads.slice(from)).toEqual([...new Set(reads.slice(from))]);
     expect(reads.length).toBe(from + (page.pressed ?? 1));
-    if (page.ownRetry) expect(retry).toHaveAttribute('aria-busy', 'true');
-    else expect(retry).not.toHaveAttribute('aria-busy');
+    expect(retry).toHaveAttribute('aria-busy', 'true');
     await answerAll('The read the person asked for failed.');
     expect(document.body.textContent).toContain('The read the person asked for failed.');
     const after = control(page, 'failed');
@@ -289,7 +287,7 @@ describe('a state a server read ended in stays on screen, and its Retry, while t
     expect(after).not.toBeDisabled();
   });
 
-  it.each(PAGES.filter((p) => p.ownRetry).map((p) => [p.name, p] as const))('%s: a Retry pressed before the browser has read is its first read, busy until it answers', async (_name, page) => {
+  it.each(PAGES.map((p) => [p.name, p] as const))('%s: a Retry pressed before the browser has read is its first read, busy until it answers', async (_name, page) => {
     draw(await page.view('failed'));
     await settle();
     const retry = control(page, 'failed');

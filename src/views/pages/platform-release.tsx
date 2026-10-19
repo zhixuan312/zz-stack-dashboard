@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { RotateCw } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { Row } from '@/components/base/shell';
+import { Row, Stack } from '@/components/base/shell';
 import { useShareView } from '@/components/base/use-share-view';
 import { AskAbout } from '@/components/patterns/ask-about';
 import { DataTable, type Column } from '@/components/patterns/data-table';
@@ -48,8 +48,8 @@ function useRelease(version: string, served: ReleaseRead, now: Date) {
   return { data, trouble, retry, busy, updatedAt: q.data ? new Date(q.dataUpdatedAt) : data ? now : null };
 }
 
-/** The notes the console's server drew as prose for its own read of the release, so no renderer is sent for them. */
-type ReleaseNotes = { changelog: ReactNode; upgradeNotes: ReactNode | null };
+/** The changelog the console's server drew as prose for its own read of the release, so no renderer is sent for it. */
+type ReleaseNotes = { changelog: ReactNode };
 
 /**
  * A text as the page draws it: the server's prose when the text is the one it drew, the browser's renderer only for one
@@ -64,9 +64,10 @@ function Notes({ md, served, node }: { md: string; served: string | null | undef
 
 /**
  * One release: its published changelog, the page's protagonist, beside what it is (when its tag was made, the console
- * it shipped with, what clients must do and the releases inside its windows), its upgrade notes, and what was observed
- * in the 72 hours either side of it. The changelog and the notes are the published Markdown, drawn through the
- * console's safe renderer, so raw HTML in them is text.
+ * it shipped with, what clients must do and the releases inside its windows), and what was observed in the 72 hours
+ * either side of it. The changelog is the section published for the release, its summary its opening and its upgrade
+ * notes its own heading, so each is said there once and nowhere beside it. It is the published Markdown, drawn through
+ * the console's safe renderer, so raw HTML in it is text.
  */
 export function PlatformReleaseView({ version, served, notes = null }: { version: string; served: ReleaseRead; notes?: ReleaseNotes | null }) {
   const now = useDataClock();
@@ -80,32 +81,26 @@ export function PlatformReleaseView({ version, served, notes = null }: { version
   const others = overlapsOf(data);
   const drew = served.state === 'ok' ? served.data : null;
   return (
-    <>
-      <Row split="2/3">
+    <Stack>
+      <Row split="2/3" className="items-start">
         <Panel
           data-protagonist="Changelog"
           title="Changelog"
-          description="The section published for this release, as written"
+          description="The section published for this release, as written, its upgrade notes included"
           actions={<AskAbout question={`What does the changelog of ${data.version} say changed, and what must clients do about it?`} />}
         >
           <Notes md={data.changelog} served={drew?.changelog} node={notes?.changelog} />
         </Panel>
         <Panel title="This release" description={`Tagged ${formatDateTime(data.releasedAt)}`}>
           <KeyValue items={[
-            { label: 'Summary', value: data.summary, wrap: true },
             { label: 'Console', value: data.consoleVersion ?? 'Not recorded' },
             { label: 'Client action', value: clientActionOf(data), wrap: true },
             { label: 'Within 72 hours of', value: others.length ? others.join(', ') : 'No other release', wrap: true },
           ]} />
         </Panel>
       </Row>
-      <Panel title="Upgrade notes" description="What the release's published notes ask of clients">
-        {data.upgradeNotes
-          ? <Notes md={data.upgradeNotes} served={drew?.upgradeNotes} node={notes?.upgradeNotes ?? undefined} />
-          : <EmptyState layout="inline" title="No upgrade notes recorded">{data.clientAction ? `The client action recorded is: ${data.clientAction}` : 'None are needed: nothing is asked of clients.'}</EmptyState>}
-      </Panel>
       <Windows release={data} asOf={asOf} />
-    </>
+    </Stack>
   );
 }
 

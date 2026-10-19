@@ -32,7 +32,7 @@ import type { Runs } from '@/lib/destination-shapes';
 import { formatDate } from '@/lib/format-date';
 import { formatKb } from '@/lib/format-units';
 import { RunsActions, RunsView } from '@/views/pages/runs';
-import { RUNS_BOUND_MS, RUNS_DEFAULTS, filtersOfPath, runsPath, stateOf, type RunsRead } from '@/views/runs-context';
+import { RUNS_BOUND_MS, RUNS_DEFAULTS, filtersOfPath, runsPath, stateCellOf, stateOf, type RunsRead } from '@/views/runs-context';
 import RunsLoading from '../app/(dash)/runs/loading';
 import RunsPage from '../app/(dash)/runs/page';
 import { readRuns } from '../app/(dash)/runs/read-runs';
@@ -216,12 +216,15 @@ describe('the recent runs', () => {
     recent(ALL).rows.forEach((r, i) => {
       expect(firstCell(rows[i])).toBe(r.skill);
       expect(rows[i].textContent).toContain(r.initiative ?? 'No initiative');
-      expect(rows[i].lastElementChild!.textContent).toBe(stateOf(r));
+      // A wide table's words for the state first, then a narrower one's, which adds the day the Started column leaves.
+      const state = rows[i].lastElementChild!;
+      expect(state.querySelector(':scope > span')?.textContent ?? state.textContent).toBe(r.state === 'last_call' ? `${stateCellOf(r)}${stateCellOf(r, { started: false })}` : stateOf(r));
+      if (r.state === 'last_call') expect(state.querySelector('[title]')!.getAttribute('title')).toBe(stateOf(r));
     });
     const states = rows.map((r) => r.lastElementChild!.textContent!);
     expect(states).toContain('Active');
     expect(states).toContain('One call');
-    expect(states.some((s) => s.startsWith('Last call at '))).toBe(true);
+    expect(states.some((s) => s.startsWith('Last call '))).toBe(true);
     expect(document.body.textContent).not.toMatch(/running/i);
   });
 

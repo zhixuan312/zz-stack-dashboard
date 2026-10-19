@@ -243,8 +243,8 @@ describe('a plugin\'s page', () => {
     const sdlc = plugin(ME, 'sdlc');
     expect(screen.getByLabelText('the command that installs sdlc')).toHaveTextContent(sdlc.install);
     expect(screen.getByRole('button', { name: 'Copy the command that installs sdlc' })).toBeInTheDocument();
-    expect(document.querySelector('[data-comparability]')).toHaveTextContent(sdlc.comparability);
-    expect(text()).toContain(`${sdlc.score!.value.toFixed(1)} / 10`);
+    expect(document.querySelector('[data-protagonist="Its public score"] [data-finding]')).toHaveTextContent(sdlc.comparability);
+    expect(document.querySelector('[data-protagonist="Its public score"] [data-value]')).toHaveTextContent(sdlc.score!.value.toFixed(1));
     expect(text()).toContain(`${sdlc.score!.protocol.key} v${sdlc.score!.protocol.version}`);
     const table = screen.getByRole('table', { name: 'sdlc\'s skills' });
     expect([...table.querySelectorAll('th')].map((h) => h.textContent?.trim())).toEqual(['Skill', 'Whose', 'Versions', 'Your team\'s calls', 'Your team\'s last run']);
@@ -265,7 +265,7 @@ describe('a plugin\'s page', () => {
     mount(<PluginView name="sdlc" served={read(MEMBER, 'sdlc', withheld('sdlc'))} />);
     expect(screen.queryByRole('region', { name: 'Its evaluation' })).toBeNull();
     expect(text()).not.toMatch(/Overall fit for purpose|did not load|not permitted|owning team/);
-    expect(document.querySelector('[data-comparability]')).toHaveTextContent(plugin(MEMBER, 'sdlc').comparability);
+    expect(document.querySelector('[data-protagonist="Its public score"] [data-finding]')).toHaveTextContent(plugin(MEMBER, 'sdlc').comparability);
     expect(text()).toContain('Its public score');
     noEvaluationStarts();
   });
@@ -285,7 +285,7 @@ describe('a plugin\'s page', () => {
   it('says a plugin nothing scored was never scored, in the gateway\'s words', () => {
     mount(<PluginView name="research-kit" served={read(ME, 'research-kit', evaluated('research-kit'))} />);
     expect(text()).toContain('Never scored');
-    expect(document.querySelector('[data-comparability]')).toHaveTextContent('No score to compare');
+    expect(document.querySelector('[data-protagonist="Its public score"] [data-finding]')).toHaveTextContent('No score to compare');
   });
 
   it('says an evaluation that failed failed, with Retry, and the rest of the page stands', () => {

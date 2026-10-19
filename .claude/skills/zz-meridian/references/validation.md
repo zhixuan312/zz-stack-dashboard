@@ -45,7 +45,7 @@ line naming the command that runs them. Steps in order:
    contrast holds for every pair in every theme and accent, and the chart palette passes the colour-vision checks;
    eslint-config-next; TypeScript; the tests.
 2. **A production build** (`next build`), against the fake API when `scripts/verify.config.ts` names one. Then the route
-   policy and the size checks: first-load JS per route, and the HTML caps in `budgets.htmlKb`. Navigation readiness
+   policy and the size checks: first-load JS per route, and every page's gzipped HTML, each against its own figure in `optional:scripts/verify.baseline.json` (and any absolute cap in `budgets.htmlKb`). Navigation readiness
    (`scripts/navigate.ts`) follows each rail route's shell, data and interaction from a press — on a desktop and through
    the phone drawer — and judges them on function only. Data and interaction are measured side by side, except that a
    `link` probe is pressed once the data is measured or has failed, since its press leaves the route;

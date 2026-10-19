@@ -194,7 +194,7 @@ describe('the shared context', () => {
   it('gives a member each protocol\'s version alone, as the gateway sent it', () => {
     const text = contextText(list(MEMBERS));
     const sdlc = row('sdlc', MEMBERS).score!;
-    expect(text).toContain(`protocol v${sdlc.protocol.version}, ${formatDate(sdlc.scoredAt)}`);
+    expect(text).toContain(`version ${sdlc.protocol.version} of its protocol, ${formatDate(sdlc.scoredAt)}`);
     expect(text).not.toContain(row('sdlc').score!.protocol.key!);
   });
 

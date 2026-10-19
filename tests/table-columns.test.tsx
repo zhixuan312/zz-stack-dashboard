@@ -141,15 +141,15 @@ describe('Plugins', () => {
     rowsLink('Plugins', (i) => new RegExp(`^/plugins/${catalog.plugins[i].plugin}$`));
   });
 
-  it('cuts the plugin and its blurb to the width there is, whole in the title, lets the score\'s second line wrap and narrows Install', () => {
+  it('cuts the plugin and its blurb to the width there is, whole in the title, keeps the score\'s protocol line whole where the table is wide and narrows Install', () => {
     draw();
     cutWithTitle('Plugins', 'Plugin');
     const { at } = table('Plugins');
     at('Plugin').cells.forEach((td, i) => expect(td.title).toContain(catalog.plugins[i].plugin));
-    expect(classes(at('Install').th)).toContain('w-56');
+    expect(classes(at('Install').th)).toEqual(expect.arrayContaining(['w-48', '@min-[896px]:w-56', '@min-[1024px]:w-72']));
     const scored = at('Score').cells.map((td) => td.querySelector('.text-2xs')).filter((x) => x !== null);
     expect(scored.length).toBeGreaterThan(0);
-    for (const line of scored) expect(classes(line!)).not.toContain('whitespace-nowrap');
+    for (const line of scored) expect(classes(line!)).toEqual(expect.arrayContaining(['whitespace-nowrap', '@max-[896px]:whitespace-normal']));
   });
 });
 
@@ -221,7 +221,7 @@ describe('Status', () => {
     hidesBelowLg(CAPTION, ['Days with calls', 'Today']);
     staysAtEveryWidth(CAPTION, ['Door', 'Fault days', 'Last fault day', 'Run']);
     const { at } = table(CAPTION);
-    at('Fault days').cells.forEach((td, i) => expect(td.title).toBe(`${said(td)} fault days of ${said(at('Days with calls').cells[i])} days with calls`));
+    at('Fault days').cells.forEach((td, i) => expect(td.title).toBe(`${said(td)} ${said(td) === '1' ? 'fault day' : 'fault days'} of ${said(at('Days with calls').cells[i])} days with calls`));
   });
 });
 
@@ -250,13 +250,13 @@ describe('Bugs', () => {
 });
 
 describe('Evaluation', () => {
-  it('each plugin\'s latest score gives up the protocol under 896px, and the plugin\'s title names it', () => {
+  it('each plugin\'s latest score gives up the guardrails under 896px; the protocol is the plugin\'s caption, which its title names', () => {
     mount(<PlatformEvaluationView read={{ state: 'ok', evaluation: evaluation(true) }} />);
     const CAPTION = 'Each plugin\'s latest score';
-    hidesBelowLg(CAPTION, ['Protocol']);
-    staysAtEveryWidth(CAPTION, ['Plugin', 'Score', 'Standing', 'Guardrails', 'Scored']);
+    hidesBelowLg(CAPTION, ['Guardrails']);
+    staysAtEveryWidth(CAPTION, ['Plugin', 'Score', 'Standing', 'Scored']);
     const { at } = table(CAPTION);
-    at('Plugin').cells.forEach((td, i) => expect(td.title).toBe(`${said(td)}, ${said(at('Protocol').cells[i])}`));
+    at('Plugin').cells.forEach((td) => expect(td.title).toBe(`${td.querySelector('[data-protocol]')!.previousElementSibling!.textContent}, ${td.querySelector('[data-protocol]')!.textContent}`));
   });
 });
 
@@ -302,7 +302,7 @@ describe('Releases', () => {
     mount(<PlatformReleasesView served={{ state: 'ok', path: releasesPath(RELEASES_DEFAULTS), data }} />);
     const CAPTION = 'Releases with what was observed either side of each';
     cutWithTitle(CAPTION, 'Summary');
-    staysAtEveryWidth(CAPTION, ['Version', 'Released', 'Malformed per 1,000']);
+    staysAtEveryWidth(CAPTION, ['Version', 'Tagged', 'Malformed per 1,000']);
     rowsLink(CAPTION, (i) => new RegExp(`^/platform/releases/${rows[i].version.replace(/\./g, '\\.')}$`));
   });
 
@@ -374,8 +374,6 @@ describe('a release\'s notes', () => {
       const boundaries: string[] = [];
       while (walker.nextNode()) if (/^\$/.test(walker.currentNode.nodeValue ?? '')) boundaries.push(walker.currentNode.nodeValue!);
       expect(boundaries, version).toEqual([]);
-      const notes = card(html, 'Upgrade notes');
-      expect(notes!.querySelector('pre'), version).toBeNull();
     }
   });
 

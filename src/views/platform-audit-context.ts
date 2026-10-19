@@ -24,6 +24,7 @@ import { listed, type Fact, type Insight, type SharedContext } from '@/lib/share
 import { app } from '@/app.config';
 import { OWNER_LABEL } from './activity-context';
 import { addressOf, arrived, budgeted, clip, type Arrival } from './context';
+import { bugPath } from './platform-bugs-context';
 
 /* The tabs, the filters and the address */
 
@@ -133,8 +134,12 @@ export function filtersOfPath(path: string): AuditFilters {
 export const AUDIT_BOUND_MS = 4_500;
 
 /** The read, as the console's server or the browser made it: the answer, a failure, or no answer in time. */
+/** The titles of the reports a page's acts name, by id, as the caller may read them: a report no read answered is absent. */
+export type ReportTitles = Record<string, string>;
+
+/** `reports` is what the page's server read of the titles; a read made without them draws each report by its id. */
 export type AuditRead =
-  | { state: 'ok'; path: string; data: Audit }
+  | { state: 'ok'; path: string; data: Audit; reports?: ReportTitles }
   | { state: 'failed'; path: string; reason: string }
   | { state: 'slow'; path: string };
 
@@ -148,15 +153,63 @@ export function auditTrouble(read: { state: 'failed'; reason: string } | { state
 /** Who an event names when nobody was recorded: the gateway's own words, which every sentence begins with. */
 export const NOBODY = 'Someone not recorded';
 
-/** An act as the feed draws it: its actor, and the rest of the gateway's sentence as it stands. A sentence that does not
+/** The act kinds whose subject is a report's id. */
+const REPORT_KINDS = ['bug.resolve', 'bug.console_resolve', 'bug.delete'];
+
+/**
+ * The title of every report Administration's acts name, each read once by `get` (`GET /platform/bugs/:id`, as the
+ * caller), side by side: the page's server and `view_audit` read the same. Everything draws no sentence and reads none.
+ * A report the read cannot answer (a deleted one, a failure) is left out, and its act keeps the id the gateway said.
+ */
+export async function reportTitles(a: Audit, get: (path: string) => Promise<{ title: string }>): Promise<ReportTitles> {
+  if (a.filter !== 'administration') return {};
+  const ids = [...new Set(a.rows.filter((r) => REPORT_KINDS.includes(r.kind) && r.subject).map((r) => r.subject!))];
+  const read = await Promise.all(ids.map((id) => get(`/platform/bugs/${encodeURIComponent(id)}`).then((b) => [id, b.title] as const, () => null)));
+  return Object.fromEntries(read.filter((r) => r !== null));
+}
+
+/**
+ * An act as a person reads it: the gateway's sentence, with a report it names called by its title rather than its id
+ * when the read could say it (a deleted report has none to say, and keeps its id). One resolution in the console is two
+ * acts, zz-core's `bug_resolve` and the console's own, so the one zz-core recorded says so and the pair reads apart.
+ */
+export function actSentence(r: AuditRow, reports: ReportTitles = {}): string {
+  const said = r.sentence ?? `${r.actor ?? NOBODY} recorded ${r.kind}`;
+  if (!r.sentence || !r.subject || !REPORT_KINDS.includes(r.kind)) return said;
+  const title = reports[r.subject];
+  const named = title ? said.replace(`report ${r.subject}`, `report "${title}"`) : said;
+  return r.kind === 'bug.resolve' ? `${named} through bug_resolve` : named;
+}
+
+/** An act as the feed draws it: its actor, and the rest of its sentence (`actSentence`). A sentence that does not
  *  begin with its actor, which no template writes, is drawn whole after the actor's mark rather than cut. The `system`
  *  mark is the platform's own maintenance alone; `via`, the agent that acted for a person, is never recorded, so it is
  *  never set. */
-export function feedEvent(r: AuditRow): ActivityEvent {
+export function feedEvent(r: AuditRow, reports: ReportTitles = {}): ActivityEvent {
   const actor = r.actor ?? NOBODY;
-  const said = r.sentence ?? `${actor} recorded ${r.kind}`;
+  const said = actSentence(r, reports);
   const verb = said.startsWith(`${actor} `) ? said.slice(actor.length + 1) : said;
-  return { id: r.id, at: r.at, actor, ...(r.origin === 'platform' ? { system: true } : {}), verb, object: '' };
+  const at = recordOf(r, reports);
+  const from = at ? verb.lastIndexOf(` ${at.words}`) : -1;
+  const linked = at && from >= 0 ? { verb: verb.slice(0, from), object: verb.slice(from + 1), href: at.href } : { verb, object: '' };
+  return { id: r.id, at: r.at, actor, ...(r.origin === 'platform' ? { system: true } : {}), ...linked };
+}
+
+/** The kinds whose subject is a team's slug, and those whose subject is `<team>:<email>`, the team whose members changed. */
+const TEAM_SUBJECT = ['admin.create_team', 'admin.archive_team'];
+const TEAM_MEMBERS = ['admin.add_member', 'admin.remove_member'];
+
+/**
+ * The record an act is about, when it has a page of its own: the team's, or the report's (a deleted report has none).
+ * The feed's object is the sentence from the record's name to its end, so the sentence reads exactly as the gateway
+ * wrote it and its link begins with what it opens (ZZ Meridian 0.19.0's `ActivityEvent.href`, its issue #63).
+ */
+function recordOf(r: AuditRow, reports: ReportTitles): { words: string; href: string } | null {
+  const team = TEAM_SUBJECT.includes(r.kind) ? r.subject : TEAM_MEMBERS.includes(r.kind) ? r.subject?.slice(0, r.subject.indexOf(':')) || null : null;
+  if (team) return { words: team, href: `/platform/teams/${encodeURIComponent(team)}` };
+  if (!r.subject || (r.kind !== 'bug.resolve' && r.kind !== 'bug.console_resolve')) return null;
+  const title = reports[r.subject];
+  return { words: title ? `"${title}"` : r.subject, href: bugPath(r.subject) };
 }
 
 /** The result of an event: a refusal names who it is put down to; an event that is no call has none. */
@@ -235,8 +288,8 @@ function eventLine(r: AuditRow): string {
     + `${r.origin === 'platform' ? ', platform maintenance' : ''}${r.inConsole ? ', in the console' : ''}`;
 }
 
-/** One act of Administration as the assistant is told it: the gateway's sentence, and when. */
-const actLine = (r: AuditRow): string => `${clip(r.sentence ?? `${r.actor ?? NOBODY} recorded ${r.kind}`, 160)} (${formatDateTime(r.at)})`;
+/** One act of Administration as the assistant is told it: the sentence the page draws, and when. */
+const actLine = (r: AuditRow, reports: ReportTitles): string => `${clip(actSentence(r, reports), 160)} (${formatDateTime(r.at)})`;
 
 /** The filters as words: `kind team.switch, team beacon, before 1 Oct 2026`. */
 function filterWords(f: AuditFilters): string {
@@ -258,7 +311,7 @@ const UNKNOWNS = [
  * `filters` is the page's address. `read` is how `view_audit` read the rows, by the route's `limit` and `offset`, when it
  * did: the address is then the page of ten the offset falls in, and rows off the page's grid are said to be so.
  */
-export function auditContext(data: Audit, { filters, read, ...arrival }: { filters: AuditFilters; read?: AuditRows } & Arrival): SharedContext {
+export function auditContext(data: Audit, { filters, read, reports = {}, ...arrival }: { filters: AuditFilters; read?: AuditRows; reports?: ReportTitles } & Arrival): SharedContext {
   const tab = tabOf(filters);
   const first = read ? read.offset : (pageOf(filters) - 1) * PAGE_SIZE;
   const onGrid = !read || (read.limit === PAGE_SIZE && read.offset % PAGE_SIZE === 0);
@@ -276,7 +329,7 @@ export function auditContext(data: Audit, { filters, read, ...arrival }: { filte
     { label: 'Record begins', value: data.meta.coverageFrom ? formatDate(data.meta.coverageFrom) : 'Nothing recorded yet' },
   ];
   const insights: Insight[] = data.rows.length
-    ? [{ text: admin ? `The acts on this page, newest first: ${listed(data.rows, actLine, 'see the page', NAMED)}.` : `The events on this page, newest first: ${listed(data.rows, eventLine, 'see the page', NAMED)}.`, evidence: address }]
+    ? [{ text: admin ? `The acts on this page, newest first: ${listed(data.rows, (r) => actLine(r, reports), 'see the page', NAMED)}.` : `The events on this page, newest first: ${listed(data.rows, eventLine, 'see the page', NAMED)}.`, evidence: address }]
     : [];
   const unrecorded = notRecordedWords(data);
   return budgeted({

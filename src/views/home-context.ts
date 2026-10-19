@@ -15,6 +15,7 @@ import type { Figure, PeriodFigure, ReadMeta, Window } from '@/lib/platform-shap
 import type { Home, InitiativeRow, WritingCoverage } from '@/lib/work-shapes';
 import { budgeted, clip, pendingContext } from './context';
 import { nextOf } from './initiatives-context';
+import { LESSONS_MADE } from './record-names';
 
 /** How long the page waits for Home's read before it says the read is unavailable: half a second under five, for a
  *  phone to draw what it says, the bound the browser's own reads keep (`src/lib/api.ts`). */
@@ -72,7 +73,7 @@ export function coverageLine(c: WritingCoverage): string {
     c.unrecorded ? `${formatCount(c.unrecorded)} with no recorded write` : '',
     c.missingLegacy ? `${formatCount(c.missingLegacy)} missing an earlier revision` : '',
   ].filter(Boolean);
-  return `Net additions over ${formatCount(c.documents)} ${plural(c.documents, 'document')}, by week${gaps.length ? `; ${gaps.join(', ')}` : ''}.`;
+  return `The words each revision added over ${formatCount(c.documents)} ${plural(c.documents, 'document')}, by week, nothing taken off for what a later one removed${gaps.length ? `; ${gaps.join(', ')}` : ''}.`;
 }
 
 export const APPROVALS_LINE = 'Revisions approved in your name, by week; a teammate\'s approvals are not counted.';
@@ -92,7 +93,7 @@ export const FOOT = {
   estimate: 'One person, writing this',
   coverage: 'Observed run coverage',
   peak: 'Peak concurrency',
-  estimateHint: 'Last week\'s recorded net word additions at a stated pace: an estimate, not a measurement of anybody\'s time.',
+  estimateHint: 'The words last week\'s revisions added, at a stated pace: an estimate, not a measurement of anybody\'s time.',
 } as const;
 
 /** The four tiles: each one's label and what it counts, which the tile's info button and the assistant both read. */
@@ -146,8 +147,12 @@ export function waitingOf(home: Home, team: string | null): Waiting {
   return { kind: 'many', title: `${formatCount(count)} ${plural(count, 'revision waits', 'revisions wait')} for approval`, detail: `Presented and not yet approved${sinceWhen}.`, href: '/approvals' };
 }
 
-/** The milestones' names, as a person reads each count. */
-export const MILESTONE = { closed: 'Pieces of work closed', documents: 'Documents created', lessons: 'Lessons adopted', words: 'Words added' } as const;
+/**
+ * The milestones' names, as a person reads each count. The lessons are those the team's own work made, superseded ones
+ * included and an import's left out, which Record calls by the same name; Knowledge's Lessons adopted are the lessons
+ * standing on the shelf, imports included, a different count (Work F-7).
+ */
+export const MILESTONE = { closed: 'Pieces of work closed', documents: 'Documents created', lessons: LESSONS_MADE, words: 'Words added' } as const;
 
 /** How far a milestone has come from the last round number passed to the next, as a fraction. */
 export const covered = (m: { last: number; next: number; value: number }): number => (m.next > m.last ? Math.min(1, Math.max(0, (m.value - m.last) / (m.next - m.last))) : 0);
@@ -192,7 +197,7 @@ export function homeContext(read: HomeRead, { index = null }: { index?: number |
 
   const facts: Fact[] = [
     { label: 'Title', value: home.title.sentence },
-    { label: 'Words added', value: said(words, last, 'words'), change: `the ${weekOf(last)}`, definition: 'Net words the documents and lessons gained, an import\'s left out' },
+    { label: 'Words added', value: said(words, last, 'words'), change: `the ${weekOf(last)}`, definition: 'The words each revision of the documents and lessons added, nothing taken off for what a later one removed; an import\'s left out' },
     { label: 'Approvals in your name', value: said(approvals, last, 'approvals'), definition: 'Never a teammate\'s' },
     { label: FOOT.estimate, value: foot.pace ? `${foot.estimate}, ${foot.pace}` : foot.estimate, definition: FOOT.estimateHint },
     { label: FOOT.coverage, value: foot.coverage, definition: 'Hours of the week with an observed run' },

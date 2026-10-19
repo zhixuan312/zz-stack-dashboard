@@ -54,6 +54,13 @@ export function filtersOf(params: Record<string, string | string[] | undefined>)
   return { plugin: (Array.isArray(v) ? v[0] : v) ?? PLUGINS_DEFAULTS.plugin };
 }
 
+/**
+ * A copy field's value cut at its front rather than its end, for an install command: `claude plugin install` is every
+ * command's own start, and the plugin's name at its end is what tells two apart. Right to left, the field's ellipsis
+ * falls on the left; the command is one run of Latin text, so it reads in its own order. Literal, so Tailwind finds it.
+ */
+export const FROM_THE_FRONT = '[&_code]:[direction:rtl] [&_code]:text-left';
+
 /** The plugins in view: every one, or those whose name holds what the search says, in the gateway's order. */
 export function inView(plugins: PluginRow[], f: PluginsFilters): PluginRow[] {
   const q = f.plugin.trim().toLowerCase();
@@ -63,8 +70,27 @@ export function inView(plugins: PluginRow[], f: PluginsFilters): PluginRow[] {
 /** The console address of the list as `f` narrows it. */
 const pluginsAddress = (f: PluginsFilters): string => addressOf(PLUGINS_PATH, f, PLUGINS_DEFAULTS);
 
-/** The protocol a score was scored against: its key where the gateway sends it (the superadmin's alone), and its version. */
-export const protocolSaid = (s: PluginScore): string => `protocol ${s.protocol.key ? `${s.protocol.key} ` : ''}v${s.protocol.version}`;
+/**
+ * The protocol a score was scored against: its key and version where the gateway sends the key (the superadmin's
+ * alone), and otherwise the version of the plugin's own protocol in words, never a bare "protocol v2", which reads as a
+ * version of nothing.
+ */
+export const protocolSaid = (s: PluginScore): string => (s.protocol.key ? `protocol ${s.protocol.key} v${s.protocol.version}` : `version ${s.protocol.version} of its protocol`);
+
+/**
+ * An evaluation's identifier in a person's words: `constraint_adherence` reads "Constraint adherence" and
+ * `abandoned-runs` "Abandoned runs". The key itself stays on hover where a page draws one.
+ */
+export const wordsOf = (key: string): string => {
+  const s = key.replace(/[_.-]+/g, ' ').trim();
+  return s ? s[0].toUpperCase() + s.slice(1) : key;
+};
+
+/** A standing as a person says it, capitalised as every badge in the console is. */
+export const standingSaid = (standing: string | null): string => wordsOf(standing ?? 'not_established');
+
+/** The protocol as a score's heading or a table cell names it, short: `sdlc-flow-quality v2`, or the version in words. */
+export const protocolNamed = (s: PluginScore): string => (s.protocol.key ? `${s.protocol.key} v${s.protocol.version}` : protocolSaid(s));
 
 /** A public score as every view words it, 0 to 10, with the protocol it was scored against and when. */
 export const scoreSaid = (s: PluginScore | null): string => (!s ? 'never scored'

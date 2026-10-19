@@ -41,6 +41,9 @@ export function weekCount(w: PeriodFigure): string {
   return formatCount(w.figure.value);
 }
 
+/** What a team that never made a real-work call reads as, in the table, on a phone's card and to the assistant. */
+export const NO_ACTIVITY = 'No activity yet';
+
 /** A team's sessions by week as a Sparkline draws them: a week that could not be read is a gap, never a zero. */
 export const sessionPoints = (t: TeamRow): (number | null)[] => t.sessions.map((w) => (w.figure.why === null ? w.figure.value : null));
 
@@ -56,7 +59,7 @@ const NAMED = 6;
 function teamLine(t: TeamRow): string {
   const calls = t.calls.last.figure.why === 'unavailable' ? 'calls unavailable' : `calls ${weekCount(t.calls.previous)} then ${weekCount(t.calls.last)}`;
   return `${t.slug}${t.name !== t.slug ? ` (${clip(t.name, 24)})` : ''}${t.status === 'archived' ? ', archived' : ''}: ${formatCount(t.people)} ${plural(t.people, 'person', 'people')}, `
-    + `${formatCount(t.openWork)} open, ${formatCount(t.waiting)} waiting, ${formatCount(t.lessons)} ${plural(t.lessons, 'lesson')}, ${calls}, ${t.lastActive ? `active ${formatDate(t.lastActive)}` : 'never active'}`;
+    + `${formatCount(t.openWork)} open, ${formatCount(t.waiting)} waiting, ${formatCount(t.lessons)} ${plural(t.lessons, 'lesson')}, ${calls}, ${t.lastActive ? `active ${formatDate(t.lastActive)}` : NO_ACTIVITY.toLowerCase()}`;
 }
 
 /**

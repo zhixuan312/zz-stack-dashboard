@@ -6,6 +6,7 @@ One team, for the superadmin: its people, its open work and lessons, its real-wo
 
 - Gate first: the page asks for `teams`, which needs `fleet:read`, before it renders and before its address is read, so a person who does not hold it is answered by the refused page and nothing on the page is read. Its title comes from `gatedMetadata` and its loading state from `gatedLoading`, so under `refusal: 'absent'` neither names the team.
 - Masthead: the kicker back to Teams, the slug, and one sentence, drawn before the read answers.
+- The rows below stand the page's one gap apart, as on every page: the tiles, then calls by week beside the team, then the members.
 - Tiles: People (with how many are admins), Open work, Waiting (revisions presented and not yet approved) and Lessons adopted, the same figures as the team's row on Teams.
 - Calls by week, the page's protagonist: a Column chart of the team's real-work calls, a Monday week a column, the running week drawn unfinished, against the team's own past. Ask is in its head.
 - This team: its name, status and created date, and Archive, which asks once more in place and calls the console's existing platform route. An archived team offers no Archive and says how it is restored.

@@ -3,7 +3,7 @@
 import { Activity, Ban, Repeat, RotateCw, Timer } from 'lucide-react';
 import { Row, Stack } from '@/components/base/shell';
 import { useShareView } from '@/components/base/use-share-view';
-import { BarList } from '@/components/charts/bar-list';
+import { BarList, type BarItem } from '@/components/charts/bar-list';
 import { CompositionBar } from '@/components/charts/composition-bar';
 import { AskAbout } from '@/components/patterns/ask-about';
 import { MetricTile } from '@/components/patterns/metric-tile';
@@ -29,6 +29,9 @@ import { skillContext, skillDetailPath, skillTextPath, skillsPath, type SkillRea
 import type { SkillViewName } from '@/views/skill-view';
 import { useServed } from '@/views/use-served';
 
+/** The share of a skill's calls refused above which the Conclusion says it is the thing to look at, in percent. */
+const REFUSED_FLAG = 5;
+
 /**
  * One read the console's server made for the page, followed in the browser: its answer until the plugins or skills
  * collection changes or a Retry asks, then the browser's own.
@@ -50,21 +53,47 @@ function useSkill(pluginName: string, name: string, served: SkillRead) {
   return { catalog, list, detail, text };
 }
 
-/** How the active team's runs of a skill went, from its recorded runs. A skill the team never called is absent from that record, so never run is a state, not a gap. */
+/**
+ * The busiest tools as the bars draw them, each with its refusals in the label: the managed bar list keeps a row's meta
+ * off a phone, and the card's subtitle promises the refused count at every width. The gateway sends the eight busiest,
+ * so the tools past them are one row of their own, and the rows sum to the log's whole the card sits beside.
+ */
+function toolBars(detail: SkillDetail, logged: NonNullable<Skill['logged']>): BarItem[] {
+  const label = (name: string, failed: number, mono: boolean) => (
+    <span className="inline-flex min-w-0 items-baseline gap-2">
+      <span className={mono ? 'truncate font-mono text-xs' : 'truncate'} title={name}>{name}</span>
+      {failed ? <span className="t-caption shrink-0">{formatCount(failed)} refused</span> : null}
+    </span>
+  );
+  const bars: BarItem[] = detail.busiestTools.map((t) => ({ key: t.tool, label: label(t.tool, t.failed, true), value: t.calls }));
+  const calls = logged.calls - detail.busiestTools.reduce((n, t) => n + t.calls, 0);
+  const failed = logged.failed - detail.busiestTools.reduce((n, t) => n + t.failed, 0);
+  const tools = logged.tools - detail.busiestTools.length;
+  if (calls > 0) bars.push({ key: '__rest', label: label(tools > 0 ? `${formatCount(tools)} other ${plural(tools, 'tool')}` : 'Other tools', Math.max(0, failed), false), value: calls });
+  return bars;
+}
+
+/**
+ * How the active team's calls of a skill went, from the platform's log of them: the door split, the busiest tools and
+ * the whole they are parts of are one record (`logged`, the tool calls the log files under the skill), so every part
+ * sums to the figure beside it. The runs (`zz.skill_run`) count only calls made inside an initiative's run, so their
+ * figures say they are the runs'. A skill the team never called is absent from that record, so never run is a state,
+ * not a gap.
+ */
 function Cost({ skill, detail }: { skill: Skill | undefined; detail: SkillDetail }) {
   if (!skill) {
     // `data-never-run` is what scripts/primary-data.ts waits for on a skill the team never ran: this sentence is its record.
     return <Panel title="Its runs"><div data-never-run=""><EmptyState title="Never run" className="py-10">Your team has recorded no call against this skill, so there is nothing to measure. Its text is under The skill.</EmptyState></div></Panel>;
   }
-  const rate = skill.calls ? (skill.refusals / skill.calls) * 100 : 0;
+  const { logged } = skill;
+  const rate = logged?.calls ? (logged.failed / logged.calls) * 100 : null;
   const heaviest = detail.surfaces[0];
   return (
     <>
       <Row split="1/2">
         {/* `logged` is null when the platform's log of this skill's calls was not read, and `?? 0` on it printed
-            three measured zeros — no tools, no calls, no refusals. The KeyValue below already says "Not measured"
-            for the same kind of absence. */}
-        <Panel title="Calls by door" description={skill.logged ? `${formatCount(skill.calls)} ${plural(skill.calls, 'call')} by your team, ${skill.logged.tools} distinct ${plural(skill.logged.tools, 'tool')}` : `${formatCount(skill.calls)} ${plural(skill.calls, 'call')} by your team, tools not measured`}>
+            three measured zeros — no tools, no calls, no refusals. Nothing on the card then claims a whole. */}
+        <Panel title="Calls by door" description={logged ? `${formatCount(logged.calls)} ${plural(logged.calls, 'call')} by your team in the log, ${formatCount(logged.failed)} refused, to ${formatCount(logged.tools)} ${plural(logged.tools, 'tool')}` : 'The log of your team\'s calls was not read: their total and tools not measured'}>
           <div className="flex flex-col gap-5">
             <CompositionBar label="Calls by door" parts={detail.surfaces.map((x) => ({ label: x.surface, value: x.calls }))} />
             <KeyValue
@@ -72,8 +101,8 @@ function Cost({ skill, detail }: { skill: Skill | undefined; detail: SkillDetail
               items={[
                 { label: 'Observed output per run', value: skill.kbPerRun === null ? 'Not measured' : formatKb(skill.kbPerRun) },
                 { label: 'Observed output in total', value: skill.mbTotal === null ? 'Not measured' : `${skill.mbTotal} MB` },
-                { label: 'Calls in the log', value: skill.logged ? formatCount(skill.logged.calls) : 'Not measured' },
-                { label: 'Refused in the log', value: skill.logged ? formatCount(skill.logged.failed) : 'Not measured' },
+                { label: 'Calls in the log', value: logged ? formatCount(logged.calls) : 'Not measured' },
+                { label: 'Refused in the log', value: logged ? formatCount(logged.failed) : 'Not measured' },
               ]}
             />
             {/* A call is filed under the last skill served to the caller, and the caller is a person plus a client, not a conversation. */}
@@ -81,14 +110,15 @@ function Cost({ skill, detail }: { skill: Skill | undefined; detail: SkillDetail
           </div>
         </Panel>
         <Panel title="Busiest tools" description="Your team's calls, with the refused ones beside them">
-          {/* A share of all calls, not of these rows: the gateway sends the eight busiest tools, and the doors sum to the whole. */}
-          <BarList label="Busiest tools" limit={8} format={formatCount} total={detail.surfaces.reduce((n, s) => n + s.calls, 0)} items={detail.busiestTools.map((t) => ({ key: t.tool, label: <span className="font-mono text-xs">{t.tool}</span>, value: t.calls, meta: t.failed ? `${t.failed} refused` : undefined }))} />
+          {/* A share of the log's whole: the doors sum to it, and so do these rows with the tools past the busiest. */}
+          {logged ? <BarList label="Busiest tools" limit={9} format={formatCount} total={logged.calls} items={toolBars(detail, logged)} />
+            : <p className="t-small text-ink-3">Not measured: the log of this skill&apos;s calls was not read.</p>}
         </Panel>
       </Row>
       <Panel title="Conclusion">
         <ul className="t-small flex flex-col gap-2 text-ink-2">
-          <li><b className="text-ink">Runs.</b> {skill.runs} runs at {skill.callsAvg.toFixed(1)} calls each, median {formatSeconds(skill.durationMedian)}, {skill.kbPerRun === null ? 'output not measured' : `${formatKb(skill.kbPerRun)} of observed output`} per run.{heaviest ? <> Most of its calls go to <b className="text-ink">{heaviest.surface}</b> ({formatCount(heaviest.calls)}).</> : null}</li>
-          <li><b className="text-ink">Reliability.</b> {rate > 5 ? <>It refuses <b className="text-critical-ink">{rate.toFixed(1)}%</b> of its calls, high enough to be the thing to look at.</> : rate > 0 ? <>A {rate.toFixed(1)}% refusal rate: {skill.refusals} refusals over {formatCount(skill.calls)} calls.</> : 'No refusal recorded.'}</li>
+          <li><b className="text-ink">Runs.</b> {skill.runs} {plural(skill.runs, 'run')} at {skill.callsAvg.toFixed(1)} calls each, median {formatSeconds(skill.durationMedian)}, {skill.kbPerRun === null ? 'output not measured' : `${formatKb(skill.kbPerRun)} of observed output`} per run.{heaviest ? <> Most of its calls in the log go to <b className="text-ink">{heaviest.surface}</b> ({formatCount(heaviest.calls)}).</> : null}</li>
+          <li><b className="text-ink">Reliability.</b> {rate === null ? 'Not measured: the log of its calls was not read.' : rate > REFUSED_FLAG ? <>It refuses <b className="text-critical-ink">{rate.toFixed(1)}%</b> of its calls in the log, above the {REFUSED_FLAG}% this page flags.</> : rate > 0 ? <>A {rate.toFixed(1)}% refusal rate: {formatCount(logged!.failed)} refusals over {formatCount(logged!.calls)} calls in the log.</> : 'No refusal in the log.'}</li>
         </ul>
       </Panel>
     </>
@@ -135,6 +165,7 @@ export function SkillView({ plugin: pluginName, skill: name, view, served }: { p
   const never = !skill && list.data !== undefined;
   const produces = plugin?.documents.filter((x) => x.stage === name).map((x) => x.name).join(', ');
   const gated = plugin?.documents.find((x) => x.stage === name && x.gate);
+  const refused = !skill ? null : skill.logged ? { n: skill.logged.failed, of: skill.logged.calls, where: 'in the log' } : { n: skill.refusals, of: skill.calls, where: 'in its runs' };
   const updatedAt = [catalog.at, list.at, detail.at].filter((x): x is Date | string => x !== null).map((x) => new Date(x)).sort((a, b) => a.getTime() - b.getTime())[0] ?? null;
   useShareView(catalog.data && list.data
     ? skillContext(pluginName, name, { plugin, skill, detail: detail.data, text: text.data, updatedAt, now })
@@ -165,9 +196,12 @@ export function SkillView({ plugin: pluginName, skill: name, view, served }: { p
           <MetricTile label="Runs" icon={<Repeat />} value={skill ? skill.runs : never ? 0 : '—'} note={never ? 'Never run by your team' : 'By your team'} />
           {/* A skill that has never run has no average calls per run — an average of no runs is undefined, not zero —
               and "0.0" claims a measurement that was never taken. */}
-          <MetricTile label="Calls per run" icon={<Activity />} value={never ? 'No runs' : !skill ? '—' : skill.runs ? skill.callsAvg : 'No runs'} format={(n) => n.toFixed(1)} note={never ? 'Nothing has called it' : !skill ? 'Average and peak' : skill.runs ? `${formatCount(skill.calls)} in total, peak ${skill.callsMax}` : 'Nothing has called it'} />
+          <MetricTile label="Calls per run" icon={<Activity />} value={never ? 'No runs' : !skill ? '—' : skill.runs ? skill.callsAvg : 'No runs'} format={(n) => n.toFixed(1)} note={never ? 'Nothing has called it' : !skill ? 'Average and peak' : skill.runs ? `${formatCount(skill.calls)} in its runs, peak ${skill.callsMax}` : 'Nothing has called it'} />
           <MetricTile label="Median run" icon={<Timer />} value={never ? 'Not timed' : !skill ? '—' : skill.durationMedian === null ? 'Not timed' : formatSeconds(skill.durationMedian)} note={skill ? `Longest ${formatSeconds(skill.durationMax)}` : 'And the longest'} />
-          <MetricTile label="Refused" icon={<Ban />} value={never ? 'No calls' : !skill ? '—' : skill.calls ? skill.refusals / skill.calls : 'No calls'} format={(n) => `${(n * 100).toFixed(1)}%`} note={skill ? `${skill.refusals} of ${formatCount(skill.calls)} calls` : 'Share of its calls'} />
+          {/* The log's whole, as the door split and the busiest tools below are its parts: a run counts only the calls an
+              initiative's run made, so the runs' refusals are not the refusals those parts add up to. With the log
+              unread, the runs' own share stands in, and says it is theirs. */}
+          <MetricTile label="Refused" icon={<Ban />} value={never ? 'No calls' : !skill ? '—' : refused ? (refused.of ? refused.n / refused.of : 'No calls') : '—'} format={(n) => `${(n * 100).toFixed(1)}%`} note={refused ? `${formatCount(refused.n)} of ${formatCount(refused.of)} calls ${refused.where}` : 'Share of its calls'} />
         </Row>
       ) : null}
       {/* What the skill is: knowable whether or not anybody has run it, and a front door is exactly the skill with no runs. */}

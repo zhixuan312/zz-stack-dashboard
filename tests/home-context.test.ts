@@ -83,7 +83,7 @@ describe('the shared context', () => {
     expect(text).toContain('4 revisions wait for approval. Presented and not yet approved, the oldest since');
     const rows = ATLAS.openWork.state === 'ok' ? ATLAS.openWork.data.rows : [];
     for (const r of rows) expect(text).toContain(`next: Approve ${r.nextMove!.document}, waiting on a person`);
-    expect(text).toContain('Words added: Net additions over 41 documents, by week; 2 made by an import left out, 1 with no recorded write, 1 missing an earlier revision.');
+    expect(text).toContain('Words added: The words each revision added over 41 documents, by week, nothing taken off for what a later one removed; 2 made by an import left out, 1 with no recorded write, 1 missing an earlier revision.');
     expect(text).toContain(`${ATLAS.words.state === 'ok' ? ATLAS.words.data.finding!.text : ''}.`);
     expect(text.length).toBeLessThanOrEqual(CONTEXT_BUDGET);
   });

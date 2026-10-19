@@ -64,8 +64,11 @@ await page.send('Page.addScriptToEvaluateOnNewDocument', {
     window.EventSource = class extends Native {
       constructor(url, init) {
         super(url, init);
-        const opened = { url: String(url), greeting: null, at: null };
+        const opened = { url: String(url), greeting: null, at: null, closed: false };
         window.__liveStreams.push(opened);
+        // A stream the page closes before its greeting was replaced by the next one the navigation opened: recorded, so
+        // it is not read as a stream the gateway never greeted.
+        this.close = () => { opened.closed = true; Native.prototype.close.call(this); };
         const greet = (event) => (e) => { if (opened.greeting === null) { opened.greeting = { event, data: e.data }; opened.at = performance.now(); } };
         this.addEventListener('synced', greet('synced'));
         this.addEventListener('resync', greet('resync'));
@@ -150,7 +153,7 @@ const collectionOf = (path: string) => {
   const head = path.split('?')[0]!.split('/').filter(Boolean)[0] ?? '';
   return ({ approvals: 'initiatives', access: 'settings' } as Record<string, string>)[head] ?? head;
 };
-type Opened = { url: string; greeting: { event: string; data: string } | null; at: number | null };
+type Opened = { url: string; greeting: { event: string; data: string } | null; at: number | null; closed: boolean };
 
 /**
  * The tab's reads of a followed collection begun after `greetedAt` that no hint explains: a read that starts after a
@@ -171,12 +174,19 @@ async function readsTheGreetingCaused(greetedAt: number, followed: string[]): Pr
     .map((r) => r.path);
 }
 
+/**
+ * The first stream a page kept: one closed before its greeting was replaced as the page's collections grew while it
+ * mounted (`setNames` in src/lib/live.ts), which a loaded machine spreads over several commits (Harbormaster #3860
+ * replaced /activity's and /platform/teams's first stream, following only `initiatives`, before it was greeted).
+ */
+const kept = (streams: Opened[]) => streams.find((s) => s.greeting || !s.closed);
+
 async function asksSince(address: string): Promise<void> {
   await page.open(base + address, { width: 1440, theme: 'dark', wait: 600, cookie: SESSION });
   if (page.errors.length) failures.push(`${address}: ${page.errors[0]}`);
   let first: Opened | undefined;
   for (let i = 0; i < 32 && !first?.greeting; i++) {
-    first = (await page.eval<Opened[]>('window.__liveStreams ?? []'))[0];
+    first = kept(await page.eval<Opened[]>('window.__liveStreams ?? []'));
     if (!first?.greeting) await sleep(250);
   }
   if (!first) { failures.push(`${address}: no stream opened`); return; }
@@ -208,11 +218,11 @@ async function pressed(from: string, to: string, collection: string): Promise<vo
   await page.open(base + from, { width: 1440, theme: 'dark', wait: 600, cookie: SESSION });
   if (page.errors.length) failures.push(`${from}: ${page.errors[0]}`);
   let before: Opened[] = [];
-  for (let i = 0; i < 32 && !before[0]?.greeting; i++) {
+  for (let i = 0; i < 32 && !kept(before)?.greeting; i++) {
     before = await opened();
-    if (!before[0]?.greeting) await sleep(250);
+    if (!kept(before)?.greeting) await sleep(250);
   }
-  if (!before[0]?.greeting) { failures.push(`${where}: ${from}'s own stream was never greeted, so there was nothing to navigate from`); return; }
+  if (!kept(before)?.greeting) { failures.push(`${where}: ${from}'s own stream was never greeted, so there was nothing to navigate from`); return; }
   const link = `nav[aria-label="Main"] a[href="${to}"]`;
   if (!(await page.eval<boolean>(`(() => { const a = document.querySelector(${JSON.stringify(link)}); if (!a) return false; a.click(); return true; })()`))) {
     failures.push(`${where}: the rail has no link to ${to}`);
@@ -223,13 +233,16 @@ async function pressed(from: string, to: string, collection: string): Promise<vo
   for (let i = 0; i < 40; i++) {
     at = await page.eval<string>('location.pathname');
     after = (await opened()).slice(before.length);
-    if (at === to && after.some((s) => new URL(s.url, base).searchParams.get('collections')?.split(',').includes(collection)) && after.every((s) => s.greeting)) break;
+    if (at === to && after.some((s) => new URL(s.url, base).searchParams.get('collections')?.split(',').includes(collection)) && after.every((s) => s.greeting || s.closed)) break;
     await sleep(250);
   }
   if (at !== to) { failures.push(`${where}: the page is at ${at}, so the press did not navigate`); return; }
   const target = after.findLast((s) => new URL(s.url, base).searchParams.get('collections')?.split(',').includes(collection));
   if (!target) { failures.push(`${where}: no stream following ${collection} opened after the press (${after.length} opened)`); return; }
+  if (!target.greeting) { failures.push(`${where}: the stream following ${collection} was never greeted (${target.url})`); return; }
   for (const s of after) {
+    // Closed before its greeting: replaced while the navigation settled (Harbormaster #3842 under a full verify's load).
+    if (!s.greeting && s.closed) continue;
     if (!s.greeting) { failures.push(`${where}: a stream it opened was never greeted (${s.url})`); continue; }
     const asked = new URL(s.url, base).searchParams;
     const followed = (asked.get('collections') ?? '').split(',').filter(Boolean);

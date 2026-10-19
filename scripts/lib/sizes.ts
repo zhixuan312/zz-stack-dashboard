@@ -35,6 +35,30 @@ export function firstLoadProblems(
   return { problems, growth: baseline ? 'checked' : 'not-configured' };
 }
 
+/**
+ * The pages whose HTML is held to a baseline: every page route but an API, one under a dynamic segment (its address
+ * needs an id the build does not know) and the not-found screen, which answers 404.
+ */
+export function htmlRoutes(routes: string[]): string[] {
+  return routes.filter((r) => !r.startsWith('/api/') && !r.includes('[') && r !== '/_not-found');
+}
+
+/** Pages whose HTML grew past their allowance over the baseline, as first-load JS is held; without one growth is not configured. */
+export function htmlGrowthProblems(
+  sizes: Record<string, number>,
+  { growthPct, baseline }: { growthPct: number; baseline: Record<string, number> | null },
+): { problems: string[]; growth: 'checked' | 'not-configured' } {
+  const problems: string[] = [];
+  for (const [route, base] of Object.entries(baseline ?? {})) {
+    const bytes = sizes[route];
+    if (bytes === undefined || !(base > 0)) continue;
+    const grew = ((bytes - base) / base) * 100;
+    if (grew > growthPct) problems.push(`${route}: HTML grew ${grew.toFixed(1)}% over its baseline (cap ${growthPct}%)`);
+  }
+  return { problems, growth: baseline ? 'checked' : 'not-configured' };
+}
+
+/** Pages over an absolute HTML cap, a route a project pins on top of its baseline. */
 export function htmlProblems(sizes: Record<string, number>, capsKiB: Record<string, number>): string[] {
   return Object.entries(capsKiB)
     .filter(([route, cap]) => (sizes[route] ?? 0) > cap * KIB)

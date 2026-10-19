@@ -39,7 +39,7 @@ describe('EvalHeadline', () => {
   it('shows the number when the score is established', () => {
     render(<EvalHeadline pluginEval={pluginEval()} />);
     expect(screen.getByText('7.42')).toBeInTheDocument();
-    expect(screen.getByText('established')).toBeInTheDocument();
+    expect(screen.getByText('Established')).toBeInTheDocument();
     expect(screen.getByText('zz-core-protocol')).toBeInTheDocument();
     expect(screen.getByText('zz-core-protocol').parentElement?.textContent).toContain('v3');
   });
@@ -55,9 +55,9 @@ describe('EvalHeadline', () => {
     });
     render(<EvalHeadline pluginEval={pe} />);
     expect(screen.queryByText(/^\d+\.\d+$/)).not.toBeInTheDocument();
-    // "not_established" is the status word itself and appears both as the score slot and the
+    // "Not established" is the status in words and appears both as the score slot and the
     // status badge — the point is that no digit is rendered anywhere on the panel.
-    expect(screen.getAllByText('not_established').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Not established').length).toBeGreaterThan(0);
   });
 
   it('says "not evaluated yet" only when there is truly no run', () => {
@@ -80,11 +80,13 @@ describe('EvalHealth', () => {
       { ...measure, key: 'latency_p50', value: 0.3, guardrail: true },
       { ...measure, key: 'completion', value: 0.9, guardrail: false },
     ] })] }} />);
-    expect(screen.getByText('0.6200')).toBeInTheDocument();
-    expect(screen.getByText('0.3000')).toBeInTheDocument();
-    expect(screen.queryByText('completion')).not.toBeInTheDocument();
-    expect(screen.getByText('fail')).toBeInTheDocument();
-    expect(screen.getByText('2 guardrails')).toBeInTheDocument();
+    // A measure's value is a share in [0, 1], so it reads as a percent, and each guardrail by its name in words.
+    expect(screen.getByText('62.0%')).toBeInTheDocument();
+    expect(screen.getByText('30.0%')).toBeInTheDocument();
+    expect(screen.getByText('Refusal rate')).toBeInTheDocument();
+    expect(screen.queryByText('Completion')).not.toBeInTheDocument();
+    expect(screen.getByText('A guardrail broke')).toBeInTheDocument();
+    expect(screen.getByText('2 guardrails, each a share of what it measures')).toBeInTheDocument();
   });
 
   it('reads as a quiet state rather than a table when nothing has been scored', () => {
@@ -99,7 +101,7 @@ describe('EvalQuality', () => {
     render(<EvalQuality run={{ ...pe.run!, dimensions: [
       dim({ key: 'generalization', applicable: false, notApplicableReason: 'no cross-plugin evidence yet', score: null }),
     ] }} />);
-    expect(screen.getByText('not applicable')).toBeInTheDocument();
+    expect(screen.getByText('Not applicable')).toBeInTheDocument();
     expect(screen.getByText(/no cross-plugin evidence yet/)).toBeInTheDocument();
   });
 

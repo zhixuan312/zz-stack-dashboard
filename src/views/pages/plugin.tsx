@@ -1,10 +1,12 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import { RotateCw } from 'lucide-react';
 import { Row, Stack } from '@/components/base/shell';
 import { useShareView } from '@/components/base/use-share-view';
 import { AskAbout } from '@/components/patterns/ask-about';
 import { DataTable, type Column } from '@/components/patterns/data-table';
+import { FeaturedMetric } from '@/components/patterns/featured-metric';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -12,7 +14,7 @@ import { CopyField } from '@/components/ui/copy-field';
 import { EmptyState } from '@/components/ui/empty-state';
 import { KeyValue } from '@/components/ui/key-value';
 import { aligned } from '@/console/columns';
-import { Day, PublicScore } from '@/console/eval-score';
+import { Day, SCORE_OUT_OF } from '@/console/eval-score';
 import { Panel } from '@/console/panel';
 import { EvalLearning, EvalNotYet, EvalUsage } from '@/console/plugin-eval-evidence';
 import { EvalAutomationTrust, EvalEvolution } from '@/console/plugin-eval-evolution';
@@ -22,15 +24,19 @@ import { count } from '@/console/words';
 import type { Revised } from '@/data/gateway';
 import { useDataClock } from '@/lib/api';
 import type { PluginEval, PluginEvalFound, PluginRow } from '@/lib/api-shapes';
+import type { PluginScore } from '@/lib/destination-shapes';
 import { formatDate } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
 import { pendingContext } from '@/views/context';
 import { evalPath, pluginContext, type EvalRead, type PluginRead } from '@/views/plugin-context';
-import { PLUGINS_PATH, readTrouble, type Catalog, type PluginsRead } from '@/views/plugins-context';
+import { FROM_THE_FRONT, PLUGINS_PATH, protocolNamed, readTrouble, standingSaid, type Catalog, type PluginsRead } from '@/views/plugins-context';
 import { useServed } from '@/views/use-served';
 
 type PluginSkill = PluginRow['skills'][number];
+
+/** The protagonist's name: the lead card, where the page's Ask sits. COUPLED: the README's `Protagonist:`. */
+const LEAD_TITLE = 'Its public score';
 
 function skillColumns(plugin: string): Column<PluginSkill>[] {
   return aligned([
@@ -46,11 +52,14 @@ function skillColumns(plugin: string): Column<PluginSkill>[] {
       ),
       mobileCell: (s) => <span className="[overflow-wrap:anywhere]">{s.name}</span>,
     },
-    // A skill's origin comes from a `source:` line in its own SKILL.md, so it varies the day a vendored skill ships.
-    { key: 'whose', header: 'Whose', hideBelow: 'md', mobile: 'status', cell: (s) => (s.origin === 'theirs' ? <Badge tone="accent">The {plugin} team&apos;s</Badge> : <Badge tone="neutral">Ours</Badge>) },
+    // A skill's origin comes from a `source:` line in its own SKILL.md, so it varies the day a vendored skill ships. A
+    // label down a column, so never the accent, which is kept for what a person presses.
+    { key: 'whose', header: 'Whose', hideBelow: 'md', mobile: 'status', cell: (s) => (s.origin === 'theirs' ? <Badge tone="neutral" dot>The {plugin} team&apos;s</Badge> : <Badge tone="neutral">Ours</Badge>) },
     { key: 'versions', header: 'Versions', numeric: true, hideBelow: 'lg', cell: (s) => count(s.versions) },
     { key: 'calls', header: 'Your team\'s calls', numeric: true, mobile: 'fact', cell: (s) => (s.everRun ? formatCount(s.calls) : <span className="text-ink-3">—</span>), mobileCell: (s) => (s.everRun ? `${formatCount(s.calls)} by your team` : 'Never run by your team') },
-    { key: 'last', header: 'Your team\'s last run', numeric: true, hideBelow: 'md', cell: (s) => <Day at={s.lastRun} /> },
+    // Under 896px the last run gives way: a third-party skill's badge names its plugin, and the longest of those leaves the
+    // four other columns no room at a 1024px window.
+    { key: 'last', header: 'Your team\'s last run', numeric: true, hideBelow: 'lg', cell: (s) => <Day at={s.lastRun} /> },
   ]);
 }
 
@@ -138,12 +147,19 @@ export function PluginView({ name, served }: { name: string; served: Revised<Plu
   return (
     <Stack>
       {p ? (
-        <Row split="1/2">
-          <div data-protagonist="About this plugin" className="contents">
-            <About p={p} />
+        <>
+          {/* The one score a person acts on leads, with the command that installs the plugin, and everything else steps
+              back below it: what the plugin is, then the owning team's evaluation, which says how it relates to this. */}
+          <div data-protagonist={LEAD_TITLE} className="contents">
+            <LeadScore
+              of={p.score}
+              comparability={p.comparability}
+              install={<CopyField value={p.install} label={`the command that installs ${p.plugin}`} className={`w-full ${FROM_THE_FRONT}`} />}
+              ask={<AskAbout question={`How far can ${p.plugin}'s public score be trusted, should we install it, and is the version it declares released?`} />}
+            />
           </div>
-          <PublicScore of={p.score} comparability={p.comparability} />
-        </Row>
+          <About p={p} />
+        </>
       ) : (
         <div data-protagonist="About this plugin" className="contents">
           <Panel title="About this plugin" actions={<AskAbout question={`What does the evaluation of ${name} say, with no manifest of it to read?`} />}>
@@ -151,7 +167,7 @@ export function PluginView({ name, served }: { name: string; served: Revised<Plu
           </Panel>
         </div>
       )}
-      <OwnersEvaluation evaluation={evaluation} busy={evaluationBusy} onRetry={retryEvaluation} />
+      <OwnersEvaluation evaluation={evaluation} lead={p?.score ?? null} busy={evaluationBusy} onRetry={retryEvaluation} />
       {p ? (
         <DataTable
           caption={`${name}'s skills`}
@@ -169,21 +185,50 @@ export function PluginView({ name, served }: { name: string; served: Revised<Plu
       ) : null}
       {p?.documents.length ? (
         <Panel title="The documents it governs" description={p.gates ? `${formatCount(p.gates)} a person approves` : 'None needs an approval'}>
-          <KeyValue items={p.documents.map((d) => ({ label: <span className="font-mono text-xs text-ink">{d.name}</span>, value: d.gate ? <Badge tone="accent" dot>A person approves</Badge> : <Badge tone="neutral">No approval needed</Badge> }))} />
+          {/* Labels, not actions: the accent is kept for what a person presses, so a gate reads in ink and no gate quieter. */}
+          <KeyValue items={p.documents.map((d) => ({ label: <span className="font-mono text-xs text-ink">{d.name}</span>, value: d.gate ? <Badge tone="neutral" dot>A person approves</Badge> : <span className="text-xs text-ink-3">No approval needed</span> }))} />
         </Panel>
       ) : null}
     </Stack>
   );
 }
 
-/** What the plugin is and how to install it: the facts of its catalog row, and the command with its Copy control. */
+/**
+ * A plugin's page leads with this: the one score a person acts on, its public score on the scores' scale, with the command that
+ * installs the plugin in the same card. The protocol it was scored against heads it, because a score belongs to its
+ * protocol's version; under the figure its standing, its range and its day, and the gateway's comparability statement
+ * verbatim. The owning team's own evaluation, where it is drawn, steps back below and says how it relates to this.
+ */
+function LeadScore({ of, comparability, install, ask }: { of: PluginScore | null; comparability: string; install?: ReactNode; ask?: ReactNode }) {
+  const shown = of && of.standing !== 'not_established' ? of.value : null;
+  return (
+    <FeaturedMetric
+      kicker={of ? `Its public score out of ${SCORE_OUT_OF} · ${protocolNamed(of)}` : `Its public score out of ${SCORE_OUT_OF}`}
+      value={shown}
+      missing={!of ? 'Never scored' : 'Not established'}
+      format={(n) => n.toFixed(1)}
+      caption={of ? (
+        <>
+          {`${standingSaid(of.standing)}${of.lower !== null && of.upper !== null ? `, between ${of.lower.toFixed(1)} and ${of.upper.toFixed(1)}` : ''}, scored on `}
+          <Day at={of.scoredAt} />
+          {'. The same for everybody; nobody starts an evaluation from the console.'}
+        </>
+      ) : 'The platform has scored no run of it. Nobody starts an evaluation from the console.'}
+      // The gateway's own sentence: whether its scores compare is decided where the protocols are, not here.
+      finding={{ text: comparability }}
+      actions={ask}
+      foot={install ? <dl className="w-full"><div className="w-full"><dt>Install</dt><dd>{install}</dd></div></dl> : undefined}
+    />
+  );
+}
+
+/** What the plugin is: the facts of its catalog row. Its install command is the lead card's, beside its score. */
 function About({ p }: { p: PluginRow }) {
   return (
-    <Panel title="About this plugin" description={p.description ?? p.agentName ?? undefined} actions={<AskAbout question={`What does ${p.plugin} ship and reach, should we install it, and is the version it declares released?`} />}>
+    <Panel title="About this plugin" description={p.description ?? p.agentName ?? undefined}>
       <KeyValue
         items={[
-          { label: 'Install', wrap: true, value: <CopyField value={p.install} label={`the command that installs ${p.plugin}`} /> },
-          { label: 'Required', value: p.required ? <Badge tone="accent">Required: every client installs it</Badge> : <Badge tone="neutral">Optional: a person&apos;s choice</Badge> },
+          { label: 'Required', value: p.required ? <Badge tone="neutral" dot>Required: every client installs it</Badge> : <span className="text-ink-2">Optional: a person&apos;s choice</span> },
           // The version and the digest together or not at all: the number is a claim and the digest makes it true.
           { label: 'Version', wrap: true, value: p.version ? <span className="font-mono text-xs">{p.version} <span className="text-ink-3">{p.release ? `+${p.release.digest}` : 'not released'}</span></span> : <span className="text-ink-3">Declares none</span> },
           ...(p.owner ? [{ label: 'Owner', value: p.owner, mono: true }] : []),
@@ -200,7 +245,7 @@ function About({ p }: { p: PluginRow }) {
  * The owning team's evaluation, drawn only where the gateway answered it. Withheld from this reader, it is not there at
  * all: no heading, no empty state and no sentence about who may read it.
  */
-function OwnersEvaluation({ evaluation, busy, onRetry }: { evaluation: Evaluation; busy: boolean; onRetry: () => void }) {
+function OwnersEvaluation({ evaluation, lead, busy, onRetry }: { evaluation: Evaluation; lead: PluginScore | null; busy: boolean; onRetry: () => void }) {
   if (evaluation.state === 'withheld' || evaluation.state === 'pending') return null;
   if (evaluation.state === 'trouble') {
     return (
@@ -214,7 +259,7 @@ function OwnersEvaluation({ evaluation, busy, onRetry }: { evaluation: Evaluatio
   const e = evaluation.data;
   return (
     <section aria-label="Its evaluation" className="flex flex-col gap-(--stack-gap)">
-      <EvalHeadline pluginEval={e} />
+      <EvalHeadline pluginEval={e} lead={lead} />
       {!e.found ? null : notYet(e) ? <EvalNotYet evaluationOnly={e.ownershipMode === 'evaluation_only'} /> : (
         <>
           <Row split="1/2">

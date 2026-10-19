@@ -95,7 +95,7 @@ describe('the page draws the team\'s work as the gateway answered it', () => {
   it('the table: initiative, flow position, state, gates passed and last touched, ten to a page, and no Team column', () => {
     browser(null);
     mount(<InitiativesView served={ok()} />);
-    expect([...table().querySelectorAll('thead th')].map((h) => h.textContent?.trim())).toEqual(['Initiative', 'Flow position', 'State', 'Gates', 'Last touched']);
+    expect([...table().querySelectorAll('thead th')].map((h) => h.textContent?.trim())).toEqual(['Initiative', 'Flow position', 'State', 'Gates passed', 'Last touched']);
     expect(rows()).toHaveLength(Math.min(10, LIST.total));
     expect(LIST.total).toBeGreaterThan(10);
     expect(text()).toContain(`${LIST.total} initiatives`);

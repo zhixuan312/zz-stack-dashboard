@@ -3,7 +3,7 @@ import { Tooltip } from 'radix-ui';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Me, PluginRow } from '@/lib/api-shapes';
-import { formatDate } from '@/lib/format-date';
+import { formatShortDate } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { PluginsView } from '@/views/pages/plugins';
 import type { Catalog, PluginsRead } from '@/views/plugins-context';
@@ -67,7 +67,7 @@ describe('the figures on Plugins', () => {
   it('quotes each score out of 10 with the protocol and the day it was scored against, and says when there is none', () => {
     mount(served(ME));
     const sdlc = row(ME, 'sdlc').score!;
-    expect(cell('sdlc', 'Score')).toBe(`${sdlc.value.toFixed(1)} / 10protocol ${sdlc.protocol.key} v${sdlc.protocol.version} · ${formatDate(sdlc.scoredAt)}`);
+    expect(cell('sdlc', 'Score')).toBe(`${sdlc.value.toFixed(1)} / 10 · ${formatShortDate(sdlc.scoredAt)}${sdlc.protocol.key} v${sdlc.protocol.version}`);
     expect(cell('research-kit', 'Score')).toBe('Never scored');
     expect(cell('zz-access', 'Score')).toBe('Never scored');
   });
@@ -76,7 +76,7 @@ describe('the figures on Plugins', () => {
     mount(served(MEMBER));
     const sdlc = row(MEMBER, 'sdlc').score!;
     expect(sdlc.protocol.key).toBeNull();
-    expect(cell('sdlc', 'Score')).toBe(`${sdlc.value.toFixed(1)} / 10protocol v${sdlc.protocol.version} · ${formatDate(sdlc.scoredAt)}`);
+    expect(cell('sdlc', 'Score')).toBe(`${sdlc.value.toFixed(1)} / 10 · ${formatShortDate(sdlc.scoredAt)}version ${sdlc.protocol.version} of its protocol`);
     expect(document.body.textContent).not.toContain(row(ME, 'sdlc').score!.protocol.key!);
   });
 

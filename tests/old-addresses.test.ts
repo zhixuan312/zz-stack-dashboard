@@ -106,22 +106,23 @@ describe('nothing points at /teams, /teams/<slug>, /people or /settings', () => 
     expect(found).toEqual([]);
   });
 
-  it('verify neither walks, probes nor caps one', () => {
+  it('verify neither walks nor probes one', () => {
     const named = [
       ...(config.navigationChecks ?? []).map((c) => c.path),
       ...config.detailRoutes,
-      ...Object.keys(config.budgets?.htmlKb ?? {}),
       ...Object.values(config.personas ?? {}).flatMap((p) => [...p.expectedRoutes, ...Object.keys(p.deniedProbe ?? {})]),
     ];
     expect(named.filter(isOld)).toEqual([]);
-    // The HTML cap the list pages are held to measures People where it is now.
-    expect(Object.keys(config.budgets?.htmlKb ?? {})).toContain('/platform/people');
   });
 
-  it('the first-load baseline holds no key for one', () => {
+  it('the baseline holds no key for one, first-load or HTML', () => {
     const keys = Object.keys((baseline as { routes: Record<string, number> }).routes);
     expect(keys.filter(isOld)).toEqual([]);
     expect(keys).toContain('/platform/teams');
+    // Every page's HTML is held to its own figure (ZZ Meridian 0.19.0), People's where it is now.
+    const html = Object.keys((baseline as { html?: { routes: Record<string, number> } }).html?.routes ?? {});
+    expect(html.filter(isOld)).toEqual([]);
+    expect(html).toContain('/platform/people');
   });
 
   it('the brief and the README name none of them, nor Settings, as a page', () => {

@@ -5,7 +5,7 @@ import { Copy, RotateCw } from 'lucide-react';
 import { Row, Stack } from '@/components/base/shell';
 import { useShareView } from '@/components/base/use-share-view';
 import { BarList } from '@/components/charts/bar-list';
-import { ColumnChart } from '@/components/charts/column-chart';
+import { ColumnChart, type ColumnPart } from '@/components/charts/column-chart';
 import { Heatmap } from '@/components/charts/heatmap';
 import { Meridian } from '@/components/charts/meridian';
 import { TrendChart } from '@/components/charts/trend-chart';
@@ -33,10 +33,11 @@ import { formatCount } from '@/lib/format-units';
 import type { Window } from '@/lib/platform-shapes';
 import type { RecordRead } from '@/lib/work-shapes';
 import {
-  FIRST, LEAD, PAGE_SIZE, PERIOD_OPTIONS, RECORD_DEFAULTS, SLICES, asOfLine, coverageLine, filtersOfPath, footOf, formatHours, formatShare,
-  grainWords, leadOf, periodLine, periodOf, recordContext, recordPath, recordTrouble, summaryLine, tickOf, tilesOf,
+  FIRST, LEAD, PAGE_SIZE, PERIOD_OPTIONS, RECORD_DEFAULTS, SLICES, asOfLine, asOfWords, coverageLine, filtersOfPath, footOf,
+  formatHours, formatShare, grainWords, leadOf, periodLine, periodOf, recordContext, recordPath, recordTrouble, summaryLine, tickOf, tilesOf,
   type RecordFilters, type RecordPeriod, type RecordServed, type SliceKey, type Tile,
 } from '@/views/record-context';
+import { LESSONS_MADE } from '@/views/record-names';
 import { useServed, useServedAddress } from '@/views/use-served';
 
 /**
@@ -145,7 +146,7 @@ export function RecordView({ served }: { served: RecordServed }) {
   return (
     <Stack aria-busy={behind || undefined} className={behind ? 'opacity-60 transition-opacity' : undefined}>
       <Slices r={shown} />
-      <Initiatives r={shown} team={team} filters={filters} onPage={(page) => set({ page })} retry={retry} />
+      <Initiatives r={shown} team={team} filters={filters} onPage={(page) => set({ page })} retry={retry} busy={busy} />
     </Stack>
   );
 }
@@ -196,7 +197,7 @@ function Lead({ r, windows }: Slice) {
         </>
       }
     >
-      <p className="t-caption px-2 pb-2">{`${LEAD.chart}, ${grainWords(windows)}`}</p>
+      <p className="t-caption px-2 pb-2">{`${LEAD.chart}, ${grainWords(windows)}: ${LEAD.added}`}</p>
       {windows.length ? (
         <TrendChart
           height="fill"
@@ -255,7 +256,7 @@ function Work({ r, windows }: Slice) {
                   dates={dates}
                   running={running}
                   noData="None recorded"
-                  parts={[{ key: 'accepted', label: 'Accepted' }, { key: 'delivered', label: 'Delivered' }, { key: 'abandoned', label: 'Abandoned' }]}
+                  parts={OUTCOME_PARTS}
                   columns={w.closuresByWeek.map((c) => ({ key: c.window.from, label: tick(c.window.from), values: [c.accepted.value, c.delivered.value, c.abandoned.value] }))}
                 />
               ) : <NoPeriods />}
@@ -297,7 +298,7 @@ function Documents({ r, windows }: Slice) {
     <SliceOf k="documents" r={r} tiles={tilesOf(r).documents}>
       {d ? (
         <Row split="2/3">
-          <Panel title="Words added" description={`Net additions, ${grainWords(windows)}. ${coverageLine(d.coverage)}`}>
+          <Panel title="Words added" description={`The words each revision added, ${grainWords(windows)}, nothing taken off for what a later one removed. ${coverageLine(d.coverage)}`}>
             {windows.length ? (
               <ColumnChart
                 label="Words added"
@@ -353,11 +354,12 @@ function Knowledge({ r, windows }: Slice) {
             </Panel>
           </Row>
           <Row split="1/2">
-            <Panel title="Lessons adopted in all" description={`A running total of the whole record, an import's left out, ${grain}`}>
-              {windows.length ? <TrendChart label="Lessons adopted in all" dates={dates} running={running} tick={tick} series={[{ key: 'lessons', label: 'Lessons adopted in all', values: k.adoptedInAll.map((p) => p.figure.value), kind: 'area' }]} /> : <NoPeriods />}
+            <Panel title={`${LESSONS_MADE} in all`} description={`A running total of the whole record, an import's left out, ${grain}`}>
+              {windows.length ? <TrendChart label={`${LESSONS_MADE} in all`} dates={dates} running={running} tick={tick} series={[{ key: 'lessons', label: `${LESSONS_MADE} in all`, values: k.adoptedInAll.map((p) => p.figure.value), kind: 'area' }]} /> : <NoPeriods />}
             </Panel>
-            <Panel title="Lessons by kind" description={`The lessons standing on your shelf ${asOfLine(r).toLowerCase()}, an import's included`}>
-              {k.byKind.length ? <BarList label="Lessons by kind" items={k.byKind.map((b) => ({ key: b.kind, label: b.kind, value: b.lessons }))} /> : <EmptyState layout="inline" title="No lesson on the shelf" className="py-6">A lesson the team adopts appears here by its kind.</EmptyState>}
+            {/* Knowledge's measure, under Knowledge's name: the lessons standing on the shelf, not those made. */}
+            <Panel title="Lessons adopted, by kind" description={`The lessons standing on your shelf ${asOfWords(r)}, an import's included`}>
+              {k.byKind.length ? <BarList label="Lessons adopted, by kind" items={k.byKind.map((b) => ({ key: b.kind, label: b.kind, value: b.lessons }))} /> : <EmptyState layout="inline" title="No lesson on the shelf" className="py-6">A lesson the team adopts appears here by its kind.</EmptyState>}
             </Panel>
           </Row>
         </>
@@ -455,14 +457,20 @@ const COLUMNS: Column<InitiativeRecord>[] = aligned([
   { key: 'lessons', header: 'Lessons', numeric: true, hideBelow: 'lg', cell: (i) => formatCount(i.lessons) },
 ]);
 
+/**
+ * The three ways an initiative closes, each a usual outcome rather than one that needs somebody, so each takes a
+ * categorical slot: one neutral would draw them as one part (ZZ Meridian 0.19.0, docs/data-display.md).
+ */
+const OUTCOME_PARTS: ColumnPart[] = [{ key: 'accepted', label: 'Accepted', color: 1 }, { key: 'delivered', label: 'Delivered', color: 2 }, { key: 'abandoned', label: 'Abandoned', color: 3 }];
+
 /** The record: every initiative opened before the cutoff, newest first, ten to a page, paged by the gateway. */
-function Initiatives({ r, team, filters, onPage, retry }: { r: RecordRead; team: string | null; filters: RecordFilters; onPage: (page: string) => void; retry: () => void }) {
+function Initiatives({ r, team, filters, onPage, retry, busy }: { r: RecordRead; team: string | null; filters: RecordFilters; onPage: (page: string) => void; retry: () => void; busy: boolean }) {
   const rec = r.record.state === 'ok' ? r.record.data : null;
   return (
     <section aria-labelledby="slice-record" data-slice="record" className="flex min-w-0 flex-col gap-(--stack-gap) pt-4">
       <div>
         <h2 id="slice-record" className="t-section">The record</h2>
-        <p className="t-small mt-1 text-ink-2">{summaryLine(r) ?? 'Every initiative opened before the cutoff'}, {asOfLine(r).toLowerCase()}</p>
+        <p className="t-small mt-1 text-ink-2">{summaryLine(r) ?? 'Every initiative opened before the cutoff'}, {asOfWords(r)}</p>
       </div>
       <DataTable
         caption="The record"
@@ -477,6 +485,7 @@ function Initiatives({ r, team, filters, onPage, retry }: { r: RecordRead; team:
         pageSizes={[PAGE_SIZE]}
         error={rec ? undefined : 'The record of initiatives could not be read.'}
         onRetry={retry}
+        retrying={busy}
         state={{ sort: '', dir: 'desc', page: filters.page }}
         onStateChange={(p) => { if (p.page) onPage(p.page); }}
         empty={{ title: 'No initiative yet', body: 'An initiative your agents open appears here, newest first.' }}

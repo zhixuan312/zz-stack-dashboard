@@ -6,9 +6,9 @@ Every release the platform has recorded, week by week, each with what was observ
 
 - Gate first: the page asks for `releases` before it renders, so a person who does not hold it is answered by the refused page and nothing on the page is read. Every role holds `platform:read`, so a member and a superadmin both open it. Its title comes from `gatedMetadata`, so under `refusal: 'absent'` it names nothing; its loading state (`OfferedLoading`) is headed Releases for a person whose own rail offers it, at `/platform/releases` alone, and keeps `gatedLoading`'s words, which name nothing, for anyone else and in the prerendered shell.
 - Masthead: the kicker `ZZ Stack · Platform`, the title, one static sentence and the as-of line, the read's own `meta.asOf`. The masthead is drawn before the read answers.
-- Tiles: Releases (every one recorded), Last week (tagged in the 7 days before the cutoff), Latest release (its version, and when its tag was made) and Migrations applied (with when the last one was). No release yet reads `None recorded`, never a zero version.
+- Tiles: Releases (every one recorded) and Last week (tagged in the 7 days before the cutoff), each with its unit (`2 releases`), Latest tag (its version, and when its tag was made: a tag, not a deployment, which Status names) and Migrations applied (with when the last one was). No release yet reads `None recorded`, never a zero version.
 - The weeks: Releases by week and Malformed calls per 1,000 by week, two Column charts side by side on one Meridian, so pointing at a week in one points the other at it. A Monday week a column, the running week drawn unfinished, a week with no rate an empty track, never a zero.
-- The table, the page's protagonist: version (with the console it shipped with, and `Within 72 hours of <versions>` when another release falls inside either window), released, summary, client action, and malformed calls per 1,000, tool failures and p95, each before and after, with `partial` beside a side the record saw only part of (its bounds in the cell's title). Ten rows a page, newest first, paged by the gateway; a row opens the release's page. Ask is in the table's head.
+- The table, the page's protagonist: version (with the console it shipped with), tagged, summary (with `Within 72 hours of <versions>` under it when another release falls inside either window), client action, and malformed calls per 1,000, tool failures and p95, each before and after, with `partial` beside a side the record saw only part of (its bounds in the cell's title). The version and the date hold their line, a figure holds its line and a word in its place wraps, and the summary takes the slack, so the table stays inside its card. Ten rows a page, newest first, paged by the gateway; a row opens the release's page. Ask is in the table's head. On a phone a row is a card: the version and its date, then its summary, `Clients: <action>` and `Malformed per 1,000: 4.2 before; 3.3 after (partial)`, each a line that may wrap. A tag with no changelog section reads `Unknown: no recorded upgrade notes`, the record's words with a colon.
 - Nothing on the page sets the two sides of a release against each other as a verdict on it: a window is what was observed around the release, and other releases, the mix of tools and the traffic move it too.
 
 ## States
@@ -16,7 +16,7 @@ Every release the platform has recorded, week by week, each with what was observ
 | State | What shows |
 |---|---|
 | Loading | `loading.tsx` while the gate asks `/me`, headed Releases for a person whose rail offers it (`OfferedLoading`), then the masthead over four tile skeletons, the two charts' and the table's while the read is under way |
-| Default | The tiles, the weeks and a page of releases |
+| Default | The tiles, the weeks and a page of releases, a row gap apart |
 | No release yet | The tiles with `None recorded`, the weeks as the record has them, and "No release recorded yet" |
 | A release under 72 hours old | Its after-window reads `partial`, and its title says it is still running |
 | A before-window begun before the record | `Not observed`, never a zero rate |
@@ -24,7 +24,7 @@ Every release the platform has recorded, week by week, each with what was observ
 | Rows unavailable | The tiles and the weeks stand; the table's error state says the releases could not be listed |
 | Read failed | Each tile a dash, and the table's error state with the gateway's sentence and Retry |
 | Slower than 4.5 seconds | The same error state, saying the read did not answer within 4.5 seconds, with Retry; never an endless skeleton |
-| Read again | The table's Retry reads again in the browser; a read a change starts leaves the error state and its Retry where they are, so a keyboard user keeps their place. The managed table's Retry is never busy |
+| Read again | The table's Retry reads again in the browser, busy only after the person presses it and until that read answers; a read a change starts leaves the error state and its Retry where they are, never busy, so a keyboard user keeps their place |
 
 ## Agents
 

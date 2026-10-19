@@ -299,6 +299,8 @@ covered = { data: coverage.routes.filter((r) => r.data === 'configured').length,
 const unsafe = unsafeBackend();
 const chromeMissing = fs.existsSync(chromePath) ? null : `Chrome not found at ${chromePath} (set CHROME)`;
 const baselinePath = 'scripts/verify.baseline.json';
+/** Whether the baseline records each page's HTML; one that cannot be read is sizes.ts's to report, after the build. */
+const baselineHasHtml = (file: string) => { try { return typeof JSON.parse(fs.readFileSync(file, 'utf8')).html === 'object'; } catch { return true; } };
 
 if (wide || perf) {
   // A deep mode needs all of it, and says every piece that is missing at once, before it spends a build.
@@ -307,7 +309,11 @@ if (wide || perf) {
     ...(railReason ? [railReason] : []),
     ...(unsafe ? [unsafe.fix] : []),
     ...(chromeMissing ? [chromeMissing] : []),
-    ...(!full || fs.existsSync(path.join(ROOT, baselinePath)) ? [] : [`${baselinePath} is missing: record it with node scripts/sizes.ts --write-baseline from a build whose sizes you reviewed`]),
+    ...(!full ? [] : !fs.existsSync(path.join(ROOT, baselinePath))
+      ? [`${baselinePath} is missing: record it with node scripts/sizes.ts --write-baseline --base <url> from a running build whose sizes you reviewed`]
+      : !baselineHasHtml(path.join(ROOT, baselinePath))
+        ? [`${baselinePath} holds no HTML: record it with node scripts/sizes.ts --write-baseline --base <url> from a running build whose sizes you reviewed`]
+        : []),
   ];
   if (missing.length) {
     for (const m of missing) log(`FAIL    ${m}`);
@@ -465,7 +471,8 @@ const sizes = await run('scripts/sizes.ts', baseUrl ? ['--base', baseUrl] : [], 
     if (m) phase(m[1] as Status, m[2], sizes.took, m[3]); else beneath(l.replace(/^FAIL\s+/, ''));
   }
   const html = summaryOf<{ html: { status: Status } }>(sizes.out, 'sizes')?.html.status;
-  htmlMissing = Object.keys(config.budgets?.htmlKb ?? {}).length > 0 && html !== 'ok' && html !== 'FAIL';
+  // Every page's HTML is held to its baseline, so HTML that was not measured is a check that did not run.
+  htmlMissing = html === 'not run';
 }
 
 // 5. The navigation smoke of the selected routes; every rail route in --full and --timed.

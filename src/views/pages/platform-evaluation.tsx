@@ -27,7 +27,7 @@ import type { Evaluation } from '@/lib/platform-shapes';
 import { waited } from '@/views/platform-bugs-context';
 import {
   ASK, DECISIONS, GUARDRAILS, TILES, asOfLine, evaluationContext, evaluationTrouble, isAdmin, kindOf, ownerOf,
-  protocolOf, rangeOf, runText, scoreIn, seriesRows, standingOf, waitingOf, type EvaluationRead, type PluginScoreRow,
+  protocolOf, rangeOf, runText, scoreIn, seriesName, seriesRows, standingOf, waitingOf, type EvaluationRead, type PluginScoreRow,
   type SeriesRow, type WaitingFinding,
 } from '@/views/platform-evaluation-context';
 
@@ -120,14 +120,20 @@ function Tiles({ evaluation: e }: { evaluation: Evaluation }) {
 }
 
 const GUARDRAIL_TONE = { pass: 'positive', fail: 'critical', not_established: 'neutral' } as const;
-const mono = 'font-mono text-xs whitespace-normal [overflow-wrap:anywhere]';
+/**
+ * An identifier, kept whole on one line: a key broken mid-word ("reliab / ility") is not the key. Every column but the
+ * lead holds its content whole, so it takes the width its longest value needs and the lead column keeps only the slack
+ * left; an identifier too long for a column of its own is a caption under the lead instead. Each table's columns are
+ * held under its own width where `hideBelow` lets them show: the managed lead keeps 256px from 672px.
+ */
+const ident = 'font-mono text-xs whitespace-nowrap';
 
 /** A score out of ten with its range under it; a scoring with no score says so in words, never as 0. */
 function ScoreCell({ r }: { r: PluginScoreRow }) {
-  if (r.score.value === null) return <span className="text-xs text-ink-3">No score</span>;
+  if (r.score.value === null) return <span className="whitespace-nowrap text-xs text-ink-3">No score</span>;
   const range = rangeOf(r.lower, r.upper);
   return (
-    <span className="inline-flex flex-col" title={range ? `${scoreIn(r.score.value)} / 10, ${range}` : `${scoreIn(r.score.value)} / 10`}>
+    <span className="inline-flex flex-col whitespace-nowrap" title={range ? `${scoreIn(r.score.value)} / 10, ${range}` : `${scoreIn(r.score.value)} / 10`}>
       <span className="text-sm font-semibold tabular-nums text-ink">{scoreIn(r.score.value)}<span className="text-xs font-regular text-ink-3"> / 10</span></span>
       {range ? <span className="t-caption tabular-nums">{range}</span> : null}
     </span>
@@ -135,12 +141,19 @@ function ScoreCell({ r }: { r: PluginScoreRow }) {
 }
 
 const PLUGIN_COLUMNS: Column<PluginScoreRow>[] = aligned([
-  // Under 896px the protocol gives way, and the plugin's title names it, as the series below do.
-  { key: 'plugin', header: 'Plugin', grow: true, mobile: 'title', title: (r) => `${r.plugin}, ${protocolOf(r.protocol)}`, cell: (r) => <span className={`${mono} font-medium text-ink`}>{r.plugin}</span> },
+  // The protocol is the plugin's caption, at every width: as a column of its own it squeezed the figures beside it.
+  {
+    key: 'plugin', header: 'Plugin', grow: true, mobile: 'title', title: (r) => `${r.plugin}, ${protocolOf(r.protocol)}`,
+    cell: (r) => (
+      <span className="block min-w-0">
+        <span className={`${ident} block font-medium text-ink`}>{r.plugin}</span>
+        <span data-protocol className={`${ident} t-caption block`}>{protocolOf(r.protocol)}</span>
+      </span>
+    ),
+  },
   { key: 'score', header: 'Score', mobile: 'fact', cell: (r) => <ScoreCell r={r} />, mobileCell: (r) => (r.score.value === null ? 'No score' : `${scoreIn(r.score.value)} / 10`) },
   { key: 'standing', header: 'Standing', align: 'left', mobile: 'status', cell: (r) => <Badge tone={STANDING_TONE[r.standing]}>{standingOf(r.standing)}</Badge> },
-  { key: 'guardrails', header: 'Guardrails', align: 'left', mobile: 'fact', cell: (r) => <Badge tone={GUARDRAIL_TONE[r.guardrails]}>{GUARDRAILS[r.guardrails]}</Badge>, mobileCell: (r) => `Guardrails ${GUARDRAILS[r.guardrails].toLowerCase()}` },
-  { key: 'protocol', header: 'Protocol', align: 'left', hideBelow: 'lg', title: (r) => protocolOf(r.protocol), cell: (r) => <span className={mono}>{protocolOf(r.protocol)}</span> },
+  { key: 'guardrails', header: 'Guardrails', align: 'left', hideBelow: 'lg', mobile: 'fact', cell: (r) => <Badge tone={GUARDRAIL_TONE[r.guardrails]}>{GUARDRAILS[r.guardrails]}</Badge>, mobileCell: (r) => `Guardrails ${GUARDRAILS[r.guardrails].toLowerCase()}` },
   { key: 'scored', header: 'Scored', numeric: true, mobile: 'fact', cell: (r) => <time dateTime={r.scoredAt} title={formatDateTime(r.scoredAt)}>{formatDate(r.scoredAt)}</time>, mobileCell: (r) => `Scored ${formatDate(r.scoredAt)}` },
 ]);
 
@@ -166,15 +179,17 @@ function Plugins({ part }: { part: Evaluation['plugins'] }) {
   );
 }
 
-/** A series' scores, oldest first: each with its range and standing, or its standing alone. */
+/** A series' scores, oldest first: each its score with its range on one line, its standing and day on the next. */
 function RunsCell({ r }: { r: SeriesRow }) {
   return (
-    <ol className="flex flex-col gap-0.5" title={r.series.runs.map(runText).join('; ')}>
+    <ol className="flex flex-col gap-1.5" title={r.series.runs.map(runText).join('; ')}>
       {r.series.runs.map((run) => (
-        <li key={run.scoredAt} className="whitespace-normal text-xs text-ink-2">
-          <span className="font-semibold tabular-nums text-ink">{run.score === null ? 'No score' : scoreIn(run.score)}</span>
-          {run.score !== null && rangeOf(run.lower, run.upper) ? <span className="text-ink-3"> ({rangeOf(run.lower, run.upper)})</span> : null}
-          <span className="text-ink-3"> · {standingOf(run.standing).toLowerCase()} · {formatDate(run.scoredAt)}</span>
+        <li key={run.scoredAt} className="flex flex-col whitespace-nowrap text-xs text-ink-2">
+          <span>
+            <span className="font-semibold tabular-nums text-ink">{run.score === null ? 'No score' : scoreIn(run.score)}</span>
+            {run.score !== null && rangeOf(run.lower, run.upper) ? <span className="text-ink-3"> ({rangeOf(run.lower, run.upper)})</span> : null}
+          </span>
+          <span className="text-ink-3">{standingOf(run.standing)} · {formatDate(run.scoredAt)}</span>
         </li>
       ))}
     </ol>
@@ -183,30 +198,42 @@ function RunsCell({ r }: { r: SeriesRow }) {
 
 /** The change within one series, and its shape: drawn only over the series' own scores, never across two series. */
 function TrendCell({ r }: { r: SeriesRow }) {
-  if (!r.trend) return <span className="text-xs text-ink-3">{r.series.runs.length === 1 ? 'One scoring' : 'Under two scores'}</span>;
+  if (!r.trend) return <span className="whitespace-nowrap text-xs text-ink-3">{r.series.runs.length === 1 ? 'One scoring' : 'Under two scores'}</span>;
   return (
-    <span data-trend className="inline-flex items-center gap-2">
+    <span data-trend className="inline-flex items-center gap-2 whitespace-nowrap">
       <Sparkline values={r.trend.points} color="neutral" height={28} className="w-20" />
       <Delta value={r.trend.change} intent="neutral" format={(n) => `${scoreIn(Math.abs(n))} pts`} />
     </span>
   );
 }
 
+/**
+ * A row a series: the plugin leads, with the read's statement of whether its series compare said once, on its first
+ * row; the series is named by its protocol and the population under it, which wraps at the protocol's width.
+ */
 const SERIES_COLUMNS: Column<SeriesRow>[] = aligned([
   {
-    key: 'plugin', header: 'Plugin', grow: true, mobile: 'title', title: (r) => `${r.plugin}: ${r.statement}`,
+    key: 'plugin', header: 'Plugin', grow: true, mobile: 'title', title: (r) => `${r.plugin}, ${r.statement}`,
     cell: (r) => (
       <span className="block min-w-0">
-        <span className={`${mono} block font-medium text-ink`}>{r.plugin}</span>
-        <span data-statement className="t-caption block whitespace-normal [overflow-wrap:anywhere]">{r.statement}</span>
+        <span className={`${ident} block font-medium text-ink`}>{r.plugin}</span>
+        {r.first ? <span data-statement className="t-caption block">{r.statement}</span> : null}
       </span>
     ),
-    mobileCell: (r) => `${r.plugin}: ${r.statement}`,
+    mobileCell: (r) => r.plugin,
   },
-  { key: 'protocol', header: 'Protocol', align: 'left', mobile: 'fact', title: (r) => protocolOf(r.series.protocol), cell: (r) => <span className={mono}>{protocolOf(r.series.protocol)}</span> },
-  { key: 'population', header: 'Population', align: 'left', hideBelow: 'md', title: (r) => r.series.population ?? 'Not recorded', cell: (r) => <span className="block whitespace-normal text-xs [overflow-wrap:anywhere]">{r.series.population ?? <span className="text-ink-3">Not recorded</span>}</span> },
+  {
+    key: 'series', header: 'Series', align: 'left', mobile: 'fact', title: (r) => seriesName(r.series),
+    cell: (r) => (
+      <span className="block">
+        <span className={`${ident} block text-ink`}>{protocolOf(r.series.protocol)}</span>
+        <span data-population className="t-caption block">{r.series.population ?? 'Population not recorded'}</span>
+      </span>
+    ),
+    mobileCell: (r) => protocolOf(r.series.protocol),
+  },
   { key: 'scores', header: 'Scores', align: 'left', mobile: 'fact', cell: (r) => <RunsCell r={r} />, mobileCell: (r) => `${formatCount(r.series.runs.length)} ${plural(r.series.runs.length, 'scoring')}` },
-  { key: 'trend', header: 'Within the series', align: 'left', mobile: 'status', cell: (r) => <TrendCell r={r} /> },
+  { key: 'trend', header: 'Within the series', align: 'left', hideBelow: 'lg', mobile: 'status', cell: (r) => <TrendCell r={r} /> },
 ]);
 
 /** Every score, one row a series: a plugin's statement says whether its series compare, and a trend stays inside its row. */
@@ -258,22 +285,25 @@ function ByOwner({ part }: { part: Evaluation['byOwner'] }) {
   );
 }
 
-/** A waiting finding: its fixed summary, and for the superadmin the pattern the evaluation recorded under it. */
+/**
+ * A waiting finding: its fixed summary, and for the superadmin the pattern the evaluation recorded under it and the
+ * measure it was recorded on, whole, under the pattern rather than in a column of its own.
+ */
 function FindingCell({ f }: { f: WaitingFinding }) {
   return (
     <span className="block min-w-0">
       <span className="block whitespace-normal font-medium text-ink [overflow-wrap:anywhere]">{f.summary}</span>
       {f.pattern ? <span data-pattern className="t-caption block whitespace-normal [overflow-wrap:anywhere]">{f.pattern}</span> : null}
+      {f.measure ? <span data-measure className="t-caption block">Measure <span className={ident}>{f.measure}</span></span> : null}
     </span>
   );
 }
 
-const waitingColumns = (asOf: string, admin: boolean): Column<WaitingFinding>[] => aligned([
-  { key: 'finding', header: 'Finding', grow: true, mobile: 'title', title: (f) => (f.pattern ? `${f.summary}: ${f.pattern}` : f.summary), cell: (f) => <FindingCell f={f} />, mobileCell: (f) => f.summary },
-  { key: 'plugin', header: 'Plugin', align: 'left', mobile: 'fact', title: (f) => f.plugin, cell: (f) => <span className={mono}>{f.plugin}</span> },
+const waitingColumns = (asOf: string): Column<WaitingFinding>[] => aligned([
+  { key: 'finding', header: 'Finding', grow: true, mobile: 'title', title: (f) => [f.summary, f.pattern, f.measure && `measure ${f.measure}`].filter(Boolean).join('; '), cell: (f) => <FindingCell f={f} />, mobileCell: (f) => f.summary },
+  { key: 'plugin', header: 'Plugin', align: 'left', mobile: 'fact', title: (f) => f.plugin, cell: (f) => <span className={ident}>{f.plugin}</span> },
   { key: 'kind', header: 'Kind', align: 'left', mobile: 'status', cell: (f) => <Badge tone={f.kind === 'defect' ? 'warning' : 'neutral'}>{kindOf(f.kind)}</Badge> },
-  { key: 'owner', header: 'Owner', align: 'left', hideBelow: 'md', cell: (f) => ownerOf(f.owner) },
-  ...(admin ? [{ key: 'measure', header: 'Measure', align: 'left' as const, hideBelow: 'lg' as const, title: (f: WaitingFinding) => f.measure ?? 'None recorded', cell: (f: WaitingFinding) => (f.measure ? <span className={mono}>{f.measure}</span> : <span className="text-ink-3">None recorded</span>) }] : []),
+  { key: 'owner', header: 'Owner', align: 'left', hideBelow: 'lg', cell: (f) => <span className="whitespace-nowrap">{ownerOf(f.owner)}</span> },
   {
     key: 'since', header: 'Waiting', numeric: true, mobile: 'fact', title: (f) => formatDateTime(f.waitingSince),
     cell: (f) => (
@@ -294,11 +324,11 @@ function Waiting({ evaluation: e }: { evaluation: Evaluation }) {
   return (
     <DataTable
       title="Findings waiting for a decision"
-      description={admin ? 'Defects and unknowns with no decision yet, oldest first, each with the pattern its evaluation recorded' : 'Defects and unknowns with no decision yet, oldest first, each by its plugin and owner category; their own words are the owning team\'s'}
+      description={admin ? 'Defects and unknowns with no decision yet, oldest first, each with the pattern its evaluation recorded and the measure it was recorded on' : 'Defects and unknowns with no decision yet, oldest first, each by its plugin and owner category; their own words are the owning team\'s'}
       caption="Findings waiting for a decision, oldest first"
       noun="findings"
       rows={waitingOf(e)}
-      columns={waitingColumns(e.meta.asOf, admin)}
+      columns={waitingColumns(e.meta.asOf)}
       rowKey={(f) => f.id}
       pageSize={10}
       pageSizes={[10]}

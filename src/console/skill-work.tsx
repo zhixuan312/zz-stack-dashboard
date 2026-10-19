@@ -42,7 +42,7 @@ const COLUMNS: Column<SkillRunRow>[] = aligned([
  * gateway's count of the runs of one call, which have no span and so no length: said under the table when there are
  * any. `ask` is the page's Ask about, drawn in the card's head. `of` is the skill the page is narrowed to, if it is.
  */
-export function SkillWorkPanel({ skills, oneCall, error, onRetry, ask, of }: { skills: SkillRunRow[]; oneCall: number; error?: string; onRetry?: () => void; ask?: ReactNode; of?: string }) {
+export function SkillWorkPanel({ skills, oneCall, error, onRetry, retrying, ask, of }: { skills: SkillRunRow[]; oneCall: number; error?: string; onRetry?: () => void; retrying?: boolean; ask?: ReactNode; of?: string }) {
   return (
     <div className="flex flex-col gap-3">
       <DataTable
@@ -58,6 +58,7 @@ export function SkillWorkPanel({ skills, oneCall, error, onRetry, ask, of }: { s
         pageSizes={[10]}
         error={error}
         onRetry={onRetry}
+        retrying={retrying}
         empty={of
           ? { title: `No run of ${of} recorded`, body: 'It appears here once your team\'s agents follow it and it makes a call.' }
           : { title: 'Your team has run no skill yet', body: 'A skill your agents follow appears here once it has made a call.' }}

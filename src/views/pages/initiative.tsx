@@ -125,8 +125,10 @@ export function InitiativeView({ team, slug, served }: { team: string; slug: str
   // By the title a reader scans, in natural order: sources are numbered ("R2", "R10").
   const sources = d.documents.filter((x) => x.path.startsWith('sources/'))
     .sort((a, b) => (a.title || a.path).localeCompare(b.title || b.path, 'en', { numeric: true }));
+  // The cards one gap apart, as on every page; a fragment left the frame to lay them edge to edge. The stack's gap and
+  // not Meridian's `Stack`, whose rise would hold the first paint's cards at no opacity while it runs.
   return (
-    <>
+    <div className="flex min-w-0 flex-col gap-(--stack-gap)">
       {d.steps.length ? (
         <Panel title="Progress" description={`Stage ${d.at} of ${d.of}${d.stage ? `, ${d.stage}` : ''}`}>
           <FlowStepper gates={d.gates} outcome={d.outcome} steps={d.steps} complete={d.complete} correction={d.correction} />
@@ -167,7 +169,7 @@ export function InitiativeView({ team, slug, served }: { team: string; slug: str
           toolbar={<div><h2 className="t-card">Sources</h2><p className="t-caption mt-1">What someone said or found, attached as evidence</p></div>}
         />
       ) : null}
-    </>
+    </div>
   );
 }
 
@@ -181,6 +183,29 @@ function InitiativeTrouble({ slug, trouble, busy, onRetry }: { slug: string; tro
         <EmptyState kind="error" title={title} className="py-16" action={<Button variant="primary" icon={<RotateCw />} busy={busy} onClick={onRetry}>Retry</Button>}>{detail}</EmptyState>
       )}
     </Card>
+  );
+}
+
+/**
+ * The width one character of the title takes, in ems of its own size: the masthead's face at the page title's weight
+ * and tracking, measured in the browser at 0.49 to 0.52 on the fake's slugs (a date, then lower-case words), with a
+ * margin over the widest. A slug of digits and m's alone would measure 0.64 and run past the masthead.
+ */
+const EM_PER_CHARACTER = 0.56;
+
+/**
+ * The slug as the page's title, whole on one line. It is an identifier, and a break after one of its hyphens reads as
+ * two words ("2026-09-28-" over "search-relevance"); a slug is often longer than the masthead holds at the title's
+ * size, so the title steps down to the size at which it fits the masthead's width, and never above the page title's.
+ * In the masthead's heading the outer block is the container that width is read from; in the top bar, where the
+ * frame shows the same title once the masthead has scrolled away, the bar is the container, and the bar's own size
+ * holds.
+ */
+export function SlugTitle({ slug }: { slug: string }) {
+  return (
+    <span className="[h1_&]:block [h1_&]:[container-type:inline-size]">
+      <span className="whitespace-nowrap [h1_&]:block" style={{ fontSize: `min(1em, calc(100cqi / ${(slug.length * EM_PER_CHARACTER).toFixed(2)}))` }}>{slug}</span>
+    </span>
   );
 }
 

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { BookOpen, ListTree, RotateCw, Signature, Users } from 'lucide-react';
-import { Row } from '@/components/base/shell';
+import { Row, Stack } from '@/components/base/shell';
 import { Busy, TilesSkeleton } from '@/components/patterns/page-loading';
 import { useShareView } from '@/components/base/use-share-view';
 import { ColumnChart } from '@/components/charts/column-chart';
@@ -74,8 +74,9 @@ export function PlatformTeamView({ slug, served }: { slug: string; served: Revis
   if (!data) return trouble ? <TeamTrouble slug={slug} trouble={trouble} busy={busy} onRetry={retry} /> : <Busy name="team"><TilesSkeleton count={4} /></Busy>;
   const { tiles } = data;
   const admins = data.members.filter((m) => m.role === 'admin').length;
+  // One Stack, so the rows stand the page's one gap apart: the frame lays its children end to end.
   return (
-    <>
+    <Stack>
       <Row split="tiles">
         <MetricTile label={TEAM_TILES.people.label} hint={TEAM_TILES.people.definition} icon={<Users />} value={tiles.people} note={`${admins} ${plural(admins, 'admin')}`} />
         <MetricTile label={TEAM_TILES.openWork.label} hint={TEAM_TILES.openWork.definition} icon={<ListTree />} value={tiles.openWork} />
@@ -89,7 +90,7 @@ export function PlatformTeamView({ slug, served }: { slug: string; served: Revis
         <ThisTeam team={data} />
       </Row>
       <Members slug={slug} team={data} />
-    </>
+    </Stack>
   );
 }
 

@@ -26,7 +26,7 @@ import { formatCount, formatKb, formatSeconds } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
 import { pendingContext } from '@/views/context';
 import {
-  PAGE_SIZE, RUNS_DEFAULTS, TILES, filtersOfPath, outputOf, pageOf, runsContext, runsPath, runsTrouble, stateOf, type RunsFilters, type RunsRead,
+  PAGE_SIZE, RUNS_DEFAULTS, TILES, filtersOfPath, outputOf, pageOf, runsContext, runsPath, runsTrouble, stateCellOf, stateOf, type RunsFilters, type RunsRead,
 } from '@/views/runs-context';
 import { useServed, useServedAddress } from '@/views/use-served';
 
@@ -135,11 +135,12 @@ export function RunsView({ served }: { served: Revised<RunsRead> }) {
           oneCall={data.coverage.oneCall}
           error={data.bySkill.state === 'unavailable' ? data.bySkill.reason : undefined}
           onRetry={retry}
+          retrying={busy}
           of={one ? filters.skill : undefined}
           ask={<AskAbout question={one ? `What do the runs of ${filters.skill} show, and what is their observed output?` : 'Which skill\'s runs answer the most observed output, and how long does a typical run of it take?'} />}
         />
       </div>
-      <Recent r={data} filters={filters} onPage={(page) => set({ page })} retry={retry} />
+      <Recent r={data} filters={filters} onPage={(page) => set({ page })} retry={retry} busy={busy} />
     </Stack>
   );
 }
@@ -163,8 +164,19 @@ function Tiles({ r }: { r: Runs }) {
 
 const muted = (text: string) => <span className="text-ink-3">{text}</span>;
 
-/** A run's state as the gateway gave it: active while its last call is recent, the last call's time, or one call. */
-const State = ({ r }: { r: RunRow }) => (r.state === 'active' ? <Badge tone="accent" dot>{stateOf(r)}</Badge> : <span className="text-ink-2">{stateOf(r)}</span>);
+/**
+ * A run's state as the gateway gave it: active while its last call is recent, the last call's time, or one call. On one
+ * line where the table is wide: the day goes when the Started column beside it says it, and stays wherever the table
+ * has dropped that column, where the columns left share less and the state may take two lines.
+ */
+const State = ({ r }: { r: RunRow }) => (r.state === 'active' ? <Badge tone="accent" dot>{stateOf(r)}</Badge>
+  : r.state === 'one_call' ? <span className="whitespace-nowrap text-ink-2">{stateOf(r)}</span> : (
+    // COUPLED: the Started column's `hideBelow: 'lg'`, under which the table drops it (896px).
+    <span className="whitespace-nowrap text-ink-2 @max-[896px]:whitespace-normal" title={stateOf(r)}>
+      <span className="@max-[896px]:hidden">{stateCellOf(r)}</span>
+      <span className="hidden @max-[896px]:inline">{stateCellOf(r, { started: false })}</span>
+    </span>
+  ));
 
 /** The recent runs' columns, in the gateway's order: newest last call first, paged where they are read. */
 const RECENT: Column<RunRow>[] = aligned([
@@ -184,7 +196,7 @@ const RECENT: Column<RunRow>[] = aligned([
 ]);
 
 /** The recent runs: newest last call first, ten to a page, paged by the gateway. */
-function Recent({ r, filters, onPage, retry }: { r: Runs; filters: RunsFilters; onPage: (page: string) => void; retry: () => void }) {
+function Recent({ r, filters, onPage, retry, busy }: { r: Runs; filters: RunsFilters; onPage: (page: string) => void; retry: () => void; busy: boolean }) {
   const recent = r.recent.state === 'ok' ? r.recent.data : null;
   const first = (pageOf(filters) - 1) * PAGE_SIZE;
   const shown = recent?.rows.length ? `Newest last call first · ${formatCount(first + 1)} to ${formatCount(first + recent.rows.length)} of ${formatCount(recent.total)}` : 'Newest last call first';
@@ -203,6 +215,7 @@ function Recent({ r, filters, onPage, retry }: { r: Runs; filters: RunsFilters; 
       pageSizes={[PAGE_SIZE]}
       error={r.recent.state === 'unavailable' ? r.recent.reason : undefined}
       onRetry={retry}
+      retrying={busy}
       state={{ sort: '', dir: 'desc', page: filters.page }}
       onStateChange={(p) => { if (p.page) onPage(p.page); }}
       empty={{ title: filters.skill === 'all' ? 'No run recorded yet' : `No run of ${filters.skill} recorded`, body: `A run appears here once your team's agents follow a skill. ${soFar(r.tiles.runs.value)}` }}

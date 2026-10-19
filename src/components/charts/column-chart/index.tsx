@@ -4,13 +4,18 @@ import { useState, type KeyboardEvent } from 'react';
 import { cn } from '../../../lib/cn';
 import { useMeridian } from '../meridian/index';
 import { Readout } from '../readout';
-import { niceTicks, stackPart } from '../scale';
+import { niceTicks, SERIES_VAR, stackPart } from '../scale';
 import { useSize } from '../use-size';
 
 /** `null` is a period with no data: it keeps its slot, draws no column and reads `noData`, never zero. */
 export type Column = { key: string; label: string; value: number | null };
 export type StackedColumn = { key: string; label: string; values: (number | null)[] };
-export type ColumnPart = { key: string; label: string; tone?: 'neutral' | 'warning' | 'critical' };
+/**
+ * A part of a stacked column. `color` is a categorical slot (1 to 6) for parts that are identities, teams or several
+ * usual outcomes, which one hue cannot tell apart; `tone` is a state, for an outcome that needs somebody. A chart takes
+ * one or the other: coral and saffron read as a warning beside a real one.
+ */
+export type ColumnPart = { key: string; label: string; color?: number; tone?: 'neutral' | 'warning' | 'critical' };
 
 type Shared = {
   /** The key of the one column the card is about. */
@@ -65,19 +70,24 @@ const amount = (v: number | null | undefined) => (typeof v === 'number' && v > 0
 
 /** A column as drawn: its parts' values, `null` where a part has no data, and whether the whole column has none. */
 type Bar = { key: string; label: string; values: (number | null)[]; total: number; none: boolean };
-type Drawn = { key: string; label: string; tone: 'accent' | keyof typeof TONES; color: string };
+type Drawn = { key: string; label: string; tone: 'accent' | 'series' | keyof typeof TONES; color: string };
 
 /**
  * The parts as drawn and each column's value for them. Past four parts nobody tells the colours apart, so the fourth
- * drawn is "Other", the sum of the fourth and every later one. Parts with no tone share the accent, each by its place
- * in the stack; once any part names a tone the parts are outcomes, and one with none is the neutral, usual case, so the
- * accent never stands beside a status colour.
+ * drawn is "Other", the sum of the fourth and every later one. Parts with neither a slot nor a tone share the accent,
+ * each by its place in the stack. Once any part names a slot or a tone the parts are identities or outcomes: a part
+ * with a slot takes it, a part with a tone takes the tone, and one with neither (Other among them) is the neutral, so
+ * the accent never stands beside a categorical or a status colour.
  */
 function stack(columns: StackedColumn[], parts: ColumnPart[]) {
   const fold = parts.length > MOST;
   const listed: ColumnPart[] = fold ? [...parts.slice(0, MOST - 1), { key: 'other', label: 'Other' }] : parts;
-  const toned = parts.some((p) => p.tone);
-  const drawn: Drawn[] = listed.map((p, k) => ({ key: p.key, label: p.label, tone: toned ? p.tone ?? 'neutral' : 'accent', color: toned ? TONES[p.tone ?? 'neutral'] : stackPart(k, listed.length) }));
+  const named = parts.some((p) => p.tone || p.color);
+  const drawn: Drawn[] = listed.map((p, k) => (
+    p.color ? { key: p.key, label: p.label, tone: 'series', color: SERIES_VAR(p.color) }
+      : named ? { key: p.key, label: p.label, tone: p.tone ?? 'neutral', color: TONES[p.tone ?? 'neutral'] }
+        : { key: p.key, label: p.label, tone: 'accent', color: stackPart(k, listed.length) }
+  ));
   const bars = columns.map((c): Bar => {
     // A part with no data stays `null`, so it is read as no data; it adds nothing to the total of the parts that were read.
     const all = parts.map((_, k) => (c.values[k] === null ? null : amount(c.values[k])));
@@ -225,9 +235,10 @@ export function ColumnChart({
                   onPointerDown={() => set(i)}
                 >
                   {/* The column's box: its share of the scale, and never shorter than its parts and its outline can be drawn. A
-                      period with no data keeps its slot as an empty track the height of the scale, as the Heatmap's empty
-                      cell is the track: nothing in it is a value, so it reads as a place, not as a column of zero. */}
-                  <div className="relative w-full" style={{ height: b.none ? '100%' : `${(Math.max(0, b.total) / top) * 100}%`, minHeight: (drawn ? Math.max(0, shown.length * 4 - 1) : b.total > 0 ? 2 : 0) + (unfinished ? 2 : 0) }}>
+                      period with no data has no height: it keeps its slot with a dashed hairline just above the baseline,
+                      and its word stands over it where a value would. A track the height of the scale was the tallest mark
+                      on the chart, and the eye went to the one period that had nothing to say. */}
+                  <div data-box className="relative w-full" style={{ height: b.none ? '0%' : `${(Math.max(0, b.total) / top) * 100}%`, minHeight: (drawn ? Math.max(0, shown.length * 4 - 1) : b.total > 0 ? 2 : 0) + (unfinished ? 2 : 0) }}>
                     <div
                       className={cn(
                         'grow-y relative h-full rounded-t-[4px]',
@@ -242,7 +253,7 @@ export function ColumnChart({
                       style={{ ['--i' as string]: i }}
                     >
                       {b.none ? (
-                        <div data-track className={cn('h-full w-full rounded-t-[4px] bg-fill-track', unfinished && 'opacity-50')} />
+                        <div data-no-data-mark aria-hidden className="absolute inset-x-0 bottom-0.5 border-t border-dashed border-line-strong" />
                       ) : drawn ? (
                         // A 1px gap between parts lets the card through: the hairline that keeps neighbours apart.
                         <div className={cn('flex h-full flex-col-reverse gap-px', unfinished && 'opacity-50')}>

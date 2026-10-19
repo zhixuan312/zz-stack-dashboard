@@ -1,20 +1,19 @@
 # Access
 
-What lets a person and their agents in, and nothing of anybody else's: their own tokens, the setup that connects a client, the applications and browsers signed in as them, their passkeys and the team they act for, read on the console's server. It replaces Settings. Both roles open it; a team's admin also has the members of the team they act for, and a superadmin the console scope.
+What lets a person and their agents in, and nothing of anybody else's: their own tokens, the setup that connects a client, the applications and browsers signed in as them, their passkeys and the team they act for, read on the console's server. It replaces Settings. Both roles open it; a team's admin also has the members of the team they act for.
 
 ## Structure
 
 - Gate first: the page asks for `access`, which needs `work:read`, before it renders, so a person who does not hold it is answered by the refused page and nothing on the page is read. Its title comes from `gatedMetadata`, so under `refusal: 'absent'` it names nothing; its loading state (`OfferedLoading`) is headed Access for a person whose own rail offers it, at `/access` alone, and keeps `gatedLoading`'s words, which name nothing, for anyone else and in the prerendered shell.
 - Masthead: the kicker `ZZ Stack · Work`, the title, one static sentence and the as-of line (the read's own `meta.asOf`), drawn before the read answers. The page is at the form width.
 - Sections 56px apart, each a ZZ Meridian `FormSection`, its title and purpose on the left and its card on the right (one column on a phone), all from the one `GET /access`:
-  - **Tokens**, the page's protagonist: one row a token, newest first, ten to a page: its label, the application it was minted through (`Issued directly` for one issued here or by `pat_issue`), when it was issued, when it was last used (`Never` when it has made no call) and its state, Live or Revoked; Revoke on a live one, confirmed in place. Issuing one is the card's last line, with an optional label. Ask is in the section's head.
-  - **Client setup**: the commands to connect Claude Code, with Copy. The token's place in them is a placeholder, never a value.
+  - **Tokens**, the page's protagonist: one row a token, newest first, ten to a page (on a phone, a card: the label and what the hidden columns say on their lines, the state and Revoke under them; an address in a label breaks only between its parts): its label, the application it was minted through (`Issued directly` for one issued here or by `pat_issue`), when it was issued, when it was last used (`Never` when it has made no call) and its state, Live or Revoked; Revoke on a live one, confirmed in place. Issuing one is the card's last line, with an optional label. Ask is in the section's head.
+  - **Client setup**: the steps to connect Claude Code, which the gateway writes as Markdown, rendered: their headings, bold and inline code drawn, the heading that names the person left to the section's title, and each block of commands a block of its own with its own Copy. The token's place in them is a placeholder, never a value.
   - **Connected applications**: one row an application the person authorised, by its registered name: how many tokens were minted for them through it and how many are live, the first issued and the last used. Revoke ends every live token of theirs from it and nobody else's, and the registration stays; an application with none live offers nothing.
   - **Signed-in browsers**: one row a live console session of theirs, the one asking first and marked `This browser`: the browser and system it said it was, when it signed in, when it was last seen and when its sign-in ends. Sign out on every other one; none on this one, which signs out from the menu.
   - **Passkeys**: one row a passkey, newest first: its label (`Unnamed passkey` without one), how it is reached, when it was added and last used. Nothing here adds or removes one.
-  - **The team you act for**: the teams the person belongs to, their role in each, and the one this browser acts for, marked `Acting for`; `Act as this team` on every other.
-  - **`<team>`'s members**: only when the person is the admin of the team they act for: its roster with each role, Remove confirmed in place, and adding a member on the card's last line.
-  - **Console scope**: the superadmin's alone, decided on the console's server so it is in the first paint or nowhere: Platform or Team, applied at once in this browser.
+  - **The team you act for**: the teams the person belongs to, their role in each, and the one this browser acts for, marked `Acting for`; `Act as this team` on every other. Their agents keep their own team, which the ZZ Access agent moves, and the section says so in those words.
+  - **`<team>`'s members**: only when the person is the admin of the team they act for: its roster with each role, Remove confirmed in place, and adding a member on the card's last line. An address breaks only between its parts, after the `@` and before a dot; on a phone each member is a card, the address whole on its line and the role and Remove under it.
   - **Assistant**: the person's own switch for the panel ("Show the assistant"), last, and drawn only where the console has an assistant.
 - Every write is the person's, through the gateway's own routes: `POST` and `DELETE /settings/me/tokens`, `DELETE /settings/me/applications/:client`, `DELETE /settings/me/browsers/:id`, `POST /settings/me/active-team` and `/settings/team/members`. A refused write keeps what the person typed and says the gateway's sentence; nothing changes.
 
@@ -24,7 +23,7 @@ What lets a person and their agents in, and nothing of anybody else's: their own
 |---|---|
 | Loading | `loading.tsx` while the gate asks `/me`, headed Access for a person whose rail offers it (`OfferedLoading`), then the masthead over nine section placeholders, the tallest page's, while the read is under way |
 | Default | Every section above |
-| A member | The same sections but the console scope; the members only for the admin of the team acted for |
+| A member | The same sections; the members only for the admin of the team acted for |
 | A new token | A dialog, outside the page's text, with the value and Copy, shown once and never again; the table reads the new token at once |
 | Nothing yet | `No token issued yet`, `No application connected`, `No passkey recorded`, `You are not a member of any team yet`, each in its own section; every other section stands |
 | Opened with a token | `No browser signed in`: no browser is signed in as the person |
@@ -42,7 +41,7 @@ A token's value never reaches the assistant: it is shown once, in a dialog porta
 
 ### What the agent reads
 
-The live and revoked tokens, the applications, the signed-in browsers, the passkeys and the team acted for, each with what it counts, and the console scope for a superadmin. What code found, most important first: that every change is the person's, made on the page, and none the assistant's; the live tokens never used; the tokens, newest first, by label, state, application and dates, the first eight; the applications with their token counts and dates; the teams with the role in each; the browsers by kind, the one asking marked; the passkeys; and the sections this caller has. When the budget is tight the last of those go first, and every count stays a fact: neither person the fake signs in loses any. It says that a token's value is shown once and never read again, by anyone.
+The live and revoked tokens, the applications, the signed-in browsers, the passkeys and the team acted for, each with what it counts. What code found, most important first: that every change is the person's, made on the page, and none the assistant's; the live tokens never used; the tokens, newest first, by label, state, application and dates, the first eight; the applications with their token counts and dates; the teams with the role in each; the browsers by kind, the one asking marked; the passkeys; and the sections this caller has. When the budget is tight the last of those go first, and every count stays a fact: neither person the fake signs in loses any. It says that a token's value is shown once and never read again, by anyone.
 
 ```text
 - Their tokens, newest first: "laptop" live, issued directly, issued 01 Oct 2026, last used 16 Oct 2026; "old ci runner" revoked, issued directly, issued 16 Aug 2026, last used 29 Aug 2026.

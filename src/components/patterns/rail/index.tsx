@@ -52,6 +52,7 @@ const UNMEASURED = '[&_a[aria-current=page]]:bg-accent-tint [&_a[aria-current=pa
  */
 export function Rail({
   nav,
+  declared,
   current,
   workspace = app.workspace,
   scopes = [],
@@ -61,6 +62,12 @@ export function Rail({
 }: {
   /** The groups and destinations, as the signed-in person may see them. */
   nav: NavGroup[];
+  /**
+   * Every destination the product declares, the ones this person does not hold included, as hrefs. The current page is
+   * the longest of these the address sits under, lit only when `nav` holds it: an address under a destination the person
+   * may not open lights nothing, never the shorter one above it. Defaults to `nav`'s own hrefs.
+   */
+  declared?: string[];
   /** The active route; defaults to the current pathname. */
   current?: string;
   /** The line under the product name: the scope in view. */
@@ -85,9 +92,12 @@ export function Rail({
   const path = current ?? pathname;
   const list = useRef<HTMLDivElement>(null);
   const [marker, setMarker] = useState<{ y: number; h: number } | null>(null);
-  // The longest matching href is the current page, so /enhancements and /enhancements/objectives never both light up.
+  // The longest matching href is the current page, so /enhancements and /enhancements/objectives never both light up. It
+  // is found among every destination declared, and lit only if this person's rail holds it.
   const matches = (href: string) => (href === '/' ? path === '/' : path === href || path.startsWith(href + '/'));
-  const here = nav.flatMap((g) => g.items.map((it) => it.href)).filter(matches).sort((a, b) => b.length - a.length)[0];
+  const held = nav.flatMap((g) => g.items.map((it) => it.href));
+  const longest = [...new Set([...(declared ?? []), ...held])].filter(matches).sort((a, b) => b.length - a.length)[0];
+  const here = longest !== undefined && held.includes(longest) ? longest : undefined;
   const isActive = (href: string) => href === here;
 
   // View as signs the console in as someone else and re-reads the route. A choice that fails says why in a toast and

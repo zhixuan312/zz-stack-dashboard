@@ -32,17 +32,20 @@ import { knowledgeNodeHref } from '@/lib/knowledge-filters';
 import { useLive } from '@/lib/live';
 import type { PeriodFigure } from '@/lib/platform-shapes';
 import {
-  KNOWLEDGE_KINDS, PAGE_SIZE, knowledgeContext, knowledgePath, narrowed, searchPath, troubleOf, type ServerRead,
+  KNOWLEDGE_KINDS, PAGE_SIZE, knowledgeContext, knowledgePath, narrowed, searchPath, statusWord, troubleOf, type ServerRead,
 } from '@/views/knowledge-context';
 import { hitAddress } from '@/views/search-context';
 
 // The chart arrives after the page's first paint, in a room of its own height: the figures it is drawn from are in the
 // page's HTML either way, and loaded with the page it was 9 KiB of the route's first-load JS, which put `/knowledge` at
-// 851 KiB over the 850 KiB cap. 224px is the plot's 200 and its row of week labels.
-const ColumnChart = dynamic(() => import('@/components/charts/column-chart').then((m) => m.ColumnChart), { loading: () => <Skeleton className="h-56 rounded-md" /> });
+// 851 KiB over the 850 KiB cap. The room fills the card as the chart will, 220px at the least.
+const ColumnChart = dynamic(() => import('@/components/charts/column-chart').then((m) => m.ColumnChart), { loading: () => <Skeleton className="min-h-55 flex-1 rounded-md" /> });
 
 /** The protagonist's title: the card the page leads with and its Ask sits on. COUPLED: the README's `Protagonist:`. */
 export const SEARCH_TITLE = 'Search what your team has learned';
+
+/** What Lessons adopted counts, said against the count Home and Record call Lessons made. */
+const ADOPTED_HINT = 'Lessons standing on the shelf now, as of the cutoff, imports included; a superseded one is left out. An imported lesson was brought in rather than learned by an initiative. Home and Record count Lessons made: those the team\'s own work made, an import\'s left out.';
 
 /** The shelf, in the server's order: newest first, paged where it is read. */
 const SHELF_COLUMNS: Column<KnowledgeRow>[] = aligned([
@@ -50,7 +53,7 @@ const SHELF_COLUMNS: Column<KnowledgeRow>[] = aligned([
   { key: 'title', header: 'Title', align: 'left', grow: true, mobile: 'title', cell: (n) => <span className="block py-1 leading-snug font-medium whitespace-normal text-ink">{n.title}</span> },
   { key: 'kind', header: 'Kind', hideBelow: 'lg', cell: (n) => <span className="font-mono text-xs text-ink-3">{n.type}</span> },
   // Colour only where it means something: superseded is still readable, so neutral; adopted is the current lesson.
-  { key: 'status', header: 'Status', hideBelow: 'md', mobile: 'status', cell: (n) => <Badge tone={n.status === 'adopted' ? 'positive' : 'neutral'} dot>{n.status}</Badge> },
+  { key: 'status', header: 'Status', hideBelow: 'md', mobile: 'status', cell: (n) => <Badge tone={n.status === 'adopted' ? 'positive' : 'neutral'} dot>{statusWord(n.status)}</Badge> },
   { key: 'updated', header: 'Recorded', numeric: true, mobile: 'fact', cell: (n) => <When at={n.updated} />, mobileCell: (n) => <>Recorded <When at={n.updated} /></> },
 ]);
 
@@ -73,9 +76,13 @@ function arrivalOf(read: ServerRead<unknown>, ...queries: { dataUpdatedAt?: numb
 /**
  * What the active team has learned and how its searches went. It leads with the platform's own ranked search, which
  * runs when the person submits a question, never as they type; then the four tiles, the questions that found nothing,
- * searches with results by week, and the newest lessons beside the shelf. The summary is the console's server's read,
+ * searches with results by week beside the newest lessons, and the shelf. The summary is the console's server's read,
  * handed here; the search and the shelf's pages are read in the browser, and the gateway ranks, filters and pages all
  * of it.
+ *
+ * DELIBERATE: the weekly chart shares its row with the newest lessons, five at most, and not with the questions that
+ * found nothing, ten to a page. Cards in a row are one height, and beside the ten questions the chart's card stood
+ * about 500px taller than its chart (Phase 7's review, Work F-26); the newest lessons end about level with it.
  */
 export function KnowledgeView({ read }: { read: ServerRead<KnowledgeSummary> }) {
   useLive(['knowledge'], read.state === 'ok' ? read.revisions : undefined);
@@ -111,40 +118,38 @@ export function KnowledgeView({ read }: { read: ServerRead<KnowledgeSummary> }) 
         <SearchResults question={question} search={search} />
       </Panel>
       <Tiles read={read} />
+      <Questions summary={summary} />
       <Row split="1/2">
-        <Questions summary={summary} />
         <Weeks summary={summary} />
-      </Row>
-      <Row split="1/3">
         <Newest summary={summary} />
-        <DataTable
-          caption="Lessons"
-          noun="lessons"
-          rows={list.data?.rows ?? []}
-          columns={SHELF_COLUMNS}
-          rowKey={(n) => n.key}
-          rowHref={(n) => knowledgeNodeHref(n.team, n.path)}
-          manual
-          total={list.data?.total ?? 0}
-          pageSize={PAGE_SIZE}
-          pageSizes={[PAGE_SIZE]}
-          loading={list.isPending}
-          error={failureOf(list)}
-          onRetry={() => void list.refetch()}
-          state={{ sort: '', dir: 'desc', page: String(page) }}
-          onStateChange={(p) => { if (p.page) set({ page: p.page }); }}
-          filtered={narrowed(filters)}
-          onClearFilters={() => set({ kind: 'all', page: '1' })}
-          empty={{ title: 'Nothing on the shelf yet', body: 'A lesson arrives when an initiative closes and something in it was worth keeping.' }}
-          toolbar={
-            <FilterBar
-              filters={[{ key: 'kind', label: 'Kind', value: f.kind, onChange: (v) => set({ kind: v, page: '1' }), options: KIND_OPTIONS }]}
-              result={<>{list.data ? `${list.data.total} ${plural(list.data.total, 'lesson')} on the shelf` : list.isPending ? '…' : '—'}</>}
-              onClear={() => set({ kind: 'all', page: '1' })}
-            />
-          }
-        />
       </Row>
+      <DataTable
+        caption="Lessons"
+        noun="lessons"
+        rows={list.data?.rows ?? []}
+        columns={SHELF_COLUMNS}
+        rowKey={(n) => n.key}
+        rowHref={(n) => knowledgeNodeHref(n.team, n.path)}
+        manual
+        total={list.data?.total ?? 0}
+        pageSize={PAGE_SIZE}
+        pageSizes={[PAGE_SIZE]}
+        loading={list.isPending}
+        error={failureOf(list)}
+        onRetry={() => void list.refetch()}
+        state={{ sort: '', dir: 'desc', page: String(page) }}
+        onStateChange={(p) => { if (p.page) set({ page: p.page }); }}
+        filtered={narrowed(filters)}
+        onClearFilters={() => set({ kind: 'all', page: '1' })}
+        empty={{ title: 'Nothing on the shelf yet', body: 'A lesson arrives when an initiative closes and something in it was worth keeping.' }}
+        toolbar={
+          <FilterBar
+            filters={[{ key: 'kind', label: 'Kind', value: f.kind, onChange: (v) => set({ kind: v, page: '1' }), options: KIND_OPTIONS }]}
+            result={<>{list.data ? `${list.data.total} ${plural(list.data.total, 'lesson')} on the shelf` : list.isPending ? '…' : '—'}</>}
+            onClear={() => set({ kind: 'all', page: '1' })}
+          />
+        }
+      />
     </ConsolePage>
   );
 }
@@ -189,7 +194,8 @@ function Hit({ hit }: { hit: SearchHit }) {
         <Badge tone="neutral">{hit.kind === 'node' ? 'Lesson' : 'Document'}</Badge>
         {/* Which shelf holds it: the team's own, or the platform's, which every team reads and nobody here changes. */}
         <Badge tone={hit.shelf === 'platform' ? 'accent' : 'neutral'}>{hit.shelf === 'platform' ? 'Shared shelf' : 'Your team'}</Badge>
-        {hit.superseded_by ? <Badge tone="warning" dot>Superseded by {hit.kind === 'node' ? `node ${hit.superseded_by}` : hit.superseded_by}</Badge> : null}
+        {/* A supersession is a normal event, not one that needs somebody: neutral, as the log draws it. */}
+        {hit.superseded_by ? <Badge tone="neutral" dot>Superseded by {hit.kind === 'node' ? `node ${hit.superseded_by}` : hit.superseded_by}</Badge> : null}
       </div>
       <Excerpt text={hit.excerpt} />
       {hit.kind === 'document' && hit.initiative ? <p className="t-caption mt-1 font-mono [overflow-wrap:anywhere]">{hit.initiative}/{hit.path}</p> : null}
@@ -228,7 +234,8 @@ function Tiles({ read }: { read: ServerRead<KnowledgeSummary> }) {
   return (
     <>
       <Row split="tiles" data-figures={tiles ? 'read' : undefined}>
-        <MetricTile label="Lessons adopted" hint="Lessons on the shelf now, as of the cutoff; an imported one was brought in rather than learned by an initiative." icon={<BookOpen />} value={value(tiles?.standing.value)} note={tiles ? `${formatCount(tiles.standing.imported)} imported` : undefined} />
+        {/* Standing lessons, imports included: Home's and Record's Lessons made are a different count (Work F-7, F-8). */}
+        <MetricTile label="Lessons adopted" hint={ADOPTED_HINT} icon={<BookOpen />} value={value(tiles?.standing.value)} note={tiles ? `Standing now, ${formatCount(tiles.standing.imported)} imported` : undefined} />
         <MetricTile label="Superseded" hint="Lessons a later one replaced. They stay on the shelf, readable." icon={<Archive />} value={value(tiles?.superseded.value)} note={tiles ? 'Replaced, still readable' : undefined} />
         <MetricTile label="Searches last week" hint="The team's searches in the last whole week, from this page, the assistant and MCP alike." icon={<Search />} value={value(tiles?.searches.figure.value)} note={tiles ? `Week of ${formatDay(tiles.searches.window.from)}` : undefined} />
         {/* The denominator is a searched count, and the shape says null never means zero: "Of 0 last week" would be a
@@ -291,24 +298,28 @@ function Weeks({ summary }: { summary?: KnowledgeSummary }) {
   // A week with no search has no share: it keeps its slot and reads "No searches", never 0%.
   const columns = weeks.map((w) => ({ key: w.window.from, label: formatShortDate(w.window.from), value: w.denominator === 0 ? null : w.figure.value }));
   const last = [...weeks].reverse().find((w) => w.window.complete && w.denominator);
+  // The plot takes the height the row gives the card, never under 220px, so the chart and the newest lessons beside it
+  // end level rather than the chart's card standing empty under its caption (Work F-26).
   return (
     <Panel
       title={title}
       description={lastWeekLine(last)}
     >
-      {weeks.length ? (
-        <ColumnChart
-          label="Share of the team's searches that found something, by week"
-          columns={columns}
-          dates={weeks.map((w) => w.window.from)}
-          running={weeks.at(-1)?.window.complete === false}
-          highlight={last?.window.from}
-          format={share}
-          noData="No searches"
-          height={200}
-        />
-      ) : <EmptyState title="No weeks yet" className="py-8">The first week of searches is drawn once it has begun.</EmptyState>}
-      <p className="t-caption mt-3">Found something means text came back to read: retrieval coverage, which says nothing about whether it settled the question.</p>
+      <div data-fills className="flex h-full flex-col">
+        {weeks.length ? (
+          <ColumnChart
+            label="Share of the team's searches that found something, by week"
+            columns={columns}
+            dates={weeks.map((w) => w.window.from)}
+            running={weeks.at(-1)?.window.complete === false}
+            highlight={last?.window.from}
+            format={share}
+            noData="No searches"
+            height="fill"
+          />
+        ) : <EmptyState title="No weeks yet" className="py-8">The first week of searches is drawn once it has begun.</EmptyState>}
+        <p className="t-caption mt-3">Found something means text came back to read: retrieval coverage, which says nothing about whether it settled the question.</p>
+      </div>
     </Panel>
   );
 }

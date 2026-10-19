@@ -26,7 +26,7 @@ import { formatDate } from '@/lib/format-date';
 import { knowledgeNodeHref } from '@/lib/knowledge-filters';
 import { useLive } from '@/lib/live';
 import { pendingContext } from '@/views/context';
-import { troubleOf, type ServerRead } from '@/views/knowledge-context';
+import { statusWord, troubleOf, type ServerRead } from '@/views/knowledge-context';
 import { knowledgeNodeContext } from '@/views/knowledge-node-context';
 
 // The markdown renderer arrives after the page's first paint: the node's own facts and its neighbours are what that
@@ -59,6 +59,14 @@ export function KnowledgeNodeView({ read, team, rel }: { read: ServerRead<Knowle
   const relatedColumns: Column<KnowledgeNode>[] = aligned([
     { key: 'num', header: 'Node', width: multiTeam ? 'w-36' : 'w-24', cell: (n) => <span className="font-mono text-xs text-ink-3">{multiTeam ? `${n.team} · ${n.num}` : n.num}</span> },
     { key: 'title', header: 'Title', align: 'left', grow: true, mobile: 'title', cell: (n) => <span className="block py-1 leading-snug font-medium whitespace-normal text-ink">{n.title}</span> },
+    // A neighbour a later lesson replaced says so, and names what replaced it, a link where the successor is listed too
+    // (Work F-6): unmarked, a superseded lesson read as current beside the one that replaced it.
+    {
+      key: 'status', header: 'Status', mobile: 'status',
+      cell: (n) => (n.superseded_by
+        ? <span className="inline-flex items-center gap-1.5 whitespace-nowrap"><Badge tone="neutral" dot>Superseded</Badge><span className="t-caption">by <Successor of={n} among={related} /></span></span>
+        : <Badge tone={n.status === 'adopted' ? 'positive' : 'neutral'} dot>{statusWord(n.status)}</Badge>),
+    },
     { key: 'shared', header: 'Shared tags', hideBelow: 'lg', cell: (n) => <span className="font-mono text-xs text-ink-3">{(n.tags ?? []).filter((t) => self?.tags?.includes(t)).join(' · ')}</span> },
     { key: 'updated', header: 'Recorded', numeric: true, mobile: 'fact', cell: (n) => formatDate(n.updated) },
   ]);
@@ -74,7 +82,8 @@ export function KnowledgeNodeView({ read, team, rel }: { read: ServerRead<Knowle
     >
       {!self ? <NodeTrouble reason={read.state === 'ok' ? '' : troubleOf(read)} /> : (
         <>
-          {self.superseded_by ? <Banner tone="warning" title={`Superseded by node ${self.superseded_by}`}>Kept readable; it is no longer the current lesson.</Banner> : null}
+          {/* A supersession needs nobody, so the banner is neutral, as the log's act is; it names what replaced it. */}
+          {self.superseded_by ? <Banner tone="neutral" title={`Superseded by node ${self.superseded_by}`}>Kept readable; it is no longer the current lesson. <Successor of={self} among={related} lead="Read " /></Banner> : null}
           {shared ? <Banner tone="accent" title="On the platform's shared shelf">Every team&rsquo;s search reads it beside the team&rsquo;s own lessons.</Banner> : null}
           <Row split="2/3">
             <Panel title="The lesson" actions={<AskAbout question="What does this lesson mean for work we are doing now?" />}>
@@ -84,7 +93,7 @@ export function KnowledgeNodeView({ read, team, rel }: { read: ServerRead<Knowle
             <Panel title="About this node">
               <KeyValue
                 items={[
-                  { label: 'Status', value: <Badge tone={self.status === 'adopted' ? 'positive' : 'neutral'} dot>{self.status}</Badge> },
+                  { label: 'Status', value: <Badge tone={self.status === 'adopted' ? 'positive' : 'neutral'} dot>{statusWord(self.status)}</Badge> },
                   { label: 'Shelf', value: shared ? <Badge tone="accent">Shared</Badge> : <Badge tone="neutral">Your team</Badge> },
                   { label: 'Type', value: self.type },
                   // The team as words: no page this person may open is that team's own.
@@ -128,6 +137,20 @@ export function KnowledgeNodeView({ read, team, rel }: { read: ServerRead<Knowle
       )}
     </ConsolePage>
   );
+}
+
+/** Whether two node numbers are one node's: the gateway's carry no leading zeros where the fixture's do. */
+const sameNum = (a: string, b: string) => Number(a) === Number(b) || a === b;
+
+/**
+ * The node that replaced `of`, by its number: a link to it where it is among `among`, the neighbours the node came with,
+ * and its number in words where it is not, since a number alone is no address. `lead` goes before a link only.
+ */
+function Successor({ of, among, lead = '' }: { of: { team: string; superseded_by: string | null }; among: KnowledgeNode[]; lead?: string }) {
+  const num = of.superseded_by!;
+  const next = among.find((n) => n.team === of.team && sameNum(n.num, num));
+  if (!next) return lead ? null : <>node {num}</>;
+  return <>{lead}<Link href={knowledgeNodeHref(next.team, next.path)} className="link hit">node {num}</Link>{lead ? '.' : null}</>;
 }
 
 /** How many initiatives of other teams a lesson was learned in, said as a count alone. */

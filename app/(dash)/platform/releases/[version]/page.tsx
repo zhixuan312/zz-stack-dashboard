@@ -25,12 +25,9 @@ export default async function PlatformReleasePage({ params }: Params) {
   const { version } = await params;
   const read = await readRelease(version);
   if (read.state === 'missing') return <MissingPage />;
-  // The notes are drawn here, as prose: the browser is sent what they make, never the renderer, so they read the same
+  // The changelog is drawn here, as prose: the browser is sent what it makes, never the renderer, so it reads the same
   // from the first paint through hydration.
-  const notes = read.state === 'ok' ? {
-    changelog: <Prose>{lifted(read.data.changelog)}</Prose>,
-    upgradeNotes: read.data.upgradeNotes ? <Prose>{lifted(read.data.upgradeNotes)}</Prose> : null,
-  } : null;
+  const notes = read.state === 'ok' ? { changelog: <Prose>{lifted(read.data.changelog)}</Prose> } : null;
   return (
     <PageFrame
       kicker={

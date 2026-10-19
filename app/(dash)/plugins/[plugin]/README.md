@@ -7,9 +7,9 @@ One plugin: how to install it, its public score with whether its scores compare,
 - Gate first: the page asks for `plugins` before it renders, so a person who does not hold it is answered by the refused page and nothing on the page is read. Its title comes from `gatedMetadata` and its loading state from `gatedLoading`, so under `refusal: 'absent'` neither names the page.
 - Its two reads, the catalog (`GET /plugins`) and the owning team's evaluation (`GET /plugins/:plugin/eval`), are made together on the console's server before the masthead. A name the catalog does not list, with nothing registered for evaluation, is answered by the missing page, exactly as an address that names nothing is.
 - Masthead: the kicker `ZZ Stack · Work / Plugins`, the plugin's name and one static sentence.
-- About this plugin, the page's protagonist: its install command in a Copy field, required or optional, its version with the release's digest or `not released`, its owner, the servers it reaches, its method, and your team's calls of it, labelled `Your team`.
-- Its public score, beside it: the score out of 10 (or its standing, when nobody established it, or `Never scored`), its range, the protocol and the date it was scored against, and the comparability statement exactly as the gateway answered it. The browser decides no comparability. A line says nobody starts an evaluation from the console.
-- Its evaluation, drawn only when the gateway answered it, which it does for the superadmin and the plugin's owning team alone: overall fit for purpose, health, usage, quality, learning, evolution, automation and trust. To anybody else the gateway withholds it, and that is its absence, not an error: no heading, no empty state and no sentence about who may read it.
+- Its public score, the page's protagonist and its one featured card: the score a person acts on, out of 10 (or its standing, when nobody established it, or `Never scored`), headed by the protocol it was scored against (`version <n> of its protocol` for a member, whom the gateway sends no key), with its standing, range and day, the comparability statement exactly as the gateway answered it, and the command that installs the plugin in a Copy field at its foot, cut at its front if it does not fit, so the plugin's name shows. The browser decides no comparability. It says nobody starts an evaluation from the console. Ask is in its head.
+- About this plugin, under it: required or optional (a neutral label, never the accent, which is kept for what a person presses), its version with the release's digest or `not released`, its owner, the servers it reaches, its method, and your team's calls of it, labelled `Your team`.
+- Its evaluation, drawn only when the gateway answered it, which it does for the superadmin and the plugin's owning team alone, stepping back below the lead: overall fit for purpose at a card's size, saying it is the owning team's evaluation of the version it scored and whether it is the same scoring as the public score above or a different one (against another protocol version, it says the two do not compare); then health, usage, quality, learning, evolution, automation and trust. Every word is a person's: a standing, a status, a guardrail, a dimension and an evaluator's qualification are put in words (`Qualified for use`, `Abandoned runs`), a measure's value in [0, 1] is a percent, a dimension's score is out of 10 like the overall, and a required dimension says `Required`. A finding's owner and a gated document are neutral labels. To anybody else the gateway withholds it, and that is its absence, not an error: no heading, no empty state and no sentence about who may read it.
 - Its skills: a table, stages first and in order, with whose each is, its versions, and your team's calls and last run, labelled as your team's; a row opens the skill.
 - The documents it governs, when it governs any, with which a person approves.
 - No control on the page starts an evaluation.
@@ -19,7 +19,7 @@ One plugin: how to install it, its public score with whether its scores compare,
 | State | What shows |
 |---|---|
 | Loading | `loading.tsx` while the gate asks `/me` and the two reads answer |
-| Default | About, the public score, the evaluation where answered, the skills and the documents |
+| Default | The public score, About, the evaluation where answered, the skills and the documents |
 | Never scored | The public score reads `Never scored` and the gateway's `No score to compare` |
 | Evaluation withheld | Everything but the evaluation, and nothing in its place |
 | Never profiled or never scored | The headline says the evaluation has not happened, and one panel says what each part waits for |
@@ -32,7 +32,7 @@ One plugin: how to install it, its public score with whether its scores compare,
 
 ## Agents
 
-The assistant reads this page and changes nothing: every change in this console is made on a page, by the person, and nobody starts an evaluation from the console. The page shares its context through `pluginContext` in `src/views/plugin-context.ts`, and `view_plugin` builds the same context from the same two reads, withholding the evaluation exactly where the gateway does, so the assistant quotes the figures the screen shows. Ask is on About this plugin: what the plugin ships and reaches, whether to install it and whether the version it declares is released, or, for a third-party subject with no manifest, what its evaluation says.
+The assistant reads this page and changes nothing: every change in this console is made on a page, by the person, and nobody starts an evaluation from the console. The page shares its context through `pluginContext` in `src/views/plugin-context.ts`, and `view_plugin` builds the same context from the same two reads, withholding the evaluation exactly where the gateway does, so the assistant quotes the figures the screen shows. Ask is on its public score: how far that score can be trusted, whether to install the plugin and whether the version it declares is released, or, for a third-party subject with no manifest, on About this plugin: what its evaluation says.
 
 ### What the agent reads
 
@@ -46,7 +46,7 @@ The plugin's skills and gates, its public score with its protocol, date and the 
 
 ### What the agent does here
 
-Protagonist: About this plugin.
+Protagonist: Its public score.
 
 - "Which of its skills did we call most in the last 30 days?" — the calls of its skills over 30 complete days, by skill
 - "How many findings were made about it, and what was decided?" — the findings over every complete day kept, by decision
@@ -54,4 +54,4 @@ Protagonist: About this plugin.
 
 ## Surfaces
 
-Console, desktop and phone; at 390px About and the public score stack, and the skills are a card list of the skill, whose it is and your team's calls. Reads `GET /plugins` and `GET /plugins/:plugin/eval` on the console's server, as the person, once per request and bounded at 4.5 seconds; a Retry and a change anywhere to the plugins collection are read in the browser. Live: follows `plugins`.
+Console, desktop and phone; at 390px the public score leads with its install command whole as the card's width, About under it, and the skills are a card list of the skill, whose it is and your team's calls. Reads `GET /plugins` and `GET /plugins/:plugin/eval` on the console's server, as the person, once per request and bounded at 4.5 seconds; a Retry and a change anywhere to the plugins collection are read in the browser. Live: follows `plugins`.

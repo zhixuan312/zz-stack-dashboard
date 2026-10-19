@@ -18,15 +18,21 @@ import { formatCount } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
 import { pendingContext } from '@/views/context';
 import {
-  PLUGINS_DEFAULTS, PLUGINS_PATH, inView, pluginsContext, readTrouble, type Catalog, type PluginsFilters, type PluginsRead,
+  FROM_THE_FRONT, PLUGINS_DEFAULTS, PLUGINS_PATH, inView, pluginsContext, readTrouble, type Catalog, type PluginsFilters, type PluginsRead,
 } from '@/views/plugins-context';
 import { useAddress, useServed } from '@/views/use-served';
 
 /** The card the list's Ask sits on, and the name `Protagonist:` gives it in the page's README. */
 const PLUGINS_TITLE = 'Every plugin';
 
-/** The command that installs a plugin, to take elsewhere: a person copies it into their own client. */
-const Install = ({ p }: { p: PluginRow }) => <CopyField value={p.install} label={`the command that installs ${p.plugin}`} className="w-full max-w-56" />;
+/**
+ * The command that installs a plugin, to take elsewhere: a person copies it into their own client. Every row's command
+ * begins `claude plugin install`, and the plugin's name is the part that differs, so a command too long for its field
+ * is cut at the front, never the end. A table's field is as wide as its column allows; a phone card's takes the card.
+ */
+const Install = ({ p, phone = false }: { p: PluginRow; phone?: boolean }) => (
+  <CopyField value={p.install} label={`the command that installs ${p.plugin}`} className={`w-full ${phone ? '' : 'max-w-48 @min-[896px]:max-w-56 @min-[1024px]:max-w-72'} ${FROM_THE_FRONT}`} />
+);
 
 /**
  * The spec's columns, in its order: plugin, required or optional, version, skills, gates, the score out of 10 with its
@@ -35,7 +41,8 @@ const Install = ({ p }: { p: PluginRow }) => <CopyField value={p.install} label=
  *
  * The plugin and its blurb are cut to the width there is, whole in the cell's title, and under 896px the version and the
  * counts give way, each on the plugin's own page the row opens: the table was 1629px in a 1109px frame at 1440, its Copy
- * buttons off screen and out of the keyboard's reach. The score and Install, which a person acts on, stay at every width.
+ * buttons off screen and out of the keyboard's reach. The score and Install, which a person acts on, stay at every width:
+ * the score on two whole lines, and the command in a field wide enough for the longest, cut at its front if it is not.
  */
 const COLUMNS: Column<PluginRow>[] = aligned([
   {
@@ -48,7 +55,8 @@ const COLUMNS: Column<PluginRow>[] = aligned([
     ),
     mobileCell: (p) => <span className="[overflow-wrap:anywhere]">{p.plugin}</span>,
   },
-  { key: 'required', header: 'Required', mobile: 'status', cell: (p) => (p.required ? <Badge tone="accent">Required</Badge> : <Badge tone="neutral">Optional</Badge>) },
+  // A label, not an action: the accent is kept for what a person presses, so required reads in ink and optional quieter.
+  { key: 'required', header: 'Required', mobile: 'status', cell: (p) => (p.required ? <Badge tone="neutral" dot>Required</Badge> : <span className="text-xs text-ink-3">Optional</span>) },
   {
     // The version and whether a release vouched for it together: the number is a claim and the release makes it true.
     key: 'version', header: 'Version', hideBelow: 'lg',
@@ -58,8 +66,15 @@ const COLUMNS: Column<PluginRow>[] = aligned([
   },
   { key: 'skills', header: 'Skills', numeric: true, hideBelow: 'lg', cell: (p) => formatCount(p.skills.length) },
   { key: 'gates', header: 'Gates', numeric: true, hideBelow: 'lg', cell: (p) => formatCount(p.gates) },
-  { key: 'score', header: 'Score', mobile: 'fact', cell: (p) => <ScoreCell of={p.score} />, mobileCell: (p) => scoreFact(p.score) },
-  { key: 'install', header: 'Install', width: 'w-56', mobile: 'fact', cell: (p) => <Install p={p} />, mobileCell: (p) => <Install p={p} /> },
+  // Each of its two lines whole where the table is wide, so the column is as wide as its longest line and no wider.
+  { key: 'score', header: 'Score', cell: (p) => <ScoreCell of={p.score} /> },
+  {
+    // A phone card's one fact, so no separator stands before the field when it wraps to a line of its own: the score
+    // on its line, and the command whole on the next, as wide as the card.
+    key: 'install', header: 'Install', width: 'w-48 @min-[896px]:w-56 @min-[1024px]:w-72', mobile: 'fact', cell: (p) => <Install p={p} />,
+    // The card's inner width (the table's container less the card's padding), so every row's field is as wide.
+    mobileCell: (p) => <span className="flex w-[calc(100cqw-2*var(--card-pad))] max-w-full min-w-0 flex-col gap-1.5"><span className="truncate" title={scoreFact(p.score)}>{scoreFact(p.score)}</span><Install p={p} phone /></span>,
+  },
 ]);
 
 /**
@@ -69,11 +84,11 @@ const COLUMNS: Column<PluginRow>[] = aligned([
  * to draw.
  */
 function usePlugins(served: PluginsRead) {
-  const { q, error, retry } = useServed<Catalog>(PLUGINS_PATH, true);
+  const { q, error, retry, busy } = useServed<Catalog>(PLUGINS_PATH, true);
   const data = q.data ?? (served.state === 'ok' ? served.data : undefined);
   const failed = failureOf({ error });
   const trouble = data ? null : failed ?? (served.state !== 'ok' ? readTrouble(served) : null);
-  return { data, trouble, retry, updatedAt: q.data ? new Date(q.dataUpdatedAt) : served.state === 'ok' ? served.at : null };
+  return { data, trouble, retry, busy, updatedAt: q.data ? new Date(q.dataUpdatedAt) : served.state === 'ok' ? served.at : null };
 }
 
 /**
@@ -86,7 +101,7 @@ export function PluginsView({ served, addressed = null }: { served: Revised<Plug
   useLive(['plugins'], served.revisions);
   const [filters, set] = useAddress(PLUGINS_DEFAULTS, addressed);
   const [draft, setDraft] = useSearchDraft(filters.plugin, (plugin) => set({ plugin }));
-  const { data, trouble, retry, updatedAt } = usePlugins(served);
+  const { data, trouble, retry, busy, updatedAt } = usePlugins(served);
   const now = useDataClock();
   useShareView(data
     ? pluginsContext(data.plugins, { filters, updatedAt, now })
@@ -110,6 +125,7 @@ export function PluginsView({ served, addressed = null }: { served: Revised<Plug
           loading={!data && !trouble}
           error={trouble ?? undefined}
           onRetry={retry}
+          retrying={busy}
           filtered={narrow}
           onClearFilters={clear}
           empty={{ title: 'No plugin in the catalog', body: 'A plugin appears here once the platform ships one.' }}

@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import { Database, PackageCheck, Rocket, Tag } from 'lucide-react';
-import { Row } from '@/components/base/shell';
+import { Row, Stack } from '@/components/base/shell';
 import { useShareView } from '@/components/base/use-share-view';
 import { ColumnChart } from '@/components/charts/column-chart';
 import { Meridian } from '@/components/charts/meridian';
@@ -15,7 +15,8 @@ import { aligned } from '@/console/columns';
 import { Panel } from '@/console/panel';
 import { failureOf } from '@/console/query';
 import { useDataClock } from '@/lib/api';
-import { AXIS_FORMATTERS } from '@/lib/format';
+import { cn } from '@/lib/cn';
+import { AXIS_FORMATTERS, plural } from '@/lib/format';
 import { formatDate, formatDateTime, formatShortDate } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import type { ReleaseRow, Releases } from '@/lib/platform-shapes';
@@ -37,17 +38,20 @@ const RATE = new Intl.NumberFormat('en-US', { minimumFractionDigits: 1, maximumF
 function useReleases(served: ReleasesRead, filters: ReleasesFilters) {
   const path = releasesPath(filters);
   const mine = served.path === path ? served : null;
-  const { q, error, retry } = useServed<Releases>(path, mine !== null, mine === null);
+  const { q, error, retry, busy } = useServed<Releases>(path, mine !== null, mine === null);
   const data = q.data ?? (mine?.state === 'ok' ? mine.data : undefined);
   const failed = failureOf({ error });
   const trouble = data ? null : failed ?? (mine && mine.state !== 'ok' ? releasesTrouble(mine) : null);
-  return { data, trouble, retry, updatedAt: q.data ? new Date(q.dataUpdatedAt) : data ? data.meta.asOf : null };
+  return { data, trouble, retry, busy, updatedAt: q.data ? new Date(q.dataUpdatedAt) : data ? data.meta.asOf : null };
 }
 
-/** One side of a release in a cell: its figure, and `partial` beside it when the record saw only part of the window. */
+/**
+ * One side of a release in a cell: its figure, and `partial` beside it when the record saw only part of the window. A
+ * figure holds its line; a word in its place (`Not observed`, `No calls`) wraps, so the column never runs past its card.
+ */
 function SideLine({ label, value, side, asOf }: { label: string; value: string; side: Side; asOf: string }) {
   return (
-    <span className="block whitespace-nowrap" title={`${label}, ${OBSERVED[observedOf(side)]}: ${observedText(side, asOf)}`}>
+    <span data-side className={cn('block', /\d/.test(value) && 'whitespace-nowrap')} title={`${label}, ${OBSERVED[observedOf(side)]}: ${observedText(side, asOf)}`}>
       <span className="text-ink-3">{label} </span>{value}{observedOf(side) === 'partial' ? <span className="text-ink-3"> · partial</span> : null}
     </span>
   );
@@ -60,29 +64,45 @@ const sides = (r: ReleaseRow, asOf: string, of: (s: Side) => string) => (
   </span>
 );
 
-/** A side as a phone card says it in one line: `4.2 then 3.3, partial`. */
-const phoneSides = (r: ReleaseRow, of: (s: Side) => string) => `${of(r.before)} then ${of(r.after)}${observedOf(r.after) === 'partial' ? ', partial' : ''}`;
+/** Both sides as a sentence: `4.2 before; 3.3 after (partial)`, `Not observed before; 15.8 after (partial)`. */
+const phoneSides = (r: ReleaseRow, of: (s: Side) => string) =>
+  `${of(r.before)} before; ${of(r.after)} after${observedOf(r.after) === 'partial' ? ' (partial)' : ''}`;
 
-/** The table's columns, in the gateway's order: newest first, paged where it is read. The summary is cut to the width there is, whole in its title. */
+/** What only a phone card shows under the version, each line free to wrap: what changed, what clients do, then the figure. */
+const PHONE_LINE = 'hidden t-small font-regular whitespace-normal text-ink-2 @max-[640px]:block';
+
+/**
+ * The table's columns, in the gateway's order: newest first, paged where it is read. The version and the date hold
+ * their line; the summary takes the slack, cut to the width there is and whole in its title, with the releases inside
+ * its windows under it. A phone card is the version and its date, then the summary, the client action and the
+ * malformed calls either side, each a line that may wrap.
+ */
 const columnsAt = (asOf: string): Column<ReleaseRow>[] => aligned([
   {
     key: 'version', header: 'Version', mobile: 'title', title: (r) => [r.version, r.consoleVersion ? `console ${r.consoleVersion}` : '', overlapText(r) ?? ''].filter(Boolean).join(', '),
-    cell: (r) => {
-      const overlap = overlapText(r);
-      return (
-        <span className="block min-w-0">
-          <span className="block font-mono text-sm font-medium text-ink">{r.version}</span>
-          {r.consoleVersion ? <span className="t-caption block">console {r.consoleVersion}</span> : null}
-          {overlap ? <span className="t-caption block whitespace-normal [overflow-wrap:anywhere]">{overlap}</span> : null}
-        </span>
-      );
-    },
-    mobileCell: (r) => r.version,
+    cell: (r) => (
+      <span className="block min-w-0">
+        <span className="block font-mono text-sm font-medium whitespace-nowrap text-ink">{r.version}</span>
+        {r.consoleVersion ? <span className="t-caption block whitespace-nowrap">console {r.consoleVersion}</span> : null}
+        <span className={PHONE_LINE}>{r.summary}</span>
+        <span className={PHONE_LINE}>Clients: {clientActionOf(r)}</span>
+        <span className={PHONE_LINE}>Malformed per 1,000: {phoneSides(r, rateIn)}</span>
+      </span>
+    ),
   },
-  { key: 'released', header: 'Released', numeric: true, mobile: 'fact', cell: (r) => <time dateTime={r.releasedAt} title={`Tagged ${formatDateTime(r.releasedAt)}`}>{formatDate(r.releasedAt)}</time>, mobileCell: (r) => `Tagged ${formatDate(r.releasedAt)}` },
-  { key: 'summary', header: 'Summary', grow: true, truncate: true, align: 'left', hideBelow: 'md', cell: (r) => <span className="block truncate" title={r.summary}>{r.summary}</span>, title: (r) => r.summary },
-  { key: 'action', header: 'Client action', align: 'left', hideBelow: 'lg', width: 'w-40', cell: (r) => <span className="block whitespace-normal [overflow-wrap:anywhere]">{clientActionOf(r)}</span> },
-  { key: 'malformed', header: 'Malformed per 1,000', mobile: 'fact', cell: (r) => sides(r, asOf, rateIn), mobileCell: (r) => `Malformed per 1,000: ${phoneSides(r, rateIn)}` },
+  { key: 'released', header: 'Tagged', numeric: true, mobile: 'status', cell: (r) => <time dateTime={r.releasedAt} title={`Tagged ${formatDateTime(r.releasedAt)}`}>{formatDate(r.releasedAt)}</time> },
+  {
+    key: 'summary', header: 'Summary', grow: true, truncate: true, align: 'left', hideBelow: 'md', title: (r) => [r.summary, overlapText(r)].filter(Boolean).join('. '),
+    cell: (r) => (
+      <span className="block min-w-0">
+        <span className="block truncate" title={r.summary}>{r.summary}</span>
+        {overlapText(r) ? <span className="t-caption block truncate" title={overlapText(r) ?? undefined}>{overlapText(r)}</span> : null}
+      </span>
+    ),
+  },
+  // The summary takes every pixel of slack, so a width here is no floor: the cell's own minimum keeps an action whole.
+  { key: 'action', header: 'Client action', align: 'left', hideBelow: 'lg', cell: (r) => <span className="block min-w-44 whitespace-normal">{clientActionOf(r)}</span> },
+  { key: 'malformed', header: 'Malformed per 1,000', cell: (r) => sides(r, asOf, rateIn) },
   { key: 'failures', header: 'Tool failures', hideBelow: 'xl', cell: (r) => sides(r, asOf, failuresIn) },
   { key: 'p95', header: 'p95', hideBelow: 'xl', cell: (r) => sides(r, asOf, p95In) },
 ]);
@@ -94,7 +114,7 @@ const columnsAt = (asOf: string): Column<ReleaseRow>[] => aligned([
  */
 export function PlatformReleasesView({ served }: { served: ReleasesRead }) {
   const [filters, set] = useServedAddress(RELEASES_DEFAULTS, served, filtersOfPath);
-  const { data, trouble, retry, updatedAt } = useReleases(served, filters);
+  const { data, trouble, retry, busy, updatedAt } = useReleases(served, filters);
   const now = useDataClock();
   const asOf = data?.meta.asOf ?? '';
   const columns = useMemo(() => columnsAt(asOf), [asOf]);
@@ -109,10 +129,10 @@ export function PlatformReleasesView({ served }: { served: ReleasesRead }) {
   const tableError = trouble ?? (part?.state === 'unavailable' ? `The releases could not be listed: ${part.reason}. The tiles and the weeks stand.` : undefined);
 
   return (
-    <>
+    <Stack>
       <Row split="tiles">
-        <MetricTile label={TILES.releases.label} hint={TILES.releases.definition} icon={<Tag />} value={tiles ? tiles.releases : mark} />
-        <MetricTile label={TILES.lastWeek.label} hint={TILES.lastWeek.definition} icon={<Rocket />} value={tiles ? tiles.lastWeek : mark} />
+        <MetricTile label={TILES.releases.label} hint={TILES.releases.definition} icon={<Tag />} value={tiles ? tiles.releases : mark} format={releasesIn} />
+        <MetricTile label={TILES.lastWeek.label} hint={TILES.lastWeek.definition} icon={<Rocket />} value={tiles ? tiles.lastWeek : mark} format={releasesIn} />
         <MetricTile
           label={TILES.latest.label} hint={TILES.latest.definition} icon={<PackageCheck />}
           value={tiles ? (tiles.latest?.version ?? 'None recorded') : mark}
@@ -143,14 +163,18 @@ export function PlatformReleasesView({ served }: { served: ReleasesRead }) {
           loading={!data && !trouble}
           error={tableError}
           onRetry={retry}
+          retrying={busy}
           state={{ sort: '', dir: 'desc', page: filters.page }}
           onStateChange={(p) => { if (p.page) set({ page: p.page }); }}
           empty={{ title: 'No release recorded yet', body: 'A release is recorded when its tag is made.' }}
         />
       </div>
-    </>
+    </Stack>
   );
 }
+
+/** A count of releases with its unit, as a tile sets it: `2 releases`. */
+const releasesIn = (n: number) => `${formatCount(n)} ${plural(n, 'release')}`;
 
 /** The weeks, two Column charts on one Meridian: pointing at a week in one points the other at it. */
 function Weeks({ weeks }: { weeks: Week[] }) {

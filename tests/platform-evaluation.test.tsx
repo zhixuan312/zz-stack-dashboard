@@ -78,7 +78,7 @@ describe('who opens Evaluation', () => {
 describe('the page, as the fake gateway answers it', () => {
   it('draws the four tiles from the read, with Never for a platform nothing has scored', () => {
     const { container, unmount } = draw(ok(ADMIN));
-    for (const label of ['Findings waiting', 'Scores established', 'Last scored', 'Days on which a plugin was scored']) expect(screen.getByRole('heading', { name: label })).toBeInTheDocument();
+    for (const label of ['Findings waiting', 'Scores established', 'Last scored', 'Days scored']) expect(screen.getByRole('heading', { name: label })).toBeInTheDocument();
     const values = [...container.querySelectorAll('[data-figures="read"] [data-value]')].map((v) => v.textContent);
     expect(values).toEqual([String(ADMIN.tiles.waiting), String(ADMIN.tiles.established), formatDate(ADMIN.tiles.lastScored!), String(ADMIN.tiles.daysScored)]);
     expect(card('Scores established').textContent).toContain(`Of ${data(ADMIN.plugins).length} plugins scored`);
@@ -108,8 +108,10 @@ describe('the page, as the fake gateway answers it', () => {
     const series = table('Every score, by series');
     const rows = seriesRows(data(ADMIN.history));
     expect(within(series).getAllByRole('row')).toHaveLength(rows.length + 1);
+    // The statement is the plugin's, so it is said once, on the plugin's first series.
     const statements = [...series.querySelectorAll('[data-statement]')].map((s) => s.textContent);
-    expect(statements).toEqual(rows.map((r) => r.statement));
+    expect(statements).toEqual(rows.filter((r) => r.first).map((r) => r.statement));
+    expect(statements).toHaveLength(new Set(rows.map((r) => r.plugin)).size);
     expect(statements).toContain('Not comparable: a different protocol version');
     expect(statements).toContain('Not comparable: a different population');
     expect(statements).toContain('Comparable: one protocol version and population');
@@ -163,8 +165,7 @@ describe('the page, as the fake gateway answers it', () => {
     const rows = within(waiting).getAllByRole('row').slice(1);
     expect(rows.map((r) => r.querySelector('[data-pattern]')!.textContent)).toEqual(PATTERNS);
     rows.forEach((r, i) => expect(r.textContent).toContain(data(ADMIN.waiting).rows[i].summary));
-    expect(within(waiting).getByRole('columnheader', { name: 'Measure' })).toBeInTheDocument();
-    for (const m of MEASURES) expect(waiting.textContent).toContain(m);
+    expect(rows.map((r) => r.querySelector('[data-measure]')!.textContent)).toEqual(MEASURES.map((m) => `Measure ${m}`));
     expect(waiting.textContent).toContain('Evaluation finding awaiting a decision');
   });
 
@@ -173,7 +174,7 @@ describe('the page, as the fake gateway answers it', () => {
     for (const key of [...KEYS, ...MEASURES, ...PATTERNS]) expect(container.textContent).not.toContain(key);
     expect(table('Each plugin\'s latest score').textContent).toContain('Protocol v2');
     const waiting = table('Findings waiting for a decision, oldest first');
-    expect(within(waiting).queryByRole('columnheader', { name: 'Measure' })).toBeNull();
+    expect(waiting.querySelector('[data-measure]')).toBeNull();
     expect(waiting.querySelector('[data-pattern]')).toBeNull();
     expect(within(waiting).getAllByRole('row')).toHaveLength(data(MEMBER.waiting).rows.length + 1);
   });
@@ -263,7 +264,7 @@ describe('what the assistant is told', () => {
     expect(t).toContain(`- Findings waiting: ${ADMIN.tiles.waiting}, the oldest waiting`);
     expect(t).toContain(`- Scores established: ${ADMIN.tiles.established}, of 3 plugins scored`);
     expect(t).toContain(`- Last scored: ${formatDateTime(ADMIN.tiles.lastScored!)}`);
-    expect(t).toContain(`- Days on which a plugin was scored: ${ADMIN.tiles.daysScored}`);
+    expect(t).toContain(`- Days scored: ${ADMIN.tiles.daysScored}`);
     expect(t).toContain('1 applied, 1 rejected, 2 deferred, waiting');
     expect(t).toContain('sdlc: latest 7.1 of 10 (6.5 to 7.7), established, guardrails held; by series, not comparable: a different protocol version: sdlc-flow-quality v1');
     expect(t).toContain('zz-plugin-eval: latest no score, not established');

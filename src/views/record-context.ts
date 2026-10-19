@@ -14,13 +14,14 @@
  * the address, and none of them pages rows itself.
  */
 import { formatPercent, plural } from '@/lib/format';
-import { formatDate, formatDateTime, formatDay } from '@/lib/format-date';
+import { formatDate, formatDateTime, formatDay, formatShortDate } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { grainOf } from '@/lib/grain';
 import type { Fact, Insight, SharedContext } from '@/lib/shared-context';
 import type { Figure, PeriodFigure, Window } from '@/lib/platform-shapes';
 import type { RecordRead, WritingCoverage } from '@/lib/work-shapes';
 import { addressOf, budgeted, clip, pendingContext } from './context';
+import { LESSONS_MADE } from './record-names';
 
 /** How long the console's server waits for Record's read before it says the read is unavailable: half a second under
  *  five, for a phone to draw what it says, the bound the browser's own reads keep (`src/lib/api.ts`). */
@@ -84,6 +85,8 @@ const PERIOD_NAME: Record<RecordPeriod, string> = { quarter: 'This quarter', yea
 export const periodLine = (r: RecordRead): string => `${PERIOD_NAME[r.period]}, ${formatDay(r.meta.period.from)} to ${formatDay(r.meta.period.to)}`;
 /** The read's cutoff, the instant the lead is a stock as of. */
 export const asOfLine = (r: RecordRead): string => `As of ${formatDateTime(r.lead.asOf)}`;
+/** The cutoff inside a sentence: `as of 19 Oct 2026, 16:50`, the month as every date writes it. */
+export const asOfWords = (r: RecordRead): string => `as of ${formatDateTime(r.lead.asOf)}`;
 
 /** Hours as the page says them: one decimal under ten, whole above. */
 export const formatHours = (h: number): string => `${h < 10 ? h.toFixed(1) : formatCount(Math.round(h))} h`;
@@ -96,9 +99,15 @@ function absent(why: Figure['why']): string {
 }
 const said = (f: Figure, format: (n: number) => string = formatCount): string => (f.value === null ? absent(f.why) : format(f.value));
 
-/** The words for one period of a series: `Week of 5 Oct`, or `Oct 2026` for a month and for a quarter, its first month. */
+/**
+ * The words for one period of a series, on the axis and in the readout: `05 Oct` for a week, as every weekly chart in
+ * the console writes it, and `Oct 2026` for a month and for a quarter, its first month. The chart's title says the grain
+ * (`by week`), so a tick needs only the date. DELIBERATE: no longer than nine characters. The Trend chart spaces its
+ * labels 92px apart and sets the last one to end at the plot's edge, so a label of more than about nine characters ran
+ * into its neighbour ("Week of 20 SeptWeek of 18 Oct", Phase 7's review, Work F-13).
+ */
 export function tickOf(windows: Window[]): (date: string) => string {
-  if (grainOf(windows) === 'week') return (d) => `Week of ${formatDay(d)}`;
+  if (grainOf(windows) === 'week') return (d) => formatShortDate(d);
   return (d) => { const s = formatDate(d); return s.slice(s.indexOf(' ') + 1); };
 }
 /** `by week`, `by month` or `by quarter`, as a chart of the period's series is named: the grain the gateway cut it at. */
@@ -109,6 +118,8 @@ export const grainWords = (windows: Window[]): string => `by ${grainOf(windows)}
 export const LEAD = {
   kicker: 'One person, writing this',
   chart: 'Words added, a running total',
+  // The chart counts what was added and the figure above it what is retained: two measures, said apart (Work F-2).
+  added: 'every word a revision added, with nothing taken off for what a later one removed, so the total can pass the words retained',
   note: 'the time one person would take to write them at that pace: an estimate, not a measurement',
   unread: 'The retained text could not be read, so there is no estimate.',
 } as const;
@@ -160,8 +171,9 @@ export const tileText = (t: Tile): string => (typeof t.value === 'number' ? t.fo
 
 const tile = (key: string, label: string, hint: string, f: Figure, note: string, format: (n: number) => string = formatCount): Tile =>
   ({ key, label, hint, value: f.value ?? absent(f.why), format, note });
-const median = (key: string, label: string, hint: string, p: PeriodFigure): Tile =>
-  tile(key, label, hint, p.figure, p.denominator !== null ? `Over ${formatCount(p.denominator)} ${plural(p.denominator, 'piece')} of work` : 'Over the period', formatHours);
+/** A median of hours, its note over how many pieces of work; `named` when the label does not say it is a median. */
+const median = (key: string, label: string, hint: string, p: PeriodFigure, named = false): Tile =>
+  tile(key, label, hint, p.figure, `${named ? 'The median, over' : 'Over'} ${p.denominator !== null ? `${formatCount(p.denominator)} ${plural(p.denominator, 'piece')} of work` : 'the period'}`, formatHours);
 
 export type SliceKey = 'work' | 'documents' | 'knowledge' | 'agents' | 'firsts';
 /** Each slice's heading, and what it is a slice of. */
@@ -173,7 +185,12 @@ export const SLICES: Record<SliceKey, { title: string; unread: string }> = {
   firsts: { title: 'Firsts and bests', unread: 'The firsts and bests could not be read.' },
 };
 
-/** The four tiles of each slice that could be read; null for a slice that could not. */
+/**
+ * The four tiles of each slice that could be read; null for a slice that could not. A label is whole at a quarter-width
+ * tile, which cuts one past about 21 characters (Work F-13): what it counts in full is its hint, and its line under it.
+ * "Lessons made" are the lessons the team's own work made, an import's left out, as Home counts them; "Lessons adopted"
+ * is Knowledge's, the lessons standing on the shelf, imports included (Work F-7, F-8).
+ */
 export function tilesOf(r: RecordRead): Record<SliceKey, Tile[] | null> {
   const w = r.work.state === 'ok' ? r.work.data : null;
   const d = r.documents.state === 'ok' ? r.documents.data : null;
@@ -189,20 +206,20 @@ export function tilesOf(r: RecordRead): Record<SliceKey, Tile[] | null> {
         tile('closed', 'Closed by outcome', 'Initiatives closed in the period, by the outcome each closed with.', total, `${said(accepted)} accepted, ${said(delivered)} delivered, ${said(abandoned)} abandoned`),
         tile('mostOpen', 'Most open at once', 'The most initiatives open at one moment in the period.', w.mostOpenAtOnce.value, w.mostOpenAtOnce.at ? `First reached ${formatDay(w.mostOpenAtOnce.at)}` : 'In the period'),
         median('medianClose', 'Median hours to close', 'From opening to closing, over the period\'s closures.', w.medianHoursToClose),
-        median('medianAbandon', 'Median hours until abandoned work stopped', 'From opening to abandoning, over the work abandoned in the period.', w.medianHoursToAbandon),
+        median('medianAbandon', 'Hours to abandon', 'From opening to abandoning, over the work abandoned in the period: the span the record\'s Took column gives each.', w.medianHoursToAbandon, true),
       ];
     })(),
     documents: d && [
       tile('flowDocuments', 'Flow documents', 'Flow documents created in the period.', d.flowDocuments, 'Created in the period'),
       tile('versions', 'Versions written', 'Revisions of the team\'s documents written in the period.', d.versions, 'Written in the period'),
-      tile('sources', 'Median sources under a gated document', 'The sources supporting each gated document created in the period.', d.sourcesUnderGated.median, `The most under one: ${said(d.sourcesUnderGated.largest)}`),
+      tile('sources', 'Median sources', 'The median of the sources supporting each gated document created in the period.', d.sourcesUnderGated.median, `Under a gated document; the most under one: ${said(d.sourcesUnderGated.largest)}`),
       tile('citations', 'Citations', 'Links from one of the team\'s documents to another, first recorded in the period.', d.citations, 'First recorded in the period'),
     ],
     knowledge: k && [
-      tile('adopted', 'Lessons adopted', 'Lessons the team made in the period, an import\'s left out.', k.adopted, 'Outside an import'),
-      tile('ownReturned', 'Times your lessons were returned', 'How often a search returned one of the team\'s own lessons: retrieval, not a proven answer.', k.ownReturned, 'By a search in the period'),
-      tile('meanResults', 'Mean results a search returns', 'The entries a completed search returned, on average.', k.meanResults, 'Per completed search', (n) => n.toFixed(1)),
-      tile('sharedResults', 'Results from the shared shelf', 'Entries searches returned from the shelf every team shares.', k.sharedResults, 'In the period'),
+      tile('adopted', LESSONS_MADE, 'Lessons the team\'s own work made in the period, an import\'s left out. Knowledge\'s Lessons adopted are those standing on the shelf, imports included.', k.adopted, 'In the period, outside an import'),
+      tile('ownReturned', 'Lessons returned', 'How often a search returned one of the team\'s own lessons: retrieval, not a proven answer.', k.ownReturned, 'Times a search in the period returned one'),
+      tile('meanResults', 'Results per search', 'The entries a completed search returned, on average.', k.meanResults, 'The mean, over completed searches', (n) => n.toFixed(1)),
+      tile('sharedResults', 'From the shared shelf', 'Entries searches returned from the shelf every team shares.', k.sharedResults, 'Results searches returned in the period'),
     ],
     agents: a && [
       tile('coverage', 'Observed run coverage', 'Hours with at least one observed run, overlapping runs counted once.', a.coverageMs, `Summed run time ${said(a.summedMs, (n) => formatHours(n / 3_600_000))}`, (n) => formatHours(n / 3_600_000)),
@@ -219,15 +236,15 @@ export function tilesOf(r: RecordRead): Record<SliceKey, Tile[] | null> {
 }
 
 const BEST = {
-  most_versions: { label: 'Most versions of one document', hint: 'The most revisions one flow document was given in the period.' },
-  most_sources: { label: 'Most sources under one document', hint: 'The most sources registered in the period supporting one flow document.' },
-  most_words_week: { label: 'Most words added in a week', hint: 'The most words added in one complete week of the period.' },
+  most_versions: { label: 'Most versions', hint: 'The most revisions one flow document was given in the period.' },
+  most_sources: { label: 'Most sources', hint: 'The most sources registered in the period supporting one flow document.' },
+  most_words_week: { label: 'Most words in a week', hint: 'The most words added in one complete week of the period.' },
   most_open: { label: 'Most open at once', hint: 'The most initiatives open at one moment in the period.' },
 } as const;
 
 /** The dated firsts' names, the earliest first: the whole record's, never the period's. */
 export const FIRST = {
-  closed: 'First piece of work closed', approved: 'First document approved', lesson: 'First lesson adopted',
+  closed: 'First piece of work closed', approved: 'First document approved', lesson: 'First lesson made',
   run: 'First observed agent run', words_week: 'First week of recorded word additions',
 } as const;
 
@@ -272,10 +289,14 @@ export function recordContext(r: RecordRead | null, { filters, trouble = null }:
     insights.push({ text: `Most rewritten in the period: ${r.documents.data.mostRewritten.slice(0, 3).map((m) => `${clip(`${m.initiative}/${m.path}`)} (${m.versions} versions)`).join('; ')}.` });
   }
   if (r.agents.state === 'ok' && r.agents.data.bySkill.length) {
-    insights.push({ text: `Runs by skill in the period: ${r.agents.data.bySkill.slice(0, 4).map((s) => `${clip(s.skill, 40)} ${formatCount(s.runs)}`).join('; ')}.`, evidence: '/runs' });
+    // The page's list names a few and counts the rest, and so does this.
+    const skills = r.agents.data.bySkill;
+    const runs = skills.slice(4).reduce((n, s) => n + s.runs, 0);
+    const more = skills.length > 4 ? `; and ${skills.length - 4} more ${plural(skills.length - 4, 'skill')}, ${formatCount(runs)} ${plural(runs, 'run')}` : '';
+    insights.push({ text: `Runs by skill in the period: ${skills.slice(0, 4).map((s) => `${clip(s.skill, 40)} ${formatCount(s.runs)}`).join('; ')}${more}.`, evidence: '/runs' });
   }
   if (r.knowledge.state === 'ok' && r.knowledge.data.byKind.length) {
-    insights.push({ text: `Standing lessons by kind as of the cutoff: ${r.knowledge.data.byKind.map((b) => `${b.kind} ${formatCount(b.lessons)}`).join('; ')}.`, evidence: '/knowledge' });
+    insights.push({ text: `Lessons adopted by kind, those standing on the shelf as of the cutoff, imports included: ${r.knowledge.data.byKind.map((b) => `${b.kind} ${formatCount(b.lessons)}`).join('; ')}.`, evidence: '/knowledge' });
   }
   if (lead.coverage) unknowns.push(`The estimate: ${lead.coverage}`);
   else unknowns.push(LEAD.unread);

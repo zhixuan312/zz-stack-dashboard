@@ -47,7 +47,7 @@ const withMeasure = (key: Measure['key'], change: Partial<Measure>): PlatformSta
 const draw = (read: StatusRead, ask?: (q: string) => void) =>
   render(<SurfaceOverride surface={ask ? { ask } : {}}><Tooltip.Provider><PlatformStatusView read={read} /></Tooltip.Provider></SurfaceOverride>);
 const card = (title: string) => screen.getByRole('heading', { name: title }).closest('section, .card') as HTMLElement;
-const row = (table: HTMLElement, name: string) => within(table).getByText(name, { selector: 'td, td *' }).closest('tr')!;
+const row = (table: HTMLElement, name: string) => within(table).getAllByText(name, { selector: 'td, td *' })[0].closest('tr')!;
 
 beforeEach(() => router.refresh.mockReset());
 afterEach(() => vi.useRealTimers());
@@ -68,15 +68,15 @@ describe('who opens Status', () => {
 });
 
 describe('what needs attention', () => {
-  it('leads with the superadmin\'s headline, five rows at most, and a foot counting what is shown', () => {
+  it('leads with the superadmin\'s headline, five rows at most, each linked with an arrow, and no foot that repeats the headline', () => {
     draw(ok(PLATFORM_STATUS));
     const list = screen.getByRole('list', { name: 'What needs attention' });
     expect(screen.getByRole('heading', { name: '5 things need you' })).toBeInTheDocument();
     expect(within(list).getAllByRole('listitem')).toHaveLength(PLATFORM_STATUS.needs.rows.length);
     expect(PLATFORM_STATUS.needs.rows.length).toBeLessThanOrEqual(5);
     for (const r of PLATFORM_STATUS.needs.rows) expect(within(list).getByText(r.detail)).toBeInTheDocument();
-    expect(document.querySelector('[data-needs-foot]')!.textContent).toBe('5 shown.');
-    // Each row with a released destination links to its page.
+    expect(document.querySelector('[data-needs-foot]')).toBeNull();
+    // Each row with a released destination links to its page, the whole row, with the arrow that says so.
     expect(within(list).getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(['/platform/bugs', '/platform/usage', '/platform/usage', '/platform/evaluation', '/platform/teams/atlas']);
     expect(within(list).getByText('Approvals are waiting in atlas')).toBeInTheDocument();
     expect(within(list).getByText('1 revision was presented 14 days ago or more and not approved')).toBeInTheDocument();
@@ -85,7 +85,7 @@ describe('what needs attention', () => {
   it('counts what the five rows left out, by kind, in the foot', () => {
     draw(ok({ ...PLATFORM_STATUS, needs: { ...PLATFORM_STATUS.needs, total: 6, knownCount: 6, overflowByKind: { approvals: 1 }, headline: '6 things need you' } }));
     expect(screen.getByRole('heading', { name: '6 things need you' })).toBeInTheDocument();
-    expect(document.querySelector('[data-needs-foot]')!.textContent).toBe('5 shown. 1 more not shown: approvals 1.');
+    expect(document.querySelector('[data-needs-foot]')!.textContent).toBe('1 more not shown: approvals 1.');
   });
 
   it('is worded for a member: what is known and open, the teams\' approvals one row that links nowhere', () => {
@@ -95,7 +95,9 @@ describe('what needs attention', () => {
     expect(within(list).getByText('Approvals are waiting in 1 team')).toBeInTheDocument();
     expect(within(list).getByText('1 team has a revision presented 14 days ago or more and not approved')).toBeInTheDocument();
     expect(within(list).queryAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(['/platform/bugs', '/platform/usage', '/platform/usage', '/platform/evaluation']);
-    expect(document.querySelector('[data-needs-foot]')!.textContent).toBe('5 shown.');
+    expect(within(list).getByText('Approvals are waiting in 1 team').closest('a')).toBeNull();
+    expect(list.querySelectorAll('[data-goes]')).toHaveLength(4);
+    expect(document.querySelector('[data-needs-foot]')).toBeNull();
   });
 
   it('never reads as nothing open when a check did not answer, and names the check', () => {
@@ -328,9 +330,9 @@ describe('what the assistant is told', () => {
     expect(t).toContain(`last whole week: the week of ${formatDay(last.window.from)}`);
     for (const r of PLATFORM_STATUS.needs.rows) expect(t).toContain(r.title);
     expect(t).toContain(`- Malformed calls per 1,000: ${(1000 * last.numerator! / last.denominator!).toFixed(1)}, ${last.numerator} of ${last.denominator} calls; up `);
-    expect(t).toContain('- What needs attention: 5 things need you, 5 shown.');
+    expect(t).toContain('- What needs attention: 5 things need you.\n');
     expect(text({ ...PLATFORM_STATUS, needs: { ...PLATFORM_STATUS.needs, total: 6, knownCount: 6, overflowByKind: { approvals: 1 }, headline: '6 things need you' } }))
-      .toContain('- What needs attention: 6 things need you, 5 shown. 1 more not shown: approvals 1.');
+      .toContain('- What needs attention: 6 things need you, 1 more not shown: approvals 1.');
     expect(t).toContain('of 5 measures are better than the week before');
     for (const d of DOORS) expect(t).toContain(d.finding.text);
     expect(t).toContain('0.97.0');

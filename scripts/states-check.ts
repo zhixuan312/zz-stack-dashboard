@@ -171,6 +171,13 @@ const added = (x: Pick<Seen, 'text'>, normal: Pick<Seen, 'text'> | undefined, wo
 const EMPTY = /^(No|Nothing|Nobody|None)\b|\bnever\b|\bnot yet\b|\bnothing\b|\bhas no\b|\bno (data|week|call|lesson|run|document|initiative|search|question|record|one|report|release|token|finding|member|change|entr|score)/i;
 const UNAVAILABLE = /unavailable|did not load|could not be read|could not read|not read|did not answer|could not reach/i;
 const digitless = (s: string) => s.replace(/\d[\d,.:]*/g, '#');
+/** The first line where two texts part, digits aside, so a failure names what changed rather than only that something did. */
+function firstDifference(a: string, b: string) {
+  const [la, lb] = [lines(digitless(a)), lines(digitless(b))];
+  const i = la.findIndex((l, n) => l !== lb[n]);
+  const at = i === -1 ? la.length : i;
+  return `line ${at + 1}: normal "${(la[at] ?? '').slice(0, 60)}", partial "${(lb[at] ?? '').slice(0, 60)}"`;
+}
 
 const ZERO = /^[-+−]?0(?:[.,]0+)?(?:%|ms|s|h|d|×)?$/;
 const token = (s: string) => s.replace(/^[(["“'‘]+|[)\]"”'’,;:.]+$/g, '');
@@ -363,7 +370,7 @@ function judge(who: string, state: State, t: Target, x: Seen, standing: Seen | n
     if (run > gone.length || (gone.length && gone.length === was.length && was.length > 1)) problems.push(`parts that answered are not drawn: ${gone.map((i) => `"${was[i]}"`).join(', ')}`);
     const changed = digitless(x.text) !== digitless(normal?.text ?? x.text);
     const words = added(x, normal, UNAVAILABLE);
-    if (changed && !words.length && !(x.alert && !normal?.alert)) problems.push('a part is missing and nothing says it is unavailable');
+    if (changed && !words.length && !(x.alert && !normal?.alert)) problems.push(`a part is missing and nothing says it is unavailable (${firstDifference(normal?.text ?? '', x.text)})`);
     else said.push(changed ? `unavailable: "${(words[0] ?? 'alert').slice(0, 60)}"` : 'no part on this page');
   }
   if (standing && !denied) {

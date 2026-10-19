@@ -75,6 +75,9 @@ export function knowledgePath(f: { q?: string; kind: string }, { limit = PAGE_SI
 /** The gateway address of the platform's ranked search for `q`, as many results as one list shows. */
 export const searchPath = (q: string, limit = SEARCH_LIMIT) => `/search?${new URLSearchParams({ q: q.trim(), limit: String(limit) })}`;
 
+/** A lesson's status as a badge says it, capitalised as every badge in the console is: `Adopted`, `Superseded`. */
+export const statusWord = (status: string): string => `${status.charAt(0).toUpperCase()}${status.slice(1)}`;
+
 /** Whether a kind narrows the shelf. */
 export const narrowed = (f: Pick<KnowledgeFilters, 'kind'>) => f.kind !== 'all';
 
@@ -139,7 +142,7 @@ export function knowledgeContext({ summary, list, filters, page, search, shelf, 
     ...(search ? [{ label: 'Results', value: search.results.length ? `${search.results.length} of ${formatCount(search.ranked_total)} ranked` : 'none', definition: `What the platform's own search ranked for "${clip(q, 80)}", best first, over the team's documents and lessons and the shared shelf.` }] : []),
     ...(list ? [{ label: 'Lessons', value: formatCount(list.total), definition: narrowed(filters) || words ? 'All that these filters match, not this page.' : 'Every lesson on the team\'s shelf, standing or superseded.' }] : []),
     ...(tiles ? [
-      { label: 'Lessons adopted', value: figureText(tiles.standing), change: `${formatCount(tiles.standing.imported)} imported`, definition: 'Standing on the shelf as of the cutoff; an imported one was brought in, not learned by an initiative.' },
+      { label: 'Lessons adopted', value: figureText(tiles.standing), change: `${formatCount(tiles.standing.imported)} imported`, definition: 'Standing on the shelf as of the cutoff, imports included; not the Lessons made of Home and Record, which leave imports out.' },
       { label: 'Superseded', value: figureText(tiles.superseded), definition: 'Replaced by a later lesson, and still readable.' },
       { label: 'Searches last week', value: figureText(tiles.searches.figure), definition: 'The team\'s searches in the last whole week, from any door.' },
       { label: 'Searches with no result', value: figureText(tiles.noResult.figure), change: tiles.noResult.denominator === null ? 'not measured last week' : `of ${formatCount(tiles.noResult.denominator)} last week`, definition: 'Those of last week\'s searches that found nothing.' },

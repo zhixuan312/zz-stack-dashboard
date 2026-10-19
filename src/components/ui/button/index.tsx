@@ -27,14 +27,14 @@ export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   icon?: ReactNode;
   /** An icon after the label; a forward arrow moves 2px on hover. */
   trailing?: ReactNode;
-  /** Takes the icon's place with a spinner, at the icon's own size, and blocks the action. */
+  /** Takes the icon's place with a spinner, at the icon's own size, and ignores presses: it stays focusable (`aria-disabled`), so a focused button that turns busy keeps the person's place. */
   busy?: boolean;
   block?: boolean;
 };
 
 /** A button starts one action. One primary per view; every other action is secondary or ghost. */
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { variant = 'secondary', size = 'md', asChild, icon, trailing, busy, block, className, children, disabled, ...rest },
+  { variant = 'secondary', size = 'md', asChild, icon, trailing, busy, block, className, children, disabled, onClick, ...rest },
   ref,
 ) {
   const Comp = asChild ? Slot.Root : 'button';
@@ -51,12 +51,15 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
     <Comp
       ref={ref}
       type={asChild ? undefined : (rest.type ?? 'button')}
-      disabled={disabled || busy}
+      // Busy is not disabled: a disabled control loses focus, so a Retry that turns busy from a refetch would send the
+      // keyboard back to the top of the page. It stays in the tab order and drops the press, a submit's included.
+      disabled={disabled}
+      aria-disabled={(busy && !disabled) || undefined}
       aria-busy={busy || undefined}
+      onClick={busy ? (e) => e.preventDefault() : onClick}
       className={cn(
-        'group/btn press hit inline-flex shrink-0 items-center justify-center font-medium whitespace-nowrap select-none',
-        'transition-[background-color,border-color,color,box-shadow,filter,transform] duration-(--dur-hover)',
-        'disabled:pointer-events-none',
+        // The frame is `.btn` (src/styles/base.css): the same on every button, so it is not repeated in each class list.
+        'group/btn press hit btn',
         // A busy button is working, not unavailable: it keeps its colour, its shadow and its place, and the spinner is
         // the answer. Only a button nobody may press greys out.
         !busy && 'disabled:opacity-45 disabled:shadow-none',

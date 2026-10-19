@@ -16,6 +16,7 @@
  * COUPLED: zz-stack's `checks/console-work-approvals.ts` imports this file with plain `node` and compares its key sets
  * with the real route's answer. So nothing here is imported through the console's path alias.
  */
+import { createHash } from 'node:crypto';
 import type { DocumentDetail, Me } from '../../src/lib/api-shapes.ts';
 import type { PeriodFigure } from '../../src/lib/platform-shapes.ts';
 import type { ApprovalEvidence, ApprovalRow, Approvals, WaitingRow } from '../../src/lib/work-shapes.ts';
@@ -29,8 +30,15 @@ type Answer = [status: number, body: unknown];
 const AVA = 'ava.lindqvist@example.com';
 const NOAH = 'noah.okafor@example.com';
 
-/** A content revision as zz-core names one: `cr_` and 26 base32 characters, one per snapshot. */
-const cr = (n: number) => `cr_${n.toString(32).padStart(26, 'a')}`;
+/** A content revision as zz-core names one: `cr_` and 26 base32 characters, one per snapshot, here of sha256 of its
+ *  number, as `contentRevisionOf` derives a document's (a padded number read "aaaaaaaa" under every version). */
+function cr(n: number): string {
+  const ALPHABET = 'abcdefghijklmnopqrstuvwxyz234567';
+  const bytes = createHash('sha256').update(`approval:${n}`).digest();
+  let out = '';
+  for (let i = 0; out.length < 26; i++) out += ALPHABET[bytes[i] % 32];
+  return `cr_${out}`;
+}
 
 /** The revisions presented and not approved in each team's open work, oldest wait first. */
 const QUEUE: (WaitingRow & { team: string })[] = [

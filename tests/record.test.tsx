@@ -159,7 +159,7 @@ describe('the lead', () => {
     // The figure's unit is its own span: `100` then `h`.
     expect(card.querySelector('[data-value]')!.textContent).toBe('100h');
     expect(card.textContent).toContain('Estimated at 500 words an hour, over 49,800 words your documents and lessons retain as of');
-    const chart = within(card).getByText('Words added, a running total, by week');
+    const chart = within(card).getByText(/^Words added, a running total, by week: every word a revision added/);
     expect(card.querySelector('[data-value]')!.compareDocumentPosition(chart) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(foot('Work closed')).toBe(footOf(ALL)[0].value);
   });

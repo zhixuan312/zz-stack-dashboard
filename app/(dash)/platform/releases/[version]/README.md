@@ -1,26 +1,25 @@
 # Release
 
-One release: its published changelog and upgrade notes, what clients must do, and what was observed in the 72 hours either side of it, read on the console's server.
+One release: its published changelog with its upgrade notes, what clients must do, and what was observed in the 72 hours either side of it, read on the console's server.
 
 ## Structure
 
 - Gate first: the page asks for `releases` before it renders and before its address is read, so a person who does not hold it is answered by the refused page and nothing on the page is read. Its title comes from `gatedMetadata` and its loading state from `gatedLoading`, so under `refusal: 'absent'` neither names the release.
 - The read comes before the masthead: a version the record does not hold is answered by the missing page, exactly as an address that names nothing is, so no masthead names a release nobody recorded.
 - Masthead: the kicker back to Releases, `Release <version>`, and one sentence.
-- Changelog, the page's protagonist: the section published for the release, as written, through the console's safe Markdown renderer (raw HTML in it is text, and a link or an image passes the console's URL policy). It is drawn as prose on the console's server, so it reads the same from the first paint; only a release read again in the browser after the server's read failed shows its words as plain text while the renderer arrives. Ask is in its head.
-- This release: its summary, the console it shipped with (`Not recorded` when none is), the client action (`Nothing to do` only when it is positively known that none is needed; an old release with no notes reads `Unknown — no recorded upgrade notes`) and the releases inside either window.
-- Upgrade notes: the published notes through the same renderer, or what the record says when there are none.
-- Around the release: a table of the two windows, before and after: what of each was observed (`complete`, `partial` with its bounds and why, or `not observed`), its calls, malformed calls, malformed calls per 1,000, tool failures and p95. Its line says that a window is what was observed and not what the release did.
+- Changelog, the page's protagonist: the section published for the release, as written, its summary its opening and its upgrade notes under their own heading, so neither is said again beside it, through the console's safe Markdown renderer (raw HTML in it is text, and a link or an image passes the console's URL policy). It is drawn as prose on the console's server, so it reads the same from the first paint; only a release read again in the browser after the server's read failed shows its words as plain text while the renderer arrives. Ask is in its head.
+- This release, as tall as what it holds: the console it shipped with (`Not recorded` when none is), the client action (`Nothing to do` only when it is positively known that none is needed; an old release with no notes reads `Unknown: no recorded upgrade notes`, the record's words with a colon) and the releases inside either window.
+- Around the release: a table of the two windows, before and after: what of each was observed (`complete` with its bounds; `partial` with how many of its 72 hours were observed, the one range that was and why, "Observed 50 of 72 hours so far: …"; or `not observed`), its calls, malformed calls, malformed calls per 1,000, tool failures and p95. Its line says that a window is what was observed and not what the release did.
 
 ## States
 
 | State | What shows |
 |---|---|
-| Loading | `loading.tsx` while the gate asks `/me` and the read is under way: the changelog's and the release's cards, the notes and the windows' table, as skeletons |
-| Default | The changelog, the release, its notes and its windows |
+| Loading | `loading.tsx` while the gate asks `/me` and the read is under way: the changelog's and the release's cards and the windows' table, as skeletons |
+| Default | The changelog, the release and its windows, a row gap apart |
 | No such version | The missing page, from the server's read; from a later read in the browser, "No release of this version is recorded" with All releases |
-| No upgrade notes | The client action recorded, or that nothing is asked of clients |
-| A window still running or begun before the record | `partial` with the bounds the record observed and why |
+| No upgrade notes | The changelog has no upgrade notes heading; the client action says what the record holds |
+| A window still running or begun before the record | `partial`, with the hours observed of 72, the one range observed and why |
 | A window with no calls | `No calls`, with no rate and no p95 |
 | Read failed | The error state with the gateway's sentence and Retry |
 | Slower than 4.5 seconds | The same error state, saying the read did not answer within 4.5 seconds, with Retry |
@@ -35,7 +34,7 @@ The assistant reads this page and changes nothing. The page shares its context t
 When the release's tag was made, the console it shipped with, its client action, each window's malformed calls per 1,000 with its calls, malformed calls, tool failures, p95 and what of it was observed, the releases within 72 hours of it, its summary, and its changelog and upgrade notes as published, cut to what holds the budget. It says that a window is what was observed and not what the release did, that a tag's time is historical timing, that under 30 calls a side is too few to compare, and that another release inside a window puts that release's calls in it too.
 
 ```text
-- After: 3.3 malformed per 1,000 (610 calls, 2 malformed, 0 tool failures, p95 1,620 ms; Partial: observed 16 Oct 2026, 15:00 to 17 Oct 2026, 11:00 of 16 Oct 2026, 15:00 to 19 Oct 2026, 15:00, still running)
+- After: 3.3 malformed per 1,000 (610 calls, 2 malformed, 0 tool failures, p95 1,620 ms; partial, Observed 20 of 72 hours so far: 16 Oct 2026, 15:00 to 17 Oct 2026, 11:00)
 ```
 
 - **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address, and the page text after it for anything the context does not cover. `view_release` answers the same text from anywhere in the console, and `explore_release` (`src/views/releases-explore.ts`), offered on this page alone, asks what Releases' prepared query asks: the route has no dimension of a release's version, so nothing in it is held to this release.

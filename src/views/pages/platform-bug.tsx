@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { RotateCw } from 'lucide-react';
-import { Row } from '@/components/base/shell';
+import { Row, Stack } from '@/components/base/shell';
 import { useShareView } from '@/components/base/use-share-view';
 import { AskAbout } from '@/components/patterns/ask-about';
 import { Busy } from '@/components/patterns/page-loading';
@@ -55,7 +55,7 @@ function useBug(id: string, served: BugRead, servedTargets: DuplicatesRead, now:
 }
 
 /**
- * One bug report, the superadmin's alone: the reporter's title and words, the page's protagonist, beside what it is
+ * One bug report, the superadmin's alone, titled by itself in the masthead: the reporter's words, the page's protagonist, beside what it is
  * (its impact, surface, team, version and when it was filed), then what was decided, or, while it is open, the form
  * that resolves it. The form posts `bug_resolve`'s arguments through the console's write path; a refusal keeps what was
  * typed and says the gateway's sentence. Nothing here deletes a report.
@@ -68,17 +68,19 @@ export function PlatformBugView({ id, served, duplicates: servedTargets }: { id:
     : pendingContext({ view: 'bug', title: 'Bug report', address: bugPath(id), scope: 'one bug report' }, trouble && trouble.state !== 'missing' ? bugsTrouble(trouble) : null));
 
   if (!data) return trouble ? <BugTrouble trouble={trouble} busy={busy} onRetry={retry} /> : <Busy name="bug"><Row split="2/3"><Skeleton className="h-72 rounded-lg" /><Skeleton className="h-72 rounded-lg" /></Row></Busy>;
+  // The page's title is the report's own when the server read it; a report read only in the browser says it here.
+  const titled = served.state === 'ok' && served.data.title === data.title;
   return (
-    <>
-      <Row split="2/3">
+    <Stack>
+      <Row split="2/3" className="items-start">
         <Panel
           data-protagonist="Report"
           title="Report"
           description={`Filed ${formatDateTime(data.reportedAt)}, in the reporter's own words`}
           actions={<AskAbout question="What does this report say is broken, what would resolve it, and is it a duplicate of another report of its team?" />}
         >
-          <p className="font-medium text-ink [overflow-wrap:anywhere]">{data.title}</p>
-          <p data-report-detail className="t-body mt-3 whitespace-pre-wrap text-ink-2 [overflow-wrap:anywhere]">{data.detail}</p>
+          {titled ? null : <p className="mb-3 font-medium text-ink [overflow-wrap:anywhere]">{data.title}</p>}
+          <p data-report-detail className="t-body whitespace-pre-wrap text-ink-2 [overflow-wrap:anywhere]">{data.detail}</p>
         </Panel>
         <Panel title="This report" description={statusOf(data.status)}>
           <KeyValue items={[
@@ -92,7 +94,7 @@ export function PlatformBugView({ id, served, duplicates: servedTargets }: { id:
         </Panel>
       </Row>
       {data.status === 'open' ? <Resolve report={data} duplicates={duplicates} /> : <Decision report={data} />}
-    </>
+    </Stack>
   );
 }
 

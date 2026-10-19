@@ -27,10 +27,13 @@ import { useLive } from '@/lib/live';
 import { useConsoleMutation } from '@/lib/mutate';
 import { useServed, useServedAddress } from '@/views/use-served';
 import { pendingContext } from '@/views/context';
-import { TILES, sessionPoints, teamsContext, teamsTrouble, weekCount, type TeamsRead } from '@/views/teams-context';
+import { NO_ACTIVITY, TILES, sessionPoints, teamsContext, teamsTrouble, weekCount, type TeamsRead } from '@/views/teams-context';
 import { TEAMS_DEFAULTS, TEAM_STATUSES, filtersOfPath, narrowed, teamsPath, type TeamsFilters } from '@/views/teams-filter';
 
-/** A team's sessions by week, as a line beside its row: its own past, never set against another team's. */
+/**
+ * A team's sessions by week, as a line beside its row: its own past, never set against another team's. Neutral, as
+ * every sparkline on the platform's pages: the accent is for actions and the week a card is about.
+ */
 function Sessions({ t }: { t: TeamRow }) {
   if (t.calls.last.figure.why === 'unavailable') return <span className="text-ink-3">Unavailable</span>;
   const points = sessionPoints(t);
@@ -38,7 +41,7 @@ function Sessions({ t }: { t: TeamRow }) {
   return (
     <span className="inline-block w-24 align-middle">
       <span className="sr-only">Sessions by week, oldest first: {points.map((v) => (v === null ? 'none read' : v)).join(', ')}</span>
-      <Sparkline values={points} height={24} />
+      <Sparkline values={points} color="neutral" height={24} />
     </span>
   );
 }
@@ -47,11 +50,11 @@ const archived = (t: TeamRow) => (t.status === 'archived' ? <Badge tone="warning
 
 /**
  * When a team last made a real-work call, against the read's own cutoff: the data's clock, the same on the server's
- * first paint as in the browser, never the browser's at render.
+ * first paint as in the browser, never the browser's at render. A phone's card says "Active" before the time.
  */
-function LastActive({ at, asOf }: { at: string | null; asOf: string }) {
-  if (!at) return <span className="text-ink-3">Never</span>;
-  return <time dateTime={at} title={formatDateTime(at)}>{formatRelative(at, new Date(asOf))}</time>;
+function LastActive({ at, asOf, card = false }: { at: string | null; asOf: string; card?: boolean }) {
+  if (!at) return <span className="text-ink-3">{NO_ACTIVITY}</span>;
+  return <>{card ? 'Active ' : null}<time dateTime={at} title={formatDateTime(at)}>{formatRelative(at, new Date(asOf))}</time></>;
 }
 
 /**
@@ -79,7 +82,7 @@ const columnsAt = (asOf: string): Column<TeamRow>[] => aligned([
   { key: 'sessions', header: 'Sessions by week', hideBelow: 'lg', width: 'w-32', cell: (t) => <Sessions t={t} /> },
   { key: 'last', header: 'Calls last week', numeric: true, hideBelow: 'lg', cell: (t) => weekCount(t.calls.last) },
   { key: 'previous', header: 'Week before', numeric: true, hideBelow: 'xl', cell: (t) => weekCount(t.calls.previous) },
-  { key: 'active', header: 'Last active', numeric: true, mobile: 'fact', cell: (t) => <LastActive at={t.lastActive} asOf={asOf} />, mobileCell: (t) => <>Active <LastActive at={t.lastActive} asOf={asOf} /></> },
+  { key: 'active', header: 'Last active', numeric: true, mobile: 'fact', cell: (t) => <LastActive at={t.lastActive} asOf={asOf} />, mobileCell: (t) => <LastActive at={t.lastActive} asOf={asOf} card /> },
 ]);
 
 const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...TEAM_STATUSES.map((s) => ({ value: s, label: s === 'active' ? 'Active' : 'Archived' }))];
@@ -92,11 +95,11 @@ const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...TEAM_STATUSES.map((s)
 function useTeams(served: TeamsRead | null, filters: TeamsFilters) {
   const path = teamsPath(filters);
   const mine = served?.path === path ? served : null;
-  const { q, error, retry } = useServed<Teams>(path, mine !== null, mine === null && served !== null);
+  const { q, error, retry, busy } = useServed<Teams>(path, mine !== null, mine === null && served !== null);
   const data = q.data ?? (mine?.state === 'ok' ? mine.data : undefined);
   const failed = failureOf({ error });
   const trouble = data ? null : failed ?? (mine && mine.state !== 'ok' ? teamsTrouble(mine) : null);
-  return { data, trouble, retry, updatedAt: q.data ? new Date(q.dataUpdatedAt) : data ? data.meta.asOf : null };
+  return { data, trouble, retry, busy, updatedAt: q.data ? new Date(q.dataUpdatedAt) : data ? data.meta.asOf : null };
 }
 
 /**
@@ -108,7 +111,7 @@ export function PlatformTeamsView({ served }: { served: Revised<TeamsRead> }) {
   useLive(['teams'], served.revisions);
   const [filters, set] = useServedAddress(TEAMS_DEFAULTS, served, filtersOfPath);
   const [draft, setDraft] = useSearchDraft(filters.q, (q) => set({ q, page: '1' }));
-  const { data, trouble, retry, updatedAt } = useTeams(served, filters);
+  const { data, trouble, retry, busy, updatedAt } = useTeams(served, filters);
   const now = useDataClock();
   const asOf = data?.meta.asOf;
   const columns = useMemo(() => columnsAt(asOf ?? ''), [asOf]);
@@ -147,6 +150,7 @@ export function PlatformTeamsView({ served }: { served: Revised<TeamsRead> }) {
           loading={!data && !trouble}
           error={trouble ?? undefined}
           onRetry={retry}
+          retrying={busy}
           state={{ sort: '', dir: 'desc', page: filters.page }}
           onStateChange={(p) => { if (p.page) set({ page: p.page }); }}
           filtered={narrow}

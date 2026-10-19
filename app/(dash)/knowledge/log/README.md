@@ -7,7 +7,7 @@ Knowledge's log: every node recorded or retired, newest first, and who wrote it 
 - Gate first: the page asks for `knowledge` before it renders, so a person who does not hold it is shown nothing of the page and nothing on it is read.
 - Tabs: Overview, Log, as Knowledge draws them.
 - Tiles: entries, recorded, superseded.
-- A data table headed Recorded and superseded, newest first: when, act, node (title now, or as typed), team, who. Dates are absolute: the log is read on the server.
+- A data table headed Recorded and superseded, newest first: when, act, node (title now, or as typed), team, who. Dates are absolute, each on one line: the log is read on the server. Both acts are neutral badges, `Recorded` and `Superseded`: a supersession is a lesson's ordinary life and needs nobody, so it wears no warning colour, and `node 0004 → 0005` says what replaced what.
 
 ## States
 

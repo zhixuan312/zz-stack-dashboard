@@ -106,7 +106,7 @@ describe('the page, as the fake gateway answers it', () => {
     expect(followup.querySelectorAll('[data-column]')).toHaveLength(data(ADMIN.followup).weeks.length);
     const line = followup.querySelector('[data-followup]')!.textContent!;
     expect(line).toContain('Median seconds27 s');
-    expect(line).toContain('Sessions continued87.5%, too few of 16 refused sessions');
+    expect(line).toContain('Sessions continued87.5% of 16 refused sessions · too few to judge');
     expect(line).toMatch(/Could not be judged\d+ refusals?/);
   });
 

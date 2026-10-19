@@ -82,7 +82,7 @@ export function releasesTrouble(read: { state: 'failed'; reason: string } | { st
 export const TILES = {
   releases: { label: 'Releases', definition: 'Every release recorded, each once, at the time its tag was made.' },
   lastWeek: { label: 'Last week', definition: 'Releases tagged in the 7 days before the read\'s cutoff.' },
-  latest: { label: 'Latest release', definition: 'The newest release recorded, and when its tag was made.' },
+  latest: { label: 'Latest tag', definition: 'The newest tag recorded, and when: a tag, not a deployment.' },
   migrations: { label: 'Migrations applied', definition: 'Migrations the platform\'s database records as applied.' },
 } as const;
 
@@ -123,14 +123,21 @@ export const callsIn = (s: Side): string => (observedOf(s) === 'unobserved' ? 'N
 /** A window's malformed calls. */
 export const malformedIn = (s: Side): string => (observedOf(s) === 'unobserved' ? 'Not observed' : countIn(s.malformed));
 
-/** What of a window was observed, in a sentence: its bounds, and why it is partial when it is. */
+/** Hours between two instants, whole. */
+const hoursBetween = (from: string, to: string): number => Math.round((Date.parse(to) - Date.parse(from)) / 3_600_000);
+
+/**
+ * What of a window was observed, in a sentence with one range: its bounds when complete; for a partial window, how many
+ * of its hours were observed, the range that was, and why it is partial.
+ */
 export function observedText(s: Side, asOf: string): string {
   const { from, to, observedFrom, observedThrough } = s.window;
   if (observedOf(s) === 'unobserved') return `Not observed: the record of calls had not begun (${formatDateTime(from)} to ${formatDateTime(to)})`;
   const bounds = `${formatDateTime(observedFrom!)} to ${formatDateTime(observedThrough!)}`;
   if (observedOf(s) === 'complete') return bounds;
-  const why = Date.parse(observedFrom!) > Date.parse(from) ? ', the record began inside it' : running(s, asOf) ? ', still running' : '';
-  return `Partial: observed ${bounds} of ${formatDateTime(from)} to ${formatDateTime(to)}${why}`;
+  const of = `${hoursBetween(observedFrom!, observedThrough!)} of ${hoursBetween(from, to)} hours`;
+  if (Date.parse(observedFrom!) > Date.parse(from)) return `Observed ${of}: ${bounds}, the record began inside it`;
+  return running(s, asOf) ? `Observed ${of} so far: ${bounds}` : `Observed ${of}: ${bounds}`;
 }
 
 /** The other releases inside either of a release's windows, each once, in the order the windows name them. */
@@ -142,8 +149,13 @@ export const overlapText = (r: ReleaseRow): string | null => {
   return others.length ? `Within 72 hours of ${others.join(', ')}` : null;
 };
 
-/** What clients must do: the recorded action, `Nothing to do` when it is positively known that none is needed. */
-export const clientActionOf = (r: ReleaseRow): string => r.clientAction ?? 'Nothing to do';
+/**
+ * What clients must do: the recorded action, `Nothing to do` when it is positively known that none is needed. The
+ * record writes a tag with no changelog section as `Unknown — no recorded upgrade notes`, the spec's words; the console
+ * says it with a colon, as its voice says every such pair.
+ * COUPLED: `UNKNOWN_ACTION` in zz-stack's scripts/release-record.ts.
+ */
+export const clientActionOf = (r: ReleaseRow): string => r.clientAction?.replace(' — ', ': ') ?? 'Nothing to do';
 
 /* The weeks */
 
@@ -266,7 +278,7 @@ export function lifted(md: string): string {
 function windowFact(label: string, s: Side, asOf: string): Fact {
   return {
     label, value: `${rateIn(s)} malformed per 1,000`,
-    change: `${callsIn(s)} calls, ${malformedIn(s)} malformed, ${failuresIn(s)} ${s.toolFailures.value === 1 ? 'tool failure' : 'tool failures'}, p95 ${p95In(s)}; ${observedOf(s) === 'complete' ? `complete, ${observedText(s, asOf)}` : observedText(s, asOf)}`,
+    change: `${callsIn(s)} calls, ${malformedIn(s)} malformed, ${failuresIn(s)} ${s.toolFailures.value === 1 ? 'tool failure' : 'tool failures'}, p95 ${p95In(s)}; ${observedOf(s) === 'unobserved' ? observedText(s, asOf) : `${OBSERVED[observedOf(s)]}, ${observedText(s, asOf)}`}`,
   };
 }
 

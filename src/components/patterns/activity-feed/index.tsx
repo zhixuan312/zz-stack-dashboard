@@ -1,10 +1,12 @@
+import Link from 'next/link';
+import { ArrowRight } from 'lucide-react';
 import { cn } from '../../../lib/cn';
 import { formatDateTime, formatRelative } from '../../../lib/format-date';
 import { Avatar } from '../../ui/avatar/index';
 import { AgentMark } from '../../ui/agent-mark/index';
 
-/** One event: who did what to what, and when. `via` names the agent when an assistant acted for `actor`; `system` marks the product acting on its own. */
-export type ActivityEvent = { id: string; at: string; actor: string; system?: boolean; via?: string; verb: string; object: string; tone?: 'positive' | 'warning' | 'critical' };
+/** One event: who did what to what, and when. `via` names the agent when an assistant acted for `actor`; `system` marks the product acting on its own; `href` is the object's record, when it has one. */
+export type ActivityEvent = { id: string; at: string; actor: string; system?: boolean; via?: string; verb: string; object: string; href?: string; tone?: 'positive' | 'warning' | 'critical' };
 
 const DOT = { positive: 'bg-positive', warning: 'bg-warning', critical: 'bg-critical' } as const;
 
@@ -23,7 +25,7 @@ export function ActivityFeed({ events, now, className }: { events: ActivityEvent
           </span>
           <div className="min-w-0 flex-1 pt-0.5">
             <p className="text-sm text-ink-2">
-              <span className="font-medium text-ink">{e.via ? e.via : e.actor}</span> {e.verb} <span className="text-ink">{e.object}</span>
+              <span className="font-medium text-ink">{e.via ? e.via : e.actor}</span> {e.verb} {e.href ? <Link href={e.href} className="row-link font-medium text-ink">{e.object}<ArrowRight aria-hidden className="ml-1 inline size-3.5 align-middle" /></Link> : <span className="text-ink">{e.object}</span>}
               {e.via ? <span className="text-ink-3"> · for {e.actor}</span> : null}
             </p>
           </div>

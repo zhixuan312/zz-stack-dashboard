@@ -90,10 +90,11 @@ Each floor is measured by a command, and its evidence is the line the command pr
 you change it (its comments describe every field, and the template's own entries show the shape): a `navigationChecks`
 entry for every rail route (a ready selector and one harmless probe that works at 390px too, where a table is a card
 list with no column headers to sort: a filter, a link or a dialog), `detailRoutes` with ids from your data for each
-state worth seeing, `smokeRoutes` among the rail routes, `budgets.htmlKb` naming only routes that exist, a `fakeApi` as
+state worth seeing, `smokeRoutes` among the rail routes, `budgets.htmlKb`, when the project pins a page's HTML, naming only routes that exist, a `fakeApi` as
 soon as a page calls an API, and in an adopted project a `fakeApi` or `noLiveApi` (a created project whose pages read
 only its own sample needs neither). After the pages change, look at the sizes `pnpm verify` prints and record them with
-`node scripts/sizes.ts --write-baseline` once you have judged them. `--full` and `--timed` refuse, listing every gap,
+`node scripts/sizes.ts --write-baseline --base <url>` against the running build once you have judged them: first-load JS
+for every route and the gzipped HTML of every page, each then held to 5% growth over its own figure. `--full` and `--timed` refuse, listing every gap,
 until these hold.
 
 ### The craft: judged on the renders, with evidence

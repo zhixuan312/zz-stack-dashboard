@@ -38,15 +38,34 @@ const TONE: Record<InitiativeRow['state'], 'warning' | 'positive' | 'neutral'> =
   waiting: 'warning', accepted: 'positive', delivered: 'positive', open: 'neutral', quiet: 'neutral', abandoned: 'neutral',
 };
 
-/** The table's columns, in the server's order: the list is sorted and paged where it is read. */
+/** Gates passed of the gates the row's flow has, or a dash for a piece of work with no flow. */
+const gatesOf = (r: ShownRow) => (r.gates.of ? `${r.gates.passed} of ${r.gates.of}` : '—');
+
+/**
+ * The table's columns, in the server's order: the list is sorted and paged where it is read. Each column is as wide as
+ * what it holds: the slug on one line, the counts and the date at their own width, and the flow position, the sentence
+ * this page is read for, takes the rest, so it reads on one or two lines rather than one word to a line.
+ */
 const COLUMNS: Column<ShownRow>[] = aligned([
-  // Wrap rather than truncate: a slug's tail tells two pieces of work of one project apart.
-  { key: 'slug', header: 'Initiative', grow: true, mobile: 'title', cell: (r) => <span title={r.slug} className="font-medium whitespace-normal text-ink [overflow-wrap:anywhere]">{r.slug}</span> },
-  { key: 'next', header: 'Flow position', hideBelow: 'lg', mobile: 'fact', cell: (r) => <span className="text-xs whitespace-normal text-ink-2 [overflow-wrap:anywhere]" title={r.nextMove?.why}>{r.flow ? nextOf(r) : 'No flow'}</span> },
+  // Whole on one line where the table is a table; a phone's card wraps it rather than cutting it, since a slug's tail
+  // tells two pieces of work of one project apart.
+  { key: 'slug', header: 'Initiative', mobile: 'title', cell: (r) => <span title={r.slug} className="font-medium whitespace-nowrap text-ink @max-[640px]:whitespace-normal @max-[640px]:[overflow-wrap:anywhere]">{r.slug}</span> },
+  { key: 'next', header: 'Flow position', align: 'left', grow: true, hideBelow: 'lg', mobile: 'fact', cell: (r) => <span className="text-xs whitespace-normal text-ink-2" title={r.nextMove?.why}>{r.flow ? nextOf(r) : 'No flow'}</span> },
   { key: 'state', header: 'State', mobile: 'status', cell: (r) => <Badge tone={TONE[r.state]} dot>{STATE_LABEL[r.state]}</Badge> },
-  { key: 'gates', header: 'Gates', numeric: true, hideBelow: 'xl', cell: (r) => (r.gates.of ? `${r.gates.passed} of ${r.gates.of}` : '—') },
+  { key: 'gates', header: 'Gates passed', numeric: true, hideBelow: 'lg', mobile: 'fact', cell: (r) => gatesOf(r), mobileCell: (r) => (r.gates.of ? `${gatesOf(r)} gates` : 'No gates') },
   { key: 'touched', header: 'Last touched', numeric: true, mobile: 'fact', cell: (r) => <When at={r.lastTouched} />, mobileCell: (r) => <>Touched <When at={r.lastTouched} /></> },
 ]);
+
+/**
+ * A row's card on a phone: the slug and its state, the flow position on a line of its own, wrapping where it is long,
+ * then the gates and the last touch together. The flow position is the first fact, so it carries no dot; the gates
+ * open the line under it, so their dot goes too, and no line of the card starts with a separator. Children by
+ * position, in `COLUMNS`' order: the flow position is the second cell and the gates the fourth.
+ */
+const PHONE_CARD = [
+  '@max-[640px]:[&_tbody_td:nth-child(2)]:!basis-full @max-[640px]:[&_tbody_td:nth-child(2)]:!whitespace-normal',
+  '@max-[640px]:[&_tbody_td:nth-child(4)_[data-sep]]:!hidden',
+].join(' ');
 
 const STATE_OPTIONS = [{ value: 'all', label: 'All' }, ...LIST_STATES.map((s) => ({ value: s, label: STATE_LABEL[s] }))];
 const PARTS = OUTCOMES.map((o) => ({ key: o, label: STATE_LABEL[o] }));
@@ -59,11 +78,11 @@ const PARTS = OUTCOMES.map((o) => ({ key: o, label: STATE_LABEL[o] }));
 function useInitiatives(served: InitiativesRead | null, filters: InitiativesFilters) {
   const path = listPath(filters);
   const mine = served?.path === path ? served : null;
-  const { q, error, retry } = useServed<InitiativeList>(path, mine !== null, mine === null && served !== null);
+  const { q, error, retry, busy } = useServed<InitiativeList>(path, mine !== null, mine === null && served !== null);
   const data: InitiativesShown | undefined = q.data ?? (mine?.state === 'ok' ? mine.data : undefined);
   const failed = failureOf({ error });
   const trouble = data ? null : failed ?? (mine && mine.state !== 'ok' ? initiativesTrouble(mine) : null);
-  return { data, trouble, retry, updatedAt: q.data ? new Date(q.dataUpdatedAt) : data ? data.meta.asOf : null };
+  return { data, trouble, retry, busy, updatedAt: q.data ? new Date(q.dataUpdatedAt) : data ? data.meta.asOf : null };
 }
 
 /**
@@ -76,7 +95,7 @@ export function InitiativesView({ served }: { served: Revised<InitiativesRead> }
   useLive(['initiatives'], served.revisions);
   const [filters, set] = useServedAddress(INITIATIVES_DEFAULTS, served, filtersOfPath);
   const [draft, setDraft] = useSearchDraft(filters.q, (q) => set({ q, page: '1' }));
-  const { data, trouble, retry, updatedAt } = useInitiatives(served, filters);
+  const { data, trouble, retry, busy, updatedAt } = useInitiatives(served, filters);
   const now = useDataClock();
   const page = pageOf(filters);
   useShareView(data
@@ -100,7 +119,7 @@ export function InitiativesView({ served }: { served: Revised<InitiativesRead> }
       summary={
         <>
           <MetricTile label={TILES.open.label} hint={TILES.open.definition} icon={<ListTree />} value={tiles ? tiles.open : mark} />
-          <MetricTile label={TILES.waiting.label} hint={TILES.waiting.definition} icon={<Signature />} value={tiles ? tiles.waiting : mark} emphasis={(tiles?.waiting ?? 0) > 0} />
+          <MetricTile label={TILES.waiting.label} hint={TILES.waiting.definition} icon={<Signature />} value={tiles ? tiles.waiting : mark} />
           <MetricTile label={TILES.closed.label} hint={TILES.closed.definition} icon={<CircleCheck />} value={closed ?? mark} note={tiles ? closedLine(tiles.closed) : undefined} />
         </>
       }
@@ -109,6 +128,7 @@ export function InitiativesView({ served }: { served: Revised<InitiativesRead> }
       <div data-protagonist="Initiatives" className="contents">
         <DataTable
           caption="Initiatives"
+          className={PHONE_CARD}
           noun="initiatives"
           rows={data?.rows ?? []}
           columns={COLUMNS}
@@ -121,6 +141,7 @@ export function InitiativesView({ served }: { served: Revised<InitiativesRead> }
           loading={!data && !trouble}
           error={trouble ?? undefined}
           onRetry={retry}
+          retrying={busy}
           state={{ sort: '', dir: 'desc', page: String(page) }}
           onStateChange={(p) => { if (p.page) set({ page: p.page }); }}
           filtered={narrow}

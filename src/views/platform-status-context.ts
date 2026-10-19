@@ -104,16 +104,18 @@ const measureOf = (s: PlatformStatus, key: Key): Measure | undefined => s.measur
 /* What needs attention */
 
 const KIND: Record<Needs['rows'][number]['kind'], string> = { bugs: 'bug reports', door: 'doors', evaluation: 'evaluation', approvals: 'approvals', drift: 'latency drift' };
-/** The list's foot: the instances shown, what overflowed by kind, and which checks did not answer. */
-export function needsFoot(needs: Needs): string {
-  const shown = needs.rows.reduce((n, r) => n + r.instanceCount, 0);
+/**
+ * The list's foot: what overflowed by kind, and which checks did not answer; null when there is neither, since the
+ * headline already counts what is shown.
+ */
+export function needsFoot(needs: Needs): string | null {
   const over = Object.entries(needs.overflowByKind).filter(([, n]) => n);
   const more = over.reduce((n, [, k]) => n + (k ?? 0), 0);
-  return [
-    `${formatCount(shown)} shown`,
+  const parts = [
     ...(more ? [`${formatCount(more)} more not shown: ${over.map(([k, n]) => `${KIND[k as keyof typeof KIND]} ${formatCount(n!)}`).join(', ')}`] : []),
     ...(needs.unavailableKinds.length ? [`Not checked: ${needs.unavailableKinds.map((k) => KIND[k]).join(', ')}`] : []),
-  ].join('. ') + '.';
+  ];
+  return parts.length ? `${parts.join('. ')}.` : null;
 }
 
 /* The paired figures */
@@ -241,7 +243,7 @@ export function runningOf(s: PlatformStatus): Running {
     items: [
       { label: 'Platform', value: d.platform },
       { label: 'Console', value: d.console ?? 'Not recorded' },
-      { label: 'Released', value: formatDateTime(d.releasedAt) },
+      { label: 'Tagged', value: formatDateTime(d.releasedAt) },
       { label: 'The release before', value: d.previous ?? 'None recorded' },
       { label: 'Migrations applied', value: d.migrations === null ? 'Unavailable' : formatCount(d.migrations) },
     ],
@@ -338,7 +340,7 @@ export function platformStatusContext(read: StatusRead): SharedContext {
   const unavailable = (part: string, reason: string) => unknowns.push(`${part} could not be read (${reason}).`);
 
   if (s.needs.state === 'unavailable') unknowns.push(`${s.needs.headline}: nothing here says whether anything needs attention.`);
-  else facts.push({ label: 'What needs attention', value: s.needs.headline, change: needsFoot(s.needs).replace(/\.$/, '') });
+  else facts.push({ label: 'What needs attention', value: s.needs.headline, ...(needsFoot(s.needs) ? { change: needsFoot(s.needs)!.replace(/\.$/, '') } : {}) });
   if (s.needs.state === 'partial') unknowns.push('Some checks did not answer, so more may need attention than is listed.');
 
   facts.push({ label: 'Scoreboard', value: score.caption });
@@ -357,8 +359,8 @@ export function platformStatusContext(read: StatusRead): SharedContext {
 
   const running = runningOf(s);
   if (running.state === 'ok') {
-    const [platform, consoleVersion, released, before, migrations] = running.items.map((i) => i.value);
-    facts.push({ label: 'Running', value: `platform ${platform}, console ${consoleVersion}`, change: `released ${released}, ${before === 'None recorded' ? 'no release before it recorded' : `after ${before}`}; ${migrations} migrations` });
+    const [platform, consoleVersion, tagged, before, migrations] = running.items.map((i) => i.value);
+    facts.push({ label: 'Running', value: `platform ${platform}, console ${consoleVersion}`, change: `tagged ${tagged}, ${before === 'None recorded' ? 'no release before it recorded' : `after ${before}`}; ${migrations} migrations` });
   }
   else if (running.state === 'unrecorded') unknowns.push(UNRECORDED);
   else unavailable('What is running', running.reason);

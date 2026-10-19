@@ -80,6 +80,9 @@ export function ConsolePalette({ access, nav: given }: { access?: Access; nav?: 
   );
 }
 
+/** Every destination a navigation declares: the rail finds the current page among them, held or not. */
+const hrefs = (groups: NavGroup[]) => groups.flatMap((g) => g.items.map((i) => i.href));
+
 /** The rail with nobody signed in yet: its frame, the placeholder person, and no destination to click. */
 const NOTHING: NavGroup[] = [];
 
@@ -87,7 +90,7 @@ function ResolvedRail({ access, nav: given, ...props }: RailProps & { access: Ac
   const chrome = pending(access) ? use(access) : access;
   // A promise that settled on nothing is an identity nobody could resolve: keep the placeholder, never the sample person.
   if (!chrome) return <Rail nav={NOTHING} user={null} {...props} />;
-  return <Rail nav={visible(chrome.only, given)} user={chrome.user} viewAs={chrome.viewAs} {...props} />;
+  return <Rail nav={visible(chrome.only, given)} declared={hrefs(given ?? nav)} user={chrome.user} viewAs={chrome.viewAs} {...props} />;
 }
 
 function ResolvedPalette({ access, nav: given }: { access: Access; nav?: NavGroup[] }) {

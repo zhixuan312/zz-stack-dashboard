@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { Check, Copy, KeyRound, LogIn, UserRound, UserX } from 'lucide-react';
 import { useShareView } from '@/components/base/use-share-view';
 import { AskAbout } from '@/components/patterns/ask-about';
@@ -165,12 +165,21 @@ const columnsAt = (asOf: string): Column<Person>[] => aligned([
         <span className="t-caption block truncate @min-[896px]:hidden" title={`${roleWord(p)} · ${passkeys(p.passkeys)}`}>{roleWord(p)} · {passkeys(p.passkeys)}</span>
       </span>
     ),
-    mobileCell: (p) => <span className="inline-flex min-w-0 items-center gap-2"><span className="truncate" title={shownName(p)}>{shownName(p)}</span>{p.role === 'superadmin' ? roleBadge(p) : null}</span>,
+    // A card's first line is the name and the badge, whole: a long name wraps under itself, never cut, and the acts
+    // take the line under it (the table's `PHONE_ACTS`).
+    mobileCell: (p) => (
+      <span data-card-name className="inline-flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 whitespace-normal">
+        <span className="[overflow-wrap:anywhere]">{shownName(p)}</span>{p.role === 'superadmin' ? roleBadge(p) : null}
+      </span>
+    ),
   },
   { key: 'role', header: 'Role', hideBelow: 'lg', cell: roleBadge },
+  // A team and its role stay on one line, `atlas (admin)`, and only the comma between two teams breaks.
   {
     key: 'teams', header: 'Teams', hideBelow: 'lg',
-    cell: (p) => (p.teams.length ? <span className="whitespace-normal [overflow-wrap:anywhere]">{p.teams.join(', ')}</span> : <span className="text-ink-3">None</span>),
+    cell: (p) => (p.teams.length
+      ? <span data-teams>{p.teams.map((t, i) => <Fragment key={t}>{i ? ' ' : null}<span className="whitespace-nowrap">{t}{i < p.teams.length - 1 ? ',' : ''}</span></Fragment>)}</span>
+      : <span className="text-ink-3">None</span>),
   },
   { key: 'passkeys', header: 'Passkey', numeric: true, hideBelow: 'lg', mobile: 'fact', cell: (p) => (p.passkeys ? formatCount(p.passkeys) : <span className="text-ink-3">None</span>), mobileCell: (p) => passkeys(p.passkeys) },
   { key: 'signIn', header: 'Last sign-in', numeric: true, mobile: 'fact', cell: (p) => <LastSignIn at={p.lastSignIn} asOf={asOf} /> },
@@ -178,6 +187,13 @@ const columnsAt = (asOf: string): Column<Person>[] => aligned([
   // The row's acts keep their place on a phone, at the end of the card's first line.
   { key: 'acts', header: <span className="sr-only">Actions</span>, mobile: 'status', cell: (p) => <Acts p={p} /> },
 ]);
+
+/**
+ * On a phone a person's acts take the card's second line, under the name and the badge, where the release's card puts
+ * the status beside the title: two buttons beside a name left the name a few letters and the badge a sliver. Keyed on
+ * the cell the card already marks, and only when the person has acts to show.
+ */
+const PHONE_ACTS = '@max-[640px]:[&_td[data-mobile=status]:not(:empty)]:basis-full';
 
 const STATE_OPTIONS = [{ value: 'all', label: 'All' }, ...PERSON_STATES.map((s) => ({ value: s, label: s === 'active' ? 'Active' : 'Deactivated' }))];
 
@@ -189,11 +205,11 @@ const STATE_OPTIONS = [{ value: 'all', label: 'All' }, ...PERSON_STATES.map((s) 
 function usePeople(served: PeopleRead | null, filters: PeopleFilters) {
   const path = peoplePath(filters);
   const mine = served?.path === path ? served : null;
-  const { q, error, retry } = useServed<People>(path, mine !== null, mine === null && served !== null);
+  const { q, error, retry, busy } = useServed<People>(path, mine !== null, mine === null && served !== null);
   const data: PeopleShown | undefined = q.data ?? (mine?.state === 'ok' ? mine.data : undefined);
   const failed = failureOf({ error });
   const trouble = data ? null : failed ?? (mine && mine.state !== 'ok' ? peopleTrouble(mine) : null);
-  return { data, trouble, retry, updatedAt: q.data ? new Date(q.dataUpdatedAt) : data ? data.meta.asOf : null };
+  return { data, trouble, retry, busy, updatedAt: q.data ? new Date(q.dataUpdatedAt) : data ? data.meta.asOf : null };
 }
 
 /**
@@ -205,7 +221,7 @@ export function PlatformPeopleView({ served }: { served: Revised<PeopleRead> }) 
   useLive(['people'], served.revisions);
   const [filters, set] = useServedAddress(PEOPLE_DEFAULTS, served, filtersOfPath);
   const [draft, setDraft] = useSearchDraft(filters.q, (q) => set({ q, page: '1' }));
-  const { data, trouble, retry, updatedAt } = usePeople(served, filters);
+  const { data, trouble, retry, busy, updatedAt } = usePeople(served, filters);
   const now = useDataClock();
   const asOf = data?.meta.asOf;
   const columns = useMemo(() => columnsAt(asOf ?? ''), [asOf]);
@@ -233,6 +249,7 @@ export function PlatformPeopleView({ served }: { served: Revised<PeopleRead> }) 
       <div data-protagonist="People" className="contents">
         <DataTable
           caption="People"
+          className={PHONE_ACTS}
           noun="people"
           rows={data?.people ?? []}
           columns={columns}
@@ -244,6 +261,7 @@ export function PlatformPeopleView({ served }: { served: Revised<PeopleRead> }) 
           loading={!data && !trouble}
           error={trouble ?? undefined}
           onRetry={retry}
+          retrying={busy}
           state={{ sort: '', dir: 'desc', page: filters.page }}
           onStateChange={(p) => { if (p.page) set({ page: p.page }); }}
           filtered={narrow}

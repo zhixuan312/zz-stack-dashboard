@@ -8,7 +8,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
  * active team, so the page draws each row's gates, state and next move as given, and asks the server again for a
  * filter or a page rather than narrowing what it holds.
  *
- * What it pins is the page's most derived cell, **Gates**, `${passed} of ${of}` as the row carries it, so a page that
+ * What it pins is the page's most derived cell, **Gates passed**, `${passed} of ${of}` as the row carries it, so a page that
  * counted anything itself cannot pass both rows; that the Team column is gone, since Work is the active team's; and the
  * address the page is drawn from, which carries its filters and its page of ten and nothing else: the console's server
  * reads it, so the browser asks for none of it while the server's answer is the latest.
@@ -69,7 +69,9 @@ function cell(needle: string, header: string): string {
   const row = [...document.querySelectorAll('tr')].find((r) => r.textContent?.includes(needle));
   if (column < 0 || !row) return `no ${header} column or no ${needle} row`;
   const td = [...row.querySelectorAll('td')][column];
-  return (td?.firstElementChild ?? td)?.textContent?.trim() ?? '';
+  // What the table draws: past a phone card's dot, and its own words where a phone has others.
+  const drawn = td?.querySelector(':scope > [class~="@max-[640px]:hidden"]') ?? td?.querySelector(':scope > :not([data-sep])') ?? td;
+  return drawn?.textContent?.trim() ?? '';
 }
 
 /** The list reads the page asked for, by their query strings, less the console's scope, which Work's list ignores. */
@@ -96,8 +98,8 @@ const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 50
 describe('the figures on the initiatives page', () => {
   it('draws each row\'s gates, state and next move as the gateway answered them', () => {
     mount();
-    expect(cell('2026-09-28-search-relevance', 'Gates')).toBe('1 of 2');
-    expect(cell('2026-09-22-payout-schedule', 'Gates')).toBe('0 of 1');
+    expect(cell('2026-09-28-search-relevance', 'Gates passed')).toBe('1 of 2');
+    expect(cell('2026-09-22-payout-schedule', 'Gates passed')).toBe('0 of 1');
     expect(cell('2026-09-28-search-relevance', 'State')).toBe('Waiting');
     expect(cell('2026-09-28-search-relevance', 'Flow position')).toBe('Approve plan.md, waiting on a person');
     expect(document.body.textContent).toContain('23 initiatives');

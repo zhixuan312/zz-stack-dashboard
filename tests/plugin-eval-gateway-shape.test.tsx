@@ -46,12 +46,12 @@ describe('a plugin evaluation in the gateway\'s shape', () => {
   it('lists the guardrail measures from the dimensions, with their values, under the run\'s guardrail status', () => {
     render(<EvalHealth run={evaluation.run} />);
     expect(screen.queryByText('Nothing to check')).not.toBeInTheDocument();
-    expect(screen.getByText('refusal-rate')).toBeInTheDocument();
-    expect(screen.getByText('0.1250')).toBeInTheDocument();
-    expect(screen.getByText('abandoned-runs')).toBeInTheDocument();
+    expect(screen.getByText('Refusal rate')).toBeInTheDocument();
+    expect(screen.getByText('12.5%')).toBeInTheDocument();
+    expect(screen.getByText('Abandoned runs')).toBeInTheDocument();
     expect(screen.getByText('no run reached it')).toBeInTheDocument();
     expect(screen.queryByText('completion')).not.toBeInTheDocument();
-    expect(screen.getByText('fail')).toBeInTheDocument();
+    expect(screen.getByText('A guardrail broke')).toBeInTheDocument();
   });
 
   it('builds the assistant\'s context and states the guardrail status', () => {

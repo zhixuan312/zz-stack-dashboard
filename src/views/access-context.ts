@@ -103,7 +103,7 @@ export function accessContext(access: Access, arrival: Arrival): SharedContext {
     { label: 'Connected applications', value: formatCount(access.applications.length), definition: 'The applications the caller authorised, by the tokens minted through each.' },
     { label: 'Signed-in browsers', value: formatCount(access.browsers.length), definition: 'The caller\'s live console sessions, this browser\'s included.' },
     { label: 'Passkeys', value: formatCount(access.authenticators.length) },
-    { label: 'Acting for', value: acting ? `${acting.team} (${acting.role})` : 'no team', definition: 'This browser\'s team; the caller\'s agents keep their own, which team_switch moves.' },
+    { label: 'Acting for', value: acting ? `${acting.team} (${acting.role})` : 'no team', definition: 'This browser\'s team; the caller\'s agents keep their own, which the ZZ Access agent\'s team_switch moves.' },
   ];
   // Most important first, as the budget drops from the end: what the assistant may not do, then the protagonist's rows,
   // then the rest of what lets the person in, and the page's own sections last.

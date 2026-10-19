@@ -29,7 +29,8 @@ import { contextText } from '@/lib/shared-context';
 import { CONTEXT_BUDGET } from '@/views/context';
 import { PlatformAuditView } from '@/views/pages/platform-audit';
 import {
-  AUDIT_BOUND_MS, AUDIT_DEFAULTS, NOBODY, auditContext, auditPath, beforeDays, dayStart, dayWords, feedEvent, filtersOfPath, type AuditFilters, type AuditRead,
+  AUDIT_BOUND_MS, AUDIT_DEFAULTS, NOBODY, actSentence, auditContext, auditPath, beforeDays, dayStart, dayWords, feedEvent, filtersOfPath,
+  type AuditFilters, type AuditRead, type ReportTitles,
 } from '@/views/platform-audit-context';
 import { auditTool } from '@/views/tools/audit';
 import { audit } from '../scripts/fake-gateway/platform-audit.ts';
@@ -59,7 +60,7 @@ const answer = (q: Record<string, string>, limit = 10, offset = 0): Audit => aud
 const ALL_TAB: AuditFilters = { ...AUDIT_DEFAULTS, filter: 'all' };
 const ADMIN = answer({});
 const ALL = answer({ filter: 'all' });
-const ok = (data: Audit = ADMIN, path = auditPath(AUDIT_DEFAULTS)): AuditRead => ({ state: 'ok', path, data });
+const ok = (data: Audit = ADMIN, path = auditPath(AUDIT_DEFAULTS), reports: ReportTitles = {}): AuditRead => ({ state: 'ok', path, data, reports });
 const at = { updatedAt: null, now: new Date() };
 
 /** The browser's reads: answered by `answer`, or never when it is null. */
@@ -126,11 +127,12 @@ describe('Audit draws two tabs', () => {
 });
 
 describe('Administration, the Activity feed', () => {
-  it('one line an act, each the gateway\'s sentence as it stands, newest first', () => {
+  it('one line an act, each the gateway\'s sentence, newest first, a report it names left by its id when no title was read', () => {
     browser(null);
     mount(<PlatformAuditView served={ok()} />);
     expect(lines()).toHaveLength(ADMIN.rows.length);
-    ADMIN.rows.forEach((r, i) => expect(lines()[i].querySelector('p')!.textContent!.trim()).toBe(r.sentence));
+    ADMIN.rows.forEach((r, i) => expect(lines()[i].querySelector('p')!.textContent!.trim()).toBe(actSentence(r)));
+    ADMIN.rows.filter((r) => !r.kind.startsWith('bug.')).forEach((r) => expect(actSentence(r)).toBe(r.sentence));
     expect(feed().textContent).toContain('added maximiliana.fitzgerald-oyelaran@example.com to atlas as member in the console');
   });
 
@@ -161,12 +163,27 @@ describe('Administration, the Activity feed', () => {
     }
   });
 
+  it('links an act about a team or a report to its page, the link beginning with its name and the sentence unchanged', () => {
+    const at = (kind: string, subject: string, sentence: string) => ({ ...ADMIN.rows[0], actor: 'Ava', kind, subject, sentence });
+    const made = feedEvent(at('admin.create_team', 'beacon', 'Ava created team beacon'));
+    expect(made).toMatchObject({ verb: 'created team', object: 'beacon', href: '/platform/teams/beacon' });
+    const added = feedEvent(at('admin.add_member', 'atlas:ivy@example.com', 'Ava added ivy@example.com to atlas as member in the console'));
+    expect(added).toMatchObject({ verb: 'added ivy@example.com to', object: 'atlas as member in the console', href: '/platform/teams/atlas' });
+    const resolved = feedEvent(at('bug.console_resolve', '41', 'Ava resolved report 41 as fixed in the console'), { 41: 'Search is slow' });
+    expect(resolved).toMatchObject({ verb: 'resolved report', object: '"Search is slow" as fixed in the console', href: '/platform/bugs/41' });
+    for (const e of [made, added, resolved]) expect(`${e.verb} ${e.object}`).toBe(e === made ? 'created team beacon' : e === added ? 'added ivy@example.com to atlas as member in the console' : 'resolved report "Search is slow" as fixed in the console');
+    // A deleted report has no page, and an act about a person or a token has none here.
+    expect(feedEvent(at('bug.delete', '41', 'Ava deleted report 41')).href).toBeUndefined();
+    expect(feedEvent(at('admin.issue_pat', 'ivy@example.com', 'Ava issued a token for ivy@example.com')).href).toBeUndefined();
+  });
+
   it('names a channel only where the gateway says it was the console, and never infers one', () => {
     browser(null);
     const every = answer({}, 100);
     mount(<PlatformAuditView served={ok(every)} />);
-    // Each line is the gateway's sentence and nothing more; around them the card adds no channel of its own.
-    every.rows.forEach((r, i) => expect(lines()[i].querySelector('p')!.textContent!.trim()).toBe(r.sentence));
+    // Each line is the gateway's sentence, and zz-core's `bug_resolve` named on the act it recorded; around them the
+    // card adds no channel of its own.
+    every.rows.forEach((r, i) => expect(lines()[i].querySelector('p')!.textContent!.trim()).toBe(actSentence(r)));
     const around = feed().cloneNode(true) as HTMLElement;
     around.querySelector('ol')!.remove();
     expect(around.textContent).not.toMatch(/\b(MCP|OAuth|script|door|console)\b/i);
@@ -505,9 +522,13 @@ async function markupOf(page: ReactNode | Promise<ReactNode>): Promise<string> {
   return text;
 }
 
+/** A report's title as `GET /platform/bugs/:id` answers it, for every report the fake's acts name. */
+const titleOf = (path: string) => ({ title: `The report ${path.split('/').at(-1)!.slice(-2)}` });
+const TITLES: ReportTitles = Object.fromEntries(ADMIN.rows.filter((r) => r.kind.startsWith('bug.')).map((r) => [r.subject!, titleOf(r.subject!).title]));
+
 describe('the page on the console\'s server', () => {
   beforeEach(() => {
-    gateway.get.mockImplementation(async (path: string) => (path === '/me' ? SUPERADMIN : ADMIN));
+    gateway.get.mockImplementation(async (path: string) => (path === '/me' ? SUPERADMIN : path.startsWith('/platform/bugs/') ? titleOf(path) : ADMIN));
   });
 
   it('is titled as its own page', async () => {
@@ -526,7 +547,7 @@ describe('the page on the console\'s server', () => {
     walk(await PlatformAuditPage({ searchParams: Promise.resolve({}) }));
     expect(found).toHaveLength(2);
     expect(found[0]).toBe(found[1]);
-    expect(await found[0]).toEqual(ok());
+    expect(await found[0]).toEqual(ok(ADMIN, auditPath(AUDIT_DEFAULTS), TITLES));
     expect(gateway.get.mock.calls.filter(([p]) => p === auditPath(AUDIT_DEFAULTS))).toHaveLength(1);
   });
 

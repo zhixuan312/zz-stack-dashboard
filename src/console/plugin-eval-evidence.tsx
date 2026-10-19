@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { formatPercent, plural } from '@/lib/format';
 import { formatCount } from '@/lib/format-units';
 import type { EvalFinding, PluginEvalFound } from '@/lib/api-shapes';
+import { wordsOf } from '@/views/plugins-context';
 
 type Run = NonNullable<PluginEvalFound['run']>;
 
@@ -35,7 +36,7 @@ export function EvalUsage({ run }: { run: Run | null }) {
   }
   const { usableRunCount, totalRunCount, surfaceObserved, surfaceTotal } = run.coverage;
   return (
-    <Panel title="Usage" description="what the evidence behind this run actually covers">
+    <Panel title="Usage" description="What the evidence this score was built on covers">
       <div className="flex flex-wrap gap-8">
         <Rate label="Usable runs" n={usableRunCount} of={totalRunCount} />
         <Rate label="Observable surface" n={surfaceObserved} of={surfaceTotal} />
@@ -45,8 +46,8 @@ export function EvalUsage({ run }: { run: Run | null }) {
 }
 
 const OWNER_LABEL: Record<string, string> = {
-  plugin: 'plugin', dependency: 'dependency', platform: 'platform',
-  environment: 'environment', user_input: 'user input', unknown: 'unknown',
+  plugin: 'The plugin', dependency: 'A dependency', platform: 'The platform',
+  environment: 'The environment', user_input: 'User input', unknown: 'Unknown',
 };
 
 function FindingTable({ rows, emptyLabel }: { rows: EvalFinding[]; emptyLabel: string }) {
@@ -65,11 +66,13 @@ function FindingTable({ rows, emptyLabel }: { rows: EvalFinding[]; emptyLabel: s
           <TableRow key={f.id}>
             <TableCell className="max-w-[420px] text-sm">{f.pattern}</TableCell>
             <TableCell hideBelow="sm" align="center">
-              <Badge tone={f.ownerKind === 'plugin' ? 'accent' : 'neutral'}>
-                {OWNER_LABEL[f.ownerKind ?? 'unknown']}
+              {/* A label, not an action: the accent is kept for what a person presses. The plugin's own findings, the
+                  only ones that can seed a candidate, carry the dot. */}
+              <Badge tone="neutral" dot={f.ownerKind === 'plugin'}>
+                {OWNER_LABEL[f.ownerKind ?? 'unknown'] ?? wordsOf(f.ownerKind ?? 'unknown')}
               </Badge>
             </TableCell>
-            <TableCell align="right" className="text-xs text-ink-2">{f.decision}</TableCell>
+            <TableCell align="right" className="text-xs text-ink-2">{wordsOf(f.decision)}</TableCell>
           </TableRow>
         ))}
       </TableBody>

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTransition, type ReactNode } from 'react';
-import { HeartPulse, RotateCw, Undo2, Users } from 'lucide-react';
+import { ArrowRight, HeartPulse, RotateCw, Undo2, Users } from 'lucide-react';
 import { Row, Stack } from '@/components/base/shell';
 import { useShareView } from '@/components/base/use-share-view';
 import { ColumnChart } from '@/components/charts/column-chart';
@@ -22,6 +22,7 @@ import { KeyValue } from '@/components/ui/key-value';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatusDot } from '@/components/ui/status-dot';
 import { Panel } from '@/console/panel';
+import { plural } from '@/lib/format';
 import { formatDay } from '@/lib/format-date';
 import type { PlatformStatus } from '@/lib/platform-shapes';
 import {
@@ -86,26 +87,37 @@ function NeedsPanel({ needs }: { needs: PlatformStatus['needs'] }) {
       </Panel>
     );
   }
+  const foot = needsFoot(needs);
   return (
     <Panel title={needs.headline} description="What needs attention" flush>
       {needs.rows.length ? (
         <ul aria-label="What needs attention" className="divide-y divide-line">
           {needs.rows.map((r, i) => (
-            <li key={`${r.kind}-${i}`} className="flex items-start gap-3 px-(--card-pad) py-3.5">
-              <StatusDot tone={r.tone} className="mt-[0.45em]" />
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-ink">{r.href ? <Link href={r.href} className="hover:underline">{r.title}</Link> : r.title}</p>
-                <p className="t-small mt-0.5 text-ink-2">{r.detail}</p>
-              </div>
-              {r.oldestAt ? <span className="t-small t-num shrink-0 text-ink-3">Since {formatDay(r.oldestAt)}</span> : null}
+            <li key={`${r.kind}-${i}`}>
+              {r.href ? <Link href={r.href} className="group flex items-start gap-3 px-(--card-pad) py-3.5 hover:bg-fill-hover"><NeedRow need={r} /></Link> : <div className="flex items-start gap-3 px-(--card-pad) py-3.5"><NeedRow need={r} /></div>}
             </li>
           ))}
         </ul>
       ) : (
         <EmptyState layout="inline" title={needs.headline}>{needs.state === 'complete' ? 'Every check answered and found nothing open.' : 'The checks that answered found nothing open.'}</EmptyState>
       )}
-      <p data-needs-foot className="t-small border-t border-line px-(--card-pad) py-3 text-ink-2">{needsFoot(needs)}</p>
+      {foot ? <p data-needs-foot className="t-small border-t border-line px-(--card-pad) py-3 text-ink-2">{foot}</p> : null}
     </Panel>
+  );
+}
+
+/** One need: its tone, what it is and its detail, since when, and, where it has a page, the arrow that says it leads there. */
+function NeedRow({ need: r }: { need: PlatformStatus['needs']['rows'][number] }) {
+  return (
+    <>
+      <StatusDot tone={r.tone} className="mt-[0.45em]" />
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium text-ink group-hover:underline">{r.title}</p>
+        <p className="t-small mt-0.5 text-ink-2">{r.detail}</p>
+      </div>
+      {r.oldestAt ? <span className="t-small t-num shrink-0 text-ink-3">Since {formatDay(r.oldestAt)}</span> : null}
+      {r.href ? <ArrowRight data-goes aria-hidden className="mt-[0.2em] size-4 shrink-0 text-ink-3 group-hover:text-ink" /> : null}
+    </>
   );
 }
 
@@ -165,7 +177,11 @@ function OwnTeam({ status }: { status: PlatformStatus }) {
 }
 
 /** A figure over the week it is for. */
-const DatedCell = ({ d }: { d: Dated | null }) => (d ? <span className="flex flex-col"><span>{d.value}</span>{d.week ? <span className="text-xs text-ink-3">{d.week}</span> : null}</span> : null);
+/** A figure over its week, each on one line where the table is wide; under 896px the week may wrap, so five columns fit a
+ *  768px window. */
+const DatedCell = ({ d }: { d: Dated | null }) => (d ? <span className="flex flex-col whitespace-nowrap @max-[896px]:whitespace-normal"><span>{d.value}</span>{d.week ? <span className="text-xs text-ink-3">{d.week}</span> : null}</span> : null);
+/** A dated figure as a phone card says it, the pair's word first: `Best 84.0%, week of 12 Oct`, or `Last 84.0%`. */
+const datedFact = (word: string, d: Dated | null, week = true) => (d ? `${word} ${d.value}${week && d.week ? `, ${d.week.replace(/^Week/, 'week')}` : ''}` : `${word} none`);
 
 function ChangeCell({ row }: { row: ScoreRow }) {
   const { value, format } = row.change;
@@ -183,21 +199,21 @@ const datedSaid = (label: string, d: Dated | null) => (d ? `${label} ${d.value}$
 
 const MEASURE: Column<ScoreRow> = { key: 'measure', header: 'Measure', cell: (r) => r.label, title: (r) => `${r.label}: ${r.hint}`, grow: true, mobile: 'title' };
 const SHARED: Column<ScoreRow>[] = [
-  { key: 'last', header: 'Last week', cell: (r) => <DatedCell d={r.last} />, align: 'right', mobile: 'fact' },
+  { key: 'last', header: 'Last week', cell: (r) => <DatedCell d={r.last} />, align: 'right', mobile: 'fact', mobileCell: (r) => datedFact('Last', r.last, false) },
   { key: 'change', header: 'Change', cell: (r) => <ChangeCell row={r} />, align: 'right', mobile: 'status' },
   { key: 'shape', header: 'By week', cell: shapeOf, hideBelow: 'md' },
 ];
 const DIRECTIONAL_COLUMNS: Column<ScoreRow>[] = [
   MEASURE,
   { key: 'first', header: 'First week', cell: (r) => <DatedCell d={r.first} />, align: 'right', hideBelow: 'lg' },
-  { key: 'best', header: 'Best week', cell: (r) => <DatedCell d={r.best} />, align: 'right', mobile: 'fact' },
+  { key: 'best', header: 'Best week', cell: (r) => <DatedCell d={r.best} />, align: 'right', mobile: 'fact', mobileCell: (r) => datedFact('Best', r.best) },
   ...SHARED,
 ];
 /** Under 896px the low gives way, and the high's title names both. */
 const ACTIVITY_COLUMNS: Column<ScoreRow>[] = [
   MEASURE,
   { key: 'first', header: 'First week', cell: (r) => <DatedCell d={r.first} />, align: 'right', hideBelow: 'lg' },
-  { key: 'high', header: 'High', cell: (r) => <DatedCell d={r.high} />, title: (r) => `${datedSaid('High', r.high)}; ${datedSaid('low', r.low)}`, align: 'right', mobile: 'fact' },
+  { key: 'high', header: 'High', cell: (r) => <DatedCell d={r.high} />, title: (r) => `${datedSaid('High', r.high)}; ${datedSaid('low', r.low)}`, align: 'right', mobile: 'fact', mobileCell: (r) => datedFact('High', r.high) },
   { key: 'low', header: 'Low', cell: (r) => <DatedCell d={r.low} />, align: 'right', hideBelow: 'lg' },
   ...SHARED,
 ];
@@ -232,16 +248,35 @@ function Scoreboard({ status }: { status: PlatformStatus }) {
   );
 }
 
-/** Under 896px the days with calls give way, and the fault days' title says what they are out of. */
+/**
+ * Under 896px the days with calls give way, and the fault days' title says what they are out of. A phone card keeps the
+ * door's run sentence and today's calls under its name, where a line may wrap, and one fact: its fault days of its days,
+ * with the last.
+ */
 const DOOR_COLUMNS: Column<DoorRow>[] = [
-  { key: 'door', header: 'Door', cell: (r) => <span className="font-mono text-xs">{r.door}</span>, title: (r) => `The ${r.door} door`, mobile: 'title' },
+  {
+    key: 'door', header: 'Door', cell: (r) => <span className="font-mono text-xs">{r.door}</span>, title: (r) => `The ${r.door} door`, mobile: 'title',
+    mobileCell: (r) => (
+      <span className="block">
+        <span className="font-mono text-xs">{r.door}</span>
+        <span className="t-small mt-1 block font-regular whitespace-normal text-ink-2">{r.run}</span>
+        {r.today ? <span className="t-small block font-regular text-ink-3">Today: {r.today}</span> : null}
+      </span>
+    ),
+  },
   { key: 'rate', header: 'Daily tool failures', cell: (r) => (r.rates.length > 1 ? <Sparkline values={r.rates} color="neutral" height={28} className="w-28" /> : <span className="text-xs text-ink-3">Not enough days</span>), hideBelow: 'md' },
-  { key: 'days', header: 'Days with calls', cell: (r) => r.daysWithCalls, numeric: true, hideBelow: 'lg', mobile: 'fact', mobileCell: (r) => `${r.daysWithCalls} days with calls` },
-  { key: 'faults', header: 'Fault days', cell: (r) => r.faultDays, title: (r) => `${r.faultDays} fault days of ${r.daysWithCalls} days with calls`, numeric: true, mobile: 'fact', mobileCell: (r) => `${r.faultDays} fault days` },
-  { key: 'last', header: 'Last fault day', cell: (r) => r.lastFaultDay, mobile: 'fact', mobileCell: (r) => `Last fault day: ${r.lastFaultDay}` },
+  { key: 'days', header: 'Days with calls', cell: (r) => r.daysWithCalls, numeric: true, hideBelow: 'lg' },
+  {
+    key: 'faults', header: 'Fault days', cell: (r) => r.faultDays, title: (r) => `${faultDays(r.faultDays)} of ${r.daysWithCalls} days with calls`, numeric: true, mobile: 'fact',
+    mobileCell: (r) => `${faultDays(r.faultDays)} in ${r.daysWithCalls} ${plural(r.daysWithCalls, 'day')}${r.faultDays ? `, last ${r.lastFaultDay.replace(/ \d{4}$/, '')}` : ''}`,
+  },
+  { key: 'last', header: 'Last fault day', cell: (r) => <span className="whitespace-nowrap">{r.lastFaultDay}</span> },
   { key: 'run', header: 'Run', cell: (r) => r.run, grow: true, truncate: true },
-  { key: 'today', header: 'Today', cell: (r) => r.today ?? '', muted: true, hideBelow: 'lg' },
+  { key: 'today', header: 'Today', cell: (r) => <span className="whitespace-nowrap">{r.today ?? ''}</span>, muted: true, hideBelow: 'lg' },
 ];
+
+/** A count of fault days, in the right number: `1 fault day`, `0 fault days`. */
+const faultDays = (n: number) => `${n} ${plural(n, 'fault day')}`;
 
 function Doors({ doors }: { doors: PlatformStatus['doors'] }) {
   if (doors.state === 'unavailable') return <Unavailable title="The doors">Each door&apos;s days could not be read ({doors.reason}).</Unavailable>;
@@ -265,7 +300,7 @@ function RunningPanel({ status }: { status: PlatformStatus }) {
   const running = runningOf(status);
   if (running.state === 'unavailable') return <Unavailable title="What is running">It could not be read ({running.reason}).</Unavailable>;
   return (
-    <Panel title="What is running" description="The gateway's own version and what the release record says of it">
+    <Panel title="What is running" description="The version the gateway runs, and when its tag was made. A newer tag may be recorded on Releases before it is deployed.">
       {running.state === 'unrecorded'
         ? <EmptyState layout="inline" title="Unrecorded">{UNRECORDED}</EmptyState>
         : <KeyValue columns={2} items={running.items.map((i) => ({ label: i.label, value: i.value }))} />}

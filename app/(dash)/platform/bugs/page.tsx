@@ -25,7 +25,7 @@ export default async function PlatformBugsPage({ searchParams }: { searchParams:
       description="Every real bug report: what is open, how long it has waited, and how each was resolved."
       meta={<Suspense fallback={null}><AsOf read={read} /></Suspense>}
     >
-      <Suspense fallback={<Busy name="bugs"><TilesSkeleton count={4} /><Row split="1/2"><ChartSkeleton height="h-72" /><ChartSkeleton height="h-72" /></Row><TableSkeleton rows={6} /></Busy>}>
+      <Suspense fallback={<Busy name="bugs"><TilesSkeleton count={4} /><TableSkeleton rows={6} /><Row split="1/2"><ChartSkeleton height="h-72" /><ChartSkeleton height="h-72" /></Row></Busy>}>
         <BugsQueue read={read} />
       </Suspense>
     </PageFrame>

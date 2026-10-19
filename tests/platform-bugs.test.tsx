@@ -155,12 +155,12 @@ describe('the queue', () => {
     for (const r of rowsOf(ADMIN)) expect(document.querySelector(`a[href="${bugPath(r.id)}"]`)).not.toBeNull();
   });
 
-  it('a member\'s rows carry the generated title alone, and open nothing', () => {
+  it('a member\'s rows carry the title built from impact, surface and filed day alone, and open nothing', () => {
     browser(null, MEMBER);
     mount(<PlatformBugsView served={ok(PUBLIC)} />);
     expect(within(queue()).getAllByRole('row')).toHaveLength(rowsOf(PUBLIC).length + 1);
-    expect(queue().textContent).toContain('Report concerning document_approve');
-    expect(queue().textContent).toContain('Platform issue reported');
+    expect(queue().textContent).toMatch(/Blocks work: document_approve, filed \d+ \w+ \d{4}/);
+    expect(queue().textContent).toMatch(/Cosmetic: no surface named, filed \d+ \w+ \d{4}/);
     for (const r of REPORTS) expect(document.body.textContent).not.toContain(r.title);
     expect(document.querySelector('a[href^="/platform/bugs/"]')).toBeNull();
   });
@@ -303,7 +303,8 @@ describe('a report\'s page', () => {
     const r = bugReport(OPEN)!;
     mount(<PlatformBugView id={OPEN} served={{ state: 'ok', data: r }} duplicates={targets(OPEN)} />);
     const report = document.querySelector('[data-protagonist="Report"]')!;
-    expect(report.textContent).toContain(r.title);
+    // The report's own title is the masthead's, so the card holds its words alone.
+    expect(report.textContent).not.toContain(r.title);
     expect(report.querySelector('[data-report-detail]')!.textContent).toBe(r.detail);
     expect(document.body.textContent).toContain('Blocks work');
     expect(document.body.textContent).toContain(r.team!);
@@ -464,7 +465,7 @@ describe('the view tools answer the pages\' own responses', () => {
     for (const s of [sources.filed, sources.resolved]) {
       expect(s.drill.columns).toEqual(expect.arrayContaining(['id', 'title']));
       expect(s.drill.address({ id: OPEN, address: '/platform/bugs' })).toBe('/platform/bugs');
-      expect(s.cannot).toContain('generated from its surface');
+      expect(s.cannot).toContain('built from its impact, surface and filed day');
     }
     expect(sources.calls.facets).not.toContain('team');
     expect(bugTool.explore).toBe(bugsTool.explore);
@@ -489,8 +490,8 @@ describe('the shared contexts carry what the pages draw, and what it cannot say'
   it('a member\'s context names no reporter\'s words, and says so', () => {
     const text = contextText(bugsContext(PUBLIC, { filters: BUGS_DEFAULTS, ...at }));
     for (const r of REPORTS) expect(text).not.toContain(r.title);
-    expect(text).toContain('Report concerning document_approve');
-    expect(text).toContain('generated from its surface');
+    expect(text).toMatch(/Blocks work: document_approve, filed \d+ \w+ \d{4}, open/);
+    expect(text).toContain('built from its impact, surface and filed day');
   });
 
   it('a narrowed queue says its figures are over every report', () => {

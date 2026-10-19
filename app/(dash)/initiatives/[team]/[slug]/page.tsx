@@ -5,7 +5,7 @@ import { PageFrame } from '@/components/base/shell';
 import { Busy, ChartSkeleton, TableSkeleton } from '@/components/patterns/page-loading';
 import { gate, gatedMetadata } from '@/data/access';
 import type { InitiativeRead } from '@/views/initiative-context';
-import { InitiativeClose, InitiativeMeta, InitiativeView } from '@/views/pages/initiative';
+import { InitiativeClose, InitiativeMeta, InitiativeView, SlugTitle } from '@/views/pages/initiative';
 import { readInitiative } from '../../read-initiatives';
 
 type Params = { params: Promise<{ team: string; slug: string }> };
@@ -36,7 +36,7 @@ export default async function InitiativePage({ params }: Params) {
           <span>{team}</span>
         </span>
       }
-      title={slug}
+      title={<SlugTitle slug={slug} />}
       description="Read from the document store; the platform stamped every gate."
       meta={<Suspense fallback={null}><Meta team={team} slug={slug} read={read} /></Suspense>}
       actions={<Suspense fallback={null}><Close team={team} slug={slug} read={read} /></Suspense>}

@@ -37,6 +37,9 @@ export const valueIn = (kind: Kind, n: number): string =>
 const wordFor = (f: Figure): string | null => (f.value !== null ? null : f.why === 'unavailable' ? 'Unavailable' : 'No data');
 /** A figure as a cell prints it: its value, with `too few` beside one under the sample a comparison needs. */
 export const figureText = (kind: Kind, f: Figure): string => wordFor(f) ?? `${valueIn(kind, f.value!)}${f.why === 'insufficient' ? ', too few' : ''}`;
+/** A share over the count it is of, its caveat after the whole: `87.5% of 16 refused sessions · too few to judge`. */
+export const shareOf = (f: Figure, of: number | null, noun: string): string =>
+  wordFor(f) ?? `${valueIn('share', f.value!)}${of ? ` of ${formatCount(of)} ${noun}` : ''}${f.why === 'insufficient' ? ' · too few to judge' : ''}`;
 
 /** A week as a person reads it: `week of 5 Oct`. */
 export const weekOf = (w: Window): string => `week of ${formatDay(w.from)}`;
@@ -82,9 +85,9 @@ export function lastWhole<T extends { window: Window }>(weeks: T[]): number {
 export function followupLine(w: Extract<Usage['followup'], { state: 'ok' }>['data']['weeks'][number]): { label: string; value: string }[] {
   const continued = w.sessionsContinued;
   return [
-    { label: 'Put right', value: `${figureText('share', w.putRight.figure)}${w.putRight.denominator ? ` of ${formatCount(w.putRight.denominator)} followable` : ''}` },
+    { label: 'Put right', value: shareOf(w.putRight.figure, w.putRight.denominator, 'followable') },
     { label: 'Median seconds', value: figureText('seconds', w.medianSeconds) },
-    { label: 'Sessions continued', value: `${figureText('share', continued.figure)}${continued.denominator ? ` of ${formatCount(continued.denominator)} refused sessions` : ''}` },
+    { label: 'Sessions continued', value: shareOf(continued.figure, continued.denominator, 'refused sessions') },
     { label: 'Could not be judged', value: `${formatCount(w.unassessable)} ${plural(w.unassessable, 'refusal')}` },
   ];
 }

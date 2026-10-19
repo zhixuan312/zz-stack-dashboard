@@ -309,7 +309,7 @@ describe('the lists', () => {
       'Documents created59 to go to 10041%',
       'Pieces of work closed6 to go to 1040%',
       'Words added943,400 to go to 1,000,0006%',
-      'Lessons adopted15 to go to 250%',
+      'Lessons made15 to go to 250%',
     ]);
   });
 

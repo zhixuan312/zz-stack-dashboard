@@ -170,7 +170,8 @@ describe('the grain the series arrive in (Task I-139)', () => {
     // A quarter's column is its first month's, as a month's is.
     const quarters = windowsOf(busy('all'));
     expect(tickOf(quarters)(quarters[0].from)).toMatch(/^[A-Z][a-z]{2} \d{4}$/);
-    expect(tickOf(windowsOf(QUARTER))(windowsOf(QUARTER)[0].from)).toMatch(/^Week of /);
+    // A week's is its first day, as every weekly chart writes it: the title says `by week` (Work F-13).
+    expect(tickOf(windowsOf(QUARTER))(windowsOf(QUARTER)[0].from)).toMatch(/^\d{2} [A-Z][a-z]{2,3}$/);
   });
 
   it('tells the assistant the grain the page draws the series in, never by week for months or quarters', () => {

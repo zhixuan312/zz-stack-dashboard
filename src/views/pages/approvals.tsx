@@ -7,7 +7,6 @@ import { useShareView } from '@/components/base/use-share-view';
 import { ColumnChart } from '@/components/charts/column-chart';
 import { AskAbout } from '@/components/patterns/ask-about';
 import { DataTable, type Column } from '@/components/patterns/data-table';
-import { FilterBar } from '@/components/patterns/filter-bar';
 import { MetricTile } from '@/components/patterns/metric-tile';
 import { ChartSkeleton, TableSkeleton, TilesSkeleton } from '@/components/patterns/page-loading';
 import { Records } from '@/components/templates/records';
@@ -43,7 +42,7 @@ function useApprovals(served: ApprovalsRead | null) {
   const tab = tabOf(filters);
   const path = approvalsPath(filters);
   const mine = served?.path === path ? served : null;
-  const { q, error, retry } = useServed<Approvals>(path, mine !== null, mine === null && served !== null);
+  const { q, error, retry, busy: retrying } = useServed<Approvals>(path, mine !== null, mine === null && served !== null);
   const fresh = q.data ?? (mine?.state === 'ok' ? mine.data : undefined);
   // The answer last drawn, with its tab, kept as React keeps a value derived from the previous render: set while rendering, once.
   const [last, setLast] = useState<{ data: Approvals; tab: ApprovalsTab } | undefined>(fresh && { data: fresh, tab });
@@ -53,7 +52,7 @@ function useApprovals(served: ApprovalsRead | null) {
   const shown = fresh ?? (trouble ? undefined : last?.data);
   const team = served?.state === 'ok' ? served.team : null;
   return {
-    fresh, shown, rowsOf: fresh ?? (last?.tab === tab && !trouble ? last.data : undefined), trouble, retry, tab, page: pageOf(filters), set, team,
+    fresh, shown, rowsOf: fresh ?? (last?.tab === tab && !trouble ? last.data : undefined), trouble, retry, retrying, tab, page: pageOf(filters), set, team,
     updatedAt: q.data ? new Date(q.dataUpdatedAt) : fresh ? fresh.meta.asOf : null,
   };
 }
@@ -69,28 +68,37 @@ export function ApprovalsSkeleton() {
   );
 }
 
-/** A revision as a row names it: its version, and under it the exact content revision, whole on hover. */
+/**
+ * A content revision as a person reads it: its first eight characters after the `cr_`, as a short commit hash is read.
+ * The token is a hash, so eight characters tell one snapshot from another; the whole of it is the cell's title.
+ */
+const shortRevision = (contentRevision: string) => contentRevision.replace(/^cr_/, '').slice(0, 8);
+
+/** A revision as a row names it: its version, and under it the snapshot's short hash, the whole token on hover. */
 function Revision({ version, contentRevision }: { version: number; contentRevision: string }) {
   return (
-    <span className="block min-w-0">
+    <span className="block min-w-0 whitespace-nowrap">
       <span className="t-num font-medium text-ink">v{version}</span>
-      <span className="t-caption block truncate font-mono" title={contentRevision}>{contentRevision}</span>
+      <span className="t-caption block font-mono">{shortRevision(contentRevision)}</span>
     </span>
   );
 }
 
-const documentCell = (r: { path: string }) => <span title={r.path} className="font-medium whitespace-normal text-ink [overflow-wrap:anywhere]">{r.path}</span>;
-const initiativeCell = (r: { initiative: string }) => <span title={r.initiative} className="text-sm whitespace-normal text-ink-2 [overflow-wrap:anywhere]">{r.initiative}</span>;
+/**
+ * A file name and a slug, each whole on one line where the table is a table: the document column is as wide as its
+ * longest file name and the initiative takes the rest. On a phone's card they wrap rather than being cut.
+ */
+const documentCell = (r: { path: string }) => <span title={r.path} className="font-medium whitespace-nowrap text-ink @max-[640px]:whitespace-normal @max-[640px]:[overflow-wrap:anywhere]">{r.path}</span>;
+const initiativeCell = (r: { initiative: string }) => <span title={r.initiative} className="text-sm whitespace-nowrap text-ink-2">{r.initiative}</span>;
 
 /**
  * Waiting's columns, in the gateway's order, the longest wait first; Review opens the revision on the document's page.
- * Under 896px the version gives way: its content revision is as wide as two columns, and the row and its Review open
- * that exact revision, which names it.
+ * Under 896px the version gives way: the row and its Review open that exact revision, which names it.
  */
 function waitingColumns(hrefOf: ((r: WaitingRow) => string) | undefined, asOf: string): Column<WaitingRow>[] {
   return aligned<WaitingRow>([
-    { key: 'document', header: 'Document', grow: true, mobile: 'title', cell: documentCell },
-    { key: 'initiative', header: 'Initiative', align: 'left', mobile: 'fact', cell: initiativeCell },
+    { key: 'document', header: 'Document', mobile: 'title', cell: documentCell },
+    { key: 'initiative', header: 'Initiative', align: 'left', grow: true, mobile: 'fact', cell: initiativeCell },
     { key: 'version', header: 'Version', hideBelow: 'lg', cell: (r) => <Revision version={r.version} contentRevision={r.contentRevision} />, title: (r) => `v${r.version}, ${r.contentRevision}` },
     {
       key: 'since', header: 'Waiting since', mobile: 'fact', title: (r) => formatDateTime(r.waitingSince),
@@ -116,8 +124,8 @@ function waitingColumns(hrefOf: ((r: WaitingRow) => string) | undefined, asOf: s
  * classified it. Under 896px the version and the decision basis give way, both on the revision's page the row opens.
  */
 const HISTORY_COLUMNS: Column<ApprovalRow>[] = aligned<ApprovalRow>([
-  { key: 'document', header: 'Document', grow: true, mobile: 'title', cell: documentCell },
-  { key: 'initiative', header: 'Initiative', align: 'left', mobile: 'fact', cell: initiativeCell },
+  { key: 'document', header: 'Document', mobile: 'title', cell: documentCell },
+  { key: 'initiative', header: 'Initiative', align: 'left', grow: true, mobile: 'fact', cell: initiativeCell },
   { key: 'version', header: 'Version', hideBelow: 'lg', cell: (r) => <Revision version={r.version} contentRevision={r.contentRevision} />, title: (r) => `v${r.version}, ${r.contentRevision}` },
   {
     key: 'approved', header: 'Approved at', mobile: 'fact', title: (r) => approvedWhen(r.approvedAt),
@@ -155,7 +163,7 @@ const ASK: Record<ApprovalsTab, string> = {
 export function ApprovalsView({ served }: { served: Revised<ApprovalsRead> }) {
   // `/approvals` is kept under `initiatives` on the live stream: an approval anywhere hints it.
   useLive(['initiatives'], served.revisions);
-  const { fresh, shown, rowsOf, trouble, retry, tab, page, set, team, updatedAt } = useApprovals(served);
+  const { fresh, shown, rowsOf, trouble, retry, retrying, tab, page, set, team, updatedAt } = useApprovals(served);
   const now = useDataClock();
   useShareView(fresh
     ? approvalsContext(fresh, { tab, page, updatedAt, now })
@@ -172,12 +180,12 @@ export function ApprovalsView({ served }: { served: Revised<ApprovalsRead> }) {
     { key: 'waiting', label: 'Waiting', href: approvalsAddress('waiting'), count: counted(shown?.waiting) },
     { key: 'history', label: 'History', href: approvalsAddress('history'), count: counted(shown?.history) },
   ].map(({ count, ...t }) => (count === undefined ? t : { ...t, count }));
-  const noun = tab === 'waiting' ? 'revision' : 'approval';
   const pageState = { sort: '', dir: 'desc', page: String(page) };
   const onPage = (p: { page?: string }) => { if (p.page) set({ page: p.page }); };
   const toolbar = (
     <div className="flex min-w-0 flex-col gap-3">
       <LinkTabs label="Approvals views" active={tab} tabs={tabs} className="-mt-1.5" />
+      {/* The Ask beside the line that says what the list is, labelled and inside the card's padding, as on every page. */}
       <div className="flex min-w-0 items-center gap-3">
         <p className="t-caption min-w-0 flex-1">
           <span className="font-medium text-ink">{tab === 'waiting' ? TEAM_APPROVALS : IN_YOUR_NAME}</span>
@@ -186,17 +194,13 @@ export function ApprovalsView({ served }: { served: Revised<ApprovalsRead> }) {
             ? 'Presented and not yet approved, longest waiting first. Nothing records who must decide one, so the queue is your team\'s.'
             : shown?.tiles.noPresentation ? `${noPresentationLine(shown.tiles.noPresentation)}. Newest first.` : 'Newest first.'}
         </p>
-        <FilterBar
-          className="shrink-0"
-          result={list?.state === 'ok' ? `${formatCount(total)} ${plural(total, noun)}` : mark}
-          ask={<AskAbout question={ASK[tab]} />}
-        />
+        <AskAbout question={ASK[tab]} className="shrink-0" />
       </div>
     </div>
   );
   const shared = {
     manual: true, total, pageSize: PAGE_SIZE, pageSizes: [PAGE_SIZE], loading: !rowsOf && !trouble, busy: !!rowsOf && !fresh,
-    error: tableError, onRetry: retry, state: pageState, onStateChange: onPage, toolbar,
+    error: tableError, onRetry: retry, retrying, state: pageState, onStateChange: onPage, toolbar,
   };
 
   return (
@@ -241,7 +245,7 @@ function tiles(data: Approvals | undefined, mark: string) {
   const unread = (n: number | null | undefined) => (n === null ? 'Unavailable' : n ?? mark);
   return (
     <>
-      <MetricTile label={TILES.waiting.label} hint={TILES.waiting.definition} icon={<Inbox />} value={t ? unread(t.waiting) : mark} emphasis={(t?.waiting ?? 0) > 0}
+      <MetricTile label={TILES.waiting.label} hint={TILES.waiting.definition} icon={<Inbox />} value={t ? unread(t.waiting) : mark}
                   note={t?.waiting ? (old ? `${formatCount(old)} waiting longer than 14 days` : 'None longer than 14 days') : undefined} />
       <MetricTile
         label={TILES.oldest.label} hint={TILES.oldest.definition} icon={<Hourglass />}

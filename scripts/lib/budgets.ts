@@ -26,6 +26,7 @@ export type Budgets = {
   navigation: { warm: ReadinessBudget; cold: ReadinessBudget; afterLive: ReadinessBudget };
   firstLoadKb: number;
   firstLoadGrowthPct: number;
+  htmlGrowthPct: number;
   htmlKb: Record<string, number>;
   prefetchKb: { desktop: number; phoneClosed: number };
 };
@@ -34,6 +35,7 @@ export type BudgetsConfig = {
     navigation?: { warm?: ReadinessBudget; cold?: ReadinessBudget; afterLive?: ReadinessBudget };
     firstLoadKb?: number;
     firstLoadGrowthPct?: number;
+    htmlGrowthPct?: number;
     htmlKb?: Record<string, number>;
     prefetchKb?: { desktop: number; phoneClosed: number };
   };
@@ -45,7 +47,7 @@ const COLD: ReadinessBudget = {
   interactiveMs: { desktop: 2000, phone: 4000 },
 };
 
-/** The HTML caps are a project's routes, so the defaults set none; the template's config sets its own. */
+/** Each page's HTML is held to its own baseline; an absolute HTML cap is a project's route, so the defaults set none. */
 export const DEFAULT_BUDGETS: Budgets = {
   navigation: {
     warm: {
@@ -58,6 +60,7 @@ export const DEFAULT_BUDGETS: Budgets = {
   },
   firstLoadKb: 820,
   firstLoadGrowthPct: 5,
+  htmlGrowthPct: 5,
   htmlKb: {},
   prefetchKb: { desktop: 80, phoneClosed: 0 },
 };
@@ -91,6 +94,7 @@ export function budgetsOf(config: BudgetsConfig): Budgets {
     navigation: { warm, cold, afterLive: b.navigation?.afterLive ?? cold },
     firstLoadKb: b.firstLoadKb ?? DEFAULT_BUDGETS.firstLoadKb,
     firstLoadGrowthPct: b.firstLoadGrowthPct ?? DEFAULT_BUDGETS.firstLoadGrowthPct,
+    htmlGrowthPct: b.htmlGrowthPct ?? DEFAULT_BUDGETS.htmlGrowthPct,
     htmlKb: b.htmlKb ?? DEFAULT_BUDGETS.htmlKb,
     prefetchKb: b.prefetchKb ?? DEFAULT_BUDGETS.prefetchKb,
   };
