@@ -17,6 +17,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { aligned } from '@/console/columns';
 import { failureOf } from '@/console/query';
 import { BY_SKILL_TITLE, SkillWorkPanel } from '@/console/skill-work';
+import type { Revised } from '@/data/gateway';
 import { useDataClock } from '@/lib/api';
 import type { RunRow, Runs } from '@/lib/destination-shapes';
 import { plural } from '@/lib/format';
@@ -108,8 +109,8 @@ function SkillControl({ served, skills = [] }: { served: RunsRead | null; skills
  * unavailable state and the rest stands; a read that failed or took longer than its bound is the error state with
  * Retry, which reads again in the browser.
  */
-export function RunsView({ served }: { served: RunsRead }) {
-  useLive(['runs']);
+export function RunsView({ served }: { served: Revised<RunsRead> }) {
+  useLive(['runs'], served.revisions);
   const { data, stale, trouble, retry, filters, set, updatedAt } = useRuns(served);
   const now = useDataClock();
   useShareView(data && !stale

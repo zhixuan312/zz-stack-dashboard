@@ -1,14 +1,36 @@
-# The console's gate, on every push to master.
+# The console's gate, on every push to master: lint, then the complete tier and the timed tier of ZZ Meridian's
+# testing standard (docs/testing.md), each as its own job on its own runner.
 #
-# The console is its own repository with its own suite, and zz-stack's gate cannot see it. That
-# separation is real — a wording change here is not a platform release — but it meant the only thing
-# that ran this suite was `node scripts/release.ts` in the other repository, at the moment a release
-# could least afford a surprise. 0.83.1's console gate failed inside a release and passed on every
-# manual run; with the suite's output swallowed by the release script there was no way to tell a
-# broken build from a killed one.
+# The console is its own repository with its own suite, and zz-stack's gate cannot see it. That separation is real (a
+# wording change here is not a platform release), but it meant the only thing that ran this suite was
+# `node scripts/release.ts` in the other repository, at the moment a release could least afford a surprise. 0.83.1's
+# console gate failed inside a release and passed on every manual run; with the suite's output swallowed by the release
+# script there was no way to tell a broken build from a killed one.
 #
-# `pnpm`, because this repository declares `packageManager: pnpm@10.33.0` and carries a pnpm
-# lockfile. `verify` builds and serves the app and drives a browser, the slowest step here.
+# - `lint`: `pnpm run lint`, a minute, so a lint error fails before two runners start a build.
+# - `full`: `pnpm verify --full --as superadmin,member`, the complete tier with the persona walk: the gate, one build
+#   against the fake gateway, every rail route navigated, the audit of every page, every control pressed and every link
+#   followed, the keyboard walk, the assistant, the product's own `browserChecks`, and each of the fake gateway's two
+#   people signed in. Nothing in it judges a time.
+# - `timed`: `pnpm verify --timed`, the timed tier: its own gate and build, then every rail route's budgets, the live
+#   data, the product's own `timedChecks` and Web Vitals, on the phone of benchmark index 800, which the standard
+#   calibrates on any host by the host's own benchmark index. A red here is a red: rerun by its job alone ("Re-run
+#   failed jobs"), never skipped and never continued past.
+#
+# Neither job is the whole standard: that is `pnpm verify --full --timed` on one gate and one build, before a release,
+# on a quiet machine. `--as` is refused beside `--timed`, so the persona walk rides with the complete tier. The 20-sample
+# perf protocol is `weekly.yml`.
+#
+# DELIBERATE, and this is the part worth knowing: this workflow ran `pnpm verify` with NO FLAG for its whole life, which
+# is the change tier (the gate, one build, the route policy, the size checks and a three-route navigation, about a
+# minute). Its own comment described the deep run, so nobody looked, and six document routes sat above the LCP bar for a
+# day of work before anything said so. Only running the real thing by hand ever did. The flag became `--full` in 0.26.1,
+# the release that brought those six under the bar, and the timed tier became its own job when ZZ Meridian 0.18.0 moved
+# every time out of `--full`. `out/verify.txt` names every suite that did not run; a check that did not run reads exactly
+# like one that passed.
+#
+# Every page reads the fake gateway (`fakeApi` in scripts/verify.config.ts): nothing here holds a credential or reaches
+# the deployment.
 name: gate
 
 on:
@@ -16,52 +38,83 @@ on:
     branches: [master]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 # Queued, not cancelled: every push gets a verdict.
 concurrency:
   group: gate-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  gate:
-    runs-on: ubuntu-latest
-    # Sized for the audit and the presses, which drive a browser for about 22 minutes on ten fast cores. A
-    # runner has fewer and slower ones, and a job killed at the ceiling reports nothing about the tree.
-    timeout-minutes: 90
+  lint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
-
-      # corepack reads `packageManager` from package.json, so the runner uses the pinned pnpm
-      # rather than whatever the image happens to carry.
+      # corepack reads `packageManager` from package.json, so the runner uses the pinned pnpm rather than whatever the
+      # image happens to carry.
       - run: corepack enable
-
       - run: pnpm install --frozen-lockfile
-
       - run: pnpm run lint
 
-      # The WHOLE standard: the gate (tokens, specifications, contrast, types, tests), a production build
-      # against the fake gateway, the route policy and the size checks, the audit of every page at five
-      # widths in both themes, every control pressed and every link followed, the whole keyboard path, the
-      # product's own browser checks, and Web Vitals on a mid-range phone. About 22 minutes here; longer on
-      # a runner, which is what the timeout above is for.
-      #
-      # DELIBERATE, and this is the part worth knowing: this job ran `pnpm verify` with NO FLAG for its whole
-      # life, which is the shallow depth — the gate, one build, the route policy, the size checks and a
-      # three-route navigation smoke, about a minute. Its own comment described the deep run, so nobody looked,
-      # and six document routes sat above the LCP bar for a day of work before anything said so. Only running
-      # the real thing by hand ever did. The flag is `--full` from 0.26.1, which is the release that brought
-      # those six under the bar. `out/verify.txt` names every suite that did not run; a check that did not run
-      # reads exactly like one that passed.
-      - run: pnpm run verify --full
-        env:
-          CHROME: /usr/bin/google-chrome
-
+  full:
+    needs: lint
+    runs-on: ubuntu-24.04
+    # Sized for the audit and the presses, which drive a browser for about 22 minutes on ten fast cores, and the two
+    # people's walk beside them. A runner has fewer and slower cores, and a job killed at the ceiling reports nothing
+    # about the tree.
+    timeout-minutes: 90
+    env:
+      CHROME: /usr/bin/google-chrome
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm verify --full --as superadmin,member
       - name: Keep the report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: verify-report
+          name: verify-full
           path: out/verify.txt
+          if-no-files-found: ignore
+          retention-days: 30
+
+  timed:
+    needs: lint
+    # One runner image, so the host the phone is calibrated on stays the same kind of machine from push to push.
+    runs-on: ubuntu-24.04
+    # Web Vitals on every static page and states-timed over every rail and detail route as each person in `slow`, each
+    # up to its 5 s bound, after the navigation; as long as `full` until a run on the runner says otherwise.
+    timeout-minutes: 90
+    env:
+      CHROME: /usr/bin/google-chrome
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm verify --timed
+      - name: Keep the report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: verify-timed
+          path: out/verify.txt
+          if-no-files-found: ignore
+          retention-days: 30

@@ -7,7 +7,9 @@
  * product's own live pages here (`standard.md`'s floor, "a product's own live pages add a `browserChecks` script").
  *
  * What it proves, and what it does not. It proves the console's half of the contract in `references/live.md`: a page
- * opens one stream and follows its own collection, a hint for that collection is read again and what arrived is on
+ * loaded directly opens its first stream with the revisions its server read was answered at and reads nothing again
+ * for it, a page opens one stream and follows its own collection, a hint for that collection is read again and what
+ * arrived is on
  * screen (on Teams and on a team's page, whose first reads are the console's server's), a hint for a collection the page does not show changes nothing, People reads its
  * collection again on a hint for it, and the bell's own read follows a hint for the collection it watches. It does NOT prove the multi-tab and offline behaviour Meridian's own check does — one
  * `launch()` here owns one page, and a second tab is not something this harness can open. The stream is shared per
@@ -43,6 +45,28 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const page = await launch();
 const failures: string[] = [];
+
+/**
+ * Every stream the page opens, as the browser opened it: its address, and its greeting with the moment it arrived.
+ * Recorded inside the page before any of its scripts run, so the first stream of each load is in it however soon it
+ * opens; a check outside the page sees only the gateway, which other suites share under `verify --full`.
+ */
+await page.send('Page.addScriptToEvaluateOnNewDocument', {
+  source: `(() => {
+    const Native = window.EventSource;
+    window.__liveStreams = [];
+    window.EventSource = class extends Native {
+      constructor(url, init) {
+        super(url, init);
+        const opened = { url: String(url), greeting: null, at: null };
+        window.__liveStreams.push(opened);
+        const greet = (event) => (e) => { if (opened.greeting === null) { opened.greeting = { event, data: e.data }; opened.at = performance.now(); } };
+        this.addEventListener('synced', greet('synced'));
+        this.addEventListener('resync', greet('resync'));
+      }
+    };
+  })();`,
+});
 
 /** What the page shows, as one string of text. */
 const text = () => page.eval<string>('document.body.innerText.replace(/\\s+/g, " ")');
@@ -101,6 +125,51 @@ async function follows(address: string, renamedTo: string, unsolicitedTo: string
   if (page.errors.length) failures.push(`${address}: ${page.errors[0]}`);
 }
 
+/**
+ * A page loaded directly asks its first stream whether anything moved since its server read (ZZ Meridian 0.18.0's
+ * `since`): the stream's address names a revision for every collection it follows, the greeting is `synced`, and the
+ * tab reads none of those collections again for it. The pages are every kind that hands a server read to its stream:
+ * one followed in the browser (`useServed`), one asked of the server again (`useServerReadLive`), a detail route, and
+ * the bell's own read, which every page shows and which the stream waits for.
+ */
+const DIRECT = ['/platform/teams', `/platform/teams/${RENAMED_SLUG}`, '/platform/people', '/knowledge', '/knowledge/log', '/approvals', '/initiatives', '/access', '/activity', '/runs', '/plugins'];
+/** How long after its greeting a tab is watched for a read of what it follows. */
+const AFTER_GREETING_MS = 1500;
+/** The collection a console read is kept under, as `src/views/console-live.tsx` maps a path. */
+const collectionOf = (path: string) => {
+  const head = path.split('?')[0]!.split('/').filter(Boolean)[0] ?? '';
+  return ({ approvals: 'initiatives', access: 'settings' } as Record<string, string>)[head] ?? head;
+};
+type Opened = { url: string; greeting: { event: string; data: string } | null; at: number | null };
+
+async function asksSince(address: string): Promise<void> {
+  await page.open(base + address, { width: 1440, theme: 'dark', wait: 600 });
+  if (page.errors.length) failures.push(`${address}: ${page.errors[0]}`);
+  let first: Opened | undefined;
+  for (let i = 0; i < 32 && !first?.greeting; i++) {
+    first = (await page.eval<Opened[]>('window.__liveStreams ?? []'))[0];
+    if (!first?.greeting) await sleep(250);
+  }
+  if (!first) { failures.push(`${address}: no stream opened`); return; }
+  if (!first.greeting) { failures.push(`${address}: the first stream was never greeted (${first.url})`); return; }
+  const asked = new URL(first.url, base).searchParams;
+  const followed = (asked.get('collections') ?? '').split(',').filter(Boolean);
+  const since = new Map((asked.get('since') ?? '').split(',').filter(Boolean).map((p) => [p.slice(0, p.indexOf(':')), p.slice(p.indexOf(':') + 1)]));
+  const without = followed.filter((n) => !since.get(n));
+  if (without.length) failures.push(`${address}: the first stream follows ${followed.join(', ')} and asked with no revision for ${without.join(', ')}`);
+  if (first.greeting.event !== 'synced') failures.push(`${address}: the first stream was greeted ${first.greeting.event} ${first.greeting.data}, not synced`);
+  await sleep(AFTER_GREETING_MS);
+  // The tab's own reads, from the browser's record of them: any of a followed collection begun after the greeting is
+  // one the greeting caused.
+  const reads = await page.eval<{ name: string; start: number }[]>(
+    "performance.getEntriesByType('resource').filter((e) => new URL(e.name).pathname.startsWith('/api/console/')).map((e) => ({ name: e.name, start: e.startTime }))",
+  );
+  const again = reads.filter((r) => r.start > first!.at! && followed.includes(collectionOf(new URL(r.name).pathname.replace('/api/console', ''))));
+  if (again.length) failures.push(`${address}: read ${again.map((r) => new URL(r.name).pathname).join(', ')} again after its stream's greeting`);
+}
+
+for (const address of DIRECT) await asksSince(address);
+
 await follows('/platform/teams', 'Dune Renamed By The Live Check', 'Dune Renamed Unsolicited');
 await follows(`/platform/teams/${RENAMED_SLUG}`, 'Dune Renamed On Its Own Page', 'Dune Renamed Unsolicited On Its Page');
 
@@ -147,5 +216,5 @@ if (page.errors.length) failures.push(`/platform/people: ${page.errors[0]}`);
 
 page.close();
 for (const f of failures) console.log('FAIL ' + f);
-console.log(`\nlive: teams followed at two addresses, each change read again and each unsolicited one ignored, and people read again on a hint; ${failures.length} issues`);
+console.log(`\nlive: ${DIRECT.length} pages loaded directly each asked their first stream with the revisions they were served and were greeted synced with no second read, teams followed at two addresses, each change read again and each unsolicited one ignored, and people read again on a hint; ${failures.length} issues`);
 process.exit(failures.length ? 1 : 0);

@@ -17,6 +17,7 @@ import { LinkTabs } from '@/components/ui/tabs';
 import { aligned } from '@/console/columns';
 import { Panel } from '@/console/panel';
 import { failureOf } from '@/console/query';
+import type { Revised } from '@/data/gateway';
 import { useDataClock } from '@/lib/api';
 import { AXIS_FORMATTERS, plural } from '@/lib/format';
 import { formatDateTime, formatShortDate } from '@/lib/format-date';
@@ -152,9 +153,9 @@ const ASK: Record<ApprovalsTab, string> = {
  * revision, when it was approved, and where it was shown and on what basis it was decided, as the gateway classified
  * them. The gateway pages each tab, ten to a page; the first page the address names is read on the console's server.
  */
-export function ApprovalsView({ served }: { served: ApprovalsRead }) {
+export function ApprovalsView({ served }: { served: Revised<ApprovalsRead> }) {
   // `/approvals` is kept under `initiatives` on the live stream: an approval anywhere hints it.
-  useLive(['initiatives']);
+  useLive(['initiatives'], served.revisions);
   const { fresh, shown, rowsOf, trouble, retry, tab, page, set, team, updatedAt } = useApprovals(served);
   const now = useDataClock();
   useShareView(fresh

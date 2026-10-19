@@ -82,7 +82,7 @@ import http from 'node:http';
 import type { Me } from '../../src/lib/api-shapes.ts';
 import type { CloseResult } from '../../src/lib/work-shapes.ts';
 import { isJourney, kept, keptAt, within, writtenBy } from './journey.ts';
-import { COLLECTIONS, hint, liveStreams, parseNames, serveLive } from './live.ts';
+import { COLLECTIONS, hint, liveStreams, parseNames, revisionHeader, serveLive } from './live.ts';
 import { ME, MEMBER, clientSetupOf, signedIn, teamsOf } from './people.ts';
 import { audit } from './platform-audit.ts';
 import { badFilter, bugReport, bugs, duplicates, resolve, statusFor } from './platform-bugs.ts';
@@ -464,6 +464,8 @@ const server = http.createServer((req, res) => {
     const asked = journey ? null : sessionOf(cookie).state;
     const state: string = journey ? 'normal' : asked ?? mode;
     const status = req.method === 'GET' && url.pathname === '/api/console/platform/status';
+    // The revision a read is answered with, taken as it arrives, before it is answered: live.ts's `revisionHeader`.
+    const revised = req.method === 'GET' && who && seg[0] === 'api' && seg[1] === 'console' ? revisionHeader(seg.slice(2)) : null;
     let answer: Answer;
     /* The test hooks wear the proxied prefix — `/api/console/__hint` — so a browser check reaches them through the app's
      * own origin and never needs to know the gateway's address, which the app's build baked in and nothing serves back.
@@ -551,7 +553,7 @@ const server = http.createServer((req, res) => {
       if ('status' in parsed) { res.writeHead(parsed.status, { 'content-type': 'text/plain; charset=utf-8' }); res.end(parsed.error); return; }
       // A visitor on the screens before sign-in has no session, and neither has a cookie this fixture does not know.
       if (!who || SIGNED_OUT.test(referer)) { res.writeHead(401, { 'content-type': 'text/plain; charset=utf-8' }); res.end('Sign in to continue.'); return; }
-      serveLive(res, parsed.names);
+      serveLive(res, parsed.names, url.searchParams.get('since'));
       return;
     }
     if (seg[0] === 'auth') answer = auth(seg.slice(1));
@@ -593,7 +595,7 @@ const server = http.createServer((req, res) => {
     setTimeout(() => {
       // A 204, or a 404 that says nothing, has no body to serialise, and a client that is sent one reads it wrong.
       if (answer[1] === null) { res.writeHead(answer[0], { 'cache-control': 'no-store' }); res.end(); return; }
-      res.writeHead(answer[0], { 'content-type': 'application/json', 'cache-control': 'no-store' });
+      res.writeHead(answer[0], { 'content-type': 'application/json', 'cache-control': 'no-store', ...(revised ? { [revised[0]]: revised[1] } : {}) });
       res.end(JSON.stringify(answer[1]));
     }, state !== 'slow' || (seg[2] === 'me' && !seg[3]) ? 0 : status ? 6000 : 4000);
   });

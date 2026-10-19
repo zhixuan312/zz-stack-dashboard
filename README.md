@@ -49,7 +49,11 @@ through the same authorized read it used on load. A missed hint costs freshness 
 correctness — the client polls as a safety net, and resyncs every time the stream reopens — and
 what crosses the wire is a team and a collection name, never a row, a record or a cache tag.
 A page says in one line which collections it shows (`useLive([...])`); the per-page READMEs
-say which, and why.
+say which, and why. Every console read answers with its collection's revision
+(`x-zz-revision: <collection>:<boot>:<n>`, counted as the caller's own stream would be hinted), and a
+page read on the console's server hands those revisions to `useLive`, so a tab's first stream asks
+whether anything moved since: it is greeted `synced` and reads nothing again, or `resync` naming only
+what moved. A reopen after a client navigation still resyncs everything (ZZ Meridian issue #54).
 
 The stream is the gateway's (`services/gateway/src/console/live.ts` in zz-stack, with a database
 trigger raising each hint inside the writer's own transaction). Against a gateway older than
@@ -163,11 +167,21 @@ repository.
 
 ```sh
 pnpm build && pnpm start     # production build
-pnpm typecheck && pnpm lint && pnpm test && pnpm gate   # what the release runs
+pnpm typecheck && pnpm lint && pnpm test && pnpm gate   # what the release script runs
 ```
 
 Those four, in that order, are what `zz-stack/scripts/release.ts` runs against this
-repo before it will build an image, so they are the real bar.
+repo before it will build an image. They are the floor a release script holds, not the
+testing standard: the run before a release is `pnpm verify --full --timed`, below.
+
+## Checking it
+
+The console is checked by ZZ Meridian 0.18.0's testing standard, its
+[`docs/testing.md`](https://github.com/zhixuan312/zz-meridian/blob/v0.18.0/docs/testing.md): four tiers, each
+one command, the change tier adding to the quick one and the complete tier to the change one, and the timed tier
+standing beside the complete one. In any combination of them the gate and the build run once. Every tier past the
+quick one builds and serves the console against `scripts/fake-gateway/` (synthetic records, writes accepted and
+forgotten but a journey session's own), because its presses approve, revoke and archive whatever a page offers.
 
 `pnpm gate` is Meridian's: tokens are fresh, the specifications are consistent (every
 colour a role, every utility on Meridian's scales, no dormant export, markdown renders raw HTML
@@ -175,36 +189,63 @@ inert), the console's own rules hold (`scripts/check.local.ts`: no raw timestamp
 denominator, an empty hand-built table says so, no source file over 700 lines), contrast holds
 for every pair in both themes and every accent, then route types, lint, types and tests.
 
-```sh
-pnpm verify           # the gate, a build against the fake gateway, the route and size checks
-pnpm verify --full    # the whole standard: the assistant walk-through, the audit, the presses, the keyboard path, Web Vitals
-```
+- **quick**: `pnpm gate`. The static checks and the tests, with no browser and no build. Before every commit.
+- **change**: `pnpm verify`. Adds one production build, the route policy, the first-load and HTML size checks, and
+  the navigation of up to three routes on a desktop and through the phone drawer, judged on function; about a minute.
+  Before finishing a change.
+- **complete**: `pnpm verify --full`. Adds the navigation of every rail route, the assistant walked through a page
+  (`scripts/assistant.ts`), the audit of every page at five widths in both themes, every control pressed and every
+  link followed, the whole keyboard path (`scripts/keyboard.ts`), and the product's own `browserChecks`: the Approve
+  banners a page load cannot reach (`scripts/approve-banners.ts`), that a change made anywhere reaches the page a
+  person is looking at (`scripts/live-check.ts`), that a control showing a selection shows the one that was pressed
+  (`scripts/selection-check.ts`), that no page disagrees with its own server HTML when the main thread is slow enough
+  for its reads to answer before it hydrates (`scripts/hydration-check.ts`), that the workspace menu moves between
+  Work and Platform (`scripts/workspace-switch.ts`), that every rail and detail route reaches an explicit state as
+  each person in loading, empty, error, partial and above every ceiling, with no leak and no zero for a missing figure
+  (`scripts/states-check.ts`, the state asked per request as `zz_console=<person>+<state>`), and that the guides'
+  eighteen tasks to try can be carried out, each as its person, in a `<person>+journey` session whose writes the fake
+  keeps for that session alone, the assistant asked one of them through a `fakeModel` step
+  (`scripts/journeys.ts`). Nothing in it judges a time, so it is not the whole standard: `pnpm verify --full --timed` is. After a change to shared
+  components, the shell or data, and before a change is handed over.
+- **timed**: `pnpm verify --timed`. The navigation of every rail route with its budgets judged, then the live data,
+  the product's own `timedChecks` and Web Vitals (LCP, INP, CLS and dropped frames), alone and last, so it needs a
+  quiet machine. It does not imply the complete tier ran. The `timedChecks` are the console's checks that judge a time, each run alone and signed in as each
+  person: that a page's own data lands beside its largest paint within the 1.0 s budget (`scripts/primary-data.ts`),
+  and that every rail and detail route reaches its explicit state within 5 s in `slow` (`scripts/states-timed.ts`).
+  The phone every timed suite emulates is one device on every host, the device of Lighthouse benchmark index 800:
+  each run measures its host's own index and slows the CPU by that index over 800, so a laptop and a CI runner are
+  held to the same phone, and each suite prints its `phone:` line. A near miss is a page to speed up, not a budget
+  to move.
 
-**`--full` is the whole standard, and the two depths are not interchangeable.** The default
-stops after the static checks and a three-route navigation smoke — about a minute. `--full` builds
-the console against `scripts/fake-gateway/` (synthetic records, writes accepted and forgotten but a
-journey session's own) because its presses approve, revoke and archive whatever a page offers, then walks the assistant
-through a page (`scripts/assistant.ts`), audits every page at five widths in both themes, presses
-every control, walks the whole keyboard path (`scripts/keyboard.ts`), and runs the product's own
-browser checks: the Approve banners a page load cannot reach (`scripts/approve-banners.ts`), that a
-change made anywhere reaches the page a person is looking at (`scripts/live-check.ts`), that a
-control showing a selection shows the one that was pressed (`scripts/selection-check.ts`), that no
-page disagrees with its own server HTML when the main thread is slow enough for its reads to answer
-before it hydrates (`scripts/hydration-check.ts`), that the workspace menu moves between Work and
-Platform (`scripts/workspace-switch.ts`), that a page's own data lands beside its largest
-paint (`scripts/primary-data.ts`), that every rail and detail route reaches an explicit state as each person in
-loading, empty, error, partial and above every ceiling (`scripts/states-check.ts`, the state asked per request as
-`zz_console=<person>+<state>`), and that the guides' eighteen tasks to try can be carried out, each as its person,
-in a `<person>+journey` session whose writes the fake keeps for that session alone (`scripts/journeys.ts`). Then
-LCP, INP and CLS on a mid-range phone — about half an hour.
+**`pnpm verify --full --timed` is the whole standard**, on one gate and one build with the complete suites first, and
+the run before a release of the console, at the release commit and on a quiet machine: nothing else heavy beside it,
+no other build, browser or test run. It is the only run whose outcome can say the console meets the standard.
 
-**Which depth CI runs is `.github/workflows/gate.yml`, and it runs `--full`.** It did not always: the
-workflow ran the shallow default for its whole life while its own comment described the deep one, so
-CI was green while the deep standard was red — six document routes sat above the LCP bar for a day
-of work before anything said so, and the only thing that ever said so was running the real thing by
-hand. Read the coverage line at the end of `out/verify.txt` before believing any pass, in CI or
-locally: it names every suite that did not run, and a check that did not run reads exactly like one
-that passed.
+**The persona walk, `pnpm verify --full --as superadmin,member`, is a run of its own.** It signs the browser in as
+each of the fake gateway's two people (`personas` in `scripts/verify.config.ts`), checks that each rail holds the
+routes that person may open, eighteen and fifteen, and that every other route draws the missing page with none of
+what it protects, and presses each person's controls. `--as` is refused beside `--timed` and `--perf`, before
+anything runs, so the persona walk and the timed tier are two runs. Run it after any change to who may see or do
+what.
+
+**`pnpm verify --perf` is the 20-sample navigation protocol, and it runs only in CI**, split by route with
+`--shard <i>/<n>`, one shard a runner: every rail route on a desktop and through the phone drawer, warm, cold and
+right after a live refresh, the p95 reported against its budget. Where `CI` is not `true` it is refused before the
+gate starts; on a laptop, narrow it to the route in question on a quiet machine,
+`node scripts/perf.ts --base <url> --routes <route>`.
+
+**What CI runs.** `.github/workflows/gate.yml` runs, on every push to master, `lint` and then two jobs on separate
+runners: `full`, `pnpm verify --full --as superadmin,member`, and `timed`, `pnpm verify --timed`, each keeping its
+`out/verify.txt`. A red in `timed` is a red, rerun by that job alone and never skipped; the runner's phone is the same
+device as a laptop's. `.github/workflows/weekly.yml` runs the perf protocol on Mondays and on dispatch, as six shards
+that together cover the eighteen rail routes once; there a p95 over its budget is a warning and only a broken sample
+fails. Neither workflow holds a credential or reaches the deployment.
+
+It did not always run the deep tiers: the workflow ran the shallow default for its whole life while its own comment
+described the deep one, so CI was green while the deep standard was red. Six document routes sat above the LCP bar
+for a day of work before anything said so, and the only thing that ever said so was running the real thing by hand.
+Read the coverage line at the end of `out/verify.txt` before believing any pass, in CI or locally: it names every
+suite that did not run, and a check that did not run reads exactly like one that passed.
 
 What each suite checks beyond the static routes, and against what, is in
 `scripts/verify.config.ts`. The report is `out/verify.txt`.

@@ -1,6 +1,8 @@
 /**
  * What `pnpm verify` needs to know about this project that it cannot discover from `app/`. Edit it; verify reads it.
  */
+import fs from 'node:fs';
+import path from 'node:path';
 import { refusal } from '../src/app.config.ts';
 import { PLATFORM_STATUS } from './fake-gateway/platform-status.ts';
 import { documentDetail, initiativeDetail } from './fake-gateway/work.ts';
@@ -19,6 +21,31 @@ const OTHER_TEAMS = {
   '/initiatives/beacon/2026-09-22-payout-schedule/review.md': documentDetail('beacon', '2026-09-22-payout-schedule', 'review.md')!.stakeholder!,
 };
 
+type DeviceBudget = { desktop: number; phone: number };
+type ReadinessBudget = { shellMs: DeviceBudget; dataMs: DeviceBudget; interactiveMs: DeviceBudget };
+/** What "this route is ready" means, and one harmless control to press on it. */
+type NavigationCheck = {
+  /** The rail route this describes. */
+  path: string;
+  /** Text the page's heading shows as soon as the shell has arrived. */
+  title: string;
+  /** The element that appears only when the page's data has, and (optionally) the text it must hold. */
+  readySelector: string;
+  readyText?: string;
+  /** What pressing the control does: open a dialog, filter or sort the data, flip a toggle, or follow a link. */
+  probe: 'dialog' | 'filter' | 'sort' | 'toggle' | 'link';
+  /** A control that opens, sorts, filters, toggles or follows and never writes. Name it by role or aria, not by class. */
+  controlSelector: string;
+  /** What changes when the control works: the probe reads the whole text of each element it matches. */
+  resultSelector: string;
+  /**
+   * Where this route's own reading is over the shared budget: its own figure for that metric and that device, with the
+   * measurement that earned it beside it. Nothing it does not name moves, and leaving it out holds the route to
+   * `budgets.navigation` like every other.
+   */
+  budget?: Partial<{ [K in keyof ReadinessBudget]: Partial<DeviceBudget> }>;
+};
+
 /** One way `pnpm verify --as` signs the browser in: the cookie that names the person, and what that person is expected to see. */
 type Persona = {
   /** The cookie every browser suite carries, set before the first request; its value names one of the fake gateway's people. */
@@ -29,10 +56,11 @@ type Persona = {
   deniedProbe?: Record<string, string>;
 };
 
+/** Every field of this file that `scripts/verify.ts` reads, as ZZ Meridian 0.18.0's own configuration declares them. */
 export type VerifyConfig = {
   /**
    * Detail pages checked beside every static route, one per state worth seeing (a normal record, a failed one, a missing
-   * one).
+   * one). `pnpm verify --full` checks them with every static route.
    */
   detailRoutes: string[];
   /**
@@ -44,31 +72,57 @@ export type VerifyConfig = {
    */
   fakeApi?: { script: string; env: string };
   /**
-   * Limits verify enforces. `htmlKb` caps a route's uncompressed HTML, through the end of the streamed response; it has
-   * no default, and there is no point setting one without a measurement behind it. `firstLoadKb` caps a route's
-   * deduplicated first-load bytes and `firstLoadGrowthPct` its growth against `verify.baseline.json`; Meridian defaults
-   * both (820 and 5), and a project overrides either here — the two are declared together because overriding the cap
-   * without knowing the ratchet beside it is how a cap stops meaning anything.
+   * In a project that adopted Meridian, verify refuses to run until it knows its presses cannot reach a live backend:
+   * name a `fakeApi`, or set this to true when the pages read and write nothing outside this repository. Never set it to
+   * make verify run against an API.
    */
-  budgets?: { htmlKb?: Record<string, number>; firstLoadKb?: number; firstLoadGrowthPct?: number };
+  noLiveApi?: true;
   /**
-   * One check for every route in the rail. `--full` and `--perf` fail on a rail route that has none; the default smoke
-   * reports its data and interaction as not configured. Probes never write.
+   * Environment variables naming a data store, besides `DATABASE_URL`, which verify always reads. verify refuses to
+   * start when one of them resolves to a host that is not this machine.
    */
-  navigationChecks?: {
-    path: string;
-    title: string;
-    readySelector: string;
-    readyText?: string;
-    probe: 'dialog' | 'filter' | 'sort' | 'toggle' | 'link';
-    controlSelector: string;
-    resultSelector: string;
-  }[];
+  dataUrls?: string[];
+  /** Run verify against a remote data URL anyway. Set it only when you know what the presses reach. */
+  allowRemoteData?: true;
+  /**
+   * Limits verify enforces. Leave a key out for Meridian's default: first-load JS 820 KiB per route and 5% growth over
+   * `scripts/verify.baseline.json`, the warm, cold and after-live navigation times, a desktop prefetch of 80 KiB from the
+   * landing page and none on a closed phone drawer. `htmlKb` caps a route's uncompressed HTML, through the end of the
+   * streamed response; it has no default, and there is no point setting one without a measurement behind it.
+   * `firstLoadKb` and `firstLoadGrowthPct` are declared together because overriding the cap without knowing the ratchet
+   * beside it is how a cap stops meaning anything.
+   */
+  budgets?: {
+    navigation?: { warm?: ReadinessBudget; cold?: ReadinessBudget; afterLive?: ReadinessBudget };
+    firstLoadKb?: number;
+    firstLoadGrowthPct?: number;
+    htmlKb?: Record<string, number>;
+    prefetchKb?: { desktop: number; phoneClosed: number };
+  };
+  /**
+   * One check for every route in the rail. `--full`, `--timed` and `--perf` fail on a rail route that has none; the
+   * default smoke reports its data and interaction as not configured. Probes never write.
+   */
+  navigationChecks?: NavigationCheck[];
   /**
    * The product's own browser checks, beside Meridian's audit, presses and keyboard walk: scripts verify runs with
-   * `--base <url>` against the built app, failing when one exits non-zero.
+   * `--base <url>` against the built app, failing when one exits non-zero. They run under `--full`, beside one another,
+   * so none of them judges a time.
    */
   browserChecks?: string[];
+  /**
+   * The product's own browser checks that judge a time, run by `pnpm verify --timed` alone and one at a time, after the
+   * live data and before Web Vitals, each with `--base <url>` like `browserChecks`. A check that judges a time under the
+   * load of `--full` judges the load; move it here, and keep in `browserChecks` the half that judges no time.
+   */
+  timedChecks?: string[];
+  /**
+   * Questions the fake model answers with a call to one of the product's own tools, so a journey can check what the
+   * assistant cites. `when` is a case-insensitive regular expression's source, matched against the user's message before
+   * the fake model's own branches; the model then calls `tool` with `input` when the request hands that tool, and answers
+   * with the tool's result. verify hands the steps to the fake model on its command line.
+   */
+  fakeModel?: { when: string; tool: string; input: Record<string, unknown> }[];
   /**
    * Routes that cannot be prerendered, each with the reason. `node scripts/route-policy.ts`, which verify runs after its
    * production build, fails any non-API route that is neither static nor partial unless it is named here.
@@ -89,6 +143,10 @@ export type VerifyConfig = {
    */
   refusal?: 'explain' | 'absent';
 };
+
+/** The Work guide's task 4 phrase, from an old plan, as tests/fixtures/guide-tasks.json keeps it. */
+const WORK_4_PHRASE = (JSON.parse(fs.readFileSync(path.join(import.meta.dirname, '..', 'tests', 'fixtures', 'guide-tasks.json'), 'utf8')) as { tasks: { id: string; phrase?: string }[] })
+  .tasks.find((t) => t.id === 'work-4')!.phrase!;
 
 /** A table's rows: the record's own list. */
 const TABLE = 'main table tbody tr';
@@ -204,9 +262,9 @@ const config: VerifyConfig = {
     { path: '/runs', title: 'Runs', readySelector: 'main [data-figures="read"] [data-value]', probe: 'toggle', controlSelector: 'main button[aria-label^="About "]', resultSelector: '[role="tooltip"]' },
     { path: '/plugins', title: 'Plugins', readySelector: 'main table tbody tr', probe: 'filter', controlSelector: 'main input[type="search"]', resultSelector: 'main table tbody tr' },
     // Access's primary data is its tokens; the probe is a live token's Revoke, whose first press only asks in place, so
-    // it writes nothing. The press is read in the row's last cell, where the confirm appears: the probe compares only the
-    // first 80 characters of each matched element (scripts/lib/journey.ts), and in a whole row the confirm comes later.
-    { path: '/access', title: 'Access', readySelector: 'main [data-protagonist="Tokens"] table tbody tr', probe: 'toggle', controlSelector: 'main [data-protagonist="Tokens"] tbody tr button', resultSelector: 'main [data-protagonist="Tokens"] tbody tr td:last-child' },
+    // it writes nothing. The press is read in the token's row, where the confirm appears in its last cell: the probe
+    // reads the whole text of each row it matches (ZZ Meridian 0.18.0, issue #52).
+    { path: '/access', title: 'Access', readySelector: 'main [data-protagonist="Tokens"] table tbody tr', probe: 'toggle', controlSelector: 'main [data-protagonist="Tokens"] tbody tr button', resultSelector: 'main [data-protagonist="Tokens"] tbody tr' },
     // Status leads with what needs attention and the paired figures: its data is the Featured metric's first figure, the
     // last whole week's malformed calls per 1,000 (`.t-figure` is the team's tiles now). The one control is a team
     // tile's info button, whose tooltip says what the figure counts. Read off the source on 2026-10-17.
@@ -267,16 +325,28 @@ const config: VerifyConfig = {
   // `hydration-check` makes a race occur that the audit can only catch when it happens to: it slows the main thread
   // until every read a page shares with the shell has answered before the page hydrates, and fails on React's error.
   // `workspace-switch` walks the workspace menu as each persona: Work to Platform, the figure, and back.
-  // `primary-data` times each route's own data beside its largest paint, as each persona, and holds a delayed read to a
-  // bounded state. It runs beside the audit, the presses and the keyboard walk, so its times are taken under their load.
   // `states-check` draws every rail and detail route as each persona in each of the spec's five states and in `extreme`,
   // a busy platform past every ceiling, where no table draws more than ten rows a page or ten with no total. Each state
   // is asked for per request by the session value, so the suites beside it read the normal state throughout
-  // (reconciliation 79).
+  // (reconciliation 79). In `slow` it judges that an explicit state is reached, never when: the bound is states-timed's.
   // `journeys` carries out the guides' eighteen tasks to try as the person each names, in journey sessions whose writes
   // the fake gateway keeps for that session alone, so the suites beside it read the same data throughout
-  // (reconciliation 80).
-  browserChecks: ['scripts/approve-banners.ts', 'scripts/live-check.ts', 'scripts/selection-check.ts', 'scripts/hydration-check.ts', 'scripts/workspace-switch.ts', 'scripts/primary-data.ts', 'scripts/states-check.ts', 'scripts/journeys.ts'],
+  // (reconciliation 80). Work's task 4 asks the assistant, which `fakeModel` below answers.
+  // None of them judges a time: they run beside the audit, the presses and the keyboard walk, under their load.
+  browserChecks: ['scripts/approve-banners.ts', 'scripts/live-check.ts', 'scripts/selection-check.ts', 'scripts/hydration-check.ts', 'scripts/workspace-switch.ts', 'scripts/states-check.ts', 'scripts/journeys.ts'],
+  // The checks that judge a time, which `pnpm verify --timed` runs alone and one at a time. Wave 2's acceptance showed
+  // why: beside the other suites two `slow` rows reached their state at 5.1 to 5.8 s (Harbormaster #3482), and alone
+  // all 88 within 4.53 s (#3486).
+  // `primary-data` times each route's own data beside its largest paint, as each persona, on the timed suites' phone,
+  // against the 1.0 s budget, and holds a delayed read to a state bounded at five seconds.
+  // `states-timed` draws every rail and detail route as each persona in `slow` and fails a row whose explicit state
+  // arrives after five seconds.
+  timedChecks: ['scripts/primary-data.ts', 'scripts/states-timed.ts'],
+  // Work's task 4, "Find a decision": the phrase from an old plan asked of the assistant on Knowledge, whose answer cites
+  // the search's first result, which scripts/journeys.ts compares with the page's first hit. Anchored, so it answers the
+  // phrase alone and none of the assistant walk-through's own questions. COUPLED: the search view's tool as the
+  // assistant hands it, `view_<name>` of `searchTool` in src/views/tools/search.ts (tests/verify-tiers.test.ts).
+  fakeModel: [{ when: `^${WORK_4_PHRASE.replace(/[.*+?^$()|[\]{}\\]/g, '\\$&')}$`, tool: 'view_search', input: { q: WORK_4_PHRASE } }],
   /**
    * The fake gateway's two people (scripts/fake-gateway/people.ts), each by the value of the `zz_console` cookie it
    * reads. A run without `--as` sends no cookie, and the fake gateway answers that as the superadmin.

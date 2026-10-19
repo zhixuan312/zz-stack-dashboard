@@ -23,6 +23,7 @@ import { aligned } from '@/console/columns';
 import { Panel } from '@/console/panel';
 import { failureOf } from '@/console/query';
 import { InlineDestructive } from '@/console/settings/inline-destructive';
+import type { Revised } from '@/data/gateway';
 import { ApiError, useDataClock } from '@/lib/api';
 import type { TeamDetail } from '@/lib/fleet-shapes';
 import { plural } from '@/lib/format';
@@ -62,8 +63,8 @@ function useTeam(slug: string, served: TeamRead) {
  * change anywhere to the teams collection, are the browser's. Every write is the console's existing settings route,
  * and its refusal is said beside the control that made it.
  */
-export function PlatformTeamView({ slug, served }: { slug: string; served: TeamRead }) {
-  useLive(['teams']);
+export function PlatformTeamView({ slug, served }: { slug: string; served: Revised<TeamRead> }) {
+  useLive(['teams'], served.revisions);
   const { data, trouble, retry, updatedAt } = useTeam(slug, served);
   const now = useDataClock();
   useShareView(data

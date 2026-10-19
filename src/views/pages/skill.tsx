@@ -17,6 +17,7 @@ import { LinkTabs } from '@/components/ui/tabs';
 import { Panel } from '@/console/panel';
 import { failureOf } from '@/console/query';
 import { ReadingBody } from '@/console/reading';
+import type { Revised } from '@/data/gateway';
 import { useDataClock } from '@/lib/api';
 import type { PluginRow, Skill, SkillDetail, SkillText } from '@/lib/api-shapes';
 import { plural } from '@/lib/format';
@@ -121,8 +122,8 @@ export function SkillTabs({ plugin, skill, view, served }: { plugin: string; ski
  * the console's server and handed here. The view is the address's (`?view=`), as the server read it, so the page's
  * first paint is the view it was asked for, and each one is linkable.
  */
-export function SkillView({ plugin: pluginName, skill: name, view, served }: { plugin: string; skill: string; view: SkillViewName; served: SkillRead }) {
-  useLive(['plugins', 'skills']);
+export function SkillView({ plugin: pluginName, skill: name, view, served }: { plugin: string; skill: string; view: SkillViewName; served: Revised<SkillRead> }) {
+  useLive(['plugins', 'skills'], served.revisions);
   const { catalog, list, detail, text } = useSkill(pluginName, name, served);
   const now = useDataClock();
   const plugin: PluginRow | undefined = catalog.data?.plugins.find((p) => p.plugin === pluginName);

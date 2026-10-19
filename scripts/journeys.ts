@@ -16,6 +16,10 @@
  * beside this read the normal state throughout. So a fake gateway answers these journeys once: a run against a process
  * whose journey sessions have written already stops before its first task, saying so.
  *
+ * Work's task 4 asks the assistant on Knowledge, and the fake model answers the guide's phrase with a call to the search
+ * (`fakeModel` in scripts/verify.config.ts), so that task needs a console with an assistant, as `pnpm verify --full`
+ * serves the browser checks: one pointed at the fake model with those steps.
+ *
  * A step reads the page as a person would and checks it against the session's own read of the same route, fetched
  * through the app's origin with the same cookie, so a figure the page draws is a figure the gateway answered. A control
  * is a write: a button, link or field that resolves, creates, adds, archives, deactivates, removes, revokes, issues,
@@ -76,6 +80,16 @@ const OWNERS: Record<string, string> = { guardrail: 'A guardrail held', ours: 'M
 const count = (n: number) => n.toLocaleString('en-US');
 /** A size as the console prints one, back to bytes: `1.7 MB`. */
 const bytesOf = (s: string) => { const m = /([\d.]+)\s*(KB|MB|GB|B)\b/.exec(s); return m ? Number(m[1]) * { B: 1, KB: 1e3, MB: 1e6, GB: 1e9 }[m[2] as 'B'] : Number.NaN; };
+
+/**
+ * The address an assistant's answer cites: the `Evidence:` a view's insight carries (`contextText` in
+ * src/lib/shared-context.ts), which the fake model quotes with the insight; null when it cites none.
+ */
+export const citedAddress = (answer: string): string | null => /\bEvidence: (\/\S+)/.exec(answer)?.[1].replace(/[.,;:)]+$/, '') ?? null;
+
+/** The assistant's panel and its latest answer, in the page. Outside `main`: the panel is the shell's third column. */
+const PANEL = `document.querySelector('aside[data-assistant]')`;
+const LAST_ANSWER = `([...(${PANEL}?.querySelectorAll('[data-assistant-text]') ?? [])].at(-1)?.textContent ?? '').trim()`;
 
 /** One person's walk through the console: the page, their journey session, and the steps a task is made of. */
 class Walk {
@@ -231,7 +245,19 @@ export const JOURNEYS: Journey[] = [
     await w.enter();
     const hit = await w.until<string>('read the first hit', `main().querySelector('[data-result] a.hit')?.getAttribute('href')`);
     w.check('read the first hit', hit === address, `the first hit links ${hit}, the search's first result is ${address}`);
-    return `"${phrase}" found ${answer.ranked_total} results; the first hit is ${hit}, ${first.title}, the address the assistant's search cites (tests/journey-search.test.ts)`;
+    // Then the assistant, asked the same thing on the same page: the fake model answers the phrase with the search
+    // (`fakeModel` in scripts/verify.config.ts) and quotes its first result, with the address that result cites.
+    await w.until('open the assistant', `!!document.querySelector('button[aria-label="Assistant"]')`, 5_000)
+      .catch(() => fail('open the assistant', 'no launcher on /knowledge: this console has no assistant (pnpm verify --full points one at the fake model)'));
+    await w.press('open the assistant', `document.querySelector('button[aria-label="Assistant"]')`);
+    const before = Number(await w.until<string>('see the panel', `${PANEL} && String(${PANEL}.querySelectorAll('[data-assistant-text]').length)`));
+    await w.type('ask the assistant', `${PANEL}.querySelector('textarea[aria-label="Message"]')`, phrase);
+    await w.press('send the question', `[...${PANEL}.querySelectorAll('button[aria-label="Send"]')].find((b) => !b.disabled)`);
+    const reply = await w.until<string>('read the answer', `${PANEL}.querySelectorAll('[data-assistant-text]').length > ${before} && /\\bEvidence: \\//.test(${LAST_ANSWER}) && ${LAST_ANSWER}`)
+      .catch(async (e: Error) => fail('read the answer', `${e.message.replace(/^step "read the answer": /, '')}; the last answer reads "${(await w.page.eval<string>(LAST_ANSWER).catch(() => '')).slice(0, 200)}"`));
+    const cited = citedAddress(reply);
+    w.check('compare the citation', cited === hit, `the assistant cites ${cited}, the page's first hit is ${hit}`);
+    return `"${phrase}" found ${answer.ranked_total} results; the first hit is ${hit}, ${first.title}, and the assistant asked the same cites ${cited}`;
   } },
 
   { task: 'work-5', who: 'member', page: '/activity', run: async (w) => {

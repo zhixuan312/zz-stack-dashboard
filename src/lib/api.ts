@@ -4,6 +4,7 @@ import { useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-q
 import { createContext, createElement, use, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { preload } from 'react-dom';
 import { clearThread } from '@/components/patterns/assistant/thread';
+import type { Revisions } from '@/lib/live';
 
 /**
  * Every read a page does for its own content.
@@ -78,7 +79,30 @@ async function read<T>(path: string, signal: AbortSignal): Promise<T> {
     const body = (await res.json().catch(() => null)) as { error?: string } | null;
     throw new ApiError(res.status, body?.error ?? `HTTP ${res.status}`);
   }
-  return (await res.json()) as T;
+  const data = (await res.json()) as T;
+  // DELIBERATE: `headers` may be absent. The page tests answer reads with a stand-in that carries a status and a body
+  // and nothing else, and a read of what it does not carry is a read that carried no revision, not a failure.
+  const revised = REVISED.exec(res.headers?.get(REVISION_HEADER) ?? '');
+  if (revised) revisionsBy.set(path, { [revised[1]!]: revised[2]! });
+  else revisionsBy.delete(path);
+  return data;
+}
+
+/**
+ * The header a console read's revision travels in, `<collection>:<boot>:<n>`, and the revision each browser read was
+ * last answered at, by the address it asked. COUPLED: `src/data/gateway.ts`, which reads the same header on the
+ * console's server, and zz-stack's services/gateway/src/console/live-revision.ts, which writes it.
+ */
+const REVISION_HEADER = 'x-zz-revision';
+const REVISED = /^([A-Za-z0-9_-]+):([A-Za-z0-9_-]+:\d+)$/;
+const revisionsBy = new Map<string, Revisions>();
+
+/**
+ * The revisions the browser's latest read of `path` was answered at, for the `useLive` beside a read the console's
+ * server did not make (the bell's): none before it has answered, or when it carried none.
+ */
+export function revisionsRead(path: string): Revisions | undefined {
+  return revisionsBy.get(withScope(path));
 }
 
 /**

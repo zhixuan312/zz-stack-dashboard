@@ -10,6 +10,7 @@
  * roster of the shelf's page is last, where the budget cuts first.
  */
 import type { SearchAnswer, SearchHit } from '@/lib/api-shapes';
+import type { Revisions } from '@/lib/live';
 import type { KnowledgeList, KnowledgeSummary } from '@/lib/destination-shapes';
 import { formatCount } from '@/lib/format-units';
 import { formatDate } from '@/lib/format-date';
@@ -46,11 +47,11 @@ type ShelfRead = { q: string; limit: number; offset: number };
 
 /**
  * A Knowledge page's first read as the console's server made it, given `KNOWLEDGE_BOUND_MS`: the gateway's answer and
- * when it came, the gateway's sentence for a read that failed, or a read that did not answer in time. Knowledge's is
- * the summary, the log's its entries and a node's its body.
+ * when it came, with the revisions it was answered at, the gateway's sentence for a read that failed, or a read that
+ * did not answer in time. Knowledge's is the summary, the log's its entries and a node's its body.
  */
 export type ServerRead<T> =
-  | { state: 'ok'; data: T; at: string }
+  | { state: 'ok'; data: T; at: string; revisions?: Revisions }
   | { state: 'failed'; reason: string }
   | { state: 'slow' };
 

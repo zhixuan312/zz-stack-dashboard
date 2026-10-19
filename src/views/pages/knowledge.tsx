@@ -78,7 +78,7 @@ function arrivalOf(read: ServerRead<unknown>, ...queries: { dataUpdatedAt?: numb
  * of it.
  */
 export function KnowledgeView({ read }: { read: ServerRead<KnowledgeSummary> }) {
-  useLive(['knowledge']);
+  useLive(['knowledge'], read.state === 'ok' ? read.revisions : undefined);
   useServerReadLive('/knowledge/summary');
   const [f, set] = useQueryState({ q: '', kind: 'all', page: '1' });
   const filters = useMemo(() => ({ q: f.q, kind: f.kind }), [f.q, f.kind]);

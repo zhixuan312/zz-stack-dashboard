@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input';
 import { toast } from '@/components/ui/toast';
 import { aligned } from '@/console/columns';
 import { failureOf } from '@/console/query';
+import type { Revised } from '@/data/gateway';
 import { ApiError, useDataClock } from '@/lib/api';
 import type { TeamRow, Teams } from '@/lib/fleet-shapes';
 import { plural } from '@/lib/format';
@@ -104,8 +105,8 @@ function useTeams(served: TeamsRead | null, filters: TeamsFilters) {
  * ten to a page, filtered and paged by the gateway. The first page the address names is read on the console's server
  * and handed here; every other read, and the teams collection's live updates, are the browser's.
  */
-export function PlatformTeamsView({ served }: { served: TeamsRead }) {
-  useLive(['teams']);
+export function PlatformTeamsView({ served }: { served: Revised<TeamsRead> }) {
+  useLive(['teams'], served.revisions);
   const [filters, set] = useServedAddress(TEAMS_DEFAULTS, served, filtersOfPath);
   const [draft, setDraft] = useSearchDraft(filters.q, (q) => set({ q, page: '1' }));
   const { data, trouble, retry, updatedAt } = useTeams(served, filters);

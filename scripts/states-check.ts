@@ -25,7 +25,9 @@
  *            for an empty answer.
  *   error    the read's failure said in words: an alert, or a sentence that it did not load or is unavailable.
  *   slow     loading, a refusal or the content in the first frame the main region paints, and an explicit state on
- *            screen by five seconds from navigation: the content, a refusal or an error.
+ *            screen before the page is read: the content, a refusal or an error. Whether, never when: twelve seconds is
+ *            the window a page is given to settle in, not a bound, since this runs under the other suites' load. The
+ *            five-second bound is scripts/states-timed.ts's, which verify runs alone in its timed tier.
  *   partial  every part that answered still drawn: the normal page's headings the page lost are one run, the part that
  *            failed, and not all of them; and, where the page changed at all, words saying what is unavailable.
  *   extreme  a busy platform, every answer past its ceiling (scripts/fake-gateway/states-extreme.ts): the route's own
@@ -57,12 +59,12 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const STATES = ['normal', 'empty', 'error', 'slow', 'partial', 'extreme'] as const;
 type State = (typeof STATES)[number];
 const states = STATES.filter((s) => !list('--states') || list('--states')!.has(s));
-const people = Object.entries(config.personas ?? {}).filter(([name]) => !list('--as') || list('--as')!.has(name));
+export const people = Object.entries(config.personas ?? {}).filter(([name]) => !list('--as') || list('--as')!.has(name));
 const workers = Math.max(1, Number(opt('--workers', '4')) || 4);
 
-type Target = { path: string; ready: string; text: string; rail: boolean };
-const undeclared = config.detailRoutes.filter((r) => !DETAIL[r]);
-const targets: Target[] = [
+export type Target = { path: string; ready: string; text: string; rail: boolean };
+export const undeclared = config.detailRoutes.filter((r) => !DETAIL[r]);
+export const targets: Target[] = [
   ...(config.navigationChecks ?? []).map((c) => ({ path: c.path, ready: c.readySelector, text: (c.readyText ?? '').toLowerCase(), rail: true })),
   ...config.detailRoutes.filter((r) => DETAIL[r]).map((r) => ({ path: r, ready: DETAIL[r], text: '', rail: false })),
 ].filter((t) => !list('--routes') || list('--routes')!.has(t.path));
@@ -77,9 +79,8 @@ const LEAKS = [
   ...theirs.flatMap((i) => initiativeDetail(i.team, i.slug)?.documents.map((d) => d.title) ?? []).filter((t): t is string => !!t && !ownTitles.has(t)),
 ];
 
-/** How long a page has to settle once opened, and the bound an explicit state has under `slow`. */
-const SETTLE_MS = 12_000;
-const BOUND_MS = 5_000;
+/** How long a page has to settle once opened: the window it is read in, which is no bound on any state. */
+export const SETTLE_MS = 12_000;
 
 /** The page's own words for its states, read in the page. COUPLED: the console's views' sentences. */
 export const LIB = String.raw`
@@ -111,7 +112,7 @@ const errorPage = () => /^(The server could not draw this page|This page failed 
 `;
 
 /** Installed before the page's own scripts: the first frame the main region paints, and the first with an explicit state. */
-const observe = (t: Target) => `(() => {
+export const observe = (t: Target) => `(() => {
   ${LIB}
   const spec = ${JSON.stringify({ ready: t.ready, text: t.text, cap: SETTLE_MS })};
   const p = window.__states = { placeholder: null, main: null, loadingAtMain: false, contentAtMain: false, refusedAtMain: false, explicit: null };
@@ -127,10 +128,12 @@ const observe = (t: Target) => `(() => {
 })()`;
 
 type Table = { caption: string; rows: number; pager: string; words: string };
+/** What the observer recorded of one page, each time against navigation start: `window.__states`. */
+export type Frames = { placeholder: number | null; main: number | null; loadingAtMain: boolean; contentAtMain: boolean; refusedAtMain: boolean; explicit: number | null };
 type Seen = {
   text: string; body: string; headings: string[]; loading: boolean; busy: string; content: boolean; refusal: boolean; alert: boolean; errorPage: boolean;
   tables: Table[]; years: number; legend: string[];
-  frames: { placeholder: number | null; main: number | null; loadingAtMain: boolean; contentAtMain: boolean; refusedAtMain: boolean; explicit: number | null };
+  frames: Frames;
   exceptions: string[];
 };
 
@@ -285,6 +288,24 @@ export function extremeRule(t: Pick<Target, 'path'>, who: string, x: Pick<Seen, 
   return { problems, said: problems.length ? [] : [`${x.tables.length} ${x.tables.length === 1 ? 'table' : 'tables'}, ${paged.length} paged${expects?.stepper ? ', a year stepper' : ''}${expects?.other === who ? ', Other' : ''}`] };
 }
 
+/**
+ * The `slow` state of one page, judged by whether and never by when: loading, a refusal or the content in the first
+ * frame its main region paints, an explicit state on screen within the window the page is given to settle, and its
+ * content, a refusal or an error once read. The frames' times are not read here; scripts/states-timed.ts holds them to
+ * five seconds, alone.
+ */
+export function slowRule(x: Pick<Seen, 'content' | 'refusal' | 'alert' | 'frames'>): { problems: string[]; said: string[] } {
+  const f = x.frames;
+  const problems: string[] = [];
+  const said: string[] = [];
+  if (f.main === null) problems.push('the main region never painted');
+  else if (!f.loadingAtMain && !f.contentAtMain && !f.refusedAtMain) problems.push('no loading state in the first frame the main region painted');
+  if (f.explicit === null) problems.push(`no explicit state within the ${SETTLE_MS / 1000} s a page is given to settle`);
+  else said.push(`${f.refusedAtMain ? 'refused at once' : 'loading at once'}${f.placeholder !== null && f.main !== null ? " (after the shell's placeholder)" : ''}, then an explicit state`);
+  if (!x.content && !x.refusal && !x.alert) problems.push('ends with neither its content, a refusal nor an error');
+  return { problems, said };
+}
+
 type Row = { who: string; state: State; t: Target; problems: string[]; said: string };
 const rows: Row[] = [];
 const normals = new Map<string, Seen>();
@@ -330,12 +351,9 @@ function judge(who: string, state: State, t: Target, x: Seen, standing: Seen | n
     if (!x.alert && !words.length && !(denied && x.refusal)) problems.push('says nothing of the failed read: no alert and no sentence that it did not load');
     else said.push(x.alert ? 'alert' : denied && x.refusal ? 'refused' : `"${words[0].slice(0, 60)}"`);
   } else if (state === 'slow') {
-    const f = x.frames;
-    if (f.main === null) problems.push('the main region never painted');
-    else if (!f.loadingAtMain && !f.contentAtMain && !f.refusedAtMain) problems.push('no loading state in the first frame the main region painted');
-    if (f.explicit === null || f.explicit > BOUND_MS) problems.push(`no explicit state by ${BOUND_MS / 1000} s (${f.explicit === null ? 'none' : `at ${Math.round(f.explicit)} ms`})`);
-    else said.push(`${f.refusedAtMain ? 'refused at once' : 'loading at once'}${f.placeholder !== null && f.main !== null ? ` (after the shell's placeholder, ${Math.round(f.main - f.placeholder)} ms)` : ''}, explicit at ${Math.round(f.explicit)} ms`);
-    if (!x.content && !x.refusal && !x.alert) problems.push('ends with neither its content, a refusal nor an error');
+    const r = slowRule(x);
+    problems.push(...r.problems);
+    said.push(...r.said);
   } else if (state === 'partial') {
     // The part that failed is one part, so what it took with it is one run of the normal page's headings, in its order;
     // a heading missing outside that run is a part that answered and is not drawn.

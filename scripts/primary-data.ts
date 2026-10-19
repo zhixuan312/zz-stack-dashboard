@@ -1,13 +1,16 @@
 /**
  * The time until a page's own data can be read, beside its largest paint, per route and per person, on a mid-range
- * phone: one of verify's `browserChecks`.
+ * phone: one of verify's `timedChecks`, which `pnpm verify --timed` runs alone and one at a time, after the live data and
+ * before Web Vitals, since a time taken beside the other suites measures their load.
  *
  *   node scripts/primary-data.ts [--base http://localhost:3100] [--routes /,/record] [--as superadmin,member]
  *
- * The phone is scripts/vitals.ts's: CPU slowed four times, Slow 4G (150 ms round trip, 1.6 Mbps down, 750 kbps up), the
- * cache off, a 390px touch screen in the dark theme, motion not reduced, each page given seven seconds and its load
- * event. The routes are every rail route the navigation checks in scripts/verify.config.ts name, then every address
- * under its `detailRoutes`, for each persona it declares, signed in by the persona's cookie.
+ * The phone is the timed suites' (scripts/lib/phone.ts, as scripts/vitals.ts uses it): the device of benchmark index 800,
+ * the CPU slowed by this host's own index over 800, measured once before the first page and printed as the `phone:`
+ * line; Slow 4G (150 ms round trip, 1.6 Mbps down, 750 kbps up), the cache off, a 390px touch screen in the dark theme,
+ * motion not reduced, each page given seven seconds and its load event. The routes are every rail route the navigation
+ * checks in scripts/verify.config.ts name, then every address under its `detailRoutes`, for each persona it declares,
+ * signed in by the persona's cookie.
  *
  * Time to primary data is navigation start to the first animation frame in which the route's own content is on screen.
  * A rail route's content is its navigation check's `readySelector` (holding `readyText` when it names one); a detail
@@ -45,6 +48,7 @@
  * expected routes, when a detail route the persona is denied opens, or when a detail route has no selector declared.
  */
 import { launch, type Page } from './lib/chrome.ts';
+import { measurePhone } from './lib/phone.ts';
 import config, { DETAIL } from './verify.config.ts';
 
 const args = process.argv.slice(2);
@@ -117,7 +121,7 @@ async function phone(page: Page) {
   await page.send('Network.enable');
   await page.send('Network.emulateNetworkConditions', { offline: false, latency: 150, downloadThroughput: (1.6 * 1024 * 1024) / 8, uploadThroughput: (750 * 1024) / 8 });
   await page.send('Network.setCacheDisabled', { cacheDisabled: true });
-  await page.send('Emulation.setCPUThrottlingRate', { rate: 4 });
+  await page.send('Emulation.setCPUThrottlingRate', { rate: (await measurePhone(page)).rate });
 }
 
 /** One page as one person, with its observer installed for this page alone. */
@@ -144,6 +148,8 @@ async function answered(page: Page): Promise<Seen> {
 const s = (ms: number) => `${(ms / 1000).toFixed(2)} s`;
 const failures: string[] = [];
 const page = await launch();
+// The host's index, measured on a blank page before the first one timed: every later page reads the same rate.
+await measurePhone(page);
 let n = 0;
 
 if (undeclared.length) failures.push(`no primary-data selector declared for ${undeclared.join(', ')}`);

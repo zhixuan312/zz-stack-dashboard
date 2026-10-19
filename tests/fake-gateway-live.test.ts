@@ -3,11 +3,14 @@
  *
  * What is asserted here is the contract the console consumes and the refusals a caller can drive, not the framing
  * details: the names a tab may follow, one body for an unknown name and a forbidden one, nothing but `retry` on
- * connect, a hint that names a collection and nothing else, and frames only to the tabs that follow it.
+ * connect, a hint that names a collection and nothing else, and frames only to the tabs that follow it; and the
+ * revisions, as zz-stack's checks/console-live-since.ts holds the real gateway to them: every read answered with its
+ * collection's, and a stream asked with them greeted `synced`, or `resync` naming only what moved.
  */
 import type { ServerResponse } from 'node:http';
-import { describe, expect, it } from 'vitest';
-import { COLLECTIONS, MAX_NAMES, hint, liveStreams, parseNames, serveLive } from '../scripts/fake-gateway/live.ts';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { COLLECTIONS, MAX_NAMES, hint, liveStreams, parseNames, revisionHeader, serveLive } from '../scripts/fake-gateway/live.ts';
+import { startFakeGateway } from './fake-gateway-start';
 
 /** The least a stream writes to: enough to record the frames and to fire the close handler `serveLive` listens for. */
 function stubRes() {
@@ -112,5 +115,88 @@ describe('a stream', () => {
     res.away();
     expect(liveStreams()).toBe(0);
     expect(hint('teams')).toBe(0);
+  });
+});
+
+/** The revision a read of `seg` is answered with, as the pair a stream's `since` takes back. */
+const revisionOf = (...seg: string[]) => revisionHeader(seg)![1];
+const greeting = (names: string[], since: string | null) => {
+  const res = stubRes();
+  serveLive(res, names, since);
+  res.away();
+  return res.frames.filter((f) => f.startsWith('event: '));
+};
+const SYNCED = 'event: synced\ndata: {}\n\n';
+const resyncOf = (names: string[]) => `event: resync\ndata: ${JSON.stringify({ collections: names })}\n\n`;
+
+describe('revisions', () => {
+  it('answers a read with its collection\'s revision, as the header the real gateway sends', () => {
+    expect(revisionHeader(['teams'])).toEqual(['x-zz-revision', expect.stringMatching(/^teams:[A-Za-z0-9_-]+:\d+$/)]);
+    expect(revisionOf('teams', 'atlas')).toMatch(/^teams:/);
+    // The two reads kept under another's collection, as the console's `src/views/console-live.tsx` keeps them.
+    expect(revisionOf('approvals')).toMatch(/^initiatives:/);
+    expect(revisionOf('access')).toMatch(/^settings:/);
+    // A read no tab may follow carries none.
+    for (const seg of [['platform', 'status'], ['search'], ['home'], []]) expect(revisionHeader(seg), seg.join('/')).toBeNull();
+  });
+
+  it('greets a stream asked with the revisions just read as synced', () => {
+    expect(greeting(['teams', 'runs'], `${revisionOf('teams')},${revisionOf('runs')}`)).toEqual([SYNCED]);
+  });
+
+  it('moves a collection\'s revision with each hint, and a stream asked with the old one resyncs that collection alone', () => {
+    const [teams, runs] = [revisionOf('teams'), revisionOf('runs')];
+    hint('teams');
+    expect(revisionOf('teams')).not.toBe(teams);
+    expect(revisionOf('runs')).toBe(runs);
+    expect(greeting(['teams', 'runs'], `${teams},${runs}`)).toEqual([resyncOf(['teams'])]);
+    expect(greeting(['teams', 'runs'], `${revisionOf('teams')},${runs}`)).toEqual([SYNCED]);
+  });
+
+  it('resyncs a name whose pair is malformed, or of another boot, and leaves the others as they are', () => {
+    const runs = revisionOf('runs');
+    expect(greeting(['teams', 'runs'], `teams:not-a-revision,${runs}`)).toEqual([resyncOf(['teams'])]);
+    expect(greeting(['teams', 'runs'], `teams,${runs}`)).toEqual([resyncOf(['teams'])]);
+    expect(greeting(['teams', 'runs'], `teams:another-boot:0,${runs}`)).toEqual([resyncOf(['teams'])]);
+    // A pair for a name the stream does not follow is no part of its greeting.
+    expect(greeting(['runs'], `${runs},people:x:1`)).toEqual([SYNCED]);
+  });
+
+  it('greets a stream asked with no revisions with a resync of every name, as before', () => {
+    expect(greeting(['teams', 'runs'], null)).toEqual([resyncOf(['teams', 'runs'])]);
+  });
+});
+
+/** The same, over HTTP, as the console's server and the browser meet the fixture: the header on a read, `since` on the stream. */
+describe('revisions, as the fixture serves them', () => {
+  let fixture: Awaited<ReturnType<typeof startFakeGateway>>;
+  beforeAll(async () => { fixture = await startFakeGateway(); });
+  afterAll(() => { fixture.proc.kill(); });
+
+  const read = async (path: string) => (await fetch(`${fixture.base}/api/console${path}`)).headers.get('x-zz-revision');
+  /** The stream's first event, once it opens. */
+  const greetingOf = async (query: string) => {
+    const abort = new AbortController();
+    const res = await fetch(`${fixture.base}/api/console/live?${query}`, { signal: abort.signal });
+    const reader = res.body!.getReader();
+    let text = '';
+    try {
+      while (!text.split('\n\n').some((f) => f.startsWith('event:'))) text += new TextDecoder().decode((await reader.read()).value);
+      return text.split('\n\n').find((f) => f.startsWith('event:'));
+    } finally {
+      abort.abort();
+    }
+  };
+
+  it('answers a read with its collection\'s revision, and a stream asked with it is synced until a hint moves it', async () => {
+    const teams = await read('/teams?limit=10&offset=0');
+    expect(teams).toMatch(/^teams:[A-Za-z0-9_-]+:\d+$/);
+    expect(await read('/approvals?tab=waiting&limit=100')).toMatch(/^initiatives:/);
+    expect(await read('/platform/status')).toBeNull();
+    const query = `collections=teams&since=${encodeURIComponent(teams!)}`;
+    expect(await greetingOf(query)).toBe('event: synced\ndata: {}');
+    await fetch(`${fixture.base}/api/console/__hint?collection=teams`);
+    expect(await greetingOf(query)).toBe('event: resync\ndata: {"collections":["teams"]}');
+    expect(await greetingOf('collections=teams')).toBe('event: resync\ndata: {"collections":["teams"]}');
   });
 });

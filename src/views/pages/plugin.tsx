@@ -19,6 +19,7 @@ import { EvalAutomationTrust, EvalEvolution } from '@/console/plugin-eval-evolut
 import { EvalHeadline, EvalHealth, EvalQuality } from '@/console/plugin-eval-overview';
 import { failureOf } from '@/console/query';
 import { count } from '@/console/words';
+import type { Revised } from '@/data/gateway';
 import { useDataClock } from '@/lib/api';
 import type { PluginEval, PluginEvalFound, PluginRow } from '@/lib/api-shapes';
 import { formatDate } from '@/lib/format-date';
@@ -92,8 +93,8 @@ function useEvaluation(name: string, served: EvalRead) {
  * every skill it ships with the team's own use of it. A third-party subject registered for evaluation only has no
  * catalog row, so it shows its evaluation with no manifest above it. No control here starts an evaluation.
  */
-export function PluginView({ name, served }: { name: string; served: PluginRead }) {
-  useLive(['plugins']);
+export function PluginView({ name, served }: { name: string; served: Revised<PluginRead> }) {
+  useLive(['plugins'], served.revisions);
   const catalog = useFollowed<Catalog>(PLUGINS_PATH, served.catalog);
   const { evaluation, retry: retryEvaluation, at: evaluatedAt } = useEvaluation(name, served.evaluation);
   const now = useDataClock();

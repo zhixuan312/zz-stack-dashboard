@@ -44,7 +44,7 @@ const Prose = dynamic(() => import('@/components/patterns/prose').then((m) => m.
  */
 export function KnowledgeNodeView({ read, team, rel }: { read: ServerRead<KnowledgeBody>; team: string; rel: string }) {
   const address = `/knowledge/${team}/${rel}`;
-  useLive(['knowledge']);
+  useLive(['knowledge'], read.state === 'ok' ? read.revisions : undefined);
   useServerReadLive(address);
   const now = useDataClock();
   const self = read.state === 'ok' ? read.data : undefined;

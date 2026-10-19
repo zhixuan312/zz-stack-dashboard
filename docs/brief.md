@@ -198,8 +198,15 @@ app against a fake gateway (`scripts/fake-gateway`), serves it, and runs the rou
 is configured for. The fake gateway exists because the presses approve, revoke and archive whatever a page offers, so
 they must never reach the real deployment. Its records are synthetic; nobody in them is a real person.
 
-`pnpm verify --full` adds every mapped rail route and the exhaustive suites; `pnpm verify --perf` takes 20 samples per
-route, device and condition. What a run did not exercise, its coverage line says.
+The tiers are those of ZZ Meridian 0.18.0's testing standard. `pnpm gate` is the quick tier and `pnpm verify` the
+change tier; `pnpm verify --full` is the complete tier, every rail route, the audit, the presses, the keyboard walk, the
+assistant and the console's `browserChecks`, and judges no time; `pnpm verify --timed` is the timed tier, the budgets,
+the live data, the console's `timedChecks` and Web Vitals on the phone of benchmark index 800, alone and last.
+`pnpm verify --full --timed` is the whole standard and the run before a release, at the release commit on a quiet
+machine. The persona walk, `pnpm verify --full --as <person>` for each person `scripts/verify.config.ts` declares, is a
+run of its own, refused beside `--timed`. `pnpm verify --perf`, 20 samples per route, device and condition, runs only
+in CI, split with `--shard <i>/<n>` over six runners every week. CI runs the complete tier with the persona walk and
+the timed tier on every push, each as its own job. What a run did not exercise, its coverage line says.
 
 ## Staying in step with Meridian
 
@@ -244,8 +251,8 @@ What stays the console's own, and why:
   route's read. A route with an unknown dynamic param cannot render its page on the server, so nothing writes
   the hint `useConsole` was designed to write from the HTML, and the read then waits for the route's own JS. Measured:
   2,180 ms to 164 ms.
-- `scripts/fake-gateway/`, `scripts/approve-banners.ts` and `scripts/live-check.ts`: the fixture and the product's own
-  checks that `verify` runs. The live check drives a change through the fake gateway's own hooks, which wear the path
+- `scripts/fake-gateway/`, `scripts/approve-banners.ts` and `scripts/live-check.ts`: the fixture and two of the product's own
+  `browserChecks`, which `verify --full` runs. The live check drives a change through the fake gateway's own hooks, which wear the path
   the app proxies (`/api/console/__hint`) so a check never has to know the gateway's address.
 - `scripts/explore-probe.ts`: every view tool and the page's prepared query asked as one person through ZZ Meridian's
   runner on a real gateway, none of another team's words in any answer; zz-stack's walking skeleton runs it, `verify`

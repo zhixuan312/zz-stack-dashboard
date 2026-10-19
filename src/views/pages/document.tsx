@@ -142,7 +142,7 @@ function useDocument(path: string, served: DocumentRead) {
  * `/me`: the breadcrumb's team links there for them and is plain text for anybody else, who would be refused it.
  */
 export function DocumentView({ team, slug, rel, served, teamPage }: { team: string; slug: string; rel: string; served: DocumentRead; teamPage: boolean }) {
-  useLive(['document']);
+  useLive(['document'], served.state === 'ok' || served.state === 'missing' ? served.revisions : undefined);
   const { q, data: d, trouble, follow, updatedAt } = useDocument(`/document/${team}/${slug}/${rel}`, served);
   const me = useConsole<Me>('/me');
   // Rendered by default, because a person came to read it; the stored markdown is one press away.

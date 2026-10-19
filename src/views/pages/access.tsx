@@ -17,6 +17,7 @@ import { PasskeysPanel } from '@/console/settings/passkeys-panel';
 import { TeamAdminPanel } from '@/console/settings/team-admin-panel';
 import { TeamSection } from '@/console/settings/teams-panel';
 import { TokensPanel } from '@/console/settings/tokens-panel';
+import type { Revised } from '@/data/gateway';
 import { useDataClock } from '@/lib/api';
 import type { Access } from '@/lib/destination-shapes';
 import { useLive } from '@/lib/live';
@@ -48,8 +49,8 @@ function useAccessRead(served: AccessRead) {
  *
  * Its own changes and any other tab's (the gateway tells every tab `settings`) read it again in the browser.
  */
-export function AccessView({ served }: { served: AccessRead }) {
-  useLive(['settings']);
+export function AccessView({ served }: { served: Revised<AccessRead> }) {
+  useLive(['settings'], served.revisions);
   const now = useDataClock();
   const { access, trouble, retry, updatedAt } = useAccessRead(served);
   useShareView(access

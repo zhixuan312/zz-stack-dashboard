@@ -1,0 +1,87 @@
+# The console's weekly run: ZZ Meridian's 20-sample perf protocol (docs/testing.md, `verify/perf`), which runs only in CI,
+# split by route with `--shard <i>/<n>`, one shard a runner, in parallel, on master's current commit. The complete and the
+# timed tiers are not run here: `gate.yml` runs both on every push, and evidence on a commit stands for it.
+#
+# The protocol is a report: a p95 over its budget is a `warn` in it and the job stays green, and only a broken sample
+# fails. A red is rerun by its shard alone ("Re-run failed jobs"), and a dispatch names the jobs it runs:
+# `gh workflow run weekly.yml -f jobs=perf`.
+#
+# The shard count: `navigationChecks` in scripts/verify.config.ts holds 18 rail routes, and shard i of n measures the
+# routes at positions k with k % n === i - 1 (scripts/lib/shard.ts). Meridian's own weekly run splits its 15 rail routes
+# into 5 shards of 3, and its slowest shard took 24.1 min on the runner, about 8 min a route. Three routes a shard keeps
+# each within about half an hour, so the 18 rail routes are 6 shards of 3, each about 25 min. A route added to the rail
+# goes to a shard as the formula places it; past 4 routes a shard, add a shard.
+#
+# Every page reads the fake gateway (`fakeApi` in scripts/verify.config.ts): nothing here holds a credential or reaches
+# the deployment, and each shard keeps its `out/verify.txt`.
+name: weekly
+
+on:
+  schedule:
+    - cron: '41 4 * * 1'   # Mondays, 04:41 UTC
+  workflow_dispatch:
+    inputs:
+      jobs:
+        description: 'The jobs to run, comma-separated without spaces: perf'
+        type: string
+        default: perf
+
+permissions:
+  contents: read
+
+concurrency:
+  group: weekly
+  cancel-in-progress: false
+
+jobs:
+  # A dispatch's list, read before any job starts: a name that is not a job, or a space after a comma, would otherwise
+  # skip that job silently, and a list naming none would end green having run nothing.
+  named:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Every name is a job
+        env:
+          JOBS: ${{ inputs.jobs || 'perf' }}
+        run: |
+          set -euo pipefail
+          IFS=',' read -ra names <<< "$JOBS"
+          [ "${#names[@]}" -gt 0 ] || { echo "jobs names no job: give perf"; exit 1; }
+          for n in "${names[@]}"; do
+            case "$n" in
+              perf) ;;
+              *) echo "jobs: '$n' is not a job; name perf, comma-separated without spaces"; exit 1 ;;
+            esac
+          done
+
+  perf:
+    needs: named
+    if: contains(format(',{0},', inputs.jobs || 'perf'), ',perf,')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6]
+    env:
+      CHROME: /usr/bin/google-chrome
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      # corepack reads `packageManager` from package.json, so the runner uses the pinned pnpm.
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - name: verify --perf, shard ${{ matrix.shard }} of 6 (a report)
+        run: pnpm verify --perf --shard ${{ matrix.shard }}/6
+      - name: Keep the report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: perf-${{ matrix.shard }}
+          path: out/verify.txt
+          if-no-files-found: ignore
+          retention-days: 30

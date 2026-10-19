@@ -17,6 +17,7 @@ import { toast } from '@/components/ui/toast';
 import { aligned } from '@/console/columns';
 import { failureOf } from '@/console/query';
 import { InlineDestructive } from '@/console/settings/inline-destructive';
+import type { Revised } from '@/data/gateway';
 import { ApiError, useDataClock } from '@/lib/api';
 import type { People, PersonRow } from '@/lib/fleet-shapes';
 import { plural } from '@/lib/format';
@@ -186,8 +187,8 @@ function usePeople(served: PeopleRead | null, filters: PeopleFilters) {
  * ten to a page, filtered and paged by the gateway, each with their two acts. The first page the address names is read
  * on the console's server and handed here; every other read, and the people collection's live updates, are the browser's.
  */
-export function PlatformPeopleView({ served }: { served: PeopleRead }) {
-  useLive(['people']);
+export function PlatformPeopleView({ served }: { served: Revised<PeopleRead> }) {
+  useLive(['people'], served.revisions);
   const [filters, set] = useServedAddress(PEOPLE_DEFAULTS, served, filtersOfPath);
   const [draft, setDraft] = useSearchDraft(filters.q, (q) => set({ q, page: '1' }));
   const { data, trouble, retry, updatedAt } = usePeople(served, filters);

@@ -10,6 +10,7 @@ import { CopyField } from '@/components/ui/copy-field';
 import { aligned } from '@/console/columns';
 import { ScoreCell, scoreFact } from '@/console/eval-score';
 import { failureOf } from '@/console/query';
+import type { Revised } from '@/data/gateway';
 import { useDataClock } from '@/lib/api';
 import type { PluginRow } from '@/lib/api-shapes';
 import { plural } from '@/lib/format';
@@ -82,8 +83,8 @@ function usePlugins(served: PluginsRead) {
  * the address held, which the first paint narrows by; the plugins collection's live updates and a Retry are the
  * browser's. No control on it starts an evaluation.
  */
-export function PluginsView({ served, addressed = null }: { served: PluginsRead; addressed?: PluginsFilters | null }) {
-  useLive(['plugins']);
+export function PluginsView({ served, addressed = null }: { served: Revised<PluginsRead>; addressed?: PluginsFilters | null }) {
+  useLive(['plugins'], served.revisions);
   const [filters, set] = useAddress(PLUGINS_DEFAULTS, addressed);
   const [draft, setDraft] = useSearchDraft(filters.plugin, (plugin) => set({ plugin }));
   const { data, trouble, retry, updatedAt } = usePlugins(served);

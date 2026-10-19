@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { chromeAccess } from '@/data/access';
-import { GatewayError, gatewayGet } from '@/data/gateway';
+import { GatewayError, answeredAt, gatewayGet, type Revised } from '@/data/gateway';
 import type { InitiativeDetail } from '@/lib/api-shapes';
 import type { InitiativeList } from '@/lib/work-shapes';
 import type { InitiativeRead } from '@/views/initiative-context';
@@ -27,14 +27,15 @@ function signedOut(err: unknown, next: string): void {
 
 /**
  * One page of `GET /initiatives` for the address's filters, on the console's server, as the person, given
- * `INITIATIVES_BOUND_MS`, with the team the person acts for, which a row opens its initiative under. It never rejects
- * but for a session that ended, so the page's boundary never waits on it longer or falls to the error page.
+ * `INITIATIVES_BOUND_MS`, with the team the person acts for, which a row opens its initiative under, and the revisions
+ * it was answered at. It never rejects but for a session that ended, so the page's boundary never waits on it longer or
+ * falls to the error page.
  */
-export function readInitiatives(filters: InitiativesFilters): Promise<InitiativesRead> {
+export function readInitiatives(filters: InitiativesFilters): Promise<Revised<InitiativesRead>> {
   const path = listPath(filters);
-  return bounded(
+  return bounded<Revised<InitiativesRead>>(
     Promise.all([gatewayGet<InitiativeList>(path), chromeAccess()]).then(
-      ([data, { team }]): InitiativesRead => ({ state: 'ok', path, data, team: team ?? null }),
+      ([data, { team }]): Revised<InitiativesRead> => ({ state: 'ok', path, data, team: team ?? null, revisions: answeredAt(data) }),
       (err: unknown): InitiativesRead => { signedOut(err, '/initiatives'); return { state: 'failed', path, reason: reasonOf(err) }; },
     ),
     { state: 'slow', path },
@@ -44,16 +45,16 @@ export function readInitiatives(filters: InitiativesFilters): Promise<Initiative
 /**
  * `GET /initiatives/:team/:slug`, the same way, with the team the person acts for, which a close is made under, and the
  * moment it answered, which the page's freshness is told from. An address no initiative has is `missing`, which the
- * gateway answers with a 404.
+ * gateway answers with a 404. Both carry the revisions they were answered at.
  */
-export function readInitiative(team: string, slug: string): Promise<InitiativeRead> {
+export function readInitiative(team: string, slug: string): Promise<Revised<InitiativeRead>> {
   const at = `/initiatives/${encodeURIComponent(team)}/${encodeURIComponent(slug)}`;
-  return bounded(
+  return bounded<Revised<InitiativeRead>>(
     Promise.all([gatewayGet<InitiativeDetail>(at), chromeAccess()]).then(
-      ([data, access]): InitiativeRead => ({ state: 'ok', data, team: access.team ?? null, at: new Date().toISOString() }),
-      (err: unknown): InitiativeRead => {
+      ([data, access]): Revised<InitiativeRead> => ({ state: 'ok', data, team: access.team ?? null, at: new Date().toISOString(), revisions: answeredAt(data) }),
+      (err: unknown): Revised<InitiativeRead> => {
         signedOut(err, at);
-        return err instanceof GatewayError && err.status === 404 ? { state: 'missing' } : { state: 'failed', reason: reasonOf(err) };
+        return err instanceof GatewayError && err.status === 404 ? { state: 'missing', revisions: err.revisions } : { state: 'failed', reason: reasonOf(err) };
       },
     ),
     { state: 'slow' },

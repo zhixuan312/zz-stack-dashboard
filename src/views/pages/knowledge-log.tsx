@@ -51,7 +51,7 @@ function columns(): Column<KnowledgeLogEntry>[] {
  * and hands it here; its dates are absolute, because they came from the server.
  */
 export function KnowledgeLogView({ read }: { read: ServerRead<{ entries: KnowledgeLogEntry[] }> }) {
-  useLive(['knowledge']);
+  useLive(['knowledge'], read.state === 'ok' ? read.revisions : undefined);
   useServerReadLive('/knowledge/log');
   const router = useRouter();
   const [retrying, startRetry] = useTransition();

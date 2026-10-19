@@ -15,11 +15,24 @@ pnpm dev                  # against a gateway you can reach
 pnpm typecheck            # tsc --noEmit
 pnpm lint                 # eslint
 pnpm test                 # vitest
-pnpm gate                 # Meridian's gate: tokens, specifications, contrast, types, tests
-pnpm verify --full        # the gate, a build against the fake gateway, the browser audit, every control pressed
+pnpm gate                 # the quick tier: tokens, specifications, contrast, types, tests; before every commit
+pnpm verify               # the change tier: adds a build against the fake gateway and a three-route navigation; before finishing a change
+pnpm verify --full        # the complete tier: every route audited, every control pressed, browserChecks; before handing a change over
+pnpm verify --full --as superadmin,member   # the persona walk, as each person; after a change to who may see or do what
+pnpm verify --full --timed   # the whole standard; before a release, at the release commit, on a quiet machine
 ```
 
-`pnpm verify --full` is the whole standard and what CI runs. The specification checks
+These are ZZ Meridian 0.18.0's tiers (its `docs/testing.md`; the README's "Checking it" says what each adds).
+`pnpm verify --full --timed` is the whole standard and the run before a release, on a quiet machine: `--full` judges
+no time, and the timed tier (`pnpm verify --timed`: the budgets, the live data, the console's `timedChecks` and Web
+Vitals, on the phone of benchmark index 800) runs alone and last. `--as` is a run of its own, refused beside
+`--timed`, so the persona walk and the timed tier are two runs. `pnpm verify --perf`, the 20-sample protocol, runs
+only in CI, split with `--shard <i>/<n>` (`.github/workflows/weekly.yml`); on a laptop narrow it,
+`node scripts/perf.ts --base <url> --routes <route>`. On every push CI runs `lint`, then the jobs `full`
+(`pnpm verify --full --as superadmin,member`) and `timed` (`pnpm verify --timed`) on separate runners
+(`.github/workflows/gate.yml`).
+
+The specification checks
 (`scripts/check.ts` and `scripts/check.local.ts`) hold Meridian's rules and the console's own,
 written as properties rather than test names: *"a timestamp is never printed raw"*, *"no map is
 keyed by the names of one flow or skill"*, *"markdown renders raw HTML inert"*. A red gate is

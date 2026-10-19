@@ -17,6 +17,7 @@ import { ConsolePage } from '@/console/page';
 import { Panel } from '@/console/panel';
 import { failureOf } from '@/console/query';
 import { When } from '@/console/when';
+import type { Revised } from '@/data/gateway';
 import { useConsole, useDataClock } from '@/lib/api';
 import type { ActivityLog, ActivityRow, ActivitySummary, RefusalGroup, RefusalOwner } from '@/lib/destination-shapes';
 import { plural } from '@/lib/format';
@@ -98,8 +99,8 @@ function Pointed({ onChange }: { onChange: (index: number | null) => void }) {
  * fall into, and the log, newest first. The summary is the console's server's read, handed here; the log, its filters
  * and its pages are read in the browser, and the gateway counts, groups, filters and pages all of it.
  */
-export function ActivityView({ read }: { read: ActivityRead }) {
-  useLive(['activity']);
+export function ActivityView({ read }: { read: Revised<ActivityRead> }) {
+  useLive(['activity'], read.revisions);
   const [f, set] = useQueryState({ ...NO_FILTER, page: '1' });
   const filters = useMemo(() => ({ kind: f.kind, tool: f.tool, initiative: f.initiative, refused: f.refused }), [f.kind, f.tool, f.initiative, f.refused]);
   const page = Math.max(1, Number(f.page) || 1);

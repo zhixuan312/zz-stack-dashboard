@@ -16,6 +16,7 @@ import { aligned } from '@/console/columns';
 import { Panel } from '@/console/panel';
 import { failureOf } from '@/console/query';
 import { When } from '@/console/when';
+import type { Revised } from '@/data/gateway';
 import { useDataClock } from '@/lib/api';
 import { plural } from '@/lib/format';
 import { formatDate, formatDateTime, formatShortDate } from '@/lib/format-date';
@@ -71,8 +72,8 @@ function useInitiatives(served: InitiativesRead | null, filters: InitiativesFilt
  * filters, searches and pages the list, ten to a page; the first page the address names is read on the console's server
  * and handed here, with the team a row opens its initiative under.
  */
-export function InitiativesView({ served }: { served: InitiativesRead }) {
-  useLive(['initiatives']);
+export function InitiativesView({ served }: { served: Revised<InitiativesRead> }) {
+  useLive(['initiatives'], served.revisions);
   const [filters, set] = useServedAddress(INITIATIVES_DEFAULTS, served, filtersOfPath);
   const [draft, setDraft] = useSearchDraft(filters.q, (q) => set({ q, page: '1' }));
   const { data, trouble, retry, updatedAt } = useInitiatives(served, filters);

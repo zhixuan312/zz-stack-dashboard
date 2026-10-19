@@ -2,7 +2,8 @@
 import { describe, expect, it } from 'vitest';
 import { skillText } from '../scripts/fake-gateway/platform.ts';
 import { empty } from '../scripts/fake-gateway/states.ts';
-import { EMPTY_IS_NORMAL, emptyRule } from '../scripts/states-check.ts';
+import * as STATES_CHECK from '../scripts/states-check.ts';
+import { EMPTY_IS_NORMAL, emptyRule, slowRule } from '../scripts/states-check.ts';
 import config from '../scripts/verify.config.ts';
 
 /**
@@ -87,5 +88,37 @@ describe('the empty rule for every other route', () => {
   it('fails a page that says an empty answer failed', () => {
     const failed = page('Its runs\nNo runs recorded\nThe runs’ record did not load');
     expect(emptyRule({ path: SKILL_COST, rail: false }, failed, RUNS).problems.join(' ')).toMatch(/says an empty answer failed/);
+  });
+});
+
+describe('the slow rule, which judges whether and never when', () => {
+  /** A recorded `slow` page: loading in the first frame its main region painted, its content once read. */
+  const slow = (explicit: number | null) => ({
+    content: explicit !== null, refusal: false, alert: false,
+    frames: { placeholder: null, main: 180, loadingAtMain: true, contentAtMain: false, refusedAtMain: false, explicit },
+  });
+
+  it('passes a row whose explicit state arrived, whenever it arrived, and says no time', () => {
+    for (const explicit of [4_200, 5_800, 11_500]) {
+      const r = slowRule(slow(explicit));
+      expect(r.problems, String(explicit)).toEqual([]);
+      expect(r.said.join(' ')).toBe('loading at once, then an explicit state');
+      expect(r.said.join(' ')).not.toMatch(/\d/);
+    }
+  });
+
+  it('fails a row with no explicit state in the window a page is given, naming the window', () => {
+    const r = slowRule({ ...slow(null), content: false });
+    expect(r.problems.join(' ')).toMatch(/no explicit state within the 12 s a page is given to settle/);
+  });
+
+  it('fails a row that showed no loading in its first frame, whatever its time', () => {
+    const late = slow(4_200);
+    expect(slowRule({ ...late, frames: { ...late.frames, loadingAtMain: false } }).problems.join(' ')).toMatch(/no loading state in the first frame/);
+  });
+
+  it('is the rule states-check runs in browserChecks, with no bound of its own', () => {
+    expect(config.browserChecks).toContain('scripts/states-check.ts');
+    expect(Object.keys(STATES_CHECK)).not.toContain('BOUND_MS');
   });
 });

@@ -17,6 +17,7 @@ import { StateBadge } from '@/console/initiative';
 import { Panel } from '@/console/panel';
 import { failureOf } from '@/console/query';
 import { When } from '@/console/when';
+import type { Revised } from '@/data/gateway';
 import { encodePath } from '@/lib/store-path';
 import { useDataClock } from '@/lib/api';
 import type { InitiativeDetail } from '@/lib/api-shapes';
@@ -100,8 +101,8 @@ function useInitiative(team: string, slug: string, served: InitiativeRead) {
  * Read on the console's server and handed here; its later reads, after a close or a change anywhere to initiatives,
  * are the browser's.
  */
-export function InitiativeView({ team, slug, served }: { team: string; slug: string; served: InitiativeRead }) {
-  useLive(['initiatives']);
+export function InitiativeView({ team, slug, served }: { team: string; slug: string; served: Revised<InitiativeRead> }) {
+  useLive(['initiatives'], served.revisions);
   const { data: d, trouble, retry, updatedAt } = useInitiative(team, slug, served);
   const now = useDataClock();
   const base = `/initiatives/${team}/${slug}`;

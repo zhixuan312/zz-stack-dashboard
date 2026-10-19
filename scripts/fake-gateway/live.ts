@@ -10,14 +10,22 @@
  *   event: resync
  *   data: {"collections":["initiatives","knowledge"]}
  *
+ *   event: synced
+ *   data: {}
+ *
  *   event: change
  *   data: {"collection":"initiatives"}
  *
  *   : beat 1791181947919
  *
- * The `resync` frame opens every stream as its greeting, as the real gateway's does; after that the real gateway raises
- * it for the two things that mean a tab missed changes, and neither is reachable here, so `hint` below is the only
- * other frame this file can raise.
+ * A stream opens with its greeting, as the real gateway's does: `synced` when nothing it follows moved since the
+ * revisions the tab's page was served (`since`), or a `resync` naming what did, which is every name for a stream asked
+ * with none. After that the real gateway raises `resync` for the two things that mean a tab missed changes, and neither
+ * is reachable here, so `hint` below is the only other frame this file can raise.
+ *
+ * Every read is answered with the revision of its collection (`revisionHeader`), as the real gateway's are: this
+ * process's boot and the count of hints raised for that collection since it started. The real gateway counts each
+ * caller's own, by the teams that caller may hear; here every tab hears every hint, so one count is every caller's.
  *
  * A hint names a collection and nothing else — never a record, a team or a cache tag — and is never data: a missed
  * hint costs freshness, never correctness, which is why the tab also has a safety poll and takes its own catch-up
@@ -43,6 +51,46 @@ type Subscriber = {
 
 const subscribers = new Set<Subscriber>();
 
+/** This process's boot, in every revision it answers: a revision from another process never matches one of this one's. */
+const BOOT = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+/** The hints raised for each collection since the process started. */
+const hinted = new Map<string, number>();
+const REVISION = /^[A-Za-z0-9_-]+:\d+$/;
+
+/** `name`'s revision now. */
+const revisionOf = (name: string): string => `${BOOT}:${hinted.get(name) ?? 0}`;
+
+/** The reads whose collection is another's, as the console's `src/views/console-live.tsx` keeps them. */
+const KEPT_UNDER: Record<string, string> = { approvals: 'initiatives', access: 'settings' };
+
+/**
+ * The revision header a read of `seg` (the path past `/api/console`) is answered with, as `[name, value]`, or null for a
+ * read whose collection a tab may not follow. COUPLED: the real gateway's `x-zz-revision`
+ * (zz-stack's services/gateway/src/console/live-revision.ts), read by the console's `src/data/gateway.ts` and
+ * `src/lib/api.ts` as `<collection>:<boot>:<n>`.
+ */
+export function revisionHeader(seg: string[]): [string, string] | null {
+  const name = KEPT_UNDER[seg[0] ?? ''] ?? seg[0] ?? '';
+  return (COLLECTIONS as readonly string[]).includes(name) ? ['x-zz-revision', `${name}:${revisionOf(name)}`] : null;
+}
+
+/**
+ * The names a stream's greeting resyncs: every one of `names` whose revision in `since` is not the one held now, all of
+ * them with no `since`. A pair that is not `<name>:<boot>:<n>` is ignored, which resyncs its name, as the real gateway's
+ * `movedSince` does.
+ */
+function movedSince(names: string[], since: string | null): string[] {
+  if (since === null) return names;
+  const served = new Map<string, string>();
+  for (const pair of since.split(',')) {
+    const at = pair.indexOf(':');
+    const name = pair.slice(0, at);
+    const revision = pair.slice(at + 1);
+    if (at > 0 && REVISION.test(revision) && !served.has(name)) served.set(name, revision);
+  }
+  return names.filter((n) => served.get(n) === undefined || served.get(n) !== revisionOf(n));
+}
+
 const frame = (event: string, data: unknown) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 
 /**
@@ -57,6 +105,7 @@ const frame = (event: string, data: unknown) => `event: ${event}\ndata: ${JSON.s
  * branch no check could reach. A console that worked against this file's silence would be relying on nothing.
  */
 export function hint(name: string): number {
+  hinted.set(name, (hinted.get(name) ?? 0) + 1);
   let reached = 0;
   for (const s of [...subscribers]) {
     if (!s.names.includes(name)) continue;
@@ -81,8 +130,9 @@ export function parseNames(raw: string | null): { names: string[] } | { status: 
   return { names };
 }
 
-/** Hold `res` open as one tab's stream, with `names` already authorized. */
-export function serveLive(res: ServerResponse, names: string[]): void {
+/** Hold `res` open as one tab's stream, with `names` already authorized; `since` is the revisions the tab's page was
+ *  served, as the request sent them, or null. */
+export function serveLive(res: ServerResponse, names: string[], since: string | null = null): void {
   res.writeHead(200, {
     'content-type': 'text/event-stream',
     'cache-control': 'no-cache, no-transform',
@@ -109,14 +159,16 @@ export function serveLive(res: ServerResponse, names: string[]): void {
    * `req.on('close')` fires at once and would close every stream the moment it opened. */
   res.on('close', s.close);
   subscribers.add(s);
+  const moved = movedSince(names, since);
   s.write(`retry: 3000\n\n`);
-  /* The stream opens with one resync of the names this tab follows: the greeting, which the real gateway sends too
-   * (zz-stack's `services/gateway/src/console/live.ts`, held by its `checks/console-live-greeting.ts`).
+  /* The stream opens with its greeting, which the real gateway sends too (zz-stack's
+   * `services/gateway/src/console/live.ts`, held by its `checks/console-live-greeting.ts` and `console-live-since.ts`).
    *
-   * COUPLED: `src/lib/live.ts`, ZZ Meridian's own file, takes the first resync on a stream as the read the page made
-   * while it mounted and reads nothing for it, then reads again on every later one. A stream with no greeting would have
-   * its first real resync taken for the greeting and thrown away. Nothing here raises a second one: `hint` writes
-   * `change` frames, and the real gateway's two reasons to resync again — its `LISTEN` connection was down, or a burst
-   * overflowed the queue — are unreachable in a fixture that revokes nobody and queues nothing. */
-  s.write(frame('resync', { collections: names }));
+   * COUPLED: `src/lib/live.ts`, ZZ Meridian's own file. Asked with revisions, it waits for the greeting and reads only
+   * what a resync names, nothing for `synced`; asked with none, it reads everything as it opens and takes the first
+   * resync for that read, then reads again on every later one. A stream with no greeting would have its first real
+   * resync taken for the greeting and thrown away. Nothing here raises a second one: `hint` writes `change` frames, and
+   * the real gateway's two reasons to resync again — its `LISTEN` connection was down, or a burst overflowed the queue —
+   * are unreachable in a fixture that revokes nobody and queues nothing. */
+  s.write(moved.length > 0 ? frame('resync', { collections: moved }) : frame('synced', {}));
 }

@@ -1,8 +1,9 @@
 'use client';
 
-import { useCallback, type ReactNode } from 'react';
+import { Suspense, useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useQueryClient, type Query } from '@tanstack/react-query';
-import { LiveProvider } from '@/lib/live';
+import { useWaitingApprovals, waitingRevisions } from '@/console/waiting-gates';
+import { LiveProvider, useLive } from '@/lib/live';
 import { useConsole } from '@/lib/api';
 import type { Me } from '@/lib/api-shapes';
 
@@ -41,10 +42,16 @@ function collectionOf(path: string): string {
  * anything the stream is trusted with: a new one disposes the old stream and its state, and an empty one opens
  * nothing. It stays empty until `/me` answers, so a signed-out tab opens no stream at all, and it changes when someone
  * else signs in on the same machine. A team switch replaces the document, so it needs no key of its own.
+ *
+ * For a caller the console reads for, it also waits for the bell's read (`BellLive`): the tab's first stream is the one
+ * that asks with the revisions the page was served, and the bell's read is the one read on every page that the
+ * console's server did not make, so the stream opens once it has answered and can ask with its revision too.
  */
 export function ConsoleLive({ children }: { children: ReactNode }) {
   const client = useQueryClient();
   const me = useConsole<Me>('/me');
+  const [bellAnswered, setBellAnswered] = useState(false);
+  const mayRead = !!me.data?.mayRead;
 
   /**
    * Reads the named collections again. The stream is telling the tab what it cannot see for itself — another tab or
@@ -64,8 +71,28 @@ export function ConsoleLive({ children }: { children: ReactNode }) {
   // No test hook for the safety poll: a check drives a change through a hint at a moment it chose, which is the
   // behaviour that matters, rather than waiting out the provider's own poll.
   return (
-    <LiveProvider refresh={refresh} endpoint={ENDPOINT} scopeKey={me.data ? me.data.email : ''}>
+    <LiveProvider refresh={refresh} endpoint={ENDPOINT} scopeKey={me.data && (!mayRead || bellAnswered) ? me.data.email : ''}>
+      {mayRead ? <Suspense fallback={null}><BellLive onAnswered={setBellAnswered} /></Suspense> : null}
       {children}
     </LiveProvider>
   );
+}
+
+/**
+ * The bell's collection on the live stream, beside the bell's read (`src/console/frame.tsx` draws what it answers): an
+ * approval or a presentation changes a document, which the platform names `initiatives`, and the Approvals read is kept
+ * under that collection. Without it the bell keeps a count nothing ever corrects.
+ *
+ * It registers with the revision the read was answered at, and says when the read has answered, either way, so the
+ * stream opens after the registration that carries it: a child's effects run before the provider's, and the provider
+ * opens the stream on the commit after this one. A read that failed hands no revision, and the stream resyncs the bell's
+ * collection, which reads it again. Its own boundary: the read is keyed by who the page is read by, which a page's own
+ * content never waits for.
+ */
+function BellLive({ onAnswered }: { onAnswered: (answered: boolean) => void }) {
+  const q = useWaitingApprovals();
+  const answered = q.isSuccess || q.isError;
+  useLive(['initiatives'], q.isSuccess ? waitingRevisions() : undefined);
+  useEffect(() => { if (answered) onAnswered(true); }, [answered, onAnswered]);
+  return null;
 }

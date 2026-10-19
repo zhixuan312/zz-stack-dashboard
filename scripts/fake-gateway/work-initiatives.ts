@@ -53,7 +53,9 @@ export function workMeta(scope: ReadMeta['scope'], population: string): ReadMeta
 }
 
 /** When atlas's work was opened and closed, as `[weeks back, hours into that week]`, so its closures fall in the weeks
- *  the pages draw and two of them in the last whole week. Every other team's are read off its last touch. */
+ *  the pages draw and two of them in the last whole week. Every other team's are read off its last touch, but for a
+ *  closure whose last touch is recent: beacon's payout schedule was touched 26 hours ago by its correction, which on a
+ *  Monday falls in the last whole week, so its close is placed in the week before it, after its spec was signed. */
 const WHEN: Record<string, { opened: [number, number]; closed?: [number, number] }> = {
   '2026-09-28-search-relevance': { opened: [2, 30] },
   '2026-10-02-query-latency': { opened: [1, 20] },
@@ -67,6 +69,7 @@ const WHEN: Record<string, { opened: [number, number]; closed?: [number, number]
   '2026-08-25-eval-harness': { opened: [6, 10], closed: [3, 40] },
   '2026-08-14-citation-graph': { opened: [7, 20], closed: [4, 80] },
   '2026-08-02-ingest-pipeline': { opened: [3, 2], closed: [1, 90] },
+  '2026-09-22-payout-schedule': { opened: [4, 20], closed: [2, 100] },
 };
 
 /** Quiet: open, and nothing of it written for 14 days or more. */

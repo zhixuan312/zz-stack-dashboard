@@ -5,7 +5,6 @@ import { ShellTools, type Alert } from '@/components/patterns/shell-tools';
 import { useConsole, useDataClock } from '@/lib/api';
 import type { Me } from '@/lib/api-shapes';
 import { RailPending } from '@/views/console-chrome';
-import { useLive } from '@/lib/live';
 import { useWaitingApprovals } from '@/console/waiting-gates';
 
 /*
@@ -20,12 +19,10 @@ import { useWaitingApprovals } from '@/console/waiting-gates';
  * needs you" without being asked.
  */
 function useWaitingAlerts(enabled: boolean, team: string | null): Alert[] {
-  /* The chrome reads too, so the chrome registers too: without this the bell keeps a count nothing ever corrects. An
-   * approval or a presentation changes a document, which the platform names `initiatives`, and the Approvals read is
-   * kept under that collection (`src/views/console-live.tsx`). Registered here, beside the read, rather than by the
-   * pages: what a component shows is the component's to declare. Nothing registers while the bell is disabled and
-   * reading nothing. */
-  useLive(enabled ? ['initiatives'] : []);
+  /* The chrome reads too, so the chrome follows `initiatives` too, but not from here: `ConsoleLive`
+   * (`src/views/console-live.tsx`) registers it beside the same read, with the revision that read was answered at, and
+   * opens the tab's stream once it has, so the first stream asks whether the bell's count moved instead of reading it
+   * again. This hook only draws what that read answered. */
   const q = useWaitingApprovals(enabled);
   const waiting = q.data?.waiting.state === 'ok' ? q.data.waiting.data : null;
   if (!waiting) return [];

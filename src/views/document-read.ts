@@ -1,16 +1,18 @@
 import { redirect } from 'next/navigation';
-import { GatewayError, gatewayGet } from '@/data/gateway';
+import { GatewayError, answeredAt, gatewayGet } from '@/data/gateway';
 import type { DocumentDetail } from '@/lib/api-shapes';
+import type { Revisions } from '@/lib/live';
 import { INITIATIVES_BOUND_MS } from '@/views/initiatives-context';
 
 /**
  * The document route's own read, on the console's server: the answer with the moment it answered, which the page's
  * freshness is told from; no document by that address, or a failure, a refusal included, each in the gateway's
- * sentence; or no answer in time. The view imports this type alone: the read below reaches the request's cookies.
+ * sentence; or no answer in time. An answer, and an address with no document, carry the revisions they were read at.
+ * The view imports this type alone: the read below reaches the request's cookies.
  */
 export type DocumentRead =
-  | { state: 'ok'; data: DocumentDetail; at: string }
-  | { state: 'missing'; reason: string }
+  | { state: 'ok'; data: DocumentDetail; at: string; revisions?: Revisions }
+  | { state: 'missing'; reason: string; revisions?: Revisions }
   | { state: 'failed'; reason: string }
   | { state: 'slow' };
 
@@ -24,10 +26,10 @@ export async function readDocument(team: string, slug: string, rel: string): Pro
   let timer: ReturnType<typeof setTimeout> | undefined;
   const bound = new Promise<DocumentRead>((resolve) => { timer = setTimeout(() => resolve({ state: 'slow' }), INITIATIVES_BOUND_MS); });
   const read = gatewayGet<DocumentDetail>(`/document/${team}/${slug}/${rel}`).then(
-    (data): DocumentRead => ({ state: 'ok', data, at: new Date().toISOString() }),
+    (data): DocumentRead => ({ state: 'ok', data, at: new Date().toISOString(), revisions: answeredAt(data) }),
     (err: unknown): DocumentRead => {
       if (err instanceof GatewayError && err.status === 401) redirect(`/login?next=${encodeURIComponent(`/initiatives/${team}/${slug}/${rel}`)}`);
-      if (err instanceof GatewayError && err.status === 404) return { state: 'missing', reason: err.message };
+      if (err instanceof GatewayError && err.status === 404) return { state: 'missing', reason: err.message, revisions: err.revisions };
       return { state: 'failed', reason: err instanceof Error ? err.message : 'The gateway did not answer.' };
     },
   );
