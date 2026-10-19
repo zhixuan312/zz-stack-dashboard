@@ -4,11 +4,6 @@ import { Tooltip } from 'radix-ui';
 import type { ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const jar: Record<string, string> = {};
-vi.mock('next/headers', () => ({
-  cookies: async () => ({ get: (name: string) => (name in jar ? { value: jar[name] } : undefined) }),
-  headers: async () => new Headers(),
-}));
 vi.mock('next/navigation', () => ({
   usePathname: () => window.location.pathname,
   useSearchParams: () => new URLSearchParams(window.location.search),
@@ -17,7 +12,6 @@ vi.mock('next/navigation', () => ({
     throw new Error(`redirect to ${to}`);
   },
 }));
-vi.mock('@/app.config', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/app.config')>()), refusal: 'absent' }));
 
 import type { DimensionScore, Me, PluginEvalFound, Skill, SkillDetail, SkillText } from '@/lib/api-shapes';
 import type { Access, ActivitySummary, Runs } from '@/lib/destination-shapes';
@@ -33,7 +27,6 @@ import { comparedSaid, type HistoryRead } from '@/views/plugin-context';
 import type { Catalog, PluginsRead } from '@/views/plugins-context';
 import { RUNS_DEFAULTS, runsPath } from '@/views/runs-context';
 import type { SkillRead } from '@/views/skill-context';
-import MissingAddressPage from '../app/(dash)/[...missing]/page';
 import { ME, MEMBER } from '../scripts/fake-gateway/people.ts';
 import { teamMembers } from '../scripts/fake-gateway/platform-people.ts';
 import { evaluation } from '../scripts/fake-gateway/platform-evaluation.ts';
@@ -44,7 +37,7 @@ import { plugins, skillDetail, skills } from '../scripts/fake-gateway/work-plugi
 import { runs } from '../scripts/fake-gateway/work-runs.ts';
 
 /**
- * Phase 7, I-160: the re-review's findings on Activity, Runs, Plugins, a plugin, a skill, Access and a retired address,
+ * Phase 7, I-160: the re-review's findings on Activity, Runs, Plugins, a plugin, a skill and Access,
  * each found gone at its cause on the fake gateway's own answers. Where a finding is a layout this reads the classes
  * that decide it; the screenshots of the build show it.
  */
@@ -248,49 +241,5 @@ describe('F-54, N-5: Access', () => {
     const step = await within(setup).findByRole('heading', { name: /Get a token/ });
     expect(step.tagName).toBe('H5');
     expect(step.className).not.toMatch(/text-lg|text-xl/);
-  });
-});
-
-describe('F-55: a retired address says where its page went, to a person whose rail holds it', () => {
-  const SUPERADMIN = { email: 'owner@example.com', name: 'Owner Example', role: 'superadmin', mayRead: true, superadmin: true, via: 'session', teams: [{ slug: 'atlas', role: 'admin' }], activeTeam: 'atlas' };
-  const A_MEMBER = { email: 'mei@example.com', name: 'Mei Tanaka', role: 'member', mayRead: true, superadmin: false, via: 'session', teams: [{ slug: 'beacon', role: 'admin' }], activeTeam: 'beacon' };
-  const as = (who: object) => vi.stubGlobal('fetch', (async () => ({ ok: true, status: 200, json: async () => who })) as unknown as typeof fetch);
-  const page = async (segments: string[]) => render((await MissingAddressPage({ params: Promise.resolve({ missing: segments }) })) as ReactElement).container;
-
-  beforeEach(() => {
-    for (const k of Object.keys(jar)) delete jar[k];
-    jar.zz_console = 'session-1';
-    Object.assign(process.env, { ZZ_GATEWAY: 'http://gateway.test', NODE_ENV: 'production' });
-  });
-
-  it.each([
-    [['teams'], '/platform/teams', 'Open Teams'],
-    [['teams', 'atlas'], '/platform/teams/atlas', 'Open atlas in Teams'],
-    [['people'], '/platform/people', 'Open People'],
-    [['settings'], '/access', 'Open Access'],
-  ])('sends the superadmin from /%s to the page it moved to', async (segments, href, label) => {
-    as(SUPERADMIN);
-    const c = await page(segments);
-    expect(c.querySelector('[data-missing-page]')).not.toBeNull();
-    expect(c.querySelector(`a[href="${href}"]`)!.textContent!.trim()).toBe(label);
-  });
-
-  it('tells a member where Settings went, which their rail holds, and nothing of Teams or People, which it does not', async () => {
-    as(A_MEMBER);
-    expect((await page(['settings'])).querySelector('a[href="/access"]')).not.toBeNull();
-    cleanup();
-    for (const segments of [['teams'], ['teams', 'beacon'], ['people']]) {
-      const c = await page(segments);
-      expect(c.querySelector('[data-moved]')).toBeNull();
-      expect(c.textContent).not.toMatch(/Teams|People|Platform|\bmoved\b/);
-      cleanup();
-    }
-  });
-
-  it('answers any other address with the missing page, for the superadmin too', async () => {
-    as(SUPERADMIN);
-    const c = await page(['nothing', 'lives', 'here']);
-    expect(c.querySelector('[data-missing-page]')).not.toBeNull();
-    expect(c.querySelector('[data-moved]')).toBeNull();
   });
 });

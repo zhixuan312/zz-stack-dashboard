@@ -1,7 +1,6 @@
 import { gate } from '@/data/access';
 import { MISSING_METADATA } from '@/views/missing';
 import { MissingPage } from '@/views/no-access';
-import { MovedPage, movedFor } from './moved';
 
 /** The tab says what it says on a refused address (`gatedMetadata`): "Not found", kept out of search. */
 export const metadata = MISSING_METADATA;
@@ -14,14 +13,10 @@ export const metadata = MISSING_METADATA;
  * address that names nothing and a refused one cannot be told apart: the same body, the same tab, the same shell and
  * the same status. It never throws `notFound()`. It opens with the gate as every page does, for the feature everyone
  * the console lets in holds, so a request with no session is sent to sign in here exactly as it is on a refused page.
- *
- * The address is read for one thing only: whether it is one of the console's retired addresses whose page the
- * person's own rail holds (`movedFor`), and then the page says where it went, with the same tab and status. For anyone
- * else, and for every other address, the body is the missing page's, which names nothing.
+ * The address is never read.
  */
-export default async function MissingAddressPage(props?: { params?: Promise<{ missing?: string[] }> }) {
+export default async function MissingAddressPage() {
   const denied = await gate('home');
   if (denied) return denied;
-  const moved = await movedFor((await props?.params)?.missing);
-  return moved ? <MovedPage moved={moved} /> : <MissingPage />;
+  return <MissingPage />;
 }
