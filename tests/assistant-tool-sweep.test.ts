@@ -11,9 +11,9 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
  * Four things hold of every tool in `viewTools`:
  * - A tool whose page the person may not open is refused with the console's sentence, having read nothing but `/me`.
  * - A tool they may open reads what its page reads: every gateway address the page's server read asks (the
- *   `app/(dash)/**\/read-*.ts` function the page calls, run through the same recording `fetch`), and beside them only
- *   the reads the page makes in the browser, by their path, for the four pages that read there (Activity's log,
- *   Knowledge's list, a document, a search). `/me` is who is asking, read by both, and is not compared.
+ *   `app/(dash)/**\/read-*.ts` or `app/(dash)/knowledge/read.ts` function the page calls, run through the same
+ *   recording `fetch`), and beside them only the reads the page makes in the browser, by their path, for the four
+ *   pages that read there (Activity's log, Knowledge's list, a document, a search). `/me` is who is asking, read by both, and is not compared.
  * - No planted secret reaches what the tool tells the model. A token value, a token hash, a session id and an
  *   enrolment link are planted twice. Once in the fields of an answer whose shape carries them and is promised never to
  *   hold a value (Access's tokens, browsers and setup text, `src/lib/destination-shapes.ts`), and none may be in a

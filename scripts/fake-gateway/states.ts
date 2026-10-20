@@ -4,7 +4,7 @@
  * breaking a mode nobody updated.
  */
 import type {
-  KnowledgeLog, KnowledgeLogEntry, PlatformPersonRow, PluginRow, Skill,
+  InitiativeDetail, KnowledgeLog, KnowledgeLogEntry, PlatformPersonRow, PluginRow, Skill,
 } from '../../src/lib/api-shapes.ts';
 import type { Access, ActivityLog, ActivitySummary, KnowledgeList, KnowledgeSummary, RefusalOwner, Runs } from '../../src/lib/destination-shapes.ts';
 import type { Audit, KnowledgeHealth, People, Teams } from '../../src/lib/fleet-shapes.ts';
@@ -13,11 +13,13 @@ import type { Approvals, Home, InitiativeList } from '../../src/lib/work-shapes.
 import { now } from './clock.ts';
 import { LONG, aboveCeilings, big } from './states-extreme.ts';
 import { freshDetail, noWriting } from './states-partial.ts';
+import { unwritten } from './work-initiatives.ts';
 import { logOf } from './work-knowledge.ts';
 
 /**
  * Nothing recorded yet: every list empty, every figure absent rather than zero where the API says so. Record, Releases,
- * Usage and every detail route are states-partial.ts's `freshDetail`, each record there with nothing in it.
+ * Usage and every detail route are states-partial.ts's `freshDetail`, each record there with nothing in it, and an
+ * initiative's page is work-initiatives.ts's `unwritten`.
  */
 export function empty(seg: string[], body: unknown, q: URLSearchParams = new URLSearchParams()): unknown {
   const fresh = freshDetail(seg, body, q);
@@ -26,7 +28,7 @@ export function empty(seg: string[], body: unknown, q: URLSearchParams = new URL
   const list = (key: string) => ({ ...(body as object), [key]: [] });
   switch (head) {
     case 'teams': return { ...(body as Teams), tiles: { teams: 0, openWork: 0, pending: 0, lessons: 0 }, teams: [], total: 0 } satisfies Teams;
-    case 'initiatives': return nothingListed(body as InitiativeList);
+    case 'initiatives': return a && b ? unwritten(body as InitiativeDetail) : nothingListed(body as InitiativeList);
     case 'home': return noHome(body as Home);
     case 'approvals': return noApprovals(body as Approvals);
     case 'knowledge': return a === 'summary' ? noKnowledge(body as KnowledgeSummary) : a === 'log' ? logOf([])

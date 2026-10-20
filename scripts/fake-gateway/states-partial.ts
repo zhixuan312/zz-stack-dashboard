@@ -18,7 +18,7 @@
  * theirs is the route's not-found (`NOT_RECORDED`), as the gateway answers an id it does not hold. COUPLED: the
  * states-* tests draw the same records.
  */
-import type { DocumentDetail, DocumentRevision, InitiativeDetail, KnowledgeBody, PluginEval } from '../../src/lib/api-shapes.ts';
+import type { DocumentDetail, DocumentRevision, KnowledgeBody, PluginEval } from '../../src/lib/api-shapes.ts';
 import type { TeamDetail } from '../../src/lib/fleet-shapes.ts';
 import type { PeriodFigure, PlatformStatus, Releases } from '../../src/lib/platform-shapes.ts';
 import type { RecordRead, WritingEstimate } from '../../src/lib/work-shapes.ts';
@@ -121,7 +121,8 @@ function unrecorded(v: unknown, key = ''): unknown {
   return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, unrecorded(x, k)]));
 }
 
-const NO_CLAIMS = { rows: 0, withVerdict: 0, withQualifier: 0, withChecker: 0 };
+/** A ledger that records no claim. */
+export const NO_CLAIMS = { rows: 0, withVerdict: 0, withQualifier: 0, withChecker: 0 };
 
 /** What `freshDetail` answers for a record a fresh deployment does not hold: the server answers it as the route's not-found. */
 export const NOT_RECORDED = Symbol('not recorded');
@@ -148,15 +149,14 @@ function noReleases(r: Releases): Releases {
 
 /**
  * The fresh answer for a route `empty` in states.ts has none for, or undefined when the route is one it draws itself:
- * Record, Releases and Usage, and every detail route, each with nothing in it.
+ * Record, Releases and Usage, and every detail route, each with nothing in it, but an initiative's, which is drawn by
+ * work-initiatives.ts's `unwritten` so its state and its last touch are the list's rule on nothing written.
  */
 export function freshDetail(seg: string[], body: unknown, q: URLSearchParams): unknown {
   const [head, a, b, c] = seg;
   if (!isObject(body)) return undefined;
   switch (head) {
     case 'record': return { ...(unrecorded(body) as Json), lead: { ...(body.lead as RecordRead['lead']), estimate: noWriting((body as unknown as RecordRead).lead.estimate) } };
-    case 'initiatives':
-      return a && b ? { ...(body as unknown as InitiativeDetail), documents: [], decisions: [], decisionCounts: NO_CLAIMS, steps: [], gates: [], at: 0, of: 0, stage: '', correction: null } satisfies InitiativeDetail : undefined;
     case 'document':
       if (q.get('revision') !== null) return { ...(body as unknown as DocumentRevision), body: null } satisfies DocumentRevision;
       return { ...(body as unknown as DocumentDetail), body: null, bytes: 0, versions: [], sources: [], decisions: [], decisionCounts: NO_CLAIMS } satisfies DocumentDetail;

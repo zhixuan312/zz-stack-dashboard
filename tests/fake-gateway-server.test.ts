@@ -10,7 +10,8 @@ import config from '../scripts/verify.config.ts';
  * `fake-gateway-states.test.ts` covers the two modes that reshape an answer, because those are pure
  * functions. The other two are behaviours of the running server and had no check at all: `error`,
  * which makes every route except `/me` answer 503, and `slow`, which holds every answer but `/me` past the bound
- * every read is given (`SLOW_MS`). The status read is the exception to both, and its own two cases are below.
+ * every read is given (`SLOW_MS`). The status read is the exception to `error` alone, a 500 with its own route's
+ * sentence, and has its own case below; `slow` holds it as it holds every other read.
  * `fake-gateway-states.test.ts`'s own note says why that matters — "a mode that throws is a mode nothing notices" — and
  * both of these are modes a person is told to sweep by hand, so a broken one misleads exactly the
  * person following the instruction.
@@ -97,30 +98,18 @@ describe('the fake gateway as the sweep uses it', () => {
     expect(seen.approvals).toBe(1);
   });
 
-  it('holds a page read past the 4.5 seconds a page gives it in slow mode', async () => {
+  it('holds every read past the 4.5 seconds a page gives it in slow mode, the status read among them', async () => {
     // A page shows its bounded unavailable state once its read has waited 4.5 seconds, so the delay that draws that
     // state has to outlast it: an answer by five seconds would be drawn as the page's content, late.
     const base = await start('--mode', 'slow');
-    const within = await fetch(`${base}/api/console/teams`, { signal: AbortSignal.timeout(5000) }).then(
-      () => 'answered', (e: Error) => e.name);
-    expect(within).toBe('TimeoutError');
-    const later = await fetch(`${base}/api/console/teams`, { signal: AbortSignal.timeout(10_000) });
-    expect(later.status).toBe(200);
-  }, 30_000);
-
-  it('holds the status read past the five seconds a page gives it in slow mode', async () => {
-    // A page shows a bounded unavailable state by five seconds, so the delay that draws it has to outlast that.
-    const base = await start('--mode', 'slow');
-    const outcomes = await Promise.all(BOTH.map(async (headers) => {
-      const within = await fetch(`${base}/api/console/platform/status`, { headers, signal: AbortSignal.timeout(5000) }).then(
+    const reads = ['initiatives', 'platform/status'].flatMap((path) => BOTH.map((headers) => ({ path, headers })));
+    const outcomes = await Promise.all(reads.map(async ({ path, headers }) => {
+      const within = await fetch(`${base}/api/console/${path}`, { headers, signal: AbortSignal.timeout(5000) }).then(
         () => 'answered', (e: Error) => e.name);
-      const later = await fetch(`${base}/api/console/platform/status`, { headers, signal: AbortSignal.timeout(10_000) });
-      return { within, status: later.status };
+      const later = await fetch(`${base}/api/console/${path}`, { headers, signal: AbortSignal.timeout(10_000) });
+      return { read: `${JSON.stringify(headers)} ${path}`, within, status: later.status };
     }));
-    for (const o of outcomes) {
-      expect(o.within).toBe('TimeoutError');
-      expect(o.status).toBe(200);
-    }
+    for (const o of outcomes) expect(o, o.read).toMatchObject({ within: 'TimeoutError', status: 200 });
   }, 30_000);
 
   it('switches world while running, without a rebuild', async () => {

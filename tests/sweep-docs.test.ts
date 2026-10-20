@@ -113,8 +113,8 @@ describe('a plugin, a skill or a release nobody recorded is titled as the missin
   });
 });
 
-describe('the fake\'s slow state is slower than every read bound (R2-C25)', () => {
-  /** Every `<NAME>_BOUND_MS = <ms>` a read of the console's is given, on its server or in the browser. */
+describe('the read bound is one constant, and the fake\'s slow state is slower than it (R2-C44, R2-C25)', () => {
+  /** Every `<NAME>BOUND_MS = <ms>` a read of the console's is given, on its server or in the browser. */
   function bounds(): [string, number][] {
     const found: [string, number][] = [];
     const walk = (dir: string) => {
@@ -122,7 +122,7 @@ describe('the fake\'s slow state is slower than every read bound (R2-C25)', () =
         const at = path.join(dir, e.name);
         if (e.isDirectory()) walk(at);
         else if (/\.tsx?$/.test(e.name)) {
-          for (const m of fs.readFileSync(at, 'utf8').matchAll(/\b([A-Z_]+_BOUND_MS)\s*=\s*([\d_]+)\s*;/g)) {
+          for (const m of fs.readFileSync(at, 'utf8').matchAll(/\b([A-Z_]*BOUND_MS)\s*=\s*([\d_]+)\s*;/g)) {
             found.push([`${path.relative(ROOT, at)} ${m[1]}`, Number(m[2].replaceAll('_', ''))]);
           }
         }

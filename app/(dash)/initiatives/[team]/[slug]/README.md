@@ -20,9 +20,11 @@ One initiative end to end: where it is in its flow, its documents, and the evide
 - Nothing written: an initiative opened and never written in opens like any other; Documents says "Nothing written yet" and Close offers Abandoned alone.
 - Closed: every node done and the outcome under the last.
 - Not found: no initiative by that address, with the way back to Initiatives; the gateway's answer is one fixed sentence that names nothing asked for.
+- An address that names no initiative, its team or its slug an escape that does not decode, `.` or `..`: the missing page, titled Not found, and nothing is read.
 - Error: the gateway's sentence and Retry; a read that did not answer in 4.5 seconds says so.
 - Read again: Retry reads in the browser, busy only after the person presses it and until that read answers. A read a change starts leaves the state and its Retry, or the way back to Initiatives, where they are, so a keyboard user keeps their place.
 - Close refused: the gateway's sentence in the dialog, what the person typed kept. Closed first by somebody else (409): "Somebody closed it first." with the gateway's sentence; the first decision stands.
+- Signed out since the gate: sign-in, and back to the initiative after it.
 
 ## Agents
 

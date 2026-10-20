@@ -204,7 +204,7 @@ describe('the rest of the Knowledge page', () => {
     const row = newest.closest('[data-split="1/2"]')!;
     expect(row).not.toBeNull();
     expect(within(row as HTMLElement).getByRole('heading', { name: 'Searches with results, by week' })).toBeInTheDocument();
-    expect(within(row as HTMLElement).getByRole('link', { name: /in the log/ })).toHaveAttribute('href', '/knowledge/log');
+    expect(within(row as HTMLElement).getByRole('link', { name: 'The log counts every lesson recorded or superseded since it began' })).toHaveAttribute('href', '/knowledge/log');
     const shelf = screen.getByText(shelfRow.title);
     expect(row.compareDocumentPosition(shelf) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(row.contains(shelf)).toBe(false);

@@ -15,6 +15,7 @@ Knowledge's log: every node recorded or retired, newest first, and who wrote it 
 - Loading: skeleton rows while the gate asks `/me` and the server reads the log.
 - Empty: the log starts at the next node minted or superseded.
 - Read failed, or slower than 4.5 seconds: the tiles read `—`, and `The entries did not load` says why with Retry, which reads again on the server.
+- Signed out since the gate: sign-in, and back to the log after it.
 
 ## Agents
 

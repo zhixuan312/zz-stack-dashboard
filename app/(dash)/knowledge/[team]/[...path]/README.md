@@ -18,6 +18,8 @@ One knowledge node, read, with where it was learned and what shares its subject:
 - Shared: the banner says it is on the platform's shared shelf, which every team's search reads beside its own lessons, and the shelf reads `Shared`.
 - No text: the lesson panel says "This lesson has no text in the store."
 - Not found, failed, or slower than 4.5 seconds: `This node did not load`, the gateway's sentence and Retry, which reads again on the server.
+- An address that names no node, its team or its path an escape that does not decode or holding a `.` or `..` segment: the missing page, titled Not found, and nothing is read.
+- Signed out since the gate: sign-in, and back to the node after it.
 
 ## Agents
 

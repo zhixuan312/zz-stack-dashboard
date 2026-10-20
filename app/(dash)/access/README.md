@@ -32,6 +32,7 @@ What lets a person and their agents in, and nothing of anybody else's: their own
 | Slower than 4.5 seconds | The same error state, saying the read did not answer within 4.5 seconds, with Retry; never an endless skeleton |
 | Read again | Retry reads again in the browser, busy only after the person presses it and until that read answers; a read a change starts leaves the state and its Retry where they are, never busy, so a keyboard user keeps their place |
 | Refused | The refused page, as an address that names nothing |
+| Signed out since the gate | Sign-in |
 
 ## Agents
 

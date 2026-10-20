@@ -14,10 +14,10 @@ import { ApiError } from '@/lib/api';
  *
  * Method is a parameter, defaulting to POST. Some DELETE routes take no body
  * (Access's revoke a token, an application or a browser) and some take one
- * (the Platform pages' remove a member, deactivate a person, archive a team,
- * each naming what it confirms), so `body` is optional and its content-type
- * header is sent only when there is one to describe. A 204 resolves with
- * `undefined`.
+ * (remove a member, on Access and on a team's page under Platform, deactivate
+ * a person, archive a team, each naming what it confirms), so `body` is
+ * optional and its content-type header is sent only when there is one to
+ * describe. A 204 resolves with `undefined`.
  */
 const BASE = '/api/console';
 

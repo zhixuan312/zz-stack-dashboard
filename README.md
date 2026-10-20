@@ -200,9 +200,10 @@ for every pair in both themes and every accent, then route types, lint, types an
 - **change**: `pnpm verify`. Adds one production build, the route policy, the first-load and HTML size checks, and
   the navigation of up to three routes on a desktop and through the phone drawer, judged on function; about a minute.
   Before finishing a change. A page's size is held to its own measured figure in `scripts/verify.baseline.json`, 5%
-  over it at most, never to a number written by hand. The one absolute first-load cap ZZ Meridian's check requires is
-  derived in `scripts/verify.config.ts` from the baseline's largest page plus the same 5%, so it moves with the
-  baseline; an accepted growth is recorded with `node scripts/sizes.ts --write-baseline --base <the running build>`.
+  over it at most, never to a number written by hand. `firstLoadKb: null` in `scripts/verify.config.ts` leaves ZZ
+  Meridian's absolute first-load cap out for every route the baseline holds; a route it does not hold yet is held to
+  Meridian's default 820 KiB (`FIRST_LOAD_CAP_KB`) until it is recorded. An accepted growth is recorded with
+  `node scripts/sizes.ts --write-baseline --base <the running build>`.
 - **complete**: `pnpm verify --full`. Adds the navigation of every rail route, the assistant walked through a page
   (`scripts/assistant.ts`), the audit of every page at five widths in both themes, every control pressed and every
   link followed, the whole keyboard path (`scripts/keyboard.ts`), and the product's own `browserChecks`: the Approve

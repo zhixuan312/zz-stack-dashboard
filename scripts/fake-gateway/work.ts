@@ -2,8 +2,9 @@
  * The fake gateway's work: initiatives on the sdlc flow, their documents and sources, and the
  * knowledge store they fed.
  *
- * COUPLED: zz-stack's `checks/console-work-initiatives.ts` imports this file with plain `node` (`INITIATIVES`,
- * `detailBody`) and compares the empty initiative's keys with the real route's.
+ * COUPLED: zz-stack's `checks/console-work-initiatives.ts` imports this file with plain `node` for `INITIATIVES`, to
+ * find the open initiative with no document, and compares that initiative's keys, as work-initiatives.ts's
+ * `initiativeDetail` answers its page, with the real route's.
  *
  * One initiative per state a page draws: drafting, waiting on a person, not started, ready to close,
  * gone quiet, closed three ways (accepted, delivered, abandoned), closed with a correction awaiting

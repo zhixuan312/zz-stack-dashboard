@@ -26,6 +26,7 @@ What your active team has learned, kept as lessons, each out of a real initiativ
 | Summary failed, or slower than 4.5 seconds | The tiles read `—`, `The shelf's figures did not load` says why with Retry, which reads again on the server, and each card from the summary says it was not read; the search and the shelf still work |
 | A part of the summary unavailable | That card alone says it did not load, with the gateway's reason |
 | Shelf empty / of no lesson of a kind | `Nothing on the shelf yet`, or Clear filters |
+| Signed out since the gate | Sign-in |
 
 ## Agents
 

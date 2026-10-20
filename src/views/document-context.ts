@@ -7,6 +7,7 @@ import { plural } from '@/lib/format';
 import { formatCount, formatKb } from '@/lib/format-units';
 import { formatDate, formatDateTime, formatDay } from '@/lib/format-date';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
+import { encodePath } from '@/lib/store-path';
 import { arrived, budgeted, type Arrival } from './context';
 import { versionAddress, type OpenedVersion } from './document-version';
 
@@ -48,11 +49,13 @@ function leftOut(d: DocumentDetail, text: string, shown: number | null): string[
  */
 export function documentContext(d: DocumentDetail, arrival: Arrival, earlier?: OpenedVersion & { body: string | undefined }): SharedContext {
   const base = `/initiatives/${d.team}/${d.initiative}`;
+  // The page's own address, its store path carried segment by segment as every link to it is (`versionAddress` too).
+  const page = `${base}/${encodePath(d.path)}`;
   const text = ((earlier ? earlier.body : d.body) ?? '').trim().replace(/\s+/g, ' ');
   const insights: Insight[] = [];
   if (earlier) {
     const approved = earlier.approvedBy || earlier.approvedAt ? `, approved${earlier.approvedBy ? ` by ${earlier.approvedBy}` : ''}${earlier.approvedAt ? ` on ${formatDay(earlier.approvedAt)}` : ''}` : '';
-    insights.push({ text: `The page shows v${earlier.version}${approved}, not the current text: the document is at v${d.current_version}${earlier.body === undefined ? '. Its text is still being read' : ''}. Approve is offered on the current text alone, at ${base}/${d.path}.` });
+    insights.push({ text: `The page shows v${earlier.version}${approved}, not the current text: the document is at v${d.current_version}${earlier.body === undefined ? '. Its text is still being read' : ''}. Approve is offered on the current text alone, at ${page}.` });
   }
   if (text) insights.push({ text: `The document${text.length > BODY_LIMIT ? ' opens' : ' reads'}: ${text.slice(0, BODY_LIMIT)}${text.length > BODY_LIMIT ? ` … (${formatCount(text.length - BODY_LIMIT)} more characters on the page)` : ''}` });
   if (d.gated === true && !d.approved_by) insights.push({ text: 'Approval is given on this page, by a member of the document\'s team who has been shown this exact snapshot. An agent cannot approve it.' });
@@ -64,7 +67,7 @@ export function documentContext(d: DocumentDetail, arrival: Arrival, earlier?: O
   return budgeted({
     view: 'document',
     title: d.title ?? d.path,
-    address: earlier ? versionAddress(d, earlier.version) : `${base}/${d.path}`,
+    address: earlier ? versionAddress(d, earlier.version) : page,
     scope: `one document, ${d.path}, of initiative ${d.team}/${d.initiative}${d.flow ? ` (flow ${d.flow})` : ''}`,
     freshness: arrived(arrival),
     facts: [

@@ -1,8 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { ReactElement } from 'react';
-import fs from 'node:fs';
-import path from 'node:path';
 import { Tooltip } from 'radix-ui';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -50,9 +48,9 @@ import { KNOWLEDGE_LOG, SHELF, knowledgeLog, lesson } from '../scripts/fake-gate
  * Review round 2's console view findings (Task I-182): the knowledge log counted by the gateway's totals and named at
  * its ceiling (R2-C46, R2-C48), Share refused judged only on a week with enough calls (R2-C54), a token with no label
  * revoked in whole words (R2-C36), one neighbour read as one (R2-C49), a week before the team's record read as no data
- * (R2-C55), the read bound written once (R2-C44), and the Record line on Home a whole touch target (V-1).
+ * (R2-C55), and the Record line on Home a whole touch target (V-1). That the read bound is written once (R2-C44) is
+ * held beside the fake's slow state in sweep-docs.test.ts.
  */
-const ROOT = path.resolve(__dirname, '..');
 const AT = '2026-10-19T12:00:00Z';
 
 function mount(ui: ReactElement) {
@@ -167,24 +165,6 @@ describe('a week before a team\'s record reads as no data, not unavailable (R2-C
     expect(weekCount(week({ value: null, why: 'no_data' }))).toBe('No data');
     expect(weekCount(week({ value: null, why: 'unavailable' }))).toBe('Unavailable');
     expect(weekCount(week({ value: 1234, why: null }))).toBe('1,234');
-  });
-});
-
-describe('the read bound is one constant (R2-C44)', () => {
-  it('is defined once under src/ and app/', () => {
-    const found: string[] = [];
-    const walk = (dir: string) => {
-      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-        const at = path.join(dir, e.name);
-        if (e.isDirectory()) walk(at);
-        else if (/\.tsx?$/.test(e.name)) {
-          for (const m of fs.readFileSync(at, 'utf8').matchAll(/\b([A-Z_]*BOUND_MS)\s*=\s*[\d_]+\s*;/g)) found.push(`${path.relative(ROOT, at)} ${m[1]}`);
-        }
-      }
-    };
-    walk(path.join(ROOT, 'src'));
-    walk(path.join(ROOT, 'app'));
-    expect(found).toEqual(['src/views/context.ts READ_BOUND_MS']);
   });
 });
 

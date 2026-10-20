@@ -26,6 +26,7 @@ import type { CloseInput, CloseResult, InitiativeList, InitiativeRow, NextMove }
 import { nextStart, now } from './clock.ts';
 import { kept } from './journey.ts';
 import { PLATFORM_STATUS } from './platform-status.ts';
+import { NO_CLAIMS } from './states-partial.ts';
 import { INITIATIVES, detailBody } from './work.ts';
 
 type Answer = [status: number, body: unknown];
@@ -74,6 +75,10 @@ const WHEN: Record<string, { opened: [number, number]; closed?: [number, number]
 
 /** Quiet: open, and nothing of it written for 14 days or more. */
 const QUIET_AFTER = 14 * DAY;
+
+/** Its state on the list: its outcome once closed, then waiting on a gate written and not passed, then quiet. */
+const stateOf = (closed: boolean, outcome: string | null, waiting: boolean, lastTouched: number): InitiativeRow['state'] =>
+  closed ? (outcome as InitiativeRow['state']) : waiting ? 'waiting' : now() - lastTouched >= QUIET_AFTER ? 'quiet' : 'open';
 
 /** A gate's document, by the gate's name: `approve plan` is plan.md's. */
 const documentOf = (gate: string) => `${gate.replace(/^approve /, '')}.md`;
@@ -126,6 +131,19 @@ export function initiativeDetail(team: string, slug: string): InitiativeDetail |
   return { ...body, state: row.state, lastTouched: row.lastTouched };
 }
 
+/**
+ * The same page as `empty` answers it, a deployment that has recorded nothing: no document, claim, step or gate, and
+ * so, by the list's own rule, waiting on nobody and last touched when it opened, or when it closed.
+ */
+export function unwritten(d: InitiativeDetail): InitiativeDetail {
+  const row = rowsOf(d.team).find((r) => r.slug === d.slug);
+  const last = row ? Math.max(Date.parse(row.opened), row.closed ? Date.parse(row.closed) : 0) : now();
+  return {
+    ...d, documents: [], decisions: [], decisionCounts: NO_CLAIMS, steps: [], gates: [], at: 0, of: 0, stage: '', correction: null,
+    state: stateOf(d.closed, d.outcome, false, last), lastTouched: iso(last),
+  };
+}
+
 /** One initiative as the list reads it. */
 function rowOf(i: Initiative & { closedAt?: number }): InitiativeRow {
   const when = WHEN[i.slug];
@@ -134,10 +152,8 @@ function rowOf(i: Initiative & { closedAt?: number }): InitiativeRow {
   const lastTouched = Math.max(touched, closedAt ?? 0);
   const own = i.gates.filter((g) => g.role !== 'handover');
   const waiting = own.some((g) => g.written && !g.passed);
-  const state: InitiativeRow['state'] = i.closed ? (i.outcome as InitiativeRow['state'])
-    : waiting ? 'waiting' : now() - lastTouched >= QUIET_AFTER ? 'quiet' : 'open';
   return {
-    slug: i.slug, flow: i.flow, nextMove: nextMoveOf(i), state,
+    slug: i.slug, flow: i.flow, nextMove: nextMoveOf(i), state: stateOf(i.closed, i.outcome, waiting, lastTouched),
     gates: { passed: own.filter((g) => g.passed).length, of: own.length },
     lastTouched: iso(lastTouched),
     opened: iso(when ? inWeek(...when.opened) : touched - (3 + i.at) * DAY),

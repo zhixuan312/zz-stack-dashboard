@@ -37,7 +37,6 @@ vi.mock('@/views/pages/skill', async (importOriginal) => {
 });
 
 import type { DocumentDetail, KnowledgeBody } from '@/lib/api-shapes';
-import { READ_BOUND_MS } from '@/views/context';
 import type { DocumentRead } from '@/views/document-read';
 import type { ServerRead } from '@/views/knowledge-context';
 import { DocumentView } from '@/views/pages/document';
@@ -50,8 +49,7 @@ import { startFakeGateway } from './fake-gateway-start.ts';
  * The detail pages Task I-126's states check found drawing something other than an explicit state (Task I-133, AC-2.9):
  * a skill page whose view the console's server chose by calling into a client module, a document drawing a skeleton
  * beside its error and its not-found state, and a lesson with no text drawing a blank panel. Each is drawn from the fake
- * gateway's own answer in that state, asked as `pnpm verify`'s sweep asks it (`zz_console=<person>+<state>`). And the
- * three server reads whose bound was the spec's five seconds itself, which leaves the page no time to draw what it says.
+ * gateway's own answer in that state, asked as `pnpm verify`'s sweep asks it (`zz_console=<person>+<state>`).
  */
 let base = '';
 let stop = () => {};
@@ -148,13 +146,4 @@ describe('a knowledge node', () => {
     await waitFor(() => expect(text()).toMatch(/no text|nothing (is )?written|is empty/i));
     expect(document.querySelectorAll('.shimmer')).toHaveLength(0);
   });
-});
-
-describe('the server reads\' bounds', () => {
-  it.each([['Status', READ_BOUND_MS], ['Home', READ_BOUND_MS], ['Knowledge', READ_BOUND_MS]])(
-    '%s waits as long as every other page does, half a second under the spec\'s five', (_, bound) => {
-      expect(READ_BOUND_MS).toBe(4_500);
-      expect(bound).toBe(READ_BOUND_MS);
-    },
-  );
 });

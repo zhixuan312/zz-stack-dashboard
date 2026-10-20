@@ -22,6 +22,8 @@ export type DocumentRead =
  * never rejects but for a session that ended, which goes to sign-in and back to the document, so the page never waits
  * on it longer or falls to the error page. `rel` is the store path, carried segment by segment (`encodePath`), so a
  * name holding `#`, `?` or `%` is read, and returned to, as itself; the browser's later reads ask the same address.
+ * `team` and `slug` are the page's own segments as Next hands them, still escaped, and never `.` or `..`: the page
+ * draws the missing page for those and reads nothing.
  */
 export async function readDocument(team: string, slug: string, rel: string): Promise<DocumentRead> {
   let timer: ReturnType<typeof setTimeout> | undefined;

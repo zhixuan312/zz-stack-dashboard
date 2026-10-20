@@ -25,6 +25,7 @@ Your active team's real work by week: what was refused and why, the groups the r
 | Slower than 4.5 seconds | The same, saying the read did not answer within 4.5 seconds; never an endless skeleton |
 | Read again | The figures' Retry reads again in the browser, busy only after the person presses it and until that read answers; a read a change starts leaves the state and its Retry where they are, never busy, so a keyboard user keeps their place |
 | Log failed | The log's error state with the gateway's sentence and Retry; the summary stands |
+| Signed out since the gate | Sign-in |
 
 ## Agents
 

@@ -7,6 +7,7 @@ import type { ActivityLog, ActivitySummary, KnowledgeList, KnowledgeSummary, Run
 import type { Audit, KnowledgeHealth, People, TeamDetail, Teams, Usage } from '../src/lib/fleet-shapes.ts';
 import type { Bugs, Evaluation, PlatformStatus, Releases, Window } from '../src/lib/platform-shapes.ts';
 import type { Approvals, Home, InitiativeList, RecordRead } from '../src/lib/work-shapes.ts';
+import { now } from '../scripts/fake-gateway/clock.ts';
 import { ME } from '../scripts/fake-gateway/people.ts';
 import { people as peopleAnswer } from '../scripts/fake-gateway/platform-people.ts';
 import { PLATFORM_STATUS } from '../scripts/fake-gateway/platform-status.ts';
@@ -18,7 +19,7 @@ import { access } from '../scripts/fake-gateway/work-access.ts';
 import { activityLog, activitySummary } from '../scripts/fake-gateway/work-activity.ts';
 import { approvals } from '../scripts/fake-gateway/work-approvals.ts';
 import { homeOf } from '../scripts/fake-gateway/work-home.ts';
-import { initiativeList } from '../scripts/fake-gateway/work-initiatives.ts';
+import { initiativeDetail, initiativeList, rowsOf } from '../scripts/fake-gateway/work-initiatives.ts';
 import { knowledgeList, knowledgeSummary, logOf } from '../scripts/fake-gateway/work-knowledge.ts';
 import { plugins } from '../scripts/fake-gateway/work-plugins.ts';
 import { runs } from '../scripts/fake-gateway/work-runs.ts';
@@ -148,6 +149,18 @@ describe('the fixture can shape every answer its routes produce', () => {
     expect(queue.weeks).toEqual([]);
     expect(queue.waiting).toMatchObject({ state: 'ok', data: { rows: [], total: 0, summary: { olderThan14Days: 0 } } });
     expect(queue.history).toMatchObject({ state: 'ok', data: { rows: [], total: 0, summary: { byInitiative: [] } } });
+  });
+
+  // An initiative with nothing written waits on no gate, and was last touched when it opened, or when it closed: the
+  // list's own rule, with no document in it, and never its real row's state over emptied documents and gates.
+  it('empties an initiative\'s page to one opened and never written, in the list\'s words for that', () => {
+    for (const slug of ['2026-09-28-search-relevance', '2026-10-03-ranking-weights', '2026-09-12-onboarding-revamp']) {
+      const row = rowsOf('atlas').find((r) => r.slug === slug)!;
+      const page = empty(['initiatives', 'atlas', slug], initiativeDetail('atlas', slug)) as InitiativeDetail;
+      expect(page, slug).toMatchObject({ documents: [], gates: [], steps: [] });
+      expect(page.lastTouched, slug).toBe(row.closed ?? row.opened);
+      expect(page.state, slug).toBe(row.closed ? row.state : now() - Date.parse(row.opened) >= 14 * 86_400_000 ? 'quiet' : 'open');
+    }
   });
 
   it('keeps Work\'s other pages to their page, and their counts to their sums, however busy', () => {

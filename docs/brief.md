@@ -56,8 +56,8 @@ where it is made and never claims to have made it.
 ## Data
 
 A page's first read is made on the console's server, as the person, before the page is drawn, by the read module
-beside its route (`app/(dash)/**/read-*.ts`, and `src/views/document-read.ts` for a document), bounded at 4.5 seconds,
-so its content is in the first paint. What a page reads after that, a Retry or a collection a live hint names, is a
+beside its route (`app/(dash)/**/read-*.ts`; `app/(dash)/knowledge/read.ts` for Knowledge, its log and a lesson; and
+`src/views/document-read.ts` for a document), bounded at 4.5 seconds, so its content is in the first paint. What a page reads after that, a Retry or a collection a live hint names, is a
 browser fetch to `/api/console/*` by `src/lib/api.ts`, and every write goes through `src/lib/mutate.ts`. The payload
 shapes are the gateway's, recorded in `src/lib/api-shapes.ts` (Work) and `src/lib/platform-shapes.ts` (Platform). The
 console stores nobody's credential: the browser has a session cookie and sends it to the origin that issued it. The

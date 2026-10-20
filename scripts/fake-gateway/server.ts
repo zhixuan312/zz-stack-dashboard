@@ -129,8 +129,18 @@ const missing = (what: string): Answer => [404, { error: `${what} does not exist
 const or404 = (body: unknown, what: string): Answer => (body ? ok(body) : missing(what));
 /** Platform's refusals: a fixed sentence that names no role, person or team, and a 404 that echoes nothing asked. */
 const REFUSED: Answer = [403, { error: 'not permitted' }];
-/** The platform administration routes' refusal, `superOnly`'s own sentence (services/gateway/src/admin/people.ts). */
-const SUPERADMIN_REQUIRED: Answer = [403, { error: 'superadmin required' }];
+/**
+ * The platform administration writes, as services/gateway/src/settings/platform.ts routes them: the fields each asks
+ * for before anything else, a team's slug in its own shape (`TEAM_SLUG`, identity.ts), and the sentence its admin
+ * function's `superOnly` refuses anyone but the superadmin with (admin/people.ts, admin/teams.ts).
+ */
+const PLATFORM_WRITES: Record<string, { fields: string[]; refusal: string }> = {
+  'POST settings/platform/people': { fields: ['email'], refusal: 'superadmin required' },
+  'POST settings/platform/enrolments': { fields: ['email'], refusal: 'superadmin required' },
+  'DELETE settings/platform/people': { fields: ['email'], refusal: 'superadmin required' },
+  'POST settings/platform/teams': { fields: ['slug', 'name'], refusal: 'superadmin required' },
+  'DELETE settings/platform/teams': { fields: ['team'], refusal: 'superadmin required (retiring a team removes access)' },
+};
 /** Work's not-found answers, the gateway's own fixed sentences (initiatives.ts, knowledge.ts): none names what was asked. */
 const NO_INITIATIVE: Answer = [404, { error: 'No initiative of the team you act for has that name.' }];
 const NO_DOCUMENT: Answer = [404, { error: 'No document of the team you act for is at that address.' }];
@@ -235,7 +245,7 @@ function read(who: Me, seg: string[], q: URLSearchParams): Answer {
     case 'knowledge':
       // The summary answers before the node route, because `summary` names no team of its own.
       if (a === 'summary' && !b) return knowledgeSummary(who);
-      if (a === 'log') return ok(knowledgeLog(who));
+      if (a === 'log') return who.activeTeam ? ok(knowledgeLog(who)) : NO_TEAM;
       // A lesson is the active team's, for the superadmin too, as the gateway answers it; the shared shelf is nobody's
       // own, so any signed-in person opens its lessons, read-only. A team or a scope the request names widens nothing.
       if (a) {
@@ -445,12 +455,15 @@ function write(who: Me, cookie: string | null, seg: string[], q: URLSearchParams
     return answer;
   }
   if (path === 'settings/me/active-team' && method === 'POST') return switchTeam(who, cookie, body);
-  // Adding a person and issuing an enrolment link are the superadmin's, refused to anyone else as the gateway's routes
-  // refuse them (settings/platform.ts): an address first, then `superOnly`. A journey keeps the person it added.
-  if (path === 'settings/platform/people' || path === 'settings/platform/enrolments') {
-    if (method === 'POST' && !String(body.email ?? '').trim()) return [400, { error: 'email is required' }];
-    if (method === 'POST' && !who.superadmin) return SUPERADMIN_REQUIRED;
+  // Every platform administration write is the superadmin's, refused to anyone else as the gateway's routes refuse
+  // them: the field the route asks for first, then `superOnly`. A journey keeps the person it added.
+  const admin = PLATFORM_WRITES[`${method} ${path}`];
+  for (const field of admin?.fields ?? []) {
+    const value = String(body[field] ?? '').trim();
+    if (!value) return [400, { error: `${field} is required` }];
+    if (field === 'slug' && !/^[a-z0-9][a-z0-9_-]{1,63}$/.test(value)) return [400, { error: 'slug must be lowercase letters, digits, - or _' }];
   }
+  if (admin && !who.superadmin) return [403, { error: admin.refusal }];
   if (path === 'settings/platform/people' && method === 'POST') {
     kept()?.added.push({ email: String(body.email), name: String(body.display_name ?? ''), at: keptAt() });
   }
