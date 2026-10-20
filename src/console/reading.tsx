@@ -34,10 +34,10 @@ const Prose = lazy(() => import('@/components/patterns/prose').then((m) => ({ de
  * page. Measured, it went the right way: the sweep that took the LCP down about 0.35 s took this page's CLS from 0.035
  * to 0.023, which is not the same as saying it cannot move. Whichever this measures, the other number is the cost.
  */
-export function ReadingBody({ children }: { children: string }) {
+export function ReadingBody({ children, stack = false }: { children: string; /** Prose's `stack`: a table in a column under 480px reads as one labelled card per row. */ stack?: boolean }) {
   return (
     <Suspense fallback={<pre className="rounded-lg border border-line bg-surface-sunk p-4 font-mono text-xs leading-[1.7] whitespace-pre-wrap text-ink-2 [overflow-wrap:anywhere]">{children}</pre>}>
-      <Prose>{children}</Prose>
+      <Prose stack={stack}>{children}</Prose>
     </Suspense>
   );
 }

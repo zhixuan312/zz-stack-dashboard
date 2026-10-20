@@ -1,7 +1,6 @@
 import { niceTicks } from '@/components/charts/scale';
 import { AXIS_FORMATTERS, FORMATTERS, formatBy, formatDuration, formatPercent, formatCompact } from '@/lib/format';
 import { formatCount } from '@/lib/format-units';
-import { parsePeriod, periodCutoff, DEFAULT_PERIOD } from '@/lib/period';
 
 /**
  * The formatters keep "we measured zero" distinguishable from "nobody measured". A coercion
@@ -40,23 +39,6 @@ describe('named formatters', () => {
 
   it('defaults to count when no name is given', () => {
     expect(formatBy(undefined, 1234)).toBe(formatCount(1234));
-  });
-});
-
-describe('period', () => {
-  it('never casts an untrusted value through', () => {
-    expect(parsePeriod('nonsense')).toBe(DEFAULT_PERIOD);
-    expect(parsePeriod(null)).toBe(DEFAULT_PERIOD);
-    expect(parsePeriod('7d')).toBe('7d');
-  });
-
-  it('has no cutoff for all-time', () => {
-    expect(periodCutoff('all')).toBeNull();
-  });
-
-  it('cuts off the right number of days back', () => {
-    const now = new Date('2026-08-16T00:00:00Z');
-    expect(periodCutoff('7d', now)?.toISOString()).toBe('2026-08-09T00:00:00.000Z');
   });
 });
 

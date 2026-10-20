@@ -151,9 +151,10 @@ describe('A document', () => {
     // The renderer is a chunk of its own, so the table is there once it has landed.
     const carried = (await screen.findByText('Where match reasons come from', {}, { timeout: 5000 })).closest('table');
     expect(carried, 'the document\'s own table').not.toBeNull();
-    const column = carried!.closest('[class*="@container"]')!;
-    expect(classes(column)).toEqual(expect.arrayContaining([
-      '@container', '@max-[480px]:[&_table]:block', '@max-[480px]:[&_tr]:block', '@max-[480px]:[&_td]:block', '@max-[480px]:[&_td:first-child]:font-medium',
+    // Prose's `stack` (ZZ Meridian 0.23.0): the table's own frame is the container, and the rows become cards under 480px.
+    expect(classes(carried!.parentElement!)).toContain('@container');
+    expect(classes(carried!)).toEqual(expect.arrayContaining([
+      '@max-[480px]:block', '@max-[480px]:[&_tr]:block', '@max-[480px]:[&_td]:block', '@max-[480px]:[&_td:first-child]:font-medium',
     ]));
   });
 });

@@ -67,86 +67,6 @@ function decisionColumns(role: string): Column<Decision>[] {
 }
 
 /**
- * A table the document carries, as cards where the text's column is narrow: under 480px, a phone's column or the two
- * thirds of a 1024px window, each row is a card, its first cell the card's title and each cell after it under its own
- * column's heading, one to a line. Three columns of a decisions table at a phone's width set "the / index, / per /
- * field" one word to a line; a header row stacked above the cards, the shape before this one, left every value without
- * its name ("Decision / Chosen / Rejected because" over rows that carry no labels). These classes lay the cards out and
- * set a label's type; `CellLabels` gives each label its words. The text's column is the container, so the rule follows
- * the column wherever the page puts it.
- */
-const TABLE_CARDS = [
-  '@container',
-  '@max-[480px]:[&_table]:block @max-[480px]:[&_thead]:hidden @max-[480px]:[&_tbody]:block @max-[480px]:[&_tr]:block',
-  '@max-[480px]:[&_td]:block @max-[480px]:[&_td]:py-0.5 @max-[480px]:[&_tbody_tr]:py-2.5',
-  '@max-[480px]:[&_td:first-child]:font-medium @max-[480px]:[&_td:first-child]:text-ink',
-  '@max-[480px]:[&_td+td]:pt-1.5 @max-[480px]:[&_td+td]:before:block @max-[480px]:[&_td+td]:before:text-xs @max-[480px]:[&_td+td]:before:font-medium @max-[480px]:[&_td+td]:before:text-ink-3',
-].join(' ');
-
-/** A fenced block's opening or closing line: a table written inside one is code, not a table. */
-const FENCE = /^ {0,3}(`{3,}|~{3,})/;
-const DELIMITER = /^\s*:?-+:?\s*$/;
-
-/** A table row's cells, split at its unescaped pipes, with the outer pipes dropped. */
-function cellsOf(line: string): string[] {
-  const cells = line.trim().split(/(?<!\\)\|/);
-  if (cells[0].trim() === '') cells.shift();
-  if (cells.length && cells[cells.length - 1].trim() === '') cells.pop();
-  return cells.map((c) => c.trim());
-}
-
-/** A heading cell as the page draws it: its link text, its code and its emphasis without their marks. */
-const plain = (cell: string): string => cell
-  .replace(/\\\|/g, '|')
-  .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
-  .replace(/`([^`]*)`/g, '$1')
-  .replace(/(\*\*|__)(.+?)\1/g, '$2')
-  .replace(/\*(.+?)\*/g, '$1')
-  .replace(/(^|\W)_(.+?)_(?=\W|$)/g, '$1$2');
-
-/**
- * The headings of each table at the top level of `markdown`, in order: a header row, then a delimiter row of as many
- * cells. A table inside a list or a quote is not counted, as the rule below cannot reach it, and a table inside a
- * fenced block is code.
- */
-function tableHeadings(markdown: string): string[][] {
-  const lines = markdown.split('\n');
-  const tables: string[][] = [];
-  let fence: string | null = null;
-  for (let i = 0; i < lines.length - 1; i++) {
-    const open = FENCE.exec(lines[i]);
-    if (fence) {
-      if (open && open[1][0] === fence[0] && open[1].length >= fence.length) fence = null;
-      continue;
-    }
-    if (open) { fence = open[1]; continue; }
-    if (!lines[i].includes('|') || !lines[i + 1].includes('|') || /^(\s{2,}|\s*>)/.test(lines[i])) continue;
-    const head = cellsOf(lines[i]), rule = cellsOf(lines[i + 1]);
-    if (head.length === 0 || rule.length !== head.length || !rule.every((c) => DELIMITER.test(c))) continue;
-    tables.push(head.map(plain));
-    // Its rows run to the first blank line.
-    for (i += 1; i + 1 < lines.length && lines[i + 1].trim() !== ''; i++);
-  }
-  return tables;
-}
-
-/** Words for CSS's `content`, every character but a letter, a digit and a space written as its code point. */
-const cssString = (text: string): string => `"${[...text].map((ch) => (/[A-Za-z0-9 ]/.test(ch) ? ch : `\\${ch.codePointAt(0)!.toString(16)} `)).join('')}"`;
-
-/**
- * Each table's labels, written with the page rather than onto its cells: the managed `Prose` draws a cell with nothing
- * that names its column, and a label added to the cells once the page is in the browser would grow every card a line
- * after the server's HTML was painted. So the labels are the server's too, a rule a table and a column each, read off
- * the same markdown the body draws: the n-th table at the top of the text is the n-th of the reading body's children
- * that holds one. It stands in for `Prose` naming each cell's column itself, which ZZ Meridian has been asked for.
- */
-function CellLabels({ markdown }: { markdown: string }) {
-  const rules = tableHeadings(markdown).flatMap((headings, t) =>
-    headings.slice(1).map((heading, c) => `[data-doc-text]>div>:nth-child(${t + 1} of :has(>table)) td:nth-child(${c + 2})::before{content:${cssString(heading)}}`));
-  return rules.length ? <style>{`@container (width < 480px){${rules.join('')}}`}</style> : null;
-}
-
-/**
  * What the document is and where it stands, beside the text rather than above it.
  *
  * This was Meridian's `KeyValue` — a two-column label/value grid — sitting between the masthead and the first line of
@@ -360,15 +280,14 @@ function DocumentBody({ doc, view, onView, earlier }: { doc: DocumentDetail; vie
               2,200px of scroll on a 60,000-character document. Tables and code already fill the cell; this lets
               the running text join them. */}
           {earlier ? <EarlierNote earlier={earlier} /> : null}
-          {view === 'read' && body ? <CellLabels markdown={readableDocument(body, doc.title)} /> : null}
-          <div data-doc-text className={`[&_li]:max-w-[92ch] [&_ol]:max-w-[92ch] [&_p]:max-w-[92ch] [&_ul]:max-w-[92ch] ${TABLE_CARDS}`}>
+          <div data-doc-text className="[&_li]:max-w-[92ch] [&_ol]:max-w-[92ch] [&_p]:max-w-[92ch] [&_ul]:max-w-[92ch]">
             {earlier?.failed
               ? <p className="t-small text-ink-2">The text of v{earlier.version} could not be read. The current text is one press away, above.</p>
               : body === undefined
                 ? <div aria-busy="true" aria-label="Loading"><Skeleton className="h-[28rem] rounded-lg" /></div>
                 : body?.trim()
                   ? view === 'read'
-                    ? <ReadingBody>{readableDocument(body, doc.title)}</ReadingBody>
+                    ? <ReadingBody stack>{readableDocument(body, doc.title)}</ReadingBody>
                     : <pre className="rounded-lg border border-line bg-surface-sunk p-4 font-mono text-xs leading-[1.7] whitespace-pre-wrap text-ink-2 [overflow-wrap:anywhere]">{body}</pre>
                   : <p className="t-small text-ink-3">This document has no body in the store.</p>}
           </div>

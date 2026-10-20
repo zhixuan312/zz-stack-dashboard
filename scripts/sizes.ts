@@ -6,7 +6,8 @@
  *
  * First-load comes from the build's own `diagnostics/route-bundle-stats.json`, read once, with each chunk's size from
  * disk: every chunk a route loads counted once, uncompressed. It is checked against `budgets.firstLoadKb` and, when
- * `scripts/verify.baseline.json` exists, against `budgets.firstLoadGrowthPct` over it. A page's HTML is what a person
+ * `scripts/verify.baseline.json` exists, against `budgets.firstLoadGrowthPct` over it; with `firstLoadKb: null` a route
+ * the baseline holds is held to it alone, and the default cap binds only a route it does not. A page's HTML is what a person
  * downloads: the complete streamed response from the app running at `--base`, gzipped. Every page in the baseline's
  * `html` is held to `budgets.htmlGrowthPct` over its own figure, and a route in `budgets.htmlKb` also to that absolute
  * cap. Without a baseline a growth check is `not-configured`, a warning and never a pass; without `--base` the HTML is
@@ -28,7 +29,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { gzipSync } from 'node:zlib';
 
-import { budgetsOf, type BudgetsConfig } from './lib/budgets.ts';
+import { FIRST_LOAD_CAP_KB, budgetsOf, type BudgetsConfig } from './lib/budgets.ts';
 import { distDirOf } from './lib/next-config.ts';
 import { firstLoad, firstLoadProblems, htmlGrowthProblems, htmlProblems, htmlRoutes } from './lib/sizes.ts';
 import verifyConfig from './verify.config.ts';
@@ -112,11 +113,12 @@ async function main(): Promise<number> {
 
   const budgets = budgetsOf(verifyConfig as BudgetsConfig);
   const baseline = baselineOf();
-  const size = firstLoadProblems(routes, { capKiB: budgets.firstLoadKb, growthPct: budgets.firstLoadGrowthPct, baseline: baseline?.firstLoad ?? null });
+  const capKiB = budgets.firstLoadKb ?? FIRST_LOAD_CAP_KB;
+  const size = firstLoadProblems(routes, { capKiB, growthPct: budgets.firstLoadGrowthPct, baseline: baseline?.firstLoad ?? null, capUnheldOnly: budgets.firstLoadKb === null });
   const largest = routes.reduce((a, b) => (b.bytes > a.bytes ? b : a), routes[0]);
   const lines: string[] = [];
   const firstStatus: Status = size.problems.length ? 'FAIL' : size.growth === 'not-configured' ? 'warn' : 'ok';
-  lines.push(`${firstStatus === 'FAIL' ? 'FAIL   ' : firstStatus === 'warn' ? 'warn   ' : 'ok     '} first-load ${routes.length} routes, largest ${largest.route} ${kib(largest.bytes)} KiB · cap ${budgets.firstLoadKb} KiB`
+  lines.push(`${firstStatus === 'FAIL' ? 'FAIL   ' : firstStatus === 'warn' ? 'warn   ' : 'ok     '} first-load ${routes.length} routes, largest ${largest.route} ${kib(largest.bytes)} KiB · cap ${capKiB} KiB${budgets.firstLoadKb === null ? ' for a route the baseline does not hold' : ''}`
     + ` · growth ${size.growth === 'checked' ? `within ${budgets.firstLoadGrowthPct}% of the baseline` : 'not-configured (no scripts/verify.baseline.json)'}`);
   for (const p of size.problems) lines.push(`FAIL    ${p}`);
 

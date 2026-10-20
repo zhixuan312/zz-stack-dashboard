@@ -19,16 +19,20 @@ export function firstLoad(
   });
 }
 
-/** Routes over the cap or past their growth allowance over a baseline; without a baseline growth is not configured. */
+/**
+ * Routes over the cap or past their growth allowance over a baseline; without a baseline growth is not configured.
+ * `capUnheldOnly` holds a route the baseline holds to its baseline alone, so the cap binds only a route it does not.
+ */
 export function firstLoadProblems(
   routes: { route: string; bytes: number }[],
-  { capKiB, growthPct, baseline }: { capKiB: number; growthPct: number; baseline: Record<string, number> | null },
+  { capKiB, growthPct, baseline, capUnheldOnly = false }: { capKiB: number; growthPct: number; baseline: Record<string, number> | null; capUnheldOnly?: boolean },
 ): { problems: string[]; growth: 'checked' | 'not-configured' } {
   const problems: string[] = [];
   for (const { route, bytes } of routes) {
-    if (bytes > capKiB * KIB) problems.push(`${route}: first-load JS ${kib(bytes)} KiB over the ${capKiB} KiB cap`);
     const base = baseline?.[route];
-    if (base === undefined || base <= 0) continue;
+    const held = base !== undefined && base > 0;
+    if (!(capUnheldOnly && held) && bytes > capKiB * KIB) problems.push(`${route}: first-load JS ${kib(bytes)} KiB over the ${capKiB} KiB cap`);
+    if (!held) continue;
     const grew = ((bytes - base) / base) * 100;
     if (grew > growthPct) problems.push(`${route}: first-load JS grew ${grew.toFixed(1)}% over its baseline (cap ${growthPct}%)`);
   }

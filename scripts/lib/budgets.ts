@@ -24,7 +24,8 @@ export type NavigationCheck = {
 };
 export type Budgets = {
   navigation: { warm: ReadinessBudget; cold: ReadinessBudget; afterLive: ReadinessBudget };
-  firstLoadKb: number;
+  /** `null`: each route the baseline holds is held to it alone, and the default cap binds only a route it does not. */
+  firstLoadKb: number | null;
   firstLoadGrowthPct: number;
   htmlGrowthPct: number;
   htmlKb: Record<string, number>;
@@ -33,7 +34,7 @@ export type Budgets = {
 export type BudgetsConfig = {
   budgets?: {
     navigation?: { warm?: ReadinessBudget; cold?: ReadinessBudget; afterLive?: ReadinessBudget };
-    firstLoadKb?: number;
+    firstLoadKb?: number | null;
     firstLoadGrowthPct?: number;
     htmlGrowthPct?: number;
     htmlKb?: Record<string, number>;
@@ -47,6 +48,9 @@ const COLD: ReadinessBudget = {
   interactiveMs: { desktop: 2000, phone: 4000 },
 };
 
+/** The first-load cap, in KiB, for a route the baseline does not hold, and for every route unless `firstLoadKb` is null. */
+export const FIRST_LOAD_CAP_KB = 820;
+
 /** Each page's HTML is held to its own baseline; an absolute HTML cap is a project's route, so the defaults set none. */
 export const DEFAULT_BUDGETS: Budgets = {
   navigation: {
@@ -58,7 +62,7 @@ export const DEFAULT_BUDGETS: Budgets = {
     cold: COLD,
     afterLive: COLD,
   },
-  firstLoadKb: 820,
+  firstLoadKb: FIRST_LOAD_CAP_KB,
   firstLoadGrowthPct: 5,
   htmlGrowthPct: 5,
   htmlKb: {},
@@ -92,7 +96,7 @@ export function budgetsOf(config: BudgetsConfig): Budgets {
   const cold = b.navigation?.cold ?? DEFAULT_BUDGETS.navigation.cold;
   return {
     navigation: { warm, cold, afterLive: b.navigation?.afterLive ?? cold },
-    firstLoadKb: b.firstLoadKb ?? DEFAULT_BUDGETS.firstLoadKb,
+    firstLoadKb: b.firstLoadKb === null ? null : b.firstLoadKb ?? DEFAULT_BUDGETS.firstLoadKb,
     firstLoadGrowthPct: b.firstLoadGrowthPct ?? DEFAULT_BUDGETS.firstLoadGrowthPct,
     htmlGrowthPct: b.htmlGrowthPct ?? DEFAULT_BUDGETS.htmlGrowthPct,
     htmlKb: b.htmlKb ?? DEFAULT_BUDGETS.htmlKb,

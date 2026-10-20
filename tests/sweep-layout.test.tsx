@@ -62,53 +62,43 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('Work P-4: a document\'s table labels each value it stacks at a phone\'s width', () => {
-  /** The labels the page's own rules give, as `table/column -> words`, read back from their CSS strings. */
-  const labelsOf = (container: HTMLElement) => {
-    const css = [...container.querySelectorAll('style')].map((s) => s.textContent).join('');
-    expect(css).toMatch(/^@container \(width < 480px\)\{/);
-    return Object.fromEntries([...css.matchAll(/:nth-child\((\d+) of :has\(>table\)\) td:nth-child\((\d+)\)::before\{content:"((?:[^"\\]|\\[0-9a-f]+ )*)"\}/g)]
-      .map(([, t, c, words]) => [`${t}/${c}`, words.replace(/\\([0-9a-f]+) /g, (_, hex: string) => String.fromCodePoint(parseInt(hex, 16)))]));
-  };
-  /** Every table the reading body draws at its top level, by its headings, in the order the rules count them. */
-  const drawn = (container: HTMLElement) => {
-    const body = container.querySelector('[data-doc-text] > div')!;
-    return [...body.children].filter((c) => c.querySelector(':scope > table')).map((c) => [...c.querySelectorAll('thead th')].map((th) => th.textContent));
-  };
+  /** Every table the reading body draws, by its headings, in order. */
+  const drawn = (container: HTMLElement) =>
+    [...container.querySelectorAll('[data-doc-text] table')].map((t) => [...t.querySelectorAll('thead th')].map((th) => th.textContent));
   const draw = async (body?: string) => {
     const doc = documentDetail(...SPEC)!;
     const { container } = mount(<DocumentView team={SPEC[0]} slug={SPEC[1]} rel={SPEC[2]} served={{ state: 'ok', data: body ? { ...doc, body } : doc, at: AT, revisions: {} } as never} teamPage />);
     await waitFor(() => expect(container.querySelector('[data-doc-text] table')).not.toBeNull());
     return container;
   };
+  /** Each body cell carries its column's heading, written by Prose as the table is drawn (ZZ Meridian 0.23.0's `stack`). */
   const expectLabelled = (container: HTMLElement) => {
-    const labels = labelsOf(container);
-    const tables = drawn(container);
+    const tables = [...container.querySelectorAll('[data-doc-text] table')];
     expect(tables.length).toBeGreaterThan(0);
-    tables.forEach((headings, t) => {
-      // The first cell is the card's title, and is what the row is about: it carries no label.
-      expect(labels[`${t + 1}/1`]).toBeUndefined();
-      headings.slice(1).forEach((h, c) => expect(labels[`${t + 1}/${c + 2}`]).toBe(h));
-    });
-    expect(Object.keys(labels)).toHaveLength(tables.reduce((n, h) => n + h.length - 1, 0));
+    for (const table of tables) {
+      const headings = [...table.querySelectorAll('thead th')].map((th) => th.textContent);
+      for (const tr of table.querySelectorAll('tbody tr'))
+        [...tr.querySelectorAll('td')].forEach((td, c) => expect(td.getAttribute('data-label')).toBe(headings[c]));
+    }
   };
 
-  it('gives every cell after a row\'s first its column\'s heading, written with the page, and hides the header row where the rows stack', async () => {
+  it('gives every body cell its column\'s heading as the table is drawn, and hides the header row where the rows stack', async () => {
     const container = await draw();
     expect(drawn(container)[0]).toEqual(['Decision', 'Chosen', 'Rejected because']);
     expectLabelled(container);
-    const text = container.querySelector('[data-doc-text]')!;
-    expect(text.className).toContain('@max-[480px]:[&_thead]:hidden');
-    expect(text.className).toContain('@max-[480px]:[&_td+td]:before:block');
+    const table = container.querySelector('[data-doc-text] table')!;
+    expect(table.className).toContain('@max-[480px]:[&>thead]:hidden');
+    expect(table.className).toContain('before:content-[attr(data-label)]');
   });
 
-  it('counts the tables the body draws, past a table in a fence, one in a list, one with no outer pipes and marks in a heading', async () => {
+  it('labels a table in a list, one with no outer pipes and marks in a heading, and leaves a table in a fence as code', async () => {
     const container = await draw([
       '# T', '', 'Intro.', '', '```', '| not | a | table |', '|---|---|---|', '```', '',
       '- item', '', '  | in | a list |', '  |---|---|', '  | 1 | 2 |', '',
       'A | `code` heading | **bold** "quoted"', '--|:-:|--:', 'x | y | z', '',
       '| One | Two [link](https://example.com) | a \\| b |', '|---|---|---|', '| 1 | 2 | 3 |',
     ].join('\n'));
-    expect(drawn(container)).toEqual([['A', 'code heading', 'bold "quoted"'], ['One', 'Two link', 'a | b']]);
+    expect(drawn(container)).toEqual([['in', 'a list'], ['A', 'code heading', 'bold "quoted"'], ['One', 'Two link', 'a | b']]);
     expectLabelled(container);
   });
 });

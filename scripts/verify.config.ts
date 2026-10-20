@@ -90,11 +90,12 @@ export type VerifyConfig = {
    * landing page and none on a closed phone drawer. `htmlKb` caps a page's HTML, the whole streamed
    * response gzipped, in KiB; it has no default, and every page is held to its own baseline without it.
    * `firstLoadKb` and `firstLoadGrowthPct` are declared together because overriding the cap without knowing the ratchet
-   * beside it is how a cap stops meaning anything.
+   * beside it is how a cap stops meaning anything. `firstLoadKb: null` holds each route the baseline holds to that
+   * baseline alone, and the default cap binds only a route the baseline does not hold.
    */
   budgets?: {
     navigation?: { warm?: ReadinessBudget; cold?: ReadinessBudget; afterLive?: ReadinessBudget };
-    firstLoadKb?: number;
+    firstLoadKb?: number | null;
     firstLoadGrowthPct?: number;
     htmlKb?: Record<string, number>;
     prefetchKb?: { desktop: number; phoneClosed: number };
@@ -195,12 +196,6 @@ export const DETAIL: Record<string, string> = {
 
 /** How far a route's first-load JS may grow over its own baseline before verify fails it: Meridian's default, said. */
 const FIRST_LOAD_GROWTH_PCT = 5;
-/** The one absolute first-load cap Meridian's check requires, in KiB: the baseline's largest page plus
- *  `FIRST_LOAD_GROWTH_PCT`, rounded up, so no route is held to anything tighter than its own allowance. */
-const FIRST_LOAD_CAP_KIB = (() => {
-  const { routes } = JSON.parse(fs.readFileSync(path.join(import.meta.dirname, 'verify.baseline.json'), 'utf8')) as { routes: Record<string, number> };
-  return Math.ceil((Math.max(...Object.values(routes)) * (1 + FIRST_LOAD_GROWTH_PCT / 100)) / 1024);
-})();
 
 const config: VerifyConfig = {
   /**
@@ -213,14 +208,11 @@ const config: VerifyConfig = {
   budgets: {
     /**
      * Every route's first-load JS is held to its own baseline, `FIRST_LOAD_GROWTH_PCT` over it, as its HTML is: the
-     * owner's rule that a size cap is a page's own measured figure, never a hand-written number. ZZ Meridian's check
-     * (the managed `firstLoadProblems` in scripts/lib/sizes.ts) also holds every route to one absolute cap, its default
-     * 820 KiB, and offers no way to leave it out, so the cap is derived, not written: the baseline's largest page plus
-     * the same 5%, rounded up to a whole KiB. It moves when the baseline is rewritten, and it binds only a page the
-     * baseline does not hold. The hand-written 850 it replaces failed `/record` at 852 KiB on 2026-10-20 while `/record`
-     * stood within its own 5% (verify #4345).
+     * owner's rule that a size cap is a page's own measured figure, never a hand-written number. `null` leaves
+     * Meridian's absolute cap out for every route the baseline holds (ZZ Meridian 0.24.0, its issue #76); a route the
+     * baseline does not hold is still held to the default 820 KiB until it is recorded.
      */
-    firstLoadKb: FIRST_LOAD_CAP_KIB,
+    firstLoadKb: null,
     firstLoadGrowthPct: FIRST_LOAD_GROWTH_PCT,
   },
   /**

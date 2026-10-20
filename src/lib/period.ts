@@ -1,17 +1,18 @@
 /**
  * The reporting-period vocabulary, shared by pages, queries and the picker.
  *
- * DELIBERATE: dependency-free, so a `'use client'` control can import it without
- * dragging a database driver into the browser bundle.
+ * Deliberately dependency-free so a `'use client'` control can import it
+ * without dragging a database driver into the browser bundle — the picker and
+ * the query that answers it must agree on the vocabulary, and one module is how
+ * you guarantee that.
  */
 export const PERIODS = ['1d', '7d', '30d', '90d', 'all'] as const;
 export type Period = (typeof PERIODS)[number];
 
-/**
- * DELIBERATE: all time is the default. A console that opens on the last 30 days shows a
- * total that is not the total, under a heading that does not say so.
- */
-export const DEFAULT_PERIOD: Period = 'all';
+/** The picker's own default. Read it with `parsePeriod(undefined)`, which returns this for anything it does not know —
+ *  a product's own period context does not need a second constant to start from. All time, as the gateway's own
+ *  default: a console that opens on 30 days shows a total that is not the total. */
+const DEFAULT_PERIOD: Period = 'all';
 
 export const PERIOD_LABEL: Record<Period, string> = {
   '1d': 'Last 24 hours',
@@ -21,13 +22,9 @@ export const PERIOD_LABEL: Record<Period, string> = {
   all: 'All time',
 };
 
-/**
- * The picker's short label per period, here beside the full name so one file holds the vocabulary: a product that adds
- * its own period edits this file and the picker follows, with nothing to patch in the component.
- *
- * `24H` rather than `1D`: this console shows one day at a time more often than any other span, and in a row of `7D`,
- * `30D`, `90D` a bare `1D` reads as the smallest bucket rather than as the last twenty-four hours.
- */
+/** The picker's short label per period ("30D"), here beside the full name so one file holds the vocabulary and the picker
+ *  follows it, with nothing to patch in the component. The file is one Meridian manages: a product with other periods
+ *  edits it and names it in `.meridian/keep.json` with the reason, so an update leaves it alone. */
 export const PERIOD_SHORT: Record<Period, string> = {
   '1d': '24H',
   '7d': '7D',
@@ -37,7 +34,7 @@ export const PERIOD_SHORT: Record<Period, string> = {
 };
 
 /** Days in a period, or `null` for `all`. */
-const PERIOD_DAYS: Record<Period, number | null> = {
+export const PERIOD_DAYS: Record<Period, number | null> = {
   '1d': 1,
   '7d': 7,
   '30d': 30,
@@ -48,16 +45,4 @@ const PERIOD_DAYS: Record<Period, number | null> = {
 /** Narrow an untrusted query param. Never casts a raw string through. */
 export function parsePeriod(raw: string | null | undefined): Period {
   return (PERIODS as readonly string[]).includes(raw ?? '') ? (raw as Period) : DEFAULT_PERIOD;
-}
-
-/**
- * The cutoff instant for a period, or `null` for `all`.
- *
- * Pass this into a bound query parameter (`received_at >= $1`) — never
- * interpolate a period into SQL as a string.
- */
-export function periodCutoff(period: Period, now: Date = new Date()): Date | null {
-  const days = PERIOD_DAYS[period];
-  if (days === null) return null;
-  return new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
 }
