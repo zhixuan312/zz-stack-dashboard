@@ -36,7 +36,7 @@ const wordFor = (f: Figure): string | null => (f.value !== null ? null : f.why =
 /** A figure as a cell prints it: its value, with `too few` beside one under the sample a comparison needs. */
 export const figureText = (kind: Kind, f: Figure): string => wordFor(f) ?? `${valueIn(kind, f.value!)}${f.why === 'insufficient' ? ', too few' : ''}`;
 /** A share over the count it is of, its caveat after the whole: `87.5% of 16 refused sessions · too few to judge`. */
-export const shareOf = (f: Figure, of: number | null, noun: string): string =>
+const shareOf = (f: Figure, of: number | null, noun: string): string =>
   wordFor(f) ?? `${valueIn('share', f.value!)}${of ? ` of ${formatCount(of)} ${noun}` : ''}${f.why === 'insufficient' ? ' · too few to judge' : ''}`;
 
 /** A week as a person reads it: `week of 5 Oct`. */
