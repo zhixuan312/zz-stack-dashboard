@@ -181,7 +181,15 @@ async function readsTheGreetingCaused(greetedAt: number, followed: string[]): Pr
  */
 const kept = (streams: Opened[]) => streams.find((s) => s.greeting || !s.closed);
 
-async function asksSince(address: string): Promise<void> {
+/**
+ * The pages whose first greeting was a resync on the first load and synced on the second. Under `verify --full` another
+ * suite's write (a press revoking a token hints `settings`) can move a collection between the page's server read and its
+ * stream's greeting, and a resync is then the right answer (Harbormaster #4530 failed /access so, and passed alone twice,
+ * #4536). So a resync is judged once more on a fresh load; a console that resyncs every time fails both.
+ */
+const resyncedOnce: string[] = [];
+
+async function asksSince(address: string, retry = true): Promise<void> {
   await page.open(base + address, { width: 1440, theme: 'dark', wait: 600, cookie: SESSION });
   if (page.errors.length) failures.push(`${address}: ${page.errors[0]}`);
   let first: Opened | undefined;
@@ -196,13 +204,17 @@ async function asksSince(address: string): Promise<void> {
   const since = new Map((asked.get('since') ?? '').split(',').filter(Boolean).map((p) => [p.slice(0, p.indexOf(':')), p.slice(p.indexOf(':') + 1)]));
   const without = followed.filter((n) => !since.get(n));
   if (without.length) failures.push(`${address}: the first stream follows ${followed.join(', ')} and asked with no revision for ${without.join(', ')}`);
-  if (first.greeting.event !== 'synced') failures.push(`${address}: the first stream was greeted ${first.greeting.event} ${first.greeting.data}, not synced`);
+  if (first.greeting.event !== 'synced') {
+    if (retry) { resyncedOnce.push(address); return asksSince(address, false); }
+    failures.push(`${address}: the first stream was greeted ${first.greeting.event} ${first.greeting.data}, not synced, on two loads`);
+  }
   await sleep(AFTER_GREETING_MS);
   const again = await readsTheGreetingCaused(first.at!, followed);
   if (again.length) failures.push(`${address}: read ${again.join(', ')} again after its stream's greeting`);
 }
 
 for (const address of DIRECT) await asksSince(address);
+if (resyncedOnce.length) console.log(`note: ${resyncedOnce.join(', ')} greeted resync on the first load and was judged on a second`);
 
 /** A page's live streams so far, in the order they opened. */
 const opened = () => page.eval<Opened[]>('window.__liveStreams ?? []');
