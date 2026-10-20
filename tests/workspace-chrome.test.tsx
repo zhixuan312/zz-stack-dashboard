@@ -186,6 +186,20 @@ describe('the rail and the palette draw what the server answered for the person 
     await screen.findByText('Mei');
     expect(screen.getByRole('link', { name: 'Initiatives' }).getAttribute('aria-current')).toBe('page');
   });
+
+  // F-24: Status's `/platform` begins every Platform address, so a longest-prefix rule over the member's own rail alone
+  // would light Status at an address they are refused; the rail is handed every destination declared and lights none.
+  it('lights no destination at a Platform address a member is refused, though Status\'s address begins it', async () => {
+    gateway(MEMBER);
+    for (const where of ['/platform/audit', '/platform/teams/atlas', '/platform/people']) {
+      at.path = where;
+      const view = await chromeFor();
+      await screen.findByText('Mei');
+      expect(links(), where).toEqual(PUBLIC);
+      expect(document.querySelectorAll('[aria-current="page"]'), where).toHaveLength(0);
+      view.unmount();
+    }
+  });
 });
 
 describe('the workspace menu', () => {

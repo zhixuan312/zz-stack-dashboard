@@ -40,9 +40,8 @@ import { usage } from '../scripts/fake-gateway/platform-usage.ts';
  * on: a figure or identifier held to one line (`whitespace-nowrap`, never `[overflow-wrap:anywhere]`, which broke
  * "reliab / ility"), the page's rows inside one Stack, the classes a phone card is keyed on, a label wrapping as a block.
  *
- * Two findings are not the console's to fix and are not asserted here: Usage's team split in one hue (F-21) is the
- * managed Column chart's, whose parts share the accent, and a refused Audit address lighting Status (F-24) is the
- * managed rail's longest-prefix rule; both are reported as ZZ Meridian issues.
+ * Two findings were the managed cards' and were fixed in ZZ Meridian (zz-meridian#61 and #67, #62): Usage's team split
+ * is asserted below, and a refused address lighting no rail item in tests/workspace-chrome.test.tsx.
  */
 beforeEach(() => {
   // A read the browser would make is never answered: every page here draws what its server read handed it.
@@ -256,7 +255,21 @@ describe('Knowledge health: bar-list labels wrap (F-25)', () => {
   });
 });
 
-describe('the two findings the managed cards hold (F-21, F-24)', () => {
-  it.todo('Usage splits its calls by week across teams in categorical slots: the managed Column chart gives every untoned part the accent (ZZ Meridian issue)');
-  it.todo('a refused address lights no rail item: the managed rail lights the longest destination the address starts with (ZZ Meridian issue; console lines in src/views/workspace-chrome.tsx reported)');
+describe('Usage: the team split in categorical slots (F-21)', () => {
+  it('draws each team of the calls by week in a categorical slot of its own, and Other in the neutral, never the accent', () => {
+    const { container } = mount(<PlatformUsageView read={{ state: 'ok', usage: usage(true) }} />);
+    const parts = [...container.querySelectorAll<HTMLElement>('[data-part]')].filter((p) => p.closest('[aria-label="Real-work calls by week, by team"]'));
+    expect(parts.length).toBeGreaterThan(0);
+    const colours = new Map<string, Set<string>>();
+    for (const p of parts) colours.set(p.dataset.part!, (colours.get(p.dataset.part!) ?? new Set()).add(p.style.background));
+    const teams = [...colours.keys()].filter((k) => k !== 'Other');
+    expect(teams.length).toBeGreaterThan(1);
+    for (const t of teams) {
+      expect(parts.filter((p) => p.dataset.part === t).every((p) => p.dataset.tone === 'series'), t).toBe(true);
+      expect(colours.get(t)!.size, t).toBe(1);
+    }
+    expect(new Set(teams.map((t) => [...colours.get(t)!][0])).size).toBe(teams.length);
+    expect(parts.filter((p) => p.dataset.part === 'Other').every((p) => p.dataset.tone === 'neutral')).toBe(true);
+    expect(parts.some((p) => p.dataset.tone === 'accent')).toBe(false);
+  });
 });
