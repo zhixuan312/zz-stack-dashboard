@@ -26,11 +26,10 @@ import { PREPARED } from '@/data/prepared';
 import type { Me } from '@/lib/api-shapes';
 import type { Audit, AuditRow } from '@/lib/fleet-shapes';
 import { contextText } from '@/lib/shared-context';
-import { CONTEXT_BUDGET } from '@/views/context';
+import { CONTEXT_BUDGET, READ_BOUND_MS } from '@/views/context';
 import { PlatformAuditView } from '@/views/pages/platform-audit';
 import {
-  AUDIT_BOUND_MS, AUDIT_DEFAULTS, NOBODY, actSentence, auditContext, auditPath, beforeDays, dayStart, dayWords, feedEvent, filtersOfPath,
-  type AuditFilters, type AuditRead, type ReportTitles,
+  AUDIT_DEFAULTS, NOBODY, actSentence, auditContext, auditPath, beforeDays, dayStart, dayWords, feedEvent, filtersOfPath, type AuditFilters, type AuditRead, type ReportTitles,
 } from '@/views/platform-audit-context';
 import { auditTool } from '@/views/tools/audit';
 import { audit } from '../scripts/fake-gateway/platform-audit.ts';
@@ -388,13 +387,13 @@ describe('each state draws', () => {
   it('a read that did not answer in time is the error, never an endless skeleton', () => {
     browser(null);
     const { unmount } = mount(<PlatformAuditView served={{ state: 'slow', path: auditPath(AUDIT_DEFAULTS) }} />);
-    expect(screen.getByText(`The read did not answer within ${AUDIT_BOUND_MS / 1000} seconds.`)).toBeInTheDocument();
+    expect(screen.getByText(`The read did not answer within ${READ_BOUND_MS / 1000} seconds.`)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
     unmount();
     window.history.replaceState(null, '', '/platform/audit?filter=all');
     mount(<PlatformAuditView served={{ state: 'slow', path: auditPath(ALL_TAB) }} />);
     expect(document.querySelector('table[aria-busy="true"]')).toBeNull();
-    expect(screen.getByText(`The read did not answer within ${AUDIT_BOUND_MS / 1000} seconds.`)).toBeInTheDocument();
+    expect(screen.getByText(`The read did not answer within ${READ_BOUND_MS / 1000} seconds.`)).toBeInTheDocument();
   });
 });
 
@@ -596,7 +595,7 @@ describe('the read on the console\'s server', () => {
     vi.useFakeTimers();
     gateway.get.mockReturnValue(new Promise(() => {}));
     const read = readAudit(AUDIT_DEFAULTS);
-    await vi.advanceTimersByTimeAsync(AUDIT_BOUND_MS);
+    await vi.advanceTimersByTimeAsync(READ_BOUND_MS);
     expect(await read).toEqual({ state: 'slow', path: auditPath(AUDIT_DEFAULTS) });
   });
 });

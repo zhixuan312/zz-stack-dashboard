@@ -104,7 +104,6 @@ export function KnowledgeView({ read }: { read: ServerRead<KnowledgeSummary> }) 
     <ConsolePage
       title="Knowledge"
       description="What your team has learned, kept as lessons, and what its searches found."
-      showPeriod={false}
       updatedAt={updatedAt}
       context={context}
       toolbar={<KnowledgeTabs active="knowledge" />}
@@ -333,7 +332,7 @@ function Weeks({ summary }: { summary?: KnowledgeSummary }) {
 
 function Newest({ summary }: { summary?: KnowledgeSummary }) {
   const title = 'Newest lessons';
-  const foot = <Link href="/knowledge/log" className="link hit t-small mt-4 inline-block">Every lesson recorded or superseded is in the log</Link>;
+  const foot = <Link href="/knowledge/log" className="link hit t-small mt-4 inline-block">Every lesson recorded or superseded is counted in the log</Link>;
   if (!summary) return <Panel title={title}><p className="t-small text-ink-3">Not read: the shelf&rsquo;s figures did not load.</p>{foot}</Panel>;
   if (summary.newest.state !== 'ok') return <Unread title={title} reason={summary.newest.reason} />;
   const newest = summary.newest.data;

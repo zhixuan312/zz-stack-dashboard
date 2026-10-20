@@ -46,7 +46,7 @@ function useWaitingAlerts(enabled: boolean, team: string | null): Alert[] {
  *
  * That boundary is not tidiness and its fallback is not decoration. `AppShell` calls `usePathname`, and Next resolves
  * that on the server only where every segment is known at build time: on a route with an unknown dynamic param
- * (`/initiatives/[team]/[slug]`, `/teams/[slug]`, `/plugins/[plugin]`) the hook SUSPENDS while prerendering, so the
+ * (`/initiatives/[team]/[slug]`, `/platform/teams/[slug]`, `/plugins/[plugin]`) the hook SUSPENDS while prerendering, so the
  * boundary is postponed and its fallback is what the prerendered HTML holds. `fallback={null}` made that fallback
  * nothing at all, and a page load then put the client's own render of the shell where the server had emitted no nodes:
  * React reported a hydration mismatch (error #418), on a different route each run and only under load, which is what

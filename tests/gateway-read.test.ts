@@ -19,9 +19,7 @@ vi.mock('@/views/no-access', () => ({ NoAccess: async () => null }));
 
 import { gate } from '@/data/access';
 import { GatewayError, answeredAt, gatewayGet, revisionsOf } from '@/data/gateway';
-
-/** The bound `src/data/gateway.ts` keeps for `/me`: the page reads' own, `READ_BOUND_MS` in src/lib/api.ts. */
-const IDENTITY_BOUND_MS = 4_500;
+import { READ_BOUND_MS } from '@/views/context';
 
 const saved = { ...process.env };
 beforeEach(() => {
@@ -74,7 +72,7 @@ describe('an identity read the gateway never answers', () => {
     let settled: unknown = 'pending';
     const read = gatewayGet('/me').then(() => 'answered', (e: unknown) => e);
     void read.then((v) => { settled = v; });
-    await vi.advanceTimersByTimeAsync(IDENTITY_BOUND_MS - 1);
+    await vi.advanceTimersByTimeAsync(READ_BOUND_MS - 1);
     expect(settled).toBe('pending');
     await vi.advanceTimersByTimeAsync(1);
     const error = await read;
@@ -86,7 +84,7 @@ describe('an identity read the gateway never answers', () => {
   it('is an outage to the gate, which throws it to the error page rather than sending anybody to sign in', async () => {
     silent();
     const outcome = gate('home').then(() => 'drawn', (e: unknown) => e);
-    await vi.advanceTimersByTimeAsync(IDENTITY_BOUND_MS);
+    await vi.advanceTimersByTimeAsync(READ_BOUND_MS);
     expect(await outcome).toBeInstanceOf(GatewayError);
   });
 
@@ -94,7 +92,7 @@ describe('an identity read the gateway never answers', () => {
     silent();
     let settled = false;
     void gatewayGet('/home').catch(() => { settled = true; });
-    await vi.advanceTimersByTimeAsync(IDENTITY_BOUND_MS * 2);
+    await vi.advanceTimersByTimeAsync(READ_BOUND_MS * 2);
     expect(settled).toBe(false);
   });
 });

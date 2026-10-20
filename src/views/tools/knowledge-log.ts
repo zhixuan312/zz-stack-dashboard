@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { requireNeed } from '@/data/access';
 import { FEATURES } from '@/data/features';
 import { gatewayGet } from '@/data/gateway';
-import type { KnowledgeLogEntry } from '@/lib/api-shapes';
+import type { KnowledgeLog } from '@/lib/api-shapes';
 import { defineViewTool } from '@/lib/shared-context';
 import { KNOWLEDGE_EXPLORE } from '../knowledge-explore';
 import { knowledgeLogContext } from '../knowledge-log-context';
@@ -22,8 +22,8 @@ export const knowledgeLogTool = defineViewTool({
   input: z.object({}),
   async read() {
     await requireNeed(FEATURES.knowledge.needs);
-    const data = await gatewayGet<{ entries: KnowledgeLogEntry[] }>('/knowledge/log');
-    return { context: knowledgeLogContext(data.entries, justRead()), data };
+    const data = await gatewayGet<KnowledgeLog>('/knowledge/log');
+    return { context: knowledgeLogContext(data, justRead()), data };
   },
   explore: KNOWLEDGE_EXPLORE,
 });

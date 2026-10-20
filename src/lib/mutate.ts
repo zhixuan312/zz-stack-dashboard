@@ -12,10 +12,12 @@ import { ApiError } from '@/lib/api';
  * can do `err instanceof ApiError` whether the call that threw was a fetch or
  * a mutation.
  *
- * Method is a parameter, defaulting to POST. The settings console's DELETE
- * routes (revoke a token, remove a member, deactivate a person) take no
- * body, so `body` is optional and its content-type header is sent only when
- * there is one to describe. A 204 resolves with `undefined`.
+ * Method is a parameter, defaulting to POST. Some DELETE routes take no body
+ * (Access's revoke a token, an application or a browser) and some take one
+ * (the Platform pages' remove a member, deactivate a person, archive a team,
+ * each naming what it confirms), so `body` is optional and its content-type
+ * header is sent only when there is one to describe. A 204 resolves with
+ * `undefined`.
  */
 const BASE = '/api/console';
 

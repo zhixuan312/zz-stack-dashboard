@@ -27,7 +27,7 @@ import type { RecordRead, WritingEstimate } from '../../src/lib/work-shapes.ts';
  * How long `slow` holds a page's read, and the status read: past every bound a read is given, the 4.5 seconds each page's
  * read on the console's server and each read in the browser wait before the page says the platform did not answer, so
  * the state draws each page's loading and then that bounded state, never its content late. `/me` is spared, so the gate
- * still lets the person in. COUPLED: every `*_BOUND_MS` under src/, which tests/sweep-docs.test.ts holds under these.
+ * still lets the person in. COUPLED: `READ_BOUND_MS` (src/views/context.ts), which tests/sweep-docs.test.ts holds under this.
  */
 export const SLOW_MS = 6000;
 

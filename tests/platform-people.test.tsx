@@ -17,9 +17,9 @@ import { GatewayError } from '@/data/gateway';
 import type { Me } from '@/lib/api-shapes';
 import type { People } from '@/lib/fleet-shapes';
 import { contextText } from '@/lib/shared-context';
-import { CONTEXT_BUDGET } from '@/views/context';
+import { CONTEXT_BUDGET, READ_BOUND_MS } from '@/views/context';
 import { AddPerson, PlatformPeopleView } from '@/views/pages/platform-people';
-import { NO_SIGN_IN, PEOPLE_BOUND_MS, peopleContext, type PeopleRead } from '@/views/people-context';
+import { NO_SIGN_IN, peopleContext, type PeopleRead } from '@/views/people-context';
 import { PEOPLE_DEFAULTS, filtersOfPath, peoplePath } from '@/views/people-filter';
 import { peopleTool } from '@/views/tools/people';
 import { ME } from '../scripts/fake-gateway/people.ts';
@@ -134,7 +134,7 @@ describe('each state the page draws', () => {
   it('a server read that did not answer in time is the error, never an endless skeleton', () => {
     browser(null);
     mount(<PlatformPeopleView served={{ state: 'slow', path: PATH }} />);
-    expect(screen.getByText(`The read did not answer within ${PEOPLE_BOUND_MS / 1000} seconds.`)).toBeInTheDocument();
+    expect(screen.getByText(`The read did not answer within ${READ_BOUND_MS / 1000} seconds.`)).toBeInTheDocument();
     expect(document.querySelector('table[aria-busy="true"]')).toBeNull();
   });
 
@@ -391,7 +391,7 @@ describe('the read on the console\'s server', () => {
     vi.useFakeTimers();
     gateway.get.mockReturnValue(new Promise(() => {}));
     const read = readPeople(PEOPLE_DEFAULTS);
-    await vi.advanceTimersByTimeAsync(PEOPLE_BOUND_MS);
+    await vi.advanceTimersByTimeAsync(READ_BOUND_MS);
     expect(await read).toEqual({ state: 'slow', path: PATH });
   });
 });

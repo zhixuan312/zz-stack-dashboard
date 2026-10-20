@@ -18,6 +18,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { aligned } from '@/console/columns';
 import { Panel } from '@/console/panel';
 import { failureOf } from '@/console/query';
+import { waited } from '@/console/words';
 import { AXIS_FORMATTERS, plural } from '@/lib/format';
 import { formatDate, formatDateTime, formatDay, formatShortDate } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
@@ -25,7 +26,7 @@ import type { Bugs, PublicBugRow } from '@/lib/platform-shapes';
 import { pendingContext } from '@/views/context';
 import {
   BUGS_DEFAULTS, BUG_IMPACTS, BUG_STATUSES, IMPACT, STATUS, TILES, bugPath, bugsContext, bugsPath, bugsTrouble, cohortsRunning, filtersOfPath, formatHours,
-  impactOf, isAdminRow, lastWhole, narrowed, rateIn, statusOf, surfacesOf, valueOf, waited, type BugsFilters, type BugsRead, type Cohort,
+  impactOf, isAdminRow, lastWhole, narrowed, rateIn, statusOf, surfacesOf, valueOf, type BugsFilters, type BugsRead, type Cohort,
 } from '@/views/platform-bugs-context';
 import { useServed, useServedAddress } from '@/views/use-served';
 

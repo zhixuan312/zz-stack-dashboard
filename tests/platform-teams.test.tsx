@@ -16,11 +16,11 @@ import { GatewayError } from '@/data/gateway';
 import type { Me } from '@/lib/api-shapes';
 import type { Teams } from '@/lib/fleet-shapes';
 import { contextText } from '@/lib/shared-context';
-import { CONTEXT_BUDGET } from '@/views/context';
+import { CONTEXT_BUDGET, READ_BOUND_MS } from '@/views/context';
 import { PlatformTeamView } from '@/views/pages/platform-team';
 import { CreateTeam, PlatformTeamsView } from '@/views/pages/platform-teams';
 import { teamContext } from '@/views/team-context';
-import { TEAMS_BOUND_MS, teamsContext, type TeamsRead } from '@/views/teams-context';
+import { teamsContext, type TeamsRead } from '@/views/teams-context';
 import { TEAMS_DEFAULTS, filtersOfPath, teamsPath } from '@/views/teams-filter';
 import { teamTool } from '@/views/tools/team';
 import { teamsTool } from '@/views/tools/teams';
@@ -102,7 +102,7 @@ describe('each page draws loading, empty, error and partial', () => {
   it('Teams: a server read that did not answer in time is the error, never an endless skeleton', () => {
     browser(null);
     mount(<PlatformTeamsView served={{ state: 'slow', path: PATH }} />);
-    expect(screen.getByText(`The read did not answer within ${TEAMS_BOUND_MS / 1000} seconds.`)).toBeInTheDocument();
+    expect(screen.getByText(`The read did not answer within ${READ_BOUND_MS / 1000} seconds.`)).toBeInTheDocument();
     expect(document.querySelector('table[aria-busy="true"]')).toBeNull();
   });
 
@@ -428,7 +428,7 @@ describe('the reads on the console\'s server', () => {
     gateway.get.mockReturnValue(new Promise(() => {}));
     const list = readTeams(TEAMS_DEFAULTS);
     const one = readTeam('atlas');
-    await vi.advanceTimersByTimeAsync(TEAMS_BOUND_MS);
+    await vi.advanceTimersByTimeAsync(READ_BOUND_MS);
     expect(await list).toEqual({ state: 'slow', path: PATH });
     expect(await one).toEqual({ state: 'slow' });
   });

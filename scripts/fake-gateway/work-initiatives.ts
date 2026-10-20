@@ -26,7 +26,7 @@ import type { CloseInput, CloseResult, InitiativeList, InitiativeRow, NextMove }
 import { nextStart, now } from './clock.ts';
 import { kept } from './journey.ts';
 import { PLATFORM_STATUS } from './platform-status.ts';
-import { INITIATIVES, initiativeDetail } from './work.ts';
+import { INITIATIVES, detailBody } from './work.ts';
 
 type Answer = [status: number, body: unknown];
 
@@ -115,10 +115,15 @@ function asKept(i: Initiative): Initiative & { closedAt?: number } {
   return closed ? { ...i, closed: true, outcome: closed.outcome, accepted: closed.outcome === 'accepted', complete: closed.outcome !== 'abandoned', closedAt: Date.parse(closed.at) } : i;
 }
 
-/** One initiative's page as a journey session left it: closed, when that session closed it (`asKept`). */
-export function detailAsKept(d: InitiativeDetail | null): InitiativeDetail | null {
-  const closed = d && kept()?.closed.find((c) => c.team === d.team && c.slug === d.slug);
-  return d && closed ? { ...d, closed: true, outcome: closed.outcome, accepted: closed.outcome === 'accepted', complete: closed.outcome !== 'abandoned' } : d;
+/** One initiative's page as the gateway serves it, `team`'s `slug`: closed when a journey session closed it (`asKept`), and its state
+ *  and when it was last touched as its row on the list says them, by the one rule both read. */
+export function initiativeDetail(team: string, slug: string): InitiativeDetail | null {
+  const d = detailBody(team, slug);
+  if (!d) return null;
+  const row = rowsOf(d.team).find((r) => r.slug === d.slug)!;
+  const closed = kept()?.closed.find((c) => c.team === d.team && c.slug === d.slug);
+  const body = closed ? { ...d, closed: true, outcome: closed.outcome, accepted: closed.outcome === 'accepted', complete: closed.outcome !== 'abandoned' } : d;
+  return { ...body, state: row.state, lastTouched: row.lastTouched };
 }
 
 /** One initiative as the list reads it. */
@@ -232,7 +237,7 @@ export function close(who: Me, team: string, slug: string, body: Record<string, 
   if (acceptor !== undefined && reason !== undefined) return [400, { error: 'ERROR: accepted_by and no_signoff_reason are exclusive: name who accepted it, or say why nobody signed off.' }];
   if (i.closed) return [409, { conflict: 'closed', error: `${slug} is already closed as ${i.outcome}. The first decision stands.` }];
   // The documents a close may land on: a flow's own, never a source, and never the handover written after it.
-  const docs = initiativeDetail(team, slug)!.documents.filter((d) => !d.path.startsWith('sources/') && d.type !== 'handover').map((d) => d.path);
+  const docs = detailBody(team, slug)!.documents.filter((d) => !d.path.startsWith('sources/') && d.type !== 'handover').map((d) => d.path);
   if (typeof document === 'string' && !docs.includes(document)) return [400, { error: `ERROR: ${document} is not a document of ${slug}.` }];
   const result = (outcome: CloseResult['outcome'], closing: string | null): Answer => [200, { outcome, closedBy: who.email, document: closing } satisfies CloseResult];
   if (disposition === 'abandoned') return result('abandoned', (document as string | undefined) ?? docs.at(-1) ?? null);

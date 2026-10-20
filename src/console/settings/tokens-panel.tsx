@@ -116,7 +116,7 @@ export function TokensPanel() {
   async function revokeOne(t: AccessToken) {
     try {
       await revoke.mutateAsync(t.id);
-      toast({ tone: 'positive', title: `Revoked ${t.label}` });
+      toast({ tone: 'positive', title: `Revoked ${t.label || 'this token'}` });
     } catch (err) {
       toast({ tone: 'critical', title: err instanceof ApiError ? err.message : 'The token was not revoked; try again.' });
     }

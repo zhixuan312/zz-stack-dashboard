@@ -6,8 +6,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { CloseInitiative } from '@/console/close';
 import type { Me } from '@/lib/api-shapes';
 import { InitiativeClose } from '@/views/pages/initiative';
-import { close } from '../scripts/fake-gateway/work-initiatives.ts';
-import { initiativeDetail } from '../scripts/fake-gateway/work.ts';
+import { close, initiativeDetail } from '../scripts/fake-gateway/work-initiatives.ts';
 
 /**
  * Close, on an initiative's page (Task I-106, AC-5.6): the three choices a person makes each submit the `CloseInput`

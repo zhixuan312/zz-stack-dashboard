@@ -12,7 +12,7 @@ import { plural } from '@/lib/format';
 import { formatDate, formatDateTime, formatDay } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
-import { addressOf } from './context';
+import { READ_BOUND_MS, addressOf } from './context';
 import { rostered } from './platform-roster';
 import { PAGE_SIZE, TEAMS_DEFAULTS, narrowed, pageOf, type TeamsFilters, type TeamsRows } from './teams-filter';
 
@@ -21,9 +21,6 @@ export type TeamsRead =
   | { state: 'ok'; path: string; data: Teams }
   | { state: 'failed'; path: string; reason: string }
   | { state: 'slow'; path: string };
-
-/** How long the console's server waits for a Teams read: half a second under five, for a phone to draw what it says. */
-export const TEAMS_BOUND_MS = 4_500;
 
 /** The four tiles, as the page labels them and the assistant is told what each counts. */
 export const TILES = {
@@ -36,10 +33,11 @@ export const TILES = {
 /** What the assistant is told about a change to a team: the person makes it, on this page or the team's own, never the assistant. */
 export const TEAMS_CHANGES = 'The assistant changes no team: a person creates one with Create a team on this page, /platform/teams, and archives a team, adds a member or removes one with Archive, Add member and Remove on that team\'s own page, /platform/teams/<slug>.';
 
-/** What a week's figure reads as: its count, `Unavailable` when it could not be read, nothing before the record. */
+/** What a week's figure reads as: its count, `No data` for a week before the team's record began, and `Unavailable`
+ *  only for one that could not be read, the word the console keeps for a read that failed. A sentence lowers it. */
 export function weekCount(w: PeriodFigure): string {
-  if (w.figure.why === 'unavailable' || w.figure.value === null) return 'Unavailable';
-  return formatCount(w.figure.value);
+  if (w.figure.value !== null) return formatCount(w.figure.value);
+  return w.figure.why === 'no_data' ? 'No data' : 'Unavailable';
 }
 
 /** What a team that never made a real-work call reads as, in the table, on a phone's card and to the assistant. */
@@ -50,7 +48,7 @@ export const sessionPoints = (t: TeamRow): (number | null)[] => t.sessions.map((
 
 /** The sentence a read's trouble is told in, under the table's "The teams did not load" and to the assistant. */
 export function teamsTrouble(read: Exclude<TeamsRead, { state: 'ok' }>): string {
-  return read.state === 'slow' ? `The read did not answer within ${TEAMS_BOUND_MS / 1000} seconds.` : read.reason;
+  return read.state === 'slow' ? `The read did not answer within ${READ_BOUND_MS / 1000} seconds.` : read.reason;
 }
 
 /** How many teams of a page the context names at most, each whole, and says how many more: the page's ten, as many as fit. */
@@ -58,7 +56,7 @@ const NAMED = PAGE_SIZE;
 
 /** One team as the assistant is told it: its people, its work and lessons, its own two last weeks of calls, and when it last made one. */
 function teamLine(t: TeamRow): string {
-  const calls = t.calls.last.figure.why === 'unavailable' ? 'calls unavailable' : `calls ${weekCount(t.calls.previous)} then ${weekCount(t.calls.last)}`;
+  const calls = t.calls.last.figure.why === 'unavailable' ? 'calls unavailable' : `calls ${weekCount(t.calls.previous).toLowerCase()} then ${weekCount(t.calls.last).toLowerCase()}`;
   return `${t.slug}${t.name !== t.slug ? ` (${t.name})` : ''}${t.status === 'archived' ? ', archived' : ''}: ${formatCount(t.people)} ${plural(t.people, 'person', 'people')}, `
     + `${formatCount(t.openWork)} open, ${formatCount(t.waiting)} waiting, ${formatCount(t.lessons)} ${plural(t.lessons, 'lesson')}, ${calls}, ${t.lastActive ? `active ${formatDate(t.lastActive)}` : NO_ACTIVITY.toLowerCase()}`;
 }

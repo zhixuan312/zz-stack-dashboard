@@ -15,7 +15,7 @@ import { plural } from '@/lib/format';
 import { formatDateTime, formatDay } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { listed, type Fact, type Insight, type SharedContext } from '@/lib/shared-context';
-import { addressOf, budgeted, clip } from './context';
+import { READ_BOUND_MS, addressOf, budgeted, clip } from './context';
 import { rostered } from './platform-roster';
 
 type Side = ReleaseRow['before'];
@@ -56,9 +56,6 @@ export const releasePath = (version: string): string => `/platform/releases/${en
 
 /* The reads */
 
-/** How long the console's server waits for a Releases read: half a second under five, for a phone to draw what it says. */
-export const RELEASES_BOUND_MS = 4_500;
-
 /** The list's own read, as the console's server or the browser made it: the answer, a failure, or no answer in time. */
 export type ReleasesRead =
   | { state: 'ok'; path: string; data: Releases }
@@ -74,7 +71,7 @@ export type ReleaseRead =
 
 /** The sentence a read's trouble is told in, on the page and to the assistant. */
 export function releasesTrouble(read: { state: 'failed'; reason: string } | { state: 'slow' }): string {
-  return read.state === 'slow' ? `The read did not answer within ${RELEASES_BOUND_MS / 1000} seconds.` : read.reason;
+  return read.state === 'slow' ? `The read did not answer within ${READ_BOUND_MS / 1000} seconds.` : read.reason;
 }
 
 /* The words */

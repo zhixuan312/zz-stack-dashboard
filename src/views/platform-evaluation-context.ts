@@ -12,18 +12,15 @@ import { formatDateTime, formatDay, formatShortDate } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import type { Evaluation, SafeFinding } from '@/lib/platform-shapes';
 import { listed, type Fact, type Insight, type SharedContext } from '@/lib/shared-context';
-import { budgeted, pendingContext } from './context';
-import { waited } from './platform-bugs-context';
-
-/** How long the console's server waits for the read: half a second under five, for a phone to draw what it says. */
-export const EVALUATION_BOUND_MS = 4_500;
+import { waited } from '@/console/words';
+import { READ_BOUND_MS, budgeted, pendingContext } from './context';
 
 /** What the page's one read came back as: the whole response, the gateway's sentence, or no answer within the bound. */
 export type EvaluationRead = { state: 'ok'; evaluation: Evaluation } | { state: 'failed'; reason: string } | { state: 'slow' };
 
 /** Why the read is not on the page, in words. */
 export function evaluationTrouble(read: Exclude<EvaluationRead, { state: 'ok' }>): { title: string; detail: string } {
-  if (read.state === 'slow') return { title: 'Evaluation is unavailable', detail: `The read did not answer within ${EVALUATION_BOUND_MS / 1000} seconds. Nothing on this page was read.` };
+  if (read.state === 'slow') return { title: 'Evaluation is unavailable', detail: `The read did not answer within ${READ_BOUND_MS / 1000} seconds. Nothing on this page was read.` };
   return { title: 'Evaluation did not load', detail: `${read.reason.replace(/\.?$/, '.')} Nothing on this page was read.` };
 }
 

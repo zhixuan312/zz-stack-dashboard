@@ -16,6 +16,7 @@ import { LinkTabs } from '@/components/ui/tabs';
 import { aligned } from '@/console/columns';
 import { Panel } from '@/console/panel';
 import { failureOf } from '@/console/query';
+import { waited } from '@/console/words';
 import type { Revised } from '@/data/gateway';
 import { useDataClock } from '@/lib/api';
 import { AXIS_FORMATTERS, plural } from '@/lib/format';
@@ -26,7 +27,7 @@ import { encodePath } from '@/lib/store-path';
 import type { ApprovalRow, Approvals, WaitingRow } from '@/lib/work-shapes';
 import {
   APPROVALS_DEFAULTS, DECISION_BASIS, IN_YOUR_NAME, PAGE_SIZE, PRESENTATION, TEAM_APPROVALS, TILES, approvalsAddress, approvalsContext, approvedHref,
-  approvalsPath, approvalsTrouble, approvedWhen, dayOnly, filtersOfPath, noPresentationLine, noPresentationNote, pageOf, tabOf, waited, type ApprovalsRead, type ApprovalsTab,
+  approvalsPath, approvalsTrouble, approvedWhen, dayOnly, filtersOfPath, noPresentationLine, noPresentationNote, pageOf, tabOf, type ApprovalsRead, type ApprovalsTab,
 } from '@/views/approvals-context';
 import { pendingContext } from '@/views/context';
 import { useServed, useServedAddress } from '@/views/use-served';

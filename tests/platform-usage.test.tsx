@@ -24,9 +24,9 @@ import type { Usage } from '@/lib/fleet-shapes';
 import type { Part } from '@/lib/platform-shapes';
 import { formatDateTime, formatDay } from '@/lib/format-date';
 import { contextText } from '@/lib/shared-context';
-import { CONTEXT_BUDGET } from '@/views/context';
+import { CONTEXT_BUDGET, READ_BOUND_MS } from '@/views/context';
 import { PlatformUsageView, UsageAsOf } from '@/views/pages/platform-usage';
-import { USAGE_BOUND_MS, usageContext, type UsageRead } from '@/views/platform-usage-context';
+import { usageContext, type UsageRead } from '@/views/platform-usage-context';
 import { usageTool } from '@/views/tools/usage';
 import { usage } from '../scripts/fake-gateway/platform-usage.ts';
 import { readUsage } from '../app/(dash)/platform/usage/read-usage';
@@ -204,7 +204,7 @@ describe('the page\'s states', () => {
 
   const failures: [UsageRead, string, string][] = [
     [{ state: 'failed', reason: 'The gateway refused the read' }, 'Usage did not load', 'The gateway refused the read. Nothing on this page was read.'],
-    [{ state: 'slow' }, 'Usage is unavailable', `The read did not answer within ${USAGE_BOUND_MS / 1000} seconds.`],
+    [{ state: 'slow' }, 'Usage is unavailable', `The read did not answer within ${READ_BOUND_MS / 1000} seconds.`],
   ];
   for (const [read, title, detail] of failures) {
     it(`error: a ${read.state} read is the error state, with Retry asking the server again`, () => {
@@ -317,7 +317,7 @@ describe('the read on the server', () => {
     const read = readUsage();
     let settled: UsageRead | null = null;
     void read.then((r) => { settled = r; });
-    await act(async () => { await vi.advanceTimersByTimeAsync(USAGE_BOUND_MS - 1); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(READ_BOUND_MS - 1); });
     expect(settled).toBeNull();
     await act(async () => { await vi.advanceTimersByTimeAsync(1); });
     expect(await read).toEqual({ state: 'slow' });

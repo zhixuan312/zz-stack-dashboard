@@ -12,12 +12,12 @@ vi.mock('@/data/gateway', async (importOriginal) => ({ ...(await importOriginal<
 import { GatewayError } from '@/data/gateway';
 import type { Me } from '@/lib/api-shapes';
 import type { InitiativeList } from '@/lib/work-shapes';
-import { INITIATIVES_BOUND_MS, type InitiativesRead } from '@/views/initiatives-context';
+import { READ_BOUND_MS } from '@/views/context';
+import type { InitiativesRead } from '@/views/initiatives-context';
 import { INITIATIVES_DEFAULTS, filtersOf, filtersOfPath, listPath } from '@/views/initiatives-filter';
 import { InitiativeView } from '@/views/pages/initiative';
 import { InitiativesView } from '@/views/pages/initiatives';
-import { initiativeList } from '../scripts/fake-gateway/work-initiatives.ts';
-import { initiativeDetail } from '../scripts/fake-gateway/work.ts';
+import { initiativeDetail, initiativeList } from '../scripts/fake-gateway/work-initiatives.ts';
 import InitiativesLoading from '../app/(dash)/initiatives/loading';
 import InitiativesPage, { generateMetadata as listMetadata } from '../app/(dash)/initiatives/page';
 import { readInitiative, readInitiatives } from '../app/(dash)/initiatives/read-initiatives';
@@ -150,7 +150,7 @@ describe('a filter, a search and a page are the server\'s parameters', () => {
   it('a read that did not answer in time is the error, never an endless skeleton', () => {
     browser(null);
     mount(<InitiativesView served={{ state: 'slow', path: PATH }} />);
-    expect(text()).toContain(`The read did not answer within ${INITIATIVES_BOUND_MS / 1000} seconds.`);
+    expect(text()).toContain(`The read did not answer within ${READ_BOUND_MS / 1000} seconds.`);
     expect(document.querySelector('table[aria-busy="true"]')).toBeNull();
   });
 
@@ -224,7 +224,7 @@ describe('the reads on the console\'s server', () => {
     gateway.get.mockReturnValue(new Promise(() => {}));
     const list = readInitiatives(INITIATIVES_DEFAULTS);
     const one = readInitiative('atlas', '2026-09-28-search-relevance');
-    await vi.advanceTimersByTimeAsync(INITIATIVES_BOUND_MS);
+    await vi.advanceTimersByTimeAsync(READ_BOUND_MS);
     expect(await list).toEqual({ state: 'slow', path: PATH });
     expect(await one).toEqual({ state: 'slow' });
   });

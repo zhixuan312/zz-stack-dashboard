@@ -240,7 +240,7 @@ describe('the page\'s log', () => {
   const entry = { ts: '2026-10-11T00:00:00Z', actor: 'noah.okafor@example.com', team: 'atlas', kind: 'knowledge.add' as const, node: '0003', recorded_title: 'Alert on the trend', superseded_by: null, path: null, node_title: 'Alert on the trend, not the count', node_status: 'adopted' };
 
   it('says whose log the server read, never the browser\'s scope switch', () => {
-    mount(<KnowledgeLogView read={{ state: 'ok', data: { entries: [entry] }, at: '2026-10-15T00:00:00Z' }} />);
+    mount(<KnowledgeLogView read={{ state: 'ok', data: { entries: [entry], totals: { entries: 1, recorded: 1, superseded: 0 }, ceiling: 500 }, at: '2026-10-15T00:00:00Z' }} />);
     expect(text()).toContain('Every lesson this team recorded or superseded, newest first.');
     expect(text()).toContain('Alert on the trend, not the count');
     expect(text()).toContain('11 Oct 2026');

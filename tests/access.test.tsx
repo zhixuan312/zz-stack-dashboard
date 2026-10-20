@@ -35,7 +35,8 @@ import { GatewayError } from '@/data/gateway';
 import { MAIN_ROLES, effective } from '@/data/roles';
 import type { Me } from '@/lib/api-shapes';
 import type { Access } from '@/lib/destination-shapes';
-import { ACCESS_BOUND_MS, browserOf, type AccessRead } from '@/views/access-context';
+import { browserOf, type AccessRead } from '@/views/access-context';
+import { READ_BOUND_MS } from '@/views/context';
 import { AccessView } from '@/views/pages/access';
 import { access as accessOf } from '../scripts/fake-gateway/work-access.ts';
 import { ME, MEMBER } from '../scripts/fake-gateway/people.ts';
@@ -246,7 +247,7 @@ describe('every state Access draws', () => {
     browser();
     draw({ state: 'slow' });
     expect(screen.getByText('Access is unavailable')).toBeInTheDocument();
-    expect(screen.getByText(`The read did not answer within ${ACCESS_BOUND_MS / 1000} seconds. Nothing on this page was read.`)).toBeInTheDocument();
+    expect(screen.getByText(`The read did not answer within ${READ_BOUND_MS / 1000} seconds. Nothing on this page was read.`)).toBeInTheDocument();
   });
 
   it('loads as the tallest page, naming nothing under the absent refusal', () => {
@@ -428,7 +429,7 @@ describe('the page on the console\'s server', () => {
     vi.useFakeTimers();
     gateway.get.mockReturnValueOnce(new Promise(() => {}));
     const slow = readAccess();
-    await vi.advanceTimersByTimeAsync(ACCESS_BOUND_MS);
+    await vi.advanceTimersByTimeAsync(READ_BOUND_MS);
     expect(await slow).toEqual({ state: 'slow' });
   });
 });

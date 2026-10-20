@@ -98,7 +98,7 @@ describe('the shared context', () => {
     const c = homeContext(ok(BEACON, 'beacon'));
     const waiting = c.insights.find((i) => i.text.startsWith('spec.md, version 1, waits for approval'));
     expect(waiting?.evidence).toBe('/initiatives/beacon/2026-09-30-refund-flow/spec.md');
-    expect(fact(c, 'Title')!.value).toBe('Your first observed week: 1 closure and 2 lesson adoptions');
+    expect(fact(c, 'Title')!.value).toBe('Your first observed week: 1 closure and 2 lessons made');
   });
 
   it('is refreshed when the cursor moves: the week pointed at with both figures, the running week so far', () => {

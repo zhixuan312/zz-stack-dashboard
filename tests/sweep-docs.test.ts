@@ -135,8 +135,8 @@ describe('the fake\'s slow state is slower than every read bound (R2-C25)', () =
 
   it('holds a page read and the status read past each of them', () => {
     const all = bounds();
-    // Every page's bound, the identity read's and the browser's among them.
-    expect(all.map(([name]) => name.split(' ')[1])).toEqual(expect.arrayContaining(['READ_BOUND_MS', 'IDENTITY_BOUND_MS', 'HOME_BOUND_MS', 'STATUS_BOUND_MS']));
+    // One bound for every read: each page's, the identity read's and the browser's (R2-C44).
+    expect(all.map(([name]) => name)).toEqual(['src/views/context.ts READ_BOUND_MS']);
     for (const [name, ms] of all) {
       expect(SLOW_MS, name).toBeGreaterThan(ms);
     }

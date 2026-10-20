@@ -28,7 +28,7 @@ import type { ApprovalEvidence, ApprovalRow, Approvals, WaitingRow } from '../..
 import { ago, localDay, midnight } from './clock.ts';
 import { kept } from './journey.ts';
 import { WEEKS, tally, workMeta } from './work-initiatives.ts';
-import { INITIATIVES, contentRevisionOf, documentDetail, initiativeDetail } from './work.ts';
+import { INITIATIVES, contentRevisionOf, documentDetail, detailBody } from './work.ts';
 
 type Answer = [status: number, body: unknown];
 
@@ -83,7 +83,7 @@ export const approvedMs = (a: ApprovalRow): number => (a.approvedAt.length === 1
 export function approvalsOf(team: string | null): Signed[] {
   const out: Signed[] = [];
   for (const i of INITIATIVES.filter((x) => x.team === team)) {
-    for (const row of initiativeDetail(i.team, i.slug)!.documents.filter((x) => x.gated)) {
+    for (const row of detailBody(i.team, i.slug)!.documents.filter((x) => x.gated)) {
       const d = documentDetail(i.team, i.slug, row.path)!;
       for (const v of d.versions) {
         const sealed = v.status === 'approved' ? null : v.superseded_approved;

@@ -16,6 +16,7 @@
  */
 import { cookies } from 'next/headers';
 import type { Revisions } from '@/lib/live';
+import { READ_BOUND_MS } from '@/views/context';
 
 /** The gateway's own name for the console session (`CONSOLE_COOKIE` in services/gateway/src/identity.ts). */
 const SESSION_COOKIE = 'zz_console';
@@ -84,14 +85,6 @@ export class GatewayError extends Error {
   }
 }
 
-/**
- * How long the read of who is asking may go unanswered before it is the gateway-unreachable state: the page reads' own
- * bound (`READ_BOUND_MS` in src/lib/api.ts, and each page's server read beside it), so a gateway that takes the request
- * and never answers draws the console's error page by then instead of holding every page on its gate. The page reads
- * race their own bounds into their own states, so this bounds `/me` alone.
- */
-const IDENTITY_BOUND_MS = 4_500;
-
 async function credential(): Promise<Record<string, string>> {
   const pat = process.env.NODE_ENV === 'production' ? undefined : process.env.ZZ_DEV_PAT;
   if (pat) return { authorization: `Bearer ${pat}` };
@@ -111,8 +104,10 @@ async function credential(): Promise<Record<string, string>> {
  * which the platform runs as the team they act for. The gateway refuses a search asked for under the platform's name
  * rather than answering one team's as the fleet's.
  *
- * `/me` is bounded by `IDENTITY_BOUND_MS`: unanswered by then, it is a 504 with a sentence that says so, which `gate`
- * throws as the outage it is.
+ * `/me` is bounded by `READ_BOUND_MS` (src/views/context.ts), the bound every read of the console's keeps: unanswered by
+ * then, it is a 504 with a sentence that says so, which `gate` throws as the outage it is, so a gateway that takes the
+ * request and never answers draws the console's error page instead of holding every page on its gate. The page reads
+ * race the same bound into their own states, so this bounds `/me` alone.
  *
  * The revision the gateway answered the read at is kept for `answeredAt`, and a refusal carries its own on the
  * `GatewayError`, since a refusal is an answer a page draws too.
@@ -127,7 +122,7 @@ export async function gatewayGet<T>(path: string): Promise<T> {
   const own = path === '/me' || path === '/search' || path.startsWith('/search?');
   const scoped = own ? path : `${path}${path.includes('?') ? '&' : '?'}scope=platform`;
   const abort = new AbortController();
-  const timer = path === '/me' ? setTimeout(() => abort.abort(), IDENTITY_BOUND_MS) : undefined;
+  const timer = path === '/me' ? setTimeout(() => abort.abort(), READ_BOUND_MS) : undefined;
   try {
     const res = await fetch(`${base}/api/console${scoped}`, { headers: { accept: 'application/json', ...asCaller }, cache: 'no-store', signal: abort.signal });
     if (!res.ok) {

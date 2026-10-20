@@ -24,10 +24,11 @@ import { formatDateTime, formatDay, formatShortDate } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import type { Figure, PeriodFigure, Window } from '@/lib/platform-shapes';
 import {
-  TILES, WEEKLY_TILES, askOf, asOfLine, changeOf, cohortNote, cohortText, exactSince, figureText, isFleet, knowledgeHealthContext, knowledgeHealthTrouble,
-  lastWhole, leftOut, madeLine, noResultCell, pointsOf, searchLine, searchesSaid, shelfName, valueIn, weekOf, type KnowledgeHealthRead, type MadeWeek, type Question,
+  TILES, WEEKLY_TILES, askOf, asOfLine, cohortNote, cohortText, exactSince, figureText, isFleet, knowledgeHealthContext, knowledgeHealthTrouble,
+  leftOut, madeLine, noResultCell, searchLine, searchesSaid, shelfName, valueIn, weekOf, type KnowledgeHealthRead, type MadeWeek, type Question,
   type SearchWeek, type ShelfRow, type WeeklyTile,
 } from '@/views/platform-knowledge-context';
+import { changeOf, lastWhole, pointsOf } from '@/views/week-change';
 
 /** The protagonist's title: the card the page's Ask sits on. COUPLED: the README's `Protagonist:`. */
 const SHELVES_TITLE = 'Each shelf';

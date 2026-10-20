@@ -3,7 +3,7 @@
  * knowledge store they fed.
  *
  * COUPLED: zz-stack's `checks/console-work-initiatives.ts` imports this file with plain `node` (`INITIATIVES`,
- * `initiativeDetail`) and compares the empty initiative's keys with the real route's.
+ * `detailBody`) and compares the empty initiative's keys with the real route's.
  *
  * One initiative per state a page draws: drafting, waiting on a person, not started, ready to close,
  * gone quiet, closed three ways (accepted, delivered, abandoned), closed with a correction awaiting
@@ -190,7 +190,10 @@ const DECISIONS: InitiativeDetail['decisions'] = [
   { path: 'plan.md', role: 'plan', key: 'I-2', verdict: null, qualifier: 'AC-1.2', detail: 'Spelling suggestions from the query log, never from the model.', checker: null },
 ];
 
-export function initiativeDetail(team: string, slug: string): InitiativeDetail | null {
+/** One initiative's page, but its state: the list's rule answers that (`initiativeDetail` in work-initiatives.ts). */
+export type DetailBody = Omit<InitiativeDetail, 'state' | 'lastTouched'>;
+
+export function detailBody(team: string, slug: string): DetailBody | null {
   const s = SEEDS.find((x) => x.team === team && x.slug === slug);
   const i = INITIATIVES.find((x) => x.team === team && x.slug === slug);
   if (!s || !i) return null;
@@ -341,7 +344,7 @@ export function refusesRecord(team: string, initiative: string, path: string): b
 }
 
 export function documentDetail(team: string, initiative: string, path: string): DocumentDetail | null {
-  const d = initiativeDetail(team, initiative);
+  const d = detailBody(team, initiative);
   const row = d?.documents.find((x) => x.path === path);
   if (!d || !row) return null;
   const isSpec = initiative === '2026-09-28-search-relevance' && path === 'spec.md';
@@ -393,7 +396,7 @@ export function revisionInStore(team: string, initiative: string, path: string):
 
 /** One snapshot's text, as `/document/:team/:slug/:path?revision=N` serves it, N the snapshot id. */
 export function documentRevision(team: string, initiative: string, path: string, revision: number): DocumentRevision | null {
-  const d = initiativeDetail(team, initiative);
+  const d = detailBody(team, initiative);
   const row = d?.documents.find((x) => x.path === path);
   if (!d || !row) return null;
   const isSpec = initiative === '2026-09-28-search-relevance' && path === 'spec.md';

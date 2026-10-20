@@ -14,13 +14,9 @@ import type { Fact, Insight, SharedContext } from '@/lib/shared-context';
 import { encodePath } from '@/lib/store-path';
 import type { Figure, PeriodFigure, ReadMeta, Window } from '@/lib/platform-shapes';
 import type { Home, InitiativeRow, WritingCoverage } from '@/lib/work-shapes';
-import { budgeted, clip, pendingContext } from './context';
+import { READ_BOUND_MS, budgeted, clip, pendingContext } from './context';
 import { nextOf } from './initiatives-context';
 import { LESSONS_MADE, gapsOf } from './record-names';
-
-/** How long the page waits for Home's read before it says the read is unavailable: half a second under five, for a
- *  phone to draw what it says, the bound the browser's own reads keep (`src/lib/api.ts`). */
-export const HOME_BOUND_MS = 4_500;
 
 /** What the page's one read came back as: Home with the team it is for, a read that failed, or one slower than its bound. */
 export type HomeRead =
@@ -204,7 +200,7 @@ const VIEW = { view: 'home', title: 'Home', address: '/' } as const;
 
 /** What a read that did not bring Home is called on the page, and the one sentence under it. */
 export function troubleOf(state: Exclude<HomeRead['state'], 'ok'>): { title: string; detail: string } {
-  if (state === 'slow') return { title: 'Home is unavailable', detail: `The platform did not answer within ${HOME_BOUND_MS / 1000} seconds. Nothing on this page was read.` };
+  if (state === 'slow') return { title: 'Home is unavailable', detail: `The platform did not answer within ${READ_BOUND_MS / 1000} seconds. Nothing on this page was read.` };
   return { title: 'Home did not load', detail: 'The platform did not answer the read. Nothing on this page was read.' };
 }
 

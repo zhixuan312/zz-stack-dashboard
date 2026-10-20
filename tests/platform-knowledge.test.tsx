@@ -27,9 +27,9 @@ import type { KnowledgeHealth } from '@/lib/fleet-shapes';
 import { dayOf, formatDateTime, formatDay } from '@/lib/format-date';
 import type { Part, Window } from '@/lib/platform-shapes';
 import { contextText } from '@/lib/shared-context';
-import { CONTEXT_BUDGET } from '@/views/context';
+import { CONTEXT_BUDGET, READ_BOUND_MS } from '@/views/context';
 import { KnowledgeHealthAsOf, PlatformKnowledgeView } from '@/views/pages/platform-knowledge';
-import { KNOWLEDGE_HEALTH_BOUND_MS, knowledgeHealthContext, type KnowledgeHealthRead } from '@/views/platform-knowledge-context';
+import { knowledgeHealthContext, type KnowledgeHealthRead } from '@/views/platform-knowledge-context';
 import { knowledgeHealthTool } from '@/views/tools/knowledge-health';
 import { ME, MEMBER } from '../scripts/fake-gateway/people.ts';
 import { knowledge } from '../scripts/fake-gateway/platform-knowledge.ts';
@@ -281,7 +281,7 @@ describe('the page\'s states', () => {
 
   const failures: [KnowledgeHealthRead, string, string][] = [
     [{ state: 'failed', reason: 'The gateway refused the read' }, 'Knowledge health did not load', 'The gateway refused the read. Nothing on this page was read.'],
-    [{ state: 'slow' }, 'Knowledge health is unavailable', `The read did not answer within ${KNOWLEDGE_HEALTH_BOUND_MS / 1000} seconds.`],
+    [{ state: 'slow' }, 'Knowledge health is unavailable', `The read did not answer within ${READ_BOUND_MS / 1000} seconds.`],
   ];
   for (const [r, title, detail] of failures) {
     it(`error: a ${r.state} read is the error state, with Retry asking the server again`, () => {
@@ -500,7 +500,7 @@ describe('the read on the server', () => {
     const pending = readKnowledgeHealth();
     let settled: KnowledgeHealthRead | null = null;
     void pending.then((r) => { settled = r; });
-    await act(async () => { await vi.advanceTimersByTimeAsync(KNOWLEDGE_HEALTH_BOUND_MS - 1); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(READ_BOUND_MS - 1); });
     expect(settled).toBeNull();
     await act(async () => { await vi.advanceTimersByTimeAsync(1); });
     expect(await pending).toEqual({ state: 'slow' });

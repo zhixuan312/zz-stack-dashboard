@@ -37,11 +37,9 @@ vi.mock('@/views/pages/skill', async (importOriginal) => {
 });
 
 import type { DocumentDetail, KnowledgeBody } from '@/lib/api-shapes';
+import { READ_BOUND_MS } from '@/views/context';
 import type { DocumentRead } from '@/views/document-read';
-import { INITIATIVES_BOUND_MS } from '@/views/initiatives-context';
-import { HOME_BOUND_MS } from '@/views/home-context';
-import { KNOWLEDGE_BOUND_MS, type ServerRead } from '@/views/knowledge-context';
-import { STATUS_BOUND_MS } from '@/views/platform-status-context';
+import type { ServerRead } from '@/views/knowledge-context';
 import { DocumentView } from '@/views/pages/document';
 import { KnowledgeNodeView } from '@/views/pages/knowledge-node';
 import { SkillTabs, SkillView } from '@/views/pages/skill';
@@ -153,10 +151,10 @@ describe('a knowledge node', () => {
 });
 
 describe('the server reads\' bounds', () => {
-  it.each([['Status', STATUS_BOUND_MS], ['Home', HOME_BOUND_MS], ['Knowledge', KNOWLEDGE_BOUND_MS]])(
+  it.each([['Status', READ_BOUND_MS], ['Home', READ_BOUND_MS], ['Knowledge', READ_BOUND_MS]])(
     '%s waits as long as every other page does, half a second under the spec\'s five', (_, bound) => {
-      expect(INITIATIVES_BOUND_MS).toBe(4_500);
-      expect(bound).toBe(INITIATIVES_BOUND_MS);
+      expect(READ_BOUND_MS).toBe(4_500);
+      expect(bound).toBe(READ_BOUND_MS);
     },
   );
 });

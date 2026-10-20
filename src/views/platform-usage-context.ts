@@ -12,17 +12,15 @@ import { formatDateTime, formatDay } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import type { Figure, PeriodFigure, Window } from '@/lib/platform-shapes';
 import { listed, type Fact, type SharedContext } from '@/lib/shared-context';
-import { pendingContext, sectioned, type Section } from './context';
-
-/** How long the console's server waits for the read: half a second under five, for a phone to draw what it says. */
-export const USAGE_BOUND_MS = 4_500;
+import { READ_BOUND_MS, pendingContext, sectioned, type Section } from './context';
+import { changeOf, lastWhole, pointsIn, pointsOf } from './week-change';
 
 /** What the page's one read came back as: the whole response, the gateway's sentence, or no answer within the bound. */
 export type UsageRead = { state: 'ok'; usage: Usage } | { state: 'failed'; reason: string } | { state: 'slow' };
 
 /** Why the read is not on the page, in words. */
 export function usageTrouble(read: Exclude<UsageRead, { state: 'ok' }>): { title: string; detail: string } {
-  if (read.state === 'slow') return { title: 'Usage is unavailable', detail: `The read did not answer within ${USAGE_BOUND_MS / 1000} seconds. Nothing on this page was read.` };
+  if (read.state === 'slow') return { title: 'Usage is unavailable', detail: `The read did not answer within ${READ_BOUND_MS / 1000} seconds. Nothing on this page was read.` };
   return { title: 'Usage did not load', detail: `${read.reason.replace(/\.?$/, '.')} Nothing on this page was read.` };
 }
 
@@ -54,21 +52,6 @@ export const TILES = {
 export type TileKey = keyof typeof TILES;
 export const TILE_KEYS = Object.keys(TILES) as TileKey[];
 
-/** A tile's change on the week before, as a fraction, or null when either week has no figure to set beside the other. */
-export function changeOf(t: Tile): number | null {
-  const [last, previous] = [t.last.figure.value, t.previous.figure.value];
-  return last === null || previous === null || previous === 0 ? null : (last - previous) / previous;
-}
-
-/** A share's change on the week before in points, the difference of the two shares, as Status gives one; null when
- *  either week has no share. A share's change is never a percentage of itself, which a reader takes for points. */
-export function pointsOf(t: Tile): number | null {
-  const [last, previous] = [t.last.figure.value, t.previous.figure.value];
-  return last === null || previous === null ? null : last - previous;
-}
-/** A change in points, its direction left to the arrow or the word before it: `13.4 pts`. */
-export const pointsIn = (n: number): string => `${ONE.format(Math.abs(n))} pts`;
-
 /** A tile's change as the context says it, beside the tile's own: a share's in points, any other's as a percentage. */
 function changeSaid(kind: Kind, t: Tile): string {
   const before = `vs the ${weekOf(t.previous.window)} (${figureText(kind, t.previous.figure)})`;
@@ -92,12 +75,6 @@ export const REFUSAL_PARTS = [
 export function teamParts(u: Usage): string[] {
   if (u.callsByWeek.state !== 'ok') return [];
   return u.callsByWeek.data.weeks.find((w) => w.parts)?.parts?.map((p) => p.label) ?? [];
-}
-
-/** The last whole week the calls by week hold, by its index: the week the cards are about. */
-export function lastWhole<T extends { window: Window }>(weeks: T[]): number {
-  for (let i = weeks.length - 1; i >= 0; i--) if (weeks[i].window.complete) return i;
-  return -1;
 }
 
 /** The followed refusals of one week, in words, for the line under the chart and the assistant alike. */

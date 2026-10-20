@@ -3,7 +3,6 @@ import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Tooltip } from 'radix-ui';
 
-import { PeriodProvider } from '@/console/period';
 import { RunsView } from '@/views/pages/runs';
 
 const TooltipProvider = Tooltip.Provider;
@@ -34,9 +33,7 @@ describe('every read on a page failing', () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
       <QueryClientProvider client={client}>
-        <PeriodProvider>
-          <TooltipProvider><RunsView served={{ state: 'failed', path: '/runs?limit=10&offset=0', reason: 'the gateway could not reach its database' }} /></TooltipProvider>
-        </PeriodProvider>
+        <TooltipProvider><RunsView served={{ state: 'failed', path: '/runs?limit=10&offset=0', reason: 'the gateway could not reach its database' }} /></TooltipProvider>
       </QueryClientProvider>,
     );
     // The server's one read failed, so the page says so once, with the gateway's sentence, and nothing says "coming".

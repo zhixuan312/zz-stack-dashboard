@@ -20,19 +20,18 @@ vi.mock('@/data/gateway', async (importOriginal) => ({ ...(await importOriginal<
 vi.mock('@/app.config', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/app.config')>()), refusal: 'absent' }));
 
 import { SurfaceOverride } from '@/components/base/surface';
+import { waited } from '@/console/words';
 import { FEATURES } from '@/data/features';
 import { GatewayError } from '@/data/gateway';
 import { PREPARED } from '@/data/prepared';
 import type { Me } from '@/lib/api-shapes';
 import type { AdminBugRow, Bugs } from '@/lib/platform-shapes';
 import { contextText } from '@/lib/shared-context';
-import { CONTEXT_BUDGET } from '@/views/context';
+import { CONTEXT_BUDGET, READ_BOUND_MS } from '@/views/context';
 import { PlatformBugView } from '@/views/pages/platform-bug';
 import { PlatformBugsView } from '@/views/pages/platform-bugs';
 import {
-  BUGS_BOUND_MS, BUGS_DEFAULTS, bugContext, bugPath, bugsContext, bugsPath, cohortsRunning, duplicatesPath, filtersOfPath, formatHours, lastWhole, rateIn,
-  waited,
-  type BugsFilters, type BugsRead, type DuplicatesRead,
+  BUGS_DEFAULTS, bugContext, bugPath, bugsContext, bugsPath, cohortsRunning, duplicatesPath, filtersOfPath, formatHours, lastWhole, rateIn, type BugsFilters, type BugsRead, type DuplicatesRead,
 } from '@/views/platform-bugs-context';
 import { bugTool, bugsTool } from '@/views/tools/bugs';
 import { REPORTS, bugReport, bugs, duplicates } from '../scripts/fake-gateway/platform-bugs.ts';
@@ -264,7 +263,7 @@ describe('each page draws loading, empty, error and partial', () => {
   it('Bugs: a server read that did not answer in time is the error, never an endless skeleton', () => {
     browser(null);
     mount(<PlatformBugsView served={{ state: 'slow', path: PATH }} />);
-    expect(screen.getByText(`The read did not answer within ${BUGS_BOUND_MS / 1000} seconds.`)).toBeInTheDocument();
+    expect(screen.getByText(`The read did not answer within ${READ_BOUND_MS / 1000} seconds.`)).toBeInTheDocument();
     expect(document.querySelector('table[aria-busy="true"]')).toBeNull();
   });
 
@@ -638,7 +637,7 @@ describe('the reads on the console\'s server', () => {
     const list = readBugs(BUGS_DEFAULTS);
     const one = readBug(OPEN);
     const others = readDuplicates(OPEN);
-    await vi.advanceTimersByTimeAsync(BUGS_BOUND_MS);
+    await vi.advanceTimersByTimeAsync(READ_BOUND_MS);
     expect(await list).toEqual({ state: 'slow', path: PATH });
     expect(await one).toEqual({ state: 'slow' });
     expect(await others).toEqual({ state: 'slow' });

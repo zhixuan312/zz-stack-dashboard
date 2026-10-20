@@ -20,12 +20,8 @@ import { grainOf } from '@/lib/grain';
 import { listed, type Fact, type SharedContext } from '@/lib/shared-context';
 import type { Figure, PeriodFigure, Window } from '@/lib/platform-shapes';
 import type { RecordRead, WritingCoverage } from '@/lib/work-shapes';
-import { addressOf, clip, pendingContext, sectioned, type Section } from './context';
+import { READ_BOUND_MS, addressOf, clip, pendingContext, sectioned, type Section } from './context';
 import { LESSONS_MADE, NO_DATA, gapsOf } from './record-names';
-
-/** How long the console's server waits for Record's read before it says the read is unavailable: half a second under
- *  five, for a phone to draw what it says, the bound the browser's own reads keep (`src/lib/api.ts`). */
-export const RECORD_BOUND_MS = 4_500;
 
 /** The periods the route takes, in the order the control offers them; all of the record when none is named. */
 export const RECORD_PERIODS = ['quarter', 'year', 'all'] as const;
@@ -70,7 +66,7 @@ export type RecordServed =
 
 /** The one sentence a read that brought nothing says. */
 export function recordTrouble(read: Exclude<RecordServed, { state: 'ok' }>): string {
-  return read.state === 'slow' ? `The platform did not answer within ${RECORD_BOUND_MS / 1000} seconds.` : read.reason;
+  return read.state === 'slow' ? `The platform did not answer within ${READ_BOUND_MS / 1000} seconds.` : read.reason;
 }
 
 /** The control's options: what each period is called on it, and in full. */

@@ -12,17 +12,14 @@ import { plural } from '@/lib/format';
 import { formatDate, formatDateTime } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { listed, type Fact, type Insight, type SharedContext } from '@/lib/shared-context';
-import { arrived, budgeted, type Arrival } from './context';
-
-/** How long the console's server waits for the read: half a second under five, for a phone to draw what it says. */
-export const ACCESS_BOUND_MS = 4_500;
+import { READ_BOUND_MS, arrived, budgeted, type Arrival } from './context';
 
 /** What the page's one read came back as: the whole answer, the gateway's sentence, or no answer within the bound. */
 export type AccessRead = { state: 'ok'; access: Access } | { state: 'failed'; reason: string } | { state: 'slow' };
 
 /** Why the read is not on the page, in words. */
 export function accessTrouble(read: Exclude<AccessRead, { state: 'ok' }>): { title: string; detail: string } {
-  if (read.state === 'slow') return { title: 'Access is unavailable', detail: `The read did not answer within ${ACCESS_BOUND_MS / 1000} seconds. Nothing on this page was read.` };
+  if (read.state === 'slow') return { title: 'Access is unavailable', detail: `The read did not answer within ${READ_BOUND_MS / 1000} seconds. Nothing on this page was read.` };
   return { title: 'Access did not load', detail: `${read.reason.replace(/\.?$/, '.')} Nothing on this page was read.` };
 }
 

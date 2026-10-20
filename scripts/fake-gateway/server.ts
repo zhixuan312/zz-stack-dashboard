@@ -43,7 +43,7 @@
  * `document`, as the gateway's trigger notifies on every revision a writer makes.
  *
  * The status read, `GET /api/console/platform/status`, is the one a page makes on the console's server and gives
- * `STATUS_BOUND_MS` (src/views/platform-status-context.ts): `error` answers it 500 with its own route's sentence, and
+ * `READ_BOUND_MS` (src/views/context.ts): `error` answers it 500 with its own route's sentence, and
  * `slow` holds it `SLOW_MS`, past that bound as past every page's.
  *
  * Platform's other reads are public by their route, answered to everyone signed in from one fixture each, the
@@ -102,13 +102,13 @@ import { pluginEval, skillText } from './platform.ts';
 import { search } from './search.ts';
 import { empty, extreme } from './states.ts';
 import { NOT_RECORDED, SLOW_MS, STATES, isState, nullsFilled, partial, sessionOf, unknownState, type State } from './states-partial.ts';
-import { documentDetail, documentRevision, initiativeDetail, onDrift, refusesRecord, revisionInStore } from './work.ts';
+import { documentDetail, documentRevision, onDrift, refusesRecord, revisionInStore } from './work.ts';
 import { access, revokeApplication, revokeBrowser, tokensNow } from './work-access.ts';
 import { activityLog, activitySummary, NO_TEAM } from './work-activity.ts';
 import { approvals, documentAsKept } from './work-approvals.ts';
 import { home } from './work-home.ts';
-import { close, detailAsKept, initiativeList } from './work-initiatives.ts';
-import { KNOWLEDGE_LOG, knowledgeList, knowledgeSummary, lesson, SHARED_TEAM } from './work-knowledge.ts';
+import { close, initiativeDetail, initiativeList } from './work-initiatives.ts';
+import { knowledgeList, knowledgeLog, knowledgeSummary, lesson, SHARED_TEAM } from './work-knowledge.ts';
 import { plugins, skillDetail, skills } from './work-plugins.ts';
 import { workQuery } from './work-query.ts';
 import { record } from './work-record.ts';
@@ -214,7 +214,7 @@ function read(who: Me, seg: string[], q: URLSearchParams): Answer {
       if (a && b) {
         if (!who.activeTeam) return NO_TEAM;
         if (a !== who.activeTeam) return NO_INITIATIVE;
-        const d = detailAsKept(initiativeDetail(a, b));
+        const d = initiativeDetail(a, b);
         return d ? ok(d) : NO_INITIATIVE;
       }
       // Work is the active team's: the list answers it alone, whatever `?team=` or `?scope=` asked.
@@ -235,7 +235,7 @@ function read(who: Me, seg: string[], q: URLSearchParams): Answer {
     case 'knowledge':
       // The summary answers before the node route, because `summary` names no team of its own.
       if (a === 'summary' && !b) return knowledgeSummary(who);
-      if (a === 'log') return ok({ entries: KNOWLEDGE_LOG.filter((r) => r.team === who.activeTeam) });
+      if (a === 'log') return ok(knowledgeLog(who));
       // A lesson is the active team's, for the superadmin too, as the gateway answers it; the shared shelf is nobody's
       // own, so any signed-in person opens its lessons, read-only. A team or a scope the request names widens nothing.
       if (a) {

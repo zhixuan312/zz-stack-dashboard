@@ -45,8 +45,8 @@ import { people } from '../scripts/fake-gateway/platform-people.ts';
 import { teamDetail, teams } from '../scripts/fake-gateway/platform-teams.ts';
 import { access } from '../scripts/fake-gateway/work-access.ts';
 import { approvals } from '../scripts/fake-gateway/work-approvals.ts';
-import { initiativeList } from '../scripts/fake-gateway/work-initiatives.ts';
-import { documentDetail, initiativeDetail } from '../scripts/fake-gateway/work.ts';
+import { initiativeDetail, initiativeList } from '../scripts/fake-gateway/work-initiatives.ts';
+import { documentDetail } from '../scripts/fake-gateway/work.ts';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const arrival = { updatedAt: '2026-10-12T09:00:00Z', now: '2026-10-12T09:01:00Z' };

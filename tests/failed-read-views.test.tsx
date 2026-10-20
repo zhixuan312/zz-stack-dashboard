@@ -4,7 +4,6 @@ import { Suspense, type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Tooltip } from 'radix-ui';
 
-import { PeriodProvider } from '@/console/period';
 import type { Me, PluginRow, Skill, SkillDetail, SkillText } from '@/lib/api-shapes';
 import type { ActivityLog, ActivitySummary } from '@/lib/destination-shapes';
 import { ActivityView } from '@/views/pages/activity';
@@ -53,9 +52,7 @@ function mount(ui: ReactElement) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={client}>
-      <PeriodProvider>
-        <TooltipProvider>{ui}</TooltipProvider>
-      </PeriodProvider>
+      <TooltipProvider>{ui}</TooltipProvider>
     </QueryClientProvider>,
   );
 }

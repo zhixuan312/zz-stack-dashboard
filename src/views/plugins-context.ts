@@ -14,16 +14,13 @@ import { plural } from '@/lib/format';
 import { formatCount } from '@/lib/format-units';
 import { formatDate } from '@/lib/format-date';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
-import { addressOf, arrived, budgeted, shareOf, type Arrival } from './context';
+import { READ_BOUND_MS, addressOf, arrived, budgeted, type Arrival } from './context';
 
 /** The gateway's catalog: every plugin, the team's most recently used first. */
 export const PLUGINS_PATH = '/plugins';
 
 /** What `GET /plugins` answers. */
 export type Catalog = { plugins: PluginRow[] };
-
-/** How long the console's server waits for a plugin page's reads: half a second under five, for a phone to draw what it says. */
-export const PLUGINS_BOUND_MS = 4_500;
 
 /**
  * A read as the console's server made it: the answer with the moment it arrived (the catalog carries no cutoff of its
@@ -39,7 +36,7 @@ export type PluginsRead = Served<Catalog>;
 
 /** The sentence a read's trouble is told in, on the page and to the assistant. */
 export function readTrouble(read: { state: 'failed'; reason: string } | { state: 'slow' }): string {
-  return read.state === 'slow' ? `The read did not answer within ${PLUGINS_BOUND_MS / 1000} seconds.` : read.reason;
+  return read.state === 'slow' ? `The read did not answer within ${READ_BOUND_MS / 1000} seconds.` : read.reason;
 }
 
 /** What Plugins keeps in its address: the name the search narrows the list to, empty for every plugin. */
@@ -125,8 +122,9 @@ export function pluginsContext(plugins: PluginRow[], { filters = PLUGINS_DEFAULT
   const used = rows.filter((p) => p.yourTeam.calls > 0);
   // Each row's own page is `/plugins/<its name>`, so no row spends its share of the budget saying so.
   const insights: Insight[] = rows.map((p) => ({ text: rowSaid(p) }));
+  // Each used plugin's share of the calls: drawn only while one was used, so there is always a total to divide by.
   if (used.length) {
-    insights.push({ text: `Your team's own calls of these plugins' skills: ${listed(used, (p) => `${p.plugin} ${formatCount(p.yourTeam.calls)} (${shareOf(p.yourTeam.calls, calls)})`, 'see each plugin\'s page', 8)}; ${rows.length - used.length ? `never run by your team: ${listed(rows.filter((p) => !p.yourTeam.calls), (p) => p.plugin, 'see /plugins', 8)}` : 'every plugin in view has run'}.` });
+    insights.push({ text: `Your team's own calls of these plugins' skills: ${listed(used, (p) => `${p.plugin} ${formatCount(p.yourTeam.calls)} (${Math.round((p.yourTeam.calls / calls) * 100)}%)`, 'see each plugin\'s page', 8)}; ${rows.length - used.length ? `never run by your team: ${listed(rows.filter((p) => !p.yourTeam.calls), (p) => p.plugin, 'see /plugins', 8)}` : 'every plugin in view has run'}.` });
   }
   if (neverRun.length) insights.push({ text: `Skills your team never ran: ${listed(neverRun, (s) => s, 'see each plugin\'s page', 10)}.` });
   return budgeted({

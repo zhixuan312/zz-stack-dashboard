@@ -9,11 +9,11 @@ import { DataTable, useSearchDraft, type Column } from '@/components/patterns/da
 import { FilterBar } from '@/components/patterns/filter-bar';
 import { MetricTile } from '@/components/patterns/metric-tile';
 import { Records } from '@/components/templates/records';
-import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Busy, ChartSkeleton, TableSkeleton, TilesSkeleton } from '@/components/patterns/page-loading';
 import { Skeleton } from '@/components/ui/skeleton';
 import { aligned } from '@/console/columns';
+import { StateBadge } from '@/console/initiative';
 import { Panel } from '@/console/panel';
 import { failureOf } from '@/console/query';
 import { When } from '@/console/when';
@@ -24,7 +24,7 @@ import { formatDate, formatDateTime, formatShortDate } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { grainOf, type Grain } from '@/lib/grain';
 import { useLive } from '@/lib/live';
-import type { InitiativeList, InitiativeRow } from '@/lib/work-shapes';
+import type { InitiativeList } from '@/lib/work-shapes';
 import { pendingContext } from '@/views/context';
 import { TILES, closedLine, initiativesContext, openLine, waitingLine, initiativesTrouble, nextOf, type InitiativesRead, type InitiativesShown, type ShownRow } from '@/views/initiatives-context';
 import { INITIATIVES_DEFAULTS, LIST_STATES, PAGE_SIZE, STATE_LABEL, filtersOfPath, listPath, narrowed, pageOf, type InitiativesFilters } from '@/views/initiatives-filter';
@@ -33,11 +33,6 @@ import { OUTCOME_PARTS } from '@/views/outcome-parts';
 
 // The chart is the page's heaviest module and draws below the tiles, so it arrives after the first paint.
 const ColumnChart = dynamic(() => import('@/components/charts/column-chart').then((m) => m.ColumnChart), { loading: () => <Skeleton className="h-56 rounded-md" /> });
-
-/** One rule per colour, as every state badge: warning means a person must act, positive closed with what was asked. */
-const TONE: Record<InitiativeRow['state'], 'warning' | 'positive' | 'neutral'> = {
-  waiting: 'warning', accepted: 'positive', delivered: 'positive', open: 'neutral', quiet: 'neutral', abandoned: 'neutral',
-};
 
 /** Gates passed of the gates the row's flow has, or a dash for a piece of work with no flow. */
 const gatesOf = (r: ShownRow) => (r.gates.of ? `${r.gates.passed} of ${r.gates.of}` : '—');
@@ -60,7 +55,7 @@ const COLUMNS: Column<ShownRow>[] = aligned([
     ),
   },
   { key: 'next', header: 'Flow position', align: 'left', grow: true, hideBelow: 'lg', mobile: 'fact', cell: (r) => <span className="text-xs whitespace-normal text-ink-2" title={r.nextMove?.why}>{r.flow ? nextOf(r) : 'No flow'}</span> },
-  { key: 'state', header: 'State', mobile: 'status', cell: (r) => <Badge tone={TONE[r.state]} dot>{STATE_LABEL[r.state]}</Badge> },
+  { key: 'state', header: 'State', mobile: 'status', cell: (r) => <StateBadge state={r.state} /> },
   { key: 'gates', header: 'Gates passed', numeric: true, hideBelow: 'lg', mobile: 'fact', cell: (r) => gatesOf(r), mobileCell: (r) => (r.gates.of ? `${gatesOf(r)} gates` : 'No gates') },
   { key: 'touched', header: 'Last touched', numeric: true, mobile: 'fact', cell: (r) => <When at={r.lastTouched} />, mobileCell: (r) => <>Touched <When at={r.lastTouched} /></> },
 ]);

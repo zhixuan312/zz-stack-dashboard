@@ -20,9 +20,9 @@ import { MAIN_ROLES, effective } from '@/data/roles';
 import { formatDateTime } from '@/lib/format-date';
 import type { Evaluation, Part } from '@/lib/platform-shapes';
 import { contextText } from '@/lib/shared-context';
-import { CONTEXT_BUDGET } from '@/views/context';
+import { CONTEXT_BUDGET, READ_BOUND_MS } from '@/views/context';
 import { EvaluationAsOf, PlatformEvaluationView } from '@/views/pages/platform-evaluation';
-import { EVALUATION_BOUND_MS, evaluationContext, scoredAgo, seriesRows, trendOf, type EvaluationRead } from '@/views/platform-evaluation-context';
+import { evaluationContext, scoredAgo, seriesRows, trendOf, type EvaluationRead } from '@/views/platform-evaluation-context';
 import { evaluationTool } from '@/views/tools/evaluation';
 import { evaluation } from '../scripts/fake-gateway/platform-evaluation.ts';
 import { readEvaluation } from '../app/(dash)/platform/evaluation/read-evaluation';
@@ -220,7 +220,7 @@ describe('the page\'s states', () => {
 
   const failures: [EvaluationRead, string, string][] = [
     [{ state: 'failed', reason: 'The gateway refused the read' }, 'Evaluation did not load', 'The gateway refused the read. Nothing on this page was read.'],
-    [{ state: 'slow' }, 'Evaluation is unavailable', `The read did not answer within ${EVALUATION_BOUND_MS / 1000} seconds.`],
+    [{ state: 'slow' }, 'Evaluation is unavailable', `The read did not answer within ${READ_BOUND_MS / 1000} seconds.`],
   ];
   for (const [read, title, detail] of failures) {
     it(`error: a ${read.state} read is the error state, with Retry asking the server again`, () => {
@@ -368,7 +368,7 @@ describe('the read on the server', () => {
     const read = readEvaluation();
     let settled: EvaluationRead | null = null;
     void read.then((r) => { settled = r; });
-    await act(async () => { await vi.advanceTimersByTimeAsync(EVALUATION_BOUND_MS - 1); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(READ_BOUND_MS - 1); });
     expect(settled).toBeNull();
     await act(async () => { await vi.advanceTimersByTimeAsync(1); });
     expect(await read).toEqual({ state: 'slow' });

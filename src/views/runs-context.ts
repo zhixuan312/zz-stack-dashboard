@@ -14,7 +14,7 @@ import { plural } from '@/lib/format';
 import { formatCount, formatKb, formatSeconds } from '@/lib/format-units';
 import { dayOf, formatDate, formatDateTime, formatDay } from '@/lib/format-date';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
-import { addressOf, arrived, budgeted, clip, type Arrival } from './context';
+import { READ_BOUND_MS, addressOf, arrived, budgeted, clip, type Arrival } from './context';
 import { perRunOf } from './runs-figures';
 
 /** The recent runs one page holds, as every table pages. */
@@ -62,12 +62,9 @@ export type RunsRead =
   | { state: 'failed'; path: string; reason: string }
   | { state: 'slow'; path: string };
 
-/** How long the console's server waits for the runs: half a second under five, for a phone to draw what it says. */
-export const RUNS_BOUND_MS = 4_500;
-
 /** The sentence a read's trouble is told in, on the page and to the assistant. */
 export function runsTrouble(read: Exclude<RunsRead, { state: 'ok' }>): string {
-  return read.state === 'slow' ? `The read did not answer within ${RUNS_BOUND_MS / 1000} seconds.` : read.reason;
+  return read.state === 'slow' ? `The read did not answer within ${READ_BOUND_MS / 1000} seconds.` : read.reason;
 }
 
 /** The three tiles, as the page labels them and the assistant is told what each counts. */

@@ -12,7 +12,6 @@ vi.mock('@/data/access', async (importOriginal) => ({
   may: async (need: string) => { grants.asked.push(need); return need === 'fleet:read' ? grants.teams : true; },
 }));
 
-import { PeriodProvider } from '@/console/period';
 import { FEATURES } from '@/data/features';
 import type { DocumentDetail, Me } from '@/lib/api-shapes';
 import { DocumentView } from '@/views/pages/document';
@@ -74,11 +73,9 @@ afterEach(() => { vi.unstubAllGlobals(); });
 async function renderPage(client: QueryClient, teamPage = false) {
   await act(async () => { render(
     <QueryClientProvider client={client}>
-      <PeriodProvider>
-        <Tooltip.Provider>
-          <DocumentView team="team-one" slug="init-1" rel="spec.md" served={{ state: 'ok', data: stored, at: '2026-09-01T00:00:00.000Z' }} teamPage={teamPage} />
-        </Tooltip.Provider>
-      </PeriodProvider>
+      <Tooltip.Provider>
+        <DocumentView team="team-one" slug="init-1" rel="spec.md" served={{ state: 'ok', data: stored, at: '2026-09-01T00:00:00.000Z' }} teamPage={teamPage} />
+      </Tooltip.Provider>
     </QueryClientProvider>,
   ); });
 }

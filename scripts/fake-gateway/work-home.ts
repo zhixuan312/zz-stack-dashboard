@@ -123,7 +123,7 @@ function activeGroups(team: string | null): { active: ActiveGroup[]; more: numbe
 /** The title, by team: the rule the facts of its last whole week meet first. */
 function titleOf(team: string | null, closed: number, approvals: number): Home['title'] {
   if (team === 'atlas') return { sentence: `${closed} pieces of work closed; ${approvals} ${approvals === 1 ? 'approval' : 'approvals'} recorded in your name last week`, rule: 8 };
-  if (team === 'beacon') return { sentence: 'Your first observed week: 1 closure and 2 lesson adoptions', rule: 1 };
+  if (team === 'beacon') return { sentence: 'Your first observed week: 1 closure and 2 lessons made', rule: 1 };
   return { sentence: 'Your work at a glance', rule: 'fallback' };
 }
 

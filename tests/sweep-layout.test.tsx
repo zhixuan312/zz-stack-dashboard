@@ -10,7 +10,6 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push() {}, refresh() {}, back() {}, forward() {}, prefetch() {}, replace: (to: string) => window.history.replaceState(null, '', to) }),
 }));
 
-import { PeriodProvider } from '@/console/period';
 import type { Me } from '@/lib/api-shapes';
 import type { Access } from '@/lib/destination-shapes';
 import { formatDate, formatDateTime } from '@/lib/format-date';
@@ -42,7 +41,7 @@ const AT = '2026-10-17T09:00:00Z';
 const PEOPLE: [string, Me][] = [['the superadmin', ME], ['the member', MEMBER]];
 const ok = <T,>(path: string, data: T) => ({ state: 'ok' as const, path, at: AT, data });
 const mount = (ui: ReactElement) =>
-  render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><PeriodProvider><Tooltip.Provider>{ui}</Tooltip.Provider></PeriodProvider></QueryClientProvider>);
+  render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><Tooltip.Provider>{ui}</Tooltip.Provider></QueryClientProvider>);
 
 const SPEC = ['atlas', '2026-09-28-search-relevance', 'spec.md'] as const;
 let who: Me = ME;

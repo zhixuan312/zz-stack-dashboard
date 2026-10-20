@@ -7,7 +7,8 @@
  * questions, each with whether it found anything. Both are read for the caller's active team alone: its standing and
  * superseded lessons as of the cutoff, its own questions that found nothing, its searches by week, its newest lessons,
  * and its shelf filtered and paged. A question is answered only to the team that asked it. The knowledge log is the
- * shelf's own adds, so it holds every lesson a shelf shows; Home and Record count lessons and searches from here too.
+ * shelf's own adds, so it holds every lesson a shelf shows, and `/knowledge/log` answers its latest 500 entries with the
+ * totals over all of them, as the gateway does; Home and Record count lessons and searches from here too.
  *
  * Atlas, which both people act for, holds more than ten lessons so its shelf pages, one of them superseded and two
  * imported; it asked one question three times with no result (once in other capitals and spacing) and more than ten
@@ -21,7 +22,7 @@
  * COUPLED: zz-stack's `checks/console-work-knowledge.ts` imports this file with plain `node` and compares its key sets
  * with the real routes' answers. So nothing here is imported through the console's path alias.
  */
-import type { KnowledgeBody, KnowledgeLogEntry, KnowledgeNode, Me } from '../../src/lib/api-shapes.ts';
+import type { KnowledgeBody, KnowledgeLog, KnowledgeLogEntry, KnowledgeNode, Me } from '../../src/lib/api-shapes.ts';
 import type { KnowledgeList, KnowledgeSummary } from '../../src/lib/destination-shapes.ts';
 import type { PeriodFigure } from '../../src/lib/platform-shapes.ts';
 import { ago } from './clock.ts';
@@ -94,6 +95,18 @@ export const KNOWLEDGE_LOG: KnowledgeLogEntry[] = ([
   { ts: ago(52), actor: 'noah.okafor@example.com', team: 'atlas', kind: 'knowledge.supersede', node: '0004', recorded_title: 'Rank by recency first', superseded_by: '0005', node_title: 'Rank by recency first', node_status: 'superseded', path: SHELF.find((n) => n.team === 'atlas' && n.num === '0004')!.path },
   { ts: ago(700), actor: 'leo.santos@example.com', team: 'cinder', kind: 'knowledge.add', node: '0002', recorded_title: 'Page the on-call, not the channel', superseded_by: null, node_title: null, node_status: null, path: null },
 ] satisfies KnowledgeLogEntry[]).sort((a, b) => b.ts.localeCompare(a.ts));
+
+/** The newest entries `/knowledge/log` answers, as the gateway's statement limits them; its totals count every one. */
+const LOG_CEILING = 500;
+
+/** A log as `/knowledge/log` answers one: the latest of `rows`, newest first as they are given, and the totals over all. */
+export function logOf(rows: KnowledgeLogEntry[]): KnowledgeLog {
+  const recorded = rows.filter((r) => r.kind === 'knowledge.add').length;
+  return { entries: rows.slice(0, LOG_CEILING), totals: { entries: rows.length, recorded, superseded: rows.length - recorded }, ceiling: LOG_CEILING };
+}
+
+/** `/knowledge/log` as the gateway answers it: the active team's log. */
+export const knowledgeLog = (who: Me): KnowledgeLog => logOf(KNOWLEDGE_LOG.filter((r) => r.team === who.activeTeam));
 
 /** One lesson, whole: the work fixture's own, or one added here. `own` is the one team a member is held to, whose
  *  shelf is theirs to open beside the shared shelf, which is everybody's; the superadmin opens any. The citations, the

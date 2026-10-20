@@ -198,7 +198,7 @@ if (first) {
     delayed++;
     n++;
     try {
-      // The bound runs from the first held read, the origin Status's own bound has (STATUS_BOUND_MS), or from navigation
+      // The bound runs from the first held read, the origin Status's own bound has (READ_BOUND_MS), or from navigation
       // on a page that sent none from the browser. The page is read as soon as it has passed: no seven-second wait.
       await visit(page, t, persona.cookie, HOLD_MS, 0);
       const read = () => page.eval<Seen & { now: number }>('({ ...window.__pd, now: performance.now() })');

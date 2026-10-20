@@ -20,8 +20,7 @@ import { INITIATIVES_DEFAULTS, listPath } from '@/views/initiatives-filter';
 import { InitiativesView } from '@/views/pages/initiatives';
 import { initiativeTool } from '@/views/tools/initiative';
 import { initiativesTool } from '@/views/tools/initiatives';
-import { initiativeList } from '../scripts/fake-gateway/work-initiatives.ts';
-import { initiativeDetail } from '../scripts/fake-gateway/work.ts';
+import { initiativeDetail, initiativeList } from '../scripts/fake-gateway/work-initiatives.ts';
 
 /**
  * Initiatives' agent side (Task I-106, AC-5.5): the Ask in the list's filter bar; `view_initiatives` and

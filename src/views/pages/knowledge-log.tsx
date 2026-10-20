@@ -14,13 +14,14 @@ import { aligned } from '@/console/columns';
 import { KnowledgeTabs, useServerReadLive } from '@/console/knowledge-tabs';
 import { ConsolePage } from '@/console/page';
 import { useDataClock } from '@/lib/api';
-import type { KnowledgeLogEntry } from '@/lib/api-shapes';
+import type { KnowledgeLog, KnowledgeLogEntry } from '@/lib/api-shapes';
 import { knowledgeNodeHref } from '@/lib/knowledge-filters';
 import { formatDate } from '@/lib/format-date';
+import { formatCount } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
 import { pendingContext, whose } from '@/views/context';
 import { troubleOf, type ServerRead } from '@/views/knowledge-context';
-import { knowledgeLogContext } from '@/views/knowledge-log-context';
+import { knowledgeLogContext, pastCeiling } from '@/views/knowledge-log-context';
 
 function columns(): Column<KnowledgeLogEntry>[] {
   return aligned([
@@ -58,27 +59,26 @@ function columns(): Column<KnowledgeLogEntry>[] {
  * Knowledge's log: what was recorded, what replaced what, and who wrote it down, drawn at `/knowledge/log`, a tab of
  * Knowledge (FR-18). Read from the log zz-core writes when it mints or retires a node, not derived from the nodes: a
  * node's date is when it last changed, and no node says who wrote it. The console's server reads the active team's log
- * and hands it here; its dates are absolute, because they came from the server.
+ * and hands it here; its dates are absolute, because they came from the server. The tiles count the gateway's totals
+ * over the whole log; the table lists the latest entries it answered, and says so once the log holds more.
  */
-export function KnowledgeLogView({ read }: { read: ServerRead<{ entries: KnowledgeLogEntry[] }> }) {
+export function KnowledgeLogView({ read }: { read: ServerRead<KnowledgeLog> }) {
   useLive(['knowledge'], read.state === 'ok' ? read.revisions : undefined);
   useServerReadLive('/knowledge/log');
   const router = useRouter();
   const [retrying, startRetry] = useTransition();
   const now = useDataClock();
-  const entries = read.state === 'ok' ? read.data.entries : [];
-  const added = entries.filter((e) => e.kind === 'knowledge.add').length;
+  const log = read.state === 'ok' ? read.data : null;
+  const entries = log?.entries ?? [];
   const updatedAt = read.state === 'ok' ? new Date(read.at) : null;
   const context = read.state === 'ok'
-    ? knowledgeLogContext(entries, { updatedAt, now })
+    ? knowledgeLogContext(read.data, { updatedAt, now })
     : pendingContext({ view: 'knowledge_log', title: 'Knowledge log', address: '/knowledge/log', scope: `every node recorded or retired, for ${whose('team')}` }, troubleOf(read));
-  const failed = read.state !== 'ok';
 
   return (
     <ConsolePage
       title="Knowledge"
       description="Every lesson this team recorded or superseded, newest first."
-      showPeriod={false}
       updatedAt={updatedAt}
       context={context}
       toolbar={<KnowledgeTabs active="log" />}
@@ -86,9 +86,9 @@ export function KnowledgeLogView({ read }: { read: ServerRead<{ entries: Knowled
       <Row split="tiles">
         {/* Gated exactly as the value beside it is: over a failed read this note said "Nothing yet", which is the
             all-clear a failure must never wear. */}
-        <MetricTile label="Entries" icon={<History />} value={failed ? '—' : entries.length} note={failed ? undefined : entries[0] ? `Latest ${formatDate(entries[0].ts)}` : 'Nothing yet'} />
-        <MetricTile label="Recorded" icon={<PlusCircle />} value={failed ? '—' : added} note="Nodes minted" />
-        <MetricTile label="Superseded" icon={<GitFork />} value={failed ? '—' : entries.length - added} note="Replaced by a newer node" />
+        <MetricTile label="Entries" icon={<History />} value={log ? log.totals.entries : '—'} note={!log ? undefined : entries[0] ? `Latest ${formatDate(entries[0].ts)}` : 'Nothing yet'} />
+        <MetricTile label="Recorded" icon={<PlusCircle />} value={log ? log.totals.recorded : '—'} note="Nodes minted" />
+        <MetricTile label="Superseded" icon={<GitFork />} value={log ? log.totals.superseded : '—'} note="Replaced by a newer node" />
       </Row>
       {read.state !== 'ok' ? (
         <EmptyState kind="error" title="The entries did not load" action={<Button size="sm" icon={<RotateCw />} busy={retrying} onClick={() => startRetry(() => router.refresh())}>Retry</Button>}>{troubleOf(read)}</EmptyState>
@@ -108,7 +108,7 @@ export function KnowledgeLogView({ read }: { read: ServerRead<{ entries: Knowled
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="min-w-0">
                 <h2 className="t-card">Recorded and superseded</h2>
-                <p className="t-caption mt-1">Newest first</p>
+                <p className="t-caption mt-1">{log && pastCeiling(log) ? `Newest first, the latest ${formatCount(log.ceiling)} of ${formatCount(log.totals.entries)}` : 'Newest first'}</p>
               </div>
               <AskAbout question="What was recorded and superseded most recently, by whom, and what replaced what?" />
             </div>

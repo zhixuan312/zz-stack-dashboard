@@ -1,5 +1,5 @@
 import { gate, gatedMetadata } from '@/data/access';
-import type { KnowledgeLogEntry } from '@/lib/api-shapes';
+import type { KnowledgeLog } from '@/lib/api-shapes';
 import { KnowledgeLogView } from '@/views/pages/knowledge-log';
 import { readFirst } from '../read';
 
@@ -13,6 +13,6 @@ export function generateMetadata() { return gatedMetadata('knowledge', { title: 
 export default async function KnowledgeLogPage() {
   const denied = await gate('knowledge');
   if (denied) return denied;
-  const read = await readFirst<{ entries: KnowledgeLogEntry[] }>('/knowledge/log');
+  const read = await readFirst<KnowledgeLog>('/knowledge/log');
   return <KnowledgeLogView read={read} />;
 }

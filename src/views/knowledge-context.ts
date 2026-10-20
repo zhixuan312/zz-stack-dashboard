@@ -17,7 +17,7 @@ import { formatDate, formatDay } from '@/lib/format-date';
 import { knowledgeNodeHref } from '@/lib/knowledge-filters';
 import type { Figure } from '@/lib/platform-shapes';
 import { listed, type Fact, type Insight, type SharedContext } from '@/lib/shared-context';
-import { addressOf, arrived, budgeted, clip, type Arrival } from './context';
+import { READ_BOUND_MS, addressOf, arrived, budgeted, clip, type Arrival } from './context';
 
 /** The kinds a lesson may be, as the store's own check allows them; the shelf filters by one of them. */
 export const KNOWLEDGE_KINDS = ['decision', 'design', 'process', 'knowledge', 'behavior', 'style'] as const;
@@ -27,10 +27,6 @@ export const PAGE_SIZE = 10;
 
 /** The ranked results the page's search asks for: one table's ceiling, so the list needs no paging. */
 const SEARCH_LIMIT = 10;
-
-/** How long the console's server waits for a Knowledge page's first read before the page says it did not answer: half
- *  a second under five, for a phone to draw what it says, the bound the browser's own reads keep (`src/lib/api.ts`). */
-export const KNOWLEDGE_BOUND_MS = 4_500;
 
 /**
  * What the page keeps in its address: the question it searched, and the shelf's kind and page. `all` is no kind. The
@@ -46,7 +42,7 @@ type KnowledgeFilters = { q: string; kind: string };
 type ShelfRead = { q: string; limit: number; offset: number };
 
 /**
- * A Knowledge page's first read as the console's server made it, given `KNOWLEDGE_BOUND_MS`: the gateway's answer and
+ * A Knowledge page's first read as the console's server made it, given `READ_BOUND_MS`: the gateway's answer and
  * when it came, with the revisions it was answered at, the gateway's sentence for a read that failed, or a read that
  * did not answer in time. Knowledge's is the summary, the log's its entries and a node's its body.
  */
@@ -57,7 +53,7 @@ export type ServerRead<T> =
 
 /** Why a first read is not on the page, in words: the gateway's sentence, or the bound it missed. */
 export const troubleOf = (read: Exclude<ServerRead<unknown>, { state: 'ok' }>): string =>
-  (read.state === 'slow' ? `It did not answer within ${KNOWLEDGE_BOUND_MS / 1000} seconds.` : read.reason);
+  (read.state === 'slow' ? `It did not answer within ${READ_BOUND_MS / 1000} seconds.` : read.reason);
 
 /**
  * The gateway address of the shelf for `f`, `limit` lessons from `offset`: one page of 10 from the first unless asked.

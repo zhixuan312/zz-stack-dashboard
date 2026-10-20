@@ -3,14 +3,15 @@ import { chromeAccess } from '@/data/access';
 import { GatewayError, answeredAt, gatewayGet, type Revised } from '@/data/gateway';
 import type { InitiativeDetail } from '@/lib/api-shapes';
 import type { InitiativeList } from '@/lib/work-shapes';
+import { READ_BOUND_MS } from '@/views/context';
 import type { InitiativeRead } from '@/views/initiative-context';
-import { INITIATIVES_BOUND_MS, shownList, type InitiativesRead } from '@/views/initiatives-context';
+import { shownList, type InitiativesRead } from '@/views/initiatives-context';
 import { listPath, type InitiativesFilters } from '@/views/initiatives-filter';
 
-/** `read`, or `slow` once `INITIATIVES_BOUND_MS` has passed without an answer. Neither this nor `read` rejects. */
+/** `read`, or `slow` once `READ_BOUND_MS` has passed without an answer. Neither this nor `read` rejects. */
 async function bounded<R>(read: Promise<R>, slow: R): Promise<R> {
   let timer: ReturnType<typeof setTimeout> | undefined;
-  const bound = new Promise<R>((resolve) => { timer = setTimeout(() => resolve(slow), INITIATIVES_BOUND_MS); });
+  const bound = new Promise<R>((resolve) => { timer = setTimeout(() => resolve(slow), READ_BOUND_MS); });
   try {
     return await Promise.race([read, bound]);
   } finally {
@@ -27,7 +28,7 @@ function signedOut(err: unknown, next: string): void {
 
 /**
  * One page of `GET /initiatives` for the address's filters, on the console's server, as the person, given
- * `INITIATIVES_BOUND_MS`, with the team the person acts for, which a row opens its initiative under, and the revisions
+ * `READ_BOUND_MS`, with the team the person acts for, which a row opens its initiative under, and the revisions
  * it was answered at. It never rejects but for a session that ended, so the page's boundary never waits on it longer or
  * falls to the error page.
  */

@@ -36,8 +36,9 @@ import { SurfaceOverride } from '@/components/base/surface';
 import { GatewayError } from '@/data/gateway';
 import { dayOf } from '@/lib/format-date';
 import type { RecordRead } from '@/lib/work-shapes';
+import { READ_BOUND_MS } from '@/views/context';
 import { RecordActions, RecordView } from '@/views/pages/record';
-import { RECORD_BOUND_MS, RECORD_DEFAULTS, filtersOfPath, footOf, periodLine, recordPath, type RecordServed } from '@/views/record-context';
+import { RECORD_DEFAULTS, filtersOfPath, footOf, periodLine, recordPath, type RecordServed } from '@/views/record-context';
 import RecordLoading from '../app/(dash)/record/loading';
 import RecordPage from '../app/(dash)/record/page';
 import { readRecord } from '../app/(dash)/record/read-record';
@@ -140,7 +141,7 @@ describe('the page', () => {
     vi.useFakeTimers();
     gateway.get.mockReturnValue(new Promise(() => {}));
     const read = readRecord(RECORD_DEFAULTS);
-    await vi.advanceTimersByTimeAsync(RECORD_BOUND_MS);
+    await vi.advanceTimersByTimeAsync(READ_BOUND_MS);
     await expect(read).resolves.toEqual({ state: 'slow', path: PATH });
   });
 

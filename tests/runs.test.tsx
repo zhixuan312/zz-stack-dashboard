@@ -31,8 +31,9 @@ import { GatewayError } from '@/data/gateway';
 import type { Runs } from '@/lib/destination-shapes';
 import { formatDate } from '@/lib/format-date';
 import { formatKb } from '@/lib/format-units';
+import { READ_BOUND_MS } from '@/views/context';
 import { RunsActions, RunsView } from '@/views/pages/runs';
-import { RUNS_BOUND_MS, RUNS_DEFAULTS, filtersOfPath, runsPath, stateCellOf, stateOf, type RunsRead } from '@/views/runs-context';
+import { RUNS_DEFAULTS, filtersOfPath, runsPath, stateCellOf, stateOf, type RunsRead } from '@/views/runs-context';
 import RunsLoading from '../app/(dash)/runs/loading';
 import RunsPage from '../app/(dash)/runs/page';
 import { readRuns } from '../app/(dash)/runs/read-runs';
@@ -154,7 +155,7 @@ describe('the page', () => {
     vi.useFakeTimers();
     gateway.get.mockReturnValue(new Promise(() => {}));
     const read = readRuns(RUNS_DEFAULTS);
-    await vi.advanceTimersByTimeAsync(RUNS_BOUND_MS);
+    await vi.advanceTimersByTimeAsync(READ_BOUND_MS);
     await expect(read).resolves.toEqual({ state: 'slow', path: PATH });
   });
 
@@ -339,7 +340,7 @@ describe('every state draws', () => {
   it('slow: the bounded error, saying how long the read was given', () => {
     browser(null);
     mount({ state: 'slow', path: PATH });
-    expect(screen.getByText(`The read did not answer within ${RUNS_BOUND_MS / 1000} seconds.`)).toBeInTheDocument();
+    expect(screen.getByText(`The read did not answer within ${READ_BOUND_MS / 1000} seconds.`)).toBeInTheDocument();
     expect(screen.queryByRole('status', { name: 'Loading runs' })).toBeNull();
   });
 

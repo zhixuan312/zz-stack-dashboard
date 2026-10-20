@@ -20,7 +20,7 @@ import { usage } from '../scripts/fake-gateway/platform-usage.ts';
 import { empty, extreme } from '../scripts/fake-gateway/states.ts';
 import { NOT_RECORDED, partial } from '../scripts/fake-gateway/states-partial.ts';
 import { record } from '../scripts/fake-gateway/work-record.ts';
-import { initiativeDetail } from '../scripts/fake-gateway/work.ts';
+import { initiativeDetail } from '../scripts/fake-gateway/work-initiatives.ts';
 
 /**
  * Every section a page draws is in the context its assistant is told (Phase 7's third re-review, Work P-2 and P-3,

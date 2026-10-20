@@ -14,7 +14,7 @@ import { CloseInitiative } from '@/console/close';
 import { DocStatus } from '@/console/doc-status';
 import { FlowStepper } from '@/console/flow';
 import { StateBadge } from '@/console/initiative';
-import { ownGates } from '@/console/initiative-state';
+import { ownGates, waitingGates } from '@/console/initiative-state';
 import { Panel } from '@/console/panel';
 import { failureOf } from '@/console/query';
 import { When } from '@/console/when';
@@ -280,7 +280,7 @@ export function InitiativeMeta({ team, slug, served }: { team: string; slug: str
   const review = awaited(data);
   return (
     <span className="inline-flex flex-wrap items-center gap-2">
-      <StateBadge of={data} />
+      <StateBadge state={data.state} waitingOn={waitingGates(data)} />
       {review ? <Button asChild size="sm" variant="primary"><Link href={`/initiatives/${team}/${slug}/${encodePath(review)}`}>Review {review}</Link></Button> : null}
       {updatedAt ? <span className="t-small text-ink-3">Read {formatDateTime(updatedAt)}</span> : null}
     </span>

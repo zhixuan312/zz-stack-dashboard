@@ -6,6 +6,7 @@
  * is the author of the shape — when the two disagree it is this file that is wrong.
  */
 import type { PluginScore } from './destination-shapes';
+import type { InitiativeRow } from './work-shapes';
 
 export interface Me {
   email: string; name: string; role: 'superadmin' | 'member';
@@ -87,6 +88,10 @@ export interface InitiativeDetail {
    *  and no position, and its finished close names the document it lands on. One whose flow the catalog cannot
    *  resolve keeps the ops-flow fallback's steps. */
   flow: string | null;
+  /** Its state as the Initiatives list says it, by the list's rule at the read's instant: one set of words for both. */
+  state: InitiativeRow['state'];
+  /** When it was last touched: the newest revision written of any of its documents, or, with none, when it opened. */
+  lastTouched: string;
   documents: DocRow[];
   /** A claim that states no verdict arrives as `null`, not `""`: `decisionRows` gives every
    *  field a string, and the route collapses the empty spelling before it answers so that a
@@ -203,6 +208,13 @@ export interface KnowledgeLogEntry {
   node_status: string | null;
   /** The node's address on the shelf while it is there, so a row opens it; null once it is gone. */
   path: string | null;
+}
+/** `GET /knowledge/log`: the newest `ceiling` entries before the cutoff, and the totals over every entry before it, so
+ *  a log past its ceiling is never counted by the rows it answered. */
+export interface KnowledgeLog {
+  entries: KnowledgeLogEntry[];
+  totals: { entries: number; recorded: number; superseded: number };
+  ceiling: number;
 }
 export interface KnowledgeBody {
   team: string; path: string; type: string; status: string; title: string;

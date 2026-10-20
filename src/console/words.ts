@@ -1,5 +1,5 @@
 /**
- * Text the console did not write, and the two words the console writes about a count: `count` and `sentence`.
+ * Text the console did not write, and the words the console writes about a number: `count`, `waited` and `sentence`.
  *
  * **`plural` left this file the day Meridian shipped it.** It was written here because the release had none, with the
  * argument this file's header makes — a rule written where it is first needed is a rule the second use re-derives — and
@@ -15,6 +15,7 @@
  * The plural, the count and the dash are one subject — how a number becomes a phrase. `sentence` is here because it is
  * the same job in the other direction: text someone else wrote, made to sit inside a sentence this console did.
  */
+import { plural } from '@/lib/format';
 import { formatCount } from '@/lib/format-units';
 
 
@@ -29,6 +30,19 @@ import { formatCount } from '@/lib/format-units';
  */
 export function count(n: number): string {
   return n ? formatCount(n) : '—';
+}
+
+const HOUR = 3_600_000;
+/**
+ * How long something has waited at `asOf`, in hours under two days and in days after: `5 hours`, `17 days`. A revision
+ * waiting for approval, a report waiting in the queue and a finding waiting for a decision are said alike: it was
+ * written twice, once for Approvals and once for Bugs, which Evaluation borrowed.
+ */
+export function waited(since: string, asOf: string): string {
+  const hours = Math.max(0, (Date.parse(asOf) - Date.parse(since)) / HOUR);
+  if (hours < 48) return `${Math.floor(hours)} ${plural(Math.floor(hours), 'hour')}`;
+  const days = Math.floor(hours / 24);
+  return `${days} ${plural(days, 'day')}`;
 }
 
 /**

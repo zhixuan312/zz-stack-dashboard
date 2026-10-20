@@ -26,9 +26,10 @@ import { formatDay, formatShortDate } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import type { Figure } from '@/lib/platform-shapes';
 import {
-  NOT_RECORDED, REFUSAL_PARTS, TILES, TILE_KEYS, askOf, asOfLine, changeOf, figureText, followupLine, lastWhole,
-  perApprovalText, pointsOf, teamParts, usageContext, usageTrouble, valueIn, weekOf, type TileKey, type UsageRead,
+  NOT_RECORDED, REFUSAL_PARTS, TILES, TILE_KEYS, askOf, asOfLine, figureText, followupLine, perApprovalText, teamParts,
+  usageContext, usageTrouble, valueIn, weekOf, type TileKey, type UsageRead,
 } from '@/views/platform-usage-context';
+import { changeOf, lastWhole, pointsOf } from '@/views/week-change';
 
 /** The protagonist's title: the card the page's Ask sits on. COUPLED: the README's `Protagonist:`. */
 const CALLS_TITLE = 'Calls by week';

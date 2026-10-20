@@ -13,7 +13,7 @@ import { plural } from '@/lib/format';
 import { formatDate, formatDateTime } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
-import { addressOf } from './context';
+import { READ_BOUND_MS, addressOf } from './context';
 import { rostered } from './platform-roster';
 import { PAGE_SIZE, PEOPLE_DEFAULTS, narrowed, pageOf, type PeopleFilters, type PeopleRows } from './people-filter';
 
@@ -34,9 +34,6 @@ export type PeopleRead =
   | { state: 'ok'; path: string; data: PeopleShown }
   | { state: 'failed'; path: string; reason: string }
   | { state: 'slow'; path: string };
-
-/** How long the console's server waits for a People read: half a second under five, for a phone to draw what it says. */
-export const PEOPLE_BOUND_MS = 4_500;
 
 /** The four tiles, as the page labels them and the assistant is told what each counts. */
 export const TILES = {
@@ -61,7 +58,7 @@ export function signInsValue(f: Pick<PeriodFigure, 'figure'>): string | number {
 
 /** The sentence a read's trouble is told in, under the table's "The people did not load" and to the assistant. */
 export function peopleTrouble(read: Exclude<PeopleRead, { state: 'ok' }>): string {
-  return read.state === 'slow' ? `The read did not answer within ${PEOPLE_BOUND_MS / 1000} seconds.` : read.reason;
+  return read.state === 'slow' ? `The read did not answer within ${READ_BOUND_MS / 1000} seconds.` : read.reason;
 }
 
 /** How a person is named to the assistant: their name, never their address. */

@@ -3,14 +3,15 @@
  * how it closed when it has. The assistant is told that a person closes an initiative, in the page's dialog, and that it
  * never does.
  */
-import { initiativeState, ownGates, waitingGates } from '@/console/initiative-state';
+import { ownGates, waitingGates } from '@/console/initiative-state';
+import { STATE_DEFINITION, STATE_LABEL } from '@/views/initiatives-filter';
 import type { InitiativeDetail } from '@/lib/api-shapes';
 import { plural } from '@/lib/format';
 import { formatCount } from '@/lib/format-units';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
-import { arrived, clip, type Arrival, sectioned, type Section } from './context';
+import { READ_BOUND_MS, arrived, clip, sectioned, type Arrival, type Section } from './context';
 import { sourceName } from './initiative-name';
-import { CLOSE_IS_THE_PERSON_S, INITIATIVES_BOUND_MS } from './initiatives-context';
+import { CLOSE_IS_THE_PERSON_S } from './initiatives-context';
 
 /**
  * The page's own read, on the console's server: the answer with the team the person acts for, which a close is made
@@ -26,7 +27,7 @@ export type InitiativeRead =
 export function initiativeTrouble(slug: string, read: Exclude<InitiativeRead, { state: 'ok' }>): { title: string; detail: string } {
   if (read.state === 'missing') return { title: `No initiative called ${slug}`, detail: 'It is not one of this team\'s initiatives; Initiatives lists every one your active team has.' };
   return read.state === 'slow'
-    ? { title: 'The initiative is unavailable', detail: `The read did not answer within ${INITIATIVES_BOUND_MS / 1000} seconds.` }
+    ? { title: 'The initiative is unavailable', detail: `The read did not answer within ${READ_BOUND_MS / 1000} seconds.` }
     : { title: 'The initiative did not load', detail: read.reason };
 }
 
@@ -81,7 +82,7 @@ export function initiativeContext(d: InitiativeDetail, arrival: Arrival): Shared
     scope: `one initiative of team ${d.team}`,
     freshness: arrived(arrival),
     facts: [
-      { label: 'State', value: initiativeState(d), definition: 'Waiting on you: a gate document is written and unapproved. Ready to close: every gate is approved and no outcome is recorded.' },
+      { label: 'State', value: STATE_LABEL[d.state], definition: STATE_DEFINITION },
       { label: 'Flow position', value: freeform ? 'no flow declared' : `stage ${d.at} of ${d.of}${d.stage ? `, ${d.stage}` : ''}` },
       { label: 'Gates', value: gates.length ? `${gates.filter((g) => g.passed).length} of ${gates.length} approved` : 'none', definition: 'Documents the flow requires a person to approve. The handover is written after the close and is not counted.' },
       { label: 'Documents', value: `${formatCount(live.length)} ${plural(live.length, 'document')}`, change: `${sources} ${plural(sources, 'source')} attached` },

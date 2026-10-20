@@ -11,7 +11,8 @@ vi.mock('next/navigation', () => ({
 
 import type { ActivityLog, ActivitySummary } from '@/lib/destination-shapes';
 import { formatCount } from '@/lib/format-units';
-import { ACTIVITY_BOUND_MS, fourOwners, type ActivityRead } from '@/views/activity-context';
+import { fourOwners, type ActivityRead } from '@/views/activity-context';
+import { READ_BOUND_MS } from '@/views/context';
 import { ActivityView } from '@/views/pages/activity';
 import ActivityLoading from '../app/(dash)/activity/loading';
 import { ME } from '../scripts/fake-gateway/people.ts';
@@ -225,7 +226,7 @@ describe('every state', () => {
 
   it('a summary that did not answer in time says so, never an endless skeleton', () => {
     draw({ state: 'slow' });
-    expect(screen.getByText(`It did not answer within ${ACTIVITY_BOUND_MS / 1000} seconds.`)).toBeInTheDocument();
+    expect(screen.getByText(`It did not answer within ${READ_BOUND_MS / 1000} seconds.`)).toBeInTheDocument();
   });
 
   it('figures the gateway could not read are unavailable, never zero', () => {

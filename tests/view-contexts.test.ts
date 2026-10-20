@@ -36,13 +36,13 @@ import { teamDetail, teams } from '../scripts/fake-gateway/platform-teams.ts';
 import { pluginEval, skillText } from '../scripts/fake-gateway/platform.ts';
 import { search } from '../scripts/fake-gateway/search.ts';
 import { extreme } from '../scripts/fake-gateway/states.ts';
-import { INITIATIVES, KNOWLEDGE, documentDetail, initiativeDetail, knowledgeBody } from '../scripts/fake-gateway/work.ts';
+import { INITIATIVES, KNOWLEDGE, documentDetail, knowledgeBody } from '../scripts/fake-gateway/work.ts';
+import { initiativeDetail, initiativeList } from '../scripts/fake-gateway/work-initiatives.ts';
 import { access } from '../scripts/fake-gateway/work-access.ts';
 import { activityLog, activitySummary } from '../scripts/fake-gateway/work-activity.ts';
 import { approvals } from '../scripts/fake-gateway/work-approvals.ts';
 import { homeOf } from '../scripts/fake-gateway/work-home.ts';
-import { initiativeList } from '../scripts/fake-gateway/work-initiatives.ts';
-import { KNOWLEDGE_LOG, knowledgeList, knowledgeSummary } from '../scripts/fake-gateway/work-knowledge.ts';
+import { KNOWLEDGE_LOG, knowledgeList, knowledgeSummary, logOf } from '../scripts/fake-gateway/work-knowledge.ts';
 import { plugins, skillDetail, skills } from '../scripts/fake-gateway/work-plugins.ts';
 import { runs } from '../scripts/fake-gateway/work-runs.ts';
 
@@ -100,7 +100,7 @@ const contexts: Record<string, () => SharedContext> = {
   approvals: () => approvalsContext(as<Approvals>(approvals(ME, q('tab=history'))), { tab: 'history', page: 1, ...arrival }),
   knowledge: () => knowledgeContext({ summary: LEARNED, list: SHELF, filters: { q: '', kind: 'all' }, page: 1, ...arrival }),
   knowledge_node: () => knowledgeNodeContext(knowledgeBody(KNOWLEDGE[0].team, KNOWLEDGE[0].path)!, arrival),
-  knowledge_log: () => knowledgeLogContext(KNOWLEDGE_LOG, arrival),
+  knowledge_log: () => knowledgeLogContext(logOf(KNOWLEDGE_LOG), arrival),
   search: () => searchContext(search('latency budget', 5, null), { ...arrival }),
   people: () => peopleContext(PEOPLE_PAGE, { filters: { q: '', state: 'all', page: '1' }, ...arrival }),
   plugins: () => pluginsContext(PLUGINS, arrival),

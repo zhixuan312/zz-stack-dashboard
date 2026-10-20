@@ -11,7 +11,6 @@ vi.mock('next/navigation', () => ({
 }));
 
 import { Button } from '@/components/ui/button';
-import { PeriodProvider } from '@/console/period';
 import type { DocumentDetail, Me } from '@/lib/api-shapes';
 import { formatDate, formatDay } from '@/lib/format-date';
 import { contextText } from '@/lib/shared-context';
@@ -28,8 +27,8 @@ import { InitiativeClose, InitiativeMeta } from '@/views/pages/initiative';
 import { InitiativesView } from '@/views/pages/initiatives';
 import { ME, MEMBER } from '../scripts/fake-gateway/people.ts';
 import { approvals, documentAsKept } from '../scripts/fake-gateway/work-approvals.ts';
-import { initiativeList } from '../scripts/fake-gateway/work-initiatives.ts';
-import { INITIATIVES, documentDetail, documentRevision, initiativeDetail } from '../scripts/fake-gateway/work.ts';
+import { initiativeDetail, initiativeList } from '../scripts/fake-gateway/work-initiatives.ts';
+import { INITIATIVES, documentDetail, documentRevision } from '../scripts/fake-gateway/work.ts';
 
 /**
  * Phase 7, I-164: the second re-review's findings on Approvals, Initiatives, an initiative and a document (Work M-1,
@@ -62,7 +61,7 @@ afterEach(() => { vi.unstubAllGlobals(); window.history.replaceState(null, '', '
 
 function mount(ui: ReactElement) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={client}><PeriodProvider><Tooltip.Provider>{ui}</Tooltip.Provider></PeriodProvider></QueryClientProvider>);
+  return render(<QueryClientProvider client={client}><Tooltip.Provider>{ui}</Tooltip.Provider></QueryClientProvider>);
 }
 
 /** The table captioned `caption`, and the cells of its column headed `header`. */

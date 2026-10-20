@@ -43,7 +43,7 @@ import { RecordView } from '@/views/pages/record';
 import { recordPath, tilesOf, RECORD_DEFAULTS } from '@/views/record-context';
 import { ME, MEMBER } from '../scripts/fake-gateway/people.ts';
 import { homeOf } from '../scripts/fake-gateway/work-home.ts';
-import { KNOWLEDGE_LOG, SHELF, knowledgeList, knowledgeSummary, lesson } from '../scripts/fake-gateway/work-knowledge.ts';
+import { KNOWLEDGE_LOG, SHELF, knowledgeList, knowledgeSummary, lesson, logOf } from '../scripts/fake-gateway/work-knowledge.ts';
 import { record } from '../scripts/fake-gateway/work-record.ts';
 import { documentDetail } from '../scripts/fake-gateway/work.ts';
 import { knowledgeNodeHref } from '@/lib/knowledge-filters';
@@ -78,7 +78,7 @@ async function draw(path: string, ui: ReactElement) {
 const drawRecord = () => draw('/record', <RecordView served={{ state: 'ok', path: recordPath(RECORD_DEFAULTS), data: ALL, team: TEAM }} />);
 const drawHome = () => draw('/', <HomeView read={{ state: 'ok', home: HOME, team: TEAM }} />);
 const drawKnowledge = () => draw('/knowledge', <KnowledgeView read={{ state: 'ok', data: SUMMARY, at: AT }} />);
-const drawLog = () => draw('/knowledge/log', <KnowledgeLogView read={{ state: 'ok', data: { entries: LOG }, at: AT }} />);
+const drawLog = () => draw('/knowledge/log', <KnowledgeLogView read={{ state: 'ok', data: logOf(LOG), at: AT }} />);
 const drawNode = () => draw(`/knowledge/${TEAM}/${LESSON.path}`, <KnowledgeNodeView read={{ state: 'ok', data: LESSON, at: AT }} team={TEAM} rel={LESSON.path} />);
 /** The card a heading titles. */
 const cardOf = (title: string) => screen.getByRole('heading', { name: title }).closest('.card') as HTMLElement;
@@ -216,7 +216,7 @@ describe('the knowledge log (F-47)', () => {
     expect(document.querySelectorAll('tbody a[href^="/knowledge/"]')).toHaveLength(page.filter((e) => e.path !== null).length);
     cleanup();
     const gone = { ...LOG[0], node_title: null, node_status: null, path: null };
-    await draw('/knowledge/log', <KnowledgeLogView read={{ state: 'ok', data: { entries: [gone] }, at: AT }} />);
+    await draw('/knowledge/log', <KnowledgeLogView read={{ state: 'ok', data: logOf([gone]), at: AT }} />);
     expect(screen.getAllByRole('row')).toHaveLength(2);
     expect(document.querySelectorAll('tbody a[href^="/knowledge/"]')).toHaveLength(0);
   });

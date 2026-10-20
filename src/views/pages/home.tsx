@@ -17,6 +17,7 @@ import { Banner } from '@/components/ui/banner';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
+import { StateBadge } from '@/console/initiative';
 import { Panel } from '@/console/panel';
 import { formatPercent, plural } from '@/lib/format';
 import { formatDay, formatShortDate } from '@/lib/format-date';
@@ -216,8 +217,6 @@ function Milestones({ home }: { home: Home }) {
   );
 }
 
-const STATE_TONE: Record<string, 'warning' | 'neutral'> = { waiting: 'warning', open: 'neutral', quiet: 'neutral' };
-
 function OpenWork({ home, team }: { home: Home; team: string | null }) {
   if (home.openWork.state !== 'ok') return <Panel title="Open work" flush><Unread what="The open work" /></Panel>;
   const { rows, quiet, total } = home.openWork.data;
@@ -230,7 +229,7 @@ function OpenWork({ home, team }: { home: Home; team: string | null }) {
               <li key={r.slug}>
                 <Go href={team ? `/initiatives/${team}/${r.slug}` : '/initiatives'} className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-6 gap-y-1 px-(--card-pad) py-3 transition-colors hover:bg-fill-hover">
                   <span className="text-sm font-medium [overflow-wrap:anywhere] text-ink">{r.slug}</span>
-                  <Badge tone={STATE_TONE[r.state] ?? 'neutral'}>{r.state === 'waiting' ? 'Waiting' : r.state === 'quiet' ? 'Quiet' : 'Open'}</Badge>
+                  <StateBadge state={r.state} />
                   <span data-next-move className="t-caption" title={r.nextMove?.why}>{r.flow ? nextOf(r) : 'No flow'}</span>
                   <span className="t-caption justify-self-end whitespace-nowrap">{r.gates.of ? `${r.gates.passed} of ${r.gates.of} gates` : 'No gates'}</span>
                 </Go>
@@ -300,8 +299,9 @@ function Week({ home, team, onPoint }: { home: Home; team: string | null; onPoin
           <ClosedLastWeek home={home} team={team} />
         </Row>
         {/* Inline, the arrow held to the last word: as a flex row the sentence wrapped at 390 and left the arrow alone at
-            the right edge, a control with no words (Phase 7's second re-review, Work M-18). */}
-        <Go data-record-line href="/record" className="self-start text-sm font-medium text-ink hover:text-accent-ink">
+            the right edge, a control with no words (Phase 7's second re-review, Work M-18). Tagged a target: in the stack it
+            is laid out as a block, so a finger presses it as a control, and its two lines at 390px stood 40px tall. */}
+        <Go data-record-line href="/record" className="hit self-start text-sm font-medium text-ink hover:text-accent-ink">
           Everything your team has recorded, by quarter and year, is on <span className="whitespace-nowrap">Record <ArrowRight aria-hidden className="inline size-3.5 align-[-0.15em]" /></span>
         </Go>
       </Stack>

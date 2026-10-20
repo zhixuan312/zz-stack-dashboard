@@ -42,7 +42,7 @@ import { RecordView } from '@/views/pages/record';
 import { recordContext, recordPath, tickOf, tilesOf, RECORD_DEFAULTS } from '@/views/record-context';
 import { ME } from '../scripts/fake-gateway/people.ts';
 import { homeOf } from '../scripts/fake-gateway/work-home.ts';
-import { KNOWLEDGE_LOG, SHELF, knowledgeList, knowledgeSummary, lesson } from '../scripts/fake-gateway/work-knowledge.ts';
+import { KNOWLEDGE_LOG, SHELF, knowledgeList, knowledgeSummary, lesson, logOf } from '../scripts/fake-gateway/work-knowledge.ts';
 import { record } from '../scripts/fake-gateway/work-record.ts';
 
 const TEAM = 'atlas';
@@ -180,7 +180,7 @@ describe('Record, Home and Knowledge (Work F-2, F-7, F-8): each measure named on
 
 describe('the knowledge log (Work F-18, F-21)', () => {
   beforeEach(async () => {
-    await draw('/knowledge/log', <KnowledgeLogView read={{ state: 'ok', data: { entries: LOG }, at: AT }} />);
+    await draw('/knowledge/log', <KnowledgeLogView read={{ state: 'ok', data: logOf(LOG), at: AT }} />);
   });
 
   it('is the fixture this depends on: a supersession among the entries', () => {

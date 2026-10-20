@@ -1,11 +1,12 @@
 import { redirect } from 'next/navigation';
 import { GatewayError, answeredAt, gatewayGet, type Revised } from '@/data/gateway';
 import type { Runs } from '@/lib/destination-shapes';
-import { RUNS_BOUND_MS, runsPath, skillPagesOf, type RunsFilters, type RunsRead, type SkillPages } from '@/views/runs-context';
+import { READ_BOUND_MS } from '@/views/context';
+import { runsPath, skillPagesOf, type RunsFilters, type RunsRead, type SkillPages } from '@/views/runs-context';
 import { readPlugins } from '../plugins/read-plugins';
 
 /**
- * `GET /runs` for the address's skill and page, on the console's server, as the person, given `RUNS_BOUND_MS`, with
+ * `GET /runs` for the address's skill and page, on the console's server, as the person, given `READ_BOUND_MS`, with
  * the revisions it was answered at: a read that fails says the gateway's own sentence, and one that does not answer by
  * then is said to be slow. It never rejects, so the page's boundary never waits on it longer or falls to the error
  * page, but for a session that ended since the gate let it in, which goes to sign-in. Nothing it reads is kept for
@@ -14,7 +15,7 @@ import { readPlugins } from '../plugins/read-plugins';
 export async function readRuns(filters: RunsFilters): Promise<Revised<RunsRead>> {
   const path = runsPath(filters);
   let timer: ReturnType<typeof setTimeout> | undefined;
-  const bound = new Promise<RunsRead>((resolve) => { timer = setTimeout(() => resolve({ state: 'slow', path }), RUNS_BOUND_MS); });
+  const bound = new Promise<RunsRead>((resolve) => { timer = setTimeout(() => resolve({ state: 'slow', path }), READ_BOUND_MS); });
   try {
     return await Promise.race([gatewayGet<Runs>(path).then((data): Revised<RunsRead> => ({ state: 'ok', path, data, revisions: answeredAt(data) })), bound]);
   } catch (error) {

@@ -5,6 +5,7 @@ import { createContext, createElement, use, useCallback, useContext, useEffect, 
 import { preload } from 'react-dom';
 import { clearThread } from '@/components/patterns/assistant/thread';
 import type { Revisions } from '@/lib/live';
+import { READ_BOUND_MS } from '@/views/context';
 
 /**
  * Every read a page does for its own content.
@@ -35,15 +36,7 @@ export class ApiError extends Error {
 }
 
 /**
- * How long a page read may go unanswered, from the moment it is sent, before the page says it failed: half a second
- * under the spec's five, which is what the phone profile takes to draw that state, so a person sees it within five
- * seconds of the read (spec AC-8.7; measured 111 to 255 ms on 2026-10-14). COUPLED: `scripts/primary-data.ts` holds
- * the screen to five seconds with no allowance.
- */
-const READ_BOUND_MS = 4_500;
-
-/**
- * One page read, given `READ_BOUND_MS`: a read that has not answered by then is a 504 with a sentence that says so, and
+ * One page read, given `READ_BOUND_MS` (src/views/context.ts), the bound every read of the console's keeps: a read that has not answered by then is a 504 with a sentence that says so, and
  * the request is aborted. A page never shows an endless skeleton; it shows the read's error state, whose Retry reads
  * again. The sentence names no number, so it stays true whatever the bound is. The bound is a race, not only the abort, so it holds when a request does not honour the signal,
  * and an answer that arrives after it is never seen.

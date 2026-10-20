@@ -12,7 +12,6 @@ vi.mock('next/navigation', () => ({
 }));
 
 import { SurfaceOverride } from '@/components/base/surface';
-import { PeriodProvider } from '@/console/period';
 import type { DocumentDetail } from '@/lib/api-shapes';
 import type { Approvals, InitiativeList, WaitingRow } from '@/lib/work-shapes';
 import { APPROVALS_DEFAULTS, approvalsPath } from '@/views/approvals-context';
@@ -23,8 +22,8 @@ import { InitiativeView, SlugTitle } from '@/views/pages/initiative';
 import { InitiativesView } from '@/views/pages/initiatives';
 import { ME } from '../scripts/fake-gateway/people.ts';
 import { approvals } from '../scripts/fake-gateway/work-approvals.ts';
-import { initiativeList } from '../scripts/fake-gateway/work-initiatives.ts';
-import { documentDetail, initiativeDetail } from '../scripts/fake-gateway/work.ts';
+import { initiativeDetail, initiativeList } from '../scripts/fake-gateway/work-initiatives.ts';
+import { documentDetail } from '../scripts/fake-gateway/work.ts';
 
 /**
  * Phase 7, I-153: the Work review's findings on Initiatives, an initiative, a document and Approvals, each found gone
@@ -49,9 +48,7 @@ function mount(ui: ReactElement, ask?: (q: string) => void) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <PeriodProvider>
-        <SurfaceOverride surface={ask ? { ask } : {}}><Tooltip.Provider>{ui}</Tooltip.Provider></SurfaceOverride>
-      </PeriodProvider>
+      <SurfaceOverride surface={ask ? { ask } : {}}><Tooltip.Provider>{ui}</Tooltip.Provider></SurfaceOverride>
     </QueryClientProvider>,
   );
 }

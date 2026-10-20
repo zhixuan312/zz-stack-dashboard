@@ -6,21 +6,19 @@ import { app, workspaces } from '@/app.config';
 import { PageFrame, Stack, type PageWidth } from '@/components/base/shell';
 import { useShareView } from '@/components/base/use-share-view';
 import { Freshness } from '@/components/patterns/freshness';
-import { PeriodSelect } from '@/components/patterns/period-select';
 import { useDataClock } from '@/lib/api';
 import type { SharedContext } from '@/lib/shared-context';
 import { workspaceOf } from '@/views/workspaces';
-import { usePeriod } from '@/console/period';
 
 /** A step back up from a record: the list it belongs to, then the parent record. */
 type Crumb = { label: string; href?: string };
 
 /**
  * Every console page: Meridian's `PageFrame` with the console's masthead conventions. The kicker says where the page
- * sits (the workspace its address is in, as its loading state says it, or the trail back up from a record), the
- * freshness stamp says when its data arrived, and the period picker governs every figure on a page that has a time
- * dimension. The workspace is read off the address the page's context names, never the window's, so the kicker is
- * the same on the server and in the browser.
+ * sits (the workspace its address is in, as its loading state says it, or the trail back up from a record), and the
+ * freshness stamp says when its data arrived. No page carries a period picker of the shell's: a page with a time
+ * dimension draws its own control (Record's). The workspace is read off the address the page's context names, never
+ * the window's, so the kicker is the same on the server and in the browser.
  *
  * `context` is the page's shared context (decision 0011), and it is not optional: every console page tells the
  * assistant what it shows, its scope, its figures with their definitions and what the data cannot say, built by the
@@ -32,7 +30,6 @@ export function ConsolePage({
   context,
   crumbs,
   updatedAt,
-  showPeriod = true,
   actions,
   toolbar,
   width = 'data',
@@ -47,8 +44,6 @@ export function ConsolePage({
   crumbs?: Crumb[];
   /** When the page's data arrived; `null` reads "never updated"; left out, no stamp. */
   updatedAt?: Date | null;
-  /** Pages with no time dimension hide the picker. */
-  showPeriod?: boolean;
   actions?: ReactNode;
   /** Tabs or filters that govern the whole page, in a band under the masthead. */
   toolbar?: ReactNode;
@@ -79,7 +74,7 @@ export function ConsolePage({
       width={width}
       toolbar={toolbar}
       meta={updatedAt !== undefined ? <Freshness updatedAt={updatedAt} now={clock} staleAfterMs={10 * 60_000} /> : undefined}
-      actions={actions || showPeriod ? <>{actions}{showPeriod ? <PagePeriod /> : null}</> : undefined}
+      actions={actions}
     >
       <Stack data-still={arriving || undefined}>{children}</Stack>
     </PageFrame>
@@ -114,11 +109,5 @@ function useStillWhileArriving(): boolean {
     return () => clearTimeout(t);
   }, []);
   return still;
-}
-
-/** The page's period control, held in the console's period context. */
-function PagePeriod() {
-  const { period, setPeriod } = usePeriod();
-  return <PeriodSelect value={period} onChange={setPeriod} />;
 }
 

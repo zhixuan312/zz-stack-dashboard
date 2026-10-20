@@ -6,9 +6,9 @@ Knowledge's log: every node recorded or retired, newest first, and who wrote it 
 
 - Gate first: the page asks for `knowledge` before it renders, so a person who does not hold it is shown nothing of the page and nothing on it is read.
 - Tabs: Overview, Log, as Knowledge draws them.
-- Tiles: entries, recorded, superseded.
+- Tiles: entries, recorded, superseded, each the gateway's total over the whole log, never a count of the rows it answered.
 - A row opens its node while the node is on the shelf: the log answers each entry's `path`, the node's address, and null for one deleted since, whose row opens nothing. A row that opens its node carries the quiet arrow after its title, as every row that opens a page does; one whose node is gone carries none.
-- A data table headed Recorded and superseded, newest first: when, act, node (title now, or as typed, over its number), who, by the address the platform holds for them, as every page names a person; `—` where the platform named nobody for the act. On a phone each entry is a card of the title with its number, the act, the date and who. Dates are absolute, each on one line: the log is read on the server. Both acts are neutral badges, `Recorded` and `Superseded`: a supersession is a lesson's ordinary life and needs nobody, so it wears no warning colour, and `node 0004 → 0005` says what replaced what.
+- A data table headed Recorded and superseded, newest first, of the latest 500 entries the gateway answers; past 500 its line says `Newest first, the latest 500 of <total>`: when, act, node (title now, or as typed, over its number), who, by the address the platform holds for them, as every page names a person; `—` where the platform named nobody for the act. On a phone each entry is a card of the title with its number, the act, the date and who. Dates are absolute, each on one line: the log is read on the server. Both acts are neutral badges, `Recorded` and `Superseded`: a supersession is a lesson's ordinary life and needs nobody, so it wears no warning colour, and `node 0004 → 0005` says what replaced what.
 
 ## States
 
@@ -22,7 +22,7 @@ The assistant reads this page and changes nothing: every change in this console 
 
 ### What the agent reads
 
-Whose log it is, how many entries it holds, and how many of them record a node and how many supersede one. What code found: the latest entries newest first, each with its date, its act, the node and its title, what replaced it and who did it (12 at most). It says the log starts when it was first kept, so an older node is on the shelf and not in the log.
+Whose log it is, how many entries it holds, and how many of them record a node and how many supersede one, the gateway's totals over the whole log. What code found: the latest entries newest first, each with its date, its act, the node and its title, what replaced it and who did it (12 at most). It says the log starts when it was first kept, so an older node is on the shelf and not in the log, and, past 500 entries, that the page lists the latest 500 while the counts are over all of them.
 
 ```text
 - The latest entries, newest first: 11 Oct 2026 recorded node 0003 (beacon), "Alert on the trend, not the count" by noah.okafor@example.com; …
@@ -40,4 +40,4 @@ Protagonist: Recorded and superseded.
 
 ## Surfaces
 
-Console, desktop and phone. Reads `GET /knowledge/log` on the console's server, as the person, once per request and bounded at 4.5 seconds. Live: follows `knowledge`, so a change made anywhere — another tab, another person — asks the server for this page again.
+Console, desktop and phone. Reads `GET /knowledge/log` on the console's server, as the person, once per request and bounded at 4.5 seconds: its latest 500 entries, the totals over every entry and the ceiling. Live: follows `knowledge`, so a change made anywhere — another tab, another person — asks the server for this page again.

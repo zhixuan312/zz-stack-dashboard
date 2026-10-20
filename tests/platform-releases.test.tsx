@@ -17,11 +17,11 @@ import { PREPARED } from '@/data/prepared';
 import type { Me } from '@/lib/api-shapes';
 import type { ReleaseDetail, Releases } from '@/lib/platform-shapes';
 import { contextText } from '@/lib/shared-context';
-import { CONTEXT_BUDGET } from '@/views/context';
+import { CONTEXT_BUDGET, READ_BOUND_MS } from '@/views/context';
 import { PlatformReleaseView } from '@/views/pages/platform-release';
 import { PlatformReleasesView } from '@/views/pages/platform-releases';
 import {
-  RELEASES_BOUND_MS, RELEASES_DEFAULTS, filtersOfPath, releaseContext, releasesContext, releasesPath, type ReleasesRead,
+  RELEASES_DEFAULTS, filtersOfPath, releaseContext, releasesContext, releasesPath, type ReleasesRead,
 } from '@/views/platform-releases-context';
 import { releaseTool, releasesTool } from '@/views/tools/releases';
 import { RELEASES, releaseDetail, releases } from '../scripts/fake-gateway/platform-releases.ts';
@@ -203,7 +203,7 @@ describe('each page draws loading, empty, error and partial', () => {
   it('Releases: a server read that did not answer in time is the error, never an endless skeleton', () => {
     browser(null);
     mount(<PlatformReleasesView served={{ state: 'slow', path: PATH }} />);
-    expect(screen.getByText(`The read did not answer within ${RELEASES_BOUND_MS / 1000} seconds.`)).toBeInTheDocument();
+    expect(screen.getByText(`The read did not answer within ${READ_BOUND_MS / 1000} seconds.`)).toBeInTheDocument();
     expect(document.querySelector('table[aria-busy="true"]')).toBeNull();
   });
 
@@ -489,7 +489,7 @@ describe('the reads on the console\'s server', () => {
     gateway.get.mockReturnValue(new Promise(() => {}));
     const list = readReleases(RELEASES_DEFAULTS);
     const one = readRelease(PAIRED);
-    await vi.advanceTimersByTimeAsync(RELEASES_BOUND_MS);
+    await vi.advanceTimersByTimeAsync(READ_BOUND_MS);
     expect(await list).toEqual({ state: 'slow', path: PATH });
     expect(await one).toEqual({ state: 'slow' });
   });

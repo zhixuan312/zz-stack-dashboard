@@ -120,8 +120,8 @@ export function pageParams(q: URLSearchParams, filters: string[]): { limit: numb
   return { limit, offset };
 }
 
-/** Work's refusal for a caller who acts for no team: there is no team whose record to read. */
-export const NO_TEAM: Answer = [400, { error: 'you act for no team, so there is no team whose work to read: switch to one of your teams first' }];
+/** Work's refusal for a caller who acts for no team, in the gateway's words (its console/shared.ts NO_TEAM). */
+export const NO_TEAM: Answer = [400, { error: "no team: Work is the active team's, and you act for none" }];
 
 /** `GET /activity/summary`, as `who`: the active team's real work by week, its refusals by owner and grouped. */
 export function activitySummary(who: Me): Answer {

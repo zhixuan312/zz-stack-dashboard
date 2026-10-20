@@ -1,14 +1,9 @@
 /**
- * The rule for an initiative's state, apart from the components that draw it (`src/console/initiative.tsx`), so the
- * server can ask the same question the State column answers: the assistant's `initiatives` collection and the views'
- * shared contexts both do.
+ * An initiative's gates as its page reads them: the ones it is judged on, and the ones written and waiting on a person.
  *
- * What is happening to an initiative, in one closed vocabulary, on every page that shows one. Not a stage name: the
- * flow position answers where it is.
- *
- * The three closed values are the platform's own: `close()` records exactly one of `accepted`, `delivered` or
- * `abandoned`, and all three mean closed. One rule per colour, so the column reads without a key: positive is closed
- * with what was asked for, warning always means a person must act, neutral never means a problem.
+ * Its state is not decided here: the gateway answers it, on the list and on the initiative alike, by one rule
+ * (initiative-list.ts's stateOf), and `src/console/initiative.tsx` draws it in the list's words. These gates only name
+ * what a waiting initiative waits on, and what the page offers to Review.
  */
 export interface StateOf {
   outcome: string | null;
@@ -16,25 +11,8 @@ export interface StateOf {
   gates: { name: string; passed: boolean; written: boolean; role?: string }[];
 }
 
-/** The six words the state can say. */
-type InitiativeState = 'Accepted' | 'Delivered' | 'Abandoned' | 'Waiting on you' | 'Ready to close' | 'In progress';
-
 /** The gates an open initiative is judged on: the handover is written after the close, so it is never one of them. */
 export const ownGates = (of: StateOf) => of.gates.filter((g) => g.role !== 'handover');
-
-/** The rule, apart from the badge, so a filter can ask the same question the column answers. */
-export function initiativeState(of: StateOf): InitiativeState {
-  if (of.outcome === 'accepted') return 'Accepted';
-  if (of.outcome === 'delivered') return 'Delivered';
-  if (of.outcome === 'abandoned') return 'Abandoned';
-  const gates = ownGates(of);
-  // Written and unsigned, not merely unsigned: a gate nobody has drafted waits on the agent, not a person.
-  if (gates.some((g) => g.written && !g.passed)) return 'Waiting on you';
-  if (gates.some((g) => !g.written)) return 'In progress';
-  // Every gate passed and no outcome recorded: the work is done and nobody has closed it.
-  if (gates.length) return 'Ready to close';
-  return 'In progress';
-}
 
 /** The gates of an initiative that are written and not yet approved, by name. */
 export const waitingGates = (of: StateOf): string[] => ownGates(of).filter((g) => g.written && !g.passed).map((g) => g.name);

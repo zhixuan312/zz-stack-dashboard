@@ -13,8 +13,8 @@ vi.mock('next/navigation', () => ({
 import type { InitiativeDetail, Me } from '@/lib/api-shapes';
 import { initiativeContext, type InitiativeRead } from '@/views/initiative-context';
 import { InitiativeClose, InitiativeView } from '@/views/pages/initiative';
-import { close } from '../scripts/fake-gateway/work-initiatives.ts';
-import { INITIATIVES, initiativeDetail } from '../scripts/fake-gateway/work.ts';
+import { close, initiativeDetail } from '../scripts/fake-gateway/work-initiatives.ts';
+import { INITIATIVES } from '../scripts/fake-gateway/work.ts';
 
 /**
  * An initiative with nothing written in it (review round 1, R1-C5, AC-5.8): it is listed, so its page opens, drawing

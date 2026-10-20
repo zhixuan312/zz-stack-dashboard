@@ -14,7 +14,7 @@ import { formatCount } from '@/lib/format-units';
 import { formatDate, formatDateTime, formatDay } from '@/lib/format-date';
 import type { PeriodFigure, Window } from '@/lib/platform-shapes';
 import { listed, type Fact, type Insight, type SharedContext } from '@/lib/shared-context';
-import { addressOf, arrived, budgeted, clip, type Arrival } from './context';
+import { READ_BOUND_MS, addressOf, arrived, budgeted, clip, type Arrival } from './context';
 
 /** How each owner reads: a guardrail that held, a call made wrong, a tool that failed, and the rest. */
 export const OWNER_LABEL: Record<RefusalOwner, string> = { guardrail: 'A guardrail held', ours: 'Malformed call', theirs: 'Tool failure', other: 'Other' };
@@ -36,9 +36,6 @@ export const REFUSAL_PARTS: (ColumnPart & { key: RefusalOwner })[] = [
 /** The rows one page of the log holds, and one page of the refusal groups. */
 export const PAGE_SIZE = 10;
 
-/** How long the console's server waits for the summary: half a second under five, for a phone to draw what it says. */
-export const ACTIVITY_BOUND_MS = 4_500;
-
 /** The summary as the console's server read it: the gateway's answer and when it came, its sentence, or no answer in time. */
 export type ActivityRead =
   | { state: 'ok'; data: ActivitySummary; at: string }
@@ -47,7 +44,7 @@ export type ActivityRead =
 
 /** Why the summary is not on the page, in words: the gateway's sentence, or the bound it missed. */
 export const activityTrouble = (read: Exclude<ActivityRead, { state: 'ok' }>): string =>
-  (read.state === 'slow' ? `It did not answer within ${ACTIVITY_BOUND_MS / 1000} seconds.` : read.reason);
+  (read.state === 'slow' ? `It did not answer within ${READ_BOUND_MS / 1000} seconds.` : read.reason);
 
 /** The filters the log keeps in its address; `all` is no filter, and `refused` is `true` or `false` when it is one. */
 export type ActivityFilters = { kind: string; tool: string; initiative: string; refused: string };

@@ -31,7 +31,7 @@ import { ADDITIONS, COVERAGE, estimateOf, wordsIn } from './work-home.ts';
 import { counted, iso, rowsOf, workMeta } from './work-initiatives.ts';
 import { lessonsCiting, lessonsMade, searchesOf, SHELF } from './work-knowledge.ts';
 import { median as middle, observedRuns, runsOf } from './work-runs.ts';
-import { documentDetail, initiativeDetail } from './work.ts';
+import { documentDetail, detailBody } from './work.ts';
 
 type Answer = [status: number, body: unknown];
 
@@ -127,7 +127,7 @@ function recordOf(team: string | null, email: string, period: Period, page: { li
   const approvals = callerApprovalRows(team, email).filter((a) => approvedMs(a) >= start);
   const byOpened = [...all].sort((a, b) => b.opened.localeCompare(a.opened) || a.slug.localeCompare(b.slug));
   const flows = [...new Set(all.map((r) => r.flow))];
-  const docsOf = (slug: string) => initiativeDetail(team ?? '', slug)?.documents.filter((d) => !d.path.startsWith('sources/')) ?? [];
+  const docsOf = (slug: string) => detailBody(team ?? '', slug)?.documents.filter((d) => !d.path.startsWith('sources/')) ?? [];
   const documentsOf = (slug: string) => docsOf(slug).length;
   // Each flow document's revisions, as its own page's content history counts them: every snapshot, an approval's included.
   const revised = all.flatMap((r) => docsOf(r.slug).map((d) => ({ initiative: r.slug, path: d.path, versions: documentDetail(team ?? '', r.slug, d.path)?.current_revision ?? 0 })));

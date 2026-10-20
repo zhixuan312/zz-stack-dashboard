@@ -22,7 +22,8 @@ import { plural } from '@/lib/format';
 import { formatDateTime, formatDay } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { listed, type Fact, type Insight, type SharedContext } from '@/lib/shared-context';
-import { addressOf, clip } from './context';
+import { waited } from '@/console/words';
+import { READ_BOUND_MS, addressOf, clip } from './context';
 import { rostered } from './platform-roster';
 
 type Impact = PublicBugRow['impact'];
@@ -96,9 +97,6 @@ export const duplicatesPath = (id: string): string => `${bugPath(id)}/duplicates
 
 /* The reads */
 
-/** How long the console's server waits for a Bugs read: half a second under five, for a phone to draw what it says. */
-export const BUGS_BOUND_MS = 4_500;
-
 /** The queue's own read, as the console's server or the browser made it: the answer, a failure, or no answer in time. */
 export type BugsRead =
   | { state: 'ok'; path: string; data: Bugs }
@@ -124,7 +122,7 @@ export type DuplicatesRead =
 
 /** The sentence a read's trouble is told in, on the page and to the assistant. */
 export function bugsTrouble(read: { state: 'failed'; reason: string } | { state: 'slow' }): string {
-  return read.state === 'slow' ? `The read did not answer within ${BUGS_BOUND_MS / 1000} seconds.` : read.reason;
+  return read.state === 'slow' ? `The read did not answer within ${READ_BOUND_MS / 1000} seconds.` : read.reason;
 }
 
 /* The words */
@@ -179,14 +177,6 @@ export const cohortsRunning = (cohorts: Cohort[], asOf: string): boolean =>
 export function lastWhole(cohorts: Cohort[], asOf: string): Cohort | null {
   const whole = cohortsRunning(cohorts, asOf) ? cohorts.slice(0, -1) : cohorts;
   return whole.at(-1) ?? null;
-}
-
-/** How long a report has waited at `asOf`: `3 days`, `5 hours`. */
-export function waited(filedAt: string, asOf: string): string {
-  const hours = Math.max(0, (Date.parse(asOf) - Date.parse(filedAt)) / HOUR);
-  if (hours < 48) return `${Math.floor(hours)} ${plural(Math.floor(hours), 'hour')}`;
-  const days = Math.floor(hours / 24);
-  return `${days} ${plural(days, 'day')}`;
 }
 
 /** The surfaces the queue's filter offers: the doors and the console, every canonical surface the page's rows name, and

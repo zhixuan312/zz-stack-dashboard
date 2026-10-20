@@ -176,7 +176,6 @@ function OwnTeam({ status }: { status: PlatformStatus }) {
   );
 }
 
-/** A figure over the week it is for. */
 /** A figure over its week, each on one line where the table is wide; under 896px the week may wrap, so five columns fit a
  *  768px window. */
 const DatedCell = ({ d }: { d: Dated | null }) => (d ? <span className="flex flex-col whitespace-nowrap @max-[896px]:whitespace-normal"><span>{d.value}</span>{d.from ? <span className="text-xs text-ink-3">{weekCell(d)}</span> : null}</span> : null);

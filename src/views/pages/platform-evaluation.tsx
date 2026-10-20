@@ -24,7 +24,7 @@ import { formatDate, formatDateTime, formatDay } from '@/lib/format-date';
 import { plural } from '@/lib/format';
 import { formatCount } from '@/lib/format-units';
 import type { Evaluation } from '@/lib/platform-shapes';
-import { waited } from '@/views/platform-bugs-context';
+import { waited } from '@/console/words';
 import {
   ASK, DECISIONS, GUARDRAILS, TILES, asOfLine, evaluationContext, evaluationTrouble, isAdmin, kindOf, nameOf, namesNoPlugin, ownerOf,
   protocolOf, rangeOf, runText, scoreIn, scoredAgo, seriesName, seriesRows, standingOf, waitingOf, type EvaluationRead, type PluginScoreRow,

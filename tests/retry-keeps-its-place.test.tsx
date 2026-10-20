@@ -29,7 +29,6 @@ vi.mock('@/data/access', async (importOriginal) => ({
   chromeAccess: async () => ({ only: ['/'], user: { name: 'Ava', role: 'Superadmin' }, team: 'atlas', caller: 'ava@example.com' }),
 }));
 
-import { PeriodProvider } from '@/console/period';
 import { AccessView } from '@/views/pages/access';
 import { ActivityView } from '@/views/pages/activity';
 import { ApprovalsView } from '@/views/pages/approvals';
@@ -217,7 +216,7 @@ const PAGES: Page[] = [
 
 function draw(ui: ReactElement) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  render(h(QueryClientProvider, { client }, h(PeriodProvider, null, h(Tooltip.Provider, null, ui))));
+  render(h(QueryClientProvider, { client }, h(Tooltip.Provider, null, ui)));
   return client;
 }
 

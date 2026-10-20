@@ -85,7 +85,6 @@ export function KnowledgeNodeView({ read, team, rel }: { read: ServerRead<Knowle
       title={self?.title ?? rel}
       // From the workspace's root, as every other Work page's breadcrumb starts (Work M-11).
       crumbs={[{ label: `${app.name} · ${workspaces.main.label}` }, { label: 'Knowledge', href: '/knowledge' }, { label: self ? `${shared ? 'Shared shelf' : team} · node ${self.num}` : team }]}
-      showPeriod={false}
       updatedAt={read.state === 'ok' ? new Date(read.at) : null}
       context={context}
     >
@@ -139,7 +138,7 @@ export function KnowledgeNodeView({ read, team, rel }: { read: ServerRead<Knowle
               rowHref={(n) => knowledgeNodeHref(n.team, n.path)}
               pageSize={10}
               pageSizes={[10]}
-              toolbar={<div><h2 className="t-card">Shares a tag with</h2><p className="t-caption mt-1">{related.length} nodes</p></div>}
+              toolbar={<div><h2 className="t-card">Shares a tag with</h2><p className="t-caption mt-1">{related.length} {plural(related.length, 'node')}</p></div>}
             />
           ) : null}
         </>

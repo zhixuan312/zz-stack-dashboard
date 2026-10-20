@@ -4,7 +4,7 @@
  * breaking a mode nobody updated.
  */
 import type {
-  KnowledgeLogEntry, PlatformPersonRow, PluginRow, Skill,
+  KnowledgeLog, KnowledgeLogEntry, PlatformPersonRow, PluginRow, Skill,
 } from '../../src/lib/api-shapes.ts';
 import type { Access, ActivityLog, ActivitySummary, KnowledgeList, KnowledgeSummary, RefusalOwner, Runs } from '../../src/lib/destination-shapes.ts';
 import type { Audit, KnowledgeHealth, People, Teams } from '../../src/lib/fleet-shapes.ts';
@@ -13,6 +13,7 @@ import type { Approvals, Home, InitiativeList } from '../../src/lib/work-shapes.
 import { now } from './clock.ts';
 import { LONG, aboveCeilings, big } from './states-extreme.ts';
 import { freshDetail, noWriting } from './states-partial.ts';
+import { logOf } from './work-knowledge.ts';
 
 /**
  * Nothing recorded yet: every list empty, every figure absent rather than zero where the API says so. Record, Releases,
@@ -28,7 +29,7 @@ export function empty(seg: string[], body: unknown, q: URLSearchParams = new URL
     case 'initiatives': return nothingListed(body as InitiativeList);
     case 'home': return noHome(body as Home);
     case 'approvals': return noApprovals(body as Approvals);
-    case 'knowledge': return a === 'summary' ? noKnowledge(body as KnowledgeSummary) : a === 'log' ? list('entries')
+    case 'knowledge': return a === 'summary' ? noKnowledge(body as KnowledgeSummary) : a === 'log' ? logOf([])
       : { ...(body as KnowledgeList), rows: [], total: 0, summary: { byKind: {}, standing: 0, superseded: 0 } } satisfies KnowledgeList;
     case 'skills': return a ? { ...(body as object), surfaces: [], busiestTools: [] } : list('skills');
     case 'people': return noPeople(body as People);
@@ -256,8 +257,9 @@ export function extreme(seg: string[], body: unknown, own: string | null = null,
   switch (head) {
     case 'knowledge': {
       if (a === 'log') {
-        const entries = (body as { entries: KnowledgeLogEntry[] }).entries;
-        return { entries: grown(entries, 300, (_, i): KnowledgeLogEntry => ({ ts: new Date(now() - i * 3_600_000).toISOString(), actor: 'maximiliana.fitzgerald-oyelaran@example.com', team: own ?? 'atlas', kind: 'knowledge.add', node: String(1000 + i), recorded_title: `A lesson ${LONG.replace(/-/g, ' ')} number ${i}`, superseded_by: null, node_title: null, node_status: null, path: null })) };
+        // Past the gateway's ceiling, so the page lists the latest 500 and counts every entry.
+        const entries = (body as KnowledgeLog).entries;
+        return logOf(grown(entries, 620, (_, i): KnowledgeLogEntry => ({ ts: new Date(now() - i * 3_600_000).toISOString(), actor: 'maximiliana.fitzgerald-oyelaran@example.com', team: own ?? 'atlas', kind: 'knowledge.add', node: String(1000 + i), recorded_title: `A lesson ${LONG.replace(/-/g, ' ')} number ${i}`, superseded_by: null, node_title: null, node_status: null, path: null })));
       }
       if (a === 'summary') {
         const k = body as KnowledgeSummary;

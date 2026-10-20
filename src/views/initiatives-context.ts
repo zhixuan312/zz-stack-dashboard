@@ -12,7 +12,7 @@ import { grainOf, type Grain } from '@/lib/grain';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
 import type { Figure, Part, ReadMeta, Window } from '@/lib/platform-shapes';
 import type { InitiativeList, InitiativeRow } from '@/lib/work-shapes';
-import { addressOf, arrived, budgeted, clip, type Arrival } from './context';
+import { READ_BOUND_MS, addressOf, arrived, budgeted, clip, type Arrival } from './context';
 import { INITIATIVES_DEFAULTS, LIST_STATES, PAGE_SIZE, STATE_LABEL, narrowed, type InitiativesFilters, type InitiativesRows } from './initiatives-filter';
 
 type Summary = Extract<InitiativeList['summary'], { state: 'ok' }>['data'];
@@ -57,12 +57,9 @@ export type InitiativesRead =
   | { state: 'failed'; path: string; reason: string }
   | { state: 'slow'; path: string };
 
-/** How long the console's server waits for the list: half a second under five, for a phone to draw what it says. */
-export const INITIATIVES_BOUND_MS = 4_500;
-
 /** The sentence a read's trouble is told in, under the table's "The initiatives did not load" and to the assistant. */
 export function initiativesTrouble(read: Exclude<InitiativesRead, { state: 'ok' }>): string {
-  return read.state === 'slow' ? `The read did not answer within ${INITIATIVES_BOUND_MS / 1000} seconds.` : read.reason;
+  return read.state === 'slow' ? `The read did not answer within ${READ_BOUND_MS / 1000} seconds.` : read.reason;
 }
 
 /** The three tiles, as the page labels them and the assistant is told what each counts: the whole team's, never a filter's. */

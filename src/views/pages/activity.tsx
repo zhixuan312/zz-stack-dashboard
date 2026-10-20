@@ -191,7 +191,6 @@ export function ActivityView({ read }: { read: Revised<ActivityRead> }) {
     <ConsolePage
       title="Activity"
       description="Your team's real work by week, what was refused and why, and everything it recorded, newest first."
-      showPeriod={false}
       updatedAt={updatedAt}
       context={context}
     >

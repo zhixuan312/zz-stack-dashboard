@@ -18,10 +18,8 @@ import { formatCalendarDate, formatDate, formatDateTime, formatDay } from '@/lib
 import { formatCount } from '@/lib/format-units';
 import { contextText, listed, type Fact, type Insight, type SharedContext } from '@/lib/shared-context';
 import type { ApprovalEvidence, ApprovalRow, Approvals, WaitingRow } from '@/lib/work-shapes';
-import { CONTEXT_BUDGET, addressOf, arrived, budgeted, clip, type Arrival } from './context';
-
-/** How long the console's server waits for the read: half a second under five, for a phone to draw what it says. */
-export const APPROVALS_BOUND_MS = 4_500;
+import { waited } from '@/console/words';
+import { CONTEXT_BUDGET, READ_BOUND_MS, addressOf, arrived, budgeted, clip, type Arrival } from './context';
 
 /** The two lists, in the order the tabs name them; Waiting when none is named, as the route answers. */
 export const APPROVALS_TABS = ['waiting', 'history'] as const;
@@ -82,7 +80,7 @@ export type ApprovalsRead =
 
 /** The sentence a read's trouble is told in, under the table's "did not load" and to the assistant. */
 export function approvalsTrouble(read: Exclude<ApprovalsRead, { state: 'ok' }>): string {
-  return read.state === 'slow' ? `The read did not answer within ${APPROVALS_BOUND_MS / 1000} seconds.` : read.reason;
+  return read.state === 'slow' ? `The read did not answer within ${READ_BOUND_MS / 1000} seconds.` : read.reason;
 }
 
 /** The four tiles, as the page labels them and the assistant is told what each counts. */
@@ -121,15 +119,6 @@ const BASES = Object.keys(DECISION_BASIS) as ApprovalEvidence['decisionBasis'][]
 export const APPROVAL_IS_THE_PERSON_S = 'The assistant approves nothing: a person approves a revision with Approve on the document\'s own page.';
 /** What `Approved in your name` stands for, and what a presentation class does not. */
 const IN_YOUR_NAME_MEANS = 'Approved in your name: the record names you as the approval\'s signer, nothing more. A presentation is what was recorded as shown, not proof that anybody read the revision.';
-
-const HOUR = 3_600_000;
-/** How long a revision has waited at `asOf`: `5 hours`, `17 days`. */
-export function waited(since: string, asOf: string): string {
-  const hours = Math.max(0, (Date.parse(asOf) - Date.parse(since)) / HOUR);
-  if (hours < 48) return `${Math.floor(hours)} ${plural(Math.floor(hours), 'hour')}`;
-  const days = Math.floor(hours / 24);
-  return `${days} ${plural(days, 'day')}`;
-}
 
 /** Whether an approval was dated by its day alone: sealed before the events began, so no time is recorded. */
 export const dayOnly = (approvedAt: string): boolean => approvedAt.length === 10;

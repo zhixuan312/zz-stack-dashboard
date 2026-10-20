@@ -29,7 +29,7 @@ import { RecordView } from '@/views/pages/record';
 import { RECORD_DEFAULTS, recordContext, recordPath } from '@/views/record-context';
 import { ME, MEMBER } from '../scripts/fake-gateway/people.ts';
 import { homeOf, neutralFinding } from '../scripts/fake-gateway/work-home.ts';
-import { KNOWLEDGE_LOG, SHELF, knowledgeList, knowledgeSummary, lesson } from '../scripts/fake-gateway/work-knowledge.ts';
+import { KNOWLEDGE_LOG, SHELF, knowledgeList, knowledgeSummary, lesson, logOf } from '../scripts/fake-gateway/work-knowledge.ts';
 import { record } from '../scripts/fake-gateway/work-record.ts';
 
 /**
@@ -266,7 +266,7 @@ describe('The log shows which rows open their node', () => {
     const entries: KnowledgeLogEntry[] = [...KNOWLEDGE_LOG].sort((a, b) => b.ts.localeCompare(a.ts)).slice(0, 9)
       .concat([{ ts: AT, actor: 'noah.okafor@example.com', team: 'atlas', kind: 'knowledge.add', node: '0099', recorded_title: 'Gone since', superseded_by: null, node_title: null, node_status: null, path: null }]);
     window.history.replaceState(null, '', '/knowledge/log');
-    await act(async () => { mount(<KnowledgeLogView read={{ state: 'ok', data: { entries }, at: AT }} />); });
+    await act(async () => { mount(<KnowledgeLogView read={{ state: 'ok', data: logOf(entries), at: AT }} />); });
     const rows = within(screen.getByRole('table', { name: 'Knowledge log' })).getAllByRole('row').slice(1);
     for (const row of rows) {
       const gone = row.textContent?.includes('Gone since');

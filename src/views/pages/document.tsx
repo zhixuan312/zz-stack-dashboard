@@ -28,12 +28,11 @@ import { plural } from '@/lib/format';
 import { formatDay } from '@/lib/format-date';
 import { formatCount, formatKb } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
-import { pendingContext } from '@/views/context';
+import { READ_BOUND_MS, pendingContext } from '@/views/context';
 import { documentContext } from '@/views/document-context';
 import { sourceName } from '@/views/initiative-name';
 import type { DocumentRead } from '@/views/document-read';
 import { openedVersion, type OpenedVersion } from '@/views/document-version';
-import { INITIATIVES_BOUND_MS } from '@/views/initiatives-context';
 import { useServed } from '@/views/use-served';
 
 type Decision = DocumentDetail['decisions'][number];
@@ -201,7 +200,7 @@ function Colophon({ label, children }: { label: string; children: ReactNode }) {
  */
 function troubleOf(trouble: Trouble): { title: string; detail: string } {
   if (trouble.state === 'missing') return { title: 'This document does not exist', detail: trouble.reason };
-  return { title: 'This document did not load', detail: trouble.state === 'slow' ? `The read did not answer within ${INITIATIVES_BOUND_MS / 1000} seconds.` : trouble.reason };
+  return { title: 'This document did not load', detail: trouble.state === 'slow' ? `The read did not answer within ${READ_BOUND_MS / 1000} seconds.` : trouble.reason };
 }
 
 /**
@@ -301,7 +300,6 @@ export function DocumentView({ team, slug, rel, served, teamPage, version: asked
             : trouble ? null : <Skeleton className="h-5 w-40 rounded-full" />}
         </span>
       }
-      showPeriod={false}
       updatedAt={updatedAt}
       context={context}
       actions={d && !earlier && me.data && (offered || switchToApprove(d, me.data)) ? <ApproveAction doc={d} me={me.data} shown={shown} onStale={outdated} onReload={() => void reload()} /> : undefined}

@@ -45,7 +45,6 @@ vi.mock('next/navigation', () => ({
 
 import { openCommand } from '@/components/patterns/command-palette';
 import { SurfaceOverride, type Surface } from '@/components/base/surface';
-import { PeriodProvider } from '@/console/period';
 import { can, chromeAccess, may, resolveAccess } from '@/data/access';
 import { clock, collections } from '@/data/collections';
 import { FEATURES, FLEET, type FeatureId } from '@/data/features';
@@ -227,7 +226,7 @@ async function open(page: Page): Promise<SharedContext | null> {
   const mod = (await import(/* @vite-ignore */ path.join(DASH, page.file))) as { default: (props: object) => Promise<ReactNode> };
   const tree = await settled(await mod.default({ params: Promise.resolve(page.params), searchParams: Promise.resolve({}) }));
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const frame = createElement(QueryClientProvider, { client }, createElement(PeriodProvider, null, createElement(Suspense, { fallback: null }, tree)));
+  const frame = createElement(QueryClientProvider, { client }, createElement(Suspense, { fallback: null }, tree));
   const share = (_text: string, context?: object) => { if (context) shared.push(context as SharedContext); };
   await act(async () => { render(onSurface({ ask: () => {}, share }, frame)); });
   // The browser's reads, answered by the fake process over HTTP.

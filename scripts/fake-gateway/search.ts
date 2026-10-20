@@ -15,7 +15,7 @@
  */
 import type { SearchAnswer, SearchHit } from '../../src/lib/api-shapes.ts';
 import { ME } from './people.ts';
-import { INITIATIVES, documentDetail, initiativeDetail } from './work.ts';
+import { INITIATIVES, documentDetail, detailBody } from './work.ts';
 import { SHARED_TEAM, lesson, searchedShelf } from './work-knowledge.ts';
 
 type Candidate = Omit<SearchHit, 'excerpt' | 'score' | 'via'> & { text: string };
@@ -23,7 +23,7 @@ type Candidate = Omit<SearchHit, 'excerpt' | 'score' | 'via'> & { text: string }
 /** Every document and node of one team, and the shared shelf's lessons, with the text a search reads. */
 function corpus(team: string, initiative: string | null): Candidate[] {
   const documents = INITIATIVES.filter((i) => i.team === team && (!initiative || i.slug === initiative)).flatMap((i) =>
-    (initiativeDetail(i.team, i.slug)?.documents ?? []).flatMap((row): Candidate[] => {
+    (detailBody(i.team, i.slug)?.documents ?? []).flatMap((row): Candidate[] => {
       const d = documentDetail(i.team, i.slug, row.path);
       if (!d) return [];
       return [{

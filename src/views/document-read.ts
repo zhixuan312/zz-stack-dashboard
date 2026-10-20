@@ -3,7 +3,7 @@ import { GatewayError, answeredAt, gatewayGet } from '@/data/gateway';
 import type { DocumentDetail } from '@/lib/api-shapes';
 import type { Revisions } from '@/lib/live';
 import { encodePath } from '@/lib/store-path';
-import { INITIATIVES_BOUND_MS } from '@/views/initiatives-context';
+import { READ_BOUND_MS } from '@/views/context';
 
 /**
  * The document route's own read, on the console's server: the answer with the moment it answered, which the page's
@@ -18,14 +18,14 @@ export type DocumentRead =
   | { state: 'slow' };
 
 /**
- * `GET /document/:team/:slug/:path` as the person, given `INITIATIVES_BOUND_MS` as the initiative it belongs to is. It
+ * `GET /document/:team/:slug/:path` as the person, given `READ_BOUND_MS` as the initiative it belongs to is. It
  * never rejects but for a session that ended, which goes to sign-in and back to the document, so the page never waits
  * on it longer or falls to the error page. `rel` is the store path, carried segment by segment (`encodePath`), so a
  * name holding `#`, `?` or `%` is read, and returned to, as itself; the browser's later reads ask the same address.
  */
 export async function readDocument(team: string, slug: string, rel: string): Promise<DocumentRead> {
   let timer: ReturnType<typeof setTimeout> | undefined;
-  const bound = new Promise<DocumentRead>((resolve) => { timer = setTimeout(() => resolve({ state: 'slow' }), INITIATIVES_BOUND_MS); });
+  const bound = new Promise<DocumentRead>((resolve) => { timer = setTimeout(() => resolve({ state: 'slow' }), READ_BOUND_MS); });
   const named = `${team}/${slug}/${encodePath(rel)}`;
   const read = gatewayGet<DocumentDetail>(`/document/${named}`).then(
     (data): DocumentRead => ({ state: 'ok', data, at: new Date().toISOString(), revisions: answeredAt(data) }),

@@ -37,8 +37,8 @@ import type { Figure, Window } from '../../src/lib/platform-shapes.ts';
 import type { WorkQuery, WorkQueryRow } from '../../src/lib/work-shapes.ts';
 import { localDay, midnight, now, nextStart, startOf, weekdayHour } from './clock.ts';
 import { CATALOG_SKILLS } from './platform.ts';
-import { initiativeDetail } from './work.ts';
-import { activityLog } from './work-activity.ts';
+import { detailBody } from './work.ts';
+import { activityLog, NO_TEAM } from './work-activity.ts';
 import { callerApprovalRows } from './work-approvals.ts';
 import { ADDITIONS } from './work-home.ts';
 import { LAST_WEEK, WEEKS, filtered, iso, listParams, rowsOf, workMeta } from './work-initiatives.ts';
@@ -95,7 +95,7 @@ type Counted = WorkQuery['total'];
  * a team with no flow document writes all of it in its lessons. So each week's words add up to Home's and Record's.
  */
 function wordsOf(team: string): Fact[] {
-  const documents = rowsOf(team).flatMap((r) => (initiativeDetail(team, r.slug)?.documents ?? [])
+  const documents = rowsOf(team).flatMap((r) => (detailBody(team, r.slug)?.documents ?? [])
     .filter((d) => !d.path.startsWith('sources/')).map((d) => ({ initiative: r.slug, path: d.path })));
   const fact = (atMs: number, added: number, d: { initiative: string; path: string } | null): Fact => ({
     at: iso(atMs), value: added,
@@ -201,7 +201,6 @@ const FIRST = '0001-01-01';
 const BAD_WINDOW = 'from and to must be ISO 8601 instants or dates, YYYY-MM-DD, from before to';
 const MIXED_WINDOW = 'from and to are both dates or both instants, not one of each';
 const NOT_DRILLED = 'skill_calls is not drilled: its groups are its rows';
-const NO_TEAM = "no team: Work is the active team's, and you act for none";
 
 type Asked = {
   measure: Measure; by: string; compare: boolean; filters: { state: string | null; flow: string | null; q: string };
@@ -285,7 +284,7 @@ function labelOf(by: string, key: string, grain: 'week' | 'month' | 'quarter' | 
 export function workQuery(who: Me, q: URLSearchParams): Answer {
   const a = parse(q);
   if (typeof a === 'string') return [400, { error: a }];
-  if (who.activeTeam === null) return [400, { error: NO_TEAM }];
+  if (who.activeTeam === null) return NO_TEAM;
   const asOf = now();
   // A bound left out is the last whole week's, which a bound given may still pass.
   const toMs = a.to ?? Date.parse(WEEKS[LAST_WEEK].to);

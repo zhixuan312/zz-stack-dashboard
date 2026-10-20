@@ -42,7 +42,7 @@ import { searchTool } from '@/views/tools/search';
 import { ME } from '../scripts/fake-gateway/people.ts';
 import { search } from '../scripts/fake-gateway/search.ts';
 import { KNOWLEDGE } from '../scripts/fake-gateway/work.ts';
-import { KNOWLEDGE_LOG, knowledgeList, knowledgeSummary, lesson } from '../scripts/fake-gateway/work-knowledge.ts';
+import { KNOWLEDGE_LOG, knowledgeList, knowledgeSummary, lesson, logOf } from '../scripts/fake-gateway/work-knowledge.ts';
 
 const SUMMARY = knowledgeSummary(ME)[1] as KnowledgeSummary;
 const LIST = knowledgeList(ME, new URLSearchParams())[1] as KnowledgeList;
@@ -65,7 +65,7 @@ function gateway() {
     const body = path === '/me' ? ME
       : path === '/knowledge/summary' ? SUMMARY
         : path === '/knowledge' ? knowledgeList(ME, q)[1]
-          : path === '/knowledge/log' ? { entries: KNOWLEDGE_LOG }
+          : path === '/knowledge/log' ? logOf(KNOWLEDGE_LOG)
             : path === '/search' ? search(q.get('q') ?? '', Number(q.get('limit') ?? 5), q.get('initiative'))
               : path.startsWith('/knowledge/') ? lesson(path.split('/')[2], path.split('/').slice(3).join('/'))
                 : path === '/work/query' ? { groups: [{ key: 'decision', value: { value: 2, why: null } }], rest: null, total: { value: 2, why: null }, rows: null }

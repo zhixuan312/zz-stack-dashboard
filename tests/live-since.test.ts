@@ -26,7 +26,7 @@ vi.mock('@/data/access', async (importOriginal) => ({
   chromeAccess: async () => ({ only: ['/'], user: { name: 'Ava', role: 'Superadmin' }, team: 'atlas', caller: 'ava@example.com' }),
 }));
 
-import type { KnowledgeBody, KnowledgeLogEntry } from '@/lib/api-shapes';
+import type { KnowledgeBody, KnowledgeLog } from '@/lib/api-shapes';
 import type { KnowledgeSummary } from '@/lib/destination-shapes';
 import { ConsoleLive } from '@/views/console-live';
 import { AccessView } from '@/views/pages/access';
@@ -120,7 +120,7 @@ const at = (n: number) => `${BOOT}:${n}`;
 /** Every page read on the console's server that follows a collection: its read, its view, and what it follows. */
 const PAGES: [string, () => Promise<ReactElement>, string[]][] = [
   ['Knowledge', async () => h(KnowledgeView, { read: await readFirst<KnowledgeSummary>('/knowledge/summary') }), ['knowledge']],
-  ['the knowledge log', async () => h(KnowledgeLogView, { read: await readFirst<{ entries: KnowledgeLogEntry[] }>('/knowledge/log') }), ['knowledge']],
+  ['the knowledge log', async () => h(KnowledgeLogView, { read: await readFirst<KnowledgeLog>('/knowledge/log') }), ['knowledge']],
   ['a lesson', async () => h(KnowledgeNodeView, { read: await readFirst<KnowledgeBody>('/knowledge/atlas/decisions/search.md'), team: 'atlas', rel: 'decisions/search.md' }), ['knowledge']],
   ['a document', async () => h(DocumentView, { team: 'atlas', slug: 's', rel: 'spec.md', served: await readDocument('atlas', 's', 'spec.md'), teamPage: false }), ['document']],
   ['Access', async () => h(AccessView, { served: await readAccess() }), ['settings']],

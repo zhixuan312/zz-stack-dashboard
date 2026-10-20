@@ -11,8 +11,9 @@ import { plural } from '@/lib/format';
 import { formatDate, formatDateTime, formatDay } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
+import { READ_BOUND_MS } from './context';
 import { rostered } from './platform-roster';
-import { TEAMS_BOUND_MS, weekCount } from './teams-context';
+import { weekCount } from './teams-context';
 
 /** The team page's own read: the answer, no team by that slug, a failure, or no answer in time. */
 export type TeamRead =
@@ -38,7 +39,7 @@ export const TEAM_TILES = {
 export function teamTrouble(slug: string, read: Exclude<TeamRead, { state: 'ok' }>): { title: string; detail: string } {
   if (read.state === 'missing') return { title: `No team called ${slug}`, detail: 'A team slug is the name a superadmin gave it; Teams lists every one that exists.' };
   return read.state === 'slow'
-    ? { title: 'The team is unavailable', detail: `The read did not answer within ${TEAMS_BOUND_MS / 1000} seconds.` }
+    ? { title: 'The team is unavailable', detail: `The read did not answer within ${READ_BOUND_MS / 1000} seconds.` }
     : { title: 'The team did not load', detail: read.reason };
 }
 
@@ -64,7 +65,7 @@ export function teamContext(slug: string, { team }: { team: TeamDetail }): Share
   // The latest weeks, as the chart ends on them: at most twelve, oldest of them first.
   const recent = complete.slice(-WEEKS_TOLD);
   if (recent.length && !unavailable) {
-    insights.push({ text: `Real-work calls in the last ${recent.length} complete ${plural(recent.length, 'week')}, oldest first: ${recent.map((w) => `week of ${formatDay(w.window.from)} ${weekCount(w)}`).join('; ')}${running ? `; the week of ${formatDay(running.window.from)} is still running, ${weekCount(running)} so far` : ''}.` });
+    insights.push({ text: `Real-work calls in the last ${recent.length} complete ${plural(recent.length, 'week')}, oldest first: ${recent.map((w) => `week of ${formatDay(w.window.from)} ${weekCount(w).toLowerCase()}`).join('; ')}${running ? `; the week of ${formatDay(running.window.from)} is still running, ${weekCount(running).toLowerCase()} so far` : ''}.` });
   }
   const roster = (n: number) => listed(team.members, (m) => `${m.name || m.email} (${m.role}, joined ${formatDate(m.joined)})`, `see /platform/teams/${slug}`, n);
   const members = (n: number): Insight[] => (team.members.length ? [{ text: `Its members, admins first: ${roster(n)}.` }] : []);

@@ -47,7 +47,7 @@
  */
 import { NULL_STANDIN, SLOW_MS } from './fake-gateway/states-partial.ts';
 import { TEAMS } from './fake-gateway/platform-teams.ts';
-import { INITIATIVES, initiativeDetail } from './fake-gateway/work.ts';
+import { INITIATIVES, detailBody } from './fake-gateway/work.ts';
 import type { Page } from './lib/chrome.ts';
 import config, { DETAIL } from './verify.config.ts';
 
@@ -72,12 +72,12 @@ export const targets: Target[] = [
 
 /** The fake's second team, which the member is in no way of: its slug, its name, its initiatives and its documents' own titles. */
 const OTHER = 'beacon';
-const ownTitles = new Set(INITIATIVES.filter((i) => i.team !== OTHER).flatMap((i) => initiativeDetail(i.team, i.slug)?.documents.map((d) => d.title) ?? []));
+const ownTitles = new Set(INITIATIVES.filter((i) => i.team !== OTHER).flatMap((i) => detailBody(i.team, i.slug)?.documents.map((d) => d.title) ?? []));
 const theirs = INITIATIVES.filter((i) => i.team === OTHER);
 const LEAKS = [
   TEAMS.find((t) => t.slug === OTHER)!.name,
   ...theirs.map((i) => i.slug),
-  ...theirs.flatMap((i) => initiativeDetail(i.team, i.slug)?.documents.map((d) => d.title) ?? []).filter((t): t is string => !!t && !ownTitles.has(t)),
+  ...theirs.flatMap((i) => detailBody(i.team, i.slug)?.documents.map((d) => d.title) ?? []).filter((t): t is string => !!t && !ownTitles.has(t)),
 ];
 
 /**

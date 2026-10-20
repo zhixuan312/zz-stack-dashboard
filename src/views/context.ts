@@ -1,6 +1,6 @@
 /**
  * What every view's shared context is built with (decision 0011): the scope's words, the address with its query, how
- * fresh the read is, and the context of a view whose data has not arrived.
+ * fresh the read is, how long a read may take, and the context of a view whose data has not arrived.
  *
  * Plain functions over plain data, with no hook and nothing a browser or a server lacks: a page calls its view's
  * context function from the browser and the view's tool calls the same one on the server (`src/views/tools.ts`), so
@@ -13,6 +13,16 @@ type ViewMode = 'platform' | 'team';
 
 /** When a view's data arrived, and the clock that is measured against: the data's, never the browser's at render. */
 export type Arrival = { updatedAt: Date | string | null; now: Date | string };
+
+/**
+ * How long any read of the console's may go unanswered, from the moment it is sent, before its page says so: half a
+ * second under the spec's five, which is what the phone profile takes to draw that state, so a person sees it within
+ * five seconds of the read (spec AC-8.7; measured 111 to 255 ms on 2026-10-14). One bound for every read: each page's
+ * first read on the console's server, the browser's later reads (`src/lib/api.ts`) and the identity read
+ * (`src/data/gateway.ts`) all take it from here, so none drifts from the others. COUPLED: `scripts/primary-data.ts`
+ * holds the screen to five seconds with no allowance.
+ */
+export const READ_BOUND_MS = 4_500;
 
 /** The console's own threshold for a stale page, the one its freshness stamp turns at. */
 const STALE_AFTER_MS = 10 * 60_000;
@@ -85,6 +95,3 @@ export function sectioned(context: SharedContext, sections: Section[]): SharedCo
   for (const s of sections) if (s.insight && contextText(fit([...told, s])).length <= CONTEXT_BUDGET) told.push(s);
   return budgeted(fit(told));
 }
-
-/** A share as a whole percent of a total, or nothing when there is no total. */
-export const shareOf = (part: number, total: number): string => (total ? `${Math.round((part / total) * 100)}%` : '0%');

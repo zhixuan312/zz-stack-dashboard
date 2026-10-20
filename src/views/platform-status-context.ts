@@ -15,13 +15,9 @@ import { plural } from '@/lib/format';
 import { formatCount } from '@/lib/format-units';
 import { formatCalendarDate, formatDateTime, formatDay, formatShortDate } from '@/lib/format-date';
 import type { Fact, Insight, SharedContext } from '@/lib/shared-context';
-import { budgeted, pendingContext } from './context';
+import { READ_BOUND_MS, budgeted, pendingContext } from './context';
 
-/** How long the page waits for the status read before it says the read is unavailable: half a second under five, for a
- *  phone to draw what it says, the bound the browser's own reads keep (`src/lib/api.ts`). */
-export const STATUS_BOUND_MS = 4_500;
-
-/** What the page's one read came back as: the whole response, a read that failed, or one that did not answer within `STATUS_BOUND_MS`. */
+/** What the page's one read came back as: the whole response, a read that failed, or one that did not answer within `READ_BOUND_MS`. */
 export type StatusRead = { state: 'ok'; status: PlatformStatus } | { state: 'failed' } | { state: 'slow' };
 
 /** The status read as the page and the assistant hold it. */
@@ -315,7 +311,7 @@ export const asOfLine = (meta: PlatformStatus['meta']): string => `As of ${forma
 
 /** What a read that brought nothing is called on the page, and the one sentence under it. */
 export function troubleOf(state: Exclude<StatusRead['state'], 'ok'>): { title: string; detail: string } {
-  if (state === 'slow') return { title: "The platform's status is unavailable", detail: `It did not answer within ${STATUS_BOUND_MS / 1000} seconds. Nothing on this page was read.` };
+  if (state === 'slow') return { title: "The platform's status is unavailable", detail: `It did not answer within ${READ_BOUND_MS / 1000} seconds. Nothing on this page was read.` };
   return { title: "The platform's status did not load", detail: 'The platform did not answer the read. Nothing on this page was read.' };
 }
 

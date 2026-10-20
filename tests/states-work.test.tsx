@@ -10,7 +10,7 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push() {}, replace() {}, refresh() {}, back() {}, forward() {}, prefetch() {} }),
 }));
 
-import type { DocumentDetail, InitiativeDetail, KnowledgeBody, KnowledgeLogEntry } from '@/lib/api-shapes';
+import type { DocumentDetail, InitiativeDetail, KnowledgeBody, KnowledgeLog } from '@/lib/api-shapes';
 import type { KnowledgeSummary } from '@/lib/destination-shapes';
 import type { InitiativeRead } from '@/views/initiative-context';
 import type { ServerRead } from '@/views/knowledge-context';
@@ -117,7 +117,7 @@ describe('Knowledge', () => {
 
 describe('the knowledge log', () => {
   it('empty: says nothing was recorded, not that it did not load', async () => {
-    await act(async () => { mount(<KnowledgeLogView read={await served<{ entries: KnowledgeLogEntry[] }>('empty', '/knowledge/log')} />); });
+    await act(async () => { mount(<KnowledgeLogView read={await served<KnowledgeLog>('empty', '/knowledge/log')} />); });
     await settled();
     expect(text()).toMatch(/No (lesson|entr|change)|Nothing/);
     expect(screen.queryByRole('alert')).toBeNull();

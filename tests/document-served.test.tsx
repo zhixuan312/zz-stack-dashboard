@@ -15,11 +15,10 @@ const gateway = vi.hoisted(() => ({ get: vi.fn() }));
 vi.mock('@/data/gateway', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/data/gateway')>()), gatewayGet: gateway.get }));
 vi.mock('@/data/access', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/data/access')>()), gate: async () => null, may: async () => false }));
 
-import { PeriodProvider } from '@/console/period';
 import { GatewayError } from '@/data/gateway';
 import type { DocumentDetail, Me } from '@/lib/api-shapes';
+import { READ_BOUND_MS } from '@/views/context';
 import type { DocumentRead } from '@/views/document-read';
-import { INITIATIVES_BOUND_MS } from '@/views/initiatives-context';
 import { DocumentView } from '@/views/pages/document';
 import { documentDetail } from '../scripts/fake-gateway/work.ts';
 import { DETAIL } from '../scripts/verify.config.ts';
@@ -62,7 +61,7 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 const tree = (client: QueryClient, ui: ReactNode) => (
-  <QueryClientProvider client={client}><PeriodProvider><Tooltip.Provider>{ui}</Tooltip.Provider></PeriodProvider></QueryClientProvider>
+  <QueryClientProvider client={client}><Tooltip.Provider>{ui}</Tooltip.Provider></QueryClientProvider>
 );
 const client = () => new QueryClient({ defaultOptions: { queries: { retry: false } } });
 const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 50)); });
@@ -170,11 +169,11 @@ describe('each state the server\'s read ends in, drawn alone', () => {
     vi.useFakeTimers();
     gateway.get.mockReturnValue(new Promise(() => {}));
     const pending = DocumentPage({ params: params(), searchParams: Promise.resolve({}) });
-    await vi.advanceTimersByTimeAsync(INITIATIVES_BOUND_MS);
+    await vi.advanceTimersByTimeAsync(READ_BOUND_MS);
     const page = await pending;
     vi.useRealTimers();
     await act(async () => { render(tree(client(), page)); });
-    expect(screen.getByRole('alert')).toHaveTextContent(`The read did not answer within ${INITIATIVES_BOUND_MS / 1000} seconds.`);
+    expect(screen.getByRole('alert')).toHaveTextContent(`The read did not answer within ${READ_BOUND_MS / 1000} seconds.`);
     expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
     alone(document.body);
   });

@@ -67,9 +67,9 @@ export function ScoreCell({ of }: { of: PluginScore | null }) {
   );
 }
 
-/** The list's score as a phone card's fact: one line, the figure first. */
 /** The scale every plugin score reads on: the overall is 10 × the weighted sum of shares in [0, 1]. */
 export const SCORE_OUT_OF = 10;
 
+/** The list's score as a phone card's fact: one line, the figure first. */
 export const scoreFact = (of: PluginScore | null): string => (!of ? 'Never scored'
   : `${of.standing === 'not_established' ? 'Not established' : `${of.value.toFixed(1)} / ${SCORE_OUT_OF}`}, ${protocolSaid(of)}, ${formatDate(of.scoredAt)}`);

@@ -8,10 +8,13 @@ import type { InitiativeRow } from '@/lib/work-shapes';
 /** The states the route filters by, in the order a filter lists them. */
 export const LIST_STATES = ['open', 'waiting', 'quiet', 'accepted', 'delivered', 'abandoned'] as const satisfies readonly InitiativeRow['state'][];
 
-/** How each state reads on screen. */
+/** How each state reads on screen, on the list and on the initiative's own page alike. */
 export const STATE_LABEL: Record<InitiativeRow['state'], string> = {
   open: 'Open', waiting: 'Waiting', quiet: 'Quiet', accepted: 'Accepted', delivered: 'Delivered', abandoned: 'Abandoned',
 };
+
+/** What the state words mean, where a reader is told. */
+export const STATE_DEFINITION = 'Waiting: a revision of it waits for a person\'s approval. Quiet: open, and nothing of it written for 14 days or more. Open otherwise. Closed, it is its outcome.';
 
 /** The rows one page of the list holds, as the Records template pages. */
 export const PAGE_SIZE = 10;

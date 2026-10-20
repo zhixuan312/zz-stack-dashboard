@@ -32,7 +32,8 @@ import { GatewayError } from '@/data/gateway';
 import type { Me } from '@/lib/api-shapes';
 import type { Approvals, Home } from '@/lib/work-shapes';
 import { ConsoleLive } from '@/views/console-live';
-import { HOME_BOUND_MS, type HomeRead } from '@/views/home-context';
+import { READ_BOUND_MS } from '@/views/context';
+import type { HomeRead } from '@/views/home-context';
 import { HomeView } from '@/views/pages/home';
 import { formatDay } from '@/lib/format-date';
 import HomeLoading from '../app/(dash)/(home)/loading';
@@ -151,7 +152,7 @@ describe('the read on the server', () => {
     vi.useFakeTimers();
     gateway.get.mockReturnValue(new Promise(() => {}));
     const pending = readHome();
-    await vi.advanceTimersByTimeAsync(HOME_BOUND_MS);
+    await vi.advanceTimersByTimeAsync(READ_BOUND_MS);
     expect(await pending).toEqual({ state: 'slow' });
   });
 
@@ -377,7 +378,7 @@ describe('a read that did not answer', () => {
   it('says a slow read is unavailable after its bound, never an endless skeleton', () => {
     draw({ state: 'slow' });
     expect(screen.getByText('Home is unavailable')).toBeInTheDocument();
-    expect(screen.getByText(`The platform did not answer within ${HOME_BOUND_MS / 1000} seconds. Nothing on this page was read.`)).toBeInTheDocument();
+    expect(screen.getByText(`The platform did not answer within ${READ_BOUND_MS / 1000} seconds. Nothing on this page was read.`)).toBeInTheDocument();
     expect(document.querySelector('[aria-busy="true"]')).toBeNull();
   });
 });

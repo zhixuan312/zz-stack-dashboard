@@ -10,7 +10,6 @@ import { SurfaceOverride, type Surface } from '@/components/base/surface';
 import { AskAbout } from '@/components/patterns/ask-about';
 import { FormSection } from '@/components/patterns/form-section';
 import { Panel } from '@/console/panel';
-import { PeriodProvider } from '@/console/period';
 import { FEATURES, type FeatureId } from '@/data/features';
 import { viewAt, type SharedContext } from '@/lib/shared-context';
 import { viewTools } from '@/views/tools';
@@ -120,7 +119,7 @@ async function open(page: Page, ask?: (question: string) => void): Promise<Share
   const mod = (await import(/* @vite-ignore */ path.join(DASH, page.file))) as { default: (props: object) => Promise<ReactNode> };
   const tree = await settled(await mod.default({ params: Promise.resolve(page.params), searchParams: Promise.resolve({}) }));
   // The console's providers a page stands in, as `src/console/providers.tsx` and Meridian's `Providers` mount them.
-  const frame = createElement(PeriodProvider, null, createElement(Suspense, { fallback: null }, tree));
+  const frame = createElement(Suspense, { fallback: null }, tree);
   // Inside an awaited `act`: a detail page suspends on its params until they resolve.
   await act(async () => { render(onSurface(ask ? { ask, share } : { share }, frame)); });
   await waitFor(() => expect(shared.at(-1)?.facts.length ?? 0, `${page.route} shared no context with data`).toBeGreaterThan(0), { timeout: 10_000 });

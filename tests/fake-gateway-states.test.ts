@@ -2,7 +2,7 @@
 import type { ChildProcess } from 'node:child_process';
 import { startFakeGateway } from './fake-gateway-start.ts';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import type { DocumentDetail, InitiativeDetail, KnowledgeBody, PluginEval } from '../src/lib/api-shapes.ts';
+import type { DocumentDetail, InitiativeDetail, KnowledgeBody, KnowledgeLog, KnowledgeLogEntry, PluginEval } from '../src/lib/api-shapes.ts';
 import type { ActivityLog, ActivitySummary, KnowledgeList, KnowledgeSummary, Runs } from '../src/lib/destination-shapes.ts';
 import type { Audit, KnowledgeHealth, People, TeamDetail, Teams, Usage } from '../src/lib/fleet-shapes.ts';
 import type { Bugs, Evaluation, PlatformStatus, Releases, Window } from '../src/lib/platform-shapes.ts';
@@ -19,7 +19,7 @@ import { activityLog, activitySummary } from '../scripts/fake-gateway/work-activ
 import { approvals } from '../scripts/fake-gateway/work-approvals.ts';
 import { homeOf } from '../scripts/fake-gateway/work-home.ts';
 import { initiativeList } from '../scripts/fake-gateway/work-initiatives.ts';
-import { knowledgeList, knowledgeSummary } from '../scripts/fake-gateway/work-knowledge.ts';
+import { knowledgeList, knowledgeSummary, logOf } from '../scripts/fake-gateway/work-knowledge.ts';
 import { plugins } from '../scripts/fake-gateway/work-plugins.ts';
 import { runs } from '../scripts/fake-gateway/work-runs.ts';
 import config from '../scripts/verify.config.ts';
@@ -94,7 +94,7 @@ describe('the fixture can shape every answer its routes produce', () => {
       [['initiatives'], NONE()],
       [['knowledge'], SHELF()],
       [['knowledge', 'summary'], LEARNED()],
-      [['knowledge', 'log'], { entries: [] }],
+      [['knowledge', 'log'], logOf([])],
       [['activity'], LOG()],
       [['activity', 'summary'], SUMMARY()],
       [['runs'], RUNS()],
@@ -211,7 +211,7 @@ describe('People in the other worlds', () => {
 });
 
 describe('a busy platform is still one team to a member', () => {
-  const entry = { ts: '2026-10-05T00:00:00Z', actor: 'a@example.com', team: 'beacon', kind: 'knowledge.add', node: '0001', recorded_title: 't', superseded_by: null, node_title: 't', node_status: 'adopted' };
+  const entry: KnowledgeLogEntry = { ts: '2026-10-05T00:00:00Z', actor: 'a@example.com', team: 'beacon', kind: 'knowledge.add', node: '0001', recorded_title: 't', superseded_by: null, node_title: 't', node_status: 'adopted', path: null };
 
   it('grows no team beside their own', () => {
     // The gateway refuses a member Teams, so this answer is never theirs; held to a team, it is left as it is.
@@ -222,9 +222,11 @@ describe('a busy platform is still one team to a member', () => {
     // The gateway refuses a member People, so this answer is never theirs; held to a team, it is left as it is.
     expect(extreme(['people'], PEOPLE_LIST(), 'atlas')).toEqual(PEOPLE_LIST());
 
-    const log = (extreme(['knowledge', 'log'], { entries: [entry] }, 'beacon') as { entries: { team: string }[] }).entries;
-    expect(log.length).toBeGreaterThan(100);
-    for (const e of log) expect(e.team).toBe('beacon');
+    const log = extreme(['knowledge', 'log'], logOf([entry]), 'beacon') as KnowledgeLog;
+    // Past the gateway's ceiling: the latest 500 answered, every entry counted.
+    expect(log.entries).toHaveLength(log.ceiling);
+    expect(log.totals.entries).toBeGreaterThan(log.ceiling);
+    for (const e of log.entries) expect(e.team).toBe('beacon');
   });
 });
 

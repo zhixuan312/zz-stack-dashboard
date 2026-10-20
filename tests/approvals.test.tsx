@@ -29,11 +29,13 @@ vi.mock('@/data/access', async (importOriginal) => ({
 
 import { refusal } from '@/app.config';
 import { GatewayError } from '@/data/gateway';
+import { waited } from '@/console/words';
 import type { Me } from '@/lib/api-shapes';
 import type { ApprovalRow, Approvals, WaitingRow } from '@/lib/work-shapes';
 import {
-  APPROVALS_BOUND_MS, APPROVALS_DEFAULTS, DECISION_BASIS, PRESENTATION, approvalsPath, approvedWhen, filtersOfPath, noPresentationLine, waited, type ApprovalsRead,
+  APPROVALS_DEFAULTS, DECISION_BASIS, PRESENTATION, approvalsPath, approvedWhen, filtersOfPath, noPresentationLine, type ApprovalsRead,
 } from '@/views/approvals-context';
+import { READ_BOUND_MS } from '@/views/context';
 import { ApprovalsView } from '@/views/pages/approvals';
 import ApprovalsLoading from '../app/(dash)/approvals/loading';
 import ApprovalsPage, { generateMetadata } from '../app/(dash)/approvals/page';
@@ -133,7 +135,7 @@ describe('the page', () => {
     vi.useFakeTimers();
     gateway.get.mockReturnValue(new Promise(() => {}));
     const read = readApprovals(APPROVALS_DEFAULTS);
-    await vi.advanceTimersByTimeAsync(APPROVALS_BOUND_MS);
+    await vi.advanceTimersByTimeAsync(READ_BOUND_MS);
     await expect(read).resolves.toEqual({ state: 'slow', path: WAITING_PATH });
   });
 
@@ -356,7 +358,7 @@ describe('every state draws', () => {
   it('slow: the bounded error, saying how long the platform was given', () => {
     browser(null);
     mount({ state: 'slow', path: WAITING_PATH });
-    expect(text()).toContain(`The read did not answer within ${APPROVALS_BOUND_MS / 1000} seconds.`);
+    expect(text()).toContain(`The read did not answer within ${READ_BOUND_MS / 1000} seconds.`);
     expect(document.querySelector('table[aria-busy="true"]')).toBeNull();
   });
 

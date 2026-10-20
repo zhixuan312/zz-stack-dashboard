@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { refusal } from '../src/app.config.ts';
 import { PLATFORM_STATUS } from './fake-gateway/platform-status.ts';
-import { documentDetail, initiativeDetail } from './fake-gateway/work.ts';
+import { documentDetail, detailBody } from './fake-gateway/work.ts';
 
 /** The figure `/platform` draws from the fake gateway's last whole week, as the page writes it: one decimal place. */
 const STATUS_FIGURE = PLATFORM_STATUS.measures.find((m) => m.key === 'malformed_per_1000')!.last!.figure.value!.toFixed(1);
@@ -17,7 +17,7 @@ const STATUS_FIGURE = PLATFORM_STATUS.measures.find((m) => m.key === 'malformed_
  * stakeholder, neither of whom is in atlas.
  */
 const OTHER_TEAMS = {
-  '/initiatives/beacon/2026-09-22-payout-schedule': initiativeDetail('beacon', '2026-09-22-payout-schedule')!.documents.find((d) => d.approved_by)!.approved_by!,
+  '/initiatives/beacon/2026-09-22-payout-schedule': detailBody('beacon', '2026-09-22-payout-schedule')!.documents.find((d) => d.approved_by)!.approved_by!,
   '/initiatives/beacon/2026-09-22-payout-schedule/review.md': documentDetail('beacon', '2026-09-22-payout-schedule', 'review.md')!.stakeholder!,
 };
 

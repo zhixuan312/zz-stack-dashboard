@@ -23,7 +23,7 @@ import { formatCount } from '@/lib/format-units';
 import { listed, type Fact, type Insight, type SharedContext } from '@/lib/shared-context';
 import { app } from '@/app.config';
 import { OWNER_LABEL } from './activity-context';
-import { addressOf } from './context';
+import { READ_BOUND_MS, addressOf } from './context';
 import { rostered } from './platform-roster';
 import { bugPath } from './platform-bugs-context';
 
@@ -131,14 +131,11 @@ export function filtersOfPath(path: string): AuditFilters {
 
 /* The read */
 
-/** How long the console's server waits for the Audit read: half a second under five, for a phone to draw what it says. */
-export const AUDIT_BOUND_MS = 4_500;
-
-/** The read, as the console's server or the browser made it: the answer, a failure, or no answer in time. */
 /** The titles of the reports a page's acts name, by id, as the caller may read them: a report no read answered is absent. */
 export type ReportTitles = Record<string, string>;
 
-/** `reports` is what the page's server read of the titles; a read made without them draws each report by its id. */
+/** The read, as the console's server or the browser made it: the answer, a failure, or no answer in time. `reports` is
+ *  what the page's server read of the titles; a read made without them draws each report by its id. */
 export type AuditRead =
   | { state: 'ok'; path: string; data: Audit; reports?: ReportTitles }
   | { state: 'failed'; path: string; reason: string }
@@ -146,7 +143,7 @@ export type AuditRead =
 
 /** The sentence a read's trouble is told in, on the page and to the assistant. */
 export function auditTrouble(read: { state: 'failed'; reason: string } | { state: 'slow' }): string {
-  return read.state === 'slow' ? `The read did not answer within ${AUDIT_BOUND_MS / 1000} seconds.` : read.reason;
+  return read.state === 'slow' ? `The read did not answer within ${READ_BOUND_MS / 1000} seconds.` : read.reason;
 }
 
 /* The words */

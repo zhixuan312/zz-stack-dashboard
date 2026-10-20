@@ -14,10 +14,8 @@ import { formatDateTime, formatDay } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import type { Figure, PeriodFigure, Window } from '@/lib/platform-shapes';
 import { listed, type Fact, type SharedContext } from '@/lib/shared-context';
-import { clip, pendingContext, sectioned, type Section } from './context';
-
-/** How long the console's server waits for the read: half a second under five, for a phone to draw what it says. */
-export const KNOWLEDGE_HEALTH_BOUND_MS = 4_500;
+import { READ_BOUND_MS, clip, pendingContext, sectioned, type Section } from './context';
+import { changeOf, lastWhole, pointsIn, pointsOf } from './week-change';
 
 /** What the page's one read came back as: the whole response, the gateway's sentence, or no answer within the bound. */
 export type KnowledgeHealthRead = { state: 'ok'; health: KnowledgeHealth } | { state: 'failed'; reason: string } | { state: 'slow' };
@@ -31,7 +29,7 @@ export type Question = Ok<NonNullable<KnowledgeHealth['questions']>>['rows'][num
 
 /** Why the read is not on the page, in words. */
 export function knowledgeHealthTrouble(read: Exclude<KnowledgeHealthRead, { state: 'ok' }>): { title: string; detail: string } {
-  if (read.state === 'slow') return { title: 'Knowledge health is unavailable', detail: `The read did not answer within ${KNOWLEDGE_HEALTH_BOUND_MS / 1000} seconds. Nothing on this page was read.` };
+  if (read.state === 'slow') return { title: 'Knowledge health is unavailable', detail: `The read did not answer within ${READ_BOUND_MS / 1000} seconds. Nothing on this page was read.` };
   return { title: 'Knowledge health did not load', detail: `${read.reason.replace(/\.?$/, '.')} Nothing on this page was read.` };
 }
 
@@ -82,21 +80,6 @@ export const WEEKLY_TILES: WeeklyTile[] = ['madeLastWeek', 'searches', 'noResult
 
 type Pair = { last: PeriodFigure; previous: PeriodFigure };
 
-/** A week's change on the week before, as a fraction, or null when either has no figure that stands beside the other. */
-export function changeOf({ last, previous }: Pair): number | null {
-  const [a, b] = [last.figure, previous.figure];
-  return a.value === null || b.value === null || b.value === 0 || a.why || b.why ? null : (a.value - b.value) / b.value;
-}
-
-/** A share's change on the week before in points, the difference of the two shares, as Status gives one; null where
- *  `changeOf` is. A share's change is never a percentage of itself, which a reader takes for points. */
-export function pointsOf({ last, previous }: Pair): number | null {
-  const [a, b] = [last.figure, previous.figure];
-  return a.value === null || b.value === null || a.why || b.why ? null : a.value - b.value;
-}
-/** A change in points, its direction left to the arrow or the word before it: `5.0 pts`. */
-export const pointsIn = (n: number): string => `${ONE.format(Math.abs(n))} pts`;
-
 /** A tile's change as the context says it, beside the tile's own: a share's in points, a count's as a percentage. */
 function changeSaid(kind: Kind, t: Pair): string {
   const before = `vs the ${weekOf(t.previous.window)} (${figureText(kind, t.previous.figure)})`;
@@ -112,12 +95,6 @@ export function shelfName(r: ShelfRow, fleet: boolean): string {
   if (r.kind === 'all') return 'All shelves';
   if (!fleet) return r.kind === 'own' ? 'Your team\'s shelf' : 'The shared shelf';
   return r.kind === 'own' ? `${r.shelf} (your team)` : r.kind === 'shared' ? `${r.shelf} (shared)` : r.shelf;
-}
-
-/** The last whole week a series holds, by its index: the week the cards are about. */
-export function lastWhole<T extends { window: Window }>(weeks: T[]): number {
-  for (let i = weeks.length - 1; i >= 0; i--) if (weeks[i].window.complete) return i;
-  return -1;
 }
 
 /** The week from which an import is told exactly, by the lesson its event names, and what is told before it. */

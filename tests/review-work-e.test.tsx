@@ -11,7 +11,6 @@ vi.mock('next/navigation', () => ({
 }));
 
 import { app, workspaces } from '@/app.config';
-import { PeriodProvider } from '@/console/period';
 import type { DocumentDetail } from '@/lib/api-shapes';
 import type { Approvals, InitiativeList } from '@/lib/work-shapes';
 import { APPROVALS_DEFAULTS, approvalsPath } from '@/views/approvals-context';
@@ -27,8 +26,8 @@ import { InitiativeLead, InitiativeMeta, InitiativeTitle, InitiativeView } from 
 import { InitiativesView } from '@/views/pages/initiatives';
 import { ME, MEMBER } from '../scripts/fake-gateway/people.ts';
 import { approvals } from '../scripts/fake-gateway/work-approvals.ts';
-import { initiativeList } from '../scripts/fake-gateway/work-initiatives.ts';
-import { documentDetail, initiativeDetail } from '../scripts/fake-gateway/work.ts';
+import { initiativeDetail, initiativeList } from '../scripts/fake-gateway/work-initiatives.ts';
+import { documentDetail } from '../scripts/fake-gateway/work.ts';
 
 /**
  * Phase 7, I-159: the re-review's findings on Initiatives, an initiative, a document and Approvals (Work F-42 to F-45
@@ -51,7 +50,7 @@ afterEach(() => { vi.unstubAllGlobals(); window.history.replaceState(null, '', '
 
 function mount(ui: ReactElement) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={client}><PeriodProvider><Tooltip.Provider>{ui}</Tooltip.Provider></PeriodProvider></QueryClientProvider>);
+  return render(<QueryClientProvider client={client}><Tooltip.Provider>{ui}</Tooltip.Provider></QueryClientProvider>);
 }
 
 /** The table captioned `caption`, and the cells of its column headed `header`. */
@@ -120,9 +119,9 @@ describe('F-43 · An initiative', () => {
     expect(initiativeName([{ path: 'notes.md', title: 'Reading list' }, { path: 'sources/a.md', title: 'Paper: one' }])).toBeNull();
   });
 
-  it('offers Review beside "Waiting on you", opening the document the person is waited on for', () => {
+  it('offers Review beside "Waiting", opening the document the person is waited on for', () => {
     mount(<InitiativeMeta team="atlas" slug={SLUG} served={served(SLUG)} />);
-    expect(screen.getByText('Waiting on you')).toBeTruthy();
+    expect(screen.getByText('Waiting').closest('[title]')).toHaveAttribute('title', 'Waiting on: approve plan');
     expect(screen.getByRole('link', { name: 'Review plan.md' })).toHaveAttribute('href', `/initiatives/atlas/${SLUG}/plan.md`);
   });
 

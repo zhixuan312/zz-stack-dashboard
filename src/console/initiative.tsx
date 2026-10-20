@@ -1,13 +1,17 @@
 import { Badge } from '@/components/ui/badge';
-import { initiativeState, ownGates, type StateOf } from '@/console/initiative-state';
+import type { InitiativeRow } from '@/lib/work-shapes';
+import { STATE_LABEL } from '@/views/initiatives-filter';
 
-export function StateBadge({ of }: { of: StateOf }) {
-  const state = initiativeState(of);
-  if (state === 'Waiting on you') {
-    const open = ownGates(of).filter((g) => g.written && !g.passed);
-    return <Badge tone="warning" dot title={`Waiting on: ${open.map((g) => g.name).join(', ')}`}>Waiting on you</Badge>;
-  }
-  const tone = state === 'Accepted' || state === 'Delivered' ? 'positive' : state === 'Ready to close' ? 'accent' : 'neutral';
-  return <Badge tone={tone} dot>{state}</Badge>;
+/** One rule per colour, as every state badge: warning means a person must act, positive closed with what was asked. */
+const TONE: Record<InitiativeRow['state'], 'warning' | 'positive' | 'neutral'> = {
+  waiting: 'warning', accepted: 'positive', delivered: 'positive', open: 'neutral', quiet: 'neutral', abandoned: 'neutral',
+};
+
+/** An initiative's state, in the list's words, wherever one is drawn; `waitingOn` names the documents it waits on. */
+export function StateBadge({ state, waitingOn = [] }: { state: InitiativeRow['state']; waitingOn?: string[] }) {
+  return (
+    <Badge tone={TONE[state]} dot title={state === 'waiting' && waitingOn.length ? `Waiting on: ${waitingOn.join(', ')}` : undefined}>
+      {STATE_LABEL[state]}
+    </Badge>
+  );
 }
-
