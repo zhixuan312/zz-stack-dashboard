@@ -172,6 +172,18 @@ const PLAIN: Me = { ...MEMBER, teams: MEMBER.teams.map((t) => ({ ...t, role: 'me
 /** Whether the gateway's `/me` and Access answers are the plain member's, rewritten over the fake's. */
 let plain = false;
 
+/** The member's own text, carrying the chrome's words, written over the fake's answer for a document and a skill. */
+const OWN_DOCUMENT = {
+  at: '/document/atlas/2026-09-28-search-relevance/spec.md',
+  title: 'Who holds the admin role, and what stays read only',
+  body: 'The admin role approves each spec, and a reviewer\'s copy stays read only until then.',
+};
+const OWN_SKILL = { at: '/plugins/sdlc/skills/sdlc-spec', body: 'Ask the team admin to give each reviewer a role; the draft stays read only until it is approved.' };
+const OWN: Record<string, object> = { [OWN_DOCUMENT.at]: { title: OWN_DOCUMENT.title, body: OWN_DOCUMENT.body }, [OWN_SKILL.at]: { body: OWN_SKILL.body } };
+/** Whether the document's and the skill's answers are the member's own text above. */
+let own = false;
+const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } });
+
 let gateway: ChildProcess | null = null;
 let base = '';
 const saved = { fetch: globalThis.fetch, env: { ...process.env } };
@@ -180,9 +192,9 @@ const saved = { fetch: globalThis.fetch, env: { ...process.env } };
 async function answered(url: string, init: RequestInit | undefined, real: typeof fetch): Promise<Response> {
   const res = await real(url, init);
   const at = new URL(url).pathname.replace('/api/console', '');
+  if (own && res.ok && at in OWN) return json({ ...(await res.json() as object), ...OWN[at] });
   if (!plain || !res.ok || (at !== '/me' && at !== '/access')) return res;
-  const body = at === '/me' ? PLAIN : ((a: Access): Access => ({ ...a, teams: { ...a.teams, teams: a.teams.teams.map((t) => ({ ...t, role: 'member' })) } }))(await res.json() as Access);
-  return new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } });
+  return json(at === '/me' ? PLAIN : ((a: Access): Access => ({ ...a, teams: { ...a.teams, teams: a.teams.teams.map((t) => ({ ...t, role: 'member' })) } }))(await res.json() as Access));
 }
 
 beforeAll(async () => {
@@ -213,18 +225,23 @@ afterAll(() => {
 
 beforeEach(() => {
   plain = false;
+  own = false;
   jar.zz_console = 'member';
 });
 
 const onSurface = (surface: Partial<Surface>, child: ReactNode) =>
   createElement(SurfaceOverride, { surface } as ComponentProps<typeof SurfaceOverride>, createElement(Tooltip.Provider, null, child));
 
-/** Render `page` as Next does, with an assistant, once its reads have answered; the context it shared last, if any. */
-async function open(page: Page): Promise<SharedContext | null> {
-  window.history.replaceState(null, '', page.address);
+/**
+ * Render `page` as Next does, with an assistant, once its reads have answered, at its address with `query`; the context
+ * it shared last, if any.
+ */
+async function open(page: Page, query: Record<string, string> = {}): Promise<SharedContext | null> {
+  const search = new URLSearchParams(query).toString();
+  window.history.replaceState(null, '', search ? `${page.address}?${search}` : page.address);
   const shared: SharedContext[] = [];
   const mod = (await import(/* @vite-ignore */ path.join(DASH, page.file))) as { default: (props: object) => Promise<ReactNode> };
-  const tree = await settled(await mod.default({ params: Promise.resolve(page.params), searchParams: Promise.resolve({}) }));
+  const tree = await settled(await mod.default({ params: Promise.resolve(page.params), searchParams: Promise.resolve(query) }));
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const frame = createElement(QueryClientProvider, { client }, createElement(Suspense, { fallback: null }, tree));
   const share = (_text: string, context?: object) => { if (context) shared.push(context as SharedContext); };
@@ -350,6 +367,21 @@ describe('as the superadmin', () => {
   it('is drawn the members panel of the team they administer', async () => {
     await open(EVERY.find((p) => p.address === '/access')!);
     expect(membersPanel().map((s) => s.querySelector('h2')?.textContent)).toEqual(['atlas\'s members']);
+  });
+});
+
+describe('as the member, reading their own text', () => {
+  it('a member\'s own document and a published skill keep their words: the chrome rule never rewrites content', async () => {
+    own = true;
+    await open(MEMBER_PAGES.find((p) => p.address === '/initiatives/atlas/2026-09-28-search-relevance/spec.md')!);
+    const page = document.body.textContent ?? '';
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toContain(OWN_DOCUMENT.title);
+    expect(page).toContain(OWN_DOCUMENT.body);
+    // The words are the ones the chrome rule finds, drawn as they were written.
+    expect(findings().some((f) => f.startsWith('role word:'))).toBe(true);
+    cleanup();
+    await open(MEMBER_PAGES.find((p) => p.address === '/plugins/sdlc/sdlc-spec')!, { view: 'read' });
+    expect(document.body.textContent).toContain(OWN_SKILL.body);
   });
 });
 

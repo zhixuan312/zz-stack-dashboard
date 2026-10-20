@@ -402,6 +402,33 @@ describe('the read on the server', () => {
   });
 });
 
+describe('the refusals put right', () => {
+  /** A claim that a task or the work was recovered or completed: the figure counts a refusal followed, never the work. */
+  const RECOVERY = /\brecover\w*|\b(?:task|work)s? (?:(?:was|were|is|are|got|has been|have been) )?completed\b|\bcompleted the (?:task|work)\b/gi;
+  /** The one sentence that names recovery, to say the figure is not it. */
+  const DISCLAIMER = 'not that the work recovered';
+  /** The page's words as a reader meets them, its hints included, and what the assistant is handed for it. */
+  const said = (s: PlatformStatus) => {
+    const { container, unmount } = draw(ok(s));
+    const hints = [...container.querySelectorAll('[title], [aria-label]')].flatMap((el) => [el.getAttribute('title') ?? '', el.getAttribute('aria-label') ?? '']);
+    const text = [container.textContent, ...hints, contextText(platformStatusContext(ok(s)))].join(' \n ');
+    unmount();
+    return text;
+  };
+
+  it('says how many refusals were put right within 120 seconds, and never that a task was recovered or completed', () => {
+    for (const s of [PLATFORM_STATUS, MEMBER_STATUS]) {
+      const text = said(s);
+      expect(text).toContain('Refusals put right');
+      expect(text).toContain('refusals that could be followed were put right');
+      expect(text).toContain('followable refusals');
+      expect(text).toContain('followed within 120 seconds by an answered call of the same tool in the same session');
+      expect(text).toContain(DISCLAIMER);
+      expect([...text.replaceAll(DISCLAIMER, '').matchAll(RECOVERY)].map((m) => m[0])).toEqual([]);
+    }
+  });
+});
+
 function Wrap({ children }: { children: ReactNode }) {
   return <Tooltip.Provider>{children}</Tooltip.Provider>;
 }

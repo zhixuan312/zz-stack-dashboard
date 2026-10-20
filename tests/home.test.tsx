@@ -33,7 +33,8 @@ import type { Me } from '@/lib/api-shapes';
 import type { Approvals, Home } from '@/lib/work-shapes';
 import { ConsoleLive } from '@/views/console-live';
 import { READ_BOUND_MS } from '@/views/context';
-import type { HomeRead } from '@/views/home-context';
+import { contextText } from '@/lib/shared-context';
+import { coverageLine, homeContext, type HomeRead } from '@/views/home-context';
 import { HomeView } from '@/views/pages/home';
 import { formatDay } from '@/lib/format-date';
 import HomeLoading from '../app/(dash)/(home)/loading';
@@ -419,5 +420,36 @@ describe('the bell', () => {
     const after = calls.filter((u) => u.includes('/approvals')).length;
     await act(async () => { await live.refresh!(['knowledge']); });
     expect(calls.filter((u) => u.includes('/approvals')).length).toBe(after);
+  });
+});
+
+describe('what Home claims of the person', () => {
+  /** Record's words the record cannot support (`tests/record-text.test.ts`), and a week worked without a stop. */
+  const UNSUPPORTED = /weekend|saturday|sunday|day off|days off|no day|saved|saving|speed ?up|faster|quicker|gain|productiv|efficien|\d+x\b|every day|without a break|no break/i;
+  /** The page's words as a reader meets them, its hints included, and what the assistant is handed for it. */
+  const said = (read: HomeRead) => {
+    const { container, unmount } = draw(read);
+    const hints = [...container.querySelectorAll('[title], [aria-label]')].flatMap((el) => [el.getAttribute('title') ?? '', el.getAttribute('aria-label') ?? '']);
+    const text = [container.textContent, ...hints, contextText(homeContext(read))].join(' \n ');
+    unmount();
+    return text;
+  };
+
+  it('names no day off and no week worked without a break, on the page or in what the assistant is handed, whatever the week holds', () => {
+    for (const read of [ok(ATLAS), ok(BEACON, 'beacon'), ok(QUIET), ok(EMPTY), ok(PARTIAL)]) {
+      const text = said(read);
+      // The days the person's agents ran are drawn, and said to be no one's working hours.
+      expect(text).toContain('Days your agents ran');
+      expect(text).toContain('not anybody\'s working hours');
+      expect(text).not.toMatch(UNSUPPORTED);
+    }
+  });
+
+  it('says under the words figure that what an import made is left out, so an import is never counted as the person\'s output', () => {
+    draw(ok(ATLAS));
+    const coverage = ATLAS.words.state === 'ok' ? ATLAS.words.data.coverage : null;
+    expect(coverage!.importMade).toBeGreaterThan(0);
+    expect(halves()[0].textContent).toContain(coverageLine(coverage!));
+    expect(halves()[0].textContent).toContain(`${coverage!.importMade} made by an import left out`);
   });
 });
