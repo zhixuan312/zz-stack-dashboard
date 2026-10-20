@@ -38,7 +38,7 @@ function useRevisionText(doc: DocumentDetail, revision: number | undefined): Rev
   const q = useConsole<DocumentRevision>(
     revision === undefined || live
       ? null
-      : `/document/${doc.team}/${doc.initiative}/${doc.path}?revision=${revision}`);
+      : `/document/${doc.team}/${doc.initiative}/${encodePath(doc.path)}?revision=${revision}`);
   if (revision === undefined) return { body: undefined, failed: false };
   if (live) return { body: doc.body ?? null, failed: false };
   if (q.isError) return { body: null, failed: true };

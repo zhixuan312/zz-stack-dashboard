@@ -75,7 +75,7 @@ const subjectOf = (e: Event) => (e.kind.startsWith('admin.') || SAFE_SUBJECT.inc
 const counted = (n: unknown, one: string) => `${String(n)} ${one}${String(n) === '1' ? '' : 's'}`;
 
 /** The day a deleted report was filed, as its act names it. COUPLED: the gateway's `FILED_DAY`. */
-const FILED_DAY = new Intl.DateTimeFormat('en-GB', { timeZone: PLATFORM_STATUS.meta.timezone, day: '2-digit', month: 'short', year: 'numeric' });
+const FILED_DAY = new Intl.DateTimeFormat('en-GB', { timeZone: PLATFORM_STATUS.meta.timezone, day: 'numeric', month: 'short', year: 'numeric' });
 
 /** A deleted report as an act names it, from what the record holds of it: the day it was filed, or none where nothing
  *  filed it. COUPLED: the gateway's `deletedReport`. */

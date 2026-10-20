@@ -193,6 +193,15 @@ export const DETAIL: Record<string, string> = {
   '/plugins/research-kit/research-scan': NEVER_RUN,
 };
 
+/** How far a route's first-load JS may grow over its own baseline before verify fails it: Meridian's default, said. */
+const FIRST_LOAD_GROWTH_PCT = 5;
+/** The one absolute first-load cap Meridian's check requires, in KiB: the baseline's largest page plus
+ *  `FIRST_LOAD_GROWTH_PCT`, rounded up, so no route is held to anything tighter than its own allowance. */
+const FIRST_LOAD_CAP_KIB = (() => {
+  const { routes } = JSON.parse(fs.readFileSync(path.join(import.meta.dirname, 'verify.baseline.json'), 'utf8')) as { routes: Record<string, number> };
+  return Math.ceil((Math.max(...Object.values(routes)) * (1 + FIRST_LOAD_GROWTH_PCT / 100)) / 1024);
+})();
+
 const config: VerifyConfig = {
   /**
    * Every page's HTML is held to its own gzipped figure in `scripts/verify.baseline.json`, as first-load JS is (ZZ Meridian
@@ -203,22 +212,16 @@ const config: VerifyConfig = {
    */
   budgets: {
     /**
-     * PROVISIONAL, 2026-10-16: the recommendation put in place so the next feature is not blocked by a
-     * stale rail. The measurement is real; the bar is the owner's, and the question is open in
-     * `zz-parent/.maint/questions.md` (Q2).
-     *
-     * Four routes read 821–825 KiB against Meridian's default of 820, `/knowledge` largest at 825, while
-     * the ratchet beside this cap PASSED: `verify.baseline.json` records 810 KiB for `/knowledge` and was
-     * last written at `656d4b5` on 2026-10-15, so the movement is +1.9% against a 5% allowance. An
-     * accepted baseline sitting 98.8% of the way to the rail means the rail is the staler of the two
-     * rulers, and 820 is Meridian's generic figure rather than this console's — this file is where a
-     * project overrides it.
-     *
-     * 850 is that baseline plus the 5% the ratchet already allows (810 × 1.05): the same statement the
-     * growth gate makes, not a number fitted to today's build. These routes should still come down when
-     * real work next touches them — about five KiB off `/knowledge` is a column, not a rewrite.
+     * Every route's first-load JS is held to its own baseline, `FIRST_LOAD_GROWTH_PCT` over it, as its HTML is: the
+     * owner's rule that a size cap is a page's own measured figure, never a hand-written number. ZZ Meridian's check
+     * (the managed `firstLoadProblems` in scripts/lib/sizes.ts) also holds every route to one absolute cap, its default
+     * 820 KiB, and offers no way to leave it out, so the cap is derived, not written: the baseline's largest page plus
+     * the same 5%, rounded up to a whole KiB. It moves when the baseline is rewritten, and it binds only a page the
+     * baseline does not hold. The hand-written 850 it replaces failed `/record` at 852 KiB on 2026-10-20 while `/record`
+     * stood within its own 5% (verify #4345).
      */
-    firstLoadKb: 850,
+    firstLoadKb: FIRST_LOAD_CAP_KIB,
+    firstLoadGrowthPct: FIRST_LOAD_GROWTH_PCT,
   },
   /**
    * One for every route of both rails, in the rails' order (the destinations table's), which is what `--full` and

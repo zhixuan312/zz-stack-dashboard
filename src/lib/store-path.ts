@@ -17,7 +17,19 @@ export function encodePath(path: string): string {
   return path.split('/').filter(Boolean).map(encodeURIComponent).join('/');
 }
 
-/** The other half: an address's path segments back into the store path they name. */
-export function decodePath(segments: string[]): string {
-  return segments.map(decodeURIComponent).join('/');
+/**
+ * The other half: an address's path segments, as Next hands a page them (still escaped), back into the store path they
+ * name; null where they name none. That is an escape that does not decode (`%zz`, a lone `%`), and a segment that
+ * decodes to `.` or `..`: Next passes `..%2F` through inside one segment, and a read built from `../` is resolved
+ * against the gateway's address by `fetch` (`..%2F..%2F..%2Fauth` under `/api/console/knowledge/atlas/` reached
+ * `/api/auth`). zz-core writes no dot-prefixed segment, so no store path is lost.
+ */
+export function decodePath(segments: string[]): string | null {
+  let path: string;
+  try {
+    path = segments.map(decodeURIComponent).join('/');
+  } catch {
+    return null;
+  }
+  return path.split('/').some((s) => s === '.' || s === '..') ? null : path;
 }

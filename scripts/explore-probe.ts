@@ -42,9 +42,8 @@
  * Exit 2: no input, or the gateway could not be reached — the probe could not run, and that is not a pass.
  */
 import fs from 'node:fs';
-import { createRequire, registerHooks } from 'node:module';
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { pathToFileURL } from 'node:url';
 import type { handedTo } from '../src/lib/assistant/scoped.ts';
 import type { AccessDenied, can, collectionFor, may, resolveAccess } from '../src/data/access.ts';
 import type { clock, collections } from '../src/data/collections.ts';
@@ -55,7 +54,7 @@ import type { ExploreRights, exploreSchema, runExplore } from '../src/lib/explor
 import type { dayOf } from '../src/lib/format-date.ts';
 import type { ViewTool, contextText, viewAt } from '../src/lib/shared-context.ts';
 import type { viewTools } from '../src/views/tools.ts';
-import { importTarget, projectAliases } from './lib/aliases.ts';
+import { consoleHooks } from './console-hooks.ts';
 
 const NAME = 'explore-probe';
 const ROOT = path.resolve(import.meta.dirname, '..');
@@ -81,46 +80,6 @@ type Call = Record<string, unknown>;
 class CaseFailure extends Error {}
 function fail(step: string, detail: string): never { throw new CaseFailure(`${NAME}: FAILED at "${step}": ${detail}`); }
 const pass = (line: string): void => console.log(`  ok  ${line}`);
-
-/** The console's modules as its server runs them: aliases and extensionless imports resolved, every source compiled. */
-function hook(): void {
-  const require = createRequire(path.join(ROOT, 'package.json'));
-  const ts = require('typescript') as typeof import('typescript');
-  const aliases = projectAliases(ROOT);
-  const stubs: Record<string, string> = {
-    'server-only': '',
-    // The one credential the server forwards (`src/data/gateway.ts`): the session cookie, and no other header.
-    'next/headers': `const c = () => globalThis[Symbol.for('zz-stack.explore-probe.cookie')];
-      export async function cookies() { return { get: (n) => (n === 'zz_console' && c() ? { name: n, value: c() } : undefined) }; }
-      export async function headers() { return new Headers(); }`,
-  };
-  const file = (base: string) => ['', '.ts', '.tsx', '/index.ts', '/index.tsx'].map((e) => base + e).find((f) => fs.existsSync(f) && fs.statSync(f).isFile());
-  registerHooks({
-    resolve(spec, context, next) {
-      if (spec in stubs) return { url: `data:text/javascript,${encodeURIComponent(stubs[spec])}`, shortCircuit: true };
-      const from = context.parentURL?.startsWith('file:') ? fileURLToPath(context.parentURL) : null;
-      const target = from?.startsWith(SOURCE) ? importTarget(path.relative(ROOT, from), spec, aliases) : null;
-      const found = target ? file(path.join(ROOT, target)) : undefined;
-      if (found) return { url: pathToFileURL(found).href, shortCircuit: true };
-      try {
-        return next(spec, context);
-      } catch (e) {
-        // A package without an `exports` map (`next/navigation`) is resolved as its own CommonJS resolves it.
-        if (/^[@a-z]/.test(spec)) return { url: pathToFileURL(require.resolve(spec)).href, shortCircuit: true };
-        throw e;
-      }
-    },
-    load(url, context, next) {
-      if (!url.startsWith('file:') || !/\.tsx?$/.test(url) || !fileURLToPath(url).startsWith(SOURCE)) return next(url, context);
-      const name = fileURLToPath(url);
-      const { outputText } = ts.transpileModule(fs.readFileSync(name, 'utf8'), {
-        fileName: name,
-        compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
-      });
-      return { format: 'module', source: outputText, shortCircuit: true };
-    },
-  });
-}
 
 /** What the probe reads of the console's own modules, each by its name, so no other export of theirs counts as used. */
 type Modules = {
@@ -183,7 +142,7 @@ async function main(): Promise<number> {
   // The console's server, as a deployment runs it: the gateway's address, production, and no development credential.
   Object.assign(process.env, { ZZ_GATEWAY: input.gateway, NODE_ENV: 'production', ZZ_DEV_PAT: '' });
   (globalThis as Record<symbol, unknown>)[COOKIE] = input.cookie;
-  hook();
+  consoleHooks(ROOT, 'zz-stack.explore-probe.cookie');
   const m = await consoleModules();
 
   /** The sentinels a text holds. */

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Segmented } from '@/components/ui/segmented';
 import { Skeleton } from '@/components/ui/skeleton';
+import { encodePath } from '@/lib/store-path';
 import { ApproveAction, canApprove, switchToApprove, useRecordShown } from '@/console/approve';
 import { aligned } from '@/console/columns';
 import { DocStatus } from '@/console/doc-status';
@@ -232,7 +233,7 @@ function useDocument(path: string, served: DocumentRead) {
  */
 export function DocumentView({ team, slug, rel, served, teamPage, version: asked = null }: { team: string; slug: string; rel: string; served: DocumentRead; teamPage: boolean; version?: number | null }) {
   useLive(['document'], served.state === 'ok' || served.state === 'missing' ? served.revisions : undefined);
-  const { q, data: d, trouble, follow, retry, busy, updatedAt } = useDocument(`/document/${team}/${slug}/${rel}`, served);
+  const { q, data: d, trouble, follow, retry, busy, updatedAt } = useDocument(`/document/${team}/${slug}/${encodePath(rel)}`, served);
   const me = useConsole<Me>('/me');
   // Rendered by default, because a person came to read it; the stored markdown is one press away.
   const [view, setView] = useState<'read' | 'source'>('read');
@@ -241,11 +242,11 @@ export function DocumentView({ team, slug, rel, served, teamPage, version: asked
   // text replaced it.
   const opened = d ? openedVersion(d, asked) : null;
   const earlier = opened?.earlier ? opened : null;
-  const older = useConsole<DocumentRevision>(earlier ? `/document/${team}/${slug}/${rel}?revision=${earlier.revision}` : null);
+  const older = useConsole<DocumentRevision>(earlier ? `/document/${team}/${slug}/${encodePath(rel)}?revision=${earlier.revision}` : null);
   const shownText = earlier ? (older.data ? older.data.body ?? '' : undefined) : d?.body ?? '';
   const context = d
     ? documentContext(d, { updatedAt, now }, earlier ? { ...earlier, body: shownText } : undefined)
-    : pendingContext({ view: 'document', title: rel, address: `/initiatives/${team}/${slug}/${rel}`, scope: `one document of initiative ${team}/${slug}` }, trouble ? troubleOf(trouble).detail : null);
+    : pendingContext({ view: 'document', title: rel, address: `/initiatives/${team}/${slug}/${encodePath(rel)}`, scope: `one document of initiative ${team}/${slug}` }, trouble ? troubleOf(trouble).detail : null);
   // The document's own public version. Not the highest of `versions`: those name the snapshot each version is read
   // as, and several snapshots can share one version.
   const version = d?.current_version ?? null;
@@ -306,7 +307,7 @@ export function DocumentView({ team, slug, rel, served, teamPage, version: asked
       actions={d && !earlier && me.data && (offered || switchToApprove(d, me.data)) ? <ApproveAction doc={d} me={me.data} shown={shown} onStale={outdated} onReload={() => void reload()} /> : undefined}
       width="data"
     >
-      {d ? <DocumentBody doc={d} view={view} onView={setView} earlier={earlier && { ...earlier, body: shownText, failed: older.isError, current: version ?? d.current_version, address: `/initiatives/${team}/${slug}/${rel}` }} />
+      {d ? <DocumentBody doc={d} view={view} onView={setView} earlier={earlier && { ...earlier, body: shownText, failed: older.isError, current: version ?? d.current_version, address: `/initiatives/${team}/${slug}/${encodePath(rel)}` }} />
         : trouble ? <DocumentTrouble trouble={trouble} busy={busy} onRetry={retry} />
           : <div className="flex flex-col gap-(--stack-gap)" aria-busy="true" aria-label="Loading"><Skeleton className="h-24 rounded-lg" /><Skeleton className="h-[28rem] rounded-lg" /></div>}
     </ConsolePage>

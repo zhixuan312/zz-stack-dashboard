@@ -21,7 +21,7 @@ What lets a person and their agents in, and nothing of anybody else's: their own
 
 | State | What shows |
 |---|---|
-| Loading | `loading.tsx` while the gate asks `/me`, headed Access for a person whose rail offers it (`OfferedLoading`), then the masthead over nine section placeholders, the tallest page's, while the read is under way |
+| Loading | `loading.tsx` while the gate asks `/me`, headed Access for a person whose rail offers it (`OfferedLoading`), then the masthead over eight section placeholders, the tallest page's, while the read is under way |
 | Default | Every section above |
 | A member | The same sections; the members only for the admin of the team acted for |
 | A new token | A dialog, outside the page's text, with the value and Copy, shown once and never again; the table reads the new token at once |

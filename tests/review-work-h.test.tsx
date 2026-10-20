@@ -171,8 +171,8 @@ describe('M-3: a skill\'s context states its purpose or says it has none, and co
     expect(said(detailOf(), { ...(skillText('sdlc', 'sdlc-spec') as SkillText), description: null as unknown as string })).toContain('declares no description');
   });
 
-  // Red until the orchestrator writes the reported line in scripts/fake-gateway/platform.ts (outside I-165's Owns):
-  // the fake's description is a sentence about a description, which the context then states as the skill's purpose.
+  // The fake's description was once a sentence about a description, which the context then stated as the skill's
+  // purpose; this holds it to a purpose.
   it('is handed a purpose that is a purpose, not a template sentence about one', () => {
     expect((skillText('sdlc', 'sdlc-spec') as SkillText).description).not.toMatch(/in the words its own SKILL\.md opens with/);
   });
@@ -250,9 +250,8 @@ describe('M-12: Activity names a person by their email, as every other page does
   });
 });
 
-// Red until the orchestrator writes the reported lines in src/console/settings/tokens-panel.tsx and passkeys-panel.tsx,
-// and the client setup's step text in scripts/fake-gateway/people.ts and zz-stack's services/gateway/src/package/
-// describe.ts (all outside I-165's Owns).
+// Access's tokens and passkeys panels and the client setup's steps once said "ONCE" in capitals; this holds them to the
+// word, and a short cell to one line.
 describe('M-17: Access keeps short cells on one line and says "once" in words', () => {
   const draw = () => mount(<AccessView served={{ state: 'ok', access: accessOf(ME)[1] as Access }} />);
 

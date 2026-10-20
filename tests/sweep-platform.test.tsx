@@ -3,6 +3,10 @@ import { render, screen, within } from '@testing-library/react';
 import { Tooltip } from 'radix-ui';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+// The fake gateway's clock is the moment its module loads, so the day is fixed before it does: the deleted report was
+// filed 205 hours before 14 Oct 2026, 12:00 in the reporting zone, on 5 Oct, a day whose padded and unpadded forms differ.
+vi.hoisted(() => { vi.useFakeTimers({ now: new Date('2026-10-14T04:00:00Z'), toFake: ['Date'] }); });
+
 /**
  * Review round 1's Platform findings (Task I-171), each found at the layer the console holds it:
  *
@@ -99,7 +103,9 @@ describe('R1-C15: Audit names a deleted report by the day it was filed', () => {
     const deleted = (body as { rows: AuditRow[] }).rows.filter((r) => r.kind === 'bug.delete');
     expect(deleted.length).toBeGreaterThan(0);
     for (const r of deleted) {
-      expect(r.sentence).toMatch(/ deleted a report filed \d{2} \w+ \d{4}$/);
+      // A day inside a sentence is written as a sentence writes one, `5 Oct 2026`, never a cell's padded `05 Oct`.
+      expect(r.sentence).toMatch(/ deleted a report filed [1-9]\d? [A-Z][a-z]{2,3} \d{4}$/);
+      expect(r.sentence).toMatch(/ filed 5 Oct 2026$/);
       expect(actSentence(r)).toContain('deleted a report filed ');
       expect(r.sentence).not.toMatch(/Blocks work|Wrong result|Confusing|Cosmetic|surface|"|payroll/i);
     }

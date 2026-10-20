@@ -8,6 +8,7 @@ import { defineViewTool } from '@/lib/shared-context';
 import { documentContext } from '../document-context';
 import { file, justRead, segment } from './shared';
 import { approvals, words } from './sources';
+import { encodePath } from '@/lib/store-path';
 
 export const documentTool = defineViewTool({
   name: 'document',
@@ -18,7 +19,7 @@ export const documentTool = defineViewTool({
   input: z.object({ team: segment('The team\'s slug.'), slug: segment('The initiative\'s slug.'), path: file('The document\'s path inside the initiative, such as spec.md or sources/notes.md.') }),
   async read({ team, slug, path }) {
     await requireNeed(FEATURES.initiatives.needs);
-    const data = await gatewayGet<DocumentDetail>(`/document/${team}/${slug}/${path}`);
+    const data = await gatewayGet<DocumentDetail>(`/document/${team}/${slug}/${encodePath(path)}`);
     return { context: documentContext(data, justRead()), data };
   },
   explore: {

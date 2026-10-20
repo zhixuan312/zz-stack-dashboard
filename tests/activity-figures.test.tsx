@@ -13,10 +13,11 @@ import { beforeEach, describe, expect, it } from 'vitest';
  * refusal recorded with no message said to have none rather than left blank. Above the log, last week's tiles are the
  * summary's own figures.
  *
- * DELIBERATE: the "When" column is not asserted. It is a relative time ("3 hours ago") and moves with the clock; the
- * page's own `overview-period` test pins a date to its zone instead, which is where that belongs.
+ * The "When" column's words are a relative time ("3 hours ago"), which moves with the clock and is not asserted; what
+ * is held is the moment under them, the row's own instant, with its exact time in the reporting time zone on hover.
  */
 import type { ActivityLog, ActivitySummary } from '@/lib/destination-shapes';
+import { formatDateTime } from '@/lib/format-date';
 import { ActivityView } from '@/views/pages/activity';
 
 const ME = {
@@ -118,6 +119,19 @@ describe('the figures on the activity page', () => {
     // An event that is not a call has no result to give, and names no tool.
     expect(cell('document.patch', 'Result')).toBe('—');
     expect(cell('document.patch', 'Tool')).toBe('—');
+  });
+
+  it('dates each row by its own instant, its exact time in the reporting time zone on hover', async () => {
+    mount();
+    await waitFor(() => expect(document.body.textContent).toContain('document.patch'));
+    const log = document.querySelector('section[aria-label="Activity"]')!;
+    for (const r of LOG.rows) {
+      const at = log.querySelector(`tr time[datetime="${r.ts}"]`);
+      expect(at, r.id).not.toBeNull();
+      expect(at!.getAttribute('title'), r.id).toBe(formatDateTime(r.ts));
+    }
+    // 02:00 UTC is ten in the morning in Singapore, the console's zone, never the UTC wall clock.
+    expect(log.querySelector('tr time[datetime="2026-10-02T02:00:00Z"]')!.getAttribute('title')).toBe('02 Oct 2026, 10:00');
   });
 
   it('keeps the refusal\'s message, and says when none was recorded', async () => {

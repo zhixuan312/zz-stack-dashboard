@@ -20,16 +20,19 @@ tokens rather than inventing a second look.
       │ /api/console/* │
       ▼                ▼
    zz-stack gateway   this app
-   (session, data)    (HTML and JS, and one read of who is asking)
+   (session, data)    (HTML and JS, and each page's first read, as the person)
 ```
 
-**For every page, this app's server makes one read, and makes it as the person.** Before a
+**For every page, this app's server reads the gateway, and reads it as the person.** Before a
 page renders, its gate asks the gateway `/me` (`gate` in `src/data/access.ts`), and that one
 answer, read once per request, decides whether the page may render and which destinations
-the rail and the command palette draw. `src/data/gateway.ts` sends the caller's own
-`zz_console` cookie, that cookie alone, to the gateway that issued it, and stores nothing.
-A page's own content is still read in the browser, against `/api/console` on the same
-origin, carrying the person's own HttpOnly session cookie.
+the rail and the command palette draw. The page then makes its own first read there too, in
+the read module beside its route (`read-home.ts`, `read-record.ts` and the rest), bounded at
+4.5 seconds, so its content is in the first paint. Both go through `src/data/gateway.ts`, which
+sends the caller's own `zz_console` cookie, that cookie alone, to the gateway that issued it,
+and stores nothing. What a page reads after it is drawn, a Retry or a collection a live hint
+names, is read in the browser, against `/api/console` on the same origin, carrying the
+person's own HttpOnly session cookie.
 
 **So `ZZ_GATEWAY` is required for every page.** It is the address this app's server reads
 the gateway at. Without it no page opens: each one says the console cannot reach the
@@ -196,7 +199,10 @@ for every pair in both themes and every accent, then route types, lint, types an
   run writes it, so a run of a few files never overwrites the record of a whole one.
 - **change**: `pnpm verify`. Adds one production build, the route policy, the first-load and HTML size checks, and
   the navigation of up to three routes on a desktop and through the phone drawer, judged on function; about a minute.
-  Before finishing a change.
+  Before finishing a change. A page's size is held to its own measured figure in `scripts/verify.baseline.json`, 5%
+  over it at most, never to a number written by hand. The one absolute first-load cap ZZ Meridian's check requires is
+  derived in `scripts/verify.config.ts` from the baseline's largest page plus the same 5%, so it moves with the
+  baseline; an accepted growth is recorded with `node scripts/sizes.ts --write-baseline --base <the running build>`.
 - **complete**: `pnpm verify --full`. Adds the navigation of every rail route, the assistant walked through a page
   (`scripts/assistant.ts`), the audit of every page at five widths in both themes, every control pressed and every
   link followed, the whole keyboard path (`scripts/keyboard.ts`), and the product's own `browserChecks`: the Approve
@@ -306,7 +312,7 @@ model.
 
 **Released by zz-stack, not by hand.** The console is one of two components in a platform
 release — `zz-stack/scripts/release.ts <platform-version> --dashboard=<console-version>` —
-which runs this repo's `typecheck`, `lint` and `test`, bumps `package.json` and the compose
+which runs this repo's `typecheck`, `lint`, `test` and `gate`, bumps `package.json` and the compose
 literal together, builds and pushes `ghcr.io/zhixuan312/zz-stack-dashboard`, copies
 `docker-compose.yml` to the host, and rolls it back with the platform if verification fails.
 See `/release` in the parent checkout.

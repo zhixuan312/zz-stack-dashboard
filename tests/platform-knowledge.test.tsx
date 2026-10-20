@@ -24,7 +24,7 @@ import { MAIN_ROLES, effective } from '@/data/roles';
 import type { Me } from '@/lib/api-shapes';
 import { exploreSchema, runExplore, type ExploreRights } from '@/lib/explore';
 import type { KnowledgeHealth } from '@/lib/fleet-shapes';
-import { formatDateTime, formatDay } from '@/lib/format-date';
+import { dayOf, formatDateTime, formatDay } from '@/lib/format-date';
 import type { Part, Window } from '@/lib/platform-shapes';
 import { contextText } from '@/lib/shared-context';
 import { CONTEXT_BUDGET } from '@/views/context';
@@ -425,7 +425,8 @@ describe('view_knowledge_health and explore_knowledge_health', () => {
   const explore = (who: Me, input: unknown) => {
     answering(who);
     const rights: ExploreRights = { readable: new Set(['platform_lessons', 'platform_searches']), hidden: () => [] };
-    return runExplore(knowledgeHealthTool.explore, input, rights, { aggregate, read: readCollection, today: new Date().toISOString().slice(0, 10) }, knowledgeHealthTool.page);
+    // The day the assistant's route hands the query: today in the reporting time zone, as `dayOf(clock())` reads it.
+    return runExplore(knowledgeHealthTool.explore, input, rights, { aggregate, read: readCollection, today: dayOf(new Date()) }, knowledgeHealthTool.page);
   };
   const nothing = { source: 'searches', measures: ['nothing'], where: [{ field: 'found', op: 'eq', value: 'nothing' }], period: 'all', rows: 5 };
 

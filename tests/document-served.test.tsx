@@ -127,7 +127,7 @@ describe('the document route, rendered on the console\'s server', () => {
   it('reads the document whose path has a directory in it, segment by segment', async () => {
     gateway.get.mockImplementation(async () => { throw new GatewayError(404, 'HTTP 404'); });
     await DocumentPage({ params: params(['sources', '2026-10-06%20call.md']), searchParams: Promise.resolve({}) });
-    expect(gateway.get).toHaveBeenCalledWith(`/document/atlas/${SLUG}/sources/2026-10-06 call.md`);
+    expect(gateway.get).toHaveBeenCalledWith(`/document/atlas/${SLUG}/sources/2026-10-06%20call.md`);
   });
 
   it('sends a session that ended to sign in, back to the document', async () => {

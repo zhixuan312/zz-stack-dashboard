@@ -314,7 +314,7 @@ describe('every mode answers both people', () => {
     }
   });
 
-  it('slow: a page read is held four seconds for both, and who is asking is answered at once', async () => {
+  it('slow: a page read is held past every read bound for both, and who is asking is answered at once', async () => {
     const base = await start('slow');
     await Promise.all(PEOPLE.map(async ([name, role, cookie]) => {
       expect((await (await ask(base, cookie, 'me', 1000)).json() as Me).role, name).toBe(role);
@@ -396,7 +396,7 @@ describe('a state asked for by the session value', () => {
     expect((await gatewayGet<InitiativeList>('/initiatives')).rows.length).toBeGreaterThan(0);
   });
 
-  it('slow: holds every page read four seconds and answers who is asking at once, for that session alone', async () => {
+  it('slow: holds every page read past every read bound and answers who is asking at once, for that session alone', async () => {
     const base = await start();
     for (const person of ['superadmin', 'member']) {
       const at = Date.now();
@@ -541,7 +541,10 @@ describe('a busy platform is above every ceiling', () => {
   it('Record: months past 26 weeks, quarters past three years, days across years, and the most rewritten at its five', async () => {
     const year = await busy<RecordRead>('record?period=year');
     const all = await busy<RecordRead>('record?period=all&limit=10&offset=10');
-    expect(grainOf(year.cumulative.map((p) => p.window))).toBe('month');
+    // This year so far is a period of weeks until it passes 26 of them, and of months after (work-record.ts, as the
+    // gateway's grainFor): the grain follows today's date, which a fixed 'month' read as red from January to July.
+    const weeksIn = (Date.parse(year.meta.period.to) - Date.parse(year.meta.period.from)) / (7 * 24 * 3_600_000);
+    expect(grainOf(year.cumulative.map((p) => p.window))).toBe(weeksIn <= 26 ? 'week' : 'month');
     const windows = all.cumulative.map((p) => p.window);
     expect(grainOf(windows)).toBe('quarter');
     expect(spanYears(windows)).toBeGreaterThan(3);

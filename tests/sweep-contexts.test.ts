@@ -1,5 +1,9 @@
 // @vitest-environment node
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+// The fake gateway's clock is the moment its module loads, so the day is fixed before it does: Knowledge health's busiest
+// weeks are then named in September and October, whatever day the suite runs on.
+vi.hoisted(() => { vi.useFakeTimers({ now: new Date('2026-10-19T04:00:00Z'), toFake: ['Date'] }); });
 import type { InitiativeDetail, Me } from '@/lib/api-shapes';
 import type { KnowledgeHealth, Usage } from '@/lib/fleet-shapes';
 import { contextText, type SharedContext } from '@/lib/shared-context';

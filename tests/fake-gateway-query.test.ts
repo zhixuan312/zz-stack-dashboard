@@ -20,8 +20,8 @@ import { addDays, bucketsOf } from '../scripts/fake-gateway/work-query-buckets.t
 /**
  * The fake gateway's two prepared queries, `/platform/query` and `/work/query`, answered in the gateway's shape.
  *
- * The Platform query is asked directly, as zz-stack's shape check asks it, because its route line in server.ts is the
- * integration's to write. Every measure of the plan's table is held, as each person who may ask it, to the figure the
+ * Both are asked as their functions, as zz-stack's shape checks ask them, with no server between: server.ts routes
+ * `GET /api/console/platform/query` and `/work/query` to these, in the state the session asks for. Every measure of the plan's table is held, as each person who may ask it, to the figure the
  * fake's own page answers for the same window: the page's answer is read here and never the query's own facts. A member
  * is refused what only the superadmin is shown, with the sentence every console route refuses with. Work's query is
  * held to Task I-91: dates, the four buckets, where, rows, top and from=0001-01-01.

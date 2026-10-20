@@ -10,7 +10,8 @@
  * `<person>+<state>` (scripts/fake-gateway/states-partial.ts), so this runs beside the audit, the presses and the keyboard
  * walk, which read the normal state of the same fake gateway throughout (reconciliation 79): loading is `slow`, empty
  * `empty`, a transport error `error`, a failed aggregate and a partial success `partial`. Each page is opened at 1440px
- * in the dark theme, from a blank page, and read once nothing on it is still loading, or twelve seconds after it opened.
+ * in the dark theme, from a blank page, and read once nothing on it is still loading, or `SETTLE_MS` (eighteen seconds)
+ * after it opened.
  *
  * What each state must draw, with what the person is refused drawing the product's refusal or the record's not-found
  * in every state but `error` and `slow`, where it may say the read failed or is on its way. Refused is a rail route not
@@ -25,7 +26,7 @@
  *            for an empty answer.
  *   error    the read's failure said in words: an alert, or a sentence that it did not load or is unavailable.
  *   slow     loading, a refusal or the content in the first frame the main region paints, and an explicit state on
- *            screen before the page is read: the content, a refusal or an error. Whether, never when: twelve seconds is
+ *            screen before the page is read: the content, a refusal or an error. Whether, never when: `SETTLE_MS` is
  *            the window a page is given to settle in, not a bound, since this runs under the other suites' load. The
  *            five-second bound is scripts/states-timed.ts's, which verify runs alone in its timed tier.
  *   partial  every part that answered still drawn: the normal page's headings the page lost are one run, the part that
@@ -44,7 +45,7 @@
  *
  * One line per route, person and state, then the failures. Exits 1 when any failed or nothing was opened.
  */
-import { NULL_STANDIN, SLOW_STATUS_MS } from './fake-gateway/states-partial.ts';
+import { NULL_STANDIN, SLOW_MS } from './fake-gateway/states-partial.ts';
 import { TEAMS } from './fake-gateway/platform-teams.ts';
 import { INITIATIVES, initiativeDetail } from './fake-gateway/work.ts';
 import type { Page } from './lib/chrome.ts';
@@ -85,7 +86,7 @@ const LEAKS = [
  * more for a loaded machine: a document's Approve is busy for its browser read after the page drew (Harbormaster #3909
  * read one still busy at 12 s, 8 s by construction, under a full verify's load).
  */
-export const SETTLE_MS = 3 * SLOW_STATUS_MS;
+export const SETTLE_MS = 3 * SLOW_MS;
 
 /** The page's own words for its states, read in the page. COUPLED: the console's views' sentences. */
 export const LIB = String.raw`

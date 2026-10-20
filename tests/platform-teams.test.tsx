@@ -35,7 +35,8 @@ import PlatformTeamPage, { generateMetadata as teamMetadata } from '../app/(dash
  * Teams under Platform, and the superadmin's management of teams there (Task I-99, AC-4.1): the list and a team's page
  * drawn from the fake gateway's own answers, each read first on the console's server; every state each page draws;
  * the Ask on each page's protagonist; the view tools answering the pages' own responses with the pages' own contexts;
- * the prepared queries; and a member answered, at the new addresses and today's, by a refused page that names nothing.
+ * the prepared queries; and a member answered, at `/platform/teams` and a team's page, by a refused page that names
+ * nothing.
  */
 const SUPERADMIN: Me = {
   email: 'ava.lindqvist@example.com', name: 'Ava Lindqvist', role: 'superadmin', mayRead: true, superadmin: true,
@@ -117,9 +118,16 @@ describe('each page draws loading, empty, error and partial', () => {
 
   it('a team: the error with Retry, and the way back for no such team', () => {
     browser(null);
-    mount(<PlatformTeamView slug="atlas" served={{ state: 'failed', reason: 'could not read a team' }} />);
+    const { unmount } = mount(<PlatformTeamView slug="atlas" served={{ state: 'failed', reason: 'could not read a team' }} />);
     expect(screen.getByRole('alert')).toHaveTextContent('The team did not load');
     expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    unmount();
+    // No such team is no failure: it says so, offers no Retry, and its way back is the list of every team there is.
+    mount(<PlatformTeamView slug="nonesuch" served={{ state: 'missing' }} />);
+    expect(screen.getByText('No team called nonesuch')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'All teams' })).toHaveAttribute('href', '/platform/teams');
   });
 
   it('a team: slow is the bounded error; no member and no week each say so', () => {
@@ -237,9 +245,11 @@ describe('the first read is the server\'s, and a change is read again in the bro
 });
 
 describe('Create a team', () => {
-  it('calls the platform route Settings called, and says a refusal under its fields', async () => {
+  it('calls the platform\'s create-team route, and says a refusal under its fields', async () => {
     const sent: unknown[] = [];
-    vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+    const to: string[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      to.push(`${init?.method} ${String(input)}`);
       sent.push(JSON.parse(String(init?.body)));
       return { ok: false, status: 400, json: async () => ({ error: 'a team named atlas already exists' }) } as unknown as Response;
     }));
@@ -251,6 +261,7 @@ describe('Create a team', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Create team' }));
     await waitFor(() => expect(within(dialog).getByRole('alert')).toHaveTextContent('a team named atlas already exists'));
     expect(sent).toEqual([{ slug: 'atlas', name: 'Atlas again' }]);
+    expect(to).toEqual(['POST /api/console/settings/platform/teams']);
     expect(within(dialog).getByLabelText('Slug')).toHaveValue('atlas');
   });
 });
@@ -405,6 +416,11 @@ describe('the reads on the console\'s server', () => {
     expect(await readTeams(TEAMS_DEFAULTS)).toEqual({ state: 'failed', path: PATH, reason: 'could not read the teams' });
     gateway.get.mockRejectedValueOnce(new GatewayError(404, 'HTTP 404'));
     expect(await readTeam('nonesuch')).toEqual({ state: 'missing' });
+    // A refusal is the gateway's own sentence, said as a read that failed: never a team that does not exist.
+    gateway.get.mockRejectedValueOnce(new GatewayError(403, 'not permitted'));
+    expect(await readTeams(TEAMS_DEFAULTS)).toEqual({ state: 'failed', path: PATH, reason: 'not permitted' });
+    gateway.get.mockRejectedValueOnce(new GatewayError(403, 'not permitted'));
+    expect(await readTeam('atlas')).toEqual({ state: 'failed', reason: 'not permitted' });
   });
 
   it('are slow once the bound has passed, however long the gateway takes', async () => {

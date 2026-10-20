@@ -32,7 +32,7 @@ import { readPeople } from '../app/(dash)/platform/people/read-people';
  * People under Platform, and the superadmin's management of people there (Task I-100, AC-4.2): the list drawn from the
  * fake gateway's own answer, read first on the console's server; every state it draws; the Ask on its protagonist; the
  * three acts, with an enrolment link kept out of the page's text; the view tool answering names and states; the
- * prepared query; and a member answered, at the new address and today's, by a refused page that names nothing.
+ * prepared query; and a member answered, at `/platform/people`, by a refused page that names nothing.
  */
 const MEMBER: Me = {
   email: 'mei.tanaka@example.com', name: 'Mei Tanaka', role: 'member', mayRead: true, superadmin: false,
@@ -204,7 +204,7 @@ describe('the Ask on the page\'s protagonist', () => {
   });
 });
 
-describe('the three acts, as Settings called them', () => {
+describe('the three acts: add a person, issue an enrolment link, deactivate one', () => {
   const on = LIST.people.find((p) => p.state === 'active' && p.name)!;
 
   it('an enrolment link is shown once, outside the page text the assistant reads', async () => {
@@ -236,9 +236,11 @@ describe('the three acts, as Settings called them', () => {
     expect(sent).toEqual([{ email: on.email, confirm: on.email }]);
   });
 
-  it('add a person calls the platform route Settings called, and says a refusal under its fields', async () => {
+  it('add a person calls the platform\'s add-person route, and says a refusal under its fields', async () => {
     const sent: unknown[] = [];
-    vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+    const to: string[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      to.push(`${init?.method} ${String(input)}`);
       sent.push(JSON.parse(String(init?.body)));
       return { ok: false, status: 400, json: async () => ({ error: 'that is not an email address' }) } as unknown as Response;
     }));
@@ -250,6 +252,7 @@ describe('the three acts, as Settings called them', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Add person' }));
     await waitFor(() => expect(within(dialog).getByRole('alert')).toHaveTextContent('that is not an email address'));
     expect(sent).toEqual([{ email: 'not-an-email', display_name: 'Somebody' }]);
+    expect(to).toEqual(['POST /api/console/settings/platform/people']);
     expect(within(dialog).getByLabelText('Email')).toHaveValue('not-an-email');
   });
 });

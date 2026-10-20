@@ -23,7 +23,7 @@
  *
  * `--mode` draws the states a page has to design for, from the same routes and for either person: `empty` (a fresh
  * deployment, nothing recorded), `error` (every read but /me fails with the gateway's own sentence), `slow` (every
- * answer but /me waits four seconds, so the loading state can be looked at), `extreme` (a busy platform: six-figure
+ * answer but /me waits past every read bound, `SLOW_MS`, so the loading state and then each page's bounded state can be looked at), `extreme` (a busy platform: six-figure
  * counts, hundreds of rows, names longer than any layout planned for, and every answer past its ceiling,
  * states-extreme.ts), `partial` (one part of each answer unavailable,
  * the others answered). `GET /__mode?set=<mode>` switches it while running, for every request at once.
@@ -43,7 +43,8 @@
  * `document`, as the gateway's trigger notifies on every revision a writer makes.
  *
  * The status read, `GET /api/console/platform/status`, is the one a page makes on the console's server and gives
- * five seconds: `error` answers it 500 with its own route's sentence, and `slow` holds it six seconds, past that bound.
+ * `STATUS_BOUND_MS` (src/views/platform-status-context.ts): `error` answers it 500 with its own route's sentence, and
+ * `slow` holds it `SLOW_MS`, past that bound as past every page's.
  *
  * Platform's other reads are public by their route, answered to everyone signed in from one fixture each, the
  * superadmin's answer adding what the gateway adds and a member's derived from it by the gateway's projection:
@@ -100,7 +101,7 @@ import { usage } from './platform-usage.ts';
 import { pluginEval, skillText } from './platform.ts';
 import { search } from './search.ts';
 import { empty, extreme } from './states.ts';
-import { NOT_RECORDED, SLOW_MS, SLOW_STATUS_MS, STATES, isState, nullsFilled, partial, sessionOf, unknownState, type State } from './states-partial.ts';
+import { NOT_RECORDED, SLOW_MS, STATES, isState, nullsFilled, partial, sessionOf, unknownState, type State } from './states-partial.ts';
 import { documentDetail, documentRevision, initiativeDetail, onDrift, refusesRecord, revisionInStore } from './work.ts';
 import { access, revokeApplication, revokeBrowser, tokensNow } from './work-access.ts';
 import { activityLog, activitySummary, NO_TEAM } from './work-activity.ts';
@@ -128,6 +129,8 @@ const missing = (what: string): Answer => [404, { error: `${what} does not exist
 const or404 = (body: unknown, what: string): Answer => (body ? ok(body) : missing(what));
 /** Platform's refusals: a fixed sentence that names no role, person or team, and a 404 that echoes nothing asked. */
 const REFUSED: Answer = [403, { error: 'not permitted' }];
+/** The platform administration routes' refusal, `superOnly`'s own sentence (services/gateway/src/admin/people.ts). */
+const SUPERADMIN_REQUIRED: Answer = [403, { error: 'superadmin required' }];
 /** Work's not-found answers, the gateway's own fixed sentences (initiatives.ts, knowledge.ts): none names what was asked. */
 const NO_INITIATIVE: Answer = [404, { error: 'No initiative of the team you act for has that name.' }];
 const NO_DOCUMENT: Answer = [404, { error: 'No document of the team you act for is at that address.' }];
@@ -442,11 +445,16 @@ function write(who: Me, cookie: string | null, seg: string[], q: URLSearchParams
     return answer;
   }
   if (path === 'settings/me/active-team' && method === 'POST') return switchTeam(who, cookie, body);
-  // Adding a person is the superadmin's, as the gateway's guard has it; a journey keeps the person it added.
-  if (path === 'settings/platform/people' && method === 'POST' && who.superadmin) {
+  // Adding a person and issuing an enrolment link are the superadmin's, refused to anyone else as the gateway's routes
+  // refuse them (settings/platform.ts): an address first, then `superOnly`. A journey keeps the person it added.
+  if (path === 'settings/platform/people' || path === 'settings/platform/enrolments') {
+    if (method === 'POST' && !String(body.email ?? '').trim()) return [400, { error: 'email is required' }];
+    if (method === 'POST' && !who.superadmin) return SUPERADMIN_REQUIRED;
+  }
+  if (path === 'settings/platform/people' && method === 'POST') {
     kept()?.added.push({ email: String(body.email), name: String(body.display_name ?? ''), at: keptAt() });
   }
-  if (path === 'settings/platform/enrolments') return ok({ ok: true, url: 'https://console.example.com/enrol#t=example-enrolment', result: `An enrolment link for ${String(body.email)}` });
+  if (path === 'settings/platform/enrolments' && method === 'POST') return ok({ ok: true, url: 'https://console.example.com/enrol#t=example-enrolment', result: `An enrolment link for ${String(body.email)}` });
   return ok({ ok: true, result: `${method} ${path}: done`, revoked: seg.at(-1) });
 }
 
@@ -493,13 +501,30 @@ function renamedFor(cookie: string | null, answer: () => Answer): Answer {
   }
 }
 
+/** An address's path segments, unescaped; null for one whose escapes do not decode. */
+function segmentsOf(pathname: string): string[] | null {
+  try {
+    return pathname.split('/').filter(Boolean).map(decodeURIComponent);
+  } catch {
+    return null;
+  }
+}
+
 const server = http.createServer((req, res) => {
   const url = new URL(req.url ?? '/', 'http://fake');
   let raw = '';
   req.on('data', (d) => (raw += d));
   req.on('end', () => {
     const referer = (() => { try { return new URL(req.headers.referer ?? '').pathname; } catch { return ''; } })();
-    const seg = url.pathname.split('/').filter(Boolean).map(decodeURIComponent);
+    // An address with a malformed escape (`%zz`, a lone `%`) is answered 400 before anything is read, as the gateway's
+    // router answers it when it decodes a route's parameters. Decoding it here unguarded threw out of this handler and
+    // took the process down, and every suite sharing it then reported that the platform could not be reached.
+    const seg = segmentsOf(url.pathname);
+    if (!seg) {
+      res.writeHead(400, { 'content-type': 'text/html; charset=utf-8' });
+      res.end('Bad Request');
+      return;
+    }
     const cookie = cookieOf(req.headers.cookie);
     const who = callerOf(cookie);
     // The state this request is drawn in: the one its session value names, or the process-wide mode. A journey is a
@@ -638,13 +663,13 @@ const server = http.createServer((req, res) => {
       answer = within(cookie, () => write(who, cookie, seg.slice(2), url.searchParams, req.method ?? 'POST', body));
     }
     // `slow` holds a page's reads and spares `/me`, as `error` does: who is asking is answered at once, so the page's own
-    // loading state is what shows. The status read is held past the five seconds its page gives it.
+    // loading state is what shows, then its bounded state: every read is held past the bound its page gives it.
     setTimeout(() => {
       // A 204, or a 404 that says nothing, has no body to serialise, and a client that is sent one reads it wrong.
       if (answer[1] === null) { res.writeHead(answer[0], { 'cache-control': 'no-store' }); res.end(); return; }
       res.writeHead(answer[0], { 'content-type': 'application/json', 'cache-control': 'no-store', ...(revised ? { [revised[0]]: revised[1] } : {}) });
       res.end(JSON.stringify(answer[1]));
-    }, state !== 'slow' || (seg[2] === 'me' && !seg[3]) ? 0 : status ? SLOW_STATUS_MS : SLOW_MS);
+    }, state !== 'slow' || (seg[2] === 'me' && !seg[3]) ? 0 : SLOW_MS);
   });
 });
 

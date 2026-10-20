@@ -16,9 +16,8 @@ export interface StateOf {
   gates: { name: string; passed: boolean; written: boolean; role?: string }[];
 }
 
-/** The six words the state can say, most-closed first: the order a filter lists them in. */
-export const INITIATIVE_STATES = ['Accepted', 'Delivered', 'Abandoned', 'Waiting on you', 'Ready to close', 'In progress'] as const;
-type InitiativeState = (typeof INITIATIVE_STATES)[number];
+/** The six words the state can say. */
+type InitiativeState = 'Accepted' | 'Delivered' | 'Abandoned' | 'Waiting on you' | 'Ready to close' | 'In progress';
 
 /** The gates an open initiative is judged on: the handover is written after the close, so it is never one of them. */
 export const ownGates = (of: StateOf) => of.gates.filter((g) => g.role !== 'handover');

@@ -32,6 +32,7 @@ import { plural } from '@/lib/format';
 import { dayOf, formatCalendarDate, formatDate, formatDay } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import type { Window } from '@/lib/platform-shapes';
+import { encodePath } from '@/lib/store-path';
 import type { RecordRead } from '@/lib/work-shapes';
 import {
   FIRST, LEAD, PAGE_SIZE, PERIOD_OPTIONS, RECORD_DEFAULTS, REVISION, SLICES, asOfLine, asOfWords, coverageLine, filtersOfPath, footOf,
@@ -328,7 +329,7 @@ function Documents({ r, windows, team }: Slice & { team: string | null }) {
                   key: `${m.initiative}/${m.path}`,
                   label: <span className="[overflow-wrap:anywhere]">{m.initiative}/{m.path}</span>,
                   value: m.versions,
-                  href: team ? `/initiatives/${team}/${m.initiative}/${m.path}` : undefined,
+                  href: team ? `/initiatives/${team}/${m.initiative}/${encodePath(m.path)}` : undefined,
                 }))}
               />
             ) : <EmptyState layout="inline" title="Nothing rewritten in the period" className="py-6">A document given a second version appears here.</EmptyState>}

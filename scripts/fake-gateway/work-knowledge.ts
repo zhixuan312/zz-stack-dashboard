@@ -116,7 +116,6 @@ export function lesson(team: string, path: string, own: string | null = null): K
     evidence, cited_elsewhere, superseded_by: null,
     evidence_in: evidence?.map((name) => ({ name, team: INITIATIVES.find((i) => i.slug === name)?.team ?? null })) ?? null,
     related: neighbours(n),
-    multi_team: new Set(shelf.map((x) => x.team)).size > 1,
     shelf: team === SHARED_TEAM ? 'shared' : 'team',
   };
 }

@@ -23,10 +23,9 @@ const DOCUMENTS = ['README.md', 'CONTRIBUTING.md', 'docs/brief.md'];
 const GATE = '.github/workflows/gate.yml';
 const WEEKLY = '.github/workflows/weekly.yml';
 
-/** verify's two product lists, read loosely: the config's type may not declare `timedChecks` yet. */
-const lists = config as { browserChecks?: string[]; timedChecks?: string[] };
-const BROWSER = lists.browserChecks ?? [];
-const TIMED = lists.timedChecks ?? [];
+/** verify's two product lists. */
+const BROWSER = config.browserChecks ?? [];
+const TIMED = config.timedChecks ?? [];
 const RAIL = (config.navigationChecks ?? []).map((c) => c.path);
 
 /**

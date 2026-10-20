@@ -9,9 +9,9 @@ import config from '../scripts/verify.config.ts';
  *
  * `fake-gateway-states.test.ts` covers the two modes that reshape an answer, because those are pure
  * functions. The other two are behaviours of the running server and had no check at all: `error`,
- * which makes every route except `/me` answer 503, and `slow`, which holds every answer but `/me` four seconds.
- * The status read is the exception to both, and its own two cases are below.
- * This file's own note says why that matters — "a mode that throws is a mode nothing notices" — and
+ * which makes every route except `/me` answer 503, and `slow`, which holds every answer but `/me` past the bound
+ * every read is given (`SLOW_MS`). The status read is the exception to both, and its own two cases are below.
+ * `fake-gateway-states.test.ts`'s own note says why that matters — "a mode that throws is a mode nothing notices" — and
  * both of these are modes a person is told to sweep by hand, so a broken one misleads exactly the
  * person following the instruction.
  *
@@ -97,14 +97,16 @@ describe('the fake gateway as the sweep uses it', () => {
     expect(seen.approvals).toBe(1);
   });
 
-  it('holds an answer four seconds in slow mode', async () => {
+  it('holds a page read past the 4.5 seconds a page gives it in slow mode', async () => {
+    // A page shows its bounded unavailable state once its read has waited 4.5 seconds, so the delay that draws that
+    // state has to outlast it: an answer by five seconds would be drawn as the page's content, late.
     const base = await start('--mode', 'slow');
-    const quickly = await fetch(`${base}/api/console/teams`, { signal: AbortSignal.timeout(1000) }).then(
+    const within = await fetch(`${base}/api/console/teams`, { signal: AbortSignal.timeout(5000) }).then(
       () => 'answered', (e: Error) => e.name);
-    expect(quickly).toBe('TimeoutError');
-    const later = await fetch(`${base}/api/console/teams`, { signal: AbortSignal.timeout(8000) });
+    expect(within).toBe('TimeoutError');
+    const later = await fetch(`${base}/api/console/teams`, { signal: AbortSignal.timeout(10_000) });
     expect(later.status).toBe(200);
-  }, 20_000);
+  }, 30_000);
 
   it('holds the status read past the five seconds a page gives it in slow mode', async () => {
     // A page shows a bounded unavailable state by five seconds, so the delay that draws it has to outlast that.

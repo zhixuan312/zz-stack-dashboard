@@ -222,9 +222,6 @@ export interface KnowledgeBody {
    *  found on the client: the reading pane used to fetch the whole shelf, hundreds of nodes each
    *  with a title, tags, an excerpt and a byte count, to show a handful of neighbours. */
   related: KnowledgeNode[];
-  /** Whether that shelf spans more than one team, which decides whether a neighbour's number is
-   *  enough to identify it. */
-  multi_team: boolean;
   /** `shared` for a lesson on the platform's shared shelf, which any signed-in person opens
    *  read-only because a search finds it; `team` for a lesson on a team's own shelf. */
   shelf: 'team' | 'shared';

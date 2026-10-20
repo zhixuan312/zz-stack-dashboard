@@ -46,6 +46,16 @@ export function sourceName(title: string | null, path: string): { name: string; 
   if (url.protocol !== 'http:' && url.protocol !== 'https:') return { name: filed, host: null };
   const host = url.hostname.replace(/^www\./, '');
   const last = url.pathname.split('/').filter(Boolean).at(-1);
-  const page = last ? decodeURIComponent(last).replace(/\.[a-z0-9]{1,5}$/i, '').replace(/[-_+]+/g, ' ').trim() : '';
+  const page = last ? readable(last).replace(/\.[a-z0-9]{1,5}$/i, '').replace(/[-_+]+/g, ' ').trim() : '';
   return { name: page ? sentence(page) : host, host };
+}
+
+/** An address's part as a person reads it: unescaped, or as written where an escape in it is malformed (`report%zz`),
+ *  which `URL` keeps and `decodeURIComponent` throws on. */
+function readable(part: string): string {
+  try {
+    return decodeURIComponent(part);
+  } catch {
+    return part;
+  }
 }

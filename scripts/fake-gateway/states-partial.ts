@@ -23,9 +23,13 @@ import type { TeamDetail } from '../../src/lib/fleet-shapes.ts';
 import type { PeriodFigure, PlatformStatus, Releases } from '../../src/lib/platform-shapes.ts';
 import type { RecordRead, WritingEstimate } from '../../src/lib/work-shapes.ts';
 
-/** How long `slow` holds a page's read, and the status read, which its page gives five seconds before it says so. */
-export const SLOW_MS = 4000;
-export const SLOW_STATUS_MS = 6000;
+/**
+ * How long `slow` holds a page's read, and the status read: past every bound a read is given, the 4.5 seconds each page's
+ * read on the console's server and each read in the browser wait before the page says the platform did not answer, so
+ * the state draws each page's loading and then that bounded state, never its content late. `/me` is spared, so the gate
+ * still lets the person in. COUPLED: every `*_BOUND_MS` under src/, which tests/sweep-docs.test.ts holds under these.
+ */
+export const SLOW_MS = 6000;
 
 /** Every state a request may ask for: the spec's five, and `extreme`, which a ceiling is drawn in. */
 export const STATES = ['normal', 'empty', 'error', 'slow', 'extreme', 'partial'] as const;

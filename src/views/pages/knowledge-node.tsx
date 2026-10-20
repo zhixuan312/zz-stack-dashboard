@@ -48,12 +48,11 @@ const Prose = dynamic(() => import('@/components/patterns/prose').then((m) => m.
  * a cited initiative at a hyphen (Phase 7's re-review, Work F-48).
  */
 export function KnowledgeNodeView({ read, team, rel }: { read: ServerRead<KnowledgeBody>; team: string; rel: string }) {
-  const address = `/knowledge/${team}/${rel}`;
+  const address = knowledgeNodeHref(team, rel);
   useLive(['knowledge'], read.state === 'ok' ? read.revisions : undefined);
   useServerReadLive(address);
   const now = useDataClock();
   const self = read.state === 'ok' ? read.data : undefined;
-  const multiTeam = self?.multi_team ?? false;
   const shared = self?.shelf === 'shared';
   const context = self && read.state === 'ok'
     ? knowledgeNodeContext(self, { updatedAt: read.at, now })
@@ -62,7 +61,7 @@ export function KnowledgeNodeView({ read, team, rel }: { read: ServerRead<Knowle
   // The neighbours come with the node: see `KnowledgeBody.related`.
   const related = self?.related ?? [];
   const relatedColumns: Column<KnowledgeNode>[] = aligned([
-    { key: 'num', header: 'Node', width: multiTeam ? 'w-36' : 'w-24', cell: (n) => <span className="font-mono text-xs text-ink-3">{multiTeam ? `${n.team} · ${n.num}` : n.num}</span> },
+    { key: 'num', header: 'Node', width: 'w-24', cell: (n) => <span className="font-mono text-xs text-ink-3">{n.num}</span> },
     // A row opens its node: the quiet arrow says so before the pointer finds it, as every row that opens a page does
     // (Phase 7's second re-review, Work M-11).
     {

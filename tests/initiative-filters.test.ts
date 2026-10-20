@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { INITIATIVE_STATES, initiativeState, type StateOf } from '@/console/initiative-state';
+import { initiativeState, type StateOf } from '@/console/initiative-state';
 import { filtersOf, listPath, narrowed, pageAt } from '@/views/initiatives-filter';
 
 /**
- * The state vocabulary the badge renders and the facet filters by — one definition, tested
- * once.
+ * What an initiative's page and its context say it is doing (`initiativeState`), and the address the Initiatives list
+ * is read at, whose state filter sends the gateway's own states.
  */
 /** `gates` is one entry per gate: `true` passed, `false` written and unsigned, `null` not
  *  written yet. The third is the distinction that matters — an unpassed gate is not
@@ -43,7 +43,7 @@ describe('what an initiative is doing', () => {
   it('separates work that needs a signature from work that is merely open', () => {
     expect(initiativeState(of(null, [true, false]))).toBe('Waiting on you');
     // A gate nobody has drafted is not a signature owed: there is nothing for a person to
-    // read, so the work is waiting on the agent. COUPLED: the Overview tile says the same.
+    // read, so the work is waiting on the agent.
     expect(initiativeState(of(null, [true, null]))).toBe('In progress');
     expect(initiativeState(of(null, [null, null]))).toBe('In progress');
     // Every gate passed, nothing recorded: done, and nobody closed it. Actionable, and a
@@ -56,16 +56,6 @@ describe('what an initiative is doing', () => {
     expect(initiativeState(of(null, [true, false], null))).toBe('Waiting on you');
     // No gates at all is not "ready" — there was never anything to pass.
     expect(initiativeState(of(null, []))).toBe('In progress');
-  });
-
-  it('can only ever answer with one of the six the facet offers', () => {
-    // The facet is built from these strings. A seventh answer would be an option the
-    // control never lists and a row no filter can reach.
-    const answers = [
-      of('accepted', []), of('delivered', []), of('abandoned', []),
-      of(null, [false]), of(null, [true]), of(null, []),
-    ].map(initiativeState);
-    for (const a of answers) expect(INITIATIVE_STATES).toContain(a);
   });
 });
 

@@ -25,14 +25,13 @@
  * Exit 2: no path, no persona, no gateway, or a gateway that could not be reached — nothing could be read, not a pass.
  */
 import fs from 'node:fs';
-import { createRequire, registerHooks } from 'node:module';
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { pathToFileURL } from 'node:url';
 import type { may } from '../src/data/access.ts';
 import type { ViewTool, contextText, viewAt } from '../src/lib/shared-context.ts';
 import type { AUDIT_DEFAULTS } from '../src/views/platform-audit-context.ts';
 import type { viewTools } from '../src/views/tools.ts';
-import { importTarget, projectAliases } from './lib/aliases.ts';
+import { consoleHooks } from './console-hooks.ts';
 import config from './verify.config.ts';
 
 const NAME = 'review-context';
@@ -50,46 +49,6 @@ export function contextFile(route: string, persona: string): string {
 /** What the assistant is told on an address where it is given no view context, and why. */
 export const NO_VIEW = (address: string) => `${address} · no view renders this address, so the assistant is given no view context here: only the page's visible text, which is the console's missing page.`;
 export const NOT_OPEN = (address: string, title: string) => `${address} · ${title} is not a view this person may open: the console draws the missing page here and does not offer its view tool, so the assistant is given no view context, only that page's visible text.`;
-
-/** The console's modules as its server runs them: aliases and extensionless imports resolved, every source compiled. */
-function hook(): void {
-  const require = createRequire(path.join(ROOT, 'package.json'));
-  const ts = require('typescript') as typeof import('typescript');
-  const aliases = projectAliases(ROOT);
-  const stubs: Record<string, string> = {
-    'server-only': '',
-    // The one credential the server forwards (`src/data/gateway.ts`): the session cookie, and no other header.
-    'next/headers': `const c = () => globalThis[Symbol.for('zz-stack.review-context.cookie')];
-      export async function cookies() { return { get: (n) => (n === 'zz_console' && c() ? { name: n, value: c() } : undefined) }; }
-      export async function headers() { return new Headers(); }`,
-  };
-  const file = (base: string) => ['', '.ts', '.tsx', '/index.ts', '/index.tsx'].map((e) => base + e).find((f) => fs.existsSync(f) && fs.statSync(f).isFile());
-  registerHooks({
-    resolve(spec, context, next) {
-      if (spec in stubs) return { url: `data:text/javascript,${encodeURIComponent(stubs[spec])}`, shortCircuit: true };
-      const from = context.parentURL?.startsWith('file:') ? fileURLToPath(context.parentURL) : null;
-      const target = from?.startsWith(SOURCE) ? importTarget(path.relative(ROOT, from), spec, aliases) : null;
-      const found = target ? file(path.join(ROOT, target)) : undefined;
-      if (found) return { url: pathToFileURL(found).href, shortCircuit: true };
-      try {
-        return next(spec, context);
-      } catch (e) {
-        // A package without an `exports` map (`next/navigation`) is resolved as its own CommonJS resolves it.
-        if (/^[@a-z]/.test(spec)) return { url: pathToFileURL(require.resolve(spec)).href, shortCircuit: true };
-        throw e;
-      }
-    },
-    load(url, context, next) {
-      if (!url.startsWith('file:') || !/\.tsx?$/.test(url) || !fileURLToPath(url).startsWith(SOURCE)) return next(url, context);
-      const name = fileURLToPath(url);
-      const { outputText } = ts.transpileModule(fs.readFileSync(name, 'utf8'), {
-        fileName: name,
-        compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
-      });
-      return { format: 'module', source: outputText, shortCircuit: true };
-    },
-  });
-}
 
 /** A view's input from an address it renders: `[name]` is one segment, `[...name]` the rest of them joined, and the
  *  query's parameters by their names. */
@@ -127,7 +86,7 @@ async function main(): Promise<number> {
   // The console's server, as a deployment runs it: the gateway's address, production, and no development credential.
   Object.assign(process.env, { ZZ_GATEWAY: gateway, NODE_ENV: 'production', ZZ_DEV_PAT: '' });
   (globalThis as Record<symbol, unknown>)[COOKIE] = cookie.value;
-  hook();
+  consoleHooks(ROOT, 'zz-stack.review-context.cookie');
   const m = Object.assign({}, ...await Promise.all(['views/tools.ts', 'lib/shared-context.ts', 'data/access.ts', 'views/platform-audit-context.ts']
     .map((f) => import(pathToFileURL(path.join(SOURCE, f)).href) as Promise<Record<string, unknown>>))) as {
     viewTools: typeof viewTools; viewAt: typeof viewAt; contextText: typeof contextText; may: typeof may; AUDIT_DEFAULTS: typeof AUDIT_DEFAULTS;

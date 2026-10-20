@@ -119,7 +119,7 @@ problems.push(...chartProblems(ROOT));
 // ── The console's pages ──────────────────────────────────────────────────────────────────────────────
 // Product code only: Meridian's own layers are checked by check.ts. A page's content is the client view it renders,
 // under src/views/pages.
-for (const f of SOURCE.filter((x) => /^(app|src\/console|src\/lib|src\/nav|src\/views\/pages\/)/.test(x))) {
+for (const f of SOURCE.filter((x) => /^(app|src\/console|src\/lib|src\/views\/pages\/)/.test(x))) {
   const c = code(read(f));
   // The API sends ISO 8601 in UTC; printed into a cell it is `2026-09-05T04:59:00Z`, or a wall clock a reader takes
   // for their own. A time goes through <When> or src/lib/format-date.
@@ -138,10 +138,11 @@ for (const f of SOURCE.filter((x) => /^(app|src\/console|src\/lib|src\/nav|src\/
 }
 
 // ── The navigation ────────────────────────────────────────────────────────────────────────────────────
-// `nav` in `src/app.config.ts` is what the rail draws (narrowed by `src/nav.ts`) and what `scripts/lib/routes.ts`
-// walks for verify's navigation smoke, so a bad href is a broken check as much as a broken link. Meridian's check.ts
-// holds each item's `needs` to the shape the rail can read; this holds the route itself, and that each one appears
-// once: the rail lights up the longest match, so two entries with the same href are two links to the same page.
+// `nav` in `src/app.config.ts` is what the rail draws (narrowed by `chromeAccess` in `src/data/access.ts`) and what
+// `scripts/lib/routes.ts` walks for verify's navigation smoke, so a bad href is a broken check as much as a broken
+// link. Meridian's check.ts holds each item's `needs` to the shape the rail can read; this holds the route itself, and
+// that each one appears once: the rail lights up the longest match, so two entries with the same href are two links to
+// the same page.
 {
   const seen = new Map<string, number>();
   for (const item of nav.flatMap((g) => g.items)) {
@@ -260,7 +261,7 @@ for (const f of SOURCE) {
  *
  * Only the console's own pages, and only when they read: `/login`, `/enrol` and `/signed-out` are outside the group
  * whose layout mounts the provider, so declaring there would register into nothing. A page that composes panels reading
- * for it (`/settings`) declares the collection those panels read, and the components in `src/console/` are declared for
+ * for it (`/access`) declares the collection those panels read, and the components in `src/console/` are declared for
  * by the page that renders them (`version-chain.tsx` reads a document revision; the document page registers
  * `document`). A page's reads are in the client view it renders, under `src/views/pages/`, so both are scanned. */
 for (const f of [...walk('app/(dash)', /\.tsx?$/).filter((x) => /\/page\.tsx$/.test(x)), ...walk('src/views/pages', /\.tsx$/)]) {

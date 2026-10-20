@@ -9,14 +9,15 @@
  * checks in scripts/verify.config.ts name and every address under its `detailRoutes`, for each persona it declares. So
  * is the observer installed before each page's own scripts, which records the first frame with an explicit state on
  * screen: the route's content, a refusal or an error. `slow` is asked for per request by the session value
- * `<person>+slow` (reconciliation 79): the fake gateway delays every page read four seconds and spares `/me`. Each page
- * is opened at 1440px in the dark theme, from a blank page, one at a time in one browser, so no page this check opens
- * loads the one it is timing.
+ * `<person>+slow` (reconciliation 79): the fake gateway holds every page read past the bound each read is given
+ * (`SLOW_MS`, scripts/fake-gateway/states-partial.ts) and spares `/me`, so the explicit state is a refusal, drawn
+ * before anything is read, or the page's own word that the platform did not answer in time. Each page is opened at 1440px in the dark theme, from a blank page, one at
+ * a time in one browser, so no page this check opens loads the one it is timing.
  *
  * A row passes when its explicit state is on screen within five seconds of navigation start; it fails naming the route,
- * the person and the time, or that none arrived in the twelve seconds a page is given. What each state draws, and that
- * `slow` shows loading at once, are states-check's, which `--full` runs beside the other suites: this judges the time
- * alone.
+ * the person and the time, or that none arrived in the `SETTLE_MS` (eighteen seconds) a page is given. What each state
+ * draws, and that `slow` shows loading at once, are states-check's, which `--full` runs beside the other suites: this
+ * judges the time alone.
  *
  * One line per route and person, then the failures. Exits 1 when any failed or nothing was opened.
  */

@@ -258,7 +258,7 @@ describe('a lesson on the shared shelf', () => {
   const body: KnowledgeBody = {
     team: 'zz-platform', path: 'nodes/0001-search-the-shelf-first.md', type: 'process', status: 'adopted', title: 'Search the shelf before you write a lesson',
     tags: ['knowledge'], updated: '2026-09-01T00:00:00Z', body: 'Search the shelf first.', num: '1', evidence: null, cited_elsewhere: 2, superseded_by: null, evidence_in: null,
-    related: [], multi_team: false, shelf: 'shared',
+    related: [], shelf: 'shared',
   };
 
   it('opens marked shared, with nothing that says read-only and nothing on the page that changes it', async () => {

@@ -27,7 +27,7 @@ const TooltipProvider = Tooltip.Provider;
  *
  * The reads are real reads: `fetch` answers 500 with the gateway's own sentence for every route a page asks for, so
  * what is asserted is what a person would meet rather than a component handed an error prop. `/me` answers, because it
- * is the console's own mode read and not the page's content — a page's failure is what is under test here.
+ * says who is asking and is not the page's content — a page's failure is what is under test here.
  */
 const REASON = 'the gateway could not reach its database';
 

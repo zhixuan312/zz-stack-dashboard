@@ -42,7 +42,8 @@ const opt = (k: string, d: string) => { const i = args.indexOf(k); return i >= 0
 const base = opt('--base', process.env.BASE ?? 'http://localhost:3100').replace(/\/$/, '');
 const only = opt('--tasks', '') ? new Set(opt('--tasks', '').split(',')) : null;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-/** How long a step waits for the page: past states-check's twelve seconds to settle, since the suites run side by side. */
+/** How long a step waits for the page: past states-check's `SETTLE_MS`, eighteen seconds to settle, since the suites run
+ *  side by side. */
 const STEP_MS = 30_000;
 
 /** The guides' tasks, as tests/fixtures/guide-tasks.json keeps them. */

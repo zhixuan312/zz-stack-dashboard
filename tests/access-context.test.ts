@@ -9,10 +9,10 @@ import { aggregate, read } from '@/data/read';
 import type { Me } from '@/lib/api-shapes';
 import type { Access } from '@/lib/destination-shapes';
 import { runExplore, type ExploreRights } from '@/lib/explore';
-import { contextText } from '@/lib/shared-context';
+import { dayOf } from '@/lib/format-date';
+import { contextText, viewAt } from '@/lib/shared-context';
 import { accessAnswer, accessContext } from '@/views/access-context';
 import { CONTEXT_BUDGET } from '@/views/context';
-import { viewAt } from '@/lib/shared-context';
 import { viewTools } from '@/views/tools';
 import { accessTool } from '@/views/tools/access';
 import { access as accessOf } from '../scripts/fake-gateway/work-access.ts';
@@ -153,7 +153,8 @@ describe('view_access', () => {
 
 describe('explore_access', () => {
   const rights: ExploreRights = { readable: new Set(['tokens']), hidden: () => [] };
-  const explore = (input: unknown) => runExplore(accessTool.explore, input, rights, { aggregate, read, today: new Date().toISOString().slice(0, 10) }, accessTool.page);
+  // The day the assistant's route hands the query: today in the reporting time zone, as `dayOf(clock())` reads it.
+  const explore = (input: unknown) => runExplore(accessTool.explore, input, rights, { aggregate, read, today: dayOf(new Date()) }, accessTool.page);
 
   it('declares the caller\'s tokens by state and application, drilled to Access', () => {
     const { sources } = accessTool.explore;

@@ -31,7 +31,7 @@ export function knowledgeNodeContext(b: KnowledgeBody, arrival: Arrival): Shared
   const elsewhere = b.cited_elsewhere ? `${b.cited_elsewhere} ${plural(b.cited_elsewhere, 'initiative of another team, which is', 'initiatives of other teams, which are')} not named here` : '';
   if (learned.length || elsewhere) insights.push({ text: `It was learned in ${[learned.join('; '), elsewhere].filter(Boolean).join(', and in ')}.` });
   // A superseded neighbour is said to be, as the page marks it, so it is never read as the current lesson.
-  if (b.related.length) insights.push({ text: `It shares a tag with ${listed(b.related, (n) => `${name(n, b.multi_team)}${n.superseded_by ? ` (superseded by node ${n.superseded_by})` : ''}`, 'see the node\'s page', 10)}.` });
+  if (b.related.length) insights.push({ text: `It shares a tag with ${listed(b.related, (n) => `${name(n)}${n.superseded_by ? ` (superseded by node ${n.superseded_by})` : ''}`, 'see the node\'s page', 10)}.` });
   return budgeted({
     view: 'knowledge_node',
     title: b.title,

@@ -5,7 +5,7 @@ One plugin: how to install it, its public score with whether its scores compare,
 ## Structure
 
 - Gate first: the page asks for `plugins` before it renders, so a person who does not hold it is answered by the refused page and nothing on the page is read. Its title comes from `gatedMetadata` and its loading state from `gatedLoading`, so under `refusal: 'absent'` neither names the page.
-- Its three reads, the catalog (`GET /plugins`), the owning team's evaluation (`GET /plugins/:plugin/eval`) and its scores' series out of the platform's Evaluation read (`GET /platform/evaluation`, only this plugin's handed on), are made together on the console's server before the masthead; the third never fails the page. A name the catalog does not list, with nothing registered for evaluation, is answered by the missing page, exactly as an address that names nothing is.
+- Its three reads, the catalog (`GET /plugins`), the owning team's evaluation (`GET /plugins/:plugin/eval`) and its scores' series out of the platform's Evaluation read (`GET /platform/evaluation`, only this plugin's handed on), are made together on the console's server before the masthead; the third never fails the page. A name the catalog does not list, with nothing registered for evaluation, is answered by the missing page, exactly as an address that names nothing is: the same body, and the same tab, `Not found`, never the name typed. The tab and the page are decided by the same three reads, made once a request.
 - Masthead: the kicker `ZZ Stack · Work / Plugins`, the plugin's name and one static sentence.
 - Its public score, the page's protagonist and its one featured card: the score a person acts on, out of 10 (or its standing, when nobody established it, or `Never scored`), headed by the protocol it was scored against (`v<n> of its own protocol` for a member, whom the gateway sends no key), with its standing, range and day, which of its earlier scores it compares with and which it does not, by score, day and protocol (`Comparable with its 6.4 of 6 Oct, the same protocol and population; not comparable with its 5.8 of 29 Sept, scored against sdlc-flow-quality v1`), read off the series the platform's Evaluation read groups its scores into, or the gateway's comparability statement as it is where that read did not answer, and the command that installs the plugin in a Copy field at its foot, cut at its front if it does not fit, so the plugin's name shows. The browser decides no comparability: the series are the gateway's. It says nobody starts an evaluation from the console. Ask is in its head.
 - About this plugin, under it: required or optional (a neutral label, never the accent, which is kept for what a person presses), its version with the release's digest or `not released`, its owner, the servers it reaches, its method, and your team's calls of it, labelled `Your team`.
@@ -18,13 +18,13 @@ One plugin: how to install it, its public score with whether its scores compare,
 
 | State | What shows |
 |---|---|
-| Loading | `loading.tsx` while the gate asks `/me` and the two reads answer |
+| Loading | `loading.tsx` while the gate asks `/me` and the three reads answer |
 | Default | The public score, About, the evaluation where answered, the skills and the documents |
 | Never scored | The public score reads `Never scored` and the gateway's `No score to compare` |
 | Evaluation withheld | Everything but the evaluation, and nothing in its place |
 | Never profiled or never scored | The headline says the evaluation has not happened, and one panel says what each part waits for |
 | A third-party subject | Its evaluation, with a line saying the catalog has no manifest of it, and no score, skills or install command |
-| Not a plugin | The missing page |
+| Not a plugin | The missing page, its tab `Not found` |
 | Evaluation failed | Its own error state with the gateway's sentence and Retry; the rest stands |
 | Catalog failed, or slower than 4.5 seconds | "The plugin did not load" with the gateway's sentence, or that it did not answer within 4.5 seconds, and Retry |
 | Read again | Retry reads again in the browser, busy only after the person presses it and until that read answers; a read a change starts leaves the state and its Retry where they are, never busy, so a keyboard user keeps their place |
@@ -54,4 +54,4 @@ Protagonist: Its public score.
 
 ## Surfaces
 
-Console, desktop and phone; at 390px the public score leads with its install command whole as the card's width, About under it, and the skills are a card list of the skill, whose it is and your team's calls. Reads `GET /plugins` and `GET /plugins/:plugin/eval` on the console's server, as the person, once per request and bounded at 4.5 seconds; a Retry and a change anywhere to the plugins collection are read in the browser. Live: follows `plugins`.
+Console, desktop and phone; at 390px the public score leads with its install command whole as the card's width, About under it, and the skills are a card list of the skill, whose it is and your team's calls. Reads `GET /plugins`, `GET /plugins/:plugin/eval` and `GET /platform/evaluation` on the console's server, as the person, once per request and bounded at 4.5 seconds; a Retry and a change anywhere to the plugins collection are read in the browser. Live: follows `plugins`.

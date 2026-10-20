@@ -11,6 +11,7 @@ import { formatPercent, plural } from '@/lib/format';
 import { formatDateTime, formatDay, formatRelative } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import type { Fact, Insight, SharedContext } from '@/lib/shared-context';
+import { encodePath } from '@/lib/store-path';
 import type { Figure, PeriodFigure, ReadMeta, Window } from '@/lib/platform-shapes';
 import type { Home, InitiativeRow, WritingCoverage } from '@/lib/work-shapes';
 import { budgeted, clip, pendingContext } from './context';
@@ -137,7 +138,7 @@ export function waitingOf(home: Home, team: string | null): Waiting {
       kind: 'one',
       title: `${one.path}, version ${one.version}, waits for approval`,
       detail: `In ${one.initiative}${oldestSince ? `, since ${formatDay(oldestSince)}` : ''}.`,
-      href: team ? `/initiatives/${team}/${one.initiative}/${one.path}` : '/approvals',
+      href: team ? `/initiatives/${team}/${one.initiative}/${encodePath(one.path)}` : '/approvals',
     };
   }
   return { kind: 'many', title: `${formatCount(count)} ${plural(count, 'revision waits', 'revisions wait')} for approval`, detail: `Presented and not yet approved${sinceWhen}.`, href: '/approvals' };

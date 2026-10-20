@@ -12,8 +12,9 @@ import type { Revisions } from '@/lib/live';
  * From the browser. The session cookie belongs to the person at the browser, and it sends it to the origin that issued
  * it. The console's server makes one read of its own for every page, `/me` as the caller, to decide whether the page
  * may render and which destinations the rail draws (`src/data/access.ts`, through `src/data/gateway.ts`, which says what
- * it sends and why), and the assistant's route reads through the same module. A page's own content is still read here,
- * in the browser: nothing in this file goes through that module.
+ * it sends and why), and a page's first read of its own content is made there too, on the console's server, so it is
+ * drawn with the page; what a page reads after it is drawn (a filter, a page of rows, a live change) is read here, in the
+ * browser, and nothing in this file goes through that module.
  *
  * Which is why the path is relative. `/api/console/...` resolves against whatever host the page
  * was served from, and Caddy routes that path on the console host to the gateway — no base URL,

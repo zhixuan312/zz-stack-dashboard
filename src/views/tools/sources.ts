@@ -12,6 +12,7 @@
  * own address, and a `cannot` that names the page counting it, which is what the collection answers a drill with.
  */
 import type { Measure, Source } from '@/lib/explore';
+import { knowledgeNodeHref } from '@/lib/knowledge-filters';
 
 type Row = Record<string, unknown>;
 
@@ -76,7 +77,7 @@ export const shelf: Source = {
   collection: 'shelf', date: 'updated',
   filters: { kind: eq, standing: { ...eq, values: ['standing', 'superseded'] } }, facets: ['kind', 'standing'],
   measures: { lessons: count('Lessons on the shelf', 'lessons', 'The team\'s lessons as of the window\'s last day, standing or superseded as they stand now.') },
-  drill: { columns: ['key', 'title', 'type', 'status', 'updated'], address: (r: Row) => `/knowledge/${String(r.team)}/${String(r.path)}` },
+  drill: { columns: ['key', 'title', 'type', 'status', 'updated'], address: (r: Row) => knowledgeNodeHref(String(r.team), String(r.path)) },
   cannot: `The shelf is a stock: a window's start changes nothing, and nothing records when a lesson was superseded. ${ACTIVE}`,
 };
 

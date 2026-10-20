@@ -55,22 +55,26 @@ where it is made and never claims to have made it.
 
 ## Data
 
-A page's own content is a browser fetch to `/api/console/*` by `src/lib/api.ts`, and every write goes through
-`src/lib/mutate.ts`. The payload shapes are the gateway's, recorded in `src/lib/api-shapes.ts` (Work) and `src/lib/platform-shapes.ts` (Platform). The console stores
-nobody's credential: the browser has a session cookie and sends it to the origin that issued it. The server reads the
-gateway as the person asking, through `src/data/gateway.ts`, for two things: `/me` once per request for every page,
-which decides whether the page may render and what the rail draws (`src/data/access.ts`), and the assistant's reads.
-So `ZZ_GATEWAY` is required for every page. Caddy routes `/api/console` on the console's own host to the gateway, so
-the page and its API are one origin.
+A page's first read is made on the console's server, as the person, before the page is drawn, by the read module
+beside its route (`app/(dash)/**/read-*.ts`, and `src/views/document-read.ts` for a document), bounded at 4.5 seconds,
+so its content is in the first paint. What a page reads after that, a Retry or a collection a live hint names, is a
+browser fetch to `/api/console/*` by `src/lib/api.ts`, and every write goes through `src/lib/mutate.ts`. The payload
+shapes are the gateway's, recorded in `src/lib/api-shapes.ts` (Work) and `src/lib/platform-shapes.ts` (Platform). The
+console stores nobody's credential: the browser has a session cookie and sends it to the origin that issued it. The
+server reads the gateway as the person asking, through `src/data/gateway.ts`, for three things: `/me` once per request
+for every page, which decides whether the page may render and what the rail draws (`src/data/access.ts`), each page's
+first read, and the assistant's reads. So `ZZ_GATEWAY` is required for every page. Caddy routes `/api/console` on the
+console's own host to the gateway, so the page and its API are one origin.
 
 Freshness means when the data arrived in this browser, not when the page rendered. `freshnessOf` in `src/lib/api.ts`
 reads the oldest arrival time among a page's queries, and `useDataClock` reads it for a component that holds no query of
 its own; `Freshness`, `ShellTools` and every relative time are stamped against that clock rather than `new Date()`.
 
 A view's state lives in its address — every filter, tab and period is a query parameter — so a link is shareable and an
-agent opens the same view by naming the same parameters. `src/lib/address.ts` is the one reader of it, and the one place
-a store path is turned into route segments and back — `encodePath`/`decodePath`, which must handle a path one segment at
-a time or `sources/2026-10-06-call.md` arrives as a single segment named after itself.
+agent opens the same view by naming the same parameters. `src/lib/address.ts` is the one reader of it, and
+`src/lib/store-path.ts` the one place a store path is turned into route segments and back — `encodePath`/`decodePath`,
+which must handle a path one segment at a time or `sources/2026-10-06-call.md` arrives as a single segment named after
+itself.
 
 ## Decisions
 
@@ -98,7 +102,8 @@ a time or `sources/2026-10-06-call.md` arrives as a single segment named after i
   route its prerender — `useSearchParams` client-renders every Client Component up to the nearest Suspense boundary, and
   a console page has none — which measured 2212ms of LCP on Teams against 632ms once the address was read directly.
 - **Cache Components is on, and every route is partial.** `cacheComponents` and `partialPrefetching` are set in
-  `next.config.ts`, and `scripts/route-policy.ts` reads 2 static and 22 partial of 24 non-API routes. Every page asks
+  `next.config.ts`, and `scripts/route-policy.ts` reads no non-API route as dynamic (2 static and 33 partial of 35 on
+  2026-10-20). Every page asks
   `gate` on the server first, inside the boundary its own `loading.tsx` gives it, so a page's static shell is the frame
   and its loading page, and the page streams in once the gate has passed. `app/(dash)/layout.tsx` is a Server Component
   rendering the shell, and the rail, the tools and the palette each resolve what they need behind their own
@@ -107,8 +112,8 @@ a time or `sources/2026-10-06-call.md` arrives as a single segment named after i
   tab carries hints naming a collection and never data, and the tab reads that collection again. The release's
   `src/views/console-live.tsx` is adopted whole with its one product-specific part replaced: there `refresh` calls a
   Server Action that drops the tenant's cached reads and refreshes the router, and here there is nothing on the server
-  to drop, because `src/lib/api.ts` reads from the browser and says why — so the cache is React Query's and dropping it
-  is `invalidateQueries` over the console queries whose collection the hint names. A read's collection is its own first
+  to drop, because a page's first read there keeps nothing for the next request and every read after it is the
+  browser's, through `src/lib/api.ts` — so the cache is React Query's and dropping it is `invalidateQueries` over the console queries whose collection the hint names. A read's collection is its own first
   path segment (`/initiatives/<team>/<slug>` reads `initiatives`), so no new vocabulary crosses the wire, and each page says what it shows in one
   `useLive([...])` line. The stream opens only once `/me` answers, so a signed-out tab opens none.
 - **The shell's `<Suspense>` carries a fallback that draws the frame, not `null`.** That boundary is load-bearing —
@@ -131,17 +136,18 @@ a time or `sources/2026-10-06-call.md` arrives as a single segment named after i
   request. Every change in this console stays on its page, by the person: no collection gives an agent a tool that
   writes. Approval above all: a document is approved by a member who was shown that exact snapshot, never by an agent.
 - **This app's server reads the gateway as the person, in one module.** Every page's gate and the chrome read `/me`
-  once per request, and the assistant's route has to know who is asking before a model is reached while its tools look
-  records up as a reply is written. `src/data/gateway.ts` sends the caller's own `zz_console` cookie, that cookie
-  alone, to the gateway that issued it, and asks for the platform scope on every read but `/me` and `/search`; the
-  gateway answers each caller what they may read of it. A page's own content is still read from the browser. This is
-  the "server replays the caller's cookie" shape the console avoided while it was only a renderer; it was taken on for
-  the assistant on 2026-10-12 and for every page's gate on 2026-10-14, bounded to that module, and it stores nothing.
+  once per request, every page makes its first read there before it is drawn, and the assistant's route has to know
+  who is asking before a model is reached while its tools look records up as a reply is written.
+  `src/data/gateway.ts` sends the caller's own `zz_console` cookie, that cookie alone, to the gateway that issued it,
+  and asks for the platform scope on every read but `/me` and `/search`; the gateway answers each caller what they may
+  read of it. What a page reads after it is drawn is read from the browser. This is the "server replays the caller's
+  cookie" shape the console avoided while it was only a renderer; it was taken on for the assistant on 2026-10-12, for
+  every page's gate on 2026-10-14 and then for every page's first read, bounded to that module, and it stores nothing.
 - **The assistant reads what documents say through the platform's own search.** `view_search` asks `GET /search`,
   which is zz-core's `knowledge_search` run as the person: the text of every document and knowledge node of the team
   they act for, and of the platform's shared shelf, ranked, each result a matched excerpt with the address of the page
   that shows it. It is the one tool that reads content; every view and prepared query states titles, states and
-  counts, and the Knowledge page's own field filters titles and opening excerpts. It has no page of its own, its
+  counts, and the Knowledge page leads with the same search, as the person asks it there. It has no page of its own, its
   context is held to a view's 2,600 characters by sharing the room between results, and it takes no platform scope:
   the gateway refuses one team's search asked for as the fleet's. Set on 2026-10-12, when the Ask tab went: the
   answer the gateway used to write is the assistant's to write, over the same retrieval.
@@ -171,8 +177,8 @@ a time or `sources/2026-10-06-call.md` arrives as a single segment named after i
 - **Knowledge has no Ask tab.** The page that answered a question from one team's shelf, through the gateway's own
   model call, is gone: the assistant is the one place a question is asked. It finds nodes with `view_knowledge` and
   `view_search`, counts the shelf with `explore_knowledge`, and reads one node with `view_knowledge_node`, whose context
-  carries the lesson itself. What that drops is the gateway's
-  ranked retrieval over document bodies; the assistant searches titles, excerpts and tags.
+  carries the lesson itself. What that drops is the answer the gateway's own model wrote; the ranked retrieval over
+  documents and lessons stays, as `view_search` and the page's own search.
 - **A document is read at the canvas width, with its running text capped at 92ch — not at `--reading-width`.** The
   person's own complaint, in their words: the documents are already long, and squeezing one into a centred strip makes
   it longer. `reading-width` is 832px, and this page is not one document — it is a document beside the colophon and
@@ -189,7 +195,7 @@ a time or `sources/2026-10-06-call.md` arrives as a single segment named after i
 - **Waiting.** A gate document written and not approved: on an initiative that is still open, or on a closed one whose
   closing document was corrected after the close. The bell's own word.
 - **Routable door.** An MCP endpoint a client can be pointed at. The console does not draw them yet.
-- **Fleet surface.** A page that reads across every team — Plugins, Runs, Teams and Activity.
+- **Fleet surface.** A page that reads across every team: Teams, People, Usage, Audit, Knowledge health.
 
 ## How it is checked
 
@@ -231,7 +237,7 @@ What stays the console's own, and why:
 - `src/lib/period.ts`: the 24-hour period, all time by default, and `PERIOD_SHORT`'s `24H`.
 - `src/views/console-live.tsx`: the release's team-owned live glue, adopted whole with its one product-specific part
   replaced — `refresh` drops React Query's cache for the collection a hint names, where the release calls a Server Action
-  and refreshes the router, because this product reads from the browser and has nothing on the server to drop.
+  and refreshes the router, because this product keeps no read on the server and reads again from the browser.
 - `scripts/check.local.ts` and `scripts/verify.config.ts`: the project's half of Meridian's hooks.
 - **Both stand-ins are gone, and this is the record of why.** 0.14.1 carries them: `data-table` puts a phone card's title
   at the left edge whatever the column order, so `/activity`'s `kind` column no longer needs its own `align: 'left'`, and

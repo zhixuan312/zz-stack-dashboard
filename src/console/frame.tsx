@@ -6,6 +6,7 @@ import { useConsole, useDataClock } from '@/lib/api';
 import type { Me } from '@/lib/api-shapes';
 import { RailPending } from '@/views/console-chrome';
 import { useWaitingApprovals } from '@/console/waiting-gates';
+import { encodePath } from '@/lib/store-path';
 
 /*
  * The console's own pieces of the shell: its frame while the shell is on its way, and the bell. The rail and the
@@ -31,7 +32,7 @@ function useWaitingAlerts(enabled: boolean, team: string | null): Alert[] {
     title: `${w.path}, version ${w.version}, waits for approval`,
     detail: w.initiative,
     at: w.waitingSince,
-    href: team ? `/initiatives/${team}/${w.initiative}/${w.path}` : '/approvals',
+    href: team ? `/initiatives/${team}/${w.initiative}/${encodePath(w.path)}` : '/approvals',
     tone: 'warning',
     unread: true,
   }));

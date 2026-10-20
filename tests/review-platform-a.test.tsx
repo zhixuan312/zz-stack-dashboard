@@ -4,6 +4,10 @@ import { Tooltip } from 'radix-ui';
 import type { ReactElement, ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+// The fake gateway's clock is the moment its module loads, so the day is fixed before it does: Status's six weeks end
+// with the one running on 19 Oct 2026, so September is among them, and "Sept" is a month a style can get wrong.
+vi.hoisted(() => { vi.useFakeTimers({ now: new Date('2026-10-19T04:00:00Z'), toFake: ['Date'] }); });
+
 vi.mock('next/navigation', () => ({
   usePathname: () => window.location.pathname,
   useSearchParams: () => new URLSearchParams(window.location.search),

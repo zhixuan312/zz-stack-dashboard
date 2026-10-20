@@ -2,11 +2,12 @@
  * The fake gateway's prepared queries: what `GET /api/console/work/query?measure&by&from&to&compare&where&state&flow&q
  * &group&rows&top&limit&offset` answers.
  *
- * One question at a time, over the rows Work's pages reduce: the initiatives list's for closures and opened work, the
- * approvals fixture's for the caller's approvals, rows of its own here for words added, lessons, runs and searches, all
- * in the active team and dated in the status fixture's weeks; and the destinations' own fixtures for the rest: Activity's
- * log for calls and refusals, Runs' runs for output and for the calls of each plugin's skills, as Plugins counts them,
- * and Knowledge's shelf, as of the window's end. Each measure is grouped by one of the dimensions it allows or, where it
+ * One question at a time, over the rows Work's pages reduce, never rows of its own, so every figure it answers over a
+ * window a page draws is that page's figure: the initiatives list's for closures and opened work, the approvals
+ * fixture's for the caller's approvals, Home's additions for words added, as Home and Record count them, each week's
+ * written in the active team's documents and lessons by one rule (`wordsOf`), Knowledge's lessons made and searches,
+ * as Home, Record and Knowledge count them, Activity's log for calls and refusals, Runs' runs for runs, for output and
+ * for the calls of each plugin's skills, as Plugins counts them, and Knowledge's shelf, as of the window's end. Each measure is grouped by one of the dimensions it allows or, where it
  * takes period, by a bucket of days (day, week, month, weekday, as work-query-buckets.ts keys them; runs keeps weekday as
  * its own dimension), in a window that defaults to the last whole week, against the previous window of the same length
  * when asked (never for the shelf, a stock), and down to one group's rows, paged, or the newest rows of the window.
@@ -36,10 +37,12 @@ import type { Figure, Window } from '../../src/lib/platform-shapes.ts';
 import type { WorkQuery, WorkQueryRow } from '../../src/lib/work-shapes.ts';
 import { localDay, midnight, now, nextStart, startOf, weekdayHour } from './clock.ts';
 import { CATALOG_SKILLS } from './platform.ts';
+import { initiativeDetail } from './work.ts';
 import { activityLog } from './work-activity.ts';
 import { callerApprovalRows } from './work-approvals.ts';
-import { LAST_WEEK, WEEKS, filtered, inWeek, iso, listParams, workMeta } from './work-initiatives.ts';
-import { IMPORTED, SHELF } from './work-knowledge.ts';
+import { ADDITIONS } from './work-home.ts';
+import { LAST_WEEK, WEEKS, filtered, iso, listParams, rowsOf, workMeta } from './work-initiatives.ts';
+import { IMPORTED, SHELF, lessonsMade, searchesOf } from './work-knowledge.ts';
 import { BUCKETS, WEEKDAYS, addDays, bucketLabel, bucketOf, bucketsOf, isDate, type Bucket } from './work-query-buckets.ts';
 import { runsOf } from './work-runs.ts';
 
@@ -85,26 +88,26 @@ const bucketFor = (m: Measure, by: string): Bucket | null =>
 type Fact = { at: string; value: number | null; keys: Record<string, string>; row: WorkQueryRow | null; id?: string; imported?: boolean };
 type Counted = WorkQuery['total'];
 
-const at = (back: number, hours: number) => iso(inWeek(back, hours));
-
-/** Words added, by document and week. */
-const WORDS: [initiative: string, path: string, added: number, back: number, hours: number][] = [
-  ['2026-09-28-search-relevance', 'spec.md', 6_200, 4, 30], ['2026-09-28-search-relevance', 'plan.md', 9_100, 2, 50],
-  ['2026-10-08-result-explanations', 'spec.md', 4_400, 2, 90], ['2026-10-08-result-explanations', 'plan.md', 5_300, 1, 20],
-  ['2026-10-08-result-explanations', 'review.md', 2_100, 1, 70], ['2026-10-02-query-latency', 'spec.md', 1_700, 1, 110],
-  ['2026-10-03-ranking-weights', 'spec.md', 2_100, 0, 0],
-];
-const LESSONS: [kind: string, back: number, hours: number, words: number][] = [['decision', 4, 20, 140], ['behavior', 2, 40, 95], ['process', 1, 30, 120], ['decision', 1, 60, 80]];
-const RUNS: [skill: string, initiative: string | null, back: number, hours: number, minutes: number][] = [
-  ['sdlc-spec', '2026-10-02-query-latency', 1, 10, 42], ['sdlc-plan', '2026-09-28-search-relevance', 1, 34, 95],
-  ['sdlc-plan-audit', '2026-09-28-search-relevance', 1, 58, 18], ['sdlc-review', '2026-10-08-result-explanations', 1, 80, 64],
-  ['zz-tldr', null, 1, 120, 3], ['sdlc-spec', '2026-10-03-ranking-weights', 2, 30, 51], ['sdlc-explore', '2026-10-06-snippet-quality', 3, 12, 27],
-];
-/** `[found, weeks back, hours, the question as Knowledge lists one that found nothing]`. */
-const SEARCHES: [found: boolean, back: number, hours: number, question: string][] = [
-  [true, 1, 9, 'recency 1'], [true, 1, 33, 'recency 2'], [false, 1, 47, 'where is the ranking eval'], [true, 1, 95, 'recency 3'],
-  [true, 2, 12, 'recency 4'], [false, 3, 70, 'how do we rotate the signing key'],
-];
+/**
+ * The words `team` added, each of Home's additions written in the team's documents and lessons by one rule, the same
+ * every read: the k-th addition's half (rounded down) is written in the k-th of the team's flow documents in turn,
+ * two fifths (rounded down) in the next, and the rest in the lessons, which are no document and have no initiative;
+ * a team with no flow document writes all of it in its lessons. So each week's words add up to Home's and Record's.
+ */
+function wordsOf(team: string): Fact[] {
+  const documents = rowsOf(team).flatMap((r) => (initiativeDetail(team, r.slug)?.documents ?? [])
+    .filter((d) => !d.path.startsWith('sources/')).map((d) => ({ initiative: r.slug, path: d.path })));
+  const fact = (atMs: number, added: number, d: { initiative: string; path: string } | null): Fact => ({
+    at: iso(atMs), value: added,
+    keys: d ? { document: `${d.initiative}/${d.path}`, initiative: d.initiative } : { document: 'lessons', initiative: 'lessons' },
+    row: d ? { initiative: d.initiative, path: d.path, added } : { initiative: null, path: null, added },
+  });
+  return ADDITIONS.flatMap(({ atMs, words }, k) => {
+    if (!documents.length) return [fact(atMs, words, null)];
+    const half = Math.floor(words / 2), fifths = Math.floor((words * 2) / 5);
+    return [fact(atMs, half, documents[k % documents.length]), fact(atMs, fifths, documents[(k + 1) % documents.length]), fact(atMs, words - half - fifths, null)];
+  });
+}
 
 /** The active team's real-work tool calls, every page of Activity's log. */
 function callsOf(who: Me): ActivityRow[] {
@@ -124,24 +127,19 @@ function factsOf(measure: Measure, who: Me, p: { state: string | null; flow: str
     case 'closures': return filtered(team, p).filter((r) => r.closed !== null)
       .map((r) => ({ at: r.closed!, value: 1, keys: { outcome: r.state, flow: r.flow ?? 'none', initiative: r.slug }, row: { ...r } }));
     case 'opened': return filtered(team, p).map((r) => ({ at: r.opened, value: 1, keys: { flow: r.flow ?? 'none' }, row: { ...r } }));
-    // A lesson's words count as Home's do, grouped as lessons: a lesson is no document and has no initiative.
-    case 'words': return team !== 'atlas' ? [] : [
-      ...WORDS.map(([initiative, path, added, back, hours]) =>
-        ({ at: at(back, hours), value: added, keys: { document: `${initiative}/${path}`, initiative }, row: { initiative, path, added } })),
-      ...LESSONS.map(([, back, hours, added]) =>
-        ({ at: at(back, hours), value: added, keys: { document: 'lessons', initiative: 'lessons' }, row: { initiative: null, path: null, added } })),
-    ];
+    case 'words': return team === null ? [] : wordsOf(team);
     case 'approvals': return callerApprovalRows(team, who.email).map((a) =>
       ({ at: a.approvedAt, value: 1, keys: { presentation: a.presentation, decision_basis: a.decisionBasis, initiative: a.initiative }, row: a }));
-    case 'lessons': return team !== 'atlas' ? [] : LESSONS.map(([kind, back, hours]) => ({ at: at(back, hours), value: 1, keys: { kind }, row: { kind, at: at(back, hours) } }));
-    case 'runs': return team !== 'atlas' ? [] : RUNS.map(([skill, initiative, back, hours, minutes]) => {
-      const startedAt = at(back, hours);
+    // The lessons Home and Record count as made: an import's left out, a superseded one kept.
+    case 'lessons': return team === null ? [] : lessonsMade(team).map((n) => ({ at: n.updated, value: 1, keys: { kind: n.type }, row: { kind: n.type, at: n.updated } }));
+    case 'runs': return team === null ? [] : runsOf(team).map(({ skill, initiative, startedAt, lengthMs, id }) => {
       const [weekday, hour] = weekdayHour(Date.parse(startedAt));
-      return { at: startedAt, value: 1, keys: { skill, initiative: initiative ?? 'none', weekday: WEEKDAYS[weekday], hour: String(hour).padStart(2, '0') },
-        row: { skill, initiative, startedAt, lengthMs: minutes * 60_000 } };
+      return { at: startedAt, value: 1, id, keys: { skill, initiative: initiative ?? 'none', weekday: WEEKDAYS[weekday], hour: String(hour).padStart(2, '0') },
+        row: { skill, initiative, startedAt, lengthMs } };
     });
-    case 'searches': return team !== 'atlas' ? [] : SEARCHES.map(([found, back, hours, question]) =>
-      ({ at: at(back, hours), value: 1, keys: { found: found ? 'found' : 'none' }, row: { at: at(back, hours), found, question: found ? null : question } }));
+    // The question as Knowledge lists one that found nothing, normalised for case and spacing.
+    case 'searches': return team === null ? [] : searchesOf(team).map(({ at, found, question }) =>
+      ({ at, value: 1, keys: { found: found ? 'found' : 'none' }, row: { at, found, question: found ? null : question } }));
     case 'calls':
     case 'refusals': return callsOf(who).filter((r) => measure === 'calls' || r.ok === false).map((r) => ({
       at: r.ts, value: 1, row: r, id: r.id,

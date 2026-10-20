@@ -22,6 +22,7 @@ import { AXIS_FORMATTERS, plural } from '@/lib/format';
 import { formatDateTime, formatShortDate } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
+import { encodePath } from '@/lib/store-path';
 import type { ApprovalRow, Approvals, WaitingRow } from '@/lib/work-shapes';
 import {
   APPROVALS_DEFAULTS, DECISION_BASIS, IN_YOUR_NAME, PAGE_SIZE, PRESENTATION, TEAM_APPROVALS, TILES, approvalsAddress, approvalsContext, approvedHref,
@@ -224,6 +225,9 @@ export function ApprovalsView({ served }: { served: Revised<ApprovalsRead> }) {
     { key: 'waiting', label: 'Waiting', href: approvalsAddress('waiting'), count: counted(shown?.waiting) },
     { key: 'history', label: 'History', href: approvalsAddress('history'), count: counted(shown?.history) },
   ].map(({ count, ...t }) => (count === undefined ? t : { ...t, count }));
+  // A waiting row opens its document's live version under the team the person acts for, as History's opens the one
+  // approved (`approvedHref`): the store path segment by segment, so a name holding `#`, `?` or `%` opens itself.
+  const waitingHref = team ? (r: WaitingRow) => `/initiatives/${team}/${r.initiative}/${encodePath(r.path)}` : undefined;
   const pageState = { sort: '', dir: 'desc', page: String(page) };
   const onPage = (p: { page?: string }) => { if (p.page) set({ page: p.page }); };
   const toolbar = (
@@ -256,9 +260,9 @@ export function ApprovalsView({ served }: { served: Revised<ApprovalsRead> }) {
             caption={TEAM_APPROVALS}
             noun="revisions"
             rows={list?.state === 'ok' ? (list.data.rows as WaitingRow[]) : []}
-            columns={waitingColumns(team ? (r) => `/initiatives/${team}/${r.initiative}/${r.path}` : undefined, shown?.meta.asOf ?? '')}
+            columns={waitingColumns(waitingHref, shown?.meta.asOf ?? '')}
             rowKey={(r) => r.contentRevision}
-            rowHref={team ? (r) => `/initiatives/${team}/${r.initiative}/${r.path}` : undefined}
+            rowHref={waitingHref}
             empty={{ title: 'Nothing waits for approval', body: 'A revision appears here once it is presented for approval, and leaves once it is approved.' }}
           />
         ) : (

@@ -5,7 +5,7 @@ One release: its published changelog with its upgrade notes, what clients must d
 ## Structure
 
 - Gate first: the page asks for `releases` before it renders and before its address is read, so a person who does not hold it is answered by the refused page and nothing on the page is read. Its title comes from `gatedMetadata` and its loading state from `gatedLoading`, so under `refusal: 'absent'` neither names the release.
-- The read comes before the masthead: a version the record does not hold is answered by the missing page, exactly as an address that names nothing is, so no masthead names a release nobody recorded.
+- The read comes before the masthead: a version the record does not hold is answered by the missing page, exactly as an address that names nothing is, so neither a masthead nor a tab names a release nobody recorded: the tab reads `Not found`. The tab and the page are decided by the same read, made once a request.
 - Masthead: the kicker back to Releases, `Release <version>`, and one sentence.
 - Changelog, the page's protagonist: the section published for the release, as written, its summary its opening and its upgrade notes under their own heading, so neither is said again beside it, through the console's safe Markdown renderer (raw HTML in it is text, and a link or an image passes the console's URL policy). It is drawn as prose on the console's server, so it reads the same from the first paint; only a release read again in the browser after the server's read failed shows its words as plain text while the renderer arrives. Ask is in its head.
 - This release, as tall as what it holds: the console it shipped with (`Not recorded` when none is), the client action (`Nothing to do` only when it is positively known that none is needed; an old release with no notes, which the record writes `Unknown — no recorded upgrade notes`, reads `Not recorded`) and the releases inside either window.
@@ -17,7 +17,7 @@ One release: its published changelog with its upgrade notes, what clients must d
 |---|---|
 | Loading | `loading.tsx` while the gate asks `/me` and the read is under way: the changelog's and the release's cards and the windows' table, as skeletons |
 | Default | The changelog, the release and its windows, a row gap apart |
-| No such version | The missing page, from the server's read; from a later read in the browser, "No release of this version is recorded" with All releases |
+| No such version | The missing page, its tab `Not found`, from the server's read; from a later read in the browser, "No release of this version is recorded" with All releases |
 | No upgrade notes | The changelog has no upgrade notes heading; the client action says what the record holds |
 | A window still running or begun before the record | `partial`, with the hours observed of 72, the one range observed and why |
 | A window with no calls | `No calls`, with no rate and no p95 |
