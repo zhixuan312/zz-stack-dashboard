@@ -1,0 +1,9 @@
+ok   tokens are fresh (0.3s)
+ok   specifications are consistent (0.7s)
+ok   the product's own rules hold (0.4s)
+ok   contrast holds in every theme and accent (0.2s)
+ok   route types are generated (0.9s)
+ok   types check (29.1s)
+ok   lint passes (60.3s)
+ok   tests pass (122.2s)
+gate: every check passed

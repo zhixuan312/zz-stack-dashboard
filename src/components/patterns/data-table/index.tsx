@@ -357,7 +357,7 @@ export function DataTable<R>({
                                 <span className="hidden @max-[640px]:contents">{c.mobileCell(r)}</span>
                               </>
                             ) : content;
-                            return c.truncate ? <Cut>{body}</Cut> : body;
+                            return c.truncate ? <Cut align={c.align ?? (c.numeric ? 'right' : 'left')}>{body}</Cut> : body;
                           })()}
                         </td>
                       );

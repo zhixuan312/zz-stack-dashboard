@@ -16,6 +16,7 @@ export type Breakpoint = 'sm' | 'md' | 'lg' | 'xl';
 /* Literal strings: Tailwind finds classes by reading the source. */
 const HIDE: Record<Breakpoint, string> = { sm: '@max-[512px]:hidden', md: '@max-[672px]:hidden', lg: '@max-[896px]:hidden', xl: '@max-[1152px]:hidden' };
 const ALIGN = { left: 'text-left', right: 'text-right', center: 'text-center' } as const;
+const JUSTIFY = { left: undefined, right: 'justify-end', center: 'justify-center' } as const;
 
 export function Table({ className, caption, children, ...rest }: HTMLAttributes<HTMLTableElement> & { caption?: string }) {
   return (
@@ -131,11 +132,12 @@ export function TableHeader({
 /**
  * A cut value: it asks for its whole content's width and shrinks only when the table has no room. One grid track of
  * `minmax(0, max-content)` gives the cell that ask, where `max-w-0` on the cell zeroed it and sent every spare pixel to
- * the lead column.
+ * the lead column. The track is as wide as the value and the cell's `text-align` does not move it, so it takes the
+ * cell's alignment itself.
  */
-export function Cut({ children }: { children?: ReactNode }) {
+export function Cut({ align = 'left', children }: { align?: keyof typeof ALIGN; children?: ReactNode }) {
   return (
-    <span className="grid min-w-0 grid-cols-[minmax(0,max-content)]">
+    <span className={cn('grid min-w-0 grid-cols-[minmax(0,max-content)]', JUSTIFY[align])}>
       <span className="truncate">{children}</span>
     </span>
   );
@@ -169,7 +171,7 @@ export function TableCell({
       )}
       {...rest}
     >
-      {truncate ? <Cut>{children}</Cut> : children}
+      {truncate ? <Cut align={align ?? (numeric ? 'right' : 'left')}>{children}</Cut> : children}
     </td>
   );
 }

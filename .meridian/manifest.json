@@ -1,5 +1,5 @@
 {
-  "version": "0.25.0",
+  "version": "0.25.1",
   "route": "adopt",
   "brand": {
     "name": "ZZ Stack",
@@ -38,7 +38,7 @@
     ".claude/skills/zz-meridian/SKILL.md": "sha256-b2374c10cb87b7f5b7bdef3e2f2f4c188a50c8f5f987e7cac99b0d43c1114e08",
     "scripts/ask.ts": "sha256-7b921200a244fead38e7ad9af33d5f684fdf9404906593df57d1e18058b1b49b",
     "scripts/assistant.ts": "sha256-aa6591c1295d5196d8877208b0f76151e0c814df04ef03f682ebd49c4beef0c9",
-    "scripts/audit.ts": "sha256-7accf3534a27b999787e907e9aaeb5b9eb29c10387e996c577b5aefc7ef76e32",
+    "scripts/audit.ts": "sha256-122b432c7af296cd97f0490f4f90147f52c1a9ca6a670e8dca5d3d9d5b8ea1ab",
     "scripts/brand.ts": "sha256-0080f53c9f00c29b198d29af9432dd2303afefbf4ed3b4b6e63790d52d07606b",
     "scripts/check.ts": "sha256-c7c70a8fd8214819542e0721ee03d4119426c07a72c055c492471fcd1b39aacb",
     "scripts/contrast.ts": "sha256-cf375e2b4a6ac1a9600b6d771adb0d29c73a99e9414b1e4f713a7872b0096a6a",
@@ -109,7 +109,7 @@
     "src/components/patterns/assistant/text.tsx": "sha256-ceda21c8fdec9b152d7a8b9bfce7ca6190f5b246683cc8450b4a25ab1ac9e45a",
     "src/components/patterns/assistant/thread.ts": "sha256-340958e454c7b166cd5bcac36139851c097b94e5d229bb088299d153ac1708cc",
     "src/components/patterns/command-palette/index.tsx": "sha256-d799618315bb1d35b99b118f705bbb1bd0ed28d1282f1395ab52f476cd5eb826",
-    "src/components/patterns/data-table/index.tsx": "sha256-e829d527005a935c7ccdf8c3c14c62b2e0415efd5b740032c4c003291b985224",
+    "src/components/patterns/data-table/index.tsx": "sha256-988bc05e90c5eaa4831e6addaf19b2dc6c2ce8196bb80f99bb77edec20d9ea44",
     "src/components/patterns/data-table/use-query-state.ts": "sha256-52d049f28c682ddec0e2281f4b82bb14ae5983f31e98f84c6df5f4df4d6cb8c4",
     "src/components/patterns/data-table/use-search-draft.ts": "sha256-be9d3332b6b548ce359fecfea640f393187078124a773545002bc186da5c2850",
     "src/components/patterns/detail-head/index.tsx": "sha256-9a54581d8aa2f235f00d826116141bc28bee3ea7559f641e8d2a8d49782fe8ff",
@@ -160,7 +160,7 @@
     "src/components/ui/spinner/index.tsx": "sha256-cb50418d12482e357ba7d373cba7f5039b767e547422baedbccafda279443654",
     "src/components/ui/status-dot/index.tsx": "sha256-67270ad4a2994989bd0be01e2847c0c17015787411254e90a89aa46589eb1347",
     "src/components/ui/switch/index.tsx": "sha256-442a7de6c47845d5fadbd2bd8d129637be28e33ca384743cb5efb3c0f942e1ca",
-    "src/components/ui/table/index.tsx": "sha256-676559a0e0c9fffe9f627102d25c22ecbb300c26863ba057e07d651077db0c25",
+    "src/components/ui/table/index.tsx": "sha256-318b5d72f289758d14f2389907235472cea0fc2b145c393e9512bc2917cc0aa2",
     "src/components/ui/tabs/index.tsx": "sha256-2ea04b0b46c0ed3e4e3d5124e321c7c31b79c4d1e07f5955764fd98a37cd9662",
     "src/components/ui/textarea/index.tsx": "sha256-7b313f0f9182d0e1b6b87968abbd8e346b3557b7303583ea062ae994a178111e",
     "src/components/ui/toast/index.tsx": "sha256-3320a681fb45527055f19705f12a3342b374dd91420a594deac738e70c3402db",
