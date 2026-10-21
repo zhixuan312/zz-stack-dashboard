@@ -230,13 +230,10 @@ export function EvalQuality({ run }: { run: Run | null }) {
               </TableCell>
             </TableRow>
           ))}
-          {run.dimensions.length === 0 && (
-            <TableRow>
-              <TableCell colSpan={5} className="py-8 text-ink-3">This protocol declares no dimension.</TableCell>
-            </TableRow>
-          )}
         </TableBody>
       </Table>
+      {/* Outside the table: a grid row draws a spanning cell in its first track only (ZZ Meridian 0.26.0). */}
+      {run.dimensions.length === 0 ? <p className="py-8 text-sm text-ink-3">This protocol declares no dimension.</p> : null}
       {leftOut.length ? (
         <p className="mt-3 text-2xs leading-relaxed text-ink-3">{leftOut.join(' · ')}</p>
       ) : null}

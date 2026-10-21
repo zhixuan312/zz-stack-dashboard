@@ -123,7 +123,7 @@ describe('the slow rule, which judges whether and never when', () => {
   });
 
   it('is the rule states-check runs in browserChecks, with no bound of its own', () => {
-    expect(config.browserChecks).toContain('scripts/states-check.ts');
+    expect(config.browserChecks).toContainEqual({ script: 'scripts/states-check.ts', browsers: 4 });
     expect(Object.keys(STATES_CHECK)).not.toContain('BOUND_MS');
   });
 });

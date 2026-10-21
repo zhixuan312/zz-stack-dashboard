@@ -110,7 +110,7 @@ export type VerifyConfig = {
    * `--base <url>` against the built app, failing when one exits non-zero. They run under `--full`, beside one another,
    * so none of them judges a time.
    */
-  browserChecks?: string[];
+  browserChecks?: (string | { script: string; browsers: number })[];
   /**
    * The product's own browser checks that judge a time, run by `pnpm verify --timed` alone and one at a time, after the
    * live data and before Web Vitals, each with `--base <url>` like `browserChecks`. A check that judges a time under the
@@ -314,7 +314,7 @@ const config: VerifyConfig = {
   // the fake gateway keeps for that session alone, so the suites beside it read the same data throughout
   // (reconciliation 80). Work's task 4 asks the assistant, which `fakeModel` below answers.
   // None of them judges a time: they run beside the audit, the presses and the keyboard walk, under their load.
-  browserChecks: ['scripts/approve-banners.ts', 'scripts/live-check.ts', 'scripts/selection-check.ts', 'scripts/hydration-check.ts', 'scripts/workspace-switch.ts', 'scripts/states-check.ts', 'scripts/journeys.ts'],
+  browserChecks: ['scripts/approve-banners.ts', 'scripts/live-check.ts', 'scripts/selection-check.ts', 'scripts/hydration-check.ts', 'scripts/workspace-switch.ts', { script: 'scripts/states-check.ts', browsers: 4 }, 'scripts/journeys.ts'],
   // The checks that judge a time, which `pnpm verify --timed` runs alone and one at a time. Wave 2's acceptance showed
   // why: beside the other suites two `slow` rows reached their state at 5.1 to 5.8 s (Harbormaster #3482), and alone
   // all 88 within 4.53 s (#3486).

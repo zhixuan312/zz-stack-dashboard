@@ -26,16 +26,20 @@ const PHRASE = guide.tasks.find((t) => t.id === 'work-4')!.phrase!;
 /** The tools the assistant's route hands on `page`: every view's `view_<name>`, and the page's own prepared query. */
 const handedOn = (page: string) => [...viewTools.map((v) => `view_${v.name}`), `explore_${viewAt(viewTools, page)!.name}`];
 
+/** Each browser check's script: an entry is a script, or a script with the browsers it holds at once (ZZ Meridian 0.26.0). */
+const BROWSER = (config.browserChecks ?? []).map((c) => (typeof c === 'string' ? c : c.script));
+
 describe("the console's verify tiers", () => {
   it('runs the checks that judge a time in timedChecks alone, and nowhere else', () => {
     expect(config.timedChecks).toEqual(['scripts/primary-data.ts', 'scripts/states-timed.ts']);
-    for (const script of config.timedChecks!) expect(config.browserChecks, script).not.toContain(script);
+    for (const script of config.timedChecks!) expect(BROWSER, script).not.toContain(script);
   });
 
   it('keeps the halves that judge no time in browserChecks, which --full runs', () => {
-    expect(config.browserChecks).toContain('scripts/states-check.ts');
-    expect(config.browserChecks).toContain('scripts/journeys.ts');
-    for (const script of [...config.browserChecks!, ...config.timedChecks!]) expect(fs.existsSync(path.join(import.meta.dirname, '..', script)), script).toBe(true);
+    // The states check pools its browsers, so its entry says how many verify holds for it, and the check is told the same.
+    expect(config.browserChecks).toContainEqual({ script: 'scripts/states-check.ts', browsers: 4 });
+    expect(BROWSER).toContain('scripts/journeys.ts');
+    for (const script of [...BROWSER, ...config.timedChecks!]) expect(fs.existsSync(path.join(import.meta.dirname, '..', script)), script).toBe(true);
   });
 
   it('declares, in its type, the three fields 0.18.0 reads that it did not', () => {

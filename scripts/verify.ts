@@ -16,6 +16,9 @@
  *                         and through the phone drawer, warm, cold and right after a live refresh, the p95 reported
  *                         The whole protocol runs only where CI is `true`, a share of it with `--shard <i>/<n>` (with --perf alone)
  *   pnpm verify --full --perf   the deep suites together; the gate and the build are shared, so each runs once
+ *   --browsers <n>        the most browsers the run holds at once (default: one per two CPUs and per 4 GiB of memory,
+ *                         whichever is fewer); --full's browser suites start under it, and a product check is told in
+ *                         VERIFY_BROWSERS how many it holds
  *
  * It prints one line per phase (`ok`, `warn`, `FAIL` or `not run`, and the seconds), then one coverage line saying what
  * ran and what did not, then the outcome. Nothing that did not run is reported as passed. The trace, with the commit, the
@@ -41,6 +44,7 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 
+import { browserCeiling, slots } from './lib/slots.ts';
 import { bin } from './lib/bin.ts';
 import { launch } from './lib/chrome.ts';
 import type { BudgetsConfig, NavigationCheck } from './lib/budgets.ts';
@@ -59,7 +63,7 @@ type VerifyConfig = BudgetsConfig & {
   noLiveApi?: true;
   dataUrls?: string[];
   allowRemoteData?: true;
-  browserChecks?: string[];
+  browserChecks?: (string | { script: string; browsers: number })[];
   timedChecks?: string[];
   fakeModel?: FakeModelStep[];
   navigationChecks?: NavigationCheck[];
@@ -70,17 +74,19 @@ type VerifyConfig = BudgetsConfig & {
 const config = verifyConfig as VerifyConfig;
 
 const ROOT = path.resolve(import.meta.dirname, '..');
-const OPTIONS = ['--full', '--timed', '--perf', '--as'];
+const OPTIONS = ['--full', '--timed', '--perf', '--as', '--browsers'];
 
-// `--as` is the one option that consumes the argument after it: a comma-separated persona list is its value, not a stray
-// argument. Every other argument must be a known option. An unknown option is refused here, before anything runs.
+// `--as` and `--browsers` consume the argument after them: a comma-separated persona list, a number of browsers. Every
+// other argument must be a known option. An unknown option is refused here, before anything runs.
 const argv = process.argv.slice(2);
 const unknown: string[] = [];
 let asList = '';
 let shardText: string | undefined;
+let browsersText: string | undefined;
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
   if (a === '--as') { asList = argv[++i] ?? ''; continue; }
+  if (a === '--browsers') { browsersText = argv[++i] ?? ''; continue; }
   if (a === '--shard') { shardText = argv[++i] ?? ''; continue; }
   if (!OPTIONS.includes(a)) unknown.push(a);
 }
@@ -88,6 +94,13 @@ if (unknown.length) {
   console.error(`verify: ${unknown.join(', ')} ${unknown.length === 1 ? 'is not an option' : 'are not options'}. pnpm verify takes ${OPTIONS.join(', ')}.`);
   process.exit(1);
 }
+if (browsersText !== undefined && !/^[1-9]\d*$/.test(browsersText)) {
+  console.error(`verify: --browsers takes a whole number of browsers, at least 1, not "${browsersText}".`);
+  process.exit(1);
+}
+/** The most browsers this run holds at once: `--browsers`, or what the machine can hold. */
+const ceiling = browsersText ? Number(browsersText) : browserCeiling();
+const ceilingFrom = browsersText ? '--browsers' : `${os.availableParallelism()} CPUs and ${Math.round(os.totalmem() / 2 ** 30)} GiB`;
 const full = argv.includes('--full');
 const timed = argv.includes('--timed');
 const perf = argv.includes('--perf');
@@ -145,7 +158,8 @@ const hasAssistant = fs.existsSync(path.join(ROOT, APP_DIR, 'api/assistant/route
 // The stream itself is Meridian's, proven on the sample in Meridian's own runs; a product's own live pages prove
 // themselves through `browserChecks`.
 const hasLiveSample = sampleSurfaces(ROOT, APP_DIR).members;
-const own = config.browserChecks ?? [];
+/** Each product check with the browsers it opens at once: one, unless its entry says more. */
+const own = (config.browserChecks ?? []).map((c) => (typeof c === 'string' ? { script: c, browsers: 1 } : c));
 const ownTimed = config.timedChecks ?? [];
 const absent = new Set<string>([...(hasAssistant ? [] : ['assistant']), ...(hasLiveSample ? [] : ['live']), ...(own.length ? [] : ['browserChecks']), ...(ownTimed.length ? [] : ['timedChecks']), ...(perf ? [] : ['perf'])]);
 const SUITES = SUITE_NAMES.filter((name) => !absent.has(name));
@@ -203,6 +217,7 @@ function traceHeader(code: number): string[] {
     `commit: ${sha ? `${sha}${dirty ? ' (working tree has changes)' : ''}` : 'not a git checkout'}`,
     `toolchain: node ${process.version}; next ${nextVersion()}; ${process.env.npm_config_user_agent?.split(' ')[0] ?? 'no package manager'}`,
     `browser: ${chrome}; profile: ${os.platform()} ${os.arch()}, ${cpus.length} CPUs (${cpus[0]?.model ?? 'unknown'}), local, not the reference profile`,
+    `browsers: at most ${ceiling} at once (${ceilingFrom})`,
     `selected routes: ${selected.length ? selected.join(', ') : 'none'}`,
     `gate runs: ${gates}`,
     `build runs: ${builds}`,
@@ -620,20 +635,24 @@ if (full && browser.ran && baseUrl) {
     if (suiteOutcome(on.status) === 'FAIL') ok = false;
   }
 
-  // The audit, the presses and the keyboard walk each run their own browser, so they run side by side against the one built app.
+  // The audit, the presses and the keyboard walk each run one browser of their own, side by side against the one built
+  // app, as many at once as the ceiling allows (#77). A product check holds the browsers its entry says it opens, the
+  // whole ceiling at most, and is told in VERIFY_BROWSERS how many that is, so a check that pools browsers sizes its pool
+  // from that and not from the machine; it starts once that many are free.
   current = 'the browser suites';
-  announce('the audit, every control and link, the keyboard path' + (own.length ? ', and the product\'s own checks' : ''));
+  announce('the audit, every control and link, the keyboard path' + (own.length ? ', and the product\'s own checks' : '') + `, at most ${ceiling} browsers at once`);
   const here = `http://127.0.0.1:${server!.port}`;
+  const hold = slots(ceiling);
   const [audit, presses, keys, ...extras] = await Promise.all([
-    run('scripts/audit.ts', ['--base', here]),
-    run('scripts/interactions.ts', ['--base', here]),
-    run('scripts/keyboard.ts', ['--base', here]),
-    ...own.map((script) => run(script, ['--base', here])),
+    hold(1, () => run('scripts/audit.ts', ['--base', here])),
+    hold(1, () => run('scripts/interactions.ts', ['--base', here])),
+    hold(1, () => run('scripts/keyboard.ts', ['--base', here])),
+    ...own.map((c) => hold(c.browsers, () => run(c.script, ['--base', here], { ...process.env, VERIFY_BROWSERS: String(Math.min(c.browsers, ceiling)) }))),
   ]);
   reportSuite('audit', 'audit: every page at 5 widths in both themes', audit);
   reportSuite('presses', 'every control pressed and every link followed', presses);
   reportSuite('keyboard', 'the whole keyboard path', keys);
-  extras.forEach((r, i) => reportSuite('browserChecks', own[i], r));
+  extras.forEach((r, i) => reportSuite('browserChecks', own[i].script, r));
   if ([audit, presses, keys, ...extras].some((r) => suiteOutcome(r.status) === 'FAIL')) ok = false;
 }
 

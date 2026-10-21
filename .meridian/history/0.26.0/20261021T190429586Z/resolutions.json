@@ -1,0 +1,11 @@
+[
+  {
+    "id": "migration:table-grid",
+    "status": "resolved",
+    "reason": "The two empty rows that spanned the table with colSpan are now drawn as a paragraph after the table, the release's tests/table-cut-cell.test.tsx is brought over as it has it, and no test of the console's own expects @min-[672px]:min-w-64.",
+    "files": {
+      "src/console/plugin-eval-overview.tsx": "sha256-afa59bbb92ac163b2965dc0e5e96be127cea7813debb462130b101bc75663926",
+      "src/console/settings/teams-panel.tsx": "sha256-93d669cbf316d20cd555feb1b763971c5bb00f4903c653837706adc45d7cf23b"
+    }
+  }
+]

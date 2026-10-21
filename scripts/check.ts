@@ -57,7 +57,7 @@ function walk(dir: string, ext: RegExp, out: string[] = []) {
 const css = read('src/styles/tokens.css') + read('src/styles/base.css') + read('src/styles/motion.css');
 const defined = new Set([...css.matchAll(/--([a-z0-9-]+)\s*:/g)].map((m) => m[1]));
 /** Local custom properties a component sets for itself, and the host's bridged variables. */
-const LOCAL = /^(i|w|m-len|readout-(cursor|width)|safe-(top|right|bottom|left)|font-face-(sans|mono)|color-[a-z-]+|border-radius-[a-z]+|tw-.*|radix-.*)$/;
+const LOCAL = /^(i|w|m-len|cols(-(xl|lg|md|sm))?|readout-(cursor|width)|safe-(top|right|bottom|left)|font-face-(sans|mono)|color-[a-z-]+|border-radius-[a-z]+|tw-.*|radix-.*)$/;
 
 // ── Cards ────────────────────────────────────────────────────────────────────────────────────────────
 const CARD_SECTIONS = ['## Surfaces', '## Agents', '## Accessibility'];

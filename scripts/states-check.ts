@@ -3,7 +3,7 @@
  * as each person: one of verify's `browserChecks` (Tasks I-126 and I-127; spec AC-2.9, AC-2.7 and AC-1.8).
  *
  *   node scripts/states-check.ts [--base http://localhost:3100] [--as superadmin,member] [--states normal,empty]
- *                                [--routes /,/record] [--workers 4]
+ *                                [--routes /,/record] [--workers 4]   (under verify: VERIFY_BROWSERS)
  *
  * The routes are every rail route the navigation checks in scripts/verify.config.ts name and every address under its
  * `detailRoutes`, for each persona it declares. A state is asked for per request, by the session value
@@ -61,7 +61,9 @@ const STATES = ['normal', 'empty', 'error', 'slow', 'partial', 'extreme'] as con
 type State = (typeof STATES)[number];
 const states = STATES.filter((s) => !list('--states') || list('--states')!.has(s));
 export const people = Object.entries(config.personas ?? {}).filter(([name]) => !list('--as') || list('--as')!.has(name));
-const workers = Math.max(1, Number(opt('--workers', '4')) || 4);
+// The pool is the number of browsers verify holds for this check (`VERIFY_BROWSERS`, from its `browserChecks` entry in
+// scripts/verify.config.ts); run by hand, `--workers` or four.
+const workers = Math.max(1, Number(opt('--workers', process.env.VERIFY_BROWSERS ?? '4')) || 4);
 
 export type Target = { path: string; ready: string; text: string; rail: boolean };
 export const undeclared = config.detailRoutes.filter((r) => !DETAIL[r]);

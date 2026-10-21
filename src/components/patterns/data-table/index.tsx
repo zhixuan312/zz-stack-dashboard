@@ -36,9 +36,9 @@ export type Column<R> = {
   title?: (row: R) => string;
   /** Drop the column below this width (the least important columns go first). */
   hideBelow?: Breakpoint;
-  /** The record's name: the one column with a floor, so the last to be cut. It claims no spare width. */
+  /** The record's name: the one column with a floor, so the last to be cut. */
   grow?: boolean;
-  /** A width class for a column whose content is short and fixed (an ID, a key, a date), so the spare is shared by the others: `w-28`. */
+  /** A width class for a column whose content is short and fixed (an ID, a key, a date), which it keeps: `w-28`. */
   width?: string;
   /**
    * Its place in the card a row becomes on phones: the `title` (one column, the record's name), a `status` at the end
@@ -75,10 +75,10 @@ type Mobile = 'check' | 'title' | 'status' | 'fact' | 'hidden';
  */
 const CELLS = [
   'text-ink',
-  '[&_td]:h-(--row-height) [&_td]:px-4 [&_td]:align-middle [&_td]:text-left',
+  '[&_td]:px-4 [&_td]:py-2 [&_td]:text-left',
   '[&_td[data-num]]:text-right [&_td[data-num=num]]:whitespace-nowrap',
   '[&_[data-sep]]:hidden',
-  '[&_tbody_tr]:transition-colors [&_tbody_tr]:duration-(--dur-hover) [&_tbody_td]:border-b [&_tbody_td]:border-line [&_tbody_tr:last-child_td]:border-0',
+  '[&_tbody_tr]:transition-colors [&_tbody_tr]:duration-(--dur-hover)',
 ].join(' ');
 
 /**
@@ -95,8 +95,8 @@ const PHONE_ROWS = [
   '@max-[640px]:[&_tbody_tr]:px-(--card-pad) @max-[640px]:[&_tbody_tr]:py-3.5 @max-[640px]:[&_tbody_td]:border-0 @max-[640px]:[&_tbody_tr]:border-b @max-[640px]:[&_tbody_tr]:border-line @max-[640px]:[&_tbody_tr:last-child]:border-b-0',
 ].join(' ');
 
-/** The resets a cell needs once the row is a card: not a row height, not a padding box, free to shrink and to clip. */
-const PHONE_CELLS = '@max-[640px]:[&_td:not([data-mobile=hidden])]:!h-auto @max-[640px]:[&_td:not([data-mobile=hidden])]:!p-0 @max-[640px]:[&_td:not([data-mobile=hidden])]:min-w-0 @max-[640px]:[&_td:not([data-mobile=hidden]):not([data-mobile=fact])]:!block @max-[640px]:[&_[data-sep]]:inline';
+/** The resets a cell needs once the row is a card: not a padding box, free to shrink and to clip. */
+const PHONE_CELLS = '@max-[640px]:[&_td:not([data-mobile=hidden])]:!p-0 @max-[640px]:[&_td:not([data-mobile=hidden])]:min-w-0 @max-[640px]:[&_td:not([data-mobile=hidden]):not([data-mobile=fact])]:!block @max-[640px]:[&_[data-sep]]:inline';
 
 /** Where a role sits in the card, and how it reads there.
  *
@@ -117,6 +117,16 @@ const PHONE_ROLES = [
   '@max-[640px]:[&_td[data-mobile=hidden]]:hidden',
   // On the accent wash of a selected row, a fact steps up to ink-2: ink-3 on it falls under 4.5:1 in light.
   '@max-[640px]:[&_tr[aria-selected]_td[data-mobile=fact]]:text-ink-2',
+].join(' ');
+
+/**
+ * The selection checkbox sits inside the lead column's area, over its left padding, rather than in a column of its own:
+ * the table puts an equal share of its spare width in every gap between columns, and a column of checkboxes would stand
+ * that far from the names it selects. It is still its own cell, first in the row, and the table does not count it.
+ */
+const SELECT = [
+  '[&_[data-check]]:relative [&_[data-check]]:z-1 [&_[data-check]]:col-start-1 [&_[data-check]]:row-start-1 [&_[data-check]]:justify-self-start',
+  '[&_[data-check]+*]:col-start-1 [&_[data-check]+*]:row-start-1 [&_[data-check]+*]:pl-[calc(var(--card-pad)+--spacing(7))]',
 ].join(' ');
 
 /* Literal strings, as in the Table: Tailwind finds classes by reading the source. */
@@ -293,13 +303,13 @@ export function DataTable<R>({
   } else {
     const roleOf = (c: Column<R>): Mobile => (c === titleColumn ? 'title' : c === status ? 'status' : facts.includes(c) ? 'fact' : 'hidden');
     body = (
-      <Table caption={caption} aria-busy={loading || busy || undefined} className={cn('@max-[640px]:block @max-[640px]:[&>thead]:hidden @max-[640px]:[&>tbody]:block', CELLS, PHONE_ROWS, PHONE_CELLS, PHONE_ROLES, '[&>tbody]:transition-opacity [&>tbody]:duration-(--dur-hover)', busy && '[&>tbody]:opacity-60')}>
+      <Table caption={caption} aria-busy={loading || busy || undefined} className={cn('@max-[640px]:block @max-[640px]:[&>thead]:hidden @max-[640px]:[&>tbody]:block', CELLS, selectable && SELECT, PHONE_ROWS, PHONE_CELLS, PHONE_ROLES, '[&>tbody]:transition-opacity [&>tbody]:duration-(--dur-hover)', busy && '[&>tbody]:opacity-60')}>
         <TableHead>
-          <tr>
+          <tr role="row">
             {selectable ? (
-              <TableHeader className="w-10 !pr-0">
+              <th scope="col" role="columnheader" data-check className="w-10 !pr-0">
                 <Checkbox aria-label={`Select every ${noun.replace(/s$/, '')} on this page`} checked={allOn ? true : someOn ? 'indeterminate' : false} onCheckedChange={toggleAll} />
-              </TableHeader>
+              </th>
             ) : null}
             {columns.map((c) => (
               <TableHeader key={c.key} align={c.align ?? (c.numeric ? 'right' : 'left')} hideBelow={c.hideBelow} grow={c.grow} className={c.width} sort={c.sortValue ? dirOf(c) : undefined} onSort={c.sortValue ? () => toggleSort(c) : undefined}>
@@ -311,10 +321,10 @@ export function DataTable<R>({
         <TableBody>
           {loading
             ? Array.from({ length: Math.min(size, 8) }, (_, i) => (
-                <tr key={i} className="group/row">
-                  {selectable ? <td data-mobile="check"><Skeleton className="size-4" /></td> : null}
+                <tr key={i} role="row" className="group/row">
+                  {selectable ? <td role="cell" data-check data-mobile="check"><Skeleton className="size-4" /></td> : null}
                   {columns.map((c, j) => (
-                    <td key={c.key} data-mobile={roleOf(c)} data-num={c.numeric ? 'num' : undefined} data-hide-below={c.hideBelow} className={cellClass({ numeric: c.numeric, hideBelow: c.hideBelow })}>
+                    <td key={c.key} role="cell" data-mobile={roleOf(c)} data-num={c.numeric ? 'num' : undefined} data-hide-below={c.hideBelow} className={cellClass({ numeric: c.numeric, hideBelow: c.hideBelow })}>
                       <Skeleton className={cn('h-3', c.numeric ? 'ml-auto w-12' : c.grow ? ['w-48', 'w-40', 'w-56'][i % 3] : ['w-20', 'w-16', 'w-24'][(i + j) % 3])} />
                     </td>
                   ))}
@@ -324,9 +334,9 @@ export function DataTable<R>({
                 const k = rowKey(r);
                 const href = rowHref?.(r);
                 return (
-                  <tr key={k} aria-selected={sel.has(k) || undefined} onClick={(e) => open(e, href)} className={cn('group/row', href && 'cursor-pointer hover:bg-fill-hover', sel.has(k) && 'bg-accent-tint hover:bg-accent-tint')}>
+                  <tr key={k} role="row" aria-selected={sel.has(k) || undefined} onClick={(e) => open(e, href)} className={cn('group/row', href && 'cursor-pointer hover:bg-fill-hover', sel.has(k) && 'bg-accent-tint hover:bg-accent-tint')}>
                     {selectable ? (
-                      <td data-mobile="check" className="!pr-0">
+                      <td role="cell" data-check data-mobile="check" className="!pr-0">
                         <Checkbox aria-label={`Select ${k}`} checked={sel.has(k)} onCheckedChange={() => toggle(k)} />
                       </td>
                     ) : null}
@@ -340,7 +350,7 @@ export function DataTable<R>({
                       const value = c.cell(r);
                       const content = c === titleColumn && href ? <Link href={href}>{value}</Link> : value;
                       return (
-                        <td key={c.key} data-mobile={role} data-num={c.numeric ? 'num' : c.align === 'right' ? 'true' : undefined} data-hide-below={c.hideBelow} title={c.title ? c.title(r) : c.truncate && (typeof value === 'string' || typeof value === 'number') ? String(value) : undefined} className={cellClass(c) || undefined}>
+                        <td key={c.key} role="cell" data-mobile={role} data-num={c.numeric ? 'num' : c.align === 'right' ? 'true' : undefined} data-hide-below={c.hideBelow} title={c.title ? c.title(r) : c.truncate && (typeof value === 'string' || typeof value === 'number') ? String(value) : undefined} className={cellClass(c) || undefined}>
                           {/* The dot that separates two facts, on a phone only — the table has a column for each of
                               them, where a dot would be noise. It leads the fact it separates, in that fact's own
                               cell: each fact is a flex item, so a line that runs out of room wraps whole ones and a

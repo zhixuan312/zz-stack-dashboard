@@ -72,13 +72,6 @@ function TeamsTable({ teams, pending, onSwitch }: { teams: MyTeams; pending: boo
           </TableRow>
         </TableHead>
         <TableBody>
-          {/* A person can be on no team: a principal exists before anybody adds them to one, and saying so is the
-              difference between "you have no teams" and a screen that looks broken. */}
-          {teams.teams.length === 0 ? (
-            <TableRow>
-              <TableCell className="text-sm text-ink-3" colSpan={3}>You are not a member of any team yet.</TableCell>
-            </TableRow>
-          ) : null}
           {page.map((row) => (
             <TableRow key={row.team} data-team={row.team}>
               <TableCell className="font-mono text-xs [overflow-wrap:anywhere]">{row.team}</TableCell>
@@ -95,6 +88,10 @@ function TeamsTable({ teams, pending, onSwitch }: { teams: MyTeams; pending: boo
           ))}
         </TableBody>
       </Table>
+      {/* A person can be on no team: a principal exists before anybody adds them to one, and saying so is the
+          difference between "you have no teams" and a screen that looks broken. Outside the table, because a grid row
+          draws a spanning cell in its first track only (ZZ Meridian 0.26.0). */}
+      {teams.teams.length === 0 ? <p className="py-3 text-sm text-ink-3">You are not a member of any team yet.</p> : null}
       <PageControl {...pager} />
     </>
   );

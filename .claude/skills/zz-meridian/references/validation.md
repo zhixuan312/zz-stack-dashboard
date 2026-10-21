@@ -84,7 +84,9 @@ line naming the command that runs them. Steps in order:
    border (or the frame around it, or any ancestor up to its host inside a shadow root) differs when it has focus. A ring
    that is always there does not count. With them run the
    product's own browser checks (`browserChecks` in `scripts/verify.config.ts`), each given `--base` and the served
-   app's address; none of them judges a time.
+   app's address; none of them judges a time. The run holds at most `--browsers` browsers at once (one per two CPUs and
+   per 4 GiB by default): each suite takes one, a check whose entry is `{ script, browsers }` takes that many, and a
+   check reads how many it holds from `VERIFY_BROWSERS`.
 7. **Live data** (`--timed` only; `scripts/live.ts`), alone after the presses, which change members: two tabs, a quiet
    or restarted stream, a hidden or offline tab and a burst, against a second server that drops its change hints. A case
    that cannot run is `not run` and the suite exits 2. It drives the sample Members page; a product without it prints
@@ -138,7 +140,7 @@ and supply-chain check before a script runs; that is pnpm, not an install, and n
 | `unmeasured: x-card (no open shadow root)` | A custom element shows a box but exposes no open root and no content in the page, so nothing inside it was measured | Attach its root open (`attachShadow({ mode: 'open' })`), or render its content as light DOM in a slot; the audit fails until it can look |
 | `unmeasured: x-card (not defined)` | A custom element was still not registered after the settle wait | Register it (`customElements.define`) before the page settles, or remove the tag from the page |
 | `"Export" does nothing when pressed` | A control with no action, or one that only works on hover | Wire it, or remove it; an info button uses `Tooltip toggle` so a tap opens it |
-| `table … > its frame` | A table wider than its card, its last columns clipped | `hideBelow` one more column, or `truncate` a long column. Every column asks for its content width, the spare is shared in proportion, and a cut column shrinks only when the table lacks room; a fixed `width` keeps its width, and the `grow` floor is 160px, 256px from a 672px table |
+| `table … > its frame` | A table wider than its card, its last columns clipped | `hideBelow` one more column, or `truncate` a long column. Every column is as wide as its content, the spare sits in the gaps between columns, an equal share in each, and a cut column shrinks only when the table lacks room; a fixed `width` keeps its width, and the `grow` floor is 160px |
 | `exception:` / `console.error:` | A runtime error or a hydration mismatch | Hydration: no `Date.now()`, `Math.random()` or locale-dependent formatting in render; use the demo clock and `src/lib/format*` |
 
 ## Keyboard walk failures

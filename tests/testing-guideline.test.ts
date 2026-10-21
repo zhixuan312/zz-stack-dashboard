@@ -24,7 +24,8 @@ const GATE = '.github/workflows/gate.yml';
 const WEEKLY = '.github/workflows/weekly.yml';
 
 /** verify's two product lists. */
-const BROWSER = config.browserChecks ?? [];
+// An entry is a script, or a script with the browsers it holds at once (ZZ Meridian 0.26.0): the script is what a document names.
+const BROWSER = (config.browserChecks ?? []).map((c) => (typeof c === 'string' ? c : c.script));
 const TIMED = config.timedChecks ?? [];
 const RAIL = (config.navigationChecks ?? []).map((c) => c.path);
 
