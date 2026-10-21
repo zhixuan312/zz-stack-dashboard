@@ -5,8 +5,8 @@ import type { Column } from '@/components/patterns/data-table';
  * column between is centred, header and cell alike. One rule for every table, so no page decides it again. A column
  * of running text says `align: 'left'` and keeps it: prose is never centred or pushed right.
  *
- * **The second half of the rule, and it is not about alignment.** `DataTable`'s `truncate` adds `max-w-0 truncate`
- * and nothing else — no `title`, no way back — so a value that identifies a record and is cut has no tail anywhere on
+ * **The second half of the rule, and it is not about alignment.** `DataTable`'s `truncate` wraps the value in
+ * Meridian's `Cut` and nothing else — no `title`, no way back — so a value that identifies a record and is cut has no tail anywhere on
  * the page. Since it was written down here rather than at the one site that needed it, it holds for every cell:
  *
  * - **An identifier never truncates silently.** A slug, a path, an id, a stable key, an address, a subject: the tail is

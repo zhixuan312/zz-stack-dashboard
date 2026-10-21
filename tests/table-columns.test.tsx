@@ -57,7 +57,7 @@ import PlatformReleasePage from '../app/(dash)/platform/releases/[version]/page'
  * Every table the Wave 2 acceptance audit found wider than its frame, fitting it (Task I-136, AC-2.8): each table drawn
  * from the fake gateway's own answer, the one `pnpm verify` serves the page. jsdom lays nothing out, so this reads what
  * the layout acts on: the columns that carry the container query hiding them under 896px (`hideBelow: 'lg'`, the band
- * the 1024 and 768 frames of 713 and 729px fall in), the cells cut to the width there is (`max-w-0 truncate`), and where
+ * the 1024 and 768 frames of 713 and 729px fall in), the cells cut to the width there is (`Cut`), and where
  * a hidden column's fact is still in reach: a link in the row's first cell to the page that holds it, or the title of a
  * cell that stays. Each table's first column and its row action carry no breakpoint at all. The audit run is the layout
  * evidence; this is what keeps a later edit from undoing it.
@@ -116,7 +116,12 @@ function cutWithTitle(caption: string, header: string) {
   const { cells } = table(caption).at(header);
   expect(cells.length).toBeGreaterThan(0);
   for (const td of cells) {
-    expect(classes(td), `${caption}: a ${header} cell`).toEqual(expect.arrayContaining(['max-w-0', 'truncate']));
+    // ZZ Meridian 0.25.0's `Cut`: the cell asks for its content's width through one `minmax(0, max-content)` track and
+    // cuts inside it; a `max-w-0` on the cell zeroed that ask and sent every spare pixel to the lead column.
+    expect(classes(td), `${caption}: a ${header} cell`).not.toContain('max-w-0');
+    const cut = td.querySelector(':scope > span.grid > span.truncate');
+    expect(cut, `${caption}: a ${header} cell's cut`).not.toBeNull();
+    expect(classes(cut!.parentElement!), `${caption}: a ${header} cell's track`).toContain('grid-cols-[minmax(0,max-content)]');
     expect(td.title, `${caption}: a ${header} cell's title`).not.toBe('');
   }
 }

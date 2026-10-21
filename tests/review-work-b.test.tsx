@@ -95,8 +95,9 @@ describe('Initiatives', () => {
     draw();
     const { at } = table('Initiatives');
     const slug = at('Initiative'), next = at('Flow position');
-    expect(classes(next.th)).toContain('w-full');
-    expect(classes(slug.th)).not.toContain('w-full');
+    // The flow position is the lead: it holds the floor, and no head claims the spare, which every column shares.
+    expect(classes(next.th)).toContain('min-w-40');
+    for (const th of [next.th, slug.th]) expect(classes(th)).not.toContain('w-full');
     for (const td of slug.cells) expect(classes(td.querySelector('[title]')!)).toContain('whitespace-nowrap');
     for (const td of next.cells) expect(td.querySelector('[class*="overflow-wrap:anywhere"]')).toBeNull();
   });
@@ -169,8 +170,9 @@ describe('Approvals', () => {
     draw();
     const { at } = table('Team approvals');
     const doc = at('Document'), initiative = at('Initiative');
-    expect(classes(initiative.th)).toContain('w-full');
-    expect(classes(doc.th)).not.toContain('w-full');
+    // The initiative is the lead: it holds the floor, and no head claims the spare, which every column shares.
+    expect(classes(initiative.th)).toContain('min-w-40');
+    for (const th of [initiative.th, doc.th]) expect(classes(th)).not.toContain('w-full');
     for (const td of [...doc.cells, ...initiative.cells]) {
       const value = td.querySelector('[title]')!;
       expect(classes(value)).toContain('whitespace-nowrap');

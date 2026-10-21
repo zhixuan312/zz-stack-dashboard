@@ -74,7 +74,6 @@ export function TableHeader({
   sort,
   onSort,
   grow,
-  flexible,
   children,
   ...rest
 }: ThHTMLAttributes<HTMLTableCellElement> & {
@@ -82,10 +81,8 @@ export function TableHeader({
   hideBelow?: Breakpoint;
   sort?: SortDirection;
   onSort?: () => void;
-  /** The one column that takes the remaining width: the record's name. Its truncating cells shrink last. */
+  /** The record's name: the one column with a floor, so it is the last to be cut. It claims no spare width. */
   grow?: boolean;
-  /** The column's text can be cut rather than wrapped, so it can use width the other columns cannot. */
-  flexible?: boolean;
 }) {
   const sortable = onSort !== undefined;
   const Icon = sort === 'asc' ? ArrowUp : sort === 'desc' ? ArrowDown : ChevronsUpDown;
@@ -99,17 +96,11 @@ export function TableHeader({
         'h-9 border-y border-line bg-surface-sunk px-4 text-xs font-medium whitespace-nowrap text-ink-3 first:border-l-0',
         ALIGN[align],
         hideBelow && HIDE[hideBelow],
-        /* A column that can be cut asks for all the width there is, and the ones that must show their whole value —
-           a count, a date, a badge — size to that value. It asked for a third before (`w-[30%]`), on the reading that
-           auto layout spreads the remainder by content: it spreads it across every column, so the lead column was
-           pinned at a third of the table, cutting titles while "Assigned to" sat in twice the room its longest name
-           needed, and a second cut column beside it was left "1 of 2 pass…" on every row. Asking for all of it leaves
-           the browser nothing to spread; two or more such columns share it between them, which is what the tables with
-           three long columns (Tests: the verification, the release, the reason) need. */
-        (grow || flexible) && 'w-full',
-        // The floor belongs to the lead column alone. A second column that can be cut asks for the slack but must be
-        // able to give it up: with the same floor on two columns the Releases table held 837px inside a 713px frame
-        // at 1024 and 768, and no column could shrink because both had a minimum.
+        /* No head claims the spare. A cut column asks for its content's width through its cells (`Cut`), so auto layout
+           shares the spare across every column in proportion to that ask; a head with `w-full` took all of it for the
+           lead and left the rest at their minimum, the uneven spacing this replaced. */
+        // The floor belongs to the lead column alone (c8eccdc): a second column with a minimum cannot shrink, and the
+        // Releases table held 837px inside a 713px frame at 1024 and 768 when two columns had one.
         grow && 'min-w-40 @min-[672px]:min-w-64',
         className,
       )}
@@ -137,6 +128,19 @@ export function TableHeader({
   );
 }
 
+/**
+ * A cut value: it asks for its whole content's width and shrinks only when the table has no room. One grid track of
+ * `minmax(0, max-content)` gives the cell that ask, where `max-w-0` on the cell zeroed it and sent every spare pixel to
+ * the lead column.
+ */
+export function Cut({ children }: { children?: ReactNode }) {
+  return (
+    <span className="grid min-w-0 grid-cols-[minmax(0,max-content)]">
+      <span className="truncate">{children}</span>
+    </span>
+  );
+}
+
 export function TableCell({
   className,
   align,
@@ -160,13 +164,12 @@ export function TableCell({
         ALIGN[align ?? (numeric ? 'right' : 'left')],
         numeric && 't-num whitespace-nowrap',
         muted ? 'text-ink-2' : 'text-ink',
-        truncate && 'max-w-0 truncate',
         hideBelow && HIDE[hideBelow],
         className,
       )}
       {...rest}
     >
-      {children}
+      {truncate ? <Cut>{children}</Cut> : children}
     </td>
   );
 }

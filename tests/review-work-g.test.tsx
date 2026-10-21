@@ -25,6 +25,7 @@ import { ApprovalsView } from '@/views/pages/approvals';
 import { DocumentView } from '@/views/pages/document';
 import { InitiativeClose, InitiativeMeta } from '@/views/pages/initiative';
 import { InitiativesView } from '@/views/pages/initiatives';
+import { localDay } from '../scripts/fake-gateway/clock.ts';
 import { ME, MEMBER } from '../scripts/fake-gateway/people.ts';
 import { approvals, documentAsKept } from '../scripts/fake-gateway/work-approvals.ts';
 import { initiativeDetail, initiativeList } from '../scripts/fake-gateway/work-initiatives.ts';
@@ -85,7 +86,9 @@ describe('M-1 · Approvals and a document tell one story of who approved which v
         // The version approved, or an approval inside it a later row superseded: either way, in this person's name and at this moment.
         const approval = v.status === 'approved' ? { by: v.approved_by, at: v.updated_at } : { by: v.superseded_approved?.approved_by, at: v.superseded_approved?.approved_at };
         expect(approval.by, `${r.initiative}/${r.path} v${r.version}`).toBe(who.email);
-        expect(approval.at!.startsWith(r.approvedAt), `${r.initiative}/${r.path} v${r.version}`).toBe(true);
+        // A day-only row names the day the instant falls on in the reporting timezone, which is not the instant's own
+        // UTC prefix after 16:00Z: an approval at 17:46Z is the next day in Singapore.
+        expect(r.approvedAt.length === 10 ? localDay(Date.parse(approval.at!)) : approval.at, `${r.initiative}/${r.path} v${r.version}`).toBe(r.approvedAt);
         for (const earlier of d.versions.filter((x) => x.version < r.version)) expect(Date.parse(earlier.updated_at)).toBeLessThanOrEqual(at(r.approvedAt));
         // The document's own approval is the history's, where the version approved is the current one.
         if (v.status === 'approved' && v.version === d.current_version) {

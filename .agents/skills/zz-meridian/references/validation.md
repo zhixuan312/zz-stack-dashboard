@@ -138,7 +138,7 @@ and supply-chain check before a script runs; that is pnpm, not an install, and n
 | `unmeasured: x-card (no open shadow root)` | A custom element shows a box but exposes no open root and no content in the page, so nothing inside it was measured | Attach its root open (`attachShadow({ mode: 'open' })`), or render its content as light DOM in a slot; the audit fails until it can look |
 | `unmeasured: x-card (not defined)` | A custom element was still not registered after the settle wait | Register it (`customElements.define`) before the page settles, or remove the tag from the page |
 | `"Export" does nothing when pressed` | A control with no action, or one that only works on hover | Wire it, or remove it; an info button uses `Tooltip toggle` so a tap opens it |
-| `table … > its frame` | A table wider than its card, its last columns clipped | `hideBelow` one more column, or `truncate` the lead column. When the lead (`grow`) column holds a long name and another column is wide too, hiding columns may not help: move `grow` to the shorter text column |
+| `table … > its frame` | A table wider than its card, its last columns clipped | `hideBelow` one more column, or `truncate` a long column. Every column asks for its content width, the spare is shared in proportion, and a cut column shrinks only when the table lacks room; a fixed `width` keeps its width, and the `grow` floor is 160px, 256px from a 672px table |
 | `exception:` / `console.error:` | A runtime error or a hydration mismatch | Hydration: no `Date.now()`, `Math.random()` or locale-dependent formatting in render; use the demo clock and `src/lib/format*` |
 
 ## Keyboard walk failures

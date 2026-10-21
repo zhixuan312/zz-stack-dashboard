@@ -12,7 +12,7 @@ import { Checkbox } from '../../ui/checkbox/index';
 import { EmptyState } from '../../ui/empty-state/index';
 import { Pagination } from '../../ui/pagination/index';
 import { Skeleton } from '../../ui/skeleton/index';
-import { Table, TableBody, TableHead, TableHeader, type Breakpoint, type SortDirection } from '../../ui/table/index';
+import { Cut, Table, TableBody, TableHead, TableHeader, type Breakpoint, type SortDirection } from '../../ui/table/index';
 import { useQueryState } from './use-query-state';
 
 export { useQueryState } from './use-query-state';
@@ -36,9 +36,9 @@ export type Column<R> = {
   title?: (row: R) => string;
   /** Drop the column below this width (the least important columns go first). */
   hideBelow?: Breakpoint;
-  /** The one column that takes the remaining width: the record's name. */
+  /** The record's name: the one column with a floor, so the last to be cut. It claims no spare width. */
   grow?: boolean;
-  /** A width class for a column whose content is short and fixed (an ID, a key, a date), so the spare width goes to the others: `w-28`. */
+  /** A width class for a column whose content is short and fixed (an ID, a key, a date), so the spare is shared by the others: `w-28`. */
   width?: string;
   /**
    * Its place in the card a row becomes on phones: the `title` (one column, the record's name), a `status` at the end
@@ -96,7 +96,7 @@ const PHONE_ROWS = [
 ].join(' ');
 
 /** The resets a cell needs once the row is a card: not a row height, not a padding box, free to shrink and to clip. */
-const PHONE_CELLS = '@max-[640px]:[&_td:not([data-mobile=hidden])]:!h-auto @max-[640px]:[&_td:not([data-mobile=hidden])]:!max-w-none @max-[640px]:[&_td:not([data-mobile=hidden])]:!p-0 @max-[640px]:[&_td:not([data-mobile=hidden])]:min-w-0 @max-[640px]:[&_td:not([data-mobile=hidden]):not([data-mobile=fact])]:!block @max-[640px]:[&_[data-sep]]:inline';
+const PHONE_CELLS = '@max-[640px]:[&_td:not([data-mobile=hidden])]:!h-auto @max-[640px]:[&_td:not([data-mobile=hidden])]:!p-0 @max-[640px]:[&_td:not([data-mobile=hidden])]:min-w-0 @max-[640px]:[&_td:not([data-mobile=hidden]):not([data-mobile=fact])]:!block @max-[640px]:[&_[data-sep]]:inline';
 
 /** Where a role sits in the card, and how it reads there.
  *
@@ -124,7 +124,7 @@ const HIDE: Record<Breakpoint, string> = { sm: '@max-[512px]:hidden', md: '@max-
 
 /** A cell's few own classes: what its column adds to the table's rules. */
 const cellClass = (c: { align?: 'left' | 'right' | 'center'; numeric?: boolean; muted?: boolean; truncate?: boolean; hideBelow?: Breakpoint }) =>
-  cn(c.numeric && 't-num', c.align === 'center' && '!text-center', c.muted && 'text-ink-2', c.truncate && 'max-w-0 truncate', c.hideBelow && HIDE[c.hideBelow]);
+  cn(c.numeric && 't-num', c.align === 'center' && '!text-center', c.muted && 'text-ink-2', c.hideBelow && HIDE[c.hideBelow]);
 
 /** The table's sort and page, kept in the URL: `?sort=latency&dir=desc&page=2`. Wrap the page in <Suspense>. */
 export function useTableQuery(defaults: Partial<TableState> = {}) {
@@ -302,7 +302,7 @@ export function DataTable<R>({
               </TableHeader>
             ) : null}
             {columns.map((c) => (
-              <TableHeader key={c.key} align={c.align ?? (c.numeric ? 'right' : 'left')} hideBelow={c.hideBelow} grow={c.grow} flexible={c.truncate} className={c.width} sort={c.sortValue ? dirOf(c) : undefined} onSort={c.sortValue ? () => toggleSort(c) : undefined}>
+              <TableHeader key={c.key} align={c.align ?? (c.numeric ? 'right' : 'left')} hideBelow={c.hideBelow} grow={c.grow} className={c.width} sort={c.sortValue ? dirOf(c) : undefined} onSort={c.sortValue ? () => toggleSort(c) : undefined}>
                 {c.header}
               </TableHeader>
             ))}
@@ -350,12 +350,15 @@ export function DataTable<R>({
                           {role === 'fact' && facts.indexOf(c) > 0 ? <span aria-hidden data-sep>·</span> : null}
                           {/* A phone may want other words for the same cell — "Used 1 min ago", not "1 min ago" — so
                               both are rendered and one is hidden: a few words each, never a second copy of the row. */}
-                          {c.mobileCell ? (
-                            <>
-                              <span className="@max-[640px]:hidden">{content}</span>
-                              <span className="hidden @max-[640px]:contents">{c.mobileCell(r)}</span>
-                            </>
-                          ) : content}
+                          {(() => {
+                            const body = c.mobileCell ? (
+                              <>
+                                <span className="@max-[640px]:hidden">{content}</span>
+                                <span className="hidden @max-[640px]:contents">{c.mobileCell(r)}</span>
+                              </>
+                            ) : content;
+                            return c.truncate ? <Cut>{body}</Cut> : body;
+                          })()}
                         </td>
                       );
                     })}

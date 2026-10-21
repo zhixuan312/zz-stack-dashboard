@@ -292,7 +292,7 @@ for (const f of walk('app/(dash)', /^page\.tsx$/)) {
 }
 
 // ── A truncated value keeps a way back ────────────────────────────────────────────────────────────────
-/* `DataTable`'s `truncate` adds `max-w-0 truncate` and nothing else: no title, no expansion, no wrap. So a cut value is
+/* `DataTable`'s `truncate` wraps the value in Meridian's `Cut` and nothing else: no title, no expansion, no wrap. So a cut value is
  * cut everywhere on the page, and where the value identifies a record — a slug, a path, an id, an address, a stable key
  * — the part an ellipsis eats is usually the part that tells two of them apart. `2026-09-22-payout-schedule` is the
  * shape: the date at the front survives and the name that distinguishes it does not.

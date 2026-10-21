@@ -148,7 +148,9 @@ const MEASURE = `(() => {
   // cell titled "Orders" over a cut account id passed as keeping it.
   const whole = (s) => (s || '').replace(/\\s+/g, ' ').trim();
   const keeps = (el, title) => { const t = whole(title), own = whole(el.textContent); return t.length > 0 && own.length > 0 && t.includes(own); };
-  const titled = (el) => { for (let n = el, i = 0; n && i < 4; n = deepParent(n), i++) if (keeps(el, n.getAttribute('title'))) return true; return [...el.querySelectorAll('[title]')].some((n) => keeps(el, n.getAttribute('title'))); };
+  // The walk reaches through a table cell's wrapper: a name span in a flex row in a link in the wrapper's cut span in the
+  // wrapper is six levels, so the cell's title is still found.
+  const titled = (el) => { for (let n = el, i = 0; n && i < 6; n = deepParent(n), i++) if (keeps(el, n.getAttribute('title'))) return true; return [...el.querySelectorAll('[title]')].some((n) => keeps(el, n.getAttribute('title'))); };
   const inked = [];
   const ringSig = (c) => [c.outlineStyle, c.outlineWidth, c.outlineColor, c.boxShadow, c.borderTopStyle, c.borderTopWidth, c.borderTopColor, c.borderBottomColor, c.borderLeftColor, c.borderRightColor].join('|');
   const texts = [];
