@@ -216,8 +216,9 @@ describe('the paired figures', () => {
     draw(ok(ATLAS));
     const foot = document.querySelector('[data-foot]')!;
     expect(foot.textContent).toContain('One person, writing this31 hestimated at 500 words an hour');
-    expect(foot.textContent).toContain('Observed run coverage3.5 h');
-    expect(foot.textContent).toContain('Peak concurrency1 at once');
+    // The fixture's runs are hours old, so how much of them last week holds moves with the day the test runs.
+    expect(foot.textContent).toContain(`Observed run coverage${(ATLAS.foot.coverageMs.value! / 3_600_000).toFixed(1)} h`);
+    expect(foot.textContent).toContain(`Peak concurrency${ATLAS.foot.peak.value} at once`);
     expect(within(foot as HTMLElement).getByRole('link', { name: 'How it is estimated' })).toHaveAttribute('href', '/record');
   });
 
