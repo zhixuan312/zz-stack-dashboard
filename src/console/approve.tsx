@@ -126,6 +126,9 @@ export function ApproveAction({ doc, me, shown, onStale, onReload }: { doc: Docu
   // The record the reader pressed Approve on, by identity: every record is a new object, so a newer snapshot or the
   // same one recorded again by a reload closes the confirmation, and Confirm can only sign the record it opened on.
   const [confirmingFor, setConfirmingFor] = useState<Shown | null>(null);
+  // Set from the press itself, not from `isPending`: a keyboard press carries no click count, and a second Enter can
+  // reach Confirm before the busy state is drawn.
+  const sending = useRef(false);
   // `?team=` always: the route refuses `?scope=platform`, so the team comes from the document itself.
   const mutation = useConsoleMutation<{ ok: true; result: string }, { initiative: string; path: string; expected_revision: string; review_context: string }>(
     `/documents/approve?team=${encodeURIComponent(doc.team)}`);
@@ -134,13 +137,16 @@ export function ApproveAction({ doc, me, shown, onStale, onReload }: { doc: Docu
   if (!canApprove(doc, me)) return null;
 
   async function approve(signing: Shown) {
-    if (signing.state !== 'recorded') return;
+    if (signing.state !== 'recorded' || sending.current) return;
+    sending.current = true;
     try {
       await mutation.mutateAsync({ initiative: doc.initiative, path: doc.path, expected_revision: signing.content_revision, review_context: signing.review_context });
       toast({ tone: 'positive', title: `Approved ${doc.path}`, description: 'The next stage of the flow may start.' });
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) onStale(err.message);
       else toast({ tone: 'critical', title: 'Not approved', description: err instanceof ApiError ? err.message : 'Could not reach the platform; try again.' });
+    } finally {
+      sending.current = false;
     }
     setConfirmingFor(null);
   }

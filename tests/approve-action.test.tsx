@@ -312,6 +312,26 @@ describe('ApproveAction', () => {
     }
   });
 
+  // A keyboard press carries no click count, so Enter twice on a focused Confirm reaches it twice before the first
+  // answer's busy state is drawn: the second press must send nothing.
+  it('sends one approval when Confirm is pressed again before the first answers', async () => {
+    const user = userEvent.setup();
+    let answer: (r: Response) => void = () => {};
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(() => new Promise<Response>((r) => { answer = r; }));
+    try {
+      renderWithClient(<ApproveAction doc={doc} me={me} shown={recorded} onStale={() => {}}  onReload={() => {}}/>);
+      await user.click(screen.getByRole('button', { name: 'Approve' }));
+      const confirm = screen.getByRole('button', { name: 'Confirm' });
+      fireEvent.click(confirm, { detail: 0 });
+      fireEvent.click(confirm, { detail: 0 });
+      await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      await act(async () => answer(new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'content-type': 'application/json' } })));
+    } finally {
+      fetchMock.mockRestore();
+    }
+  });
+
   it('tells a member acting for another team to switch before approving', () => {
     renderWithClient(<ApproveAction doc={doc} me={{ ...me, teams: [...me.teams, { slug: 'other-team', role: 'member' }], activeTeam: 'other-team' }} shown={{ state: 'off' }} onStale={() => {}}  onReload={() => {}}/>);
     expect(screen.getByText('Switch to team-one to approve.')).toBeInTheDocument();
