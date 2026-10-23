@@ -14,7 +14,7 @@
 # on 0.0.0.0 it would be a second unauthenticated door onto the box.
 services:
   console:
-    image: ghcr.io/zhixuan312/zz-stack-dashboard:${ZZ_DASHBOARD_VERSION:-0.28.2}
+    image: ghcr.io/zhixuan312/zz-stack-dashboard:${ZZ_DASHBOARD_VERSION:-0.28.3}
     restart: unless-stopped
     ports: ["127.0.0.1:3100:3000"]
     # Every page needs ZZ_GATEWAY: before a page renders, this app's server asks the gateway who is calling (`/me`),
