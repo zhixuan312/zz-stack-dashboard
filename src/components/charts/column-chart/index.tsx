@@ -4,8 +4,9 @@ import { useState, type KeyboardEvent } from 'react';
 import { cn } from '../../../lib/cn';
 import { useMeridian } from '../meridian/index';
 import { Readout } from '../readout';
-import { niceTicks, SERIES_VAR, stackPart } from '../scale';
+import { niceTicks, SERIES_VAR, stackPart, ticksBetween } from '../scale';
 import { useSize } from '../use-size';
+import { columnFold } from '../../../logic/derivations';
 
 /** `null` is a period with no data: it keeps its slot, draws no column and reads `noData`, never zero. */
 export type Column = { key: string; label: string; value: number | null };
@@ -50,10 +51,10 @@ export type ColumnChartProps = Shared & (
 );
 
 /**
- * The measures in pixels: the space between columns, the least a column keeps before that space gives way, the
- * narrowest column that keeps its value at rest, and the most parts drawn.
+ * The measures in pixels: the space between columns, the least a column keeps before that space gives way, and the
+ * narrowest column that keeps its value at rest.
  */
-const GAP = 2, THIN = 1, REST = 36, MOST = 4;
+const GAP = 2, THIN = 1, REST = 36;
 /** About the width of one character of a value at rest (`text-2xs`), in px: enough to tell whether a label fits its column. */
 const CH = 6.5;
 /**
@@ -69,7 +70,7 @@ const opens = (n: number) => Array.from({ length: n > 1 ? GAP : 0 }, (_, k) => n
 const gapOf = (n: number) => (n > 1 ? `calc(${opens(n).map((w) => `clamp(0px, (100% - ${w}px) * 1000, 1px)`).join(' + ')})` : '0px');
 const TONES = { neutral: 'var(--chart-neutral-strong)', warning: 'var(--warning)', critical: 'var(--critical)' };
 const count = (n: number) => n.toLocaleString('en-US');
-/** A value that is missing, or below zero, is no contribution to its column. */
+/** A part that is missing, or below zero, is no contribution to its column: parts make up a whole. */
 const amount = (v: number | null | undefined) => (typeof v === 'number' && v > 0 ? v : 0);
 
 /** A column as drawn: its parts' values, `null` where a part has no data, and whether the whole column has none. */
@@ -86,8 +87,10 @@ type Drawn = { key: string; label: string; tone: 'accent' | 'series' | keyof typ
  * usual parts are told apart and Other stays the quietest (#67).
  */
 function stack(columns: StackedColumn[], parts: ColumnPart[]) {
-  const fold = parts.length > MOST;
-  const listed: ColumnPart[] = fold ? [...parts.slice(0, MOST - 1), { key: 'other', label: 'Other' }] : parts;
+  // The parts' values, one row a part and one value a column, so the logic layer can fold the ones past the fourth.
+  const matrix = parts.map((_, k) => columns.map((c) => (c.values[k] === null ? null : amount(c.values[k]))));
+  const { values: foldedRows, kept, folded } = columnFold(matrix);
+  const listed: ColumnPart[] = folded ? [...parts.slice(0, kept), { key: 'other', label: 'Other' }] : parts;
   const named = parts.some((p) => p.tone || p.color);
   const neutralTaken = parts.some((p) => p.tone === 'neutral' && !p.color);
   const drawn: Drawn[] = listed.map((p, k) => (
@@ -95,12 +98,10 @@ function stack(columns: StackedColumn[], parts: ColumnPart[]) {
       : named ? { key: p.key, label: p.label, tone: p.tone ?? 'neutral', color: p.tone ? TONES[p.tone] : neutralTaken ? 'var(--chart-neutral)' : TONES.neutral }
         : { key: p.key, label: p.label, tone: 'accent', color: stackPart(k, listed.length) }
   ));
-  const bars = columns.map((c): Bar => {
+  const bars = columns.map((c, j): Bar => {
     // A part with no data stays `null`, so it is read as no data; it adds nothing to the total of the parts that were read.
-    const all = parts.map((_, k) => (c.values[k] === null ? null : amount(c.values[k])));
-    const rest = all.slice(MOST - 1);
-    const values = fold ? [...all.slice(0, MOST - 1), rest.every((v) => v === null) ? null : rest.reduce<number>((a, b) => a + (b ?? 0), 0)] : all;
-    return { key: c.key, label: c.label, values, total: values.reduce<number>((a, b) => a + (b ?? 0), 0), none: all.every((v) => v === null) };
+    const values = foldedRows.map((row) => row[j] ?? null);
+    return { key: c.key, label: c.label, values, total: values.reduce<number>((a, b) => a + (b ?? 0), 0), none: values.every((v) => v === null) };
   });
   return { drawn, bars };
 }
@@ -149,9 +150,15 @@ export function ColumnChart({
   const fill = height === 'fill';
   const soFar = running ? n - 1 : -1;
 
-  // A period with no data has no height, so the scale is the periods that have one.
-  const ticks = niceTicks(Math.max(1, ...bars.filter((b) => !b.none).map((b) => b.total)), 3, whole);
-  const top = ticks[ticks.length - 1];
+  // A period with no data has no height, so the scale is the periods that have one. Plain, a value under zero is a
+  // fall: the scale goes under zero for it and the column hangs from the zero line (#78). Stacked, parts make a whole.
+  const read = bars.filter((b) => !b.none).map((b) => b.total);
+  const hi = Math.max(0, ...read), lo = Math.min(0, ...read);
+  const signed = !form.parts && lo < 0;
+  const ticks = signed ? ticksBetween(lo, hi, 3, whole) : niceTicks(hi > 0 ? hi : 1, 3, whole);
+  const low = ticks[0], top = ticks[ticks.length - 1];
+  /** A level's height in the scale, as a share of it from the bottom. */
+  const at100 = (v: number) => ((v - low) / (top - low)) * 100;
   const af = axisFormat ?? format;
   const left = Math.max(...ticks.map((t) => af(t).length)) * 6.4 + 10;
   const longest = Math.max(...bars.map((b) => b.label.length));
@@ -213,19 +220,21 @@ export function ColumnChart({
             It stands inside the plot's box with room for all it draws around itself: 28px over the top tick, the height of
             a pointed value and its 4px off the column, and 8px under the zero tick, the half line its label hangs. So the
             focus ring, 4px outside the box, crosses nothing the plot draws, and nothing moves when the width arrives. */}
-        <div className="absolute inset-x-0 top-7 bottom-2">
+        <div className={cn('absolute inset-x-0 top-7', signed ? 'bottom-7' : 'bottom-2')}>
           {ticks.map((t) => (
-            <div key={t} aria-hidden className="absolute right-0 flex items-center" style={{ left: 0, bottom: `${(t / top) * 100}%`, transform: 'translateY(50%)' }}>
+            <div key={t} aria-hidden className="absolute right-0 flex items-center" style={{ left: 0, bottom: `${at100(t)}%`, transform: 'translateY(50%)' }}>
               <span data-tick className="t-num w-(--w) pr-2.5 text-right text-2xs leading-4 text-ink-3" style={{ ['--w' as string]: `${left}px` }}>{af(t)}</span>
               <span className={cn('h-px flex-1', t === 0 ? 'bg-chart-axis' : 'bg-chart-grid')} />
             </div>
           ))}
-          <div className="absolute inset-y-0 right-0 flex items-end" style={{ left, columnGap: gapOf(n) }}>
+          <div className="absolute inset-y-0 right-0 flex" style={{ left, columnGap: gapOf(n) }}>
             {bars.map((b, i) => {
               const pointed = active === i;
               const hot = pointed || (active === null && b.key === highlight);
               const shown = drawn ? drawn.map((p, k) => ({ p, v: b.values[k] ?? 0 })).filter(({ v }) => v > 0) : [];
               const unfinished = i === soFar;
+              // A fall hangs from the zero line: it grows down, its round end and its value under it.
+              const fall = signed && !b.none && b.total < 0;
               // Plain, the pointed value is the chart's readout and takes the tooltip's plane; stacked, the panel is.
               const tip = pointed && !drawn;
               // At rest a label is held to its column. A running period with no data whose words do not fit says "So far",
@@ -241,7 +250,7 @@ export function ColumnChart({
                   data-no-data={b.none ? '' : undefined}
                   // A figure wider than its column is cut at rest, and keeps the whole of itself where the pointer finds it.
                   title={rest && text.length * 7 > column ? text : undefined}
-                  className="group/col relative flex h-full min-w-0 flex-1 items-end"
+                  className="group/col relative h-full min-w-0 flex-1"
                   onPointerEnter={() => set(i)}
                   onPointerDown={() => set(i)}
                 >
@@ -249,19 +258,29 @@ export function ColumnChart({
                       period with no data has no height: it keeps its slot with a dashed hairline just above the baseline,
                       and its word stands over it where a value would. A track the height of the scale was the tallest mark
                       on the chart, and the eye went to the one period that had nothing to say. */}
-                  <div data-box className="relative w-full" style={{ height: b.none ? '0%' : `${(Math.max(0, b.total) / top) * 100}%`, minHeight: (drawn ? Math.max(0, shown.length * 4 - 1) : b.total > 0 ? 2 : 0) + (unfinished ? 2 : 0) }}>
+                  <div
+                    data-box
+                    data-fall={fall ? '' : undefined}
+                    className="absolute inset-x-0"
+                    style={{
+                      ...(fall ? { top: `${100 - at100(0)}%` } : { bottom: `${at100(0)}%` }),
+                      height: b.none ? '0%' : `${(Math.abs(b.total) / (top - low)) * 100}%`,
+                      minHeight: (drawn ? Math.max(0, shown.length * 4 - 1) : b.total !== 0 ? 2 : 0) + (unfinished ? 2 : 0),
+                    }}
+                  >
                     <div
                       className={cn(
-                        'grow-y relative h-full rounded-t-[4px]',
+                        'grow-y relative h-full',
+                        fall ? 'rounded-b-[4px]' : 'rounded-t-[4px]',
                         drawn && 'transition-[box-shadow] duration-(--dur-hover)',
                         drawn && hot && 'z-1 ring-2 ring-ink',
                         // A period still running: a dashed outline, open at the baseline, around a fill at half strength. The
                         // outline has a pixel of its own and a pixel of the card inside it, so it covers no part and holds
                         // its contrast whatever it surrounds; it is what keeps a faded column a column on a dark card. It
                         // needs 4px of its own; in a narrower column it ends with the column and never runs past the plot.
-                        unfinished && 'ml-[min(0px,calc(100%-4px))] border border-b-0 border-dashed border-ink p-px pb-0',
+                        unfinished && cn('ml-[min(0px,calc(100%-4px))] border border-dashed border-ink p-px', fall ? 'border-t-0 pt-0' : 'border-b-0 pb-0'),
                       )}
-                      style={{ ['--i' as string]: i }}
+                      style={{ ['--i' as string]: i, ...(fall ? { transformOrigin: 'center top' } : null) }}
                     >
                       {b.none ? (
                         <div data-no-data-mark aria-hidden className="absolute inset-x-0 bottom-0.5 border-t border-dashed border-line-strong" />
@@ -281,13 +300,13 @@ export function ColumnChart({
                           ))}
                         </div>
                       ) : (
-                        <div className={cn('h-full w-full rounded-t-[4px] transition-colors duration-(--dur-hover)', hot ? 'bg-accent' : 'bg-chart-neutral group-hover/col:bg-chart-neutral-strong', unfinished && 'opacity-50')} />
+                        <div className={cn('h-full w-full transition-colors duration-(--dur-hover)', fall ? 'rounded-b-[4px]' : 'rounded-t-[4px]', hot ? 'bg-accent' : 'bg-chart-neutral group-hover/col:bg-chart-neutral-strong', unfinished && 'opacity-50')} />
                       )}
                     </div>
                     {rest || pointed ? (
                       // One element at rest and pointed at, so its entrance never replays. At rest the value is held to its
                       // column; the tooltip, and a total shown only on pointing, may be wider than theirs.
-                      <span aria-hidden className={cn('pointer-events-none absolute bottom-full mb-1', rest && 'fade-in', tip || !rest ? cn('z-10', placed(i)) : 'inset-x-0')}>
+                      <span aria-hidden className={cn('pointer-events-none absolute', fall ? 'top-full mt-1' : 'bottom-full mb-1', rest && 'fade-in', tip || !rest ? cn('z-10', placed(i)) : 'inset-x-0')}>
                         <span
                           className={cn(
                             't-num block text-2xs leading-4',

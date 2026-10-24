@@ -54,7 +54,7 @@ const COMPONENTS: Components = {
   code: ({ children, className }) =>
     className ? <code className={className}>{children}</code> : <code className="rounded-xs border border-line bg-surface-sunk px-1 py-px font-mono text-[0.86em] text-ink [overflow-wrap:anywhere]">{children}</code>,
   pre: ({ children }) => <pre className="my-4 rounded-lg border border-line bg-surface-sunk p-4 font-mono text-sm leading-relaxed whitespace-pre-wrap text-ink [overflow-wrap:anywhere] [&_code]:border-0 [&_code]:bg-transparent [&_code]:p-0">{children}</pre>,
-  table: ({ children }) => <div className="my-5 overflow-x-auto rounded-lg border border-line"><table className="w-full text-left text-sm leading-normal">{children}</table></div>,
+  table: ({ children }) => <div className="scroll-fade-x my-5 overflow-x-auto rounded-lg border border-line"><table className="w-full text-left text-sm leading-normal">{children}</table></div>,
   thead: ({ children }) => <thead className="border-b border-line bg-surface-sunk">{children}</thead>,
   th: ({ children }) => <th className="px-3 py-2 text-xs font-medium whitespace-nowrap text-ink-3">{children}</th>,
   tr: ({ children }) => <tr className="border-b border-line last:border-0">{children}</tr>,
@@ -79,7 +79,7 @@ const COMPONENTS: Components = {
 const STACKED: Components = {
   ...COMPONENTS,
   table: ({ children }) => (
-    <div className="my-5 overflow-x-auto rounded-lg border border-line @container">
+    <div className="scroll-fade-x my-5 overflow-x-auto rounded-lg border border-line @container">
       <table className={cn('w-full text-left text-sm leading-normal',
         '@max-[480px]:block @max-[480px]:[&>thead]:hidden @max-[480px]:[&>tbody]:block @max-[480px]:[&_tr]:block @max-[480px]:[&_tr]:px-3 @max-[480px]:[&_tr]:py-2.5',
         '@max-[480px]:[&_td]:block @max-[480px]:[&_td]:p-0 @max-[480px]:[&_td+td]:mt-2 @max-[480px]:[&_td:first-child]:font-medium @max-[480px]:[&_td:first-child]:text-ink',

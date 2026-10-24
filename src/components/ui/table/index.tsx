@@ -1,7 +1,7 @@
 'use client';
 
 import { ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react';
-import { Children, isValidElement, type CSSProperties, type HTMLAttributes, type ReactNode, type TdHTMLAttributes, type ThHTMLAttributes } from 'react';
+import { Children, Fragment, isValidElement, type CSSProperties, type HTMLAttributes, type ReactElement, type ReactNode, type TdHTMLAttributes, type ThHTMLAttributes } from 'react';
 import { cn } from '../../../lib/cn';
 
 /**
@@ -13,8 +13,9 @@ import { cn } from '../../../lib/cn';
  * between the columns, an equal share in every gap, so the gaps read even whatever each column's alignment. The table
  * algorithm put each column's spare inside it, after a left-aligned value and before a right-aligned one, so a text
  * column beside a number held both shares in one gap and a number beside a text column none. Each row is a subgrid of
- * the table's columns, so a row's border, hover and selection run across the gaps. The columns are counted from the
- * cells of the table's first row as its own JSX writes them, the head's `TableHeader` cells when it has a head.
+ * the table's columns, so a row's border, hover and selection run across the gaps. The columns are counted from the shape
+ * of the table as its own JSX writes it — the first row of its first section that has one — so a table written in a server
+ * component lays out exactly as one written on the client.
  *
  * `hideBelow` reads the table's own width, not the window's: the rail, a split row or an embed all narrow the table
  * without narrowing the window. sm under 512px, md under 672px, lg under 896px, xl under 1152px.
@@ -27,14 +28,26 @@ const JUSTIFY = { left: undefined, right: 'justify-end', center: 'justify-center
 
 type Props = { children?: ReactNode; hideBelow?: Breakpoint };
 
-/** Which columns the table draws: the `hideBelow` of each cell in its first row, the head's when it has one. */
+/** The elements a node writes, through fragments: the table's own JSX as a list. */
+function elementsOf(node: ReactNode): ReactElement<Props>[] {
+  return Children.toArray(node).flatMap((c) => {
+    if (!isValidElement<Props>(c)) return [];
+    return c.type === Fragment ? elementsOf(c.props.children) : [c];
+  });
+}
+
+/**
+ * Which columns the table draws, read from its shape and never from which component a cell is: the first row of its
+ * first section that has one, and that row's component cells (a raw `<th data-check>` is DataTable's selection box, not a
+ * column). A server component renders the same parts as lazy references rather than these functions, and a table whose
+ * columns were counted by identity laid every one of them out as a single column (#85).
+ */
 function columnsOf(node: ReactNode): (Breakpoint | undefined)[] | undefined {
-  const kids = Children.toArray(node).filter((c) => isValidElement<Props>(c));
-  const cells = kids.filter((c) => c.type === TableHeader || c.type === TableCell);
-  if (cells.length > 0) return cells.map((c) => c.props.hideBelow);
-  for (const c of kids) {
-    const found = columnsOf(c.props.children);
-    if (found) return found;
+  for (const section of elementsOf(node)) {
+    const row = elementsOf(section.props.children)[0];
+    if (!row) continue;
+    const cells = elementsOf(row.props.children).filter((c) => typeof c.type !== 'string');
+    if (cells.length > 0) return cells.map((c) => c.props.hideBelow);
   }
   return undefined;
 }

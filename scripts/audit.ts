@@ -18,8 +18,9 @@
  * light-DOM content, and one that is still undefined after the settle wait, are reported as `unmeasured:` instead of passed.
  *
  * Fails (exit 1) on: a route that served another page or dropped a parameter it was asked for, a page whose content
- * region rendered nothing or that threw or logged a failure while it rendered, sideways scroll, text clipped without an
- * ellipsis, text cut with an ellipsis that keeps the whole of it nowhere, two pieces of text in the same place or a line
+ * region rendered nothing or that threw or logged a failure while it rendered, sideways scroll (a strip that scrolls at a
+ * phone width included), text clipped without an ellipsis, text drawn past a box that does not clip it, text cut with an
+ * ellipsis that keeps the whole of it nowhere, two pieces of text in the same place or a line
  * drawn through one, a control with no accessible name or one under 44px on touch, a heading two levels below the one
  * before it, more than one page scroller, and rendered text under its WCAG minimum, an SVG's text included, read by its
  * `fill` against whatever the SVG paints behind it. Prints the design metrics per page: distinct type sizes, weights and
@@ -83,13 +84,13 @@ if (atlasLine) console.log(atlasLine);
 
 type Report = {
   path: string; href: string; text: number;
-  sideways: string[]; clipped: string[]; truncated: string[]; overlap: string[]; focusless: string[]; unnamed: string[]; unmeasured: string[]; scrollers: string[]; contrast: string[]; targets: string[]; headings: string[];
+  sideways: string[]; clipped: string[]; spills: string[]; truncated: string[]; overlap: string[]; focusless: string[]; unnamed: string[]; unmeasured: string[]; scrollers: string[]; contrast: string[]; targets: string[]; headings: string[];
   sizes: number[]; weights: number[]; radii: number[]; ratio: number;
 };
 
 /** Runs inside the page. Plain JavaScript: it is serialised into the browser. */
 const MEASURE = `(() => {
-  const W = innerWidth, out = { path: location.pathname, href: location.href, text: 0, sideways: [], clipped: [], truncated: [], overlap: [], unnamed: [], unmeasured: [], scrollers: [], contrast: [], targets: [], headings: [], sizes: [], weights: [], radii: [], ratio: 0 };
+  const W = innerWidth, out = { path: location.pathname, href: location.href, text: 0, sideways: [], clipped: [], spills: [], truncated: [], overlap: [], unnamed: [], unmeasured: [], scrollers: [], contrast: [], targets: [], headings: [], sizes: [], weights: [], radii: [], ratio: 0 };
   const label = (el) => (el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + (el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\\s+/).slice(0, 3).join('.') : '')).slice(0, 90);
   /* closest() across open roots and slots: deepParent (injected from scripts/lib/deep.ts) steps through both */
   const deepClosest = (el, sel) => { for (let n = el; n; n = deepParent(n)) if (n.matches(sel)) return n; return null; };
@@ -98,6 +99,10 @@ const MEASURE = `(() => {
   if (sr.scrollWidth > W + 1) out.sideways.push('document ' + sr.scrollWidth + 'px wide at ' + W);
   const all = deepAll(document.body).filter((n) => n !== document.body);
   all.filter((n) => n.matches('[data-scroll-region]')).forEach((s) => { if (s.scrollWidth > s.clientWidth + 1) out.sideways.push('scroll region ' + s.scrollWidth + ' > ' + s.clientWidth); });
+  // At a phone width nothing may hide off a sideways edge: a strip that scrolls holds items a reader cannot see, and the
+  // page cannot be scrolled to them. Two are not reported here: the page's own scroll region, which the check above owns,
+  // and a strip that fades at the cut edge (.scroll-fade-x), the system's own way of saying there is more this way.
+  if (W <= 400) all.filter((n) => !n.matches('[data-scroll-region], .scroll-fade-x') && n.clientWidth > 0 && /auto|scroll/.test(getComputedStyle(n).overflowX) && n.scrollWidth > n.clientWidth + 1).forEach((n) => out.sideways.push('strip ' + label(n) + ' ' + n.scrollWidth + ' > ' + n.clientWidth));
   // A dashboard fills its canvas at every size: a data page narrower than the scroll region (less the gutters) is a
   // centred strip on a wide screen.
   all.filter((n) => n.matches('[data-page-width="data"]')).forEach((p) => { const region = deepClosest(p, '[data-scroll-region]'); if (region && p.getBoundingClientRect().width < region.clientWidth - 2) out.sideways.push('data page ' + Math.round(p.getBoundingClientRect().width) + 'px wide in a ' + region.clientWidth + 'px canvas (it should fill it)'); });
@@ -170,6 +175,29 @@ const MEASURE = `(() => {
       texts.push(fs); out.sizes.push(Math.round(fs)); out.weights.push(+c.fontWeight);
       if (el.scrollWidth > el.clientWidth + 1 && c.textOverflow !== 'ellipsis' && /hidden|clip/.test(c.overflow) && el.clientWidth > 0) out.clipped.push(label(el) + ' "' + el.textContent.trim().slice(0, 30) + '"');
       if (el.scrollWidth > el.clientWidth + 1 && c.textOverflow === 'ellipsis' && /hidden|clip/.test(c.overflowX) && el.clientWidth > 0 && !titled(el)) out.truncated.push(label(el) + ' "' + el.textContent.trim().slice(0, 30) + '"');
+      // Text drawn past a box that does not clip it runs over whatever is beside that box: a figure too long for its grid
+      // column, over its neighbour and past its card's edge. Measured on the glyphs with a Range, since scrollWidth also
+      // counts an enlarged touch target. A clipping box ends the walk: what it hides is the clipped check's business, and
+      // a positioned box may overhang on purpose.
+      if (!(el instanceof SVGElement) && !/absolute|fixed/.test(c.position)) {
+        let left = Infinity, right = -Infinity;
+        for (const node of el.childNodes) {
+          if (node.nodeType !== 3 || !node.textContent.trim()) continue;
+          const range = document.createRange(); range.selectNodeContents(node);
+          const b = range.getBoundingClientRect();
+          left = Math.min(left, b.left); right = Math.max(right, b.right);
+        }
+        if (right > left) for (let n = el; n && n !== document.documentElement; n = deepParent(n)) {
+          const nc = getComputedStyle(n);
+          if (/hidden|clip|auto|scroll/.test(nc.overflowX) || /absolute|fixed/.test(nc.position)) break;
+          const b = n.getBoundingClientRect();
+          // display: contents draws no box of its own (a card's phone layout uses it to unwrap a tile): its rect is at
+          // the origin and zero wide, and comparing glyphs to it reported every figure on the page.
+          if (nc.display === 'contents' || (!b.width && !b.height)) continue;
+          const past = Math.max(right - (b.right - (parseFloat(nc.borderRightWidth) || 0)), b.left + (parseFloat(nc.borderLeftWidth) || 0) - left);
+          if (past > 1) { out.spills.push(label(el) + ' "' + el.textContent.trim().slice(0, 30) + '" spills its box by ' + Math.round(past) + 'px'); break; }
+        }
+      }
       inked.push(el);
       // Gradient text paints its glyphs with a clipped background (color is transparent); both ends sit at accent-ink's
       // lightness, which the contrast gate already holds, so it is not measured here.
@@ -274,7 +302,7 @@ const MEASURE = `(() => {
     // Sampled every two pixels: four samples is eight pixels of line inside the text.
     for (const [el, k] of inside) if (k >= 4) out.overlap.push('a line (' + label(g) + ') is drawn through ' + quote(el));
   }
-  out.overlap = [...new Set(out.overlap)].slice(0, 8); out.truncated = [...new Set(out.truncated)].slice(0, 8);
+  out.overlap = [...new Set(out.overlap)].slice(0, 8); out.truncated = [...new Set(out.truncated)].slice(0, 8); out.spills = [...new Set(out.spills)].slice(0, 8);
   // Headings descend one level at a time, so a screen reader's outline has no holes.
   // A specimen's headings are the card's own, at the level the card uses where it is placed, not the documentation page's.
   const levels = [...document.querySelectorAll('h1,h2,h3,h4,h5,h6')].filter((h) => !h.closest('[aria-hidden="true"]') && !h.closest('[data-specimen]')).map((h) => +h.tagName[1]);
@@ -370,6 +398,7 @@ const run = async (route: string, width: number, theme: string, embed: boolean) 
     ...(r.text < 24 ? [`the page holds ${r.text} characters of text — it rendered nothing, or only its loading state`] : []),
     ...r.sideways.map((x) => 'sideways: ' + x),
     ...r.clipped.map((x) => 'clipped: ' + x),
+    ...r.spills.map((x) => 'spills: ' + x),
     ...r.truncated.map((x) => 'truncated: ' + x + ' is cut with an ellipsis and no title holds the whole of it'),
     ...r.overlap.map((x) => 'overlap: ' + x),
     ...r.unnamed.map((x) => 'unnamed: ' + x),

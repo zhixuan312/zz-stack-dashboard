@@ -6,10 +6,8 @@ import { formatDuration } from '../../../lib/format';
 import { StatusDot } from '../../ui/status-dot/index';
 import type { Tone } from '../../ui/badge/index';
 import { UptimeBars } from '../../charts/uptime-bars/index';
-import { summarise, SERVICE_NOUN, type Noun } from './summarise';
+import { summarise, SERVICE_NOUN, type Noun } from '../../../logic/summarise';
 import { plural } from '../../../lib/format';
-
-export { summarise };
 
 const STATE: Record<ServiceStatus, { tone: Tone; word: string; ink: string }> = {
   operational: { tone: 'positive', word: 'Operational', ink: 'text-positive-ink' },

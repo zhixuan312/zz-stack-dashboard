@@ -45,6 +45,11 @@ These hold in every project, however it started, and nothing below overrides the
   `src/styles/theme.css`.
 - **Agents read freely and write only through a Proposal.** Mark agent work with the Agent mark and "via"
   (`references/agents.md`).
+- **Data has four layers, and one place a backend is touched.** The database, `optional:src/data/` (the seam: the only place your
+  backend is touched), `optional:src/logic/` (the business logic) and what draws. `references/data-layers.md` is the standard:
+  the contract a backend answers, the seven direct reads, and the ordered path an existing product follows to the four
+  layers. It is advice; `node scripts/check.ts` holds the six rules that a machine can decide, once the project sets its
+  own switch in `optional:scripts/check.local.ts`.
 - **Done is when the scoreboard says so.** `pnpm verify` is the loop while you work; the work is finished only when
   `pnpm verify --full --timed` ends with `the project meets the Meridian standard` and every view is rendered, scored
   and none is Weak (`references/standard.md`). Never against a live backend: `--full` presses every control, Delete
@@ -236,7 +241,7 @@ Read `references/customize.md` and follow it. In short:
   says plainly why the sample is a single process and holds the Postgres and Redis adapters).
 - **Data first.** Write `src/data/<product>.ts` for the person's domain: real types from their schema or materials, and
   deterministic sample data until they wire their API. Pages import data from `optional:src/data/` and nowhere else. Delete the
-  sample pages you replace. `optional:src/data/collections.ts` and `optional:src/data/sample.ts` import `optional:src/system/fixtures/` (and the bell's alerts, `readAlerts` in `optional:src/data/alerts.ts`, are worked out
+  sample pages you replace. `optional:src/data/collections.ts` and `optional:src/data/sample.ts` import `optional:src/system/fixtures/` (and the bell's alerts, `readAlerts` in `optional:src/logic/alerts.ts`, are worked out
   from the same collections), so the fixtures and `optional:src/system/sample-cells.tsx` stay until nothing imports them:
   replace each collection's `rows` with the person's data first, then delete them. Prove the
   numbers before building pages: a `example:tests/data.test.ts` asserting the counts your pages need (vitest resolves `@/`;

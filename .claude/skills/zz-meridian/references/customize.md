@@ -6,6 +6,10 @@ presets' `@/components/…` and `@/lib/…` imports become `@meridian/components
 
 ## Data: `optional:src/data/`
 
+The standard this section follows is `data-layers.md`: the four layers between a database and the screen, the contract a
+backend answers, the seven direct reads, and the ordered path a project with its own tables follows to reach them. Read
+it before you replace a collection's `rows` with a real query.
+
 `optional:src/data/` is the product's own seam: pages and views import data from it and nowhere else. Write `src/data/<product>.ts`. The template's
 sample, ZZ Meridian's own dashboard, lives in `optional:src/system/fixtures/`; your pages never import it, but
 `optional:src/data/collections.ts` does, so it stays until each collection's `rows` come from your data (see "The assistant").
@@ -234,13 +238,13 @@ Rules that make every page look like it belongs:
   is unsaved and otherwise only if the person chooses to leave. A link needs nothing, and Back and Forward are the
   browser's.
 - **A shared context** for each page (decision 0011): a pure function beside the view builds it from the page's data
-  (copy `optional:src/views/home-context.ts`: scope, freshness, each figure with its unit, change and definition,
+  (copy `optional:src/logic/home-context.ts`: scope, freshness, each figure with its unit, change and definition,
   what `optional:src/lib/insight.ts` finds, what the data cannot say), within 2,600 characters with four to eight
   times the sample's records and pointed at any day: each list it states keeps the first items its page shows, up to
   a count that holds the budget, and says how many more there are ("and 9 more resolved"; `listed` writes it). The
   view passes it to `useShareView`; a
   server page with no client view places `<ShareContext context={…} />` among its cards instead. Both
-  agents read it: an MCP host and the console's assistant. Add the page's tool to `optional:src/views/tools.ts` so the
+  agents read it: an MCP host and the console's assistant. Add the page's tool to `optional:src/logic/tools.ts` so the
   assistant can open it at an address.
 
 ## A title that states the figures, and the facts beside it
@@ -271,7 +275,7 @@ orders is the sample's, not the product's.
 - **No word of praise**, in a title or in a fact: the figure is what is said. The rules' test refuses twelve words.
 - **The title is shared.** The page's context leads its insights with the sentence the page is headed by, word for
   word, and each fact follows as the rule's own line (`factInsight` and `headInsights` in
-  `optional:src/views/fact-insight.ts`). The history a record, a first, a total or the days inside the band are
+  `optional:src/logic/fact-insight.ts`). The history a record, a first, a total or the days inside the band are
   worked out from is read on the server; the page's client is handed the sentences (`head` on the view's data) and
   never the history. A title that cannot read one of its clauses states the rest, and the context says what was not
   read.
@@ -399,13 +403,13 @@ orders is the sample's, not the product's.
 - **The six title functions and their words**: `homeTitle`, `usageTitle`, `revenueTitle`, `customerTitle`, `nowTitle`
   and `servicesTitle`, each in its view's context file under `optional:src/views/`, with the functions that call the
   rules for them (`revenueHead`, `titleOf`, `nowHead`, `servicesHead`, Usage's `usageHead` in
-  `optional:src/views/usage-parts.ts` and Home's `homeHead` in `optional:src/views/home-parts.ts`) and Home's line under its title (`homeLine`). Write your pages' own, in your
+  `optional:src/logic/usage-parts.ts` and Home's `homeHead` in `optional:src/logic/home-parts.ts`) and Home's line under its title (`homeLine`). Write your pages' own, in your
   product's nouns: a release "in testing" is the sample's word for its own releases. A run's "without a mark" is
   written by `run` itself (`src/lib/facts.ts`), so it stays wherever a page states a run.
 - **Home's nine parts and their words**: the head, the revenue card, the three tiles beside it, the row of the days
   inside the band, compute in use, compute cost and gross margin, the year's card, "A year, counted", revenue a period
   beside "What we sell", the Business and Engineering cards, and "Worth knowing across the company": what `homeData`
-  in `optional:src/views/home-parts.ts` works out for them, how `optional:src/views/home.tsx` draws them and how
+  in `optional:src/logic/home-parts.ts` works out for them, how `optional:src/views/home.tsx` draws them and how
   `homeContext` says it. They are the figures of a company that sells tokens, and the titles, labels and lines are
   its words. Keep the standard they show: one Featured metric, a part's title alone in its element, a list that holds
   to its stated number whatever the data, the four states, every row of tiles one column on a phone, and the cost
@@ -414,7 +418,7 @@ orders is the sample's, not the product's.
   revenue, its record as its finding, revenue a day as its chart) beside three tiles (Against a year ago, Best day yet,
   Past due), revenue a day by plan beside "Who pays", revenue a period by plan, the wall of "Every customer,
   the last 14 days" with its three orders, the ladder "From a trial to Enterprise" with its stages, "Worth a look", and
-  "What they buy" beside "Where they are": what `revenueData` in `optional:src/views/revenue-parts.ts` works out for
+  "What they buy" beside "Where they are": what `revenueData` in `optional:src/logic/revenue-parts.ts` works out for
   them, how `optional:src/views/revenue.tsx` draws them and how `revenueContext` says it. The plans, the stages and the
   wording of a customer close to the next plan are the sample company's. Keep the standard they show: each part about
   customers names its window, every customer a part names opens its page, the period moves only what the daily
@@ -423,7 +427,7 @@ orders is the sample's, not the product's.
   p95), the Featured metric that leads it (the period's requests, its record as its finding, requests a day as its
   chart), "A year of requests, a day a cell" with its busiest day, "The period, counted" with at most three
   facts, "When they come" with its two choices, "Where from" beside "What is asked for", and "How it was answered":
-  what `usageData` and `usageHead` in `optional:src/views/usage-parts.ts` work out for them, how
+  what `usageData` and `usageHead` in `optional:src/logic/usage-parts.ts` work out for them, how
   `optional:src/views/usage.tsx` draws them and how `usageContext` says it. The endpoints, regions and status classes
   are the sample company's. Keep the standard they show: a part that does not follow the period names its window, the
   calendar is every day kept and joins the page's Meridian, a ranked list holds to its stated number, status classes
@@ -431,7 +435,7 @@ orders is the sample's, not the product's.
 - **One customer's parts and their words**: the head (the trail of Business and Customers, the title, and the line of
   its plan, what it paid in 30 days with its share of revenue, and its requests), the card of where it stands and since
   when with its owner on our side, the three tiles (Requests, Paid, Error rate), "What it asks for" and "Its latest
-  requests": what `readCustomer` in `optional:src/views/tools.ts` reads for them, how `optional:src/views/customer.tsx`
+  requests": what `readCustomer` in `optional:src/logic/tools.ts` reads for them, how `optional:src/views/customer.tsx`
   draws them and how `customerContext` says it. Keep the standard they show: no period control and every window named,
   a part whose read failed says so in its place, one the reader may not read is absent, and the missing-record page for
   an id that names nobody. Write your own record's page.
@@ -439,23 +443,23 @@ orders is the sample's, not the product's.
   band, the steady fact as its finding, each complete day's p95 as its chart), the services, the open incidents, the
   days inside the band with their four facts, the models over the last 30 complete days, compute in use a region on the
   latest complete day, what ships, the work, the slowest endpoints, the four figures of the last 30 complete days, the
-  runs a day and the latest changes: what `nowData` in `optional:src/views/now-parts.ts` works out for them from what
-  `nowTool` in `optional:src/views/tools.ts` reads, each collection apart, how `optional:src/views/now.tsx` draws them,
+  runs a day and the latest changes: what `nowData` in `optional:src/logic/now-parts.ts` works out for them from what
+  `nowTool` in `optional:src/logic/tools.ts` reads, each collection apart, how `optional:src/views/now.tsx` draws them,
   in thirteen parts, and how `nowContext` says it. The parts, their titles and words, the models, the regions, the
   tickets' priorities, the tiles, the eight services a list holds whole and the three longest runs it keeps past that
   are the sample company's. Keep the standard they show: each figure names its window, a tile's line fits in 32
   characters, the day in progress is counted in nothing but the runs a day, the facts Home also states are written by
   Home's own functions, and a part whose read failed is null, says so in its own place and is named in the context's
   unknowns; a list that never folds is handed what the page's rule keeps (`servicesShown` in
-  `optional:src/views/now-context.ts`) beside a link that counts every one; an incident names its owner and opens its
+  `optional:src/logic/now-context.ts`) beside a link that counts every one; an incident names its owner and opens its
   ticket; the reader's own record is marked "Yours", worked out on the server from who is reading; a part that changes
   while it is read registers its collection with `useLive` (Home and Revenue register every collection their feature
   needs, and no other); nothing arrived is one card and the page headed by its name. Write your own engineering home.
 - **Services' parts and their words**: the Featured metric that leads it (uptime over 90 days, the run fact as its
   finding, the share of services operational a day as its chart), "Each service, 90 days" and "Incidents", the page's
   one sentence, the services,
-  their order and their incidents: what `servicesTool` in `optional:src/views/tools.ts` reads, how
-  `optional:src/views/services.tsx` draws them and how `servicesContext` in `optional:src/views/services-context.ts`
+  their order and their incidents: what `servicesTool` in `optional:src/logic/tools.ts` reads, how
+  `optional:src/views/services.tsx` draws them and how `servicesContext` in `optional:src/logic/services-context.ts`
   says it. The six services, their 90 days and the rule an uptime is worked out by are the sample company's. Keep the
   standard they show: the services in the order the team reads its stack, each with its run (the Status list's `run`);
   one list of incidents, the open ones first in the Incident card's card form with how long each has lasted so far,
@@ -541,7 +545,7 @@ command palette; compact suits operators who scan many rows.
 
 Each `app/embed/<view>/` route is an MCP App: a `ui://` resource an MCP server returns beside a tool result. Copy
 `optional:app/embed/home/` for a summary or `optional:app/embed/requests/` for a list; wrap the content in `EmbedFrame`; call
-`useShareView(context)` with the page's context (copy `optional:src/views/home-context.ts`) so the model knows what is on screen; put `AskAbout` on cards worth asking about; agent
+`useShareView(context)` with the page's context (copy `optional:src/logic/home-context.ts`) so the model knows what is on screen; put `AskAbout` on cards worth asking about; agent
 writes go through `Proposal` (see `optional:app/embed/proposal/`). Read `agents.md` next to this file for the server side.
 
 ## Clean-up before validation
@@ -556,7 +560,7 @@ then stays off without them). Then fix what still points at the sample:
 
 - `optional:src/views/sample-footer.tsx`: the footer status line and its link to `/services`, which `optional:app/not-found.tsx`
   and the sign-in page draw.
-- `optional:src/data/alerts.ts`: `readAlerts` works the bell's alerts out of the sample's incidents, customers, verification
+- `optional:src/logic/alerts.ts`: `readAlerts` works the bell's alerts out of the sample's incidents, customers, verification
   runs and tickets. Write your own exceptions the same way, each from a read the caller may make and linked to the page
   that handles it; the layout hands the read's promise to `ShellAlerts` (`optional:src/views/shell-alerts.tsx`) without
   awaiting it.

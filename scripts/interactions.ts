@@ -77,6 +77,14 @@ const LIST = `(() => {${CONTROLS}
 const ARM = (name: string, nth: number, key: string, keyNth: number) => `(() => {${CONTROLS}
   const all = pressable(deepAll(document.body));
   const el = all.filter((b) => nameOf(b) === ${JSON.stringify(name)})[${nth}] ?? all.filter((b) => keyOf(b) === ${JSON.stringify(key)})[${keyNth}]; if (!el) return null;
+  // A control inside a closed disclosure is laid out but not drawn: open the ones it sits in, as a reader does before
+  // pressing it. The one whose own summary holds the control stays shut, since pressing that summary is the control (#82).
+  for (let n = deepParent(el); n; n = deepParent(n)) {
+    if (n.localName !== 'details' || n.open) continue;
+    const own = [...n.children].find((c) => c.localName === 'summary');
+    if (own && own.contains(el)) continue;
+    n.open = true;
+  }
   el.scrollIntoView({ block: 'center', inline: 'nearest' });
   const r = el.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
   const hit = document.elementFromPoint(x, y);

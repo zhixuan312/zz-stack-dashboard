@@ -51,6 +51,9 @@ const TAG = `(() => {
   // :disabled, not [disabled]: the attribute is only the control's own, and a fieldset with disabled disables every
   // control inside it without touching their attributes. A FormSection in its read-only or saving state is exactly
   // that, so the attribute form expected a correctly-disabled input to be reachable, and failed on a page that was right.
+  // A reader opens a disclosure to reach what is in it. A closed <details> lays its content out without drawing it, so
+  // the content has a real box while Tab skips it: tagged, it was reported as never reached (#82).
+  for (const n of deepAll(document.body)) if (n.localName === 'details' && !n.open) n.open = true;
   const every = deepAll(document.body).filter((n) => n !== document.body);
   const all = every.filter((el) => el.matches('a[href], button:not(:disabled), input:not([type=hidden]):not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'))
     .filter((el) => vis(el) && el.tabIndex >= 0);

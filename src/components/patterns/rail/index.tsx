@@ -144,8 +144,9 @@ export function Rail({
             <button type="button" aria-label={`${app.name}, ${workspace}: ${switcher ? 'workspace menu' : 'account menu'}`} className="group -mx-1.5 flex min-w-0 flex-1 items-center gap-2.5 rounded-md px-1.5 py-1.5 text-left hover:bg-fill-hover data-[state=open]:bg-fill-hover">
               <AppMark size={28} />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-md leading-tight font-semibold tracking-[-0.015em]">{app.name}</span>
-                <span className="t-eyebrow mt-0.5 block truncate">{workspace}</span>
+                {/* Either may be cut to the rail's width; the title holds the whole of it, as every cut text keeps (#79). */}
+                <span title={app.name} className="block truncate text-md leading-tight font-semibold tracking-[-0.015em]">{app.name}</span>{' '}
+                <span title={workspace} className="t-eyebrow mt-0.5 block truncate">{workspace}</span>
               </span>
               {/* `ChevronsUpDown` is the glyph for choosing between things; with nothing to switch, the row is the menu. */}
               {switcher ? <ChevronsUpDown className="size-3.5 text-ink-3 group-hover:text-ink-2" /> : <ChevronDown className="size-3.5 text-ink-3 group-hover:text-ink-2" />}

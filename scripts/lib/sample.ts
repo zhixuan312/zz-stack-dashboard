@@ -26,7 +26,7 @@ export function sampleSurfaces(root: string, appDir: string): SampleSurfaces {
   return {
     // The guide's summary preset keeps these file names for a product's own Home, so the sample's is told by the year's
     // card the walk-through reads, which a product's own Home does not draw.
-    home: page('(home)') && has('src/views/home-context.ts') && holds('src/views/home.tsx', 'A year, counted'),
+    home: page('(home)') && has('src/logic/home-context.ts') && holds('src/views/home.tsx', 'A year, counted'),
     now: page('engineering') && has('src/views/now.tsx'),
     members: page('members') && has('src/views/members.tsx'),
     keys: page('keys'),
@@ -37,7 +37,7 @@ export function sampleSurfaces(root: string, appDir: string): SampleSurfaces {
 export function exploreSurfaces(root: string, appDir: string): ExploreSurfaces {
   const { has, page } = files(root, appDir);
   return {
-    usage: page('usage') && has('src/views/usage-explore.ts'),
-    tests: page('tests') && has('src/views/tests-explore.ts'),
+    usage: page('usage') && has('src/logic/usage-explore.ts'),
+    tests: page('tests') && has('src/logic/tests-explore.ts'),
   };
 }

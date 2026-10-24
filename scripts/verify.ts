@@ -391,10 +391,10 @@ process.on('exit', stopAll);
 // An interrupted run does not emit 'exit' by itself, and the detached servers and running suites would outlive it.
 for (const sig of ['SIGINT', 'SIGTERM'] as const) process.on(sig, () => process.exit(sig === 'SIGINT' ? 130 : 143));
 
-/** Start the built app on a free port with the given environment and wait until it answers. */
+/** Start the built app on a free port, loopback only, and wait until it answers: every client here reaches 127.0.0.1 (#81). */
 async function start(env: NodeJS.ProcessEnv) {
   const port = await freePort();
-  const server = spawn(bin('next'), ['start', '-p', String(port)], { cwd: ROOT, env, stdio: 'ignore', detached: true });
+  const server = spawn(bin('next'), ['start', '-H', '127.0.0.1', '-p', String(port)], { cwd: ROOT, env, stdio: 'ignore', detached: true });
   children.push(server);
   for (let i = 0; i < 120; i++) {
     try { if ((await fetch(`http://127.0.0.1:${port}/`)).status < 500) return { port, server }; } catch { await new Promise((r) => setTimeout(r, 500)); }

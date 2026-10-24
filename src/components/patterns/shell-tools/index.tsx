@@ -31,7 +31,8 @@ export function ShellTools({ alerts = [], now }: { alerts?: Alert[]; /** The dat
         className="press hit flex h-9 items-center gap-2.5 rounded-full border border-line-strong bg-surface/60 pr-1.5 pl-3 text-sm text-ink-3 shadow-control backdrop-blur-md transition-[color,background-color,border-color,transform] hover:border-line-control/40 hover:text-ink-2 @max-[40rem]:w-9 @max-[40rem]:justify-center @max-[40rem]:px-0"
       >
         <Search className="size-4" strokeWidth={1.75} />
-        <span className="w-36 text-left @max-[48rem]:w-20 @max-[40rem]:hidden">Search</span>
+        {/* Below 40rem the word is only its own name: `sr-only`, never `hidden`, so the icon-only button is still announced (#83). */}
+        <span className="w-36 text-left @max-[48rem]:w-20 @max-[40rem]:sr-only">Search</span>
         <Kbd className="keyboard-only @max-[40rem]:hidden">⌘K</Kbd>
       </button>
       <Popover open={open} onOpenChange={setOpen}>

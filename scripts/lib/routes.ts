@@ -69,7 +69,7 @@ export function agentSection(md: string): { protagonist: string | null; question
 }
 
 /** The registry of the view tools, which the assistant and the MCP server read them from. */
-const REGISTRY = 'src/views/tools.ts';
+const REGISTRY = 'src/logic/tools.ts';
 
 /**
  * The project modules `from` imports, each resolved the way TypeScript resolves it: a relative path or a tsconfig
@@ -88,7 +88,7 @@ function importsOf(root: string, from: string, src: string, aliases: [string, st
 /**
  * Each view tool's `name` and `page` as a source declares them: the keys of each `defineViewTool({ ... })` object
  * itself, never a `name` or `page` inside its code, such as the `page` of Customers' filter. With no source given, every
- * module the registry reaches is read — `src/views/tools.ts` and what it imports, and so on — so a project that keeps
+ * module the registry reaches is read — `src/logic/tools.ts` and what it imports, and so on — so a project that keeps
  * each tool in a module of its own is read whole. Read as text, because a script runs under plain node and cannot load
  * the product's views. Null when the registry does not exist. `root` is the project's folder, this one when not given.
  */

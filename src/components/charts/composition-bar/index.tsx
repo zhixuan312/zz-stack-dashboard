@@ -1,5 +1,6 @@
 import { cn } from '../../../lib/cn';
 import { SERIES_VAR, stackPart } from '../scale';
+import { compositionTotal } from '../../../logic/derivations';
 
 export type Part = { label: string; value: number; color?: number | 'accent' | 'neutral' | 'neutral-ink' | 'positive' | 'warning' | 'critical' };
 
@@ -25,7 +26,7 @@ export function CompositionBar({
   stacked?: boolean;
   className?: string;
 }) {
-  const total = parts.reduce((a, p) => a + p.value, 0) || 1;
+  const total = compositionTotal(parts);
   const stack = stacked ? parts.length : null;
   return (
     <figure aria-label={label} className={cn('@container min-w-0', className)}>

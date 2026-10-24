@@ -432,7 +432,7 @@ try {
       const a = await explore('/usage', 'usage', 'How many requests came at 22:00 UTC on each weekday?');
       if (a.groups.length < 2) fail(`${a.name}'s answer on /usage has ${a.groups.length} group line(s), not a weekday against the next`);
       ok(`${a.name} was handed on /usage and no other page's; it answered at ${a.address} "${a.groups[0]}" against "${a.groups[1]}" (${a.head}), and the reply quotes ${a.figure}`);
-    } else na('explore_usage on /usage', 'the sample Usage page or its prepared query, src/views/usage-explore.ts, is not in this product');
+    } else na('explore_usage on /usage', 'the sample Usage page or its prepared query, src/logic/usage-explore.ts, is not in this product');
 
     if (EXPLORE.tests) {
       // Tests' first question (W11): the runs of the last seven complete days, by how they ended.
@@ -440,7 +440,7 @@ try {
       const passed = a.groups.find((g) => g.startsWith('passed: '));
       if (!passed) fail(`${a.name}'s answer on /tests has no group of passed runs: ${JSON.stringify(a.groups)}`);
       ok(`${a.name} was handed on /tests and no other page's; it answered at ${a.address} "${passed}" (${a.head}), and the reply quotes ${a.figure}`);
-    } else na('explore_tests on /tests', 'the sample Tests page or its prepared query, src/views/tests-explore.ts, is not in this product');
+    } else na('explore_tests on /tests', 'the sample Tests page or its prepared query, src/logic/tests-explore.ts, is not in this product');
 
     if (SAMPLE.settings) {
       // The switch: off hides the launcher and the panel and keeps the thread; on brings both back.

@@ -8,6 +8,7 @@ import { useMeridian } from '../meridian/index';
 import { Readout } from '../readout';
 import { monotonePath, ticksBetween, SERIES_VAR, stackPart } from '../scale';
 import { useSize } from '../use-size';
+import { trendTotals } from '../../../logic/derivations';
 
 export type TrendSeries = {
   key: string;
@@ -92,6 +93,7 @@ export function TrendChart({
   dates,
   series,
   format = 'count',
+  axisFormat,
   height = 248,
   label,
   legend,
@@ -108,7 +110,16 @@ export function TrendChart({
 }: {
   dates: string[];
   series: TrendSeries[];
-  format?: NumberFormat;
+  /**
+   * How a value reads, in the readout and in the table, and on the axis unless `axisFormat` says otherwise. A name
+   * (`'cost'`, `'percent'`) is what a server component passes, since a function cannot cross into a client one; a
+   * function is for a figure no name says exactly, from a client component: a price to four decimals, a ratio to six,
+   * an amount in its own currency (#78).
+   */
+  format?: NumberFormat | ((n: number) => string);
+  /** How a tick reads, when `format` is a function: an axis formatter, true at every tick. Without one the axis reads
+   * as `format` does, which is right only while `format` is exact: one that rounds prints a tick it does not stand at. */
+  axisFormat?: (n: number) => string;
   /** Pixels, or `fill` to take the height its card gives it (never under 220px). */
   height?: number | 'fill';
   /** What the chart shows, for screen readers: "Requests per day". */
@@ -158,26 +169,30 @@ export function TrendChart({
   const gid = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   const h = fill ? Math.max(220, size.height) : height;
 
-  const fmt = FORMATTERS[format];
-  const axis = AXIS_FORMATTERS[format];
-  // Stacked, each band sits on the sum of the ones below it; a missing value is no contribution that day.
+  const named = typeof format === 'string';
+  const fmt = named ? FORMATTERS[format] : (n: number | null) => (n === null ? '—' : format(n));
+  const axis = axisFormat ?? (named ? AXIS_FORMATTERS[format] : format);
+  // Stacked, each band sits on the sum of the ones below it: a band's top is every band up to it added up a day at a
+  // time, and its bottom is the same sum without it. The per-day total is the logic layer's figure, not the plot's.
   const bases = useMemo(() => {
     if (!stacked) return null;
-    const acc = dates.map(() => 0);
-    return series.map((s) => {
-      const lower = [...acc];
-      s.values.forEach((v, i) => (acc[i] += v ?? 0));
-      return { lower, upper: [...acc] };
-    });
+    const bands = series.map((s) => dates.map((_, i) => s.values[i] ?? null));
+    return series.map((_, k) => ({
+      lower: k === 0 ? dates.map(() => 0) : trendTotals(bands.slice(0, k)),
+      upper: trendTotals(bands.slice(0, k + 1)),
+    }));
   }, [stacked, series, dates]);
   const totals = bases ? bases[bases.length - 1]?.upper ?? [] : null;
   // Stacked parts are one whole, so they share one hue, each by its place in the stack. A series given its own colour keeps it.
   const colorOf = (s: TrendSeries, k: number) => (stacked && !s.color ? stackPart(k, series.length) : SERIES_VAR(s.color ?? (s.kind === 'dashed' ? 'neutral' : 'accent')));
   const values = totals ?? series.flatMap((s) => s.values.filter((v): v is number => v !== null));
-  const max = Math.max(1, baseline?.value ?? 0, band?.value ?? 0, ...values);
   // A floor is a hint and never a crop: it is held at or under the lowest value drawn, or a day that fell further than
-  // the floor would be drawn below the plot's own axis. So the scale widens to the data and never hides it.
-  const from = floor === undefined ? 0 : Math.min(floor, ...values);
+  // the floor would be drawn below the plot's own axis. So the scale widens to the data and never hides it. Without a
+  // floor the axis holds zero, and a value under zero, a net change or a net flow, takes the axis down with it (#80).
+  const from = Math.min(floor ?? 0, ...values);
+  // The top is the data's, never a fixed 1: a ratio that peaks at 0.004 is drawn to its own top, not lost along the
+  // floor of a scale to 1. A scale with nothing above its floor falls back to the unit one.
+  const max = Math.max(floor === undefined ? 0 : -Infinity, baseline?.value ?? -Infinity, band?.value ?? -Infinity, ...values);
   // The levels, and the floor the plot is drawn to: `ticks[0]` is 0 unless the chart was given a floor, and the two ends
   // of the scale are what every point, area, band and level line is measured against.
   const ticks = ticksBetween(from, max, h < 200 ? 3 : 4, whole);
@@ -221,11 +236,14 @@ export function TrendChart({
         const open = running && s.kind !== 'dashed' && typeof s.values[n - 1] === 'number' && last.length > 1;
         const end = (r: [number, number][]) => r.length - (open && r === last ? 2 : 1);
         const line = segs.map((r) => monotonePath(r, 0, end(r))).join('');
-        const area = segs.map((r) => `${monotonePath(r, 0, end(r))}L${r[end(r)][0]},${pad.t + H}L${r[0][0]},${pad.t + H}Z`).join('');
+        // An area is filled down to zero, which is the floor of the plot unless the axis goes under it: a signed area
+        // is filled to its zero line from either side, never down to the lowest level.
+        const base = y(Math.min(Math.max(0, low), top));
+        const area = segs.map((r) => `${monotonePath(r, 0, end(r))}L${r[end(r)][0]},${base}L${r[0][0]},${base}Z`).join('');
         return { s, line, area, tail: open ? monotonePath(last, last.length - 2) : '' };
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [series, width, h, top, running],
+    [series, width, h, low, top, running],
   );
 
   // What the plot draws, as the label placer needs it: every line, and the top of every band of a stack.

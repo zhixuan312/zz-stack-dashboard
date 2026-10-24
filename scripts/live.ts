@@ -66,7 +66,8 @@ const status = (port: number) => new Promise<number | null>((resolve) => {
 });
 
 async function serve(port: number): Promise<ChildProcess> {
-  const server = spawn(bin('next'), ['start', '-p', String(port)], { cwd: ROOT, env: process.env, stdio: 'ignore', detached: true });
+  // Loopback only, as scripts/verify.ts starts it: every client here is on this machine (#81).
+  const server = spawn(bin('next'), ['start', '-H', '127.0.0.1', '-p', String(port)], { cwd: ROOT, env: process.env, stdio: 'ignore', detached: true });
   started.push(server);
   for (let i = 0; i < 120; i++) {
     const code = await status(port);

@@ -13,10 +13,12 @@ export function niceTicks(max: number, count = 4, whole = false): number[] {
  * "Nice" levels from `floor` up to at least `max`: the same steps, counted from `floor` rather than from zero. For a
  * quantity that lives in a narrow band — uptime, a success rate, a cache hit rate — where a zero-based axis would make
  * the one thing the chart is about the smallest mark on it. Both ends land on a step, so the lowest level is the floor
- * the plot is drawn to and `ticks[0]` may be read as it. Returns `[0, 1]` like `niceTicks` when there is nothing to show.
+ * the plot is drawn to and `ticks[0]` may be read as it. A floor under zero is a step under zero, so a signed series
+ * (a net change, a net flow) is drawn on levels either side of it, zero among them. Returns `[0, 1]` like `niceTicks`
+ * when there is nothing to show.
  */
 export function ticksBetween(floor: number, max: number, count = 4, whole = false): number[] {
-  if (max <= 0) return [0, 1];
+  if (max <= 0 && floor >= 0) return [0, 1];
   const raw = (max - floor) / count;
   if (!(raw > 0)) return niceTicks(max, count, whole);
   const mag = 10 ** Math.floor(Math.log10(raw));
@@ -27,8 +29,11 @@ export function ticksBetween(floor: number, max: number, count = 4, whole = fals
   // and a floor of 70% on a 10% step would otherwise come out as 60% — a whole step of the plot spent on nothing.
   const steps = (n: number) => Math.round(n / step * 1e6) / 1e6;
   const top = Math.ceil(steps(max)) * step;
-  const low = floor > 0 ? Math.floor(steps(floor)) * step : 0;
-  return Array.from({ length: Math.round((top - low) / step) + 1 }, (_, i) => Math.round((low + i * step) * 1e6) / 1e6);
+  const low = Math.floor(steps(floor)) * step;
+  // Each level is rounded to a digit under its step, never to a fixed number of places: a ratio near 1.001061 steps
+  // in millionths, and six places would round two of its levels to one (#78).
+  const places = Math.max(0, 1 - Math.floor(Math.log10(step)));
+  return Array.from({ length: Math.round((top - low) / step) + 1 }, (_, i) => Number((low + i * step).toFixed(places)) || 0);
 }
 
 /**

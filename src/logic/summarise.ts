@@ -1,5 +1,5 @@
-import type { Service, ServiceStatus } from './';
-import { plural } from '../../../lib/format';
+import type { Service, ServiceStatus } from '../components/patterns/status-list/index';
+import { plural } from '../lib/format';
 
 export type Noun = { one: string; other: string };
 export const SERVICE_NOUN: Noun = { one: 'service', other: 'services' };

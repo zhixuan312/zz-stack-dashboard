@@ -6,6 +6,8 @@ import { Badge, type Tone } from '../../ui/badge/index';
 import { Card } from '../../ui/card/index';
 import { StatusDot } from '../../ui/status-dot/index';
 import { keepHyphenated } from '../../base/text-roles/index';
+import { afterStart } from '../../../logic/after-start';
+import { elapsed } from '../../../logic/derivations';
 
 const STATE: Record<Incident['state'], { tone: Tone; word: string; ink: string; edge: string; border: string }> = {
   investigating: { tone: 'critical', word: 'Investigating', ink: 'text-critical-ink', edge: 'bg-critical', border: 'border-critical/30' },
@@ -25,16 +27,6 @@ const SEVERITY: Record<Incident['severity'], { tone: Tone; word: string }> = {
 export type Incident = { id: string; title: string; service: string; severity: 'minor' | 'major'; state: 'investigating' | 'monitoring' | 'resolved'; started: string; resolved?: string; updates: { at: string; text: string }[]; owner?: string; ticket?: { title: string; href: string } };
 
 /**
- * When an update came, counted from the incident's start in the product's durations: "after 42m", "after 2.6h". The
- * question a reader has of a timeline is how long each step took, and time ago answers a different one. An update
- * inside the first minute, or timed before the start, came at the start.
- */
-export function afterStart(started: string, at: string) {
-  const ms = new Date(at).getTime() - new Date(started).getTime();
-  return ms < 60_000 ? 'at the start' : `after ${formatDuration(ms)}`;
-}
-
-/**
  * An incident, told the way a reader needs it: what is affected, how bad, where it stands, who has it and where it is
  * tracked, and every update since it started, newest first, each timed from the start. A live incident leads with its
  * state; a resolved one with how long it lasted. `row` is the compact form for a list of past incidents: the title
@@ -44,7 +36,7 @@ export function IncidentCard({ incident, now, variant = 'card', className }: { i
   const st = STATE[incident.state];
   const sev = SEVERITY[incident.severity];
   const live = incident.state !== 'resolved';
-  const lasted = incident.resolved ? new Date(incident.resolved).getTime() - new Date(incident.started).getTime() : null;
+  const lasted = incident.resolved ? elapsed(incident.started, incident.resolved) : null;
 
   if (variant === 'row') {
     return (

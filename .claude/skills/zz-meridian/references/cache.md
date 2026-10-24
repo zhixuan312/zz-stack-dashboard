@@ -113,7 +113,6 @@ A production adapter binds the predicate and the subscription filter; prepending
 import type { Metadata } from 'next';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { createElement, type JSX } from 'react';
 import { nav, refusal } from '@/app.config';
 import { activity, compute, costs, customers, days, endpoints, hours, incidents, keys, members, models, regions, releases, requests, responses, services, tests, tickets, usage, workspace } from '@/data/collections';
 import { FEATURES, type FeatureId } from '@/data/features';
@@ -121,9 +120,6 @@ import { effective, roleLabel, type AddOn, type MainRole } from '@/data/roles';
 import { membersFor } from '@/data/member-mutations';
 import { ticketsFor } from '@/data/ticket-mutations';
 import { chooseViewAs } from '@/data/view-as';
-import { MissingPage } from '@/views/missing-page';
-import { NoAccess } from '@/views/no-access';
-import { NOT_FOUND } from '@/views/not-found';
 import type { Member } from '@/data/sample';
 import type { AnyCollection, ChromeAccess, Grant, Need } from '@/lib/collection';
 
@@ -200,7 +196,7 @@ function accessFrom(policy: Policy) {
 
 /** The member a scope names, re-read from the roster every call; null when there is no such record. */
 async function memberById(id: string): Promise<Member | null> {
-  return (await members.query({ where: [{ field: 'id', op: 'eq', value: id }] })).rows[0] ?? null;
+  return (await members.query({ where: [{ field: 'id', op: 'eq', value: id }] })).rows[0] ?? null; // read() cannot serve this: the member a scope is made from is resolved before an AccessScope exists
 }
 
 /** The member the demo is signed in as: the cookie's id, or Maya Chen, and only while that record is Active. */
@@ -301,8 +297,8 @@ export async function requireNeed(need: Need): Promise<void> {
 /**
  * The navigation entries a missing page's walk-back steps past, so it names no page the person may not open: under
  * `refusal: 'absent'` every entry whose need the current person does not satisfy, and every entry when there is no
- * session; under `explain` none, as the no-access page names the page anyway. `gate` hands them to the missing page it
- * draws, and the standalone missing page (`app/not-found.tsx`) asks for them itself.
+ * session; under `explain` none, as the no-access page names the page anyway. `gate` carries them to the missing page's
+ * screen, and the standalone missing page (`app/not-found.tsx`) asks for them itself.
  */
 export async function withheldEntries(): Promise<string[]> {
   if (refusal !== 'absent') return [];
@@ -315,35 +311,59 @@ export async function withheldEntries(): Promise<string[]> {
 }
 
 /**
+ * What a refused page is told, as data rather than as a screen: `src/views/refusal.tsx` draws it, so this layer builds
+ * no element and imports no view. The two kinds carry only what the screens cannot work out for themselves.
+ *
+ * `absent` is the console's missing page, walked back past the entries this person may not open (`withheld`), so the
+ * answer reads exactly as an address that names nothing. `explain` is the no-access screen for `feature`, which is
+ * handed the chrome this person is entitled to (`access`, null when the session cannot be read) because its one way
+ * out is chosen from those destinations.
+ */
+export type Refusal =
+  | { readonly kind: 'absent'; readonly withheld: readonly string[] }
+  | { readonly kind: 'explain'; readonly feature: FeatureId; readonly access: ChromeAccess | null };
+
+/**
  * The one page gate, called as every dashboard page's first statement so the check is what stops the read, never the
  * rail: `chromeAccess().only` hides a destination but forbids nothing, so a page that leaned on it would show a person
  * the records the rail merely left unlinked.
  *
  * It asks the same `requireNeed` a view tool asks, so a page and a tool refuse alike. A request with no session is sent
  * to sign-in. A person who may not use the feature gets the product's `refusal` as a normal 200 answer, read here on
- * every call: under `explain` the NoAccess view (awaited, because it is an async server component and a page hands a
- * renderer an element, not a promise); under `absent` the console's missing page, walked back past every entry the
- * person may not open, so it reads exactly as an address that names nothing. Neither throws `notFound()`, which inside
- * the dashboard's loading boundary renders only once the JavaScript arrives (see MissingPage). `null` means the feature
- * is held and the page may render and read.
+ * every call, returned as the descriptor its screen is drawn from (`Refusal`): under `explain` the feature and the
+ * chrome, under `absent` the entries to walk past. Neither refusal throws `notFound()`, which inside the dashboard's
+ * loading boundary renders only once the JavaScript arrives (see MissingPage). `null` means the feature is held and the
+ * page may render and read.
  */
-export async function gate(feature: FeatureId): Promise<JSX.Element | null> {
+export async function gate(feature: FeatureId): Promise<Refusal | null> {
   try {
     await requireNeed(FEATURES[feature].needs);
   } catch (error) {
     if (error instanceof Unauthenticated) redirect('/sign-in');
-    if (error instanceof AccessDenied) return refusal === 'absent' ? createElement(MissingPage, { withheld: await withheldEntries() }) : await NoAccess({ feature });
+    if (error instanceof AccessDenied) {
+      if (refusal === 'absent') return { kind: 'absent', withheld: await withheldEntries() };
+      // A session was proved a moment ago, so this normally answers; a person removed in between is told no persona,
+      // and the no-access screen falls back to Main's home rather than failing the refusal.
+      return { kind: 'explain', feature, access: await chromeAccess().catch(() => null) };
+    }
     throw error;
   }
   return null;
 }
 
 /**
- * The title a gated page carries, called from its `generateMetadata` so the tab agrees with what `gate` draws: under
+ * The tab a withheld page carries. It is the standalone missing page's own title, written here because this layer may
+ * not import a view to read it; `tests/refusal-descriptor.test.ts` and `tests/cli-refusal.test.tsx` hold the two to one
+ * string, so they cannot drift apart.
+ */
+const WITHHELD_TITLE = 'Not found';
+
+/**
+ * The title a gated page carries, called from its `generateMetadata` so the tab agrees with what `gate` answers: under
  * `refusal: 'absent'`, a person who may not use the feature gets the missing page's title, kept out of search, and
  * anyone else the page's own `metadata`. Under `explain` the page's own title is the answer for everyone, as the
- * NoAccess view names the page anyway, and the person is not read. With no session the page's own title stands: `gate`
- * sends that request to sign-in.
+ * no-access screen names the page anyway, and the person is not read. With no session the page's own title stands:
+ * `gate` sends that request to sign-in.
  */
 export async function gatedMetadata(feature: FeatureId, metadata: Metadata): Promise<Metadata> {
   if (refusal !== 'absent') return metadata;
@@ -351,7 +371,7 @@ export async function gatedMetadata(feature: FeatureId, metadata: Metadata): Pro
     if (error instanceof Unauthenticated) return true;
     throw error;
   });
-  return allowed ? metadata : { title: NOT_FOUND.title, robots: { index: false } };
+  return allowed ? metadata : { title: WITHHELD_TITLE, robots: { index: false } };
 }
 
 /** The console's chrome reads `ChromeAccess` from `@/lib/collection`, where the access vocabulary lives. */
@@ -372,7 +392,7 @@ export async function chromeAccess(): Promise<ChromeAccess> {
   const member = await memberById(scope.subjectId);
   if (!member) throw new Unauthenticated();
   const personas = new Map(
-    (await members.query({ where: [{ field: 'id', op: 'in', value: [...PERSONAS] }] })).rows.map((m) => [m.id, m]),
+    (await members.query({ where: [{ field: 'id', op: 'in', value: [...PERSONAS] }] })).rows.map((m) => [m.id, m]), // read() cannot serve this: the personas a scope is made from are resolved before an AccessScope exists
   );
   const items = nav.flatMap((g) => g.items);
   return {
@@ -395,6 +415,10 @@ export async function chromeAccess(): Promise<ChromeAccess> {
  * it cannot choose a tenant, and the cached helpers below see only the whole scope, the collection's name and the
  * normalized query. A write calls `updateTag(collectionTag(tenantId, name))` after it commits, which drops every user's
  * cached variants of that collection, rows and aggregates alike, and nobody else's.
+ *
+ * Each read has two forms. `read`, `readAll` and `aggregate` resolve the request's own scope; `readInScope`,
+ * `readAllInScope` and `aggregateInScope` take a scope a module already holds. The resolving form delegates, so there is
+ * one implementation and one cache: a call through either form shares the entry the other reads.
  */
 import { createHash } from 'node:crypto';
 import { cacheLife, cacheTag } from 'next/cache';
@@ -417,11 +441,18 @@ async function cachedRead(scope: AccessScope, name: string, query: Query) {
   return { rows, total, revision, observedAt: clock().toISOString() };
 }
 
-/** The rows of a collection the caller may read, with the time the read actually ran. Throws before any cached code runs when it may not. */
-export async function read(name: string, q: Query = {}): Promise<{ rows: Record<string, unknown>[]; total: number; revision?: string; observedAt: string }> {
-  const scope = await resolveAccess();
+/**
+ * The rows of a collection the scope may read, with the time the read actually ran. It asks the grant the resolving
+ * `read` asks, the same way and with the same message, and throws before any cached code runs when the scope may not.
+ */
+export async function readInScope(scope: AccessScope, name: string, q: Query = {}): Promise<{ rows: Record<string, unknown>[]; total: number; revision?: string; observedAt: string }> {
   if (!(await can(scope, name, 'read'))) throw new AccessDenied();
   return cachedRead(scope, name, normalizeQuery(collectionFor(scope, name), q));
+}
+
+/** The rows of a collection the caller may read, with the time the read actually ran. Throws before any cached code runs when it may not. */
+export async function read(name: string, q: Query = {}): Promise<{ rows: Record<string, unknown>[]; total: number; revision?: string; observedAt: string }> {
+  return readInScope(await resolveAccess(), name, q);
 }
 
 async function cachedAggregate(scope: AccessScope, name: string, query: AggregateQuery) {
@@ -435,33 +466,60 @@ async function cachedAggregate(scope: AccessScope, name: string, query: Aggregat
 }
 
 /**
+ * An aggregate query over every row of a collection the scope may read, answered by the collection itself, with the time
+ * it actually ran. It asks the grant the resolving `aggregate` asks and throws before any cached code runs when it may not.
+ */
+export async function aggregateInScope(scope: AccessScope, name: string, q: AggregateQuery): Promise<AggregateResult & { revision?: string; observedAt: string }> {
+  if (!(await can(scope, name, 'read'))) throw new AccessDenied();
+  return cachedAggregate(scope, name, normalizeAggregate(collectionFor(scope, name), q));
+}
+
+/**
  * An aggregate query over every row of a collection the caller may read, answered by the collection itself, with the
  * time it actually ran. It asks the grant `read()` asks and throws before any cached code runs when it may not.
  */
 export async function aggregate(name: string, q: AggregateQuery): Promise<AggregateResult & { revision?: string; observedAt: string }> {
-  const scope = await resolveAccess();
-  if (!(await can(scope, name, 'read'))) throw new AccessDenied();
-  return cachedAggregate(scope, name, normalizeAggregate(collectionFor(scope, name), q));
+  return aggregateInScope(await resolveAccess(), name, q);
 }
 
 /** The most rows one read returns (`normalizeQuery`'s own ceiling). */
 const PAGE = 500;
 
 /**
- * Every row a question keeps, of a collection the caller may read. A read returns a page, so this keeps asking the *same*
+ * Every row a question keeps, of a collection the scope may read. A read returns a page, so this keeps asking the *same*
  * question until the total is in hand: a count, a join or a summary over a collection starts here, never from a first
  * page. The order and the conditions are re-asked of every page, so a table claiming "each" is not the first page of
  * something else. Any `limit` the caller passes is ignored: asking here means every row.
  */
-export async function readAll(name: string, q: Query = {}): Promise<{ rows: Record<string, unknown>[]; revision?: string; observedAt: string }> {
-  const first = await read(name, { ...q, limit: PAGE });
+export async function readAllInScope(scope: AccessScope, name: string, q: Query = {}): Promise<{ rows: Record<string, unknown>[]; revision?: string; observedAt: string }> {
+  const first = await readInScope(scope, name, { ...q, limit: PAGE });
   const rows = [...first.rows];
   while (rows.length < first.total) {
-    const next = await read(name, { ...q, limit: PAGE, offset: rows.length });
+    const next = await readInScope(scope, name, { ...q, limit: PAGE, offset: rows.length });
     if (next.rows.length === 0) throw new Error(`${name} could not be read in full.`);
     rows.push(...next.rows);
   }
   return { rows, revision: first.revision, observedAt: first.observedAt };
+}
+
+/** Every row a question keeps, of a collection the caller may read. It resolves the request's own scope and reads it exactly as `readAllInScope` does. */
+export async function readAll(name: string, q: Query = {}): Promise<{ rows: Record<string, unknown>[]; revision?: string; observedAt: string }> {
+  return readAllInScope(await resolveAccess(), name, q);
+}
+
+/**
+ * The names of the members these ids name, and nothing else: a join, not a read. A module that has already authorized
+ * its own records (tickets, say) asks here for the names they point at, so names only leave this file and no
+ * `members:read` is asked of a caller who holds only the grant their own read needed — a Viewer still sees an assignee.
+ */
+export async function memberNamesFor(scope: AccessScope, ids: readonly string[]): Promise<Map<string, string>> {
+  const names = new Map<string, string>();
+  const roster = collectionFor(scope, 'members');
+  for (let at = 0; at < ids.length; at += PAGE) {
+    const found = await roster.query({ where: [{ field: 'id', op: 'in', value: ids.slice(at, at + PAGE) }], limit: PAGE });
+    for (const row of found.rows) names.set(row.id as string, row.name as string);
+  }
+  return names;
 }
 ```
 
