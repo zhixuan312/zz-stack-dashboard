@@ -8,14 +8,15 @@
  * with another. A sign-in nobody recorded stays unknown: it is never a date and never a zero.
  */
 import type { People, PersonRow } from '@/lib/fleet-shapes';
-import type { Figure, PeriodFigure, ReadMeta, Window } from '@/lib/platform-shapes';
+import type { Figure, PeriodFigure, Window } from '@/lib/platform-shapes';
 import { plural } from '@/lib/format';
-import { formatDate, formatDateTime } from '@/lib/format-date';
+import { formatDate } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
 import { addressOf } from './context';
 import { READ_BOUND_MS } from '@/lib/read-bound';
 import { rostered } from './platform-roster';
+import { stampOf, type StampMeta } from './read-stamp';
 import { PAGE_SIZE, PEOPLE_DEFAULTS, narrowed, pageOf, type PeopleFilters, type PeopleRows } from './people-filter';
 
 /**
@@ -24,7 +25,7 @@ import { PAGE_SIZE, PEOPLE_DEFAULTS, narrowed, pageOf, type PeopleFilters, type 
  * written into the page's HTML.
  */
 export type PeopleShown = {
-  meta: Pick<ReadMeta, 'asOf'>;
+  meta: StampMeta;
   tiles: Omit<People['tiles'], 'signInsLastWeek'> & { signInsLastWeek: { window: Pick<Window, 'from'>; figure: Figure } };
   people: Omit<PersonRow, 'created'>[];
   total: number;
@@ -93,7 +94,7 @@ export function peopleContext(data: PeopleShown, { filters, read }: { filters: P
     title: 'People',
     address,
     scope,
-    freshness: `As of ${formatDateTime(data.meta.asOf)}.`,
+    freshness: `${stampOf(data.meta).text}.`,
     facts: [
       { label: TILES.people.label, value: formatCount(data.tiles.people), definition: TILES.people.definition },
       { label: TILES.withPasskey.label, value: formatCount(data.tiles.withPasskey), definition: TILES.withPasskey.definition },

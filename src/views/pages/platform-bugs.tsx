@@ -28,6 +28,7 @@ import {
   BUGS_DEFAULTS, BUG_IMPACTS, BUG_STATUSES, IMPACT, STATUS, TILES, bugPath, bugsContext, bugsPath, bugsTrouble, cohortsRunning, filtersOfPath, formatHours,
   impactOf, isAdminRow, lastWhole, narrowed, rateIn, statusOf, surfacesOf, valueOf, type BugsFilters, type BugsRead, type Cohort,
 } from '@/logic/platform-bugs-context';
+import { stampOf } from '@/logic/read-stamp';
 import { useServed, useServedAddress } from '@/logic/use-served';
 
 /**
@@ -249,5 +250,7 @@ function Median({ data }: { data: Bugs }) {
 export function BugsAsOf({ served }: { served: BugsRead }) {
   const [filters] = useServedAddress(BUGS_DEFAULTS, served, filtersOfPath);
   const { data } = useBugs(served, filters);
-  return data ? <span className="t-small text-ink-3">As of {formatDateTime(data.meta.asOf)}</span> : null;
+  if (!data) return null;
+  const stamp = stampOf(data.meta);
+  return <span className="t-small text-ink-3" title={stamp.title}>{stamp.text}</span>;
 }

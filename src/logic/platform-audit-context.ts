@@ -24,6 +24,7 @@ import { listed, type Fact, type Insight, type SharedContext } from '@/lib/share
 import { app } from '@/app.config';
 import { OWNER_LABEL } from './activity-context';
 import { addressOf } from './context';
+import { stampOf } from './read-stamp';
 import { READ_BOUND_MS } from '@/lib/read-bound';
 import { rostered } from './platform-roster';
 import { bugPath } from './platform-bugs-context';
@@ -340,7 +341,7 @@ export function auditContext(data: Audit, { filters, read, reports = {} }: { fil
     address,
     scope: `${admin ? 'the recorded acts of administration' : `every recorded event, page views left out${narrow ? `, narrowed to ${filterWords(filters)}` : ''}`}, every team on the platform`
       + `${data.rows.length ? `; rows ${first + 1} to ${shown} of ${formatCount(data.total)}` : ''}`,
-    freshness: `As of ${formatDateTime(data.meta.asOf)}.`,
+    freshness: `${stampOf(data.meta).text}.`,
     facts,
     insights: insights(n),
     unknowns: [

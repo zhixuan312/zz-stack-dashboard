@@ -24,10 +24,11 @@ import { formatDateTime, formatDay, formatShortDate } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import type { Figure, PeriodFigure, Window } from '@/lib/platform-shapes';
 import {
-  TILES, WEEKLY_TILES, askOf, asOfLine, cohortNote, cohortText, exactSince, figureText, isFleet, knowledgeHealthContext, knowledgeHealthTrouble,
+  TILES, WEEKLY_TILES, askOf, cohortNote, cohortText, exactSince, figureText, isFleet, knowledgeHealthContext, knowledgeHealthTrouble,
   leftOut, madeLine, noResultCell, searchLine, searchesSaid, shelfName, valueIn, weekOf, type KnowledgeHealthRead, type MadeWeek, type Question,
   type SearchWeek, type ShelfRow, type WeeklyTile,
 } from '@/logic/platform-knowledge-context';
+import { stampOf } from '@/logic/read-stamp';
 import { changeOf, lastWhole, pointsOf } from '@/logic/week-change';
 
 /** The protagonist's title: the card the page's Ask sits on. COUPLED: the README's `Protagonist:`. */
@@ -65,7 +66,8 @@ export function PlatformKnowledgeView({ read }: { read: KnowledgeHealthRead }) {
 /** The masthead's as-of line, the read's own cutoff: nothing when there is no read to date. */
 export function KnowledgeHealthAsOf({ read }: { read: KnowledgeHealthRead }) {
   if (read.state !== 'ok') return null;
-  return <span className="t-small text-ink-3">{asOfLine(read.health)}</span>;
+  const stamp = stampOf(read.health.meta);
+  return <span className="t-small text-ink-3" title={stamp.title}>{stamp.text}</span>;
 }
 
 /**

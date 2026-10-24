@@ -30,6 +30,7 @@ import {
   approvalsPath, approvalsTrouble, approvedWhen, dayOnly, filtersOfPath, noPresentationLine, noPresentationNote, pageOf, tabOf, type ApprovalsRead, type ApprovalsTab,
 } from '@/logic/approvals-context';
 import { pendingContext } from '@/logic/context';
+import { stampOf } from '@/logic/read-stamp';
 import { useServed, useServedAddress } from '@/logic/use-served';
 
 /**
@@ -345,5 +346,7 @@ function Weeks({ data, mark }: { data: Approvals | undefined; mark: string }) {
 /** The masthead's as-of line: the cutoff of the read the page draws, nothing while there is none. */
 export function ApprovalsAsOf({ served }: { served: ApprovalsRead }) {
   const { shown } = useApprovals(served);
-  return shown ? <span className="t-small text-ink-3">As of {formatDateTime(shown.meta.asOf)}</span> : null;
+  if (!shown) return null;
+  const stamp = stampOf(shown.meta);
+  return <span className="t-small text-ink-3" title={stamp.title}>{stamp.text}</span>;
 }

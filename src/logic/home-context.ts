@@ -8,13 +8,14 @@
  * gateway's, and a figure the gateway could not read is said to be unavailable, never drawn as zero.
  */
 import { formatPercent, plural } from '@/lib/format';
-import { formatDateTime, formatDay, formatRelative } from '@/lib/format-date';
+import { formatDay, formatRelative } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import type { Fact, Insight, SharedContext } from '@/lib/shared-context';
 import { encodePath } from '@/lib/store-path';
 import type { Figure, PeriodFigure, ReadMeta, Window } from '@/lib/platform-shapes';
 import type { Home, InitiativeRow, WritingCoverage } from '@/lib/work-shapes';
 import { budgeted, clip, pendingContext } from './context';
+import { stampOf } from './read-stamp';
 import { READ_BOUND_MS } from '@/lib/read-bound';
 import { nextOf } from './initiatives-context';
 import { LESSONS_MADE, gapsOf } from './record-names';
@@ -31,8 +32,6 @@ type Weeks = PeriodFigure[];
 export const weekOf = (w: Window): string => `week of ${formatDay(w.from)}`;
 /** The pill's words for a pointed column: `Week of 5 Oct`. */
 export const pointLabel = (from: string): string => `Week of ${formatDay(from)}`;
-/** The page's as-of line: the read's own cutoff, in the console's zone. */
-export const asOfLine = (meta: ReadMeta): string => `As of ${formatDateTime(meta.asOf)}`;
 /** A moment against the read's own cutoff, never the browser's clock: `3 h ago`. */
 export const since = (at: string, meta: ReadMeta): string => formatRelative(at, new Date(meta.asOf));
 /** Hours as the foot and the tiles say them: one decimal under ten, whole above. */
@@ -314,7 +313,7 @@ export function homeContext(read: HomeRead, { index = null }: { index?: number |
   return budgeted({
     ...VIEW,
     scope: `${home.meta.population}, the ${weekOf(last)}`,
-    freshness: `${asOfLine(home.meta)}.`,
+    freshness: `${stampOf(home.meta).text}.`,
     focus,
     facts,
     insights,

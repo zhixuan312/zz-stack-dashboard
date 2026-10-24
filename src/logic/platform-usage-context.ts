@@ -8,11 +8,12 @@
  */
 import type { Tile, Usage } from '@/lib/fleet-shapes';
 import { plural } from '@/lib/format';
-import { formatDateTime, formatDay } from '@/lib/format-date';
+import { formatDay } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import type { Figure, PeriodFigure, Window } from '@/lib/platform-shapes';
 import { listed, type Fact, type SharedContext } from '@/lib/shared-context';
 import { pendingContext, sectioned, type Section } from './context';
+import { stampOf } from './read-stamp';
 import { READ_BOUND_MS } from '@/lib/read-bound';
 import { changeOf, lastWhole, pointsIn, pointsOf } from './week-change';
 
@@ -104,9 +105,6 @@ export const askOf = (week: string | null, split: boolean): string => (week
   ? `What made up real work's calls in the week of ${formatDay(week)}${split ? ', by team' : ''}?`
   : `How did real work's calls move week by week${split ? ', and which teams made them' : ''}?`);
 
-/** The read's own cutoff, as the masthead says it. */
-export const asOfLine = (u: Usage): string => `As of ${formatDateTime(u.meta.asOf)}`;
-
 const VIEW = { view: 'usage', title: 'Usage', address: '/platform/usage' } as const;
 
 /**
@@ -188,7 +186,7 @@ export function usageContext(read: UsageRead): SharedContext {
   return sectioned({
     ...VIEW,
     scope: `real-work tool calls across the platform${week ? `; last whole week: the ${weekOf(week)}` : ''}`,
-    freshness: `${asOfLine(u)}.`,
+    freshness: `${stampOf(u.meta).text}.`,
     facts, insights: [], unknowns,
   }, sections);
 }

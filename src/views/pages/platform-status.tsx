@@ -26,9 +26,10 @@ import { plural } from '@/lib/format';
 import { formatDay } from '@/lib/format-date';
 import type { PlatformStatus } from '@/lib/platform-shapes';
 import {
-  NO_TEAM, UNRECORDED, askOf, asOfLine, doorRow, footOf, needsFoot, ownOf, pairOf, platformStatusContext, runningOf, scoreOf,
+  NO_TEAM, UNRECORDED, askOf, doorRow, footOf, needsFoot, ownOf, pairOf, platformStatusContext, runningOf, scoreOf,
   dayCell, dayIn, troubleOf, valueIn, weekCell, weekIn, type Dated, type DoorRow, type Half, type ScoreRow, type StatusRead,
 } from '@/logic/platform-status-context';
+import { stampOf } from '@/logic/read-stamp';
 
 /**
  * The platform's Status, read on the console's server and handed here whole: what needs attention, then the paired
@@ -55,7 +56,8 @@ export function PlatformStatusView({ read }: { read: StatusRead }) {
 /** The masthead's as-of line, the read's own cutoff: nothing when there is no read to date. */
 export function PlatformStatusAsOf({ read }: { read: StatusRead }) {
   if (read.state !== 'ok') return null;
-  return <span className="t-small text-ink-3">{asOfLine(read.status.meta)}</span>;
+  const stamp = stampOf(read.status.meta);
+  return <span className="t-small text-ink-3" title={stamp.title}>{stamp.text}</span>;
 }
 
 /** Status on its way, in the shape of the page: what needs attention, the paired figures, the team's tiles and a table. */

@@ -26,10 +26,11 @@ import { formatCount } from '@/lib/format-units';
 import type { Evaluation } from '@/lib/platform-shapes';
 import { waited } from '@/console/words';
 import {
-  ASK, DECISIONS, GUARDRAILS, TILES, asOfLine, evaluationContext, evaluationTrouble, isAdmin, kindOf, nameOf, namesNoPlugin, ownerOf,
+  ASK, DECISIONS, GUARDRAILS, TILES, evaluationContext, evaluationTrouble, isAdmin, kindOf, nameOf, namesNoPlugin, ownerOf,
   protocolOf, rangeOf, runText, scoreIn, scoredAgo, seriesName, seriesRows, standingOf, waitingOf, type EvaluationRead, type PluginScoreRow,
   type SeriesRow, type WaitingFinding,
 } from '@/logic/platform-evaluation-context';
+import { stampOf } from '@/logic/read-stamp';
 
 /** The protagonist's title: the card the page's Ask sits on. COUPLED: the README's `Protagonist:`. */
 const PLUGINS_TITLE = 'Each plugin\'s latest score';
@@ -64,7 +65,8 @@ export function PlatformEvaluationView({ read }: { read: EvaluationRead }) {
 /** The masthead's as-of line, the read's own cutoff: nothing when there is no read to date. */
 export function EvaluationAsOf({ read }: { read: EvaluationRead }) {
   if (read.state !== 'ok') return null;
-  return <span className="t-small text-ink-3">{asOfLine(read.evaluation)}</span>;
+  const stamp = stampOf(read.evaluation.meta);
+  return <span className="t-small text-ink-3" title={stamp.title}>{stamp.text}</span>;
 }
 
 /**

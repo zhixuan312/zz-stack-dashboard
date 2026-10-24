@@ -24,6 +24,7 @@ import { ApiError } from '@/lib/api';
 import type { People } from '@/lib/fleet-shapes';
 import { plural } from '@/lib/format';
 import { formatDateTime, formatRelative } from '@/lib/format-date';
+import { stampOf } from '@/logic/read-stamp';
 import { formatCount } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
 import { consoleMutate, useConsoleMutation } from '@/lib/mutate';
@@ -294,7 +295,9 @@ export function PlatformPeopleView({ served }: { served: Revised<PeopleRead> }) 
 export function PeopleAsOf({ served }: { served: PeopleRead }) {
   const [filters] = useServedAddress(PEOPLE_DEFAULTS, served, filtersOfPath);
   const { data } = usePeople(served, filters);
-  return data ? <span className="t-small text-ink-3">As of {formatDateTime(data.meta.asOf)}</span> : null;
+  if (!data) return null;
+  const stamp = stampOf(data.meta);
+  return <span className="t-small text-ink-3" title={stamp.title}>{stamp.text}</span>;
 }
 
 /**

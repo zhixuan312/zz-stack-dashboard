@@ -8,11 +8,12 @@
  */
 import type { TeamDetail } from '@/lib/fleet-shapes';
 import { plural } from '@/lib/format';
-import { formatDate, formatDateTime, formatDay } from '@/lib/format-date';
+import { formatDate, formatDay } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
 import { READ_BOUND_MS } from '@/lib/read-bound';
 import { rostered } from './platform-roster';
+import { stampOf } from './read-stamp';
 import { weekCount } from './teams-context';
 
 /** The team page's own read: the answer, no team by that slug, a failure, or no answer in time. */
@@ -75,7 +76,7 @@ export function teamContext(slug: string, { team }: { team: TeamDetail }): Share
     title: `Team ${slug}`,
     address: `/platform/teams/${slug}`,
     scope: `${team.team.name !== slug ? `${team.team.name}, ` : ''}${team.team.status}, created ${formatDate(team.team.created)}`,
-    freshness: `As of ${formatDateTime(team.meta.asOf)}.`,
+    freshness: `${stampOf(team.meta).text}.`,
     facts: [
       { label: TEAM_TILES.people.label, value: formatCount(team.tiles.people), change: `${admins.length} ${plural(admins.length, 'admin')}`, definition: TEAM_TILES.people.definition },
       { label: TEAM_TILES.openWork.label, value: formatCount(team.tiles.openWork), definition: TEAM_TILES.openWork.definition },

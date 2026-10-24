@@ -29,6 +29,7 @@ import { useServed, useServedAddress } from '@/logic/use-served';
 import { pendingContext } from '@/logic/context';
 import { NO_ACTIVITY, TILES, sessionPoints, teamsContext, teamsTrouble, weekCount, type TeamsRead } from '@/logic/teams-context';
 import { TEAMS_DEFAULTS, TEAM_STATUSES, filtersOfPath, narrowed, teamsPath, type TeamsFilters } from '@/logic/teams-filter';
+import { stampOf } from '@/logic/read-stamp';
 
 /**
  * A team's sessions by week, as a line beside its row: its own past, never set against another team's. Neutral, as
@@ -174,7 +175,9 @@ export function PlatformTeamsView({ served }: { served: Revised<TeamsRead> }) {
 export function TeamsAsOf({ served }: { served: TeamsRead }) {
   const [filters] = useServedAddress(TEAMS_DEFAULTS, served, filtersOfPath);
   const { data } = useTeams(served, filters);
-  return data ? <span className="t-small text-ink-3">As of {formatDateTime(data.meta.asOf)}</span> : null;
+  if (!data) return null;
+  const stamp = stampOf(data.meta);
+  return <span className="t-small text-ink-3" title={stamp.title}>{stamp.text}</span>;
 }
 
 /**

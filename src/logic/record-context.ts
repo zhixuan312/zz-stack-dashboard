@@ -22,6 +22,7 @@ import type { Figure, PeriodFigure, Window } from '@/lib/platform-shapes';
 import type { RecordRead, WritingCoverage } from '@/lib/work-shapes';
 import { addressOf, clip, pendingContext, sectioned, type Section } from './context';
 import { READ_BOUND_MS } from '@/lib/read-bound';
+import { stampOf } from './read-stamp';
 import { LESSONS_MADE, NO_DATA, gapsOf } from './record-names';
 
 /** The periods the route takes, in the order the control offers them; all of the record when none is named. */
@@ -80,8 +81,11 @@ const PERIOD_NAME: Record<RecordPeriod, string> = { quarter: 'This quarter', yea
 
 /** The period as every slice is labelled with it: `This quarter, 1 Oct to 17 Oct`. */
 export const periodLine = (r: RecordRead): string => `${PERIOD_NAME[r.period]}, ${formatDay(r.meta.period.from)} to ${formatDay(r.meta.period.to)}`;
-/** The read's cutoff, the instant the lead is a stock as of. */
-export const asOfLine = (r: RecordRead): string => `As of ${formatDateTime(r.lead.asOf)}`;
+/** The read's cutoff, the instant the lead is a stock as of, in the words the masthead stamps it with. Record's own
+ *  instant is the lead's, which its answer sets to the read's `meta.asOf`; the rest of the envelope is read as it stands. */
+export const recordStamp = (r: RecordRead): { text: string; title: string } => stampOf({ ...r.meta, asOf: r.lead.asOf });
+/** The same, as the one line a shared context's `freshness` and `Copy as text` take. */
+export const asOfLine = (r: RecordRead): string => recordStamp(r).text;
 /** The cutoff inside a sentence: `as of 19 Oct 2026, 16:50`, the month as every date writes it. */
 export const asOfWords = (r: RecordRead): string => `as of ${formatDateTime(r.lead.asOf)}`;
 

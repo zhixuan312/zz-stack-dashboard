@@ -28,7 +28,7 @@ export async function readPeople(filters: PeopleFilters): Promise<Revised<People
 function shownPeople({ meta, tiles, people, total }: PeopleShown): PeopleShown {
   const { window, figure } = tiles.signInsLastWeek;
   return {
-    meta: { asOf: meta.asOf },
+    meta: { asOf: meta.asOf, cacheHit: meta.cacheHit, observedAt: meta.observedAt },
     tiles: { people: tiles.people, withPasskey: tiles.withPasskey, neverSignedIn: tiles.neverSignedIn, signInsLastWeek: { window: { from: window.from }, figure } },
     people: people.map(({ email, name, role, teams, passkeys, lastSignIn, state }) => ({ email, name, role, teams, passkeys, lastSignIn, state })),
     total,

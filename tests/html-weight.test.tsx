@@ -95,7 +95,7 @@ describe('Initiatives hands its view what it draws, and each row once', () => {
       'data.closures.data[].abandoned.value', 'data.closures.data[].accepted.value', 'data.closures.data[].delivered.value',
       'data.closures.data[].window.complete', 'data.closures.data[].window.from', 'data.closures.data[].window.to',
       'data.closures.state',
-      'data.meta.asOf',
+      'data.meta.asOf', 'data.meta.cacheHit', 'data.meta.observedAt',
       'data.nextMoveState',
       'data.rows[].flow', 'data.rows[].gates.of', 'data.rows[].gates.passed', 'data.rows[].lastTouched',
       'data.rows[].nextMove.action', 'data.rows[].nextMove.document', 'data.rows[].nextMove.stage',
@@ -133,7 +133,7 @@ describe('People hands its view what it draws, and each person once', () => {
   it('the read carries the tiles, the people and the total the page and the context draw, and nothing else', async () => {
     const [{ served }] = await handed(page());
     expect(keysOf(served)).toEqual([
-      'data.meta.asOf',
+      'data.meta.asOf', 'data.meta.cacheHit', 'data.meta.observedAt',
       'data.people[].email', 'data.people[].lastSignIn', 'data.people[].name', 'data.people[].passkeys',
       'data.people[].role', 'data.people[].state', 'data.people[].teams[]',
       'data.tiles.neverSignedIn', 'data.tiles.people',

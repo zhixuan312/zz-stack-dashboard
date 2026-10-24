@@ -23,6 +23,7 @@ import {
   OBSERVED, RELEASES_DEFAULTS, TILES, clientActionOf, failuresIn, filtersOfPath, lastWholeWeek, midSentence, observedOf, observedText, overlapText, p95In,
   rateIn, releasePath, releasesContext, releasesPath, releasesTrouble, weekRate, weeksRunning, type ReleasesFilters, type ReleasesRead, type Week,
 } from '@/logic/platform-releases-context';
+import { stampOf } from '@/logic/read-stamp';
 import { useServed, useServedAddress } from '@/logic/use-served';
 
 type Side = ReleaseRow['before'];
@@ -217,5 +218,7 @@ function Weeks({ weeks }: { weeks: Week[] }) {
 export function ReleasesAsOf({ served }: { served: ReleasesRead }) {
   const [filters] = useServedAddress(RELEASES_DEFAULTS, served, filtersOfPath);
   const { data } = useReleases(served, filters);
-  return data ? <span className="t-small text-ink-3">As of {formatDateTime(data.meta.asOf)}</span> : null;
+  if (!data) return null;
+  const stamp = stampOf(data.meta);
+  return <span className="t-small text-ink-3" title={stamp.title}>{stamp.text}</span>;
 }

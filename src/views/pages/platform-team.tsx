@@ -27,13 +27,14 @@ import type { Revised } from '@/data/gateway';
 import { ApiError } from '@/lib/api';
 import type { TeamDetail } from '@/lib/fleet-shapes';
 import { plural } from '@/lib/format';
-import { formatDate, formatDateTime, formatDay, formatShortDate } from '@/lib/format-date';
+import { formatDate, formatDay, formatShortDate } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
 import { useConsoleMutation } from '@/lib/mutate';
 import { useServed } from '@/logic/use-served';
 import { pendingContext } from '@/logic/context';
 import { TEAM_TILES, callsUnavailable, teamContext, teamTrouble, type TeamRead } from '@/logic/team-context';
+import { stampOf } from '@/logic/read-stamp';
 
 type Member = TeamDetail['members'][number];
 type Done = { ok: true; result: string };
@@ -150,7 +151,7 @@ function ThisTeam({ team }: { team: TeamDetail }) {
   }
   const t = team.team;
   return (
-    <Panel title="This team" description={`As of ${formatDateTime(team.meta.asOf)}`}>
+    <Panel title="This team" description={stampOf(team.meta).text}>
       <KeyValue items={[
         { label: 'Name', value: t.name },
         { label: 'Status', value: <Badge tone={t.status === 'active' ? 'neutral' : 'warning'} dot>{t.status === 'active' ? 'Active' : 'Archived'}</Badge> },

@@ -9,10 +9,11 @@
 import type { TeamRow, Teams } from '@/lib/fleet-shapes';
 import type { PeriodFigure } from '@/lib/platform-shapes';
 import { plural } from '@/lib/format';
-import { formatDate, formatDateTime, formatDay } from '@/lib/format-date';
+import { formatDate, formatDay } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
 import { addressOf } from './context';
+import { stampOf } from './read-stamp';
 import { READ_BOUND_MS } from '@/lib/read-bound';
 import { rostered } from './platform-roster';
 import { PAGE_SIZE, TEAMS_DEFAULTS, narrowed, pageOf, type TeamsFilters, type TeamsRows } from './teams-filter';
@@ -87,7 +88,7 @@ export function teamsContext(data: Teams, { filters, read }: { filters: TeamsFil
     title: 'Teams',
     address,
     scope,
-    freshness: `As of ${formatDateTime(data.meta.asOf)}.`,
+    freshness: `${stampOf(data.meta).text}.`,
     facts: [
       { label: TILES.teams.label, value: formatCount(data.tiles.teams), definition: TILES.teams.definition },
       { label: TILES.openWork.label, value: formatCount(data.tiles.openWork), definition: TILES.openWork.definition },

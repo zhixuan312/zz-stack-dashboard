@@ -10,11 +10,12 @@ import { formatCount } from '@/lib/format-units';
 import { formatDate, formatDay } from '@/lib/format-date';
 import { grainOf, type Grain } from '@/lib/grain';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
-import type { Figure, Part, ReadMeta, Window } from '@/lib/platform-shapes';
+import type { Figure, Part, Window } from '@/lib/platform-shapes';
 import type { InitiativeList, InitiativeRow } from '@/lib/work-shapes';
 import { addressOf, arrived, budgeted, clip, type Arrival } from './context';
 import { READ_BOUND_MS } from '@/lib/read-bound';
 import { INITIATIVES_DEFAULTS, LIST_STATES, PAGE_SIZE, STATE_LABEL, narrowed, type InitiativesFilters, type InitiativesRows } from './initiatives-filter';
+import type { StampMeta } from './read-stamp';
 
 type Summary = Extract<InitiativeList['summary'], { state: 'ok' }>['data'];
 
@@ -24,7 +25,7 @@ type Summary = Extract<InitiativeList['summary'], { state: 'ok' }>['data'];
  * console's server hands its view no more (`shownList`), since what it hands is written into the page's HTML.
  */
 export type InitiativesShown = {
-  meta: Pick<ReadMeta, 'asOf'>;
+  meta: StampMeta;
   tiles: InitiativeList['tiles'];
   closures: Part<{ window: Pick<Window, 'from' | 'to' | 'complete'>; accepted: Pick<Figure, 'value'>; delivered: Pick<Figure, 'value'>; abandoned: Pick<Figure, 'value'> }[]>;
   rows: Pick<InitiativeRow, 'slug' | 'flow' | 'nextMove' | 'state' | 'gates' | 'lastTouched'>[];
@@ -40,7 +41,7 @@ export type ShownRow = InitiativesShown['rows'][number];
 export function shownList(list: InitiativesShown): InitiativesShown {
   const figure = ({ value }: Pick<Figure, 'value'>) => ({ value });
   return {
-    meta: { asOf: list.meta.asOf },
+    meta: { asOf: list.meta.asOf, cacheHit: list.meta.cacheHit, observedAt: list.meta.observedAt },
     tiles: list.tiles,
     closures: list.closures.state === 'ok'
       ? { state: 'ok', data: list.closures.data.map((w) => ({ window: { from: w.window.from, to: w.window.to, complete: w.window.complete }, accepted: figure(w.accepted), delivered: figure(w.delivered), abandoned: figure(w.abandoned) })) }

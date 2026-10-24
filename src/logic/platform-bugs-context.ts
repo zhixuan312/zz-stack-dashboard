@@ -24,6 +24,7 @@ import { formatCount } from '@/lib/format-units';
 import { listed, type Fact, type Insight, type SharedContext } from '@/lib/shared-context';
 import { waited } from '@/console/words';
 import { addressOf, clip } from './context';
+import { stampOf } from './read-stamp';
 import { READ_BOUND_MS } from '@/lib/read-bound';
 import { rostered } from './platform-roster';
 
@@ -276,7 +277,7 @@ export function bugsContext(data: Bugs, { filters, read }: { filters: BugsFilter
     title: 'Bugs',
     address,
     scope: `every real bug report${narrow ? `; the queue narrowed to ${filterWords(filters)}` : ''}${rows.length && total !== null ? `; queue rows ${first + 1} to ${shown} of ${formatCount(total)}` : ''}`,
-    freshness: `As of ${formatDateTime(data.meta.asOf)}.`,
+    freshness: `${stampOf(data.meta).text}.`,
     facts: tileFacts(data),
     insights: [...queued(n), ...insights],
     unknowns: [

@@ -14,6 +14,7 @@ import type { Evaluation, SafeFinding } from '@/lib/platform-shapes';
 import { listed, type Fact, type Insight, type SharedContext } from '@/lib/shared-context';
 import { waited } from '@/console/words';
 import { budgeted, pendingContext } from './context';
+import { stampOf } from './read-stamp';
 import { READ_BOUND_MS } from '@/lib/read-bound';
 
 /** What the page's one read came back as: the whole response, the gateway's sentence, or no answer within the bound. */
@@ -143,9 +144,6 @@ export const isAdmin = (e: Evaluation): boolean => e.meta.scope === 'platform-ad
 /** The question the Ask on the plugins' table hands the assistant. */
 export const ASK = 'Which plugins\' latest scores can be relied on, which guardrails failed, and what is still waiting for a decision?';
 
-/** The read's own cutoff, as the masthead says it. */
-export const asOfLine = (e: Evaluation): string => `As of ${formatDateTime(e.meta.asOf)}`;
-
 const VIEW = { view: 'evaluation', title: 'Evaluation', address: '/platform/evaluation' } as const;
 
 /**
@@ -215,7 +213,7 @@ export function evaluationContext(read: EvaluationRead): SharedContext {
   return budgeted({
     ...VIEW,
     scope: `every plugin's evaluation on the platform, ${admin ? 'as the superadmin reads it' : 'in the form everybody may read'}`,
-    freshness: `${asOfLine(e)}.`,
+    freshness: `${stampOf(e.meta).text}.`,
     facts, insights, unknowns,
   });
 }

@@ -23,6 +23,7 @@ import {
   filtersOfPath, kindsOf, narrowed, notRecordedWords, originOf, resultOf, tabOf, teamsOf, type AuditFilter, type AuditFilters, type AuditRead, type ReportTitles,
 } from '@/logic/platform-audit-context';
 import { OWNER_LABEL } from '@/logic/activity-context';
+import { stampOf } from '@/logic/read-stamp';
 import { useServed, useServedAddress } from '@/logic/use-served';
 
 /** The protagonist's title: the card the page's first Ask sits on. COUPLED: the README's `Protagonist:`. */
@@ -208,5 +209,7 @@ function Events({ data, trouble, retry, busy, filters, set }: {
 export function AuditAsOf({ served }: { served: AuditRead }) {
   const [filters] = useServedAddress(AUDIT_DEFAULTS, served, filtersOfPath);
   const { data } = useAudit(served, filters);
-  return data ? <span className="t-small text-ink-3">As of {formatDateTime(data.meta.asOf)}</span> : null;
+  if (!data) return null;
+  const stamp = stampOf(data.meta);
+  return <span className="t-small text-ink-3" title={stamp.title}>{stamp.text}</span>;
 }

@@ -9,7 +9,7 @@
  */
 import type { Access, AccessBrowser, AccessToken } from '@/lib/destination-shapes';
 import { plural } from '@/lib/format';
-import { formatDate, formatDateTime } from '@/lib/format-date';
+import { formatDate } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { listed, type Fact, type Insight, type SharedContext } from '@/lib/shared-context';
 import { arrived, budgeted, type Arrival } from './context';
@@ -23,9 +23,6 @@ export function accessTrouble(read: Exclude<AccessRead, { state: 'ok' }>): { tit
   if (read.state === 'slow') return { title: 'Access is unavailable', detail: `The read did not answer within ${READ_BOUND_MS / 1000} seconds. Nothing on this page was read.` };
   return { title: 'Access did not load', detail: `${read.reason.replace(/\.?$/, '.')} Nothing on this page was read.` };
 }
-
-/** The masthead's as-of line: the read's own cutoff. */
-export const asOfLine = (access: Access): string => `As of ${formatDateTime(access.meta.asOf)}`;
 
 /** A token's state as the page and the prepared query name it. */
 export const stateOf = (t: AccessToken): 'live' | 'revoked' => (t.revokedAt ? 'revoked' : 'live');

@@ -35,8 +35,8 @@ import type { Window } from '@/lib/platform-shapes';
 import { encodePath } from '@/lib/store-path';
 import type { RecordRead } from '@/lib/work-shapes';
 import {
-  FIRST, LEAD, PAGE_SIZE, PERIOD_OPTIONS, RECORD_DEFAULTS, REVISION, SLICES, asOfLine, asOfWords, coverageLine, filtersOfPath, footOf,
-  formatHours, formatShare, grainWords, hourTick, leadOf, periodLine, periodOf, recordContext, recordPath, recordTrouble, summaryLine, tickOf,
+  FIRST, LEAD, PAGE_SIZE, PERIOD_OPTIONS, RECORD_DEFAULTS, REVISION, SLICES, asOfWords, coverageLine, filtersOfPath, footOf,
+  formatHours, formatShare, grainWords, hourTick, leadOf, periodLine, periodOf, recordContext, recordPath, recordStamp, recordTrouble, summaryLine, tickOf,
   tilesOf, type RecordFilters, type RecordPeriod, type RecordServed, type SliceKey, type Tile,
 } from '@/logic/record-context';
 import { LESSONS_MADE, NO_DATA } from '@/logic/record-names';
@@ -80,7 +80,9 @@ export function RecordSkeleton() {
 /** The masthead's as-of line: the cutoff of the record drawn, nothing while there is none. */
 export function RecordAsOf({ served }: { served: RecordServed | null }) {
   const { data } = useRecord(served);
-  return data ? <span className="t-small text-ink-3">{asOfLine(data)}</span> : null;
+  if (!data) return null;
+  const stamp = recordStamp(data);
+  return <span className="t-small text-ink-3" title={stamp.title}>{stamp.text}</span>;
 }
 
 /**

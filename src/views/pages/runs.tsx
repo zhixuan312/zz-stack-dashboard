@@ -28,6 +28,7 @@ import { pendingContext } from '@/logic/context';
 import {
   PAGE_SIZE, RUNS_DEFAULTS, TILES, filtersOfPath, outputOf, pageOf, runsContext, runsPath, runsTrouble, stateCellOf, stateOf, type RunsFilters, type RunsRead, type SkillPages,
 } from '@/logic/runs-context';
+import { stampOf } from '@/logic/read-stamp';
 import { useServed, useServedAddress } from '@/logic/use-served';
 
 /** A byte count as the tiles show it. */
@@ -71,7 +72,9 @@ export function RunsSkeleton() {
 /** The masthead's as-of line: the cutoff of the runs drawn, nothing while there are none. */
 export function RunsAsOf({ served }: { served: RunsRead | null }) {
   const { data } = useRuns(served);
-  return data ? <span className="t-small text-ink-3">As of {formatDateTime(data.meta.asOf)}</span> : null;
+  if (!data) return null;
+  const stamp = stampOf(data.meta);
+  return <span className="t-small text-ink-3" title={stamp.title}>{stamp.text}</span>;
 }
 
 /**

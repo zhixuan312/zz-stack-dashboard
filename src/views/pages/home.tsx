@@ -25,10 +25,11 @@ import { formatCount } from '@/lib/format-units';
 import type { PeriodFigure } from '@/lib/platform-shapes';
 import type { Home } from '@/lib/work-shapes';
 import {
-  APPROVALS_LINE, FOOT, HALVES, MILESTONE, MILESTONES_LINE, TILES, TILE_FORMAT, absent, asOfLine, covered, coverageLine, footOf,
+  APPROVALS_LINE, FOOT, HALVES, MILESTONE, MILESTONES_LINE, TILES, TILE_FORMAT, absent, covered, coverageLine, footOf,
   halvesOf, homeContext, lastWeekOf, pointLabel, since, tileOf, troubleOf, waitingOf, weekIn, weekOf, type HomeRead, type TileKey,
 } from '@/logic/home-context';
 import { nextOf } from '@/logic/initiatives-context';
+import { stampOf } from '@/logic/read-stamp';
 import { NO_DATA } from '@/logic/record-names';
 
 /**
@@ -49,7 +50,8 @@ export function HomeView({ read }: { read: HomeRead }) {
 /** The masthead's as-of line, the read's own cutoff: nothing when there is no read to date. */
 export function HomeAsOf({ read }: { read: HomeRead }) {
   if (read.state !== 'ok') return null;
-  return <span className="t-small text-ink-3">{asOfLine(read.home.meta)}</span>;
+  const stamp = stampOf(read.home.meta);
+  return <span className="t-small text-ink-3" title={stamp.title}>{stamp.text}</span>;
 }
 
 /**

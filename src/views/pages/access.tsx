@@ -21,8 +21,9 @@ import type { Revised } from '@/data/gateway';
 import { useDataClock } from '@/lib/api';
 import type { Access } from '@/lib/destination-shapes';
 import { useLive } from '@/lib/live';
-import { accessContext, accessTrouble, asOfLine, type AccessRead } from '@/logic/access-context';
+import { accessContext, accessTrouble, type AccessRead } from '@/logic/access-context';
 import { pendingContext } from '@/logic/context';
+import { stampOf } from '@/logic/read-stamp';
 import { useServed } from '@/logic/use-served';
 
 type Trouble = Exclude<AccessRead, { state: 'ok' }>;
@@ -76,7 +77,8 @@ export function AccessView({ served }: { served: Revised<AccessRead> }) {
 /** The masthead's as-of line, the read's own cutoff: nothing when there is no read to date. */
 export function AccessAsOf({ read }: { read: AccessRead }) {
   if (read.state !== 'ok') return null;
-  return <span className="t-small text-ink-3">{asOfLine(read.access)}</span>;
+  const stamp = stampOf(read.access.meta);
+  return <span className="t-small text-ink-3" title={stamp.title}>{stamp.text}</span>;
 }
 
 /**

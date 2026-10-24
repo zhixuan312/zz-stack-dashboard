@@ -10,11 +10,12 @@
  */
 import type { KnowledgeHealth } from '@/lib/fleet-shapes';
 import { plural } from '@/lib/format';
-import { formatDateTime, formatDay } from '@/lib/format-date';
+import { formatDay } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import type { Figure, PeriodFigure, Window } from '@/lib/platform-shapes';
 import { listed, type Fact, type SharedContext } from '@/lib/shared-context';
 import { clip, pendingContext, sectioned, type Section } from './context';
+import { stampOf } from './read-stamp';
 import { READ_BOUND_MS } from '@/lib/read-bound';
 import { changeOf, lastWhole, pointsIn, pointsOf } from './week-change';
 
@@ -147,9 +148,6 @@ export const askOf = (fleet: boolean): string => (fleet
   ? 'What stands on each team\'s shelf, and how did each team\'s searches go last week?'
   : 'How do my team\'s shelf and the shared shelf stand beside every shelf\'s totals?');
 
-/** The read's own cutoff, as the masthead says it. */
-export const asOfLine = (h: KnowledgeHealth): string => `As of ${formatDateTime(h.meta.asOf)}`;
-
 /** How many of a series' latest weeks the context states; the page draws them all, and the prepared query counts any. */
 const RECENT = 8;
 /** How many shelves the context names, the totals first; the table pages at ten. */
@@ -242,7 +240,7 @@ export function knowledgeHealthContext(read: KnowledgeHealthRead): SharedContext
   return sectioned({
     ...VIEW,
     scope: `${fleet ? 'every shelf on the platform, each team\'s by slug' : 'your team\'s shelf, the shared shelf and every shelf\'s totals'}${week ? `; last whole week: the ${weekOf(week)}` : ''}`,
-    freshness: `${asOfLine(h)}.`,
+    freshness: `${stampOf(h.meta).text}.`,
     facts, insights: [], unknowns,
   }, sections);
 }

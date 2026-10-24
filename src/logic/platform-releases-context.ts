@@ -16,6 +16,7 @@ import { formatDateTime, formatDay } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { listed, type Fact, type Insight, type SharedContext } from '@/lib/shared-context';
 import { addressOf, budgeted, clip } from './context';
+import { stampOf } from './read-stamp';
 import { READ_BOUND_MS } from '@/lib/read-bound';
 import { rostered } from './platform-roster';
 
@@ -246,7 +247,7 @@ export function releasesContext(data: Releases, { filters, read }: { filters: Re
     title: 'Releases',
     address,
     scope: `every recorded release${rows.length && total !== null ? `; rows ${first + 1} to ${shown} of ${formatCount(total)}` : ''}`,
-    freshness: `As of ${formatDateTime(data.meta.asOf)}.`,
+    freshness: `${stampOf(data.meta).text}.`,
     facts,
     insights: insights(n),
     unknowns: [

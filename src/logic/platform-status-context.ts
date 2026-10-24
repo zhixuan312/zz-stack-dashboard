@@ -16,6 +16,7 @@ import { formatCount } from '@/lib/format-units';
 import { formatCalendarDate, formatDateTime, formatDay, formatShortDate } from '@/lib/format-date';
 import type { Fact, Insight, SharedContext } from '@/lib/shared-context';
 import { budgeted, pendingContext } from './context';
+import { stampOf } from './read-stamp';
 import { READ_BOUND_MS } from '@/lib/read-bound';
 
 /** What the page's one read came back as: the whole response, a read that failed, or one that did not answer within `READ_BOUND_MS`. */
@@ -309,9 +310,6 @@ export function ownOf(s: PlatformStatus): Own {
 
 /* The masthead and a read that brought nothing */
 
-/** The page's as-of line: the read's own cutoff, in the console's zone. */
-export const asOfLine = (meta: PlatformStatus['meta']): string => `As of ${formatDateTime(meta.asOf)}`;
-
 /** What a read that brought nothing is called on the page, and the one sentence under it. */
 export function troubleOf(state: Exclude<StatusRead['state'], 'ok'>): { title: string; detail: string } {
   if (state === 'slow') return { title: "The platform's status is unavailable", detail: `It did not answer within ${READ_BOUND_MS / 1000} seconds. Nothing on this page was read.` };
@@ -421,7 +419,7 @@ export function platformStatusContext(read: StatusRead): SharedContext {
   return budgeted({
     ...VIEW,
     scope: `the platform's real work${last ? `; last whole week: the ${weekOf(last)}` : ''}`,
-    freshness: `${asOfLine(s.meta)}.`,
+    freshness: `${stampOf(s.meta).text}.`,
     facts, insights, unknowns,
   });
 }

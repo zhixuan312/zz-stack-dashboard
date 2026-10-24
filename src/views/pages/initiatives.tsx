@@ -20,7 +20,8 @@ import { When } from '@/console/when';
 import type { Revised } from '@/data/gateway';
 import { useDataClock } from '@/lib/api';
 import { plural } from '@/lib/format';
-import { formatDate, formatDateTime, formatShortDate } from '@/lib/format-date';
+import { formatDate, formatShortDate } from '@/lib/format-date';
+import { stampOf } from '@/logic/read-stamp';
 import { formatCount } from '@/lib/format-units';
 import { grainOf, type Grain } from '@/lib/grain';
 import { useLive } from '@/lib/live';
@@ -209,7 +210,9 @@ function Closures({ list, mark }: { list: InitiativesShown | undefined; mark: st
 export function InitiativesAsOf({ served }: { served: InitiativesRead }) {
   const [filters] = useServedAddress(INITIATIVES_DEFAULTS, served, filtersOfPath);
   const { data } = useInitiatives(served, filters);
-  return data ? <span className="t-small text-ink-3">As of {formatDateTime(data.meta.asOf)}</span> : null;
+  if (!data) return null;
+  const stamp = stampOf(data.meta);
+  return <span className="t-small text-ink-3" title={stamp.title}>{stamp.text}</span>;
 }
 
 /**

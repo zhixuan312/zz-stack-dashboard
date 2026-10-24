@@ -26,9 +26,10 @@ import { formatDay, formatShortDate } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import type { Figure } from '@/lib/platform-shapes';
 import {
-  NOT_RECORDED, REFUSAL_PARTS, TILES, TILE_KEYS, askOf, asOfLine, figureText, followupLine, perApprovalText, teamParts,
+  NOT_RECORDED, REFUSAL_PARTS, TILES, TILE_KEYS, askOf, figureText, followupLine, perApprovalText, teamParts,
   usageContext, usageTrouble, valueIn, weekOf, type TileKey, type UsageRead,
 } from '@/logic/platform-usage-context';
+import { stampOf } from '@/logic/read-stamp';
 import { changeOf, lastWhole, pointsOf } from '@/logic/week-change';
 
 /** The protagonist's title: the card the page's Ask sits on. COUPLED: the README's `Protagonist:`. */
@@ -72,7 +73,8 @@ export function PlatformUsageView({ read }: { read: UsageRead }) {
 /** The masthead's as-of line, the read's own cutoff: nothing when there is no read to date. */
 export function UsageAsOf({ read }: { read: UsageRead }) {
   if (read.state !== 'ok') return null;
-  return <span className="t-small text-ink-3">{asOfLine(read.usage)}</span>;
+  const stamp = stampOf(read.usage.meta);
+  return <span className="t-small text-ink-3" title={stamp.title}>{stamp.text}</span>;
 }
 
 /**
