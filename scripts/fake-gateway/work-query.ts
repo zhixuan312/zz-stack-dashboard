@@ -32,6 +32,7 @@
  * alias.
  */
 import type { Me } from '../../src/lib/api-shapes.ts';
+import type { FixtureAnswer } from './envelope.ts';
 import type { ActivityLog, ActivityRow } from '../../src/lib/destination-shapes.ts';
 import type { Figure, Window } from '../../src/lib/platform-shapes.ts';
 import type { WorkQuery, WorkQueryRow } from '../../src/lib/work-shapes.ts';
@@ -350,7 +351,7 @@ export function workQuery(who: Me, q: URLSearchParams): Answer {
     rows = { state: 'ok', data: { rows: page.map((f) => f.row!), total: drilled.length } };
   }
 
-  const asked: WorkQuery = {
+  const asked: FixtureAnswer<WorkQuery> = {
     meta: { ...workMeta(a.measure === 'approvals' ? 'caller-in-active-team' : 'active-team', `${who.activeTeam}'s ${a.measure.replace('_', ' ')}${a.measure === 'approvals' ? ' signed in the caller\'s name' : ''}`), period: { from: iso(fromMs), to: iso(toMs) } },
     measure: a.measure, by: a.by,
     window: { from: iso(fromMs), to: iso(toMs), observedFrom: iso(fromMs), observedThrough: iso(Math.max(fromMs, Math.min(toMs, asOf))), complete: toMs <= asOf },

@@ -22,6 +22,7 @@
  */
 import type { Measure, PeriodFigure, PlatformStatus } from '../../src/lib/platform-shapes.ts';
 import { localDay, midnight, nextStart, now, startOf, TIMEZONE } from './clock.ts';
+import type { FixtureAnswer } from './envelope.ts';
 
 const DAY = 24 * 3_600_000;
 const iso = (ms: number) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z');
@@ -256,7 +257,7 @@ const RECORDS = {
   longestUnderOnePercent: { days: COMPLETE - 4, from: FIRST_DAY, to: daysAgo(5) },
 };
 
-export const PLATFORM_STATUS: PlatformStatus = {
+export const PLATFORM_STATUS: FixtureAnswer<PlatformStatus> = {
   meta: {
     asOf: iso(now()), timezone: TIMEZONE,
     period: { from: MALFORMED_WEEKS[0].window.from, to: iso(now()) },
@@ -279,4 +280,4 @@ export const PLATFORM_STATUS: PlatformStatus = {
   } },
 };
 
-export const MEMBER_STATUS: PlatformStatus = { ...PLATFORM_STATUS, meta: { ...PLATFORM_STATUS.meta, scope: 'platform-public' }, needs: needsOf(FOUND, false) };
+export const MEMBER_STATUS: FixtureAnswer<PlatformStatus> = { ...PLATFORM_STATUS, meta: { ...PLATFORM_STATUS.meta, scope: 'platform-public' }, needs: needsOf(FOUND, false) };

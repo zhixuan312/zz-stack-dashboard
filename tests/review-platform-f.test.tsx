@@ -11,9 +11,9 @@ vi.mock('next/navigation', () => ({
 }));
 
 import { SurfaceOverride } from '@/components/base/surface';
-import type { Audit, People, Teams } from '@/lib/fleet-shapes';
+import type { Audit, KnowledgeHealth, People, TeamDetail, Teams, Usage } from '@/lib/fleet-shapes';
 import { formatDateTime } from '@/lib/format-date';
-import type { Part } from '@/lib/platform-shapes';
+import type { Bugs, Evaluation, Part, PlatformStatus, Releases } from '@/lib/platform-shapes';
 import { contextText, type SharedContext } from '@/lib/shared-context';
 import { PlatformEvaluationView } from '@/views/pages/platform-evaluation';
 import { PlatformKnowledgeView } from '@/views/pages/platform-knowledge';
@@ -36,7 +36,8 @@ import { evaluation } from '../scripts/fake-gateway/platform-evaluation.ts';
 import { knowledge } from '../scripts/fake-gateway/platform-knowledge.ts';
 import { people } from '../scripts/fake-gateway/platform-people.ts';
 import { releaseDetail, releases } from '../scripts/fake-gateway/platform-releases.ts';
-import { MEMBER_STATUS, PLATFORM_STATUS } from '../scripts/fake-gateway/platform-status.ts';
+import { MEMBER_STATUS as MEMBER_STATUS_FIXTURE, PLATFORM_STATUS as PLATFORM_STATUS_FIXTURE } from '../scripts/fake-gateway/platform-status.ts';
+import { answered } from '../scripts/fake-gateway/envelope.ts';
 import { teamDetail, teams } from '../scripts/fake-gateway/platform-teams.ts';
 import { usage } from '../scripts/fake-gateway/platform-usage.ts';
 
@@ -51,18 +52,21 @@ import { usage } from '../scripts/fake-gateway/platform-usage.ts';
  * none beside a figure (N-5); and a waiting finding with no public owner category read "owner not known" where the
  * spec's public projection names it `Evaluation finding awaiting a decision`.
  */
-const LIST = releases(10, 0);
-const BUGS = bugs(true, { state: null, impact: null, surface: null }, 10, 0);
+// The fake states the six a route states; every hand-off below reads an answer, so each is completed once here.
+const PLATFORM_STATUS: PlatformStatus = answered(PLATFORM_STATUS_FIXTURE);
+const MEMBER_STATUS: PlatformStatus = answered(MEMBER_STATUS_FIXTURE);
+const LIST: Releases = answered(releases(10, 0));
+const BUGS: Bugs = answered(bugs(true, { state: null, impact: null, surface: null }, 10, 0));
 const OPEN = '0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d01';
 const TEAMS_PAGE = teams(ME, new URLSearchParams(), { limit: 10, offset: 0 })![1] as Teams;
 const PEOPLE_PAGE = people(ME, new URLSearchParams(), { limit: 10, offset: 0 })![1] as People;
 const AUDIT = audit(new URLSearchParams(), { limit: 10, offset: 0 })![1] as Audit;
-const ATLAS = teamDetail('atlas')!;
-const ADMIN_EVAL = evaluation(true);
-const MEMBER_EVAL = evaluation(false);
-const ADMIN_USAGE = usage(true);
-const ADMIN_KNOWLEDGE = knowledge(true, ME.activeTeam);
-const MEMBER_KNOWLEDGE = knowledge(false, MEMBER.activeTeam);
+const ATLAS: TeamDetail = answered(teamDetail('atlas')!);
+const ADMIN_EVAL: Evaluation = answered(evaluation(true));
+const MEMBER_EVAL: Evaluation = answered(evaluation(false));
+const ADMIN_USAGE: Usage = answered(usage(true));
+const ADMIN_KNOWLEDGE: KnowledgeHealth = answered(knowledge(true, ME.activeTeam));
+const MEMBER_KNOWLEDGE: KnowledgeHealth = answered(knowledge(false, MEMBER.activeTeam));
 
 function data<T>(p: Part<T> | null): T {
   if (!p || p.state !== 'ok') throw new Error('not answered');

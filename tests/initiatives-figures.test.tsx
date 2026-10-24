@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, render, waitFor } from '@testing-library/react';
 import { Tooltip } from 'radix-ui';
+import { stamped } from '../scripts/fake-gateway/envelope.ts';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 /**
@@ -33,7 +34,7 @@ const ROWS: InitiativeRow[] = [
 ];
 
 const LIST: InitiativeList = {
-  meta: { asOf: '2026-10-15T00:00:00Z', timezone: 'UTC', period: { from: WINDOW.from, to: '2026-10-15T00:00:00Z' }, scope: 'active-team', population: 'atlas', coverageFrom: null },
+  meta: stamped({ asOf: '2026-10-15T00:00:00Z', timezone: 'UTC', period: { from: WINDOW.from, to: '2026-10-15T00:00:00Z' }, scope: 'active-team', population: 'atlas', coverageFrom: null }),
   tiles: { open: 2, waiting: 1, closed: { accepted: 3, delivered: 1, abandoned: 2 } },
   closures: { state: 'ok', data: [] },
   rows: ROWS, total: 23,

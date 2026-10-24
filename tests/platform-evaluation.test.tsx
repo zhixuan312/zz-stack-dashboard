@@ -26,6 +26,7 @@ import { EvaluationAsOf, PlatformEvaluationView } from '@/views/pages/platform-e
 import { evaluationContext, scoredAgo, seriesRows, trendOf, type EvaluationRead } from '@/logic/platform-evaluation-context';
 import { evaluationTool } from '@/logic/tools/evaluation';
 import { evaluation } from '../scripts/fake-gateway/platform-evaluation.ts';
+import { answered } from '../scripts/fake-gateway/envelope.ts';
 import { readEvaluation } from '../app/(dash)/platform/evaluation/read-evaluation';
 import EvaluationLoading from '../app/(dash)/platform/evaluation/loading';
 
@@ -36,8 +37,8 @@ import EvaluationLoading from '../app/(dash)/platform/evaluation/loading';
  * findings waiting in the caller's form; every state; no write control; the Ask on the protagonist; and
  * `view_evaluation` with `explore_evaluation`.
  */
-const ADMIN = evaluation(true);
-const MEMBER = evaluation(false);
+const ADMIN: Evaluation = answered(evaluation(true));
+const MEMBER: Evaluation = answered(evaluation(false));
 const ok = (e: Evaluation): EvaluationRead => ({ state: 'ok', evaluation: e });
 /** A part the fixture answers, which is every one of them. */
 function data<T>(p: Part<T>): T {

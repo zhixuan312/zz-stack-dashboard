@@ -16,6 +16,7 @@
  * `ok`.
  */
 import type { Evaluation, SafeFinding } from '../../src/lib/platform-shapes.ts';
+import type { FixtureAnswer } from './envelope.ts';
 import { ago, localDay } from './clock.ts';
 import { PLATFORM_STATUS } from './platform-status.ts';
 
@@ -76,7 +77,7 @@ const summary = (f: Finding) => (Object.hasOwn(OWNED_BY, f.owner)
 
 /** `GET /platform/evaluation`. The superadmin's answer carries the protocol's and the measure's keys and each waiting
  *  finding's pattern; a member's carries none of them. */
-export function evaluation(admin: boolean): Evaluation {
+export function evaluation(admin: boolean): FixtureAnswer<Evaluation> {
   const asOf = ago(0);
   const key = (p: Protocol) => ({ key: admin ? p.key : null, version: p.version });
   const plugins = [...new Set(RUNS.map((r) => r.plugin))];

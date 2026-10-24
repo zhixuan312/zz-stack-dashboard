@@ -14,6 +14,7 @@
  * with the real route's answer. So nothing here is imported through the console's path alias.
  */
 import type { Me, PlatformPeople, TeamMembers } from '../../src/lib/api-shapes.ts';
+import type { FixtureAnswer } from './envelope.ts';
 import type { People, PersonRow } from '../../src/lib/fleet-shapes.ts';
 import type { PeriodFigure } from '../../src/lib/platform-shapes.ts';
 import { ago, day, localDay, nextStart, now } from './clock.ts';
@@ -99,7 +100,7 @@ export function people(who: Me, q: URLSearchParams, page: { limit: number; offse
     .filter((p) => !text || p.email.toLowerCase().includes(text) || p.name.toLowerCase().includes(text))
     .filter((p) => state === null || p.state === state);
   const asOf = iso(now());
-  const answer: People = {
+  const answer: FixtureAnswer<People> = {
     meta: { ...PLATFORM_STATUS.meta, asOf, period: { from: FIRST_SIGN_IN, to: asOf }, scope: 'platform-admin',
       population: 'people, their passkeys and their recorded console sign-ins', coverageFrom: FIRST_SIGN_IN },
     tiles: {

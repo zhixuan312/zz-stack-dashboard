@@ -26,6 +26,7 @@ import {
 } from '@/logic/platform-releases-context';
 import { releaseTool, releasesTool } from '@/logic/tools/releases';
 import { RELEASES, releaseDetail, releases } from '../scripts/fake-gateway/platform-releases.ts';
+import { answered } from '../scripts/fake-gateway/envelope.ts';
 import PlatformReleasesLoading from '../app/(dash)/platform/releases/loading';
 import PlatformReleasesPage, { generateMetadata as releasesMetadata } from '../app/(dash)/platform/releases/page';
 import { readRelease, readReleases } from '../app/(dash)/platform/releases/read-releases';
@@ -46,7 +47,7 @@ const SUPERADMIN: Me = {
 };
 
 const PATH = releasesPath(RELEASES_DEFAULTS);
-const LIST: Releases = releases(10, 0);
+const LIST: Releases = answered(releases(10, 0));
 const ok: ReleasesRead = { state: 'ok', path: PATH, data: LIST };
 const rows = () => (LIST.rows.state === 'ok' ? LIST.rows.data.rows : []);
 /** The fixture's states, by version: two inside 72 hours of each other, one with no calls after, one before the record. */
@@ -273,7 +274,7 @@ describe('the first read is the server\'s, and so is another page\'s', () => {
     act(() => { window.history.pushState(null, '', '/platform/releases?page=2'); window.dispatchEvent(new PopStateEvent('popstate')); });
     await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
     expect(reads()).toEqual([]);
-    const next: ReleasesRead = { state: 'ok', path: releasesPath({ ...RELEASES_DEFAULTS, page: '2' }), data: releases(10, 10) };
+    const next: ReleasesRead = { state: 'ok', path: releasesPath({ ...RELEASES_DEFAULTS, page: '2' }), data: answered<Releases>(releases(10, 10)) };
     rerender(<QueryClientProvider client={client}><SurfaceOverride surface={{}}><Tooltip.Provider><PlatformReleasesView served={next} /></Tooltip.Provider></SurfaceOverride></QueryClientProvider>);
     await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
     expect(reads()).toEqual([]);
@@ -326,7 +327,7 @@ describe('the view tools answer the pages\' own responses', () => {
       if (path === '/me') return SUPERADMIN;
       if (path.startsWith('/platform/releases?')) {
         const q = new URLSearchParams(path.split('?')[1]);
-        return releases(Number(q.get('limit')), Number(q.get('offset')));
+        return answered<Releases>(releases(Number(q.get('limit')), Number(q.get('offset'))));
       }
       const found = releaseDetail(decodeURIComponent(path.split('/').at(-1)!));
       if (!found) throw new GatewayError(404, 'HTTP 404');

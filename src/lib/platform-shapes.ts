@@ -24,12 +24,13 @@ export type PeriodFigure = {
  * The request-side half of every console answer's `meta`: when this request was served, the change marker it could
  * hear, and whether the answer had already been computed. The gateway stamps them on every console GET that answers an
  * object (`services/gateway/src/console/read-envelope.ts`), so this is a shape a page reads and never one a route
- * composes. COUPLED: the gateway's `ReadEnvelope`, field for field.
+ * composes. COUPLED: the gateway's `AnswerMeta`, field for field: the five are the middleware's, and a caller
+ * receives them present.
  *
- * DELIBERATE: optional wherever an answer declares it. A page is never wrong to read an answer that carries none, and
- * an answer with no figures of its own states nothing else beside it.
+ * DELIBERATE: optional where an answer declares it, because a detail answer with no figures of its own states
+ * nothing else beside it; the fields inside it are not. The distinction is the answer's, not the field's.
  */
-export type ReadEnvelope = { observedAt: string; revision: string | null; cacheHit: boolean };
+export type ReadEnvelope = Pick<ReadMeta, 'observedAt' | 'revision' | 'cacheHit'>;
 export type ReadMeta = {
   asOf: string; timezone: string;
   period: { from: string; to: string };
@@ -41,14 +42,15 @@ export type ReadMeta = {
    * answer; `builtAt` and `sourceRevision` describe persisted derived data and are null for an answer
    * computed from rows; `cacheHit` is the cache's own decision — never infer it from the two instants.
    *
-   * TRANSITIONAL: optional until every gateway route fills them, which is the same moment the gateway's
-   * own declaration stops being optional. A page that reads one must treat `undefined` as "this route has
-   * not been migrated yet" — showing nothing — and never as a value. */
-  observedAt?: string;
-  revision?: string | null;
-  builtAt?: string | null;
-  sourceRevision?: string | null;
-  cacheHit?: boolean;
+   * REQUIRED, and that is the point of the type: every answer this shape types has already crossed
+   * `services/gateway/src/console/read-envelope.ts`, which writes all five onto it. A page never handles
+   * `undefined` here, and a fixture that states only the six is a route's `meta`, not an answer's — the
+   * gateway's `ReadMeta` is where that half is declared. */
+  observedAt: string;
+  revision: string | null;
+  builtAt: string | null;
+  sourceRevision: string | null;
+  cacheHit: boolean;
 };
 export type Part<T> = { state: 'ok'; data: T } | { state: 'unavailable'; reason: string };
 type MeasureKey = 'malformed_per_1000' | 'same_tool_followup_pct' | 'call_p50_ms' | 'call_p95_ms'

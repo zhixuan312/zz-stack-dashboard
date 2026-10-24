@@ -15,6 +15,7 @@
  * real routes' answers. So nothing here is imported through the console's path alias.
  */
 import type { Me, MyAccessTokens } from '../../src/lib/api-shapes.ts';
+import type { FixtureAnswer } from './envelope.ts';
 import type { Access, AccessApplication, AccessBrowser, AccessPasskey, AccessToken, Revoked } from '../../src/lib/destination-shapes.ts';
 import { ago } from './clock.ts';
 import { kept } from './journey.ts';
@@ -82,7 +83,7 @@ export function access(who: Me): Answer {
   const authenticators = PASSKEYS[who.email] ?? [];
   const meta = workMeta('caller-in-active-team', "the caller's own tokens, applications, browsers and passkeys");
   const first = [...issued.map((t) => t.createdAt), ...browsers.map((b) => b.issuedAt), ...authenticators.map((k) => k.createdAt)].sort()[0];
-  const answer: Access = {
+  const answer: FixtureAnswer<Access> = {
     meta: { ...meta, period: { from: first ?? meta.asOf, to: meta.asOf }, coverageFrom: null },
     issued,
     applications: applicationsOf(who),

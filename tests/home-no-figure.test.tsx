@@ -21,6 +21,7 @@ import { HALVES, lastWeekOf } from '@/logic/home-context';
 import { HomeView } from '@/views/pages/home';
 import { ME } from '../scripts/fake-gateway/people.ts';
 import { homeOf } from '../scripts/fake-gateway/work-home.ts';
+import { answered } from '../scripts/fake-gateway/envelope.ts';
 
 /**
  * Home's paired figure hands the card no number where a half has none (Task I-130, AC-2.8): a half the gateway could not
@@ -28,7 +29,7 @@ import { homeOf } from '../scripts/fake-gateway/work-home.ts';
  * words, never `NaN` and never a 0. The answer is the fake gateway's own, the one `pnpm verify` serves, with one part changed as the gateway
  * could answer it.
  */
-const ATLAS = homeOf('atlas', ME.email);
+const ATLAS: Home = answered(homeOf('atlas', ME.email));
 const LAST = lastWeekOf(ATLAS).from;
 const gone = { state: 'unavailable', reason: 'query_failed' } as const;
 const UNREAD: Home = { ...ATLAS, words: gone, approvals: gone };

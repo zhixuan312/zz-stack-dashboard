@@ -13,7 +13,7 @@ vi.mock('next/navigation', () => ({
 import type { Me } from '@/lib/api-shapes';
 import type { Access } from '@/lib/destination-shapes';
 import { formatDate, formatDateTime } from '@/lib/format-date';
-import type { Measure, PlatformStatus } from '@/lib/platform-shapes';
+import type { Evaluation, Measure, PlatformStatus } from '@/lib/platform-shapes';
 import { MissingPage } from '@/console/no-access';
 import { AccessView } from '@/views/pages/access';
 import { DocumentView } from '@/views/pages/document';
@@ -25,7 +25,8 @@ import type { Catalog } from '@/logic/plugins-context';
 import { ME, MEMBER } from '../scripts/fake-gateway/people.ts';
 import { teamMembers } from '../scripts/fake-gateway/platform-people.ts';
 import { evaluation } from '../scripts/fake-gateway/platform-evaluation.ts';
-import { MEMBER_STATUS, PLATFORM_STATUS } from '../scripts/fake-gateway/platform-status.ts';
+import { MEMBER_STATUS as MEMBER_STATUS_FIXTURE, PLATFORM_STATUS as PLATFORM_STATUS_FIXTURE } from '../scripts/fake-gateway/platform-status.ts';
+import { answered } from '../scripts/fake-gateway/envelope.ts';
 import { pluginEval } from '../scripts/fake-gateway/platform.ts';
 import { documentDetail } from '../scripts/fake-gateway/work.ts';
 import { access as accessOf } from '../scripts/fake-gateway/work-access.ts';
@@ -39,6 +40,9 @@ import { plugins } from '../scripts/fake-gateway/work-plugins.ts';
  */
 const AT = '2026-10-17T09:00:00Z';
 const PEOPLE: [string, Me][] = [['the superadmin', ME], ['the member', MEMBER]];
+const PLATFORM_STATUS: PlatformStatus = answered(PLATFORM_STATUS_FIXTURE);
+const MEMBER_STATUS: PlatformStatus = answered(MEMBER_STATUS_FIXTURE);
+
 const ok = <T,>(path: string, data: T) => ({ state: 'ok' as const, path, at: AT, data });
 const mount = (ui: ReactElement) =>
   render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><Tooltip.Provider>{ui}</Tooltip.Provider></QueryClientProvider>);
@@ -192,7 +196,7 @@ describe('Platform P-2: Status\'s left featured half says its counts once', () =
 
 describe('Platform P-3: Evaluation\'s last-scored tile is one line, and says its date once', () => {
   it.each([['the superadmin', true], ['the member', false]] as const)('reads how long ago, with the date and time once beneath, for %s', (_, admin) => {
-    const e = evaluation(admin);
+    const e: Evaluation = answered(evaluation(admin));
     render(<Tooltip.Provider><PlatformEvaluationView read={{ state: 'ok', evaluation: e }} /></Tooltip.Provider>);
     const tile = screen.getByRole('heading', { name: 'Last scored' }).closest('.card') as HTMLElement;
     const value = tile.querySelector('[data-value]')!.textContent!;
@@ -203,7 +207,7 @@ describe('Platform P-3: Evaluation\'s last-scored tile is one line, and says its
   });
 
   it('says a scoring within the hour in words, never "0 hours ago"', () => {
-    const e = evaluation(true);
+    const e: Evaluation = answered(evaluation(true));
     const asOf = new Date(Date.parse(e.tiles.lastScored!) + 20 * 60_000).toISOString();
     render(<Tooltip.Provider><PlatformEvaluationView read={{ state: 'ok', evaluation: { ...e, meta: { ...e.meta, asOf } } }} /></Tooltip.Provider>);
     const tile = screen.getByRole('heading', { name: 'Last scored' }).closest('.card') as HTMLElement;

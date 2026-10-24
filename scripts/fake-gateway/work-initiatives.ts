@@ -22,6 +22,7 @@
  */
 import type { Initiative, InitiativeDetail, Me } from '../../src/lib/api-shapes.ts';
 import type { Figure, PeriodFigure, ReadMeta, Window } from '../../src/lib/platform-shapes.ts';
+import type { FixtureAnswer, FixtureMeta } from './envelope.ts';
 import type { CloseInput, CloseResult, InitiativeList, InitiativeRow, NextMove } from '../../src/lib/work-shapes.ts';
 import { nextStart, now } from './clock.ts';
 import { kept } from './journey.ts';
@@ -48,7 +49,7 @@ export const tally = (i: number, n: number): PeriodFigure => ({ window: WEEKS[i]
 export const counted = (n: number): Figure => ({ value: n, why: null });
 
 /** One read's cutoff and scope, for the caller's active team. */
-export function workMeta(scope: ReadMeta['scope'], population: string): ReadMeta {
+export function workMeta(scope: ReadMeta['scope'], population: string): FixtureMeta {
   const asOf = iso(now());
   return { ...PLATFORM_STATUS.meta, asOf, period: { from: WEEKS[0].from, to: asOf }, scope, population };
 }
@@ -201,7 +202,7 @@ export function initiativeList(who: Me, q: URLSearchParams): Answer {
   const rows = filtered(team, p);
   const flows = [...new Set(rows.map((r) => r.flow))];
   const previous = WEEKS[LAST_WEEK];
-  const answer: InitiativeList = {
+  const answer: FixtureAnswer<InitiativeList> = {
     meta: workMeta('active-team', `${team}'s initiatives, its knowledge shelf's own left out`),
     tiles: {
       open: all.filter((r) => !OUTCOMES.includes(r.state as (typeof OUTCOMES)[number])).length,

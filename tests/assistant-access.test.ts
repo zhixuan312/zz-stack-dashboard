@@ -21,10 +21,12 @@ import { PREPARED } from '@/data/prepared';
 import { handedTo } from '@/lib/assistant/scoped';
 import { assistantTools } from '@/lib/assistant/tools';
 import type { Me, SearchAnswer } from '@/lib/api-shapes';
+import type { PlatformStatus } from '@/lib/platform-shapes';
 import { viewAt } from '@/lib/shared-context';
 import { platformStatusContext, statusRead } from '@/logic/platform-status-context';
 import { viewTools } from '@/logic/tools';
 import { ME } from '../scripts/fake-gateway/people.ts';
+import { answered } from '../scripts/fake-gateway/envelope.ts';
 import { audit } from '../scripts/fake-gateway/platform-audit.ts';
 import { bugReport, bugs, duplicates } from '../scripts/fake-gateway/platform-bugs.ts';
 import { evaluation } from '../scripts/fake-gateway/platform-evaluation.ts';
@@ -363,7 +365,7 @@ describe('a view tool\'s address', () => {
   });
 
   it('reads Status from the response its page draws, reduced the same way, for a member as for a superadmin', async () => {
-    for (const [who, answer] of [[MEMBER, MEMBER_STATUS], [ME, PLATFORM_STATUS]] as const) {
+    for (const [who, answer] of [[MEMBER, answered<PlatformStatus>(MEMBER_STATUS)], [ME, answered<PlatformStatus>(PLATFORM_STATUS)]] as const) {
       gateway(who);
       const { context } = await tool('platform_status').read({});
       expect(calls.map((c) => new URL(c.url).pathname + new URL(c.url).search)).toContain('/api/console/platform/status?scope=platform');

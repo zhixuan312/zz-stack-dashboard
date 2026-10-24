@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render } from '@testing-library/react';
 import { Tooltip } from 'radix-ui';
+import type { Evaluation } from '@/lib/platform-shapes';
 import type { ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -13,7 +14,7 @@ vi.mock('next/navigation', () => ({
 // jsdom measures nothing; a chart that draws in real pixels is given a width, so the sparklines draw their lines.
 vi.mock('@/components/charts/use-size', () => ({ useSize: () => [{ current: null }, { width: 96, height: 24 }] }));
 
-import type { Audit, People, Teams } from '@/lib/fleet-shapes';
+import type { Audit, KnowledgeHealth, People, TeamDetail, Teams, Usage } from '@/lib/fleet-shapes';
 import { PlatformAuditView } from '@/views/pages/platform-audit';
 import { PlatformEvaluationView } from '@/views/pages/platform-evaluation';
 import { PlatformKnowledgeView } from '@/views/pages/platform-knowledge';
@@ -32,6 +33,7 @@ import { knowledge } from '../scripts/fake-gateway/platform-knowledge.ts';
 import { people } from '../scripts/fake-gateway/platform-people.ts';
 import { teamDetail, teams } from '../scripts/fake-gateway/platform-teams.ts';
 import { usage } from '../scripts/fake-gateway/platform-usage.ts';
+import { answered } from '../scripts/fake-gateway/envelope.ts';
 
 /**
  * The causes behind the Platform review's findings on Evaluation, Teams, a team, People, Usage, Audit and Knowledge
@@ -80,7 +82,7 @@ const leaves = (cell: Element) => [...drawn(cell).querySelectorAll('*')].filter(
 
 describe('figure columns sized to content, identifiers kept whole (F-3)', () => {
   it('Evaluation: every column but the lead holds its values to one line, and no key breaks mid-word', () => {
-    mount(<PlatformEvaluationView read={{ state: 'ok', evaluation: evaluation(true) }} />);
+    mount(<PlatformEvaluationView read={{ state: 'ok', evaluation: answered<Evaluation>(evaluation(true)) }} />);
     const PLUGINS = 'Each plugin\'s latest score';
     for (const td of column(PLUGINS, 'Score')) for (const l of leaves(td)) expect(heldWhole(l, td), `Score: ${l.textContent}`).toBe(true);
     // The protocol is the plugin's caption, whole, rather than a column squeezed beside the figures.
@@ -100,7 +102,7 @@ describe('figure columns sized to content, identifiers kept whole (F-3)', () => 
   });
 
   it('Usage: each tool\'s medians and change on one line a line', () => {
-    mount(<PlatformUsageView read={{ state: 'ok', usage: usage(true) }} />);
+    mount(<PlatformUsageView read={{ state: 'ok', usage: answered<Usage>(usage(true)) }} />);
     const TOOLS = 'Each tool\'s median call, first week against last';
     for (const header of ['First week', 'Last week', 'Change']) {
       for (const td of column(TOOLS, header)) for (const l of leaves(td)) expect(heldWhole(l, td), `${header}: ${l.textContent}`).toBe(true);
@@ -121,7 +123,7 @@ describe('figure columns sized to content, identifiers kept whole (F-3)', () => 
   });
 
   it('Knowledge health: a question\'s team and when it was last asked on one line', () => {
-    mount(<PlatformKnowledgeView read={{ state: 'ok', health: knowledge(true, ME.activeTeam) }} />);
+    mount(<PlatformKnowledgeView read={{ state: 'ok', health: answered<KnowledgeHealth>(knowledge(true, ME.activeTeam)) }} />);
     const QUESTIONS = 'Questions the searches that found nothing asked';
     for (const header of ['Team', 'Last asked']) {
       const cells = column(QUESTIONS, header);
@@ -133,7 +135,7 @@ describe('figure columns sized to content, identifiers kept whole (F-3)', () => 
 
 describe('a team\'s cards a row gap apart (F-9)', () => {
   it('draws its tiles, its chart and the team, and its members as rows of one Stack', () => {
-    const { container } = mount(<PlatformTeamView slug="atlas" served={{ state: 'ok', data: teamDetail('atlas')! }} />);
+    const { container } = mount(<PlatformTeamView slug="atlas" served={{ state: 'ok', data: answered<TeamDetail>(teamDetail('atlas')!) }} />);
     const members = container.querySelector('section[aria-label="atlas\'s members"]')!;
     const stack = members.parentElement!;
     expect(stack.className).toMatch(/flex-col/);
@@ -151,7 +153,7 @@ describe('Evaluation: labels whole and one series named once (F-17)', () => {
   });
 
   it('says a plugin\'s statement once, and names each series by its protocol and population', () => {
-    const e = evaluation(true);
+    const e = answered<Evaluation>(evaluation(true));
     mount(<PlatformEvaluationView read={{ state: 'ok', evaluation: e }} />);
     const series = tableOf('Every score, by series');
     const history = e.history.state === 'ok' ? e.history.data : [];
@@ -209,7 +211,7 @@ describe('People: a phone card keeps the name and the badge whole (F-20)', () =>
 
 describe('Usage: the key value wraps whole, its caveat after the figure (F-22)', () => {
   it('wraps each value under the chart, and says too few after the whole', () => {
-    const { container } = mount(<PlatformUsageView read={{ state: 'ok', usage: usage(true) }} />);
+    const { container } = mount(<PlatformUsageView read={{ state: 'ok', usage: answered<Usage>(usage(true)) }} />);
     const line = container.querySelector('[data-followup]')!;
     const values = [...line.querySelectorAll('dd')];
     expect(values.length).toBe(4);
@@ -245,7 +247,7 @@ describe('Audit: each report named by its title (F-23)', () => {
 
 describe('Knowledge health: bar-list labels wrap (F-25)', () => {
   it('draws each week\'s note as a block under the week, free to wrap, inside the list\'s one-line label', () => {
-    const { container } = mount(<PlatformKnowledgeView read={{ state: 'ok', health: knowledge(true, ME.activeTeam) }} />);
+    const { container } = mount(<PlatformKnowledgeView read={{ state: 'ok', health: answered<KnowledgeHealth>(knowledge(true, ME.activeTeam)) }} />);
     const labels = [...container.querySelectorAll('[data-cohort]')];
     expect(labels.length).toBeGreaterThan(0);
     for (const l of labels) {
@@ -257,7 +259,7 @@ describe('Knowledge health: bar-list labels wrap (F-25)', () => {
 
 describe('Usage: the team split in categorical slots (F-21)', () => {
   it('draws each team of the calls by week in a categorical slot of its own, and Other in the neutral, never the accent', () => {
-    const { container } = mount(<PlatformUsageView read={{ state: 'ok', usage: usage(true) }} />);
+    const { container } = mount(<PlatformUsageView read={{ state: 'ok', usage: answered<Usage>(usage(true)) }} />);
     const parts = [...container.querySelectorAll<HTMLElement>('[data-part]')].filter((p) => p.closest('[aria-label="Real-work calls by week, by team"]'));
     expect(parts.length).toBeGreaterThan(0);
     const colours = new Map<string, Set<string>>();

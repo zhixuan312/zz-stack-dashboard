@@ -18,6 +18,7 @@
  * holds behind one function. So nothing here is imported through the console's path alias, and every part is `ok`.
  */
 import type { AdminBugRow, BugReport, BugResolveInput, Bugs, Figure, PlatformStatus, PublicBugRow } from '../../src/lib/platform-shapes.ts';
+import type { FixtureAnswer } from './envelope.ts';
 import { ago, now } from './clock.ts';
 import { kept } from './journey.ts';
 import { ME } from './people.ts';
@@ -123,7 +124,7 @@ const count = (value: number): Figure => ({ value, why: null });
 
 /** `GET /platform/bugs`: the counts, the weekly cohorts and one page of the queue, newest first. The superadmin's rows
  *  add the internal title and the team; a member's are the safe row alone. */
-export function bugs(admin: boolean, filter: BugFilter, limit: number, offset: number): Bugs {
+export function bugs(admin: boolean, filter: BugFilter, limit: number, offset: number): FixtureAnswer<Bugs> {
   const asOf = ago(0);
   const all = reports();
   const open = all.filter((r) => r.status === 'open');
@@ -217,7 +218,7 @@ const WAIT_MS = 14 * 24 * HOUR;
  * found them. A journey session's resolutions and approvals are in those reads, so they move its Status alone, and the
  * reader's team's bug counts move a report from open to how it ended. Outside a journey it equals the fixture's object.
  */
-export function statusFor(superadmin: boolean, team: string | null): PlatformStatus {
+export function statusFor(superadmin: boolean, team: string | null): FixtureAnswer<PlatformStatus> {
   const status = superadmin ? PLATFORM_STATUS : MEMBER_STATUS;
   const open = reports().filter((r) => r.status === 'open');
   const blocking = open.filter((r) => r.impact === 'blocks_work').length;

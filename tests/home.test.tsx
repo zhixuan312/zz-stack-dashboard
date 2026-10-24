@@ -43,6 +43,7 @@ import { readHome } from '../app/(dash)/(home)/read-home';
 import { ME } from '../scripts/fake-gateway/people.ts';
 import { approvals } from '../scripts/fake-gateway/work-approvals.ts';
 import { homeOf } from '../scripts/fake-gateway/work-home.ts';
+import { answered } from '../scripts/fake-gateway/envelope.ts';
 
 /**
  * Home as the person reads it, drawn from the read the page makes on the console's server. The weeks come from the fake
@@ -50,8 +51,8 @@ import { homeOf } from '../scripts/fake-gateway/work-home.ts';
  * first observed week with one, and the other states built from them here: a quiet week, an empty team, and a read
  * whose parts failed one by one.
  */
-const ATLAS = homeOf('atlas', ME.email);
-const BEACON = homeOf('beacon', ME.email);
+const ATLAS: Home = answered(homeOf('atlas', ME.email));
+const BEACON: Home = answered(homeOf('beacon', ME.email));
 const ok = (home: Home, team: string | null = 'atlas'): HomeRead => ({ state: 'ok', home, team });
 /** The fixture's weeks move with the day it is run: every date and count here is read off its own answer. */
 const LAST = formatDay(ATLAS.tiles.closed.window.from);

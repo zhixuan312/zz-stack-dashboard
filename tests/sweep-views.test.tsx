@@ -24,6 +24,7 @@ import { TokensPanel } from '@/console/settings/tokens-panel';
 import type { KnowledgeBody, KnowledgeLog, KnowledgeLogEntry } from '@/lib/api-shapes';
 import type { Access } from '@/lib/destination-shapes';
 import type { Usage } from '@/lib/fleet-shapes';
+import type { Home } from '@/lib/work-shapes';
 import type { PeriodFigure } from '@/lib/platform-shapes';
 import { contextText } from '@/lib/shared-context';
 import { CONTEXT_BUDGET } from '@/logic/context';
@@ -39,6 +40,7 @@ import { weekCount } from '@/logic/teams-context';
 import { pointsOf } from '@/logic/week-change';
 import { ME } from '../scripts/fake-gateway/people.ts';
 import { usage } from '../scripts/fake-gateway/platform-usage.ts';
+import { answered } from '../scripts/fake-gateway/envelope.ts';
 import { access as accessOf } from '../scripts/fake-gateway/work-access.ts';
 import { initiativeDetail, rowsOf } from '../scripts/fake-gateway/work-initiatives.ts';
 import { homeOf } from '../scripts/fake-gateway/work-home.ts';
@@ -110,7 +112,7 @@ describe('the knowledge log is counted by the gateway\'s totals, not by the rows
 });
 
 describe('Share refused shows no change for a week under the 30-call sample (R2-C54)', () => {
-  const base = usage(true);
+  const base: Usage = answered<Usage>(usage(true));
   if (base.tiles.state !== 'ok') throw new Error('the fixture answers its tiles');
   const share = base.tiles.data.refusedShare;
   const few: Usage = {
@@ -170,7 +172,7 @@ describe('a week before a team\'s record reads as no data, not unavailable (R2-C
 
 describe('the Record line on Home answers a finger whole (V-1)', () => {
   it('is a tagged target, so a phone presses it at 44px whatever it wraps to', async () => {
-    await draw('/', <HomeView read={{ state: 'ok', home: homeOf('atlas', ME.email), team: 'atlas' }} />);
+    await draw('/', <HomeView read={{ state: 'ok', home: answered<Home>(homeOf('atlas', ME.email)), team: 'atlas' }} />);
     expect(document.querySelector('[data-record-line]')).toHaveClass('hit');
   });
 });

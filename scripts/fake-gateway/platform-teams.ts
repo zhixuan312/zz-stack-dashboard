@@ -16,6 +16,7 @@
  * with the real routes' answers. So nothing here is imported through the console's path alias.
  */
 import type { Me } from '../../src/lib/api-shapes.ts';
+import type { FixtureAnswer, FixtureMeta } from './envelope.ts';
 import type { TeamDetail, TeamRow, Teams } from '../../src/lib/fleet-shapes.ts';
 import type { PeriodFigure } from '../../src/lib/platform-shapes.ts';
 import { day, nextStart, now } from './clock.ts';
@@ -82,7 +83,7 @@ export const TEAMS: TeamRow[] = SEEDS.map((s) => ({
  *  of whether the team asked for exists. */
 const REFUSED: [number, unknown] = [403, { error: 'not permitted' }];
 
-const meta = (population: string) => {
+const meta = (population: string): FixtureMeta => {
   const asOf = iso(now());
   return { ...PLATFORM_STATUS.meta, asOf, period: { from: WEEKS[0].from, to: asOf }, scope: 'platform-admin' as const, population };
 };
@@ -106,7 +107,7 @@ export function teams(who: Me, q: URLSearchParams, page: { limit: number; offset
     .filter((t) => !text || t.slug.includes(text) || t.name.toLowerCase().includes(text))
     .filter((t) => status === null || t.status === status);
   const sum = (of: (t: TeamRow) => number) => TEAMS.reduce((n, t) => n + of(t), 0);
-  const answer: Teams = {
+  const answer: FixtureAnswer<Teams> = {
     meta: meta('teams, their members, open work, revisions waiting, standing lessons and real-work tool calls'),
     tiles: { teams: TEAMS.length, openWork: sum((t) => t.openWork), pending: sum((t) => t.waiting), lessons: sum((t) => t.lessons) },
     teams: rows.slice(page.offset, page.offset + page.limit).map((t) => ({ ...t })), total: rows.length,
@@ -116,7 +117,7 @@ export function teams(who: Me, q: URLSearchParams, page: { limit: number; offset
 
 /** One team as the superadmin's page reads it: the team, its members, its row's tiles and its calls by week. Null for a
  *  slug no team has. */
-export function teamDetail(slug: string): TeamDetail | null {
+export function teamDetail(slug: string): FixtureAnswer<TeamDetail> | null {
   const t = TEAMS.find((x) => x.slug === slug);
   if (!t) return null;
   const seed = SEEDS.find((s) => s.slug === slug)!;

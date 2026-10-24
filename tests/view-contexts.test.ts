@@ -2,8 +2,9 @@
 import { describe, expect, it } from 'vitest';
 import type { PluginRow, SearchAnswer, Skill, SkillDetail } from '@/lib/api-shapes';
 import type { Access, ActivityLog, ActivitySummary, KnowledgeList, KnowledgeSummary, Runs } from '@/lib/destination-shapes';
-import type { People, Teams } from '@/lib/fleet-shapes';
-import type { Approvals, InitiativeList } from '@/lib/work-shapes';
+import type { People, TeamDetail, Teams } from '@/lib/fleet-shapes';
+import type { Bugs, PlatformStatus, Releases } from '@/lib/platform-shapes';
+import type { Approvals, Home, InitiativeList } from '@/lib/work-shapes';
 import { contextText, type SharedContext } from '@/lib/shared-context';
 import { accessContext } from '@/logic/access-context';
 import { activityContext } from '@/logic/activity-context';
@@ -31,7 +32,8 @@ import { ME } from '../scripts/fake-gateway/people.ts';
 import { bugReport, bugs, duplicates } from '../scripts/fake-gateway/platform-bugs.ts';
 import { people } from '../scripts/fake-gateway/platform-people.ts';
 import { releaseDetail, releases } from '../scripts/fake-gateway/platform-releases.ts';
-import { PLATFORM_STATUS } from '../scripts/fake-gateway/platform-status.ts';
+import { PLATFORM_STATUS as PLATFORM_STATUS_FIXTURE } from '../scripts/fake-gateway/platform-status.ts';
+import { answered } from '../scripts/fake-gateway/envelope.ts';
 import { teamDetail, teams } from '../scripts/fake-gateway/platform-teams.ts';
 import { pluginEval, skillText } from '../scripts/fake-gateway/platform.ts';
 import { search } from '../scripts/fake-gateway/search.ts';
@@ -57,6 +59,8 @@ import { runs } from '../scripts/fake-gateway/work-runs.ts';
  * planned for.
  */
 const BUDGET = 2600;
+const PLATFORM_STATUS: PlatformStatus = answered(PLATFORM_STATUS_FIXTURE);
+
 const arrival = { updatedAt: '2026-10-12T09:00:00Z', now: '2026-10-12T09:01:00Z' };
 const fact = (c: SharedContext, label: string) => c.facts.find((f) => f.label === label)?.value;
 
@@ -89,10 +93,10 @@ const longest = (a: SearchAnswer): SearchAnswer => ({
 
 const contexts: Record<string, () => SharedContext> = {
   teams: () => teamsContext(TEAMS_PAGE, { filters: { q: '', status: 'all', page: '1' }, ...arrival }),
-  team: () => teamContext('atlas', { team: teamDetail('atlas')!, ...arrival }),
-  releases: () => releasesContext(releases(10, 0), { filters: { page: '1' }, ...arrival }),
+  team: () => teamContext('atlas', { team: answered<TeamDetail>(teamDetail('atlas')!), ...arrival }),
+  releases: () => releasesContext(answered<Releases>(releases(10, 0)), { filters: { page: '1' }, ...arrival }),
   release: () => releaseContext(releaseDetail('0.97.0')!, { asOf: arrival.now, ...arrival }),
-  bugs: () => bugsContext(bugs(true, { state: null, impact: null, surface: null }, 10, 0), { filters: BUGS_DEFAULTS, ...arrival }),
+  bugs: () => bugsContext(answered<Bugs>(bugs(true, { state: null, impact: null, surface: null }, 10, 0)), { filters: BUGS_DEFAULTS, ...arrival }),
   bug: () => bugContext(bugReport('0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d01')!, duplicates('0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d01')),
   initiatives: () => initiativesContext(listOf(), { filters: ALL, page: 1, ...arrival }),
   initiative: () => initiativeContext(initiativeDetail('atlas', '2026-09-28-search-relevance')!, arrival),
@@ -176,7 +180,7 @@ describe('the platform\'s Status shares a context', () => {
  * it is held to the shape here.
  */
 describe('Home shares a context', () => {
-  const home = () => homeContext({ state: 'ok', home: homeOf('atlas', ME.email), team: 'atlas' });
+  const home = () => homeContext({ state: 'ok', home: answered<Home>(homeOf('atlas', ME.email)), team: 'atlas' });
 
   it('names itself as its tool does, its address and its scope, says its cutoff, and quotes the title', () => {
     const c = home();

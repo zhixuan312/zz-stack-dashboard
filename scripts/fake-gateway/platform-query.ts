@@ -35,6 +35,7 @@
  * imported through the console's path alias.
  */
 import type { PlatformQuery, PlatformQueryGroup } from '../../src/lib/platform-shapes.ts';
+import type { FixtureAnswer, FixtureMeta } from './envelope.ts';
 import { midnight, now } from './clock.ts';
 import { PLATFORM_STATUS } from './platform-status.ts';
 import { MEASURES, type Fact, type Measure, type Who } from './platform-query-measures.ts';
@@ -153,7 +154,7 @@ function parse(q: URLSearchParams, who: Who): Asked | Refusal {
 }
 
 /** The question answered over the window `[from, to]` of dates, at the fake's cutoff. */
-function answer(a: Asked, who: Who, asked: { from: string | null; to: string }): PlatformQuery {
+function answer(a: Asked, who: Who, asked: { from: string | null; to: string }): FixtureAnswer<PlatformQuery> {
   const { m, by, bucket } = a;
   const asOfMs = now();
   let from = asked.from ?? asked.to;
@@ -172,7 +173,7 @@ function answer(a: Asked, who: Who, asked: { from: string | null; to: string }):
     from: iso(fromMs), to: iso(toMs), observedFrom: iso(fromMs),
     observedThrough: iso(Math.max(fromMs, Math.min(toMs, asOfMs))), complete: toMs <= asOfMs,
   };
-  const meta: PlatformQuery['meta'] = {
+  const meta: FixtureMeta = {
     asOf: iso(asOfMs), timezone: PLATFORM_STATUS.meta.timezone, period: { from: window.from, to: window.to },
     scope: who.superadmin ? 'platform-admin' : 'platform-public', population: m.population,
     coverageFrom: asked.from === null && facts.length ? window.from : null,

@@ -36,6 +36,7 @@ import {
 } from '@/logic/platform-bugs-context';
 import { bugTool, bugsTool } from '@/logic/tools/bugs';
 import { REPORTS, bugReport, bugs, duplicates } from '../scripts/fake-gateway/platform-bugs.ts';
+import { answered } from '../scripts/fake-gateway/envelope.ts';
 import PlatformBugsLoading from '../app/(dash)/platform/bugs/loading';
 import PlatformBugsPage, { generateMetadata as bugsMetadata } from '../app/(dash)/platform/bugs/page';
 import { readBug, readBugs, readDuplicates } from '../app/(dash)/platform/bugs/read-bugs';
@@ -64,8 +65,8 @@ const OPEN = ID(1);
 const DUPLICATE = ID(2);
 const NO_FILTER = { state: null, impact: null, surface: null };
 const PATH = bugsPath(BUGS_DEFAULTS);
-const ADMIN: Bugs = bugs(true, NO_FILTER, 10, 0);
-const PUBLIC: Bugs = bugs(false, NO_FILTER, 10, 0);
+const ADMIN: Bugs = answered(bugs(true, NO_FILTER, 10, 0));
+const PUBLIC: Bugs = answered(bugs(false, NO_FILTER, 10, 0));
 const ok = (data: Bugs = ADMIN, path = PATH): BugsRead => ({ state: 'ok', path, data });
 const counts = ADMIN.counts.state === 'ok' ? ADMIN.counts.data : (undefined as never);
 const rowsOf = (b: Bugs) => (b.queue.state === 'ok' ? b.queue.data.rows : []);
@@ -187,7 +188,7 @@ describe('the queue', () => {
     expect(window.location.search).toBe('?state=open');
     const filters: BugsFilters = { ...BUGS_DEFAULTS, state: 'open' };
     expect(bugsPath(filters)).toBe('/platform/bugs?state=open&limit=10&offset=0');
-    serve(<PlatformBugsView served={ok(bugs(true, { ...NO_FILTER, state: 'open' }, 10, 0), bugsPath(filters))} />);
+    serve(<PlatformBugsView served={ok(answered<Bugs>(bugs(true, { ...NO_FILTER, state: 'open' }, 10, 0)), bugsPath(filters))} />);
     await waitFor(() => expect(within(queue()).getAllByRole('row')).toHaveLength(counts.open + 1));
     expect(reads()).toEqual([]);
     // The figures are over every report: the open tile is the same narrowed or not.
@@ -199,7 +200,7 @@ describe('the first paint of a filtered address', () => {
   it('draws the rows of the address the server read, then hydrates onto the same markup', async () => {
     window.history.replaceState(null, '', '/platform/bugs?state=open');
     browser(null);
-    const open = bugs(true, { ...NO_FILTER, state: 'open' }, 10, 0);
+    const open = answered<Bugs>(bugs(true, { ...NO_FILTER, state: 'open' }, 10, 0));
     const view = <PlatformBugsView served={ok(open, bugsPath({ ...BUGS_DEFAULTS, state: 'open' }))} />;
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const container = document.body.appendChild(document.createElement('div'));
@@ -418,7 +419,7 @@ describe('the view tools answer the pages\' own responses', () => {
       if (path === '/me') return SUPERADMIN;
       if (path.startsWith('/platform/bugs?')) {
         const q = new URLSearchParams(path.split('?')[1]);
-        return bugs(true, { state: q.get('state'), impact: q.get('impact'), surface: q.get('surface') }, Number(q.get('limit')), Number(q.get('offset')));
+        return answered<Bugs>(bugs(true, { state: q.get('state'), impact: q.get('impact'), surface: q.get('surface') }, Number(q.get('limit')), Number(q.get('offset'))));
       }
       const [, , , id, sub] = path.split('/');
       const found = sub === 'duplicates' ? duplicates(id) : bugReport(id);
@@ -498,7 +499,7 @@ describe('the shared contexts carry what the pages draw, and what it cannot say'
 
   it('a narrowed queue says its figures are over every report', () => {
     const filters = { ...BUGS_DEFAULTS, state: 'open', impact: 'blocks_work' };
-    const text = contextText(bugsContext(bugs(true, { ...NO_FILTER, state: 'open', impact: 'blocks_work' }, 10, 0), { filters }));
+    const text = contextText(bugsContext(answered<Bugs>(bugs(true, { ...NO_FILTER, state: 'open', impact: 'blocks_work' }, 10, 0)), { filters }));
     expect(text).toContain('the queue narrowed to open, blocks work');
     expect(text).toContain('The filters narrow the queue alone');
   });

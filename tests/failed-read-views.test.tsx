@@ -3,6 +3,7 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import { Suspense, type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Tooltip } from 'radix-ui';
+import { stamped } from '../scripts/fake-gateway/envelope.ts';
 
 import type { Me, PluginRow, Skill, SkillDetail, SkillText } from '@/lib/api-shapes';
 import type { ActivityLog, ActivitySummary } from '@/lib/destination-shapes';
@@ -196,11 +197,11 @@ describe('the Knowledge log page, its read failing', () => {
  * printed only the rows it holds would state a truncated population as a measured whole.
  */
 const WINDOW = { from: '2026-10-05T00:00:00Z', to: '2026-10-12T00:00:00Z', observedFrom: '2026-10-05T00:00:00Z', observedThrough: '2026-10-12T00:00:00Z', complete: true };
-const META = {
+const META = stamped({
   asOf: '2026-10-15T00:00:00Z', timezone: 'UTC',
   period: { from: '2026-09-07T00:00:00Z', to: '2026-10-15T00:00:00Z' },
   scope: 'active-team' as const, population: 'atlas', coverageFrom: null,
-};
+});
 
 describe('the activity log read stops at its own ceiling', () => {
   const SUMMARY: ActivitySummary = {

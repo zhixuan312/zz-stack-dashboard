@@ -30,6 +30,7 @@ import { PlatformUsageView, UsageAsOf } from '@/views/pages/platform-usage';
 import { usageContext, type UsageRead } from '@/logic/platform-usage-context';
 import { usageTool } from '@/logic/tools/usage';
 import { usage } from '../scripts/fake-gateway/platform-usage.ts';
+import { answered } from '../scripts/fake-gateway/envelope.ts';
 import { readUsage } from '../app/(dash)/platform/usage/read-usage';
 import UsageLoading from '../app/(dash)/platform/usage/loading';
 
@@ -39,8 +40,8 @@ import UsageLoading from '../app/(dash)/platform/usage/loading';
  * compositions, the refusals put right, each tool's median, the weekday by hour, the tools called most, calls per
  * approval and the model calls; every state; the Ask on the protagonist; and `view_usage` with `explore_usage`.
  */
-const ADMIN = usage(true);
-const MEMBER = usage(false);
+const ADMIN: Usage = answered(usage(true));
+const MEMBER: Usage = answered(usage(false));
 const ok = (u: Usage): UsageRead => ({ state: 'ok', usage: u });
 /** A part the fixture answers, which is every one of them. */
 function data<T>(p: Part<T>): T {

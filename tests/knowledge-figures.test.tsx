@@ -15,6 +15,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { KnowledgeList, KnowledgeRow, KnowledgeSummary } from '@/lib/destination-shapes';
 import type { ServerRead } from '@/logic/knowledge-context';
 import { KnowledgeView } from '@/views/pages/knowledge';
+import { stamped } from '../scripts/fake-gateway/envelope.ts';
 
 const ME = {
   email: 'a@b.example.com', name: 'A', role: 'superadmin', mayRead: true, superadmin: true,
@@ -22,7 +23,7 @@ const ME = {
 };
 
 const WINDOW = { from: '2026-10-05T00:00:00Z', to: '2026-10-12T00:00:00Z', observedFrom: '2026-10-05T00:00:00Z', observedThrough: '2026-10-12T00:00:00Z', complete: true };
-const META = { asOf: '2026-10-15T00:00:00Z', timezone: 'UTC', period: { from: '2026-09-07T00:00:00Z', to: '2026-10-15T00:00:00Z' }, scope: 'active-team' as const, population: 'atlas', coverageFrom: null };
+const META = stamped({ asOf: '2026-10-15T00:00:00Z', timezone: 'UTC', period: { from: '2026-09-07T00:00:00Z', to: '2026-10-15T00:00:00Z' }, scope: 'active-team' as const, population: 'atlas', coverageFrom: null });
 
 /* Every tile a different number, and none of them the number of rows. */
 const SUMMARY: KnowledgeSummary = {

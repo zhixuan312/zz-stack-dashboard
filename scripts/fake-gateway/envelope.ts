@@ -4,19 +4,67 @@
  * The gateway stamps every console GET with five request-scoped fields (`services/gateway/src/console/read-envelope.ts`),
  * and the fake stamps the same five here, once, rather than in each fixture: a fixture that forgot them would be a route
  * the console's own tests never saw answer as the real one does. `meta` a route already wrote keeps every key the
- * envelope does not own, so a fixture's six stand beside these five.
+ * envelope does not own, so a fixture's six stand beside these five. A fixture states the six and none of the five —
+ * that is `FixtureMeta`, what its module exports — and `stamped` is the same completion for a fixture handed to
+ * something that reads an answer, as the console's own page fixtures are.
  *
  * Split out of `server.ts` when the file passed the 700-line ceiling: none of this is routing, and the fake's routes are.
  */
 import type { ServerResponse } from 'node:http';
 
 import type { ReadMeta } from '../../src/lib/platform-shapes';
+import { now } from './clock.ts';
 
 /** A route's answer: its status and its body, exactly as the fixture wrote it. */
 export type Answer = [status: number, body: unknown];
 
 /** The five fields the envelope adds to an answer's `meta`, as the console's own `ReadMeta` declares them. */
 export type Envelope = Pick<ReadMeta, 'observedAt' | 'revision' | 'cacheHit' | 'builtAt' | 'sourceRevision'>;
+
+/**
+ * The `meta` a fixture states: the six a gateway route states, and the five the envelope writes onto it. The five are
+ * optional here and required on `ReadMeta`, which is what a caller receives — a fixture that stated six where an answer
+ * is expected does not compile, and one built through `stamped` below does.
+ */
+export type FixtureMeta = Omit<ReadMeta, 'observedAt' | 'revision' | 'builtAt' | 'sourceRevision' | 'cacheHit'> & {
+  observedAt?: string; revision?: string | null; builtAt?: string | null; sourceRevision?: string | null; cacheHit?: boolean;
+};
+
+/**
+ * A fixture answer: the shape the console reads, with its `meta` as a fixture states it rather than as a caller
+ * receives it. A fixture states the six a route states and none of the five; a caller reads all eleven.
+ */
+export type FixtureAnswer<T extends { meta: unknown }> = Omit<T, 'meta'> & { meta: FixtureMeta };
+
+/**
+ * The meta a fixture states, as the answer a caller receives it: the five request-scoped fields the fixture cannot
+ * know, written where a fixture is handed to something that reads an answer. It is the same completion `withEnvelope`
+ * makes at the wire — a fixture read straight from its module is then the shape a served answer is, and the wire
+ * writes the request's own `observedAt` and marker over this one before anything is sent.
+ *
+ * DELIBERATE: the fixture's own five win, so a fixture that states them keeps them (`work-record.ts` does, because
+ * Record's route fills three of them itself); the rest are the miss this fake answers as.
+ */
+export function stamped(meta: FixtureMeta): ReadMeta {
+  return {
+    observedAt: new Date(now()).toISOString().replace(/\.\d{3}Z$/, 'Z'),
+    revision: null, cacheHit: false, builtAt: null, sourceRevision: null,
+    ...meta,
+  };
+}
+
+/**
+ * A fixture answer as the answer a caller receives: the same object with its `meta` stamped, and nothing else touched.
+ * This is where a fixture crosses into an answer — at the hand-off, never at the fake's exit, so a fixture still states
+ * six keys and the tests that pin that stay true.
+ *
+ * The assertion is the one this change needs, and it is sound because `meta` is the only field it completes: every other
+ * field belongs to the fixture's own `T` and is carried through untouched, and `meta` is the read envelope's whole
+ * subject. `T` infers where the argument is already a `FixtureAnswer<T>`; a spread-built literal may need it written out.
+ */
+export function answered<T extends { meta: unknown }>(a: FixtureAnswer<T>): T {
+  return { ...a, meta: stamped(a.meta) } as T;
+}
 
 /**
  * The envelope this answer carries, or null for a request that answers none.

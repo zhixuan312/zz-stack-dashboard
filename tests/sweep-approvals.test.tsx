@@ -29,6 +29,7 @@ import { HomeView } from '@/views/pages/home';
  */
 vi.useFakeTimers({ toFake: ['Date'] });
 vi.setSystemTime(new Date('2026-10-19T22:00:00Z'));
+const { answered } = await import('../scripts/fake-gateway/envelope.ts');
 const { approvals } = await import('../scripts/fake-gateway/work-approvals.ts');
 const { homeOf } = await import('../scripts/fake-gateway/work-home.ts');
 const { ME } = await import('../scripts/fake-gateway/people.ts');
@@ -108,7 +109,7 @@ describe('one clock for the weeks and the dates', () => {
   });
 
   it('Home\'s last-week count is that week\'s bar and its History rows, in its title and its figure', () => {
-    const home: Home = homeOf('atlas', ME.email);
+    const home: Home = answered<Home>(homeOf('atlas', ME.email));
     const last = weeks.findIndex((w) => w.window.from === home.tiles.closed.window.from);
     expect(last).toBeGreaterThanOrEqual(0);
     const bar = bars()[last].value;

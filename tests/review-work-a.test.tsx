@@ -31,7 +31,7 @@ vi.mock('@/lib/live', async (importOriginal) => ({ ...(await importOriginal<type
 import type { KnowledgeBody, KnowledgeLogEntry, Me } from '@/lib/api-shapes';
 import type { KnowledgeList, KnowledgeSummary } from '@/lib/destination-shapes';
 import { contextText } from '@/lib/shared-context';
-import type { RecordRead } from '@/lib/work-shapes';
+import type { Home, RecordRead } from '@/lib/work-shapes';
 import { homeContext } from '@/logic/home-context';
 import { knowledgeContext } from '@/logic/knowledge-context';
 import { HomeView } from '@/views/pages/home';
@@ -42,6 +42,7 @@ import { RecordView } from '@/views/pages/record';
 import { recordContext, recordPath, tickOf, tilesOf, RECORD_DEFAULTS } from '@/logic/record-context';
 import { ME } from '../scripts/fake-gateway/people.ts';
 import { homeOf } from '../scripts/fake-gateway/work-home.ts';
+import { answered } from '../scripts/fake-gateway/envelope.ts';
 import { KNOWLEDGE_LOG, SHELF, knowledgeList, knowledgeSummary, lesson, logOf } from '../scripts/fake-gateway/work-knowledge.ts';
 import { record } from '../scripts/fake-gateway/work-record.ts';
 
@@ -50,7 +51,7 @@ const AT = '2026-10-19T12:00:00Z';
 const answer = <T,>(a: [number, unknown]) => { expect(a[0]).toBe(200); return a[1] as T; };
 const periods = (['quarter', 'year', 'all'] as const).map((p) => answer<RecordRead>(record(ME, new URLSearchParams({ period: p, limit: '10', offset: '0' }))));
 const [, , ALL] = periods;
-const HOME = homeOf(TEAM, ME.email);
+const HOME: Home = answered(homeOf(TEAM, ME.email));
 const SUMMARY = answer<KnowledgeSummary>(knowledgeSummary(ME));
 const LOG: KnowledgeLogEntry[] = KNOWLEDGE_LOG.filter((e) => e.team === TEAM);
 const node = (num: string) => SHELF.find((n) => n.team === TEAM && n.num === num)!;

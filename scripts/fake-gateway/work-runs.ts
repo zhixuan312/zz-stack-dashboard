@@ -17,6 +17,7 @@
  */
 import type { Me } from '../../src/lib/api-shapes.ts';
 import type { RunRow, Runs, SkillRunRow } from '../../src/lib/destination-shapes.ts';
+import type { FixtureAnswer } from './envelope.ts';
 import { localDay, nextStart, now, startOf, weekdayHour } from './clock.ts';
 import { NO_TEAM, pageParams } from './work-activity.ts';
 import { iso, workMeta } from './work-initiatives.ts';
@@ -157,7 +158,7 @@ export function runs(who: Me, q: URLSearchParams): Answer {
   const meta = workMeta('active-team', skill === null
     ? `${team}'s recorded skill runs, every one since its first`
     : `${team}'s recorded runs of ${skill}, every one since its first`);
-  const answer: Runs = {
+  const answer: FixtureAnswer<Runs> = {
     // The period is the team's record, from its first run to the cutoff, as the gateway states it.
     meta: { ...meta, period: { from: since ?? meta.asOf, to: meta.asOf }, coverageFrom: since },
     since,

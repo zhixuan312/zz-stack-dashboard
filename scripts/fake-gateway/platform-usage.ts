@@ -14,6 +14,7 @@
  * with the real route's answer. So nothing here is imported through the console's path alias, and every part is `ok`.
  */
 import type { ModelWeek, Tile, Usage } from '../../src/lib/fleet-shapes.ts';
+import type { FixtureAnswer } from './envelope.ts';
 import type { Figure, Measure, PeriodFigure } from '../../src/lib/platform-shapes.ts';
 import { now } from './clock.ts';
 import { PLATFORM_STATUS } from './platform-status.ts';
@@ -110,7 +111,7 @@ const modelWeek = (i: number, calls: number, failed: number, inputTokens: number
 
 /** `GET /platform/usage`, public by route: the superadmin's weeks carry their split by team, a member's none, and
  *  nothing else differs but the label: the superadmin's answer is `platform-admin`, a member's `platform-public`. */
-export function usage(admin: boolean): Usage {
+export function usage(admin: boolean): FixtureAnswer<Usage> {
   const asOf = iso(now());
   return {
     meta: { ...PLATFORM_STATUS.meta, asOf, period: { from: WEEKS[0].from, to: asOf }, scope: admin ? 'platform-admin' : 'platform-public',

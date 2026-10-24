@@ -16,6 +16,7 @@
  * with the real routes' answers. So nothing here is imported through the console's path alias.
  */
 import type { Me } from '../../src/lib/api-shapes.ts';
+import type { FixtureAnswer } from './envelope.ts';
 import type { ActivityLog, ActivityRow, ActivitySummary, RefusalGroup, RefusalOwner } from '../../src/lib/destination-shapes.ts';
 import { INITIATIVES } from './work.ts';
 import { LAST_WEEK, WEEKS, inWeek, iso, workMeta } from './work-initiatives.ts';
@@ -145,7 +146,7 @@ export function activitySummary(who: Me): Answer {
   })).sort((a, b) => b.count - a.count || b.lastSeen.localeCompare(a.lastSeen));
   const folded = groups.slice(GROUPS);
   const maintenance = EVENTS.filter((e) => e.team === team && e.origin === 'platform' && e.kind === 'tool_call');
-  const answer: ActivitySummary = {
+  const answer: FixtureAnswer<ActivitySummary> = {
     meta: workMeta('active-team', `${team}'s real-work events, page views and the platform's maintenance left out`),
     tiles: {
       calls: { window: WEEKS[LAST_WEEK], figure: { value: last.length, why: null }, numerator: last.length, denominator: null },
@@ -179,7 +180,7 @@ export function activityLog(who: Me, q: URLSearchParams): Answer {
   // An initiative is named by its slug within the active team, so another team's slug matches nothing.
   const matched = work.filter((e) => (kind === null || e.kind === kind) && (tool === null || e.tool === tool)
     && (initiative === null || e.initiative === initiative) && (refused === null || (e.ok === false) === (refused === 'true'))).slice(0, CEILING);
-  const answer: ActivityLog = {
+  const answer: FixtureAnswer<ActivityLog> = {
     meta: workMeta('active-team', `${team}'s real-work events, page views and the platform's maintenance left out`),
     rows: matched.slice(page.offset, page.offset + page.limit).map(STRIP),
     total: matched.length, ceiling: CEILING,

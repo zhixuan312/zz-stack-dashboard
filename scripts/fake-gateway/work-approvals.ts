@@ -23,6 +23,7 @@
  * with the real route's answer. So nothing here is imported through the console's path alias.
  */
 import type { DocumentDetail, Me } from '../../src/lib/api-shapes.ts';
+import type { FixtureAnswer } from './envelope.ts';
 import type { PeriodFigure } from '../../src/lib/platform-shapes.ts';
 import type { ApprovalEvidence, ApprovalRow, Approvals, WaitingRow } from '../../src/lib/work-shapes.ts';
 import { ago, localDay, midnight } from './clock.ts';
@@ -178,7 +179,7 @@ export function approvals(who: Me, q: URLSearchParams): Answer {
   const pageOf = <T>(rows: T[], paged: boolean) => (paged ? rows.slice(offset, offset + limit) : rows.slice(0, 10));
   const fourteenDaysAgo = ago(14 * 24);
   const recorded = mine.filter((a) => a.presentation !== 'unknown');
-  const answer: Approvals = {
+  const answer: FixtureAnswer<Approvals> = {
     meta: workMeta('caller-in-active-team', `${who.activeTeam}'s revisions waiting, and the approvals signed in the caller's name there`),
     tiles: {
       waiting: queue.length,

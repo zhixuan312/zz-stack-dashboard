@@ -29,6 +29,7 @@ import { RecordView } from '@/views/pages/record';
 import { RECORD_DEFAULTS, recordContext, recordPath } from '@/logic/record-context';
 import { ME, MEMBER } from '../scripts/fake-gateway/people.ts';
 import { homeOf, neutralFinding } from '../scripts/fake-gateway/work-home.ts';
+import { answered } from '../scripts/fake-gateway/envelope.ts';
 import { KNOWLEDGE_LOG, SHELF, knowledgeList, knowledgeSummary, lesson, logOf } from '../scripts/fake-gateway/work-knowledge.ts';
 import { record } from '../scripts/fake-gateway/work-record.ts';
 
@@ -79,7 +80,7 @@ describe('M-9: Home\'s context carries the two series the page leads with, and a
   it.each(RUN_DAYS)('fits its budget whole on a run %i days on, for both people', async (days) => {
     const { home } = await fakesOn(days);
     const told = PEOPLE.map(([, who]) => {
-      const h = home(who);
+      const h: Home = answered(home(who));
       const t = contextText(homeContext({ state: 'ok', home: h, team: 'atlas' }));
       expect(t.length, `${who.email}, day ${days}`).toBeLessThanOrEqual(CONTEXT_BUDGET);
       expect(t, who.email).not.toContain('More is on the page');
@@ -99,7 +100,7 @@ describe('M-9: Home\'s context carries the two series the page leads with, and a
   });
 
   it('names the week the cursor rests on, both halves, as before', () => {
-    const h = homeOf('atlas', ME.email);
+    const h: Home = answered(homeOf('atlas', ME.email));
     const c = homeContext({ state: 'ok', home: h, team: 'atlas' }, { index: 1 });
     expect(c.focus).toMatch(/^the week of /);
   });
@@ -163,7 +164,7 @@ describe('M-15: a tie names every week it ties with, the one its record is count
 
 describe('M-18: Home\'s line to Record keeps its arrow with its last word', () => {
   it('is inline, the arrow inside the unbreakable last word', () => {
-    mount(<HomeView read={{ state: 'ok', home: homeOf('atlas', ME.email), team: 'atlas' }} />);
+    mount(<HomeView read={{ state: 'ok', home: answered<Home>(homeOf('atlas', ME.email)), team: 'atlas' }} />);
     const go = document.querySelector('[data-record-line]') as HTMLElement;
     expect(go.className).not.toMatch(/(^|\s)(inline-)?flex(\s|$)/);
     const held = go.querySelector('svg')!.parentElement!;

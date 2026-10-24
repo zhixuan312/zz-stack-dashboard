@@ -15,13 +15,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
  * population, and a tile counted over the page would be smaller.
  */
 import type { People } from '@/lib/fleet-shapes';
+import { stamped } from '../scripts/fake-gateway/envelope.ts';
 import { PlatformPeopleView } from '@/views/pages/platform-people';
 import { NO_SIGN_IN } from '@/logic/people-context';
 import { PEOPLE_DEFAULTS, peoplePath } from '@/logic/people-filter';
 
 const WEEK = { from: '2026-10-05T00:00:00Z', to: '2026-10-12T00:00:00Z', observedFrom: '2026-10-05T00:00:00Z', observedThrough: '2026-10-12T00:00:00Z', complete: true };
 const DATA: People = {
-  meta: { asOf: '2026-10-14T09:00:00Z', timezone: 'Pacific/Auckland', period: { from: '2026-06-01T00:00:00Z', to: '2026-10-14T09:00:00Z' }, scope: 'platform-admin', population: 'people, their passkeys and their recorded console sign-ins', coverageFrom: '2026-06-01T00:00:00Z' },
+  meta: stamped({ asOf: '2026-10-14T09:00:00Z', timezone: 'Pacific/Auckland', period: { from: '2026-06-01T00:00:00Z', to: '2026-10-14T09:00:00Z' }, scope: 'platform-admin', population: 'people, their passkeys and their recorded console sign-ins', coverageFrom: '2026-06-01T00:00:00Z' }),
   tiles: { people: 23, withPasskey: 17, neverSignedIn: 5, signInsLastWeek: { window: WEEK, figure: { value: 41, why: null }, numerator: 41, denominator: null } },
   people: [
     { email: 'one@example.com', name: 'One', role: 'superadmin', created: '2026-08-01', teams: ['atlas (admin)'], passkeys: 2, lastSignIn: '2026-10-13T08:00:00Z', state: 'active' },

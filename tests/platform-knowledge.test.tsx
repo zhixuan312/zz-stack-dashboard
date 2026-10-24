@@ -34,6 +34,7 @@ import { knowledgeHealthContext, type KnowledgeHealthRead } from '@/logic/platfo
 import { knowledgeHealthTool } from '@/logic/tools/knowledge-health';
 import { ME, MEMBER } from '../scripts/fake-gateway/people.ts';
 import { knowledge } from '../scripts/fake-gateway/platform-knowledge.ts';
+import { answered } from '../scripts/fake-gateway/envelope.ts';
 import { platformQuery } from '../scripts/fake-gateway/platform-query.ts';
 import { TEAMS } from '../scripts/fake-gateway/platform-teams.ts';
 import PlatformKnowledgeLoading from '../app/(dash)/platform/knowledge/loading';
@@ -49,8 +50,8 @@ import { readKnowledgeHealth } from '../app/(dash)/platform/knowledge/read-knowl
  * A member's page names no shelf but their own and the shared one; every state draws; the Ask sits in the head of the
  * shelves' table; and `view_knowledge_health` with `explore_knowledge_health` answer as the page does.
  */
-const ADMIN = knowledge(true, ME.activeTeam);
-const MEMBER_READ = knowledge(false, MEMBER.activeTeam);
+const ADMIN: KnowledgeHealth = answered(knowledge(true, ME.activeTeam));
+const MEMBER_READ: KnowledgeHealth = answered(knowledge(false, MEMBER.activeTeam));
 const ok = (health: KnowledgeHealth): KnowledgeHealthRead => ({ state: 'ok', health });
 /** A part the fixture answers, which is every one of them. */
 function data<T>(p: Part<T> | null): T {
@@ -76,7 +77,7 @@ function answering(who: Me) {
   gateway.get.mockImplementation(async (path: string) => {
     const url = new URL(path, 'http://gateway.test');
     if (url.pathname === '/me') return who;
-    if (url.pathname === '/platform/knowledge') return knowledge(who.superadmin, who.activeTeam);
+    if (url.pathname === '/platform/knowledge') return answered<KnowledgeHealth>(knowledge(who.superadmin, who.activeTeam));
     if (url.pathname === '/platform/query') {
       const [status, body] = platformQuery(who, url.searchParams) as [number, { error?: string }];
       if (status !== 200) throw new GatewayError(status, body.error ?? 'refused');

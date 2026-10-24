@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { Tooltip } from 'radix-ui';
+import { stamped } from '../scripts/fake-gateway/envelope.ts';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 /** Next's router as far as an address goes: `replace` moves it, which is what the page's own state is read from, and
@@ -42,7 +43,7 @@ const week = (from: string, to: string, complete: boolean, found: number, of: nu
   figure: of ? { value: (100 * found) / of, why: null } : { value: null, why: 'no_data' },
   numerator: found, denominator: of,
 });
-const META = { asOf: '2026-10-15T00:00:00Z', timezone: 'UTC', period: { from: '2026-09-21T00:00:00Z', to: '2026-10-15T00:00:00Z' }, scope: 'active-team' as const, population: 'atlas', coverageFrom: null };
+const META = stamped({ asOf: '2026-10-15T00:00:00Z', timezone: 'UTC', period: { from: '2026-09-21T00:00:00Z', to: '2026-10-15T00:00:00Z' }, scope: 'active-team' as const, population: 'atlas', coverageFrom: null });
 const LAST = week('2026-10-05T00:00:00Z', '2026-10-12T00:00:00Z', true, 18, 24);
 
 const SUMMARY: KnowledgeSummary = {

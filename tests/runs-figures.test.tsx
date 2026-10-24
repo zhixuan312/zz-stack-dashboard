@@ -25,8 +25,9 @@ vi.mock('next/navigation', () => ({
 import type { RunRow, Runs } from '@/lib/destination-shapes';
 import { RunsView } from '@/views/pages/runs';
 import { RUNS_DEFAULTS, runsPath } from '@/logic/runs-context';
+import { stamped } from '../scripts/fake-gateway/envelope.ts';
 
-const META = { asOf: '2026-10-15T00:00:00Z', timezone: 'UTC', period: { from: '2026-09-07T00:00:00Z', to: '2026-10-15T00:00:00Z' }, scope: 'active-team' as const, population: 'atlas', coverageFrom: null };
+const META = stamped({ asOf: '2026-10-15T00:00:00Z', timezone: 'UTC', period: { from: '2026-09-07T00:00:00Z', to: '2026-10-15T00:00:00Z' }, scope: 'active-team' as const, population: 'atlas', coverageFrom: null });
 const LARGEST: RunRow = {
   id: 'r1', skill: 'sdlc-execute', initiative: '2026-10-03-ranking-weights', startedAt: '2026-10-11T00:00:00Z', lastCallAt: '2026-10-11T02:00:00Z',
   calls: 140, refusals: 9, bytes: 2_097_152, lengthMs: 7_200_000, state: 'last_call',

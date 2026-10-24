@@ -21,7 +21,7 @@ vi.mock('@/app.config', async (importOriginal) => ({ ...(await importOriginal<ty
 
 import { SurfaceOverride } from '@/components/base/surface';
 import type { Me } from '@/lib/api-shapes';
-import type { AdminBugRow, PlatformStatus } from '@/lib/platform-shapes';
+import type { AdminBugRow, Bugs, PlatformStatus, Releases } from '@/lib/platform-shapes';
 import { PlatformBugView } from '@/views/pages/platform-bug';
 import { PlatformBugsView } from '@/views/pages/platform-bugs';
 import { PlatformReleaseView } from '@/views/pages/platform-release';
@@ -32,7 +32,8 @@ import { RELEASES_DEFAULTS, TILES, clientActionOf, observedText, releasesPath, t
 import { statusRead } from '@/logic/platform-status-context';
 import { REPORTS, bugReport, bugs, duplicates } from '../scripts/fake-gateway/platform-bugs.ts';
 import { RELEASES, releaseDetail, releases } from '../scripts/fake-gateway/platform-releases.ts';
-import { MEMBER_STATUS, PLATFORM_STATUS } from '../scripts/fake-gateway/platform-status.ts';
+import { MEMBER_STATUS as MEMBER_STATUS_FIXTURE, PLATFORM_STATUS as PLATFORM_STATUS_FIXTURE } from '../scripts/fake-gateway/platform-status.ts';
+import { answered } from '../scripts/fake-gateway/envelope.ts';
 import PlatformBugPage from '../app/(dash)/platform/bugs/[id]/page';
 
 /**
@@ -76,6 +77,9 @@ const phone = (td: Element) => (td.querySelector(':scope > span.hidden') ?? td).
 
 beforeEach(() => { gateway.get.mockReset(); browser(); });
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
+
+const PLATFORM_STATUS: PlatformStatus = answered(PLATFORM_STATUS_FIXTURE);
+const MEMBER_STATUS: PlatformStatus = answered(MEMBER_STATUS_FIXTURE);
 
 describe('Status', () => {
   const draw = (s: PlatformStatus = PLATFORM_STATUS) => mount(<PlatformStatusView read={statusRead(s)} />);
@@ -151,7 +155,7 @@ describe('Status', () => {
 });
 
 describe('Releases and a release', () => {
-  const LIST = releases(10, 0);
+  const LIST: Releases = answered(releases(10, 0));
   const served: ReleasesRead = { state: 'ok', path: releasesPath(RELEASES_DEFAULTS), data: LIST };
   const table = () => tableNamed('Releases with what was observed either side of each');
   const [NEWEST, PAIRED, , , OLDEST] = RELEASES.map((r) => r.version);
@@ -211,8 +215,8 @@ describe('Releases and a release', () => {
 });
 
 describe('Bugs and a report', () => {
-  const ADMIN = bugs(true, { state: null, impact: null, surface: null }, 10, 0);
-  const PUBLIC = bugs(false, { state: null, impact: null, surface: null }, 100, 0);
+  const ADMIN: Bugs = answered(bugs(true, { state: null, impact: null, surface: null }, 10, 0));
+  const PUBLIC: Bugs = answered(bugs(false, { state: null, impact: null, surface: null }, 100, 0));
   const served = (data = ADMIN): BugsRead => ({ state: 'ok', path: bugsPath(BUGS_DEFAULTS), data });
 
   it('keeps its rows a gap apart, on the queue and on a report (F-9)', () => {

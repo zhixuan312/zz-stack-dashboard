@@ -16,6 +16,7 @@
  * the real route's answer. So nothing here is imported through the console's path alias.
  */
 import type { Me } from '../../src/lib/api-shapes.ts';
+import type { FixtureAnswer } from './envelope.ts';
 import type { Finding, PeriodFigure } from '../../src/lib/platform-shapes.ts';
 import type { ActiveGroup, Home, WritingCoverage, WritingEstimate } from '../../src/lib/work-shapes.ts';
 import { localDay, now } from './clock.ts';
@@ -128,7 +129,7 @@ function titleOf(team: string | null, closed: number, approvals: number): Home['
 }
 
 /** Home for `team`, the approvals in it signed in `email`'s name. */
-export function homeOf(team: string | null, email: string): Home {
+export function homeOf(team: string | null, email: string): FixtureAnswer<Home> {
   const rows = rowsOf(team);
   const last = WEEKS[LAST_WEEK];
   const closedLast = rows.filter((r) => r.closed !== null && r.closed >= last.from && r.closed < last.to);
@@ -185,4 +186,4 @@ export function homeOf(team: string | null, email: string): Home {
 }
 
 /** `GET /home`, as `who`: their active team's, their own approvals. */
-export const home = (who: Me): Home => homeOf(who.activeTeam, who.email);
+export const home = (who: Me): FixtureAnswer<Home> => homeOf(who.activeTeam, who.email);

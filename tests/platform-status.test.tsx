@@ -26,7 +26,8 @@ import { READ_BOUND_MS } from '@/lib/read-bound';
 import { doorRow, platformStatusContext, statusRead, type StatusRead } from '@/logic/platform-status-context';
 import { platformStatusTool } from '@/logic/tools/platform-status';
 import { navOf, workspaceOf } from '@/views/workspaces';
-import { MEMBER_STATUS, PLATFORM_STATUS } from '../scripts/fake-gateway/platform-status.ts';
+import { MEMBER_STATUS as MEMBER_STATUS_FIXTURE, PLATFORM_STATUS as PLATFORM_STATUS_FIXTURE } from '../scripts/fake-gateway/platform-status.ts';
+import { answered } from '../scripts/fake-gateway/envelope.ts';
 import { readStatus } from '../app/(dash)/platform/read-status';
 import PlatformStatusLoading from '../app/(dash)/platform/loading';
 
@@ -36,6 +37,10 @@ import PlatformStatusLoading from '../app/(dash)/platform/loading';
  * come from the fake gateway's own answer, the one `pnpm verify` serves the page, and each state is that answer with
  * one part changed, as the gateway would answer it.
  */
+// The fake states the six a route states; every hand-off below reads an answer, so it is completed once here.
+const PLATFORM_STATUS: PlatformStatus = answered(PLATFORM_STATUS_FIXTURE);
+const MEMBER_STATUS: PlatformStatus = answered(MEMBER_STATUS_FIXTURE);
+
 const measure = (s: PlatformStatus, key: Measure['key']) => s.measures.find((m) => m.key === key)!;
 const MALFORMED = measure(PLATFORM_STATUS, 'malformed_per_1000');
 const FOLLOWUP = measure(PLATFORM_STATUS, 'same_tool_followup_pct');

@@ -24,6 +24,7 @@
  */
 import type { KnowledgeBody, KnowledgeLog, KnowledgeLogEntry, KnowledgeNode, Me } from '../../src/lib/api-shapes.ts';
 import type { KnowledgeList, KnowledgeSummary } from '../../src/lib/destination-shapes.ts';
+import type { FixtureAnswer } from './envelope.ts';
 import type { PeriodFigure } from '../../src/lib/platform-shapes.ts';
 import { ago } from './clock.ts';
 import { lessonBody, lessonExcerpt } from './lesson-text.ts';
@@ -178,7 +179,7 @@ export function knowledgeSummary(who: Me): Answer {
     return { question, asked: times.length, lastAsked: times.reduce((a, s) => (s.at > a ? s.at : a), times[0].at) };
   }).sort((a, b) => b.asked - a.asked || b.lastAsked.localeCompare(a.lastAsked));
   const lastEmpty = last.filter((s) => !s.found).length;
-  const answer: KnowledgeSummary = {
+  const answer: FixtureAnswer<KnowledgeSummary> = {
     meta: workMeta('active-team', `${team}'s knowledge shelf and its own searches, the shared shelf left out`),
     tiles: {
       standing: { ...counted(standing.length), imported: standing.filter((n) => IMPORTED.has(n.key)).length },
@@ -213,7 +214,7 @@ export function knowledgeList(who: Me, q: URLSearchParams): Answer {
     .sort((a, b) => b.updated.localeCompare(a.updated) || a.key.localeCompare(b.key)).map((n) => readAs(n, team));
   const byKind: Record<string, number> = {};
   for (const n of rows) byKind[n.type] = (byKind[n.type] ?? 0) + 1;
-  const answer: KnowledgeList = {
+  const answer: FixtureAnswer<KnowledgeList> = {
     meta: workMeta('active-team', `${team}'s knowledge shelf, the shared shelf left out`),
     rows: rows.slice(page.offset, page.offset + page.limit),
     total: rows.length,

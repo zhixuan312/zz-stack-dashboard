@@ -16,9 +16,9 @@ vi.mock('next/navigation', () => ({
 
 import { SurfaceOverride } from '@/components/base/surface';
 import { formatDate, formatDay, formatShortDate } from '@/lib/format-date';
-import type { Part } from '@/lib/platform-shapes';
+import type { Evaluation, Part } from '@/lib/platform-shapes';
 import { contextText } from '@/lib/shared-context';
-import type { Audit } from '@/lib/fleet-shapes';
+import type { Audit, KnowledgeHealth, Usage } from '@/lib/fleet-shapes';
 import { PlatformAuditView } from '@/views/pages/platform-audit';
 import { PlatformEvaluationView } from '@/views/pages/platform-evaluation';
 import { PlatformKnowledgeView } from '@/views/pages/platform-knowledge';
@@ -30,6 +30,7 @@ import { audit } from '../scripts/fake-gateway/platform-audit.ts';
 import { evaluation } from '../scripts/fake-gateway/platform-evaluation.ts';
 import { knowledge } from '../scripts/fake-gateway/platform-knowledge.ts';
 import { usage } from '../scripts/fake-gateway/platform-usage.ts';
+import { answered } from '../scripts/fake-gateway/envelope.ts';
 
 /**
  * The findings of "Phase 7, I-129 re-review: the Platform destinations after I-151 to I-157" on Evaluation, Usage and
@@ -40,11 +41,11 @@ import { usage } from '../scripts/fake-gateway/platform-usage.ts';
  * (N-4); and a deleted report named on Audit by its raw id (F-23). jsdom lays nothing out, so a line kept whole is the class that keeps it, and a phone card is the cells the
  * managed table marks for one: it draws its dot before every fact but the first, so a card of one fact has none.
  */
-const ADMIN_EVAL = evaluation(true);
-const MEMBER_EVAL = evaluation(false);
-const ADMIN_KNOWLEDGE = knowledge(true, ME.activeTeam);
-const MEMBER_KNOWLEDGE = knowledge(false, MEMBER.activeTeam);
-const ADMIN_USAGE = usage(true);
+const ADMIN_EVAL: Evaluation = answered(evaluation(true));
+const MEMBER_EVAL: Evaluation = answered(evaluation(false));
+const ADMIN_KNOWLEDGE: KnowledgeHealth = answered(knowledge(true, ME.activeTeam));
+const MEMBER_KNOWLEDGE: KnowledgeHealth = answered(knowledge(false, MEMBER.activeTeam));
+const ADMIN_USAGE: Usage = answered(usage(true));
 
 function data<T>(p: Part<T> | null): T {
   if (!p || p.state !== 'ok') throw new Error('not answered');

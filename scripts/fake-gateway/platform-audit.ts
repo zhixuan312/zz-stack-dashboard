@@ -17,6 +17,7 @@
  * with the real route's answer. So nothing here is imported through the console's path alias.
  */
 import type { Audit, AuditRow } from '../../src/lib/fleet-shapes.ts';
+import type { FixtureAnswer } from './envelope.ts';
 import { ago } from './clock.ts';
 import { ME, MEMBER } from './people.ts';
 import { PLATFORM_STATUS } from './platform-status.ts';
@@ -152,7 +153,7 @@ export function audit(q: URLSearchParams, page: { limit: number; offset: number 
     .filter((r) => (kind === null || r.kind === kind) && (team === null || r.team === team) && (before === null || Date.parse(r.at) < Date.parse(before)))
     .slice(0, CEILING);
   const asOf = ago(0);
-  const answer: Audit = {
+  const answer: FixtureAnswer<Audit> = {
     meta: { timezone: PLATFORM_STATUS.meta.timezone, asOf, period: { from: FIRST, to: asOf }, scope: 'platform-admin',
       population: filter === 'all' ? 'recorded events, page views left out' : 'recorded acts of administration', coverageFrom: FIRST },
     filter: filter as Audit['filter'],

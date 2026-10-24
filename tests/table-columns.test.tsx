@@ -17,7 +17,8 @@ vi.mock('@/data/gateway', async (importOriginal) => ({ ...(await importOriginal<
 
 import type { Me } from '@/lib/api-shapes';
 import type { Access, Runs } from '@/lib/destination-shapes';
-import type { People, Teams } from '@/lib/fleet-shapes';
+import type { KnowledgeHealth, People, Teams } from '@/lib/fleet-shapes';
+import type { Bugs, Evaluation, PlatformStatus, Releases } from '@/lib/platform-shapes';
 import type { Approvals } from '@/lib/work-shapes';
 import { APPROVALS_DEFAULTS, approvalsPath } from '@/logic/approvals-context';
 import { AccessView } from '@/views/pages/access';
@@ -45,7 +46,8 @@ import { evaluation } from '../scripts/fake-gateway/platform-evaluation.ts';
 import { knowledge } from '../scripts/fake-gateway/platform-knowledge.ts';
 import { people } from '../scripts/fake-gateway/platform-people.ts';
 import { releaseDetail, releases } from '../scripts/fake-gateway/platform-releases.ts';
-import { PLATFORM_STATUS } from '../scripts/fake-gateway/platform-status.ts';
+import { PLATFORM_STATUS as PLATFORM_STATUS_FIXTURE } from '../scripts/fake-gateway/platform-status.ts';
+import { answered } from '../scripts/fake-gateway/envelope.ts';
 import { teams } from '../scripts/fake-gateway/platform-teams.ts';
 import { access as accessOf } from '../scripts/fake-gateway/work-access.ts';
 import { approvals } from '../scripts/fake-gateway/work-approvals.ts';
@@ -204,6 +206,8 @@ describe('Approvals', () => {
   });
 });
 
+const PLATFORM_STATUS: PlatformStatus = answered(PLATFORM_STATUS_FIXTURE);
+
 describe('Status', () => {
   const draw = () => mount(<PlatformStatusView read={statusRead(PLATFORM_STATUS)} />);
 
@@ -233,7 +237,7 @@ describe('Status', () => {
 describe('Bugs', () => {
   const CAPTION = 'Bug reports, newest filed first';
   const NO_FILTER = { state: null, impact: null, surface: null };
-  const draw = (admin: boolean) => mount(<PlatformBugsView served={{ state: 'ok', path: bugsPath(BUGS_DEFAULTS), data: bugs(admin, NO_FILTER, 10, 0) }} />);
+  const draw = (admin: boolean) => mount(<PlatformBugsView served={{ state: 'ok', path: bugsPath(BUGS_DEFAULTS), data: answered<Bugs>(bugs(admin, NO_FILTER, 10, 0)) }} />);
 
   it.each([['the superadmin', true], ['a member', false]] as const)('as %s gives up the surface and the version under 896px, and the report\'s title names the surface', (_, admin) => {
     draw(admin);
@@ -256,7 +260,7 @@ describe('Bugs', () => {
 
 describe('Evaluation', () => {
   it('each plugin\'s latest score gives up the guardrails under 896px; the protocol is the plugin\'s caption, which its title names', () => {
-    mount(<PlatformEvaluationView read={{ state: 'ok', evaluation: evaluation(true) }} />);
+    mount(<PlatformEvaluationView read={{ state: 'ok', evaluation: answered<Evaluation>(evaluation(true)) }} />);
     const CAPTION = 'Each plugin\'s latest score';
     hidesBelowLg(CAPTION, ['Guardrails']);
     staysAtEveryWidth(CAPTION, ['Plugin', 'Score', 'Standing', 'Scored']);
@@ -267,7 +271,7 @@ describe('Evaluation', () => {
 
 describe('Knowledge health', () => {
   it('the shelves give up the superseded and the searches under 896px, and what stands and what was made name them', () => {
-    mount(<PlatformKnowledgeView read={{ state: 'ok', health: knowledge(true, ME.activeTeam) }} />);
+    mount(<PlatformKnowledgeView read={{ state: 'ok', health: answered<KnowledgeHealth>(knowledge(true, ME.activeTeam)) }} />);
     const CAPTION = 'Each shelf\'s lessons and last week\'s searches';
     hidesBelowLg(CAPTION, ['Superseded', 'Searches last week']);
     staysAtEveryWidth(CAPTION, ['Shelf', 'Standing', 'Made last week', 'No result']);
@@ -302,7 +306,7 @@ describe('People', () => {
 
 describe('Releases', () => {
   it('cuts the summary to the width there is, whole in its title; each row opens its release', () => {
-    const data = releases(10, 0);
+    const data: Releases = answered(releases(10, 0));
     const rows = data.rows.state === 'ok' ? data.rows.data.rows : [];
     mount(<PlatformReleasesView served={{ state: 'ok', path: releasesPath(RELEASES_DEFAULTS), data }} />);
     const CAPTION = 'Releases with what was observed either side of each';

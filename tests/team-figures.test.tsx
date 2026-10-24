@@ -10,6 +10,7 @@ import { formatCount } from '@/lib/format-units';
 import { PlatformTeamView } from '@/views/pages/platform-team';
 import type { TeamRead } from '@/logic/team-context';
 import { teamDetail } from '../scripts/fake-gateway/platform-teams.ts';
+import { answered } from '../scripts/fake-gateway/envelope.ts';
 
 /**
  * A team's page draws the team's own read: the fake gateway's answer for atlas, the one `pnpm verify` serves, as the
@@ -21,7 +22,7 @@ const SUPERADMIN: Me = {
   email: 'ava.lindqvist@example.com', name: 'Ava Lindqvist', role: 'superadmin', mayRead: true, superadmin: true,
   via: 'session', teams: [{ slug: 'atlas', role: 'admin' }], activeTeam: 'atlas',
 };
-const ATLAS = teamDetail('atlas')!;
+const ATLAS: TeamDetail = answered(teamDetail('atlas')!);
 
 type Sent = { method: string; path: string; body: Record<string, unknown> };
 const sent: Sent[] = [];
@@ -140,7 +141,7 @@ describe('the writes, through the routes Settings called', () => {
   });
 
   it('offers no Archive on an archived team, and says how one is restored', () => {
-    const cinder = teamDetail('cinder')!;
+    const cinder: TeamDetail = answered(teamDetail('cinder')!);
     mount({ state: 'ok', data: cinder }, 'cinder');
     const team = card('This team');
     expect(within(team).queryByRole('button', { name: 'Archive' })).toBeNull();

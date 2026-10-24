@@ -31,7 +31,8 @@ import { platformStatusContext, statusRead } from '@/logic/platform-status-conte
  */
 vi.useFakeTimers({ toFake: ['Date'] });
 vi.setSystemTime(new Date('2026-10-19T04:00:00Z'));
-const { MEMBER_STATUS, PLATFORM_STATUS } = await import('../scripts/fake-gateway/platform-status.ts');
+const { MEMBER_STATUS: MEMBER_STATUS_FIXTURE, PLATFORM_STATUS: PLATFORM_STATUS_FIXTURE } = await import('../scripts/fake-gateway/platform-status.ts');
+const { answered } = await import('../scripts/fake-gateway/envelope.ts');
 const { bugs, statusFor } = await import('../scripts/fake-gateway/platform-bugs.ts');
 const { releases } = await import('../scripts/fake-gateway/platform-releases.ts');
 const { homeOf } = await import('../scripts/fake-gateway/work-home.ts');
@@ -61,6 +62,9 @@ function strayDays(f: Finding | null): string[] {
 const consoleWrites = (d: string): boolean =>
   Array.from({ length: 12 }, (_, m) => formatDay(new Date(Date.UTC(2026, m, Number(d.split(' ')[0]), 4)))).includes(d);
 const LATEST = releases(10, 0).tiles.latest!.version;
+const PLATFORM_STATUS: PlatformStatus = answered(PLATFORM_STATUS_FIXTURE);
+const MEMBER_STATUS: PlatformStatus = answered(MEMBER_STATUS_FIXTURE);
+
 const runningData = (s: PlatformStatus) => (s.running.state === 'ok' ? s.running.data : null)!;
 const runningPanel = () => screen.getByRole('heading', { name: 'What is running' }).closest('section, .card') as HTMLElement;
 

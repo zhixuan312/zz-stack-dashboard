@@ -31,7 +31,7 @@ import { SurfaceOverride } from '@/components/base/surface';
 import type { KnowledgeBody, KnowledgeLogEntry, Me } from '@/lib/api-shapes';
 import type { KnowledgeList, KnowledgeSummary } from '@/lib/destination-shapes';
 import { contextText } from '@/lib/shared-context';
-import type { RecordRead } from '@/lib/work-shapes';
+import type { Home, RecordRead } from '@/lib/work-shapes';
 import { CONTEXT_BUDGET } from '@/logic/context';
 import { knowledgeNodeContext } from '@/logic/knowledge-node-context';
 import { MILESTONE } from '@/logic/home-context';
@@ -43,6 +43,7 @@ import { RecordView } from '@/views/pages/record';
 import { recordPath, tilesOf, RECORD_DEFAULTS } from '@/logic/record-context';
 import { ME, MEMBER } from '../scripts/fake-gateway/people.ts';
 import { homeOf } from '../scripts/fake-gateway/work-home.ts';
+import { answered } from '../scripts/fake-gateway/envelope.ts';
 import { KNOWLEDGE_LOG, SHELF, knowledgeList, knowledgeSummary, lesson, logOf } from '../scripts/fake-gateway/work-knowledge.ts';
 import { record } from '../scripts/fake-gateway/work-record.ts';
 import { documentDetail } from '../scripts/fake-gateway/work.ts';
@@ -52,7 +53,7 @@ const TEAM = 'atlas';
 const AT = '2026-10-19T12:00:00Z';
 const answer = <T,>(a: [number, unknown]) => { expect(a[0]).toBe(200); return a[1] as T; };
 const ALL = answer<RecordRead>(record(ME, new URLSearchParams({ period: 'all', limit: '10', offset: '0' })));
-const HOME = homeOf(TEAM, ME.email);
+const HOME: Home = answered(homeOf(TEAM, ME.email));
 const SUMMARY = answer<KnowledgeSummary>(knowledgeSummary(ME));
 const LOG: KnowledgeLogEntry[] = KNOWLEDGE_LOG.filter((e) => e.team === TEAM);
 const LESSON = lesson(TEAM, SHELF.find((n) => n.team === TEAM && n.num === '0002')!.path, TEAM) as KnowledgeBody;
@@ -115,7 +116,7 @@ describe('Home (N-2, N-8, F-40)', () => {
   });
 
   it('counts the member\'s approvals on an axis of whole numbers, never 0.5', async () => {
-    await draw('/', <HomeView read={{ state: 'ok', home: homeOf(TEAM, MEMBER.email), team: TEAM }} />);
+    await draw('/', <HomeView read={{ state: 'ok', home: answered<Home>(homeOf(TEAM, MEMBER.email)), team: TEAM }} />);
     const ticks = [...screen.getByRole('figure', { name: 'Approvals in your name by week' }).querySelectorAll('[data-tick]')].map((t) => t.textContent ?? '');
     expect(ticks.filter(Boolean).length).toBeGreaterThan(1);
     for (const t of ticks) expect(t).toMatch(/^(\d[\d,]*)?$/);

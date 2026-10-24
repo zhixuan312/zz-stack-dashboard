@@ -22,6 +22,7 @@ vi.mock('@/data/gateway', async (importOriginal) => ({ ...(await importOriginal<
 import { app } from '@/app.config';
 import { SurfaceOverride } from '@/components/base/surface';
 import type { Me } from '@/lib/api-shapes';
+import type { Bugs, PlatformStatus, Releases } from '@/lib/platform-shapes';
 import { dayOf, formatDay, formatShortDate } from '@/lib/format-date';
 import { PlatformBugsView } from '@/views/pages/platform-bugs';
 import { PlatformReleaseView } from '@/views/pages/platform-release';
@@ -32,7 +33,8 @@ import { RELEASES_DEFAULTS, clientActionOf, releaseContext, releasesPath, type R
 import { pairOf, statusRead } from '@/logic/platform-status-context';
 import { bugs } from '../scripts/fake-gateway/platform-bugs.ts';
 import { releaseDetail, releases } from '../scripts/fake-gateway/platform-releases.ts';
-import { PLATFORM_STATUS } from '../scripts/fake-gateway/platform-status.ts';
+import { PLATFORM_STATUS as PLATFORM_STATUS_FIXTURE } from '../scripts/fake-gateway/platform-status.ts';
+import { answered } from '../scripts/fake-gateway/envelope.ts';
 
 /**
  * The findings of "Phase 7, I-129 re-review: the Platform destinations after I-151 to I-157" on Status, Releases, a
@@ -69,7 +71,7 @@ beforeEach(() => { gateway.get.mockReset(); browser(); });
 afterEach(() => { vi.unstubAllGlobals(); });
 
 describe('Releases and a release', () => {
-  const LIST = releases(10, 0);
+  const LIST: Releases = answered(releases(10, 0));
   const ROWS = LIST.rows.state === 'ok' ? LIST.rows.data.rows : [];
   const served: ReleasesRead = { state: 'ok', path: releasesPath(RELEASES_DEFAULTS), data: LIST };
   const table = () => tableNamed('Releases with what was observed either side of each');
@@ -142,6 +144,8 @@ describe('Releases and a release', () => {
   });
 });
 
+const PLATFORM_STATUS: PlatformStatus = answered(PLATFORM_STATUS_FIXTURE);
+
 describe('Status', () => {
   const draw = () => mount(<PlatformStatusView read={statusRead(PLATFORM_STATUS)} />);
   const malformed = PLATFORM_STATUS.measures.find((m) => m.key === 'malformed_per_1000')!;
@@ -187,7 +191,7 @@ describe('Status\'s doors', () => {
 });
 
 describe('Bugs', () => {
-  const ADMIN = bugs(true, { state: null, impact: null, surface: null }, 10, 0);
+  const ADMIN: Bugs = answered(bugs(true, { state: null, impact: null, surface: null }, 10, 0));
   const served = { state: 'ok' as const, path: bugsPath(BUGS_DEFAULTS), data: ADMIN };
 
   it('draws the median by week over whole weeks only, so no phone column holds a running week\'s word (F-15)', () => {

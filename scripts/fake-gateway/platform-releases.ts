@@ -18,6 +18,7 @@
  * answered `ok`: an unavailable part has no key set to compare.
  */
 import type { Figure, ReleaseDetail, ReleaseRow, Releases } from '../../src/lib/platform-shapes.ts';
+import type { FixtureAnswer } from './envelope.ts';
 import { ago, now } from './clock.ts';
 import { PLATFORM_STATUS } from './platform-status.ts';
 
@@ -98,7 +99,7 @@ export const RELEASES: ReleaseDetail[] = SEEDS.map((s) => ({
 export const releaseDetail = (version: string): ReleaseDetail | null => RELEASES.find((r) => r.version === version) ?? null;
 
 /** `GET /platform/releases`: the tiles, the weeks and one page of rows, newest first. */
-export function releases(limit: number, offset: number): Releases {
+export function releases(limit: number, offset: number): FixtureAnswer<Releases> {
   const asOf = iso(now());
   const rows = RELEASES.map(({ changelog: _c, upgradeNotes: _u, ...row }): ReleaseRow => row);
   const malformed = PLATFORM_STATUS.measures.find((m) => m.key === 'malformed_per_1000')!;

@@ -14,7 +14,7 @@ vi.mock('@/app.config', async (importOriginal) => ({ ...(await importOriginal<ty
 import { SurfaceOverride } from '@/components/base/surface';
 import { GatewayError } from '@/data/gateway';
 import type { Me } from '@/lib/api-shapes';
-import type { Teams } from '@/lib/fleet-shapes';
+import type { TeamDetail, Teams } from '@/lib/fleet-shapes';
 import { contextText } from '@/lib/shared-context';
 import { CONTEXT_BUDGET } from '@/logic/context';
 import { READ_BOUND_MS } from '@/lib/read-bound';
@@ -26,6 +26,7 @@ import { TEAMS_DEFAULTS, filtersOfPath, teamsPath } from '@/logic/teams-filter';
 import { teamTool } from '@/logic/tools/team';
 import { teamsTool } from '@/logic/tools/teams';
 import { teamDetail, teams } from '../scripts/fake-gateway/platform-teams.ts';
+import { answered, type FixtureAnswer } from '../scripts/fake-gateway/envelope.ts';
 import PlatformTeamsLoading from '../app/(dash)/platform/teams/loading';
 import PlatformTeamsPage, { generateMetadata as teamsMetadata } from '../app/(dash)/platform/teams/page';
 import { readTeam, readTeams } from '../app/(dash)/platform/teams/read-teams';
@@ -49,7 +50,9 @@ const MEMBER: Me = {
 };
 
 const PATH = teamsPath(TEAMS_DEFAULTS);
-const LIST = teams(SUPERADMIN, new URLSearchParams(PATH.split('?')[1]), { limit: 10, offset: 0 })![1] as Teams;
+const LIST: Teams = answered<Teams>(teams(SUPERADMIN, new URLSearchParams(PATH.split('?')[1]), { limit: 10, offset: 0 })![1] as FixtureAnswer<Teams>);
+/** One team's fixture, completed as the answer its page reads. */
+const detail = (slug: string): TeamDetail => answered<TeamDetail>(teamDetail(slug)!);
 const ok: TeamsRead = { state: 'ok', path: PATH, data: LIST };
 const NONE: Teams = { ...LIST, tiles: { teams: 0, openWork: 0, pending: 0, lessons: 0 }, teams: [], total: 0 };
 
@@ -136,7 +139,7 @@ describe('each page draws loading, empty, error and partial', () => {
     const { unmount } = mount(<PlatformTeamView slug="atlas" served={{ state: 'slow' }} />);
     expect(screen.getByRole('alert')).toHaveTextContent('The team is unavailable');
     unmount();
-    const empty = { ...teamDetail('dune')!, members: [], calls: [] };
+    const empty = { ...detail('dune')!, members: [], calls: [] };
     mount(<PlatformTeamView slug="dune" served={{ state: 'ok', data: empty }} />);
     expect(screen.getByText('Nobody is in this team')).toBeInTheDocument();
     expect(screen.getByText('No week recorded yet')).toBeInTheDocument();
@@ -192,13 +195,13 @@ describe('the Ask on each page\'s protagonist', () => {
 
   it('sits in the head of a team\'s calls by week with the assistant on, and is absent with it off', () => {
     browser(null);
-    const { unmount } = mount(<PlatformTeamView slug="atlas" served={{ state: 'ok', data: teamDetail('atlas')! }} />, vi.fn());
+    const { unmount } = mount(<PlatformTeamView slug="atlas" served={{ state: 'ok', data: detail('atlas')! }} />, vi.fn());
     const [button] = screen.getAllByRole('button', { name: /^Ask: / });
     const card = button.closest('[data-protagonist="Calls by week"]')!.querySelector('.card')!;
     expect(card.firstElementChild?.contains(button)).toBe(true);
     expect(card.textContent).toContain('Calls by week');
     unmount();
-    mount(<PlatformTeamView slug="atlas" served={{ state: 'ok', data: teamDetail('atlas')! }} />);
+    mount(<PlatformTeamView slug="atlas" served={{ state: 'ok', data: detail('atlas')! }} />);
     expect(screen.queryByRole('button', { name: /^Ask: / })).toBeNull();
   });
 });
@@ -225,9 +228,9 @@ describe('the first read is the server\'s, and a change is read again in the bro
   });
 
   it('a team: no browser read on mount after the server\'s, one after a hint', async () => {
-    browser(() => [200, teamDetail('atlas')]);
+    browser(() => [200, detail('atlas')]);
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    mount(<PlatformTeamView slug="atlas" served={{ state: 'ok', data: teamDetail('atlas')! }} />, undefined, client);
+    mount(<PlatformTeamView slug="atlas" served={{ state: 'ok', data: detail('atlas')! }} />, undefined, client);
     await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
     expect(reads()).toEqual([]);
     await hint(client);
@@ -271,8 +274,8 @@ describe('the view tools answer the pages\' own responses', () => {
   beforeEach(() => {
     gateway.get.mockImplementation(async (path: string) => {
       if (path === '/me') return SUPERADMIN;
-      if (path.startsWith('/teams?')) return teams(SUPERADMIN, new URLSearchParams(path.split('?')[1]), { limit: 10, offset: 0 })![1];
-      return teamDetail(path.split('/').at(-1)!);
+      if (path.startsWith('/teams?')) return answered<Teams>(teams(SUPERADMIN, new URLSearchParams(path.split('?')[1]), { limit: 10, offset: 0 })![1] as FixtureAnswer<Teams>);
+      return answered<TeamDetail>(teamDetail(path.split('/').at(-1)!)!);
     });
   });
 
@@ -300,8 +303,8 @@ describe('the view tools answer the pages\' own responses', () => {
   it('view_team reads the team\'s page and tells its context', async () => {
     const { data, context } = await teamTool.read({ slug: 'atlas' });
     expect(gateway.get).toHaveBeenCalledWith('/teams/atlas');
-    expect(data).toEqual(teamDetail('atlas'));
-    expect({ ...context, freshness: null }).toEqual({ ...teamContext('atlas', { team: teamDetail('atlas')! }), freshness: null });
+    expect(data).toEqual(detail('atlas'));
+    expect({ ...context, freshness: null }).toEqual({ ...teamContext('atlas', { team: detail('atlas')! }), freshness: null });
     expect(teamTool.page).toBe('/platform/teams/[slug]');
   });
 
@@ -339,7 +342,7 @@ describe('the shared contexts carry what the pages draw, and what it cannot say'
     for (const r of rows.slice(0, named)) expect(text).toContain(`${r.slug} (${r.name})`);
     expect(text).toContain(`and ${rows.length - named} more (see the page)`);
     expect(text).not.toMatch(/\w…/);
-    const atlas = teamDetail('atlas')!;
+    const atlas = detail('atlas')!;
     const weeks = Array.from({ length: 26 }, (_, i) => ({ ...atlas.calls[0], window: { ...atlas.calls[0].window, from: `2026-${String(4 + Math.floor(i / 4)).padStart(2, '0')}-0${(i % 4) + 1}T00:00:00Z` } }));
     const crowd = { ...atlas, calls: [...weeks, atlas.calls.at(-1)!], members: Array.from({ length: 40 }, (_, i) => ({ ...atlas.members[3], email: `person-${i}-${atlas.members[3].email}` })) };
     const told = contextText(teamContext('atlas', { team: crowd }));
@@ -349,7 +352,7 @@ describe('the shared contexts carry what the pages draw, and what it cannot say'
   });
 
   it('a team: its tiles, its calls by week with the running week, and its members', () => {
-    const atlas = teamDetail('atlas')!;
+    const atlas = detail('atlas')!;
     const text = contextText(teamContext('atlas', { team: atlas }));
     expect(text).toContain(`People: ${atlas.tiles.people}`);
     expect(text).toContain(`Waiting: ${atlas.tiles.waiting}`);
@@ -407,8 +410,8 @@ describe('the reads on the console\'s server', () => {
     gateway.get.mockResolvedValueOnce(LIST);
     expect(await readTeams(TEAMS_DEFAULTS)).toEqual(ok);
     expect(gateway.get).toHaveBeenLastCalledWith(PATH);
-    gateway.get.mockResolvedValueOnce(teamDetail('atlas'));
-    expect(await readTeam('atlas')).toEqual({ state: 'ok', data: teamDetail('atlas') });
+    gateway.get.mockResolvedValueOnce(detail('atlas'));
+    expect(await readTeam('atlas')).toEqual({ state: 'ok', data: detail('atlas') });
     expect(gateway.get).toHaveBeenLastCalledWith('/teams/atlas');
   });
 

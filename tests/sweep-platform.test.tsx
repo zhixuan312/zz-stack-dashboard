@@ -23,6 +23,7 @@ vi.mock('next/navigation', () => ({
 
 import { SurfaceOverride } from '@/components/base/surface';
 import type { AuditRow } from '@/lib/fleet-shapes';
+import { answered } from '../scripts/fake-gateway/envelope.ts';
 import type { Bugs, PublicBugRow } from '@/lib/platform-shapes';
 import { contextText } from '@/lib/shared-context';
 import { PlatformBugsView } from '@/views/pages/platform-bugs';
@@ -33,7 +34,7 @@ import { REPORTS, bugs, statusFor } from '../scripts/fake-gateway/platform-bugs.
 import { usage } from '../scripts/fake-gateway/platform-usage.ts';
 
 const NO_FILTER = { state: null, impact: null, surface: null };
-const PUBLIC: Bugs = bugs(false, NO_FILTER, 10, 0);
+const PUBLIC: Bugs = answered(bugs(false, NO_FILTER, 10, 0));
 const rows = (b: Bugs): PublicBugRow[] => (b.queue.state === 'ok' ? b.queue.data.rows : []);
 /** The spec's public title for a canonical surface, written here rather than read from the code under test. */
 const spec = (surface: string | null) => (surface === null ? 'Platform issue reported' : `Report concerning ${surface}`);
@@ -49,7 +50,7 @@ afterEach(() => { vi.unstubAllGlobals(); });
 
 describe('R1-C14: a member reads each bug report by the spec\'s title', () => {
   it('every row of every page the fake answers a member is titled by one of the two forms, and says no impact, state or date', () => {
-    const all = rows(bugs(false, NO_FILTER, 100, 0));
+    const all = rows(answered<Bugs>(bugs(false, NO_FILTER, 100, 0)));
     expect(all.length).toBe(REPORTS.length);
     for (const r of all) {
       expect(r.title).toBe(spec(r.surface));

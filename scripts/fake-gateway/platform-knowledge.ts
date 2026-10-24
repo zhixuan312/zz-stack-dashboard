@@ -16,6 +16,7 @@
  * is `ok`.
  */
 import type { KnowledgeHealth } from '../../src/lib/fleet-shapes.ts';
+import type { FixtureAnswer } from './envelope.ts';
 import type { Figure, PeriodFigure } from '../../src/lib/platform-shapes.ts';
 import { ago } from './clock.ts';
 import { PLATFORM_STATUS } from './platform-status.ts';
@@ -87,7 +88,7 @@ const QUESTIONS = [
  * every shelf by slug, their own marked `own`, and the questions; a member reads their own shelf, the shared shelf and
  * the totals, and no questions.
  */
-export function knowledge(admin: boolean, own: string | null): KnowledgeHealth {
+export function knowledge(admin: boolean, own: string | null): FixtureAnswer<KnowledgeHealth> {
   const asOf = ago(0);
   const row = (s: Shelf, shelf: string, kind: 'own' | 'shared' | 'team' | 'all') => ({
     shelf, kind, standing: s.standing, superseded: s.superseded, imported: s.imported, madeLastWeek: s.madeLastWeek,

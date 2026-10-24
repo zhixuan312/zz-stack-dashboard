@@ -23,6 +23,7 @@
  * with the real route's answer. So nothing here is imported through the console's path alias.
  */
 import type { Me } from '../../src/lib/api-shapes.ts';
+import type { FixtureAnswer } from './envelope.ts';
 import type { Figure, PeriodFigure, Window } from '../../src/lib/platform-shapes.ts';
 import type { RecordRead } from '../../src/lib/work-shapes.ts';
 import { nextStart, now, startOf } from './clock.ts';
@@ -107,7 +108,7 @@ function mostOpen(rows: ReturnType<typeof rowsOf>, from: number, end: number): {
 }
 
 /** The record of `team` over `period`, the caller's approvals those signed in `email`'s name; its table paged. */
-function recordOf(team: string | null, email: string, period: Period, page: { limit: number; offset: number }): RecordRead {
+function recordOf(team: string | null, email: string, period: Period, page: { limit: number; offset: number }): FixtureAnswer<RecordRead> {
   const first = firstRecordOf(team);
   const start = periodStart(period, first);
   const end = now();

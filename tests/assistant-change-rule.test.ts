@@ -18,7 +18,7 @@ vi.mock('next/headers', () => ({ cookies: async () => ({ get: () => undefined })
 import { MockLanguageModelV4 } from 'ai/test';
 import type { Me } from '@/lib/api-shapes';
 import type { Access } from '@/lib/destination-shapes';
-import type { People, Teams } from '@/lib/fleet-shapes';
+import type { People, TeamDetail, Teams } from '@/lib/fleet-shapes';
 import type { Approvals, InitiativeList } from '@/lib/work-shapes';
 import { collections } from '@/data/collections';
 import { gatewayGet } from '@/data/gateway';
@@ -38,6 +38,7 @@ import { teamChanges, teamContext } from '@/logic/team-context';
 import { TEAMS_CHANGES, teamsContext } from '@/logic/teams-context';
 import { viewTools } from '@/logic/tools';
 import { ME, MEMBER } from '../scripts/fake-gateway/people.ts';
+import { answered } from '../scripts/fake-gateway/envelope.ts';
 import { startFakeLlm } from '../scripts/fake-llm.ts';
 import { POST } from '../app/api/assistant/route';
 import { bugReport, duplicates } from '../scripts/fake-gateway/platform-bugs.ts';
@@ -154,7 +155,7 @@ describe('a change only some readers make, as the route tells each of them', () 
 describe('every context of a page with a change says what the person changes there', () => {
   const teamsPage = teams(ME, new URLSearchParams(), { limit: 10, offset: 0 })![1] as Teams;
   const peoplePage = people(ME, new URLSearchParams(), { limit: 10, offset: 0 })![1] as People;
-  const atlas = teamDetail('atlas')!;
+  const atlas: TeamDetail = answered(teamDetail('atlas')!);
   const said = (c: SharedContext) => contextText(c);
 
   it('Access: every change is the person\'s, made on the page', () => {
@@ -195,7 +196,7 @@ describe('every context of a page with a change says what the person changes the
     for (const words of ['/platform/teams/atlas', 'Archive', 'Add member', 'Remove', 'The assistant']) expect(line).toContain(words);
     // An archived team has no Archive: the page says creating its slug again restores it, on Teams.
     const archived = teamChanges('cinder', 'archived');
-    expect(said(teamContext('cinder', { team: teamDetail('cinder')!, ...arrival }))).toContain(archived);
+    expect(said(teamContext('cinder', { team: answered<TeamDetail>(teamDetail('cinder')!), ...arrival }))).toContain(archived);
     expect(archived).not.toMatch(/\bArchive\b/);
     for (const words of ['/platform/teams/cinder', 'Create a team', '/platform/teams', 'Add member', 'Remove']) expect(archived).toContain(words);
   });

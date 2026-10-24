@@ -19,14 +19,15 @@ import { homeContext, type HomeRead } from '@/logic/home-context';
 import { homeTool } from '@/logic/tools/home';
 import { ME, MEMBER } from '../scripts/fake-gateway/people.ts';
 import { homeOf } from '../scripts/fake-gateway/work-home.ts';
+import { answered } from '../scripts/fake-gateway/envelope.ts';
 
 /**
  * What the page and the assistant are both told about Home, from the one response its page reads: the title, the week
  * the cursor points at with both figures, what waits, each open initiative's next move and the coverage of the words,
  * and what `view_home` and `explore_home` answer.
  */
-const ATLAS = homeOf('atlas', ME.email);
-const BEACON = homeOf('beacon', MEMBER.email);
+const ATLAS: Home = answered(homeOf('atlas', ME.email));
+const BEACON: Home = answered(homeOf('beacon', MEMBER.email));
 const ok = (home: Home, team: string | null = 'atlas'): HomeRead => ({ state: 'ok', home, team });
 const fact = (c: ReturnType<typeof homeContext>, label: string) => c.facts.find((f) => f.label === label);
 /** The fixture's weeks move with the day it is run: every date and count here is read off its own answer. */
