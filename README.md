@@ -154,7 +154,7 @@ it is.
 **Sign-in is a passkey**, and a passkey is bound to the RP ID it was registered against, so
 a credential created on the deployed console cannot be replayed from `localhost` — there is
 no flag that changes this, and a tunnel does not help either, because `passkey.ts` pins
-`expectedOrigin` to the gateway's own origin and fails an ngrok or nip.io host one step
+`expectedOrigin` to the gateway's own origin and fails a tunnel host one step
 later.
 
 What works is carrying the session you already have:
