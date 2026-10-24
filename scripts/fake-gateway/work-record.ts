@@ -166,6 +166,10 @@ function recordOf(team: string | null, email: string, period: Period, page: { li
     meta: {
       ...workMeta('caller-in-active-team', `${team}'s team history, and the approvals signed in the caller's name there`),
       period: { from: whole.from, to: asOf }, coverageFrom: first === null ? null : iso(first),
+      // The three that describe the request rather than the figures: Record's route fills them, so the fake
+      // carries them too or the key sets stop matching. A served answer would say cacheHit true and keep the
+      // asOf it was computed at; the fake answers as a miss, which is what a reader who has just written sees.
+      observedAt: iso(now()), revision: null, cacheHit: false,
     },
     period,
     lead: { estimate: estimateOf('retained_stock', RETAINED), asOf },

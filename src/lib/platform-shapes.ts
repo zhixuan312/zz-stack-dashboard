@@ -25,6 +25,20 @@ export type ReadMeta = {
   period: { from: string; to: string };
   scope: 'active-team' | 'caller-in-active-team' | 'platform-public' | 'platform-admin';
   population: string; coverageFrom: string | null;
+
+  /* The four times and the hit, mirroring the gateway's `ReadMeta` field for field. `asOf` is when the
+   * figures were COMPUTED and a served answer keeps it; `observedAt` is when this request obtained its
+   * answer; `builtAt` and `sourceRevision` describe persisted derived data and are null for an answer
+   * computed from rows; `cacheHit` is the cache's own decision — never infer it from the two instants.
+   *
+   * TRANSITIONAL: optional until every gateway route fills them, which is the same moment the gateway's
+   * own declaration stops being optional. A page that reads one must treat `undefined` as "this route has
+   * not been migrated yet" — showing nothing — and never as a value. */
+  observedAt?: string;
+  revision?: string | null;
+  builtAt?: string | null;
+  sourceRevision?: string | null;
+  cacheHit?: boolean;
 };
 export type Part<T> = { state: 'ok'; data: T } | { state: 'unavailable'; reason: string };
 type MeasureKey = 'malformed_per_1000' | 'same_tool_followup_pct' | 'call_p50_ms' | 'call_p95_ms'
