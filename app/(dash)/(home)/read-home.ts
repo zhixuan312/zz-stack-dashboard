@@ -2,8 +2,8 @@ import { redirect } from 'next/navigation';
 import { chromeAccess } from '@/data/access';
 import { GatewayError, gatewayGet } from '@/data/gateway';
 import type { Home } from '@/lib/work-shapes';
-import { READ_BOUND_MS } from '@/views/context';
-import type { HomeRead } from '@/views/home-context';
+import { READ_BOUND_MS } from '@/lib/read-bound';
+import type { HomeRead } from '@/logic/home-context';
 
 /**
  * `GET /home` on the console's server, as the person, given `READ_BOUND_MS`: a read that fails or does not answer by

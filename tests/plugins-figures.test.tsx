@@ -6,7 +6,7 @@ import type { Me, PluginRow } from '@/lib/api-shapes';
 import { formatShortDate } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { PluginsView } from '@/views/pages/plugins';
-import type { Catalog, PluginsRead } from '@/views/plugins-context';
+import type { Catalog, PluginsRead } from '@/logic/plugins-context';
 import { ME, MEMBER } from '../scripts/fake-gateway/people.ts';
 import { plugins } from '../scripts/fake-gateway/work-plugins.ts';
 

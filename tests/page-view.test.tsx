@@ -268,7 +268,7 @@ describe('the shell', () => {
     expect(layout.match(/<PageViews \/>/g)).toHaveLength(1);
     expect(layout.indexOf('<PageViews />')).toBeGreaterThan(layout.indexOf('<AppShell'));
     expect(layout.indexOf('<PageViews />')).toBeLessThan(layout.indexOf('</AppShell>'));
-    expect(source('src/views/no-access.tsx')).toMatch(/<EmptyState\s+kind="no-access"/);
+    expect(source('src/console/no-access.tsx')).toMatch(/<EmptyState\s+kind="no-access"/);
     const recorder = source('src/console/page-view.tsx');
     expect(recorder).not.toMatch(/useSearchParams|document\.title|location/);
   });

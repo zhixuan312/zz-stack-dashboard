@@ -19,7 +19,7 @@ Knowledge's log: every node recorded or retired, newest first, and who wrote it 
 
 ## Agents
 
-The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `knowledgeLogContext` in `src/views/knowledge-log-context.ts`, the same function `view_knowledge_log` calls, so the assistant quotes the figures the screen shows. Ask is in the head of the log's table, Recorded and superseded: what was recorded and superseded most recently, by whom, and what replaced what.
+The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `knowledgeLogContext` in `src/logic/knowledge-log-context.ts`, the same function `view_knowledge_log` calls, so the assistant quotes the figures the screen shows. Ask is in the head of the log's table, Recorded and superseded: what was recorded and superseded most recently, by whom, and what replaced what.
 
 ### What the agent reads
 

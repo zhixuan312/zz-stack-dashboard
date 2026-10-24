@@ -31,7 +31,7 @@ Every real bug report: what is open, how long the oldest has waited, how often r
 
 ## Agents
 
-The assistant reads this page and changes nothing. The page shares its context through `bugsContext` in `src/views/platform-bugs-context.ts`, the same function `view_bugs` calls on the same response, so the assistant quotes the figures the screen shows.
+The assistant reads this page and changes nothing. The page shares its context through `bugsContext` in `src/logic/platform-bugs-context.ts`, the same function `view_bugs` calls on the same response, so the assistant quotes the figures the screen shows.
 
 ### What the agent reads
 
@@ -41,7 +41,7 @@ The four tiles with what each counts, the queue on the page (up to four, each ti
 - The queue, newest first: Report concerning document_approve: blocks work, filed 10 Oct, open; …
 ```
 
-- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `view_bugs` answers the same text from anywhere in the console, and `explore_bugs` (`src/views/bugs-explore.ts`), offered on this page alone, counts the reports filed and resolved over any window, by impact, state, surface or outcome, with reports per 1,000 calls, and drills to each report in the caller's form.
+- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `view_bugs` answers the same text from anywhere in the console, and `explore_bugs` (`src/logic/bugs-explore.ts`), offered on this page alone, counts the reports filed and resolved over any window, by impact, state, surface or outcome, with reports per 1,000 calls, and drills to each report in the caller's form.
 
 ### What the agent does here
 

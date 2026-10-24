@@ -1,6 +1,6 @@
-import { gate } from '@/data/access';
-import { MISSING_METADATA } from '@/views/missing';
-import { MissingPage } from '@/views/no-access';
+import { gate } from '@/console/gate';
+import { MISSING_METADATA } from '@/logic/missing';
+import { MissingPage } from '@/console/no-access';
 
 /** The tab says what it says on a refused address (`gatedMetadata`): "Not found", kept out of search. */
 export const metadata = MISSING_METADATA;

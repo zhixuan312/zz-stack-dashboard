@@ -22,18 +22,18 @@ const gateway = vi.hoisted(() => ({ get: vi.fn() }));
 vi.mock('@/data/gateway', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/data/gateway')>()), gatewayGet: gateway.get }));
 vi.mock('@/data/access', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/data/access')>()),
-  gate: async () => null,
   chromeAccess: async () => ({ only: ['/runs'], user: { name: 'Ava', role: 'Superadmin' }, team: 'atlas', caller: 'ava.lindqvist@example.com' }),
 }));
+vi.mock('@/console/gate', () => ({ gate: async () => null, gatedMetadata: async (_feature: string, metadata: object) => metadata }));
 
 import { refusal } from '@/app.config';
 import { GatewayError } from '@/data/gateway';
 import type { Runs } from '@/lib/destination-shapes';
 import { formatDate } from '@/lib/format-date';
 import { formatKb } from '@/lib/format-units';
-import { READ_BOUND_MS } from '@/views/context';
+import { READ_BOUND_MS } from '@/lib/read-bound';
 import { RunsActions, RunsView } from '@/views/pages/runs';
-import { RUNS_DEFAULTS, filtersOfPath, runsPath, stateCellOf, stateOf, type RunsRead } from '@/views/runs-context';
+import { RUNS_DEFAULTS, filtersOfPath, runsPath, stateCellOf, stateOf, type RunsRead } from '@/logic/runs-context';
 import RunsLoading from '../app/(dash)/runs/loading';
 import RunsPage from '../app/(dash)/runs/page';
 import { readRuns } from '../app/(dash)/runs/read-runs';

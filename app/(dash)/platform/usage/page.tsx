@@ -2,9 +2,9 @@ import { Suspense } from 'react';
 import { app, workspaces } from '@/app.config';
 import { PageFrame } from '@/components/base/shell';
 import { Busy } from '@/components/patterns/page-loading';
-import { gate, gatedMetadata } from '@/data/access';
+import { gate, gatedMetadata } from '@/console/gate';
 import { PlatformUsageView, UsageAsOf, UsageSkeleton } from '@/views/pages/platform-usage';
-import type { UsageRead } from '@/views/platform-usage-context';
+import type { UsageRead } from '@/logic/platform-usage-context';
 import { readUsage } from './read-usage';
 
 export function generateMetadata() { return gatedMetadata('usage', { title: 'Usage' }); }

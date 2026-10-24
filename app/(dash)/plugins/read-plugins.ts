@@ -2,10 +2,10 @@ import { redirect } from 'next/navigation';
 import { GatewayError, answeredAt, gatewayGet, revisionsOf, type Revised } from '@/data/gateway';
 import type { PluginEval, Skill, SkillDetail, SkillText } from '@/lib/api-shapes';
 import type { Evaluation } from '@/lib/platform-shapes';
-import { READ_BOUND_MS } from '@/views/context';
-import { SCORES_PATH, evalPath, historyOf, type EvalRead, type HistoryRead, type PluginRead } from '@/views/plugin-context';
-import { PLUGINS_PATH, type Catalog, type PluginsRead, type Served } from '@/views/plugins-context';
-import { skillDetailPath, skillTextPath, skillsPath, type SkillRead } from '@/views/skill-context';
+import { READ_BOUND_MS } from '@/lib/read-bound';
+import { SCORES_PATH, evalPath, historyOf, type EvalRead, type HistoryRead, type PluginRead } from '@/logic/plugin-context';
+import { PLUGINS_PATH, type Catalog, type PluginsRead, type Served } from '@/logic/plugins-context';
+import { skillDetailPath, skillTextPath, skillsPath, type SkillRead } from '@/logic/skill-context';
 
 const reasonOf = (err: unknown) => (err instanceof Error ? err.message : 'The gateway did not answer the read.');
 

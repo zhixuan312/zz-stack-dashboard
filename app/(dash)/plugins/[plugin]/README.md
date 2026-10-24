@@ -32,7 +32,7 @@ One plugin: how to install it, its public score with whether its scores compare,
 
 ## Agents
 
-The assistant reads this page and changes nothing: every change in this console is made on a page, by the person, and nobody starts an evaluation from the console. The page shares its context through `pluginContext` in `src/views/plugin-context.ts`, and `view_plugin` builds the same context from the same two reads, withholding the evaluation exactly where the gateway does, so the assistant quotes the figures the screen shows. Ask is on its public score: how far that score can be trusted, whether to install the plugin and whether the version it declares is released, or, for a third-party subject with no manifest, on About this plugin: what its evaluation says.
+The assistant reads this page and changes nothing: every change in this console is made on a page, by the person, and nobody starts an evaluation from the console. The page shares its context through `pluginContext` in `src/logic/plugin-context.ts`, and `view_plugin` builds the same context from the same two reads, withholding the evaluation exactly where the gateway does, so the assistant quotes the figures the screen shows. Ask is on its public score: how far that score can be trusted, whether to install the plugin and whether the version it declares is released, or, for a third-party subject with no manifest, on About this plugin: what its evaluation says.
 
 ### What the agent reads
 
@@ -42,7 +42,7 @@ The plugin's skills and gates, its public score with its protocol, date and what
 - Public score: 7.1 of 10 (established), protocol sdlc-flow-quality v2, 15 Oct 2026, between 6.5 and 7.7; Not comparable: a different protocol version. (Its latest score out of 10, and whether its scores compare, as the gateway states both.)
 ```
 
-- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address, and the page text after it for anything the context does not cover. `explore_plugin` (`src/views/plugins-explore.ts`), offered on this page alone, counts this plugin's skill calls, its findings and its established scores over any window, every call held to this plugin.
+- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address, and the page text after it for anything the context does not cover. `explore_plugin` (`src/logic/plugins-explore.ts`), offered on this page alone, counts this plugin's skill calls, its findings and its established scores over any window, every call held to this plugin.
 
 ### What the agent does here
 

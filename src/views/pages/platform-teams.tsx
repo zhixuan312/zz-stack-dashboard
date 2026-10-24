@@ -25,10 +25,10 @@ import { formatDateTime, formatRelative } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
 import { useConsoleMutation } from '@/lib/mutate';
-import { useServed, useServedAddress } from '@/views/use-served';
-import { pendingContext } from '@/views/context';
-import { NO_ACTIVITY, TILES, sessionPoints, teamsContext, teamsTrouble, weekCount, type TeamsRead } from '@/views/teams-context';
-import { TEAMS_DEFAULTS, TEAM_STATUSES, filtersOfPath, narrowed, teamsPath, type TeamsFilters } from '@/views/teams-filter';
+import { useServed, useServedAddress } from '@/logic/use-served';
+import { pendingContext } from '@/logic/context';
+import { NO_ACTIVITY, TILES, sessionPoints, teamsContext, teamsTrouble, weekCount, type TeamsRead } from '@/logic/teams-context';
+import { TEAMS_DEFAULTS, TEAM_STATUSES, filtersOfPath, narrowed, teamsPath, type TeamsFilters } from '@/logic/teams-filter';
 
 /**
  * A team's sessions by week, as a line beside its row: its own past, never set against another team's. Neutral, as

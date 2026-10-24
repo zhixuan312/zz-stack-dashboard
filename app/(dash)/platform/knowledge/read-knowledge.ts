@@ -1,7 +1,7 @@
 import { gatewayGet } from '@/data/gateway';
 import type { KnowledgeHealth } from '@/lib/fleet-shapes';
-import { READ_BOUND_MS } from '@/views/context';
-import type { KnowledgeHealthRead } from '@/views/platform-knowledge-context';
+import { READ_BOUND_MS } from '@/lib/read-bound';
+import type { KnowledgeHealthRead } from '@/logic/platform-knowledge-context';
 
 /**
  * `GET /platform/knowledge` on the console's server, as the person, given `READ_BOUND_MS`: a read that fails

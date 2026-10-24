@@ -13,7 +13,7 @@ import { plural } from '@/lib/format';
 import { formatDate } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { useConsoleMutation } from '@/lib/mutate';
-import { stateOf } from '@/views/access-context';
+import { stateOf } from '@/logic/access-context';
 
 /**
  * The applications the caller authorised, from the Access read: each by its registered name, how many tokens were minted

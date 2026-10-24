@@ -15,11 +15,11 @@ vi.mock('next/headers', () => ({
   headers: async () => new Headers(),
 }));
 vi.mock('next/navigation', () => ({ redirect: (to: string) => { throw new Error(`redirect to ${to}`); } }));
-vi.mock('@/views/no-access', () => ({ NoAccess: async () => null }));
+vi.mock('@/console/no-access', () => ({ NoAccess: async () => null }));
 
-import { gate } from '@/data/access';
+import { gate } from '@/console/gate';
 import { GatewayError, answeredAt, gatewayGet, revisionsOf } from '@/data/gateway';
-import { READ_BOUND_MS } from '@/views/context';
+import { READ_BOUND_MS } from '@/lib/read-bound';
 
 const saved = { ...process.env };
 beforeEach(() => {

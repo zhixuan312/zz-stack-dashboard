@@ -28,7 +28,7 @@ Every run your active team recorded since its first, by the skill that drove it,
 
 ## Agents
 
-The assistant reads this page and changes nothing. The page shares its context through `runsContext` in `src/views/runs-context.ts`, built from the same read and the same words as the cards, and `view_runs` builds the same context from the same response (`GET /runs?skill&limit&offset`), so the assistant quotes the figures the screen shows. Ask is in the By skill card's head: which skill's runs answer the most observed output, or, with a skill chosen, what its runs show.
+The assistant reads this page and changes nothing. The page shares its context through `runsContext` in `src/logic/runs-context.ts`, built from the same read and the same words as the cards, and `view_runs` builds the same context from the same response (`GET /runs?skill&limit&offset`), so the assistant quotes the figures the screen shows. Ask is in the By skill card's head: which skill's runs answer the most observed output, or, with a skill chosen, what its runs show.
 
 ### What the agent reads
 

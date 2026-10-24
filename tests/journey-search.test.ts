@@ -23,9 +23,9 @@ vi.mock('next/headers', () => ({ cookies: async () => ({ get: (name: string) => 
 
 import type { SearchAnswer } from '@/lib/api-shapes';
 import { contextText } from '@/lib/shared-context';
-import { searchPath } from '@/views/knowledge-context';
-import { hitAddress } from '@/views/search-context';
-import { searchTool } from '@/views/tools/search';
+import { searchPath } from '@/logic/knowledge-context';
+import { hitAddress } from '@/logic/search-context';
+import { searchTool } from '@/logic/tools/search';
 import { startFakeLlm } from '../scripts/fake-llm.ts';
 import { citedAddress } from '../scripts/journeys.ts';
 import config from '../scripts/verify.config.ts';

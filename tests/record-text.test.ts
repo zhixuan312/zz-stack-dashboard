@@ -8,7 +8,7 @@ import { recordText } from '@/console/record-text';
 import { formatDate } from '@/lib/format-date';
 import type { RecordRead } from '@/lib/work-shapes';
 import { RecordActions, RecordView } from '@/views/pages/record';
-import { RECORD_DEFAULTS, asOfLine, footOf, leadOf, periodLine, recordPath, summaryLine, tileText, tilesOf } from '@/views/record-context';
+import { RECORD_DEFAULTS, asOfLine, footOf, leadOf, periodLine, recordPath, summaryLine, tileText, tilesOf } from '@/logic/record-context';
 import { ME } from '../scripts/fake-gateway/people.ts';
 import { record } from '../scripts/fake-gateway/work-record.ts';
 

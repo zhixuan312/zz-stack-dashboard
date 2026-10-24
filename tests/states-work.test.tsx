@@ -12,8 +12,8 @@ vi.mock('next/navigation', () => ({
 
 import type { DocumentDetail, InitiativeDetail, KnowledgeBody, KnowledgeLog } from '@/lib/api-shapes';
 import type { KnowledgeSummary } from '@/lib/destination-shapes';
-import type { InitiativeRead } from '@/views/initiative-context';
-import type { ServerRead } from '@/views/knowledge-context';
+import type { InitiativeRead } from '@/logic/initiative-context';
+import type { ServerRead } from '@/logic/knowledge-context';
 import { DocumentView } from '@/views/pages/document';
 import { InitiativeView } from '@/views/pages/initiative';
 import { KnowledgeView } from '@/views/pages/knowledge';

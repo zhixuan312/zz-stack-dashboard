@@ -1,8 +1,8 @@
 import { redirect } from 'next/navigation';
 import { GatewayError, answeredAt, gatewayGet, type Revised } from '@/data/gateway';
 import type { Runs } from '@/lib/destination-shapes';
-import { READ_BOUND_MS } from '@/views/context';
-import { runsPath, skillPagesOf, type RunsFilters, type RunsRead, type SkillPages } from '@/views/runs-context';
+import { READ_BOUND_MS } from '@/lib/read-bound';
+import { runsPath, skillPagesOf, type RunsFilters, type RunsRead, type SkillPages } from '@/logic/runs-context';
 import { readPlugins } from '../plugins/read-plugins';
 
 /**

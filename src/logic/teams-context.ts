@@ -12,7 +12,8 @@ import { plural } from '@/lib/format';
 import { formatDate, formatDateTime, formatDay } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
-import { READ_BOUND_MS, addressOf } from './context';
+import { addressOf } from './context';
+import { READ_BOUND_MS } from '@/lib/read-bound';
 import { rostered } from './platform-roster';
 import { PAGE_SIZE, TEAMS_DEFAULTS, narrowed, pageOf, type TeamsFilters, type TeamsRows } from './teams-filter';
 

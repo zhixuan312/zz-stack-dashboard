@@ -2,8 +2,8 @@ import { redirect } from 'next/navigation';
 import { chromeAccess } from '@/data/access';
 import { GatewayError, gatewayGet } from '@/data/gateway';
 import type { RecordRead } from '@/lib/work-shapes';
-import { READ_BOUND_MS } from '@/views/context';
-import { recordPath, type RecordFilters, type RecordServed } from '@/views/record-context';
+import { READ_BOUND_MS } from '@/lib/read-bound';
+import { recordPath, type RecordFilters, type RecordServed } from '@/logic/record-context';
 
 /**
  * `GET /record` for the address's period and page, on the console's server, as the person, given `READ_BOUND_MS`: a

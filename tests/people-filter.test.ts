@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PEOPLE_DEFAULTS, filtersOf, narrowed, pageAt, peoplePath } from '@/views/people-filter';
+import { PEOPLE_DEFAULTS, filtersOf, narrowed, pageAt, peoplePath } from '@/logic/people-filter';
 
 /**
  * The People list's filters and the one gateway address they are read at: the page's server read, its browser reads,

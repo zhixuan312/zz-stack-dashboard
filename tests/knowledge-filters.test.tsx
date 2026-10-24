@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { knowledgeNodeHref } from '@/lib/knowledge-filters';
-import { knowledgePath, narrowed, searchPath } from '@/views/knowledge-context';
+import { knowledgePath, narrowed, searchPath } from '@/logic/knowledge-context';
 
 // This file lives in `tests/` because vitest.config.ts scans only `tests/**` — a test
 // anywhere else is skipped in silence while the suite still reports success.

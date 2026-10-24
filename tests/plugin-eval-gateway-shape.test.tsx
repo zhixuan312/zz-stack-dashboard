@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { EvalHeadline, EvalHealth } from '@/console/plugin-eval-overview';
 import type { PluginEval } from '@/lib/api-shapes';
-import { pluginContext } from '@/views/plugin-context';
+import { pluginContext } from '@/logic/plugin-context';
 
 /**
  * The plugin evaluation exactly as the gateway's `GET /api/console/plugins/:plugin/eval`

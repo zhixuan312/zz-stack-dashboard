@@ -7,7 +7,7 @@ vi.mock('next/cache', () => ({ cacheTag: () => {}, cacheLife: () => {}, updateTa
 
 import { collections } from '@/data/collections';
 import { exploreSchema, type PreparedQuery } from '@/lib/explore';
-import { viewTools } from '@/views/tools';
+import { viewTools } from '@/logic/tools';
 
 /**
  * Every view tool has its prepared query (FR-38, FR-42, AC-14.1): a test fails a view tool without one. Each query names,

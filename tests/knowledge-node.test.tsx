@@ -21,7 +21,7 @@ vi.mock('next/navigation', () => ({
  */
 import type { KnowledgeBody } from '@/lib/api-shapes';
 import { contextText } from '@/lib/shared-context';
-import { knowledgeNodeContext } from '@/views/knowledge-node-context';
+import { knowledgeNodeContext } from '@/logic/knowledge-node-context';
 import { KnowledgeNodeView } from '@/views/pages/knowledge-node';
 import { INITIATIVES } from '../scripts/fake-gateway/work.ts';
 import { SHARED_TEAM, SHELF, lesson } from '../scripts/fake-gateway/work-knowledge.ts';

@@ -29,7 +29,7 @@ The superadmin's Audit: every recorded act of administration said in one sentenc
 
 ## Agents
 
-The assistant reads this page and changes nothing. The page shares its context through `auditContext` in `src/views/platform-audit-context.ts`, the same function `view_audit` calls on the same response, so the assistant quotes what the screen shows.
+The assistant reads this page and changes nothing. The page shares its context through `auditContext` in `src/logic/platform-audit-context.ts`, the same function `view_audit` calls on the same response, so the assistant quotes what the screen shows.
 
 ### What the agent reads
 
@@ -39,7 +39,7 @@ The tab in force and its filters, how many acts or events it reached (up to the 
 - The acts on this page, newest first: ava.lindqvist@example.com added maximiliana.fitzgerald-oyelaran@example.com to atlas as member in the console (17 Oct 2026, 21:52); …
 ```
 
-- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `view_audit` answers the same response from anywhere in the console, with `filter` `administration` or `all` and the route's own `limit` and `offset`, and `explore_audit` (`src/views/audit-explore.ts`), offered on this page alone, counts the recorded events by kind and team over any window and drills to the events themselves, metadata only.
+- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `view_audit` answers the same response from anywhere in the console, with `filter` `administration` or `all` and the route's own `limit` and `offset`, and `explore_audit` (`src/logic/audit-explore.ts`), offered on this page alone, counts the recorded events by kind and team over any window and drills to the events themselves, metadata only.
 
 ### What the agent does here
 

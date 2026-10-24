@@ -29,8 +29,8 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { may } from '../src/data/access.ts';
 import type { ViewTool, contextText, viewAt } from '../src/lib/shared-context.ts';
-import type { AUDIT_DEFAULTS } from '../src/views/platform-audit-context.ts';
-import type { viewTools } from '../src/views/tools.ts';
+import type { AUDIT_DEFAULTS } from '../src/logic/platform-audit-context';
+import type { viewTools } from '../src/logic/tools';
 import { consoleHooks } from './console-hooks.ts';
 import config from './verify.config.ts';
 
@@ -87,7 +87,7 @@ async function main(): Promise<number> {
   Object.assign(process.env, { ZZ_GATEWAY: gateway, NODE_ENV: 'production', ZZ_DEV_PAT: '' });
   (globalThis as Record<symbol, unknown>)[COOKIE] = cookie.value;
   consoleHooks(ROOT, 'zz-stack.review-context.cookie');
-  const m = Object.assign({}, ...await Promise.all(['views/tools.ts', 'lib/shared-context.ts', 'data/access.ts', 'views/platform-audit-context.ts']
+  const m = Object.assign({}, ...await Promise.all(['logic/tools.ts', 'lib/shared-context.ts', 'data/access.ts', 'logic/platform-audit-context.ts']
     .map((f) => import(pathToFileURL(path.join(SOURCE, f)).href) as Promise<Record<string, unknown>>))) as {
     viewTools: typeof viewTools; viewAt: typeof viewAt; contextText: typeof contextText; may: typeof may; AUDIT_DEFAULTS: typeof AUDIT_DEFAULTS;
   };

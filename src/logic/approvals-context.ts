@@ -19,7 +19,8 @@ import { formatCount } from '@/lib/format-units';
 import { contextText, listed, type Fact, type Insight, type SharedContext } from '@/lib/shared-context';
 import type { ApprovalEvidence, ApprovalRow, Approvals, WaitingRow } from '@/lib/work-shapes';
 import { waited } from '@/console/words';
-import { CONTEXT_BUDGET, READ_BOUND_MS, addressOf, arrived, budgeted, clip, type Arrival } from './context';
+import { CONTEXT_BUDGET, addressOf, arrived, budgeted, clip, type Arrival } from './context';
+import { READ_BOUND_MS } from '@/lib/read-bound';
 
 /** The two lists, in the order the tabs name them; Waiting when none is named, as the route answers. */
 export const APPROVALS_TABS = ['waiting', 'history'] as const;

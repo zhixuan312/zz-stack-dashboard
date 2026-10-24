@@ -31,7 +31,7 @@ The active team's last whole week, what waits on it, and what is open, read on t
 
 ## Agents
 
-The assistant reads this page and changes nothing. The page shares its context through `homeContext` in `src/views/home-context.ts`, built from the same read and the same words as the cards, and `view_home` builds the same context from the same response (`GET /home`), so the assistant quotes the figures the screen shows. Ask is in the head row of the paired Featured metric: about the week the cursor points at, or about last week when it points at none.
+The assistant reads this page and changes nothing. The page shares its context through `homeContext` in `src/logic/home-context.ts`, built from the same read and the same words as the cards, and `view_home` builds the same context from the same response (`GET /home`), so the assistant quotes the figures the screen shows. Ask is in the head row of the paired Featured metric: about the week the cursor points at, or about last week when it points at none.
 
 ### What the agent reads
 

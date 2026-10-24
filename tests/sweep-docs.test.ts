@@ -21,10 +21,10 @@ import { GatewayError } from '@/data/gateway';
 import type { Me } from '@/lib/api-shapes';
 import type { KnowledgeSummary, Runs } from '@/lib/destination-shapes';
 import type { Home, RecordRead } from '@/lib/work-shapes';
-import { MISSING_METADATA } from '@/views/missing';
-import { evalPath, SCORES_PATH } from '@/views/plugin-context';
-import { releasePath } from '@/views/platform-releases-context';
-import { skillDetailPath, skillsPath, skillTextPath } from '@/views/skill-context';
+import { MISSING_METADATA } from '@/logic/missing';
+import { evalPath, SCORES_PATH } from '@/logic/plugin-context';
+import { releasePath } from '@/logic/platform-releases-context';
+import { skillDetailPath, skillsPath, skillTextPath } from '@/logic/skill-context';
 import { localDay } from '../scripts/fake-gateway/clock.ts';
 import { ME, MEMBER } from '../scripts/fake-gateway/people.ts';
 import { pluginEval, skillText } from '../scripts/fake-gateway/platform.ts';
@@ -136,7 +136,7 @@ describe('the read bound is one constant, and the fake\'s slow state is slower t
   it('holds a page read and the status read past each of them', () => {
     const all = bounds();
     // One bound for every read: each page's, the identity read's and the browser's (R2-C44).
-    expect(all.map(([name]) => name)).toEqual(['src/views/context.ts READ_BOUND_MS']);
+    expect(all.map(([name]) => name)).toEqual(['src/lib/read-bound.ts READ_BOUND_MS']);
     for (const [name, ms] of all) {
       expect(SLOW_MS, name).toBeGreaterThan(ms);
     }

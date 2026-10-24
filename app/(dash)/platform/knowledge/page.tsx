@@ -2,9 +2,9 @@ import { Suspense } from 'react';
 import { app, workspaces } from '@/app.config';
 import { PageFrame } from '@/components/base/shell';
 import { Busy } from '@/components/patterns/page-loading';
-import { gate, gatedMetadata } from '@/data/access';
+import { gate, gatedMetadata } from '@/console/gate';
 import { KnowledgeHealthAsOf, KnowledgeHealthSkeleton, PlatformKnowledgeView } from '@/views/pages/platform-knowledge';
-import type { KnowledgeHealthRead } from '@/views/platform-knowledge-context';
+import type { KnowledgeHealthRead } from '@/logic/platform-knowledge-context';
 import { readKnowledgeHealth } from './read-knowledge';
 
 export function generateMetadata() { return gatedMetadata('knowledge-health', { title: 'Knowledge health' }); }

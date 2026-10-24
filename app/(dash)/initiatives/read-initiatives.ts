@@ -3,10 +3,10 @@ import { chromeAccess } from '@/data/access';
 import { GatewayError, answeredAt, gatewayGet, type Revised } from '@/data/gateway';
 import type { InitiativeDetail } from '@/lib/api-shapes';
 import type { InitiativeList } from '@/lib/work-shapes';
-import { READ_BOUND_MS } from '@/views/context';
-import type { InitiativeRead } from '@/views/initiative-context';
-import { shownList, type InitiativesRead } from '@/views/initiatives-context';
-import { listPath, type InitiativesFilters } from '@/views/initiatives-filter';
+import { READ_BOUND_MS } from '@/lib/read-bound';
+import type { InitiativeRead } from '@/logic/initiative-context';
+import { shownList, type InitiativesRead } from '@/logic/initiatives-context';
+import { listPath, type InitiativesFilters } from '@/logic/initiatives-filter';
 
 /** `read`, or `slow` once `READ_BOUND_MS` has passed without an answer. Neither this nor `read` rejects. */
 async function bounded<R>(read: Promise<R>, slow: R): Promise<R> {

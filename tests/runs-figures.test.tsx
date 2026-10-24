@@ -24,7 +24,7 @@ vi.mock('next/navigation', () => ({
  */
 import type { RunRow, Runs } from '@/lib/destination-shapes';
 import { RunsView } from '@/views/pages/runs';
-import { RUNS_DEFAULTS, runsPath } from '@/views/runs-context';
+import { RUNS_DEFAULTS, runsPath } from '@/logic/runs-context';
 
 const META = { asOf: '2026-10-15T00:00:00Z', timezone: 'UTC', period: { from: '2026-09-07T00:00:00Z', to: '2026-10-15T00:00:00Z' }, scope: 'active-team' as const, population: 'atlas', coverageFrom: null };
 const LARGEST: RunRow = {

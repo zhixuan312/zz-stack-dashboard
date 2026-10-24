@@ -41,7 +41,7 @@ One document, read: the text, how it changed and on what evidence, and the claim
 
 ## Agents
 
-The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `documentContext` in `src/views/document-context.ts`, the same function `view_document` calls, so the assistant quotes the figures the screen shows. Ask is on the Document card: what it commits the team to and what to check before approving, or what it says in a few lines.
+The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `documentContext` in `src/logic/document-context.ts`, the same function `view_document` calls, so the assistant quotes the figures the screen shows. Ask is on the Document card: what it commits the team to and what to check before approving, or what it says in a few lines.
 
 ### What the agent reads
 

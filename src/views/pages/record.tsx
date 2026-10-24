@@ -38,10 +38,10 @@ import {
   FIRST, LEAD, PAGE_SIZE, PERIOD_OPTIONS, RECORD_DEFAULTS, REVISION, SLICES, asOfLine, asOfWords, coverageLine, filtersOfPath, footOf,
   formatHours, formatShare, grainWords, hourTick, leadOf, periodLine, periodOf, recordContext, recordPath, recordTrouble, summaryLine, tickOf,
   tilesOf, type RecordFilters, type RecordPeriod, type RecordServed, type SliceKey, type Tile,
-} from '@/views/record-context';
-import { LESSONS_MADE, NO_DATA } from '@/views/record-names';
-import { useServed, useServedAddress } from '@/views/use-served';
-import { OUTCOME_PARTS } from '@/views/outcome-parts';
+} from '@/logic/record-context';
+import { LESSONS_MADE, NO_DATA } from '@/logic/record-names';
+import { useServed, useServedAddress } from '@/logic/use-served';
+import { OUTCOME_PARTS } from '@/logic/outcome-parts';
 
 /**
  * The page's read: the one the console's server made for this address, so the first paint carries the record and the

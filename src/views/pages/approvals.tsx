@@ -28,9 +28,9 @@ import type { ApprovalRow, Approvals, WaitingRow } from '@/lib/work-shapes';
 import {
   APPROVALS_DEFAULTS, DECISION_BASIS, IN_YOUR_NAME, PAGE_SIZE, PRESENTATION, TEAM_APPROVALS, TILES, approvalsAddress, approvalsContext, approvedHref,
   approvalsPath, approvalsTrouble, approvedWhen, dayOnly, filtersOfPath, noPresentationLine, noPresentationNote, pageOf, tabOf, type ApprovalsRead, type ApprovalsTab,
-} from '@/views/approvals-context';
-import { pendingContext } from '@/views/context';
-import { useServed, useServedAddress } from '@/views/use-served';
+} from '@/logic/approvals-context';
+import { pendingContext } from '@/logic/context';
+import { useServed, useServedAddress } from '@/logic/use-served';
 
 /**
  * The page's read: the one the console's server made for this address, so the first paint carries the rows and the

@@ -3,7 +3,7 @@ import { Suspense } from 'react';
 import { app, workspaces } from '@/app.config';
 import { PageFrame } from '@/components/base/shell';
 import { Busy, ChartSkeleton, TableSkeleton, TilesSkeleton } from '@/components/patterns/page-loading';
-import { gate, gatedMetadata } from '@/data/access';
+import { gate, gatedMetadata } from '@/console/gate';
 import { PlatformTeamView } from '@/views/pages/platform-team';
 import { readTeam } from '../read-teams';
 

@@ -14,7 +14,8 @@ import type { Fact, Insight, SharedContext } from '@/lib/shared-context';
 import { encodePath } from '@/lib/store-path';
 import type { Figure, PeriodFigure, ReadMeta, Window } from '@/lib/platform-shapes';
 import type { Home, InitiativeRow, WritingCoverage } from '@/lib/work-shapes';
-import { READ_BOUND_MS, budgeted, clip, pendingContext } from './context';
+import { budgeted, clip, pendingContext } from './context';
+import { READ_BOUND_MS } from '@/lib/read-bound';
 import { nextOf } from './initiatives-context';
 import { LESSONS_MADE, gapsOf } from './record-names';
 

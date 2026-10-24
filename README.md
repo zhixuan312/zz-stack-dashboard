@@ -289,8 +289,8 @@ What it reads:
 - **The records.** One prepared collection per measure of the gateway's prepared queries
   (`src/data/prepared.ts`), read as the person asking; the page the person is on offers its
   prepared query, `explore_<view>`, which counts, groups and compares them.
-- **Another view.** One `view_<name>` tool per page, each a module under `src/views/tools/`
-  listed in `src/views/tools.ts`, which opens that view at an address and returns the same
+- **Another view.** One `view_<name>` tool per page, each a module under `src/logic/tools/`
+  listed in `src/logic/tools.ts`, which opens that view at an address and returns the same
   context the page would share, and declares the page and the prepared query it offers.
 - **What documents say.** `view_search` is the platform's own ranked search, run as the
   person: the text of every document and knowledge node they may read, each result a

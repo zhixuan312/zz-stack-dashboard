@@ -3,7 +3,7 @@ import { GatewayError, answeredAt, gatewayGet } from '@/data/gateway';
 import type { DocumentDetail } from '@/lib/api-shapes';
 import type { Revisions } from '@/lib/live';
 import { encodePath } from '@/lib/store-path';
-import { READ_BOUND_MS } from '@/views/context';
+import { READ_BOUND_MS } from '@/lib/read-bound';
 
 /**
  * The document route's own read, on the console's server: the answer with the moment it answered, which the page's

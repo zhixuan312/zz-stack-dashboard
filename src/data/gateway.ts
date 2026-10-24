@@ -16,7 +16,7 @@
  */
 import { cookies } from 'next/headers';
 import type { Revisions } from '@/lib/live';
-import { READ_BOUND_MS } from '@/views/context';
+import { READ_BOUND_MS } from '@/lib/read-bound';
 
 /** The gateway's own name for the console session (`CONSOLE_COOKIE` in services/gateway/src/identity.ts). */
 const SESSION_COOKIE = 'zz_console';

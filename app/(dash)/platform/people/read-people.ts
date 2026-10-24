@@ -1,8 +1,8 @@
 import { answeredAt, gatewayGet, type Revised } from '@/data/gateway';
 import type { People } from '@/lib/fleet-shapes';
-import { READ_BOUND_MS } from '@/views/context';
-import type { PeopleRead, PeopleShown } from '@/views/people-context';
-import { peoplePath, type PeopleFilters } from '@/views/people-filter';
+import { READ_BOUND_MS } from '@/lib/read-bound';
+import type { PeopleRead, PeopleShown } from '@/logic/people-context';
+import { peoplePath, type PeopleFilters } from '@/logic/people-filter';
 
 const reasonOf = (err: unknown) => (err instanceof Error ? err.message : 'The gateway did not answer.');
 

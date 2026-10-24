@@ -12,7 +12,7 @@ import { FormSection } from '@/components/patterns/form-section';
 import { Panel } from '@/console/panel';
 import { FEATURES, type FeatureId } from '@/data/features';
 import { viewAt, type SharedContext } from '@/lib/shared-context';
-import { viewTools } from '@/views/tools';
+import { viewTools } from '@/logic/tools';
 import config from '../scripts/verify.config.ts';
 
 /**
@@ -33,7 +33,8 @@ import config from '../scripts/verify.config.ts';
  * here as the superadmin, who may open every page. A dynamic page is opened at the first of verify's `detailRoutes`
  * its route matches, so a new detail page needs an address there before it can be held to this.
  */
-vi.mock('@/data/access', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/data/access')>()), gate: async () => null }));
+vi.mock('@/data/access', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/data/access')>()) }));
+vi.mock('@/console/gate', () => ({ gate: async () => null, gatedMetadata: async (_feature: string, metadata: object) => metadata }));
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const DASH = path.join(ROOT, 'app/(dash)');

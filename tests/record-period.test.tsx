@@ -47,7 +47,7 @@ vi.mock('next/navigation', () => ({
 import { recordText } from '@/console/record-text';
 import type { RecordRead } from '@/lib/work-shapes';
 import { RecordActions, RecordView } from '@/views/pages/record';
-import { filtersOf, periodLine, recordPath, type RecordServed } from '@/views/record-context';
+import { filtersOf, periodLine, recordPath, type RecordServed } from '@/logic/record-context';
 import { ME } from '../scripts/fake-gateway/people.ts';
 import { record } from '../scripts/fake-gateway/work-record.ts';
 

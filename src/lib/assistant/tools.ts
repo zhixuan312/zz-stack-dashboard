@@ -132,7 +132,7 @@ export function assistantTools(collections: AnyCollection[], writer: UIMessageSt
     /** The rows for `ids` in the order asked, or the ids the collection does not have. */
     const find = async (asked: string[]): Promise<{ rows: Row[] } | { missing: string[] }> => {
       const ids = [...new Set(asked)];
-      const { rows } = await c.query({ where: [{ field: c.key, op: 'in', value: ids }] });
+      const { rows } = await c.query({ where: [{ field: c.key, op: 'in', value: ids }] }); // allow-no-direct-query: the proposal path reads the rows a write would change, uncached, to show the person the difference before anything is written
       const byId = new Map<string, Row>(rows.map((r: Row) => [String(r[c.key]), r]));
       const missing = ids.filter((id) => !byId.has(id));
       return missing.length ? { missing } : { rows: ids.map((id) => byId.get(id)!) };

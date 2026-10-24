@@ -1,10 +1,11 @@
-import { gate, may } from '@/data/access';
+import { may } from '@/data/access';
+import { gate } from '@/console/gate';
 import { FEATURES } from '@/data/features';
 import { decodePath } from '@/lib/store-path';
-import { readDocument } from '@/views/document-read';
-import { versionOf } from '@/views/document-version';
-import { MISSING_METADATA } from '@/views/missing';
-import { MissingPage } from '@/views/no-access';
+import { readDocument } from '@/logic/document-read';
+import { versionOf } from '@/logic/document-version';
+import { MISSING_METADATA } from '@/logic/missing';
+import { MissingPage } from '@/console/no-access';
 import { DocumentView } from '@/views/pages/document';
 
 type Params = { params: Promise<{ team: string; slug: string; path: string[] }> };

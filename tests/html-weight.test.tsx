@@ -4,8 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const gateway = vi.hoisted(() => ({ get: vi.fn() }));
 vi.mock('@/data/gateway', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/data/gateway')>()), gatewayGet: gateway.get }));
 
-import { INITIATIVES_DEFAULTS, listPath } from '@/views/initiatives-filter';
-import { PEOPLE_DEFAULTS, peoplePath } from '@/views/people-filter';
+import { INITIATIVES_DEFAULTS, listPath } from '@/logic/initiatives-filter';
+import { PEOPLE_DEFAULTS, peoplePath } from '@/logic/people-filter';
 import { ME } from '../scripts/fake-gateway/people.ts';
 import { people } from '../scripts/fake-gateway/platform-people.ts';
 import { initiativeList } from '../scripts/fake-gateway/work-initiatives.ts';

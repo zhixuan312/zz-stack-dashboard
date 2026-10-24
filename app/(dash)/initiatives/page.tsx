@@ -1,9 +1,9 @@
 import { Suspense } from 'react';
 import { app, workspaces } from '@/app.config';
 import { PageFrame } from '@/components/base/shell';
-import { gate, gatedMetadata } from '@/data/access';
-import type { InitiativesRead } from '@/views/initiatives-context';
-import { filtersOf } from '@/views/initiatives-filter';
+import { gate, gatedMetadata } from '@/console/gate';
+import type { InitiativesRead } from '@/logic/initiatives-context';
+import { filtersOf } from '@/logic/initiatives-filter';
 import { InitiativesAsOf, InitiativesBusy, InitiativesView } from '@/views/pages/initiatives';
 import { handed, readInitiatives } from './read-initiatives';
 

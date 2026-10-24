@@ -27,9 +27,9 @@ import { useLive } from '@/lib/live';
 import {
   AGENT_CALL, NO_FILTER, OWNER_LABEL, PAGE_SIZE, REFUSAL_PARTS, TILES, activityContext, activityPath, activityTrouble, fourOwners,
   narrowed, weekOf, type ActivityRead,
-} from '@/views/activity-context';
-import { pendingContext } from '@/views/context';
-import { useServed } from '@/views/use-served';
+} from '@/logic/activity-context';
+import { pendingContext } from '@/logic/context';
+import { useServed } from '@/logic/use-served';
 
 /** The protagonist's title: the card the page's Ask sits on. COUPLED: the README's `Protagonist:`. */
 const REFUSALS_TITLE = 'Refusals';

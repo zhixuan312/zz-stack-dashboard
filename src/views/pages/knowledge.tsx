@@ -33,8 +33,8 @@ import { useLive } from '@/lib/live';
 import type { PeriodFigure } from '@/lib/platform-shapes';
 import {
   KNOWLEDGE_KINDS, PAGE_SIZE, knowledgeContext, knowledgePath, narrowed, searchPath, starterOf, statusWord, troubleOf, type ServerRead,
-} from '@/views/knowledge-context';
-import { hitAddress } from '@/views/search-context';
+} from '@/logic/knowledge-context';
+import { hitAddress } from '@/logic/search-context';
 
 // The chart arrives after the page's first paint, in a room of its own height: the figures it is drawn from are in the
 // page's HTML either way, and loaded with the page it was 9 KiB of the route's first-load JS, which put `/knowledge` at

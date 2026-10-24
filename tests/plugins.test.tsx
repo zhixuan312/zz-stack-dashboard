@@ -21,9 +21,8 @@ vi.mock('@/data/gateway', async (importOriginal) => ({ ...(await importOriginal<
 const access = vi.hoisted(() => ({ denied: null as ReactElement | null }));
 vi.mock('@/data/access', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/data/access')>()),
-  gate: async () => access.denied,
-  gatedMetadata: async (_feature: string, metadata: object) => metadata,
 }));
+vi.mock('@/console/gate', () => ({ gate: async () => access.denied, gatedMetadata: async (_feature: string, metadata: object) => metadata }));
 
 import PluginsLoading from '../app/(dash)/plugins/loading';
 import PluginsPage from '../app/(dash)/plugins/page';
@@ -34,9 +33,9 @@ import type { Me, PluginEval, PluginRow, Skill, SkillDetail, SkillText } from '@
 import { PluginView } from '@/views/pages/plugin';
 import { PluginsView } from '@/views/pages/plugins';
 import { SkillView } from '@/views/pages/skill';
-import type { EvalRead, PluginRead } from '@/views/plugin-context';
-import { filtersOf, type Catalog, type PluginsRead } from '@/views/plugins-context';
-import type { SkillRead } from '@/views/skill-context';
+import type { EvalRead, PluginRead } from '@/logic/plugin-context';
+import { filtersOf, type Catalog, type PluginsRead } from '@/logic/plugins-context';
+import type { SkillRead } from '@/logic/skill-context';
 import { ME, MEMBER } from '../scripts/fake-gateway/people.ts';
 import { pluginEval, skillText } from '../scripts/fake-gateway/platform.ts';
 import { plugins, skillDetail, skills } from '../scripts/fake-gateway/work-plugins.ts';

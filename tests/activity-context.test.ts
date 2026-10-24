@@ -18,9 +18,9 @@ import { PREPARED } from '@/data/prepared';
 import type { ActivityLog, ActivitySummary, RefusalGroup } from '@/lib/destination-shapes';
 import { formatDay } from '@/lib/format-date';
 import { contextText } from '@/lib/shared-context';
-import { NO_FILTER, activityContext, weekOf, type ActivityRead } from '@/views/activity-context';
+import { NO_FILTER, activityContext, weekOf, type ActivityRead } from '@/logic/activity-context';
 import { ActivityView } from '@/views/pages/activity';
-import { activityTool } from '@/views/tools/activity';
+import { activityTool } from '@/logic/tools/activity';
 import { ME } from '../scripts/fake-gateway/people.ts';
 import { activityLog, activitySummary } from '../scripts/fake-gateway/work-activity.ts';
 

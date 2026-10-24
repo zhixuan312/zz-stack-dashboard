@@ -24,7 +24,7 @@ vi.mock('next/headers', () => ({
   headers: async () => new Headers(),
 }));
 /** The refused view is an async Server Component, and the chrome never draws it. */
-vi.mock('@/views/no-access', () => ({ NoAccess: async () => null }));
+vi.mock('@/console/no-access', () => ({ NoAccess: async () => null }));
 
 import { openCommand } from '@/components/patterns/command-palette';
 import { chromeAccess } from '@/data/access';
@@ -303,7 +303,8 @@ describe('the shell decides nothing in the browser', () => {
   });
 
   it('has no browser gate and no rail built from `/me`', () => {
-    expect(fs.existsSync(path.join(ROOT, 'src/console/gate.tsx'))).toBe(false);
+    // The gate is the server's: every page awaits it, and the module itself carries no `'use client'`.
+    expect(source('src/console/gate.tsx')).not.toMatch(/^['"]use client['"]/m);
     const layout = source('app/(dash)/layout.tsx');
     expect(layout).not.toMatch(/ConsoleGate|useConsole|'\/me'/);
     const frame = source('src/console/frame.tsx');

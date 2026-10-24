@@ -11,10 +11,10 @@ import type { Access } from '@/lib/destination-shapes';
 import { runExplore, type ExploreRights } from '@/lib/explore';
 import { dayOf } from '@/lib/format-date';
 import { contextText, viewAt } from '@/lib/shared-context';
-import { accessAnswer, accessContext } from '@/views/access-context';
-import { CONTEXT_BUDGET } from '@/views/context';
-import { viewTools } from '@/views/tools';
-import { accessTool } from '@/views/tools/access';
+import { accessAnswer, accessContext } from '@/logic/access-context';
+import { CONTEXT_BUDGET } from '@/logic/context';
+import { viewTools } from '@/logic/tools';
+import { accessTool } from '@/logic/tools/access';
 import { access as accessOf } from '../scripts/fake-gateway/work-access.ts';
 import { ME, MEMBER } from '../scripts/fake-gateway/people.ts';
 

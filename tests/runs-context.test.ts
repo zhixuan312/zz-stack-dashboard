@@ -27,11 +27,11 @@ import { FEATURES } from '@/data/features';
 import { PREPARED } from '@/data/prepared';
 import type { Runs } from '@/lib/destination-shapes';
 import { contextText, type SharedContext } from '@/lib/shared-context';
-import { CONTEXT_BUDGET } from '@/views/context';
+import { CONTEXT_BUDGET } from '@/logic/context';
 import { RunsActions, RunsView } from '@/views/pages/runs';
-import { RUNS_DEFAULTS, TILES, runsContext, runsPath, stateOf, type RunsRead } from '@/views/runs-context';
-import { runsTool } from '@/views/tools/runs';
-import { justRead } from '@/views/tools/shared';
+import { RUNS_DEFAULTS, TILES, runsContext, runsPath, stateOf, type RunsRead } from '@/logic/runs-context';
+import { runsTool } from '@/logic/tools/runs';
+import { justRead } from '@/logic/tools/shared';
 import { ME } from '../scripts/fake-gateway/people.ts';
 import { runs } from '../scripts/fake-gateway/work-runs.ts';
 

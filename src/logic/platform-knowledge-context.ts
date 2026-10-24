@@ -14,7 +14,8 @@ import { formatDateTime, formatDay } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import type { Figure, PeriodFigure, Window } from '@/lib/platform-shapes';
 import { listed, type Fact, type SharedContext } from '@/lib/shared-context';
-import { READ_BOUND_MS, clip, pendingContext, sectioned, type Section } from './context';
+import { clip, pendingContext, sectioned, type Section } from './context';
+import { READ_BOUND_MS } from '@/lib/read-bound';
 import { changeOf, lastWhole, pointsIn, pointsOf } from './week-change';
 
 /** What the page's one read came back as: the whole response, the gateway's sentence, or no answer within the bound. */

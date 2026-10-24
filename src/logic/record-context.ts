@@ -20,7 +20,8 @@ import { grainOf } from '@/lib/grain';
 import { listed, type Fact, type SharedContext } from '@/lib/shared-context';
 import type { Figure, PeriodFigure, Window } from '@/lib/platform-shapes';
 import type { RecordRead, WritingCoverage } from '@/lib/work-shapes';
-import { READ_BOUND_MS, addressOf, clip, pendingContext, sectioned, type Section } from './context';
+import { addressOf, clip, pendingContext, sectioned, type Section } from './context';
+import { READ_BOUND_MS } from '@/lib/read-bound';
 import { LESSONS_MADE, NO_DATA, gapsOf } from './record-names';
 
 /** The periods the route takes, in the order the control offers them; all of the record when none is named. */

@@ -27,7 +27,7 @@ One release: its published changelog with its upgrade notes, what clients must d
 
 ## Agents
 
-The assistant reads this page and changes nothing. The page shares its context through `releaseContext` in `src/views/platform-releases-context.ts`, the same function `view_release` calls on the same response, so the assistant quotes what the screen shows.
+The assistant reads this page and changes nothing. The page shares its context through `releaseContext` in `src/logic/platform-releases-context.ts`, the same function `view_release` calls on the same response, so the assistant quotes what the screen shows.
 
 ### What the agent reads
 
@@ -37,7 +37,7 @@ When the release's tag was made, the console it shipped with, its client action,
 - After: 3.3 malformed per 1,000 (610 calls, 2 malformed, 0 tool failures, p95 1,620 ms; partial, Observed 20 of 72 hours so far: 16 Oct 2026, 15:00 to 17 Oct 2026, 11:00)
 ```
 
-- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address, and the page text after it for anything the context does not cover. `view_release` answers the same text from anywhere in the console, and `explore_release` (`src/views/releases-explore.ts`), offered on this page alone, asks what Releases' prepared query asks: the route has no dimension of a release's version, so nothing in it is held to this release.
+- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address, and the page text after it for anything the context does not cover. `view_release` answers the same text from anywhere in the console, and `explore_release` (`src/logic/releases-explore.ts`), offered on this page alone, asks what Releases' prepared query asks: the route has no dimension of a release's version, so nothing in it is held to this release.
 
 ### What the agent does here
 

@@ -3,9 +3,9 @@ import { app, workspaces } from '@/app.config';
 import { PageFrame } from '@/components/base/shell';
 import { Busy } from '@/components/patterns/page-loading';
 import { RecordsSkeleton } from '@/components/templates/records';
-import { gate, gatedMetadata } from '@/data/access';
+import { gate, gatedMetadata } from '@/console/gate';
 import { PluginsView } from '@/views/pages/plugins';
-import { filtersOf, type PluginsFilters, type PluginsRead } from '@/views/plugins-context';
+import { filtersOf, type PluginsFilters, type PluginsRead } from '@/logic/plugins-context';
 import { readPlugins } from './read-plugins';
 
 export function generateMetadata() { return gatedMetadata('plugins', { title: 'Plugins' }); }

@@ -2,9 +2,9 @@ import { Suspense } from 'react';
 import { app, workspaces } from '@/app.config';
 import { PageFrame } from '@/components/base/shell';
 import { Busy } from '@/components/patterns/page-loading';
-import { gate, gatedMetadata } from '@/data/access';
+import { gate, gatedMetadata } from '@/console/gate';
 import { EvaluationAsOf, EvaluationSkeleton, PlatformEvaluationView } from '@/views/pages/platform-evaluation';
-import type { EvaluationRead } from '@/views/platform-evaluation-context';
+import type { EvaluationRead } from '@/logic/platform-evaluation-context';
 import { readEvaluation } from './read-evaluation';
 
 export function generateMetadata() { return gatedMetadata('evaluation', { title: 'Evaluation' }); }

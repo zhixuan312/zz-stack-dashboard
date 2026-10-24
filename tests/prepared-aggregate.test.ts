@@ -25,7 +25,7 @@ import { aggregate, read } from '@/data/read';
 import type { AggregateQuery } from '@/lib/collection';
 import { runExplore, type PreparedQuery, type Source } from '@/lib/explore';
 import { dayOf } from '@/lib/format-date';
-import { viewTools } from '@/views/tools';
+import { viewTools } from '@/logic/tools';
 import { signedIn } from '../scripts/fake-gateway/people.ts';
 import { platformQuery } from '../scripts/fake-gateway/platform-query.ts';
 import { access } from '../scripts/fake-gateway/work-access.ts';

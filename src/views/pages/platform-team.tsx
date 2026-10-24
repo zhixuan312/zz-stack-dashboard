@@ -31,9 +31,9 @@ import { formatDate, formatDateTime, formatDay, formatShortDate } from '@/lib/fo
 import { formatCount } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
 import { useConsoleMutation } from '@/lib/mutate';
-import { useServed } from '@/views/use-served';
-import { pendingContext } from '@/views/context';
-import { TEAM_TILES, callsUnavailable, teamContext, teamTrouble, type TeamRead } from '@/views/team-context';
+import { useServed } from '@/logic/use-served';
+import { pendingContext } from '@/logic/context';
+import { TEAM_TILES, callsUnavailable, teamContext, teamTrouble, type TeamRead } from '@/logic/team-context';
 
 type Member = TeamDetail['members'][number];
 type Done = { ok: true; result: string };

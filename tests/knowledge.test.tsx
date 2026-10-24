@@ -26,7 +26,7 @@ vi.mock('next/navigation', () => ({
 import type { KnowledgeBody, SearchAnswer, SearchHit } from '@/lib/api-shapes';
 import type { KnowledgeList, KnowledgeRow, KnowledgeSummary } from '@/lib/destination-shapes';
 import type { PeriodFigure } from '@/lib/platform-shapes';
-import type { ServerRead } from '@/views/knowledge-context';
+import type { ServerRead } from '@/logic/knowledge-context';
 import { KnowledgeView, SEARCH_TITLE } from '@/views/pages/knowledge';
 import { KnowledgeLogView } from '@/views/pages/knowledge-log';
 import { KnowledgeNodeView } from '@/views/pages/knowledge-node';

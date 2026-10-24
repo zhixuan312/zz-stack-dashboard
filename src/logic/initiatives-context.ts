@@ -12,7 +12,8 @@ import { grainOf, type Grain } from '@/lib/grain';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
 import type { Figure, Part, ReadMeta, Window } from '@/lib/platform-shapes';
 import type { InitiativeList, InitiativeRow } from '@/lib/work-shapes';
-import { READ_BOUND_MS, addressOf, arrived, budgeted, clip, type Arrival } from './context';
+import { addressOf, arrived, budgeted, clip, type Arrival } from './context';
+import { READ_BOUND_MS } from '@/lib/read-bound';
 import { INITIATIVES_DEFAULTS, LIST_STATES, PAGE_SIZE, STATE_LABEL, narrowed, type InitiativesFilters, type InitiativesRows } from './initiatives-filter';
 
 type Summary = Extract<InitiativeList['summary'], { state: 'ok' }>['data'];

@@ -11,8 +11,8 @@ vi.mock('next/navigation', () => ({
 
 import type { ActivityLog, ActivitySummary } from '@/lib/destination-shapes';
 import { formatCount } from '@/lib/format-units';
-import { fourOwners, type ActivityRead } from '@/views/activity-context';
-import { READ_BOUND_MS } from '@/views/context';
+import { fourOwners, type ActivityRead } from '@/logic/activity-context';
+import { READ_BOUND_MS } from '@/lib/read-bound';
 import { ActivityView } from '@/views/pages/activity';
 import ActivityLoading from '../app/(dash)/activity/loading';
 import { ME } from '../scripts/fake-gateway/people.ts';

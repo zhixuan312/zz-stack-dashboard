@@ -17,13 +17,14 @@ import { PREPARED } from '@/data/prepared';
 import type { Me } from '@/lib/api-shapes';
 import type { ReleaseDetail, Releases } from '@/lib/platform-shapes';
 import { contextText } from '@/lib/shared-context';
-import { CONTEXT_BUDGET, READ_BOUND_MS } from '@/views/context';
+import { CONTEXT_BUDGET } from '@/logic/context';
+import { READ_BOUND_MS } from '@/lib/read-bound';
 import { PlatformReleaseView } from '@/views/pages/platform-release';
 import { PlatformReleasesView } from '@/views/pages/platform-releases';
 import {
   RELEASES_DEFAULTS, filtersOfPath, releaseContext, releasesContext, releasesPath, type ReleasesRead,
-} from '@/views/platform-releases-context';
-import { releaseTool, releasesTool } from '@/views/tools/releases';
+} from '@/logic/platform-releases-context';
+import { releaseTool, releasesTool } from '@/logic/tools/releases';
 import { RELEASES, releaseDetail, releases } from '../scripts/fake-gateway/platform-releases.ts';
 import PlatformReleasesLoading from '../app/(dash)/platform/releases/loading';
 import PlatformReleasesPage, { generateMetadata as releasesMetadata } from '../app/(dash)/platform/releases/page';

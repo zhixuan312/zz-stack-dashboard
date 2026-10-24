@@ -25,7 +25,7 @@ import type { IssuedToken } from '@/lib/api-shapes';
 import type { AccessToken } from '@/lib/destination-shapes';
 import { formatDate } from '@/lib/format-date';
 import { consoleMutate, useConsoleMutation } from '@/lib/mutate';
-import { DIRECT, applicationOf, stateOf } from '@/views/access-context';
+import { DIRECT, applicationOf, stateOf } from '@/logic/access-context';
 
 /** The protagonist's title: the section the page's Ask sits on. COUPLED: the README's `Protagonist:`. */
 const TOKENS_TITLE = 'Tokens';

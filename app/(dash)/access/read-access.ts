@@ -1,8 +1,8 @@
 import { redirect } from 'next/navigation';
 import { GatewayError, answeredAt, gatewayGet, type Revised } from '@/data/gateway';
 import type { Access } from '@/lib/destination-shapes';
-import type { AccessRead } from '@/views/access-context';
-import { READ_BOUND_MS } from '@/views/context';
+import type { AccessRead } from '@/logic/access-context';
+import { READ_BOUND_MS } from '@/lib/read-bound';
 
 /**
  * `GET /access` on the console's server, as the person, given `READ_BOUND_MS`, with the revisions it was answered at:

@@ -28,7 +28,7 @@ Every release the platform has recorded, week by week, each with what was observ
 
 ## Agents
 
-The assistant reads this page and changes nothing. The page shares its context through `releasesContext` in `src/views/platform-releases-context.ts`, the same function `view_releases` calls on the same response, so the assistant quotes the figures the screen shows.
+The assistant reads this page and changes nothing. The page shares its context through `releasesContext` in `src/logic/platform-releases-context.ts`, the same function `view_releases` calls on the same response, so the assistant quotes the figures the screen shows.
 
 ### What the agent reads
 
@@ -38,7 +38,7 @@ The four tiles with what each counts, each release on the page (up to five, each
 - The releases on this page, newest first, each side before then after: 0.97.1 (17 Oct): malformed per 1,000 4.2 then 3.3 (partial); tool failures 3 then 0; p95 1,840 ms then 1,620 ms; clients: Nothing to do; within 72 hours of 0.97.0; …
 ```
 
-- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `view_releases` answers the same text from anywhere in the console, and `explore_releases` (`src/views/releases-explore.ts`), offered on this page alone, counts the releases, the migrations applied and the malformed calls over any window, with the malformed calls per 1,000, and drills to each release with its page.
+- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `view_releases` answers the same text from anywhere in the console, and `explore_releases` (`src/logic/releases-explore.ts`), offered on this page alone, counts the releases, the migrations applied and the malformed calls over any window, with the malformed calls per 1,000, and drills to each release with its page.
 
 ### What the agent does here
 

@@ -28,10 +28,10 @@ import type { PluginScore } from '@/lib/destination-shapes';
 import { formatDate } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
-import { pendingContext } from '@/views/context';
-import { comparedSaid, evalPath, pluginContext, type EvalRead, type PluginRead } from '@/views/plugin-context';
-import { FROM_THE_FRONT, PLUGINS_PATH, protocolNamed, readTrouble, standingSaid, type Catalog, type PluginsRead } from '@/views/plugins-context';
-import { useServed } from '@/views/use-served';
+import { pendingContext } from '@/logic/context';
+import { comparedSaid, evalPath, pluginContext, type EvalRead, type PluginRead } from '@/logic/plugin-context';
+import { FROM_THE_FRONT, PLUGINS_PATH, protocolNamed, readTrouble, standingSaid, type Catalog, type PluginsRead } from '@/logic/plugins-context';
+import { useServed } from '@/logic/use-served';
 
 type PluginSkill = PluginRow['skills'][number];
 

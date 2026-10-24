@@ -30,7 +30,7 @@ Everybody the platform knows: the superadmin's list of each person's role, teams
 
 ## Agents
 
-The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `peopleContext` in `src/views/people-context.ts`, the same function `view_people` calls on the same response, so the assistant quotes the figures the screen shows. Ask is in the filter bar: who has never signed in, and how many people signed in last week.
+The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `peopleContext` in `src/logic/people-context.ts`, the same function `view_people` calls on the same response, so the assistant quotes the figures the screen shows. Ask is in the filter bar: who has never signed in, and how many people signed in last week.
 
 ### What the agent reads
 

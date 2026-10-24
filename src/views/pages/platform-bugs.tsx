@@ -23,12 +23,12 @@ import { AXIS_FORMATTERS, plural } from '@/lib/format';
 import { formatDate, formatDateTime, formatDay, formatShortDate } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import type { Bugs, PublicBugRow } from '@/lib/platform-shapes';
-import { pendingContext } from '@/views/context';
+import { pendingContext } from '@/logic/context';
 import {
   BUGS_DEFAULTS, BUG_IMPACTS, BUG_STATUSES, IMPACT, STATUS, TILES, bugPath, bugsContext, bugsPath, bugsTrouble, cohortsRunning, filtersOfPath, formatHours,
   impactOf, isAdminRow, lastWhole, narrowed, rateIn, statusOf, surfacesOf, valueOf, type BugsFilters, type BugsRead, type Cohort,
-} from '@/views/platform-bugs-context';
-import { useServed, useServedAddress } from '@/views/use-served';
+} from '@/logic/platform-bugs-context';
+import { useServed, useServedAddress } from '@/logic/use-served';
 
 /**
  * The page's read: the one the console's server made for this address, so the first paint carries the queue and the

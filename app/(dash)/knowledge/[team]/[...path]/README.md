@@ -23,7 +23,7 @@ One knowledge node, read, with where it was learned and what shares its subject:
 
 ## Agents
 
-The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `knowledgeNodeContext` in `src/views/knowledge-node-context.ts`, the same function `view_knowledge_node` calls, so the assistant quotes the figures the screen shows. Ask is on The lesson: what it means for work under way now.
+The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `knowledgeNodeContext` in `src/logic/knowledge-node-context.ts`, the same function `view_knowledge_node` calls, so the assistant quotes the figures the screen shows. Ask is on The lesson: what it means for work under way now.
 
 ### What the agent reads
 

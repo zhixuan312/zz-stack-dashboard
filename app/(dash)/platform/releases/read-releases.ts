@@ -1,9 +1,9 @@
 import { GatewayError, gatewayGet } from '@/data/gateway';
 import type { ReleaseDetail, Releases } from '@/lib/platform-shapes';
-import { READ_BOUND_MS } from '@/views/context';
+import { READ_BOUND_MS } from '@/lib/read-bound';
 import {
   releasePath, releasesPath, type ReleaseRead, type ReleasesFilters, type ReleasesRead,
-} from '@/views/platform-releases-context';
+} from '@/logic/platform-releases-context';
 
 /** `read`, or `slow` once `READ_BOUND_MS` has passed without an answer. Neither this nor `read` rejects. */
 async function bounded<R>(read: Promise<R>, slow: R): Promise<R> {

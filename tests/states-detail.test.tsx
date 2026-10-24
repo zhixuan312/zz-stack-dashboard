@@ -12,7 +12,8 @@ vi.mock('next/navigation', () => ({
 }));
 
 /** The skill page's gate, let through, and its four reads, answered without a gateway: the page is what is under test. */
-vi.mock('@/data/access', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/data/access')>()), gate: async () => null }));
+vi.mock('@/data/access', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/data/access')>()) }));
+vi.mock('@/console/gate', () => ({ gate: async () => null, gatedMetadata: async (_feature: string, metadata: object) => metadata }));
 vi.mock('../app/(dash)/plugins/read-plugins', () => ({
   readSkill: async (plugin: string, skill: string) => ({
     catalog: { state: 'slow', path: '/plugins' },
@@ -37,8 +38,8 @@ vi.mock('@/views/pages/skill', async (importOriginal) => {
 });
 
 import type { DocumentDetail, KnowledgeBody } from '@/lib/api-shapes';
-import type { DocumentRead } from '@/views/document-read';
-import type { ServerRead } from '@/views/knowledge-context';
+import type { DocumentRead } from '@/logic/document-read';
+import type { ServerRead } from '@/logic/knowledge-context';
 import { DocumentView } from '@/views/pages/document';
 import { KnowledgeNodeView } from '@/views/pages/knowledge-node';
 import { SkillTabs, SkillView } from '@/views/pages/skill';

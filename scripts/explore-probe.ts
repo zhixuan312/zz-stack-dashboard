@@ -53,7 +53,7 @@ import type { aggregate, read } from '../src/data/read.ts';
 import type { ExploreRights, exploreSchema, runExplore } from '../src/lib/explore.ts';
 import type { dayOf } from '../src/lib/format-date.ts';
 import type { ViewTool, contextText, viewAt } from '../src/lib/shared-context.ts';
-import type { viewTools } from '../src/views/tools.ts';
+import type { viewTools } from '../src/logic/tools';
 import { consoleHooks } from './console-hooks.ts';
 
 const NAME = 'explore-probe';
@@ -92,7 +92,7 @@ type Modules = {
 
 /** The console's own modules, loaded through the hooks. */
 async function consoleModules(): Promise<Modules> {
-  const files = ['views/tools.ts', 'lib/explore.ts', 'lib/shared-context.ts', 'data/access.ts', 'data/collections.ts', 'data/features.ts',
+  const files = ['logic/tools.ts', 'lib/explore.ts', 'lib/shared-context.ts', 'data/access.ts', 'data/collections.ts', 'data/features.ts',
     'data/prepared.ts', 'data/read.ts', 'lib/format-date.ts', 'lib/assistant/scoped.ts'];
   const loaded = await Promise.all(files.map((f) => import(pathToFileURL(path.join(SOURCE, f)).href) as Promise<Record<string, unknown>>));
   return Object.assign({}, ...loaded) as Modules;

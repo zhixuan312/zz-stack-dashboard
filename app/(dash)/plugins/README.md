@@ -30,7 +30,7 @@ What a person installs: each plugin's skills and the servers they call, under on
 
 ## Agents
 
-The assistant reads this page and changes nothing: every change in this console is made on a page, by the person, and nobody starts an evaluation from the console. The page shares its context through `pluginsContext` in `src/views/plugins-context.ts`, and `view_plugins` builds the same context from the same `GET /plugins`, narrowed by its one argument, `plugin`, as the page's search narrows it, so the assistant quotes the rows the screen shows. Ask is in the filter bar: what each plugin in view is for, how far its score can be trusted, and which to install.
+The assistant reads this page and changes nothing: every change in this console is made on a page, by the person, and nobody starts an evaluation from the console. The page shares its context through `pluginsContext` in `src/logic/plugins-context.ts`, and `view_plugins` builds the same context from the same `GET /plugins`, narrowed by its one argument, `plugin`, as the page's search narrows it, so the assistant quotes the rows the screen shows. Ask is in the filter bar: what each plugin in view is for, how far its score can be trusted, and which to install.
 
 ### What the agent reads
 
@@ -40,7 +40,7 @@ How many plugins are in view and how many are required, their skills and gates, 
 - sdlc: optional, v0.92.10 released, 10 skills, 3 gates; score 7.1 of 10 (established), protocol sdlc-flow-quality v2, 15 Oct 2026; Not comparable: a different protocol version; claude plugin install sdlc@zz-stack.
 ```
 
-- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and search, and the page text after it for anything the context does not cover. `view_plugins` answers the same text from anywhere in the console, and `explore_plugins` (`src/views/plugins-explore.ts`), offered on this page alone, counts the team's calls of each shipped skill over `/work/query` over any window, by plugin or by skill; it lists none.
+- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and search, and the page text after it for anything the context does not cover. `view_plugins` answers the same text from anywhere in the console, and `explore_plugins` (`src/logic/plugins-explore.ts`), offered on this page alone, counts the team's calls of each shipped skill over `/work/query` over any window, by plugin or by skill; it lists none.
 
 ### What the agent does here
 

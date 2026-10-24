@@ -27,14 +27,14 @@ vi.mock('next/navigation', () => ({
 }));
 
 import { refusal } from '@/app.config';
-import { gate, gatedMetadata } from '@/data/access';
+import { gate, gatedMetadata } from '@/console/gate';
 import { FEATURES, type FeatureId } from '@/data/features';
 import { gatedLoading } from '@/data/refusal';
 import { MAIN_ROLES, whoCan } from '@/data/roles';
 import { getSortedRoutes, isDynamicRoute } from 'next/dist/shared/lib/router/utils';
 import { getRouteRegex } from 'next/dist/shared/lib/router/utils/route-regex';
-import { MISSING_METADATA, NOT_FOUND } from '@/views/missing';
-import { MissingPage } from '@/views/no-access';
+import { MISSING_METADATA, NOT_FOUND } from '@/logic/missing';
+import { MissingPage } from '@/console/no-access';
 import NotFound, * as notFoundPage from '../app/not-found';
 import MissingAddressPage, * as missingAddress from '../app/(dash)/[...missing]/page';
 

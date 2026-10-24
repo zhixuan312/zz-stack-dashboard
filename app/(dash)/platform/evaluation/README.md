@@ -29,7 +29,7 @@ Each plugin's evaluation as the platform recorded it: what waits for a decision,
 
 ## Agents
 
-The assistant reads this page and changes nothing. The page shares its context through `evaluationContext` in `src/views/platform-evaluation-context.ts`, built from the same read and the same words as the page, and `view_evaluation` builds the same context from the same response (`GET /platform/evaluation`), so the assistant quotes the figures the screen shows. Ask is on each plugin's latest score: which scores can be relied on, which guardrails failed and what still waits.
+The assistant reads this page and changes nothing. The page shares its context through `evaluationContext` in `src/logic/platform-evaluation-context.ts`, built from the same read and the same words as the page, and `view_evaluation` builds the same context from the same response (`GET /platform/evaluation`), so the assistant quotes the figures the screen shows. Ask is on each plugin's latest score: which scores can be relied on, which guardrails failed and what still waits.
 
 ### What the agent reads
 
@@ -39,7 +39,7 @@ The four tiles with what each counts, the findings by decision as the compositio
 - sdlc: latest 7.1 of 10 (6.5 to 7.7), established, guardrails held; by series, not comparable: a different protocol version: sdlc-flow-quality v1, the surface recorded at that version: 5.8 provisional 21 Sept | sdlc-flow-quality v2, the surface recorded at that version: 6.4 established 04 Oct, 7.1 established 15 Oct; up 0.7 points within the series.
 ```
 
-- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address, and the page text after it for anything the context does not cover; `view_evaluation` answers the same text from anywhere in the console, and `explore_evaluation` (`src/views/evaluation-explore.ts`), offered on this page alone, counts the findings by decision, owner category or plugin, a week or a month at a time, down to each finding still waiting in the caller's form, and the plugins whose latest scoring is established, down to that scoring.
+- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address, and the page text after it for anything the context does not cover; `view_evaluation` answers the same text from anywhere in the console, and `explore_evaluation` (`src/logic/evaluation-explore.ts`), offered on this page alone, counts the findings by decision, owner category or plugin, a week or a month at a time, down to each finding still waiting in the caller's form, and the plugins whose latest scoring is established, down to that scoring.
 
 ### What the agent does here
 

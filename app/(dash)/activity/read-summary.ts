@@ -1,8 +1,8 @@
 import { redirect } from 'next/navigation';
 import { GatewayError, answeredAt, gatewayGet, type Revised } from '@/data/gateway';
 import type { ActivitySummary } from '@/lib/destination-shapes';
-import type { ActivityRead } from '@/views/activity-context';
-import { READ_BOUND_MS } from '@/views/context';
+import type { ActivityRead } from '@/logic/activity-context';
+import { READ_BOUND_MS } from '@/lib/read-bound';
 
 /**
  * `GET /activity/summary` on the console's server, as the person, given `READ_BOUND_MS`, with the revisions it was

@@ -28,21 +28,14 @@
  * and their memberships.
  */
 import { AsyncLocalStorage } from 'node:async_hooks';
-import type { Metadata } from 'next';
-import { headers } from 'next/headers';
-import { redirect } from 'next/navigation';
-import { cache, type JSX } from 'react';
-import { nav, refusal } from '@/app.config';
+import { cache } from 'react';
+import { nav } from '@/app.config';
 import { collections } from '@/data/collections';
-import { FEATURES, type FeatureId } from '@/data/features';
 import { GatewayError, gatewayGet } from '@/data/gateway';
 import { PREPARED } from '@/data/prepared';
 import { MAIN_ROLES, effective, type ConsoleNeed, type MainRole } from '@/data/roles';
 import type { Me } from '@/lib/api-shapes';
 import type { AnyCollection, ChromeAccess } from '@/lib/collection';
-import { ownPath } from '@/lib/own-path';
-import { MISSING_METADATA } from '@/views/missing';
-import { NoAccess } from '@/views/no-access';
 import type { RefusalCode } from '../../app/login/refusals';
 
 export type AccessScope = Readonly<{
@@ -123,7 +116,7 @@ const asked = new AsyncLocalStorage<{ who?: Promise<Identity> }>();
 const rendered = cache(ask);
 
 /** `ask`, once for the request it is called in: the route's when `askedOnce` holds one, the render's otherwise. */
-function identity(): Promise<Identity> {
+export function identity(): Promise<Identity> {
   const held = asked.getStore();
   if (!held) return rendered();
   held.who ??= ask();
@@ -147,7 +140,7 @@ function scopeOf({ me, role }: { me: Me; role: MainRole }): AccessScope {
 }
 
 /** Whether a role satisfies a need: `public` is anyone the console lets in, a grant is asked of the role table, an `allOf` of every grant. */
-function satisfies(role: MainRole, need: ConsoleNeed): boolean {
+export function satisfies(role: MainRole, need: ConsoleNeed): boolean {
   if (need === 'public') return true;
   const grants = effective(role);
   return typeof need === 'string' ? grants.has(need) : need.allOf.every((grant) => grants.has(grant));
@@ -212,50 +205,6 @@ export async function may(need: ConsoleNeed): Promise<boolean> {
 /** What a view tool calls before it reads: `may` asked one way, refused as the one `AccessDenied` message. */
 export async function requireNeed(need: ConsoleNeed): Promise<void> {
   if (!(await may(need))) throw new AccessDenied();
-}
-
-// COUPLED: `proxy.ts` writes this header on every page request, over whatever the browser sent. The two move together.
-const PATH_HEADER = 'x-zz-path';
-
-/** Where sign-in sends the person back to: the address this request asked for, when `proxy.ts` said it and it is this site's. */
-async function signIn(): Promise<string> {
-  const asked = (await headers()).get(PATH_HEADER);
-  return asked !== null && ownPath(asked) ? `/login?next=${encodeURIComponent(asked)}` : '/login';
-}
-
-/**
- * The one page gate, called as every page's first statement so the check is what stops the read, never the rail:
- * `chromeAccess().only` hides a destination but forbids nothing.
- *
- * A request with no session is sent to sign in, with the address it asked for. A session the console is refused, or
- * one the role table cannot place, is sent to the sign-in page's denied state with the code that says why, which the
- * page shows as its own fixed sentence: never words the address could carry. A person
- * who lacks the feature's grant gets the product's `refusal` as a normal 200 answer (`NoAccess`): under `absent` the
- * missing page, exactly what an address that names nothing draws, and under `explain` the page's title and who can open
- * it. It is awaited because the view is an async server component and a page hands a renderer an element, not a
- * promise. Neither throws `notFound()`. `null` means the feature is held and the page may render. An outage is thrown:
- * nothing is opened on an answer the gateway did not give.
- */
-export async function gate(feature: FeatureId): Promise<JSX.Element | null> {
-  const who = await identity();
-  if (who.is === 'nobody') redirect(await signIn());
-  if (who.is === 'refused') redirect(`/login?denied=1&reason=${who.reason}`);
-  if (!satisfies(who.role, FEATURES[feature].needs)) return await NoAccess({ feature });
-  return null;
-}
-
-/**
- * The title a gated page carries, called from its `generateMetadata` so the tab agrees with what `gate` answers: under
- * `refusal: 'absent'` a person the role table places who lacks the feature's grant gets the missing page's title, kept
- * out of search, and anyone else the page's own. Under `explain` the page's own title is the answer for everyone, as the
- * no-access view names the page anyway, and nobody is read. Nobody, or a session the console refuses, keeps the page's
- * own title: `gate` sends either to sign in.
- */
-export async function gatedMetadata(feature: FeatureId, metadata: Metadata): Promise<Metadata> {
-  if (refusal !== 'absent') return metadata;
-  const who = await identity();
-  if (who.is !== 'person' || satisfies(who.role, FEATURES[feature].needs)) return metadata;
-  return MISSING_METADATA;
 }
 
 /**

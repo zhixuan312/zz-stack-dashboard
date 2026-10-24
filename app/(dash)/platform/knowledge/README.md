@@ -31,7 +31,7 @@ The knowledge store's health: what stands on each shelf, what was made week by w
 
 ## Agents
 
-The assistant reads this page and changes nothing. The page shares its context through `knowledgeHealthContext` in `src/views/platform-knowledge-context.ts`, built from the same read and the same words as the page, and `view_knowledge_health` builds the same context from the same response (`GET /platform/knowledge`), so the assistant quotes the figures the screen shows. Ask is on the shelves: what stands on each shelf and how each team's searches went, or, for a member, how their shelf and the shared one stand beside the totals.
+The assistant reads this page and changes nothing. The page shares its context through `knowledgeHealthContext` in `src/logic/platform-knowledge-context.ts`, built from the same read and the same words as the page, and `view_knowledge_health` builds the same context from the same response (`GET /platform/knowledge`), so the assistant quotes the figures the screen shows. Ask is on the shelves: what stands on each shelf and how each team's searches went, or, for a member, how their shelf and the shared one stand beside the totals.
 
 ### What the agent reads
 
@@ -41,7 +41,7 @@ The four tiles with their change, in points for the share with no result, agains
 - Lessons adopted: 142. (Lessons standing on every shelf now, imports included; one a later lesson superseded is left out.)
 ```
 
-- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address, and the page text after it for anything the context does not cover; `view_knowledge_health` answers the same text from anywhere in the console, and `explore_knowledge_health` (`src/views/knowledge-health-explore.ts`), offered on this page alone, counts the lessons made and the searches over any window, and drills the searches that found nothing to their questions for a superadmin alone.
+- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address, and the page text after it for anything the context does not cover; `view_knowledge_health` answers the same text from anywhere in the console, and `explore_knowledge_health` (`src/logic/knowledge-health-explore.ts`), offered on this page alone, counts the lessons made and the searches over any window, and drills the searches that found nothing to their questions for a superadmin alone.
 
 ### What the agent does here
 

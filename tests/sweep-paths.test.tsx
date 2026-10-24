@@ -15,10 +15,10 @@ const gateway = vi.hoisted(() => ({ get: vi.fn() }));
 vi.mock('@/data/gateway', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/data/gateway')>()), gatewayGet: gateway.get }));
 vi.mock('@/data/access', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/data/access')>()),
-  gate: async () => null,
   may: async () => false,
   chromeAccess: async () => ({ only: ['/record'], user: { name: 'Ava', role: 'atlas' }, team: 'atlas', caller: 'ava.lindqvist@example.com' }),
 }));
+vi.mock('@/console/gate', () => ({ gate: async () => null, gatedMetadata: async (_feature: string, metadata: object) => metadata }));
 
 import { SurfaceOverride } from '@/components/base/surface';
 import { VersionChain } from '@/console/version-chain';
@@ -26,15 +26,15 @@ import { GatewayError } from '@/data/gateway';
 import type { DocumentDetail } from '@/lib/api-shapes';
 import { decodePath } from '@/lib/store-path';
 import type { Approvals, Home, RecordRead } from '@/lib/work-shapes';
-import { APPROVALS_DEFAULTS, approvalsPath } from '@/views/approvals-context';
-import { documentContext } from '@/views/document-context';
-import { waitingOf } from '@/views/home-context';
-import { sourceName } from '@/views/initiative-name';
-import { MissingPage } from '@/views/no-access';
+import { APPROVALS_DEFAULTS, approvalsPath } from '@/logic/approvals-context';
+import { documentContext } from '@/logic/document-context';
+import { waitingOf } from '@/logic/home-context';
+import { sourceName } from '@/logic/initiative-name';
+import { MissingPage } from '@/console/no-access';
 import { ApprovalsView } from '@/views/pages/approvals';
 import { RecordView } from '@/views/pages/record';
-import { RECORD_DEFAULTS, recordPath } from '@/views/record-context';
-import { shelf } from '@/views/tools/sources';
+import { RECORD_DEFAULTS, recordPath } from '@/logic/record-context';
+import { shelf } from '@/logic/tools/sources';
 import { readAccess } from '../app/(dash)/access/read-access';
 import { readSummary } from '../app/(dash)/activity/read-summary';
 import DocumentPage, { generateMetadata as documentMetadata } from '../app/(dash)/initiatives/[team]/[slug]/[...path]/page';

@@ -25,10 +25,10 @@ import type { InitiativeDetail } from '@/lib/api-shapes';
 import { formatDateTime } from '@/lib/format-date';
 import { formatKb } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
-import { pendingContext } from '@/views/context';
-import { initiativeContext, initiativeTrouble, type InitiativeRead } from '@/views/initiative-context';
-import { initiativeName, sourceName } from '@/views/initiative-name';
-import { useServed } from '@/views/use-served';
+import { pendingContext } from '@/logic/context';
+import { initiativeContext, initiativeTrouble, type InitiativeRead } from '@/logic/initiative-context';
+import { initiativeName, sourceName } from '@/logic/initiative-name';
+import { useServed } from '@/logic/use-served';
 
 type Doc = InitiativeDetail['documents'][number];
 

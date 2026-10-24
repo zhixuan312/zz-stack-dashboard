@@ -12,8 +12,8 @@ vi.mock('next/navigation', () => ({
 import { SurfaceOverride } from '@/components/base/surface';
 import { dayOf, formatShortDate } from '@/lib/format-date';
 import type { Approvals, Home } from '@/lib/work-shapes';
-import { approvalsAddress, approvalsPath, filtersOfPath, tabOf, type ApprovalsRead } from '@/views/approvals-context';
-import type { HomeRead } from '@/views/home-context';
+import { approvalsAddress, approvalsPath, filtersOfPath, tabOf, type ApprovalsRead } from '@/logic/approvals-context';
+import type { HomeRead } from '@/logic/home-context';
 import { ApprovalsView } from '@/views/pages/approvals';
 import { HomeView } from '@/views/pages/home';
 

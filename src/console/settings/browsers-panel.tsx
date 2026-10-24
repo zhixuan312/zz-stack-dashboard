@@ -12,7 +12,7 @@ import { ApiError } from '@/lib/api';
 import type { AccessBrowser, Revoked } from '@/lib/destination-shapes';
 import { formatDate } from '@/lib/format-date';
 import { useConsoleMutation } from '@/lib/mutate';
-import { browserOf } from '@/views/access-context';
+import { browserOf } from '@/logic/access-context';
 
 /**
  * The browsers the caller is signed in on, from the Access read, the one asking first and marked: each by the kind of

@@ -25,9 +25,9 @@ import { plural } from '@/lib/format';
 import { formatDate } from '@/lib/format-date';
 import { knowledgeNodeHref } from '@/lib/knowledge-filters';
 import { useLive } from '@/lib/live';
-import { pendingContext } from '@/views/context';
-import { statusWord, troubleOf, type ServerRead } from '@/views/knowledge-context';
-import { knowledgeNodeContext } from '@/views/knowledge-node-context';
+import { pendingContext } from '@/logic/context';
+import { statusWord, troubleOf, type ServerRead } from '@/logic/knowledge-context';
+import { knowledgeNodeContext } from '@/logic/knowledge-node-context';
 
 // The markdown renderer arrives after the page's first paint: the node's own facts and its neighbours are what that
 // paint shows, and the body beside them is rendered once its renderer has loaded. Loaded eagerly it was 141 KiB of this

@@ -2,11 +2,11 @@ import Link from 'next/link';
 import { cache } from 'react';
 import { app, workspaces } from '@/app.config';
 import { PageFrame } from '@/components/base/shell';
-import { gate, gatedMetadata } from '@/data/access';
-import { MISSING_METADATA } from '@/views/missing';
-import { MissingPage } from '@/views/no-access';
+import { gate, gatedMetadata } from '@/console/gate';
+import { MISSING_METADATA } from '@/logic/missing';
+import { MissingPage } from '@/console/no-access';
 import { PluginView } from '@/views/pages/plugin';
-import type { PluginRead } from '@/views/plugin-context';
+import type { PluginRead } from '@/logic/plugin-context';
 import { readPlugin } from '../read-plugins';
 
 type Params = { params: Promise<{ plugin: string }> };

@@ -15,7 +15,7 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('next/headers', () => ({ cookies: async () => ({ get: () => undefined }) }));
 
 import { viewAt } from '@/lib/shared-context';
-import { viewTools } from '@/views/tools';
+import { viewTools } from '@/logic/tools';
 import { fakeModelProblems } from '../scripts/lib/config-hooks.ts';
 import config from '../scripts/verify.config.ts';
 import guide from './fixtures/guide-tasks.json';

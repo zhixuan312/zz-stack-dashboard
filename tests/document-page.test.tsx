@@ -8,9 +8,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const grants = vi.hoisted(() => ({ teams: false, asked: [] as string[] }));
 vi.mock('@/data/access', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/data/access')>()),
-  gate: async () => null,
   may: async (need: string) => { grants.asked.push(need); return need === 'fleet:read' ? grants.teams : true; },
 }));
+vi.mock('@/console/gate', () => ({ gate: async () => null, gatedMetadata: async (_feature: string, metadata: object) => metadata }));
 
 import { FEATURES } from '@/data/features';
 import type { DocumentDetail, Me } from '@/lib/api-shapes';

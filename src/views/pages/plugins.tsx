@@ -16,11 +16,11 @@ import type { PluginRow } from '@/lib/api-shapes';
 import { plural } from '@/lib/format';
 import { formatCount } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
-import { pendingContext } from '@/views/context';
+import { pendingContext } from '@/logic/context';
 import {
   FROM_THE_FRONT, PLUGINS_DEFAULTS, PLUGINS_PATH, inView, pluginsContext, readTrouble, type Catalog, type PluginsFilters, type PluginsRead,
-} from '@/views/plugins-context';
-import { useAddress, useServed } from '@/views/use-served';
+} from '@/logic/plugins-context';
+import { useAddress, useServed } from '@/logic/use-served';
 
 /** The card the list's Ask sits on, and the name `Protagonist:` gives it in the page's README. */
 const PLUGINS_TITLE = 'Every plugin';

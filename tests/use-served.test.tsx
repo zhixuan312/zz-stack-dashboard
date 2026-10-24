@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { hydrateRoot } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useServed, useServedAddress } from '@/views/use-served';
+import { useServed, useServedAddress } from '@/logic/use-served';
 
 /**
  * A page whose first read the console's server made follows it with `useServed`. A filter or a page of rows moves the

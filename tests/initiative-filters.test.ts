@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ownGates, waitingGates, type StateOf } from '@/console/initiative-state';
-import { filtersOf, listPath, narrowed, pageAt } from '@/views/initiatives-filter';
+import { filtersOf, listPath, narrowed, pageAt } from '@/logic/initiatives-filter';
 
 /**
  * The documents an initiative's page says it waits on, and the address the Initiatives list is read at, whose state

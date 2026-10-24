@@ -13,13 +13,13 @@ import { PREPARED } from '@/data/prepared';
 import type { Me } from '@/lib/api-shapes';
 import { contextText } from '@/lib/shared-context';
 import type { InitiativeList } from '@/lib/work-shapes';
-import { CONTEXT_BUDGET } from '@/views/context';
-import { initiativeContext } from '@/views/initiative-context';
-import { CLOSE_IS_THE_PERSON_S, OUTCOMES, initiativesContext, nextOf, type InitiativesRead } from '@/views/initiatives-context';
-import { INITIATIVES_DEFAULTS, listPath } from '@/views/initiatives-filter';
+import { CONTEXT_BUDGET } from '@/logic/context';
+import { initiativeContext } from '@/logic/initiative-context';
+import { CLOSE_IS_THE_PERSON_S, OUTCOMES, initiativesContext, nextOf, type InitiativesRead } from '@/logic/initiatives-context';
+import { INITIATIVES_DEFAULTS, listPath } from '@/logic/initiatives-filter';
 import { InitiativesView } from '@/views/pages/initiatives';
-import { initiativeTool } from '@/views/tools/initiative';
-import { initiativesTool } from '@/views/tools/initiatives';
+import { initiativeTool } from '@/logic/tools/initiative';
+import { initiativesTool } from '@/logic/tools/initiatives';
 import { initiativeDetail, initiativeList } from '../scripts/fake-gateway/work-initiatives.ts';
 
 /**

@@ -13,12 +13,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
  */
 const gateway = vi.hoisted(() => ({ get: vi.fn() }));
 vi.mock('@/data/gateway', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/data/gateway')>()), gatewayGet: gateway.get }));
-vi.mock('@/data/access', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/data/access')>()), gate: async () => null, may: async () => false }));
+vi.mock('@/data/access', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/data/access')>()), may: async () => false }));
+vi.mock('@/console/gate', () => ({ gate: async () => null, gatedMetadata: async (_feature: string, metadata: object) => metadata }));
 
 import { GatewayError } from '@/data/gateway';
 import type { DocumentDetail, Me } from '@/lib/api-shapes';
-import { READ_BOUND_MS } from '@/views/context';
-import type { DocumentRead } from '@/views/document-read';
+import { READ_BOUND_MS } from '@/lib/read-bound';
+import type { DocumentRead } from '@/logic/document-read';
 import { DocumentView } from '@/views/pages/document';
 import { documentDetail } from '../scripts/fake-gateway/work.ts';
 import { DETAIL } from '../scripts/verify.config.ts';

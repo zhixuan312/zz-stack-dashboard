@@ -15,7 +15,8 @@ import { plural } from '@/lib/format';
 import { formatCount } from '@/lib/format-units';
 import { formatCalendarDate, formatDateTime, formatDay, formatShortDate } from '@/lib/format-date';
 import type { Fact, Insight, SharedContext } from '@/lib/shared-context';
-import { READ_BOUND_MS, budgeted, pendingContext } from './context';
+import { budgeted, pendingContext } from './context';
+import { READ_BOUND_MS } from '@/lib/read-bound';
 
 /** What the page's one read came back as: the whole response, a read that failed, or one that did not answer within `READ_BOUND_MS`. */
 export type StatusRead = { state: 'ok'; status: PlatformStatus } | { state: 'failed' } | { state: 'slow' };

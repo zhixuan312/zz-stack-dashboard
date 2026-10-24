@@ -1,6 +1,6 @@
 import { Badge } from '@/components/ui/badge';
 import type { InitiativeRow } from '@/lib/work-shapes';
-import { STATE_LABEL } from '@/views/initiatives-filter';
+import { STATE_LABEL } from '@/logic/initiatives-filter';
 
 /** One rule per colour, as every state badge: warning means a person must act, positive closed with what was asked. */
 const TONE: Record<InitiativeRow['state'], 'warning' | 'positive' | 'neutral'> = {

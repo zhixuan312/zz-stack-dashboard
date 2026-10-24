@@ -57,7 +57,7 @@ where it is made and never claims to have made it.
 
 A page's first read is made on the console's server, as the person, before the page is drawn, by the read module
 beside its route (`app/(dash)/**/read-*.ts`; `app/(dash)/knowledge/read.ts` for Knowledge, its log and a lesson; and
-`src/views/document-read.ts` for a document), bounded at 4.5 seconds, so its content is in the first paint. What a page reads after that, a Retry or a collection a live hint names, is a
+`src/logic/document-read.ts` for a document), bounded at 4.5 seconds, so its content is in the first paint. What a page reads after that, a Retry or a collection a live hint names, is a
 browser fetch to `/api/console/*` by `src/lib/api.ts`, and every write goes through `src/lib/mutate.ts`. The payload
 shapes are the gateway's, recorded in `src/lib/api-shapes.ts` (Work) and `src/lib/platform-shapes.ts` (Platform). The
 console stores nobody's credential: the browser has a session cookie and sends it to the origin that issued it. The
@@ -164,7 +164,7 @@ itself.
   written.
 - **The assistant counts through the gateway's prepared queries, never over rows loaded for it.** Since ZZ Meridian
   0.16 an agent asks the page it is on `explore_<view>`, which every view tool declares beside its page in its own module
-  under `src/views/tools/`. Each source is a prepared collection: one row of `src/data/prepared.ts` per measure of Work's
+  under `src/logic/tools/`. Each source is a prepared collection: one row of `src/data/prepared.ts` per measure of Work's
   `/work/query`, Platform's `/platform/query`, or the caller's own Access answer for their tokens, made a `Collection`
   by one factory, `src/data/prepared-aggregate.ts`, that asks the route once for each base measure and drills to the
   route's own rows on the same days. What the route cannot answer is refused before anything is read. The reads in

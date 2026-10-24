@@ -8,7 +8,7 @@ import type { TeamDetail } from '@/lib/fleet-shapes';
 import { formatDate } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { PlatformTeamView } from '@/views/pages/platform-team';
-import type { TeamRead } from '@/views/team-context';
+import type { TeamRead } from '@/logic/team-context';
 import { teamDetail } from '../scripts/fake-gateway/platform-teams.ts';
 
 /**

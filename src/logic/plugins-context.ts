@@ -14,7 +14,8 @@ import { plural } from '@/lib/format';
 import { formatCount } from '@/lib/format-units';
 import { formatDate } from '@/lib/format-date';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
-import { READ_BOUND_MS, addressOf, arrived, budgeted, type Arrival } from './context';
+import { addressOf, arrived, budgeted, type Arrival } from './context';
+import { READ_BOUND_MS } from '@/lib/read-bound';
 
 /** The gateway's catalog: every plugin, the team's most recently used first. */
 export const PLUGINS_PATH = '/plugins';

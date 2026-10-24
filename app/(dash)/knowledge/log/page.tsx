@@ -1,4 +1,4 @@
-import { gate, gatedMetadata } from '@/data/access';
+import { gate, gatedMetadata } from '@/console/gate';
 import type { KnowledgeLog } from '@/lib/api-shapes';
 import { KnowledgeLogView } from '@/views/pages/knowledge-log';
 import { readFirst } from '../read';

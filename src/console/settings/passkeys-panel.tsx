@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useAccess } from '@/console/settings/access-read';
 import { Since } from '@/console/settings/since';
 import { formatDate } from '@/lib/format-date';
-import { passkeyOf, transportsOf } from '@/views/access-context';
+import { passkeyOf, transportsOf } from '@/logic/access-context';
 
 /**
  * The passkeys the caller signs in with, from the Access read, newest first: each by its label, how it is reached and

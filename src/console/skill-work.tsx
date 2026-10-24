@@ -7,8 +7,8 @@ import { Goes } from '@/console/eval-score';
 import type { SkillRunRow } from '@/lib/destination-shapes';
 import { plural } from '@/lib/format';
 import { formatCount, formatKb, formatSeconds } from '@/lib/format-units';
-import { refusedOf, timedOf, type SkillPages } from '@/views/runs-context';
-import { perRunOf } from '@/views/runs-figures';
+import { refusedOf, timedOf, type SkillPages } from '@/logic/runs-context';
+import { perRunOf } from '@/logic/runs-figures';
 
 /** The card's title, and the page's protagonist: the card the page's Ask sits on. COUPLED: the Runs README's `Protagonist:`. */
 export const BY_SKILL_TITLE = 'By skill';

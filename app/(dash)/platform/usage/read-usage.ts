@@ -1,7 +1,7 @@
 import { gatewayGet } from '@/data/gateway';
 import type { Usage } from '@/lib/fleet-shapes';
-import { READ_BOUND_MS } from '@/views/context';
-import type { UsageRead } from '@/views/platform-usage-context';
+import { READ_BOUND_MS } from '@/lib/read-bound';
+import type { UsageRead } from '@/logic/platform-usage-context';
 
 /**
  * `GET /platform/usage` on the console's server, as the person, given `READ_BOUND_MS`: a read that fails says the

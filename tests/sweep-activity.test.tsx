@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { ActivitySummary } from '@/lib/destination-shapes';
 import { contextText } from '@/lib/shared-context';
-import { activityContext, type ActivityRead } from '@/views/activity-context';
+import { activityContext, type ActivityRead } from '@/logic/activity-context';
 import { ActivityView } from '@/views/pages/activity';
 import { ME } from '../scripts/fake-gateway/people.ts';
 import { activityLog, activitySummary } from '../scripts/fake-gateway/work-activity.ts';

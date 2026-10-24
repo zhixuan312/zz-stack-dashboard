@@ -28,7 +28,7 @@ import type { PlatformStatus } from '@/lib/platform-shapes';
 import {
   NO_TEAM, UNRECORDED, askOf, asOfLine, doorRow, footOf, needsFoot, ownOf, pairOf, platformStatusContext, runningOf, scoreOf,
   dayCell, dayIn, troubleOf, valueIn, weekCell, weekIn, type Dated, type DoorRow, type Half, type ScoreRow, type StatusRead,
-} from '@/views/platform-status-context';
+} from '@/logic/platform-status-context';
 
 /**
  * The platform's Status, read on the console's server and handed here whole: what needs attention, then the paired

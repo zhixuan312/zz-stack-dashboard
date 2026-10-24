@@ -2,9 +2,9 @@ import { Suspense } from 'react';
 import { app, workspaces } from '@/app.config';
 import { PageFrame, Row } from '@/components/base/shell';
 import { Busy, ChartSkeleton, TableSkeleton, TilesSkeleton } from '@/components/patterns/page-loading';
-import { gate, gatedMetadata } from '@/data/access';
+import { gate, gatedMetadata } from '@/console/gate';
 import { BugsAsOf, PlatformBugsView } from '@/views/pages/platform-bugs';
-import { filtersOf, type BugsRead } from '@/views/platform-bugs-context';
+import { filtersOf, type BugsRead } from '@/logic/platform-bugs-context';
 import { readBugs } from './read-bugs';
 
 export function generateMetadata() { return gatedMetadata('bugs', { title: 'Bugs' }); }

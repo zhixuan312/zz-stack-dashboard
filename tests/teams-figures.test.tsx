@@ -7,8 +7,8 @@ import type { Me } from '@/lib/api-shapes';
 import type { TeamRow, Teams } from '@/lib/fleet-shapes';
 import { formatCount } from '@/lib/format-units';
 import { PlatformTeamsView } from '@/views/pages/platform-teams';
-import type { TeamsRead } from '@/views/teams-context';
-import { TEAMS_DEFAULTS, teamsPath } from '@/views/teams-filter';
+import type { TeamsRead } from '@/logic/teams-context';
+import { TEAMS_DEFAULTS, teamsPath } from '@/logic/teams-filter';
 import { TEAMS, teams } from '../scripts/fake-gateway/platform-teams.ts';
 
 /**

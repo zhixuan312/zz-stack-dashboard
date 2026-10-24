@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { InitiativeRow } from '@/lib/work-shapes';
-import { nextOf } from '@/views/initiatives-context';
+import { nextOf } from '@/logic/initiatives-context';
 
 /** A row whose only field read here is its next move. */
 const row = (nextMove: InitiativeRow['nextMove']) => ({ nextMove }) as InitiativeRow;

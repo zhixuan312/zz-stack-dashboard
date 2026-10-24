@@ -28,7 +28,7 @@ No figure claims a door could be reached: a fault day counts recorded tool failu
 
 ## Agents
 
-The assistant reads this page and changes nothing. The page shares its context through `platformStatusContext` in `src/views/platform-status-context.ts`, built from the same read and the same words as the page, and `view_platform_status` builds the same context from the same response (`GET /platform/status`, reduced by `statusRead`), so the assistant quotes the figures the screen shows.
+The assistant reads this page and changes nothing. The page shares its context through `platformStatusContext` in `src/logic/platform-status-context.ts`, built from the same read and the same words as the page, and `view_platform_status` builds the same context from the same response (`GET /platform/status`, reduced by `statusRead`), so the assistant quotes the figures the screen shows.
 
 ### What the agent reads
 
@@ -38,7 +38,7 @@ The headline of what needs attention and its foot where it has one, each row's t
 - Malformed calls per 1,000: 64.0, 8 of 125 calls; up 44.0; first 100.0; best 20.0 (28 Sept).
 ```
 
-- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address, and the page text after it for anything the context does not cover; `view_platform_status` answers the same text from anywhere in the console, and `explore_platform_status` (`src/views/platform-status-explore.ts`), offered on this page alone, counts the platform's calls, refusals and malformed calls over any window, with the malformed calls per 1,000.
+- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address, and the page text after it for anything the context does not cover; `view_platform_status` answers the same text from anywhere in the console, and `explore_platform_status` (`src/logic/platform-status-explore.ts`), offered on this page alone, counts the platform's calls, refusals and malformed calls over any window, with the malformed calls per 1,000.
 
 ### What the agent does here
 

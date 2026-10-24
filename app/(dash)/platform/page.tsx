@@ -2,9 +2,9 @@ import { Suspense } from 'react';
 import { app, workspaces } from '@/app.config';
 import { PageFrame } from '@/components/base/shell';
 import { Busy } from '@/components/patterns/page-loading';
-import { gate, gatedMetadata } from '@/data/access';
+import { gate, gatedMetadata } from '@/console/gate';
 import { PlatformStatusAsOf, PlatformStatusView, StatusSkeleton } from '@/views/pages/platform-status';
-import type { StatusRead } from '@/views/platform-status-context';
+import type { StatusRead } from '@/logic/platform-status-context';
 import { readStatus } from './read-status';
 
 export function generateMetadata() { return gatedMetadata('platform-status', { title: 'Status' }); }

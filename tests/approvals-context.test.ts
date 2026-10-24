@@ -22,10 +22,10 @@ import type { Approvals } from '@/lib/work-shapes';
 import {
   APPROVALS_DEFAULTS, APPROVAL_IS_THE_PERSON_S, DECISION_BASIS, PRESENTATION, TEAM_APPROVALS, approvalsContext, approvalsPath, noPresentationLine,
   type ApprovalsRead,
-} from '@/views/approvals-context';
-import { CONTEXT_BUDGET } from '@/views/context';
+} from '@/logic/approvals-context';
+import { CONTEXT_BUDGET } from '@/logic/context';
 import { ApprovalsView } from '@/views/pages/approvals';
-import { approvalsTool } from '@/views/tools/approvals';
+import { approvalsTool } from '@/logic/tools/approvals';
 import { ME } from '../scripts/fake-gateway/people.ts';
 import { approvals } from '../scripts/fake-gateway/work-approvals.ts';
 

@@ -16,7 +16,7 @@ import type { Access } from '@/lib/destination-shapes';
 import type { People } from '@/lib/fleet-shapes';
 import { AccessView } from '@/views/pages/access';
 import { PlatformPeopleView } from '@/views/pages/platform-people';
-import { PEOPLE_DEFAULTS, peoplePath } from '@/views/people-filter';
+import { PEOPLE_DEFAULTS, peoplePath } from '@/logic/people-filter';
 import { access } from '../scripts/fake-gateway/work-access.ts';
 import { ME } from '../scripts/fake-gateway/people.ts';
 import { people } from '../scripts/fake-gateway/platform-people.ts';

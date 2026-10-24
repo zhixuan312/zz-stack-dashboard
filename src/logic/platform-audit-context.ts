@@ -23,7 +23,8 @@ import { formatCount } from '@/lib/format-units';
 import { listed, type Fact, type Insight, type SharedContext } from '@/lib/shared-context';
 import { app } from '@/app.config';
 import { OWNER_LABEL } from './activity-context';
-import { READ_BOUND_MS, addressOf } from './context';
+import { addressOf } from './context';
+import { READ_BOUND_MS } from '@/lib/read-bound';
 import { rostered } from './platform-roster';
 import { bugPath } from './platform-bugs-context';
 

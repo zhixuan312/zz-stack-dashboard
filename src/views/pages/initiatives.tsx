@@ -25,11 +25,11 @@ import { formatCount } from '@/lib/format-units';
 import { grainOf, type Grain } from '@/lib/grain';
 import { useLive } from '@/lib/live';
 import type { InitiativeList } from '@/lib/work-shapes';
-import { pendingContext } from '@/views/context';
-import { TILES, closedLine, initiativesContext, openLine, waitingLine, initiativesTrouble, nextOf, type InitiativesRead, type InitiativesShown, type ShownRow } from '@/views/initiatives-context';
-import { INITIATIVES_DEFAULTS, LIST_STATES, PAGE_SIZE, STATE_LABEL, filtersOfPath, listPath, narrowed, pageOf, type InitiativesFilters } from '@/views/initiatives-filter';
-import { useServed, useServedAddress } from '@/views/use-served';
-import { OUTCOME_PARTS } from '@/views/outcome-parts';
+import { pendingContext } from '@/logic/context';
+import { TILES, closedLine, initiativesContext, openLine, waitingLine, initiativesTrouble, nextOf, type InitiativesRead, type InitiativesShown, type ShownRow } from '@/logic/initiatives-context';
+import { INITIATIVES_DEFAULTS, LIST_STATES, PAGE_SIZE, STATE_LABEL, filtersOfPath, listPath, narrowed, pageOf, type InitiativesFilters } from '@/logic/initiatives-filter';
+import { useServed, useServedAddress } from '@/logic/use-served';
+import { OUTCOME_PARTS } from '@/logic/outcome-parts';
 
 // The chart is the page's heaviest module and draws below the tiles, so it arrives after the first paint.
 const ColumnChart = dynamic(() => import('@/components/charts/column-chart').then((m) => m.ColumnChart), { loading: () => <Skeleton className="h-56 rounded-md" /> });

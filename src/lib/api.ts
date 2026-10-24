@@ -5,7 +5,7 @@ import { createContext, createElement, use, useCallback, useContext, useEffect, 
 import { preload } from 'react-dom';
 import { clearThread } from '@/components/patterns/assistant/thread';
 import type { Revisions } from '@/lib/live';
-import { READ_BOUND_MS } from '@/views/context';
+import { READ_BOUND_MS } from '@/lib/read-bound';
 
 /**
  * Every read a page does for its own content.

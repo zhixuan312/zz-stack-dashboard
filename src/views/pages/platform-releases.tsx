@@ -18,12 +18,12 @@ import { AXIS_FORMATTERS, plural } from '@/lib/format';
 import { formatDate, formatDateTime, formatDay, formatShortDate } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import type { ReleaseRow, Releases } from '@/lib/platform-shapes';
-import { pendingContext } from '@/views/context';
+import { pendingContext } from '@/logic/context';
 import {
   OBSERVED, RELEASES_DEFAULTS, TILES, clientActionOf, failuresIn, filtersOfPath, lastWholeWeek, midSentence, observedOf, observedText, overlapText, p95In,
   rateIn, releasePath, releasesContext, releasesPath, releasesTrouble, weekRate, weeksRunning, type ReleasesFilters, type ReleasesRead, type Week,
-} from '@/views/platform-releases-context';
-import { useServed, useServedAddress } from '@/views/use-served';
+} from '@/logic/platform-releases-context';
+import { useServed, useServedAddress } from '@/logic/use-served';
 
 type Side = ReleaseRow['before'];
 const RATE = new Intl.NumberFormat('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });

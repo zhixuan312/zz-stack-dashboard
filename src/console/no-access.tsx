@@ -9,7 +9,7 @@ import { chromeAccess } from '@/data/access';
 import { FEATURES, type FeatureId } from '@/data/features';
 import { whoCan } from '@/data/roles';
 import type { Need } from '@/lib/collection';
-import { NOT_FOUND } from '@/views/missing';
+import { NOT_FOUND } from '@/logic/missing';
 import { navOf } from '@/views/workspaces';
 
 

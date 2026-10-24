@@ -17,7 +17,7 @@ vi.mock('@/components/patterns/featured-metric', async (importOriginal) => {
 
 import type { FeaturedFigure } from '@/components/patterns/featured-metric';
 import type { Home } from '@/lib/work-shapes';
-import { HALVES, lastWeekOf } from '@/views/home-context';
+import { HALVES, lastWeekOf } from '@/logic/home-context';
 import { HomeView } from '@/views/pages/home';
 import { ME } from '../scripts/fake-gateway/people.ts';
 import { homeOf } from '../scripts/fake-gateway/work-home.ts';

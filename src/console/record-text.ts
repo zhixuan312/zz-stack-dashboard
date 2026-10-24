@@ -13,7 +13,7 @@ import { formatDate } from '@/lib/format-date';
 import type { RecordRead } from '@/lib/work-shapes';
 import {
   FIRST, LEAD, SLICES, asOfLine, footOf, leadOf, periodLine, summaryLine, tileText, tilesOf, type SliceKey,
-} from '@/views/record-context';
+} from '@/logic/record-context';
 
 export function recordText(r: RecordRead): string {
   const lead = leadOf(r);

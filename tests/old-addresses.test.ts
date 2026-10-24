@@ -3,7 +3,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { nav, workspaces } from '@/app.config';
 import { PREPARED } from '@/data/prepared';
-import { viewTools } from '@/views/tools';
+import { viewTools } from '@/logic/tools';
 import baseline from '../scripts/verify.baseline.json';
 import config from '../scripts/verify.config.ts';
 

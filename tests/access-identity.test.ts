@@ -65,9 +65,10 @@ vi.mock('next/navigation', () => ({
 }));
 
 /** The refused view is an async Server Component; here it only says which feature it was drawn for. */
-vi.mock('@/views/no-access', () => ({ NoAccess: async ({ feature }: { feature: string }) => ({ refused: feature }) }));
+vi.mock('@/console/no-access', () => ({ NoAccess: async ({ feature }: { feature: string }) => ({ refused: feature }) }));
 
-import { Unauthenticated, askedOnce, can, chromeAccess, gate, may, nameOf, resolveAccess } from '@/data/access';
+import { Unauthenticated, askedOnce, can, chromeAccess, may, nameOf, resolveAccess } from '@/data/access';
+import { gate } from '@/console/gate';
 import { FLEET } from '@/data/features';
 
 type Body = Record<string, unknown>;

@@ -1,10 +1,10 @@
 import Link from 'next/link';
 import { app, workspaces } from '@/app.config';
 import { PageFrame } from '@/components/base/shell';
-import { gate, gatedMetadata } from '@/data/access';
+import { gate, gatedMetadata } from '@/console/gate';
 import { decodePath } from '@/lib/store-path';
-import { MISSING_METADATA } from '@/views/missing';
-import { MissingPage } from '@/views/no-access';
+import { MISSING_METADATA } from '@/logic/missing';
+import { MissingPage } from '@/console/no-access';
 import { InitiativeClose, InitiativeLead, InitiativeMeta, InitiativeTitle, InitiativeView } from '@/views/pages/initiative';
 import { readInitiative } from '../../read-initiatives';
 

@@ -16,8 +16,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
  */
 import type { People } from '@/lib/fleet-shapes';
 import { PlatformPeopleView } from '@/views/pages/platform-people';
-import { NO_SIGN_IN } from '@/views/people-context';
-import { PEOPLE_DEFAULTS, peoplePath } from '@/views/people-filter';
+import { NO_SIGN_IN } from '@/logic/people-context';
+import { PEOPLE_DEFAULTS, peoplePath } from '@/logic/people-filter';
 
 const WEEK = { from: '2026-10-05T00:00:00Z', to: '2026-10-12T00:00:00Z', observedFrom: '2026-10-05T00:00:00Z', observedThrough: '2026-10-12T00:00:00Z', complete: true };
 const DATA: People = {

@@ -13,7 +13,8 @@ import { formatCount } from '@/lib/format-units';
 import type { Evaluation, SafeFinding } from '@/lib/platform-shapes';
 import { listed, type Fact, type Insight, type SharedContext } from '@/lib/shared-context';
 import { waited } from '@/console/words';
-import { READ_BOUND_MS, budgeted, pendingContext } from './context';
+import { budgeted, pendingContext } from './context';
+import { READ_BOUND_MS } from '@/lib/read-bound';
 
 /** What the page's one read came back as: the whole response, the gateway's sentence, or no answer within the bound. */
 export type EvaluationRead = { state: 'ok'; evaluation: Evaluation } | { state: 'failed'; reason: string } | { state: 'slow' };

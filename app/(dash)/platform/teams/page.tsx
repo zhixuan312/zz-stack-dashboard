@@ -3,10 +3,10 @@ import { app, workspaces } from '@/app.config';
 import { PageFrame } from '@/components/base/shell';
 import { Busy } from '@/components/patterns/page-loading';
 import { RecordsSkeleton } from '@/components/templates/records';
-import { gate, gatedMetadata } from '@/data/access';
+import { gate, gatedMetadata } from '@/console/gate';
 import { CreateTeam, PlatformTeamsView, TeamsAsOf } from '@/views/pages/platform-teams';
-import type { TeamsRead } from '@/views/teams-context';
-import { filtersOf } from '@/views/teams-filter';
+import type { TeamsRead } from '@/logic/teams-context';
+import { filtersOf } from '@/logic/teams-filter';
 import { readTeams } from './read-teams';
 
 export function generateMetadata() { return gatedMetadata('teams', { title: 'Teams' }); }

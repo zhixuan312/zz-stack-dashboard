@@ -27,10 +27,10 @@ import { formatDateTime, formatRelative } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
 import { consoleMutate, useConsoleMutation } from '@/lib/mutate';
-import { useServed, useServedAddress } from '@/views/use-served';
-import { pendingContext } from '@/views/context';
-import { NO_SIGN_IN, TILES, peopleContext, peopleTrouble, signInsValue, type PeopleRead, type PeopleShown } from '@/views/people-context';
-import { PEOPLE_DEFAULTS, PERSON_STATES, filtersOfPath, narrowed, peoplePath, type PeopleFilters } from '@/views/people-filter';
+import { useServed, useServedAddress } from '@/logic/use-served';
+import { pendingContext } from '@/logic/context';
+import { NO_SIGN_IN, TILES, peopleContext, peopleTrouble, signInsValue, type PeopleRead, type PeopleShown } from '@/logic/people-context';
+import { PEOPLE_DEFAULTS, PERSON_STATES, filtersOfPath, narrowed, peoplePath, type PeopleFilters } from '@/logic/people-filter';
 
 type Done = { ok: true; result: string };
 /** A person as the page draws them. */

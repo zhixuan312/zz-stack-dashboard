@@ -27,7 +27,7 @@ One skill a plugin ships: how your team's runs of it went, its text, and what sh
 
 ## Agents
 
-The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `skillContext` in `src/views/skill-context.ts`, and `view_skill` builds the same context from the same four reads, so the assistant quotes the figures the screen shows. Ask is on the lead figure of Its runs (why its calls are refused, or what its runs show), and on About this skill in the text's views: what the skill is for and where it sits in its plugin's method.
+The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `skillContext` in `src/logic/skill-context.ts`, and `view_skill` builds the same context from the same four reads, so the assistant quotes the figures the screen shows. Ask is on the lead figure of Its runs (why its calls are refused, or what its runs show), and on About this skill in the text's views: what the skill is for and where it sits in its plugin's method.
 
 ### What the agent reads
 
@@ -37,7 +37,7 @@ Your team's runs of the skill, calls per run, median run, refusal rate and obser
 - Its calls by door: core 2,480 (73 refused), eval 216 (8 refused).
 ```
 
-- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address, and the page text after it for anything the context does not cover. `explore_skill` (`src/views/plugins-explore.ts`), offered on this page alone, counts this skill's calls, runs and observed output over any window, every call held to this skill.
+- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address, and the page text after it for anything the context does not cover. `explore_skill` (`src/logic/plugins-explore.ts`), offered on this page alone, counts this skill's calls, runs and observed output over any window, every call held to this skill.
 
 ### What the agent does here
 

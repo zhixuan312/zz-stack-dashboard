@@ -2,8 +2,8 @@ import { redirect } from 'next/navigation';
 import { chromeAccess } from '@/data/access';
 import { GatewayError, answeredAt, gatewayGet, type Revised } from '@/data/gateway';
 import type { Approvals } from '@/lib/work-shapes';
-import { approvalsPath, type ApprovalsFilters, type ApprovalsRead } from '@/views/approvals-context';
-import { READ_BOUND_MS } from '@/views/context';
+import { approvalsPath, type ApprovalsFilters, type ApprovalsRead } from '@/logic/approvals-context';
+import { READ_BOUND_MS } from '@/lib/read-bound';
 
 /** `read`, or `slow` once `READ_BOUND_MS` has passed without an answer. Neither this nor `read` rejects. */
 async function bounded<R>(read: Promise<R>, slow: R): Promise<R> {

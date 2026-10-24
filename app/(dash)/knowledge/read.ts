@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { GatewayError, answeredAt, gatewayGet } from '@/data/gateway';
-import { READ_BOUND_MS } from '@/views/context';
-import type { ServerRead } from '@/views/knowledge-context';
+import { READ_BOUND_MS } from '@/lib/read-bound';
+import type { ServerRead } from '@/logic/knowledge-context';
 
 /** The summary's read is Knowledge's own page; every other first read's path is the address of the page that makes it. */
 const SUMMARY = '/knowledge/summary';

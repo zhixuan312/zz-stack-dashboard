@@ -7,8 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { plural } from '@/lib/format';
 import type { CandidateStatus, PluginEval, PluginEvalFound } from '@/lib/api-shapes';
-import { RELEASE_JUDGED, TRUST_SAID, evaluatorSaid } from '@/views/plugin-context';
-import { wordsOf } from '@/views/plugins-context';
+import { RELEASE_JUDGED, TRUST_SAID, evaluatorSaid } from '@/logic/plugin-context';
+import { wordsOf } from '@/logic/plugins-context';
 
 const STATUS_LABEL: Record<CandidateStatus, string> = {
   recorded: 'Recorded', awaiting_build: 'Awaiting build', valid: 'Valid',

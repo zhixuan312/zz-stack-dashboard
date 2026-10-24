@@ -2,9 +2,9 @@ import { Suspense } from 'react';
 import { app, workspaces } from '@/app.config';
 import { PageFrame } from '@/components/base/shell';
 import { Busy } from '@/components/patterns/page-loading';
-import { gate, gatedMetadata } from '@/data/access';
+import { gate, gatedMetadata } from '@/console/gate';
 import { AuditAsOf, PlatformAuditView } from '@/views/pages/platform-audit';
-import { filtersOf, type AuditRead } from '@/views/platform-audit-context';
+import { filtersOf, type AuditRead } from '@/logic/platform-audit-context';
 import { AuditSkeleton } from './audit-skeleton';
 import { readAudit } from './read-audit';
 

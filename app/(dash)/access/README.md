@@ -36,7 +36,7 @@ What lets a person and their agents in, and nothing of anybody else's: their own
 
 ## Agents
 
-The assistant reads this page and changes nothing: it never issues, revokes or switches. The page shares its context through `accessContext` in `src/views/access-context.ts`, built from the same read and the same words as the page, and `view_access` builds the same context from the same response (`GET /access`), so the assistant quotes what the screen shows. Ask is on Tokens: which are live, which application each is for, and which were never used.
+The assistant reads this page and changes nothing: it never issues, revokes or switches. The page shares its context through `accessContext` in `src/logic/access-context.ts`, built from the same read and the same words as the page, and `view_access` builds the same context from the same response (`GET /access`), so the assistant quotes what the screen shows. Ask is on Tokens: which are live, which application each is for, and which were never used.
 
 A token's value never reaches the assistant: it is shown once, in a dialog portalled outside the region whose text an Ask sends, and marked `data-assistant="omit"` besides (bug ee35a0d7). Neither the context nor any tool's answer holds a token's value, a hash, a session's id or an enrolment link.
 
@@ -48,7 +48,7 @@ The live and revoked tokens, the applications, the signed-in browsers, the passk
 - Their tokens, newest first: "laptop" live, issued directly, issued 01 Oct 2026, last used 16 Oct 2026; "old ci runner" revoked, issued directly, issued 16 Aug 2026, last used 29 Aug 2026.
 ```
 
-- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address, and the page text after it for anything the context does not cover, without the value a dialog shows once; `view_access` answers the same text from anywhere in the console, and `explore_access` (`src/views/access-explore.ts`), offered on this page alone, counts the caller's own tokens by state and by application, a week or a month at a time, down to each token by label and date, from their own Access answer. No answer holds a token's value.
+- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address, and the page text after it for anything the context does not cover, without the value a dialog shows once; `view_access` answers the same text from anywhere in the console, and `explore_access` (`src/logic/access-explore.ts`), offered on this page alone, counts the caller's own tokens by state and by application, a week or a month at a time, down to each token by label and date, from their own Access answer. No answer holds a token's value.
 
 ### What the agent does here
 

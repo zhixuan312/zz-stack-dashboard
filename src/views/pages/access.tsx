@@ -21,9 +21,9 @@ import type { Revised } from '@/data/gateway';
 import { useDataClock } from '@/lib/api';
 import type { Access } from '@/lib/destination-shapes';
 import { useLive } from '@/lib/live';
-import { accessContext, accessTrouble, asOfLine, type AccessRead } from '@/views/access-context';
-import { pendingContext } from '@/views/context';
-import { useServed } from '@/views/use-served';
+import { accessContext, accessTrouble, asOfLine, type AccessRead } from '@/logic/access-context';
+import { pendingContext } from '@/logic/context';
+import { useServed } from '@/logic/use-served';
 
 type Trouble = Exclude<AccessRead, { state: 'ok' }>;
 

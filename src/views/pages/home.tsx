@@ -27,9 +27,9 @@ import type { Home } from '@/lib/work-shapes';
 import {
   APPROVALS_LINE, FOOT, HALVES, MILESTONE, MILESTONES_LINE, TILES, TILE_FORMAT, absent, asOfLine, covered, coverageLine, footOf,
   halvesOf, homeContext, lastWeekOf, pointLabel, since, tileOf, troubleOf, waitingOf, weekIn, weekOf, type HomeRead, type TileKey,
-} from '@/views/home-context';
-import { nextOf } from '@/views/initiatives-context';
-import { NO_DATA } from '@/views/record-names';
+} from '@/logic/home-context';
+import { nextOf } from '@/logic/initiatives-context';
+import { NO_DATA } from '@/logic/record-names';
 
 /**
  * Home: the active team's last whole week, what waits on it, and what is open, read on the console's server and handed

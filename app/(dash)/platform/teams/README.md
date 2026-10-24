@@ -28,7 +28,7 @@ Every team on the platform, each against its own past weeks: the superadmin's li
 
 ## Agents
 
-The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `teamsContext` in `src/views/teams-context.ts`, the same function `view_teams` calls on the same response, so the assistant quotes the figures the screen shows. Ask is in the filter bar: how each listed team's real-work use has moved against its own past weeks.
+The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `teamsContext` in `src/logic/teams-context.ts`, the same function `view_teams` calls on the same response, so the assistant quotes the figures the screen shows. Ask is in the filter bar: how each listed team's real-work use has moved against its own past weeks.
 
 ### What the agent reads
 

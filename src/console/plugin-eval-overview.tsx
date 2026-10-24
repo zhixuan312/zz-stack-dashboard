@@ -10,8 +10,8 @@ import { formatCount } from '@/lib/format-units';
 import type { DimensionScore, PluginEval, PluginEvalFound } from '@/lib/api-shapes';
 import type { PluginScore } from '@/lib/destination-shapes';
 import { formatDate } from '@/lib/format-date';
-import { contributionsOf, outOfTen, rebuiltSaid, shareSaid } from '@/views/eval-score';
-import { standingSaid, wordsOf } from '@/views/plugins-context';
+import { contributionsOf, outOfTen, rebuiltSaid, shareSaid } from '@/logic/eval-score';
+import { standingSaid, wordsOf } from '@/logic/plugins-context';
 
 type Run = NonNullable<PluginEvalFound['run']>;
 

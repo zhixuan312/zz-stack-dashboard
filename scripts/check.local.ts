@@ -18,11 +18,20 @@
  *   console has.
  * - Every file `next.config.ts` traces into a route is inside the Docker build context, so the image does not ship
  *   without a file the code reads with `node:fs`.
+ *
+ * It carries the four-layer switch too: `fourLayers = true` is what makes Meridian's check.ts run the six rules of
+ * `docs/data-layers.md` (`data-imports-neither`, `logic-does-not-import-views`, `views-produce-nothing`,
+ * `presentation-does-not-read`, `no-direct-query` and `client-does-not-import-a-reading-module`). The console's
+ * producers live in `src/logic/` and its renderers in `src/views/` since 0.28.0.
  */
+/** The switch Meridian's check.ts reads as text: the six layer rules run only when it is assigned `true`. */
+export const fourLayers = true;
+
 import fs from 'node:fs';
 import path from 'node:path';
 import { nav } from '../src/app.config.ts';
 import { FEATURES } from '../src/data/features.ts';
+import { valueImports } from './lib/layer-rules.ts';
 import { agentSection, pageSpecs, viewToolPages } from './lib/routes.ts';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
@@ -60,7 +69,6 @@ const REFUSED_CARDS: [RegExp, string][] = [
   [/^src\/components\/patterns\/status-list\//, 'the Status list'],
 ];
 const CHART_PACKAGE = /^(recharts|chart\.js|react-chartjs-2|d3|d3-[a-z-]+|echarts|echarts-for-react|victory|victory-[a-z-]+|@nivo\/[a-z-]+|@visx\/[a-z-]+|plotly\.js|react-plotly\.js|highcharts|highcharts-react-official|apexcharts|react-apexcharts|uplot|@tremor\/react|vega|vega-lite|react-vega|@observablehq\/plot)(\/|$)/;
-const IMPORTED = /\b(?:from|import)\s*\(?\s*(['"])([^'"\n]+)\1/g;
 
 function chartProblems(root: string): string[] {
   const out: string[] = [];
@@ -91,8 +99,9 @@ function chartProblems(root: string): string[] {
     out.push(`${f}: the chart ${cardOf(f)} is outside .meridian/manifest.json, so it is the console's own chart; draw the mapped ZZ Meridian card instead`);
   }
   for (const f of [...files('src'), ...files('app')].filter((p) => /\.tsx?$/.test(p) && !managed.has(p))) {
-    for (const m of code(fs.readFileSync(path.join(root, f), 'utf8')).matchAll(IMPORTED)) {
-      const spec = m[2];
+    // A type-only import is erased before anything runs, so a module that names a card's type draws nothing. That is
+    // how Meridian's `src/logic/summarise.ts` takes a Service's shape from the Status list it never renders.
+    for (const { spec } of valueImports(code(fs.readFileSync(path.join(root, f), 'utf8')))) {
       if (!spec.startsWith('.') && !spec.startsWith('@/')) {
         if (CHART_PACKAGE.test(spec)) out.push(`${f}: imports the chart package ${spec}; every chart is a mapped ZZ Meridian card`);
         continue;
@@ -185,18 +194,18 @@ for (const f of [...walk('app', /\.tsx?$/), ...walk('src', /\.tsx?$/)]) {
 for (const f of walk('app/(dash)', /^README\.md$/)) {
   const md = read(f);
   if (!/^## Agents\n[\s\S]*?^### What the agent reads$/m.test(md)) problems.push(`${f}: no "### What the agent reads" under ## Agents`);
-  const named = /`(\w+Context)` in `(src\/views\/[\w-]+\.ts)`/.exec(md);
+  const named = /`(\w+Context)` in `(src\/(?:logic|views)\/[\w-]+\.ts)`/.exec(md);
   if (!named) problems.push(`${f}: its Agents section does not name the context function the page shares`);
   else if (!fs.existsSync(path.join(ROOT, named[2])) || !new RegExp(`export function ${named[1]}\\b`).test(read(named[2]))) problems.push(`${f}: names ${named[1]} in ${named[2]}, which does not export it`);
 }
 
 // ── Every page a view tool renders says what the agent does there ─────────────────────────────────────
-// Meridian's check.ts reads the view tools' `page`s from `src/views/tools.ts` alone, where this console's tools are
-// imported from a module each under `src/views/tools/`, so the release's rule finds no page here. This reads every
-// module with the release's own reader and holds each page's spec to the release's own section.
+// Meridian's check.ts reads the view tools' `page`s from `src/logic/tools.ts` and every module it imports, so a product
+// that keeps each tool in a module of its own is read whole (0.28.0). This console does, and the release's rule now
+// finds every page.
 {
-  const pages = new Set(walk('src/views/tools', /\.ts$/).flatMap((f) => viewToolPages(read(f)) ?? []).map((v) => v.page));
-  if (!pages.size) problems.push('src/views/tools/: no view tool names its page');
+  const pages = new Set((viewToolPages() ?? []).map((v) => v.page));
+  if (!pages.size) problems.push('src/logic/tools.ts: no view tool names its page');
   for (const { file, route } of pageSpecs().filter((p) => pages.has(p.route))) {
     const section = agentSection(read(file));
     if (!section) problems.push(`${file}: no "### What the agent does here" under ## Agents`);

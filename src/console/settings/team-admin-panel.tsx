@@ -3,7 +3,7 @@
 import { FormSection } from '@/components/patterns/form-section';
 import { useAccess } from '@/console/settings/access-read';
 import { TeamMembersPanel } from '@/console/settings/team-members-panel';
-import { actingOf } from '@/views/access-context';
+import { actingOf } from '@/logic/access-context';
 
 /**
  * The members of the team this browser acts for, for its admin: drawn only when the Access read names the caller

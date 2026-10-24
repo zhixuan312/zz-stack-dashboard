@@ -11,7 +11,7 @@ vi.mock('next/navigation', () => ({
 }));
 
 import type { InitiativeDetail, Me } from '@/lib/api-shapes';
-import { initiativeContext, type InitiativeRead } from '@/views/initiative-context';
+import { initiativeContext, type InitiativeRead } from '@/logic/initiative-context';
 import { InitiativeClose, InitiativeView } from '@/views/pages/initiative';
 import { close, initiativeDetail } from '../scripts/fake-gateway/work-initiatives.ts';
 import { INITIATIVES } from '../scripts/fake-gateway/work.ts';

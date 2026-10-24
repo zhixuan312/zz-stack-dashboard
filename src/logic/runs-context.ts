@@ -14,7 +14,8 @@ import { plural } from '@/lib/format';
 import { formatCount, formatKb, formatSeconds } from '@/lib/format-units';
 import { dayOf, formatDate, formatDateTime, formatDay } from '@/lib/format-date';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
-import { READ_BOUND_MS, addressOf, arrived, budgeted, clip, type Arrival } from './context';
+import { addressOf, arrived, budgeted, clip, type Arrival } from './context';
+import { READ_BOUND_MS } from '@/lib/read-bound';
 import { perRunOf } from './runs-figures';
 
 /** The recent runs one page holds, as every table pages. */

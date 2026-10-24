@@ -23,7 +23,7 @@ The active team's work, open or closed, and where each goes next, filtered and p
 
 ## Agents
 
-The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. It closes nothing; a person closes an initiative with Close initiative on its own page, and the context says so. The page shares its context through `initiativesContext` in `src/views/initiatives-context.ts`, the same function `view_initiatives` calls, so the assistant quotes the figures the screen shows. Ask is in the filter bar: which initiatives need the person next and what each waits on, or what the filtered ones have in common.
+The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. It closes nothing; a person closes an initiative with Close initiative on its own page, and the context says so. The page shares its context through `initiativesContext` in `src/logic/initiatives-context.ts`, the same function `view_initiatives` calls, so the assistant quotes the figures the screen shows. Ask is in the filter bar: which initiatives need the person next and what each waits on, or what the filtered ones have in common.
 
 ### What the agent reads
 

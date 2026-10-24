@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { formatPercent, plural } from '@/lib/format';
 import { formatCount } from '@/lib/format-units';
 import type { EvalFinding, PluginEvalFound } from '@/lib/api-shapes';
-import { wordsOf } from '@/views/plugins-context';
+import { wordsOf } from '@/logic/plugins-context';
 
 type Run = NonNullable<PluginEvalFound['run']>;
 

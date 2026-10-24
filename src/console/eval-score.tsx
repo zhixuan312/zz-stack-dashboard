@@ -3,7 +3,7 @@
 import { ArrowRight } from 'lucide-react';
 import type { PluginScore } from '@/lib/destination-shapes';
 import { formatDate, formatDateTime, formatShortDate } from '@/lib/format-date';
-import { protocolNamed, protocolSaid, standingSaid } from '@/views/plugins-context';
+import { protocolNamed, protocolSaid, standingSaid } from '@/logic/plugins-context';
 
 /**
  * A plugin's latest public score, as the platform's Evaluation read selects it: out of 10, how far it can be trusted,

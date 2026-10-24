@@ -14,7 +14,8 @@ import { formatCount } from '@/lib/format-units';
 import { formatDate, formatDateTime, formatDay } from '@/lib/format-date';
 import type { PeriodFigure, Window } from '@/lib/platform-shapes';
 import { listed, type Fact, type Insight, type SharedContext } from '@/lib/shared-context';
-import { READ_BOUND_MS, addressOf, arrived, budgeted, clip, type Arrival } from './context';
+import { addressOf, arrived, budgeted, clip, type Arrival } from './context';
+import { READ_BOUND_MS } from '@/lib/read-bound';
 
 /** How each owner reads: a guardrail that held, a call made wrong, a tool that failed, and the rest. */
 export const OWNER_LABEL: Record<RefusalOwner, string> = { guardrail: 'A guardrail held', ours: 'Malformed call', theirs: 'Tool failure', other: 'Other' };

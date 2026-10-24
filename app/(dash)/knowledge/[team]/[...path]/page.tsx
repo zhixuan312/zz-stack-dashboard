@@ -1,9 +1,9 @@
-import { gate, gatedMetadata } from '@/data/access';
+import { gate, gatedMetadata } from '@/console/gate';
 import type { KnowledgeBody } from '@/lib/api-shapes';
 import { knowledgeNodeHref } from '@/lib/knowledge-filters';
 import { decodePath } from '@/lib/store-path';
-import { MISSING_METADATA } from '@/views/missing';
-import { MissingPage } from '@/views/no-access';
+import { MISSING_METADATA } from '@/logic/missing';
+import { MissingPage } from '@/console/no-access';
 import { KnowledgeNodeView } from '@/views/pages/knowledge-node';
 import { readFirst } from '../../read';
 

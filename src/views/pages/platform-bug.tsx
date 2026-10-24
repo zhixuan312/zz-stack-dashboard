@@ -23,11 +23,11 @@ import { ApiError } from '@/lib/api';
 import { formatDate, formatDateTime } from '@/lib/format-date';
 import { useConsoleMutation } from '@/lib/mutate';
 import type { BugReport, BugResolveInput } from '@/lib/platform-shapes';
-import { pendingContext } from '@/views/context';
+import { pendingContext } from '@/logic/context';
 import {
   bugContext, bugPath, bugsTrouble, duplicatesPath, impactOf, statusOf, type BugDuplicates, type BugRead, type DuplicatesRead,
-} from '@/views/platform-bugs-context';
-import { useServed } from '@/views/use-served';
+} from '@/logic/platform-bugs-context';
+import { useServed } from '@/logic/use-served';
 
 type Trouble = Exclude<BugRead, { state: 'ok' }>;
 type Outcome = BugResolveInput['status'];

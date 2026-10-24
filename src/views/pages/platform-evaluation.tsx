@@ -29,7 +29,7 @@ import {
   ASK, DECISIONS, GUARDRAILS, TILES, asOfLine, evaluationContext, evaluationTrouble, isAdmin, kindOf, nameOf, namesNoPlugin, ownerOf,
   protocolOf, rangeOf, runText, scoreIn, scoredAgo, seriesName, seriesRows, standingOf, waitingOf, type EvaluationRead, type PluginScoreRow,
   type SeriesRow, type WaitingFinding,
-} from '@/views/platform-evaluation-context';
+} from '@/logic/platform-evaluation-context';
 
 /** The protagonist's title: the card the page's Ask sits on. COUPLED: the README's `Protagonist:`. */
 const PLUGINS_TITLE = 'Each plugin\'s latest score';

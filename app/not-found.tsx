@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Standalone } from '@/console/standalone';
-import { MISSING_METADATA, NOT_FOUND } from '@/views/missing';
+import { MISSING_METADATA, NOT_FOUND } from '@/logic/missing';
 
 export const metadata = MISSING_METADATA;
 

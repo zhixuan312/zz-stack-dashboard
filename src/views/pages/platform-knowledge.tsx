@@ -27,8 +27,8 @@ import {
   TILES, WEEKLY_TILES, askOf, asOfLine, cohortNote, cohortText, exactSince, figureText, isFleet, knowledgeHealthContext, knowledgeHealthTrouble,
   leftOut, madeLine, noResultCell, searchLine, searchesSaid, shelfName, valueIn, weekOf, type KnowledgeHealthRead, type MadeWeek, type Question,
   type SearchWeek, type ShelfRow, type WeeklyTile,
-} from '@/views/platform-knowledge-context';
-import { changeOf, lastWhole, pointsOf } from '@/views/week-change';
+} from '@/logic/platform-knowledge-context';
+import { changeOf, lastWhole, pointsOf } from '@/logic/week-change';
 
 /** The protagonist's title: the card the page's Ask sits on. COUPLED: the README's `Protagonist:`. */
 const SHELVES_TITLE = 'Each shelf';

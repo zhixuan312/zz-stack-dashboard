@@ -42,12 +42,13 @@ vi.mock('next/navigation', async (importOriginal) => ({
 
 import { SurfaceOverride } from '@/components/base/surface';
 import { PageViews } from '@/console/page-view';
-import { Unauthenticated, gate, resolveAccess } from '@/data/access';
+import { Unauthenticated, resolveAccess } from '@/data/access';
+import { gate } from '@/console/gate';
 import { ConsoleCaller } from '@/lib/api';
 import type { Me } from '@/lib/api-shapes';
 import { PlatformPeopleView } from '@/views/pages/platform-people';
-import type { PeopleRead } from '@/views/people-context';
-import { PEOPLE_DEFAULTS, peoplePath } from '@/views/people-filter';
+import type { PeopleRead } from '@/logic/people-context';
+import { PEOPLE_DEFAULTS, peoplePath } from '@/logic/people-filter';
 import { ME } from '../scripts/fake-gateway/people.ts';
 import { people } from '../scripts/fake-gateway/platform-people.ts';
 import { MEMBER_STATUS, PLATFORM_STATUS } from '../scripts/fake-gateway/platform-status.ts';

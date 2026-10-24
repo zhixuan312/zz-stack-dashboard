@@ -13,7 +13,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
  * page's own kind rather than filtered in the browser.
  */
 import type { KnowledgeList, KnowledgeRow, KnowledgeSummary } from '@/lib/destination-shapes';
-import type { ServerRead } from '@/views/knowledge-context';
+import type { ServerRead } from '@/logic/knowledge-context';
 import { KnowledgeView } from '@/views/pages/knowledge';
 
 const ME = {

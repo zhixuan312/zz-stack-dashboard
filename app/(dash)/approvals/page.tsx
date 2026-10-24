@@ -2,8 +2,8 @@ import { Suspense } from 'react';
 import { app, workspaces } from '@/app.config';
 import { PageFrame } from '@/components/base/shell';
 import { Busy } from '@/components/patterns/page-loading';
-import { gate, gatedMetadata } from '@/data/access';
-import { filtersOf, type ApprovalsRead } from '@/views/approvals-context';
+import { gate, gatedMetadata } from '@/console/gate';
+import { filtersOf, type ApprovalsRead } from '@/logic/approvals-context';
 import { ApprovalsAsOf, ApprovalsSkeleton, ApprovalsView } from '@/views/pages/approvals';
 import { readApprovals } from './read-approvals';
 

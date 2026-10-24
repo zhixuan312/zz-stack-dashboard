@@ -27,16 +27,16 @@ import { systemPrompt } from '@/lib/assistant/prompt';
 import { respond } from '@/lib/assistant/respond';
 import { assistantTools } from '@/lib/assistant/tools';
 import { contextText, type SharedContext } from '@/lib/shared-context';
-import { accessContext } from '@/views/access-context';
-import { APPROVAL_IS_THE_PERSON_S, approvalsContext } from '@/views/approvals-context';
-import { documentContext } from '@/views/document-context';
-import { initiativeContext } from '@/views/initiative-context';
-import { CLOSE_IS_THE_PERSON_S, initiativesContext } from '@/views/initiatives-context';
-import { PEOPLE_CHANGES, peopleContext } from '@/views/people-context';
-import { bugContext } from '@/views/platform-bugs-context';
-import { teamChanges, teamContext } from '@/views/team-context';
-import { TEAMS_CHANGES, teamsContext } from '@/views/teams-context';
-import { viewTools } from '@/views/tools';
+import { accessContext } from '@/logic/access-context';
+import { APPROVAL_IS_THE_PERSON_S, approvalsContext } from '@/logic/approvals-context';
+import { documentContext } from '@/logic/document-context';
+import { initiativeContext } from '@/logic/initiative-context';
+import { CLOSE_IS_THE_PERSON_S, initiativesContext } from '@/logic/initiatives-context';
+import { PEOPLE_CHANGES, peopleContext } from '@/logic/people-context';
+import { bugContext } from '@/logic/platform-bugs-context';
+import { teamChanges, teamContext } from '@/logic/team-context';
+import { TEAMS_CHANGES, teamsContext } from '@/logic/teams-context';
+import { viewTools } from '@/logic/tools';
 import { ME, MEMBER } from '../scripts/fake-gateway/people.ts';
 import { startFakeLlm } from '../scripts/fake-llm.ts';
 import { POST } from '../app/api/assistant/route';
@@ -222,7 +222,7 @@ describe('the assistant makes no write', () => {
   });
 
   it('every view tool reaches the gateway through gatewayGet alone, which sends a GET with no body', async () => {
-    const dir = path.join(ROOT, 'src/views/tools');
+    const dir = path.join(ROOT, 'src/logic/tools');
     for (const f of fs.readdirSync(dir).filter((n) => n.endsWith('.ts'))) {
       const src = fs.readFileSync(path.join(dir, f), 'utf8');
       expect(src, f).not.toMatch(/\bfetch\s*\(|useConsoleMutation|@\/lib\/api['"]/);

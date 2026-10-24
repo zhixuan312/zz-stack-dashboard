@@ -26,12 +26,13 @@ import { PREPARED } from '@/data/prepared';
 import type { Me } from '@/lib/api-shapes';
 import type { Audit, AuditRow } from '@/lib/fleet-shapes';
 import { contextText } from '@/lib/shared-context';
-import { CONTEXT_BUDGET, READ_BOUND_MS } from '@/views/context';
+import { CONTEXT_BUDGET } from '@/logic/context';
+import { READ_BOUND_MS } from '@/lib/read-bound';
 import { PlatformAuditView } from '@/views/pages/platform-audit';
 import {
   AUDIT_DEFAULTS, NOBODY, actSentence, auditContext, auditPath, beforeDays, dayStart, dayWords, feedEvent, filtersOfPath, type AuditFilters, type AuditRead, type ReportTitles,
-} from '@/views/platform-audit-context';
-import { auditTool } from '@/views/tools/audit';
+} from '@/logic/platform-audit-context';
+import { auditTool } from '@/logic/tools/audit';
 import { audit } from '../scripts/fake-gateway/platform-audit.ts';
 import PlatformAuditLoading from '../app/(dash)/platform/audit/loading';
 import PlatformAuditPage, { generateMetadata as auditMetadata } from '../app/(dash)/platform/audit/page';

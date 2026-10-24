@@ -2,8 +2,8 @@ import { Suspense } from 'react';
 import { app, workspaces } from '@/app.config';
 import { PageFrame } from '@/components/base/shell';
 import { Busy } from '@/components/patterns/page-loading';
-import { gate, gatedMetadata } from '@/data/access';
-import type { AccessRead } from '@/views/access-context';
+import { gate, gatedMetadata } from '@/console/gate';
+import type { AccessRead } from '@/logic/access-context';
 import { AccessAsOf, AccessSkeleton, AccessView } from '@/views/pages/access';
 import { readAccess } from './read-access';
 

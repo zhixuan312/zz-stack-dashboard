@@ -36,7 +36,7 @@ What waits on the active team for a decision, and every approval recorded in you
 
 ## Agents
 
-The assistant reads this page and approves nothing: a person approves a revision with Approve on the document's own page, after reading it there, and the context says so. The page shares its context through `approvalsContext` in `src/views/approvals-context.ts`, the same function `view_approvals` calls on the same response, so the assistant quotes the figures the screen shows. Ask, labelled, is beside the line under the tabs that says what the tab lists, inside the card, and asks about that list.
+The assistant reads this page and approves nothing: a person approves a revision with Approve on the document's own page, after reading it there, and the context says so. The page shares its context through `approvalsContext` in `src/logic/approvals-context.ts`, the same function `view_approvals` calls on the same response, so the assistant quotes the figures the screen shows. Ask, labelled, is beside the line under the tabs that says what the tab lists, inside the card, and asks about that list.
 
 ### What the agent reads
 
@@ -46,7 +46,7 @@ The tab and its page, the four tiles with what each counts, then the tab's own s
 - Rows 1 to 10 of 11, newest first: review.md of 2026-10-08-result-explanations, v1 (cr_…), 17 Oct 2026, 09:00: shown in the console; basis explicit, recorded; …
 ```
 
-- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `view_approvals` answers the same text from anywhere in the console, the waiting tab unless another is named, and `explore_approvals` (`src/views/approvals-explore.ts`), offered on this page alone, counts the approvals in your name over any window, by presentation, decision basis or initiative, down to each approval.
+- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `view_approvals` answers the same text from anywhere in the console, the waiting tab unless another is named, and `explore_approvals` (`src/logic/approvals-explore.ts`), offered on this page alone, counts the approvals in your name over any window, by presentation, decision basis or initiative, down to each approval.
 
 ### What the agent does here
 

@@ -30,7 +30,7 @@ One bug report, the superadmin's alone: what the reporter wrote, what it is abou
 
 ## Agents
 
-The assistant reads this page and changes nothing: a report is resolved on its page, by a person. The page shares its context through `bugContext` in `src/views/platform-bugs-context.ts`, the same function `view_bug` calls on the same responses, so the assistant quotes what the screen shows.
+The assistant reads this page and changes nothing: a report is resolved on its page, by a person. The page shares its context through `bugContext` in `src/logic/platform-bugs-context.ts`, the same function `view_bug` calls on the same responses, so the assistant quotes what the screen shows.
 
 ### What the agent reads
 
@@ -40,7 +40,7 @@ The report's status, impact, surface, team, version and when it was filed and re
 - It may be closed as a duplicate of 2 reports of its team: Approve answers twice when the button is pressed twice (duplicate, 0b3f2a6e-…-1d02); …
 ```
 
-- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address, and the page text after it for anything the context does not cover. `view_bug` answers the same text from anywhere in the console, and `explore_bug` (`src/views/bugs-explore.ts`), offered on this page alone, asks what Bugs' prepared query asks: the route has no dimension of a report's id, so nothing in it is held to this report.
+- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address, and the page text after it for anything the context does not cover. `view_bug` answers the same text from anywhere in the console, and `explore_bug` (`src/logic/bugs-explore.ts`), offered on this page alone, asks what Bugs' prepared query asks: the route has no dimension of a report's id, so nothing in it is held to this report.
 
 ### What the agent does here
 

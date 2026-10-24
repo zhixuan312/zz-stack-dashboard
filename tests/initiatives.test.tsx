@@ -12,9 +12,9 @@ vi.mock('@/data/gateway', async (importOriginal) => ({ ...(await importOriginal<
 import { GatewayError } from '@/data/gateway';
 import type { Me } from '@/lib/api-shapes';
 import type { InitiativeList } from '@/lib/work-shapes';
-import { READ_BOUND_MS } from '@/views/context';
-import type { InitiativesRead } from '@/views/initiatives-context';
-import { INITIATIVES_DEFAULTS, filtersOf, filtersOfPath, listPath } from '@/views/initiatives-filter';
+import { READ_BOUND_MS } from '@/lib/read-bound';
+import type { InitiativesRead } from '@/logic/initiatives-context';
+import { INITIATIVES_DEFAULTS, filtersOf, filtersOfPath, listPath } from '@/logic/initiatives-filter';
 import { InitiativeView } from '@/views/pages/initiative';
 import { InitiativesView } from '@/views/pages/initiatives';
 import { initiativeDetail, initiativeList } from '../scripts/fake-gateway/work-initiatives.ts';

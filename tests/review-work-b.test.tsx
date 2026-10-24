@@ -14,8 +14,8 @@ vi.mock('next/navigation', () => ({
 import { SurfaceOverride } from '@/components/base/surface';
 import type { DocumentDetail } from '@/lib/api-shapes';
 import type { Approvals, InitiativeList, WaitingRow } from '@/lib/work-shapes';
-import { APPROVALS_DEFAULTS, approvalsPath } from '@/views/approvals-context';
-import { INITIATIVES_DEFAULTS, listPath } from '@/views/initiatives-filter';
+import { APPROVALS_DEFAULTS, approvalsPath } from '@/logic/approvals-context';
+import { INITIATIVES_DEFAULTS, listPath } from '@/logic/initiatives-filter';
 import { ApprovalsView } from '@/views/pages/approvals';
 import { DocumentView } from '@/views/pages/document';
 import { InitiativeView, SlugTitle } from '@/views/pages/initiative';

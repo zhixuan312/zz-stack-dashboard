@@ -23,9 +23,9 @@ vi.mock('@/data/gateway', async (importOriginal) => ({ ...(await importOriginal<
 const access = vi.hoisted(() => ({ denied: null as ReactNode }));
 vi.mock('@/data/access', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/data/access')>()),
-  gate: async () => access.denied,
   chromeAccess: async () => ({ only: ['/approvals'], user: { name: 'Ava', role: 'Superadmin' }, team: 'atlas', caller: 'ava.lindqvist@example.com' }),
 }));
+vi.mock('@/console/gate', () => ({ gate: async () => access.denied, gatedMetadata: async (_feature: string, metadata: object) => metadata }));
 
 import { refusal } from '@/app.config';
 import { GatewayError } from '@/data/gateway';
@@ -34,8 +34,8 @@ import type { Me } from '@/lib/api-shapes';
 import type { ApprovalRow, Approvals, WaitingRow } from '@/lib/work-shapes';
 import {
   APPROVALS_DEFAULTS, DECISION_BASIS, PRESENTATION, approvalsPath, approvedWhen, filtersOfPath, noPresentationLine, type ApprovalsRead,
-} from '@/views/approvals-context';
-import { READ_BOUND_MS } from '@/views/context';
+} from '@/logic/approvals-context';
+import { READ_BOUND_MS } from '@/lib/read-bound';
 import { ApprovalsView } from '@/views/pages/approvals';
 import ApprovalsLoading from '../app/(dash)/approvals/loading';
 import ApprovalsPage, { generateMetadata } from '../app/(dash)/approvals/page';

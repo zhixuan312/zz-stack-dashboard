@@ -20,12 +20,12 @@ import { ReadingBody } from '@/console/reading';
 import { useDataClock } from '@/lib/api';
 import { formatDateTime } from '@/lib/format-date';
 import type { ReleaseDetail, ReleaseRow } from '@/lib/platform-shapes';
-import { pendingContext } from '@/views/context';
+import { pendingContext } from '@/logic/context';
 import {
   NOT_A_VERDICT, OBSERVED, callsIn, clientActionOf, failuresIn, lifted, malformedIn, observedOf, observedText, overlapsOf,
   p95In, rateIn, releaseContext, releasePath, releasesTrouble, type ReleaseRead,
-} from '@/views/platform-releases-context';
-import { useServed } from '@/views/use-served';
+} from '@/logic/platform-releases-context';
+import { useServed } from '@/logic/use-served';
 
 type Side = ReleaseRow['before'];
 type Trouble = Exclude<ReleaseRead, { state: 'ok' }>;

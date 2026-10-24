@@ -29,7 +29,7 @@ One team, for the superadmin: its people, its open work and lessons, its real-wo
 
 ## Agents
 
-The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `teamContext` in `src/views/team-context.ts`, the same function `view_team` calls on the same response, so the assistant quotes the figures the screen shows. Ask is in the head of Calls by week: how the team's real-work calls moved week by week.
+The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `teamContext` in `src/logic/team-context.ts`, the same function `view_team` calls on the same response, so the assistant quotes the figures the screen shows. Ask is in the head of Calls by week: how the team's real-work calls moved week by week.
 
 ### What the agent reads
 

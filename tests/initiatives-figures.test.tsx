@@ -17,8 +17,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
  * cell's FIRST child because a `DataTable` also draws the words a phone card uses.
  */
 import type { InitiativeList, InitiativeRow } from '@/lib/work-shapes';
-import type { InitiativesRead } from '@/views/initiatives-context';
-import { INITIATIVES_DEFAULTS, listPath } from '@/views/initiatives-filter';
+import type { InitiativesRead } from '@/logic/initiatives-context';
+import { INITIATIVES_DEFAULTS, listPath } from '@/logic/initiatives-filter';
 import { InitiativesView } from '@/views/pages/initiatives';
 
 const WINDOW = { from: '2026-10-05T00:00:00Z', to: '2026-10-12T00:00:00Z', observedFrom: '2026-10-05T00:00:00Z', observedThrough: '2026-10-12T00:00:00Z', complete: true };

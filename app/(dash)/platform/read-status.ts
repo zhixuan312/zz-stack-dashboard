@@ -1,7 +1,7 @@
 import { gatewayGet } from '@/data/gateway';
 import type { PlatformStatus } from '@/lib/platform-shapes';
-import { READ_BOUND_MS } from '@/views/context';
-import { statusRead, type StatusRead } from '@/views/platform-status-context';
+import { READ_BOUND_MS } from '@/lib/read-bound';
+import { statusRead, type StatusRead } from '@/logic/platform-status-context';
 
 /**
  * `GET /platform/status` on the console's server, as the person, given `READ_BOUND_MS`: a read that fails or does not

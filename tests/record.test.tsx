@@ -21,9 +21,9 @@ const gateway = vi.hoisted(() => ({ get: vi.fn() }));
 vi.mock('@/data/gateway', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/data/gateway')>()), gatewayGet: gateway.get }));
 vi.mock('@/data/access', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/data/access')>()),
-  gate: async () => null,
   chromeAccess: async () => ({ only: ['/record'], user: { name: 'Ava', role: 'Superadmin' }, team: 'atlas', caller: 'ava.lindqvist@example.com' }),
 }));
+vi.mock('@/console/gate', () => ({ gate: async () => null, gatedMetadata: async (_feature: string, metadata: object) => metadata }));
 /** Every Heatmap the page draws, with the props it was handed, drawn as the release draws it. */
 const heat = vi.hoisted(() => ({ props: [] as Record<string, unknown>[] }));
 vi.mock('@/components/charts/heatmap', async (importOriginal) => {
@@ -36,9 +36,9 @@ import { SurfaceOverride } from '@/components/base/surface';
 import { GatewayError } from '@/data/gateway';
 import { dayOf } from '@/lib/format-date';
 import type { RecordRead } from '@/lib/work-shapes';
-import { READ_BOUND_MS } from '@/views/context';
+import { READ_BOUND_MS } from '@/lib/read-bound';
 import { RecordActions, RecordView } from '@/views/pages/record';
-import { RECORD_DEFAULTS, filtersOfPath, footOf, periodLine, recordPath, type RecordServed } from '@/views/record-context';
+import { RECORD_DEFAULTS, filtersOfPath, footOf, periodLine, recordPath, type RecordServed } from '@/logic/record-context';
 import RecordLoading from '../app/(dash)/record/loading';
 import RecordPage from '../app/(dash)/record/page';
 import { readRecord } from '../app/(dash)/record/read-record';

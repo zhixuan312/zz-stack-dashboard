@@ -13,16 +13,16 @@ vi.mock('@/app.config', async (importOriginal) => ({ ...(await importOriginal<ty
 
 import type { Me, PluginRow, Skill, SkillDetail, SkillText } from '@/lib/api-shapes';
 import type { Access, ActivityLog, ActivitySummary, Runs } from '@/lib/destination-shapes';
-import type { ActivityRead } from '@/views/activity-context';
+import type { ActivityRead } from '@/logic/activity-context';
 import { ActivityView } from '@/views/pages/activity';
 import { AccessView } from '@/views/pages/access';
 import { PluginView } from '@/views/pages/plugin';
 import { PluginsView } from '@/views/pages/plugins';
 import { RunsView } from '@/views/pages/runs';
 import { SkillView } from '@/views/pages/skill';
-import type { Catalog, PluginsRead } from '@/views/plugins-context';
-import { RUNS_DEFAULTS, runsPath } from '@/views/runs-context';
-import type { SkillRead } from '@/views/skill-context';
+import type { Catalog, PluginsRead } from '@/logic/plugins-context';
+import { RUNS_DEFAULTS, runsPath } from '@/logic/runs-context';
+import type { SkillRead } from '@/logic/skill-context';
 import { ME, MEMBER } from '../scripts/fake-gateway/people.ts';
 import { teamMembers } from '../scripts/fake-gateway/platform-people.ts';
 import { pluginEval, skillText } from '../scripts/fake-gateway/platform.ts';

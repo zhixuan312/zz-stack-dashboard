@@ -29,7 +29,7 @@ Your active team's real work by week: what was refused and why, the groups the r
 
 ## Agents
 
-The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `activityContext` in `src/views/activity-context.ts`, the same function `view_activity` calls on the same two reads, so the assistant quotes the figures the screen shows. Ask is on the refusals card: what was refused last week and which group to fix first, or, with the cursor on a week, what was refused that week and who each refusal is put down to.
+The assistant reads this page and changes nothing: every change in this console is made on a page, by the person. The page shares its context through `activityContext` in `src/logic/activity-context.ts`, the same function `view_activity` calls on the same two reads, so the assistant quotes the figures the screen shows. Ask is on the refusals card: what was refused last week and which group to fix first, or, with the cursor on a week, what was refused that week and who each refusal is put down to.
 
 ### What the agent reads
 

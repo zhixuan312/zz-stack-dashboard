@@ -19,9 +19,9 @@ import { knowledgeNodeHref } from '@/lib/knowledge-filters';
 import { formatDate } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
-import { pendingContext, whose } from '@/views/context';
-import { troubleOf, type ServerRead } from '@/views/knowledge-context';
-import { knowledgeLogContext, pastCeiling } from '@/views/knowledge-log-context';
+import { pendingContext, whose } from '@/logic/context';
+import { troubleOf, type ServerRead } from '@/logic/knowledge-context';
+import { knowledgeLogContext, pastCeiling } from '@/logic/knowledge-log-context';
 
 function columns(): Column<KnowledgeLogEntry>[] {
   return aligned([

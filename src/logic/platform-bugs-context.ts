@@ -23,7 +23,8 @@ import { formatDateTime, formatDay } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { listed, type Fact, type Insight, type SharedContext } from '@/lib/shared-context';
 import { waited } from '@/console/words';
-import { READ_BOUND_MS, addressOf, clip } from './context';
+import { addressOf, clip } from './context';
+import { READ_BOUND_MS } from '@/lib/read-bound';
 import { rostered } from './platform-roster';
 
 type Impact = PublicBugRow['impact'];

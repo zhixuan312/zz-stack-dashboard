@@ -12,7 +12,8 @@ import { plural } from '@/lib/format';
 import { formatDate, formatDateTime } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { listed, type Fact, type Insight, type SharedContext } from '@/lib/shared-context';
-import { READ_BOUND_MS, arrived, budgeted, type Arrival } from './context';
+import { arrived, budgeted, type Arrival } from './context';
+import { READ_BOUND_MS } from '@/lib/read-bound';
 
 /** What the page's one read came back as: the whole answer, the gateway's sentence, or no answer within the bound. */
 export type AccessRead = { state: 'ok'; access: Access } | { state: 'failed'; reason: string } | { state: 'slow' };

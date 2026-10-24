@@ -27,13 +27,14 @@ import { PREPARED } from '@/data/prepared';
 import type { Me } from '@/lib/api-shapes';
 import type { AdminBugRow, Bugs } from '@/lib/platform-shapes';
 import { contextText } from '@/lib/shared-context';
-import { CONTEXT_BUDGET, READ_BOUND_MS } from '@/views/context';
+import { CONTEXT_BUDGET } from '@/logic/context';
+import { READ_BOUND_MS } from '@/lib/read-bound';
 import { PlatformBugView } from '@/views/pages/platform-bug';
 import { PlatformBugsView } from '@/views/pages/platform-bugs';
 import {
   BUGS_DEFAULTS, bugContext, bugPath, bugsContext, bugsPath, cohortsRunning, duplicatesPath, filtersOfPath, formatHours, lastWhole, rateIn, type BugsFilters, type BugsRead, type DuplicatesRead,
-} from '@/views/platform-bugs-context';
-import { bugTool, bugsTool } from '@/views/tools/bugs';
+} from '@/logic/platform-bugs-context';
+import { bugTool, bugsTool } from '@/logic/tools/bugs';
 import { REPORTS, bugReport, bugs, duplicates } from '../scripts/fake-gateway/platform-bugs.ts';
 import PlatformBugsLoading from '../app/(dash)/platform/bugs/loading';
 import PlatformBugsPage, { generateMetadata as bugsMetadata } from '../app/(dash)/platform/bugs/page';

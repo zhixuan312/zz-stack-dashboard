@@ -4,12 +4,13 @@
  * never does.
  */
 import { ownGates, waitingGates } from '@/console/initiative-state';
-import { STATE_DEFINITION, STATE_LABEL } from '@/views/initiatives-filter';
+import { STATE_DEFINITION, STATE_LABEL } from '@/logic/initiatives-filter';
 import type { InitiativeDetail } from '@/lib/api-shapes';
 import { plural } from '@/lib/format';
 import { formatCount } from '@/lib/format-units';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
-import { READ_BOUND_MS, arrived, clip, sectioned, type Arrival, type Section } from './context';
+import { arrived, clip, sectioned, type Arrival, type Section } from './context';
+import { READ_BOUND_MS } from '@/lib/read-bound';
 import { sourceName } from './initiative-name';
 import { CLOSE_IS_THE_PERSON_S } from './initiatives-context';
 

@@ -15,9 +15,9 @@ const gateway = vi.hoisted(() => ({ get: vi.fn() }));
 vi.mock('@/data/gateway', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/data/gateway')>()), gatewayGet: gateway.get }));
 vi.mock('@/data/access', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/data/access')>()),
-  gate: async () => null,
   chromeAccess: async () => ({ only: ['/'], user: { name: 'Ava', role: 'Superadmin' }, team: 'atlas', caller: 'ava.lindqvist@example.com' }),
 }));
+vi.mock('@/console/gate', () => ({ gate: async () => null, gatedMetadata: async (_feature: string, metadata: object) => metadata }));
 /** The live stream as the frame and the console's live provider see it: the bell's registration, and the refresh it is handed. */
 const live = vi.hoisted(() => ({ registered: [] as string[][], refresh: null as null | ((names: string[]) => Promise<void>) }));
 vi.mock('@/lib/live', () => ({
@@ -32,9 +32,9 @@ import { GatewayError } from '@/data/gateway';
 import type { Me } from '@/lib/api-shapes';
 import type { Approvals, Home } from '@/lib/work-shapes';
 import { ConsoleLive } from '@/views/console-live';
-import { READ_BOUND_MS } from '@/views/context';
+import { READ_BOUND_MS } from '@/lib/read-bound';
 import { contextText } from '@/lib/shared-context';
-import { coverageLine, homeContext, type HomeRead } from '@/views/home-context';
+import { coverageLine, homeContext, type HomeRead } from '@/logic/home-context';
 import { HomeView } from '@/views/pages/home';
 import { formatDay } from '@/lib/format-date';
 import HomeLoading from '../app/(dash)/(home)/loading';

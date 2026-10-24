@@ -2,9 +2,9 @@ import { Suspense } from 'react';
 import { app, workspaces } from '@/app.config';
 import { PageFrame, Row } from '@/components/base/shell';
 import { Busy, ChartSkeleton, TableSkeleton, TilesSkeleton } from '@/components/patterns/page-loading';
-import { gate, gatedMetadata } from '@/data/access';
+import { gate, gatedMetadata } from '@/console/gate';
 import { PlatformReleasesView, ReleasesAsOf } from '@/views/pages/platform-releases';
-import { filtersOf, type ReleasesRead } from '@/views/platform-releases-context';
+import { filtersOf, type ReleasesRead } from '@/logic/platform-releases-context';
 import { readReleases } from './read-releases';
 
 export function generateMetadata() { return gatedMetadata('releases', { title: 'Releases' }); }

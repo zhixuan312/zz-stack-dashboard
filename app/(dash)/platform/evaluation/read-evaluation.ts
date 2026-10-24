@@ -1,7 +1,7 @@
 import { gatewayGet } from '@/data/gateway';
 import type { Evaluation } from '@/lib/platform-shapes';
-import { READ_BOUND_MS } from '@/views/context';
-import type { EvaluationRead } from '@/views/platform-evaluation-context';
+import { READ_BOUND_MS } from '@/lib/read-bound';
+import type { EvaluationRead } from '@/logic/platform-evaluation-context';
 
 /**
  * `GET /platform/evaluation` on the console's server, as the person, given `READ_BOUND_MS`: a read that fails says

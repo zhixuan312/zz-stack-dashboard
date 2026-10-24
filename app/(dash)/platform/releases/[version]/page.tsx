@@ -3,11 +3,11 @@ import { cache } from 'react';
 import { app, workspaces } from '@/app.config';
 import { PageFrame } from '@/components/base/shell';
 import { Prose } from '@/components/patterns/prose';
-import { gate, gatedMetadata } from '@/data/access';
-import { MISSING_METADATA } from '@/views/missing';
-import { MissingPage } from '@/views/no-access';
+import { gate, gatedMetadata } from '@/console/gate';
+import { MISSING_METADATA } from '@/logic/missing';
+import { MissingPage } from '@/console/no-access';
 import { PlatformReleaseView } from '@/views/pages/platform-release';
-import { lifted } from '@/views/platform-releases-context';
+import { lifted } from '@/logic/platform-releases-context';
 import { readRelease } from '../read-releases';
 
 type Params = { params: Promise<{ version: string }> };

@@ -17,13 +17,13 @@ import { Panel } from '@/console/panel';
 import { failureOf } from '@/console/query';
 import type { Audit, AuditRow } from '@/lib/fleet-shapes';
 import { formatDate, formatDateTime } from '@/lib/format-date';
-import { pendingContext } from '@/views/context';
+import { pendingContext } from '@/logic/context';
 import {
   AUDIT_DEFAULTS, PAGE_SIZE, TAB_LABEL, auditContext, auditPath, auditTrouble, beforeDays, channelOf, countWords, dayWords, feedEvent,
   filtersOfPath, kindsOf, narrowed, notRecordedWords, originOf, resultOf, tabOf, teamsOf, type AuditFilter, type AuditFilters, type AuditRead, type ReportTitles,
-} from '@/views/platform-audit-context';
-import { OWNER_LABEL } from '@/views/activity-context';
-import { useServed, useServedAddress } from '@/views/use-served';
+} from '@/logic/platform-audit-context';
+import { OWNER_LABEL } from '@/logic/activity-context';
+import { useServed, useServedAddress } from '@/logic/use-served';
 
 /** The protagonist's title: the card the page's first Ask sits on. COUPLED: the README's `Protagonist:`. */
 const FEED_TITLE = 'Administration';

@@ -2,9 +2,9 @@ import { Suspense } from 'react';
 import { app, workspaces } from '@/app.config';
 import { PageFrame } from '@/components/base/shell';
 import { Busy } from '@/components/patterns/page-loading';
-import { gate, gatedMetadata } from '@/data/access';
+import { gate, gatedMetadata } from '@/console/gate';
 import { RunsActions, RunsAsOf, RunsSkeleton, RunsView } from '@/views/pages/runs';
-import { filtersOf, type RunsRead, type SkillPages } from '@/views/runs-context';
+import { filtersOf, type RunsRead, type SkillPages } from '@/logic/runs-context';
 import { readRuns, readSkillPages } from './read-runs';
 
 export function generateMetadata() { return gatedMetadata('runs', { title: 'Runs' }); }

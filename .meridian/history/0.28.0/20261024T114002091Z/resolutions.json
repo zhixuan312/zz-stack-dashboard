@@ -1,0 +1,35 @@
+[
+  {
+    "id": "migration:four-layers",
+    "status": "resolved",
+    "reason": "The console's producers moved from src/views to src/logic, every import names the new path, the data layer no longer renders a refusal, and the six layer rules ran with fourLayers on.",
+    "files": {
+      "app/(dash)/(home)/page.tsx": "sha256-093742aae4163baf68a7528c113242abba1fe497a405b6986a178eb8024fc12d",
+      "app/(dash)/(home)/read-home.ts": "sha256-57627d836f32ab2c70cda3431b82270c9b245e26f819b2755adfad976f276d0d",
+      "app/api/assistant/route.ts": "sha256-8bdc3d83d19814af20bf701381aad437b032d8e3443b9d11177894ad2b7ef7a7",
+      "src/views/pages/home.tsx": "sha256-481cc914fbf07181907e2b4595e82f98b25cd292d4d9774027ff11d75a1e6f2e",
+      "src/views/tools/home.ts": null,
+      "src/views/tools/releases.ts": null,
+      "src/views/tools/usage.ts": null,
+      "tests/access-context.test.ts": "sha256-cecfe6bc1ad40463c30c8e8f9d320a44d5e9817d42332b974a5a9910f98df9e9",
+      "tests/agent-side.test.ts": "sha256-324adf08c4b53205a9bc4b252f178697454f014df682718e4ef8a42d8e4997e3",
+      "tests/assistant-access.test.ts": "sha256-0ef63e5d7b4df22faa77c64c9789d6ddd2d1f7da4cc5caf1c9c857ef06cf7d83",
+      "tests/assistant-change-rule.test.ts": "sha256-b3e0925a4190eb88388e2252c7017fb90f9133353e86ba63e2964c88956c8fa5",
+      "tests/assistant-tool-sweep.test.ts": "sha256-e4183d1303f5f0e218f5eb3f34c6daeb11bcc49df2b1d0c0220694e1a528f5a9",
+      "tests/explore-contract.test.ts": "sha256-e8e48a854b6c2f000251645a9f6eb757648e3c9c9423c9f3e01f907a24aaa087",
+      "tests/home-context.test.ts": "sha256-9c010e57c58cc75560b201b18e35c2af381517028df94a250ca3f011c6295129",
+      "tests/home-no-figure.test.tsx": "sha256-b61c17d329b3022ba6562aa6179558d868c7ecf558f120d3b821a8ecae8ef7a1",
+      "tests/home.test.tsx": "sha256-5879a33925c4baab8e3e65b4a4be24d52896615bf54a96203df720f092fbcedb",
+      "tests/member-chrome.test.tsx": "sha256-9481fe3759ca61d3bca4e688b148d5945a4e6fde44d2e8c971d12999a769422b",
+      "tests/old-addresses.test.ts": "sha256-a4855d7c679ccadbfc7be414e8169c378ca620172ae0156cb8ca78c7238ebc85",
+      "tests/prepared-aggregate.test.ts": "sha256-d57ddf2d8b2b516297bfc74373096abf1b36a4e8ce35b128f63bd849d6275ff5",
+      "tests/review-work-a.test.tsx": "sha256-86954bd7d061bd9eb3d057a2400bfcc1b93e0cb61cfd04e94ddbc58a8c397327",
+      "tests/review-work-d.test.tsx": "sha256-45367e5284cf1ad6c5c7e23077df3378855a166645d51ba0ede58c7b451764ab",
+      "tests/review-work-i.test.tsx": "sha256-a154d2d3352483052a440b3c0a9a294a38be3d0f1f745c1d1c926bdda9adc273",
+      "tests/sweep-approvals.test.tsx": "sha256-3eb392768a3f0f8fdd5997f7a517a7d7a9030676e34325a867634a1b0e771206",
+      "tests/sweep-paths.test.tsx": "sha256-b85f5b02574987d01a17aad23a5ee076f2e19b5a70b541f63881009278b857f7",
+      "tests/verify-tiers.test.ts": "sha256-14ccc301fc19e5a7f5fab1bb5140331b8e8510a28ffaffe2ced40e4f396b22d4",
+      "tests/view-contexts.test.ts": "sha256-0424eab9d9a77702e2bfd27aa55a54d7df2312b0d1a146a8bc5fae6d7ad22eec"
+    }
+  }
+]

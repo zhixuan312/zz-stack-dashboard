@@ -33,7 +33,7 @@ How real work called the platform's tools, week by week: how much, how fast, wha
 
 ## Agents
 
-The assistant reads this page and changes nothing. The page shares its context through `usageContext` in `src/views/platform-usage-context.ts`, built from the same read and the same words as the page, and `view_usage` builds the same context from the same response (`GET /platform/usage`), so the assistant quotes the figures the screen shows. Ask is on the calls by week: how the calls moved and, for a superadmin, which teams made them, or, with the cursor on a week, what made up that week.
+The assistant reads this page and changes nothing. The page shares its context through `usageContext` in `src/logic/platform-usage-context.ts`, built from the same read and the same words as the page, and `view_usage` builds the same context from the same response (`GET /platform/usage`), so the assistant quotes the figures the screen shows. Ask is on the calls by week: how the calls moved and, for a superadmin, which teams made them, or, with the cursor on a week, what made up that week.
 
 ### What the agent reads
 
@@ -43,7 +43,7 @@ The last whole week's four tiles with their change, in points for the share refu
 - Share refused: 46.4%, up 13.4 pts vs the week of 5 Oct (33.0%). (The share of those calls refused, whoever the refusal is put down to.)
 ```
 
-- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address, and the page text after it for anything the context does not cover; `view_usage` answers the same text from anywhere in the console, and `explore_usage` (`src/views/usage-explore.ts`), offered on this page alone, counts the platform's calls, its refusals by owner and its model calls over any window, by team for a superadmin alone.
+- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address, and the page text after it for anything the context does not cover; `view_usage` answers the same text from anywhere in the console, and `explore_usage` (`src/logic/usage-explore.ts`), offered on this page alone, counts the platform's calls, its refusals by owner and its model calls over any window, by team for a superadmin alone.
 
 ### What the agent does here
 

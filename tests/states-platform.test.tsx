@@ -14,7 +14,7 @@ import { SurfaceOverride } from '@/components/base/surface';
 import type { People, Usage } from '@/lib/fleet-shapes';
 import { PlatformPeopleView } from '@/views/pages/platform-people';
 import { PlatformUsageView } from '@/views/pages/platform-usage';
-import { PEOPLE_DEFAULTS, peoplePath } from '@/views/people-filter';
+import { PEOPLE_DEFAULTS, peoplePath } from '@/logic/people-filter';
 import { startFakeGateway } from './fake-gateway-start.ts';
 
 /**

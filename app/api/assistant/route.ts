@@ -15,7 +15,7 @@ import type { AnyCollection } from '@/lib/collection';
 import type { PreparedQuery } from '@/lib/explore';
 import { dayOf } from '@/lib/format-date';
 import { viewAt, type ViewTool } from '@/lib/shared-context';
-import { viewTools } from '@/views/tools';
+import { viewTools } from '@/logic/tools';
 
 /** The panel sends at most the last 100 messages; a larger body than 2 MB is refused before it is parsed. */
 const MAX_MESSAGES = 100;

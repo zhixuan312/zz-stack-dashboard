@@ -12,11 +12,11 @@ vi.mock('@/data/access', async (importOriginal) => ({
 import { FEATURES } from '@/data/features';
 import { formatDay } from '@/lib/format-date';
 import { PREPARED } from '@/data/prepared';
-import { CONTEXT_BUDGET } from '@/views/context';
+import { CONTEXT_BUDGET } from '@/logic/context';
 import { contextText } from '@/lib/shared-context';
 import type { Home } from '@/lib/work-shapes';
-import { homeContext, type HomeRead } from '@/views/home-context';
-import { homeTool } from '@/views/tools/home';
+import { homeContext, type HomeRead } from '@/logic/home-context';
+import { homeTool } from '@/logic/tools/home';
 import { ME, MEMBER } from '../scripts/fake-gateway/people.ts';
 import { homeOf } from '../scripts/fake-gateway/work-home.ts';
 

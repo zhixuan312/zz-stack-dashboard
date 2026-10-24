@@ -1,9 +1,9 @@
 import { GatewayError, answeredAt, gatewayGet, type Revised } from '@/data/gateway';
 import type { TeamDetail, Teams } from '@/lib/fleet-shapes';
-import { READ_BOUND_MS } from '@/views/context';
-import type { TeamRead } from '@/views/team-context';
-import type { TeamsRead } from '@/views/teams-context';
-import { teamsPath, type TeamsFilters } from '@/views/teams-filter';
+import { READ_BOUND_MS } from '@/lib/read-bound';
+import type { TeamRead } from '@/logic/team-context';
+import type { TeamsRead } from '@/logic/teams-context';
+import { teamsPath, type TeamsFilters } from '@/logic/teams-filter';
 
 /** `read`, or `slow` once `READ_BOUND_MS` has passed without an answer. Neither this nor `read` rejects. */
 async function bounded<R>(read: Promise<R>, slow: R): Promise<R> {

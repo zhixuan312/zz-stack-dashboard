@@ -1,8 +1,8 @@
 import Link from 'next/link';
 import { app, workspaces } from '@/app.config';
 import { PageFrame } from '@/components/base/shell';
-import { gate, gatedMetadata } from '@/data/access';
-import { MissingPage } from '@/views/no-access';
+import { gate, gatedMetadata } from '@/console/gate';
+import { MissingPage } from '@/console/no-access';
 import { PlatformBugView } from '@/views/pages/platform-bug';
 import { readBug, readDuplicates } from '../read-bugs';
 

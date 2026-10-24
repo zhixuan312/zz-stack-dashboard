@@ -1,4 +1,4 @@
-import { gate, gatedMetadata } from '@/data/access';
+import { gate, gatedMetadata } from '@/console/gate';
 import { ActivityView } from '@/views/pages/activity';
 import { readSummary } from './read-summary';
 

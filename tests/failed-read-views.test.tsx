@@ -11,7 +11,7 @@ import { InitiativesView } from '@/views/pages/initiatives';
 import { KnowledgeView } from '@/views/pages/knowledge';
 import { KnowledgeLogView } from '@/views/pages/knowledge-log';
 import { SkillView } from '@/views/pages/skill';
-import type { SkillRead } from '@/views/skill-context';
+import type { SkillRead } from '@/logic/skill-context';
 
 const TooltipProvider = Tooltip.Provider;
 

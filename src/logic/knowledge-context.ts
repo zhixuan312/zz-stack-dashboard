@@ -17,7 +17,8 @@ import { formatDate, formatDay } from '@/lib/format-date';
 import { knowledgeNodeHref } from '@/lib/knowledge-filters';
 import type { Figure } from '@/lib/platform-shapes';
 import { listed, type Fact, type Insight, type SharedContext } from '@/lib/shared-context';
-import { READ_BOUND_MS, addressOf, arrived, budgeted, clip, type Arrival } from './context';
+import { addressOf, arrived, budgeted, clip, type Arrival } from './context';
+import { READ_BOUND_MS } from '@/lib/read-bound';
 
 /** The kinds a lesson may be, as the store's own check allows them; the shelf filters by one of them. */
 export const KNOWLEDGE_KINDS = ['decision', 'design', 'process', 'knowledge', 'behavior', 'style'] as const;

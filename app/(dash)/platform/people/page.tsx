@@ -1,10 +1,10 @@
 import { Suspense } from 'react';
 import { app, workspaces } from '@/app.config';
 import { PageFrame } from '@/components/base/shell';
-import { gate, gatedMetadata } from '@/data/access';
+import { gate, gatedMetadata } from '@/console/gate';
 import { AddPerson, PeopleAsOf, PeopleBusy, PlatformPeopleView } from '@/views/pages/platform-people';
-import type { PeopleRead } from '@/views/people-context';
-import { filtersOf } from '@/views/people-filter';
+import type { PeopleRead } from '@/logic/people-context';
+import { filtersOf } from '@/logic/people-filter';
 import { handed, readPeople } from './read-people';
 
 export function generateMetadata() { return gatedMetadata('people', { title: 'People' }); }

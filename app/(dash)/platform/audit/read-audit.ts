@@ -1,8 +1,8 @@
 import { gatewayGet } from '@/data/gateway';
 import type { Audit } from '@/lib/fleet-shapes';
 import type { BugReport } from '@/lib/platform-shapes';
-import { READ_BOUND_MS } from '@/views/context';
-import { auditPath, reportTitles, type AuditFilters, type AuditRead } from '@/views/platform-audit-context';
+import { READ_BOUND_MS } from '@/lib/read-bound';
+import { auditPath, reportTitles, type AuditFilters, type AuditRead } from '@/logic/platform-audit-context';
 
 const reasonOf = (err: unknown) => (err instanceof Error ? err.message : 'The gateway did not answer.');
 

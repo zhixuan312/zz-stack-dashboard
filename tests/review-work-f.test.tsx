@@ -15,18 +15,18 @@ vi.mock('next/navigation', () => ({
 
 import type { DimensionScore, Me, PluginEvalFound, Skill, SkillDetail, SkillText } from '@/lib/api-shapes';
 import type { Access, ActivitySummary, Runs } from '@/lib/destination-shapes';
-import { contributionsOf } from '@/views/eval-score';
-import type { ActivityRead } from '@/views/activity-context';
+import { contributionsOf } from '@/logic/eval-score';
+import type { ActivityRead } from '@/logic/activity-context';
 import { AccessView } from '@/views/pages/access';
 import { ActivityView } from '@/views/pages/activity';
 import { PluginView } from '@/views/pages/plugin';
 import { PluginsView } from '@/views/pages/plugins';
 import { RunsView } from '@/views/pages/runs';
 import { SkillView } from '@/views/pages/skill';
-import { comparedSaid, type HistoryRead } from '@/views/plugin-context';
-import type { Catalog, PluginsRead } from '@/views/plugins-context';
-import { RUNS_DEFAULTS, runsPath } from '@/views/runs-context';
-import type { SkillRead } from '@/views/skill-context';
+import { comparedSaid, type HistoryRead } from '@/logic/plugin-context';
+import type { Catalog, PluginsRead } from '@/logic/plugins-context';
+import { RUNS_DEFAULTS, runsPath } from '@/logic/runs-context';
+import type { SkillRead } from '@/logic/skill-context';
 import { ME, MEMBER } from '../scripts/fake-gateway/people.ts';
 import { teamMembers } from '../scripts/fake-gateway/platform-people.ts';
 import { evaluation } from '../scripts/fake-gateway/platform-evaluation.ts';

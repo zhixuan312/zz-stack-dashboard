@@ -15,8 +15,8 @@ import { formatDate, formatDay } from '@/lib/format-date';
 import type { Finding, PlatformStatus } from '@/lib/platform-shapes';
 import { contextText } from '@/lib/shared-context';
 import { PlatformStatusView } from '@/views/pages/platform-status';
-import { filtersOfPath } from '@/views/platform-bugs-context';
-import { platformStatusContext, statusRead } from '@/views/platform-status-context';
+import { filtersOfPath } from '@/logic/platform-bugs-context';
+import { platformStatusContext, statusRead } from '@/logic/platform-status-context';
 
 /**
  * The three findings of "Phase 7, I-129: a non-builder's review of the Platform destinations" whose words the gateway

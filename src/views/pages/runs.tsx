@@ -24,11 +24,11 @@ import { plural } from '@/lib/format';
 import { formatDate, formatDateTime } from '@/lib/format-date';
 import { formatCount, formatKb, formatSeconds } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
-import { pendingContext } from '@/views/context';
+import { pendingContext } from '@/logic/context';
 import {
   PAGE_SIZE, RUNS_DEFAULTS, TILES, filtersOfPath, outputOf, pageOf, runsContext, runsPath, runsTrouble, stateCellOf, stateOf, type RunsFilters, type RunsRead, type SkillPages,
-} from '@/views/runs-context';
-import { useServed, useServedAddress } from '@/views/use-served';
+} from '@/logic/runs-context';
+import { useServed, useServedAddress } from '@/logic/use-served';
 
 /** A byte count as the tiles show it. */
 const kb = (bytes: number): string => formatKb(bytes / 1024);

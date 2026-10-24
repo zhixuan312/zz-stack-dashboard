@@ -25,12 +25,12 @@ import type { PluginRow, Skill, SkillDetail, SkillText } from '@/lib/api-shapes'
 import { plural } from '@/lib/format';
 import { formatCount, formatKb, formatSeconds } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
-import { pendingContext } from '@/views/context';
-import { PLUGINS_PATH, readTrouble, type Catalog, type Served } from '@/views/plugins-context';
-import { skillContext, skillDetailPath, skillTextPath, skillsPath, type SkillRead } from '@/views/skill-context';
-import type { SkillViewName } from '@/views/skill-view';
-import { perRunOf } from '@/views/runs-figures';
-import { useServed } from '@/views/use-served';
+import { pendingContext } from '@/logic/context';
+import { PLUGINS_PATH, readTrouble, type Catalog, type Served } from '@/logic/plugins-context';
+import { skillContext, skillDetailPath, skillTextPath, skillsPath, type SkillRead } from '@/logic/skill-context';
+import type { SkillViewName } from '@/logic/skill-view';
+import { perRunOf } from '@/logic/runs-figures';
+import { useServed } from '@/logic/use-served';
 
 /** The share of a skill's calls refused above which the Conclusion says it is the thing to look at, in percent. */
 const REFUSED_FLAG = 5;

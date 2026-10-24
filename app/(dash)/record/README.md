@@ -37,7 +37,7 @@ The active team's record, read on the console's server: what its retained text w
 
 ## Agents
 
-The assistant reads this page and changes nothing. The page shares its context through `recordContext` in `src/views/record-context.ts`, built from the same read and the same words as the cards, and `view_record` builds the same context from the same response (`GET /record?period`), so the assistant quotes the figures the screen shows. `Copy as text` copies the same words through `recordText` in `src/console/record-text.ts`. Ask is in the lead's head: about the period chosen.
+The assistant reads this page and changes nothing. The page shares its context through `recordContext` in `src/logic/record-context.ts`, built from the same read and the same words as the cards, and `view_record` builds the same context from the same response (`GET /record?period`), so the assistant quotes the figures the screen shows. `Copy as text` copies the same words through `recordText` in `src/console/record-text.ts`. Ask is in the lead's head: about the period chosen.
 
 ### What the agent reads
 
