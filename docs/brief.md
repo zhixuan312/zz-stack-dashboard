@@ -82,7 +82,7 @@ Since Meridian 0.28.0 the console keeps the four data layers of the standard in
 `.claude/skills/zz-meridian/references/data-layers.md`:
 
 - **`src/data/`** is the one place the gateway is touched: the scope, the read surface (`read`, `readAll`, `aggregate`),
-  the prepared collections, the refusal and the roles. It imports neither `src/logic/` nor `src/views/`.
+  the prepared collections, the refusal and the grants. It imports neither `src/logic/` nor `src/views/`.
 - **`src/logic/`** is every figure and sentence with a product definition: each page's context, its explore module, the
   filters, the names, the view tools, the client read hook. It imports `src/data/`, `src/lib/` and other logic; no view.
 - **`src/views/`** draws: the page components, the console chrome, the live glue, the no-access screen. Every file there
