@@ -76,6 +76,24 @@ agent opens the same view by naming the same parameters. `src/lib/address.ts` is
 which must handle a path one segment at a time or `sources/2026-10-06-call.md` arrives as a single segment named after
 itself.
 
+### The four layers
+
+Since Meridian 0.28.0 the console keeps the four data layers of the standard in
+`.claude/skills/zz-meridian/references/data-layers.md`:
+
+- **`src/data/`** is the one place the gateway is touched: the scope, the read surface (`read`, `readAll`, `aggregate`),
+  the prepared collections, the refusal and the roles. It imports neither `src/logic/` nor `src/views/`.
+- **`src/logic/`** is every figure and sentence with a product definition: each page's context, its explore module, the
+  filters, the names, the view tools, the client read hook. It imports `src/data/`, `src/lib/` and other logic; no view.
+- **`src/views/`** draws: the page components, the console chrome, the live glue, the no-access screen. Every file there
+  is a renderer (a `.tsx` exporting a component) except `workspaces.ts`.
+- **`src/lib/`** stays shared helpers: the fetch, the formatters, the address reader, `read-bound.ts`.
+
+`src/console/gate.tsx` holds the page gate and the gated title, because each answers with a view; the data layer answers
+records and policy only. The six layer rules run in `scripts/check.ts` with `fourLayers = true` in
+`scripts/check.local.ts`, and the one named deviation is the assistant's proposal read in
+`src/lib/assistant/tools.ts`, which says its reason on the line.
+
 ## Decisions
 
 - **Dark first, light available.** Meridian's register. The person switches theme, accent and density in the rail's
