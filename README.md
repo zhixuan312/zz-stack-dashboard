@@ -13,7 +13,7 @@ tokens rather than inventing a second look.
 
 ```
    browser
-      │  one origin: console.<host>.nip.io
+      │  one origin: CONSOLE_PUBLIC_URL (zz-stack.com)
       ▼
    Caddy ──────────────┬───────────────────────────────────
       │ /auth/*        │ everything else
