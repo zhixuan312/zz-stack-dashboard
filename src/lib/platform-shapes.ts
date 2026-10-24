@@ -20,6 +20,16 @@ export type PeriodFigure = {
   window: Window; figure: Figure;
   numerator: number | null; denominator: number | null;
 };
+/**
+ * The request-side half of every console answer's `meta`: when this request was served, the change marker it could
+ * hear, and whether the answer had already been computed. The gateway stamps them on every console GET that answers an
+ * object (`services/gateway/src/console/read-envelope.ts`), so this is a shape a page reads and never one a route
+ * composes. COUPLED: the gateway's `ReadEnvelope`, field for field.
+ *
+ * DELIBERATE: optional wherever an answer declares it. A page is never wrong to read an answer that carries none, and
+ * an answer with no figures of its own states nothing else beside it.
+ */
+export type ReadEnvelope = { observedAt: string; revision: string | null; cacheHit: boolean };
 export type ReadMeta = {
   asOf: string; timezone: string;
   period: { from: string; to: string };
@@ -84,12 +94,14 @@ type Needs = {
   headline: string;
 };
 /* One door's real-work calls by local day, from where the record begins (at most 365 days) through today, which is not
- * complete; its totals over those days, `others` the refusals classified `other`, which the page draws beside tool
- * failures, and fault days counted over complete days only, `lastFaultDay` null for none recorded; its run of days
- * under 1% tool failures, null under three; and the one finding said of them. */
+ * complete; each day's `rate`, its tool failures as a percentage of its calls, null for a day with no calls or one
+ * whose counts could not be read — the gateway's own division, and the number its `state` is read from, so the page
+ * never computes either from the two counts beside it; its totals over those days, `others` the refusals classified
+ * `other`, which the page draws beside tool failures, and fault days counted over complete days only, `lastFaultDay`
+ * null for none recorded; its run of days under 1% tool failures, null under three; and the one finding said of them. */
 type DoorObservation = {
   door: 'core' | 'manage' | 'eval';
-  days: { date: string; calls: number | null; toolFailures: number | null;
+  days: { date: string; calls: number | null; toolFailures: number | null; rate: number | null;
     state: 'clear' | 'marked' | 'red' | 'none' | 'unavailable'; complete: boolean }[];
   totals: { calls: number; toolFailures: number; others: number; faultDays: number; lastFaultDay: string | null };
   run: { days: number; atLeast: boolean; through: string } | null;
@@ -121,7 +133,9 @@ export type ReleaseRow = {
   version: string; consoleVersion: string | null; releasedAt: string; summary: string;
   clientAction: string | null; before: ReleaseWindow; after: ReleaseWindow;
 };
-export type ReleaseDetail = ReleaseRow & { changelog: string; upgradeNotes: string | null };
+/** `GET /platform/releases/:version`: the row, its changelog and its upgrade notes, and the envelope every answer
+ *  carries. */
+export type ReleaseDetail = ReleaseRow & { changelog: string; upgradeNotes: string | null; meta?: ReadEnvelope };
 export type Releases = {
   meta: ReadMeta;
   tiles: {
@@ -153,6 +167,8 @@ export type BugReport = {
   id: string; title: string; detail: string; surface: string | null; impact: string; status: string;
   platformVersion: string | null; reportedAt: string; resolvedAt: string | null;
   resolution: string | null; duplicateOf: string | null; team: string | null;
+  /** The envelope every console answer carries: this one draws no figure of its own. */
+  meta?: ReadEnvelope;
 };
 export type Bugs = {
   meta: ReadMeta;

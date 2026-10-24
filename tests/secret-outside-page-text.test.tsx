@@ -45,7 +45,9 @@ function browser() {
     const body = p === '/me' ? ME
       : init?.method === 'POST' && p === '/settings/me/tokens' ? { token: TOKEN, label: 'laptop', email: ME.email }
         : init?.method === 'POST' && p === '/settings/platform/enrolments' ? { ok: true, url: LINK, result: 'issued' }
-          : p === '/access' ? ACCESS : p === '/people' ? PEOPLE : [];
+          // The roster answers `{ rows }`, not a bare array, so the read envelope can stamp it (Task I-10).
+          : p.startsWith('/settings/team/members') ? { rows: [] }
+            : p === '/access' ? ACCESS : p === '/people' ? PEOPLE : [];
     return Promise.resolve({ ok: true, status: 200, json: async () => body } as unknown as Response);
   }));
 }

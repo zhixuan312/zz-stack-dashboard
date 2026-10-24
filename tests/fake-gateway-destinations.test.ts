@@ -42,7 +42,7 @@ const read = async (who: string, path: string): Promise<Json> => {
 const keys = (o: object) => Object.keys(o).sort();
 const ok = (part: Json) => { expect(part.state).toBe('ok'); return part.data; };
 
-const META = ['asOf', 'coverageFrom', 'period', 'population', 'scope', 'timezone'];
+const META = ['asOf', 'builtAt', 'cacheHit', 'coverageFrom', 'observedAt', 'period', 'population', 'revision', 'scope', 'sourceRevision', 'timezone'];
 const FIGURE = ['value', 'why'];
 const WINDOW = ['complete', 'from', 'observedFrom', 'observedThrough', 'to'];
 const PERIOD = ['denominator', 'figure', 'numerator', 'window'];
@@ -323,8 +323,8 @@ describe('Plugins and skills', () => {
     expect(core.map((s: Json) => s.name).sort()).toEqual(['zz-handover', 'zz-platform']);
     expect(core.find((s: Json) => s.name === 'zz-handover')).toMatchObject({ timedRuns: 0, durationMedian: null });
     expect((await read(MEMBER, 'skills?plugin=no-such-plugin')).skills).toEqual([]);
-    expect(keys(await read(MEMBER, 'skills/sdlc-spec'))).toEqual(['busiestTools', 'skill', 'surfaces']);
-    expect(await read(MEMBER, 'skills/no-such-skill')).toEqual({ skill: 'no-such-skill', surfaces: [], busiestTools: [] });
+    expect(keys(await read(MEMBER, 'skills/sdlc-spec'))).toEqual(['busiestTools', 'meta', 'skill', 'surfaces']);
+    expect(await read(MEMBER, 'skills/no-such-skill')).toMatchObject({ skill: 'no-such-skill', surfaces: [], busiestTools: [] });
   });
 
   it('accepts no write under the plugins or the skills', async () => {

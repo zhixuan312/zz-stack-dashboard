@@ -21,7 +21,8 @@ function drawn(read: Access) {
   const reads: string[] = [];
   vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
     reads.push(String(input));
-    return Promise.resolve({ ok: true, status: 200, json: async () => [{ email: 'one@example.com', role: 'admin' }] } as unknown as Response);
+    // The route answers `{ rows }` so the read envelope can stamp it (Task I-10), not a bare array.
+    return Promise.resolve({ ok: true, status: 200, json: async () => ({ rows: [{ email: 'one@example.com', role: 'admin' }] }) } as unknown as Response);
   }));
   render(<QueryClientProvider client={new QueryClient()}><AccessProvider value={{ access: read }}><TeamAdminPanel /></AccessProvider></QueryClientProvider>);
   return reads;

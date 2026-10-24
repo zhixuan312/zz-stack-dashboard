@@ -370,7 +370,7 @@ describe('Access\'s paged panels, drawn above ten rows, page at ten', () => {
   it('a team admin\'s members', async () => {
     const members: TeamMemberRow[] = Array.from({ length: 23 }, (_, i) => ({ email: `person.${i + 1}@example.com`, role: i % 3 ? 'member' : 'admin' }));
     // The roster is the browser's read: answered here with more people than a page holds.
-    mount(<TeamMembersPanel team="atlas" />, '/access', vi.fn(async () => ({ ok: true, status: 200, json: async () => members }) as unknown as Response));
+    mount(<TeamMembersPanel team="atlas" />, '/access', vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ rows: members }) }) as unknown as Response));
     await waitFor(() => expect(document.querySelectorAll('tbody tr').length).toBeGreaterThan(0));
     await pagesAtTen(null);
   });

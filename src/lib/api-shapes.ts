@@ -6,6 +6,7 @@
  * is the author of the shape — when the two disagree it is this file that is wrong.
  */
 import type { PluginScore } from './destination-shapes';
+import type { ReadEnvelope } from './platform-shapes';
 import type { InitiativeRow } from './work-shapes';
 
 export interface Me {
@@ -108,6 +109,8 @@ export interface InitiativeDetail {
   closed: boolean;
   outcome: string | null;
   correction: Correction | null;
+  /** The envelope every console answer carries; this answer draws no figure of its own. */
+  meta?: ReadEnvelope;
 }
 export interface DocumentDetail {
   team: string; initiative: string; path: string; flow: string | null;
@@ -169,6 +172,7 @@ export interface DocumentDetail {
   /** The supporting information attached to this document — why it changed. */
   sources: { path: string; title: string | null; body: string | null;
              supports: string; added: string; bytes: number }[];
+  meta?: ReadEnvelope;
 }
 /** `POST /documents/shown`: the console's review context for the document, minted on its first showing and the
  *  same on every later one it is passed back with. `recorded` is false when this snapshot was already shown under it. */
@@ -192,6 +196,7 @@ export interface KnowledgeNode {
    *  the work behind it is its team's own. */
   cited_elsewhere: number;
   superseded_by: string | null;
+  meta?: ReadEnvelope;
 }
 /** One entry in the knowledge base's own log — `/knowledge/log`.
  *
@@ -260,6 +265,7 @@ export interface SkillDetail {
    * sends exactly `{ skill, surfaces, busiestTools }`. */
   surfaces: { surface: string; calls: number; failed: number; tools: number }[];
   busiestTools: { tool: string; calls: number; failed: number }[];
+  meta?: ReadEnvelope;
 }
 /** A skill a plugin ships. `theirs` = vendored from somebody else, carrying a `source:` line
  *  that says so; `ours` = everything we wrote — a plugin's own stages, the platform's, and what
@@ -359,9 +365,9 @@ export type CandidateStatus = 'recorded' | 'awaiting_build' | 'valid' | 'invalid
  *  profiled (OBSERVE has not run). `run: null` is profiled but never scored: the gateway answers
  *  only the newest SCORED run, so a run here always has a result. Each is its own quiet state;
  *  the page never guesses which from the others. */
-export type PluginEval = { plugin: string; found: false } | PluginEvalFound;
+export type PluginEval = { plugin: string; found: false; meta?: ReadEnvelope } | PluginEvalFound;
 export interface PluginEvalFound {
-  plugin: string; found: true;
+  plugin: string; found: true; meta?: ReadEnvelope;
   origin: string; ownerTeam: string | null; releaseOwners: string[];
   /** `evaluation_only` on a `plugin_register`ed third-party subject (spec v8 decision 12): it
    *  may be evaluated and diagnosed, and Evolution may still list proposals, but nothing here
@@ -421,6 +427,7 @@ export interface SkillText {
   body: string;
   /** Everything shipped beside it — `references/…`, and `scripts/…` where one exists. */
   references: { path: string; content: string }[];
+  meta?: ReadEnvelope;
 }
 
 /* /search */
@@ -448,10 +455,14 @@ export interface SearchAnswer {
 }
 
 /* /settings/me/* */
+
 export interface MyAccessToken {
   id: string; label: string;
   created_at: string; last_used_at: string | null; revoked_at: string | null;
 }
+/** `GET /settings/me/tokens`: the caller's own tokens, newest first. A list answers under `rows`, never as a
+ *  bare array, which is what gives the envelope an object to be stated on. */
+export interface MyAccessTokens { rows: MyAccessToken[]; meta?: ReadEnvelope }
 /** The one plaintext token on this surface: shown once at issue and never fetched again.
  *  COUPLED: the gateway's settings.ts and `TokensPanel`. */
 export interface IssuedToken { token: string; label: string; email: string }
@@ -465,6 +476,8 @@ export interface MyTeams {
 /** A row from `GET /settings/team/members` — the roster of one team, for a caller who
  *  administers it (see `settings.ts`'s own gate: `teamAuthority`, not `resolveScope`). */
 export interface TeamMemberRow { email: string; role: 'admin' | 'member' }
+/** `GET /settings/team/members?team=`: that roster, under `rows`. */
+export interface TeamMembers { rows: TeamMemberRow[]; meta?: ReadEnvelope }
 
 /* /settings/platform/* */
 
@@ -474,3 +487,5 @@ export interface PlatformPersonRow {
   email: string; display_name: string; role: 'superadmin' | 'member'; status: string; created_at: string;
   teams: { team: string; role: 'admin' | 'member'; added_by: string | null; added_at: string }[];
 }
+/** `GET /settings/platform/people`: every principal, under `rows`. */
+export interface PlatformPeople { rows: PlatformPersonRow[]; meta?: ReadEnvelope }

@@ -45,7 +45,7 @@ const post = (who: string, path: string, body: unknown) =>
 const keys = (o: object) => Object.keys(o).sort();
 const ok = (part: Json) => { expect(part.state).toBe('ok'); return part.data; };
 
-const META = ['asOf', 'coverageFrom', 'period', 'population', 'scope', 'timezone'];
+const META = ['asOf', 'builtAt', 'cacheHit', 'coverageFrom', 'observedAt', 'period', 'population', 'revision', 'scope', 'sourceRevision', 'timezone'];
 const FIGURE = ['value', 'why'];
 const WINDOW = ['complete', 'from', 'observedFrom', 'observedThrough', 'to'];
 const PERIOD = ['denominator', 'figure', 'numerator', 'window'];

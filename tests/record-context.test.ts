@@ -25,6 +25,7 @@ import { SurfaceOverride } from '@/components/base/surface';
 import { FEATURES } from '@/data/features';
 import { PREPARED } from '@/data/prepared';
 import { contextText, type SharedContext } from '@/lib/shared-context';
+import type { Figure } from '@/lib/platform-shapes';
 import type { RecordRead } from '@/lib/work-shapes';
 import { CONTEXT_BUDGET } from '@/logic/context';
 import { RecordActions, RecordView } from '@/views/pages/record';
@@ -158,6 +159,34 @@ describe('the shared context', () => {
     await waitFor(() => expect(shared.at(-1)?.address).toBe('/record?period=year'));
     await waitFor(() => expect(shared.at(-1)?.scope).toContain(periodLine(YEAR)));
     expect(fact(shared.at(-1)!, 'In the period')!.value).toContain(`work closed ${footOf(YEAR)[0].value}`);
+  });
+});
+
+describe('Closed by outcome is the foot\'s total (Task I-6)', () => {
+  /** The quarter's record with the foot's total and the three outcomes set by the case, whatever they add up to. */
+  const withClosures = (closed: Figure, counts: [number, number, number]): RecordRead => {
+    if (QUARTER.work.state !== 'ok') throw new Error('the quarter\'s work was not read');
+    return {
+      ...QUARTER,
+      foot: { ...QUARTER.foot, closed },
+      work: { state: 'ok', data: { ...QUARTER.work.data, closedByOutcome: { accepted: { value: counts[0], why: null }, delivered: { value: counts[1], why: null }, abandoned: { value: counts[2], why: null } } } },
+    };
+  };
+  const closedTile = (r: RecordRead) => tilesOf(r).work!.find((t) => t.key === 'closed')!;
+
+  it('shows the gateway\'s total where the three outcomes do not add up to it, and keeps the three as its line under it', () => {
+    // Deliberately inconsistent: 3 + 2 + 2 is 7, and the gateway counted 8. The three are a breakdown of the
+    // total, never its source, so a total the gateway could not compute is never shown as one of its parts.
+    const t = closedTile(withClosures({ value: 8, why: null }, [3, 2, 2]));
+    expect(t.value).toBe(8);
+    expect(tileText(t)).toBe('8');
+    expect(t.note).toBe('3 accepted, 2 delivered, 2 abandoned');
+  });
+
+  it('says why the total has no figure, rather than answering with one of the outcomes', () => {
+    const t = closedTile(withClosures({ value: null, why: 'unavailable' }, [3, 2, 2]));
+    expect(t.value).not.toBe(3);
+    expect(tileText(t)).toBe('Unavailable');
   });
 });
 

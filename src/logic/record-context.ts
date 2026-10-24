@@ -204,10 +204,10 @@ export function tilesOf(r: RecordRead): Record<SliceKey, Tile[] | null> {
   return {
     work: w && (() => {
       const { accepted, delivered, abandoned } = w.closedByOutcome;
-      const all = [accepted, delivered, abandoned];
-      const total: Figure = all.every((x) => x.value !== null) ? { value: all.reduce((n, x) => n + x.value!, 0), why: null } : accepted;
       return [
-        tile('closed', 'Closed by outcome', 'Initiatives closed in the period, by the outcome each closed with.', total, `${said(accepted)} accepted, ${said(delivered)} delivered, ${said(abandoned)} abandoned`),
+        // The total is the foot's own figure, never a sum of its breakdown: a total the gateway could not count says
+        // why it has none, and the three outcomes stay the line under it, each one as it came (Task I-6).
+        tile('closed', 'Closed by outcome', 'Initiatives closed in the period, by the outcome each closed with.', r.foot.closed, `${said(accepted)} accepted, ${said(delivered)} delivered, ${said(abandoned)} abandoned`),
         tile('mostOpen', 'Most open at once', 'The most initiatives open at one moment in the period.', w.mostOpenAtOnce.value, w.mostOpenAtOnce.at ? `First reached ${formatDay(w.mostOpenAtOnce.at)}` : 'In the period'),
         median('medianClose', 'Median hours to close', 'From opening to closing, over the period\'s closures.', w.medianHoursToClose),
         median('medianAbandon', 'Hours to abandon', 'From opening to abandoning, over the work abandoned in the period: the span the record\'s Took column gives each.', w.medianHoursToAbandon, true),

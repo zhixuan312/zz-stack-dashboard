@@ -17,7 +17,7 @@
  * the rows: the page's first read on the console's server, its later reads in the browser, its context and
  * `view_bugs` all ask `bugsPath` for the address.
  */
-import type { AdminBugRow, BugReport, Bugs, Figure, PublicBugRow } from '@/lib/platform-shapes';
+import type { AdminBugRow, BugReport, Bugs, Figure, PublicBugRow, ReadEnvelope } from '@/lib/platform-shapes';
 import { plural } from '@/lib/format';
 import { formatDateTime, formatDay } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
@@ -106,7 +106,7 @@ export type BugsRead =
 
 /** `GET /platform/bugs/:id/duplicates`: the reports `bug_resolve` would accept as this one's target, newest first.
  *  COUPLED: the gateway's console/platform-bugs.ts and the fake's `duplicates`. */
-export type BugDuplicates = { rows: { id: string; title: string; status: string; reportedAt: string }[] };
+export type BugDuplicates = { rows: { id: string; title: string; status: string; reportedAt: string }[]; meta?: ReadEnvelope };
 
 /** One report's read: the answer, no report of that id, a failure, or no answer in time. */
 export type BugRead =

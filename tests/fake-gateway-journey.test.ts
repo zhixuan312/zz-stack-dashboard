@@ -37,6 +37,16 @@ const read = async <T,>(value: string, path: string) => {
   expect(answer.status, `${value} ${path}`).toBe(200);
   return answer.body;
 };
+/**
+ * `call`'s answer with the request-side half of its `meta` levelled: `observedAt` is each request's own, and `revision`
+ * moves for every session when a write raises one of the fake's process-wide hints — one count for the whole process,
+ * where the gateway counts what each caller may hear. What this comparison is of is what other sessions read.
+ */
+const unmoved = async (value: string, path: string) => {
+  const answer = await call(value, path);
+  const body = answer.body as { meta?: Record<string, unknown> } | null;
+  return { ...answer, body: body && typeof body === 'object' && body.meta ? { ...body, meta: { ...body.meta, observedAt: null, revision: null } } : answer.body };
+};
 
 /** Every read a journey's writes change, by its path. */
 const READS = [
@@ -50,7 +60,7 @@ const SLUG = '2026-10-08-result-explanations';
 describe('a journey session keeps its own writes', () => {
   it('shows each of the five writes on its next reads, and changes nothing another session reads', async () => {
     // Each with its status: People is refused the member, and stays refused.
-    const others = async () => Object.fromEntries(await Promise.all([PLAIN, OTHER].flatMap((v) => READS.map(async (p) => [`${v} ${p}`, await call(v, p)]))));
+    const others = async () => Object.fromEntries(await Promise.all([PLAIN, OTHER].flatMap((v) => READS.map(async (p) => [`${v} ${p}`, await unmoved(v, p)]))));
     const before = await others();
 
     const waiting = await read<Approvals>(JOURNEY, '/approvals?tab=waiting');
@@ -114,8 +124,8 @@ describe('a journey session keeps its own writes', () => {
     expect(found.people.map((p) => p.email)).toEqual(['journey.person@example.com']);
     expect((await read<People>(JOURNEY, '/people')).tiles.people).toBe(people.tiles.people + 1);
     expect((await read<Access>(JOURNEY, '/access')).issued.some((t) => t.label === 'journey laptop')).toBe(true);
-    const tokens = await read<MyAccessToken[]>(JOURNEY, '/settings/me/tokens');
-    expect(tokens.some((t) => t.label === 'journey laptop')).toBe(true);
+    const tokens = await read<{ rows: MyAccessToken[] }>(JOURNEY, '/settings/me/tokens');
+    expect(tokens.rows.some((t) => t.label === 'journey laptop')).toBe(true);
     expect(JSON.stringify(tokens)).not.toContain(token.body.token);
 
     // Nobody else's reads moved: the same person's plain session, and the other person's journey.
@@ -128,7 +138,7 @@ describe('a journey session keeps its own writes', () => {
   });
 
   it('reads the normal state, and is not a state the fake draws', async () => {
-    expect(await read(JOURNEY, '/runs')).toEqual(await read(PLAIN, '/runs'));
+    expect((await unmoved(JOURNEY, '/runs')).body).toEqual((await unmoved(PLAIN, '/runs')).body);
     const mode = await (await fetch(`${gateway.base}/api/console/__mode?set=journey`)).json() as { mode: string };
     expect(mode.mode).toBe('normal');
     expect((await fetch(`${gateway.base}/api/console/__nulls?session=${encodeURIComponent(JOURNEY)}&on=1`)).status).toBe(400);

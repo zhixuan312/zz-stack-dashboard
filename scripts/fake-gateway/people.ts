@@ -70,7 +70,8 @@ const MEMBER_TOKENS: MyAccessToken[] = [
   { id: 'tok_2d3e4f5a', label: 'laptop', created_at: ago(900), last_used_at: ago(70), revoked_at: null },
 ];
 
-/** `GET /settings/me/tokens`: a person's own tokens and nobody else's. */
+/** A person's own tokens, and nobody else's: the fixture half of `GET /settings/me/tokens`, which `tokensNow`
+ *  (work-access.ts) answers under `rows`. */
 export const tokensOf = (who: Me): MyAccessToken[] => (who.email === MEMBER.email ? MEMBER_TOKENS : MY_TOKENS);
 
 /** `GET /settings/me/client-setup`, written for the person asking. */

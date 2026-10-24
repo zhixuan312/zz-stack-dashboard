@@ -52,6 +52,11 @@ const read = async <T = Json>(who: string | null, path: string) => {
 };
 const post = (who: string | null, path: string, body: unknown) => ask(who, path, {
   method: 'POST', headers: { 'content-type': 'application/json' }, body: typeof body === 'string' ? body : JSON.stringify(body) });
+/** An answer with the one field levelled that every request has of its own: two reads of a route differ in
+ *  `observedAt` when they differ nowhere else, since each request is served at its own instant. */
+const unobserved = <T = Json>(v: T): T => (v && typeof v === 'object' && 'meta' in v
+  ? { ...v, meta: { ...(v as { meta: object }).meta, observedAt: null } }
+  : v);
 
 /** The member's one team, and every other team's slug and name, as whole words. */
 async function teams(): Promise<{ own: string; others: Team[]; named: RegExp }> {
@@ -96,10 +101,10 @@ describe('who the fake gateway answers as', () => {
     const bare = await read<Me>(null, 'me');
     expect(bare).toMatchObject({ role: 'superadmin', superadmin: true });
     expect(bare.teams.length).toBeGreaterThan(1);
-    expect(await read<Me>(SUPERADMIN, 'me')).toEqual(bare);
+    expect(unobserved(await read<Me>(SUPERADMIN, 'me'))).toEqual(unobserved(bare));
     // A cookie that is not the session's says nothing about who is asking.
     const res = await fetch(`${base}/api/console/me`, { headers: { cookie: 'theme=dark; other=1' } });
-    expect(await res.json()).toEqual(bare);
+    expect(unobserved(await res.json())).toEqual(unobserved(bare));
   });
 
   it('is a member of one team, and its admin, with the member\'s', async () => {
@@ -130,7 +135,7 @@ describe('who the fake gateway answers as', () => {
     // The default `pnpm verify` sends no cookie, so this is what keeps its pages reading what they read.
     for (const path of ['teams', 'teams?scope=platform', 'initiatives?scope=platform', 'knowledge', 'people?scope=platform',
                         'activity?scope=platform', 'settings/me/teams', 'settings/platform/people', 'teams/beacon']) {
-      expect(await read(null, path), path).toEqual(await read(SUPERADMIN, path));
+      expect(unobserved(await read(null, path)), path).toEqual(unobserved(await read(SUPERADMIN, path)));
     }
     expect((await read<{ teams: Team[] }>(null, 'teams')).teams.length).toBeGreaterThan(1);
     expect((await read<{ people: unknown[] }>(null, 'people?scope=platform')).people.length).toBeGreaterThan(1);
@@ -211,7 +216,7 @@ describe('what a member is answered', () => {
     const { own, others } = await teams();
     const other = others[0].slug;
     // Work's list is the active team's: naming another team widens nothing and refuses nothing.
-    expect(await read(MEMBER, `initiatives?team=${other}`)).toEqual(await read(MEMBER, 'initiatives'));
+    expect(unobserved(await read(MEMBER, `initiatives?team=${other}`))).toEqual(unobserved(await read(MEMBER, 'initiatives')));
     expect((await ask(MEMBER, `settings/team/members?team=${other}`)).status).toBe(403);
     expect((await ask(MEMBER, 'settings/platform/people')).status).toBe(403);
     expect((await ask(MEMBER, `settings/team/members?team=${own}`)).status).toBe(200);
@@ -222,8 +227,8 @@ describe('what a member is answered', () => {
 
   it('holds their own settings, and writes as them', async () => {
     const [me, ava] = [await read<Me>(MEMBER, 'me'), await read<Me>(null, 'me')];
-    const tokens = await read<{ label: string }[]>(MEMBER, 'settings/me/tokens');
-    expect(tokens.length).toBeGreaterThan(0);
+    const tokens = await read<{ rows: { id: string; label: string }[] }>(MEMBER, 'settings/me/tokens');
+    expect(tokens.rows.length).toBeGreaterThan(0);
     expect(JSON.stringify(tokens)).not.toContain(ava.email);
     expect((await read<{ config: string }>(MEMBER, 'settings/me/client-setup')).config).toContain(me.email);
     expect(await read(MEMBER, 'settings/me/teams')).toMatchObject({ actingFor: me.activeTeam, teams: [{ team: me.activeTeam, role: 'admin', active: true }] });
@@ -232,9 +237,10 @@ describe('what a member is answered', () => {
     const issued = await post(MEMBER, 'settings/me/tokens', { label: 'laptop' });
     expect(await issued.json()).toMatchObject({ label: 'laptop', email: me.email });
     // A write still answers success and is forgotten.
-    const revoked = await ask(MEMBER, `settings/me/tokens/${(tokens as unknown as { id: string }[])[0].id}`, { method: 'DELETE' });
+    const revoked = await ask(MEMBER, `settings/me/tokens/${tokens.rows[0].id}`, { method: 'DELETE' });
     expect(revoked.status).toBe(200);
-    expect(await read(MEMBER, 'settings/me/tokens')).toEqual(tokens);
+    // The list itself is what the revoked write left unchanged; the hint it raised moved the marker on, as a change does.
+    expect((await read(MEMBER, 'settings/me/tokens')).rows).toEqual(tokens.rows);
   });
 
   it('searches as their own team, and shows and approves its documents', async () => {
@@ -281,8 +287,8 @@ type Status = {
 describe('GET /api/console/platform/status', () => {
   it('answers both people the same public figure, and only the member\'s needs in their own projection', async () => {
     const [ava, noah] = [await read<Status>(null, 'platform/status'), await read<Status>(MEMBER, 'platform/status')];
-    expect({ ...noah, meta: { ...noah.meta, scope: null }, needs: null }).toEqual({ ...ava, meta: { ...ava.meta, scope: null }, needs: null });
-    expect(await read<Status>(SUPERADMIN, 'platform/status?scope=platform&team=beacon')).toEqual(ava);
+    expect({ ...noah, meta: { ...noah.meta, scope: null, observedAt: null }, needs: null }).toEqual({ ...ava, meta: { ...ava.meta, scope: null, observedAt: null }, needs: null });
+    expect(unobserved(await read<Status>(SUPERADMIN, 'platform/status?scope=platform&team=beacon'))).toEqual(unobserved(ava));
     expect(ava.meta.scope).toBe('platform-admin');
     expect(noah.meta.scope).toBe('platform-public');
     expect(ava.meta.population).toMatch(/real-work/);

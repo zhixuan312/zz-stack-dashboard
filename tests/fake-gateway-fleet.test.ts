@@ -40,7 +40,7 @@ const read = async (who: string | null, path: string): Promise<Json> => {
 const keys = (o: object) => Object.keys(o).sort();
 const sorted = (...k: string[]) => k.sort();
 
-const META = ['asOf', 'coverageFrom', 'period', 'population', 'scope', 'timezone'];
+const META = ['asOf', 'builtAt', 'cacheHit', 'coverageFrom', 'observedAt', 'period', 'population', 'revision', 'scope', 'sourceRevision', 'timezone'];
 const FIGURE = ['value', 'why'];
 const WINDOW = ['complete', 'from', 'observedFrom', 'observedThrough', 'to'];
 const PERIOD = ['denominator', 'figure', 'numerator', 'window'];
@@ -51,11 +51,14 @@ const AUDIT_ROW = ['actor', 'at', 'id', 'inConsole', 'kind', 'ok', 'origin', 're
 
 const isPeriod = (p: Json) => { expect(keys(p)).toEqual(PERIOD); expect(keys(p.window)).toEqual(WINDOW); expect(keys(p.figure)).toEqual(FIGURE); };
 const ok = (part: Json) => { expect(part.state).toBe('ok'); return part.data; };
+/** An answer with the one field levelled that is each request's own: two reads of a route differ in `observedAt` when
+ *  they differ nowhere else, since every request is served at its own instant. */
+const unobserved = (v: Json): Json => ({ ...v, meta: { ...v.meta, observedAt: null } });
 
 describe('GET /api/console/teams, the superadmin\'s', () => {
   it('answers the tiles and every team in the declared shape, today\'s fields kept', async () => {
     const ava = await read(SUPERADMIN, 'teams');
-    expect(await read(null, 'teams?scope=platform')).toEqual(ava);
+    expect(unobserved(await read(null, 'teams?scope=platform'))).toEqual(unobserved(ava));
     expect(keys(ava)).toEqual(['meta', 'teams', 'tiles', 'total']);
     expect(keys(ava.meta)).toEqual(META);
     expect(ava.meta.scope).toBe('platform-admin');
@@ -120,7 +123,7 @@ describe('GET /api/console/teams, the superadmin\'s', () => {
 describe('GET /api/console/people, the superadmin\'s', () => {
   it('answers the tiles and every person in the declared shape, what People draws and nothing else', async () => {
     const ava = await read(SUPERADMIN, 'people');
-    expect(await read(null, 'people?scope=platform')).toEqual(ava);
+    expect(unobserved(await read(null, 'people?scope=platform'))).toEqual(unobserved(ava));
     expect(keys(ava)).toEqual(['meta', 'people', 'tiles', 'total']);
     expect(keys(ava.meta)).toEqual(META);
     expect(keys(ava.tiles)).toEqual(['neverSignedIn', 'people', 'signInsLastWeek', 'withPasskey']);

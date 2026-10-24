@@ -34,6 +34,11 @@ const read = async <T,>(value: string, path: string) => {
   expect(answer.status, `${value} ${path}`).toBe(200);
   return answer.body;
 };
+/** An answer with the one field levelled that every request has of its own: two reads of a route differ in
+ *  `observedAt` when they differ nowhere else, since each request is served at its own instant. */
+const unobserved = <T,>(v: T): T => (v && typeof v === 'object' && 'meta' in v
+  ? { ...v, meta: { ...(v as { meta: object }).meta, observedAt: null } }
+  : v);
 
 /** How many rows Approvals' Waiting answers a caller acting for `team`, every page of it. */
 function queued(team: string): number {
@@ -79,7 +84,7 @@ describe("the fake's Teams counts each team's revisions waiting from the approva
     const queue = await read<Approvals>(JOURNEY, '/approvals?tab=waiting');
     expect(queue.waiting.state === 'ok' && queue.waiting.data.total).toBe(waitingByTeam(after).atlas);
 
-    expect(await read<Teams>(PLAIN, '/teams?limit=100')).toEqual(plain.list);
-    expect(await read<TeamDetail>(PLAIN, '/teams/atlas')).toEqual(plain.page);
+    expect(unobserved(await read<Teams>(PLAIN, '/teams?limit=100'))).toEqual(unobserved(plain.list));
+    expect(unobserved(await read<TeamDetail>(PLAIN, '/teams/atlas'))).toEqual(unobserved(plain.page));
   });
 });

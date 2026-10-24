@@ -165,7 +165,7 @@ describe('Access, as the fake gateway answers the superadmin', () => {
     expect(atlas.textContent).toContain('Acting for');
     expect(within(atlas).queryByRole('button', { name: 'Act as this team' })).toBeNull();
     expect(button(beacon, 'Act as this team')).toBeEnabled();
-    await waitFor(() => expect(rowsOf('atlas\'s members').length).toBe(teamMembers('atlas').length));
+    await waitFor(() => expect(rowsOf('atlas\'s members').length).toBe(teamMembers('atlas').rows.length));
     expect(reads('/settings/team/members')).toHaveLength(1);
   });
 

@@ -107,6 +107,7 @@ import { access, revokeApplication, revokeBrowser, tokensNow } from './work-acce
 import { activityLog, activitySummary, NO_TEAM } from './work-activity.ts';
 import { approvals, documentAsKept } from './work-approvals.ts';
 import { home } from './work-home.ts';
+import { envelopeFor, sendAnswer } from './envelope.ts';
 import { close, initiativeDetail, initiativeList } from './work-initiatives.ts';
 import { knowledgeList, knowledgeLog, knowledgeSummary, lesson, SHARED_TEAM } from './work-knowledge.ts';
 import { plugins, skillDetail, skills } from './work-plugins.ts';
@@ -550,6 +551,8 @@ const server = http.createServer((req, res) => {
     const status = req.method === 'GET' && url.pathname === '/api/console/platform/status';
     // The revision a read is answered with, taken as it arrives, before it is answered: live.ts's `revisionHeader`.
     const revised = req.method === 'GET' && who && seg[0] === 'api' && seg[1] === 'console' ? revisionHeader(seg.slice(2)) : null;
+    // The envelope this answer carries, or null for a request that answers none (envelope.ts).
+    const envelope = envelopeFor(req.method === 'GET' && seg[0] === 'api' && seg[1] === 'console', revised);
     let answer: Answer;
     /* The test hooks wear the proxied prefix — `/api/console/__hint` — so a browser check reaches them through the app's
      * own origin and never needs to know the gateway's address, which the app's build baked in and nothing serves back.
@@ -677,12 +680,7 @@ const server = http.createServer((req, res) => {
     }
     // `slow` holds a page's reads and spares `/me`, as `error` does: who is asking is answered at once, so the page's own
     // loading state is what shows, then its bounded state: every read is held past the bound its page gives it.
-    setTimeout(() => {
-      // A 204, or a 404 that says nothing, has no body to serialise, and a client that is sent one reads it wrong.
-      if (answer[1] === null) { res.writeHead(answer[0], { 'cache-control': 'no-store' }); res.end(); return; }
-      res.writeHead(answer[0], { 'content-type': 'application/json', 'cache-control': 'no-store', ...(revised ? { [revised[0]]: revised[1] } : {}) });
-      res.end(JSON.stringify(answer[1]));
-    }, state !== 'slow' || (seg[2] === 'me' && !seg[3]) ? 0 : SLOW_MS);
+    sendAnswer(res, answer, envelope, revised, state !== 'slow' || (seg[2] === 'me' && !seg[3]) ? 0 : SLOW_MS);
   });
 });
 

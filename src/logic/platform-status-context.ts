@@ -227,14 +227,16 @@ export function scoreOf(s: PlatformStatus): { caption: string; directional: Scor
 
 /* The doors */
 
-/** One door's row: its daily tool-failure rates over the whole days that had calls, its counts, its last fault day (a local date, null when none is recorded), the gateway's sentence for its run, and today apart. */
+/** One door's row: the gateway's own daily tool-failure rates over the whole days that had calls, its counts, its last fault day (a local date, null when none is recorded), the gateway's sentence for its run, and today apart. */
 export type DoorRow = { door: Door['door']; rates: number[]; daysWithCalls: number; faultDays: number; lastFaultDay: string | null; run: string; today: string | null };
 export function doorRow(d: Door): DoorRow {
+  // Which days the line is drawn over is this function's choice; the rate on each is the gateway's, the number its
+  // own `state` was read from, so dividing `toolFailures / calls` again here would draw a second figure beside it.
   const whole = d.days.filter((x) => x.complete && x.calls !== null && x.calls > 0 && x.toolFailures !== null);
   const today = d.days.find((x) => !x.complete);
   return {
     door: d.door,
-    rates: whole.map((x) => (100 * x.toolFailures!) / x.calls!),
+    rates: whole.map((x) => x.rate!),
     daysWithCalls: whole.length,
     faultDays: d.totals.faultDays,
     lastFaultDay: d.totals.lastFaultDay,

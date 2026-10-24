@@ -14,7 +14,7 @@
  * COUPLED: zz-stack's `checks/console-access.ts` imports this file with plain `node` and compares its key sets with the
  * real routes' answers. So nothing here is imported through the console's path alias.
  */
-import type { Me, MyAccessToken } from '../../src/lib/api-shapes.ts';
+import type { Me, MyAccessTokens } from '../../src/lib/api-shapes.ts';
 import type { Access, AccessApplication, AccessBrowser, AccessPasskey, AccessToken, Revoked } from '../../src/lib/destination-shapes.ts';
 import { ago } from './clock.ts';
 import { kept } from './journey.ts';
@@ -46,17 +46,20 @@ const PASSKEYS: Record<string, AccessPasskey[]> = {
 };
 
 /**
- * `GET /settings/me/tokens`: the caller's own tokens, newest first, a journey session's issued ones before the
- * fixture's. By label and date alone: a token's value is shown once, in the answer to the write that issued it.
+ * `GET /settings/me/tokens`: the caller's own tokens, newest first, under `rows`, a journey session's issued ones
+ * before the fixture's. By label and date alone: a token's value is shown once, in the answer to the write that
+ * issued it.
  */
-export const tokensNow = (who: Me): MyAccessToken[] => [
-  ...(kept()?.issued ?? []).filter((t) => t.email === who.email).reverse()
-    .map((t) => ({ id: t.id, label: t.label, created_at: t.at, last_used_at: null, revoked_at: null })),
-  ...tokensOf(who),
-];
+export const tokensNow = (who: Me): MyAccessTokens => ({
+  rows: [
+    ...(kept()?.issued ?? []).filter((t) => t.email === who.email).reverse()
+      .map((t) => ({ id: t.id, label: t.label, created_at: t.at, last_used_at: null, revoked_at: null })),
+    ...tokensOf(who),
+  ],
+});
 
 /** The caller's tokens, newest first, each with the application it was minted for. */
-const issuedOf = (who: Me): AccessToken[] => tokensNow(who).map((t) => ({
+const issuedOf = (who: Me): AccessToken[] => tokensNow(who).rows.map((t) => ({
   id: t.id, label: t.label, createdAt: t.created_at, lastUsedAt: t.last_used_at, revokedAt: t.revoked_at, application: MINTED[t.id] ?? null,
 }));
 

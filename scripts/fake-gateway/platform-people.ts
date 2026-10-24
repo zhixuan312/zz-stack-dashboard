@@ -13,7 +13,7 @@
  * COUPLED: zz-stack's `checks/console-platform-people.ts` imports this file with plain `node` and compares its key sets
  * with the real route's answer. So nothing here is imported through the console's path alias.
  */
-import type { Me, PlatformPersonRow, TeamMemberRow } from '../../src/lib/api-shapes.ts';
+import type { Me, PlatformPeople, TeamMembers } from '../../src/lib/api-shapes.ts';
 import type { People, PersonRow } from '../../src/lib/fleet-shapes.ts';
 import type { PeriodFigure } from '../../src/lib/platform-shapes.ts';
 import { ago, day, localDay, nextStart, now } from './clock.ts';
@@ -117,13 +117,15 @@ export const membersOf = (slug: string) => SEEDS.filter((s) => s.teams.some(([t]
   email: s.email, name: s.name, role: s.teams.find(([t]) => t === slug)![1], joined: day(s.created),
 }));
 
-/** `GET /settings/platform/people`: every principal, the superadmin's. */
-export const PLATFORM_PEOPLE: PlatformPersonRow[] = SEEDS.map((s) => ({
-  email: s.email, display_name: s.name, role: s.role, status: s.status, created_at: ago(s.created * 24),
-  teams: s.teams.map(([team, role]) => ({ team, role, added_by: s.email === ME.email ? null : ME.email, added_at: ago(s.created * 24 - 1) })),
-}));
+/** `GET /settings/platform/people`: every principal, the superadmin's, under `rows`. */
+export const PLATFORM_PEOPLE: PlatformPeople = {
+  rows: SEEDS.map((s) => ({
+    email: s.email, display_name: s.name, role: s.role, status: s.status, created_at: ago(s.created * 24),
+    teams: s.teams.map(([team, role]) => ({ team, role, added_by: s.email === ME.email ? null : ME.email, added_at: ago(s.created * 24 - 1) })),
+  })),
+};
 
-/** `GET /settings/team/members?team=`: one team's roster, for its admins and a superadmin. */
-export function teamMembers(slug: string): TeamMemberRow[] {
-  return SEEDS.flatMap((s) => s.teams.filter(([t]) => t === slug).map(([, role]) => ({ email: s.email, role })));
+/** `GET /settings/team/members?team=`: one team's roster, for its admins and a superadmin, under `rows`. */
+export function teamMembers(slug: string): TeamMembers {
+  return { rows: SEEDS.flatMap((s) => s.teams.filter(([t]) => t === slug).map(([, role]) => ({ email: s.email, role }))) };
 }

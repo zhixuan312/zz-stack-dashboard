@@ -218,6 +218,25 @@ describe.each(BOTH)('the fixture read as %s', (_, who) => {
     }
   });
 
+  it('answers the envelope the gateway stamps, and a refusal without it', async () => {
+    const answer = await read<RecordRead>(who, 'record?period=quarter');
+    /* Stated literally, and not through a type an assertion cannot read: these eleven are the console's `ReadMeta`,
+     * the five the fake stamps being the gateway's own (`services/gateway/src/console/read-envelope.ts`). A fixture or
+     * a route that stops filling one fails here, whatever the types say. */
+    expect(Object.keys(answer.meta).sort()).toEqual([
+      'asOf', 'builtAt', 'cacheHit', 'coverageFrom', 'observedAt', 'period', 'population',
+      'revision', 'scope', 'sourceRevision', 'timezone',
+    ]);
+    // An answer computed from rows has no derived data behind it and no kept answer to have been served: as the
+    // gateway states it, and never a guess.
+    expect([answer.meta.builtAt, answer.meta.sourceRevision, answer.meta.cacheHit]).toEqual([null, null, false]);
+    expect(Date.parse(answer.meta.observedAt!)).not.toBeNaN();
+    // A refusal carries no read, so it carries no envelope.
+    const refused = await fetch(`${base}/api/console/no-such-route`, { headers: { cookie: `zz_console=${who}` } });
+    expect(refused.status).toBe(404);
+    expect(Object.keys((await refused.json()) as object)).toEqual(['error']);
+  });
+
   it("gives each lesson a body of its own", async () => {
     const list = await read<KnowledgeList>(who, 'knowledge?limit=100');
     const bodies = await Promise.all(list.rows.map((n) => read<KnowledgeBody>(who, `knowledge/${n.team}/${n.path}`)));

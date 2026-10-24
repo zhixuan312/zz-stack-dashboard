@@ -14,7 +14,7 @@ import { PageControl } from '@/console/paged';
 import { Select } from '@/components/ui/select';
 import { toast } from '@/components/ui/toast';
 import { ApiError, useConsole } from '@/lib/api';
-import { type TeamMemberRow } from '@/lib/api-shapes';
+import { type TeamMemberRow, type TeamMembers } from '@/lib/api-shapes';
 import { useConsoleMutation } from '@/lib/mutate';
 
 /**
@@ -28,7 +28,7 @@ import { useConsoleMutation } from '@/lib/mutate';
  * the address typed and says the gateway's sentence.
  */
 export function TeamMembersPanel({ team }: { team: string }) {
-  const list = useConsole<TeamMemberRow[]>(`/settings/team/members?team=${encodeURIComponent(team)}`);
+  const list = useConsole<TeamMembers>(`/settings/team/members?team=${encodeURIComponent(team)}`);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<'member' | 'admin'>('member');
   const [error, setError] = useState<string | null>(null);
@@ -79,14 +79,14 @@ export function TeamMembersPanel({ team }: { team: string }) {
   return (
     <>
       <Query query={list}>
-        {(rows) =>
-          rows.length === 0 ? (
+        {(answer) =>
+          answer.rows.length === 0 ? (
             <div className="px-5 py-8">
               <EmptyState title="Nobody on this team yet">Add the first member below.</EmptyState>
             </div>
           ) : (
             <MembersTable
-              rows={rows}
+              rows={answer.rows}
               team={team}
               pending={removeMutation.isPending}
               onRole={(email, next) => void changeRole(email, next)}

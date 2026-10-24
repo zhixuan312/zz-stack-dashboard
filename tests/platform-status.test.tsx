@@ -23,7 +23,7 @@ import { contextText } from '@/lib/shared-context';
 import { PlatformStatusAsOf, PlatformStatusView } from '@/views/pages/platform-status';
 import { CONTEXT_BUDGET } from '@/logic/context';
 import { READ_BOUND_MS } from '@/lib/read-bound';
-import { platformStatusContext, statusRead, type StatusRead } from '@/logic/platform-status-context';
+import { doorRow, platformStatusContext, statusRead, type StatusRead } from '@/logic/platform-status-context';
 import { platformStatusTool } from '@/logic/tools/platform-status';
 import { navOf, workspaceOf } from '@/views/workspaces';
 import { MEMBER_STATUS, PLATFORM_STATUS } from '../scripts/fake-gateway/platform-status.ts';
@@ -225,6 +225,21 @@ describe('the doors', () => {
     }
     expect(row(doors, 'eval').textContent).toContain('None recorded');
     expect(row(doors, 'core').textContent).not.toContain('None recorded');
+  });
+
+  it('draws the gateway\'s own daily rate, so the line and the day\'s colour are one figure', () => {
+    const core = DOORS.find((d) => d.door === 'core')!;
+    const day = (date: string, calls: number, toolFailures: number, rate: number | null, complete = true) =>
+      ({ date, calls, toolFailures, rate, state: 'clear' as const, complete });
+    // The rates disagree with the counts on purpose: the division is the gateway's alone, so a console that divided
+    // `toolFailures / calls` again would draw numbers the day's own state was never read from.
+    const days = [
+      day('2026-10-20', 100, 1, 4.5), day('2026-10-21', 200, 4, 0.5),
+      day('2026-10-22', 0, 0, null), day('2026-10-24', 40, 1, 9, false),
+    ];
+    const drawn = doorRow({ ...core, days });
+    expect(drawn.rates).toEqual([4.5, 0.5]);
+    expect(drawn.daysWithCalls).toBe(2);
   });
 
   it('says a door with fewer than two days with calls has not enough days, and no door at all is its zero state', () => {

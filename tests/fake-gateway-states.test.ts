@@ -314,7 +314,7 @@ describe('every mode answers both people', () => {
     // projection, and the scope it is labelled with: the superadmin's platform-admin, a member's platform-public (R1-C16).
     const status = await Promise.all(PEOPLE.map(async ([, , cookie]) => (await (await ask(base, cookie, 'platform/status')).json()) as { meta: { scope: string } }));
     expect(status.map((s) => s.meta.scope)).toEqual(['platform-admin', 'platform-admin', 'platform-public']);
-    const alike = status.map((s) => ({ ...s, meta: { ...s.meta, scope: null }, needs: null }));
+    const alike = status.map((s) => ({ ...s, meta: { ...s.meta, scope: null, observedAt: null }, needs: null }));
     expect(alike[1]).toEqual(alike[0]);
     expect(alike[2]).toEqual(alike[0]);
   });
@@ -376,7 +376,10 @@ describe('a state asked for by the session value', () => {
       : { accept: 'application/json', cookie: `theme=dark; zz_console=${value}; zz-stack-tab=work`, referer: 'http://127.0.0.1:3100/initiatives' };
     const res = await fetch(`${base}/api/console/${scoped(path)}`, { headers, signal: AbortSignal.timeout(10_000) });
     const text = await res.text();
-    return [res.status, text ? JSON.parse(text) : null];
+    // `observedAt` is levelled here, and only here: it is each request's own instant, so two sessions' reads of one
+    // route differ in it when they differ nowhere else, and this suite compares exactly those pairs.
+    const body = text ? JSON.parse(text) : null;
+    return [res.status, body && typeof body === 'object' && 'meta' in body ? { ...body, meta: { ...body.meta, observedAt: null } } : body];
   }
   const all = (base: string, value: string, paths: string[], from: 'server' | 'browser' = 'server') => Promise.all(paths.map((p) => read(base, value, p, from)));
 
@@ -513,7 +516,7 @@ describe('a state asked for by the session value', () => {
     // A release and a report are what a fresh deployment holds none of: their routes answer as for an id nobody holds.
     for (const path of ['platform/releases/0.97.0', 'platform/bugs/0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d01']) expect(await read(base, 'superadmin+empty', path), path).toEqual([404, null]);
     expect(await get<Releases>('platform/releases')).toMatchObject({ rows: { state: 'ok', data: { rows: [], total: 0 } }, tiles: { releases: 0, latest: null } });
-    expect(await get<PluginEval>('plugins/sdlc/eval')).toEqual({ plugin: 'sdlc', found: false });
+    expect(await get<PluginEval>('plugins/sdlc/eval')).toMatchObject({ plugin: 'sdlc', found: false });
     const usage = await get<Usage>('platform/usage');
     expect(usage.tiles.state === 'ok' && usage.tiles.data.calls.last.figure).toEqual({ value: null, why: 'no_data' });
     const record = await get<RecordRead>('record');

@@ -39,6 +39,11 @@ const read = async <T,>(value: string, path: string) => {
   expect(answer.status, `${value} ${path}`).toBe(200);
   return answer.body;
 };
+/** An answer with the one field levelled that every request has of its own: two reads of a route differ in
+ *  `observedAt` when they differ nowhere else, since each request is served at its own instant. */
+const unobserved = <T,>(v: T): T => (v && typeof v === 'object' && 'meta' in v
+  ? { ...v, meta: { ...(v as { meta: object }).meta, observedAt: null } }
+  : v);
 
 /** Every row Approvals' Waiting answers a caller acting for `team`, as this process's fixture holds it. */
 function queueOf(team: string): WaitingRow[] {
@@ -145,7 +150,7 @@ describe("the fake's Status names the approvals waiting that the approvals queue
     expectSuperadmin(after.needs, less);
     expect(after.needs.total).toBe(before.needs.total! - (late.length - less.length));
 
-    expect(await read<PlatformStatus>('superadmin', '/platform/status')).toEqual(plain.admin);
-    expect(await read<PlatformStatus>('member', '/platform/status')).toEqual(plain.member);
+    expect(unobserved(await read<PlatformStatus>('superadmin', '/platform/status'))).toEqual(unobserved(plain.admin));
+    expect(unobserved(await read<PlatformStatus>('member', '/platform/status'))).toEqual(unobserved(plain.member));
   });
 });

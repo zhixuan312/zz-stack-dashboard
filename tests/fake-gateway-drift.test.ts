@@ -34,6 +34,11 @@ async function start(): Promise<string> {
 }
 
 const DRIFTING = 'document/atlas/2026-10-03-ranking-weights/spec.md';
+/** An answer with the one field levelled that every request has of its own: two reads of a route differ in
+ *  `observedAt` when they differ nowhere else, since each request is served at its own instant. */
+const unobserved = (v: unknown): unknown => (v && typeof v === 'object' && 'meta' in v
+  ? { ...v, meta: { ...(v as { meta: object }).meta, observedAt: null } }
+  : v);
 /** How long past one revision period a hint may take to arrive before the case says it never did. */
 const LATE_MS = 3_000;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -164,6 +169,6 @@ describe('a rename through the live check\'s hint', () => {
     expect(((await me.json()) as { superadmin: boolean }).superadmin).toBe(true);
     const plain = await (await fetch(`${base}/api/console/teams?limit=100`)).json();
     const live = await (await fetch(`${base}/api/console/teams?limit=100`, { headers: { cookie: 'zz_console=superadmin+live' } })).json();
-    expect(live).toEqual(plain);
+    expect(unobserved(live)).toEqual(unobserved(plain));
   });
 });

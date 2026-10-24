@@ -43,18 +43,22 @@ const resolveAs = (who: string | null, id: string, body: unknown) => ask(who, `p
   method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
 const keys = (o: object) => Object.keys(o).sort();
 
-const META = ['asOf', 'coverageFrom', 'period', 'population', 'scope', 'timezone'];
+const META = ['asOf', 'builtAt', 'cacheHit', 'coverageFrom', 'observedAt', 'period', 'population', 'revision', 'scope', 'sourceRevision', 'timezone'];
 const FIGURE = ['value', 'why'];
 const WINDOW = ['complete', 'from', 'observedFrom', 'observedThrough', 'to'];
 const RELEASE_ROW = ['after', 'before', 'clientAction', 'consoleVersion', 'releasedAt', 'summary', 'version'];
 const RELEASE_WINDOW = ['calls', 'malformed', 'malformedPer1000', 'overlappingVersions', 'p95Ms', 'toolFailures', 'window'];
 const PUBLIC_BUG = ['filedAt', 'id', 'impact', 'platformVersion', 'resolvedAt', 'status', 'surface', 'title'];
 const ADMIN_BUG = [...PUBLIC_BUG, 'internalTitle', 'team'].sort();
-const BUG_REPORT = ['detail', 'duplicateOf', 'id', 'impact', 'platformVersion', 'reportedAt', 'resolution', 'resolvedAt', 'status', 'surface', 'team', 'title'];
+const BUG_REPORT = ['detail', 'duplicateOf', 'id', 'impact', 'meta', 'platformVersion', 'reportedAt', 'resolution', 'resolvedAt', 'status', 'surface', 'team', 'title'];
 const SAFE_FINDING = ['id', 'kind', 'measure', 'owner', 'plugin', 'summary', 'waitingSince'];
 
 /** The reports as the superadmin's queue lists them, every one of them on one page. */
 const allBugs = async (who: string | null) => (await read(who, 'platform/bugs?limit=100')).queue.data.rows as Json[];
+
+/** An answer with the one field levelled that is each request's own: two reads of a route differ in `observedAt` when
+ *  they differ nowhere else, since every request is served at its own instant. */
+const unobserved = (v: Json): Json => ({ ...v, meta: { ...v.meta, observedAt: null } });
 
 /** Every team's slug and name, and every persona's email and name, as whole words: none may reach a refusal. */
 async function names(): Promise<RegExp> {
@@ -68,8 +72,8 @@ async function names(): Promise<RegExp> {
 describe('GET /api/console/platform/releases', () => {
   it('answers both people the same releases in the declared shape, whatever they ask for', async () => {
     const ava = await read(null, 'platform/releases');
-    expect(await read(MEMBER, 'platform/releases?scope=platform&team=beacon')).toEqual(ava);
-    expect(await read(SUPERADMIN, 'platform/releases')).toEqual(ava);
+    expect(unobserved(await read(MEMBER, 'platform/releases?scope=platform&team=beacon'))).toEqual(unobserved(ava));
+    expect(unobserved(await read(SUPERADMIN, 'platform/releases'))).toEqual(unobserved(ava));
     expect(keys(ava)).toEqual(['meta', 'rows', 'tiles', 'weeks']);
     expect(keys(ava.meta)).toEqual(META);
     expect(ava.meta.scope).toBe('platform-public');
@@ -149,9 +153,9 @@ describe('GET /api/console/platform/releases', () => {
     const rows = (await read(null, 'platform/releases')).rows.data.rows as Json[];
     for (const r of rows) {
       const detail = await read(MEMBER, `platform/releases/${r.version}`);
-      expect(keys(detail)).toEqual([...RELEASE_ROW, 'changelog', 'upgradeNotes'].sort());
+      expect(keys(detail)).toEqual([...RELEASE_ROW, 'changelog', 'meta', 'upgradeNotes'].sort());
       expect(detail).toMatchObject(r);
-      expect(await read(null, `platform/releases/${r.version}`)).toEqual(detail);
+      expect(unobserved(await read(null, `platform/releases/${r.version}`))).toEqual(unobserved(detail));
     }
     expect((await read(null, `platform/releases/${rows.find((r) => r.clientAction === 'Re-pull the plugins.')!.version}`)).upgradeNotes).toMatch(/Re-pull/);
     for (const who of [null, MEMBER]) {
@@ -183,7 +187,7 @@ describe('GET /api/console/platform/bugs', () => {
     for (const r of qa.data.rows) expect(keys(r)).toEqual(ADMIN_BUG);
     for (const r of qn.data.rows) expect(keys(r)).toEqual(PUBLIC_BUG);
     expect(qn.data.rows).toEqual(qa.data.rows.map(({ internalTitle: _t, team: _team, ...row }: Json) => row));
-    expect(await read(MEMBER, 'platform/bugs?limit=100&scope=platform&team=beacon')).toEqual(noah);
+    expect(unobserved(await read(MEMBER, 'platform/bugs?limit=100&scope=platform&team=beacon'))).toEqual(unobserved(noah));
   });
 
   it('titles a report from its canonical surface alone, and never echoes free text', async () => {
@@ -376,8 +380,15 @@ describe('the fake gateway beside Platform\'s new routes', () => {
   it('leaves the status answer exactly as its fixture holds it', async () => {
     // The fixture's times are offsets from the moment its process started, so the server's and this one's differ.
     const untimed = (v: unknown) => JSON.parse(JSON.stringify(v, (_k, x) => (typeof x === 'string' && /^\d{4}-\d\d-\d\dT/.test(x) ? 'time' : x)));
-    expect(untimed(await read(null, 'platform/status'))).toEqual(untimed(PLATFORM_STATUS));
-    expect(untimed(await read(MEMBER, 'platform/status'))).toEqual(untimed(MEMBER_STATUS));
+    // The five fields the server stamps on the wire, beside the six a fixture writes: taken off here, because this
+    // compares what the fixture holds.
+    const held = (v: Json): Json => {
+      const copy = untimed(v) as Json;
+      for (const k of ['builtAt', 'cacheHit', 'observedAt', 'revision', 'sourceRevision']) delete copy.meta[k];
+      return copy;
+    };
+    expect(held(await read(null, 'platform/status'))).toEqual(untimed(PLATFORM_STATUS));
+    expect(held(await read(MEMBER, 'platform/status'))).toEqual(untimed(MEMBER_STATUS));
   });
 
   it('still answers 404 for a Platform route it does not have', async () => {

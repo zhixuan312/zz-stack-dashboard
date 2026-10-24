@@ -151,8 +151,11 @@ function door(name: Door['door'], counts: (k: number) => [number, number], run: 
   const days = Array.from({ length: COMPLETE + 1 }, (_, i) => {
     const k = COMPLETE - i;
     const [calls, toolFailures] = counts(k);
-    const state: Door['days'][number]['state'] = calls === 0 ? 'none' : toolFailures * 100 >= calls * 5 ? 'red' : toolFailures * 100 >= calls ? 'marked' : 'clear';
-    return { date: daysAgo(k), calls, toolFailures, state, complete: k > 0 };
+    // The rate and the state from it, as the gateway's `rateOf` and `stateOf` compute them: one division, and the
+    // colour read from that number.
+    const rate = calls === 0 ? null : (100 * toolFailures) / calls;
+    const state: Door['days'][number]['state'] = rate === null ? 'none' : rate >= 5 ? 'red' : rate >= 1 ? 'marked' : 'clear';
+    return { date: daysAgo(k), calls, toolFailures, rate, state, complete: k > 0 };
   });
   const faults = days.filter((d) => d.complete && (d.state === 'marked' || d.state === 'red'));
   return {
