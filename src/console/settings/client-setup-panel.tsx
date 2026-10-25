@@ -82,11 +82,13 @@ export function ClientSetupPanel() {
             // The Copy heads its block rather than standing over it, so the commands have the block's whole width.
             // Each command is one line, as a terminal takes it, and a line longer than the block scrolls inside it: a
             // command wrapped to a phone's width broke "zz-access@zz- / stack" and left "# required" on a line alone.
+            // `scroll-fade-x` is what says so: a strip that scrolls hides what is off the edge, and the fade is the
+            // affordance that tells the reader there is more (the same class a tab strip and a table use).
             <div key={i} className="min-w-0 rounded-md bg-surface-sunk">
               <div className="flex justify-end px-2.5 pt-2.5">
                 <CopyButton text={p.text} label={blocks > 1 ? `Copy the commands of block ${p.n}` : 'Copy the commands'} />
               </div>
-              <pre role="group" tabIndex={0} aria-label={blocks > 1 ? `Commands, block ${p.n}` : 'Commands'} className="overflow-x-auto px-4 pt-1 pb-4 font-mono text-xs leading-relaxed whitespace-pre">{p.text}</pre>
+              <pre role="group" tabIndex={0} aria-label={blocks > 1 ? `Commands, block ${p.n}` : 'Commands'} className="scroll-fade-x overflow-x-auto px-4 pt-1 pb-4 font-mono text-xs leading-relaxed whitespace-pre">{p.text}</pre>
             </div>
           );
         })}
