@@ -20,9 +20,10 @@ next-env.d.ts
 coverage
 test-results
 
-# secrets and local overrides
-.env
-.env*.local
+# secrets and local overrides: every env file but the example, a renamed one such as
+# .env.local.disabled included
+.env*
+!.env.example
 *.local
 
 # deployment
