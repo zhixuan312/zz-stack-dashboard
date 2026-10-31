@@ -19,7 +19,8 @@ import type { Me } from '../../src/lib/api-shapes.ts';
 import type { FixtureAnswer } from './envelope.ts';
 import type { ActivityLog, ActivityRow, ActivitySummary, RefusalGroup, RefusalOwner } from '../../src/lib/destination-shapes.ts';
 import { INITIATIVES } from './work.ts';
-import { LAST_WEEK, WEEKS, inWeek, iso, workMeta } from './work-initiatives.ts';
+import { LAST_WEEK, WEEKS, inWeek, workMeta } from './work-initiatives.ts';
+import { iso } from './clock.ts';
 
 type Answer = [status: number, body: unknown];
 

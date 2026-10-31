@@ -24,7 +24,7 @@ import type { Initiative, InitiativeDetail, Me } from '../../src/lib/api-shapes.
 import type { Figure, PeriodFigure, ReadMeta, Window } from '../../src/lib/platform-shapes.ts';
 import type { FixtureAnswer, FixtureMeta } from './envelope.ts';
 import type { CloseInput, CloseResult, InitiativeList, InitiativeRow, NextMove } from '../../src/lib/work-shapes.ts';
-import { nextStart, now } from './clock.ts';
+import { iso, nextStart, now } from './clock.ts';
 import { kept } from './journey.ts';
 import { PLATFORM_STATUS } from './platform-status.ts';
 import { NO_CLAIMS } from './states-partial.ts';
@@ -34,7 +34,6 @@ type Answer = [status: number, body: unknown];
 
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
-export const iso = (ms: number) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z');
 
 /** The status fixture's weeks, oldest first, the running one last: every weekly figure of Work is drawn on them. */
 export const WEEKS: Window[] = PLATFORM_STATUS.measures.find((m) => m.key === 'malformed_per_1000')!.weeks.map((w) => w.window);

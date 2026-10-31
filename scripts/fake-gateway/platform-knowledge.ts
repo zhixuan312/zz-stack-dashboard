@@ -18,7 +18,7 @@
 import type { KnowledgeHealth } from '../../src/lib/fleet-shapes.ts';
 import type { FixtureAnswer } from './envelope.ts';
 import type { Figure, PeriodFigure } from '../../src/lib/platform-shapes.ts';
-import { ago } from './clock.ts';
+import { ago, iso } from './clock.ts';
 import { PLATFORM_STATUS } from './platform-status.ts';
 
 const SHARED = 'zz-platform';
@@ -111,7 +111,7 @@ export function knowledge(admin: boolean, own: string | null): FixtureAnswer<Kno
     } },
     shelves: { state: 'ok', data: { rows: shelves } },
     made: { state: 'ok', data: {
-      exactFrom: new Date(EXACT_FROM).toISOString().replace(/\.\d{3}Z$/, 'Z'),
+      exactFrom: iso(EXACT_FROM),
       weeks: WEEKS.map((window, i) => ({ window, made: stands(MADE[i]), importedExact: IMPORTED_EXACT[i], importedByDay: IMPORTED_BY_DAY[i] })),
     } },
     // A week before searches were recorded has no shares at all; the status measure says which.

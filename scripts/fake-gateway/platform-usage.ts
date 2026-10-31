@@ -16,11 +16,10 @@
 import type { ModelWeek, Tile, Usage } from '../../src/lib/fleet-shapes.ts';
 import type { FixtureAnswer } from './envelope.ts';
 import type { Figure, Measure, PeriodFigure } from '../../src/lib/platform-shapes.ts';
-import { now } from './clock.ts';
+import { iso, now } from './clock.ts';
 import { PLATFORM_STATUS } from './platform-status.ts';
 import { CALLS_BY_TEAM } from './platform-teams.ts';
 
-const iso = (ms: number) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z');
 const measure = (key: Measure['key']) => PLATFORM_STATUS.measures.find((m) => m.key === key)!;
 const MALFORMED = measure('malformed_per_1000');
 const FOLLOWUP = measure('same_tool_followup_pct');

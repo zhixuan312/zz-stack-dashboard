@@ -21,7 +21,7 @@ import type {
   DocumentDetail, DocumentRevision, Gate, Initiative, InitiativeDetail, KnowledgeBody, KnowledgeNode, Step,
 } from '../../src/lib/api-shapes.ts';
 import { ago, localDay, now } from './clock.ts';
-import { lessonBody, lessonExcerpt } from './lesson-text.ts';
+import { lessonBody, nodeRow } from './lesson-text.ts';
 
 const FLOW = 'sdlc-flow';
 const STAGES: [name: string, produces: string, what: string][] = [
@@ -423,12 +423,9 @@ const NODE_SEEDS: NodeSeed[] = [
   ['beacon', '0003', 'process', 'draft', 'Alert on the trend, not the count', ['alerts'], null, 20],
   ['cinder', '0001', 'process', 'adopted', 'A runbook nobody rehearsed is a guess', ['ops'], '2026-08-20-incident-runbooks', 1000],
 ];
-const nodePath = (num: string, title: string) => `nodes/${num}-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 60).replace(/-$/, '')}.md`;
-
 /** Each team's lessons. Every one cites an initiative of its own team's, so none counts another's. */
 export const KNOWLEDGE: KnowledgeNode[] = NODE_SEEDS.map(([team, num, type, status, title, tags, evidence, hours]) => ({
-  key: `${team}/${nodePath(num, title)}`, num, team, path: nodePath(num, title), type, status, title, tags, updated: ago(hours),
-  bytes: 1_400 + Number(num) * 230, excerpt: lessonExcerpt(team, num, title),
+  ...nodeRow(team, num, type, status, title, tags, hours),
   evidence: evidence ? [evidence] : null, cited_elsewhere: 0,
   superseded_by: status === 'superseded' ? '0005' : null,
 }));

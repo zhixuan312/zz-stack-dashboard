@@ -36,7 +36,7 @@
  */
 import type { PlatformQuery, PlatformQueryGroup } from '../../src/lib/platform-shapes.ts';
 import type { FixtureAnswer, FixtureMeta } from './envelope.ts';
-import { midnight, now } from './clock.ts';
+import { iso, midnight, now } from './clock.ts';
 import { PLATFORM_STATUS } from './platform-status.ts';
 import { MEASURES, type Fact, type Measure, type Who } from './platform-query-measures.ts';
 import { BUCKETS, WEEKDAYS, addDays, bucketLabel, bucketOf, bucketsOf, isDate, type Bucket } from './work-query-buckets.ts';
@@ -63,7 +63,6 @@ type Asked = {
   rows: number | null; top: number; limit: number; offset: number;
 };
 
-const iso = (ms: number) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z');
 const bad = (error: string): Refusal => ({ status: 400, error });
 const counted = (n: number) => ({ value: n, why: null });
 const sum = (fs: Fact[]) => fs.reduce((n, f) => n + f.n, 0);

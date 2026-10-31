@@ -17,7 +17,7 @@
  * COUPLED: zz-stack's checks import the fixtures that read this, with plain `node`, so it imports nothing through the
  * console's path alias.
  */
-import { now } from './clock.ts';
+import { iso, now } from './clock.ts';
 import { sessionOf } from './states-partial.ts';
 
 /** The session kind that keeps its writes: `zz_console=<person>+journey`. */
@@ -72,4 +72,4 @@ export function writtenBy(value: string): Record<keyof Journal, number> {
  * When a kept write happened: a minute before the fake's clock. Every read's cutoff is that clock, the moment the
  * server started (clock.ts), so a write dated at the real time would fall after the cutoff and outside every period.
  */
-export const keptAt = (): string => new Date(now() - 60_000).toISOString().replace(/\.\d{3}Z$/, 'Z');
+export const keptAt = (): string => iso(now() - 60_000);

@@ -3,7 +3,10 @@
  * title names, what was found and what to do, and its excerpt is the first of those.
  *
  * Read by work.ts and work-knowledge.ts, which hold the lessons themselves; this file imports neither, so both can.
+ * It also builds a lesson's row, so the two shelves name and size a lesson one way.
  */
+import type { KnowledgeNode } from '../../src/lib/api-shapes.ts';
+import { ago } from './clock.ts';
 
 /** `[what happened, what to do, a command to run]`, by `<team>/<number>`. */
 const TEXT: Record<string, [found: string, todo: string, run?: string]> = {
@@ -55,4 +58,14 @@ export function lessonBody(team: string, num: string, title: string): string {
 /** The lesson's excerpt, as a list row shows it: its title and what happened. */
 export function lessonExcerpt(team: string, num: string, title: string): string {
   return `${title}. ${TEXT[`${team}/${num}`]?.[0] ?? ''}`.trim();
+}
+
+/** A lesson's path, from its number and title, as the store names one. */
+export const nodePath = (num: string, title: string) => `nodes/${num}-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 60).replace(/-$/, '')}.md`;
+
+/** A lesson's row on a list, but for its citations and what supersedes it, which each shelf decides. */
+export function nodeRow(team: string, num: string, type: string, status: string, title: string, tags: string[], hours: number):
+  Omit<KnowledgeNode, 'evidence' | 'cited_elsewhere' | 'superseded_by'> {
+  const path = nodePath(num, title);
+  return { key: `${team}/${path}`, num, team, path, type, status, title, tags, updated: ago(hours), bytes: 1_400 + Number(num) * 230, excerpt: lessonExcerpt(team, num, title) };
 }

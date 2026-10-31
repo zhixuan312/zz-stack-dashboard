@@ -16,13 +16,12 @@ import type { Me, TeamMembers } from '../../src/lib/api-shapes.ts';
 import type { FixtureAnswer } from './envelope.ts';
 import type { People, PersonRow } from '../../src/lib/fleet-shapes.ts';
 import type { PeriodFigure } from '../../src/lib/platform-shapes.ts';
-import { day, localDay, nextStart, now } from './clock.ts';
+import { day, iso, localDay, nextStart, now } from './clock.ts';
 import { kept } from './journey.ts';
 import { ME, MEMBER } from './people.ts';
 import { PLATFORM_STATUS } from './platform-status.ts';
 
 const HOUR = 3_600_000;
-const iso = (ms: number) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z');
 /** The status fixture's weeks, oldest first, the running one last: every Fleet read counts in the same weeks. */
 const WEEKS = PLATFORM_STATUS.measures.find((m) => m.key === 'malformed_per_1000')!.weeks.map((w) => w.window);
 const RUNNING = Date.parse(WEEKS.at(-1)!.from);

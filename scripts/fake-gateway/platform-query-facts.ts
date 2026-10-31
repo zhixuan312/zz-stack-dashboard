@@ -33,7 +33,7 @@
  */
 import type { Audit, AuditRow, People } from '../../src/lib/fleet-shapes.ts';
 import type { Evaluation, Part, PlatformQueryRow, ReleaseRow, SafeFinding } from '../../src/lib/platform-shapes.ts';
-import { localDay, midnight, now } from './clock.ts';
+import { iso, localDay, midnight, now } from './clock.ts';
 import { ME } from './people.ts';
 import { audit } from './platform-audit.ts';
 import { bugs } from './platform-bugs.ts';
@@ -54,7 +54,6 @@ export type Row = PlatformQueryRow;
 type Unit = { day: string; keys: Record<string, string | null>; ms?: number; ref?: unknown };
 
 const DAY = 86_400_000;
-const iso = (ms: number) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z');
 /** What Usage counts the calls to a tool no door registers under. COUPLED: the gateway's platform-usage.ts. */
 export const UNREGISTERED = 'Unregistered tools';
 /** The kinds a lesson may have, in the gateway's order. COUPLED: the gateway's platform-knowledge.ts `KINDS`. */

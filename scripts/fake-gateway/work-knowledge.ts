@@ -26,11 +26,11 @@ import type { KnowledgeBody, KnowledgeLog, KnowledgeLogEntry, KnowledgeNode, Me 
 import type { KnowledgeList, KnowledgeSummary } from '../../src/lib/destination-shapes.ts';
 import type { FixtureAnswer } from './envelope.ts';
 import type { PeriodFigure } from '../../src/lib/platform-shapes.ts';
-import { ago } from './clock.ts';
-import { lessonBody, lessonExcerpt } from './lesson-text.ts';
+import { ago, iso } from './clock.ts';
+import { lessonBody, nodePath, nodeRow } from './lesson-text.ts';
 import { INITIATIVES, KNOWLEDGE, knowledgeBody } from './work.ts';
 import { NO_TEAM, pageParams } from './work-activity.ts';
-import { LAST_WEEK, WEEKS, counted, inWeek, iso, workMeta } from './work-initiatives.ts';
+import { LAST_WEEK, WEEKS, counted, inWeek, workMeta } from './work-initiatives.ts';
 
 type Answer = [status: number, body: unknown];
 
@@ -53,7 +53,6 @@ const SEEDS: Seed[] = [
   [SHARED_TEAM, '0002', 'decision', 'A gate is a person approving, never a check passing', ['gates'],
     ['2026-09-28-search-relevance', '2026-09-18-chargeback-alerts', '2026-08-20-incident-runbooks'], 1500, false],
 ];
-const nodePath = (num: string, title: string) => `nodes/${num}-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 60).replace(/-$/, '')}.md`;
 
 /** A lesson's citations as `reader` is answered them: the initiatives of that team, and how many of others'. A team
  *  nobody acts for, the shared shelf's own, names none. */
@@ -72,8 +71,7 @@ const readAs = (n: KnowledgeNode, reader: string): KnowledgeNode => ({ ...n, ...
 
 /** Each added lesson as its own shelf's team reads it, which names none of a shared lesson's. */
 const ADDED: KnowledgeNode[] = SEEDS.map(([team, num, type, title, tags, evidence, hours]) => ({
-  key: `${team}/${nodePath(num, title)}`, num, team, path: nodePath(num, title), type, status: 'adopted', title, tags, updated: ago(hours),
-  bytes: 1_400 + Number(num) * 230, excerpt: lessonExcerpt(team, num, title),
+  ...nodeRow(team, num, type, 'adopted', title, tags, hours),
   ...citedFor(evidence, team), superseded_by: null,
 }));
 /** Every lesson on every shelf, the shared one's among them, each as its own shelf's team reads it: a reader of another

@@ -21,11 +21,10 @@
  * null: a null has no shape to compare.
  */
 import type { Measure, PeriodFigure, PlatformStatus } from '../../src/lib/platform-shapes.ts';
-import { localDay, midnight, nextStart, now, startOf, TIMEZONE } from './clock.ts';
+import { iso, localDay, midnight, nextStart, now, startOf, TIMEZONE } from './clock.ts';
 import type { FixtureAnswer } from './envelope.ts';
 
 const DAY = 24 * 3_600_000;
-const iso = (ms: number) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z');
 
 /** The Monday 00:00 the running week began at, in the reporting timezone. */
 const RUNNING = startOf(now(), 'week');

@@ -13,7 +13,7 @@
 import type { ServerResponse } from 'node:http';
 
 import type { ReadMeta } from '../../src/lib/platform-shapes';
-import { now } from './clock.ts';
+import { iso, now } from './clock.ts';
 
 /** A route's answer: its status and its body, exactly as the fixture wrote it. */
 export type Answer = [status: number, body: unknown];
@@ -47,7 +47,7 @@ export type FixtureAnswer<T extends { meta: unknown }> = Omit<T, 'meta'> & { met
  */
 export function stamped(meta: FixtureMeta): ReadMeta {
   return {
-    observedAt: new Date(now()).toISOString().replace(/\.\d{3}Z$/, 'Z'),
+    observedAt: iso(now()),
     revision: null, cacheHit: false, builtAt: null, sourceRevision: null,
     ...meta,
   };

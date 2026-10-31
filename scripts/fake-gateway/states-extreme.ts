@@ -22,7 +22,7 @@ import type { ActivityLog, KnowledgeList, Runs } from '../../src/lib/destination
 import type { Audit, KnowledgeHealth, People, Teams, Usage } from '../../src/lib/fleet-shapes.ts';
 import type { Bugs, Evaluation, PeriodFigure, PlatformStatus, Releases, Window } from '../../src/lib/platform-shapes.ts';
 import type { ActiveGroup, Approvals, Home, InitiativeList, RecordRead } from '../../src/lib/work-shapes.ts';
-import { localDay, nextStart, now, startOf } from './clock.ts';
+import { iso, localDay, nextStart, now, startOf } from './clock.ts';
 import { ME } from './people.ts';
 import { audit } from './platform-audit.ts';
 import { bugs } from './platform-bugs.ts';
@@ -43,7 +43,6 @@ const WORDS = LONG.replace(/-/g, ' ');
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
 const WEEK = 7 * DAY;
-const iso = (ms: number) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z');
 const counted = (n: number) => ({ value: n, why: null });
 
 /* Paging */

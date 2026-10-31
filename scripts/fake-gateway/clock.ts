@@ -11,8 +11,11 @@ const START = Date.now();
  *  holds equal); named here because zz-stack's checks import the fake with plain `node`. */
 export const TIMEZONE = 'Asia/Singapore';
 
-/** An instant `hours` before the server started, as the gateway spells one (ISO 8601, UTC). */
-export const ago = (hours: number) => new Date(START - hours * 3_600_000).toISOString().replace(/\.\d{3}Z$/, 'Z');
+/** An instant as the gateway spells one: ISO 8601 in UTC, to the second. */
+export const iso = (ms: number) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z');
+
+/** An instant `hours` before the server started, as the gateway spells one. */
+export const ago = (hours: number) => iso(START - hours * 3_600_000);
 
 /** Milliseconds since the epoch at the server's start, for bucketed series. */
 export const now = () => START;

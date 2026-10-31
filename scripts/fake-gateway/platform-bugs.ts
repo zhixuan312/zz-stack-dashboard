@@ -19,7 +19,7 @@
  */
 import type { AdminBugRow, BugReport, BugResolveInput, Bugs, Figure, PlatformStatus, PublicBugRow } from '../../src/lib/platform-shapes.ts';
 import type { FixtureAnswer } from './envelope.ts';
-import { ago, now } from './clock.ts';
+import { ago, iso, now } from './clock.ts';
 import { kept } from './journey.ts';
 import { ME } from './people.ts';
 import { BUGS_OPEN, CHECKED, MEMBER_STATUS, type NeedInstance, PLATFORM_STATUS, approvalsNeed, needsOf } from './platform-status.ts';
@@ -43,7 +43,6 @@ export function canonicalSurface(surface: string | null): string | null {
 /** A report filed `at` hours into the week `week` weeks before the running one, and resolved `resolvedAfter` hours
  *  later. Every report is in a week that has ended, so the cohorts hold the same reports whatever day verify runs. */
 const HOUR = 3_600_000;
-const iso = (ms: number) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z');
 /** The running week's start, as the status fixture's weeks have it. */
 const RUNNING = Date.parse(PLATFORM_STATUS.measures.find((m) => m.key === 'malformed_per_1000')!.weeks.at(-1)!.window.from);
 

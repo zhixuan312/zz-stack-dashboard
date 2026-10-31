@@ -18,9 +18,9 @@
 import type { Me } from '../../src/lib/api-shapes.ts';
 import type { RunRow, Runs, SkillRunRow } from '../../src/lib/destination-shapes.ts';
 import type { FixtureAnswer } from './envelope.ts';
-import { localDay, nextStart, now, startOf, weekdayHour } from './clock.ts';
+import { iso, localDay, nextStart, now, startOf, weekdayHour } from './clock.ts';
 import { NO_TEAM, pageParams } from './work-activity.ts';
-import { iso, workMeta } from './work-initiatives.ts';
+import { workMeta } from './work-initiatives.ts';
 
 type Answer = [status: number, body: unknown];
 

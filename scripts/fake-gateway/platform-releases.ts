@@ -19,12 +19,11 @@
  */
 import type { Figure, ReleaseDetail, ReleaseRow, Releases } from '../../src/lib/platform-shapes.ts';
 import type { FixtureAnswer } from './envelope.ts';
-import { ago, now } from './clock.ts';
+import { ago, iso, now } from './clock.ts';
 import { PLATFORM_STATUS } from './platform-status.ts';
 
 const HOUR = 3_600_000;
 const WINDOW = 72 * HOUR;
-const iso = (ms: number) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z');
 const COVERAGE = Date.parse(PLATFORM_STATUS.meta.coverageFrom!);
 
 /** What one side of a release recorded: real-work calls, those refused as malformed, tool failures and the p95. */
