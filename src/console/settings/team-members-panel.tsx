@@ -14,9 +14,9 @@ import { usePaged } from '@/components/ui/pagination';
 import { PageControl } from '@/console/paged';
 import { Select } from '@/components/ui/select';
 import { toast } from '@/components/ui/toast';
-import { ApiError, useConsole } from '@/lib/api';
+import { useConsole } from '@/lib/api';
 import { type TeamMemberRow, type TeamMembers } from '@/lib/api-shapes';
-import { useConsoleMutation } from '@/lib/mutate';
+import { reasonOf, useConsoleMutation } from '@/lib/mutate';
 
 /**
  * A team admin's roster for one team — add, remove, and change role. The browser counterpart of
@@ -53,7 +53,7 @@ export function TeamMembersPanel({ team }: { team: string }) {
       setRole('member');
       toast({ tone: 'positive', title: `Added ${email.trim()} to ${team}.` });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not add member — try again.');
+      setError(reasonOf(err, 'Could not add member — try again.'));
     }
   }
 
@@ -62,7 +62,7 @@ export function TeamMembersPanel({ team }: { team: string }) {
       await upsertMutation.mutateAsync({ email: memberEmail, role: next });
       toast({ tone: 'positive', title: `${memberEmail} is now ${next} of ${team}.` });
     } catch (err) {
-      toast({ tone: 'critical', title: err instanceof ApiError ? err.message : 'Could not change role — try again.' });
+      toast({ tone: 'critical', title: reasonOf(err, 'Could not change role — try again.') });
     }
   }
 
@@ -73,7 +73,7 @@ export function TeamMembersPanel({ team }: { team: string }) {
     } catch (err) {
       // `member_remove`'s own "nothing was removed" refusal — a mistyped address — surfaces here
       // rather than reading as success.
-      toast({ tone: 'critical', title: err instanceof ApiError ? err.message : 'Could not remove member — try again.' });
+      toast({ tone: 'critical', title: reasonOf(err, 'Could not remove member — try again.') });
     }
   }
 

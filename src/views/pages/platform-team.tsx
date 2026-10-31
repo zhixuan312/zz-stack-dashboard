@@ -24,21 +24,18 @@ import { Panel } from '@/console/panel';
 import { failureOf } from '@/console/query';
 import { InlineDestructive } from '@/console/settings/inline-destructive';
 import type { Revised } from '@/data/gateway';
-import { ApiError } from '@/lib/api';
 import type { TeamDetail } from '@/lib/fleet-shapes';
 import { plural } from '@/lib/format';
 import { formatDate, formatDay, formatShortDate } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
-import { useConsoleMutation } from '@/lib/mutate';
+import { type Done, reasonOf, useConsoleMutation } from '@/lib/mutate';
 import { useServed } from '@/logic/use-served';
 import { pendingContext } from '@/logic/context';
 import { TEAM_TILES, callsUnavailable, teamContext, teamTrouble, type TeamRead } from '@/logic/team-context';
 import { stampOf } from '@/logic/read-stamp';
 
 type Member = TeamDetail['members'][number];
-type Done = { ok: true; result: string };
-const reasonOf = (err: unknown, fallback: string) => (err instanceof ApiError ? err.message : fallback);
 
 /**
  * The page's read: the one the console's server made, so the first paint carries the team and the browser asks for

@@ -21,23 +21,20 @@ import { failureOf } from '@/console/query';
 import { CopyButton } from '@/console/settings/copy-button';
 import { InlineDestructive } from '@/console/settings/inline-destructive';
 import type { Revised } from '@/data/gateway';
-import { ApiError } from '@/lib/api';
 import type { People } from '@/lib/fleet-shapes';
 import { plural } from '@/lib/format';
 import { formatDateTime, formatRelative } from '@/lib/format-date';
 import { stampOf } from '@/logic/read-stamp';
 import { formatCount } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
-import { consoleMutate, useConsoleMutation } from '@/lib/mutate';
+import { consoleMutate, type Done, reasonOf, useConsoleMutation } from '@/lib/mutate';
 import { useServed, useServedAddress } from '@/logic/use-served';
 import { pendingContext } from '@/logic/context';
 import { NO_SIGN_IN, TILES, peopleContext, peopleTrouble, signInsValue, type PeopleRead, type PeopleShown } from '@/logic/people-context';
 import { PEOPLE_DEFAULTS, PERSON_STATES, filtersOfPath, narrowed, peoplePath, type PeopleFilters } from '@/logic/people-filter';
 
-type Done = { ok: true; result: string };
 /** A person as the page draws them. */
 type Person = PeopleShown['people'][number];
-const reasonOf = (err: unknown, fallback: string) => (err instanceof ApiError ? err.message : fallback);
 
 /** A person's name, or their address when they have none: the page names a person as Settings did. */
 const shownName = (p: Person) => p.name || p.email;

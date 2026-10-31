@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, useTransition, type ComponentProps } from 'react';
+import { useState, useTransition, type ComponentProps } from 'react';
 import { ArrowRight, BookCheck, CalendarDays, Clock, RotateCw, Search } from 'lucide-react';
 import { Row, Stack } from '@/components/base/shell';
 import { useShareView } from '@/components/base/use-share-view';
@@ -19,6 +19,7 @@ import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { StateBadge } from '@/console/initiative';
 import { Panel } from '@/console/panel';
+import { Pointed } from '@/console/pointed';
 import { formatPercent, plural } from '@/lib/format';
 import { formatDay, formatShortDate } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
@@ -71,22 +72,6 @@ function Go({ href, onPointerEnter, onFocus, ...rest }: Omit<ComponentProps<type
       onFocus={(e) => { router.prefetch(href); onFocus?.(e); }}
     />
   );
-}
-
-/** How long the cursor has to rest on a week before the page takes it as what the person is pointing at. */
-const POINT_SETTLE_MS = 150;
-
-/**
- * Tells the page which week the Meridian points at, once the cursor rests there: a sweep across the chart passes every
- * week, and what the assistant needs is where the person stopped.
- */
-function Pointed({ onChange }: { onChange: (index: number | null) => void }) {
-  const { index } = useMeridianIndex();
-  useEffect(() => {
-    const t = setTimeout(() => onChange(index), POINT_SETTLE_MS);
-    return () => clearTimeout(t);
-  }, [index, onChange]);
-  return null;
 }
 
 /** Ask on the paired figure: about the week the cursor points at, or about last week when it points at none. */

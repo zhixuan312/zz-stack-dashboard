@@ -22,7 +22,7 @@ import type { KnowledgeHealth } from '@/lib/fleet-shapes';
 import { plural } from '@/lib/format';
 import { formatDateTime, formatDay, formatShortDate } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
-import type { Figure, PeriodFigure, Window } from '@/lib/platform-shapes';
+import type { PeriodFigure, Window } from '@/lib/platform-shapes';
 import {
   TILES, WEEKLY_TILES, askOf, cohortNote, cohortText, exactSince, figureText, isFleet, knowledgeHealthContext, knowledgeHealthTrouble,
   leftOut, madeLine, noResultCell, searchLine, searchesSaid, shelfName, valueIn, type KnowledgeHealthRead, type MadeWeek, type Question,
@@ -30,7 +30,7 @@ import {
 } from '@/logic/platform-knowledge-context';
 import { weekOf } from '@/logic/context';
 import { stampOf } from '@/logic/read-stamp';
-import { changeOf, lastWhole, pointsOf } from '@/logic/week-change';
+import { changeOf, lastWhole, pointsOf, wordFor } from '@/logic/week-change';
 
 /** The protagonist's title: the card the page's Ask sits on. COUPLED: the README's `Protagonist:`. */
 const SHELVES_TITLE = 'Each shelf';
@@ -96,7 +96,6 @@ function Unavailable({ title, reason, actions }: { title: string; reason: string
 }
 
 /** A tile's value: its number, or the word for why there is none, never a zero. */
-const tileValue = (f: Figure): number | string => (f.value === null ? (f.why === 'unavailable' ? 'Unavailable' : 'No data') : f.value);
 const ICONS: Record<WeeklyTile, ReactNode> = { madeLastWeek: <PencilLine />, searches: <Search />, noResult: <SearchX /> };
 
 function Tiles({ part }: { part: KnowledgeHealth['tiles'] }) {
@@ -111,7 +110,7 @@ function Tiles({ part }: { part: KnowledgeHealth['tiles'] }) {
     return (
       <MetricTile
         key={k} label={TILES[k].label} hint={TILES[k].definition} icon={ICONS[k]}
-        value={tileValue(pair.last.figure)} format={(n) => valueIn(kind, n)} intent="neutral"
+        value={wordFor(pair.last.figure) ?? pair.last.figure.value!} format={(n) => valueIn(kind, n)} intent="neutral"
         {...(delta === null
           ? { note: `The ${weekOf(pair.previous.window)}: ${figureText(kind, pair.previous.figure)}${pair.last.figure.why === 'insufficient' ? '; last week too few' : ''}` }
           : kind === 'share' ? { delta: delta / 100, deltaFormat: 'points' as const, compare } : { delta, compare })}

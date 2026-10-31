@@ -18,13 +18,12 @@ import { toast } from '@/components/ui/toast';
 import { aligned } from '@/console/columns';
 import { failureOf } from '@/console/query';
 import type { Revised } from '@/data/gateway';
-import { ApiError } from '@/lib/api';
 import type { TeamRow, Teams } from '@/lib/fleet-shapes';
 import { plural } from '@/lib/format';
 import { formatDateTime, formatRelative } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
-import { useConsoleMutation } from '@/lib/mutate';
+import { reasonOf, useConsoleMutation } from '@/lib/mutate';
 import { useServed, useServedAddress } from '@/logic/use-served';
 import { pendingContext } from '@/logic/context';
 import { NO_ACTIVITY, TILES, sessionPoints, teamsContext, teamsTrouble, weekCount, type TeamsRead } from '@/logic/teams-context';
@@ -201,7 +200,7 @@ export function CreateTeam() {
       setName('');
       toast({ tone: 'positive', title: done.result });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'The team was not created; try again.');
+      setError(reasonOf(err, 'The team was not created; try again.'));
     }
   }
 

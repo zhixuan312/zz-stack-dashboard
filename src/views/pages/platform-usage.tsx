@@ -26,14 +26,13 @@ import type { Usage } from '@/lib/fleet-shapes';
 import { formatDay, formatShortDate } from '@/lib/format-date';
 import { plural } from '@/lib/format';
 import { formatCount } from '@/lib/format-units';
-import type { Figure } from '@/lib/platform-shapes';
 import {
   NOT_RECORDED, REFUSAL_PARTS, TILES, TILE_KEYS, askOf, figureText, followupLine, perApprovalText, teamParts,
   usageContext, usageTrouble, valueIn, type TileKey, type UsageRead,
 } from '@/logic/platform-usage-context';
 import { weekOf } from '@/logic/context';
 import { stampOf } from '@/logic/read-stamp';
-import { changeOf, lastWhole, pointsOf } from '@/logic/week-change';
+import { changeOf, lastWhole, pointsOf, wordFor } from '@/logic/week-change';
 
 /** The protagonist's title: the card the page's Ask sits on. COUPLED: the README's `Protagonist:`. */
 const CALLS_TITLE = 'Calls by week';
@@ -106,7 +105,6 @@ function Unavailable({ title, reason, actions }: { title: string; reason: string
 }
 
 /** A tile's value: its number, or the word for why there is none, never a zero. */
-const tileValue = (f: Figure): number | string => (f.value === null ? (f.why === 'unavailable' ? 'Unavailable' : 'No data') : f.value);
 const ICONS: Record<TileKey, ReactNode> = { calls: <Activity />, refusedShare: <Ban />, p95Ms: <Timer />, sessions: <Users /> };
 
 /** The tiles, the calls by week and the refusals put right, on one cursor: pointing at a week reads it everywhere. */
@@ -137,7 +135,7 @@ function Tiles({ part }: { part: Usage['tiles'] }) {
         return (
           <MetricTile
             key={k} label={TILES[k].label} hint={TILES[k].definition} icon={ICONS[k]}
-            value={tileValue(t.last.figure)} format={(n) => valueIn(kind, n)}
+            value={wordFor(t.last.figure) ?? t.last.figure.value!} format={(n) => valueIn(kind, n)}
             {...(share === null ? { delta: kind === 'share' ? null : changeOf(t), compare } : { delta: share / 100, deltaFormat: 'points' as const, compare })}
             intent="neutral" points={points.length > 1 ? points : undefined}
           />

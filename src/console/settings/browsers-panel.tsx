@@ -8,10 +8,9 @@ import { toast } from '@/components/ui/toast';
 import { useAccess } from '@/console/settings/access-read';
 import { InlineDestructive } from '@/console/settings/inline-destructive';
 import { Since } from '@/console/settings/since';
-import { ApiError } from '@/lib/api';
 import type { AccessBrowser, Revoked } from '@/lib/destination-shapes';
 import { formatDate } from '@/lib/format-date';
-import { useConsoleMutation } from '@/lib/mutate';
+import { reasonOf, useConsoleMutation } from '@/lib/mutate';
 import { browserOf } from '@/logic/access-context';
 
 /**
@@ -29,7 +28,7 @@ export function BrowsersPanel() {
       await signOut.mutateAsync(b.id);
       toast({ tone: 'positive', title: `Signed out ${browserOf(b)}` });
     } catch (err) {
-      toast({ tone: 'critical', title: err instanceof ApiError ? err.message : `${browserOf(b)} was not signed out; try again.` });
+      toast({ tone: 'critical', title: reasonOf(err, `${browserOf(b)} was not signed out; try again.`) });
     }
   }
 

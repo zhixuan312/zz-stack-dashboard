@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/toast';
 import { ApiError } from '@/lib/api';
 import type { DocumentDetail, DocumentShown, Me } from '@/lib/api-shapes';
-import { consoleMutate, useConsoleMutation } from '@/lib/mutate';
+import { consoleMutate, reasonOf, useConsoleMutation } from '@/lib/mutate';
 
 /**
  * Whether `me` is offered Approve on `doc`. Hiding it is courtesy, not enforcement: the gateway re-derives scope on
@@ -88,7 +88,7 @@ export function useRecordShown(doc: DocumentDetail | undefined, offered: boolean
         setResults((r) => ({ ...r, [key]: { state: 'recorded', content_revision: revision, review_context: a.review_context } }));
       },
       (err: unknown) => {
-        const message = err instanceof ApiError ? err.message : 'Could not reach the platform; try again.';
+        const message = reasonOf(err, 'Could not reach the platform; try again.');
         const state = err instanceof ApiError && err.status === 409 ? 'stale' : 'failed';
         setResults((r) => ({ ...r, [key]: { state, content_revision: revision, message } }));
       },
@@ -144,7 +144,7 @@ export function ApproveAction({ doc, me, shown, onStale, onReload }: { doc: Docu
       toast({ tone: 'positive', title: `Approved ${doc.path}`, description: 'The next stage of the flow may start.' });
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) onStale(err.message);
-      else toast({ tone: 'critical', title: 'Not approved', description: err instanceof ApiError ? err.message : 'Could not reach the platform; try again.' });
+      else toast({ tone: 'critical', title: 'Not approved', description: reasonOf(err, 'Could not reach the platform; try again.') });
     } finally {
       sending.current = false;
     }

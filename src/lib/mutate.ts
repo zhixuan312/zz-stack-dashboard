@@ -21,6 +21,12 @@ import { ApiError } from '@/lib/api';
  */
 const BASE = '/api/console';
 
+/** What a write the gateway accepted answers, where the route has nothing more to say. */
+export type Done = { ok: true; result: string };
+
+/** What a refused write says: the gateway's own sentence, or `fallback` when the write never reached it. */
+export const reasonOf = (err: unknown, fallback: string): string => (err instanceof ApiError ? err.message : fallback);
+
 export async function consoleMutate<T>(
   path: string, body?: unknown, method: 'POST' | 'DELETE' | 'PUT' = 'POST',
 ): Promise<T> {

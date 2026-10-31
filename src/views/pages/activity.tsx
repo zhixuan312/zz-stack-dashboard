@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Fragment, useMemo, useState, type ReactNode } from 'react';
 import { Activity, Ban, RotateCw, Wrench } from 'lucide-react';
 import { Row } from '@/components/base/shell';
 import { ColumnChart } from '@/components/charts/column-chart';
@@ -15,6 +15,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { aligned } from '@/console/columns';
 import { ConsolePage } from '@/console/page';
 import { Panel } from '@/console/panel';
+import { Pointed } from '@/console/pointed';
 import { failureOf } from '@/console/query';
 import { When } from '@/console/when';
 import type { Revised } from '@/data/gateway';
@@ -140,19 +141,6 @@ function useSummary(read: ActivityRead) {
   const trouble = data ? null : failureOf({ error }) ?? (read.state !== 'ok' ? activityTrouble(read) : null);
   const at = q.data ? q.dataUpdatedAt : read.state === 'ok' ? Date.parse(read.at) : 0;
   return { data, trouble, retry, busy, at };
-}
-
-/** How long the cursor has to rest on a week before the page takes it as what the person is pointing at. */
-const POINT_SETTLE_MS = 150;
-
-/** Tells the page which week the Meridian points at, once the cursor rests there: a sweep passes every week. */
-function Pointed({ onChange }: { onChange: (index: number | null) => void }) {
-  const { index } = useMeridianIndex();
-  useEffect(() => {
-    const t = setTimeout(() => onChange(index), POINT_SETTLE_MS);
-    return () => clearTimeout(t);
-  }, [index, onChange]);
-  return null;
 }
 
 /**

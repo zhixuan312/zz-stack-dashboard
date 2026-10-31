@@ -19,9 +19,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/components/ui/toast';
 import { Panel } from '@/console/panel';
 import { failureOf } from '@/console/query';
-import { ApiError } from '@/lib/api';
 import { formatDate, formatDateTime } from '@/lib/format-date';
-import { useConsoleMutation } from '@/lib/mutate';
+import { reasonOf, useConsoleMutation } from '@/lib/mutate';
 import type { BugReport, BugResolveInput } from '@/lib/platform-shapes';
 import { pendingContext } from '@/logic/context';
 import {
@@ -143,7 +142,7 @@ function Resolve({ report, duplicates }: { report: BugReport; duplicates: Duplic
       await resolve.mutateAsync(body);
       toast({ tone: 'positive', title: `Closed as ${statusOf(body.status).toLowerCase()}` });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'The report was not resolved; try again.');
+      setError(reasonOf(err, 'The report was not resolved; try again.'));
     }
   }
 

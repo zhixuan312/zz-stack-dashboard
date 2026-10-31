@@ -20,11 +20,10 @@ import { CopyButton } from '@/console/settings/copy-button';
 import { InlineDestructive } from '@/console/settings/inline-destructive';
 import { Email, PHONE_ROWS } from '@/console/settings/phone-rows';
 import { Since } from '@/console/settings/since';
-import { ApiError } from '@/lib/api';
 import type { IssuedToken } from '@/lib/api-shapes';
 import type { AccessToken } from '@/lib/destination-shapes';
 import { formatDate } from '@/lib/format-date';
-import { consoleMutate, useConsoleMutation } from '@/lib/mutate';
+import { consoleMutate, reasonOf, useConsoleMutation } from '@/lib/mutate';
 import { DIRECT, applicationOf, stateOf } from '@/logic/access-context';
 
 /** The protagonist's title: the section the page's Ask sits on. COUPLED: the README's `Protagonist:`. */
@@ -92,7 +91,7 @@ export function TokensPanel() {
       // the page's read is told to come again by hand.
       await queryClient.invalidateQueries({ queryKey: ['console'] });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'The token was not issued; try again.');
+      setError(reasonOf(err, 'The token was not issued; try again.'));
     } finally {
       setIssuing(false);
     }
@@ -103,7 +102,7 @@ export function TokensPanel() {
       await revoke.mutateAsync(t.id);
       toast({ tone: 'positive', title: `Revoked ${t.label || 'this token'}` });
     } catch (err) {
-      toast({ tone: 'critical', title: err instanceof ApiError ? err.message : 'The token was not revoked; try again.' });
+      toast({ tone: 'critical', title: reasonOf(err, 'The token was not revoked; try again.') });
     }
   }
 
