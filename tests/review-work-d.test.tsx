@@ -1,7 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, cleanup, render, screen, within } from '@testing-library/react';
-import type { ReactElement } from 'react';
-import { Tooltip } from 'radix-ui';
+import { cleanup, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('next/navigation', () => ({
@@ -27,64 +24,30 @@ vi.mock('@/lib/live', async (importOriginal) => ({ ...(await importOriginal<type
  * question (ZZ Meridian #69). A count's axis is read in whole counts here; the managed chart still draws a gridline at
  * the half, which the task reports.
  */
-import { SurfaceOverride } from '@/components/base/surface';
-import type { KnowledgeBody, KnowledgeLogEntry, Me } from '@/lib/api-shapes';
-import type { KnowledgeList, KnowledgeSummary } from '@/lib/destination-shapes';
+import type { KnowledgeBody } from '@/lib/api-shapes';
 import { contextText } from '@/lib/shared-context';
-import type { Home, RecordRead } from '@/lib/work-shapes';
+import type { Home } from '@/lib/work-shapes';
 import { CONTEXT_BUDGET } from '@/logic/context';
 import { knowledgeNodeContext } from '@/logic/knowledge-node-context';
 import { MILESTONE } from '@/logic/home-context';
 import { HomeView } from '@/views/pages/home';
-import { KnowledgeView } from '@/views/pages/knowledge';
 import { KnowledgeLogView } from '@/views/pages/knowledge-log';
-import { KnowledgeNodeView } from '@/views/pages/knowledge-node';
-import { RecordView } from '@/views/pages/record';
-import { recordPath, tilesOf, RECORD_DEFAULTS } from '@/logic/record-context';
+import { tilesOf } from '@/logic/record-context';
 import { ME, MEMBER } from '../scripts/fake-gateway/people.ts';
 import { homeOf } from '../scripts/fake-gateway/work-home.ts';
 import { answered } from '../scripts/fake-gateway/envelope.ts';
-import { KNOWLEDGE_LOG, SHELF, knowledgeList, knowledgeSummary, lesson, logOf } from '../scripts/fake-gateway/work-knowledge.ts';
-import { record } from '../scripts/fake-gateway/work-record.ts';
+import { lesson, logOf } from '../scripts/fake-gateway/work-knowledge.ts';
 import { documentDetail } from '../scripts/fake-gateway/work.ts';
 import { knowledgeNodeHref } from '@/lib/knowledge-filters';
+import { ALL, AT, HOME, LESSON, LOG, SUMMARY, TEAM, drawing, rowOf, stubWorkReads, text } from './work-fixture.tsx';
 
-const TEAM = 'atlas';
-const AT = '2026-10-19T12:00:00Z';
-const answer = <T,>(a: [number, unknown]) => { expect(a[0]).toBe(200); return a[1] as T; };
-const ALL = answer<RecordRead>(record(ME, new URLSearchParams({ period: 'all', limit: '10', offset: '0' })));
-const HOME: Home = answered(homeOf(TEAM, ME.email));
-const SUMMARY = answer<KnowledgeSummary>(knowledgeSummary(ME));
-const LOG: KnowledgeLogEntry[] = KNOWLEDGE_LOG.filter((e) => e.team === TEAM);
-const LESSON = lesson(TEAM, SHELF.find((n) => n.team === TEAM && n.num === '0002')!.path, TEAM) as KnowledgeBody;
-
-beforeEach(() => {
-  global.fetch = (async (input: RequestInfo | URL) => {
-    const url = new URL(String(input), 'http://console.test');
-    const body: unknown = url.pathname.endsWith('/me') ? (ME satisfies Me) : answer<KnowledgeList>(knowledgeList(ME, url.searchParams));
-    return { ok: true, status: 200, json: async () => body } as unknown as Response;
-  }) as typeof fetch;
-});
+beforeEach(() => stubWorkReads());
 afterEach(() => vi.unstubAllGlobals());
 
-/** The view as the shell holds it, with an assistant listening, so every Ask is drawn. */
-function mount(ui: ReactElement) {
-  return render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><SurfaceOverride surface={{ ask: () => {} }}><Tooltip.Provider>{ui}</Tooltip.Provider></SurfaceOverride></QueryClientProvider>);
-}
-const text = () => document.body.textContent ?? '';
-async function draw(path: string, ui: ReactElement) {
-  window.history.replaceState(null, '', path);
-  await act(async () => { mount(ui); });
-}
-const drawRecord = () => draw('/record', <RecordView served={{ state: 'ok', path: recordPath(RECORD_DEFAULTS), data: ALL, team: TEAM }} />);
-const drawHome = () => draw('/', <HomeView read={{ state: 'ok', home: HOME, team: TEAM }} />);
-const drawKnowledge = () => draw('/knowledge', <KnowledgeView read={{ state: 'ok', data: SUMMARY, at: AT }} />);
-const drawLog = () => draw('/knowledge/log', <KnowledgeLogView read={{ state: 'ok', data: logOf(LOG), at: AT }} />);
-const drawNode = () => draw(`/knowledge/${TEAM}/${LESSON.path}`, <KnowledgeNodeView read={{ state: 'ok', data: LESSON, at: AT }} team={TEAM} rel={LESSON.path} />);
+// The view as the shell holds it, with an assistant listening, so every Ask is drawn.
+const { draw, drawRecord, drawHome, drawKnowledge, drawLog, drawNode } = drawing(() => {});
 /** The card a heading titles. */
 const cardOf = (title: string) => screen.getByRole('heading', { name: title }).closest('.card') as HTMLElement;
-/** The row of cards the card a heading titles stands in, if it stands in one. */
-const rowOf = (title: string) => screen.getByRole('heading', { name: title }).closest('[data-split]') as HTMLElement | null;
 
 /** What each column with no data reads, chart by chart: the cell of its row in the chart's own table. */
 function noDataWords(): { chart: string; words: string }[] {

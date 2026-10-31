@@ -24,6 +24,7 @@ import { ME } from '../scripts/fake-gateway/people.ts';
 import { approvals } from '../scripts/fake-gateway/work-approvals.ts';
 import { initiativeDetail, initiativeList } from '../scripts/fake-gateway/work-initiatives.ts';
 import { documentDetail } from '../scripts/fake-gateway/work.ts';
+import { captionedTable, classes } from './table-query.ts';
 
 /**
  * Phase 7, I-153: the Work review's findings on Initiatives, an initiative, a document and Approvals, each found gone
@@ -36,7 +37,6 @@ const AT = '2026-10-19T09:00:00Z';
 const query = (path: string) => new URLSearchParams(path.split('?')[1]);
 /** Under 1152px: the breakpoint that dropped a column from a table in a 1440px window, whose content is narrower. */
 const XL = '@max-[1152px]:hidden';
-const classes = (el: Element) => (typeof el.className === 'string' ? el.className.split(/\s+/) : []);
 
 beforeEach(() => {
   // Every page here draws what its server read handed it; a read the browser would make is never answered.
@@ -53,19 +53,6 @@ function mount(ui: ReactElement, ask?: (q: string) => void) {
   );
 }
 
-/** The table captioned `caption`: its section, its header cells and, by a header's words, that column's cells. */
-function table(caption: string) {
-  const t = [...document.querySelectorAll('table')].find((x) => x.querySelector('caption')?.textContent === caption);
-  if (!t) throw new Error(`no table captioned "${caption}"`);
-  const heads = [...t.querySelectorAll('thead th')];
-  const rows = [...t.querySelectorAll('tbody tr')];
-  const at = (header: string) => {
-    const i = heads.findIndex((th) => th.textContent?.trim() === header);
-    if (i < 0) throw new Error(`no column "${header}" in "${caption}": ${heads.map((th) => th.textContent?.trim()).join(' | ')}`);
-    return { th: heads[i], cells: rows.map((tr) => tr.children[i] as HTMLElement), index: i };
-  };
-  return { t, section: t.closest('section')!, rows, at };
-}
 
 /** Every tile figure on the page wears the ink, never the accent the console keeps for what a person presses. */
 function figuresInInk() {
@@ -81,7 +68,7 @@ describe('Initiatives', () => {
 
   it('F-10: draws gates passed as a column at 1440 and as a fact on a phone\'s card', () => {
     draw();
-    const { th, cells } = table('Initiatives').at('Gates passed');
+    const { th, cells } = captionedTable('Initiatives').at('Gates passed');
     expect(classes(th)).not.toContain(XL);
     expect(cells.length).toBeGreaterThan(0);
     LIST.rows.slice(0, cells.length).forEach((r, i) => {
@@ -93,7 +80,7 @@ describe('Initiatives', () => {
 
   it('F-19: sizes each column to what it holds, the slug on one line and the flow position taking the rest', () => {
     draw();
-    const { at } = table('Initiatives');
+    const { at } = captionedTable('Initiatives');
     const slug = at('Initiative'), next = at('Flow position');
     // The flow position is the lead: it holds the floor, and no head claims the spare, which every column shares.
     expect(classes(next.th)).toContain('min-w-40');
@@ -109,7 +96,7 @@ describe('Initiatives', () => {
 
   it('F-27: leaves no separator at the head of a phone card\'s line', () => {
     draw();
-    const { section, rows, at } = table('Initiatives');
+    const { section, rows, at } = captionedTable('Initiatives');
     const next = at('Flow position').index + 1, gates = at('Gates passed').index + 1;
     // The flow position, the first fact, takes a line of its own and carries no dot; the gates open the next line, and
     // the rule that hides their dot names their cell by the position it really has.
@@ -168,7 +155,7 @@ describe('Approvals', () => {
 
   it('F-20: holds the initiative on one line and keeps the document column as wide as a file name', () => {
     draw();
-    const { at } = table('Team approvals');
+    const { at } = captionedTable('Team approvals');
     const doc = at('Document'), initiative = at('Initiative');
     // The initiative is the lead: it holds the floor, and no head claims the spare, which every column shares.
     expect(classes(initiative.th)).toContain('min-w-40');
@@ -182,7 +169,7 @@ describe('Approvals', () => {
 
   it('F-34: names a version\'s snapshot by a short hash, the whole token in the title, never drawn under it', () => {
     draw();
-    const { cells } = table('Team approvals').at('Version');
+    const { cells } = captionedTable('Team approvals').at('Version');
     expect(cells).toHaveLength(queue().length);
     queue().forEach((r, i) => {
       expect(cells[i].textContent).toBe(`v${r.version}${r.contentRevision.slice(3, 11)}`);
@@ -199,7 +186,7 @@ describe('Approvals', () => {
   it('F-38: labels the queue\'s Ask and keeps it inside the card, out of a zero-width container', () => {
     const asked: string[] = [];
     draw((q) => asked.push(q));
-    const { section } = table('Team approvals');
+    const { section } = captionedTable('Team approvals');
     const ask = within(section).getByRole('button', { name: /^Ask: / });
     expect(ask.textContent?.trim()).toBe('Ask');
     // A container is as wide as it is given: a `shrink-0` one is given nothing, and its Ask spills past the padding.

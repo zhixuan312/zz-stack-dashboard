@@ -32,6 +32,7 @@ import PlatformUsageLoading from '../app/(dash)/platform/usage/loading';
 import PluginsLoading from '../app/(dash)/plugins/loading';
 import RecordLoading from '../app/(dash)/record/loading';
 import RunsLoading from '../app/(dash)/runs/loading';
+import config from '../scripts/verify.config.ts';
 
 /**
  * Every rail route draws its shell within the navigation budget: Knowledge, Status and Audit since Task I-147, the
@@ -60,10 +61,10 @@ import RunsLoading from '../app/(dash)/runs/loading';
 
 type Access = { only: string[]; user: { name: string; role: string }; team: string | null; caller: string };
 
-/** The rails `pnpm verify --as` expects of the fake's two people (`expectedRoutes`). */
-const MEMBER_RAIL = ['/', '/record', '/initiatives', '/approvals', '/knowledge', '/activity', '/runs', '/plugins', '/access', '/platform', '/platform/releases', '/platform/bugs', '/platform/evaluation', '/platform/usage', '/platform/knowledge'];
-const SUPERADMIN: Access = { only: [...MEMBER_RAIL, '/platform/teams', '/platform/people', '/platform/audit'], user: { name: 'Ava', role: 'atlas' }, team: 'atlas', caller: 'ava@example.com' };
-const MEMBER: Access = { only: MEMBER_RAIL, user: { name: 'Maya', role: 'atlas' }, team: 'atlas', caller: 'maya@example.com' };
+/** The rails `pnpm verify --as` expects of the fake's two people, read from its own personas. */
+const { superadmin, member } = config.personas!;
+const SUPERADMIN: Access = { only: [...superadmin.expectedRoutes], user: { name: 'Ava', role: 'atlas' }, team: 'atlas', caller: 'ava@example.com' };
+const MEMBER: Access = { only: [...member.expectedRoutes], user: { name: 'Maya', role: 'atlas' }, team: 'atlas', caller: 'maya@example.com' };
 
 /**
  * Every destination in the rail, with its page's own title (each page's masthead, which is the rail's label for every

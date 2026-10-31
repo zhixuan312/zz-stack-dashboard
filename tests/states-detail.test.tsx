@@ -12,7 +12,6 @@ vi.mock('next/navigation', () => ({
 }));
 
 /** The skill page's gate, let through, and its four reads, answered without a gateway: the page is what is under test. */
-vi.mock('@/data/access', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/data/access')>()) }));
 vi.mock('@/console/gate', () => ({ gate: async () => null, gatedMetadata: async (_feature: string, metadata: object) => metadata }));
 vi.mock('../app/(dash)/plugins/read-plugins', () => ({
   readSkill: async (plugin: string, skill: string) => ({
@@ -39,12 +38,11 @@ vi.mock('@/views/pages/skill', async (importOriginal) => {
 
 import type { DocumentDetail, KnowledgeBody } from '@/lib/api-shapes';
 import type { DocumentRead } from '@/logic/document-read';
-import type { ServerRead } from '@/logic/knowledge-context';
 import { DocumentView } from '@/views/pages/document';
 import { KnowledgeNodeView } from '@/views/pages/knowledge-node';
 import { SkillTabs, SkillView } from '@/views/pages/skill';
 import PluginSkillPage from '../app/(dash)/plugins/[plugin]/[skill]/page';
-import { startFakeGateway } from './fake-gateway-start.ts';
+import { browserIn, serverReadIn, startFakeGateway } from './fake-gateway-start.ts';
 
 /**
  * The detail pages Task I-126's states check found drawing something other than an explicit state (Task I-133, AC-2.9):
@@ -62,23 +60,14 @@ beforeAll(async () => {
 afterAll(() => stop());
 afterEach(() => vi.unstubAllGlobals());
 
-const realFetch = globalThis.fetch;
 const AT = '2026-10-18T00:00:00Z';
 const NODE = 'nodes/0002-match-reasons-come-from-the-index-never-from-a-model.md';
 const SLUG = '2026-09-28-search-relevance';
 
 /** One read as the console's server makes it, for the member in `state`. */
-async function served<T>(state: string, path: string): Promise<ServerRead<T>> {
-  const res = await realFetch(`${base}/api/console${path}${path.includes('?') ? '&' : '?'}scope=platform`, { headers: { cookie: `zz_console=member+${state}` } });
-  const body = await res.json() as T & { error?: string };
-  return res.ok ? { state: 'ok', data: body, at: AT } : { state: 'failed', reason: body.error ?? `HTTP ${res.status}` };
-}
-
+const served = <T,>(state: string, path: string) => serverReadIn<T>(base, 'member', state, path, AT);
 /** The browser's reads, sent to the fake gateway for the member in `state`. */
-function browser(state: string) {
-  vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) =>
-    realFetch(`${base}${String(input)}`, { method: init?.method, body: init?.body, headers: { accept: 'application/json', cookie: `zz_console=member+${state}` } })));
-}
+const browser = (state: string) => browserIn(base, 'member', state);
 
 function mount(ui: ReactElement) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });

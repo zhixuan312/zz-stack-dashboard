@@ -2,13 +2,12 @@
 import { describe, expect, it } from 'vitest';
 import { SETTLE_MS, slowRule } from '../scripts/states-check.ts';
 import { BOUND_MS, boundRule } from '../scripts/states-timed.ts';
-import config from '../scripts/verify.config.ts';
 
 /**
  * The `slow` state's five-second bound (scripts/states-timed.ts, Task I-142; AC-2.9), judged over a recorded frame: the
  * first frame the observer saw an explicit state in, against navigation start. The same frame is judged by
  * states-check, which runs beside the other suites and says only whether the state arrived; this runs alone in the
- * timed tier, and says when.
+ * timed tier, and says when. Which tier runs it is held in verify-tiers.test.ts, with the entry forms browserChecks takes.
  */
 const frames = (explicit: number | null) => ({ placeholder: null, main: 180, loadingAtMain: true, contentAtMain: false, refusedAtMain: false, explicit });
 const seen = (explicit: number | null) => ({ content: explicit !== null, refusal: false, alert: false, frames: frames(explicit) });
@@ -35,10 +34,5 @@ describe("the slow state's bound", () => {
   it('fails a row with no explicit state at all, as states-check does', () => {
     expect(boundRule(frames(null)).problems.join(' ')).toContain(`no explicit state within the ${SETTLE_MS / 1000} s a page is given, past the ${BOUND_MS} ms bound`);
     expect(slowRule({ ...seen(null), content: false }).problems.length).toBeGreaterThan(0);
-  });
-
-  it('runs in timedChecks, alone, and not in browserChecks', () => {
-    expect(config.timedChecks).toContain('scripts/states-timed.ts');
-    expect(config.browserChecks).not.toContain('scripts/states-timed.ts');
   });
 });

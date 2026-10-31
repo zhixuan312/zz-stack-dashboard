@@ -10,7 +10,6 @@ vi.mock('@/data/access', async (importOriginal) => ({ ...(await importOriginal<t
 
 import { SurfaceOverride } from '@/components/base/surface';
 import { PREPARED } from '@/data/prepared';
-import type { Me } from '@/lib/api-shapes';
 import { contextText } from '@/lib/shared-context';
 import type { InitiativeList } from '@/lib/work-shapes';
 import { CONTEXT_BUDGET } from '@/logic/context';
@@ -21,6 +20,7 @@ import { InitiativesView } from '@/views/pages/initiatives';
 import { initiativeTool } from '@/logic/tools/initiative';
 import { initiativesTool } from '@/logic/tools/initiatives';
 import { initiativeDetail, initiativeList } from '../scripts/fake-gateway/work-initiatives.ts';
+import { ME } from '../scripts/fake-gateway/people.ts';
 
 /**
  * Initiatives' agent side (Task I-106, AC-5.5): the Ask in the list's filter bar; `view_initiatives` and
@@ -28,10 +28,6 @@ import { initiativeDetail, initiativeList } from '../scripts/fake-gateway/work-i
  * prepared query; and the context itself, which carries the filters, the rows in view with where each goes next and the
  * summary, and says that a person closes an initiative, in the dialog, and the assistant never does.
  */
-const ME: Me = {
-  email: 'ava.lindqvist@example.com', name: 'Ava Lindqvist', role: 'superadmin', mayRead: true, superadmin: true,
-  via: 'session', teams: [{ slug: 'atlas', role: 'admin' }], activeTeam: 'atlas',
-};
 const listOf = (path: string) => initiativeList(ME, new URLSearchParams(path.split('?')[1]))[1] as InitiativeList;
 const PATH = listPath(INITIATIVES_DEFAULTS);
 const LIST = listOf(PATH);

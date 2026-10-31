@@ -54,10 +54,11 @@ describe('EvalHeadline', () => {
       },
     });
     render(<EvalHeadline pluginEval={pe} />);
-    expect(screen.queryByText(/^\d+\.\d+$/)).not.toBeInTheDocument();
-    // "Not established" is the status in words and appears both as the score slot and the
-    // status badge — the point is that no digit is rendered anywhere on the panel.
-    expect(screen.getAllByText('Not established').length).toBeGreaterThan(0);
+    // The Score slot holds the status in words and no figure. The rest of the panel may print digits of its own (the
+    // version in the description, the protocol's `v3`), so the check is on the slot, not the panel.
+    const score = screen.getByText('Score').nextElementSibling!;
+    expect(score.textContent).toBe('Not established');
+    expect(score.textContent).not.toMatch(/\d/);
   });
 
   it('says "not evaluated yet" only when there is truly no run', () => {

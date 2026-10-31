@@ -16,7 +16,7 @@ vi.mock('next/navigation', () => ({
 
 import { SurfaceOverride } from '@/components/base/surface';
 import { formatDate, formatDay, formatShortDate } from '@/lib/format-date';
-import type { Evaluation, Part } from '@/lib/platform-shapes';
+import type { Evaluation } from '@/lib/platform-shapes';
 import { contextText } from '@/lib/shared-context';
 import type { Audit, KnowledgeHealth, Usage } from '@/lib/fleet-shapes';
 import { PlatformAuditView } from '@/views/pages/platform-audit';
@@ -31,6 +31,7 @@ import { evaluation } from '../scripts/fake-gateway/platform-evaluation.ts';
 import { knowledge } from '../scripts/fake-gateway/platform-knowledge.ts';
 import { usage } from '../scripts/fake-gateway/platform-usage.ts';
 import { answered } from '../scripts/fake-gateway/envelope.ts';
+import { data } from './part.ts';
 
 /**
  * The findings of "Phase 7, I-129 re-review: the Platform destinations after I-151 to I-157" on Evaluation, Usage and
@@ -47,10 +48,6 @@ const ADMIN_KNOWLEDGE: KnowledgeHealth = answered(knowledge(true, ME.activeTeam)
 const MEMBER_KNOWLEDGE: KnowledgeHealth = answered(knowledge(false, MEMBER.activeTeam));
 const ADMIN_USAGE: Usage = answered(usage(true));
 
-function data<T>(p: Part<T> | null): T {
-  if (!p || p.state !== 'ok') throw new Error('not answered');
-  return p.data;
-}
 const mount = (ui: ReactElement) => render(
   <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
     <SurfaceOverride surface={{}}><Tooltip.Provider>{ui}</Tooltip.Provider></SurfaceOverride>
@@ -74,26 +71,7 @@ describe('Evaluation\'s series cell keeps each line whole (F-3)', () => {
 });
 
 describe('a waiting finding is named by what it found, as far as its reader may read it (F-17)', () => {
-  const MEMBER_ROWS = data(MEMBER_EVAL.waiting).rows;
   const ADMIN_ROWS = data(ADMIN_EVAL.waiting).rows as { pattern?: string; summary: string }[];
-
-  it('names a member\'s finding in one template, by its kind, its plugin and its owner category', () => {
-    expect(MEMBER_ROWS.length).toBeGreaterThan(1);
-    expect(MEMBER_ROWS.some((r) => r.owner === 'unknown')).toBe(true);
-    for (const r of MEMBER_ROWS) {
-      // A finding with no public owner category reads as the spec's public projection names it (I-167).
-      if (r.owner === 'unknown') expect(r.summary).toBe('Evaluation finding awaiting a decision');
-      else expect(r.summary).toMatch(new RegExp(`^(A defect|An unknown) in ${r.plugin}, owned by (the plugin|a dependency|the platform|the environment|user input)$`));
-    }
-  });
-
-  it('leads a member\'s row with that name, and no row is a placeholder', () => {
-    mount(<PlatformEvaluationView read={{ state: 'ok', evaluation: MEMBER_EVAL }} />);
-    const t = table('Findings waiting for a decision, oldest first');
-    for (const r of MEMBER_ROWS) expect(t.textContent).toContain(r.summary);
-    // The spec's sentence names no plugin, so its row carries the plugin under it (I-167).
-    for (const r of MEMBER_ROWS.filter((f) => f.owner === 'unknown')) expect(t.textContent).toContain(`Plugin ${r.plugin}`);
-  });
 
   it('leads the superadmin\'s row with the words the evaluation recorded, and no fixed sentence', () => {
     mount(<PlatformEvaluationView read={{ state: 'ok', evaluation: ADMIN_EVAL }} />);

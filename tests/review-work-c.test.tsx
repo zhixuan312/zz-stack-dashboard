@@ -1,7 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
-import { Tooltip } from 'radix-ui';
-import type { ReactElement } from 'react';
+import { screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('next/navigation', () => ({
@@ -24,12 +21,12 @@ import type { Catalog, PluginsRead } from '@/logic/plugins-context';
 import { RUNS_DEFAULTS, runsPath } from '@/logic/runs-context';
 import type { SkillRead } from '@/logic/skill-context';
 import { ME, MEMBER } from '../scripts/fake-gateway/people.ts';
-import { teamMembers } from '../scripts/fake-gateway/platform-people.ts';
 import { pluginEval, skillText } from '../scripts/fake-gateway/platform.ts';
 import { activityLog, activitySummary } from '../scripts/fake-gateway/work-activity.ts';
 import { access as accessOf } from '../scripts/fake-gateway/work-access.ts';
 import { plugins, skillDetail, skills } from '../scripts/fake-gateway/work-plugins.ts';
 import { runs } from '../scripts/fake-gateway/work-runs.ts';
+import { mount, stubWorkReads, text } from './work-fixture.tsx';
 
 /**
  * Phase 7, I-154: each Weak finding the non-builder's review gave Activity, Runs, Plugins, a plugin, a skill and Access,
@@ -40,29 +37,14 @@ const AT = '2026-10-17T09:00:00Z';
 const ok = <T,>(path: string, data: T) => ({ state: 'ok' as const, path, at: AT, data });
 const catalogOf = (who: Me): Catalog => plugins(who)[1] as Catalog;
 const listOf = (who: Me): PluginsRead => ok('/plugins', catalogOf(who));
-const text = () => document.body.textContent ?? '';
 /** The phone card's own words for a cell, where it has any: the wide cell's are first, the phone's second. */
 const phoneOf = (td: Element) => (td.querySelector(':scope > .hidden') ?? td).textContent ?? '';
 
 beforeEach(() => {
   window.history.replaceState(null, '', '/');
-  vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
-    const url = new URL(String(input), 'http://console.test');
-    const p = url.pathname.replace('/api/console', '');
-    const body = p === '/me' ? ME
-      : p === '/activity/summary' ? activitySummary(ME)[1]
-        : p === '/activity' ? activityLog(ME, url.searchParams)[1]
-          : p === '/settings/team/members' ? teamMembers(url.searchParams.get('team') ?? '')
-            : p === '/access' ? accessOf(ME)[1] : null;
-    return body === null ? new Promise(() => {}) : Promise.resolve({ ok: true, status: 200, json: async () => body } as unknown as Response);
-  }));
+  stubWorkReads();
 });
 afterEach(() => vi.unstubAllGlobals());
-
-function mount(ui: ReactElement) {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={client}><Tooltip.Provider>{ui}</Tooltip.Provider></QueryClientProvider>);
-}
 
 /** A skill's four reads, with its runs' figures set apart from its log's, as production's are. */
 function skillRead(change: (s: Skill, d: SkillDetail) => void = () => {}): SkillRead {

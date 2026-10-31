@@ -20,13 +20,14 @@ vi.mock('@/data/access', async (importOriginal) => ({ ...(await importOriginal<t
 vi.mock('@/console/gate', () => ({ gate: async () => null, gatedMetadata: async (_feature: string, metadata: object) => metadata }));
 
 import { GatewayError } from '@/data/gateway';
-import type { DocumentDetail, Me } from '@/lib/api-shapes';
+import type { DocumentDetail } from '@/lib/api-shapes';
 import { READ_BOUND_MS } from '@/lib/read-bound';
 import type { DocumentRead } from '@/logic/document-read';
 import { DocumentView } from '@/views/pages/document';
 import { documentDetail } from '../scripts/fake-gateway/work.ts';
 import { DETAIL } from '../scripts/verify.config.ts';
 import DocumentPage from '../app/(dash)/initiatives/[team]/[slug]/[...path]/page';
+import { MEMBER } from '../scripts/fake-gateway/people.ts';
 
 /**
  * A document is read on the console's server and drawn in the first paint (Task I-137, AC-2.9): the route reads it as
@@ -39,10 +40,6 @@ const AT = `/document/atlas/${SLUG}/spec.md`;
 const DOC = documentDetail('atlas', SLUG, 'spec.md')!;
 const params = (path = ['spec.md']) => Promise.resolve({ team: 'atlas', slug: SLUG, path });
 
-const ME: Me = {
-  email: 'noah.okafor@example.com', name: 'Noah Okafor', role: 'member', mayRead: true,
-  superadmin: false, via: 'session', teams: [{ slug: 'atlas', role: 'member' }], activeTeam: 'atlas',
-};
 
 /** Every read the browser sent, by address. */
 let reads: string[] = [];
@@ -230,7 +227,7 @@ describe('the browser, following the server\'s read', () => {
     const planAt = `/document/atlas/${SLUG}/plan.md`;
     const shown: Record<string, unknown>[] = [];
     answer = (path, init) => {
-      if (path === '/me') return [200, ME];
+      if (path === '/me') return [200, MEMBER];
       if (path.startsWith('/documents/shown')) {
         const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
         shown.push(body);

@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { Tooltip } from 'radix-ui';
-import { isValidElement, type ReactElement, type ReactNode } from 'react';
+import type { ReactElement } from 'react';
 import { hydrateRoot } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -42,6 +42,10 @@ import PlatformBugsPage, { generateMetadata as bugsMetadata } from '../app/(dash
 import { readBug, readBugs, readDuplicates } from '../app/(dash)/platform/bugs/read-bugs';
 import PlatformBugLoading from '../app/(dash)/platform/bugs/[id]/loading';
 import PlatformBugPage, { generateMetadata as bugMetadata } from '../app/(dash)/platform/bugs/[id]/page';
+import { markupOf, readsHandedOn } from './server-tree.tsx';
+import { browserCalls, browserReads, browserStub } from './browser.ts';
+import { ME as SUPERADMIN } from '../scripts/fake-gateway/people.ts';
+import { BEACON_MEMBER as MEMBER } from './personas.ts';
 
 /**
  * Bugs under Platform (Task I-97): the queue and a report's page drawn from the fake gateway's own answers, each read
@@ -51,14 +55,6 @@ import PlatformBugPage, { generateMetadata as bugMetadata } from '../app/(dash)/
  * read's alone, which keeps what was typed on a refusal and asks a target of a duplicate; every state each page draws;
  * the Ask on each page's protagonist; the view tools answering the pages' own responses; and the prepared query.
  */
-const SUPERADMIN: Me = {
-  email: 'ava.lindqvist@example.com', name: 'Ava Lindqvist', role: 'superadmin', mayRead: true, superadmin: true,
-  via: 'session', teams: [{ slug: 'atlas', role: 'admin' }], activeTeam: 'atlas',
-};
-const MEMBER: Me = {
-  email: 'mei.tanaka@example.com', name: 'Mei Tanaka', role: 'member', mayRead: true, superadmin: false,
-  via: 'session', teams: [{ slug: 'beacon', role: 'member' }], activeTeam: 'beacon',
-};
 
 const ID = (n: number) => `0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d0${n}`;
 const OPEN = ID(1);
@@ -73,20 +69,12 @@ const rowsOf = (b: Bugs) => (b.queue.state === 'ok' ? b.queue.data.rows : []);
 const targets = (id: string): DuplicatesRead => ({ state: 'ok', data: duplicates(id)! });
 
 /** The browser's reads and writes: answered by `answer`, or never when it is null. */
-function browser(answer: ((path: string, init?: RequestInit) => [number, unknown]) | null, me: Me = SUPERADMIN) {
-  vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
-    if (!answer) return new Promise(() => {});
-    const url = new URL(String(input), 'http://console.test');
-    const [status, body] = url.pathname.endsWith('/me') ? [200, me] : answer(url.pathname.replace('/api/console', ''), init);
-    return Promise.resolve({ ok: status < 300, status, json: async () => body } as unknown as Response);
-  }));
-}
-type Call = [RequestInfo | URL, RequestInit | undefined];
-const calls = () => (fetch as unknown as { mock: { calls: Call[] } }).mock.calls.filter(([u]) => !String(u).endsWith('/me'));
+const browser = (reply: Parameters<typeof browserStub>[0], me: Me = SUPERADMIN) =>
+  browserStub(reply && ((path, init) => reply(path.split('?')[0], init)), me);
 /** What the browser has read, past who it is. */
-const reads = () => calls().filter(([, init]) => (init?.method ?? 'GET') === 'GET').map(([u]) => String(u).split('?')[0]);
+const reads = () => browserReads().map((u) => u.split('?')[0]);
 /** What the browser has written, as the bodies it sent. */
-const writes = () => calls().filter(([, init]) => init?.method === 'POST').map(([u, init]) => [String(u), JSON.parse(String(init!.body))]);
+const writes = () => browserCalls().filter(([, init]) => init?.method === 'POST').map(([u, init]) => [String(u), JSON.parse(String(init!.body))]);
 
 const tree = (ui: ReactElement, ask?: (q: string) => void) => <SurfaceOverride surface={ask ? { ask } : {}}><Tooltip.Provider>{ui}</Tooltip.Provider></SurfaceOverride>;
 /** `ui` in the console's providers, with an assistant listening when `ask` is given; `serve` rerenders it as the server would. */
@@ -533,14 +521,6 @@ describe('the shared contexts carry what the pages draw, and what it cannot say'
   });
 });
 
-/** The text a server page's answer renders, once rendered with nothing listening. */
-async function markupOf(answer: ReactNode | Promise<ReactNode>): Promise<HTMLElement> {
-  const node = await answer;
-  let container = document.body;
-  await act(async () => { container = mount(<>{node}</>).container; });
-  return container;
-}
-
 describe('the pages on the console\'s server', () => {
   beforeEach(() => {
     gateway.get.mockImplementation(async (path: string) => {
@@ -559,15 +539,7 @@ describe('the pages on the console\'s server', () => {
   });
 
   it('read the address\'s queue once, as the person, and hand the one read to the as-of line and the page', async () => {
-    const found: unknown[] = [];
-    const walk = (node: unknown): void => {
-      if (Array.isArray(node)) return node.forEach(walk);
-      if (!isValidElement(node)) return;
-      const props = node.props as Record<string, unknown>;
-      if (props.read) found.push(props.read);
-      Object.values(props).forEach(walk);
-    };
-    walk(await PlatformBugsPage({ searchParams: Promise.resolve({}) }));
+    const found = readsHandedOn(await PlatformBugsPage({ searchParams: Promise.resolve({}) }));
     expect(found).toHaveLength(2);
     expect(found[0]).toBe(found[1]);
     expect(await found[0]).toEqual(ok());
@@ -575,11 +547,11 @@ describe('the pages on the console\'s server', () => {
   });
 
   it('read a report and its targets together, and answer an unknown id with the missing page', async () => {
-    const page = await markupOf(PlatformBugPage({ params: Promise.resolve({ id: OPEN }) }));
+    const page = await markupOf(PlatformBugPage({ params: Promise.resolve({ id: OPEN }) }), mount);
     expect(page.querySelector('[data-report-detail]')!.textContent).toBe(bugReport(OPEN)!.detail);
     expect(gateway.get).toHaveBeenCalledWith(duplicatesPath(OPEN));
     document.body.innerHTML = '';
-    const missing = await markupOf(PlatformBugPage({ params: Promise.resolve({ id: ID(9) }) }));
+    const missing = await markupOf(PlatformBugPage({ params: Promise.resolve({ id: ID(9) }) }), mount);
     expect(missing.querySelector('[data-missing-page]')).not.toBeNull();
     expect(missing.textContent).not.toMatch(/report|bug/i);
   });
@@ -606,7 +578,7 @@ describe('a member asking for a report\'s page', () => {
   });
 
   it('is answered by the refused page, which names nothing and reads nothing', async () => {
-    const page = await markupOf(PlatformBugPage({ params: Promise.resolve({ id: OPEN }) }));
+    const page = await markupOf(PlatformBugPage({ params: Promise.resolve({ id: OPEN }) }), mount);
     expect(page.textContent).not.toMatch(/report|bug|atlas/i);
     expect(gateway.get.mock.calls.map(([p]) => p)).not.toContainEqual(expect.stringMatching(/^\/platform\/bugs/));
   });

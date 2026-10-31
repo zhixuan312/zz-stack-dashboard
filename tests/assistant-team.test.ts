@@ -89,11 +89,14 @@ describe('a stored thread of another scope', () => {
     return Number(screen.getByTestId('seen').textContent);
   };
 
+  // No panel here: `loadThread` removes a thread of another scope itself, so a panel that reads it would do the removal
+  // these cases hold `AssistantScope` to, before any panel opens.
   test.each([
     ['a team switch', `beacon/${MEMBER.email}`],
     ['a second person signing in on the same browser', `atlas/${ME.email}`],
-  ])('is removed, never shown, after %s', async (_, storedFor) => {
-    expect(await load(storedFor)).toBe(0);
+  ])('is removed as the scope resolves, before any panel opens, after %s', async (_, storedFor) => {
+    saveThread(window.localStorage, storedFor, thread);
+    render(createElement(AssistantScope, scoped(), createElement('span')));
     await waitFor(() => expect(window.localStorage.getItem(THREAD_KEY)).toBeNull());
   });
 

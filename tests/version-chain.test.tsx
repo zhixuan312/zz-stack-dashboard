@@ -52,12 +52,19 @@ describe('VersionChain', () => {
   });
 
   // A source is the evidence behind the change; its stored markdown renders on its own page, never as raw text here.
+  // The source shape carries no body, so the only way its markdown could reach this panel is a read of the source: the
+  // stub answers one with markdown, and the case holds that none is asked and none is drawn.
   it('lists what a change was made on as links to each source\'s page, with none of its markdown inlined', async () => {
+    const answer = vi.mocked(fetch).getMockImplementation()!;
+    vi.mocked(fetch).mockImplementation(async (url) => (decodeURIComponent(String(url)).includes('sources/')
+      ? ({ ok: true, status: 200, json: async () => ({ body: '# sources/why it changed.md\n\n## What it is\n' }) } as unknown as Response)
+      : answer(url)));
     const sourced = { ...doc, sources: [{ path: 'sources/why it changed.md', title: 'Why it changed', supports: 'spec.md', added: '2026-08-31' }] };
     render(<QueryClientProvider client={new QueryClient()}><VersionChain doc={sourced} /></QueryClientProvider>);
     const link = await screen.findByRole('link', { name: /Why it changed/ });
     expect(link).toHaveAttribute('href', '/initiatives/team-one/init-1/sources/why%20it%20changed.md');
-    link.click();
+    await waitFor(() => expect(screen.getByText('text of r2')).toBeInTheDocument());
+    expect(vi.mocked(fetch).mock.calls.map(([u]) => decodeURIComponent(String(u))).filter((u) => u.includes('sources/'))).toEqual([]);
     expect(screen.queryByText(/## What it is/)).toBeNull();
   });
 

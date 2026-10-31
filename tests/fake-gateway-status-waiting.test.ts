@@ -10,7 +10,7 @@ import { statusFor } from '../scripts/fake-gateway/platform-bugs.ts';
 import { MEMBER_STATUS, PLATFORM_STATUS } from '../scripts/fake-gateway/platform-status.ts';
 import { TEAMS } from '../scripts/fake-gateway/platform-teams.ts';
 import { approvals } from '../scripts/fake-gateway/work-approvals.ts';
-import { startFakeGateway } from './fake-gateway-start.ts';
+import { asking, startFakeGateway, unobserved } from './fake-gateway-start.ts';
 
 /**
  * The fake's Status names the approvals waiting that the approvals queue holds (AC-8.3), as the gateway derives both
@@ -26,24 +26,7 @@ afterAll(() => gateway?.proc.kill());
 type Need = PlatformStatus['needs']['rows'][number];
 const DAY = 24 * 3_600_000;
 
-const call = async <T,>(value: string, path: string, body?: unknown): Promise<{ status: number; body: T }> => {
-  const res = await fetch(`${gateway.base}/api/console${path}`, {
-    method: body === undefined ? 'GET' : 'POST',
-    headers: { cookie: `zz_console=${value}`, ...(body === undefined ? {} : { 'content-type': 'application/json' }) },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  return { status: res.status, body: (await res.json()) as T };
-};
-const read = async <T,>(value: string, path: string) => {
-  const answer = await call<T>(value, path);
-  expect(answer.status, `${value} ${path}`).toBe(200);
-  return answer.body;
-};
-/** An answer with the one field levelled that every request has of its own: two reads of a route differ in
- *  `observedAt` when they differ nowhere else, since each request is served at its own instant. */
-const unobserved = <T,>(v: T): T => (v && typeof v === 'object' && 'meta' in v
-  ? { ...v, meta: { ...(v as { meta: object }).meta, observedAt: null } }
-  : v);
+const { call, read } = asking(() => gateway.base);
 
 /** Every row Approvals' Waiting answers a caller acting for `team`, as this process's fixture holds it. */
 function queueOf(team: string): WaitingRow[] {

@@ -15,7 +15,7 @@ import type { People, Usage } from '@/lib/fleet-shapes';
 import { PlatformPeopleView } from '@/views/pages/platform-people';
 import { PlatformUsageView } from '@/views/pages/platform-usage';
 import { PEOPLE_DEFAULTS, peoplePath } from '@/logic/people-filter';
-import { startFakeGateway } from './fake-gateway-start.ts';
+import { browserIn, servedIn, startFakeGateway } from './fake-gateway-start.ts';
 
 /**
  * Platform's pages in the states no other test drew (Task I-126, AC-2.9): People and Usage on a fresh deployment, each
@@ -33,20 +33,15 @@ beforeAll(async () => {
 afterAll(() => stop());
 afterEach(() => vi.unstubAllGlobals());
 
-const realFetch = globalThis.fetch;
-
 /** One read as the console's server makes it, for the superadmin in `state`. */
 async function served<T>(state: string, path: string): Promise<T> {
-  const res = await realFetch(`${base}/api/console${path}${path.includes('?') ? '&' : '?'}scope=platform`, { headers: { cookie: `zz_console=superadmin+${state}` } });
+  const res = await servedIn(base, 'superadmin', state, path);
   expect(res.status, path).toBe(200);
   return await res.json() as T;
 }
 
 /** The browser's reads, sent to the fake gateway for the superadmin in `state`. */
-function browser(state: string) {
-  vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) =>
-    realFetch(`${base}${String(input)}`, { method: init?.method, body: init?.body, headers: { accept: 'application/json', cookie: `zz_console=superadmin+${state}` } })));
-}
+const browser = (state: string) => browserIn(base, 'superadmin', state);
 
 function mount(ui: ReactElement) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });

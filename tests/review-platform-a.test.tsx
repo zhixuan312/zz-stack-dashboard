@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, render, screen, within } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { Tooltip } from 'radix-ui';
-import type { ReactElement, ReactNode } from 'react';
+import type { ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // The fake gateway's clock is the moment its module loads, so the day is fixed before it does: Status's six weeks end
@@ -20,7 +20,6 @@ vi.mock('@/data/gateway', async (importOriginal) => ({ ...(await importOriginal<
 vi.mock('@/app.config', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/app.config')>()), refusal: 'absent' }));
 
 import { SurfaceOverride } from '@/components/base/surface';
-import type { Me } from '@/lib/api-shapes';
 import type { AdminBugRow, Bugs, PlatformStatus, Releases } from '@/lib/platform-shapes';
 import { PlatformBugView } from '@/views/pages/platform-bug';
 import { PlatformBugsView } from '@/views/pages/platform-bugs';
@@ -35,6 +34,8 @@ import { RELEASES, releaseDetail, releases } from '../scripts/fake-gateway/platf
 import { MEMBER_STATUS as MEMBER_STATUS_FIXTURE, PLATFORM_STATUS as PLATFORM_STATUS_FIXTURE } from '../scripts/fake-gateway/platform-status.ts';
 import { answered } from '../scripts/fake-gateway/envelope.ts';
 import PlatformBugPage from '../app/(dash)/platform/bugs/[id]/page';
+import { markupOf } from './server-tree.tsx';
+import { ME as SUPERADMIN } from '../scripts/fake-gateway/people.ts';
 
 /**
  * The findings of "Phase 7, I-129: a non-builder's review of the Platform destinations" on Status, Releases, a release,
@@ -45,10 +46,6 @@ import PlatformBugPage from '../app/(dash)/platform/bugs/[id]/page';
  * tiles; a release that says each thing once in one date range; the queue right after the tiles; a member's withheld
  * titles told apart by surface, impact and filed date; and a report titled by itself.
  */
-const SUPERADMIN: Me = {
-  email: 'ava.lindqvist@example.com', name: 'Ava Lindqvist', role: 'superadmin', mayRead: true, superadmin: true,
-  via: 'session', teams: [{ slug: 'atlas', role: 'admin' }], activeTeam: 'atlas',
-};
 
 function browser() {
   vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => (String(input).endsWith('/me')
@@ -58,12 +55,6 @@ function browser() {
 function mount(ui: ReactElement) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(<QueryClientProvider client={client}><SurfaceOverride surface={{}}><Tooltip.Provider>{ui}</Tooltip.Provider></SurfaceOverride></QueryClientProvider>);
-}
-async function markupOf(answer: ReactNode | Promise<ReactNode>): Promise<HTMLElement> {
-  const node = await answer;
-  let container = document.body;
-  await act(async () => { container = mount(<>{node}</>).container; });
-  return container;
 }
 /** The page's own body: the first element the view draws, which must be a Stack so its rows keep the page's gap. */
 const isStack = (el: Element | null) => Boolean(el && el.classList.contains('flex-col') && [...el.classList].some((c) => c.startsWith('gap-')));
@@ -151,6 +142,7 @@ describe('Status', () => {
     draw(MEMBER_STATUS);
     const own = [...document.querySelectorAll('time, td, [data-own-bugs], dd')].map((e) => e.textContent!).join(' ');
     expect(own).toMatch(/\d Sept\b/);
+    expect(own).not.toMatch(/\d (Sep|September)\b/);
   });
 });
 
@@ -158,7 +150,7 @@ describe('Releases and a release', () => {
   const LIST: Releases = answered(releases(10, 0));
   const served: ReleasesRead = { state: 'ok', path: releasesPath(RELEASES_DEFAULTS), data: LIST };
   const table = () => tableNamed('Releases with what was observed either side of each');
-  const [NEWEST, PAIRED, , , OLDEST] = RELEASES.map((r) => r.version);
+  const [, PAIRED, , , OLDEST] = RELEASES.map((r) => r.version);
 
   it('keeps its rows a gap apart, on the list and on a release (F-9)', () => {
     const { container } = mount(<PlatformReleasesView served={served} />);
@@ -210,7 +202,6 @@ describe('Releases and a release', () => {
     expect(text.match(/ to /g)).toHaveLength(1);
     expect(text).toMatch(/^Observed \d+ of 72 hours so far: /);
     expect(text).not.toMatch(/ of \d+ \w+ \d{4},/);
-    expect(NEWEST).toBeTruthy();
   });
 });
 
@@ -236,10 +227,12 @@ describe('Bugs and a report', () => {
   });
 
   it('titles a member\'s withheld reports by the surface they concern alone, with no reporter\'s word (F-14)', () => {
+    mount(<PlatformBugsView served={served(PUBLIC)} />);
     const rows = PUBLIC.queue.state === 'ok' ? PUBLIC.queue.data.rows : [];
-    for (const r of rows) expect(r.title).toBe(r.surface === null ? 'Platform issue reported' : `Report concerning ${r.surface}`);
-    const words = JSON.stringify(PUBLIC);
-    for (const r of REPORTS) expect(words).not.toContain(r.title);
+    const drawn = within(tableNamed('Bug reports, newest filed first')).getAllByRole('row').slice(1);
+    expect(drawn).toHaveLength(rows.length);
+    rows.forEach((r, i) => expect(drawn[i].textContent).toContain(r.surface === null ? 'Platform issue reported' : `Report concerning ${r.surface}`));
+    for (const r of REPORTS) expect(document.body.textContent).not.toContain(r.title);
   });
 
   it('titles a report\'s page by the report itself, and spells its surface as the queue does (F-16)', async () => {
@@ -249,7 +242,7 @@ describe('Bugs and a report', () => {
       return sub === 'duplicates' ? duplicates(id) : bugReport(id);
     });
     const report = REPORTS[0];
-    const page = await markupOf(PlatformBugPage({ params: Promise.resolve({ id: report.id }) }));
+    const page = await markupOf(PlatformBugPage({ params: Promise.resolve({ id: report.id }) }), mount);
     expect(page.querySelector('h1')!.textContent).toContain(report.title);
     const row = (ADMIN.queue.state === 'ok' ? ADMIN.queue.data.rows : []).find((r) => r.id === report.id) as AdminBugRow;
     expect(bugReport(report.id)!.surface).toBe(row.surface);

@@ -3,36 +3,16 @@ import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-li
 import userEvent from '@testing-library/user-event';
 import { ApproveAction, canApprove, useRecordShown, type Shown } from '@/console/approve';
 import { Toaster } from '@/components/ui/toast';
-import type { DocumentDetail, Me } from '@/lib/api-shapes';
+import { CONTEXT, NEW, READER, draftAt } from './approval-fixture.ts';
 
 // Rendering is not enforcement — see canApprove's own comment — but a control
 // shown to someone who cannot use it, or hidden from a document nobody can
 // approve, is the bug this locks down. COUPLED: the page calls `canApprove` a
 // second time, to decide whether to hand DocumentShell an `actions` slot at
 // all, and a divergence between the two call sites would be silent.
-const me: Me = {
-  email: 'a@b.example.com', name: 'A', role: 'member', mayRead: true,
-  superadmin: false, via: 'session', teams: [{ slug: 'team-one', role: 'member' }],
-  activeTeam: 'team-one',
-};
-
-const doc: DocumentDetail = {
-  team: 'team-one', initiative: 'init-1', path: 'spec.md', flow: 'sdlc-flow', current_revision: 1,
-  current_version: 1, correction: null, content_revision: 'cr_aaaaaaaaaaaaaaaaaaaaaaaaaa',
-  type: 'spec', status: 'draft', outcome: null,
-  approved_by: null, approved_at: null, closed_by: null,
-  title: 'The spec', tags: null, stakeholder: null, fields: {}, evidence: null, superseded_by: null, body: 'body',
-  updated_at: '2026-09-01T00:00:00Z', bytes: 4,
-  gated: true, closing: false, requiredForClose: false,
-  decisions: [], decisionCounts: { rows: 0, withVerdict: 0, withQualifier: 0, withChecker: 0 },
-  versions: [{ path: 'spec.md', hash: 'h1', status: 'draft', approved_by: null,
-               updated_at: '2026-09-01T00:00:00Z', version: 1, revision: 1, superseded_approved: null }],
-  sources: [],
-};
-
-const CONTEXT = 'rc_bbbbbbbbbbbbbbbbbbbbbbbbbb';
+const me = READER;
+const doc = draftAt();
 const recorded: Shown = { state: 'recorded', content_revision: doc.content_revision, review_context: CONTEXT };
-const NEWER = 'cr_cccccccccccccccccccccccccc';
 
 /** A fetch that answers every call with `status` and `body`, recording what was sent. */
 function answering(status: number, body: unknown) {
@@ -120,13 +100,13 @@ describe('useRecordShown', () => {
     try {
       const { result, rerender } = renderHook(({ d }) => useRecordShown(d, true), { wrapper, initialProps: { d: doc } });
       await waitFor(() => expect(result.current.shown.state).toBe('recorded'));
-      rerender({ d: { ...doc, content_revision: NEWER } });
-      expect(result.current.shown).toEqual({ state: 'changed', content_revision: NEWER });
+      rerender({ d: { ...doc, content_revision: NEW } });
+      expect(result.current.shown).toEqual({ state: 'changed', content_revision: NEW });
       expect(fetchMock).toHaveBeenCalledTimes(1);
-      act(() => result.current.again(NEWER));
-      await waitFor(() => expect(result.current.shown).toEqual({ state: 'recorded', content_revision: NEWER, review_context: CONTEXT }));
+      act(() => result.current.again(NEW));
+      await waitFor(() => expect(result.current.shown).toEqual({ state: 'recorded', content_revision: NEW, review_context: CONTEXT }));
       expect(fetchMock).toHaveBeenCalledTimes(2);
-      expect(sent(fetchMock, 1).body).toEqual({ initiative: 'init-1', path: 'spec.md', content_revision: NEWER, review_context: CONTEXT });
+      expect(sent(fetchMock, 1).body).toEqual({ initiative: 'init-1', path: 'spec.md', content_revision: NEW, review_context: CONTEXT });
     } finally {
       fetchMock.mockRestore();
     }
@@ -239,7 +219,7 @@ describe('ApproveAction', () => {
     const onReload = vi.fn();
     for (const shown of [
       { state: 'stale', content_revision: doc.content_revision, message: 'changed' },
-      { state: 'changed', content_revision: NEWER },
+      { state: 'changed', content_revision: NEW },
       { state: 'failed', content_revision: doc.content_revision, message: 'unreachable' },
     ] as Shown[]) {
       const { unmount } = renderWithClient(<ApproveAction doc={doc} me={me} shown={shown} onStale={() => {}} onReload={onReload} />);
@@ -253,7 +233,7 @@ describe('ApproveAction', () => {
   it('says which way the record failed, on the control rather than beside it', () => {
     for (const [shown, said] of [
       [{ state: 'stale', content_revision: doc.content_revision, message: 'The store moved on.' }, 'This page is out of date. The store moved on.'],
-      [{ state: 'changed', content_revision: NEWER }, 'This document changed while you were reading it'],
+      [{ state: 'changed', content_revision: NEW }, 'This document changed while you were reading it'],
       [{ state: 'failed', content_revision: doc.content_revision, message: 'zz-core unreachable' }, 'the console could not record that it showed you this version'],
     ] as [Shown, string][]) {
       const { unmount } = renderWithClient(<ApproveAction doc={doc} me={me} shown={shown} onStale={() => {}} onReload={() => {}} />);
@@ -272,7 +252,7 @@ describe('ApproveAction', () => {
       await user.click(screen.getByRole('button', { name: 'Approve' }));
       expect(screen.getByRole('button', { name: 'Confirm' })).toBeInTheDocument();
       rerender(<QueryClientProvider client={new QueryClient()}>
-        <ApproveAction doc={doc} me={me} shown={{ state: 'recorded', content_revision: NEWER, review_context: CONTEXT }} onStale={() => {}}  onReload={() => {}}/>
+        <ApproveAction doc={doc} me={me} shown={{ state: 'recorded', content_revision: NEW, review_context: CONTEXT }} onStale={() => {}}  onReload={() => {}}/>
       </QueryClientProvider>);
       expect(screen.queryByRole('button', { name: 'Confirm' })).toBeNull();
       expect(screen.getByRole('button', { name: 'Approve' })).toBeEnabled();

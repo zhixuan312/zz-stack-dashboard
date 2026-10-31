@@ -27,15 +27,14 @@ vi.mock('next/navigation', () => ({
 import type { KnowledgeBody, SearchAnswer, SearchHit } from '@/lib/api-shapes';
 import type { KnowledgeList, KnowledgeRow, KnowledgeSummary } from '@/lib/destination-shapes';
 import type { PeriodFigure } from '@/lib/platform-shapes';
+import { READ_BOUND_MS } from '@/lib/read-bound';
 import type { ServerRead } from '@/logic/knowledge-context';
 import { KnowledgeView, SEARCH_TITLE } from '@/views/pages/knowledge';
 import { KnowledgeLogView } from '@/views/pages/knowledge-log';
 import { KnowledgeNodeView } from '@/views/pages/knowledge-node';
+import { liveHint } from './browser.ts';
+import { MEMBER } from '../scripts/fake-gateway/people.ts';
 
-const ME = {
-  email: 'a@b.example.com', name: 'A', role: 'member', mayRead: true, superadmin: false,
-  via: 'session', teams: [{ slug: 'atlas', role: 'admin' }], activeTeam: 'atlas',
-};
 
 const week = (from: string, to: string, complete: boolean, found: number, of: number): PeriodFigure => ({
   window: { from, to, observedFrom: from, observedThrough: complete ? to : null, complete },
@@ -97,7 +96,7 @@ beforeEach(() => {
   global.fetch = (async (input: RequestInfo | URL) => {
     const url = String(input);
     asked.push(url);
-    const body = url.includes('/me') ? ME : url.includes('/search?') ? ANSWER : LIST;
+    const body = url.includes('/me') ? MEMBER : url.includes('/search?') ? ANSWER : LIST;
     return { ok: true, status: 200, json: async () => body } as unknown as Response;
   }) as typeof fetch;
 });
@@ -154,7 +153,7 @@ describe('the Knowledge page leads with the search', () => {
     global.fetch = (async (input: RequestInfo | URL) => {
       const url = String(input);
       asked.push(url);
-      return { ok: true, status: 200, json: async () => (url.includes('/search?') ? empty : url.includes('/me') ? ME : LIST) } as unknown as Response;
+      return { ok: true, status: 200, json: async () => (url.includes('/search?') ? empty : url.includes('/me') ? MEMBER : LIST) } as unknown as Response;
     }) as typeof fetch;
     mount(<KnowledgeView read={READ} />);
     fireEvent.change(field(), { target: { value: 'zyzzyva' } });
@@ -237,14 +236,13 @@ describe('the rest of the Knowledge page', () => {
     await waitFor(() => expect(text()).toContain(shelfRow.title));
     expect(nav.refreshed).toBe(0);
     // What `ConsoleLive` does with a hint: every console read of the collection is read again.
-    const knowledge = (key: readonly unknown[]) => key[0] === 'console' && String(key[1]).split('?')[0].split('/')[1] === 'knowledge';
-    await act(async () => { await client.invalidateQueries({ predicate: (q) => knowledge(q.queryKey) }); });
+    await liveHint(client, 'knowledge');
     expect(nav.refreshed).toBe(1);
   });
 
   it('says a read slower than its bound did not answer in time', () => {
     mount(<KnowledgeView read={{ state: 'slow' }} />);
-    expect(text()).toContain('It did not answer within 4.5 seconds.');
+    expect(text()).toContain(`It did not answer within ${READ_BOUND_MS / 1000} seconds.`);
   });
 });
 

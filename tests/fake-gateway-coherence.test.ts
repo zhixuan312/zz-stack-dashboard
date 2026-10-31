@@ -1,6 +1,6 @@
 // @vitest-environment node
 import type { ChildProcess } from 'node:child_process';
-import { startFakeGateway } from './fake-gateway-start.ts';
+import { asking, ok, startFakeGateway, type Json } from './fake-gateway-start.ts';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { KnowledgeBody, PluginEvalFound, PluginRow, Skill, SkillDetail } from '../src/lib/api-shapes.ts';
 import type { KnowledgeList, KnowledgeSummary, Runs } from '../src/lib/destination-shapes.ts';
@@ -20,7 +20,6 @@ import { localDay } from '../scripts/fake-gateway/clock.ts';
  * leave the superseded out, while Home's and Record's lessons are those made outside an import, so this holds Home to
  * Record and Knowledge to what its own shelf says of the made ones.
  */
-type Json = Record<string, any>;
 
 const personas = config.personas!;
 const BOTH = [['the superadmin', personas.superadmin.cookie.value], ['the member', personas.member.cookie.value]] as const;
@@ -37,12 +36,8 @@ beforeAll(async () => {
 });
 afterAll(() => { server?.kill(); });
 
-const read = async <T = Json>(who: string, path: string): Promise<T> => {
-  const res = await fetch(`${base}/api/console/${path}`, { headers: { cookie: `zz_console=${who}` } });
-  expect(res.status, `${who} GET ${path}`).toBe(200);
-  return res.json() as Promise<T>;
-};
-const ok = <T>(part: { state: string; data?: T }): T => { expect(part.state).toBe('ok'); return part.data as T; };
+const { read } = asking(() => base);
+
 const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
 const median = (xs: number[]) => {
   const s = [...xs].sort((a, b) => a - b);

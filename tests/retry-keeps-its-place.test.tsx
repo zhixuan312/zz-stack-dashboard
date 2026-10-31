@@ -29,6 +29,7 @@ vi.mock('@/data/access', async (importOriginal) => ({
   chromeAccess: async () => ({ only: ['/'], user: { name: 'Ava', role: 'Superadmin' }, team: 'atlas', caller: 'ava@example.com' }),
 }));
 
+import { READ_BOUND_MS } from '@/lib/read-bound';
 import { AccessView } from '@/views/pages/access';
 import { ActivityView } from '@/views/pages/activity';
 import { ApprovalsView } from '@/views/pages/approvals';
@@ -72,8 +73,8 @@ import { readRecord } from '../app/(dash)/record/read-record';
 import { readRuns } from '../app/(dash)/runs/read-runs';
 
 const GATEWAY = 'http://gateway.test';
-/** Every bound a server read is given is 4.5 s; past it the read is `slow`. */
-const PAST_THE_BOUND = 4_600;
+/** Just past the one bound every server read is given; past it the read is `slow`. */
+const PAST_THE_BOUND = READ_BOUND_MS + 100;
 
 type Trouble = 'missing' | 'failed' | 'slow';
 

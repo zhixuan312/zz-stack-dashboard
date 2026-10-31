@@ -1,19 +1,18 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { Tooltip } from 'radix-ui';
-import { cloneElement, isValidElement, Suspense, type ReactNode } from 'react';
+import { Suspense, type ReactNode } from 'react';
 import { hydrateRoot } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-/** The router as the address writer sees it: a replace lands in the address and tells its readers, as a navigation does. */
-const nav = vi.hoisted(() => ({ subs: new Set<() => void>() }));
+/** The router as the address writer sees it: a replace lands in the address, as a navigation does. */
 vi.mock('next/navigation', () => ({
   usePathname: () => window.location.pathname,
   useSearchParams: () => new URLSearchParams(window.location.search),
   useRouter: () => ({
     push() {}, refresh() {}, back() {}, forward() {}, prefetch() {},
-    replace(url: string) { window.history.replaceState(null, '', url); nav.subs.forEach((f) => f()); },
+    replace(url: string) { window.history.replaceState(null, '', url); },
   }),
   redirect: (to: string) => { throw new Error(`NEXT_REDIRECT ${to}`); },
 }));
@@ -45,6 +44,7 @@ import ApprovalsPage, { generateMetadata } from '../app/(dash)/approvals/page';
 import { readApprovals } from '../app/(dash)/approvals/read-approvals';
 import { ME, MEMBER } from '../scripts/fake-gateway/people.ts';
 import { approvals } from '../scripts/fake-gateway/work-approvals.ts';
+import { settled } from './server-tree.tsx';
 
 /**
  * Approvals as the person reads it (Task I-107, AC-5.7, AC-5.9), drawn from the fake gateway's own answers, the ones
@@ -89,17 +89,6 @@ const table = (name: string) => screen.getByRole('table', { name });
 const rows = (name: string) => [...table(name).querySelectorAll('tbody tr')];
 const headers = (name: string) => [...table(name).querySelectorAll('thead th')].map((h) => h.textContent?.trim());
 const tile = (label: string) => screen.getAllByText(label).map((n) => n.closest('.card') ?? n.parentElement!)[0] as HTMLElement;
-
-/** A server page's tree as Next hands it over: every async component awaited where it stands, in children and props. */
-async function settled(node: ReactNode): Promise<ReactNode> {
-  if (Array.isArray(node)) return Promise.all(node.map(settled));
-  if (!isValidElement(node)) return node;
-  const { type, props } = node as { type: unknown; props: Record<string, unknown> };
-  if (typeof type === 'function' && type.constructor.name === 'AsyncFunction') return settled(await (type as (p: unknown) => Promise<ReactNode>)(props));
-  const next: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(props)) next[k] = isValidElement(v) || Array.isArray(v) ? await settled(v as ReactNode) : v;
-  return cloneElement(node, next);
-}
 
 beforeEach(() => { gateway.get.mockReset(); access.denied = null; window.history.replaceState(null, '', '/approvals'); });
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });

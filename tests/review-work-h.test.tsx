@@ -1,7 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
-import { Tooltip } from 'radix-ui';
-import type { ReactElement } from 'react';
+import { screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('next/navigation', () => ({
@@ -29,13 +26,13 @@ import type { Catalog, PluginsRead } from '@/logic/plugins-context';
 import { RUNS_DEFAULTS, runsContext, runsPath, skillPagesOf } from '@/logic/runs-context';
 import { skillContext, type SkillRead } from '@/logic/skill-context';
 import { ME, MEMBER } from '../scripts/fake-gateway/people.ts';
-import { teamMembers } from '../scripts/fake-gateway/platform-people.ts';
 import { evaluation } from '../scripts/fake-gateway/platform-evaluation.ts';
 import { pluginEval, skillText } from '../scripts/fake-gateway/platform.ts';
-import { activityLog, activitySummary } from '../scripts/fake-gateway/work-activity.ts';
+import { activitySummary } from '../scripts/fake-gateway/work-activity.ts';
 import { access as accessOf } from '../scripts/fake-gateway/work-access.ts';
 import { plugins, skillDetail, skills } from '../scripts/fake-gateway/work-plugins.ts';
 import { runs } from '../scripts/fake-gateway/work-runs.ts';
+import { mount, stubWorkReads } from './work-fixture.tsx';
 
 /**
  * Phase 7, I-165: the second re-review's findings on Activity, Runs, a plugin, a skill and Access (M-2, M-3, M-4 with
@@ -55,23 +52,9 @@ const detailOf = () => skillDetail(ME, 'sdlc-spec')[1] as SkillDetail;
 
 beforeEach(() => {
   window.history.replaceState(null, '', '/');
-  vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
-    const url = new URL(String(input), 'http://console.test');
-    const p = url.pathname.replace('/api/console', '');
-    const body = p === '/me' ? ME
-      : p === '/activity/summary' ? activitySummary(ME)[1]
-        : p === '/activity' ? activityLog(ME, url.searchParams)[1]
-          : p === '/settings/team/members' ? teamMembers(url.searchParams.get('team') ?? '')
-            : p === '/access' ? accessOf(ME)[1] : null;
-    return body === null ? new Promise(() => {}) : Promise.resolve({ ok: true, status: 200, json: async () => body } as unknown as Response);
-  }));
+  stubWorkReads();
 });
 afterEach(() => vi.unstubAllGlobals());
-
-function mount(ui: ReactElement) {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={client}><Tooltip.Provider>{ui}</Tooltip.Provider></QueryClientProvider>);
-}
 
 describe('M-2: a plugin\'s context gives the page\'s scores and rates in the page\'s scale', () => {
   /** As the page hands it: with the sentence naming the earlier scores it compares with, the longest public score. */

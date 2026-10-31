@@ -1,6 +1,6 @@
 // @vitest-environment node
 import type { ChildProcess } from 'node:child_process';
-import { startFakeGateway } from './fake-gateway-start.ts';
+import { asking, FIGURE, keys, META, ok, PERIOD, startFakeGateway, unobserved, WINDOW, type Json } from './fake-gateway-start.ts';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import config from '../scripts/verify.config.ts';
 
@@ -14,7 +14,6 @@ import config from '../scripts/verify.config.ts';
  * member's Usage and Knowledge health are the superadmin's less what only the superadmin is given, so each is compared
  * with the superadmin's rather than with values written twice.
  */
-type Json = Record<string, any>;
 
 const personas = config.personas!;
 const SUPERADMIN = personas.superadmin.cookie.value;
@@ -30,30 +29,16 @@ beforeAll(async () => {
 });
 afterAll(() => { server?.kill(); });
 
-/** One request as the person a cookie value names; `null` sends no cookie, which is the superadmin. */
-const ask = (who: string | null, path: string) => fetch(`${base}/api/console/${path}`, { headers: who === null ? {} : { cookie: `zz_console=${who}` } });
-const read = async (who: string | null, path: string): Promise<Json> => {
-  const res = await ask(who, path);
-  expect(res.status, `${who ?? 'no cookie'} GET ${path}`).toBe(200);
-  return res.json();
-};
-const keys = (o: object) => Object.keys(o).sort();
+const { ask, read } = asking(() => base);
+
 const sorted = (...k: string[]) => k.sort();
 
-const META = ['asOf', 'builtAt', 'cacheHit', 'coverageFrom', 'observedAt', 'period', 'population', 'revision', 'scope', 'sourceRevision', 'timezone'];
-const FIGURE = ['value', 'why'];
-const WINDOW = ['complete', 'from', 'observedFrom', 'observedThrough', 'to'];
-const PERIOD = ['denominator', 'figure', 'numerator', 'window'];
 const TODAY_TEAM = ['created', 'name', 'slug', 'status'];
 const TEAM_ROW = sorted(...TODAY_TEAM, 'calls', 'lastActive', 'lessons', 'openWork', 'people', 'sessions', 'waiting');
 const PERSON_ROW = sorted('created', 'email', 'lastSignIn', 'name', 'passkeys', 'role', 'state', 'teams');
 const AUDIT_ROW = ['actor', 'at', 'id', 'inConsole', 'kind', 'ok', 'origin', 'refusalOwner', 'sentence', 'subject', 'team'];
 
 const isPeriod = (p: Json) => { expect(keys(p)).toEqual(PERIOD); expect(keys(p.window)).toEqual(WINDOW); expect(keys(p.figure)).toEqual(FIGURE); };
-const ok = (part: Json) => { expect(part.state).toBe('ok'); return part.data; };
-/** An answer with the one field levelled that is each request's own: two reads of a route differ in `observedAt` when
- *  they differ nowhere else, since every request is served at its own instant. */
-const unobserved = (v: Json): Json => ({ ...v, meta: { ...v.meta, observedAt: null } });
 
 describe('GET /api/console/teams, the superadmin\'s', () => {
   it('answers the tiles and every team in the declared shape, today\'s fields kept', async () => {
@@ -369,10 +354,8 @@ describe('GET /api/console/platform/audit, the superadmin\'s', () => {
     }
   });
 
-  it('answers a path below a Fleet read 404, and a page past its bounds 400', async () => {
-    for (const path of ['platform/usage/extra', 'platform/knowledge/extra', 'platform/audit/extra']) {
-      for (const who of [null, MEMBER]) expect((await ask(who, path)).status, `GET ${path}`).toBe(404);
-    }
+  // A path below a Fleet read is in fake-gateway-platform.test.ts's one 404 sweep.
+  it('answers a page past its bounds 400', async () => {
     for (const bad of ['platform/audit?limit=0', 'platform/audit?offset=-1']) expect((await ask(SUPERADMIN, bad)).status, bad).toBe(400);
   });
 

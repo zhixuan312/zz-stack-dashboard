@@ -4,6 +4,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import ConsoleError from '../app/error';
+import { blankedText } from '../scripts/lib/layer-rules.ts';
 
 /**
  * What a route's loading state owes its page, and what the boundary above the shell does when a screen throws.
@@ -18,9 +19,6 @@ import ConsoleError from '../app/error';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const read = (file: string) => fs.readFileSync(path.join(ROOT, file), 'utf8');
-/** Code only: a comment naming what a page draws is not what it draws. */
-const code = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1 ');
-
 type Route = { route: string; loading: string; view: string };
 
 /** Every route's own loading state, with the view its page renders. The group's fallback has no page beside it, is
@@ -88,22 +86,22 @@ describe('a route, while the page it stands in for is on its way', () => {
   });
 
   it.each(GATED)('%s draws the shell\'s own body and nothing of its page', (route) => {
-    const loading = code(read(`app/(dash)/${route}/loading.tsx`));
-    expect(code(read('app/(dash)/loading.tsx'))).toContain(SHELL_BODY);
+    const loading = blankedText(read(`app/(dash)/${route}/loading.tsx`));
+    expect(blankedText(read('app/(dash)/loading.tsx'))).toContain(SHELL_BODY);
     expect(loading).toContain(SHELL_BODY);
     expect(loading.match(/<(?:TableSkeleton|RecordsSkeleton|TilesSkeleton|Skeleton)\b/g)).toEqual(['<TableSkeleton']);
   });
 
   it.each(SHAPED)('$route draws no more tables than its page draws', ({ loading, view }) => {
-    expect(skeletonTables(code(read(loading)))).toBeLessThanOrEqual(viewTables(code(read(view))));
+    expect(skeletonTables(blankedText(read(loading)))).toBeLessThanOrEqual(viewTables(blankedText(read(view))));
   });
 
-  it.each(SHAPED.filter((r) => /split="tiles"/.test(code(read(r.view)))))('$route draws the tiles its page draws', ({ loading }) => {
-    expect(drawsTiles(code(read(loading)))).toBe(true);
+  it.each(SHAPED.filter((r) => /split="tiles"/.test(blankedText(read(r.view)))))('$route draws the tiles its page draws', ({ loading }) => {
+    expect(drawsTiles(blankedText(read(loading)))).toBe(true);
   });
 
-  it.each(SHAPED.filter((r) => skeletonTables(code(read(r.loading))) > 0))('$route draws the filter bar exactly when its page draws one', ({ loading, view }) => {
-    expect(hidesFilters(code(read(loading)))).toBe(!drawsFilterBar(code(read(view))));
+  it.each(SHAPED.filter((r) => skeletonTables(blankedText(read(r.loading))) > 0))('$route draws the filter bar exactly when its page draws one', ({ loading, view }) => {
+    expect(hidesFilters(blankedText(read(loading)))).toBe(!drawsFilterBar(blankedText(read(view))));
   });
 
   /**
@@ -115,16 +113,16 @@ describe('a route, while the page it stands in for is on its way', () => {
    * its cost view reserves an `h-72` region — 96px short — and a Web Vitals run on a quiet machine, the first
    * citable one, read the result as CLS 0.106 against a bar of 0.1, largest mover `span.shimmer.block`.
    */
-  it.each(SHAPED.filter((r) => declaredSkeletons(code(read(r.view))).length > 0))(
+  it.each(SHAPED.filter((r) => declaredSkeletons(blankedText(read(r.view))).length > 0))(
     '$route reserves at least the room its page reserves', ({ loading, view }) => {
-      const owed = Math.max(...declaredSkeletons(code(read(view))));
-      expect(tallestBlock(code(read(loading)))).toBeGreaterThanOrEqual(owed);
+      const owed = Math.max(...declaredSkeletons(blankedText(read(view))));
+      expect(tallestBlock(blankedText(read(loading)))).toBeGreaterThanOrEqual(owed);
     });
 });
 
 describe('the Access frame, whose page is a stack of sections', () => {
-  const view = code(read('src/views/pages/access.tsx'));
-  const loading = code(read('app/(dash)/access/loading.tsx'));
+  const view = blankedText(read('src/views/pages/access.tsx'));
+  const loading = blankedText(read('app/(dash)/access/loading.tsx'));
   /** The page's own sections: the self-closing components it stacks, one per line, inside its section wrapper. */
   const stack = /<div className="([^"]*flex flex-col gap-\d+[^"]*)">([\s\S]*?)<\/div>/.exec(view);
 

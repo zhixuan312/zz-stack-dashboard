@@ -4,9 +4,9 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push() {}, refresh() {}, replace() {} }), usePathname: () => '/' }));
 import { DataTable, type Column } from '@/components/patterns/data-table';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { classes } from './table-query.ts';
 
 const WRAP = ['grid', 'min-w-0', 'grid-cols-[minmax(0,max-content)]'];
-const classes = (el: Element) => el.getAttribute('class')?.split(/\s+/) ?? [];
 const wrapOf = (td: Element) => [...td.children].find((c) => WRAP.every((k) => classes(c).includes(k)));
 
 /** A cut cell asks for its whole content and shrinks only when the table has no room; it never zeroes its width. */

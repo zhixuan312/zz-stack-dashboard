@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { Tooltip } from 'radix-ui';
 import type { ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -39,18 +39,19 @@ import { record } from '../scripts/fake-gateway/work-record.ts';
  * and marks that decide what a still shows are read. The screenshots of the build show the rest.
  */
 const AT = '2026-10-17T09:00:00Z';
-const DAY = 86_400_000;
 const PEOPLE: [string, Me][] = [['the superadmin', ME], ['the member', MEMBER]];
 const mount = (ui: ReactElement) =>
   render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><Tooltip.Provider>{ui}</Tooltip.Provider></QueryClientProvider>);
 
 /**
- * The fake's Home and Record as `who` is answered them on a run started `days` from now. The fixture's weeks move with
+ * The fake's Home and Record as `who` is answered them on a run started at `moment`. The fixture's weeks move with
  * the day it is run, so the dates a context names are seven characters one month and five the next; a context held to
- * its budget on one day only is not held to it.
+ * its budget on one day only is not held to it. The moments are fixed, as sweep-calendar's are, so a run on any day
+ * reads the same weeks: an early September whose eight weeks reach back into July, a September full of seven-character
+ * `Sept` dates, two month turns, a Monday in Singapore that is still Sunday in UTC, and a year's end.
  */
-async function fakesOn(days: number) {
-  vi.useFakeTimers({ now: Date.now() + days * DAY, toFake: ['Date'] });
+async function fakesOn(moment: string) {
+  vi.useFakeTimers({ now: new Date(moment), toFake: ['Date'] });
   vi.resetModules();
   const [h, r] = await Promise.all([import('../scripts/fake-gateway/work-home.ts'), import('../scripts/fake-gateway/work-record.ts')]);
   vi.useRealTimers();
@@ -59,7 +60,7 @@ async function fakesOn(days: number) {
     record: (who: Me) => r.record(who, new URLSearchParams('period=all'))[1] as RecordRead,
   };
 }
-const RUN_DAYS = [0, 5, 11, 16, 23, 30];
+const MOMENTS = ['2026-09-03T04:00:00Z', '2026-09-28T04:00:00Z', '2026-10-01T04:00:00Z', '2026-10-18T19:00:00Z', '2026-11-02T04:00:00Z', '2026-12-31T23:00:00Z'];
 
 /** A series as a context says it: each week by its Monday with its figure, or `none` for a week with no value. */
 const said = (p: PeriodFigure) => `${formatDay(p.window.from)} ${p.figure.value === null ? 'none' : formatCount(p.figure.value)}`;
@@ -74,15 +75,15 @@ beforeEach(() => {
     return Promise.resolve({ ok: true, status: 200, json: async () => body } as unknown as Response);
   }));
 });
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+afterEach(() => { vi.unstubAllGlobals(); });
 
 describe('M-9: Home\'s context carries the two series the page leads with, and all of the rest, alike for both people', () => {
-  it.each(RUN_DAYS)('fits its budget whole on a run %i days on, for both people', async (days) => {
-    const { home } = await fakesOn(days);
+  it.each(MOMENTS)('fits its budget whole on a run at %s, for both people', async (moment) => {
+    const { home } = await fakesOn(moment);
     const told = PEOPLE.map(([, who]) => {
       const h: Home = answered(home(who));
       const t = contextText(homeContext({ state: 'ok', home: h, team: 'atlas' }));
-      expect(t.length, `${who.email}, day ${days}`).toBeLessThanOrEqual(CONTEXT_BUDGET);
+      expect(t.length, `${who.email}, ${moment}`).toBeLessThanOrEqual(CONTEXT_BUDGET);
       expect(t, who.email).not.toContain('More is on the page');
       const weeks = (part: Home['words'] | Home['approvals']) => (part.state === 'ok' ? part.data.weeks : []);
       const words = line(t, '- Words added:');
@@ -107,12 +108,12 @@ describe('M-9: Home\'s context carries the two series the page leads with, and a
 });
 
 describe('M-9: Record\'s context carries the lead\'s series, and the superadmin\'s keeps every line the member\'s does', () => {
-  it.each(RUN_DAYS)('fits its budget whole on a run %i days on, for both people', async (days) => {
-    const { record: read } = await fakesOn(days);
+  it.each(MOMENTS)('fits its budget whole on a run at %s, for both people', async (moment) => {
+    const { record: read } = await fakesOn(moment);
     const told = PEOPLE.map(([, who]) => {
       const r = read(who);
       const t = contextText(recordContext(r, { filters: RECORD_DEFAULTS }));
-      expect(t.length, `${who.email}, day ${days}`).toBeLessThanOrEqual(CONTEXT_BUDGET);
+      expect(t.length, `${who.email}, ${moment}`).toBeLessThanOrEqual(CONTEXT_BUDGET);
       expect(t, who.email).not.toContain('More is on the page');
       const lead = line(t, '- Words added, a running total, by week:');
       for (const p of r.cumulative.slice(-8)) expect(lead, `${who.email}: ${said(p)}`).toContain(said(p));
@@ -146,19 +147,27 @@ describe('M-15: a tie names every week it ties with, the one its record is count
     expect(f.tie).toBe(true);
   });
 
-  it('says the fake\'s own findings by the rule, for both people', () => {
-    for (const [, who] of PEOPLE) {
-      const h = homeOf('atlas', who.email);
-      if (h.approvals.state !== 'ok') throw new Error('the fixture reads the approvals');
-      const whole = h.approvals.data.weeks.filter((w) => w.window.complete);
-      const last = whole.at(-1)!;
-      const first = whole.find((w) => w.figure.value !== null);
-      const tied = whole.filter((w) => w !== last && w.figure.value !== null && w.figure.value === last.figure.value)
-        .map((w) => (w === first ? 'that first week' : formatDay(w.window.from)));
-      const text = h.approvals.data.finding?.text ?? '';
-      if (!/^(Most|Fewest) recorded/.test(text) || !tied.length) continue;
-      expect(text, who.email).toMatch(new RegExp(`, tied with ${tied.length > 1 ? `${tied.slice(0, -1).join(', ')} and ` : ''}${tied.at(-1)}$`));
+  // A day whose weeks hold no tie checks nothing, so the fake is read at every moment above and at least one of its
+  // findings must be a tie: otherwise the case would pass on the calendar alone.
+  it('says the fake\'s own findings by the rule, for both people', async () => {
+    let tiesRead = 0;
+    for (const moment of MOMENTS) {
+      const { home } = await fakesOn(moment);
+      for (const [, who] of PEOPLE) {
+        const h = home(who);
+        if (h.approvals.state !== 'ok') throw new Error('the fixture reads the approvals');
+        const whole = h.approvals.data.weeks.filter((w) => w.window.complete);
+        const last = whole.at(-1)!;
+        const first = whole.find((w) => w.figure.value !== null);
+        const tied = whole.filter((w) => w !== last && w.figure.value !== null && w.figure.value === last.figure.value)
+          .map((w) => (w === first ? 'that first week' : formatDay(w.window.from)));
+        const text = h.approvals.data.finding?.text ?? '';
+        if (!/^(Most|Fewest) recorded/.test(text) || !tied.length) continue;
+        tiesRead += 1;
+        expect(text, `${who.email}, ${moment}`).toMatch(new RegExp(`, tied with ${tied.length > 1 ? `${tied.slice(0, -1).join(', ')} and ` : ''}${tied.at(-1)}$`));
+      }
     }
+    expect(tiesRead).toBeGreaterThan(0);
   });
 });
 

@@ -31,9 +31,11 @@ import { chromeAccess } from '@/data/access';
 import type { ChromeAccess } from '@/lib/collection';
 import { WorkspacePalette, WorkspaceRail } from '@/views/workspace-chrome';
 import DashError from '../app/(dash)/error';
+import { blankedText } from '../scripts/lib/layer-rules.ts';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
-const source = (file: string) => fs.readFileSync(path.join(ROOT, file), 'utf8').replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, '');
+/** A source file with its comments blanked, so a check reads only code. */
+const source = (file: string) => blankedText(fs.readFileSync(path.join(ROOT, file), 'utf8'));
 
 type Body = Record<string, unknown>;
 const SUPERADMIN: Body = { email: 'owner@example.com', name: 'Owner', role: 'superadmin', mayRead: true, superadmin: true, via: 'session', teams: [{ slug: 'atlas', role: 'admin' }], activeTeam: 'atlas' };

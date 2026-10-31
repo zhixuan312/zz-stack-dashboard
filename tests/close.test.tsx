@@ -2,11 +2,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { Tooltip } from 'radix-ui';
 import type { ReactElement } from 'react';
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CloseInitiative } from '@/console/close';
-import type { Me } from '@/lib/api-shapes';
 import { InitiativeClose } from '@/views/pages/initiative';
 import { close, initiativeDetail } from '../scripts/fake-gateway/work-initiatives.ts';
+import { ME } from '../scripts/fake-gateway/people.ts';
 
 /**
  * Close, on an initiative's page (Task I-106, AC-5.6): the three choices a person makes each submit the `CloseInput`
@@ -14,20 +14,10 @@ import { close, initiativeDetail } from '../scripts/fake-gateway/work-initiative
  * keeps what the person typed; a close somebody made first is said to be so. The gateway is the fake's own `close()`,
  * which answers as the platform decides a close, unless a case needs an answer it would not give.
  */
-const ME: Me = {
-  email: 'ava.lindqvist@example.com', name: 'Ava Lindqvist', role: 'superadmin', mayRead: true, superadmin: true,
-  via: 'session', teams: [{ slug: 'atlas', role: 'admin' }], activeTeam: 'atlas',
-};
 const READY = '2026-10-08-result-explanations';
 const FREEFORM = '2026-09-05-research-notes';
 const CLOSED = '2026-09-12-onboarding-revamp';
 
-beforeAll(() => {
-  // Radix's Select scrolls its chosen option into view and asks for pointer capture, neither of which jsdom has.
-  Element.prototype.scrollIntoView ??= () => {};
-  Element.prototype.hasPointerCapture ??= () => false;
-  Element.prototype.releasePointerCapture ??= () => {};
-});
 afterEach(() => { vi.unstubAllGlobals(); });
 
 type Sent = { path: string; body: Record<string, unknown> };

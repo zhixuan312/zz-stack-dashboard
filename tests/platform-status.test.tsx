@@ -13,7 +13,7 @@ const gateway = vi.hoisted(() => ({ get: vi.fn() }));
 vi.mock('@/data/gateway', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/data/gateway')>()), gatewayGet: gateway.get }));
 vi.mock('@/data/access', async (load) => ({ ...(await load<typeof import('@/data/access')>()), requireNeed: async () => {} }));
 
-import { nav, refusal, workspaces } from '@/app.config';
+import { nav, workspaces } from '@/app.config';
 import { SurfaceOverride } from '@/components/base/surface';
 import { FEATURES } from '@/data/features';
 import { MAIN_ROLES, effective, whoCan } from '@/data/roles';
@@ -286,9 +286,9 @@ describe('what is running, and the reader\'s own team', () => {
 });
 
 describe('the page\'s states', () => {
-  it('loading: the page\'s shape, announced once as busy, naming the page only where the refusal lets it', () => {
+  it('loading: the page\'s shape, announced once as busy, naming no page under the absent refusal', () => {
     render(<Wrap><PlatformStatusLoading /></Wrap>);
-    expect(screen.getByRole('status', { name: refusal === 'absent' ? 'Loading page' : 'Loading status' })).toHaveAttribute('aria-busy', 'true');
+    expect(screen.getByRole('status', { name: 'Loading page' })).toHaveAttribute('aria-busy', 'true');
   });
 
   it('empty: a fresh platform draws every part with nothing in it, and no zero for a week that held nothing', () => {
@@ -330,7 +330,7 @@ describe('the page\'s states', () => {
 
   it('says the slow read was bounded, never an endless wait', () => {
     draw({ state: 'slow' });
-    expect(screen.getByRole('alert')).toHaveTextContent('It did not answer within 4.5 seconds');
+    expect(screen.getByRole('alert')).toHaveTextContent(`It did not answer within ${READ_BOUND_MS / 1000} seconds`);
   });
 
   it('dates the masthead with the read\'s own cutoff, and nothing when there is no read', () => {

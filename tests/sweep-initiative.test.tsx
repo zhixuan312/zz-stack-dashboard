@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { Tooltip } from 'radix-ui';
 import type { ReactElement } from 'react';
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('next/navigation', () => ({
   usePathname: () => window.location.pathname,
@@ -15,6 +15,7 @@ import { initiativeContext, type InitiativeRead } from '@/logic/initiative-conte
 import { InitiativeClose, InitiativeView } from '@/views/pages/initiative';
 import { close, initiativeDetail } from '../scripts/fake-gateway/work-initiatives.ts';
 import { INITIATIVES } from '../scripts/fake-gateway/work.ts';
+import { ME } from '../scripts/fake-gateway/people.ts';
 
 /**
  * An initiative with nothing written in it (review round 1, R1-C5, AC-5.8): it is listed, so its page opens, drawing
@@ -58,10 +59,8 @@ async function draw(detail: InitiativeDetail) {
   });
 }
 
-const meOf = (team: string): Me => ({
-  email: 'ava.lindqvist@example.com', name: 'Ava Lindqvist', role: 'superadmin', mayRead: true, superadmin: true,
-  via: 'session', teams: [{ slug: team, role: 'admin' }], activeTeam: team,
-});
+/** The fake's superadmin acting for `team`, its admin, whichever team the initiative is in. */
+const meOf = (team: string): Me => ({ ...ME, teams: [{ slug: team, role: 'admin' }], activeTeam: team });
 
 describe('an initiative with nothing written in it', () => {
   const cases: [string, InitiativeDetail][] = [
@@ -111,12 +110,6 @@ describe('an initiative with nothing written in it', () => {
  * drawn here, and neither draws a stepper, and a finished close of either names the document it lands on.
  */
 describe('an initiative with no flow', () => {
-  beforeAll(() => {
-    // Radix's Select scrolls its chosen option into view and asks for pointer capture, neither of which jsdom has.
-    Element.prototype.scrollIntoView ??= () => {};
-    Element.prototype.hasPointerCapture ??= () => false;
-    Element.prototype.releasePointerCapture ??= () => {};
-  });
   const freeform = initiativeDetail('atlas', FREEFORM)!;
   // The fallback's answer for no flow, as I-170 read it from the real route: its seven stages between the bookends,
   // its four gates with no `written`, at the first stage of seven.

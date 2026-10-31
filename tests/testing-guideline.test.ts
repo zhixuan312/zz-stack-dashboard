@@ -17,8 +17,8 @@ import config from '../scripts/verify.config.ts';
  * to the other fails here until the README names it in its new tier.
  */
 const ROOT = path.resolve(import.meta.dirname, '..');
-/** A file's text; a workflow that does not exist yet reads as empty. */
-const read = (file: string) => (fs.existsSync(path.join(ROOT, file)) ? fs.readFileSync(path.join(ROOT, file), 'utf8') : '');
+/** A file's text. Every file named here exists, so a missing one fails the case that reads it rather than reading as empty. */
+const read = (file: string) => fs.readFileSync(path.join(ROOT, file), 'utf8');
 const DOCUMENTS = ['README.md', 'CONTRIBUTING.md', 'docs/brief.md'];
 const GATE = '.github/workflows/gate.yml';
 const WEEKLY = '.github/workflows/weekly.yml';

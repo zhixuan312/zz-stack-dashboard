@@ -21,7 +21,6 @@ import { FLEET_FIELDS } from '@/data/prepared';
 import { MAIN_ROLES, effective } from '@/data/roles';
 import { exploreSchema, type ExploreRights } from '@/lib/explore';
 import type { Usage } from '@/lib/fleet-shapes';
-import type { Part } from '@/lib/platform-shapes';
 import { formatDateTime, formatDay } from '@/lib/format-date';
 import { contextText } from '@/lib/shared-context';
 import { CONTEXT_BUDGET } from '@/logic/context';
@@ -33,6 +32,7 @@ import { usage } from '../scripts/fake-gateway/platform-usage.ts';
 import { answered } from '../scripts/fake-gateway/envelope.ts';
 import { readUsage } from '../app/(dash)/platform/usage/read-usage';
 import UsageLoading from '../app/(dash)/platform/usage/loading';
+import { data } from './part.ts';
 
 /**
  * Usage under Platform (Task I-101): the page drawn from the fake gateway's own answer as the superadmin and as a member,
@@ -43,11 +43,6 @@ import UsageLoading from '../app/(dash)/platform/usage/loading';
 const ADMIN: Usage = answered(usage(true));
 const MEMBER: Usage = answered(usage(false));
 const ok = (u: Usage): UsageRead => ({ state: 'ok', usage: u });
-/** A part the fixture answers, which is every one of them. */
-function data<T>(p: Part<T>): T {
-  if (p.state !== 'ok') throw new Error(p.reason);
-  return p.data;
-}
 const WEEKS = data(ADMIN.callsByWeek).weeks;
 const TEAMS = WEEKS.find((w) => w.parts)!.parts!.map((p) => p.label).filter((l) => l !== 'Other');
 

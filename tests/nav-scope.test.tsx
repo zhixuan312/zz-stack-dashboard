@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { nav } from '@/app.config';
-import fs from 'node:fs';
-import path from 'node:path';
 import { FEATURES } from '@/data/features';
 import { visible } from '@/views/console-chrome';
 import { navOf } from '@/views/workspaces';
@@ -131,11 +129,6 @@ describe('the rail each person is drawn', () => {
   it('never adds a destination the server did not answer', () => {
     expect(hrefs(['/', '/access'])).toEqual(['/', '/access']);
     expect(hrefs([])).toEqual([]);
-  });
-
-  it('is narrowed by nothing in the browser: there is no console scope (reconciliation 76)', () => {
-    // The browser's narrowing lived in `src/nav.ts`; with the scope gone the rail is the server's answer as it stands.
-    expect(fs.existsSync(path.resolve(import.meta.dirname, '../src/nav.ts'))).toBe(false);
   });
 });
 

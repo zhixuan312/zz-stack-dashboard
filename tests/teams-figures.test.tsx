@@ -3,13 +3,13 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { Tooltip } from 'radix-ui';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { Me } from '@/lib/api-shapes';
 import type { TeamRow, Teams } from '@/lib/fleet-shapes';
 import { formatCount } from '@/lib/format-units';
 import { PlatformTeamsView } from '@/views/pages/platform-teams';
 import type { TeamsRead } from '@/logic/teams-context';
 import { TEAMS_DEFAULTS, teamsPath } from '@/logic/teams-filter';
 import { TEAMS, teams } from '../scripts/fake-gateway/platform-teams.ts';
+import { ME as SUPERADMIN } from '../scripts/fake-gateway/people.ts';
 
 /**
  * The figures Teams draws are the read's, each in its own column for the team the row names: the fake gateway's own
@@ -17,10 +17,6 @@ import { TEAMS, teams } from '../scripts/fake-gateway/platform-teams.ts';
  * so a column mapped onto another's data cannot pass. The first page the address names arrives from the console's
  * server; a filter or a later page is the browser's own read of the gateway's filtered, paged list.
  */
-const SUPERADMIN: Me = {
-  email: 'ava.lindqvist@example.com', name: 'Ava Lindqvist', role: 'superadmin', mayRead: true, superadmin: true,
-  via: 'session', teams: [{ slug: 'atlas', role: 'admin' }], activeTeam: 'atlas',
-};
 
 /** The fake's answer to `GET /teams` for a query string, paged as its server pages it. */
 function list(query: URLSearchParams): Teams {

@@ -6,7 +6,7 @@ import type { Access } from '../src/lib/destination-shapes.ts';
 import type { People } from '../src/lib/fleet-shapes.ts';
 import type { Bugs, PlatformStatus } from '../src/lib/platform-shapes.ts';
 import type { Approvals, InitiativeList, RecordRead } from '../src/lib/work-shapes.ts';
-import { startFakeGateway } from './fake-gateway-start.ts';
+import { asking, startFakeGateway } from './fake-gateway-start.ts';
 
 /**
  * A journey's writes are its own (reconciliation 80): a session value `<person>+journey` keeps the writes that session
@@ -24,19 +24,7 @@ const JOURNEY = 'superadmin+journey';
 const PLAIN = 'superadmin';
 const OTHER = 'member+journey';
 
-const call = async <T,>(value: string, path: string, init: { method?: string; body?: unknown } = {}): Promise<{ status: number; body: T }> => {
-  const res = await fetch(`${gateway.base}/api/console${path}`, {
-    method: init.method ?? 'GET',
-    headers: { cookie: `zz_console=${value}`, ...(init.body === undefined ? {} : { 'content-type': 'application/json' }) },
-    body: init.body === undefined ? undefined : JSON.stringify(init.body),
-  });
-  return { status: res.status, body: (res.status === 204 ? null : await res.json()) as T };
-};
-const read = async <T,>(value: string, path: string) => {
-  const answer = await call<T>(value, path);
-  expect(answer.status, `${value} ${path}`).toBe(200);
-  return answer.body;
-};
+const { call, read } = asking(() => gateway.base);
 /**
  * `call`'s answer with the request-side half of its `meta` levelled: `observedAt` is each request's own, and `revision`
  * moves for every session when a write raises one of the fake's process-wide hints — one count for the whole process,
@@ -72,15 +60,15 @@ describe('a journey session keeps its own writes', () => {
 
     // An approval: shown, then approved under the context it answered.
     const doc = await read<DocumentDetail>(JOURNEY, '/document/atlas/2026-09-28-search-relevance/plan.md');
-    const shown = await call<{ review_context: string }>(JOURNEY, '/documents/shown?team=atlas', { method: 'POST', body: { initiative: doc.initiative, path: 'plan.md', content_revision: doc.content_revision } });
+    const shown = await call<{ review_context: string }>(JOURNEY, '/documents/shown?team=atlas', { initiative: doc.initiative, path: 'plan.md', content_revision: doc.content_revision });
     expect(shown.status).toBe(200);
-    const approved = await call(JOURNEY, '/documents/approve?team=atlas', { method: 'POST', body: { initiative: doc.initiative, path: 'plan.md', expected_revision: doc.content_revision, review_context: shown.body.review_context } });
+    const approved = await call(JOURNEY, '/documents/approve?team=atlas', { initiative: doc.initiative, path: 'plan.md', expected_revision: doc.content_revision, review_context: shown.body.review_context });
     expect(approved.status).toBe(200);
     // A close, a resolution, a person and a token.
-    expect((await call<{ outcome: string }>(JOURNEY, `/initiatives/atlas/${SLUG}/close`, { method: 'POST', body: { disposition: 'finished' } })).body.outcome).toBe('accepted');
-    expect((await call(JOURNEY, `/platform/bugs/${BLOCKING}/resolve`, { method: 'POST', body: { status: 'fixed', resolution: 'Fixed in 0.98.0: the stakeholder is read from the frontmatter.' } })).status).toBe(204);
-    expect((await call(JOURNEY, '/settings/platform/people', { method: 'POST', body: { email: 'journey.person@example.com', display_name: 'Journey Person' } })).status).toBe(200);
-    const token = await call<{ token: string }>(JOURNEY, '/settings/me/tokens', { method: 'POST', body: { label: 'journey laptop' } });
+    expect((await call<{ outcome: string }>(JOURNEY, `/initiatives/atlas/${SLUG}/close`, { disposition: 'finished' })).body.outcome).toBe('accepted');
+    expect((await call(JOURNEY, `/platform/bugs/${BLOCKING}/resolve`, { status: 'fixed', resolution: 'Fixed in 0.98.0: the stakeholder is read from the frontmatter.' })).status).toBe(204);
+    expect((await call(JOURNEY, '/settings/platform/people', { email: 'journey.person@example.com', display_name: 'Journey Person' })).status).toBe(200);
+    const token = await call<{ token: string }>(JOURNEY, '/settings/me/tokens', { label: 'journey laptop' });
     expect(token.status).toBe(200);
 
     // The approval left the queue, the bell's read and Home's strip, and is the newest row of the history.
@@ -104,7 +92,7 @@ describe('a journey session keeps its own writes', () => {
     const recordAfter = await read<RecordRead>(JOURNEY, '/record');
     expect(recordAfter.foot.closed.value).toBe(record.foot.closed.value! + 1);
     expect(recordAfter.foot.approvalsInYourName.value).toBe(record.foot.approvalsInYourName.value! + 1);
-    expect((await call(JOURNEY, `/initiatives/atlas/${SLUG}/close`, { method: 'POST', body: { disposition: 'finished' } })).status).toBe(409);
+    expect((await call(JOURNEY, `/initiatives/atlas/${SLUG}/close`, { disposition: 'finished' })).status).toBe(409);
 
     // The resolution: the queue holds one open report fewer, the report reads fixed, and Status counts one fewer.
     const bugsAfter = await read<Bugs>(JOURNEY, '/platform/bugs');
@@ -117,7 +105,7 @@ describe('a journey session keeps its own writes', () => {
     expect(line(statusAfter)).toBe('3 open reports, 0 blocking work');
     const own = (s: PlatformStatus) => (s.own.state === 'ok' ? s.own.data.bugs : null)!;
     expect(own(statusAfter)).toEqual({ ...own(status), open: own(status).open - 1, fixed: own(status).fixed + 1 });
-    expect((await call(JOURNEY, `/platform/bugs/${BLOCKING}/resolve`, { method: 'POST', body: { status: 'fixed', resolution: 'Again.' } })).status).toBe(409);
+    expect((await call(JOURNEY, `/platform/bugs/${BLOCKING}/resolve`, { status: 'fixed', resolution: 'Again.' })).status).toBe(409);
 
     // The person, on People's list and its count; the token, on Access by its label alone.
     const found = await read<People>(JOURNEY, '/people?q=journey');

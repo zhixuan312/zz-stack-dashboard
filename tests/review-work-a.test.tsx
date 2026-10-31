@@ -1,7 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, render, screen, within } from '@testing-library/react';
-import type { ReactElement } from 'react';
-import { Tooltip } from 'radix-ui';
+import { screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('next/navigation', () => ({
@@ -28,62 +25,27 @@ vi.mock('@/lib/live', async (importOriginal) => ({ ...(await importOriginal<type
  * Work F-15 (outcomes in categorical colours) is not here: the managed Column chart draws a stack's parts in the accent
  * or in status tones and takes no categorical slot, which the task reports rather than works around.
  */
-import type { KnowledgeBody, KnowledgeLogEntry, Me } from '@/lib/api-shapes';
-import type { KnowledgeList, KnowledgeSummary } from '@/lib/destination-shapes';
 import { contextText } from '@/lib/shared-context';
-import type { Home, RecordRead } from '@/lib/work-shapes';
+import type { RecordRead } from '@/lib/work-shapes';
 import { homeContext } from '@/logic/home-context';
 import { knowledgeContext } from '@/logic/knowledge-context';
-import { HomeView } from '@/views/pages/home';
-import { KnowledgeView } from '@/views/pages/knowledge';
 import { KnowledgeLogView } from '@/views/pages/knowledge-log';
 import { KnowledgeNodeView } from '@/views/pages/knowledge-node';
-import { RecordView } from '@/views/pages/record';
-import { recordContext, recordPath, tickOf, tilesOf, RECORD_DEFAULTS } from '@/logic/record-context';
-import { ME } from '../scripts/fake-gateway/people.ts';
-import { homeOf } from '../scripts/fake-gateway/work-home.ts';
-import { answered } from '../scripts/fake-gateway/envelope.ts';
-import { KNOWLEDGE_LOG, SHELF, knowledgeList, knowledgeSummary, lesson, logOf } from '../scripts/fake-gateway/work-knowledge.ts';
-import { record } from '../scripts/fake-gateway/work-record.ts';
+import { recordContext, tickOf, tilesOf, RECORD_DEFAULTS } from '@/logic/record-context';
+import { logOf } from '../scripts/fake-gateway/work-knowledge.ts';
+import { ALL, AT, HOME, LESSON, LOG, SUMMARY, TEAM, drawing, recordFor, rowOf, stubWorkReads, text } from './work-fixture.tsx';
 
-const TEAM = 'atlas';
-const AT = '2026-10-19T12:00:00Z';
-const answer = <T,>(a: [number, unknown]) => { expect(a[0]).toBe(200); return a[1] as T; };
-const periods = (['quarter', 'year', 'all'] as const).map((p) => answer<RecordRead>(record(ME, new URLSearchParams({ period: p, limit: '10', offset: '0' }))));
-const [, , ALL] = periods;
-const HOME: Home = answered(homeOf(TEAM, ME.email));
-const SUMMARY = answer<KnowledgeSummary>(knowledgeSummary(ME));
-const LOG: KnowledgeLogEntry[] = KNOWLEDGE_LOG.filter((e) => e.team === TEAM);
-const node = (num: string) => SHELF.find((n) => n.team === TEAM && n.num === num)!;
-const LESSON = lesson(TEAM, node('0002').path, TEAM) as KnowledgeBody;
+const periods = (['quarter', 'year', 'all'] as const).map(recordFor);
 
 /** What a quarter-width tile shows of a label before it cuts it: about 21 characters at the narrowest four-up row. */
 const TILE_LABEL = 21;
 /** The longest tick the Trend chart sets without one running into the next: it keeps 92px between labels, and ends the last at the plot's edge. */
 const TICK = 9;
 
-beforeEach(() => {
-  global.fetch = (async (input: RequestInfo | URL) => {
-    const url = new URL(String(input), 'http://console.test');
-    const body: unknown = url.pathname.endsWith('/me') ? (ME satisfies Me) : answer<KnowledgeList>(knowledgeList(ME, url.searchParams));
-    return { ok: true, status: 200, json: async () => body } as unknown as Response;
-  }) as typeof fetch;
-});
+beforeEach(() => stubWorkReads());
 afterEach(() => vi.unstubAllGlobals());
 
-function mount(ui: ReactElement) {
-  return render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><Tooltip.Provider>{ui}</Tooltip.Provider></QueryClientProvider>);
-}
-const text = () => document.body.textContent ?? '';
-async function draw(path: string, ui: ReactElement) {
-  window.history.replaceState(null, '', path);
-  await act(async () => { mount(ui); });
-}
-const drawRecord = () => draw('/record', <RecordView served={{ state: 'ok', path: recordPath(RECORD_DEFAULTS), data: ALL, team: TEAM }} />);
-const drawHome = () => draw('/', <HomeView read={{ state: 'ok', home: HOME, team: TEAM }} />);
-const drawKnowledge = () => draw('/knowledge', <KnowledgeView read={{ state: 'ok', data: SUMMARY, at: AT }} />);
-/** The row of cards the card a heading titles stands in, if it stands in one. */
-const rowOf = (title: string) => screen.getByRole('heading', { name: title }).closest('[data-split]') as HTMLElement | null;
+const { draw, drawRecord, drawHome, drawKnowledge } = drawing();
 
 describe('Record (Work F-13): labels whole and ticks apart', () => {
   it('writes every tile label to fit a quarter-width tile', async () => {

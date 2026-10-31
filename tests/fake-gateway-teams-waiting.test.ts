@@ -6,7 +6,7 @@ import type { TeamDetail, Teams } from '../src/lib/fleet-shapes.ts';
 import type { Approvals } from '../src/lib/work-shapes.ts';
 import { ME } from '../scripts/fake-gateway/people.ts';
 import { approvals } from '../scripts/fake-gateway/work-approvals.ts';
-import { startFakeGateway } from './fake-gateway-start.ts';
+import { asking, startFakeGateway, unobserved } from './fake-gateway-start.ts';
 
 /**
  * The fake's Teams counts a team's revisions waiting from the queue Approvals answers (AC-8.3), as the gateway counts
@@ -21,24 +21,7 @@ afterAll(() => gateway?.proc.kill());
 const JOURNEY = 'superadmin+journey';
 const PLAIN = 'superadmin';
 
-const call = async <T,>(value: string, path: string, body?: unknown): Promise<{ status: number; body: T }> => {
-  const res = await fetch(`${gateway.base}/api/console${path}`, {
-    method: body === undefined ? 'GET' : 'POST',
-    headers: { cookie: `zz_console=${value}`, ...(body === undefined ? {} : { 'content-type': 'application/json' }) },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  return { status: res.status, body: (await res.json()) as T };
-};
-const read = async <T,>(value: string, path: string) => {
-  const answer = await call<T>(value, path);
-  expect(answer.status, `${value} ${path}`).toBe(200);
-  return answer.body;
-};
-/** An answer with the one field levelled that every request has of its own: two reads of a route differ in
- *  `observedAt` when they differ nowhere else, since each request is served at its own instant. */
-const unobserved = <T,>(v: T): T => (v && typeof v === 'object' && 'meta' in v
-  ? { ...v, meta: { ...(v as { meta: object }).meta, observedAt: null } }
-  : v);
+const { call, read } = asking(() => gateway.base);
 
 /** How many rows Approvals' Waiting answers a caller acting for `team`, every page of it. */
 function queued(team: string): number {

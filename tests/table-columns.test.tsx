@@ -54,6 +54,7 @@ import { approvals } from '../scripts/fake-gateway/work-approvals.ts';
 import { plugins } from '../scripts/fake-gateway/work-plugins.ts';
 import { runs } from '../scripts/fake-gateway/work-runs.ts';
 import PlatformReleasePage from '../app/(dash)/platform/releases/[version]/page';
+import { captionedTable, classes } from './table-query.ts';
 
 /**
  * Every table the Wave 2 acceptance audit found wider than its frame, fitting it (Task I-136, AC-2.8): each table drawn
@@ -77,27 +78,13 @@ afterEach(() => { vi.unstubAllGlobals(); window.history.replaceState(null, '', '
 
 const mount = (ui: ReactElement) => render(<Tooltip.Provider>{ui}</Tooltip.Provider>);
 
-/** The table whose caption is `caption`, and its columns by their header's words. */
-function table(caption: string) {
-  const t = [...document.querySelectorAll('table')].find((x) => x.querySelector('caption')?.textContent === caption);
-  if (!t) throw new Error(`no table captioned "${caption}"; captions: ${[...document.querySelectorAll('caption')].map((c) => c.textContent).join(' | ')}`);
-  const heads = [...t.querySelectorAll('thead th')];
-  const rows = [...t.querySelectorAll('tbody tr')];
-  const at = (header: string) => {
-    const i = heads.findIndex((th) => th.textContent?.trim() === header);
-    if (i < 0) throw new Error(`no column "${header}" in "${caption}"; columns: ${heads.map((th) => th.textContent?.trim()).join(' | ')}`);
-    return { th: heads[i], cells: rows.map((tr) => tr.children[i] as HTMLElement) };
-  };
-  return { t, heads, rows, at };
-}
-const classes = (el: Element) => el.className.split(/\s+/);
 /** What a cell draws where the table is a table: a phone's own words for it, and the dot before them, left out. */
 const drawn = (td: Element): Element => td.querySelector(':scope > [class~="@max-[640px]:hidden"]') ?? td;
 const said = (td: Element) => [...drawn(td).childNodes].filter((n) => !(n instanceof Element && n.hasAttribute('data-sep'))).map((n) => n.textContent).join('');
 
 /** Each named column hides under 896px (or under 1152px, which holds it), its header and every cell alike. */
 function hidesBelowLg(caption: string, headers: string[], below = LG) {
-  const { at } = table(caption);
+  const { at } = captionedTable(caption);
   for (const h of headers) {
     const { th, cells } = at(h);
     expect(classes(th), `${caption}: ${h}`).toContain(below);
@@ -106,7 +93,7 @@ function hidesBelowLg(caption: string, headers: string[], below = LG) {
 }
 /** Each named column shows at every width: no breakpoint on its header or its cells. */
 function staysAtEveryWidth(caption: string, headers: string[]) {
-  const { at } = table(caption);
+  const { at } = captionedTable(caption);
   for (const h of headers) {
     const { th, cells } = at(h);
     expect(th.className, `${caption}: ${h}`).not.toMatch(HIDDEN);
@@ -115,7 +102,7 @@ function staysAtEveryWidth(caption: string, headers: string[]) {
 }
 /** Each cell of the column is cut to the width there is, and its title holds the whole of it. */
 function cutWithTitle(caption: string, header: string) {
-  const { cells } = table(caption).at(header);
+  const { cells } = captionedTable(caption).at(header);
   expect(cells.length).toBeGreaterThan(0);
   for (const td of cells) {
     // ZZ Meridian 0.25.0's `Cut`: the cell asks for its content's width through one `minmax(0, max-content)` track and
@@ -129,7 +116,7 @@ function cutWithTitle(caption: string, header: string) {
 }
 /** Each row's first cell links to the row's own page, where the hidden columns' facts are. */
 function rowsLink(caption: string, href: (i: number) => RegExp) {
-  const { rows } = table(caption);
+  const { rows } = captionedTable(caption);
   expect(rows.length).toBeGreaterThan(0);
   rows.forEach((tr, i) => expect(tr.children[0].querySelector('a')?.getAttribute('href'), `${caption}: row ${i + 1}`).toMatch(href(i)));
 }
@@ -151,7 +138,7 @@ describe('Plugins', () => {
   it('cuts the plugin and its blurb to the width there is, whole in the title, keeps the score\'s protocol line whole where the table is wide and narrows Install', () => {
     draw();
     cutWithTitle('Plugins', 'Plugin');
-    const { at } = table('Plugins');
+    const { at } = captionedTable('Plugins');
     at('Plugin').cells.forEach((td, i) => expect(td.title).toContain(catalog.plugins[i].plugin));
     expect(classes(at('Install').th)).toEqual(expect.arrayContaining(['w-48', '@min-[896px]:w-56', '@min-[1024px]:w-[17rem]']));
     const scored = at('Score').cells.map((td) => td.querySelector('.text-2xs')).filter((x) => x !== null);
@@ -167,7 +154,7 @@ describe('Access\'s tokens', () => {
   it.each([['the superadmin', ME], ['a member', MEMBER]] as const)('as %s keeps the label, the state and Revoke at a phone\'s width, Revoke the last cell', (_, who) => {
     draw(who);
     staysAtEveryWidth(CAPTION, ['Label', 'State', 'Revoke']);
-    const { at, rows } = table(CAPTION);
+    const { at, rows } = captionedTable(CAPTION);
     // The lead column's floor is lowered from the managed 160px, so the three fit a 356px frame.
     expect(classes(at('Label').th)).toContain('min-w-32');
     for (const tr of rows) expect(tr.lastElementChild).toBe(at('Revoke').cells[rows.indexOf(tr)]);
@@ -175,7 +162,7 @@ describe('Access\'s tokens', () => {
 
   it('says under the label what the hidden columns say: the application and the day issued, and when it was last used', () => {
     draw(ME);
-    const { at } = table(CAPTION);
+    const { at } = captionedTable(CAPTION);
     for (const td of at('Label').cells) {
       const under = td.querySelector('.t-caption');
       expect(under?.textContent).toMatch(/, issued /);
@@ -194,7 +181,7 @@ describe('Approvals', () => {
     hidesBelowLg('Team approvals', ['Version']);
     staysAtEveryWidth('Team approvals', ['Document', 'Initiative', 'Waiting since', 'Review']);
     rowsLink('Team approvals', () => /^\/initiatives\/atlas\/[^/]+\/.+/);
-    for (const td of table('Team approvals').at('Review').cells) expect(td.querySelector('a')?.getAttribute('aria-label')).toMatch(/^Review .+ v\d+ of /);
+    for (const td of captionedTable('Team approvals').at('Review').cells) expect(td.querySelector('a')?.getAttribute('aria-label')).toMatch(/^Review .+ v\d+ of /);
   });
 
   it('history gives up the version and the decision basis under 896px, both on the revision the row opens', () => {
@@ -216,7 +203,7 @@ describe('Status', () => {
     const CAPTION = 'Three activity measures, each against the week before';
     hidesBelowLg(CAPTION, ['First week', 'Low']);
     staysAtEveryWidth(CAPTION, ['Measure', 'High', 'Last week', 'Change']);
-    const { at } = table(CAPTION);
+    const { at } = captionedTable(CAPTION);
     at('High').cells.forEach((td, i) => {
       expect(td.title).toMatch(/^High .+; low /);
       const low = at('Low').cells[i].querySelector('span > span');
@@ -229,7 +216,7 @@ describe('Status', () => {
     const CAPTION = 'Each door\'s fault days and its run of days under 1% tool failures';
     hidesBelowLg(CAPTION, ['Days with calls', 'Today']);
     staysAtEveryWidth(CAPTION, ['Door', 'Fault days', 'Last fault day', 'Run']);
-    const { at } = table(CAPTION);
+    const { at } = captionedTable(CAPTION);
     at('Fault days').cells.forEach((td, i) => expect(td.title).toBe(`${said(td)} ${said(td) === '1' ? 'fault day' : 'fault days'} of ${said(at('Days with calls').cells[i])} days with calls`));
   });
 });
@@ -243,7 +230,7 @@ describe('Bugs', () => {
     draw(admin);
     hidesBelowLg(CAPTION, ['Surface', 'Version']);
     staysAtEveryWidth(CAPTION, ['Report', 'Impact', 'Filed', 'Status']);
-    const { at } = table(CAPTION);
+    const { at } = captionedTable(CAPTION);
     at('Report').cells.forEach((td, i) => {
       const surface = said(at('Surface').cells[i]);
       expect(td.title).toMatch(new RegExp(`, on ${surface === 'None named' ? 'no surface named' : surface!.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`));
@@ -264,7 +251,7 @@ describe('Evaluation', () => {
     const CAPTION = 'Each plugin\'s latest score';
     hidesBelowLg(CAPTION, ['Guardrails']);
     staysAtEveryWidth(CAPTION, ['Plugin', 'Score', 'Standing', 'Scored']);
-    const { at } = table(CAPTION);
+    const { at } = captionedTable(CAPTION);
     at('Plugin').cells.forEach((td) => expect(td.title).toBe(`${td.querySelector('[data-protocol]')!.previousElementSibling!.textContent}, ${td.querySelector('[data-protocol]')!.textContent}`));
   });
 });
@@ -275,7 +262,7 @@ describe('Knowledge health', () => {
     const CAPTION = 'Each shelf\'s lessons and last week\'s searches';
     hidesBelowLg(CAPTION, ['Superseded', 'Searches last week']);
     staysAtEveryWidth(CAPTION, ['Shelf', 'Standing', 'Made last week', 'No result']);
-    const { at } = table(CAPTION);
+    const { at } = captionedTable(CAPTION);
     at('Standing').cells.forEach((td, i) => expect(td.title).toContain(`${said(at('Superseded').cells[i])} superseded`));
     at('Made last week').cells.forEach((td, i) => expect(td.title).toMatch(new RegExp(`, ${said(at('Searches last week').cells[i])} search(es)? last week$`)));
   });
@@ -290,7 +277,7 @@ describe('People', () => {
     hidesBelowLg('People', ['Role', 'Teams', 'Passkey']);
     staysAtEveryWidth('People', ['Person', 'Last sign-in', 'State', 'Actions']);
     cutWithTitle('People', 'Person');
-    const { at } = table('People');
+    const { at } = captionedTable('People');
     at('Person').cells.forEach((td, i) => {
       const p = data.people[i];
       const role = p.role === 'superadmin' ? 'Superadmin' : 'Member';
@@ -318,7 +305,7 @@ describe('Releases', () => {
   it('a release\'s windows let the words for a figure not observed wrap, where a number never does', () => {
     const version = '0.95.0';
     mount(<PlatformReleaseView version={version} served={{ state: 'ok', data: releaseDetail(version)! }} />);
-    const { t } = table(`What was observed in the 72 hours either side of ${version}`);
+    const { t } = captionedTable(`What was observed in the 72 hours either side of ${version}`);
     const cells = [...t.querySelectorAll('td[data-num="num"]')].map(drawn);
     const words = cells.filter((c) => !/\d/.test(c.textContent ?? ''));
     expect(words.length).toBeGreaterThan(0);
@@ -346,7 +333,7 @@ describe('Runs', () => {
     mount(<RunsView served={{ state: 'ok', path: PATH, data }} />);
     staysAtEveryWidth('Recent runs', ['Skill', 'Output', 'State']);
     const recent = data.recent.state === 'ok' ? data.recent.data.rows : [];
-    const named = table('Recent runs').at('Initiative').cells.filter((_, i) => recent[i].initiative);
+    const named = captionedTable('Recent runs').at('Initiative').cells.filter((_, i) => recent[i].initiative);
     expect(named.length).toBeGreaterThan(0);
     for (const td of named) {
       const slug = drawn(td).querySelector('span')!;

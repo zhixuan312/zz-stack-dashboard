@@ -1,19 +1,18 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { Tooltip } from 'radix-ui';
-import { cloneElement, createElement, isValidElement, Suspense, type ReactNode } from 'react';
+import { createElement, Suspense } from 'react';
 import { hydrateRoot } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-/** The router as the address writer sees it: a replace lands in the address and tells its readers, as a navigation does. */
-const nav = vi.hoisted(() => ({ subs: new Set<() => void>() }));
+/** The router as the address writer sees it: a replace lands in the address, as a navigation does. */
 vi.mock('next/navigation', () => ({
   usePathname: () => window.location.pathname,
   useSearchParams: () => new URLSearchParams(window.location.search),
   useRouter: () => ({
     push() {}, refresh() {}, back() {}, forward() {}, prefetch() {},
-    replace(url: string) { window.history.replaceState(null, '', url); nav.subs.forEach((f) => f()); },
+    replace(url: string) { window.history.replaceState(null, '', url); },
   }),
   redirect: (to: string) => { throw new Error(`NEXT_REDIRECT ${to}`); },
 }));
@@ -34,7 +33,6 @@ vi.mock('@/components/charts/heatmap', async (importOriginal) => {
   return { ...real, Heatmap: (p: Parameters<typeof real.Heatmap>[0]) => { heat.props.push(p); return createElement(real.Heatmap, p); } };
 });
 
-import { refusal } from '@/app.config';
 import { SurfaceOverride } from '@/components/base/surface';
 import { GatewayError } from '@/data/gateway';
 import { dayOf } from '@/lib/format-date';
@@ -47,6 +45,8 @@ import RecordPage from '../app/(dash)/record/page';
 import { readRecord } from '../app/(dash)/record/read-record';
 import { ME } from '../scripts/fake-gateway/people.ts';
 import { record } from '../scripts/fake-gateway/work-record.ts';
+import { settled } from './server-tree.tsx';
+import { browserReads, browserStub } from './browser.ts';
 
 /**
  * Record as the person reads it (Task I-105, AC-5.3), drawn from the fake gateway's own answers, the ones `pnpm verify`
@@ -73,16 +73,7 @@ const EMPTY: RecordRead = {
 const PARTIAL: RecordRead = { ...ALL, lead: { ...ALL.lead, estimate: null }, work: gone, agents: gone, record: gone };
 
 /** The browser's reads: answered by `reply`, or never when it is null. */
-function browser(reply: ((path: string) => [number, unknown]) | null) {
-  vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
-    if (!reply) return new Promise(() => {});
-    const url = new URL(String(input), 'http://console.test');
-    const [status, body] = url.pathname.endsWith('/me') ? [200, ME] : reply(url.pathname.replace('/api/console', '') + url.search);
-    return Promise.resolve({ ok: status < 300, status, json: async () => body } as unknown as Response);
-  }));
-}
-/** What the browser has asked the gateway for, past who it is. */
-const reads = () => (fetch as unknown as { mock: { calls: [RequestInfo | URL][] } }).mock.calls.map(([u]) => String(u)).filter((u) => !u.endsWith('/me'));
+const browser = (reply: Parameters<typeof browserStub>[0]) => browserStub(reply, ME);
 
 /** The masthead's controls over the body, as the page lays them out, in the console's providers. */
 function mount(served: RecordServed, ask?: (q: string) => void) {
@@ -97,17 +88,6 @@ function mount(served: RecordServed, ask?: (q: string) => void) {
 const foot = (label: string) => within(document.querySelector('[data-foot]') as HTMLElement).getByText(label).nextElementSibling!.textContent;
 const slices = () => [...document.querySelectorAll('[data-slice]')] as HTMLElement[];
 
-/** A server page's tree as Next hands it over: every async component awaited where it stands, in children and props. */
-async function settled(node: ReactNode): Promise<ReactNode> {
-  if (Array.isArray(node)) return Promise.all(node.map(settled));
-  if (!isValidElement(node)) return node;
-  const { type, props } = node as { type: unknown; props: Record<string, unknown> };
-  if (typeof type === 'function' && type.constructor.name === 'AsyncFunction') return settled(await (type as (p: unknown) => Promise<ReactNode>)(props));
-  const next: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(props)) next[k] = isValidElement(v) || Array.isArray(v) ? await settled(v as ReactNode) : v;
-  return cloneElement(node, next);
-}
-
 beforeEach(() => { gateway.get.mockReset(); heat.props = []; window.history.replaceState(null, '', '/record'); });
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 
@@ -121,7 +101,7 @@ describe('the page', () => {
     expect(gateway.get).toHaveBeenCalledWith('/record?period=all&limit=10&offset=0');
     expect(screen.getByText(/^As of /)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Copy as text' })).toBeEnabled();
-    expect(reads()).toEqual([]);
+    expect(browserReads()).toEqual([]);
   });
 
   it('offers the period before the server\'s read has answered, and reads nothing in the browser meanwhile', async () => {
@@ -130,7 +110,7 @@ describe('the page', () => {
     expect(screen.getByRole('radio', { name: 'All' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Copy as text' })).toBeDisabled();
     await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
-    expect(reads()).toEqual([]);
+    expect(browserReads()).toEqual([]);
   });
 
   it('reads the period and the page the address names, and sends a session that ended to sign-in', async () => {
@@ -149,9 +129,9 @@ describe('the page', () => {
     await expect(read).resolves.toEqual({ state: 'slow', path: PATH });
   });
 
-  it('is loading before the gate has answered, naming the page only where the refusal lets it', () => {
+  it('is loading before the gate has answered, naming no page under the absent refusal', () => {
     render(<RecordLoading />);
-    expect(screen.getByRole('status', { name: refusal === 'absent' ? 'Loading page' : 'Loading record' })).toHaveAttribute('aria-busy', 'true');
+    expect(screen.getByRole('status', { name: 'Loading page' })).toHaveAttribute('aria-busy', 'true');
   });
 });
 
@@ -185,10 +165,10 @@ describe('the period control', () => {
     expect(foot('Work closed')).toBe(footOf(ALL)[0].value);
     await act(async () => { fireEvent.click(screen.getByRole('radio', { name: 'Quarter' })); });
     await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
-    expect(reads()).toEqual([]);
+    expect(browserReads()).toEqual([]);
     serve(ok(QUARTER, recordPath({ period: 'quarter', page: '1' })));
     await waitFor(() => expect(slices()[0].textContent).toContain(periodLine(QUARTER)));
-    expect(reads()).toEqual([]);
+    expect(browserReads()).toEqual([]);
     expect(foot('Work closed')).toBe(footOf(QUARTER)[0].value);
     expect(document.querySelector('[data-figure] .t-kicker')!.textContent).toBe(kicker);
     expect(window.location.search).toBe('?period=quarter');
@@ -216,7 +196,7 @@ describe('the first paint of another period', () => {
       expect(container.querySelector('[data-slice]')?.textContent).toContain(periodLine(QUARTER));
       expect(chosen()).toBe('Quarter');
       await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
-      expect(reads()).toEqual([]);
+      expect(browserReads()).toEqual([]);
     } finally {
       container.remove();
     }
@@ -258,11 +238,11 @@ describe('the slices', () => {
     expect(ALL.record.state === 'ok' && ALL.record.data.total).toBeGreaterThan(10);
     await act(async () => { fireEvent.click(within(table).getByRole('button', { name: 'Page 2' })); });
     await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
-    expect(reads()).toEqual([]);
+    expect(browserReads()).toEqual([]);
     const next = recordPath({ period: 'all', page: '2' });
     serve(ok(answer(next.split('?')[1]) as RecordRead, next));
     await waitFor(() => expect(slices().at(-1)!.querySelectorAll('tbody tr')).toHaveLength(2));
-    expect(reads()).toEqual([]);
+    expect(browserReads()).toEqual([]);
   });
 });
 
@@ -290,16 +270,16 @@ describe('every state draws', () => {
     mount({ state: 'failed', path: PATH, reason: 'could not read the record' });
     expect(screen.getByText('Record did not load')).toBeInTheDocument();
     expect(screen.getByText('could not read the record')).toBeInTheDocument();
-    expect(reads()).toEqual([]);
+    expect(browserReads()).toEqual([]);
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     await waitFor(() => expect(slices()).toHaveLength(6));
-    expect(reads()).toHaveLength(1);
+    expect(browserReads()).toHaveLength(1);
   });
 
   it('slow: the bounded error, saying how long the platform was given', () => {
     browser(null);
     mount({ state: 'slow', path: PATH });
-    expect(screen.getByText('The platform did not answer within 4.5 seconds.')).toBeInTheDocument();
+    expect(screen.getByText(`The platform did not answer within ${READ_BOUND_MS / 1000} seconds.`)).toBeInTheDocument();
     expect(screen.queryByRole('status', { name: 'Loading record' })).toBeNull();
   });
 

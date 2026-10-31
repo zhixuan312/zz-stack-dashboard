@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { execFileSync, type ChildProcess } from 'node:child_process';
-import { startFakeGateway } from './fake-gateway-start.ts';
+import { asking, FIGURE, keys, META, startFakeGateway, unobserved, WINDOW, type Json } from './fake-gateway-start.ts';
 import fs from 'node:fs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { publicTitle } from '../scripts/fake-gateway/platform-bugs.ts';
@@ -14,7 +14,6 @@ import config from '../scripts/verify.config.ts';
  * a field the fake adds or drops fails here before the platform's own checks compare it with the real routes. What a
  * member may read is the public projection: the same rows as the superadmin's, less what only the superadmin is given.
  */
-type Json = Record<string, any>;
 
 const personas = config.personas!;
 const SUPERADMIN = personas.superadmin.cookie.value;
@@ -30,22 +29,10 @@ beforeAll(async () => {
 });
 afterAll(() => { server?.kill(); });
 
-/** One request as the person a cookie value names; `null` sends no cookie, which is the superadmin. */
-const ask = (who: string | null, path: string, init: RequestInit = {}) => fetch(`${base}/api/console/${path}`, {
-  ...init, headers: { ...(init.headers as Record<string, string>), ...(who === null ? {} : { cookie: `zz_console=${who}` }) },
-});
-const read = async (who: string | null, path: string): Promise<Json> => {
-  const res = await ask(who, path);
-  expect(res.status, `${who ?? 'no cookie'} GET ${path}`).toBe(200);
-  return res.json();
-};
-const resolveAs = (who: string | null, id: string, body: unknown) => ask(who, `platform/bugs/${id}/resolve`, {
-  method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
-const keys = (o: object) => Object.keys(o).sort();
+const { ask, read, post } = asking(() => base);
 
-const META = ['asOf', 'builtAt', 'cacheHit', 'coverageFrom', 'observedAt', 'period', 'population', 'revision', 'scope', 'sourceRevision', 'timezone'];
-const FIGURE = ['value', 'why'];
-const WINDOW = ['complete', 'from', 'observedFrom', 'observedThrough', 'to'];
+const resolveAs = (who: string | null, id: string, body: unknown) => post(who, `platform/bugs/${id}/resolve`, body);
+
 const RELEASE_ROW = ['after', 'before', 'clientAction', 'consoleVersion', 'releasedAt', 'summary', 'version'];
 const RELEASE_WINDOW = ['calls', 'malformed', 'malformedPer1000', 'overlappingVersions', 'p95Ms', 'toolFailures', 'window'];
 const PUBLIC_BUG = ['filedAt', 'id', 'impact', 'platformVersion', 'resolvedAt', 'status', 'surface', 'title'];
@@ -58,7 +45,6 @@ const allBugs = async (who: string | null) => (await read(who, 'platform/bugs?li
 
 /** An answer with the one field levelled that is each request's own: two reads of a route differ in `observedAt` when
  *  they differ nowhere else, since every request is served at its own instant. */
-const unobserved = (v: Json): Json => ({ ...v, meta: { ...v.meta, observedAt: null } });
 
 /** Every team's slug and name, and every persona's email and name, as whole words: none may reach a refusal. */
 async function names(): Promise<RegExp> {
@@ -391,18 +377,30 @@ describe('the fake gateway beside Platform\'s new routes', () => {
     expect(held(await read(MEMBER, 'platform/status'))).toEqual(untimed(MEMBER_STATUS));
   });
 
-  it('still answers 404 for a Platform route it does not have', async () => {
-    for (const path of ['platform', 'platform/status/extra', 'platform/releases/0.96.0/notes', 'platform/bugs/x/y/z', 'platform/evaluation/sdlc', 'platform/usage/extra']) {
+  // The one sweep of routes the fixture does not have, Platform's and Fleet's among them: every such path answers 404,
+  // to a session and with none.
+  it('still answers 404 for a route it does not have', async () => {
+    for (const path of [
+      'platform', 'platform/status/extra', 'platform/releases/0.96.0/notes', 'platform/bugs/x/y/z', 'platform/evaluation/sdlc',
+      'platform/usage/extra', 'platform/knowledge/extra', 'platform/audit/extra', 'no-such-route',
+    ]) {
       for (const who of [null, MEMBER]) expect((await ask(who, path)).status, `GET ${path}`).toBe(404);
     }
   });
 
+  // zz-stack's checks import these files with plain node and compare the real routes' answers with them by shape: an
+  // import through the console's path alias would not resolve there, and a missing export has no shape to compare.
   it('keeps its fixtures as data the platform\'s checks can import with plain node', () => {
-    for (const [file, name] of [['platform-releases', 'RELEASES'], ['platform-bugs', 'REPORTS'], ['platform-evaluation', 'evaluation']]) {
+    for (const [file, name] of [['platform-releases', 'RELEASES'], ['platform-bugs', 'REPORTS'], ['platform-evaluation', 'evaluation'], ['platform-status', 'PLATFORM_STATUS']]) {
       const path = `scripts/fake-gateway/${file}.ts`;
       expect(fs.readFileSync(path, 'utf8')).not.toMatch(/from '@\//);
       const out = execFileSync('node', ['-e', `import('./${path}').then((m) => console.log(typeof m.${name}))`], { encoding: 'utf8' });
       expect(out.trim(), path).not.toBe('undefined');
+    }
+    const status = JSON.parse(execFileSync('node', ['-e', "import('./scripts/fake-gateway/platform-status.ts').then((m) => console.log(JSON.stringify(m.PLATFORM_STATUS)))"], { encoding: 'utf8' })) as Json;
+    expect(status.measures.map((m: Json) => m.key)).toEqual(PLATFORM_STATUS.measures.map((m) => m.key));
+    for (const pick of ['first', 'best', 'last', 'previous'] as const) {
+      expect(status.measures[0][pick], pick).toMatchObject({ window: expect.any(Object), figure: expect.any(Object) });
     }
   });
 

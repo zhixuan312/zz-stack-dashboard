@@ -45,6 +45,7 @@ import { PageViews } from '@/console/page-view';
 import { Unauthenticated, resolveAccess } from '@/data/access';
 import { gate } from '@/console/gate';
 import { ConsoleCaller } from '@/lib/api';
+import config from '../scripts/verify.config.ts';
 import type { Me } from '@/lib/api-shapes';
 import { PlatformPeopleView } from '@/views/pages/platform-people';
 import type { PeopleRead } from '@/logic/people-context';
@@ -230,8 +231,7 @@ describe('R1-C12: the sign-in page says only what the platform wrote', () => {
 
 describe('R1-C21: a member\'s loading state at a restricted address is an unknown address\'s', () => {
   type Access = { only: string[]; user: { name: string; role: string }; team: string | null; caller: string };
-  const RAIL = ['/', '/record', '/initiatives', '/approvals', '/knowledge', '/activity', '/runs', '/plugins', '/access', '/platform', '/platform/releases', '/platform/bugs', '/platform/evaluation', '/platform/usage', '/platform/knowledge'];
-  const AS_MEMBER: Access = { only: RAIL, user: { name: 'Mei', role: 'beacon' }, team: 'beacon', caller: 'mei@example.com' };
+  const AS_MEMBER: Access = { only: [...config.personas!.member.expectedRoutes], user: { name: 'Mei', role: 'beacon' }, team: 'beacon', caller: 'mei@example.com' };
   const RESTRICTED: [string, () => ReactElement][] = [
     ['/platform/teams', PlatformTeamsLoading], ['/platform/teams/atlas', PlatformTeamLoading], ['/platform/people', PlatformPeopleLoading],
     ['/platform/audit', PlatformAuditLoading], ['/platform/bugs/0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d01', PlatformBugLoading],

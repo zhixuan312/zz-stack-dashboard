@@ -1,6 +1,6 @@
 // @vitest-environment node
 import type { ChildProcess } from 'node:child_process';
-import { startFakeGateway } from './fake-gateway-start.ts';
+import { asking, startFakeGateway, type Json } from './fake-gateway-start.ts';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import config from '../scripts/verify.config.ts';
 
@@ -11,7 +11,6 @@ import config from '../scripts/verify.config.ts';
  * whatever the member asks, so it cannot say whether a team exists, and it names no role, person or team. What would
  * have been named is taken from the superadmin's own answers, so the sweep can fail.
  */
-type Json = Record<string, any>;
 
 const personas = config.personas!;
 const MEMBER = personas.member.cookie.value;
@@ -27,13 +26,7 @@ beforeAll(async () => {
 });
 afterAll(() => { server?.kill(); });
 
-/** One request as the person a cookie value names; `null` sends no cookie, which is the superadmin. */
-const ask = (who: string | null, path: string) => fetch(`${base}/api/console/${path}`, { headers: who === null ? {} : { cookie: `zz_console=${who}` } });
-const read = async (who: string | null, path: string): Promise<Json> => {
-  const res = await ask(who, path);
-  expect(res.status, `${who ?? 'no cookie'} GET ${path}`).toBe(200);
-  return res.json();
-};
+const { ask, read } = asking(() => base);
 
 /** Every address a member could ask of the three reads: their own team, another, one nobody has, and the pages and scopes. */
 async function asked(): Promise<string[]> {

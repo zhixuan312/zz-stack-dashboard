@@ -6,6 +6,9 @@ import { THREAD_KEY, loadThread, saveThread } from '@/components/patterns/assist
 import { TeamsPanel } from '@/console/settings/teams-panel';
 import { ConsoleCaller, useConsole } from '@/lib/api';
 
+/** The key ConsoleCaller announces a team switch on (src/lib/api.ts), kept private there. */
+const SWITCH_KEY = 'zz-stack-team-switch';
+
 /**
  * A team switch keeps nothing of the old team (reconciliation 54): every read's key carries the caller, the team and
  * the role the server resolved for the page; an accepted switch clears the assistant's thread and only then replaces
@@ -74,7 +77,7 @@ beforeEach(() => {
   let team = 'team-one';
   vi.stubGlobal('location', {
     href: HERE, origin: 'http://localhost:3000', pathname: '/access', search: '', hash: '',
-    replace: (href: string) => { replaced.push({ href, thread: window.localStorage.getItem(THREAD_KEY), switchKey: window.localStorage.getItem('zz-stack-team-switch') }); },
+    replace: (href: string) => { replaced.push({ href, thread: window.localStorage.getItem(THREAD_KEY), switchKey: window.localStorage.getItem(SWITCH_KEY) }); },
   });
   vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
@@ -169,7 +172,7 @@ describe('a switch the gateway refuses', () => {
     await waitFor(() => expect(calls.some((c) => c.method === 'POST')).toBe(true));
     await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
     expect(replaced).toEqual([]);
-    expect(window.localStorage.getItem('zz-stack-team-switch')).toBeNull();
+    expect(window.localStorage.getItem(SWITCH_KEY)).toBeNull();
     expect(loadThread(window.localStorage, SCOPE)).toHaveLength(2);
     expect(client.getQueryData(['console', '/overview', 'noah@example.com', 'team-one', 'Member'])).toEqual({ marker: 'team-one' });
     expect(screen.getByRole('button', { name: 'Act as this team' })).toBeEnabled();
@@ -183,7 +186,7 @@ describe('another tab of the same browser', () => {
     await waitFor(() => expect(screen.getByTestId('marker')).toHaveTextContent('team-one'));
     // What the browser fires in every OTHER tab when one of them writes the key; jsdom has no other tab.
     await act(async () => {
-      window.dispatchEvent(new StorageEvent('storage', { key: 'zz-stack-team-switch', newValue: '1' }));
+      window.dispatchEvent(new StorageEvent('storage', { key: SWITCH_KEY, newValue: '1' }));
     });
     expect(replaced.map((r) => [r.href, r.thread])).toEqual([[HERE, null]]);
   });
@@ -192,7 +195,7 @@ describe('another tab of the same browser', () => {
     render(<Tree client={new QueryClient()} access={ONE} team="team-one" />);
     await waitFor(() => expect(screen.getByTestId('marker')).toHaveTextContent('team-one'));
     await act(async () => {
-      window.dispatchEvent(new StorageEvent('storage', { key: 'zz-stack-team-switch', newValue: null }));
+      window.dispatchEvent(new StorageEvent('storage', { key: SWITCH_KEY, newValue: null }));
       window.dispatchEvent(new StorageEvent('storage', { key: THREAD_KEY, newValue: null }));
     });
     expect(replaced).toEqual([]);

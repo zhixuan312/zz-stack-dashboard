@@ -29,7 +29,7 @@ import { RunsView } from '@/views/pages/runs';
 import { statusRead } from '@/logic/platform-status-context';
 import { recordPath } from '@/logic/record-context';
 import { RUNS_DEFAULTS, runsPath } from '@/logic/runs-context';
-import { localDay, midnight } from '../scripts/fake-gateway/clock.ts';
+import { iso, localDay, midnight } from '../scripts/fake-gateway/clock.ts';
 import { ME } from '../scripts/fake-gateway/people.ts';
 import { PLATFORM_STATUS } from '../scripts/fake-gateway/platform-status.ts';
 import { usage } from '../scripts/fake-gateway/platform-usage.ts';
@@ -46,7 +46,6 @@ const wrap = (node: ReactNode) =>
   render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><Tooltip.Provider>{node}</Tooltip.Provider></QueryClientProvider>);
 const text = () => document.body.textContent ?? '';
 const DAY = 86_400_000;
-const iso = (ms: number) => new Date(ms).toISOString().replace('.000Z', 'Z');
 /** What the page handed a Heatmap: the calendar's days, or the week of hours. */
 const calendar = () => heat.props.filter((p) => 'days' in p).at(-1) as { days: { date: string; value: number }[] } | undefined;
 const hours = () => heat.props.filter((p) => 'values' in p);

@@ -1,9 +1,8 @@
 import type { ChildProcess } from 'node:child_process';
-import fs from 'node:fs';
 import path from 'node:path';
-import { Suspense, cloneElement, createElement, isValidElement, type ComponentProps, type ReactNode } from 'react';
+import { Suspense, createElement, type ComponentProps, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, cleanup, render, screen, within } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import { Tooltip } from 'radix-ui';
 import { z } from 'zod';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -63,9 +62,9 @@ import config from '../scripts/verify.config.ts';
 import { MEMBER } from '../scripts/fake-gateway/people.ts';
 import { SHARED_TEAM, SHELF } from '../scripts/fake-gateway/work-knowledge.ts';
 import { startFakeGateway } from './fake-gateway-start';
+import { settled } from './server-tree.tsx';
+import { CATCH_ALL, DASH, dashPages, type DashPage } from './routes.ts';
 
-const ROOT = path.resolve(import.meta.dirname, '..');
-const DASH = path.join(ROOT, 'app/(dash)');
 const TEAM = MEMBER.activeTeam!;
 
 // The words and controls a member's chrome never carries.
@@ -125,8 +124,7 @@ function findings(root: Element = document.body): string[] {
 }
 
 type Page = { file: string; feature: FeatureId; address: string; params: Record<string, string | string[]> };
-/** The route a page file serves: route groups dropped, a segment `[x]` one name, `[...x]` the rest of the path. */
-const routeOf = (file: string) => `/${path.dirname(file).split(path.sep).filter((s) => s !== '.' && !/^\(.*\)$/.test(s)).join('/')}`;
+/** A route's segment as a pattern: `[x]` one name, `[...x]` the rest of the path. */
 const segmentRe = (seg: string) => (seg.startsWith('[...') ? '(.+)' : seg.startsWith('[') ? '([^/]+)' : seg.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
 
 /** A detail page's addresses: verify's own, without their queries, and a lesson on the shared shelf. */
@@ -136,9 +134,7 @@ const DETAILS = [...config.detailRoutes, `/knowledge/${SHARED_TEAM}/${SHARED_LES
 /** An address of a team the member does not act for, whose record the gateway answers nobody else. */
 const ANOTHER_TEAM = /^\/(?:initiatives|knowledge)\/(?!atlas\/|zz-platform\/)/;
 
-function pagesOf(file: string): Page[] {
-  const route = routeOf(file);
-  const feature = /\bgate\('([\w-]+)'\)/.exec(fs.readFileSync(path.join(DASH, file), 'utf8'))![1] as FeatureId;
+function pagesOf({ file, route, feature }: DashPage): Page[] {
   const segs = route.split('/').filter(Boolean);
   if (!segs.some((s) => s.startsWith('['))) return [{ file, feature, address: route, params: {} }];
   const re = new RegExp(`^/${segs.map(segmentRe).join('/')}$`);
@@ -151,21 +147,9 @@ function pagesOf(file: string): Page[] {
 }
 const opens = (role: 'Member' | 'Superadmin', feature: FeatureId) => whoCan(FEATURES[feature].needs).includes(role);
 /** Every page under `app/(dash)` but the address no page answers, at each of its addresses. */
-const EVERY: Page[] = (fs.readdirSync(DASH, { recursive: true }) as string[])
-  .filter((f) => path.basename(f) === 'page.tsx' && path.dirname(f) !== '[...missing]').sort().flatMap(pagesOf);
+const EVERY: Page[] = dashPages().filter((p) => p.dir !== CATCH_ALL).flatMap(pagesOf);
 const MEMBER_PAGES = EVERY.filter((p) => opens('Member', p.feature) && !(Object.keys(p.params).length && ANOTHER_TEAM.test(p.address)));
 const FLEET_PAGES = EVERY.filter((p) => !opens('Member', p.feature));
-
-/** A server page's tree as Next hands it to the browser: every async component awaited where it stands. */
-async function settled(node: ReactNode): Promise<ReactNode> {
-  if (Array.isArray(node)) return Promise.all(node.map(settled));
-  if (!isValidElement(node)) return node;
-  const { type, props } = node as { type: unknown; props: Record<string, unknown> };
-  if (typeof type === 'function' && type.constructor.name === 'AsyncFunction') return settled(await (type as (p: unknown) => Promise<ReactNode>)(props));
-  const next: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(props)) next[k] = isValidElement(v) || Array.isArray(v) ? await settled(v as ReactNode) : v;
-  return cloneElement(node, next);
-}
 
 /** The member as most are: a member, not the admin, of the one team they act for. */
 const PLAIN: Me = { ...MEMBER, teams: MEMBER.teams.map((t) => ({ ...t, role: 'member' })) };
@@ -187,6 +171,8 @@ const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200
 let gateway: ChildProcess | null = null;
 let base = '';
 const saved = { fetch: globalThis.fetch };
+/** The browser's reads sent and not yet answered: a page is judged once none is out. */
+let inFlight = 0;
 
 /** The fake's answer, with the plain member's membership written over `/me` and Access when `plain` is on. */
 async function answered(url: string, init: RequestInit | undefined, real: typeof fetch): Promise<Response> {
@@ -208,7 +194,12 @@ beforeAll(async () => {
     const url = String(input instanceof Request ? input.url : input);
     if (url.startsWith('/api/console')) {
       const headers = { ...(init?.headers as Record<string, string> | undefined), cookie: `zz_console=${jar.zz_console}` };
-      return answered(`${base}${url}`, { method: init?.method, body: init?.body, headers, signal: init?.signal }, real);
+      inFlight += 1;
+      try {
+        return await answered(`${base}${url}`, { method: init?.method, body: init?.body, headers, signal: init?.signal }, real);
+      } finally {
+        inFlight -= 1;
+      }
     }
     if (url.startsWith(base)) return answered(url, init, real);
     return new Response('{}', { status: 404, headers: { 'content-type': 'application/json' } });
@@ -246,8 +237,15 @@ async function open(page: Page, query: Record<string, string> = {}): Promise<Sha
   const frame = createElement(QueryClientProvider, { client }, createElement(Suspense, { fallback: null }, tree));
   const share = (_text: string, context?: object) => { if (context) shared.push(context as SharedContext); };
   await act(async () => { render(onSurface({ ask: () => {}, share }, frame)); });
-  // The browser's reads, answered by the fake process over HTTP.
-  await act(async () => { await new Promise((r) => setTimeout(r, 400)); });
+  // The browser's reads, answered by the fake process over HTTP. A fixed pause would judge a page whose reads were slow
+  // half drawn, and its checks are absences, which a half-drawn page passes; so the page is judged once no read is out,
+  // in the network or in the client, and none has started in the turn after the last came back (an answer can start
+  // the next read).
+  const out = () => inFlight + client.isFetching();
+  do {
+    await waitFor(() => expect(out()).toBe(0));
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+  } while (out() > 0);
   return shared.at(-1) ?? null;
 }
 

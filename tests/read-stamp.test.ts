@@ -11,8 +11,8 @@ import { stampOf } from '@/logic/read-stamp';
  * own — so a stamp that inferred the hit by comparing them would announce a served answer that this request computed
  * itself. Replacing `!meta.cacheHit` in `read-stamp.ts` with `secondOf(meta.asOf) === secondOf(meta.observedAt)` was
  * run: the fourth case reddened with `Received: "Computed 25 Oct 2026, 17:12 · served 25 Oct 2026, 17:13"` where it
- * expected `"As of 25 Oct 2026, 17:12"` — proved, not assumed. The first and third cases reddened with it, because they
- * pin the same boolean from the other side; the second stayed green.
+ * expected `"As of 25 Oct 2026, 17:12"` — proved, not assumed. The third case reddened with it, because it pins the
+ * same boolean from the other side; the first (a miss whose instants are equal) and the second stayed green.
  */
 
 /** A read's `meta` as a page receives it: the six a gateway route states, and the five the envelope writes onto them. */
@@ -37,7 +37,7 @@ const LATER_IN_THE_SAME_SECOND = '2026-10-25T09:12:00.900Z';
 
 describe('stampOf', () => {
   it('stamps an answer computed for this request with one instant, and no served one', () => {
-    const { text, title } = stampOf(meta({ cacheHit: false, observedAt: A_MINUTE_LATER }));
+    const { text, title } = stampOf(meta({ cacheHit: false }));
     expect(text).toBe(`As of ${formatDateTime(COMPUTED)}`);
     expect(text).not.toMatch(/served|Computed/);
     // The title is the precision slot, and it names the one instant this answer is as of: `08:04` widens to `08:04:00`.

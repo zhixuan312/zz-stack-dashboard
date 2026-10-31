@@ -23,9 +23,11 @@ import { Busy, LoadingPage } from '@/components/patterns/page-loading';
 import { EmptyState } from '@/components/ui/empty-state';
 import { FEATURES } from '@/data/features';
 import { PageViews } from '@/console/page-view';
+import { blankedText } from '../scripts/lib/layer-rules.ts';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
-const source = (file: string) => fs.readFileSync(path.join(ROOT, file), 'utf8').replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, '');
+/** A source file with its comments blanked, so a check reads only code. */
+const source = (file: string) => blankedText(fs.readFileSync(path.join(ROOT, file), 'utf8'));
 
 /**
  * The feature each rail address records, from the spec's destinations table, for every phase: the longest whole-segment

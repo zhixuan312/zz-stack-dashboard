@@ -2,7 +2,7 @@ import type { ChildProcess } from 'node:child_process';
 import { startFakeGateway } from './fake-gateway-start.ts';
 import fs from 'node:fs';
 import path from 'node:path';
-import { Suspense, cloneElement, createElement, isValidElement, type ComponentProps, type ReactNode } from 'react';
+import { Suspense, createElement, type ComponentProps, type ReactNode } from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { Tooltip } from 'radix-ui';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -14,6 +14,7 @@ import { FEATURES, type FeatureId } from '@/data/features';
 import { viewAt, type SharedContext } from '@/lib/shared-context';
 import { viewTools } from '@/logic/tools';
 import config from '../scripts/verify.config.ts';
+import { settled } from './server-tree.tsx';
 
 /**
  * Every page of the console is designed for a person and for the agent working with them (the console's brief, "A person
@@ -66,20 +67,6 @@ function pageOf(file: string): Page {
 // to that.
 const NO_DESTINATION = ['[...missing]'];
 const PAGES: Page[] = (fs.readdirSync(DASH, { recursive: true }) as string[]).filter((f) => path.basename(f) === 'page.tsx' && !NO_DESTINATION.includes(path.dirname(f))).sort().map(pageOf);
-
-/**
- * A server page's tree, as Next would hand it to the browser: every async component it places is awaited where it
- * stands, through children and through any prop that holds an element (`PageFrame`'s `meta`).
- */
-async function settled(node: ReactNode): Promise<ReactNode> {
-  if (Array.isArray(node)) return Promise.all(node.map(settled));
-  if (!isValidElement(node)) return node;
-  const { type, props } = node as { type: unknown; props: Record<string, unknown> };
-  if (typeof type === 'function' && type.constructor.name === 'AsyncFunction') return settled(await (type as (p: unknown) => Promise<ReactNode>)(props));
-  const next: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(props)) next[k] = isValidElement(v) || Array.isArray(v) ? await settled(v as ReactNode) : v;
-  return cloneElement(node, next);
-}
 
 let gateway: ChildProcess | null = null;
 let base = '';

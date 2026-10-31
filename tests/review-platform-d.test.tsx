@@ -16,12 +16,9 @@ vi.mock('next/navigation', () => ({
   notFound: () => { throw new Error('NEXT_NOT_FOUND'); },
   redirect: (to: string) => { throw new Error(`NEXT_REDIRECT ${to}`); },
 }));
-const gateway = vi.hoisted(() => ({ get: vi.fn() }));
-vi.mock('@/data/gateway', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/data/gateway')>()), gatewayGet: gateway.get }));
 
 import { app } from '@/app.config';
 import { SurfaceOverride } from '@/components/base/surface';
-import type { Me } from '@/lib/api-shapes';
 import type { Bugs, PlatformStatus, Releases } from '@/lib/platform-shapes';
 import { dayOf, formatDay, formatShortDate } from '@/lib/format-date';
 import { PlatformBugsView } from '@/views/pages/platform-bugs';
@@ -35,6 +32,7 @@ import { bugs } from '../scripts/fake-gateway/platform-bugs.ts';
 import { releaseDetail, releases } from '../scripts/fake-gateway/platform-releases.ts';
 import { PLATFORM_STATUS as PLATFORM_STATUS_FIXTURE } from '../scripts/fake-gateway/platform-status.ts';
 import { answered } from '../scripts/fake-gateway/envelope.ts';
+import { ME as SUPERADMIN } from '../scripts/fake-gateway/people.ts';
 
 /**
  * The findings of "Phase 7, I-129 re-review: the Platform destinations after I-151 to I-157" on Status, Releases, a
@@ -45,10 +43,6 @@ import { answered } from '../scripts/fake-gateway/envelope.ts';
  * whose action is unknown said two colons (N-5); the median chart drew a running week whose word no phone column holds
  * (F-15); and a day was padded in a sentence or unpadded on an axis or in a table cell (N-4).
  */
-const SUPERADMIN: Me = {
-  email: 'ava.lindqvist@example.com', name: 'Ava Lindqvist', role: 'superadmin', mayRead: true, superadmin: true,
-  via: 'session', teams: [{ slug: 'atlas', role: 'admin' }], activeTeam: 'atlas',
-};
 
 function browser() {
   vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => (String(input).endsWith('/me')
@@ -67,7 +61,7 @@ const cardOf = (name: string) => screen.getByRole('heading', { name }).closest('
 /** A tile, by the label it starts with. */
 const tile = (label: string) => [...document.querySelectorAll<HTMLElement>('[data-split="tiles"] > .card')].find((c) => c.textContent!.startsWith(label))!;
 
-beforeEach(() => { gateway.get.mockReset(); browser(); });
+beforeEach(() => { browser(); });
 afterEach(() => { vi.unstubAllGlobals(); });
 
 describe('Releases and a release', () => {

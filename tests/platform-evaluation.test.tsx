@@ -18,7 +18,7 @@ import { SurfaceOverride } from '@/components/base/surface';
 import { FEATURES } from '@/data/features';
 import { MAIN_ROLES, effective } from '@/data/roles';
 import { formatDateTime } from '@/lib/format-date';
-import type { Evaluation, Part } from '@/lib/platform-shapes';
+import type { Evaluation } from '@/lib/platform-shapes';
 import { contextText } from '@/lib/shared-context';
 import { CONTEXT_BUDGET } from '@/logic/context';
 import { READ_BOUND_MS } from '@/lib/read-bound';
@@ -29,6 +29,7 @@ import { evaluation } from '../scripts/fake-gateway/platform-evaluation.ts';
 import { answered } from '../scripts/fake-gateway/envelope.ts';
 import { readEvaluation } from '../app/(dash)/platform/evaluation/read-evaluation';
 import EvaluationLoading from '../app/(dash)/platform/evaluation/loading';
+import { data } from './part.ts';
 
 /**
  * Evaluation under Platform (Task I-98): the page drawn from the fake gateway's own answer as the superadmin and as a
@@ -40,11 +41,6 @@ import EvaluationLoading from '../app/(dash)/platform/evaluation/loading';
 const ADMIN: Evaluation = answered(evaluation(true));
 const MEMBER: Evaluation = answered(evaluation(false));
 const ok = (e: Evaluation): EvaluationRead => ({ state: 'ok', evaluation: e });
-/** A part the fixture answers, which is every one of them. */
-function data<T>(p: Part<T>): T {
-  if (p.state !== 'ok') throw new Error(p.reason);
-  return p.data;
-}
 const KEYS = ['sdlc-flow-quality', 'core-door-reliability', 'eval-scoring-honesty'];
 const PATTERNS = data(ADMIN.waiting).rows.map((r) => (r as { pattern?: string }).pattern!);
 const MEASURES = data(ADMIN.waiting).rows.map((r) => r.measure!);
@@ -195,9 +191,9 @@ describe('the page, as the fake gateway answers it', () => {
 
 describe('the page\'s states', () => {
   it('loading: the page\'s shape, announced as busy, naming no page under the absent refusal', () => {
-    render(<Tooltip.Provider><EvaluationLoading /></Tooltip.Provider>);
+    const { container } = render(<Tooltip.Provider><EvaluationLoading /></Tooltip.Provider>);
     expect(screen.getByRole('status', { name: 'Loading page' })).toHaveAttribute('aria-busy', 'true');
-    expect(document.title).not.toContain('Evaluation');
+    expect(container.textContent).not.toMatch(/evaluation/i);
   });
 
   it('empty: a platform nothing has scored says so in every card, with no zero standing in for a score', () => {

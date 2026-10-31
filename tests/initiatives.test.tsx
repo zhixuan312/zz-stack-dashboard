@@ -10,7 +10,6 @@ const gateway = vi.hoisted(() => ({ get: vi.fn() }));
 vi.mock('@/data/gateway', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/data/gateway')>()), gatewayGet: gateway.get }));
 
 import { GatewayError } from '@/data/gateway';
-import type { Me } from '@/lib/api-shapes';
 import type { InitiativeList } from '@/lib/work-shapes';
 import { READ_BOUND_MS } from '@/lib/read-bound';
 import type { InitiativesRead } from '@/logic/initiatives-context';
@@ -22,6 +21,7 @@ import InitiativesLoading from '../app/(dash)/initiatives/loading';
 import InitiativesPage, { generateMetadata as listMetadata } from '../app/(dash)/initiatives/page';
 import { readInitiative, readInitiatives } from '../app/(dash)/initiatives/read-initiatives';
 import InitiativePage from '../app/(dash)/initiatives/[team]/[slug]/page';
+import { ME } from '../scripts/fake-gateway/people.ts';
 
 /**
  * Initiatives (Task I-106, AC-5.5): the active team's work drawn from the release's Records template, from the fake
@@ -29,10 +29,6 @@ import InitiativePage from '../app/(dash)/initiatives/[team]/[slug]/page';
  * initiative, flow position from zz-core's `next_move`, state, gates passed and last touched, with no Team column. The
  * gateway filters, searches and pages it, ten to a page, and the first read of an address is the console's server's.
  */
-const ME: Me = {
-  email: 'ava.lindqvist@example.com', name: 'Ava Lindqvist', role: 'superadmin', mayRead: true, superadmin: true,
-  via: 'session', teams: [{ slug: 'atlas', role: 'admin' }], activeTeam: 'atlas',
-};
 
 const listOf = (path: string) => initiativeList(ME, new URLSearchParams(path.split('?')[1]))[1] as InitiativeList;
 const PATH = listPath(INITIATIVES_DEFAULTS);
@@ -230,13 +226,12 @@ describe('the reads on the console\'s server', () => {
   });
 });
 
-/** The text a server page's answer renders. */
+/** The body's text once a server page's answer is mounted and its reads have settled. */
 async function markupOf(page: ReactNode | Promise<ReactNode>): Promise<string> {
   const node = await page;
-  let out = '';
-  await act(async () => { out = mount(<>{node}</>).container.textContent ?? ''; });
+  await act(async () => { mount(<>{node}</>); });
   await settle();
-  return document.body.textContent ?? out;
+  return document.body.textContent ?? '';
 }
 
 describe('the routes', () => {

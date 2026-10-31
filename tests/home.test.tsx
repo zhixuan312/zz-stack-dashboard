@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Tooltip } from 'radix-ui';
-import { cloneElement, isValidElement, Suspense, type ReactNode } from 'react';
+import { Suspense, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const router = vi.hoisted(() => ({ refresh: vi.fn(), redirect: vi.fn((to: string) => { throw new Error(`NEXT_REDIRECT ${to}`); }) }));
@@ -47,6 +47,7 @@ import { ME } from '../scripts/fake-gateway/people.ts';
 import { approvals } from '../scripts/fake-gateway/work-approvals.ts';
 import { homeOf } from '../scripts/fake-gateway/work-home.ts';
 import { answered } from '../scripts/fake-gateway/envelope.ts';
+import { settled } from './server-tree.tsx';
 
 /**
  * Home as the person reads it, drawn from the read the page makes on the console's server. The weeks come from the fake
@@ -106,17 +107,6 @@ const tile = (label: string) => screen.getByText(label).closest('.card') as HTML
 
 beforeEach(() => { router.refresh.mockReset(); router.redirect.mockClear(); gateway.get.mockReset(); live.registered = []; live.refresh = null; });
 afterEach(() => vi.useRealTimers());
-
-/** A server page's tree as Next hands it over: every async component awaited where it stands, in children and props. */
-async function settled(node: ReactNode): Promise<ReactNode> {
-  if (Array.isArray(node)) return Promise.all(node.map(settled));
-  if (!isValidElement(node)) return node;
-  const { type, props } = node as { type: unknown; props: Record<string, unknown> };
-  if (typeof type === 'function' && type.constructor.name === 'AsyncFunction') return settled(await (type as (p: unknown) => Promise<ReactNode>)(props));
-  const next: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(props)) next[k] = isValidElement(v) || Array.isArray(v) ? await settled(v as ReactNode) : v;
-  return cloneElement(node, next);
-}
 
 describe('the page', () => {
   it('is headed by the gateway\'s sentence as it wrote it, under the page\'s name, with the read\'s own cutoff', async () => {

@@ -13,7 +13,7 @@ vi.mock('next/navigation', () => ({
 import { SurfaceOverride } from '@/components/base/surface';
 import type { Audit, KnowledgeHealth, People, TeamDetail, Teams, Usage } from '@/lib/fleet-shapes';
 import { formatDateTime } from '@/lib/format-date';
-import type { Bugs, Evaluation, Part, PlatformStatus, Releases } from '@/lib/platform-shapes';
+import type { Bugs, Evaluation, PlatformStatus, Releases } from '@/lib/platform-shapes';
 import { contextText, type SharedContext } from '@/lib/shared-context';
 import { PlatformEvaluationView } from '@/views/pages/platform-evaluation';
 import { PlatformKnowledgeView } from '@/views/pages/platform-knowledge';
@@ -40,6 +40,7 @@ import { MEMBER_STATUS as MEMBER_STATUS_FIXTURE, PLATFORM_STATUS as PLATFORM_STA
 import { answered } from '../scripts/fake-gateway/envelope.ts';
 import { teamDetail, teams } from '../scripts/fake-gateway/platform-teams.ts';
 import { usage } from '../scripts/fake-gateway/platform-usage.ts';
+import { data } from './part.ts';
 
 /**
  * The findings of "Phase 7, I-129 second re-review: the Platform destinations after I-158 to I-163" (Task I-167), each
@@ -68,10 +69,6 @@ const ADMIN_USAGE: Usage = answered(usage(true));
 const ADMIN_KNOWLEDGE: KnowledgeHealth = answered(knowledge(true, ME.activeTeam));
 const MEMBER_KNOWLEDGE: KnowledgeHealth = answered(knowledge(false, MEMBER.activeTeam));
 
-function data<T>(p: Part<T> | null): T {
-  if (!p || p.state !== 'ok') throw new Error('not answered');
-  return p.data;
-}
 const mount = (ui: ReactElement) => render(
   <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
     <SurfaceOverride surface={{}}><Tooltip.Provider>{ui}</Tooltip.Provider></SurfaceOverride>
@@ -232,6 +229,7 @@ describe('a waiting finding with no public owner category reads as the spec name
   const unknownOwner = <F extends { owner: string }>(rows: F[]) => rows.filter((f) => f.owner === 'unknown');
 
   it('names it `Evaluation finding awaiting a decision` for everybody, and a known category by the template', () => {
+    expect(data(MEMBER_EVAL.waiting).rows.length).toBeGreaterThan(1);
     for (const e of [ADMIN_EVAL, MEMBER_EVAL]) {
       const rows = data(e.waiting).rows;
       expect(unknownOwner(rows).length).toBeGreaterThan(0);
@@ -243,8 +241,13 @@ describe('a waiting finding with no public owner category reads as the spec name
 
   it('still tells a member that finding\'s kind and plugin, on the page and in the context', () => {
     mount(<PlatformEvaluationView read={{ state: 'ok', evaluation: MEMBER_EVAL }} />);
-    const f = unknownOwner(data(MEMBER_EVAL.waiting).rows)[0];
-    const row = within(screen.getByRole('table', { name: 'Findings waiting for a decision, oldest first' })).getAllByRole('row').find((r) => r.textContent!.includes('Evaluation finding awaiting a decision'))!;
+    const rows = data(MEMBER_EVAL.waiting).rows;
+    const f = unknownOwner(rows)[0];
+    const t = screen.getByRole('table', { name: 'Findings waiting for a decision, oldest first' });
+    // Every row leads with its name, and the spec's sentence, which names no plugin, carries the plugin under it (I-167).
+    for (const r of rows) expect(t.textContent).toContain(r.summary);
+    for (const r of unknownOwner(rows)) expect(t.textContent).toContain(`Plugin ${r.plugin}`);
+    const row = within(t).getAllByRole('row').find((r) => r.textContent!.includes('Evaluation finding awaiting a decision'))!;
     expect(row.textContent).toContain(f.plugin);
     expect(told(evaluationContext({ state: 'ok', evaluation: MEMBER_EVAL }))).toContain(`Evaluation finding awaiting a decision (an unknown in ${f.plugin}`);
   });

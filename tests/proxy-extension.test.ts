@@ -1,9 +1,8 @@
 // @vitest-environment node
-import fs from 'node:fs';
-import path from 'node:path';
 import { NextRequest } from 'next/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import config from '../scripts/verify.config.ts';
+import { appRoutes } from './routes.ts';
 
 /**
  * An address whose last segment carries a file extension is never a console page, so `proxy.ts` answers it with a bare
@@ -13,8 +12,6 @@ import config from '../scripts/verify.config.ts';
  * Two routes do take a file's name at the end of their address, a document and a knowledge node (`spec.md`,
  * `nodes/0002-….md`), and the gateway's own paths are not pages at all: those pass through.
  */
-const ROOT = path.resolve(import.meta.dirname, '..');
-const APP = path.join(ROOT, 'app');
 const saved = { ...process.env };
 
 /** The proxy as a production build runs it: no laptop rewrite to the gateway. */
@@ -66,18 +63,8 @@ describe('an address ending in a file name', () => {
 });
 
 describe('the route table', () => {
-  /** Every page's route, as Next names it: route groups dropped. */
-  function pages(dir = APP, segments: string[] = []): string[] {
-    const out: string[] = [];
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      if (entry.isDirectory() && !/^[_@]/.test(entry.name) && entry.name !== 'api') {
-        out.push(...pages(path.join(dir, entry.name), /^\(.*\)$/.test(entry.name) ? segments : [...segments, entry.name]));
-      }
-      if (entry.name === 'page.tsx') out.push(`/${segments.join('/')}`);
-    }
-    return out;
-  }
-  const all = pages();
+  /** Every page's route, as Next names it. */
+  const all = appRoutes();
 
   it('has no page whose own name carries a dot, so only a parameter can end in a file name', () => {
     for (const route of all) for (const segment of route.split('/').filter((s) => !s.startsWith('['))) expect(segment, route).not.toMatch(/\./);

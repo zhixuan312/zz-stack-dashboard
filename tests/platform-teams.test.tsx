@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { Tooltip } from 'radix-ui';
-import type { ReactElement, ReactNode } from 'react';
+import type { ReactElement } from 'react';
 import { hydrateRoot } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -13,7 +13,6 @@ vi.mock('@/app.config', async (importOriginal) => ({ ...(await importOriginal<ty
 
 import { SurfaceOverride } from '@/components/base/surface';
 import { GatewayError } from '@/data/gateway';
-import type { Me } from '@/lib/api-shapes';
 import type { TeamDetail, Teams } from '@/lib/fleet-shapes';
 import { contextText } from '@/lib/shared-context';
 import { CONTEXT_BUDGET } from '@/logic/context';
@@ -32,6 +31,10 @@ import PlatformTeamsPage, { generateMetadata as teamsMetadata } from '../app/(da
 import { readTeam, readTeams } from '../app/(dash)/platform/teams/read-teams';
 import PlatformTeamLoading from '../app/(dash)/platform/teams/[slug]/loading';
 import PlatformTeamPage, { generateMetadata as teamMetadata } from '../app/(dash)/platform/teams/[slug]/page';
+import { browserReads, browserStub, liveHint } from './browser.ts';
+import { markupOf } from './server-tree.tsx';
+import { ME as SUPERADMIN } from '../scripts/fake-gateway/people.ts';
+import { BEACON_MEMBER as MEMBER } from './personas.ts';
 
 /**
  * Teams under Platform, and the superadmin's management of teams there (Task I-99, AC-4.1): the list and a team's page
@@ -40,14 +43,6 @@ import PlatformTeamPage, { generateMetadata as teamMetadata } from '../app/(dash
  * the prepared queries; and a member answered, at `/platform/teams` and a team's page, by a refused page that names
  * nothing.
  */
-const SUPERADMIN: Me = {
-  email: 'ava.lindqvist@example.com', name: 'Ava Lindqvist', role: 'superadmin', mayRead: true, superadmin: true,
-  via: 'session', teams: [{ slug: 'atlas', role: 'admin' }], activeTeam: 'atlas',
-};
-const MEMBER: Me = {
-  email: 'mei.tanaka@example.com', name: 'Mei Tanaka', role: 'member', mayRead: true, superadmin: false,
-  via: 'session', teams: [{ slug: 'beacon', role: 'member' }], activeTeam: 'beacon',
-};
 
 const PATH = teamsPath(TEAMS_DEFAULTS);
 const LIST: Teams = answered<Teams>(teams(SUPERADMIN, new URLSearchParams(PATH.split('?')[1]))[1] as FixtureAnswer<Teams>);
@@ -57,14 +52,7 @@ const ok: TeamsRead = { state: 'ok', path: PATH, data: LIST };
 const NONE: Teams = { ...LIST, tiles: { teams: 0, openWork: 0, pending: 0, lessons: 0 }, teams: [], total: 0 };
 
 /** The browser's reads: answered by `answer`, or never when it is null. */
-function browser(answer: ((path: string) => [number, unknown]) | null) {
-  vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
-    if (!answer) return new Promise(() => {});
-    const url = new URL(String(input), 'http://console.test');
-    const [status, body] = url.pathname.endsWith('/me') ? [200, SUPERADMIN] : answer(url.pathname.replace('/api/console', '') + url.search);
-    return Promise.resolve({ ok: status < 300, status, json: async () => body } as unknown as Response);
-  }));
-}
+const browser = (reply: Parameters<typeof browserStub>[0]) => browserStub(reply, SUPERADMIN);
 
 /** `ui` in the console's providers, with an assistant listening when `ask` is given. */
 function mount(ui: ReactElement, ask?: (q: string) => void, client = new QueryClient({ defaultOptions: { queries: { retry: false } } })) {
@@ -207,12 +195,8 @@ describe('the Ask on each page\'s protagonist', () => {
 });
 
 describe('the first read is the server\'s, and a change is read again in the browser', () => {
-  /** What the browser has asked the gateway for, past who it is. */
-  const reads = () => (fetch as unknown as { mock: { calls: [RequestInfo | URL][] } }).mock.calls.map(([u]) => String(u)).filter((u) => !u.endsWith('/me'));
   /** A hint that `teams` changed, as `ConsoleLive` hands it on: every console read of the collection, invalidated. */
-  const hint = (client: QueryClient) => act(async () => {
-    await client.invalidateQueries({ predicate: (q) => q.queryKey[0] === 'console' && String(q.queryKey[1] ?? '').split('?')[0].split('/').filter(Boolean)[0] === 'teams' });
-  });
+  const hint = (client: QueryClient) => liveHint(client, 'teams');
 
   it('Teams: no browser read on mount after the server\'s, one after a hint, and what arrived is drawn', async () => {
     const renamed = { ...LIST, teams: LIST.teams.map((t, i) => (i ? t : { ...t, name: 'Renamed in another tab' })) };
@@ -220,10 +204,10 @@ describe('the first read is the server\'s, and a change is read again in the bro
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     mount(<PlatformTeamsView served={ok} />, undefined, client);
     await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
-    expect(reads()).toEqual([]);
+    expect(browserReads()).toEqual([]);
     await hint(client);
-    await waitFor(() => expect(reads()).toHaveLength(1));
-    expect(reads()[0]).toContain('/api/console/teams?limit=10&offset=0');
+    await waitFor(() => expect(browserReads()).toHaveLength(1));
+    expect(browserReads()[0]).toContain('/api/console/teams?limit=10&offset=0');
     await waitFor(() => expect(screen.getByText('Renamed in another tab')).toBeInTheDocument());
   });
 
@@ -232,19 +216,19 @@ describe('the first read is the server\'s, and a change is read again in the bro
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     mount(<PlatformTeamView slug="atlas" served={{ state: 'ok', data: detail('atlas')! }} />, undefined, client);
     await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
-    expect(reads()).toEqual([]);
+    expect(browserReads()).toEqual([]);
     await hint(client);
-    await waitFor(() => expect(reads()).toHaveLength(1));
-    expect(reads()[0]).toContain('/api/console/teams/atlas');
+    await waitFor(() => expect(browserReads()).toHaveLength(1));
+    expect(browserReads()[0]).toContain('/api/console/teams/atlas');
   });
 
   it('Retry after a server read that brought nothing is the browser\'s first read', async () => {
     browser(() => [200, LIST]);
     mount(<PlatformTeamsView served={{ state: 'failed', path: PATH, reason: 'could not read the teams' }} />);
-    expect(reads()).toEqual([]);
+    expect(browserReads()).toEqual([]);
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     await waitFor(() => expect(document.querySelectorAll('tbody tr')).toHaveLength(LIST.teams.length));
-    expect(reads()).toHaveLength(1);
+    expect(browserReads()).toHaveLength(1);
   });
 });
 
@@ -362,14 +346,6 @@ describe('the shared contexts carry what the pages draw, and what it cannot say'
   });
 });
 
-/** The text a server page's answer renders, once rendered with nothing listening. */
-async function markupOf(answer: ReactNode | Promise<ReactNode>): Promise<string> {
-  const node = await answer;
-  let text = '';
-  await act(async () => { text = mount(<>{node}</>).container.textContent ?? ''; });
-  return text;
-}
-
 describe('a member asking either page', () => {
   beforeEach(() => {
     gateway.get.mockImplementation(async (path: string) => {
@@ -389,7 +365,7 @@ describe('a member asking either page', () => {
       PlatformTeamPage({ params: Promise.resolve({ slug: 'atlas' }) }),
     ];
     for (const answer of answers) {
-      const text = await markupOf(answer);
+      const text = (await markupOf(answer, mount)).textContent;
       expect(text).not.toMatch(/team|atlas/i);
       document.body.innerHTML = '';
     }

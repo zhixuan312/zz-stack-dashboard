@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { Tooltip } from 'radix-ui';
-import { isValidElement, type ReactElement, type ReactNode } from 'react';
+import type { ReactElement } from 'react';
 import { hydrateRoot } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -14,7 +14,6 @@ vi.mock('@/app.config', async (importOriginal) => ({ ...(await importOriginal<ty
 import { SurfaceOverride } from '@/components/base/surface';
 import { GatewayError } from '@/data/gateway';
 import { PREPARED } from '@/data/prepared';
-import type { Me } from '@/lib/api-shapes';
 import type { ReleaseDetail, Releases } from '@/lib/platform-shapes';
 import { contextText } from '@/lib/shared-context';
 import { CONTEXT_BUDGET } from '@/logic/context';
@@ -32,6 +31,9 @@ import PlatformReleasesPage, { generateMetadata as releasesMetadata } from '../a
 import { readRelease, readReleases } from '../app/(dash)/platform/releases/read-releases';
 import PlatformReleaseLoading from '../app/(dash)/platform/releases/[version]/loading';
 import PlatformReleasePage from '../app/(dash)/platform/releases/[version]/page';
+import { markupOf, readsHandedOn } from './server-tree.tsx';
+import { browserReads, browserStub } from './browser.ts';
+import { ME as SUPERADMIN } from '../scripts/fake-gateway/people.ts';
 
 /**
  * Releases under Platform (Task I-96, AC-3.4, AC-2.13): the list and a release's page drawn from the fake gateway's own
@@ -41,10 +43,6 @@ import PlatformReleasePage from '../app/(dash)/platform/releases/[version]/page'
  * pages' own responses with the pages' own contexts; the prepared query; and no sentence that puts a change down to a
  * release.
  */
-const SUPERADMIN: Me = {
-  email: 'ava.lindqvist@example.com', name: 'Ava Lindqvist', role: 'superadmin', mayRead: true, superadmin: true,
-  via: 'session', teams: [{ slug: 'atlas', role: 'admin' }], activeTeam: 'atlas',
-};
 
 const PATH = releasesPath(RELEASES_DEFAULTS);
 const LIST: Releases = answered(releases(10, 0));
@@ -57,16 +55,7 @@ const [NEWEST, PAIRED, , QUIET, OLDEST] = RELEASES.map((r) => r.version);
 const CAUSAL = /\b(caused|because of|due to|thanks to|led to|improv\w*|worsen\w*|reduced|increased|fixed by|regress\w*)\b/i;
 
 /** The browser's reads: answered by `answer`, or never when it is null. */
-function browser(answer: ((path: string) => [number, unknown]) | null) {
-  vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
-    if (!answer) return new Promise(() => {});
-    const url = new URL(String(input), 'http://console.test');
-    const [status, body] = url.pathname.endsWith('/me') ? [200, SUPERADMIN] : answer(url.pathname.replace('/api/console', '') + url.search);
-    return Promise.resolve({ ok: status < 300, status, json: async () => body } as unknown as Response);
-  }));
-}
-/** What the browser has asked the gateway for, past who it is. */
-const reads = () => (fetch as unknown as { mock: { calls: [RequestInfo | URL][] } }).mock.calls.map(([u]) => String(u)).filter((u) => !u.endsWith('/me'));
+const browser = (reply: Parameters<typeof browserStub>[0]) => browserStub(reply, SUPERADMIN);
 
 /** `ui` in the console's providers, with an assistant listening when `ask` is given. */
 function mount(ui: ReactElement, ask?: (q: string) => void, client = new QueryClient({ defaultOptions: { queries: { retry: false } } })) {
@@ -271,21 +260,21 @@ describe('the first read is the server\'s, and so is another page\'s', () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const { rerender } = mount(<PlatformReleasesView served={ok} />, undefined, client);
     await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
-    expect(reads()).toEqual([]);
+    expect(browserReads()).toEqual([]);
     act(() => { window.history.pushState(null, '', '/platform/releases?page=2'); window.dispatchEvent(new PopStateEvent('popstate')); });
     await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
-    expect(reads()).toEqual([]);
+    expect(browserReads()).toEqual([]);
     const next: ReleasesRead = { state: 'ok', path: releasesPath({ ...RELEASES_DEFAULTS, page: '2' }), data: answered<Releases>(releases(10, 10)) };
     rerender(<QueryClientProvider client={client}><SurfaceOverride surface={{}}><Tooltip.Provider><PlatformReleasesView served={next} /></Tooltip.Provider></SurfaceOverride></QueryClientProvider>);
     await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
-    expect(reads()).toEqual([]);
+    expect(browserReads()).toEqual([]);
   });
 
   it('a release: no browser read on mount after the server\'s', async () => {
     browser(() => [200, releaseDetail(PAIRED)]);
     mount(<PlatformReleaseView version={PAIRED} served={{ state: 'ok', data: releaseDetail(PAIRED)! }} />);
     await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
-    expect(reads()).toEqual([]);
+    expect(browserReads()).toEqual([]);
   });
 });
 
@@ -311,7 +300,7 @@ describe('the first paint of a later page', () => {
       expect(mismatches).toEqual([]);
       expect(drawn()).toHaveLength(drawnRows.length);
       await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
-      expect(reads()).toEqual([]);
+      expect(browserReads()).toEqual([]);
     } finally {
       container.remove();
     }
@@ -416,14 +405,6 @@ describe('the shared contexts carry what the pages draw, and what it cannot say'
   });
 });
 
-/** The text a server page's answer renders, once rendered with nothing listening. */
-async function markupOf(answer: ReactNode | Promise<ReactNode>): Promise<HTMLElement> {
-  const node = await answer;
-  let container = document.body;
-  await act(async () => { container = mount(<>{node}</>).container; });
-  return container;
-}
-
 describe('the pages on the console\'s server', () => {
   beforeEach(() => {
     gateway.get.mockImplementation(async (path: string) => {
@@ -440,15 +421,7 @@ describe('the pages on the console\'s server', () => {
   });
 
   it('read the address\'s page once, as the person, and hand the one read to the as-of line and the page', async () => {
-    const reads: unknown[] = [];
-    const walk = (node: unknown): void => {
-      if (Array.isArray(node)) return node.forEach(walk);
-      if (!isValidElement(node)) return;
-      const props = node.props as Record<string, unknown>;
-      if (props.read) reads.push(props.read);
-      Object.values(props).forEach(walk);
-    };
-    walk(await PlatformReleasesPage({ searchParams: Promise.resolve({ page: '1' }) }));
+    const reads = readsHandedOn(await PlatformReleasesPage({ searchParams: Promise.resolve({ page: '1' }) }));
     expect(reads).toHaveLength(2);
     expect(reads[0]).toBe(reads[1]);
     expect(await reads[0]).toEqual(ok);
@@ -456,7 +429,7 @@ describe('the pages on the console\'s server', () => {
   });
 
   it('an unknown version is answered by the missing page, and names no release', async () => {
-    const page = await markupOf(PlatformReleasePage({ params: Promise.resolve({ version: '9.9.9' }) }));
+    const page = await markupOf(PlatformReleasePage({ params: Promise.resolve({ version: '9.9.9' }) }), mount);
     expect(page.querySelector('[data-missing-page]')).not.toBeNull();
     expect(page.textContent).not.toMatch(/9\.9\.9|release/i);
   });

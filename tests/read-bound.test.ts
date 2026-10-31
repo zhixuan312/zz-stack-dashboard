@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Query } from '@/console/query';
 import { useConsole } from '@/lib/api';
+import { READ_BOUND_MS } from '@/lib/read-bound';
 
 /**
  * A page read the gateway never answers ends in a stated failure, never an endless skeleton (spec AC-8.7): loading at
@@ -39,10 +40,10 @@ const page = () => render(createElement(QueryClientProvider, { client: new Query
 const pass = (ms: number) => act(async () => { await vi.advanceTimersByTimeAsync(ms); });
 
 describe('a page read the gateway does not answer', () => {
-  it('shows loading at once and the read failed, with Retry, four and a half seconds after it was sent', async () => {
+  it('shows loading at once and the read failed, with Retry, once the read bound has passed since it was sent', async () => {
     page();
     expect(screen.getByLabelText('Loading')).toBeTruthy();
-    await pass(4_499);
+    await pass(READ_BOUND_MS - 1);
     expect(screen.getByLabelText('Loading')).toBeTruthy();
     expect(screen.queryByRole('alert')).toBeNull();
     await pass(1);
@@ -54,7 +55,7 @@ describe('a page read the gateway does not answer', () => {
 
   it('reads again on Retry, and a late answer to the read it gave up on never replaces the new one', async () => {
     page();
-    await pass(4_500);
+    await pass(READ_BOUND_MS);
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     await pass(0);
     expect(fetch).toHaveBeenCalledTimes(2);

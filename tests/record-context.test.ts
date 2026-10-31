@@ -4,13 +4,12 @@ import { Tooltip } from 'radix-ui';
 import { createElement, Fragment, type ComponentProps } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const nav = vi.hoisted(() => ({ subs: new Set<() => void>() }));
 vi.mock('next/navigation', () => ({
   usePathname: () => window.location.pathname,
   useSearchParams: () => new URLSearchParams(window.location.search),
   useRouter: () => ({
     push() {}, refresh() {}, back() {}, forward() {}, prefetch() {},
-    replace(url: string) { window.history.replaceState(null, '', url); nav.subs.forEach((f) => f()); },
+    replace(url: string) { window.history.replaceState(null, '', url); },
   }),
 }));
 const gateway = vi.hoisted(() => ({ get: vi.fn() }));

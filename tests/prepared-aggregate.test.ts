@@ -30,6 +30,7 @@ import { signedIn } from '../scripts/fake-gateway/people.ts';
 import { platformQuery } from '../scripts/fake-gateway/platform-query.ts';
 import { access } from '../scripts/fake-gateway/work-access.ts';
 import { workQuery } from '../scripts/fake-gateway/work-query.ts';
+import { blankedText } from '../scripts/lib/layer-rules.ts';
 
 type Call = { path: string; params: URLSearchParams; cookie: string | undefined };
 let calls: Call[] = [];
@@ -152,14 +153,17 @@ describe('the runner\'s drill', () => {
   const rights = { readable: new Set(PREPARED.map((r) => r.name)), hidden: () => [] };
 
   it.each(drilled.flatMap((r) => PERIODS.map((p) => [r.name, p, r] as const)))('%s over %s: the route\'s rows, on the aggregate\'s days', async (_, period, row) => {
-    await runExplore(one(row), { source: 's', measures: ['m'], period, rows: 5 }, rights, { aggregate, read, today: today() }, '/');
+    // One day for the case: a run that crosses midnight in the reporting zone would otherwise hand the runner one day
+    // and compare its window with the next.
+    const day = today();
+    await runExplore(one(row), { source: 's', measures: ['m'], period, rows: 5 }, rights, { aggregate, read, today: day }, '/');
     const [figure, rows] = routes();
     expect(routes()).toHaveLength(2);
     expect(rows.params.get('rows')).toBe('5');
     for (const k of ['group', 'limit', 'offset']) expect(rows.params.get(k)).toBeNull();
     expect([rows.params.get('from'), rows.params.get('to')]).toEqual([figure.params.get('from'), figure.params.get('to')]);
-    expect(rows.params.get('from')).toBe(period === 'all' ? '0001-01-01' : shift(today(), -Number(period.slice(0, -1))));
-    expect(rows.params.get('to')).toBe(shift(today(), -1));
+    expect(rows.params.get('from')).toBe(period === 'all' ? '0001-01-01' : shift(day, -Number(period.slice(0, -1))));
+    expect(rows.params.get('to')).toBe(shift(day, -1));
   });
 
   it.each(undrilled.map((r) => [r.name, r] as const))('%s: refused with the sentence naming its page, before any read', async (_, row) => {
@@ -226,7 +230,7 @@ describe('every read is the caller\'s own', () => {
   });
 
   it('keeps nothing: `src/data/read.ts` holds no cached function', () => {
-    const src = fs.readFileSync(path.resolve(import.meta.dirname, '../src/data/read.ts'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    const src = blankedText(fs.readFileSync(path.resolve(import.meta.dirname, '../src/data/read.ts'), 'utf8'));
     expect(src).not.toMatch(/['"]use cache['"]/);
     expect(src).not.toMatch(/cacheTag|cacheLife/);
   });

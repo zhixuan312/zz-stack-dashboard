@@ -1,10 +1,11 @@
 // @vitest-environment node
 import type { ChildProcess } from 'node:child_process';
-import { startFakeGateway } from './fake-gateway-start.ts';
+import { asking, FIGURE, keys, META, ok, PERIOD, startFakeGateway, WINDOW, type Json } from './fake-gateway-start.ts';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { nav } from '../src/app.config.ts';
 import { FEATURES } from '../src/data/features.ts';
 import config from '../scripts/verify.config.ts';
+import * as people from '../scripts/fake-gateway/people.ts';
 
 /**
  * Work's remaining destinations as the fake gateway answers them: Knowledge, Activity, Runs and Plugins to both people,
@@ -15,13 +16,12 @@ import config from '../scripts/verify.config.ts';
  * the fake adds or drops fails here before the platform's own checks compare it with the real routes. Each case the
  * fixtures exist to draw is asserted by name, so a fixture that loses one fails here rather than on a page.
  */
-type Json = Record<string, any>;
 
 const personas = config.personas!;
 const SUPERADMIN = personas.superadmin.cookie.value;
 const MEMBER = personas.member.cookie.value;
-const AVA = 'ava.lindqvist@example.com';
-const NOAH = 'noah.okafor@example.com';
+const AVA = people.ME.email;
+const NOAH = people.MEMBER.email;
 
 let server: ChildProcess;
 let base = '';
@@ -33,19 +33,8 @@ beforeAll(async () => {
 });
 afterAll(() => { server?.kill(); });
 
-const ask = (who: string, path: string, method = 'GET') => fetch(`${base}/api/console/${path}`, { method, headers: { cookie: `zz_console=${who}` } });
-const read = async (who: string, path: string): Promise<Json> => {
-  const res = await ask(who, path);
-  expect(res.status, `${who} GET ${path}`).toBe(200);
-  return res.json();
-};
-const keys = (o: object) => Object.keys(o).sort();
-const ok = (part: Json) => { expect(part.state).toBe('ok'); return part.data; };
+const { ask, read } = asking(() => base);
 
-const META = ['asOf', 'builtAt', 'cacheHit', 'coverageFrom', 'observedAt', 'period', 'population', 'revision', 'scope', 'sourceRevision', 'timezone'];
-const FIGURE = ['value', 'why'];
-const WINDOW = ['complete', 'from', 'observedFrom', 'observedThrough', 'to'];
-const PERIOD = ['denominator', 'figure', 'numerator', 'window'];
 const OWNERS = ['guardrail', 'other', 'ours', 'theirs'];
 const BOTH = [['the superadmin', SUPERADMIN], ['the member', MEMBER]] as const;
 const sum = (o: Record<string, number>) => Object.values(o).reduce((a, b) => a + b, 0);
@@ -328,7 +317,7 @@ describe('Plugins and skills', () => {
   });
 
   it('accepts no write under the plugins or the skills', async () => {
-    for (const path of ['plugins', 'plugins/sdlc', 'skills']) expect((await ask(MEMBER, path, 'POST')).status, path).not.toBe(200);
+    for (const path of ['plugins', 'plugins/sdlc', 'skills']) expect((await ask(MEMBER, path, { method: 'POST' })).status, path).not.toBe(200);
   });
 });
 
@@ -371,18 +360,18 @@ describe('Access', () => {
     const ava = await read(SUPERADMIN, 'access');
     const noah = await read(MEMBER, 'access');
     const app = ava.applications.find((p: Json) => p.issuedCount === 2);
-    const revoke = await ask(SUPERADMIN, `settings/me/applications/${app.client}`, 'DELETE');
+    const revoke = await ask(SUPERADMIN, `settings/me/applications/${app.client}`, { method: 'DELETE' });
     expect([revoke.status, await revoke.json()]).toEqual([200, { ok: true, revoked: 2 }]);
     const other = ava.browsers.find((b: Json) => !b.current);
-    const signOut = await ask(SUPERADMIN, `settings/me/browsers/${other.id}`, 'DELETE');
+    const signOut = await ask(SUPERADMIN, `settings/me/browsers/${other.id}`, { method: 'DELETE' });
     expect([signOut.status, await signOut.json()]).toEqual([200, { ok: true, revoked: 1 }]);
-    const current = await ask(SUPERADMIN, `settings/me/browsers/${ava.browsers.find((b: Json) => b.current).id}`, 'DELETE');
+    const current = await ask(SUPERADMIN, `settings/me/browsers/${ava.browsers.find((b: Json) => b.current).id}`, { method: 'DELETE' });
     expect(current.status).toBe(400);
     expect((await current.json()).error).toMatch(/sign out/);
     // Another person's application and browser are not found, rather than refused.
-    expect((await ask(SUPERADMIN, `settings/me/applications/${noah.applications[0].client}`, 'DELETE')).status).toBe(404);
-    expect((await ask(SUPERADMIN, `settings/me/browsers/${noah.browsers[1].id}`, 'DELETE')).status).toBe(404);
-    expect((await ask(MEMBER, `settings/me/browsers/${other.id}`, 'DELETE')).status).toBe(404);
+    expect((await ask(SUPERADMIN, `settings/me/applications/${noah.applications[0].client}`, { method: 'DELETE' })).status).toBe(404);
+    expect((await ask(SUPERADMIN, `settings/me/browsers/${noah.browsers[1].id}`, { method: 'DELETE' })).status).toBe(404);
+    expect((await ask(MEMBER, `settings/me/browsers/${other.id}`, { method: 'DELETE' })).status).toBe(404);
     // Forgotten, like every write: the next read is the same.
     expect(await read(SUPERADMIN, 'access')).toMatchObject({ applications: ava.applications, browsers: ava.browsers });
   });

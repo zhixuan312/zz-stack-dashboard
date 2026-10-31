@@ -2,19 +2,18 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Tooltip } from 'radix-ui';
-import { cloneElement, isValidElement, Suspense, type ReactNode } from 'react';
+import { Suspense } from 'react';
 import { hydrateRoot } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-/** The router as the address writer sees it: a replace lands in the address and tells its readers, as a navigation does. */
-const nav = vi.hoisted(() => ({ subs: new Set<() => void>() }));
+/** The router as the address writer sees it: a replace lands in the address, as a navigation does. */
 vi.mock('next/navigation', () => ({
   usePathname: () => window.location.pathname,
   useSearchParams: () => new URLSearchParams(window.location.search),
   useRouter: () => ({
     push() {}, refresh() {}, back() {}, forward() {}, prefetch() {},
-    replace(url: string) { window.history.replaceState(null, '', url); nav.subs.forEach((f) => f()); },
+    replace(url: string) { window.history.replaceState(null, '', url); },
   }),
   redirect: (to: string) => { throw new Error(`NEXT_REDIRECT ${to}`); },
 }));
@@ -43,6 +42,7 @@ import { readRuns } from '../app/(dash)/runs/read-runs';
 import { ME } from '../scripts/fake-gateway/people.ts';
 import { plugins } from '../scripts/fake-gateway/work-plugins.ts';
 import { runs } from '../scripts/fake-gateway/work-runs.ts';
+import { settled } from './server-tree.tsx';
 
 /**
  * Runs as the person reads it (Task I-110), drawn from the fake gateway's own answers, the ones `pnpm verify` serves
@@ -106,17 +106,6 @@ const table = (title: string) => screen.getByRole('heading', { name: title }).cl
 const firstCell = (r: Element) => { const td = r.querySelector('td')!; return (td.firstElementChild ?? td).textContent; };
 const firstCells = (t: HTMLElement) => [...t.querySelectorAll('tbody tr')].map(firstCell);
 const tight = (s: string) => s.replace(/\s/g, '');
-
-/** A server page's tree as Next hands it over: every async component awaited where it stands, in children and props. */
-async function settled(node: ReactNode): Promise<ReactNode> {
-  if (Array.isArray(node)) return Promise.all(node.map(settled));
-  if (!isValidElement(node)) return node;
-  const { type, props } = node as { type: unknown; props: Record<string, unknown> };
-  if (typeof type === 'function' && type.constructor.name === 'AsyncFunction') return settled(await (type as (p: unknown) => Promise<ReactNode>)(props));
-  const next: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(props)) next[k] = isValidElement(v) || Array.isArray(v) ? await settled(v as ReactNode) : v;
-  return cloneElement(node, next);
-}
 
 beforeEach(() => { gateway.get.mockReset(); window.history.replaceState(null, '', '/runs'); });
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });

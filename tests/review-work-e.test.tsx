@@ -28,6 +28,7 @@ import { ME, MEMBER } from '../scripts/fake-gateway/people.ts';
 import { approvals } from '../scripts/fake-gateway/work-approvals.ts';
 import { initiativeDetail, initiativeList } from '../scripts/fake-gateway/work-initiatives.ts';
 import { documentDetail } from '../scripts/fake-gateway/work.ts';
+import { classes, column } from './table-query.ts';
 
 /**
  * Phase 7, I-159: the re-review's findings on Initiatives, an initiative, a document and Approvals (Work F-42 to F-45
@@ -37,7 +38,6 @@ import { documentDetail } from '../scripts/fake-gateway/work.ts';
 const AT = '2026-10-19T09:00:00Z';
 const SLUG = '2026-09-28-search-relevance';
 const query = (path: string) => new URLSearchParams(path.split('?')[1]);
-const classes = (el: Element) => (typeof el.className === 'string' ? el.className.split(/\s+/) : []);
 const text = () => document.body.textContent ?? '';
 /** Whether `a` comes before `b` in the page's order. */
 const before = (a: Node, b: Node) => !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
@@ -53,14 +53,6 @@ function mount(ui: ReactElement) {
   return render(<QueryClientProvider client={client}><Tooltip.Provider>{ui}</Tooltip.Provider></QueryClientProvider>);
 }
 
-/** The table captioned `caption`, and the cells of its column headed `header`. */
-function column(caption: string, header: string) {
-  const t = [...document.querySelectorAll('table')].find((x) => x.querySelector('caption')?.textContent === caption);
-  if (!t) throw new Error(`no table captioned "${caption}"`);
-  const i = [...t.querySelectorAll('thead th')].findIndex((th) => th.textContent?.trim() === header);
-  if (i < 0) throw new Error(`no column "${header}" in "${caption}"`);
-  return [...t.querySelectorAll('tbody tr')].map((tr) => tr.children[i] as HTMLElement);
-}
 
 const served = (slug: string) => ({ state: 'ok' as const, data: initiativeDetail('atlas', slug)!, team: 'atlas', at: AT });
 

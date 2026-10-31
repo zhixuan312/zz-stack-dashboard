@@ -16,11 +16,8 @@ import type { KnowledgeList, KnowledgeRow, KnowledgeSummary } from '@/lib/destin
 import type { ServerRead } from '@/logic/knowledge-context';
 import { KnowledgeView } from '@/views/pages/knowledge';
 import { stamped } from '../scripts/fake-gateway/envelope.ts';
+import { ME } from '../scripts/fake-gateway/people.ts';
 
-const ME = {
-  email: 'a@b.example.com', name: 'A', role: 'superadmin', mayRead: true, superadmin: true,
-  via: 'session', teams: [{ slug: 'atlas', role: 'admin' }], activeTeam: 'atlas',
-};
 
 const WINDOW = { from: '2026-10-05T00:00:00Z', to: '2026-10-12T00:00:00Z', observedFrom: '2026-10-05T00:00:00Z', observedThrough: '2026-10-12T00:00:00Z', complete: true };
 const META = stamped({ asOf: '2026-10-15T00:00:00Z', timezone: 'UTC', period: { from: '2026-09-07T00:00:00Z', to: '2026-10-15T00:00:00Z' }, scope: 'active-team' as const, population: 'atlas', coverageFrom: null });

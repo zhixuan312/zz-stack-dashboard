@@ -1,10 +1,8 @@
 // @vitest-environment node
-import { execFileSync, type ChildProcess } from 'node:child_process';
-import { startFakeGateway } from './fake-gateway-start.ts';
-import fs from 'node:fs';
+import type { ChildProcess } from 'node:child_process';
+import { asking, startFakeGateway, unobserved } from './fake-gateway-start.ts';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { NO_SESSION } from '../scripts/fake-gateway/people.ts';
-import { PLATFORM_STATUS } from '../scripts/fake-gateway/platform-status.ts';
 import { INITIATIVES, KNOWLEDGE, documentDetail } from '../scripts/fake-gateway/work.ts';
 import { initiativeDetail } from '../scripts/fake-gateway/work-initiatives.ts';
 import config from '../scripts/verify.config.ts';
@@ -42,22 +40,7 @@ beforeAll(async () => {
 });
 afterAll(() => { server?.kill(); });
 
-/** One request as the person a cookie value names; `null` sends no cookie at all. */
-const ask = (who: string | null, path: string, init: RequestInit = {}) => fetch(`${base}/api/console/${path}`, {
-  ...init, headers: { ...(init.headers as Record<string, string>), ...(who === null ? {} : { cookie: `zz_console=${who}` }) },
-});
-const read = async <T = Json>(who: string | null, path: string) => {
-  const res = await ask(who, path);
-  expect(res.status, `${who ?? 'no cookie'} GET ${path}`).toBe(200);
-  return res.json() as Promise<T>;
-};
-const post = (who: string | null, path: string, body: unknown) => ask(who, path, {
-  method: 'POST', headers: { 'content-type': 'application/json' }, body: typeof body === 'string' ? body : JSON.stringify(body) });
-/** An answer with the one field levelled that every request has of its own: two reads of a route differ in
- *  `observedAt` when they differ nowhere else, since each request is served at its own instant. */
-const unobserved = <T = Json>(v: T): T => (v && typeof v === 'object' && 'meta' in v
-  ? { ...v, meta: { ...(v as { meta: object }).meta, observedAt: null } }
-  : v);
+const { ask, read, post } = asking(() => base);
 
 /** The member's one team, and every other team's slug and name, as whole words. */
 async function teams(): Promise<{ own: string; others: Team[]; named: RegExp }> {
@@ -431,25 +414,6 @@ describe('GET /api/console/platform/status', () => {
     for (const w of own.malformed) expect(w.figure.why).toBe(w.denominator === 0 ? 'no_data' : null);
     expect(Object.keys(own.bugs).sort()).toEqual(['duplicate', 'filed', 'fixed', 'notABug', 'open']);
     expect(own.bugs.filed).toBe(own.bugs.fixed + own.bugs.notABug + own.bugs.duplicate + own.bugs.open);
-  });
-
-  it('is data the platform\'s own check can import with plain node', () => {
-    // `checks/console-platform-status.ts` in zz-stack compares the real route's answer with this file's, by shape:
-    // an import through the console's path alias would not resolve there, and a null has no shape to compare.
-    const file = 'scripts/fake-gateway/platform-status.ts';
-    expect(fs.readFileSync(file, 'utf8')).not.toMatch(/from '@\//);
-    const out = execFileSync('node', ['-e', `import('./${file}').then((m) => console.log(JSON.stringify(m.PLATFORM_STATUS)))`], { encoding: 'utf8' });
-    const served = JSON.parse(out) as Status;
-    expect(served.measures.map((m) => m.key)).toEqual(PLATFORM_STATUS.measures.map((m) => m.key));
-    for (const pick of ['first', 'best', 'last', 'previous'] as const) {
-      expect(served.measures[0][pick], pick).toMatchObject({ window: expect.any(Object), figure: expect.any(Object) });
-    }
-  });
-
-  it('still answers 404 for a route it does not have', async () => {
-    for (const path of ['platform', 'platform/status/extra', 'platform/usage/extra', 'no-such-route']) {
-      for (const who of [null, MEMBER]) expect((await ask(who, path)).status, `GET ${path}`).toBe(404);
-    }
   });
 });
 

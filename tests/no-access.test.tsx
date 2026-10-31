@@ -29,6 +29,7 @@ vi.mock('next/navigation', () => ({
 import { refusal } from '@/app.config';
 import { gate, gatedMetadata } from '@/console/gate';
 import { FEATURES, type FeatureId } from '@/data/features';
+import type { Me } from '@/lib/api-shapes';
 import { gatedLoading } from '@/data/refusal';
 import { MAIN_ROLES, whoCan } from '@/data/roles';
 import { getSortedRoutes, isDynamicRoute } from 'next/dist/shared/lib/router/utils';
@@ -37,18 +38,14 @@ import { MISSING_METADATA, NOT_FOUND } from '@/logic/missing';
 import { MissingPage } from '@/console/no-access';
 import NotFound, * as notFoundPage from '../app/not-found';
 import MissingAddressPage, * as missingAddress from '../app/(dash)/[...missing]/page';
+import { blankedText } from '../scripts/lib/layer-rules.ts';
+import { CATCH_ALL, DASH, appRoutes, dashPages } from './routes.ts';
+import { ME as SUPERADMIN } from '../scripts/fake-gateway/people.ts';
+import { BEACON_MEMBER as MEMBER } from './personas.ts';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
-const APP = path.join(ROOT, 'app');
-const DASH = path.join(APP, '(dash)');
-/** The page that answers an address no other page does: no destination, so it is not one of the gated routes. */
-const CATCH_ALL = path.join(DASH, '[...missing]');
 
-type Body = Record<string, unknown>;
-const SUPERADMIN: Body = { email: 'owner@example.com', name: 'Owner Example', role: 'superadmin', mayRead: true, superadmin: true, via: 'session', teams: [{ slug: 'atlas', role: 'admin' }], activeTeam: 'atlas' };
-const MEMBER: Body = { email: 'mei@example.com', name: 'Mei Tanaka', role: 'member', mayRead: true, superadmin: false, via: 'session', teams: [{ slug: 'beacon', role: 'admin' }], activeTeam: 'beacon' };
-
-function gateway(answer: Body | 401) {
+function gateway(answer: Me | 401) {
   global.fetch = (async () => (answer === 401
     ? { ok: false, status: 401, json: async () => ({ error: 'HTTP 401' }) }
     : { ok: true, status: 200, json: async () => answer }) as Response) as typeof fetch;
@@ -68,21 +65,11 @@ async function answerOf(page: () => Promise<unknown>): Promise<{ element: unknow
 /** A route of the shell as a person types it: route groups dropped, a dynamic segment kept as written. */
 type Route = { address: string; feature: FeatureId; dir: string };
 
-/** Every page under `app/(dash)` with the feature its gate asks. */
-function routes(dir = DASH): Route[] {
-  const found: Route[] = [];
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (entry.isDirectory() && path.join(dir, entry.name) !== CATCH_ALL) found.push(...routes(path.join(dir, entry.name)));
-    if (entry.name !== 'page.tsx') continue;
-    const asked = fs.readFileSync(path.join(dir, entry.name), 'utf8').match(/\bgate\('([a-z-]+)'\)/)?.[1];
-    if (!asked) throw new Error(`${path.relative(ROOT, dir)}/page.tsx opens with no gate`);
-    const segments = path.relative(DASH, dir).split(path.sep).filter((s) => s && !/^\(.*\)$/.test(s));
-    found.push({ address: `/${segments.join('/')}`, feature: asked as FeatureId, dir });
-  }
-  return found;
-}
+/** Every page under `app/(dash)` with the feature its gate asks, but the catch-all: it answers an address no other page
+ *  does, so it has no destination and is not one of the gated routes. */
+const ROUTES: Route[] = dashPages().filter((p) => p.dir !== CATCH_ALL).map(({ route, feature, dir }) => ({ address: route, feature, dir }));
 
-const REFUSED = routes().filter((r) => !whoCan(FEATURES[r.feature].needs).includes('Member'));
+const REFUSED = ROUTES.filter((r) => !whoCan(FEATURES[r.feature].needs).includes('Member'));
 
 /** The loading state a navigation to the route shows: the nearest `loading.tsx` at or above its directory. */
 function loadingOf(dir: string): string {
@@ -130,8 +117,8 @@ describe('the console\'s refusal', () => {
 
   it('finds what a refusal would leak, so a clean answer is a real one', () => {
     const route: Route = { address: '/teams/[slug]', feature: 'teams', dir: DASH };
-    const told = render(<p>You don&apos;t have access to Teams. Superadmins can open it. Signed in as mei@example.com in beacon.</p>).container;
-    expect(leaks(told, forbidden(route))).toEqual(expect.arrayContaining(['Superadmins', 'mei@example.com', 'beacon', 'Teams', 'teams']));
+    const told = render(<p>You don&apos;t have access to Teams. Superadmins can open it. Signed in as {MEMBER.email} in beacon.</p>).container;
+    expect(leaks(told, forbidden(route))).toEqual(expect.arrayContaining(['Superadmins', MEMBER.email, 'beacon', 'Teams', 'teams']));
     expect(leaks(render(<p>Nothing lives here.</p>).container, forbidden(route))).toEqual([]);
   });
 });
@@ -228,7 +215,7 @@ describe('an address no page answers', () => {
   });
 
   it('opens with the gate and reads nothing of the address, as every page in the shell does', () => {
-    const src = fs.readFileSync(path.join(CATCH_ALL, 'page.tsx'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, ' ');
+    const src = blankedText(fs.readFileSync(path.join(CATCH_ALL, 'page.tsx'), 'utf8'));
     expect(src).toMatch(/const denied = await gate\('home'\);\s*if \(denied\) return denied;/);
     expect(src).not.toMatch(/\bparams\b|notFound\(/);
   });
@@ -242,18 +229,8 @@ describe('an address no page answers', () => {
  * reaches them either.
  */
 describe('the catch-all, in the route table', () => {
-  /** Every route the app serves, a page's or a handler's, as Next names it: route groups dropped. */
-  function table(dir = APP, segments: string[] = []): string[] {
-    const out: string[] = [];
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      if (entry.isDirectory() && !/^[_@]/.test(entry.name)) {
-        out.push(...table(path.join(dir, entry.name), /^\(.*\)$/.test(entry.name) ? segments : [...segments, entry.name]));
-      }
-      if (entry.name === 'page.tsx' || entry.name === 'route.ts') out.push(`/${segments.join('/')}`);
-    }
-    return [...new Set(out)];
-  }
-  const all = table();
+  /** Every route the app serves, a page's or a handler's. */
+  const all = appRoutes(true);
   const statics = all.filter((r) => !isDynamicRoute(r));
   const dynamics = getSortedRoutes(all.filter((r) => isDynamicRoute(r)));
   const answering = (address: string) => (statics.includes(address) ? address : dynamics.find((r) => getRouteRegex(r).re.test(address)));
@@ -275,24 +252,13 @@ describe('the catch-all, in the route table', () => {
   /**
    * The old addresses, removed (AC-1.12, reconciliation 75): the catch-all answers each of them, so each draws the
    * console's missing page with its title and its status, for the superadmin and for a member alike, the same body an
-   * address that never named anything draws, since the catch-all reads nothing of the address. No redirect: the page
-   * is the answer.
+   * address that never named anything draws, since the catch-all reads nothing of the address ('an address no page
+   * answers' above holds what it draws). No redirect: the page is the answer.
    */
   describe.each(['/teams', '/teams/atlas', '/people', '/settings'])('%s', (address) => {
     it('is answered by the catch-all and nothing else', () => {
       expect(statics).not.toContain(address);
       expect(answering(address)).toBe('/[...missing]');
-    });
-
-    it.each([['the superadmin', SUPERADMIN], ['a member', MEMBER]] as const)('draws the missing page for %s, as an unknown address does', async (_who, person) => {
-      gateway(person);
-      const unknown = render((await MissingAddressPage()) as ReactElement).container.innerHTML;
-      cleanup();
-      const old = render((await MissingAddressPage()) as ReactElement).container;
-      expect(old.querySelector('[data-missing-page]')).not.toBeNull();
-      expect(old.querySelector('[data-no-access]')).toBeNull();
-      expect(old.innerHTML).toBe(unknown);
-      expect(missingAddress.metadata).toEqual({ title: NOT_FOUND.title, robots: { index: false } });
     });
   });
 });

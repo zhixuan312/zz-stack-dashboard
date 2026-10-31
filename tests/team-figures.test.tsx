@@ -3,7 +3,6 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { Tooltip } from 'radix-ui';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { Me } from '@/lib/api-shapes';
 import type { TeamDetail } from '@/lib/fleet-shapes';
 import { formatDate } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
@@ -11,6 +10,7 @@ import { PlatformTeamView } from '@/views/pages/platform-team';
 import type { TeamRead } from '@/logic/team-context';
 import { teamDetail } from '../scripts/fake-gateway/platform-teams.ts';
 import { answered } from '../scripts/fake-gateway/envelope.ts';
+import { ME as SUPERADMIN } from '../scripts/fake-gateway/people.ts';
 
 /**
  * A team's page draws the team's own read: the fake gateway's answer for atlas, the one `pnpm verify` serves, as the
@@ -18,10 +18,6 @@ import { answered } from '../scripts/fake-gateway/envelope.ts';
  * the console's existing settings route, called as Settings called it, with the gateway's refusal said beside the
  * control that made it.
  */
-const SUPERADMIN: Me = {
-  email: 'ava.lindqvist@example.com', name: 'Ava Lindqvist', role: 'superadmin', mayRead: true, superadmin: true,
-  via: 'session', teams: [{ slug: 'atlas', role: 'admin' }], activeTeam: 'atlas',
-};
 const ATLAS: TeamDetail = answered(teamDetail('atlas')!);
 
 type Sent = { method: string; path: string; body: Record<string, unknown> };

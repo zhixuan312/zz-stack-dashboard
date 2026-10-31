@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { grainOf } from '@/lib/grain';
+import { iso } from '../scripts/fake-gateway/clock.ts';
 
 /**
  * One rule names the grain a series arrives in (Task I-139, AC-2.7): the gateway's `grainFor` cuts a window by week up
@@ -7,8 +8,7 @@ import { grainOf } from '@/lib/grain';
  * start to its end, so the first one says which. Record, Initiatives and what the assistant is told of both read it.
  */
 const DAY = 86_400_000;
-const at = (iso: string) => Date.parse(iso);
-const iso = (ms: number) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z');
+const at = (instant: string) => Date.parse(instant);
 /** A series of periods as the gateway answers them, the first starting at `from`, each `next` after the one before. */
 function cut(from: string, n: number, next: (ms: number) => number) {
   const windows = [];

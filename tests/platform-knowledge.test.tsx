@@ -1,6 +1,5 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { Tooltip } from 'radix-ui';
-import { isValidElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
@@ -25,7 +24,7 @@ import type { Me } from '@/lib/api-shapes';
 import { exploreSchema, runExplore, type ExploreRights } from '@/lib/explore';
 import type { KnowledgeHealth } from '@/lib/fleet-shapes';
 import { dayOf, formatDateTime, formatDay } from '@/lib/format-date';
-import type { Part, Window } from '@/lib/platform-shapes';
+import type { Window } from '@/lib/platform-shapes';
 import { contextText } from '@/lib/shared-context';
 import { CONTEXT_BUDGET } from '@/logic/context';
 import { READ_BOUND_MS } from '@/lib/read-bound';
@@ -40,6 +39,8 @@ import { TEAMS } from '../scripts/fake-gateway/platform-teams.ts';
 import PlatformKnowledgeLoading from '../app/(dash)/platform/knowledge/loading';
 import PlatformKnowledgePage, { generateMetadata } from '../app/(dash)/platform/knowledge/page';
 import { readKnowledgeHealth } from '../app/(dash)/platform/knowledge/read-knowledge';
+import { readsHandedOn } from './server-tree.tsx';
+import { data } from './part.ts';
 
 /**
  * Knowledge health under Platform (Task I-103): the page drawn from the fake gateway's own answer as the superadmin and
@@ -53,11 +54,6 @@ import { readKnowledgeHealth } from '../app/(dash)/platform/knowledge/read-knowl
 const ADMIN: KnowledgeHealth = answered(knowledge(true, ME.activeTeam));
 const MEMBER_READ: KnowledgeHealth = answered(knowledge(false, MEMBER.activeTeam));
 const ok = (health: KnowledgeHealth): KnowledgeHealthRead => ({ state: 'ok', health });
-/** A part the fixture answers, which is every one of them. */
-function data<T>(p: Part<T> | null): T {
-  if (!p || p.state !== 'ok') throw new Error('not answered');
-  return p.data;
-}
 const WEEKS = data(ADMIN.made).weeks;
 /** The day the fixture's week `i` starts, as a sentence writes it. */
 const day = (i: number) => formatDay(WEEKS[i].window.from);
@@ -468,15 +464,7 @@ describe('the page on the console\'s server', () => {
 
   it('reads once, as the person, and hands the one read to the as-of line and the page', async () => {
     answering(MEMBER);
-    const found: unknown[] = [];
-    const walk = (node: unknown): void => {
-      if (Array.isArray(node)) return node.forEach(walk);
-      if (!isValidElement(node)) return;
-      const props = node.props as Record<string, unknown>;
-      if (props.read) found.push(props.read);
-      Object.values(props).forEach(walk);
-    };
-    walk(await PlatformKnowledgePage());
+    const found = readsHandedOn(await PlatformKnowledgePage());
     expect(found).toHaveLength(2);
     expect(found[0]).toBe(found[1]);
     expect(await found[0]).toEqual(ok(MEMBER_READ));

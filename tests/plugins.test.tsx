@@ -1,27 +1,23 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { Tooltip } from 'radix-ui';
-import { cloneElement, isValidElement, type ReactElement, type ReactNode } from 'react';
+import { isValidElement, type ReactElement, type ReactNode } from 'react';
 import { hydrateRoot } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const nav = vi.hoisted(() => ({ subs: new Set<() => void>() }));
 vi.mock('next/navigation', () => ({
   usePathname: () => window.location.pathname,
   useSearchParams: () => new URLSearchParams(window.location.search),
   useRouter: () => ({
     push() {}, refresh() {}, back() {}, forward() {}, prefetch() {},
-    replace(url: string) { window.history.replaceState(null, '', url); nav.subs.forEach((f) => f()); },
+    replace(url: string) { window.history.replaceState(null, '', url); },
   }),
   redirect: (url: string) => { throw new Error(`NEXT_REDIRECT ${url}`); },
 }));
 const gateway = vi.hoisted(() => ({ get: vi.fn() }));
 vi.mock('@/data/gateway', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/data/gateway')>()), gatewayGet: gateway.get }));
 const access = vi.hoisted(() => ({ denied: null as ReactElement | null }));
-vi.mock('@/data/access', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/data/access')>()),
-}));
 vi.mock('@/console/gate', () => ({ gate: async () => access.denied, gatedMetadata: async (_feature: string, metadata: object) => metadata }));
 
 import PluginsLoading from '../app/(dash)/plugins/loading';
@@ -30,6 +26,7 @@ import PluginPage from '../app/(dash)/plugins/[plugin]/page';
 import SkillPage from '../app/(dash)/plugins/[plugin]/[skill]/page';
 import { GatewayError } from '@/data/gateway';
 import type { Me, PluginEval, PluginRow, Skill, SkillDetail, SkillText } from '@/lib/api-shapes';
+import { READ_BOUND_MS } from '@/lib/read-bound';
 import { PluginView } from '@/views/pages/plugin';
 import { PluginsView } from '@/views/pages/plugins';
 import { SkillView } from '@/views/pages/skill';
@@ -39,6 +36,7 @@ import type { SkillRead } from '@/logic/skill-context';
 import { ME, MEMBER } from '../scripts/fake-gateway/people.ts';
 import { pluginEval, skillText } from '../scripts/fake-gateway/platform.ts';
 import { plugins, skillDetail, skills } from '../scripts/fake-gateway/work-plugins.ts';
+import { settled } from './server-tree.tsx';
 
 /**
  * Plugins, a plugin and a skill (Task I-111), as a person meets them: the Records template's table with each plugin's
@@ -80,16 +78,6 @@ afterEach(() => vi.unstubAllGlobals());
 
 const mount = (ui: ReactElement) => render(<Tooltip.Provider>{ui}</Tooltip.Provider>);
 
-/** A server page's tree as Next hands it to the browser: every async component it places awaited where it stands. */
-async function settled(node: ReactNode): Promise<ReactNode> {
-  if (Array.isArray(node)) return Promise.all(node.map(settled));
-  if (!isValidElement(node)) return node;
-  const { type, props } = node as { type: unknown; props: Record<string, unknown> };
-  if (typeof type === 'function' && type.constructor.name === 'AsyncFunction') return settled(await (type as (p: unknown) => Promise<ReactNode>)(props));
-  const next: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(props)) next[k] = isValidElement(v) || Array.isArray(v) ? await settled(v as ReactNode) : v;
-  return cloneElement(node, next);
-}
 const text = () => document.body.textContent ?? '';
 
 /** Every control a person can press or follow, by its accessible name: none of them may start an evaluation. */
@@ -160,7 +148,7 @@ describe('Plugins, the list', () => {
 
   it('says a read that took too long did, and never draws an endless skeleton', () => {
     mount(<PluginsView served={{ state: 'slow', path: '/plugins' }} />);
-    expect(text()).toContain('The read did not answer within 4.5 seconds.');
+    expect(text()).toContain(`The read did not answer within ${READ_BOUND_MS / 1000} seconds.`);
     expect(document.querySelector('[aria-busy="true"]')).toBeNull();
   });
 

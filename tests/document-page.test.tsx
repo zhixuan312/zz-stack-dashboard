@@ -13,9 +13,10 @@ vi.mock('@/data/access', async (importOriginal) => ({
 vi.mock('@/console/gate', () => ({ gate: async () => null, gatedMetadata: async (_feature: string, metadata: object) => metadata }));
 
 import { FEATURES } from '@/data/features';
-import type { DocumentDetail, Me } from '@/lib/api-shapes';
+import type { DocumentDetail } from '@/lib/api-shapes';
 import { DocumentView } from '@/views/pages/document';
 import DocumentPage from '../app/(dash)/initiatives/[team]/[slug]/[...path]/page';
+import { CONTEXT, NEW, OLD, READER, draftAt } from './approval-fixture.ts';
 
 /**
  * The document page and the presentation it records, wired together.
@@ -25,27 +26,7 @@ import DocumentPage from '../app/(dash)/initiatives/[team]/[slug]/[...path]/page
  * text: the reader pressed Approve on what they had read. The page says the document changed, holds Approve, and
  * records the newer snapshot only when the reader reloads.
  */
-const OLD = 'cr_aaaaaaaaaaaaaaaaaaaaaaaaaa';
-const NEW = 'cr_cccccccccccccccccccccccccc';
-const CONTEXT = 'rc_bbbbbbbbbbbbbbbbbbbbbbbbbb';
-
-const me: Me = {
-  email: 'a@b.example.com', name: 'A', role: 'member', mayRead: true,
-  superadmin: false, via: 'session', teams: [{ slug: 'team-one', role: 'member' }], activeTeam: 'team-one',
-};
-
-const docAt = (content_revision: string, body: string): DocumentDetail => ({
-  team: 'team-one', initiative: 'init-1', path: 'spec.md', flow: 'sdlc-flow', current_revision: 1,
-  current_version: 1, correction: null, content_revision,
-  type: 'agreement', status: 'draft', outcome: null, approved_by: null, approved_at: null, closed_by: null,
-  title: 'The spec', tags: null, stakeholder: null, fields: {}, evidence: null, superseded_by: null, body,
-  updated_at: '2026-09-01T00:00:00Z', bytes: body.length,
-  gated: true, closing: false, requiredForClose: false,
-  decisions: [], decisionCounts: { rows: 0, withVerdict: 0, withQualifier: 0, withChecker: 0 },
-  // One version, so the history panel reads nothing of its own.
-  versions: [{ path: 'spec.md', hash: 'h1', status: 'draft', approved_by: null, updated_at: '2026-09-01T00:00:00Z', version: 1, revision: 1, superseded_approved: null }],
-  sources: [],
-});
+const me = READER;
 
 /** What the store holds now; a test moves it to stand for another session revising the document. */
 let stored: DocumentDetail;
@@ -53,7 +34,7 @@ let stored: DocumentDetail;
 let writes: { route: string; body: Record<string, unknown> }[];
 
 beforeEach(() => {
-  stored = docAt(OLD, 'What the reader read.');
+  stored = draftAt(OLD, 'What the reader read.');
   writes = [];
   vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
     const json = (body: unknown, status = 200) =>
@@ -123,7 +104,7 @@ describe('the document page under a refetch', () => {
     expect(screen.getByRole('button', { name: 'Confirm' })).toBeInTheDocument();
 
     // Another session revises the document, and a background refetch brings the new text in.
-    stored = docAt(NEW, 'What somebody else wrote since.');
+    stored = draftAt(NEW, 'What somebody else wrote since.');
     await act(() => client.refetchQueries({ queryKey: ['console', '/document/team-one/init-1/spec.md'] }));
     await screen.findByText('What somebody else wrote since.');
 
@@ -144,7 +125,7 @@ describe('the document page under a refetch', () => {
       .toEqual([[OLD, undefined], [NEW, CONTEXT]]);
   });
 
-  it('holds Approve beside the out-of-date banner an Approve conflict raised, and a reload clears both', async () => {
+  it('offers Reload instead of Approve after an Approve conflict, and a reload offers Approve again', async () => {
     const user = userEvent.setup();
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const answer = vi.mocked(fetch).getMockImplementation()!;
@@ -171,7 +152,7 @@ describe('the document page under a refetch', () => {
   // zz-core records the console's ticketless presentation as covering the whole snapshot, and an approval signs its
   // review metadata with its body. So the page where Approve is offered shows every piece of it.
   it('shows the review metadata an approval signs, where Approve is offered', async () => {
-    stored = { ...docAt(OLD, 'What the reader read.'), title: 'Spec: relevance that explains itself', tags: ['search', 'ranking'],
+    stored = { ...draftAt(OLD, 'What the reader read.'), title: 'Spec: relevance that explains itself', tags: ['search', 'ranking'],
                stakeholder: 'noah.okafor@example.com', fields: { audience: 'research team', risk: 'medium' } };
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     await renderPage(client);

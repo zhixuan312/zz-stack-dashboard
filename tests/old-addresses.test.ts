@@ -6,6 +6,7 @@ import { PREPARED } from '@/data/prepared';
 import { viewTools } from '@/logic/tools';
 import baseline from '../scripts/verify.baseline.json';
 import config from '../scripts/verify.config.ts';
+import { blankedText } from '../scripts/lib/layer-rules.ts';
 
 /**
  * The old addresses are gone, and nothing points at them (AC-1.12, reconciliation 75): `/teams`, `/teams/<slug>`,
@@ -21,9 +22,6 @@ import config from '../scripts/verify.config.ts';
 const ROOT = path.resolve(import.meta.dirname, '..');
 const read = (file: string) => fs.readFileSync(path.join(ROOT, file), 'utf8');
 const MANAGED = new Set(Object.keys((JSON.parse(read('.meridian/manifest.json')) as { files: Record<string, string> }).files));
-/** Comments out, so a sentence of history is not a link. */
-const code = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1 ');
-
 /** Every file under `dirs` with one of `exts`, as a path from the repository's root, `node_modules` and builds aside. */
 function filesUnder(dirs: string[], exts: RegExp): string[] {
   const out: string[] = [];
@@ -50,7 +48,7 @@ const isOld = (address: string) => /^\/(teams|people|settings)(?=$|[/?#])/.test(
  */
 const LINK_TARGET = /(?:[hH]ref\s*[:=]\s*\{?\s*|\b(?:push|replace|prefetch|redirect)\(\s*)(['"`])(\/[^'"`]*)\1?/g;
 function linkTargets(src: string): string[] {
-  return [...code(src).matchAll(LINK_TARGET)].map((m) => m[2].replace(/\$\{[^}]*\}.*$/, '<x>'));
+  return [...blankedText(src).matchAll(LINK_TARGET)].map((m) => m[2].replace(/\$\{[^}]*\}.*$/, '<x>'));
 }
 
 /**

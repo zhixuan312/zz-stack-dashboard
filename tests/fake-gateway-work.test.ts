@@ -1,12 +1,13 @@
 // @vitest-environment node
 import type { ChildProcess } from 'node:child_process';
-import { startFakeGateway } from './fake-gateway-start.ts';
+import { asking, FIGURE, keys, META, ok, PERIOD, startFakeGateway, WINDOW, type Json } from './fake-gateway-start.ts';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { nav } from '../src/app.config.ts';
 import { FEATURES } from '../src/data/features.ts';
 import config from '../scripts/verify.config.ts';
 import { localDay } from '../scripts/fake-gateway/clock.ts';
 import { homeOf } from '../scripts/fake-gateway/work-home.ts';
+import * as people from '../scripts/fake-gateway/people.ts';
 
 /**
  * Work's reads and the close as the fake gateway answers them: Home, Record, Approvals, the paged Initiatives and the
@@ -16,13 +17,12 @@ import { homeOf } from '../scripts/fake-gateway/work-home.ts';
  * The key sets are written out from the shapes the gateway's tasks declare and never read from the fixture, so a field
  * the fake adds or drops fails here before the platform's own checks compare it with the real routes.
  */
-type Json = Record<string, any>;
 
 const personas = config.personas!;
 const SUPERADMIN = personas.superadmin.cookie.value;
 const MEMBER = personas.member.cookie.value;
-const AVA = 'ava.lindqvist@example.com';
-const NOAH = 'noah.okafor@example.com';
+const AVA = people.ME.email;
+const NOAH = people.MEMBER.email;
 
 let server: ChildProcess;
 let base = '';
@@ -34,21 +34,8 @@ beforeAll(async () => {
 });
 afterAll(() => { server?.kill(); });
 
-const ask = (who: string, path: string) => fetch(`${base}/api/console/${path}`, { headers: { cookie: `zz_console=${who}` } });
-const read = async (who: string, path: string): Promise<Json> => {
-  const res = await ask(who, path);
-  expect(res.status, `${who} GET ${path}`).toBe(200);
-  return res.json();
-};
-const post = (who: string, path: string, body: unknown) =>
-  fetch(`${base}/api/console/${path}`, { method: 'POST', headers: { cookie: `zz_console=${who}`, 'content-type': 'application/json' }, body: JSON.stringify(body) });
-const keys = (o: object) => Object.keys(o).sort();
-const ok = (part: Json) => { expect(part.state).toBe('ok'); return part.data; };
+const { ask, read, post } = asking(() => base);
 
-const META = ['asOf', 'builtAt', 'cacheHit', 'coverageFrom', 'observedAt', 'period', 'population', 'revision', 'scope', 'sourceRevision', 'timezone'];
-const FIGURE = ['value', 'why'];
-const WINDOW = ['complete', 'from', 'observedFrom', 'observedThrough', 'to'];
-const PERIOD = ['denominator', 'figure', 'numerator', 'window'];
 const ROW = ['closed', 'flow', 'gates', 'lastTouched', 'nextMove', 'opened', 'slug', 'state'];
 const NEXT_MOVE = ['action', 'document', 'stage', 'waitingOn', 'why'];
 const COVERAGE = ['datedByLastWrite', 'documents', 'importMade', 'missingLegacy', 'mixed', 'revisions', 'undated', 'unrecorded'];

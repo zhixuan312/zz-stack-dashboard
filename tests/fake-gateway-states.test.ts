@@ -24,6 +24,7 @@ import { knowledgeList, knowledgeSummary, logOf } from '../scripts/fake-gateway/
 import { plugins } from '../scripts/fake-gateway/work-plugins.ts';
 import { runs } from '../scripts/fake-gateway/work-runs.ts';
 import config from '../scripts/verify.config.ts';
+import { grainOf } from '../src/lib/grain.ts';
 
 /** The console server's cookie jar, for its own read of the gateway (`gatewayGet`): the session value a test names. */
 const jar = vi.hoisted(() => ({ value: '' }));
@@ -542,11 +543,6 @@ describe('a busy platform is above every ceiling', () => {
     return await res.json() as T;
   };
   const DAY = 86_400_000;
-  /** A series' grain, by its first whole period's length. */
-  const grainOf = (windows: Window[]) => {
-    const days = (Date.parse(windows[1].to) - Date.parse(windows[1].from)) / DAY;
-    return days <= 7 ? 'week' : days <= 31 ? 'month' : 'quarter';
-  };
   const spanYears = (windows: Window[]) => (Date.parse(windows.at(-1)!.to) - Date.parse(windows[0].from)) / (365 * DAY);
 
   it('Audit: the latest 500 events, as its ceiling says, ten a page to the last', async () => {

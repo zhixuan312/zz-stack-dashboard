@@ -16,6 +16,7 @@ import { empty, extreme } from '../scripts/fake-gateway/states.ts';
 import { LAST_WEEK, WEEKS } from '../scripts/fake-gateway/work-initiatives.ts';
 import { workQuery } from '../scripts/fake-gateway/work-query.ts';
 import { addDays, bucketsOf } from '../scripts/fake-gateway/work-query-buckets.ts';
+import { keys, ok } from './fake-gateway-start.ts';
 
 /**
  * The fake gateway's two prepared queries, `/platform/query` and `/work/query`, answered in the gateway's shape.
@@ -39,8 +40,6 @@ const TODAY = localDay(Date.now());
 /** Week `i` of the status fixture's weeks as inclusive dates, and every week of them through today. */
 const week = (i: number) => ({ from: day(WEEKS[i].from), to: addDays(day(WEEKS[i].to), -1) });
 const WEEKS_SHOWN = { from: day(WEEKS[0].from), to: TODAY };
-const keys = (o: object) => Object.keys(o).sort();
-const ok = (part: Json) => { expect(part.state).toBe('ok'); return part.data; };
 
 const params = (args: Args) => {
   const p = new URLSearchParams();
@@ -114,7 +113,7 @@ describe('each measure equals the figure its page answers', () => {
     WEEKS.forEach((_w, i) => {
       const teams = valuesOf(ask(ME, { measure: 'calls', by: 'team', ...week(i), top: '50' }));
       expect(teams).toEqual(nonZero(Object.fromEntries(CALLS_BY_TEAM.map((t) => [t.team, t.calls[i]]))));
-      for (const part of u[i].parts.filter((p: Json) => p.label !== 'Other')) expect(teams[part.label] ?? 0).toBe(part.calls);
+      for (const part of u[i].parts!.filter((p: Json) => p.label !== 'Other')) expect(teams[part.label] ?? 0).toBe(part.calls);
     });
   });
 
@@ -162,7 +161,7 @@ describe('each measure equals the figure its page answers', () => {
     const rows = ok(k.shelves).rows.filter((s: Json) => s.kind !== 'all');
     expect(shelves).toEqual(who.superadmin ? nonZero(Object.fromEntries(rows.map((s: Json) => [s.shelf, s.madeLastWeek])))
       : Object.fromEntries(rows.map((s: Json) => [s.kind, s.madeLastWeek])));
-    expect(total(who, { measure: 'lessons', where: 'imported=not_imported' })).toBe(ok(k.shelves).rows.find((s: Json) => s.kind === 'all').madeLastWeek);
+    expect(total(who, { measure: 'lessons', where: 'imported=not_imported' })).toBe(ok(k.shelves).rows.find((s: Json) => s.kind === 'all')!.madeLastWeek);
 
     const s = PLATFORM_STATUS.measures.find((m) => m.key === 'searches_with_results_pct')!;
     expect(byWeek(who, 'searches')).toEqual(s.weeks.map((w) => (w.figure.why === 'unavailable' ? 0 : w.denominator)));

@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { Tooltip } from 'radix-ui';
-import { isValidElement, type ReactElement, type ReactNode } from 'react';
+import type { ReactElement } from 'react';
 import { hydrateRoot } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -23,7 +23,6 @@ import { SurfaceOverride } from '@/components/base/surface';
 import { FEATURES } from '@/data/features';
 import { GatewayError } from '@/data/gateway';
 import { PREPARED } from '@/data/prepared';
-import type { Me } from '@/lib/api-shapes';
 import type { Audit, AuditRow } from '@/lib/fleet-shapes';
 import { contextText } from '@/lib/shared-context';
 import { CONTEXT_BUDGET } from '@/logic/context';
@@ -37,6 +36,10 @@ import { audit } from '../scripts/fake-gateway/platform-audit.ts';
 import PlatformAuditLoading from '../app/(dash)/platform/audit/loading';
 import PlatformAuditPage, { generateMetadata as auditMetadata } from '../app/(dash)/platform/audit/page';
 import { readAudit } from '../app/(dash)/platform/audit/read-audit';
+import { markupOf, readsHandedOn } from './server-tree.tsx';
+import { browserReads, browserStub } from './browser.ts';
+import { ME as SUPERADMIN } from '../scripts/fake-gateway/people.ts';
+import { BEACON_MEMBER as MEMBER } from './personas.ts';
 
 /**
  * Audit under Platform (Task I-102), the superadmin's: two tabs drawn from the fake gateway's own answers, each read
@@ -46,14 +49,6 @@ import { readAudit } from '../app/(dash)/platform/audit/read-audit';
  * older events. Every state draws; a member is answered by the refused page; the Ask sits on each tab's card; and
  * `view_audit` and `explore_audit` answer as the page does.
  */
-const SUPERADMIN: Me = {
-  email: 'ava.lindqvist@example.com', name: 'Ava Lindqvist', role: 'superadmin', mayRead: true, superadmin: true,
-  via: 'session', teams: [{ slug: 'atlas', role: 'admin' }], activeTeam: 'atlas',
-};
-const MEMBER: Me = {
-  email: 'mei.tanaka@example.com', name: 'Mei Tanaka', role: 'member', mayRead: true, superadmin: false,
-  via: 'session', teams: [{ slug: 'beacon', role: 'member' }], activeTeam: 'beacon',
-};
 
 /** The fake's answer to `q`, the gateway's own projection of its events. */
 const answer = (q: Record<string, string>, limit = 10, offset = 0): Audit => audit(new URLSearchParams(q), { limit, offset })![1] as Audit;
@@ -63,16 +58,7 @@ const ALL = answer({ filter: 'all' });
 const ok = (data: Audit = ADMIN, path = auditPath(AUDIT_DEFAULTS), reports: ReportTitles = {}): AuditRead => ({ state: 'ok', path, data, reports });
 
 /** The browser's reads: answered by `answer`, or never when it is null. */
-function browser(reply: ((path: string) => [number, unknown]) | null) {
-  vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
-    if (!reply) return new Promise(() => {});
-    const url = new URL(String(input), 'http://console.test');
-    const [status, body] = url.pathname.endsWith('/me') ? [200, SUPERADMIN] : reply(`${url.pathname.replace('/api/console', '')}${url.search}`);
-    return Promise.resolve({ ok: status < 300, status, json: async () => body } as unknown as Response);
-  }));
-}
-/** What the browser has read, past who it is. */
-const reads = () => (fetch as unknown as { mock: { calls: [RequestInfo | URL][] } }).mock.calls.map(([u]) => String(u)).filter((u) => !u.endsWith('/me'));
+const browser = (reply: Parameters<typeof browserStub>[0]) => browserStub(reply, SUPERADMIN);
 
 const tree = (ui: ReactElement, ask?: (q: string) => void) => <SurfaceOverride surface={ask ? { ask } : {}}><Tooltip.Provider>{ui}</Tooltip.Provider></SurfaceOverride>;
 /** `ui` in the console's providers, with an assistant listening when `ask` is given; `serve` rerenders it as the server would. */
@@ -118,10 +104,10 @@ describe('Audit draws two tabs', () => {
     press('Everything');
     await settle();
     expect(window.location.search).toBe('?filter=all');
-    expect(reads()).toEqual([]);
+    expect(browserReads()).toEqual([]);
     serve(<PlatformAuditView served={ok(ALL, auditPath(ALL_TAB))} />);
     await waitFor(() => expect(within(events()).getAllByRole('row')).toHaveLength(ALL.rows.length + 1));
-    expect(reads()).toEqual([]);
+    expect(browserReads()).toEqual([]);
   });
 });
 
@@ -208,7 +194,7 @@ describe('Administration, the Activity feed', () => {
     fireEvent.click(within(feed()).getByRole('button', { name: 'Next page' }));
     await settle();
     expect(window.location.search).toBe('?page=2');
-    expect(reads()).toEqual([]);
+    expect(browserReads()).toEqual([]);
     const second = answer({}, 10, 10);
     serve(<PlatformAuditView served={ok(second, auditPath({ ...AUDIT_DEFAULTS, page: '2' }))} />);
     await waitFor(() => expect(lines()).toHaveLength(second.rows.length));
@@ -258,14 +244,14 @@ describe('Everything, the event table', () => {
     await choose('Before', dayWords(first));
     await settle();
     expect(window.location.search).toBe(`?filter=all&before=${first}`);
-    expect(reads()).toEqual([]);
+    expect(browserReads()).toEqual([]);
     const filters: AuditFilters = { ...ALL_TAB, before: first };
     expect(auditPath(filters)).toBe(`/platform/audit?filter=all&before=${encodeURIComponent(dayStart(first))}&limit=10&offset=0`);
     const older = answer({ filter: 'all', before: dayStart(first) });
     serve(<PlatformAuditView served={ok(older, auditPath(filters))} />);
     await waitFor(() => expect(within(events()).getAllByRole('row')).toHaveLength(older.rows.length + 1));
     for (const r of older.rows) expect(Date.parse(r.at)).toBeLessThan(Date.parse(dayStart(first)));
-    expect(reads()).toEqual([]);
+    expect(browserReads()).toEqual([]);
   });
 
   it('a kind or a team narrows it before the ceiling, the figures the gateway\'s', async () => {
@@ -280,7 +266,7 @@ describe('Everything, the event table', () => {
     serve(<PlatformAuditView served={ok(beacon, auditPath(filters))} />);
     await waitFor(() => expect(within(events()).getAllByRole('row')).toHaveLength(beacon.rows.length + 1));
     expect(screen.getByText(`${beacon.total} events`)).toBeInTheDocument();
-    expect(reads()).toEqual([]);
+    expect(browserReads()).toEqual([]);
   });
 
   it('a filter that keeps nothing is the filtered empty state with Clear filters', () => {
@@ -326,7 +312,7 @@ describe('the first paint of a filtered address', () => {
     expect(within(container).getByRole('tab', { name: 'Everything' })).toHaveAttribute('aria-selected', 'true');
     expect(container.querySelectorAll('tbody tr')).toHaveLength(beacon.rows.length);
     await waitFor(() => expect(within(container).getByRole('combobox', { name: 'Team' }).textContent).toContain('beacon'));
-    expect(reads()).toEqual([]);
+    expect(browserReads()).toEqual([]);
     container.remove();
   });
 
@@ -356,7 +342,7 @@ describe('each state draws', () => {
     await settle();
     expect(document.querySelector('table[aria-busy="true"]')).not.toBeNull();
     expect(screen.getByText('…')).toBeInTheDocument();
-    expect(reads()).toEqual([]);
+    expect(browserReads()).toEqual([]);
   });
 
   it('nothing recorded on either tab', () => {
@@ -382,7 +368,7 @@ describe('each state draws', () => {
     expect(screen.getByText('could not read the events')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     await waitFor(() => expect(lines()).toHaveLength(ADMIN.rows.length));
-    expect(reads()).toEqual([expect.stringContaining('/api/console/platform/audit?filter=administration&limit=10&offset=0')]);
+    expect(browserReads()).toEqual([expect.stringContaining('/api/console/platform/audit?filter=administration&limit=10&offset=0')]);
   });
 
   it('a read that did not answer in time is the error, never an endless skeleton', () => {
@@ -517,14 +503,6 @@ describe('the address', () => {
   });
 });
 
-/** The text a server page's answer renders, once rendered with nothing listening. */
-async function markupOf(page: ReactNode | Promise<ReactNode>): Promise<string> {
-  const node = await page;
-  let text = '';
-  await act(async () => { text = mount(<>{node}</>).container.textContent ?? ''; });
-  return text;
-}
-
 /** A report's title as `GET /platform/bugs/:id` answers it, for every report the fake's acts resolve: a deleted one is
  *  named by the gateway from its filing, and no read is made for it. */
 const titleOf = (path: string) => ({ title: `The report ${path.split('/').at(-1)!.slice(-2)}` });
@@ -540,15 +518,7 @@ describe('the page on the console\'s server', () => {
   });
 
   it('reads the address once, as the person, and hands the one read to the as-of line and the page', async () => {
-    const found: unknown[] = [];
-    const walk = (node: unknown): void => {
-      if (Array.isArray(node)) return node.forEach(walk);
-      if (!isValidElement(node)) return;
-      const props = node.props as Record<string, unknown>;
-      if (props.read) found.push(props.read);
-      Object.values(props).forEach(walk);
-    };
-    walk(await PlatformAuditPage({ searchParams: Promise.resolve({}) }));
+    const found = readsHandedOn(await PlatformAuditPage({ searchParams: Promise.resolve({}) }));
     expect(found).toHaveLength(2);
     expect(found[0]).toBe(found[1]);
     expect(await found[0]).toEqual(ok(ADMIN, auditPath(AUDIT_DEFAULTS), TITLES));
@@ -575,7 +545,7 @@ describe('a member asking for Audit', () => {
 
   it('is answered by the refused page, which names nothing and reads nothing', async () => {
     browser(null);
-    expect(await markupOf(PlatformAuditPage({ searchParams: Promise.resolve({ filter: 'all' }) }))).not.toMatch(/audit|administr|event/i);
+    expect((await markupOf(PlatformAuditPage({ searchParams: Promise.resolve({ filter: 'all' }) }), mount)).textContent).not.toMatch(/audit|administr|event/i);
     expect(gateway.get.mock.calls.map(([p]) => p)).not.toContainEqual(expect.stringMatching(/^\/platform\/audit/));
   });
 });

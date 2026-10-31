@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { Tooltip } from 'radix-ui';
-import type { ReactElement, ReactNode } from 'react';
+import type { ReactElement } from 'react';
 import { hydrateRoot } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -14,7 +14,6 @@ vi.mock('@/app.config', async (importOriginal) => ({ ...(await importOriginal<ty
 import { SurfaceOverride } from '@/components/base/surface';
 import { OMIT, pageText } from '@/components/patterns/assistant/page-text';
 import { GatewayError } from '@/data/gateway';
-import type { Me } from '@/lib/api-shapes';
 import type { People } from '@/lib/fleet-shapes';
 import { contextText } from '@/lib/shared-context';
 import { CONTEXT_BUDGET } from '@/logic/context';
@@ -28,6 +27,9 @@ import { people } from '../scripts/fake-gateway/platform-people.ts';
 import PlatformPeopleLoading from '../app/(dash)/platform/people/loading';
 import PlatformPeoplePage, { generateMetadata as peopleMetadata } from '../app/(dash)/platform/people/page';
 import { readPeople } from '../app/(dash)/platform/people/read-people';
+import { browserReads, browserStub, liveHint } from './browser.ts';
+import { markupOf } from './server-tree.tsx';
+import { BEACON_MEMBER as MEMBER } from './personas.ts';
 
 /**
  * People under Platform, and the superadmin's management of people there (Task I-100, AC-4.2): the list drawn from the
@@ -35,10 +37,6 @@ import { readPeople } from '../app/(dash)/platform/people/read-people';
  * three acts, with an enrolment link kept out of the page's text; the view tool answering names and states; the
  * prepared query; and a member answered, at `/platform/people`, by a refused page that names nothing.
  */
-const MEMBER: Me = {
-  email: 'mei.tanaka@example.com', name: 'Mei Tanaka', role: 'member', mayRead: true, superadmin: false,
-  via: 'session', teams: [{ slug: 'beacon', role: 'member' }], activeTeam: 'beacon',
-};
 
 const PATH = peoplePath(PEOPLE_DEFAULTS);
 /** The fake's answer to a gateway address, paged as the address asks. */
@@ -52,14 +50,7 @@ const NONE: People = { ...LIST, tiles: { ...LIST.tiles, people: 0, withPasskey: 
 const LINK = 'https://console.example.com/enrol#t=zze_SECRETLINK0123456789';
 
 /** The browser's reads and writes: answered by `answer`, or never when it is null. */
-function browser(reply: ((path: string, init?: RequestInit) => [number, unknown]) | null) {
-  vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
-    if (!reply) return new Promise(() => {});
-    const url = new URL(String(input), 'http://console.test');
-    const [status, body] = url.pathname.endsWith('/me') ? [200, ME] : reply(url.pathname.replace('/api/console', '') + url.search, init);
-    return Promise.resolve({ ok: status < 300, status, json: async () => body } as unknown as Response);
-  }));
-}
+const browser = (reply: Parameters<typeof browserStub>[0]) => browserStub(reply, ME);
 
 /** `ui` in the console's providers and inside the scroll region the assistant reads, with an assistant listening when `ask` is given. */
 function mount(ui: ReactElement, ask?: (q: string) => void, client = new QueryClient({ defaultOptions: { queries: { retry: false } } })) {
@@ -270,10 +261,7 @@ describe('the three acts: add a person, issue an enrolment link, deactivate one'
 });
 
 describe('the first read is the server\'s, and a change is read again in the browser', () => {
-  const reads = () => (fetch as unknown as { mock: { calls: [RequestInfo | URL][] } }).mock.calls.map(([u]) => String(u)).filter((u) => !u.endsWith('/me'));
-  const hint = (client: QueryClient) => act(async () => {
-    await client.invalidateQueries({ predicate: (q) => q.queryKey[0] === 'console' && String(q.queryKey[1] ?? '').split('?')[0].split('/').filter(Boolean)[0] === 'people' });
-  });
+  const hint = (client: QueryClient) => liveHint(client, 'people');
 
   it('no browser read on mount after the server\'s, one after a hint, and what arrived is drawn', async () => {
     const renamed = { ...LIST, people: LIST.people.map((p, i) => (i ? p : { ...p, name: 'Renamed in another tab' })) };
@@ -281,20 +269,20 @@ describe('the first read is the server\'s, and a change is read again in the bro
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     mount(<PlatformPeopleView served={ok} />, undefined, client);
     await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
-    expect(reads()).toEqual([]);
+    expect(browserReads()).toEqual([]);
     await hint(client);
-    await waitFor(() => expect(reads()).toHaveLength(1));
-    expect(reads()[0]).toContain('/api/console/people?limit=10&offset=0');
+    await waitFor(() => expect(browserReads()).toHaveLength(1));
+    expect(browserReads()[0]).toContain('/api/console/people?limit=10&offset=0');
     await waitFor(() => expect(screen.getAllByText('Renamed in another tab').length).toBeGreaterThan(0));
   });
 
   it('Retry after a server read that brought nothing is the browser\'s first read', async () => {
     browser(() => [200, LIST]);
     mount(<PlatformPeopleView served={{ state: 'failed', path: PATH, reason: 'could not read people' }} />);
-    expect(reads()).toEqual([]);
+    expect(browserReads()).toEqual([]);
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     await waitFor(() => expect(document.querySelectorAll('tbody tr')).toHaveLength(LIST.people.length));
-    expect(reads()).toHaveLength(1);
+    expect(browserReads()).toHaveLength(1);
   });
 });
 
@@ -351,14 +339,6 @@ describe('view_people answers the names and states of the read', () => {
   });
 });
 
-/** The text a server page's answer renders, once rendered with nothing listening. */
-async function markupOf(page: ReactNode | Promise<ReactNode>): Promise<string> {
-  const node = await page;
-  let text = '';
-  await act(async () => { text = render(<>{node}</>).container.textContent ?? ''; });
-  return text;
-}
-
 describe('a member asking for People', () => {
   beforeEach(() => {
     gateway.get.mockImplementation(async (path: string) => {
@@ -372,7 +352,7 @@ describe('a member asking for People', () => {
   });
 
   it('is answered by a page that names nothing and reads nothing', async () => {
-    expect(await markupOf(PlatformPeoplePage({ searchParams: Promise.resolve({}) }))).not.toMatch(/people|person|passkey|sign-in/i);
+    expect((await markupOf(PlatformPeoplePage({ searchParams: Promise.resolve({}) }), render)).textContent).not.toMatch(/people|person|passkey|sign-in/i);
     document.body.innerHTML = '';
     expect(gateway.get.mock.calls.map(([p]) => p)).not.toContainEqual(expect.stringMatching(/^\/people/));
   });

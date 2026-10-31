@@ -30,6 +30,7 @@ import { ME, MEMBER } from '../scripts/fake-gateway/people.ts';
 import { approvals, documentAsKept } from '../scripts/fake-gateway/work-approvals.ts';
 import { initiativeDetail, initiativeList } from '../scripts/fake-gateway/work-initiatives.ts';
 import { INITIATIVES, documentDetail, documentRevision } from '../scripts/fake-gateway/work.ts';
+import { classes, column } from './table-query.ts';
 
 /**
  * Phase 7, I-164: the second re-review's findings on Approvals, Initiatives, an initiative and a document (Work M-1,
@@ -39,7 +40,6 @@ import { INITIATIVES, documentDetail, documentRevision } from '../scripts/fake-g
 const SLUG = '2026-09-28-search-relevance';
 const REVAMP = '2026-09-12-onboarding-revamp';
 const query = (path: string) => new URLSearchParams(path.split('?')[1]);
-const classes = (el: Element) => (typeof el.className === 'string' ? el.className.split(/\s+/) : []);
 const text = () => document.body.textContent ?? '';
 const HISTORY = approvalsPath({ ...APPROVALS_DEFAULTS, tab: 'history' });
 const historyOf = (who: Me, path = `${HISTORY.replace(/limit=\d+/, 'limit=100')}`) => approvals(who, query(path))[1] as Approvals;
@@ -65,14 +65,6 @@ function mount(ui: ReactElement) {
   return render(<QueryClientProvider client={client}><Tooltip.Provider>{ui}</Tooltip.Provider></QueryClientProvider>);
 }
 
-/** The table captioned `caption`, and the cells of its column headed `header`. */
-function column(caption: string, header: string) {
-  const t = [...document.querySelectorAll('table')].find((x) => x.querySelector('caption')?.textContent === caption);
-  if (!t) throw new Error(`no table captioned "${caption}"`);
-  const i = [...t.querySelectorAll('thead th')].findIndex((th) => th.textContent?.trim() === header);
-  if (i < 0) throw new Error(`no column "${header}" in "${caption}"`);
-  return [...t.querySelectorAll('tbody tr')].map((tr) => tr.children[i] as HTMLElement);
-}
 
 describe('M-1 · Approvals and a document tell one story of who approved which version when', () => {
   it('reads every history row off the version its document records, signed by that person, after the versions before it', () => {

@@ -17,7 +17,7 @@
 import { spawn } from 'node:child_process';
 import { afterEach, describe, expect, it } from 'vitest';
 import { DRIFT_MS } from '../scripts/fake-gateway/work.ts';
-import { startFakeGateway } from './fake-gateway-start.ts';
+import { startFakeGateway, unobserved } from './fake-gateway-start.ts';
 
 type Fixture = Awaited<ReturnType<typeof startFakeGateway>>;
 const fixtures: Fixture[] = [];
@@ -34,11 +34,6 @@ async function start(): Promise<string> {
 }
 
 const DRIFTING = 'document/atlas/2026-10-03-ranking-weights/spec.md';
-/** An answer with the one field levelled that every request has of its own: two reads of a route differ in
- *  `observedAt` when they differ nowhere else, since each request is served at its own instant. */
-const unobserved = (v: unknown): unknown => (v && typeof v === 'object' && 'meta' in v
-  ? { ...v, meta: { ...(v as { meta: object }).meta, observedAt: null } }
-  : v);
 /** How long past one revision period a hint may take to arrive before the case says it never did. */
 const LATE_MS = 3_000;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));

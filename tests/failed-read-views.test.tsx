@@ -48,7 +48,7 @@ function onlyMe(answers: [part: string, body: unknown][] = []) {
   }));
 }
 
-/** The page in the providers it needs: a client that never retries, the period the masthead reads, the tooltip Ask. */
+/** The page in the providers it needs: a client that never retries, and the tooltip Ask. */
 function mount(ui: ReactElement) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(

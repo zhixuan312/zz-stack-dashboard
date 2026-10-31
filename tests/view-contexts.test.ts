@@ -9,7 +9,7 @@ import { contextText, type SharedContext } from '@/lib/shared-context';
 import { accessContext } from '@/logic/access-context';
 import { activityContext } from '@/logic/activity-context';
 import { approvalsContext } from '@/logic/approvals-context';
-import { addressOf, pendingContext } from '@/logic/context';
+import { CONTEXT_BUDGET as BUDGET, addressOf, pendingContext } from '@/logic/context';
 import { documentContext } from '@/logic/document-context';
 import { homeContext } from '@/logic/home-context';
 import { initiativeContext } from '@/logic/initiative-context';
@@ -58,7 +58,6 @@ import { runs } from '../scripts/fake-gateway/work-runs.ts';
  * the platform holds. `extreme` is the fake gateway's busy platform: hundreds of rows and names longer than any layout
  * planned for.
  */
-const BUDGET = 2600;
 const PLATFORM_STATUS: PlatformStatus = answered(PLATFORM_STATUS_FIXTURE);
 
 const arrival = { updatedAt: '2026-10-12T09:00:00Z', now: '2026-10-12T09:01:00Z' };
