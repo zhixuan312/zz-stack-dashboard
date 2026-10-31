@@ -102,7 +102,7 @@ describe('a document another session keeps revising, while the fake serves', () 
     const second = await changeAfter(stream, first!);
     expect(second, `no second change for document within ${DRIFT_MS + LATE_MS} ms of the first`).not.toBeNull();
     expect(second! - first!).toBeGreaterThan(DRIFT_MS - 1_000);
-    expect(second! - first!).toBeLessThan(DRIFT_MS + 2_000);
+    expect(second! - first!).toBeLessThan(DRIFT_MS + LATE_MS);
     const later = await readDrifting(base);
     expect(later.snapshot).not.toBe(after.snapshot);
     expect(later.revision).toBe(after.revision + 1);

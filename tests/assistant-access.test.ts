@@ -84,7 +84,10 @@ function gateway(who: Me | null | (() => Me | null), { shared = false } = {}) {
                                     : path === '/platform/evaluation' ? evaluation(me.superadmin)
                                       : path === '/platform/knowledge' ? knowledge(me.superadmin, me.activeTeam)
                                       : path === '/platform/audit' ? audit(query, { limit: Number(query.get('limit') ?? 10), offset: Number(query.get('offset') ?? 0) })![1]
-                                        : {};
+                                        : undefined;
+    // A route this fake does not answer is a 404, as the gateway's own is, so a tool that reads a new or renamed
+    // path fails here rather than reading an empty object as an answer.
+    if (body === undefined) return { ok: false, status: 404, json: async () => ({ error: `no route ${path}` }) } as Response;
     return { ok: true, status: 200, json: async () => body } as Response;
   }) as typeof fetch;
 }
