@@ -35,7 +35,7 @@ type Answer = [status: number, body: unknown];
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
 
-/** The status fixture's weeks, oldest first, the running one last: every weekly figure of Work is drawn on them. */
+/** The status fixture's weeks, oldest first, the running one last: every weekly figure of Work and Fleet is drawn on them. */
 export const WEEKS: Window[] = PLATFORM_STATUS.measures.find((m) => m.key === 'malformed_per_1000')!.weeks.map((w) => w.window);
 /** The last whole week, which Home is about. */
 export const LAST_WEEK = WEEKS.length - 2;

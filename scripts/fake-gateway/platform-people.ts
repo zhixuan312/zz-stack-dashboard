@@ -16,20 +16,12 @@ import type { Me, TeamMembers } from '../../src/lib/api-shapes.ts';
 import type { FixtureAnswer } from './envelope.ts';
 import type { People, PersonRow } from '../../src/lib/fleet-shapes.ts';
 import type { PeriodFigure } from '../../src/lib/platform-shapes.ts';
-import { day, iso, localDay, nextStart, now } from './clock.ts';
+import { day, iso, localDay, now } from './clock.ts';
 import { kept } from './journey.ts';
 import { ME, MEMBER } from './people.ts';
 import { PLATFORM_STATUS } from './platform-status.ts';
 import { REPEATED, pageOf, repeated } from './work-activity.ts';
-
-const HOUR = 3_600_000;
-/** The status fixture's weeks, oldest first, the running one last: every Fleet read counts in the same weeks. */
-const WEEKS = PLATFORM_STATUS.measures.find((m) => m.key === 'malformed_per_1000')!.weeks.map((w) => w.window);
-const RUNNING = Date.parse(WEEKS.at(-1)!.from);
-
-/** An instant `hours` into the week `back` weeks before the running one; in the running week, halfway to now, so it
- *  has always happened whatever day verify runs on. */
-const inWeek = (back: number, hours: number) => (back === 0 ? RUNNING + (now() - RUNNING) / 2 : nextStart(RUNNING, 'week', -back) + hours * HOUR);
+import { inWeek, WEEKS } from './work-initiatives.ts';
 
 type Seed = {
   email: string; name: string; role: 'superadmin' | 'member'; status: 'active' | 'deactivated'; created: number;

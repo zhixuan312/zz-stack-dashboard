@@ -19,13 +19,11 @@ import type { Figure, Measure, PeriodFigure } from '../../src/lib/platform-shape
 import { iso, now } from './clock.ts';
 import { PLATFORM_STATUS } from './platform-status.ts';
 import { CALLS_BY_TEAM } from './platform-teams.ts';
+import { LAST_WEEK, WEEKS } from './work-initiatives.ts';
 
 const measure = (key: Measure['key']) => PLATFORM_STATUS.measures.find((m) => m.key === key)!;
 const MALFORMED = measure('malformed_per_1000');
 const FOLLOWUP = measure('same_tool_followup_pct');
-/** The status fixture's weeks, oldest first, the running one last; `LAST` is the last complete week. */
-const WEEKS = MALFORMED.weeks.map((w) => w.window);
-const LAST = WEEKS.length - 2;
 /** Real-work calls by week: the malformed-call measure's denominators. */
 const CALLS = MALFORMED.weeks.map((w) => w.denominator!);
 /** Real-work refusals by week, every owner's: the follow-up measure's refusals. */
@@ -40,7 +38,7 @@ function rate(i: number, numerator: number, denominator: number, scale: number, 
     figure: denominator === 0 ? { value: null, why: 'no_data' } : { value: (scale * numerator) / denominator, why: denominator < min ? 'insufficient' : null },
   };
 }
-const tile = (weeks: PeriodFigure[]): Tile => ({ weeks, last: weeks[LAST], previous: weeks[LAST - 1] });
+const tile = (weeks: PeriodFigure[]): Tile => ({ weeks, last: weeks[LAST_WEEK], previous: weeks[LAST_WEEK - 1] });
 
 /* By team: the three with the most calls over the weeks shown, and every other team as `Other`. */
 const RANKED = [...CALLS_BY_TEAM].map((t) => ({ ...t, total: t.calls.reduce((n, c) => n + c, 0) }))
@@ -122,26 +120,26 @@ export function usage(admin: boolean): FixtureAnswer<Usage> {
       sessions: tile(measure('sessions').weeks),
     } },
     callsByWeek: { state: 'ok', data: { weeks: WEEKS.map((window, i) => ({ window, calls: stands(CALLS[i]), parts: admin ? partsOf(i) : null })) } },
-    traffic: { state: 'ok', data: { window: WEEKS[LAST], work: CALLS[LAST], maintenance: 54 } },
-    refusals: { state: 'ok', data: { window: WEEKS[LAST], guardrail: 41, ours: 6, theirs: 9, other: REFUSALS[LAST] - 56, maintenance: 10 } },
+    traffic: { state: 'ok', data: { window: WEEKS[LAST_WEEK], work: CALLS[LAST_WEEK], maintenance: 54 } },
+    refusals: { state: 'ok', data: { window: WEEKS[LAST_WEEK], guardrail: 41, ours: 6, theirs: 9, other: REFUSALS[LAST_WEEK] - 56, maintenance: 10 } },
     followup: { state: 'ok', data: { weeks: FOLLOWUP_WEEKS } },
     tools: { state: 'ok', data: {
       rows: TOOLS.map(([tool, first, firstMs, firstCalls, lastMs, lastCalls]) => ({
         tool,
         first: { window: WEEKS[first], medianMs: median(firstMs, firstCalls), calls: firstCalls },
-        last: { window: WEEKS[LAST], medianMs: median(lastMs, lastCalls), calls: lastCalls },
+        last: { window: WEEKS[LAST_WEEK], medianMs: median(lastMs, lastCalls), calls: lastCalls },
       })),
       total: MOST_USED.filter((t) => t.tool !== 'Unregistered tools').length,
     } },
     rhythm: { state: 'ok', data: {
       timezone: PLATFORM_STATUS.meta.timezone,
-      window: { from: WEEKS[0].from, to: WEEKS[LAST].to, observedFrom: WEEKS[0].from, observedThrough: WEEKS[LAST].to, complete: true },
+      window: { from: WEEKS[0].from, to: WEEKS[LAST_WEEK].to, observedFrom: WEEKS[0].from, observedThrough: WEEKS[LAST_WEEK].to, complete: true },
       values: rhythm(),
     } },
     mostUsed: { state: 'ok', data: { rows: MOST_USED.slice(0, 10), total: MOST_USED.filter((t) => t.tool !== 'Unregistered tools').length } },
-    perApproval: { state: 'ok', data: { last: rate(LAST, CALLS[LAST], 5, 1, 0), previous: rate(LAST - 1, CALLS[LAST - 1], 8, 1, 0) } },
+    perApproval: { state: 'ok', data: { last: rate(LAST_WEEK, CALLS[LAST_WEEK], 5, 1, 0), previous: rate(LAST_WEEK - 1, CALLS[LAST_WEEK - 1], 8, 1, 0) } },
     modelCalls: { state: 'ok', data: {
-      last: modelWeek(LAST, 412, 3, 1_204_330, 88_120), previous: modelWeek(LAST - 1, 377, 0, 1_098_412, 80_906),
+      last: modelWeek(LAST_WEEK, 412, 3, 1_204_330, 88_120), previous: modelWeek(LAST_WEEK - 1, 377, 0, 1_098_412, 80_906),
       byPurpose: [{ purpose: 'typed-judge', calls: 405 }, { purpose: 'failure-discover', calls: 7 }],
       cost: 'not_recorded',
     } },

@@ -19,18 +19,13 @@ import type { Me } from '../../src/lib/api-shapes.ts';
 import type { FixtureAnswer, FixtureMeta } from './envelope.ts';
 import type { TeamDetail, TeamRow, Teams } from '../../src/lib/fleet-shapes.ts';
 import type { PeriodFigure } from '../../src/lib/platform-shapes.ts';
-import { day, iso, nextStart, now } from './clock.ts';
+import { day, iso, now } from './clock.ts';
 import { membersOf } from './platform-people.ts';
 import { PLATFORM_STATUS } from './platform-status.ts';
 import { waitingOf } from './work-approvals.ts';
 import { INITIATIVES, KNOWLEDGE } from './work.ts';
 import { REPEATED, pageOf, repeated } from './work-activity.ts';
-
-const HOUR = 3_600_000;
-/** The status fixture's weeks, oldest first, the running one last. */
-const WEEKS = PLATFORM_STATUS.measures.find((m) => m.key === 'malformed_per_1000')!.weeks.map((w) => w.window);
-const RUNNING = Date.parse(WEEKS.at(-1)!.from);
-const inWeek = (back: number, hours: number) => (back === 0 ? RUNNING + (now() - RUNNING) / 2 : nextStart(RUNNING, 'week', -back) + hours * HOUR);
+import { inWeek, WEEKS } from './work-initiatives.ts';
 
 type Seed = {
   slug: string; name: string; status: 'active' | 'archived'; created: number;

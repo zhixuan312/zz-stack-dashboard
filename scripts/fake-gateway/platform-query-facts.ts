@@ -45,6 +45,7 @@ import { PLATFORM_STATUS } from './platform-status.ts';
 import { CALLS_BY_TEAM, TEAMS } from './platform-teams.ts';
 import { usage } from './platform-usage.ts';
 import { SHARED_TEAM } from './work-knowledge.ts';
+import { LAST_WEEK, WEEKS } from './work-initiatives.ts';
 
 /** A count on one day under one key along each dimension; `lastMs` the latest of them; `ref` what a drill reads its row
  *  from. */
@@ -66,9 +67,6 @@ function ok<T>(p: Part<T>): T {
 }
 
 const status = (key: string) => PLATFORM_STATUS.measures.find((m) => m.key === key)!;
-/** The status fixture's weeks, oldest first, the running one last; `LAST` is the last whole week. */
-const WEEKS = status('malformed_per_1000').weeks.map((w) => w.window);
-const LAST = WEEKS.length - 2;
 
 /** The days of week `i` the record holds by the cutoff: seven, the running week's through today. */
 function daysOf(i: number): string[] {
@@ -136,7 +134,7 @@ export function malformedFacts(): Fact[] {
 /** Usage's model calls, its last whole week and the one before, under no model. */
 export function modelFacts(): Fact[] {
   const m = ok(usage(true).modelCalls);
-  return factsOf(weekly(WEEKS.map((_, i) => (i === LAST ? m.last.calls : i === LAST - 1 ? m.previous.calls : 0)), () => ({ model: null })));
+  return factsOf(weekly(WEEKS.map((_, i) => (i === LAST_WEEK ? m.last.calls : i === LAST_WEEK - 1 ? m.previous.calls : 0)), () => ({ model: null })));
 }
 
 /** Status's searches that recorded their results, by whether they found something and whether they were widened. */
@@ -249,7 +247,7 @@ export function signInFacts(): Fact[] {
   const latest = PEOPLE.filter((p) => p.lastSignIn !== null).map((p) => ({ p, ms: Date.parse(p.lastSignIn!) }));
   const later = latest.filter((x) => x.ms >= to).sort((a, b) => b.ms - a.ms);
   const extra = Math.max(0, (tile.figure.value ?? 0) - latest.filter((x) => x.ms >= from && x.ms < to).length);
-  const days = daysOf(LAST);
+  const days = daysOf(LAST_WEEK);
   return factsOf([
     ...latest.map(({ p, ms }) => ({ day: localDay(ms), ms, keys: { role: p.role }, ref: p.email })),
     ...(later.length ? Array.from({ length: extra }, (_, k) => {
