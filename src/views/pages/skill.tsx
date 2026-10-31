@@ -104,7 +104,7 @@ function Cost({ skill, detail }: { skill: Skill | undefined; detail: SkillDetail
               items={[
                 // Short enough for the list's label column on one line: the caption below says the output is observed.
                 { label: 'Output per run', value: skill.kbPerRun === null ? 'Not measured' : formatKb(skill.kbPerRun) },
-                { label: 'Output in total', value: skill.mbTotal === null ? 'Not measured' : `${skill.mbTotal} MB` },
+                { label: 'Output in total', value: skill.kbTotal === null ? 'Not measured' : formatKb(skill.kbTotal) },
                 { label: 'Calls in the log', value: logged ? formatCount(logged.calls) : 'Not measured' },
                 { label: 'Refused in the log', value: logged ? formatCount(logged.failed) : 'Not measured' },
               ]}

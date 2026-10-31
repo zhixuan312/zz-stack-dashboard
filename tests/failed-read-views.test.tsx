@@ -127,7 +127,7 @@ const SKILL: Skill = {
   name: 'spec', version: '1.0.0', kind: 'stage', flow: 'sdlc', retired: false,
   runs: 12, calls: 40, callsAvg: 3.3, callsMax: 9, refusals: 2, timedRuns: 10,
   durationAvg: 30, durationMedian: 25, durationMax: 90, durationTotal: 300,
-  kbPerRun: 2048, mbTotal: 0.1,
+  kbPerRun: 2048, kbTotal: 24576,
   // The platform's log of this skill's calls was not read, which the shape spells as null.
   logged: null,
 };
@@ -171,6 +171,20 @@ describe('a skill whose log of calls was not read', () => {
     // Both counts in the log are the same absence, and both say so: `?? 0` printed "0" for each of them.
     expect(screen.getAllByText('Not measured').length).toBe(2);
     expect(text()).not.toContain('0 distinct');
+  });
+
+  it('gives a total under a megabyte in KB rather than rounding it to 0 MB', async () => {
+    const at = '2026-10-01T00:00:00Z';
+    const small = { ...SKILL, kbPerRun: 4, kbTotal: 48 };
+    const served: SkillRead = {
+      catalog: { state: 'ok', path: '/plugins', at, data: { plugins: [PLUGIN] } },
+      skills: { state: 'ok', path: '/skills?plugin=sdlc', at, data: { skills: [small] } },
+      detail: { state: 'ok', path: '/skills/spec', at, data: DETAIL },
+      text: { state: 'ok', path: '/plugins/sdlc/skills/spec', at, data: TEXT },
+    };
+    await mountRecord(<SkillView plugin="sdlc" skill="spec" view="cost" served={served} />);
+    await waitFor(() => expect(text()).toContain('Output in total'));
+    expect(text()).toContain('Output in total48 KB');
   });
 });
 

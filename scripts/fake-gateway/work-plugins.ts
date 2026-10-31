@@ -89,7 +89,7 @@ function skillRow(name: string, runs: TeamRun[]): Skill {
     runs: runs.length, calls, callsAvg: +(calls / runs.length).toFixed(1), callsMax: Math.max(...runs.map((r) => r.calls)), refusals,
     timedRuns: timed.length, durationAvg: mean(timed), durationMedian: median(timed), durationMax: timed.length ? Math.max(...timed) : null,
     durationTotal: timed.length ? timed.reduce((a, b) => a + b, 0) : null,
-    kbPerRun: kb === null ? null : +(kb / 1024).toFixed(1), mbTotal: measured.length ? +(measured.reduce((a, b) => a + b, 0) / 1_048_576).toFixed(1) : null,
+    kbPerRun: kb === null ? null : +(kb / 1024).toFixed(1), kbTotal: measured.length ? +(measured.reduce((a, b) => a + b, 0) / 1024).toFixed(1) : null,
     logged: { calls, failed: refusals, tools: toolsOf(calls, refusals).length },
   };
 }

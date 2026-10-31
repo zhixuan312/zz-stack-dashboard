@@ -255,7 +255,7 @@ export interface Skill {
    * timestamp. `durationTotal` sums those spans, not every run's. */
   durationAvg: number | null; durationMedian: number | null; durationMax: number | null;
   durationTotal: number | null;
-  kbPerRun: number | null; mbTotal: number | null;
+  kbPerRun: number | null; kbTotal: number | null;
   logged: { calls: number; failed: number; tools: number } | null;
 }
 export interface SkillDetail {
