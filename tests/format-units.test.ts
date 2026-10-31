@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { collapse, type DiffLine } from '@/lib/diff';
+import { collapse } from '@/lib/diff';
 import { formatKb, formatSeconds } from '@/lib/format-units';
 
 describe('the console formatters choose the unit of the rounded figure', () => {
@@ -22,6 +22,8 @@ describe('the console formatters choose the unit of the rounded figure', () => {
     expect(formatKb(null)).toBe('—');
   });
 });
+
+type DiffLine = Parameters<typeof collapse>[0][number];
 
 describe('the diff panel past its cap', () => {
   // 1,900 lines with a change every 12th: more than the panel draws.
