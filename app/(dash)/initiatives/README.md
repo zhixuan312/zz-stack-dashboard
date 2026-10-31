@@ -16,6 +16,7 @@ The active team's work, open or closed, and where each goes next, filtered and p
 
 - Loading: headed Initiatives for a person whose rail offers it (`OfferedLoading`), over three tiles, skeleton rows and the chart, in the page's order.
 - Error: the gateway's sentence and Retry; the tiles read `—`. A read that did not answer in 4.5 seconds says so.
+- Signed out since the gate: sign-in, and back to this address and its query after it.
 - Read again: the table's Retry reads again in the browser, busy only after the person presses it and until that read answers; a read a change starts leaves the error state and its Retry where they are, never busy, so a keyboard user keeps their place.
 - Partial: closures that could not be read say so, with no grain named; the tiles and the rows stand.
 - Empty: no initiative yet.

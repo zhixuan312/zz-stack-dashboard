@@ -11,6 +11,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
  * The console's server's reads, answered without a gateway, and its gate let through: the document's read is under
  * test. `redirect` is tests/setup.ts's, which throws the address it was sent to.
  */
+// The address this request asked for, as `proxy.ts` writes it, which sign-in sends a session that ended back to.
+const asked = vi.hoisted(() => ({ path: '/' }));
+vi.mock('next/headers', () => ({ cookies: async () => ({ get: () => undefined }), headers: async () => new Headers({ 'x-zz-path': asked.path }) }));
 const gateway = vi.hoisted(() => ({ get: vi.fn() }));
 vi.mock('@/data/gateway', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/data/gateway')>()), gatewayGet: gateway.get }));
 vi.mock('@/data/access', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/data/access')>()), may: async () => false }));
@@ -132,6 +135,7 @@ describe('the document route, rendered on the console\'s server', () => {
 
   it('sends a session that ended to sign in, back to the document', async () => {
     gateway.get.mockRejectedValue(new GatewayError(401, 'Sign in again.'));
+    asked.path = `/initiatives/atlas/${SLUG}/spec.md`;
     await expect(DocumentPage({ params: params(), searchParams: Promise.resolve({}) })).rejects.toThrow(`NEXT_REDIRECT /login?next=${encodeURIComponent(`/initiatives/atlas/${SLUG}/spec.md`)}`);
   });
 });

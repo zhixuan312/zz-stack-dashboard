@@ -25,6 +25,7 @@ Everybody the platform knows: the superadmin's list of each person's role, teams
 | Sign-ins unavailable | The rows and the other tiles stand; Sign-ins last week reads `Unavailable` |
 | Read failed | Each tile a dash, and the table's error state with the gateway's sentence and Retry |
 | Slower than 4.5 seconds | The same error state, saying the read did not answer within 4.5 seconds, with Retry; never an endless skeleton |
+| Signed out since the gate | Sign-in, and back to this address and its query after it |
 | Read again | The table's Retry reads again in the browser, busy only after the person presses it and until that read answers; a read a change starts leaves the error state and its Retry where they are, never busy, so a keyboard user keeps their place |
 | A write refused | Add's refusal under its fields; an enrolment link's or a deactivation's beside the buttons in its row |
 

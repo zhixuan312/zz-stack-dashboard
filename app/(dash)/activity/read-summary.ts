@@ -1,8 +1,8 @@
-import { redirect } from 'next/navigation';
-import { GatewayError, answeredAt, gatewayGet, type Revised } from '@/data/gateway';
+import { answeredAt, gatewayGet, type Revised } from '@/data/gateway';
+import { signInWhenEnded } from '@/data/sign-in';
 import type { ActivitySummary } from '@/lib/destination-shapes';
 import type { ActivityRead } from '@/logic/activity-context';
-import { READ_BOUND_MS } from '@/lib/read-bound';
+import { bounded } from '@/lib/read-bound';
 
 /**
  * `GET /activity/summary` on the console's server, as the person, given `READ_BOUND_MS`, with the revisions it was
@@ -11,14 +11,10 @@ import { READ_BOUND_MS } from '@/lib/read-bound';
  * since the gate let it in, which goes to sign-in; nothing it reads is kept for anyone else.
  */
 export async function readSummary(): Promise<Revised<ActivityRead>> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const bound = new Promise<ActivityRead>((resolve) => { timer = setTimeout(() => resolve({ state: 'slow' }), READ_BOUND_MS); });
   try {
-    return await Promise.race([gatewayGet<ActivitySummary>('/activity/summary').then((data): Revised<ActivityRead> => ({ state: 'ok', data, at: new Date().toISOString(), revisions: answeredAt(data) })), bound]);
+    return await bounded<Revised<ActivityRead>>(gatewayGet<ActivitySummary>('/activity/summary').then((data) => ({ state: 'ok', data, at: new Date().toISOString(), revisions: answeredAt(data) })), { state: 'slow' });
   } catch (e) {
-    if (e instanceof GatewayError && e.status === 401) redirect('/login?next=%2Factivity');
+    await signInWhenEnded(e);
     return { state: 'failed', reason: e instanceof Error ? e.message : 'The gateway did not answer the read.' };
-  } finally {
-    clearTimeout(timer);
   }
 }

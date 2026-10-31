@@ -1,20 +1,9 @@
-import { redirect } from 'next/navigation';
 import { chromeAccess } from '@/data/access';
-import { GatewayError, answeredAt, gatewayGet, type Revised } from '@/data/gateway';
+import { answeredAt, gatewayGet, type Revised } from '@/data/gateway';
+import { signInWhenEnded } from '@/data/sign-in';
 import type { Approvals } from '@/lib/work-shapes';
 import { approvalsPath, type ApprovalsFilters, type ApprovalsRead } from '@/logic/approvals-context';
-import { READ_BOUND_MS } from '@/lib/read-bound';
-
-/** `read`, or `slow` once `READ_BOUND_MS` has passed without an answer. Neither this nor `read` rejects. */
-async function bounded<R>(read: Promise<R>, slow: R): Promise<R> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const bound = new Promise<R>((resolve) => { timer = setTimeout(() => resolve(slow), READ_BOUND_MS); });
-  try {
-    return await Promise.race([read, bound]);
-  } finally {
-    clearTimeout(timer);
-  }
-}
+import { bounded } from '@/lib/read-bound';
 
 const reasonOf = (err: unknown) => (err instanceof Error ? err.message : 'The gateway did not answer.');
 
@@ -30,8 +19,8 @@ export function readApprovals(filters: ApprovalsFilters): Promise<Revised<Approv
   return bounded<Revised<ApprovalsRead>>(
     Promise.all([gatewayGet<Approvals>(path), chromeAccess()]).then(
       ([data, { team }]): Revised<ApprovalsRead> => ({ state: 'ok', path, data, team: team ?? null, revisions: answeredAt(data) }),
-      (err: unknown): ApprovalsRead => {
-        if (err instanceof GatewayError && err.status === 401) redirect('/login?next=%2Fapprovals');
+      async (err: unknown): Promise<ApprovalsRead> => {
+        await signInWhenEnded(err);
         return { state: 'failed', path, reason: reasonOf(err) };
       },
     ),

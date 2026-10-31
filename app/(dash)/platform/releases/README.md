@@ -24,6 +24,7 @@ Every release the platform has recorded, week by week, each with what was observ
 | Rows unavailable | The tiles and the weeks stand; the table's error state says the releases could not be listed |
 | Read failed | Each tile a dash, and the table's error state with the gateway's sentence and Retry |
 | Slower than 4.5 seconds | The same error state, saying the read did not answer within 4.5 seconds, with Retry; never an endless skeleton |
+| Signed out since the gate | Sign-in, and back to this address and its query after it |
 | Read again | The table's Retry reads again in the browser, busy only after the person presses it and until that read answers; a read a change starts leaves the error state and its Retry where they are, never busy, so a keyboard user keeps their place |
 
 ## Agents

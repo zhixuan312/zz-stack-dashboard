@@ -23,6 +23,7 @@ Every team on the platform, each against its own past weeks: the superadmin's li
 | Calls by week unavailable | The rows and tiles stand; each team's sessions and calls read `Unavailable`, never zero |
 | Read failed | Each tile a dash, and the table's error state with the gateway's sentence and Retry |
 | Slower than 4.5 seconds | The same error state, saying the read did not answer within 4.5 seconds, with Retry; never an endless skeleton |
+| Signed out since the gate | Sign-in, and back to this address and its query after it |
 | Read again | The table's Retry reads again in the browser, busy only after the person presses it and until that read answers; a read a change starts leaves the error state and its Retry where they are, never busy, so a keyboard user keeps their place |
 | Create refused | The gateway's sentence under the dialog's fields |
 

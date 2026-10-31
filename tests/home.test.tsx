@@ -11,6 +11,9 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push() {}, replace() {}, refresh: router.refresh, back() {}, forward() {}, prefetch() {} }),
   redirect: router.redirect,
 }));
+// The address this request asked for, as `proxy.ts` writes it, which sign-in sends a session that ended back to.
+const asked = vi.hoisted(() => ({ path: '/' }));
+vi.mock('next/headers', () => ({ cookies: async () => ({ get: () => undefined }), headers: async () => new Headers({ 'x-zz-path': asked.path }) }));
 const gateway = vi.hoisted(() => ({ get: vi.fn() }));
 vi.mock('@/data/gateway', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/data/gateway')>()), gatewayGet: gateway.get }));
 vi.mock('@/data/access', async (importOriginal) => ({
@@ -160,6 +163,7 @@ describe('the read on the server', () => {
 
   it('sends a session that ended since the gate to sign-in', async () => {
     gateway.get.mockRejectedValue(new GatewayError(401, 'not signed in'));
+    asked.path = '/';
     await expect(readHome()).rejects.toThrow('NEXT_REDIRECT /login?next=%2F');
   });
 });

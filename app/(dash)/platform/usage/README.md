@@ -30,6 +30,7 @@ How real work called the platform's tools, week by week: how much, how fast, wha
 | Nothing that week | A composition with nothing in it says so in its card |
 | Read failed | The error state with the gateway's sentence and Retry, which asks the server again |
 | Slower than 4.5 seconds | The same error state, saying the read did not answer within 4.5 seconds, with Retry; never an endless skeleton |
+| Signed out since the gate | Sign-in, and back to this address and its query after it |
 
 ## Agents
 

@@ -1,7 +1,7 @@
-import { redirect } from 'next/navigation';
-import { GatewayError, answeredAt, gatewayGet, type Revised } from '@/data/gateway';
+import { answeredAt, gatewayGet, type Revised } from '@/data/gateway';
+import { signInWhenEnded } from '@/data/sign-in';
 import type { Runs } from '@/lib/destination-shapes';
-import { READ_BOUND_MS } from '@/lib/read-bound';
+import { bounded } from '@/lib/read-bound';
 import { runsPath, skillPagesOf, type RunsFilters, type RunsRead, type SkillPages } from '@/logic/runs-context';
 import { readPlugins } from '../plugins/read-plugins';
 
@@ -14,15 +14,11 @@ import { readPlugins } from '../plugins/read-plugins';
  */
 export async function readRuns(filters: RunsFilters): Promise<Revised<RunsRead>> {
   const path = runsPath(filters);
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const bound = new Promise<RunsRead>((resolve) => { timer = setTimeout(() => resolve({ state: 'slow', path }), READ_BOUND_MS); });
   try {
-    return await Promise.race([gatewayGet<Runs>(path).then((data): Revised<RunsRead> => ({ state: 'ok', path, data, revisions: answeredAt(data) })), bound]);
+    return await bounded<Revised<RunsRead>>(gatewayGet<Runs>(path).then((data) => ({ state: 'ok', path, data, revisions: answeredAt(data) })), { state: 'slow', path });
   } catch (error) {
-    if (error instanceof GatewayError && error.status === 401) redirect('/login?next=%2Fruns');
+    await signInWhenEnded(error);
     return { state: 'failed', path, reason: error instanceof Error ? error.message : 'The gateway did not answer the read.' };
-  } finally {
-    clearTimeout(timer);
   }
 }
 
@@ -32,6 +28,6 @@ export async function readRuns(filters: RunsFilters): Promise<Revised<RunsRead>>
  * never the catalog. A catalog that did not answer leaves every skill's row without a way on, and never fails the page.
  */
 export async function readSkillPages(): Promise<SkillPages> {
-  const read = await readPlugins('/runs');
+  const read = await readPlugins();
   return read.state === 'ok' ? skillPagesOf(read.data) : {};
 }

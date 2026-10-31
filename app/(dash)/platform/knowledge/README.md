@@ -28,6 +28,7 @@ The knowledge store's health: what stands on each shelf, what was made week by w
 | Nothing yet | A fresh deployment: the counts at zero and the share with no result `No data`, every shelf at zero, the weeks at zero with no share, a line saying no import has named its lessons yet, and the lists saying no lesson was made, none stands and every search found something |
 | Read failed | The error state with the gateway's sentence and Retry, which asks the server again |
 | Slower than 4.5 seconds | The same error state, saying the read did not answer within 4.5 seconds, with Retry; never an endless skeleton |
+| Signed out since the gate | Sign-in, and back to this address and its query after it |
 
 ## Agents
 

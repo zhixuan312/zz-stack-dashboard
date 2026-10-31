@@ -1,8 +1,8 @@
-import { redirect } from 'next/navigation';
 import { GatewayError, answeredAt, gatewayGet, revisionsOf, type Revised } from '@/data/gateway';
+import { signInWhenEnded } from '@/data/sign-in';
 import type { PluginEval, Skill, SkillDetail, SkillText } from '@/lib/api-shapes';
 import type { Evaluation } from '@/lib/platform-shapes';
-import { READ_BOUND_MS } from '@/lib/read-bound';
+import { bounded } from '@/lib/read-bound';
 import { SCORES_PATH, evalPath, historyOf, type EvalRead, type HistoryRead, type PluginRead } from '@/logic/plugin-context';
 import { PLUGINS_PATH, type Catalog, type PluginsRead, type Served } from '@/logic/plugins-context';
 import { skillDetailPath, skillTextPath, skillsPath, type SkillRead } from '@/logic/skill-context';
@@ -16,31 +16,27 @@ const reasonOf = (err: unknown) => (err instanceof Error ? err.message : 'The ga
  * It never rejects, so the page's boundary never waits on it longer or falls to the error page, but for a session that
  * ended since the gate let it in, which goes to sign-in. Nothing it reads is kept for anyone else.
  */
-async function bounded<T, R extends { path: string }>(path: string, next: string, refused: (status: number) => R | null = () => null): Promise<Revised<Served<T> | R>> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const bound = new Promise<Served<T>>((resolve) => { timer = setTimeout(() => resolve({ state: 'slow', path }), READ_BOUND_MS); });
+async function read<T, R extends { path: string }>(path: string, refused: (status: number) => R | null = () => null): Promise<Revised<Served<T> | R>> {
   try {
-    return await Promise.race([gatewayGet<T>(path).then((data): Revised<Served<T>> => ({ state: 'ok', path, at: new Date().toISOString(), data, revisions: answeredAt(data) })), bound]);
+    return await bounded<Revised<Served<T>>>(gatewayGet<T>(path).then((data) => ({ state: 'ok', path, at: new Date().toISOString(), data, revisions: answeredAt(data) })), { state: 'slow', path });
   } catch (error) {
-    if (error instanceof GatewayError && error.status === 401) redirect(`/login?next=${encodeURIComponent(next)}`);
+    await signInWhenEnded(error);
     const answered = error instanceof GatewayError ? refused(error.status) : null;
     return answered ? { ...answered, revisions: (error as GatewayError).revisions } : { state: 'failed', path, reason: reasonOf(error) };
-  } finally {
-    clearTimeout(timer);
   }
 }
 
-/** The catalog, for Plugins, or for the page at `next` that reads it beside its own. */
-export const readPlugins = (next = '/plugins'): Promise<Revised<PluginsRead>> => bounded<Catalog, never>(PLUGINS_PATH, next);
+/** The catalog, for Plugins, or for a page that reads it beside its own. */
+export const readPlugins = (): Promise<Revised<PluginsRead>> => read<Catalog, never>(PLUGINS_PATH);
 
 /**
  * The plugin's scores in their series, from the platform's Evaluation read, which everybody who reads the platform may
  * make: only this plugin's, so the page is handed none of the others. A read that fails or is slow, or a plugin it
  * has no score of, is `none`, and the page quotes the catalog's statement alone; it never fails the page.
  */
-async function readHistory(plugin: string, next: string): Promise<HistoryRead> {
-  const read = await bounded<Evaluation, never>(SCORES_PATH, next);
-  return historyOf(read.state === 'ok' ? read.data : null, plugin);
+async function readHistory(plugin: string): Promise<HistoryRead> {
+  const scores = await read<Evaluation, never>(SCORES_PATH);
+  return historyOf(scores.state === 'ok' ? scores.data : null, plugin);
 }
 
 /**
@@ -50,25 +46,23 @@ async function readHistory(plugin: string, next: string): Promise<HistoryRead> {
  * revisions are the catalog's and the evaluation's: the series only words the comparability line.
  */
 export async function readPlugin(plugin: string): Promise<Revised<PluginRead>> {
-  const next = `/plugins/${plugin}`;
   const path = evalPath(plugin);
   const [catalog, evaluation, history] = await Promise.all([
-    readPlugins(next),
-    bounded<PluginEval, EvalRead>(path, next, (status) => (status === 403 ? { state: 'withheld', path } : null)),
-    readHistory(plugin, next),
+    readPlugins(),
+    read<PluginEval, EvalRead>(path, (status) => (status === 403 ? { state: 'withheld', path } : null)),
+    readHistory(plugin),
   ]);
   return { catalog, evaluation, history, revisions: revisionsOf(catalog.revisions, evaluation.revisions) };
 }
 
 /** A skill's four reads, together. The text answering 404 is a skill its plugin does not ship: `missing`. */
 export async function readSkill(plugin: string, skill: string): Promise<Revised<SkillRead>> {
-  const next = `/plugins/${plugin}/${skill}`;
   const textPath = skillTextPath(plugin, skill);
   const [catalog, skills, detail, text] = await Promise.all([
-    readPlugins(next),
-    bounded<{ skills: Skill[] }, never>(skillsPath(plugin), next),
-    bounded<SkillDetail, never>(skillDetailPath(skill), next),
-    bounded<SkillText, { state: 'missing'; path: string }>(textPath, next, (status) => (status === 404 ? { state: 'missing', path: textPath } : null)),
+    readPlugins(),
+    read<{ skills: Skill[] }, never>(skillsPath(plugin)),
+    read<SkillDetail, never>(skillDetailPath(skill)),
+    read<SkillText, { state: 'missing'; path: string }>(textPath, (status) => (status === 404 ? { state: 'missing', path: textPath } : null)),
   ]);
   return { catalog, skills, detail, text, revisions: revisionsOf(catalog.revisions, skills.revisions, detail.revisions, text.revisions) };
 }

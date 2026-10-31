@@ -10,7 +10,7 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push() {}, replace() {}, refresh: router.refresh, back() {}, forward() {}, prefetch() {} }),
 }));
 const gateway = vi.hoisted(() => ({ get: vi.fn() }));
-vi.mock('@/data/gateway', () => ({ gatewayGet: gateway.get }));
+vi.mock('@/data/gateway', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/data/gateway')>()), gatewayGet: gateway.get }));
 vi.mock('@/data/access', async (load) => ({ ...(await load<typeof import('@/data/access')>()), requireNeed: async () => {} }));
 // The refusal the console declares (Task I-94): a refused address names nothing.
 vi.mock('@/app.config', async (load) => ({ ...(await load<typeof import('@/app.config')>()), refusal: 'absent' }));

@@ -18,6 +18,9 @@ vi.mock('next/navigation', () => ({
   }),
   redirect: (to: string) => { throw new Error(`NEXT_REDIRECT ${to}`); },
 }));
+// The address this request asked for, as `proxy.ts` writes it, which sign-in sends a session that ended back to.
+const asked = vi.hoisted(() => ({ path: '/' }));
+vi.mock('next/headers', () => ({ cookies: async () => ({ get: () => undefined }), headers: async () => new Headers({ 'x-zz-path': asked.path }) }));
 const gateway = vi.hoisted(() => ({ get: vi.fn() }));
 vi.mock('@/data/gateway', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/data/gateway')>()), gatewayGet: gateway.get }));
 vi.mock('@/data/access', async (importOriginal) => ({
@@ -146,7 +149,8 @@ describe('the page', () => {
     gateway.get.mockResolvedValue(ALL);
     await expect(readRuns({ skill: 'sdlc-plan', page: '2' })).resolves.toMatchObject({ state: 'ok', path: '/runs?skill=sdlc-plan&limit=10&offset=10' });
     gateway.get.mockRejectedValue(new GatewayError(401, 'signed out'));
-    await expect(readRuns(RUNS_DEFAULTS)).rejects.toThrow('NEXT_REDIRECT /login?next=%2Fruns');
+    asked.path = '/runs?skill=sdlc-plan';
+    await expect(readRuns({ ...RUNS_DEFAULTS, skill: 'sdlc-plan' })).rejects.toThrow(`NEXT_REDIRECT /login?next=${encodeURIComponent('/runs?skill=sdlc-plan')}`);
     gateway.get.mockRejectedValue(new GatewayError(500, 'could not read the runs'));
     await expect(readRuns(RUNS_DEFAULTS)).resolves.toEqual({ state: 'failed', path: PATH, reason: 'could not read the runs' });
   });

@@ -1,9 +1,9 @@
-import { redirect } from 'next/navigation';
 import { GatewayError, answeredAt, gatewayGet } from '@/data/gateway';
+import { signInWhenEnded } from '@/data/sign-in';
 import type { DocumentDetail } from '@/lib/api-shapes';
 import type { Revisions } from '@/lib/live';
 import { encodePath } from '@/lib/store-path';
-import { READ_BOUND_MS } from '@/lib/read-bound';
+import { bounded } from '@/lib/read-bound';
 
 /**
  * The document route's own read, on the console's server: the answer with the moment it answered, which the page's
@@ -26,20 +26,15 @@ export type DocumentRead =
  * draws the missing page for those and reads nothing.
  */
 export async function readDocument(team: string, slug: string, rel: string): Promise<DocumentRead> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const bound = new Promise<DocumentRead>((resolve) => { timer = setTimeout(() => resolve({ state: 'slow' }), READ_BOUND_MS); });
-  const named = `${team}/${slug}/${encodePath(rel)}`;
-  const read = gatewayGet<DocumentDetail>(`/document/${named}`).then(
-    (data): DocumentRead => ({ state: 'ok', data, at: new Date().toISOString(), revisions: answeredAt(data) }),
-    (err: unknown): DocumentRead => {
-      if (err instanceof GatewayError && err.status === 401) redirect(`/login?next=${encodeURIComponent(`/initiatives/${named}`)}`);
-      if (err instanceof GatewayError && err.status === 404) return { state: 'missing', reason: err.message, revisions: err.revisions };
-      return { state: 'failed', reason: err instanceof Error ? err.message : 'The gateway did not answer.' };
-    },
+  return bounded(
+    gatewayGet<DocumentDetail>(`/document/${team}/${slug}/${encodePath(rel)}`).then(
+      (data): DocumentRead => ({ state: 'ok', data, at: new Date().toISOString(), revisions: answeredAt(data) }),
+      async (err: unknown): Promise<DocumentRead> => {
+        await signInWhenEnded(err);
+        if (err instanceof GatewayError && err.status === 404) return { state: 'missing', reason: err.message, revisions: err.revisions };
+        return { state: 'failed', reason: err instanceof Error ? err.message : 'The gateway did not answer.' };
+      },
+    ),
+    { state: 'slow' },
   );
-  try {
-    return await Promise.race([read, bound]);
-  } finally {
-    clearTimeout(timer);
-  }
 }

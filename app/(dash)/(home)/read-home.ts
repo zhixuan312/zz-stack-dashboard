@@ -1,8 +1,8 @@
-import { redirect } from 'next/navigation';
 import { chromeAccess } from '@/data/access';
-import { GatewayError, gatewayGet } from '@/data/gateway';
+import { gatewayGet } from '@/data/gateway';
+import { signInWhenEnded } from '@/data/sign-in';
 import type { Home } from '@/lib/work-shapes';
-import { READ_BOUND_MS } from '@/lib/read-bound';
+import { bounded } from '@/lib/read-bound';
 import type { HomeRead } from '@/logic/home-context';
 
 /**
@@ -12,18 +12,10 @@ import type { HomeRead } from '@/logic/home-context';
  * `/me` named, which the waiting strip's link opens the document under.
  */
 export async function readHome(): Promise<HomeRead> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const bound = new Promise<HomeRead>((resolve) => { timer = setTimeout(() => resolve({ state: 'slow' }), READ_BOUND_MS); });
-  const read = async (): Promise<HomeRead> => {
-    const [home, { team }] = await Promise.all([gatewayGet<Home>('/home'), chromeAccess()]);
-    return { state: 'ok', home, team: team ?? null };
-  };
   try {
-    return await Promise.race([read(), bound]);
+    return await bounded(Promise.all([gatewayGet<Home>('/home'), chromeAccess()]).then(([home, { team }]): HomeRead => ({ state: 'ok', home, team: team ?? null })), { state: 'slow' });
   } catch (error) {
-    if (error instanceof GatewayError && error.status === 401) redirect('/login?next=%2F');
+    await signInWhenEnded(error);
     return { state: 'failed' };
-  } finally {
-    clearTimeout(timer);
   }
 }

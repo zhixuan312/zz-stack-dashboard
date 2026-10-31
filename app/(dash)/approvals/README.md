@@ -31,6 +31,7 @@ What waits on the active team for a decision, and every approval recorded in you
 | History unavailable | Approvals in your name and No presentation recorded read `Unavailable`, the chart says it could not be read, History's table says so; Waiting stands |
 | Read failed | Each tile a dash, and the table's error state with the gateway's sentence and Retry |
 | Slower than 4.5 seconds | The same error state, saying the read did not answer within 4.5 seconds, with Retry; never an endless skeleton |
+| Signed out since the gate | Sign-in, and back to this address and its query after it |
 | Read again | The table's Retry reads again in the browser, busy only after the person presses it and until that read answers; a read a change starts leaves the error state and its Retry where they are, never busy, so a keyboard user keeps their place |
 | Refused | The refused page, under the same title and loading state as an address that names nothing |
 

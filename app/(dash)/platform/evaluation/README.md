@@ -26,6 +26,7 @@ Each plugin's evaluation as the platform recorded it: what waits for a decision,
 | A part unavailable | That card says it could not be read and why; every other card stands, the Ask with its table |
 | Read failed | The error state with the gateway's sentence and Retry, which asks the server again |
 | Slower than 4.5 seconds | The same error state, saying the read did not answer within 4.5 seconds, with Retry; never an endless skeleton |
+| Signed out since the gate | Sign-in, and back to this address and its query after it |
 
 ## Agents
 

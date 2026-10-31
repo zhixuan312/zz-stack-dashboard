@@ -10,3 +10,14 @@
  * logic nor views (the `data-imports-neither` rule).
  */
 export const READ_BOUND_MS = 4_500;
+
+/** `read`, or `slow` once `READ_BOUND_MS` has passed without an answer. A read that rejects first rejects this. */
+export async function bounded<R>(read: Promise<R>, slow: R): Promise<R> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const bound = new Promise<R>((resolve) => { timer = setTimeout(() => resolve(slow), READ_BOUND_MS); });
+  try {
+    return await Promise.race([read, bound]);
+  } finally {
+    clearTimeout(timer);
+  }
+}

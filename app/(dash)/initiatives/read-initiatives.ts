@@ -1,30 +1,14 @@
-import { redirect } from 'next/navigation';
 import { chromeAccess } from '@/data/access';
 import { GatewayError, answeredAt, gatewayGet, type Revised } from '@/data/gateway';
+import { signInWhenEnded } from '@/data/sign-in';
 import type { InitiativeDetail } from '@/lib/api-shapes';
 import type { InitiativeList } from '@/lib/work-shapes';
-import { READ_BOUND_MS } from '@/lib/read-bound';
+import { bounded } from '@/lib/read-bound';
 import type { InitiativeRead } from '@/logic/initiative-context';
 import { shownList, type InitiativesRead } from '@/logic/initiatives-context';
 import { listPath, type InitiativesFilters } from '@/logic/initiatives-filter';
 
-/** `read`, or `slow` once `READ_BOUND_MS` has passed without an answer. Neither this nor `read` rejects. */
-async function bounded<R>(read: Promise<R>, slow: R): Promise<R> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const bound = new Promise<R>((resolve) => { timer = setTimeout(() => resolve(slow), READ_BOUND_MS); });
-  try {
-    return await Promise.race([read, bound]);
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
 const reasonOf = (err: unknown) => (err instanceof Error ? err.message : 'The gateway did not answer.');
-
-/** A session that ended since the gate let the person in goes to sign-in, back to `next`; any other failure is the read's. */
-function signedOut(err: unknown, next: string): void {
-  if (err instanceof GatewayError && err.status === 401) redirect(`/login?next=${encodeURIComponent(next)}`);
-}
 
 /**
  * One page of `GET /initiatives` for the address's filters, on the console's server, as the person, given
@@ -37,7 +21,7 @@ export function readInitiatives(filters: InitiativesFilters): Promise<Revised<In
   return bounded<Revised<InitiativesRead>>(
     Promise.all([gatewayGet<InitiativeList>(path), chromeAccess()]).then(
       ([data, { team }]): Revised<InitiativesRead> => ({ state: 'ok', path, data, team: team ?? null, revisions: answeredAt(data) }),
-      (err: unknown): InitiativesRead => { signedOut(err, '/initiatives'); return { state: 'failed', path, reason: reasonOf(err) }; },
+      async (err: unknown): Promise<InitiativesRead> => { await signInWhenEnded(err); return { state: 'failed', path, reason: reasonOf(err) }; },
     ),
     { state: 'slow', path },
   );
@@ -59,8 +43,8 @@ export function readInitiative(team: string, slug: string): Promise<Revised<Init
   return bounded<Revised<InitiativeRead>>(
     Promise.all([gatewayGet<InitiativeDetail>(at), chromeAccess()]).then(
       ([data, access]): Revised<InitiativeRead> => ({ state: 'ok', data, team: access.team ?? null, at: new Date().toISOString(), revisions: answeredAt(data) }),
-      (err: unknown): Revised<InitiativeRead> => {
-        signedOut(err, at);
+      async (err: unknown): Promise<Revised<InitiativeRead>> => {
+        await signInWhenEnded(err);
         return err instanceof GatewayError && err.status === 404 ? { state: 'missing', revisions: err.revisions } : { state: 'failed', reason: reasonOf(err) };
       },
     ),

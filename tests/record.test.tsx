@@ -17,6 +17,9 @@ vi.mock('next/navigation', () => ({
   }),
   redirect: (to: string) => { throw new Error(`NEXT_REDIRECT ${to}`); },
 }));
+// The address this request asked for, as `proxy.ts` writes it, which sign-in sends a session that ended back to.
+const asked = vi.hoisted(() => ({ path: '/' }));
+vi.mock('next/headers', () => ({ cookies: async () => ({ get: () => undefined }), headers: async () => new Headers({ 'x-zz-path': asked.path }) }));
 const gateway = vi.hoisted(() => ({ get: vi.fn() }));
 vi.mock('@/data/gateway', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/data/gateway')>()), gatewayGet: gateway.get }));
 vi.mock('@/data/access', async (importOriginal) => ({
@@ -134,7 +137,8 @@ describe('the page', () => {
     gateway.get.mockResolvedValue(QUARTER);
     await expect(readRecord({ period: 'quarter', page: '2' })).resolves.toMatchObject({ state: 'ok', path: '/record?period=quarter&limit=10&offset=10' });
     gateway.get.mockRejectedValue(new GatewayError(401, 'signed out'));
-    await expect(readRecord(RECORD_DEFAULTS)).rejects.toThrow('NEXT_REDIRECT /login?next=%2Frecord');
+    asked.path = '/record?period=year';
+    await expect(readRecord({ ...RECORD_DEFAULTS, period: 'year' })).rejects.toThrow(`NEXT_REDIRECT /login?next=${encodeURIComponent('/record?period=year')}`);
   });
 
   it('says a read slower than its bound is unavailable, never an endless skeleton', async () => {

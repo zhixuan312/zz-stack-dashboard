@@ -1,8 +1,8 @@
-import { redirect } from 'next/navigation';
-import { GatewayError, answeredAt, gatewayGet, type Revised } from '@/data/gateway';
+import { answeredAt, gatewayGet, type Revised } from '@/data/gateway';
+import { signInWhenEnded } from '@/data/sign-in';
 import type { Access } from '@/lib/destination-shapes';
 import type { AccessRead } from '@/logic/access-context';
-import { READ_BOUND_MS } from '@/lib/read-bound';
+import { bounded } from '@/lib/read-bound';
 
 /**
  * `GET /access` on the console's server, as the person, given `READ_BOUND_MS`, with the revisions it was answered at:
@@ -12,14 +12,10 @@ import { READ_BOUND_MS } from '@/lib/read-bound';
  * caller, and the answer is theirs alone whatever team they act for.
  */
 export async function readAccess(): Promise<Revised<AccessRead>> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const bound = new Promise<AccessRead>((resolve) => { timer = setTimeout(() => resolve({ state: 'slow' }), READ_BOUND_MS); });
   try {
-    return await Promise.race([gatewayGet<Access>('/access').then((data): Revised<AccessRead> => ({ state: 'ok', access: data, revisions: answeredAt(data) })), bound]);
+    return await bounded<Revised<AccessRead>>(gatewayGet<Access>('/access').then((data) => ({ state: 'ok', access: data, revisions: answeredAt(data) })), { state: 'slow' });
   } catch (e) {
-    if (e instanceof GatewayError && e.status === 401) redirect('/login?next=%2Faccess');
+    await signInWhenEnded(e);
     return { state: 'failed', reason: e instanceof Error ? e.message : 'The gateway did not answer the read.' };
-  } finally {
-    clearTimeout(timer);
   }
 }

@@ -1,8 +1,8 @@
-import { redirect } from 'next/navigation';
 import { chromeAccess } from '@/data/access';
-import { GatewayError, gatewayGet } from '@/data/gateway';
+import { gatewayGet } from '@/data/gateway';
+import { signInWhenEnded } from '@/data/sign-in';
 import type { RecordRead } from '@/lib/work-shapes';
-import { READ_BOUND_MS } from '@/lib/read-bound';
+import { bounded } from '@/lib/read-bound';
 import { recordPath, type RecordFilters, type RecordServed } from '@/logic/record-context';
 
 /**
@@ -13,18 +13,10 @@ import { recordPath, type RecordFilters, type RecordServed } from '@/logic/recor
  */
 export async function readRecord(filters: RecordFilters): Promise<RecordServed> {
   const path = recordPath(filters);
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const bound = new Promise<RecordServed>((resolve) => { timer = setTimeout(() => resolve({ state: 'slow', path }), READ_BOUND_MS); });
-  const read = async (): Promise<RecordServed> => {
-    const [data, { team }] = await Promise.all([gatewayGet<RecordRead>(path), chromeAccess()]);
-    return { state: 'ok', path, data, team: team ?? null };
-  };
   try {
-    return await Promise.race([read(), bound]);
+    return await bounded(Promise.all([gatewayGet<RecordRead>(path), chromeAccess()]).then(([data, { team }]): RecordServed => ({ state: 'ok', path, data, team: team ?? null })), { state: 'slow', path });
   } catch (error) {
-    if (error instanceof GatewayError && error.status === 401) redirect('/login?next=%2Frecord');
+    await signInWhenEnded(error);
     return { state: 'failed', path, reason: error instanceof Error ? error.message : 'The platform did not answer the read.' };
-  } finally {
-    clearTimeout(timer);
   }
 }

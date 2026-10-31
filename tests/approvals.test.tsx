@@ -17,6 +17,9 @@ vi.mock('next/navigation', () => ({
   }),
   redirect: (to: string) => { throw new Error(`NEXT_REDIRECT ${to}`); },
 }));
+// The address this request asked for, as `proxy.ts` writes it, which sign-in sends a session that ended back to.
+const asked = vi.hoisted(() => ({ path: '/' }));
+vi.mock('next/headers', () => ({ cookies: async () => ({ get: () => undefined }), headers: async () => new Headers({ 'x-zz-path': asked.path }) }));
 const gateway = vi.hoisted(() => ({ get: vi.fn() }));
 vi.mock('@/data/gateway', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/data/gateway')>()), gatewayGet: gateway.get }));
 /** What the gate answers: nothing, which lets the person in, unless a test refuses them. */
@@ -128,7 +131,8 @@ describe('the page', () => {
     gateway.get.mockRejectedValue(new GatewayError(500, 'could not read the approvals'));
     await expect(readApprovals(APPROVALS_DEFAULTS)).resolves.toEqual({ state: 'failed', path: WAITING_PATH, reason: 'could not read the approvals' });
     gateway.get.mockRejectedValue(new GatewayError(401, 'signed out'));
-    await expect(readApprovals(APPROVALS_DEFAULTS)).rejects.toThrow('NEXT_REDIRECT /login?next=%2Fapprovals');
+    asked.path = '/approvals?tab=history&page=3';
+    await expect(readApprovals({ tab: 'history', page: '3' })).rejects.toThrow(`NEXT_REDIRECT /login?next=${encodeURIComponent('/approvals?tab=history&page=3')}`);
   });
 
   it('says a read slower than its bound is slow, never an endless skeleton', async () => {

@@ -11,6 +11,9 @@ vi.mock('next/navigation', () => ({
   redirect: (to: string) => { throw new Error(`NEXT_REDIRECT ${to}`); },
 }));
 /** The console's server's reads, answered without a gateway, and its gate let through: the reads are under test. */
+// The address this request asked for, as `proxy.ts` writes it, which sign-in sends a session that ended back to.
+const asked = vi.hoisted(() => ({ path: '/' }));
+vi.mock('next/headers', () => ({ cookies: async () => ({ get: () => undefined }), headers: async () => new Headers({ 'x-zz-path': asked.path }) }));
 const gateway = vi.hoisted(() => ({ get: vi.fn() }));
 vi.mock('@/data/gateway', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/data/gateway')>()), gatewayGet: gateway.get }));
 vi.mock('@/data/access', async (importOriginal) => ({
@@ -134,6 +137,7 @@ describe('a document whose name holds #, ? and %', () => {
     await waitFor(() => expect(gateway.get).toHaveBeenCalledWith(`/document/atlas/${SLUG}/${ENCODED}`));
     gateway.get.mockReset();
     gateway.get.mockRejectedValue(new GatewayError(401, 'not signed in'));
+    asked.path = `/initiatives/atlas/${SLUG}/${ENCODED}`;
     await expect(documentPage(SEGMENTS)).rejects.toThrow(`NEXT_REDIRECT /login?next=${encodeURIComponent(`/initiatives/atlas/${SLUG}/${ENCODED}`)}`);
   });
 
@@ -195,10 +199,15 @@ describe('an address whose escapes do not name a store path', () => {
 describe('a session that ended between the gate and the read', () => {
   it('goes to sign-in from Access, Activity and every Knowledge page, and back to the page after', async () => {
     gateway.get.mockRejectedValue(new GatewayError(401, 'not signed in'));
+    asked.path = '/access';
     await expect(readAccess()).rejects.toThrow('NEXT_REDIRECT /login?next=%2Faccess');
+    asked.path = '/activity';
     await expect(readSummary()).rejects.toThrow('NEXT_REDIRECT /login?next=%2Factivity');
+    asked.path = '/knowledge';
     await expect(readFirst('/knowledge/summary')).rejects.toThrow('NEXT_REDIRECT /login?next=%2Fknowledge');
-    await expect(readFirst('/knowledge/log')).rejects.toThrow('NEXT_REDIRECT /login?next=%2Fknowledge%2Flog');
+    asked.path = '/knowledge/log?kind=search';
+    await expect(readFirst('/knowledge/log')).rejects.toThrow(`NEXT_REDIRECT /login?next=${encodeURIComponent('/knowledge/log?kind=search')}`);
+    asked.path = `/knowledge/atlas/${ENCODED}`;
     await expect(nodePage(SEGMENTS)).rejects.toThrow(`NEXT_REDIRECT /login?next=${encodeURIComponent(`/knowledge/atlas/${ENCODED}`)}`);
   });
 

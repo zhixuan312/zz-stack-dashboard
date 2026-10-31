@@ -1,6 +1,7 @@
 import { answeredAt, gatewayGet, type Revised } from '@/data/gateway';
+import { signInWhenEnded } from '@/data/sign-in';
 import type { People } from '@/lib/fleet-shapes';
-import { READ_BOUND_MS } from '@/lib/read-bound';
+import { bounded } from '@/lib/read-bound';
 import type { PeopleRead, PeopleShown } from '@/logic/people-context';
 import { peoplePath, type PeopleFilters } from '@/logic/people-filter';
 
@@ -9,18 +10,15 @@ const reasonOf = (err: unknown) => (err instanceof Error ? err.message : 'The ga
 /**
  * One page of `GET /people` for the address's filters, on the console's server, as the person, given
  * `READ_BOUND_MS`, with the revisions it was answered at: `slow` once it has passed without an answer. It never
- * rejects, so the page's boundary never waits on it longer or falls to the error page.
+ * rejects, so the page's boundary never waits on it longer or falls to the error page, but for a session that ended
+ * since the gate let the person in, which goes to sign-in.
  */
-export async function readPeople(filters: PeopleFilters): Promise<Revised<PeopleRead>> {
+export function readPeople(filters: PeopleFilters): Promise<Revised<PeopleRead>> {
   const path = peoplePath(filters);
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const slow = new Promise<PeopleRead>((resolve) => { timer = setTimeout(() => resolve({ state: 'slow', path }), READ_BOUND_MS); });
-  const read = gatewayGet<People>(path).then((data): Revised<PeopleRead> => ({ state: 'ok', path, data, revisions: answeredAt(data) }), (err: unknown): PeopleRead => ({ state: 'failed', path, reason: reasonOf(err) }));
-  try {
-    return await Promise.race([read, slow]);
-  } finally {
-    clearTimeout(timer);
-  }
+  return bounded<Revised<PeopleRead>>(
+    gatewayGet<People>(path).then((data): Revised<PeopleRead> => ({ state: 'ok', path, data, revisions: answeredAt(data) }), async (err: unknown): Promise<PeopleRead> => { await signInWhenEnded(err); return { state: 'failed', path, reason: reasonOf(err) }; }),
+    { state: 'slow', path },
+  );
 }
 
 /** The answer as the page draws it, from the gateway's whole answer: the day each person was added, which the rows are

@@ -6,24 +6,14 @@
  * What this module reads is one policy answer — `identity` — and what it gives back is an element or a redirect.
  */
 import type { Metadata } from 'next';
-import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import type { JSX } from 'react';
 import { refusal } from '@/app.config';
 import { NoAccess } from '@/console/no-access';
 import { identity, satisfies } from '@/data/access';
 import { FEATURES, type FeatureId } from '@/data/features';
-import { ownPath } from '@/lib/own-path';
+import { signIn } from '@/data/sign-in';
 import { MISSING_METADATA } from '@/logic/missing';
-
-// COUPLED: `proxy.ts` writes this header on every page request, over whatever the browser sent. The two move together.
-const PATH_HEADER = 'x-zz-path';
-
-/** Where sign-in sends the person back to: the address this request asked for, when `proxy.ts` said it and it is this site's. */
-async function signIn(): Promise<string> {
-  const asked = (await headers()).get(PATH_HEADER);
-  return asked !== null && ownPath(asked) ? `/login?next=${encodeURIComponent(asked)}` : '/login';
-}
 
 /**
  * The one page gate, called as every page's first statement so the check is what stops the read, never the rail:
