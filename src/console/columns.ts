@@ -6,12 +6,14 @@ import type { Column } from '@/components/patterns/data-table';
  * of running text says `align: 'left'` and keeps it: prose is never centred or pushed right.
  *
  * **The second half of the rule, and it is not about alignment.** `DataTable`'s `truncate` wraps the value in
- * Meridian's `Cut` and nothing else — no `title`, no way back — so a value that identifies a record and is cut has no tail anywhere on
- * the page. Since it was written down here rather than at the one site that needed it, it holds for every cell:
+ * Meridian's `Cut`, and titles the cell with the whole value only when the cell is a plain string or number; a cell
+ * that draws a node is cut with no way back unless its column sets `title`, so a value that identifies a record would
+ * have no tail anywhere on the page. Since it was written down here rather than at the one site that needed it, it
+ * holds for every cell:
  *
  * - **An identifier never truncates silently.** A slug, a path, an id, a stable key, an address, a subject: the tail is
  *   usually the distinguishing part — `2026-09-22-payout-schedule` keeps its date at the front and its name at the end —
- *   so the cell sets `title` with the whole value, and where the column has room it wraps
+ *   so a cell that draws it as a node sets `title` with the whole value, and where the column has room it wraps
  *   (`whitespace-normal [overflow-wrap:anywhere]`) instead of cutting. `initiative.tsx` did this first; the rule was
  *   written there and did not reach the team slug, the member's address, the bell's entry or the evaluator's stable
  *   key until it was moved here.

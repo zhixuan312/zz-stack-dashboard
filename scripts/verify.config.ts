@@ -183,9 +183,6 @@ export const DETAIL: Record<string, string> = {
   '/initiatives/atlas/2026-09-28-search-relevance/spec.md': BODY,
   '/initiatives/atlas/2026-09-28-search-relevance/plan.md': BODY,
   '/initiatives/atlas/2026-09-12-onboarding-revamp/review.md': BODY,
-  // Another team's, which both people are refused (`deniedProbe`): what it would draw if it opened.
-  '/initiatives/beacon/2026-09-22-payout-schedule': TABLE,
-  '/initiatives/beacon/2026-09-22-payout-schedule/review.md': BODY,
   '/initiatives/atlas/2026-10-02-query-latency/spec.md': BODY,
   '/initiatives/atlas/2026-10-04-index-rebuild/spec.md': BODY,
   '/knowledge/atlas/nodes/0002-match-reasons-come-from-the-index-never-from-a-model.md': BODY,

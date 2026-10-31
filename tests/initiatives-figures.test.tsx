@@ -21,6 +21,7 @@ import type { InitiativeList, InitiativeRow } from '@/lib/work-shapes';
 import type { InitiativesRead } from '@/logic/initiatives-context';
 import { INITIATIVES_DEFAULTS, listPath } from '@/logic/initiatives-filter';
 import { InitiativesView } from '@/views/pages/initiatives';
+import { captionedTable, said } from './table-query.ts';
 
 const WINDOW = { from: '2026-10-05T00:00:00Z', to: '2026-10-12T00:00:00Z', observedFrom: '2026-10-05T00:00:00Z', observedThrough: '2026-10-12T00:00:00Z', complete: true };
 
@@ -63,16 +64,12 @@ function mockFetch() {
   };
 }
 
-/** The text of the row carrying `needle`, in the column whose header is `header`. */
+/** The words of the Initiatives row carrying `needle`, in the column whose header is `header`, as the table draws them. */
 function cell(needle: string, header: string): string {
-  const headers = [...document.querySelectorAll('th')].map((h) => h.textContent?.trim() ?? '');
-  const column = headers.indexOf(header);
-  const row = [...document.querySelectorAll('tr')].find((r) => r.textContent?.includes(needle));
-  if (column < 0 || !row) return `no ${header} column or no ${needle} row`;
-  const td = [...row.querySelectorAll('td')][column];
-  // What the table draws: past a phone card's dot, and its own words where a phone has others.
-  const drawn = td?.querySelector(':scope > [class~="@max-[640px]:hidden"]') ?? td?.querySelector(':scope > :not([data-sep])') ?? td;
-  return drawn?.textContent?.trim() ?? '';
+  const { rows, at } = captionedTable('Initiatives');
+  const row = rows.findIndex((r) => r.textContent?.includes(needle));
+  if (row < 0) return `no ${needle} row`;
+  return said(at(header).cells[row]).trim();
 }
 
 /** The list reads the page asked for, by their query strings, less the console's scope, which Work's list ignores. */

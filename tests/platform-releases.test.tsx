@@ -167,7 +167,7 @@ describe('a release\'s page draws its changelog and its upgrade notes', () => {
 });
 
 describe('each page draws loading, empty, error and partial', () => {
-  it('Releases: loading while another page is read in the browser', () => {
+  it('Releases: loading while the server\'s read of another page is on its way', () => {
     window.history.replaceState(null, '', '/platform/releases?page=2');
     browser(null);
     mount(<PlatformReleasesView served={ok} />);

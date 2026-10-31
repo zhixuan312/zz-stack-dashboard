@@ -22,3 +22,9 @@ export function captionedTable(caption: string) {
 
 /** The cells of the column headed `header` in the table captioned `caption`. */
 export const column = (caption: string, header: string) => captionedTable(caption).at(header).cells;
+
+/** What a cell draws where the table is a table: a phone's own words for it, and the dot before them, left out. */
+export const drawn = (td: Element): Element => td.querySelector(':scope > [class~="@max-[640px]:hidden"]') ?? td;
+
+/** A cell's words as the table draws them. */
+export const said = (td: Element) => [...drawn(td).childNodes].filter((n) => !(n instanceof Element && n.hasAttribute('data-sep'))).map((n) => n.textContent).join('');

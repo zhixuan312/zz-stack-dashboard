@@ -52,4 +52,4 @@ Protagonist: Releases.
 
 ## Surfaces
 
-Console, desktop and phone; at 390px the table is a card list of the version, when it was tagged and its malformed calls per 1,000 before then after. Reads `GET /platform/releases?limit=10&offset=…` on the console's server, as the person, once per request and bounded at 4.5 seconds; another page of rows is read in the browser. It declares no live collection: a release is recorded once, when its tag is made, and the next visit reads it.
+Console, desktop and phone; at 390px the table is a card list of the version, when it was tagged and its malformed calls per 1,000 before then after. Reads `GET /platform/releases?limit=10&offset=…` on the console's server, as the person, once per request and bounded at 4.5 seconds; another page of rows is read there too, as the navigation renders the page again, and a Retry is read in the browser. It declares no live collection: a release is recorded once, when its tag is made, and the next visit reads it.

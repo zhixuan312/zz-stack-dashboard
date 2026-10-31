@@ -28,7 +28,8 @@ export function startFakeGateway(...extra: string[]): Promise<Fixture> {
   const proc = spawn('node', ['scripts/fake-gateway/server.ts', '--port', '0', ...extra], { stdio: ['ignore', 'pipe', 'pipe'] });
   return new Promise<Fixture>((resolve, reject) => {
     let out = '';
-    const timer = setTimeout(() => reject(new Error(`no address printed: ${out}`)), START_FAILED_MS);
+    // A fixture that never printed is killed with the rejection: the suite never gets the process to kill it itself.
+    const timer = setTimeout(() => { proc.kill(); reject(new Error(`no address printed: ${out}`)); }, START_FAILED_MS);
     proc.stdout!.on('data', (d: Buffer) => {
       out += String(d);
       const m = /listening on (\S+)/.exec(out);

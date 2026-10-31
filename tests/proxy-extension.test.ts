@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { NextRequest } from 'next/server';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import config from '../scripts/verify.config.ts';
 import { appRoutes } from './routes.ts';
 
@@ -12,8 +12,6 @@ import { appRoutes } from './routes.ts';
  * Two routes do take a file's name at the end of their address, a document and a knowledge node (`spec.md`,
  * `nodes/0002-….md`), and the gateway's own paths are not pages at all: those pass through.
  */
-const saved = { ...process.env };
-
 /** The proxy as a production build runs it: no laptop rewrite to the gateway. */
 async function load() {
   vi.resetModules();
@@ -22,10 +20,6 @@ async function load() {
   delete process.env.ZZ_DEV_PAT;
   return (await import('../proxy.ts')).proxy;
 }
-
-afterEach(() => {
-  process.env = { ...saved };
-});
 
 /** What the proxy did with an address: answered it itself, or let it on to the app. */
 async function outcome(address: string): Promise<{ status: number; body: string; passed: boolean }> {

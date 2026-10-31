@@ -112,7 +112,6 @@ beforeEach(() => {
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
-  delete process.env.ZZ_GATEWAY;
 });
 
 /** The server's read, ended in `trouble`: past its bound under fake timers when it never answers. */

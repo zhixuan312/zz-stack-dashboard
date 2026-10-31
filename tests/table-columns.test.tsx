@@ -54,7 +54,7 @@ import { approvals } from '../scripts/fake-gateway/work-approvals.ts';
 import { plugins } from '../scripts/fake-gateway/work-plugins.ts';
 import { runs } from '../scripts/fake-gateway/work-runs.ts';
 import PlatformReleasePage from '../app/(dash)/platform/releases/[version]/page';
-import { captionedTable, classes } from './table-query.ts';
+import { captionedTable, classes, drawn, said } from './table-query.ts';
 
 /**
  * Every table the Wave 2 acceptance audit found wider than its frame, fitting it (Task I-136, AC-2.8): each table drawn
@@ -78,9 +78,6 @@ afterEach(() => { vi.unstubAllGlobals(); window.history.replaceState(null, '', '
 
 const mount = (ui: ReactElement) => render(<Tooltip.Provider>{ui}</Tooltip.Provider>);
 
-/** What a cell draws where the table is a table: a phone's own words for it, and the dot before them, left out. */
-const drawn = (td: Element): Element => td.querySelector(':scope > [class~="@max-[640px]:hidden"]') ?? td;
-const said = (td: Element) => [...drawn(td).childNodes].filter((n) => !(n instanceof Element && n.hasAttribute('data-sep'))).map((n) => n.textContent).join('');
 
 /** Each named column hides under 896px (or under 1152px, which holds it), its header and every cell alike. */
 function hidesBelowLg(caption: string, headers: string[], below = LG) {

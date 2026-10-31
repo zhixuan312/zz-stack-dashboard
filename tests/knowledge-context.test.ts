@@ -52,7 +52,7 @@ const arrival = { updatedAt: '2026-10-12T09:00:00Z', now: '2026-10-12T09:01:00Z'
 
 /** Every request this app's server made: its address and method. */
 let calls: { url: string; method: string }[] = [];
-const saved = { fetch: global.fetch, env: { ...process.env } };
+const saved = { fetch: global.fetch };
 
 /** The gateway, as `fetch`, answering the superadmin from the fake's fixtures. */
 function gateway() {
@@ -81,7 +81,6 @@ beforeEach(() => {
 });
 afterEach(() => {
   global.fetch = saved.fetch;
-  process.env = { ...saved.env };
 });
 
 const READ: ServerRead<KnowledgeSummary> = { state: 'ok', data: SUMMARY, at: '2026-10-12T09:00:00Z' };

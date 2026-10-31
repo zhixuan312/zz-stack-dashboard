@@ -34,6 +34,7 @@ import { people } from '../scripts/fake-gateway/platform-people.ts';
 import { teamDetail, teams } from '../scripts/fake-gateway/platform-teams.ts';
 import { usage } from '../scripts/fake-gateway/platform-usage.ts';
 import { answered } from '../scripts/fake-gateway/envelope.ts';
+import { captionedTable, column, drawn, said } from './table-query.ts';
 
 /**
  * The causes behind the Platform review's findings on Evaluation, Teams, a team, People, Usage, Audit and Knowledge
@@ -55,18 +56,7 @@ function mount(ui: ReactElement) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(<QueryClientProvider client={client}><Tooltip.Provider>{ui}</Tooltip.Provider></QueryClientProvider>);
 }
-const tableOf = (caption: string) => [...document.querySelectorAll('table')].find((t) => t.querySelector('caption')?.textContent === caption)!;
-/** The cells of `caption`'s column headed `header`. */
-function column(caption: string, header: string): HTMLElement[] {
-  const t = tableOf(caption);
-  const i = [...t.querySelectorAll('thead th')].findIndex((th) => th.textContent?.trim() === header);
-  expect(i, `${caption}: ${header}`).toBeGreaterThanOrEqual(0);
-  return [...t.querySelectorAll('tbody tr')].map((tr) => tr.children[i] as HTMLElement);
-}
-/** What a cell draws where the table is a table: a phone's own words for it, and the dot before them, left out. */
-const drawn = (td: Element): Element => td.querySelector(':scope > [class~="@max-[640px]:hidden"]') ?? td;
-/** A cell's words as the table draws them. */
-const said = (td: Element) => [...drawn(td).childNodes].filter((n) => !(n instanceof Element && n.hasAttribute('data-sep'))).map((n) => n.textContent).join('');
+const tableOf = (caption: string) => captionedTable(caption).t;
 /** Whether `el`'s own text is held to one line by it or an ancestor inside `cell`. */
 function heldWhole(el: Element, cell: Element): boolean {
   for (let at: Element | null = el; at && at !== cell.parentElement; at = at.parentElement) {

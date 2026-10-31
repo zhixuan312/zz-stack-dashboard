@@ -87,7 +87,6 @@ beforeEach(() => {
 });
 afterEach(() => {
   vi.unstubAllGlobals();
-  delete process.env.ZZ_GATEWAY;
 });
 
 /** Renders `ui` until the view's `useLive`, which stops it; the stop is caught here and nowhere else. */

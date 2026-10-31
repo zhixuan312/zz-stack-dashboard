@@ -50,7 +50,7 @@ import { recordPath } from '@/logic/record-context';
 import { TEAMS_DEFAULTS, teamsPath } from '@/logic/teams-filter';
 import { RELEASES } from '../scripts/fake-gateway/platform-releases.ts';
 import { EXTREME_EXPECTS, LIB, extremeRule } from '../scripts/states-check.ts';
-import { startFakeGateway } from './fake-gateway-start.ts';
+import { browserIn, servedIn, startFakeGateway } from './fake-gateway-start.ts';
 
 /**
  * Every ceiling drawn above it (Task I-127, AC-2.7): each page drawn from the fake gateway's own answer in the `extreme`
@@ -71,20 +71,20 @@ beforeAll(async () => {
 afterAll(() => stop());
 afterEach(() => vi.unstubAllGlobals());
 
-const realFetch = globalThis.fetch;
 const AT = '2026-10-18T00:00:00Z';
-const VALUE = 'superadmin+extreme';
+/** The session every read here is made as: the superadmin, on a busy platform. */
+const WHO = 'superadmin';
+const STATE = 'extreme';
 
 /** One read as the console's server makes it, for the superadmin on a busy platform. */
 async function served<T>(path: string): Promise<T> {
-  const res = await realFetch(`${base}/api/console${path}${path.includes('?') ? '&' : '?'}scope=platform`, { headers: { cookie: `zz_console=${VALUE}` } });
+  const res = await servedIn(base, WHO, STATE, path);
   expect(res.status, path).toBe(200);
   return await res.json() as T;
 }
 
 /** The browser's reads, sent to the fake gateway as the same session. */
-const browser = () => vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) =>
-  realFetch(`${base}${String(input)}`, { method: init?.method, body: init?.body, headers: { accept: 'application/json', cookie: `zz_console=${VALUE}` } })));
+const browser = () => browserIn(base, WHO, STATE);
 
 /** `reads` stubs the browser's reads in place of the fake gateway's, before anything is drawn. */
 function mount(ui: ReactElement, address: string, reads?: typeof fetch) {

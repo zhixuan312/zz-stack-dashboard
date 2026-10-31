@@ -1,6 +1,6 @@
 /**
- * One plugin's view tool, at `/plugins/[plugin]`: the catalog and the owning team's evaluation, the two reads its page
- * makes, told through the page's context. The evaluation is the superadmin's and the owning team's alone, and the
+ * One plugin's view tool, at `/plugins/[plugin]`: the catalog, the owning team's evaluation and the platform's score
+ * series, the three reads its page makes, told through the page's context. The evaluation is the superadmin's and the owning team's alone, and the
  * gateway refuses it to anybody else with a 403; that is its absence for this reader, as on the page, never an error.
  */
 import { z } from 'zod';

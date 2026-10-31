@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
  * The Work guide's "Find a decision" (Task I-128, AC-8.3): search Knowledge for a phrase from an old plan, then ask the
@@ -40,13 +40,11 @@ let fixture: Awaited<ReturnType<typeof startFakeGateway>> | undefined;
 beforeAll(async () => { fixture = await startFakeGateway(); });
 afterAll(() => fixture?.proc.kill());
 
-const saved = { ...process.env };
 beforeEach(() => {
   Object.assign(process.env, { ZZ_GATEWAY: fixture!.base, NODE_ENV: 'production' });
   delete process.env.ZZ_DEV_PAT;
   jar.zz_console = SESSION;
 });
-afterEach(() => { process.env = { ...saved }; });
 
 describe('the assistant finds the decision the Knowledge page finds', () => {
   it('answers the phrase from an old plan with the document the page\'s first hit links to', async () => {

@@ -24,7 +24,7 @@ export type DashPage = { file: string; dir: string; route: string; feature: Feat
 /** Every page under `app/(dash)`, the catch-all among them, by file. A page with no gate, or one naming no feature, throws. */
 export function dashPages(): DashPage[] {
   return (fs.readdirSync(DASH, { recursive: true }) as string[])
-    .filter((f) => path.basename(f) === 'page.tsx').sort()
+    .filter((f) => path.basename(f) === 'page.tsx' && !f.split(path.sep).some((s) => /^[_@]/.test(s))).sort()
     .map((file) => {
       const asked = GATE.exec(fs.readFileSync(path.join(DASH, file), 'utf8'))?.[1];
       if (!asked || !Object.hasOwn(FEATURES, asked)) throw new Error(`app/(dash)/${file} opens with no gate on a feature`);

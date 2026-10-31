@@ -7,9 +7,10 @@
 # A standalone Next build: `output: 'standalone'` traces the modules the server reaches and
 # copies just those, so the final stage has no node_modules.
 #
-# It holds no secret and no database URL. For every page its server reads the gateway once, as the person:
-# /me, with the caller's own session cookie, at the address in ZZ_GATEWAY, which the container's environment
-# must carry (docker-compose.yml requires it). A page's own content is read in the browser, against
+# It holds no secret and no database URL. For every page its server reads the gateway as the person, with the
+# caller's own session cookie, at the address in ZZ_GATEWAY, which the container's environment must carry
+# (docker-compose.yml requires it): /me once per request, and the page's first read of its own content, so the
+# page is drawn with it. What a page reads after that, a Retry or a live change, is read in the browser, against
 # /api/console on the same origin.
 #
 # The assistant is off unless a deployment sets the ASSISTANT_* variables: /api/assistant then reads the

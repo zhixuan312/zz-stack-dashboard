@@ -1,7 +1,7 @@
 // @vitest-environment node
 import fs from 'node:fs';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
  * The prepared collections (`src/data/prepared-aggregate.ts` over `src/data/prepared.ts`, reconciliation 63), each
@@ -55,8 +55,6 @@ beforeEach(() => {
     return Response.json(body, { status });
   }) as typeof fetch;
 });
-const saved = { ...process.env };
-afterEach(() => { process.env = { ...saved }; });
 
 const DAY = 86_400_000;
 const today = () => dayOf(new Date());

@@ -93,7 +93,6 @@ function leaks(container: HTMLElement, words: readonly string[]): string[] {
   return words.filter((w) => new RegExp(`(^|[^a-z])${escape(w)}($|[^a-z])`, 'i').test(haystack));
 }
 
-const saved = { ...process.env };
 beforeEach(() => {
   for (const k of Object.keys(jar)) delete jar[k];
   jar.zz_console = 'session-1';
@@ -102,7 +101,6 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
-  process.env = { ...saved };
 });
 
 describe('the console\'s refusal', () => {

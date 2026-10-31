@@ -44,7 +44,10 @@ never bypassed: if a check is wrong, fix the check and say in its comment what i
 app/              Next routes. (dash)/ is everything behind the passkey; each has a README spec.
 src/components/   Meridian's components and patterns. Extend them; do not fork a second look.
 src/console/      the console's own compositions: the frame, the page, panels, tables.
-src/lib/          the data layer (api, mutate, api-shapes) and the formatters.
+src/data/         the one place the gateway is touched, on the console's server: reads, access, prepared collections.
+src/logic/        every figure and sentence with a product definition: page contexts, filters, view tools.
+src/views/        what draws: the page components, the chrome, the live glue.
+src/lib/          shared helpers: the browser's fetch (api, mutate), the payload shapes and the formatters.
 tokens/           Meridian's DTCG tokens; `pnpm tokens` after a change.
 tests/            vitest, colocated by subject rather than by file.
 scripts/          Meridian's gate, audit and verify, and the fake gateway they run against.

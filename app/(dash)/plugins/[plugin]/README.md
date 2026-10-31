@@ -32,7 +32,7 @@ One plugin: how to install it, its public score with whether its scores compare,
 
 ## Agents
 
-The assistant reads this page and changes nothing: every change in this console is made on a page, by the person, and nobody starts an evaluation from the console. The page shares its context through `pluginContext` in `src/logic/plugin-context.ts`, and `view_plugin` builds the same context from the same two reads, withholding the evaluation exactly where the gateway does, so the assistant quotes the figures the screen shows. Ask is on its public score: how far that score can be trusted, whether to install the plugin and whether the version it declares is released, or, for a third-party subject with no manifest, on About this plugin: what its evaluation says.
+The assistant reads this page and changes nothing: every change in this console is made on a page, by the person, and nobody starts an evaluation from the console. The page shares its context through `pluginContext` in `src/logic/plugin-context.ts`, and `view_plugin` builds the same context from the same three reads (the catalog, the evaluation and the score series), withholding the evaluation exactly where the gateway does, so the assistant quotes the figures the screen shows. Ask is on its public score: how far that score can be trusted, whether to install the plugin and whether the version it declares is released, or, for a third-party subject with no manifest, on About this plugin: what its evaluation says.
 
 ### What the agent reads
 

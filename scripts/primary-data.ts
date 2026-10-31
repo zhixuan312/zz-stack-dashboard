@@ -24,8 +24,9 @@
  * `refusal: 'explain'`, the missing page's `[data-missing-page]` under `absent`), or a record the gateway answers as
  * not existing, which is how it refuses another team's record without confirming it is there (`Query` in
  * src/console/query.tsx). A rail route's refusal must match the persona's hand-written `expectedRoutes`, and a detail
- * route the persona's `deniedProbe` names must be refused: a bug's own report for the member, and another team's
- * initiative and document for both people.
+ * route the persona's `deniedProbe` names must be refused: a bug's own report, for the member. Another team's initiative
+ * and document are in `deniedProbe` too, but not among `detailRoutes`: they are `missingRoutes`, and this script does
+ * not open them.
  *
  * The budget is 1.0 s, the stakeholder's of 17 October 2026 (spec AC-8.7): a route whose own data is readable later
  * than that is a failing row, whether it is the first, cold row or a later one, and it is never measured again to

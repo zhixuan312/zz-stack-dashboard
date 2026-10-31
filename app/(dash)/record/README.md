@@ -61,4 +61,4 @@ Protagonist: One person, writing this.
 
 ## Surfaces
 
-Console, desktop and phone; at 390px the record's table is a card list of the initiative, its outcome, when it opened and how long it took. Reads `GET /record?period=…&limit=10&offset=…` for the address's period and page on the console's server, as the person, once per request and bounded at 4.5 seconds; another period, another page of the record and a Retry are read in the browser. It declares no live collection: the record is as of its cutoff, and the next visit reads it again.
+Console, desktop and phone; at 390px the record's table is a card list of the initiative, its outcome, when it opened and how long it took. Reads `GET /record?period=…&limit=10&offset=…` for the address's period and page on the console's server, as the person, once per request and bounded at 4.5 seconds; another period or another page of the record is read there too, as the navigation renders the page again, and a Retry is read in the browser. It declares no live collection: the record is as of its cutoff, and the next visit reads it again.

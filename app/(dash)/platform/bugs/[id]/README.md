@@ -10,7 +10,7 @@ One bug report, the superadmin's alone: what the reporter wrote, what it is abou
 - Report, the page's protagonist: the reporter's words as filed, drawn as plain text; their title is the masthead's, and is said here only for a report read again in the browser. Ask is in its head. It and This report are as tall as what each holds, and every row is a row gap apart.
 - This report: its impact, surface (spelt as the queue spells it, `document_approve` for a stored `core:Document_Approve`; as stored when it is no word of the vocabulary; `None named` when none is), team (`No team`), the version it was filed against (`Not recorded`), when it was filed, and when it was resolved.
 - Decision, once it is closed: the outcome, what was decided and why, and the report it duplicates as a link to that report's page. A closed report is not reopened.
-- Resolve, while it is open: the outcome (fixed, not a bug, duplicate), what was decided and why (required), and for a duplicate the report it duplicates, chosen from the duplicates read alone, which are the other reports of its team. Resolve report stays disabled until the outcome, the reasoning and, for a duplicate, the target are given. The form posts `bug_resolve`'s arguments, `{ status, resolution }` or `{ status: 'duplicate', resolution, duplicate_of }`, to `POST /api/console/platform/bugs/:id/resolve`, the console's write path under the session cookie. A refusal, a 409 for a report already closed among them, keeps what was typed and says the gateway's sentence under the form. Nothing on the page deletes a report.
+- Resolve, while it is open: the outcome (fixed, not a bug, duplicate), what was decided and why (required), and for a duplicate the report it duplicates, chosen from the duplicates read alone, which are the other reports of its team that are not themselves closed as duplicates (`bug_resolve` refuses one as a target). Resolve report stays disabled until the outcome, the reasoning and, for a duplicate, the target are given. The form posts `bug_resolve`'s arguments, `{ status, resolution }` or `{ status: 'duplicate', resolution, duplicate_of }`, to `POST /api/console/platform/bugs/:id/resolve`, the console's write path under the session cookie. A refusal, a 409 for a report already closed among them, keeps what was typed and says the gateway's sentence under the form. Nothing on the page deletes a report.
 
 ## States
 
@@ -19,7 +19,7 @@ One bug report, the superadmin's alone: what the reporter wrote, what it is abou
 | Loading | `loading.tsx` while the gate asks `/me` and the reads are under way: the shell's own skeleton, headed Bug report, as an address no page answers draws, so nothing streamed before the gate answers tells a member a page stands here |
 | Open | The report, its facts and the resolve form |
 | Closed | The report, its facts and the decision |
-| No duplicate target | The duplicate outcome disabled, saying no other report of its team exists |
+| No duplicate target | The duplicate outcome disabled, saying no report of its team may be named: there is no other, or each is itself closed as a duplicate |
 | Duplicate targets unavailable | The duplicate outcome disabled, with the read's sentence; fixed and not a bug stand |
 | Resolve refused | The form keeps what was typed, and says the gateway's sentence |
 | Resolved | A confirmation, and the report and its targets read again: the decision replaces the form |

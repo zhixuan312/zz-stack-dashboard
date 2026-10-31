@@ -124,12 +124,15 @@ describe('the Knowledge page leads with the search', () => {
 
   it('asks nothing as the person types, and runs once on submit', async () => {
     mount(<KnowledgeView read={READ} />);
-    fireEvent.change(field(), { target: { value: 'rank' } });
-    fireEvent.change(field(), { target: { value: 'rank by' } });
-    fireEvent.change(field(), { target: { value: 'rank by recency' } });
-    // Five seconds on a fake clock: a search held behind a debounce of any likely length would have run by now.
+    // Five seconds on a fake clock, installed before the typing so a debounce it starts is on that clock: a search held
+    // behind a debounce of any likely length would have run by now.
     vi.useFakeTimers();
-    try { await act(async () => { vi.advanceTimersByTime(5_000); }); } finally { vi.useRealTimers(); }
+    try {
+      fireEvent.change(field(), { target: { value: 'rank' } });
+      fireEvent.change(field(), { target: { value: 'rank by' } });
+      fireEvent.change(field(), { target: { value: 'rank by recency' } });
+      await act(async () => { vi.advanceTimersByTime(5_000); });
+    } finally { vi.useRealTimers(); }
     expect(searches()).toEqual([]);
     await search('rank by recency');
     expect(searches()).toHaveLength(1);

@@ -14,8 +14,9 @@ import { ME as SUPERADMIN } from '../scripts/fake-gateway/people.ts';
 /**
  * The figures Teams draws are the read's, each in its own column for the team the row names: the fake gateway's own
  * answer, the one `pnpm verify` serves the page, is what is drawn, and a cell is read by the header it stands under,
- * so a column mapped onto another's data cannot pass. The first page the address names arrives from the console's
- * server; a filter or a later page is the browser's own read of the gateway's filtered, paged list.
+ * so a column mapped onto another's data cannot pass. The page the address names arrives from the console's server, a
+ * filter or a later page too, as the navigation renders the page again; the browser reads the list only on a Retry or
+ * a live change.
  */
 
 /** The fake's answer to `GET /teams` for a query string, paged as its server pages it. */
