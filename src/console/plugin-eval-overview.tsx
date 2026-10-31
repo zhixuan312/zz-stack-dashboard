@@ -168,8 +168,15 @@ export function EvalHealth({ run }: { run: Run | null }) {
  * a silent zero-width slice.
  *
  * No horizontal scroll on the table below (house rule — nothing in the console scrolls
- * sideways): five columns fit, and `Kind` is the one that drops first on a narrow card.
+ * sideways): five columns fit, `Kind` drops first on a narrow card, and on a phone the score moves under the
+ * dimension's name, so one column is drawn.
  */
+/** A dimension's score as its cell reads: a share in [0, 1] read out of 10, as the overall is 10 × the weighted sum. */
+function scoreOf(d: DimensionScore) {
+  if (!d.applicable) return <span className="text-ink-3" title={d.notApplicableReason ?? undefined}>Not applicable</span>;
+  return d.score === null ? <span className="text-ink-3">Not scored</span> : outOfTen(d.score);
+}
+
 export function EvalQuality({ run }: { run: Run | null }) {
   if (!run) {
     return <Panel title="Quality"><Quiet title="Nothing to score" description="No scored run to read dimensions from." /></Panel>;
@@ -187,7 +194,7 @@ export function EvalQuality({ run }: { run: Run | null }) {
   ];
   const required = run.dimensions.some((d) => d.required);
   return (
-    <Panel title="Quality" description={`${applicable.length} of ${run.dimensions.length} ${plural(run.dimensions.length, 'dimension')} applicable${required ? '; Required marks the ones its protocol requires' : ''}`}>
+    <Panel title="Quality" description={`${applicable.length} of ${run.dimensions.length} ${plural(run.dimensions.length, 'dimension')} applicable, each scored out of ${SCORE_OUT_OF}${required ? '; Required marks the ones its protocol requires' : ''}`}>
       {/* The bar reads in the overall score's own points, out of 10: a part is a dimension's score times its weight
           over the weight that counts, so the parts sum to the headline number, and the sentence shows the sum. */}
       {parts.length ? (
@@ -205,7 +212,7 @@ export function EvalQuality({ run }: { run: Run | null }) {
           <TableRow>
             <TableHeader>Dimension</TableHeader>
             <TableHeader hideBelow="md" align="center">Kind</TableHeader>
-            <TableHeader align="center">Score out of {SCORE_OUT_OF}</TableHeader>
+            <TableHeader hideBelow="sm" align="center">Score</TableHeader>
             <TableHeader hideBelow="sm" align="center">Weight</TableHeader>
             <TableHeader hideBelow="sm" align="right">Measures</TableHeader>
           </TableRow>
@@ -213,17 +220,14 @@ export function EvalQuality({ run }: { run: Run | null }) {
         <TableBody>
           {run.dimensions.map((d: DimensionScore) => (
             <TableRow key={d.key}>
-              <TableCell className="text-sm whitespace-nowrap" title={d.key}>
+              <TableCell className="text-sm" title={d.key}>
                 {wordsOf(d.key)}
                 {d.required ? <span className="t-caption ml-2">Required</span> : null}
+                {/* On a phone the score is the line under the name: two columns of a name and "Not applicable" do not fit 320px. */}
+                <span className="t-caption block tabular-nums @min-[512px]:hidden">{scoreOf(d)}</span>
               </TableCell>
               <TableCell hideBelow="md" align="center" className="text-xs text-ink-2">{wordsOf(d.canonicalKind)}</TableCell>
-              <TableCell align="center" className="tabular-nums">
-                {/* A dimension's score is a share in [0, 1] and the overall is 10 × the weighted sum, so it reads out of 10. */}
-                {d.applicable
-                  ? (d.score === null ? <span className="text-ink-3">Not scored</span> : outOfTen(d.score))
-                  : <span className="text-ink-3" title={d.notApplicableReason ?? undefined}>Not applicable</span>}
-              </TableCell>
+              <TableCell hideBelow="sm" align="center" className="tabular-nums">{scoreOf(d)}</TableCell>
               <TableCell hideBelow="sm" align="center" className="tabular-nums text-xs">{formatPercent(d.weight)}</TableCell>
               <TableCell hideBelow="sm" align="right" className="tabular-nums text-xs">
                 {formatCount(d.measuresScored)} of {formatCount(d.measuresTotal)}

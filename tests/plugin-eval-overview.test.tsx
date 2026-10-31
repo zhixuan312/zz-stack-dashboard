@@ -101,7 +101,12 @@ describe('EvalQuality', () => {
     render(<EvalQuality run={{ ...pe.run!, dimensions: [
       dim({ key: 'generalization', applicable: false, notApplicableReason: 'no cross-plugin evidence yet', score: null }),
     ] }} />);
-    expect(screen.getByText('Not applicable')).toBeInTheDocument();
+    // Twice: the Score column's cell, and the line under the name that a phone draws instead of that column.
+    const said = screen.getAllByText('Not applicable');
+    expect(said).toHaveLength(2);
+    for (const s of said) expect(s).toHaveAttribute('title', 'no cross-plugin evidence yet');
+    expect(said[0].closest('td')?.getAttribute('data-hide-below')).toBeNull();
+    expect(said[1].closest('td')?.getAttribute('data-hide-below')).toBe('sm');
     expect(screen.getByText(/no cross-plugin evidence yet/)).toBeInTheDocument();
   });
 
