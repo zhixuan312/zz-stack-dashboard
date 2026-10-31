@@ -19,7 +19,7 @@ import type { FixtureAnswer } from './envelope.ts';
 import type { Access, AccessApplication, AccessBrowser, AccessPasskey, AccessToken, Revoked } from '../../src/lib/destination-shapes.ts';
 import { ago } from './clock.ts';
 import { kept } from './journey.ts';
-import { MEMBER, clientSetupOf, teamsOf, tokensOf } from './people.ts';
+import { ME, MEMBER, clientSetupOf, teamsOf, tokensOf } from './people.ts';
 import { workMeta } from './work-initiatives.ts';
 
 type Answer = [status: number, body: unknown];
@@ -32,7 +32,7 @@ const APPLICATION_NAMES: Record<string, string> = { 'mcp-client-claude-code': 'C
 
 /** Each person's browsers, the first the one this fixture's session cookie is; every id is a session's, never its cookie. */
 const BROWSERS: Record<string, AccessBrowser[]> = {
-  'ava.lindqvist@example.com': [
+  [ME.email]: [
     { id: '6f1d2c3b-4a5e-4f60-8172-93a4b5c6d7e8', current: true, userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6) AppleWebKit/605.1.15 Safari/605.1.15', issuedAt: ago(30), lastSeenAt: ago(0), expiresAt: ago(-690) },
     { id: '0a9b8c7d-6e5f-4a3b-9c2d-1e0f9a8b7c6d', current: false, userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Mobile/15E148 Safari/604.1', issuedAt: ago(200), lastSeenAt: ago(26), expiresAt: ago(-520) },
   ],
@@ -42,7 +42,7 @@ const BROWSERS: Record<string, AccessBrowser[]> = {
   ],
 };
 const PASSKEYS: Record<string, AccessPasskey[]> = {
-  'ava.lindqvist@example.com': [{ label: 'MacBook Touch ID', transports: ['internal', 'hybrid'], createdAt: ago(2000), lastUsedAt: ago(30) }],
+  [ME.email]: [{ label: 'MacBook Touch ID', transports: ['internal', 'hybrid'], createdAt: ago(2000), lastUsedAt: ago(30) }],
   [MEMBER.email]: [{ label: null, transports: ['usb'], createdAt: ago(900), lastUsedAt: ago(5) }],
 };
 
