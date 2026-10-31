@@ -26,9 +26,9 @@ import { formatCount } from '@/lib/format-units';
 import { grainOf, type Grain } from '@/lib/grain';
 import { useLive } from '@/lib/live';
 import type { InitiativeList } from '@/lib/work-shapes';
-import { pendingContext } from '@/logic/context';
+import { pageOf, pendingContext } from '@/logic/context';
 import { TILES, closedLine, initiativesContext, openLine, waitingLine, initiativesTrouble, nextOf, type InitiativesRead, type InitiativesShown, type ShownRow } from '@/logic/initiatives-context';
-import { INITIATIVES_DEFAULTS, LIST_STATES, PAGE_SIZE, STATE_LABEL, filtersOfPath, listPath, narrowed, pageOf, type InitiativesFilters } from '@/logic/initiatives-filter';
+import { INITIATIVES_DEFAULTS, LIST_STATES, PAGE_SIZE, STATE_LABEL, filtersOfPath, listPath, narrowed, type InitiativesFilters } from '@/logic/initiatives-filter';
 import { useServed, useServedAddress } from '@/logic/use-served';
 import { OUTCOME_PARTS } from '@/logic/outcome-parts';
 

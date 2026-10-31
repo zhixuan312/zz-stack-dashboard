@@ -23,7 +23,7 @@ import { formatCount } from '@/lib/format-units';
 import { listed, type Fact, type Insight, type SharedContext } from '@/lib/shared-context';
 import { app } from '@/app.config';
 import { OWNER_LABEL } from './activity-context';
-import { addressOf } from './context';
+import { addressOf, pageOf, paramsOf } from './context';
 import { stampOf } from './read-stamp';
 import { READ_BOUND_MS } from '@/lib/read-bound';
 import { rostered } from './platform-roster';
@@ -49,7 +49,6 @@ type AuditRows = { limit: number; offset: number };
 
 /** The tab the address names; anything else is Administration, the default. */
 export const tabOf = (f: AuditFilters): AuditFilter => (f.filter === 'all' ? 'all' : 'administration');
-const pageOf = (f: AuditFilters): number => Math.max(1, Math.floor(Number(f.page)) || 1);
 
 /** An event kind and a team's slug as the route takes them; anything else is no filter. COUPLED: the gateway's `KIND`. */
 const KIND = /^[a-z_]+(\.[a-z_]+)?$/;
@@ -106,11 +105,7 @@ export const pageAt = (filter: AuditFilter, offset: number): AuditFilters => ({ 
 
 /** The filters a page's address names, as Next hands a server page its search parameters: one value each, the first. */
 export function filtersOf(params: Record<string, string | string[] | undefined>): AuditFilters {
-  const one = (k: keyof AuditFilters) => {
-    const v = params[k];
-    return (Array.isArray(v) ? v[0] : v) ?? AUDIT_DEFAULTS[k];
-  };
-  return { filter: one('filter'), kind: one('kind'), team: one('team'), before: one('before'), page: one('page') };
+  return paramsOf(params, AUDIT_DEFAULTS);
 }
 
 /**

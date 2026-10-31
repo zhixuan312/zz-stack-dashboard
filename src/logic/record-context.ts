@@ -20,7 +20,7 @@ import { grainOf } from '@/lib/grain';
 import { listed, type Fact, type SharedContext } from '@/lib/shared-context';
 import type { Figure, PeriodFigure, Window } from '@/lib/platform-shapes';
 import type { RecordRead, WritingCoverage } from '@/lib/work-shapes';
-import { addressOf, clip, pendingContext, sectioned, type Section } from './context';
+import { addressOf, clip, pageOf, paramsOf, pendingContext, sectioned, type Section } from './context';
 import { READ_BOUND_MS } from '@/lib/read-bound';
 import { stampOf } from './read-stamp';
 import { LESSONS_MADE, NO_DATA, gapsOf } from './record-names';
@@ -37,7 +37,6 @@ export type RecordFilters = { period: string; page: string };
 export const RECORD_DEFAULTS: RecordFilters = { period: 'all', page: '1' };
 
 export const periodOf = (f: RecordFilters): RecordPeriod => ((RECORD_PERIODS as readonly string[]).includes(f.period) ? (f.period as RecordPeriod) : 'all');
-const pageOf = (f: RecordFilters): number => Math.max(1, Math.floor(Number(f.page)) || 1);
 
 /** The gateway address of `f`: its period, and the ten rows of its page. */
 export function recordPath(f: RecordFilters): string {
@@ -53,11 +52,7 @@ export function filtersOfPath(path: string): RecordFilters {
 
 /** The filters a page's address names, as Next hands a server page its search parameters: one value each, the first. */
 export function filtersOf(params: Record<string, string | string[] | undefined>): RecordFilters {
-  const one = (k: keyof RecordFilters) => {
-    const v = params[k];
-    return (Array.isArray(v) ? v[0] : v) ?? RECORD_DEFAULTS[k];
-  };
-  return { period: one('period'), page: one('page') };
+  return paramsOf(params, RECORD_DEFAULTS);
 }
 
 /** What the page's server read came back as, for its address: the record with the team it is for, a failure, or slow. */

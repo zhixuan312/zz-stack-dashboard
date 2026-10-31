@@ -12,11 +12,11 @@ import { plural } from '@/lib/format';
 import { formatDate, formatDay } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
-import { addressOf } from './context';
+import { addressOf, pageOf } from './context';
 import { stampOf } from './read-stamp';
 import { READ_BOUND_MS } from '@/lib/read-bound';
 import { rostered } from './platform-roster';
-import { PAGE_SIZE, TEAMS_DEFAULTS, narrowed, pageOf, type TeamsFilters, type TeamsRows } from './teams-filter';
+import { PAGE_SIZE, TEAMS_DEFAULTS, narrowed, type TeamsFilters, type TeamsRows } from './teams-filter';
 
 /** The page's own read, as the console's server or the browser made it: the answer, a failure, or no answer in time. */
 export type TeamsRead =

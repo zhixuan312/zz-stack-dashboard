@@ -4,6 +4,7 @@
  * and `view_initiatives` all ask this module for the address, and none of them filters a page of rows itself.
  */
 import type { InitiativeRow } from '@/lib/work-shapes';
+import { pageOf, paramsOf } from './context';
 
 /** The states the route filters by, in the order a filter lists them. */
 export const LIST_STATES = ['open', 'waiting', 'quiet', 'accepted', 'delivered', 'abandoned'] as const satisfies readonly InitiativeRow['state'][];
@@ -25,8 +26,6 @@ export type InitiativesFilters = { q: string; state: string; flow: string; page:
 /** The address with nothing in it: every initiative, the first page. */
 export const INITIATIVES_DEFAULTS: InitiativesFilters = { q: '', state: 'all', flow: 'all', page: '1' };
 
-/** The page asked for, from 1, whatever the address holds. */
-export const pageOf = (f: Pick<InitiativesFilters, 'page'>): number => Math.max(1, Math.floor(Number(f.page)) || 1);
 
 /** Rows of the list by the route's own arguments: `limit` of them from `offset`. */
 export type InitiativesRows = { limit: number; offset: number };
@@ -59,9 +58,5 @@ export const narrowed = (f: Pick<InitiativesFilters, 'q' | 'state' | 'flow'>) =>
 
 /** The filters a page's address names, as Next hands a server page its search parameters: one value each, the first. */
 export function filtersOf(params: Record<string, string | string[] | undefined>): InitiativesFilters {
-  const one = (k: keyof InitiativesFilters) => {
-    const v = params[k];
-    return (Array.isArray(v) ? v[0] : v) ?? INITIATIVES_DEFAULTS[k];
-  };
-  return { q: one('q'), state: one('state'), flow: one('flow'), page: one('page') };
+  return paramsOf(params, INITIATIVES_DEFAULTS);
 }

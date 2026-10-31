@@ -14,7 +14,7 @@ import { plural } from '@/lib/format';
 import { formatCount, formatKb, formatSeconds } from '@/lib/format-units';
 import { dayOf, formatDate, formatDateTime, formatDay } from '@/lib/format-date';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
-import { addressOf, arrived, budgeted, clip, type Arrival } from './context';
+import { addressOf, arrived, budgeted, clip, pageOf, paramsOf, type Arrival } from './context';
 import { READ_BOUND_MS } from '@/lib/read-bound';
 import { perRunOf } from './runs-figures';
 
@@ -30,8 +30,6 @@ export const RUNS_DEFAULTS: RunsFilters = { skill: 'all', page: '1' };
 /** Recent runs by the route's own arguments: `limit` of them from `offset`. */
 type RunsRows = { limit: number; offset: number };
 
-/** The page asked for, from 1, whatever the address holds. */
-export const pageOf = (f: RunsFilters): number => Math.max(1, Math.floor(Number(f.page)) || 1);
 
 /** The gateway address of the team's runs for `f`: narrowed to its skill unless `all`, the ten recent runs of its page unless `rows` names others. */
 export function runsPath(f: RunsFilters, rows: RunsRows = { limit: PAGE_SIZE, offset: (pageOf(f) - 1) * PAGE_SIZE }): string {
@@ -50,11 +48,7 @@ export function filtersOfPath(path: string): RunsFilters {
 
 /** The filters a page's address names, as Next hands a server page its search parameters: one value each, the first. */
 export function filtersOf(params: Record<string, string | string[] | undefined>): RunsFilters {
-  const one = (k: keyof RunsFilters) => {
-    const v = params[k];
-    return (Array.isArray(v) ? v[0] : v) || RUNS_DEFAULTS[k];
-  };
-  return { skill: one('skill'), page: one('page') };
+  return paramsOf(params, RUNS_DEFAULTS);
 }
 
 /** The page's own read, as the console's server made it: the answer, a failure, or no answer in time. */

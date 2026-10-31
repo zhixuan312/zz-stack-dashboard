@@ -19,7 +19,7 @@ import { formatCount } from '@/lib/format-units';
 import { contextText, listed, type Fact, type Insight, type SharedContext } from '@/lib/shared-context';
 import type { ApprovalEvidence, ApprovalRow, Approvals, WaitingRow } from '@/lib/work-shapes';
 import { waited } from '@/console/words';
-import { CONTEXT_BUDGET, addressOf, arrived, budgeted, clip, type Arrival } from './context';
+import { CONTEXT_BUDGET, addressOf, arrived, budgeted, clip, pageOf, paramsOf, type Arrival } from './context';
 import { READ_BOUND_MS } from '@/lib/read-bound';
 
 /** The two lists, in the order the tabs name them; Waiting when none is named, as the route answers. */
@@ -35,8 +35,6 @@ export const APPROVALS_DEFAULTS: ApprovalsFilters = { tab: 'waiting', page: '1' 
 
 /** The tab asked for, Waiting for anything the route does not take. */
 export const tabOf = (f: Pick<ApprovalsFilters, 'tab'>): ApprovalsTab => ((APPROVALS_TABS as readonly string[]).includes(f.tab) ? (f.tab as ApprovalsTab) : 'waiting');
-/** The page asked for, from 1, whatever the address holds. */
-export const pageOf = (f: Pick<ApprovalsFilters, 'page'>): number => Math.max(1, Math.floor(Number(f.page)) || 1);
 /** The page of ten `offset` falls in, from 1. */
 export const pageAt = (offset: number): string => String(Math.floor(offset / PAGE_SIZE) + 1);
 
@@ -59,11 +57,7 @@ export const approvalsAddress = (tab: ApprovalsTab, page = 1): string => address
 
 /** The filters a page's address names, as Next hands a server page its search parameters: one value each, the first. */
 export function filtersOf(params: Record<string, string | string[] | undefined>): ApprovalsFilters {
-  const one = (k: keyof ApprovalsFilters) => {
-    const v = params[k];
-    return (Array.isArray(v) ? v[0] : v) ?? APPROVALS_DEFAULTS[k];
-  };
-  return { tab: one('tab'), page: one('page') };
+  return paramsOf(params, APPROVALS_DEFAULTS);
 }
 
 /**

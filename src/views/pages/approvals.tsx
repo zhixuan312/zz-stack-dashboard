@@ -27,9 +27,9 @@ import { encodePath } from '@/lib/store-path';
 import type { ApprovalRow, Approvals, WaitingRow } from '@/lib/work-shapes';
 import {
   APPROVALS_DEFAULTS, DECISION_BASIS, IN_YOUR_NAME, PAGE_SIZE, PRESENTATION, TEAM_APPROVALS, TILES, approvalsAddress, approvalsContext, approvedHref,
-  approvalsPath, approvalsTrouble, approvedWhen, dayOnly, filtersOfPath, noPresentationLine, noPresentationNote, pageOf, tabOf, type ApprovalsRead, type ApprovalsTab,
+  approvalsPath, approvalsTrouble, approvedWhen, dayOnly, filtersOfPath, noPresentationLine, noPresentationNote, tabOf, type ApprovalsRead, type ApprovalsTab,
 } from '@/logic/approvals-context';
-import { pendingContext } from '@/logic/context';
+import { pageOf, pendingContext } from '@/logic/context';
 import { stampOf } from '@/logic/read-stamp';
 import { useServed, useServedAddress } from '@/logic/use-served';
 

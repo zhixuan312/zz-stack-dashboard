@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { pageOf, paramsOf } from '@/logic/context';
+import { filtersOf as initiativesFilters } from '@/logic/initiatives-filter';
+import { filtersOf as runsFilters } from '@/logic/runs-context';
 import { bugsPath, filtersOf as bugsFilters, narrowed as bugsNarrowed } from '@/logic/platform-bugs-context';
 import { filtersOf as peopleFilters, narrowed as peopleNarrowed, peoplePath } from '@/logic/people-filter';
 import { filtersOf as teamsFilters, narrowed as teamsNarrowed, teamsPath } from '@/logic/teams-filter';
@@ -27,5 +30,21 @@ describe('an unknown filter value', () => {
     expect(bugsNarrowed(bugsFilters({ state: 'open' }))).toBe(true);
     expect(peopleNarrowed(peopleFilters({ state: 'active' }))).toBe(true);
     expect(teamsNarrowed(teamsFilters({ status: 'archived' }))).toBe(true);
+  });
+});
+
+// Every list reads its address the one way: the first of a repeated value, the default for a missing or empty one.
+describe('a list address', () => {
+  it('reads one value each, the first', () => {
+    expect(paramsOf({ q: ['a', 'b'], state: 'active' }, { q: '', state: 'all', page: '1' })).toEqual({ q: 'a', state: 'active', page: '1' });
+  });
+
+  it('reads an empty value as the default, on every list alike', () => {
+    expect(paramsOf({ state: '', page: '' }, { state: 'all', page: '1' })).toEqual({ state: 'all', page: '1' });
+    expect(runsFilters({ skill: '' }).skill).toBe(initiativesFilters({ state: '' }).state);
+  });
+
+  it('pages from 1, whatever the address says', () => {
+    expect([pageOf({ page: '3' }), pageOf({ page: '0' }), pageOf({ page: 'x' }), pageOf({ page: '2.7' })]).toEqual([3, 1, 1, 2]);
   });
 });

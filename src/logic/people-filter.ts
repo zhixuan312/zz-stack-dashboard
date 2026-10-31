@@ -3,6 +3,7 @@
  * list, so the page's first read on the console's server, the page's later reads in the browser, its shared context and
  * `view_people` all ask this module for the address, and none of them filters a page of rows itself.
  */
+import { pageOf, paramsOf } from './context';
 
 /** The states the route filters by, in the order a filter lists them. */
 export const PERSON_STATES = ['active', 'deactivated'] as const;
@@ -16,8 +17,6 @@ export type PeopleFilters = { q: string; state: string; page: string };
 /** The address with nothing in it: everybody, the first page. */
 export const PEOPLE_DEFAULTS: PeopleFilters = { q: '', state: 'all', page: '1' };
 
-/** The page asked for, from 1, whatever the address holds. */
-export const pageOf = (f: PeopleFilters): number => Math.max(1, Math.floor(Number(f.page)) || 1);
 
 /** Rows of the list by the route's own arguments: `limit` of them from `offset`. */
 export type PeopleRows = { limit: number; offset: number };
@@ -49,10 +48,7 @@ export const narrowed = (f: PeopleFilters): boolean => f.q.trim() !== '' || f.st
 
 /** The filters a page's address names, as Next hands a server page its search parameters: one value each, the first. */
 export function filtersOf(params: Record<string, string | string[] | undefined>): PeopleFilters {
-  const one = (k: keyof PeopleFilters) => {
-    const v = params[k];
-    return (Array.isArray(v) ? v[0] : v) ?? PEOPLE_DEFAULTS[k];
-  };
+  const f = paramsOf(params, PEOPLE_DEFAULTS);
   // A state the route does not know is no filter, so the read and the words agree that nothing narrowed.
-  return { q: one('q'), state: (PERSON_STATES as readonly string[]).includes(one('state')) ? one('state') : 'all', page: one('page') };
+  return { ...f, state: (PERSON_STATES as readonly string[]).includes(f.state) ? f.state : 'all' };
 }

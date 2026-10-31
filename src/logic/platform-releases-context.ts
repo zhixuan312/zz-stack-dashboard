@@ -15,7 +15,7 @@ import { plural } from '@/lib/format';
 import { formatDateTime, formatDay } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { listed, type Fact, type Insight, type SharedContext } from '@/lib/shared-context';
-import { addressOf, budgeted, clip } from './context';
+import { addressOf, budgeted, clip, pageOf, paramsOf } from './context';
 import { stampOf } from './read-stamp';
 import { READ_BOUND_MS } from '@/lib/read-bound';
 import { rostered } from './platform-roster';
@@ -34,8 +34,6 @@ export const RELEASES_DEFAULTS: ReleasesFilters = { page: '1' };
 /** Rows of the list by the route's own arguments: `limit` of them from `offset`. */
 type ReleasesRows = { limit: number; offset: number };
 
-/** The page asked for, from 1, whatever the address holds. */
-const pageOf = (f: ReleasesFilters): number => Math.max(1, Math.floor(Number(f.page)) || 1);
 
 /** The gateway address of the list: the ten rows of the page unless `rows` names others, as `view_releases` may. */
 export const releasesPath = (f: ReleasesFilters, rows: ReleasesRows = { limit: PAGE_SIZE, offset: (pageOf(f) - 1) * PAGE_SIZE }): string =>
@@ -49,8 +47,7 @@ export const filtersOfPath = (path: string): ReleasesFilters => pageAt(Math.max(
 
 /** The page the address names, as Next hands a server page its search parameters: one value, the first. */
 export function filtersOf(params: Record<string, string | string[] | undefined>): ReleasesFilters {
-  const v = params.page;
-  return { page: (Array.isArray(v) ? v[0] : v) ?? RELEASES_DEFAULTS.page };
+  return paramsOf(params, RELEASES_DEFAULTS);
 }
 
 /** One release's gateway address, and its page's. */

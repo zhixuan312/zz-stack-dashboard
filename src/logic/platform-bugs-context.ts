@@ -23,7 +23,7 @@ import { formatDateTime, formatDay } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { listed, type Fact, type Insight, type SharedContext } from '@/lib/shared-context';
 import { waited } from '@/console/words';
-import { addressOf, clip } from './context';
+import { addressOf, clip, pageOf, paramsOf } from './context';
 import { stampOf } from './read-stamp';
 import { READ_BOUND_MS } from '@/lib/read-bound';
 import { rostered } from './platform-roster';
@@ -52,8 +52,6 @@ export const BUGS_DEFAULTS: BugsFilters = { state: 'all', impact: 'all', surface
 /** Rows of the queue by the route's own arguments: `limit` of them from `offset`. */
 type BugsRows = { limit: number; offset: number };
 
-/** The page asked for, from 1, whatever the address holds. */
-const pageOf = (f: BugsFilters): number => Math.max(1, Math.floor(Number(f.page)) || 1);
 
 /** A surface as the route's vocabulary spells one: a tool's name, a door or `console`. Anything else is no filter. */
 const SURFACE = /^[a-z][a-z0-9_]*$/;
@@ -79,17 +77,11 @@ export const narrowed = (f: BugsFilters): boolean => f.state !== 'all' || f.impa
 
 /** The filters a page's address names, as Next hands a server page its search parameters: one value each, the first. */
 export function filtersOf(params: Record<string, string | string[] | undefined>): BugsFilters {
-  const one = (k: keyof BugsFilters) => {
-    const v = params[k];
-    return (Array.isArray(v) ? v[0] : v) ?? BUGS_DEFAULTS[k];
-  };
+  const f = paramsOf(params, BUGS_DEFAULTS);
   // A value the route does not know (a stale link, an agent's guess) is no filter: read as `all`, so the read, `narrowed`
   // and the words the page and its context say all agree that nothing narrowed.
-  const known = (k: 'state' | 'impact', allowed: readonly string[]) => (allowed.includes(one(k)) ? one(k) : 'all');
-  return {
-    state: known('state', BUG_STATES), impact: known('impact', BUG_IMPACTS),
-    surface: SURFACE.test(one('surface')) ? one('surface') : 'all', page: one('page'),
-  };
+  const known = (v: string, allowed: readonly string[]) => (allowed.includes(v) ? v : 'all');
+  return { ...f, state: known(f.state, BUG_STATES), impact: known(f.impact, BUG_IMPACTS), surface: SURFACE.test(f.surface) ? f.surface : 'all' };
 }
 
 /** The page's address read back from a gateway path `bugsPath` wrote: its filters, and the page of ten the offset falls in. */

@@ -3,6 +3,7 @@
  * list, so the page's first read on the console's server, the page's later reads in the browser, its shared context and
  * `view_teams` all ask this module for the address, and none of them filters a page of rows itself.
  */
+import { pageOf, paramsOf } from './context';
 
 /** The statuses the route filters by, in the order a filter lists them. */
 export const TEAM_STATUSES = ['active', 'archived'] as const;
@@ -16,8 +17,6 @@ export type TeamsFilters = { q: string; status: string; page: string };
 /** The address with nothing in it: every team, the first page. */
 export const TEAMS_DEFAULTS: TeamsFilters = { q: '', status: 'all', page: '1' };
 
-/** The page asked for, from 1, whatever the address holds. */
-export const pageOf = (f: TeamsFilters): number => Math.max(1, Math.floor(Number(f.page)) || 1);
 
 /**
  * The gateway address of the list for `f`: the ten rows of its page unless `rows` names others, as `view_teams` may by
@@ -49,10 +48,7 @@ export const narrowed = (f: TeamsFilters): boolean => f.q.trim() !== '' || f.sta
 
 /** The filters a page's address names, as Next hands a server page its search parameters: one value each, the first. */
 export function filtersOf(params: Record<string, string | string[] | undefined>): TeamsFilters {
-  const one = (k: keyof TeamsFilters) => {
-    const v = params[k];
-    return (Array.isArray(v) ? v[0] : v) ?? TEAMS_DEFAULTS[k];
-  };
+  const f = paramsOf(params, TEAMS_DEFAULTS);
   // A status the route does not know is no filter, so the read and the words agree that nothing narrowed.
-  return { q: one('q'), status: (TEAM_STATUSES as readonly string[]).includes(one('status')) ? one('status') : 'all', page: one('page') };
+  return { ...f, status: (TEAM_STATUSES as readonly string[]).includes(f.status) ? f.status : 'all' };
 }

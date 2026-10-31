@@ -13,11 +13,11 @@ import { plural } from '@/lib/format';
 import { formatDate } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
-import { addressOf } from './context';
+import { addressOf, pageOf } from './context';
 import { READ_BOUND_MS } from '@/lib/read-bound';
 import { rostered } from './platform-roster';
 import { stampOf, type StampMeta } from './read-stamp';
-import { PAGE_SIZE, PEOPLE_DEFAULTS, narrowed, pageOf, type PeopleFilters, type PeopleRows } from './people-filter';
+import { PAGE_SIZE, PEOPLE_DEFAULTS, narrowed, type PeopleFilters, type PeopleRows } from './people-filter';
 
 /**
  * What the page draws of the gateway's answer, and its context reads: the as-of line, the tiles, the people and how many

@@ -14,7 +14,7 @@ import { plural } from '@/lib/format';
 import { formatCount } from '@/lib/format-units';
 import { formatDate } from '@/lib/format-date';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
-import { addressOf, arrived, budgeted, type Arrival } from './context';
+import { addressOf, arrived, budgeted, paramsOf, type Arrival } from './context';
 import { READ_BOUND_MS } from '@/lib/read-bound';
 
 /** The gateway's catalog: every plugin, the team's most recently used first. */
@@ -48,8 +48,7 @@ export const PLUGINS_DEFAULTS: PluginsFilters = { plugin: '' };
 
 /** The search a page's address names, as Next hands a server page its search parameters: one value, the first. */
 export function filtersOf(params: Record<string, string | string[] | undefined>): PluginsFilters {
-  const v = params.plugin;
-  return { plugin: (Array.isArray(v) ? v[0] : v) ?? PLUGINS_DEFAULTS.plugin };
+  return paramsOf(params, PLUGINS_DEFAULTS);
 }
 
 /**

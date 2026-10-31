@@ -30,6 +30,18 @@ export function addressOf(path: string, params: Record<string, string | undefine
   return query.length ? `${path}?${query.join('&')}` : path;
 }
 
+/**
+ * The filters a page's address names, as Next hands a server page its search parameters: one value each, the first, and
+ * the default for one the address leaves out or leaves empty, since an empty value narrows nothing.
+ */
+export function paramsOf<F extends Record<string, string>>(params: Record<string, string | string[] | undefined>, defaults: F): F {
+  const first = (k: string) => { const v = params[k]; return Array.isArray(v) ? v[0] : v; };
+  return Object.fromEntries(Object.entries(defaults).map(([k, d]) => [k, first(k) || d])) as F;
+}
+
+/** The page of a list its address names, from 1: anything that is not a page number reads as the first. */
+export const pageOf = (f: { page: string }): number => Math.max(1, Math.floor(Number(f.page)) || 1);
+
 /** A week as a person reads it: `week of 5 Oct`. */
 export const weekOf = (w: Window): string => `week of ${formatDay(w.from)}`;
 
