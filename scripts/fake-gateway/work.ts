@@ -248,7 +248,8 @@ The scoring weights live in \`config/ranking.json\`; see https://docs.example.co
  * DELIBERATE, and the register says it plainly: sample data is "realistic data in the person's domain, never lorem
  * ipsum or 'Item 1'". This used to be one generic body — "What this document settles, in one paragraph a reader can
  * act on" — for every document and every source, which is what the craft step reads when it opens a rendered page. A
- * spec that does not read like a spec makes the reading view look like a demonstration of one.
+ * spec that does not read like a spec makes the reading view look like a demonstration of one. Each flow role has its
+ * own body; a source and any other document keep the generic one.
  *
  * Every body carries the clause "after two rounds of review" so `textOf` has something to vary for an earlier
  * snapshot; without it a version chain would show two snapshots with identical text.
@@ -260,6 +261,12 @@ function body(title: string, path: string): string {
   }
   if (path.startsWith('plan')) {
     return `${head}## Approach\n\nContract first: the criteria below are written before anything is built, and each task\nnames the criterion it answers. Settled after two rounds of review.\n\n## Tasks\n\n- **I-1** The index carries the reason a result matched, so no caller reconstructs it.\n- **I-2** Suggestions come from the query log. A model never invents a spelling.\n- **I-3** The latency budget is measured on the sample index and printed by the gate.\n\n## What is not in this plan\n\nAnything that needs a person to be online while a query runs.\n`;
+  }
+  if (path.startsWith('spec')) {
+    return `${head}## Problem\n\nPeople search for the thing they half remember, and the first page answers the thing they typed.\nThe gap is widest on short queries, which are most of them. Settled after two rounds of review.\n\n## Goals & Requirements\n\n- **FR-1** A result says why it matched, in words a person can check against the page.\n- **FR-2** A query that matches nothing offers the nearest spelling the log has seen.\n\n## Acceptance\n\n- **AC-1.1** Every result on the first page carries its reason.\n- **AC-2.1** A misspelt query from the sample log is answered with its correction.\n`;
+  }
+  if (path.startsWith('handover')) {
+    return `${head}## What this initiative taught\n\nThe slow part was never the build: it was waiting for a decision nobody had been asked for.\nWritten after two rounds of review.\n\n## Recorded for the platform\n\nNothing recorded for the platform: every finding here was specific to this requirement.\n\n## Proposed for the team\n\n- **Ask for the decision with the evidence attached.** A question sent with its figures was answered the same day.\n`;
   }
   if (path.startsWith('review')) {
     return `${head}## What was built\n\nThe plan's three tasks, in the order it named them, with the criteria traced back to\nthe checks that hold them.\n\n## What the evidence shows\n\nEvery acceptance criterion has a check, except one that the sample data cannot reach —\nthat one is written down as unmet rather than as passed. Settled after two rounds of review.\n\n## What is left\n\nTwo things a person has to decide, and neither is a defect: how long to keep the old\nindex beside the new one, and whether the budget moves with the corpus.\n`;
