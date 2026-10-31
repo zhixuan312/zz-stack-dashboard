@@ -27,7 +27,7 @@ import { contextText } from '@/lib/shared-context';
 import { CONTEXT_BUDGET } from '@/logic/context';
 import { READ_BOUND_MS } from '@/lib/read-bound';
 import { PlatformUsageView, UsageAsOf } from '@/views/pages/platform-usage';
-import { usageContext, type UsageRead } from '@/logic/platform-usage-context';
+import { REFUSAL_PARTS, usageContext, type UsageRead } from '@/logic/platform-usage-context';
 import { usageTool } from '@/logic/tools/usage';
 import { usage } from '../scripts/fake-gateway/platform-usage.ts';
 import { answered } from '../scripts/fake-gateway/envelope.ts';
@@ -323,5 +323,12 @@ describe('the read on the server', () => {
     expect(settled).toBeNull();
     await act(async () => { await vi.advanceTimersByTimeAsync(1); });
     expect(await read).toEqual({ state: 'slow' });
+  });
+});
+
+describe('all refusals by population', () => {
+  it('draws each population in a colour of its own, so a guardrail and maintenance read apart', () => {
+    const colours = REFUSAL_PARTS.map((p) => p.color);
+    expect(new Set(colours).size).toBe(colours.length);
   });
 });

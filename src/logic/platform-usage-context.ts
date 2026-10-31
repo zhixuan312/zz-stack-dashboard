@@ -64,13 +64,15 @@ function changeSaid(kind: Kind, t: Tile): string {
   return `${change > 0 ? 'up' : 'down'} ${kind === 'share' ? pointsIn(points!) : `${ONE.format(Math.abs(change * 100))}%`} ${before}`;
 }
 
-/** The owners of a refusal, and the platform's own maintenance, as the composition of all refusals names them. */
+/** The owners of a refusal, and the platform's own maintenance, as the composition of all refusals names them. The
+ *  owners keep Activity's colours; Maintenance is another population rather than an owner, and both neutrals are
+ *  taken, so it takes a categorical slot of its own: drawn in a neutral it could not be told from a guardrail. */
 export const REFUSAL_PARTS = [
   { key: 'theirs', label: 'Tool failures', color: 'critical' },
   { key: 'ours', label: 'Malformed calls', color: 'warning' },
   { key: 'guardrail', label: 'A guardrail held', color: 'neutral' },
   { key: 'other', label: 'Other', color: 'neutral-ink' },
-  { key: 'maintenance', label: 'Maintenance', color: 'neutral' },
+  { key: 'maintenance', label: 'Maintenance', color: 1 },
 ] as const;
 
 /** The parts a superadmin's weeks split into, in the order the first week with parts names them; none for a member. */
