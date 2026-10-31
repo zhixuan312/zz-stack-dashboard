@@ -31,6 +31,7 @@
  * the fixture's names throughout.
  */
 import { launch } from './lib/chrome.ts';
+import { collectionOf } from '../src/lib/collection-of.ts';
 
 const args = process.argv.slice(2);
 const opt = (k: string, d: string) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
@@ -148,11 +149,6 @@ async function follows(address: string, renamedTo: string, unsolicitedTo: string
 const DIRECT = ['/platform/teams', `/platform/teams/${RENAMED_SLUG}`, '/platform/people', '/knowledge', '/knowledge/log', '/approvals', '/initiatives', '/access', '/activity', '/runs', '/plugins'];
 /** How long after its greeting a tab is watched for a read of what it follows. */
 const AFTER_GREETING_MS = 1500;
-/** The collection a console read is kept under, as `src/views/console-live.tsx` maps a path. */
-const collectionOf = (path: string) => {
-  const head = path.split('?')[0]!.split('/').filter(Boolean)[0] ?? '';
-  return ({ approvals: 'initiatives', access: 'settings' } as Record<string, string>)[head] ?? head;
-};
 type Opened = { url: string; greeting: { event: string; data: string } | null; at: number | null; closed: boolean };
 
 /**

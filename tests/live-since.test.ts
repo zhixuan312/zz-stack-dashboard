@@ -60,14 +60,9 @@ import { readPeople } from '../app/(dash)/platform/people/read-people';
 import { readTeam, readTeams } from '../app/(dash)/platform/teams/read-teams';
 import { readPlugin, readPlugins, readSkill } from '../app/(dash)/plugins/read-plugins';
 import { readRuns } from '../app/(dash)/runs/read-runs';
+import { collectionOf } from '../src/lib/collection-of.ts';
 
 const BOOT = 'b00t';
-
-/** The collection a read is kept under, as the gateway names it in the header. */
-const collectionOf = (path: string) => {
-  const head = path.split('?')[0]!.split('/').filter(Boolean)[0]!;
-  return ({ approvals: 'initiatives', access: 'settings' } as Record<string, string>)[head] ?? head;
-};
 
 /** How the gateway answers a read, by its path past `/api/console`: a status and the count in its revision, or none. */
 let answer: (path: string) => { status: number; n: number | null };

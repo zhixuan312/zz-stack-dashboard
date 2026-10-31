@@ -32,6 +32,7 @@
  * when it is coming back. There is no `id:` because the stream does not replay.
  */
 import type { ServerResponse } from 'node:http';
+import { collectionOf } from '../../src/lib/collection-of.ts';
 
 /** The collections a tab may follow: the console's reads, by their first path segment. `document` is singular because the read is (`/document/<team>/<initiative>/<path>`), not because it is one record. */
 export const COLLECTIONS = [
@@ -60,9 +61,6 @@ const REVISION = /^[A-Za-z0-9_-]+:\d+$/;
 /** `name`'s revision now. */
 const revisionOf = (name: string): string => `${BOOT}:${hinted.get(name) ?? 0}`;
 
-/** The reads whose collection is another's, as the console's `src/views/console-live.tsx` keeps them. */
-const KEPT_UNDER: Record<string, string> = { approvals: 'initiatives', access: 'settings' };
-
 /**
  * The revision header a read of `seg` (the path past `/api/console`) is answered with, as `[name, value]`, or null for a
  * read whose collection a tab may not follow. COUPLED: the real gateway's `x-zz-revision`
@@ -70,7 +68,7 @@ const KEPT_UNDER: Record<string, string> = { approvals: 'initiatives', access: '
  * `src/lib/api.ts` as `<collection>:<boot>:<n>`.
  */
 export function revisionHeader(seg: string[]): [string, string] | null {
-  const name = KEPT_UNDER[seg[0] ?? ''] ?? seg[0] ?? '';
+  const name = collectionOf(seg.join('/'));
   return (COLLECTIONS as readonly string[]).includes(name) ? ['x-zz-revision', `${name}:${revisionOf(name)}`] : null;
 }
 

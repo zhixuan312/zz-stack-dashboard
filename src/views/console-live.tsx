@@ -5,27 +5,11 @@ import { useQueryClient, type Query } from '@tanstack/react-query';
 import { useWaitingApprovals, waitingRevisions } from '@/console/waiting-gates';
 import { LiveProvider, useLive } from '@/lib/live';
 import { useConsole } from '@/lib/api';
+import { collectionOf } from '@/lib/collection-of';
 import type { Me } from '@/lib/api-shapes';
 
 /** The endpoint the gateway serves the stream at: the console's own read surface, behind Caddy, as every other read is. */
 const ENDPOINT = '/api/console/live';
-
-/**
- * The reads whose collection is another's: what changes them is a change the gateway names by that other collection.
- * Approvals is read from the documents' revisions, and an approval or a presentation is a change to a document, which
- * the gateway names `initiatives`. Access is the caller's own tokens and browsers, which the gateway names `settings`.
- */
-const KEPT_UNDER: Record<string, string> = { approvals: 'initiatives', access: 'settings' };
-
-/**
- * The collection a console read belongs to: its first path segment, past the leading slash and any query, or the one
- * `KEPT_UNDER` names for it. `/initiatives/atlas/2026-09-28-search-relevance` reads `initiatives`; `/approvals?tab=waiting`
- * reads `initiatives` too.
- */
-function collectionOf(path: string): string {
-  const head = path.split('?')[0]?.split('/').filter(Boolean)[0] ?? '';
-  return KEPT_UNDER[head] ?? head;
-}
 
 /**
  * Every console page's live data: one stream per tab, opened once the caller is known, that says which collection
@@ -36,7 +20,7 @@ function collectionOf(path: string): string {
  * router. Here there is nothing on the server to drop: `src/lib/api.ts` reads from the browser, so the cache is React
  * Query's and dropping it is `invalidateQueries`. The names the gateway sends are collection names either way, and the
  * collection a read belongs to is its own first path segment — `/teams` reads `teams` — so no new vocabulary appears on
- * either side of the wire, but for the reads `KEPT_UNDER` names.
+ * either side of the wire, but for the reads `collectionOf` keeps under another's name.
  *
  * `scopeKey` is a reset key for the browser and never proof of access, which is why it is the person rather than
  * anything the stream is trusted with: a new one disposes the old stream and its state, and an empty one opens
