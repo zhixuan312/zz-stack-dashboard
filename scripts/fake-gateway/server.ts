@@ -104,7 +104,7 @@ import { empty, extreme } from './states.ts';
 import { NOT_RECORDED, SLOW_MS, STATES, isState, nullsFilled, partial, sessionOf, unknownState, type State } from './states-partial.ts';
 import { documentDetail, documentRevision, onDrift, refusesRecord, revisionInStore } from './work.ts';
 import { access, revokeApplication, revokeBrowser } from './work-access.ts';
-import { activityLog, activitySummary, NO_TEAM } from './work-activity.ts';
+import { activityLog, activitySummary, NO_TEAM, pageOf } from './work-activity.ts';
 import { approvals, documentAsKept } from './work-approvals.ts';
 import { home } from './work-home.ts';
 import { envelopeFor, sendAnswer } from './envelope.ts';
@@ -218,7 +218,7 @@ function read(who: Me, seg: string[], q: URLSearchParams): Answer {
     case 'work': return a === 'query' && !b ? workQuery(who, q) : missing(seg.join('/'));
     // Whom Teams and People answer, and in which shape, is their fixtures' to decide: the superadmin's read, filtered
     // and paged, and the gateway's refusal to anybody else.
-    case 'teams': return a ? team(who, a) : teams(who, q, page(q)) ?? BAD_PAGE;
+    case 'teams': return a ? team(who, a) : teams(who, q);
     case 'initiatives': {
       // One initiative is the active team's, for the superadmin too, as the gateway answers it since reconciliations 31
       // and 39: another team's is the route's not-found, and a caller who acts for no team is told so.
@@ -274,7 +274,7 @@ function read(who: Me, seg: string[], q: URLSearchParams): Answer {
       if (a && b === 'skills' && rest[0]) return or404(skillText(a, rest[0]), `skill ${a}/${rest[0]}`);
       return a ? missing(seg.join('/')) : plugins(who);
     case 'skills': return b ? missing(seg.join('/')) : a ? skillDetail(who, a) : skills(who, q);
-    case 'people': return people(who, q, page(q)) ?? BAD_PAGE;
+    case 'people': return people(who, q);
     case 'runs': return a ? missing(seg.join('/')) : runs(who, q);
     case 'activity':
       if (a === 'summary' && !b) return activitySummary(who);
@@ -293,11 +293,10 @@ function read(who: Me, seg: string[], q: URLSearchParams): Answer {
   }
 }
 
-/** `?limit&offset` as Platform's lists take them: 10 rows by default, at most 100, from a whole offset of 0 or more. */
+/** `?limit&offset` as Platform's lists take them (`pageOf`), or null for a page they do not take. */
 function page(q: URLSearchParams): { limit: number; offset: number } | null {
-  const limit = Number(q.get('limit') ?? 10);
-  const offset = Number(q.get('offset') ?? 0);
-  return Number.isInteger(limit) && limit >= 1 && limit <= 100 && Number.isInteger(offset) && offset >= 0 ? { limit, offset } : null;
+  const p = pageOf(q);
+  return typeof p === 'string' ? null : p;
 }
 const BAD_PAGE: Answer = [400, { error: 'limit must be a whole number from 1 to 100, and offset one from 0' }];
 

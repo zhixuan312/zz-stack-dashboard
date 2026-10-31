@@ -27,7 +27,7 @@ const query = (path: string) => new URLSearchParams(path.split('?')[1]);
 function answer(path: string): unknown {
   if (path === '/me') return ME;
   if (path.startsWith('/initiatives?')) return initiativeList(ME, query(path))[1];
-  if (path.startsWith('/people?')) return people(ME, query(path), { limit: Number(query(path).get('limit')), offset: Number(query(path).get('offset')) })![1];
+  if (path.startsWith('/people?')) return people(ME, query(path))[1];
   throw new Error(`the page read ${path}, which this test does not answer`);
 }
 

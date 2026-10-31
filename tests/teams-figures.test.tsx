@@ -24,8 +24,7 @@ const SUPERADMIN: Me = {
 
 /** The fake's answer to `GET /teams` for a query string, paged as its server pages it. */
 function list(query: URLSearchParams): Teams {
-  const page = { limit: Number(query.get('limit') ?? 10), offset: Number(query.get('offset') ?? 0) };
-  return teams(SUPERADMIN, query, page)![1] as Teams;
+  return teams(SUPERADMIN, query)[1] as Teams;
 }
 
 const served = (filters: Partial<typeof TEAMS_DEFAULTS> = {}): TeamsRead => {

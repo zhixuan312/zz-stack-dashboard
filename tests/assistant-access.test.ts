@@ -65,7 +65,7 @@ function gateway(who: Me | null | (() => Me | null), { shared = false } = {}) {
     if (/^\/(teams|people|platform\/audit)(\/|$)/.test(path) && !me.superadmin) return { ok: false, status: 403, json: async () => ({ error: 'not permitted' }) } as Response;
     const query = new URL(url).searchParams;
     const body = path === '/me' ? me
-      : path === '/teams' ? teams(me, query, { limit: Number(query.get('limit') ?? 10), offset: Number(query.get('offset') ?? 0) })![1]
+      : path === '/teams' ? teams(me, query)[1]
         : path.startsWith('/teams/') ? teamDetail(path.slice('/teams/'.length))
           : path === '/initiatives' ? initiativeList(me, query)[1]
           : path === '/approvals' ? approvals(me, query)[1]
@@ -73,7 +73,7 @@ function gateway(who: Me | null | (() => Me | null), { shared = false } = {}) {
               : path === '/activity' ? activityLog(me, query)[1]
                 : path === '/skills' ? skills(me, query)[1]
                   : path === '/plugins' ? plugins(me)[1]
-                    : path === '/people' ? people(me, query, { limit: Number(query.get('limit') ?? 10), offset: Number(query.get('offset') ?? 0) })![1]
+                    : path === '/people' ? people(me, query)[1]
                       : path === '/search' ? found(query, shared)
                         : path === '/platform/status' ? (me.superadmin ? PLATFORM_STATUS : MEMBER_STATUS)
                           : path === '/platform/releases' ? releases(Number(query.get('limit') ?? 10), Number(query.get('offset') ?? 0))

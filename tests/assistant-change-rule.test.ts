@@ -153,8 +153,8 @@ describe('a change only some readers make, as the route tells each of them', () 
 });
 
 describe('every context of a page with a change says what the person changes there', () => {
-  const teamsPage = teams(ME, new URLSearchParams(), { limit: 10, offset: 0 })![1] as Teams;
-  const peoplePage = people(ME, new URLSearchParams(), { limit: 10, offset: 0 })![1] as People;
+  const teamsPage = teams(ME, new URLSearchParams())[1] as Teams;
+  const peoplePage = people(ME, new URLSearchParams())[1] as People;
   const atlas: TeamDetail = answered(teamDetail('atlas')!);
   const said = (c: SharedContext) => contextText(c);
 

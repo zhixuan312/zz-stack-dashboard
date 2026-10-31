@@ -269,7 +269,7 @@ describe('R1-C22: an issued enrolment link is kept out of the mutation cache', (
   const LINK = 'https://console.example.com/enrol#t=zze_SECRETLINK0123456789';
   const PATH = peoplePath(PEOPLE_DEFAULTS);
   const q = new URLSearchParams(PATH.split('?')[1]);
-  const LIST = people(ME, q, { limit: 10, offset: 0 })![1] as Extract<PeopleRead, { state: 'ok' }>['data'];
+  const LIST = people(ME, q)[1] as Extract<PeopleRead, { state: 'ok' }>['data'];
 
   it('shows the link once, and no cache of the page holds it', async () => {
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {

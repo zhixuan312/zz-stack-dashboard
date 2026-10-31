@@ -35,7 +35,7 @@ const TOKEN = 'zz_pat_0123456789abcdefSECRET';
 const LINK = 'https://console.example.com/enrol#t=zze_SECRETLINK0123456789';
 const ACCESS = access(ME)[1] as Access;
 const PATH = peoplePath(PEOPLE_DEFAULTS);
-const PEOPLE = people(ME, new URLSearchParams(), { limit: 10, offset: 0 })![1] as People;
+const PEOPLE = people(ME, new URLSearchParams())[1] as People;
 
 /** Every write answered as the gateway answers it, with the value it shows once; every read with the fixture. */
 function browser() {

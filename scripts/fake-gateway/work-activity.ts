@@ -113,13 +113,23 @@ const ownersOf = (rows: Event[]) => Object.fromEntries(OWNERS.map((o) => [o, row
 const normal = (m: string) => m.toLowerCase().replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g, '#').replace(/\d+/g, '#');
 const STRIP = ({ team: _t, origin: _o, ...row }: Event): ActivityRow => { void _t; void _o; return row; };
 
-/** The page a list read takes, once each with every filter it names; the refusal's sentence otherwise. */
-export function pageParams(q: URLSearchParams, filters: string[]): { limit: number; offset: number } | string {
-  for (const name of [...filters, 'limit', 'offset']) if (q.getAll(name).length > 1) return 'each filter and the page are given at most once';
+/** The gateway's refusal of a list read given a filter or its page twice. */
+export const REPEATED = 'each filter and the page are given at most once';
+/** Whether any of `names` is given more than once. */
+export const repeated = (q: URLSearchParams, names: string[]): boolean => names.some((name) => q.getAll(name).length > 1);
+
+/** `?limit&offset` as every list takes them: 10 rows by default, at most 100, from a whole offset of 0 or more; the
+ *  gateway's BAD_PAGE sentence otherwise. */
+export function pageOf(q: URLSearchParams): { limit: number; offset: number } | string {
   const limit = Number(q.get('limit') ?? 10);
   const offset = Number(q.get('offset') ?? 0);
   if (!Number.isInteger(limit) || limit < 1 || limit > 100 || !Number.isInteger(offset) || offset < 0) return 'limit must be a whole number from 1 to 100, and offset one from 0';
   return { limit, offset };
+}
+
+/** The page a list read takes, once each with every filter it names; the refusal's sentence otherwise. */
+export function pageParams(q: URLSearchParams, filters: string[]): { limit: number; offset: number } | string {
+  return repeated(q, [...filters, 'limit', 'offset']) ? REPEATED : pageOf(q);
 }
 
 /** Work's refusal for a caller who acts for no team, in the gateway's words (its console/shared.ts NO_TEAM). */

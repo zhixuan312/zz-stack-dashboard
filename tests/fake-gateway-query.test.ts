@@ -197,7 +197,7 @@ describe('each measure equals the figure its page answers', () => {
     expect(total(ME, { measure: 'teams', ...everything })).toBe(TEAMS.length);
     expect(valuesOf(ask(ME, { measure: 'teams', by: 'status', ...everything }))).toEqual({ active: 0, archived: 0, ...count(TEAMS, (t) => t.status) });
     expect(new Set(drilled(ask(ME, { measure: 'teams', rows: '20', ...everything })).map((t: Json) => t.slug))).toEqual(new Set(TEAMS.map((t) => t.slug)));
-    const [, roster] = people(ME, new URLSearchParams(), { limit: 100, offset: 0 })! as [number, Json];
+    const [, roster] = people(ME, new URLSearchParams('limit=100')) as [number, Json];
     expect(total(ME, { measure: 'people', ...everything })).toBe(roster.tiles.people);
     expect(valuesOf(ask(ME, { measure: 'people', by: 'state', ...everything }))).toEqual({ active: 0, deactivated: 0, ...count(PEOPLE, (p) => p.state) });
     expect(total(ME, { measure: 'sign_ins' })).toBe(roster.tiles.signInsLastWeek.figure.value);

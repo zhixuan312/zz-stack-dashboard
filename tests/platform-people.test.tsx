@@ -44,7 +44,7 @@ const PATH = peoplePath(PEOPLE_DEFAULTS);
 /** The fake's answer to a gateway address, paged as the address asks. */
 function answer(path: string): People {
   const q = new URLSearchParams(path.split('?')[1]);
-  return people(ME, q, { limit: Number(q.get('limit') ?? 10), offset: Number(q.get('offset') ?? 0) })![1] as People;
+  return people(ME, q)[1] as People;
 }
 const LIST = answer(PATH);
 const ok: PeopleRead = { state: 'ok', path: PATH, data: LIST };

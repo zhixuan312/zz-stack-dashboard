@@ -113,7 +113,7 @@ describe('figure columns sized to content, identifiers kept whole (F-3)', () => 
   it('People: a team and its role stay on one line, and only the comma between two teams breaks', () => {
     const path = peoplePath(PEOPLE_DEFAULTS);
     const q = new URLSearchParams(path.split('?')[1]);
-    const data = people(ME, q, { limit: 10, offset: 0 })![1] as People;
+    const data = people(ME, q)[1] as People;
     window.history.replaceState(null, '', '/platform/people');
     mount(<PlatformPeopleView served={{ state: 'ok', path, data }} />);
     const cells = column('People', 'Teams');
@@ -167,7 +167,7 @@ describe('Teams: neutral sparklines and a team with no activity (F-18, F-19)', (
   const read = () => {
     const path = teamsPath(TEAMS_DEFAULTS);
     const q = new URLSearchParams(path.split('?')[1]);
-    return { state: 'ok' as const, path, data: teams(ME, q, { limit: 10, offset: 0 })![1] as Teams };
+    return { state: 'ok' as const, path, data: teams(ME, q)[1] as Teams };
   };
 
   it('draws every sessions line in the neutral comparison colour, never the accent', () => {
@@ -193,7 +193,7 @@ describe('People: a phone card keeps the name and the badge whole (F-20)', () =>
   it('lets a long name wrap beside its badge, and sends the acts to the line under them', () => {
     const path = peoplePath(PEOPLE_DEFAULTS);
     const q = new URLSearchParams(path.split('?')[1]);
-    const data = people(ME, q, { limit: 10, offset: 0 })![1] as People;
+    const data = people(ME, q)[1] as People;
     window.history.replaceState(null, '', '/platform/people');
     const { container } = mount(<PlatformPeopleView served={{ state: 'ok', path, data }} />);
     const section = container.querySelector('section[aria-label="People"]')!;

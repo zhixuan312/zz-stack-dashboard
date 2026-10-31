@@ -51,10 +51,10 @@ const SUMMARY = () => body<ActivitySummary>(activitySummary(ME));
 const LOG = () => body<ActivityLog>(activityLog(ME, new URLSearchParams()));
 const RUNS = () => body<Runs>(runs(ME, new URLSearchParams()));
 /** Teams as the fixture answers the superadmin, one page of ten, and the same list with no team in it. */
-const TEAMS = () => body<Teams>(teams(ME, new URLSearchParams(), { limit: 10, offset: 0 })!);
+const TEAMS = () => body<Teams>(teams(ME, new URLSearchParams()));
 const NO_TEAMS = (): Teams => ({ ...TEAMS(), teams: [], total: 0 });
 /** People as the fixture answers the superadmin, one page of ten, and the same list with nobody matching. */
-const PEOPLE_LIST = () => body<People>(peopleAnswer(ME, new URLSearchParams(), { limit: 10, offset: 0 })!);
+const PEOPLE_LIST = () => body<People>(peopleAnswer(ME, new URLSearchParams()));
 const NOBODY = (): People => ({ ...PEOPLE_LIST(), people: [], total: 0 });
 describe('the fixture can shape every answer its routes produce', () => {
   it('leaves an empty list empty rather than inventing rows it cannot shape', () => {

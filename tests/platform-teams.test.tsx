@@ -50,7 +50,7 @@ const MEMBER: Me = {
 };
 
 const PATH = teamsPath(TEAMS_DEFAULTS);
-const LIST: Teams = answered<Teams>(teams(SUPERADMIN, new URLSearchParams(PATH.split('?')[1]), { limit: 10, offset: 0 })![1] as FixtureAnswer<Teams>);
+const LIST: Teams = answered<Teams>(teams(SUPERADMIN, new URLSearchParams(PATH.split('?')[1]))[1] as FixtureAnswer<Teams>);
 /** One team's fixture, completed as the answer its page reads. */
 const detail = (slug: string): TeamDetail => answered<TeamDetail>(teamDetail(slug)!);
 const ok: TeamsRead = { state: 'ok', path: PATH, data: LIST };
@@ -151,7 +151,7 @@ describe('the first paint of a filtered address', () => {
     window.history.replaceState(null, '', '/platform/teams?status=archived');
     browser(null);
     const path = teamsPath({ ...TEAMS_DEFAULTS, status: 'archived' });
-    const found = teams(SUPERADMIN, new URLSearchParams(path.split('?')[1]), { limit: 10, offset: 0 })![1] as Teams;
+    const found = teams(SUPERADMIN, new URLSearchParams(path.split('?')[1]))[1] as Teams;
     expect(found.teams.length).toBeGreaterThan(0);
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const view = <QueryClientProvider client={client}><Tooltip.Provider><PlatformTeamsView served={{ state: 'ok', path, data: found }} /></Tooltip.Provider></QueryClientProvider>;
@@ -274,7 +274,7 @@ describe('the view tools answer the pages\' own responses', () => {
   beforeEach(() => {
     gateway.get.mockImplementation(async (path: string) => {
       if (path === '/me') return SUPERADMIN;
-      if (path.startsWith('/teams?')) return answered<Teams>(teams(SUPERADMIN, new URLSearchParams(path.split('?')[1]), { limit: 10, offset: 0 })![1] as FixtureAnswer<Teams>);
+      if (path.startsWith('/teams?')) return answered<Teams>(teams(SUPERADMIN, new URLSearchParams(path.split('?')[1]))[1] as FixtureAnswer<Teams>);
       return answered<TeamDetail>(teamDetail(path.split('/').at(-1)!)!);
     });
   });

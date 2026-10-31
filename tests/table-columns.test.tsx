@@ -283,7 +283,7 @@ describe('Knowledge health', () => {
 
 describe('People', () => {
   const PATH = peoplePath(PEOPLE_DEFAULTS);
-  const data = people(ME, query(PATH), { limit: 10, offset: 0 })![1] as People;
+  const data = people(ME, query(PATH))[1] as People;
 
   it('gives up the role, the teams and the passkeys under 896px; the person carries them, and the acts stay', () => {
     mount(<PlatformPeopleView served={{ state: 'ok', path: PATH, data }} />);
@@ -330,7 +330,7 @@ describe('Releases', () => {
 describe('Teams', () => {
   it('gives up both weeks\' calls under 896px, on the team\'s page each row opens', () => {
     const PATH = teamsPath(TEAMS_DEFAULTS);
-    const data = teams(ME, query(PATH), { limit: 10, offset: 0 })![1] as Teams;
+    const data = teams(ME, query(PATH))[1] as Teams;
     mount(<PlatformTeamsView served={{ state: 'ok', path: PATH, data }} />);
     hidesBelowLg('Teams', ['Lessons', 'Sessions by week', 'Calls last week']);
     hidesBelowLg('Teams', ['Week before'], XL);

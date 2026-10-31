@@ -368,7 +368,7 @@ function busyCatalog(c: { plugins: PluginRow[] }): { plugins: PluginRow[] } {
 
 /** The superadmin's Teams and People: a page of names longer than any layout planned for under counts in the thousands. */
 function busyTeams(t: Teams, q: URLSearchParams): Teams {
-  const top = teams(ME, fromTheTop(q), { limit: 100, offset: 0 });
+  const top = teams(ME, fromTheTop(q));
   const total = t.total ? t.total + 214 : 0;
   return {
     ...t,
@@ -378,7 +378,7 @@ function busyTeams(t: Teams, q: URLSearchParams): Teams {
   };
 }
 function busyPeople(p: People, q: URLSearchParams): People {
-  const top = people(ME, fromTheTop(q), { limit: 100, offset: 0 });
+  const top = people(ME, fromTheTop(q));
   const total = p.total ? p.total + 480 : 0;
   return {
     ...p,

@@ -24,6 +24,7 @@ import { membersOf } from './platform-people.ts';
 import { PLATFORM_STATUS } from './platform-status.ts';
 import { waitingOf } from './work-approvals.ts';
 import { INITIATIVES, KNOWLEDGE } from './work.ts';
+import { REPEATED, pageOf, repeated } from './work-activity.ts';
 
 const HOUR = 3_600_000;
 /** The status fixture's weeks, oldest first, the running one last. */
@@ -90,17 +91,19 @@ const meta = (population: string): FixtureMeta => {
 const STATUSES = ['active', 'archived'];
 
 /**
- * `GET /teams`, as `who`, on `page`; null when the superadmin asked for a page the read does not take.
+ * `GET /teams`, as `who`: refused as the gateway refuses it, in its order, a filter or the page given twice, then a
+ * filter value it does not take, then a page it does not take.
  *
  * The superadmin is answered every team, `?q` matching a slug or a name and `?status` one of the two states, each
  * given at most once, with the tiles over every team. Anybody else is refused, whatever they asked.
  */
-export function teams(who: Me, q: URLSearchParams, page: { limit: number; offset: number } | null): [status: number, body: unknown] | null {
+export function teams(who: Me, q: URLSearchParams): [status: number, body: unknown] {
   if (!who.superadmin) return REFUSED;
-  if (!page) return null;
-  if (q.getAll('q').length > 1 || q.getAll('status').length > 1) return [400, { error: 'each filter and the page are given at most once' }];
+  if (repeated(q, ['q', 'status', 'limit', 'offset'])) return [400, { error: REPEATED }];
   const status = q.get('status');
   if (status !== null && !STATUSES.includes(status)) return [400, { error: `status must be one of ${STATUSES.join(', ')}` }];
+  const page = pageOf(q);
+  if (typeof page === 'string') return [400, { error: page }];
   const text = (q.get('q') ?? '').trim().toLowerCase();
   const rows = TEAMS
     .filter((t) => !text || t.slug.includes(text) || t.name.toLowerCase().includes(text))

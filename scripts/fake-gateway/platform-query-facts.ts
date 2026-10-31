@@ -243,7 +243,7 @@ export const personRows = () => PEOPLE;
 
 /** Every recorded sign-in, by the person's role: each person's latest, and the last whole week's beyond those. */
 export function signInFacts(): Fact[] {
-  const [, answer] = people(ME, new URLSearchParams(), { limit: 1_000, offset: 0 })!;
+  const [, answer] = people(ME, new URLSearchParams());
   const tile = (answer as People).tiles.signInsLastWeek;
   const [from, to] = [Date.parse(tile.window.from), Date.parse(tile.window.to)];
   const latest = PEOPLE.filter((p) => p.lastSignIn !== null).map((p) => ({ p, ms: Date.parse(p.lastSignIn!) }));

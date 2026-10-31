@@ -20,6 +20,7 @@ import { day, iso, localDay, nextStart, now } from './clock.ts';
 import { kept } from './journey.ts';
 import { ME, MEMBER } from './people.ts';
 import { PLATFORM_STATUS } from './platform-status.ts';
+import { REPEATED, pageOf, repeated } from './work-activity.ts';
 
 const HOUR = 3_600_000;
 /** The status fixture's weeks, oldest first, the running one last: every Fleet read counts in the same weeks. */
@@ -77,18 +78,20 @@ const SIGN_INS_LAST_WEEK: PeriodFigure = (() => {
 const STATES = ['active', 'deactivated'];
 
 /**
- * `GET /people`, as `who`, on `page`; null when the superadmin asked for a page the read does not take.
+ * `GET /people`, as `who`: refused as the gateway refuses it, in its order, a filter or the page given twice, then a
+ * filter value it does not take, then a page it does not take.
  *
  * The superadmin is answered every person, `?q` matching an email or a name and `?state` one of the two states, each
  * given at most once, with the tiles over everybody; the read's coverage begins at the first recorded sign-in. Anybody
  * else is refused before anything is read, with the gateway's sentence, which names nobody.
  */
-export function people(who: Me, q: URLSearchParams, page: { limit: number; offset: number } | null): [status: number, body: unknown] | null {
+export function people(who: Me, q: URLSearchParams): [status: number, body: unknown] {
   if (!who.superadmin) return [403, { error: 'not permitted' }];
-  if (!page) return null;
-  if (q.getAll('q').length > 1 || q.getAll('state').length > 1) return [400, { error: 'each filter and the page are given at most once' }];
+  if (repeated(q, ['q', 'state', 'limit', 'offset'])) return [400, { error: REPEATED }];
   const state = q.get('state');
   if (state !== null && !STATES.includes(state)) return [400, { error: `state must be one of ${STATES.join(', ')}` }];
+  const page = pageOf(q);
+  if (typeof page === 'string') return [400, { error: page }];
   const text = (q.get('q') ?? '').trim().toLowerCase();
   // A journey session reads the people it added, last: each was added today, in no team, and has not signed in.
   const everyone = [...PEOPLE, ...(kept()?.added ?? []).map((a): PersonRow => ({

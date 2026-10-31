@@ -66,9 +66,9 @@ const fact = (c: SharedContext, label: string) => c.facts.find((f) => f.label ==
 
 const big = <T,>(seg: string[], body: T): T => extreme(seg, body) as T;
 /** People as the fixture answers the superadmin: one page of ten, the tiles over everybody. */
-const PEOPLE_PAGE = people(ME, new URLSearchParams(), { limit: 10, offset: 0 })![1] as People;
+const PEOPLE_PAGE = people(ME, new URLSearchParams())[1] as People;
 /** Teams as the fixture answers the superadmin: one page of ten, the tiles over every team. */
-const TEAMS_PAGE = teams(ME, new URLSearchParams(), { limit: 10, offset: 0 })![1] as Teams;
+const TEAMS_PAGE = teams(ME, new URLSearchParams())[1] as Teams;
 /** The initiatives list the fake answers the superadmin for `query`. */
 const listOf = (query = ''): InitiativeList => initiativeList(ME, new URLSearchParams(query))[1] as InitiativeList;
 const ALL = { q: '', state: 'all', flow: 'all' };
