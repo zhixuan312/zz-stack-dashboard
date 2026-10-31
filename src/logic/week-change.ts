@@ -30,7 +30,7 @@ export function pointsOf({ last, previous }: Pair): number | null {
 
 const ONE = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1, minimumFractionDigits: 1 });
 /** A change in points, its direction left to the arrow or the word before it: `5.0 pts`. */
-export const pointsIn = (n: number): string => `${ONE.format(Math.abs(n))} pts`;
+const pointsIn = (n: number): string => `${ONE.format(Math.abs(n))} pts`;
 
 /** The word a figure with no value reads as: a week the gateway could not count is unavailable, one with nothing in it no data. */
 export const wordFor = (f: Figure): string | null => (f.value !== null ? null : f.why === 'unavailable' ? 'Unavailable' : 'No data');
