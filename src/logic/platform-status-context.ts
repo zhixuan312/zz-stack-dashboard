@@ -218,7 +218,7 @@ function scoreRow(s: PlatformStatus, key: Key): ScoreRow {
 export function scoreOf(s: PlatformStatus): { caption: string; directional: ScoreRow[]; activity: ScoreRow[] } {
   const better = DIRECTIONAL.filter((k) => measureOf(s, k)?.judgement === 'improved').length;
   return {
-    caption: `${better} of 5 measures are better than the week before`,
+    caption: `${better} of ${DIRECTIONAL.length} measures are better than the week before`,
     directional: DIRECTIONAL.map((k) => scoreRow(s, k)),
     activity: ACTIVITY.map((k) => scoreRow(s, k)),
   };

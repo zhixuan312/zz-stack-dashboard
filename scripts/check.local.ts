@@ -20,7 +20,7 @@
  *   without a file the code reads with `node:fs`.
  *
  * It carries the four-layer switch too: `fourLayers = true` is what makes Meridian's check.ts run the six rules of
- * `docs/data-layers.md` (`data-imports-neither`, `logic-does-not-import-views`, `views-produce-nothing`,
+ * `.agents/skills/zz-meridian/references/data-layers.md` (`data-imports-neither`, `logic-does-not-import-views`, `views-produce-nothing`,
  * `presentation-does-not-read`, `no-direct-query` and `client-does-not-import-a-reading-module`). The console's
  * producers live in `src/logic/` and its renderers in `src/views/` since 0.28.0.
  */
@@ -132,8 +132,8 @@ problems.push(...chartProblems(ROOT));
 
 // ── The console's pages ──────────────────────────────────────────────────────────────────────────────
 // Product code only: Meridian's own layers are checked by check.ts. A page's content is the client view it renders,
-// under src/views/pages.
-for (const f of SOURCE.filter((x) => /^(app|src\/console|src\/lib|src\/views\/pages\/)/.test(x))) {
+// under src/views/pages, and its figures and sentences are produced under src/logic.
+for (const f of SOURCE.filter((x) => /^(app|src\/console|src\/lib|src\/logic|src\/views\/pages\/)/.test(x))) {
   const c = code(read(f));
   // The API sends ISO 8601 in UTC; printed into a cell it is `2026-09-05T04:59:00Z`, or a wall clock a reader takes
   // for their own. A time goes through <When> or src/lib/format-date.
@@ -145,8 +145,8 @@ for (const f of SOURCE.filter((x) => /^(app|src\/console|src\/lib|src\/views\/pa
   for (const m of c.matchAll(/Record<string,[^>]*>\s*=\s*\{([^}]{0,600})\}/g)) {
     if (/'(ops|zz|sdlc)-[a-z-]+':/.test(m[1])) problems.push(`${f}: a map keyed by specific flow or skill names`);
   }
-  // "0 of 4" on a flow with one gate: the denominator is the flow's, never a literal.
-  for (const m of c.matchAll(/\bof \d+\b/g)) problems.push(`${f}: "${m[0]}" is a hardcoded denominator`);
+  // "0 of 4" on a flow with one gate: the denominator is the flow's, never a literal. "of 10" is a score's own scale.
+  for (const m of c.matchAll(/\bof (?!10\b)\d+\b/g)) problems.push(`${f}: "${m[0]}" is a hardcoded denominator`);
   // A hand-built table (not Meridian's DataTable, which has its empty states) must say when it has nothing.
   if (c.includes('<TableBody>') && !/length === 0|EmptyState|\.length \?|!\w+\.length/.test(c)) problems.push(`${f}: a table that can be empty does not say so`);
 }
