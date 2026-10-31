@@ -73,7 +73,12 @@ const CHART_PACKAGE = /^(recharts|chart\.js|react-chartjs-2|d3|d3-[a-z-]+|echart
 function chartProblems(root: string): string[] {
   const out: string[] = [];
   const json = (p: string, empty: unknown) => (fs.existsSync(path.join(root, p)) ? JSON.parse(fs.readFileSync(path.join(root, p), 'utf8')) : empty);
+  // An update in progress installs files its candidate manifest records and the recorded one does not yet; check.ts
+  // reads that candidate in place of the recorded manifest, and so does this rule, or a finalize could never pass.
+  const sessions = fs.existsSync(path.join(root, '.meridian/update')) ? fs.readdirSync(path.join(root, '.meridian/update')) : [];
+  const arriving = sessions.flatMap((n) => Object.keys((json(`.meridian/update/${n}/state.json`, { targetManifest: { files: {} } }) as { targetManifest: { files: Record<string, string> } }).targetManifest.files));
   const managed = new Set<string>([
+    ...arriving,
     ...Object.keys((json('.meridian/manifest.json', { files: {} }) as { files: Record<string, string> }).files),
     ...(json('.meridian/keep.json', []) as { path: string }[]).map((k) => k.path),
   ]);

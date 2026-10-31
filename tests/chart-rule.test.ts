@@ -94,6 +94,28 @@ describe('the chart rule', () => {
     expect(lines.at(-1)).toBe('6 chart problems');
   });
 
+  it('counts a chart an update in progress installs as managed, as the gate reads its candidate manifest', () => {
+    const during = fs.mkdtempSync(path.join(os.tmpdir(), 'chart-rule-update-'));
+    try {
+      const put = (rel: string, body: string) => {
+        fs.mkdirSync(path.dirname(path.join(during, rel)), { recursive: true });
+        fs.writeFileSync(path.join(during, rel), body);
+      };
+      const recorded = Object.fromEntries(MANAGED.map((p) => [p, 'sha256-x']));
+      const arriving = 'src/components/charts/diverging-bars/index.tsx';
+      put('.meridian/manifest.json', JSON.stringify({ version: '0.28.0', files: recorded }));
+      put('.meridian/keep.json', '[]');
+      put('.meridian/update/0.36.0/state.json', JSON.stringify({ targetManifest: { version: '0.36.0', files: { ...recorded, [arriving]: 'sha256-y' } } }));
+      put(arriving, 'export const DivergingBars = () => null;\n');
+      put('src/views/pages/uses-it.tsx', "import { DivergingBars } from '@/components/charts/diverging-bars';\n");
+      const { status, lines } = charts(during);
+      expect(lines).toEqual(['0 chart problems']);
+      expect(status).toBe(0);
+    } finally {
+      fs.rmSync(during, { recursive: true, force: true });
+    }
+  });
+
   it('passes the console as it is, with no chart of its own', () => {
     const { status, lines, stderr } = charts(CONSOLE);
     expect(stderr).toBe('');
