@@ -4,7 +4,7 @@ import { useTransition } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, RotateCw } from 'lucide-react';
+import { RotateCw } from 'lucide-react';
 import { app, workspaces } from '@/app.config';
 import { AskAbout } from '@/components/patterns/ask-about';
 import { DataTable, type Column } from '@/components/patterns/data-table';
@@ -16,12 +16,14 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { KeyValue } from '@/components/ui/key-value';
 import { Skeleton } from '@/components/ui/skeleton';
 import { aligned } from '@/console/columns';
+import { Goes } from '@/console/eval-score';
 import { useServerReadLive } from '@/console/knowledge-tabs';
 import { ConsolePage } from '@/console/page';
 import { Panel } from '@/console/panel';
 import { useDataClock } from '@/lib/api';
 import type { KnowledgeBody, KnowledgeNode } from '@/lib/api-shapes';
 import { plural } from '@/lib/format';
+import { formatCount } from '@/lib/format-units';
 import { formatDate } from '@/lib/format-date';
 import { knowledgeNodeHref } from '@/lib/knowledge-filters';
 import { useLive } from '@/lib/live';
@@ -66,7 +68,7 @@ export function KnowledgeNodeView({ read, team, rel }: { read: ServerRead<Knowle
     // (Phase 7's second re-review, Work M-11).
     {
       key: 'title', header: 'Title', align: 'left', grow: true, mobile: 'title',
-      cell: (n) => <span className="block py-1 leading-snug font-medium whitespace-normal text-ink">{n.title} <ArrowRight data-goes aria-hidden className="inline size-3.5 align-[-0.15em] text-ink-3 group-hover/row:text-ink" /></span>,
+      cell: (n) => <span className="block py-1 leading-snug font-medium whitespace-normal text-ink">{n.title} <Goes /></span>,
     },
     // A neighbour a later lesson replaced says so, and names what replaced it, a link where the successor is listed too
     // (Work F-6): unmarked, a superseded lesson read as current beside the one that replaced it.
@@ -138,7 +140,7 @@ export function KnowledgeNodeView({ read, team, rel }: { read: ServerRead<Knowle
               rowHref={(n) => knowledgeNodeHref(n.team, n.path)}
               pageSize={10}
               pageSizes={[10]}
-              toolbar={<div><h2 className="t-card">Shares a tag with</h2><p className="t-caption mt-1">{related.length} {plural(related.length, 'node')}</p></div>}
+              toolbar={<div><h2 className="t-card">Shares a tag with</h2><p className="t-caption mt-1">{formatCount(related.length)} {plural(related.length, 'node')}</p></div>}
             />
           ) : null}
         </>

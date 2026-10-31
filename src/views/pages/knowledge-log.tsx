@@ -2,7 +2,7 @@
 
 import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, GitFork, History, PlusCircle, RotateCw } from 'lucide-react';
+import { GitFork, History, PlusCircle, RotateCw } from 'lucide-react';
 import { Row } from '@/components/base/shell';
 import { AskAbout } from '@/components/patterns/ask-about';
 import { DataTable, type Column } from '@/components/patterns/data-table';
@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { aligned } from '@/console/columns';
+import { Goes } from '@/console/eval-score';
 import { KnowledgeTabs, useServerReadLive } from '@/console/knowledge-tabs';
 import { ConsolePage } from '@/console/page';
 import { useDataClock } from '@/lib/api';
@@ -37,7 +38,7 @@ function columns(): Column<KnowledgeLogEntry>[] {
         <span className="block py-1 whitespace-normal">
           <span className="block leading-snug text-ink">
             {e.node_title ?? e.recorded_title ?? <span className="text-ink-3">No longer on the shelf</span>}
-            {e.path && e.team ? <> <ArrowRight data-goes aria-hidden className="inline size-3.5 align-[-0.15em] text-ink-3 group-hover/row:text-ink" /></> : null}
+            {e.path && e.team ? <> <Goes /></> : null}
           </span>
           <span className="t-caption block font-mono">node {e.node}{e.superseded_by ? ` → ${e.superseded_by}` : ''}</span>
         </span>

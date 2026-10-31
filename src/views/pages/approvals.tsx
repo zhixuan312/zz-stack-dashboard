@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
-import { ArrowRight, EyeOff, Hourglass, Inbox, Signature } from 'lucide-react';
+import { EyeOff, Hourglass, Inbox, Signature } from 'lucide-react';
 import { useShareView } from '@/components/base/use-share-view';
 import { ColumnChart } from '@/components/charts/column-chart';
 import { AskAbout } from '@/components/patterns/ask-about';
@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LinkTabs } from '@/components/ui/tabs';
 import { aligned } from '@/console/columns';
+import { Goes } from '@/console/eval-score';
 import { Panel } from '@/console/panel';
 import { failureOf } from '@/console/query';
 import { waited } from '@/console/words';
@@ -140,7 +141,7 @@ const classCell = (label: string, unknown: boolean, phone?: string) => (
 const approvedDocumentCell = (r: ApprovalRow) => (
   <span title={`${r.path} v${r.version}`} className="font-medium whitespace-nowrap text-ink @max-[640px]:whitespace-normal @max-[640px]:[overflow-wrap:anywhere]">
     {r.path}<span className="hidden @max-[640px]:inline"> v{r.version}</span>{' '}
-    <ArrowRight data-goes aria-hidden className="inline size-3.5 shrink-0 align-[-0.15em] text-ink-3 group-hover/row:text-ink" />
+    <Goes />
   </span>
 );
 

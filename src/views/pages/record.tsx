@@ -25,6 +25,7 @@ import { Segmented } from '@/components/ui/segmented';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/components/ui/toast';
 import { aligned } from '@/console/columns';
+import { Goes } from '@/console/eval-score';
 import { failureOf } from '@/console/query';
 import { Panel } from '@/console/panel';
 import { recordText } from '@/console/record-text';
@@ -474,7 +475,6 @@ const OUTCOME_TONE: Record<string, 'positive' | 'neutral'> = { accepted: 'positi
 type InitiativeRecord = Extract<RecordRead['record'], { state: 'ok' }>['data']['rows'][number];
 
 /** The quiet arrow that says a row opens its initiative before the pointer finds it, as Initiatives' rows carry it. */
-const Goes = () => <ArrowRight data-goes aria-hidden className="inline size-3.5 shrink-0 align-[-0.15em] text-ink-3 group-hover/row:text-ink" />;
 
 // A row opens its initiative: the arrow after the slug says so where a still shows it (Phase 7's second re-review, Work
 // F-41's Navigation). The slug is cut before the arrow is, so a long one never takes the arrow with it.
