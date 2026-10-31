@@ -78,9 +78,18 @@ function valueOf(row: PreparedRow, f: Figure): number | null {
   return f.value;
 }
 
+/**
+ * A read the gateway's prepared query does not take, refused before anything is read. Its message is the console's own
+ * sentence, made of the measure's label and what was asked of it, never of an answer, so the model is told it word for
+ * word (`toolFailure`) and can ask again without it rather than tell the person the platform is down.
+ */
+export class Unasked extends Error {
+  override name = 'Unasked';
+}
+
 /** Refuses with a sentence, before anything is read. */
 function refuse(row: PreparedRow, what: string): never {
-  throw new Error(`${row.label} cannot be asked ${what}: the gateway's prepared query does not answer it.`);
+  throw new Unasked(`${row.label} cannot be asked ${what}: the gateway's prepared query does not answer it.`);
 }
 
 /** A condition as the route's equality filter on one of the measure's dimensions. */
@@ -204,7 +213,7 @@ export function preparedCollection(row: PreparedRow): AnyCollection {
       return merged(row, calls.map((c) => c.name), answers, q.group !== undefined);
     },
     query: async (q: Query) => {
-      if ('none' in row.drill) throw new Error(row.drill.none);
+      if ('none' in row.drill) throw new Unasked(row.drill.none);
       const ask = drillOf(row, q);
       if (row.drill.needs && !(await may(row.drill.needs))) throw new AccessDenied();
       const answer = await asked(row, ask);
