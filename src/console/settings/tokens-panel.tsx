@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { AskAbout } from '@/components/patterns/ask-about';
 import { FormSection } from '@/components/patterns/form-section';
@@ -37,9 +37,11 @@ const TOKENS_TITLE = 'Tokens';
  * In a dialog, never in the page: the assistant sends the text of the page's scroll region with every message, and the
  * dialog is portalled outside it, so the value never enters the assistant's context (bug ee35a0d7). The value is marked
  * `data-assistant="omit"` besides, so even a dialog drawn inside the region is never read. It closes only when the
- * person says so, never on a stray click or Escape.
+ * person says so, never on a stray click or Escape, and gives focus back to what held it when it opened, Issue token:
+ * it opens on an issue's answer, with no trigger of its own for the dialog to return to.
  */
 function IssuedTokenDialog({ issued, onDismiss }: { issued: IssuedToken | null; onDismiss: () => void }) {
+  const returnTo = useRef<HTMLElement | null>(null);
   return (
     <Dialog open={issued !== null} onOpenChange={(open) => { if (!open) onDismiss(); }}>
       {issued ? (
@@ -48,6 +50,8 @@ function IssuedTokenDialog({ issued, onDismiss }: { issued: IssuedToken | null; 
           description="Shown once. Store it now."
           onInteractOutside={(e) => e.preventDefault()}
           onEscapeKeyDown={(e) => e.preventDefault()}
+          onOpenAutoFocus={() => { returnTo.current = document.activeElement instanceof HTMLElement ? document.activeElement : null; }}
+          onCloseAutoFocus={(e) => { e.preventDefault(); returnTo.current?.focus(); }}
           footer={<Button type="button" variant="primary" onClick={onDismiss}>I&apos;ve stored it</Button>}
         >
           <div className="flex flex-col gap-3">

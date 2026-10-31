@@ -121,17 +121,42 @@ export function useRecordShown(doc: DocumentDetail | undefined, offered: boolean
  * approver, which the mutation's refetch shows without a reload; a page that is out of date (409) is handed to
  * `onStale`, which holds Approve and shows the page's banner; any other refusal says the gateway's own sentence in a
  * toast. A member acting for another of their teams is told which team to switch to.
+ *
+ * An approval made here leaves a status in Approve's place, saying so, and `onApproved` tells the page, which keeps this
+ * control mounted after its read of the document comes back approved and Approve is no longer on offer.
  */
-export function ApproveAction({ doc, me, shown, onStale, onReload }: { doc: DocumentDetail; me: Me; shown: Shown; onStale: (message: string) => void; onReload: () => void }) {
+export function ApproveAction({ doc, me, shown, onStale, onReload, onApproved }: {
+  doc: DocumentDetail; me: Me; shown: Shown; onStale: (message: string) => void; onReload: () => void; onApproved?: () => void;
+}) {
   // The record the reader pressed Approve on, by identity: every record is a new object, so a newer snapshot or the
   // same one recorded again by a reload closes the confirmation, and Confirm can only sign the record it opened on.
   const [confirmingFor, setConfirmingFor] = useState<Shown | null>(null);
   // Set from the press itself, not from `isPending`: a keyboard press carries no click count, and a second Enter can
   // reach Confirm before the busy state is drawn.
   const sending = useRef(false);
+  // The snapshot approved here, by its content revision: the status stands in Approve's place while it is the one shown.
+  const [approved, setApproved] = useState<string | null>(null);
+  // Where a keyboard user's place goes once their press changes this control's shape, as `InlineDestructive`'s does:
+  // the question opens on Cancel; Cancel and a refused approval go back to Approve; a page out of date (409) goes to
+  // Reload, and an approval to the status that says so. Set by the press and taken once the element it names is drawn,
+  // which for Reload is a render later, so a shape nobody pressed for (a newer record) moves nobody's focus.
+  const placeOn = useRef<'cancel' | 'approve' | 'reload' | 'approved' | null>(null);
+  const approveButton = useRef<HTMLButtonElement>(null);
+  const cancel = useRef<HTMLButtonElement>(null);
+  const reloadButton = useRef<HTMLButtonElement>(null);
+  const approvedStatus = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const place = placeOn.current;
+    const el = place && { cancel, approve: approveButton, reload: reloadButton, approved: approvedStatus }[place].current;
+    if (el) { el.focus(); placeOn.current = null; }
+  });
+  const swap = (next: Shown | null) => { placeOn.current = next ? 'cancel' : 'approve'; setConfirmingFor(next); };
   // `?team=` always: the route refuses `?scope=platform`, so the team comes from the document itself.
   const mutation = useConsoleMutation<{ ok: true; result: string }, { initiative: string; path: string; expected_revision: string; review_context: string }>(
     `/documents/approve?team=${encodeURIComponent(doc.team)}`);
+  if (approved !== null && (!canApprove(doc, me) || doc.content_revision === approved)) {
+    return <span ref={approvedStatus} role="status" tabIndex={-1} className="text-sm text-ink-2">Approved as your own decision.</span>;
+  }
   const team = switchToApprove(doc, me);
   if (team) return <span className="text-sm text-ink-2">Switch to {team} to approve.</span>;
   if (!canApprove(doc, me)) return null;
@@ -141,8 +166,12 @@ export function ApproveAction({ doc, me, shown, onStale, onReload }: { doc: Docu
     sending.current = true;
     try {
       await mutation.mutateAsync({ initiative: doc.initiative, path: doc.path, expected_revision: signing.content_revision, review_context: signing.review_context });
+      placeOn.current = 'approved';
+      setApproved(signing.content_revision);
+      onApproved?.();
       toast({ tone: 'positive', title: `Approved ${doc.path}`, description: 'The next stage of the flow may start.' });
     } catch (err) {
+      placeOn.current = err instanceof ApiError && err.status === 409 ? 'reload' : 'approve';
       if (err instanceof ApiError && err.status === 409) onStale(err.message);
       else toast({ tone: 'critical', title: 'Not approved', description: reasonOf(err, 'Could not reach the platform; try again.') });
     } finally {
@@ -177,7 +206,7 @@ export function ApproveAction({ doc, me, shown, onStale, onReload }: { doc: Docu
       <>
         {/* `aria-describedby`, not `aria-label`: the control's name must keep containing its visible word — "Reload" —
             or a person driving it by voice cannot say what they see (WCAG 2.5.3). The sentence is the description. */}
-        <Button size="sm" variant="secondary" icon={<RotateCw />} onClick={onReload} title={why} aria-describedby="approve-unavailable">
+        <Button ref={reloadButton} size="sm" variant="secondary" icon={<RotateCw />} onClick={onReload} title={why} aria-describedby="approve-unavailable">
           {shown.state === 'failed' ? 'Approve unavailable · Reload' : 'Reload'}
         </Button>
         <span id="approve-unavailable" className="sr-only">{why}</span>
@@ -188,7 +217,7 @@ export function ApproveAction({ doc, me, shown, onStale, onReload }: { doc: Docu
     return (
       <>
         <Button
-          variant="primary" icon={<CheckCircle2 />} onClick={() => setConfirmingFor(shown)}
+          ref={approveButton} variant="primary" icon={<CheckCircle2 />} onClick={() => swap(shown)}
           disabled={shown.state !== 'recorded'} busy={shown.state === 'recording'}
           aria-describedby={shown.state === 'recording' ? 'approve-recording' : undefined}
         >
@@ -204,7 +233,7 @@ export function ApproveAction({ doc, me, shown, onStale, onReload }: { doc: Docu
       {/* DELIBERATE: a click that is the second of a double-click is not a confirmation. The first opened this
           confirmation where Approve was; Cancel sits on that edge, and this refuses what still reaches Confirm. */}
       <Button variant="primary" onClick={(e) => { if (e.detail < 2) void approve(shown); }} busy={mutation.isPending}>Confirm</Button>
-      <Button variant="ghost" onClick={() => setConfirmingFor(null)} disabled={mutation.isPending}>Cancel</Button>
+      <Button ref={cancel} variant="ghost" onClick={() => swap(null)} disabled={mutation.isPending}>Cancel</Button>
     </span>
   );
 }

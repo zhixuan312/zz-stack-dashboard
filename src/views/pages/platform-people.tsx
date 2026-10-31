@@ -1,7 +1,7 @@
 'use client';
 
 import { useQueryClient } from '@tanstack/react-query';
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useMemo, useRef, useState } from 'react';
 import { KeyRound, LogIn, UserRound, UserX } from 'lucide-react';
 import { useShareView } from '@/components/base/use-share-view';
 import { AskAbout } from '@/components/patterns/ask-about';
@@ -12,7 +12,7 @@ import { Busy } from '@/components/patterns/page-loading';
 import { Records, RecordsSkeleton } from '@/components/templates/records';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogClose, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/components/ui/toast';
@@ -209,8 +209,9 @@ function usePeople(served: PeopleRead | null, filters: PeopleFilters) {
 
 /**
  * Everybody the platform knows, drawn from the release's Records template: four tiles over everybody, then the people,
- * ten to a page, filtered and paged by the gateway, each with their two acts. The first page the address names is read
- * on the console's server and handed here; every other read, and the people collection's live updates, are the browser's.
+ * ten to a page, filtered and paged by the gateway, each with their two acts. The page the address names is read on the
+ * console's server and handed here, a filter or a later page too, as the navigation renders the page again; a Retry, a
+ * write and the people collection's live updates are read in the browser.
  */
 export function PlatformPeopleView({ served }: { served: Revised<PeopleRead> }) {
   useLive(['people'], served.revisions);
@@ -288,7 +289,10 @@ export function PeopleAsOf({ served }: { served: PeopleRead }) {
 /**
  * Add a person, the masthead's one action: the console's existing platform route, as Settings called it. Adding a
  * person lets nobody in: the console's only door is a passkey, which attaches through an enrolment link issued in the
- * person's row. The gateway's refusal is said under the fields, and the dialog stays open with what was typed.
+ * person's row. The gateway's refusal is said under the fields, and the dialog stays open with what was typed; it is
+ * dropped whenever the dialog opens or closes, Cancel's close included. One add at a time: a second Enter before the
+ * first has answered sends nothing, told by a ref set from the press, which a keyboard press reaches before `isPending`
+ * is drawn (as `ApproveAction`'s Confirm).
  */
 export function AddPerson() {
   const [open, setOpen] = useState(false);
@@ -297,8 +301,11 @@ export function AddPerson() {
   const [error, setError] = useState<string | null>(null);
   const add = useConsoleMutation<Done, { email: string; display_name: string }>('/settings/platform/people');
   const ready = email.trim().length > 0;
+  const sending = useRef(false);
 
   async function submit() {
+    if (!ready || sending.current) return;
+    sending.current = true;
     setError(null);
     try {
       const done = await add.mutateAsync({ email: email.trim(), display_name: name.trim() });
@@ -308,24 +315,27 @@ export function AddPerson() {
       toast({ tone: 'positive', title: done.result });
     } catch (err) {
       setError(reasonOf(err, 'The person was not added; try again.'));
+    } finally {
+      sending.current = false;
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={(next) => { setOpen(next); if (!next) setError(null); }}>
-      <Button variant="primary" aria-haspopup="dialog" onClick={() => setOpen(true)}>Add a person</Button>
+    <Dialog open={open} onOpenChange={(next) => { setOpen(next); setError(null); }}>
+      {/* The dialog's own trigger and close, so Cancel drops the refusal as every close does and focus comes back here. */}
+      <DialogTrigger asChild><Button variant="primary">Add a person</Button></DialogTrigger>
       <DialogContent
         size="sm"
         title="Add a person"
         description="Adding a person lets nobody in yet: issue them an enrolment link from their row, and they register a passkey with it."
         footer={
           <>
-            <Button variant="secondary" onClick={() => setOpen(false)}>Cancel</Button>
+            <DialogClose asChild><Button variant="secondary">Cancel</Button></DialogClose>
             <Button variant="primary" busy={add.isPending} disabled={!ready} onClick={() => void submit()}>Add person</Button>
           </>
         }
       >
-        <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); if (ready) void submit(); }}>
+        <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
           <Field label="Email">
             {(p) => <Input {...p} type="email" placeholder="name@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />}
           </Field>

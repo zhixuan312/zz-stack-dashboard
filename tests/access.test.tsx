@@ -320,6 +320,28 @@ describe('the writes Access makes, each the person\'s', () => {
     await waitFor(() => expect(toasts.said).toContainEqual({ tone: 'critical', title: 'no such active token of yours' }));
   });
 
+  it('keeps the keyboard\'s place through Revoke\'s question: on Cancel when asked, back on Revoke when cancelled', async () => {
+    browser(() => null);
+    draw(ADMIN);
+    const [first] = rowsOf('Tokens');
+    button(first, 'Revoke').focus();
+    act(() => { button(first, 'Revoke').click(); });
+    expect(document.activeElement).toBe(button(first, 'Cancel'));
+    act(() => { button(first, 'Cancel').click(); });
+    expect(document.activeElement).toBe(button(first, 'Revoke'));
+  });
+
+  it('gives focus back to Issue token when the issued token\'s dialog closes', async () => {
+    browser((p, init) => (p === '/settings/me/tokens' && init?.method === 'POST' ? [200, { token: 'zz_pat_issued_focus', label: '', email: ME.email }] : null));
+    draw(ADMIN);
+    const issue = button(section('Tokens'), 'Issue token');
+    issue.focus();
+    await act(async () => { fireEvent.click(issue); });
+    await screen.findByRole('dialog');
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'I\'ve stored it' })); });
+    await waitFor(() => expect(document.activeElement).toBe(issue));
+  });
+
   it('revokes the caller\'s tokens for an application, and signs out another browser but never this one', async () => {
     browser((p, init) => {
       if (init?.method !== 'DELETE') return null;

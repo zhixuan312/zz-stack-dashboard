@@ -177,6 +177,9 @@ export function DocumentView({ team, slug, rel, served, teamPage, version: asked
   // Never while an earlier version's text is drawn: Approve vouches for the text on screen, and that one is not current.
   const offered = !!(d && !earlier && !q.error && me.data && canApprove(d, me.data));
   const { shown, again, outdated } = useRecordShown(d, offered);
+  // An approval made on this visit keeps Approve's control mounted once the read comes back approved, so the status it
+  // leaves in Approve's place, and the keyboard's place on it, stay (`ApproveAction`).
+  const [approvedHere, setApprovedHere] = useState(false);
   // A Reload over the server's read is the browser's first read of the document, so the snapshot it brings is recorded
   // once that read lands rather than when the reload is asked for.
   const reloading = useRef(false);
@@ -223,7 +226,7 @@ export function DocumentView({ team, slug, rel, served, teamPage, version: asked
       }
       updatedAt={updatedAt}
       context={context}
-      actions={d && !earlier && me.data && (offered || switchToApprove(d, me.data)) ? <ApproveAction doc={d} me={me.data} shown={shown} onStale={outdated} onReload={() => void reload()} /> : undefined}
+      actions={d && !earlier && me.data && (offered || approvedHere || switchToApprove(d, me.data)) ? <ApproveAction doc={d} me={me.data} shown={shown} onStale={outdated} onReload={() => void reload()} onApproved={() => setApprovedHere(true)} /> : undefined}
       width="data"
     >
       {d ? <DocumentBody doc={d} view={view} onView={setView} earlier={earlier && { ...earlier, body: shownText, failed: older.isError, current: version ?? d.current_version, address: `/initiatives/${team}/${slug}/${encodePath(rel)}` }} />

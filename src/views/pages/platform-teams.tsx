@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { BookOpen, ListTree, Signature, Users } from 'lucide-react';
 import { useShareView } from '@/components/base/use-share-view';
 import { Sparkline } from '@/components/charts/sparkline';
@@ -11,7 +11,7 @@ import { MetricTile } from '@/components/patterns/metric-tile';
 import { Records } from '@/components/templates/records';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogClose, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/components/ui/toast';
@@ -181,7 +181,9 @@ export function TeamsAsOf({ served }: { served: TeamsRead }) {
 
 /**
  * Create a team, the masthead's one action: the console's existing platform route, as Settings called it. The
- * gateway's refusal is said under the fields, beside the control, and the dialog stays open with what was typed.
+ * gateway's refusal is said under the fields, beside the control, and the dialog stays open with what was typed; it is
+ * dropped whenever the dialog opens or closes, Cancel's close included. One create at a time, as `AddPerson`'s add: a
+ * second Enter before the first has answered sends nothing.
  */
 export function CreateTeam() {
   const [open, setOpen] = useState(false);
@@ -190,8 +192,11 @@ export function CreateTeam() {
   const [error, setError] = useState<string | null>(null);
   const create = useConsoleMutation<{ ok: true; result: string }, { slug: string; name: string }>('/settings/platform/teams');
   const ready = slug.trim().length > 0 && name.trim().length > 0;
+  const sending = useRef(false);
 
   async function submit() {
+    if (!ready || sending.current) return;
+    sending.current = true;
     setError(null);
     try {
       const done = await create.mutateAsync({ slug: slug.trim(), name: name.trim() });
@@ -201,24 +206,27 @@ export function CreateTeam() {
       toast({ tone: 'positive', title: done.result });
     } catch (err) {
       setError(reasonOf(err, 'The team was not created; try again.'));
+    } finally {
+      sending.current = false;
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={(next) => { setOpen(next); if (!next) setError(null); }}>
-      <Button variant="primary" aria-haspopup="dialog" onClick={() => setOpen(true)}>Create a team</Button>
+    <Dialog open={open} onOpenChange={(next) => { setOpen(next); setError(null); }}>
+      {/* The dialog's own trigger and close, so Cancel drops the refusal as every close does and focus comes back here. */}
+      <DialogTrigger asChild><Button variant="primary">Create a team</Button></DialogTrigger>
       <DialogContent
         size="sm"
         title="Create a team"
         description="A slug is lowercase letters, digits, - or _, and never changes. Creating an archived team's slug again restores it."
         footer={
           <>
-            <Button variant="secondary" onClick={() => setOpen(false)}>Cancel</Button>
+            <DialogClose asChild><Button variant="secondary">Cancel</Button></DialogClose>
             <Button variant="primary" busy={create.isPending} disabled={!ready} onClick={() => void submit()}>Create team</Button>
           </>
         }
       >
-        <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); if (ready) void submit(); }}>
+        <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
           <Field label="Slug">
             {(p) => <Input {...p} placeholder="e.g. search-quality" value={slug} onChange={(e) => setSlug(e.target.value)} />}
           </Field>

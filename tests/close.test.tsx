@@ -55,6 +55,19 @@ const submit = async (dialog: HTMLElement) => {
   await act(async () => { fireEvent.click(within(dialog).getByRole('button', { name: 'Record the close' })); });
 };
 
+describe('the dialog and the keyboard', () => {
+  it('gives focus back to Close initiative when it is cancelled', async () => {
+    gateway();
+    mount(<CloseInitiative team="atlas" slug={READY} closed={false} freeform={false} documents={docsOf(READY)} />);
+    const opener = screen.getByRole('button', { name: 'Close initiative' });
+    opener.focus();
+    fireEvent.click(opener);
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(document.activeElement).toBe(opener));
+  });
+});
+
 describe('the three choices each submit the CloseInput the spec maps them to', () => {
   it('accepted is finished, with no sign-off field and no outcome', async () => {
     const sent = gateway();

@@ -252,6 +252,33 @@ describe('Create a team', () => {
     expect(to).toEqual(['POST /api/console/settings/platform/teams']);
     expect(within(dialog).getByLabelText('Slug')).toHaveValue('atlas');
   });
+
+  it('opens again with no refusal after Cancel, and creates once for two presses of Enter', async () => {
+    const sent: unknown[] = [];
+    let answer: [number, unknown] = [400, { error: 'a team named atlas already exists' }];
+    vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      sent.push(JSON.parse(String(init?.body)));
+      return { ok: answer[0] < 300, status: answer[0], json: async () => answer[1] } as unknown as Response;
+    }));
+    mount(<CreateTeam />);
+    const open = () => { fireEvent.click(screen.getByRole('button', { name: 'Create a team' })); return screen.findByRole('dialog'); };
+    let dialog = await open();
+    fireEvent.change(within(dialog).getByLabelText('Slug'), { target: { value: 'atlas' } });
+    fireEvent.change(within(dialog).getByLabelText('Name'), { target: { value: 'Atlas again' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Create team' }));
+    await waitFor(() => expect(within(dialog).getByRole('alert')).toBeInTheDocument());
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    dialog = await open();
+    expect(within(dialog).queryByRole('alert')).toBeNull();
+    answer = [200, { ok: true, result: 'Created zeta' }];
+    sent.length = 0;
+    fireEvent.change(within(dialog).getByLabelText('Slug'), { target: { value: 'zeta' } });
+    fireEvent.change(within(dialog).getByLabelText('Name'), { target: { value: 'Zeta' } });
+    const form = within(dialog).getByLabelText('Slug').closest('form')!;
+    await act(async () => { fireEvent.submit(form); fireEvent.submit(form); });
+    expect(sent).toEqual([{ slug: 'zeta', name: 'Zeta' }]);
+  });
 });
 
 describe('the view tools answer the pages\' own responses', () => {

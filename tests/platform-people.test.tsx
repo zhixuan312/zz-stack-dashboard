@@ -99,7 +99,7 @@ describe('People draws the spec\'s destination row from the fake\'s answer', () 
 });
 
 describe('each state the page draws', () => {
-  it('loading while a filtered address is read in the browser', () => {
+  it('loading while the server\'s read of a filtered address is on its way', () => {
     window.history.replaceState(null, '', '/platform/people?q=ava');
     browser(null);
     mount(<PlatformPeopleView served={ok} />);
@@ -258,6 +258,63 @@ describe('the three acts: add a person, issue an enrolment link, deactivate one'
     expect(sent).toEqual([{ email: 'not-an-email', display_name: 'Somebody' }]);
     expect(to).toEqual(['POST /api/console/settings/platform/people']);
     expect(within(dialog).getByLabelText('Email')).toHaveValue('not-an-email');
+  });
+});
+
+describe('Add a person, pressed twice or cancelled', () => {
+  /** Every write the dialog sends, answered by `reply` once `release` is called. */
+  function writes(reply: [number, unknown]) {
+    const sent: unknown[] = [];
+    const waiting: (() => void)[] = [];
+    vi.stubGlobal('fetch', vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+      sent.push(JSON.parse(String(init?.body)));
+      return new Promise<Response>((resolve) => { waiting.push(() => resolve({ ok: reply[0] < 300, status: reply[0], json: async () => reply[1] } as unknown as Response)); });
+    }));
+    const release = async () => {
+      await waitFor(() => expect(waiting.length).toBeGreaterThan(0));
+      await act(async () => { waiting.splice(0).forEach((go) => go()); });
+    };
+    return { sent, release };
+  }
+  async function open() {
+    fireEvent.click(screen.getByRole('button', { name: 'Add a person' }));
+    return screen.findByRole('dialog');
+  }
+
+  it('adds once for two presses of Enter before the first has answered', async () => {
+    const { sent, release } = writes([200, { ok: true, result: 'Added ana@example.com' }]);
+    mount(<AddPerson />);
+    const dialog = await open();
+    fireEvent.change(within(dialog).getByLabelText('Email'), { target: { value: 'ana@example.com' } });
+    const form = within(dialog).getByLabelText('Email').closest('form')!;
+    fireEvent.submit(form);
+    fireEvent.submit(form);
+    await release();
+    expect(sent).toEqual([{ email: 'ana@example.com', display_name: '' }]);
+  });
+
+  it('opens again with no refusal after Cancel', async () => {
+    const { release } = writes([400, { error: 'that is not an email address' }]);
+    mount(<AddPerson />);
+    let dialog = await open();
+    fireEvent.change(within(dialog).getByLabelText('Email'), { target: { value: 'not-an-email' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Add person' }));
+    await release();
+    await waitFor(() => expect(within(dialog).getByRole('alert')).toHaveTextContent('that is not an email address'));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    dialog = await open();
+    expect(within(dialog).queryByRole('alert')).toBeNull();
+  });
+
+  it('gives focus back to Add a person when it closes', async () => {
+    writes([200, {}]);
+    mount(<AddPerson />);
+    const opener = screen.getByRole('button', { name: 'Add a person' });
+    opener.focus();
+    const dialog = await open();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(document.activeElement).toBe(opener));
   });
 });
 

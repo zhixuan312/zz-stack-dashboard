@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { Field } from '@/components/ui/field';
 import { RadioGroup } from '@/components/ui/radio-group';
 import { Select } from '@/components/ui/select';
@@ -81,7 +81,8 @@ export function CloseInitiative({ team, slug, closed, freeform, documents, varia
   if (closed && !open) return null;
   return (
     <Dialog open={open} onOpenChange={dismiss}>
-      <Button variant={variant} aria-haspopup="dialog" onClick={() => setOpen(true)}>Close initiative</Button>
+      {/* The dialog's own trigger, so closing it gives focus back here. */}
+      <DialogTrigger asChild><Button variant={variant}>Close initiative</Button></DialogTrigger>
       <DialogContent
         size="sm"
         title={done ? `${slug} is closed` : `Close ${slug}`}

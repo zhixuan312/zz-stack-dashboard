@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import { ApproveAction, canApprove, useRecordShown, type Shown } from '@/console/approve';
 import { Toaster } from '@/components/ui/toast';
 import { CONTEXT, NEW, READER, draftAt } from './approval-fixture.ts';
@@ -198,6 +199,16 @@ describe('ApproveAction', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
+  it('keeps the keyboard\'s place through the swap: on Cancel when asked, back on Approve when cancelled', async () => {
+    const user = userEvent.setup();
+    renderWithClient(<ApproveAction doc={doc} me={me} shown={recorded} onStale={() => {}}  onReload={() => {}}/>);
+    screen.getByRole('button', { name: 'Approve' }).focus();
+    await user.keyboard('{Enter}');
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Cancel' }));
+    await user.keyboard('{Enter}');
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Approve' }));
+  });
+
   it('waits for the presentation to be recorded before it can be pressed', () => {
     renderWithClient(<ApproveAction doc={doc} me={me} shown={{ state: 'recording', content_revision: doc.content_revision }} onStale={() => {}}  onReload={() => {}}/>);
     expect(screen.getByRole('button', { name: 'Approve' })).toBeDisabled();
@@ -307,6 +318,41 @@ describe('ApproveAction', () => {
       await waitFor(() => expect(fetchMock).toHaveBeenCalled());
       expect(fetchMock).toHaveBeenCalledTimes(1);
       await act(async () => answer(new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'content-type': 'application/json' } })));
+    } finally {
+      fetchMock.mockRestore();
+    }
+  });
+
+  it('keeps the keyboard\'s place once approved: on the status that says so, as the page reads the document approved', async () => {
+    const user = userEvent.setup();
+    const fetchMock = answering(200, { ok: true, result: 'approved' });
+    try {
+      const view = renderWithClient(<ApproveAction doc={doc} me={me} shown={recorded} onStale={() => {}} onReload={() => {}} />);
+      await user.click(screen.getByRole('button', { name: 'Approve' }));
+      await user.click(screen.getByRole('button', { name: 'Confirm' }));
+      await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('status')));
+      expect(screen.getByRole('status')).toHaveTextContent('Approved');
+      // The page's read of the document comes back approved; the place stays where it is.
+      const approved = { ...doc, status: 'approved', approved_by: me.email, approved_at: '2026-09-02T00:00:00Z' } as typeof doc;
+      view.rerender(<QueryClientProvider client={new QueryClient()}><ApproveAction doc={approved} me={me} shown={{ state: 'off' }} onStale={() => {}} onReload={() => {}} /></QueryClientProvider>);
+      expect(document.activeElement).toBe(screen.getByRole('status'));
+    } finally {
+      fetchMock.mockRestore();
+    }
+  });
+
+  it('keeps the keyboard\'s place when Approve is refused as out of date: on Reload', async () => {
+    const user = userEvent.setup();
+    const fetchMock = answering(409, { error: 'The document moved on.' });
+    function Page() {
+      const [shown, setShown] = useState<Shown>(recorded);
+      return <ApproveAction doc={doc} me={me} shown={shown} onStale={(message) => setShown({ state: 'stale', content_revision: doc.content_revision, message })} onReload={() => {}} />;
+    }
+    try {
+      renderWithClient(<Page />);
+      await user.click(screen.getByRole('button', { name: 'Approve' }));
+      await user.click(screen.getByRole('button', { name: 'Confirm' }));
+      await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Reload' })));
     } finally {
       fetchMock.mockRestore();
     }
