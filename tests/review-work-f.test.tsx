@@ -218,11 +218,18 @@ describe('F-35, F-36: a plugin in a person\'s words', () => {
 });
 
 describe('N-6: Evolution keeps its status pill inside the card at a phone\'s width', () => {
-  it('gives Status the card\'s edge padding where the columns after it are hidden', () => {
+  // The Table pads the last cell left visible at each width (#70): under 512px every cell after Status is hidden, so
+  // Status carries the edge; from 512px Build is visible after it and carries it instead.
+  it('leaves Status the last visible cell at a phone\'s width, which the Table pads', () => {
     mount(<PluginView name="sdlc" served={{ catalog: listOf(ME), evaluation: ok('/plugins/sdlc/eval', pluginEval('sdlc')) }} />);
     const table = panel('Evolution').querySelector('table')!;
-    expect(table.querySelectorAll('th')[1].className).toContain('@max-[672px]:pr-(--card-pad)');
-    for (const tr of table.querySelectorAll('tbody tr')) expect(tr.querySelectorAll('td')[1].className).toContain('@max-[672px]:pr-(--card-pad)');
+    expect(table.className).toContain('@max-[512px]:[&_tr>:nth-last-child(1_of_:not([data-hide-below]))]:pr-(--card-pad)');
+    for (const tr of table.querySelectorAll('tr')) {
+      const cells = [...tr.children];
+      expect(cells[1].getAttribute('data-hide-below')).toBeNull();
+      expect(cells.slice(2).map((c) => c.getAttribute('data-hide-below'))).toEqual(['sm', 'md']);
+      expect(cells[1].className).not.toContain('pr-(--card-pad)');
+    }
   });
 });
 

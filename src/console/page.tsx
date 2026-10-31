@@ -22,7 +22,7 @@ type Crumb = { label: string; href?: string };
  *
  * `context` is the page's shared context (decision 0011), and it is not optional: every console page tells the
  * assistant what it shows, its scope, its figures with their definitions and what the data cannot say, built by the
- * pure function beside its view in `src/views/`. A page with nothing to say yet passes `pendingContext`.
+ * pure function in `src/logic/<page>-context.ts`. A page with nothing to say yet passes `pendingContext`.
  */
 export function ConsolePage({
   title,

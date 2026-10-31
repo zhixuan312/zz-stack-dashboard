@@ -20,9 +20,6 @@ const STATUS_TONE: Record<CandidateStatus, 'positive' | 'critical' | 'warning' |
   invalid: 'critical',
 };
 
-/** The card's edge padding on the Status column wherever the columns after it are hidden (`hideBelow` sm and md). */
-const EDGE = '@max-[672px]:pr-(--card-pad)';
-
 /**
  * Evolution: every candidate the run's findings seeded, its hypothesis and status, how its local
  * build and gate went, and where release/rollback stands. `ownershipMode === 'evaluation_only'`
@@ -51,9 +48,7 @@ export function EvalEvolution({ pluginEval }: { pluginEval: PluginEvalFound }) {
         <TableHead>
           <TableRow>
             <TableHeader>Candidate</TableHeader>
-            {/* Under 672px Release and Build are hidden but still the row's last cells, so the card's edge padding, which
-                the table gives its last cell, is Status's to carry there: without it "Invalid" ran past the edge. */}
-            <TableHeader align="center" className={EDGE}>Status</TableHeader>
+            <TableHeader align="center">Status</TableHeader>
             <TableHeader hideBelow="sm" align="center">Build</TableHeader>
             <TableHeader hideBelow="md" align="right">Release</TableHeader>
           </TableRow>
@@ -65,7 +60,7 @@ export function EvalEvolution({ pluginEval }: { pluginEval: PluginEvalFound }) {
                 <span className="block text-sm text-ink">{c.hypothesis}</span>
                 <span className="text-2xs text-ink-3"><Day at={c.createdAt} /></span>
               </TableCell>
-              <TableCell align="center" className={EDGE}><Badge tone={STATUS_TONE[c.status]}>{STATUS_LABEL[c.status]}</Badge></TableCell>
+              <TableCell align="center"><Badge tone={STATUS_TONE[c.status]}>{STATUS_LABEL[c.status]}</Badge></TableCell>
               <TableCell hideBelow="sm" align="center" className="text-xs">
                 {!c.build ? <span className="text-ink-3">Not built</span>
                   : c.build.ok ? <Badge tone="positive">Passed</Badge>
