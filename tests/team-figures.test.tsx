@@ -147,6 +147,12 @@ describe('the writes, through the routes Settings called', () => {
     expect(within(team).queryByRole('button', { name: 'Archive' })).toBeNull();
     expect(team.textContent).toContain('Creating the same slug again restores it.');
   });
+
+  it('offers no Add member on an archived team, which the gateway would refuse every time', () => {
+    mount({ state: 'ok', data: answered(teamDetail('cinder')!) }, 'cinder');
+    expect(screen.queryByRole('form', { name: 'Add a member to cinder' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Add member' })).toBeNull();
+  });
 });
 
 describe('a team the read cannot draw', () => {

@@ -78,7 +78,7 @@ export function PlatformTeamView({ slug, served }: { slug: string; served: Revis
   return (
     <Stack>
       <Row split="tiles">
-        <MetricTile label={TEAM_TILES.people.label} hint={TEAM_TILES.people.definition} icon={<Users />} value={tiles.people} note={`${admins} ${plural(admins, 'admin')}`} />
+        <MetricTile label={TEAM_TILES.people.label} hint={TEAM_TILES.people.definition} icon={<Users />} value={tiles.people} note={`${formatCount(admins)} ${plural(admins, 'admin')}`} />
         <MetricTile label={TEAM_TILES.openWork.label} hint={TEAM_TILES.openWork.definition} icon={<ListTree />} value={tiles.openWork} />
         <MetricTile label={TEAM_TILES.waiting.label} hint={TEAM_TILES.waiting.definition} icon={<Signature />} value={tiles.waiting} emphasis={tiles.waiting > 0} />
         <MetricTile label={TEAM_TILES.lessons.label} hint={TEAM_TILES.lessons.definition} icon={<BookOpen />} value={tiles.lessons} />
@@ -242,6 +242,8 @@ function Members({ slug, team }: { slug: string; team: TeamDetail }) {
     { key: 'remove', header: <span className="sr-only">Remove</span>, mobile: 'status', cell: (m) => <Remove slug={slug} m={m} /> },
   ]);
   const { members } = team;
+  // An archived team takes no new member (the gateway refuses every one); This team says how to restore it.
+  const archived = team.team.status !== 'active';
   return (
     <DataTable
       caption={`${slug}'s members`}
@@ -253,8 +255,8 @@ function Members({ slug, team }: { slug: string; team: TeamDetail }) {
       rowKey={(m) => m.email}
       pageSize={10}
       pageSizes={[10]}
-      empty={{ title: 'Nobody is in this team', body: 'Add the first member above.' }}
-      toolbar={<AddMember slug={slug} />}
+      empty={{ title: 'Nobody is in this team', body: archived ? 'An archived team takes no new member.' : 'Add the first member above.' }}
+      toolbar={archived ? undefined : <AddMember slug={slug} />}
     />
   );
 }
