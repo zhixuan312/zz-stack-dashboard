@@ -1,19 +1,17 @@
 'use client';
 
-import { useTransition } from 'react';
-import { useRouter } from 'next/navigation';
-import { GitFork, History, PlusCircle, RotateCw } from 'lucide-react';
+import { GitFork, History, PlusCircle } from 'lucide-react';
 import { Row } from '@/components/base/shell';
 import { AskAbout } from '@/components/patterns/ask-about';
 import { DataTable, type Column } from '@/components/patterns/data-table';
 import { MetricTile } from '@/components/patterns/metric-tile';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { aligned } from '@/console/columns';
 import { Goes } from '@/console/eval-score';
 import { KnowledgeTabs, useServerReadLive } from '@/console/knowledge-tabs';
 import { ConsolePage } from '@/console/page';
+import { RetryRead } from '@/console/server-trouble';
 import { useDataClock } from '@/lib/api';
 import type { KnowledgeLog, KnowledgeLogEntry } from '@/lib/api-shapes';
 import { knowledgeNodeHref } from '@/lib/knowledge-filters';
@@ -66,8 +64,6 @@ function columns(): Column<KnowledgeLogEntry>[] {
 export function KnowledgeLogView({ read }: { read: ServerRead<KnowledgeLog> }) {
   useLive(['knowledge'], read.state === 'ok' ? read.revisions : undefined);
   useServerReadLive('/knowledge/log');
-  const router = useRouter();
-  const [retrying, startRetry] = useTransition();
   const now = useDataClock();
   const log = read.state === 'ok' ? read.data : null;
   const entries = log?.entries ?? [];
@@ -92,7 +88,7 @@ export function KnowledgeLogView({ read }: { read: ServerRead<KnowledgeLog> }) {
         <MetricTile label="Superseded" icon={<GitFork />} value={log ? log.totals.superseded : '—'} note="Replaced by a newer node" />
       </Row>
       {read.state !== 'ok' ? (
-        <EmptyState kind="error" title="The entries did not load" action={<Button size="sm" icon={<RotateCw />} busy={retrying} onClick={() => startRetry(() => router.refresh())}>Retry</Button>}>{troubleOf(read)}</EmptyState>
+        <EmptyState kind="error" title="The entries did not load" action={<RetryRead size="sm" />}>{troubleOf(read)}</EmptyState>
       ) : (
         <DataTable
           caption="Knowledge log"

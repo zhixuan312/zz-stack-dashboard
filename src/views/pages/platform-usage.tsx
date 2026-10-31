@@ -1,8 +1,7 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { useMemo, useTransition, type ReactNode } from 'react';
-import { Activity, Ban, RotateCw, Timer, Users } from 'lucide-react';
+import { useMemo, type ReactNode } from 'react';
+import { Activity, Ban, Timer, Users } from 'lucide-react';
 import { Row, Stack } from '@/components/base/shell';
 import { useShareView } from '@/components/base/use-share-view';
 import { BarList } from '@/components/charts/bar-list';
@@ -15,13 +14,13 @@ import { AskAbout } from '@/components/patterns/ask-about';
 import { DataTable, type Column } from '@/components/patterns/data-table';
 import { MetricTile } from '@/components/patterns/metric-tile';
 import { ChartSkeleton, TableSkeleton, TilesSkeleton } from '@/components/patterns/page-loading';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Delta } from '@/components/ui/delta';
 import { EmptyState } from '@/components/ui/empty-state';
 import { KeyValue } from '@/components/ui/key-value';
 import { aligned } from '@/console/columns';
 import { Panel } from '@/console/panel';
+import { PartUnavailable } from '@/console/part-unread';
+import { ServerTrouble } from '@/console/server-trouble';
 import type { Usage } from '@/lib/fleet-shapes';
 import { formatDay, formatShortDate } from '@/lib/format-date';
 import { plural } from '@/lib/format';
@@ -50,7 +49,7 @@ type ToolRow = Ok<Usage['tools']>['rows'][number];
  */
 export function PlatformUsageView({ read }: { read: UsageRead }) {
   useShareView(usageContext(read));
-  if (read.state !== 'ok') return <UsageTrouble read={read} />;
+  if (read.state !== 'ok') return <ServerTrouble {...usageTrouble(read)} />;
   const u = read.usage;
   return (
     <Stack>
@@ -95,22 +94,13 @@ export function UsageSkeleton() {
   );
 }
 
-/** A part the read could not work out, said in its own card, so the parts beside it stand. */
-function Unavailable({ title, reason, actions }: { title: string; reason: string; actions?: ReactNode }) {
-  return (
-    <Panel title={title} actions={actions}>
-      <EmptyState layout="inline" title={`${title}: unavailable`}>It could not be read ({reason}). The rest of the page stands.</EmptyState>
-    </Panel>
-  );
-}
-
 /** A tile's value: its number, or the word for why there is none, never a zero. */
 const ICONS: Record<TileKey, ReactNode> = { calls: <Activity />, refusedShare: <Ban />, p95Ms: <Timer />, sessions: <Users /> };
 
 /** The tiles, the calls by week and the refusals put right, on one cursor: pointing at a week reads it everywhere. */
 function Weeks({ usage }: { usage: Usage }) {
-  const weeks = usage.callsByWeek.state === 'ok' ? usage.callsByWeek.data.weeks : [];
-  const dates = useMemo(() => weeks.map((w) => w.window.from), [weeks]);
+  const part = usage.callsByWeek;
+  const dates = useMemo(() => (part.state === 'ok' ? part.data.weeks.map((w) => w.window.from) : []), [part]);
   return (
     <Meridian dates={dates}>
       <Tiles part={usage.tiles} />
@@ -123,7 +113,7 @@ function Weeks({ usage }: { usage: Usage }) {
 }
 
 function Tiles({ part }: { part: Usage['tiles'] }) {
-  if (part.state !== 'ok') return <Unavailable title="Last week" reason={part.reason} />;
+  if (part.state !== 'ok') return <PartUnavailable title="Last week" reason={part.reason} />;
   return (
     <Row split="tiles" data-figures="read">
       {TILE_KEYS.map((k) => {
@@ -159,7 +149,7 @@ function Calls({ usage }: { usage: Usage }) {
   const labels = teamParts(usage);
   const split = labels.length > 0;
   const ask = <AskWeek split={split} />;
-  if (usage.callsByWeek.state !== 'ok') return <Unavailable title={CALLS_TITLE} reason={usage.callsByWeek.reason} actions={ask} />;
+  if (usage.callsByWeek.state !== 'ok') return <PartUnavailable title={CALLS_TITLE} reason={usage.callsByWeek.reason} actions={ask} />;
   const weeks = usage.callsByWeek.data.weeks;
   const at = lastWhole(weeks);
   const last = at >= 0 ? weeks[at] : null;
@@ -193,7 +183,7 @@ function Calls({ usage }: { usage: Usage }) {
 function Followup({ part }: { part: Usage['followup'] }) {
   const title = 'Refusals put right';
   const { index } = useMeridianIndex();
-  if (part.state !== 'ok') return <Unavailable title={title} reason={part.reason} />;
+  if (part.state !== 'ok') return <PartUnavailable title={title} reason={part.reason} />;
   const weeks = part.data.weeks;
   const at = index !== null && weeks[index] ? index : lastWhole(weeks);
   const shown = at >= 0 ? weeks[at] : null;
@@ -225,7 +215,7 @@ function Followup({ part }: { part: Usage['followup'] }) {
 
 function Traffic({ part }: { part: Usage['traffic'] }) {
   const title = 'The platform\'s own traffic';
-  if (part.state !== 'ok') return <Unavailable title={title} reason={part.reason} />;
+  if (part.state !== 'ok') return <PartUnavailable title={title} reason={part.reason} />;
   const { work, maintenance, window } = part.data;
   return (
     <Panel title={title} description={`All calls in the ${weekOf(window)}: real work beside the platform's own maintenance, which every other figure leaves out`}>
@@ -238,7 +228,7 @@ function Traffic({ part }: { part: Usage['traffic'] }) {
 
 function Refusals({ part }: { part: Usage['refusals'] }) {
   const title = 'All refusals by population';
-  if (part.state !== 'ok') return <Unavailable title={title} reason={part.reason} />;
+  if (part.state !== 'ok') return <PartUnavailable title={title} reason={part.reason} />;
   const r = part.data;
   const total = REFUSAL_PARTS.reduce((n, p) => n + r[p.key], 0);
   return (
@@ -279,7 +269,7 @@ const toolsShown = (shown: number, total: number) => (total > shown ? `; ${forma
 
 function Tools({ part }: { part: Usage['tools'] }) {
   const title = 'Each tool\'s median call';
-  if (part.state !== 'ok') return <Unavailable title={title} reason={part.reason} />;
+  if (part.state !== 'ok') return <PartUnavailable title={title} reason={part.reason} />;
   const { rows, total } = part.data;
   return (
     <DataTable
@@ -306,7 +296,7 @@ const WEEK_MS = 7 * 86_400_000;
  */
 function Rhythm({ part, coverageFrom }: { part: Usage['rhythm']; coverageFrom: string | null }) {
   const title = 'Weekday by hour';
-  if (part.state !== 'ok') return <Unavailable title={title} reason={part.reason} />;
+  if (part.state !== 'ok') return <PartUnavailable title={title} reason={part.reason} />;
   const { timezone, window, values } = part.data;
   const fromMs = Math.max(...[window.from, window.observedFrom, coverageFrom].flatMap((t) => (t ? [Date.parse(t)] : [])));
   const begins = fromMs > Date.parse(window.from);
@@ -326,7 +316,7 @@ const UNREGISTERED = 'Unregistered tools';
 
 function MostUsed({ part }: { part: Usage['mostUsed'] }) {
   const title = 'Tools called most';
-  if (part.state !== 'ok') return <Unavailable title={title} reason={part.reason} />;
+  if (part.state !== 'ok') return <PartUnavailable title={title} reason={part.reason} />;
   const { rows, total } = part.data;
   return (
     <Panel title={title} description={`Real-work calls by tool in the last whole week; a tool no door registers is counted under one name${toolsShown(rows.filter((t) => t.tool !== UNREGISTERED).length, total)}`}>
@@ -339,7 +329,7 @@ function MostUsed({ part }: { part: Usage['mostUsed'] }) {
 
 function PerApproval({ part }: { part: Usage['perApproval'] }) {
   const title = 'Calls per recorded approval';
-  if (part.state !== 'ok') return <Unavailable title={title} reason={part.reason} />;
+  if (part.state !== 'ok') return <PartUnavailable title={title} reason={part.reason} />;
   const { last, previous } = part.data;
   return (
     <Panel title={title} description="Real-work calls in a week over the approvals zz-core recorded that week">
@@ -350,7 +340,7 @@ function PerApproval({ part }: { part: Usage['perApproval'] }) {
 
 function ModelCalls({ part }: { part: Usage['modelCalls'] }) {
   const title = 'The platform\'s model calls';
-  if (part.state !== 'ok') return <Unavailable title={title} reason={part.reason} />;
+  if (part.state !== 'ok') return <PartUnavailable title={title} reason={part.reason} />;
   const { last, previous, byPurpose } = part.data;
   return (
     <Panel title={title} description={`The platform's own calls to a model, in the ${weekOf(last.window)}`}>
@@ -362,23 +352,5 @@ function ModelCalls({ part }: { part: Usage['modelCalls'] }) {
         { label: 'Cost', value: <span data-cost className="text-ink-3">{NOT_RECORDED}</span>, title: NOT_RECORDED },
       ]} />
     </Panel>
-  );
-}
-
-function UsageTrouble({ read }: { read: Exclude<UsageRead, { state: 'ok' }> }) {
-  const router = useRouter();
-  const [retrying, startRetry] = useTransition();
-  const { title, detail } = usageTrouble(read);
-  return (
-    <Card>
-      <EmptyState
-        kind="error"
-        title={title}
-        className="py-16"
-        action={<Button variant="primary" icon={<RotateCw />} busy={retrying} onClick={() => startRetry(() => router.refresh())}>Retry</Button>}
-      >
-        {detail}
-      </EmptyState>
-    </Card>
   );
 }

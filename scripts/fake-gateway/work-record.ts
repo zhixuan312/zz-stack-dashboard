@@ -30,7 +30,7 @@ import { iso, nextStart, now, startOf } from './clock.ts';
 import { NO_TEAM, pageParams } from './work-activity.ts';
 import { approvedMs, callerApprovalRows, firstApproval } from './work-approvals.ts';
 import { ADDITIONS, COVERAGE, estimateOf, wordsIn } from './work-home.ts';
-import { counted, rowsOf, workMeta } from './work-initiatives.ts';
+import { counted, outcomeOf, rowsOf, workMeta } from './work-initiatives.ts';
 import { lessonsCiting, lessonsMade, searchesOf, SHELF } from './work-knowledge.ts';
 import { median as middle, observedRuns, runsOf } from './work-runs.ts';
 import { documentDetail, detailBody } from './work.ts';
@@ -238,7 +238,7 @@ function recordOf(team: string, email: string, period: Period, page: { limit: nu
     } },
     record: { state: 'ok', data: {
       rows: byOpened.slice(page.offset, page.offset + page.limit).map((r) => ({
-        slug: r.slug, outcome: r.closed === null ? null : r.state, opened: r.opened, closed: r.closed,
+        slug: r.slug, outcome: outcomeOf(r), opened: r.opened, closed: r.closed,
         tookHours: r.closed === null ? null : (Date.parse(r.closed) - Date.parse(r.opened)) / HOUR,
         documents: documentsOf(r.slug),
         lessons: lessonsCiting(r.slug),

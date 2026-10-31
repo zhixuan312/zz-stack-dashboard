@@ -2,8 +2,8 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState, useTransition, type ComponentProps } from 'react';
-import { ArrowRight, BookCheck, CalendarDays, Clock, RotateCw, Search } from 'lucide-react';
+import { useState, type ComponentProps } from 'react';
+import { ArrowRight, BookCheck, CalendarDays, Clock, Search } from 'lucide-react';
 import { Row, Stack } from '@/components/base/shell';
 import { useShareView } from '@/components/base/use-share-view';
 import { BarList } from '@/components/charts/bar-list';
@@ -12,14 +12,13 @@ import { Meridian, useMeridianIndex } from '@/components/charts/meridian';
 import { AskAbout } from '@/components/patterns/ask-about';
 import { FeaturedMetric, type FeaturedFigure } from '@/components/patterns/featured-metric';
 import { MetricTile } from '@/components/patterns/metric-tile';
-import { Badge } from '@/components/ui/badge';
 import { Banner } from '@/components/ui/banner';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { StateBadge } from '@/console/initiative';
 import { Panel } from '@/console/panel';
 import { Pointed } from '@/console/pointed';
+import { ServerTrouble } from '@/console/server-trouble';
 import { formatPercent, plural } from '@/lib/format';
 import { formatDay, formatShortDate } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
@@ -45,7 +44,7 @@ export function HomeView({ read }: { read: HomeRead }) {
   // The week the paired chart's cursor rests on, reported up from inside the Meridian: it is part of what the page shows.
   const [pointed, setPointed] = useState<number | null>(null);
   useShareView(homeContext(read, { index: pointed }));
-  if (read.state !== 'ok') return <HomeTrouble state={read.state} />;
+  if (read.state !== 'ok') return <ServerTrouble {...troubleOf(read.state)} />;
   return <Week home={read.home} team={read.team} onPoint={setPointed} />;
 }
 
@@ -236,8 +235,6 @@ function OpenWork({ home, team }: { home: Home; team: string | null }) {
   );
 }
 
-const OUTCOME_TONE: Record<string, 'positive' | 'neutral'> = { accepted: 'positive', delivered: 'positive', abandoned: 'neutral' };
-
 function ClosedLastWeek({ home, team }: { home: Home; team: string | null }) {
   const week = weekOf(lastWeekOf(home));
   if (home.closedLastWeek.state !== 'ok') return <Panel title="Closed last week" flush><Unread what="Last week's closures" /></Panel>;
@@ -250,7 +247,7 @@ function ClosedLastWeek({ home, team }: { home: Home; team: string | null }) {
             <li key={c.slug}>
               <Go href={team ? `/initiatives/${team}/${c.slug}` : '/initiatives'} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 gap-y-1 px-(--card-pad) py-3 hover:bg-fill-hover">
                 <span className="text-sm font-medium [overflow-wrap:anywhere] text-ink">{c.slug}</span>
-                <Badge tone={OUTCOME_TONE[c.outcome] ?? 'neutral'} dot>{c.outcome[0].toUpperCase()}{c.outcome.slice(1)}</Badge>
+                <StateBadge state={c.outcome} />
                 <span className="t-caption">Closed {formatDay(c.closedAt)}</span>
               </Go>
             </li>
@@ -294,23 +291,5 @@ function Week({ home, team, onPoint }: { home: Home; team: string | null; onPoin
         </Go>
       </Stack>
     </Meridian>
-  );
-}
-
-function HomeTrouble({ state }: { state: Exclude<HomeRead['state'], 'ok'> }) {
-  const router = useRouter();
-  const [retrying, startRetry] = useTransition();
-  const { title, detail } = troubleOf(state);
-  return (
-    <Card>
-      <EmptyState
-        kind="error"
-        title={title}
-        className="py-16"
-        action={<Button variant="primary" icon={<RotateCw />} busy={retrying} onClick={() => startRetry(() => router.refresh())}>Retry</Button>}
-      >
-        {detail}
-      </EmptyState>
-    </Card>
   );
 }

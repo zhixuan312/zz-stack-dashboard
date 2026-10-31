@@ -1,9 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useTransition, type ReactNode } from 'react';
-import { ArrowRight, HeartPulse, RotateCw, Undo2, Users } from 'lucide-react';
+import { ArrowRight, HeartPulse, Undo2, Users } from 'lucide-react';
 import { Row, Stack } from '@/components/base/shell';
 import { useShareView } from '@/components/base/use-share-view';
 import { ColumnChart } from '@/components/charts/column-chart';
@@ -14,7 +12,6 @@ import { DataTable, type Column } from '@/components/patterns/data-table';
 import { FeaturedMetric, type FeaturedFigure } from '@/components/patterns/featured-metric';
 import { MetricTile } from '@/components/patterns/metric-tile';
 import { TilesSkeleton } from '@/components/patterns/page-loading';
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Delta } from '@/components/ui/delta';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -23,6 +20,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { StatusDot } from '@/components/ui/status-dot';
 import { aligned } from '@/console/columns';
 import { Panel } from '@/console/panel';
+import { PartUnavailable } from '@/console/part-unread';
+import { ServerTrouble } from '@/console/server-trouble';
 import { plural } from '@/lib/format';
 import { formatCount } from '@/lib/format-units';
 import { formatDay } from '@/lib/format-date';
@@ -41,7 +40,7 @@ import { stampOf } from '@/logic/read-stamp';
  */
 export function PlatformStatusView({ read }: { read: StatusRead }) {
   useShareView(platformStatusContext(read));
-  if (read.state !== 'ok') return <StatusTrouble state={read.state} />;
+  if (read.state !== 'ok') return <ServerTrouble {...troubleOf(read.state)} />;
   const s = read.status;
   return (
     <Stack>
@@ -71,15 +70,6 @@ export function StatusSkeleton() {
       <TilesSkeleton count={3} />
       <Skeleton className="h-72 rounded-lg" />
     </>
-  );
-}
-
-/** A part the read could not work out, said in its own card, so the parts beside it stand. */
-function Unavailable({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <Panel title={title}>
-      <EmptyState layout="inline" title={`${title}: unavailable`}>{children}</EmptyState>
-    </Panel>
   );
 }
 
@@ -167,7 +157,7 @@ const OWN_ICONS = [<HeartPulse key="m" />, <Undo2 key="f" />, <Users key="s" />]
 function OwnTeam({ status }: { status: PlatformStatus }) {
   const own = ownOf(status);
   if (own.state === 'none') return <Card className="p-(--card-pad)"><p className="t-small text-ink-2">{NO_TEAM}</p></Card>;
-  if (own.state === 'unavailable') return <Unavailable title="Your team's own counts">They could not be read ({own.reason}). The platform&apos;s figures above stand.</Unavailable>;
+  if (own.state === 'unavailable') return <PartUnavailable title="Your team's own counts">They could not be read ({own.reason}). The platform&apos;s figures above stand.</PartUnavailable>;
   return (
     <div className="flex flex-col gap-3">
       <Row split="tiles">
@@ -282,7 +272,7 @@ const DOOR_COLUMNS: Column<DoorRow>[] = aligned([
 const faultDays = (n: number) => `${n} ${plural(n, 'fault day')}`;
 
 function Doors({ doors }: { doors: PlatformStatus['doors'] }) {
-  if (doors.state === 'unavailable') return <Unavailable title="The doors">Each door&apos;s days could not be read ({doors.reason}).</Unavailable>;
+  if (doors.state === 'unavailable') return <PartUnavailable title="The doors">Each door&apos;s days could not be read ({doors.reason}).</PartUnavailable>;
   return (
     <DataTable
       title="The doors"
@@ -301,7 +291,7 @@ function Doors({ doors }: { doors: PlatformStatus['doors'] }) {
 
 function RunningPanel({ status }: { status: PlatformStatus }) {
   const running = runningOf(status);
-  if (running.state === 'unavailable') return <Unavailable title="What is running">It could not be read ({running.reason}).</Unavailable>;
+  if (running.state === 'unavailable') return <PartUnavailable title="What is running">It could not be read ({running.reason}).</PartUnavailable>;
   return (
     <Panel title="What is running" description="The version the gateway runs, and when its tag was made.">
       {running.state === 'unrecorded'
@@ -311,23 +301,5 @@ function RunningPanel({ status }: { status: PlatformStatus }) {
           <KeyValue columns={2} items={running.items.map((i) => ({ label: i.label, value: i.value }))} />
         </>}
     </Panel>
-  );
-}
-
-function StatusTrouble({ state }: { state: Exclude<StatusRead['state'], 'ok'> }) {
-  const router = useRouter();
-  const [retrying, startRetry] = useTransition();
-  const { title, detail } = troubleOf(state);
-  return (
-    <Card>
-      <EmptyState
-        kind="error"
-        title={title}
-        className="py-16"
-        action={<Button variant="primary" icon={<RotateCw />} busy={retrying} onClick={() => startRetry(() => router.refresh())}>Retry</Button>}
-      >
-        {detail}
-      </EmptyState>
-    </Card>
   );
 }

@@ -172,6 +172,10 @@ const ORDER = (a: InitiativeRow, b: InitiativeRow) =>
 /** Every initiative of `team`, as the list reads it, in the list's order. */
 export const rowsOf = (team: string | null): InitiativeRow[] => INITIATIVES.filter((i) => i.team === team).map((i) => rowOf(asKept(i))).sort(ORDER);
 
+/** A row's outcome, which is its state once it closed, and nothing while it is open. */
+export const outcomeOf = (r: InitiativeRow): CloseResult['outcome'] | null =>
+  r.state === 'accepted' || r.state === 'delivered' || r.state === 'abandoned' ? r.state : null;
+
 const STATES: InitiativeRow['state'][] = ['open', 'waiting', 'quiet', 'accepted', 'delivered', 'abandoned'];
 const OUTCOMES = ['accepted', 'delivered', 'abandoned'] as const;
 const within = (at: string | null, w: Window) => at !== null && at >= w.from && at < w.to;

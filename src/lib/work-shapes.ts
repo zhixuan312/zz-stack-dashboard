@@ -80,7 +80,7 @@ export type Home = {
   runs: Part<{ active: ActiveGroup[]; more: number; lastRunAt: string | null }>;
   milestones: Part<Milestone[]>;
   openWork: Part<{ rows: InitiativeRow[]; quiet: number; total: number }>;
-  closedLastWeek: Part<{ slug: string; outcome: string; closedAt: string }[]>;
+  closedLastWeek: Part<{ slug: string; outcome: CloseResult['outcome']; closedAt: string }[]>;
 };
 
 /* /approvals */
@@ -163,7 +163,7 @@ export type RecordRead = {
   agents: Part<AgentsSlice>;
   firsts: Part<FirstsSlice>;
   record: Part<{
-    rows: { slug: string; outcome: string | null; opened: string; closed: string | null; tookHours: number | null; documents: number; lessons: number }[];
+    rows: { slug: string; outcome: CloseResult['outcome'] | null; opened: string; closed: string | null; tookHours: number | null; documents: number; lessons: number }[];
     total: number;
     summary: {
       byOutcome: { open: number; accepted: number; delivered: number; abandoned: number };

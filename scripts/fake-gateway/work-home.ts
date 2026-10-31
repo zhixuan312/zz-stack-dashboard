@@ -21,7 +21,7 @@ import type { Finding, PeriodFigure } from '../../src/lib/platform-shapes.ts';
 import type { ActiveGroup, Home, WritingCoverage, WritingEstimate } from '../../src/lib/work-shapes.ts';
 import { localDay, now } from './clock.ts';
 import { callerApprovalRows, callerWeeks, waitingOf } from './work-approvals.ts';
-import { LAST_WEEK, WEEKS, counted, inWeek, rowsOf, tally, workMeta } from './work-initiatives.ts';
+import { LAST_WEEK, WEEKS, counted, inWeek, outcomeOf, rowsOf, tally, workMeta } from './work-initiatives.ts';
 import { lessonsMade, searchesOf } from './work-knowledge.ts';
 import { median, observedRuns, runsOf } from './work-runs.ts';
 
@@ -198,7 +198,7 @@ export function homeOf(team: string | null, email: string): FixtureAnswer<Home> 
     openWork: { state: 'ok', data: {
       rows: open.filter((r) => r.state !== 'quiet').slice(0, quiet ? 4 : 5).map((r) => ({ ...r })), quiet, total: open.length,
     } },
-    closedLastWeek: { state: 'ok', data: closedLast.map((r) => ({ slug: r.slug, outcome: r.state, closedAt: r.closed! })) },
+    closedLastWeek: { state: 'ok', data: closedLast.map((r) => ({ slug: r.slug, outcome: outcomeOf(r)!, closedAt: r.closed! })) },
   };
 }
 

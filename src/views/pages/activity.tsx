@@ -15,6 +15,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { aligned } from '@/console/columns';
 import { ConsolePage } from '@/console/page';
 import { Panel } from '@/console/panel';
+import { PartUnread } from '@/console/part-unread';
 import { Pointed } from '@/console/pointed';
 import { failureOf } from '@/console/query';
 import { When } from '@/console/when';
@@ -263,15 +264,10 @@ function AskWeek() {
   return <AskAbout question={at ? `What was refused in the week of ${formatDay(at)}, and who is each refusal put down to?` : 'What was refused last week, and which group of refusals should we fix first?'} />;
 }
 
-/** A part of the summary that could not be read, in its own card. */
-const Unread = ({ title, reason, actions }: { title: string; reason: string; actions?: ReactNode }) => (
-  <Panel title={title} actions={actions}><EmptyState kind="error" title={`${title} did not load`} className="py-8">{reason}</EmptyState></Panel>
-);
-
 /** The refusals by week, each split by its four owners, the last whole week the one the card is about. */
 function Refusals({ summary }: { summary?: ActivitySummary }) {
   if (!summary) return <Panel title={REFUSALS_TITLE} actions={<AskWeek />}><p className="t-small text-ink-3">Not read: the week&apos;s figures did not load.</p></Panel>;
-  if (summary.weeks.state !== 'ok') return <Unread title={REFUSALS_TITLE} reason={summary.weeks.reason} actions={<AskWeek />} />;
+  if (summary.weeks.state !== 'ok') return <PartUnread title={REFUSALS_TITLE} reason={summary.weeks.reason} actions={<AskWeek />} />;
   const weeks = summary.weeks.data;
   const last = summary.tiles.refused;
   return (
@@ -302,7 +298,7 @@ function Refusals({ summary }: { summary?: ActivitySummary }) {
 function Groups({ summary, page, onPage }: { summary?: ActivitySummary; page: number; onPage: (page: number) => void }) {
   const title = 'Refusals by owner, tool and message';
   if (!summary) return <Panel title={title}><p className="t-small text-ink-3">Not read: the week&apos;s figures did not load.</p></Panel>;
-  if (summary.groups.state !== 'ok') return <Unread title={title} reason={summary.groups.reason} />;
+  if (summary.groups.state !== 'ok') return <PartUnread title={title} reason={summary.groups.reason} />;
   const { rows, groups, rest } = summary.groups.data;
   return (
     <DataTable

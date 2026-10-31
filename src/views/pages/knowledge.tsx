@@ -1,11 +1,10 @@
 'use client';
 
-import { useMemo, useState, useTransition, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import type { UseQueryResult } from '@tanstack/react-query';
-import { Archive, BookOpen, RotateCw, Search, SearchX } from 'lucide-react';
+import { Archive, BookOpen, Search, SearchX } from 'lucide-react';
 import { Row } from '@/components/base/shell';
 import { AskAbout } from '@/components/patterns/ask-about';
 import { DataTable, useQueryState, type Column } from '@/components/patterns/data-table';
@@ -20,6 +19,8 @@ import { aligned } from '@/console/columns';
 import { KnowledgeTabs, useServerReadLive } from '@/console/knowledge-tabs';
 import { ConsolePage } from '@/console/page';
 import { Panel } from '@/console/panel';
+import { PartUnread } from '@/console/part-unread';
+import { RetryRead } from '@/console/server-trouble';
 import { failureOf } from '@/console/query';
 import { When } from '@/console/when';
 import { useConsole, useDataClock, type ApiError } from '@/lib/api';
@@ -231,8 +232,6 @@ function SearchResults({ question, search }: { question: string; search: UseQuer
 
 /** The four tiles, from the server's read; over a read that failed, dashes and the reason, with Retry. */
 function Tiles({ read }: { read: ServerRead<KnowledgeSummary> }) {
-  const router = useRouter();
-  const [retrying, startRetry] = useTransition();
   const tiles = read.state === 'ok' ? read.data.tiles : null;
   const value = (v: number | null | undefined) => (v === null || v === undefined ? '—' : v);
   return (
@@ -247,20 +246,15 @@ function Tiles({ read }: { read: ServerRead<KnowledgeSummary> }) {
         <MetricTile label="Searches with no result" hint="The team's searches in the last whole week that found nothing at all." icon={<SearchX />} value={value(tiles?.noResult.figure.value)} note={tiles ? (tiles.noResult.denominator === null ? 'Not measured last week' : `Of ${formatCount(tiles.noResult.denominator)} last week`) : undefined} />
       </Row>
       {read.state !== 'ok' ? (
-        <EmptyState kind="error" title="The shelf's figures did not load" action={<Button size="sm" icon={<RotateCw />} busy={retrying} onClick={() => startRetry(() => router.refresh())}>Retry</Button>}>{troubleOf(read)}</EmptyState>
+        <EmptyState kind="error" title="The shelf's figures did not load" action={<RetryRead size="sm" />}>{troubleOf(read)}</EmptyState>
       ) : null}
     </>
   );
 }
 
-/** A part of the summary the gateway could not read, said in its own card. */
-const Unread = ({ title, reason }: { title: string; reason: string }) => (
-  <Panel title={title}><EmptyState kind="error" title={`${title} did not load`} className="py-8">{reason}</EmptyState></Panel>
-);
-
 function Questions({ summary }: { summary?: KnowledgeSummary }) {
   if (!summary) return <Panel title="Questions that found nothing"><p className="t-small text-ink-3">Not read: the shelf&rsquo;s figures did not load.</p></Panel>;
-  if (summary.questions.state !== 'ok') return <Unread title="Questions that found nothing" reason={summary.questions.reason} />;
+  if (summary.questions.state !== 'ok') return <PartUnread title="Questions that found nothing" reason={summary.questions.reason} />;
   const { rows, total } = summary.questions.data;
   return (
     <DataTable
@@ -300,7 +294,7 @@ function lastWeekLine(last: PeriodFigure | undefined): string {
 function Weeks({ summary }: { summary?: KnowledgeSummary }) {
   const title = 'Searches with results, by week';
   if (!summary) return <Panel title={title}><p className="t-small text-ink-3">Not read: the shelf&rsquo;s figures did not load.</p></Panel>;
-  if (summary.weeks.state !== 'ok') return <Unread title={title} reason={summary.weeks.reason} />;
+  if (summary.weeks.state !== 'ok') return <PartUnread title={title} reason={summary.weeks.reason} />;
   // Every week the answer holds, which is never past 26: the gateway draws its 24 newest whole weeks and the running one.
   const weeks: PeriodFigure[] = summary.weeks.data;
   // A week with no search has no share: it keeps its slot and reads "No searches", never 0%.
@@ -336,7 +330,7 @@ function Newest({ summary }: { summary?: KnowledgeSummary }) {
   const title = 'Newest lessons';
   const foot = <Link href="/knowledge/log" className="link hit t-small mt-4 inline-block">The log counts every lesson recorded or superseded since it began</Link>;
   if (!summary) return <Panel title={title}><p className="t-small text-ink-3">Not read: the shelf&rsquo;s figures did not load.</p>{foot}</Panel>;
-  if (summary.newest.state !== 'ok') return <Unread title={title} reason={summary.newest.reason} />;
+  if (summary.newest.state !== 'ok') return <PartUnread title={title} reason={summary.newest.reason} />;
   const newest = summary.newest.data;
   // The gateway answers the five newest and no count of the rest, so the card says how many it shows.
   return (

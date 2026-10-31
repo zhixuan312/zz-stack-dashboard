@@ -1,18 +1,12 @@
 'use client';
 
-import { useTransition } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { RotateCw } from 'lucide-react';
 import { app, workspaces } from '@/app.config';
 import { AskAbout } from '@/components/patterns/ask-about';
 import { DataTable, type Column } from '@/components/patterns/data-table';
 import { Badge } from '@/components/ui/badge';
 import { Banner } from '@/components/ui/banner';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { EmptyState } from '@/components/ui/empty-state';
 import { KeyValue } from '@/components/ui/key-value';
 import { Skeleton } from '@/components/ui/skeleton';
 import { aligned } from '@/console/columns';
@@ -20,6 +14,7 @@ import { Goes } from '@/console/eval-score';
 import { useServerReadLive } from '@/console/knowledge-tabs';
 import { ConsolePage } from '@/console/page';
 import { Panel } from '@/console/panel';
+import { ServerTrouble } from '@/console/server-trouble';
 import { useDataClock } from '@/lib/api';
 import type { KnowledgeBody, KnowledgeNode } from '@/lib/api-shapes';
 import { plural } from '@/lib/format';
@@ -90,7 +85,7 @@ export function KnowledgeNodeView({ read, team, rel }: { read: ServerRead<Knowle
       updatedAt={read.state === 'ok' ? new Date(read.at) : null}
       context={context}
     >
-      {!self ? <NodeTrouble reason={read.state === 'ok' ? '' : troubleOf(read)} /> : (
+      {!self ? <ServerTrouble title="This node did not load" detail={read.state === 'ok' ? '' : troubleOf(read)} /> : (
         <>
           {/* A supersession needs nobody, so the banner is neutral, as the log's act is; it names what replaced it. */}
           {self.superseded_by ? <Banner tone="neutral" title={`Superseded by node ${self.superseded_by}`}>Kept readable; it is no longer the current lesson. <Successor of={self} among={related} lead="Read " /></Banner> : null}
@@ -165,14 +160,3 @@ function Successor({ of, among, lead = '' }: { of: { team: string; superseded_by
 
 /** How many initiatives of other teams a lesson was learned in, said as a count alone. */
 const elsewhere = (n: number) => `${n} ${plural(n, 'initiative of another team', 'initiatives of other teams')}`;
-
-/** The node's read failed or did not answer: the reason, and Retry, which asks the server again. */
-function NodeTrouble({ reason }: { reason: string }) {
-  const router = useRouter();
-  const [retrying, startRetry] = useTransition();
-  return (
-    <Card>
-      <EmptyState kind="error" title="This node did not load" className="py-16" action={<Button variant="primary" icon={<RotateCw />} busy={retrying} onClick={() => startRetry(() => router.refresh())}>Retry</Button>}>{reason}</EmptyState>
-    </Card>
-  );
-}

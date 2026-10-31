@@ -16,7 +16,6 @@ import { FeaturedMetric } from '@/components/patterns/featured-metric';
 import { MetricTile } from '@/components/patterns/metric-tile';
 import { Busy, ChartSkeleton, TableSkeleton, TilesSkeleton } from '@/components/patterns/page-loading';
 import { PeriodSelect } from '@/components/patterns/period-select';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -28,6 +27,7 @@ import { aligned } from '@/console/columns';
 import { Goes } from '@/console/eval-score';
 import { failureOf } from '@/console/query';
 import { Panel } from '@/console/panel';
+import { StateBadge } from '@/console/initiative';
 import { recordText } from '@/console/record-text';
 import { plural } from '@/lib/format';
 import { dayOf, formatCalendarDate, formatDate, formatDay } from '@/lib/format-date';
@@ -471,7 +471,6 @@ function Firsts({ r }: { r: RecordRead }) {
   );
 }
 
-const OUTCOME_TONE: Record<string, 'positive' | 'neutral'> = { accepted: 'positive', delivered: 'positive', abandoned: 'neutral' };
 type InitiativeRecord = Extract<RecordRead['record'], { state: 'ok' }>['data']['rows'][number];
 
 /** The quiet arrow that says a row opens its initiative before the pointer finds it, as Initiatives' rows carry it. */
@@ -486,7 +485,7 @@ const COLUMNS: Column<InitiativeRecord>[] = aligned([
   },
   {
     key: 'outcome', header: 'Outcome', mobile: 'status',
-    cell: (i) => (i.outcome ? <Badge tone={OUTCOME_TONE[i.outcome] ?? 'neutral'} dot>{i.outcome[0].toUpperCase()}{i.outcome.slice(1)}</Badge> : <Badge tone="neutral">Open</Badge>),
+    cell: (i) => <StateBadge state={i.outcome ?? 'open'} />,
   },
   { key: 'opened', header: 'Opened', numeric: true, mobile: 'fact', cell: (i) => formatDate(i.opened), mobileCell: (i) => `Opened ${formatDay(i.opened)}` },
   { key: 'closed', header: 'Closed', numeric: true, hideBelow: 'md', cell: (i) => (i.closed ? formatDate(i.closed) : '—') },

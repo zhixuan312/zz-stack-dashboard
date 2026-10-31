@@ -1,8 +1,7 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { useMemo, useTransition, type ReactNode } from 'react';
-import { BookOpen, PencilLine, RotateCw, Search, SearchX } from 'lucide-react';
+import { useMemo, type ReactNode } from 'react';
+import { BookOpen, PencilLine, Search, SearchX } from 'lucide-react';
 import { Row, Stack } from '@/components/base/shell';
 import { useShareView } from '@/components/base/use-share-view';
 import { BarList } from '@/components/charts/bar-list';
@@ -12,12 +11,12 @@ import { AskAbout } from '@/components/patterns/ask-about';
 import { DataTable, type Column } from '@/components/patterns/data-table';
 import { MetricTile } from '@/components/patterns/metric-tile';
 import { ChartSkeleton, TableSkeleton, TilesSkeleton } from '@/components/patterns/page-loading';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { KeyValue } from '@/components/ui/key-value';
 import { aligned } from '@/console/columns';
 import { Panel } from '@/console/panel';
+import { PartUnavailable } from '@/console/part-unread';
+import { ServerTrouble } from '@/console/server-trouble';
 import type { KnowledgeHealth } from '@/lib/fleet-shapes';
 import { plural } from '@/lib/format';
 import { formatDateTime, formatDay, formatShortDate } from '@/lib/format-date';
@@ -45,7 +44,7 @@ const SHELVES_TITLE = 'Each shelf';
  */
 export function PlatformKnowledgeView({ read }: { read: KnowledgeHealthRead }) {
   useShareView(knowledgeHealthContext(read));
-  if (read.state !== 'ok') return <KnowledgeTrouble read={read} />;
+  if (read.state !== 'ok') return <ServerTrouble {...knowledgeHealthTrouble(read)} />;
   const h = read.health;
   const fleet = isFleet(h);
   return (
@@ -86,20 +85,11 @@ export function KnowledgeHealthSkeleton() {
   );
 }
 
-/** A part the read could not work out, said in its own card, so the parts beside it stand. */
-function Unavailable({ title, reason, actions }: { title: string; reason: string; actions?: ReactNode }) {
-  return (
-    <Panel title={title} actions={actions}>
-      <EmptyState layout="inline" title={`${title}: unavailable`}>It could not be read ({reason}). The rest of the page stands.</EmptyState>
-    </Panel>
-  );
-}
-
 /** A tile's value: its number, or the word for why there is none, never a zero. */
 const ICONS: Record<WeeklyTile, ReactNode> = { madeLastWeek: <PencilLine />, searches: <Search />, noResult: <SearchX /> };
 
 function Tiles({ part }: { part: KnowledgeHealth['tiles'] }) {
-  if (part.state !== 'ok') return <Unavailable title="Last week" reason={part.reason} />;
+  if (part.state !== 'ok') return <PartUnavailable title="Last week" reason={part.reason} />;
   const t = part.data;
   // A week whose change cannot be set beside the week before says what the week before was instead, never a zero change.
   const weekly = (k: WeeklyTile) => {
@@ -165,7 +155,7 @@ const shelfColumns = (fleet: boolean): Column<ShelfRow>[] => aligned([
 /** Each shelf, the page's protagonist, with the Ask in its head. */
 function Shelves({ part, fleet }: { part: KnowledgeHealth['shelves']; fleet: boolean }) {
   const ask = <AskAbout question={askOf(fleet)} />;
-  if (part.state !== 'ok') return <Unavailable title={SHELVES_TITLE} reason={part.reason} actions={ask} />;
+  if (part.state !== 'ok') return <PartUnavailable title={SHELVES_TITLE} reason={part.reason} actions={ask} />;
   const rows = part.data.rows;
   const week = rows[0]?.noResult.window;
   return (
@@ -224,7 +214,7 @@ function Made({ part }: { part: KnowledgeHealth['made'] }) {
   const title = 'Lessons made by week';
   const weeks = part.state === 'ok' ? part.data.weeks : [];
   const shown = usePointed<MadeWeek>(weeks);
-  if (part.state !== 'ok') return <Unavailable title={title} reason={part.reason} />;
+  if (part.state !== 'ok') return <PartUnavailable title={title} reason={part.reason} />;
   const outs = weeks.filter((w) => leftOut(w));
   return (
     <Panel title={title} description={`Lessons made each week outside the import cohorts. ${exactSince(part.data)}.`}>
@@ -254,7 +244,7 @@ function Searches({ part }: { part: KnowledgeHealth['searches'] }) {
   const title = 'Searches with no result by week';
   const weeks = part.state === 'ok' ? part.data.weeks : [];
   const shown = usePointed<SearchWeek>(weeks);
-  if (part.state !== 'ok') return <Unavailable title={title} reason={part.reason} />;
+  if (part.state !== 'ok') return <PartUnavailable title={title} reason={part.reason} />;
   return (
     <Panel title={title} description="The share of real-work searches that found nothing, with the share the engine widened and the mean results a search returned">
       {weeks.length ? (
@@ -277,7 +267,7 @@ function Searches({ part }: { part: KnowledgeHealth['searches'] }) {
 
 function Cohorts({ part }: { part: KnowledgeHealth['cohorts'] }) {
   const title = 'Lessons by the week made';
-  if (part.state !== 'ok') return <Unavailable title={title} reason={part.reason} />;
+  if (part.state !== 'ok') return <PartUnavailable title={title} reason={part.reason} />;
   const rows = part.data.rows.filter((c) => c.made > 0);
   return (
     <Panel title={title} description="Every lesson by the week it was made, imports included and labelled, with how many have been superseded since; nothing records when">
@@ -303,7 +293,7 @@ function Cohorts({ part }: { part: KnowledgeHealth['cohorts'] }) {
 
 function ByKind({ part }: { part: KnowledgeHealth['byKind'] }) {
   const title = 'Lessons by kind';
-  if (part.state !== 'ok') return <Unavailable title={title} reason={part.reason} />;
+  if (part.state !== 'ok') return <PartUnavailable title={title} reason={part.reason} />;
   const kinds = part.data.filter((k) => k.standing > 0);
   return (
     <Panel title={title} description="The lessons standing on every shelf, by the kind each was given">
@@ -324,7 +314,7 @@ const QUESTION_COLUMNS: Column<Question>[] = aligned([
 /** The superadmin's alone: what the searches that found nothing asked, most asked first. */
 function Questions({ part }: { part: NonNullable<KnowledgeHealth['questions']> }) {
   const title = 'Questions with no result';
-  if (part.state !== 'ok') return <Unavailable title={title} reason={part.reason} />;
+  if (part.state !== 'ok') return <PartUnavailable title={title} reason={part.reason} />;
   const { window, rows, total } = part.data;
   return (
     <DataTable
@@ -339,23 +329,5 @@ function Questions({ part }: { part: NonNullable<KnowledgeHealth['questions']> }
       pageSizes={[10]}
       empty={{ title: 'Every search found something', body: 'No real-work search in these weeks came back empty.' }}
     />
-  );
-}
-
-function KnowledgeTrouble({ read }: { read: Exclude<KnowledgeHealthRead, { state: 'ok' }> }) {
-  const router = useRouter();
-  const [retrying, startRetry] = useTransition();
-  const { title, detail } = knowledgeHealthTrouble(read);
-  return (
-    <Card>
-      <EmptyState
-        kind="error"
-        title={title}
-        className="py-16"
-        action={<Button variant="primary" icon={<RotateCw />} busy={retrying} onClick={() => startRetry(() => router.refresh())}>Retry</Button>}
-      >
-        {detail}
-      </EmptyState>
-    </Card>
   );
 }

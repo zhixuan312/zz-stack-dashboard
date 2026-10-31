@@ -1,8 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useTransition } from 'react';
-import { CalendarDays, Clock, Inbox, RotateCw, ShieldCheck } from 'lucide-react';
+import { CalendarDays, Clock, Inbox, ShieldCheck } from 'lucide-react';
 import { Row, Stack } from '@/components/base/shell';
 import { useShareView } from '@/components/base/use-share-view';
 import { BarList } from '@/components/charts/bar-list';
@@ -13,13 +12,13 @@ import { DataTable, type Column } from '@/components/patterns/data-table';
 import { MetricTile } from '@/components/patterns/metric-tile';
 import { ChartSkeleton, TableSkeleton, TilesSkeleton } from '@/components/patterns/page-loading';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Delta } from '@/components/ui/delta';
 import { EmptyState } from '@/components/ui/empty-state';
 import { aligned } from '@/console/columns';
 import { STANDING_TONE } from '@/console/eval-score';
 import { Panel } from '@/console/panel';
+import { PartUnavailable } from '@/console/part-unread';
+import { ServerTrouble } from '@/console/server-trouble';
 import { formatDate, formatDateTime, formatDay } from '@/lib/format-date';
 import { plural } from '@/lib/format';
 import { formatCount } from '@/lib/format-units';
@@ -44,7 +43,7 @@ const PLUGINS_TITLE = 'Each plugin\'s latest score';
  */
 export function PlatformEvaluationView({ read }: { read: EvaluationRead }) {
   useShareView(evaluationContext(read));
-  if (read.state !== 'ok') return <EvaluationTrouble read={read} />;
+  if (read.state !== 'ok') return <ServerTrouble {...evaluationTrouble(read)} />;
   const e = read.evaluation;
   return (
     <Stack>
@@ -82,15 +81,6 @@ export function EvaluationSkeleton() {
       <Row split="1/2"><ChartSkeleton height="h-40" /><ChartSkeleton height="h-40" /></Row>
       <TableSkeleton rows={2} filters={false} />
     </>
-  );
-}
-
-/** A part the read could not work out, said in its own card, so the parts beside it stand. */
-function Unavailable({ title, reason }: { title: string; reason: string }) {
-  return (
-    <Panel title={title}>
-      <EmptyState layout="inline" title={`${title}: unavailable`}>It could not be read ({reason}). The rest of the page stands.</EmptyState>
-    </Panel>
   );
 }
 
@@ -274,7 +264,7 @@ function History({ part }: { part: Evaluation['history'] }) {
 /** Every finding recorded by its decision, the deferred ones being those still waiting. */
 function ByDecision({ part }: { part: Evaluation['byDecision'] }) {
   const title = 'Findings by decision';
-  if (part.state !== 'ok') return <Unavailable title={title} reason={part.reason} />;
+  if (part.state !== 'ok') return <PartUnavailable title={title} reason={part.reason} />;
   const total = DECISIONS.reduce((n, d) => n + part.data[d.key], 0);
   return (
     <Panel title={title} description="Every defect and unknown recorded, each counted once; strengths have no decision">
@@ -288,7 +278,7 @@ function ByDecision({ part }: { part: Evaluation['byDecision'] }) {
 /** The same findings by the owner category each blames, most first. */
 function ByOwner({ part }: { part: Evaluation['byOwner'] }) {
   const title = 'Findings by owner';
-  if (part.state !== 'ok') return <Unavailable title={title} reason={part.reason} />;
+  if (part.state !== 'ok') return <PartUnavailable title={title} reason={part.reason} />;
   const items = Object.entries(part.data).map(([o, n]) => ({ key: o, label: ownerOf(o), value: n }));
   return (
     <Panel title={title} description="The same findings by the owner category each blames">
@@ -360,23 +350,5 @@ function Waiting({ evaluation: e }: { evaluation: Evaluation }) {
       onRetry={() => router.refresh()}
       empty={{ title: 'Nothing waits for a decision', body: 'A finding is listed here while it has no decision.' }}
     />
-  );
-}
-
-function EvaluationTrouble({ read }: { read: Exclude<EvaluationRead, { state: 'ok' }> }) {
-  const router = useRouter();
-  const [retrying, startRetry] = useTransition();
-  const { title, detail } = evaluationTrouble(read);
-  return (
-    <Card>
-      <EmptyState
-        kind="error"
-        title={title}
-        className="py-16"
-        action={<Button variant="primary" icon={<RotateCw />} busy={retrying} onClick={() => startRetry(() => router.refresh())}>Retry</Button>}
-      >
-        {detail}
-      </EmptyState>
-    </Card>
   );
 }
