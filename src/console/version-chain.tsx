@@ -84,7 +84,6 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
   const pairs = steps.slice(1).map((s, i) => ({ before: steps[i], after: s })).reverse();
   const [at, setAt] = useState(0);
   const collapsed = raw.length - steps.length;
-  const [openSource, setOpenSource] = useState<string | null>(null);
   // Newest first, like the pairs.
   const history = [...steps].reverse();
   const pair = pairs[at];
@@ -164,9 +163,9 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
                 <ul className="flex flex-col gap-1.5">
                   {sources.map((s) => (
                     <li key={s.path}>
-                      <button
-                        type="button"
-                        onClick={() => setOpenSource(openSource === s.path ? null : s.path)}
+                      {/* Each opens its own page, where the body renders as prose: see "Sources behind the change". */}
+                      <Link
+                        href={`/initiatives/${doc.team}/${doc.initiative}/${encodePath(s.path)}`}
                         className="hit flex min-h-6 w-full items-baseline gap-2 text-left"
                       >
                         <FileText className="mt-0.5 size-3.5 shrink-0 text-ink-3" aria-hidden />
@@ -176,13 +175,7 @@ export function VersionChain({ doc }: { doc: DocumentDetail }) {
                         <span className="whitespace-nowrap font-mono text-2xs text-ink-3">
                           {s.added}
                         </span>
-                      </button>
-                      {openSource === s.path ? (
-                        // The person's own words, verbatim, which is what a source is.
-                        <p className="mt-2 max-w-[80ch] whitespace-pre-wrap break-words rounded-sm border-l-2 border-accent bg-surface px-3 py-2 text-sm leading-relaxed text-ink-2">
-                          {s.body?.trim() || '(no text stored)'}
-                        </p>
-                      ) : null}
+                      </Link>
                     </li>
                   ))}
                 </ul>

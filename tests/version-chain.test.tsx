@@ -51,6 +51,17 @@ describe('VersionChain', () => {
     expect(fetched.some((u) => /[?&]revision=1\b/.test(u))).toBe(false);
   });
 
+  // A source is the evidence behind the change; its stored markdown renders on its own page, never as raw text here.
+  it('lists what a change was made on as links to each source\'s page, with none of its markdown inlined', async () => {
+    const sourced = { ...doc, sources: [{ path: 'sources/why it changed.md', title: 'Why it changed', body: '# sources/why it changed.md\n\n## What it is\n',
+                                         supports: 'spec.md', added: '2026-08-31', bytes: 40 }] };
+    render(<QueryClientProvider client={new QueryClient()}><VersionChain doc={sourced} /></QueryClientProvider>);
+    const link = await screen.findByRole('link', { name: /Why it changed/ });
+    expect(link).toHaveAttribute('href', '/initiatives/team-one/init-1/sources/why%20it%20changed.md');
+    link.click();
+    expect(screen.queryByText(/## What it is/)).toBeNull();
+  });
+
   it('says a version whose text could not be read cannot be compared, and loses nothing above', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 500, json: async () => ({ error: 'database unreachable' }) }) as unknown as Response));
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
