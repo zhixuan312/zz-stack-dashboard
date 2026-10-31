@@ -1,12 +1,13 @@
 /**
  * The envelope a fake console answer carries, and the one place an answer reaches the wire.
  *
- * The gateway stamps every console GET with five request-scoped fields (`services/gateway/src/console/read-envelope.ts`),
- * and the fake stamps the same five here, once, rather than in each fixture: a fixture that forgot them would be a route
- * the console's own tests never saw answer as the real one does. `meta` a route already wrote keeps every key the
- * envelope does not own, so a fixture's six stand beside these five. A fixture states the six and none of the five —
- * that is `FixtureMeta`, what its module exports — and `stamped` is the same completion for a fixture handed to
- * something that reads an answer, as the console's own page fixtures are.
+ * The gateway's mount (`services/gateway/src/console/read-envelope.ts`) completes every console GET's `meta` with five
+ * fields: it writes the request's own `observedAt` and `revision`, and keeps the `cacheHit`, `builtAt` and
+ * `sourceRevision` a route stated, a miss computed from rows where it stated none. The fake completes them the same way
+ * here, once, rather than in each fixture: a fixture that forgot them would be a route the console's own tests never saw
+ * answer as the real one does. A fixture states its six and, at most, the three a route may keep — that is
+ * `FixtureMeta`, what its module exports — and `stamped` is the same completion for a fixture handed to something that
+ * reads an answer, as the console's own page fixtures are.
  *
  * Split out of `server.ts` when the file passed the 700-line ceiling: none of this is routing, and the fake's routes are.
  */
@@ -18,8 +19,8 @@ import { iso, now } from './clock.ts';
 /** A route's answer: its status and its body, exactly as the fixture wrote it. */
 export type Answer = [status: number, body: unknown];
 
-/** The five fields the envelope adds to an answer's `meta`, as the console's own `ReadMeta` declares them. */
-export type Envelope = Pick<ReadMeta, 'observedAt' | 'revision' | 'cacheHit' | 'builtAt' | 'sourceRevision'>;
+/** The two fields true of the request alone, which the wire writes over whatever a route said. */
+export type Envelope = Pick<ReadMeta, 'observedAt' | 'revision'>;
 
 /**
  * The `meta` a fixture states: the six a gateway route states, and the five the envelope writes onto it. The five are
@@ -43,7 +44,8 @@ export type FixtureAnswer<T extends { meta: unknown }> = Omit<T, 'meta'> & { met
  * writes the request's own `observedAt` and marker over this one before anything is sent.
  *
  * DELIBERATE: the fixture's own five win, so a fixture that states them keeps them (`work-record.ts` does, because
- * Record's route fills three of them itself); the rest are the miss this fake answers as.
+ * Record's route fills three of them itself); the rest are the miss this fake answers as. At the wire only the three a
+ * route may keep stay the fixture's (`withEnvelope`).
  */
 export function stamped(meta: FixtureMeta): ReadMeta {
   return {
@@ -77,14 +79,14 @@ export function answered<T extends { meta: unknown }>(a: FixtureAnswer<T>): T {
  */
 export function envelopeFor(consoleGet: boolean, revised: [string, string] | null): Envelope | null {
   return consoleGet
-    ? { observedAt: new Date().toISOString(), revision: revised?.[1] ?? null, cacheHit: false, builtAt: null, sourceRevision: null }
+    ? { observedAt: new Date().toISOString(), revision: revised?.[1] ?? null }
     : null;
 }
 
 /**
- * `answer`'s body with `envelope` merged into its `meta`, as the gateway's own middleware merges it. None of the five is
- * ever a fixture's to state — the gateway lets a route keep its own `builtAt`, `sourceRevision` and `cacheHit` where it
- * stated them, and no fixture states one.
+ * `answer`'s body with its `meta` completed as the gateway's mount completes it: `envelope` written over the route's
+ * own, and the route's `cacheHit` (a boolean), `builtAt` and `sourceRevision` (strings) kept, false and null where it
+ * stated none.
  *
  * A refusal (a status of 400 or more), a 204 and an array answer are handed back exactly as the route wrote them — an
  * error body carries no read, and an array has no object to be stamped on.
@@ -93,8 +95,13 @@ export function withEnvelope(answer: Answer, envelope: Envelope | null): unknown
   const body = answer[1];
   if (envelope === null || answer[0] >= 400 || typeof body !== 'object' || body === null || Array.isArray(body)) return body;
   const held = (body as { meta?: unknown }).meta;
-  const meta = typeof held === 'object' && held !== null && !Array.isArray(held) ? held : {};
-  return { ...body, meta: { ...meta, ...envelope } };
+  const meta: Record<string, unknown> = typeof held === 'object' && held !== null && !Array.isArray(held) ? held as Record<string, unknown> : {};
+  return { ...body, meta: {
+    ...meta, ...envelope,
+    cacheHit: typeof meta.cacheHit === 'boolean' ? meta.cacheHit : false,
+    builtAt: typeof meta.builtAt === 'string' ? meta.builtAt : null,
+    sourceRevision: typeof meta.sourceRevision === 'string' ? meta.sourceRevision : null,
+  } };
 }
 
 /**
