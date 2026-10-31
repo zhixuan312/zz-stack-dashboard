@@ -138,7 +138,8 @@ function Feed({ data, reports, trouble, retry, busy, page, onPage }: {
       {data ? (
         data.rows.length ? (
           <>
-            <ActivityFeed events={data.rows.map((r) => feedEvent(r, reports))} now={new Date(data.meta.asOf)} />
+            {/* An actor's address is one unbroken word, which the managed feed does not break (ZZ Meridian issue 121). */}
+            <ActivityFeed className="[overflow-wrap:anywhere]" events={data.rows.map((r) => feedEvent(r, reports))} now={new Date(data.meta.asOf)} />
             {data.total > PAGE_SIZE ? (
               <Pagination className="mt-5 border-t border-line pt-4" page={Math.max(1, Number(page) || 1)} pageSize={PAGE_SIZE} total={data.total} noun="acts" onPageChange={(p) => onPage(String(p))} />
             ) : null}

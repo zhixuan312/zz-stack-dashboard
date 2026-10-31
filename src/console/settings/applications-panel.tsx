@@ -6,13 +6,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { toast } from '@/components/ui/toast';
 import { useAccess } from '@/console/settings/access-read';
 import { InlineDestructive } from '@/console/settings/inline-destructive';
+import { PHONE_ROWS } from '@/console/settings/phone-rows';
 import { Since } from '@/console/settings/since';
-import { ApiError } from '@/lib/api';
 import type { AccessApplication, Revoked } from '@/lib/destination-shapes';
 import { plural } from '@/lib/format';
 import { formatDate } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
-import { useConsoleMutation } from '@/lib/mutate';
+import { reasonOf, useConsoleMutation } from '@/lib/mutate';
 import { stateOf } from '@/logic/access-context';
 
 /**
@@ -32,7 +32,7 @@ export function ApplicationsPanel() {
       const { revoked } = await revoke.mutateAsync(a.client);
       toast({ tone: 'positive', title: revoked ? `Revoked ${formatCount(revoked)} ${plural(revoked, 'token')} for ${a.name}` : `No live token of yours for ${a.name} was left to revoke` });
     } catch (err) {
-      toast({ tone: 'critical', title: err instanceof ApiError ? err.message : `${a.name} was not revoked; try again.` });
+      toast({ tone: 'critical', title: reasonOf(err, `${a.name} was not revoked; try again.`) });
     }
   }
 
@@ -48,7 +48,7 @@ export function ApplicationsPanel() {
           <EmptyState title="No application connected">An application is listed here once you authorise it to act as you, from Claude Code, ChatGPT or another MCP client.</EmptyState>
         </div>
       ) : (
-        <Table caption="The applications you authorised, the newest token first">
+        <Table caption="The applications you authorised, the newest token first" className={PHONE_ROWS}>
           <TableHead>
             <TableRow>
               <TableHeader grow>Application</TableHeader>
@@ -63,7 +63,7 @@ export function ApplicationsPanel() {
               const live = liveOf(a);
               return (
                 <TableRow key={a.client} data-application={a.client}>
-                  <TableCell><span className="text-sm font-medium text-ink [overflow-wrap:anywhere]">{a.name}</span></TableCell>
+                  <TableCell data-lead><span className="text-sm font-medium text-ink [overflow-wrap:anywhere]">{a.name}</span></TableCell>
                   <TableCell numeric>
                     {formatCount(a.issuedCount)}
                     <span className="t-caption block">{live ? `${formatCount(live)} live` : 'None live'}</span>

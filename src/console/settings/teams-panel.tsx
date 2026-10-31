@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { toast } from '@/components/ui/toast';
 import { PageControl } from '@/console/paged';
 import { useAccess } from '@/console/settings/access-read';
+import { PHONE_ROWS } from '@/console/settings/phone-rows';
 import { afterTeamSwitch, type ApiError } from '@/lib/api';
 import type { Access } from '@/lib/destination-shapes';
 import { consoleMutate } from '@/lib/mutate';
@@ -63,7 +64,7 @@ function TeamsTable({ teams, pending, onSwitch }: { teams: MyTeams; pending: boo
   const { rows: page, ...pager } = usePaged(teams.teams);
   return (
     <>
-      <Table caption="Your teams, and the one this browser acts for">
+      <Table caption="Your teams, and the one this browser acts for" className={PHONE_ROWS}>
         <TableHead>
           <TableRow>
             <TableHeader grow>Team</TableHeader>
@@ -74,7 +75,7 @@ function TeamsTable({ teams, pending, onSwitch }: { teams: MyTeams; pending: boo
         <TableBody>
           {page.map((row) => (
             <TableRow key={row.team} data-team={row.team}>
-              <TableCell className="font-mono text-xs [overflow-wrap:anywhere]">{row.team}</TableCell>
+              <TableCell data-lead className="font-mono text-xs [overflow-wrap:anywhere]">{row.team}</TableCell>
               <TableCell hideBelow="sm"><Badge tone="neutral" dot={row.role === 'admin'}>{row.role === 'admin' ? 'Admin' : 'Member'}</Badge></TableCell>
               <TableCell align="right">
                 {/* No button on the row already acted for: an action whose effect is "stay where you are" does nothing. */}
