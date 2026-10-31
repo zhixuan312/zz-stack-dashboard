@@ -16,7 +16,11 @@
  * One line per step, `ok` or `FAIL` with what was expected and what was found. Exits 1 when a step failed or a page
  * raised an error.
  */
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { app, workspaces } from '../src/app.config.ts';
+import type { formatDay as FormatDay } from '../src/lib/format-date.ts';
+import { consoleHooks } from './console-hooks.ts';
 import { PLATFORM_STATUS } from './fake-gateway/platform-status.ts';
 import { launch, type Page } from './lib/chrome.ts';
 import config from './verify.config.ts';
@@ -27,14 +31,10 @@ const base = opt('--base', process.env.BASE ?? 'http://localhost:3100').replace(
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const last = PLATFORM_STATUS.measures.find((m) => m.key === 'malformed_per_1000')!.last!;
-/**
- * The day a week begins on, as `formatDay` in `src/lib/format-date.ts` writes it (`6 Oct`, in the console's zone).
- * Written here because that module imports without extensions, which plain `node` cannot load.
- */
-const formatDay = (iso: string) => {
-  const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: app.timezone, day: '2-digit', month: 'short' }).formatToParts(new Date(iso)).map((x) => [x.type, x.value]));
-  return `${Number(p.day)} ${p.month}`;
-};
+// The day a week begins on is written by the console's own `formatDay`, loaded through the console's hooks.
+const ROOT = path.resolve(import.meta.dirname, '..');
+consoleHooks(ROOT, 'zz-stack.workspace-switch.cookie');
+const { formatDay } = await import(pathToFileURL(path.join(ROOT, 'src/lib/format-date.ts')).href) as { formatDay: typeof FormatDay };
 /** What Status must say, in the words the page draws them in. */
 const FIGURE = [
   'Malformed calls per 1,000',
@@ -115,6 +115,8 @@ const page = await launch();
 
 async function step(name: string, does: () => Promise<void>) {
   steps++;
+  // A step that only presses keeps the page, and with it the errors an earlier step already failed for.
+  page.errors.length = 0;
   try {
     await does();
     if (page.errors.length) throw new Error(`the page raised ${page.errors.slice(0, 2).join(' | ')}`);
