@@ -288,7 +288,9 @@ describe('the writes Access makes, each the person\'s', () => {
     draw(ADMIN);
     const issue = async () => { await act(async () => { fireEvent.click(button(section('Tokens'), 'Issue token')); }); return screen.findByRole('dialog'); };
     await act(async () => { fireEvent.click(within(await issue()).getByRole('button', { name: 'Copy the token' })); });
-    expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Copy the token' })).toHaveTextContent('Copied');
+    // The name carries the word drawn on the button, and the copy is announced: the token is shown only once.
+    expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Copied the token' })).toHaveTextContent('Copied');
+    expect(within(screen.getByRole('dialog')).getByText('Copied the token.')).toHaveAttribute('aria-live', 'polite');
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'I\'ve stored it' })); });
     expect(within(await issue()).getByRole('button', { name: 'Copy the token' })).toHaveTextContent(/^Copy$/);
   });

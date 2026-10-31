@@ -221,7 +221,8 @@ describe('the three acts: add a person, issue an enrolment link, deactivate one'
     mount(<PlatformPeopleView served={ok} />);
     const issue = async () => { await act(async () => { fireEvent.click(within(row(on.email)).getByRole('button', { name: 'Enrolment link' })); }); return screen.findByRole('dialog'); };
     await act(async () => { fireEvent.click(within(await issue()).getByRole('button', { name: 'Copy the link' })); });
-    expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Copy the link' })).toHaveTextContent('Copied');
+    expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Copied the link' })).toHaveTextContent('Copied');
+    expect(within(screen.getByRole('dialog')).getByText('Copied the link.')).toHaveAttribute('aria-live', 'polite');
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'I\'ve sent it' })); });
     expect(within(await issue()).getByRole('button', { name: 'Copy the link' })).toHaveTextContent(/^Copy$/);
   });
