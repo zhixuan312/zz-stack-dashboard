@@ -95,7 +95,8 @@ const MAX_SHOWN_LINES = 1000;
  * Drop the unchanged middle, keeping `context` lines around each change. Runs of untouched lines
  * collapse to a marker carrying how many were hidden, so nothing is silently dropped.
  *
- * `truncated` is how many lines the cap above left unrendered; 0 is the ordinary case.
+ * `truncated` is how many changed lines the cap above left unrendered; 0 is the ordinary case. Past the cap
+ * nothing more is drawn, a skip marker included.
  */
 export function collapse(lines: DiffLine[], context = 3): {
   lines: (DiffLine | { op: 'skip'; n: number })[]; truncated: number;
@@ -109,13 +110,17 @@ export function collapse(lines: DiffLine[], context = 3): {
   let run = 0;
   let truncated = 0;
   lines.forEach((l, idx) => {
+    if (out.length >= MAX_SHOWN_LINES) {
+      if (l.op !== 'same') truncated++;
+      return;
+    }
     if (keep.has(idx)) {
       if (run) { out.push({ op: 'skip', n: run }); run = 0; }
       if (out.length < MAX_SHOWN_LINES) out.push(l);
-      else truncated++;
+      else if (l.op !== 'same') truncated++;
     } else run++;
   });
-  if (run) out.push({ op: 'skip', n: run });
+  if (run && out.length < MAX_SHOWN_LINES) out.push({ op: 'skip', n: run });
   return { lines: out, truncated };
 }
 

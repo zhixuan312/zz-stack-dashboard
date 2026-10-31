@@ -9,17 +9,18 @@ import { FORMATTERS } from './format';
 /** A whole number with thousands separators, or a dash for nothing: the release's own count format, by name. */
 export const formatCount: (n: number | null) => string = FORMATTERS.count;
 
-/** A run's span in seconds, at the unit a person reads it in: `< 1 s`, `42 s`, `7 min`, `1.4 h`. */
+/** A run's span in seconds, at the unit a person reads it in: `< 1 s`, `42 s`, `7 min`, `1.4 h`. The unit is the one
+ *  the ROUNDED figure belongs to, as `formatDuration`'s is: 59.6 s reads `1 min`, never `60 s`. */
 export function formatSeconds(s: number | null): string {
   if (s === null || !Number.isFinite(s)) return '—';
   if (s < 1) return s === 0 ? '0 s' : '< 1 s';
-  if (s >= 3600) return `${(s / 3600).toFixed(1)} h`;
-  if (s >= 60) return `${Math.round(s / 60)} min`;
-  return `${Math.round(s)} s`;
+  if (Math.round(s) < 60) return `${Math.round(s)} s`;
+  if (Math.round(s / 60) < 60) return `${Math.round(s / 60)} min`;
+  return `${(s / 3600).toFixed(1)} h`;
 }
 
-/** Bytes moved, given in KB: `840 KB`, `1.6 MB`. */
+/** Bytes moved, given in KB: `840 KB`, `1.6 MB`; 1023.7 KB reads `1.0 MB`, never `1024 KB`. */
 export function formatKb(kb: number | null): string {
   if (kb === null || !Number.isFinite(kb)) return '—';
-  return kb >= 1024 ? `${(kb / 1024).toFixed(1)} MB` : `${Math.round(kb)} KB`;
+  return Math.round(kb) >= 1024 ? `${(kb / 1024).toFixed(1)} MB` : `${Math.round(kb)} KB`;
 }
