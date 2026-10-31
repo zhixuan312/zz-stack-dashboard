@@ -119,10 +119,16 @@ function callsOf(source: string, s: { date?: string; facets: string[]; buckets?:
   ]);
 }
 
-/** The figures of one bucket's group in an answer: `- 2026-10-05: 8 calls, 64 per 1,000 calls`, as numbers. */
-function groupOf(answer: string, key: string): number[] | null {
+/** The figures of one bucket's group in an answer, as numbers. One measure's figure stands alone, `- 2026-10-05: 8 calls`;
+ *  several each lead with their measure's label, `- 2026-10-05: Malformed calls 8 calls, Malformed per 1,000 calls 64 per
+ *  1,000 calls`, so a figure is read after the label `labels` names at its place, and a label that is not there is null. */
+function groupOf(answer: string, key: string, labels: string[]): (number | null)[] | null {
   const line = answer.split('\n').find((l) => l.startsWith(`- ${key}: `));
-  return line ? line.slice(key.length + 4).split(', ').map((v) => Number(v.split(' ')[0].replace(/,/g, ''))) : null;
+  if (!line) return null;
+  return line.slice(key.length + 4).split(', ').map((v, i) => {
+    const lead = labels.length > 1 ? `${labels[i]} ` : '';
+    return v.startsWith(lead) ? Number(v.slice(lead.length).split(' ')[0].replace(/,/g, '')) : null;
+  });
 }
 
 async function main(): Promise<number> {
@@ -235,22 +241,23 @@ async function main(): Promise<number> {
     const agree = input.agree!;
 
     // Two answers held to the pages beside them: Platform's through /platform/query, Work's through /work/query.
-    const figures = async (view: string, call: Call): Promise<string> => {
+    const figures = async (view: string, call: { source: string; measures: string[]; bucket: string; period: string }, week: string): Promise<(number | null)[] | null> => {
       const v = (m.viewTools as ViewTool[]).find((t) => t.name === view) ?? fail(`explore_${view}`, 'no such view tool');
       if (!(await m.may(v.needs))) fail(`explore_${view}`, `${scope.subjectId} may not open ${v.title}, so its prepared query is not offered`);
-      return (await m.runExplore(v.explore, call, rights, io, v.page)).answer;
+      const measures = v.explore.sources[call.source].measures;
+      return groupOf((await m.runExplore(v.explore, call, rights, io, v.page)).answer, week, call.measures.map((k) => measures[k].label));
     };
     const p = agree.platform;
-    const status = groupOf(await figures('platform_status', { source: 'malformed', measures: ['malformed', 'per1000'], bucket: 'week', period: 'all' }), p.week);
-    const platform = groupOf(await figures('platform_status', { source: 'calls', measures: ['calls'], bucket: 'week', period: 'all' }), p.week);
+    const status = await figures('platform_status', { source: 'malformed', measures: ['malformed', 'per1000'], bucket: 'week', period: 'all' }, p.week);
+    const platform = await figures('platform_status', { source: 'calls', measures: ['calls'], bucket: 'week', period: 'all' }, p.week);
     if (status?.[0] !== p.malformed || status[1] !== p.per1000 || platform?.[0] !== p.calls) {
       fail('explore_platform_status', `the week from ${p.week} reads ${JSON.stringify(status)} malformed and per 1,000 and ${JSON.stringify(platform)} calls, ` +
         `where Status draws ${p.malformed} of ${p.calls} and ${p.per1000}`);
     }
     pass(`explore_platform_status, through /platform/query, reads the week from ${p.week} as Status draws it: ${p.malformed} malformed calls in ${p.calls}, ${p.per1000} per 1,000`);
     const w = agree.work;
-    const refusals = groupOf(await figures('activity', { source: 'refusals', measures: ['refusals'], bucket: 'week', period: 'all' }), w.week);
-    const calls = groupOf(await figures('activity', { source: 'calls', measures: ['calls'], bucket: 'week', period: 'all' }), w.week);
+    const refusals = await figures('activity', { source: 'refusals', measures: ['refusals'], bucket: 'week', period: 'all' }, w.week);
+    const calls = await figures('activity', { source: 'calls', measures: ['calls'], bucket: 'week', period: 'all' }, w.week);
     if (refusals?.[0] !== w.refusals || calls?.[0] !== w.calls) {
       fail('explore_activity', `the week from ${w.week} reads ${JSON.stringify(refusals)} refused and ${JSON.stringify(calls)} calls, where Activity draws ${w.refusals} of ${w.calls}`);
     }
