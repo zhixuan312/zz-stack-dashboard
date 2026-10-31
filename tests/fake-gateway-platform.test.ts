@@ -230,9 +230,11 @@ describe('the superadmin\'s bug routes', () => {
       const { rows: targets } = await read(SUPERADMIN, `platform/bugs/${r.id}/duplicates`);
       for (const t of targets) {
         expect(keys(t)).toEqual(['id', 'reportedAt', 'status', 'title']);
-        // Only what bug_resolve would accept: another report of the same team, no team matching no team.
+        // Only what bug_resolve would accept: another report of the same team, no team matching no team, and never one
+        // itself closed as a duplicate.
         expect(t.id).not.toBe(r.id);
         expect(rows.find((x) => x.id === t.id)!.team).toBe(r.team);
+        expect(t.status).not.toBe('duplicate');
       }
     }
     const duplicate = await read(null, `platform/bugs/${rows.find((r) => r.status === 'duplicate')!.id}`);
@@ -272,7 +274,7 @@ describe('POST /api/console/platform/bugs/:id/resolve', () => {
   it('answers 204 with nothing to say back, and forgets the write', async () => {
     const rows = await allBugs(null);
     const open = rows.find((r) => r.status === 'open')!;
-    const sibling = rows.find((r) => r.id !== open.id && r.team === open.team)!;
+    const sibling = rows.find((r) => r.id !== open.id && r.team === open.team && r.status !== 'duplicate')!;
     for (const body of [{ status: 'fixed', resolution: 'Fixed in the next release.' }, { status: 'not_a_bug', resolution: 'Working as designed.' },
                         { status: 'duplicate', resolution: 'Same cause.', duplicate_of: sibling.id }]) {
       const res = await resolveAs(SUPERADMIN, open.id, body);
@@ -290,7 +292,8 @@ describe('POST /api/console/platform/bugs/:id/resolve', () => {
     expect(conflict.status).toBe(409);
     expect((await conflict.json()).error).toMatch(/^ERROR: that report was already closed as `fixed`/);
     const foreign = rows.find((r) => r.team !== open.team)!;
-    for (const body of [{ status: 'fixed', resolution: '   ' }, { status: 'fixed' }, { status: 'reopened', resolution: 'No.' },
+    const duplicate = rows.find((r) => r.status === 'duplicate' && r.team === open.team && r.id !== open.id)!;
+    for (const body of [{ status: 'duplicate', resolution: 'Same.', duplicate_of: duplicate.id },{ status: 'fixed', resolution: '   ' }, { status: 'fixed' }, { status: 'reopened', resolution: 'No.' },
                         { status: 'duplicate', resolution: 'Same.' }, { status: 'duplicate', resolution: 'Same.', duplicate_of: open.id },
                         { status: 'duplicate', resolution: 'Same.', duplicate_of: '00000000-0000-4000-8000-000000000000' },
                         { status: 'duplicate', resolution: 'Same.', duplicate_of: foreign.id },

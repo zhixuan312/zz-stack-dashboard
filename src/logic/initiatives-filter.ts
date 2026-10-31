@@ -36,7 +36,7 @@ export type InitiativesRows = { limit: number; offset: number };
  */
 export function listPath(f: InitiativesFilters, rows: InitiativesRows = { limit: PAGE_SIZE, offset: (pageOf(f) - 1) * PAGE_SIZE }): string {
   const p = new URLSearchParams();
-  if (f.state !== 'all') p.set('state', f.state);
+  if ((LIST_STATES as readonly string[]).includes(f.state)) p.set('state', f.state);
   if (f.flow !== 'all') p.set('flow', f.flow);
   if (f.q.trim()) p.set('q', f.q.trim());
   p.set('limit', String(rows.limit));
@@ -58,5 +58,7 @@ export const narrowed = (f: Pick<InitiativesFilters, 'q' | 'state' | 'flow'>) =>
 
 /** The filters a page's address names, as Next hands a server page its search parameters: one value each, the first. */
 export function filtersOf(params: Record<string, string | string[] | undefined>): InitiativesFilters {
-  return paramsOf(params, INITIATIVES_DEFAULTS);
+  const f = paramsOf(params, INITIATIVES_DEFAULTS);
+  // A state the route does not know is no filter, so the read and the words agree that nothing narrowed.
+  return { ...f, state: (LIST_STATES as readonly string[]).includes(f.state) ? f.state : 'all' };
 }

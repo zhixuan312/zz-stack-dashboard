@@ -59,6 +59,8 @@ import { BEACON_MEMBER as MEMBER } from './personas.ts';
 const ID = (n: number) => `0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d0${n}`;
 const OPEN = ID(1);
 const DUPLICATE = ID(2);
+/** A report of OPEN's team closed as fixed: a target `bug_resolve` accepts, where DUPLICATE, itself a duplicate, is not. */
+const FIXED = ID(5);
 const NO_FILTER = { state: null, impact: null, surface: null };
 const PATH = bugsPath(BUGS_DEFAULTS);
 const ADMIN: Bugs = answered(bugs(true, NO_FILTER, 10, 0));
@@ -328,12 +330,14 @@ describe('a report\'s page', () => {
     expect(offered).toHaveLength(duplicates(OPEN)!.rows.length);
     for (const row of duplicates(OPEN)!.rows) expect(screen.getByRole('option', { name: new RegExp(row.title) })).toBeInTheDocument();
     for (const other of REPORTS.filter((r) => r.team !== 'atlas')) expect(screen.queryByRole('option', { name: new RegExp(other.title) })).toBeNull();
-    fireEvent.keyDown(screen.getByRole('option', { name: new RegExp(bugReport(DUPLICATE)!.title) }), { key: 'Enter' });
+    // A report itself closed as a duplicate is never offered: bug_resolve refuses it as a target.
+    expect(screen.queryByRole('option', { name: new RegExp(bugReport(DUPLICATE)!.title) })).toBeNull();
+    fireEvent.keyDown(screen.getByRole('option', { name: new RegExp(bugReport(FIXED)!.title) }), { key: 'Enter' });
     const submit = screen.getByRole('button', { name: 'Resolve report' });
     expect(submit).toBeEnabled();
     await act(async () => { fireEvent.click(submit); });
     await waitFor(() => expect(writes()).toHaveLength(1));
-    expect(writes()[0]).toEqual([`/api/console${bugPath(OPEN)}/resolve`, { status: 'duplicate', resolution: 'The same refusal as the stakeholder report.', duplicate_of: DUPLICATE }]);
+    expect(writes()[0]).toEqual([`/api/console${bugPath(OPEN)}/resolve`, { status: 'duplicate', resolution: 'The same refusal as the stakeholder report.', duplicate_of: FIXED }]);
     // The write invalidates the console's reads, so the report and its targets are read again.
     await waitFor(() => expect(reads()).toEqual(expect.arrayContaining([`/api/console${bugPath(OPEN)}`, `/api/console${duplicatesPath(OPEN)}`])));
   });
@@ -369,7 +373,7 @@ describe('a report\'s page', () => {
     unmount();
     mount(<PlatformBugView id={OPEN} served={{ state: 'ok', data: bugReport(OPEN)! }} duplicates={{ state: 'ok', data: { rows: [] } }} />);
     expect(screen.getByRole('radio', { name: /^Duplicate/ })).toBeDisabled();
-    expect(screen.getByText('No other report of its team exists.')).toBeInTheDocument();
+    expect(screen.getByText('No report of its team may be named: there is no other, or each is itself closed as a duplicate.')).toBeInTheDocument();
   });
 });
 
@@ -498,7 +502,8 @@ describe('the shared contexts carry what the pages draw, and what it cannot say'
     const text = contextText(bugContext(r, duplicates(OPEN)));
     expect(text).toContain(r.detail);
     expect(text).toContain('Blocks work');
-    expect(text).toContain(bugReport(DUPLICATE)!.title.slice(0, 40));
+    expect(text).toContain(bugReport(FIXED)!.title.slice(0, 40));
+    expect(text).not.toContain(bugReport(DUPLICATE)!.title.slice(0, 40));
     expect(text).toContain('changes nothing');
     const closed = contextText(bugContext(bugReport(DUPLICATE)!, duplicates(DUPLICATE)));
     expect(closed).toContain(bugReport(DUPLICATE)!.resolution!);

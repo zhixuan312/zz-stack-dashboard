@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { pageOf, paramsOf } from '@/logic/context';
-import { filtersOf as initiativesFilters } from '@/logic/initiatives-filter';
+import { INITIATIVES_DEFAULTS, filtersOf as initiativesFilters, listPath, narrowed as initiativesNarrowed } from '@/logic/initiatives-filter';
 import { filtersOf as runsFilters } from '@/logic/runs-context';
 import { bugsPath, filtersOf as bugsFilters, narrowed as bugsNarrowed } from '@/logic/platform-bugs-context';
 import { filtersOf as peopleFilters, narrowed as peopleNarrowed, peoplePath } from '@/logic/people-filter';
@@ -26,10 +26,19 @@ describe('an unknown filter value', () => {
     expect(teamsPath(f)).toBe('/teams?limit=10&offset=0');
   });
 
+  it('on Initiatives narrows nothing, and is never asked of the gateway', () => {
+    const f = initiativesFilters({ state: 'closed' });
+    expect(initiativesNarrowed(f)).toBe(false);
+    expect(listPath(f)).toBe('/initiatives?limit=10&offset=0');
+    // The browser reads its address without `filtersOf`, so the address it writes holds the same rule.
+    expect(listPath({ ...INITIATIVES_DEFAULTS, state: 'closed' })).toBe('/initiatives?limit=10&offset=0');
+  });
+
   it('while a known one still narrows', () => {
     expect(bugsNarrowed(bugsFilters({ state: 'open' }))).toBe(true);
     expect(peopleNarrowed(peopleFilters({ state: 'active' }))).toBe(true);
     expect(teamsNarrowed(teamsFilters({ status: 'archived' }))).toBe(true);
+    expect(initiativesNarrowed(initiativesFilters({ state: 'waiting' }))).toBe(true);
   });
 });
 

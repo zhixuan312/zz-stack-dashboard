@@ -80,15 +80,17 @@ export function RunsAsOf({ served }: { served: RunsRead | null }) {
 /**
  * The masthead's skill control, which narrows the whole page: the tiles, the runs by skill and the recent runs are all
  * the gateway's for that skill. It is usable before the runs have arrived, offering the skill the address names; once
- * they have, it offers every skill they hold. Nothing is read here: the read is the server's.
+ * they have, it offers every skill the team ran, `skills`, which the console's server read without the skill
+ * (`readRunSkills`), and any the runs drawn since hold. Nothing is read here: the read is the server's.
  */
-export function RunsActions({ served }: { served: RunsRead | null }) {
-  return served ? <ServedActions served={served} /> : <SkillControl served={null} />;
+export function RunsActions({ served, skills = [] }: { served: RunsRead | null; skills?: string[] }) {
+  return served ? <ServedActions served={served} skills={skills} /> : <SkillControl served={null} />;
 }
 
-function ServedActions({ served }: { served: RunsRead }) {
+function ServedActions({ served, skills }: { served: RunsRead; skills: string[] }) {
   const { data } = useRuns(served);
-  return <SkillControl served={served} skills={data?.bySkill.state === 'ok' ? data.bySkill.data.rows.map((k) => k.skill) : []} />;
+  const drawn = data?.bySkill.state === 'ok' ? data.bySkill.data.rows.map((k) => k.skill) : [];
+  return <SkillControl served={served} skills={[...new Set([...skills, ...drawn])]} />;
 }
 
 function SkillControl({ served, skills = [] }: { served: RunsRead | null; skills?: string[] }) {

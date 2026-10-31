@@ -261,6 +261,23 @@ describe('the skill control', () => {
   });
 });
 
+describe('the skill control on a skill\'s address', () => {
+  it('offers every skill the team ran, read on the server without the skill, not only the one chosen', async () => {
+    gateway.get.mockImplementation(async (path: string) => (path === '/plugins' ? plugins(ME)[1] : answer(path)));
+    browser(null);
+    window.history.replaceState(null, '', '/runs?skill=sdlc-plan');
+    const tree = await settled(await RunsPage({ searchParams: Promise.resolve({ skill: 'sdlc-plan' }) }));
+    render(<QueryClientProvider client={new QueryClient()}><Tooltip.Provider><Suspense fallback={null}>{tree}</Suspense></Tooltip.Provider></QueryClientProvider>);
+    await screen.findByRole('heading', { level: 1 });
+    expect(gateway.get).toHaveBeenCalledWith(PLAN);
+    expect(gateway.get).toHaveBeenCalledWith(PATH);
+    await userEvent.click(screen.getByRole('combobox', { name: 'Skill' }));
+    const offered = (await screen.findAllByRole('option')).map((o) => o.textContent);
+    expect(offered).toEqual(['Every skill', ...bySkill(ALL).map((k) => k.skill)]);
+    expect(reads()).toEqual([]);
+  });
+});
+
 describe('the first paint of a skill\'s address', () => {
   it('draws the runs of the skill the server read, then hydrates onto the same markup', async () => {
     window.history.replaceState(null, '', '/runs?skill=sdlc-plan');

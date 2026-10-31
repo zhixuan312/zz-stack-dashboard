@@ -2,7 +2,7 @@ import { answeredAt, gatewayGet, type Revised } from '@/data/gateway';
 import { signInWhenEnded } from '@/data/sign-in';
 import type { Runs } from '@/lib/destination-shapes';
 import { bounded } from '@/lib/read-bound';
-import { runsPath, skillPagesOf, type RunsFilters, type RunsRead, type SkillPages } from '@/logic/runs-context';
+import { RUNS_DEFAULTS, runsPath, skillPagesOf, type RunsFilters, type RunsRead, type SkillPages } from '@/logic/runs-context';
 import { readPlugins } from '../plugins/read-plugins';
 
 /**
@@ -20,6 +20,17 @@ export async function readRuns(filters: RunsFilters): Promise<Revised<RunsRead>>
     await signInWhenEnded(error);
     return { state: 'failed', path, reason: error instanceof Error ? error.message : 'The gateway did not answer the read.' };
   }
+}
+
+/**
+ * Every skill the team's runs hold, for the skill control: the by-skill rows of the runs of every skill. A read narrowed
+ * to one skill holds only that one, so on a skill's address the runs of every skill are read beside it, the same read
+ * `/runs` itself makes; with no skill chosen it is `read`. A read that failed offers none, and the control still offers
+ * the skill the address names.
+ */
+export async function readRunSkills(filters: RunsFilters, read: Promise<RunsRead>): Promise<string[]> {
+  const all = filters.skill === 'all' ? await read : await readRuns(RUNS_DEFAULTS);
+  return all.state === 'ok' && all.data.bySkill.state === 'ok' ? all.data.bySkill.data.rows.map((k) => k.skill) : [];
 }
 
 /**

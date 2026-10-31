@@ -113,7 +113,7 @@ function Decision({ report }: { report: BugReport }) {
 /** Why a report cannot be closed as a duplicate here, or null when it can. */
 function noTargets(duplicates: DuplicatesRead): string | null {
   if (duplicates.state !== 'ok') return `Its team's reports could not be read: ${bugsTrouble(duplicates)}`;
-  return duplicates.data.rows.length ? null : 'No other report of its team exists.';
+  return duplicates.data.rows.length ? null : 'No report of its team may be named: there is no other, or each is itself closed as a duplicate.';
 }
 
 /**

@@ -329,7 +329,7 @@ export function bugContext(report: BugReport, duplicates: BugDuplicates | null):
       ...(report.resolution ? [{ text: `What was decided: ${clip(report.resolution, 300)}` }] : []),
       ...(open && duplicates ? [{ text: duplicates.rows.length
         ? `It may be closed as a duplicate of ${formatCount(duplicates.rows.length)} ${plural(duplicates.rows.length, 'report')} of its team: ${roster(n)}.`
-        : 'No other report of its team exists, so it cannot be closed as a duplicate.' }] : []),
+        : 'No report of its team may be named as its original (there is no other, or each is itself closed as a duplicate), so it cannot be closed as a duplicate.' }] : []),
     ],
     unknowns: [
       'A report is closed on its page by a person, never by the assistant: the assistant reads it and changes nothing.',

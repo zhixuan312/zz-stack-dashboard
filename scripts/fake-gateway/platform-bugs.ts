@@ -167,11 +167,12 @@ export function bugReport(id: string): BugReport | null {
 }
 
 /** `GET /platform/bugs/:id/duplicates`: the reports `bug_resolve` would accept as this one's target, which are the other
- *  reports of its team, a report with no team matching another with none. */
+ *  reports of its team, a report with no team matching another with none, open or resolved, but never one itself closed
+ *  as a duplicate. COUPLED: the gateway's console/platform-bugs.ts route, and the target checks in `resolve` below. */
 export function duplicates(id: string): { rows: { id: string; title: string; status: string; reportedAt: string }[] } | null {
   const self = bugReport(id);
   if (!self) return null;
-  return { rows: reports().filter((r) => r.id !== id && r.team === self.team)
+  return { rows: reports().filter((r) => r.id !== id && r.team === self.team && r.status !== 'duplicate')
     .sort((a, b) => b.reportedAt.localeCompare(a.reportedAt) || a.id.localeCompare(b.id))
     .map((r) => ({ id: r.id, title: r.title, status: r.status, reportedAt: r.reportedAt })) };
 }
@@ -194,6 +195,7 @@ export function resolve(report: BugReport, body: { [K in keyof BugResolveInput]?
     if (!other) return [400, { error: `ERROR: no bug with id ${target}` }];
     if (other.id === report.id) return [400, { error: `ERROR: bug ${report.id} cannot duplicate itself` }];
     if (other.team !== report.team) return [400, { error: `ERROR: bug ${report.id} cannot duplicate bug ${target} — a duplicate is read within one team's reports` }];
+    if (other.status === 'duplicate') return [400, { error: `ERROR: bug ${target} is itself closed as a duplicate of ${other.duplicateOf} — point at ${other.duplicateOf} instead. Nothing was written.` }];
   } else if (target !== undefined && target !== null) {
     return [400, { error: `ERROR: \`duplicate_of\` is only for a \`duplicate\` resolution, and this one is \`${status}\`` }];
   }
