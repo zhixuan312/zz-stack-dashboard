@@ -253,12 +253,6 @@ The scoring weights live in \`config/ranking.json\`; see https://docs.example.co
  * Every body carries the clause "after two rounds of review" so `textOf` has something to vary for an earlier
  * snapshot; without it a version chain would show two snapshots with identical text.
  */
-/** Evidence attached to a document. A source carries no flow stage and its path is a bare filename, so it is told
- *  apart by what it is rather than by where it sits — it is the one document nothing is gated on. */
-function sourceBody(title: string): string {
-  return `# ${title}\n\n## What it is\n\nA record of one afternoon's work, kept because a later decision leans on it. It is evidence,\nnever an agreement: nobody signs a source, and nothing is gated on one.\n\n## What it supports\n\nThe claim it was filed against, and the one figure in it that a reader would want to check: the\ncounts are of sessions on the sample index, not of the platform.\n`;
-}
-
 function body(title: string, path: string): string {
   const head = `# ${title}\n\n`;
   if (path.startsWith('explore')) {
@@ -370,7 +364,7 @@ export function documentDetail(team: string, initiative: string, path: string): 
                                              content_revision: contentRevisionOf(team, initiative, path, sealed.revision),
                                              approved_at: ago(sealed.hours) } : null };
   });
-  const sources = d.documents.filter((x) => x.supports === path).map((x) => ({ path: x.path, title: x.title, body: sourceBody(x.title ?? x.path), supports: path, added: localDay(Date.parse(x.updated_at)), bytes: x.bytes }));
+  const sources = d.documents.filter((x) => x.supports === path).map((x) => ({ path: x.path, title: x.title, supports: path, added: localDay(Date.parse(x.updated_at)) }));
   const decisions = d.decisions.filter((x) => x.path === path).map(({ path: _p, ...rest }) => rest);
   return {
     team, initiative, path, current_revision: current, current_version: snaps[current - 1].version, correction: row.correction,

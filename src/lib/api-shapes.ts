@@ -170,8 +170,7 @@ export interface DocumentDetail {
               superseded_approved: { revision: number; content_revision: string | null;
                                      approved_by: string | null; approved_at: string | null } | null }[];
   /** The supporting information attached to this document — why it changed. */
-  sources: { path: string; title: string | null; body: string | null;
-             supports: string; added: string; bytes: number }[];
+  sources: { path: string; title: string | null; supports: string; added: string }[];
   meta?: ReadEnvelope;
 }
 /** `POST /documents/shown`: the console's review context for the document, minted on its first showing and the
