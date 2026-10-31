@@ -26,6 +26,7 @@ import { useDataClock } from '@/lib/api';
 import type { PluginEval, PluginEvalFound, PluginRow } from '@/lib/api-shapes';
 import type { PluginScore } from '@/lib/destination-shapes';
 import { formatDate } from '@/lib/format-date';
+import { plural } from '@/lib/format';
 import { formatCount } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
 import { pendingContext } from '@/logic/context';
@@ -238,8 +239,8 @@ function About({ p }: { p: PluginRow }) {
           { label: 'Version', wrap: true, value: p.version ? <span className="font-mono text-xs">{p.version} <span className="text-ink-3">{p.release ? `+${p.release.digest}` : 'not released'}</span></span> : <span className="text-ink-3">Declares none</span> },
           ...(p.owner ? [{ label: 'Owner', value: p.owner, mono: true }] : []),
           { label: 'Reaches', wrap: true, value: p.servers.length ? <span className="font-mono text-xs">{p.servers.join(' · ')}</span> : <span className="text-ink-3">No server, skills only</span> },
-          { label: 'Method', wrap: true, value: p.stages.length ? `${p.stages.length} stages${p.entry ? `, entered through ${p.entry}` : ''}` : <span className="text-ink-3">No declared method</span> },
-          { label: 'Your team', wrap: true, value: p.yourTeam.calls ? `${formatCount(p.yourTeam.calls)} calls, ${p.yourTeam.failed ? `${formatCount(p.yourTeam.failed)} refused` : 'none refused'}${p.yourTeam.lastRun ? `, last on ${formatDate(p.yourTeam.lastRun)}` : ''}` : <span className="text-ink-3">Never run by your team</span> },
+          { label: 'Method', wrap: true, value: p.stages.length ? `${formatCount(p.stages.length)} ${plural(p.stages.length, 'stage')}${p.entry ? `, entered through ${p.entry}` : ''}` : <span className="text-ink-3">No declared method</span> },
+          { label: 'Your team', wrap: true, value: p.yourTeam.calls ? `${formatCount(p.yourTeam.calls)} ${plural(p.yourTeam.calls, 'call')}, ${p.yourTeam.failed ? `${formatCount(p.yourTeam.failed)} refused` : 'none refused'}${p.yourTeam.lastRun ? `, last on ${formatDate(p.yourTeam.lastRun)}` : ''}` : <span className="text-ink-3">Never run by your team</span> },
         ]}
       />
     </Panel>

@@ -251,6 +251,15 @@ describe('a plugin\'s page', () => {
     expect(text()).toContain('Your team');
   });
 
+  it('counts one call and one stage in the singular', () => {
+    const catalog = catalogOf(ME);
+    const once = catalog.plugins.map((p) => (p.plugin === 'sdlc' ? { ...p, stages: p.stages.slice(0, 1), yourTeam: { ...p.yourTeam, calls: 1, failed: 0 } } : p));
+    mount(<PluginView name="sdlc" served={{ catalog: ok('/plugins', { ...catalog, plugins: once }), evaluation: evaluated('sdlc') }} />);
+    expect(text()).toContain('1 call, none refused');
+    expect(text()).toContain('1 stage');
+    expect(text()).not.toMatch(/\b1 (calls|stages)\b/);
+  });
+
   it('draws the owning team\'s evaluation where the gateway answered it', () => {
     mount(<PluginView name="sdlc" served={read(ME, 'sdlc', evaluated('sdlc'))} />);
     expect(screen.getByRole('region', { name: 'Its evaluation' })).toBeInTheDocument();

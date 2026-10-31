@@ -121,7 +121,7 @@ function Cost({ skill, detail }: { skill: Skill | undefined; detail: SkillDetail
       </Row>
       <Panel title="Conclusion">
         <ul className="t-small flex flex-col gap-2 text-ink-2">
-          <li><b className="text-ink">Runs.</b> {skill.runs} {plural(skill.runs, 'run')} at {perRunOf(skill.callsAvg)} calls each, median {formatSeconds(skill.durationMedian)}, {skill.kbPerRun === null ? 'output not measured' : `${formatKb(skill.kbPerRun)} of observed output`} per run.{heaviest ? <> Most of its calls in the log go to <b className="text-ink">{heaviest.surface}</b> ({formatCount(heaviest.calls)}).</> : null}</li>
+          <li><b className="text-ink">Runs.</b> {formatCount(skill.runs)} {plural(skill.runs, 'run')} at {perRunOf(skill.callsAvg)} calls each, median {formatSeconds(skill.durationMedian)}, {skill.kbPerRun === null ? 'output not measured' : `${formatKb(skill.kbPerRun)} of observed output`} per run.{heaviest ? <> Most of its calls in the log go to <b className="text-ink">{heaviest.surface}</b> ({formatCount(heaviest.calls)}).</> : null}</li>
           <li><b className="text-ink">Reliability.</b> {rate === null ? 'Not measured: the log of its calls was not read.' : rate > REFUSED_FLAG ? <>It refuses <b className="text-ink">{rate.toFixed(1)}%</b> of its calls in the log, above the {REFUSED_FLAG}% this page flags.</> : rate > 0 ? <>A {rate.toFixed(1)}% refusal rate: {formatCount(logged!.failed)} refusals over {formatCount(logged!.calls)} calls in the log.</> : 'No refusal in the log.'}</li>
         </ul>
       </Panel>
@@ -153,7 +153,7 @@ function RunsLead({ name, skill, never, refused, flagged, heaviest }: { name: st
       caption={lead ? (
         <span className="inline-flex items-baseline gap-2">
           <StatusDot tone="warning" className="self-center" />
-          <span>{`Above the ${REFUSED_FLAG}% this page flags: ${formatCount(lead.n)} of ${formatCount(lead.of)} calls ${lead.where} were refused.`}</span>
+          <span>{`Above the ${REFUSED_FLAG}% this page flags: ${formatCount(lead.n)} of ${formatCount(lead.of)} ${plural(lead.of, 'call')} ${lead.where} were refused.`}</span>
         </span>
       ) : never ? 'Never run by your team: nothing has called it.' : skill ? `${formatCount(skill.calls)} ${plural(skill.calls, 'call')} in its runs${refused?.of ? `, ${(100 * refused.n / refused.of).toFixed(1)}% of its calls ${refused.where} refused, not above the ${REFUSED_FLAG}% this page flags` : ''}.` : undefined}
       actions={<AskAbout question={lead ? `Why are ${(100 * lead.n / lead.of).toFixed(1)}% of ${name}'s calls refused, and which tools refuse them?` : `What do our runs of ${name} show, and where does it sit in its plugin's method?`} />}
@@ -239,12 +239,12 @@ export function SkillView({ plugin: pluginName, skill: name, view, served }: { p
             {flagged ? <MetricTile label="Runs" icon={<Repeat />} value={skill ? skill.runs : '—'} note="By your team" /> : null}
             {/* A skill that has never run has no average calls per run — an average of no runs is undefined, not zero —
                 and "0.0" claims a measurement that was never taken. */}
-            <MetricTile label="Calls per run" icon={<Activity />} value={never ? 'No runs' : !skill ? '—' : skill.runs ? skill.callsAvg : 'No runs'} format={perRunOf} note={never ? 'Nothing has called it' : !skill ? 'Average and peak' : skill.runs ? `${formatCount(skill.calls)} in its runs, peak ${skill.callsMax}` : 'Nothing has called it'} />
+            <MetricTile label="Calls per run" icon={<Activity />} value={never ? 'No runs' : !skill ? '—' : skill.runs ? skill.callsAvg : 'No runs'} format={perRunOf} note={never ? 'Nothing has called it' : !skill ? 'Average and peak' : skill.runs ? `${formatCount(skill.calls)} in its runs, peak ${formatCount(skill.callsMax)}` : 'Nothing has called it'} />
             <MetricTile label="Median run" icon={<Timer />} value={never ? 'Not timed' : !skill ? '—' : skill.durationMedian === null ? 'Not timed' : formatSeconds(skill.durationMedian)} note={skill ? `Longest ${formatSeconds(skill.durationMax)}` : 'And the longest'} />
             {/* The log's whole, as the door split and the busiest tools below are its parts: a run counts only the calls an
                 initiative's run made, so the runs' refusals are not the refusals those parts add up to. With the log
                 unread, the runs' own share stands in, and says it is theirs. Led with above where it passes the line. */}
-            {flagged ? null : <MetricTile label="Refused" icon={<Ban />} value={never ? 'No calls' : !skill ? '—' : refused ? (refused.of ? refused.n / refused.of : 'No calls') : '—'} format={(n) => `${(n * 100).toFixed(1)}%`} note={refused ? `${formatCount(refused.n)} of ${formatCount(refused.of)} calls ${refused.where}` : 'Share of its calls'} />}
+            {flagged ? null : <MetricTile label="Refused" icon={<Ban />} value={never ? 'No calls' : !skill ? '—' : refused ? (refused.of ? refused.n / refused.of : 'No calls') : '—'} format={(n) => `${(n * 100).toFixed(1)}%`} note={refused ? `${formatCount(refused.n)} of ${formatCount(refused.of)} ${plural(refused.of, 'call')} ${refused.where}` : 'Share of its calls'} />}
           </Row>
         </>
       ) : null}
@@ -286,7 +286,7 @@ export function SkillView({ plugin: pluginName, skill: name, view, served }: { p
           </Panel>
         )
       ) : null}
-      {view === 'read' && text.data ? <Panel title="The skill" description={`${text.data.body.length.toLocaleString('en-US')} ${plural(text.data.body.length, 'character')}`}><ReadingBody>{text.data.body}</ReadingBody></Panel> : null}
+      {view === 'read' && text.data ? <Panel title="The skill" description={`${formatCount(text.data.body.length)} ${plural(text.data.body.length, 'character')}`}><ReadingBody>{text.data.body}</ReadingBody></Panel> : null}
       {/* The address asks for this view, so it is drawn whether or not anything is in it: a tab that leads to a blank
           page is worse than a sentence saying why. */}
       {view === 'references' && text.data && !text.data.references.length ? (
@@ -295,7 +295,7 @@ export function SkillView({ plugin: pluginName, skill: name, view, served }: { p
         </Panel>
       ) : null}
       {view === 'references' && text.data ? text.data.references.map((r) => (
-        <Panel key={r.path} title={r.path} description={`${r.content.length.toLocaleString('en-US')} ${plural(r.content.length, 'character')}`}>
+        <Panel key={r.path} title={r.path} description={`${formatCount(r.content.length)} ${plural(r.content.length, 'character')}`}>
           {r.path.endsWith('.md') ? <ReadingBody>{r.content}</ReadingBody> : <pre className="font-mono text-xs leading-[1.7] whitespace-pre-wrap text-ink-2 [overflow-wrap:anywhere]">{r.content}</pre>}
         </Panel>
       )) : null}

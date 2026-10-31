@@ -183,7 +183,7 @@ export function ActivityView({ read }: { read: Revised<ActivityRead> }) {
   // ceiling the count is as far as the read reached and the console cannot tell "exactly that many" from "more". The
   // clause therefore says what was read and not what was left. `…` is coming and `—` is not.
   const counted = log.data
-    ? `${log.data.total} ${plural(log.data.total, 'event')}${log.data.total >= log.data.ceiling ? `, the latest ${log.data.ceiling} read` : ''}`
+    ? `${formatCount(log.data.total)} ${plural(log.data.total, 'event')}${log.data.total >= log.data.ceiling ? `, the latest ${formatCount(log.data.ceiling)} read` : ''}`
     : log.isPending ? '…' : '—';
   const option = (v: string) => ({ value: v, label: v });
 
@@ -291,7 +291,7 @@ function Refusals({ summary }: { summary?: ActivitySummary }) {
       title={REFUSALS_TITLE}
       description={last.figure.value === null ? 'By week and by who each refusal is put down to'
         : last.denominator === null ? `${formatCount(last.figure.value)} ${plural(last.figure.value, 'call')} refused in the ${weekOf(last.window)}, by week and owner`
-        : `${formatCount(last.figure.value)} of ${formatCount(last.denominator)} calls refused in the ${weekOf(last.window)}, by week and owner`}
+        : `${formatCount(last.figure.value)} of ${formatCount(last.denominator)} ${plural(last.denominator, 'call')} refused in the ${weekOf(last.window)}, by week and owner`}
       actions={<AskWeek />}
     >
       {weeks.length ? (
