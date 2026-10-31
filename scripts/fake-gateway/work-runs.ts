@@ -32,10 +32,10 @@ const ACTIVE_MS = 5 * MINUTE;
 /** `[team, skill, initiative, began hours before the cutoff, minutes to its last call, calls, refused, bytes]`. */
 type Seed = [team: string, skill: string, initiative: string | null, began: number, minutes: number, calls: number, refusals: number, bytes: number | null];
 const SEEDS: Seed[] = [
-  // Six with a last call in the last five minutes, active, across five initiatives and none, so Home groups them and
+  // Six with a last call in the last five minutes, active, across four initiatives and none, five groups, so Home
   // names four groups and one run more. This one's last call was two minutes ago.
   ['atlas', 'sdlc-execute', '2026-09-28-search-relevance', 40 / 60, 38, 52, 2, 412_000],
-  // These two overlap for half an hour.
+  // These two overlap for 25 minutes.
   ['atlas', 'sdlc-plan', '2026-09-28-search-relevance', 3, 50, 40, 3, 240_000],
   ['atlas', 'sdlc-plan-audit', '2026-09-28-search-relevance', 2.6, 25, 18, 0, 96_000],
   ['atlas', 'sdlc-spec', '2026-10-02-query-latency', 0.5, 27, 64, 5, 1_850_000],
