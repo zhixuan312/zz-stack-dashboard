@@ -12,7 +12,7 @@ import { WorkspacePalette, WorkspaceRail } from '@/views/workspace-chrome';
 
 /**
  * Every console page: the rail on the frame, the page on the canvas. The sign-in gate is each page's own first
- * statement (`gate` in `src/data/access.ts`), so nothing here decides whether a page may render.
+ * statement (`gate` in `src/console/gate.tsx`), so nothing here decides whether a page may render.
  *
  * A Server Component, and `AppShell` is rendered here rather than inside a client frame. That is what keeps the shell
  * out of the client render: rendered from a Client Component, the shell's own `usePathname` is a dynamic client hook

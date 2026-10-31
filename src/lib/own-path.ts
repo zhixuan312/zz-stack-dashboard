@@ -2,7 +2,7 @@
  * Whether an address is a path on this site, read the way a browser reads it: `//host` and `/\host` start with a slash
  * and are another site's, and so is anything with a scheme.
  *
- * Pure, so the server's gate (`src/data/access.ts`, which writes `?next=`) and the sign-in page (`app/login/page.tsx`,
+ * Pure, so the server's gate (`src/console/gate.tsx`, which writes `?next=`) and the sign-in page (`app/login/page.tsx`,
  * which follows it) ask the one question the one way.
  */
 

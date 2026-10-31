@@ -34,7 +34,7 @@ const DEV_PAT = process.env.ZZ_DEV_PAT;
 /** The gateway's own paths, which a laptop routes to it. Everything else this file matches is a page. */
 const GATEWAY_PATH = /^\/(api\/console|auth)(\/|$)/;
 
-// COUPLED: `gate` in `src/data/access.ts` reads this header to send a signed-out person back where they were going.
+// COUPLED: `gate` in `src/console/gate.tsx` reads this header to send a signed-out person back where they were going.
 const PATH_HEADER = 'x-zz-path';
 
 /**

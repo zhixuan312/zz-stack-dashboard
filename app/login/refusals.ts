@@ -1,5 +1,5 @@
 /**
- * Why the console turned a signed-in session away: the code the page gate (`src/data/access.ts`) sends to sign-in as
+ * Why the console turned a signed-in session away: the code the page gate (`src/console/gate.tsx`) sends to sign-in as
  * `?reason=`, and the one sentence the sign-in page says for each.
  *
  * DELIBERATE: a closed table of fixed sentences, never words the address carries. Anybody can write a sign-in address

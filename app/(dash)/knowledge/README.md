@@ -40,7 +40,7 @@ Whose shelf it is, the question searched, the kind and page in force, then the r
 - The search for "latency budget" ranked 4; in view, best first: lesson "Latency budgets are per hop, not per request" (your team's shelf); …
 ```
 
-- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `view_knowledge` answers the same summary, the shelf's page and, given the question, the titles of the same ranked results; `view_search` reads what the results say, each excerpt with its address. `explore_knowledge`, offered on this page and on its log, counts the shelf, the lessons made and the searches over Work's prepared query (`/work/query`), by kind, standing or whether a search found anything.
+- **Console assistant:** this text in its prompt's `<view-context>` block, with the page's address and query, and the page text after it for anything the context does not cover. `view_knowledge` answers the same summary, the shelf's page and, given the question, the titles of the same ranked results; `view_search` reads what the results say, each excerpt with its address. `explore_knowledge` (on its log, `explore_knowledge_log`) counts the shelf, the lessons made and the searches over Work's prepared query (`/work/query`), by kind, standing or whether a search found anything.
 
 ### What the agent does here
 

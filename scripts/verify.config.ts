@@ -90,7 +90,7 @@ export type VerifyConfig = {
   /** Run verify against a remote data URL anyway. Set it only when you know what the presses reach. */
   allowRemoteData?: true;
   /**
-   * Limits verify enforces. Leave a key out for Meridian's default: first-load JS 820 KiB per route and 5% growth over
+   * Limits verify enforces. Leave a key out for Meridian's default: first-load JS `FIRST_LOAD_CAP_KB` (scripts/lib/budgets.ts) per route and 5% growth over
    * `scripts/verify.baseline.json`, the warm, cold and after-live navigation times, a desktop prefetch of 80 KiB from the
    * landing page and none on a closed phone drawer. `htmlKb` caps a page's HTML, the whole streamed
    * response gzipped, in KiB; it has no default, and every page is held to its own baseline without it.
@@ -215,7 +215,7 @@ const config: VerifyConfig = {
      * Every route's first-load JS is held to its own baseline, `FIRST_LOAD_GROWTH_PCT` over it, as its HTML is: the
      * owner's rule that a size cap is a page's own measured figure, never a hand-written number. `null` leaves
      * Meridian's absolute cap out for every route the baseline holds (ZZ Meridian 0.24.0, its issue #76); a route the
-     * baseline does not hold is still held to the default 820 KiB until it is recorded.
+     * baseline does not hold is still held to the default `FIRST_LOAD_CAP_KB` until it is recorded.
      */
     firstLoadKb: null,
     firstLoadGrowthPct: FIRST_LOAD_GROWTH_PCT,

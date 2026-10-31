@@ -24,7 +24,7 @@ tokens rather than inventing a second look.
 ```
 
 **For every page, this app's server reads the gateway, and reads it as the person.** Before a
-page renders, its gate asks the gateway `/me` (`gate` in `src/data/access.ts`), and that one
+page renders, its gate asks the gateway `/me` (`gate` in `src/console/gate.tsx`), and that one
 answer, read once per request, decides whether the page may render and which destinations
 the rail and the command palette draw. The page then makes its own first read there too, in
 the read module beside its route (`read-home.ts`, `read-record.ts` and the rest), bounded at
@@ -205,7 +205,7 @@ for every pair in both themes and every accent, then route types, lint, types an
   Meridian's default first-load cap (`FIRST_LOAD_CAP_KB` in scripts/lib/budgets.ts) until it is recorded. An accepted growth is recorded with
   `node scripts/sizes.ts --write-baseline --base <the running build>`.
 - **complete**: `pnpm verify --full`. Adds the navigation of every rail route, the assistant walked through a page
-  (`scripts/assistant.ts`), the audit of every page at five widths in both themes, every control pressed and every
+  (`scripts/assistant.ts`), the audit of every page at every width `scripts/audit.ts` takes, in both themes, every control pressed and every
   link followed, the whole keyboard path (`scripts/keyboard.ts`), and the product's own `browserChecks`: the Approve
   banners a page load cannot reach (`scripts/approve-banners.ts`), that a change made anywhere reaches the page a
   person is looking at (`scripts/live-check.ts`), that a control showing a selection shows the one that was pressed
@@ -283,7 +283,7 @@ needs. `.env.example` lists them.
 
 What it reads:
 
-- **The page.** Every console page shares a context (`src/views/*-context.ts`): its scope,
+- **The page.** Every console page shares a context (`src/logic/*-context.ts`): its scope,
   how fresh the data is, each figure with its definition, what code computed from them,
   and what the data cannot say. Each page's `README.md` says what its context holds.
 - **The records.** One prepared collection per measure of the gateway's prepared queries

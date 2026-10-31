@@ -1,6 +1,6 @@
 /**
  * What a gated route's loading state may say of its page, under the product's `refusal` (`src/app.config.ts`). It reads
- * only the configuration, so a `loading.tsx` that asks it pulls in nothing of the gate (`src/data/access.ts`) and the
+ * only the configuration, so a `loading.tsx` that asks it pulls in nothing of the gate (`src/console/gate.tsx`) and the
  * route's shell stays prerendered.
  */
 import type { ReactNode } from 'react';

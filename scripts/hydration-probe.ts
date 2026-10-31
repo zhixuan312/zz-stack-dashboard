@@ -1,7 +1,10 @@
 /**
  * Load a route and print every error the page logged, with its text.
  *
- *   node scripts/hydration-probe.ts <path ...> [--base http://localhost:3100] [--width 1024] [--theme light]
+ *   node scripts/hydration-probe.ts <path ...> [--base http://localhost:3100] [--width 1024] [--theme light] [--throttle 20]
+ *
+ * `--throttle` slows the CPU by that factor, as scripts/hydration-check.ts does: a mismatch that is a race shows only
+ * under a slow main thread.
  *
  * Why this exists: `next start` serves a production build, where a hydration mismatch arrives as minified React error
  * #418 whose two differing strings are opaque args — enough to know something disagreed, not enough to know what.

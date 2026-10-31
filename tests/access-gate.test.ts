@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
- * The gate every page opens with (`gate` in `src/data/access.ts`), against a gateway stood up as `fetch`.
+ * The gate every page opens with (`gate` in `src/console/gate.tsx`), against a gateway stood up as `fetch`.
  * What it must never do is open a page for somebody the gateway did not clearly name.
  */
 const jar: Record<string, string> = {};

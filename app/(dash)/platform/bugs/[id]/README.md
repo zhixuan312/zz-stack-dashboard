@@ -16,7 +16,7 @@ One bug report, the superadmin's alone: what the reporter wrote, what it is abou
 
 | State | What shows |
 |---|---|
-| Loading | `loading.tsx` while the gate asks `/me` and the reads are under way: the report's and its facts' cards, then the form's, as skeletons |
+| Loading | `loading.tsx` while the gate asks `/me` and the reads are under way: the shell's own skeleton, headed Bug report, as an address no page answers draws, so nothing streamed before the gate answers tells a member a page stands here |
 | Open | The report, its facts and the resolve form |
 | Closed | The report, its facts and the decision |
 | No duplicate target | The duplicate outcome disabled, saying no other report of its team exists |
