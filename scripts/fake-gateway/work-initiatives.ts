@@ -112,23 +112,27 @@ function nextMoveOf(i: Initiative): NextMove {
 }
 
 /**
- * An initiative as a journey session left it: closed with the outcome the platform derived, when that session closed
- * it, and as the fixture holds it otherwise (journey.ts).
+ * What a journey session's close of `team`'s `slug` changed, closed with the outcome the platform derived, and when;
+ * nothing when no session closed it (journey.ts). The list's row and the initiative's page both apply it.
  */
-function asKept(i: Initiative): Initiative & { closedAt?: number } {
-  const closed = kept()?.closed.find((c) => c.team === i.team && c.slug === i.slug);
-  return closed ? { ...i, closed: true, outcome: closed.outcome, accepted: closed.outcome === 'accepted', complete: closed.outcome !== 'abandoned', closedAt: Date.parse(closed.at) } : i;
+function keptClose(team: string, slug: string) {
+  const c = kept()?.closed.find((x) => x.team === team && x.slug === slug);
+  return c ? { change: { closed: true, outcome: c.outcome, accepted: c.outcome === 'accepted', complete: c.outcome !== 'abandoned' }, at: Date.parse(c.at) } : null;
 }
 
-/** One initiative's page as the gateway serves it, `team`'s `slug`: closed when a journey session closed it (`asKept`), and its state
+/** An initiative as a journey session left it, and as the fixture holds it otherwise. */
+function asKept(i: Initiative): Initiative & { closedAt?: number } {
+  const k = keptClose(i.team, i.slug);
+  return k ? { ...i, ...k.change, closedAt: k.at } : i;
+}
+
+/** One initiative's page as the gateway serves it, `team`'s `slug`: closed when a journey session closed it, and its state
  *  and when it was last touched as its row on the list says them, by the one rule both read. */
 export function initiativeDetail(team: string, slug: string): InitiativeDetail | null {
   const d = detailBody(team, slug);
   if (!d) return null;
   const row = rowsOf(d.team).find((r) => r.slug === d.slug)!;
-  const closed = kept()?.closed.find((c) => c.team === d.team && c.slug === d.slug);
-  const body = closed ? { ...d, closed: true, outcome: closed.outcome, accepted: closed.outcome === 'accepted', complete: closed.outcome !== 'abandoned' } : d;
-  return { ...body, state: row.state, lastTouched: row.lastTouched };
+  return { ...d, ...keptClose(d.team, d.slug)?.change, state: row.state, lastTouched: row.lastTouched };
 }
 
 /**
