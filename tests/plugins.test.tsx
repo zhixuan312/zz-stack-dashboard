@@ -339,15 +339,15 @@ describe('a skill\'s page', () => {
     noEvaluationStarts();
   });
 
-  it('draws the version the catalog ships when the team ran two, never the oldest because it is listed first', () => {
+  it('draws the version the catalog ships when the team ran three, neither the row listed first nor the one listed last', () => {
     window.history.replaceState(null, '', '/plugins/sdlc/sdlc-spec');
     const read = skillRead(ME, 'sdlc', 'sdlc-spec');
     const shipped = plugin(ME, 'sdlc').skills.find((x) => x.name === 'sdlc-spec')!.version ?? '1.0.0';
     const [row] = (read.skills as { state: 'ok'; data: { skills: Skill[] } }).data.skills.filter((x) => x.name === 'sdlc-spec');
-    const older = { ...row, version: '0.0.1', runs: 777 };
-    mount(<SkillView plugin="sdlc" skill="sdlc-spec" view="cost" served={{ ...read, skills: ok('/skills?plugin=sdlc', { skills: [older, { ...row, version: shipped }] }) }} />);
+    const rows = [{ ...row, version: '0.0.1', runs: 777 }, { ...row, version: shipped }, { ...row, version: '99.0.0', runs: 888 }];
+    mount(<SkillView plugin="sdlc" skill="sdlc-spec" view="cost" served={{ ...read, skills: ok('/skills?plugin=sdlc', { skills: rows }) }} />);
     expect(text()).toContain(shipped);
-    expect(text()).not.toContain('777');
+    expect(text()).not.toMatch(/777|888/);
   });
 
   it('draws its text on the view the address named, from the server\'s first paint', () => {

@@ -21,6 +21,15 @@ export const skillDetailPath = (skill: string): string => `/skills/${encodeURICo
 /** The gateway address of one skill's text, as the plugin that ships it serves it. */
 export const skillTextPath = (plugin: string, skill: string): string => `/plugins/${encodeURIComponent(plugin)}/skills/${encodeURIComponent(skill)}`;
 
+/** The row of `/skills` a skill's page and its view tool draw. The gateway answers one row per version the team ran,
+ *  oldest first: the version the catalog ships now, or the one listed last when the catalog does not name it. Never
+ *  simply the first row, which is the oldest version. */
+export function skillRow(skills: readonly Skill[] | undefined, name: string, plugin: PluginRow | undefined): Skill | undefined {
+  const ran = skills?.filter((s) => s.name === name) ?? [];
+  const shipped = plugin?.skills.find((x) => x.name === name);
+  return ran.find((s) => s.version === shipped?.version) ?? ran.at(-1);
+}
+
 /** A skill's page's four reads. A text that names no shipped skill is `missing`. */
 export type SkillRead = {
   catalog: PluginsRead;

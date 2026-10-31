@@ -11,7 +11,7 @@ import type { Skill, SkillDetail, SkillText } from '@/lib/api-shapes';
 import { defineViewTool } from '@/lib/shared-context';
 import { PLUGINS_PATH, type Catalog } from '../plugins-context';
 import { SKILL_EXPLORE } from '../plugins-explore';
-import { skillContext, skillDetailPath, skillTextPath, skillsPath } from '../skill-context';
+import { skillContext, skillDetailPath, skillRow, skillTextPath, skillsPath } from '../skill-context';
 import { justRead, segment } from './shared';
 
 export const skillTool = defineViewTool({
@@ -29,7 +29,8 @@ export const skillTool = defineViewTool({
       gatewayGet<SkillDetail>(skillDetailPath(skill)),
       gatewayGet<SkillText>(skillTextPath(plugin, skill)),
     ]);
-    const data = { plugin: catalog.plugins.find((p) => p.plugin === plugin), skill: skills.skills.find((s) => s.name === skill), detail, text };
+    const row = catalog.plugins.find((p) => p.plugin === plugin);
+    const data = { plugin: row, skill: skillRow(skills.skills, skill, row), detail, text };
     return { context: skillContext(plugin, skill, { ...data, ...justRead() }), data };
   },
   explore: SKILL_EXPLORE,

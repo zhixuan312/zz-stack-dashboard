@@ -16,7 +16,7 @@ import { SurfaceOverride } from '@/components/base/surface';
 import { FEATURES } from '@/data/features';
 import { GatewayError } from '@/data/gateway';
 import { PREPARED } from '@/data/prepared';
-import type { PluginRow } from '@/lib/api-shapes';
+import type { PluginRow, Skill } from '@/lib/api-shapes';
 import { formatDate } from '@/lib/format-date';
 import { contextText, type SharedContext } from '@/lib/shared-context';
 import { CONTEXT_BUDGET } from '@/logic/context';
@@ -156,6 +156,22 @@ describe('view_plugin and view_skill', () => {
     expect(context).toEqual(skillContext('sdlc', 'sdlc-spec', { ...data, ...justRead() }));
     expect(Object.keys(skillTool.input.shape)).toEqual(['plugin', 'skill']);
     for (const t of [pluginTool, skillTool]) expect(t.needs).toBe(FEATURES.plugins.needs);
+  });
+
+  it('view_skill describes the version its page draws: the one the catalog ships, wherever the gateway lists it', async () => {
+    const [, ran] = skills(ME, new URLSearchParams('plugin=sdlc')) as [number, { skills: Skill[] }];
+    const row = ran.skills.find((s) => s.name === 'sdlc-spec')!;
+    const shipped = CATALOG.plugins.find((p) => p.plugin === 'sdlc')!.skills.find((x) => x.name === 'sdlc-spec')!.version!;
+    const rows = [{ ...row, version: '0.0.1' }, { ...row, version: shipped }, { ...row, version: '99.0.0' }];
+    const answers: Record<string, unknown> = {
+      '/plugins': CATALOG,
+      '/skills?plugin=sdlc': { skills: rows },
+      '/skills/sdlc-spec': skillDetail(ME, 'sdlc-spec')[1],
+      '/plugins/sdlc/skills/sdlc-spec': skillText('sdlc', 'sdlc-spec'),
+    };
+    gateway.get.mockImplementation(async (path: string) => answers[path]);
+    const { data } = await skillTool.read({ plugin: 'sdlc', skill: 'sdlc-spec' });
+    expect(data.skill?.version).toBe(shipped);
   });
 });
 
