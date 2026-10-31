@@ -31,7 +31,7 @@ import { formatCount } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
 import { pendingContext } from '@/logic/context';
 import { comparedSaid, evalPath, pluginContext, type EvalRead, type PluginRead } from '@/logic/plugin-context';
-import { FROM_THE_FRONT, PLUGINS_PATH, protocolNamed, readTrouble, standingSaid, type Catalog, type PluginsRead } from '@/logic/plugins-context';
+import { FROM_THE_FRONT, PLUGINS_PATH, protocolWords, readTrouble, standingSaid, type Catalog, type PluginsRead } from '@/logic/plugins-context';
 import { useServed } from '@/logic/use-served';
 
 type PluginSkill = PluginRow['skills'][number];
@@ -208,7 +208,7 @@ function LeadScore({ of, comparability, install, ask }: { of: PluginScore | null
   const shown = of && of.standing !== 'not_established' ? of.value : null;
   return (
     <FeaturedMetric
-      kicker={of ? `Its public score out of ${SCORE_OUT_OF} · ${protocolNamed(of)}` : `Its public score out of ${SCORE_OUT_OF}`}
+      kicker={of ? `Its public score out of ${SCORE_OUT_OF} · ${protocolWords(of.protocol)}` : `Its public score out of ${SCORE_OUT_OF}`}
       value={shown}
       missing={!of ? 'Never scored' : 'Not established'}
       format={(n) => n.toFixed(1)}

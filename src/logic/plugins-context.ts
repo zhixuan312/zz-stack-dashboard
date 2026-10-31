@@ -68,11 +68,12 @@ export function inView(plugins: PluginRow[], f: PluginsFilters): PluginRow[] {
 const pluginsAddress = (f: PluginsFilters): string => addressOf(PLUGINS_PATH, f, PLUGINS_DEFAULTS);
 
 /**
- * The protocol a score was scored against: its key and version where the gateway sends the key (the superadmin's
- * alone), and otherwise the version of the plugin's own protocol in words, never a bare "protocol v2", which reads as a
- * version of nothing.
+ * The protocol a score was scored against, in one wording wherever a page names it: its key and version where the
+ * gateway sends the key (the superadmin's alone), and otherwise the version of the plugin's own protocol in words,
+ * never a bare "protocol v2", which reads as a version of nothing. A key is the words of the team that owns the plugin,
+ * so a member is told only that the protocol is the plugin's own (reconciliation 77).
  */
-export const protocolSaid = (s: PluginScore): string => (s.protocol.key ? `protocol ${s.protocol.key} v${s.protocol.version}` : `version ${s.protocol.version} of its protocol`);
+export const protocolWords = (p: { key: string | null; version: number }): string => (p.key ? `${p.key} v${p.version}` : `version ${p.version} of its protocol`);
 
 /**
  * An evaluation's identifier in a person's words: `constraint_adherence` reads "Constraint adherence" and
@@ -86,16 +87,9 @@ export const wordsOf = (key: string): string => {
 /** A standing as a person says it, capitalised as every badge in the console is. */
 export const standingSaid = (standing: string | null): string => wordsOf(standing ?? 'not_established');
 
-/**
- * The protocol as a score's heading or a table cell names it, short: `sdlc-flow-quality v2`, or for a member, whom the
- * gateway sends no key, `v2 of its own protocol`: a key is the words of the team that owns the plugin, so the cell says
- * the protocol is the plugin's own, which is why it has no name here, and nothing of who reads one (reconciliation 77).
- */
-export const protocolNamed = (s: PluginScore): string => (s.protocol.key ? `${s.protocol.key} v${s.protocol.version}` : `v${s.protocol.version} of its own protocol`);
-
 /** A public score as every view words it, 0 to 10, with the protocol it was scored against and when. */
 export const scoreSaid = (s: PluginScore | null): string => (!s ? 'never scored'
-  : `${s.standing === 'not_established' ? 'not established' : `${s.value.toFixed(1)} of 10 (${s.standing.replace(/_/g, ' ')})`}, ${protocolSaid(s)}, ${formatDate(s.scoredAt)}`);
+  : `${s.standing === 'not_established' ? 'not established' : `${s.value.toFixed(1)} of 10 (${s.standing.replace(/_/g, ' ')})`}, ${protocolWords(s.protocol)}, ${formatDate(s.scoredAt)}`);
 
 /** A plugin's version as a reader is told it: the number it declares, and whether a release vouched for it. */
 export const versionSaid = (p: PluginRow): string => (p.version ? `v${p.version} ${p.release ? 'released' : 'not released'}` : 'no version');

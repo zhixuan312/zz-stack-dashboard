@@ -3,7 +3,7 @@
 import { ArrowRight } from 'lucide-react';
 import type { PluginScore } from '@/lib/destination-shapes';
 import { formatDate, formatDateTime, formatShortDate } from '@/lib/format-date';
-import { protocolNamed, protocolSaid, standingSaid } from '@/logic/plugins-context';
+import { protocolWords, standingSaid } from '@/logic/plugins-context';
 
 /**
  * A plugin's latest public score, as the platform's Evaluation read selects it: out of 10, how far it can be trusted,
@@ -49,7 +49,7 @@ export function ScoreCell({ of }: { of: PluginScore | null }) {
   if (!of) return <span className="text-xs text-ink-3">Never scored</span>;
   const range = of.lower !== null && of.upper !== null ? `, ${of.lower.toFixed(1)} to ${of.upper.toFixed(1)}` : '';
   return (
-    <span className="inline-flex flex-col items-center gap-0.5" title={`${standingSaid(of.standing)}${range}, ${protocolSaid(of)}, scored ${formatDateTime(of.scoredAt)}`}>
+    <span className="inline-flex flex-col items-center gap-0.5" title={`${standingSaid(of.standing)}${range}, ${protocolWords(of.protocol)}, scored ${formatDateTime(of.scoredAt)}`}>
       <span className="whitespace-nowrap @max-[896px]:whitespace-normal">
         {of.standing === 'not_established' ? (
           <span className="text-xs text-ink-3">Not established</span>
@@ -62,7 +62,7 @@ export function ScoreCell({ of }: { of: PluginScore | null }) {
         {' '}
         <span className="text-xs whitespace-nowrap text-ink-3">· {formatShortDate(of.scoredAt)}</span>
       </span>
-      <span className="text-2xs whitespace-nowrap text-ink-3 @max-[896px]:whitespace-normal">{protocolNamed(of)}</span>
+      <span className="text-2xs whitespace-nowrap text-ink-3 @max-[896px]:whitespace-normal">{protocolWords(of.protocol)}</span>
     </span>
   );
 }
@@ -72,4 +72,4 @@ export const SCORE_OUT_OF = 10;
 
 /** The list's score as a phone card's fact: one line, the figure first. */
 export const scoreFact = (of: PluginScore | null): string => (!of ? 'Never scored'
-  : `${of.standing === 'not_established' ? 'Not established' : `${of.value.toFixed(1)} / ${SCORE_OUT_OF}`}, ${protocolSaid(of)}, ${formatDate(of.scoredAt)}`);
+  : `${of.standing === 'not_established' ? 'Not established' : `${of.value.toFixed(1)} / ${SCORE_OUT_OF}`}, ${protocolWords(of.protocol)}, ${formatDate(of.scoredAt)}`);

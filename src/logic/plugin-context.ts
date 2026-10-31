@@ -16,7 +16,7 @@ import { formatDate, formatDay } from '@/lib/format-date';
 import { listed, type Fact, type Insight, type SharedContext } from '@/lib/shared-context';
 import { arrived, budgeted, type Arrival } from './context';
 import { outOfTen, rebuiltSaid, scoreOf as score, shareSaid } from './eval-score';
-import { NO_EVALUATION, scoreSaid, versionSaid, wordsOf, type PluginsRead, type Served } from './plugins-context';
+import { NO_EVALUATION, protocolWords, scoreSaid, versionSaid, wordsOf, type PluginsRead, type Served } from './plugins-context';
 
 /**
  * Whose runs a released change is judged on: release_verify observes the released version's real runs with no team
@@ -69,7 +69,6 @@ export function historyOf(read: Evaluation | null, plugin: string): HistoryRead 
 }
 
 /** A protocol as a sentence names it beside a score: its key and version, or for a member the version in words. */
-const protocolOf = (p: ScoreSeries['protocol']): string => (p.key ? `${p.key} v${p.version}` : `version ${p.version} of its protocol`);
 
 /**
  * What the lead score compares with, by name: the newest other score in its own series, which it compares with, and the
@@ -86,7 +85,7 @@ export function comparedSaid(lead: PluginScore | null, history: HistoryRead | un
   const others = history.series.filter((s) => s !== own).flatMap((s) => {
     const r = newest(s);
     if (!r) return [];
-    const why = s.protocol.version !== own.protocol.version ? `scored against ${protocolOf(s.protocol)}` : 'measured on another population';
+    const why = s.protocol.version !== own.protocol.version ? `scored against ${protocolWords(s.protocol)}` : 'measured on another population';
     return [{ at: r.scoredAt, said: `its ${r.score!.toFixed(1)} of ${formatDay(r.scoredAt)}, ${why}` }];
   }).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 2);
   const same = before ? `Comparable with its ${before.score!.toFixed(1)} of ${formatDay(before.scoredAt)}, the same protocol and population` : null;

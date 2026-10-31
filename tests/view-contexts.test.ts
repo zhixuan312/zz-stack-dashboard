@@ -290,7 +290,7 @@ describe('the figures a context quotes are the data\'s', () => {
   it('plugins quote each score with its protocol and whether it compares, and the team\'s calls as the team\'s', () => {
     const text = contextText(contexts.plugins());
     const sdlc = PLUGINS.find((p) => p.plugin === 'sdlc')!;
-    expect(text).toContain(`protocol sdlc-flow-quality v${sdlc.score!.protocol.version}`);
+    expect(text).toContain(`sdlc-flow-quality v${sdlc.score!.protocol.version}`);
     expect(text).toContain(sdlc.comparability);
     expect(text).toContain('claude plugin install sdlc@zz-stack');
     expect(fact(contexts.plugin(), 'Your team\'s calls')).toBe(String(sdlc.yourTeam.calls));

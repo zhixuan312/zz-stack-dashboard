@@ -14,6 +14,7 @@ import type { Evaluation, SafeFinding } from '@/lib/platform-shapes';
 import { listed, type Fact, type Insight, type SharedContext } from '@/lib/shared-context';
 import { waited } from '@/console/words';
 import { budgeted, pendingContext } from './context';
+import { protocolWords } from './plugins-context';
 import { stampOf } from './read-stamp';
 import { READ_BOUND_MS } from '@/lib/read-bound';
 
@@ -31,7 +32,6 @@ export type PluginScoreRow = Ok<Evaluation['plugins']>[number];
 type History = Ok<Evaluation['history']>[number];
 type Series = History['series'][number];
 type Run = Series['runs'][number];
-type Protocol = Series['protocol'];
 /** A waiting finding as the superadmin reads it: the safe row and the pattern the evaluation recorded. */
 export type WaitingFinding = SafeFinding & { pattern?: string };
 
@@ -58,8 +58,6 @@ export const standingOf = (s: string): string => STANDING[s] ?? s.replace(/_/g, 
 /** Whether the guardrails held at the latest scoring. */
 export const GUARDRAILS: Record<PluginScoreRow['guardrails'], string> = { pass: 'Held', fail: 'One failed', not_established: 'Not established' };
 
-/** A protocol as the caller may read it: its key and version for the superadmin, its version alone for a member. */
-export const protocolOf = (p: Protocol): string => (p.key ? `${p.key} v${p.version}` : `Protocol v${p.version}`);
 
 const ONE = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1, minimumFractionDigits: 1 });
 /** A score out of 10 at the precision the page prints it. */
@@ -120,7 +118,7 @@ export function seriesRows(history: History[]): SeriesRow[] {
 }
 
 /** A series as a row names it: its protocol, and the population it was scored over. */
-export const seriesName = (s: Series): string => `${protocolOf(s.protocol)}, ${s.population ?? 'population not recorded'}`;
+export const seriesName = (s: Series): string => `${protocolWords(s.protocol)}, ${s.population ?? 'population not recorded'}`;
 
 /** One scoring as a cell or a line says it: its score with its range, or its standing alone, and the day. */
 export const runText = (r: Run): string => `${r.score === null ? `no score (${standingOf(r.standing).toLowerCase()})` : `${scoreIn(r.score)} ${standingOf(r.standing).toLowerCase()}`} ${formatShortDate(r.scoredAt)}`;
@@ -191,7 +189,7 @@ export function evaluationContext(read: EvaluationRead): SharedContext {
   for (const plugin of new Set([...latest.keys(), ...history.keys()])) {
     const [p, h] = [latest.get(plugin), history.get(plugin)];
     const said = [
-      p ? `latest ${p.score.value === null ? 'no score' : scoreText(p.score.value, p.lower, p.upper)}, ${standingOf(p.standing).toLowerCase()}, guardrails ${GUARDRAILS[p.guardrails].toLowerCase()}${h ? '' : `, ${protocolOf(p.protocol)}, ${formatShortDate(p.scoredAt)}`}` : null,
+      p ? `latest ${p.score.value === null ? 'no score' : scoreText(p.score.value, p.lower, p.upper)}, ${standingOf(p.standing).toLowerCase()}, guardrails ${GUARDRAILS[p.guardrails].toLowerCase()}${h ? '' : `, ${protocolWords(p.protocol)}, ${formatShortDate(p.scoredAt)}`}` : null,
       h ? `by series, ${h.statement.replace(/^./, (c) => c.toLowerCase())}: ${h.series.map(series).join(' | ')}` : null,
     ].filter((x) => x !== null);
     insights.push({ text: `${plugin}: ${said.join('; ')}.` });

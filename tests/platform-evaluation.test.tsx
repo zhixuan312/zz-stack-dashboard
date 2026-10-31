@@ -169,7 +169,7 @@ describe('the page, as the fake gateway answers it', () => {
   it('shows a member the form everybody may read: no protocol key, no measure, no finding\'s own words', () => {
     const { container } = draw(ok(MEMBER));
     for (const key of [...KEYS, ...MEASURES, ...PATTERNS]) expect(container.textContent).not.toContain(key);
-    expect(table('Each plugin\'s latest score').textContent).toContain('Protocol v2');
+    expect(table('Each plugin\'s latest score').textContent).toContain('version 2 of its protocol');
     const waiting = table('Findings waiting for a decision, oldest first');
     expect(waiting.querySelector('[data-measure]')).toBeNull();
     const rows = within(waiting).getAllByRole('row').slice(1);
@@ -292,7 +292,7 @@ describe('what the assistant is told', () => {
   it('tells a member nothing the page withholds, and says why', () => {
     const t = text(MEMBER);
     for (const key of [...KEYS, ...MEASURES, ...PATTERNS]) expect(t).not.toContain(key);
-    expect(t).toContain('Protocol v2');
+    expect(t).toContain('version 2 of its protocol');
     expect(t).toContain('a member reads the version, and a finding by its kind, plugin and owner category');
     expect(t.length).toBeLessThanOrEqual(CONTEXT_BUDGET);
   });

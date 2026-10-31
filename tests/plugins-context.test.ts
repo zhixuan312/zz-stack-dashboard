@@ -187,7 +187,7 @@ describe('the shared context', () => {
       expect(text).toContain(`${p.plugin}: ${p.required ? 'required' : 'optional'}`);
       expect(text).toContain(p.comparability);
       expect(text).toContain(p.install);
-      if (p.score) expect(text).toContain(`protocol ${p.score.protocol.key} v${p.score.protocol.version}, ${formatDate(p.score.scoredAt)}`);
+      if (p.score) expect(text).toContain(`${p.score.protocol.key} v${p.score.protocol.version}, ${formatDate(p.score.scoredAt)}`);
     }
   });
 

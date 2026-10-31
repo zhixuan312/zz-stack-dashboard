@@ -26,9 +26,10 @@ import type { Evaluation } from '@/lib/platform-shapes';
 import { waited } from '@/console/words';
 import {
   ASK, DECISIONS, GUARDRAILS, TILES, evaluationContext, evaluationTrouble, isAdmin, kindOf, nameOf, namesNoPlugin, ownerOf,
-  protocolOf, rangeOf, runText, scoreIn, scoredAgo, seriesName, seriesRows, standingOf, waitingOf, type EvaluationRead, type PluginScoreRow,
+  rangeOf, runText, scoreIn, scoredAgo, seriesName, seriesRows, standingOf, waitingOf, type EvaluationRead, type PluginScoreRow,
   type SeriesRow, type WaitingFinding,
 } from '@/logic/platform-evaluation-context';
+import { protocolWords } from '@/logic/plugins-context';
 import { stampOf } from '@/logic/read-stamp';
 
 /** The protagonist's title: the card the page's Ask sits on. COUPLED: the README's `Protagonist:`. */
@@ -141,11 +142,11 @@ function ScoreCell({ r }: { r: PluginScoreRow }) {
 const PLUGIN_COLUMNS: Column<PluginScoreRow>[] = aligned([
   // The protocol is the plugin's caption, at every width: as a column of its own it squeezed the figures beside it.
   {
-    key: 'plugin', header: 'Plugin', grow: true, mobile: 'title', title: (r) => `${r.plugin}, ${protocolOf(r.protocol)}`,
+    key: 'plugin', header: 'Plugin', grow: true, mobile: 'title', title: (r) => `${r.plugin}, ${protocolWords(r.protocol)}`,
     cell: (r) => (
       <span className="block min-w-0">
         <span className={`${ident} block font-medium text-ink`}>{r.plugin}</span>
-        <span data-protocol className={`${ident} t-caption block`}>{protocolOf(r.protocol)}</span>
+        <span data-protocol className={`${ident} t-caption block`}>{protocolWords(r.protocol)}</span>
       </span>
     ),
   },
@@ -230,11 +231,11 @@ const SERIES_COLUMNS: Column<SeriesRow>[] = aligned([
     key: 'series', header: 'Series', align: 'left', mobile: 'fact', title: (r) => seriesName(r.series),
     cell: (r) => (
       <span className="block">
-        <span className={`${ident} block text-ink`}>{protocolOf(r.series.protocol)}</span>
+        <span className={`${ident} block text-ink`}>{protocolWords(r.series.protocol)}</span>
         <span data-population className="t-caption block whitespace-nowrap">{r.series.population ?? 'Population not recorded'}</span>
       </span>
     ),
-    mobileCell: (r) => protocolOf(r.series.protocol),
+    mobileCell: (r) => protocolWords(r.series.protocol),
   },
   { key: 'scores', header: 'Scores', align: 'left', mobile: 'fact', cell: (r) => <RunsCell r={r} />, mobileCell: (r) => `${formatCount(r.series.runs.length)} ${plural(r.series.runs.length, 'scoring')}` },
   { key: 'trend', header: 'Within the series', align: 'left', hideBelow: 'lg', mobile: 'status', cell: (r) => <TrendCell r={r} /> },

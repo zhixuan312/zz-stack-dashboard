@@ -187,7 +187,7 @@ describe('F-4, N-3: a plugin\'s score is rebuilt from its parts, and compared by
 describe('F-35, F-36: a plugin in a person\'s words', () => {
   it('says whose protocol a member\'s score was scored against, and no bare version', () => {
     mount(<PluginsView served={listOf(MEMBER)} />);
-    expect(text()).toMatch(/v2 of its own protocol/);
+    expect(text()).toMatch(/version 2 of its protocol/);
     expect(text()).not.toMatch(/protocol v\d/);
   });
 
