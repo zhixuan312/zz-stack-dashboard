@@ -100,6 +100,10 @@ const running = (s: Side, asOf: string): boolean => Date.parse(s.window.to) > Da
 /** A count in a window: its value, or the word for why there is none. */
 const countIn = (f: Figure): string => (f.why === 'unavailable' ? 'Unavailable' : f.value === null ? 'No data' : formatCount(f.value));
 
+/** A count in a window with its noun, `1 tool failure`, `3 calls`, or the noun and why there is no count: `calls unavailable`. */
+const countSaid = (f: Figure, one: string, other?: string): string =>
+  f.value === null ? `${other ?? `${one}s`} ${countIn(f).toLowerCase()}` : `${formatCount(f.value)} ${plural(f.value, one, other)}`;
+
 /** A figure no window has when nothing was observed, or when it saw no calls: never a zero. */
 function noneIn(s: Side, f: Figure): string | null {
   if (observedOf(s) === 'unobserved') return 'Not observed';
@@ -286,7 +290,9 @@ export function lifted(md: string): string {
 function windowFact(label: string, s: Side, asOf: string): Fact {
   return {
     label, value: `${rateIn(s)} malformed per 1,000`,
-    change: `${callsIn(s)} calls, ${malformedIn(s)} malformed, ${failuresIn(s)} ${s.toolFailures.value === 1 ? 'tool failure' : 'tool failures'}, p95 ${p95In(s)}; ${observedOf(s) === 'unobserved' ? observedText(s, asOf) : `${OBSERVED[observedOf(s)]}, ${observedText(s, asOf)}`}`,
+    // A window nobody observed has no count to give, so it says that alone rather than "Not observed calls".
+    change: observedOf(s) === 'unobserved' ? observedText(s, asOf)
+      : `${countSaid(s.calls, 'call')}, ${countSaid(s.malformed, 'malformed', 'malformed')}, ${countSaid(s.toolFailures, 'tool failure')}, p95 ${p95In(s)}; ${OBSERVED[observedOf(s)]}, ${observedText(s, asOf)}`,
   };
 }
 

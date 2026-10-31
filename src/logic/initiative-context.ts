@@ -9,6 +9,7 @@ import type { InitiativeDetail } from '@/lib/api-shapes';
 import { plural } from '@/lib/format';
 import { formatCount } from '@/lib/format-units';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
+import { encodePath } from '@/lib/store-path';
 import { arrived, clip, sectioned, type Arrival, type Section } from './context';
 import { READ_BOUND_MS } from '@/lib/read-bound';
 import { sourceName } from './initiative-name';
@@ -74,7 +75,7 @@ export function initiativeContext(d: InitiativeDetail, arrival: Arrival): Shared
   const sections: Section[] = named.length
     ? [{ name: 'Sources', insight: { text: `Sources, the evidence attached, with the document each supports: ${listed(named, (x) => `${clip(sourceName(x.title, x.path).name, 60)} (${x.supports ?? 'no document named'})`, `the Sources table on ${base}`, SOURCES_NAMED)}.` } }]
     : [];
-  if (d.correction) insights.push({ text: `${d.correction.path} changed after the close and its version ${d.correction.version} awaits approval again; the close stands meanwhile.`, evidence: `${base}/${d.correction.path}` });
+  if (d.correction) insights.push({ text: `${d.correction.path} changed after the close and its version ${d.correction.version} awaits approval again; the close stands meanwhile.`, evidence: `${base}/${encodePath(d.correction.path)}` });
   const c = d.decisionCounts;
   return sectioned({
     view: 'initiative',

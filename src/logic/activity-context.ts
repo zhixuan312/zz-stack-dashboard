@@ -10,6 +10,7 @@
  */
 import type { ColumnPart } from '@/components/charts/column-chart';
 import type { ActivityLog, ActivitySummary, RefusalGroup, RefusalOwner } from '@/lib/destination-shapes';
+import { plural } from '@/lib/format';
 import { formatCount } from '@/lib/format-units';
 import { formatDate, formatDateTime } from '@/lib/format-date';
 import type { PeriodFigure } from '@/lib/platform-shapes';
@@ -122,17 +123,18 @@ export function activityContext({ summary, log, filters = NO_FILTER, page = 1, i
   const weeks = summary.weeks.state === 'ok' ? summary.weeks.data : null;
   const pointed = index !== null && weeks?.[index] ? weeks[index] : null;
   const focus = pointed
-    ? `the ${weekOf(pointed.window)}${pointed.complete ? '' : ', so far'}: ${formatCount(pointed.calls)} calls, ${formatCount(pointed.refused)} refused (${fourOwners(pointed.owners)})`
+    ? `the ${weekOf(pointed.window)}${pointed.complete ? '' : ', so far'}: ${formatCount(pointed.calls)} ${plural(pointed.calls, 'call')}, ${formatCount(pointed.refused)} refused (${fourOwners(pointed.owners)})`
     : undefined;
 
   if (summary.groups.state === 'ok' && summary.groups.data.rows.length) {
     const { rows, groups, rest } = summary.groups.data;
     const shown = groupsOn(summary, groupsPage);
     const first = (groupsPage - 1) * PAGE_SIZE;
+    const later = rows.length - first - shown.length;
     insights.push({
       text: `The team's refusals grouped by owner, tool and message, most first, groups ${first + 1} to ${first + shown.length} of ${formatCount(groups)} in view: ${listed(shown, groupLine, 'see /activity', 5)}.`
-        + (rest ? ` The ${formatCount(rest.groups)} smallest groups, ${formatCount(rest.count)} refusals, are counted together and not listed.` : '')
-        + (rows.length > first + shown.length ? ` ${formatCount(rows.length - first - shown.length)} more groups are on the table's later pages.` : ''),
+        + (rest ? ` The ${formatCount(rest.groups)} smallest ${plural(rest.groups, 'group')}, ${formatCount(rest.count)} ${plural(rest.count, 'refusal')}, ${rest.groups === 1 ? 'is' : 'are'} counted together and not listed.` : '')
+        + (later > 0 ? ` ${formatCount(later)} more ${plural(later, 'group is', 'groups are')} on the table's later pages.` : ''),
       evidence: '/activity?refused=true',
     });
   }

@@ -379,8 +379,10 @@ export function platformStatusContext(read: StatusRead): SharedContext {
 
   const running = runningOf(s);
   if (running.state === 'ok') {
-    const [platform, consoleVersion, tagged, before, migrations] = running.items.map((i) => i.value);
-    facts.push({ label: 'Running', value: `platform ${platform}, console ${consoleVersion}`, change: `tagged ${tagged}, ${before === 'None recorded' ? 'no release before it recorded' : `after ${before}`}; ${migrations} migrations${running.tagged ? `; ${running.tagged}` : ''}` });
+    const [platform, consoleVersion, tagged, before] = running.items.map((i) => i.value);
+    const applied = s.running.state === 'ok' ? s.running.data.migrations : null;
+    const migrations = applied === null ? 'migrations unavailable' : `${formatCount(applied)} ${plural(applied, 'migration')}`;
+    facts.push({ label: 'Running', value: `platform ${platform}, console ${consoleVersion}`, change: `tagged ${tagged}, ${before === 'None recorded' ? 'no release before it recorded' : `after ${before}`}; ${migrations}${running.tagged ? `; ${running.tagged}` : ''}` });
   }
   else if (running.state === 'unrecorded') unknowns.push(UNRECORDED);
   else unavailable('What is running', running.reason);
