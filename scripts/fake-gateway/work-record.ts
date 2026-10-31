@@ -27,6 +27,7 @@ import type { FixtureAnswer } from './envelope.ts';
 import type { Figure, PeriodFigure, Window } from '../../src/lib/platform-shapes.ts';
 import type { RecordRead } from '../../src/lib/work-shapes.ts';
 import { iso, nextStart, now, startOf } from './clock.ts';
+import { NO_TEAM, pageParams } from './work-activity.ts';
 import { approvedMs, callerApprovalRows, firstApproval } from './work-approvals.ts';
 import { ADDITIONS, COVERAGE, estimateOf, wordsIn } from './work-home.ts';
 import { counted, rowsOf, workMeta } from './work-initiatives.ts';
@@ -50,7 +51,7 @@ type FirstKey = Firsts['firsts'][number]['key'];
 const RETAINED = 49_800;
 
 /** When `team`'s first initiative opened, its first record; null with none. */
-function firstRecordOf(team: string | null): number | null {
+function firstRecordOf(team: string): number | null {
   const opened = rowsOf(team).map((r) => Date.parse(r.opened));
   return opened.length ? Math.min(...opened) : null;
 }
@@ -114,7 +115,7 @@ function bestOf(key: Best['key'], candidates: { value: number; atMs: number; sub
 }
 
 /** The record of `team` over `period`, the caller's approvals those signed in `email`'s name; its table paged. */
-function recordOf(team: string | null, email: string, period: Period, page: { limit: number; offset: number }): FixtureAnswer<RecordRead> {
+function recordOf(team: string, email: string, period: Period, page: { limit: number; offset: number }): FixtureAnswer<RecordRead> {
   const first = firstRecordOf(team);
   const start = periodStart(period, first);
   const end = now();
@@ -134,13 +135,13 @@ function recordOf(team: string | null, email: string, period: Period, page: { li
   const approvals = callerApprovalRows(team, email).filter((a) => approvedMs(a) >= start);
   const byOpened = [...all].sort((a, b) => b.opened.localeCompare(a.opened) || a.slug.localeCompare(b.slug));
   const flows = [...new Set(all.map((r) => r.flow))];
-  const docsOf = (slug: string) => detailBody(team ?? '', slug)?.documents.filter((d) => !d.path.startsWith('sources/')) ?? [];
+  const docsOf = (slug: string) => detailBody(team, slug)?.documents.filter((d) => !d.path.startsWith('sources/')) ?? [];
   const documentsOf = (slug: string) => docsOf(slug).length;
   // Each flow document's revisions, as its own page's content history counts them: every snapshot, an approval's included;
   // set when it was last written. Its sources are the ones its own page lists, set when the last of them was registered.
   const revised = all.flatMap((r) => docsOf(r.slug).map((d) => {
-    const detail = documentDetail(team ?? '', r.slug, d.path);
-    const sources = (detailBody(team ?? '', r.slug)?.documents ?? []).filter((x) => x.supports === d.path).map((x) => Date.parse(x.updated_at));
+    const detail = documentDetail(team, r.slug, d.path);
+    const sources = (detailBody(team, r.slug)?.documents ?? []).filter((x) => x.supports === d.path).map((x) => Date.parse(x.updated_at));
     return { initiative: r.slug, path: d.path, versions: detail?.current_revision ?? 0, atMs: Date.parse(detail?.updated_at ?? d.updated_at), sources };
   }));
   const revisionsOf = (slug: string) => revised.filter((d) => d.initiative === slug).reduce((n, d) => n + d.versions, 0);
@@ -157,13 +158,13 @@ function recordOf(team: string | null, email: string, period: Period, page: { li
   const open = mostOpen(all, start, end);
 
   // The lessons made outside an import, the standing ones by kind, and the searches, all of the team's own.
-  const made = team ? lessonsMade(team).map((n) => Date.parse(n.updated)) : [];
-  const searches = team ? searchesOf(team).filter((x) => Date.parse(x.at) >= begins && Date.parse(x.at) < end) : [];
-  const agents = team ? observedRuns(team, begins, end) : null;
+  const made = lessonsMade(team).map((n) => Date.parse(n.updated));
+  const searches = searchesOf(team).filter((x) => Date.parse(x.at) >= begins && Date.parse(x.at) < end);
+  const agents = observedRuns(team, begins, end);
 
   // The whole record's firsts, the earliest first, one not yet reached left out.
   const firstWords = Math.min(...ADDITIONS.map((a) => a.atMs).filter((ms) => ms < end), ...made);
-  const firstRun = team ? runsOf(team).reduce<string | null>((a, r) => (!a || r.startedAt < a ? r.startedAt : a), null) : null;
+  const firstRun = runsOf(team).reduce<string | null>((a, r) => (!a || r.startedAt < a ? r.startedAt : a), null);
   const firstClosed = all.flatMap((r) => (r.closed ? [r.closed] : [])).sort()[0] ?? null;
   const firstApproved = firstApproval(team);
   const firsts = ([
@@ -222,11 +223,9 @@ function recordOf(team: string | null, email: string, period: Period, page: { li
       byKind: tallyOf(SHELF.filter((n) => n.team === team && n.status === 'adopted').map((n) => n.type)).map(([kind, lessons]) => ({ kind, lessons })),
     } },
     agents: { state: 'ok', data: {
-      coverageMs: counted(agents?.coverageMs ?? 0), summedMs: counted(agents?.summedMs ?? 0), peak: counted(agents?.peak ?? 0), runs: counted(agents?.runs ?? 0),
-      zeroLength: agents?.zeroLength ?? 0, skillsUsed: counted(agents?.bySkill.length ?? 0),
-      weekdayHour: agents?.weekdayHour ?? Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => 0)),
-      days: agents?.days ?? [],
-      bySkill: agents?.bySkill ?? [],
+      coverageMs: counted(agents.coverageMs), summedMs: counted(agents.summedMs), peak: counted(agents.peak), runs: counted(agents.runs),
+      zeroLength: agents.zeroLength, skillsUsed: counted(agents.bySkill.length),
+      weekdayHour: agents.weekdayHour, days: agents.days, bySkill: agents.bySkill,
     } },
     firsts: { state: 'ok', data: {
       bests: [
@@ -254,12 +253,14 @@ function recordOf(team: string | null, email: string, period: Period, page: { li
   };
 }
 
-/** `GET /record`, as `who`: 400 for a period or a page the route does not take. */
+/** `GET /record`, as `who`, refused as the gateway refuses it and in its order: a person in no team, a period or page
+ *  given twice, a period the route does not take, a bad page. */
 export function record(who: Me, q: URLSearchParams): Answer {
+  if (who.activeTeam === null) return NO_TEAM;
+  if (['period', 'limit', 'offset'].some((name) => q.getAll(name).length > 1)) return [400, { error: 'the period and the page are given at most once' }];
   const period = q.get('period') ?? 'all';
   if (!(PERIODS as readonly string[]).includes(period)) return [400, { error: `period must be one of ${PERIODS.join(', ')}` }];
-  const limit = Number(q.get('limit') ?? 10);
-  const offset = Number(q.get('offset') ?? 0);
-  if (!Number.isInteger(limit) || limit < 1 || limit > 100 || !Number.isInteger(offset) || offset < 0) return [400, { error: 'limit must be a whole number from 1 to 100, and offset one from 0' }];
-  return [200, recordOf(who.activeTeam, who.email, period as Period, { limit, offset })];
+  const page = pageParams(q, []);
+  if (typeof page === 'string') return [400, { error: page }];
+  return [200, recordOf(who.activeTeam, who.email, period as Period, page)];
 }
