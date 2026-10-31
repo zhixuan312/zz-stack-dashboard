@@ -281,6 +281,18 @@ describe('the writes Access makes, each the person\'s', () => {
     await waitFor(() => expect(document.body.textContent).not.toContain(TOKEN));
   });
 
+  it('opens a second token\'s dialog on Copy, whatever the first one\'s Copy said', async () => {
+    let n = 0;
+    browser((p, init) => (p === '/settings/me/tokens' && init?.method === 'POST' ? [200, { token: `zz_pat_issued_${++n}`, label: '', email: ME.email }] : null));
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText: async () => {} }, configurable: true });
+    draw(ADMIN);
+    const issue = async () => { await act(async () => { fireEvent.click(button(section('Tokens'), 'Issue token')); }); return screen.findByRole('dialog'); };
+    await act(async () => { fireEvent.click(within(await issue()).getByRole('button', { name: 'Copy the token' })); });
+    expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Copy the token' })).toHaveTextContent('Copied');
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'I\'ve stored it' })); });
+    expect(within(await issue()).getByRole('button', { name: 'Copy the token' })).toHaveTextContent(/^Copy$/);
+  });
+
   it('keeps the label typed and says the gateway\'s sentence when an issue is refused', async () => {
     const REFUSED = 'your token is bound to team \'atlas\', so it cannot issue a token that reaches further than it does.';
     browser((p, init) => (p === '/settings/me/tokens' && init?.method === 'POST' ? [403, { error: REFUSED }] : null));

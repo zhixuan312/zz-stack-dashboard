@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Check, Copy } from 'lucide-react';
 import { AskAbout } from '@/components/patterns/ask-about';
 import { FormSection } from '@/components/patterns/form-section';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +16,7 @@ import { toast } from '@/components/ui/toast';
 import { InlineForm } from '@/console/inline-form';
 import { PageControl } from '@/console/paged';
 import { useAccess } from '@/console/settings/access-read';
+import { CopyButton } from '@/console/settings/copy-button';
 import { InlineDestructive } from '@/console/settings/inline-destructive';
 import { Email, PHONE_ROWS } from '@/console/settings/phone-rows';
 import { Since } from '@/console/settings/since';
@@ -41,19 +41,6 @@ const TOKENS_TITLE = 'Tokens';
  * person says so, never on a stray click or Escape.
  */
 function IssuedTokenDialog({ issued, onDismiss }: { issued: IssuedToken | null; onDismiss: () => void }) {
-  const [copied, setCopied] = useState(false);
-
-  async function copy() {
-    if (!issued) return;
-    try {
-      await navigator.clipboard.writeText(issued.token);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
-    } catch {
-      toast({ tone: 'critical', title: 'Could not copy: select the token and copy it by hand.' });
-    }
-  }
-
   return (
     <Dialog open={issued !== null} onOpenChange={(open) => { if (!open) onDismiss(); }}>
       {issued ? (
@@ -67,9 +54,7 @@ function IssuedTokenDialog({ issued, onDismiss }: { issued: IssuedToken | null; 
           <div className="flex flex-col gap-3">
             <div data-assistant="omit" className="flex items-center gap-2">
               <code className="min-w-0 flex-1 rounded-sm bg-surface-sunk px-3 py-2 font-mono text-xs [overflow-wrap:anywhere]">{issued.token}</code>
-              <Button type="button" size="sm" variant="secondary" icon={copied ? <Check /> : <Copy />} onClick={() => void copy()}>
-                {copied ? 'Copied' : 'Copy'}
-              </Button>
+              <CopyButton key={issued.token} text={issued.token} label="Copy the token" byHand="select the token and copy it by hand." />
             </div>
             <p className="t-small text-warning-ink">
               It will not be shown again, here or anywhere else. If it leaks, revoke it and issue a new one.

@@ -1,12 +1,9 @@
 'use client';
 
-import { useState } from 'react';
-import { Check, Copy } from 'lucide-react';
 import { FormSection } from '@/components/patterns/form-section';
-import { Button } from '@/components/ui/button';
-import { toast } from '@/components/ui/toast';
 import { ReadingBody } from '@/console/reading';
 import { useAccess } from '@/console/settings/access-read';
+import { CopyButton } from '@/console/settings/copy-button';
 
 /** One part of the setup: steps to read, or a block of commands to run, numbered from 1. */
 type Part = { kind: 'steps'; text: string } | { kind: 'commands'; text: string; n: number };
@@ -41,25 +38,6 @@ function partsOf(config: string): Part[] {
   return parts;
 }
 
-/** The text's own Copy: a check for two seconds once the clipboard took it, and a toast when it did not. */
-function CopyButton({ text, label }: { text: string; label: string }) {
-  const [copied, setCopied] = useState(false);
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
-    } catch {
-      toast({ tone: 'critical', title: 'Could not copy: select the commands and copy them by hand.' });
-    }
-  }
-  return (
-    <Button type="button" size="sm" variant="secondary" aria-label={label} icon={copied ? <Check /> : <Copy />} onClick={() => void copy()}>
-      {copied ? 'Copied' : 'Copy'}
-    </Button>
-  );
-}
-
 /**
  * The caller's own Claude Code setup, from the Access read: the browser counterpart of `client_setup` on the /manage
  * door. `config` always carries a placeholder bearer (`<YOUR-TOKEN>`, `$ZZ_TOKEN`), never a live one (`renderClientSetup`
@@ -86,7 +64,7 @@ export function ClientSetupPanel() {
             // affordance that tells the reader there is more (the same class a tab strip and a table use).
             <div key={i} className="min-w-0 rounded-md bg-surface-sunk">
               <div className="flex justify-end px-2.5 pt-2.5">
-                <CopyButton text={p.text} label={blocks > 1 ? `Copy the commands of block ${p.n}` : 'Copy the commands'} />
+                <CopyButton text={p.text} label={blocks > 1 ? `Copy the commands of block ${p.n}` : 'Copy the commands'} byHand="select the commands and copy them by hand." />
               </div>
               <pre role="group" tabIndex={0} aria-label={blocks > 1 ? `Commands, block ${p.n}` : 'Commands'} className="scroll-fade-x overflow-x-auto px-4 pt-1 pb-4 font-mono text-xs leading-relaxed whitespace-pre">{p.text}</pre>
             </div>
