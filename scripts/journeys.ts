@@ -35,12 +35,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { localDay } from './fake-gateway/clock.ts';
 import type { Page } from './lib/chrome.ts';
+import { named } from './named.ts';
 import config from './verify.config.ts';
 
 const args = process.argv.slice(2);
 const opt = (k: string, d: string) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
 const base = opt('--base', process.env.BASE ?? 'http://localhost:3100').replace(/\/$/, '');
-const only = opt('--tasks', '') ? new Set(opt('--tasks', '').split(',')) : null;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 /** How long a step waits for the page: past states-check's `SETTLE_MS`, eighteen seconds to settle, since the suites run
  *  side by side. */
@@ -500,6 +500,7 @@ if (import.meta.main) {
   try { tasks = readTasks(); } catch (e) { console.error(`journeys: cannot read ${TASKS_FILE}: ${(e as Error).message}`); process.exit(2); }
   const unknown = JOURNEYS.filter((j) => !tasks.some((t) => t.id === j.task));
   if (unknown.length) { console.error(`journeys: ${unknown.map((j) => j.task).join(', ')} name no task in ${TASKS_FILE}`); process.exit(2); }
+  const only = named('journeys', args, '--tasks', JOURNEYS.map((j) => j.task));
   const chosen = JOURNEYS.filter((j) => !only || only.has(j.task));
   console.log(`journeys: ${chosen.length} of the guides' ${tasks.length} tasks, as journey sessions, against ${base}`);
   const already = await written().catch((e: Error) => [`the gateway could not be read: ${e.message}`]);

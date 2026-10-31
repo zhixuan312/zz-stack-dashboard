@@ -49,28 +49,32 @@ import { NULL_STANDIN, SLOW_MS } from './fake-gateway/states-partial.ts';
 import { TEAMS } from './fake-gateway/platform-teams.ts';
 import { INITIATIVES, detailBody } from './fake-gateway/work.ts';
 import type { Page } from './lib/chrome.ts';
+import { named } from './named.ts';
 import config, { DETAIL } from './verify.config.ts';
 
 const args = process.argv.slice(2);
 const opt = (k: string, d: string) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
-const list = (k: string) => (opt(k, '') ? new Set(opt(k, '').split(',')) : null);
 const base = opt('--base', process.env.BASE ?? 'http://localhost:3100').replace(/\/$/, '');
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const STATES = ['normal', 'empty', 'error', 'slow', 'partial', 'extreme'] as const;
 type State = (typeof STATES)[number];
-const states = STATES.filter((s) => !list('--states') || list('--states')!.has(s));
-export const people = Object.entries(config.personas ?? {}).filter(([name]) => !list('--as') || list('--as')!.has(name));
+const chosenStates = named('states-check', args, '--states', STATES);
+const states = STATES.filter((s) => !chosenStates || chosenStates.has(s));
+const chosenPeople = named('states-check', args, '--as', Object.keys(config.personas ?? {}));
+export const people = Object.entries(config.personas ?? {}).filter(([name]) => !chosenPeople || chosenPeople.has(name));
 // The pool is the number of browsers verify holds for this check (`VERIFY_BROWSERS`, from its `browserChecks` entry in
 // scripts/verify.config.ts); run by hand, `--workers` or four.
 const workers = Math.max(1, Number(opt('--workers', process.env.VERIFY_BROWSERS ?? '4')) || 4);
 
 export type Target = { path: string; ready: string; text: string; rail: boolean };
 export const undeclared = config.detailRoutes.filter((r) => !DETAIL[r]);
-export const targets: Target[] = [
+const all: Target[] = [
   ...(config.navigationChecks ?? []).map((c) => ({ path: c.path, ready: c.readySelector, text: (c.readyText ?? '').toLowerCase(), rail: true })),
   ...config.detailRoutes.filter((r) => DETAIL[r]).map((r) => ({ path: r, ready: DETAIL[r], text: '', rail: false })),
-].filter((t) => !list('--routes') || list('--routes')!.has(t.path));
+];
+const chosenRoutes = named('states-check', args, '--routes', all.map((t) => t.path));
+export const targets: Target[] = all.filter((t) => !chosenRoutes || chosenRoutes.has(t.path));
 
 /** The fake's second team, which the member is in no way of: its slug, its name, its initiatives and its documents' own titles. */
 const OTHER = 'beacon';

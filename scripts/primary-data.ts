@@ -49,20 +49,22 @@
  */
 import { launch, type Page } from './lib/chrome.ts';
 import { measurePhone } from './lib/phone.ts';
+import { named } from './named.ts';
 import config, { DETAIL } from './verify.config.ts';
 
 const args = process.argv.slice(2);
 const opt = (k: string, d: string) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
 const base = opt('--base', process.env.BASE ?? 'http://localhost:3100').replace(/\/$/, '');
-const only = opt('--routes', '') ? new Set(opt('--routes', '').split(',')) : null;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 type Target = { path: string; ready: string; text: string; rail: boolean };
 const rail: Target[] = (config.navigationChecks ?? []).map((c) => ({ path: c.path, ready: c.readySelector, text: (c.readyText ?? '').toLowerCase(), rail: true }));
 const undeclared = config.detailRoutes.filter((r) => !DETAIL[r]);
 const detail: Target[] = config.detailRoutes.filter((r) => DETAIL[r]).map((r) => ({ path: r, ready: DETAIL[r], text: '', rail: false }));
+const only = named('primary-data', args, '--routes', [...rail, ...detail].map((t) => t.path));
 const targets = [...rail, ...detail].filter((t) => !only || only.has(t.path));
-const personas = Object.entries(config.personas ?? {}).filter(([name]) => !args.includes('--as') || opt('--as', '').split(',').includes(name));
+const as = named('primary-data', args, '--as', Object.keys(config.personas ?? {}));
+const personas = Object.entries(config.personas ?? {}).filter(([name]) => !as || as.has(name));
 
 /** The time a route's own data has to be readable in, from navigation start: the stakeholder's budget (spec AC-8.7). */
 const BUDGET_MS = 1_000;
