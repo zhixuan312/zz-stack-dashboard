@@ -103,7 +103,9 @@ function Tiles({ evaluation: e }: { evaluation: Evaluation }) {
     <Row split="tiles" data-figures="read">
       <MetricTile
         label={TILES.waiting.label} hint={TILES.waiting.definition} icon={<Inbox />} value={tiles.waiting} format="count"
-        emphasis={tiles.waiting > 0} note={oldest ? `Oldest waiting ${waited(oldest.waitingSince, e.meta.asOf)}` : 'Nothing waits for a decision'}
+        emphasis={tiles.waiting > 0}
+        // The count is its own read; the list it names the oldest from is another, and an all-clear is never what a failed one says.
+        note={e.waiting.state !== 'ok' ? 'The waiting list could not be read' : oldest ? `Oldest waiting ${waited(oldest.waitingSince, e.meta.asOf)}` : 'Nothing waits for a decision'}
       />
       <MetricTile
         label={TILES.established.label} hint={TILES.established.definition} icon={<ShieldCheck />} value={tiles.established} format="count"
@@ -128,9 +130,11 @@ const GUARDRAILS_SAID = { pass: 'guardrails held', fail: 'a guardrail failed', n
  * An identifier, kept whole on one line: a key broken mid-word ("reliab / ility") is not the key. Every column but the
  * lead holds its content whole, so it takes the width its longest value needs and the lead column keeps only the slack
  * left; an identifier too long for a column of its own is a caption under the lead instead. Each table's columns are
- * held under its own width where `hideBelow` lets them show: the managed lead keeps 256px from 672px.
+ * held under its own width where `hideBelow` lets them show: the managed lead keeps 256px from 672px. Below 640px a
+ * card is narrower than the longest key, so there it may break where the key itself does, at a hyphen or the space
+ * before its version, and never inside a word.
  */
-const ident = 'font-mono text-xs whitespace-nowrap';
+const ident = 'font-mono text-xs whitespace-nowrap max-sm:whitespace-normal';
 
 /** A score out of ten with its range under it; a scoring with no score says so in words, never as 0. */
 function ScoreCell({ r }: { r: PluginScoreRow }) {

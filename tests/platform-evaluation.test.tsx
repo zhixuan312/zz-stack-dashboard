@@ -208,6 +208,12 @@ describe('the page\'s states', () => {
     expect(screen.getAllByText('Nothing waits for a decision').length).toBeGreaterThanOrEqual(2);
   });
 
+  it('partial: a waiting count beside a list that could not be read wears no all-clear', () => {
+    draw(ok({ ...ADMIN, tiles: { ...ADMIN.tiles, waiting: 3 }, waiting: { state: 'unavailable', reason: 'failed' } }));
+    expect(screen.getByText('The waiting list could not be read')).toBeInTheDocument();
+    expect(screen.queryByText('Nothing waits for a decision')).toBeNull();
+  });
+
   it('partial: a part that is unavailable draws its own state, the rest stands, and the Ask stays with its table', () => {
     draw(ok({ ...ADMIN, plugins: { state: 'unavailable', reason: 'failed' }, byOwner: { state: 'unavailable', reason: 'failed' } }), vi.fn());
     expect(screen.getByText('The plugins did not load')).toBeInTheDocument();

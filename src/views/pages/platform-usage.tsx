@@ -24,6 +24,7 @@ import { aligned } from '@/console/columns';
 import { Panel } from '@/console/panel';
 import type { Usage } from '@/lib/fleet-shapes';
 import { formatDay, formatShortDate } from '@/lib/format-date';
+import { plural } from '@/lib/format';
 import { formatCount } from '@/lib/format-units';
 import type { Figure } from '@/lib/platform-shapes';
 import {
@@ -256,7 +257,7 @@ function Refusals({ part }: { part: Usage['refusals'] }) {
 const MedianCell = ({ side }: { side: ToolRow['first'] }) => (
   <span className="inline-flex flex-col whitespace-nowrap">
     <span>{figureText('ms', side.medianMs)}</span>
-    <span className="text-xs text-ink-3">{formatShortDate(side.window.from)} · {formatCount(side.calls)} calls</span>
+    <span className="text-xs text-ink-3">{formatShortDate(side.window.from)} · {formatCount(side.calls)} {plural(side.calls, 'call')}</span>
   </span>
 );
 
@@ -268,7 +269,8 @@ function ChangeCell({ row }: { row: ToolRow }) {
 }
 
 const TOOL_COLUMNS: Column<ToolRow>[] = aligned([
-  { key: 'tool', header: 'Tool', grow: true, mobile: 'title', cell: (r) => <span className="font-mono text-xs whitespace-nowrap" title={r.tool}>{r.tool}</span> },
+  { key: 'tool', header: 'Tool', grow: true, mobile: 'title', cell: (r) => <span className="font-mono text-xs whitespace-nowrap" title={r.tool}>{r.tool}</span>,
+    mobileCell: (r) => <span className="font-mono text-xs [overflow-wrap:anywhere]">{r.tool}</span> },
   { key: 'first', header: 'First week', mobile: 'fact', cell: (r) => <MedianCell side={r.first} />, mobileCell: (r) => `First ${figureText('ms', r.first.medianMs)}` },
   { key: 'last', header: 'Last week', mobile: 'fact', cell: (r) => <MedianCell side={r.last} />, mobileCell: (r) => `Last ${figureText('ms', r.last.medianMs)}` },
   { key: 'change', header: 'Change', mobile: 'status', cell: (r) => <ChangeCell row={r} /> },
