@@ -86,9 +86,9 @@ const median = (window: Window, hours: number[]): PeriodFigure =>
   ({ window, figure: hours.length ? { value: middle(hours)!, why: null } : { value: null, why: 'no_data' }, numerator: null, denominator: hours.length });
 const spread = (m: number, largest: number): { median: Figure; largest: Figure } => ({ median: counted(m), largest: counted(largest) });
 const spreadOf = (xs: number[]) => (xs.length ? spread(middle(xs)!, Math.max(...xs)) : { median: { value: null, why: 'no_data' } as Figure, largest: { value: null, why: 'no_data' } as Figure });
-/** The kinds and counts of `keys`, the most first, then by name. */
 /** Most rewritten documents the gateway answers: the five given the most revisions, each given two or more. */
 const MOST_REWRITTEN = 5;
+/** The kinds and counts of `keys`, the most first, then by name. */
 const tallyOf = (keys: string[]) => [...keys.reduce((m, k) => m.set(k, (m.get(k) ?? 0) + 1), new Map<string, number>())]
   .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
 
@@ -105,6 +105,12 @@ function mostOpen(rows: ReturnType<typeof rowsOf>, from: number, end: number): {
     if (open > most) { most = open; at = c.at; }
   }
   return { value: counted(most), at: at === null ? null : iso(at) };
+}
+
+/** The best of candidates: the highest value, the one set first among equals, then by subject (`bestOf` in the gateway). */
+function bestOf(key: Best['key'], candidates: { value: number; atMs: number; subject: string }[]): Best | null {
+  const [top] = [...candidates].sort((a, b) => b.value - a.value || a.atMs - b.atMs || a.subject.localeCompare(b.subject));
+  return top ? { key, value: top.value, at: iso(top.atMs), subject: top.subject } : null;
 }
 
 /** The record of `team` over `period`, the caller's approvals those signed in `email`'s name; its table paged. */
@@ -130,11 +136,17 @@ function recordOf(team: string | null, email: string, period: Period, page: { li
   const flows = [...new Set(all.map((r) => r.flow))];
   const docsOf = (slug: string) => detailBody(team ?? '', slug)?.documents.filter((d) => !d.path.startsWith('sources/')) ?? [];
   const documentsOf = (slug: string) => docsOf(slug).length;
-  // Each flow document's revisions, as its own page's content history counts them: every snapshot, an approval's included.
-  const revised = all.flatMap((r) => docsOf(r.slug).map((d) => ({ initiative: r.slug, path: d.path, versions: documentDetail(team ?? '', r.slug, d.path)?.current_revision ?? 0 })));
+  // Each flow document's revisions, as its own page's content history counts them: every snapshot, an approval's included;
+  // set when it was last written. Its sources are the ones its own page lists, set when the last of them was registered.
+  const revised = all.flatMap((r) => docsOf(r.slug).map((d) => {
+    const detail = documentDetail(team ?? '', r.slug, d.path);
+    const sources = (detailBody(team ?? '', r.slug)?.documents ?? []).filter((x) => x.supports === d.path).map((x) => Date.parse(x.updated_at));
+    return { initiative: r.slug, path: d.path, versions: detail?.current_revision ?? 0, atMs: Date.parse(detail?.updated_at ?? d.updated_at), sources };
+  }));
   const revisionsOf = (slug: string) => revised.filter((d) => d.initiative === slug).reduce((n, d) => n + d.versions, 0);
   const mostRewritten = revised.filter((d) => d.versions >= 2)
-    .sort((a, b) => b.versions - a.versions || a.initiative.localeCompare(b.initiative) || a.path.localeCompare(b.path)).slice(0, MOST_REWRITTEN);
+    .sort((a, b) => b.versions - a.versions || a.initiative.localeCompare(b.initiative) || a.path.localeCompare(b.path)).slice(0, MOST_REWRITTEN)
+    .map(({ initiative, path, versions }) => ({ initiative, path, versions }));
 
   // The words: each period's additions, their running total, and the most in a whole week of the window.
   const words = periods.map((p) => wordsIn(Math.max(p.fromMs, start), Math.min(p.toMs, end)));
@@ -161,7 +173,7 @@ function recordOf(team: string | null, email: string, period: Period, page: { li
     .filter((f): f is [FirstKey, number] => f[1] !== null).sort((a, b) => a[1] - b[1]).map(([key, ms]) => ({ key, at: iso(ms) }));
   // A best set before the window began is not the window's, and is left out.
   const within = (b: Best | null): b is Best => b !== null && b.at >= whole.from;
-  const lastTouched = all.find((r) => r.slug === '2026-09-28-search-relevance')?.lastTouched ?? asOf;
+  const subject = (d: (typeof revised)[number]) => `${d.initiative}/${d.path}`;
 
   return {
     meta: {
@@ -218,8 +230,8 @@ function recordOf(team: string | null, email: string, period: Period, page: { li
     } },
     firsts: { state: 'ok', data: {
       bests: [
-        mostRewritten[0] ? ({ key: 'most_versions', value: mostRewritten[0].versions, at: lastTouched, subject: `${mostRewritten[0].initiative}/${mostRewritten[0].path}` } as Best) : null,
-        { key: 'most_sources', value: 13, at: iso(Date.parse(lastTouched) - 2 * DAY), subject: '2026-09-28-search-relevance/spec.md' } as Best,
+        bestOf('most_versions', revised.filter((d) => d.versions > 0).map((d) => ({ value: d.versions, atMs: d.atMs, subject: subject(d) }))),
+        bestOf('most_sources', revised.filter((d) => d.sources.length).map((d) => ({ value: d.sources.length, atMs: Math.max(...d.sources), subject: subject(d) }))),
         bestWeek && ({ key: 'most_words_week', value: bestWeek.words, at: bestWeek.at, subject: null } as Best),
         open.at !== null && open.value.value !== null ? ({ key: 'most_open', value: open.value.value, at: open.at, subject: null } as Best) : null,
       ].filter(within),
