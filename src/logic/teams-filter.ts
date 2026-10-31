@@ -53,5 +53,6 @@ export function filtersOf(params: Record<string, string | string[] | undefined>)
     const v = params[k];
     return (Array.isArray(v) ? v[0] : v) ?? TEAMS_DEFAULTS[k];
   };
-  return { q: one('q'), status: one('status'), page: one('page') };
+  // A status the route does not know is no filter, so the read and the words agree that nothing narrowed.
+  return { q: one('q'), status: (TEAM_STATUSES as readonly string[]).includes(one('status')) ? one('status') : 'all', page: one('page') };
 }

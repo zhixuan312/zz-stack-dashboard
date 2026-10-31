@@ -83,7 +83,13 @@ export function filtersOf(params: Record<string, string | string[] | undefined>)
     const v = params[k];
     return (Array.isArray(v) ? v[0] : v) ?? BUGS_DEFAULTS[k];
   };
-  return { state: one('state'), impact: one('impact'), surface: one('surface'), page: one('page') };
+  // A value the route does not know (a stale link, an agent's guess) is no filter: read as `all`, so the read, `narrowed`
+  // and the words the page and its context say all agree that nothing narrowed.
+  const known = (k: 'state' | 'impact', allowed: readonly string[]) => (allowed.includes(one(k)) ? one(k) : 'all');
+  return {
+    state: known('state', BUG_STATES), impact: known('impact', BUG_IMPACTS),
+    surface: SURFACE.test(one('surface')) ? one('surface') : 'all', page: one('page'),
+  };
 }
 
 /** The page's address read back from a gateway path `bugsPath` wrote: its filters, and the page of ten the offset falls in. */

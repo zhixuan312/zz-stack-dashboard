@@ -53,5 +53,6 @@ export function filtersOf(params: Record<string, string | string[] | undefined>)
     const v = params[k];
     return (Array.isArray(v) ? v[0] : v) ?? PEOPLE_DEFAULTS[k];
   };
-  return { q: one('q'), state: one('state'), page: one('page') };
+  // A state the route does not know is no filter, so the read and the words agree that nothing narrowed.
+  return { q: one('q'), state: (PERSON_STATES as readonly string[]).includes(one('state')) ? one('state') : 'all', page: one('page') };
 }
