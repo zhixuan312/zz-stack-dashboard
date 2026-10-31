@@ -21,8 +21,10 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { KeyValue } from '@/components/ui/key-value';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatusDot } from '@/components/ui/status-dot';
+import { aligned } from '@/console/columns';
 import { Panel } from '@/console/panel';
 import { plural } from '@/lib/format';
+import { formatCount } from '@/lib/format-units';
 import { formatDay } from '@/lib/format-date';
 import type { PlatformStatus } from '@/lib/platform-shapes';
 import {
@@ -200,24 +202,24 @@ const datedSaid = (label: string, d: Dated | null) => (d ? `${label} ${d.value}$
 
 const MEASURE: Column<ScoreRow> = { key: 'measure', header: 'Measure', cell: (r) => r.label, title: (r) => `${r.label}: ${r.hint}`, grow: true, mobile: 'title' };
 const SHARED: Column<ScoreRow>[] = [
-  { key: 'last', header: 'Last week', cell: (r) => <DatedCell d={r.last} />, align: 'right', mobile: 'fact', mobileCell: (r) => datedFact('Last', r.last, false) },
-  { key: 'change', header: 'Change', cell: (r) => <ChangeCell row={r} />, align: 'right', mobile: 'status' },
+  { key: 'last', header: 'Last week', cell: (r) => <DatedCell d={r.last} />, mobile: 'fact', mobileCell: (r) => datedFact('Last', r.last, false) },
+  { key: 'change', header: 'Change', cell: (r) => <ChangeCell row={r} />, mobile: 'status' },
   { key: 'shape', header: 'By week', cell: shapeOf, hideBelow: 'md' },
 ];
-const DIRECTIONAL_COLUMNS: Column<ScoreRow>[] = [
+const DIRECTIONAL_COLUMNS: Column<ScoreRow>[] = aligned([
   MEASURE,
-  { key: 'first', header: 'First week', cell: (r) => <DatedCell d={r.first} />, align: 'right', hideBelow: 'lg' },
-  { key: 'best', header: 'Best week', cell: (r) => <DatedCell d={r.best} />, align: 'right', mobile: 'fact', mobileCell: (r) => datedFact('Best', r.best) },
+  { key: 'first', header: 'First week', cell: (r) => <DatedCell d={r.first} />, hideBelow: 'lg' },
+  { key: 'best', header: 'Best week', cell: (r) => <DatedCell d={r.best} />, mobile: 'fact', mobileCell: (r) => datedFact('Best', r.best) },
   ...SHARED,
-];
+]);
 /** Under 896px the low gives way, and the high's title names both. */
-const ACTIVITY_COLUMNS: Column<ScoreRow>[] = [
+const ACTIVITY_COLUMNS: Column<ScoreRow>[] = aligned([
   MEASURE,
-  { key: 'first', header: 'First week', cell: (r) => <DatedCell d={r.first} />, align: 'right', hideBelow: 'lg' },
-  { key: 'high', header: 'High', cell: (r) => <DatedCell d={r.high} />, title: (r) => `${datedSaid('High', r.high)}; ${datedSaid('low', r.low)}`, align: 'right', mobile: 'fact', mobileCell: (r) => datedFact('High', r.high) },
-  { key: 'low', header: 'Low', cell: (r) => <DatedCell d={r.low} />, align: 'right', hideBelow: 'lg' },
+  { key: 'first', header: 'First week', cell: (r) => <DatedCell d={r.first} />, hideBelow: 'lg' },
+  { key: 'high', header: 'High', cell: (r) => <DatedCell d={r.high} />, title: (r) => `${datedSaid('High', r.high)}; ${datedSaid('low', r.low)}`, mobile: 'fact', mobileCell: (r) => datedFact('High', r.high) },
+  { key: 'low', header: 'Low', cell: (r) => <DatedCell d={r.low} />, hideBelow: 'lg' },
   ...SHARED,
-];
+]);
 
 function Scoreboard({ status }: { status: PlatformStatus }) {
   const score = scoreOf(status);
@@ -254,7 +256,7 @@ function Scoreboard({ status }: { status: PlatformStatus }) {
  * door's run sentence and today's calls under its name, where a line may wrap, and one fact: its fault days of its days,
  * with the last.
  */
-const DOOR_COLUMNS: Column<DoorRow>[] = [
+const DOOR_COLUMNS: Column<DoorRow>[] = aligned([
   {
     key: 'door', header: 'Door', cell: (r) => <span className="font-mono text-xs">{r.door}</span>, title: (r) => `The ${r.door} door`, mobile: 'title',
     mobileCell: (r) => (
@@ -268,13 +270,13 @@ const DOOR_COLUMNS: Column<DoorRow>[] = [
   { key: 'rate', header: 'Daily tool failures', cell: (r) => (r.rates.length > 1 ? <Sparkline values={r.rates} color="neutral" height={28} className="w-28" /> : <span className="text-xs text-ink-3">Not enough days</span>), hideBelow: 'md' },
   { key: 'days', header: 'Days with calls', cell: (r) => r.daysWithCalls, numeric: true, hideBelow: 'lg' },
   {
-    key: 'faults', header: 'Fault days', cell: (r) => r.faultDays, title: (r) => `${faultDays(r.faultDays)} of ${r.daysWithCalls} days with calls`, numeric: true, mobile: 'fact',
+    key: 'faults', header: 'Fault days', cell: (r) => r.faultDays, title: (r) => `${faultDays(r.faultDays)} of ${formatCount(r.daysWithCalls)} ${plural(r.daysWithCalls, 'day')} with calls`, numeric: true, mobile: 'fact',
     mobileCell: (r) => `${faultDays(r.faultDays)} in ${r.daysWithCalls} ${plural(r.daysWithCalls, 'day')}${r.faultDays && r.lastFaultDay ? `, last ${dayIn(r.lastFaultDay)}` : ''}`,
   },
   { key: 'last', header: 'Last fault day', cell: (r) => <span className="whitespace-nowrap">{r.lastFaultDay ? dayCell(r.lastFaultDay) : 'None recorded'}</span> },
-  { key: 'run', header: 'Run', cell: (r) => r.run, grow: true, truncate: true },
+  { key: 'run', header: 'Run', cell: (r) => r.run, grow: true, truncate: true, align: 'left' },
   { key: 'today', header: 'Today', cell: (r) => <span className="whitespace-nowrap">{r.today ?? ''}</span>, muted: true, hideBelow: 'lg' },
-];
+]);
 
 /** A count of fault days, in the right number: `1 fault day`, `0 fault days`. */
 const faultDays = (n: number) => `${n} ${plural(n, 'fault day')}`;
