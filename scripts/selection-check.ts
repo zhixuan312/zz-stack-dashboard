@@ -40,13 +40,15 @@ const GROUP_SEL = '[role="radiogroup"],[role="tablist"],[role="group"],[role="li
 const ITEM_SEL = '[role="radio"],[role="tab"],[role="switch"],[role="checkbox"],button';
 
 /**
- * A group's identity, so it can be found again after a press.
+ * A group's identity, so it can be found again after a press, and `groupAt`, which finds it: two groups alike in role,
+ * name and size are told apart by their order on the page.
  *
  * By role and accessible name rather than by a marker this check wrote: an attribute of ours is lost the moment the
  * press re-renders the group, and the first version of this file read every such group as gone — a claim about the
  * check, not about the page.
  */
-const KEY = `const key = (g) => (g.getAttribute('role') || '') + '|' + (g.getAttribute('aria-label') || '') + '|' + g.querySelectorAll(${JSON.stringify(ITEM_SEL)}).length;`;
+const KEY = `const key = (g) => (g.getAttribute('role') || '') + '|' + (g.getAttribute('aria-label') || '') + '|' + g.querySelectorAll(${JSON.stringify(ITEM_SEL)}).length;
+  const groupAt = (k, n) => [...document.querySelectorAll(${JSON.stringify(GROUP_SEL)})].filter((x) => key(x) === k)[n];`;
 
 /** What a control says about itself: the one attribute a selection publishes. */
 const ON = `const on = (el) => el.getAttribute('aria-checked') === 'true' || el.getAttribute('aria-selected') === 'true' || el.getAttribute('aria-pressed') === 'true' || ['on', 'checked', 'active'].includes(el.dataset.state);`;
@@ -56,11 +58,13 @@ const GROUPS = `(() => {
   ${KEY}
   ${ON}
   const items = (g) => [...g.querySelectorAll(${JSON.stringify(ITEM_SEL)})].filter((b) => b.hasAttribute('aria-checked') || b.hasAttribute('aria-selected') || b.hasAttribute('aria-pressed') || b.dataset.state !== undefined);
-  return [...document.querySelectorAll(${JSON.stringify(GROUP_SEL)})]
+  const all = [...document.querySelectorAll(${JSON.stringify(GROUP_SEL)})];
+  return all
     .filter((g) => g.getBoundingClientRect().width > 0)
     .filter((g) => items(g).filter((b) => b.getBoundingClientRect().width > 0).length > 1)
     .map((g) => ({
       key: key(g),
+      nth: all.filter((x) => key(x) === key(g)).indexOf(g),
       label: (g.getAttribute('aria-label') || g.getAttribute('role') || 'group'),
       items: items(g).map((b) => {
         const r = b.getBoundingClientRect();
@@ -70,35 +74,36 @@ const GROUPS = `(() => {
     }));
 })()`;
 
-/** What the group with this key shows now, or GONE when the press took the page somewhere it is not. */
-const showing = (k: string) => `(() => {
+/** What the group shows now, or GONE when the press took the page somewhere it is not. */
+const showing = (g: Group) => `(() => {
   ${KEY}
   ${ON}
-  const g = [...document.querySelectorAll(${JSON.stringify(GROUP_SEL)})].find((x) => key(x) === ${JSON.stringify(k)});
+  const g = groupAt(${JSON.stringify(g.key)}, ${g.nth});
   if (!g) return 'GONE';
   return [...g.querySelectorAll(${JSON.stringify(ITEM_SEL)})].filter(on).map((b) => (b.textContent || '').trim().replace(/\\s+/g, ' ').slice(0, 24)).join(',');
 })()`;
 
 type Item = { label: string; on: boolean; x: number; y: number; w: number };
-type Group = { key: string; label: string; items: Item[] };
+type Group = { key: string; nth: number; label: string; items: Item[] };
 
 const page = await launch();
 const failures: string[] = [];
 await page.send('Network.enable');
 
-/** One press at the item's own centre, through the input layer rather than the element's `click()`. */
-async function press(it: Item): Promise<string> {
+/** One press at the centre of the group's item, through the input layer rather than the element's `click()`. */
+async function press(g: Group, it: Item): Promise<string> {
   /* Into view first: a group is a row that scrolls sideways on a narrow viewport, and an item parked outside it has a
    * centre the pointer cannot reach — `elementFromPoint` answers nothing and the press lands on the page. The first
    * version pressed without this and read the console's own overflow as a control that does not take. */
   const at = await page.eval<Item | null>(`(() => {
-    const b = [...document.querySelectorAll(${JSON.stringify(ITEM_SEL)})].find((x) => (x.textContent || '').trim().replace(/\\s+/g, ' ').slice(0, 24) === ${JSON.stringify(it.label)} && x.getBoundingClientRect().width > 0);
+    ${KEY}
+    const b = [...(groupAt(${JSON.stringify(g.key)}, ${g.nth})?.querySelectorAll(${JSON.stringify(ITEM_SEL)}) ?? [])].find((x) => (x.textContent || '').trim().replace(/\\s+/g, ' ').slice(0, 24) === ${JSON.stringify(it.label)} && x.getBoundingClientRect().width > 0);
     if (!b) return null;
     b.scrollIntoView({ block: 'nearest', inline: 'center' });
     const r = b.getBoundingClientRect();
     return { label: ${JSON.stringify(it.label)}, on: false, w: Math.round(r.width), x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) };
   })()`);
-  if (!at) return 'the item is not on the page';
+  if (!at) return 'the item is not in its group';
   const covered = await page.eval<string>(`(() => {
     const t = document.elementFromPoint(${at.x}, ${at.y});
     if (!t) return 'nothing';
@@ -123,14 +128,14 @@ for (const route of routes) {
     const target = g.items.find((it) => !it.on && it.w > 0 && it.y > 0);
     if (!target) continue;
     presses++;
-    const covered = await press(target);
-    const now = await page.eval<string>(showing(g.key));
+    const covered = await press(g, target);
+    const now = await page.eval<string>(showing(g));
     if (!now.split(',').includes(target.label)) {
       failures.push(`${route}: "${g.label}" — pressed "${target.label}" once and it shows "${now}"${covered === 'in-group' ? '' : `, and the press landed on ${covered}`}`);
     }
     // Put it back, so the next group on the page is judged from the state the route loads in.
-    if (was && was.label !== target.label) await press(was);
-    if (await page.eval<string>(showing(g.key)) === 'GONE') break;
+    if (was && was.label !== target.label) await press(g, was);
+    if (await page.eval<string>(showing(g)) === 'GONE') break;
   }
   for (const e of page.errors.slice(0, 1)) failures.push(`${route}: ${e.slice(0, 160)}`);
 }
