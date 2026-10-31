@@ -9,7 +9,6 @@ Every output is a pure function of a master and a size, so re-running produces t
 DELIBERATE: `mascot-working.png`, `mascot-celebrating.png` and `mascot-thinking.png` are not built. No
 surface in the console uses them.
 """
-import sys
 from pathlib import Path
 from PIL import Image, ImageDraw
 
@@ -17,20 +16,6 @@ ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / 'design/in-use'
 OUT = ROOT / 'public/assets/brand'
 OUT.mkdir(parents=True, exist_ok=True)
-
-# `--digest` prints one line per output: its name and the sha256 of its DECODED pixels. The checks
-# compare that across a generator run instead of the files' bytes, because PNG encoding is a property
-# of the Pillow build's zlib/libpng: the same Pillow version produces different bytes on Linux and on
-# macOS for pixel-for-pixel identical images (`app-icon-1024.png` is 1,223,250 bytes on macOS and
-# 1,200,072 on Linux, the same picture). Comparing bytes therefore asserted a property of the
-# encoder's PLATFORM and could only pass on the machine that produced the committed files — which is
-# what CI found the first time it ran this on Linux. The derivation is what must be reproducible.
-if '--digest' in sys.argv:
-    import hashlib
-    for p in sorted(OUT.glob('*.png')):
-        im = Image.open(p)
-        print(p.name + ' ' + hashlib.sha256(f'{im.size}{im.mode}'.encode() + im.tobytes()).hexdigest())
-    raise SystemExit(0)
 
 # The favicon master is a 980x980 purple square centred on an off-white canvas with
 # exactly 137px of margin on all four sides.
@@ -108,7 +93,7 @@ def emit_pose(master, stem, rendered):
     this script can size once. So both densities are written here, and the browser picks.
 
     Lossy at quality 90: the artwork is soft-shaded and a pose is 5 kB at 1x where the lossless file is three times
-    that. `--digest` does not cover these, because a lossy encoder's output is a property of its version.
+    that.
     """
     path = SRC / master
     if not path.exists():
