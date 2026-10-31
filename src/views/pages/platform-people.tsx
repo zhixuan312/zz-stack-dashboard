@@ -2,7 +2,7 @@
 
 import { useQueryClient } from '@tanstack/react-query';
 import { Fragment, useMemo, useState } from 'react';
-import { Check, Copy, KeyRound, LogIn, UserRound, UserX } from 'lucide-react';
+import { KeyRound, LogIn, UserRound, UserX } from 'lucide-react';
 import { useShareView } from '@/components/base/use-share-view';
 import { AskAbout } from '@/components/patterns/ask-about';
 import { DataTable, useSearchDraft, type Column } from '@/components/patterns/data-table';
@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { toast } from '@/components/ui/toast';
 import { aligned } from '@/console/columns';
 import { failureOf } from '@/console/query';
+import { CopyButton } from '@/console/settings/copy-button';
 import { InlineDestructive } from '@/console/settings/inline-destructive';
 import type { Revised } from '@/data/gateway';
 import { ApiError } from '@/lib/api';
@@ -71,17 +72,6 @@ const passkeys = (n: number) => (n ? `${formatCount(n)} ${plural(n, 'passkey')}`
  * marked `data-assistant="omit"` besides, so the page text an Ask sends never carries it (bug ee35a0d7).
  */
 function IssuedLink({ issued, onDismiss }: { issued: { email: string; url: string } | null; onDismiss: () => void }) {
-  const [copied, setCopied] = useState(false);
-  async function copy() {
-    if (!issued) return;
-    try {
-      await navigator.clipboard.writeText(issued.url);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
-    } catch {
-      toast({ tone: 'critical', title: 'Could not copy; select the link and copy it by hand.' });
-    }
-  }
   return (
     <Dialog open={issued !== null} onOpenChange={(open) => { if (!open) onDismiss(); }}>
       {issued ? (
@@ -95,9 +85,7 @@ function IssuedLink({ issued, onDismiss }: { issued: { email: string; url: strin
           <div data-assistant="omit" className="flex flex-col gap-3">
             <div className="flex items-center gap-2">
               <code className="min-w-0 flex-1 rounded-sm bg-surface px-3 py-2 font-mono text-xs [overflow-wrap:anywhere]">{issued.url}</code>
-              <Button type="button" size="sm" variant="secondary" icon={copied ? <Check /> : <Copy />} onClick={() => void copy()}>
-                {copied ? 'Copied' : 'Copy'}
-              </Button>
+              <CopyButton text={issued.url} label="Copy the link" byHand="select the link and copy it by hand." />
             </div>
             <p className="t-small text-warning-ink">
               Usable once, and good for seven days. They open it on the device whose passkey they want to use; the part

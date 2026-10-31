@@ -224,6 +224,17 @@ describe('the three acts: add a person, issue an enrolment link, deactivate one'
     expect(pageText(document.body)).not.toContain(LINK);
   });
 
+  it('opens a second link\'s dialog on Copy, whatever the first one\'s Copy said', async () => {
+    browser((_path, init) => (init?.method === 'POST' ? [200, { ok: true, url: LINK, result: 'issued' }] : [200, LIST]));
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText: async () => {} }, configurable: true });
+    mount(<PlatformPeopleView served={ok} />);
+    const issue = async () => { await act(async () => { fireEvent.click(within(row(on.email)).getByRole('button', { name: 'Enrolment link' })); }); return screen.findByRole('dialog'); };
+    await act(async () => { fireEvent.click(within(await issue()).getByRole('button', { name: 'Copy the link' })); });
+    expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Copy the link' })).toHaveTextContent('Copied');
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'I\'ve sent it' })); });
+    expect(within(await issue()).getByRole('button', { name: 'Copy the link' })).toHaveTextContent(/^Copy$/);
+  });
+
   it('deactivate asks first, sends the address it shows, and says a refusal in its row', async () => {
     const sent: unknown[] = [];
     browser((_path, init) => {
