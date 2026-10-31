@@ -14,7 +14,7 @@ import type { Fact, Insight, SharedContext } from '@/lib/shared-context';
 import { encodePath } from '@/lib/store-path';
 import type { Figure, PeriodFigure, ReadMeta, Window } from '@/lib/platform-shapes';
 import type { Home, InitiativeRow, WritingCoverage } from '@/lib/work-shapes';
-import { budgeted, clip, pendingContext } from './context';
+import { budgeted, clip, pendingContext, weekOf } from './context';
 import { stampOf } from './read-stamp';
 import { READ_BOUND_MS } from '@/lib/read-bound';
 import { nextOf } from './initiatives-context';
@@ -28,8 +28,6 @@ export type HomeRead =
 
 type Weeks = PeriodFigure[];
 
-/** A week as a person reads it: `week of 5 Oct`. */
-export const weekOf = (w: Window): string => `week of ${formatDay(w.from)}`;
 /** The pill's words for a pointed column: `Week of 5 Oct`. */
 export const pointLabel = (from: string): string => `Week of ${formatDay(from)}`;
 /** A moment against the read's own cutoff, never the browser's clock: `3 h ago`. */

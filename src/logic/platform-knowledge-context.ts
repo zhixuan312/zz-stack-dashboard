@@ -14,10 +14,10 @@ import { formatDay } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import type { Figure, PeriodFigure, Window } from '@/lib/platform-shapes';
 import { listed, type Fact, type SharedContext } from '@/lib/shared-context';
-import { clip, pendingContext, sectioned, type Section } from './context';
+import { clip, pendingContext, sectioned, weekOf, type Section } from './context';
 import { stampOf } from './read-stamp';
 import { READ_BOUND_MS } from '@/lib/read-bound';
-import { changeOf, lastWhole, pointsIn, pointsOf } from './week-change';
+import { changeSaid, figureIn, lastWhole } from './week-change';
 
 /** What the page's one read came back as: the whole response, the gateway's sentence, or no answer within the bound. */
 export type KnowledgeHealthRead = { state: 'ok'; health: KnowledgeHealth } | { state: 'failed'; reason: string } | { state: 'slow' };
@@ -40,10 +40,8 @@ const ONE = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1, minimumFr
 /** A value in its unit, at the precision the page prints it. */
 export const valueIn = (kind: Kind, n: number): string => (kind === 'share' ? `${ONE.format(n)}%` : kind === 'mean' ? ONE.format(n) : formatCount(n));
 
-/** The word a figure with no value reads as: a week the gateway could not count is unavailable, one with nothing in it no data. */
-const wordFor = (f: Figure): string | null => (f.value !== null ? null : f.why === 'unavailable' ? 'Unavailable' : 'No data');
 /** A figure as a cell prints it: its value, with `too few` beside a share or a mean under the thirty searches it needs. */
-export const figureText = (kind: Kind, f: Figure): string => wordFor(f) ?? `${valueIn(kind, f.value!)}${f.why === 'insufficient' ? ', too few' : ''}`;
+export const figureText = (kind: Kind, f: Figure): string => figureIn((n) => valueIn(kind, n), f);
 
 /** A week's figure as its column in a chart reads it: the chart has one word, `No data`, for any week with no figure. */
 const columnText = (kind: Kind, f: Figure): string => (f.value === null ? 'No data' : figureText(kind, f));
@@ -64,9 +62,6 @@ export function searchesSaid(r: ShelfRow): string {
   return `${formatCount(r.searchesLastWeek)} ${plural(r.searchesLastWeek, 'search', 'searches')}${share ? `, ${share}` : ''}`;
 }
 
-/** A week as a person reads it: `week of 5 Oct`. */
-export const weekOf = (w: Window): string => `week of ${formatDay(w.from)}`;
-
 /** Whether the read is the superadmin's: every shelf by name, and the questions. */
 export const isFleet = (h: KnowledgeHealth): boolean => h.meta.scope === 'platform-admin';
 
@@ -79,18 +74,6 @@ export const TILES = {
 } as const satisfies Record<keyof Ok<KnowledgeHealth['tiles']>, { label: string; kind: Kind; definition: string }>;
 export type WeeklyTile = Exclude<keyof typeof TILES, 'standing'>;
 export const WEEKLY_TILES: WeeklyTile[] = ['madeLastWeek', 'searches', 'noResult'];
-
-type Pair = { last: PeriodFigure; previous: PeriodFigure };
-
-/** A tile's change as the context says it, beside the tile's own: a share's in points, a count's as a percentage. */
-function changeSaid(kind: Kind, t: Pair): string {
-  const before = `vs the ${weekOf(t.previous.window)} (${figureText(kind, t.previous.figure)})`;
-  const points = kind === 'share' ? pointsOf(t) : null;
-  const change = kind === 'share' ? (points === null ? null : points / 100) : changeOf(t);
-  if (change === null) return `the week before ${figureText(kind, t.previous.figure)}`;
-  if (Math.abs(change) < 0.0005) return `unchanged ${before}`;
-  return `${change > 0 ? 'up' : 'down'} ${kind === 'share' ? pointsIn(points!) : `${ONE.format(Math.abs(change * 100))}%`} ${before}`;
-}
 
 /** A shelf as a person reads it: a member's by what each is, never by a team's name; a superadmin's by slug. */
 export function shelfName(r: ShelfRow, fleet: boolean): string {
@@ -185,7 +168,7 @@ export function knowledgeHealthContext(read: KnowledgeHealthRead): SharedContext
     facts.push({ label: TILES.standing.label, value: formatCount(t.standing), definition: TILES.standing.definition });
     for (const k of WEEKLY_TILES) {
       const { kind, label, definition } = TILES[k];
-      facts.push({ label, value: figureText(kind, t[k].last.figure), change: changeSaid(kind, t[k]), definition });
+      facts.push({ label, value: figureText(kind, t[k].last.figure), change: changeSaid(t[k], kind === 'share', (f) => figureText(kind, f)), definition });
     }
   } else unavailable('The tiles', h.tiles.reason);
 

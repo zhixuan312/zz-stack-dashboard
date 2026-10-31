@@ -26,8 +26,9 @@ import type { PeriodFigure } from '@/lib/platform-shapes';
 import type { Home } from '@/lib/work-shapes';
 import {
   APPROVALS_LINE, FOOT, HALVES, MILESTONE, MILESTONES_LINE, TILES, TILE_FORMAT, absent, covered, coverageLine, footOf,
-  halvesOf, homeContext, lastWeekOf, pointLabel, since, tileOf, troubleOf, waitingOf, weekIn, weekOf, type HomeRead, type TileKey,
+  halvesOf, homeContext, lastWeekOf, pointLabel, since, tileOf, troubleOf, waitingOf, weekIn, type HomeRead, type TileKey,
 } from '@/logic/home-context';
+import { weekOf } from '@/logic/context';
 import { nextOf } from '@/logic/initiatives-context';
 import { stampOf } from '@/logic/read-stamp';
 import { NO_DATA } from '@/logic/record-names';

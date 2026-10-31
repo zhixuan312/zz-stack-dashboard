@@ -11,10 +11,10 @@
 import type { ColumnPart } from '@/components/charts/column-chart';
 import type { ActivityLog, ActivitySummary, RefusalGroup, RefusalOwner } from '@/lib/destination-shapes';
 import { formatCount } from '@/lib/format-units';
-import { formatDate, formatDateTime, formatDay } from '@/lib/format-date';
-import type { PeriodFigure, Window } from '@/lib/platform-shapes';
+import { formatDate, formatDateTime } from '@/lib/format-date';
+import type { PeriodFigure } from '@/lib/platform-shapes';
 import { listed, type Fact, type Insight, type SharedContext } from '@/lib/shared-context';
-import { addressOf, arrived, budgeted, clip, type Arrival } from './context';
+import { addressOf, arrived, budgeted, clip, weekOf, type Arrival } from './context';
 import { READ_BOUND_MS } from '@/lib/read-bound';
 
 /** How each owner reads: a guardrail that held, a call made wrong, a tool that failed, and the rest. */
@@ -75,9 +75,6 @@ const SHORT: Record<RefusalOwner, string> = { guardrail: 'guardrail', ours: 'mal
 const owners = (o: Record<RefusalOwner, number>) => OWNERS.filter((k) => o[k]).map((k) => `${o[k]} ${SHORT[k]}`).join(', ') || 'none';
 /** All four owners of a count, none left out, as the refused tile says them: `4 guardrail, 2 malformed, 0 tool failure, 1 other`. */
 export const fourOwners = (o: Record<RefusalOwner, number>) => OWNERS.map((k) => `${formatCount(o[k])} ${SHORT[k]}`).join(', ');
-
-/** A week as a person reads it: `week of 5 Oct`. */
-export const weekOf = (w: Window): string => `week of ${formatDay(w.from)}`;
 
 /** A week's figure as it reads: its count, or `unavailable` when the gateway could not read it. */
 const figure = (f: PeriodFigure) => (f.figure.value === null ? 'unavailable' : formatCount(f.figure.value));

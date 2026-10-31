@@ -6,6 +6,8 @@
  * context function from the browser and the view's tool calls the same one on the server (`src/logic/tools.ts`), so
  * the screen and the assistant are told one thing.
  */
+import { formatDay } from '@/lib/format-date';
+import type { Window } from '@/lib/platform-shapes';
 import { contextText, freshnessOf, type Insight, type SharedContext } from '@/lib/shared-context';
 
 /** Whose data a view shows: every team's for a superadmin in the platform view, one team's otherwise. */
@@ -27,6 +29,9 @@ export function addressOf(path: string, params: Record<string, string | undefine
   const query = Object.entries(params).filter(([k, v]) => v !== undefined && v !== '' && v !== defaults[k]).map(([k, v]) => `${k}=${encodeURIComponent(v as string)}`);
   return query.length ? `${path}?${query.join('&')}` : path;
 }
+
+/** A week as a person reads it: `week of 5 Oct`. */
+export const weekOf = (w: Window): string => `week of ${formatDay(w.from)}`;
 
 /**
  * A view with nothing to say yet: its read is still in flight, or it failed. It names the view and says which, so a

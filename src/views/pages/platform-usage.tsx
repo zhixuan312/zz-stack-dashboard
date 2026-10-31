@@ -28,8 +28,9 @@ import { formatCount } from '@/lib/format-units';
 import type { Figure } from '@/lib/platform-shapes';
 import {
   NOT_RECORDED, REFUSAL_PARTS, TILES, TILE_KEYS, askOf, figureText, followupLine, perApprovalText, teamParts,
-  usageContext, usageTrouble, valueIn, weekOf, type TileKey, type UsageRead,
+  usageContext, usageTrouble, valueIn, type TileKey, type UsageRead,
 } from '@/logic/platform-usage-context';
+import { weekOf } from '@/logic/context';
 import { stampOf } from '@/logic/read-stamp';
 import { changeOf, lastWhole, pointsOf } from '@/logic/week-change';
 

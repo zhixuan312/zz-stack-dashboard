@@ -26,9 +26,9 @@ import { formatCount } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
 import {
   AGENT_CALL, NO_FILTER, OWNER_LABEL, PAGE_SIZE, REFUSAL_PARTS, TILES, activityContext, activityPath, activityTrouble, fourOwners,
-  narrowed, weekOf, type ActivityRead,
+  narrowed, type ActivityRead,
 } from '@/logic/activity-context';
-import { pendingContext } from '@/logic/context';
+import { pendingContext, weekOf } from '@/logic/context';
 import { useServed } from '@/logic/use-served';
 
 /** The protagonist's title: the card the page's Ask sits on. COUPLED: the README's `Protagonist:`. */

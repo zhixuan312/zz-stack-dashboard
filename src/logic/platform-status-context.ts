@@ -15,7 +15,7 @@ import { plural } from '@/lib/format';
 import { formatCount } from '@/lib/format-units';
 import { formatCalendarDate, formatDateTime, formatDay, formatShortDate } from '@/lib/format-date';
 import type { Fact, Insight, SharedContext } from '@/lib/shared-context';
-import { budgeted, pendingContext } from './context';
+import { budgeted, pendingContext, weekOf } from './context';
 import { stampOf } from './read-stamp';
 import { READ_BOUND_MS } from '@/lib/read-bound';
 
@@ -57,8 +57,6 @@ export const valueIn = (kind: Kind, n: number): string =>
 /** A value rounded to the precision the page prints it at, so two weeks that read alike are unchanged. */
 const printed = (kind: Kind, n: number) => (kind === 'rate' || kind === 'share' ? Math.round(n * 10) / 10 : Math.round(n));
 
-/** The week a figure is for, in a sentence: `week of 5 Oct`. */
-const weekOf = (p: PeriodFigure): string => `week of ${formatDay(p.window.from)}`;
 /** A local date the gateway names (`2026-10-05`) as the day it is, in a table cell: `05 Oct 2026`, padded as a cell's day. */
 export const dayCell = (date: string): string => { const [, d, m, y] = formatCalendarDate(date).split(' '); return `${d.padStart(2, '0')} ${m} ${y}`; };
 /** The same day inside a sentence, where the year is noise: `5 Oct`. */
@@ -142,8 +140,8 @@ function half(m: Measure | undefined, key: 'malformed_per_1000' | 'same_tool_fol
   if (!m) return { label, kind, value: null, caption: 'Unavailable: the read did not carry this measure.', finding: null, columns: [], dates: [], running: false };
   const last = m.last;
   const none = !last ? 'No whole week has ended since the record began.'
-    : last.figure.why === 'unavailable' ? `Unavailable: not worked out for the ${weekOf(last)}.`
-    : last.figure.why === 'no_data' || last.figure.value === null ? `${key === 'malformed_per_1000' ? 'No calls' : 'No refusals to follow'} that week, the ${weekOf(last)}.`
+    : last.figure.why === 'unavailable' ? `Unavailable: not worked out for the ${weekOf(last.window)}.`
+    : last.figure.why === 'no_data' || last.figure.value === null ? `${key === 'malformed_per_1000' ? 'No calls' : 'No refusals to follow'} that week, the ${weekOf(last.window)}.`
     : null;
   return {
     label, kind, value: none ? null : last!.figure.value!,
@@ -167,11 +165,11 @@ function captionOf(m: Measure, key: 'malformed_per_1000' | 'same_tool_followup_p
   if (n === null || d === null) return `Week of ${formatDay(last.window.from)}${few}`;
   if (key === 'malformed_per_1000') {
     return m.finding?.kind === 'count'
-      ? `Real-work calls, ${weekOf(last)}, ${changeOf(m).words}${few}`
-      : `${formatCount(n)} of ${formatCount(d)} real-work calls, ${weekOf(last)}${few}`;
+      ? `Real-work calls, ${weekOf(last.window)}, ${changeOf(m).words}${few}`
+      : `${formatCount(n)} of ${formatCount(d)} real-work calls, ${weekOf(last.window)}${few}`;
   }
   const c = m.followupCounts?.[indexOf(m, last)];
-  return `${formatCount(n)} of ${formatCount(d)} refusals that could be followed were put right, ${weekOf(last)}${c ? `; ${formatCount(c.refusals)} refused in all` : ''}${few}`;
+  return `${formatCount(n)} of ${formatCount(d)} refusals that could be followed were put right, ${weekOf(last.window)}${c ? `; ${formatCount(c.refusals)} refused in all` : ''}${few}`;
 }
 
 /** Both halves, the malformed-call rate first. */
@@ -184,7 +182,7 @@ export function footOf(s: PlatformStatus): { label: string; value: string }[] {
   const doors = s.doors.state === 'ok' ? s.doors.data : null;
   const sum = (f: (d: Door) => number) => (doors ?? []).reduce((n, d) => n + f(d), 0);
   return [
-    { label: 'Best week, malformed calls', value: best && best.figure.value !== null ? `${formatRate(best.figure.value)}, ${weekOf(best)}` : 'No comparable week yet' },
+    { label: 'Best week, malformed calls', value: best && best.figure.value !== null ? `${formatRate(best.figure.value)}, ${weekOf(best.window)}` : 'No comparable week yet' },
     { label: 'Days in a row with work', value: s.records.state === 'ok' ? formatCount(s.records.data.daysWithWork) : 'Unavailable' },
     { label: 'Tool failures, every door', value: doors ? `${formatCount(sum((d) => d.totals.toolFailures))} in ${formatCount(sum((d) => d.totals.calls))} calls` : 'Unavailable' },
   ];
@@ -288,7 +286,7 @@ function ownTile(label: string, hint: string, kind: Kind, weeks: PeriodFigure[],
   return {
     label, hint, kind,
     value: last ? (wordFor(last.figure) ?? last.figure.value!) : 'No whole week yet',
-    note: last ? `${counts}${weekOf(last)}` : undefined,
+    note: last ? `${counts}${weekOf(last.window)}` : undefined,
     points: weeks.filter((w) => w.window.complete).map((w) => w.figure.value),
   };
 }
@@ -418,7 +416,7 @@ export function platformStatusContext(read: StatusRead): SharedContext {
   );
   return budgeted({
     ...VIEW,
-    scope: `the platform's real work${last ? `; last whole week: the ${weekOf(last)}` : ''}`,
+    scope: `the platform's real work${last ? `; last whole week: the ${weekOf(last.window)}` : ''}`,
     freshness: `${stampOf(s.meta).text}.`,
     facts, insights, unknowns,
   });

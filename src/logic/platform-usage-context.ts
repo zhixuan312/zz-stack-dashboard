@@ -6,16 +6,16 @@
  * Every figure is the gateway's, and each is an observation with its population named: more calls, sessions or
  * refusals are never said to be better or worse, and a week the gateway could not count is missing, never zero.
  */
-import type { Tile, Usage } from '@/lib/fleet-shapes';
+import type { Usage } from '@/lib/fleet-shapes';
 import { plural } from '@/lib/format';
 import { formatDay } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import type { Figure, PeriodFigure, Window } from '@/lib/platform-shapes';
 import { listed, type Fact, type SharedContext } from '@/lib/shared-context';
-import { pendingContext, sectioned, type Section } from './context';
+import { pendingContext, sectioned, weekOf, type Section } from './context';
 import { stampOf } from './read-stamp';
 import { READ_BOUND_MS } from '@/lib/read-bound';
-import { changeOf, lastWhole, pointsIn, pointsOf } from './week-change';
+import { changeSaid, figureIn, lastWhole, wordFor } from './week-change';
 
 /** What the page's one read came back as: the whole response, the gateway's sentence, or no answer within the bound. */
 export type UsageRead = { state: 'ok'; usage: Usage } | { state: 'failed'; reason: string } | { state: 'slow' };
@@ -33,16 +33,11 @@ const WHOLE = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
 export const valueIn = (kind: Kind, n: number): string =>
   kind === 'share' ? `${ONE.format(n)}%` : kind === 'ratio' ? ONE.format(n) : kind === 'ms' ? `${WHOLE.format(n)} ms` : kind === 'seconds' ? `${WHOLE.format(n)} s` : formatCount(n);
 
-/** The word a figure with no value reads as: a week the gateway could not count is unavailable, one with nothing in it no data. */
-const wordFor = (f: Figure): string | null => (f.value !== null ? null : f.why === 'unavailable' ? 'Unavailable' : 'No data');
 /** A figure as a cell prints it: its value, with `too few` beside one under the sample a comparison needs. */
-export const figureText = (kind: Kind, f: Figure): string => wordFor(f) ?? `${valueIn(kind, f.value!)}${f.why === 'insufficient' ? ', too few' : ''}`;
+export const figureText = (kind: Kind, f: Figure): string => figureIn((n) => valueIn(kind, n), f);
 /** A share over the count it is of, its caveat after the whole: `87.5% of 16 refused sessions · too few to judge`. */
 const shareOf = (f: Figure, of: number | null, noun: string): string =>
   wordFor(f) ?? `${valueIn('share', f.value!)}${of ? ` of ${formatCount(of)} ${noun}` : ''}${f.why === 'insufficient' ? ' · too few to judge' : ''}`;
-
-/** A week as a person reads it: `week of 5 Oct`. */
-export const weekOf = (w: Window): string => `week of ${formatDay(w.from)}`;
 
 /** The tiles, as the page labels them and the assistant is told what each counts. */
 export const TILES = {
@@ -53,16 +48,6 @@ export const TILES = {
 } as const satisfies Record<keyof Extract<Usage['tiles'], { state: 'ok' }>['data'], { label: string; kind: Kind; definition: string }>;
 export type TileKey = keyof typeof TILES;
 export const TILE_KEYS = Object.keys(TILES) as TileKey[];
-
-/** A tile's change as the context says it, beside the tile's own: a share's in points, any other's as a percentage. */
-function changeSaid(kind: Kind, t: Tile): string {
-  const before = `vs the ${weekOf(t.previous.window)} (${figureText(kind, t.previous.figure)})`;
-  const points = kind === 'share' ? pointsOf(t) : null;
-  const change = kind === 'share' ? (points === null ? null : points / 100) : changeOf(t);
-  if (change === null) return `the week before ${figureText(kind, t.previous.figure)}`;
-  if (Math.abs(change) < 0.0005) return `unchanged ${before}`;
-  return `${change > 0 ? 'up' : 'down'} ${kind === 'share' ? pointsIn(points!) : `${ONE.format(Math.abs(change * 100))}%`} ${before}`;
-}
 
 /** The owners of a refusal, and the platform's own maintenance, as the composition of all refusals names them. The
  *  owners keep Activity's colours; Maintenance is another population rather than an owner, and both neutrals are
@@ -129,7 +114,7 @@ export function usageContext(read: UsageRead): SharedContext {
     week = u.tiles.data.calls.last.window;
     for (const k of TILE_KEYS) {
       const t = u.tiles.data[k];
-      facts.push({ label: TILES[k].label, value: figureText(TILES[k].kind, t.last.figure), change: changeSaid(TILES[k].kind, t), definition: TILES[k].definition });
+      facts.push({ label: TILES[k].label, value: figureText(TILES[k].kind, t.last.figure), change: changeSaid(t, TILES[k].kind === 'share', (f) => figureText(TILES[k].kind, f)), definition: TILES[k].definition });
     }
   } else unavailable('The tiles', u.tiles.reason);
 

@@ -1,9 +1,10 @@
 /**
  * A weekly figure against the week before, as Usage and Knowledge health both say it: the week the cards are about, the
- * change, and a share's change in points. One copy for both pages, because two drifted: Usage's change ignored a week
- * under its sample, which Knowledge health's refused (review round 2, R2-C54).
+ * change, a share's change in points, and the sentence the assistant is told. One copy for both pages, because two
+ * drifted: Usage's change ignored a week under its sample, which Knowledge health's refused (review round 2, R2-C54).
  */
-import type { PeriodFigure, Window } from '@/lib/platform-shapes';
+import type { Figure, PeriodFigure, Window } from '@/lib/platform-shapes';
+import { weekOf } from './context';
 
 /** The last whole week a series holds, by its index: the week the cards are about; -1 when none is whole. */
 export function lastWhole<T extends { window: Window }>(weeks: T[]): number {
@@ -30,3 +31,19 @@ export function pointsOf({ last, previous }: Pair): number | null {
 const ONE = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1, minimumFractionDigits: 1 });
 /** A change in points, its direction left to the arrow or the word before it: `5.0 pts`. */
 export const pointsIn = (n: number): string => `${ONE.format(Math.abs(n))} pts`;
+
+/** The word a figure with no value reads as: a week the gateway could not count is unavailable, one with nothing in it no data. */
+export const wordFor = (f: Figure): string | null => (f.value !== null ? null : f.why === 'unavailable' ? 'Unavailable' : 'No data');
+
+/** A figure as a cell prints it, in the page's own unit: its value, with `too few` beside one under the sample it needs. */
+export const figureIn = (unit: (n: number) => string, f: Figure): string => wordFor(f) ?? `${unit(f.value!)}${f.why === 'insufficient' ? ', too few' : ''}`;
+
+/** A tile's change as the context says it, beside the tile's own: a share's in points, any other's as a percentage. */
+export function changeSaid(t: Pair, share: boolean, cell: (f: Figure) => string): string {
+  const before = `vs the ${weekOf(t.previous.window)} (${cell(t.previous.figure)})`;
+  const points = share ? pointsOf(t) : null;
+  const change = share ? (points === null ? null : points / 100) : changeOf(t);
+  if (change === null) return `the week before ${cell(t.previous.figure)}`;
+  if (Math.abs(change) < 0.0005) return `unchanged ${before}`;
+  return `${change > 0 ? 'up' : 'down'} ${share ? pointsIn(points!) : `${ONE.format(Math.abs(change * 100))}%`} ${before}`;
+}

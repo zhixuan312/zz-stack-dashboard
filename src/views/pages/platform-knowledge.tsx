@@ -25,9 +25,10 @@ import { formatCount } from '@/lib/format-units';
 import type { Figure, PeriodFigure, Window } from '@/lib/platform-shapes';
 import {
   TILES, WEEKLY_TILES, askOf, cohortNote, cohortText, exactSince, figureText, isFleet, knowledgeHealthContext, knowledgeHealthTrouble,
-  leftOut, madeLine, noResultCell, searchLine, searchesSaid, shelfName, valueIn, weekOf, type KnowledgeHealthRead, type MadeWeek, type Question,
+  leftOut, madeLine, noResultCell, searchLine, searchesSaid, shelfName, valueIn, type KnowledgeHealthRead, type MadeWeek, type Question,
   type SearchWeek, type ShelfRow, type WeeklyTile,
 } from '@/logic/platform-knowledge-context';
+import { weekOf } from '@/logic/context';
 import { stampOf } from '@/logic/read-stamp';
 import { changeOf, lastWhole, pointsOf } from '@/logic/week-change';
 
