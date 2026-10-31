@@ -225,7 +225,9 @@ const opened = () => page.eval<Opened[]>('window.__liveStreams ?? []');
 async function pressed(from: string, to: string, collection: string): Promise<void> {
   const where = `a press in the rail from ${from} to ${to}`;
   await page.open(base + from, { width: 1440, theme: 'dark', wait: 600, cookie: SESSION });
-  if (page.errors.length) failures.push(`${from}: ${page.errors[0]}`);
+  // The press is a client navigation, which keeps the page and its errors: only the ones after `loaded` are the press's.
+  const loaded = page.errors.length;
+  if (loaded) failures.push(`${from}: ${page.errors[0]}`);
   let before: Opened[] = [];
   for (let i = 0; i < 32 && !kept(before)?.greeting; i++) {
     before = await opened();
@@ -264,7 +266,7 @@ async function pressed(from: string, to: string, collection: string): Promise<vo
   const followed = (new URL(target.url, base).searchParams.get('collections') ?? '').split(',').filter(Boolean);
   const again = await readsTheGreetingCaused(target.at!, followed);
   if (again.length) failures.push(`${where}: read ${again.join(', ')} again after its stream's greeting`);
-  if (page.errors.length) failures.push(`${to}: ${page.errors[0]}`);
+  if (page.errors.length > loaded) failures.push(`${to}: ${page.errors[loaded]}`);
 }
 
 await pressed('/platform/teams', '/platform/people', 'people');
@@ -279,7 +281,8 @@ await follows(`/platform/teams/${RENAMED_SLUG}`, 'Dune Renamed On Its Own Page',
  * People does not show is not asserted here: on a shared gateway another suite's read of `people` would fail it.
  */
 await page.open(base + '/platform/people', { width: 1440, theme: 'dark', cookie: SESSION });
-if (page.errors.length) failures.push(`/platform/people: ${page.errors[0]}`);
+const peopleLoaded = page.errors.length;
+if (peopleLoaded) failures.push(`/platform/people: ${page.errors[0]}`);
 if (!(await until((t) => t.includes('Sign-ins last week'), SHOW_MS))) failures.push('/platform/people: the page never drew its tiles');
 const peopleBefore = (await counts()).people ?? 0;
 await hint('collection=people');
@@ -311,7 +314,7 @@ for (let i = 0; i < 24 && !bellRead; i++) {
 }
 if (!bellRead) failures.push('/platform/people: a hint for initiatives never read the bell\'s Approvals again, though the bell beside that page shows it');
 
-if (page.errors.length) failures.push(`/platform/people: ${page.errors[0]}`);
+if (page.errors.length > peopleLoaded) failures.push(`/platform/people: ${page.errors[peopleLoaded]}`);
 
 page.close();
 for (const f of failures) console.log('FAIL ' + f);
