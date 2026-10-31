@@ -198,7 +198,8 @@ export function InitiativeView({ team, slug, served }: { team: string; slug: str
 function InitiativeTrouble({ slug, trouble, busy, onRetry }: { slug: string; trouble: Exclude<InitiativeRead, { state: 'ok' }>; busy: boolean; onRetry: () => void }) {
   const { title, detail } = initiativeTrouble(slug, trouble);
   return (
-    <Card>
+    // A record that does not exist is the not-found screen, which a streamed page cannot answer with a 404.
+    <Card data-missing-page={trouble.state === 'missing' ? '' : undefined}>
       {trouble.state === 'missing' ? (
         <EmptyState kind="filtered" title={title} className="py-16" action={<Button size="sm" asChild><Link href="/initiatives">All initiatives</Link></Button>}>{detail}</EmptyState>
       ) : (

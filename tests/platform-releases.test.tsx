@@ -232,6 +232,7 @@ describe('each page draws loading, empty, error and partial', () => {
     mount(<PlatformReleaseView version="9.9.9" served={{ state: 'slow' }} />);
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     await waitFor(() => expect(screen.getByText('No release of this version is recorded')).toBeInTheDocument());
+    expect(screen.getByText('No release of this version is recorded').closest('[data-missing-page]')).not.toBeNull();
   });
 });
 

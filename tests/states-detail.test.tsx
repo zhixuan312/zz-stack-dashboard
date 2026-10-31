@@ -134,6 +134,8 @@ describe('a document, read on the console\'s server', () => {
     expect(read.state).toBe('failed');
     await draw('no-such-document.md', { state: 'missing', reason: read.state === 'failed' ? read.reason : '' });
     expect(await screen.findByText('This document does not exist')).toBeInTheDocument();
+    // The not-found screen, which verify's missingRoutes and the page-view recorder both read.
+    expect(screen.getByText('This document does not exist').closest('[data-missing-page]')).not.toBeNull();
     noPlaceholder();
   });
 });

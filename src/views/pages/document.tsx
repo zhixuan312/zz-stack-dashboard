@@ -323,12 +323,15 @@ function DocumentBody({ doc, view, onView, earlier }: { doc: DocumentDetail; vie
 function DocumentTrouble({ trouble, busy, onRetry }: { trouble: Trouble; busy: boolean; onRetry: () => void }) {
   const { title, detail } = troubleOf(trouble);
   return (
-    <EmptyState
-      kind={trouble.state === 'missing' ? 'filtered' : 'error'}
-      title={title}
-      action={<Button size="sm" variant="secondary" busy={busy} onClick={onRetry}>Retry</Button>}
-    >
-      {detail}
-    </EmptyState>
+    // A document that does not exist is the not-found screen, which a streamed page cannot answer with a 404.
+    <div data-missing-page={trouble.state === 'missing' ? '' : undefined}>
+      <EmptyState
+        kind={trouble.state === 'missing' ? 'filtered' : 'error'}
+        title={title}
+        action={<Button size="sm" variant="secondary" busy={busy} onClick={onRetry}>Retry</Button>}
+      >
+        {detail}
+      </EmptyState>
+    </div>
   );
 }

@@ -187,7 +187,8 @@ function Resolve({ report, duplicates }: { report: BugReport; duplicates: Duplic
 
 function BugTrouble({ trouble, busy, onRetry }: { trouble: Trouble; busy: boolean; onRetry: () => void }) {
   return (
-    <Card>
+    // A record that does not exist is the not-found screen, which a streamed page cannot answer with a 404.
+    <Card data-missing-page={trouble.state === 'missing' ? '' : undefined}>
       {trouble.state === 'missing' ? (
         <EmptyState kind="filtered" title="No report of this id is recorded" className="py-16" action={<Button size="sm" asChild><Link href="/platform/bugs">All reports</Link></Button>}>Bugs lists every report the platform has recorded.</EmptyState>
       ) : (

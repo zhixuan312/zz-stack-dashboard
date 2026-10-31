@@ -297,6 +297,7 @@ describe('each page draws loading, empty, error and partial', () => {
     mount(<PlatformBugView id={ID(9)} served={{ state: 'slow' }} duplicates={{ state: 'slow' }} />);
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     await waitFor(() => expect(screen.getByText('No report of this id is recorded')).toBeInTheDocument());
+    expect(screen.getByText('No report of this id is recorded').closest('[data-missing-page]')).not.toBeNull();
   });
 });
 

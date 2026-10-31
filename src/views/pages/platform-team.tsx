@@ -97,7 +97,8 @@ export function PlatformTeamView({ slug, served }: { slug: string; served: Revis
 function TeamTrouble({ slug, trouble, busy, onRetry }: { slug: string; trouble: Exclude<TeamRead, { state: 'ok' }>; busy: boolean; onRetry: () => void }) {
   const { title, detail } = teamTrouble(slug, trouble);
   return (
-    <Card>
+    // A record that does not exist is the not-found screen, which a streamed page cannot answer with a 404.
+    <Card data-missing-page={trouble.state === 'missing' ? '' : undefined}>
       {trouble.state === 'missing' ? (
         <EmptyState kind="filtered" title={title} className="py-16" action={<Button size="sm" asChild><Link href="/platform/teams">All teams</Link></Button>}>{detail}</EmptyState>
       ) : (

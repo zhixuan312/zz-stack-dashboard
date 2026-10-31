@@ -154,6 +154,7 @@ describe('a team the read cannot draw', () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 404, json: async () => null }) as unknown as Response));
     mount({ state: 'missing' }, 'nonesuch');
     expect(screen.getByText('No team called nonesuch')).toBeInTheDocument();
+    expect(screen.getByText('No team called nonesuch').closest('[data-missing-page]')).not.toBeNull();
     expect(screen.getByRole('link', { name: 'All teams' })).toHaveAttribute('href', '/platform/teams');
     expect(screen.queryByText('People')).toBeNull();
   });

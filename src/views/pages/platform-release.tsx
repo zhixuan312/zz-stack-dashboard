@@ -147,7 +147,8 @@ function Windows({ release, asOf }: { release: ReleaseDetail; asOf: string }) {
 
 function ReleaseTrouble({ trouble, busy, onRetry }: { trouble: Trouble; busy: boolean; onRetry: () => void }) {
   return (
-    <Card>
+    // A record that does not exist is the not-found screen, which a streamed page cannot answer with a 404.
+    <Card data-missing-page={trouble.state === 'missing' ? '' : undefined}>
       {trouble.state === 'missing' ? (
         <EmptyState kind="filtered" title="No release of this version is recorded" className="py-16" action={<Button size="sm" asChild><Link href="/platform/releases">All releases</Link></Button>}>Releases lists every release the platform has recorded.</EmptyState>
       ) : (

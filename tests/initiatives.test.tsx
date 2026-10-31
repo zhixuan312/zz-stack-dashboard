@@ -263,6 +263,7 @@ describe('the routes', () => {
   it('an address no initiative has says so, with the way back', () => {
     mount(<InitiativeView team="atlas" slug="nonesuch" served={{ state: 'missing' }} />);
     expect(text()).toContain('No initiative called nonesuch');
+    expect(document.querySelector('[data-missing-page]')).not.toBeNull();
     expect(screen.getByRole('link', { name: 'All initiatives' })).toHaveAttribute('href', '/initiatives');
   });
 
