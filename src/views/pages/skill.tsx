@@ -196,7 +196,10 @@ export function SkillView({ plugin: pluginName, skill: name, view, served }: { p
   // COUPLED: only a SUCCESSFUL read may say a skill is not shipped, and only one that arrived may draw its figures. A
   // failed read is said to have failed, with Retry, never treated as one that shipped the skill or one that did not.
   const failed = catalog.trouble ?? list.trouble;
-  const skill = list.data?.skills.find((s) => s.name === name);
+  // `/skills` answers one row per version the team ran; the page is the version the catalog ships now, or the one the
+  // gateway lists last when the catalog does not name it. Never simply the first row, which is the oldest version.
+  const ran = list.data?.skills.filter((s) => s.name === name) ?? [];
+  const skill = ran.find((s) => s.version === shipped?.version) ?? ran.at(-1);
   /** The team's runs were read and this skill is not among them: never run, which the tiles and the panel both say. */
   const never = !skill && list.data !== undefined;
   const produces = plugin?.documents.filter((x) => x.stage === name).map((x) => x.name).join(', ');
