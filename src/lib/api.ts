@@ -223,8 +223,10 @@ function withScope(path: string): string {
 }
 
 /**
- * The data's clock for a component that holds no query of its own: the oldest arrival time among the queries that have
- * data. `Freshness`, `ShellTools`, `AlertsPanel` and
+ * The data's clock for a component that holds no query of its own: the oldest arrival time among the page's queries that
+ * have data. A page's are the ones something on screen observes, the shell's `/me` left out: the shell reads it once and
+ * keeps it across client navigations, and a previous page's reads stay cached after it unmounts, so counting either
+ * stamped a row read at 10:20 against 10:00 and called one touched at 10:19 "just now". `Freshness`, `ShellTools`, `AlertsPanel` and
  * `formatRelative` all take `now` because the clock is the data's, not the browser's — this is where a component that
  * cannot ask its page for one gets it.
  *
@@ -244,10 +246,14 @@ export function useDataClock(): Date {
     // moment `useQuery` builds one, which is during another component's render, and telling React to re-render this
     // one from inside that render is the "cannot update a component while rendering a different component" warning.
     // A query that was only just built has no data, so it never changes the answer below.
-    (notify) => client.getQueryCache().subscribe((event) => { if (event.type === 'updated' || event.type === 'removed') notify(); }),
+    // An observer leaving or arriving moves it too: a page unmounting takes its reads out of the answer.
+    (notify) => client.getQueryCache().subscribe((event) => {
+      if (event.type === 'updated' || event.type === 'removed' || event.type === 'observerRemoved' || event.type === 'observerAdded') notify();
+    }),
     () => {
       let oldest = 0;
       for (const q of client.getQueryCache().getAll()) {
+        if (q.getObserversCount() === 0 || q.queryKey[1] === '/me') continue;
         const at = q.state.dataUpdatedAt;
         if (at > 0 && (oldest === 0 || at < oldest)) oldest = at;
       }
