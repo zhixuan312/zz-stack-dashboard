@@ -463,6 +463,6 @@ export interface IssuedToken { token: string; label: string; email: string }
 
 /** A row from `GET /settings/team/members` — the roster of one team, for a caller who
  *  administers it (see `settings.ts`'s own gate: `teamAuthority`, not `resolveScope`). */
-export interface TeamMemberRow { email: string; role: 'admin' | 'member' }
+export interface TeamMemberRow { email: string; role: 'admin' | 'member'; state: 'active' | 'deactivated' }
 /** `GET /settings/team/members?team=`: that roster, under `rows`. */
 export interface TeamMembers { rows: TeamMemberRow[]; meta?: ReadEnvelope }

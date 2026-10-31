@@ -110,7 +110,7 @@ describe('GET /api/console/teams, the superadmin\'s', () => {
       expect(t.team).toEqual({ slug: row.slug, name: row.name, status: row.status, created: row.created });
       expect(t.tiles).toEqual({ people: row.people, openWork: row.openWork, waiting: row.waiting, lessons: row.lessons });
       expect(t.members).toHaveLength(row.people);
-      for (const m of t.members) expect(keys(m)).toEqual(['email', 'joined', 'name', 'role']);
+      for (const m of t.members) expect(keys(m)).toEqual(['email', 'joined', 'name', 'role', 'state']);
       for (const w of t.calls) isPeriod(w);
       expect(t.calls.at(-2)).toEqual(row.calls.last);
     }

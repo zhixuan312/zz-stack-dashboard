@@ -5,6 +5,7 @@ import { Query } from '@/console/query';
 import { InlineForm } from '@/console/inline-form';
 import { InlineDestructive } from '@/console/settings/inline-destructive';
 import { Email, PHONE_ROWS } from '@/console/settings/phone-rows';
+import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -140,7 +141,11 @@ function MembersTable({ rows, team, pending, onRole, onRemove }: {
         <TableBody>
           {page.map((m) => (
             <TableRow key={m.email}>
-              <TableCell data-lead className="text-xs"><Email address={m.email} /></TableCell>
+              <TableCell data-lead className="text-xs">
+                <Email address={m.email} />
+                {/* Kept on the team and able to act for nobody: removing them is the admin's call. */}
+                {m.state === 'deactivated' ? <Badge tone="warning" dot className="ml-2">Deactivated</Badge> : null}
+              </TableCell>
               <TableCell>
                 <Select size="sm" aria-label={`${m.email}'s role`} value={m.role} onValueChange={(v) => onRole(m.email, v as 'member' | 'admin')} options={[{ value: 'member', label: 'Member' }, { value: 'admin', label: 'Admin' }]} className="w-32" />
               </TableCell>

@@ -148,6 +148,15 @@ describe('the writes, through the routes Settings called', () => {
     expect(team.textContent).toContain('Creating the same slug again restores it.');
   });
 
+  it('says which members are deactivated: they keep the membership and can act for nobody', () => {
+    const cinder = answered(teamDetail('cinder')!);
+    const gone = cinder.members.find((m) => m.state === 'deactivated')!;
+    mount({ state: 'ok', data: cinder }, 'cinder');
+    const row = [...document.querySelectorAll('tbody tr')].find((r) => r.textContent?.includes(gone.name))!;
+    expect(row.textContent).toContain('Deactivated');
+    expect([...document.querySelectorAll('tbody tr')].filter((r) => r.textContent?.includes('Deactivated'))).toHaveLength(cinder.members.filter((m) => m.state === 'deactivated').length);
+  });
+
   it('offers no Add member on an archived team, which the gateway would refuse every time', () => {
     mount({ state: 'ok', data: answered(teamDetail('cinder')!) }, 'cinder');
     expect(screen.queryByRole('form', { name: 'Add a member to cinder' })).toBeNull();

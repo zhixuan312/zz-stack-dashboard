@@ -232,9 +232,10 @@ function Members({ slug, team }: { slug: string; team: TeamDetail }) {
         <span className="block min-w-0">
           <span className="block truncate font-medium text-ink" title={m.name || m.email}>{m.name || m.email}</span>
           {m.name ? <span className="t-caption block truncate" title={m.email}>{m.email}</span> : null}
+          {m.state === 'deactivated' ? <Badge tone="warning" dot className="mt-1 flex w-fit">Deactivated</Badge> : null}
         </span>
       ),
-      mobileCell: (m) => m.name || m.email,
+      mobileCell: (m) => (m.state === 'deactivated' ? `${m.name || m.email}, deactivated` : m.name || m.email),
     },
     { key: 'role', header: 'Role', mobile: 'fact', cell: (m) => <Badge tone={m.role === 'admin' ? 'accent' : 'neutral'}>{m.role === 'admin' ? 'Admin' : 'Member'}</Badge> },
     { key: 'joined', header: 'Joined', numeric: true, mobile: 'fact', cell: (m) => formatDate(m.joined), mobileCell: (m) => `Joined ${formatDate(m.joined)}` },

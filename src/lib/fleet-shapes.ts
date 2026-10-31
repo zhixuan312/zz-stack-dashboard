@@ -28,7 +28,8 @@ export type Teams = {
 /** `GET /teams/:slug`: the team, its members, its row's tiles and its calls by week. */
 export type TeamDetail = {
   team: { slug: string; name: string; status: string; created: string };
-  members: { email: string; name: string; role: string; joined: string }[];
+  /** `state` is the person's: a deactivated one keeps the membership and can act for nobody. */
+  members: { email: string; name: string; role: string; state: 'active' | 'deactivated'; joined: string }[];
   meta: ReadMeta;
   tiles: { people: number; openWork: number; waiting: number; lessons: number };
   calls: PeriodFigure[];

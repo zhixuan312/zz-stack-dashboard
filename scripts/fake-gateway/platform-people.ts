@@ -108,10 +108,10 @@ export function people(who: Me, q: URLSearchParams): [status: number, body: unkn
 
 /** The team's members as its own page lists them: name, team role and the day they joined. */
 export const membersOf = (slug: string) => SEEDS.filter((s) => s.teams.some(([t]) => t === slug)).map((s) => ({
-  email: s.email, name: s.name, role: s.teams.find(([t]) => t === slug)![1], joined: day(s.created),
+  email: s.email, name: s.name, role: s.teams.find(([t]) => t === slug)![1], state: s.status, joined: day(s.created),
 }));
 
 /** `GET /settings/team/members?team=`: one team's roster, for its admins and a superadmin, under `rows`. */
 export function teamMembers(slug: string): TeamMembers {
-  return { rows: SEEDS.flatMap((s) => s.teams.filter(([t]) => t === slug).map(([, role]) => ({ email: s.email, role }))) };
+  return { rows: SEEDS.flatMap((s) => s.teams.filter(([t]) => t === slug).map(([, role]) => ({ email: s.email, role, state: s.status }))) };
 }
