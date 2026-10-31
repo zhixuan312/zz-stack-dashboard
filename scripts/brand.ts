@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- token JSON files have no types; this file runs in Node, never in a page. */
 /**
  * Brand a copy of Meridian for a product, in place.
  *
@@ -13,7 +12,7 @@
  * --hue/--chroma add a new accent preset (OKLCH hue in degrees, chroma 0 to 0.24, 0.12 to 0.18 is typical) and make it the default. The contrast
  * gate then runs; where white on the accent fill fails in a theme, the preset gets a lower fill lightness for that
  * theme, a step at a time, until every pair in every theme passes. --no-atlas removes the Design Atlas: its routes, its
- * modules, its nav and footer links and its build tracing (the card previews stay: the gate checks them; the markdown packages stay for Prose).
+ * modules, its nav entries (the footer's link follows them) and its build tracing (the card previews stay: the gate checks them; the markdown packages stay for Prose).
  * --product goes further, for a dashboard that is not the design system: --no-atlas, and the card specs and previews,
  * page specs, docs, decisions, changelog and skill go too (the assistant, its collections and its fake model stay); the components, tokens, scripts and gates stay.
  * --existing is for an existing project that brought Meridian in (route A in the skill): it sets the name, accent and the
@@ -24,9 +23,12 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { parse, rgbToOklab } from '../src/lib/color.ts';
+import { holdArgs } from './lib/args.ts';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const argv = process.argv.slice(2);
+// A mistyped flag (--hu for --hue) stops the run before anything is written, rather than branding the rest without it.
+holdArgs('brand', argv, ['--name', '--workspace', '--timezone', '--package', '--accent', '--theme', '--currency', '--user', '--role', '--hex', '--hue', '--chroma', '--accent-name', '--no-atlas', '--product', '--existing']);
 const opt = (k: string) => { const i = argv.indexOf(k); return i >= 0 ? argv[i + 1] : undefined; };
 const has = (k: string) => argv.includes(k);
 const file = (p: string) => path.join(ROOT, p);
@@ -131,15 +133,24 @@ if (hue !== undefined) {
   write('tokens/zz-meridian.resolver.json', JSON.stringify(r, null, 2) + '\n');
   defaultAccent(id);
 
-  // Hold contrast: lower a theme's fill lightness where white text on it fails, a step at a time.
+  // Hold contrast: lower a theme's fill lightness where white text on it fails, a step at a time. A hue that still fails
+  // after the last step stops the command: a brand that ships a failing pair in tokens.css is not a brand that worked.
+  // What remains is the last run's: a step that fixed the pair clears it (#0E8A5F passed after one step and was refused
+  // with the first step's failure), and the eighth step's tokens are measured too.
   const base = { light: 0.52, dark: 0.56 };
-  for (let step = 0; step < 8; step++) {
+  let remaining: string[] = [];
+  for (let step = 0; step <= 8; step++) {
     execFileSync('node', ['scripts/tokens.ts'], { cwd: ROOT, stdio: 'ignore' });
     let out = '';
-    try { out = execFileSync('node', ['scripts/contrast.ts'], { cwd: ROOT, encoding: 'utf8' }); break; }
-    catch (e: any) { out = String(e.stdout ?? ''); }
-    const fails = out.split('\n').filter((l) => l.startsWith('FAIL') && l.includes(` ${id} `));
-    if (!fails.length) break;
+    let why = '';
+    try { out = execFileSync('node', ['scripts/contrast.ts'], { cwd: ROOT, encoding: 'utf8' }); remaining = []; break; }
+    catch (e) { out = String((e as { stdout?: unknown }).stdout ?? ''); why = String((e as { stderr?: unknown }).stderr ?? '').trim(); }
+    // A run with no summary did not measure anything: its exit code is a crash, and reading its empty output as "no
+    // failures" passed a brand nobody had checked.
+    if (!/^contrast: .*failures$/m.test(out)) throw new Error(`scripts/contrast.ts did not run to its summary: ${why || out.trim() || 'no output'}`);
+    remaining = out.split('\n').filter((l) => l.startsWith('FAIL') && l.includes(` ${id} `));
+    if (!remaining.length || step === 8) break;
+    const fails = remaining;
     const t = JSON.parse(read(tokenFile));
     for (const theme of ['light', 'dark'] as const) {
       if (!fails.some((l) => l.includes(`FAIL ${theme}`) && /on-accent on accent/.test(l))) continue;
@@ -148,8 +159,8 @@ if (hue !== undefined) {
       o['accent-l-hover'] = Math.round((o['accent-l'] - 0.05) * 100) / 100;
     }
     write(tokenFile, JSON.stringify(t, null, 2) + '\n');
-    if (step === 7) console.log('Contrast still fails for this hue; lower --chroma and run again:\n' + fails.join('\n'));
   }
+  if (remaining.length) throw new Error(`the accent still fails contrast after 8 steps; lower --chroma and run again:\n${remaining.join('\n')}`);
   done.push(`accent ${id}: hue ${h}, chroma ${c}`);
 
   // A brand hue close to a status hue makes every accent fill read as a state: a jade brand looks like "healthy".
@@ -192,8 +203,6 @@ if (has('--no-atlas') || has('--product')) {
     return `import {\n  ${kept.join(', ')},\n} from 'lucide-react';`;
   });
   write('src/app.config.ts', cfg);
-  // The standalone screens' footer link to the Atlas (the sample's footer, src/views/sample-footer.tsx).
-  write('src/views/sample-footer.tsx', read('src/views/sample-footer.tsx').replace(/\n\s*<Link href="\/system"[^\n]*<\/Link>/, ''));
   // The verification config's mappings and smoke routes for the Atlas, with the comments over them, which verify --full
   // would report as no route.
   write('scripts/verify.config.ts', read('scripts/verify.config.ts').replace(/(?:\n\s*\/\/[^\n]*)*\n\s*\{ path: '\/system(?:\/[^']*)?'[^\n]*\},/g, '').replace(/,\s*'\/system(?:\/[^']*)?'/g, ''));
@@ -201,7 +210,7 @@ if (has('--no-atlas') || has('--product')) {
   write('next.config.ts', read('next.config.ts').replace(/\/\/ Card specifications[^\n]*/, '// The tab icon reads the tokens, and the assistant reads the brief, at build time.').replace(/'\/system\/\*\*':\s*\[[^\]]*\],\s*/, ''));
   // Route types generated for the removed pages would fail the type check until regenerated.
   for (const d of ['.next/types', '.next/dev/types']) fs.rmSync(file(d), { recursive: true, force: true });
-  done.push('the Design Atlas removed: app/system, its modules in src/system, its rail and footer links, its verification mappings and its build tracing');
+  done.push('the Design Atlas removed: app/system, its modules in src/system, its rail links and with them the footer link, its verification mappings and its build tracing');
 }
 
 if (has('--product')) {
@@ -211,7 +220,7 @@ if (has('--product')) {
   for (const f of walkDirs('src/components')) if (/\/(README\.md|preview\.tsx)$/.test(f)) fs.rmSync(file(f));
   for (const f of walkDirs('app')) if (/\/README\.md$/.test(f)) fs.rmSync(file(f));
   // A test of a module removed here goes with it (tests/cli-product-prune.test.ts holds the two lists together).
-  for (const f of ['src/system/specimen.tsx', 'tests/specimen-still.test.tsx', 'tests/atlas-product-slice.test.tsx', 'tests/atlas-template-contracts.test.tsx', 'src/system/registry.ts', 'CONTRIBUTING.md', 'CHANGELOG.md']) fs.rmSync(file(f), { force: true });
+  for (const f of ['src/system/specimen.tsx', 'tests/specimen-still.test.tsx', 'tests/atlas-product-slice.test.tsx', 'tests/atlas-template-contracts.test.tsx', 'tests/dialog-xl.test.tsx', 'tests/popover-preview.test.tsx', 'tests/banner-preview.test.tsx', 'tests/preview-live-controls.test.tsx', 'src/system/registry.ts', 'CONTRIBUTING.md', 'CHANGELOG.md']) fs.rmSync(file(f), { force: true });
   for (const d of ['docs', 'decisions', 'skills']) fs.rmSync(file(d), { recursive: true, force: true });
   const p = json('package.json');
   delete p.scripts?.registry;

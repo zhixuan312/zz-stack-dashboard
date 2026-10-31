@@ -17,6 +17,8 @@ export const controlFrame = cn(
   'focus-within:border-accent focus-within:ring-3 focus-within:ring-accent/22 focus-within:hover:border-accent',
   'has-[[aria-invalid=true]]:border-critical has-[[aria-invalid=true]]:focus-within:ring-critical/20',
   'has-[:disabled]:cursor-not-allowed has-[:disabled]:border-line has-[:disabled]:bg-surface-sunk has-[:disabled]:text-ink-disabled has-[:disabled]:shadow-none',
+  // Read only: sunk, so a value that can be copied but not changed does not look editable.
+  'has-[input:read-only]:bg-surface-sunk has-[textarea:read-only]:bg-surface-sunk',
 );
 
 export const CONTROL_SIZE: Record<ControlSize, string> = {
@@ -38,7 +40,7 @@ export type InputProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'size'> & {
 
 /** A single line of text, a number or a value with a unit. It always sits in a Field, which names it. */
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
-  { size = 'md', leading, trailing, invalid, className, frameClassName, ...rest },
+  { size = 'md', leading, trailing, invalid, className, frameClassName, 'aria-invalid': ariaInvalid, ...rest },
   ref,
 ) {
   return (
@@ -54,7 +56,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
       {leading ? <span className="flex shrink-0 items-center text-ink-3">{leading}</span> : null}
       <input
         ref={ref}
-        aria-invalid={invalid || rest['aria-invalid'] || undefined}
+        aria-invalid={invalid || ariaInvalid || undefined}
         className={cn(
           'h-full min-w-0 flex-1 bg-transparent outline-none placeholder:text-ink-3 focus-visible:outline-none disabled:cursor-not-allowed',
           '[&::-webkit-search-cancel-button]:appearance-none',

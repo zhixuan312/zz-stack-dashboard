@@ -3,7 +3,7 @@
  * showing it, and every way the stream can go quiet (hints suppressed, a server restart, a hidden tab, a tab offline) or
  * loud (a burst). Explicit verification work that `pnpm verify` runs; it is not part of any default smoke.
  *
- *   node scripts/live.ts --base http://127.0.0.1:3000 [--drop-base <url>] [--poll-ms 3000]
+ *   node scripts/live.ts --base http://127.0.0.1:3000 [--drop-base <url>] [--poll-ms 3000] [--only <case>,<case>]
  *
  * `--drop-base` is the same build started with LIVE_DROP_HINTS=1, which keeps the stream open and silent: verify starts
  * it. The restart case starts, stops and restarts a `next start` of this folder on its own port. The short safety poll
@@ -17,23 +17,23 @@
  * Controls are found and hit-tested through open shadow roots (scripts/lib/deep.ts), so a design system whose buttons,
  * menus and sheets are web components is driven the same way.
  */
-import { spawn, type ChildProcess } from 'node:child_process';
+import type { ChildProcess } from 'node:child_process';
 import fs from 'node:fs';
-import http from 'node:http';
-import net from 'node:net';
 import path from 'node:path';
-import { bin } from './lib/bin.ts';
+import { answers, freePort, spawnNext, status } from './lib/bin.ts';
 import { NOT_RUN_EXIT } from './lib/coverage.ts';
 import { launch, type Page } from './lib/chrome.ts';
 import { DEEP_SOURCE } from './lib/deep.ts';
+import { holdArgs } from './lib/args.ts';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const args = process.argv.slice(2);
+holdArgs('live', args, ['--base', '--drop-base', '--only', '--poll-ms']);
 const opt = (k: string) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : undefined; };
 const base = (opt('--base') ?? process.env.BASE ?? 'http://localhost:3000').replace(/\/$/, '');
 const dropBase = opt('--drop-base')?.replace(/\/$/, '');
 const pollMs = Number(opt('--poll-ms') ?? 3000);
-/** Runs only the cases whose name contains this text; for working on one case. */
+/** Runs only the cases named, comma-separated, for working on one case; every other case is reported not run. */
 const only = opt('--only');
 /** How long a tab may take to show a change a hint carries, refresh round trip included. */
 const HINT_BOUND_MS = 2000;
@@ -56,24 +56,10 @@ const stopGroup = (c: ChildProcess) => { try { process.kill(-c.pid!, 'SIGTERM');
 process.on('exit', () => started.forEach(stopGroup));
 // An interrupted run does not emit 'exit' by itself, and the detached servers would outlive it.
 for (const sig of ['SIGINT', 'SIGTERM'] as const) process.on(sig, () => process.exit(sig === 'SIGINT' ? 130 : 143));
-const freePort = () => new Promise<number>((res) => { const s = net.createServer(); s.listen(0, () => { const p = (s.address() as net.AddressInfo).port; s.close(() => res(p)); }); });
-
-/** The status the server on `port` answers with, or null when nothing does; a fresh connection each time, so a server that was just stopped is never reached through a stale one. */
-const status = (port: number) => new Promise<number | null>((resolve) => {
-  const req = http.get({ host: '127.0.0.1', port, path: '/', agent: false, timeout: 3000 }, (res) => { res.resume(); resolve(res.statusCode ?? null); });
-  req.on('error', () => resolve(null));
-  req.on('timeout', () => { req.destroy(); resolve(null); });
-});
-
 async function serve(port: number): Promise<ChildProcess> {
-  // Loopback only, as scripts/verify.ts starts it: every client here is on this machine (#81).
-  const server = spawn(bin('next'), ['start', '-H', '127.0.0.1', '-p', String(port)], { cwd: ROOT, env: process.env, stdio: 'ignore', detached: true });
+  const server = spawnNext(port, process.env);
   started.push(server);
-  for (let i = 0; i < 120; i++) {
-    const code = await status(port);
-    if (code !== null && code < 500) return server;
-    await sleep(250);
-  }
+  if (await answers(port)) return server;
   throw new Error(`the server on port ${port} did not start`);
 }
 
@@ -235,7 +221,7 @@ async function invite(page: Page, name: string, confirm = true): Promise<number>
   for (let attempt = 1; ; attempt++) {
     await click(page, find('button', 'Invite member'));
     try {
-      await waitFor(page, 'the sheet settling', `(() => { const d = ${DIALOG}; const r = d?.getBoundingClientRect(); return r && r.width > 0 && r.right <= innerWidth + 1; })()`, 1500);
+      await waitFor(page, 'the sheet settling', `(() => { const d = ${DIALOG}; const r = d?.getBoundingClientRect(); return r && r.width > 0 && r.right <= document.documentElement.clientWidth + 1; })()`, 1500);
       break;
     } catch (e) {
       if (attempt === 3) throw e;
@@ -506,6 +492,12 @@ async function absent(): Promise<string | null> {
 
 const CASES = ['two tabs', 'visibility', 'a disconnected write', 'a sustained burst', 'suppressed hints', 'a server restart'];
 const skipAll = (why: string) => { for (const c of CASES) report('not run', c, why); };
+const asked = (label: string) => !only || only.split(',').includes(label);
+const unknown = only?.split(',').filter((c) => !CASES.includes(c)) ?? [];
+if (unknown.length) {
+  console.error(`live: --only names ${unknown.map((c) => `"${c}"`).join(', ')}, which no case is called; the cases are ${CASES.map((c) => `"${c}"`).join(', ')}.`);
+  process.exit(1);
+}
 
 const why = await absent();
 if (why) {
@@ -523,7 +515,7 @@ if (why) {
   if (a && b) {
     const t: Tabs = { a, b };
     const step = async (label: string, fn: () => Promise<void>) => {
-      if (only && !only.split(',').includes(label)) return;
+      if (!asked(label)) return report('not run', label, 'not asked for (--only)');
       try { await fn(); } catch (e) { report('FAIL', label, (e as Error).message); }
     };
     // Case order matters only in that each leaves the tabs usable; every case invites its own uniquely named members.
@@ -538,7 +530,7 @@ if (why) {
       await step('suppressed hints', async () => { await suppressed(t, dropBase); });
       try { await cleanup(t); } catch (e) { report('FAIL', 'cleanup', `a member this check invited on ${dropBase} was not removed: ${(e as Error).message}`); }
     } else {
-      report('not run', 'suppressed hints', 'no --drop-base: the server started with LIVE_DROP_HINTS=1 was not given');
+      report('not run', 'suppressed hints', asked('suppressed hints') ? 'no --drop-base: the server started with LIVE_DROP_HINTS=1 was not given' : 'not asked for (--only)');
     }
     await step('a server restart', () => restart(t));
   }

@@ -3,7 +3,7 @@
  * and right after a live refresh, with the nearest-rank p95 of each metric held to the budget.
  *
  *   node scripts/perf.ts --base http://127.0.0.1:3000 [--config scripts/verify.config.ts] [--rail /,/a,/b] [--homes /b=Name]
- *                        [--shard <i>/<n>]
+ *                        [--routes /a,/b] [--samples <n>] [--shard <i>/<n>] [--rate <n>]
  *
  * It is the journey of scripts/navigate.ts (the press time and the frame clock are the page's own) taken `--samples` times,
  * 20 by default, with no retake: every sample counts, and what is reported is the p95 of the lot, never the best of them.
@@ -42,16 +42,17 @@ import { resolveCoverage } from './lib/coverage.ts';
 import { railRoutes } from './lib/routes.ts';
 import { parseShard, shardOf, WHOLE_PROTOCOL_REFUSAL } from './lib/shard.ts';
 import { summary } from './lib/timing.ts';
-import { DEVICES, Fail, drawerRoutes, journey, journeyStart, liveRefresh, METRICS, prepare, type Condition, type Device, type Metric, type NavConfig } from './lib/journey.ts';
-import { workspaceHomes } from './navigate.ts';
+import { DEVICES, Fail, drawerRoutes, journey, journeyStart, liveRefresh, METRICS, prepare, type Condition, type Device, type Metric, type NavConfig, workspaceHomes } from './lib/journey.ts';
+import { holdArgs } from './lib/args.ts';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const args = process.argv.slice(2);
+holdArgs('perf', args, ['--base', '--config', '--homes', '--rail', '--rate', '--routes', '--samples', '--shard']);
 const opt = (k: string) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : undefined; };
 const base = (opt('--base') ?? process.env.BASE ?? 'http://localhost:3000').replace(/\/$/, '');
 const PROTOCOL_SAMPLES = 20;
-/** How long a rail route has to answer a live resync before it is called not live. */
-const PROBE_WAIT = 4000;
+/** How long a rail route has to start a live resync, while it is sent online events, before it is called not live. */
+const PROBE_WAIT = 8000;
 const CONDITIONS: Condition[] = ['warm', 'cold', 'afterLive'];
 const started = Date.now();
 
@@ -148,7 +149,7 @@ async function main(): Promise<number> {
   // A workspace's home that no rail links to is reached through the workspace menu, as navigate reaches it.
   let homes: Map<string, string>;
   try {
-    homes = await workspaceHomes();
+    homes = await workspaceHomes(args);
   } catch (e) {
     console.log(`FAIL    perf: ${(e as Error).message}`);
     out({ status: 'FAIL', errors: [(e as Error).message] });
@@ -219,7 +220,7 @@ async function main(): Promise<number> {
               for (const name of METRICS) {
                 const m = sample[name];
                 if (m && 'fail' in m) problems.push(`sample ${i + 1} ${name} ${m.fail.kind}: ${m.fail.message}`);
-                else if (m) series[name].push(m.ms);
+                else if (m && 'ms' in m) series[name].push(m.ms);
               }
             } catch (e) {
               // The tab may be in any state after an error that is not a verdict: start the shared one again.

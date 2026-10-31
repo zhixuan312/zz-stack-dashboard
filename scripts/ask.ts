@@ -4,7 +4,7 @@
  *   node scripts/ask.ts --base <url> [--view <name>] [--path <address>] [--as <persona>] [--out <folder>]
  *
  * Each page specification lists, under `### What the agent does here`, the questions a person on that page asks that
- * its context does not answer alone (FR-42). This asks each of them, one thread a question, of `POST /api/assistant` on
+ * its context does not answer alone. This asks each of them, one thread a question, of `POST /api/assistant` on
  * the page's own address, signed in as a persona of `scripts/verify.config.ts`: the one `--as` names, else the one keyed
  * `owner`, else the first declared. A detail page's questions are asked on its first record: the first link of its
  * form on its listing page, unless `--path` names the record (`--path /customers/c_42`), which asks the page that
@@ -22,7 +22,7 @@
  * and two views that would share a name are told apart by their routes. It holds each question, every tool
  * the assistant called with its input and what the tool returned, every Proposal it raised with its approval or denial,
  * and the answer's text, for a reader to judge whether the answer is the tools' and no change is claimed without a
- * Proposal (AC-14.8). A question the assistant answered with a Proposal alone is answered.
+ * Proposal. A question the assistant answered with a Proposal alone is answered.
  *
  * It reads no environment. Whether the assistant is on is the served product's to say: `POST /api/assistant` answers
  * 404 while it is off, and the script then prints one line saying it did not run, and exits 0, as it does when the
@@ -32,6 +32,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { agentSection, pageSpecs, viewToolPages } from './lib/routes.ts';
+import { holdArgs } from './lib/args.ts';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 
@@ -378,6 +379,7 @@ async function addressOf(base: string, cookie: string, page: string): Promise<st
 
 async function main(): Promise<number> {
   const argv = process.argv.slice(2);
+  holdArgs('ask', argv, ['--as', '--base', '--out', '--path', '--view']);
   const arg = (flag: string) => { const i = argv.indexOf(flag); return i >= 0 ? argv[i + 1] : undefined; };
   const base = arg('--base')?.replace(/\/+$/, '');
   if (!base || !/^https?:\/\//.test(base)) { console.error('usage: node scripts/ask.ts --base <url> [--view <name>] [--path <address>] [--as <persona>] [--out <folder>]'); return 1; }
@@ -426,9 +428,18 @@ async function main(): Promise<number> {
       failed = true;
       continue;
     }
-    // The page as this persona is served it, read once: every question on it is asked with the same page.
-    const served = await fetch(`${base}${address}`, { headers: { cookie: who.cookie }, signal: AbortSignal.timeout(60_000) }).then((r) => r.text(), () => '');
-    const page = pageOf(served, product);
+    // The page as this persona is served it, read once: every question on it is asked with the same page. An error page,
+    // a redirect (to sign-in, say) or no answer is not the page, so its questions are not asked with it.
+    const served: { html: string; why?: never } | { html?: never; why: string } = await fetch(`${base}${address}`, { headers: { cookie: who.cookie }, signal: AbortSignal.timeout(60_000) }).then(
+      async (r) => (r.ok && !r.redirected ? { html: await r.text() } : { why: r.redirected ? `redirected to ${new URL(r.url).pathname}` : `answered ${r.status}` }),
+      (e: Error) => ({ why: `could not be fetched (${e.message})` }),
+    );
+    if (served.html === undefined) {
+      console.error(`ask: ${view.name}: ${address} ${served.why} as ${who.persona}, so its questions were not asked`);
+      failed = true;
+      continue;
+    }
+    const page = pageOf(served.html, product);
     if (!page.title) page.title = view.title;
     const asked: Asked[] = [];
     // One at a time, in the specification's order: each in a thread of its own, so no answer leans on another's.

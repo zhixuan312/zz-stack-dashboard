@@ -7,8 +7,10 @@
 /** Can this hostname only be this machine — or a name that can only resolve inside it? */
 export function isLocalHost(host: string): boolean {
   const h = host.toLowerCase().replace(/^\[|\]$/g, '');
-  if (h === 'localhost' || h === '::1' || h === '0.0.0.0') return true;
+  if (h === 'localhost' || h === '0.0.0.0') return true;
   if (/^127\./.test(h)) return true;
+  // An IPv6 literal has no dot either, so it is read for what it is: only the loopback (and 127/8 mapped) is this machine.
+  if (/^[0-9a-f:.]+$/.test(h) && (h.match(/:/g)?.length ?? 0) >= 2) return h === '::1' || /^(0:){7}1$/.test(h) || /^::ffff:127\./.test(h);
   // A name with no dot cannot be a public address: a compose service (`postgres`), a container name, a bare hostname.
   return !h.includes('.');
 }
@@ -40,12 +42,16 @@ const FILE_SCHEME = /^(?:file|sqlite|sqlite3|duckdb|libsql):/i;
  */
 export function dataHost(value: string): string | null {
   const byHand = (): string | null => {
-    // The authority: everything before its last `@` dropped first — a DSN written without a scheme keeps its
-    // credentials (`user:pass@db.prod.example.com:5432/app`), and a password may hold a `/` or a `#`, so cutting at one
-    // of those *before* the credentials go reads the password's first word as the host (`user:pa`, a name with no dot,
-    // which `isLocalHost` calls local) — then cut at the path, then drop the port.
-    const authority = value.replace(/.*@/, '').split(/[/?#]/)[0].replace(/:\d+$/, '');
-    return /^[A-Za-z0-9._:[\]-]+$/.test(authority) ? authority : null;
+    // Where the credentials of a DSN written without a scheme end cannot be told from the string alone: a password may
+    // hold a `/`, a `#` or an `@` (`user:pa/ss@db.prod.example.com:5432/app`), and so may the query
+    // (`db.prod.example.com:5432/app?application_name=svc@web`). So every reading is taken — the value as it starts, when
+    // nothing before its path is cut off by an `@`, and what follows each `@` — each cut at its path and its port, and
+    // one that is not this machine decides: a wrong guess here refuses a backend rather than writing to it.
+    const cut = (v: string) => v.split(/[/?#]/)[0].replace(/:\d+$/, '');
+    const parts = value.split('@');
+    const readings = [...(cut(value).includes('@') ? [] : [cut(value)]), ...parts.slice(1).map((_, i) => cut(parts.slice(i + 1).join('@')))];
+    const hosts = readings.filter((h) => /^[A-Za-z0-9._:[\]-]+$/.test(h));
+    return hosts.find((h) => !isLocalHost(h)) ?? hosts[0] ?? null;
   };
   const namesAFile = FILE_SCHEME.test(value);
   try {

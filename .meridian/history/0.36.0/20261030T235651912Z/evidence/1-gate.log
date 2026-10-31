@@ -1,0 +1,10 @@
+ok   tokens are fresh (0.1s)
+ok   specifications are consistent (0.4s) · judged nothing: the card contract, a collection's rows read through it
+ok   the product's own rules hold (0.2s)
+ok   contrast holds in every theme and accent (0.1s)
+ok   route types are generated (0.2s)
+ok   types check (3.4s)
+ok   lint passes (11.9s)
+ok   tests pass (46.3s)
+gate: every check passed
+judged nothing: the card contract, a collection's rows read through it

@@ -2,10 +2,10 @@
  * The deep-DOM helper: one implementation of "every element of the page", for the browser suites.
  *
  * `document.querySelectorAll('*')` stops at a shadow root, so a suite built on it never sees a custom element's own
- * content. These six functions walk through open shadow roots and slots instead. Every suite injects `DEEP_SOURCE`
+ * content. These functions walk through open shadow roots and slots instead. Every suite injects `DEEP_SOURCE`
  * (the same code as a string) into the page, so there is one implementation, not a copy per suite:
  *
- *   await page.eval(DEEP_SOURCE);                       // once per page load, defines the six functions as globals
+ *   await page.eval(DEEP_SOURCE);                       // once per page load, defines the functions as globals
  *   await page.eval(`deepAll().length`);                // then call them in any later expression
  *
  * Supported boundary:
@@ -99,5 +99,47 @@ export function deepText(el: Element): string {
   return out;
 }
 
-/** The six functions as page code, for `page.eval`: function declarations, so they become globals of the page. */
-export const DEEP_SOURCE: string = [deepAll, deepActive, deepQuery, deepQueryAll, deepParent, deepText].map((f) => f.toString()).join('\n');
+/** `closest()` across open roots and slots: the nearest of `el` and its composed ancestors that matches `selector`. */
+export function deepClosest(el: Element, selector: string): Element | null {
+  for (let n: Element | null = el; n; n = deepParent(n)) if (n.matches(selector)) return n;
+  return null;
+}
+
+/**
+ * How focus could mark an element, as one string: its outline, its shadow and its borders. A suite records it unfocused
+ * so `ringed` tells a ring from a decoration that is always there; the audit and the keyboard walk read the same one.
+ */
+export function ringSignature(c: CSSStyleDeclaration): string {
+  return [c.outlineStyle, c.outlineWidth, c.outlineColor, c.boxShadow, c.borderTopStyle, c.borderTopWidth, c.borderTopColor, c.borderBottomColor, c.borderLeftColor, c.borderRightColor].join('|');
+}
+
+/**
+ * Whether focus gave `n` a ring: an outline, a coloured shadow or a border that was not there unfocused (`before`, its
+ * `ringSignature` then). With no record, any drawn outline or coloured shadow counts.
+ */
+export function ringed(n: Element, before: string | undefined): boolean {
+  const c = getComputedStyle(n);
+  const outline = c.outlineStyle !== 'none' && parseFloat(c.outlineWidth) > 0, shadow = /rgb|oklch|oklab|color/.test(c.boxShadow) && c.boxShadow !== 'none';
+  if (!before) return outline || shadow;
+  const b = before.split('|'), now = ringSignature(c).split('|');
+  const outlineMoved = now.slice(0, 3).join('|') !== b.slice(0, 3).join('|'), shadowMoved = now[3] !== b[3], borderMoved = now.slice(4).join('|') !== b.slice(4).join('|') && c.borderTopStyle !== 'none';
+  return (outline && outlineMoved) || (shadow && shadowMoved) || borderMoved;
+}
+
+/**
+ * Where a focused element's ring may be drawn: the element, its frame and the frame's frame; inside a shadow root every
+ * composed ancestor up to the outermost host, since the host is where `:host(:focus-within)` draws.
+ */
+export function ringChain(el: Element): Element[] {
+  const chain = [el];
+  if (el.getRootNode() instanceof ShadowRoot) {
+    for (let n = deepParent(el); n; n = deepParent(n)) { chain.push(n); if (!(n.getRootNode() instanceof ShadowRoot)) break; }
+  } else {
+    const p = deepParent(el); if (p) chain.push(p);
+    const g = p && deepParent(p); if (g) chain.push(g);
+  }
+  return chain;
+}
+
+/** The functions as page code, for `page.eval`: function declarations, so they become globals of the page. */
+export const DEEP_SOURCE: string = [deepAll, deepActive, deepQuery, deepQueryAll, deepParent, deepText, deepClosest, ringSignature, ringed, ringChain].map((f) => f.toString()).join('\n');

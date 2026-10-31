@@ -1,0 +1,25 @@
+ok      gate (42.8s)
+ok      the fake API is serving at http://127.0.0.1:57410 (ZZ_GATEWAY)
+ok      build (5.2s)
+ok      route policy (0.2s) route-policy: 2 static, 33 partial, 0 dynamic of 35 non-API routes; 0 empty shells
+ok      first-load (0.6s) 32 routes, largest /record 871 KiB · cap 830 KiB for a route the baseline does not hold · growth within 5% of the baseline
+FAIL    html (0.6s) 22 pages gzipped, largest /record 30.0 KiB · growth within 5% of the baseline
+        /plugins: HTML grew 5.7% over its baseline (cap 5%)
+ok      navigation (30.7s)
+        phone: this host slowed 5.4x (benchmark index 4323.5 from 4278.5, 4323.5, 4356; the phone is index 800)
+        note: main button[aria-label^="About "] matches 24 elements; the first visible one was used
+        ok      / desktop shell 30 ms · data 30 ms · interactive 80 ms
+        ok      / phone shell 45 ms · data 511 ms · interactive 595 ms · drawer 92 ms
+        ok      /record desktop shell 30 ms · data 47 ms · interactive 97 ms
+        ok      /record phone shell 29 ms · data 513 ms · interactive 646 ms · drawer 63 ms
+        ok      /initiatives desktop shell 30 ms · data 30 ms · interactive 330 ms
+        ok      /initiatives phone shell 28 ms · data 511 ms · interactive 878 ms · drawer 81 ms
+        ok      prefetch desktop 20.9 KiB compressed · cap 80 KiB
+        ok      prefetch phone-closed 0.0 KiB compressed · cap 0 KiB
+coverage: default; browser ran; 3 routes; data configured 3/3; interaction configured 3/3; not run: audit, presses, keyboard, assistant, browserChecks, timing, timedChecks, vitals; judged nothing: the card contract, a collection's rows read through it
+verify: fix the issues above and run pnpm verify again (79.8s)
+… gate
+… build
+… route policy
+… sizes
+… navigation

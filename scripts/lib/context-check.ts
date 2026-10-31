@@ -43,7 +43,9 @@ export function checkBrief(text: string): { errors: string[]; warnings: string[]
 const PATH_ROOTS = ['.agents/', '.claude/', 'src/', 'app/', 'scripts/', 'docs/', '.meridian/', 'tokens/', 'tests/', 'references/'];
 
 /** `pnpm <name>`, `pnpm run <name>`, `npm run <name>`, `yarn <name>` or `bun run <name>`, then nothing, ` -- ...` or flags. */
-const SCRIPT = /^(?:pnpm run|pnpm|npm run|yarn|bun run) ([\w:.-]+)(?: --(?: .*)?| -.*)?$/;
+const SCRIPT = /^(pnpm run|pnpm|npm run|yarn|bun run) ([\w:.-]+)(?: --(?: .*)?| -.*)?$/;
+/** What a bare `pnpm <name>` or `yarn <name>` runs as the package manager's own command, never a package script. */
+const OWN_COMMANDS = new Set(['add', 'approve-builds', 'audit', 'bin', 'config', 'create', 'dedupe', 'deploy', 'dlx', 'env', 'exec', 'fetch', 'i', 'import', 'init', 'install', 'licenses', 'link', 'list', 'ls', 'outdated', 'pack', 'patch', 'prune', 'publish', 'rebuild', 'remove', 'rm', 'root', 'setup', 'store', 'uninstall', 'unlink', 'up', 'update', 'upgrade', 'why']);
 
 /**
  * Check what documents point at. Only inline code spans count, and fenced code is skipped. A path reference must exist,
@@ -73,7 +75,9 @@ export function scanReferences(
         const ref = prefix ? span.slice(prefix.length + 1) : span;
         const script = SCRIPT.exec(ref);
         if (script) {
-          if (!scripts.has(script[1])) problems.push(`${at}: package script "${script[1]}" is not in package.json`);
+          const [, runner, name] = script;
+          const own = (runner === 'pnpm' || runner === 'yarn') && OWN_COMMANDS.has(name);
+          if (!own && !scripts.has(name)) problems.push(`${at}: package script "${name}" is not in package.json`);
           continue;
         }
         if (!PATH_ROOTS.some((r) => ref.startsWith(r)) || /[*?<>{} ]/.test(ref)) continue;

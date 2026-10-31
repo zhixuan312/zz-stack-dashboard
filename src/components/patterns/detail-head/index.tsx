@@ -103,7 +103,7 @@ export function DetailHead({ className, compact, ...p }: DetailHeadProps & { cla
         <h1 className={compact ? 't-section' : 't-page'}>{h.title}</h1>
         {h.description ? <div className={cn('mt-2.5 text-ink-2', compact ? 'text-sm' : 't-lead')}>{h.description}</div> : null}
       </div>
-      {h.actions ? <div className="flex items-center gap-2">{h.actions}</div> : null}
+      {h.actions ? <div className="flex flex-wrap items-center gap-2">{h.actions}</div> : null}
     </header>
   );
 }

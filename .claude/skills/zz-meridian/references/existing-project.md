@@ -48,13 +48,16 @@ Migrate in place, page by page, keeping their data layer.
    gates and scripts in; merges the dependencies and scripts it needs into their `package.json`; adds `@meridian/*`
    (`src/*`) to `tsconfig.json`, keeping theirs as `tsconfig.before.json` when it carries comments or trailing commas,
    which JSON cannot hold; replaces their global stylesheet, keeping theirs beside it as `*.before.css` to port
-   from as tokens; writes a first `nav` from their routes into `src/app.config.ts`; brands it; writes a managed block
+   from as tokens; writes an `eslint.config.ts` when they have no ESLint configuration at all, since the gate runs
+   the lint and a project would otherwise be handed a gate it cannot pass, and keeps a legacy `.eslintrc` with a line
+   saying ESLint 9 no longer reads it; writes a first `nav` from their routes into `src/app.config.ts`; brands it; writes a managed block
    into their `AGENTS.md`, between two marker comments, and keeps every byte outside it (a later run replaces only that
    block; a duplicate or unterminated marker is refused, with the files already copied); writes the five-section brief
    `optional:docs/brief.md` when they have none (SKILL.md, step 3: fill it from their answers); installs this skill into
    `optional:.agents/skills/` and `optional:.claude/skills/`; records every Meridian file it copied in `optional:.meridian/manifest.json`; installs and type
-   checks. It refuses, writing nothing, when the git tree has uncommitted
-   changes (commit first, so its change is one diff to review), when the project is not Next.js with the App Router,
+   checks. It refuses, writing nothing, when the project is already on
+   Meridian (it names `update`, the command that moves it), when the git tree has uncommitted changes (commit first, so
+   its change is one diff to review), when the project is not Next.js with the App Router,
    or when a file it would copy already exists with other content (it lists them: move theirs, then run it again).
    Meridian's own files import each other by relative path, so their `components/ui/button` is never confused with
    Meridian's.
@@ -120,8 +123,11 @@ Migrate in place, page by page, keeping their data layer.
    refuses, when a data URL resolves to a host that is not this machine; point it at a local copy for the run, and set
    `allowRemoteData: true` only when you know what the presses reach. Restore the data afterwards — the walk-through
    flags rows and a press can delete, even on a run where every check passes.
-6. List their detail pages worth seeing (a normal record, a failed one, a missing one) in `detailRoutes` in
-   `scripts/verify.config.ts`, with ids from the fake API's fixtures. Map their main routes in `navigationChecks` (a
+6. List their detail pages worth seeing (a normal record, a failed one) in `detailRoutes` in
+   `scripts/verify.config.ts`, with ids from the fake API's fixtures, and a record that does not exist in
+   `missingRoutes`: a detail route must render its page and a missing one the not-found screen, so a mistyped id fails
+   instead of being measured as the not-found screen. A not-found screen of your own carries `data-missing-page` on its
+   root, as `MissingPage` does, since inside a streamed shell a missing record has already answered 200. Map their main routes in `navigationChecks` (a
    ready selector and one harmless probe each) so the default smoke covers data and interaction, not only the shell. Run
    `pnpm verify` until it passes, and `pnpm verify --full --timed` before a release (the timed suites want a quiet
    machine); the line before the last of each says what it covered (`coverage: …`).
@@ -157,7 +163,8 @@ Home hands the assistant is checked by a journey the product writes, a script na
 `scripts/verify.config.ts`, as `optional:journeys/workspaces.ts` is. To have the assistant call a view tool of the
 product's own for a question, name it in `fakeModel` in the same file (`{ when: 'which runs failed', tool: 'view_tests',
 input: { period: '7d' } }`): the fake model matches `when` (a case-insensitive pattern) before its own branches and
-answers with the tool's result, so the journey can compare what the assistant cites with what the page shows. A check
+answers with the tool's result, so the journey can compare what the assistant cites with what the page shows (a
+question with the word "fail" in it is still refused as a bad key, so `when` should not need that word). A check
 of the product's own that judges a time goes in `timedChecks`, which `pnpm verify --timed` runs alone. And a test setup of the product's own (a provider
 around every render, a polyfill) goes in a second file listed after `./tests/setup.ts` in `setupFiles` in
 `vitest.config.ts`: `tests/setup.ts` is Meridian's, and an update replaces it.
@@ -208,8 +215,20 @@ Meridian's sample serves fixtures; a product's collections read a database. What
   migrator's bookkeeping in a schema the role may write (`public`); never stop the server on a failure, and report the
   outcome at a health route so a deploy can read it. A build has no database to migrate and must not need one.
 - **A role that may read and write but not create.** Deployed roles often lack `CREATE`, and a migrator that starts with
-  `CREATE SCHEMA` is refused even where tables may be created. Ship the schema as a one-off SQL file a person with the
-  owner's role runs once, and let the application role only migrate within what it may do.
+  `CREATE SCHEMA` is refused even where tables may be created. The first schema can ship as a one-off SQL file a person
+  with the owner's role runs once, but that settles only a schema that never changes: every later migration that adds a
+  table or a column is refused to the application role on each start, rolls back, and the server keeps serving the old
+  schema (issue #98). A release with a schema change takes one of two roads, and the project says which in its README:
+  - **A migration role the start-up migrator prefers.** Give the deployment a second connection string,
+    `MIGRATION_DATABASE_URL`, for a role that owns the schema, on the direct endpoint (not the transaction pooler). The
+    migrator in `instrumentation.ts` connects with it when it is set and with the application's otherwise; the pages
+    never read it. This suits a host that may hold the owner's credential.
+  - **A release step before the new version serves.** Where the running app must not hold the owner's credential, the
+    release runs the product's own migrate command with the owner's role, then switches traffic to the
+    new version. The start-up migrator then finds nothing pending.
+  Either way, read the health route after the deploy, and have it name the cause: a migration refused for permission
+  (Postgres `SQLSTATE 42501`, `insufficient_privilege`) reports which migration and says "the application role may not
+  change the schema: run the pending migrations with the owner's role", not a bare failure.
 
 ## Route A2: a static HTML page (data fetched as JSON)
 

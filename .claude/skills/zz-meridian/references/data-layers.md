@@ -46,7 +46,7 @@ deviate".
 | `logic-does-not-import-views` | an import in `optional:src/logic/**` that resolves into `src/views/` | `scripts/check.ts` |
 | `views-produce-nothing` | a file under `src/views/` that is not a renderer: a `.tsx` with no default export and no named export whose identifier starts with a capital letter, or any non-`.tsx` file but `workspaces.ts` | `scripts/check.ts` |
 | `presentation-does-not-read` | a value import from `@/data` in `src/views/**` or `src/components/**` naming any module but the five vocabulary modules — `roles.ts`, `features.ts`, `sample.ts`, `request-methods.ts`, `live-actions.ts` | `scripts/lib/layer-rules.ts` |
-| `no-direct-query` | a `.query(` call on a collection in `app/**`, `optional:src/logic/**`, `src/views/**` or `src/lib/**`, outside the five sites it allows — the other two of the seven direct reads live in `optional:src/data/access.ts`, which this rule does not govern | `scripts/lib/layer-rules.ts` |
+| `no-direct-query` | a `.query(` call on a collection in `app/**`, `optional:src/logic/**`, `src/views/**` or `src/lib/**`, except on a line that states `allow-no-direct-query: <why>`, as the five sites below do — the other two of the seven direct reads live in `optional:src/data/access.ts`, which this rule does not govern | `scripts/lib/layer-rules.ts` |
 | `client-does-not-import-a-reading-module` | a `'use client'` module that value-imports a logic module whose own imports reach a module that reads (`read(`, `readAll(`, `aggregate(`, `collectionFor(`, `resolveAccess(` or `can(`) | `scripts/check.ts` |
 
 A type import is erased before anything runs, so it is not a value import. Comments are blanked before a scan, so a call
@@ -79,7 +79,9 @@ answer a person who could not have asked.
 
 **A write is validated and names the reads it invalidates.** A write parses its input against the collection's fields —
 a derived field is not writable — authorizes the operation, commits, and then drops the answers its change makes wrong:
-`updateTag(collectionTag(tenantId, name))` retires that collection's cache entries for that tenant and nobody else's.
+`invalidate(collectionTag(tenantId, name))` (`optional:src/data/write-boundary.ts`) retires that collection's cache entries for that
+tenant and nobody else's: `updateTag` from a Server Action, `revalidateTag(tag, { expire: 0 })` from a route handler or an
+MCP server, where `updateTag` throws.
 Rows, totals and aggregates are all retired by the same name.
 
 **Absent evidence is `null`, never zero.** A quantity nothing measured is `null`, and the formatters render it as a dash.
@@ -240,9 +242,16 @@ before that resolution is possible. Each says why on its own line, and this is t
 | `optional:app/api/export/requests/route.ts` | a streamed export must not be cached |
 | `optional:src/lib/assistant/tools.ts` | the proposal path reads the rows a write would change, uncached, to show the person the difference |
 
-Two of the seven are in `optional:src/data/access.ts`, which `no-direct-query` does not govern; the other five are the rule's
-allowlist, matched by file and line rather than by file, because a file may hold both an allowed read and ordinary code.
-A product whose own page must read raw does the same: a comment saying why, and a line in the allowlist it keeps.
+Two of the seven are in `optional:src/data/access.ts`, which `no-direct-query` does not govern. The other five state it on the
+call's own line, `// allow-no-direct-query: <why>`, which the check prints as an escape; there is no list of sites to
+keep, because a list by line number points at the wrong call once a line above it moves. A product whose own page must
+read raw does the same: the escape on the call's line, saying why.
+
+The list counts the reads that skip `read()` outside the layer that owns the collections. Inside `optional:src/data/`, the
+write boundaries (`member-mutations.ts`, `ticket-mutations.ts`) and the View as switch (`view-as.ts`) also query a
+collection directly and uncached: each checks a change against the rows as they are now, the caller through `memberById`
+and the services, members and tickets the change names. `no-direct-query` does not govern `optional:src/data/`, so they carry no
+escape.
 
 ## The path an existing product follows
 

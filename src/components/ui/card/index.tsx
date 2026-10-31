@@ -43,9 +43,14 @@ export function CardHeader({
   // as an attribute; a title built of elements is the caller's to keep short or to wrap.
   const whole = !wrap && typeof title === 'string' ? title : undefined;
   return (
-    <div className={cn('flex items-start gap-4 px-(--card-pad) pt-[calc(var(--card-pad)-4px)]', divided ? 'border-b border-line pb-3.5' : 'pb-1', className)}>
-      <div className="min-w-0 flex-1">
-        <h2 title={whole} className={cn('t-card', wrap ? 'text-pretty' : 'truncate')}>{title}</h2>
+    // The head wraps rather than squeezing the title to a sliver (issue #87). The title's box has a floor — the width it
+    // needs to keep a word or two whole — and the actions never shrink, so when the two cannot share a line the actions
+    // take the next one. Without the floor the box collapsed to nothing in a narrow column: at 1024px the second column
+    // of `<Row split="2/3">` is 229px, a head with a Select and two labels takes 138px of it, and the first word drew
+    // 32px past its own box, over the controls.
+    <div className={cn('flex flex-wrap items-start gap-x-4 gap-y-2 px-(--card-pad) pt-[calc(var(--card-pad)-4px)]', divided ? 'border-b border-line pb-3.5' : 'pb-1', className)}>
+      <div className="min-w-32 flex-1">
+        <h2 title={whole} className={cn('t-card', wrap ? 'text-pretty [overflow-wrap:anywhere]' : 'truncate')}>{title}</h2>
         {description ? <p className="t-caption mt-1 text-pretty">{description}</p> : null}
       </div>
       {actions ? <div className="-my-1 flex shrink-0 items-center gap-1.5">{actions}</div> : null}

@@ -6,13 +6,19 @@ import { TableSkeleton, TilesSkeleton } from '../../patterns/page-loading/index'
  * The arrangement of a page that lists records: an optional row of summary tiles over the records themselves
  * (a Data table with its Filter bar). It keeps no state and reads no data; the page supplies both. Each item of
  * `summary` is a direct child of the tiles row, which sizes its columns by counting them; a fragment counts as its children.
+ * With `empty` (no records at all, not none that match a filter) the summary is not drawn: a product with nothing yet
+ * read a row of zeros, "Revenue $0", above the table's "No customers yet", which says it once.
  */
-export function Records({ summary, children }: { /** The summary tiles: one node, a fragment or an array, whose items become the row's direct children. */ summary?: ReactNode; children: ReactNode }) {
+export function Records({ summary, empty = false, children }: {
+  /** The summary tiles: one node, a fragment or an array, whose items become the row's direct children. */ summary?: ReactNode;
+  /** There are no records at all: the table's empty state is the page's one word, and the summary is not drawn. */ empty?: boolean;
+  children: ReactNode;
+}) {
   /* A fragment is one child to React, but the row counts tiles: open it one level. */
   const tiles = Children.toArray(isValidElement(summary) && summary.type === Fragment ? (summary as ReactElement<{ children?: ReactNode }>).props.children : summary);
   return (
     <Stack data-template="records">
-      {tiles.length ? <Row split="tiles">{tiles}</Row> : null}
+      {tiles.length && !empty ? <Row split="tiles">{tiles}</Row> : null}
       {children}
     </Stack>
   );

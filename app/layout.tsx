@@ -1,12 +1,13 @@
 import type { Metadata, Viewport } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
+import localFont from 'next/font/local';
 import { app } from '@/app.config';
 import { PREPAINT } from '@/lib/preferences';
 import { Providers } from '@/components/base/providers';
 import { ConsoleProviders } from '@/console/providers';
 import './globals.css';
 
-/* The faces are self-hosted by next/font and handed to the tokens as --font-face-sans and --font-face-mono.
+/* The faces ship in src/styles/fonts/ and load through next/font/local, so a build fetches nothing. They are handed
+ * to the tokens as --font-face-sans and --font-face-mono.
  *
  * COUPLED: the `display` and `fallback` of both faces. `next/font` generates its metric fallback from
  * `local("Arial")` alone, so on a machine without Arial — every Linux server, and the runner's own Chrome — that
@@ -16,14 +17,14 @@ import './globals.css';
  * that: a face that has not arrived within its block period is not swapped in later on that page load, so there is
  * no re-wrap to shift anything. `fallback` is what makes that bearable, by naming real sans faces for the cold load
  * rather than leaving it to the initial font. Both are checked by `scripts/check.local.ts`. */
-const sans = Geist({ subsets: ['latin'], variable: '--font-face-sans', display: 'optional', fallback: ['system-ui', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'Liberation Sans', 'sans-serif'] });
+const sans = localFont({ src: '../src/styles/fonts/Geist-Variable.woff2', weight: '100 900', variable: '--font-face-sans', display: 'optional', fallback: ['system-ui', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'Liberation Sans', 'sans-serif'] });
 // Mono sets only small labels and identifiers, so it is not preloaded: on a slow phone it would contend with the
 // page's own script for the first second of bandwidth.
-const mono = Geist_Mono({ subsets: ['latin'], weight: ['400', '500'], variable: '--font-face-mono', display: 'optional', preload: false, fallback: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'Liberation Mono', 'monospace'] });
+const mono = localFont({ src: '../src/styles/fonts/GeistMono-Variable.woff2', weight: '100 900', variable: '--font-face-mono', display: 'optional', preload: false, fallback: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'Liberation Mono', 'monospace'] });
 
 export const metadata: Metadata = {
   title: { default: app.name, template: `%s · ${app.name}` },
-  description: 'Every team, flow, skill and initiative on the ZZ platform, and how far each got.',
+  description: app.description,
 };
 
 /* The browser chrome's colour is a meta tag, which cannot read a CSS variable: these are the two grounds, by hand. */

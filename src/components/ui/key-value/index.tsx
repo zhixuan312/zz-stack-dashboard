@@ -23,18 +23,29 @@ export function KeyValue({ items, columns = 1, className }: { items: KeyValueIte
   return (
     <div className={cn('@container min-w-0', className)}>
       <dl className={cn('grid min-w-0 grid-cols-1', columns === 2 && '@min-[40rem]:grid-cols-2 @min-[40rem]:gap-x-8')}>
-        {items.map((it, i) => (
-          <div key={i} className={cn('flex min-h-11 min-w-0 items-center gap-4 border-b border-line py-2.5 last:border-0', columns === 2 && '@min-[40rem]:[&:nth-last-child(2):nth-child(odd)]:border-0')}>
-            <dt className="w-32 shrink-0 text-sm text-ink-3">{it.label}</dt>
-            <dd
-              title={it.wrap ? undefined : (it.title ?? (typeof it.value === 'string' || typeof it.value === 'number' ? String(it.value) : undefined))}
-              className={cn('t-num min-w-0 flex-1 text-sm text-ink', it.wrap ? '[overflow-wrap:anywhere]' : 'truncate', it.mono && 'font-mono text-xs')}
-            >
-              {it.value}
-            </dd>
-            {it.action ? <div className="-my-1 shrink-0">{it.action}</div> : null}
-          </div>
-        ))}
+        {items.map((it, i) => {
+          // An unknown value is a dash, never a blank row or a "0" that was not measured.
+          const unknown = it.value === null || it.value === undefined || it.value === '';
+          return (
+            <div key={i} className={cn('flex min-h-11 min-w-0 items-center gap-4 border-b border-line py-2.5 last:border-0', columns === 2 && '@min-[40rem]:[&:nth-last-child(2):nth-child(odd)]:border-0')}>
+              <dt className="w-32 shrink-0 text-sm text-ink-3">{it.label}</dt>
+              <dd
+                title={it.wrap || unknown ? undefined : (it.title ?? (typeof it.value === 'string' || typeof it.value === 'number' ? String(it.value) : undefined))}
+                className={cn(
+                  't-num min-w-0 flex-1 text-sm text-ink',
+                  // A value the row cuts keeps its whole text in its title, which a pointer reads and a phone cannot (issue
+                  // #89). Below the width where a sentence value cannot fit beside its label the row wraps instead, the way
+                  // `wrap` asks for, so nothing is left unreadable behind a hover that does not exist there.
+                  it.wrap ? '[overflow-wrap:anywhere]' : 'truncate @max-[26rem]:whitespace-normal @max-[26rem]:[overflow-wrap:anywhere]',
+                  it.mono && 'font-mono text-xs',
+                )}
+              >
+                {unknown ? <span className="text-ink-3">—</span> : it.value}
+              </dd>
+              {it.action ? <div className="-my-1 shrink-0">{it.action}</div> : null}
+            </div>
+          );
+        })}
       </dl>
     </div>
   );

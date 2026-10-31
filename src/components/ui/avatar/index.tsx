@@ -1,3 +1,6 @@
+'use client';
+
+import { useState } from 'react';
 import { cn } from '../../../lib/cn';
 
 const SIZE = { sm: 'size-6 text-2xs', md: 'size-8 text-xs', lg: 'size-10 text-sm' } as const;
@@ -11,7 +14,11 @@ const OVERLAP = { sm: '-ml-0.5', md: '-ml-1', lg: '-ml-1.5' } as const;
  * toward ink, so they hold contrast in both themes.
  */
 export function Avatar({ name, src, size = 'md', className }: { name: string; src?: string; size?: keyof typeof SIZE; className?: string }) {
-  const initials = name.split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
+  // Whole characters of the words, so a name with spaces around it or an emoji first keeps both initials intact.
+  const initials = name.trim().split(/\s+/).map((w) => [...w][0] ?? '').slice(0, 2).join('').toUpperCase();
+  // A picture that does not load gives way to the initials, also when it failed before the page hydrated.
+  const [failed, setFailed] = useState(false);
+  const loaded = (img: HTMLImageElement | null) => { if (img?.complete && img.naturalWidth === 0) setFailed(true); };
   const slot = ([...name].reduce((a, c) => a + c.charCodeAt(0), 0) % 6) + 1;
   return (
     <span
@@ -20,7 +27,7 @@ export function Avatar({ name, src, size = 'md', className }: { name: string; sr
       style={{ background: `color-mix(in oklab, var(--series-${slot}) 22%, var(--surface))`, color: `color-mix(in oklab, var(--series-${slot}) 52%, var(--ink))` }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element -- a decorative 20-40px picture from any origin the product's users have; next/image would need every origin listed in next.config. */}
-      {src ? <img src={src} alt="" className="size-full object-cover" /> : initials}
+      {src && !failed ? <img ref={loaded} src={src} alt="" onError={() => setFailed(true)} className="size-full object-cover" /> : initials}
     </span>
   );
 }

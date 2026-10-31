@@ -67,7 +67,7 @@ const HALF = '@2xl:grid @2xl:grid-cols-[minmax(0,1fr)] @2xl:grid-rows-subgrid @2
 const FOOT = [
   'flex flex-wrap items-end justify-between gap-x-8 gap-y-3 border-t border-line px-(--card-pad) py-4 text-sm text-ink-2',
   '[&_dl]:flex [&_dl]:min-w-0 [&_dl]:flex-wrap [&_dl]:gap-x-8 [&_dl]:gap-y-3',
-  '[&_dt]:font-mono [&_dt]:text-2xs [&_dt]:leading-[1.2] [&_dt]:tracking-(--tracking-caps) [&_dt]:uppercase',
+  '[&_dt]:text-xs [&_dt]:leading-[1.2] [&_dt]:font-medium',
   '[&_dd]:mt-1.5 [&_dd]:text-md [&_dd]:leading-none [&_dd]:font-medium [&_dd]:text-ink [&_dd]:tabular-nums',
 ].join(' ');
 

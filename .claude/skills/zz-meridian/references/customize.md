@@ -61,10 +61,31 @@ sample, ZZ Meridian's own dashboard, lives in `optional:src/system/fixtures/`; y
 
 ## Navigation: `src/app.config.ts`
 
-`app` holds the name, workspace, accent, timezone, currency and the signed-in user the rail shows (all set by
-`scripts/brand.ts`); `slug`, `domain` and `toolPrefix` derive from the name. `nav` is the rail and the command
+`app` holds the name, the description a search engine and a link preview show under it, the workspace, accent,
+timezone, currency and the signed-in user the rail shows (all but the description set by `scripts/brand.ts`); `slug`,
+`domain` and `toolPrefix` derive from the name. `nav` is the rail and the command
 palette: groups of `{ href, label, icon, needs }`, plus a `workspace` while the workspaces stay (icons from `lucide-react`, 1.75 stroke is applied by the rail). A badge
 is a short string, used only for something that needs attention ("1").
+
+**Sub pages.** An item may be a sub page of another item of the same group: give it `under`, the `href` of its parent.
+The rail draws the parent as its link plus a button named `<label> pages`, and the sub pages in a list under it; the
+branch is open on arrival when the current page is the parent or one of its sub pages. Nothing else reads a hierarchy:
+every module that reads `nav` still sees a flat list of items, each with its own `needs` and `workspace`, and a
+navigation with no `under` draws as before. `node scripts/check.ts` refuses, naming the item's `href`:
+
+- an `under` that names no item of the same group;
+- an `under` that names the item itself;
+- an `under` that names an item which itself has an `under` (three levels, never four);
+- a sub page whose `workspace` differs from its parent's, where a declared workspace and an undeclared one count as differing;
+- more than 7 sub pages under one parent (past that, the item is a group of its own).
+
+Use `under` for destinations: pages with their own address, access and place in the palette. Use in-page tabs (`Tabs`)
+instead for the views of one record, under one header. A parent is a page too: for several equal pages under a header
+with no page of its own, give them a group of their own, whose `label` is that header. For a sub page's masthead to show
+its path, pass `<Breadcrumb items={navTrail(href, nav)} />` (from `@/components/patterns/rail/trail`) as the kicker,
+`href` being the page's own route, or for a detail page the nearest nav item above it; the crumbs are derived from
+`nav`, and `node scripts/check.ts` fails a page or loading file whose literal `navTrail` href is any other, as one left
+behind when its route moved.
 
 `needs` is required, and in a created project it is a feature's own need **by reference** — `needs: FEATURES.home.needs`,
 from `optional:src/data/features.ts` — never a grant written a second time: the rail and the palette draw only the
@@ -116,7 +137,7 @@ to all of this.
   destination of `nav` the person may open, or `/`, and rewrite the two cases of `optional:tests/no-access.test.tsx` that
   expect a workspace's first destination and Main's home.
 - Take `${workspaces.<id>.audience}` out of the descriptions of the Home, Revenue, Usage and Now pages, or delete
-  the pages.
+  the pages, and out of `LINE_ROOM` in `optional:src/logic/now-parts.ts`, which keeps room for Engineering's beside Now's line.
 - Delete `optional:tests/workspaces.test.ts`, `optional:tests/workspace-access.test.ts`,
   `optional:tests/workspace-chrome.test.tsx` and `optional:tests/workspace-menu-access.test.tsx`. In `optional:tests/shell-alerts.test.ts` drop the `workspaceOf` check, and in
   `optional:tests/workspace-home.test.tsx` the test that reads `workspaces.main.audience`, with the two imports only
@@ -369,7 +390,9 @@ orders is the sample's, not the product's.
   `optional:src/data/read.ts`, `optional:src/data/access.ts`, the assistant and live routes) and names the sample's
   clock, collections, records, people or routes. The gate fails on each once you replace what it names. Keep what each
   holds for your own data: rewrite its cases for your collections, people and records, and delete a case about a
-  collection, page or person you dropped. Among them, by what they hold:
+  collection, page or person you dropped. Every one that names a demo member, a sample fixture, a sample page or view is
+  listed by `grep -lE "members_[0-9]+|system/fixtures|app/\(dashboard\)|@/views/" tests/*.test.ts tests/*.test.tsx`;
+  the lists below are not every file, but the ones whose cases need more than the find. Among them, by what they hold:
   - The clock and the collections of the company: `optional:tests/day-in-progress.test.ts` (today is 03 Oct 2026; four
     usage rows, four compute rows and one cost row a day; 361 days kept) and `optional:tests/data-model.test.ts` (the
     collections models, usage, compute and costs with their keys and fields, the four model ids and the routes they
@@ -380,28 +403,41 @@ orders is the sample's, not the product's.
     `optional:tests/demo-policy.test.ts`, `optional:tests/view-as.test.ts`, `optional:tests/sign-in-persona.test.ts`,
     `optional:tests/sign-in-honest.test.tsx`, `optional:tests/verify-personas.test.ts`,
     `optional:tests/member-mutations.test.ts`, `optional:tests/data-access.test.ts`, `optional:tests/data-write.test.ts`,
-    `optional:tests/assistant-tools.test.ts` (the members collection's write schema) and
-    `optional:tests/assistant-prompt-truth.test.ts`. While the demo signs in as your own people
-    (`PERSONAS`), write their ids into these cases; once your sign-in replaces the demo, delete the first four with
-    `optional:src/data/view-as.ts` and the sign-in page, and rewrite the rest for your sign-in's people.
+    `optional:tests/assistant-tools.test.ts` (the members collection's write schema),
+    `optional:tests/assistant-prompt-truth.test.ts`, `optional:tests/assistant-access.test.ts` (who of them may use which
+    view tool), `optional:tests/assistant-prompt-writes.test.ts`, `optional:tests/assistant-settings.test.tsx` (the
+    settings page's sections) and `optional:tests/view-tool-needs.test.ts`; `grep -l "members_[0-9]"` finds the rest.
+    While the demo signs in as your own people (`PERSONAS`), write their ids into every case that names one; once your
+    sign-in replaces the demo, delete the first four with `optional:src/data/view-as.ts` and the sign-in page, and
+    rewrite the rest for your sign-in's people.
   - The records and routes of the company: `optional:tests/shell-alerts.test.ts` (more than one past-due customer, one
     of them Lumen Studio at `/customers/lumen-studio`, a high-priority ticket nobody has, the failing verifications:
     rewrite it for the exceptions your `readAlerts` raises), `optional:tests/feature-access.test.ts` (the sample's
     seventeen features by id and each action's need), `optional:tests/data-read.test.ts`,
     `optional:tests/live-route.test.ts` and `optional:tests/live-actions.test.ts` (the members and keys collections),
     `optional:tests/assistant-guard.test.ts` (the members collection), `optional:tests/engineering-records.test.ts`
-    (tickets, verification runs and releases, and who of the demo's people writes them) and `optional:tests/requests-summary-newest.test.ts` (the requests
-    collection).
+    (tickets, verification runs and releases, and who of the demo's people writes them), `optional:tests/engineering-workflows.test.ts`
+    (the tickets feature's actions and Engineering's destinations), `optional:tests/requests-summary-newest.test.ts` (the requests
+    collection), `optional:tests/action-needs.test.tsx` (the API keys and request views),
+    `optional:tests/atlas-product-slice.test.tsx` (the Customers page drawn through the records template),
+    `optional:tests/counts-and-lists.test.tsx` (the Customers page and the Tickets action: a ticket Jonas Weber owns on
+    the Edge gateway, more customers than one read answers, the plans Enterprise, Scale and Starter, the status options
+    and the `verifications:failing` alert), `optional:tests/customers-payload.test.tsx` (a sample customer's row and
+    record fields, `byEndpoint` and `pastDueSince` among them), `optional:tests/customer-empty-period.test.ts` (the
+    customers collection and `readCustomer`), `optional:tests/linked-records.test.ts` (incidents, tickets, requests,
+    models, services and days, and how they name each other), `optional:tests/usage-summary.test.tsx` (the Usage view on
+    the sample's dates, stating four figures over the last 30 complete days) and `optional:tests/workspace-figures.test.ts` (the verification
+    runs' fields).
 
-  The sample's own figures, pages and answers are in `cli-*` tests, which a created project does not receive. A shipped
-  test that still fails after this names something of the sample's too: change it the same way.
+  Most of the sample's own figures, pages and answers are in `cli-*` tests, which a created project does not receive.
+  A shipped test that still fails after this names something of the sample's too: change it the same way.
 - **The choice `explain`**: the sample answers an address a person may not open with the no-access page, which names the
   page and who to ask. Choose `absent` when a product must not tell a person that a page they may not open exists.
 - **The counts each context's lists are capped at**: six services, two open incidents and three resolved on Services,
-  one open incident on Now, eight keys, 24 members and the rest in `optional:src/views/*-context.ts`. They hold the
+  one open incident on Now, eight keys, 24 members and the rest in `optional:src/logic/*-context.ts`. They hold the
   sample's lists within the budget; a product sets its own, at least what its pages state with its own records.
 - **The six title functions and their words**: `homeTitle`, `usageTitle`, `revenueTitle`, `customerTitle`, `nowTitle`
-  and `servicesTitle`, each in its view's context file under `optional:src/views/`, with the functions that call the
+  and `servicesTitle`, each in its view's context file under `optional:src/logic/`, with the functions that call the
   rules for them (`revenueHead`, `titleOf`, `nowHead`, `servicesHead`, Usage's `usageHead` in
   `optional:src/logic/usage-parts.ts` and Home's `homeHead` in `optional:src/logic/home-parts.ts`) and Home's line under its title (`homeLine`). Write your pages' own, in your
   product's nouns: a release "in testing" is the sample's word for its own releases. A run's "without a mark" is
@@ -483,7 +519,7 @@ orders is the sample's, not the product's.
   highest yet), and the days inside the band on Now and on Services. State the facts your own records hold, from the
   same rules.
 
-`grep -rn "Title(\|Head(\|facts as rules" src/views src/data app` finds every title, head and reader of the configuration.
+`grep -rn "Title(\|Head(\|facts as rules" src/logic src/views src/data app` finds every title, head and reader of the configuration.
 
 ## The assistant
 
@@ -580,7 +616,7 @@ This finds what is left:
 
 ```sh
 grep -rn "/services\|/requests\|/customers\|/keys\|/settings\|/members\|/usage\|/operations-tickets\|/tests\|/releases\|fixtures/sample\|sample-cells" \
-  app src/views src/components --include=*.tsx --include=*.ts | grep -v preview.tsx
+  app src/views src/components src/logic src/data --include=*.tsx --include=*.ts | grep -v preview.tsx
 ```
 
 Then `pnpm verify --full --timed`, after `node scripts/registry.ts` in a clone that keeps the Atlas (a created project
@@ -591,8 +627,10 @@ has no cards' previews, and there it writes a registry of none).
 Routes, API paths, tool names (`explore_enhancements` → `explore_initiatives`), seeds and tables are yours to rename. The
 assistant walk-through (`scripts/assistant.ts`) checks what every product shares on your own rail, and drives the
 template's sample Home, Now, Members (its lookups through `explore_members`), API keys (a revocation found through
-`explore_keys`) and Settings, and asks its Usage and Tests through their prepared queries, only while their files are there: replace one and its steps
-print `n/a` with the reason, never a failure, so you never edit Meridian's scripts to rename your pages. The live checks
+`explore_keys`) and Settings, and asks its Usage and Tests through their prepared queries, only while their files are there and still hold what the
+walk reads (the sample's people, the invitation's copy, the page title, the switch's label): replace one, or give it your
+own people and words, and its steps print `n/a` with the reason, never a failure, so you never edit Meridian's scripts to
+rename your pages. The live checks
 (`scripts/live.ts`) work the same way with the sample Members page. `scripts/verify.config.ts`'s `detailRoutes` name ids from the sample, and its `navigationChecks` and `smokeRoutes` name routes and titles, so they move too.
 
 ## Things that render nothing (and fail the gate)

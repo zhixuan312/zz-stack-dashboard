@@ -38,11 +38,13 @@ import { launch } from './lib/chrome.ts';
 import { DEEP_SOURCE } from './lib/deep.ts';
 import { APP_DIR, discover, railRoutes } from './lib/routes.ts';
 import { exploreSurfaces, sampleSurfaces } from './lib/sample.ts';
+import { holdArgs } from './lib/args.ts';
 
 const SAMPLE = sampleSurfaces(path.resolve(import.meta.dirname, '..'), APP_DIR);
 const EXPLORE = exploreSurfaces(path.resolve(import.meta.dirname, '..'), APP_DIR);
 
 const args = process.argv.slice(2);
+holdArgs('assistant', args, ['--base', '--expect', '--key', '--llm']);
 const opt = (k: string) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : undefined; };
 const base = (opt('--base') ?? '').replace(/\/$/, '');
 const expect = opt('--expect');
@@ -56,7 +58,10 @@ if (!base || (expect !== 'off' && expect !== 'on') || (expect === 'on' && (!llm 
 }
 
 const ok = (what: string) => console.log(`ok   assistant ${expect}: ${what}`);
-const na = (what: string, why: string) => console.log(`n/a  assistant ${expect}: ${what} (${why})`);
+/** The steps the product has no sample surface for: printed `n/a` as they pass, and once at the end as `judged nothing:`, which
+ *  verify carries to the coverage line, so a walk-through that ran none of its sample steps does not read as one that ran all. */
+const skipped: string[] = [];
+const na = (what: string, why: string) => { skipped.push(what.replace(/, /g, '; ')); console.log(`n/a  assistant ${expect}: ${what} (${why})`); };
 const { routes: rail, landing } = await railRoutes();
 const fail = (why: string): never => { throw new Error(why); };
 const until = async <T>(what: string, read: () => Promise<T>, done: (v: T) => boolean, ms = 15000) => {
@@ -476,7 +481,7 @@ try {
 
     // Layout: a column beside the page at 1440px, over it at 390px; Escape closes it.
     if (!(await panelOpen())) await openPanel();
-    const geometry = () => page.eval<{ position: string; main: number; panel: number; width: number }>(`(() => { const a = ${PANEL}; return { position: getComputedStyle(a).position, main: Math.round(document.querySelector('main').getBoundingClientRect().right), panel: Math.round(a.getBoundingClientRect().left), width: innerWidth }; })()`);
+    const geometry = () => page.eval<{ position: string; main: number; panel: number; width: number }>(`(() => { const a = ${PANEL}; return { position: getComputedStyle(a).position, main: Math.round(document.querySelector('main').getBoundingClientRect().right), panel: Math.round(a.getBoundingClientRect().left), width: document.documentElement.clientWidth }; })()`);
     const wide = await geometry();
     if (wide.position === 'fixed' || Math.abs(wide.main - wide.panel) > 1) fail(`at 1440px the panel is ${wide.position} with the page ending at ${wide.main}px and the panel starting at ${wide.panel}px`);
     await page.open(`${base}${landing}`, { width: 390 });
@@ -527,4 +532,5 @@ try {
   process.exitCode = 1;
 } finally {
   page.close();
+  if (skipped.length) console.log(`judged nothing: ${skipped.map((s) => `assistant: ${s}`).join(', ')}`);
 }

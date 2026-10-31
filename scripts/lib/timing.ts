@@ -31,3 +31,19 @@ export function p95(samples: number[]): number {
 export function summary(samples: number[]): { median: number; p95: number; max: number } {
   return { median: median(samples), p95: p95(samples), max: Math.max(...samples) };
 }
+
+/**
+ * A pass that leaves less than this share of its limit unspent warns. The weekly runner measured this laptop's passes at
+ * about 1.6 times their time at the same phone rate, so a figure at 95% of its limit here is a red there. The warning
+ * does not predict the runner; `--rate` reproduces it.
+ */
+export const HEADROOM = 0.2;
+
+/** The share of a limit a figure left unspent: 1 at zero, 0 at or over the limit. */
+export function headroom(value: number, limit: number): number {
+  if (!Number.isFinite(limit) || limit <= 0) throw new Error(`timing: a limit must be a positive finite number, got ${limit}`);
+  return Math.max(0, (limit - value) / limit);
+}
+
+/** A figure within its limit that leaves less than HEADROOM of it. */
+export const thin = (value: number, limit: number): boolean => value <= limit && headroom(value, limit) < HEADROOM;

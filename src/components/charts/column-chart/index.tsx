@@ -1,80 +1,42 @@
 'use client';
 
-import { useState, type KeyboardEvent } from 'react';
+import dynamic from 'next/dynamic';
+import { useCallback, useMemo } from 'react';
 import { cn } from '../../../lib/cn';
-import { useMeridian } from '../meridian/index';
 import { Readout } from '../readout';
-import { niceTicks, SERIES_VAR, stackPart, ticksBetween } from '../scale';
+import { SERIES_VAR, stackPart } from '../scale';
+import { useSettled } from '../use-settled';
 import { useSize } from '../use-size';
 import { columnFold } from '../../../logic/derivations';
+import { FORMATTERS } from '../../../lib/format';
+import { CH, gapOf, Labels, opens, placed, REST, scaleOf, Swatch, Ticks, useCursor, type Column, type ColumnPart, type GroupedPart, type Shared, type StackedColumn } from './shared';
 
-/** `null` is a period with no data: it keeps its slot, draws no column and reads `noData`, never zero. */
-export type Column = { key: string; label: string; value: number | null };
-export type StackedColumn = { key: string; label: string; values: (number | null)[] };
-/**
- * A part of a stacked column. `color` is a categorical slot (1 to 6) for parts that are identities, teams or several
- * usual outcomes, which one hue cannot tell apart; `tone` is a state, for an outcome that needs somebody. A chart takes
- * one or the other: coral and saffron read as a warning beside a real one.
- */
-export type ColumnPart = { key: string; label: string; color?: number; tone?: 'neutral' | 'warning' | 'critical' };
+export type { Column, ColumnPart, GroupedPart, StackedColumn };
 
-type Shared = {
-  /** The key of the one column the card is about. */
-  highlight?: string;
-  /** One ISO date per column, to share the page's Meridian. */
-  dates?: string[];
-  /** The last column is a period still in progress: it is drawn unfinished and reads "so far". */
-  running?: boolean;
-  /** How a column's value reads, above it, in the readout and in the table. It must tell neighbouring columns apart. */
-  format?: (n: number) => string;
-  /** How a period with no data reads, wherever its value would: "No data" unless the product names it otherwise. */
-  noData?: string;
-  /** The values are counts: every tick is a whole number, so a top of 1 draws no level at 0.5 (#72). */
-  whole?: boolean;
-  /** How a tick reads: an axis formatter, true at every tick (`AXIS_FORMATTERS` in `@/lib/format`). Without one the axis
-   * reads as `format` does, which is right only while `format` is exact: one that rounds prints a tick it does not stand at. */
-  axisFormat?: (n: number) => string;
-  /** Pixels for the plot, or `fill` to take the height its card gives it (never under 220px). */
-  height?: number | 'fill';
-  label: string;
-  /** A static pointed column in the Atlas; real charts take theirs from the pointer, the keys and the Meridian. */
-  'data-preview-index'?: number;
-  /** Label every nth column from the first, for a scale with its own rhythm: 6 puts hours at 00, 06, 12, 18. By
-   * default labels count back from the last column, as many as fit. */
-  labelEvery?: number;
-  className?: string;
-};
 export type ColumnChartProps = Shared & (
-  | { columns: Column[]; parts?: undefined }
+  | { columns: Column[]; parts?: undefined; grouped?: undefined }
   /** `values` holds one value a part, in the parts' order, the first at the bottom. */
-  | { columns: StackedColumn[]; parts: ColumnPart[] }
+  | { columns: StackedColumn[]; parts: ColumnPart[]; grouped?: undefined }
+  /** `values` holds one value a part, in the parts' order, the first on the left. */
+  | { columns: StackedColumn[]; parts: GroupedPart[]; grouped: true }
 );
+type Ungrouped = Exclude<ColumnChartProps, { grouped: true }>;
+
+// The grouped form is a chunk of its own: a route whose charts never pass `grouped` does not load it.
+const GroupedColumns = dynamic(() => import('./grouped').then((m) => m.GroupedColumns));
 
 /**
- * The measures in pixels: the space between columns, the least a column keeps before that space gives way, and the
- * narrowest column that keeps its value at rest.
+ * Past this many columns a plain chart draws each finished column as one element, its bar the element's own `::before`,
+ * and grows them as one row: a year of 52 windows at 7D, three such charts on Home, committed about a thousand
+ * elements in the frame of the period tap and dropped it on a mid-range phone.
  */
-const GAP = 2, THIN = 1, REST = 36;
-/** About the width of one character of a value at rest (`text-2xs`), in px: enough to tell whether a label fits its column. */
-const CH = 6.5;
-/**
- * The plot widths past which `n` columns stand another pixel apart, up to `GAP`: each is the width at which every
- * column still has `THIN` of its own. A chart with more columns than room closes its gaps before it outgrows its box,
- * and a whole pixel at a time, since a fraction of one is drawn as a gap here and none there.
- */
-const opens = (n: number) => Array.from({ length: n > 1 ? GAP : 0 }, (_, k) => n * THIN + (k + 1) * (n - 1));
-/**
- * The gap as the rows carry it: an expression of a row's own width, so it is right in the server's HTML, before any
- * width is measured. Each term steps from nothing to a pixel as the row passes one of the widths above.
- */
-const gapOf = (n: number) => (n > 1 ? `calc(${opens(n).map((w) => `clamp(0px, (100% - ${w}px) * 1000, 1px)`).join(' + ')})` : '0px');
+const DENSE = 30;
 const TONES = { neutral: 'var(--chart-neutral-strong)', warning: 'var(--warning)', critical: 'var(--critical)' };
-const count = (n: number) => n.toLocaleString('en-US');
 /** A part that is missing, or below zero, is no contribution to its column: parts make up a whole. */
 const amount = (v: number | null | undefined) => (typeof v === 'number' && v > 0 ? v : 0);
 
 /** A column as drawn: its parts' values, `null` where a part has no data, and whether the whole column has none. */
-type Bar = { key: string; label: string; values: (number | null)[]; total: number; none: boolean };
+type Bar = { key: string; label: string; values: (number | null)[]; total: number; none: boolean; est: boolean };
 type Drawn = { key: string; label: string; tone: 'accent' | 'series' | keyof typeof TONES; color: string };
 
 /**
@@ -101,7 +63,8 @@ function stack(columns: StackedColumn[], parts: ColumnPart[]) {
   const bars = columns.map((c, j): Bar => {
     // A part with no data stays `null`, so it is read as no data; it adds nothing to the total of the parts that were read.
     const values = foldedRows.map((row) => row[j] ?? null);
-    return { key: c.key, label: c.label, values, total: values.reduce<number>((a, b) => a + (b ?? 0), 0), none: values.every((v) => v === null) };
+    const none = values.every((v) => v === null);
+    return { key: c.key, label: c.label, values, total: values.reduce<number>((a, b) => a + (b ?? 0), 0), none, est: Boolean(c.estimate) && !none };
   });
   return { drawn, bars };
 }
@@ -115,17 +78,27 @@ function stack(columns: StackedColumn[], parts: ColumnPart[]) {
  * share the accent, deepest at the bottom; outcomes carry a tone each. The axis, the value above a column and the
  * table's last cell are the total, and the readout names every part.
  *
+ * `grouped` is the third: each column's parts are identities, In and Out or this year and last, standing side by side
+ * in their categorical slots, with no total.
+ *
+ * `estimate` on a column says its figure is not yet measured: it is hatched and reads "estimate" wherever it is read.
+ *
  * `running` says the last column is a period still in progress. It is not a fact like the columns before it, so it is
  * drawn at half strength inside a dashed outline, and wherever it is read it says "so far".
  *
  * The plot is one Tab stop: Left and Right move a cursor a column, Home and End go to the ends, Escape lets go. It is
  * the cursor the pointer moves, and it is announced to screen readers.
  */
-export function ColumnChart({
+export function ColumnChart(props: ColumnChartProps) {
+  return props.grouped ? <GroupedColumns {...props} /> : <Columns {...props} />;
+}
+
+function Columns({
   highlight,
+  highlightLabel,
   dates,
   running = false,
-  format = count,
+  format = FORMATTERS.count,
   noData = 'No data',
   whole = false,
   axisFormat,
@@ -135,57 +108,51 @@ export function ColumnChart({
   'data-preview-index': previewIndex,
   className,
   ...form
-}: ColumnChartProps) {
+}: Ungrouped) {
   const [box, { width }] = useSize<HTMLElement>();
-  const meridian = useMeridian(dates ?? []);
-  const [own, setOwn] = useState<number | null>(null);
-  // Whether this chart is the one being pointed at: a chart that only follows another chart's cursor marks the day and
-  // keeps its readout to itself, as the Trend chart does.
-  const [local, setLocal] = useState(false);
-  const { drawn, bars } = form.parts ? stack(form.columns, form.parts) : { drawn: null, bars: form.columns.map((c): Bar => ({ key: c.key, label: c.label, values: [c.value], total: c.value ?? 0, none: c.value === null })) };
+  const { columns, parts } = form;
+  const { drawn, bars } = useMemo(
+    () => (parts ? stack(columns, parts) : { drawn: null, bars: columns.map((c): Bar => ({ key: c.key, label: c.label, values: [c.value], total: c.value ?? 0, none: c.value === null, est: Boolean(c.estimate) && c.value !== null })) }),
+    [columns, parts],
+  );
   const n = bars.length;
-  const timed = Boolean(dates && dates.length === n);
-  const active = previewIndex ?? (timed ? meridian.index : own);
-  const set = (i: number | null) => { (timed ? meridian.setIndex : setOwn)(i); setLocal(i !== null); };
+  const { active, set, keys, local, timed } = useCursor(n, dates, previewIndex);
   const fill = height === 'fill';
   const soFar = running ? n - 1 : -1;
+  // The axis labels and the table follow the columns a frame later when the set of them changes (`useSettled`).
+  const settled = useSettled(bars.map((b) => b.key).join('\n'));
 
   // A period with no data has no height, so the scale is the periods that have one. Plain, a value under zero is a
   // fall: the scale goes under zero for it and the column hangs from the zero line (#78). Stacked, parts make a whole.
-  const read = bars.filter((b) => !b.none).map((b) => b.total);
-  const hi = Math.max(0, ...read), lo = Math.min(0, ...read);
-  const signed = !form.parts && lo < 0;
-  const ticks = signed ? ticksBetween(lo, hi, 3, whole) : niceTicks(hi > 0 ? hi : 1, 3, whole);
-  const low = ticks[0], top = ticks[ticks.length - 1];
-  /** A level's height in the scale, as a share of it from the bottom. */
-  const at100 = (v: number) => ((v - low) / (top - low)) * 100;
   const af = axisFormat ?? format;
-  const left = Math.max(...ticks.map((t) => af(t).length)) * 6.4 + 10;
-  const longest = Math.max(...bars.map((b) => b.label.length));
-  const fit = Math.max(1, Math.ceil(n / Math.max(2, Math.floor((width - left) / (longest * 6.2 + 16)))));
-  // A category left unlabelled cannot be told apart, so categories each keep a label, cut to their own column, once
-  // a column has room for a few letters; dates keep their rhythm and skip.
-  const every1 = !timed && !every && (width - left) / n >= 36;
+  const { ticks, low, top, at100, signed, left } = scaleOf(bars.filter((b) => !b.none).map((b) => b.total), !form.parts, whole, af);
   // The gap in pixels at this width, as the rows' own expression resolves it: all of GAP wherever there is room.
   const gap = opens(n).filter((w) => width - left > w).length;
   // A column wide enough for a figure keeps its value above it at rest; a narrower one shows it when pointed at.
   const column = n ? (width - left - gap * (n - 1)) / n : 0;
   const rest = column >= REST;
-  // Whatever is centred on a column and may be wider than it starts with the first column and ends with the last, so
-  // nothing runs past the plot; inside those, a narrower one is still centred.
+  const dense = n > DENSE && !signed;
   /** A value as it reads; a period with no data reads the product's word, and "so far" with it while it is running. */
-  const value = (v: number | null, running = false) => (v === null ? (running ? `${noData} so far` : noData) : format(v));
-  const totalOf = (b: Bar, i: number) => value(b.none ? null : b.total, i === soFar);
-  const placed = (i: number) => (i === n - 1 ? 'right-0 flex min-w-full justify-center' : i === 0 ? 'left-0 flex min-w-full justify-center' : 'left-1/2 -translate-x-1/2');
-
-  const keys = (e: KeyboardEvent) => {
-    const k = e.key;
-    if (!n || !['ArrowLeft', 'ArrowRight', 'Home', 'End', 'Escape'].includes(k)) return;
-    e.preventDefault();
-    if (k === 'Escape') return set(null);
-    const cur = active ?? n - 1;
-    set(k === 'Home' ? 0 : k === 'End' ? n - 1 : Math.min(n - 1, Math.max(0, cur + (k === 'ArrowLeft' ? -1 : 1))));
-  };
+  const value = useCallback((v: number | null, running = false) => (v === null ? (running ? `${noData} so far` : noData) : format(v)), [format, noData]);
+  const totalOf = useCallback((b: Bar, i: number) => value(b.none ? null : b.total, i === soFar), [value, soFar]);
+  // Moving the cursor re-renders the chart, and no row of its table changes with it, so the rows are built once per data.
+  const caption = `${label}${highlight && highlightLabel ? `. ${drawn ? 'Ringed' : 'Accented'}: ${highlightLabel}` : ''}`;
+  const table = useMemo(
+    () => (settled ? <table className="sr-only">
+      <caption>{caption}</caption>
+      {drawn ? <thead><tr><th scope="col">Period</th>{drawn.map((p) => <th key={p.key} scope="col">{p.label}</th>)}<th scope="col">Total</th></tr></thead> : null}
+      <tbody>
+        {bars.map((b, i) => (
+          <tr key={b.key}>
+            <th scope="row">{b.label}{i === soFar ? ', so far' : null}{b.est ? ', estimate' : null}</th>
+            {drawn ? b.values.map((v, k) => <td key={drawn[k].key}>{value(v, b.none && i === soFar)}</td>) : null}
+            <td>{totalOf(b, i)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table> : null),
+    [settled, caption, drawn, bars, soFar, value, totalOf],
+  );
 
   const at = active !== null && active >= 0 && active < n ? active : null;
   const on = at === null ? null : bars[at];
@@ -196,7 +163,7 @@ export function ColumnChart({
   const reading = on && at !== null
     ? on.none
       ? `${on.label}: ${totalOf(on, at)}`
-      : `${on.label}: ${drawn ? `${drawn.map((p, k) => `${p.label} ${value(on.values[k])}`).join(', ')}, Total ${format(on.total)}` : format(on.total)}${at === soFar ? ', so far' : ''}`
+      : `${on.label}: ${drawn ? `${drawn.map((p, k) => `${p.label} ${value(on.values[k])}`).join(', ')}, Total ${format(on.total)}` : format(on.total)}${at === soFar ? ', so far' : ''}${on.est ? ', estimate' : ''}`
     : null;
 
   return (
@@ -221,13 +188,8 @@ export function ColumnChart({
             a pointed value and its 4px off the column, and 8px under the zero tick, the half line its label hangs. So the
             focus ring, 4px outside the box, crosses nothing the plot draws, and nothing moves when the width arrives. */}
         <div className={cn('absolute inset-x-0 top-7', signed ? 'bottom-7' : 'bottom-2')}>
-          {ticks.map((t) => (
-            <div key={t} aria-hidden className="absolute right-0 flex items-center" style={{ left: 0, bottom: `${at100(t)}%`, transform: 'translateY(50%)' }}>
-              <span data-tick className="t-num w-(--w) pr-2.5 text-right text-2xs leading-4 text-ink-3" style={{ ['--w' as string]: `${left}px` }}>{af(t)}</span>
-              <span className={cn('h-px flex-1', t === 0 ? 'bg-chart-axis' : 'bg-chart-grid')} />
-            </div>
-          ))}
-          <div className="absolute inset-y-0 right-0 flex" style={{ left, columnGap: gapOf(n) }}>
+          <Ticks ticks={ticks} at100={at100} af={af} left={left} />
+          <div className={cn('absolute inset-y-0 right-0 flex', dense && 'grow-y')} style={{ left, columnGap: gapOf(n) }}>
             {bars.map((b, i) => {
               const pointed = active === i;
               const hot = pointed || (active === null && b.key === highlight);
@@ -241,6 +203,50 @@ export function ColumnChart({
               // never "No data…" cut mid-word; the tooltip, the readout, the announcement and the table say it whole (#71).
               const full = totalOf(b, i);
               const text = !tip && b.none && unfinished && full.length * CH > column ? 'So far' : full;
+              const plainFill = !b.none && !drawn && !unfinished;
+              const valueLabel = rest || pointed ? (
+                      // One element at rest and pointed at, so its entrance never replays. At rest the value is held to its
+                      // column; the tooltip, and a total shown only on pointing, may be wider than theirs.
+                      <span aria-hidden className={cn('pointer-events-none absolute', fall ? 'top-full mt-1' : 'bottom-full mb-1', rest && 'fade-in', tip || !rest ? cn('z-10', placed(i, n)) : 'inset-x-0')}>
+                        <span
+                          className={cn(
+                            't-num block text-2xs leading-4',
+                            tip
+                              ? 'rounded-sm bg-surface-inverse px-1.5 py-1 font-medium whitespace-nowrap text-ink-inverse shadow-overlay'
+                              : rest
+                                ? cn('truncate text-center', pointed ? 'font-medium text-ink' : 'text-ink-3')
+                                : 'font-medium whitespace-nowrap text-ink',
+                          )}
+                        >
+                          <span data-value>{text}</span>
+                          {tip && unfinished && !b.none ? ' · so far' : null}
+                          {tip && b.est ? ' · estimate' : null}
+                        </span>
+                      </span>
+              ) : null;
+              const share = `${(Math.abs(b.total) / (top - low)) * 100}%`;
+              if (dense && plainFill && !b.est) {
+                // One element: the bar is its ::before, its share of the scale and never under 2px; the value, when it shows,
+                // stands on a box of the bar's height.
+                return (
+                  <div
+                    key={b.key}
+                    data-column={b.key}
+                    data-active={pointed ? '' : undefined}
+                    title={[rest && text.length * 7 > column ? text : null, b.key === highlight ? highlightLabel : null].filter(Boolean).join(' · ') || undefined}
+                    className={cn(
+                      'group/col relative h-full min-w-0 flex-1 before:absolute before:inset-x-0 before:bottom-(--bar-at) before:h-(--bar-h) before:rounded-t-[4px] before:transition-colors before:duration-(--dur-hover)',
+                      b.total !== 0 && 'before:min-h-[2px]',
+                      hot ? 'before:bg-accent' : 'before:bg-chart-neutral hover:before:bg-chart-neutral-strong',
+                    )}
+                    style={{ ['--bar-h' as string]: share, ['--bar-at' as string]: `${at100(0)}%` }}
+                    onPointerEnter={() => set(i)}
+                    onPointerDown={() => set(i)}
+                  >
+                    {valueLabel ? <div className={cn('absolute inset-x-0', b.total !== 0 && 'min-h-[2px]')} style={{ bottom: `${at100(0)}%`, height: share }}>{valueLabel}</div> : null}
+                  </div>
+                );
+              }
               return (
                 <div
                   key={b.key}
@@ -249,7 +255,8 @@ export function ColumnChart({
                   data-running={unfinished ? '' : undefined}
                   data-no-data={b.none ? '' : undefined}
                   // A figure wider than its column is cut at rest, and keeps the whole of itself where the pointer finds it.
-                  title={rest && text.length * 7 > column ? text : undefined}
+                  // The accented column says what makes it the one the card is about, beside its figure.
+                  title={[rest && text.length * 7 > column ? text : null, b.key === highlight ? highlightLabel : null].filter(Boolean).join(' · ') || undefined}
                   className="group/col relative h-full min-w-0 flex-1"
                   onPointerEnter={() => set(i)}
                   onPointerDown={() => set(i)}
@@ -264,14 +271,19 @@ export function ColumnChart({
                     className="absolute inset-x-0"
                     style={{
                       ...(fall ? { top: `${100 - at100(0)}%` } : { bottom: `${at100(0)}%` }),
-                      height: b.none ? '0%' : `${(Math.abs(b.total) / (top - low)) * 100}%`,
+                      height: b.none ? '0%' : share,
                       minHeight: (drawn ? Math.max(0, shown.length * 4 - 1) : b.total !== 0 ? 2 : 0) + (unfinished ? 2 : 0),
                     }}
                   >
                     <div
+                      // An estimate is hatched over its own fill, so in a dense chart it is drawn as an element of its own.
+                      data-estimate={plainFill && b.est ? '' : undefined}
                       className={cn(
-                        'grow-y relative h-full',
+                        // A dense chart grows its row as one; a column of its own grows only in a chart that is not.
+                        !dense && 'grow-y', 'relative h-full',
                         fall ? 'rounded-b-[4px]' : 'rounded-t-[4px]',
+                        // A finished plain column is its own fill: one element fewer a column, in a chart of 52 of them.
+                        plainFill && cn('w-full transition-colors duration-(--dur-hover)', hot ? 'bg-accent' : 'bg-chart-neutral group-hover/col:bg-chart-neutral-strong'),
                         drawn && 'transition-[box-shadow] duration-(--dur-hover)',
                         drawn && hot && 'z-1 ring-2 ring-ink',
                         // A period still running: a dashed outline, open at the baseline, around a fill at half strength. The
@@ -293,35 +305,18 @@ export function ColumnChart({
                               data-part={p.key}
                               data-tone={p.tone}
                               data-top={k === shown.length - 1 ? '' : undefined}
+                              data-estimate={b.est ? '' : undefined}
                               className={cn('w-full basis-0', k === shown.length - 1 && 'rounded-t-[4px]')}
                               // Shares of the column, so a column of fractions fills its box as a column of millions does.
-                              style={{ flexGrow: (v / b.total) * 100, minHeight: 3, background: p.color }}
+                              style={{ flexGrow: (v / b.total) * 100, minHeight: 3, backgroundColor: p.color }}
                             />
                           ))}
                         </div>
-                      ) : (
-                        <div className={cn('h-full w-full transition-colors duration-(--dur-hover)', fall ? 'rounded-b-[4px]' : 'rounded-t-[4px]', hot ? 'bg-accent' : 'bg-chart-neutral group-hover/col:bg-chart-neutral-strong', unfinished && 'opacity-50')} />
+                      ) : plainFill ? null : (
+                        <div data-estimate={b.est ? '' : undefined} className={cn('h-full w-full transition-colors duration-(--dur-hover)', fall ? 'rounded-b-[4px]' : 'rounded-t-[4px]', hot ? 'bg-accent' : 'bg-chart-neutral group-hover/col:bg-chart-neutral-strong', 'opacity-50')} />
                       )}
                     </div>
-                    {rest || pointed ? (
-                      // One element at rest and pointed at, so its entrance never replays. At rest the value is held to its
-                      // column; the tooltip, and a total shown only on pointing, may be wider than theirs.
-                      <span aria-hidden className={cn('pointer-events-none absolute', fall ? 'top-full mt-1' : 'bottom-full mb-1', rest && 'fade-in', tip || !rest ? cn('z-10', placed(i)) : 'inset-x-0')}>
-                        <span
-                          className={cn(
-                            't-num block text-2xs leading-4',
-                            tip
-                              ? 'rounded-sm bg-surface-inverse px-1.5 py-1 font-medium whitespace-nowrap text-ink-inverse shadow-overlay'
-                              : rest
-                                ? cn('truncate text-center', pointed ? 'font-medium text-ink' : 'text-ink-3')
-                                : 'font-medium whitespace-nowrap text-ink',
-                          )}
-                        >
-                          <span data-value>{text}</span>
-                          {tip && unfinished && !b.none ? ' · so far' : null}
-                        </span>
-                      </span>
-                    ) : null}
+                    {valueLabel}
                   </div>
                 </div>
               );
@@ -330,7 +325,7 @@ export function ColumnChart({
         </div>
         {on && at !== null && drawn ? (
           <Readout at={left + at * (column + gap) + (after ? column : 0)} after={after} visible={local || previewIndex !== undefined}>
-            <p className="t-eyebrow mb-1.5 break-words">{on.label}{at === soFar ? ' · so far' : null}</p>
+            <p className="t-eyebrow mb-1.5 break-words">{on.label}{at === soFar ? ' · so far' : null}{on.est ? ' · estimate' : null}</p>
             {/* The parts top to bottom, as they sit in the column, a part at zero included, then the total. */}
             {drawn.map((p, k) => ({ p, k })).reverse().map(({ p, k }) => (
               <p key={p.key} className="flex flex-wrap items-start gap-x-2 text-xs leading-6">
@@ -346,42 +341,9 @@ export function ColumnChart({
           </Readout>
         ) : null}
       </div>
-      <div aria-hidden className="mt-2 flex text-2xs text-ink-3" style={{ paddingLeft: left, columnGap: gapOf(n) }}>
-        {bars.map((b, i) => (
-          <span key={b.key} className="relative h-4 min-w-0 flex-1">
-            {active === i ? (
-              <span className={cn('absolute z-10', placed(i))}><span className="rounded-xs bg-surface px-1 whitespace-nowrap text-ink">{b.label}</span></span>
-            ) : every1 ? (
-              <span className="block truncate px-0.5 text-center">{b.label}</span>
-            ) : (every ? i % (every * Math.ceil(fit / every)) === 0 : (n - 1 - i) % fit === 0) ? (
-              <span className={cn('absolute whitespace-nowrap', placed(i))}>{b.label}</span>
-            ) : null}
-          </span>
-        ))}
-      </div>
+      <Labels bars={bars} active={active} width={width} left={left} timed={timed} every={every} settled={settled} estimate={bars.some((b) => b.est)} />
       <p className="sr-only" aria-live="polite">{reading}</p>
-      <table className="sr-only">
-        <caption>{label}</caption>
-        {drawn ? <thead><tr><th scope="col">Period</th>{drawn.map((p) => <th key={p.key} scope="col">{p.label}</th>)}<th scope="col">Total</th></tr></thead> : null}
-        <tbody>
-          {bars.map((b, i) => (
-            <tr key={b.key}>
-              <th scope="row">{b.label}{i === soFar ? ', so far' : null}</th>
-              {drawn ? b.values.map((v, k) => <td key={drawn[k].key}>{value(v, b.none && i === soFar)}</td>) : null}
-              <td>{totalOf(b, i)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {table}
     </figure>
   );
-}
-
-/**
- * A part's colour as a square. The palest part of a stack is the accent at a fifth of its strength, a whisper on the
- * card, and a swatch is the one mark whose whole job is to be seen: the hairline around it does that without
- * flattening the order of the tones, as the line behind a stacked Trend chart's swatch does.
- */
-function Swatch({ color, className }: { color: string; className?: string }) {
-  return <span className={cn('size-2.5 shrink-0 rounded-[3px] ring-1 ring-ink-3', className)} style={{ background: color }} />;
 }

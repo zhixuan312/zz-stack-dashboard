@@ -74,8 +74,13 @@ export class HostBridge {
     const id = ++this.seq;
     this.target.postMessage({ jsonrpc: '2.0', id, method, params }, '*');
     return new Promise<T>((resolve, reject) => {
-      this.pending.set(id, { resolve: resolve as (v: unknown) => void, reject });
-      setTimeout(() => this.pending.has(id) && (this.pending.delete(id), reject(new Error(`${method} timed out`))), timeout);
+      // The timer belongs to this request: an answer clears it, so a settled call holds neither its closure nor a timer
+      // for the rest of the bound — which for a tool call is 30 seconds of every call in flight.
+      const timer = setTimeout(() => { if (this.pending.delete(id)) reject(new Error(`${method} timed out`)); }, timeout);
+      this.pending.set(id, {
+        resolve: (v) => { clearTimeout(timer); resolve(v as T); },
+        reject: (e) => { clearTimeout(timer); reject(e); },
+      });
     });
   }
 

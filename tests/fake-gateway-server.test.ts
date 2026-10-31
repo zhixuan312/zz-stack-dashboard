@@ -270,11 +270,11 @@ describe('the fake gateway as the sweep uses it', () => {
     }
   });
 
-  // What `pnpm verify` walks: each person's own team's initiatives as detail routes, and another team's as a probe both
-  // are refused, so a browser suite never reads a record the gateway would not answer.
+  // What `pnpm verify` walks: each person's own team's initiatives as detail routes, and another team's as a missing route
+  // and a probe both are refused, so a browser suite never reads a record the gateway would not answer.
   it('is walked through the active team\'s initiatives, and another team\'s as a denied probe for both people', async () => {
     const base = await start();
-    const work = config.detailRoutes.filter((r) => r.startsWith('/initiatives/'));
+    const work = [...config.detailRoutes, ...(config.missingRoutes ?? [])].filter((r) => r.startsWith('/initiatives/'));
     const personas = Object.values(config.personas!);
     for (const persona of personas) {
       const me = await (await fetch(`${base}/api/console/me`, { headers: { cookie: `zz_console=${persona.cookie.value}` } })).json() as { activeTeam: string };

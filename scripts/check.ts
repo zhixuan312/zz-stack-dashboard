@@ -19,16 +19,20 @@
  * - The agent context holds: docs/brief.md has its five sections, and every path and package script the managed block in
  *   AGENTS.md, the skill and the brief name exists.
  * - An update session is resolved, `.meridian/keep.json` names files that are managed and present, and `app.logo` is an
- *   SVG under public/.
+ *   SVG under public/. A managed file whose bytes are not the release's and that keep.json does not keep is named on a
+ *   `drift:` line, a warning the gate carries: nothing else says so between releases.
  * - Every nav item's `needs` has the shape the rail can read: 'public', a grant `object:read|create|update|remove`, or an
  *   `{ allOf: [...] }` of them.
+ * - Every nav item's `under` names an item of its own group that is not itself under another, in the same workspace, and
+ *   no item has more than seven sub pages: the rail draws three levels and nothing it cannot draw.
  */
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { importTarget, projectAliases } from './lib/aliases.ts';
 import { checkBrief, scanReferences } from './lib/context-check.ts';
-import { blankedText, noDirectQuery, presentationDoesNotRead, resolveSpec as resolveProjectSpec, valueImports } from './lib/layer-rules.ts';
+import { navTrailProblems, navUnderProblems } from './lib/nav-under.ts';
+import { blankedText, noDirectQuery, presentationDoesNotRead, resolveSpec as resolveProjectSpec, valueImports, walk as walkIn } from './lib/layer-rules.ts';
 import { APP_DIR, agentPageSpec, agentSection, specRoute, viewToolPages } from './lib/routes.ts';
 import { keepProblems, unresolved, parseJournal, parseKeep, parseResolutions, verifiedRetirements, type Hash, type Retirement } from './lib/update-session.ts';
 import { cards } from './registry.ts';
@@ -47,6 +51,14 @@ const lineOf = (src: string, at: number) => src.slice(0, at).split('\n').length;
 const problems: string[] = [];
 /** A deviation a line states with `allow-<rule>: <reason>`, printed beside the problems rather than passed in silence. */
 const escapes: string[] = [];
+/**
+ * How many things each rule over a set the project's files make judged. A rule whose set came out empty passes having
+ * judged nothing, which reads exactly like a rule that judged everything and found it right: the agent sections passed a
+ * project whose view tools were in modules the reader did not follow (#43), and the agent-reads rule passed a route
+ * group not named `(dashboard)` (#23). So a rule that judged nothing says so, in the line `judged nothing: <rules>`,
+ * which the gate and the coverage line of `pnpm verify` carry. It is not a failure: a product without cards has none.
+ */
+const judged: [rule: string, count: number][] = [];
 
 // ── The four-layer switch: the project's own file turns the rules on ─────────────────────────────────
 // `scripts/check.ts` reads one declaration from `scripts/check.local.ts` and nothing else. It is read as TEXT, never
@@ -66,22 +78,13 @@ if (fs.existsSync(path.join(ROOT, LOCAL_CHECK))) {
 
 const sha256 = (p: string): Hash | null => (fs.existsSync(path.join(ROOT, p)) ? `sha256-${createHash('sha256').update(fs.readFileSync(path.join(ROOT, p))).digest('hex')}` : null);
 
-function walk(dir: string, ext: RegExp, out: string[] = []) {
-  const abs = path.join(ROOT, dir);
-  if (!fs.existsSync(abs)) return out;
-  for (const n of fs.readdirSync(abs)) {
-    const p = path.join(dir, n);
-    if (fs.statSync(path.join(ROOT, p)).isDirectory()) walk(p, ext, out);
-    else if (ext.test(n)) out.push(p);
-  }
-  return out;
-}
+const walk = (dir: string, ext: RegExp) => walkIn(ROOT, dir, ext);
 
 // ── Tokens that exist ────────────────────────────────────────────────────────────────────────────────
 const css = read('src/styles/tokens.css') + read('src/styles/base.css') + read('src/styles/motion.css');
 const defined = new Set([...css.matchAll(/--([a-z0-9-]+)\s*:/g)].map((m) => m[1]));
 /** Local custom properties a component sets for itself, and the host's bridged variables. */
-const LOCAL = /^(i|w|m-len|cols(-(xl|lg|md|sm))?|readout-(cursor|width)|safe-(top|right|bottom|left)|font-face-(sans|mono)|color-[a-z-]+|border-radius-[a-z]+|tw-.*|radix-.*)$/;
+const LOCAL = /^(i|w|m-len|bar-(h|at)|cols(-(xl|lg|md|sm))?|readout-(cursor|width)|safe-(top|right|bottom|left)|font-face-(sans|mono)|color-[a-z-]+|border-radius-[a-z]+|tw-.*|radix-.*)$/;
 
 // ── Cards ────────────────────────────────────────────────────────────────────────────────────────────
 const CARD_SECTIONS = ['## Surfaces', '## Agents', '## Accessibility'];
@@ -93,25 +96,30 @@ for (const c of cards()) {
   for (const s of CARD_SECTIONS) if (!md.includes(s)) problems.push(`${c.dir}/README.md: missing ${s}`);
 }
 
+judged.push(['the card contract', cards().length]);
+
 // ── Pages ────────────────────────────────────────────────────────────────────────────────────────────
 const PAGE_SPECS = walk(APP_DIR, /^README\.md$/);
+judged.push(['the page specifications', PAGE_SPECS.length], ['what the agent reads', PAGE_SPECS.filter((p) => agentPageSpec(p)).length]);
 for (const p of PAGE_SPECS) {
   const md = read(p);
   if (!/^# .+\n\n[^#\n].+/.test(md)) problems.push(`${p}: must open with "# Name" and a one-sentence summary`);
   for (const s of ['## Structure', '## States']) if (!md.includes(s)) problems.push(`${p}: missing ${s}`);
   // Every console page and embed view shares a context with both agents (decision 0011), and its spec says what it says.
-  if (agentPageSpec(p) && !/^## Agents\n[\s\S]*?^### What the agent reads$/m.test(md)) problems.push(`${p}: no "### What the agent reads" under ## Agents`);
+  if (agentPageSpec(p) && !/^## Agents$(?:\n(?!## ).*)*\n### What the agent reads$/m.test(md)) problems.push(`${p}: no "### What the agent reads" under ## Agents`);
 }
 
 // ── What the agent does on a page with a view tool ────────────────────────────────────────────────────
 // A page an agent can view has a prepared query, and its specification names the card worth asking about and the
-// questions a person asks there that the context does not answer alone (FR-42): the line `Protagonist: <name>.` and at
+// questions a person asks there that the context does not answer alone: the line `Protagonist: <name>.` and at
 // least three items `- "<question>" — <what the prepared query is asked>`. The page marks that card with
 // `data-protagonist="<name>"`, and `scripts/ask.ts` asks the questions. Settings, the Atlas, Docs and the embed views are
 // no view tool's page, so they are asked nothing; a project without `src/logic/tools.ts` has no view tools to read.
 {
   const pages = new Set((viewToolPages() ?? []).map((v) => v.page));
-  for (const p of PAGE_SPECS.filter((f) => agentPageSpec(f) && pages.has(specRoute(f)))) {
+  const viewed = PAGE_SPECS.filter((f) => agentPageSpec(f) && pages.has(specRoute(f)));
+  judged.push(['what the agent does here', viewed.length]);
+  for (const p of viewed) {
     const md = read(p);
     const section = agentSection(md);
     if (!section || !/^## Agents$(?:\n(?!## ).*)*\n### What the agent does here$/m.test(md)) {
@@ -221,13 +229,15 @@ for (const f of LAYERS) {
     // is matched by its own name and its parenthesis, and not after a dot — so `color-mix(in oklch, var(--ink) 40%,
     // transparent)`, which is how the layers compose a tint out of tokens, is not a literal and is not reported.
     const lit = line.match(/#[0-9a-fA-F]{8}\b|#[0-9a-fA-F]{4}\b|#[0-9a-fA-F]{6}\b|#[0-9a-fA-F]{3}\b(?![0-9a-fA-F])|\brgba?\(\s*\d|\bhsla?\(|(?<![\w.$])(?:oklch|oklab|lab|lch|color)\(/);
-    if (lit && !/^\s*(\*|\/\/|\/\*)/.test(line)) problems.push(`${at}: literal colour ${lit[0]} (use a role)`);
+    // A comment line is words: "the focus left with no blur" names no class.
+    const comment = /^\s*(\*|\/\/|\/\*)/.test(line);
+    if (lit && !comment) problems.push(`${at}: literal colour ${lit[0]} (use a role)`);
     // Meridian resets Tailwind's scales; a utility outside them emits no CSS and fails silently.
     const dead = line.match(/\b(?:font-(?:normal|light|bold|extrabold|black|thin)|rounded-(?:2xl|3xl)|shadow-(?:sm|md|lg|xl|2xl)|text-(?:3xl|4xl|5xl))\b/);
-    if (dead) problems.push(`${at}: ${dead[0]} is outside Meridian's scale and renders nothing (use font-regular, rounded-xl, shadow-card…)`);
+    if (dead && !comment) problems.push(`${at}: ${dead[0]} is outside Meridian's scale and renders nothing (use font-regular, rounded-xl, shadow-card…)`);
     // Blur names its token (blur-md, blur-xl) or an arbitrary value; a bare or other name emits no filter.
     const blur = line.match(/\b(?:backdrop-)?blur(?:-(?!md\b|xl\b|\[|\()[a-z0-9]+)?(?![-\w[(])/);
-    if (blur && !/glow-blur/.test(blur.input!.slice(Math.max(0, blur.index! - 6), blur.index! + blur[0].length))) problems.push(`${at}: ${blur[0]} is outside Meridian's blur scale and renders nothing (use backdrop-blur-md or -xl)`);
+    if (blur && !comment && !/glow-blur/.test(blur.input!.slice(Math.max(0, blur.index! - 6), blur.index! + blur[0].length))) problems.push(`${at}: ${blur[0]} is outside Meridian's blur scale and renders nothing (use backdrop-blur-md or -xl)`);
     // Motion is tokens: a literal duration or delay drifts from the system and ignores the reduced-motion collapse.
     const dur = line.match(/\b(?:duration|delay)-(?:\[\d[^\]]*\]|\d+)\b/);
     if (dur) problems.push(`${at}: ${dur[0]} is a literal duration (use duration-(--dur-hover), --dur-enter, --dur-exit…)`);
@@ -248,6 +258,7 @@ for (const f of LAYERS) {
 // collection is covered without editing this rule). Other fixture exports it imports, such as DEMO_NOW or ROLES, are not records.
 // A project without the collections seam (an existing app that brought Meridian in) has nothing for this rule to read.
 const COLLECTIONS = 'src/data/collections.ts';
+let collectionRows = 0;
 if (fs.existsSync(path.join(ROOT, COLLECTIONS))) {
   const FIXTURE_IMPORT = /(?:import|export)\s+(type\s+)?\{([^}]*)\}\s*from\s*['"]([^'"]*fixtures\/[^'"]*)['"]/g;
   /** A whole fixture module taken at once: `import * as`, `export * from`, or a dynamic `import()`. */
@@ -259,6 +270,7 @@ if (fs.existsSync(path.join(ROOT, COLLECTIONS))) {
   /** Each covered name, and the fixture module it comes from. */
   const covered = new Map([...collectionsSrc.matchAll(FIXTURE_IMPORT)].filter((m) => !m[1]).flatMap((m) => valueNames(m[2]).filter((n) => served.has(n)).map((n) => [n, fixtureModule(m[3])] as const)));
   const coveredModules = new Set(covered.values());
+  collectionRows = covered.size;
   for (const f of LAYERS) {
     if (f === COLLECTIONS || /^src\/system\/fixtures\//.test(f) || /(^|\/)preview\.tsx$/.test(f)) continue;
     const src = read(f);
@@ -282,8 +294,7 @@ if (fs.existsSync(path.join(ROOT, COLLECTIONS))) {
     if (/^(rehype-raw|rehype-dangerous-html|remark-html)$/.test(d)) problems.push(`package.json depends on ${d}: raw HTML in rendered markdown would stop being inert`);
   }
   // Code only: a comment that names the plugin to explain why it is absent is not a use.
-  const code = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1 ');
-  for (const f of LAYERS) if (/\brehype-?raw\b/i.test(code(read(f)))) problems.push(`${f}: reaches for rehype-raw; render markdown with Prose, where raw HTML stays text`);
+  for (const f of LAYERS) if (/\brehype-?raw\b/i.test(blankedText(read(f)))) problems.push(`${f}: reaches for rehype-raw; render markdown with Prose, where raw HTML stays text`);
 }
 
 // ── A control a keyboard can use ─────────────────────────────────────────────────────────────────────
@@ -344,12 +355,24 @@ for (const item of nav.flatMap((g) => g.items)) {
   if (why) problems.push(`src/app.config.ts: nav item ${item.href} ${why}`);
 }
 
+// ── A sub page names a parent the rail can draw ───────────────────────────────────────────────────────
+// A nav item may name its parent with `under`, and the rail draws it as one list nested under that parent. An `under`
+// that names nothing of its group, the item itself, an item that is already a sub page (a fourth level), or an item of
+// another workspace has no place in that list, so the page would vanish from the rail or hang in the wrong one. A parent
+// with more than seven sub pages is a group of its own. The rule is pure and lives in scripts/lib/nav-under.ts.
+problems.push(...navUnderProblems(nav));
+// A masthead trail names the page's own href, or a detail page's nearest item, which nothing else keeps true when the
+// route moves (#102).
+problems.push(...navTrailProblems(walk(APP_DIR, /^(page|loading)\.tsx$/).map((f) => ({ file: f, route: specRoute(f), src: blanked(f) })), nav.flatMap((g) => g.items.map((it) => it.href))));
+
 // ── The update session, the keep register and the logo ────────────────────────────────────────────────
 // A session under .meridian/update/ must be resolved before the gate passes. With one ready, its candidate manifest
 // stands in for the original: the files it will own are what keep, retirements and the dormant-code sweep read.
 const manifestFile = path.join(ROOT, '.meridian/manifest.json');
 let effective: { route?: string; files: Record<string, string> } | null = fs.existsSync(manifestFile) ? JSON.parse(fs.readFileSync(manifestFile, 'utf8')) : null;
 const retirements: Retirement[] = [];
+/** The managed files that are not the release's bytes and that no keep entry explains (`drift:`, printed last). */
+let drift: string[] = [];
 {
   const dirsOf = (d: string) => (fs.existsSync(path.join(ROOT, d)) ? fs.readdirSync(path.join(ROOT, d), { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name) : []);
   for (const v of dirsOf('.meridian/history')) {
@@ -389,6 +412,13 @@ const retirements: Retirement[] = [];
       problems.push(`.meridian/keep.json: ${(e as Error).message}`);
     }
   }
+  // Between releases nothing else compares the managed files with their recorded hashes, so an edit nobody recorded a
+  // reason for met the team at the next update. An open session accounts for its own differences.
+  if (effective && sessions.length === 0) {
+    let kept = new Set<string>();
+    try { kept = new Set(parseKeep(read('.meridian/keep.json')).map((k) => k.path)); } catch { /* no register, or one reported above */ }
+    drift = Object.entries(effective.files).filter(([p, h]) => !kept.has(p) && sha256(p) !== h).map(([p]) => (sha256(p) === null ? `${p} (missing)` : p)).sort();
+  }
   const logo = (app as { logo?: unknown }).logo;
   if (logo !== undefined) {
     const source = logoSource(logo);
@@ -413,9 +443,9 @@ if (!fs.existsSync(manifestFile)) {
   }
   // A page, a view and a logic module read the sample through src/data, so the day it becomes an API is one file's
   // change. Every import specifier counts, a type-only one too; the Atlas, a preview and src/data itself are the
-  // sample's own.
+  // sample's own. The shared request cells live under src/system but draw the product's Requests, Home and embed.
   const FIXTURES = 'src/system/fixtures';
-  for (const f of sources.filter((x) => (x.startsWith(`${APP_DIR}/`) || x.startsWith('src/views/') || x.startsWith('src/logic/')) && !x.startsWith(`${APP_DIR}/system/`) && !/(^|\/)preview\.tsx$/.test(x))) {
+  for (const f of sources.filter((x) => (x.startsWith(`${APP_DIR}/`) || x.startsWith('src/views/') || x.startsWith('src/logic/') || x === 'src/system/sample-cells.tsx') && !x.startsWith(`${APP_DIR}/system/`) && !/(^|\/)preview\.tsx$/.test(x))) {
     const src = blanked(f);
     for (const m of src.matchAll(/(?:\bfrom|\bimport\s*\(?)\s*['"]([^'"]+)['"]/g)) {
       const spec = m[1];
@@ -543,8 +573,8 @@ if (fourLayers) {
 
 // ── What is drawn imports no read, and a read is written in one place ────────────────────────────────
 // `presentation does not read` refuses a value import from `@/data` in `src/views/**` or `src/components/**` naming any
-// module but FR-4's five vocabulary modules; `no direct query` refuses a `.query(` call in `app/**`, `src/logic/**`,
-// `src/views/**` or `src/lib/**` outside the five FR-9 sites this scope governs. Both scans live in
+// module but the five vocabulary modules; `no direct query` refuses a `.query(` call in `app/**`, `src/logic/**`,
+// `src/views/**` or `src/lib/**` on a line that states no `allow-no-direct-query:` escape, as the five sites that must query directly do. Both scans live in
 // `scripts/lib/layer-rules.ts`, beside the helpers they share with this file, so this managed file stays under the line
 // ceiling a project may enforce. Like the rules above, a line may state its escape and the check prints it.
 if (fourLayers) {
@@ -589,7 +619,7 @@ const recordNames = (f: string | null, clause: string) => {
   for (const part of clause.split(',').map((s) => s.trim()).filter(Boolean)) record(f, part.replace(/^type\s+/, '').split(/\s+as\s+/)[0]);
 };
 for (const f of kept) {
-  const src = read(f).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  const src = blankedText(read(f));
   for (const m of src.matchAll(/\b(?:import|export)\s+(?:type\s+)?([^'";]*?)\s*from\s*['"]([^'"]+)['"]/g)) {
     const to = resolveSpec(f, m[2]);
     if (to === f) continue;
@@ -646,8 +676,13 @@ for (const f of walk('src', /\.tsx?$/).filter((x) => SWEPT.test(x) && !TOOLKIT.t
   problems.push(...scanReferences(docs, has, scripts));
 }
 
+judged.push(['a collection\'s rows read through it', collectionRows]);
+
 console.log(problems.join('\n') || 'check: ok');
+const none = judged.filter(([, n]) => n === 0).map(([rule]) => rule);
+if (none.length) console.log(`judged nothing: ${none.join(', ')}`);
 if (escapes.length) console.log(escapes.join('\n'));
 if (fourLayersNote) console.log(fourLayersNote);
+if (drift.length) console.log(`drift: ${drift.length} managed ${drift.length === 1 ? 'file differs from the release and is' : 'files differ from the release and are'} not in .meridian/keep.json: ${drift.slice(0, 8).join(', ')}${drift.length > 8 ? `, and ${drift.length - 8} more` : ''}. The next update asks about each, and tells a file whose imports are only spelled differently from one you changed; restore a file to the release, or name it in .meridian/keep.json with the reason it differs.`);
 console.log(`${problems.length} problems · ${cards().length} cards · ${PAGE_SPECS.length} page specs · ${LAYERS.length} source files`);
 process.exit(problems.length ? 1 : 0);

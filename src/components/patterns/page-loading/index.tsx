@@ -113,6 +113,36 @@ export function TilesSkeleton({ count = 3 }: { count?: number }) {
   );
 }
 
+/**
+ * The Featured metric: its eyebrow, the figure, the line under it and its chart. `beside` is the row a page opens with
+ * when three tiles stand beside the metric (Home, Revenue): the metric two thirds wide and taller, the tiles in a column.
+ */
+export function FeaturedSkeleton({ beside }: { beside?: boolean }) {
+  const featured = (
+    <Card className={`${beside ? 'min-h-[29rem]' : 'min-h-[22rem]'} gap-4 p-(--card-pad)`}>
+      <Skeleton className="h-2.5 w-40" />
+      <Skeleton className="h-16 w-56 rounded-md" />
+      <Skeleton className="h-3 w-80 max-w-full" />
+      <Skeleton className="mt-auto h-56 w-full rounded-md" />
+    </Card>
+  );
+  if (!beside) return featured;
+  return (
+    <Row split="2/3">
+      {featured}
+      <div className="grid min-w-0 gap-(--stack-gap) md:grid-cols-3 lg:flex lg:flex-col">
+        {[0, 1, 2].map((i) => (
+          <Card key={i} className="flex-1 gap-3 p-(--card-pad)">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-9 w-32 rounded-md" />
+            <Skeleton className="mt-auto h-8 w-full" />
+          </Card>
+        ))}
+      </div>
+    </Row>
+  );
+}
+
 /** A card with a title and a chart-sized block. */
 export function ChartSkeleton({ height = 'h-40' }: { height?: string }) {
   return (
@@ -120,6 +150,16 @@ export function ChartSkeleton({ height = 'h-40' }: { height?: string }) {
       <Skeleton className="h-4 w-40" />
       <Skeleton className="h-3 w-64 max-w-full" />
       <Skeleton className={`${height} w-full rounded-md`} />
+    </Card>
+  );
+}
+
+/** A card of `lines` lines under a title: a list part of a page, its facts or its lines worth knowing. */
+export function LinesSkeleton({ lines = 4 }: { lines?: number }) {
+  return (
+    <Card className="gap-4 p-(--card-pad)">
+      <Skeleton className="h-4 w-40" />
+      {Array.from({ length: lines }, (_, j) => <Skeleton key={j} className="h-3" />)}
     </Card>
   );
 }

@@ -75,7 +75,7 @@ Each floor is measured by a command, and its evidence is the line the command pr
 | Gate: tokens fresh, specifications complete, no literal value, contrast in every theme and accent, lint, types, tests | `pnpm gate` (inside every `pnpm verify`) |
 | The numbers the pages show are the data's | `example:tests/data.test.ts` asserting the counts and totals the pages show (SKILL.md, step 5) |
 | Build, route policy, first-load and HTML sizes | `pnpm verify` |
-| Every view at 2560, 1440, 1024, 768 and 390px in both themes: no sideways scroll, clipped text, table wider than its card, unnamed control, text under 4.5:1, control without a focus ring, touch target under 44px, runtime error; inside open shadow roots too, and a custom element it cannot look inside is `unmeasured:` (`validation.md`) | `pnpm verify --full` (the audit) |
+| Every view at 2560, 1440, 1024, 768, 390 and 320px (WCAG's reflow width) in both themes: no sideways scroll, clipped text, table wider than its card, unnamed control, text under 4.5:1, control without a focus ring, touch target under 44px, runtime error; inside open shadow roots too, and a custom element it cannot look inside is `unmeasured:` (`validation.md`) | `pnpm verify --full` (the audit) |
 | Every control pressed and every link followed, mouse at 1440px and taps at 390px, controls inside open shadow roots included; nothing does nothing | `pnpm verify --full` (the presses) |
 | The whole keyboard path, a visible focus ring (a change on focus) at every stop, and the same stops in reverse with Shift+Tab | `pnpm verify --full` (the keyboard walk) |
 | The assistant off and on, when the project has it | `pnpm verify --full`; a step it prints as `n/a`, with its reason, is not applicable and does not count against the outcome |
@@ -90,7 +90,8 @@ Each floor is measured by a command, and its evidence is the line the command pr
 you change it (its comments describe every field, and the template's own entries show the shape): a `navigationChecks`
 entry for every rail route (a ready selector and one harmless probe that works at 390px too, where a table is a card
 list with no column headers to sort: a filter, a link or a dialog), `detailRoutes` with ids from your data for each
-state worth seeing, `smokeRoutes` among the rail routes, `budgets.htmlKb`, when the project pins a page's HTML, naming only routes that exist, a `fakeApi` as
+state worth seeing and `missingRoutes` for a record that does not exist (a route that answers an error or draws the
+not-found screen is failed unless it is listed there), `smokeRoutes` among the rail routes, `budgets.htmlKb`, when the project pins a page's HTML, naming only routes that exist, a `fakeApi` as
 soon as a page calls an API, and in an adopted project a `fakeApi` or `noLiveApi` (a created project whose pages read
 only its own sample needs neither). After the pages change, look at the sizes `pnpm verify` prints and record them with
 `node scripts/sizes.ts --write-baseline --base <url>` against the running build once you have judged them: first-load JS

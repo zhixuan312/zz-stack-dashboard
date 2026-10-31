@@ -1,17 +1,24 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Bell, Search } from 'lucide-react';
+import { slug } from '../../../app.config';
 import { cn } from '../../../lib/cn';
 import { formatDateTime, formatRelative } from '../../../lib/format-date';
 import { Kbd } from '../../ui/kbd/index';
 import { Popover, PopoverContent, PopoverTrigger } from '../../ui/popover/index';
 import { StatusDot } from '../../ui/status-dot/index';
-import { openCommand } from '../command-palette/index';
+import { openCommand, usePaletteKey } from '../command-palette/index';
 
 /** One thing that needs a person: what happened, where to act on it, and whether they have seen it. */
 export type Alert = { id: string; title: string; detail?: string; at: string; href: string; tone: 'critical' | 'warning' | 'positive' | 'neutral'; unread?: boolean };
+
+/** The alerts this tab has opened, kept for the session so a reload does not bring them back as new. */
+const READ_KEY = `${slug}.alerts-read`;
+const readIds = (): string[] => {
+  try { const ids: unknown = JSON.parse(sessionStorage.getItem(READ_KEY) ?? '[]'); return Array.isArray(ids) ? ids.filter((id) => typeof id === 'string') : []; } catch { return []; }
+};
 
 /**
  * The global tools in the top bar of every console page: search and commands (⌘K), and alerts. They stay put while
@@ -20,9 +27,17 @@ export type Alert = { id: string; title: string; detail?: string; at: string; hr
 export function ShellTools({ alerts = [], now }: { alerts?: Alert[]; /** The data's clock, for "36 min ago". */ now: Date }) {
   const [read, setRead] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState(false);
+  // Read after hydration: the server render has no session storage.
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- session storage is an external store read once on mount.
+  useEffect(() => setRead(new Set(readIds())), []);
+  const keep = (next: Set<string>) => {
+    setRead(next);
+    try { sessionStorage.setItem(READ_KEY, JSON.stringify([...next])); } catch {}
+  };
   const unread = alerts.filter((a) => a.unread && !read.has(a.id)).length;
   const name = unread ? `Alerts, ${unread} new` : 'Alerts';
-  const markAll = () => setRead(new Set(alerts.map((a) => a.id)));
+  const markAll = () => keep(new Set([...read, ...alerts.map((a) => a.id)]));
+  const paletteKey = usePaletteKey();
   return (
     <>
       <button
@@ -33,7 +48,7 @@ export function ShellTools({ alerts = [], now }: { alerts?: Alert[]; /** The dat
         <Search className="size-4" strokeWidth={1.75} />
         {/* Below 40rem the word is only its own name: `sr-only`, never `hidden`, so the icon-only button is still announced (#83). */}
         <span className="w-36 text-left @max-[48rem]:w-20 @max-[40rem]:sr-only">Search</span>
-        <Kbd className="keyboard-only @max-[40rem]:hidden">⌘K</Kbd>
+        <Kbd className="keyboard-only @max-[40rem]:hidden">{paletteKey}</Kbd>
       </button>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
@@ -43,7 +58,7 @@ export function ShellTools({ alerts = [], now }: { alerts?: Alert[]; /** The dat
           </button>
         </PopoverTrigger>
         <PopoverContent align="end" className="w-88 p-0" aria-label="Alerts">
-          <AlertsPanel alerts={alerts} now={now} read={read} onOpen={(id) => { setRead((r) => new Set(r).add(id)); setOpen(false); }} onMarkAll={markAll} />
+          <AlertsPanel alerts={alerts} now={now} read={read} onOpen={(id) => { keep(new Set(read).add(id)); setOpen(false); }} onMarkAll={markAll} />
         </PopoverContent>
       </Popover>
     </>
@@ -55,7 +70,8 @@ export function AlertsPanel({ alerts, now, read = new Set(), onOpen, onMarkAll }
   const unread = alerts.filter((a) => a.unread && !read.has(a.id)).length;
   return (
     <>
-      <div className="flex items-center gap-3 border-b border-line px-4 py-3">
+      {/* The head wraps: in a narrow card the count and "Mark all read" drop under the title instead of running past it. */}
+      <div className="flex flex-wrap items-center gap-3 border-b border-line px-4 py-3">
         <p className="text-sm font-semibold">Alerts</p>
         {unread ? <span className="t-caption">{unread} new</span> : null}
         {unread && onMarkAll ? (

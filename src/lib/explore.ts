@@ -14,6 +14,7 @@ import { z } from 'zod';
 import { app } from '../app.config';
 import type { AggregateQuery, AggregateResult, AggregateValues, Condition, Query } from './collection';
 import { formatCost, plural } from './format';
+import { shiftDay } from './format-date';
 
 export type ExploreOp = 'eq' | 'ne' | 'in' | 'lt' | 'gt';
 type ExploreBucket = 'day' | 'week' | 'month' | 'weekday';
@@ -226,13 +227,14 @@ export function exploreSchema<I>(query: PreparedQuery<I>, rights: ExploreRights 
   });
 }
 
-const DAY = 86_400_000;
-const shift = (day: string, days: number) => new Date(Date.parse(`${day}T00:00:00Z`) + days * DAY).toISOString().slice(0, 10);
 const number = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
 const MONEY = 'money';
 /** The unit as the model is told it: money is in the product's currency. */
 const unitOf = (m: Measure) => (m.unit === MONEY ? app.currency : m.unit);
-const figure = (v: number | null, unit: string) => (v === null ? 'no value' : unit === MONEY ? formatCost(v) : `${number.format(v)} ${unit}`);
+/** A unit that is a counted noun ("runs", "GPU-days") reads in the singular for one: "1 run", never "1 runs". */
+const COUNTED = /^[A-Za-z-]{2,}s$/;
+const figure = (v: number | null, unit: string) =>
+  v === null ? 'no value' : unit === MONEY ? formatCost(v) : `${number.format(v)} ${v === 1 && COUNTED.test(unit) ? unit.slice(0, -1) : unit}`;
 const text = (v: unknown) => (v === null || v === undefined ? '—' : typeof v === 'number' ? number.format(v) : typeof v === 'object' ? JSON.stringify(v) : String(v));
 /** A condition in words, a missing value with the source's word for it: "model eq null (no model)". */
 const said = (c: Condition, none: Source['none']) => {
@@ -309,9 +311,9 @@ export async function runExplore<I>(query: PreparedQuery<I>, input: unknown, rig
   const windowOf = (src: string, before: boolean): AggregateQuery['window'] => {
     const field = q.sources[src].date;
     if (field === undefined || period === undefined) return undefined;
-    if (period === 'all') return { field, from: '0001-01-01', to: shift(today, -1) };
+    if (period === 'all') return { field, from: '0001-01-01', to: shiftDay(today, -1) };
     const n = DAYS[period];
-    return before ? { field, from: shift(today, -2 * n), to: shift(today, -n - 1) } : { field, from: shift(today, -n), to: shift(today, -1) };
+    return before ? { field, from: shiftDay(today, -2 * n), to: shiftDay(today, -n - 1) } : { field, from: shiftDay(today, -n), to: shiftDay(today, -1) };
   };
   const ask = (src: string, before: boolean): AggregateQuery => {
     const t = q.sources[src];
@@ -363,7 +365,8 @@ export async function runExplore<I>(query: PreparedQuery<I>, input: unknown, rig
   /** A group's values: this source's own, and, for a derived measure over another source, that source's group of the same key. */
   const groupValues = (rs: AggregateResult[], g: AggregateValues & { key?: string | null }, other: (r: AggregateResult) => AggregateValues | undefined): Values =>
     new Map(sources.map((src, i) => [src, i === 0 ? g.values : other(rs[i])?.values ?? {}]));
-  const values = (vs: Values) => asked.map((m) => figure(value(name, m, vs), s.measures[m].unit)).join(', ');
+  // One measure's figure stands alone; several name theirs, so "Failed 1 run, Runs 3 runs" is never paired by position.
+  const values = (vs: Values) => asked.map((m) => `${asked.length > 1 ? `${s.measures[m].label} ` : ''}${figure(value(name, m, vs), s.measures[m].unit)}`).join(', ');
 
   // The head: the window and the conditions, then each measure, then the window before.
   const w = windowOf(name, false);
@@ -377,7 +380,7 @@ export async function runExplore<I>(query: PreparedQuery<I>, input: unknown, rig
   ].join(', ') + '.'];
   const current = totals(now);
   // Money names its currency once, on its own line; a definition says what the whole measure counts, so a narrowed call
-  // says it holds only some of it, or "Runs: 1 runs" under `state eq failed` reads as every run of the window.
+  // says it holds only some of it, or "Runs: 1 run" under `state eq failed` reads as every run of the window.
   for (const m of asked) {
     const d = s.measures[m];
     head.push(`${d.label}${d.unit === MONEY ? `, in ${app.currency}` : ''}: ${figure(value(name, m, current), d.unit)}. ${d.definition}${conds.length ? ` This figure is only of those where ${narrowed}.` : ''}`);
@@ -424,8 +427,8 @@ export async function runExplore<I>(query: PreparedQuery<I>, input: unknown, rig
   // The drill: one read of at most twenty rows, the latest first, each with its address. Rows that do not fit 3,000
   // characters are dropped from the end, and a line says how many.
   const window: Condition[] = w && period !== 'all'
-    ? [{ field: w.field, op: 'gt', value: `${shift(w.from, -1)}T23:59:59.999Z` }, { field: w.field, op: 'lt', value: shift(w.to, 1) }]
-    : w ? [{ field: w.field, op: 'lt', value: shift(w.to, 1) }] : [];
+    ? [{ field: w.field, op: 'gt', value: `${shiftDay(w.from, -1)}T23:59:59.999Z` }, { field: w.field, op: 'lt', value: shiftDay(w.to, 1) }]
+    : w ? [{ field: w.field, op: 'lt', value: shiftDay(w.to, 1) }] : [];
   const read = rows === 0 ? { rows: [], total: 0 } : await io.read(s.collection, { where: [...conds, ...window], limit: rows, ...(s.date ? { sort: { field: s.date, dir: 'desc' as const } } : {}) });
   const columns = s.drill.columns.filter((c) => !hidden.has(c));
 
@@ -465,10 +468,10 @@ export async function runExplore<I>(query: PreparedQuery<I>, input: unknown, rig
   if (rows === 0) return reply(held(fixedLines));
   const drilled = read.rows.map((r) => `- ${s.drill.address(r)}: ${columns.map((c) => `${c} ${names.has(c) && typeof r[c] === 'string' ? named(c, r[c]) : text(r[c])}`).join(', ')}`);
   const lead = read.rows.length ? `Rows, ${s.date ? 'the latest first' : 'in order'}, ${read.rows.length} of ${read.total}:` : 'No row matches.';
-  const answer = (k: number) => [...fixedLines, lead, ...drilled.slice(0, k), ...(k < drilled.length ? [notShown(drilled.length - k, 'row')] : [])].join('\n');
+  const linesOf = (k: number) => [...fixedLines, lead, ...drilled.slice(0, k), ...(k < drilled.length ? [notShown(drilled.length - k, 'row')] : [])];
   let k = drilled.length;
-  while (k > 0 && answer(k).length > MAX_ANSWER) k--;
+  while (k > 0 && linesOf(k).join('\n').length > MAX_ANSWER) k--;
   // The rows go first, because they are what the summary leaves out; `held` is what catches a summary over budget by
   // itself, which the row loop cannot shorten at all.
-  return reply(held([...fixedLines, lead, ...drilled.slice(0, k), ...(k < drilled.length ? [notShown(drilled.length - k, 'row')] : [])]));
+  return reply(held(linesOf(k)));
 }

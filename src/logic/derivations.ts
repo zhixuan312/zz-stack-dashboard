@@ -19,12 +19,13 @@ export function comparison(reading: number, baseline: number): string | null {
 
 /**
  * A stacked trend's per-day totals: `bands` is one row a series and one number a day, oldest first, so a day's total is
- * the sum down its column. A missing value is no contribution that day.
+ * the sum down its column. A missing value is no contribution that day, and a day on which no band has a value has no
+ * total (`null`): nothing was measured, which is not a total of zero.
  */
-export function trendTotals(bands: readonly (readonly (number | null)[])[]): number[] {
+export function trendTotals(bands: readonly (readonly (number | null)[])[]): (number | null)[] {
   const days = Math.max(0, ...bands.map((band) => band.length));
-  const totals = Array.from({ length: days }, () => 0);
-  for (const band of bands) band.forEach((value, i) => (totals[i] += value ?? 0));
+  const totals: (number | null)[] = Array.from({ length: days }, () => null);
+  for (const band of bands) band.forEach((value, i) => { if (value !== null && value !== undefined) totals[i] = (totals[i] ?? 0) + value; });
   return totals;
 }
 
@@ -36,8 +37,8 @@ export function elapsed(started: string, at: string): number {
   return new Date(at).getTime() - new Date(started).getTime();
 }
 
-/** The most parts a stacked column draws: past this a reader cannot tell the parts apart. */
-const MOST_PARTS = 4;
+/** The most parts a stack draws apart: past it, the last drawn is "Other", the rest summed. */
+export const MOST_PARTS = 4;
 
 /**
  * A stacked column's parts past the ones a reader can tell apart. `parts` is one row a part and one value a column, the
@@ -64,9 +65,10 @@ export function columnFold(
 }
 
 /**
- * A composition bar's own denominator: every part's `value`, and never zero, so an empty bar still divides by one and
- * draws nothing rather than a part of no whole.
+ * A composition bar's own denominator: every part's `value` above zero, and never zero, so an empty bar still divides by
+ * one and draws nothing rather than a part of no whole. A part below zero is no share of a whole and adds nothing, so
+ * signed parts never turn the shares of the rest negative.
  */
 export function compositionTotal(parts: readonly { value: number }[]): number {
-  return parts.reduce((total, part) => total + part.value, 0) || 1;
+  return parts.reduce((total, part) => total + Math.max(0, part.value), 0) || 1;
 }

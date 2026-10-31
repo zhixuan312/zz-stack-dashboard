@@ -2,6 +2,7 @@
 
 import { useMemo, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { cn } from '../../../lib/cn';
+import { FORMATTERS } from '../../../lib/format';
 import { formatCalendarDate, formatCalendarMonth } from '../../../lib/format-date';
 import { useClearMeridian, useMeridianIndex, usePointMeridian } from '../meridian/index';
 import { useSize } from '../use-size';
@@ -12,7 +13,6 @@ const STEPS = ['var(--fill-track)', 18, 34, 52, 74, 100].map((s) => (typeof s ==
 const DAY = 86_400_000;
 /** The calendar's measures in pixels: the weekday column, its gap, the space between cells, the smallest cell and the tallest. */
 const NAMES = 40, GAP = 8, SPACE = 2, CELL = 12, ROW = 28;
-const count = (n: number) => n.toLocaleString('en-US');
 
 type Scale = 'max' | 'quantile';
 type Shared = {
@@ -65,7 +65,7 @@ type CalendarProps = Shared & {
  * Either grid is one Tab stop: the arrow keys move a cursor cell by cell (Home and End to the ends of a row, Escape to
  * leave), with the same readout as the pointer, announced to screen readers.
  */
-export function Heatmap({ scale = 'max', format = count, unit = 'requests', ...props }: HoursProps | CalendarProps) {
+export function Heatmap({ scale = 'max', format = FORMATTERS.count, unit = 'requests', ...props }: HoursProps | CalendarProps) {
   return 'days' in props ? <Calendar scale={scale} format={format} unit={unit} {...props} /> : <Hours scale={scale} format={format} unit={unit} {...props} />;
 }
 
@@ -151,6 +151,17 @@ function Legend({ unit, more, children }: { unit: string; more: string; children
 function Hours({ values, timezone = 'UTC', scale, format, unit, label, className, 'data-preview-state': previewState, 'data-preview-cell': previewCell }: HoursProps & Required<Pick<Shared, 'scale' | 'format' | 'unit'>>) {
   const [box, { width }] = useSize<HTMLElement>();
   const [hover, setHover] = useState<{ d: number; h: number } | null>(null);
+  // Pointing at an hour re-renders the grid, and no cell of its table changes with it, so the table is built once per data.
+  const table = useMemo(
+    () => (
+      <table className="sr-only">
+        <caption>{label}</caption>
+        <thead><tr><th>Day ({timezone})</th>{Array.from({ length: 24 }, (_, h) => <th key={h}>{String(h).padStart(2, '0')}:00</th>)}</tr></thead>
+        <tbody>{values.map((row, d) => <tr key={d}><th>{DAYS[d]}</th>{row.map((v, h) => <td key={h}>{format(v)}</td>)}</tr>)}</tbody>
+      </table>
+    ),
+    [label, timezone, values, format],
+  );
   const group = width > 0 && width < 560 ? 3 : 1;
   const cols = 24 / group;
   const grid = values.map((row) => Array.from({ length: cols }, (_, c) => row.slice(c * group, c * group + group).reduce((a, b) => a + b, 0)));
@@ -217,8 +228,8 @@ function Hours({ values, timezone = 'UTC', scale, format, unit, label, className
             })}
             {on?.d === d ? (
               <Readout column={on.h} columns={cols}>
-                <span className="font-medium whitespace-nowrap">{format(row[on.h])} {unit}</span>
-                <span className="whitespace-nowrap opacity-70"> · {DAYS[d]} {range(on.h)} {timezone}</span>
+                <span className="font-medium whitespace-nowrap">{format(row[on.h])} {unit}</span>{' '}
+                <span className="inline-block opacity-70">· {DAYS[d]} {range(on.h)} {timezone}</span>
               </Readout>
             ) : null}
           </div>
@@ -227,11 +238,7 @@ function Hours({ values, timezone = 'UTC', scale, format, unit, label, className
       </div>
       <p className="sr-only" aria-live="polite">{on ? `${DAYS[on.d]} ${range(on.h)} ${timezone}: ${format(grid[on.d][on.h])} ${unit}` : ''}</p>
       <Legend unit={unit} more={top === undefined ? 'More' : `${format(top)} or more`} />
-      <table className="sr-only">
-        <caption>{label}</caption>
-        <thead><tr><th>Day ({timezone})</th>{Array.from({ length: 24 }, (_, h) => <th key={h}>{String(h).padStart(2, '0')}:00</th>)}</tr></thead>
-        <tbody>{values.map((row, d) => <tr key={d}><th>{DAYS[d]}</th>{row.map((v, h) => <td key={h}>{format(v)}</td>)}</tr>)}</tbody>
-      </table>
+      {table}
     </figure>
   );
 }
@@ -370,7 +377,7 @@ function Calendar({ days, running = false, meridian = false, scale, format, unit
                 // The readout stands over its day's row: a grid item across every week, with nothing in the flow.
                 <div aria-hidden className="pointer-events-none relative col-span-full" style={{ gridRow: on.row + 1 }}>
                   <Readout column={on.col} columns={weeks}>
-                    <span className="whitespace-nowrap opacity-70">{formatCalendarDate(on.date)} · </span>
+                    <span className="whitespace-nowrap opacity-70">{formatCalendarDate(on.date)} ·</span>{' '}
                     <span className="font-medium whitespace-nowrap">{reading(on)}</span>
                   </Readout>
                 </div>

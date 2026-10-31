@@ -1,7 +1,8 @@
 /** First-load JS, HTML and prefetch sizes, checked against the budgets. KiB is 1024 bytes. */
 
-const KIB = 1024;
-const kib = (bytes: number): number => Math.round(bytes / KIB);
+/** A KiB is 1024 bytes; a size is printed in whole KiB. */
+export const KIB = 1024;
+export const kib = (bytes: number): number => Math.round(bytes / KIB);
 
 /** Each route's first-load bytes, every chunk counted once; a chunk with no known size is an error, never zero. */
 export function firstLoad(

@@ -2,7 +2,6 @@
  * The Design Atlas's own pages, for the checks that visit them: every entry the Atlas serves, read through the module the
  * Atlas renders from, so a new entry is checked without being listed anywhere.
  */
-import fs from 'node:fs';
 import { registerHooks } from 'node:module';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -11,9 +10,6 @@ const ROOT = path.resolve(import.meta.dirname, '../..');
 const CONTENT = path.join(ROOT, 'src/system/content.ts');
 
 export type AtlasEntry = { href: string; kind: 'card' | 'template' | 'doc' | 'tokens' | 'page' };
-
-/** Whether this project has an Atlas at all. An adopted project usually does not, and has nothing here to check. */
-export const hasAtlas = () => fs.existsSync(CONTENT);
 
 let hooked = false;
 /**

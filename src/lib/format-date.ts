@@ -7,7 +7,7 @@ import { app } from '../app.config';
  * reporting periods and the daily buckets are cut on the same boundary, so a
  * "day" in the chart and a "day" in the totals are the same day.
  *
- * TEMPLATE KNOB — set this to your product's reporting timezone once, here.
+ * The reporting timezone is `app.timezone` in src/app.config.ts, set once.
  * Whatever you pick, pick it deliberately: aggregate your buckets on the same
  * boundary server-side, or the chart and the totals will disagree by a day at
  * the edges and nothing in the UI will explain why.
@@ -37,6 +37,14 @@ function parts(d: Date): Record<string, string> {
   return Object.fromEntries(FMT.formatToParts(d).map((p) => [p.type, p.value]));
 }
 
+/** What a day formatter prints: a calendar date (`2026-10-01`) as the day it names, an instant as its day in DISPLAY_TIMEZONE. */
+function dayParts(input: DateInput): Record<string, string> | null {
+  const calendar = typeof input === 'string' ? calendarParts(input) : null;
+  if (calendar) return calendar;
+  const d = toDate(input);
+  return d ? parts(d) : null;
+}
+
 /** One formatter per timezone, built once for the reason `FMT` is. */
 const DAY_OF = new Map<string, Intl.DateTimeFormat>();
 
@@ -55,27 +63,21 @@ export function dayOf(input: DateInput, timeZone: string = DISPLAY_TIMEZONE): st
 
 /** `09 Jun 2026` */
 export function formatDate(input: DateInput): string {
-  const d = toDate(input);
-  if (!d) return String(input);
-  const p = parts(d);
-  return `${p.day} ${p.month} ${p.year}`;
+  const p = dayParts(input);
+  return p ? `${p.day.padStart(2, '0')} ${p.month} ${p.year}` : String(input);
 }
 
 /** `01 Oct`: a chart's axis or a badge, where the year is noise and the padded day keeps a column of cells aligned. A day
  * inside a sentence is `formatDay`. */
 export function formatShortDate(input: DateInput): string {
-  const d = toDate(input);
-  if (!d) return String(input);
-  const p = parts(d);
-  return `${p.day} ${p.month}`;
+  const p = dayParts(input);
+  return p ? `${p.day.padStart(2, '0')} ${p.month}` : String(input);
 }
 
 /** `1 Oct`: a day inside a sentence, where a padded "01 Oct" reads like a table cell. Tables and axes keep formatDate. */
 export function formatDay(input: DateInput): string {
-  const d = toDate(input);
-  if (!d) return String(input);
-  const p = parts(d);
-  return `${Number(p.day)} ${p.month}`;
+  const p = dayParts(input);
+  return p ? `${Number(p.day)} ${p.month}` : String(input);
 }
 
 /** `09 Jun 2026, 08:04` */
@@ -88,9 +90,9 @@ export function formatDateTime(input: DateInput): string {
 
 /**
  * A calendar date, `2026-10-01` with no time, names a day and not an instant: a cell of a calendar is that day
- * wherever the product reports from. `formatDate` reads such a string as midnight UTC and prints it in
- * DISPLAY_TIMEZONE, which is the day before west of UTC: right for an instant, wrong for a day. The two formatters
- * below read the date's own year, month and day.
+ * wherever the product reports from. Read as midnight UTC and printed in DISPLAY_TIMEZONE it would be the day before
+ * west of UTC, so every day formatter here (`formatDate`, `formatShortDate`, `formatDay` and the two below) reads the
+ * date's own year, month and day.
  */
 let DAY_FMT: Intl.DateTimeFormat | null = null;
 
@@ -99,6 +101,11 @@ function calendarParts(date: string): Record<string, string> | null {
   if (!m) return null;
   DAY_FMT ??= new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
   return Object.fromEntries(DAY_FMT.formatToParts(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]))).map((p) => [p.type, p.value]));
+}
+
+/** The calendar day `n` days after `date` (before it when negative), both YYYY-MM-DD: whole days, whatever the timezone. */
+export function shiftDay(date: string, n: number): string {
+  return new Date(Date.parse(`${date}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
 }
 
 /** `Thu 1 Oct 2026`: a calendar date as the day it names, with its weekday. */

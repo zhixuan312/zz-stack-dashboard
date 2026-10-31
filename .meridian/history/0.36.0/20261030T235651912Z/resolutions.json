@@ -1,0 +1,26 @@
+[
+  {
+    "id": "migration:app-description",
+    "status": "resolved",
+    "reason": "app.description holds the sentence the layout already wrote by hand, and the layout now reads it from there; NavItem also gained under and prefetch (nav-item-fields, which this update did not report: zz-meridian#103).",
+    "files": {
+      "src/app.config.ts": "sha256-135d0d22f2aa7ca526f8a4c6da3324260127991ae8bf89dba67e7794dfe010f4"
+    }
+  },
+  {
+    "id": "migration:missing-routes",
+    "status": "resolved",
+    "reason": "The two other-team addresses, which answer the not-found screen, moved from detailRoutes into missingRoutes, and VerifyConfig declares the field.",
+    "files": {
+      "scripts/verify.config.ts": "sha256-775f66ab32380bdd2a2796833480ef91058920453c2aca0800ae901b8f75fbbe"
+    }
+  },
+  {
+    "id": "migration:self-hosted-fonts",
+    "status": "resolved",
+    "reason": "Both faces load the shipped woff2 files through next/font/local, keeping their display, fallback and preload choices.",
+    "files": {
+      "app/layout.tsx": "sha256-c60b0bca75040c3f6af6ec6ea74e1a0850d778d2a620c9b4751f9e9359fff022"
+    }
+  }
+]

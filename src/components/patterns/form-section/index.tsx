@@ -104,12 +104,11 @@ export function FormSection({
     </header>
     <div className="min-w-0">
       <div className={cn('relative rounded-lg border bg-surface shadow-card', tone === 'critical' ? 'border-critical/30' : 'border-line', flush && 'has-[>[data-flush]:first-child]:overflow-hidden')}>
-        {as === 'form' ? (
-          // Read-only is not unavailable: its values are what the reader came for, so they stay legible in ink-2.
-          <fieldset data-flush={flush ? '' : undefined} disabled={readOnly || saving} className={cn(body, readOnly && '[&_button:disabled]:text-ink-2 [&_input:disabled]:text-ink-2 [&_textarea:disabled]:text-ink-2')}>{inner}</fieldset>
-        ) : (
-          <div data-flush={flush ? '' : undefined} className={body}>{inner}</div>
-        )}
+        {/* A fieldset in both forms, so read-only disables what the section holds with or without a <form> around it.
+            Read-only is not unavailable: its values are what the reader came for, so they stay legible in ink-2.
+            Beside a save bar, every field keeps 80px clear below it when focus scrolls it into view: the bar sticks to
+            the bottom of the view, and a field tabbed to far down the form would otherwise land under it. */}
+        <fieldset data-flush={flush ? '' : undefined} disabled={readOnly || saving} className={cn(body, readOnly && '[&_button:disabled]:text-ink-2 [&_input:disabled]:text-ink-2 [&_textarea:disabled]:text-ink-2', onSave && as === 'form' && '[&_*]:scroll-mb-20')}>{inner}</fieldset>
         {onSave && as === 'form' ? (
           <div
             aria-hidden={!dirty}

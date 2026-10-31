@@ -5,7 +5,7 @@ import path from 'node:path';
 import { Suspense, cloneElement, createElement, isValidElement, type ComponentProps, type ReactNode } from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { Tooltip } from 'radix-ui';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SurfaceOverride, type Surface } from '@/components/base/surface';
 import { AskAbout } from '@/components/patterns/ask-about';
 import { FormSection } from '@/components/patterns/form-section';
@@ -83,15 +83,12 @@ async function settled(node: ReactNode): Promise<ReactNode> {
 
 let gateway: ChildProcess | null = null;
 let base = '';
-const saved = { fetch: globalThis.fetch, env: { ...process.env } };
+const saved = { fetch: globalThis.fetch };
 
 beforeAll(async () => {
   const started = await startFakeGateway();
   gateway = started.proc;
   base = started.base;
-  // The server's reads go to the gateway by its address and with no credential, which the fake answers as the superadmin.
-  process.env.ZZ_GATEWAY = base;
-  delete process.env.ZZ_DEV_PAT;
   // The browser's reads are relative (`/api/console/...`); anything else a page asks for (the live channel) is absent here.
   const real = saved.fetch;
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -105,7 +102,13 @@ beforeAll(async () => {
 afterAll(() => {
   gateway?.kill();
   globalThis.fetch = saved.fetch;
-  process.env = saved.env;
+});
+
+// The server's reads go to the gateway by its address and with no credential, which the fake answers as the superadmin.
+// Set before each test: tests/setup.ts puts the environment back as it found it before every test.
+beforeEach(() => {
+  process.env.ZZ_GATEWAY = base;
+  delete process.env.ZZ_DEV_PAT;
 });
 
 /** `child` on the console's surface as `surface` sets it, with the tooltips Ask is drawn in. */

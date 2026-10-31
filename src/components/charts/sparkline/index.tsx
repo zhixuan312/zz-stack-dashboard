@@ -1,17 +1,28 @@
 'use client';
 
 import { useId } from 'react';
+import { FORMATTERS } from '../../../lib/format';
 import { useMeridianIndex } from '../meridian/index';
-import { monotonePath, SERIES_VAR } from '../scale';
+import { linearPath, monotonePath, stepPath, ticksBetween, type Curve, SERIES_VAR, type SeriesSlot } from '../scale';
 import { useSize } from '../use-size';
 
 /**
  * A trend without axes, beside the figure it qualifies. It shows shape, never values, so it carries no labels; when
  * the page's Meridian points at a day, a hairline marks that day, as long as the values are the page's: one for each of
  * the Meridian's dates. A `null` is a day with no value: it keeps its place and breaks the line there, as the Trend
- * chart's does, so a day that was not observed is never drawn as zero.
+ * chart's does, so a day that was not observed is never drawn as zero. `curve` names the path the line and its area take;
+ * `domain` holds the scale, so sparklines side by side are drawn against one range.
  */
-export function Sparkline({ values, color = 'accent', height = 36, className }: { values: (number | null)[]; color?: number | 'accent' | 'neutral'; height?: number; className?: string }) {
+export function Sparkline({ values, color = 'accent', height = 36, curve = 'monotone', domain, format = FORMATTERS.count, className }: {
+  values: (number | null)[];
+  color?: SeriesSlot | 'accent' | 'neutral';
+  height?: number;
+  curve?: Curve;
+  domain?: [number, number];
+  /** How the title reads the range: the figure's own format beside it, a count by default. */
+  format?: (n: number) => string;
+  className?: string;
+}) {
   const id = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   const [ref, { width: W }] = useSize<HTMLDivElement>();
   const { index, dates } = useMeridianIndex();
@@ -22,22 +33,34 @@ export function Sparkline({ values, color = 'accent', height = 36, className }: 
   // The lowest point floats a quarter of the height above the floor, so a trough never runs along a card's edge or
   // into its rounded corner; the area still fills to the floor.
   const H = height, pad = 3, floor = Math.max(pad, Math.round(H * 0.25));
-  const min = Math.min(...numbers), max = Math.max(...numbers), span = max - min || 1;
+  const lowest = Math.min(...numbers), highest = Math.max(...numbers);
+  // A held domain is the range itself: a sparkline has no axis to round to a step. A value outside it widens the range,
+  // to nice levels, rather than drawing off the card; the title says so. A domain that is not a range is no domain.
+  const held = domain && domain[1] > domain[0] ? domain : null;
+  const widened = held && (lowest < held[0] || highest > held[1]);
+  const levels = widened ? ticksBetween(Math.min(held[0], lowest), Math.max(held[1], highest)) : null;
+  const [min, max] = levels ? [levels[0], levels[levels.length - 1]] : held ?? [lowest, highest];
+  const span = max - min || 1;
   const x = (i: number) => (i / Math.max(1, values.length - 1)) * W;
   const pts = values.map((v, i) => (v === null ? null : [x(i), pad + (1 - (v - min) / span) * (H - pad - floor)] as [number, number]));
   // A day with no value breaks the line: each run of days with one is its own stretch of line and of area, never bridged.
   const runs: [number, number][][] = [[]];
   pts.forEach((p) => (p === null ? runs[runs.length - 1].length && runs.push([]) : runs[runs.length - 1].push(p)));
   const segs = W ? runs.filter((r) => r.length > 0) : [];
-  const line = segs.map((r) => monotonePath(r)).join('');
-  const area = segs.map((r) => `${monotonePath(r)}L${r[r.length - 1][0]},${H}L${r[0][0]},${H}Z`).join('');
+  const path = curve === 'linear' ? linearPath : curve === 'step' ? stepPath : monotonePath;
+  const line = segs.map((r) => path(r)).join('');
+  const area = segs.map((r) => `${path(r)}L${r[r.length - 1][0]},${H}L${r[0][0]},${H}Z`).join('');
   const c = SERIES_VAR(color);
   // The page's cursor is this line's only when it has a value for each of the page's dates: the rule a chart joins the
   // Meridian by. Fourteen days of a customer on a page of thirty would otherwise mark the wrong day. A day with no value
   // is still that day: the hairline marks it, and there is no dot to stand on the line.
   const at = index !== null && values.length === dates.length ? { x: x(index), y: pts[index]?.[1] ?? null } : null;
+  // A shape with no readout says nothing about what it covers, and it is the one chart a page puts beside a figure
+  // without a table under it (issue #94). The range it draws is the words it has, on the pointer: the data's own, the
+  // held domain, or, widened, the levels it is drawn to.
+  const range = `${format(min)} to ${format(max)}${widened ? `, scale widened from ${format(held[0])}–${format(held[1])}` : ''}`;
   return (
-    <div ref={ref} aria-hidden className={className} style={{ height }}>
+    <div ref={ref} aria-hidden title={range} className={className} style={{ height }}>
       {W ? (
         <svg width={W} height={H} className="block overflow-visible">
           <defs>

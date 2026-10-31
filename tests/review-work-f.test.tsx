@@ -125,7 +125,8 @@ function skillRead(): SkillRead {
 describe('F-53: a skill leads with one tile and keeps its labels whole', () => {
   it('leads with one figure, the refusals with the line they pass, and no figure reads "x.0"', () => {
     mount(<SkillView plugin="sdlc" skill="sdlc-spec" view="cost" served={skillRead()} />);
-    const lead = document.querySelectorAll('[data-figure]');
+    // A Bar list's row carries its own `data-figure`; the lead is the one outside any row.
+    const lead = [...document.querySelectorAll('[data-figure]')].filter((el) => !el.closest('[data-row]'));
     expect(lead).toHaveLength(1);
     expect(lead[0].textContent).toMatch(/Above the 5% this page flags/);
     expect(panel('Calls per run').querySelector('[data-value]')!.textContent).not.toMatch(/\.0$/);

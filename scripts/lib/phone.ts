@@ -33,6 +33,20 @@ export function phoneRate(index: number): number {
   return Math.round(Math.max(1, index / TARGET_INDEX) * 10) / 10;
 }
 
+/**
+ * How many times the phone is slowed beyond the host's own rate: `--rate <n>` on a suite's command line, or MERIDIAN_RATE,
+ * which `pnpm verify --rate <n>` sets for every suite it runs; 1 without either. It reproduces a slower machine on this
+ * one: the weekly runner measured about 1.6 times this laptop's times at the same rate, so `--rate 1.6` is the runner.
+ * Below 1 would be a phone faster than the standard's, which is a different device, so it is refused.
+ */
+export function rateFrom(text: string | undefined): number {
+  if (text === undefined) return 1;
+  if (!/^\d+(\.\d+)?$/.test(text) || Number(text) < 1) throw new Error(`--rate takes how many times more to slow the phone, a number of at least 1, not "${text}"`);
+  return Number(text);
+}
+
+const given = (): string | undefined => { const i = process.argv.indexOf('--rate'); return i >= 0 ? process.argv[i + 1] ?? '' : process.env.MERIDIAN_RATE; };
+
 let reading: { index: number; rate: number } | undefined;
 
 /**
@@ -47,8 +61,9 @@ export async function measurePhone(page: Page): Promise<{ index: number; rate: n
   const readings: number[] = [];
   for (let i = 0; i < 3; i++) readings.push(await page.eval<number>(BENCHMARK));
   const index = [...readings].sort((a, b) => a - b)[1];
-  const rate = phoneRate(index);
-  console.error(`phone: this host slowed ${rate}x (benchmark index ${index} from ${readings.join(', ')}; the phone is index ${TARGET_INDEX})`);
+  const times = rateFrom(given());
+  const rate = Math.round(phoneRate(index) * times * 10) / 10;
+  console.error(`phone: this host slowed ${rate}x (benchmark index ${index} from ${readings.join(', ')}; the phone is index ${TARGET_INDEX}${times === 1 ? '' : `; ${phoneRate(index)}x times ${times} by --rate, a slower machine than the standard's phone`})`);
   reading = { index, rate };
   return reading;
 }

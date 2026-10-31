@@ -39,6 +39,9 @@
   [data-drawer-frame][data-drawer-open] { pointer-events: auto; }
   /* A guest in a host: no light; the host's ground shows through. */
   [data-surface='embed'] { background-image: none; }
+  /* An estimate: a figure not yet measured is hatched, in the surface's colour over the mark's own fill, so it reads as a
+     stand-in in either theme and every accent. It has no fill of its own: the mark keeps the one it states. */
+  [data-estimate] { background-image: repeating-linear-gradient(135deg, transparent 0 3px, color-mix(in oklab, var(--surface) 60%, transparent) 3px 4.5px); }
 
   h1, h2, h3, h4, h5, h6 { margin: 0; font-weight: var(--weight-semibold); text-wrap: balance; }
   p { margin: 0; text-wrap: pretty; }
@@ -66,7 +69,7 @@
 @layer components {
   /* ── Text roles ─────────────────────────────────────────────────────────────────────────────────────
      One role per job. Titles and figures are set semi-condensed (stretch-figure), so a large number is
-     dense and exact; running text stays at full width. Eight sizes, three weights, and that is all. */
+     dense and exact; running text stays at full width. Every size and weight is a token, and that is all. */
   .t-display {
     font-size: var(--text-display); font-weight: var(--weight-semibold);
     line-height: 0.96; letter-spacing: var(--tracking-display);
@@ -91,24 +94,29 @@
     font-size: var(--text-2xl); font-weight: var(--weight-semibold);
     line-height: 1; letter-spacing: -0.03em; font-variant-numeric: lining-nums;
   }
+  /* A tile's figure fits its tile. Sized for the viewport, "$1,234,567.89" ran past the edge of a tile in a row of four:
+     it keeps the figure size until its characters (--figure-chars, set by the tile; a Geist digit is about 0.6em) would
+     not fit the tile's width, then steps down with it. */
+  .t-figure[data-fit] { font-size: min(var(--text-2xl), 100cqi * 1.6 / var(--figure-chars)); }
+  /* The column it measures. Size containment makes its width the tile's and not the figure's, and would leave a tile
+     sized by its content with no width at all (a tile in a flex row drew as an empty box), so where nothing sets a width
+     the column claims the one the figure needs at full size. */
+  [data-figure-box] { container-type: inline-size; contain-intrinsic-inline-size: calc(var(--figure-chars) * var(--text-2xl) * 0.62); }
   .t-lead { font-size: var(--text-md); line-height: 1.6; color: var(--ink-2); }
   .t-body { font-size: var(--text-base); line-height: var(--leading-normal); }
   .t-small { font-size: var(--text-sm); line-height: 1.5; }
   .t-caption { font-size: var(--text-xs); line-height: 1.45; color: var(--ink-3); }
-  /* The kicker: mono caps over a title, led by the slash of the mark. Says where you are, never what to do. */
+  /* The kicker: a quiet line over a title, in the text's own face and case, led by the slash of the mark. Says where you
+     are, never what to do. Not mono caps: that is every award site's label, and a label is words, not code. */
   .t-kicker {
     display: inline-flex; align-items: center; gap: var(--space-2);
-    font-family: var(--font-mono); font-size: var(--text-2xs); font-weight: var(--weight-regular); line-height: 1.2;
-    letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--ink-3);
+    font-size: var(--text-xs); font-weight: var(--weight-medium); line-height: 1.2; color: var(--ink-3);
   }
   .t-kicker::before {
     content: ""; flex: none; width: 7px; height: 11px; background: currentColor; opacity: 0.75;
     clip-path: polygon(58% 0, 100% 0, 42% 100%, 0 100%);
   }
-  .t-eyebrow {
-    font-family: var(--font-mono); font-size: var(--text-2xs); font-weight: var(--weight-regular); line-height: 1.2;
-    letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--ink-3);
-  }
+  .t-eyebrow { font-size: var(--text-xs); font-weight: var(--weight-medium); line-height: 1.2; color: var(--ink-3); }
   .t-mono { font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: 0; }
   .t-num { font-variant-numeric: tabular-nums lining-nums; }
   /* The inline code chip. It is one class because a reading page renders hundreds of them: spelled as ten utilities
@@ -116,6 +124,9 @@
   .t-code {
     border: 1px solid var(--line); border-radius: var(--radius-xs); background: var(--surface-sunk); color: var(--ink);
     padding: var(--space-0-5) var(--space-1-5); font-family: var(--font-mono); font-size: 0.84em;
+    /* A query, a path or a key is one word as far as the line breaker is concerned, and a long one drew 270px past its
+       chip on the Requests page spec at 390px (the Atlas audit). It breaks where it must and nowhere it need not. */
+    overflow-wrap: anywhere;
   }
 
   /* A figure's fraction and unit step down, so the integer carries the reading. */
@@ -137,6 +148,12 @@
     background: var(--highlight-top); pointer-events: none;
   }
   .card:has(> [data-flush]:first-child) { overflow: hidden; }
+  /* A row of tiles is one instrument, not a row of equal cards: the band has the card's edge and fill, and each tile
+     draws the hairline on its left and top, which the band's clip removes at its edge, so the dividers follow the
+     columns at every width. A tile has no fill of its own: the surface is translucent, and a second layer under the
+     tiles lifted the ground their captions are read on (ink-3 fell to 4.23:1 on an embed's dark host). */
+  [data-split='tiles'] > .card { border: 0; border-radius: 0; background: none; box-shadow: -1px 0 0 var(--line), 0 -1px 0 var(--line); }
+  [data-split='tiles'] > .card::before { display: none; }
 
   /* A lit edge: a hairline drawn by a masked gradient, brightest where the ground's light comes from. On the featured
      card it is always on; on an interactive card it fades in under the pointer. It never loops. */
@@ -212,6 +229,33 @@
    device in the hand. This rule is outside every layer on purpose: it has to beat the `flex` or `block` a utility puts
    on the same element, and a rule inside `@layer components` loses to `@layer utilities` however specific it is. */
 @media (pointer: coarse) { .keyboard-only { display: none; } }
+
+/* A forced palette (Windows' contrast themes) replaces every colour with a few of the system's and drops box-shadow, so a
+   choice told by a fill, a tint or a ring is told by nothing: the rail's current page, a Segmented's segment, a chosen
+   radio, the page a pager is on. Each is told in the system's Highlight instead, its text and icons in HighlightText, and
+   a swatch keeps the colour it shows. Outside every layer for the reason above: once the colours are the author's again,
+   a utility's fill would otherwise win. */
+@media (forced-colors: active) {
+  :is(a, button, [role]:not([role='tabpanel'])):is([aria-current='page'], [aria-pressed='true'], [aria-selected='true'], [aria-checked='true'], [data-state='on'], [data-state='active'], [data-state='checked']) {
+    forced-color-adjust: none;
+    background-color: Highlight;
+    color: HighlightText;
+  }
+  :is(a, button, [role]:not([role='tabpanel'])):is([aria-current='page'], [aria-pressed='true'], [aria-selected='true'], [aria-checked='true'], [data-state='on'], [data-state='active'], [data-state='checked']) * { color: HighlightText; }
+  [data-swatch] { forced-color-adjust: none; }
+  /* An estimate's hatch is a gradient, which a forced palette removes, and the estimate would read as a measured figure:
+     its stripes are drawn in CanvasText over Canvas instead. A stacked or grouped part's colour is an inline style, which
+     would otherwise stay under the stripes. */
+  [data-estimate] { forced-color-adjust: none; background-color: Canvas !important; background-image: repeating-linear-gradient(135deg, transparent 0 3px, CanvasText 3px 4.5px); }
+  /* Where the reader is, too: a field tells focus by its border and a ring and a menu its highlighted item by a fill, and
+     both are gone here, so the outline a field removed comes back in Highlight, and a highlighted item is filled with it. */
+  :focus-visible { outline: 2px solid Highlight; outline-offset: 2px; }
+  [data-highlighted] { forced-color-adjust: none; background-color: Highlight; color: HighlightText; }
+  [data-highlighted] * { color: HighlightText; }
+  /* A switch's thumb is a fill too, and an off switch without one reads as an empty frame. */
+  [role='switch'] > * { forced-color-adjust: none; background-color: CanvasText; }
+  [role='switch'][data-state='checked'] > * { background-color: HighlightText; }
+}
 
 @property --fade-a { syntax: "<length>"; inherits: false; initial-value: 0px; }
 @property --fade-b { syntax: "<length>"; inherits: false; initial-value: 0px; }

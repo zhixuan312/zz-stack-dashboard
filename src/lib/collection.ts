@@ -108,6 +108,12 @@ export type Collection<T extends Record<string, unknown>, K extends keyof T & st
 export type AnyCollection = Collection<any, any>;
 
 /**
+ * What a server action answers: done, with whatever it hands back, or the sentence that says why not. A thrown error's
+ * message does not reach the browser in a production build; a result does.
+ */
+export type ActionResult<T = object> = ({ ok: true } & T) | { ok: false; error: string };
+
+/**
  * One store per tenant and name per process, on globalThis, so a route handler, a server action and a page share it.
  * `next` is the next id's number: it only grows, so a removed record's id is never given to a new one. `rev` counts
  * the writes the collection has emitted.
@@ -129,6 +135,8 @@ const listeners = () => ((globalThis as Record<symbol, unknown>)[LIVE] ??= new M
 
 /** How many listeners a tenant's collection has: for tests and diagnostics. */
 export const liveListeners = (tenantId: string, name: string): number => listeners().get(storeKey(tenantId, name))?.size ?? 0;
+/** The rows a tenant's array collection keeps in this process, which a test grows past a page: for tests and diagnostics. */
+export const storedRows = (tenantId: string, name: string): Record<string, unknown>[] | undefined => stores().get(storeKey(tenantId, name))?.rows;
 
 
 const OPS = ['eq', 'ne', 'gt', 'lt', 'contains', 'in'];
@@ -273,6 +281,14 @@ function bucketOf(v: unknown, bucket: string): string | null {
 }
 
 /** One measure over `rows`: a count of those that meet its own conditions, or a figure over the numbers of its field, null when there is none. */
+/**
+ * The 95th percentile by nearest rank, the value at ceil(0.95 × n) of the values in order, or null for none: the one
+ * rule for a p95 a tile draws and a prepared query answers, so the two agree on the same rows.
+ */
+export function p95(xs: readonly number[]): number | null {
+  return xs.length ? [...xs].sort((a, b) => a - b)[Math.ceil(0.95 * xs.length) - 1] : null;
+}
+
 function measure(rows: Record<string, unknown>[], m: AggregateQuery['measures'][number]): number | null {
   const own = m.where?.length ? rows.filter((r) => m.where!.every((w) => matches(r, w))) : rows;
   if (m.agg === 'count') return own.length;
@@ -286,8 +302,7 @@ function measure(rows: Record<string, unknown>[], m: AggregateQuery['measures'][
     case 'avg': return sum / xs.length;
     case 'min': return min;
     case 'max': return max;
-    // Nearest rank: the value at ceil(0.95 × n) of the values in order.
-    case 'p95': return xs.sort((a, b) => a - b)[Math.ceil(0.95 * xs.length) - 1];
+    case 'p95': return p95(xs);
   }
 }
 
@@ -480,9 +495,19 @@ function withoutDefault(field: z.ZodType): z.ZodType {
     : field;
 }
 
+/**
+ * `fields` without the named ones, or `fields` itself when it names none of them (issue #91). A collection hides or
+ * page-owns a field it computes rather than declares — a joined label, a derived total — which the doc comments below
+ * allow: a name the shape does not have is named but not sent, and `omit` cannot mask a key that was never there.
+ */
+function without(fields: z.ZodObject, names: string[]): z.ZodObject {
+  const known = names.filter((f) => Object.hasOwn(fields.shape, f));
+  return known.length ? fields.omit(Object.fromEntries(known.map((f) => [f, true])) as Record<string, true>).strict() : fields.strict();
+}
+
 /** The collection's fields without its hidden ones. */
 export function visibleFields(c: AnyCollection): z.ZodObject {
-  return c.fields.omit(Object.fromEntries(((c.hidden ?? []) as string[]).map((f) => [f, true])) as Record<string, true>).strict();
+  return without(c.fields, (c.hidden ?? []) as string[]);
 }
 
 /**
@@ -494,7 +519,5 @@ export function visibleFields(c: AnyCollection): z.ZodObject {
  * same as on any other visible field. Reading a field and changing it are different rules, and this is the second.
  */
 export function writableFields(c: AnyCollection): z.ZodObject {
-  const base = visibleFields(c);
-  const pageOnly = (c.pageOnlyFields ?? []) as string[];
-  return pageOnly.length ? base.omit(Object.fromEntries(pageOnly.map((f) => [f, true])) as Record<string, true>).strict() : base;
+  return without(visibleFields(c), (c.pageOnlyFields ?? []) as string[]);
 }

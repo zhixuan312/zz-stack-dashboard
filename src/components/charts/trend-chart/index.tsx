@@ -6,7 +6,8 @@ import { AXIS_FORMATTERS, FORMATTERS, type NumberFormat } from '../../../lib/for
 import { formatDate } from '../../../lib/format-date';
 import { useMeridian } from '../meridian/index';
 import { Readout } from '../readout';
-import { monotonePath, ticksBetween, SERIES_VAR, stackPart } from '../scale';
+import { monotonePath, linearPath, stepPath, heldTicks, ticksBetween, type Curve, SERIES_VAR, stackPart, type SeriesSlot } from '../scale';
+import { useSettled } from '../use-settled';
 import { useSize } from '../use-size';
 import { trendTotals } from '../../../logic/derivations';
 
@@ -15,10 +16,22 @@ export type TrendSeries = {
   label: string;
   values: (number | null)[];
   /** A categorical slot (1 to 6), the accent, or the neutral comparison colour. */
-  color?: number | 'accent' | 'neutral';
+  color?: SeriesSlot | 'accent' | 'neutral';
   /** `area` is the series the chart is about (at most one); `line` a peer; `dashed` a target or the previous period. */
   kind?: 'area' | 'line' | 'dashed';
 };
+
+/**
+ * Where the scale ends: from a `floor`, or held to a `domain`, never both. `floor` is the lowest level the axis shows,
+ * snapped down to a "nice" step: for a quantity that lives in a narrow band, such as uptime, where an axis from zero
+ * makes the one thing the chart is about the smallest mark on it. A hint, not a crop: the floor is held at or under the
+ * lowest value drawn, so the scale widens to the data and never hides it, and every value is placed inside the plot. For
+ * `line` and `dashed` series only — an `area` and every stack are read by their height, which a floor would change the
+ * meaning of. Defaults to 0, an axis from zero. `domain` holds the plot to a stated range, so charts read side by side
+ * share their levels: while every value drawn is inside it the plot ends at it, from zero for an area or a stack; a value
+ * outside it widens the scale to nice levels, and the chart says so above the plot and in its table.
+ */
+type TrendScale = { floor?: number; domain?: undefined } | { domain: [number, number]; floor?: undefined };
 
 /**
  * The baseline's label, in pixels: the width a character is given (the text is `text-2xs` in tabular figures and its
@@ -77,6 +90,16 @@ function placeLabel(text: string, line: number, plot: { left: number; right: num
  */
 export const SO_FAR = 'Today so far, dashed.';
 
+/** The path function each curve names. */
+const PATHS: Record<Curve, typeof monotonePath> = { monotone: monotonePath, linear: linearPath, step: stepPath };
+
+/** `stepPath` traced backward, as a stacked part's lower edge is: upright first, then level, so it is the same line. */
+const rise: typeof stepPath = (pts, from = 0, to = pts.length - 1) => {
+  let d = `M${pts[from][0]},${pts[from][1]}`;
+  for (let i = from + 1; i <= to; i++) d += `V${pts[i][1]}H${pts[i][0]}`;
+  return d;
+};
+
 /**
  * A time series: one shared axis, at most one area, any number of lines. Never two y-scales: two measures of a
  * different size are two charts on one Meridian. Point, or move with the arrow keys, to read a day; every chart on
@@ -103,8 +126,11 @@ export function TrendChart({
   baseline,
   band,
   floor,
+  domain,
   marks,
   running = false,
+  curve = 'monotone',
+  points = false,
   'data-preview-index': previewIndex,
   className,
 }: {
@@ -141,27 +167,29 @@ export function TrendChart({
    */
   band?: { value: number; label: string };
   /**
-   * The lowest level the axis shows, snapped down to a "nice" step: for a quantity that lives in a narrow band, such
-   * as uptime, where an axis from zero makes the one thing the chart is about the smallest mark on it. A hint, not a
-   * crop: the floor is held at or under the lowest value drawn, so the scale widens to the data and never hides it, and
-   * every value is placed inside the plot. For `line` and `dashed` series only — an `area` and every stack are read by
-   * their height, which a floor would change the meaning of. Defaults to 0, an axis from zero.
-   */
-  floor?: number;
-  /**
    * Days the page names, marked on the first series with a dot, so a reader finds them rather than hunting for them
    * among 360 points: the days a band's membership left out. Dates it does not draw are skipped.
    */
   marks?: { dates: readonly string[]; tone: 'warning' | 'neutral'; label: string };
   /** The last point is a period still in progress: the line into it is dashed and its readout says "so far". */
   running?: boolean;
+  /**
+   * How a line, an area and the running stretch are drawn between points: `monotone` (the default) a smooth curve that never
+   * overshoots, `linear` straight segments, `step` a level held until the next reading. Straight is right for a few readings,
+   * where a smooth curve would invent the shape between them; a step for a balance that changes at events. The parts of a
+   * `stacked` chart and the total's running stretch take it too.
+   */
+  curve?: Curve;
+  /** A dot on each measured value of every line and area, for a few readings; none while they would stand under 6px apart. */
+  points?: boolean;
   /** A static readout in the Atlas; real charts take their day from the Meridian. */
   'data-preview-index'?: number;
   className?: string;
-}) {
+} & TrendScale) {
   const [box, size] = useSize<HTMLDivElement>();
   // The legend wraps on a narrow card; the plot starts under however many lines it took.
   const [legendBox, legendSize] = useSize<HTMLUListElement>();
+  const [widenedBox, widenedSize] = useSize<HTMLParagraphElement>();
   const width = size.width;
   const fill = height === 'fill';
   const [local, setLocal] = useState(false);
@@ -170,7 +198,7 @@ export function TrendChart({
   const h = fill ? Math.max(220, size.height) : height;
 
   const named = typeof format === 'string';
-  const fmt = named ? FORMATTERS[format] : (n: number | null) => (n === null ? '—' : format(n));
+  const fmt = useMemo(() => (typeof format === 'string' ? FORMATTERS[format] : (n: number | null) => (n === null ? '—' : format(n))), [format]);
   const axis = axisFormat ?? (named ? AXIS_FORMATTERS[format] : format);
   // Stacked, each band sits on the sum of the ones below it: a band's top is every band up to it added up a day at a
   // time, and its bottom is the same sum without it. The per-day total is the logic layer's figure, not the plot's.
@@ -182,10 +210,17 @@ export function TrendChart({
       upper: trendTotals(bands.slice(0, k + 1)),
     }));
   }, [stacked, series, dates]);
-  const totals = bases ? bases[bases.length - 1]?.upper ?? [] : null;
+  const totals = useMemo(() => (bases ? bases[bases.length - 1]?.upper ?? [] : null), [bases]);
+  // The days the stack was measured on, in runs: a day no part has a value for breaks every band there, as a missing day
+  // breaks a line, rather than dipping the whole stack to zero. Within a run a part with no value stands on the parts below.
+  const stackRuns = useMemo(() => {
+    const runs: number[][] = [[]];
+    totals?.forEach((t, i) => (t === null ? runs[runs.length - 1].length && runs.push([]) : runs[runs.length - 1].push(i)));
+    return runs.filter((r) => r.length > 0);
+  }, [totals]);
   // Stacked parts are one whole, so they share one hue, each by its place in the stack. A series given its own colour keeps it.
   const colorOf = (s: TrendSeries, k: number) => (stacked && !s.color ? stackPart(k, series.length) : SERIES_VAR(s.color ?? (s.kind === 'dashed' ? 'neutral' : 'accent')));
-  const values = totals ?? series.flatMap((s) => s.values.filter((v): v is number => v !== null));
+  const values = (totals ?? series.flatMap((s) => s.values)).filter((v): v is number => v !== null);
   // A floor is a hint and never a crop: it is held at or under the lowest value drawn, or a day that fell further than
   // the floor would be drawn below the plot's own axis. So the scale widens to the data and never hides it. Without a
   // floor the axis holds zero, and a value under zero, a net change or a net flow, takes the axis down with it (#80).
@@ -195,37 +230,73 @@ export function TrendChart({
   const max = Math.max(floor === undefined ? 0 : -Infinity, baseline?.value ?? -Infinity, band?.value ?? -Infinity, ...values);
   // The levels, and the floor the plot is drawn to: `ticks[0]` is 0 unless the chart was given a floor, and the two ends
   // of the scale are what every point, area, band and level line is measured against.
-  const ticks = ticksBetween(from, max, h < 200 ? 3 : 4, whole);
+  const count = h < 200 ? 3 : 4;
+  // A held scale ends at its domain, from zero for an area or a stack, while every value drawn is inside it; one outside
+  // it widens the scale to the nice levels that take it, and the chart says so, since the levels are no longer the held ones.
+  const held = domain && domain[1] > domain[0] ? domain : null;
+  const end = held ? (stacked || series.some((s) => s.kind === 'area') ? Math.min(held[0], 0) : held[0]) : 0;
+  const all = held ? [...values, baseline?.value ?? end, band?.value ?? end] : [];
+  const lo = Math.min(end, ...all), hi = Math.max(held?.[1] ?? 0, ...all);
+  const inside = held && lo >= end && hi <= held[1];
+  const ticks = inside
+    ? heldTicks(end, held[1], count).filter((t, i, a) => !whole || Number.isInteger(t) || !i || i === a.length - 1)
+    : held ? ticksBetween(lo, hi, count, whole) : ticksBetween(from, max, count, whole);
   const low = ticks[0];
   const top = ticks[ticks.length - 1];
+  const widened = held && !inside ? `Scale widened from ${fmt(end)}\u2013${fmt(held[1])} to ${fmt(low)}\u2013${fmt(top)}` : '';
+  // The words take a line of their own over the legend and the plot, or two on a phone card; unmeasured, one line.
+  const lift = widened ? (widenedSize.height ? widenedSize.height + 1 : 18) : 0;
   const left = Math.max(...ticks.map((t) => axis(t).length)) * 6.4 + 12;
   const showLegend = legend ?? series.length > 1;
-  const pad = { t: showLegend ? Math.max(34, legendSize.height + 16) : 14, r: 4, b: 26, l: left };
+  const pad = { t: (showLegend ? Math.max(34, legendSize.height + 16) : 14) + lift, r: 4, b: 26, l: left };
   const W = Math.max(0, width - pad.l - pad.r), H = h - pad.t - pad.b;
   const n = dates.length;
   // The point still running, if there is one: everything solid stops at the point before it.
   const soFar = running ? n - 1 : -1;
+  // The table follows the line a frame later when the dates change (`useSettled`).
+  const settled = useSettled(dates.join('\n'));
+  // Moving the cursor re-renders the chart, and no row of its table changes with it, so the rows are built once per data.
+  const caption = `${label}${band ? `. ${band.label}` : ''}${marks ? `. Marked: ${marks.label}` : ''}${baseline ? `. ${baseline.label}` : ''}${running ? `. ${SO_FAR}` : ''}${widened ? `. ${widened}` : ''}`;
+  const table = useMemo(
+    () => (settled ? <table className="sr-only">
+      <caption>{caption}</caption>
+      <thead><tr><th scope="col">Date</th>{series.map((s) => <th key={s.key} scope="col">{s.label}</th>)}{totals ? <th scope="col">Total</th> : null}</tr></thead>
+      <tbody>{dates.map((d, i) => <tr key={d}><th scope="row">{tick ? tick(d) : formatDate(d)}{i === soFar ? ', so far' : null}</th>{series.map((s) => <td key={s.key}>{fmt(s.values[i])}</td>)}{totals ? <td>{fmt(totals[i])}</td> : null}</tr>)}</tbody>
+    </table> : null),
+    [settled, caption, series, totals, dates, soFar, fmt, tick],
+  );
   const x = (i: number) => pad.l + (n <= 1 ? W / 2 : (i / (n - 1)) * W);
   const y = (v: number) => pad.t + H - ((v - low) / (top - low)) * H;
 
   const bands = useMemo(
     () =>
       bases?.map(({ lower, upper }, k) => {
-        const top = upper.map((v, i) => [x(i), y(v)] as [number, number]);
-        const bottom = lower.map((v, i) => [x(i), y(v)] as [number, number]).reverse();
-        // Running, the bands end at the last complete point. Only the total goes on, and only when some part was measured there.
-        const cut = running && n > 1 ? 1 : 0;
-        const line = monotonePath(top, 0, n - 1 - cut);
-        const tail = cut && k === series.length - 1 && series.some((p) => typeof p.values[n - 1] === 'number') ? monotonePath(top, n - 2) : '';
-        return { s: series[k], k, line, tail, area: `${line}${monotonePath(bottom, cut).replace(/^M/, 'L')}Z` };
+        // Each edge takes the curve's path; a lower edge is traced backward, so a step rises before it holds level.
+        const path = PATHS[curve], back = curve === 'step' ? rise : path;
+        let line = '', area = '', tail = '';
+        for (const run of stackRuns) {
+          const top = run.map((i) => [x(i), y(upper[i] ?? lower[i] ?? 0)] as [number, number]);
+          const bottom = run.map((i) => [x(i), y(lower[i] ?? 0)] as [number, number]).reverse();
+          // Running, the bands end at the last complete point. Only the total goes on, and only when some part was measured there.
+          const cut = running && run.length > 1 && run[run.length - 1] === n - 1 ? 1 : 0;
+          const edge = path(top, 0, top.length - 1 - cut);
+          line += edge;
+          area += `${edge}${back(bottom, cut).replace(/^M/, 'L')}Z`;
+          if (cut && k === series.length - 1) tail = path(top, top.length - 2);
+        }
+        return { s: series[k], k, line, tail, area };
       }) ?? [],
+    // The geometry the paths are drawn on is scalar, so it is listed rather than left out: a page whose dates grew with the
+    // same values array would otherwise keep paths drawn to the old spacing. `x` and `y` are the only pieces left, and
+    // they are these numbers put together.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [bases, width, h, top, running],
+    [bases, stackRuns, curve, width, h, top, running, n, pad.l, pad.t, W, H, low],
   );
 
   const paths = useMemo(
     () =>
       series.map((s) => {
+        const path = PATHS[curve];
         // A missing day breaks the line: each run of measured days is its own segment, never bridged.
         const runs: [number, number][][] = [[]];
         s.values.forEach((v, i) => (v === null ? runs[runs.length - 1].length && runs.push([]) : runs[runs.length - 1].push([x(i), y(v)])));
@@ -235,19 +306,19 @@ export function TrendChart({
         const last = segs[segs.length - 1];
         const open = running && s.kind !== 'dashed' && typeof s.values[n - 1] === 'number' && last.length > 1;
         const end = (r: [number, number][]) => r.length - (open && r === last ? 2 : 1);
-        const line = segs.map((r) => monotonePath(r, 0, end(r))).join('');
+        const line = segs.map((r) => path(r, 0, end(r))).join('');
         // An area is filled down to zero, which is the floor of the plot unless the axis goes under it: a signed area
         // is filled to its zero line from either side, never down to the lowest level.
         const base = y(Math.min(Math.max(0, low), top));
-        const area = segs.map((r) => `${monotonePath(r, 0, end(r))}L${r[end(r)][0]},${base}L${r[0][0]},${base}Z`).join('');
-        return { s, line, area, tail: open ? monotonePath(last, last.length - 2) : '' };
+        const area = segs.map((r) => `${path(r, 0, end(r))}L${r[end(r)][0]},${base}L${r[0][0]},${base}Z`).join('');
+        return { s, line, area, tail: open ? path(last, last.length - 2) : '' };
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [series, width, h, low, top, running],
+    [series, curve, width, h, low, top, running, n, pad.l, pad.t, W, H],
   );
 
   // What the plot draws, as the label placer needs it: every line, and the top of every band of a stack.
-  const drawn = bases ? bases.map(({ upper }) => ({ ys: upper.map(y), filled: true })) : series.map((s) => ({ ys: s.values.map((v) => (v === null ? null : y(v))), filled: s.kind === 'area' }));
+  const drawn = bases ? bases.map(({ upper }) => ({ ys: upper.map((v) => (v === null ? null : y(v))), filled: true })) : series.map((s) => ({ ys: s.values.map((v) => (v === null ? null : y(v))), filled: s.kind === 'area' }));
   // The reference levels, in the order their labels are placed: the band's top edge first, then what is usual. Both are
   // placed against everything the plot draws. They may stand in the 14px the chart keeps clear over its top gridline,
   // and never under the axis.
@@ -279,6 +350,9 @@ export function TrendChart({
   const active = selected !== null && Number.isInteger(selected) && selected >= 0 && selected < n ? selected : null;
   // On the pixel grid, so the 1px cursor line stays crisp while it glides.
   const cx = active !== null ? Math.round(x(active)) + 0.5 : 0;
+  const day = active === null ? '' : tick ? tick(dates[active]) : formatDate(dates[active]);
+  /** The day pointed at, in words, for a screen reader: the readout is drawn for the eye and hidden from it. */
+  const reading = active === null ? null : `${day}${active === soFar ? ', so far' : ''}${marks?.dates.includes(dates[active]) ? `, ${marks.label}` : ''}: ${series.map((s) => `${s.label} ${fmt(s.values[active])}`).join(', ')}${totals ? `, Total ${fmt(totals[active])}` : ''}`;
 
   return (
     <div ref={box} className={cn('relative w-full select-none', fill && 'min-h-55 flex-1', className)} style={fill ? undefined : { height }}>
@@ -395,6 +469,11 @@ export function TrendChart({
                 className={s.kind === 'dashed' ? 'fade-in' : 'draw'}
               />
               {tail ? <Running d={tail} stroke={SERIES_VAR(s.color ?? 'accent')} /> : null}
+              {/* A dot on each reading while the dots stand apart; a reference and a stack are read by their line, and a running
+                  point is still in progress, so nothing solid reaches it. */}
+              {points && s.kind !== 'dashed' && (n < 2 || W / (n - 1) >= 6)
+                ? s.values.map((v, i) => (v === null || (running && i === n - 1) ? null : <circle key={i} data-point cx={x(i)} cy={y(v)} r={3} fill={SERIES_VAR(s.color ?? 'accent')} stroke="var(--surface)" strokeWidth={2} className="fade-in" />))
+                : null}
             </g>
           ))}
           {marks && series[0] ? (
@@ -432,8 +511,9 @@ export function TrendChart({
           ) : null}
         </svg>
       ) : null}
+      {widened ? <p ref={widenedBox} data-widened className="absolute top-0 right-0 text-2xs text-ink-3" style={{ left: pad.l }}>{widened}</p> : null}
       {showLegend ? (
-        <ul ref={legendBox} aria-hidden className="absolute top-0 right-0 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-2" style={{ left: pad.l }}>
+        <ul ref={legendBox} aria-hidden className="absolute right-0 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-2" style={{ left: pad.l, top: lift }}>
           {series.map((s, k) => (
             <li key={s.key} className="flex items-center gap-1.5">
               <svg width="14" height="4" className="shrink-0 overflow-visible">
@@ -451,7 +531,10 @@ export function TrendChart({
       ) : null}
       {active !== null && width > 0 ? (
         <Readout at={cx} after={cx <= width / 2} top={pad.t - 4} visible={local || previewIndex !== undefined}>
-          <p className="t-eyebrow mb-1.5 break-words">{tick ? tick(dates[active]) : formatDate(dates[active])}{active === soFar ? ' · so far' : null}</p>
+          {/* A marked day says what it is marked for where every other reading of the day is (#94): the dot and its stem
+              are a shape, the group they stand in takes no pointer, and the table's caption is read by a screen reader and
+              not by the person pointing at the chart. */}
+          <p className="t-eyebrow mb-1.5 break-words">{day}{active === soFar ? ' · so far' : null}{marks?.dates.includes(dates[active]) ? ` · ${marks.label}` : null}</p>
           {/* Stacked, the readout lists the bands top to bottom, as they sit on the chart, then the total. */}
           {(stacked ? series.map((s, k) => ({ s, k })).reverse() : series.map((s, k) => ({ s, k }))).map(({ s, k }) => (
             <p key={s.key} className="flex flex-wrap items-start gap-x-2 text-xs leading-6">
@@ -468,16 +551,15 @@ export function TrendChart({
           ) : null}
         </Readout>
       ) : null}
-      <table className="sr-only">
-        <caption>{label}{band ? `. ${band.label}` : ''}{marks ? `. Marked: ${marks.label}` : ''}{baseline ? `. ${baseline.label}` : ''}{running ? `. ${SO_FAR}` : ''}</caption>
-        <thead><tr><th>Date</th>{series.map((s) => <th key={s.key}>{s.label}</th>)}{totals ? <th>Total</th> : null}</tr></thead>
-        <tbody>{dates.map((d, i) => <tr key={d}><td>{d}{i === soFar ? ', so far' : null}</td>{series.map((s) => <td key={s.key}>{fmt(s.values[i])}</td>)}{totals ? <td>{fmt(totals[i])}</td> : null}</tr>)}</tbody>
-      </table>
+      <p className="sr-only" aria-live="polite">{reading}</p>
+      {table}
     </div>
   );
 }
 
 /** The stretch into a point still running: the line's own colour, thinner and dashed, and it fades in as a reference does. */
 function Running({ d, stroke }: { d: string; stroke: string }) {
-  return <path data-running d={d} fill="none" stroke={stroke} strokeWidth={1.5} strokeDasharray="3 4" strokeLinecap="round" className="fade-in" />;
+  // The stretch is the chart's own mark and its meaning is not in its shape: the words are `SO_FAR`'s, which the caption
+  // says too. A page that passes `running` says them above the chart; the pointer says them here (issue #94).
+  return <path data-running d={d} fill="none" stroke={stroke} strokeWidth={1.5} strokeDasharray="3 4" strokeLinecap="round" className="fade-in"><title>{SO_FAR}</title></path>;
 }

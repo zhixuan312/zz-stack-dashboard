@@ -86,7 +86,7 @@ function SelectItem({ value, label, description, disabled }: SelectOption) {
       disabled={disabled}
       className={cn(
         'group/item relative flex cursor-default flex-col justify-center rounded-sm py-1.5 pr-8 pl-2 text-sm text-ink outline-none select-none',
-        'min-h-8 data-highlighted:bg-fill-hover data-disabled:text-ink-disabled',
+        'min-h-8 pointer-coarse:min-h-11 data-highlighted:bg-fill-hover data-disabled:text-ink-disabled',
       )}
     >
       <S.ItemText>{label}</S.ItemText>

@@ -33,8 +33,10 @@ export function TabList({ className, children, ...rest }: ComponentProps<typeof 
     measure();
     const mo = new MutationObserver(() => { measure(); reveal(); });
     mo.observe(el, { subtree: true, attributes: true, attributeFilter: ['data-state'] });
+    // The list and each tab: a count arriving on the active tab widens it without resizing the strip, which scrolls.
     const ro = new ResizeObserver(measure);
     ro.observe(el);
+    el.querySelectorAll('[role="tab"]').forEach((t) => ro.observe(t));
     return () => { mo.disconnect(); ro.disconnect(); };
   }, []);
   return (

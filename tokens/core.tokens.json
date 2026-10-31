@@ -209,19 +209,6 @@
           "css": "-0.022em"
         }
       }
-    },
-    "tracking-caps": {
-      "$type": "dimension",
-      "$value": {
-        "value": 0.12,
-        "unit": "em"
-      },
-      "$description": "Mono kickers and table heads in caps.",
-      "$extensions": {
-        "dev.zz.meridian": {
-          "css": "0.12em"
-        }
-      }
     }
   },
   "space": {

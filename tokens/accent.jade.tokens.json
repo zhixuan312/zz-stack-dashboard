@@ -17,7 +17,6 @@
   "$extensions": {
     "dev.zz.meridian": {
       "overrides": {
-        "light": {},
         "dark": {
           "accent-l": 0.52
         }

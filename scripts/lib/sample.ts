@@ -3,6 +3,10 @@
  * these pages beyond what every product shares; a product that removed one has no such flow to walk, and its steps are
  * not applicable rather than not run. Decided from files, never from what a page renders, so a sample page that broke
  * still fails its checks, and Meridian's own repository, which has every surface, always walks all of them.
+ *
+ * A file is the sample's while it still holds what the walk reads: the roster's people, the invitation's copy, the page's
+ * title, the switch's label. A product's first edit is usually its own people and its own words on a page it kept, and a
+ * walk that waits for rows and labels no longer drawn fails as though the product were broken.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -22,15 +26,16 @@ function files(root: string, appDir: string) {
 
 export function sampleSurfaces(root: string, appDir: string): SampleSurfaces {
   const { has, page } = files(root, appDir);
-  const holds = (p: string, text: string) => has(p) && fs.readFileSync(path.join(root, p), 'utf8').includes(text);
+  const holds = (p: string, ...texts: string[]) => has(p) && texts.every((t) => fs.readFileSync(path.join(root, p), 'utf8').includes(t));
   return {
     // The guide's summary preset keeps these file names for a product's own Home, so the sample's is told by the year's
     // card the walk-through reads, which a product's own Home does not draw.
     home: page('(home)') && has('src/logic/home-context.ts') && holds('src/views/home.tsx', 'A year, counted'),
     now: page('engineering') && has('src/views/now.tsx'),
-    members: page('members') && has('src/views/members.tsx'),
-    keys: page('keys'),
-    settings: has('src/views/settings.tsx'),
+    members: page('members') && holds('src/views/members.tsx', 'Invite member', 'Ana Costa')
+      && holds('src/system/fixtures/sample-members.ts', 'Maya Chen', 'Alice Moreno', 'Ravi Patel'),
+    keys: page('keys') && holds('src/logic/keys-context.ts', "title: 'API keys',"),
+    settings: holds('src/views/settings.tsx', 'Show the assistant'),
   };
 }
 

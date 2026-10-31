@@ -6,6 +6,7 @@ import { useLeave } from '../../base/shell/index';
 import { useMemo, useState, type MouseEvent, type ReactNode } from 'react';
 import { RotateCw } from 'lucide-react';
 import { cn } from '../../../lib/cn';
+import { compareValues } from '../../../lib/sort';
 import { Button } from '../../ui/button/index';
 import { CardHeader } from '../../ui/card/index';
 import { Checkbox } from '../../ui/checkbox/index';
@@ -153,7 +154,7 @@ export function sortRows<R>(rows: R[], columns: Column<R>[], sort: string, dir: 
     // A row with no value — a member who has never signed in, a release with no failure — has no place in the order,
     // and the two comparisons below are not the inverse of each other when one side is absent, so the sort's result
     // depended on the array's length and shape. It is said outright instead: those rows go last, and keep their order.
-    .sort((a, b) => (none(a.k) || none(b.k) ? (none(a.k) && none(b.k) ? a.i - b.i : none(a.k) ? 1 : -1) : a.k === b.k ? a.i - b.i : a.k > b.k ? sign : -sign))
+    .sort((a, b) => (none(a.k) || none(b.k) ? (none(a.k) && none(b.k) ? a.i - b.i : none(a.k) ? 1 : -1) : sign * compareValues(a.k, b.k) || a.i - b.i))
     .map((x) => x.r);
 }
 
@@ -214,9 +215,11 @@ export function DataTable<R>({
    * given, and the head claims no order — which is right only for a list that has no order of its own.
    */
   defaultState?: Partial<TableState>;
+  /** Rows per page; with `manual`, the server's page size. */
   pageSize?: number;
+  /** The rows-per-page menu's choices; a server-paged table offers none, since the server would never hear of it. */
   pageSizes?: number[];
-  /** Rows arrive already sorted and paged by the server; pass `total`. */
+  /** Rows arrive already sorted and paged by the server; pass `total` and `pageSize`. */
   manual?: boolean;
   total?: number;
   loading?: boolean;
@@ -308,7 +311,7 @@ export function DataTable<R>({
           <tr role="row">
             {selectable ? (
               <th scope="col" role="columnheader" data-check className="w-10 !pr-0">
-                <Checkbox aria-label={`Select every ${noun.replace(/s$/, '')} on this page`} checked={allOn ? true : someOn ? 'indeterminate' : false} onCheckedChange={toggleAll} />
+                <Checkbox aria-label={`Select all ${noun} on this page`} checked={allOn ? true : someOn ? 'indeterminate' : false} onCheckedChange={toggleAll} />
               </th>
             ) : null}
             {columns.map((c) => (
@@ -385,7 +388,7 @@ export function DataTable<R>({
       {title ? <CardHeader title={title} description={description} actions={actions} divided={!toolbar} /> : null}
       {toolbar ? <div className="px-(--card-pad) py-3.5 md:border-b md:border-line">{toolbar}</div> : null}
       {body}
-      {!error && total > Math.min(size, ...pageSizes) ? (
+      {!error && total > (manual ? size : Math.min(size, ...pageSizes)) ? (
         <div className="border-t border-line px-(--card-pad) py-2.5">
           <Pagination
             page={page}
@@ -393,8 +396,8 @@ export function DataTable<R>({
             total={total}
             noun={noun}
             onPageChange={(p) => set({ page: String(p) })}
-            pageSizes={pageSizes}
-            onPageSizeChange={(s) => { setSize(s); set({ page: '1' }); }}
+            pageSizes={manual ? undefined : pageSizes}
+            onPageSizeChange={manual ? undefined : (s) => { setSize(s); set({ page: '1' }); }}
           />
         </div>
       ) : null}

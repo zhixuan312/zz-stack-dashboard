@@ -56,6 +56,8 @@ export function createLiveClient({ refresh, endpoint = '/api/live', pollMs = 300
   let disposed = false;
   let paused = false;
   let polling = false;
+  /** The last refresh failed for a reason other than access: the server did not answer. */
+  let unreachable = false;
   let state: LiveState | null = null;
   /** Bumped whenever results in flight must stop counting: the page hid, or the client ended. */
   let epoch = 0;
@@ -122,9 +124,18 @@ export function createLiveClient({ refresh, endpoint = '/api/live', pollMs = 300
         if (full) synced = true;
         if (synced && opened) emit('live');
         else if (polling) emit('polling');
+        // A server that answers again after it did not (a restart, a deploy) is tried for its stream at once, not on the
+        // fifth poll: until then its hints are lost and every change waits for a poll. A refresh that never failed does
+        // not count, so a stream a proxy blocks is still tried only on every fifth poll.
+        if (unreachable && polling) {
+          attempts = MAX_ATTEMPTS - 1;
+          connect();
+        }
+        unreachable = false;
       }
     } catch (e) {
       if (mine === epoch && !disposed) {
+        if (!isAuthError(e)) unreachable = true;
         if (isAuthError(e)) {
           paused = true;
           closeSource();

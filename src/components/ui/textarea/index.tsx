@@ -10,7 +10,7 @@ export type TextareaProps = TextareaHTMLAttributes<HTMLTextAreaElement> & {
 
 /** Several lines of text: a note, a description, a webhook payload. It grows with its content up to a limit. */
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function Textarea(
-  { invalid, rows = 3, maxRows = 10, className, style, ...rest },
+  { invalid, rows = 3, maxRows = 10, className, style, 'aria-invalid': ariaInvalid, ...rest },
   ref,
 ) {
   return (
@@ -18,7 +18,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function 
       <textarea
         ref={ref}
         rows={rows}
-        aria-invalid={invalid || rest['aria-invalid'] || undefined}
+        aria-invalid={invalid || ariaInvalid || undefined}
         className={cn(
           'w-full min-w-0 resize-y bg-transparent px-3 py-2 text-sm leading-normal outline-none [field-sizing:content] placeholder:text-ink-3 focus-visible:outline-none disabled:cursor-not-allowed',
           className,

@@ -186,7 +186,7 @@ const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200
 
 let gateway: ChildProcess | null = null;
 let base = '';
-const saved = { fetch: globalThis.fetch, env: { ...process.env } };
+const saved = { fetch: globalThis.fetch };
 
 /** The fake's answer, with the plain member's membership written over `/me` and Access when `plain` is on. */
 async function answered(url: string, init: RequestInit | undefined, real: typeof fetch): Promise<Response> {
@@ -201,8 +201,6 @@ beforeAll(async () => {
   const started = await startFakeGateway();
   gateway = started.proc;
   base = started.base;
-  process.env.ZZ_GATEWAY = base;
-  delete process.env.ZZ_DEV_PAT;
   const real = saved.fetch;
   // The server's reads carry the person's cookie themselves (`src/data/gateway.ts`); the browser's are relative, and
   // carry it here as the browser would. Anything else a page asks for (the live channel) is absent.
@@ -220,10 +218,12 @@ beforeAll(async () => {
 afterAll(() => {
   gateway?.kill();
   globalThis.fetch = saved.fetch;
-  process.env = saved.env;
 });
 
+// Set before each test: tests/setup.ts puts the environment back as it found it before every test.
 beforeEach(() => {
+  process.env.ZZ_GATEWAY = base;
+  delete process.env.ZZ_DEV_PAT;
   plain = false;
   own = false;
   jar.zz_console = 'member';

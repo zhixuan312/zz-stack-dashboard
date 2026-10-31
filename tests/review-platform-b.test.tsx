@@ -263,7 +263,7 @@ describe('Usage: the team split in categorical slots (F-21)', () => {
     const parts = [...container.querySelectorAll<HTMLElement>('[data-part]')].filter((p) => p.closest('[aria-label="Real-work calls by week, by team"]'));
     expect(parts.length).toBeGreaterThan(0);
     const colours = new Map<string, Set<string>>();
-    for (const p of parts) colours.set(p.dataset.part!, (colours.get(p.dataset.part!) ?? new Set()).add(p.style.background));
+    for (const p of parts) colours.set(p.dataset.part!, (colours.get(p.dataset.part!) ?? new Set()).add(p.style.backgroundColor));
     const teams = [...colours.keys()].filter((k) => k !== 'Other');
     expect(teams.length).toBeGreaterThan(1);
     for (const t of teams) {

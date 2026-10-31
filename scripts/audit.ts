@@ -2,22 +2,25 @@
  * The browser audit: every page and embed view, at every width, in both themes, measured.
  *
  *   node scripts/audit.ts [--base http://localhost:3100] [--routes /,/requests] [--embeds-only] [--atlas] [--list]
+ *                         [--as <persona>] [--missing /a,/b]
  *
  * Routes are discovered from app/ (every static page; embeds under /embed), with the detail pages in
- * scripts/verify.config.ts beside them; --routes replaces the pages for one run.
+ * scripts/verify.config.ts beside them. --routes replaces both for one run: a route under /embed in it is measured as an
+ * embed, on its host's ground, and only the embeds it names run. `--list` marks an embed `(embed)`.
  *
  * --atlas audits the Design Atlas instead: every card's page and its bare preview, and every other entry the Atlas
- * serves — the token views, the page specs and the guides — at 1440 and 390px in both themes.
+ * serves — the token views, the page specs and the guides — at 1440, 390 and 320px in both themes.
  * A card's preview is the one place it is drawn alone, so a defect in its own box shows there and nowhere else. It is
  * not part of `pnpm verify` (the default stays fast); run it when the question is the component surface. It takes
- * about twenty minutes, and a project without the Atlas has nothing for it to read. `--list` prints the routes a run would
+ * about thirty-five minutes, and a project without the Atlas has nothing for it to read. `--list` prints the routes a run would
  * visit, and for `--atlas` what they are by kind, and exits without opening a browser: what a run covers, before it runs.
  *
  * The walk enters open shadow roots and follows slots (scripts/lib/deep.ts, injected into every page), so a custom element's
  * own content is measured like any other. A defined custom element that shows a box but exposes no open root and no
  * light-DOM content, and one that is still undefined after the settle wait, are reported as `unmeasured:` instead of passed.
  *
- * Fails (exit 1) on: a route that served another page or dropped a parameter it was asked for, a page whose content
+ * Fails (exit 1) on: a route not declared missing (`missingRoutes`, scripts/lib/answered.ts) that answered an error status
+ * or drew the not-found screen, a declared missing route that neither answered 404 nor drew it, a route that served another page or dropped a parameter it was asked for, a page whose content
  * region rendered nothing or that threw or logged a failure while it rendered, sideways scroll (a strip that scrolls at a
  * phone width included), text clipped without an ellipsis, text drawn past a box that does not clip it, text cut with an
  * ellipsis that keeps the whole of it nowhere, two pieces of text in the same place or a line
@@ -29,22 +32,22 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import { answerProblem, DRAWS_NOT_FOUND, missingRoutes } from './lib/answered.ts';
 import { atlasCoverage, atlasEntries } from './lib/atlas.ts';
 import { launch } from './lib/chrome.ts';
 import { DEEP_SOURCE } from './lib/deep.ts';
 import { discover } from './lib/routes.ts';
 import { settle } from './lib/settle.ts';
-import config from './verify.config.ts';
+import { detailRoutes, personaCookie } from './lib/team-config.ts';
+import { holdArgs } from './lib/args.ts';
 
 const args = process.argv.slice(2);
+holdArgs('audit', args, ['--as', '--atlas', '--base', '--embeds-only', '--list', '--missing', '--routes']);
 const opt = (k: string, d: string) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
 const base = opt('--base', process.env.BASE ?? 'http://localhost:3100');
 // `--as` signs every open in as one persona (scripts/verify.config.ts), through the cookie scripts/lib/chrome.ts sets
 // before the first request. Without it nothing changes: no cookie is passed and the suite runs exactly as before.
-const personas = (config as { personas?: Record<string, { cookie: { name: string; value: string } }> }).personas ?? {};
-const as = opt('--as', '');
-const cookie = as ? personas[as]?.cookie : undefined;
-if (as && !cookie) { console.error(`audit: --as ${as} is not a declared persona. Declared personas: ${Object.keys(personas).join(', ')}.`); process.exit(1); }
+const cookie = personaCookie('audit', opt('--as', ''));
 const EMBEDS_ONLY = args.includes('--embeds-only');
 const ATLAS = args.includes('--atlas');
 
@@ -69,14 +72,22 @@ async function atlasRoutes(): Promise<string[]> {
 }
 
 const found = discover();
-// verify.config.ts is the team's, so read the one field this needs through its own type.
-const detailRoutes = (config as { detailRoutes?: string[] }).detailRoutes ?? [];
-const ROUTES = EMBEDS_ONLY ? [] : ATLAS ? await atlasRoutes() : (opt('--routes', '') ? opt('--routes', '').split(',') : [...found.filter((r) => !r.startsWith('/embed')), ...detailRoutes]);
-const EMBEDS = ATLAS ? [] : found.filter((r) => r.startsWith('/embed/'));
-const WIDTHS = ATLAS ? [1440, 390] : [2560, 1440, 1024, 768, 390];
+const MISSING = missingRoutes(args);
+const asked = opt('--routes', '') ? [...new Set(opt('--routes', '').split(','))] : null;
+const isEmbed = (r: string) => r.startsWith('/embed/');
+// An embed named in --routes was measured as a page, on no host's ground, and every other embed ran beside it.
+const ROUTES = EMBEDS_ONLY ? [] : ATLAS ? await atlasRoutes() : asked ? asked.filter((r) => !isEmbed(r)) : [...new Set([...found.filter((r) => !r.startsWith('/embed')), ...detailRoutes, ...MISSING])];
+const EMBEDS = ATLAS ? [] : asked ? asked.filter(isEmbed) : found.filter(isEmbed);
+// 320 is the narrowest width WCAG's reflow (1.4.10) asks content to hold: a small phone, or 1280px at 400% zoom. Below
+// the sample's 390 only it cut a line under a title that did not hold it (2026-10-27).
+// The Atlas adds 320 to the two widths it began with: a run at all six found 22 of a card's 24 defects there, and none at
+// 1440 or 390 (2026-10-30).
+const WIDTHS = ATLAS ? [1440, 390, 320] : [2560, 1440, 1024, 768, 390, 320];
+/** An embed is drawn in a host's frame, at a desktop and a narrow host's column. */
+const EMBED_WIDTHS = [720, 420];
 const THEMES = ['dark', 'light'];
 if (args.includes('--list')) {
-  console.log([...ROUTES, ...EMBEDS].join('\n'));
+  console.log([...ROUTES, ...EMBEDS.map((r) => `${r} (embed)`)].join('\n'));
   if (atlasLine) console.log(atlasLine);
   process.exit(0);
 }
@@ -90,10 +101,10 @@ type Report = {
 
 /** Runs inside the page. Plain JavaScript: it is serialised into the browser. */
 const MEASURE = `(() => {
-  const W = innerWidth, out = { path: location.pathname, href: location.href, text: 0, sideways: [], clipped: [], spills: [], truncated: [], overlap: [], unnamed: [], unmeasured: [], scrollers: [], contrast: [], targets: [], headings: [], sizes: [], weights: [], radii: [], ratio: 0 };
+  // The layout viewport, never innerWidth: a phone's visual viewport widens to content that overflows it, so a page
+  // 600px wide at 390 measured 616 there and its sideways scroll, the strip rule and every clip were judged at 616.
+  const W = document.documentElement.clientWidth, out = { path: location.pathname, href: location.href, text: 0, sideways: [], clipped: [], spills: [], truncated: [], overlap: [], unnamed: [], unmeasured: [], scrollers: [], contrast: [], targets: [], headings: [], sizes: [], weights: [], radii: [], ratio: 0 };
   const label = (el) => (el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + (el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\\s+/).slice(0, 3).join('.') : '')).slice(0, 90);
-  /* closest() across open roots and slots: deepParent (injected from scripts/lib/deep.ts) steps through both */
-  const deepClosest = (el, sel) => { for (let n = el; n; n = deepParent(n)) if (n.matches(sel)) return n; return null; };
   const visible = (el) => { const r = el.getBoundingClientRect(); const c = getComputedStyle(el); /* visually hidden (sr-only, also under a variant) is for screen readers, not the eye */ return r.width > 0 && r.height > 0 && c.visibility !== 'hidden' && c.display !== 'none' && parseFloat(c.opacity) > 0.05 && !deepClosest(el, '.sr-only,[aria-hidden="true"]') && !(c.position === 'absolute' && r.width <= 1 && r.height <= 1); };
   const sr = document.scrollingElement;
   if (sr.scrollWidth > W + 1) out.sideways.push('document ' + sr.scrollWidth + 'px wide at ' + W);
@@ -157,7 +168,6 @@ const MEASURE = `(() => {
   // the cut span in the wrapper in the cell is seven levels, so the cell's title is still found, with one to spare.
   const titled = (el) => { for (let n = el, i = 0; n && i < 8; n = deepParent(n), i++) if (keeps(el, n.getAttribute('title'))) return true; return [...el.querySelectorAll('[title]')].some((n) => keeps(el, n.getAttribute('title'))); };
   const inked = [];
-  const ringSig = (c) => [c.outlineStyle, c.outlineWidth, c.outlineColor, c.boxShadow, c.borderTopStyle, c.borderTopWidth, c.borderTopColor, c.borderBottomColor, c.borderLeftColor, c.borderRightColor].join('|');
   const texts = [];
   for (const el of all) {
     const c = getComputedStyle(el);
@@ -309,7 +319,7 @@ const MEASURE = `(() => {
   levels.forEach((l, i) => { if (i && l > levels[i - 1] + 1) out.headings.push('h' + levels[i - 1] + ' then h' + l); });
   out.focusless = [];
   // What each element looks like unfocused, so the focus check can tell a ring from a decoration that is always there.
-  window.__ringBefore = new WeakMap(); for (const n of all) window.__ringBefore.set(n, ringSig(getComputedStyle(n)));
+  window.__ringBefore = new WeakMap(); for (const n of all) window.__ringBefore.set(n, ringSignature(getComputedStyle(n)));
   const sorted = texts.sort((a, b) => a - b);
   out.ratio = sorted.length ? +(sorted[sorted.length - 1] / sorted[Math.floor(sorted.length / 2)]).toFixed(1) : 0;
   out.sizes = [...new Set(out.sizes)].sort((a, b) => a - b); out.weights = [...new Set(out.weights)].sort(); out.radii = [...new Set(out.radii)].sort((a, b) => a - b);
@@ -329,7 +339,7 @@ const ALLOWED_SCROLLERS = /data-scroll-region|^nav|^aside|^pre|^textarea|overflo
 const page = await launch();
 let failures = 0;
 const metrics: string[] = [];
-const run = async (route: string, width: number, theme: string, embed: boolean) => {
+const measure = async (route: string, width: number, theme: string, embed: boolean) => {
   await page.open(base + route, { width, height: width < 600 ? 844 : 900, theme: theme as 'dark' | 'light', wait: 1500, cookie });
   // An embed is a guest with a transparent ground: paint the host's ground behind it, as a host does.
   if (embed) await page.eval(`(() => { const d = document.documentElement; d.setAttribute('data-theme','${theme}'); window.__hostGround = '${theme}' === 'dark' ? '#1C1C20' : '#FFFFFF'; return true; })()`);
@@ -358,29 +368,18 @@ const run = async (route: string, width: number, theme: string, embed: boolean) 
     await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9 });
     const miss = await page.eval<string | null>(`(() => {
       const el = deepActive(); if (!el || el === document.body) return null;
-      // A ring is a change on focus: an outline, a coloured shadow or a border that was not there unfocused. The element
-      // itself, its frame and the frame's frame count; inside a shadow root every composed ancestor up to the outermost
-      // host does, since the host is where :host(:focus-within) draws.
-      const sig = (c) => [c.outlineStyle, c.outlineWidth, c.outlineColor, c.boxShadow, c.borderTopStyle, c.borderTopWidth, c.borderTopColor, c.borderBottomColor, c.borderLeftColor, c.borderRightColor].join('|');
-      const ringed = (n) => {
-        const c = getComputedStyle(n), before = window.__ringBefore && window.__ringBefore.get(n);
-        const outline = c.outlineStyle !== 'none' && parseFloat(c.outlineWidth) > 0, shadow = /rgb|oklch|oklab|color/.test(c.boxShadow) && c.boxShadow !== 'none';
-        if (!before) return outline || shadow;
-        const b = before.split('|'), now = sig(c).split('|');
-        const outlineMoved = now.slice(0, 3).join('|') !== b.slice(0, 3).join('|'), shadowMoved = now[3] !== b[3], borderMoved = now.slice(4).join('|') !== b.slice(4).join('|') && c.borderTopStyle !== 'none';
-        return (outline && outlineMoved) || (shadow && shadowMoved) || borderMoved;
-      };
-      const chain = [el];
-      if (el.getRootNode() instanceof ShadowRoot) { for (let n = deepParent(el); n; n = deepParent(n)) { chain.push(n); if (!(n.getRootNode() instanceof ShadowRoot)) break; } }
-      else { const p = deepParent(el); if (p) chain.push(p); const g = p && deepParent(p); if (g) chain.push(g); }
-      if (chain.some(ringed)) return null;
+      // A ring is a change on focus, wherever on the element's frames it may be drawn (scripts/lib/deep.ts).
+      if (ringChain(el).some((n) => ringed(n, window.__ringBefore && window.__ringBefore.get(n)))) return null;
       return el.tagName.toLowerCase() + '.' + String(el.className).split(' ').slice(0, 3).join('.');
     })()`);
     if (miss) r.focusless.push(miss);
   }
   r.focusless = [...new Set(r.focusless)].slice(0, 6);
   const scrollers = r.scrollers.filter((s) => !ALLOWED_SCROLLERS.test(s));
+  const answer = answerProblem(route, page.status(), await page.eval<boolean>(DRAWS_NOT_FOUND), MISSING);
   const issues = [
+    // A route that answered an error is measured as its error page: a not-found screen passes every rule below.
+    ...(answer ? [answer] : []),
     // First, because it is the one that fails in the direction of looking clean: a route that never rendered passes
     // everything below, and the run would end with the standard's line over a page nobody measured.
     //
@@ -414,9 +413,33 @@ const run = async (route: string, width: number, theme: string, embed: boolean) 
   if (issues.length) { failures += issues.length; console.log(`FAIL ${tag}\n  ${issues.join('\n  ')}`); }
   if (width === 1440 && theme === THEMES[0]) metrics.push(`${route.padEnd(34)} sizes ${String(r.sizes.length).padStart(2)} [${r.sizes.join(' ')}] · weights ${r.weights.join('/')} · radii ${r.radii.length} [${r.radii.join(' ')}] · hierarchy ${r.ratio}×`);
 };
+
+/** One route that could not be measured. A page that hangs is an issue of its own, never the end of the run. */
+const unmeasuredRoutes: string[] = [];
+const run = async (route: string, width: number, theme: string, embed: boolean) => {
+  try {
+    await measure(route, width, theme, embed);
+  } catch (e) {
+    // A protocol command that times out (30 s: `scripts/lib/chrome.ts`) used to end the whole audit, so one slow page in a
+    // machine under load destroyed the evidence for the other 183 routes and the run reported nothing about any of them.
+    // The route is a failure — it is named, it counts, the exit code is red — and the walk goes on to the next one.
+    const message = (e as Error).message.replace(/\s+/g, ' ').trim();
+    failures += 1;
+    unmeasuredRoutes.push(`${route} @${width} ${theme}: ${message}`);
+    console.log(`FAIL ${route} @${width} ${theme}\n  could not be measured: ${message}`);
+    await page.open('about:blank', { width, height: 900, theme: theme as 'dark' | 'light', wait: 0 }).catch(() => {});
+  }
+};
 for (const route of ROUTES) for (const w of WIDTHS) for (const t of THEMES) await run(route, w, t, false);
-for (const route of EMBEDS) for (const w of [720, 420]) for (const t of THEMES) await run(route, w, t, true);
+for (const route of EMBEDS) for (const w of EMBED_WIDTHS) for (const t of THEMES) await run(route, w, t, true);
 page.close();
 console.log('\nDesign metrics at 1440:\n' + metrics.join('\n'));
-console.log(`\naudit: ${failures} issues across ${ROUTES.length + EMBEDS.length} routes, at ${WIDTHS.join(', ')}px in ${THEMES.join(' and ')}`);
+const across = [
+  ...(ROUTES.length || !EMBEDS.length ? [`${ROUTES.length} page${ROUTES.length === 1 ? '' : 's'} at ${WIDTHS.join(', ')}px`] : []),
+  ...(EMBEDS.length ? [`${EMBEDS.length} embed${EMBEDS.length === 1 ? '' : 's'} at ${EMBED_WIDTHS.join(', ')}px`] : []),
+];
+console.log(`\naudit: ${failures} issues across ${across.join(' and ')}, in ${THEMES.join(' and ')}`);
+// Said in the last line as well as in its own FAIL: a count of issues over a run that could not reach every route is
+// not the same evidence as one over a run that did, and the number alone reads as if it were.
+if (unmeasuredRoutes.length) console.log(`audit: ${unmeasuredRoutes.length} of those routes could not be measured at all, and are counted one each:\n  ${unmeasuredRoutes.join('\n  ')}`);
 process.exit(failures ? 1 : 0);

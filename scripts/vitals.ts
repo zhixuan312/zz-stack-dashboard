@@ -1,12 +1,14 @@
 /**
  * Core Web Vitals on a mid-range phone, per page: LCP, CLS and INP, and the frames dropped while a person used it.
  *
- *   node scripts/vitals.ts [--base http://localhost:3100] [--routes /,/requests] [--atlas] [--list]
+ *   node scripts/vitals.ts [--base http://localhost:3100] [--routes /,/requests] [--atlas] [--list] [--missing /a,/b]
+ *                          [--rate <n>]
  *
  * The phone is Lighthouse's mobile profile: the device of benchmark index 800, the CPU slowed by the host's own index
  * over 800 (scripts/lib/phone.ts), Slow 4G (150 ms round trip, 1.6 Mbps down, 750 kbps up), a 390px touch screen,
  * motion not reduced. LCP and CLS come from PerformanceObservers installed before the page loads (CLS as web-vitals
- * defines it: the largest session window of shifts no input caused). INP is the slowest of real taps on controls that
+ * defines it: the largest session window of shifts no input caused, each within 1 s of the last and the window within
+ * 5 s — scripts/lib/cls.ts). INP is the slowest of real taps on controls that
  * change the screen (a period, the alerts, the workspace menu, the drawer), from Event Timing, counting only the tap's
  * own pointer, touch and click events: the Escape that closes what a tap opened is not a person's interaction, and a
  * headless browser can hold a no-op key event open until something else paints. A dropped frame is a gap over 50 ms
@@ -25,26 +27,33 @@
  * floor, and nothing had been looking. `--list` prints the routes a run would visit and exits without a browser.
  *
  * Run it against a production build (`next start`), never `next dev`. Fails (exit 1) when a page's LCP is 2.5 s or more,
- * INP 200 ms or more, CLS 0.1 or more, or drops a frame. The frames are a floor and not a figure to read: a person
+ * INP 200 ms or more, CLS 0.1 or more, or drops a frame. A page that meets a floor by less than a fifth of it (LCP over
+ * 2 s, a frame over 40 ms) is a `warn` line and exits 0: a pass by a hair here is a red on a slower machine. The frames are a floor and not a figure to read: a person
  * tapping the phone drawer is the app's most repeated gesture, and one 50 ms frame in it is the whole cost of the
  * drawer arriving late. It was reported and not failed until the rail stopped measuring itself inside that tap.
  */
+import { answerProblem, DRAWS_NOT_FOUND, missingRoutes } from './lib/answered.ts';
 import { atlasCoverage, atlasEntries } from './lib/atlas.ts';
 import { launch } from './lib/chrome.ts';
+import { CLS_SESSION } from './lib/cls.ts';
 import { DEEP_SOURCE } from './lib/deep.ts';
 import { frameCause, loafOf, type LoafEntry } from './lib/frame-cause.ts';
 import { measurePhone } from './lib/phone.ts';
+import { thin } from './lib/timing.ts';
 import { discover } from './lib/routes.ts';
 import config from './verify.config.ts';
+import { holdArgs } from './lib/args.ts';
 
 const args = process.argv.slice(2);
+holdArgs('vitals', args, ['--atlas', '--base', '--list', '--missing', '--rate', '--routes']);
 const opt = (k: string, d: string) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
 const base = opt('--base', process.env.BASE ?? 'http://localhost:3100');
 // verify.config.ts is the team's, so read the one field this needs through its own type.
 const detailRoutes = (config as { detailRoutes?: string[] }).detailRoutes ?? [];
 const ATLAS = args.includes('--atlas');
 const entries = ATLAS ? await atlasEntries().catch((e: Error) => { console.error(`vitals --atlas: ${e.message}`); process.exit(1); }) : [];
-const ROUTES = ATLAS ? entries.map((e) => e.href) : opt('--routes', '') ? opt('--routes', '').split(',') : [...discover(), ...detailRoutes];
+const MISSING = missingRoutes(args);
+const ROUTES = ATLAS ? entries.map((e) => e.href) : opt('--routes', '') ? opt('--routes', '').split(',') : [...new Set([...discover(), ...detailRoutes, ...MISSING])];
 if (args.includes('--list')) {
   console.log(ROUTES.join('\n'));
   if (ATLAS) console.log(`atlas: ${atlasCoverage(entries)}`);
@@ -55,13 +64,12 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** Installed before any page script: every vital the page produces lands on window.__v. */
 const OBSERVE = `(() => {
-  const v = window.__v = { lcp: 0, cls: 0, session: 0, last: 0, taps: [], frames: [], loafs: [], recording: false, since: 0, moved: {} };
+  const v = window.__v = { lcp: 0, cls: 0, session: 0, last: 0, started: 0, taps: [], frames: [], loafs: [], recording: false, since: 0, moved: {} };
   const named = (n) => !n || n.nodeType !== 1 ? 'an element since removed' : n.tagName.toLowerCase() + (n.id ? '#' + n.id : '') + (typeof n.className === 'string' && n.className.trim() ? '.' + n.className.trim().split(/\\s+/).slice(0, 2).join('.') : '');
   new PerformanceObserver((l) => { for (const e of l.getEntries()) v.lcp = e.startTime; }).observe({ type: 'largest-contentful-paint', buffered: true });
   new PerformanceObserver((l) => { for (const e of l.getEntries()) {
     if (e.hadRecentInput) continue;
-    v.session = e.startTime - v.last < 1000 && v.session ? v.session + e.value : e.value;
-    v.last = e.startTime; v.cls = Math.max(v.cls, v.session);
+    ${CLS_SESSION}
     for (const s of e.sources || []) { const k = named(s.node); v.moved[k] = (v.moved[k] || 0) + e.value; }
   } }).observe({ type: 'layout-shift', buffered: true });
   const TAP = /^(pointer|touch|mouse|click|gesture)/;
@@ -88,15 +96,17 @@ await page.send('Page.addScriptToEvaluateOnNewDocument', { source: DEEP_SOURCE }
 await page.send('Network.enable');
 
 /** One page measured once: what LCP, CLS and INP were, how many controls answered, and the frames that dropped on them. */
-type Measured = { lcp: number; cls: number; moved: string; inp: number; slowest: string; tapped: number; frames: number; dropped: number; droppedBy: string; cause: string };
+type Measured = { answer: string | null; lcp: number; cls: number; moved: string; inp: number; slowest: string; tapped: number; frames: number; dropped: number; droppedBy: string; cause: string; longest: number };
 
 async function measure(route: string): Promise<Measured> {
   await page.send('Network.emulateNetworkConditions', { offline: false, latency: 150, downloadThroughput: (1.6 * 1024 * 1024) / 8, uploadThroughput: (750 * 1024) / 8 });
   await page.send('Network.setCacheDisabled', { cacheDisabled: true });
   await page.send('Emulation.setCPUThrottlingRate', { rate: (await measurePhone(page)).rate });
   await page.open(base + route, { width: 390, height: 844, theme: 'dark', reduced: false, wait: 7000 });
+  // An error page has vitals of its own, which are not the route's.
+  const answer = answerProblem(route, page.status(), await page.eval<boolean>(DRAWS_NOT_FOUND), MISSING);
   await page.eval('window.__v.recording = true');
-  let inp = 0, slowest = '', tapped = 0, frames = 0, dropped = 0, droppedBy = '', cause = '', worst = 0;
+  let inp = 0, slowest = '', tapped = 0, frames = 0, dropped = 0, droppedBy = '', cause = '', worst = 0, longest = 0;
   for (const sel of TAPS) {
     const at = await page.eval<{ x: number; y: number } | null>(`(() => { const el = deepQuery(${JSON.stringify(sel)}); if (!el) return null; const r = el.getBoundingClientRect(); if (!r.width || !r.height) return null; return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
     if (!at) continue;
@@ -113,10 +123,12 @@ async function measure(route: string): Promise<Measured> {
     const here = gaps.filter((f) => f > 50).length;
     frames += gaps.length;
     dropped += here;
+    longest = Math.max(longest, ...gaps);
+    // The control a line names is the one whose gap it explains: naming the last tap that dropped beside the worst gap's
+    // cause sent a reader to the drawer for a frame the period select had dropped.
     if (here) {
-      droppedBy = name;
       const gap = Math.max(...gaps);
-      if (gap > worst) { worst = gap; cause = frameCause(Math.round(gap), loafs.map(loafOf)); }
+      if (gap > worst) { worst = gap; droppedBy = name; cause = frameCause(Math.round(gap), loafs.map(loafOf)); }
     }
     // Close whatever the tap opened; its own events and its own frames are not counted.
     await page.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
@@ -126,10 +138,10 @@ async function measure(route: string): Promise<Measured> {
   const v = await page.eval<{ lcp: number; cls: number; moved: Record<string, number> }>('window.__v');
   // A page over the CLS floor says what moved: the three elements whose shifts sum highest (a shift counts for each element it moved).
   const moved = v.cls >= 0.1 ? Object.entries(v.moved).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, n]) => `${k} ${n.toFixed(3)}`).join(', ') : '';
-  return { lcp: v.lcp, cls: v.cls, moved, inp, slowest, tapped, frames, dropped, droppedBy, cause };
+  return { answer, lcp: v.lcp, cls: v.cls, moved, inp, slowest, tapped, frames, dropped, droppedBy, cause, longest };
 }
 
-let failures = 0;
+let failures = 0, warnings = 0;
 for (const route of ROUTES) {
   let m = await measure(route);
   // One dropped frame among two hundred is inside the noise of the machine this measures on, and the frame is not always
@@ -138,11 +150,16 @@ for (const route of ROUTES) {
   // drops one is measured a second time before it is failed, and a page that drops one twice is a page that stutters.
   const again = m.dropped > 0;
   if (again) m = await measure(route);
-  const bad = m.lcp >= 2500 || m.inp >= 200 || m.cls >= 0.1 || m.dropped > 0;
+  // Each floor a page missed, by name: the figures alone left a reader to work out which one failed the line.
+  const missed = [m.lcp >= 2500 && 'over the LCP floor (2.5 s)', m.inp >= 200 && 'over the INP floor (200 ms)', m.cls >= 0.1 && 'over the CLS floor (0.1)', m.dropped > 0 && 'dropped a frame (over 50 ms)'].filter(Boolean);
+  // Each floor a page met by less than a fifth of it (scripts/lib/timing.ts): a pass by a hair here is a red on a slower machine.
+  const near = [thin(m.lcp, 2500) && 'within 20% of the LCP floor', thin(m.inp, 200) && 'within 20% of the INP floor', thin(m.cls, 0.1) && 'within 20% of the CLS floor', thin(m.longest, 50) && 'a frame within 20% of 50 ms'].filter(Boolean);
+  const bad = !!m.answer || missed.length > 0;
   if (bad) failures++;
-  console.log(`${bad ? 'FAIL' : 'ok  '} ${route.padEnd(36)} LCP ${(m.lcp / 1000).toFixed(2)} s · INP ${Math.round(m.inp)} ms · CLS ${m.cls.toFixed(3)} · frames over 50 ms: ${m.dropped} of ${m.frames}${again ? ' (second measure)' : ''} · taps: ${m.tapped}${m.dropped ? ` · dropped by: ${m.droppedBy} · ${m.cause}` : ''}${m.inp >= 100 ? ` · slowest tap: ${m.slowest}` : ''}${m.moved ? ` · moved most: ${m.moved}` : ''}`);
+  else if (near.length) warnings++;
+  console.log(`${bad ? 'FAIL' : near.length ? 'warn' : 'ok  '} ${route.padEnd(36)} LCP ${(m.lcp / 1000).toFixed(2)} s · INP ${Math.round(m.inp)} ms · CLS ${m.cls.toFixed(3)} · frames over 50 ms: ${m.dropped} of ${m.frames}, longest ${Math.round(m.longest)} ms${again ? ' (second measure)' : ''} · taps: ${m.tapped}${m.dropped ? ` · dropped by: ${m.droppedBy} · ${m.cause}` : ''}${m.inp >= 100 ? ` · slowest tap: ${m.slowest}` : ''}${m.moved ? ` · moved most: ${m.moved}` : ''}${missed.length ? `\n  ${missed.join(', ')}` : ''}${!bad && near.length ? `\n  ${near.join(', ')}` : ''}${m.answer ? `\n  ${m.answer}` : ''}`);
 }
 await page.send('Emulation.setCPUThrottlingRate', { rate: 1 });
 page.close();
-console.log(`\nvitals: ${ROUTES.length - failures} of ${ROUTES.length} pages under LCP 2.5 s, INP 200 ms, CLS 0.1 and no dropped frame on a mid-range phone`);
+console.log(`\nvitals: ${ROUTES.length - failures} of ${ROUTES.length} pages under LCP 2.5 s, INP 200 ms, CLS 0.1 and no dropped frame on a mid-range phone${warnings ? `; ${warnings} within 20% of a floor` : ''}`);
 process.exit(failures ? 1 : 0);

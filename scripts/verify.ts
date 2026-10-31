@@ -19,6 +19,7 @@
  *   --browsers <n>        the most browsers the run holds at once (default: one per two CPUs and per 4 GiB of memory,
  *                         whichever is fewer); --full's browser suites start under it, and a product check is told in
  *                         VERIFY_BROWSERS how many it holds
+ *   --rate <n>            every phone slowed n times beyond the host's own rate (scripts/lib/phone.ts): the weekly runner is about 1.6
  *
  * It prints one line per phase (`ok`, `warn`, `FAIL` or `not run`, and the seconds), then one coverage line saying what
  * ran and what did not, then the outcome. Nothing that did not run is reported as passed. The trace, with the commit, the
@@ -40,16 +41,16 @@
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
-import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 
+import { rateFrom } from './lib/phone.ts';
 import { browserCeiling, slots } from './lib/slots.ts';
-import { bin } from './lib/bin.ts';
-import { launch } from './lib/chrome.ts';
+import { answers, bin, freePort, spawnNext } from './lib/bin.ts';
+import { CHROME as chromePath, launch } from './lib/chrome.ts';
 import type { BudgetsConfig, NavigationCheck } from './lib/budgets.ts';
 import { fakeModelArgs, fakeModelProblems, type FakeModelStep } from './lib/config-hooks.ts';
-import { finalOutcome, resolveCoverage, SUITE_NAMES, selectSmokeRoutes, suiteCoverage, suiteOutcome } from './lib/coverage.ts';
+import { finalOutcome, judgedNothingIn, resolveCoverage, SUITE_NAMES, selectSmokeRoutes, suiteCoverage, suiteOutcome } from './lib/coverage.ts';
 import { unsafeDataUrls } from './lib/data-url.ts';
 import { APP_DIR, railRoutes } from './lib/routes.ts';
 import { sampleSurfaces } from './lib/sample.ts';
@@ -68,36 +69,38 @@ type VerifyConfig = BudgetsConfig & {
   fakeModel?: FakeModelStep[];
   navigationChecks?: NavigationCheck[];
   smokeRoutes?: string[];
-  personas?: Record<string, { cookie: { name: string; value: string }; expectedRoutes: readonly string[]; deniedProbe?: Record<string, string> }>;
+  personas?: Record<string, { cookie: { name: string; value: string }; expectedRoutes: readonly string[]; deniedProbe?: Record<string, string>; pressRoutes?: readonly string[] }>;
   refusal?: 'explain' | 'absent';
 };
 const config = verifyConfig as VerifyConfig;
 
 const ROOT = path.resolve(import.meta.dirname, '..');
-const OPTIONS = ['--full', '--timed', '--perf', '--as', '--browsers'];
+const OPTIONS = ['--full', '--timed', '--perf', '--as', '--browsers', '--rate'];
 
-// `--as` and `--browsers` consume the argument after them: a comma-separated persona list, a number of browsers. Every
-// other argument must be a known option. An unknown option is refused here, before anything runs.
+// `--as`, `--browsers` and `--rate` consume the argument after them. Any other must be a known option, or it is refused here.
 const argv = process.argv.slice(2);
 const unknown: string[] = [];
 let asList = '';
 let shardText: string | undefined;
-let browsersText: string | undefined;
+let browsersText: string | undefined, rateText: string | undefined;
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
   if (a === '--as') { asList = argv[++i] ?? ''; continue; }
   if (a === '--browsers') { browsersText = argv[++i] ?? ''; continue; }
+  if (a === '--rate') { rateText = argv[++i] ?? ''; continue; }
   if (a === '--shard') { shardText = argv[++i] ?? ''; continue; }
   if (!OPTIONS.includes(a)) unknown.push(a);
 }
 if (unknown.length) {
-  console.error(`verify: ${unknown.join(', ')} ${unknown.length === 1 ? 'is not an option' : 'are not options'}. pnpm verify takes ${OPTIONS.join(', ')}.`);
+  console.error(`verify: ${unknown.join(', ')} ${unknown.length === 1 ? 'is not an option' : 'are not options'}. pnpm verify takes ${[...OPTIONS, '--shard'].join(', ')}.`);
   process.exit(1);
 }
 if (browsersText !== undefined && !/^[1-9]\d*$/.test(browsersText)) {
   console.error(`verify: --browsers takes a whole number of browsers, at least 1, not "${browsersText}".`);
   process.exit(1);
 }
+// `--rate <n>` slows every suite's phone n times beyond the host's own rate (scripts/lib/phone.ts), through the environment.
+try { if (rateText !== undefined) process.env.MERIDIAN_RATE = String(rateFrom(rateText)); } catch (e) { console.error(`verify: ${(e as Error).message}.`); process.exit(1); }
 /** The most browsers this run holds at once: `--browsers`, or what the machine can hold. */
 const ceiling = browsersText ? Number(browsersText) : browserCeiling();
 const ceilingFrom = browsersText ? '--browsers' : `${os.availableParallelism()} CPUs and ${Math.round(os.totalmem() / 2 ** 30)} GiB`;
@@ -136,18 +139,12 @@ if (shardText !== undefined) {
   }
   try { parseShard(shardText); } catch (e) { console.error(`verify: ${(e as Error).message}`); process.exit(1); }
 }
-if (perf && process.env.CI !== 'true') {
-  console.error(`verify: --perf: ${WHOLE_PROTOCOL_REFUSAL}`);
-  process.exit(1);
-}
+if (perf && process.env.CI !== 'true') { console.error(`verify: --perf: ${WHOLE_PROTOCOL_REFUSAL}`); process.exit(1); }
 
 // The fake model's steps are the project's own patterns: one that does not compile stops the run before the gate.
 const fakeSteps = config.fakeModel ?? [];
 const stepProblems = fakeModelProblems(fakeSteps);
-if (stepProblems.length) {
-  console.error(`verify: ${stepProblems.join('; ')}`);
-  process.exit(1);
-}
+if (stepProblems.length) { console.error(`verify: ${stepProblems.join('; ')}`); process.exit(1); }
 
 // A project that has not adopted the assistant has no walk-through to run, only the pages. Through APP_DIR, like the
 // route discovery and check.ts: a project that keeps its routes under `src/app` has the assistant there, and asking for
@@ -190,6 +187,7 @@ const children: ChildProcess[] = [];
 /** The suites running now: each ends its own Chrome on SIGTERM (scripts/lib/chrome.ts), so it is asked, not killed. */
 const suites = new Set<ChildProcess>();
 let gates = 0;
+const judgedNothing: string[] = []; // the rules a check passed having judged nothing for, named in the coverage line
 let builds = 0;
 let current = 'the start';
 let browser: { ran: boolean; reason: string | null } = { ran: false, reason: null };
@@ -199,8 +197,6 @@ let selected: string[] = [];
 let smoke: string[] = [];
 let covered = { data: 0, interaction: 0 };
 let htmlMissing = false;
-
-const chromePath = process.env.CHROME ?? (process.platform === 'darwin' ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' : process.platform === 'win32' ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe' : '/usr/bin/google-chrome');
 
 const git = (...a: string[]) => { const r = spawnSync('git', a, { cwd: ROOT, encoding: 'utf8' }); return r.status === 0 ? r.stdout.trim() : null; };
 const nextVersion = () => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'node_modules/next/package.json'), 'utf8')).version as string; } catch { return 'unknown'; } };
@@ -232,7 +228,7 @@ function coverageLine(): string {
   const n = selected.length;
   const where = browser.ran ? 'ran' : `not run (${browser.reason ?? `stopped at ${current}`})`;
   const personae = asPersonas.length ? `; personas ${asPersonas.join(', ')}` : '';
-  return `coverage: ${depth}; browser ${where}; ${n} routes; data configured ${covered.data}/${n}; interaction configured ${covered.interaction}/${n}${personae}; not run: ${notRun.length ? notRun.join(', ') : 'none'}${failed.length ? `; failed: ${failed.join(', ')}` : ''}`;
+  return `coverage: ${depth}; browser ${where}; ${n} routes; data configured ${covered.data}/${n}; interaction configured ${covered.interaction}/${n}${personae}; not run: ${notRun.length ? notRun.join(', ') : 'none'}${judgedNothing.length ? `; judged nothing: ${[...new Set(judgedNothing)].join(', ')}` : ''}${failed.length ? `; failed: ${failed.join(', ')}` : ''}`;
 }
 
 function finish(code: number, outcome: string): never {
@@ -360,8 +356,6 @@ const serve = unsafe === null;
 
 // ---- the processes ----
 
-const freePort = () => new Promise<number>((res) => { const s = net.createServer(); s.listen(0, () => { const p = (s.address() as net.AddressInfo).port; s.close(() => res(p)); }); });
-
 // The assistant is off unless configured: the build and the first start must not see the caller's own variables.
 // BLANKED, not deleted: `next start` loads `.env.local` itself, where a person keeps their own model, and Next does not
 // overwrite a variable that is already set — so a deleted `ASSISTANT_*` came straight back from that file and the
@@ -391,14 +385,12 @@ process.on('exit', stopAll);
 // An interrupted run does not emit 'exit' by itself, and the detached servers and running suites would outlive it.
 for (const sig of ['SIGINT', 'SIGTERM'] as const) process.on(sig, () => process.exit(sig === 'SIGINT' ? 130 : 143));
 
-/** Start the built app on a free port, loopback only, and wait until it answers: every client here reaches 127.0.0.1 (#81). */
+/** Start the built app on a free port and wait until it answers. */
 async function start(env: NodeJS.ProcessEnv) {
   const port = await freePort();
-  const server = spawn(bin('next'), ['start', '-H', '127.0.0.1', '-p', String(port)], { cwd: ROOT, env, stdio: 'ignore', detached: true });
+  const server = spawnNext(port, env);
   children.push(server);
-  for (let i = 0; i < 120; i++) {
-    try { if ((await fetch(`http://127.0.0.1:${port}/`)).status < 500) return { port, server }; } catch { await new Promise((r) => setTimeout(r, 500)); }
-  }
+  if (await answers(port)) return { port, server };
   phase('FAIL', 'the built app did not start', null);
   return finish(1, FIX);
 }
@@ -411,7 +403,7 @@ const run = (script: string, extra: string[], env: NodeJS.ProcessEnv = process.e
   let out = '';
   child.stdout.on('data', (d) => (out += d));
   child.stderr.on('data', (d) => { out += d; if (echo) process.stderr.write(d); });
-  child.on('close', (status) => { suites.delete(child); resolve({ status, out: out.trim(), took: secs(t) }); });
+  child.on('close', (status) => { suites.delete(child); judgedNothing.push(...judgedNothingIn(out)); resolve({ status, out: out.trim(), took: secs(t) }); });
 });
 
 /** The JSON a script prints on its last line after `<tag>: `, or null when it printed none. */
@@ -422,17 +414,16 @@ function summaryOf<T>(out: string, tag: string): T | null {
 }
 
 /** A suite's line. One that left a case unrun is `not run`, stays in the coverage line's not-run list, and fails nothing. */
-function reportSuite(name: string, label: string, r: { status: number | null; out: string; took: number }) {
-  const outcome = suiteOutcome(r.status);
-  if (outcome === 'ok') ranSuites.add(name);
+function reportSuite(name: string, label: string, r: { status: number | null; out: string; took: number }): void {
+  const outcome = suiteOutcome(r.status, r.out);
+  if (outcome === 'ok' || outcome === 'warn') ranSuites.add(name);
   if (outcome === 'FAIL') failedSuites.add(name);
   phase(outcome, label, r.took);
   const out = r.out.trim().split('\n');
   const phone = phoneLines(out);
   if (outcome === 'FAIL') beneath([...phone, ...out.filter((l) => !phone.includes(l)).slice(-60)]);
   else if (outcome === 'not run') beneath([...phone, ...out.filter((l) => l.startsWith('not run')), out.at(-1) ?? '']);
-  else beneath([...phone, ...out.filter((l) => l.startsWith('n/a')), out.at(-1) ?? '']);
-  return outcome !== 'FAIL';
+  else beneath([...phone, ...out.filter((l, i) => /^(n\/a|warn)\b/.test(l) || (/^warn\b/.test(out[i - 1] ?? '') && l.startsWith('  '))), out.at(-1) ?? '']);
 }
 
 // ---- the sequence ----
@@ -442,7 +433,9 @@ let ok = true;
 // 1. The gate, once.
 gates++;
 // The tests only this repository has (tests/cli-*, the package's own, and tests/deep-*, the browser-fixture tests of the checks) are not the project's: no adopted or created project has them.
-step('gate', 'node', ['scripts/gate.ts', '--without-cli-tests']);
+const gateOut = step('gate', 'node', ['scripts/gate.ts', '--without-cli-tests']);
+judgedNothing.push(...judgedNothingIn(gateOut)); // named in the coverage line
+beneath(gateOut.split('\n').filter((l) => l.startsWith('drift: '))); // managed files changed and kept nowhere
 
 // A product whose pages call a live API is checked against its fake (scripts/verify.config.ts): the presses approve,
 // revoke and delete whatever a page offers. The fake starts first, because its address goes into the build.
@@ -543,8 +536,8 @@ if (asPersonas.length) {
             if (missing.length) problems.push(`${name}: the rail is missing ${missing.join(', ')}`);
             if (extra.length) problems.push(`${name}: the rail shows ${extra.join(', ')}, which this persona is not expected to see`);
           }
-          // (b) The role-dependent routes this persona expects, every control pressed at 1440px as that person.
-          const roleRoutes = ['/keys', '/operations-tickets', '/members', '/settings'].filter((r) => persona.expectedRoutes.includes(r));
+          // (b) The routes whose controls change with the person (the persona's `pressRoutes`, else every route it expects), every control pressed at 1440px as that person.
+          const roleRoutes = (persona.pressRoutes ?? persona.expectedRoutes).filter((r) => persona.expectedRoutes.includes(r));
           if (roleRoutes.length) {
             const presses = await run('scripts/interactions.ts', ['--base', here, '--as', name, '--width', '1440', '--routes', roleRoutes.join(',')], app);
             if (presses.status !== 0) problems.push(`${name}: the presses failed on ${roleRoutes.join(', ')} — ${presses.out.split('\n').filter(Boolean).slice(-1)[0] ?? 'no output'}`);
@@ -649,7 +642,7 @@ if (full && browser.ran && baseUrl) {
     hold(1, () => run('scripts/keyboard.ts', ['--base', here])),
     ...own.map((c) => hold(c.browsers, () => run(c.script, ['--base', here], { ...process.env, VERIFY_BROWSERS: String(Math.min(c.browsers, ceiling)) }))),
   ]);
-  reportSuite('audit', 'audit: every page at 5 widths in both themes', audit);
+  reportSuite('audit', 'audit: every page at 6 widths in both themes', audit);
   reportSuite('presses', 'every control pressed and every link followed', presses);
   reportSuite('keyboard', 'the whole keyboard path', keys);
   extras.forEach((r, i) => reportSuite('browserChecks', own[i].script, r));

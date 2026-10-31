@@ -61,7 +61,7 @@ export function EmbedFrame({
       {inline ? (
         <header className="flex flex-wrap items-center gap-x-2.5 gap-y-1 pb-3">
           <AppMark size={20} />
-          <h1 className="min-w-0 flex-1 truncate text-sm font-semibold tracking-[-0.01em]">{title}</h1>
+          <h1 title={typeof title === 'string' ? title : undefined} className="min-w-0 flex-1 truncate text-sm font-semibold tracking-[-0.01em]">{title}</h1>
           {actions}
           <div className="flex w-full items-center gap-2 pl-7.5 @[34rem]/embed:w-auto @[34rem]/embed:pl-0">
             {meta ? <div className="mr-auto flex min-w-0 @[34rem]/embed:mr-1">{meta}</div> : null}
@@ -85,12 +85,6 @@ export function EmbedFrame({
   );
 }
 
-/**
- * An embed while its read runs: the frame drawn at once from what the address already says, and a body of the shape
- * the read will fill, announced once as busy under the view's name. A host frames this document, so a `<Suspense>`
- * with no fallback shows it an empty rectangle — one whose height the host takes as the view's own — and this is the
- * state every embed route falls back to. It takes no meta: how fresh the data is is one of the things being read.
- */
 /** The placeholder an embed's body is made of while its read runs: a card with a chart in it, a row of tiles, a table. */
 export type EmbedBlock = 'chart' | 'tiles' | 'table';
 
@@ -117,17 +111,6 @@ function Block({ block }: { block: EmbedBlock }) {
 }
 
 /**
- * An embed while its read runs: the frame drawn at once from what the address already says, and a body of the shape
- * the read will fill, announced once as busy under the view's name. A host frames this document, so a `<Suspense>`
- * with no fallback shows it an empty rectangle — one whose height the host takes as the view's own — and this is the
- * state every embed route falls back to. It takes no meta: how fresh the data is is one of the things being read.
- *
- * The blocks are drawn here and not taken from `page-loading`, whose skeletons are the console's: that module also
- * holds the console's frame, and an embed that imported it carried the whole console chrome in its first load — the
- * three embeds grew 5.8–7.7% and `/embed/now` went 14 KiB past the budget. A host's frame holds three bars, not a
- * console.
- */
-/**
  * An embed whose read threw: the frame stays — a host framed this document and the product is still answering — and the
  * card says what happened and where the view is. There is no Retry: the read is the tool's, and a host asks for it again
  * by asking the tool again; the way to the console is the frame's own link.
@@ -143,6 +126,17 @@ export function EmbedFailed({ title, consolePath, name }: { title: string; conso
   );
 }
 
+/**
+ * An embed while its read runs: the frame drawn at once from what the address already says, and a body of the shape
+ * the read will fill, announced once as busy under the view's name. A host frames this document, so a `<Suspense>`
+ * with no fallback shows it an empty rectangle — one whose height the host takes as the view's own — and this is the
+ * state every embed route falls back to. It takes no meta: how fresh the data is is one of the things being read.
+ *
+ * The blocks are drawn here and not taken from `page-loading`, whose skeletons are the console's: that module also
+ * holds the console's frame, and an embed that imported it carried the whole console chrome in its first load — the
+ * three embeds grew 5.8–7.7% and `/embed/now` went 14 KiB past the budget. A host's frame holds three bars, not a
+ * console.
+ */
 export function EmbedBusy({ title, consolePath, name, blocks }: { title: ReactNode; consolePath: string; name: string; blocks: readonly EmbedBlock[] }) {
   return (
     <EmbedFrame title={title} consolePath={consolePath}>

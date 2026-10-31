@@ -18,6 +18,10 @@ coverage: <default|full|timed|perf, or their combination such as full+timed+perf
 - **`pnpm verify --timed`** navigates every rail route with its budgets judged, then runs steps 7 to 9, the live data,
   the product's own timed checks and the Web Vitals, alone and last. It judges time, so it needs a quiet machine. It needs the same mappings, Chrome
   and safe backend as `--full`, and does not imply that the `--full` checks ran.
+- **`pnpm verify --as <persona,...>`** signs the browser in as each persona it names, from `personas` in
+  `scripts/verify.config.ts`: the rail shows the routes that person may open, every control on its `pressRoutes` (else
+  every route it expects) is pressed at 1440px as that person, and a denied route draws its refusal. It runs alone or
+  beside `--full`, is refused beside `--timed` or `--perf` before anything runs, and the coverage line names the personas.
 - **`pnpm verify --perf`** runs the 20-sample navigation protocol, and the whole of it runs only in CI, split by route
   with `--shard <i>/<n>` across runners; it refuses elsewhere. It does not imply that the `--full` or `--timed` checks
   ran. `--full --timed` is the whole standard. Locally, run perf narrowed, `node scripts/perf.ts --routes <route>`, to
@@ -39,7 +43,15 @@ line naming the command that runs them. Steps in order:
    a page is followed. A workspace's home that no other route's rail links to (the only destination of its workspace) is
    reached through the workspace menu: from the nearest rail route before it, by the menu's item for its workspace, from
    that press, and its line says `through the workspace menu (<workspace>)`. Any other destination no rail links to is
-   reported as a problem, never as a pass.
+   reported as a problem, never as a pass. A `navigationChecks` entry names a rail route, since the journey presses the
+   rail's link to it. A rail route that redirects to a page under it (`/things` to `/things/<slug>` for the person
+   signed in) is followed there: the press has arrived once the address is the route or under it, the entry's `title`
+   is the page it lands on, and the line says `landed on <path>`. A page reached from a list is not a rail route: name
+   it in `detailRoutes`, where the audit, the presses, the keyboard walk and the vitals open it. A page whose data arrived empty
+   draws its first-run `EmptyState` (`data-empty="first-run"`) where the rows would be: once nothing in `main` is still
+   loading, that is its data, ready, the line says `data is the first-run state`, and a
+   control the empty page does not have is reported `interactive not measured: the page shows its first-run state`, a
+   warning and never a pass. The error state (`data-empty="error"`) stays a failure.
 1. **The gate** (`node scripts/gate.ts`): tokens regenerate to the same CSS; the card registry is fresh; every card and
    page specification follows the anatomy; the product's own rules in `optional:scripts/check.local.ts`, when the file exists;
    contrast holds for every pair in every theme and accent, and the chart palette passes the colour-vision checks;
@@ -59,8 +71,8 @@ line naming the command that runs them. Steps in order:
    exist and print `n/a` with the reason once the product has replaced them. It follows only rail links that are on screen
    and opens an address when the rail on screen does not link to it. It finds the launcher, the panel's controls,
    rows and menus inside open shadow roots too, so a design system built from web components is walked the same way.
-4. **The built app, served**, and the **browser audit** of every static route under `app/` and the `detailRoutes` in
-   `scripts/verify.config.ts` (embeds under `/embed` on a simulated host ground) at 2560, 1440, 1024, 768 and 390px in
+4. **The built app, served**, and the **browser audit** of every static route under `app/` and the `detailRoutes` and
+   `missingRoutes` in `scripts/verify.config.ts` (embeds under `/embed` on a simulated host ground) at 2560, 1440, 1024, 768, 390 and 320px in
    both themes. It measures inside open shadow roots as well as the light DOM, so a web component's text, names, targets,
    contrast and focus rings count; a custom element it cannot look inside is `unmeasured:` (see "Lines that are not
    about the page" below). It reads an SVG's text too, by its `fill` against whatever the SVG paints behind it, and it
@@ -95,7 +107,8 @@ line naming the command that runs them. Steps in order:
 8. **The product's own timed checks** (`--timed` only; `timedChecks` in `scripts/verify.config.ts`), each script given
    `--base` and the served app's address, one at a time and alone, after the live data. A check that judges a time
    belongs here and not in `browserChecks`, which runs under the load of `--full`; the half of it that judges no time
-   stays in `browserChecks`. A project that declares none lists `timedChecks` as `not run` in the coverage line.
+   stays in `browserChecks`. A project that declares none has no `timedChecks` suite: the coverage line leaves it out, as it does
+   `browserChecks` without any.
 9. **Web Vitals on a mid-range phone** (`--timed` only; `scripts/vitals.ts`): Lighthouse's mobile profile (the device of
    Lighthouse benchmark index 800, the CPU slowed by the host's own index over 800, Slow 4G, 390px touch). Every page
    must hold LCP under 2.5 s, INP under 200 ms and CLS under 0.1, and drop no frame, the template's Design Atlas
@@ -107,6 +120,11 @@ line naming the command that runs them. Steps in order:
    failed — one frame in two hundred is inside the noise of a host the throttle is measuring too — and a page that drops
    one twice is a page that stutters. It runs alone, after the others, since throttling measures the machine too: on a
    busy machine, run it again before believing a near miss.
+
+A timed check that passes leaving less than a fifth of its limit (a navigation time under `--timed`, LCP, INP, CLS, the
+longest frame) prints a `warn` line, and its phase reads `warn`: it passed, near its line. A slower machine fails such a
+pass, so before trusting it run the suite again with `--rate 1.6` (`pnpm verify --timed --rate 1.6`, or the suite alone
+with `--rate`), which slows the phone 1.6 times beyond this host's own rate; a red there is a red to fix.
 
 The report is in `out/verify.txt`. Fix the cause; never weaken a check to make it pass. pnpm may first print a lockfile
 and supply-chain check before a script runs; that is pnpm, not an install, and not a failure.
@@ -133,6 +151,11 @@ and supply-chain check before a script runs; that is pnpm, not an install, and n
 | `truncated: … "text" is cut with an ellipsis and no title holds the whole of it` | Text is cut on purpose and the whole value is kept nowhere a pointer can reach | A `title` with the whole text on the element or what holds it (a `DataTable` column's `title`, a `TableCell` whose cell is a value sets its own, a `CardHeader` without `wrap` whose title is plain text sets its own); or let it wrap |
 | `overlap: … and … are drawn in the same place` | Two pieces of text share a third of a line or more: a negative margin, an absolute label, a row that did not wrap | Give each its own place: a gap, a wrap, or a narrower label at that width |
 | `overlap: a line (…) is drawn through … "text"` | A stroked shape (a sparkline, a rule, an axis) crosses the middle of a line of text | Move the caption out of the plot, or end the line before it; a filled shape under text is a ground and is read by the contrast check instead |
+| `… "text" spills its box by 6px` | Text drawn past the edge of the box that holds it while nothing clips it: a fixed width, a label that may not wrap, a figure wider than its cell | Let it wrap, `truncate` it with a `title`, or give the box room (`min-w-0` on a flex child) |
+| `heading skips a level: h2 then h4` | A heading level skips one, so a screen reader's outline of the page has a hole | Use the next level down, and make a heading look smaller with its type, never by choosing a deeper level; a card's specimen in the Atlas is exempt |
+| `touch target under 44px: Close 24×24` | On a phone (a coarse pointer) a control answers less than 44px: its own box, its field's frame and its label together | Tag a small control `hit`, which answers a 44px square around it under a finger without growing, or put it in a field's `control-frame`; a link inside running text is exempt |
+| `the page holds 0 characters of text — it rendered nothing, or only its loading state` | The page drew under 24 characters: it threw before it drew, or never left its `loading.tsx` | Open the route and read the console or the server log; a read that never answers holds the loading state |
+| `the audit measured /sign-in while asking for /keys`, or `the address dropped period — …` | The route redirected, or rewrote its query, so what was measured is another page or view | Audit the address the page keeps (a redirect's target, the query it accepts), or fix the redirect that should not happen |
 | `unnamed: button…` | An icon-only control (a web component's button counts the text slotted into its host as its name) | `aria-label` on it (Icon button requires one) |
 | `scrollers: …` | A card scrolls on its own | Page the list (`DataTable` pages at 20) or cap it ("top 5"); only the page scrolls |
 | `contrast: 3.1:1 … "text"` | Text below 4.5:1 (3:1 for large text). An SVG's `<text>` counts: its colour is its `fill`, its ground is what the SVG painted under it | Use `ink`, `ink-2` or `ink-3` on surfaces; status text uses `*-ink`, never the fill colour; in a chart, `fill-ink-2` or `fill-ink-3` for labels |
@@ -141,6 +164,8 @@ and supply-chain check before a script runs; that is pnpm, not an install, and n
 | `unmeasured: x-card (not defined)` | A custom element was still not registered after the settle wait | Register it (`customElements.define`) before the page settles, or remove the tag from the page |
 | `"Export" does nothing when pressed` | A control with no action, or one that only works on hover | Wire it, or remove it; an info button uses `Tooltip toggle` so a tap opens it |
 | `table … > its frame` | A table wider than its card, its last columns clipped | `hideBelow` one more column, or `truncate` a long column. Every column is as wide as its content, the spare sits in the gaps between columns, an equal share in each, and a cut column shrinks only when the table lacks room; a fixed `width` keeps its width, and the `grow` floor is 160px |
+| `<route> answered 404, so what was measured is its error page and not the route`, or `<route> draws the not-found screen ([data-missing-page])` | The route answered an error status or drew the not-found screen, so the audit, the presses, the keyboard walk, the vitals and a shot read that screen in its place: a mistyped id in `detailRoutes`, a record the fake API does not hold, an address given by hand | Fix the id, or give the fake API the record. A record meant not to exist goes in `missingRoutes` |
+| `<route> is in missingRoutes, and it answered 200 and draws no not-found screen` | A route declared missing renders a page, or the product's own not-found screen is not marked | The record came to exist: move it to `detailRoutes`, or name an id nothing holds. A not-found screen of your own carries `data-missing-page` on its root |
 | `exception:` / `console.error:` | A runtime error or a hydration mismatch | Hydration: no `Date.now()`, `Math.random()` or locale-dependent formatting in render; use the demo clock and `src/lib/format*` |
 
 ## Keyboard walk failures
@@ -156,7 +181,7 @@ and supply-chain check before a script runs; that is pnpm, not an install, and n
 
 ## Lines that are not about the page
 
-Two lines say something about what the suites could see, not about a defect in a page's own styles.
+Three lines are not about a defect in a page's own styles: two say what the suites could see, and one what the data did.
 
 - **`unmeasured: <element> (no open shadow root|not defined)`** is the audit saying it did not measure that element, and
   it fails like any other finding so that a custom element is never passed unseen. The fix is in the element, as in the
@@ -167,6 +192,14 @@ Two lines say something about what the suites could see, not about a defect in a
   selector and is information, never a failure: the first visible match was pressed, as before. If that is not the
   control you meant, write a more specific selector. A descendant combinator does not cross a shadow boundary, so name an
   element inside a root with a selector written for that root.
+
+- **`<route>: HTML grew <n>% over its baseline (cap 5%)`** with no change to the code means the page renders data that
+  changed. Under a `fakeApi` the data is fixed and the figure measures code; a project whose pages read its own
+  database (`noLiveApi`) measures whatever rows the database held at the build. Tell the two apart by building the
+  commit the baseline was recorded on against the same data: when it grows by the same amount, the growth is the
+  data's. Then re-record with `node scripts/sizes.ts --write-baseline --base <url>` and say in the commit that the data
+  moved; the lasting fix is a fixed data set for verify (a seeded database), so the figure measures code again. Growth
+  the old commit does not show is the code's, and is fixed in the page.
 
 ## Asking the agent's questions: `scripts/ask.ts`
 

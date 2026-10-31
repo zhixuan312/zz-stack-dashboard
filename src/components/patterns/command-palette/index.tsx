@@ -3,12 +3,13 @@
 import { Dialog as D } from 'radix-ui';
 import { useRouter } from 'next/navigation';
 import { useLeave } from '../../base/shell/index';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { ArrowRight, CornerDownLeft, Monitor, Moon, Search, Sun } from 'lucide-react';
 import type { NavGroup } from '../../../app.config';
 import { cn } from '../../../lib/cn';
 import { usePreferences } from '../../base/providers';
 import { Kbd } from '../../ui/kbd/index';
+import { parentOf } from '../rail/trail';
 
 export type Command = { id: string; group: string; label: string; hint?: string; icon: ReactNode; run: () => void };
 
@@ -16,6 +17,16 @@ let opener: (() => void) | null = null;
 /** Open the palette from anywhere: the rail's search button, a shortcut in a page. */
 export function openCommand() {
   opener?.();
+}
+
+const noChange = () => () => {};
+const appleKeyboard = () => /mac|iphone|ipad/i.test((navigator as { userAgentData?: { platform: string } }).userAgentData?.platform ?? navigator.platform);
+/**
+ * The palette's keystroke as the reader's keyboard names it: ⌘K on Apple's, Ctrl K on every other. The server cannot
+ * know, so it draws ⌘K and the client names the reader's key once it has hydrated.
+ */
+export function usePaletteKey() {
+  return useSyncExternalStore(noChange, () => (appleKeyboard() ? '⌘K' : 'Ctrl K'), () => '⌘K');
 }
 
 /**
@@ -55,7 +66,7 @@ export function CommandPalette({ nav }: { /** Every destination the rail offers,
       ...nav.flatMap((g) =>
         g.items.map((it) => {
           const Icon = it.icon;
-          return { id: it.href, group: 'Go to', label: it.label, hint: g.label, icon: <Icon />, run: () => leave(() => router.push(it.href)) };
+          return { id: it.href, group: 'Go to', label: it.label, hint: parentOf(g, it)?.label ?? g.label, icon: <Icon />, run: () => leave(() => router.push(it.href)) };
         }),
       ),
       { id: 'theme-light', group: 'Appearance', label: 'Use the light theme', icon: <Sun />, run: () => set({ theme: 'light' }) },
@@ -93,7 +104,10 @@ export function CommandPalette({ nav }: { /** Every destination the rail offers,
         <D.Content
           aria-describedby={undefined}
           className="dialog-in fixed top-[14vh] left-1/2 z-(--layer-overlay) w-[min(600px,calc(100vw-24px))] -translate-x-1/2 overflow-hidden rounded-xl bg-surface-raised shadow-overlay"
+          // An input method composing (Chinese, Japanese, Korean) owns Enter, Escape and the arrows until it is done.
+          onEscapeKeyDown={(e) => { if (e.isComposing) e.preventDefault(); }}
           onKeyDown={(e) => {
+            if (e.nativeEvent.isComposing) return;
             if (e.key === 'ArrowDown') { e.preventDefault(); setAt((a) => Math.min(shown.length - 1, a + 1)); }
             if (e.key === 'ArrowUp') { e.preventDefault(); setAt((a) => Math.max(0, a - 1)); }
             if (e.key === 'Enter') { e.preventDefault(); run(shown[at]); }
@@ -132,6 +146,7 @@ export function CommandPanel({
   listRef?: React.Ref<HTMLDivElement>;
   autoFocus?: boolean;
 }) {
+  const paletteKey = usePaletteKey();
   let lastGroup = '';
   return (
     <>
@@ -154,7 +169,7 @@ export function CommandPanel({
       </div>
       <div ref={listRef} id="cmd-list" role="listbox" className="max-h-[min(420px,52vh)] overflow-y-auto p-2">
         {commands.length === 0 ? (
-          <p className="px-3 py-10 text-center text-sm text-ink-3">Nothing matches “{query}”. Try a page name, such as Requests.</p>
+          <p className="px-3 py-10 text-center text-sm text-ink-3">Nothing matches “{query}”. Try a page’s name.</p>
         ) : (
           commands.map((c, i) => {
             const head = c.group !== lastGroup ? (lastGroup = c.group) : null;
@@ -174,7 +189,7 @@ export function CommandPanel({
                   )}
                 >
                   {c.icon}
-                  <span className="flex-1 truncate">{c.label}</span>
+                  <span title={c.label} className="flex-1 truncate">{c.label}</span>
                   {c.hint ? <span className="text-xs text-ink-3">{c.hint}</span> : null}
                   {i === at ? <CornerDownLeft className="!size-3.5" /> : <ArrowRight className="!size-3.5 opacity-0" />}
                 </div>
@@ -188,7 +203,7 @@ export function CommandPanel({
       <div className="keyboard-only flex items-center gap-4 border-t border-line bg-surface-sunk/60 px-4 py-2.5 text-xs text-ink-3">
         <span className="flex items-center gap-1.5"><Kbd>↑</Kbd><Kbd>↓</Kbd> move</span>
         <span className="flex items-center gap-1.5"><Kbd>↵</Kbd> open</span>
-        <span className="keyboard-only ml-auto flex items-center gap-1.5 max-sm:hidden"><Kbd>⌘K</Kbd> toggle</span>
+        <span className="keyboard-only ml-auto flex items-center gap-1.5 max-sm:hidden"><Kbd>{paletteKey}</Kbd> toggle</span>
       </div>
     </>
   );

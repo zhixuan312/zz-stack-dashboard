@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useState } from 'react';
+import { useId, useState, type PointerEvent } from 'react';
 import { cn } from '../../../lib/cn';
 import { formatDate } from '../../../lib/format-date';
 import { plural } from '../../../lib/format';
@@ -29,6 +29,7 @@ export function UptimeBars({
   measure = 'uptime',
   size = 'md',
   className,
+  'data-preview-index': previewIndex,
 }: {
   /** One state per day, oldest first, ending on `end`. */
   days: DayState[];
@@ -44,12 +45,20 @@ export function UptimeBars({
   /** `lg` (56px) when the strip is a card's protagonist, as Now's days inside the band. */
   size?: 'md' | 'lg';
   className?: string;
+  /** A day drawn as pointed at in the Atlas, with its tooltip; real strips take theirs from the pointer and the keys. */
+  'data-preview-index'?: number;
 }) {
   const summaryId = useId();
-  const [hover, setHover] = useState<number | null>(null);
-  // Every day, always: the figure and the label describe all of them. A narrow strip tightens the gaps instead.
+  const [pointed, setHover] = useState<number | null>(null);
+  const hover = previewIndex ?? pointed;
+  // Every day, always: the figure and the label describe all of them. A narrow strip scales the drawing instead.
   const shown = days;
   const dateOf = (i: number) => new Date(end.getTime() - (shown.length - 1 - i) * 86_400_000);
+  /** The day under the pointer, from where it is across the strip. */
+  const point = (e: PointerEvent<SVGSVGElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    if (r.width > 0) setHover(Math.min(shown.length - 1, Math.max(0, Math.floor(((e.clientX - r.left) / r.width) * shown.length))));
+  };
   const marked = shown.flatMap((d, i) => (d === 'operational' ? [] : [{ d, i }]));
   // The baseline's runs: every day between two days with no data, so a period with data on every day is one rect.
   const runs = shown.reduce<{ x: number; width: number }[]>((all, d, i) => {
@@ -59,6 +68,8 @@ export function UptimeBars({
     else all.push({ x: i, width: 1 });
     return all;
   }, []);
+  // No days yet: a plot of nothing would name a period between two invented dates.
+  if (!shown.length) return <figure aria-label={label} className={cn('min-w-0', className)}><p className="t-caption">No history yet</p></figure>;
   return (
     <figure aria-label={label} className={cn('relative min-w-0', className)} onPointerLeave={() => setHover(null)}>
       <div
@@ -82,10 +93,9 @@ export function UptimeBars({
           viewBox={`0 0 ${shown.length} ${H}`}
           preserveAspectRatio="none"
           className="block size-full overflow-visible"
-          onPointerMove={(e) => {
-            const r = e.currentTarget.getBoundingClientRect();
-            if (r.width > 0) setHover(Math.min(shown.length - 1, Math.max(0, Math.floor(((e.clientX - r.left) / r.width) * shown.length))));
-          }}
+          onPointerMove={point}
+          // A tap sends a press and no move, so on a phone the day is read from the press.
+          onPointerDown={point}
         >
           {runs.map((r) => <rect key={`run-${r.x}`} x={r.x} y={0} width={r.width} height={H} className="fill-positive/22" />)}
           {marked.map(({ d, i }) => (
@@ -95,7 +105,7 @@ export function UptimeBars({
         </svg>
       </div>
       <figcaption className="mt-2 flex items-center gap-3 text-2xs text-ink-3">
-        <span>{shown.length} days ago</span>
+        <span>{shown.length} {plural(shown.length, 'day')} ago</span>
         <span aria-hidden className="h-px flex-1 bg-line" />
         <span className="t-num font-medium text-ink-2">{pct(uptime)} {measure}</span>
         <span aria-hidden className="h-px flex-1 bg-line" />
@@ -104,8 +114,10 @@ export function UptimeBars({
       {hover !== null ? (
         <div
           aria-hidden
-          className="pointer-events-none absolute bottom-full z-10 mb-2 -translate-x-1/2 rounded-sm bg-surface-inverse px-2 py-1.5 text-xs whitespace-nowrap text-ink-inverse shadow-overlay"
-          style={{ left: `${((hover + 0.5) / shown.length) * 100}%` }}
+          className="pointer-events-none absolute bottom-full z-10 mb-2 rounded-sm bg-surface-inverse px-2 py-1.5 text-xs whitespace-nowrap text-ink-inverse shadow-overlay"
+          // Moved back by the same share of its own width as the day's share of the strip: centred mid-strip, flush with
+          // the figure's edge at either end, so a card that clips its content never cuts the first or last day's off.
+          style={{ left: `${((hover + 0.5) / shown.length) * 100}%`, transform: `translateX(-${((hover + 0.5) / shown.length) * 100}%)` }}
         >
           <span className="font-medium">{WORD[shown[hover]]}</span>
           <span className="opacity-70"> · {formatDate(dateOf(hover))}</span>

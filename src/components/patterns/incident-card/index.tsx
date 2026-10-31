@@ -55,7 +55,9 @@ export function IncidentCard({ incident, now, variant = 'card', className }: { i
   const updates = [...incident.updates].sort((a, b) => b.at.localeCompare(a.at));
   return (
     <Card className={cn('overflow-hidden', live && st.border, className)}>
-      {live ? <span aria-hidden className={cn('absolute inset-x-0 top-0 h-0.5', st.edge)} /> : null}
+      {/* The edge's colour is the state's, and the state's word is the badge below; the line says it too, on the pointer,
+          because it is the first thing read and a colour is not a word (issue #94). */}
+      {live ? <span aria-hidden title={st.word} className={cn('absolute inset-x-0 top-0 h-0.5', st.edge)} /> : null}
       <div className="px-(--card-pad) pt-(--card-pad)">
         <div className="flex flex-wrap items-center gap-2">
           <Badge tone={st.tone} dot>{st.word}</Badge>
@@ -76,8 +78,9 @@ export function IncidentCard({ incident, now, variant = 'card', className }: { i
         ) : null}
       </div>
       <ol aria-label="Updates" className="relative mx-(--card-pad) mt-5 mb-(--card-pad) flex flex-col gap-5 border-t border-line pt-5">
+        {/* Two updates stamped in the same millisecond are two updates: the index keeps both in the list. */}
         {updates.map((u, i) => (
-          <li key={u.at} className="relative grid grid-cols-[14px_minmax(0,1fr)] gap-x-3">
+          <li key={`${i}-${u.at}`} className="relative grid grid-cols-[14px_minmax(0,1fr)] gap-x-3">
             {i < updates.length - 1 ? <span aria-hidden className="absolute top-4 bottom-[-20px] left-[6.5px] w-px bg-line" /> : null}
             <span aria-hidden className="mt-1.5 grid size-3.5 place-items-center">
               {i === 0 && live ? <StatusDot tone={st.tone} live /> : <span className="size-1.5 rounded-full bg-ink-3" />}

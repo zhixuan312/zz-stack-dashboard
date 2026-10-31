@@ -183,7 +183,8 @@ describe('M-4, F-17, F-53: a skill leads with one figure, in ink, with its amber
     mount(<SurfaceOverride surface={{ ask: () => {} }}><SkillView plugin="sdlc" skill="sdlc-spec" view="cost" served={skillRead()} /></SurfaceOverride>);
     expect(document.querySelectorAll('.text-accent-ink[data-value], [data-value] .text-accent-ink, [data-line] .text-accent-ink')).toHaveLength(0);
     const lead = document.querySelector('[data-protagonist="Its runs"]') as HTMLElement;
-    const figures = document.querySelectorAll('[data-figure]');
+    // A Bar list's row carries its own `data-figure`; the featured figure is the one outside any row.
+    const figures = [...document.querySelectorAll('[data-figure]')].filter((el) => !el.closest('[data-row]'));
     expect(figures).toHaveLength(1);
     expect(lead.contains(figures[0])).toBe(true);
     expect(figures[0].querySelector('[data-value]')!.textContent).toBe('8.2%');

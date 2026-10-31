@@ -47,7 +47,7 @@ export function pageSpecs(): { file: string; route: string }[] {
 export type AgentQuestion = { question: string; asked: string };
 
 /**
- * What a page specification says under `## Agents` → `### What the agent does here` (FR-42): the line
+ * What a page specification says under `## Agents` → `### What the agent does here`: the line
  * `Protagonist: <name>.`, and the list items `- "<question>" — <what the prepared query is asked>`. A list item in
  * another form is kept in `stray`, so a rule can name it. Null when the specification has no such section.
  */
@@ -199,21 +199,25 @@ function skipLiteral(src: string, i: number): number {
   return i;
 }
 
-/** Every static page, as a route: route groups dropped, dynamic segments skipped (verify.config.ts lists them in detailRoutes). */
-export function discover(): string[] {
+/**
+ * Every static page, as a route: route groups and parallel-route slots dropped from the address, dynamic segments skipped
+ * (verify.config.ts lists them in detailRoutes), intercepting routes left out, since they answer only a navigation from
+ * inside the app.
+ */
+export function discover(root = ROOT): string[] {
   const out: string[] = [];
   const walk = (dir: string, route: string[]) => {
     for (const n of fs.readdirSync(dir)) {
       const p = path.join(dir, n);
       if (fs.statSync(p).isDirectory()) {
         // Dynamic segments come from detailRoutes; private folders and API routes are not pages.
-        if (n.startsWith('[') || n.startsWith('_') || n === 'api' || (route[0] === 'system' && n === 'preview')) continue;
-        walk(p, /^\(.*\)$/.test(n) ? route : [...route, n]);
-      } else if (n === 'page.tsx') out.push('/' + route.join('/'));
+        if (n.startsWith('[') || n.startsWith('_') || /^\(\.{1,3}\)/.test(n) || n === 'api' || (route[0] === 'system' && n === 'preview')) continue;
+        walk(p, /^\(.*\)$/.test(n) || n.startsWith('@') ? route : [...route, n]);
+      } else if (/^page\.[jt]sx?$/.test(n)) out.push('/' + route.join('/'));
     }
   };
-  walk(path.join(ROOT, APP_DIR), []);
-  if (out.includes('/system') && fs.existsSync(path.join(ROOT, 'src/components/ui/button/README.md'))) out.push('/system/components/button');
+  walk(path.join(root, fs.existsSync(path.join(root, 'app')) ? 'app' : 'src/app'), []);
+  if (out.includes('/system') && fs.existsSync(path.join(root, 'src/components/ui/button/README.md'))) out.push('/system/components/button');
   out.push('/this-page-does-not-exist');
   return [...new Set(out)].sort();
 }

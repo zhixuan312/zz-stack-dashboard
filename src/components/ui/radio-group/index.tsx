@@ -22,6 +22,8 @@ export const RadioGroup = forwardRef<HTMLDivElement, Omit<ComponentPropsWithoutR
               id={id}
               value={o.value}
               disabled={o.disabled}
+              // The description sits inside the label, so a press on it chooses too; it describes the option rather than naming it.
+              {...(o.description ? { 'aria-labelledby': `${id}-label`, 'aria-describedby': `${id}-description` } : null)}
               className={cn(
                 'peer relative grid size-4 shrink-0 place-items-center rounded-full border border-line-control bg-surface',
                 'transition-[border-color,background-color] duration-(--dur-hover) hover:border-ink-3',
@@ -47,8 +49,8 @@ export const RadioGroup = forwardRef<HTMLDivElement, Omit<ComponentPropsWithoutR
               >
                 <span className="flex h-5 items-center">{dot}</span>
                 <span className="min-w-0 text-sm leading-5 font-medium text-ink">
-                  {o.label}
-                  {o.description ? <span className="mt-0.5 block text-xs leading-snug font-regular text-ink-2">{o.description}</span> : null}
+                  <span id={`${id}-label`}>{o.label}</span>
+                  {o.description ? <span id={`${id}-description`} className="mt-0.5 block text-xs leading-snug font-regular text-ink-2">{o.description}</span> : null}
                 </span>
               </label>
             );
@@ -57,8 +59,8 @@ export const RadioGroup = forwardRef<HTMLDivElement, Omit<ComponentPropsWithoutR
             <div key={o.value} className="flex items-start gap-2.5">
               <span className="flex h-5 items-center">{dot}</span>
               <label htmlFor={id} data-disabled={o.disabled ? '' : undefined} className={cn('min-w-0 text-sm leading-5 pointer-coarse:-my-3 pointer-coarse:py-3', o.disabled ? 'cursor-not-allowed text-ink-disabled' : 'cursor-pointer text-ink')}>
-                {o.label}
-                {o.description ? <span className="block text-xs leading-snug text-ink-3">{o.description}</span> : null}
+                <span id={`${id}-label`}>{o.label}</span>
+                {o.description ? <span id={`${id}-description`} className="block text-xs leading-snug text-ink-3">{o.description}</span> : null}
               </label>
             </div>
           );
@@ -67,3 +69,34 @@ export const RadioGroup = forwardRef<HTMLDivElement, Omit<ComponentPropsWithoutR
     );
   },
 );
+
+/**
+ * The accent picker: one colour out of a row of swatches. A radio group like any other — the arrow keys move the choice,
+ * the row is one Tab stop, and the chosen one is announced as chosen — drawn as circles because the colour is the label.
+ * The swatch inside each item is painted by the product's own `data-accent` rule, so this names no colour itself.
+ */
+export function AccentSwatches({ value, onChange, accents, size = 'md', label = 'Accent', className }: {
+  value: string;
+  onChange: (accent: string) => void;
+  accents: readonly string[];
+  /** `sm` for a toolbar, `md` for a form. */
+  size?: 'sm' | 'md';
+  label?: string;
+  className?: string;
+}) {
+  return (
+    <R.Root value={value} onValueChange={onChange} aria-label={label} orientation="horizontal" className={cn('flex items-center gap-1.5', className)}>
+      {accents.map((a) => (
+        <R.Item
+          key={a}
+          value={a}
+          aria-label={a}
+          title={a[0].toUpperCase() + a.slice(1)}
+          className={cn('press hit grid shrink-0 place-items-center rounded-full ring-offset-2 ring-offset-surface data-[state=checked]:ring-2 data-[state=checked]:ring-ink-2', size === 'sm' ? 'size-7' : 'size-8')}
+        >
+          <span data-accent={a} data-swatch className={cn('rounded-full bg-accent ring-1 ring-line', size === 'sm' ? 'size-4' : 'size-5.5')} />
+        </R.Item>
+      ))}
+    </R.Root>
+  );
+}

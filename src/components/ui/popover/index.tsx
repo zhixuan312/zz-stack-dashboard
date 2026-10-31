@@ -15,7 +15,10 @@ export const PopoverClose = P.Close;
 /** The surface, exported so a preview draws exactly what the popover draws. */
 export const POPOVER_CONTENT = 'z-(--layer-popover) w-72 max-w-[calc(100vw-16px)] rounded-lg bg-surface-raised p-4 text-sm text-ink shadow-overlay';
 
-export function PopoverContent({ className, align = 'start', sideOffset = 8, ...rest }: ComponentProps<typeof P.Content>) {
+/** A popover is a dialog, and Radix names it by nothing: the caller names it, in words or by an element's id. */
+type Named = { 'aria-label': string } | { 'aria-labelledby': string };
+
+export function PopoverContent({ className, align = 'start', sideOffset = 8, ...rest }: ComponentProps<typeof P.Content> & Named) {
   return (
     <P.Portal>
       <P.Content align={align} sideOffset={sideOffset} collisionPadding={8} className={cn('float-in', POPOVER_CONTENT, className)} {...rest} />

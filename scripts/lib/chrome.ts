@@ -5,7 +5,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-const CHROME = process.env.CHROME ?? (process.platform === 'darwin' ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' : process.platform === 'win32' ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe' : '/usr/bin/google-chrome');
+/** The Chrome every suite opens: `CHROME`, or the platform's usual install. */
+export const CHROME = process.env.CHROME ?? (process.platform === 'darwin' ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' : process.platform === 'win32' ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe' : '/usr/bin/google-chrome');
 // A Linux CI runner (Ubuntu 24.04's AppArmor) refuses Chrome's sandbox; there it only ever opens the app just built.
 const SANDBOX = process.platform === 'linux' && process.env.CI === 'true' ? ['--no-sandbox'] : [];
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -21,6 +22,11 @@ export type Page = {
   errors: string[];
   /** How many native file choosers the page has opened: intercepted, so none is shown, and counted, since opening one changes nothing in the DOM. */
   fileChoosers: () => number;
+  /**
+   * The HTTP status the last open()'s document answered with, after any redirect; 0 when none arrived. A not-found or an
+   * error page is a page like any other to every measurement, so a suite that does not read this measures it as the route.
+   */
+  status: () => number;
   send: (method: string, params?: Record<string, unknown>) => Promise<any>;
   eval: <T = unknown>(expression: string) => Promise<T>;
   open: (url: string, opts: { width: number; height?: number; theme?: 'light' | 'dark'; reduced?: boolean; wait?: number; cookie?: { name: string; value: string } }) => Promise<void>;
@@ -113,14 +119,22 @@ async function attach(proc: ChildProcess, dir: string, handle: Launched): Promis
   }
   if (!list) throw new Error(proc.exitCode !== null || proc.signalCode !== null ? `Chrome exited before it started (${proc.exitCode ?? proc.signalCode})` : 'Chrome did not start within 30 s');
   const ws = new WebSocket(list.find((t) => t.type === 'page').webSocketDebuggerUrl);
-  await new Promise((r) => ws.addEventListener('open', r));
+  // A socket that never opens or is refused says so, within the same 30 s, instead of leaving the caller waiting.
+  await new Promise<void>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error('Chrome did not open its page connection within 30 s')), 30_000);
+    ws.addEventListener('open', () => { clearTimeout(t); resolve(); });
+    ws.addEventListener('error', () => { clearTimeout(t); reject(new Error('Chrome refused the page connection')); });
+  });
   let id = 0;
   const pending = new Map<number, (m: any) => void>();
   const errors: string[] = [];
   let choosers = 0;
+  let status = 0;
+  let top = '';
   ws.addEventListener('message', (e) => {
     const m = JSON.parse(String(e.data));
     if (m.method === 'Page.fileChooserOpened') choosers++;
+    if (m.method === 'Network.responseReceived' && m.params.type === 'Document' && m.params.frameId === top) status = m.params.response.status;
     // A page that holds unsaved changes asks the browser to warn before it unloads, and the warning waits for an answer: with
     // nobody to give one, the next open() timed out (30 s, measured on a form with a typed-in value). A check that opens
     // another address has chosen to leave, so it says so. Only this question is answered: an alert or a confirm the page
@@ -130,8 +144,12 @@ async function attach(proc: ChildProcess, dir: string, handle: Launched): Promis
     if (m.method === 'Runtime.exceptionThrown') errors.push('exception: ' + (m.params.exceptionDetails?.exception?.description ?? m.params.exceptionDetails?.text ?? '').split('\n')[0]);
     if (m.method === 'Runtime.consoleAPICalled' && m.params.type === 'error') errors.push('console.error: ' + m.params.args.map((a: any) => a.value ?? a.description ?? '').join(' ').slice(0, 200));
   });
+  // A Chrome that crashed fails every command waiting on it, and every later one, at once and by name, not each after its own 30 s.
+  const GONE = { error: { message: 'Chrome closed the connection' } };
+  ws.addEventListener('close', () => { for (const answer of [...pending.values()]) answer(GONE); pending.clear(); });
   const send = (method: string, params: Record<string, unknown> = {}) =>
     new Promise<any>((r, reject) => {
+      if (ws.readyState >= WebSocket.CLOSING) return reject(new Error(`${method}: ${GONE.error.message}`));
       const i = ++id;
       const t = setTimeout(() => { pending.delete(i); reject(new Error(`${method} timed out`)); }, 30000);
       // A protocol error rejects: a silently refused command (a bad parameter) would leave the page in the wrong state.
@@ -140,10 +158,13 @@ async function attach(proc: ChildProcess, dir: string, handle: Launched): Promis
     });
   await send('Page.enable');
   await send('Runtime.enable');
+  await send('Network.enable');
+  top = (await send('Page.getFrameTree')).result.frameTree.frame.id;
   await send('Page.setInterceptFileChooserDialog', { enabled: true });
   const page: Page = {
     errors,
     fileChoosers: () => choosers,
+    status: () => status,
     send,
     async eval(expression) {
       const r = await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
@@ -160,10 +181,8 @@ async function attach(proc: ChildProcess, dir: string, handle: Launched): Promis
       await send('Emulation.setTouchEmulationEnabled', width < 600 ? { enabled: true, maxTouchPoints: 5 } : { enabled: false });
       // A cookie is set through the network domain, BEFORE the navigation, so the very first request already carries it
       // (a persona suite signed in this way sees that person's pages, never the signed-out or default one).
-      if (cookie) {
-        await send('Network.enable');
-        await send('Network.setCookie', { name: cookie.name, value: cookie.value, url });
-      }
+      if (cookie) await send('Network.setCookie', { name: cookie.name, value: cookie.value, url });
+      status = 0;
       await send('Page.navigate', { url });
       await sleep(wait);
       // Then its load event: on a busy machine a page can still be loading after any fixed wait, and a suite reading it then

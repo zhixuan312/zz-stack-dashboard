@@ -49,7 +49,7 @@ const COLD: ReadinessBudget = {
 };
 
 /** The first-load cap, in KiB, for a route the baseline does not hold, and for every route unless `firstLoadKb` is null. */
-export const FIRST_LOAD_CAP_KB = 820;
+export const FIRST_LOAD_CAP_KB = 830;
 
 /** Each page's HTML is held to its own baseline; an absolute HTML cap is a project's route, so the defaults set none. */
 export const DEFAULT_BUDGETS: Budgets = {

@@ -8,6 +8,11 @@ type Props = Omit<ComponentPropsWithoutRef<typeof S.Root>, 'children'> & {
   label?: ReactNode;
   description?: ReactNode;
   size?: 'sm' | 'md';
+  /**
+   * Styles the control's outer element: the labelled row (switch and label together) when a label is passed, the
+   * control itself when none is.
+   */
+  className?: string;
 };
 
 /**
@@ -29,6 +34,8 @@ export const Switch = forwardRef<HTMLButtonElement, Props>(function Switch({ lab
         !label && className,
       )}
       {...rest}
+      // The description sits inside the label, so a press on it flips too; it describes the switch rather than naming it.
+      {...(label && description ? { 'aria-labelledby': `${sid}-label`, 'aria-describedby': [rest['aria-describedby'], `${sid}-description`].filter(Boolean).join(' ') } : null)}
     >
       <S.Thumb
         className={cn(
@@ -44,8 +51,8 @@ export const Switch = forwardRef<HTMLButtonElement, Props>(function Switch({ lab
   return (
     <div className={cn('flex items-start justify-between gap-4', className)}>
       <label htmlFor={sid} data-disabled={rest.disabled ? '' : undefined} className={cn('min-w-0 text-sm leading-5', rest.disabled ? 'cursor-not-allowed text-ink-disabled' : 'cursor-pointer text-ink')}>
-        {label}
-        {description ? <span className="mt-0.5 block text-xs leading-snug text-ink-3">{description}</span> : null}
+        <span id={`${sid}-label`}>{label}</span>
+        {description ? <span id={`${sid}-description`} className="mt-0.5 block text-xs leading-snug text-ink-3">{description}</span> : null}
       </label>
       <span className="flex h-5 items-center">{sw}</span>
     </div>

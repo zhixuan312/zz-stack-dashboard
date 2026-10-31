@@ -24,7 +24,7 @@ export function Freshness({
 }) {
   if (run && updatedAt) {
     return (
-      <span title={formatDateTime(updatedAt)} className={cn('inline-flex max-w-full min-w-0 items-center gap-2 text-xs whitespace-nowrap text-ink-3', className)}>
+      <span title={`Run ${formatDate(updatedAt)} · ${formatDateTime(updatedAt)}`} className={cn('inline-flex max-w-full min-w-0 items-center gap-2 text-xs whitespace-nowrap text-ink-3', className)}>
         <StatusDot tone="neutral" />
         <span className="min-w-0 truncate">Run {formatDate(updatedAt)}</span>
       </span>
@@ -33,7 +33,8 @@ export function Freshness({
   if (!updatedAt) return <span className={cn('t-caption inline-flex items-center gap-1.5', className)}><StatusDot tone="neutral" />Never updated</span>;
   const stale = now.getTime() - updatedAt.getTime() > staleAfterMs;
   return (
-    <span title={formatDateTime(updatedAt)} className={cn('inline-flex max-w-full min-w-0 items-center gap-2 text-xs whitespace-nowrap', stale ? 'text-warning-ink' : 'text-ink-3', className)}>
+    // The title holds the words a squeezed line cuts, then the moment itself.
+    <span title={`${stale ? 'Stale · ' : 'Updated '}${formatRelative(updatedAt, now)} · ${formatDateTime(updatedAt)}`} className={cn('inline-flex max-w-full min-w-0 items-center gap-2 text-xs whitespace-nowrap', stale ? 'text-warning-ink' : 'text-ink-3', className)}>
       <StatusDot tone={stale ? 'warning' : 'positive'} live={!stale} />
       {/* Squeezed, the words end in an ellipsis; the dot stays. */}
       <span className="min-w-0 truncate">{stale ? 'Stale · ' : 'Updated '}{formatRelative(updatedAt, now)}</span>

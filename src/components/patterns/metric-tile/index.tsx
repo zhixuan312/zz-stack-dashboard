@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { cn } from '../../../lib/cn';
 import { formatDate } from '../../../lib/format-date';
 import { fitFigure, formatBy, splitFigure, type NumberFormat } from '../../../lib/format';
@@ -115,7 +115,13 @@ export function MetricTile({
   const reading = !compact && index !== null && points && points.length === dates.length ? points[index] : null;
   const fmt = typeof format === 'function' ? format : (n: number) => formatBy(format ?? 'count', n);
   const word = typeof value === 'string';
-  const text = word && reading === null ? value : fitFigure(fmt(reading ?? (word ? 0 : value)), reading ?? (word ? 0 : (value as number)));
+  // A day the tile has no number for is not the same as no day pointed at. Reading `null` for both made a pointed day
+  // with no measurement draw the period's total and its change as though that were the day's: the one figure a person
+  // came to check, silently wrong. Pointed and empty reads the product's own not-measured word instead.
+  const unmeasured = !compact && index !== null && points !== undefined && points.length === dates.length && points[index] === null;
+  // The caller's `format` may be a function of a number, so the not-measured word is the product's own.
+  const text = unmeasured ? formatBy(undefined, null)
+    : word && reading === null ? value : fitFigure(fmt(reading ?? (word ? 0 : value)), reading ?? (word ? 0 : (value as number)));
   const parts = word && reading === null ? { int: value } : (split ?? splitFigure)(text);
   // Under two values there is no shape to draw, so the tile is laid out as one that was given none.
   const shape = points && points.length > 1 ? points : null;
@@ -143,7 +149,7 @@ export function MetricTile({
           {/* Outside the padded grid, so the shape runs from edge to edge with no margin to undo. */}
           {shape ? (
             <div className="mt-2">
-              <Sparkline values={shape} color={emphasis ? 'accent' : 'neutral'} height={28} />
+              <Sparkline values={shape} color={emphasis ? 'accent' : 'neutral'} height={28} format={fmt} />
             </div>
           ) : null}
         </div>
@@ -170,17 +176,27 @@ export function MetricTile({
       {/* Phones: the sparkline sits beside the figure, so a stack of tiles stays short. */}
       <div className={cn('grid grid-cols-1', shape && 'max-sm:grid-cols-[minmax(0,1fr)_7rem] max-sm:items-end max-sm:gap-4 max-sm:pb-(--card-pad)', row && 'max-sm:contents')}>
         <div className={cn('min-w-0', row && 'max-sm:contents')}>
-          <p data-value className={cn(word && reading === null ? 'mt-3 text-2xl leading-[1.15] font-semibold tracking-[-0.02em] text-balance' : 't-figure t-num mt-3', emphasis ? 'text-accent-ink' : 'text-ink', row && 'max-sm:col-start-2 max-sm:row-span-2 max-sm:row-start-1 max-sm:mt-0 max-sm:text-right max-sm:text-xl')} aria-live="off">
+          {/* The figure fits its own column, not the viewport (on a phone the sparkline takes the side of the tile): base.css
+              `[data-figure-box]`, which data-fit on the figure reads. The box holds the figure alone, so the note beside it
+              still counts toward the width of a tile sized by its content. */}
+          <div data-figure-box={word && reading === null ? undefined : ''} style={{ '--figure-chars': text.length } as CSSProperties} className={cn(row && 'max-sm:contents')}>
+          <p data-value data-fit={word && reading === null ? undefined : ''} className={cn(word && reading === null ? 'mt-3 text-2xl leading-[1.15] font-semibold tracking-[-0.02em] text-balance [overflow-wrap:anywhere]' : 't-figure t-num mt-3', emphasis ? 'text-accent-ink' : 'text-ink', row && 'max-sm:col-start-2 max-sm:row-span-2 max-sm:row-start-1 max-sm:mt-0 max-sm:text-right max-sm:text-xl')} aria-live="off">
             {parts.pre ? <span className="unit pre">{parts.pre}</span> : null}
             {parts.int}
             {parts.frac ? <span className="frac">{parts.frac}</span> : null}
             {parts.unit ? <span className="unit">{parts.unit}</span> : null}
           </p>
+          </div>
           {/* One line, high enough for one line: a part that does not fit wraps out of sight whole, rather than ending
               "vs previou…". A screen reader still hears it, and the page's head says the period. A note is words read
               whole, so it takes a second line first. */}
-          <div className={cn('mt-2 flex flex-wrap content-start items-center gap-x-2 overflow-hidden text-xs', reading === null && delta === undefined && note ? 'min-h-5' : 'h-5', row && 'max-sm:col-start-1 max-sm:row-start-2 max-sm:mt-0.5 max-sm:min-w-0')}>
-            {reading !== null ? (
+          <div data-tile-line className={cn('mt-2 flex flex-wrap content-start items-center gap-x-2 overflow-hidden text-xs', reading === null && delta === undefined && note ? 'min-h-5' : 'h-5', row && 'max-sm:col-start-1 max-sm:row-start-2 max-sm:mt-0.5 max-sm:min-w-0')}>
+            {unmeasured ? (
+              <>
+                <span className="t-num font-medium text-ink-2">{formatDate(dates[index!])}</span>
+                <span className="leading-5 text-ink-3">No reading for this day</span>
+              </>
+            ) : reading !== null ? (
               <>
                 <span className="t-num font-medium text-ink-2">{formatDate(dates[index!])}</span>
                 {baseline ? <span className="t-num leading-5 whitespace-nowrap text-ink-3">{comparison(reading, baseline)}× usual</span> : null}
@@ -221,7 +237,7 @@ export function MetricTile({
         </div>
         {shape ? (
           <div className="-mx-(--card-pad) mt-3 max-sm:mx-0 max-sm:mt-0">
-            <Sparkline values={shape} color={emphasis ? 'accent' : 'neutral'} height={40} />
+            <Sparkline values={shape} color={emphasis ? 'accent' : 'neutral'} height={40} format={fmt} />
           </div>
         ) : (
           <div className="h-(--card-pad) max-sm:hidden" />

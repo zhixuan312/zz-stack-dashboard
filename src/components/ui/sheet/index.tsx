@@ -52,7 +52,7 @@ export function SheetContent({
         <div className={SHEET_HEAD}>
           <div className="min-w-0 flex-1">
             <D.Title className="t-section">{title}</D.Title>
-            {description ? <D.Description className="t-small mt-1 text-ink-2">{description}</D.Description> : <D.Description className="sr-only">{title}</D.Description>}
+            {description ? <D.Description className="t-small mt-1 text-ink-2">{description}</D.Description> : null}
           </div>
           <D.Close aria-label="Close" className="press -mt-0.5 -mr-2 grid size-8 shrink-0 place-items-center rounded-md text-ink-3 hover:bg-fill-hover hover:text-ink">
             <X className="size-4" />

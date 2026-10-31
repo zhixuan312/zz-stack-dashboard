@@ -52,11 +52,12 @@ export function Pagination({
   const to = Math.min(total, page * pageSize);
   return (
     <nav aria-label="Pagination" className={cn('@container/pager flex min-w-0 items-center gap-3 text-sm', className)}>
-      <p className="t-num min-w-0 truncate text-ink-2">
-        <span className="@max-[32rem]/pager:hidden">
+      {/* Each form of the line is cut on its own and keeps the whole of itself in its title: the one the pager's width shows. */}
+      <p className="t-num min-w-0 text-ink-2">
+        <span title={`${from.toLocaleString('en-US')}–${to.toLocaleString('en-US')} of ${total.toLocaleString('en-US')} ${noun}`} className="block truncate @max-[32rem]/pager:hidden">
           <span className="font-medium text-ink">{from.toLocaleString('en-US')}–{to.toLocaleString('en-US')}</span> of {total.toLocaleString('en-US')} {noun}
         </span>
-        <span className="@min-[32rem]/pager:hidden">Page <span className="font-medium text-ink">{page}</span> of {count}</span>
+        <span title={`Page ${page} of ${count}`} className="block truncate @min-[32rem]/pager:hidden">Page <span className="font-medium text-ink">{page}</span> of {count}</span>
       </p>
       {pageSizes && onPageSizeChange ? (
         <Menu>
@@ -116,7 +117,9 @@ export function usePaged<T>(rows: readonly T[], { pageSize = 10, resetKey = '' }
   const page = at.key === resetKey ? Math.min(at.page, count) : 1;
   return {
     rows: rows.slice((page - 1) * size, page * size),
-    paged: rows.length > pageSize,
+    // The size on screen, not the one it opened with: a list of 26 with 100 a page is one page, and the pager was drawn
+    // anyway because 26 is more than the ten it started at.
+    paged: rows.length > size,
     pagination: {
       page,
       pageSize: size,

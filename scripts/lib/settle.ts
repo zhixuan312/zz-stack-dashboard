@@ -23,7 +23,10 @@ const assistant = new Map<string, boolean>();
 /** Resolves with the number of focusable controls the page settled on. */
 export async function settle(page: Page): Promise<number> {
   const origin = await page.eval<string>('location.origin');
-  if (!assistant.has(origin)) assistant.set(origin, (await page.eval<number>('fetch("/api/assistant", { method: "POST" }).then((r) => r.status).catch(() => 404)')) !== 404);
+  // "On" is the route serving itself: anything that refuses the request — no assistant configured (404), no session or no
+  // grant (401, 403), a connection that never opened — says nothing is going to arrive, and a page told otherwise waited
+  // the whole bound (140 × 50 ms) for a slot that was never coming.
+  if (!assistant.has(origin)) assistant.set(origin, ![401, 403, 404].includes(await page.eval<number>('fetch("/api/assistant", { method: "POST" }).then((r) => r.status).catch(() => 404)')));
   return page.eval<number>(`new Promise((done) => {
     let last = '', stable = 0, tries = 0;
     const count = () => deepAll(document.body).filter((el) => el.matches('a[href],button,input,select,textarea,[tabindex]') && !el.hasAttribute('disabled') && el.tabIndex >= 0).length;

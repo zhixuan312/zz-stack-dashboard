@@ -13,6 +13,8 @@ import type { Need } from './lib/collection.ts';
 export const app = {
   /** The product name: the rail, the document title, the sign-in screen. */
   name: 'ZZ Stack',
+  /** One sentence about the product: the document's description, under the name in a search result or link preview. */
+  description: 'Every team, flow, skill and initiative on the ZZ platform, and how far each got.',
   /** One line under the name in the rail until the address says which workspace is in view. */
   workspace: 'Platform',
   /**
@@ -48,7 +50,7 @@ export type WorkspaceId = keyof typeof workspaces;
  * `feature` is the page's own id in `src/data/features.ts`, the one its gate asks and a page view records; `needs` is
  * that feature's need, by reference: the rail asks it of the person.
  */
-type NavItem = { href: string; label: string; icon: LucideIcon; badge?: string; workspace?: WorkspaceId; feature: FeatureId; needs: Need };
+type NavItem = { href: string; label: string; icon: LucideIcon; badge?: string; workspace?: WorkspaceId; feature: FeatureId; needs: Need; prefetch?: true; under?: string };
 export type NavGroup = { label?: string; items: NavItem[] };
 
 /**

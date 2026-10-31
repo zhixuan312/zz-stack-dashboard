@@ -23,7 +23,7 @@ How a Meridian dashboard speaks: in titles, labels, buttons, empty states, error
 | Empty, filtered | No requests match "status: 5xx" in the last 7 days. Clear filters | No results found. |
 | Error | Requests could not load. The data service did not answer in 10 seconds. Retry | Oops! Something went wrong. |
 | Stale data | Stale · 47 min ago | Data may be out of date |
-| Destructive confirm | Revoke key "Production backend"? Requests using it will fail with 401 at once. | Are you sure? |
+| Destructive confirm | Revoke Production backend? Requests that use it fail at once with 401. | Are you sure? |
 | Agent proposal | Raise Parallax AI's rate limit from 1,000 to 2,000 requests a minute. | Claude wants to make a change |
 | Agent provenance | Claude raised the rate limit for Parallax AI · for Jonas Weber | Rate limit updated (AI) |
 

@@ -9,7 +9,7 @@
  * of it. What a rule needs of the product (the history a record asks for, the thresholds of a first, the band of a steady day) is an argument:
  * the readers pass `facts` from `src/app.config.ts`.
  */
-import { formatPercent, ordinal, plural } from './format';
+import { formatPercent, inWords, ordinal, plural } from './format';
 import { formatDate } from './format-date';
 
 type FactKind = 'record' | 'first' | 'run' | 'steady' | 'all' | 'total';
@@ -133,19 +133,24 @@ export function run<S>(days: readonly S[], good: S, { name }: { name: string }):
 type DayService = { date: string; p95: number; errors: number; requests: number };
 
 /**
+ * Whether a day is inside the band: its p95 under `band.p95Under` and its errors over its requests under
+ * `band.errorRateUnder`. A day at either edge is outside, and so is a day with no requests, which has no rate to hold.
+ */
+export const inBand = (d: { p95: number; errors: number; requests: number }, band: { p95Under: number; errorRateUnder: number }) =>
+  d.p95 < band.p95Under && d.errors / d.requests < band.errorRateUnder;
+
+/**
  * The rule of a steady state: how many of the days given were inside the band, and which were not, by date. `days`
- * are complete days, oldest first; the caller leaves the day in progress out. A day is inside when its p95 is under
- * `band.p95Under` and its errors over its requests under `band.errorRateUnder`: a day at either edge is outside, and so
- * is a day with no requests, which has no rate to hold. The line names the band's own figures, then the first three
- * days outside it and how many more.
+ * are complete days, oldest first; the caller leaves the day in progress out, and `inBand` says which are inside. The
+ * line names the band's own figures, then the first three days outside it and how many more.
  */
 export function steady(days: readonly DayService[], band: { p95Under: number; errorRateUnder: number }): (Fact & { inside: number; of: number; outside: string[] }) | null {
   if (!days.length) return null;
-  const outside = days.filter((d) => !(d.p95 < band.p95Under && d.errors / d.requests < band.errorRateUnder)).map((d) => d.date);
+  const outside = days.filter((d) => !inBand(d, band)).map((d) => d.date);
   const inside = days.length - outside.length;
   const named = outside.slice(0, 3).map(formatDate);
   const more = outside.length - named.length;
-  const list = more ? `${named.join(', ')} and ${more} more` : named.length > 1 ? `${named.slice(0, -1).join(', ')} and ${named.at(-1)}` : named[0];
+  const list = more ? `${named.join(', ')} and ${more} more` : inWords(named);
   // The band as it was given, to the hundredth of a percent: a band of 0.5% is not written 1%.
   const rate = `${Number((band.errorRateUnder * 100).toFixed(2))}%`;
   return {

@@ -13,8 +13,9 @@ export type ProposalState = 'pending' | 'applying' | 'applied' | 'dismissed' | '
  * A change an agent wants to make, waiting for a person. The agent can read anything and do nothing without consent:
  * every write it proposes arrives as this card, with what changes (before → after), why, and what it affects.
  * Approve runs it once; Dismiss closes it. A removal is proposed with the critical tone: its button reads "Approve and remove".
- * Uncontrolled, the card keeps its own pending, applying, applied and failed flow; controlled (`state`), only pending
- * shows buttons and the caller owns every other state.
+ * Uncontrolled, the card keeps its own pending, applying, applied and failed flow; controlled (`state`), pending shows
+ * buttons, failed shows them when the caller can run the change again (it passes `onApprove`), and the caller owns
+ * every other state.
  */
 export function Proposal({
   agent = 'Claude',
@@ -53,7 +54,9 @@ export function Proposal({
     try { await onApprove?.(); setOwn('applied'); } catch { setOwn('failed'); }
   };
   const settled = state === 'applied' || state === 'dismissed' || state === 'expired';
-  const buttons = controlled ? state === 'pending' : !settled;
+  // A proposal that failed offers the same choice it did before it ran: the card says nothing changed, and the person
+  // may try again. Controlled, only where the caller can run it again: a Try again with nothing behind it does nothing.
+  const buttons = controlled ? state === 'pending' || (state === 'failed' && !!onApprove) : !settled;
   return (
     <article
       aria-label={`Proposal from ${agent}: ${title}`}
@@ -77,7 +80,9 @@ export function Proposal({
           {changes.map((c) => (
             <div key={c.label} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-line px-3 py-2.5 last:border-0 sm:grid-cols-[10rem_minmax(0,1fr)]">
               <dt className="text-xs text-ink-3">{c.label}</dt>
-              <dd className="t-num flex min-w-0 items-center gap-2 text-sm max-sm:col-span-2">
+              {/* A change wraps rather than running past its row: "Active → Suspended" is two words and an arrow, and a
+                  narrow card puts the second line under the first. */}
+              <dd className="t-num flex min-w-0 flex-wrap items-center gap-2 text-sm max-sm:col-span-2">
                 <span className="text-ink-3 line-through decoration-ink-3/50">{c.from}</span>
                 <ArrowRight className="size-3.5 shrink-0 text-ink-3" />
                 <span className="font-medium">{c.to}</span>

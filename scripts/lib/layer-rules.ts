@@ -49,8 +49,8 @@ export function resolveSpec(from: string, spec: string, aliases: [string, string
 
 const lineOf = (src: string, at: number) => src.slice(0, at).split('\n').length;
 
-/** Every source file under a directory, as project paths, the way `scripts/check.ts` walks. */
-function walk(root: string, dir: string, ext: RegExp, out: string[] = []): string[] {
+/** Every file under `dir` whose name matches `ext`, as paths relative to `root`; a missing directory holds none. */
+export function walk(root: string, dir: string, ext: RegExp, out: string[] = []): string[] {
   const abs = path.join(root, dir);
   if (!fs.existsSync(abs)) return out;
   for (const n of fs.readdirSync(abs)) {
@@ -61,16 +61,16 @@ function walk(root: string, dir: string, ext: RegExp, out: string[] = []): strin
   return out;
 }
 
-/** A source file as a scan reads it: comment-blanked, and the raw text beside it for the escape the check prints. */
+/** A source file as a scan reads it: comment-blanked. The escape's raw line is read by scripts/check.ts itself. */
 const sourceOf = (tree: LayerTree, file: string) => blankedText(fs.readFileSync(path.join(tree.root, file), 'utf8'));
 
 // ── presentation does not read ───────────────────────────────────────────────────────────────────────
-/** The five vocabulary modules FR-4 lets what is drawn take a value from, by name. */
+/** The five vocabulary modules what is drawn may take a value from, by name. */
 export const VOCABULARY = ['roles.ts', 'features.ts', 'sample.ts', 'request-methods.ts', 'live-actions.ts'];
 
 /**
  * A value import resolving under `src/data/` from `src/views/**` or `src/components/**`, naming any module other than
- * the five vocabulary modules of FR-4. A type import is erased before anything runs, so it is not a read; `app/` is the
+ * the five vocabulary modules. A type import is erased before anything runs, so it is not a read; `app/` is the
  * entry that assembles an answer rather than presentation, so it is not scanned. Comments are blanked first, so a
  * documented import in prose is not a violation.
  */
@@ -90,30 +90,20 @@ export function presentationDoesNotRead(tree: LayerTree): RuleProblem[] {
 
 // ── no direct query ──────────────────────────────────────────────────────────────────────────────────
 /**
- * The five FR-9 sites this rule governs, each allowed by its own measured line. An allowlist of SITES and not of files,
- * because `src/lib/assistant/tools.ts` holds both an allowed read and ordinary code. FR-9's other two sites live in
- * `src/data/access.ts`, which this rule does not govern; each of the seven carries its reason on the call's own line.
- */
-export const DIRECT_QUERIES: [string, number][] = [
-  ['app/sign-in/actions.ts', 16],
-  ['app/sign-in/gated-panel.tsx', 10],
-  ['app/(dashboard)/requests/[id]/actions.ts', 23],
-  ['app/api/export/requests/route.ts', 38],
-  ['src/lib/assistant/tools.ts', 132],
-];
-
-/**
- * A `.query(` call on a code line of `app/**`, `src/logic/**`, `src/views/**` or `src/lib/**`, outside the five sites
- * above: a page, a view, a logic module or a lib module reads through `read()`, `readAll()` or `aggregate()`, so the
- * caller's access applies. Comments are blanked first, so a `.query(` a document quotes in prose is not a violation.
+ * A `.query(` call on a code line of `app/**`, `src/logic/**`, `src/views/**` or `src/lib/**`: a page, a view, a logic
+ * module or a lib module reads through `read()`, `readAll()` or `aggregate()`, so the caller's access applies. Comments
+ * are blanked first, so a `.query(` a document quotes in prose is not a violation. The sites that must query
+ * directly state it on the call's own line as `allow-no-direct-query: <reason>`, which `scripts/check.ts` prints as an
+ * escape: a list of sites by line number here would point at whatever a comment added above them moved the call under,
+ * and its own count was wrong the moment a line moved. The other two sites live in `src/data/access.ts`, which this
+ * rule does not govern.
  */
 export function noDirectQuery(tree: LayerTree): RuleProblem[] {
-  const allowed = new Set(DIRECT_QUERIES.map(([file, line]) => `${file}:${line}`));
   const problems: RuleProblem[] = [];
   for (const file of ['app', 'src/logic', 'src/views', 'src/lib'].flatMap((dir) => walk(tree.root, dir, /\.tsx?$/))) {
     sourceOf(tree, file).split('\n').forEach((text, i) => {
       const call = text.match(/([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\.query\s*\(/);
-      if (!call || allowed.has(`${file}:${i + 1}`)) return;
+      if (!call) return;
       problems.push({ file, line: i + 1, message: `calls ${call[1]}.query( directly; no direct query — read it through read(), readAll() or aggregate() from @/data/read, so the caller's access applies` });
     });
   }

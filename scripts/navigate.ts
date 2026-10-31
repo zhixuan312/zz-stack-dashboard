@@ -3,6 +3,7 @@
  * until a control works, on a desktop and through the real phone drawer.
  *
  *   node scripts/navigate.ts --base http://127.0.0.1:3000 [--routes /,/requests,/settings] [--mode default|full] [--samples 1] [--timing on|off]
+ *                            [--config scripts/verify.config.ts] [--rail /,/a,/b] [--homes /b=Name] [--rate <n>]
  *
  * Each journey starts from the rail route before the destination (the one after it for the first) whose rail draws a link to
  * it, because a rail may show only the part of the navigation its page belongs to. A workspace's home that no other route's
@@ -32,8 +33,12 @@
  * One line per route and device, one per device for the prefetch bytes, and a JSON summary on the last line, whose lines say
  * `via: 'rail'` or `via: 'menu'`:
  *
- *   ok|FAIL|warn|not run <route> <device> shell <ms> · data <ms|not-configured> · interactive <ms|not-configured>[ · noisy][ · through the workspace menu (<workspace>) · not prefetched|prefetched <n> time(s) before the press][ · <reasons>]
+ *   ok|FAIL|warn|not run <route> <device> shell <ms> · data <ms|not-configured> · interactive <ms|not-configured>[ · noisy][ · through the workspace menu (<workspace>) · not prefetched|prefetched <n> time(s) before the press][ · <metric> <ms> leaves <n>% of its <limit> ms budget][ · <reasons>]
+ *   headroom: the least was <n>%, <route> <device> <metric> <ms> of <limit> ms; under 20% warns
  *   navigate: {...}
+ *
+ * With `--timing on`, a time that passes leaving less than a fifth of its budget makes its line `warn` (scripts/lib/timing.ts
+ * `HEADROOM`): a pass by a hair here is a red on a slower machine, and the weekly runner is one.
  *
  * scripts/perf.ts drives the same journey 20 times per route, device and condition (warm, cold and after a live refresh).
  *
@@ -49,9 +54,10 @@ import { budgetsOf, limitsFor, type NavigationCheck } from './lib/budgets.ts';
 import { launch, type Page } from './lib/chrome.ts';
 import { resolveCoverage, selectSmokeRoutes } from './lib/coverage.ts';
 import { railRoutes } from './lib/routes.ts';
-import { DEVICES, Fail, METRICS, PREFETCH_WAIT, drawerRoutes, journey, journeyStart, openStart, prepare, sleep, type Device, type Measured, type Metric, type NavConfig } from './lib/journey.ts';
+import { DEVICES, Fail, METRICS, PREFETCH_WAIT, drawerRoutes, journey, journeyStart, openStart, prepare, sleep, workspaceHomes, type Device, type Measured, type Metric, type NavConfig } from './lib/journey.ts';
 import { isPrefetch, prefetchProblems } from './lib/sizes.ts';
-import { judge } from './lib/timing.ts';
+import { headroom, judge, thin } from './lib/timing.ts';
+import { holdArgs } from './lib/args.ts';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const args = process.argv.slice(2);
@@ -82,6 +88,12 @@ type Line = {
   workspace?: string;
   /** Through the menu: how many prefetches of the destination the starting page had made before the press. */
   prefetched?: number;
+  /** Where the press arrived, when it was under the route rather than at it. */
+  landed?: string;
+  /** The data was the page's first-run state, not `readySelector`. */
+  empty?: boolean;
+  /** The judged times that passed leaving less than a fifth of their budget (scripts/lib/timing.ts `thin`). */
+  thin?: string[];
 };
 
 const value = (m: Measured | null): number | null => (m && 'ms' in m ? m.ms : null);
@@ -96,13 +108,16 @@ async function measure(page: Page, device: Device, start: From, route: string, c
     if ('fail' in m) {
       line[name] = { ms: null, limit: limits[name], verdict: 'fail', reason: `${m.fail.kind}: ${m.fail.message}` };
       line.problems.push(`${name} ${m.fail.kind}: ${m.fail.message}`);
-    } else line[name] = { ms: m.ms, limit: limits[name], verdict: 'pass' };
+    } else if ('absent' in m) line[name] = { ms: null, verdict: 'not-configured', reason: m.absent };
+    else line[name] = { ms: m.ms, limit: limits[name], verdict: 'pass' };
   };
   const run = { origin: base, condition: 'warm' as const, menu: start.menu };
   const first = await journey(page, device, start.from, route, check, run);
   line.drawerMs = first.drawerMs;
   line.prefetchCapped = first.prefetchCapped;
   line.prefetched = first.prefetched;
+  line.landed = first.landed;
+  line.empty = first.empty;
   for (const name of METRICS) fill(name, first[name]);
   // A wrong result, a never-ready page or a dead control is the answer: no retake can replace it.
   if (line.problems.length || timing === 'off') return finish(line);
@@ -129,8 +144,13 @@ async function measure(page: Page, device: Device, start: From, route: string, c
 
 const viaOf = (start: From | undefined): Pick<Line, 'via' | 'workspace'> => (start?.menu === undefined ? { via: 'rail' } : { via: 'menu', workspace: start.menu });
 
+/** A time judged against its budget and passed: what its headroom is read from. `--timing off` judges none. */
+const judged = (r: Reported): r is Reported & { ms: number; limit: number } => timing === 'on' && r.verdict === 'pass' && r.ms !== null && r.limit !== undefined;
+const percent = (r: { ms: number; limit: number }) => `${Math.floor(headroom(r.ms, r.limit) * 100)}%`;
+
 function finish(line: Line): Line {
-  line.status = line.problems.length ? 'FAIL' : line.noisy || line.data.verdict === 'not-configured' || line.interactive.verdict === 'not-configured' ? 'warn' : 'ok';
+  line.thin = METRICS.flatMap((name) => { const r = line[name]; return judged(r) && thin(r.ms, r.limit) ? [`${name} ${Math.round(r.ms)} ms leaves ${percent(r)} of its ${r.limit} ms budget`] : []; });
+  line.status = line.problems.length ? 'FAIL' : line.noisy || line.thin.length || line.data.verdict === 'not-configured' || line.interactive.verdict === 'not-configured' ? 'warn' : 'ok';
   return line;
 }
 
@@ -138,10 +158,14 @@ const cell = (r: Reported): string => (r.verdict === 'not-configured' ? 'not-con
 const text = (l: Line): string =>
   `${l.status.padEnd(7)} ${l.route} ${l.device} shell ${cell(l.shell)} · data ${cell(l.data)} · interactive ${cell(l.interactive)}`
   + (l.noisy ? ' · noisy' : '')
+  + (l.landed ? ` · landed on ${l.landed}` : '')
+  + (l.empty ? ' · data is the first-run state' : '')
+  + METRICS.flatMap((name) => (l[name].verdict === 'not-configured' && l[name].reason ? [` · ${name} ${l[name].reason}`] : [])).join('')
   + (l.prefetchCapped ? ` · prefetch not idle after ${PREFETCH_WAIT / 1000} s` : '')
   + (l.drawerMs !== undefined ? ` · drawer ${l.drawerMs} ms` : '')
   + (l.via === 'menu' ? ` · through the workspace menu (${l.workspace})` : '')
   + (l.prefetched === undefined ? '' : l.prefetched === 0 ? ' · not prefetched' : ` · prefetched ${l.prefetched} time(s) before the press`)
+  + (l.thin?.length ? ` · ${l.thin.join('; ')}` : '')
   + (l.problems.length ? ` · ${l.problems.join('; ')}` : '');
 
 // ---- prefetch ----
@@ -165,27 +189,8 @@ async function prefetchKiB(page: Page, device: Device, landing: string): Promise
 
 const summary = (o: Record<string, unknown>) => console.log(`navigate: ${JSON.stringify({ ...o, timing })}`);
 
-/**
- * Each workspace's home, with the name of the workspace menu's item that opens it: `--homes <home>=<workspace>,...` beside
- * `--rail`; none for `--rail` alone; otherwise `homeHref` and `label` of each of `workspaces` in src/app.config.ts, of
- * which a project without workspaces has none. Throws on an entry of `--homes` that does not name both.
- */
-export async function workspaceHomes(): Promise<Map<string, string>> {
-  const listed = opt('--homes');
-  if (listed !== undefined) {
-    return new Map(listed.split(',').filter(Boolean).map((entry) => {
-      const at = entry.indexOf('=');
-      if (at <= 0 || at === entry.length - 1) throw new Error(`--homes: ${entry} is not <home>=<workspace>`);
-      return [entry.slice(0, at), entry.slice(at + 1)];
-    }));
-  }
-  if (opt('--rail') !== undefined) return new Map();
-  type Workspaces = Record<string, { homeHref?: unknown; label?: unknown }>;
-  const { workspaces } = (await import(pathToFileURL(path.join(ROOT, 'src/app.config.ts')).href)) as { workspaces?: Workspaces };
-  return new Map(Object.values(workspaces ?? {}).flatMap((w) => (typeof w?.homeHref === 'string' && typeof w.label === 'string' ? [[w.homeHref, w.label] as const] : [])));
-}
-
 async function main(): Promise<number> {
+  holdArgs('navigate', args, ['--base', '--config', '--homes', '--mode', '--rail', '--rate', '--routes', '--samples', '--timing']);
   if (timing !== 'on' && timing !== 'off') { console.error(`--timing must be on or off, got ${timing}`); return 1; }
   if (mode !== 'default' && mode !== 'full') { console.error(`--mode must be default or full, got ${mode}`); return 1; }
   if ((opt('--samples') ?? '1') !== '1') { console.error('--samples: one sample and two retakes is the only protocol here; scripts/perf.ts takes the 20-sample one'); return 1; }
@@ -208,7 +213,7 @@ async function main(): Promise<number> {
 
   let homes: Map<string, string>;
   try {
-    homes = await workspaceHomes();
+    homes = await workspaceHomes(args);
   } catch (e) {
     console.log(`FAIL    navigate: ${(e as Error).message}`);
     summary({ mode, status: 'FAIL', errors: [(e as Error).message] });
@@ -302,6 +307,9 @@ async function main(): Promise<number> {
     page.close();
   }
 
+  // The least headroom of the run, so a reader sees how near the budgets a green run was, not only that it was green.
+  const least = lines.flatMap((l) => METRICS.flatMap((name) => { const r = l[name]; return judged(r) ? [{ l, name, r }] : []; })).sort((a, b) => headroom(a.r.ms, a.r.limit) - headroom(b.r.ms, b.r.limit))[0];
+  if (least) console.log(`headroom: the least was ${percent(least.r)}, ${least.l.route} ${least.l.device} ${least.name} ${Math.round(least.r.ms)} of ${least.r.limit} ms; under 20% warns`);
   const failed = lines.some((l) => l.status === 'FAIL') || problems.length > 0;
   const status = failed ? 'FAIL' : lines.some((l) => l.status === 'warn') ? 'warn' : 'ok';
   summary({
@@ -309,7 +317,7 @@ async function main(): Promise<number> {
     status,
     routes,
     warnings: coverage.warnings,
-    lines: lines.map(({ route, device, status: s, shell, data, interactive, drawerMs, prefetchCapped, noisy, problems: p, via, workspace, prefetched }) => ({ route, device, status: s, via, workspace, prefetched, shell, data, interactive, drawerMs, prefetchCapped, noisy, problems: p })),
+    lines: lines.map(({ route, device, status: s, shell, data, interactive, drawerMs, prefetchCapped, noisy, thin: t, problems: p, via, workspace, prefetched, landed, empty }) => ({ route, device, status: s, via, workspace, prefetched, landed, empty, shell, data, interactive, drawerMs, prefetchCapped, noisy, thin: t, problems: p })),
     prefetch: prefetch && { ...prefetch, problems },
   });
   return failed ? 1 : 0;

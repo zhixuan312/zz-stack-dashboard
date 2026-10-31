@@ -2,12 +2,17 @@
  * The journey scripts/navigate.ts and scripts/perf.ts both take: a tab instrumented to time a press by the page's own
  * clock, a start on the rail route (or the workspace menu) that reaches the destination, the waits a visitor would make
  * (the destination's prefetch, the phone drawer), and the three times from the press: the shell, the data and the
- * interaction. scripts/navigate.ts says what each time means and how a run is judged; this module only takes them.
+ * interaction, and each workspace's home the start may go through. scripts/navigate.ts says what each time means and how
+ * a run is judged; this module only takes them.
  */
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { DEEP_SOURCE } from './deep.ts';
 import { measurePhone } from './phone.ts';
 import type { BudgetsConfig, NavigationCheck } from './budgets.ts';
 import type { Page } from './chrome.ts';
+
+const ROOT = path.resolve(import.meta.dirname, '../..');
 
 export const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -33,9 +38,17 @@ export class Fail extends Error {
   kind: Kind;
   constructor(kind: Kind, message: string) { super(message); this.kind = kind; }
 }
-export type Measured = { ms: number } | { fail: Fail };
-/** `prefetched`, on a journey through the workspace menu: how many prefetches of the destination the page made before the press. */
-export type Sample = { shell: Measured; data: Measured | null; interactive: Measured | null; drawerMs?: number; prefetchCapped: boolean; refused?: number; prefetched?: number };
+/** A time, a failure, or `absent`: nothing on the page to measure, and why (a first-run page has no row to press). */
+export type Measured = { ms: number } | { fail: Fail } | { absent: string };
+/**
+ * `prefetched`, on a journey through the workspace menu: how many prefetches of the destination the page made before the
+ * press. `landed`, when the press arrived under the route rather than at it (a rail route that redirects): where it did.
+ * `empty`, when the data was the page's first-run state rather than `readySelector`.
+ */
+export type Sample = { shell: Measured; data: Measured | null; interactive: Measured | null; drawerMs?: number; prefetchCapped: boolean; refused?: number; prefetched?: number; landed?: string; empty?: boolean };
+
+/** What a first-run EmptyState draws (`data-empty`): the data arrived and holds nothing yet (#97). */
+export const FIRST_RUN = '[data-empty="first-run"]';
 
 // ---- in the page ----
 
@@ -62,9 +75,12 @@ export const SNAP = `(selector) => location.href + '|' + deepMatches(selector).s
  * sessionStorage, so a page that loads anew (not a client navigation) is timed from the same press.
  */
 const INSTRUMENT = `${DEEP_SOURCE}\n${DEEP_MATCHES}\n(() => {
-  const nav = window.__nav = { prefetches: [], spec: null, t0: undefined, res: {}, expect: null, snap: ${SNAP} };
+  const nav = window.__nav = { prefetches: [], spec: null, t0: undefined, res: {}, expect: null, snap: ${SNAP}, frames: 0 };
   const KEY = '__nav_journey';
   try { const kept = JSON.parse(sessionStorage.getItem(KEY) ?? 'null'); if (kept) { nav.spec = kept.spec; nav.t0 = kept.t0; } } catch { /* a fresh journey */ }
+  // The press arrived: at the route, or under it for a route that redirects to a child (/things to /things/a, #97), once
+  // the address is no longer the start's.
+  nav.arrived = () => { const s = nav.spec, p = location.pathname; return !!s && (p === s.route || (p !== s.from && p.startsWith(s.route + '/'))); };
   nav.arm = (spec) => { nav.before = document.querySelector('h1')?.textContent.trim(); nav.spec = spec; nav.t0 = undefined; nav.res = {}; nav.expect = null; try { sessionStorage.setItem(KEY, JSON.stringify({ spec, t0: null })); } catch { /* kept in memory */ } };
   document.addEventListener('pointerdown', (e) => {
     if (!nav.spec || nav.t0 != null) return;
@@ -72,11 +88,12 @@ const INSTRUMENT = `${DEEP_SOURCE}\n${DEEP_MATCHES}\n(() => {
     try { sessionStorage.setItem(KEY, JSON.stringify({ spec: nav.spec, t0: nav.t0 })); } catch { /* kept in memory */ }
   }, true);
   const frame = (ts) => {
+    nav.frames++;
     const s = nav.spec;
     if (s && nav.t0 != null) {
       const at = Math.max(0, Math.round(performance.timeOrigin + ts - nav.t0));
       const r = nav.res;
-      if (r.shell === undefined && location.pathname === s.route) {
+      if (r.shell === undefined && nav.arrived()) {
         const h = document.querySelector('h1');
         const text = h ? h.textContent.trim() : '';
         // Without a title, a heading that differs from the one on screen at the press is the target's.
@@ -87,7 +104,11 @@ const INSTRUMENT = `${DEEP_SOURCE}\n${DEEP_MATCHES}\n(() => {
         // Only what is on screen and real counts as the data. The router keeps routes it has shown mounted and hidden
         // (Cache Components: display none), so the previous page's rows are still in the document; and a loading.tsx
         // draws rows shaped like the real ones, which would hide the time React holds a shown fallback (300 ms or more).
-        if (s.ready && r.data === undefined && location.pathname === s.route && deepMatches(s.ready).some((el) => el.getClientRects().length > 0 && el.textContent.toLowerCase().includes(s.text) && !el.querySelector('.shimmer') && !el.closest('.shimmer, [aria-busy="true"]'))) r.data = at;
+        if (s.ready && r.data === undefined && nav.arrived() && deepMatches(s.ready).some((el) => el.getClientRects().length > 0 && el.textContent.toLowerCase().includes(s.text) && !el.querySelector('.shimmer') && !el.closest('.shimmer, [aria-busy="true"]'))) r.data = at;
+        // A page whose data arrived empty shows its first-run state instead of the rows: that is its data, ready. Only once
+        // nothing in main is still loading, so a side card's empty state cannot stand in for a table on its way.
+        else if (s.ready && r.data === undefined && nav.arrived() && deepMatches('${FIRST_RUN}').some((el) => el.getClientRects().length > 0)
+          && !Array.from(document.querySelectorAll('main .shimmer, main [aria-busy="true"]')).some((el) => el.getClientRects().length > 0)) { r.data = at; r.empty = true; }
         // A link probe leaves the route: its result is the address changing.
         if (nav.expect && r.interactive === undefined && nav.snap(nav.expect.selector) !== nav.expect.before) r.interactive = at;
       }
@@ -267,13 +288,20 @@ async function awaitPrefetch(page: Page, route: string): Promise<boolean> {
 const REFRESH_WAIT = 15_000;
 /** How long the router's read may take to start once the action has answered. */
 const REFRESH_START_WAIT = 3000;
+/** How often the `online` event is sent again while no resync has started: the provider may not be listening yet. */
+const ONLINE_EVERY = 250;
 
 /**
  * Resyncs the tab's live provider without writing anything: the provider listens for `online`, reads the collections again
  * through `refreshCollections` and then refreshes the router. Resolves only when an action started after the event answered
  * `{ ok: true }` and the router read that followed it has its whole body, and throws never-ready otherwise.
+ *
+ * The provider listens only once the page has hydrated and registered its collections, and an event sent before that is
+ * lost: on a loaded runner one sent at once made a live page read as not live, a different route each week. So the event is
+ * sent again every `ONLINE_EVERY` ms until a resync starts, for at most `startWait`; a page that starts none in that time
+ * is not live. A resync that started then has `REFRESH_WAIT` to answer.
  */
-export async function liveRefresh(page: Page, wait = REFRESH_WAIT): Promise<void> {
+export async function liveRefresh(page: Page, startWait = REFRESH_WAIT): Promise<void> {
   const state = `(() => { const n = window.__nav; return { started: n.act.started, results: n.act.results, arrivedAt: n.act.arrivedAt, inFlight: n.act.inFlight, reads: n.rsc.reads }; })()`;
   type State = { started: number; results: (boolean | null)[]; arrivedAt: number[]; inFlight: number; reads: { start: number; done: boolean }[] };
   // The provider's own opening resync may still be running; the refresh that counts starts after it.
@@ -281,15 +309,24 @@ export async function liveRefresh(page: Page, wait = REFRESH_WAIT): Promise<void
   if (quiet === null) throw new Fail('never-ready', `a live refresh was still running ${REFRESH_WAIT} ms after the page loaded`);
   await page.eval(`window.__nav.track = true`);
   const from = (await page.eval<State>(state)).started;
-  await page.eval(`window.dispatchEvent(new Event('online'))`);
+  let sent = 0;
+  const begun = await poll(async () => {
+    if ((await page.eval<State>(state)).started > from) return true;
+    if (Date.now() - sent >= ONLINE_EVERY) { sent = Date.now(); await page.eval(`window.dispatchEvent(new Event('online'))`); }
+    return false;
+  }, Date.now() + startWait);
+  if (!begun) {
+    await page.eval(`window.__nav.track = false`);
+    throw new Fail('never-ready', `no refresh action started within ${startWait} ms of sending the page online events (is the starting page live?)`);
+  }
   const verified = await poll(async () => {
     const v = await page.eval<State>(state);
     const at = v.results.findIndex((r, i) => i >= from && r === true);
     return at >= 0 && v.inFlight === 0 ? { arrivedAt: v.arrivedAt[at] } : false;
-  }, Date.now() + wait);
+  }, Date.now() + REFRESH_WAIT);
   if (!verified) {
     await page.eval(`window.__nav.track = false`);
-    throw new Fail('never-ready', `no refresh action answered { ok: true } within ${wait} ms of the page's online event (is the starting page live?)`);
+    throw new Fail('never-ready', `no refresh action answered { ok: true } within ${REFRESH_WAIT} ms of starting (is the starting page live?)`);
   }
   // The router's read is the first one to begin after the answer; it is finished when its whole body is in.
   const refreshed = await poll(async () => {
@@ -408,17 +445,29 @@ export async function journey(page: Page, device: Device, start: string, route: 
     const reached = await page.eval<string[]>(`performance.getEntriesByType('resource').filter((e) => new URL(e.name).pathname === ${JSON.stringify(route)}).map((e) => e.name)`);
     if (reached.length) throw new Fail('prefetched', `${reached.length} request(s) for ${route} had already been made before the press (${reached[0]})`);
   }
-  const spec = { route, title: check?.title ?? '', ready: check?.readySelector ?? '', text: (check?.readyText ?? '').toLowerCase() };
+  const spec = { route, from: start, title: check?.title ?? '', ready: check?.readySelector ?? '', text: (check?.readyText ?? '').toLowerCase() };
   await page.eval(`window.__nav.arm(${JSON.stringify(spec)})`);
   const t0 = await press(page, at);
 
   // The shell: the path and the target heading.
   const shellMs = await result(page, 'shell', t0 + cap);
   if (shellMs === null) {
-    const now = await page.eval<{ p: string; h: string }>(`({ p: location.pathname, h: document.querySelector('h1')?.textContent.trim() ?? '' })`);
-    const wrong = now.p === route;
+    const read = `(() => { const n = window.__nav, h = document.querySelector('h1')?.textContent.trim() ?? '';
+      return { p: location.pathname, h, there: n.arrived(), shown: h !== '' && (n.spec?.title ? h.includes(n.spec.title) : h !== n.before), timed: n.t0 != null, frames: n.frames }; })()`;
+    const now = await page.eval<{ p: string; h: string; there: boolean; shown: boolean; timed: boolean; frames: number }>(read);
+    // The target's heading on screen and still no time is the clock's failure, not the page's: say which part of it.
+    let stalled = false;
+    if (now.there && now.shown && now.timed) { await sleep(100); stalled = (await page.eval<number>('window.__nav.frames')) === now.frames; }
+    const wrong = now.there && !now.shown;
+    // A press that left for an address neither the route nor under it says where it went: a redirect the journey cannot follow.
+    const why = wrong ? `${now.p} shows the heading "${now.h}", not "${check?.title}"`
+      : now.there && !now.timed ? `${now.p} shows the heading "${now.h}", but the page there was never told when ${route} was pressed, so nothing timed it`
+      : stalled ? `${now.p} shows the heading "${now.h}", but the page stopped drawing frames, so nothing timed it`
+      : now.there ? `${now.p} showed the heading "${now.h}" only after the ${cap} ms the journey waits`
+      : now.p === start ? `still on ${now.p} ${cap} ms after pressing ${route}`
+      : `pressing ${route} led to ${now.p}, which is neither ${route} nor a page under it`;
     return {
-      shell: { fail: new Fail(wrong ? 'wrong-result' : 'never-ready', wrong ? `${route} shows the heading "${now.h}", not "${check?.title}"` : `still on ${now.p} ${cap} ms after pressing ${route}`) },
+      shell: { fail: new Fail(wrong ? 'wrong-result' : 'never-ready', why) },
       data: check ? { fail: new Fail('never-ready', 'the shell was never reached') } : null,
       interactive: check ? { fail: new Fail('never-ready', 'the shell was never reached') } : null,
       drawerMs,
@@ -428,7 +477,9 @@ export async function journey(page: Page, device: Device, start: string, route: 
     };
   }
   const shell = { ms: shellMs };
-  if (!check) return { shell, data: null, interactive: null, drawerMs, prefetchCapped, refused, prefetched };
+  const where = await page.eval<string>('location.pathname');
+  const landed = where === route ? undefined : where;
+  if (!check) return { shell, data: null, interactive: null, drawerMs, prefetchCapped, refused, prefetched, landed };
 
   // Data and interaction run side by side: a control that is there at once does not wait for a body that is not. A link probe
   // is the exception: its press leaves the route, and the data counts only on the route, so it is pressed once the data is
@@ -439,8 +490,9 @@ export async function journey(page: Page, device: Device, start: string, route: 
     data = await measureData(page, route, check, t0, cap);
     interactive = await measureInteraction(page, route, check, t0, cap, RESULT_WAIT[device]);
   } else [data, interactive] = await Promise.all([measureData(page, route, check, t0, cap), measureInteraction(page, route, check, t0, cap, RESULT_WAIT[device])]);
+  const empty = await page.eval<boolean>('window.__nav.res.empty === true');
   if (check.probe === 'dialog') await page.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
-  return { shell, data, interactive, drawerMs, prefetchCapped, refused, prefetched };
+  return { shell, data, interactive, drawerMs, prefetchCapped, refused, prefetched, landed, empty };
 }
 
 /** The page's own time for `name`, in ms since the press, once it has one; null when `until` (a clock time) passes first. */
@@ -451,7 +503,9 @@ async function measureData(page: Page, route: string, check: NavigationCheck, t0
   const ms = await result(page, 'data', t0 + cap);
   if (ms !== null) return { ms };
   const there = await page.eval<boolean>(`!!deepQuery(${JSON.stringify(check.readySelector)})`);
-  return { fail: new Fail(there ? 'wrong-result' : 'never-ready', there ? `${check.readySelector} is there but never shows "${check.readyText}"` : `${check.readySelector} did not appear in ${cap} ms`) };
+  // The data failing to load is a failure whichever state the page draws for it; the error state says so on the line.
+  const failed = !there && (await page.eval<boolean>(`!!document.querySelector('[data-empty="error"]')`));
+  return { fail: new Fail(there ? 'wrong-result' : 'never-ready', there ? `${check.readySelector} is there but never shows "${check.readyText}"` : `${check.readySelector} did not appear in ${cap} ms${failed ? '; the page shows its error state' : ''}`) };
 }
 
 /** Selectors already reported, so a note appears once per run, not once per sample. */
@@ -465,7 +519,16 @@ async function noteIfSeveral(page: Page, selector: string): Promise<void> {
 }
 
 async function measureInteraction(page: Page, route: string, check: NavigationCheck, t0: number, cap: number, wait: number): Promise<Measured> {
-  const where = await poll(async () => (await page.eval<boolean>(`location.pathname === ${JSON.stringify(route)}`)) && point(page, check.controlSelector), t0 + cap);
+  // The control, or a page whose data arrived empty: a first-run page has no row to press, which is not a page that never got
+  // ready (#97). It is reported as not measured, never as a pass, and only once the data is there.
+  const found = await poll(async () => {
+    if (!(await page.eval<boolean>('window.__nav.arrived()'))) return null;
+    const at = await point(page, check.controlSelector);
+    if (at) return at;
+    return (await page.eval<boolean>('window.__nav.res.empty === true')) ? 'empty' : null;
+  }, t0 + cap);
+  if (found === 'empty') return { absent: `not measured: the page shows its first-run state (${FIRST_RUN}), so it has no ${check.controlSelector} to press` };
+  const where = found;
   if (!where) return { fail: new Fail('never-ready', `the control ${check.controlSelector} was not pressable in ${cap} ms`) };
   await noteIfSeveral(page, check.controlSelector);
   const isInput = await page.eval<boolean>(`(() => { const el = ${pickable(check.controlSelector)}; return !!el && el.tagName === 'INPUT' && ['text', 'search'].includes(el.type); })()`);
@@ -476,4 +539,25 @@ async function measureInteraction(page: Page, route: string, check: NavigationCh
   const ms = await result(page, 'interactive', Date.now() + wait);
   if (ms === null) return { fail: new Fail('control-dead', `pressing ${check.controlSelector} (${check.probe}) changed nothing on ${check.resultSelector} in ${wait} ms`) };
   return { ms };
+}
+
+/**
+ * Each workspace's home, with the name of the workspace menu's item that opens it: `--homes <home>=<workspace>,...` beside
+ * `--rail` in the command's `args`; none for `--rail` alone; otherwise `homeHref` and `label` of each of `workspaces` in src/app.config.ts, of
+ * which a project without workspaces has none. Throws on an entry of `--homes` that does not name both.
+ */
+export async function workspaceHomes(args: readonly string[]): Promise<Map<string, string>> {
+  const opt = (k: string) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : undefined; };
+  const listed = opt('--homes');
+  if (listed !== undefined) {
+    return new Map(listed.split(',').filter(Boolean).map((entry) => {
+      const at = entry.indexOf('=');
+      if (at <= 0 || at === entry.length - 1) throw new Error(`--homes: ${entry} is not <home>=<workspace>`);
+      return [entry.slice(0, at), entry.slice(at + 1)];
+    }));
+  }
+  if (opt('--rail') !== undefined) return new Map();
+  type Workspaces = Record<string, { homeHref?: unknown; label?: unknown }>;
+  const { workspaces } = (await import(pathToFileURL(path.join(ROOT, 'src/app.config.ts')).href)) as { workspaces?: Workspaces };
+  return new Map(Object.values(workspaces ?? {}).flatMap((w) => (typeof w?.homeHref === 'string' && typeof w.label === 'string' ? [[w.homeHref, w.label] as const] : [])));
 }

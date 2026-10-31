@@ -38,9 +38,17 @@ const STEPS: [string, string[]][] = [
 /** The steps that run side by side, from the first of them to the end. */
 const TOGETHER = STEPS.findIndex(([name]) => name === 'types check');
 
+/** The rules a step said it judged nothing with (`judged nothing: <rules>`, scripts/check.ts): carried to the last line. */
+const nothing: string[] = [];
+/** The managed files a step said differ from the release unkept (`drift: ...`, scripts/check.ts): carried to the last line. */
+const drift: string[] = [];
 const report = (name: string, t: number, r: { status: number | null; out: string; error?: Error }, cmd: string) => {
   const ok = r.status === 0;
-  console.log(`${ok ? 'ok  ' : 'FAIL'} ${name} (${(t / 1000).toFixed(1)}s)`);
+  // A step that passed having judged nothing for a rule says so on its own line, so a pass is never read as more than it was.
+  const none = [...r.out.matchAll(/^judged nothing: (.+)$/gm)].map((m) => m[1]);
+  nothing.push(...none);
+  drift.push(...[...r.out.matchAll(/^drift: .+$/gm)].map((m) => m[0]));
+  console.log(`${ok ? 'ok  ' : 'FAIL'} ${name} (${(t / 1000).toFixed(1)}s)${ok && none.length ? ` · judged nothing: ${none.join(', ')}` : ''}`);
   // A tool that could not start (not installed) has no output, only the error.
   if (!ok) console.log(`${r.out}${r.error ? `${cmd}: ${r.error.message}` : ''}`.trim().split('\n').slice(-40).join('\n'));
   return ok;
@@ -69,3 +77,5 @@ const left = withoutCliTests
   ? ' (the tests only this repository has left out: tests/cli-*, tests/deep-*)'
   : hasDeepTests ? ' (tests/deep-* left out: pnpm exec vitest run tests/deep- --no-file-parallelism runs them)' : '';
 console.log(`gate: every check passed${left}`);
+if (nothing.length) console.log(`judged nothing: ${nothing.join(', ')}`);
+for (const d of drift) console.log(d);

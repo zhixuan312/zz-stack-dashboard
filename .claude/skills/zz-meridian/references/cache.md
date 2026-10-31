@@ -122,6 +122,7 @@ import { ticketsFor } from '@/data/ticket-mutations';
 import { chooseViewAs } from '@/data/view-as';
 import type { Member } from '@/data/sample';
 import type { AnyCollection, ChromeAccess, Grant, Need } from '@/lib/collection';
+import { VIEW_AS_COOKIE } from '@/lib/demo-gate';
 
 export type AccessScope = Readonly<{
   tenantId: string;
@@ -162,9 +163,6 @@ const TENANT = 'demo';
 /** The member the demo is signed in as when no `zz_meridian_view_as` cookie is set. */
 const DEFAULT_MEMBER = 'members_1';
 
-/** The cookie that names who the demo is signed in as; written by the View as action. */
-export const VIEW_AS_COOKIE = 'zz_meridian_view_as';
-
 /** The five frozen personas in the spec's order: the sample people the demo signs in as. */
 export const PERSONAS = ['members_1', 'members_2', 'members_4', 'members_5', 'members_12'] as const;
 
@@ -194,8 +192,11 @@ function accessFrom(policy: Policy) {
   return { resolveAccess, collectionFor, can, nameOf };
 }
 
-/** The member a scope names, re-read from the roster every call; null when there is no such record. */
-async function memberById(id: string): Promise<Member | null> {
+/**
+ * The member a scope names, re-read from the roster every call; null when there is no such record. The write boundaries
+ * and the View as switch re-read their caller through it.
+ */
+export async function memberById(id: string): Promise<Member | null> {
   return (await members.query({ where: [{ field: 'id', op: 'eq', value: id }] })).rows[0] ?? null; // read() cannot serve this: the member a scope is made from is resolved before an AccessScope exists
 }
 
@@ -283,10 +284,15 @@ function satisfies(member: Member, need: Need): boolean {
  * before the page's own read.
  */
 export async function may(need: Need): Promise<boolean> {
+  return (await mayEach([need]))[0]!;
+}
+
+/** `may` for several needs at once, in their order: the caller is resolved once, not once a need (the assistant asks one per view tool and rail item). */
+export async function mayEach(needs: readonly Need[]): Promise<boolean[]> {
   const scope = await resolveAccess();
   const member = await memberById(scope.subjectId);
   if (!member) throw new Unauthenticated();
-  return satisfies(member, need);
+  return needs.map((need) => satisfies(member, need));
 }
 
 /** What a page or a view tool calls before it reads: `may` asked one way, refused as the one `AccessDenied` message. */
@@ -385,7 +391,7 @@ export async function gatedMetadata(feature: FeatureId, metadata: Metadata): Pro
  * With no session this rejects `Unauthenticated`, and the chrome keeps its placeholder rather than naming anyone.
  *
  * `only` is the nav's own destinations whose `needs` this person satisfies. It is what the rail and the palette draw,
- * and it is presentation only: hiding a destination is not the gate, which a later task puts on every page itself.
+ * and it is presentation only: hiding a destination is not the gate, which is `gate()` at the top of every page.
  */
 export async function chromeAccess(): Promise<ChromeAccess> {
   const scope = await resolveAccess();
@@ -413,8 +419,8 @@ export async function chromeAccess(): Promise<ChromeAccess> {
 /**
  * The pages' read: authorized, scoped and cached. A page calls `read()`, or `aggregate()` for a figure over every row;
  * it cannot choose a tenant, and the cached helpers below see only the whole scope, the collection's name and the
- * normalized query. A write calls `updateTag(collectionTag(tenantId, name))` after it commits, which drops every user's
- * cached variants of that collection, rows and aggregates alike, and nobody else's.
+ * normalized query. A write calls `invalidate(collectionTag(tenantId, name))` (write-boundary.ts) after it commits,
+ * which drops every user's cached variants of that collection, rows and aggregates alike, and nobody else's.
  *
  * Each read has two forms. `read`, `readAll` and `aggregate` resolve the request's own scope; `readInScope`,
  * `readAllInScope` and `aggregateInScope` take a scope a module already holds. The resolving form delegates, so there is
@@ -493,12 +499,12 @@ const PAGE = 500;
  */
 export async function readAllInScope(scope: AccessScope, name: string, q: Query = {}): Promise<{ rows: Record<string, unknown>[]; revision?: string; observedAt: string }> {
   const first = await readInScope(scope, name, { ...q, limit: PAGE });
-  const rows = [...first.rows];
-  while (rows.length < first.total) {
-    const next = await readInScope(scope, name, { ...q, limit: PAGE, offset: rows.length });
-    if (next.rows.length === 0) throw new Error(`${name} could not be read in full.`);
-    rows.push(...next.rows);
-  }
+  // The first page says how many there are, so the rest are asked together: one after another, a read of N pages waited
+  // N round trips (a year of usage for twenty models is fifteen).
+  const offsets = Array.from({ length: Math.max(0, Math.ceil(first.total / PAGE) - 1) }, (_, i) => (i + 1) * PAGE);
+  const rest = await Promise.all(offsets.map((offset) => readInScope(scope, name, { ...q, limit: PAGE, offset })));
+  const rows = [...first.rows, ...rest.flatMap((page) => page.rows)];
+  if (rows.length < first.total) throw new Error(`${name} could not be read in full.`);
   return { rows, revision: first.revision, observedAt: first.observedAt };
 }
 
@@ -515,10 +521,9 @@ export async function readAll(name: string, q: Query = {}): Promise<{ rows: Reco
 export async function memberNamesFor(scope: AccessScope, ids: readonly string[]): Promise<Map<string, string>> {
   const names = new Map<string, string>();
   const roster = collectionFor(scope, 'members');
-  for (let at = 0; at < ids.length; at += PAGE) {
-    const found = await roster.query({ where: [{ field: 'id', op: 'in', value: ids.slice(at, at + PAGE) }], limit: PAGE });
-    for (const row of found.rows) names.set(row.id as string, row.name as string);
-  }
+  const chunks = Array.from({ length: Math.ceil(ids.length / PAGE) }, (_, i) => ids.slice(i * PAGE, (i + 1) * PAGE));
+  const found = await Promise.all(chunks.map((chunk) => roster.query({ where: [{ field: 'id', op: 'in', value: chunk }], limit: PAGE })));
+  for (const row of found.flatMap((f) => f.rows)) names.set(row.id as string, row.name as string);
   return names;
 }
 ```
@@ -571,7 +576,7 @@ assistant only the caller's own collections that the caller may read. Each appro
 guard, with the records it touches, at the moment it runs, and a permission revoked since the approval refuses it with
 "You no longer have permission to make this change." and changes, emits and invalidates nothing. A committed change
 drops its tenant's cached reads with `revalidateTag(collectionTag(scope.tenantId, name), { expire: 0 })`.
-`assistantTools(collections, writer, guard)` and `respond({ ..., guard })` take that guard.
+`assistantTools(collections, writer, guard, views?, explore?)` and `respond({ ..., guard })` take that guard; `views` adds one read-only `view_<name>` tool per view and `explore` the page's own prepared query, and both are read-only.
 
 ```ts
 const scope = await resolveAccess().catch((e: unknown) => { if (e instanceof Unauthenticated) return null; throw e; });

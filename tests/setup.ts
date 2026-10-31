@@ -1,13 +1,24 @@
 import '@testing-library/jest-dom/vitest';
 import { cleanup, configure } from '@testing-library/react';
 import { ReadableStream, TransformStream, WritableStream } from 'node:stream/web';
-import { afterEach, vi } from 'vitest';
+import { afterEach, beforeEach, vi } from 'vitest';
 
 // A test file runs in a context of its own (the `vmThreads` pool in vitest.config.ts), and a jsdom context has no web
 // streams, which the assistant's client needs to read a reply: without them the panel never loads.
 Object.assign(globalThis, { ReadableStream: globalThis.ReadableStream ?? ReadableStream, TransformStream: globalThis.TransformStream ?? TransformStream, WritableStream: globalThis.WritableStream ?? WritableStream });
 
 afterEach(cleanup);
+
+// The environment is the process's, not the file's: files share a worker (`pool: 'vmThreads'`, vitest.config.ts), so a
+// file that stubs a store's variables for itself leaks the value into whatever file runs beside it — the intermittent
+// gate where a view test found a store configured and asked a stub for a snapshot (issue #95). Every variable is put
+// back as this file found it before each test, and this hook runs first, so a stub belongs in a beforeEach of the file's
+// own and never in a beforeAll.
+const ENV = { ...process.env };
+beforeEach(() => {
+  for (const k of Object.keys(process.env)) if (!Object.hasOwn(ENV, k)) delete process.env[k];
+  for (const [k, v] of Object.entries(ENV)) if (process.env[k] !== v) process.env[k] = v;
+});
 
 // The assistant loads on demand (next/dynamic); its first import can take over a second while the gate also runs the
 // type check and lint, so every waitFor and findBy allows five.
@@ -37,6 +48,10 @@ vi.mock('next/headers', () => ({
   cookies: async () => ({ get: () => undefined, set: () => {}, delete: () => {} }),
   headers: async () => new Headers(),
 }));
+
+// The cache's tags, lifetimes and invalidations, which the reads and actions call: outside a Next request they have
+// nothing to register with. A test that records what an action invalidates mocks the module itself, which wins.
+vi.mock('next/cache', () => ({ cacheTag: () => {}, cacheLife: () => {}, updateTag: () => {}, revalidateTag: () => {}, revalidatePath: () => {}, refresh: () => {} }));
 
 // The App Router's hooks, for layers rendered outside a Next request: PageFrame, DataTable and FilterBar read the path,
 // the search params and the router. A test that cares about navigation mocks the module itself, which wins.

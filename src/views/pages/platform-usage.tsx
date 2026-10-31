@@ -7,6 +7,7 @@ import { Row, Stack } from '@/components/base/shell';
 import { useShareView } from '@/components/base/use-share-view';
 import { BarList } from '@/components/charts/bar-list';
 import { ColumnChart, type ColumnPart } from '@/components/charts/column-chart';
+import type { SeriesSlot } from '@/components/charts/scale';
 import { CompositionBar } from '@/components/charts/composition-bar';
 import { Heatmap } from '@/components/charts/heatmap';
 import { Meridian, useMeridianIndex } from '@/components/charts/meridian';
@@ -171,7 +172,7 @@ function Calls({ usage }: { usage: Usage }) {
     height: 220,
   };
   // Teams are identities, so each takes a categorical slot in order; Other takes none and stays neutral.
-  const parts: ColumnPart[] = labels.map((l, i) => (l === 'Other' ? { key: l, label: l } : { key: l, label: l, color: i + 1 }));
+  const parts: ColumnPart[] = labels.map((l, i) => (l === 'Other' ? { key: l, label: l } : { key: l, label: l, color: (i + 1) as SeriesSlot }));
   return (
     <Panel
       title={CALLS_TITLE}

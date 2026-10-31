@@ -53,7 +53,9 @@ export function FilterBar({
   onClear?: () => void;
   className?: string;
 }) {
-  const active = filters.filter((f) => f.value !== f.options[0]?.value).length + (search?.value ? 1 : 0);
+  // The phone's Filters count is the filters set in its sheet; the search is not one of them, though Clear empties it too.
+  const set = filters.filter((f) => f.value !== f.options[0]?.value).length;
+  const active = set + (search?.value ? 1 : 0);
   const [open, setOpen] = useState(false);
   const selects = (size: 'sm' | 'md', block?: boolean) =>
     filters.map((f) => {
@@ -77,7 +79,10 @@ export function FilterBar({
 
   return (
     <div className={cn('@container flex min-w-0 flex-col gap-3', className)}>
-      <div className="flex min-w-0 items-center gap-2">
+      {/* Under 24rem the search takes a line of its own and the Filters button and Ask share the line under it: the row
+          needs 336px for the search's floor, Filters with its count and Ask, which a 320px phone's card (246px) and a
+          1024px window with the assistant open (273px) do not give it. */}
+      <div className="flex min-w-0 items-center gap-2 @max-[24rem]:flex-wrap">
         {search ? (
           <SearchInput
             size="sm"
@@ -85,7 +90,10 @@ export function FilterBar({
             onValueChange={search.onChange}
             placeholder={search.placeholder ?? 'Search'}
             shortcut="/"
-            className="min-w-0 flex-1 @min-[52rem]:max-w-72"
+            // A floor, so the hint is never cut to a different word on a 2x display than on a 1x one (issue #93): the bar
+            // gave the field whatever five facets left, 129px at a 1440px window on 2x, where the placeholder needs 134.
+            // The facets truncate their own labels to make the room.
+            className="min-w-40 flex-1 @max-[24rem]:basis-full @min-[52rem]:max-w-72"
           />
         ) : null}
         <div className="flex min-w-0 items-center gap-2 @max-[52rem]:hidden">{selects('sm')}</div>
@@ -93,7 +101,7 @@ export function FilterBar({
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
               <Button size="sm" icon={<SlidersHorizontal />} className="@min-[52rem]:hidden">
-                Filters{active ? <span className="t-num -mr-0.5 grid h-4.5 min-w-4.5 place-items-center rounded-full bg-accent px-1 text-2xs font-semibold text-on-accent">{active}</span> : null}
+                Filters{set ? <>{' '}<span className="t-num -mr-0.5 grid h-4.5 min-w-4.5 place-items-center rounded-full bg-accent px-1 text-2xs font-semibold text-on-accent">{set}</span></> : null}
               </Button>
             </SheetTrigger>
             <SheetContent
@@ -118,7 +126,8 @@ export function FilterBar({
         ) : null}
         <div className="ml-auto flex shrink-0 items-center gap-3">
           {result ? <span className="t-num text-xs whitespace-nowrap text-ink-3 @max-[60rem]:hidden">{result}</span> : null}
-          {view ? <div className="@max-[52rem]:hidden">{view}</div> : null}
+          {/* On a narrow bar the view moves into the Filters sheet; a bar with no filters has no sheet, so it stays. */}
+          {view ? <div className={cn(filters.length && '@max-[52rem]:hidden')}>{view}</div> : null}
           {ask}
         </div>
       </div>

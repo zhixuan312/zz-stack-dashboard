@@ -24,23 +24,29 @@ import { REASONS, closeOpenApprovals, forgetThread, loadThread, recent, saveThre
 const TITLE_SUFFIX = ` · ${app.name}`;
 
 /**
- * Reads the page from the scroll region: the page's own title, its address with the query that sets its filters, the
- * shared context its view published (decision 0011), and its visible text, without any node the page marked
- * `data-assistant="omit"` (`pageText`).
- *
- * The title comes from `document.title`, never the masthead `h1`. On a detail page that `h1` is the Detail head — the
- * record's name with its status badge run into it — so a question asked there was labelled "REC-1042high risk · 0.64".
- * The route's declared title is the clean one ("Record REC-1042"). The masthead is the fallback for a route that
- * declares none, where `document.title` is only the product name.
+ * Reads the page from the scroll region: the page's own title (`readTitle`), its address with the query that sets its
+ * filters, the shared context its view published (decision 0011), and its visible text, without any node the page
+ * marked `data-assistant="omit"` (`pageText`).
  */
 function readPage(path: string): PageContext {
-  const context = sharedContextOn(path) ?? '';
   const region = document.querySelector<HTMLElement>('[data-scroll-region]');
-  const h1 = region?.querySelector('h1')?.textContent?.trim() ?? '';
+  return { path: `${path}${location.search}`, title: readTitle(), context: sharedContextOn(path) ?? '', text: region ? pageText(region) : '' };
+}
+
+/**
+ * The page's title, read without laying the page out, so a question can be labelled with it alone.
+ *
+ * It comes from `document.title`, never the masthead `h1`. On a detail page that `h1` is the Detail head — the record's
+ * name with its status badge run into it — so a question asked there was labelled "REC-1042high risk · 0.64". The
+ * route's declared title is the clean one ("Record REC-1042"). The masthead is the fallback for a route that declares
+ * none, where `document.title` is only the product name.
+ */
+function readTitle(): string {
   const declared = document.title.endsWith(TITLE_SUFFIX)
     ? document.title.slice(0, -TITLE_SUFFIX.length).trim()
     : document.title.trim();
-  return { path: `${path}${location.search}`, title: declared && declared !== app.name ? declared : h1, context, text: region ? pageText(region) : '' };
+  if (declared && declared !== app.name) return declared;
+  return document.querySelector('[data-scroll-region] h1')?.textContent?.trim() ?? '';
 }
 
 type Preview = { title: string; tone: 'neutral' | 'critical'; changes: ProposalChange[] };
@@ -70,7 +76,9 @@ function ProposalOf({ message, part, onDecide }: { message: UIMessage; part: Too
   const preview = message.parts.find((p) => p.type === 'data-proposal' && (p as { id?: string }).id === part.toolCallId) as { data: Preview } | undefined;
   const shown = stateOf(part);
   if (!preview || !shown) return null;
-  const id = part.approval?.id;
+  // Only a waiting change can be answered: the SDK matches a response to a part still asking, so Dismiss or Try again
+  // on one that ran or failed would do nothing.
+  const id = shown.state === 'pending' ? part.approval?.id : undefined;
   return (
     <Proposal
       agent="Assistant"
@@ -101,6 +109,8 @@ export function AssistantPanel({
   error,
   onRetry,
   questions,
+  draft: held,
+  onDraft,
   inline,
   className,
 }: {
@@ -117,11 +127,16 @@ export function AssistantPanel({
   onRetry?: () => void;
   /** Questions to start the thread with, offered while it is empty: the page in view's (`SharedContext.questions`). */
   questions?: string[];
+  /** The message being typed, held by a caller that outlives the panel, so closing it keeps what was not sent. */
+  draft?: string;
+  onDraft?: (draft: string) => void;
   /** Draw in the flow instead of fixed to the viewport edge: for previews. */
   inline?: boolean;
   className?: string;
 }) {
-  const [draft, setDraft] = useState('');
+  const [own, setOwn] = useState('');
+  const draft = held ?? own;
+  const setDraft = onDraft ?? setOwn;
   const thread = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = thread.current;
@@ -150,7 +165,7 @@ export function AssistantPanel({
     <aside
       data-assistant
       aria-label="Assistant"
-      onKeyDown={(e) => e.key === 'Escape' && onClose()}
+      onKeyDown={(e) => e.key === 'Escape' && !e.nativeEvent.isComposing && onClose()}
       className={cn(
         'flex h-full min-h-0 flex-col border-l border-line bg-frame backdrop-blur-xl backdrop-saturate-150',
         inline
@@ -161,7 +176,7 @@ export function AssistantPanel({
     >
       <div className="flex h-14 shrink-0 items-center gap-3 border-b border-line px-4">
         <AgentMark size="md" />
-        <h2 className="t-card min-w-0 flex-1 truncate">Assistant</h2>
+        <h2 title="Assistant" className="t-card min-w-0 flex-1 truncate">Assistant</h2>
         {/* Named on screen, not only to a screen reader: the accessible names begin with the words shown. */}
         <Button size="sm" variant="ghost" icon={<Eraser />} aria-label="Clear conversation" disabled={messages.length === 0} onClick={onClear}>Clear</Button>
         <Button size="sm" variant="ghost" icon={<X />} aria-label="Close assistant" onClick={onClose} className="-mr-2">Close</Button>
@@ -268,7 +283,9 @@ export function AssistantColumn({ open, onClose, ask, onAsked }: { open: boolean
   const questions = useSyncExternalStore(onShared, () => questionsOn(path), () => undefined);
   // The error that said the session changed hands since the thread began: the thread is gone, so it offers no Retry.
   const [changedHands, setChangedHands] = useState<Error | null>(null);
-  const { messages, setMessages, sendMessage, regenerate, addToolApprovalResponse, status, error } = useChat({
+  // The column stays mounted while the panel is closed: a message typed and not sent is still there when it opens.
+  const [draft, setDraft] = useState('');
+  const { messages, setMessages, sendMessage, regenerate, addToolApprovalResponse, stop, clearError, status, error } = useChat({
     transport,
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
     onError: (e) => {
@@ -295,8 +312,14 @@ export function AssistantColumn({ open, onClose, ask, onAsked }: { open: boolean
     setLoaded(scope);
   }, [setMessages, scope]);
   useEffect(() => {
-    if (loaded === scope) saveThread(localStorage, scope, messages);
-  }, [loaded, scope, messages]);
+    if (loaded !== scope) return;
+    // `messages` changes on every streamed token, and a thread is up to a hundred of them: writing on each one serialised
+    // the whole thread per character. While a reply is arriving the write waits for it to pause; once nothing is
+    // streaming it is written at once, so a person who closes the tab on the answer still has it.
+    if (status !== 'submitted' && status !== 'streaming') { saveThread(localStorage, scope, messages); return; }
+    const timer = setTimeout(() => saveThread(localStorage, scope, messages), 500);
+    return () => clearTimeout(timer);
+  }, [loaded, scope, messages, status]);
   useEffect(() => {
     for (const m of messages) for (const p of m.parts) {
       const part = p as unknown as ToolPart;
@@ -313,7 +336,7 @@ export function AssistantColumn({ open, onClose, ask, onAsked }: { open: boolean
     if (!ask || loaded !== scope || sentAsk.current === ask.id || status === 'submitted' || status === 'streaming') return;
     sentAsk.current = ask.id;
     setMessages(closeOpenApprovals(messages, REASONS.movedOn));
-    void sendMessage({ text: ask.text, metadata: { page: { path, title: readPage(path).title } } });
+    void sendMessage({ text: ask.text, metadata: { page: { path, title: readTitle() } } });
     onAsked?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- runs when a question arrives or the panel becomes able to send it.
   }, [ask, loaded, scope, status]);
@@ -324,15 +347,21 @@ export function AssistantColumn({ open, onClose, ask, onAsked }: { open: boolean
       busy={status === 'submitted' || status === 'streaming'}
       onSend={(text) => {
         setMessages(closeOpenApprovals(messages, REASONS.movedOn));
-        sendMessage({ text, metadata: { page: { path, title: readPage(path).title } } });
+        sendMessage({ text, metadata: { page: { path, title: readTitle() } } });
       }}
       onDecide={(id, approved) => addToolApprovalResponse({ id, approved })}
       onClose={onClose}
       onClear={() => {
+        // A reply still arriving would write the rest of itself into the emptied thread, and the save would keep it.
+        if (status === 'submitted' || status === 'streaming') void stop();
+        // The last error was about the thread cleared, and its Retry would send an empty one.
+        clearError();
         setMessages([]);
         forgetThread(localStorage, scope);
       }}
       questions={questions}
+      draft={draft}
+      onDraft={setDraft}
       error={error?.message}
       onRetry={error && error === changedHands ? undefined : () => regenerate()}
     />

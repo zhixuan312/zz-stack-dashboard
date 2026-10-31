@@ -20,32 +20,30 @@
  * that cannot be read leaves the landing page alone.
  */
 import { launch } from './lib/chrome.ts';
+import { DEEP_SOURCE } from './lib/deep.ts';
 import { railRoutes } from './lib/routes.ts';
-import config from './verify.config.ts';
+import { personaCookie } from './lib/team-config.ts';
+import { holdArgs } from './lib/args.ts';
 
 const args = process.argv.slice(2);
+holdArgs('rail', args, ['--as', '--base']);
 const opt = (k: string, d: string) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
 const base = opt('--base', process.env.BASE ?? 'http://localhost:3100');
-// verify.config.ts is the team's, so read its persona table through the shape this script needs.
-const personas = (config as { personas?: Record<string, { cookie: { name: string; value: string } }> }).personas ?? {};
-const as = opt('--as', '');
-const persona = as ? personas[as] : undefined;
-if (as && !persona) {
-  console.error(`rail: --as ${as} is not a declared persona. Declared personas: ${Object.keys(personas).join(', ')}.`);
-  process.exit(1);
-}
+const cookie = personaCookie('rail', opt('--as', ''));
 
 // The routes the configuration declares, in order; a navigation that cannot be read leaves the landing page alone.
 const { routes: configured, landing } = await railRoutes().catch(() => ({ routes: [] as string[], landing: '/' }));
 
 const page = await launch();
+// A rail drawn by a web component keeps its links in a shadow root, which a light-DOM query never enters.
+await page.send('Page.addScriptToEvaluateOnNewDocument', { source: DEEP_SOURCE });
 try {
-  await page.open(base + landing, { width: 1440, height: 900, theme: 'dark', cookie: persona?.cookie });
+  await page.open(base + landing, { width: 1440, height: 900, theme: 'dark', cookie });
   // The rail streams behind the shell's frame, and every destination is chosen on the client: read what is there, and
   // give a page that is still resolving the person a few seconds to draw it before calling the rail empty. Every link is
   // read, displayed or not.
   const read = () => page.eval<string[]>(`(async () => {
-    const read = () => { const n = document.querySelector('nav[aria-label="Main"]'); return n ? [...n.querySelectorAll('a[href]')].map((a) => a.getAttribute('href')) : null; };
+    const read = () => { const n = deepQuery('nav[aria-label="Main"]'); return n ? deepQueryAll('a[href]', n).map((a) => a.getAttribute('href')) : null; };
     const end = Date.now() + 10000;
     let out = read();
     while ((!out || !out.length) && Date.now() < end) { await new Promise((r) => setTimeout(r, 100)); out = read(); }
@@ -58,7 +56,7 @@ try {
   const note = (found: string[]) => { for (const h of found) if (!seen.has(h)) { seen.add(h); order.push(h); } };
   for (const route of configured) {
     if (route === landing || seen.has(route)) continue;
-    await page.open(base + route, { width: 1440, height: 900, theme: 'dark', cookie: persona?.cookie });
+    await page.open(base + route, { width: 1440, height: 900, theme: 'dark', cookie });
     note(await read());
   }
   console.log(`rail: ${JSON.stringify(order)}`);

@@ -10,12 +10,19 @@ export const SUITE_NAMES = [...COMPLETE_SUITES, ...TIMED_SUITES, 'perf'] as cons
 
 const PROBES = ['dialog', 'filter', 'sort', 'toggle', 'link'];
 
+/** The rules a check's output says it passed having judged nothing for (`judged nothing: <a>, <b>`, scripts/check.ts). */
+export const judgedNothingIn = (out: string): string[] => [...out.matchAll(/^judged nothing: (.+)$/gm)].flatMap((m) => m[1].split(', '));
+
 /** The exit code of a suite that failed nothing but left a case unrun: neither a pass nor a failure. */
 export const NOT_RUN_EXIT = 2;
 
-/** What a suite's exit code means to verify: only 0 is a pass, and a suite that left a case unrun did not run. */
-export function suiteOutcome(status: number | null): 'ok' | 'not run' | 'FAIL' {
-  return status === 0 ? 'ok' : status === NOT_RUN_EXIT ? 'not run' : 'FAIL';
+/**
+ * What a suite's exit code means to verify: only 0 is a pass, and a suite that left a case unrun did not run. A pass whose
+ * output has a line starting `warn` is a warning (a time that passed leaving less than a fifth of its limit, a product's own
+ * check saying so): it passed, and the phase says it was near its line.
+ */
+export function suiteOutcome(status: number | null, out = ''): 'ok' | 'warn' | 'not run' | 'FAIL' {
+  return status === 0 ? (/^warn\b/m.test(out) ? 'warn' : 'ok') : status === NOT_RUN_EXIT ? 'not run' : 'FAIL';
 }
 
 /**
@@ -56,7 +63,9 @@ export function selectSmokeRoutes({ smokeRoutes, nav, landing }: { smokeRoutes?:
 
 function mappingErrors(check: NavigationCheck, routes: string[]): string[] {
   const errors: string[] = [];
-  if (!routes.includes(check.path)) errors.push(`${check.path}: navigation check names a path that is not a route`);
+  // A journey presses the rail's link to the route, so a path the rail does not draw has no press to time (#97). A rail route
+  // that redirects is followed under it; a page reached from a list is a detail route, pressed and walked by the others.
+  if (!routes.includes(check.path)) errors.push(`${check.path}: a navigation check names a rail route, and this is not one: a journey times a press on the rail's link to it. For a rail route that redirects to a page under it (/things to /things/a), name the rail route: the journey follows it there. A page reached from a list belongs in detailRoutes`);
   for (const key of ['title', 'readySelector', 'controlSelector', 'resultSelector'] as const) {
     if (typeof check[key] !== 'string' || !check[key].trim()) errors.push(`${check.path}: navigation check has an empty ${key}`);
   }
@@ -96,5 +105,5 @@ export function resolveCoverage(
     }
     return { path, data: state, interaction: state } as const;
   });
-  return { routes: out.map((r) => ({ ...r })), errors, warnings };
+  return { routes: out, errors, warnings };
 }

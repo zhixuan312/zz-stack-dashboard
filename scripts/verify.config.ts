@@ -64,6 +64,11 @@ export type VerifyConfig = {
    */
   detailRoutes: string[];
   /**
+   * Addresses that name a record that does not exist, or one this person may not see: each must answer the not-found
+   * screen (`[data-missing-page]`). Every browser suite fails a detail route that draws it, so the two lists are apart.
+   */
+  missingRoutes?: string[];
+  /**
    * For a product whose pages read and write a live API. verify presses every control it finds, Approve, Revoke and
    * Delete included, so those presses must reach a fake, never production. `script` starts a server on `--port 0` that
    * answers every route the pages call (writes answer success and are forgotten) and prints `listening on <url>`; verify
@@ -286,7 +291,6 @@ const config: VerifyConfig = {
     '/initiatives/atlas/2026-09-12-onboarding-revamp/review.md',
     '/initiatives/atlas/2026-10-02-query-latency/spec.md',
     '/initiatives/atlas/2026-10-04-index-rebuild/spec.md',
-    ...Object.keys(OTHER_TEAMS),
     '/knowledge/atlas/nodes/0002-match-reasons-come-from-the-index-never-from-a-model.md',
     '/knowledge/atlas/nodes/0004-rank-by-recency-first.md',
     '/plugins/sdlc',
@@ -297,6 +301,8 @@ const config: VerifyConfig = {
     '/plugins/sdlc/sdlc-spec?view=references',
     '/plugins/research-kit/research-scan',
   ],
+  // Another team's initiative and document: the not-found screen, as a record that does not exist is answered.
+  missingRoutes: Object.keys(OTHER_TEAMS),
   // The presses approve, revoke and archive whatever a page offers; they reach the fake gateway, never the deployment.
   fakeApi: { script: 'scripts/fake-gateway/server.ts', env: 'ZZ_GATEWAY' },
   // The Approve banner a load cannot reach — a document that changed while it was being read needs a refetch — and a
