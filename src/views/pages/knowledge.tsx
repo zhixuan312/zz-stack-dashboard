@@ -148,7 +148,7 @@ export function KnowledgeView({ read }: { read: ServerRead<KnowledgeSummary> }) 
         toolbar={
           <FilterBar
             filters={[{ key: 'kind', label: 'Kind', value: f.kind, onChange: (v) => set({ kind: v, page: '1' }), options: KIND_OPTIONS }]}
-            result={<>{list.data ? `${list.data.total} ${plural(list.data.total, 'lesson')}` : list.isPending ? '…' : '—'}</>}
+            result={<>{list.data ? `${formatCount(list.data.total)} ${plural(list.data.total, 'lesson')}` : list.isPending ? '…' : '—'}</>}
             onClear={() => set({ kind: 'all', page: '1' })}
           />
         }
@@ -287,12 +287,14 @@ function Questions({ summary }: { summary?: KnowledgeSummary }) {
 /** The week's share as the chart writes it. */
 const share = (n: number) => `${Math.round(n)}%`;
 
-/** The last whole week with searches, in one line: a week whose figure was not worked out says so, never "0 of N". */
+/** The last whole week, in one line: a week whose figure was not worked out says so, never "0 of N", and a week nobody
+ *  searched says that rather than standing aside for an older one. */
 function lastWeekLine(last: PeriodFigure | undefined): string {
-  if (!last) return 'No whole week of searches yet';
+  if (!last) return 'No whole week yet';
   const week = `the week of ${formatDay(last.window.from)}`;
   if (last.numerator === null || last.denominator === null || last.figure.why === 'unavailable') return `Unavailable: the searches that found something in ${week} were not counted`;
-  return `${formatCount(last.numerator)} of ${formatCount(last.denominator)} searches found something in ${week}`;
+  if (last.denominator === 0) return `No searches in ${week}`;
+  return `${formatCount(last.numerator)} of ${formatCount(last.denominator)} ${plural(last.denominator, 'search', 'searches')} found something in ${week}`;
 }
 
 function Weeks({ summary }: { summary?: KnowledgeSummary }) {
@@ -303,7 +305,7 @@ function Weeks({ summary }: { summary?: KnowledgeSummary }) {
   const weeks: PeriodFigure[] = summary.weeks.data;
   // A week with no search has no share: it keeps its slot and reads "No searches", never 0%.
   const columns = weeks.map((w) => ({ key: w.window.from, label: formatShortDate(w.window.from), value: w.denominator === 0 ? null : w.figure.value }));
-  const last = [...weeks].reverse().find((w) => w.window.complete && w.denominator);
+  const last = [...weeks].reverse().find((w) => w.window.complete);
   // The plot takes the height the row gives the card, never under 220px, so the chart and the newest lessons beside it
   // end level rather than the chart's card standing empty under its caption (Work F-26).
   return (

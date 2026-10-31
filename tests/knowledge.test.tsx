@@ -198,6 +198,17 @@ describe('the rest of the Knowledge page', () => {
     expect(text()).toContain('18 of 24 searches found something in the week of 5 Oct');
   });
 
+  it('says the last whole week as it was: nobody searched, or its count was not worked out', async () => {
+    const weeks = (SUMMARY.weeks as { state: 'ok'; data: PeriodFigure[] }).data;
+    const lastOf = (last: PeriodFigure) => ({ ...READ, data: { ...SUMMARY, weeks: { state: 'ok' as const, data: [weeks[0], last, weeks[3]] } } });
+    const { unmount } = mount(<KnowledgeView read={lastOf(weeks[1])} />);
+    await waitFor(() => expect(text()).toContain('No searches in the week of 28 Sept'));
+    expect(text()).not.toContain('5 of 10 searches');
+    unmount();
+    mount(<KnowledgeView read={lastOf({ ...weeks[2], numerator: null, denominator: null, figure: { value: null, why: 'unavailable' } })} />);
+    await waitFor(() => expect(text()).toContain('Unavailable: the searches that found something in the week of 5 Oct were not counted'));
+  });
+
   it('draws the newest lessons beside searches by week, with a link to the log, and the shelf under them', async () => {
     mount(<KnowledgeView read={READ} />);
     await waitFor(() => expect(text()).toContain(shelfRow.title));
