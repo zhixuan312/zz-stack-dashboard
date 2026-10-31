@@ -451,7 +451,8 @@ export const JOURNEYS: Journey[] = [
   { task: 'platform-10', who: 'member', page: '/platform', run: async (w) => {
     const six = config.personas!.member.expectedRoutes.filter((r) => r.startsWith('/platform'));
     await w.open('/platform');
-    const rail = await w.until<string[]>('read the rail', `[...document.querySelectorAll('nav[aria-label="Main"] a[href]')].map((a) => a.getAttribute('href'))`);
+    // Null until the rail has links: an empty list is truthy, so `until` would take a rail read before it rendered.
+    const rail = await w.until<string[]>('read the rail', `((l) => l.length ? l : null)([...document.querySelectorAll('nav[aria-label="Main"] a[href]')].map((a) => a.getAttribute('href')))`);
     w.check('read the rail', rail.length === 6 && six.every((r) => rail.includes(r)), `the rail lists ${rail.join(', ')}`);
     for (const route of six) {
       await w.open(route);
