@@ -41,7 +41,7 @@ describe('a list address', () => {
 
   it('reads an empty value as the default, on every list alike', () => {
     expect(paramsOf({ state: '', page: '' }, { state: 'all', page: '1' })).toEqual({ state: 'all', page: '1' });
-    expect(runsFilters({ skill: '' }).skill).toBe(initiativesFilters({ state: '' }).state);
+    expect([runsFilters({ skill: '' }).skill, initiativesFilters({ state: '' }).state]).toEqual(['all', 'all']);
   });
 
   it('pages from 1, whatever the address says', () => {

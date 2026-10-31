@@ -85,7 +85,6 @@ export function KnowledgeHealthSkeleton() {
   );
 }
 
-/** A tile's value: its number, or the word for why there is none, never a zero. */
 const ICONS: Record<WeeklyTile, ReactNode> = { madeLastWeek: <PencilLine />, searches: <Search />, noResult: <SearchX /> };
 
 function Tiles({ part }: { part: KnowledgeHealth['tiles'] }) {

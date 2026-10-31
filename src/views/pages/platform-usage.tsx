@@ -94,7 +94,6 @@ export function UsageSkeleton() {
   );
 }
 
-/** A tile's value: its number, or the word for why there is none, never a zero. */
 const ICONS: Record<TileKey, ReactNode> = { calls: <Activity />, refusedShare: <Ban />, p95Ms: <Timer />, sessions: <Users /> };
 
 /** The tiles, the calls by week and the refusals put right, on one cursor: pointing at a week reads it everywhere. */

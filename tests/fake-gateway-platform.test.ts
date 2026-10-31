@@ -43,9 +43,6 @@ const SAFE_FINDING = ['id', 'kind', 'measure', 'owner', 'plugin', 'summary', 'wa
 /** The reports as the superadmin's queue lists them, every one of them on one page. */
 const allBugs = async (who: string | null) => (await read(who, 'platform/bugs?limit=100')).queue.data.rows as Json[];
 
-/** An answer with the one field levelled that is each request's own: two reads of a route differ in `observedAt` when
- *  they differ nowhere else, since every request is served at its own instant. */
-
 /** Every team's slug and name, and every persona's email and name, as whole words: none may reach a refusal. */
 async function names(): Promise<RegExp> {
   const teams = (await read(null, 'teams?scope=platform')).teams as { slug: string; name: string }[];

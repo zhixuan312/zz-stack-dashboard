@@ -68,8 +68,6 @@ export function historyOf(read: Evaluation | null, plugin: string): HistoryRead 
   return history ? { state: 'ok', series: history.series.map((s) => ({ protocol: s.protocol, population: s.population, runs: s.runs.map((r) => ({ scoredAt: r.scoredAt, score: r.score })) })) } : { state: 'none' };
 }
 
-/** A protocol as a sentence names it beside a score: its key and version, or for a member the version in words. */
-
 /**
  * What the lead score compares with, by name: the newest other score in its own series, which it compares with, and the
  * newest score of each other series, which it does not, each with its day and what differs. The series are the

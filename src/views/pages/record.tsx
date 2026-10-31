@@ -473,8 +473,6 @@ function Firsts({ r }: { r: RecordRead }) {
 
 type InitiativeRecord = Extract<RecordRead['record'], { state: 'ok' }>['data']['rows'][number];
 
-/** The quiet arrow that says a row opens its initiative before the pointer finds it, as Initiatives' rows carry it. */
-
 // A row opens its initiative: the arrow after the slug says so where a still shows it (Phase 7's second re-review, Work
 // F-41's Navigation). The slug is cut before the arrow is, so a long one never takes the arrow with it.
 const COLUMNS: Column<InitiativeRecord>[] = aligned([

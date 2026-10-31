@@ -158,6 +158,12 @@ export function EvalHealth({ run }: { run: Run | null }) {
   );
 }
 
+/** A dimension's score as its cell reads: a share in [0, 1] read out of 10, as the overall is 10 × the weighted sum. */
+function scoreOf(d: DimensionScore) {
+  if (!d.applicable) return <span className="text-ink-3" title={d.notApplicableReason ?? undefined}>Not applicable</span>;
+  return d.score === null ? <span className="text-ink-3">Not scored</span> : outOfTen(d.score);
+}
+
 /**
  * Quality: the six canonical dimensions (FR-19), each dimension's share of the overall score as
  * a composition bar — the console's own "share-of-total bars" rule, made literal: a dimension's
@@ -171,12 +177,6 @@ export function EvalHealth({ run }: { run: Run | null }) {
  * sideways): five columns fit, `Kind` drops first on a narrow card, and on a phone the score moves under the
  * dimension's name, so one column is drawn.
  */
-/** A dimension's score as its cell reads: a share in [0, 1] read out of 10, as the overall is 10 × the weighted sum. */
-function scoreOf(d: DimensionScore) {
-  if (!d.applicable) return <span className="text-ink-3" title={d.notApplicableReason ?? undefined}>Not applicable</span>;
-  return d.score === null ? <span className="text-ink-3">Not scored</span> : outOfTen(d.score);
-}
-
 export function EvalQuality({ run }: { run: Run | null }) {
   if (!run) {
     return <Panel title="Quality"><Quiet title="Nothing to score" description="No scored run to read dimensions from." /></Panel>;
