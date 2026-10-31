@@ -202,7 +202,7 @@ for every pair in both themes and every accent, then route types, lint, types an
   Before finishing a change. A page's size is held to its own measured figure in `scripts/verify.baseline.json`, 5%
   over it at most, never to a number written by hand. `firstLoadKb: null` in `scripts/verify.config.ts` leaves ZZ
   Meridian's absolute first-load cap out for every route the baseline holds; a route it does not hold yet is held to
-  Meridian's default 820 KiB (`FIRST_LOAD_CAP_KB`) until it is recorded. An accepted growth is recorded with
+  Meridian's default first-load cap (`FIRST_LOAD_CAP_KB` in scripts/lib/budgets.ts) until it is recorded. An accepted growth is recorded with
   `node scripts/sizes.ts --write-baseline --base <the running build>`.
 - **complete**: `pnpm verify --full`. Adds the navigation of every rail route, the assistant walked through a page
   (`scripts/assistant.ts`), the audit of every page at five widths in both themes, every control pressed and every
