@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
-import { Query } from '@/console/query';
-import { ApiError } from '@/lib/api';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { Query, failureOf } from '@/console/query';
+import { ApiError, useConsole } from '@/lib/api';
 
 /**
  * A panel's failed read keeps its error and its Retry where they are while it reads again, as the pages' own Retry does
@@ -70,5 +70,29 @@ describe('a panel whose read failed', () => {
     await waitFor(() => expect(sent()).toBe(1));
     expect(screen.queryByText('The gateway is not answering.')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
+  });
+});
+
+describe('a browser read refused for want of a session', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  function signedOut() {
+    const replaced: string[] = [];
+    vi.stubGlobal('location', { pathname: '/runs', search: '?skill=sdlc-plan', href: 'http://console.test/runs?skill=sdlc-plan', replace: (to: string) => { replaced.push(to); } });
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ error: 'not signed in' }), { status: 401 })));
+    return replaced;
+  }
+  function Read() {
+    const q = useConsole<string[]>('/runs?skill=sdlc-plan');
+    return <><Query query={q} what="The runs">{(rows) => <p>{rows.join(', ')}</p>}</Query><p data-said>{failureOf(q) ?? ''}</p></>;
+  }
+
+  it('sends the person to sign in, back to this address, and says why rather than loading for ever', async () => {
+    const replaced = signedOut();
+    render(<QueryClientProvider client={new QueryClient()}><Read /></QueryClientProvider>);
+    await waitFor(() => expect(replaced).toEqual([`/login?next=${encodeURIComponent('/runs?skill=sdlc-plan')}`]));
+    expect(await screen.findByText('The runs did not load')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Loading')).toBeNull();
+    expect(document.querySelector('[data-said]')!.textContent).toBe('not signed in');
   });
 });

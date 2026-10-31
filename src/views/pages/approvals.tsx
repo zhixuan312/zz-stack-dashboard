@@ -19,7 +19,7 @@ import { Panel } from '@/console/panel';
 import { failureOf } from '@/console/query';
 import { waited } from '@/console/words';
 import type { Revised } from '@/data/gateway';
-import { useDataClock } from '@/lib/api';
+import { useActingTeam, useDataClock } from '@/lib/api';
 import { AXIS_FORMATTERS, plural } from '@/lib/format';
 import { formatDateTime, formatShortDate } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
@@ -54,7 +54,9 @@ function useApprovals(served: ApprovalsRead | null) {
   const failed = failureOf({ error });
   const trouble = fresh ? null : failed ?? (mine && mine.state !== 'ok' ? approvalsTrouble(mine) : null);
   const shown = fresh ?? (trouble ? undefined : last?.data);
-  const team = served?.state === 'ok' ? served.team : null;
+  // The team the server's read answered for while it did, and the layout's after a Retry of one that did not.
+  const acting = useActingTeam();
+  const team = served?.state === 'ok' ? served.team : acting;
   return {
     fresh, shown, rowsOf: fresh ?? (last?.tab === tab && !trouble ? last.data : undefined), trouble, retry, retrying, tab, page: pageOf(filters), set, team,
     updatedAt: q.data ? new Date(q.dataUpdatedAt) : fresh ? fresh.meta.asOf : null,

@@ -173,8 +173,9 @@ function Runs({ home }: { home: Home }) {
       {n ? (
         <>
           <ul className="divide-y divide-line">
+            {/* Keyed by the runs a group holds: four runs or fewer are a group each, so two groups can share an initiative. */}
             {active.map((g) => (
-              <li key={g.initiative ?? '—'} className="flex flex-col gap-1 px-(--card-pad) py-3">
+              <li key={g.runs.map((r) => `${r.skill}@${r.startedAt}`).join(' ')} className="flex flex-col gap-1 px-(--card-pad) py-3">
                 <span className="text-sm font-medium [overflow-wrap:anywhere] text-ink">{g.initiative ?? 'No initiative'}</span>
                 {g.runs.map((r) => <span key={`${r.skill}@${r.startedAt}`} className="t-caption">{r.skill}, started {since(r.startedAt, home.meta)}</span>)}
               </li>
@@ -217,7 +218,7 @@ function OpenWork({ home, team }: { home: Home; team: string | null }) {
                 <Go href={team ? `/initiatives/${team}/${r.slug}` : '/initiatives'} className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-6 gap-y-1 px-(--card-pad) py-3 transition-colors hover:bg-fill-hover">
                   <span className="text-sm font-medium [overflow-wrap:anywhere] text-ink">{r.slug}</span>
                   <StateBadge state={r.state} />
-                  <span data-next-move className="t-caption" title={r.nextMove?.why}>{r.flow ? nextOf(r) : 'No flow'}</span>
+                  <span data-next-move className="t-caption" title={r.nextMove?.why}>{nextOf(r)}</span>
                   <span className="t-caption justify-self-end whitespace-nowrap">{r.gates.of ? `${r.gates.passed} of ${r.gates.of} gates` : 'No gates'}</span>
                 </Go>
               </li>

@@ -32,7 +32,9 @@ vi.mock('@/console/gate', () => ({ gate: async () => access.denied, gatedMetadat
 import { refusal } from '@/app.config';
 import { GatewayError } from '@/data/gateway';
 import { waited } from '@/console/words';
+import { ConsoleCaller } from '@/lib/api';
 import type { Me } from '@/lib/api-shapes';
+import { encodePath } from '@/lib/store-path';
 import type { ApprovalRow, Approvals, WaitingRow } from '@/lib/work-shapes';
 import {
   APPROVALS_DEFAULTS, DECISION_BASIS, PRESENTATION, approvalsPath, approvedWhen, filtersOfPath, noPresentationLine, type ApprovalsRead,
@@ -346,6 +348,22 @@ describe('every state draws', () => {
     await waitFor(() => expect(rows('Team approvals')).toHaveLength(queueOf(WAITING).rows.length));
     expect(reads()).toHaveLength(1);
     expect(reads()[0]).toContain(`/api/console${WAITING_PATH}`);
+  });
+
+  it('error, then Retry: each row opens its document under the team the person acts for, as the layout resolved it', async () => {
+    browser();
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const acting = Promise.resolve({ only: ['/approvals'], user: { role: 'Superadmin' }, team: 'atlas', caller: 'ava.lindqvist@example.com' });
+    render(
+      <QueryClientProvider client={client}><ConsoleCaller access={acting}><Tooltip.Provider><Suspense fallback={null}>
+        <ApprovalsView served={{ state: 'failed', path: WAITING_PATH, reason: 'could not read the approvals' }} />
+      </Suspense></Tooltip.Provider></ConsoleCaller></QueryClientProvider>,
+    );
+    await act(async () => { await acting; });
+    act(() => { screen.getByRole('button', { name: 'Retry' }).click(); });
+    await waitFor(() => expect(rows('Team approvals')).toHaveLength(queueOf(WAITING).rows.length));
+    const first = queueOf(WAITING).rows[0] as WaitingRow;
+    expect(document.querySelector(`a[href="/initiatives/atlas/${first.initiative}/${encodePath(first.path)}"]`)).not.toBeNull();
   });
 
   it('slow: the bounded error, saying how long the platform was given', () => {

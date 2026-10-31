@@ -8,8 +8,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import type { ApiError } from '@/lib/api';
 
 /**
- * One read, three states: a skeleton while it loads, the gateway's own sentence with Retry when it fails, and the
- * children with the data once it arrives. Every panel goes through this, so no panel invents its own loading or
+ * One read, three states: a skeleton while it loads, the gateway's own sentence with Retry when it fails (a read refused
+ * for want of a session included, while `src/lib/api.ts` sends the person to sign in), and the children with the data
+ * once it arrives. Every panel goes through this, so no panel invents its own loading or
  * error look.
  */
 export function Query<T>({
@@ -37,8 +38,7 @@ export function Query<T>({
   // focused control that becomes disabled loses focus, so a read something else started never makes it busy.
   const answered = Math.max(query.dataUpdatedAt, query.errorUpdatedAt);
   const [pressed, press] = useState<number | null>(null);
-  // A refused read (no session) draws as loading: the gate is already sending the person to sign in.
-  if ((query.isPending && !error) || error?.status === 401) {
+  if (query.isPending && !error) {
     if (skeleton) return <>{skeleton}</>;
     return (
       <div className="flex flex-col gap-2" aria-busy="true" aria-label="Loading">
@@ -60,7 +60,10 @@ export function Query<T>({
   return <>{children(query.data as T)}</>;
 }
 
-/** What failed, for a data table's error state; nothing for a refused read, which the gate turns into a sign-in. */
+/**
+ * What failed, for a data table's error state: the gateway's sentence. A read refused for want of a session says it too,
+ * while `src/lib/api.ts` sends the person to sign in.
+ */
 export function failureOf(query: { error: ApiError | null }): string | undefined {
-  return query.error && query.error.status !== 401 ? query.error.message : undefined;
+  return query.error?.message;
 }

@@ -5,6 +5,7 @@ import { createContext, createElement, use, useCallback, useContext, useEffect, 
 import { preload } from 'react-dom';
 import { clearThread } from '@/components/patterns/assistant/thread';
 import type { Revisions } from '@/lib/live';
+import { signInAddress } from '@/lib/own-path';
 import { READ_BOUND_MS } from '@/lib/read-bound';
 
 /**
@@ -14,8 +15,10 @@ import { READ_BOUND_MS } from '@/lib/read-bound';
  * it. The console's server makes one read of its own for every page, `/me` as the caller, to decide whether the page
  * may render and which destinations the rail draws (`src/data/access.ts`, through `src/data/gateway.ts`, which says what
  * it sends and why), and a page's first read of its own content is made there too, on the console's server, so it is
- * drawn with the page; what a page reads after it is drawn (a filter, a page of rows, a live change) is read here, in the
- * browser, and nothing in this file goes through that module.
+ * drawn with the page, and on a page that follows it with `useServed` (`src/logic/use-served.ts`) so is a filter or a
+ * page of rows, which the server reads as the navigation renders the page again; what a page reads in the browser (a
+ * Retry, a live change, Knowledge's shelf and search, Activity's log) is read here, and nothing in this file goes
+ * through that module.
  *
  * Which is why the path is relative. `/api/console/...` resolves against whatever host the page
  * was served from, and Caddy routes that path on the console host to the gateway — no base URL,
@@ -66,6 +69,7 @@ async function read<T>(path: string, signal: AbortSignal): Promise<T> {
     headers: { accept: 'application/json' },
     signal,
   });
+  if (res.status === 401) toSignIn();
   if (!res.ok) {
     // The gateway names its refusals — "the console needs a browser sign-in — x@y
     // authenticated by pat" — and that sentence is the whole diagnosis. A generic "request
@@ -80,6 +84,16 @@ async function read<T>(path: string, signal: AbortSignal): Promise<T> {
   if (revised) revisionsBy.set(path, { [revised[1]!]: revised[2]! });
   else revisionsBy.delete(path);
   return data;
+}
+
+/**
+ * A read refused for want of a session (401) sends the person to sign in, back to the address they are on: the session
+ * ended after the page was drawn, and the console's server sends a request whose session ended to the same address
+ * (`src/data/sign-in.ts`). Every browser read comes through `read`, so this is the one place it happens; the read still
+ * fails with the gateway's sentence, which the page draws until the navigation lands.
+ */
+function toSignIn() {
+  window.location.replace(signInAddress(window.location.pathname + window.location.search));
 }
 
 /**
@@ -119,12 +133,10 @@ function callerOf(access: Awaited<ServerAccess>): PageCaller | null {
 }
 
 /**
- * Whether the person's own rail offers `href`: one of the destinations `chromeAccess()` answered for them, the list the
- * rail and the palette draw. It never suspends, and it is false until the layout's read has settled in this browser: on
- * the server, while a page hydrates, outside `ConsoleCaller` and with nobody resolved. A prerendered shell that asks it
- * is therefore the same for everyone, and holds nothing that waits for the person.
+ * What the layout's read of the person settled on in this browser, read without suspending: null until it has settled,
+ * on the server, while a page hydrates, and outside `ConsoleCaller`. `useOffered` and `useActingTeam` read it.
  */
-export function useOffered(href: string): boolean {
+function useSettledAccess(): Awaited<ServerAccess> {
   const access = useContext(CallerContext);
   const subscribe = useCallback((changed: () => void) => {
     let live = true;
@@ -134,7 +146,27 @@ export function useOffered(href: string): boolean {
     });
     return () => { live = false; };
   }, [access]);
-  return useSyncExternalStore(subscribe, () => (access ? settledAccess.get(access)?.only?.includes(href) ?? false : false), () => false);
+  return useSyncExternalStore(subscribe, () => (access ? settledAccess.get(access) ?? null : null), () => null);
+}
+
+/**
+ * Whether the person's own rail offers `href`: one of the destinations `chromeAccess()` answered for them, the list the
+ * rail and the palette draw. It never suspends, and it is false until the layout's read has settled in this browser: on
+ * the server, while a page hydrates, outside `ConsoleCaller` and with nobody resolved. A prerendered shell that asks it
+ * is therefore the same for everyone, and holds nothing that waits for the person.
+ */
+export function useOffered(href: string): boolean {
+  return useSettledAccess()?.only?.includes(href) ?? false;
+}
+
+/**
+ * The team the person acts for, as the layout's read of them resolved it for this page, the team a row opens its record
+ * under and a close is made in. A page's server read carries the same team while it answered; this is where a page
+ * finds it once the browser has read again after a server read that did not (a Retry). Null until the layout's read has
+ * settled in this browser, and for a person acting for no team.
+ */
+export function useActingTeam(): string | null {
+  return useSettledAccess()?.team ?? null;
 }
 
 /** The key a team switch is announced on to every other tab of this browser. */

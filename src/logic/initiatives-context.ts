@@ -114,11 +114,14 @@ const WAITER: Record<string, string> = { stakeholder: 'a person', agent: 'the ag
 const CLOSED_STATES: ReadonlySet<InitiativeRow['state']> = new Set(['accepted', 'delivered', 'abandoned']);
 
 /**
- * Where a row goes next and who it waits on, as its flow position reads on the page and in the context. A closed row
+ * Where a row goes next and who it waits on, as its flow position reads on the page and in the context, Home's included;
+ * a row no flow governs reads `No flow` in all of them. A closed row
  * that still waits on an approval waits on its correction: the closing document changed after the close and its new
  * version is presented again, so the sentence says so rather than reading as closed work that never finished.
  */
-export const nextOf = (r: Pick<InitiativeRow, 'nextMove'> & { state?: InitiativeRow['state'] }): string => {
+export const nextOf = (r: Pick<InitiativeRow, 'nextMove' | 'flow'> & { state?: InitiativeRow['state'] }): string => {
+  // zz-core names no next move for work no flow governs (`none`, or `closed` once it is), so a row says what it is.
+  if (r.flow === null) return 'No flow';
   const m = r.nextMove;
   if (!m) return 'Next move unavailable';
   const correction = m.action === 'await_approval' && r.state !== undefined && CLOSED_STATES.has(r.state);

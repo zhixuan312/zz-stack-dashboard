@@ -19,7 +19,7 @@ import { Panel } from '@/console/panel';
 import { failureOf } from '@/console/query';
 import { When } from '@/console/when';
 import type { Revised } from '@/data/gateway';
-import { useDataClock } from '@/lib/api';
+import { useActingTeam, useDataClock } from '@/lib/api';
 import { plural } from '@/lib/format';
 import { formatShortDate } from '@/lib/format-date';
 import { stampOf } from '@/logic/read-stamp';
@@ -56,7 +56,7 @@ const COLUMNS: Column<ShownRow>[] = aligned([
       </span>
     ),
   },
-  { key: 'next', header: 'Flow position', align: 'left', grow: true, hideBelow: 'lg', mobile: 'fact', cell: (r) => <span className="text-xs whitespace-normal text-ink-2" title={r.nextMove?.why}>{r.flow ? nextOf(r) : 'No flow'}</span> },
+  { key: 'next', header: 'Flow position', align: 'left', grow: true, hideBelow: 'lg', mobile: 'fact', cell: (r) => <span className="text-xs whitespace-normal text-ink-2" title={r.nextMove?.why}>{nextOf(r)}</span> },
   { key: 'state', header: 'State', mobile: 'status', cell: (r) => <StateBadge state={r.state} /> },
   { key: 'gates', header: 'Gates passed', numeric: true, hideBelow: 'lg', mobile: 'fact', cell: (r) => gatesOf(r), mobileCell: (r) => (r.gates.of ? `${gatesOf(r)} gates` : 'No gates') },
   { key: 'touched', header: 'Last touched', numeric: true, mobile: 'fact', cell: (r) => <When at={r.lastTouched} />, mobileCell: (r) => <>Touched <When at={r.lastTouched} /></> },
@@ -114,7 +114,9 @@ export function InitiativesView({ served }: { served: Revised<InitiativesRead> }
   }, [data, filters.flow]);
   const narrow = narrowed(filters);
   const clear = () => set({ q: '', state: 'all', flow: 'all', page: '1' });
-  const team = served.state === 'ok' ? served.team : null;
+  // The team the server's read answered for while it did, and the layout's after a Retry of one that did not.
+  const acting = useActingTeam();
+  const team = served.state === 'ok' ? served.team : acting;
   // `…` is coming and `—` is not: a read that failed never reads as one still on its way.
   const mark = trouble ? '—' : '…';
   const tiles = data?.tiles;

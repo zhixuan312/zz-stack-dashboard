@@ -293,6 +293,23 @@ describe('the lists', () => {
     expect(within(runs).getByRole('link', { name: /1 more run on Runs/ })).toHaveAttribute('href', '/runs');
   });
 
+  it('draw each of two runs on one initiative as a group of its own, one key each', () => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const at = new Date(Date.parse(ATLAS.meta.asOf) - 60_000).toISOString();
+      const twice: Home = { ...ATLAS, runs: { state: 'ok', data: { active: [
+        { initiative: '2026-09-28-search-relevance', runs: [{ skill: 'sdlc-plan', startedAt: at, lastAt: at }] },
+        { initiative: '2026-09-28-search-relevance', runs: [{ skill: 'sdlc-spec', startedAt: at, lastAt: at }] },
+      ], more: 0, lastRunAt: at } } };
+      draw(ok(twice));
+      const runs = screen.getByText('Runs active now').closest('.card') as HTMLElement;
+      expect(within(runs).getAllByText('2026-09-28-search-relevance')).toHaveLength(2);
+      expect(errors.mock.calls.map((c) => String(c[0])).filter((m) => m.includes('same key'))).toEqual([]);
+    } finally {
+      errors.mockRestore();
+    }
+  });
+
   it('say when the last run ended when none is active, and that none is recorded on an empty team', () => {
     const { unmount } = draw(ok(QUIET));
     expect(document.querySelector('[data-last-run]')!.textContent).toBe('No run is active now. The last ended 3 h ago.');

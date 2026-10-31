@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import { Tooltip } from 'radix-ui';
-import type { ReactElement, ReactNode } from 'react';
+import { Suspense, type ReactElement, type ReactNode } from 'react';
 import { hydrateRoot } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -10,11 +10,12 @@ const gateway = vi.hoisted(() => ({ get: vi.fn() }));
 vi.mock('@/data/gateway', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/data/gateway')>()), gatewayGet: gateway.get }));
 
 import { GatewayError } from '@/data/gateway';
+import { ConsoleCaller } from '@/lib/api';
 import type { InitiativeList } from '@/lib/work-shapes';
 import { READ_BOUND_MS } from '@/lib/read-bound';
 import type { InitiativesRead } from '@/logic/initiatives-context';
 import { INITIATIVES_DEFAULTS, filtersOf, filtersOfPath, listPath } from '@/logic/initiatives-filter';
-import { InitiativeView } from '@/views/pages/initiative';
+import { InitiativeClose, InitiativeView } from '@/views/pages/initiative';
 import { InitiativesView } from '@/views/pages/initiatives';
 import { initiativeDetail, initiativeList } from '../scripts/fake-gateway/work-initiatives.ts';
 import InitiativesLoading from '../app/(dash)/initiatives/loading';
@@ -34,6 +35,9 @@ const listOf = (path: string) => initiativeList(ME, new URLSearchParams(path.spl
 const PATH = listPath(INITIATIVES_DEFAULTS);
 const LIST = listOf(PATH);
 const ok = (data: InitiativeList = LIST, path = PATH): InitiativesRead => ({ state: 'ok', path, data, team: 'atlas' });
+
+/** Who the layout resolved the person as: acting for atlas. */
+const ACTING = Promise.resolve({ only: ['/initiatives'], user: { role: 'Superadmin' }, team: 'atlas', caller: 'ava.lindqvist@example.com' });
 
 /** The browser's reads: answered by the fake, or never when `answer` is null. */
 function browser(answer: ((path: string) => [number, unknown]) | null = (p) => [200, listOf(p)]) {
@@ -141,6 +145,30 @@ describe('a filter, a search and a page are the server\'s parameters', () => {
     await waitFor(() => expect(rows()).toHaveLength(10));
     expect(reads()).toHaveLength(1);
     expect(reads()[0]).toContain(`/api/console${PATH}`);
+  });
+
+  it('Retry after a server read that brought nothing opens each row under the team the person acts for, as the layout resolved it', async () => {
+    browser();
+    await act(async () => {
+      mount(<ConsoleCaller access={ACTING}><Suspense fallback={null}><InitiativesView served={{ state: 'failed', path: PATH, reason: 'could not read the initiatives' }} /></Suspense></ConsoleCaller>);
+      await ACTING;
+    });
+    act(() => { screen.getByRole('button', { name: 'Retry' }).click(); });
+    await waitFor(() => expect(rows()).toHaveLength(10));
+    expect(document.querySelector(`a[href="/initiatives/atlas/${LIST.rows[0].slug}"]`)).not.toBeNull();
+  });
+
+  it('Retry after an initiative\'s server read that brought nothing offers Close for the team the person acts for', async () => {
+    const slug = '2026-10-08-result-explanations';
+    const detail = initiativeDetail('atlas', slug)!;
+    browser(() => [200, detail]);
+    const served = { state: 'failed', reason: 'could not read the initiative' } as const;
+    await act(async () => {
+      mount(<ConsoleCaller access={ACTING}><Suspense fallback={null}><InitiativeClose team="atlas" slug={slug} served={served} /><InitiativeView team="atlas" slug={slug} served={served} /></Suspense></ConsoleCaller>);
+      await ACTING;
+    });
+    act(() => { screen.getByRole('button', { name: 'Retry' }).click(); });
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Close initiative' })).toBeInTheDocument());
   });
 
   it('a read that did not answer in time is the error, never an endless skeleton', () => {

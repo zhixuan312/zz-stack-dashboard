@@ -20,7 +20,7 @@ import { failureOf } from '@/console/query';
 import { When } from '@/console/when';
 import type { Revised } from '@/data/gateway';
 import { encodePath } from '@/lib/store-path';
-import { useDataClock } from '@/lib/api';
+import { useActingTeam, useDataClock } from '@/lib/api';
 import type { InitiativeDetail } from '@/lib/api-shapes';
 import { formatDateTime } from '@/lib/format-date';
 import { formatKb } from '@/lib/format-units';
@@ -295,7 +295,9 @@ export function InitiativeMeta({ team, slug, served }: { team: string; slug: str
  */
 export function InitiativeClose({ team, slug, served }: { team: string; slug: string; served: InitiativeRead }) {
   const { data } = useInitiative(team, slug, served);
-  const acting = served.state === 'ok' ? served.team : null;
+  // The team the server's read answered for while it did, and the layout's after a Retry of one that did not.
+  const resolved = useActingTeam();
+  const acting = served.state === 'ok' ? served.team : resolved;
   if (!data || acting !== data.team) return null;
   const landings = data.documents.filter((x) => !x.path.startsWith('sources/') && x.type !== 'handover').map((x) => x.path);
   return <CloseInitiative team={data.team} slug={data.slug} closed={data.closed} freeform={data.flow === null} documents={landings} variant={awaited(data) ? 'secondary' : 'primary'} />;

@@ -137,6 +137,16 @@ describe('the context', () => {
     expect(all.length).toBeLessThanOrEqual(CONTEXT_BUDGET);
   });
 
+  it('says of a row no flow governs what the screen says, No flow, never zz-core\'s absent next move', () => {
+    const path = listPath({ ...INITIATIVES_DEFAULTS, q: 'research-notes' });
+    const list = listOf(path);
+    const freeform = list.rows.find((r) => r.flow === null)!;
+    expect(freeform.nextMove?.action).toBe('none');
+    expect(nextOf(freeform)).toBe('No flow');
+    expect(text(list, { q: 'research-notes', state: 'all', flow: 'all' })).toContain(`${freeform.slug} (`);
+    expect(text(list, { q: 'research-notes', state: 'all', flow: 'all' })).toContain('next: No flow');
+  });
+
   it('says the assistant never closes, and that the close is made in the dialog, on the list and on an initiative', () => {
     expect(CLOSE_IS_THE_PERSON_S).toMatch(/assistant closes nothing/);
     expect(CLOSE_IS_THE_PERSON_S).toMatch(/in the dialog/);
