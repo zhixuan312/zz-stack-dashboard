@@ -110,7 +110,8 @@ async function until(seen: (t: string) => boolean, ms: number): Promise<boolean>
  */
 async function follows(address: string, renamedTo: string, unsolicitedTo: string): Promise<void> {
   await page.open(base + address, { width: 1440, theme: 'dark', cookie: SESSION });
-  if (page.errors.length) failures.push(`${address}: ${page.errors[0]}`);
+  const loaded = page.errors.length;
+  if (loaded) failures.push(`${address}: ${page.errors[0]}`);
 
   // The stream is open, and it is following something: a page that registered nothing subscribes to nothing. The
   // provider opens it once `/me` answers, which is a round trip after the page itself.
@@ -136,7 +137,7 @@ async function follows(address: string, renamedTo: string, unsolicitedTo: string
   await hint(`collection=runs&rename=${RENAMED_SLUG}:${encodeURIComponent(unsolicitedTo)}`);
   if (await until((t) => t.includes(unsolicitedTo), QUIET_MS)) failures.push(`${address}: a change to runs reached the page, so the tab reads collections it does not show`);
 
-  if (page.errors.length) failures.push(`${address}: ${page.errors[0]}`);
+  if (page.errors.length > loaded) failures.push(`${address}: ${page.errors[loaded]}`);
 }
 
 /**
@@ -259,7 +260,6 @@ async function pressed(from: string, to: string, collection: string): Promise<vo
     if (without.length) failures.push(`${where}: its stream follows ${followed.join(', ')} and asked with no revision for ${without.join(', ')}`);
     if (s.greeting.event !== 'synced') failures.push(`${where}: its stream was greeted ${s.greeting.event} ${s.greeting.data}, not synced`);
   }
-  if (!target.greeting) return;
   await sleep(AFTER_GREETING_MS);
   const followed = (new URL(target.url, base).searchParams.get('collections') ?? '').split(',').filter(Boolean);
   const again = await readsTheGreetingCaused(target.at!, followed);
@@ -294,7 +294,7 @@ if (!peopleRead) failures.push('/platform/people: a hint for people was never re
  * The chrome's own read, on a page that does not show it.
  *
  * `/platform/people` reads `people` and nothing else, so any read of `approvals` there is the BELL's — the one place the console
- * says "this needs you" without being asked. It registers `initiatives` itself (`src/console/frame.tsx`), and without
+ * says "this needs you" without being asked. It registers `initiatives` itself (`BellLive` in `src/views/console-live.tsx`), and without
  * that registration a gate approved in another tab leaves its count stale on every page whose own read is not also
  * `initiatives`, which is all of them but two.
  *
