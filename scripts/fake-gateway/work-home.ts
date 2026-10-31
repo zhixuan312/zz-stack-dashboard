@@ -121,10 +121,24 @@ function activeGroups(team: string | null): { active: ActiveGroup[]; more: numbe
   return { active: groups.slice(0, 4), more: groups.slice(4).reduce((n, g) => n + g.runs.length, 0) };
 }
 
-/** The title, by team: the rule the facts of its last whole week meet first. */
-function titleOf(team: string | null, closed: number, approvals: number): Home['title'] {
+/** What a count of each of the last week's figures is called, in the gateway's order (`PRIORITY` and `TALLY` in its
+ *  console/home-findings.ts). */
+const TALLY: [key: 'closed' | 'words' | 'approvals' | 'lessons', one: string, many: string][] = [
+  ['closed', 'closure', 'closures'], ['words', 'word added', 'words added'],
+  ['approvals', 'approval in your name', 'approvals in your name'], ['lessons', 'lesson made', 'lessons made'],
+];
+
+/** The title, by team: the rule the facts of its last whole week meet first. Beacon has no earlier week, so it meets
+ *  rule 1, and lists the week's figures above zero, or the first counted when none is, as the gateway does. */
+function titleOf(team: string | null, week: Record<(typeof TALLY)[number][0], number | null>): Home['title'] {
+  const { closed, approvals } = week;
   if (team === 'atlas') return { sentence: `${closed} pieces of work closed; ${approvals} ${approvals === 1 ? 'approval' : 'approvals'} recorded in your name last week`, rule: 8 };
-  if (team === 'beacon') return { sentence: 'Your first observed week: 1 closure and 2 lessons made', rule: 1 };
+  if (team === 'beacon') {
+    const known = TALLY.filter(([key]) => week[key] !== null);
+    const some = known.filter(([key]) => week[key]! > 0);
+    const list = (some.length ? some : known.slice(0, 1)).map(([key, one, many]) => `${week[key]!.toLocaleString('en-US')} ${week[key] === 1 ? one : many}`);
+    return { sentence: `Your first observed week: ${list.length > 1 ? `${list.slice(0, -1).join(', ')} and ${list.at(-1)}` : list[0]}`, rule: 1 };
+  }
   return { sentence: 'Your work at a glance', rule: 'fallback' };
 }
 
@@ -147,7 +161,10 @@ export function homeOf(team: string | null, email: string): FixtureAnswer<Home> 
   const mineRuns = team ? runsOf(team) : [];
   return {
     meta: workMeta('caller-in-active-team', `${team}'s work last week, and the approvals signed in the caller's name there`),
-    title: titleOf(team, closedLast.length, mine[LAST_WEEK].numerator ?? 0),
+    title: titleOf(team, {
+      closed: closedLast.length, words: lastWords, approvals: mine[LAST_WEEK].numerator ?? 0,
+      lessons: team ? lessonsMade(team).filter((n) => n.updated >= last.from && n.updated < last.to).length : 0,
+    }),
     waiting: { state: 'ok', data: {
       count: queue.length, oldestSince: queue[0]?.waitingSince ?? null,
       one: queue.length === 1 ? { initiative: queue[0].initiative, path: queue[0].path, version: queue[0].version } : null,
