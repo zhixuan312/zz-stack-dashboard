@@ -88,12 +88,12 @@ import type { Me } from '../../src/lib/api-shapes.ts';
 import type { CloseResult } from '../../src/lib/work-shapes.ts';
 import { isJourney, kept, keptAt, within, writtenBy } from './journey.ts';
 import { COLLECTIONS, hint, liveStreams, parseNames, revisionHeader, serveLive } from './live.ts';
-import { ME, MEMBER, clientSetupOf, signedIn, teamsOf } from './people.ts';
+import { ME, MEMBER, signedIn } from './people.ts';
 import { audit } from './platform-audit.ts';
 import { badFilter, bugReport, bugs, duplicates, resolve, statusFor } from './platform-bugs.ts';
 import { evaluation } from './platform-evaluation.ts';
 import { knowledge } from './platform-knowledge.ts';
-import { PLATFORM_PEOPLE, people, teamMembers } from './platform-people.ts';
+import { people, teamMembers } from './platform-people.ts';
 import { platformQuery } from './platform-query.ts';
 import { releaseDetail, releases } from './platform-releases.ts';
 import { TEAMS, team, teams } from './platform-teams.ts';
@@ -103,7 +103,7 @@ import { search } from './search.ts';
 import { empty, extreme } from './states.ts';
 import { NOT_RECORDED, SLOW_MS, STATES, isState, nullsFilled, partial, sessionOf, unknownState, type State } from './states-partial.ts';
 import { documentDetail, documentRevision, onDrift, refusesRecord, revisionInStore } from './work.ts';
-import { access, revokeApplication, revokeBrowser, tokensNow } from './work-access.ts';
+import { access, revokeApplication, revokeBrowser } from './work-access.ts';
 import { activityLog, activitySummary, NO_TEAM } from './work-activity.ts';
 import { approvals, documentAsKept } from './work-approvals.ts';
 import { home } from './work-home.ts';
@@ -281,16 +281,12 @@ function read(who: Me, seg: string[], q: URLSearchParams): Answer {
       return a ? missing(seg.join('/')) : activityLog(who, q);
     case 'access': return a ? missing(seg.join('/')) : access(who);
     case 'settings':
-      if (a === 'me' && b === 'tokens') return ok(tokensNow(who));
-      if (a === 'me' && b === 'client-setup') return ok(clientSetupOf(who));
-      if (a === 'me' && b === 'teams') return ok(teamsOf(who));
       if (a === 'team' && b === 'members') {
         // The gateway's own guard (`teamAuthority`): a team's roster is for its admins and for a superadmin.
         const team = q.get('team') ?? '';
         if (!who.superadmin && !who.teams.some((t) => t.slug === team && t.role === 'admin')) return [403, { error: `team admin or superadmin required for ${team}` }];
         return ok(teamMembers(team));
       }
-      if (a === 'platform' && b === 'people') return who.superadmin ? ok(PLATFORM_PEOPLE) : [403, { error: 'superadmin required' }];
       return missing(`settings/${a}/${b}`);
     case 'platform': return platformRead(who, seg, q);
     default: return missing(seg.join('/'));

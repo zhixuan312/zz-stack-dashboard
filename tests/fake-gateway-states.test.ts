@@ -268,7 +268,7 @@ describe('every mode answers both people', () => {
   const ask = (base: string, cookie: string | null, path: string, ms = 10_000) =>
     fetch(`${base}/api/console/${path}`, { headers: cookie === null ? {} : { cookie: `zz_console=${cookie}` }, signal: AbortSignal.timeout(ms) });
   const READS = ['initiatives', 'knowledge', 'knowledge/summary', 'knowledge/log', 'activity',
-                 'activity/summary', 'runs', 'plugins', 'skills', 'access', 'settings/me/tokens', 'settings/me/teams', 'platform/status',
+                 'activity/summary', 'runs', 'plugins', 'skills', 'access', 'platform/status',
                  'home', 'record', 'approvals', 'work/query?measure=closures&by=outcome',
                  'platform/query?measure=calls&by=week'];
   /** The superadmin's alone: a member is refused them in every world. */
@@ -325,7 +325,7 @@ describe('every mode answers both people', () => {
       const me = await ask(base, cookie, 'me');
       expect(me.status, name).toBe(200);
       expect((await me.json() as Me).role, name).toBe(role);
-      for (const path of ['teams', 'initiatives', 'people', 'settings/me/tokens']) expect((await ask(base, cookie, path)).status, `${name}: GET ${path}`).toBe(503);
+      for (const path of ['teams', 'initiatives', 'people', 'access']) expect((await ask(base, cookie, path)).status, `${name}: GET ${path}`).toBe(503);
     }
   });
 
@@ -361,7 +361,7 @@ describe('a state asked for by the session value', () => {
     'me', 'home', 'record', 'approvals', 'initiatives', 'initiatives/atlas/2026-09-28-search-relevance',
     'document/atlas/2026-09-28-search-relevance/spec.md', 'knowledge', 'knowledge/summary', 'knowledge/log', NODE,
     'activity', 'activity/summary', 'runs', 'plugins', 'skills?plugin=sdlc', 'skills/sdlc-spec', 'plugins/sdlc/skills/sdlc-spec',
-    'access', 'settings/me/teams', 'platform/status', 'platform/releases', 'platform/releases/0.97.0', 'platform/bugs',
+    'access', 'platform/status', 'platform/releases', 'platform/releases/0.97.0', 'platform/bugs',
     'platform/evaluation', 'platform/usage', 'platform/knowledge', 'work/query?measure=closures&by=outcome',
   ];
   const FLEET = ['teams', 'teams/atlas', 'people', 'platform/audit', 'plugins/sdlc/eval', 'platform/bugs/0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d01'];

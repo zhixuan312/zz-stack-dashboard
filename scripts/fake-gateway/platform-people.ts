@@ -1,6 +1,5 @@
 /**
- * The fake gateway's people: what `GET /api/console/people` answers, and the platform's and a team's rosters under
- * `/settings`.
+ * The fake gateway's people: what `GET /api/console/people` answers, and a team's roster under `/settings`.
  *
  * Synthetic on purpose, as people.ts says: every address is under `example.com`. One fixture, the people as the
  * superadmin reads them. The superadmin reads every person with their passkeys, their last recorded sign-in and their
@@ -13,11 +12,11 @@
  * COUPLED: zz-stack's `checks/console-platform-people.ts` imports this file with plain `node` and compares its key sets
  * with the real route's answer. So nothing here is imported through the console's path alias.
  */
-import type { Me, PlatformPeople, TeamMembers } from '../../src/lib/api-shapes.ts';
+import type { Me, TeamMembers } from '../../src/lib/api-shapes.ts';
 import type { FixtureAnswer } from './envelope.ts';
 import type { People, PersonRow } from '../../src/lib/fleet-shapes.ts';
 import type { PeriodFigure } from '../../src/lib/platform-shapes.ts';
-import { ago, day, localDay, nextStart, now } from './clock.ts';
+import { day, localDay, nextStart, now } from './clock.ts';
 import { kept } from './journey.ts';
 import { ME, MEMBER } from './people.ts';
 import { PLATFORM_STATUS } from './platform-status.ts';
@@ -117,14 +116,6 @@ export function people(who: Me, q: URLSearchParams, page: { limit: number; offse
 export const membersOf = (slug: string) => SEEDS.filter((s) => s.teams.some(([t]) => t === slug)).map((s) => ({
   email: s.email, name: s.name, role: s.teams.find(([t]) => t === slug)![1], joined: day(s.created),
 }));
-
-/** `GET /settings/platform/people`: every principal, the superadmin's, under `rows`. */
-export const PLATFORM_PEOPLE: PlatformPeople = {
-  rows: SEEDS.map((s) => ({
-    email: s.email, display_name: s.name, role: s.role, status: s.status, created_at: ago(s.created * 24),
-    teams: s.teams.map(([team, role]) => ({ team, role, added_by: s.email === ME.email ? null : ME.email, added_at: ago(s.created * 24 - 1) })),
-  })),
-};
 
 /** `GET /settings/team/members?team=`: one team's roster, for its admins and a superadmin, under `rows`. */
 export function teamMembers(slug: string): TeamMembers {

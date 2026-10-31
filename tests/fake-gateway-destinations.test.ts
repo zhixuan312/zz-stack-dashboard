@@ -415,7 +415,7 @@ describe('a member in two teams', () => {
     expect([switched.status, await switched.json()]).toEqual([200, { ok: true, actingFor: 'beacon', from: 'atlas' }]);
 
     expect((await read(TWO, 'me')).activeTeam).toBe('beacon');
-    expect((await read(TWO, 'settings/me/teams')).actingFor).toBe('beacon');
+    expect((await read(TWO, 'access')).teams.actingFor).toBe('beacon');
     const after = { knowledge: (await read(TWO, 'knowledge?limit=100')).rows, initiatives: await read(TWO, 'initiatives?limit=100') };
     expect(teamsOf(after.knowledge)).toEqual(['beacon']);
     expect(after.initiatives.meta.population).toMatch(/^beacon's/);

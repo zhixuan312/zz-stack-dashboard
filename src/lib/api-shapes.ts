@@ -456,20 +456,9 @@ export interface SearchAnswer {
 
 /* /settings/me/* */
 
-export interface MyAccessToken {
-  id: string; label: string;
-  created_at: string; last_used_at: string | null; revoked_at: string | null;
-}
-/** `GET /settings/me/tokens`: the caller's own tokens, newest first. A list answers under `rows`, never as a
- *  bare array, which is what gives the envelope an object to be stated on. */
-export interface MyAccessTokens { rows: MyAccessToken[]; meta?: ReadEnvelope }
 /** The one plaintext token on this surface: shown once at issue and never fetched again.
  *  COUPLED: the gateway's settings.ts and `TokensPanel`. */
 export interface IssuedToken { token: string; label: string; email: string }
-export interface MyClientSetup { client: string; config: string }
-export interface MyTeams {
-  actingFor: string; teams: { team: string; role: string; active: boolean }[]; note: string | null;
-}
 
 /* /settings/team/* */
 
@@ -478,14 +467,3 @@ export interface MyTeams {
 export interface TeamMemberRow { email: string; role: 'admin' | 'member' }
 /** `GET /settings/team/members?team=`: that roster, under `rows`. */
 export interface TeamMembers { rows: TeamMemberRow[]; meta?: ReadEnvelope }
-
-/* /settings/platform/* */
-
-/** A row from `GET /settings/platform/people` — every principal, superadmin only. Not
- *  People's `PersonRow` in fleet-shapes.ts, which is `/people`'s read. */
-export interface PlatformPersonRow {
-  email: string; display_name: string; role: 'superadmin' | 'member'; status: string; created_at: string;
-  teams: { team: string; role: 'admin' | 'member'; added_by: string | null; added_at: string }[];
-}
-/** `GET /settings/platform/people`: every principal, under `rows`. */
-export interface PlatformPeople { rows: PlatformPersonRow[]; meta?: ReadEnvelope }

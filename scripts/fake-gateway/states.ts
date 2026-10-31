@@ -4,7 +4,7 @@
  * breaking a mode nobody updated.
  */
 import type {
-  InitiativeDetail, KnowledgeLog, KnowledgeLogEntry, PlatformPersonRow, PluginRow, Skill,
+  InitiativeDetail, KnowledgeLog, KnowledgeLogEntry, PluginRow, Skill,
 } from '../../src/lib/api-shapes.ts';
 import type { Access, ActivityLog, ActivitySummary, KnowledgeList, KnowledgeSummary, RefusalOwner, Runs } from '../../src/lib/destination-shapes.ts';
 import type { Audit, KnowledgeHealth, People, Teams } from '../../src/lib/fleet-shapes.ts';
@@ -44,7 +44,6 @@ export function empty(seg: string[], body: unknown, q: URLSearchParams = new URL
       skills: p.skills.map((k) => ({ ...k, calls: 0, everRun: false, lastRun: null })),
     })) };
     case 'access': return a ? body : noAccess(body as Access);
-    case 'settings': return Array.isArray(body) ? (a === 'platform' ? (body as PlatformPersonRow[]).slice(0, 1) : []) : body;
     case 'platform': return a === 'status' ? freshStatus(body as PlatformStatus) : a === 'bugs' && !b ? noBugs(body as Bugs)
       : a === 'evaluation' ? noEvaluation(body as Evaluation) : a === 'knowledge' && !b ? noKnowledgeHealth(body as KnowledgeHealth)
         : a === 'audit' ? noAudit(body as Audit) : body;

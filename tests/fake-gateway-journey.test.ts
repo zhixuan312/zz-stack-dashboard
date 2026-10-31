@@ -1,7 +1,7 @@
 // @vitest-environment node
 import type { ChildProcess } from 'node:child_process';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { DocumentDetail, MyAccessToken } from '../src/lib/api-shapes.ts';
+import type { DocumentDetail } from '../src/lib/api-shapes.ts';
 import type { Access } from '../src/lib/destination-shapes.ts';
 import type { People } from '../src/lib/fleet-shapes.ts';
 import type { Bugs, PlatformStatus } from '../src/lib/platform-shapes.ts';
@@ -51,7 +51,7 @@ const unmoved = async (value: string, path: string) => {
 /** Every read a journey's writes change, by its path. */
 const READS = [
   '/approvals?tab=waiting', '/approvals?tab=history', '/home', '/record', '/initiatives?q=result-explanations',
-  '/platform/bugs', '/platform/status', '/people?q=journey', '/access', '/settings/me/tokens',
+  '/platform/bugs', '/platform/status', '/people?q=journey', '/access',
   '/document/atlas/2026-09-28-search-relevance/plan.md', '/initiatives/atlas/2026-10-08-result-explanations',
 ];
 const BLOCKING = '0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d01';
@@ -119,14 +119,13 @@ describe('a journey session keeps its own writes', () => {
     expect(own(statusAfter)).toEqual({ ...own(status), open: own(status).open - 1, fixed: own(status).fixed + 1 });
     expect((await call(JOURNEY, `/platform/bugs/${BLOCKING}/resolve`, { method: 'POST', body: { status: 'fixed', resolution: 'Again.' } })).status).toBe(409);
 
-    // The person, on People's list and its count; the token, on Access and in the person's tokens, by its label alone.
+    // The person, on People's list and its count; the token, on Access by its label alone.
     const found = await read<People>(JOURNEY, '/people?q=journey');
     expect(found.people.map((p) => p.email)).toEqual(['journey.person@example.com']);
     expect((await read<People>(JOURNEY, '/people')).tiles.people).toBe(people.tiles.people + 1);
-    expect((await read<Access>(JOURNEY, '/access')).issued.some((t) => t.label === 'journey laptop')).toBe(true);
-    const tokens = await read<{ rows: MyAccessToken[] }>(JOURNEY, '/settings/me/tokens');
-    expect(tokens.rows.some((t) => t.label === 'journey laptop')).toBe(true);
-    expect(JSON.stringify(tokens)).not.toContain(token.body.token);
+    const accessAfter = await read<Access>(JOURNEY, '/access');
+    expect(accessAfter.issued.some((t) => t.label === 'journey laptop')).toBe(true);
+    expect(JSON.stringify(accessAfter)).not.toContain(token.body.token);
 
     // Nobody else's reads moved: the same person's plain session, and the other person's journey.
     expect(await others()).toEqual(before);

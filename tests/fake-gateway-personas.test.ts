@@ -26,6 +26,7 @@ import { dayOf, formatDateTime } from '@/lib/format-date';
 type Json = Record<string, unknown>;
 type Team = { slug: string; name: string };
 type Me = { email: string; role: string; superadmin: boolean; teams: { slug: string; role: string }[]; activeTeam: string | null };
+type Access = { issued: { id: string; label: string }[]; setup: { config: string }; teams: { actingFor: string | null } };
 
 const personas = config.personas!;
 const SUPERADMIN = personas.superadmin.cookie.value;
@@ -78,7 +79,7 @@ async function memberReads(): Promise<string[]> {
     'activity/summary', 'activity', 'activity?refused=true', 'activity?offset=10', 'runs', 'runs?skill=sdlc-plan', 'runs?offset=10',
     'plugins', 'plugins/sdlc/eval', 'plugins/sdlc/skills/sdlc-spec', 'skills', 'skills?plugin=sdlc', 'skills/sdlc-spec', 'access',
     'search?q=recency', 'search?q=review%20rounds&limit=50',
-    'settings/me/tokens', 'settings/me/client-setup', 'settings/me/teams', `settings/team/members?team=${own}`, 'platform/status',
+    `settings/team/members?team=${own}`, 'platform/status',
     'platform/query?measure=calls&by=week', 'platform/query?measure=bugs_filed&by=impact',
     'platform/bugs', 'platform/bugs?limit=100', 'platform/bugs?state=resolved&limit=100',
     'platform/evaluation', 'platform/query?measure=findings&by=owner',
@@ -117,7 +118,7 @@ describe('who the fake gateway answers as', () => {
 
   it('is nobody with any other value, on every route', async () => {
     for (const who of [NO_SESSION, 'someone-else', 'Superadmin', '']) {
-      for (const path of ['me', 'teams', 'initiatives?scope=platform', 'platform/status', 'settings/me/tokens', 'no-such-route']) {
+      for (const path of ['me', 'teams', 'initiatives?scope=platform', 'platform/status', 'access', 'no-such-route']) {
         expect((await ask(who, path)).status, `"${who}" GET ${path}`).toBe(401);
       }
       expect((await post(who, 'page-view', { feature: 'home' })).status, `"${who}" POST page-view`).toBe(401);
@@ -134,7 +135,7 @@ describe('who the fake gateway answers as', () => {
   it('answers the superadmin with no cookie exactly what it answers their cookie', async () => {
     // The default `pnpm verify` sends no cookie, so this is what keeps its pages reading what they read.
     for (const path of ['teams', 'teams?scope=platform', 'initiatives?scope=platform', 'knowledge', 'people?scope=platform',
-                        'activity?scope=platform', 'settings/me/teams', 'settings/platform/people', 'teams/beacon']) {
+                        'activity?scope=platform', 'access', 'teams/beacon']) {
       expect(unobserved(await read(null, path)), path).toEqual(unobserved(await read(SUPERADMIN, path)));
     }
     expect((await read<{ teams: Team[] }>(null, 'teams')).teams.length).toBeGreaterThan(1);
@@ -212,13 +213,12 @@ describe('what a member is answered', () => {
     }
   });
 
-  it('refuses a team they are not in, and the platform\'s own settings', async () => {
+  it('refuses a team they are not in', async () => {
     const { own, others } = await teams();
     const other = others[0].slug;
     // Work's list is the active team's: naming another team widens nothing and refuses nothing.
     expect(unobserved(await read(MEMBER, `initiatives?team=${other}`))).toEqual(unobserved(await read(MEMBER, 'initiatives')));
     expect((await ask(MEMBER, `settings/team/members?team=${other}`)).status).toBe(403);
-    expect((await ask(MEMBER, 'settings/platform/people')).status).toBe(403);
     expect((await ask(MEMBER, `settings/team/members?team=${own}`)).status).toBe(200);
     // A document of another team is not one their session can show or approve.
     const shown = await post(MEMBER, `documents/shown?team=${other}`, { initiative: 'i', path: 'spec.md', content_revision: 'cr_aaaaaaaaaaaaaaaaaaaaaaaaaa' });
@@ -227,20 +227,20 @@ describe('what a member is answered', () => {
 
   it('holds their own settings, and writes as them', async () => {
     const [me, ava] = [await read<Me>(MEMBER, 'me'), await read<Me>(null, 'me')];
-    const tokens = await read<{ rows: { id: string; label: string }[] }>(MEMBER, 'settings/me/tokens');
-    expect(tokens.rows.length).toBeGreaterThan(0);
-    expect(JSON.stringify(tokens)).not.toContain(ava.email);
-    expect((await read<{ config: string }>(MEMBER, 'settings/me/client-setup')).config).toContain(me.email);
-    expect(await read(MEMBER, 'settings/me/teams')).toMatchObject({ actingFor: me.activeTeam, teams: [{ team: me.activeTeam, role: 'admin', active: true }] });
-    expect(JSON.stringify(await read(null, 'settings/me/tokens'))).toContain(ava.email);
+    const mine = await read<Access>(MEMBER, 'access');
+    expect(mine.issued.length).toBeGreaterThan(0);
+    expect(JSON.stringify(mine)).not.toContain(ava.email);
+    expect(mine.setup.config).toContain(me.email);
+    expect(mine.teams).toMatchObject({ actingFor: me.activeTeam, teams: [{ team: me.activeTeam, role: 'admin', active: true }] });
+    expect(JSON.stringify(await read(null, 'access'))).toContain(ava.email);
 
     const issued = await post(MEMBER, 'settings/me/tokens', { label: 'laptop' });
     expect(await issued.json()).toMatchObject({ label: 'laptop', email: me.email });
     // A write still answers success and is forgotten.
-    const revoked = await ask(MEMBER, `settings/me/tokens/${tokens.rows[0].id}`, { method: 'DELETE' });
+    const revoked = await ask(MEMBER, `settings/me/tokens/${mine.issued[0].id}`, { method: 'DELETE' });
     expect(revoked.status).toBe(200);
-    // The list itself is what the revoked write left unchanged; the hint it raised moved the marker on, as a change does.
-    expect((await read(MEMBER, 'settings/me/tokens')).rows).toEqual(tokens.rows);
+    // The tokens are what the revoked write left unchanged; the hint it raised moved the marker on, as a change does.
+    expect((await read<Access>(MEMBER, 'access')).issued).toEqual(mine.issued);
   });
 
   it('searches as their own team, and shows and approves its documents', async () => {

@@ -11,7 +11,8 @@
  * in two teams, and `MEMBER`, one person in one team. `pnpm verify --as` signs a browser in as either
  * (`personas` in scripts/verify.config.ts).
  */
-import type { Me, MyAccessToken, MyClientSetup, MyTeams } from '../../src/lib/api-shapes.ts';
+import type { Me } from '../../src/lib/api-shapes.ts';
+import type { Access, AccessToken } from '../../src/lib/destination-shapes.ts';
 import { ago } from './clock.ts';
 
 export const ME: Me = {
@@ -57,25 +58,27 @@ export function signedIn(header: string | undefined): Me | null {
   return SESSIONS[session.slice(SESSION_COOKIE.length + 1)] ?? null;
 }
 
-const MY_TOKENS: MyAccessToken[] = [
-  { id: 'tok_1f2e3d4c', label: 'mcp oauth — /core/mcp — ava.lindqvist@example.com', created_at: ago(96), last_used_at: ago(0.2), revoked_at: null },
-  { id: 'tok_5a6b7c8d', label: 'laptop — release scripts', created_at: ago(400), last_used_at: ago(30), revoked_at: null },
-  { id: 'tok_9e0f1a2b', label: 'mcp oauth — /manage/mcp — ava.lindqvist@example.com', created_at: ago(700), last_used_at: null, revoked_at: null },
-  { id: 'tok_3c4d5e6f', label: 'old ci runner', created_at: ago(1500), last_used_at: ago(1200), revoked_at: ago(1100) },
+/** A token as a person's fixture holds it: Access's own, before the application it was minted through is joined on. */
+type OwnToken = Omit<AccessToken, 'application'>;
+
+const MY_TOKENS: OwnToken[] = [
+  { id: 'tok_1f2e3d4c', label: 'mcp oauth — /core/mcp — ava.lindqvist@example.com', createdAt: ago(96), lastUsedAt: ago(0.2), revokedAt: null },
+  { id: 'tok_5a6b7c8d', label: 'laptop — release scripts', createdAt: ago(400), lastUsedAt: ago(30), revokedAt: null },
+  { id: 'tok_9e0f1a2b', label: 'mcp oauth — /manage/mcp — ava.lindqvist@example.com', createdAt: ago(700), lastUsedAt: null, revokedAt: null },
+  { id: 'tok_3c4d5e6f', label: 'old ci runner', createdAt: ago(1500), lastUsedAt: ago(1200), revokedAt: ago(1100) },
 ];
 
 /** The member's own tokens, as `MY_TOKENS` is the superadmin's. */
-const MEMBER_TOKENS: MyAccessToken[] = [
-  { id: 'tok_7b8c9d0e', label: `mcp oauth — /core/mcp — ${MEMBER.email}`, created_at: ago(120), last_used_at: ago(3), revoked_at: null },
-  { id: 'tok_2d3e4f5a', label: 'laptop', created_at: ago(900), last_used_at: ago(70), revoked_at: null },
+const MEMBER_TOKENS: OwnToken[] = [
+  { id: 'tok_7b8c9d0e', label: `mcp oauth — /core/mcp — ${MEMBER.email}`, createdAt: ago(120), lastUsedAt: ago(3), revokedAt: null },
+  { id: 'tok_2d3e4f5a', label: 'laptop', createdAt: ago(900), lastUsedAt: ago(70), revokedAt: null },
 ];
 
-/** A person's own tokens, and nobody else's: the fixture half of `GET /settings/me/tokens`, which `tokensNow`
- *  (work-access.ts) answers under `rows`. */
-export const tokensOf = (who: Me): MyAccessToken[] => (who.email === MEMBER.email ? MEMBER_TOKENS : MY_TOKENS);
+/** A person's own tokens, and nobody else's: the fixture half of Access's `issued` (work-access.ts). */
+export const tokensOf = (who: Me): OwnToken[] => (who.email === MEMBER.email ? MEMBER_TOKENS : MY_TOKENS);
 
-/** `GET /settings/me/client-setup`, written for the person asking. */
-export const clientSetupOf = (who: Me): MyClientSetup => ({
+/** Access's `setup`, written for the person asking. */
+export const clientSetupOf = (who: Me): Access['setup'] => ({
   client: 'claude-code',
   config: [
     `# ZZ setup for ${who.email}`,
@@ -96,9 +99,7 @@ export const clientSetupOf = (who: Me): MyClientSetup => ({
   ].join('\n'),
 });
 
-/** `GET /settings/me/teams`: the teams a person is in, and the one they act for. */
-export const teamsOf = (who: Me): MyTeams => ({
-  actingFor: who.activeTeam ?? '',
-  teams: who.teams.map((t) => ({ team: t.slug, role: t.role, active: t.slug === who.activeTeam })),
-  note: 'team_switch moves you to another one. You act for exactly one team at a time, so switching changes what every client shows you.',
-});
+/** Access's `teams`: the teams a person is in, and the one they act for; a person who acts for no team is answered none. */
+export const teamsOf = (who: Me): Access['teams'] => (who.activeTeam
+  ? { actingFor: who.activeTeam, teams: who.teams.map((t) => ({ team: t.slug, role: t.role, active: t.slug === who.activeTeam })) }
+  : { actingFor: null, teams: [] });
