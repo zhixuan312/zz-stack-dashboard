@@ -77,7 +77,7 @@ const tile = (label) => { for (let c = find('*', label); c; c = c.parentElement)
 const WRITES = /^(Resolve|Create|Add|Archive|Deactivate|Remove|Revoke|Issue|Approve|Close|Record|Confirm|Sign out|Act as|Enrolment link|Save|Delete|Invite)\b/i;
 /** Words that say what the reader may not see or do, or name a role. */
 const SAYS = /read-only|read only|superadmin|\badmin|administrator|not permitted|you cannot|you can't|only a |ask a |no access/i;
-/** Refusal owners as the console labels them. COUPLED: `OWNER_LABEL` in src/views/activity-context.ts. */
+/** Refusal owners as the console labels them. COUPLED: `OWNER_LABEL` in src/logic/activity-context.ts. */
 const OWNERS: Record<string, string> = { guardrail: 'A guardrail held', ours: 'Malformed call', theirs: 'Tool failure', other: 'Other' };
 const count = (n: number) => n.toLocaleString('en-US');
 /** A size as the console prints one, back to bytes: `1.7 MB`. */
@@ -356,7 +356,7 @@ export const JOURNEYS: Journey[] = [
     await w.open('/platform/releases');
     const page = await w.until<string[][]>('read the releases', `table(/Releases with what was observed/)`);
     // A release with no action recorded is one the platform knows needs none. COUPLED: `clientActionOf` in
-    // src/views/platform-releases-context.ts.
+    // src/logic/platform-releases-context.ts.
     for (const [i, r] of rows.slice(0, 2).entries()) w.check(`read ${r.version}`, page[i]?.[3] === (r.clientAction ?? 'Nothing to do'), `row ${i + 1} says "${page[i]?.[3]}" for its clients, the release ${JSON.stringify(r.clientAction)}`);
     const offered = await w.until<string>('look for a control', `String([...main().querySelectorAll('button, [role="button"], textarea')].filter(shown).filter((b) => ${WRITES}.test(words(b))).length)`);
     w.check('look for a control', offered === '0', `${offered} write controls offered`);

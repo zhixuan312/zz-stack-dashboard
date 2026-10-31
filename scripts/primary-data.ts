@@ -38,7 +38,7 @@
  * which the audit, the presses and the keyboard walk read at the same time. The page must show loading in the first
  * frame its main region paints, and on screen within five seconds of its first held read either its content or an
  * explicit state: an error, a refusal. No allowance for drawing it: the console gives up on a read at 4.5 s
- * (`READ_BOUND_MS` in src/views/context.ts) so that what a person sees is there by five. Five seconds from the read,
+ * (`READ_BOUND_MS` in src/lib/read-bound.ts) so that what a person sees is there by five. Five seconds from the read,
  * not from navigation; a page that sends no read from the browser is held to five seconds from navigation. A read the
  * console's server makes for itself (the gate's `/me`, Status's figure) is not held here.
  *
@@ -93,7 +93,7 @@ const observe = (t: Target, hold: number) => `(() => {
   const some = (sel, test) => [...document.querySelectorAll(sel)].some(test);
   const content = () => some(spec.ready, (el) => readable(el) && (!spec.text || el.textContent.toLowerCase().includes(spec.text)));
   // The gate's refusal under either setting, or a record answered as not existing: Query's 404 title, "<what> does not
-  // exist", or the initiative's own, "No initiative called <slug>" (src/views/initiative-context.ts).
+  // exist", or the initiative's own, "No initiative called <slug>" (src/logic/initiative-context.ts).
   const refusal = () => some('main [data-no-access], main [data-missing-page]', shown) ? 'no access'
     : some('main p.t-card', (el) => shown(el) && / does not exist$|^No initiative called /.test(el.textContent.trim())) ? 'answered as not existing' : '';
   const tick = () => {

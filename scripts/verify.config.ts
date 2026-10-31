@@ -332,7 +332,7 @@ const config: VerifyConfig = {
   // Work's task 4, "Find a decision": the phrase from an old plan asked of the assistant on Knowledge, whose answer cites
   // the search's first result, which scripts/journeys.ts compares with the page's first hit. Anchored, so it answers the
   // phrase alone and none of the assistant walk-through's own questions. COUPLED: the search view's tool as the
-  // assistant hands it, `view_<name>` of `searchTool` in src/views/tools/search.ts (tests/verify-tiers.test.ts).
+  // assistant hands it, `view_<name>` of `searchTool` in src/logic/tools/search.ts (tests/verify-tiers.test.ts).
   fakeModel: [{ when: `^${WORK_4_PHRASE.replace(/[.*+?^$()|[\]{}\\]/g, '\\$&')}$`, tool: 'view_search', input: { q: WORK_4_PHRASE } }],
   /**
    * The fake gateway's two people (scripts/fake-gateway/people.ts), each by the value of the `zz_console` cookie it

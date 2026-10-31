@@ -5,7 +5,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
  * The Work guide's "Find a decision" (Task I-128, AC-8.3): search Knowledge for a phrase from an old plan, then ask the
  * assistant the same thing, and it cites the same document.
  *
- * The assistant's search is the view tool the route hands a model, `searchTool` (`src/views/tools/search.ts`), its
+ * The assistant's search is the view tool the route hands a model, `searchTool` (`src/logic/tools/search.ts`), its
  * `read` called as the route calls it, with the person's session mocked as tests/assistant-tool-sweep.test.ts mocks it:
  * the console server's cookie jar holds the session value the browser journey signs in with. The fixture runs as its own
  * server. The page's first hit is what the Knowledge page reads for the same question (`searchPath`, the read

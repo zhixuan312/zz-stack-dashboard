@@ -1,7 +1,7 @@
 /**
  * Evaluation's view tool, at `/platform/evaluation`. It takes no arguments, as spec version 8's tool table gives it none:
  * it reads `GET /platform/evaluation`, the same response its page reads on the server, and its context is the page's,
- * from the same `evaluationContext`. Its prepared query (`src/views/evaluation-explore.ts`) counts the findings and the
+ * from the same `evaluationContext`. Its prepared query (`src/logic/evaluation-explore.ts`) counts the findings and the
  * scores established. It changes nothing: nobody starts an evaluation or decides a finding from the console.
  */
 import { z } from 'zod';

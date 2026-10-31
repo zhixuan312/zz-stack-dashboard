@@ -1,11 +1,7 @@
 /**
  * The one sentence that says which instant an answer's figures are as of: the line every page writes in its masthead,
  * in a module of its own so the copy cannot drift page by page. `As of ${formatDateTime(…meta.asOf)}` was written out
- * in twenty-two places in `src/logic` and `src/views`; nineteen of them are this function now.
- *
- * The three that are not are the two pages and one context handed a narrowed `meta` — `PeopleShown` and
- * `InitiativesShown` carry `Pick<ReadMeta, 'asOf'>` and nothing else, so those surfaces cannot know whether their answer
- * was served and keep writing `As of …` until the payload they are handed carries `observedAt` and `cacheHit`.
+ * in twenty-two places in `src/logic` and `src/views`; every one of them is this function now.
  *
  * WHICH instant, and whether there are two, are different questions with different answers. Only the cache knows
  * whether an answer was served rather than computed, and it says so in `meta.cacheHit` (AC-2.2, FR-2). The two instants
@@ -34,9 +30,8 @@ function clockWithSeconds(iso: string): string {
 const secondOf = (iso: string): number => Math.floor(Date.parse(iso) / 1000);
 
 /** Exactly what a stamp reads of an answer's `meta`: the computed instant, the served one, and the cache's own verdict.
- *  A whole `ReadMeta` satisfies it, and so will the narrowed payloads the console's server hands `PeopleShown` and
- *  `InitiativesShown` once those carry these three — the shape is stated here so that widening them is not a change to
- *  this module. */
+ *  A whole `ReadMeta` satisfies it, and so do the narrowed payloads the console's server hands `PeopleShown` and
+ *  `InitiativesShown`. */
 export type StampMeta = Pick<ReadMeta, 'asOf' | 'observedAt' | 'cacheHit'>;
 
 /**

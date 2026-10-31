@@ -4,7 +4,7 @@
  * `GET /platform/audit` as the route pages it, newest first. It answers the same response its page reads, and its
  * context is the page's, from the same `auditContext` with the titles of the reports its acts name read as the page reads
  * them, at the page of ten the offset falls in. Its prepared query
- * (`src/views/audit-explore.ts`) counts the events by kind and team. It changes nothing.
+ * (`src/logic/audit-explore.ts`) counts the events by kind and team. It changes nothing.
  */
 import { z } from 'zod';
 import { requireNeed } from '@/data/access';

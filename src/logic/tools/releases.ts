@@ -2,7 +2,7 @@
  * Releases' view tools. `view_releases`, at `/platform/releases`, takes spec version 8's arguments, `limit` and
  * `offset`, the route's own, so it reads `GET /platform/releases` as the route pages it, newest first; its context is the
  * page's, at the page of ten the offset falls in. `view_release`, at `/platform/releases/[version]`, reads one release's
- * own response, as its page does. Both offer the one prepared query (`src/views/releases-explore.ts`).
+ * own response, as its page does. Both offer the one prepared query (`src/logic/releases-explore.ts`).
  */
 import { z } from 'zod';
 import { requireNeed } from '@/data/access';

@@ -83,7 +83,7 @@ const hits = (re: RegExp, text: string): string[] => [...text.matchAll(re)].map(
 const wordsIn = (text: string): string[] => [...hits(NEVER, text), ...hits(ROLE_WORDS, text)];
 /**
  * A context's words, with Access's account of the person's own teams left out of the role words: it is the agent's
- * reading of Access's table of those teams (`src/views/access-context.ts`), the one place their own role stays.
+ * reading of Access's table of those teams (`src/logic/access-context.ts`), the one place their own role stays.
  */
 function contextWords(c: SharedContext): string[] {
   const text = contextText(c);

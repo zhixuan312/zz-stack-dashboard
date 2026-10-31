@@ -43,7 +43,7 @@
  * `document`, as the gateway's trigger notifies on every revision a writer makes.
  *
  * The status read, `GET /api/console/platform/status`, is the one a page makes on the console's server and gives
- * `READ_BOUND_MS` (src/views/context.ts): `error` answers it 500 with its own route's sentence, and
+ * `READ_BOUND_MS` (src/lib/read-bound.ts): `error` answers it 500 with its own route's sentence, and
  * `slow` holds it `SLOW_MS`, past that bound as past every page's.
  *
  * Platform's other reads are public by their route, answered to everyone signed in from one fixture each, the

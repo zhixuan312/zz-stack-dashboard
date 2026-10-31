@@ -1,6 +1,6 @@
 /**
  * The platform's Status, at `/platform`: the same response its page reads on the server, reduced by the same
- * `statusRead`, and its prepared query (`src/views/platform-status-explore.ts`) over the platform's calls, refusals and
+ * `statusRead`, and its prepared query (`src/logic/platform-status-explore.ts`) over the platform's calls, refusals and
  * malformed calls, the rate per 1,000 a ratio of the malformed over the calls of the same window.
  */
 import { z } from 'zod';

@@ -3,7 +3,7 @@
  * `limit` and `offset`, the route's own, so it reads `GET /platform/bugs` as the route filters and pages it, newest
  * first; its context is the page's, at the page of ten the offset falls in. `view_bug`, at `/platform/bugs/[id]`, reads
  * one report and its duplicate targets, as its page does, and is the superadmin's alone. Both offer the one prepared
- * query (`src/views/bugs-explore.ts`). Neither changes anything: a report is resolved on its page, by a person.
+ * query (`src/logic/bugs-explore.ts`). Neither changes anything: a report is resolved on its page, by a person.
  */
 import { z } from 'zod';
 import { requireNeed } from '@/data/access';

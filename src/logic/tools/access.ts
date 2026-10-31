@@ -2,7 +2,7 @@
  * Access's view tool, at `/access`. It takes no arguments, as spec version 8's tool table gives it none: it reads
  * `GET /access`, the same answer its page reads on the server, and its context is the page's, from the same
  * `accessContext`. Its data is `accessAnswer`'s: the labels, dates, states and applications, never a token's value, a
- * hash or a session's id. Its prepared query (`src/views/access-explore.ts`) counts the caller's own tokens. It changes
+ * hash or a session's id. Its prepared query (`src/logic/access-explore.ts`) counts the caller's own tokens. It changes
  * nothing: the assistant never issues, revokes or switches.
  */
 import { z } from 'zod';

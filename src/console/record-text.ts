@@ -1,6 +1,6 @@
 /**
  * Record as text, for `Copy as text`: one pure function of the one `RecordRead` the page draws, built from the same words
- * the cards are drawn with (`src/views/record-context.ts`), so what is copied is exactly what is shown. It carries the
+ * the cards are drawn with (`src/logic/record-context.ts`), so what is copied is exactly what is shown. It carries the
  * scope, the cutoff, the coverage, what the words are counted over and the pace the estimate states, and the figures
  * of the lead, its foot and every slice's tiles; a slice that could not be read says so.
  *

@@ -2,7 +2,7 @@
  * Knowledge health's view tool, at `/platform/knowledge`. It takes no arguments, as spec version 8's tool table gives it
  * none: it reads `GET /platform/knowledge`, the same response its page reads on the server, projected to the caller by
  * the gateway, and its context is the page's, from the same `knowledgeHealthContext`. Its prepared query
- * (`src/views/knowledge-health-explore.ts`) counts the lessons made and the searches.
+ * (`src/logic/knowledge-health-explore.ts`) counts the lessons made and the searches.
  */
 import { z } from 'zod';
 import { requireNeed } from '@/data/access';

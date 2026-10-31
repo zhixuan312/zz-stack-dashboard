@@ -20,7 +20,7 @@
  * construct Node's type stripping refuses included), `server-only` empty, and `next/headers` answering the session cookie
  * alone. Every read is the console's own gateway read made with that cookie (`src/data/gateway.ts`).
  *
- * What it establishes, for every view tool in `src/views/tools.ts`, read from that list so a view added later is asked
+ * What it establishes, for every view tool in `src/logic/tools.ts`, read from that list so a view added later is asked
  * without editing this file:
  *
  *   - a view the person may use answers `view_<name>` (at its detail page's given address) with the context the tool

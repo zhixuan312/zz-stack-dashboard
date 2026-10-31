@@ -5,7 +5,7 @@
  * (`src/data/gateway.ts`), and each builds its context with the same function its page does, so the model's figures and
  * the screen's are one.
  *
- * One module a view under `src/views/tools/`, each with its `page` and its prepared query beside it. Where two views
+ * One module a view under `src/logic/tools/`, each with its `page` and its prepared query beside it. Where two views
  * share a page, the first is the one its page offers: Search declares Knowledge's, after Knowledge.
  */
 import type { ViewTool } from '@/lib/shared-context';

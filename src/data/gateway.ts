@@ -104,7 +104,7 @@ async function credential(): Promise<Record<string, string>> {
  * which the platform runs as the team they act for. The gateway refuses a search asked for under the platform's name
  * rather than answering one team's as the fleet's.
  *
- * `/me` is bounded by `READ_BOUND_MS` (src/views/context.ts), the bound every read of the console's keeps: unanswered by
+ * `/me` is bounded by `READ_BOUND_MS` (src/lib/read-bound.ts), the bound every read of the console's keeps: unanswered by
  * then, it is a 504 with a sentence that says so, which `gate` throws as the outage it is, so a gateway that takes the
  * request and never answers draws the console's error page instead of holding every page on its gate. The page reads
  * race the same bound into their own states, so this bounds `/me` alone.

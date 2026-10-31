@@ -1,7 +1,7 @@
 /**
  * Usage's view tool, at `/platform/usage`. It takes no arguments, as spec version 8's tool table gives it none: it reads
  * `GET /platform/usage`, the same response its page reads on the server, and its context is the page's, from the same
- * `usageContext`. Its prepared query (`src/views/usage-explore.ts`) counts the calls, the refusals and the model calls.
+ * `usageContext`. Its prepared query (`src/logic/usage-explore.ts`) counts the calls, the refusals and the model calls.
  */
 import { z } from 'zod';
 import { requireNeed } from '@/data/access';

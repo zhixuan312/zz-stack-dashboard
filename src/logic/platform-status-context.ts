@@ -3,7 +3,7 @@
  * needs attention, the paired figures (malformed calls per 1,000 and refusals put right, week by week), the scoreboard
  * of the eight measures, each door's days, what is running and the reader's own team's share. The page draws these
  * values and the assistant is told the same ones, as the page's shared context and through `view_platform_status`,
- * which reduces the same response with `statusRead` (`src/views/tools/platform-status.ts`).
+ * which reduces the same response with `statusRead` (`src/logic/tools/platform-status.ts`).
  *
  * Every finding is the gateway's (`finding.text`, `headline`, `judgement`): the page computes none. What is computed
  * here is arithmetic over the read's own facts, a change between two weeks and a sum of the doors' counts, each in the
