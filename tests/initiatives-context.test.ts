@@ -15,7 +15,7 @@ import { contextText } from '@/lib/shared-context';
 import type { InitiativeList } from '@/lib/work-shapes';
 import { CONTEXT_BUDGET } from '@/logic/context';
 import { initiativeContext } from '@/logic/initiative-context';
-import { CLOSE_IS_THE_PERSON_S, OUTCOMES, initiativesContext, nextOf, type InitiativesRead } from '@/logic/initiatives-context';
+import { CLOSE_IS_THE_PERSON_S, OUTCOMES, initiativesContext, monthOf, nextOf, type InitiativesRead } from '@/logic/initiatives-context';
 import { INITIATIVES_DEFAULTS, listPath } from '@/logic/initiatives-filter';
 import { InitiativesView } from '@/views/pages/initiatives';
 import { initiativeTool } from '@/logic/tools/initiative';
@@ -201,5 +201,18 @@ describe('the closures named by the grain they arrive in (Task I-139)', () => {
     mount({ state: 'ok', path: PATH, data: { ...LIST, closures: { state: 'unavailable', reason: 'down' } }, team: 'atlas' });
     expect(screen.getByText('The closures could not be read')).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/closures by week|the weeks/i);
+  });
+});
+
+describe('monthOf', () => {
+  it('names the month an instant falls in, in the reporting timezone', () => {
+    expect(monthOf('2026-10-05T03:00:00Z')).toBe('Oct 2026');
+    // 23:00 UTC on 30 Sep is already 1 Oct in Singapore.
+    expect(monthOf('2026-09-30T23:00:00Z')).toBe('Oct 2026');
+    expect(monthOf(Date.parse('2026-12-31T12:00:00Z'))).toBe('Dec 2026');
+  });
+
+  it('answers what it cannot read as it was given', () => {
+    expect(monthOf('not a date')).toBe('not a date');
   });
 });

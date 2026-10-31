@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import { useMemo } from 'react';
-import { ArrowRight, CircleCheck, ListTree, Signature } from 'lucide-react';
+import { CircleCheck, ListTree, Signature } from 'lucide-react';
 import { useShareView } from '@/components/base/use-share-view';
 import { AskAbout } from '@/components/patterns/ask-about';
 import { DataTable, useSearchDraft, type Column } from '@/components/patterns/data-table';
@@ -13,6 +13,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Busy, ChartSkeleton, TableSkeleton, TilesSkeleton } from '@/components/patterns/page-loading';
 import { Skeleton } from '@/components/ui/skeleton';
 import { aligned } from '@/console/columns';
+import { Goes } from '@/console/eval-score';
 import { StateBadge } from '@/console/initiative';
 import { Panel } from '@/console/panel';
 import { failureOf } from '@/console/query';
@@ -20,14 +21,14 @@ import { When } from '@/console/when';
 import type { Revised } from '@/data/gateway';
 import { useDataClock } from '@/lib/api';
 import { plural } from '@/lib/format';
-import { formatDate, formatShortDate } from '@/lib/format-date';
+import { formatShortDate } from '@/lib/format-date';
 import { stampOf } from '@/logic/read-stamp';
 import { formatCount } from '@/lib/format-units';
 import { grainOf, type Grain } from '@/lib/grain';
 import { useLive } from '@/lib/live';
 import type { InitiativeList } from '@/lib/work-shapes';
 import { pageOf, pendingContext } from '@/logic/context';
-import { TILES, closedLine, initiativesContext, openLine, waitingLine, initiativesTrouble, nextOf, type InitiativesRead, type InitiativesShown, type ShownRow } from '@/logic/initiatives-context';
+import { TILES, closedLine, initiativesContext, monthOf, openLine, waitingLine, initiativesTrouble, nextOf, type InitiativesRead, type InitiativesShown, type ShownRow } from '@/logic/initiatives-context';
 import { INITIATIVES_DEFAULTS, LIST_STATES, PAGE_SIZE, STATE_LABEL, filtersOfPath, listPath, narrowed, type InitiativesFilters } from '@/logic/initiatives-filter';
 import { useServed, useServedAddress } from '@/logic/use-served';
 import { OUTCOME_PARTS } from '@/logic/outcome-parts';
@@ -51,7 +52,7 @@ const COLUMNS: Column<ShownRow>[] = aligned([
     key: 'slug', header: 'Initiative', mobile: 'title',
     cell: (r) => (
       <span title={r.slug} className="font-medium whitespace-nowrap text-ink @max-[640px]:whitespace-normal @max-[640px]:[overflow-wrap:anywhere]">
-        {r.slug} <ArrowRight data-goes aria-hidden className="inline size-3.5 shrink-0 align-[-0.15em] text-ink-3 group-hover/row:text-ink" />
+        {r.slug} <Goes />
       </span>
     ),
   },
@@ -172,7 +173,7 @@ export function InitiativesView({ served }: { served: Revised<InitiativesRead> }
 }
 
 /** A period's column: `05 Oct` for a week, its first month, `Oct 2026`, for a month or a quarter. */
-const tickOf = (grain: Grain) => (from: string) => (grain === 'week' ? formatShortDate(from) : formatDate(from).split(' ').slice(1).join(' '));
+const tickOf = (grain: Grain) => (from: string) => (grain === 'week' ? formatShortDate(from) : monthOf(from));
 
 /**
  * The team's closures, a column a period split by the outcome the platform recorded, the running period drawn

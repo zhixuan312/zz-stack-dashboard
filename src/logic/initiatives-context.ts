@@ -7,7 +7,7 @@
  */
 import { plural } from '@/lib/format';
 import { formatCount } from '@/lib/format-units';
-import { formatDate, formatDay } from '@/lib/format-date';
+import { dayOf, formatCalendarMonth, formatDate, formatDay } from '@/lib/format-date';
 import { grainOf, type Grain } from '@/lib/grain';
 import { listed, type Insight, type SharedContext } from '@/lib/shared-context';
 import type { Figure, Part, Window } from '@/lib/platform-shapes';
@@ -131,14 +131,19 @@ export const nextOf = (r: Pick<InitiativeRow, 'nextMove'> & { state?: Initiative
 /** How many whole periods of closures the context states, latest last: what the chart's last columns say. */
 const PERIODS_SAID = 4;
 
+/** The month an instant falls in, in the reporting timezone: `Oct 2026`. */
+export function monthOf(input: string | number): string {
+  const day = dayOf(input);
+  return day ? `${formatCalendarMonth(day)} ${day.slice(0, 4)}` : String(input);
+}
+
 /** A period by its name: `week of 5 Oct`, `Oct 2026`, `Jul to Sep 2026`. */
 function periodName(grain: Grain, { from, to }: { from: string; to: string }): string {
   if (grain === 'week') return `week of ${formatDay(from)}`;
-  const [, first, year] = formatDate(from).split(' ');
-  if (grain === 'month') return `${first} ${year}`;
+  if (grain === 'month') return monthOf(from);
   // A quarter ends where the next begins, so its last month is the one holding the day before, whatever timezone it
   // was cut in.
-  return `${first} to ${formatDate(Date.parse(to) - 86_400_000).split(' ').slice(1).join(' ')}`;
+  return `${formatCalendarMonth(dayOf(from))} to ${monthOf(Date.parse(to) - 86_400_000)}`;
 }
 
 /**
