@@ -296,7 +296,7 @@ export function SkillView({ plugin: pluginName, skill: name, view, served }: { p
       ) : null}
       {view === 'references' && text.data ? text.data.references.map((r) => (
         <Panel key={r.path} title={r.path} description={`${formatCount(r.content.length)} ${plural(r.content.length, 'character')}`}>
-          {r.path.endsWith('.md') ? <ReadingBody>{r.content}</ReadingBody> : <pre className="font-mono text-xs leading-[1.7] whitespace-pre-wrap text-ink-2 [overflow-wrap:anywhere]">{r.content}</pre>}
+          {r.path.endsWith('.md') ? <ReadingBody>{r.content}</ReadingBody> : <pre className="font-mono text-xs leading-[1.7] whitespace-break-spaces text-ink-2 [overflow-wrap:anywhere]">{r.content}</pre>}
         </Panel>
       )) : null}
     </Stack>

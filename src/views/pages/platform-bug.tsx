@@ -78,7 +78,7 @@ export function PlatformBugView({ id, served, duplicates: servedTargets }: { id:
           actions={<AskAbout question="What does this report say is broken, what would resolve it, and is it a duplicate of another report of its team?" />}
         >
           {titled ? null : <p className="mb-3 font-medium text-ink [overflow-wrap:anywhere]">{data.title}</p>}
-          <p data-report-detail className="t-body whitespace-pre-wrap text-ink-2 [overflow-wrap:anywhere]">{data.detail}</p>
+          <p data-report-detail className="t-body whitespace-break-spaces text-ink-2 [overflow-wrap:anywhere]">{data.detail}</p>
         </Panel>
         <Panel title="This report" description={statusOf(data.status)}>
           <KeyValue items={[
@@ -100,7 +100,7 @@ export function PlatformBugView({ id, served, duplicates: servedTargets }: { id:
 function Decision({ report }: { report: BugReport }) {
   return (
     <Panel title="Decision" description={`${statusOf(report.status)}${report.resolvedAt ? `, ${formatDateTime(report.resolvedAt)}` : ''}`}>
-      <p className="t-body whitespace-pre-wrap text-ink [overflow-wrap:anywhere]">{report.resolution ?? 'No reasoning was recorded.'}</p>
+      <p className="t-body whitespace-break-spaces text-ink [overflow-wrap:anywhere]">{report.resolution ?? 'No reasoning was recorded.'}</p>
       {report.duplicateOf ? (
         <p className="t-small mt-3 text-ink-2">
           Duplicate of <Link href={bugPath(report.duplicateOf)} className="hit rounded-xs font-mono text-accent-ink hover:text-ink [overflow-wrap:anywhere]">{report.duplicateOf}</Link>
