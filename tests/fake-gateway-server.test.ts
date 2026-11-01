@@ -233,7 +233,7 @@ describe('the fake gateway as the sweep uses it', () => {
   it('names the approval a metadata-only correction superseded inside its version', async () => {
     const base = await start();
     // Beacon's record, so read by a session acting for beacon: Work's detail routes are the active team's alone.
-    const headers = { cookie: 'zz_console=superadmin' };
+    const headers = { cookie: 'zz_console=superadmin+normal' };
     await fetch(`${base}/api/console/settings/me/active-team`, { method: 'POST', headers: { ...headers, 'content-type': 'application/json' }, body: JSON.stringify({ team: 'beacon' }) });
     const doc = await (await fetch(`${base}/api/console/document/beacon/2026-09-22-payout-schedule/review.md`, { headers })).json() as
       { correction: number | null; versions: { version: number; revision: number; superseded_approved: { revision: number; content_revision: string | null } | null }[] };

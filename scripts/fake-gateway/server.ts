@@ -80,8 +80,10 @@
  *
  * `POST /api/console/settings/me/active-team` is the one write that is kept: the team it moves a session to stays that
  * cookie's for the life of the process, as the gateway keeps it on the session's own row, so every read after it is
- * answered for the new team. It is refused as the gateway refuses it: a team the person is not in, or a caller who is
- * not a signed-in browser. A third cookie value, `member-two-teams`, signs in the member as a member of two teams.
+ * answered for the new team; the personas' plain values and a request with no cookie are answered and not kept, so
+ * verify's suites never move one another. It is refused as the gateway refuses it: a team the person is not in, or a
+ * caller who is not a signed-in browser. A third cookie value, `member-two-teams`, signs in the member as a member of
+ * two teams.
  */
 import http from 'node:http';
 import type { Me } from '../../src/lib/api-shapes.ts';
@@ -185,14 +187,18 @@ function callerOf(cookie: string | null): Me | null {
  * in, and `{ ok, actingFor, from }`.
  *
  * DELIBERATE: a request with no cookie is answered and not kept. It is every browser `pnpm verify` runs side by side,
- * the audit, the presses and the keyboard walk, so one press of "Act as this team" would move the others mid-run.
+ * the audit, the presses and the keyboard walk, so one press of "Act as this team" would move the others mid-run. The
+ * personas' own values, `superadmin` and `member`, are not kept either: verify presses every control on a persona's
+ * routes as that persona, and a kept switch turned atlas's member rows into beacon's read-only list halfway through
+ * /access. A switch that must hold is made by a session of its own (`superadmin+normal`, `member-two-teams`).
  */
+const UNKEPT = new Set(['superadmin', 'member']);
 function switchTeam(who: Me, cookie: string | null, body: Record<string, unknown>): Answer {
   if (who.via !== 'session') return [400, { error: 'this moves the team a signed-in console browser acts for, and this request is not one. To move the team your agents act for, call team_switch on the /manage door.' }];
   const team = body.team;
   if (typeof team !== 'string' || !/^[a-z0-9][a-z0-9_-]{1,63}$/.test(team)) return [400, { error: 'team must be a slug' }];
   if (!who.teams.some((t) => t.slug === team)) return [400, { error: `not a member of ${team}` }];
-  if (cookie !== null) switched.set(cookie, team);
+  if (cookie !== null && !UNKEPT.has(cookie)) switched.set(cookie, team);
   return ok({ ok: true, actingFor: team, from: who.activeTeam });
 }
 
