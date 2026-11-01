@@ -18,7 +18,7 @@ import { formatCount } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
 import { pendingContext } from '@/logic/context';
 import {
-  FROM_THE_FRONT, PLUGINS_DEFAULTS, PLUGINS_PATH, inView, pluginsContext, readTrouble, type Catalog, type PluginsFilters, type PluginsRead,
+  FROM_THE_FRONT, PLUGINS_DEFAULTS, filtersOf, PLUGINS_PATH, inView, pluginsContext, readTrouble, type Catalog, type PluginsFilters, type PluginsRead,
 } from '@/logic/plugins-context';
 import { useAddress, useServed } from '@/logic/use-served';
 
@@ -103,7 +103,7 @@ function usePlugins(served: PluginsRead) {
  */
 export function PluginsView({ served, addressed = null }: { served: Revised<PluginsRead>; addressed?: PluginsFilters | null }) {
   useLive(['plugins'], served.revisions);
-  const [filters, set] = useAddress(PLUGINS_DEFAULTS, addressed);
+  const [filters, set] = useAddress(PLUGINS_DEFAULTS, addressed, filtersOf);
   const [draft, setDraft] = useSearchDraft(filters.plugin, (plugin) => set({ plugin }));
   const { data, trouble, retry, busy, updatedAt } = usePlugins(served);
   const now = useDataClock();

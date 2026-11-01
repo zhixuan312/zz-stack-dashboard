@@ -1,7 +1,7 @@
 'use client';
 
 import { useQueryClient } from '@tanstack/react-query';
-import { Fragment, useMemo, useRef, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { KeyRound, LogIn, UserRound, UserX } from 'lucide-react';
 import { useShareView } from '@/components/base/use-share-view';
 import { AskAbout } from '@/components/patterns/ask-about';
@@ -31,7 +31,7 @@ import { consoleMutate, type Done, reasonOf, useConsoleMutation } from '@/lib/mu
 import { useServed, useServedAddress } from '@/logic/use-served';
 import { pendingContext } from '@/logic/context';
 import { NO_SIGN_IN, TILES, peopleContext, peopleTrouble, signInsValue, type PeopleRead, type PeopleShown } from '@/logic/people-context';
-import { PEOPLE_DEFAULTS, PERSON_STATES, filtersOfPath, narrowed, peoplePath, type PeopleFilters } from '@/logic/people-filter';
+import { PEOPLE_DEFAULTS, PERSON_STATES, filtersOf, filtersOfPath, narrowed, peoplePath, type PeopleFilters } from '@/logic/people-filter';
 
 /** A person as the page draws them. */
 type Person = PeopleShown['people'][number];
@@ -215,7 +215,7 @@ function usePeople(served: PeopleRead | null, filters: PeopleFilters) {
  */
 export function PlatformPeopleView({ served }: { served: Revised<PeopleRead> }) {
   useLive(['people'], served.revisions);
-  const [filters, set] = useServedAddress(PEOPLE_DEFAULTS, served, filtersOfPath);
+  const [filters, set] = useServedAddress(PEOPLE_DEFAULTS, served, filtersOfPath, filtersOf);
   const [draft, setDraft] = useSearchDraft(filters.q, (q) => set({ q, page: '1' }));
   const { data, trouble, retry, busy } = usePeople(served, filters);
   const asOf = data?.meta.asOf;
@@ -279,7 +279,7 @@ export function PlatformPeopleView({ served }: { served: Revised<PeopleRead> }) 
 
 /** The masthead's as-of line: the cutoff of the read the table draws, nothing while there is none. */
 export function PeopleAsOf({ served }: { served: PeopleRead }) {
-  const [filters] = useServedAddress(PEOPLE_DEFAULTS, served, filtersOfPath);
+  const [filters] = useServedAddress(PEOPLE_DEFAULTS, served, filtersOfPath, filtersOf);
   const { data } = usePeople(served, filters);
   if (!data) return null;
   const stamp = stampOf(data.meta);
@@ -290,9 +290,8 @@ export function PeopleAsOf({ served }: { served: PeopleRead }) {
  * Add a person, the masthead's one action: the console's existing platform route, as Settings called it. Adding a
  * person lets nobody in: the console's only door is a passkey, which attaches through an enrolment link issued in the
  * person's row. The gateway's refusal is said under the fields, and the dialog stays open with what was typed; it is
- * dropped whenever the dialog opens or closes, Cancel's close included. One add at a time: a second Enter before the
- * first has answered sends nothing, told by a ref set from the press, which a keyboard press reaches before `isPending`
- * is drawn (as `ApproveAction`'s Confirm).
+ * dropped whenever the dialog opens or closes, Cancel's close included. A second Enter before the first add has
+ * answered sends nothing: `useConsoleMutation` holds the same write while it is out.
  */
 export function AddPerson() {
   const [open, setOpen] = useState(false);
@@ -301,11 +300,9 @@ export function AddPerson() {
   const [error, setError] = useState<string | null>(null);
   const add = useConsoleMutation<Done, { email: string; display_name: string }>('/settings/platform/people');
   const ready = email.trim().length > 0;
-  const sending = useRef(false);
 
   async function submit() {
-    if (!ready || sending.current) return;
-    sending.current = true;
+    if (!ready) return;
     setError(null);
     try {
       const done = await add.mutateAsync({ email: email.trim(), display_name: name.trim() });
@@ -315,8 +312,6 @@ export function AddPerson() {
       toast({ tone: 'positive', title: done.result });
     } catch (err) {
       setError(reasonOf(err, 'The person was not added; try again.'));
-    } finally {
-      sending.current = false;
     }
   }
 

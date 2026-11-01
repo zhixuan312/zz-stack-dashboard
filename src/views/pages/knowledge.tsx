@@ -33,7 +33,7 @@ import { knowledgeNodeHref } from '@/lib/knowledge-filters';
 import { useLive } from '@/lib/live';
 import type { PeriodFigure } from '@/lib/platform-shapes';
 import {
-  KNOWLEDGE_KINDS, PAGE_SIZE, knowledgeContext, knowledgePath, narrowed, searchPath, starterOf, statusWord, troubleOf, type ServerRead,
+  KNOWLEDGE_KINDS, PAGE_SIZE, filtersOf, knowledgeContext, knowledgePath, narrowed, searchPath, starterOf, statusWord, troubleOf, type ServerRead,
 } from '@/logic/knowledge-context';
 import { hitAddress } from '@/logic/search-context';
 
@@ -89,12 +89,12 @@ export function KnowledgeView({ read }: { read: ServerRead<KnowledgeSummary> }) 
   useLive(['knowledge'], read.state === 'ok' ? read.revisions : undefined);
   useServerReadLive('/knowledge/summary');
   const [f, set] = useQueryState({ q: '', kind: 'all', page: '1' });
-  const filters = useMemo(() => ({ q: f.q, kind: f.kind }), [f.q, f.kind]);
+  const filters = useMemo(() => filtersOf({ q: f.q, kind: f.kind }), [f.q, f.kind]);
   const page = Math.max(1, Number(f.page) || 1);
   const question = f.q.trim();
   const search = useConsole<SearchAnswer>(question ? searchPath(question) : null);
   // The shelf by its kind and page alone: the page's question is the search's, never a words filter on the shelf.
-  const list = useConsole<KnowledgeList>(knowledgePath({ kind: f.kind }, { offset: (page - 1) * PAGE_SIZE }));
+  const list = useConsole<KnowledgeList>(knowledgePath({ kind: filters.kind }, { offset: (page - 1) * PAGE_SIZE }));
   const summary = read.state === 'ok' ? read.data : undefined;
   const failure = read.state === 'ok' ? undefined : troubleOf(read);
   const updatedAt = arrivalOf(read, list);
@@ -148,7 +148,7 @@ export function KnowledgeView({ read }: { read: ServerRead<KnowledgeSummary> }) 
         empty={{ title: 'Nothing on the shelf yet', body: 'A lesson arrives when an initiative closes and something in it was worth keeping.' }}
         toolbar={
           <FilterBar
-            filters={[{ key: 'kind', label: 'Kind', value: f.kind, onChange: (v) => set({ kind: v, page: '1' }), options: KIND_OPTIONS }]}
+            filters={[{ key: 'kind', label: 'Kind', value: filters.kind, onChange: (v) => set({ kind: v, page: '1' }), options: KIND_OPTIONS }]}
             result={<>{list.data ? `${formatCount(list.data.total)} ${plural(list.data.total, 'lesson')}` : list.isPending ? '…' : '—'}</>}
             onClear={() => set({ kind: 'all', page: '1' })}
           />

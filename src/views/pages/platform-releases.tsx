@@ -20,7 +20,7 @@ import { formatCount } from '@/lib/format-units';
 import type { ReleaseRow, Releases } from '@/lib/platform-shapes';
 import { pendingContext } from '@/logic/context';
 import {
-  OBSERVED, RELEASES_DEFAULTS, TILES, clientActionOf, failuresIn, filtersOfPath, lastWholeWeek, midSentence, observedOf, observedText, overlapText, p95In,
+  OBSERVED, RELEASES_DEFAULTS, TILES, clientActionOf, failuresIn, filtersOf, filtersOfPath, lastWholeWeek, midSentence, observedOf, observedText, overlapText, p95In,
   rateIn, releasePath, releasesContext, releasesPath, releasesTrouble, weekRate, weeksRunning, type ReleasesFilters, type ReleasesRead, type Week,
 } from '@/logic/platform-releases-context';
 import { stampOf } from '@/logic/read-stamp';
@@ -31,8 +31,9 @@ const RATE = new Intl.NumberFormat('en-US', { minimumFractionDigits: 1, maximumF
 
 /**
  * The page's read: the one the console's server made for this address, so the first paint carries the rows and the
- * browser asks for nothing more, then the browser's own once another page of rows or a Retry asks for it. A failure is
- * stated only when there is nothing to draw: the browser's, or the server's until the browser's read answers.
+ * browser asks for nothing more, then the browser's own once a Retry asks for it. Another page of rows is read by the
+ * console's server as the navigation renders the page again. A failure is stated only when there is nothing to draw: the
+ * browser's, or the server's until the browser's read answers.
  */
 function useReleases(served: ReleasesRead, filters: ReleasesFilters) {
   const path = releasesPath(filters);
@@ -112,10 +113,11 @@ const columnsAt = (asOf: string): Column<ReleaseRow>[] => aligned([
 /**
  * Every recorded release: four tiles, releases and malformed calls per 1,000 by week as two Column charts on one cursor,
  * then the releases, ten to a page, newest first, each with what was observed in the 72 hours either side of it. The
- * first page the address names is read on the console's server and handed here; every other page is the browser's.
+ * page the address names is read on the console's server and handed here, and so is every page after it, as the
+ * navigation renders the page again.
  */
 export function PlatformReleasesView({ served }: { served: ReleasesRead }) {
-  const [filters, set] = useServedAddress(RELEASES_DEFAULTS, served, filtersOfPath);
+  const [filters, set] = useServedAddress(RELEASES_DEFAULTS, served, filtersOfPath, filtersOf);
   const { data, trouble, retry, busy } = useReleases(served, filters);
   const asOf = data?.meta.asOf ?? '';
   const columns = useMemo(() => columnsAt(asOf), [asOf]);
@@ -216,7 +218,7 @@ function Weeks({ weeks }: { weeks: Week[] }) {
 
 /** The masthead's as-of line: the cutoff of the read the page draws, nothing while there is none. */
 export function ReleasesAsOf({ served }: { served: ReleasesRead }) {
-  const [filters] = useServedAddress(RELEASES_DEFAULTS, served, filtersOfPath);
+  const [filters] = useServedAddress(RELEASES_DEFAULTS, served, filtersOfPath, filtersOf);
   const { data } = useReleases(served, filters);
   if (!data) return null;
   const stamp = stampOf(data.meta);

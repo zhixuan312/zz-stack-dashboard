@@ -27,7 +27,7 @@ import { formatDate, formatDay, formatShortDate } from '@/lib/format-date';
 import { formatCount } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
 import {
-  AGENT_CALL, NO_FILTER, OWNER_LABEL, PAGE_SIZE, REFUSAL_PARTS, TILES, activityContext, activityPath, activityTrouble, fourOwners,
+  AGENT_CALL, NO_FILTER, OWNER_LABEL, PAGE_SIZE, REFUSAL_PARTS, TILES, activityContext, activityPath, activityTrouble, filtersOf, fourOwners,
   narrowed, type ActivityRead,
 } from '@/logic/activity-context';
 import { pendingContext, weekOf } from '@/logic/context';
@@ -152,7 +152,7 @@ function useSummary(read: ActivityRead) {
 export function ActivityView({ read }: { read: Revised<ActivityRead> }) {
   useLive(['activity'], read.revisions);
   const [f, set] = useQueryState({ ...NO_FILTER, page: '1' });
-  const filters = useMemo(() => ({ kind: f.kind, tool: f.tool, initiative: f.initiative, refused: f.refused }), [f.kind, f.tool, f.initiative, f.refused]);
+  const filters = useMemo(() => filtersOf({ kind: f.kind, tool: f.tool, initiative: f.initiative, refused: f.refused }), [f.kind, f.tool, f.initiative, f.refused]);
   const page = Math.max(1, Number(f.page) || 1);
   const [initiative, setInitiative] = useSearchDraft(f.initiative === 'all' ? '' : f.initiative, (v) => set({ initiative: v.trim() || 'all', page: '1' }));
   const [pointed, setPointed] = useState<number | null>(null);
@@ -218,7 +218,7 @@ export function ActivityView({ read }: { read: Revised<ActivityRead> }) {
             filters={[
               { key: 'kind', label: 'Kind', value: f.kind, onChange: (v) => set({ kind: v, page: '1' }), options: [{ value: 'all', label: 'All' }, ...(log.data?.kinds ?? []).map(option)] },
               { key: 'tool', label: 'Tool', value: f.tool, onChange: (v) => set({ tool: v, page: '1' }), options: [{ value: 'all', label: 'All' }, ...(log.data?.tools ?? []).map(option)] },
-              { key: 'refused', label: 'Result', value: f.refused, onChange: (v) => set({ refused: v, page: '1' }), options: RESULT_OPTIONS },
+              { key: 'refused', label: 'Result', value: filters.refused, onChange: (v) => set({ refused: v, page: '1' }), options: RESULT_OPTIONS },
             ]}
             result={counted}
             onClear={clear}

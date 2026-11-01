@@ -26,7 +26,7 @@ import { formatCount, formatKb, formatSeconds } from '@/lib/format-units';
 import { useLive } from '@/lib/live';
 import { pageOf, pendingContext } from '@/logic/context';
 import {
-  PAGE_SIZE, RUNS_DEFAULTS, TILES, filtersOfPath, outputOf, runsContext, runsPath, runsTrouble, stateCellOf, stateOf, type RunsFilters, type RunsRead, type SkillPages,
+  PAGE_SIZE, RUNS_DEFAULTS, TILES, filtersOf, filtersOfPath, outputOf, runsContext, runsPath, runsTrouble, stateCellOf, stateOf, type RunsFilters, type RunsRead, type SkillPages,
 } from '@/logic/runs-context';
 import { stampOf } from '@/logic/read-stamp';
 import { useServed, useServedAddress } from '@/logic/use-served';
@@ -43,7 +43,7 @@ const soFar = (runs: number | null): string => (runs === null ? 'Runs so far: Un
  * runs drawn stay, marked busy. A failure is stated only when there is nothing to draw.
  */
 function useRuns(served: RunsRead | null) {
-  const [filters, set] = useServedAddress(RUNS_DEFAULTS, served, filtersOfPath);
+  const [filters, set] = useServedAddress(RUNS_DEFAULTS, served, filtersOfPath, filtersOf);
   const path = runsPath(filters);
   const mine = served?.path === path ? served : null;
   const { q, error, retry, busy } = useServed<Runs>(path, mine !== null, mine === null && served !== null);
@@ -94,7 +94,7 @@ function ServedActions({ served, skills }: { served: RunsRead; skills: string[] 
 }
 
 function SkillControl({ served, skills = [] }: { served: RunsRead | null; skills?: string[] }) {
-  const [f, set] = useServedAddress(RUNS_DEFAULTS, served, filtersOfPath);
+  const [f, set] = useServedAddress(RUNS_DEFAULTS, served, filtersOfPath, filtersOf);
   const names = f.skill !== 'all' && !skills.includes(f.skill) ? [f.skill, ...skills] : skills;
   return (
     <Select

@@ -28,7 +28,7 @@ import { encodePath } from '@/lib/store-path';
 import type { ApprovalRow, Approvals, WaitingRow } from '@/lib/work-shapes';
 import {
   APPROVALS_DEFAULTS, DECISION_BASIS, IN_YOUR_NAME, PAGE_SIZE, PRESENTATION, TEAM_APPROVALS, TILES, approvalsAddress, approvalsContext, approvedHref,
-  approvalsPath, approvalsTrouble, approvedWhen, dayOnly, filtersOfPath, noPresentationLine, noPresentationNote, tabOf, type ApprovalsRead, type ApprovalsTab,
+  approvalsPath, approvalsTrouble, approvedWhen, dayOnly, filtersOf, filtersOfPath, noPresentationLine, noPresentationNote, tabOf, type ApprovalsRead, type ApprovalsTab,
 } from '@/logic/approvals-context';
 import { pageOf, pendingContext } from '@/logic/context';
 import { stampOf } from '@/logic/read-stamp';
@@ -42,7 +42,7 @@ import { useServed, useServedAddress } from '@/logic/use-served';
  * and its rows stay, quieter, when they are of the same tab.
  */
 function useApprovals(served: ApprovalsRead | null) {
-  const [filters, set] = useServedAddress(APPROVALS_DEFAULTS, served, filtersOfPath);
+  const [filters, set] = useServedAddress(APPROVALS_DEFAULTS, served, filtersOfPath, filtersOf);
   const tab = tabOf(filters);
   const path = approvalsPath(filters);
   const mine = served?.path === path ? served : null;

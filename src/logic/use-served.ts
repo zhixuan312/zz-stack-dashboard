@@ -30,10 +30,9 @@ import { useConsole, type ApiError } from '@/lib/api';
  * a page drawing from `q.error` would fall back, mid-read, to the server's state, or to a skeleton.
  *
  * `retry` is every page's Retry: the browser's read again once it has answered, or its first read while the server's is
- * the only one. `busy` says the person's own press is waiting on its answer, and nothing else does: were a read a change
- * started to make Retry busy, the managed `Button` would disable it, and a focused control that becomes disabled loses
- * focus, which is a keyboard user's place. The press is told by the moment the read last answered, as it stood when the
- * person pressed: it is waiting until the read answers again.
+ * the only one. `busy` says the person's own press is waiting on its answer, and nothing else does: a read a change
+ * started is not that press and never makes Retry busy. The press is told by the moment the read last answered, as it
+ * stood when the person pressed: it is waiting until the read answers again.
  */
 export function useServed<T>(path: string, served: boolean, waiting = false) {
   const mark = useQuery({
@@ -70,18 +69,25 @@ const never = () => () => {};
  * though the server read exactly that address. Until the browser knows its own address, the address is `read`, the one
  * the console's server read; from then on it is the address itself, which on a first load is the same one. With no
  * server read in hand it is the address from the start.
+ *
+ * The address itself goes through the page's own `filtersOf`, the one its server read was made with, so a value the
+ * route does not know is no filter in the browser as it is on the server: "Clear filters" and the page's shared context
+ * never name it.
  */
-export function useAddress<T extends Record<string, string>>(defaults: T, read: T | null): [T, (patch: Partial<T>) => void] {
+export function useAddress<T extends Record<string, string>>(
+  defaults: T, read: T | null, filtersOf: (params: T) => T,
+): [T, (patch: Partial<T>) => void] {
   const [addressed, set] = useQueryState(defaults);
+  const known = useMemo(() => filtersOf(addressed), [addressed, filtersOf]);
   const hydrated = useSyncExternalStore(never, () => true, () => false);
-  return [hydrated || read === null ? addressed : read, set];
+  return [hydrated || read === null ? known : read, set];
 }
 
 /** `useAddress` for a page whose server read follows its address: the address read back from the read's path by the page's own `filtersOfPath`. */
 export function useServedAddress<T extends Record<string, string>>(
-  defaults: T, served: { path: string } | null, filtersOfPath: (path: string) => T,
+  defaults: T, served: { path: string } | null, filtersOfPath: (path: string) => T, filtersOf: (params: T) => T,
 ): [T, (patch: Partial<T>) => void] {
   const path = served?.path ?? null;
   const read = useMemo(() => (path === null ? null : filtersOfPath(path)), [path, filtersOfPath]);
-  return useAddress(defaults, read);
+  return useAddress(defaults, read, filtersOf);
 }

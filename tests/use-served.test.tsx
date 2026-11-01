@@ -71,9 +71,11 @@ describe('useServedAddress', () => {
     const q = new URLSearchParams(path.split('?')[1]);
     return { status: q.get('status') ?? 'all', page: String(Number(q.get('offset')) / 10 + 1) };
   };
+  /** Every value these tests address is one the route knows. */
+  const filtersOf = (params: typeof DEFAULTS) => params;
   /** The address a page draws, as text. */
   function Drawn({ served }: { served: { path: string } | null }) {
-    const [f] = useServedAddress(DEFAULTS, served, filtersOfPath);
+    const [f] = useServedAddress(DEFAULTS, served, filtersOfPath, filtersOf);
     return <p>{`${f.status} ${f.page}`}</p>;
   }
 

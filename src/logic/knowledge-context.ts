@@ -17,7 +17,7 @@ import { formatDate, formatDay } from '@/lib/format-date';
 import { knowledgeNodeHref } from '@/lib/knowledge-filters';
 import type { Figure } from '@/lib/platform-shapes';
 import { listed, type Fact, type Insight, type SharedContext } from '@/lib/shared-context';
-import { addressOf, arrived, budgeted, clip, type Arrival } from './context';
+import { addressOf, arrived, budgeted, clip, paramsOf, type Arrival } from './context';
 import { READ_BOUND_MS } from '@/lib/read-bound';
 
 /** The kinds a lesson may be, as the store's own check allows them; the shelf filters by one of them. */
@@ -34,6 +34,13 @@ const SEARCH_LIMIT = 10;
  * question is the search's alone: the shelf beside the newest lessons is filtered by its kind and paged, never by it.
  */
 type KnowledgeFilters = { q: string; kind: string };
+
+/** The filters a page's address names: one value each, the first. */
+export function filtersOf(params: Record<string, string | string[] | undefined>): KnowledgeFilters {
+  const f = paramsOf(params, { q: '', kind: 'all' });
+  // A kind the store does not know is no filter: the gateway refuses it, and the words would say the shelf narrowed.
+  return { ...f, kind: (KNOWLEDGE_KINDS as readonly string[]).includes(f.kind) ? f.kind : 'all' };
+}
 
 /**
  * The shelf as `view_knowledge` reads it, by the route's own arguments (spec version 8's tool table): `q` is the
@@ -63,7 +70,7 @@ export const troubleOf = (read: Exclude<ServerRead<unknown>, { state: 'ok' }>): 
 export function knowledgePath(f: { q?: string; kind: string }, { limit = PAGE_SIZE, offset = 0 }: { limit?: number; offset?: number } = {}): string {
   const p = new URLSearchParams();
   if (f.q?.trim()) p.set('q', f.q.trim());
-  if (f.kind !== 'all') p.set('kind', f.kind);
+  if ((KNOWLEDGE_KINDS as readonly string[]).includes(f.kind)) p.set('kind', f.kind);
   p.set('limit', String(limit));
   p.set('offset', String(offset));
   return `/knowledge?${p}`;

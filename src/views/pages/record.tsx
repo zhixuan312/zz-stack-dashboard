@@ -36,7 +36,7 @@ import type { Window } from '@/lib/platform-shapes';
 import { encodePath } from '@/lib/store-path';
 import type { RecordRead } from '@/lib/work-shapes';
 import {
-  FIRST, LEAD, PAGE_SIZE, PERIOD_OPTIONS, RECORD_DEFAULTS, REVISION, SLICES, asOfWords, coverageLine, filtersOfPath, footOf,
+  FIRST, LEAD, PAGE_SIZE, PERIOD_OPTIONS, RECORD_DEFAULTS, REVISION, SLICES, asOfWords, coverageLine, filtersOf, filtersOfPath, footOf,
   formatHours, formatShare, grainWords, hourTick, leadOf, periodLine, periodOf, recordContext, recordPath, recordStamp, recordTrouble, summaryLine, tickOf,
   tilesOf, type RecordFilters, type RecordPeriod, type RecordServed, type SliceKey, type Tile,
 } from '@/logic/record-context';
@@ -46,12 +46,12 @@ import { OUTCOME_PARTS } from '@/logic/outcome-parts';
 
 /**
  * The page's read: the one the console's server made for this address, so the first paint carries the record and the
- * browser asks for nothing more, then the browser's own once the period or the table's page changes, or a Retry asks.
- * While a new period is on its way the record drawn stays, marked busy, so the page does not fall to a skeleton and
- * back. A failure is stated only when there is nothing to draw.
+ * browser asks for nothing more, then the browser's own once a Retry asks. A new period or page of the table is read by
+ * the console's server as the navigation renders the page again, and meanwhile the record drawn stays, marked busy, so
+ * the page does not fall to a skeleton and back. A failure is stated only when there is nothing to draw.
  */
 function useRecord(served: RecordServed | null) {
-  const [filters, set] = useServedAddress(RECORD_DEFAULTS, served, filtersOfPath);
+  const [filters, set] = useServedAddress(RECORD_DEFAULTS, served, filtersOfPath, filtersOf);
   const path = recordPath(filters);
   const mine = served?.path === path ? served : null;
   const { q, error, retry, busy } = useServed<RecordRead>(path, mine !== null, mine === null && served !== null);
@@ -102,7 +102,7 @@ function ServedActions({ served }: { served: RecordServed }) {
 
 /** The period control and `Copy as text`; only a write the clipboard resolved says it was copied. */
 function Controls({ served, record }: { served: RecordServed | null; record?: RecordRead }) {
-  const [f, set] = useServedAddress(RECORD_DEFAULTS, served, filtersOfPath);
+  const [f, set] = useServedAddress(RECORD_DEFAULTS, served, filtersOfPath, filtersOf);
   const copy = async () => {
     if (!record) return;
     try {

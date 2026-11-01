@@ -34,8 +34,8 @@ export function Query<T>({
   if (!query.isFetching && kept !== query.error) keep(query.error);
   // Only for a read that has failed before: a new key's first read has no failure of its own to keep.
   const error = query.error ?? (query.isFetching && query.errorUpdatedAt > 0 ? kept : null);
-  // Retry is busy for the person's own press alone, until the read answers again: a busy Button is disabled, and a
-  // focused control that becomes disabled loses focus, so a read something else started never makes it busy.
+  // Retry is busy for the person's own press alone, until the read answers again: a read something else started, a live
+  // hint's, is not that press and never makes it busy.
   const answered = Math.max(query.dataUpdatedAt, query.errorUpdatedAt);
   const [pressed, press] = useState<number | null>(null);
   if (query.isPending && !error) {

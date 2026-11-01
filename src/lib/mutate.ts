@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef } from 'react';
 import { useMutation, useQueryClient, type UseMutationResult } from '@tanstack/react-query';
 import { ApiError } from '@/lib/api';
 
@@ -48,6 +49,8 @@ export async function consoleMutate<T>(
   return (res.status === 204 ? undefined : await res.json()) as T;
 }
 
+type Write = { path: string; body?: unknown; method?: 'POST' | 'DELETE' | 'PUT' };
+
 /**
  * One hook for every console write.
  *
@@ -61,15 +64,23 @@ export async function consoleMutate<T>(
  * `{ path, body?, method? }`. Revoking a token names
  * its target in the path (`/settings/me/tokens/:id`) and takes DELETE, which a
  * fixed path string cannot describe.
+ *
+ * The same write is sent once while it is out: a call naming the same path,
+ * method and body as one not yet answered sends nothing, and its promise never
+ * settles, so the caller's toast or refusal follows the first answer only. Told by a ref set
+ * from the press, because a keyboard press carries no click count and a second
+ * Enter reaches the control before `isPending` is drawn as busy. A different
+ * write from the same hook (another row, another role) is its own and goes.
  */
 export function useConsoleMutation<TResult, TVars = unknown>(
-  request: string | ((vars: TVars) => { path: string; body?: unknown; method?: 'POST' | 'DELETE' | 'PUT' }),
+  request: string | ((vars: TVars) => Write),
 ): UseMutationResult<TResult, ApiError, TVars> {
   const queryClient = useQueryClient();
-  return useMutation<TResult, ApiError, TVars>({
+  const out = useRef(new Set<string>());
+  const of = (vars: TVars): Write => (typeof request === 'string' ? { path: request, body: vars, method: 'POST' } : request(vars));
+  const mutation = useMutation<TResult, ApiError, TVars>({
     mutationFn: (vars: TVars) => {
-      const { path, body, method } =
-        typeof request === 'string' ? { path: request, body: vars, method: 'POST' as const } : request(vars);
+      const { path, body, method } = of(vars);
       return consoleMutate<TResult>(path, body, method);
     },
     // Returned, not fired and forgotten: `useMutation` awaits a promise
@@ -79,4 +90,18 @@ export function useConsoleMutation<TResult, TVars = unknown>(
     // idle and a second click fires the same write again.
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['console'] }),
   });
+  const send = mutation.mutateAsync;
+  const mutateAsync: typeof send = async (vars, options) => {
+    const { path, body, method = 'POST' } = of(vars);
+    const key = JSON.stringify([method, path, body]);
+    if (out.current.has(key)) return new Promise<never>(() => {});
+    out.current.add(key);
+    try {
+      return await send(vars, options);
+    } finally {
+      out.current.delete(key);
+    }
+  };
+  const mutate: typeof mutation.mutate = (vars, options) => { mutateAsync(vars, options).catch(() => {}); };
+  return { ...mutation, mutate, mutateAsync };
 }

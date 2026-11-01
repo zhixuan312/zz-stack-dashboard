@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { BookOpen, ListTree, Signature, Users } from 'lucide-react';
 import { useShareView } from '@/components/base/use-share-view';
 import { Sparkline } from '@/components/charts/sparkline';
@@ -27,7 +27,7 @@ import { reasonOf, useConsoleMutation } from '@/lib/mutate';
 import { useServed, useServedAddress } from '@/logic/use-served';
 import { pendingContext } from '@/logic/context';
 import { NO_ACTIVITY, TILES, sessionPoints, teamsContext, teamsTrouble, weekCount, type TeamsRead } from '@/logic/teams-context';
-import { TEAMS_DEFAULTS, TEAM_STATUSES, filtersOfPath, narrowed, teamsPath, type TeamsFilters } from '@/logic/teams-filter';
+import { TEAMS_DEFAULTS, TEAM_STATUSES, filtersOf, filtersOfPath, narrowed, teamsPath, type TeamsFilters } from '@/logic/teams-filter';
 import { stampOf } from '@/logic/read-stamp';
 
 /**
@@ -104,12 +104,13 @@ function useTeams(served: TeamsRead | null, filters: TeamsFilters) {
 
 /**
  * Every team on the platform, drawn from the release's Records template: four tiles over every team, then the teams,
- * ten to a page, filtered and paged by the gateway. The first page the address names is read on the console's server
- * and handed here; every other read, and the teams collection's live updates, are the browser's.
+ * ten to a page, filtered and paged by the gateway. The page the address names is read on the console's server and
+ * handed here, a later page or filter included as the navigation renders the page again; the browser reads only when
+ * the teams collection changes or a Retry asks.
  */
 export function PlatformTeamsView({ served }: { served: Revised<TeamsRead> }) {
   useLive(['teams'], served.revisions);
-  const [filters, set] = useServedAddress(TEAMS_DEFAULTS, served, filtersOfPath);
+  const [filters, set] = useServedAddress(TEAMS_DEFAULTS, served, filtersOfPath, filtersOf);
   const [draft, setDraft] = useSearchDraft(filters.q, (q) => set({ q, page: '1' }));
   const { data, trouble, retry, busy } = useTeams(served, filters);
   const asOf = data?.meta.asOf;
@@ -172,7 +173,7 @@ export function PlatformTeamsView({ served }: { served: Revised<TeamsRead> }) {
 
 /** The masthead's as-of line: the cutoff of the read the table draws, nothing while there is none. */
 export function TeamsAsOf({ served }: { served: TeamsRead }) {
-  const [filters] = useServedAddress(TEAMS_DEFAULTS, served, filtersOfPath);
+  const [filters] = useServedAddress(TEAMS_DEFAULTS, served, filtersOfPath, filtersOf);
   const { data } = useTeams(served, filters);
   if (!data) return null;
   const stamp = stampOf(data.meta);
@@ -182,8 +183,8 @@ export function TeamsAsOf({ served }: { served: TeamsRead }) {
 /**
  * Create a team, the masthead's one action: the console's existing platform route, as Settings called it. The
  * gateway's refusal is said under the fields, beside the control, and the dialog stays open with what was typed; it is
- * dropped whenever the dialog opens or closes, Cancel's close included. One create at a time, as `AddPerson`'s add: a
- * second Enter before the first has answered sends nothing.
+ * dropped whenever the dialog opens or closes, Cancel's close included. A second Enter before the first create has
+ * answered sends nothing: `useConsoleMutation` holds the same write while it is out.
  */
 export function CreateTeam() {
   const [open, setOpen] = useState(false);
@@ -192,11 +193,9 @@ export function CreateTeam() {
   const [error, setError] = useState<string | null>(null);
   const create = useConsoleMutation<{ ok: true; result: string }, { slug: string; name: string }>('/settings/platform/teams');
   const ready = slug.trim().length > 0 && name.trim().length > 0;
-  const sending = useRef(false);
 
   async function submit() {
-    if (!ready || sending.current) return;
-    sending.current = true;
+    if (!ready) return;
     setError(null);
     try {
       const done = await create.mutateAsync({ slug: slug.trim(), name: name.trim() });
@@ -206,8 +205,6 @@ export function CreateTeam() {
       toast({ tone: 'positive', title: done.result });
     } catch (err) {
       setError(reasonOf(err, 'The team was not created; try again.'));
-    } finally {
-      sending.current = false;
     }
   }
 

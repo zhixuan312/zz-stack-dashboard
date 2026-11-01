@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { Field } from '@/components/ui/field';
@@ -42,6 +42,8 @@ type Refusal = { conflict: boolean; message: string };
  * dialog with what the person typed kept, and a close somebody else made first says so, since the first decision stands.
  *
  * `closed` hides the trigger once the page reads the initiative closed, while an open dialog stays to show the answer.
+ * A close made here leaves a status in the trigger's place once the dialog closes, and the keyboard's place lands on it
+ * rather than on the body the gone trigger would leave it to (WCAG 2.4.3), as `ApproveAction`'s approval does.
  * `freeform` is an initiative with no flow, whose finished close names one of `documents` to land on. With no document
  * a close may land on, nothing was written, and the close it may take is to abandon it: the platform records that on
  * the initiative itself, and refuses a finished close of work with nothing in it. `variant` is the trigger's weight:
@@ -55,6 +57,7 @@ export function CloseInitiative({ team, slug, closed, freeform, documents, varia
   const [refusal, setRefusal] = useState<Refusal | null>(null);
   const [done, setDone] = useState<CloseResult | null>(null);
   const choices = documents.length ? CHOICES : CHOICES.filter((c) => c.value === 'abandoned');
+  const status = useRef<HTMLSpanElement>(null);
   const close = useConsoleMutation<CloseResult, CloseInput>(`/initiatives/${encodeURIComponent(team)}/${encodeURIComponent(slug)}/close`);
   const landing = freeform && choice !== null && choice !== 'abandoned';
   const ready = choice !== null && (choice !== 'delivered' || reason.trim() !== '') && (!landing || landsOn !== null);
@@ -63,7 +66,7 @@ export function CloseInitiative({ team, slug, closed, freeform, documents, varia
     setOpen(next);
     if (next) return;
     setRefusal(null);
-    if (done) { setDone(null); setChoice(null); setReason(''); setLandsOn(null); }
+    if (done && !closed) { setDone(null); setChoice(null); setReason(''); setLandsOn(null); }
   }
 
   async function submit() {
@@ -78,13 +81,17 @@ export function CloseInitiative({ team, slug, closed, freeform, documents, varia
     }
   }
 
-  if (closed && !open) return null;
+  if (closed && !open) {
+    return done ? <span ref={status} role="status" tabIndex={-1} className="t-small text-ink-2">Closed as {done.outcome}.</span> : null;
+  }
   return (
     <Dialog open={open} onOpenChange={dismiss}>
       {/* The dialog's own trigger, so closing it gives focus back here. */}
       <DialogTrigger asChild><Button variant={variant}>Close initiative</Button></DialogTrigger>
       <DialogContent
         size="sm"
+        // Radix gives focus back to the trigger, which a close made here has taken away with the dialog.
+        onCloseAutoFocus={(e) => { if (done && closed) { e.preventDefault(); status.current?.focus(); } }}
         title={done ? `${slug} is closed` : `Close ${slug}`}
         description={done ? 'The platform recorded the close.'
           : documents.length ? 'Say what happened to the work. The platform records the outcome from it, and the first close stands.'

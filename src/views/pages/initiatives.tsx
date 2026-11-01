@@ -29,7 +29,7 @@ import { useLive } from '@/lib/live';
 import type { InitiativeList } from '@/lib/work-shapes';
 import { pageOf, pendingContext } from '@/logic/context';
 import { TILES, closedLine, initiativesContext, monthOf, openLine, waitingLine, initiativesTrouble, nextOf, type InitiativesRead, type InitiativesShown, type ShownRow } from '@/logic/initiatives-context';
-import { INITIATIVES_DEFAULTS, LIST_STATES, PAGE_SIZE, STATE_LABEL, filtersOfPath, listPath, narrowed, type InitiativesFilters } from '@/logic/initiatives-filter';
+import { INITIATIVES_DEFAULTS, LIST_STATES, PAGE_SIZE, STATE_LABEL, filtersOf, filtersOfPath, listPath, narrowed, type InitiativesFilters } from '@/logic/initiatives-filter';
 import { useServed, useServedAddress } from '@/logic/use-served';
 import { OUTCOME_PARTS } from '@/logic/outcome-parts';
 
@@ -99,7 +99,7 @@ function useInitiatives(served: InitiativesRead | null, filters: InitiativesFilt
  */
 export function InitiativesView({ served }: { served: Revised<InitiativesRead> }) {
   useLive(['initiatives'], served.revisions);
-  const [filters, set] = useServedAddress(INITIATIVES_DEFAULTS, served, filtersOfPath);
+  const [filters, set] = useServedAddress(INITIATIVES_DEFAULTS, served, filtersOfPath, filtersOf);
   const [draft, setDraft] = useSearchDraft(filters.q, (q) => set({ q, page: '1' }));
   const { data, trouble, retry, busy, updatedAt } = useInitiatives(served, filters);
   const now = useDataClock();
@@ -211,7 +211,7 @@ function Closures({ list, mark }: { list: InitiativesShown | undefined; mark: st
 
 /** The masthead's as-of line: the cutoff of the read the page draws, nothing while there is none. */
 export function InitiativesAsOf({ served }: { served: InitiativesRead }) {
-  const [filters] = useServedAddress(INITIATIVES_DEFAULTS, served, filtersOfPath);
+  const [filters] = useServedAddress(INITIATIVES_DEFAULTS, served, filtersOfPath, filtersOf);
   const { data } = useInitiatives(served, filters);
   if (!data) return null;
   const stamp = stampOf(data.meta);

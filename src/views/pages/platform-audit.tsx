@@ -20,7 +20,7 @@ import { formatDate, formatDateTime } from '@/lib/format-date';
 import { pendingContext } from '@/logic/context';
 import {
   AUDIT_DEFAULTS, PAGE_SIZE, TAB_LABEL, auditContext, auditPath, auditTrouble, beforeDays, channelOf, countWords, dayWords, feedEvent,
-  filtersOfPath, kindsOf, narrowed, notRecordedWords, originOf, resultOf, tabOf, teamsOf, type AuditFilter, type AuditFilters, type AuditRead, type ReportTitles,
+  filtersOf, filtersOfPath, kindsOf, narrowed, notRecordedWords, originOf, resultOf, tabOf, teamsOf, type AuditFilter, type AuditFilters, type AuditRead, type ReportTitles,
 } from '@/logic/platform-audit-context';
 import { OWNER_LABEL } from '@/logic/activity-context';
 import { stampOf } from '@/logic/read-stamp';
@@ -82,7 +82,7 @@ const COLUMNS: Column<AuditRow>[] = aligned([
  * filters and the page are in the address, and each is read on the console's server.
  */
 export function PlatformAuditView({ served }: { served: AuditRead }) {
-  const [filters, set] = useServedAddress(AUDIT_DEFAULTS, served, filtersOfPath);
+  const [filters, set] = useServedAddress(AUDIT_DEFAULTS, served, filtersOfPath, filtersOf);
   const tab = tabOf(filters);
   const { data, reports, trouble, retry, busy } = useAudit(served, filters);
   useShareView(data
@@ -208,7 +208,7 @@ function Events({ data, trouble, retry, busy, filters, set }: {
 
 /** The masthead's as-of line: the cutoff of the read the page draws, nothing while there is none. */
 export function AuditAsOf({ served }: { served: AuditRead }) {
-  const [filters] = useServedAddress(AUDIT_DEFAULTS, served, filtersOfPath);
+  const [filters] = useServedAddress(AUDIT_DEFAULTS, served, filtersOfPath, filtersOf);
   const { data } = useAudit(served, filters);
   if (!data) return null;
   const stamp = stampOf(data.meta);

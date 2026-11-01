@@ -5,6 +5,8 @@ import { filtersOf as runsFilters } from '@/logic/runs-context';
 import { bugsPath, filtersOf as bugsFilters, narrowed as bugsNarrowed } from '@/logic/platform-bugs-context';
 import { filtersOf as peopleFilters, narrowed as peopleNarrowed, peoplePath } from '@/logic/people-filter';
 import { filtersOf as teamsFilters, narrowed as teamsNarrowed, teamsPath } from '@/logic/teams-filter';
+import { NO_FILTER, activityPath, filtersOf as activityFilters, narrowed as activityNarrowed } from '@/logic/activity-context';
+import { filtersOf as knowledgeFilters, knowledgePath, narrowed as knowledgeNarrowed } from '@/logic/knowledge-context';
 
 // A value the route does not know (a stale link, an agent's guess) is no filter: the read and every word about it agree.
 describe('an unknown filter value', () => {
@@ -30,8 +32,22 @@ describe('an unknown filter value', () => {
     const f = initiativesFilters({ state: 'closed' });
     expect(initiativesNarrowed(f)).toBe(false);
     expect(listPath(f)).toBe('/initiatives?limit=10&offset=0');
-    // The browser reads its address without `filtersOf`, so the address it writes holds the same rule.
+    // The path holds the same rule, whoever hands it filters.
     expect(listPath({ ...INITIATIVES_DEFAULTS, state: 'closed' })).toBe('/initiatives?limit=10&offset=0');
+  });
+
+  it('on Activity narrows nothing, and is never asked of the gateway, which refuses it', () => {
+    expect(activityPath({ ...NO_FILTER, refused: 'maybe' })).toBe('/activity?limit=10&offset=0');
+    const f = activityFilters({ refused: 'maybe' });
+    expect(activityNarrowed(f)).toBe(false);
+    expect(activityPath(f)).toBe('/activity?limit=10&offset=0');
+  });
+
+  it('on Knowledge narrows nothing, and is never asked of the gateway, which refuses it', () => {
+    expect(knowledgePath({ kind: 'lesson' })).toBe('/knowledge?limit=10&offset=0');
+    const f = knowledgeFilters({ kind: 'lesson' });
+    expect(knowledgeNarrowed(f)).toBe(false);
+    expect(knowledgePath(f)).toBe('/knowledge?limit=10&offset=0');
   });
 
   it('while a known one still narrows', () => {
@@ -39,6 +55,8 @@ describe('an unknown filter value', () => {
     expect(peopleNarrowed(peopleFilters({ state: 'active' }))).toBe(true);
     expect(teamsNarrowed(teamsFilters({ status: 'archived' }))).toBe(true);
     expect(initiativesNarrowed(initiativesFilters({ state: 'waiting' }))).toBe(true);
+    expect(activityNarrowed(activityFilters({ refused: 'true' }))).toBe(true);
+    expect(knowledgeNarrowed(knowledgeFilters({ kind: 'decision' }))).toBe(true);
   });
 });
 

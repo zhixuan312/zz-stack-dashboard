@@ -25,7 +25,7 @@ import { formatCount } from '@/lib/format-units';
 import type { Bugs, PublicBugRow } from '@/lib/platform-shapes';
 import { pendingContext } from '@/logic/context';
 import {
-  BUGS_DEFAULTS, BUG_IMPACTS, BUG_STATUSES, IMPACT, STATUS, TILES, bugPath, bugsContext, bugsPath, bugsTrouble, cohortsRunning, filtersOfPath, formatHours,
+  BUGS_DEFAULTS, BUG_IMPACTS, BUG_STATUSES, IMPACT, STATUS, TILES, bugPath, bugsContext, bugsPath, bugsTrouble, cohortsRunning, filtersOf, filtersOfPath, formatHours,
   impactOf, isAdminRow, lastWhole, narrowed, rateIn, statusOf, surfacesOf, valueOf, type BugsFilters, type BugsRead, type Cohort,
 } from '@/logic/platform-bugs-context';
 import { stampOf } from '@/logic/read-stamp';
@@ -96,7 +96,7 @@ const IMPACT_OPTIONS = [{ value: 'all', label: 'All' }, ...BUG_IMPACTS.map((i) =
  * superadmin's rows open a report's page.
  */
 export function PlatformBugsView({ served }: { served: BugsRead }) {
-  const [filters, set] = useServedAddress(BUGS_DEFAULTS, served, filtersOfPath);
+  const [filters, set] = useServedAddress(BUGS_DEFAULTS, served, filtersOfPath, filtersOf);
   const { data, trouble, retry, busy } = useBugs(served, filters);
   useShareView(data
     ? bugsContext(data, { filters })
@@ -248,7 +248,7 @@ function Median({ data }: { data: Bugs }) {
 
 /** The masthead's as-of line: the cutoff of the read the page draws, nothing while there is none. */
 export function BugsAsOf({ served }: { served: BugsRead }) {
-  const [filters] = useServedAddress(BUGS_DEFAULTS, served, filtersOfPath);
+  const [filters] = useServedAddress(BUGS_DEFAULTS, served, filtersOfPath, filtersOf);
   const { data } = useBugs(served, filters);
   if (!data) return null;
   const stamp = stampOf(data.meta);

@@ -131,9 +131,6 @@ export function ApproveAction({ doc, me, shown, onStale, onReload, onApproved }:
   // The record the reader pressed Approve on, by identity: every record is a new object, so a newer snapshot or the
   // same one recorded again by a reload closes the confirmation, and Confirm can only sign the record it opened on.
   const [confirmingFor, setConfirmingFor] = useState<Shown | null>(null);
-  // Set from the press itself, not from `isPending`: a keyboard press carries no click count, and a second Enter can
-  // reach Confirm before the busy state is drawn.
-  const sending = useRef(false);
   // The snapshot approved here, by its content revision: the status stands in Approve's place while it is the one shown.
   const [approved, setApproved] = useState<string | null>(null);
   // Where a keyboard user's place goes once their press changes this control's shape, as `InlineDestructive`'s does:
@@ -162,8 +159,9 @@ export function ApproveAction({ doc, me, shown, onStale, onReload, onApproved }:
   if (!canApprove(doc, me)) return null;
 
   async function approve(signing: Shown) {
-    if (signing.state !== 'recorded' || sending.current) return;
-    sending.current = true;
+    // A second Enter that reaches Confirm before the busy state is drawn sends nothing: `useConsoleMutation` holds the
+    // same write while it is out.
+    if (signing.state !== 'recorded') return;
     try {
       await mutation.mutateAsync({ initiative: doc.initiative, path: doc.path, expected_revision: signing.content_revision, review_context: signing.review_context });
       placeOn.current = 'approved';
@@ -174,8 +172,6 @@ export function ApproveAction({ doc, me, shown, onStale, onReload, onApproved }:
       placeOn.current = err instanceof ApiError && err.status === 409 ? 'reload' : 'approve';
       if (err instanceof ApiError && err.status === 409) onStale(err.message);
       else toast({ tone: 'critical', title: 'Not approved', description: reasonOf(err, 'Could not reach the platform; try again.') });
-    } finally {
-      sending.current = false;
     }
     setConfirmingFor(null);
   }

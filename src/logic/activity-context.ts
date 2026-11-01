@@ -15,7 +15,7 @@ import { formatCount } from '@/lib/format-units';
 import { formatDate, formatDateTime } from '@/lib/format-date';
 import type { PeriodFigure } from '@/lib/platform-shapes';
 import { listed, type Fact, type Insight, type SharedContext } from '@/lib/shared-context';
-import { addressOf, arrived, budgeted, clip, weekOf, type Arrival } from './context';
+import { addressOf, arrived, budgeted, clip, paramsOf, weekOf, type Arrival } from './context';
 import { READ_BOUND_MS } from '@/lib/read-bound';
 
 /** How each owner reads: a guardrail that held, a call made wrong, a tool that failed, and the rest. */
@@ -52,6 +52,15 @@ export const activityTrouble = (read: Exclude<ActivityRead, { state: 'ok' }>): s
 export type ActivityFilters = { kind: string; tool: string; initiative: string; refused: string };
 export const NO_FILTER: ActivityFilters = { kind: 'all', tool: 'all', initiative: 'all', refused: 'all' };
 
+/** The values `refused` takes; the gateway refuses any other. */
+const REFUSED = ['true', 'false'];
+
+/** The filters a page's address names: one value each, the first. A `refused` the gateway does not take is no filter. */
+export function filtersOf(params: Record<string, string | string[] | undefined>): ActivityFilters {
+  const f = paramsOf(params, NO_FILTER);
+  return { ...f, refused: REFUSED.includes(f.refused) ? f.refused : 'all' };
+}
+
 /**
  * Who made a tool call, as the page and the assistant both say it: an agent, never a person. The platform records a
  * call with no address by design (a measurement, not an act of administration), so the log's Actor column names a
@@ -62,7 +71,8 @@ export const AGENT_CALL = 'A tool call is made by an agent, and the platform rec
 /** The gateway address of the log for `f`, `limit` events from `offset`: one page of 10 from the first unless asked. */
 export function activityPath(f: ActivityFilters, { limit = PAGE_SIZE, offset = 0 }: { limit?: number; offset?: number } = {}): string {
   const p = new URLSearchParams();
-  for (const k of ['kind', 'tool', 'initiative', 'refused'] as const) if (f[k] !== 'all') p.set(k, f[k]);
+  for (const k of ['kind', 'tool', 'initiative'] as const) if (f[k] !== 'all') p.set(k, f[k]);
+  if (REFUSED.includes(f.refused)) p.set('refused', f.refused);
   p.set('limit', String(limit));
   p.set('offset', String(offset));
   return `/activity?${p}`;
