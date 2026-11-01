@@ -9,6 +9,12 @@ theme, and the `brand` accent from the brand purple. The console's own compositi
 `src/console/`. `docs/brief.md` records the decisions; build up from Meridian's components and
 tokens rather than inventing a second look.
 
+Calendar dates use `src/lib/format-date.ts` and keep their stated year and day, including
+years before 0100. `tests/calendar-years.test.ts` holds every calendar display formatter to that.
+
+Pagination rendering tests reuse each page's fetched snapshot when checking a repeated render.
+The fake gateway's live revision changes remain covered separately by `tests/fake-gateway-drift.test.ts`.
+
 ## How it fits together
 
 ```

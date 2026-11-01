@@ -100,7 +100,10 @@ function calendarParts(date: string): Record<string, string> | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
   if (!m) return null;
   DAY_FMT ??= new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
-  return Object.fromEntries(DAY_FMT.formatToParts(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]))).map((p) => [p.type, p.value]));
+  // Numeric date constructors map years 0–99 onto 1900–1999; calendar dates name the year itself.
+  const day = new Date(0);
+  day.setUTCFullYear(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return Object.fromEntries(DAY_FMT.formatToParts(day).map((p) => [p.type, p.value]));
 }
 
 /** The calendar day `n` days after `date` (before it when negative), both YYYY-MM-DD: whole days, whatever the timezone. */

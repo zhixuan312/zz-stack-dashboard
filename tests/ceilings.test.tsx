@@ -134,8 +134,12 @@ const SERVER_PAGED: ServerPaged[] = [
 
 describe('a table the gateway pages, drawn above its ceiling', () => {
   it.each(SERVER_PAGED.map((p) => [p.route, p] as const))('%s: ten a page under its total, a second page of other rows, the same each time', async (_, p) => {
+    // Repeated renders compare the same server snapshot. The live fixture revises documents every 15 seconds;
+    // comparing two different revisions tests its clock rather than whether pagination preserves a page.
+    const snapshots = new Map<number, unknown>();
     const page = async (n: number) => {
-      const view = mount(p.draw(p.path(n), await served(p.path(n)) as never), p.address(n));
+      if (!snapshots.has(n)) snapshots.set(n, await served(p.path(n)));
+      const view = mount(p.draw(p.path(n), snapshots.get(n) as never), p.address(n));
       await settled();
       const drawn = table(p.caption);
       view.unmount();

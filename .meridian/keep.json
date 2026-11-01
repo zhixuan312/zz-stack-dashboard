@@ -6,5 +6,9 @@
   {
     "path": "src/lib/period.ts",
     "reason": "The product's own period vocabulary: the agents' view tools offer the gateway's 24-hour period ('1d', which the gateway's PERIOD_DAYS reads) and all time as the default, as the gateway's own default is; a console that opens on 30 days shows a total that is not the total. This file is 0.24.0's with exactly those two changes, which its own comment says a product makes here and names in this register. Put back as the release has it, tests/period.test.ts fails on the missing period and the default. Reported upstream as zz-meridian#24."
+  },
+  {
+    "path": "src/lib/format-date.ts",
+    "reason": "Calendar dates before year100 retain their stated year and weekday instead of being remapped to1900–1999 by Date.UTC. tests/calendar-years.test.ts protects every calendar display formatter; retain this fix until the managed release preserves these years."
   }
 ]
