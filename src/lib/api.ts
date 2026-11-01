@@ -5,7 +5,7 @@ import { createContext, createElement, use, useCallback, useContext, useEffect, 
 import { preload } from 'react-dom';
 import { clearThread } from '@/components/patterns/assistant/thread';
 import type { Revisions } from '@/lib/live';
-import { signInAddress } from '@/lib/own-path';
+import { SIGN_IN, signInAddress } from '@/lib/own-path';
 import { READ_BOUND_MS } from '@/lib/read-bound';
 
 /**
@@ -90,9 +90,12 @@ async function read<T>(path: string, signal: AbortSignal): Promise<T> {
  * A read refused for want of a session (401) sends the person to sign in, back to the address they are on: the session
  * ended after the page was drawn, and the console's server sends a request whose session ended to the same address
  * (`src/data/sign-in.ts`). Every browser read comes through `read`, so this is the one place it happens; the read still
- * fails with the gateway's sentence, which the page draws until the navigation lands.
+ * fails with the gateway's sentence, which the page draws until the navigation lands. Never on the sign-in page itself,
+ * whose read of `/me` asks exactly whether there is a session: there a 401 is the answer, and sending the person to the
+ * page they are on would reload it for ever.
  */
 function toSignIn() {
+  if (window.location.pathname === SIGN_IN) return;
   window.location.replace(signInAddress(window.location.pathname + window.location.search));
 }
 

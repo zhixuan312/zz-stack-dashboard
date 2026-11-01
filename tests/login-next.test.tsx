@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
  * Where the sign-in page sends a person who is already signed in: back to `?next=` when it is a path on this site, and
- * home otherwise. `//host` and `/\host` read as paths to a naive check and as another site to a browser.
+ * home otherwise. `//host` and `/\host` read as paths to a naive check and as another site to a browser, and so does
+ * `/.//host`, whose dot segment the URL parser consumes, leaving a path that starts `//`.
  */
 const nav = vi.hoisted(() => ({ search: '', replace: vi.fn() }));
 vi.mock('next/navigation', () => ({
@@ -43,7 +44,7 @@ describe('the sign-in page, for a person already signed in', () => {
     expect(await sentTo('')).toBe('/');
   });
 
-  it.each(['//evil.example/teams', '/\\evil.example/teams', 'https://evil.example/', 'javascript:alert(1)', 'evil.example', ''])(
+  it.each(['//evil.example/teams', '/\\evil.example/teams', '/.//evil.example/teams', '/x/..//evil.example/teams', 'https://evil.example/', 'javascript:alert(1)', 'evil.example', ''])(
     'never sends them to %j, which is not a path on this site',
     async (asked) => {
       expect(await sentTo(`next=${encodeURIComponent(asked)}`)).toBe('/');

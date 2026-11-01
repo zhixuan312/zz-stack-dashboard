@@ -76,9 +76,9 @@ describe('a panel whose read failed', () => {
 describe('a browser read refused for want of a session', () => {
   afterEach(() => { vi.unstubAllGlobals(); });
 
-  function signedOut() {
+  function signedOut(pathname = '/runs', search = '?skill=sdlc-plan') {
     const replaced: string[] = [];
-    vi.stubGlobal('location', { pathname: '/runs', search: '?skill=sdlc-plan', href: 'http://console.test/runs?skill=sdlc-plan', replace: (to: string) => { replaced.push(to); } });
+    vi.stubGlobal('location', { pathname, search, href: `http://console.test${pathname}${search}`, replace: (to: string) => { replaced.push(to); } });
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ error: 'not signed in' }), { status: 401 })));
     return replaced;
   }
@@ -94,5 +94,12 @@ describe('a browser read refused for want of a session', () => {
     expect(await screen.findByText('The runs did not load')).toBeInTheDocument();
     expect(screen.queryByLabelText('Loading')).toBeNull();
     expect(document.querySelector('[data-said]')!.textContent).toBe('not signed in');
+  });
+
+  it('never sends a person already on the sign-in page back to it, where a 401 is the answer that page asks for', async () => {
+    const replaced = signedOut('/login', '?next=%2Fruns');
+    render(<QueryClientProvider client={new QueryClient()}><Read /></QueryClientProvider>);
+    expect(await screen.findByText('The runs did not load')).toBeInTheDocument();
+    expect(replaced).toEqual([]);
   });
 });

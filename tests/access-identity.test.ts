@@ -233,7 +233,7 @@ describe('where a request the gate turns away is sent', () => {
 
   it('never names an address that is not a path on this site', async () => {
     gateway(401);
-    for (const elsewhere of ['//evil.example/teams', '/\\evil.example/teams', '/\t/evil.example', 'https://evil.example/teams', 'evil.example', 'javascript:alert(1)', 'teams', '']) {
+    for (const elsewhere of ['//evil.example/teams', '/\\evil.example/teams', '/\t/evil.example', '/.//evil.example/teams', '/x/..//evil.example/teams', 'https://evil.example/teams', 'evil.example', 'javascript:alert(1)', 'teams', '']) {
       sent = new Headers({ 'x-zz-path': elsewhere });
       expect(await redirectOf(() => gate('teams')), JSON.stringify(elsewhere)).toBe('/login');
     }
