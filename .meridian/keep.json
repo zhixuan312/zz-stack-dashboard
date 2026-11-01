@@ -9,6 +9,6 @@
   },
   {
     "path": "src/lib/format-date.ts",
-    "reason": "Calendar dates before year100 retain their stated year and weekday instead of being remapped to1900–1999 by Date.UTC. tests/calendar-years.test.ts protects every calendar display formatter; retain this fix until the managed release preserves these years."
+    "reason": "Calendar dates before year 100 retain their stated year and weekday instead of being remapped to 1900–1999 by Date.UTC. tests/calendar-years.test.ts protects every calendar display formatter; retain this fix until the managed release preserves these years."
   }
 ]
