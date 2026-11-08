@@ -190,9 +190,11 @@ function release(): number {
   ];
   for (const [, step] of steps) if (step() !== 0) return 1;
 
-  const t1 = vitest('run', [], false, 'tier 1 tests');
+  // Every Tier 1 and Tier 2 test, once: `withTier2` is what keeps `*.perf.test.*` out of `test:t1`, and a release is
+  // the one run that must hold them.
+  const t1 = vitest('run', [], true, 'tier 1 and tier 2 tests');
   if (t1.status !== 0) {
-    console.log('test:release: FAIL: a Tier 1 test failed');
+    console.log('test:release: FAIL: a Tier 1 or Tier 2 test failed');
     return 1;
   }
   if (hasDeep()) {
@@ -246,8 +248,8 @@ function release(): number {
   }
   recordGreen();
   console.log(notRun.length
-    ? `test:release: every check that ran passed; not run: ${notRun.join(', ')} (${t1.files} test files, ${t1.tests} tests in Tier 1)`
-    : `test:release: every Tier 1 and Tier 2 test passed, lint passed, types check (${t1.files} test files, ${t1.tests} tests in Tier 1)`);
+    ? `test:release: every check that ran passed; not run: ${notRun.join(', ')} (${t1.files} test files, ${t1.tests} tests in Tier 1 and Tier 2)`
+    : `test:release: every Tier 1 and Tier 2 test passed, lint passed, types check (${t1.files} test files, ${t1.tests} tests in Tier 1 and Tier 2)`);
   return 0;
 }
 
