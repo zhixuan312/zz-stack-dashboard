@@ -109,8 +109,10 @@ function run(label: string, cmd: string, args: string[], env: NodeJS.ProcessEnv 
 /** What the last Vitest run proved, read from its JSON report; null when the report was not written. */
 function report(): { files: number; tests: number } | null {
   try {
-    const j = JSON.parse(fs.readFileSync(REPORT, 'utf8')) as { numTotalTestSuites?: number; numTotalTests?: number };
-    return { files: j.numTotalTestSuites ?? 0, tests: j.numTotalTests ?? 0 };
+    // `numTotalTestSuites` counts every `describe` too (850 against 185 files on this repository); a file is an entry
+    // in `testResults`, which is the count the line means.
+    const j = JSON.parse(fs.readFileSync(REPORT, 'utf8')) as { numTotalTestSuites?: number; numTotalTests?: number; testResults?: unknown[] };
+    return { files: j.testResults?.length ?? j.numTotalTestSuites ?? 0, tests: j.numTotalTests ?? 0 };
   } catch { return null; }
 }
 
@@ -192,8 +194,8 @@ function release(): number {
 
   // Every Tier 1 and Tier 2 test, once: `withTier2` is what keeps `*.perf.test.*` out of `test:t1`, and a release is
   // the one run that must hold them.
-  const t1 = vitest('run', [], true, 'tier 1 and tier 2 tests');
-  if (t1.status !== 0) {
+  const tiers = vitest('run', [], true, 'tier 1 and tier 2 tests');
+  if (tiers.status !== 0) {
     console.log('test:release: FAIL: a Tier 1 or Tier 2 test failed');
     return 1;
   }
@@ -248,8 +250,8 @@ function release(): number {
   }
   recordGreen();
   console.log(notRun.length
-    ? `test:release: every check that ran passed; not run: ${notRun.join(', ')} (${t1.files} test files, ${t1.tests} tests in Tier 1 and Tier 2)`
-    : `test:release: every Tier 1 and Tier 2 test passed, lint passed, types check (${t1.files} test files, ${t1.tests} tests in Tier 1 and Tier 2)`);
+    ? `test:release: every check that ran passed; not run: ${notRun.join(', ')} (${tiers.files} test files, ${tiers.tests} tests in Tier 1 and Tier 2)`
+    : `test:release: every Tier 1 and Tier 2 test passed, lint passed, types check (${tiers.files} test files, ${tiers.tests} tests in Tier 1 and Tier 2)`);
   return 0;
 }
 
