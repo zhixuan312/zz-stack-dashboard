@@ -20,12 +20,12 @@ pnpm test:release  # every Tier 1 and Tier 2 test, plus lint and type check; bef
 Three commands, no arguments. The runner picks the tests; do not narrow a run by hand. `test:t1`
 runs the static checks and then Vitest's related selection over the files changed since the last
 green run (`out/last-green`, gitignored). Tier 1 is every test under `tests/` except
-`*.perf.test.*`; `test:t2` includes those too, so with no `*.perf.test.*` file here it runs the
-same affected Tier 1 tests. `test:release` runs every test with lint, the type check, the build,
-the route policy and the size checks; it is the run before a release. The browser audits and walks
-are diagnostics, not tiers: run `node scripts/audit.ts`, `scripts/interactions.ts`,
-`scripts/keyboard.ts`, `scripts/vitals.ts` directly when a change needs
-them.
+`*.perf.test.*`; Tier 2 is that convention plus the timed browser suite. `test:t2` includes the
+affected Tier 2 files and runs the timed suite when a change reaches shared components, the shell,
+views, logic, the data layer, styles or tokens. `test:release` runs every test with lint, the type
+check and the browser standard: at Tier 1 the audit, the presses, the keyboard walk, the assistant
+walk-through and both persona walks; at Tier 2 the timed suites. It is the run before a release,
+and without Chrome it reports the browser standard not run, never passed.
 
 On every push CI runs `pnpm test:release` (`.github/workflows/gate.yml`); the weekly perf job runs
 `pnpm test:t2` (`.github/workflows/weekly.yml`).
@@ -48,7 +48,7 @@ src/views/        what draws: the page components, the chrome, the live glue.
 src/lib/          shared helpers: the browser's fetch (api, mutate), the payload shapes and the formatters.
 tokens/           Meridian's DTCG tokens; `pnpm tokens` after a change.
 tests/            vitest, colocated by subject rather than by file.
-scripts/          Meridian's gate, audit and verify, and the fake gateway they run against.
+scripts/          the test runner and the browser standard (the audit, the walks, the timed suites), and the fake gateway they run against.
 docs/brief.md     the decisions behind the move to Meridian.
 ```
 

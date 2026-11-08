@@ -4,7 +4,7 @@
  *
  *   pnpm test:t1        the Tier 1 tests affected by the changes since the last green run
  *   pnpm test:t2        the same plus the Tier 2 tests those changes affect (the affected Tier 1 tests included)
- *   pnpm test:release   every Tier 1 and Tier 2 test, once, with lint and the type check
+ *   pnpm test:release   every Tier 1 and Tier 2 test, once, with lint, the type check and the browser standard
  *
  * "Since the last green run" is the marker in out/last-green, which a command writes after a passing run; out/ is
  * gitignored. A missing marker falls back to the diff against master, and a checkout with neither marker nor a diff
@@ -14,10 +14,12 @@
  * changed test file is run itself. A tier is a convention over files, never a list someone keeps by hand:
  *
  *   Tier 1: every test under tests/ that the Vitest config collects.
- *   Tier 2: the repo's `tests/deep-*.test.ts(x)` (the large browser-fixture suites) and any `*.perf.test.ts(x)`.
+ *   Tier 2: the repo's `tests/deep-*.test.ts(x)` (the large browser-fixture suites), any `*.perf.test.ts(x)`, and
+ *           the timed browser suite (`scripts/verify.ts --timed`).
  *
  * A changed path that reaches no test at all runs the whole tier: an import graph that knows nothing about a file is
- * not evidence that nothing needs testing.
+ * not evidence that nothing needs testing. A deleted file is a change too. A documents- or workflows-only change runs
+ * the guideline test that reads them.
  */
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -39,6 +41,13 @@ const CODE = /^(app|src|scripts|cli|tests|tokens|journeys|next\.config\.|package
 
 /** A path that changes what runs: a test is selected for it, or the whole tier falls back to running. */
 export const isCode = (file: string): boolean => CODE.test(file);
+
+/**
+ * The guideline test reads these documents and workflows, so a change to one of them affects it. A
+ * documents-only change runs that test rather than reporting that no test is affected.
+ */
+const GUIDELINE = 'tests/testing-guideline.test.ts';
+const GUIDELINE_PATH = /^(README\.md|CONTRIBUTING\.md|AGENTS\.md|docs\/brief\.md|\.github\/workflows\/)/;
 
 const git = (args: string[]): { ok: boolean; out: string } => {
   const r = spawnSync('git', args, { cwd: ROOT, encoding: 'utf8' });
@@ -62,11 +71,11 @@ export function baseline(): { ref: string; from: 'the last green run' | 'master'
   return { ref: EMPTY_TREE, from: 'master' };
 }
 
-/** The files whose bytes differ from `base`, committed or not, with the untracked ones; deleted paths are left out. */
+/** The files whose bytes differ from `base`, committed or not, with the untracked ones. A deleted file is a change. */
 function changedSince(base: string): string[] {
-  const tracked = git(['diff', '--name-only', '--diff-filter=ACMR', base, '--']).out.split('\n').filter(Boolean);
+  const tracked = git(['diff', '--name-only', '--diff-filter=ACMRD', base, '--']).out.split('\n').filter(Boolean);
   const untracked = git(['ls-files', '--others', '--exclude-standard']).out.split('\n').filter(Boolean);
-  return [...new Set([...tracked, ...untracked])].filter((f) => fs.existsSync(path.join(ROOT, f)));
+  return [...new Set([...tracked, ...untracked])];
 }
 
 /** A passing run records the commit it proved, so the next run reads a smaller diff instead of the branch's whole history. */
@@ -150,6 +159,24 @@ const hasDeep = (): boolean => fs.existsSync(path.join(ROOT, 'tests')) && fs.rea
 /** The Tier 2 files that no import graph selects: `tests/deep-*` runs whole when a script or a journey changed. */
 const affectsDeep = (files: string[]): boolean => files.some((f) => /^(scripts|journeys)\//.test(f) || /^tests\/deep-/.test(f));
 
+/** The change that reaches the browser suites: shared components, the shell, views, logic, the data layer, styles or tokens. */
+const affectsBrowser = (files: string[]): boolean =>
+  files.some((f) => /^(src\/components|src\/styles|src\/views|src\/logic|src\/lib|src\/data|app\/|tokens\/|journeys\/)/.test(f));
+
+/**
+ * The browser standard, from `scripts/verify.ts`: it builds and serves the app against the fake gateway, then runs the
+ * audit, the presses, the keyboard walk, the assistant walk-through and the persona walks (`--full`) and the timed suites
+ * (`--timed`). The three test commands are the only entry points; this is coverage they call, never a command a person
+ * names. Without Chrome it is reported not run, never passed.
+ */
+function browserStandard(flags: string[], label: string): number {
+  if (!chromeAvailable()) {
+    console.log(`not run ${label}: no Chrome (CHROME is unset and no browser was found)`);
+    return 0;
+  }
+  return run(label, process.execPath, ['scripts/verify.ts', ...flags]);
+}
+
 function release(): number {
   const notRun: string[] = [];
   if (staticChecks() !== 0) {
@@ -179,16 +206,30 @@ function release(): number {
       notRun.push('tier 2 tests (tests/deep-*) (no Chrome)');
     }
   }
-  // The Tier 2 checks of a production build: its routes are declared as their policy says, and each route's first load is
-  // within its budget. The HTML sizes need a served build, so this run reports them not run rather than passing them.
-  if (run('build: next build', bin('next'), ['build'], { ...process.env, MERIDIAN_TYPES_CHECKED: '1' }) !== 0
-    || run('route policy', process.execPath, ['scripts/route-policy.ts']) !== 0
-    || run('sizes: first-load', process.execPath, ['scripts/sizes.ts']) !== 0) {
-    console.log('test:release: FAIL: a Tier 2 build check failed');
-    return 1;
+  // The browser standard is the coverage the old release gate had: the audit, the presses, the keyboard walk, the
+  // assistant walk-through and the persona walks are Tier 1 functional and accessibility checks; the timed suites are
+  // Tier 2. `verify.ts` builds and serves the app against the fake gateway itself, so its build, route policy and size
+  // checks replace the separate steps below when Chrome runs. Without Chrome it is reported not run, never passed.
+  if (chromeAvailable()) {
+    // Two passes, because `--as` is refused beside `--timed`: the complete tier with each persona, then the timed tier.
+    if (browserStandard(['--full', '--as', 'superadmin,member'], 'browser standard (Tier 1, with the persona walk)') !== 0
+      || browserStandard(['--timed'], 'browser standard (Tier 2, timed)') !== 0) {
+      console.log('test:release: FAIL: the browser standard failed');
+      return 1;
+    }
+  } else {
+    console.log('not run browser standard: no Chrome (CHROME is unset and no browser was found)');
+    notRun.push('browser standard (no Chrome)');
+    // The Tier 1 build checks still run: the routes are declared as their policy says, and each route's first load is
+    // within its budget. The HTML sizes need a served build, so they are reported not run rather than passed.
+    if (run('build: next build', bin('next'), ['build'], { ...process.env, MERIDIAN_TYPES_CHECKED: '1' }) !== 0
+      || run('route policy', process.execPath, ['scripts/route-policy.ts']) !== 0
+      || run('sizes: first-load', process.execPath, ['scripts/sizes.ts']) !== 0) {
+      console.log('test:release: FAIL: a Tier 1 build check failed');
+      return 1;
+    }
+    notRun.push('sizes: html (no served build)');
   }
-  // The HTML sizes need a served build; this command does not serve one, so it says they did not run.
-  notRun.push('sizes: html (no served build)');
   // The Postgres code the skill's references hand a team lives outside tests/ and needs services: run it only where the
   // owner supplied them, and say it did not run otherwise, never that it passed.
   const missing = ['MERIDIAN_POSTGRES_URL', 'MERIDIAN_POOLER_URL', 'MERIDIAN_PG'].filter((k) => !process.env[k]);
@@ -228,17 +269,34 @@ function affected(tier: 't1' | 't2'): number {
     return 1;
   }
 
-  const filters = changed.filter((f) => !/\.md$/.test(f));
-  // Only documents changed: no test reads them, and that is a complete answer rather than a reason to run everything.
-  if (changed.length && !filters.length) {
+  const onDisk = changed.filter((f) => fs.existsSync(path.join(ROOT, f)));
+  const deleted = changed.filter((f) => !fs.existsSync(path.join(ROOT, f)));
+  // A deleted file is a change, but no import graph can be asked about a path that no longer exists.
+  const deletedCode = deleted.some(isCode);
+  const guidelineNeeded = changed.some((f) => GUIDELINE_PATH.test(f));
+  const filters = onDisk.filter((f) => !/\.md$/.test(f) && !GUIDELINE_PATH.test(f));
+
+  // Only documents or workflows changed. No test reads them except the guideline test, which reads the named documents
+  // and both workflows; running it is the complete answer, and its absence would otherwise be reported as a green run
+  // that checked nothing.
+  if (changed.length && !filters.length && !deletedCode) {
+    if (guidelineNeeded && run('guideline tests', bin('vitest'), ['run', GUIDELINE]) !== 0) {
+      console.log(`test:${tier}: FAIL: the guideline test failed`);
+      return 1;
+    }
     recordGreen();
-    console.log(`test:${tier}: no test is affected (${where})`);
+    console.log(guidelineNeeded
+      ? `test:${tier}: the guideline test (${where})`
+      : `test:${tier}: no test is affected (${where})`);
     return 0;
   }
-  const runRelated = changed.length > 0 && filters.length > 0;
-  const first = runRelated
-    ? vitest('related', filters, withTier2, `tier ${withTier2 ? '2 and 1' : '1'} tests related to the change`)
-    : vitest('run', [], withTier2, `tier ${withTier2 ? '2 and 1' : '1'} tests (nothing identifies a smaller set)`);
+
+  const runRelated = filters.length > 0 && !deletedCode;
+  const first = deletedCode
+    ? vitest('run', [], withTier2, `tier ${withTier2 ? '2 and 1' : '1'} tests (a deleted file reaches no import graph)`)
+    : runRelated
+      ? vitest('related', filters, withTier2, `tier ${withTier2 ? '2 and 1' : '1'} tests related to the change`)
+      : vitest('run', [], withTier2, `tier ${withTier2 ? '2 and 1' : '1'} tests (nothing identifies a smaller set)`);
 
   if (first.status !== 0) {
     console.log(`test:${tier}: FAIL: a test affected by ${where} failed`);
@@ -256,6 +314,26 @@ function affected(tier: 't1' | 't2'): number {
     console.log(`test:${tier}: FAIL: a Tier 2 test affected by ${where} failed`);
     return false;
   };
+  // Everything after the Vitest run: the large browser-fixture suites, the Tier 2 browser checks a shared change
+  // reaches, and the guideline test when a document or workflow changed.
+  const tail = (): boolean => {
+    if (!deepOk()) return false;
+    // A fresh CI checkout has no marker and no diff: `changed` is empty and there is no change to
+    // be "affected by", but the scheduled Tier 2 run must still exercise the timed suite. The
+    // early return above already handled a marker with nothing new, so an empty `changed` here is
+    // the no-marker case.
+    const wholeCheckout = changed.length === 0;
+    if (withTier2 && (wholeCheckout || affectsBrowser(changed))
+      && browserStandard(['--timed'], 'tier 2 browser checks (--timed)') !== 0) {
+      console.log(`test:${tier}: FAIL: a Tier 2 browser check affected by ${where} failed`);
+      return false;
+    }
+    if (guidelineNeeded && run('guideline tests', bin('vitest'), ['run', GUIDELINE]) !== 0) {
+      console.log(`test:${tier}: FAIL: the guideline test failed`);
+      return false;
+    }
+    return true;
+  };
   if (uncovered) {
     console.log(`test:${tier}: no test reaches the changed code, so the whole tier runs`);
     const all = vitest('run', [], withTier2, `tier ${withTier2 ? '2 and 1' : '1'} tests (whole tier)`);
@@ -263,13 +341,13 @@ function affected(tier: 't1' | 't2'): number {
       console.log(`test:${tier}: FAIL: a test in the whole tier failed`);
       return 1;
     }
-    if (!deepOk()) return 1;
+    if (!tail()) return 1;
     recordGreen();
     console.log(`test:${tier}: ${all.files} test files, ${all.tests} tests (whole tier, ${where})`);
     return 0;
   }
 
-  if (!deepOk()) return 1;
+  if (!tail()) return 1;
   recordGreen();
   console.log(first.files
     ? `test:${tier}: ${first.files} test file${first.files === 1 ? '' : 's'}, ${first.tests} test${first.tests === 1 ? '' : 's'} (${where})`

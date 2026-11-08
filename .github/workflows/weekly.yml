@@ -1,9 +1,9 @@
 # The console's weekly Tier 2 run: one scheduled job calling `pnpm test:t2`, on master's current commit.
 #
-# Tier 2 is the `*.perf.test.*` convention plus the affected Tier 1 tests. There is no `*.perf.test.*` file here yet, so
-# on a clean master the run selects the whole Tier 1 set (no last-green marker and no diff). The 20-sample navigation
-# protocol is a diagnostic now, not a tier and not a CI job: run `node scripts/perf.ts --routes <route>` on a quiet
-# machine when a change needs it.
+# Tier 2 is the `*.perf.test.*` convention, the timed browser suite and the affected Tier 1 tests. There is no
+# `*.perf.test.*` file here yet, so on a clean master the run selects the whole Tier 1 set (no last-green marker and no
+# diff) and runs the timed browser suite. The 20-sample navigation protocol is a diagnostic now, not a tier and not a
+# CI job: run `node scripts/perf.ts --routes <route>` on a quiet machine when a change needs it.
 #
 # The release standard is not run here: `gate.yml` runs `test:release` on every push, and evidence on a commit stands
 # for it. A dispatch names the jobs it runs: `gh workflow run weekly.yml -f jobs=t2`.
@@ -54,7 +54,11 @@ jobs:
     needs: named
     if: contains(format(',{0},', inputs.jobs || 't2'), ',t2,')
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    # The whole Tier 1 set plus the timed browser suite: navigation budgets, live data, the product's timed checks and
+    # Web Vitals. The old timed job allowed 90 minutes.
+    timeout-minutes: 90
+    env:
+      CHROME: /usr/bin/google-chrome
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

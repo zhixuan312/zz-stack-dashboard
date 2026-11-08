@@ -3,9 +3,11 @@
 #
 # This workflow used to split Meridian's standard across three jobs, each calling a Meridian flag by name. Those flags
 # are the suite's internals and several of them ran browsers; the repository now offers three commands, and CI calls
-# only them. `test:release` runs the static checks, `next typegen`, `tsc --noEmit`,
-# `eslint .`, every test, `next build`, the route policy and the first-load and HTML size checks. The browser audits and
-# walks are diagnostics, not tiers, and nothing in this workflow runs a browser.
+# only them. `test:release` runs the static checks, `next typegen`, `tsc --noEmit`, `eslint .`, every test, and the
+# browser standard: the audit, the presses, the keyboard walk, the assistant walk-through and both persona walks at
+# Tier 1, then the timed suites at Tier 2. It builds and serves the app against the fake gateway. Without Chrome the
+# browser standard is reported not run, never passed; the build, the route policy and the first-load sizes still run,
+# and the HTML sizes are reported not run because no build is served.
 #
 # The console is its own repository with its own suite, and zz-stack's gate cannot see it. That separation is real (a
 # wording change here is not a platform release), but it meant the only thing that ran this suite was
@@ -33,9 +35,13 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-24.04
-    # The whole standard on one runner: the static checks, the type check, lint, every test, a production build, the
-    # route policy and the size checks. A job killed at the ceiling reports nothing about the tree.
-    timeout-minutes: 45
+    # The whole standard on one runner: the static checks, the type check, lint, every test, and the browser standard,
+    # which builds and serves the app for the audit, the presses, the keyboard walk, the assistant, both persona walks
+    # and the timed suites. The old full and timed jobs each allowed 90 minutes on separate runners; this one runs them
+    # one after the other, so it gets their sum and a margin.
+    timeout-minutes: 180
+    env:
+      CHROME: /usr/bin/google-chrome
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

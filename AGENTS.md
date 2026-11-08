@@ -41,14 +41,19 @@ Three commands, no arguments. The runner picks the tests; a person never chooses
 
 Tier 1 is every test under `tests/` except `*.perf.test.*`. `test:t1` runs the static checks and
 then Vitest's related selection over the files changed since the last green run, recorded in
-`out/last-green` (gitignored). A changed test file runs itself; a code path that reaches no test
-runs the whole Tier 1 set; with no marker the run compares against `master`. Tier 2 is the
-`<name>.perf.test.*` convention, which `test:t2` includes; with no such file here, `test:t2` runs
-exactly the affected Tier 1 tests. `test:release` adds the type check, lint, the build, the route
-policy and the size checks, and writes the marker on success. The browser audits and walks are
-diagnostics, not tiers: run `node scripts/audit.ts`, `scripts/interactions.ts`,
-`scripts/keyboard.ts`, `scripts/vitals.ts` directly when a change needs
-them.
+`out/last-green` (gitignored). A changed test file runs itself; a changed code path that reaches
+no test runs the whole Tier 1 set; a deleted file runs the whole tier; a documents-only change
+runs the guideline test that reads the documents; with no marker the run compares against
+`master`. Tier 2 is the `<name>.perf.test.*` convention plus the timed browser suite, which
+`test:t2` includes. `test:release` adds the type check, lint and the browser standard: at Tier 1
+the audit, the presses, the keyboard walk, the assistant walk-through and both persona walks; at
+Tier 2 the timed suites. It writes the marker on success. Without Chrome the browser standard is
+reported not run, never passed. On a fresh CI checkout (no marker, no diff) `test:t2` runs the
+timed browser suite as well as the whole Vitest tier.
+
+The 20-sample navigation protocol (`node scripts/perf.ts`) is a diagnostic run by hand on a quiet
+machine. It is not a test tier and no CI job calls it; the scheduled `test:t2` runs the timed
+browser suite, which is the Tier 2 performance evidence.
 
 **A release in this repository is an image tag deployed by zz-stack's release** (`node
 scripts/release.ts <version> --dashboard=<version>` in the zz-stack checkout). Pushing to

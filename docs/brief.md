@@ -224,13 +224,14 @@ release. The runner picks the tests; a person never chooses a subset by hand.
 
 `test:t1` runs the static checks (tokens, specifications, the console's own rules, contrast) and
 then Vitest's related selection over the files changed since `out/last-green` (gitignored). Tier 1
-is every test under `tests/` except `*.perf.test.*`; a changed test file runs itself, a docs-only
-change runs no test, and a code path that reaches no test runs the whole tier. Tier 2 is the
-`<name>.perf.test.*` convention, which `test:t2` includes. `test:release` adds `next typegen`, the
-type check, `eslint .`, every test, `next build`, the route policy and the first-load and HTML
-size checks. The browser audits and walks (`scripts/audit.ts`, `scripts/interactions.ts`,
-`scripts/keyboard.ts`, `scripts/vitals.ts`) are diagnostics run directly, not
-tiers. The fake gateway (`scripts/fake-gateway`) exists because the presses approve, revoke and
+is every test under `tests/` except `*.perf.test.*`; a changed test file runs itself, a documents-only
+change runs the guideline test when it names one that test reads, and a code path that reaches no
+test runs the whole tier. Tier 2 is the `<name>.perf.test.*` convention plus the timed browser
+suite, which `test:t2` includes. `test:release` adds `next typegen`, the type check, `eslint .`,
+every test and the browser standard: at Tier 1 the audit, the presses, the keyboard walk, the
+assistant walk-through and both persona walks; at Tier 2 the timed suites. Without Chrome the
+browser standard is reported not run, never passed. The fake gateway (`scripts/fake-gateway`)
+exists because the presses approve, revoke and
 archive whatever a page offers, so they must never reach the real deployment. Its records are
 synthetic; nobody in them is a real person.
 

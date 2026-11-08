@@ -200,20 +200,24 @@ on Meridian's scales, no dormant export, markdown renders raw HTML inert), the c
 hold (`scripts/check.local.ts`: no raw timestamp, no hardcoded denominator, an empty hand-built
 table says so, no source file over 700 lines), contrast holds for every pair in both themes and
 every accent — and then Vitest's related selection over the files changed since the last green
-run, recorded in `out/last-green` (gitignored). A changed test file runs itself. A docs-only
-change runs no test; a changed code path that reaches no test runs the whole Tier 1 set. With no
-marker the run compares against `master`; with neither a marker nor a diff it runs the whole tier.
+run, recorded in `out/last-green` (gitignored). A changed test file runs itself. A documents-only
+change runs the guideline test when it names one that test reads; a changed code path that
+reaches no test runs the whole Tier 1 set. With no marker the run compares against `master`; with
+neither a marker nor a diff it runs the whole tier.
 
-Tier 2 is the file convention `<name>.perf.test.*`. `test:t2` runs the same static checks and the
-same selection, and may include those files as well as Tier 1. No `*.perf.test.*` file exists
-yet, so in this console `test:t2` runs exactly the affected Tier 1 tests.
+Tier 2 is the file convention `<name>.perf.test.*` and the timed browser suite (the navigation
+budgets, the live data, the product's own timed checks and Web Vitals). `test:t2` runs the same
+static checks and selection, may include those files, and runs the timed browser suite when the
+change reaches shared components, the shell, views, logic, the data layer, styles or tokens. No
+`*.perf.test.*` file exists yet, so its Vitest half is the affected Tier 1 tests.
 
 `test:release` is the whole standard, once before a release: the static checks, `next typegen`,
-`tsc --noEmit`, `eslint .`, every Tier 1 test, `next build`, the route policy and the first-load
-and HTML size checks. It writes the marker on success. The browser audits and walks are
-diagnostics, not tiers: run `node scripts/audit.ts`, `scripts/interactions.ts`,
-`scripts/keyboard.ts`, `scripts/vitals.ts` directly when a change needs
-them, and read what each prints.
+`tsc --noEmit`, `eslint .`, every Tier 1 test, and the browser standard. That standard builds and
+serves the app against the fake gateway: at Tier 1 the audit of every view, every control pressed,
+the keyboard walk, the assistant walk-through and both persona walks; at Tier 2 the navigation
+budgets, the live data, the product's own timed checks and Web Vitals. It writes the marker on
+success. Without Chrome it is reported not run, never passed, and the build, the route policy and
+the first-load sizes still run.
 
 A page's size is held to its own measured figure in `scripts/verify.baseline.json`, 5% over it at
 most, never to a number written by hand; an accepted growth is recorded with
@@ -285,9 +289,10 @@ model.
 
 **Released by zz-stack, not by hand.** The console is one of two components in a platform
 release — `zz-stack/scripts/release.ts <platform-version> --dashboard=<console-version>` —
-which runs this repo's `typecheck`, `lint`, `test` and `gate`, bumps `package.json` and the compose
-literal together, builds and pushes `ghcr.io/zhixuan312/zz-stack-dashboard`, copies
-`docker-compose.yml` to the host, and rolls it back with the platform if verification fails.
+which runs this repo's `test:release` — its static checks, type check, lint, every test and the
+browser standard — bumps `package.json` and the compose literal together, builds and pushes
+`ghcr.io/zhixuan312/zz-stack-dashboard`, copies `docker-compose.yml` to the host, and rolls it back
+with the platform if verification fails.
 See `/release` in the parent checkout.
 
 On the host, then, the whole deployment is one file and one image:
